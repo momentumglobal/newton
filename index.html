@@ -2,10 +2,38 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Solutions Hub Reporting</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <h1>Solutions Hub Reporting</h1>
-  <p>Coming soon.</p>
+
+  <!-- Login screen -->
+  <div id="login-screen">
+    <div class="login-card">
+      <h1>Solutions Hub Reporting</h1>
+      <p>Sign in with your Momentum Global account to continue.</p>
+      <button class="btn-signin" onclick="signIn()">
+        Sign in with Microsoft
+      </button>
+    </div>
+  </div>
+
+  <!-- App shell (hidden until signed in) -->
+  <div id="app-shell">
+    <div id="sidebar"></div>
+    <div id="main-content"></div>
+  </div>
+
+  <!-- MSAL.js from Microsoft CDN -->
+  <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+
+  <!-- App scripts — load in this order -->
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/app.js"></script>
+
 </body>
 </html>

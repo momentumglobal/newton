@@ -35,15 +35,19 @@ function navigateTo(page) {
   renderPage(page);
 }
 
-function renderPage(page) {
-  const main = document.getElementById('main-content');
-  const labels = Object.fromEntries(
-    Object.entries(PAGES).map(([k,v]) => [k, v.label])
-  );
-  main.innerHTML = `
-    <div class='page-placeholder'>
-      <h1>${labels[page] || page}</h1>
-      <p>This section is coming in a future phase.</p>
-    </div>
-  `;
+async function renderPage(page) {
+  const main = document.getElementById("main-content");
+  switch (page) {
+    case "dashboard":
+      main.innerHTML = `<div class="page-header"><h2>Dashboard</h2></div>
+        <p>Welcome to Solutions Hub Reporting.</p>`;
+      break;
+    case "projects":    await renderProjectsPage();  break;
+    case "roles":       await renderRolesPage();     break;
+    case "activity":    await renderActivityPage();  break;
+    case "placements":  await renderPlacementsPage(); break;
+    case "rejections":  await renderRejectionsPage(); break;
+    default:
+      main.innerHTML = `<p>Page not found.</p>`;
+  }
 }

@@ -16,7 +16,11 @@ const loginRequest = {
   scopes: ['User.Read', 'Sites.ReadWrite.All'],
 };
 
+let signInInProgress = false;
+
 async function signIn() {
+  if (signInInProgress) return;
+  signInInProgress = true;
   try {
     await msalInstance.loginPopup(loginRequest);
     const account = msalInstance.getAllAccounts()[0];
@@ -27,6 +31,8 @@ async function signIn() {
     }
   } catch (e) {
     console.error('Sign-in error:', e);
+  } finally {
+    signInInProgress = false;
   }
 }
 

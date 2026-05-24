@@ -11,20 +11,16 @@ window.APP = {
     renderNav(role);
     navigateTo('dashboard');
   },
-
   showLogin() {
     document.getElementById('app-shell').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
   },
 };
 
-// Run on page load
-window.addEventListener('DOMContentLoaded', () => {
-  // Handle MSAL redirect response first
-  msalInstance.handleRedirectPromise().then(() => {
-    window.APP.init();
-  }).catch(e => {
-    console.error('MSAL redirect error:', e);
-    window.APP.showLogin();
-  });
+// Run on page load — scripts are deferred to end of body so DOM is already ready
+msalInstance.handleRedirectPromise().then(() => {
+  window.APP.init();
+}).catch(e => {
+  console.error('MSAL redirect error:', e);
+  window.APP.showLogin();
 });

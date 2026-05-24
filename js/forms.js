@@ -80,7 +80,7 @@ async function submitProjectForm(event, editId = null) {
   const form = document.getElementById('project-form');
   const data = Object.fromEntries(new FormData(form));
   const fields = {
-    CustomerName:    data.CustomerName,
+    Title:           data.CustomerName,
     DeliveryManager: data.DeliveryManager,
     Status:          data.Status,
     StartDate:       isoDate(data.StartDate) || undefined,

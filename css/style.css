@@ -95,3 +95,64 @@ body {
 
 .page-placeholder h1 { color: #1F3864; margin-bottom: 12px; }
 .page-placeholder p  { color: #666; }
+
+/* ── Forms ─────────────────────────────────────────────────────────── */
+.form-container { max-width: 720px; padding: 24px; }
+.form-container h2 { margin-bottom: 20px; color: #1F3864; }
+.form-group { display: flex; flex-direction: column; margin-bottom: 14px; }
+.form-group label { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #444; }
+.form-group input, .form-group select, .form-group textarea {
+  padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px;
+  font-size: 14px; font-family: inherit;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline: none; border-color: #2E5FA3;
+}
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-section-title {
+  font-weight: 700; font-size: 13px; text-transform: uppercase;
+  color: #2E5FA3; margin: 16px 0 8px; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px;
+}
+.form-actions { display: flex; gap: 12px; margin-top: 24px; }
+.form-error {
+  display: none; background: #fde8e8; border: 1px solid #e57373;
+  color: #c62828; padding: 10px 14px; border-radius: 4px; margin-bottom: 16px;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────── */
+.btn-primary {
+  background: #2E5FA3; color: white; border: none; padding: 9px 20px;
+  border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600;
+}
+.btn-primary:hover { background: #1F3864; }
+.btn-secondary {
+  background: white; color: #2E5FA3; border: 1px solid #2E5FA3;
+  padding: 9px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;
+}
+.btn-secondary:hover { background: #f0f4fb; }
+
+/* ── Page header ────────────────────────────────────────────────────── */
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px 12px; border-bottom: 1px solid #e0e0e0; margin-bottom: 16px;
+}
+.page-header h2 { margin: 0; color: #1F3864; }
+
+/* ── Data table ─────────────────────────────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 0 24px; width: calc(100% - 48px); }
+.data-table th {
+  background: #1F3864; color: white; text-align: left;
+  padding: 10px 12px; font-weight: 600;
+}
+.data-table td { padding: 9px 12px; border-bottom: 1px solid #eee; }
+.data-table tr:hover td { background: #f5f8ff; }
+.data-table a { color: #2E5FA3; text-decoration: none; font-size: 13px; }
+
+/* ── Badges ─────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 12px;
+  font-size: 12px; font-weight: 600; background: #e8eef7; color: #2E5FA3;
+}
+.badge-active   { background: #e6f4ea; color: #2e7d32; }
+.badge-transition { background: #fff8e1; color: #f57f17; }
+.badge-completed { background: #f3e5f5; color: #6a1b9a; }

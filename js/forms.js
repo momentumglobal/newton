@@ -512,3 +512,84 @@ async function submitPlacementForm(event, editId = null) {
     showFormError("placement-form", `Error saving placement: ${e.message}`);
   }
 }
+
+// ── Rejected Offer Form ──────────────────────────────────────────────
+
+async function renderRejectedOfferForm(existingData = null, preselectedRoleId = null) {
+  const isEdit = !!existingData;
+  const roles = await getAllRoles();
+  const roleOptions = roles.map(r =>
+    `<option value="${r.id}" ${
+      (existingData?.RoleID == r.id || preselectedRoleId == r.id) ? "selected" : ""
+    }>${r.RoleTitle}</option>`
+  ).join("");
+
+  return `
+    <div class="form-container">
+      <h2>${isEdit ? "Edit Rejected Offer" : "Log Rejected Offer"}</h2>
+      <div id="rejected-form-error" class="form-error"></div>
+      <form id="rejected-form" onsubmit="submitRejectedForm(event, ${existingData?.id || "null"})">
+        <div class="form-group">
+          <label>Role *</label>
+          <select name="RoleID" required>
+            <option value="">-- Select role --</option>
+            ${roleOptions}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Candidate Name *</label>
+          <input type="text" name="CandidateName" required
+            value="${existingData?.CandidateName || ""}">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Salary Offered</label>
+            <input type="text" name="SalaryOffered"
+              value="${existingData?.SalaryOffered || ""}">
+          </div>
+          <div class="form-group">
+            <label>Rejection Reason *</label>
+            <select name="RejectionReason" required>
+              <option value="">-- Select --</option>
+              ${["Salary","Motivations","Counter-offer","Took another opportunity","Other"]
+                .map(r => `<option value="${r}" ${existingData?.RejectionReason === r ? "selected" : ""}>${r}</option>`))
+                .join("")}
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea name="Notes" rows="3">${existingData?.Notes || ""}</textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">${isEdit ? "Save Changes" : "Log Rejection"}</button>
+          <button type="button" class="btn-secondary" onclick="navigateTo('rejections')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+async function submitRejectedForm(event, editId = null) {
+  event.preventDefault();
+  clearFormError("rejected-form");
+  const form = document.getElementById("rejected-form");
+  const data = Object.fromEntries(new FormData(form));
+  const fields = {
+    RoleID:          parseInt(data.RoleID),
+    CandidateName:   data.CandidateName,
+    SalaryOffered:   data.SalaryOffered || undefined,
+    RejectionReason: data.RejectionReason,
+    Notes:           data.Notes || undefined,
+  };
+  try {
+    if (editId) {
+      await updateItem("RejectedOffers", editId, fields);
+    } else {
+      await createItem("RejectedOffers", fields);
+    }
+    navigateTo("rejections");
+  } catch (e) {
+    showFormError("rejected-form", `Error saving rejection: ${e.message}`);
+  }
+}

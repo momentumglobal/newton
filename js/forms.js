@@ -162,7 +162,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             <select name="Stage" required>
               ${["Backlog","Planning","Sourcing","Submitted","Interview 1",
                  "Interview 2+","Final Interview","Offered","Hired","On-hold","Cancelled"]
-                .map(s => `<option value="${s}" ${existingData?.Stage === s ? "selected" : ""}>${s}</option>`))
+                .map(s => `<option value="${s}" ${existingData?.Stage === s ? "selected" : ""}>${s}</option>`)
                 .join("")}
             </select>
           </div>

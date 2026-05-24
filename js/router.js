@@ -10,17 +10,18 @@ function getUserRole(email) {
   if (CONFIG.ADMIN_USERS.includes(email.toLowerCase())) return ROLES.ADMIN;
   if (CONFIG.LEADERSHIP_USERS.includes(email.toLowerCase())) return ROLES.LEADERSHIP;
   // DM and TP roles are assigned via SharePoint project records.
-  // In this phase we default to TP — full role resolution added in Phase 5.
+  // In this phase we default to TP — full role resolution added in Phase 6.
   return ROLES.TP;
 }
 
 const PAGES = {
-  dashboard:        { label: 'Dashboard',         roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP, ROLES.LEADERSHIP] },
-  roleTracker:      { label: 'Role Tracker',      roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
-  activityInput:    { label: 'Activity Input',    roles: [ROLES.ADMIN, ROLES.TP] },
-  projectDashboard: { label: 'Project Dashboard', roles: [ROLES.ADMIN, ROLES.DM] },
-  companyDashboard: { label: 'Company Dashboard', roles: [ROLES.ADMIN, ROLES.LEADERSHIP] },
-  adminPanel:       { label: 'Admin Panel',       roles: [ROLES.ADMIN] },
+  dashboard:  { label: 'Dashboard',      roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP, ROLES.LEADERSHIP] },
+  projects:   { label: 'Projects',       roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
+  roles:      { label: 'Roles',          roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
+  activity:   { label: 'Weekly Activity', roles: [ROLES.ADMIN, ROLES.TP] },
+  placements: { label: 'Placements',     roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
+  rejections: { label: 'Rejected Offers', roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
+  adminPanel: { label: 'Admin Panel',    roles: [ROLES.ADMIN] },
 };
 
 function canAccess(page, role) {

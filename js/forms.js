@@ -403,3 +403,112 @@ async function submitWeeklyForm(event, editId = null) {
     showFormError("weekly-form", `Error saving activity: ${e.message}`);
   }
 }
+
+// ── Placement Form ───────────────────────────────────────────────────
+
+async function renderPlacementForm(existingData = null, preselectedRoleId = null) {
+  const isEdit = !!existingData;
+  const roles = await getAllRoles();
+  const roleOptions = roles.map(r =>
+    `<option value="${r.id}" ${
+      (existingData?.RoleID == r.id || preselectedRoleId == r.id) ? "selected" : ""
+    }>${r.RoleTitle}</option>`
+  ).join("");
+
+  return `
+    <div class="form-container">
+      <h2>${isEdit ? "Edit Placement" : "Record Placement"}</h2>
+      <div id="placement-form-error" class="form-error"></div>
+      <form id="placement-form" onsubmit="submitPlacementForm(event, ${existingData?.id || "null"})">
+        <div class="form-group">
+          <label>Role *</label>
+          <select name="RoleID" required>
+            <option value="">-- Select role --</option>
+            ${roleOptions}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Candidate Name *</label>
+          <input type="text" name="CandidateName" required
+            value="${existingData?.CandidateName || ""}">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Salary Agreed</label>
+            <input type="text" name="SalaryAgreed"
+              value="${existingData?.SalaryAgreed || ""}">
+          </div>
+          <div class="form-group">
+            <label>Offer Accepted Date</label>
+            <input type="date" name="OfferAcceptedDate"
+              value="${existingData?.OfferAcceptedDate ? existingData.OfferAcceptedDate.split("T")[0] : ""}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Provisional Start Date</label>
+          <input type="date" name="ProvisionalStartDate"
+            value="${existingData?.ProvisionalStartDate ? existingData.ProvisionalStartDate.split("T")[0] : ""}">
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea name="Notes" rows="3">${existingData?.Notes || ""}</textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">${isEdit ? "Save Changes" : "Record Placement"}</button>
+          <button type="button" class="btn-secondary" onclick="navigateTo('placements')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+async function submitPlacementForm(event, editId = null) {
+  event.preventDefault();
+  clearFormError("placement-form");
+  const form = document.getElementById("placement-form");
+  const data = Object.fromEntries(new FormData(form));
+  const offerDate = isoDate(data.OfferAcceptedDate);
+  const startDate = isoDate(data.ProvisionalStartDate);
+
+  // Auto-calculate TimeToHire if we have both OpenDate (from role) and OfferAcceptedDate
+  let timeToHire = undefined;
+  if (offerDate && data.RoleID) {
+    try {
+      const role = await getItem("Roles", data.RoleID);
+      if (role.OpenDate) {
+        const open = new Date(role.OpenDate);
+        const accepted = new Date(offerDate);
+        timeToHire = Math.round((accepted - open) / (1000 * 60 * 60 * 24));
+      }
+    } catch (e) { /* non-critical */ }
+  }
+
+  const fields = {
+    RoleID:               parseInt(data.RoleID),
+    CandidateName:        data.CandidateName,
+    SalaryAgreed:         data.SalaryAgreed || undefined,
+    OfferAcceptedDate:    offerDate || undefined,
+    ProvisionalStartDate: startDate || undefined,
+    TimeToHire:           timeToHire,
+    Notes:                data.Notes || undefined,
+  };
+
+  try {
+    if (editId) {
+      await updateItem("Placements", editId, fields);
+    } else {
+      await createItem("Placements", fields);
+    }
+    // Sync ProvisionalStartDate → Roles.CurrentStartDate
+    if (startDate && data.RoleID) {
+      await updateItem("Roles", data.RoleID, { CurrentStartDate: startDate });
+    }
+    // Sync OfferAcceptedDate → Roles.ActualHireDate
+    if (offerDate && data.RoleID) {
+      await updateItem("Roles", data.RoleID, { ActualHireDate: offerDate });
+    }
+    navigateTo("placements");
+  } catch (e) {
+    showFormError("placement-form", `Error saving placement: ${e.message}`);
+  }
+}

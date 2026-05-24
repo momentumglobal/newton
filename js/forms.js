@@ -244,3 +244,162 @@ async function submitRoleForm(event, editId = null) {
     showFormError("role-form", `Error saving role: ${e.message}`);
   }
 }
+
+// ── Weekly Activity Form ────────────────────────────────────────────
+
+function getISOWeek(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+function getWeekEnding(date) {
+  // Week ending = Sunday of that ISO week
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? 0 : 7 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split("T")[0];
+}
+
+async function renderWeeklyActivityForm(existingData = null) {
+  const isEdit = !!existingData;
+  const projects = await getProjects(false);
+  const projectOptions = projects.map(p =>
+    `<option value="${p.id}" ${existingData?.ProjectID == p.id ? "selected" : ""}>${p.CustomerName}</option>`
+  ).join("");
+
+  const today = new Date().toISOString().split("T")[0];
+  const defaultWeek = existingData?.WeekNumber || getISOWeek(today);
+  const defaultYear = existingData?.Year || new Date().getFullYear();
+
+  return `
+    <div class="form-container">
+      <h2>${isEdit ? "Edit Weekly Activity" : "Log Weekly Activity"}</h2>
+      <div id="weekly-form-error" class="form-error"></div>
+      <form id="weekly-form" onsubmit="submitWeeklyForm(event, ${existingData?.id || "null"})">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Project *</label>
+            <select name="ProjectID" required onchange="loadRolesForWeekly(this.value)">
+              <option value="">-- Select project --</option>
+              ${projectOptions}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Role *</label>
+            <select name="RoleID" id="weekly-role-select" required>
+              <option value="">-- Select project first --</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Talent Partner</label>
+            <input type="text" name="TalentPartner"
+              value="${existingData?.TalentPartner || getCurrentUser().name || ""}">
+          </div>
+          <div class="form-group">
+            <label>Week Ending Date *</label>
+            <input type="date" name="WeekEndingDate" required
+              onchange="autoFillWeekYear(this.value)"
+              value="${existingData?.WeekEndingDate ? existingData.WeekEndingDate.split("T")[0] : getWeekEnding(today)}">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Year</label>
+            <input type="number" name="Year" id="weekly-year" min="2020" max="2099"
+              value="${defaultYear}">
+          </div>
+          <div class="form-group">
+            <label>Week Number</label>
+            <input type="number" name="WeekNumber" id="weekly-weeknum" min="1" max="53"
+              value="${defaultWeek}">
+          </div>
+        </div>
+        <div class="form-section-title">Activity Counts</div>
+        <div class="form-row">
+          <div class="form-group"><label>Outreach</label>
+            <input type="number" name="Outreach" min="0" value="${existingData?.Outreach || 0}"></div>
+          <div class="form-group"><label>Responses</label>
+            <input type="number" name="Responses" min="0" value="${existingData?.Responses || 0}"></div>
+          <div class="form-group"><label>Screened</label>
+            <input type="number" name="Screened" min="0" value="${existingData?.Screened || 0}"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Submitted</label>
+            <input type="number" name="Submitted" min="0" value="${existingData?.Submitted || 0}"></div>
+          <div class="form-group"><label>Interview 1</label>
+            <input type="number" name="Interview1" min="0" value="${existingData?.Interview1 || 0}"></div>
+          <div class="form-group"><label>Interview 2+</label>
+            <input type="number" name="Interview2Plus" min="0" value="${existingData?.Interview2Plus || 0}"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Final Interview</label>
+            <input type="number" name="FinalInterview" min="0" value="${existingData?.FinalInterview || 0}"></div>
+          <div class="form-group"><label>Offers</label>
+            <input type="number" name="Offers" min="0" value="${existingData?.Offers || 0}"></div>
+          <div class="form-group"><label>Hires</label>
+            <input type="number" name="Hires" min="0" value="${existingData?.Hires || 0}"></div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">${isEdit ? "Save Changes" : "Log Activity"}</button>
+          <button type="button" class="btn-secondary" onclick="navigateTo('activity')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+async function loadRolesForWeekly(projectId) {
+  const select = document.getElementById("weekly-role-select");
+  select.innerHTML = "<option value=\"\">Loading...</option>";
+  const roles = await getRolesForProject(projectId);
+  select.innerHTML = roles.map(r =>
+    `<option value="${r.id}">${r.RoleTitle}</option>`
+  ).join("");
+}
+
+function autoFillWeekYear(dateStr) {
+  if (!dateStr) return;
+  document.getElementById("weekly-year").value = new Date(dateStr).getFullYear();
+  document.getElementById("weekly-weeknum").value = getISOWeek(dateStr);
+}
+
+async function submitWeeklyForm(event, editId = null) {
+  event.preventDefault();
+  clearFormError("weekly-form");
+  const form = document.getElementById("weekly-form");
+  const data = Object.fromEntries(new FormData(form));
+  const fields = {
+    ProjectID:     parseInt(data.ProjectID),
+    RoleID:        parseInt(data.RoleID),
+    TalentPartner: data.TalentPartner || undefined,
+    Year:          parseInt(data.Year),
+    WeekNumber:    parseInt(data.WeekNumber),
+    WeekEndingDate: isoDate(data.WeekEndingDate),
+    Outreach:      parseInt(data.Outreach) || 0,
+    Responses:     parseInt(data.Responses) || 0,
+    Screened:      parseInt(data.Screened) || 0,
+    Submitted:     parseInt(data.Submitted) || 0,
+    Interview1:    parseInt(data.Interview1) || 0,
+    Interview2Plus: parseInt(data.Interview2Plus) || 0,
+    FinalInterview: parseInt(data.FinalInterview) || 0,
+    Offers:        parseInt(data.Offers) || 0,
+    Hires:         parseInt(data.Hires) || 0,
+    SubmittedAt:   new Date().toISOString(),
+  };
+  try {
+    if (editId) {
+      await updateItem("WeeklyActivity", editId, fields);
+    } else {
+      await createItem("WeeklyActivity", fields);
+    }
+    navigateTo("activity");
+  } catch (e) {
+    showFormError("weekly-form", `Error saving activity: ${e.message}`);
+  }
+}

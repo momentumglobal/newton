@@ -40,7 +40,7 @@ async function renderPage(page) {
   switch (page) {
     case "dashboard":
       main.innerHTML = `<div class="page-header"><h2>Dashboard</h2></div>
-        <p>Welcome to Solutions Hub Reporting.</p>`;
+        <p>Coming Soon: Solutions Hub Reporting.</p>`;
       break;
     case "projects":    await renderProjectsPage();  break;
     case "roles":       await renderRolesPage();     break;

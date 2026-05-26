@@ -101,7 +101,7 @@ async function getRejectedOffers(roleId) {
   return getItems("RejectedOffers", roleId ? `fields/RoleID eq ${roleId}` : "");
 }
 
-// ── Admin list helpers ─────────────────────────────────────────────
+// ── Admin list helpers ───────────────────────────────────────────────
 async function getUserAssignments(projectId) {
   return getItems("UserAssignments",
     projectId ? `fields/ProjectID eq ${projectId}` : "");
@@ -111,31 +111,59 @@ async function getLeadershipAccess() {
   return getItems("LeadershipAccess");
 }
 
+async function getDepartments(projectId) {
+  return getItems("Departments",
+    projectId ? `fields/ProjectID eq ${projectId}` : "");
+}
+
 async function getDepartmentsForProject(projectId) {
   return getItems("Departments", `fields/ProjectID eq ${projectId}`);
 }
 
-// Resolve the signed-in user's effective role:
+// ── Role resolution ──────────────────────────────────────────────────
+// Role precedence: admin > leadership > talent_partner > delivery_manager > viewer
+const ROLE_PRECEDENCE = ['admin','leadership','talent_partner','delivery_manager','viewer'];
+
+function higherRole(a, b) {
+  const ai = ROLE_PRECEDENCE.indexOf(a);
+  const bi = ROLE_PRECEDENCE.indexOf(b);
+  return ai <= bi ? a : b;
+}
+
+// Resolve the signed-in user's effective role across all assignments:
 // 1. Check ADMIN_USERS in config.js
 // 2. Check LeadershipAccess list
-// 3. Check UserAssignments list
+// 3. Check all UserAssignments rows — return highest-privilege role found
 // 4. Fall back to 'viewer'
 async function getEffectiveRole(email) {
   const lower = email.toLowerCase();
   if (CONFIG.ADMIN_USERS?.includes(lower)) return 'admin';
-  const leadership = await getLeadershipAccess();
+  const [leadership, assignments] = await Promise.all([
+    getLeadershipAccess(),
+    getItems("UserAssignments", `fields/UserEmail eq '${email}'`),
+  ]);
   if (leadership.some(l => l.UserEmail?.toLowerCase() === lower)) return 'leadership';
-  const assignments = await getItems("UserAssignments",
-    `fields/UserEmail eq '${email}'`);
-  if (assignments.length > 0) return assignments[0].AssignedRole;
-  return 'viewer';
+  if (assignments.length === 0) return 'viewer';
+  // Return highest-privilege role across all assignments
+  return assignments.reduce((best, a) => higherRole(best, a.AssignedRole || 'viewer'), 'viewer');
 }
 
 // Return all project IDs this user is assigned to
 async function getUserProjectIds(email) {
-  const assignments = await getItems("UserAssignments",
-    `fields/UserEmail eq '${email}'`);
+  const lower = email.toLowerCase();
+  if (CONFIG.ADMIN_USERS?.includes(lower)) return null; // null = no scoping, admin sees all
+  const assignments = await getItems("UserAssignments", `fields/UserEmail eq '${email}'`);
   return assignments.map(a => String(a.ProjectID));
+}
+
+// Return scoped projects list:
+// - Admin: all projects (activeOnly controlled by param)
+// - TP/DM: only their assigned projects
+async function getScopedProjects(email, activeOnly = false) {
+  const projectIds = await getUserProjectIds(email);
+  const allProjects = await getProjects(activeOnly);
+  if (projectIds === null) return allProjects; // admin
+  return allProjects.filter(p => projectIds.includes(String(p.id)));
 }
 
 // Check if email is in LeadershipAccess list
@@ -147,16 +175,15 @@ async function isLeadershipUser(email) {
 // Auto-register user on first login if not already in UserAssignments
 async function ensureUserRegistered(email, displayName) {
   const lower = email.toLowerCase();
-  if (CONFIG.ADMIN_USERS?.includes(lower)) return; // admins don't need a record
-  const existing = await getItems("UserAssignments",
-    `fields/UserEmail eq '${email}'`);
+  if (CONFIG.ADMIN_USERS?.includes(lower)) return;
+  const existing = await getItems("UserAssignments", `fields/UserEmail eq '${email}'`);
   if (existing.length === 0) {
     await createItem("UserAssignments", {
       Title: email,
       UserName: displayName || email,
       ProjectID: 0,
       CustomerName: "",
-      AssignedRole: "talent_partner",
+      AssignedRole: "viewer",
     });
   }
 }

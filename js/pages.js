@@ -1,5 +1,12 @@
 // js/pages.js — Page content renderers
 
+function formatSalary(val) {
+  if (!val) return "—";
+  const num = parseFloat(String(val).replace(/,/g, ""));
+  if (isNaN(num)) return val;
+  return num.toLocaleString("en-GB");
+}
+
 async function renderProjectsPage() {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading projects...</p>";
@@ -31,11 +38,9 @@ async function renderProjectsPage() {
     </table>
   `;
 }
-
 async function showAddProjectForm() {
   document.getElementById("main-content").innerHTML = renderProjectForm();
 }
-
 async function showEditProjectForm(id) {
   const data = await getItem("Projects", id);
   document.getElementById("main-content").innerHTML = renderProjectForm(data);
@@ -54,16 +59,17 @@ async function renderRolesPage() {
     </div>
     <table class="data-table">
       <thead><tr>
-        <th>Role</th><th>Project</th><th>Stage</th><th>Talent Partner</th>
-        <th>Open Date</th><th>Target Hire</th>${canEdit ? "<th></th>" : ""}
+        <th>Project</th><th>Role</th><th>Stage</th><th>Talent Partner</th>
+        <th>Budget</th><th>Open Date</th><th>Target Hire</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
         ${roles.map(r => `
           <tr>
-            <td>${r.RoleTitle}</td>
             <td>${r.ProjectID || "—"}</td>
+            <td>${r.RoleTitle}</td>
             <td><span class="badge">${r.Stage || "—"}</span></td>
             <td>${r.TalentPartner || "—"}</td>
+            <td>${formatSalary(r.Budget)}</td>
             <td>${r.OpenDate ? r.OpenDate.split("T")[0] : "—"}</td>
             <td>${r.TargetHireDate ? r.TargetHireDate.split("T")[0] : "—"}</td>
             ${canEdit ? `<td><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a></td>` : ""}
@@ -73,11 +79,9 @@ async function renderRolesPage() {
     </table>
   `;
 }
-
 async function showAddRoleForm() {
   document.getElementById("main-content").innerHTML = await renderRoleForm();
 }
-
 async function showEditRoleForm(id) {
   const data = await getItem("Roles", id);
   document.getElementById("main-content").innerHTML = await renderRoleForm(data);
@@ -96,15 +100,15 @@ async function renderActivityPage() {
     </div>
     <table class="data-table">
       <thead><tr>
-        <th>Week</th><th>Year</th><th>Talent Partner</th>
+        <th>Year</th><th>Week</th><th>Talent Partner</th>
         <th>Outreach</th><th>Screened</th><th>Submitted</th>
         <th>Offers</th><th>Hires</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
         ${activity.map(a => `
           <tr>
-            <td>Wk ${a.WeekNumber}</td>
             <td>${a.Year}</td>
+            <td>Wk ${a.WeekNumber}</td>
             <td>${a.TalentPartner || "—"}</td>
             <td>${a.Outreach || 0}</td>
             <td>${a.Screened || 0}</td>
@@ -118,11 +122,9 @@ async function renderActivityPage() {
     </table>
   `;
 }
-
 async function showAddActivityForm() {
   document.getElementById("main-content").innerHTML = await renderWeeklyActivityForm();
 }
-
 async function showEditActivityForm(id) {
   const data = await getItem("WeeklyActivity", id);
   document.getElementById("main-content").innerHTML = await renderWeeklyActivityForm(data);
@@ -150,7 +152,7 @@ async function renderPlacementsPage() {
           <tr>
             <td>${p.CandidateName}</td>
             <td>${p.RoleID || "—"}</td>
-            <td>${p.SalaryAgreed || "—"}</td>
+            <td>${formatSalary(p.SalaryAgreed)}</td>
             <td>${p.OfferAcceptedDate ? p.OfferAcceptedDate.split("T")[0] : "—"}</td>
             <td>${p.ProvisionalStartDate ? p.ProvisionalStartDate.split("T")[0] : "—"}</td>
             <td>${p.TimeToHire != null ? p.TimeToHire + " days" : "—"}</td>
@@ -161,11 +163,9 @@ async function renderPlacementsPage() {
     </table>
   `;
 }
-
 async function showAddPlacementForm() {
   document.getElementById("main-content").innerHTML = await renderPlacementForm();
 }
-
 async function showEditPlacementForm(id) {
   const data = await getItem("Placements", id);
   document.getElementById("main-content").innerHTML = await renderPlacementForm(data);
@@ -192,7 +192,7 @@ async function renderRejectionsPage() {
           <tr>
             <td>${r.CandidateName}</td>
             <td>${r.RoleID || "—"}</td>
-            <td>${r.SalaryOffered || "—"}</td>
+            <td>${formatSalary(r.SalaryOffered)}</td>
             <td>${r.RejectionReason || "—"}</td>
             <td>${r.Notes || "—"}</td>
             ${canEdit ? `<td><a href="#" onclick="showEditRejectionForm(${r.id})">Edit</a></td>` : ""}
@@ -202,11 +202,9 @@ async function renderRejectionsPage() {
     </table>
   `;
 }
-
 async function showAddRejectionForm() {
   document.getElementById("main-content").innerHTML = await renderRejectedOfferForm();
 }
-
 async function showEditRejectionForm(id) {
   const data = await getItem("RejectedOffers", id);
   document.getElementById("main-content").innerHTML = await renderRejectedOfferForm(data);

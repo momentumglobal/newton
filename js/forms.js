@@ -1,17 +1,13 @@
 // js/forms.js — Data entry forms
-
 // ── Utilities ───────────────────────────────────────────────────────
-
 function showFormError(formId, message) {
   const el = document.getElementById(`${formId}-error`);
   if (el) { el.textContent = message; el.style.display = 'block'; }
 }
-
 function clearFormError(formId) {
   const el = document.getElementById(`${formId}-error`);
   if (el) { el.textContent = ''; el.style.display = 'none'; }
 }
-
 function isoDate(dateStr) {
   // Append T12:00:00Z so SharePoint's UTC conversion never shifts the date
   // regardless of the user's timezone (works for UTC-11 through UTC+11)
@@ -19,7 +15,6 @@ function isoDate(dateStr) {
   const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
   return match ? match[1] + 'T12:00:00Z' : null;
 }
-
 function addDays(dateStr, days) {
   // Parse as local date to avoid UTC timezone shift
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -30,9 +25,7 @@ function addDays(dateStr, days) {
     String(date.getDate()).padStart(2, '0'),
   ].join('-');
 }
-
 // ── Project Form ────────────────────────────────────────────────────
-
 function renderProjectForm(existingData = null) {
   const isEdit = !!existingData;
   return `
@@ -82,7 +75,6 @@ function renderProjectForm(existingData = null) {
     </div>
   `;
 }
-
 async function submitProjectForm(event, editId = null) {
   event.preventDefault();
   clearFormError('project-form');
@@ -107,18 +99,27 @@ async function submitProjectForm(event, editId = null) {
     showFormError('project-form', `Error saving project: ${e.message}`);
   }
 }
-
 // ── Role Form ────────────────────────────────────────────────────────
-
 async function renderRoleForm(existingData = null, preselectedProjectId = null) {
   const isEdit = !!existingData;
   const projects = await getProjects(false);
+  const selectedProjectId = existingData?.ProjectID || preselectedProjectId || '';
   const projectOptions = projects.map(p =>
     `<option value="${p.id}" ${
       (existingData?.ProjectID == p.id || preselectedProjectId == p.id) ? 'selected' : ''
     }>${p.CustomerName}</option>`
   ).join('');
-
+  // Pre-load departments if a project is already selected
+  let departmentOptions = '<option value="">-- Select project first --</option>';
+  if (selectedProjectId) {
+    try {
+      const depts = await getDepartmentsForProject(selectedProjectId);
+      departmentOptions = '<option value="">-- Select department --</option>' +
+        depts.map(d =>
+          `<option value="${d.DepartmentName}" ${existingData?.Department === d.DepartmentName ? 'selected' : ''}>${d.DepartmentName}</option>`
+        ).join('');
+    } catch (e) { /* fall back to empty */ }
+  }
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Role' : 'Add Role'}</h2>
@@ -126,7 +127,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
       <form id="role-form" onsubmit="submitRoleForm(event, ${existingData?.id || 'null'})">
         <div class="form-group">
           <label>Project *</label>
-          <select name="ProjectID" required>
+          <select name="ProjectID" required onchange="loadDepartmentsForRole(this.value)">
             <option value="">-- Select project --</option>
             ${projectOptions}
           </select>
@@ -190,8 +191,9 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
         </div>
         <div class="form-group">
           <label>Department</label>
-          <input type="text" name="Department"
-            value="${existingData?.Department || ''}">
+          <select name="Department" id="role-department-select">
+            ${departmentOptions}
+          </select>
         </div>
         <div class="form-group">
           <label>Notes</label>
@@ -205,7 +207,6 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
     </div>
   `;
 }
-
 function autoFillTargetDate() {
   const open = document.getElementById('role-open-date').value;
   const target = document.getElementById('role-target-date');
@@ -213,7 +214,27 @@ function autoFillTargetDate() {
     target.value = addDays(open, 45);
   }
 }
-
+async function loadDepartmentsForRole(projectId) {
+  const select = document.getElementById('role-department-select');
+  if (!projectId) {
+    select.innerHTML = '<option value="">-- Select project first --</option>';
+    return;
+  }
+  select.innerHTML = '<option value="">Loading...</option>';
+  try {
+    const depts = await getDepartmentsForProject(projectId);
+    if (depts.length === 0) {
+      select.innerHTML = '<option value="">-- No departments found --</option>';
+    } else {
+      select.innerHTML = '<option value="">-- Select department --</option>' +
+        depts.map(d =>
+          `<option value="${d.DepartmentName}">${d.DepartmentName}</option>`
+        ).join('');
+    }
+  } catch (e) {
+    select.innerHTML = '<option value="">-- Error loading departments --</option>';
+  }
+}
 async function submitRoleForm(event, editId = null) {
   event.preventDefault();
   clearFormError('role-form');
@@ -245,9 +266,7 @@ async function submitRoleForm(event, editId = null) {
     showFormError('role-form', `Error saving role: ${e.message}`);
   }
 }
-
 // ── Weekly Activity Form ────────────────────────────────────────────
-
 function getISOWeek(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -255,7 +274,6 @@ function getISOWeek(date) {
   const yearStart = new Date(d.getFullYear(), 0, 1);
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 }
-
 function getWeekEnding(date) {
   const d = new Date(date);
   const day = d.getDay();
@@ -263,18 +281,15 @@ function getWeekEnding(date) {
   d.setDate(d.getDate() + diff);
   return d.toISOString().split('T')[0];
 }
-
 async function renderWeeklyActivityForm(existingData = null) {
   const isEdit = !!existingData;
   const projects = await getProjects(false);
   const projectOptions = projects.map(p =>
     `<option value="${p.id}" ${existingData?.ProjectID == p.id ? 'selected' : ''}>${p.CustomerName}</option>`
   ).join('');
-
   const today = new Date().toISOString().split('T')[0];
   const defaultWeek = existingData?.WeekNumber || getISOWeek(today);
   const defaultYear = existingData?.Year || new Date().getFullYear();
-
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Weekly Activity' : 'Log Weekly Activity'}</h2>
@@ -346,7 +361,6 @@ async function renderWeeklyActivityForm(existingData = null) {
     </div>
   `;
 }
-
 async function loadRolesForWeekly(projectId) {
   const select = document.getElementById('weekly-role-select');
   select.innerHTML = '<option value="">Loading...</option>';
@@ -355,13 +369,11 @@ async function loadRolesForWeekly(projectId) {
     `<option value="${r.id}">${r.RoleTitle}</option>`
   ).join('');
 }
-
 function autoFillWeekYear(dateStr) {
   if (!dateStr) return;
   document.getElementById('weekly-year').value = new Date(dateStr).getFullYear();
   document.getElementById('weekly-weeknum').value = getISOWeek(dateStr);
 }
-
 async function submitWeeklyForm(event, editId = null) {
   event.preventDefault();
   clearFormError('weekly-form');
@@ -397,9 +409,7 @@ async function submitWeeklyForm(event, editId = null) {
     showFormError('weekly-form', `Error saving activity: ${e.message}`);
   }
 }
-
 // ── Placement Form ───────────────────────────────────────────────────
-
 async function renderPlacementForm(existingData = null, preselectedRoleId = null) {
   const isEdit = !!existingData;
   const roles = await getAllRoles();
@@ -408,7 +418,6 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
       (existingData?.RoleID == r.id || preselectedRoleId == r.id) ? 'selected' : ''
     }>${r.RoleTitle}</option>`
   ).join('');
-
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Placement' : 'Record Placement'}</h2>
@@ -455,7 +464,6 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
     </div>
   `;
 }
-
 async function submitPlacementForm(event, editId = null) {
   event.preventDefault();
   clearFormError('placement-form');
@@ -463,7 +471,6 @@ async function submitPlacementForm(event, editId = null) {
   const data = Object.fromEntries(new FormData(form));
   const offerDate = isoDate(data.OfferAcceptedDate);
   const startDate = isoDate(data.ProvisionalStartDate);
-
   let timeToHire = undefined;
   if (offerDate && data.RoleID) {
     try {
@@ -475,7 +482,6 @@ async function submitPlacementForm(event, editId = null) {
       }
     } catch (e) { /* non-critical */ }
   }
-
   const fields = {
     RoleIDLookupId:       parseInt(data.RoleID),
     Title:                data.CandidateName,
@@ -485,7 +491,6 @@ async function submitPlacementForm(event, editId = null) {
     TimeToHire:           timeToHire,
     Notes:                data.Notes || undefined,
   };
-
   try {
     if (editId) {
       await updateItem('Placements', editId, fields);
@@ -503,9 +508,7 @@ async function submitPlacementForm(event, editId = null) {
     showFormError('placement-form', `Error saving placement: ${e.message}`);
   }
 }
-
 // ── Rejected Offer Form ──────────────────────────────────────────────
-
 async function renderRejectedOfferForm(existingData = null, preselectedRoleId = null) {
   const isEdit = !!existingData;
   const roles = await getAllRoles();
@@ -514,7 +517,6 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
       (existingData?.RoleID == r.id || preselectedRoleId == r.id) ? 'selected' : ''
     }>${r.RoleTitle}</option>`
   ).join('');
-
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Rejected Offer' : 'Log Rejected Offer'}</h2>
@@ -560,7 +562,6 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
     </div>
   `;
 }
-
 async function submitRejectedForm(event, editId = null) {
   event.preventDefault();
   clearFormError('rejected-form');

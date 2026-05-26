@@ -231,9 +231,9 @@ async function renderPlacementsPage() {
     <div class="page-header">
       <h2>Placements</h2>
       <div class="page-header-actions">
-        <div class="filter-group">${monthBtns}</div>
-        <div class="filter-group">${quarterBtns}</div>
-        <div class="filter-group">${yearBtns}</div>
+        <div class="filter-labeled-group"><span class="filter-label">Month</span><div class="filter-group">${monthBtns}</div></div>
+        <div class="filter-labeled-group"><span class="filter-label">Quarter</span><div class="filter-group">${quarterBtns}</div></div>
+        <div class="filter-labeled-group"><span class="filter-label">Year</span><div class="filter-group">${yearBtns}</div></div>
         ${canEdit ? '<button class="btn-primary" onclick="showAddPlacementForm()">+ Record Placement</button>' : ""}
       </div>
     </div>

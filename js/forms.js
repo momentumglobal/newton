@@ -380,7 +380,7 @@ async function submitWeeklyForm(event, editId = null) {
     Screened:       parseInt(data.Screened) || 0,
     Submitted:      parseInt(data.Submitted) || 0,
     Interview1:     parseInt(data.Interview1) || 0,
-    Interview2Plus: parseInt(data.Interview2Plus) || 0,
+    InterviewTwoPlus: parseInt(data.Interview2Plus) || 0,
     FinalInterview: parseInt(data.FinalInterview) || 0,
     Offers:         parseInt(data.Offers) || 0,
     Hires:          parseInt(data.Hires) || 0,

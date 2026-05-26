@@ -76,7 +76,7 @@ async function buildAssignmentsTab() {
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Customer *</label>
+          <label>Customer</label>
           <select id="assign-project">
             <option value="">-- Select customer --</option>
             ${projectOptions}
@@ -102,15 +102,17 @@ async function submitAssignment() {
   const role     = document.getElementById('assign-role').value;
   const errEl    = document.getElementById('assign-error');
   errEl.style.display = 'none';
-  if (!email || !projVal) {
-    errEl.textContent = 'Email and Customer are required.';
+  if (!email) {
+    errEl.textContent = 'Email is required.';
     errEl.style.display = 'block'; return;
   }
-  const [projectId, customerName] = projVal.split('|');
+  const [projectId, customerName] = projVal ? projVal.split('|') : ['0', ''];
   try {
     await createItem('UserAssignments', {
-      Title: email, UserName: name, ProjectID: parseInt(projectId),
-      CustomerName: customerName, AssignedRole: role
+      Title: email, UserName: name,
+      ProjectID: parseInt(projectId) || 0,
+      CustomerName: customerName || '',
+      AssignedRole: role
     });
     await renderAdminTab('assignments');
   } catch(e) {

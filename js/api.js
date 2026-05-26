@@ -11,6 +11,9 @@ const FIELD_ALIASES = {
   WeeklyActivity: { Title: "ActivityTitle", Yeare: "Year", InterviewTwoPlus: "Interview2Plus" },
   Placements:     { Title: "CandidateName", Yeare: "Year" },
   RejectedOffers: { Title: "CandidateName", Yeare: "Year" },
+  UserAssignments: { Title: 'UserEmail' },
+  LeadershipAccess:{ Title: 'UserEmail' },
+  Departments:     { Title: 'DepartmentName' },
 };
 
 function normaliseFields(listName, fields) {
@@ -100,3 +103,45 @@ async function getPlacements(roleId) {
 async function getRejectedOffers(roleId) {
   return getItems("RejectedOffers", roleId ? `fields/RoleID eq ${roleId}` : "");
 }
+
+// ── Admin list helpers ───────────────────────────────────────────
+
+async function getUserAssignments(projectId) {
+  return getItems('UserAssignments',
+    projectId ? `fields/ProjectID eq ${projectId}` : '');
+}
+
+async function getLeadershipAccess() {
+  return getItems('LeadershipAccess');
+}
+
+async function getDepartments(projectId) {
+  return getItems('Departments',
+    projectId ? `fields/ProjectID eq ${projectId}` : '');
+}
+
+// Resolve the signed-in user's effective role:
+// 1. Check config.js ROLES (catches the hardcoded admin)
+// 2. Fall back to UserAssignments list
+async function getEffectiveRole(email) {
+  const configRole = CONFIG.ROLES?.[email];
+  if (configRole) return configRole;
+  const assignments = await getItems('UserAssignments',
+    `fields/UserEmail eq '${email}'`);
+  if (assignments.length > 0) return assignments[0].AssignedRole;
+  return 'viewer';
+}
+
+// Return all project IDs this user is assigned to
+async function getUserProjectIds(email) {
+  const assignments = await getItems('UserAssignments',
+    `fields/UserEmail eq '${email}'`);
+  return assignments.map(a => String(a.ProjectID));
+}
+
+// Check if email is in LeadershipAccess list
+async function isLeadershipUser(email) {
+  const list = await getLeadershipAccess();
+  return list.some(l => l.UserEmail?.toLowerCase() === email.toLowerCase());
+}
+

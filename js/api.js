@@ -111,9 +111,8 @@ async function getLeadershipAccess() {
   return getItems("LeadershipAccess");
 }
 
-async function getDepartments(projectId) {
-  return getItems("Departments",
-    projectId ? `fields/ProjectID eq ${projectId}` : "");
+async function getDepartmentsForProject(projectId) {
+  return getItems("Departments", `fields/ProjectID eq ${projectId}`);
 }
 
 // Resolve the signed-in user's effective role:

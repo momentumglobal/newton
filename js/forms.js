@@ -13,13 +13,21 @@ function clearFormError(formId) {
 }
 
 function isoDate(dateStr) {
-  return dateStr ? new Date(dateStr).toISOString().split('T')[0] : null;
+  // Return the YYYY-MM-DD string directly — avoids UTC timezone shift
+  if (!dateStr) return null;
+  const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : null;
 }
 
 function addDays(dateStr, days) {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+  // Parse as local date to avoid UTC timezone shift
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d + days);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
 }
 
 // ── Project Form ────────────────────────────────────────────────────
@@ -152,8 +160,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
           <div class="form-group">
             <label>Stage *</label>
             <select name="Stage" required>
-              ${['Backlog','Planning','Sourcing','Submitted','Interview 1',
-                 'Interview 2+','Final Interview','Offered','Hired','On-hold','Cancelled']
+              ${'Backlog,Planning,Sourcing,Submitted,Interview 1,Interview 2+,Final Interview,Offered,Hired,On-hold,Cancelled'.split(',')
                 .map(s => `<option value="${s}" ${existingData?.Stage === s ? 'selected' : ''}>${s}</option>`)
                 .join('')}
             </select>
@@ -534,7 +541,7 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
             <label>Rejection Reason *</label>
             <select name="RejectionReason" required>
               <option value="">-- Select --</option>
-              ${['Salary','Motivations','Counter-offer','Took another opportunity','Other']
+              ${'Salary,Motivations,Counter-offer,Took another opportunity,Other'.split(',')
                 .map(r => `<option value="${r}" ${existingData?.RejectionReason === r ? 'selected' : ''}>${r}</option>`)
                 .join('')}
             </select>

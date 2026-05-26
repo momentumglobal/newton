@@ -13,7 +13,8 @@ function clearFormError(formId) {
 }
 
 function isoDate(dateStr) {
-  // Return the YYYY-MM-DD string directly — avoids UTC timezone shift
+  // Append T12:00:00Z so SharePoint's UTC conversion never shifts the date
+  // regardless of the user's timezone (works for UTC-11 through UTC+11)
   if (!dateStr) return null;
   const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
   return match ? match[1] + 'T12:00:00Z' : null;
@@ -220,7 +221,7 @@ async function submitRoleForm(event, editId = null) {
   const data = Object.fromEntries(new FormData(form));
   const currentUser = getCurrentUser();
   const fields = {
-    ProjectID:      parseInt(data.ProjectID),
+    ProjectIDLookupId: parseInt(data.ProjectID),
     Title:          data.RoleTitle,
     HiringManager:  data.HiringManager || undefined,
     TalentPartner:  currentUser?.name || undefined,
@@ -368,8 +369,8 @@ async function submitWeeklyForm(event, editId = null) {
   const data = Object.fromEntries(new FormData(form));
   const currentUser = getCurrentUser();
   const fields = {
-    ProjectID:      parseInt(data.ProjectID),
-    RoleID:         parseInt(data.RoleID),
+    ProjectIDLookupId: parseInt(data.ProjectID),
+    RoleIDLookupId:    parseInt(data.RoleID),
     TalentPartner:  currentUser?.name || undefined,
     Yeare:          parseInt(data.Year),
     WeekNumber:     parseInt(data.WeekNumber),
@@ -476,7 +477,7 @@ async function submitPlacementForm(event, editId = null) {
   }
 
   const fields = {
-    RoleID:               parseInt(data.RoleID),
+    RoleIDLookupId:       parseInt(data.RoleID),
     Title:                data.CandidateName,
     SalaryAgreed:         data.SalaryAgreed || undefined,
     OfferAcceptedDate:    offerDate || undefined,
@@ -566,7 +567,7 @@ async function submitRejectedForm(event, editId = null) {
   const form = document.getElementById('rejected-form');
   const data = Object.fromEntries(new FormData(form));
   const fields = {
-    RoleID:          parseInt(data.RoleID),
+    RoleIDLookupId:  parseInt(data.RoleID),
     Title:           data.CandidateName,
     SalaryOffered:   data.SalaryOffered || undefined,
     RejectionReason: data.RejectionReason,

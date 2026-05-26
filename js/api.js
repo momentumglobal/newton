@@ -8,7 +8,7 @@ const GRAPH = "https://graph.microsoft.com/v1.0";
 const FIELD_ALIASES = {
   Projects:       { Title: "CustomerName", Yeare: "Year" },
   Roles:          { Title: "RoleTitle",    Yeare: "Year" },
-  WeeklyActivity: { Title: "ActivityTitle", Yeare: "Year" },
+  WeeklyActivity: { Title: "ActivityTitle", Yeare: "Year", InterviewTwoPlus: "Interview2Plus" },
   Placements:     { Title: "CandidateName", Yeare: "Year" },
   RejectedOffers: { Title: "CandidateName", Yeare: "Year" },
 };

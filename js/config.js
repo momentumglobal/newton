@@ -8,7 +8,7 @@ const CONFIG = {
   SP_SITE_URL:  "https://talentpoint.sharepoint.com/sites/SolutionsHubReporting",
   SP_SITE_ID:   "talentpoint.sharepoint.com,330e562f-0ba1-4fd8-ae06-ffe3a9287271,b864c9c9-6fe0-4837-9713-5aaa4530de0d",
   // Hardcoded admin users — full access, never overridden by SharePoint data
-  ADMIN_USERS:  ["admin@momentumglobal.co", "chris.friend@momentumglobal.co"],
+  ADMIN_USERS:  ["admin@momentumglobal.co", "chris.friend@momentumglobal.co", "aliyah@momentumglobal.co"],
 };
 
 // Synchronous role check — only resolves admin (from config) or viewer

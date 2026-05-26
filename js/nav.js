@@ -47,6 +47,7 @@ async function renderPage(page) {
     case "activity":    await renderActivityPage();  break;
     case "placements":  await renderPlacementsPage(); break;
     case "rejections":  await renderRejectionsPage(); break;
+    case "adminPanel":  renderAdminPage();            break;
     default:
       main.innerHTML = `<p>Page not found.</p>`;
   }

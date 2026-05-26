@@ -140,7 +140,7 @@ async function getEffectiveRole(email) {
   if (CONFIG.ADMIN_USERS?.includes(lower)) return 'admin';
   const [leadership, assignments] = await Promise.all([
     getLeadershipAccess(),
-    getItems("UserAssignments", `fields/UserEmail eq '${email}'`),
+    getItems("UserAssignments", `fields/Title eq '${email}'`),
   ]);
   if (leadership.some(l => l.UserEmail?.toLowerCase() === lower)) return 'leadership';
   if (assignments.length === 0) return 'viewer';
@@ -152,7 +152,7 @@ async function getEffectiveRole(email) {
 async function getUserProjectIds(email) {
   const lower = email.toLowerCase();
   if (CONFIG.ADMIN_USERS?.includes(lower)) return null; // null = no scoping, admin sees all
-  const assignments = await getItems("UserAssignments", `fields/UserEmail eq '${email}'`);
+  const assignments = await getItems("UserAssignments", `fields/Title eq '${email}'`);
   return assignments.map(a => String(a.ProjectID));
 }
 
@@ -176,7 +176,7 @@ async function isLeadershipUser(email) {
 async function ensureUserRegistered(email, displayName) {
   const lower = email.toLowerCase();
   if (CONFIG.ADMIN_USERS?.includes(lower)) return;
-  const existing = await getItems("UserAssignments", `fields/UserEmail eq '${email}'`);
+  const existing = await getItems("UserAssignments", `fields/Title eq '${email}'`);
   if (existing.length === 0) {
     await createItem("UserAssignments", {
       Title: email,

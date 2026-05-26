@@ -44,7 +44,7 @@ async function renderAdminTab(tab) {
   `;
 }
 
-// ── Assignments Tab ─────────────────────────────────────────────
+// ── Assignments Tab ──────────────────────────────────────────────────
 
 async function buildAssignmentsTab() {
   const [projects, assignments] = await Promise.all([
@@ -54,7 +54,7 @@ async function buildAssignmentsTab() {
     <tr>
       <td>${a.UserName || '—'}</td>
       <td>${a.UserEmail}</td>
-      <td>${a.ProjectName || '—'}</td>
+      <td>${a.CustomerName || '—'}</td>
       <td>${a.AssignedRole === 'talent_partner' ? 'Talent Partner' : 'Delivery Manager'}</td>
       <td><a href="#" onclick="deleteAdminRecord('UserAssignments',${a.id})">Remove</a></td>
     </tr>`).join('');
@@ -67,7 +67,7 @@ async function buildAssignmentsTab() {
     <h3>Current Assignments</h3>
     <table class="data-table" style="margin:0 0 24px">
       <thead><tr>
-        <th>Name</th><th>Email</th><th>Project</th><th>Role</th><th></th>
+        <th>Name</th><th>Email</th><th>Customer</th><th>Role</th><th></th>
       </tr></thead>
       <tbody>${rows || '<tr><td colspan=5>No assignments yet.</td></tr>'}</tbody>
     </table>
@@ -85,9 +85,9 @@ async function buildAssignmentsTab() {
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Project *</label>
+          <label>Customer *</label>
           <select id="assign-project">
-            <option value="">-- Select project --</option>
+            <option value="">-- Select customer --</option>
             ${projectOptions}
           </select>
         </div>
@@ -106,21 +106,21 @@ async function buildAssignmentsTab() {
 }
 
 async function submitAssignment() {
-  const name    = document.getElementById('assign-name').value.trim();
-  const email   = document.getElementById('assign-email').value.trim();
-  const projVal = document.getElementById('assign-project').value;
-  const role    = document.getElementById('assign-role').value;
-  const errEl   = document.getElementById('assign-error');
+  const name     = document.getElementById('assign-name').value.trim();
+  const email    = document.getElementById('assign-email').value.trim();
+  const projVal  = document.getElementById('assign-project').value;
+  const role     = document.getElementById('assign-role').value;
+  const errEl    = document.getElementById('assign-error');
   errEl.style.display = 'none';
   if (!email || !projVal) {
-    errEl.textContent = 'Email and Project are required.';
+    errEl.textContent = 'Email and Customer are required.';
     errEl.style.display = 'block'; return;
   }
-  const [projectId, projectName] = projVal.split('|');
+  const [projectId, customerName] = projVal.split('|');
   try {
     await createItem('UserAssignments', {
       Title: email, UserName: name, ProjectID: parseInt(projectId),
-      ProjectName: projectName, AssignedRole: role
+      CustomerName: customerName, AssignedRole: role
     });
     await renderAdminTab('assignments');
   } catch(e) {
@@ -129,7 +129,7 @@ async function submitAssignment() {
   }
 }
 
-// ── Leadership Tab ───────────────────────────────────────────────
+// ── Leadership Tab ───────────────────────────────────────────────────
 
 async function buildLeadershipTab() {
   const list = await getLeadershipAccess();
@@ -185,7 +185,7 @@ async function submitLeadershipUser() {
   }
 }
 
-// ── Departments Tab ──────────────────────────────────────────────
+// ── Departments Tab ──────────────────────────────────────────────────
 
 async function buildDepartmentsTab() {
   const [projects, depts] = await Promise.all([
@@ -194,7 +194,7 @@ async function buildDepartmentsTab() {
   const rows = depts.map(d => `
     <tr>
       <td>${d.DepartmentName}</td>
-      <td>${d.ProjectName || '—'}</td>
+      <td>${d.CustomerName || '—'}</td>
       <td><a href="#" onclick="deleteAdminRecord('Departments',${d.id})">Remove</a></td>
     </tr>`).join('');
 
@@ -205,7 +205,7 @@ async function buildDepartmentsTab() {
   return `
     <h3>Department Options</h3>
     <table class="data-table" style="margin:0 0 24px">
-      <thead><tr><th>Department</th><th>Project</th><th></th></tr></thead>
+      <thead><tr><th>Department</th><th>Customer</th><th></th></tr></thead>
       <tbody>${rows || '<tr><td colspan=3>No departments defined yet.</td></tr>'}</tbody>
     </table>
     <h3>Add Department</h3>
@@ -216,9 +216,9 @@ async function buildDepartmentsTab() {
           <input type="text" id="dept-name" placeholder="e.g. Engineering">
         </div>
         <div class="form-group">
-          <label>Project *</label>
+          <label>Customer *</label>
           <select id="dept-project">
-            <option value="">-- Select project --</option>
+            <option value="">-- Select customer --</option>
             ${projectOptions}
           </select>
         </div>
@@ -235,13 +235,13 @@ async function submitDepartment() {
   const errEl   = document.getElementById('dept-error');
   errEl.style.display = 'none';
   if (!name || !projVal) {
-    errEl.textContent = 'Department name and project are required.';
+    errEl.textContent = 'Department name and customer are required.';
     errEl.style.display = 'block'; return;
   }
-  const [projectId, projectName] = projVal.split('|');
+  const [projectId, customerName] = projVal.split('|');
   try {
     await createItem('Departments', {
-      Title: name, ProjectID: parseInt(projectId), ProjectName: projectName
+      Title: name, ProjectID: parseInt(projectId), CustomerName: customerName
     });
     await renderAdminTab('departments');
   } catch(e) {
@@ -250,7 +250,7 @@ async function submitDepartment() {
   }
 }
 
-// ── Delete Tab ───────────────────────────────────────────────────
+// ── Delete Tab ───────────────────────────────────────────────────────
 
 async function buildDeleteTab() {
   return `
@@ -296,8 +296,8 @@ async function buildDeleteTab() {
 }
 
 function initiateDelete() {
-  const list = document.getElementById('del-list').value;
-  const id   = document.getElementById('del-id').value;
+  const list  = document.getElementById('del-list').value;
+  const id    = document.getElementById('del-id').value;
   const errEl = document.getElementById('del-error');
   errEl.style.display = 'none';
   if (!list || !id) {

@@ -101,7 +101,7 @@ async function getRejectedOffers(roleId) {
   return getItems("RejectedOffers", roleId ? `fields/RoleID eq ${roleId}` : "");
 }
 
-// ── Admin list helpers ───────────────────────────────────────────────
+// ── Admin list helpers ─────────────────────────────────────────────
 async function getUserAssignments(projectId) {
   return getItems("UserAssignments",
     projectId ? `fields/ProjectID eq ${projectId}` : "");

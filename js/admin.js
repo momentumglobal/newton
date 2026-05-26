@@ -1,7 +1,5 @@
 // js/admin.js — Admin Panel
-
 let _adminTab = 'assignments';
-
 async function renderAdminPage() {
   const main = document.getElementById('main-content');
   const user = getCurrentUser();
@@ -13,7 +11,6 @@ async function renderAdminPage() {
   main.innerHTML = '<p>Loading admin panel...</p>';
   await renderAdminTab(_adminTab);
 }
-
 async function renderAdminTab(tab) {
   _adminTab = tab;
   const main = document.getElementById('main-content');
@@ -28,13 +25,11 @@ async function renderAdminTab(tab) {
     `<button class="btn-filter${_adminTab === t ? ' active' : ''}"
       onclick="renderAdminTab('${t}')">${labels[t]}</button>`
   ).join('');
-
   let content = '';
   if (tab === 'assignments') content = await buildAssignmentsTab();
   if (tab === 'leadership')  content = await buildLeadershipTab();
   if (tab === 'departments') content = await buildDepartmentsTab();
   if (tab === 'delete')      content = await buildDeleteTab();
-
   main.innerHTML = `
     <div class="page-header">
       <h2>Admin Panel</h2>
@@ -43,9 +38,7 @@ async function renderAdminTab(tab) {
     <div style="padding:24px">${content}</div>
   `;
 }
-
 // ── Assignments Tab ──────────────────────────────────────────────────
-
 async function buildAssignmentsTab() {
   const [projects, assignments] = await Promise.all([
     getProjects(false), getUserAssignments()
@@ -58,11 +51,9 @@ async function buildAssignmentsTab() {
       <td>${a.AssignedRole === 'talent_partner' ? 'Talent Partner' : 'Delivery Manager'}</td>
       <td><a href="#" onclick="deleteAdminRecord('UserAssignments',${a.id})">Remove</a></td>
     </tr>`).join('');
-
   const projectOptions = projects.map(p =>
     `<option value="${p.id}|${p.CustomerName}">${p.CustomerName}</option>`
   ).join('');
-
   return `
     <h3>Current Assignments</h3>
     <table class="data-table" style="margin:0 0 24px">
@@ -104,7 +95,6 @@ async function buildAssignmentsTab() {
     </div>
   `;
 }
-
 async function submitAssignment() {
   const name     = document.getElementById('assign-name').value.trim();
   const email    = document.getElementById('assign-email').value.trim();
@@ -128,9 +118,7 @@ async function submitAssignment() {
     errEl.style.display = 'block';
   }
 }
-
 // ── Leadership Tab ───────────────────────────────────────────────────
-
 async function buildLeadershipTab() {
   const list = await getLeadershipAccess();
   const rows = list.map(l => `
@@ -139,7 +127,6 @@ async function buildLeadershipTab() {
       <td>${l.UserEmail}</td>
       <td><a href="#" onclick="deleteAdminRecord('LeadershipAccess',${l.id})">Remove</a></td>
     </tr>`).join('');
-
   return `
     <h3>Leadership Access List</h3>
     <p style="font-size:13px;color:#666;margin-bottom:16px">
@@ -166,7 +153,6 @@ async function buildLeadershipTab() {
     </div>
   `;
 }
-
 async function submitLeadershipUser() {
   const name  = document.getElementById('lead-name').value.trim();
   const email = document.getElementById('lead-email').value.trim();
@@ -184,9 +170,7 @@ async function submitLeadershipUser() {
     errEl.style.display = 'block';
   }
 }
-
 // ── Departments Tab ──────────────────────────────────────────────────
-
 async function buildDepartmentsTab() {
   const [projects, depts] = await Promise.all([
     getProjects(false), getDepartments()
@@ -197,11 +181,9 @@ async function buildDepartmentsTab() {
       <td>${d.CustomerName || '—'}</td>
       <td><a href="#" onclick="deleteAdminRecord('Departments',${d.id})">Remove</a></td>
     </tr>`).join('');
-
   const projectOptions = projects.map(p =>
     `<option value="${p.id}|${p.CustomerName}">${p.CustomerName}</option>`
   ).join('');
-
   return `
     <h3>Department Options</h3>
     <table class="data-table" style="margin:0 0 24px">
@@ -228,7 +210,6 @@ async function buildDepartmentsTab() {
     </div>
   `;
 }
-
 async function submitDepartment() {
   const name    = document.getElementById('dept-name').value.trim();
   const projVal = document.getElementById('dept-project').value;
@@ -249,36 +230,41 @@ async function submitDepartment() {
     errEl.style.display = 'block';
   }
 }
-
 // ── Delete Tab ───────────────────────────────────────────────────────
-
+// Display labels for each list's items
+const DELETE_LIST_CONFIG = {
+  Projects:        { label: 'Projects',         displayField: 'CustomerName' },
+  Roles:           { label: 'Roles',            displayField: 'RoleTitle' },
+  WeeklyActivity:  { label: 'Weekly Activity',  displayField: 'ActivityTitle' },
+  Placements:      { label: 'Placements',       displayField: 'CandidateName' },
+  RejectedOffers:  { label: 'Rejected Offers',  displayField: 'CandidateName' },
+  UserAssignments: { label: 'User Assignments', displayField: 'UserEmail' },
+  LeadershipAccess:{ label: 'Leadership Access',displayField: 'UserEmail' },
+  Departments:     { label: 'Departments',      displayField: 'DepartmentName' },
+};
 async function buildDeleteTab() {
+  const listOptions = Object.entries(DELETE_LIST_CONFIG).map(([key, cfg]) =>
+    `<option value="${key}">${cfg.label}</option>`
+  ).join('');
   return `
     <h3>Delete Records</h3>
     <p style="font-size:13px;color:#666;margin-bottom:16px">
-      Select a list and enter the item ID to permanently delete a record.
-      This cannot be undone from the app — use SharePoint's recycle bin to recover.
+      Select a list, then choose the record to delete. This cannot be undone from the app —
+      use SharePoint's recycle bin to recover deleted items.
     </p>
     <div class="form-container" style="padding:0;max-width:500px">
-      <div class="form-row">
-        <div class="form-group">
-          <label>List *</label>
-          <select id="del-list">
-            <option value="">-- Select list --</option>
-            <option value="Projects">Projects</option>
-            <option value="Roles">Roles</option>
-            <option value="WeeklyActivity">Weekly Activity</option>
-            <option value="Placements">Placements</option>
-            <option value="RejectedOffers">Rejected Offers</option>
-            <option value="UserAssignments">User Assignments</option>
-            <option value="LeadershipAccess">Leadership Access</option>
-            <option value="Departments">Departments</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Item ID *</label>
-          <input type="number" id="del-id" min="1" placeholder="e.g. 3">
-        </div>
+      <div class="form-group">
+        <label>List *</label>
+        <select id="del-list" onchange="loadDeleteItems(this.value)">
+          <option value="">-- Select list --</option>
+          ${listOptions}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Record *</label>
+        <select id="del-item" disabled>
+          <option value="">-- Select list first --</option>
+        </select>
       </div>
       <div id="del-error" class="form-error"></div>
       <div id="del-confirm" style="display:none;background:#fde8e8;border:1px solid #e57373;
@@ -294,23 +280,42 @@ async function buildDeleteTab() {
     </div>
   `;
 }
-
+async function loadDeleteItems(listName) {
+  const select = document.getElementById('del-item');
+  if (!listName) {
+    select.innerHTML = '<option value="">-- Select list first --</option>';
+    select.disabled = true;
+    return;
+  }
+  select.innerHTML = '<option value="">Loading...</option>';
+  select.disabled = true;
+  try {
+    const items = await getItems(listName);
+    const displayField = DELETE_LIST_CONFIG[listName]?.displayField || 'id';
+    select.innerHTML = '<option value="">-- Select record --</option>' +
+      items.map(i =>
+        `<option value="${i.id}">${i[displayField] || `ID ${i.id}`}</option>`
+      ).join('');
+    select.disabled = false;
+  } catch(e) {
+    select.innerHTML = '<option value="">-- Error loading records --</option>';
+  }
+}
 function initiateDelete() {
   const list  = document.getElementById('del-list').value;
-  const id    = document.getElementById('del-id').value;
+  const id    = document.getElementById('del-item').value;
   const errEl = document.getElementById('del-error');
   errEl.style.display = 'none';
   if (!list || !id) {
-    errEl.textContent = 'Please select a list and enter an item ID.';
+    errEl.textContent = 'Please select a list and a record.';
     errEl.style.display = 'block'; return;
   }
   document.getElementById('del-confirm').style.display = 'block';
   document.getElementById('del-btn').style.display = 'none';
 }
-
 async function confirmDelete() {
   const list = document.getElementById('del-list').value;
-  const id   = parseInt(document.getElementById('del-id').value);
+  const id   = document.getElementById('del-item').value;
   try {
     await graphRequest('DELETE',
       `/sites/${CONFIG.SP_SITE_ID}/lists/${list}/items/${id}`);
@@ -322,12 +327,10 @@ async function confirmDelete() {
     document.getElementById('del-btn').style.display = 'block';
   }
 }
-
 function cancelDelete() {
   document.getElementById('del-confirm').style.display = 'none';
   document.getElementById('del-btn').style.display = 'block';
 }
-
 // Shared remove helper used by Assignments, Leadership, Departments tabs
 async function deleteAdminRecord(listName, id) {
   if (!confirm('Remove this record?')) return;

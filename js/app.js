@@ -1,5 +1,5 @@
 window.APP = {
-  init() {
+  async init() {
     if (!isSignedIn()) {
       this.showLogin();
       return;
@@ -10,13 +10,16 @@ window.APP = {
     document.getElementById('login-screen').style.display = 'none';
     renderNav(role);
     navigateTo('dashboard');
+    // Auto-register user in UserAssignments on first login (non-blocking)
+    ensureUserRegistered(user.email, user.name).catch(e =>
+      console.warn('Auto-registration failed:', e)
+    );
   },
   showLogin() {
     document.getElementById('app-shell').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
   },
 };
-
 // Run on page load — scripts are deferred to end of body so DOM is already ready
 msalInstance.handleRedirectPromise().then(() => {
   window.APP.init();

@@ -6,8 +6,8 @@ function renderNav(role) {
   const nav   = document.getElementById('sidebar');
   nav.innerHTML = `
     <div class='nav-header'>
-      <div class='nav-logo'>Solutions Hub</div>
-      <div class='nav-subtitle'>Reporting</div>
+      <div class='nav-logo'>Newton</div>
+      <div class='nav-subtitle'>Solutions Hub Reporting</div>
     </div>
     <div class='nav-user'>
       <div class='nav-user-name'>${user.name || user.email}</div>

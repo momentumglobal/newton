@@ -2,18 +2,15 @@
 const GRAPH = "https://graph.microsoft.com/v1.0";
 
 // ── Field normalisers ───────────────────────────────────────────────
-// SharePoint stores the first column of every list as "Title" internally.
-// These maps alias Title (and any other internal-name quirks) back to the
-// display names the rest of the app expects.
 const FIELD_ALIASES = {
-  Projects:       { Title: "CustomerName", Yeare: "Year" },
-  Roles:          { Title: "RoleTitle",    Yeare: "Year" },
-  WeeklyActivity: { Title: "ActivityTitle", Yeare: "Year", InterviewTwoPlus: "Interview2Plus" },
-  Placements:     { Title: "CandidateName", Yeare: "Year" },
-  RejectedOffers: { Title: "CandidateName", Yeare: "Year" },
-  UserAssignments: { Title: 'UserEmail' },
-  LeadershipAccess:{ Title: 'UserEmail' },
-  Departments:     { Title: 'DepartmentName' },
+  Projects:        { Title: "CustomerName", Yeare: "Year" },
+  Roles:           { Title: "RoleTitle",    Yeare: "Year" },
+  WeeklyActivity:  { Title: "ActivityTitle", Yeare: "Year", InterviewTwoPlus: "Interview2Plus" },
+  Placements:      { Title: "CandidateName", Yeare: "Year" },
+  RejectedOffers:  { Title: "CandidateName", Yeare: "Year" },
+  UserAssignments: { Title: "UserEmail" },
+  LeadershipAccess:{ Title: "UserEmail" },
+  Departments:     { Title: "DepartmentName" },
 };
 
 function normaliseFields(listName, fields) {
@@ -104,29 +101,32 @@ async function getRejectedOffers(roleId) {
   return getItems("RejectedOffers", roleId ? `fields/RoleID eq ${roleId}` : "");
 }
 
-// ── Admin list helpers ───────────────────────────────────────────
-
+// ── Admin list helpers ───────────────────────────────────────────────
 async function getUserAssignments(projectId) {
-  return getItems('UserAssignments',
-    projectId ? `fields/ProjectID eq ${projectId}` : '');
+  return getItems("UserAssignments",
+    projectId ? `fields/ProjectID eq ${projectId}` : "");
 }
 
 async function getLeadershipAccess() {
-  return getItems('LeadershipAccess');
+  return getItems("LeadershipAccess");
 }
 
 async function getDepartments(projectId) {
-  return getItems('Departments',
-    projectId ? `fields/ProjectID eq ${projectId}` : '');
+  return getItems("Departments",
+    projectId ? `fields/ProjectID eq ${projectId}` : "");
 }
 
 // Resolve the signed-in user's effective role:
-// 1. Check config.js ROLES (catches the hardcoded admin)
-// 2. Fall back to UserAssignments list
+// 1. Check ADMIN_USERS in config.js
+// 2. Check LeadershipAccess list
+// 3. Check UserAssignments list
+// 4. Fall back to 'viewer'
 async function getEffectiveRole(email) {
-  const configRole = CONFIG.ROLES?.[email];
-  if (configRole) return configRole;
-  const assignments = await getItems('UserAssignments',
+  const lower = email.toLowerCase();
+  if (CONFIG.ADMIN_USERS?.includes(lower)) return 'admin';
+  const leadership = await getLeadershipAccess();
+  if (leadership.some(l => l.UserEmail?.toLowerCase() === lower)) return 'leadership';
+  const assignments = await getItems("UserAssignments",
     `fields/UserEmail eq '${email}'`);
   if (assignments.length > 0) return assignments[0].AssignedRole;
   return 'viewer';
@@ -134,7 +134,7 @@ async function getEffectiveRole(email) {
 
 // Return all project IDs this user is assigned to
 async function getUserProjectIds(email) {
-  const assignments = await getItems('UserAssignments',
+  const assignments = await getItems("UserAssignments",
     `fields/UserEmail eq '${email}'`);
   return assignments.map(a => String(a.ProjectID));
 }
@@ -145,3 +145,19 @@ async function isLeadershipUser(email) {
   return list.some(l => l.UserEmail?.toLowerCase() === email.toLowerCase());
 }
 
+// Auto-register user on first login if not already in UserAssignments
+async function ensureUserRegistered(email, displayName) {
+  const lower = email.toLowerCase();
+  if (CONFIG.ADMIN_USERS?.includes(lower)) return; // admins don't need a record
+  const existing = await getItems("UserAssignments",
+    `fields/UserEmail eq '${email}'`);
+  if (existing.length === 0) {
+    await createItem("UserAssignments", {
+      Title: email,
+      UserName: displayName || email,
+      ProjectID: 0,
+      CustomerName: "",
+      AssignedRole: "talent_partner",
+    });
+  }
+}

@@ -35,6 +35,7 @@ async function graphRequest(method, path, body = null) {
     headers: {
       "Authorization": `Bearer ${token}`,
       "Content-Type": "application/json",
+      "Prefer": "HonorNonIndexedQueriesWarningMayFailRandomly",
     },
   };
   if (body) opts.body = JSON.stringify(body);

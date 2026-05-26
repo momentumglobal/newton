@@ -7,6 +7,13 @@ function formatSalary(val) {
   return num.toLocaleString("en-GB");
 }
 
+function daysOpen(openDate, hireDate) {
+  if (!openDate) return null;
+  const start = new Date(openDate);
+  const end = hireDate ? new Date(hireDate) : new Date();
+  return Math.floor((end - start) / (1000 * 60 * 60 * 24));
+}
+
 async function renderProjectsPage() {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading projects...</p>";
@@ -60,11 +67,14 @@ async function renderRolesPage() {
     <table class="data-table">
       <thead><tr>
         <th>Project</th><th>Role</th><th>Stage</th><th>Talent Partner</th>
-        <th>Budget</th><th>Open Date</th><th>Target Hire</th>${canEdit ? "<th></th>" : ""}
+        <th>Budget</th><th>Open Date</th><th>Target Hire Date</th><th>Days Open</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${roles.map(r => `
-          <tr>
+        ${roles.map(r => {
+          const days = daysOpen(r.OpenDate, r.ActualHireDate);
+          const rowStyle = days !== null && days > 45 ? ' style="background-color:#ffd6d6;color:#000"' : '';
+          return `
+          <tr${rowStyle}>
             <td>${r.ProjectID || "—"}</td>
             <td>${r.RoleTitle}</td>
             <td><span class="badge">${r.Stage || "—"}</span></td>
@@ -72,9 +82,10 @@ async function renderRolesPage() {
             <td>${formatSalary(r.Budget)}</td>
             <td>${r.OpenDate ? r.OpenDate.split("T")[0] : "—"}</td>
             <td>${r.TargetHireDate ? r.TargetHireDate.split("T")[0] : "—"}</td>
+            <td>${days !== null ? days + " days" : "—"}</td>
             ${canEdit ? `<td><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a></td>` : ""}
-          </tr>
-        `).join("")}
+          </tr>`;
+        }).join("")}
       </tbody>
     </table>
   `;
@@ -90,7 +101,8 @@ async function showEditRoleForm(id) {
 async function renderActivityPage() {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading activity...</p>";
-  const activity = await getWeeklyActivity();
+  const [activity, allRoles] = await Promise.all([getWeeklyActivity(), getAllRoles()]);
+  const roleMap = Object.fromEntries(allRoles.map(r => [r.id, r.RoleTitle]));
   const role = getUserRole(getCurrentUser().email);
   const canEdit = ["admin","talent_partner"].includes(role);
   main.innerHTML = `
@@ -100,7 +112,7 @@ async function renderActivityPage() {
     </div>
     <table class="data-table">
       <thead><tr>
-        <th>Year</th><th>Week</th><th>Talent Partner</th>
+        <th>Year</th><th>Week</th><th>Role</th><th>Talent Partner</th>
         <th>Outreach</th><th>Screened</th><th>Submitted</th>
         <th>Offers</th><th>Hires</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
@@ -109,6 +121,7 @@ async function renderActivityPage() {
           <tr>
             <td>${a.Year}</td>
             <td>Wk ${a.WeekNumber}</td>
+            <td>${roleMap[a.RoleIDLookupId] || roleMap[a.RoleID] || "—"}</td>
             <td>${a.TalentPartner || "—"}</td>
             <td>${a.Outreach || 0}</td>
             <td>${a.Screened || 0}</td>
@@ -133,7 +146,8 @@ async function showEditActivityForm(id) {
 async function renderPlacementsPage() {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading placements...</p>";
-  const placements = await getPlacements();
+  const [placements, allRoles] = await Promise.all([getPlacements(), getAllRoles()]);
+  const roleMap = Object.fromEntries(allRoles.map(r => [r.id, r.RoleTitle]));
   const role = getUserRole(getCurrentUser().email);
   const canEdit = ["admin","talent_partner"].includes(role);
   main.innerHTML = `
@@ -151,7 +165,7 @@ async function renderPlacementsPage() {
         ${placements.map(p => `
           <tr>
             <td>${p.CandidateName}</td>
-            <td>${p.RoleID || "—"}</td>
+            <td>${roleMap[p.RoleIDLookupId] || roleMap[p.RoleID] || "—"}</td>
             <td>${formatSalary(p.SalaryAgreed)}</td>
             <td>${p.OfferAcceptedDate ? p.OfferAcceptedDate.split("T")[0] : "—"}</td>
             <td>${p.ProvisionalStartDate ? p.ProvisionalStartDate.split("T")[0] : "—"}</td>
@@ -174,7 +188,8 @@ async function showEditPlacementForm(id) {
 async function renderRejectionsPage() {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading rejections...</p>";
-  const rejections = await getRejectedOffers();
+  const [rejections, allRoles] = await Promise.all([getRejectedOffers(), getAllRoles()]);
+  const roleMap = Object.fromEntries(allRoles.map(r => [r.id, r.RoleTitle]));
   const role = getUserRole(getCurrentUser().email);
   const canEdit = ["admin","talent_partner"].includes(role);
   main.innerHTML = `
@@ -191,7 +206,7 @@ async function renderRejectionsPage() {
         ${rejections.map(r => `
           <tr>
             <td>${r.CandidateName}</td>
-            <td>${r.RoleID || "—"}</td>
+            <td>${roleMap[r.RoleIDLookupId] || roleMap[r.RoleID] || "—"}</td>
             <td>${formatSalary(r.SalaryOffered)}</td>
             <td>${r.RejectionReason || "—"}</td>
             <td>${r.Notes || "—"}</td>

@@ -9,14 +9,11 @@ function clearFormError(formId) {
   if (el) { el.textContent = ''; el.style.display = 'none'; }
 }
 function isoDate(dateStr) {
-  // Append T12:00:00Z so SharePoint's UTC conversion never shifts the date
-  // regardless of the user's timezone (works for UTC-11 through UTC+11)
   if (!dateStr) return null;
   const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
   return match ? match[1] + 'T12:00:00Z' : null;
 }
 function addDays(dateStr, days) {
-  // Parse as local date to avoid UTC timezone shift
   const [y, m, d] = dateStr.split('-').map(Number);
   const date = new Date(y, m - 1, d + days);
   return [
@@ -25,6 +22,7 @@ function addDays(dateStr, days) {
     String(date.getDate()).padStart(2, '0'),
   ].join('-');
 }
+
 // ── Project Form ────────────────────────────────────────────────────
 function renderProjectForm(existingData = null) {
   const isEdit = !!existingData;
@@ -99,10 +97,13 @@ async function submitProjectForm(event, editId = null) {
     showFormError('project-form', `Error saving project: ${e.message}`);
   }
 }
+
 // ── Role Form ────────────────────────────────────────────────────────
 async function renderRoleForm(existingData = null, preselectedProjectId = null) {
   const isEdit = !!existingData;
-  const projects = await getProjects(false);
+  const email = getCurrentUser().email;
+  // Scoped project list — admin sees all, TP/DM sees assigned only
+  const projects = await getScopedProjects(email, false);
   const selectedProjectId = existingData?.ProjectID || preselectedProjectId || '';
   const projectOptions = projects.map(p =>
     `<option value="${p.id}" ${
@@ -266,6 +267,7 @@ async function submitRoleForm(event, editId = null) {
     showFormError('role-form', `Error saving role: ${e.message}`);
   }
 }
+
 // ── Weekly Activity Form ────────────────────────────────────────────
 function getISOWeek(date) {
   const d = new Date(date);
@@ -283,7 +285,9 @@ function getWeekEnding(date) {
 }
 async function renderWeeklyActivityForm(existingData = null) {
   const isEdit = !!existingData;
-  const projects = await getProjects(false);
+  const email = getCurrentUser().email;
+  // Scoped project list
+  const projects = await getScopedProjects(email, false);
   const projectOptions = projects.map(p =>
     `<option value="${p.id}" ${existingData?.ProjectID == p.id ? 'selected' : ''}>${p.CustomerName}</option>`
   ).join('');
@@ -383,20 +387,20 @@ async function submitWeeklyForm(event, editId = null) {
   const fields = {
     ProjectIDLookupId: parseInt(data.ProjectID),
     RoleIDLookupId:    parseInt(data.RoleID),
-    TalentPartner:  currentUser?.name || undefined,
-    Yeare:          parseInt(data.Year),
-    WeekNumber:     parseInt(data.WeekNumber),
-    WeekEndingDate: isoDate(data.WeekEndingDate),
-    Outreach:       parseInt(data.Outreach) || 0,
-    Responses:      parseInt(data.Responses) || 0,
-    Screened:       parseInt(data.Screened) || 0,
-    Submitted:      parseInt(data.Submitted) || 0,
-    Interview1:     parseInt(data.Interview1) || 0,
-    InterviewTwoPlus: parseInt(data.Interview2Plus) || 0,
-    FinalInterview: parseInt(data.FinalInterview) || 0,
-    Offers:         parseInt(data.Offers) || 0,
-    Hires:          parseInt(data.Hires) || 0,
-    SubmittedAt:    new Date().toISOString(),
+    TalentPartner:     currentUser?.name || undefined,
+    Yeare:             parseInt(data.Year),
+    WeekNumber:        parseInt(data.WeekNumber),
+    WeekEndingDate:    isoDate(data.WeekEndingDate),
+    Outreach:          parseInt(data.Outreach) || 0,
+    Responses:         parseInt(data.Responses) || 0,
+    Screened:          parseInt(data.Screened) || 0,
+    Submitted:         parseInt(data.Submitted) || 0,
+    Interview1:        parseInt(data.Interview1) || 0,
+    InterviewTwoPlus:  parseInt(data.Interview2Plus) || 0,
+    FinalInterview:    parseInt(data.FinalInterview) || 0,
+    Offers:            parseInt(data.Offers) || 0,
+    Hires:             parseInt(data.Hires) || 0,
+    SubmittedAt:       new Date().toISOString(),
   };
   try {
     if (editId) {
@@ -409,10 +413,20 @@ async function submitWeeklyForm(event, editId = null) {
     showFormError('weekly-form', `Error saving activity: ${e.message}`);
   }
 }
+
 // ── Placement Form ───────────────────────────────────────────────────
 async function renderPlacementForm(existingData = null, preselectedRoleId = null) {
   const isEdit = !!existingData;
-  const roles = await getAllRoles();
+  const email = getCurrentUser().email;
+  const projectIds = await getUserProjectIds(email);
+  const allRoles = await getAllRoles();
+  // Scope roles to user's projects
+  const roles = projectIds === null
+    ? allRoles
+    : allRoles.filter(r =>
+        projectIds.includes(String(r.ProjectIDLookupId)) ||
+        projectIds.includes(String(r.ProjectID))
+      );
   const roleOptions = roles.map(r =>
     `<option value="${r.id}" ${
       (existingData?.RoleID == r.id || preselectedRoleId == r.id) ? 'selected' : ''
@@ -508,10 +522,20 @@ async function submitPlacementForm(event, editId = null) {
     showFormError('placement-form', `Error saving placement: ${e.message}`);
   }
 }
+
 // ── Rejected Offer Form ──────────────────────────────────────────────
 async function renderRejectedOfferForm(existingData = null, preselectedRoleId = null) {
   const isEdit = !!existingData;
-  const roles = await getAllRoles();
+  const email = getCurrentUser().email;
+  const projectIds = await getUserProjectIds(email);
+  const allRoles = await getAllRoles();
+  // Scope roles to user's projects
+  const roles = projectIds === null
+    ? allRoles
+    : allRoles.filter(r =>
+        projectIds.includes(String(r.ProjectIDLookupId)) ||
+        projectIds.includes(String(r.ProjectID))
+      );
   const roleOptions = roles.map(r =>
     `<option value="${r.id}" ${
       (existingData?.RoleID == r.id || preselectedRoleId == r.id) ? 'selected' : ''

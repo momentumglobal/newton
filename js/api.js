@@ -120,6 +120,14 @@ async function getDepartmentsForProject(projectId) {
   return getItems("Departments", `fields/ProjectID eq ${projectId}`);
 }
 
+// Returns Talent Partners assigned to a specific project (for activity logging on behalf of)
+async function getTalentPartnersForProject(projectId) {
+  const assignments = await getItems("UserAssignments", `fields/ProjectID eq ${projectId}`);
+  return assignments.filter(a =>
+    a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager'
+  );
+}
+
 // ── Role resolution ──────────────────────────────────────────────────
 // Role precedence: admin > leadership > talent_partner > delivery_manager > viewer
 const ROLE_PRECEDENCE = ['admin','leadership','talent_partner','delivery_manager','viewer'];

@@ -285,7 +285,10 @@ function getWeekEnding(date) {
 }
 async function renderWeeklyActivityForm(existingData = null) {
   const isEdit = !!existingData;
-  const email = getCurrentUser().email;
+  const currentUser = getCurrentUser();
+  const email = currentUser.email;
+  const userRole = getUserRole(email);
+  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
   // Scoped project list
   const projects = await getScopedProjects(email, false);
   const projectOptions = projects.map(p =>
@@ -302,7 +305,7 @@ async function renderWeeklyActivityForm(existingData = null) {
         <div class="form-row">
           <div class="form-group">
             <label>Project *</label>
-            <select name="ProjectID" required onchange="loadRolesForWeekly(this.value)">
+            <select name="ProjectID" required onchange="loadRolesForWeekly(this.value)${canLogOnBehalf ? ';loadTalentPartnersForWeekly(this.value)' : ''}">
               <option value="">-- Select project --</option>
               ${projectOptions}
             </select>
@@ -314,6 +317,13 @@ async function renderWeeklyActivityForm(existingData = null) {
             </select>
           </div>
         </div>
+        ${canLogOnBehalf ? `
+        <div class="form-group">
+          <label>Log activity as *</label>
+          <select name="TalentPartnerName" id="weekly-tp-select" required>
+            <option value="">-- Select project first --</option>
+          </select>
+        </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.name || currentUser.email}">`}
         <div class="form-group">
           <label>Week Ending Date *</label>
           <input type="date" name="WeekEndingDate" required
@@ -373,6 +383,22 @@ async function loadRolesForWeekly(projectId) {
     `<option value="${r.id}">${r.RoleTitle}</option>`
   ).join('');
 }
+async function loadTalentPartnersForWeekly(projectId) {
+  const select = document.getElementById('weekly-tp-select');
+  if (!select) return; // not shown for TP users
+  if (!projectId) {
+    select.innerHTML = '<option value="">-- Select project first --</option>';
+    return;
+  }
+  select.innerHTML = '<option value="">Loading...</option>';
+  try {
+    const tps = await getTalentPartnersForProject(projectId);
+    select.innerHTML = '<option value="">-- Select team member --</option>' +
+      tps.map(u => `<option value="${u.UserName || u.UserEmail}">${u.UserName || u.UserEmail}</option>`).join('');
+  } catch(e) {
+    select.innerHTML = '<option value="">-- Error loading team --</option>';
+  }
+}
 function autoFillWeekYear(dateStr) {
   if (!dateStr) return;
   document.getElementById('weekly-year').value = new Date(dateStr).getFullYear();
@@ -383,11 +409,10 @@ async function submitWeeklyForm(event, editId = null) {
   clearFormError('weekly-form');
   const form = document.getElementById('weekly-form');
   const data = Object.fromEntries(new FormData(form));
-  const currentUser = getCurrentUser();
   const fields = {
     ProjectIDLookupId: parseInt(data.ProjectID),
     RoleIDLookupId:    parseInt(data.RoleID),
-    TalentPartner:     currentUser?.name || undefined,
+    TalentPartner:     data.TalentPartnerName || undefined,
     Yeare:             parseInt(data.Year),
     WeekNumber:        parseInt(data.WeekNumber),
     WeekEndingDate:    isoDate(data.WeekEndingDate),

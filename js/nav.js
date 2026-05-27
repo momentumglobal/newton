@@ -1,4 +1,5 @@
 let currentPage = 'dashboard';
+let _resolvedRole = null; // cached after login, used throughout session
 
 function renderNav(role) {
   const pages = getAccessiblePages(role);
@@ -11,7 +12,7 @@ function renderNav(role) {
     </div>
     <div class='nav-user'>
       <div class='nav-user-name'>${user.name || user.email}</div>
-      <div class='nav-user-role'>${role.replace('_', ' ')}</div>
+      <div class='nav-user-role'>${role.replace(/_/g, ' ')}</div>
     </div>
     <nav class='nav-links'>
       ${pages.map(p => `
@@ -28,7 +29,7 @@ function renderNav(role) {
 }
 
 function navigateTo(page) {
-  const role = getUserRole(getCurrentUser().email);
+  const role = _resolvedRole || getUserRole(getCurrentUser().email);
   if (!canAccess(page, role)) return;
   currentPage = page;
   renderNav(role);

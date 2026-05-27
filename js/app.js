@@ -21,8 +21,17 @@ window.APP = {
     document.getElementById('login-screen').style.display = 'flex';
   },
 };
-// Run on page load — scripts are deferred to end of body so DOM is already ready
-msalInstance.handleRedirectPromise().then(() => {
+
+// Handle redirect response from Microsoft login, then initialise app
+msalInstance.handleRedirectPromise().then(response => {
+  if (response) {
+    // Coming back from Microsoft redirect — store user details
+    const account = response.account || msalInstance.getAllAccounts()[0];
+    if (account) {
+      localStorage.setItem('userEmail', account.username.toLowerCase());
+      localStorage.setItem('userName',  account.name);
+    }
+  }
   window.APP.init();
 }).catch(e => {
   console.error('MSAL redirect error:', e);

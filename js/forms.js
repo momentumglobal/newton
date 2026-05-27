@@ -272,7 +272,7 @@ async function submitRoleForm(event, editId = null) {
     Title:          data.RoleTitle,
     HiringManager:  data.HiringManager || undefined,
     TalentPartner:  data.TalentPartnerName || undefined,
-    Budget:         data.Budget || undefined,
+    Budget:         data.Budget ? parseFloat(data.Budget) : undefined,
     Priority:       data.Priority ? parseInt(data.Priority) : undefined,
     Backfill:       data.Backfill || undefined,
     Stage:          data.Stage,

@@ -152,7 +152,6 @@ body {
 .badge-active   { background: #e6f4ea; color: #2e7d32; }
 .badge-transition { background: #fff8e1; color: #f57f17; }
 .badge-completed { background: #f3e5f5; color: #6a1b9a; }
-
 /* ── Filter group with label ────────────────────────────────────────── */
 .filter-labeled-group {
   display: flex; flex-direction: column; gap: 4px;
@@ -161,14 +160,11 @@ body {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
   color: #888; letter-spacing: 0.04em;
 }
-
-/* ── Dashboard (append to end of style.css) ──────────────────── */
-
+/* ── Dashboard ──────────────────────────────────────────────────────── */
 .kpi-strip {
   display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;
 }
 .kpi-strip-period { margin-bottom: 24px; }
-
 .kpi-card {
   flex: 1; min-width: 120px;
   background: #EBF2FA;
@@ -179,9 +175,7 @@ body {
 .kpi-label { font-size: 11px; color: #595959; margin-top: 4px;
   text-transform: uppercase; letter-spacing: 0.5px; }
 .kpi-sub   { font-size: 11px; color: #888; margin-top: 2px; }
-
 .dash-grid { display: flex; flex-direction: column; gap: 20px; }
-
 .dash-panel {
   background: #fff; border: 1px solid #C5D9EE;
   border-radius: 6px; padding: 20px 24px;
@@ -191,7 +185,6 @@ body {
   margin: 0 0 16px 0; padding-bottom: 8px;
   border-bottom: 1px solid #EBF2FA;
 }
-
 .bar-chart { display: flex; flex-direction: column; gap: 8px; }
 .chart-row { display: flex; align-items: center; gap: 8px; }
 .chart-label { width: 140px; font-size: 12px; color: #595959; flex-shrink: 0; text-align: right; }
@@ -201,14 +194,12 @@ body {
 }
 .chart-bar { height: 22px; border-radius: 3px; min-width: 2px; transition: width 0.3s ease; }
 .chart-val { font-size: 12px; color: #595959; white-space: nowrap; padding-right: 8px; }
-
 .no-data { color: #888; font-size: 13px; font-style: italic; }
 .totals-row td { background: #EBF2FA; font-weight: 600; }
-
 .spend-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 8px; }
 .spend-label { font-size: 11px; color: #595959; text-transform: uppercase;
   letter-spacing: 0.5px; margin-bottom: 4px; }
 .spend-val { font-size: 22px; font-weight: 700; color: #1F3A6B; }
-
 .dash-project-selector { max-width: 320px; margin-bottom: 20px; }
-
+.detail-period-selector { max-width: 220px; margin-bottom: 16px; }
+.dash-detail-header { margin-bottom: 8px; }

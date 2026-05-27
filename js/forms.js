@@ -101,7 +101,10 @@ async function submitProjectForm(event, editId = null) {
 // ── Role Form ────────────────────────────────────────────────────────
 async function renderRoleForm(existingData = null, preselectedProjectId = null) {
   const isEdit = !!existingData;
-  const email = getCurrentUser().email;
+  const currentUser = getCurrentUser();
+  const email = currentUser.email;
+  const userRole = getUserRole(email);
+  const canAssign = ['admin', 'delivery_manager'].includes(userRole);
   // Scoped project list — admin sees all, TP/DM sees assigned only
   const projects = await getScopedProjects(email, false);
   const selectedProjectId = existingData?.ProjectID || preselectedProjectId || '';
@@ -128,11 +131,18 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
       <form id="role-form" onsubmit="submitRoleForm(event, ${existingData?.id || 'null'})">
         <div class="form-group">
           <label>Project *</label>
-          <select name="ProjectID" required onchange="loadDepartmentsForRole(this.value)">
+          <select name="ProjectID" required onchange="loadDepartmentsForRole(this.value)${canAssign ? ';loadTalentPartnersForRole(this.value)' : ''}">
             <option value="">-- Select project --</option>
             ${projectOptions}
           </select>
         </div>
+        ${canAssign ? `
+        <div class="form-group">
+          <label>Assign to *</label>
+          <select name="TalentPartnerName" id="role-tp-select" required>
+            <option value="">-- Select project first --</option>
+          </select>
+        </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.name || currentUser.email}">`}
         <div class="form-group">
           <label>Role Title *</label>
           <input type="text" name="RoleTitle" required
@@ -215,6 +225,22 @@ function autoFillTargetDate() {
     target.value = addDays(open, 45);
   }
 }
+async function loadTalentPartnersForRole(projectId) {
+  const select = document.getElementById('role-tp-select');
+  if (!select) return;
+  if (!projectId) {
+    select.innerHTML = '<option value="">-- Select project first --</option>';
+    return;
+  }
+  select.innerHTML = '<option value="">Loading...</option>';
+  try {
+    const tps = await getTalentPartnersForProject(projectId);
+    select.innerHTML = '<option value="">-- Select team member --</option>' +
+      tps.map(u => `<option value="${u.UserName || u.UserEmail}">${u.UserName || u.UserEmail}</option>`).join('');
+  } catch(e) {
+    select.innerHTML = '<option value="">-- Error loading team --</option>';
+  }
+}
 async function loadDepartmentsForRole(projectId) {
   const select = document.getElementById('role-department-select');
   if (!projectId) {
@@ -241,12 +267,11 @@ async function submitRoleForm(event, editId = null) {
   clearFormError('role-form');
   const form = document.getElementById('role-form');
   const data = Object.fromEntries(new FormData(form));
-  const currentUser = getCurrentUser();
   const fields = {
     ProjectIDLookupId: parseInt(data.ProjectID),
     Title:          data.RoleTitle,
     HiringManager:  data.HiringManager || undefined,
-    TalentPartner:  currentUser?.name || undefined,
+    TalentPartner:  data.TalentPartnerName || undefined,
     Budget:         data.Budget || undefined,
     Priority:       data.Priority ? parseInt(data.Priority) : undefined,
     Backfill:       data.Backfill || undefined,

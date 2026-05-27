@@ -5,19 +5,15 @@ const msalConfig = {
     redirectUri: CONFIG.REDIRECT_URI,
   },
   cache: {
-    cacheLocation: 'sessionStorage',
-    storeAuthStateInCookie: false,
+    cacheLocation:       'localStorage',   // persists across tabs/windows — fixes popup state loss
+    storeAuthStateInCookie: true,          // fallback for browsers that block third-party storage
   },
 };
-
 const msalInstance = new msal.PublicClientApplication(msalConfig);
-
 const loginRequest = {
   scopes: ['User.Read', 'Sites.ReadWrite.All'],
 };
-
 let signInInProgress = false;
-
 async function signIn() {
   if (signInInProgress) return;
   signInInProgress = true;
@@ -25,8 +21,8 @@ async function signIn() {
     await msalInstance.loginPopup(loginRequest);
     const account = msalInstance.getAllAccounts()[0];
     if (account) {
-      sessionStorage.setItem('userEmail', account.username.toLowerCase());
-      sessionStorage.setItem('userName',  account.name);
+      localStorage.setItem('userEmail', account.username.toLowerCase());
+      localStorage.setItem('userName',  account.name);
       window.APP.init();
     }
   } catch (e) {
@@ -35,13 +31,11 @@ async function signIn() {
     signInInProgress = false;
   }
 }
-
 function signOut() {
   msalInstance.logoutPopup();
-  sessionStorage.clear();
+  localStorage.clear();
   window.location.reload();
 }
-
 async function getToken() {
   const account = msalInstance.getAllAccounts()[0];
   if (!account) return null;
@@ -56,14 +50,12 @@ async function getToken() {
     return response.accessToken;
   }
 }
-
 function getCurrentUser() {
   return {
-    email: sessionStorage.getItem('userEmail'),
-    name:  sessionStorage.getItem('userName'),
+    email: localStorage.getItem('userEmail'),
+    name:  localStorage.getItem('userName'),
   };
 }
-
 function isSignedIn() {
   return msalInstance.getAllAccounts().length > 0;
 }

@@ -39,29 +39,70 @@ async function renderAdminTab(tab) {
   `;
 }
 // ── Assignments Tab ──────────────────────────────────────────────────
-async function buildAssignmentsTab() {
+async function buildAssignmentsTab(editId = null) {
   const [projects, assignments] = await Promise.all([
     getProjects(false), getUserAssignments()
   ]);
-  const rows = assignments.map(a => `
-    <tr>
-      <td>${a.UserName || '—'}</td>
-      <td>${a.UserEmail}</td>
-      <td>${a.CustomerName || '—'}</td>
-      <td>${a.AssignedRole === 'talent_partner' ? 'Talent Partner' : 'Delivery Manager'}</td>
-      <td><a href="#" onclick="deleteAdminRecord('UserAssignments',${a.id})">Remove</a></td>
-    </tr>`).join('');
   const projectOptions = projects.map(p =>
     `<option value="${p.id}|${p.CustomerName}">${p.CustomerName}</option>`
   ).join('');
-  return `
-    <h3>Current Assignments</h3>
-    <table class="data-table" style="margin:0 0 24px">
-      <thead><tr>
-        <th>Name</th><th>Email</th><th>Customer</th><th>Role</th><th></th>
-      </tr></thead>
-      <tbody>${rows || '<tr><td colspan=5>No assignments yet.</td></tr>'}</tbody>
-    </table>
+  // If editing, fetch the record to pre-fill
+  let editRecord = null;
+  if (editId) {
+    editRecord = assignments.find(a => String(a.id) === String(editId));
+  }
+  const rows = assignments.map(a => `
+    <tr id="assign-row-${a.id}">
+      <td>${a.UserName || '—'}</td>
+      <td>${a.UserEmail}</td>
+      <td>${a.CustomerName || '—'}</td>
+      <td>${a.AssignedRole === 'talent_partner' ? 'Talent Partner' : a.AssignedRole === 'delivery_manager' ? 'Delivery Manager' : a.AssignedRole || '—'}</td>
+      <td style="display:flex;gap:8px">
+        <a href="#" onclick="showEditAssignment(${a.id})">Edit</a>
+        <a href="#" onclick="deleteAdminRecord('UserAssignments',${a.id})">Remove</a>
+      </td>
+    </tr>`).join('');
+  // Edit form (shown inline when editId is set)
+  const editForm = editRecord ? `
+    <h3>Edit Assignment</h3>
+    <div class="form-container" style="padding:0;max-width:600px">
+      <div class="form-row">
+        <div class="form-group">
+          <label>User Display Name</label>
+          <input type="text" id="assign-name" value="${editRecord.UserName || ''}">
+        </div>
+        <div class="form-group">
+          <label>User Email *</label>
+          <input type="email" id="assign-email" value="${editRecord.UserEmail || ''}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Customer</label>
+          <select id="assign-project">
+            <option value="">-- Select customer --</option>
+            ${projects.map(p => `
+              <option value="${p.id}|${p.CustomerName}" ${String(p.id) === String(editRecord.ProjectID) ? 'selected' : ''}>
+                ${p.CustomerName}
+              </option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Role *</label>
+          <select id="assign-role">
+            <option value="talent_partner" ${editRecord.AssignedRole === 'talent_partner' ? 'selected' : ''}>Talent Partner</option>
+            <option value="delivery_manager" ${editRecord.AssignedRole === 'delivery_manager' ? 'selected' : ''}>Delivery Manager</option>
+            <option value="viewer" ${editRecord.AssignedRole === 'viewer' ? 'selected' : ''}>Viewer</option>
+          </select>
+        </div>
+      </div>
+      <div id="assign-error" class="form-error"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-primary" onclick="submitAssignment(${editRecord.id})">Save Changes</button>
+        <button class="btn-secondary" onclick="renderAdminTab('assignments')">Cancel</button>
+      </div>
+    </div>
+  ` : `
     <h3>Add Assignment</h3>
     <div class="form-container" style="padding:0;max-width:600px">
       <div class="form-row">
@@ -87,6 +128,7 @@ async function buildAssignmentsTab() {
           <select id="assign-role">
             <option value="talent_partner">Talent Partner</option>
             <option value="delivery_manager">Delivery Manager</option>
+            <option value="viewer">Viewer</option>
           </select>
         </div>
       </div>
@@ -94,13 +136,30 @@ async function buildAssignmentsTab() {
       <button class="btn-primary" onclick="submitAssignment()">Add Assignment</button>
     </div>
   `;
+  return `
+    <h3>Current Assignments</h3>
+    <table class="data-table" style="margin:0 0 24px">
+      <thead><tr>
+        <th>Name</th><th>Email</th><th>Customer</th><th>Role</th><th></th>
+      </tr></thead>
+      <tbody>${rows || '<tr><td colspan=5>No assignments yet.</td></tr>'}</tbody>
+    </table>
+    ${editForm}
+  `;
 }
-async function submitAssignment() {
-  const name     = document.getElementById('assign-name').value.trim();
-  const email    = document.getElementById('assign-email').value.trim();
-  const projVal  = document.getElementById('assign-project').value;
-  const role     = document.getElementById('assign-role').value;
-  const errEl    = document.getElementById('assign-error');
+async function showEditAssignment(id) {
+  const main = document.getElementById('main-content');
+  const tabBar = document.querySelector('.filter-group');
+  // Re-render tab with edit form open
+  const content = await buildAssignmentsTab(id);
+  document.querySelector('#main-content > div[style]').innerHTML = content;
+}
+async function submitAssignment(editId = null) {
+  const name    = document.getElementById('assign-name').value.trim();
+  const email   = document.getElementById('assign-email').value.trim();
+  const projVal = document.getElementById('assign-project').value;
+  const role    = document.getElementById('assign-role').value;
+  const errEl   = document.getElementById('assign-error');
   errEl.style.display = 'none';
   if (!email) {
     errEl.textContent = 'Email is required.';
@@ -108,12 +167,21 @@ async function submitAssignment() {
   }
   const [projectId, customerName] = projVal ? projVal.split('|') : ['0', ''];
   try {
-    await createItem('UserAssignments', {
-      Title: email, UserName: name,
-      ProjectID: parseInt(projectId) || 0,
-      CustomerName: customerName || '',
-      AssignedRole: role
-    });
+    if (editId) {
+      await updateItem('UserAssignments', editId, {
+        Title: email, UserName: name,
+        ProjectID: parseInt(projectId) || 0,
+        CustomerName: customerName || '',
+        AssignedRole: role
+      });
+    } else {
+      await createItem('UserAssignments', {
+        Title: email, UserName: name,
+        ProjectID: parseInt(projectId) || 0,
+        CustomerName: customerName || '',
+        AssignedRole: role
+      });
+    }
     await renderAdminTab('assignments');
   } catch(e) {
     errEl.textContent = `Error: ${e.message}`;
@@ -233,7 +301,6 @@ async function submitDepartment() {
   }
 }
 // ── Delete Tab ───────────────────────────────────────────────────────
-// Display labels for each list's items
 const DELETE_LIST_CONFIG = {
   Projects:        { label: 'Projects',         displayField: 'CustomerName' },
   Roles:           { label: 'Roles',            displayField: 'RoleTitle' },

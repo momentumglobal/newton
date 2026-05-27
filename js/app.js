@@ -5,10 +5,11 @@ window.APP = {
       return;
     }
     const user = getCurrentUser();
-    const role = getUserRole(user.email);
+    // Resolve full role from SharePoint on login — stored in _resolvedRole for the session
+    _resolvedRole = await getUserRoleAsync(user.email);
     document.getElementById('app-shell').style.display = 'flex';
     document.getElementById('login-screen').style.display = 'none';
-    renderNav(role);
+    renderNav(_resolvedRole);
     navigateTo('dashboard');
     // Auto-register user in UserAssignments on first login (non-blocking)
     ensureUserRegistered(user.email, user.name).catch(e =>

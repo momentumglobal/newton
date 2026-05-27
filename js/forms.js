@@ -274,7 +274,7 @@ async function submitRoleForm(event, editId = null) {
     TalentPartner:  data.TalentPartnerName || undefined,
     Budget:         data.Budget ? parseFloat(data.Budget) : undefined,
     Priority:       data.Priority ? parseInt(data.Priority) : undefined,
-    Backfill:       data.Backfill || undefined,
+    Backfill:       data.Backfill === 'Yes' ? true : data.Backfill === 'No' ? false : undefined,
     Stage:          data.Stage,
     OpenDate:       isoDate(data.OpenDate) || undefined,
     TargetHireDate: isoDate(data.TargetHireDate) || undefined,

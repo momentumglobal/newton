@@ -205,3 +205,15 @@ body {
 .dash-detail-header { margin-bottom: 8px; }
 .project-filter-bar { padding: 0 0 12px 0; }
 .project-filter-select { max-width: 260px; }
+
+/* ── Page filter bar (below header, above table) ────────────────────── */
+.page-filter-bar {
+  padding: 0 24px 12px;
+}
+/* ── Placement filter rows ──────────────────────────────────────────── */
+.placement-filter-rows {
+  display: flex; flex-direction: column; gap: 8px; padding: 0 24px 12px;
+}
+.placement-filter-row {
+  display: flex; align-items: flex-end; gap: 16px;
+}

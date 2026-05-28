@@ -8,7 +8,7 @@ function renderNav(role) {
   nav.innerHTML = `
     <div class='nav-header'>
       <div class='nav-logo'>Newton</div>
-      <div class='nav-subtitle'>Momentum Global</div>
+      <div class='nav-subtitle'>Reporting</div>
     </div>
     <div class='nav-user'>
       <div class='nav-user-name'>${user.name || user.email}</div>

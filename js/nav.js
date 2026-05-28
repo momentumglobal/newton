@@ -1,27 +1,25 @@
 let currentPage = null;
 let _resolvedRole = null;
 
-// Module definitions (mirrors home.html — single source of truth would be better long-term)
 const OS_MODULES = [
-  { key: 'reporting', name: 'Reporting', href: 'index.html', live: true,  roles: ['admin','delivery_manager','talent_partner','leadership'] },
-  { key: 'people',    name: 'People',    href: null,         live: false, roles: ['admin','leadership'] },
-  { key: 'finance',   name: 'Finance',   href: null,         live: false, roles: ['admin','leadership'] },
-  { key: 'operations',name: 'Operations',href: null,         live: false, roles: ['admin','leadership'] },
+  { key: 'reporting', name: 'Reporting', icon: 'bar-chart-2',   href: 'index.html', live: true,  roles: ['admin','delivery_manager','talent_partner','leadership'] },
+  { key: 'people',    name: 'People',    icon: 'users',          href: null,         live: false, roles: ['admin','leadership'] },
+  { key: 'finance',   name: 'Finance',   icon: 'pound-sterling', href: null,         live: false, roles: ['admin','leadership'] },
+  { key: 'operations',name: 'Operations',icon: 'settings-2',     href: null,         live: false, roles: ['admin','leadership'] },
 ];
 
 function renderNav(role) {
   const pages = getAccessiblePages(role);
   const user  = getCurrentUser();
 
-  // Filter modules this role can see
   const visibleModules = OS_MODULES.filter(m => m.roles.includes(role));
 
   const moduleItems = visibleModules.map(m => {
     if (!m.live) {
-      return `<div class='nav-module-item disabled'>${m.name} <span class='nav-module-soon'>Soon</span></div>`;
+      return `<div class='nav-module-item disabled'><i data-lucide="${m.icon}" class="nav-module-icon"></i>${m.name} <span class='nav-module-soon'>Soon</span></div>`;
     }
-    const isCurrent = m.key === 'reporting'; // expand when more modules are live
-    return `<a class='nav-module-item${isCurrent ? ' current' : ''}' href='${m.href}'>${m.name}</a>`;
+    const isCurrent = m.key === 'reporting';
+    return `<a class='nav-module-item${isCurrent ? ' current' : ''}' href='${m.href}'><i data-lucide="${m.icon}" class="nav-module-icon"></i>${m.name}</a>`;
   }).join('');
 
   const nav = document.getElementById('sidebar');
@@ -53,6 +51,8 @@ function renderNav(role) {
       <a class='nav-link signout' onclick='signOut()'>Sign out</a>
     </div>
   `;
+
+  lucide.createIcons();
 }
 
 function toggleModuleDropdown() {
@@ -60,7 +60,6 @@ function toggleModuleDropdown() {
   if (dd) dd.classList.toggle('open');
 }
 
-// Close dropdown when clicking outside
 document.addEventListener('click', function(e) {
   const header = document.querySelector('.nav-header-dropdown');
   const dd = document.getElementById('nav-module-dropdown');

@@ -1,529 +1,426 @@
-// js/dashboard.js — Project Dashboard
-// ── State ─────────────────────────────────────────────────────────────
-let _dashPeriod       = 'quarter'; // KPI ribbon: 'month' | 'quarter' | 'year'
-let _dashDetailPeriod = 'this_month'; // Detail panels filter
-let _dashProjectId    = null;
-// ── KPI period helpers ────────────────────────────────────────────────
-function isoWeek(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const y = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - y) / 86400000) + 1) / 7);
-}
-function activityInKpiPeriod(a, period) {
-  const now = new Date();
-  const year = Number(a.Year), week = Number(a.WeekNumber);
-  const cy = now.getFullYear(), cm = now.getMonth();
-  if (period === 'month')   return year === cy && Math.floor((week - 1) / 4.33) === cm;
-  if (period === 'quarter') return year === cy && Math.floor((week - 1) / 13) === Math.floor(cm / 3);
-  if (period === 'year')    return year === cy;
-  return true;
-}
-function roleHiredInKpiPeriod(r, period) {
-  if (!r.ActualHireDate) return false;
-  const d = new Date(r.ActualHireDate), now = new Date();
-  if (period === 'month')   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-  if (period === 'quarter') return d.getFullYear() === now.getFullYear() && Math.floor(d.getMonth()/3) === Math.floor(now.getMonth()/3);
-  if (period === 'year')    return d.getFullYear() === now.getFullYear();
-  return true;
-}
-// ── Detail period helpers ─────────────────────────────────────────────
-function getDetailPeriodRange(period) {
-  const now = new Date();
-  const y = now.getFullYear(), m = now.getMonth();
-  const q = Math.floor(m / 3);
-  const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
-  const thisMonday = new Date(now); thisMonday.setDate(now.getDate() - dayOfWeek); thisMonday.setHours(0,0,0,0);
-  const lastMonday = new Date(thisMonday); lastMonday.setDate(thisMonday.getDate() - 7);
-  const thisSunday = new Date(thisMonday); thisSunday.setDate(thisMonday.getDate() + 6); thisSunday.setHours(23,59,59,999);
-  const lastSunday = new Date(lastMonday); lastSunday.setDate(lastMonday.getDate() + 6); lastSunday.setHours(23,59,59,999);
-  switch (period) {
-    case 'this_week':    return { start: thisMonday, end: thisSunday };
-    case 'last_week':    return { start: lastMonday, end: lastSunday };
-    case 'this_month':   return { start: new Date(y, m, 1), end: new Date(y, m+1, 0, 23, 59, 59) };
-    case 'last_month':   return { start: new Date(y, m-1, 1), end: new Date(y, m, 0, 23, 59, 59) };
-    case 'this_quarter': return { start: new Date(y, q*3, 1), end: new Date(y, q*3+3, 0, 23, 59, 59) };
-    case 'last_quarter': return { start: new Date(y, (q-1)*3, 1), end: new Date(y, q*3, 0, 23, 59, 59) };
-    case 'this_year':    return { start: new Date(y, 0, 1), end: new Date(y, 11, 31, 23, 59, 59) };
-    case 'last_year':    return { start: new Date(y-1, 0, 1), end: new Date(y-1, 11, 31, 23, 59, 59) };
-    default:             return { start: new Date(y, m, 1), end: new Date(y, m+1, 0, 23, 59, 59) };
-  }
-}
-function weekEndingDate(year, weekNum) {
-  const jan4 = new Date(year, 0, 4);
-  const startOfW1 = new Date(jan4);
-  startOfW1.setDate(jan4.getDate() - (jan4.getDay() === 0 ? 6 : jan4.getDay() - 1));
-  const monday = new Date(startOfW1);
-  monday.setDate(startOfW1.getDate() + (weekNum - 1) * 7);
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4);
-  friday.setHours(23, 59, 59, 999);
-  return friday;
-}
-function activityInDetailPeriod(a, period) {
-  const { start, end } = getDetailPeriodRange(period);
-  const date = a.WeekEndingDate
-    ? new Date(a.WeekEndingDate)
-    : weekEndingDate(Number(a.Year), Number(a.WeekNumber));
-  return date >= start && date <= end;
-}
-// ── Data fetch ────────────────────────────────────────────────────────
-async function fetchDashboardData(projectId, role) {
-  const isTP = role === 'talent_partner';
-  const [allRoles, activity, placements, rejections] = await Promise.all([
-    getRolesForProject(projectId),
-    getWeeklyActivity(projectId, null),
-    getPlacements(null),
-    getRejectedOffers(null),
-  ]);
-  let roles = allRoles, acts = activity;
-  if (isTP) {
-    const userName = (getCurrentUser().name || '').trim();
-    roles = allRoles.filter(r => r.TalentPartner && r.TalentPartner.trim() === userName);
-    acts  = activity.filter(a => a.TalentPartner && a.TalentPartner.trim() === userName);
-  }
-  const ids = new Set(roles.map(r => String(r.id)));
-  return {
-    roles,
-    activity: acts,
-    placements: placements.filter(p => ids.has(String(p.RoleIDLookupId)) || ids.has(String(p.RoleID))),
-    rejections: rejections.filter(r => ids.has(String(r.RoleIDLookupId)) || ids.has(String(r.RoleID))),
-  };
-}
-// ── Calculation helpers ───────────────────────────────────────────────
-function sumField(acts, field) {
-  return acts.reduce((s, a) => s + (Number(a[field]) || 0), 0);
-}
-function avgDaysToHire(roles) {
-  const hired = roles.filter(r => r.ActualHireDate && r.OpenDate);
-  if (!hired.length) return null;
-  return Math.round(hired.reduce((s, r) =>
-    s + Math.floor((new Date(r.ActualHireDate) - new Date(r.OpenDate)) / 86400000), 0) / hired.length);
-}
-function hiredOnTimePct(roles) {
-  const hired = roles.filter(r => r.ActualHireDate && r.TargetHireDate);
-  if (!hired.length) return null;
-  return Math.round(hired.filter(r =>
-    new Date(r.ActualHireDate) <= new Date(r.TargetHireDate)).length / hired.length * 100);
-}
-// ── KPI strip ─────────────────────────────────────────────────────────
-function kpiCard(label, value, sub = '') {
-  return `<div class='kpi-card'>
-    <div class='kpi-value'>${value}</div>
-    <div class='kpi-label'>${label}</div>
-    ${sub ? `<div class='kpi-sub'>${sub}</div>` : ''}
-  </div>`;
-}
-function renderKPIStrip(roles, activity, period) {
-  const openRoles  = roles.filter(r => !['Backlog','Hired','Cancelled','On-hold'].includes(r.Stage)).length;
-  const totalHires = roles.filter(r => r.Stage === 'Hired').length;
-  const acts      = activity.filter(a => activityInKpiPeriod(a, period));
-  const submitted = sumField(acts, 'Submitted');
-  const int1      = sumField(acts, 'Interview1');
-  const offers    = sumField(acts, 'Offers');
-  const hires     = sumField(acts, 'Hires');
-  const convPct  = submitted > 0 ? Math.round((int1 / submitted) * 100) + '%' : '—';
-  const ivOfferR = offers > 0 ? Math.round(int1 / offers) + ':1' : '—';
-  const offerPct = offers > 0 ? Math.round((hires / offers) * 100) + '%' : '—';
-  const periodRoles = roles.filter(r => roleHiredInKpiPeriod(r, period));
-  const avgDays     = avgDaysToHire(periodRoles);
-  const onTimePct   = hiredOnTimePct(periodRoles);
-  return `
-    <div class='kpi-strip'>
-      ${kpiCard('Open Roles', openRoles, 'current')}
-      ${kpiCard('Hires to Date', totalHires, 'all time')}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newton — User Guide</title>
+  <style>
+    @font-face {
+      font-family: 'Polymath';
+      src: url('polymath-regular.ttf') format('truetype');
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: 'Polymath';
+      src: url('polymath-semibold.ttf') format('truetype');
+      font-weight: 600;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
+      background: #F5F4F1;
+      color: #1a1a2e;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    /* ── Header ── */
+    .guide-header {
+      background: #0A0B44;
+      color: white;
+      padding: 28px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .guide-header-left h1 {
+      font-size: 22px;
+      font-weight: 600;
+    }
+    .guide-header-left p {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      margin-top: 4px;
+    }
+    .guide-header img {
+      height: 36px;
+      width: auto;
+    }
+    /* ── Layout ── */
+    .guide-body {
+      display: flex;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      gap: 40px;
+    }
+    /* ── Sidebar nav ── */
+    .guide-nav {
+      width: 200px;
+      min-width: 200px;
+      position: sticky;
+      top: 24px;
+      align-self: flex-start;
+    }
+    .guide-nav ul {
+      list-style: none;
+      padding: 0;
+    }
+    .guide-nav li a {
+      display: block;
+      padding: 7px 12px;
+      color: #0A0B44;
+      text-decoration: none;
+      font-size: 13px;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+    .guide-nav li a:hover { background: #e8e7e3; }
+    .guide-nav .nav-section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #888;
+      padding: 12px 12px 4px;
+    }
+    /* ── Content ── */
+    .guide-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .guide-section {
+      background: white;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      scroll-margin-top: 24px;
+    }
+    .guide-section h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #0A0B44;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #EBF2FA;
+    }
+    .guide-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #0A0B44;
+      margin: 20px 0 8px;
+    }
+    .guide-section p {
+      color: #333;
+      margin-bottom: 12px;
+    }
+    .guide-section p:last-child { margin-bottom: 0; }
+    /* ── FAQ ── */
+    .faq-item {
+      border-bottom: 1px solid #eee;
+      padding: 14px 0;
+    }
+    .faq-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .faq-q {
+      font-weight: 600;
+      color: #0A0B44;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .faq-a {
+      color: #444;
+      font-size: 14px;
+    }
+    /* ── Role badge ── */
+    .role-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .role-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #EBF2FA;
+      color: #0A0B44;
+    }
+    .role-badge.admin    { background: #0A0B44; color: white; }
+    .role-badge.dm       { background: #e8f4fd; color: #0A0B44; }
+    .role-badge.tp       { background: #e6f4ea; color: #2e7d32; }
+    .role-badge.leadership { background: #fff3e0; color: #e65100; }
+    /* ── Tips ── */
+    .tip {
+      background: #EBF2FA;
+      border-left: 3px solid #0A0B44;
+      border-radius: 0 4px 4px 0;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #333;
+      margin: 12px 0;
+    }
+    /* ── Footer ── */
+    .guide-footer {
+      text-align: center;
+      padding: 32px;
+      font-size: 12px;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+
+<div class="guide-header">
+  <div class="guide-header-left">
+    <h1>Newton — User Guide</h1>
+    <p>Solutions Hub Reporting · Momentum Global</p>
+  </div>
+  <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
+</div>
+
+<div class="guide-body">
+
+  <!-- Sidebar navigation -->
+  <nav class="guide-nav">
+    <ul>
+      <li><div class="nav-section-label">Getting Started</div></li>
+      <li><a href="#faq">FAQ</a></li>
+      <li><a href="#roles">User Roles</a></li>
+      <li><div class="nav-section-label">Pages</div></li>
+      <li><a href="#company-dashboard">Company Dashboard</a></li>
+      <li><a href="#project-dashboard">Project Dashboard</a></li>
+      <li><a href="#projects">Projects</a></li>
+      <li><a href="#roles-page">Roles</a></li>
+      <li><a href="#activity">Weekly Activity</a></li>
+      <li><a href="#placements">Placements</a></li>
+      <li><a href="#rejections">Rejected Offers</a></li>
+      <li><a href="#admin">Admin Panel</a></li>
+    </ul>
+  </nav>
+
+  <!-- Main content -->
+  <div class="guide-content">
+
+    <!-- FAQ -->
+    <div class="guide-section" id="faq">
+      <h2>Frequently Asked Questions</h2>
+
+      <div class="faq-item">
+        <div class="faq-q">How do I sign in?</div>
+        <div class="faq-a">Click "Sign in with Microsoft" on the Newton login page and authenticate with your Momentum Global Microsoft account. No separate password is required.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Why can't I see all pages in the navigation?</div>
+        <div class="faq-a">The pages you see depend on your assigned role. Talent Partners see project-level pages; Delivery Managers see the same plus additional detail panels; Leadership sees Company Dashboard; Admins see everything including the Admin Panel.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">I can't see my project — what do I do?</div>
+        <div class="faq-a">Your project access is controlled by your user assignment in the Admin Panel. Contact your Admin to ensure you've been assigned to the correct project.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Why are some fields showing "—"?</div>
+        <div class="faq-a">A dash means the data hasn't been entered yet for that record. Fields like Talent Partner, Target Hire Date, and Budget are optional — they'll show "—" until populated.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">How often does the data update?</div>
+        <div class="faq-a">Newton reads directly from SharePoint Lists via the Microsoft Graph API. Data updates in real time — refreshing the page will show the latest entries.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">What does the KPI Period filter control?</div>
+        <div class="faq-a">The Month / Quarter / Year buttons on the dashboards filter the pipeline metrics (submissions, interviews, offers, hires) to activity recorded within that period of the current calendar year.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Who do I contact if something isn't working?</div>
+        <div class="faq-a">Raise it with your Newton Admin. For access issues, they can update user assignments directly in the Admin Panel.</div>
+      </div>
     </div>
-    <div class='kpi-strip kpi-strip-period'>
-      ${kpiCard('Submission Conversion', convPct, 'IV1 / Submitted')}
-      ${kpiCard('IV to Offer Ratio', ivOfferR, 'IV1 : Offers')}
-      ${kpiCard('Offer Success', offerPct, 'Hires / Offers')}
-      ${kpiCard('Avg Days to Hire', avgDays !== null ? avgDays : '—', 'hired roles in period')}
-      ${kpiCard('Hired On Time', onTimePct !== null ? onTimePct + '%' : '—', 'within 45-day target')}
-    </div>`;
-}
-// ── Pipeline Activity table ───────────────────────────────────────────
-function renderPipelineActivityTable(acts, roles, period) {
-  const filtered = acts.filter(a => activityInDetailPeriod(a, period));
-  const FIELDS   = ['Outreach','Responses','Screened','Submitted','Interview1','Interview2Plus','FinalInterview','Offers','Hires'];
-  const LABELS   = ['Outreach','Responses','Screened','Submitted','Interview 1','Interview 2+','Final Interview','Offers','Hires'];
-  const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), r.RoleTitle]));
-  const byRole = {};
-  filtered.forEach(a => {
-    const rid = String(a.RoleIDLookupId || a.RoleID || '');
-    if (!byRole[rid]) byRole[rid] = FIELDS.map(() => 0);
-    FIELDS.forEach((f, i) => { byRole[rid][i] += Number(a[f]) || 0; });
-  });
-  const rids = Object.keys(byRole);
-  if (!rids.length) return `<div class='dash-panel'>
-    <h3 class='panel-title'>Pipeline Activity</h3>
-    <p class='no-data'>No activity recorded for this period.</p>
-  </div>`;
-  const totals = FIELDS.map((_, i) => rids.reduce((s, r) => s + byRole[r][i], 0));
-  const hdr    = `<tr><th>Role</th>${LABELS.map(l => `<th>${l}</th>`).join('')}</tr>`;
-  const rows   = rids.map(rid =>
-    `<tr><td>${roleMap[rid] || 'Unknown Role'}</td>${byRole[rid].map(v => `<td>${v}</td>`).join('')}</tr>`
-  ).join('');
-  const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${totals.map(v => `<td><strong>${v}</strong></td>`).join('')}</tr>`;
-  return `<div class='dash-panel'>
-    <h3 class='panel-title'>Pipeline Activity</h3>
-    <table class='data-table'><thead>${hdr}</thead><tbody>${rows}${totRow}</tbody></table>
-  </div>`;
-}
-// ── Activity by Talent Partner ────────────────────────────────────────
-function renderActivityByTPPanel(acts, period) {
-  const f = acts.filter(a => activityInDetailPeriod(a, period));
-  const map = {};
-  f.forEach(a => {
-    const tp = a.TalentPartner || 'Unknown';
-    if (!map[tp]) map[tp] = { Outreach:0, Submitted:0, Interview1:0, Offers:0, Hires:0 };
-    ['Outreach','Submitted','Interview1','Offers','Hires'].forEach(k => { map[tp][k] += Number(a[k]) || 0; });
-  });
-  const tps = Object.keys(map);
-  if (!tps.length) return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3><p class='no-data'>No activity in this period.</p></div>`;
-  const rows = tps.map(tp =>
-    `<tr><td>${tp}</td><td>${map[tp].Outreach}</td><td>${map[tp].Submitted}</td><td>${map[tp].Interview1}</td><td>${map[tp].Offers}</td><td>${map[tp].Hires}</td></tr>`
-  ).join('');
-  return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3>
-    <table class='data-table'>
-      <thead><tr><th>Talent Partner</th><th>Outreach</th><th>Submitted</th><th>Interview 1</th><th>Offers</th><th>Hires</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>`;
-}
-// ── Offer Rejection Reasons ───────────────────────────────────────────
-function renderRejectionPanel(rejections, roles, period) {
-  const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), r]));
-  const { start, end } = getDetailPeriodRange(period);
-  const filtered = rejections.filter(rej => {
-    const rid  = String(rej.RoleIDLookupId || rej.RoleID || '');
-    const role = roleMap[rid];
-    if (!role || !role.ActualHireDate) return true;
-    const d = new Date(role.ActualHireDate);
-    return d >= start && d <= end;
-  });
-  const reasons = ['Salary','Motivations','Counter-offer','Took another opportunity','Other'];
-  const counts  = reasons.map(r => filtered.filter(x => x.RejectionReason === r).length);
-  const total   = counts.reduce((a, b) => a + b, 0);
-  if (!total) return `<div class='dash-panel'><h3 class='panel-title'>Offer Rejection Reasons</h3><p class='no-data'>No rejections recorded for this period.</p></div>`;
-  const rows = reasons.map((r, i) => counts[i] > 0 ?
-    `<tr><td>${r}</td><td>${counts[i]}</td><td>${Math.round((counts[i]/total)*100)}%</td></tr>` : ''
-  ).join('');
-  return `<div class='dash-panel'><h3 class='panel-title'>Offer Rejection Reasons</h3>
-    <table class='data-table'>
-      <thead><tr><th>Reason</th><th>Count</th><th>%</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>`;
-}
-// ── Upcoming Starters ─────────────────────────────────────────────────
-function renderUpcomingStartersPanel(placements, roles) {
-  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), r.RoleTitle]));
-  const today   = new Date(); today.setHours(0,0,0,0);
-  const upcoming = placements
-    .filter(p => p.ProvisionalStartDate && new Date(p.ProvisionalStartDate) >= today)
-    .sort((a, b) => new Date(a.ProvisionalStartDate) - new Date(b.ProvisionalStartDate));
-  if (!upcoming.length) return `<div class='dash-panel'><h3 class='panel-title'>Upcoming Starters</h3><p class='no-data'>No upcoming starters.</p></div>`;
-  const rows = upcoming.map(p =>
-    `<tr><td>${p.CandidateName}</td><td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '—'}</td><td>${p.ProvisionalStartDate.split('T')[0]}</td></tr>`
-  ).join('');
-  return `<div class='dash-panel'><h3 class='panel-title'>Upcoming Starters</h3>
-    <table class='data-table'>
-      <thead><tr><th>Candidate</th><th>Role</th><th>Start Date</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>`;
-}
-// ── Actual Spend vs Budget ────────────────────────────────────────────
-function renderSpendPanel(roles, placements) {
-  const budget = roles.filter(r => r.Budget).reduce((s, r) => s + (parseFloat(r.Budget) || 0), 0);
-  const spend  = placements.filter(p => p.SalaryAgreed).reduce((s, p) => s + (parseFloat(p.SalaryAgreed) || 0), 0);
-  const fmt    = n => n.toLocaleString('en-GB', { style:'currency', currency:'GBP', maximumFractionDigits:0 });
-  const diff   = budget - spend;
-  const dLabel = diff >= 0 ? `${fmt(diff)} under budget` : `${fmt(Math.abs(diff))} over budget`;
-  const dColor = diff >= 0 ? '#107C10' : '#C00000';
-  return `<div class='dash-panel'><h3 class='panel-title'>Actual Spend vs Budget</h3>
-    <div class='spend-grid'>
-      <div><div class='spend-label'>Budget</div><div class='spend-val'>${fmt(budget)}</div></div>
-      <div><div class='spend-label'>Actual Spend</div><div class='spend-val'>${fmt(spend)}</div></div>
-      <div><div class='spend-label'>Variance</div><div class='spend-val' style='color:${dColor}'>${dLabel}</div></div>
+
+    <!-- User Roles -->
+    <div class="guide-section" id="roles">
+      <h2>User Roles</h2>
+      <p>Every Newton user is assigned one of four roles. Your role controls which pages you can see and whether you can add or edit data.</p>
+
+      <h3><span class="role-badge admin">Admin</span></h3>
+      <p>Full access to all pages and all projects. Can add, edit, and manage all records. Has access to the Admin Panel for user and project management.</p>
+
+      <h3><span class="role-badge dm">Delivery Manager</span></h3>
+      <p>Access to Project Dashboard, Projects, Roles, Placements, Rejected Offers, and Weekly Activity for their assigned projects. Can add and edit records. Sees all Talent Partner activity within their projects.</p>
+
+      <h3><span class="role-badge tp">Talent Partner</span></h3>
+      <p>Access to Project Dashboard, Roles, Weekly Activity, Placements, and Rejected Offers scoped to their assigned project and their own activity. Can add and edit records.</p>
+
+      <h3><span class="role-badge leadership">Leadership</span></h3>
+      <p>Read-only access to Company Dashboard. Provides a cross-project view of open roles, pipeline metrics, and Talent Partner activity. Cannot add or edit records.</p>
     </div>
-  </div>`;
-}
-// ── Filter helpers ────────────────────────────────────────────────────
-function periodButtons(periods, active, fn) {
-  return periods.map(([k, l]) =>
-    `<button class='btn-filter${active === k ? ' active' : ''}' onclick='${fn}("${k}")'>${l}</button>`
-  ).join('');
-}
-const DETAIL_PERIOD_OPTIONS = [
-  ['this_week',    'This Week'],
-  ['last_week',    'Last Week'],
-  ['this_month',   'This Month'],
-  ['last_month',   'Last Month'],
-  ['this_quarter', 'This Quarter'],
-  ['last_quarter', 'Last Quarter'],
-  ['this_year',    'This Year'],
-  ['last_year',    'Last Year'],
-];
-function detailPeriodDropdown() {
-  const options = DETAIL_PERIOD_OPTIONS.map(([k, l]) =>
-    `<option value='${k}' ${_dashDetailPeriod === k ? 'selected' : ''}>${l}</option>`
-  ).join('');
-  return `<div class='form-group detail-period-selector'>
-    <label>Period</label>
-    <select onchange='setDetailPeriod(this.value)'>${options}</select>
-  </div>`;
-}
-// ── Roles open 30+ days panel (project-scoped) ────────────────────────
-function renderProjectLongOpenRolesPanel(roles) {
-  const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
-  const today    = new Date(); today.setHours(0,0,0,0);
-  const longOpen = roles
-    .filter(r => {
-      if (EXCLUDED.includes(r.Stage)) return false;
-      if (!r.OpenDate) return false;
-      const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
-      return days >= 30;
-    })
-    .sort((a, b) => a.RoleTitle.localeCompare(b.RoleTitle));
-  if (!longOpen.length) return `<div class='dash-panel'>
-    <h3 class='panel-title'>Roles Open 30+ Days</h3>
-    <p class='no-data'>No roles open 30+ days.</p>
-  </div>`;
-  const rows = longOpen.map(r => {
-    const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
-    const rowStyle = days >= 45 ? "background:#fde8e8;" : "background:#fff3e0;";
-    return `<tr>
-      <td style="${rowStyle}">${r.RoleTitle}</td>
-      <td style="${rowStyle}">${r.TalentPartner || '—'}</td>
-      <td style="${rowStyle}"><span class='badge'>${r.Stage}</span></td>
-      <td style="${rowStyle}">${days} days</td>
-    </tr>`;
-  }).join('');
-  return `<div class='dash-panel'>
-    <h3 class='panel-title'>Roles Open 30+ Days</h3>
-    <table class='data-table'>
-      <thead><tr><th>Role</th><th>Talent Partner</th><th>Stage</th><th>Days Open</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>`;
-}
-// ── Main renderer ─────────────────────────────────────────────────────
-async function renderProjectDashboard() {
-  const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading dashboard...</p>';
-  const user      = getCurrentUser();
-  const role      = _resolvedRole;
-  const isTP      = role === 'talent_partner';
-  const isDMAdmin = ['delivery_manager', 'admin'].includes(role);
-  let   projectId = _dashProjectId;
-  if (isTP && !projectId) {
-    const ids = await getUserProjectIds(user.email);
-    projectId = ids && ids.length ? ids[0] : null;
-    _dashProjectId = projectId;
-  }
-  let selectorHtml = '', projectName = 'Project';
-  if (isDMAdmin) {
-    const projects = await getScopedProjects(user.email, false);
-    if (!projectId && projects.length) { projectId = String(projects[0].id); _dashProjectId = projectId; }
-    projectName = (projects.find(p => String(p.id) === String(projectId)) || {}).CustomerName || 'Project';
-    const opts = projects.map(p =>
-      `<option value='${p.id}' ${String(p.id) === String(projectId) ? 'selected' : ''}>${p.CustomerName}</option>`
-    ).join('');
-    selectorHtml = `<div class='form-group dash-project-selector'><label>Project</label><select onchange='changeDashProject(this.value)'>${opts}</select></div>`;
-  }
-  if (!projectId) {
-    main.innerHTML = `<div class='page-header'><h2>Project Dashboard</h2></div><p>No project assigned. Contact your Admin.</p>`;
-    return;
-  }
-  const { roles, activity, placements, rejections } = await fetchDashboardData(projectId, role);
-  const kpiPeriods   = [['month','Month'],['quarter','Quarter'],['year','Year']];
-  const kpiBtns      = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
-  const kpis         = renderKPIStrip(roles, activity, _dashPeriod);
-  const longOpenProj = renderProjectLongOpenRolesPanel(roles);
-  const pipelineAct  = renderPipelineActivityTable(activity, roles, _dashDetailPeriod);
-  const tpTable      = isDMAdmin ? renderActivityByTPPanel(activity, _dashDetailPeriod) : '';
-  const rejPanel     = isDMAdmin ? renderRejectionPanel(rejections, roles, _dashDetailPeriod) : '';
-  const starters     = isDMAdmin ? renderUpcomingStartersPanel(placements, roles) : '';
-  const spend        = isDMAdmin ? renderSpendPanel(roles, placements) : '';
-  main.innerHTML = `
-    <div class='page-header'>
-      <h2>Project Dashboard${isDMAdmin ? ' — ' + projectName : ''}</h2>
-    </div>
-    ${selectorHtml}
-    <div class='form-group dash-project-selector'>
-      <label>KPI Period</label>
-      <div class='filter-group'>${kpiBtns}</div>
-    </div>
-    ${kpis}
-    ${longOpenProj}
-    <div class='dash-detail-header'>
-      ${detailPeriodDropdown()}
-    </div>
-    <div class='dash-grid'>
-      ${pipelineAct}
-      ${tpTable}
-      ${rejPanel}
-      ${starters}
-      ${spend}
-    </div>`;
-}
-function changeDashProject(id)   { _dashProjectId = String(id); renderProjectDashboard(); }
-function setDashPeriod(period)   { _dashPeriod = period; renderProjectDashboard(); }
-function setDetailPeriod(period) { _dashDetailPeriod = period; renderProjectDashboard(); }
-// ═══════════════════════════════════════════════════════════════════════
-// COMPANY DASHBOARD — Admin + Leadership cross-project rollup
-// ═══════════════════════════════════════════════════════════════════════
-// ── State ─────────────────────────────────────────────────────────────
-let _companyPeriod       = 'quarter';
-let _companyDetailPeriod = 'this_month';
-// ── Company KPI strip ─────────────────────────────────────────────────
-function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period) {
-  const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
-  const openRoles      = allRoles.filter(r => !EXCLUDED.includes(r.Stage)).length;
-  const activeProjects = allProjects.filter(p => p.Status === 'Active').length;
-  const acts      = allActivity.filter(a => activityInKpiPeriod(a, period));
-  const submitted = sumField(acts, 'Submitted');
-  const int1      = sumField(acts, 'Interview1');
-  const offers    = sumField(acts, 'Offers');
-  const hires     = sumField(acts, 'Hires');
-  const convPct  = submitted > 0 ? Math.round((int1 / submitted) * 100) + '%' : '—';
-  const ivOfferR = offers > 0 ? Math.round(int1 / offers) + ':1' : '—';
-  const offerPct = offers > 0 ? Math.round((hires / offers) * 100) + '%' : '—';
-  const periodRoles = allRoles.filter(r => roleHiredInKpiPeriod(r, period));
-  const avgDays     = avgDaysToHire(periodRoles);
-  const onTimePct   = hiredOnTimePct(periodRoles);
-  return `
-    <div class='kpi-strip'>
-      ${kpiCard('Open Roles', openRoles, 'current')}
-      ${kpiCard('Active Projects', activeProjects, 'current')}
-    </div>
-    <div class='kpi-strip kpi-strip-period'>
-      ${kpiCard('Hires', hires, 'in period')}
-      ${kpiCard('Submission Conversion', convPct, 'IV1 / Submitted')}
-      ${kpiCard('IV to Offer Ratio', ivOfferR, 'IV1 : Offers')}
-      ${kpiCard('Offer Success', offerPct, 'Hires / Offers')}
-      ${kpiCard('Avg Days to Hire', avgDays !== null ? avgDays : '—', 'hired roles in period')}
-      ${kpiCard('Hired On Time', onTimePct !== null ? onTimePct + '%' : '—', 'within 45-day target')}
-    </div>`;
-}
-// ── Roles open 30+ days panel ─────────────────────────────────────────
-function renderLongOpenRolesPanel(allRoles, projectMap) {
-  const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
-  const today    = new Date(); today.setHours(0,0,0,0);
-  const longOpen = allRoles
-    .filter(r => {
-      if (EXCLUDED.includes(r.Stage)) return false;
-      if (!r.OpenDate) return false;
-      const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
-      return days >= 30;
-    })
-    .sort((a, b) => {
-      const pA = projectMap[String(a.ProjectIDLookupId || a.ProjectID)] || '';
-      const pB = projectMap[String(b.ProjectIDLookupId || b.ProjectID)] || '';
-      return pA.localeCompare(pB);
-    });
-  if (!longOpen.length) return `<div class='dash-panel'>
-    <h3 class='panel-title'>Roles Open 30+ Days</h3>
-    <p class='no-data'>No roles open 30+ days.</p>
-  </div>`;
-  const rows = longOpen.map(r => {
-    const proj = projectMap[String(r.ProjectIDLookupId || r.ProjectID)] || '—';
-    const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
-    const rowStyle = days >= 45
-      ? "background:#fde8e8;"
-      : days >= 30
-      ? "background:#fff3e0;"
-      : "";
-   return `<tr>
-      <td style="${rowStyle}">${proj}</td>
-      <td style="${rowStyle}">${r.RoleTitle}</td>
-      <td style="${rowStyle}">${r.TalentPartner || '—'}</td>
-      <td style="${rowStyle}"><span class='badge'>${r.Stage}</span></td>
-      <td style="${rowStyle}">${days} days</td>
-    </tr>`;
-  }).join('');
-  return `<div class='dash-panel'>
-    <h3 class='panel-title'>Roles Open 30+ Days</h3>
-    <table class='data-table'>
-      <thead><tr><th>Project</th><th>Role</th><th>Talent Partner</th><th>Stage</th><th>Days Open</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>`;
-}
-// ── Activity by Talent Partner (company-wide) ─────────────────────────
-function renderCompanyTPPanel(allActivity, projectMap, roleProjectMap, period) {
-  const filtered = allActivity.filter(a => activityInDetailPeriod(a, period));
-  const map = {};
-  filtered.forEach(a => {
-    const tp  = a.TalentPartner || 'Unknown';
-    const rid = String(a.RoleIDLookupId || a.RoleID || '');
-    const pid = roleProjectMap[rid] || '';
-    const key = `${pid}|${tp}`;
-    if (!map[key]) map[key] = { project: projectMap[pid] || '—', tp, Outreach:0, Submitted:0, Interview1:0, Offers:0, Hires:0 };
-    ['Outreach','Submitted','Interview1','Offers','Hires'].forEach(k => { map[key][k] += Number(a[k]) || 0; });
-  });
-  const keys = Object.keys(map).sort((a, b) => {
-    const projCmp = map[a].project.localeCompare(map[b].project);
-    if (projCmp !== 0) return projCmp;
-    return map[a].tp.localeCompare(map[b].tp);
-  });
-  if (!keys.length) return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3><p class='no-data'>No activity in this period.</p></div>`;
-  const rows = keys.map(k => {
-    const d = map[k];
-    return `<tr><td>${d.project}</td><td>${d.tp}</td><td>${d.Outreach}</td><td>${d.Submitted}</td><td>${d.Interview1}</td><td>${d.Offers}</td><td>${d.Hires}</td></tr>`;
-  }).join('');
-  return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3>
-    <table class='data-table'>
-      <thead><tr><th>Project</th><th>Talent Partner</th><th>Outreach</th><th>Submitted</th><th>Interview 1</th><th>Offers</th><th>Hires</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>`;
-}
-// ── Detail period dropdown (company) ─────────────────────────────────
-function companyDetailPeriodDropdown() {
-  const options = DETAIL_PERIOD_OPTIONS.map(([k, l]) =>
-    `<option value='${k}' ${_companyDetailPeriod === k ? 'selected' : ''}>${l}</option>`
-  ).join('');
-  return `<div class='form-group detail-period-selector'>
-    <label>Period</label>
-    <select onchange='setCompanyDetailPeriod(this.value)'>${options}</select>
-  </div>`;
-}
-// ── Main renderer ─────────────────────────────────────────────────────
-async function renderCompanyDashboard() {
-  const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading company dashboard...</p>';
-  const [allProjects, allRoles, allActivity] = await Promise.all([
-    getProjects(false),
-    getAllRoles(),
-    getWeeklyActivity(null, null),
-  ]);
-  const projectMap     = Object.fromEntries(allProjects.map(p => [String(p.id), p.CustomerName]));
-  const roleProjectMap = Object.fromEntries(
-    allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
-  );
-  const kpiPeriods = [['month','Month'],['quarter','Quarter'],['year','Year']];
-  const kpiBtns    = periodButtons(kpiPeriods, _companyPeriod, 'setCompanyPeriod');
-  const kpis     = renderCompanyKPIStrip(allRoles, allActivity, allProjects, _companyPeriod);
-  const longOpen = renderLongOpenRolesPanel(allRoles, projectMap);
-  const tpPanel  = renderCompanyTPPanel(allActivity, projectMap, roleProjectMap, _companyDetailPeriod);
-  main.innerHTML = `
-    <div class='page-header'>
+
+    <!-- Company Dashboard -->
+    <div class="guide-section" id="company-dashboard">
       <h2>Company Dashboard</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">Leadership</span>
+      </div>
+      <p>A cross-project rollup giving a company-wide view of recruitment health. Data is not filtered by project — it covers all active projects.</p>
+
+      <h3>KPI Tiles</h3>
+      <p>The top strip shows current Open Roles and Active Projects. The second strip shows pipeline metrics for the selected period: Hires, Submission Conversion, IV to Offer Ratio, Offer Success, Average Days to Hire, and Hired On Time percentage. Use the <strong>Month / Quarter / Year</strong> buttons to change the period.</p>
+
+      <h3>Roles Open 30+ Days</h3>
+      <p>Lists all active roles that have been open for 30 or more days, sorted by project. Rows are colour-coded: <strong style="color:#b45309">pale orange</strong> = 30–44 days open; <strong style="color:#c62828">pale red</strong> = 45+ days open.</p>
+
+      <h3>Activity by Talent Partner</h3>
+      <p>Shows outreach, submissions, interviews, offers, and hires per Talent Partner per project for the selected period. Use the <strong>Period</strong> dropdown to change the date range.</p>
     </div>
-    <div class='form-group dash-project-selector'>
-      <label>KPI Period</label>
-      <div class='filter-group'>${kpiBtns}</div>
+
+    <!-- Project Dashboard -->
+    <div class="guide-section" id="project-dashboard">
+      <h2>Project Dashboard</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <p>A detailed view of recruitment performance for a single project. Delivery Managers and Admins can switch between projects using the <strong>Project</strong> dropdown. Talent Partners see their assigned project only, scoped to their own activity.</p>
+
+      <h3>KPI Tiles</h3>
+      <p>Shows Open Roles (current) and Hires to Date (all time), plus period metrics: Submission Conversion, IV to Offer Ratio, Offer Success, Average Days to Hire, and Hired On Time. Use <strong>Month / Quarter / Year</strong> to change the KPI period.</p>
+
+      <h3>Roles Open 30+ Days</h3>
+      <p>Same colour-coded table as the Company Dashboard, filtered to the selected project only. No Project column — Role, Talent Partner, Stage, and Days Open are shown.</p>
+
+      <h3>Pipeline Activity</h3>
+      <p>A breakdown of weekly activity by role for the selected period, including Outreach, Responses, Screened, Submitted, Interview stages, Offers, and Hires. A Totals row summarises across all roles.</p>
+
+      <h3>Activity by Talent Partner <em>(DM / Admin only)</em></h3>
+      <p>Aggregates pipeline activity by Talent Partner for the selected period.</p>
+
+      <h3>Offer Rejection Reasons <em>(DM / Admin only)</em></h3>
+      <p>Counts rejected offers by reason category for the period.</p>
+
+      <h3>Upcoming Starters <em>(DM / Admin only)</em></h3>
+      <p>Lists placed candidates with a provisional start date in the future.</p>
+
+      <h3>Actual Spend vs Budget <em>(DM / Admin only)</em></h3>
+      <p>Compares total agreed salaries against total role budgets, showing the variance as over or under budget.</p>
+
+      <div class="tip">Use the <strong>Period</strong> dropdown to filter the detail panels independently from the KPI period buttons.</div>
     </div>
-    ${kpis}
-    ${longOpen}
-    <div class='dash-detail-header'>
-      ${companyDetailPeriodDropdown()}
+
+    <!-- Projects -->
+    <div class="guide-section" id="projects">
+      <h2>Projects</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <p>Lists all projects you have access to, showing the customer name, status (Active / Transition / Completed), and start date. Admins and Delivery Managers can add new projects and edit existing ones using the buttons in the table.</p>
+      <div class="tip">Project status drives what appears in the Company Dashboard — only Active projects count toward the Active Projects KPI.</div>
     </div>
-    <div class='dash-grid'>
-      ${tpPanel}
-    </div>`;
-}
-function setCompanyPeriod(period)       { _companyPeriod = period; renderCompanyDashboard(); }
-function setCompanyDetailPeriod(period) { _companyDetailPeriod = period; renderCompanyDashboard(); }
+
+    <!-- Roles -->
+    <div class="guide-section" id="roles-page">
+      <h2>Roles</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <p>A list of all roles across your accessible projects. Each row shows the role title, project, stage, assigned Talent Partner, open date, and target hire date.</p>
+
+      <h3>Filtering</h3>
+      <p>Use the <strong>Project</strong> dropdown to filter by project. Use the stage filter buttons (All / Active / Backlog / On-hold / Hired / Cancelled) to narrow by stage.</p>
+
+      <h3>Adding and editing roles</h3>
+      <p>Admins and Delivery Managers can add new roles using the <strong>+ Add Role</strong> button. Any role can be edited or its stage updated using the action links in the table.</p>
+
+      <div class="tip">The "Roles Open 30+ Days" panel on both dashboards is driven by the <strong>Open Date</strong> field — make sure this is set accurately when a role is created.</div>
+    </div>
+
+    <!-- Weekly Activity -->
+    <div class="guide-section" id="activity">
+      <h2>Weekly Activity</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <p>Records weekly pipeline activity against specific roles — Outreach, Responses, Screened, Submitted, Interview 1, Interview 2+, Final Interview, Offers, and Hires. Each entry is tied to a role, a Talent Partner, a year, and a week number.</p>
+
+      <h3>Filtering</h3>
+      <p>Filter by project using the dropdown. Talent Partners see only their own entries; Delivery Managers and Admins see all entries for their projects.</p>
+
+      <h3>Adding activity</h3>
+      <p>Use <strong>+ Add Activity</strong> to log a week's numbers. Select the role, enter the week ending date, and fill in the activity counts. This data feeds directly into the dashboard pipeline panels.</p>
+    </div>
+
+    <!-- Placements -->
+    <div class="guide-section" id="placements">
+      <h2>Placements</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <p>Records successful hires — candidate name, role, agreed salary, and provisional start date. Each placement is linked to a specific role.</p>
+
+      <h3>Filtering</h3>
+      <p>Filter by project, and by Month, Quarter, or Year using the filter rows below the project dropdown.</p>
+
+      <h3>Recording a placement</h3>
+      <p>Use <strong>+ Record Placement</strong> to log a hire. The salary field feeds the Actual Spend vs Budget panel on the Project Dashboard, so accuracy here matters.</p>
+
+      <div class="tip">A placement's provisional start date is what populates the <strong>Upcoming Starters</strong> panel on the Project Dashboard.</div>
+    </div>
+
+    <!-- Rejected Offers -->
+    <div class="guide-section" id="rejections">
+      <h2>Rejected Offers</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <p>Logs offers that were not accepted, recording the candidate name, role, and rejection reason. Reason categories are: Salary, Motivations, Counter-offer, Took another opportunity, and Other.</p>
+
+      <h3>Filtering</h3>
+      <p>Filter by project using the dropdown.</p>
+
+      <h3>Recording a rejection</h3>
+      <p>Use <strong>+ Record Rejection</strong> to log a declined offer. This data feeds the <strong>Offer Rejection Reasons</strong> panel on the Project Dashboard, helping identify trends over time.</p>
+    </div>
+
+    <!-- Admin Panel -->
+    <div class="guide-section" id="admin">
+      <h2>Admin Panel</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+      </div>
+      <p>The Admin Panel is visible to Admins only. It provides two management functions:</p>
+
+      <h3>User Assignments</h3>
+      <p>Lists all registered users, their email addresses, assigned role, and project assignments. Use this to grant or change a user's role, or to assign them to one or more projects. Users are auto-registered on first login — you can then update their role and project access here.</p>
+
+      <h3>Project Management</h3>
+      <p>Provides a full list of all projects with the ability to edit details, update status, and manage project records outside of the main Projects page.</p>
+
+      <div class="tip">If a user reports they can't see any data after signing in, check their user assignment here — they may be registered but not yet assigned a role or project.</div>
+    </div>
+
+  </div><!-- end guide-content -->
+</div><!-- end guide-body -->
+
+<div class="guide-footer">
+  Newton · Solutions Hub Reporting · Momentum Global
+</div>
+
+</body>
+</html>

@@ -1,10 +1,12 @@
 // js/pages.js — Page content renderers
+
 function formatSalary(val) {
   if (!val) return "—";
   const num = parseFloat(String(val).replace(/,/g, ""));
   if (isNaN(num)) return val;
   return num.toLocaleString("en-GB");
 }
+
 function daysOpen(openDate, hireDate) {
   if (!openDate) return null;
   const start = new Date(openDate);
@@ -12,44 +14,50 @@ function daysOpen(openDate, hireDate) {
   return Math.floor((end - start) / (1000 * 60 * 60 * 24));
 }
 
-// ── Scoping helper ────────────────────────────────────────────────────
-// Returns { projectIds, isAdmin }
-// projectIds: array of string IDs the user can see, or null for admin (no filter)
-async function getUserScope() {
-  const email = getCurrentUser().email;
-  const projectIds = await getUserProjectIds(email);
-  return { projectIds, isAdmin: projectIds === null };
+// ── Project filter helper ─────────────────────────────────────────────
+// Returns { projects: [], canFilter: bool } scoped by role.
+// TP gets canFilter:false. DM gets assigned projects. Admin gets all.
+async function getProjectFilterOptions() {
+  const role = _resolvedRole;
+  if (role === 'talent_partner') return { projects: [], canFilter: false };
+  const user = getCurrentUser();
+  let projects;
+  if (role === 'admin') {
+    projects = await getProjects(false);
+  } else {
+    // delivery_manager — fetch only assigned projects
+    const ids = await getUserProjectIds(user.email);
+    const all = await getProjects(false);
+    const idSet = new Set(ids.map(String));
+    projects = all.filter(p => idSet.has(String(p.id)));
+  }
+  return { projects, canFilter: true };
 }
 
-// Filter roles/activity/placements/rejections to scoped project IDs
-function scopeByProject(items, projectIds, projectIdField = 'ProjectIDLookupId') {
-  if (!projectIds) return items; // admin
-  return items.filter(i =>
-    projectIds.includes(String(i[projectIdField])) ||
-    projectIds.includes(String(i['ProjectID']))
-  );
-}
-
-// Filter roles by their role IDs that belong to scoped projects
-function scopeByRole(items, scopedRoleIds, roleIdField = 'RoleIDLookupId') {
-  if (!scopedRoleIds) return items; // admin
-  return items.filter(i =>
-    scopedRoleIds.includes(String(i[roleIdField])) ||
-    scopedRoleIds.includes(String(i['RoleID']))
-  );
+// Renders the project filter dropdown HTML (above-table row)
+function projectFilterDropdown(projects, selectedId, callbackFn) {
+  const options = [
+    `<option value="" ${!selectedId ? 'selected' : ''}>All Projects</option>`,
+    ...projects.map(p =>
+      `<option value="${p.id}" ${String(selectedId) === String(p.id) ? 'selected' : ''}>${p.CustomerName}</option>`
+    )
+  ].join('');
+  return `<div class="project-filter-bar">
+    <div class="form-group project-filter-select">
+      <label>Project</label>
+      <select onchange="${callbackFn}(this.value)">${options}</select>
+    </div>
+  </div>`;
 }
 
 // ── Projects ─────────────────────────────────────────────────────────
+
 async function renderProjectsPage() {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading projects...</p>";
-  const { projectIds } = await getUserScope();
-  const allProjects = await getProjects(false);
-  const projects = projectIds === null
-    ? allProjects
-    : allProjects.filter(p => projectIds.includes(String(p.id)));
-  const role = getUserRole(getCurrentUser().email);
-  const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
+  const projects = await getProjects(false);
+  const role = _resolvedRole;
+  const canEdit = ["admin","delivery_manager"].includes(role);
   main.innerHTML = `
     <div class="page-header">
       <h2>Projects</h2>
@@ -84,28 +92,51 @@ async function showEditProjectForm(id) {
 }
 
 // ── Roles ─────────────────────────────────────────────────────────────
+
 const ROLE_FILTERS = {
   Backlog:   r => ["Backlog","On-hold"].includes(r.Stage),
   Active:    r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage),
   Hired:     r => r.Stage === "Hired",
   Cancelled: r => r.Stage === "Cancelled",
 };
-let _rolesFilter = "Active";
+
+let _rolesFilter    = "Active";
+let _rolesProjectId = null; // null = all
+
 async function renderRolesPage(filter) {
   if (filter !== undefined) _rolesFilter = filter;
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading roles...</p>";
-  const { projectIds } = await getUserScope();
-  const [allRoles, allProjects] = await Promise.all([getAllRoles(), getProjects(false)]);
+
+  const [allRoles, allProjects, { projects: scopedProjects, canFilter }] = await Promise.all([
+    getAllRoles(),
+    getProjects(false),
+    getProjectFilterOptions(),
+  ]);
+
   const projectMap = Object.fromEntries(allProjects.map(p => [String(p.id), p.CustomerName]));
-  // Scope roles to user's projects then apply stage filter
-  const scopedRoles = scopeByProject(allRoles, projectIds);
-  const roles = scopedRoles.filter(ROLE_FILTERS[_rolesFilter] || (() => true));
-  const userRole = getUserRole(getCurrentUser().email);
-  const canEdit = ["admin","delivery_manager","talent_partner"].includes(userRole);
+
+  // Apply project filter if set
+  let roles = allRoles;
+  if (canFilter && _rolesProjectId) {
+    roles = roles.filter(r =>
+      String(r.ProjectIDLookupId) === String(_rolesProjectId) ||
+      String(r.ProjectID) === String(_rolesProjectId)
+    );
+  }
+  roles = roles.filter(ROLE_FILTERS[_rolesFilter] || (() => true));
+
+  const userRole = _resolvedRole;
+  const canEdit  = ["admin","delivery_manager","talent_partner"].includes(userRole);
+
   const filterBtns = Object.keys(ROLE_FILTERS).map(f =>
     `<button class="btn-filter${_rolesFilter === f ? " active" : ""}" onclick="renderRolesPage('${f}')">${f}</button>`
   ).join("");
+
+  const projDropdown = canFilter
+    ? projectFilterDropdown(scopedProjects, _rolesProjectId, 'setRolesProject')
+    : '';
+
   main.innerHTML = `
     <div class="page-header">
       <h2>Roles</h2>
@@ -114,6 +145,7 @@ async function renderRolesPage(filter) {
         ${canEdit ? '<button class="btn-primary" onclick="showAddRoleForm()">+ Add Role</button>' : ""}
       </div>
     </div>
+    ${projDropdown}
     <table class="data-table">
       <thead><tr>
         <th>Project</th><th>Role</th><th>Stage</th><th>Talent Partner</th>
@@ -141,6 +173,7 @@ async function renderRolesPage(filter) {
     </table>
   `;
 }
+function setRolesProject(val) { _rolesProjectId = val || null; renderRolesPage(); }
 async function showAddRoleForm() {
   document.getElementById("main-content").innerHTML = await renderRoleForm();
 }
@@ -150,22 +183,47 @@ async function showEditRoleForm(id) {
 }
 
 // ── Weekly Activity ───────────────────────────────────────────────────
+
+let _activityProjectId = null;
+
 async function renderActivityPage() {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading activity...</p>";
-  const { projectIds } = await getUserScope();
-  const [allActivity, allRoles] = await Promise.all([getWeeklyActivity(), getAllRoles()]);
-  const scopedRoles = scopeByProject(allRoles, projectIds);
-  const scopedRoleIds = projectIds === null ? null : scopedRoles.map(r => String(r.id));
-  const activity = scopeByRole(allActivity, scopedRoleIds);
+
+  const [activity, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
+    getWeeklyActivity(),
+    getAllRoles(),
+    getProjectFilterOptions(),
+  ]);
+
+  // Build role→projectId map for cross-referencing
+  const roleProjectMap = Object.fromEntries(
+    allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
+  );
   const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.RoleTitle]));
-  const role = getUserRole(getCurrentUser().email);
-  const canEdit = ["admin","talent_partner","delivery_manager"].includes(role);
+
+  // Apply project filter
+  let filteredActivity = activity;
+  if (canFilter && _activityProjectId) {
+    filteredActivity = activity.filter(a => {
+      const rid = String(a.RoleIDLookupId || a.RoleID || '');
+      return roleProjectMap[rid] === String(_activityProjectId);
+    });
+  }
+
+  const role    = _resolvedRole;
+  const canEdit = ["admin","talent_partner"].includes(role);
+
+  const projDropdown = canFilter
+    ? projectFilterDropdown(scopedProjects, _activityProjectId, 'setActivityProject')
+    : '';
+
   main.innerHTML = `
     <div class="page-header">
       <h2>Weekly Activity</h2>
       ${canEdit ? '<button class="btn-primary" onclick="showAddActivityForm()">+ Log Activity</button>' : ""}
     </div>
+    ${projDropdown}
     <table class="data-table">
       <thead><tr>
         <th>Year</th><th>Week</th><th>Role</th><th>Talent Partner</th>
@@ -173,7 +231,7 @@ async function renderActivityPage() {
         <th>Offers</th><th>Hires</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${activity.map(a => `
+        ${filteredActivity.map(a => `
           <tr>
             <td>${a.Year}</td>
             <td>Wk ${a.WeekNumber}</td>
@@ -191,6 +249,7 @@ async function renderActivityPage() {
     </table>
   `;
 }
+function setActivityProject(val) { _activityProjectId = val || null; renderActivityPage(); }
 async function showAddActivityForm() {
   document.getElementById("main-content").innerHTML = await renderWeeklyActivityForm();
 }
@@ -200,9 +259,12 @@ async function showEditActivityForm(id) {
 }
 
 // ── Placements ────────────────────────────────────────────────────────
+
 const PLACEMENT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const PLACEMENT_YEARS  = [2026, 2025, 2024, 2023];
-let _placementFilter = { type: null, value: null };
+let _placementFilter    = { type: null, value: null };
+let _placementProjectId = null;
+
 function placementInFilter(p, filter) {
   if (!filter.type) return true;
   const dateStr = p.OfferAcceptedDate;
@@ -215,6 +277,7 @@ function placementInFilter(p, filter) {
   if (filter.type === "month")   return year === new Date().getFullYear() && month === filter.value;
   return true;
 }
+
 function setPlacementFilter(type, value) {
   if (_placementFilter.type === type && _placementFilter.value === value) {
     _placementFilter = { type: null, value: null };
@@ -223,17 +286,34 @@ function setPlacementFilter(type, value) {
   }
   renderPlacementsPage();
 }
+
 async function renderPlacementsPage() {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading placements...</p>";
-  const { projectIds } = await getUserScope();
-  const [allPlacements, allRoles] = await Promise.all([getPlacements(), getAllRoles()]);
-  const scopedRoles = scopeByProject(allRoles, projectIds);
-  const scopedRoleIds = projectIds === null ? null : scopedRoles.map(r => String(r.id));
-  const placements = scopeByRole(allPlacements, scopedRoleIds).filter(p => placementInFilter(p, _placementFilter));
+
+  const [allPlacements, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
+    getPlacements(),
+    getAllRoles(),
+    getProjectFilterOptions(),
+  ]);
+
+  // Build role→projectId map
+  const roleProjectMap = Object.fromEntries(
+    allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
+  );
   const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.RoleTitle]));
-  const role = getUserRole(getCurrentUser().email);
-  const canEdit = ["admin","talent_partner","delivery_manager"].includes(role);
+
+  let placements = allPlacements.filter(p => placementInFilter(p, _placementFilter));
+  if (canFilter && _placementProjectId) {
+    placements = placements.filter(p => {
+      const rid = String(p.RoleIDLookupId || p.RoleID || '');
+      return roleProjectMap[rid] === String(_placementProjectId);
+    });
+  }
+
+  const role    = _resolvedRole;
+  const canEdit = ["admin","talent_partner"].includes(role);
+
   const monthBtns = PLACEMENT_MONTHS.map((m, i) =>
     `<button class="btn-filter${_placementFilter.type === "month" && _placementFilter.value === i ? " active" : ""}" onclick="setPlacementFilter('month',${i})">${m}</button>`
   ).join("");
@@ -243,6 +323,11 @@ async function renderPlacementsPage() {
   const yearBtns = PLACEMENT_YEARS.map(y =>
     `<button class="btn-filter${_placementFilter.type === "year" && _placementFilter.value === y ? " active" : ""}" onclick="setPlacementFilter('year',${y})">${y}</button>`
   ).join("");
+
+  const projDropdown = canFilter
+    ? projectFilterDropdown(scopedProjects, _placementProjectId, 'setPlacementProject')
+    : '';
+
   main.innerHTML = `
     <div class="page-header">
       <h2>Placements</h2>
@@ -253,6 +338,7 @@ async function renderPlacementsPage() {
         ${canEdit ? '<button class="btn-primary" onclick="showAddPlacementForm()">+ Record Placement</button>' : ""}
       </div>
     </div>
+    ${projDropdown}
     <table class="data-table">
       <thead><tr>
         <th>Candidate</th><th>Role</th><th>Salary</th>
@@ -275,6 +361,7 @@ async function renderPlacementsPage() {
     </table>
   `;
 }
+function setPlacementProject(val) { _placementProjectId = val || null; renderPlacementsPage(); }
 async function showAddPlacementForm() {
   document.getElementById("main-content").innerHTML = await renderPlacementForm();
 }
@@ -284,29 +371,53 @@ async function showEditPlacementForm(id) {
 }
 
 // ── Rejected Offers ───────────────────────────────────────────────────
+
+let _rejectionsProjectId = null;
+
 async function renderRejectionsPage() {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading rejections...</p>";
-  const { projectIds } = await getUserScope();
-  const [allRejections, allRoles] = await Promise.all([getRejectedOffers(), getAllRoles()]);
-  const scopedRoles = scopeByProject(allRoles, projectIds);
-  const scopedRoleIds = projectIds === null ? null : scopedRoles.map(r => String(r.id));
-  const rejections = scopeByRole(allRejections, scopedRoleIds);
+
+  const [rejections, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
+    getRejectedOffers(),
+    getAllRoles(),
+    getProjectFilterOptions(),
+  ]);
+
+  // Build role→projectId map
+  const roleProjectMap = Object.fromEntries(
+    allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
+  );
   const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.RoleTitle]));
-  const role = getUserRole(getCurrentUser().email);
-  const canEdit = ["admin","talent_partner","delivery_manager"].includes(role);
+
+  let filteredRejections = rejections;
+  if (canFilter && _rejectionsProjectId) {
+    filteredRejections = rejections.filter(r => {
+      const rid = String(r.RoleIDLookupId || r.RoleID || '');
+      return roleProjectMap[rid] === String(_rejectionsProjectId);
+    });
+  }
+
+  const role    = _resolvedRole;
+  const canEdit = ["admin","talent_partner"].includes(role);
+
+  const projDropdown = canFilter
+    ? projectFilterDropdown(scopedProjects, _rejectionsProjectId, 'setRejectionsProject')
+    : '';
+
   main.innerHTML = `
     <div class="page-header">
       <h2>Rejected Offers</h2>
       ${canEdit ? '<button class="btn-primary" onclick="showAddRejectionForm()">+ Log Rejection</button>' : ""}
     </div>
+    ${projDropdown}
     <table class="data-table">
       <thead><tr>
         <th>Candidate</th><th>Role</th><th>Salary Offered</th>
         <th>Reason</th><th>Notes</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${rejections.map(r => `
+        ${filteredRejections.map(r => `
           <tr>
             <td>${r.CandidateName}</td>
             <td>${roleMap[String(r.RoleIDLookupId)] || roleMap[String(r.RoleID)] || "—"}</td>
@@ -320,6 +431,7 @@ async function renderRejectionsPage() {
     </table>
   `;
 }
+function setRejectionsProject(val) { _rejectionsProjectId = val || null; renderRejectionsPage(); }
 async function showAddRejectionForm() {
   document.getElementById("main-content").innerHTML = await renderRejectedOfferForm();
 }

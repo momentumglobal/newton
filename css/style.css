@@ -206,13 +206,16 @@ body {
 .project-filter-bar { padding: 0 0 12px 0; }
 .project-filter-select { max-width: 260px; }
 
-/* ── Page filter bar (below header, above table) ────────────────────── */
-.page-filter-bar {
+/* ── Table toolbar (project dropdown left, filters right) ───────────── */
+.table-toolbar {
+  display: flex; align-items: flex-start; justify-content: space-between;
   padding: 0 24px 12px;
 }
+.table-toolbar .project-filter-bar { padding: 0; }
+.table-toolbar .project-filter-select { margin: 0; }
 /* ── Placement filter rows ──────────────────────────────────────────── */
 .placement-filter-rows {
-  display: flex; flex-direction: column; gap: 8px; padding: 0 24px 12px;
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
 }
 .placement-filter-row {
   display: flex; align-items: flex-end; gap: 16px;

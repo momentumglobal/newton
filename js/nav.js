@@ -1,14 +1,39 @@
 let currentPage = null;
-let _resolvedRole = null; // cached after login, used throughout session
+let _resolvedRole = null;
+
+// Module definitions (mirrors home.html — single source of truth would be better long-term)
+const OS_MODULES = [
+  { key: 'reporting', name: 'Reporting', href: 'index.html', live: true,  roles: ['admin','delivery_manager','talent_partner','leadership'] },
+  { key: 'people',    name: 'People',    href: null,         live: false, roles: ['admin','leadership'] },
+  { key: 'finance',   name: 'Finance',   href: null,         live: false, roles: ['admin','leadership'] },
+  { key: 'operations',name: 'Operations',href: null,         live: false, roles: ['admin','leadership'] },
+];
 
 function renderNav(role) {
   const pages = getAccessiblePages(role);
   const user  = getCurrentUser();
-  const nav   = document.getElementById('sidebar');
+
+  // Filter modules this role can see
+  const visibleModules = OS_MODULES.filter(m => m.roles.includes(role));
+
+  const moduleItems = visibleModules.map(m => {
+    if (!m.live) {
+      return `<div class='nav-module-item disabled'>${m.name} <span class='nav-module-soon'>Soon</span></div>`;
+    }
+    const isCurrent = m.key === 'reporting'; // expand when more modules are live
+    return `<a class='nav-module-item${isCurrent ? ' current' : ''}' href='${m.href}'>${m.name}</a>`;
+  }).join('');
+
+  const nav = document.getElementById('sidebar');
   nav.innerHTML = `
-    <div class='nav-header'>
-      <div class='nav-logo'>Newton</div>
+    <div class='nav-header nav-header-dropdown' onclick='toggleModuleDropdown()'>
+      <div class='nav-logo'>Newton <span class='nav-header-arrow'>▾</span></div>
       <div class='nav-subtitle'>Reporting</div>
+      <div class='nav-module-dropdown' id='nav-module-dropdown'>
+        <a class='nav-module-home' href='home.html'>← Home</a>
+        <div class='nav-module-divider'></div>
+        ${moduleItems}
+      </div>
     </div>
     <div class='nav-user'>
       <div class='nav-user-name'>${user.name || user.email}</div>
@@ -30,6 +55,20 @@ function renderNav(role) {
   `;
 }
 
+function toggleModuleDropdown() {
+  const dd = document.getElementById('nav-module-dropdown');
+  if (dd) dd.classList.toggle('open');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  const header = document.querySelector('.nav-header-dropdown');
+  const dd = document.getElementById('nav-module-dropdown');
+  if (dd && header && !header.contains(e.target)) {
+    dd.classList.remove('open');
+  }
+});
+
 function navigateTo(page) {
   const role = _resolvedRole || getUserRole(getCurrentUser().email);
   if (!canAccess(page, role)) return;
@@ -45,14 +84,14 @@ async function renderPage(page) {
       main.innerHTML = `<div class="page-header"><h2>Dashboard</h2></div>
         <p>Coming Soon: Solutions Hub Reporting.</p>`;
       break;
-    case "projects":          await renderProjectsPage();  break;
-    case "roles":             await renderRolesPage();     break;
-    case "activity":          await renderActivityPage();  break;
-    case 'placements':        await renderPlacementsPage();   break;
-    case 'rejections':        await renderRejectionsPage();    break;
-    case 'projectDashboard':  await renderProjectDashboard();  break;
-    case 'companyDashboard': await renderCompanyDashboard(); break;
-    case 'adminPanel':        renderAdminPage();               break;
+    case "projects":          await renderProjectsPage();    break;
+    case "roles":             await renderRolesPage();       break;
+    case "activity":          await renderActivityPage();    break;
+    case 'placements':        await renderPlacementsPage();  break;
+    case 'rejections':        await renderRejectionsPage();  break;
+    case 'projectDashboard':  await renderProjectDashboard(); break;
+    case 'companyDashboard':  await renderCompanyDashboard(); break;
+    case 'adminPanel':        renderAdminPage();              break;
     default:
       main.innerHTML = `<p>Page not found.</p>`;
   }

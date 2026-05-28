@@ -6,15 +6,14 @@ window.APP = {
     }
     const user = getCurrentUser();
     // Resolve full role from SharePoint on login — stored in _resolvedRole for the session
-    _resolvedRole = await getUserRoleAsync(user.email);
-    document.getElementById('app-shell').style.display = 'flex';
-    document.getElementById('login-screen').style.display = 'none';
-    renderNav(_resolvedRole);
+   _resolvedRole = await getUserRoleAsync(user.email);
     if (freshLogin) {
-      // Only redirect to home on a fresh Microsoft login, not on every page load
       window.location.href = 'home.html';
       return;
     }
+    document.getElementById('app-shell').style.display = 'flex';
+    document.getElementById('login-screen').style.display = 'none';
+    renderNav(_resolvedRole);
     const firstPage = getAccessiblePages(_resolvedRole)[0].key;
     navigateTo(firstPage);
     // Auto-register user in UserAssignments on first login (non-blocking)

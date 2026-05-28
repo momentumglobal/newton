@@ -58,6 +58,14 @@ async function renderProjectsPage() {
   const projects = await getProjects(false);
   const role = _resolvedRole;
   const canEdit = ["admin","delivery_manager"].includes(role);
+
+  // Sort: Delivery Manager A-Z, then Customer A-Z
+  projects.sort((a, b) => {
+    const dm = (a.DeliveryManager || '').localeCompare(b.DeliveryManager || '');
+    if (dm !== 0) return dm;
+    return (a.CustomerName || '').localeCompare(b.CustomerName || '');
+  });
+
   main.innerHTML = `
     <div class="page-header">
       <h2>Projects</h2>
@@ -125,6 +133,15 @@ async function renderRolesPage(filter) {
     );
   }
   roles = roles.filter(ROLE_FILTERS[_rolesFilter] || (() => true));
+
+  // Sort: Project A-Z, then Open Date oldest-newest
+  roles.sort((a, b) => {
+    const pA = projectMap[String(a.ProjectIDLookupId)] || projectMap[String(a.ProjectID)] || '';
+    const pB = projectMap[String(b.ProjectIDLookupId)] || projectMap[String(b.ProjectID)] || '';
+    const proj = pA.localeCompare(pB);
+    if (proj !== 0) return proj;
+    return new Date(a.OpenDate || 0) - new Date(b.OpenDate || 0);
+  });
 
   const userRole = _resolvedRole;
   const canEdit  = ["admin","delivery_manager","talent_partner"].includes(userRole);
@@ -201,6 +218,13 @@ async function renderActivityPage() {
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
   const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.RoleTitle]));
+
+  // Sort: Year newest-oldest, then Week newest-oldest
+  activity.sort((a, b) => {
+    const yr = Number(b.Year) - Number(a.Year);
+    if (yr !== 0) return yr;
+    return Number(b.WeekNumber) - Number(a.WeekNumber);
+  });
 
   // Apply project filter
   let filteredActivity = activity;
@@ -303,6 +327,11 @@ async function renderPlacementsPage() {
   );
   const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.RoleTitle]));
 
+  // Sort: Offer Accepted newest-oldest
+  allPlacements.sort((a, b) =>
+    new Date(b.OfferAcceptedDate || 0) - new Date(a.OfferAcceptedDate || 0)
+  );
+
   let placements = allPlacements.filter(p => placementInFilter(p, _placementFilter));
   if (canFilter && _placementProjectId) {
     placements = placements.filter(p => {
@@ -389,6 +418,13 @@ async function renderRejectionsPage() {
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
   const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.RoleTitle]));
+
+  // Sort: Role A-Z
+  rejections.sort((a, b) => {
+    const rA = roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || '';
+    const rB = roleMap[String(b.RoleIDLookupId)] || roleMap[String(b.RoleID)] || '';
+    return rA.localeCompare(rB);
+  });
 
   let filteredRejections = rejections;
   if (canFilter && _rejectionsProjectId) {

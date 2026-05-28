@@ -452,11 +452,13 @@ async function renderRejectionsPage() {
     : '';
 
   main.innerHTML = `
-    <div class="page-header">
+<div class="page-header">
       <h2>Rejected Offers</h2>
-      ${canEdit ? '<button class="btn-primary" onclick="showAddRejectionForm()">+ Log Rejection</button>' : ""}
+      ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddRejectionForm()">+ Log Rejection</button></div>' : ""}
     </div>
-    ${projDropdown}
+    <div class="table-toolbar">
+      ${projDropdown}
+    </div>
     <table class="data-table">
       <thead><tr>
         <th>Candidate</th><th>Role</th><th>Salary Offered</th>

@@ -419,7 +419,12 @@ function renderLongOpenRolesPanel(allRoles, projectMap) {
   const rows = longOpen.map(r => {
     const proj = projectMap[String(r.ProjectIDLookupId || r.ProjectID)] || '—';
     const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
-    return `<tr>
+    const rowStyle = days >= 45
+      ? "background:#fde8e8;"
+      : days >= 30
+      ? "background:#fff3e0;"
+      : "";
+    return `<tr style="${rowStyle}">
       <td>${proj}</td>
       <td>${r.RoleTitle}</td>
       <td>${r.TalentPartner || '—'}</td>

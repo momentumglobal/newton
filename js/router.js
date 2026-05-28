@@ -6,7 +6,6 @@ const ROLES = {
 };
 
 const PAGES = {
-  dashboard:        { label: 'Dashboard',          roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP, ROLES.LEADERSHIP] },
   companyDashboard: { label: 'Company Dashboard', roles: [ROLES.ADMIN, ROLES.LEADERSHIP] },
   projectDashboard: { label: 'Project Dashboard',  roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
   projects:         { label: 'Projects',           roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },

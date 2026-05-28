@@ -1,5 +1,6 @@
-// js/admin.js — Admin Panel
-let _adminTab = 'assignments';
+// js/admin.js — Reporting Admin Panel (Departments + Delete Records)
+let _adminTab = 'departments';
+
 async function renderAdminPage() {
   const main = document.getElementById('main-content');
   const user = getCurrentUser();
@@ -11,19 +12,13 @@ async function renderAdminPage() {
   main.innerHTML = '<p>Loading admin panel...</p>';
   await renderAdminTab(_adminTab);
 }
+
 async function renderAdminTab(tab) {
   _adminTab = tab;
   const main = document.getElementById('main-content');
-  const tabs = ['assignments','leadership','departments','delete'];
-  const labels = {
-    assignments: 'User Assignments',
-    leadership:  'Leadership Access',
-    departments: 'Departments',
-    delete:      'Delete Records',
-  };
+  const tabs = ['departments', 'delete'];
+  const labels = { departments: 'Departments', delete: 'Delete Records' };
   const tooltips = {
-    assignments: 'Manage user roles and project access. Users are auto-registered on first login — assign their role and projects here.',
-    leadership:  'Grant Leadership-level access to users who should see the Company Dashboard without full system access.',
     departments: 'Manage the list of departments used when categorising roles and projects across the system.',
     delete:      'Permanently delete records from the system. Use with caution — this action cannot be undone.',
   };
@@ -31,11 +26,11 @@ async function renderAdminTab(tab) {
     `<button class="btn-filter${_adminTab === t ? ' active' : ''}"
       onclick="renderAdminTab('${t}')">${labels[t]}<span class="help-tip">?<span class="help-tip-text">${tooltips[t]}</span></span></button>`
   ).join('');
+
   let content = '';
-  if (tab === 'assignments') content = await buildAssignmentsTab();
-  if (tab === 'leadership')  content = await buildLeadershipTab();
   if (tab === 'departments') content = await buildDepartmentsTab();
   if (tab === 'delete')      content = await buildDeleteTab();
+
   main.innerHTML = `
     <div class="page-header">
       <h2>Admin Panel</h2>
@@ -44,213 +39,10 @@ async function renderAdminTab(tab) {
     <div style="padding:24px">${content}</div>
   `;
 }
-// ── Assignments Tab ──────────────────────────────────────────────────
-async function buildAssignmentsTab(editId = null) {
-  const [projects, assignments] = await Promise.all([
-    getProjects(false), getUserAssignments()
-  ]);
-  const projectOptions = projects.map(p =>
-    `<option value="${p.id}|${p.CustomerName}">${p.CustomerName}</option>`
-  ).join('');
-  // If editing, fetch the record to pre-fill
-  let editRecord = null;
-  if (editId) {
-    editRecord = assignments.find(a => String(a.id) === String(editId));
-  }
-  const rows = assignments.map(a => `
-    <tr id="assign-row-${a.id}">
-      <td>${a.UserName || '—'}</td>
-      <td>${a.UserEmail}</td>
-      <td>${a.CustomerName || '—'}</td>
-      <td>${a.AssignedRole === 'talent_partner' ? 'Talent Partner' : a.AssignedRole === 'delivery_manager' ? 'Delivery Manager' : a.AssignedRole || '—'}</td>
-      <td style="display:flex;gap:8px">
-        <a href="#" onclick="showEditAssignment(${a.id})">Edit</a>
-        <a href="#" onclick="deleteAdminRecord('UserAssignments',${a.id})">Remove</a>
-      </td>
-    </tr>`).join('');
-  // Edit form (shown inline when editId is set)
-  const editForm = editRecord ? `
-    <h3>Edit Assignment</h3>
-    <div class="form-container" style="padding:0;max-width:600px">
-      <div class="form-row">
-        <div class="form-group">
-          <label>User Display Name</label>
-          <input type="text" id="assign-name" value="${editRecord.UserName || ''}">
-        </div>
-        <div class="form-group">
-          <label>User Email *</label>
-          <input type="email" id="assign-email" value="${editRecord.UserEmail || ''}">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Customer</label>
-          <select id="assign-project">
-            <option value="">-- Select customer --</option>
-            ${projects.map(p => `
-              <option value="${p.id}|${p.CustomerName}" ${String(p.id) === String(editRecord.ProjectID) ? 'selected' : ''}>
-                ${p.CustomerName}
-              </option>`).join('')}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Role *</label>
-          <select id="assign-role">
-            <option value="talent_partner" ${editRecord.AssignedRole === 'talent_partner' ? 'selected' : ''}>Talent Partner</option>
-            <option value="delivery_manager" ${editRecord.AssignedRole === 'delivery_manager' ? 'selected' : ''}>Delivery Manager</option>
-            <option value="viewer" ${editRecord.AssignedRole === 'viewer' ? 'selected' : ''}>Viewer</option>
-          </select>
-        </div>
-      </div>
-      <div id="assign-error" class="form-error"></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-primary" onclick="submitAssignment(${editRecord.id})">Save Changes</button>
-        <button class="btn-secondary" onclick="renderAdminTab('assignments')">Cancel</button>
-      </div>
-    </div>
-  ` : `
-    <h3>Add Assignment</h3>
-    <div class="form-container" style="padding:0;max-width:600px">
-      <div class="form-row">
-        <div class="form-group">
-          <label>User Display Name</label>
-          <input type="text" id="assign-name" placeholder="e.g. Jane Smith">
-        </div>
-        <div class="form-group">
-          <label>User Email *</label>
-          <input type="email" id="assign-email" placeholder="jane@company.com">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Customer</label>
-          <select id="assign-project">
-            <option value="">-- Select customer --</option>
-            ${projectOptions}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Role *</label>
-          <select id="assign-role">
-            <option value="talent_partner">Talent Partner</option>
-            <option value="delivery_manager">Delivery Manager</option>
-            <option value="viewer">Viewer</option>
-          </select>
-        </div>
-      </div>
-      <div id="assign-error" class="form-error"></div>
-      <button class="btn-primary" onclick="submitAssignment()">Add Assignment</button>
-    </div>
-  `;
-  return `
-    <h3>Current Assignments</h3>
-    <table class="data-table" style="margin:0 0 24px">
-      <thead><tr>
-        <th>Name</th><th>Email</th><th>Customer</th><th>Role</th><th></th>
-      </tr></thead>
-      <tbody>${rows || '<tr><td colspan=5>No assignments yet.</td></tr>'}</tbody>
-    </table>
-    ${editForm}
-  `;
-}
-async function showEditAssignment(id) {
-  const main = document.getElementById('main-content');
-  const tabBar = document.querySelector('.filter-group');
-  // Re-render tab with edit form open
-  const content = await buildAssignmentsTab(id);
-  document.querySelector('#main-content > div[style]').innerHTML = content;
-}
-async function submitAssignment(editId = null) {
-  const name    = document.getElementById('assign-name').value.trim();
-  const email   = document.getElementById('assign-email').value.trim();
-  const projVal = document.getElementById('assign-project').value;
-  const role    = document.getElementById('assign-role').value;
-  const errEl   = document.getElementById('assign-error');
-  errEl.style.display = 'none';
-  if (!email) {
-    errEl.textContent = 'Email is required.';
-    errEl.style.display = 'block'; return;
-  }
-  const [projectId, customerName] = projVal ? projVal.split('|') : ['0', ''];
-  try {
-    if (editId) {
-      await updateItem('UserAssignments', editId, {
-        Title: email, UserName: name,
-        ProjectID: parseInt(projectId) || 0,
-        CustomerName: customerName || '',
-        AssignedRole: role
-      });
-    } else {
-      await createItem('UserAssignments', {
-        Title: email, UserName: name,
-        ProjectID: parseInt(projectId) || 0,
-        CustomerName: customerName || '',
-        AssignedRole: role
-      });
-    }
-    await renderAdminTab('assignments');
-  } catch(e) {
-    errEl.textContent = `Error: ${e.message}`;
-    errEl.style.display = 'block';
-  }
-}
-// ── Leadership Tab ───────────────────────────────────────────────────
-async function buildLeadershipTab() {
-  const list = await getLeadershipAccess();
-  const rows = list.map(l => `
-    <tr>
-      <td>${l.UserName || '—'}</td>
-      <td>${l.UserEmail}</td>
-      <td><a href="#" onclick="deleteAdminRecord('LeadershipAccess',${l.id})">Remove</a></td>
-    </tr>`).join('');
-  return `
-    <h3>Leadership Access List</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:16px">
-      These individuals have read-only access to the Company Dashboard.
-    </p>
-    <table class="data-table" style="margin:0 0 24px">
-      <thead><tr><th>Name</th><th>Email</th><th></th></tr></thead>
-      <tbody>${rows || '<tr><td colspan=3>No leadership users yet.</td></tr>'}</tbody>
-    </table>
-    <h3>Add User</h3>
-    <div class="form-container" style="padding:0;max-width:500px">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Display Name</label>
-          <input type="text" id="lead-name" placeholder="e.g. Alex Jones">
-        </div>
-        <div class="form-group">
-          <label>Email *</label>
-          <input type="email" id="lead-email" placeholder="alex@company.com">
-        </div>
-      </div>
-      <div id="lead-error" class="form-error"></div>
-      <button class="btn-primary" onclick="submitLeadershipUser()">Add User</button>
-    </div>
-  `;
-}
-async function submitLeadershipUser() {
-  const name  = document.getElementById('lead-name').value.trim();
-  const email = document.getElementById('lead-email').value.trim();
-  const errEl = document.getElementById('lead-error');
-  errEl.style.display = 'none';
-  if (!email) {
-    errEl.textContent = 'Email is required.';
-    errEl.style.display = 'block'; return;
-  }
-  try {
-    await createItem('LeadershipAccess', { Title: email, UserName: name });
-    await renderAdminTab('leadership');
-  } catch(e) {
-    errEl.textContent = `Error: ${e.message}`;
-    errEl.style.display = 'block';
-  }
-}
+
 // ── Departments Tab ──────────────────────────────────────────────────
 async function buildDepartmentsTab() {
-  const [projects, depts] = await Promise.all([
-    getProjects(false), getDepartments()
-  ]);
+  const [projects, depts] = await Promise.all([getProjects(false), getDepartments()]);
   const rows = depts.map(d => `
     <tr>
       <td>${d.DepartmentName}</td>
@@ -286,6 +78,7 @@ async function buildDepartmentsTab() {
     </div>
   `;
 }
+
 async function submitDepartment() {
   const name    = document.getElementById('dept-name').value.trim();
   const projVal = document.getElementById('dept-project').value;
@@ -297,15 +90,13 @@ async function submitDepartment() {
   }
   const [projectId, customerName] = projVal.split('|');
   try {
-    await createItem('Departments', {
-      Title: name, ProjectID: parseInt(projectId), CustomerName: customerName
-    });
+    await createItem('Departments', { Title: name, ProjectID: parseInt(projectId), CustomerName: customerName });
     await renderAdminTab('departments');
   } catch(e) {
-    errEl.textContent = `Error: ${e.message}`;
-    errEl.style.display = 'block';
+    errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
   }
 }
+
 // ── Delete Tab ───────────────────────────────────────────────────────
 const DELETE_LIST_CONFIG = {
   Projects:        { label: 'Projects',         displayField: 'CustomerName' },
@@ -313,10 +104,9 @@ const DELETE_LIST_CONFIG = {
   WeeklyActivity:  { label: 'Weekly Activity',  displayField: 'ActivityTitle' },
   Placements:      { label: 'Placements',       displayField: 'CandidateName' },
   RejectedOffers:  { label: 'Rejected Offers',  displayField: 'CandidateName' },
-  UserAssignments: { label: 'User Assignments', displayField: 'UserEmail' },
-  LeadershipAccess:{ label: 'Leadership Access',displayField: 'UserEmail' },
   Departments:     { label: 'Departments',      displayField: 'DepartmentName' },
 };
+
 async function buildDeleteTab() {
   const listOptions = Object.entries(DELETE_LIST_CONFIG).map(([key, cfg]) =>
     `<option value="${key}">${cfg.label}</option>`
@@ -346,8 +136,7 @@ async function buildDeleteTab() {
         padding:12px;border-radius:4px;margin-bottom:12px;font-size:13px">
         Are you sure? This record will be permanently deleted.
         <div style="margin-top:10px;display:flex;gap:8px">
-          <button class="btn-primary" style="background:#c00000" onclick="confirmDelete()">
-            Yes, Delete</button>
+          <button class="btn-primary" style="background:#c00000" onclick="confirmDelete()">Yes, Delete</button>
           <button class="btn-secondary" onclick="cancelDelete()">Cancel</button>
         </div>
       </div>
@@ -355,45 +144,35 @@ async function buildDeleteTab() {
     </div>
   `;
 }
+
 async function loadDeleteItems(listName) {
   const select = document.getElementById('del-item');
-  if (!listName) {
-    select.innerHTML = '<option value="">-- Select list first --</option>';
-    select.disabled = true;
-    return;
-  }
-  select.innerHTML = '<option value="">Loading...</option>';
-  select.disabled = true;
+  if (!listName) { select.innerHTML = '<option value="">-- Select list first --</option>'; select.disabled = true; return; }
+  select.innerHTML = '<option value="">Loading...</option>'; select.disabled = true;
   try {
     const items = await getItems(listName);
     const displayField = DELETE_LIST_CONFIG[listName]?.displayField || 'id';
     select.innerHTML = '<option value="">-- Select record --</option>' +
-      items.map(i =>
-        `<option value="${i.id}">${i[displayField] || `ID ${i.id}`}</option>`
-      ).join('');
+      items.map(i => `<option value="${i.id}">${i[displayField] || `ID ${i.id}`}</option>`).join('');
     select.disabled = false;
-  } catch(e) {
-    select.innerHTML = '<option value="">-- Error loading records --</option>';
-  }
+  } catch(e) { select.innerHTML = '<option value="">-- Error loading records --</option>'; }
 }
+
 function initiateDelete() {
-  const list  = document.getElementById('del-list').value;
-  const id    = document.getElementById('del-item').value;
+  const list = document.getElementById('del-list').value;
+  const id   = document.getElementById('del-item').value;
   const errEl = document.getElementById('del-error');
   errEl.style.display = 'none';
-  if (!list || !id) {
-    errEl.textContent = 'Please select a list and a record.';
-    errEl.style.display = 'block'; return;
-  }
+  if (!list || !id) { errEl.textContent = 'Please select a list and a record.'; errEl.style.display = 'block'; return; }
   document.getElementById('del-confirm').style.display = 'block';
   document.getElementById('del-btn').style.display = 'none';
 }
+
 async function confirmDelete() {
   const list = document.getElementById('del-list').value;
   const id   = document.getElementById('del-item').value;
   try {
-    await graphRequest('DELETE',
-      `/sites/${CONFIG.SP_SITE_ID}/lists/${list}/items/${id}`);
+    await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${list}/items/${id}`);
     await renderAdminTab('delete');
   } catch(e) {
     document.getElementById('del-error').textContent = `Error: ${e.message}`;
@@ -402,14 +181,14 @@ async function confirmDelete() {
     document.getElementById('del-btn').style.display = 'block';
   }
 }
+
 function cancelDelete() {
   document.getElementById('del-confirm').style.display = 'none';
   document.getElementById('del-btn').style.display = 'block';
 }
-// Shared remove helper used by Assignments, Leadership, Departments tabs
+
 async function deleteAdminRecord(listName, id) {
   if (!confirm('Remove this record?')) return;
-  await graphRequest('DELETE',
-    `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items/${id}`);
+  await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items/${id}`);
   await renderAdminTab(_adminTab);
 }

@@ -13,6 +13,7 @@ window.APP = {
     }
     document.getElementById('app-shell').style.display = 'flex';
     document.getElementById('login-screen').style.display = 'none';
+    document.title = 'Newton – Reporting';
     renderNav(_resolvedRole);
     const firstPage = getAccessiblePages(_resolvedRole)[0].key;
     navigateTo(firstPage);
@@ -24,6 +25,7 @@ window.APP = {
   showLogin() {
     document.getElementById('app-shell').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
+    document.title = 'Newton – Sign in';
   },
 };
 // Handle redirect response from Microsoft login, then initialise app

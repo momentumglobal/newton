@@ -262,11 +262,11 @@
     </${m.live ? 'a' : 'div'}>
   `).join('');
   lucide.createIcons();
-}
-    // Show Admin link if user is admin
-if (role === 'admin') {
-  const adminLink = document.getElementById('admin-link');
-  if (adminLink) adminLink.style.display = 'block';
+  // Show Admin link if user is admin
+  if (role === 'admin') {
+    const adminLink = document.getElementById('admin-link');
+    if (adminLink) adminLink.style.display = 'block';
+  }
 }
     function handleSignOut() {
       signOut();

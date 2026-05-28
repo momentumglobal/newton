@@ -2,7 +2,7 @@ let currentPage = null;
 let _resolvedRole = null;
 
 const OS_MODULES = [
-  { key: 'reporting', name: 'Reporting', icon: 'bar-chart-2',   href: 'index.html', live: true,  roles: ['admin','delivery_manager','talent_partner','leadership'] },
+  { key: 'reporting', name: 'Reporting', icon: 'bar-chart-2',    href: 'reporting.html', live: true,  roles: ['admin','delivery_manager','talent_partner','leadership'] },
   { key: 'people',    name: 'People',    icon: 'users',          href: null,         live: false, roles: ['admin','leadership'] },
   { key: 'finance',   name: 'Finance',   icon: 'pound-sterling', href: null,         live: false, roles: ['admin','leadership'] },
   { key: 'operations',name: 'Operations',icon: 'settings-2',     href: null,         live: false, roles: ['admin','leadership'] },
@@ -28,7 +28,7 @@ function renderNav(role) {
       <div class='nav-logo'>Newton <span class='nav-header-arrow'>▾</span></div>
       <div class='nav-subtitle'>Reporting</div>
       <div class='nav-module-dropdown' id='nav-module-dropdown'>
-        <a class='nav-module-home' href='home.html'>← Home</a>
+        <a class='nav-module-home' href='index.html'>← Home</a>
         <div class='nav-module-divider'></div>
         ${moduleItems}
       </div>

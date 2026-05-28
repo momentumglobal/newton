@@ -166,7 +166,10 @@
 
   <!-- Logo -->
   <img class="home-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
-
+ 
+  <!-- Admin link -->
+<a id="admin-link" href="admin.html" style="display:none;position:fixed;bottom:36px;right:100px;font-family:'Polymath','Segoe UI',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.35);text-decoration:none;z-index:2;">Admin</a>
+  
   <!-- Sign out -->
   <button class="home-signout" onclick="handleSignOut()">Sign out</button>
 
@@ -259,6 +262,11 @@
     </${m.live ? 'a' : 'div'}>
   `).join('');
   lucide.createIcons();
+}
+    // Show Admin link if user is admin
+if (role === 'admin') {
+  const adminLink = document.getElementById('admin-link');
+  if (adminLink) adminLink.style.display = 'block';
 }
     function handleSignOut() {
       signOut();

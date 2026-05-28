@@ -203,3 +203,5 @@ body {
 .dash-project-selector { max-width: 320px; margin-bottom: 20px; }
 .detail-period-selector { max-width: 220px; margin-bottom: 16px; }
 .dash-detail-header { margin-bottom: 8px; }
+.project-filter-bar { padding: 0 0 12px 0; }
+.project-filter-select { max-width: 260px; }

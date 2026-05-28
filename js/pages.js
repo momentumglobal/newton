@@ -243,11 +243,13 @@ async function renderActivityPage() {
     : '';
 
   main.innerHTML = `
-    <div class="page-header">
+<div class="page-header">
       <h2>Weekly Activity</h2>
-      ${canEdit ? '<button class="btn-primary" onclick="showAddActivityForm()">+ Log Activity</button>' : ""}
+      ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddActivityForm()">+ Log Activity</button></div>' : ""}
     </div>
-    ${projDropdown}
+    <div class="table-toolbar">
+      ${projDropdown}
+    </div>
     <table class="data-table">
       <thead><tr>
         <th>Year</th><th>Week</th><th>Role</th><th>Talent Partner</th>

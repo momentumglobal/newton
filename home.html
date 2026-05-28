@@ -120,11 +120,13 @@
       pointer-events: none;
     }
     .module-icon {
-      font-size: 22px;
+      width: 24px;
+      height: 24px;
       margin-bottom: 12px;
       display: block;
       color: rgba(255,255,255,0.75);
-    }
+      stroke-width: 1.5;
+   }
     .module-name {
       font-size: 15px;
       font-weight: 600;
@@ -155,6 +157,7 @@
       color: rgba(255,255,255,0.38);
     }
   </style>
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
 
@@ -189,7 +192,7 @@
         name: 'Reporting',
         desc: 'Pipeline analytics & Solutions Hub reporting',
         icon: '📊',
-        href: 'index.html',
+        href: 'bar-chart-2',
         live: true,
         roles: ['admin', 'delivery_manager', 'talent_partner', 'leadership'],
       },
@@ -197,7 +200,7 @@
         key: 'people',
         name: 'People',
         desc: 'Onboarding, headcount & workforce planning',
-        icon: '👥',
+        icon: 'users',
         href: null,
         live: false,
         roles: ['admin', 'leadership'],
@@ -206,7 +209,7 @@
         key: 'finance',
         name: 'Finance',
         desc: 'Budget tracking, spend & cost reporting',
-        icon: '💷',
+        icon: 'pound-sterling',
         href: null,
         live: false,
         roles: ['admin', 'leadership'],
@@ -215,7 +218,7 @@
         key: 'operations',
         name: 'Operations',
         desc: 'Process management & operational data',
-        icon: '⚙️',
+        icon: 'settings-2',
         href: null,
         live: false,
         roles: ['admin', 'leadership'],
@@ -246,13 +249,14 @@
       if (visible.length === 1) grid.classList.add('single');
 
       grid.innerHTML = visible.map(m => `
-        <${m.live ? `a href="${m.href}"` : 'div'} class="module-card${m.live ? '' : ' disabled'}">
-          <span class="module-icon" aria-hidden="true">${m.icon}</span>
-          <div class="module-name">${m.name}</div>
-          <div class="module-desc">${m.desc}</div>
-          <span class="module-badge ${m.live ? 'badge-live' : 'badge-soon'}">${m.live ? 'Live' : 'Coming soon'}</span>
-        </${m.live ? 'a' : 'div'}>
-      `).join('');
+  <${m.live ? `a href="${m.href}"` : 'div'} class="module-card${m.live ? '' : ' disabled'}">
+    <i data-lucide="${m.icon}" class="module-icon"></i>
+    <div class="module-name">${m.name}</div>
+    <div class="module-desc">${m.desc}</div>
+    <span class="module-badge ${m.live ? 'badge-live' : 'badge-soon'}">${m.live ? 'Live' : 'Coming soon'}</span>
+  </${m.live ? 'a' : 'div'}>
+`).join('');
+lucide.createIcons();
     }
 
     function handleSignOut() {

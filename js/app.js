@@ -8,7 +8,7 @@ window.APP = {
     // Resolve full role from SharePoint on login — stored in _resolvedRole for the session
    _resolvedRole = await getUserRoleAsync(user.email);
     if (freshLogin) {
-      window.location.href = 'home.html';
+      window.location.href = 'index.html';
       return;
     }
     document.getElementById('app-shell').style.display = 'flex';

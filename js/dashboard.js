@@ -397,8 +397,8 @@ function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period) {
   const onTimePct   = hiredOnTimePct(periodRoles);
   return `
     <div class='kpi-strip'>
-      ${kpiCard('Open Roles', openRoles, 'current')}
       ${kpiCard('Active Projects', activeProjects, 'current')}
+      ${kpiCard('Open Roles', openRoles, 'current')}
     </div>
     <div class='kpi-strip kpi-strip-period'>
       ${kpiCard('Hires', hires, 'in period')}

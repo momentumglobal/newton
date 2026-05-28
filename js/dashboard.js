@@ -128,10 +128,11 @@ function renderKPIStrip(roles, activity, period) {
   const periodRoles = roles.filter(r => roleHiredInKpiPeriod(r, period));
   const avgDays     = avgDaysToHire(periodRoles);
   const onTimePct   = hiredOnTimePct(periodRoles);
+  const backlogRoles = roles.filter(r => r.Stage === 'Backlog').length;
   return `
     <div class='kpi-strip'>
       ${kpiCard('Open Roles', openRoles, 'current')}
-      ${kpiCard('Role Backlog', backlogRoles, 'current')}     
+      ${kpiCard('Role Backlog', backlogRoles, 'current')}
       ${kpiCard('Hires to Date', totalHires, 'all time')}
     </div>
     <div class='kpi-strip kpi-strip-period'>

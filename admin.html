@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newton – Admin</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/png" href="momentum-symbol.png">
+  <style>
+    @font-face { font-family: 'Polymath'; src: url('polymath-regular.ttf') format('truetype'); font-weight: 400; }
+    @font-face { font-family: 'Polymath'; src: url('polymath-medium.ttf') format('truetype'); font-weight: 500; }
+    @font-face { font-family: 'Polymath'; src: url('polymath-semibold.ttf') format('truetype'); font-weight: 600; }
+    body { font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; }
+    .admin-shell { display: flex; height: 100vh; }
+    /* Sidebar */
+    .admin-sidebar {
+      width: 220px; min-width: 220px;
+      background: #0A0B44; color: white;
+      display: flex; flex-direction: column;
+      height: 100vh; overflow-y: auto;
+    }
+    .admin-sidebar-header { padding: 24px 20px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .admin-sidebar-title { font-size: 17px; font-weight: 600; }
+    .admin-sidebar-sub { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+    .admin-nav { flex: 1; padding: 12px 0; }
+    .admin-nav-link {
+      display: block; padding: 10px 20px;
+      color: rgba(255,255,255,0.8); text-decoration: none;
+      font-size: 14px; cursor: pointer; transition: background 0.15s;
+    }
+    .admin-nav-link:hover { background: rgba(255,255,255,0.08); color: white; }
+    .admin-nav-link.active { background: #2E5FA3; color: white; font-weight: 600; }
+    .admin-nav-link.back { color: rgba(255,255,255,0.5); font-size: 13px; }
+    .admin-nav-divider { border-top: 1px solid rgba(255,255,255,0.1); margin: 8px 0; }
+    .admin-nav-logo { display: block; width: 140px; height: auto; margin: 0 20px 12px; }
+    .admin-sidebar-footer { padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.1); }
+    /* Main */
+    .admin-main { flex: 1; overflow-y: auto; background: #F5F4F1; }
+  </style>
+</head>
+<body>
+  <div class="admin-shell">
+    <div class="admin-sidebar">
+      <div class="admin-sidebar-header">
+        <div class="admin-sidebar-title">Newton</div>
+        <div class="admin-sidebar-sub">Admin</div>
+      </div>
+      <nav class="admin-nav">
+        <a class="admin-nav-link" id="tab-assignments" onclick="switchTab('assignments')">User Assignments</a>
+        <a class="admin-nav-link" id="tab-leadership" onclick="switchTab('leadership')">Leadership Access</a>
+      </nav>
+      <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="admin-nav-logo">
+      <div class="admin-sidebar-footer">
+        <div class="admin-nav-divider"></div>
+        <a class="admin-nav-link back" href="index.html">← Back to Home</a>
+      </div>
+    </div>
+    <div class="admin-main" id="main-content">
+      <p style="padding:40px;color:#888">Loading...</p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/os-admin.js"></script>
+  <script>
+    let _currentTab = 'assignments';
+
+    async function init() {
+      const response = await msalInstance.handleRedirectPromise();
+      if (response) {
+        const account = response.account || msalInstance.getAllAccounts()[0];
+        if (account) {
+          localStorage.setItem('userEmail', account.username.toLowerCase());
+          localStorage.setItem('userName', account.name);
+        }
+      }
+      if (!isSignedIn()) { window.location.href = 'index.html'; return; }
+      const user = getCurrentUser();
+      const role = await getUserRoleAsync(user.email);
+      if (role !== 'admin') { window.location.href = 'index.html'; return; }
+      switchTab('assignments');
+    }
+
+    function switchTab(tab) {
+      _currentTab = tab;
+      document.querySelectorAll('.admin-nav-link[id^="tab-"]').forEach(el => el.classList.remove('active'));
+      const el = document.getElementById(`tab-${tab}`);
+      if (el) el.classList.add('active');
+      renderOsAdminPage(tab);
+    }
+
+    init();
+  </script>
+</body>
+</html>

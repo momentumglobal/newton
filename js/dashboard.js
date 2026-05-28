@@ -174,6 +174,8 @@ function renderPipelineActivityTable(acts, roles, period) {
   });
 
   const rids = Object.keys(byRole);
+// Sort roles A-Z by role title
+  rids.sort((a, b) => (roleMap[a] || '').localeCompare(roleMap[b] || ''));
   if (!rids.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Pipeline Activity</h3>
     <p class='no-data'>No activity recorded for this period.</p>
@@ -202,6 +204,8 @@ function renderActivityByTPPanel(acts, period) {
     ['Outreach','Submitted','Interview1','Offers','Hires'].forEach(k => { map[tp][k] += Number(a[k]) || 0; });
   });
   const tps = Object.keys(map);
+// Sort Talent Partners A-Z
+  tps.sort((a, b) => a.localeCompare(b));
   if (!tps.length) return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3><p class='no-data'>No activity in this period.</p></div>`;
   const rows = tps.map(tp =>
     `<tr><td>${tp}</td><td>${map[tp].Outreach}</td><td>${map[tp].Submitted}</td><td>${map[tp].Interview1}</td><td>${map[tp].Offers}</td><td>${map[tp].Hires}</td></tr>`

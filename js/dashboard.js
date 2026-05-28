@@ -424,12 +424,12 @@ function renderLongOpenRolesPanel(allRoles, projectMap) {
       : days >= 30
       ? "background:#fff3e0;"
       : "";
-    return `<tr style="${rowStyle}">
-      <td>${proj}</td>
-      <td>${r.RoleTitle}</td>
-      <td>${r.TalentPartner || '—'}</td>
-      <td><span class='badge'>${r.Stage}</span></td>
-      <td>${days} days</td>
+   return `<tr>
+      <td style="${rowStyle}">${proj}</td>
+      <td style="${rowStyle}">${r.RoleTitle}</td>
+      <td style="${rowStyle}">${r.TalentPartner || '—'}</td>
+      <td style="${rowStyle}"><span class='badge'>${r.Stage}</span></td>
+      <td style="${rowStyle}">${days} days</td>
     </tr>`;
   }).join('');
   return `<div class='dash-panel'>

@@ -467,33 +467,43 @@ async function submitWeeklyForm(event, editId = null) {
 // ── Placement Form ───────────────────────────────────────────────────
 async function renderPlacementForm(existingData = null, preselectedRoleId = null) {
   const isEdit = !!existingData;
-  const email = getCurrentUser().email;
-  const projectIds = await getUserProjectIds(email);
-  const allRoles = await getAllRoles();
-  // Scope roles to user's projects
-  const roles = projectIds === null
-    ? allRoles
-    : allRoles.filter(r =>
-        projectIds.includes(String(r.ProjectIDLookupId)) ||
-        projectIds.includes(String(r.ProjectID))
-      );
-  const roleOptions = roles.map(r =>
-    `<option value="${r.id}" ${
-      (existingData?.RoleID == r.id || preselectedRoleId == r.id) ? 'selected' : ''
-    }>${r.RoleTitle}</option>`
+  const currentUser = getCurrentUser();
+  const email = currentUser.email;
+  const userRole = getUserRole(email);
+  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
+
+  const projects = await getScopedProjects(email, false);
+  const projectOptions = projects.map(p =>
+    `<option value="${p.id}" ${existingData?.ProjectID == p.id ? 'selected' : ''}>${p.CustomerName}</option>`
   ).join('');
+
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Placement' : 'Record Placement'}</h2>
       <div id="placement-form-error" class="form-error"></div>
       <form id="placement-form" onsubmit="submitPlacementForm(event, ${existingData?.id || 'null'})">
-        <div class="form-group">
-          <label>Role *</label>
-          <select name="RoleID" required>
-            <option value="">-- Select role --</option>
-            ${roleOptions}
-          </select>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Project *</label>
+            <select name="ProjectID" required onchange="loadRolesForPlacement(this.value)${canLogOnBehalf ? ';loadTalentPartnersForPlacement(this.value)' : ''}">
+              <option value="">-- Select project --</option>
+              ${projectOptions}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Role *</label>
+            <select name="RoleID" id="placement-role-select" required>
+              <option value="">-- Select project first --</option>
+            </select>
+          </div>
         </div>
+        ${canLogOnBehalf ? `
+        <div class="form-group">
+          <label>Record placement as *</label>
+          <select name="TalentPartnerName" id="placement-tp-select" required>
+            <option value="">-- Select project first --</option>
+          </select>
+        </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.name || currentUser.email}">`}
         <div class="form-group">
           <label>Candidate Name *</label>
           <input type="text" name="CandidateName" required
@@ -528,6 +538,27 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
     </div>
   `;
 }
+async function loadRolesForPlacement(projectId) {
+  const select = document.getElementById('placement-role-select');
+  if (!projectId) { select.innerHTML = '<option value="">-- Select project first --</option>'; return; }
+  select.innerHTML = '<option value="">Loading...</option>';
+  const roles = await getRolesForProject(projectId);
+  select.innerHTML = '<option value="">-- Select role --</option>' +
+    roles.map(r => `<option value="${r.id}">${r.RoleTitle}</option>`).join('');
+}
+async function loadTalentPartnersForPlacement(projectId) {
+  const select = document.getElementById('placement-tp-select');
+  if (!select) return;
+  if (!projectId) { select.innerHTML = '<option value="">-- Select project first --</option>'; return; }
+  select.innerHTML = '<option value="">Loading...</option>';
+  try {
+    const tps = await getTalentPartnersForProject(projectId);
+    select.innerHTML = '<option value="">-- Select team member --</option>' +
+      tps.map(u => `<option value="${u.UserName || u.UserEmail}">${u.UserName || u.UserEmail}</option>`).join('');
+  } catch(e) {
+    select.innerHTML = '<option value="">-- Error loading team --</option>';
+  }
+}
 async function submitPlacementForm(event, editId = null) {
   event.preventDefault();
   clearFormError('placement-form');
@@ -549,6 +580,7 @@ async function submitPlacementForm(event, editId = null) {
   const fields = {
     RoleIDLookupId:       parseInt(data.RoleID),
     Title:                data.CandidateName,
+    TalentPartner:        data.TalentPartnerName || undefined,
     SalaryAgreed:         data.SalaryAgreed || undefined,
     OfferAcceptedDate:    offerDate || undefined,
     ProvisionalStartDate: startDate || undefined,

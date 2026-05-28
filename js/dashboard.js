@@ -33,19 +33,15 @@ function roleHiredInKpiPeriod(r, period) {
 }
 
 // ── Detail period helpers ─────────────────────────────────────────────
-// Returns { start: Date, end: Date } for a given detail period key
 function getDetailPeriodRange(period) {
   const now = new Date();
   const y = now.getFullYear(), m = now.getMonth();
   const q = Math.floor(m / 3);
-
-  // Start of ISO week (Monday)
-  const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1; // Mon=0
+  const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
   const thisMonday = new Date(now); thisMonday.setDate(now.getDate() - dayOfWeek); thisMonday.setHours(0,0,0,0);
   const lastMonday = new Date(thisMonday); lastMonday.setDate(thisMonday.getDate() - 7);
   const thisSunday = new Date(thisMonday); thisSunday.setDate(thisMonday.getDate() + 6); thisSunday.setHours(23,59,59,999);
   const lastSunday = new Date(lastMonday); lastSunday.setDate(lastMonday.getDate() + 6); lastSunday.setHours(23,59,59,999);
-
   switch (period) {
     case 'this_week':    return { start: thisMonday, end: thisSunday };
     case 'last_week':    return { start: lastMonday, end: lastSunday };
@@ -59,7 +55,6 @@ function getDetailPeriodRange(period) {
   }
 }
 
-// WeeklyActivity rows use Year + WeekNumber — derive the Friday (week ending) date for range comparison
 function weekEndingDate(year, weekNum) {
   const jan4 = new Date(year, 0, 4);
   const startOfW1 = new Date(jan4);
@@ -133,21 +128,17 @@ function kpiCard(label, value, sub = '') {
 function renderKPIStrip(roles, activity, period) {
   const openRoles  = roles.filter(r => !['Backlog','Hired','Cancelled','On-hold'].includes(r.Stage)).length;
   const totalHires = roles.filter(r => r.Stage === 'Hired').length;
-
   const acts      = activity.filter(a => activityInKpiPeriod(a, period));
   const submitted = sumField(acts, 'Submitted');
   const int1      = sumField(acts, 'Interview1');
   const offers    = sumField(acts, 'Offers');
   const hires     = sumField(acts, 'Hires');
-
   const convPct  = submitted > 0 ? Math.round((int1 / submitted) * 100) + '%' : '—';
   const ivOfferR = offers > 0 ? Math.round(int1 / offers) + ':1' : '—';
   const offerPct = offers > 0 ? Math.round((hires / offers) * 100) + '%' : '—';
-
   const periodRoles = roles.filter(r => roleHiredInKpiPeriod(r, period));
   const avgDays     = avgDaysToHire(periodRoles);
   const onTimePct   = hiredOnTimePct(periodRoles);
-
   return `
     <div class='kpi-strip'>
       ${kpiCard('Open Roles', openRoles, 'current')}
@@ -168,28 +159,23 @@ function renderPipelineActivityTable(acts, roles, period) {
   const FIELDS   = ['Outreach','Responses','Screened','Submitted','Interview1','Interview2Plus','FinalInterview','Offers','Hires'];
   const LABELS   = ['Outreach','Responses','Screened','Submitted','Interview 1','Interview 2+','Final Interview','Offers','Hires'];
   const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), r.RoleTitle]));
-
-  // Only roles with activity in the period
   const byRole = {};
   filtered.forEach(a => {
     const rid = String(a.RoleIDLookupId || a.RoleID || '');
     if (!byRole[rid]) byRole[rid] = FIELDS.map(() => 0);
     FIELDS.forEach((f, i) => { byRole[rid][i] += Number(a[f]) || 0; });
   });
-
   const rids = Object.keys(byRole);
   if (!rids.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Pipeline Activity</h3>
     <p class='no-data'>No activity recorded for this period.</p>
   </div>`;
-
   const totals = FIELDS.map((_, i) => rids.reduce((s, r) => s + byRole[r][i], 0));
   const hdr    = `<tr><th>Role</th>${LABELS.map(l => `<th>${l}</th>`).join('')}</tr>`;
   const rows   = rids.map(rid =>
     `<tr><td>${roleMap[rid] || 'Unknown Role'}</td>${byRole[rid].map(v => `<td>${v}</td>`).join('')}</tr>`
   ).join('');
   const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${totals.map(v => `<td><strong>${v}</strong></td>`).join('')}</tr>`;
-
   return `<div class='dash-panel'>
     <h3 class='panel-title'>Pipeline Activity</h3>
     <table class='data-table'><thead>${hdr}</thead><tbody>${rows}${totRow}</tbody></table>
@@ -312,19 +298,16 @@ function detailPeriodDropdown() {
 async function renderProjectDashboard() {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading dashboard...</p>';
-
   const user      = getCurrentUser();
   const role      = _resolvedRole;
   const isTP      = role === 'talent_partner';
   const isDMAdmin = ['delivery_manager', 'admin'].includes(role);
   let   projectId = _dashProjectId;
-
   if (isTP && !projectId) {
     const ids = await getUserProjectIds(user.email);
     projectId = ids && ids.length ? ids[0] : null;
     _dashProjectId = projectId;
   }
-
   let selectorHtml = '', projectName = 'Project';
   if (isDMAdmin) {
     const projects = await getScopedProjects(user.email, false);
@@ -335,24 +318,19 @@ async function renderProjectDashboard() {
     ).join('');
     selectorHtml = `<div class='form-group dash-project-selector'><label>Project</label><select onchange='changeDashProject(this.value)'>${opts}</select></div>`;
   }
-
   if (!projectId) {
     main.innerHTML = `<div class='page-header'><h2>Project Dashboard</h2></div><p>No project assigned. Contact your Admin.</p>`;
     return;
   }
-
   const { roles, activity, placements, rejections } = await fetchDashboardData(projectId, role);
-
   const kpiPeriods = [['month','Month'],['quarter','Quarter'],['year','Year']];
   const kpiBtns    = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
-
   const kpis        = renderKPIStrip(roles, activity, _dashPeriod);
   const pipelineAct = renderPipelineActivityTable(activity, roles, _dashDetailPeriod);
   const tpTable     = isDMAdmin ? renderActivityByTPPanel(activity, _dashDetailPeriod) : '';
   const rejPanel    = isDMAdmin ? renderRejectionPanel(rejections, roles, _dashDetailPeriod) : '';
   const starters    = isDMAdmin ? renderUpcomingStartersPanel(placements, roles) : '';
   const spend       = isDMAdmin ? renderSpendPanel(roles, placements) : '';
-
   main.innerHTML = `
     <div class='page-header'>
       <h2>Project Dashboard${isDMAdmin ? ' — ' + projectName : ''}</h2>
@@ -379,4 +357,161 @@ function changeDashProject(id)   { _dashProjectId = String(id); renderProjectDas
 function setDashPeriod(period)   { _dashPeriod = period; renderProjectDashboard(); }
 function setDetailPeriod(period) { _dashDetailPeriod = period; renderProjectDashboard(); }
 
-// ════════════════════════
+// ═══════════════════════════════════════════════════════════════════════
+// COMPANY DASHBOARD — Admin + Leadership cross-project rollup
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── State ─────────────────────────────────────────────────────────────
+let _companyPeriod       = 'quarter';
+let _companyDetailPeriod = 'this_month';
+
+// ── Company KPI strip ─────────────────────────────────────────────────
+function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period) {
+  const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
+  const openRoles      = allRoles.filter(r => !EXCLUDED.includes(r.Stage)).length;
+  const activeProjects = allProjects.filter(p => p.Status === 'Active').length;
+  const acts      = allActivity.filter(a => activityInKpiPeriod(a, period));
+  const submitted = sumField(acts, 'Submitted');
+  const int1      = sumField(acts, 'Interview1');
+  const offers    = sumField(acts, 'Offers');
+  const hires     = sumField(acts, 'Hires');
+  const convPct  = submitted > 0 ? Math.round((int1 / submitted) * 100) + '%' : '—';
+  const ivOfferR = offers > 0 ? Math.round(int1 / offers) + ':1' : '—';
+  const offerPct = offers > 0 ? Math.round((hires / offers) * 100) + '%' : '—';
+  const periodRoles = allRoles.filter(r => roleHiredInKpiPeriod(r, period));
+  const avgDays     = avgDaysToHire(periodRoles);
+  const onTimePct   = hiredOnTimePct(periodRoles);
+  return `
+    <div class='kpi-strip'>
+      ${kpiCard('Open Roles', openRoles, 'current')}
+      ${kpiCard('Active Projects', activeProjects, 'current')}
+    </div>
+    <div class='kpi-strip kpi-strip-period'>
+      ${kpiCard('Hires', hires, 'in period')}
+      ${kpiCard('Submission Conversion', convPct, 'IV1 / Submitted')}
+      ${kpiCard('IV to Offer Ratio', ivOfferR, 'IV1 : Offers')}
+      ${kpiCard('Offer Success', offerPct, 'Hires / Offers')}
+      ${kpiCard('Avg Days to Hire', avgDays !== null ? avgDays : '—', 'hired roles in period')}
+      ${kpiCard('Hired On Time', onTimePct !== null ? onTimePct + '%' : '—', 'within 45-day target')}
+    </div>`;
+}
+
+// ── Roles open 30+ days panel ─────────────────────────────────────────
+function renderLongOpenRolesPanel(allRoles, projectMap) {
+  const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
+  const today    = new Date(); today.setHours(0,0,0,0);
+  const longOpen = allRoles
+    .filter(r => {
+      if (EXCLUDED.includes(r.Stage)) return false;
+      if (!r.OpenDate) return false;
+      const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
+      return days >= 30;
+    })
+    .sort((a, b) => {
+      const pA = projectMap[String(a.ProjectIDLookupId || a.ProjectID)] || '';
+      const pB = projectMap[String(b.ProjectIDLookupId || b.ProjectID)] || '';
+      return pA.localeCompare(pB);
+    });
+  if (!longOpen.length) return `<div class='dash-panel'>
+    <h3 class='panel-title'>Roles Open 30+ Days</h3>
+    <p class='no-data'>No roles open 30+ days.</p>
+  </div>`;
+  const rows = longOpen.map(r => {
+    const proj = projectMap[String(r.ProjectIDLookupId || r.ProjectID)] || '—';
+    const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
+    return `<tr>
+      <td>${proj}</td>
+      <td>${r.RoleTitle}</td>
+      <td>${r.TalentPartner || '—'}</td>
+      <td><span class='badge'>${r.Stage}</span></td>
+      <td>${days} days</td>
+    </tr>`;
+  }).join('');
+  return `<div class='dash-panel'>
+    <h3 class='panel-title'>Roles Open 30+ Days</h3>
+    <table class='data-table'>
+      <thead><tr><th>Project</th><th>Role</th><th>Talent Partner</th><th>Stage</th><th>Days Open</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+// ── Activity by Talent Partner (company-wide) ─────────────────────────
+function renderCompanyTPPanel(allActivity, projectMap, roleProjectMap, period) {
+  const filtered = allActivity.filter(a => activityInDetailPeriod(a, period));
+  const map = {};
+  filtered.forEach(a => {
+    const tp  = a.TalentPartner || 'Unknown';
+    const rid = String(a.RoleIDLookupId || a.RoleID || '');
+    const pid = roleProjectMap[rid] || '';
+    const key = `${pid}|${tp}`;
+    if (!map[key]) map[key] = { project: projectMap[pid] || '—', tp, Outreach:0, Submitted:0, Interview1:0, Offers:0, Hires:0 };
+    ['Outreach','Submitted','Interview1','Offers','Hires'].forEach(k => { map[key][k] += Number(a[k]) || 0; });
+  });
+  const keys = Object.keys(map).sort((a, b) => {
+    const projCmp = map[a].project.localeCompare(map[b].project);
+    if (projCmp !== 0) return projCmp;
+    return map[a].tp.localeCompare(map[b].tp);
+  });
+  if (!keys.length) return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3><p class='no-data'>No activity in this period.</p></div>`;
+  const rows = keys.map(k => {
+    const d = map[k];
+    return `<tr><td>${d.project}</td><td>${d.tp}</td><td>${d.Outreach}</td><td>${d.Submitted}</td><td>${d.Interview1}</td><td>${d.Offers}</td><td>${d.Hires}</td></tr>`;
+  }).join('');
+  return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3>
+    <table class='data-table'>
+      <thead><tr><th>Project</th><th>Talent Partner</th><th>Outreach</th><th>Submitted</th><th>Interview 1</th><th>Offers</th><th>Hires</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+// ── Detail period dropdown (company) ─────────────────────────────────
+function companyDetailPeriodDropdown() {
+  const options = DETAIL_PERIOD_OPTIONS.map(([k, l]) =>
+    `<option value='${k}' ${_companyDetailPeriod === k ? 'selected' : ''}>${l}</option>`
+  ).join('');
+  return `<div class='form-group detail-period-selector'>
+    <label>Period</label>
+    <select onchange='setCompanyDetailPeriod(this.value)'>${options}</select>
+  </div>`;
+}
+
+// ── Main renderer ─────────────────────────────────────────────────────
+async function renderCompanyDashboard() {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<p>Loading company dashboard...</p>';
+  const [allProjects, allRoles, allActivity] = await Promise.all([
+    getProjects(false),
+    getAllRoles(),
+    getWeeklyActivity(null, null),
+  ]);
+  const projectMap     = Object.fromEntries(allProjects.map(p => [String(p.id), p.CustomerName]));
+  const roleProjectMap = Object.fromEntries(
+    allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
+  );
+  const kpiPeriods = [['month','Month'],['quarter','Quarter'],['year','Year']];
+  const kpiBtns    = periodButtons(kpiPeriods, _companyPeriod, 'setCompanyPeriod');
+  const kpis     = renderCompanyKPIStrip(allRoles, allActivity, allProjects, _companyPeriod);
+  const longOpen = renderLongOpenRolesPanel(allRoles, projectMap);
+  const tpPanel  = renderCompanyTPPanel(allActivity, projectMap, roleProjectMap, _companyDetailPeriod);
+  main.innerHTML = `
+    <div class='page-header'>
+      <h2>Company Dashboard</h2>
+    </div>
+    <div class='form-group dash-project-selector'>
+      <label>KPI Period</label>
+      <div class='filter-group'>${kpiBtns}</div>
+    </div>
+    ${kpis}
+    <div class='dash-detail-header'>
+      ${companyDetailPeriodDropdown()}
+    </div>
+    <div class='dash-grid'>
+      ${longOpen}
+      ${tpPanel}
+    </div>`;
+}
+
+function setCompanyPeriod(period)       { _companyPeriod = period; renderCompanyDashboard(); }
+function setCompanyDetailPeriod(period) { _companyDetailPeriod = period; renderCompanyDashboard(); }

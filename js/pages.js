@@ -159,10 +159,10 @@ async function renderRolesPage(filter) {
     ${canEdit ? '<button class="btn-primary" onclick="showAddRoleForm()">+ Add Role</button>' : ""}
    </div>
   </div>
-  ${projDropdown}
-  <div class="page-filter-bar">
-   <div class="filter-group">${filterBtns}</div>
-  </div>
+ <div class="table-toolbar">
+      ${projDropdown}
+      <div class="filter-group">${filterBtns}</div>
+    </div>
   <table class="data-table">
       <thead><tr>
         <th>Project</th><th>Role</th><th>Stage</th><th>Talent Partner</th>
@@ -364,14 +364,16 @@ async function renderPlacementsPage() {
         ${canEdit ? '<button class="btn-primary" onclick="showAddPlacementForm()">+ Record Placement</button>' : ""}
       </div>
     </div>
-    ${projDropdown}
-    <div class="placement-filter-rows">
-      <div class="placement-filter-row">
-        <div class="filter-labeled-group"><span class="filter-label">Month</span><div class="filter-group">${monthBtns}</div></div>
-      </div>
-      <div class="placement-filter-row">
-        <div class="filter-labeled-group"><span class="filter-label">Quarter</span><div class="filter-group">${quarterBtns}</div></div>
-        <div class="filter-labeled-group"><span class="filter-label">Year</span><div class="filter-group">${yearBtns}</div></div>
+<div class="table-toolbar">
+      ${projDropdown}
+      <div class="placement-filter-rows">
+        <div class="placement-filter-row">
+          <div class="filter-labeled-group"><span class="filter-label">Month</span><div class="filter-group">${monthBtns}</div></div>
+        </div>
+        <div class="placement-filter-row">
+          <div class="filter-labeled-group"><span class="filter-label">Quarter</span><div class="filter-group">${quarterBtns}</div></div>
+          <div class="filter-labeled-group"><span class="filter-label">Year</span><div class="filter-group">${yearBtns}</div></div>
+        </div>
       </div>
     </div>
     <table class="data-table">

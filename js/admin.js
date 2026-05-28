@@ -21,9 +21,15 @@ async function renderAdminTab(tab) {
     departments: 'Departments',
     delete:      'Delete Records',
   };
+  const tooltips = {
+    assignments: 'Manage user roles and project access. Users are auto-registered on first login — assign their role and projects here.',
+    leadership:  'Grant Leadership-level access to users who should see the Company Dashboard without full system access.',
+    departments: 'Manage the list of departments used when categorising roles and projects across the system.',
+    delete:      'Permanently delete records from the system. Use with caution — this action cannot be undone.',
+  };
   const tabBar = tabs.map(t =>
     `<button class="btn-filter${_adminTab === t ? ' active' : ''}"
-      onclick="renderAdminTab('${t}')">${labels[t]}</button>`
+      onclick="renderAdminTab('${t}')">${labels[t]}<span class="help-tip">?<span class="help-tip-text">${tooltips[t]}</span></span></button>`
   ).join('');
   let content = '';
   if (tab === 'assignments') content = await buildAssignmentsTab();

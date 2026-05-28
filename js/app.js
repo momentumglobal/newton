@@ -1,5 +1,5 @@
 window.APP = {
-  async init() {
+  async init(freshLogin = false) {
     if (!isSignedIn()) {
       this.showLogin();
       return;
@@ -10,7 +10,13 @@ window.APP = {
     document.getElementById('app-shell').style.display = 'flex';
     document.getElementById('login-screen').style.display = 'none';
     renderNav(_resolvedRole);
-        window.location.href = 'home.html';
+    if (freshLogin) {
+      // Only redirect to home on a fresh Microsoft login, not on every page load
+      window.location.href = 'home.html';
+      return;
+    }
+    const firstPage = getAccessiblePages(_resolvedRole)[0].key;
+    navigateTo(firstPage);
     // Auto-register user in UserAssignments on first login (non-blocking)
     ensureUserRegistered(user.email, user.name).catch(e =>
       console.warn('Auto-registration failed:', e)
@@ -21,7 +27,6 @@ window.APP = {
     document.getElementById('login-screen').style.display = 'flex';
   },
 };
-
 // Handle redirect response from Microsoft login, then initialise app
 msalInstance.handleRedirectPromise().then(response => {
   if (response) {
@@ -32,7 +37,7 @@ msalInstance.handleRedirectPromise().then(response => {
       localStorage.setItem('userName',  account.name);
     }
   }
-  window.APP.init();
+  window.APP.init(!!response);
 }).catch(e => {
   console.error('MSAL redirect error:', e);
   window.APP.showLogin();

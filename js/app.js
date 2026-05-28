@@ -10,7 +10,8 @@ window.APP = {
     document.getElementById('app-shell').style.display = 'flex';
     document.getElementById('login-screen').style.display = 'none';
     renderNav(_resolvedRole);
-    navigateTo('dashboard');
+    const firstPage = getAccessiblePages(_resolvedRole)[0].key;
+    navigateTo(firstPage);
     // Auto-register user in UserAssignments on first login (non-blocking)
     ensureUserRegistered(user.email, user.name).catch(e =>
       console.warn('Auto-registration failed:', e)

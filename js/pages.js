@@ -155,10 +155,8 @@ async function renderRolesPage(filter) {
     : '';
 
   main.innerHTML = `
-   <div class="page-header-actions">
-    ${canEdit ? '<button class="btn-primary" onclick="showAddRoleForm()">+ Add Role</button>' : ""}
-   </div>
-  </div>
+   ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddRoleForm()">+ Add Role</button></div>' : ""}
+    </div>
  <div class="table-toolbar">
       ${projDropdown}
       <div class="filter-group">${filterBtns}</div>

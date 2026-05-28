@@ -7,12 +7,13 @@ const ROLES = {
 
 const PAGES = {
   dashboard:        { label: 'Dashboard',          roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP, ROLES.LEADERSHIP] },
+  companyDashboard: { label: 'Company Dashboard', roles: [ROLES.ADMIN, ROLES.LEADERSHIP] },
+  projectDashboard: { label: 'Project Dashboard',  roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
   projects:         { label: 'Projects',           roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
   roles:            { label: 'Roles',              roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
   activity:         { label: 'Weekly Activity',    roles: [ROLES.ADMIN, ROLES.TP] },
   placements:       { label: 'Placements',         roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
   rejections:       { label: 'Rejected Offers',    roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
-  projectDashboard: { label: 'Project Dashboard',  roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
   adminPanel:       { label: 'Admin Panel',        roles: [ROLES.ADMIN] },
 };
 

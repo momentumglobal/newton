@@ -154,10 +154,12 @@ async function renderRolesPage(filter) {
     ? projectFilterDropdown(scopedProjects, _rolesProjectId, 'setRolesProject')
     : '';
 
-  main.innerHTML = `
-   ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddRoleForm()">+ Add Role</button></div>' : ""}
+ main.innerHTML = `
+    <div class="page-header">
+      <h2>Roles</h2>
+      ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddRoleForm()">+ Add Role</button></div>' : ""}
     </div>
- <div class="table-toolbar">
+    <div class="table-toolbar">
       ${projDropdown}
       <div class="filter-group">${filterBtns}</div>
     </div>

@@ -131,6 +131,7 @@ function renderKPIStrip(roles, activity, period) {
   return `
     <div class='kpi-strip'>
       ${kpiCard('Open Roles', openRoles, 'current')}
+      ${kpiCard('Role Backlog', backlogRoles, 'current')}     
       ${kpiCard('Hires to Date', totalHires, 'all time')}
     </div>
     <div class='kpi-strip kpi-strip-period'>

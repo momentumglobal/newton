@@ -155,15 +155,15 @@ async function renderRolesPage(filter) {
     : '';
 
   main.innerHTML = `
-    <div class="page-header">
-      <h2>Roles</h2>
-      <div class="page-header-actions">
-        <div class="filter-group">${filterBtns}</div>
-        ${canEdit ? '<button class="btn-primary" onclick="showAddRoleForm()">+ Add Role</button>' : ""}
-      </div>
-    </div>
-    ${projDropdown}
-    <table class="data-table">
+   <div class="page-header-actions">
+    ${canEdit ? '<button class="btn-primary" onclick="showAddRoleForm()">+ Add Role</button>' : ""}
+   </div>
+  </div>
+  ${projDropdown}
+  <div class="page-filter-bar">
+   <div class="filter-group">${filterBtns}</div>
+  </div>
+  <table class="data-table">
       <thead><tr>
         <th>Project</th><th>Role</th><th>Stage</th><th>Talent Partner</th>
         <th>Budget</th><th>Open Date</th><th>Target Hire Date</th><th>Days Open</th>${canEdit ? "<th></th>" : ""}
@@ -361,13 +361,19 @@ async function renderPlacementsPage() {
     <div class="page-header">
       <h2>Placements</h2>
       <div class="page-header-actions">
-        <div class="filter-labeled-group"><span class="filter-label">Month</span><div class="filter-group">${monthBtns}</div></div>
-        <div class="filter-labeled-group"><span class="filter-label">Quarter</span><div class="filter-group">${quarterBtns}</div></div>
-        <div class="filter-labeled-group"><span class="filter-label">Year</span><div class="filter-group">${yearBtns}</div></div>
         ${canEdit ? '<button class="btn-primary" onclick="showAddPlacementForm()">+ Record Placement</button>' : ""}
       </div>
     </div>
     ${projDropdown}
+    <div class="placement-filter-rows">
+      <div class="placement-filter-row">
+        <div class="filter-labeled-group"><span class="filter-label">Month</span><div class="filter-group">${monthBtns}</div></div>
+      </div>
+      <div class="placement-filter-row">
+        <div class="filter-labeled-group"><span class="filter-label">Quarter</span><div class="filter-group">${quarterBtns}</div></div>
+        <div class="filter-labeled-group"><span class="filter-label">Year</span><div class="filter-group">${yearBtns}</div></div>
+      </div>
+    </div>
     <table class="data-table">
       <thead><tr>
         <th>Candidate</th><th>Role</th><th>Salary</th>

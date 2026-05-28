@@ -1,4 +1,4 @@
-let currentPage = 'dashboard';
+let currentPage = null;
 let _resolvedRole = null; // cached after login, used throughout session
 
 function renderNav(role) {

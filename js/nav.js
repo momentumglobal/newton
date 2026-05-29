@@ -38,12 +38,13 @@ function renderNav(role) {
       <div class='nav-user-role'>${role.replace(/_/g, ' ')}</div>
     </div>
     <nav class='nav-links'>
-      ${pages.map(p => `
-        <a class='nav-link ${p.key === currentPage ? 'active' : ''}'
-           onclick='navigateTo("${p.key}")'>
-          ${p.label}
-        </a>
-      `).join('')}
+${pages.map(p => `
+  ${p.key === 'peopleTracker' ? "<div class='nav-section-label'>People</div>" : ''}
+  <a class='nav-link ${p.key === currentPage ? 'active' : ''}'
+     onclick='navigateTo("${p.key}")'>
+    ${p.label}
+  </a>
+`).join('')}
     </nav>
     <img src='momentum-symbol-and-name-global-white.png' alt='Momentum Global' class='nav-logo-img'>
     <div class='nav-footer'>
@@ -90,6 +91,7 @@ async function renderPage(page) {
     case 'rejections':        await renderRejectionsPage();  break;
     case 'projectDashboard':  await renderProjectDashboard(); break;
     case 'companyDashboard':  await renderCompanyDashboard(); break;
+    case 'peopleTracker':    await renderEmployeeTracker();  break;
     case 'adminPanel':        renderAdminPage();              break;
     default:
       main.innerHTML = `<p>Page not found.</p>`;

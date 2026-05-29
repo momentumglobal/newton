@@ -306,3 +306,40 @@ async function updateAssignment(id, fields) {
   if (fields.Country        !== undefined) payload.Country         = fields.Country;
   return updateItem("Assignments", id, payload);
 }
+
+// ── People module: GPInvoices list ────────────────────────────
+
+// Returns all invoices, sorted newest first.
+async function getGPInvoices() {
+  const invoices = await getItems("GPInvoices");
+  return invoices.sort((a, b) => {
+    const da = a.InvoiceDate ? new Date(a.InvoiceDate) : new Date(0);
+    const db = b.InvoiceDate ? new Date(b.InvoiceDate) : new Date(0);
+    return db - da;  // newest first
+  });
+}
+
+// Creates a new invoice record.
+async function createInvoice(fields) {
+  return createItem("GPInvoices", {
+    Title:       fields.InvoiceNumber,
+    InvoiceDate: fields.InvoiceDate,
+    DueDate:     fields.DueDate,
+    Amount:      fields.Amount,
+    Notes:       fields.Notes  || undefined,
+    Status:      fields.Status || "Sent",
+  });
+}
+
+// Updates an invoice record (typically to mark as Paid).
+async function updateInvoice(id, fields) {
+  const payload = {};
+  if (fields.InvoiceNumber !== undefined) payload.Title       = fields.InvoiceNumber;
+  if (fields.InvoiceDate   !== undefined) payload.InvoiceDate = fields.InvoiceDate;
+  if (fields.DueDate       !== undefined) payload.DueDate     = fields.DueDate;
+  if (fields.Amount        !== undefined) payload.Amount      = fields.Amount;
+  if (fields.Notes         !== undefined) payload.Notes       = fields.Notes;
+  if (fields.Status        !== undefined) payload.Status      = fields.Status;
+  return updateItem("GPInvoices", id, payload);
+}
+

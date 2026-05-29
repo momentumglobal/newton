@@ -795,3 +795,153 @@ async function showEditPersonForm(id) {
   const data = await getItem('People', id);
   document.getElementById('main-content').innerHTML = renderPersonForm(data);
 }
+
+// ── People module: Assignment forms ──────────────────────────
+
+async function renderAssignmentForm(existingData = null) {
+  const isEdit  = !!existingData;
+  const people  = await getPeople(false);  // all employees for dropdown
+
+  const employeeOptions = people.map(p =>
+    `<option value='${p.EmployeeName}'
+      data-level='${p.Level}'
+      ${existingData?.EmployeeName === p.EmployeeName ? 'selected' : ''}>
+      ${p.EmployeeName} (${p.Level})</option>`
+  ).join('');
+
+  return `
+    <div class='form-container'>
+      <h2>${isEdit ? 'Edit Assignment' : 'Add Assignment'}</h2>
+      <div id='assignment-form-error' class='form-error'></div>
+      <form id='assignment-form'
+        onsubmit='submitAssignmentForm(event, ${existingData?.id || 'null'})'>
+
+        <div class='form-row'>
+          <div class='form-group'>
+            <label>Employee *</label>
+            <select name='EmployeeName' required
+              onchange='_onAssignmentEmployeeChange(this)'>
+              <option value=''>— Select employee —</option>
+              ${employeeOptions}
+            </select>
+          </div>
+          <div class='form-group'>
+            <label>Level (auto-filled)</label>
+            <input type='text' name='Level' id='assignment-level' readonly
+              value='${existingData?.Level || ''}'
+              style='background:#f5f5f5;cursor:default'>
+          </div>
+        </div>
+
+        <div class='form-row'>
+          <div class='form-group'>
+            <label>Customer *</label>
+            <input type='text' name='Customer' required
+              value='${existingData?.Customer || ''}'>
+          </div>
+          <div class='form-group'>
+            <label>Project Type *</label>
+            <select name='ProjectType' required>
+              ${['Embedded','CoE','Transformation','LCI','Internal'].map(t =>
+                `<option value='${t}'
+                  ${existingData?.ProjectType===t?'selected':''}>${t}</option>`
+              ).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class='form-row'>
+          <div class='form-group'>
+            <label>Start Date *</label>
+            <input type='date' name='StartDate' required
+              value='${existingData?.StartDate ? existingData.StartDate.split('T')[0] : ''}'>
+          </div>
+          <div class='form-group'>
+            <label>End Date *</label>
+            <input type='date' name='EndDate' required
+              value='${existingData?.EndDate ? existingData.EndDate.split('T')[0] : ''}'>
+          </div>
+        </div>
+
+        <div class='form-row'>
+          <div class='form-group'>
+            <label>Monthly Bill Rate (£)</label>
+            <input type='number' name='MonthlyBillRate' min='0' step='0.01'
+              value='${existingData?.MonthlyBillRate || ''}'>
+          </div>
+          <div class='form-group'>
+            <label>Billed? *</label>
+            <select name='Billed' required>
+              <option value='Yes' ${existingData?.Billed==='Yes'||!existingData?'selected':''}>Yes</option>
+              <option value='No'  ${existingData?.Billed==='No' ?'selected':''}>No</option>
+            </select>
+          </div>
+        </div>
+
+        <div class='form-group'>
+          <label>Country *</label>
+          <input type='text' name='Country' required
+            value='${existingData?.Country || ''}'>
+        </div>
+
+        <div class='form-actions'>
+          <button type='submit' class='btn-primary'>
+            ${isEdit ? 'Save Changes' : 'Add Assignment'}</button>
+          <button type='button' class='btn-secondary'
+            onclick='navigateTo("peopleTracker")'>Cancel</button>
+        </div>
+      </form>
+    </div>`;
+}
+
+// Called when EmployeeName dropdown changes — populates Level
+function _onAssignmentEmployeeChange(select) {
+  const opt = select.options[select.selectedIndex];
+  document.getElementById('assignment-level').value = opt.dataset.level || '';
+}
+
+async function submitAssignmentForm(event, editId = null) {
+  event.preventDefault();
+  clearFormError('assignment-form');
+  const form = document.getElementById('assignment-form');
+  const data = Object.fromEntries(new FormData(form));
+  if (!data.Level) {
+    showFormError('assignment-form', 'Please select an employee — Level must be populated.');
+    return;
+  }
+  const fields = {
+    EmployeeName:    data.EmployeeName,
+    Level:           data.Level,
+    Customer:        data.Customer,
+    ProjectType:     data.ProjectType,
+    StartDate:       isoDate(data.StartDate),
+    EndDate:         isoDate(data.EndDate),
+    MonthlyBillRate: data.MonthlyBillRate ? parseFloat(data.MonthlyBillRate) : null,
+    Billed:          data.Billed,
+    Country:         data.Country,
+  };
+  // Auto-generate AssignmentID for new records
+  if (!editId) {
+    const existing = await getAssignments({});
+    fields.AssignmentID = 'A-' + String(existing.length + 1).padStart(3, '0');
+  }
+  try {
+    if (editId) {
+      await updateAssignment(editId, fields);
+    } else {
+      await createAssignment(fields);
+    }
+    navigateTo('peopleTracker');
+  } catch (e) {
+    showFormError('assignment-form', `Error saving assignment: ${e.message}`);
+  }
+}
+
+async function showAddAssignmentForm() {
+  document.getElementById('main-content').innerHTML = await renderAssignmentForm();
+}
+
+async function showEditAssignmentForm(id) {
+  const data = await getItem('Assignments', id);
+  document.getElementById('main-content').innerHTML = await renderAssignmentForm(data);
+}

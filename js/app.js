@@ -6,8 +6,11 @@ window.APP = {
     }
     const user = getCurrentUser();
     // Resolve full role from SharePoint on login — stored in _resolvedRole for the session
-   _resolvedRole = await getUserRoleAsync(user.email);
+  _resolvedRole = await getUserRoleAsync(user.email);
     if (freshLogin) {
+      await ensureUserRegistered(user.email, user.name).catch(e =>
+        console.warn('Auto-registration failed:', e)
+      );
       window.location.href = 'index.html';
       return;
     }

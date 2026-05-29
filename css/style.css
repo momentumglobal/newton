@@ -270,7 +270,7 @@ body {
 .btn-filter:not(.active) .help-tip { background: #0A0B44; color: white; }
 .help-tip-text {
   display: none;
-  position: absolute; top: 28px; right: 50%; transform: translateX(-50%);
+  position: absolute; top: 28px; right: -8px; transform: none;
   background: #1a1a2e; color: white;
   font-size: 12px; font-weight: 400; line-height: 1.5;
   padding: 8px 12px; border-radius: 4px;

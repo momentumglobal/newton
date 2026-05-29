@@ -185,6 +185,7 @@ async function ensureUserRegistered(email, displayName) {
   const lower = email.toLowerCase();
   if (CONFIG.ADMIN_USERS?.includes(lower)) return;
   const existing = await getItems("UserAssignments", `fields/Title eq '${email}'`);
+  const now = new Date().toISOString();
   if (existing.length === 0) {
     await createItem("UserAssignments", {
       Title: email,
@@ -192,6 +193,9 @@ async function ensureUserRegistered(email, displayName) {
       ProjectID: 0,
       CustomerName: "",
       AssignedRole: "viewer",
+      LastLogin: now,
     });
+  } else {
+    await updateItem("UserAssignments", existing[0].id, { LastLogin: now });
   }
 }

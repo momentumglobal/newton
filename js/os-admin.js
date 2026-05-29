@@ -39,7 +39,7 @@ async function buildAssignmentsTab(editId = null) {
   let editRecord = null;
   if (editId) editRecord = assignments.find(a => String(a.id) === String(editId));
 
-  const rows = assignments.map(a => `
+const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.UserName || '')).map(a => `
     <tr id="assign-row-${a.id}">
       <td>${a.UserName || '—'}</td>
       <td>${a.UserEmail}</td>

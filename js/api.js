@@ -343,3 +343,70 @@ async function updateInvoice(id, fields) {
   return updateItem("GPInvoices", id, payload);
 }
 
+// ── People module: monthly calculation utility ───────────────────
+
+// Expand an assignments array into per-month rows.
+// MonthFraction = calendar days of assignment in month / calendar days in month.
+// Each row contains MonthFraction, ProratedRevenue, BilledRevenue,
+// Capacity, and BilledCapacity.
+//
+// assignments: array returned by getAssignments()
+// Returns: array of row objects
+function computeMonthlyRows(assignments) {
+  const rows = [];
+
+  for (const a of assignments) {
+    if (!a.StartDate || !a.EndDate) continue;
+    const aStart = new Date(a.StartDate);
+    const aEnd   = new Date(a.EndDate);
+    aStart.setHours(0, 0, 0, 0);
+    aEnd.setHours(0, 0, 0, 0);
+
+    // Iterate each calendar month the assignment overlaps
+    const cur = new Date(aStart.getFullYear(), aStart.getMonth(), 1);
+    const endMonth = new Date(aEnd.getFullYear(), aEnd.getMonth(), 1);
+
+    while (cur <= endMonth) {
+      const year  = cur.getFullYear();
+      const month = cur.getMonth(); // 0-based
+      const monthStart = new Date(year, month, 1);
+      const monthEnd   = new Date(year, month + 1, 0); // last day of month
+
+      // Calendar-day overlap (both endpoints inclusive)
+      const overlapStart = aStart > monthStart ? aStart : monthStart;
+      const overlapEnd   = aEnd   < monthEnd   ? aEnd   : monthEnd;
+
+      const daysOverlap = (overlapEnd - overlapStart) / 86400000 + 1;
+      const daysInMonth = monthEnd.getDate();
+      const fraction    = daysInMonth > 0 ? daysOverlap / daysInMonth : 0;
+
+      const rate    = parseFloat(a.MonthlyBillRate) || 0;
+      const billed  = a.Billed === "Yes";
+      const prorated = rate * fraction;
+
+      rows.push({
+        // Assignment identity
+        AssignmentID:  a.AssignmentID,
+        EmployeeName:  a.EmployeeName,
+        Level:         a.Level,
+        Customer:      a.Customer,
+        ProjectType:   a.ProjectType,
+        Country:       a.Country,
+        Billed:        a.Billed,
+        // Month identity
+        Year:          year,
+        Month:         month + 1,           // 1-based
+        MonthStart:    monthStart.toISOString().slice(0, 10),
+        // Calculated fields
+        MonthFraction:    Math.round(fraction * 10000) / 10000,
+        ProratedRevenue:  Math.round(prorated * 100) / 100,
+        BilledRevenue:    billed ? Math.round(prorated * 100) / 100 : 0,
+        Capacity:         Math.round(fraction * 10000) / 10000,
+        BilledCapacity:   billed ? Math.round(fraction * 10000) / 10000 : 0,
+      });
+
+      cur.setMonth(cur.getMonth() + 1);
+    }
+  }
+  return rows;
+}

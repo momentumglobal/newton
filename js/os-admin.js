@@ -45,6 +45,7 @@ async function buildAssignmentsTab(editId = null) {
       <td>${a.UserEmail}</td>
       <td>${a.CustomerName || '—'}</td>
       <td>${a.AssignedRole === 'talent_partner' ? 'Talent Partner' : a.AssignedRole === 'delivery_manager' ? 'Delivery Manager' : a.AssignedRole || '—'}</td>
+      <td>${a.LastLogin ? new Date(a.LastLogin).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'}</td>
       <td style="display:flex;gap:8px">
         <a href="#" onclick="showEditAssignment(${a.id})">Edit</a>
         <a href="#" onclick="deleteOsAdminRecord('UserAssignments',${a.id})">Remove</a>
@@ -128,7 +129,7 @@ async function buildAssignmentsTab(editId = null) {
   return `
     <h3>Current Assignments</h3>
     <table class="data-table" style="margin:0 0 24px">
-      <thead><tr><th>Name</th><th>Email</th><th>Customer</th><th>Role</th><th></th></tr></thead>
+      <thead><tr><th>Name</th><th>Email</th><th>Customer</th><th>Role</th><th>Last Login</th><th></th></tr></thead>
       <tbody>${rows || '<tr><td colspan=5>No assignments yet.</td></tr>'}</tbody>
     </table>
     ${editForm}

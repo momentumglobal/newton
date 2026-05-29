@@ -96,13 +96,16 @@ async function renderAssignmentsTab() {
   const today = new Date(); today.setHours(0,0,0,0);
   const statusFilter = _assignmentFilter.status || 'current';
 
-  const filtered = assignments.filter(a => {
-    const end = a.EndDate ? new Date(a.EndDate) : null;
-    const isCurrent = !end || end >= today;
-    if (statusFilter === 'current') return isCurrent;
-    if (statusFilter === 'former')  return !isCurrent;
-    return true;
-  }).filter(a => {
+const filtered = assignments.filter(a => {
+  const start = a.StartDate ? new Date(a.StartDate) : null;
+  const end   = a.EndDate   ? new Date(a.EndDate)   : null;
+  const isPlanned = start && start > today;
+  const isCurrent = !isPlanned && (!end || end >= today);
+  if (statusFilter === 'current') return isCurrent;
+  if (statusFilter === 'former')  return !isPlanned && end && end < today;
+  if (statusFilter === 'planned') return isPlanned;
+  return true;
+}).filter(a => {
     if (_assignmentFilter.customer    && a.Customer    !== _assignmentFilter.customer)    return false;
     if (_assignmentFilter.projectType && a.ProjectType !== _assignmentFilter.projectType) return false;
     return true;
@@ -120,21 +123,22 @@ async function renderAssignmentsTab() {
       <div class='form-group' style='min-width:140px'>
         <label>Status</label>
         <select onchange="_setAssignmentFilter('status',this.value)">
-          <option value='current' ${statusFilter==='current'?'selected':''}>Current</option>
-          <option value='former'  ${statusFilter==='former' ?'selected':''}>Former</option>
-          <option value='all'     ${statusFilter==='all'    ?'selected':''}>All</option>
-        </select>
+         <option value='current' ${statusFilter==='current'?'selected':''}>Current</option>
+         <option value='former'  ${statusFilter==='former' ?'selected':''}>Former</option>
+         <option value='planned' ${statusFilter==='planned'?'selected':''}>Planned</option>
+         <option value='all'     ${statusFilter==='all'    ?'selected':''}>All</option>
+       </select>
       </div>
       <div class='form-group' style='min-width:140px'>
         <label>Customer</label>
         <select onchange="_setAssignmentFilter('customer',this.value)">
-          ${opts(customers, _assignmentFilter.customer, 'All customers')}
+          ${opts(customers, _assignmentFilter.customer, 'All')}
         </select>
       </div>
       <div class='form-group' style='min-width:140px'>
         <label>Project Type</label>
         <select onchange="_setAssignmentFilter('projectType',this.value)">
-          ${opts(projectTypes, _assignmentFilter.projectType, 'All types')}
+          ${opts(projectTypes, _assignmentFilter.projectType, 'All')}
         </select>
       </div>
     </div>`;

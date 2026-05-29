@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newton — People</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Lucide icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+  <!-- Login screen -->
+  <div id="login-screen">
+    <div class="login-card">
+      <h1>Newton — People</h1>
+      <p>Sign in with your Momentum Global account to continue.</p>
+      <button class="btn-signin" onclick="signIn()">
+        Sign in with Microsoft
+      </button>
+    </div>
+  </div>
+
+  <!-- App shell (hidden until signed in) -->
+  <div id="app-shell">
+    <div id="sidebar"></div>
+    <div id="main-content"></div>
+  </div>
+
+  <!-- MSAL.js -->
+  <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+
+  <!-- Shared scripts (same files used by Reporting module) -->
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+
+  <!-- People module scripts — load in this order -->
+  <script src="js/people-router.js"></script>
+  <script src="js/people-nav.js"></script>
+  <script src="js/people-pages.js"></script>
+  <script src="js/people-forms.js"></script>
+  <script src="js/people-app.js"></script>
+
+</body>
+</html>

@@ -7,6 +7,7 @@ const ROLES = {
 
 const PAGES = {
   companyDashboard: { label: 'Company Dashboard', roles: [ROLES.ADMIN, ROLES.LEADERSHIP] },
+  peopleTracker:    { label: 'Employee Tracker',  roles: [ROLES.ADMIN, ROLES.LEADERSHIP] },
   projectDashboard: { label: 'Project Dashboard',  roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
   projects:         { label: 'Projects',           roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
   roles:            { label: 'Roles',              roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },

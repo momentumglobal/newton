@@ -248,3 +248,61 @@ async function updatePerson(id, fields) {
   return updateItem("People", id, payload);
 }
 
+// ── People module: Assignments list ───────────────────────────
+
+// Returns assignment records with optional filters.
+// filters: { employeeName, customer, year, billed }  — all optional.
+async function getAssignments(filters = {}) {
+  const parts = [];
+  if (filters.employeeName) parts.push(`fields/EmployeeName eq '${filters.employeeName}'`);
+  if (filters.customer)     parts.push(`fields/Customer eq '${filters.customer}'`);
+  if (filters.billed !== undefined && filters.billed !== '')
+    parts.push(`fields/Billed eq '${filters.billed}'`);
+  const filterStr = parts.join(" and ");
+  const assignments = await getItems("Assignments", filterStr);
+  // If year filter supplied, apply in-memory (date range overlap check)
+  if (filters.year) {
+    const y = parseInt(filters.year);
+    const yearStart = new Date(y, 0, 1);
+    const yearEnd   = new Date(y, 11, 31, 23, 59, 59);
+    return assignments.filter(a => {
+      const s = a.StartDate ? new Date(a.StartDate) : null;
+      const e = a.EndDate   ? new Date(a.EndDate)   : null;
+      if (!s) return false;
+      return s <= yearEnd && (!e || e >= yearStart);
+    });
+  }
+  return assignments;
+}
+
+// Creates a new assignment record.
+async function createAssignment(fields) {
+  return createItem("Assignments", {
+    Title:           fields.AssignmentID,
+    EmployeeName:    fields.EmployeeName,
+    Level:           fields.Level,
+    Customer:        fields.Customer,
+    ProjectType:     fields.ProjectType,
+    StartDate:       fields.StartDate,
+    EndDate:         fields.EndDate,
+    MonthlyBillRate: fields.MonthlyBillRate || undefined,
+    Billed:          fields.Billed,
+    Country:         fields.Country,
+  });
+}
+
+// Updates an existing assignment record by SharePoint item ID.
+async function updateAssignment(id, fields) {
+  const payload = {};
+  if (fields.AssignmentID   !== undefined) payload.Title           = fields.AssignmentID;
+  if (fields.EmployeeName   !== undefined) payload.EmployeeName    = fields.EmployeeName;
+  if (fields.Level          !== undefined) payload.Level           = fields.Level;
+  if (fields.Customer       !== undefined) payload.Customer        = fields.Customer;
+  if (fields.ProjectType    !== undefined) payload.ProjectType     = fields.ProjectType;
+  if (fields.StartDate      !== undefined) payload.StartDate       = fields.StartDate;
+  if (fields.EndDate        !== undefined) payload.EndDate         = fields.EndDate;
+  if (fields.MonthlyBillRate!== undefined) payload.MonthlyBillRate = fields.MonthlyBillRate;
+  if (fields.Billed         !== undefined) payload.Billed          = fields.Billed;
+  if (fields.Country        !== undefined) payload.Country         = fields.Country;
+  return updateItem("Assignments", id, payload);
+}

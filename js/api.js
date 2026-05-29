@@ -203,3 +203,48 @@ async function ensureUserRegistered(email, displayName) {
     await updateItem("UserAssignments", existing[0].id, { LastLogin: now });
   }
 }
+
+// ── People module: People list ─────────────────────────────────
+
+// Returns all employees. Pass activeOnly=true (default) to exclude
+// archived employees (IsActive = false).
+async function getPeople(activeOnly = true) {
+  const filter = activeOnly ? "fields/IsActive eq 1" : "";
+  const people = await getItems("People", filter);
+  // Sort: Level order (CSD, SDM, STP, TP), then name A-Z
+  const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
+  return people.sort((a, b) => {
+    const lDiff = (levelOrder[a.Level] ?? 99) - (levelOrder[b.Level] ?? 99);
+    if (lDiff !== 0) return lDiff;
+    return (a.EmployeeName || "").localeCompare(b.EmployeeName || "");
+  });
+}
+
+// Creates a new employee record.
+// fields: { EmployeeName, Level, ContractType, Location, StartDate, EndDate? }
+async function createPerson(fields) {
+  // Map display names back to SharePoint internal names for write
+  return createItem("People", {
+    Title:        fields.EmployeeName,
+    Level:        fields.Level,
+    ContractType: fields.ContractType,
+    Location:     fields.Location,
+    StartDate:    fields.StartDate || undefined,
+    EndDate:      fields.EndDate   || undefined,
+    IsActive:     fields.IsActive !== false,  // default true
+  });
+}
+
+// Updates an existing employee record by SharePoint item ID.
+async function updatePerson(id, fields) {
+  const payload = {};
+  if (fields.EmployeeName !== undefined) payload.Title        = fields.EmployeeName;
+  if (fields.Level        !== undefined) payload.Level        = fields.Level;
+  if (fields.ContractType !== undefined) payload.ContractType = fields.ContractType;
+  if (fields.Location     !== undefined) payload.Location     = fields.Location;
+  if (fields.StartDate    !== undefined) payload.StartDate    = fields.StartDate;
+  if (fields.EndDate      !== undefined) payload.EndDate      = fields.EndDate;
+  if (fields.IsActive     !== undefined) payload.IsActive     = fields.IsActive;
+  return updateItem("People", id, payload);
+}
+

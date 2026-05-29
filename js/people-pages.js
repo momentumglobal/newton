@@ -4,10 +4,9 @@
 let _peopleTab        = 'employees';
 let _showInactive     = false;
 let _assignmentFilter = {
-  employee: '',
-  customer: '',
-  year:     String(new Date().getFullYear()),
-  billed:   '',
+  status:      'current',
+  customer:    '',
+  projectType: '',
 };
 
 async function renderEmployeeTracker() {
@@ -42,7 +41,6 @@ async function renderEmployeesTab() {
   const main    = document.getElementById('main-content');
   const canEdit = _resolvedRole === 'admin';
   const people  = await getPeople(!_showInactive);
-
   const rows = people.map(p => `
     <tr>
       <td>${p.EmployeeName}</td>
@@ -54,7 +52,6 @@ async function renderEmployeesTab() {
       <td><span class='badge badge-${p.IsActive ? 'active' : 'inactive'}'>${p.IsActive ? 'Active' : 'Inactive'}</span></td>
       ${canEdit ? `<td><a href='#' onclick='showEditPersonForm(${p.id})'>Edit</a></td>` : ''}
     </tr>`).join('');
-
   main.innerHTML = `
     <div class='page-header'>
       <h2>Employee Tracker</h2>
@@ -88,45 +85,55 @@ async function renderAssignmentsTab() {
   const main    = document.getElementById('main-content');
   const canEdit = _resolvedRole === 'admin';
 
-  const [assignments, people] = await Promise.all([
-    getAssignments(_assignmentFilter),
-    getPeople(false),
-  ]);
+  const assignments = await getAssignments({});
 
-  const employees = [...new Set(people.map(p => p.EmployeeName))].sort();
-  const customers = [...new Set(assignments.map(a => a.Customer).filter(Boolean))].sort();
-  const years     = [...new Set(assignments.map(a => {
-    return a.StartDate ? new Date(a.StartDate).getFullYear() : null;
-  }).filter(Boolean))].sort((a,b) => b-a);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const statusFilter = _assignmentFilter.status || 'current';
+
+  const filtered = assignments.filter(a => {
+    const end = a.EndDate ? new Date(a.EndDate) : null;
+    const isCurrent = !end || end >= today;
+    if (statusFilter === 'current') return isCurrent;
+    if (statusFilter === 'former')  return !isCurrent;
+    return true;
+  }).filter(a => {
+    if (_assignmentFilter.customer    && a.Customer    !== _assignmentFilter.customer)    return false;
+    if (_assignmentFilter.projectType && a.ProjectType !== _assignmentFilter.projectType) return false;
+    return true;
+  });
+
+  const customers    = [...new Set(assignments.map(a => a.Customer).filter(Boolean))].sort();
+  const projectTypes = [...new Set(assignments.map(a => a.ProjectType).filter(Boolean))].sort();
 
   const opts = (vals, cur, blank) =>
     `<option value=''>${blank}</option>` +
-    vals.map(v => `<option value='${v}' ${String(cur)===String(v)?'selected':''}>${v}</option>`).join('');
+    vals.map(v => `<option value='${v}' ${cur===v?'selected':''}>${v}</option>`).join('');
 
   const filterBar = `
     <div class='project-filter-bar' style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px'>
-      <div class='form-group' style='min-width:160px'>
-        <label>Employee</label>
-        <select onchange="_setAssignmentFilter('employee',this.value)">
-          ${opts(employees, _assignmentFilter.employee, 'All employees')}</select></div>
+      <div class='form-group' style='min-width:140px'>
+        <label>Status</label>
+        <select onchange="_setAssignmentFilter('status',this.value)">
+          <option value='current' ${statusFilter==='current'?'selected':''}>Current</option>
+          <option value='former'  ${statusFilter==='former' ?'selected':''}>Former</option>
+          <option value='all'     ${statusFilter==='all'    ?'selected':''}>All</option>
+        </select>
+      </div>
       <div class='form-group' style='min-width:140px'>
         <label>Customer</label>
         <select onchange="_setAssignmentFilter('customer',this.value)">
-          ${opts(customers, _assignmentFilter.customer, 'All customers')}</select></div>
-      <div class='form-group' style='min-width:100px'>
-        <label>Year</label>
-        <select onchange="_setAssignmentFilter('year',this.value)">
-          ${opts(years, _assignmentFilter.year, 'All years')}</select></div>
-      <div class='form-group' style='min-width:100px'>
-        <label>Billed</label>
-        <select onchange="_setAssignmentFilter('billed',this.value)">
-          <option value=''>All</option>
-          <option value='Yes' ${_assignmentFilter.billed==='Yes'?'selected':''}>Yes</option>
-          <option value='No'  ${_assignmentFilter.billed==='No' ?'selected':''}>No</option>
-        </select></div>
+          ${opts(customers, _assignmentFilter.customer, 'All customers')}
+        </select>
+      </div>
+      <div class='form-group' style='min-width:140px'>
+        <label>Project Type</label>
+        <select onchange="_setAssignmentFilter('projectType',this.value)">
+          ${opts(projectTypes, _assignmentFilter.projectType, 'All types')}
+        </select>
+      </div>
     </div>`;
 
-  const rows = assignments.map(a => `
+  const rows = filtered.map(a => `
     <tr>
       <td>${a.AssignmentID || '—'}</td>
       <td>${a.EmployeeName || '—'}</td>

@@ -39,7 +39,6 @@ function renderNav(role) {
     </div>
     <nav class='nav-links'>
 ${pages.map(p => `
-  ${p.key === 'peopleTracker' ? "<div class='nav-section-label'>People</div>" : ''}
   <a class='nav-link ${p.key === currentPage ? 'active' : ''}'
      onclick='navigateTo("${p.key}")'>
     ${p.label}

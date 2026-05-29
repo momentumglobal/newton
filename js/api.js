@@ -11,6 +11,10 @@ const FIELD_ALIASES = {
   UserAssignments: { Title: "UserEmail" },
   LeadershipAccess:{ Title: "UserEmail" },
   Departments:     { Title: "DepartmentName" },
+  // ── People module ──────────────────────────────────────────
+  People:          { Title: "EmployeeName" },
+  Assignments:     { Title: "AssignmentID" },
+  GPInvoices:      { Title: "InvoiceNumber" },
 };
 
 function normaliseFields(listName, fields) {

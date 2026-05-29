@@ -691,3 +691,107 @@ async function submitRejectedForm(event, editId = null) {
     showFormError('rejected-form', `Error saving rejection: ${e.message}`);
   }
 }
+
+// ── People module: Employee (People list) forms ───────────────
+
+function renderPersonForm(existingData = null) {
+  const isEdit = !!existingData;
+  return `
+    <div class='form-container'>
+      <h2>${isEdit ? 'Edit Employee' : 'Add Employee'}</h2>
+      <div id='person-form-error' class='form-error'></div>
+      <form id='person-form'
+        onsubmit='submitPersonForm(event, ${existingData?.id || 'null'})'>
+        <div class='form-group'>
+          <label>Full Name *</label>
+          <input type='text' name='EmployeeName' required
+            value='${existingData?.EmployeeName || ''}'>
+        </div>
+        <div class='form-row'>
+          <div class='form-group'>
+            <label>Level *</label>
+            <select name='Level' required>
+              ${['CSD','SDM','STP','TP'].map(l =>
+                `<option value='${l}' ${existingData?.Level===l?'selected':''}>${l}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class='form-group'>
+            <label>Contract Type *</label>
+            <select name='ContractType' required>
+              ${['Core','FTC','G-P'].map(c =>
+                `<option value='${c}' ${existingData?.ContractType===c?'selected':''}>${c}</option>`
+              ).join('')}
+            </select>
+          </div>
+        </div>
+        <div class='form-group'>
+          <label>Location *</label>
+          <input type='text' name='Location' required
+            value='${existingData?.Location || ''}'>
+        </div>
+        <div class='form-row'>
+          <div class='form-group'>
+            <label>Start Date *</label>
+            <input type='date' name='StartDate' required
+              value='${existingData?.StartDate ? existingData.StartDate.split('T')[0] : ''}'>
+          </div>
+          <div class='form-group'>
+            <label>End Date</label>
+            <input type='date' name='EndDate'
+              value='${existingData?.EndDate ? existingData.EndDate.split('T')[0] : ''}'>
+          </div>
+        </div>
+        ${isEdit ? `
+        <div class='form-group'>
+          <label>
+            <input type='checkbox' name='IsActive'
+              ${existingData?.IsActive !== false ? 'checked' : ''}
+              style='margin-right:6px'>
+            Active employee
+          </label>
+        </div>` : ''}
+        <div class='form-actions'>
+          <button type='submit' class='btn-primary'>
+            ${isEdit ? 'Save Changes' : 'Add Employee'}</button>
+          <button type='button' class='btn-secondary'
+            onclick='navigateTo("peopleTracker")'>Cancel</button>
+        </div>
+      </form>
+    </div>`;
+}
+
+async function submitPersonForm(event, editId = null) {
+  event.preventDefault();
+  clearFormError('person-form');
+  const form = document.getElementById('person-form');
+  const data = Object.fromEntries(new FormData(form));
+  const fields = {
+    EmployeeName: data.EmployeeName,
+    Level:        data.Level,
+    ContractType: data.ContractType,
+    Location:     data.Location,
+    StartDate:    isoDate(data.StartDate) || undefined,
+    EndDate:      isoDate(data.EndDate)   || undefined,
+    IsActive:     editId ? (form.querySelector('[name=IsActive]')?.checked !== false) : true,
+  };
+  try {
+    if (editId) {
+      await updatePerson(editId, fields);
+    } else {
+      await createPerson(fields);
+    }
+    navigateTo('peopleTracker');
+  } catch (e) {
+    showFormError('person-form', `Error saving employee: ${e.message}`);
+  }
+}
+
+function showAddPersonForm() {
+  document.getElementById('main-content').innerHTML = renderPersonForm();
+}
+
+async function showEditPersonForm(id) {
+  const data = await getItem('People', id);
+  document.getElementById('main-content').innerHTML = renderPersonForm(data);
+}

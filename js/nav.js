@@ -91,7 +91,6 @@ async function renderPage(page) {
     case 'rejections':        await renderRejectionsPage();  break;
     case 'projectDashboard':  await renderProjectDashboard(); break;
     case 'companyDashboard':  await renderCompanyDashboard(); break;
-    case 'peopleTracker':    await renderEmployeeTracker();  break;
     case 'adminPanel':        renderAdminPage();              break;
     default:
       main.innerHTML = `<p>Page not found.</p>`;

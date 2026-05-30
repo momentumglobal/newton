@@ -284,31 +284,46 @@ async function _renderKPIStrip(allRows, people, assignments) {
   // Utilisation — previous year
   const utilPrev  = _calcUtilisation(prevRows);
 
-  // Active customers today
-  const activeCustomers = new Set(
+// Last day of previous quarter
+  const cq       = Math.floor(now.getMonth() / 3);
+  const prevQEnd = new Date(cq === 0 ? thisY - 1 : thisY, cq === 0 ? 12 : cq * 3, 0);
+  prevQEnd.setHours(0, 0, 0, 0);
+
+  const countCustomers = (asOf) => new Set(
     assignments.filter(a => {
       const s = a.StartDate ? new Date(a.StartDate) : null;
       const e = a.EndDate   ? new Date(a.EndDate)   : null;
-      return s && s <= today && (!e || e >= today)
+      return s && s <= asOf && (!e || e >= asOf)
         && a.Customer && a.Customer !== 'Unassigned';
     }).map(a => a.Customer)
   ).size;
 
-  // Billed headcount today
-  const billedHeadcount = new Set(
+  const countBilledHC = (asOf) => new Set(
     assignments.filter(a => {
       const s = a.StartDate ? new Date(a.StartDate) : null;
       const e = a.EndDate   ? new Date(a.EndDate)   : null;
-      return a.Billed === 'Yes' && s && s <= today && (!e || e >= today);
+      return a.Billed === 'Yes' && s && s <= asOf && (!e || e >= asOf);
     }).map(a => a.EmployeeName)
   ).size;
 
+  const activeCustomers  = countCustomers(today);
+  const prevQCustomers   = countCustomers(prevQEnd);
+  const billedHeadcount  = countBilledHC(today);
+  const prevQHeadcount   = countBilledHC(prevQEnd);
+
+  const _delta = (curr, prev) => {
+    const d = curr - prev;
+    if (d === 0) return `<span style='color:#999;font-size:14px;margin-left:8px'>—</span>`;
+    const colour = d > 0 ? '#2e7d32' : '#c62828';
+    return `<span style='color:${colour};font-size:14px;margin-left:8px'>${d > 0 ? '+' : ''}${d}</span>`;
+  };
+  
   return `<div style='display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px'>
     ${_kpiCard('Estimated Revenue ' + thisY,   _fmtGBP(revYTD),   'Current year YTD')}
     ${_kpiCard('Utilisation ' + thisY,      _fmtPct(utilYTD),  'Current year YTD',
         utilYTD >= 0.85 ? '#e6f4ea' : utilYTD >= 0.75 ? '#fff3e0' : '#fce8e8')}
-    ${_kpiCard('Active Customers',           activeCustomers,   'As of today')}
-    ${_kpiCard('Billed Headcount',           billedHeadcount,   'As of today')}
+    ${_kpiCard('Active Customers',  activeCustomers  + _delta(activeCustomers, prevQCustomers),  'As of today')}
+    ${_kpiCard('Billed Headcount',  billedHeadcount  + _delta(billedHeadcount, prevQHeadcount),  'As of today')}
   </div>`;
 }
 

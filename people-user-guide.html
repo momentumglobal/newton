@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>People — User Guide</title>
+  <link rel="icon" type="image/png" href="momentum-symbol.png">
+  <style>
+    @font-face {
+      font-family: 'Polymath';
+      src: url('polymath-regular.ttf') format('truetype');
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: 'Polymath';
+      src: url('polymath-semibold.ttf') format('truetype');
+      font-weight: 600;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
+      background: #F5F4F1;
+      color: #1a1a2e;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    /* ── Header ── */
+    .guide-header {
+      background: #0A0B44;
+      color: white;
+      padding: 28px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .guide-header-left h1 {
+      font-size: 22px;
+      font-weight: 600;
+    }
+    .guide-header-left p {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      margin-top: 4px;
+    }
+    .guide-header img {
+      height: 36px;
+      width: auto;
+    }
+    /* ── Layout ── */
+    .guide-body {
+      display: flex;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      gap: 40px;
+    }
+    /* ── Sidebar nav ── */
+    .guide-nav {
+      width: 200px;
+      min-width: 200px;
+      position: sticky;
+      top: 24px;
+      align-self: flex-start;
+    }
+    .guide-nav ul {
+      list-style: none;
+      padding: 0;
+    }
+    .guide-nav li a {
+      display: block;
+      padding: 7px 12px;
+      color: #0A0B44;
+      text-decoration: none;
+      font-size: 13px;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+    .guide-nav li a:hover { background: #e8e7e3; }
+    .guide-nav .nav-section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #888;
+      padding: 12px 12px 4px;
+    }
+    /* ── Content ── */
+    .guide-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .guide-section {
+      background: white;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      scroll-margin-top: 24px;
+    }
+    .guide-section h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #0A0B44;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #EBF2FA;
+    }
+    .guide-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #0A0B44;
+      margin: 20px 0 8px;
+    }
+    .guide-section p {
+      color: #333;
+      margin-bottom: 12px;
+    }
+    .guide-section p:last-child { margin-bottom: 0; }
+    /* ── FAQ ── */
+    .faq-item {
+      border-bottom: 1px solid #eee;
+      padding: 14px 0;
+    }
+    .faq-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .faq-q {
+      font-weight: 600;
+      color: #0A0B44;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .faq-a {
+      color: #444;
+      font-size: 14px;
+    }
+    /* ── Role badge ── */
+    .role-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .role-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #EBF2FA;
+      color: #0A0B44;
+    }
+    .role-badge.admin      { background: #0A0B44; color: white; }
+    .role-badge.leadership { background: #fff3e0; color: #e65100; }
+    /* ── Tips ── */
+    .tip {
+      background: #EBF2FA;
+      border-left: 3px solid #0A0B44;
+      border-radius: 0 4px 4px 0;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #333;
+      margin: 12px 0;
+    }
+    /* ── Colour key ── */
+    .colour-key {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 10px 0;
+    }
+    .colour-key-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #333;
+    }
+    .colour-swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    /* ── Footer ── */
+    .guide-footer {
+      text-align: center;
+      padding: 32px;
+      font-size: 12px;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+
+<div class="guide-header">
+  <div class="guide-header-left">
+    <h1>Newton — People User Guide</h1>
+    <p>Momentum Global</p>
+  </div>
+  <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
+</div>
+
+<div class="guide-body">
+
+  <!-- Sidebar navigation -->
+  <nav class="guide-nav">
+    <ul>
+      <li><a href="people.html">← Back to People</a></li>
+      <li><div style="height:8px;"></div></li>
+      <li><div class="nav-section-label">Getting Started</div></li>
+      <li><a href="#faq">FAQ</a></li>
+      <li><a href="#roles">User Roles</a></li>
+      <li><div class="nav-section-label">Pages</div></li>
+      <li><a href="#people-dashboard">People Dashboard</a></li>
+      <li><a href="#employee-tracker">Employee Tracker</a></li>
+      <li><a href="#deployment-timeline">Deployment Timeline</a></li>
+      <li><a href="#gp-invoices">G-P Invoices</a></li>
+    </ul>
+  </nav>
+
+  <!-- Main content -->
+  <div class="guide-content">
+
+    <!-- FAQ -->
+    <div class="guide-section" id="faq">
+      <h2>Frequently Asked Questions</h2>
+      <div class="faq-item">
+        <div class="faq-q">Who can access the People module?</div>
+        <div class="faq-a">The People module is restricted to Admin and Leadership roles. Delivery Managers and Talent Partners do not have access.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">How does utilisation get calculated?</div>
+        <div class="faq-a">Utilisation is calculated as total billed capacity divided by total available capacity across all active employees (excluding CSD level). Each monthly row is prorated based on how many calendar days of an assignment fall within that month.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Why do the dashboard figures only show up to today?</div>
+        <div class="faq-a">All utilisation and revenue calculations are capped at today's date. Even if an assignment runs into the future, only the days up to and including today are counted. This gives an accurate picture of what has actually been delivered.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Why does an employee appear in multiple customer groups on the Deployment Timeline?</div>
+        <div class="faq-a">An employee can have assignments with more than one customer. Each assignment is grouped under its own customer, so the same employee may appear in multiple sections of the timeline if they have worked across customers during the selected year.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What does "Estimated Revenue" mean?</div>
+        <div class="faq-a">Revenue figures are calculated from monthly bill rates and assignment dates. They are estimates based on signed assignment data — actual invoiced amounts may differ slightly. G-P Invoice amounts are tracked separately in the G-P Invoices page.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">How often does the data update?</div>
+        <div class="faq-a">Newton reads directly from SharePoint Lists via the Microsoft Graph API. Data updates in real time — refreshing the page will reflect the latest entries.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Who do I contact if something isn't working?</div>
+        <div class="faq-a">Raise it with your Newton Admin. For access issues, they can update user assignments directly via the Admin link on the Newton home screen.</div>
+      </div>
+    </div>
+
+    <!-- User Roles -->
+    <div class="guide-section" id="roles">
+      <h2>User Roles</h2>
+      <p>The People module is accessible to two roles only.</p>
+      <h3><span class="role-badge admin">Admin</span></h3>
+      <p>Full access to all People module pages. Can add, edit, and delete employees, assignments, and invoices. Sees all data across the entire workforce.</p>
+      <h3><span class="role-badge leadership">Leadership</span></h3>
+      <p>Read-only access to all People module pages. Can view the dashboard, employee list, deployment timeline, and invoices but cannot add or edit any records.</p>
+    </div>
+
+    <!-- People Dashboard -->
+    <div class="guide-section" id="people-dashboard">
+      <h2>People Dashboard</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">Leadership</span>
+      </div>
+      <p>A real-time overview of workforce performance, utilisation, and revenue. The KPI strip is always fixed to current year YTD — the period filters below it control the three detail panels only.</p>
+
+      <h3>KPI Strip</h3>
+      <p>Four tiles showing company-wide metrics as of today:</p>
+      <p><strong>Estimated Revenue</strong> — total billed revenue for the current year to date.</p>
+      <p><strong>Utilisation</strong> — billed capacity as a percentage of total capacity, YTD. Colour coded: green = 85%+, orange = 75–85%, red = below 75%.</p>
+      <p><strong>Active Customers</strong> — number of distinct customers with a current active assignment today. The delta indicator (green/red) shows the change vs the last day of the previous quarter.</p>
+      <p><strong>Billed Headcount</strong> — number of employees on a billed assignment today. The delta indicator shows the change vs the last day of the previous quarter.</p>
+
+      <h3>Period Filters</h3>
+      <p>Use the <strong>Year</strong>, <strong>Month</strong>, and <strong>Quarter</strong> dropdowns to filter the three panels below. Selecting a month clears the quarter selection and vice versa. The year filter applies to both.</p>
+
+      <h3>Panel 1 — Team Utilisation</h3>
+      <p>A summary table showing utilisation percentage and headcount (utilised / total active) per role band — SDM, STP, TP. A totals row shows the overall blended utilisation. Below the table, a monthly trend bar chart shows how utilisation has moved across the selected period.</p>
+
+      <h3>Panel 2 — Estimated Revenue</h3>
+      <p>Two side-by-side tables for the selected period: revenue by customer (sorted highest to lowest, excluding Unassigned/Internal) and revenue by project type (Embedded, CoE, Transformation, LCI).</p>
+
+      <h3>Panel 3 — Workforce Segmentation</h3>
+      <p>Three headcount breakdowns of currently active employees (not period-filtered): by location, by contract type, and by role band. Each shows count and percentage of total.</p>
+
+      <h3>Upcoming End Dates</h3>
+      <p>Lists any active employees with an end date in the next 60 days, sorted by nearest first.</p>
+      <div class="colour-key">
+        <div class="colour-key-item">
+          <div class="colour-swatch" style="background:#fce8e8"></div>
+          End date within 30 days
+        </div>
+        <div class="colour-key-item">
+          <div class="colour-swatch" style="background:#fff3e0"></div>
+          End date within 31–60 days
+        </div>
+      </div>
+    </div>
+
+    <!-- Employee Tracker -->
+    <div class="guide-section" id="employee-tracker">
+      <h2>Employee Tracker</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">Leadership</span>
+      </div>
+      <p>A two-tab view of the workforce — employees and their assignments. Use the tab bar at the top to switch between the two views.</p>
+
+      <h3>Employees tab</h3>
+      <p>Lists all active employees sorted by role band then name, showing level, contract type, location, start date, end date, and status. Toggle <strong>Show inactive employees</strong> to include leavers in the list.</p>
+      <p>Admins can add new employees using <strong>+ Add Employee</strong> and edit existing records via the Edit link on each row.</p>
+      <div class="tip">An employee's Level field (SDM, STP, TP, CSD) determines which role band they appear in across all dashboard calculations. Keep this accurate when editing records.</div>
+
+      <h3>Assignments tab</h3>
+      <p>Lists assignment records showing employee name, level, customer, project type, start and end dates, monthly bill rate, and billed status. Defaults to current assignments.</p>
+      <p>Use the <strong>Status</strong> filter to switch between Current, Former, Planned, or All assignments. Filter further by Customer or Project Type using the dropdowns.</p>
+      <p>Admins can add new assignments using <strong>+ Add Assignment</strong> and edit existing records via the Edit link on each row.</p>
+      <div class="tip">The <strong>Billed</strong> field on an assignment determines whether it contributes to revenue and utilisation calculations. An assignment marked Billed = No counts toward capacity but not billed capacity.</div>
+    </div>
+
+    <!-- Deployment Timeline -->
+    <div class="guide-section" id="deployment-timeline">
+      <h2>Deployment Timeline</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">Leadership</span>
+      </div>
+      <p>A read-only Gantt-style view of all employee assignments across a calendar year. Use the <strong>Year</strong> selector at the top right to switch between years.</p>
+
+      <h3>Reading the timeline</h3>
+      <p>Rows are grouped by customer (A–Z). Within each customer, employees are sorted by role band (SDM, STP, TP) then name. Unassigned or bench employees appear at the top of the chart. Each bar represents one assignment — hover over a bar to see the customer, bill rate, and assignment dates in a tooltip.</p>
+      <p>Bars are colour coded by project type:</p>
+      <div class="colour-key">
+        <div class="colour-key-item">
+          <div class="colour-swatch" style="background:#2E75B6"></div>
+          Embedded
+        </div>
+        <div class="colour-key-item">
+          <div class="colour-swatch" style="background:#2e7d32"></div>
+          CoE
+        </div>
+        <div class="colour-key-item">
+          <div class="colour-swatch" style="background:#e65100"></div>
+          Transformation
+        </div>
+        <div class="colour-key-item">
+          <div class="colour-swatch" style="background:#6a1b9a"></div>
+          LCI
+        </div>
+        <div class="colour-key-item">
+          <div class="colour-swatch" style="background:#888"></div>
+          Internal / bench
+        </div>
+      </div>
+
+      <h3>Multiple assignments</h3>
+      <p>If an employee has more than one assignment in the year, all bars appear on the same row. Bars from different assignments may overlap if the employee was deployed across more than one customer simultaneously.</p>
+
+      <div class="tip">The Deployment Timeline shows future assignment dates as planned — it is not capped at today. This makes it useful for workforce planning and visualising upcoming capacity changes.</div>
+    </div>
+
+    <!-- G-P Invoices -->
+    <div class="guide-section" id="gp-invoices">
+      <h2>G-P Invoices</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">Leadership</span>
+      </div>
+      <p>Tracks invoices issued through the G-P (Employer of Record) arrangement. Each invoice is logged with its number, dates, amount, notes, and payment status.</p>
+
+      <h3>Summary bar</h3>
+      <p>At the top of the page, three figures give an at-a-glance view of the invoice position: total outstanding amount, number of overdue invoices, and the date of the oldest overdue invoice.</p>
+
+      <h3>Invoice status</h3>
+      <p>Each invoice has one of three statuses: <strong>Sent</strong> (issued, awaiting payment), <strong>Overdue</strong> (Sent with a due date in the past), or <strong>Paid</strong>. Overdue status is calculated automatically — no manual flagging is needed.</p>
+
+      <h3>Adding and editing invoices</h3>
+      <p>Admins can add new invoices using <strong>+ Add Invoice</strong> and edit existing records via the Edit link on each row. Once payment is received, use <strong>Mark Paid</strong> on the row to update the status directly without opening the edit form.</p>
+
+      <div class="tip">G-P Invoice amounts are tracked separately from the Estimated Revenue figures on the People Dashboard. The dashboard calculates revenue from assignment bill rates — invoice amounts here reflect actual G-P charges which may differ.</div>
+    </div>
+
+  </div><!-- end guide-content -->
+</div><!-- end guide-body -->
+
+<div class="guide-footer">
+  Newton · People · Momentum Global
+</div>
+
+</body>
+</html>

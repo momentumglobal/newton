@@ -410,3 +410,8 @@ function computeMonthlyRows(assignments) {
 async function deleteItem(listName, itemId) {
   return graphRequest("DELETE", `${listPath(listName)}/${itemId}`);
 }
+
+function printPage(title) {
+  document.getElementById('print-header-title').textContent = title;
+  window.print();
+}

@@ -593,7 +593,8 @@ async function renderDeploymentTimeline() {
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const monthHeaders = MONTHS.map(m =>
     `<th style='text-align:center;font-size:11px;font-weight:600;
-                color:#555;padding:6px 2px;min-width:52px'>${m}</th>`
+                color:#555;padding:6px 2px;min-width:52px;
+                position:sticky;top:0;background:#fff'>${m}</th>`
   ).join('');
 
   // Build a bar cell for a month given a list of assignments
@@ -653,8 +654,15 @@ async function renderDeploymentTimeline() {
     </tr>`;
 
     // Employee rows
-    const employees = Object.keys(customerMap[customer]).sort();
-    employees.forEach(emp => {
+const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
+    const employees = Object.keys(customerMap[customer]).sort((a, b) => {
+      const aLevel = customerMap[customer][a][0]?.Level;
+      const bLevel = customerMap[customer][b][0]?.Level;
+      const l = (levelOrder[aLevel] ?? 99) - (levelOrder[bLevel] ?? 99);
+      if (l !== 0) return l;
+      return a.localeCompare(b);
+    });
+      employees.forEach(emp => {
       const empAssignments = customerMap[customer][emp];
       const level = empAssignments[0]?.Level || '—';
       const cells = MONTHS.map((_, i) => monthCell(empAssignments, i)).join('');
@@ -691,13 +699,13 @@ async function renderDeploymentTimeline() {
       </div>
     </div>
     <div style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px'>${legend}</div>
-    <div style='overflow-x:auto'>
+<div style='overflow-x:auto;margin:0 -20px;padding:0 4px'>
       <table class='data-table' style='min-width:800px;table-layout:fixed'>
-        <thead><tr>
+        <thead style='position:sticky;top:0;z-index:10;background:#fff'><tr>
           <th style='min-width:140px;text-align:left;padding:6px 8px;font-size:11px;
-                     font-weight:600;color:#555'>Employee</th>
+                     font-weight:600;color:#555;position:sticky;top:0;background:#fff'>Employee</th>
           <th style='min-width:50px;text-align:left;padding:6px 8px;font-size:11px;
-                     font-weight:600;color:#555'>Level</th>
+                     font-weight:600;color:#555;position:sticky;top:0;background:#fff'>Level</th>
           ${monthHeaders}
         </tr></thead>
         <tbody>${rowsHtml}</tbody>

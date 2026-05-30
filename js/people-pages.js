@@ -187,12 +187,75 @@ async function _setAssignmentFilter(key, value) {
   await renderAssignmentsTab();
 }
 
-// ── Stubs for pages built in later phases ────────────────────
-async function renderPeopleDashboard() {
-  document.getElementById('main-content').innerHTML =
-    `<div class='page-header'><h2>People Dashboard</h2></div>
-     <p>Coming in Phase 5.</p>`;
+// ── People Dashboard state ────────────────────────────────────
+let _dashPeriod = 'ytd';  // 'month' | 'quarter' | 'ytd' | 'year'
+
+function _dashDateRange(period) {
+  const now   = new Date();
+  const y     = now.getFullYear();
+  const m     = now.getMonth();
+  const q     = Math.floor(m / 3);
+  switch (period) {
+    case 'month':
+      return { start: new Date(y, m, 1), end: new Date(y, m + 1, 0) };
+    case 'quarter':
+      return { start: new Date(y, q * 3, 1), end: new Date(y, q * 3 + 3, 0) };
+    case 'ytd':
+      return { start: new Date(y, 0, 1), end: new Date(y, 11, 31) };
+    case 'year':
+      return { start: new Date(y, 0, 1), end: new Date(y, 11, 31) };
+    default:
+      return { start: new Date(y, 0, 1), end: new Date(y, 11, 31) };
+  }
 }
+
+// Filter monthly rows to a date range
+function _rowsInRange(rows, start, end) {
+  return rows.filter(r => {
+    const ms = new Date(r.MonthStart);
+    return ms >= start && ms <= end;
+  });
+}
+
+// Filter monthly rows to a full calendar year
+function _rowsInYear(rows, year) {
+  return rows.filter(r => r.Year === year);
+}
+
+function _fmtGBP(n) {
+  return '£' + (n || 0).toLocaleString('en-GB', {
+    minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function _fmtPct(n) {
+  return ((n || 0) * 100).toFixed(1) + '%';
+}
+
+// Calculates utilisation % from an array of monthly rows.
+function _calcUtilisation(rows) {
+  const billedCap = rows.reduce((s, r) => s + r.BilledCapacity, 0);
+  const totalCap  = rows.reduce((s, r) => s + r.Capacity, 0);
+  return totalCap > 0 ? billedCap / totalCap : 0;
+}
+
+function _barChart(data, valueFormatter) {
+  const max = Math.max(...data.map(d => d.value), 0.001);
+  return `<div style='margin-top:12px'>
+    ${data.map(d => `
+      <div style='display:flex;align-items:center;gap:8px;margin-bottom:6px'>
+        <div style='width:80px;font-size:12px;color:#555;text-align:right;
+                    flex-shrink:0'>${d.label}</div>
+        <div style='flex:1;background:#f0f0f0;border-radius:3px;height:18px'>
+          <div style='width:${Math.round((d.value/max)*100)}%;background:#2E75B6;
+                      height:18px;border-radius:3px;min-width:2px'></div>
+        </div>
+        <div style='width:50px;font-size:12px;color:#333;flex-shrink:0'>
+          ${valueFormatter ? valueFormatter(d.value) : d.value}</div>
+      </div>`).join('')}
+  </div>`;
+}
+
+// ── Stubs for pages built in later phases ────────────────────
 async function renderDeploymentTimeline() {
   document.getElementById('main-content').innerHTML =
     `<div class='page-header'><h2>Deployment Timeline</h2></div>

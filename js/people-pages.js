@@ -301,3 +301,12 @@ async function markInvoicePaid(id) {
   }
 }
 
+async function deleteInvoice(id) {
+  if (!confirm('Delete this invoice? This cannot be undone.')) return;
+  try {
+    await deleteItem('GPInvoices', id);
+    await renderGPInvoices();
+  } catch (e) {
+    alert('Error deleting invoice: ' + e.message);
+  }
+}

@@ -230,30 +230,36 @@ async function deleteOsAdminRecord(listName, id) {
 
 // ── Homepage Tab ───────────────────────────────────────────────────
 function buildHomepageTab() {
-  const snowEnabled = localStorage.getItem('newton_snow') === 'true';
+  const active = localStorage.getItem('newton_fx') || 'none';
+  const effects = [
+    { key: 'snow',   label: '❄ Snowfall',          desc: 'Falling snow animation' },
+    { key: 'lights', label: '🎄 Christmas Lights',  desc: 'String of twinkling coloured lights across the top' },
+    { key: 'summer', label: '☀ Summer Scene',       desc: 'Sun, sandy beach and gentle waves' },
+  ];
+  const rows = effects.map(e => `
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:16px 0;border-bottom:1px solid #eee">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:#0A0B44">${e.label}</div>
+        <div style="font-size:13px;color:#666;margin-top:2px">${e.desc}</div>
+      </div>
+      <button class="btn-${active === e.key ? 'primary' : 'secondary'}"
+        onclick="setFx('${active === e.key ? 'none' : e.key}')" style="min-width:80px">
+        ${active === e.key ? 'On' : 'Off'}
+      </button>
+    </div>`).join('');
   return `
     <h3>Seasonal Effects</h3>
     <p style="font-size:13px;color:#666;margin-bottom:16px">
-      These effects appear on the Newton home screen for all users.
+      One effect can be active at a time. Changes take effect on the Newton home screen immediately.
     </p>
     <div style="background:white;border:1px solid #e0e0e0;border-radius:6px;
-                padding:20px 24px;max-width:480px">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="font-size:14px;font-weight:600;color:#0A0B44">❄ Snowfall</div>
-          <div style="font-size:13px;color:#666;margin-top:2px">
-            Falling snow animation on the home screen
-          </div>
-        </div>
-        <button class="btn-${snowEnabled ? 'primary' : 'secondary'}"
-          onclick="toggleSnow(${!snowEnabled})" style="min-width:80px">
-          ${snowEnabled ? 'On' : 'Off'}
-        </button>
-      </div>
+                padding:4px 24px;max-width:520px">
+      ${rows}
     </div>`;
 }
 
-function toggleSnow(enable) {
-  localStorage.setItem('newton_snow', enable ? 'true' : 'false');
+function setFx(key) {
+  localStorage.setItem('newton_fx', key);
   renderOsAdminPage('homepage');
 }

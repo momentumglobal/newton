@@ -208,7 +208,7 @@ function _dashDateRange() {
 // Filter monthly rows to a date range
 function _rowsInRange(rows, start, end) {
   return rows.filter(r => {
-    const ms = new Date(r.Year, r.Month, 1);
+    const ms = new Date(r.Year, r.Month - 1, 1);
     return ms >= start && ms <= end;
   });
 }

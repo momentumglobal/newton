@@ -672,6 +672,7 @@ const { start, end } = _dashDateRange();
   const utilisPanel  = _renderUtilisationPanel(periodRows, people);
   const revenuePanel = _renderRevenuePanel(periodRows);
   const segmentPanel = _renderSegmentationPanel(people);
+  const endDatesPanel = _renderEndDatesPanel(people);
   const now      = new Date();
   const thisY    = now.getFullYear();
   const yearOpts = [thisY, thisY - 1].map(y =>
@@ -719,11 +720,17 @@ const { start, end } = _dashDateRange();
       </div>
     </div>
 
-    <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'>
+   <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'>
       <div class='page-header' style='margin-bottom:12px'>
         <h3 style='margin:0;color:#1B3A5C'>Workforce Segmentation</h3>
       </div>
       ${segmentPanel}
+    </div>
+    <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px;margin-top:24px'>
+      <div class='page-header' style='margin-bottom:12px'>
+        <h3 style='margin:0;color:#1B3A5C'>Upcoming End Dates</h3>
+      </div>
+      ${endDatesPanel}
     </div>`;
 }
 

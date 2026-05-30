@@ -601,3 +601,65 @@ async function deleteInvoice(id) {
     alert('Error deleting invoice: ' + e.message);
   }
 }
+
+async function renderPeopleDashboard() {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<p>Loading dashboard...</p>';
+
+  const [assignments, people] = await Promise.all([
+    getAssignments({}),
+    getPeople(false),
+  ]);
+
+  const allRows = computeMonthlyRows(assignments);
+
+  const { start, end } = _dashDateRange(_dashPeriod);
+  const periodRows = _rowsInRange(allRows, start, end);
+
+  const kpiStrip     = await _renderKPIStrip(allRows, people, assignments);
+  const utilisPanel  = _renderUtilisationPanel(periodRows);
+  const revenuePanel = _renderRevenuePanel(periodRows);
+  const segmentPanel = _renderSegmentationPanel(people);
+
+  const periods = [
+    { key: 'month',   label: 'This Month' },
+    { key: 'quarter', label: 'This Quarter' },
+    { key: 'ytd',     label: 'YTD' },
+    { key: 'year',    label: 'Full Year' },
+  ];
+  const periodBtns = periods.map(p =>
+    `<button class='btn-filter${_dashPeriod===p.key?' active':''}' 
+      onclick='_setDashPeriod("${p.key}")'>${p.label}</button>`
+  ).join('');
+
+  main.innerHTML = `
+    <div class='page-header'><h2>People Dashboard</h2></div>
+
+    ${kpiStrip}
+
+    <div class='filter-group' style='margin-bottom:24px'>${periodBtns}</div>
+
+    <div style='display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px'>
+      <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'>
+        ${utilisPanel}
+      </div>
+      <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'>
+        <div class='page-header' style='margin-bottom:12px'>
+          <h3 style='margin:0;color:#1B3A5C'>Revenue</h3>
+        </div>
+        ${revenuePanel}
+      </div>
+    </div>
+
+    <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'>
+      <div class='page-header' style='margin-bottom:12px'>
+        <h3 style='margin:0;color:#1B3A5C'>Workforce Segmentation</h3>
+      </div>
+      ${segmentPanel}
+    </div>`;
+}
+
+async function _setDashPeriod(period) {
+  _dashPeriod = period;
+  await renderPeopleDashboard();
+}

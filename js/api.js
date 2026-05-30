@@ -410,3 +410,7 @@ function computeMonthlyRows(assignments) {
   }
   return rows;
 }
+
+async function deleteItem(listName, itemId) {
+  return graphRequest("DELETE", `${listPath(listName)}/${itemId}`);
+}

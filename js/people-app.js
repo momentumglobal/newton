@@ -26,7 +26,7 @@ window.PEOPLE_APP = {
     document.getElementById('login-screen').style.display = 'none';
 
     renderPeopleNav(_resolvedRole);
-    navigateToPeople('peopleTracker');
+    navigateToPeople('peopleDashboard');
   },
 
   showLogin() {

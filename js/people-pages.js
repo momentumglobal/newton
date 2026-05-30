@@ -535,12 +535,182 @@ function _renderEndDatesPanel(people) {
     </table>`;
 }
 
-// ── Stubs for pages built in later phases ────────────────────
+// ── Deployment Timeline Gantt ────────────────────
 async function renderDeploymentTimeline() {
-  document.getElementById('main-content').innerHTML =
-    `<div class='page-header'><h2>Deployment Timeline</h2></div>
-     <p>Coming in Phase 6.</p>`;
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<p>Loading deployment timeline...</p>';
+
+  const [assignments, people] = await Promise.all([
+    getAssignments({}),
+    getPeople(false),
+  ]);
+
+  _ganttYear = _ganttYear || new Date().getFullYear();
+  const year = _ganttYear;
+
+  // Build people lookup for IsActive
+  const peopleMap = {};
+  people.forEach(p => { peopleMap[p.EmployeeName] = p; });
+
+  // Filter assignments overlapping the selected year
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd   = new Date(year, 11, 31);
+
+  const relevant = assignments.filter(a => {
+    if (!a.StartDate || !a.EndDate) return false;
+    const s = new Date(a.StartDate);
+    const e = new Date(a.EndDate);
+    return s <= yearEnd && e >= yearStart;
+  });
+
+  // Group by customer, then employee
+  const BENCH_KEY = '__bench__';
+  const customerMap = {};
+  relevant.forEach(a => {
+    const customer = (!a.Customer || a.Customer === 'Unassigned') ? BENCH_KEY : a.Customer;
+    if (!customerMap[customer]) customerMap[customer] = {};
+    if (!customerMap[customer][a.EmployeeName]) customerMap[customer][a.EmployeeName] = [];
+    customerMap[customer][a.EmployeeName].push(a);
+  });
+
+  // Sort customers A-Z, bench last
+  const customers = Object.keys(customerMap)
+    .filter(c => c !== BENCH_KEY)
+    .sort();
+  if (customerMap[BENCH_KEY]) customers.push(BENCH_KEY);
+
+  // Colour by project type
+  const TYPE_COLOURS = {
+    'Embedded':       '#2E75B6',
+    'CoE':            '#2e7d32',
+    'Transformation': '#e65100',
+    'LCI':            '#6a1b9a',
+    'Internal':       '#888',
+  };
+  const typeColour = (t) => TYPE_COLOURS[t] || '#aaa';
+
+  // Month headers
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthHeaders = MONTHS.map(m =>
+    `<th style='text-align:center;font-size:11px;font-weight:600;
+                color:#555;padding:6px 2px;min-width:52px'>${m}</th>`
+  ).join('');
+
+  // Build a bar cell for a month given a list of assignments
+  const monthCell = (empAssignments, monthIdx) => {
+    const mStart = new Date(year, monthIdx, 1);
+    const mEnd   = new Date(year, monthIdx + 1, 0);
+    const overlapping = empAssignments.filter(a => {
+      const s = new Date(a.StartDate);
+      const e = new Date(a.EndDate);
+      return s <= mEnd && e >= mStart;
+    });
+    if (!overlapping.length) return `<td style='padding:2px'></td>`;
+
+    const bars = overlapping.map(a => {
+      const s      = new Date(a.StartDate);
+      const e      = new Date(a.EndDate);
+      const segStart = s > mStart ? s : mStart;
+      const segEnd   = e < mEnd   ? e : mEnd;
+      const daysInMonth = mEnd.getDate();
+      const startDay    = segStart.getDate();
+      const endDay      = segEnd.getDate();
+      const leftPct  = ((startDay - 1) / daysInMonth * 100).toFixed(1);
+      const widthPct = ((endDay - startDay + 1) / daysInMonth * 100).toFixed(1);
+      const colour   = typeColour(a.ProjectType);
+      const startStr = new Date(a.StartDate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+      const endStr   = new Date(a.EndDate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+      const rate     = a.MonthlyBillRate ? '£' + Number(a.MonthlyBillRate).toLocaleString('en-GB') : '—';
+      const tooltip  = `${a.Customer || 'Unassigned'} · ${rate} · ${startStr} – ${endStr}`;
+      return `<div title='${tooltip}' style='position:absolute;top:3px;bottom:3px;
+        left:${leftPct}%;width:${widthPct}%;background:${colour};
+        border-radius:3px;cursor:default'></div>`;
+    }).join('');
+
+    return `<td style='padding:2px;position:relative'>
+      <div style='position:relative;height:22px'>${bars}</div>
+    </td>`;
+  };
+
+  // Build rows
+  let rowsHtml = '';
+  customers.forEach((customer, ci) => {
+    const isBench = customer === BENCH_KEY;
+
+    // Bench divider
+    if (isBench && ci > 0) {
+      rowsHtml += `<tr><td colspan='14' style='padding:0'>
+        <div style='border-top:2px dashed #ccc;margin:8px 0'></div>
+      </td></tr>`;
+    }
+
+    // Customer header row
+    rowsHtml += `<tr>
+      <td colspan='14' style='padding:6px 8px 2px;font-size:12px;font-weight:700;
+          color:#1B3A5C;background:#f5f7fa;border-top:1px solid #e0e0e0'>
+        ${isBench ? 'Unassigned / Bench' : customer}
+      </td>
+    </tr>`;
+
+    // Employee rows
+    const employees = Object.keys(customerMap[customer]).sort();
+    employees.forEach(emp => {
+      const empAssignments = customerMap[customer][emp];
+      const level = empAssignments[0]?.Level || '—';
+      const cells = MONTHS.map((_, i) => monthCell(empAssignments, i)).join('');
+      rowsHtml += `<tr>
+        <td style='padding:4px 8px;font-size:12px;white-space:nowrap;min-width:140px'>
+          ${emp}</td>
+        <td style='padding:4px 8px;font-size:11px;color:#888;white-space:nowrap'>
+          ${level}</td>
+        ${cells}
+      </tr>`;
+    });
+  });
+
+  // Legend
+  const legend = Object.entries(TYPE_COLOURS).map(([type, colour]) =>
+    `<div style='display:flex;align-items:center;gap:6px;font-size:12px;color:#555'>
+      <div style='width:14px;height:14px;border-radius:3px;background:${colour};flex-shrink:0'></div>
+      ${type}
+    </div>`
+  ).join('');
+
+  // Year selector
+  const thisY = new Date().getFullYear();
+  const yearOpts = [thisY - 1, thisY, thisY + 1].map(y =>
+    `<option value='${y}' ${y === year ? 'selected' : ''}>${y}</option>`
+  ).join('');
+
+  main.innerHTML = `
+    <div class='page-header'>
+      <h2>Deployment Timeline</h2>
+      <div style='display:flex;align-items:center;gap:12px'>
+        <label style='font-size:13px;color:#555'>Year</label>
+        <select onchange='_setGanttYear(+this.value)'>${yearOpts}</select>
+      </div>
+    </div>
+    <div style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px'>${legend}</div>
+    <div style='overflow-x:auto'>
+      <table class='data-table' style='min-width:800px;table-layout:fixed'>
+        <thead><tr>
+          <th style='min-width:140px;text-align:left;padding:6px 8px;font-size:11px;
+                     font-weight:600;color:#555'>Employee</th>
+          <th style='min-width:50px;text-align:left;padding:6px 8px;font-size:11px;
+                     font-weight:600;color:#555'>Level</th>
+          ${monthHeaders}
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
 }
+
+let _ganttYear = new Date().getFullYear();
+async function _setGanttYear(year) {
+  _ganttYear = year;
+  await renderDeploymentTimeline();
+}
+
 async function renderGPInvoices() {
   const main    = document.getElementById('main-content');
   const canEdit = _resolvedRole === 'admin';

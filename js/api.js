@@ -353,28 +353,24 @@ async function updateInvoice(id, fields) {
 // assignments: array returned by getAssignments()
 // Returns: array of row objects
 function computeMonthlyRows(assignments) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const rows = [];
-
   for (const a of assignments) {
     if (!a.StartDate || !a.EndDate) continue;
     const aStart = new Date(a.StartDate);
     const aEnd   = new Date(a.EndDate);
     aStart.setHours(0, 0, 0, 0);
     aEnd.setHours(0, 0, 0, 0);
-
-    // Iterate each calendar month the assignment overlaps
+    const effectiveEnd = aEnd < today ? aEnd : today;
     const cur = new Date(aStart.getFullYear(), aStart.getMonth(), 1);
-    const endMonth = new Date(aEnd.getFullYear(), aEnd.getMonth(), 1);
-
+    const endMonth = new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth(), 1);
     while (cur <= endMonth) {
       const year  = cur.getFullYear();
-      const month = cur.getMonth(); // 0-based
+      const month = cur.getMonth();
       const monthStart = new Date(year, month, 1);
-      const monthEnd   = new Date(year, month + 1, 0); // last day of month
-
-      // Calendar-day overlap (both endpoints inclusive)
+      const monthEnd   = new Date(year, month + 1, 0);
       const overlapStart = aStart > monthStart ? aStart : monthStart;
-      const overlapEnd   = aEnd   < monthEnd   ? aEnd   : monthEnd;
+      const overlapEnd   = effectiveEnd < monthEnd ? effectiveEnd : monthEnd;
 
       const daysOverlap = (overlapEnd - overlapStart) / 86400000 + 1;
       const daysInMonth = monthEnd.getDate();

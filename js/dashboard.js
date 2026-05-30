@@ -351,6 +351,7 @@ async function renderProjectDashboard() {
   main.innerHTML = `
     <div class='page-header'>
       <h2>Project Dashboard${isDMAdmin ? ' — ' + projectName : ''}</h2>
+      <button class='print-btn' onclick='printPage("Project Dashboard${isDMAdmin ? ' — ' + projectName : ''}")'>⎙ Export PDF</button>
     </div>
     ${selectorHtml}
     <div class='form-group dash-project-selector'>
@@ -513,6 +514,7 @@ async function renderCompanyDashboard() {
   main.innerHTML = `
     <div class='page-header'>
       <h2>Company Dashboard</h2>
+      <button class='print-btn' onclick='printPage("Company Dashboard")'>⎙ Export PDF</button>
     </div>
     <div class='form-group dash-project-selector'>
       <label>KPI Period</label>

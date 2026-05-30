@@ -304,7 +304,7 @@ async function _renderKPIStrip(allRows, people, assignments) {
   ).size;
 
   return `<div style='display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px'>
-    ${_kpiCard('Billed Revenue ' + thisY,   _fmtGBP(revYTD),   'Current year YTD')}
+    ${_kpiCard('Estimated Revenue ' + thisY,   _fmtGBP(revYTD),   'Current year YTD')}
     ${_kpiCard('Utilisation ' + thisY,      _fmtPct(utilYTD),  'Current year YTD')}
     ${_kpiCard('Active Customers',           activeCustomers,   'As of today')}
     ${_kpiCard('Billed Headcount',           billedHeadcount,   'As of today')}
@@ -398,7 +398,7 @@ function _renderRevenuePanel(rows) {
         <div style='font-size:13px;font-weight:700;color:#1B3A5C;margin-bottom:8px'>
           By Customer</div>
         <table class='data-table'>
-          <thead><tr><th>Customer</th><th>Billed Revenue</th></tr></thead>
+          <thead><tr><th>Customer</th><th>Estimated Revenue</th></tr></thead>
           <tbody>
             ${customerRows}
             <tr style='font-weight:700;border-top:2px solid #ccc'>
@@ -655,7 +655,7 @@ const { start, end } = _dashDateRange();
       </div>
       <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'>
         <div class='page-header' style='margin-bottom:12px'>
-          <h3 style='margin:0;color:#1B3A5C'>Revenue</h3>
+          <h3 style='margin:0;color:#1B3A5C'>Estimated Revenue</h3>
         </div>
         ${revenuePanel}
       </div>

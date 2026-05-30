@@ -410,7 +410,7 @@ function _renderRevenuePanel(rows) {
         <div style='font-size:13px;font-weight:700;color:#1B3A5C;margin-bottom:8px'>
           By Project Type</div>
         <table class='data-table'>
-          <thead><tr><th>Project Type</th><th>Billed Revenue</th></tr></thead>
+          <thead><tr><th>Project Type</th><th>Estimated Revenue</th></tr></thead>
           <tbody>
             ${typeRows}
             <tr style='font-weight:700;border-top:2px solid #ccc'>

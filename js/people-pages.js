@@ -305,9 +305,7 @@ async function _renderKPIStrip(allRows, people, assignments) {
 
   return `<div style='display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px'>
     ${_kpiCard('Billed Revenue ' + thisY,   _fmtGBP(revYTD),   'Current year YTD')}
-    ${_kpiCard('Billed Revenue ' + prevY,   _fmtGBP(revPrev),  'Full year')}
     ${_kpiCard('Utilisation ' + thisY,      _fmtPct(utilYTD),  'Current year YTD')}
-    ${_kpiCard('Utilisation ' + prevY,      _fmtPct(utilPrev), 'Full year')}
     ${_kpiCard('Active Customers',           activeCustomers,   'As of today')}
     ${_kpiCard('Billed Headcount',           billedHeadcount,   'As of today')}
   </div>`;
@@ -651,7 +649,7 @@ const { start, end } = _dashDateRange();
 
  <div style='margin-bottom:24px'>${periodBtns}</div>
 
-    <div style='display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px'>
+    <div style='display:grid;grid-template-columns:35fr 65fr;gap:24px;margin-bottom:32px'>
       <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'>
         ${utilisPanel}
       </div>

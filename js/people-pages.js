@@ -386,7 +386,7 @@ function _renderRevenuePanel(rows) {
   rows.forEach(r => {
     byType[r.ProjectType] = (byType[r.ProjectType] || 0) + r.BilledRevenue;
   });
-  const typeOrder = ['Embedded','CoE','Transformation','LCI','Internal'];
+  const typeOrder = ['Embedded','CoE','Transformation','LCI'];
   const typeRows = typeOrder
     .filter(t => byType[t] !== undefined)
     .map(t => `<tr><td>${t}</td><td>${_fmtGBP(byType[t])}</td></tr>`).join('');

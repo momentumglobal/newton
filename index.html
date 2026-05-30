@@ -26,7 +26,6 @@
       align-items: center;
       justify-content: center;
     }
-    /* Watermark */
     #watermark {
       position: fixed;
       top: 50%; left: 50%;
@@ -36,7 +35,6 @@
       pointer-events: none;
       z-index: 0;
     }
-    /* Logo bottom left */
     .home-logo {
       position: fixed;
       bottom: 32px;
@@ -46,7 +44,6 @@
       z-index: 2;
       opacity: 0.7;
     }
-    /* Sign out */
     .home-signout {
       position: fixed;
       bottom: 36px;
@@ -60,7 +57,6 @@
       z-index: 2;
     }
     .home-signout:hover { color: rgba(255,255,255,0.7); }
-    /* Centre content */
     .home-center {
       position: relative;
       z-index: 2;
@@ -88,7 +84,6 @@
       text-transform: uppercase;
       margin-bottom: 48px;
     }
-    /* Module grid */
     .module-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -126,7 +121,7 @@
       display: block;
       color: rgba(255,255,255,0.75);
       stroke-width: 1.5;
-   }
+    }
     .module-name {
       font-size: 15px;
       font-weight: 600;
@@ -160,35 +155,21 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
-
-  <!-- Watermark -->
   <img id="watermark" src="mg-visual-swirl.png" alt="">
-
-  <!-- Logo -->
   <img class="home-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
- 
-  <!-- Admin link -->
-<a id="admin-link" href="admin.html" style="display:none;position:fixed;bottom:36px;right:100px;font-family:'Polymath','Segoe UI',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.35);text-decoration:none;z-index:2;">Admin</a>
-  
-  <!-- Sign out -->
+  <a id="admin-link" href="admin.html" style="display:none;position:fixed;bottom:36px;right:100px;font-family:'Polymath','Segoe UI',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.35);text-decoration:none;z-index:2;">Admin</a>
   <button class="home-signout" onclick="handleSignOut()">Sign out</button>
-
-  <!-- Centre content -->
   <div class="home-center">
     <div class="home-greeting" id="home-greeting">Welcome back</div>
     <div class="home-title">Newton</div>
     <div class="home-subtitle">Momentum Global &nbsp;·&nbsp; Operating System</div>
     <div class="module-grid" id="module-grid"></div>
   </div>
-
-  <!-- MSAL -->
   <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/api.js"></script>
-
   <script>
-    // ── Module definitions ─────────────────────────────────────────────
     const ALL_MODULES = [
       {
         key: 'reporting',
@@ -227,59 +208,46 @@
         roles: ['admin', 'leadership'],
       },
     ];
-
-    // ── Render ─────────────────────────────────────────────────────────
     async function initHome() {
-  // Handle MSAL redirect — store user details if coming back from Microsoft login
-  const response = await msalInstance.handleRedirectPromise();
-  if (response) {
-    const account = response.account || msalInstance.getAllAccounts()[0];
-    if (account) {
-      localStorage.setItem('userEmail', account.username.toLowerCase());
-      localStorage.setItem('userName', account.name);
+      const response = await msalInstance.handleRedirectPromise();
+      if (response) {
+        const account = response.account || msalInstance.getAllAccounts()[0];
+        if (account) {
+          localStorage.setItem('userEmail', account.username.toLowerCase());
+          localStorage.setItem('userName', account.name);
+        }
+      }
+      if (!isSignedIn()) { window.location.href = 'reporting.html'; return; }
+      const user = getCurrentUser();
+      const firstName = (user.name || user.email || '').split(' ')[0];
+      document.getElementById('home-greeting').textContent = `Welcome back, ${firstName}`;
+      const role = await getUserRoleAsync(user.email);
+      const visible = ALL_MODULES.filter(m => m.roles.includes(role));
+      const grid = document.getElementById('module-grid');
+      if (visible.length === 1) grid.classList.add('single');
+      grid.innerHTML = visible.map(m => `
+        <${m.live ? `a href="${m.href}"` : 'div'} class="module-card${m.live ? '' : ' disabled'}">
+          <i data-lucide="${m.icon}" class="module-icon"></i>
+          <div class="module-name">${m.name}</div>
+          <div class="module-desc">${m.desc}</div>
+          <span class="module-badge ${m.live ? 'badge-live' : 'badge-soon'}">${m.live ? 'Live' : 'Coming soon'}</span>
+        </${m.live ? 'a' : 'div'}>
+      `).join('');
+      lucide.createIcons();
+      if (role === 'admin') {
+        const adminLink = document.getElementById('admin-link');
+        if (adminLink) adminLink.style.display = 'block';
+      }
     }
-  }
-
-  if (!isSignedIn()) {
-    window.location.href = 'reporting.html';
-    return;
-  }
-
-  const user = getCurrentUser();
-  const firstName = (user.name || user.email || '').split(' ')[0];
-  document.getElementById('home-greeting').textContent = `Welcome back, ${firstName}`;
-
-  const role = await getUserRoleAsync(user.email);
-  const visible = ALL_MODULES.filter(m => m.roles.includes(role));
-  const grid = document.getElementById('module-grid');
-  if (visible.length === 1) grid.classList.add('single');
-  grid.innerHTML = visible.map(m => `
-    <${m.live ? `a href="${m.href}"` : 'div'} class="module-card${m.live ? '' : ' disabled'}">
-      <i data-lucide="${m.icon}" class="module-icon"></i>
-      <div class="module-name">${m.name}</div>
-      <div class="module-desc">${m.desc}</div>
-      <span class="module-badge ${m.live ? 'badge-live' : 'badge-soon'}">${m.live ? 'Live' : 'Coming soon'}</span>
-    </${m.live ? 'a' : 'div'}>
-  `).join('');
-  lucide.createIcons();
-  // Show Admin link if user is admin
-  if (role === 'admin') {
-    const adminLink = document.getElementById('admin-link');
-    if (adminLink) adminLink.style.display = 'block';
-  }
-}
-    function handleSignOut() {
-      signOut();
-    }
-
+    function handleSignOut() { signOut(); }
     initHome();
   </script>
 <canvas id="fx-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;display:none"></canvas>
 <script>
 (function() {
-  const canvas  = document.getElementById('fx-canvas');
-  const ctx     = canvas.getContext('2d');
-  let animFrame = null;
+  const canvas = document.getElementById('fx-canvas');
+  const ctx    = canvas.getContext('2d');
+  let animFrame   = null;
   let activeEffect = null;
 
   function resize() {
@@ -296,10 +264,8 @@
 
   // ── Snow ──────────────────────────────────────────────────────────
   function startSnow() {
-    stopAll();
-    activeEffect = 'snow';
-    canvas.style.display = 'block';
-    resize();
+    stopAll(); activeEffect = 'snow';
+    canvas.style.display = 'block'; resize();
     const flakes = [];
     const count = Math.floor((canvas.width * canvas.height) / 18000);
     for (let i = 0; i < count; i++) {
@@ -312,10 +278,8 @@
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       flakes.forEach(f => {
-        ctx.beginPath();
-        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${f.alpha})`;
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${f.alpha})`; ctx.fill();
         f.y += f.speed; f.x += f.drift;
         if (f.y > canvas.height) { f.y = -f.r; f.x = Math.random() * canvas.width; }
         if (f.x > canvas.width) f.x = 0;
@@ -328,60 +292,42 @@
 
   // ── Christmas Lights ──────────────────────────────────────────────
   function startLights() {
-    stopAll();
-    activeEffect = 'lights';
-    canvas.style.display = 'block';
-    resize();
+    stopAll(); activeEffect = 'lights';
+    canvas.style.display = 'block'; resize();
     const COLOURS = ['#ff3b3b','#ffcc00','#33cc55','#3399ff','#ff66cc','#ff9900'];
-    const count   = Math.floor(canvas.width / 60);
-    const bulbs   = [];
+    const count = Math.floor(canvas.width / 60);
+    const bulbs = [];
     const sagDepth = 28;
     for (let i = 0; i < count; i++) {
       const t = i / (count - 1);
-      const sag = Math.sin(Math.PI * t) * sagDepth;
       bulbs.push({
-        x:      t * canvas.width,
-        y:      18 + sag,
+        x: t * canvas.width, y: 18 + Math.sin(Math.PI * t) * sagDepth,
         colour: COLOURS[i % COLOURS.length],
-        phase:  Math.random() * Math.PI * 2,
-        speed:  0.015 + Math.random() * 0.01,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.015 + Math.random() * 0.01,
       });
     }
-    let tick = 0;
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // Wire
-      ctx.beginPath();
-      ctx.moveTo(0, 18);
+      ctx.beginPath(); ctx.moveTo(0, 18);
       for (let i = 1; i <= count; i++) {
         const t = i / count;
-        const sag = Math.sin(Math.PI * (i - 0.5) / count) * sagDepth;
-        ctx.lineTo(t * canvas.width, 18 + sag);
+        ctx.lineTo(t * canvas.width, 18 + Math.sin(Math.PI * (i - 0.5) / count) * sagDepth);
       }
-      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      // Bulbs
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1.5; ctx.stroke();
       bulbs.forEach(b => {
         b.phase += b.speed;
-        const glow  = 0.55 + Math.sin(b.phase) * 0.45;
-        const r     = 6;
-        const grad  = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, r * 3);
-        grad.addColorStop(0,   b.colour + 'ff');
+        const glow = 0.55 + Math.sin(b.phase) * 0.45;
+        const r = 6;
+        const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, r * 3);
+        grad.addColorStop(0, b.colour + 'ff');
         grad.addColorStop(0.4, b.colour + Math.round(glow * 180).toString(16).padStart(2,'0'));
-        grad.addColorStop(1,   b.colour + '00');
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, r * 3, 0, Math.PI * 2);
-        ctx.fillStyle = grad;
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = b.colour;
-        ctx.globalAlpha = glow;
-        ctx.fill();
-        ctx.globalAlpha = 1;
+        grad.addColorStop(1, b.colour + '00');
+        ctx.beginPath(); ctx.arc(b.x, b.y, r * 3, 0, Math.PI * 2);
+        ctx.fillStyle = grad; ctx.fill();
+        ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = b.colour; ctx.globalAlpha = glow; ctx.fill(); ctx.globalAlpha = 1;
       });
-      tick++;
       animFrame = requestAnimationFrame(draw);
     }
     draw();
@@ -389,58 +335,129 @@
 
   // ── Summer ────────────────────────────────────────────────────────
   function startSummer() {
-    stopAll();
-    activeEffect = 'summer';
-    canvas.style.display = 'block';
-    resize();
+    stopAll(); activeEffect = 'summer';
+    canvas.style.display = 'block'; resize();
     let tick = 0;
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const w = canvas.width, h = canvas.height;
-
-      // Sun glow (top right)
       const sx = w - 80, sy = 80;
       const sunGrad = ctx.createRadialGradient(sx, sy, 10, sx, sy, 140);
       sunGrad.addColorStop(0,   'rgba(255,240,100,0.95)');
       sunGrad.addColorStop(0.2, 'rgba(255,200,50,0.5)');
       sunGrad.addColorStop(0.6, 'rgba(255,160,20,0.15)');
       sunGrad.addColorStop(1,   'rgba(255,140,0,0)');
-      ctx.beginPath();
-      ctx.arc(sx, sy, 140, 0, Math.PI * 2);
-      ctx.fillStyle = sunGrad;
-      ctx.fill();
-      // Sun disc
-      ctx.beginPath();
-      ctx.arc(sx, sy, 28, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,240,100,0.95)';
-      ctx.fill();
-
-      // Sandy beach strip
+      ctx.beginPath(); ctx.arc(sx, sy, 140, 0, Math.PI * 2);
+      ctx.fillStyle = sunGrad; ctx.fill();
+      ctx.beginPath(); ctx.arc(sx, sy, 28, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,240,100,0.95)'; ctx.fill();
       const beachTop = h - 90;
       const beachGrad = ctx.createLinearGradient(0, beachTop, 0, h);
       beachGrad.addColorStop(0, 'rgba(210,180,120,0.82)');
       beachGrad.addColorStop(1, 'rgba(190,155,90,0.92)');
-      ctx.fillStyle = beachGrad;
-      ctx.fillRect(0, beachTop, w, 90);
-
-      // Waves — two layers, gentle animation
+      ctx.fillStyle = beachGrad; ctx.fillRect(0, beachTop, w, 90);
       [0, 1].forEach(layer => {
         const offset = Math.sin(tick * 0.018 + layer * Math.PI) * 6;
         const waveY  = beachTop - 14 + layer * 8 + offset;
-        ctx.beginPath();
-        ctx.moveTo(0, waveY);
+        ctx.beginPath(); ctx.moveTo(0, waveY);
         for (let x = 0; x <= w; x += 4) {
-          const y = waveY + Math.sin((x / w) * Math.PI * 6 + tick * 0.04 + layer * 1.2) * 4;
-          ctx.lineTo(x, y);
+          ctx.lineTo(x, waveY + Math.sin((x / w) * Math.PI * 6 + tick * 0.04 + layer * 1.2) * 4);
         }
         ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
-        ctx.fillStyle = layer === 0
-          ? 'rgba(80,180,210,0.22)'
-          : 'rgba(100,200,230,0.14)';
+        ctx.fillStyle = layer === 0 ? 'rgba(80,180,210,0.22)' : 'rgba(100,200,230,0.14)';
         ctx.fill();
       });
-
       tick++;
+      animFrame = requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  // ── Spring ────────────────────────────────────────────────────────
+  function startSpring() {
+    stopAll(); activeEffect = 'spring';
+    canvas.style.display = 'block'; resize();
+    let tick = 0;
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const w = canvas.width, h = canvas.height;
+      const grassTop = h - 70;
+      const grassGrad = ctx.createLinearGradient(0, grassTop, 0, h);
+      grassGrad.addColorStop(0, 'rgba(80,160,60,0.85)');
+      grassGrad.addColorStop(1, 'rgba(50,120,30,0.95)');
+      ctx.fillStyle = grassGrad; ctx.fillRect(0, grassTop, w, 70);
+      const bladeCount = Math.floor(w / 8);
+      for (let i = 0; i < bladeCount; i++) {
+        const x    = (i / bladeCount) * w;
+        const sway = Math.sin(tick * 0.025 + i * 0.4) * 3;
+        const bh   = 14 + Math.sin(i * 1.7) * 6;
+        ctx.beginPath();
+        ctx.moveTo(x, grassTop);
+        ctx.quadraticCurveTo(x + sway, grassTop - bh * 0.5, x + sway * 1.5, grassTop - bh);
+        ctx.strokeStyle = 'rgba(60,140,40,0.7)'; ctx.lineWidth = 1.2; ctx.stroke();
+      }
+      const flowerPositions = [0.08,0.17,0.26,0.35,0.44,0.53,0.62,0.71,0.80,0.89];
+      const petalColours    = ['#ff9eb5','#ffda79','#c9a0ff','#ff9eb5','#79e0ff','#ffda79','#c9a0ff','#ff9eb5','#79e0ff','#ffda79'];
+      flowerPositions.forEach((t, fi) => {
+        const x    = t * w;
+        const y    = grassTop - 4;
+        const sway = Math.sin(tick * 0.025 + fi * 0.9) * 2;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + sway, y - 18);
+        ctx.strokeStyle = 'rgba(60,140,40,0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+        for (let p = 0; p < 5; p++) {
+          const angle = (p / 5) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.arc(x + sway + Math.cos(angle) * 5, y - 18 + Math.sin(angle) * 5, 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = petalColours[fi % petalColours.length];
+          ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
+        }
+        ctx.beginPath(); ctx.arc(x + sway, y - 18, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,220,50,0.95)'; ctx.fill();
+      });
+      tick++;
+      animFrame = requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  // ── Autumn ────────────────────────────────────────────────────────
+  function startAutumn() {
+    stopAll(); activeEffect = 'autumn';
+    canvas.style.display = 'block'; resize();
+    const LEAF_COLOURS = ['#cc4400','#dd6600','#ee8800','#bb3300','#ffaa00','#993300'];
+    const leaves = [];
+    const count  = Math.floor((canvas.width * canvas.height) / 14000);
+    for (let i = 0; i < count; i++) {
+      leaves.push({
+        x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+        size: Math.random() * 7 + 5, speed: Math.random() * 0.8 + 0.3,
+        drift: (Math.random() - 0.5) * 0.6, spin: (Math.random() - 0.5) * 0.04,
+        angle: Math.random() * Math.PI * 2,
+        colour: LEAF_COLOURS[Math.floor(Math.random() * LEAF_COLOURS.length)],
+        alpha: Math.random() * 0.5 + 0.4, wobble: Math.random() * Math.PI * 2,
+      });
+    }
+    function drawLeaf(x, y, size, angle, colour, alpha) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.moveTo(0, -size);
+      ctx.bezierCurveTo(size * 0.8, -size * 0.5, size * 0.8, size * 0.5, 0, size * 0.3);
+      ctx.bezierCurveTo(-size * 0.8, size * 0.5, -size * 0.8, -size * 0.5, 0, -size);
+      ctx.fillStyle = colour; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0, -size); ctx.lineTo(0, size * 0.3);
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 0.8; ctx.stroke();
+      ctx.globalAlpha = 1; ctx.restore();
+    }
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      leaves.forEach(l => {
+        l.wobble += 0.02; l.y += l.speed;
+        l.x += l.drift + Math.sin(l.wobble) * 0.4; l.angle += l.spin;
+        if (l.y > canvas.height + l.size) { l.y = -l.size; l.x = Math.random() * canvas.width; }
+        if (l.x > canvas.width + l.size) l.x = -l.size;
+        if (l.x < -l.size) l.x = canvas.width + l.size;
+        drawLeaf(l.x, l.y, l.size, l.angle, l.colour, l.alpha);
+      });
       animFrame = requestAnimationFrame(draw);
     }
     draw();
@@ -451,16 +468,19 @@
   window.fxSnow   = startSnow;
   window.fxLights = startLights;
   window.fxSummer = startSummer;
+  window.fxSpring = startSpring;
+  window.fxAutumn = startAutumn;
 
-  window.addEventListener('resize', () => {
-    if (activeEffect) { resize(); }
-  });
+  window.addEventListener('resize', () => { if (activeEffect) resize(); });
 
   // Load saved effect on page load
+  localStorage.removeItem('newton_snow');
   const saved = localStorage.getItem('newton_fx');
   if (saved === 'snow')   startSnow();
   if (saved === 'lights') startLights();
   if (saved === 'summer') startSummer();
+  if (saved === 'spring') startSpring();
+  if (saved === 'autumn') startAutumn();
 })();
 </script>
 </body>

@@ -411,8 +411,9 @@ async function deleteItem(listName, itemId) {
   return graphRequest("DELETE", `${listPath(listName)}/${itemId}`);
 }
 
-function printPage(title, landscape = false) {
-  document.getElementById('print-header-title').textContent = title;
+function printPage(title, landscape = false, module = 'Newton') {
+  document.getElementById('print-header-title').textContent = 'Newton';
+  document.getElementById('print-header-sub').textContent = module;
   let styleEl = null;
   if (landscape) {
     styleEl = document.createElement('style');

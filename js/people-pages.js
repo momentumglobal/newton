@@ -269,10 +269,11 @@ async function renderGPInvoices() {
               {minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
       <td>${inv.Notes || '—'}</td>
       <td>${statusBadge}</td>
-      ${canEdit ? `<td style='white-space:nowrap'>
-        <a href='#' onclick='showEditInvoiceForm(${inv.id})'>Edit</a>
-        ${markPaidBtn ? ' · ' + markPaidBtn : ''}
-      </td>` : ''}
+${canEdit ? `<td style='white-space:nowrap'>
+  <a href='#' onclick='showEditInvoiceForm(${inv.id})'>Edit</a>
+  ${markPaidBtn ? ' · ' + markPaidBtn : ''}
+   · <a href='#' onclick='deleteInvoice(${inv.id})' style='color:#c62828'>Delete</a>
+</td>` : ''}
     </tr>`;
   }).join('');
 

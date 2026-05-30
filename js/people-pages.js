@@ -517,7 +517,6 @@ function _renderEndDatesPanel(people) {
     const end     = p._end; end.setHours(0, 0, 0, 0);
     const days    = Math.round((end - today) / 86400000);
     const bg      = days <= 30 ? '#fce8e8' : '#fff3e0';
-    const bg      = days <= 30 ? '#fce8e8' : '#fff3e0';
     const dateStr = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     return `<tr>
       <td style='background:${bg}'>${p.EmployeeName}</td>

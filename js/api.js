@@ -411,7 +411,17 @@ async function deleteItem(listName, itemId) {
   return graphRequest("DELETE", `${listPath(listName)}/${itemId}`);
 }
 
-function printPage(title) {
+function printPage(title, landscape = false) {
   document.getElementById('print-header-title').textContent = title;
+  let styleEl = null;
+  if (landscape) {
+    styleEl = document.createElement('style');
+    styleEl.id = '__print-orientation__';
+    styleEl.textContent = '@page { size: A4 landscape; }';
+    document.head.appendChild(styleEl);
+  }
   window.print();
+  if (styleEl) {
+    setTimeout(() => styleEl.remove(), 1000);
+  }
 }

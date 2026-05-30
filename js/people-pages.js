@@ -233,6 +233,7 @@ function _fmtPct(n) {
 
 // Calculates utilisation % from an array of monthly rows.
 function _calcUtilisation(rows) {
+  const filtered  = rows.filter(r => r.Level !== 'CSD');
   const billedCap = rows.reduce((s, r) => s + r.BilledCapacity, 0);
   const totalCap  = rows.reduce((s, r) => s + r.Capacity, 0);
   return totalCap > 0 ? billedCap / totalCap : 0;

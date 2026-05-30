@@ -437,6 +437,9 @@ body {
   div[style*="background:#fff"] {
     page-break-inside: avoid;
   }
+  div[style*="grid-template-columns"] {
+    page-break-inside: avoid;
+  }
 }
 
 @page { size: A4 portrait; }

@@ -7,7 +7,7 @@ let _resolvedRole      = null;  // set by people-app.js on init
 // module switcher dropdown in the sidebar header.
 const OS_MODULES = [
   { key: 'reporting', name: 'Reporting', icon: 'bar-chart-2',
-    href: 'index.html',    live: true,  roles: ['admin','delivery_manager','talent_partner','leadership'] },
+    href: 'reporting.html',    live: true,  roles: ['admin','delivery_manager','talent_partner','leadership'] },
   { key: 'people',    name: 'People',    icon: 'users',
     href: 'people.html',   live: true,  roles: ['admin','leadership'] },
   { key: 'finance',   name: 'Finance',   icon: 'pound-sterling',

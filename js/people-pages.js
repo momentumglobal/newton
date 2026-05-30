@@ -494,6 +494,47 @@ function _renderSegmentationPanel(people) {
     </div>`;
 }
 
+// Panel 4 - Upcoming End Dates
+function _renderEndDatesPanel(people) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const in60  = new Date(today); in60.setDate(today.getDate() + 60);
+  const in30  = new Date(today); in30.setDate(today.getDate() + 30);
+
+  const upcoming = people
+    .filter(p => {
+      if (!p.EndDate || p.IsActive === false) return false;
+      const end = new Date(p.EndDate); end.setHours(0, 0, 0, 0);
+      return end >= today && end <= in60;
+    })
+    .map(p => ({ ...p, _end: new Date(p.EndDate) }))
+    .sort((a, b) => a._end - b._end);
+
+  if (!upcoming.length) {
+    return `<p style='font-size:13px;color:#888'>No employee end dates in the next 60 days.</p>`;
+  }
+
+  const rows = upcoming.map(p => {
+    const end     = p._end; end.setHours(0, 0, 0, 0);
+    const days    = Math.round((end - today) / 86400000);
+    const bg      = days <= 30 ? '#fce8e8' : '#fff3e0';
+    const dateStr = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return `<tr style='background:${bg}'>
+      <td>${p.EmployeeName}</td>
+      <td>${p.Level || '—'}</td>
+      <td>${dateStr}</td>
+      <td>${days} days</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <table class='data-table'>
+      <thead><tr>
+        <th>Employee</th><th>Level</th><th>End Date</th><th>Days Remaining</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
 // ── Stubs for pages built in later phases ────────────────────
 async function renderDeploymentTimeline() {
   document.getElementById('main-content').innerHTML =
@@ -705,3 +746,4 @@ async function _setDashQuarter(value) {
   _dashFilter.month   = null;  // clear month
   await renderPeopleDashboard();
 }
+

@@ -319,8 +319,8 @@ async function _renderKPIStrip(allRows, people, assignments) {
 
 // Panel 1 - Team Utilisation
 function _renderUtilisationPanel(rows) {
-  const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
-  const bands = ['CSD','SDM','STP','TP'];
+  const levelOrder = { SDM: 1, STP: 2, TP: 3 };
+  const bands = ['SDM','STP','TP'];
 
   // Utilisation by role band
   const bandRows = bands.map(band => {

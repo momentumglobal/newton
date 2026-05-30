@@ -232,9 +232,12 @@ async function deleteOsAdminRecord(listName, id) {
 function buildHomepageTab() {
   const active = localStorage.getItem('newton_fx') || 'none';
   const effects = [
+    { key: 'spring', label: '🌸 Spring',            desc: 'Grass and flowers along the bottom of the screen' },
+    { key: 'summer', label: '☀ Summer Scene',       desc: 'Sun, sandy beach and gentle waves' },
+    { key: 'autumn', label: '🍂 Autumn',            desc: 'Falling autumn leaves' },
     { key: 'snow',   label: '❄ Snowfall',          desc: 'Falling snow animation' },
     { key: 'lights', label: '🎄 Christmas Lights',  desc: 'String of twinkling coloured lights across the top' },
-    { key: 'summer', label: '☀ Summer Scene',       desc: 'Sun, sandy beach and gentle waves' },
+    
   ];
   const rows = effects.map(e => `
     <div style="display:flex;align-items:center;justify-content:space-between;

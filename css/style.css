@@ -421,9 +421,21 @@ body {
     padding: 0 0 12px !important;
   }
 
-  .data-table {
+.data-table {
     width: 100% !important;
     margin: 0 !important;
+  }
+  .data-table tr {
+    page-break-inside: avoid;
+  }
+  .dash-panel {
+    page-break-inside: avoid;
+  }
+  .kpi-strip {
+    page-break-inside: avoid;
+  }
+  div[style*="background:#fff"] {
+    page-break-inside: avoid;
   }
 }
 

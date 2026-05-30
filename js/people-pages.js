@@ -312,26 +312,25 @@ async function _renderKPIStrip(allRows, people, assignments) {
 }
 
 // Panel 1 - Team Utilisation
-function _renderUtilisationPanel(rows) {
+function _renderUtilisationPanel(rows, people) {
   const levelOrder = { SDM: 1, STP: 2, TP: 3 };
   const bands = ['SDM','STP','TP'];
-
-  // Utilisation by role band
+  const activePeople = people.filter(p => p.IsActive !== false);
   const bandRows = bands.map(band => {
-    const r = rows.filter(r => r.Level === band);
-    const u = _calcUtilisation(r);
-    const hc = new Set(r.map(r => r.EmployeeName)).size;
-    return { band, u, hc };
-  }).filter(b => b.hc > 0);
-
-  const totalUtil = _calcUtilisation(rows);
-  const totalHC   = new Set(rows.map(r => r.EmployeeName)).size;
-
+    const r        = rows.filter(r => r.Level === band);
+    const u        = _calcUtilisation(r);
+    const utilised = new Set(r.filter(r => r.Billed === 'Yes').map(r => r.EmployeeName)).size;
+    const total    = activePeople.filter(p => p.Level === band).length;
+    return { band, u, utilised, total };
+  }).filter(b => b.total > 0);
+  const totalUtil     = _calcUtilisation(rows);
+  const totalUtilised = new Set(rows.filter(r => r.Billed === 'Yes').map(r => r.EmployeeName)).size;
+  const totalActive   = activePeople.filter(p => ['SDM','STP','TP'].includes(p.Level)).length;
   const bandTableRows = bandRows.map(b => `
     <tr>
       <td>${b.band}</td>
       <td>${_fmtPct(b.u)}</td>
-      <td>${b.hc}</td>
+      <td>${b.utilised} / ${b.total}</td>
     </tr>`).join('');
 
   // Monthly trend — group rows by Year-Month
@@ -358,7 +357,7 @@ function _renderUtilisationPanel(rows) {
         <tr style='font-weight:700;border-top:2px solid #ccc'>
           <td>Total</td>
           <td>${_fmtPct(totalUtil)}</td>
-          <td>${totalHC}</td>
+          <td>${totalUtilised} / ${totalActive}</td>
         </tr>
       </tbody>
     </table>
@@ -611,7 +610,7 @@ async function renderPeopleDashboard() {
 const { start, end } = _dashDateRange();
   const periodRows = _rowsInRange(allRows, start, end);
   const kpiStrip     = await _renderKPIStrip(allRows, people, assignments);
-  const utilisPanel  = _renderUtilisationPanel(periodRows);
+  const utilisPanel  = _renderUtilisationPanel(periodRows, people);
   const revenuePanel = _renderRevenuePanel(periodRows);
   const segmentPanel = _renderSegmentationPanel(people);
   const now      = new Date();

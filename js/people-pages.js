@@ -319,12 +319,14 @@ function _renderUtilisationPanel(rows, people) {
   const bandRows = bands.map(band => {
     const r        = rows.filter(r => r.Level === band);
     const u        = _calcUtilisation(r);
-    const utilised = new Set(r.filter(r => r.Billed === 'Yes').map(r => r.EmployeeName)).size;
+    const activeBandNames = new Set(activePeople.filter(p => p.Level === band).map(p => p.EmployeeName));
+    const utilised = new Set(r.filter(r => r.Billed === 'Yes' && activeBandNames.has(r.EmployeeName)).map(r => r.EmployeeName)).size;
     const total    = activePeople.filter(p => p.Level === band).length;
     return { band, u, utilised, total };
   }).filter(b => b.total > 0);
   const totalUtil     = _calcUtilisation(rows);
-  const totalUtilised = new Set(rows.filter(r => r.Billed === 'Yes').map(r => r.EmployeeName)).size;
+  const activeNames   = new Set(activePeople.filter(p => ['SDM','STP','TP'].includes(p.Level)).map(p => p.EmployeeName));
+  const totalUtilised = new Set(rows.filter(r => r.Billed === 'Yes' && activeNames.has(r.EmployeeName)).map(r => r.EmployeeName)).size;
   const totalActive   = activePeople.filter(p => ['SDM','STP','TP'].includes(p.Level)).length;
   const bandTableRows = bandRows.map(b => `
     <tr>

@@ -253,8 +253,8 @@ function _barChart(data, valueFormatter) {
 }
 
 // ── People Dashboard KPI Strip ────────────────────
-function _kpiCard(label, value, sub) {
-  return `<div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;
+function _kpiCard(label, value, sub, bg) {
+  return `<div style='background:${bg || '#fff'};border:1px solid #e0e0e0;border-radius:6px;
                       padding:16px 20px;min-width:160px;flex:1'>
     <div style='font-size:11px;font-weight:700;text-transform:uppercase;
                 color:#666;letter-spacing:.05em;margin-bottom:6px'>${label}</div>
@@ -305,7 +305,8 @@ async function _renderKPIStrip(allRows, people, assignments) {
 
   return `<div style='display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px'>
     ${_kpiCard('Estimated Revenue ' + thisY,   _fmtGBP(revYTD),   'Current year YTD')}
-    ${_kpiCard('Utilisation ' + thisY,      _fmtPct(utilYTD),  'Current year YTD')}
+    ${_kpiCard('Utilisation ' + thisY,      _fmtPct(utilYTD),  'Current year YTD',
+        utilYTD >= 0.85 ? '#e6f4ea' : utilYTD >= 0.75 ? '#fff3e0' : '#fce8e8')}
     ${_kpiCard('Active Customers',           activeCustomers,   'As of today')}
     ${_kpiCard('Billed Headcount',           billedHeadcount,   'As of today')}
   </div>`;

@@ -699,7 +699,7 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
       </div>
     </div>
     <div style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px'>${legend}</div>
-<div style='overflow-x:auto;margin:0 -20px;padding:0 4px'>
+<div style='overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 200px);margin:0 -20px;padding:0 4px'>
       <table class='data-table' style='min-width:800px;table-layout:fixed'>
         <thead style='position:sticky;top:0;z-index:10;background:#fff'><tr>
           <th style='min-width:140px;text-align:left;padding:6px 8px;font-size:11px;

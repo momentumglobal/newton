@@ -667,10 +667,10 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
       const level = empAssignments[0]?.Level || '—';
       const cells = MONTHS.map((_, i) => monthCell(empAssignments, i)).join('');
       rowsHtml += `<tr>
-        <td style='padding:4px 8px;font-size:12px;white-space:nowrap;min-width:140px'>
-          ${emp}</td>
-        <td style='padding:4px 8px;font-size:11px;color:#888;white-space:nowrap'>
-          ${level}</td>
+        <td style='padding:4px 8px;font-size:12px;width:180px;min-width:180px;overflow:hidden;
+                   text-overflow:ellipsis;white-space:nowrap'>${emp}</td>
+        <td style='padding:4px 8px;font-size:11px;color:#888;width:50px;
+                   min-width:50px;white-space:nowrap'>${level}</td>
         ${cells}
       </tr>`;
     });
@@ -699,12 +699,12 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
       </div>
     </div>
     <div style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px'>${legend}</div>
-<div style='overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 200px);margin:0 -20px;padding:0 4px'>
-      <table class='data-table' style='min-width:800px;table-layout:fixed'>
+<div style='overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 200px);margin:0 -40px;padding:0 4px'>
+    <table class='data-table' style='min-width:800px;table-layout:fixed'>
         <thead style='position:sticky;top:0;z-index:10;background:#fff'><tr>
-          <th style='min-width:140px;text-align:left;padding:6px 8px;font-size:11px;
+<th style='width:180px;min-width:180px;text-align:left;padding:6px 8px;font-size:11px;
                      font-weight:600;color:#555;position:sticky;top:0;background:#fff'>Employee</th>
-          <th style='min-width:50px;text-align:left;padding:6px 8px;font-size:11px;
+          <th style='width:50px;min-width:50px;text-align:left;padding:6px 8px;font-size:11px;
                      font-weight:600;color:#555;position:sticky;top:0;background:#fff'>Level</th>
           ${monthHeaders}
         </tr></thead>

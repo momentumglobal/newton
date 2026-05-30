@@ -4,12 +4,13 @@ let _osAdminTab = 'assignments';
 async function renderOsAdminPage(tab = 'assignments') {
   _osAdminTab = tab;
   const main = document.getElementById('main-content');
-  const tabs = ['assignments', 'leadership'];
-  const labels = { assignments: 'User Assignments', leadership: 'Leadership Access' };
-  const tooltips = {
-    assignments: 'Manage user roles and project access. Users are auto-registered on first login — assign their role and projects here.',
-    leadership:  'Grant Leadership-level access to users who should see the Company Dashboard without full system access.',
-  };
+const tabs = ['assignments', 'leadership', 'homepage'];
+const labels = { assignments: 'User Assignments', leadership: 'Leadership Access', homepage: 'Homepage' };
+const tooltips = {
+  assignments: 'Manage user roles and project access. Users are auto-registered on first login — assign their role and projects here.',
+  leadership:  'Grant Leadership-level access to users who should see the Company Dashboard without full system access.',
+  homepage:    'Manage homepage appearance and seasonal effects.',
+};
   const tabBar = tabs.map(t =>
     `<button class="btn-filter${_osAdminTab === t ? ' active' : ''}"
       onclick="renderOsAdminPage('${t}')">${labels[t]}<span class="help-tip">?<span class="help-tip-text">${tooltips[t]}</span></span></button>`
@@ -18,6 +19,7 @@ async function renderOsAdminPage(tab = 'assignments') {
   let content = '';
   if (tab === 'assignments') content = await buildAssignmentsTab();
   if (tab === 'leadership')  content = await buildLeadershipTab();
+  if (tab === 'homepage')    content = buildHomepageTab();
 
   main.innerHTML = `
     <div class="page-header">
@@ -224,4 +226,34 @@ async function deleteOsAdminRecord(listName, id) {
   if (!confirm('Remove this record?')) return;
   await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items/${id}`);
   await renderOsAdminPage(_osAdminTab);
+}
+
+// ── Homepage Tab ───────────────────────────────────────────────────
+function buildHomepageTab() {
+  const snowEnabled = localStorage.getItem('newton_snow') === 'true';
+  return `
+    <h3>Seasonal Effects</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:16px">
+      These effects appear on the Newton home screen for all users.
+    </p>
+    <div style="background:white;border:1px solid #e0e0e0;border-radius:6px;
+                padding:20px 24px;max-width:480px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:#0A0B44">❄ Snowfall</div>
+          <div style="font-size:13px;color:#666;margin-top:2px">
+            Falling snow animation on the home screen
+          </div>
+        </div>
+        <button class="btn-${snowEnabled ? 'primary' : 'secondary'}"
+          onclick="toggleSnow(${!snowEnabled})" style="min-width:80px">
+          ${snowEnabled ? 'On' : 'Off'}
+        </button>
+      </div>
+    </div>`;
+}
+
+function toggleSnow(enable) {
+  localStorage.setItem('newton_snow', enable ? 'true' : 'false');
+  renderOsAdminPage('homepage');
 }

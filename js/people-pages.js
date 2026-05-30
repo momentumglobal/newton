@@ -696,7 +696,7 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
       <div style='display:flex;align-items:center;gap:12px'>
         <label style='font-size:13px;color:#555'>Year</label>
         <select onchange='_setGanttYear(+this.value)'>${yearOpts}</select>
-        <button class='print-btn' onclick='printPage("Deployment Timeline", true)'>⎙ Export PDF</button>
+        <button class='print-btn' onclick='printPage("Deployment Timeline", true, "People")'>⎙ Export PDF</button>
       </div>
     </div>
     <div style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px'>${legend}</div>
@@ -883,7 +883,7 @@ const { start, end } = _dashDateRange();
   main.innerHTML = `
 <div class='page-header'>
       <h2>People Dashboard</h2>
-      <button class='print-btn' onclick='printPage("People Dashboard")'>⎙ Export PDF</button>
+      <button class='print-btn' onclick='printPage("People Dashboard", false, "People")'>⎙ Export PDF</button>
     </div>
 
     ${kpiStrip}

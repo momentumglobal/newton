@@ -337,3 +337,92 @@ body {
   letter-spacing: 0.08em;
   padding: 16px 16px 4px;
 }
+
+/* ── Print / PDF export ─────────────────────────────────────────────── */
+.print-btn {
+  background: white; color: #0A0B44; border: 1px solid #0A0B44;
+  padding: 6px 14px; border-radius: 4px; cursor: pointer;
+  font-size: 13px; font-weight: 500;
+  font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
+}
+.print-btn:hover { background: #F5F4F1; }
+
+#print-header { display: none; }
+
+@media print {
+  #sidebar,
+  .print-btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-filter,
+  .filter-group,
+  .project-filter-bar,
+  .placement-filter-rows,
+  .table-toolbar,
+  .page-header-actions,
+  .nav-footer,
+  .dash-project-selector,
+  .dash-detail-header,
+  .form-group select,
+  .data-table a,
+  .nav-module-dropdown { display: none !important; }
+
+  body {
+    background: white;
+    overflow: visible;
+    height: auto;
+  }
+
+  #app-shell {
+    display: block !important;
+    height: auto;
+  }
+
+  #main-content {
+    padding: 0 32px !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    background: white !important;
+  }
+
+  #main-content div[style*="max-height"] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #print-header {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    background: #0A0B44 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color: white;
+    padding: 16px 32px;
+    margin-bottom: 24px;
+  }
+
+  #print-header img { height: 28px; }
+
+  .print-header-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+  }
+
+  .print-header-sub {
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    margin-top: 2px;
+  }
+
+  .page-header {
+    padding: 0 0 12px !important;
+  }
+
+  .data-table {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+}

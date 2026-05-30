@@ -649,7 +649,7 @@ const { start, end } = _dashDateRange();
 
  <div style='margin-bottom:24px'>${periodBtns}</div>
 
-    <div style='display:grid;grid-template-columns:35fr 65fr;gap:24px;margin-bottom:32px'>
+    <div style='display:grid;grid-template-columns:40fr 60fr;gap:24px;margin-bottom:32px'>
       <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'>
         ${utilisPanel}
       </div>

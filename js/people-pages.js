@@ -188,25 +188,21 @@ async function _setAssignmentFilter(key, value) {
 }
 
 // ── People Dashboard state ────────────────────────────────────
-let _dashPeriod = 'ytd';  // 'month' | 'quarter' | 'ytd' | 'year'
+let _dashFilter = {
+  year:    new Date().getFullYear(),
+  month:   new Date().getMonth(),   // 0-based; null = no month filter
+  quarter: null,                     // 1–4; null = no quarter filter
+};
 
-function _dashDateRange(period) {
-  const now   = new Date();
-  const y     = now.getFullYear();
-  const m     = now.getMonth();
-  const q     = Math.floor(m / 3);
-  switch (period) {
-    case 'month':
-      return { start: new Date(y, m, 1), end: new Date(y, m + 1, 0) };
-    case 'quarter':
-      return { start: new Date(y, q * 3, 1), end: new Date(y, q * 3 + 3, 0) };
-    case 'ytd':
-      return { start: new Date(y, 0, 1), end: new Date(y, 11, 31) };
-    case 'year':
-      return { start: new Date(y, 0, 1), end: new Date(y, 11, 31) };
-    default:
-      return { start: new Date(y, 0, 1), end: new Date(y, 11, 31) };
+function _dashDateRange() {
+  const { year, month, quarter } = _dashFilter;
+  if (month !== null) {
+    return { start: new Date(year, month, 1), end: new Date(year, month + 1, 0) };
   }
+  if (quarter !== null) {
+    return { start: new Date(year, (quarter - 1) * 3, 1), end: new Date(year, quarter * 3, 0) };
+  }
+  return { start: new Date(year, 0, 1), end: new Date(year, 11, 31) };
 }
 
 // Filter monthly rows to a date range
@@ -614,31 +610,46 @@ async function renderPeopleDashboard() {
 
   const allRows = computeMonthlyRows(assignments);
 
-  const { start, end } = _dashDateRange(_dashPeriod);
+const { start, end } = _dashDateRange();
   const periodRows = _rowsInRange(allRows, start, end);
-
   const kpiStrip     = await _renderKPIStrip(allRows, people, assignments);
   const utilisPanel  = _renderUtilisationPanel(periodRows);
   const revenuePanel = _renderRevenuePanel(periodRows);
   const segmentPanel = _renderSegmentationPanel(people);
-
-  const periods = [
-    { key: 'month',   label: 'This Month' },
-    { key: 'quarter', label: 'This Quarter' },
-    { key: 'ytd',     label: 'YTD' },
-    { key: 'year',    label: 'Full Year' },
-  ];
-  const periodBtns = periods.map(p =>
-    `<button class='btn-filter${_dashPeriod===p.key?' active':''}' 
-      onclick='_setDashPeriod("${p.key}")'>${p.label}</button>`
-  ).join('');
+  const now      = new Date();
+  const thisY    = now.getFullYear();
+  const yearOpts = [thisY, thisY - 1].map(y =>
+    `<option value='${y}' ${_dashFilter.year===y?'selected':''}>${y}</option>`).join('');
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const maxMonth = _dashFilter.year === thisY ? now.getMonth() : 11;
+  const monthOpts = `<option value=''>All</option>` +
+    monthNames.slice(0, maxMonth + 1).map((name, i) =>
+      `<option value='${i}' ${_dashFilter.month===i?'selected':''}>${name}</option>`).join('');
+  const quarterOpts = `<option value=''>All</option>` +
+    [1,2,3,4].map(q =>
+      `<option value='${q}' ${_dashFilter.quarter===q?'selected':''}>Q${q}</option>`).join('');
+  const periodBtns = `
+    <div style='display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end'>
+      <div class='form-group' style='min-width:100px'>
+        <label>Year</label>
+        <select onchange='_setDashYear(+this.value)'>${yearOpts}</select>
+      </div>
+      <div class='form-group' style='min-width:100px'>
+        <label>Month</label>
+        <select onchange='_setDashMonth(this.value)'>${monthOpts}</select>
+      </div>
+      <div class='form-group' style='min-width:100px'>
+        <label>Quarter</label>
+        <select onchange='_setDashQuarter(this.value)'>${quarterOpts}</select>
+      </div>
+    </div>`;
 
   main.innerHTML = `
     <div class='page-header'><h2>People Dashboard</h2></div>
 
     ${kpiStrip}
 
-    <div class='filter-group' style='margin-bottom:24px'>${periodBtns}</div>
+ <div style='margin-bottom:24px'>${periodBtns}</div>
 
     <div style='display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px'>
       <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'>
@@ -660,7 +671,22 @@ async function renderPeopleDashboard() {
     </div>`;
 }
 
-async function _setDashPeriod(period) {
-  _dashPeriod = period;
+async function _setDashYear(year) {
+  _dashFilter.year = year;
+  // Clamp month if switching to current year and selected month is in the future
+  const now = new Date();
+  if (year === now.getFullYear() && _dashFilter.month !== null && _dashFilter.month > now.getMonth()) {
+    _dashFilter.month = now.getMonth();
+  }
+  await renderPeopleDashboard();
+}
+async function _setDashMonth(value) {
+  _dashFilter.month   = value !== '' ? +value : null;
+  _dashFilter.quarter = null;  // clear quarter
+  await renderPeopleDashboard();
+}
+async function _setDashQuarter(value) {
+  _dashFilter.quarter = value !== '' ? +value : null;
+  _dashFilter.month   = null;  // clear month
   await renderPeopleDashboard();
 }

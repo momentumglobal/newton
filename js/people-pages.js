@@ -906,7 +906,7 @@ const { start, end } = _dashDateRange();
     </div>
     <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px;margin-top:24px'>
       <div class='page-header' style='margin-bottom:12px'>
-        <h3 style='margin:0;color:#1B3A5C'>Upcoming End Dates</h3>
+        <h3 style='margin:0;color:#1B3A5C'>Upcoming Employee End Dates</h3>
       </div>
       ${endDatesPanel}
     </div>`;

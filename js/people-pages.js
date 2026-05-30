@@ -255,6 +255,233 @@ function _barChart(data, valueFormatter) {
   </div>`;
 }
 
+// ── People Dashboard KPI Strip ────────────────────
+function _kpiCard(label, value, sub) {
+  return `<div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;
+                      padding:16px 20px;min-width:160px;flex:1'>
+    <div style='font-size:11px;font-weight:700;text-transform:uppercase;
+                color:#666;letter-spacing:.05em;margin-bottom:6px'>${label}</div>
+    <div style='font-size:24px;font-weight:700;color:#1B3A5C'>${value}</div>
+    ${sub ? `<div style='font-size:12px;color:#888;margin-top:4px'>${sub}</div>` : ''}
+  </div>`;
+}
+
+async function _renderKPIStrip(allRows, people, assignments) {
+  const now     = new Date();
+  const thisY   = now.getFullYear();
+  const prevY   = thisY - 1;
+  const today   = new Date(); today.setHours(0,0,0,0);
+
+  // Revenue — YTD current year (Jan 1 to today)
+  const ytdStart  = new Date(thisY, 0, 1);
+  const ytdRows   = _rowsInRange(allRows, ytdStart, today);
+  const revYTD    = ytdRows.reduce((s,r) => s + r.BilledRevenue, 0);
+
+  // Revenue — full previous year
+  const prevRows  = _rowsInYear(allRows, prevY);
+  const revPrev   = prevRows.reduce((s,r) => s + r.BilledRevenue, 0);
+
+  // Utilisation — current year YTD
+  const utilYTD   = _calcUtilisation(ytdRows);
+
+  // Utilisation — previous year
+  const utilPrev  = _calcUtilisation(prevRows);
+
+  // Active customers today
+  const activeCustomers = new Set(
+    assignments.filter(a => {
+      const s = a.StartDate ? new Date(a.StartDate) : null;
+      const e = a.EndDate   ? new Date(a.EndDate)   : null;
+      return s && s <= today && (!e || e >= today)
+        && a.Customer && a.Customer !== 'Unassigned';
+    }).map(a => a.Customer)
+  ).size;
+
+  // Billed headcount today
+  const billedHeadcount = new Set(
+    assignments.filter(a => {
+      const s = a.StartDate ? new Date(a.StartDate) : null;
+      const e = a.EndDate   ? new Date(a.EndDate)   : null;
+      return a.Billed === 'Yes' && s && s <= today && (!e || e >= today);
+    }).map(a => a.EmployeeName)
+  ).size;
+
+  return `<div style='display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px'>
+    ${_kpiCard('Billed Revenue ' + thisY,   _fmtGBP(revYTD),   'Current year YTD')}
+    ${_kpiCard('Billed Revenue ' + prevY,   _fmtGBP(revPrev),  'Full year')}
+    ${_kpiCard('Utilisation ' + thisY,      _fmtPct(utilYTD),  'Current year YTD')}
+    ${_kpiCard('Utilisation ' + prevY,      _fmtPct(utilPrev), 'Full year')}
+    ${_kpiCard('Active Customers',           activeCustomers,   'As of today')}
+    ${_kpiCard('Billed Headcount',           billedHeadcount,   'As of today')}
+  </div>`;
+}
+
+// Panel 1 - Team Utilisation
+function _renderUtilisationPanel(rows) {
+  const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
+  const bands = ['CSD','SDM','STP','TP'];
+
+  // Utilisation by role band
+  const bandRows = bands.map(band => {
+    const r = rows.filter(r => r.Level === band);
+    const u = _calcUtilisation(r);
+    const hc = new Set(r.map(r => r.EmployeeName)).size;
+    return { band, u, hc };
+  }).filter(b => b.hc > 0);
+
+  const totalUtil = _calcUtilisation(rows);
+  const totalHC   = new Set(rows.map(r => r.EmployeeName)).size;
+
+  const bandTableRows = bandRows.map(b => `
+    <tr>
+      <td>${b.band}</td>
+      <td>${_fmtPct(b.u)}</td>
+      <td>${b.hc}</td>
+    </tr>`).join('');
+
+  // Monthly trend — group rows by Year-Month
+  const monthMap = {};
+  rows.forEach(r => {
+    const key = `${r.Year}-${String(r.Month).padStart(2,'0')}`;
+    if (!monthMap[key]) monthMap[key] = [];
+    monthMap[key].push(r);
+  });
+  const monthKeys = Object.keys(monthMap).sort();
+  const chartData = monthKeys.map(k => ({
+    label: k,
+    value: _calcUtilisation(monthMap[k]),
+  }));
+
+  return `
+    <div class='page-header' style='margin-bottom:12px'>
+      <h3 style='margin:0;color:#1B3A5C'>Team Utilisation</h3>
+    </div>
+    <table class='data-table' style='margin-bottom:16px'>
+      <thead><tr><th>Role Band</th><th>Utilisation</th><th>Headcount</th></tr></thead>
+      <tbody>
+        ${bandTableRows}
+        <tr style='font-weight:700;border-top:2px solid #ccc'>
+          <td>Total</td>
+          <td>${_fmtPct(totalUtil)}</td>
+          <td>${totalHC}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style='font-size:12px;font-weight:600;color:#555;margin-bottom:4px'>
+      Monthly Trend</div>
+    ${_barChart(chartData, _fmtPct)}`;
+}
+
+// Panel 2 - Revenue
+function _renderRevenuePanel(rows) {
+  // Revenue by customer — exclude Unassigned/Internal
+  const byCustomer = {};
+  rows.filter(r => r.Customer && r.Customer !== 'Unassigned'
+                && r.ProjectType !== 'Internal')
+    .forEach(r => {
+      byCustomer[r.Customer] = (byCustomer[r.Customer] || 0) + r.BilledRevenue;
+    });
+  const customerRows = Object.entries(byCustomer)
+    .sort((a,b) => b[1] - a[1])
+    .map(([c,v]) => `<tr><td>${c}</td><td>${_fmtGBP(v)}</td></tr>`).join('');
+  const customerTotal = Object.values(byCustomer).reduce((s,v)=>s+v,0);
+
+  // Revenue by project type
+  const byType = {};
+  rows.forEach(r => {
+    byType[r.ProjectType] = (byType[r.ProjectType] || 0) + r.BilledRevenue;
+  });
+  const typeOrder = ['Embedded','CoE','Transformation','LCI','Internal'];
+  const typeRows = typeOrder
+    .filter(t => byType[t] !== undefined)
+    .map(t => `<tr><td>${t}</td><td>${_fmtGBP(byType[t])}</td></tr>`).join('');
+  const typeTotal = Object.values(byType).reduce((s,v)=>s+v,0);
+
+  return `
+    <div style='display:grid;grid-template-columns:1fr 1fr;gap:24px'>
+      <div>
+        <div style='font-size:13px;font-weight:700;color:#1B3A5C;margin-bottom:8px'>
+          By Customer</div>
+        <table class='data-table'>
+          <thead><tr><th>Customer</th><th>Billed Revenue</th></tr></thead>
+          <tbody>
+            ${customerRows}
+            <tr style='font-weight:700;border-top:2px solid #ccc'>
+              <td>Total</td><td>${_fmtGBP(customerTotal)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div style='font-size:13px;font-weight:700;color:#1B3A5C;margin-bottom:8px'>
+          By Project Type</div>
+        <table class='data-table'>
+          <thead><tr><th>Project Type</th><th>Billed Revenue</th></tr></thead>
+          <tbody>
+            ${typeRows}
+            <tr style='font-weight:700;border-top:2px solid #ccc'>
+              <td>Total</td><td>${_fmtGBP(typeTotal)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+//Panel 3 - Workforce Segmentation
+function _renderSegmentationPanel(people) {
+  // Active employees only
+  const active = people.filter(p => p.IsActive !== false);
+  const total  = active.length;
+
+  const groupBy = (key) => {
+    const map = {};
+    active.forEach(p => {
+      const v = p[key] || 'Unknown';
+      map[v] = (map[v] || 0) + 1;
+    });
+    return Object.entries(map).sort((a,b) => b[1]-a[1]);
+  };
+
+  const tableHTML = (entries) => entries.map(([k,v]) => `
+    <tr>
+      <td>${k}</td>
+      <td>${v}</td>
+      <td>${total > 0 ? ((v/total)*100).toFixed(0) + '%' : '—'}</td>
+    </tr>`).join('');
+
+  const levelOrder = { CSD:0, SDM:1, STP:2, TP:3 };
+  const byLevel = Object.entries(
+    active.reduce((m,p) => { m[p.Level||'Unknown']=(m[p.Level||'Unknown']||0)+1; return m; },{}))
+    .sort((a,b)=>(levelOrder[a[0]]??99)-(levelOrder[b[0]]??99));
+
+  return `
+    <div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:8px'>
+      <div>
+        <div style='font-size:13px;font-weight:700;color:#1B3A5C;margin-bottom:8px'>
+          By Location</div>
+        <table class='data-table'>
+          <thead><tr><th>Location</th><th>#</th><th>%</th></tr></thead>
+          <tbody>${tableHTML(groupBy('Location'))}</tbody>
+        </table>
+      </div>
+      <div>
+        <div style='font-size:13px;font-weight:700;color:#1B3A5C;margin-bottom:8px'>
+          By Contract Type</div>
+        <table class='data-table'>
+          <thead><tr><th>Contract</th><th>#</th><th>%</th></tr></thead>
+          <tbody>${tableHTML(groupBy('ContractType'))}</tbody>
+        </table>
+      </div>
+      <div>
+        <div style='font-size:13px;font-weight:700;color:#1B3A5C;margin-bottom:8px'>
+          By Role Band</div>
+        <table class='data-table'>
+          <thead><tr><th>Level</th><th>#</th><th>%</th></tr></thead>
+          <tbody>${tableHTML(byLevel)}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 // ── Stubs for pages built in later phases ────────────────────
 async function renderDeploymentTimeline() {
   document.getElementById('main-content').innerHTML =

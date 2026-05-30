@@ -262,3 +262,91 @@ function isoDate(dateStr) {
   const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
   return match ? match[1] + 'T12:00:00Z' : null;
 }
+
+// ── G-P Invoice forms ─────────────────────────────────────────
+
+function renderInvoiceForm(existingData = null) {
+  const isEdit = !!existingData;
+  return `
+    <div class='form-container'>
+      <h2>${isEdit ? 'Edit Invoice' : 'Add Invoice'}</h2>
+      <div id='invoice-form-error' class='form-error'></div>
+      <form id='invoice-form'
+        onsubmit='submitInvoiceForm(event, ${existingData?.id || 'null'})'>
+        <div class='form-group'>
+          <label>Invoice Number *</label>
+          <input type='text' name='InvoiceNumber' required
+            value='${existingData?.InvoiceNumber || ''}'>
+        </div>
+        <div class='form-row'>
+          <div class='form-group'>
+            <label>Invoice Date *</label>
+            <input type='date' name='InvoiceDate' required
+              value='${existingData?.InvoiceDate ? existingData.InvoiceDate.split('T')[0] : ''}'>
+          </div>
+          <div class='form-group'>
+            <label>Due Date *</label>
+            <input type='date' name='DueDate' required
+              value='${existingData?.DueDate ? existingData.DueDate.split('T')[0] : ''}'>
+          </div>
+        </div>
+        <div class='form-row'>
+          <div class='form-group'>
+            <label>Amount (£) *</label>
+            <input type='number' name='Amount' min='0' step='0.01' required
+              value='${existingData?.Amount || ''}'>
+          </div>
+          <div class='form-group'>
+            <label>Status *</label>
+            <select name='Status' required>
+              <option value='Sent' ${!existingData||existingData?.Status==='Sent'?'selected':''}>Sent</option>
+              <option value='Paid' ${existingData?.Status==='Paid'?'selected':''}>Paid</option>
+            </select>
+          </div>
+        </div>
+        <div class='form-group'>
+          <label>Notes</label>
+          <input type='text' name='Notes'
+            value='${existingData?.Notes || ''}'>
+        </div>
+        <div class='form-actions'>
+          <button type='submit' class='btn-primary'>
+            ${isEdit ? 'Save Changes' : 'Add Invoice'}</button>
+          <button type='button' class='btn-secondary'
+            onclick='navigateToPeople("gpInvoices")'>Cancel</button>
+        </div>
+      </form>
+    </div>`;
+}
+
+async function submitInvoiceForm(event, editId = null) {
+  event.preventDefault();
+  const form = document.getElementById('invoice-form');
+  const data = Object.fromEntries(new FormData(form));
+  const errEl = document.getElementById('invoice-form-error');
+  if (errEl) { errEl.style.display = 'none'; }
+  const fields = {
+    InvoiceNumber: data.InvoiceNumber,
+    InvoiceDate:   isoDate(data.InvoiceDate),
+    DueDate:       isoDate(data.DueDate),
+    Amount:        parseFloat(data.Amount),
+    Notes:         data.Notes || undefined,
+    Status:        data.Status,
+  };
+  try {
+    if (editId) { await updateInvoice(editId, fields); }
+    else        { await createInvoice(fields); }
+    navigateToPeople('gpInvoices');
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Error saving invoice: ' + e.message; errEl.style.display = 'block'; }
+  }
+}
+
+function showAddInvoiceForm() {
+  document.getElementById('main-content').innerHTML = renderInvoiceForm();
+}
+
+async function showEditInvoiceForm(id) {
+  const data = await getItem('GPInvoices', id);
+  document.getElementById('main-content').innerHTML = renderInvoiceForm(data);
+}

@@ -290,11 +290,14 @@ body {
 .data-table a:hover { color: #2E5FA3; text-decoration: underline; }
 
 /* Inline row actions — visible only on row hover */
+.row-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 .data-table .row-actions {
   opacity: 0;
   transition: opacity 150ms ease;
-  display: flex;
-  gap: 8px;
 }
 .data-table tbody tr:hover .row-actions { opacity: 1; }
 

@@ -172,7 +172,6 @@
   </style>
 </head>
 <body>
-
 <div class="guide-header">
   <div class="guide-header-left">
     <h1>Newton — User Guide</h1>
@@ -180,9 +179,7 @@
   </div>
   <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
 </div>
-
 <div class="guide-body">
-
   <!-- Sidebar navigation -->
   <nav class="guide-nav">
     <ul>
@@ -200,71 +197,56 @@
       <li><a href="#activity">Weekly Activity</a></li>
       <li><a href="#placements">Placements</a></li>
       <li><a href="#rejections">Rejected Offers</a></li>
-      <li><a href="#admin">Admin Panel</a></li>
+      <li><a href="#admin">Config Panel</a></li>
     </ul>
   </nav>
-
   <!-- Main content -->
   <div class="guide-content">
-
     <!-- FAQ -->
     <div class="guide-section" id="faq">
       <h2>Frequently Asked Questions</h2>
-
       <div class="faq-item">
         <div class="faq-q">How do I sign in?</div>
         <div class="faq-a">Click "Sign in with Microsoft" on the Newton login page and authenticate with your Momentum Global Microsoft account. No separate password is required.</div>
       </div>
-
       <div class="faq-item">
         <div class="faq-q">Why can't I see all pages in the navigation?</div>
-        <div class="faq-a">The pages you see depend on your assigned role. Talent Partners see project-level pages; Delivery Managers see the same plus additional detail panels; Leadership sees Company Dashboard; Admins see everything including the Admin Panel.</div>
+        <div class="faq-a">The pages you see depend on your assigned role. Talent Partners see project-level pages; Delivery Managers see the same plus additional detail panels; Leadership sees Company Dashboard; Admins see everything including the Config Panel.</div>
       </div>
-
       <div class="faq-item">
         <div class="faq-q">I can't see my project — what do I do?</div>
-        <div class="faq-a">Your project access is controlled by your user assignment in the Admin Panel. Contact your Admin to ensure you've been assigned to the correct project.</div>
+        <div class="faq-a">Your project access is controlled by your user assignment in the Config Panel. Contact your Admin to ensure you've been assigned to the correct project.</div>
       </div>
-
       <div class="faq-item">
         <div class="faq-q">Why are some fields showing "—"?</div>
         <div class="faq-a">A dash means the data hasn't been entered yet for that record. Fields like Talent Partner, Target Hire Date, and Budget are optional — they'll show "—" until populated.</div>
       </div>
-
       <div class="faq-item">
         <div class="faq-q">How often does the data update?</div>
         <div class="faq-a">Newton reads directly from SharePoint Lists via the Microsoft Graph API. Data updates in real time — refreshing the page will show the latest entries.</div>
       </div>
-
       <div class="faq-item">
         <div class="faq-q">What does the KPI Period filter control?</div>
         <div class="faq-a">The Month / Quarter / Year buttons on the dashboards filter the pipeline metrics (submissions, interviews, offers, hires) to activity recorded within that period of the current calendar year.</div>
       </div>
-
       <div class="faq-item">
         <div class="faq-q">Who do I contact if something isn't working?</div>
-        <div class="faq-a">Raise it with your Newton Admin. For access issues, they can update user assignments directly in the Admin Panel.</div>
+        <div class="faq-a">Raise it with your Newton Admin. For access issues, they can update user assignments directly in the Config Panel.</div>
       </div>
     </div>
-
     <!-- User Roles -->
     <div class="guide-section" id="roles">
       <h2>User Roles</h2>
       <p>Every Newton user is assigned one of four roles. Your role controls which pages you can see and whether you can add or edit data.</p>
-
       <h3><span class="role-badge admin">Admin</span></h3>
-      <p>Full access to all pages and all projects. Can add, edit, and manage all records. Has access to the Admin Panel for user and project management.</p>
-
+      <p>Full access to all pages and all projects. Can add, edit, and manage all records. Has access to the Config Panel for department and record management.</p>
       <h3><span class="role-badge dm">Delivery Manager</span></h3>
       <p>Access to Project Dashboard, Projects, Roles, Placements, Rejected Offers, and Weekly Activity for their assigned projects. Can add and edit records. Sees all Talent Partner activity within their projects.</p>
-
       <h3><span class="role-badge tp">Talent Partner</span></h3>
       <p>Access to Project Dashboard, Roles, Weekly Activity, Placements, and Rejected Offers scoped to their assigned project and their own activity. Can add and edit records.</p>
-
       <h3><span class="role-badge leadership">Leadership</span></h3>
       <p>Read-only access to Company Dashboard. Provides a cross-project view of open roles, pipeline metrics, and Talent Partner activity. Cannot add or edit records.</p>
     </div>
-
     <!-- Export to PDF -->
     <div class="guide-section" id="export">
       <h2>Exporting to PDF</h2>
@@ -275,7 +257,6 @@
       <p>Under the Options section, ensure <strong>Headers and footers</strong> is unticked and <strong>Background graphics</strong> is ticked. Background graphics must be enabled for the branded header block to print correctly.</p>
       <div class="tip">These settings are not saved by the browser between sessions — you will need to set them each time you export.</div>
     </div>
-
     <!-- Company Dashboard -->
     <div class="guide-section" id="company-dashboard">
       <h2>Company Dashboard</h2>
@@ -284,17 +265,13 @@
         <span class="role-badge leadership">Leadership</span>
       </div>
       <p>A cross-project rollup giving a company-wide view of recruitment health. Data is not filtered by project — it covers all active projects.</p>
-
       <h3>KPI Tiles</h3>
       <p>The top strip shows current Open Roles and Active Projects. The second strip shows pipeline metrics for the selected period: Hires, Submission Conversion, IV to Offer Ratio, Offer Success, Average Days to Hire, and Hired On Time percentage. Use the <strong>Month / Quarter / Year</strong> buttons to change the period.</p>
-
       <h3>Roles Open 30+ Days</h3>
       <p>Lists all active roles that have been open for 30 or more days, sorted by project. Rows are colour-coded: <strong style="color:#b45309">pale orange</strong> = 30–44 days open; <strong style="color:#c62828">pale red</strong> = 45+ days open.</p>
-
       <h3>Activity by Talent Partner</h3>
       <p>Shows outreach, submissions, interviews, offers, and hires per Talent Partner per project for the selected period. Use the <strong>Period</strong> dropdown to change the date range.</p>
     </div>
-
     <!-- Project Dashboard -->
     <div class="guide-section" id="project-dashboard">
       <h2>Project Dashboard</h2>
@@ -304,31 +281,22 @@
         <span class="role-badge tp">Talent Partner</span>
       </div>
       <p>A detailed view of recruitment performance for a single project. Delivery Managers and Admins can switch between projects using the <strong>Project</strong> dropdown. Talent Partners see their assigned project only, scoped to their own activity.</p>
-
       <h3>KPI Tiles</h3>
       <p>Shows Open Roles (current) and Hires to Date (all time), plus period metrics: Submission Conversion, IV to Offer Ratio, Offer Success, Average Days to Hire, and Hired On Time. Use <strong>Month / Quarter / Year</strong> to change the KPI period.</p>
-
       <h3>Roles Open 30+ Days</h3>
       <p>Same colour-coded table as the Company Dashboard, filtered to the selected project only. No Project column — Role, Talent Partner, Stage, and Days Open are shown.</p>
-
       <h3>Pipeline Activity</h3>
       <p>A breakdown of weekly activity by role for the selected period, including Outreach, Responses, Screened, Submitted, Interview stages, Offers, and Hires. A Totals row summarises across all roles.</p>
-
       <h3>Activity by Talent Partner <em>(DM / Admin only)</em></h3>
       <p>Aggregates pipeline activity by Talent Partner for the selected period.</p>
-
       <h3>Offer Rejection Reasons <em>(DM / Admin only)</em></h3>
       <p>Counts rejected offers by reason category for the period.</p>
-
       <h3>Upcoming Starters <em>(DM / Admin only)</em></h3>
       <p>Lists placed candidates with a provisional start date in the future.</p>
-
       <h3>Actual Spend vs Budget <em>(DM / Admin only)</em></h3>
       <p>Compares total agreed salaries against total role budgets, showing the variance as over or under budget.</p>
-
       <div class="tip">Use the <strong>Period</strong> dropdown to filter the detail panels independently from the KPI period buttons.</div>
     </div>
-
     <!-- Projects -->
     <div class="guide-section" id="projects">
       <h2>Projects</h2>
@@ -340,7 +308,6 @@
       <p>Lists all projects you have access to, showing the customer name, status (Active / Transition / Completed), and start date. Admins and Delivery Managers can add new projects and edit existing ones using the buttons in the table.</p>
       <div class="tip">Project status drives what appears in the Company Dashboard — only Active projects count toward the Active Projects KPI.</div>
     </div>
-
     <!-- Roles -->
     <div class="guide-section" id="roles-page">
       <h2>Roles</h2>
@@ -350,16 +317,12 @@
         <span class="role-badge tp">Talent Partner</span>
       </div>
       <p>A list of all roles across your accessible projects. Each row shows the role title, project, stage, assigned Talent Partner, open date, and target hire date.</p>
-
       <h3>Filtering</h3>
       <p>Use the <strong>Project</strong> dropdown to filter by project. Use the stage filter buttons (All / Active / Backlog / On-hold / Hired / Cancelled) to narrow by stage.</p>
-
       <h3>Adding and editing roles</h3>
       <p>Admins and Delivery Managers can add new roles using the <strong>+ Add Role</strong> button. Any role can be edited or its stage updated using the action links in the table.</p>
-
       <div class="tip">The "Roles Open 30+ Days" panel on both dashboards is driven by the <strong>Open Date</strong> field — make sure this is set accurately when a role is created.</div>
     </div>
-
     <!-- Weekly Activity -->
     <div class="guide-section" id="activity">
       <h2>Weekly Activity</h2>
@@ -369,14 +332,11 @@
         <span class="role-badge tp">Talent Partner</span>
       </div>
       <p>Records weekly pipeline activity against specific roles — Outreach, Responses, Screened, Submitted, Interview 1, Interview 2+, Final Interview, Offers, and Hires. Each entry is tied to a role, a Talent Partner, a year, and a week number.</p>
-
       <h3>Filtering</h3>
       <p>Filter by project using the dropdown. Talent Partners see only their own entries; Delivery Managers and Admins see all entries for their projects.</p>
-
       <h3>Adding activity</h3>
       <p>Use <strong>+ Add Activity</strong> to log a week's numbers. Select the role, enter the week ending date, and fill in the activity counts. This data feeds directly into the dashboard pipeline panels.</p>
     </div>
-
     <!-- Placements -->
     <div class="guide-section" id="placements">
       <h2>Placements</h2>
@@ -386,16 +346,12 @@
         <span class="role-badge tp">Talent Partner</span>
       </div>
       <p>Records successful hires — candidate name, role, agreed salary, and provisional start date. Each placement is linked to a specific role.</p>
-
       <h3>Filtering</h3>
       <p>Filter by project, and by Month, Quarter, or Year using the filter rows below the project dropdown.</p>
-
       <h3>Recording a placement</h3>
       <p>Use <strong>+ Record Placement</strong> to log a hire. The salary field feeds the Actual Spend vs Budget panel on the Project Dashboard, so accuracy here matters.</p>
-
       <div class="tip">A placement's provisional start date is what populates the <strong>Upcoming Starters</strong> panel on the Project Dashboard.</div>
     </div>
-
     <!-- Rejected Offers -->
     <div class="guide-section" id="rejections">
       <h2>Rejected Offers</h2>
@@ -405,34 +361,28 @@
         <span class="role-badge tp">Talent Partner</span>
       </div>
       <p>Logs offers that were not accepted, recording the candidate name, role, and rejection reason. Reason categories are: Salary, Motivations, Counter-offer, Took another opportunity, and Other.</p>
-
       <h3>Filtering</h3>
       <p>Filter by project using the dropdown.</p>
-
       <h3>Recording a rejection</h3>
       <p>Use <strong>+ Record Rejection</strong> to log a declined offer. This data feeds the <strong>Offer Rejection Reasons</strong> panel on the Project Dashboard, helping identify trends over time.</p>
     </div>
-
-<!-- Admin Panel -->
+    <!-- Config Panel -->
     <div class="guide-section" id="admin">
-      <h2>Admin Panel</h2>
+      <h2>Config Panel</h2>
       <div class="role-badges">
         <span class="role-badge admin">Admin</span>
       </div>
-      <p>The Admin Panel is visible to Admins only and provides two management functions within the Reporting module:</p>
+      <p>The Config Panel is visible to Admins only and provides two management functions within the Reporting module:</p>
       <h3>Departments</h3>
       <p>Manage the list of departments used when categorising roles and projects across the system. Departments are scoped per customer — add or remove them here as your project structures change.</p>
       <h3>Delete Records</h3>
       <p>Permanently delete records from any SharePoint list. Select the list and the specific record, then confirm the deletion. This cannot be undone from within Newton — use SharePoint's recycle bin if you need to recover a deleted item.</p>
       <div class="tip">User and access management has moved to the Newton OS Admin area, accessible via the <strong>Admin</strong> link on the Newton home screen.</div>
     </div>
-
   </div><!-- end guide-content -->
 </div><!-- end guide-body -->
-
 <div class="guide-footer">
   Newton · Reporting · Momentum Global
 </div>
-
 </body>
 </html>

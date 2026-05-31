@@ -443,3 +443,32 @@ body {
 }
 
 @page { size: A4 portrait; }
+
+/* ── Announcement ticker ─────────────────────────────────────────────── */
+.announcement-ticker {
+  display: none; /* hidden by default; shown by JS when message exists */
+  overflow: hidden;
+  background: #2E5FA3;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 0;
+  white-space: nowrap;
+  border-top: 1px solid rgba(255,255,255,0.15);
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+}
+.announcement-ticker.visible {
+  display: block;
+}
+.announcement-ticker-inner {
+  display: inline-block;
+  padding-left: 100%;
+  animation: ticker-scroll 28s linear infinite;
+}
+.announcement-ticker-inner:hover {
+  animation-play-state: paused;
+}
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}

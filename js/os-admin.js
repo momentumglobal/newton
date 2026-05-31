@@ -45,7 +45,7 @@ const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.
       <td>${a.LastLogin ? new Date(a.LastLogin).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'}</td>
       <td style="display:flex;gap:8px">
         <a href="#" onclick="showEditAssignment(${a.id})">Edit</a>
-        <a href="#" onclick="deleteOsAdminRecord('UserAssignments',${a.id})">Remove</a>
+        <button class="btn-danger" onclick="deleteOsAdminRecord('UserAssignments',${a.id})">Remove</button>
       </td>
     </tr>`).join('');
   const editForm = editRecord ? `
@@ -142,6 +142,9 @@ async function submitAssignment(editId = null) {
   const errEl   = document.getElementById('assign-error');
   errEl.style.display = 'none';
   if (!email) { errEl.textContent = 'Email is required.'; errEl.style.display = 'block'; return; }
+  const btn = document.querySelector('.btn-primary[onclick^="submitAssignment"]') ||
+              document.querySelector('.form-container .btn-primary');
+  setButtonLoading(btn);
   const [projectId, customerName] = projVal ? projVal.split('|') : ['0', ''];
   try {
     if (editId) {
@@ -159,6 +162,7 @@ async function submitAssignment(editId = null) {
     }
     await renderOsAdminPage('assignments');
   } catch(e) {
+    clearButtonLoading(btn);
     errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
   }
 }
@@ -169,7 +173,7 @@ async function buildLeadershipTab() {
     <tr>
       <td>${l.UserName || '—'}</td>
       <td>${l.UserEmail}</td>
-      <td><a href="#" onclick="deleteOsAdminRecord('LeadershipAccess',${l.id})">Remove</a></td>
+      <td><div class="row-actions"><button class="btn-danger" onclick="deleteOsAdminRecord('LeadershipAccess',${l.id})">Remove</button></div></td>
     </tr>`).join('');
   return `
     <h3>Leadership Access List</h3>
@@ -203,10 +207,13 @@ async function submitLeadershipUser() {
   const errEl = document.getElementById('lead-error');
   errEl.style.display = 'none';
   if (!email) { errEl.textContent = 'Email is required.'; errEl.style.display = 'block'; return; }
+  const btn = document.querySelector('.btn-primary[onclick="submitLeadershipUser()"]');
+  setButtonLoading(btn);
   try {
     await createItem('LeadershipAccess', { Title: email, UserName: name });
     await renderOsAdminPage('leadership');
   } catch(e) {
+    clearButtonLoading(btn);
     errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
   }
 }
@@ -270,19 +277,25 @@ async function buildHomepageTab() {
     </div>`;
 }
 async function setFx(key) {
+  const btn = event?.target;
+  setButtonLoading(btn, key === 'none' ? 'Turning off…' : 'Turning on…');
   await setSeasonalEffect(key);
   renderOsAdminPage('homepage');
 }
 async function submitAnnouncement() {
   const msg    = document.getElementById('announcement-text').value.trim();
   const status = document.getElementById('announcement-status');
+  const btn    = document.querySelector('.btn-primary[onclick="submitAnnouncement()"]');
   status.style.display = 'none';
+  setButtonLoading(btn);
   try {
     await setAnnouncementMessage(msg);
+    clearButtonLoading(btn);
     status.style.color   = '#2e7d32';
     status.textContent   = msg ? 'Banner updated.' : 'Banner cleared.';
     status.style.display = 'block';
   } catch(e) {
+    clearButtonLoading(btn);
     status.style.color   = '#c62828';
     status.textContent   = `Error: ${e.message}`;
     status.style.display = 'block';

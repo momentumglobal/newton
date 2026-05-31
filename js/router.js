@@ -4,7 +4,6 @@ const ROLES = {
   TP:         'talent_partner',
   LEADERSHIP: 'leadership',
 };
-
 const PAGES = {
   companyDashboard: { label: 'Company Dashboard', roles: [ROLES.ADMIN, ROLES.LEADERSHIP] },
   projectDashboard: { label: 'Project Dashboard',  roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
@@ -13,13 +12,11 @@ const PAGES = {
   activity:         { label: 'Weekly Activity',    roles: [ROLES.ADMIN, ROLES.TP] },
   placements:       { label: 'Placements',         roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
   rejections:       { label: 'Rejected Offers',    roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
-  adminPanel:       { label: 'Admin Panel',        roles: [ROLES.ADMIN] },
+  adminPanel:       { label: 'Config Panel',       roles: [ROLES.ADMIN] },
 };
-
 function canAccess(page, role) {
   return PAGES[page] && PAGES[page].roles.includes(role);
 }
-
 function getAccessiblePages(role) {
   return Object.entries(PAGES)
     .filter(([, cfg]) => cfg.roles.includes(role))

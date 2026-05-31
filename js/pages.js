@@ -72,7 +72,7 @@ async function renderProjectsPage() {
             <td><span class="badge badge-${p.Status?.toLowerCase()}">${p.Status}</span></td>
             <td>${p.StartDate ? p.StartDate.split("T")[0] : "—"}</td>
             <td>${p.EndDate ? p.EndDate.split("T")[0] : "—"}</td>
-            ${canEdit ? `<td><a href="#" onclick="showEditProjectForm(${p.id})">Edit</a></td>` : ""}
+            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditProjectForm(${p.id})">Edit</a></div></td>` : ""}
           </tr>
         `).join("")}
       </tbody>
@@ -163,7 +163,7 @@ async function renderRolesPage(filter) {
             <td>${r.OpenDate ? r.OpenDate.split("T")[0] : "—"}</td>
             <td>${r.TargetHireDate ? r.TargetHireDate.split("T")[0] : "—"}</td>
             <td>${days !== null ? days + " days" : "—"}</td>
-            ${canEdit ? `<td><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a></td>` : ""}
+            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a></div></td>` : ""}
           </tr>`;
         }).join("")}
       </tbody>
@@ -249,7 +249,7 @@ async function renderActivityPage() {
             <td>${a.Submitted || 0}</td>
             <td>${a.Offers || 0}</td>
             <td>${a.Hires || 0}</td>
-            ${canEdit ? `<td><a href="#" onclick="showEditActivityForm(${a.id})">Edit</a></td>` : ""}
+            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditActivityForm(${a.id})">Edit</a></div></td>` : ""}
           </tr>
         `).join("")}
       </tbody>
@@ -368,7 +368,7 @@ async function renderPlacementsPage() {
             <td>${p.OfferAcceptedDate ? p.OfferAcceptedDate.split("T")[0] : "—"}</td>
             <td>${p.ProvisionalStartDate ? p.ProvisionalStartDate.split("T")[0] : "—"}</td>
             <td>${p.TimeToHire != null ? p.TimeToHire + " days" : "—"}</td>
-            ${canEdit ? `<td><a href="#" onclick="showEditPlacementForm(${p.id})">Edit</a></td>` : ""}
+            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditPlacementForm(${p.id})">Edit</a></div></td>` : ""}
           </tr>
         `).join("")}
       </tbody>
@@ -443,7 +443,7 @@ async function renderRejectionsPage() {
             <td>${formatSalary(r.SalaryOffered)}</td>
             <td>${r.RejectionReason || "—"}</td>
             <td>${r.Notes || "—"}</td>
-            ${canEdit ? `<td><a href="#" onclick="showEditRejectionForm(${r.id})">Edit</a></td>` : ""}
+            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRejectionForm(${r.id})">Edit</a></div></td>` : ""}
           </tr>
         `).join("")}
       </tbody>
@@ -458,4 +458,3 @@ async function showEditRejectionForm(id) {
   const data = await getItem("RejectedOffers", id);
   document.getElementById("main-content").innerHTML = await renderRejectedOfferForm(data);
 }
-

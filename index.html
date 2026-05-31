@@ -151,6 +151,34 @@
       background: rgba(255,255,255,0.08);
       color: rgba(255,255,255,0.38);
     }
+    /* ── Announcement ticker ── */
+    #announcement-ticker {
+      display: none;
+      position: fixed;
+      bottom: 76px;
+      left: 0; right: 0;
+      overflow: hidden;
+      background: rgba(255,255,255,0.08);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 7px 0;
+      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.75);
+      z-index: 2;
+    }
+    #announcement-ticker.visible { display: block; }
+    #announcement-ticker-inner {
+      display: inline-block;
+      padding-left: 100%;
+      animation: ticker-scroll 28s linear infinite;
+    }
+    #announcement-ticker-inner:hover { animation-play-state: paused; }
+    @keyframes ticker-scroll {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
   </style>
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -159,6 +187,9 @@
   <img class="home-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
   <a id="admin-link" href="admin.html" style="display:none;position:fixed;bottom:36px;right:100px;font-family:'Polymath','Segoe UI',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.35);text-decoration:none;z-index:2;">Admin</a>
   <button class="home-signout" onclick="handleSignOut()">Sign out</button>
+  <div id="announcement-ticker">
+    <span id="announcement-ticker-inner"></span>
+  </div>
   <div class="home-center">
     <div class="home-greeting" id="home-greeting">Welcome back</div>
     <div class="home-title">Newton</div>
@@ -238,6 +269,16 @@
         const adminLink = document.getElementById('admin-link');
         if (adminLink) adminLink.style.display = 'block';
       }
+      // Load announcement banner
+      getAnnouncementMessage().then(msg => {
+        const ticker = document.getElementById('announcement-ticker');
+        const inner  = document.getElementById('announcement-ticker-inner');
+        const text   = (msg || '').trim();
+        if (ticker && inner && text) {
+          inner.textContent = text;
+          ticker.classList.add('visible');
+        }
+      });
     }
     function handleSignOut() { signOut(); }
     initHome();
@@ -249,19 +290,16 @@
   const ctx    = canvas.getContext('2d');
   let animFrame   = null;
   let activeEffect = null;
-
   function resize() {
     canvas.width  = window.innerWidth;
     canvas.height = window.innerHeight;
   }
-
   function stopAll() {
     if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     canvas.style.display = 'none';
     activeEffect = null;
   }
-
   // ── Snow ──────────────────────────────────────────────────────────
   function startSnow() {
     stopAll(); activeEffect = 'snow';
@@ -289,7 +327,6 @@
     }
     draw();
   }
-
   // ── Christmas Lights ──────────────────────────────────────────────
   function startLights() {
     stopAll(); activeEffect = 'lights';
@@ -332,7 +369,6 @@
     }
     draw();
   }
-
   // ── Summer ────────────────────────────────────────────────────────
   function startSummer() {
     stopAll(); activeEffect = 'summer';
@@ -372,7 +408,6 @@
     }
     draw();
   }
-
   // ── Spring ────────────────────────────────────────────────────────
   function startSpring() {
     stopAll(); activeEffect = 'spring';
@@ -419,7 +454,6 @@
     }
     draw();
   }
-
   // ── Autumn ────────────────────────────────────────────────────────
   function startAutumn() {
     stopAll(); activeEffect = 'autumn';
@@ -462,7 +496,6 @@
     }
     draw();
   }
-
   // ── Public API ────────────────────────────────────────────────────
   window.fxStop   = stopAll;
   window.fxSnow   = startSnow;
@@ -470,9 +503,7 @@
   window.fxSummer = startSummer;
   window.fxSpring = startSpring;
   window.fxAutumn = startAutumn;
-
   window.addEventListener('resize', () => { if (activeEffect) resize(); });
-
   // Load saved effect on page load
   localStorage.removeItem('newton_snow');
   const saved = localStorage.getItem('newton_fx');

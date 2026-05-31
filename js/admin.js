@@ -42,7 +42,7 @@ async function buildDepartmentsTab() {
     <tr>
       <td>${d.DepartmentName}</td>
       <td>${d.CustomerName || '—'}</td>
-      <td><a href="#" onclick="deleteAdminRecord('Departments',${d.id})">Remove</a></td>
+      <td><div class="row-actions"><button class="btn-danger" onclick="deleteAdminRecord('Departments',${d.id})">Remove</button></div></td>
     </tr>`).join('');
   const projectOptions = projects.map(p =>
     `<option value="${p.id}|${p.CustomerName}">${p.CustomerName}</option>`
@@ -82,11 +82,14 @@ async function submitDepartment() {
     errEl.textContent = 'Department name and customer are required.';
     errEl.style.display = 'block'; return;
   }
+  const btn = document.querySelector('.btn-primary[onclick="submitDepartment()"]');
+  setButtonLoading(btn);
   const [projectId, customerName] = projVal.split('|');
   try {
     await createItem('Departments', { Title: name, ProjectID: parseInt(projectId), CustomerName: customerName });
     await renderAdminTab('departments');
   } catch(e) {
+    clearButtonLoading(btn);
     errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
   }
 }
@@ -158,12 +161,15 @@ function initiateDelete() {
   document.getElementById('del-btn').style.display = 'none';
 }
 async function confirmDelete() {
-  const list = document.getElementById('del-list').value;
-  const id   = document.getElementById('del-item').value;
+  const list    = document.getElementById('del-list').value;
+  const id      = document.getElementById('del-item').value;
+  const yesBtn  = document.querySelector('#del-confirm .btn-primary');
+  setButtonLoading(yesBtn, 'Deleting…');
   try {
     await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${list}/items/${id}`);
     await renderAdminTab('delete');
   } catch(e) {
+    clearButtonLoading(yesBtn);
     document.getElementById('del-error').textContent = `Error: ${e.message}`;
     document.getElementById('del-error').style.display = 'block';
     document.getElementById('del-confirm').style.display = 'none';

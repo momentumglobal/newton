@@ -184,6 +184,31 @@ async function isLeadershipUser(email) {
   return list.some(l => l.UserEmail?.toLowerCase() === email.toLowerCase());
 }
 
+// ── App Settings ────────────────────────────────────────────────────
+// AppSettings is a single-row SharePoint list with columns:
+//   Title (single line text, value always "config")
+//   AnnouncementMessage (multiple lines of text)
+
+async function getAnnouncementMessage() {
+  try {
+    const items = await getItems("AppSettings");
+    const row = items.find(i => (i.Title || '').toLowerCase() === 'config');
+    return row ? (row.AnnouncementMessage || '') : '';
+  } catch (e) {
+    return ''; // silently fail — don't break app load
+  }
+}
+
+async function setAnnouncementMessage(message) {
+  const items = await getItems("AppSettings");
+  const row = items.find(i => (i.Title || '').toLowerCase() === 'config');
+  if (row) {
+    await updateItem("AppSettings", row.id, { AnnouncementMessage: message });
+  } else {
+    await createItem("AppSettings", { Title: "config", AnnouncementMessage: message });
+  }
+}
+
 // Auto-register user on first login if not already in UserAssignments
 async function ensureUserRegistered(email, displayName) {
   const lower = email.toLowerCase();

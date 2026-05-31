@@ -23,6 +23,24 @@ function addDays(dateStr, days) {
   ].join('-');
 }
 
+// ── Button loading state helpers ────────────────────────────────────
+// Used across Reporting and People modules for all submit buttons.
+function setButtonLoading(btn, loadingText) {
+  if (!btn) return;
+  btn.dataset.originalText = btn.textContent;
+  btn.textContent = loadingText || 'Saving…';
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+  btn.style.cursor  = 'not-allowed';
+}
+function clearButtonLoading(btn) {
+  if (!btn) return;
+  btn.textContent = btn.dataset.originalText || btn.textContent;
+  btn.disabled = false;
+  btn.style.opacity = '';
+  btn.style.cursor  = '';
+}
+
 // ── Project Form ────────────────────────────────────────────────────
 function renderProjectForm(existingData = null) {
   const isEdit = !!existingData;
@@ -77,6 +95,8 @@ async function submitProjectForm(event, editId = null) {
   event.preventDefault();
   clearFormError('project-form');
   const form = document.getElementById('project-form');
+  const btn  = form.querySelector('[type=submit]');
+  setButtonLoading(btn);
   const data = Object.fromEntries(new FormData(form));
   const fields = {
     Title:           data.CustomerName,
@@ -94,6 +114,7 @@ async function submitProjectForm(event, editId = null) {
     }
     navigateTo('projects');
   } catch (e) {
+    clearButtonLoading(btn);
     showFormError('project-form', `Error saving project: ${e.message}`);
   }
 }
@@ -266,6 +287,8 @@ async function submitRoleForm(event, editId = null) {
   event.preventDefault();
   clearFormError('role-form');
   const form = document.getElementById('role-form');
+  const btn  = form.querySelector('[type=submit]');
+  setButtonLoading(btn);
   const data = Object.fromEntries(new FormData(form));
   const fields = {
     ProjectIDLookupId: parseInt(data.ProjectID),
@@ -289,6 +312,7 @@ async function submitRoleForm(event, editId = null) {
     }
     navigateTo('roles');
   } catch (e) {
+    clearButtonLoading(btn);
     showFormError('role-form', `Error saving role: ${e.message}`);
   }
 }
@@ -433,6 +457,8 @@ async function submitWeeklyForm(event, editId = null) {
   event.preventDefault();
   clearFormError('weekly-form');
   const form = document.getElementById('weekly-form');
+  const btn  = form.querySelector('[type=submit]');
+  setButtonLoading(btn);
   const data = Object.fromEntries(new FormData(form));
   const fields = {
     ProjectIDLookupId: parseInt(data.ProjectID),
@@ -460,6 +486,7 @@ async function submitWeeklyForm(event, editId = null) {
     }
     navigateTo('activity');
   } catch (e) {
+    clearButtonLoading(btn);
     showFormError('weekly-form', `Error saving activity: ${e.message}`);
   }
 }
@@ -563,6 +590,8 @@ async function submitPlacementForm(event, editId = null) {
   event.preventDefault();
   clearFormError('placement-form');
   const form = document.getElementById('placement-form');
+  const btn  = form.querySelector('[type=submit]');
+  setButtonLoading(btn);
   const data = Object.fromEntries(new FormData(form));
   const offerDate = isoDate(data.OfferAcceptedDate);
   const startDate = isoDate(data.ProvisionalStartDate);
@@ -601,6 +630,7 @@ async function submitPlacementForm(event, editId = null) {
     }
     navigateTo('placements');
   } catch (e) {
+    clearButtonLoading(btn);
     showFormError('placement-form', `Error saving placement: ${e.message}`);
   }
 }
@@ -672,6 +702,8 @@ async function submitRejectedForm(event, editId = null) {
   event.preventDefault();
   clearFormError('rejected-form');
   const form = document.getElementById('rejected-form');
+  const btn  = form.querySelector('[type=submit]');
+  setButtonLoading(btn);
   const data = Object.fromEntries(new FormData(form));
   const fields = {
     RoleIDLookupId:  parseInt(data.RoleID),
@@ -688,6 +720,7 @@ async function submitRejectedForm(event, editId = null) {
     }
     navigateTo('rejections');
   } catch (e) {
+    clearButtonLoading(btn);
     showFormError('rejected-form', `Error saving rejection: ${e.message}`);
   }
 }

@@ -41,24 +41,12 @@ ${pages.map(p => `
 `).join('')}
     </nav>
     <img src='momentum-symbol-and-name-global-white.png' alt='Momentum Global' class='nav-logo-img'>
-    <div id="announcement-ticker" class="announcement-ticker">
-      <span id="announcement-ticker-inner" class="announcement-ticker-inner"></span>
-    </div>
     <div class='nav-footer'>
       <a class='nav-link signout' href='user-guide.html' target='_blank'>User Guide</a>
       <a class='nav-link signout' onclick='signOut()'>Sign out</a>
     </div>
   `;
   lucide.createIcons();
-  getAnnouncementMessage().then(msg => refreshAnnouncementTicker(msg));
-}
-function refreshAnnouncementTicker(message) {
-  const ticker = document.getElementById('announcement-ticker');
-  const inner  = document.getElementById('announcement-ticker-inner');
-  if (!ticker || !inner) return;
-  const msg = (message || '').trim();
-  inner.textContent = msg;
-  ticker.classList.toggle('visible', msg.length > 0);
 }
 function toggleModuleDropdown() {
   const dd = document.getElementById('nav-module-dropdown');

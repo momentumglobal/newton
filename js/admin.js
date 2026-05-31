@@ -14,12 +14,11 @@ async function renderAdminPage() {
 async function renderAdminTab(tab) {
   _adminTab = tab;
   const main = document.getElementById('main-content');
-  const tabs = ['departments', 'delete', 'homepage'];
-  const labels = { departments: 'Departments', delete: 'Delete Records', homepage: 'Homepage' };
+  const tabs = ['departments', 'delete'];
+  const labels = { departments: 'Departments', delete: 'Delete Records' };
   const tooltips = {
     departments: 'Manage the list of departments used when categorising roles and projects across the system.',
     delete:      'Permanently delete records from the system. Use with caution — this action cannot be undone.',
-    homepage:    'Set the announcement banner displayed to all users at the bottom of the screen.',
   };
   const tabBar = tabs.map(t =>
     `<button class="btn-filter${_adminTab === t ? ' active' : ''}"
@@ -28,7 +27,6 @@ async function renderAdminTab(tab) {
   let content = '';
   if (tab === 'departments') content = await buildDepartmentsTab();
   if (tab === 'delete')      content = await buildDeleteTab();
-  if (tab === 'homepage')    content = await buildHomepageTab();
   main.innerHTML = `
     <div class="page-header">
       <h2>Admin Panel</h2>
@@ -180,48 +178,4 @@ async function deleteAdminRecord(listName, id) {
   if (!confirm('Remove this record?')) return;
   await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items/${id}`);
   await renderAdminTab(_adminTab);
-}
-// ── Homepage Tab ─────────────────────────────────────────────────────
-async function buildHomepageTab() {
-  const current = await getAnnouncementMessage();
-  return `
-    <h3>Announcement Banner</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:16px">
-      Set a scrolling message that appears at the bottom of the screen for all users.
-      Clear the field and save to remove it.
-    </p>
-    <div class="form-container" style="padding:0;max-width:600px">
-      <div class="form-group">
-        <label>Message</label>
-        <textarea id="announcement-text" rows="3"
-          placeholder="e.g. Welcome to Newton — Q2 targets are live!"
-          style="resize:vertical">${current ? current.replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''}</textarea>
-      </div>
-      <div id="announcement-status" style="display:none;font-size:13px;margin-bottom:12px"></div>
-      <div style="display:flex;gap:10px;align-items:center">
-        <button class="btn-primary" onclick="submitAnnouncement()">Save</button>
-        <button class="btn-secondary" onclick="clearAnnouncement()">Clear Banner</button>
-      </div>
-    </div>
-  `;
-}
-async function submitAnnouncement() {
-  const msg    = document.getElementById('announcement-text').value.trim();
-  const status = document.getElementById('announcement-status');
-  status.style.display = 'none';
-  try {
-    await setAnnouncementMessage(msg);
-    refreshAnnouncementTicker(msg);
-    status.style.color   = '#2e7d32';
-    status.textContent   = msg ? 'Banner updated.' : 'Banner cleared.';
-    status.style.display = 'block';
-  } catch(e) {
-    status.style.color   = '#c62828';
-    status.textContent   = `Error: ${e.message}`;
-    status.style.display = 'block';
-  }
-}
-async function clearAnnouncement() {
-  document.getElementById('announcement-text').value = '';
-  await submitAnnouncement();
 }

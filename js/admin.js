@@ -1,6 +1,5 @@
 // js/admin.js — Reporting Admin Panel (Departments + Delete Records)
 let _adminTab = 'departments';
-
 async function renderAdminPage() {
   const main = document.getElementById('main-content');
   const user = getCurrentUser();
@@ -12,25 +11,24 @@ async function renderAdminPage() {
   main.innerHTML = '<p>Loading admin panel...</p>';
   await renderAdminTab(_adminTab);
 }
-
 async function renderAdminTab(tab) {
   _adminTab = tab;
   const main = document.getElementById('main-content');
-  const tabs = ['departments', 'delete'];
-  const labels = { departments: 'Departments', delete: 'Delete Records' };
+  const tabs = ['departments', 'delete', 'homepage'];
+  const labels = { departments: 'Departments', delete: 'Delete Records', homepage: 'Homepage' };
   const tooltips = {
     departments: 'Manage the list of departments used when categorising roles and projects across the system.',
     delete:      'Permanently delete records from the system. Use with caution — this action cannot be undone.',
+    homepage:    'Set the announcement banner displayed to all users at the bottom of the screen.',
   };
   const tabBar = tabs.map(t =>
     `<button class="btn-filter${_adminTab === t ? ' active' : ''}"
       onclick="renderAdminTab('${t}')">${labels[t]}<span class="help-tip">?<span class="help-tip-text">${tooltips[t]}</span></span></button>`
   ).join('');
-
   let content = '';
   if (tab === 'departments') content = await buildDepartmentsTab();
   if (tab === 'delete')      content = await buildDeleteTab();
-
+  if (tab === 'homepage')    content = await buildHomepageTab();
   main.innerHTML = `
     <div class="page-header">
       <h2>Admin Panel</h2>
@@ -39,7 +37,6 @@ async function renderAdminTab(tab) {
     <div style="padding:24px">${content}</div>
   `;
 }
-
 // ── Departments Tab ──────────────────────────────────────────────────
 async function buildDepartmentsTab() {
   const [projects, depts] = await Promise.all([getProjects(false), getDepartments()]);
@@ -78,7 +75,6 @@ async function buildDepartmentsTab() {
     </div>
   `;
 }
-
 async function submitDepartment() {
   const name    = document.getElementById('dept-name').value.trim();
   const projVal = document.getElementById('dept-project').value;
@@ -96,7 +92,6 @@ async function submitDepartment() {
     errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
   }
 }
-
 // ── Delete Tab ───────────────────────────────────────────────────────
 const DELETE_LIST_CONFIG = {
   Projects:        { label: 'Projects',         displayField: 'CustomerName' },
@@ -106,7 +101,6 @@ const DELETE_LIST_CONFIG = {
   RejectedOffers:  { label: 'Rejected Offers',  displayField: 'CandidateName' },
   Departments:     { label: 'Departments',      displayField: 'DepartmentName' },
 };
-
 async function buildDeleteTab() {
   const listOptions = Object.entries(DELETE_LIST_CONFIG).map(([key, cfg]) =>
     `<option value="${key}">${cfg.label}</option>`
@@ -144,7 +138,6 @@ async function buildDeleteTab() {
     </div>
   `;
 }
-
 async function loadDeleteItems(listName) {
   const select = document.getElementById('del-item');
   if (!listName) { select.innerHTML = '<option value="">-- Select list first --</option>'; select.disabled = true; return; }
@@ -157,7 +150,6 @@ async function loadDeleteItems(listName) {
     select.disabled = false;
   } catch(e) { select.innerHTML = '<option value="">-- Error loading records --</option>'; }
 }
-
 function initiateDelete() {
   const list = document.getElementById('del-list').value;
   const id   = document.getElementById('del-item').value;
@@ -167,7 +159,6 @@ function initiateDelete() {
   document.getElementById('del-confirm').style.display = 'block';
   document.getElementById('del-btn').style.display = 'none';
 }
-
 async function confirmDelete() {
   const list = document.getElementById('del-list').value;
   const id   = document.getElementById('del-item').value;
@@ -181,14 +172,56 @@ async function confirmDelete() {
     document.getElementById('del-btn').style.display = 'block';
   }
 }
-
 function cancelDelete() {
   document.getElementById('del-confirm').style.display = 'none';
   document.getElementById('del-btn').style.display = 'block';
 }
-
 async function deleteAdminRecord(listName, id) {
   if (!confirm('Remove this record?')) return;
   await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items/${id}`);
   await renderAdminTab(_adminTab);
+}
+// ── Homepage Tab ─────────────────────────────────────────────────────
+async function buildHomepageTab() {
+  const current = await getAnnouncementMessage();
+  return `
+    <h3>Announcement Banner</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:16px">
+      Set a scrolling message that appears at the bottom of the screen for all users.
+      Clear the field and save to remove it.
+    </p>
+    <div class="form-container" style="padding:0;max-width:600px">
+      <div class="form-group">
+        <label>Message</label>
+        <textarea id="announcement-text" rows="3"
+          placeholder="e.g. Welcome to Newton — Q2 targets are live!"
+          style="resize:vertical">${current ? current.replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''}</textarea>
+      </div>
+      <div id="announcement-status" style="display:none;font-size:13px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn-primary" onclick="submitAnnouncement()">Save</button>
+        <button class="btn-secondary" onclick="clearAnnouncement()">Clear Banner</button>
+      </div>
+    </div>
+  `;
+}
+async function submitAnnouncement() {
+  const msg    = document.getElementById('announcement-text').value.trim();
+  const status = document.getElementById('announcement-status');
+  status.style.display = 'none';
+  try {
+    await setAnnouncementMessage(msg);
+    refreshAnnouncementTicker(msg);
+    status.style.color   = '#2e7d32';
+    status.textContent   = msg ? 'Banner updated.' : 'Banner cleared.';
+    status.style.display = 'block';
+  } catch(e) {
+    status.style.color   = '#c62828';
+    status.textContent   = `Error: ${e.message}`;
+    status.style.display = 'block';
+  }
+}
+async function clearAnnouncement() {
+  document.getElementById('announcement-text').value = '';
+  await submitAnnouncement();
 }

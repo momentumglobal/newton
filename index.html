@@ -35,28 +35,6 @@
       pointer-events: none;
       z-index: 0;
     }
-    .home-logo {
-      position: fixed;
-      bottom: 32px;
-      left: 32px;
-      height: 36px;
-      width: auto;
-      z-index: 2;
-      opacity: 0.7;
-    }
-    .home-signout {
-      position: fixed;
-      bottom: 36px;
-      right: 32px;
-      font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-      font-size: 13px;
-      color: rgba(255,255,255,0.35);
-      background: none;
-      border: none;
-      cursor: pointer;
-      z-index: 2;
-    }
-    .home-signout:hover { color: rgba(255,255,255,0.7); }
     .home-center {
       position: relative;
       z-index: 2;
@@ -151,22 +129,25 @@
       background: rgba(255,255,255,0.08);
       color: rgba(255,255,255,0.38);
     }
+    /* ── Bottom bar ── */
+    .home-bottom-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      z-index: 2;
+    }
     /* ── Announcement ticker ── */
     #announcement-ticker {
       display: none;
-      position: fixed;
-      bottom: 76px;
-      left: 0; right: 0;
+      flex: 1;
       overflow: hidden;
-      background: rgba(255,255,255,0.08);
-      border-top: 1px solid rgba(255,255,255,0.1);
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding: 7px 0;
       white-space: nowrap;
       font-size: 13px;
       font-weight: 500;
-      color: rgba(255,255,255,0.75);
-      z-index: 2;
+      color: rgba(255,255,255,0.65);
+      margin: 0 24px;
     }
     #announcement-ticker.visible { display: block; }
     #announcement-ticker-inner {
@@ -184,11 +165,11 @@
 </head>
 <body>
   <img id="watermark" src="mg-visual-swirl.png" alt="">
-  <img class="home-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
-  <a id="admin-link" href="admin.html" style="display:none;position:fixed;bottom:36px;right:100px;font-family:'Polymath','Segoe UI',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.35);text-decoration:none;z-index:2;">Admin</a>
-  <button class="home-signout" onclick="handleSignOut()">Sign out</button>
-  <div id="announcement-ticker">
-    <span id="announcement-ticker-inner"></span>
+  <div class="home-bottom-bar">
+    <img class="home-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
+    <div id="announcement-ticker"><span id="announcement-ticker-inner"></span></div>
+    <a id="admin-link" href="admin.html" style="display:none;font-family:'Polymath','Segoe UI',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.35);text-decoration:none;margin-right:16px;">Admin</a>
+    <button class="home-signout" onclick="handleSignOut()">Sign out</button>
   </div>
   <div class="home-center">
     <div class="home-greeting" id="home-greeting">Welcome back</div>

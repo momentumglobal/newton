@@ -217,8 +217,10 @@ async function deleteOsAdminRecord(listName, id) {
 }
 // ── Homepage Tab ───────────────────────────────────────────────────
 async function buildHomepageTab() {
-  const current = await getAnnouncementMessage();
-  const active = localStorage.getItem('newton_fx') || 'none';
+  const [current, active] = await Promise.all([
+    getAnnouncementMessage(),
+    getSeasonalEffect(),
+  ]);
   const effects = [
     { key: 'spring', label: '🌸 Spring',           desc: 'Grass and flowers along the bottom of the screen' },
     { key: 'summer', label: '☀ Summer Scene',      desc: 'Sun, sandy beach and gentle waves' },
@@ -267,8 +269,8 @@ async function buildHomepageTab() {
       ${effectRows}
     </div>`;
 }
-function setFx(key) {
-  localStorage.setItem('newton_fx', key);
+async function setFx(key) {
+  await setSeasonalEffect(key);
   renderOsAdminPage('homepage');
 }
 async function submitAnnouncement() {

@@ -23,24 +23,6 @@ function addDays(dateStr, days) {
   ].join('-');
 }
 
-// ── Button loading state helpers ────────────────────────────────────
-// Used across Reporting and People modules for all submit buttons.
-function setButtonLoading(btn, loadingText) {
-  if (!btn) return;
-  btn.dataset.originalText = btn.textContent;
-  btn.textContent = loadingText || 'Saving…';
-  btn.disabled = true;
-  btn.style.opacity = '0.7';
-  btn.style.cursor  = 'not-allowed';
-}
-function clearButtonLoading(btn) {
-  if (!btn) return;
-  btn.textContent = btn.dataset.originalText || btn.textContent;
-  btn.disabled = false;
-  btn.style.opacity = '';
-  btn.style.cursor  = '';
-}
-
 // ── Project Form ────────────────────────────────────────────────────
 function renderProjectForm(existingData = null) {
   const isEdit = !!existingData;

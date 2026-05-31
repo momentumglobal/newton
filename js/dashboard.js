@@ -5,26 +5,19 @@ let _dashDetailPeriod = 'this_month'; // Detail panels filter
 let _dashProjectId    = null;
 
 // ── Fade refresh helper ───────────────────────────────────────────────
-// Fades out a container, runs an update function, then fades back in.
-// Used for period filter changes so data areas transition rather than snap.
+// Fades an element out, calls updateFn(el) with the element to update,
+// then fades it back in. updateFn receives the element so it can update
+// innerHTML directly without re-querying.
 function fadeRefresh(selector, updateFn) {
   const el = document.querySelector(selector);
-  if (!el) { updateFn(); return; }
+  if (!el) { updateFn(null); return; }
   el.style.transition = 'opacity 120ms ease';
   el.style.opacity    = '0';
   setTimeout(() => {
-    updateFn();
-    // Re-query after DOM update
-    const updated = document.querySelector(selector);
-    if (updated) {
-      updated.style.transition = 'opacity 120ms ease';
-      updated.style.opacity    = '0';
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          updated.style.opacity = '1';
-        });
-      });
-    }
+    updateFn(el);
+    requestAnimationFrame(() => {
+      el.style.opacity = '1';
+    });
   }, 120);
 }
 
@@ -404,10 +397,9 @@ async function renderProjectDashboard() {
 function changeDashProject(id)   { _dashProjectId = String(id); renderProjectDashboard(); }
 function setDashPeriod(period) {
   _dashPeriod = period;
-  fadeRefresh('#proj-kpi-area', () => {
-    const strip = document.getElementById('proj-kpi-area');
-    if (strip && window._lastDashRoles && window._lastDashActivity) {
-      strip.innerHTML = renderKPIStrip(window._lastDashRoles, window._lastDashActivity, _dashPeriod);
+  fadeRefresh('#proj-kpi-area', (el) => {
+    if (el && window._lastDashRoles && window._lastDashActivity) {
+      el.innerHTML = renderKPIStrip(window._lastDashRoles, window._lastDashActivity, _dashPeriod);
     } else {
       renderProjectDashboard();
     }
@@ -415,11 +407,10 @@ function setDashPeriod(period) {
 }
 function setDetailPeriod(period) {
   _dashDetailPeriod = period;
-  fadeRefresh('#proj-detail-grid', () => {
-    const grid = document.getElementById('proj-detail-grid');
-    if (grid && window._lastDashRoles && window._lastDashActivity) {
+  fadeRefresh('#proj-detail-grid', (el) => {
+    if (el && window._lastDashRoles && window._lastDashActivity) {
       const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole);
-      grid.innerHTML =
+      el.innerHTML =
         renderPipelineActivityTable(window._lastDashActivity, window._lastDashRoles, _dashDetailPeriod) +
         (isDMAdmin ? renderActivityByTPPanel(window._lastDashActivity, _dashDetailPeriod) : '') +
         (isDMAdmin ? renderRejectionPanel(window._lastDashRejections, window._lastDashRoles, _dashDetailPeriod) : '') +
@@ -593,10 +584,9 @@ async function renderCompanyDashboard() {
 }
 function setCompanyPeriod(period) {
   _companyPeriod = period;
-  fadeRefresh('#co-kpi-area', () => {
-    const strip = document.getElementById('co-kpi-area');
-    if (strip && window._lastCoRoles) {
-      strip.innerHTML = renderCompanyKPIStrip(window._lastCoRoles, window._lastCoActivity, window._lastCoProjects, _companyPeriod);
+  fadeRefresh('#co-kpi-area', (el) => {
+    if (el && window._lastCoRoles) {
+      el.innerHTML = renderCompanyKPIStrip(window._lastCoRoles, window._lastCoActivity, window._lastCoProjects, _companyPeriod);
     } else {
       renderCompanyDashboard();
     }
@@ -604,10 +594,9 @@ function setCompanyPeriod(period) {
 }
 function setCompanyDetailPeriod(period) {
   _companyDetailPeriod = period;
-  fadeRefresh('#co-detail-grid', () => {
-    const grid = document.getElementById('co-detail-grid');
-    if (grid && window._lastCoActivity) {
-      grid.innerHTML = renderCompanyTPPanel(
+  fadeRefresh('#co-detail-grid', (el) => {
+    if (el && window._lastCoActivity) {
+      el.innerHTML = renderCompanyTPPanel(
         window._lastCoActivity, window._lastCoProjectMap,
         window._lastCoRoleProjectMap, _companyDetailPeriod
       );

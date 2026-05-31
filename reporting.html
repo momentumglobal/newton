@@ -85,7 +85,7 @@
     </div>
   </div>
   <!-- App shell (hidden until signed in) -->
-<div id="app-shell">
+  <div id="app-shell">
     <div id="print-header">
       <div>
         <div class="print-header-title" id="print-header-title">Newton</div>
@@ -98,12 +98,12 @@
   </div>
   <!-- MSAL.js from Microsoft CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
-  <!-- App scripts — load in this order -->
+  <!-- App scripts — load in dependency order -->
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
   <script src="js/router.js"></script>
   <script src="js/nav.js"></script>
-  <script src="js/api.js"></script>
   <script src="js/forms.js"></script>
   <script src="js/pages.js"></script>
   <script src="js/dashboard.js"></script>

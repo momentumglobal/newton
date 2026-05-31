@@ -277,7 +277,6 @@ async function submitAnnouncement() {
   status.style.display = 'none';
   try {
     await setAnnouncementMessage(msg);
-    refreshAnnouncementTicker(msg);
     status.style.color   = '#2e7d32';
     status.textContent   = msg ? 'Banner updated.' : 'Banner cleared.';
     status.style.display = 'block';

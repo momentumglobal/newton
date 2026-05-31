@@ -1,6 +1,5 @@
 // js/os-admin.js — Newton OS Admin (User Assignments + Leadership Access)
 let _osAdminTab = 'assignments';
-
 async function renderOsAdminPage(tab = 'assignments') {
   _osAdminTab = tab;
   const main = document.getElementById('main-content');
@@ -15,12 +14,10 @@ const tooltips = {
     `<button class="btn-filter${_osAdminTab === t ? ' active' : ''}"
       onclick="renderOsAdminPage('${t}')">${labels[t]}<span class="help-tip">?<span class="help-tip-text">${tooltips[t]}</span></span></button>`
   ).join('');
-
   let content = '';
   if (tab === 'assignments') content = await buildAssignmentsTab();
   if (tab === 'leadership')  content = await buildLeadershipTab();
-  if (tab === 'homepage')    content = buildHomepageTab();
-
+  if (tab === 'homepage')    content = await buildHomepageTab();
   main.innerHTML = `
     <div class="page-header">
       <h2>${labels[tab]}</h2>
@@ -29,7 +26,6 @@ const tooltips = {
     <div style="padding:24px">${content}</div>
   `;
 }
-
 // ── Assignments Tab ──────────────────────────────────────────────────
 async function buildAssignmentsTab(editId = null) {
   const [projects, assignments] = await Promise.all([
@@ -40,7 +36,6 @@ async function buildAssignmentsTab(editId = null) {
   ).join('');
   let editRecord = null;
   if (editId) editRecord = assignments.find(a => String(a.id) === String(editId));
-
 const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.UserName || '')).map(a => `
     <tr id="assign-row-${a.id}">
       <td>${a.UserName || '—'}</td>
@@ -53,7 +48,6 @@ const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.
         <a href="#" onclick="deleteOsAdminRecord('UserAssignments',${a.id})">Remove</a>
       </td>
     </tr>`).join('');
-
   const editForm = editRecord ? `
     <h3>Edit Assignment</h3>
     <div class="form-container" style="padding:0;max-width:600px">
@@ -127,7 +121,6 @@ const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.
       <button class="btn-primary" onclick="submitAssignment()">Add Assignment</button>
     </div>
   `;
-
   return `
     <h3>Current Assignments</h3>
     <table class="data-table" style="margin:0 0 24px">
@@ -137,12 +130,10 @@ const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.
     ${editForm}
   `;
 }
-
 async function showEditAssignment(id) {
   const content = await buildAssignmentsTab(id);
   document.querySelector('#main-content > div[style]').innerHTML = content;
 }
-
 async function submitAssignment(editId = null) {
   const name    = document.getElementById('assign-name').value.trim();
   const email   = document.getElementById('assign-email').value.trim();
@@ -171,7 +162,6 @@ async function submitAssignment(editId = null) {
     errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
   }
 }
-
 // ── Leadership Tab ───────────────────────────────────────────────────
 async function buildLeadershipTab() {
   const list = await getLeadershipAccess();
@@ -207,7 +197,6 @@ async function buildLeadershipTab() {
     </div>
   `;
 }
-
 async function submitLeadershipUser() {
   const name  = document.getElementById('lead-name').value.trim();
   const email = document.getElementById('lead-email').value.trim();
@@ -221,25 +210,23 @@ async function submitLeadershipUser() {
     errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
   }
 }
-
 async function deleteOsAdminRecord(listName, id) {
   if (!confirm('Remove this record?')) return;
   await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items/${id}`);
   await renderOsAdminPage(_osAdminTab);
 }
-
 // ── Homepage Tab ───────────────────────────────────────────────────
-function buildHomepageTab() {
+async function buildHomepageTab() {
+  const current = await getAnnouncementMessage();
   const active = localStorage.getItem('newton_fx') || 'none';
   const effects = [
-    { key: 'spring', label: '🌸 Spring',            desc: 'Grass and flowers along the bottom of the screen' },
-    { key: 'summer', label: '☀ Summer Scene',       desc: 'Sun, sandy beach and gentle waves' },
-    { key: 'autumn', label: '🍂 Autumn',            desc: 'Falling autumn leaves' },
-    { key: 'snow',   label: '❄ Snowfall',          desc: 'Falling snow animation' },
-    { key: 'lights', label: '🎄 Christmas Lights',  desc: 'String of twinkling coloured lights across the top' },
-    
+    { key: 'spring', label: '🌸 Spring',           desc: 'Grass and flowers along the bottom of the screen' },
+    { key: 'summer', label: '☀ Summer Scene',      desc: 'Sun, sandy beach and gentle waves' },
+    { key: 'autumn', label: '🍂 Autumn',           desc: 'Falling autumn leaves' },
+    { key: 'snow',   label: '❄ Snowfall',         desc: 'Falling snow animation' },
+    { key: 'lights', label: '🎄 Christmas Lights', desc: 'String of twinkling coloured lights across the top' },
   ];
-  const rows = effects.map(e => `
+  const effectRows = effects.map(e => `
     <div style="display:flex;align-items:center;justify-content:space-between;
                 padding:16px 0;border-bottom:1px solid #eee">
       <div>
@@ -252,17 +239,55 @@ function buildHomepageTab() {
       </button>
     </div>`).join('');
   return `
+    <h3>Announcement Banner</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:16px">
+      Set a scrolling message that appears at the bottom of the screen for all users.
+      Clear the field and save to remove it.
+    </p>
+    <div style="background:white;border:1px solid #e0e0e0;border-radius:6px;
+                padding:20px 24px;max-width:520px;margin-bottom:32px">
+      <div class="form-group">
+        <label>Message</label>
+        <textarea id="announcement-text" rows="3"
+          placeholder="e.g. Welcome to Newton — Q2 targets are live!"
+          style="resize:vertical">${current ? current.replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''}</textarea>
+      </div>
+      <div id="announcement-status" style="display:none;font-size:13px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn-primary" onclick="submitAnnouncement()">Save</button>
+        <button class="btn-secondary" onclick="clearAnnouncement()">Clear Banner</button>
+      </div>
+    </div>
     <h3>Seasonal Effects</h3>
     <p style="font-size:13px;color:#666;margin-bottom:16px">
       One effect can be active at a time. Changes take effect on the Newton home screen immediately.
     </p>
     <div style="background:white;border:1px solid #e0e0e0;border-radius:6px;
                 padding:4px 24px;max-width:520px">
-      ${rows}
+      ${effectRows}
     </div>`;
 }
-
 function setFx(key) {
   localStorage.setItem('newton_fx', key);
   renderOsAdminPage('homepage');
+}
+async function submitAnnouncement() {
+  const msg    = document.getElementById('announcement-text').value.trim();
+  const status = document.getElementById('announcement-status');
+  status.style.display = 'none';
+  try {
+    await setAnnouncementMessage(msg);
+    refreshAnnouncementTicker(msg);
+    status.style.color   = '#2e7d32';
+    status.textContent   = msg ? 'Banner updated.' : 'Banner cleared.';
+    status.style.display = 'block';
+  } catch(e) {
+    status.style.color   = '#c62828';
+    status.textContent   = `Error: ${e.message}`;
+    status.style.display = 'block';
+  }
+}
+async function clearAnnouncement() {
+  document.getElementById('announcement-text').value = '';
+  await submitAnnouncement();
 }

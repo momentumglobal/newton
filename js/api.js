@@ -132,12 +132,7 @@ async function getEffectiveRole(email) {
   return 'viewer';
 }
 
-// Return all project IDs this user is assigned to
-async function getUserProjectIds(email) {
-  const assignments = await getItems("UserAssignments",
-    `fields/UserEmail eq '${email}'`);
-  return assignments.map(a => String(a.ProjectID));
-}
+// getUserProjectIds — defined above with admin null handling
 
 // Check if email is in LeadershipAccess list
 async function isLeadershipUser(email) {
@@ -160,6 +155,42 @@ async function ensureUserRegistered(email, displayName) {
       AssignedRole: "talent_partner",
     });
   }
+}
+
+
+async function getDepartmentsForProject(projectId) {
+  return getItems("Departments", `fields/ProjectID eq ${projectId}`);
+}
+
+async function getTalentPartnersForProject(projectId) {
+  const assignments = await getItems("UserAssignments", `fields/ProjectID eq ${projectId}`);
+  return assignments.filter(a =>
+    a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager'
+  );
+}
+
+// Role precedence: admin > leadership > talent_partner > delivery_manager > viewer
+const ROLE_PRECEDENCE = ['admin','leadership','talent_partner','delivery_manager','viewer'];
+function higherRole(a, b) {
+  const ai = ROLE_PRECEDENCE.indexOf(a);
+  const bi = ROLE_PRECEDENCE.indexOf(b);
+  return ai <= bi ? a : b;
+}
+
+// Return all project IDs this user is assigned to (null = admin, sees all)
+async function getUserProjectIds(email) {
+  const lower = email.toLowerCase();
+  if (CONFIG.ADMIN_USERS?.includes(lower)) return null;
+  const assignments = await getItems("UserAssignments", `fields/Title eq '${email}'`);
+  return assignments.map(a => String(a.ProjectID));
+}
+
+// Return scoped projects list
+async function getScopedProjects(email, activeOnly = false) {
+  const projectIds = await getUserProjectIds(email);
+  const allProjects = await getProjects(activeOnly);
+  if (projectIds === null) return allProjects;
+  return allProjects.filter(p => projectIds.includes(String(p.id)));
 }
 
 // ── App Settings ─────────────────────────────────────────────────────

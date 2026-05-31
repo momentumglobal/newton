@@ -72,6 +72,8 @@ async function submitPersonForm(event, editId = null) {
   event.preventDefault();
   clearPersonFormError();
   const form = document.getElementById('person-form');
+  const btn  = form.querySelector('[type=submit]');
+  setButtonLoading(btn);
   const data = Object.fromEntries(new FormData(form));
   const fields = {
     EmployeeName: data.EmployeeName,
@@ -87,6 +89,7 @@ async function submitPersonForm(event, editId = null) {
     else        { await createPerson(fields); }
     navigateToPeople('peopleTracker');
   } catch (e) {
+    clearButtonLoading(btn);
     showPersonFormError(`Error saving employee: ${e.message}`);
   }
 }
@@ -207,11 +210,13 @@ async function submitAssignmentForm(event, editId = null) {
   event.preventDefault();
   clearAssignmentFormError();
   const form = document.getElementById('assignment-form');
+  const btn  = form.querySelector('[type=submit]');
   const data = Object.fromEntries(new FormData(form));
   if (!data.Level) {
     showAssignmentFormError('Please select an employee — Level must be populated.');
     return;
   }
+  setButtonLoading(btn);
   const fields = {
     EmployeeName:    data.EmployeeName,
     Level:           data.Level,
@@ -232,6 +237,7 @@ async function submitAssignmentForm(event, editId = null) {
     else        { await createAssignment(fields); }
     navigateToPeople('peopleTracker');
   } catch (e) {
+    clearButtonLoading(btn);
     showAssignmentFormError(`Error saving assignment: ${e.message}`);
   }
 }
@@ -321,10 +327,12 @@ function renderInvoiceForm(existingData = null) {
 
 async function submitInvoiceForm(event, editId = null) {
   event.preventDefault();
-  const form = document.getElementById('invoice-form');
-  const data = Object.fromEntries(new FormData(form));
+  const form  = document.getElementById('invoice-form');
+  const btn   = form.querySelector('[type=submit]');
+  const data  = Object.fromEntries(new FormData(form));
   const errEl = document.getElementById('invoice-form-error');
   if (errEl) { errEl.style.display = 'none'; }
+  setButtonLoading(btn);
   const fields = {
     InvoiceNumber: data.InvoiceNumber,
     InvoiceDate:   isoDate(data.InvoiceDate),
@@ -338,6 +346,7 @@ async function submitInvoiceForm(event, editId = null) {
     else        { await createInvoice(fields); }
     navigateToPeople('gpInvoices');
   } catch (e) {
+    clearButtonLoading(btn);
     if (errEl) { errEl.textContent = 'Error saving invoice: ' + e.message; errEl.style.display = 'block'; }
   }
 }

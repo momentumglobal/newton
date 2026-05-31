@@ -188,25 +188,37 @@ async function isLeadershipUser(email) {
 // AppSettings is a single-row SharePoint list with columns:
 //   Title (single line text, value always "config")
 //   AnnouncementMessage (multiple lines of text)
-
-async function getAnnouncementMessage() {
+//   SeasonalEffect (single line text, e.g. "snow", "spring", or "" for none)
+async function _getAppSettingsRow() {
   try {
     const items = await getItems("AppSettings");
-    const row = items.find(i => (i.Title || '').toLowerCase() === 'config');
-    return row ? (row.AnnouncementMessage || '') : '';
+    return items.find(i => (i.Title || '').toLowerCase() === 'config') || null;
   } catch (e) {
-    return ''; // silently fail — don't break app load
+    return null;
   }
 }
-
-async function setAnnouncementMessage(message) {
+async function _updateAppSettings(fields) {
   const items = await getItems("AppSettings");
   const row = items.find(i => (i.Title || '').toLowerCase() === 'config');
   if (row) {
-    await updateItem("AppSettings", row.id, { AnnouncementMessage: message });
+    await updateItem("AppSettings", row.id, fields);
   } else {
-    await createItem("AppSettings", { Title: "config", AnnouncementMessage: message });
+    await createItem("AppSettings", { Title: "config", ...fields });
   }
+}
+async function getAnnouncementMessage() {
+  const row = await _getAppSettingsRow();
+  return row ? (row.AnnouncementMessage || '') : '';
+}
+async function setAnnouncementMessage(message) {
+  await _updateAppSettings({ AnnouncementMessage: message });
+}
+async function getSeasonalEffect() {
+  const row = await _getAppSettingsRow();
+  return row ? (row.SeasonalEffect || 'none') : 'none';
+}
+async function setSeasonalEffect(effect) {
+  await _updateAppSettings({ SeasonalEffect: effect === 'none' ? '' : effect });
 }
 
 // Auto-register user on first login if not already in UserAssignments

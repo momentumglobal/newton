@@ -56,7 +56,7 @@ people.sort((a, b) => {
       <td>${p.StartDate ? p.StartDate.split('T')[0] : '—'}</td>
       <td>${p.EndDate   ? p.EndDate.split('T')[0]   : '—'}</td>
       <td><span class='badge badge-${p.IsActive ? 'active' : 'inactive'}'>${p.IsActive ? 'Active' : 'Inactive'}</span></td>
-      ${canEdit ? `<td><a href='#' onclick='showEditPersonForm(${p.id})'>Edit</a></td>` : ''}
+      ${canEdit ? `<td><div class='row-actions'><a href='#' onclick='showEditPersonForm(${p.id})'>Edit</a></div></td>` : ''}
     </tr>`).join('');
   main.innerHTML = `
     <div class='page-header'>
@@ -162,7 +162,7 @@ filtered.sort((a, b) => {
       <td>${a.EndDate   ? a.EndDate.split('T')[0]   : '—'}</td>
       <td>${a.MonthlyBillRate ? '£' + Number(a.MonthlyBillRate).toLocaleString('en-GB') : '—'}</td>
       <td><span class='badge badge-${a.Billed==="Yes"?"active":"inactive"}'>${a.Billed}</span></td>
-      ${canEdit ? `<td><a href='#' onclick='showEditAssignmentForm(${a.id})'>Edit</a></td>` : ''}
+      ${canEdit ? `<td><div class='row-actions'><a href='#' onclick='showEditAssignmentForm(${a.id})'>Edit</a></div></td>` : ''}
     </tr>`).join('');
 
   main.innerHTML = `
@@ -792,9 +792,11 @@ async function renderGPInvoices() {
       <td>${inv.Notes || '—'}</td>
       <td>${statusBadge}</td>
 ${canEdit ? `<td style='white-space:nowrap'>
-  <a href='#' onclick='showEditInvoiceForm(${inv.id})'>Edit</a>
-  ${markPaidBtn ? ' · ' + markPaidBtn : ''}
-   · <a href='#' onclick='deleteInvoice(${inv.id})' style='color:#c62828'>Delete</a>
+  <div class='row-actions' style='gap:12px'>
+    <a href='#' onclick='showEditInvoiceForm(${inv.id})'>Edit</a>
+    ${markPaidBtn ? ' · ' + markPaidBtn : ''}
+    · <button class='btn-danger' onclick='deleteInvoice(${inv.id})'>Delete</button>
+  </div>
 </td>` : ''}
     </tr>`;
   }).join('');
@@ -935,4 +937,3 @@ async function _setDashQuarter(value) {
   _dashFilter.month   = null;  // clear month
   await renderPeopleDashboard();
 }
-

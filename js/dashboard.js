@@ -397,29 +397,27 @@ async function renderProjectDashboard() {
 function changeDashProject(id)   { _dashProjectId = String(id); renderProjectDashboard(); }
 function setDashPeriod(period) {
   _dashPeriod = period;
-  fadeRefresh('#proj-kpi-area', (el) => {
-    if (el && window._lastDashRoles && window._lastDashActivity) {
-      el.innerHTML = renderKPIStrip(window._lastDashRoles, window._lastDashActivity, _dashPeriod);
-    } else {
-      renderProjectDashboard();
-    }
-  });
+  const el = document.getElementById('proj-kpi-area');
+  if (el && window._lastDashRoles && window._lastDashActivity) {
+    el.innerHTML = renderKPIStrip(window._lastDashRoles, window._lastDashActivity, _dashPeriod);
+  } else {
+    renderProjectDashboard();
+  }
 }
 function setDetailPeriod(period) {
   _dashDetailPeriod = period;
-  fadeRefresh('#proj-detail-grid', (el) => {
-    if (el && window._lastDashRoles && window._lastDashActivity) {
-      const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole);
-      el.innerHTML =
-        renderPipelineActivityTable(window._lastDashActivity, window._lastDashRoles, _dashDetailPeriod) +
-        (isDMAdmin ? renderActivityByTPPanel(window._lastDashActivity, _dashDetailPeriod) : '') +
-        (isDMAdmin ? renderRejectionPanel(window._lastDashRejections, window._lastDashRoles, _dashDetailPeriod) : '') +
-        (isDMAdmin ? renderUpcomingStartersPanel(window._lastDashPlacements, window._lastDashRoles) : '') +
-        (isDMAdmin ? renderSpendPanel(window._lastDashRoles, window._lastDashPlacements) : '');
-    } else {
-      renderProjectDashboard();
-    }
-  });
+  const el = document.getElementById('proj-detail-grid');
+  if (el && window._lastDashRoles && window._lastDashActivity) {
+    const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole);
+    el.innerHTML =
+      renderPipelineActivityTable(window._lastDashActivity, window._lastDashRoles, _dashDetailPeriod) +
+      (isDMAdmin ? renderActivityByTPPanel(window._lastDashActivity, _dashDetailPeriod) : '') +
+      (isDMAdmin ? renderRejectionPanel(window._lastDashRejections, window._lastDashRoles, _dashDetailPeriod) : '') +
+      (isDMAdmin ? renderUpcomingStartersPanel(window._lastDashPlacements, window._lastDashRoles) : '') +
+      (isDMAdmin ? renderSpendPanel(window._lastDashRoles, window._lastDashPlacements) : '');
+  } else {
+    renderProjectDashboard();
+  }
 }
 // ═══════════════════════════════════════════════════════════════════════
 // COMPANY DASHBOARD — Admin + Leadership cross-project rollup
@@ -584,24 +582,22 @@ async function renderCompanyDashboard() {
 }
 function setCompanyPeriod(period) {
   _companyPeriod = period;
-  fadeRefresh('#co-kpi-area', (el) => {
-    if (el && window._lastCoRoles) {
-      el.innerHTML = renderCompanyKPIStrip(window._lastCoRoles, window._lastCoActivity, window._lastCoProjects, _companyPeriod);
-    } else {
-      renderCompanyDashboard();
-    }
-  });
+  const el = document.getElementById('co-kpi-area');
+  if (el && window._lastCoRoles) {
+    el.innerHTML = renderCompanyKPIStrip(window._lastCoRoles, window._lastCoActivity, window._lastCoProjects, _companyPeriod);
+  } else {
+    renderCompanyDashboard();
+  }
 }
 function setCompanyDetailPeriod(period) {
   _companyDetailPeriod = period;
-  fadeRefresh('#co-detail-grid', (el) => {
-    if (el && window._lastCoActivity) {
-      el.innerHTML = renderCompanyTPPanel(
-        window._lastCoActivity, window._lastCoProjectMap,
-        window._lastCoRoleProjectMap, _companyDetailPeriod
-      );
-    } else {
-      renderCompanyDashboard();
-    }
-  });
+  const el = document.getElementById('co-detail-grid');
+  if (el && window._lastCoActivity) {
+    el.innerHTML = renderCompanyTPPanel(
+      window._lastCoActivity, window._lastCoProjectMap,
+      window._lastCoRoleProjectMap, _companyDetailPeriod
+    );
+  } else {
+    renderCompanyDashboard();
+  }
 }

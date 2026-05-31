@@ -503,14 +503,14 @@
   window.fxSpring = startSpring;
   window.fxAutumn = startAutumn;
   window.addEventListener('resize', () => { if (activeEffect) resize(); });
-  // Load saved effect on page load
-  localStorage.removeItem('newton_snow');
-  const saved = localStorage.getItem('newton_fx');
-  if (saved === 'snow')   startSnow();
-  if (saved === 'lights') startLights();
-  if (saved === 'summer') startSummer();
-  if (saved === 'spring') startSpring();
-  if (saved === 'autumn') startAutumn();
+// Load seasonal effect from SharePoint on page load
+  getSeasonalEffect().then(saved => {
+    if (saved === 'snow')   startSnow();
+    if (saved === 'lights') startLights();
+    if (saved === 'summer') startSummer();
+    if (saved === 'spring') startSpring();
+    if (saved === 'autumn') startAutumn();
+  });
 })();
 </script>
 </body>

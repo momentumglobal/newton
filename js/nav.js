@@ -1,19 +1,15 @@
 let currentPage = null;
 let _resolvedRole = null;
-
 const OS_MODULES = [
   { key: 'reporting', name: 'Reporting', icon: 'bar-chart-2',    href: 'reporting.html', live: true,  roles: ['admin','delivery_manager','talent_partner','leadership'] },
   { key: 'people', name: 'People', icon: 'users', href: 'people.html', live: true, roles: ['admin','leadership'] },
   { key: 'finance',   name: 'Finance',   icon: 'pound-sterling', href: null,         live: false, roles: ['admin','leadership'] },
   { key: 'operations',name: 'Operations',icon: 'settings-2',     href: null,         live: false, roles: ['admin','leadership'] },
 ];
-
 function renderNav(role) {
   const pages = getAccessiblePages(role);
   const user  = getCurrentUser();
-
   const visibleModules = OS_MODULES.filter(m => m.roles.includes(role));
-
   const moduleItems = visibleModules.map(m => {
     if (!m.live) {
       return `<div class='nav-module-item disabled'><i data-lucide="${m.icon}" class="nav-module-icon"></i>${m.name} <span class='nav-module-soon'>Soon</span></div>`;
@@ -21,7 +17,6 @@ function renderNav(role) {
     const isCurrent = m.key === 'reporting';
     return `<a class='nav-module-item${isCurrent ? ' current' : ''}' href='${m.href}'><i data-lucide="${m.icon}" class="nav-module-icon"></i>${m.name}</a>`;
   }).join('');
-
   const nav = document.getElementById('sidebar');
   nav.innerHTML = `
     <div class='nav-header nav-header-dropdown' onclick='toggleModuleDropdown()'>
@@ -46,20 +41,29 @@ ${pages.map(p => `
 `).join('')}
     </nav>
     <img src='momentum-symbol-and-name-global-white.png' alt='Momentum Global' class='nav-logo-img'>
+    <div id="announcement-ticker" class="announcement-ticker">
+      <span id="announcement-ticker-inner" class="announcement-ticker-inner"></span>
+    </div>
     <div class='nav-footer'>
       <a class='nav-link signout' href='user-guide.html' target='_blank'>User Guide</a>
       <a class='nav-link signout' onclick='signOut()'>Sign out</a>
     </div>
   `;
-
   lucide.createIcons();
+  getAnnouncementMessage().then(msg => refreshAnnouncementTicker(msg));
 }
-
+function refreshAnnouncementTicker(message) {
+  const ticker = document.getElementById('announcement-ticker');
+  const inner  = document.getElementById('announcement-ticker-inner');
+  if (!ticker || !inner) return;
+  const msg = (message || '').trim();
+  inner.textContent = msg;
+  ticker.classList.toggle('visible', msg.length > 0);
+}
 function toggleModuleDropdown() {
   const dd = document.getElementById('nav-module-dropdown');
   if (dd) dd.classList.toggle('open');
 }
-
 document.addEventListener('click', function(e) {
   const header = document.querySelector('.nav-header-dropdown');
   const dd = document.getElementById('nav-module-dropdown');
@@ -67,7 +71,6 @@ document.addEventListener('click', function(e) {
     dd.classList.remove('open');
   }
 });
-
 function navigateTo(page) {
   const role = _resolvedRole || getUserRole(getCurrentUser().email);
   if (!canAccess(page, role)) return;
@@ -75,7 +78,6 @@ function navigateTo(page) {
   renderNav(role);
   renderPage(page);
 }
-
 async function renderPage(page) {
   const main = document.getElementById("main-content");
   switch (page) {

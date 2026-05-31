@@ -24,7 +24,6 @@
       font-size: 15px;
       line-height: 1.6;
     }
-    /* ── Header ── */
     .guide-header {
       background: #0A0B44;
       color: white;
@@ -33,20 +32,9 @@
       align-items: center;
       justify-content: space-between;
     }
-    .guide-header-left h1 {
-      font-size: 22px;
-      font-weight: 600;
-    }
-    .guide-header-left p {
-      font-size: 13px;
-      color: rgba(255,255,255,0.6);
-      margin-top: 4px;
-    }
-    .guide-header img {
-      height: 36px;
-      width: auto;
-    }
-    /* ── Layout ── */
+    .guide-header-left h1 { font-size: 22px; font-weight: 600; }
+    .guide-header-left p { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+    .guide-header img { height: 36px; width: auto; }
     .guide-body {
       display: flex;
       max-width: 1100px;
@@ -54,7 +42,6 @@
       padding: 40px 24px;
       gap: 40px;
     }
-    /* ── Sidebar nav ── */
     .guide-nav {
       width: 200px;
       min-width: 200px;
@@ -62,10 +49,7 @@
       top: 24px;
       align-self: flex-start;
     }
-    .guide-nav ul {
-      list-style: none;
-      padding: 0;
-    }
+    .guide-nav ul { list-style: none; padding: 0; }
     .guide-nav li a {
       display: block;
       padding: 7px 12px;
@@ -84,11 +68,7 @@
       color: #888;
       padding: 12px 12px 4px;
     }
-    /* ── Content ── */
-    .guide-content {
-      flex: 1;
-      min-width: 0;
-    }
+    .guide-content { flex: 1; min-width: 0; }
     .guide-section {
       background: white;
       border-radius: 6px;
@@ -105,40 +85,14 @@
       padding-bottom: 10px;
       border-bottom: 1px solid #EBF2FA;
     }
-    .guide-section h3 {
-      font-size: 14px;
-      font-weight: 600;
-      color: #0A0B44;
-      margin: 20px 0 8px;
-    }
-    .guide-section p {
-      color: #333;
-      margin-bottom: 12px;
-    }
+    .guide-section h3 { font-size: 14px; font-weight: 600; color: #0A0B44; margin: 20px 0 8px; }
+    .guide-section p { color: #333; margin-bottom: 12px; }
     .guide-section p:last-child { margin-bottom: 0; }
-    /* ── FAQ ── */
-    .faq-item {
-      border-bottom: 1px solid #eee;
-      padding: 14px 0;
-    }
+    .faq-item { border-bottom: 1px solid #eee; padding: 14px 0; }
     .faq-item:last-child { border-bottom: none; padding-bottom: 0; }
-    .faq-q {
-      font-weight: 600;
-      color: #0A0B44;
-      margin-bottom: 6px;
-      font-size: 14px;
-    }
-    .faq-a {
-      color: #444;
-      font-size: 14px;
-    }
-    /* ── Role badge ── */
-    .role-badges {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
+    .faq-q { font-weight: 600; color: #0A0B44; margin-bottom: 6px; font-size: 14px; }
+    .faq-a { color: #444; font-size: 14px; }
+    .role-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
     .role-badge {
       display: inline-block;
       padding: 2px 10px;
@@ -150,7 +104,6 @@
     }
     .role-badge.admin      { background: #0A0B44; color: white; }
     .role-badge.leadership { background: #fff3e0; color: #e65100; }
-    /* ── Tips ── */
     .tip {
       background: #EBF2FA;
       border-left: 3px solid #0A0B44;
@@ -160,37 +113,13 @@
       color: #333;
       margin: 12px 0;
     }
-    /* ── Colour key ── */
-    .colour-key {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin: 10px 0;
-    }
-    .colour-key-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-      color: #333;
-    }
-    .colour-swatch {
-      width: 16px;
-      height: 16px;
-      border-radius: 3px;
-      flex-shrink: 0;
-    }
-    /* ── Footer ── */
-    .guide-footer {
-      text-align: center;
-      padding: 32px;
-      font-size: 12px;
-      color: #888;
-    }
+    .colour-key { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+    .colour-key-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #333; }
+    .colour-swatch { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; }
+    .guide-footer { text-align: center; padding: 32px; font-size: 12px; color: #888; }
   </style>
 </head>
 <body>
-
 <div class="guide-header">
   <div class="guide-header-left">
     <h1>Newton — People User Guide</h1>
@@ -198,10 +127,7 @@
   </div>
   <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
 </div>
-
 <div class="guide-body">
-
-  <!-- Sidebar navigation -->
   <nav class="guide-nav">
     <ul>
       <li><a href="people.html">← Back to People</a></li>
@@ -215,10 +141,10 @@
       <li><a href="#employee-tracker">Employee Tracker</a></li>
       <li><a href="#deployment-timeline">Deployment Timeline</a></li>
       <li><a href="#gp-invoices">G-P Invoices</a></li>
+      <li><div class="nav-section-label">Newton OS</div></li>
+      <li><a href="#homepage-admin">Homepage Admin</a></li>
     </ul>
   </nav>
-
-  <!-- Main content -->
   <div class="guide-content">
 
     <!-- FAQ -->
@@ -283,26 +209,20 @@
         <span class="role-badge leadership">Leadership</span>
       </div>
       <p>A real-time overview of workforce performance, utilisation, and revenue. The KPI strip is always fixed to current year YTD — the period filters below it control the three detail panels only.</p>
-
       <h3>KPI Strip</h3>
       <p>Four tiles showing company-wide metrics as of today:</p>
       <p><strong>Estimated Revenue</strong> — total billed revenue for the current year to date.</p>
       <p><strong>Utilisation</strong> — billed capacity as a percentage of total capacity, YTD. Colour coded: green = 85%+, orange = 75–85%, red = below 75%.</p>
       <p><strong>Active Customers</strong> — number of distinct customers with a current active assignment today. The delta indicator (green/red) shows the change vs the last day of the previous quarter.</p>
       <p><strong>Billed Headcount</strong> — number of employees on a billed assignment today. The delta indicator shows the change vs the last day of the previous quarter.</p>
-
       <h3>Period Filters</h3>
       <p>Use the <strong>Year</strong>, <strong>Month</strong>, and <strong>Quarter</strong> dropdowns to filter the three panels below. Selecting a month clears the quarter selection and vice versa. The year filter applies to both.</p>
-
       <h3>Panel 1 — Team Utilisation</h3>
       <p>A summary table showing utilisation percentage and headcount (utilised / total active) per role band — SDM, STP, TP. A totals row shows the overall blended utilisation. Below the table, a monthly trend bar chart shows how utilisation has moved across the selected period.</p>
-
       <h3>Panel 2 — Estimated Revenue</h3>
       <p>Two side-by-side tables for the selected period: revenue by customer (sorted highest to lowest, excluding Unassigned/Internal) and revenue by project type (Embedded, CoE, Transformation, LCI).</p>
-
       <h3>Panel 3 — Workforce Segmentation</h3>
       <p>Three headcount breakdowns of currently active employees (not period-filtered): by location, by contract type, and by role band. Each shows count and percentage of total.</p>
-
       <h3>Upcoming End Dates</h3>
       <p>Lists any active employees with an end date in the next 60 days, sorted by nearest first.</p>
       <div class="colour-key">
@@ -325,12 +245,10 @@
         <span class="role-badge leadership">Leadership</span>
       </div>
       <p>A two-tab view of the workforce — employees and their assignments. Use the tab bar at the top to switch between the two views.</p>
-
       <h3>Employees tab</h3>
       <p>Lists all active employees sorted by role band then name, showing level, contract type, location, start date, end date, and status. Toggle <strong>Show inactive employees</strong> to include leavers in the list.</p>
       <p>Admins can add new employees using <strong>+ Add Employee</strong> and edit existing records via the Edit link on each row.</p>
       <div class="tip">An employee's Level field (SDM, STP, TP, CSD) determines which role band they appear in across all dashboard calculations. Keep this accurate when editing records.</div>
-
       <h3>Assignments tab</h3>
       <p>Lists assignment records showing employee name, level, customer, project type, start and end dates, monthly bill rate, and billed status. Defaults to current assignments.</p>
       <p>Use the <strong>Status</strong> filter to switch between Current, Former, Planned, or All assignments. Filter further by Customer or Project Type using the dropdowns.</p>
@@ -346,36 +264,18 @@
         <span class="role-badge leadership">Leadership</span>
       </div>
       <p>A read-only Gantt-style view of all employee assignments across a calendar year. Use the <strong>Year</strong> selector at the top right to switch between years.</p>
-
       <h3>Reading the timeline</h3>
       <p>Rows are grouped by customer (A–Z). Within each customer, employees are sorted by role band (SDM, STP, TP) then name. Unassigned or bench employees appear at the top of the chart. Each bar represents one assignment — hover over a bar to see the customer, bill rate, and assignment dates in a tooltip.</p>
       <p>Bars are colour coded by project type:</p>
       <div class="colour-key">
-        <div class="colour-key-item">
-          <div class="colour-swatch" style="background:#2E75B6"></div>
-          Embedded
-        </div>
-        <div class="colour-key-item">
-          <div class="colour-swatch" style="background:#2e7d32"></div>
-          CoE
-        </div>
-        <div class="colour-key-item">
-          <div class="colour-swatch" style="background:#e65100"></div>
-          Transformation
-        </div>
-        <div class="colour-key-item">
-          <div class="colour-swatch" style="background:#6a1b9a"></div>
-          LCI
-        </div>
-        <div class="colour-key-item">
-          <div class="colour-swatch" style="background:#888"></div>
-          Internal / bench
-        </div>
+        <div class="colour-key-item"><div class="colour-swatch" style="background:#2E75B6"></div>Embedded</div>
+        <div class="colour-key-item"><div class="colour-swatch" style="background:#2e7d32"></div>CoE</div>
+        <div class="colour-key-item"><div class="colour-swatch" style="background:#e65100"></div>Transformation</div>
+        <div class="colour-key-item"><div class="colour-swatch" style="background:#6a1b9a"></div>LCI</div>
+        <div class="colour-key-item"><div class="colour-swatch" style="background:#888"></div>Internal / bench</div>
       </div>
-
       <h3>Multiple assignments</h3>
       <p>If an employee has more than one assignment in the year, all bars appear on the same row. Bars from different assignments may overlap if the employee was deployed across more than one customer simultaneously.</p>
-
       <div class="tip">The Deployment Timeline shows future assignment dates as planned — it is not capped at today. This makes it useful for workforce planning and visualising upcoming capacity changes.</div>
     </div>
 
@@ -387,25 +287,36 @@
         <span class="role-badge leadership">Leadership</span>
       </div>
       <p>Tracks invoices issued through the G-P (Employer of Record) arrangement. Each invoice is logged with its number, dates, amount, notes, and payment status.</p>
-
       <h3>Summary bar</h3>
       <p>At the top of the page, three figures give an at-a-glance view of the invoice position: total outstanding amount, number of overdue invoices, and the date of the oldest overdue invoice.</p>
-
       <h3>Invoice status</h3>
       <p>Each invoice has one of three statuses: <strong>Sent</strong> (issued, awaiting payment), <strong>Overdue</strong> (Sent with a due date in the past), or <strong>Paid</strong>. Overdue status is calculated automatically — no manual flagging is needed.</p>
-
       <h3>Adding and editing invoices</h3>
       <p>Admins can add new invoices using <strong>+ Add Invoice</strong> and edit existing records via the Edit link on each row. Once payment is received, use <strong>Mark Paid</strong> on the row to update the status directly without opening the edit form.</p>
-
       <div class="tip">G-P Invoice amounts are tracked separately from the Estimated Revenue figures on the People Dashboard. The dashboard calculates revenue from assignment bill rates — invoice amounts here reflect actual G-P charges which may differ.</div>
+    </div>
+
+    <!-- Homepage Admin -->
+    <div class="guide-section" id="homepage-admin">
+      <h2>Homepage Admin</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+      </div>
+      <p>Admins can control two homepage features from the <strong>Homepage</strong> tab in the Newton OS Admin panel (accessible via the Admin link on the Newton home screen).</p>
+      <h3>Announcement Banner</h3>
+      <p>A scrolling ticker that appears at the bottom of the Newton home screen, visible to all users. Use it to share team-wide messages, reminders, or announcements.</p>
+      <p>To set a message, type it into the Message field and click <strong>Save</strong>. The banner appears on the home screen immediately for all users. To remove it, click <strong>Clear Banner</strong> — the ticker disappears until a new message is saved.</p>
+      <div class="tip">The message is stored in SharePoint and shown to every user on page load — it is not browser-specific. One active message can be set at a time.</div>
+      <h3>Seasonal Effects</h3>
+      <p>A canvas animation that plays on the Newton home screen. One effect can be active at a time. Toggle any effect on using its button — clicking again turns it off. Changes take effect immediately for all users on their next page load.</p>
+      <p>Available effects: Spring, Summer Scene, Autumn, Snowfall, and Christmas Lights.</p>
+      <div class="tip">Seasonal effects were previously per-browser (localStorage). They are now stored in SharePoint, meaning the Admin controls the effect for all users from a single setting.</div>
     </div>
 
   </div><!-- end guide-content -->
 </div><!-- end guide-body -->
-
 <div class="guide-footer">
   Newton · People · Momentum Global
 </div>
-
 </body>
 </html>

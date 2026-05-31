@@ -1,4 +1,4 @@
-// js/admin.js — Reporting Admin Panel (Departments + Delete Records)
+// js/admin.js — Reporting Config Panel (Departments + Delete Records)
 let _adminTab = 'departments';
 async function renderAdminPage() {
   const main = document.getElementById('main-content');
@@ -8,7 +8,7 @@ async function renderAdminPage() {
     main.innerHTML = '<p>Access denied.</p>';
     return;
   }
-  main.innerHTML = '<p>Loading admin panel...</p>';
+  main.innerHTML = '<p>Loading...</p>';
   await renderAdminTab(_adminTab);
 }
 async function renderAdminTab(tab) {
@@ -29,7 +29,7 @@ async function renderAdminTab(tab) {
   if (tab === 'delete')      content = await buildDeleteTab();
   main.innerHTML = `
     <div class="page-header">
-      <h2>Admin Panel</h2>
+      <h2>Config Panel</h2>
       <div class="filter-group">${tabBar}</div>
     </div>
     <div style="padding:24px">${content}</div>

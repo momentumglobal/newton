@@ -3,6 +3,31 @@
 let _dashPeriod       = 'quarter'; // KPI ribbon: 'month' | 'quarter' | 'year'
 let _dashDetailPeriod = 'this_month'; // Detail panels filter
 let _dashProjectId    = null;
+
+// ── Fade refresh helper ───────────────────────────────────────────────
+// Fades out a container, runs an update function, then fades back in.
+// Used for period filter changes so data areas transition rather than snap.
+function fadeRefresh(selector, updateFn) {
+  const el = document.querySelector(selector);
+  if (!el) { updateFn(); return; }
+  el.style.transition = 'opacity 120ms ease';
+  el.style.opacity    = '0';
+  setTimeout(() => {
+    updateFn();
+    // Re-query after DOM update
+    const updated = document.querySelector(selector);
+    if (updated) {
+      updated.style.transition = 'opacity 120ms ease';
+      updated.style.opacity    = '0';
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          updated.style.opacity = '1';
+        });
+      });
+    }
+  }, 120);
+}
+
 // ── KPI period helpers ────────────────────────────────────────────────
 function isoWeek(date) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -339,6 +364,11 @@ async function renderProjectDashboard() {
     return;
   }
   const { roles, activity, placements, rejections } = await fetchDashboardData(projectId, role);
+  // Cache for period filter updates (avoids full re-fetch on filter change)
+  window._lastDashRoles       = roles;
+  window._lastDashActivity    = activity;
+  window._lastDashPlacements  = placements;
+  window._lastDashRejections  = rejections;
   const kpiPeriods   = [['month','Month'],['quarter','Quarter'],['year','Year']];
   const kpiBtns      = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
   const kpis         = renderKPIStrip(roles, activity, _dashPeriod);
@@ -358,12 +388,12 @@ async function renderProjectDashboard() {
       <label>KPI Period</label>
       <div class='filter-group'>${kpiBtns}</div>
     </div>
-    ${kpis}
+    <div id='proj-kpi-area'>${kpis}</div>
     ${longOpenProj}
     <div class='dash-detail-header'>
       ${detailPeriodDropdown()}
     </div>
-    <div class='dash-grid'>
+    <div id='proj-detail-grid' class='dash-grid'>
       ${pipelineAct}
       ${tpTable}
       ${rejPanel}
@@ -372,8 +402,34 @@ async function renderProjectDashboard() {
     </div>`;
 }
 function changeDashProject(id)   { _dashProjectId = String(id); renderProjectDashboard(); }
-function setDashPeriod(period)   { _dashPeriod = period; renderProjectDashboard(); }
-function setDetailPeriod(period) { _dashDetailPeriod = period; renderProjectDashboard(); }
+function setDashPeriod(period) {
+  _dashPeriod = period;
+  fadeRefresh('#proj-kpi-area', () => {
+    const strip = document.getElementById('proj-kpi-area');
+    if (strip && window._lastDashRoles && window._lastDashActivity) {
+      strip.innerHTML = renderKPIStrip(window._lastDashRoles, window._lastDashActivity, _dashPeriod);
+    } else {
+      renderProjectDashboard();
+    }
+  });
+}
+function setDetailPeriod(period) {
+  _dashDetailPeriod = period;
+  fadeRefresh('#proj-detail-grid', () => {
+    const grid = document.getElementById('proj-detail-grid');
+    if (grid && window._lastDashRoles && window._lastDashActivity) {
+      const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole);
+      grid.innerHTML =
+        renderPipelineActivityTable(window._lastDashActivity, window._lastDashRoles, _dashDetailPeriod) +
+        (isDMAdmin ? renderActivityByTPPanel(window._lastDashActivity, _dashDetailPeriod) : '') +
+        (isDMAdmin ? renderRejectionPanel(window._lastDashRejections, window._lastDashRoles, _dashDetailPeriod) : '') +
+        (isDMAdmin ? renderUpcomingStartersPanel(window._lastDashPlacements, window._lastDashRoles) : '') +
+        (isDMAdmin ? renderSpendPanel(window._lastDashRoles, window._lastDashPlacements) : '');
+    } else {
+      renderProjectDashboard();
+    }
+  });
+}
 // ═══════════════════════════════════════════════════════════════════════
 // COMPANY DASHBOARD — Admin + Leadership cross-project rollup
 // ═══════════════════════════════════════════════════════════════════════
@@ -506,6 +562,12 @@ async function renderCompanyDashboard() {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
+  // Cache for period filter updates
+  window._lastCoProjects    = allProjects;
+  window._lastCoRoles       = allRoles;
+  window._lastCoActivity    = allActivity;
+  window._lastCoProjectMap  = projectMap;
+  window._lastCoRoleProjectMap = roleProjectMap;
   const kpiPeriods = [['month','Month'],['quarter','Quarter'],['year','Year']];
   const kpiBtns    = periodButtons(kpiPeriods, _companyPeriod, 'setCompanyPeriod');
   const kpis     = renderCompanyKPIStrip(allRoles, allActivity, allProjects, _companyPeriod);
@@ -520,14 +582,37 @@ async function renderCompanyDashboard() {
       <label>KPI Period</label>
       <div class='filter-group'>${kpiBtns}</div>
     </div>
-    ${kpis}
+    <div id='co-kpi-area'>${kpis}</div>
     ${longOpen}
     <div class='dash-detail-header'>
       ${companyDetailPeriodDropdown()}
     </div>
-    <div class='dash-grid'>
+    <div id='co-detail-grid' class='dash-grid'>
       ${tpPanel}
     </div>`;
 }
-function setCompanyPeriod(period)       { _companyPeriod = period; renderCompanyDashboard(); }
-function setCompanyDetailPeriod(period) { _companyDetailPeriod = period; renderCompanyDashboard(); }
+function setCompanyPeriod(period) {
+  _companyPeriod = period;
+  fadeRefresh('#co-kpi-area', () => {
+    const strip = document.getElementById('co-kpi-area');
+    if (strip && window._lastCoRoles) {
+      strip.innerHTML = renderCompanyKPIStrip(window._lastCoRoles, window._lastCoActivity, window._lastCoProjects, _companyPeriod);
+    } else {
+      renderCompanyDashboard();
+    }
+  });
+}
+function setCompanyDetailPeriod(period) {
+  _companyDetailPeriod = period;
+  fadeRefresh('#co-detail-grid', () => {
+    const grid = document.getElementById('co-detail-grid');
+    if (grid && window._lastCoActivity) {
+      grid.innerHTML = renderCompanyTPPanel(
+        window._lastCoActivity, window._lastCoProjectMap,
+        window._lastCoRoleProjectMap, _companyDetailPeriod
+      );
+    } else {
+      renderCompanyDashboard();
+    }
+  });
+}

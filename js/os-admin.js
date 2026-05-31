@@ -43,9 +43,11 @@ const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.
       <td>${a.CustomerName || '—'}</td>
       <td>${a.AssignedRole === 'talent_partner' ? 'Talent Partner' : a.AssignedRole === 'delivery_manager' ? 'Delivery Manager' : a.AssignedRole || '—'}</td>
       <td>${a.LastLogin ? new Date(a.LastLogin).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'}</td>
-      <td style="display:flex;gap:8px">
-        <a href="#" onclick="showEditAssignment(${a.id})">Edit</a>
-        <button class="btn-danger" onclick="deleteOsAdminRecord('UserAssignments',${a.id})">Remove</button>
+      <td>
+        <div class="row-actions" style="gap:12px;align-items:center">
+          <a href="#" onclick="showEditAssignment(${a.id})">Edit</a>
+          <button class="btn-danger" onclick="deleteOsAdminRecord('UserAssignments',${a.id})">Remove</button>
+        </div>
       </td>
     </tr>`).join('');
   const editForm = editRecord ? `

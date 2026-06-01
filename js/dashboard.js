@@ -255,18 +255,56 @@ function renderUpcomingStartersPanel(placements, roles) {
 }
 // ── Actual Spend vs Budget ────────────────────────────────────────────
 function renderSpendPanel(roles, placements) {
-  const budget = roles.filter(r => r.Budget).reduce((s, r) => s + (parseFloat(r.Budget) || 0), 0);
-  const spend  = placements.filter(p => p.SalaryAgreed).reduce((s, p) => s + (parseFloat(p.SalaryAgreed) || 0), 0);
-  const fmt    = n => n.toLocaleString('en-GB', { style:'currency', currency:'GBP', maximumFractionDigits:0 });
-  const diff   = budget - spend;
-  const dLabel = diff >= 0 ? `${fmt(diff)} under budget` : `${fmt(Math.abs(diff))} over budget`;
-  const dColor = diff >= 0 ? '#107C10' : '#C00000';
-  return `<div class='dash-panel'><h3 class='panel-title'>Actual Spend vs Budget</h3>
-    <div class='spend-grid'>
-      <div><div class='spend-label'>Budget</div><div class='spend-val'>${fmt(budget)}</div></div>
-      <div><div class='spend-label'>Actual Spend</div><div class='spend-val'>${fmt(spend)}</div></div>
-      <div><div class='spend-label'>Variance</div><div class='spend-val' style='color:${dColor}'>${dLabel}</div></div>
+  // Build a map of roleId -> currency from roles
+  const roleCurrencyMap = Object.fromEntries(
+    roles.map(r => [String(r.id), r.Currency || 'GBP'])
+  );
+  // Group roles and placements by currency
+  const currencies = [...new Set(roles.filter(r => r.Budget).map(r => r.Currency || 'GBP'))];
+  if (!currencies.length) {
+    return `<div class='dash-panel'><h3 class='panel-title'>Actual Spend vs Budget</h3><p class='no-data'>No budget data available.</p></div>`;
+  }
+  // Calculate overall % variance across all currencies combined (currency-agnostic)
+  const totalBudget = roles.filter(r => r.Budget).reduce((s, r) => s + (parseFloat(r.Budget) || 0), 0);
+  const totalSpend  = placements.filter(p => p.SalaryAgreed).reduce((s, p) => s + (parseFloat(p.SalaryAgreed) || 0), 0);
+  const overallPct  = totalBudget > 0 ? Math.round(((totalBudget - totalSpend) / totalBudget) * 100) : null;
+  const overallLabel = overallPct === null ? '—'
+    : overallPct >= 0 ? `${overallPct}% under budget` : `${Math.abs(overallPct)}% over budget`;
+  const overallColor = overallPct === null ? '#666' : overallPct >= 0 ? '#107C10' : '#C00000';
+  // Per-currency breakdown
+  const SYMBOLS = { GBP: '£', EUR: '€', USD: '$', CND: 'CA$', RON: 'RON ', SGD: 'S$', TND: 'TND ' };
+  const fmt = (n, ccy) => {
+    const sym = SYMBOLS[ccy] || (ccy + ' ');
+    return sym + Math.round(n).toLocaleString('en-GB');
+  };
+  const breakdownRows = currencies.map(ccy => {
+    const ccyRoles = roles.filter(r => (r.Currency || 'GBP') === ccy && r.Budget);
+    const ccyPlacements = placements.filter(p => {
+      const rid = String(p.RoleIDLookupId || p.RoleID || '');
+      return (roleCurrencyMap[rid] || 'GBP') === ccy && p.SalaryAgreed;
+    });
+    const budget = ccyRoles.reduce((s, r) => s + (parseFloat(r.Budget) || 0), 0);
+    const spend  = ccyPlacements.reduce((s, p) => s + (parseFloat(p.SalaryAgreed) || 0), 0);
+    const diff   = budget - spend;
+    const diffColor = diff >= 0 ? '#107C10' : '#C00000';
+    const diffLabel = diff >= 0 ? `${fmt(diff, ccy)} under` : `${fmt(Math.abs(diff), ccy)} over`;
+    return `<tr>
+      <td><strong>${ccy}</strong></td>
+      <td>${fmt(budget, ccy)}</td>
+      <td>${fmt(spend, ccy)}</td>
+      <td style="color:${diffColor}">${diffLabel}</td>
+    </tr>`;
+  }).join('');
+  return `<div class='dash-panel'>
+    <h3 class='panel-title'>Actual Spend vs Budget</h3>
+    <div style="margin-bottom:16px">
+      <div class='spend-label'>Overall Variance</div>
+      <div class='spend-val' style='color:${overallColor}'>${overallLabel}</div>
     </div>
+    <table class='data-table'>
+      <thead><tr><th>Currency</th><th>Budget</th><th>Actual Spend</th><th>Variance</th></tr></thead>
+      <tbody>${breakdownRows}</tbody>
+    </table>
   </div>`;
 }
 // ── Filter helpers ────────────────────────────────────────────────────
@@ -347,12 +385,13 @@ function renderPlacementsPanel(placements, roles, period) {
       <td>${p.CandidateName}</td>
       <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '—'}</td>
       <td>${p.OfferAcceptedDate ? p.OfferAcceptedDate.split('T')[0] : '—'}</td>
-      <td>${p.SalaryAgreed ? p.SalaryAgreed.toLocaleString('en-GB', {style:'currency',currency:'GBP',maximumFractionDigits:0}) : '—'}</td>
+      <td>${p.Currency || '—'}</td>
+      <td>${p.SalaryAgreed ? Number(p.SalaryAgreed).toLocaleString('en-GB') : '—'}</td>
     </tr>`).join('');
   return `<div class='dash-panel'>
     <h3 class='panel-title'>Placements</h3>
     <table class='data-table'>
-      <thead><tr><th>Candidate</th><th>Role</th><th>Offer Accepted</th><th>Salary</th></tr></thead>
+      <thead><tr><th>Candidate</th><th>Role</th><th>Offer Accepted</th><th>Currency</th><th>Salary</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </div>`;

@@ -22,7 +22,6 @@ function addDays(dateStr, days) {
     String(date.getDate()).padStart(2, '0'),
   ].join('-');
 }
-
 // ── Project Form ────────────────────────────────────────────────────
 function renderProjectForm(existingData = null) {
   const isEdit = !!existingData;
@@ -100,7 +99,6 @@ async function submitProjectForm(event, editId = null) {
     showFormError('project-form', `Error saving project: ${e.message}`);
   }
 }
-
 // ── Role Form ────────────────────────────────────────────────────────
 async function renderRoleForm(existingData = null, preselectedProjectId = null) {
   const isEdit = !!existingData;
@@ -108,7 +106,6 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
   const email = currentUser.email;
   const userRole = getUserRole(email);
   const canAssign = ['admin', 'delivery_manager'].includes(userRole);
-  // Scoped project list — admin sees all, TP/DM sees assigned only
   const projects = await getScopedProjects(email, false);
   const selectedProjectId = existingData?.ProjectID || preselectedProjectId || '';
   const projectOptions = projects.map(p =>
@@ -127,6 +124,15 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
         ).join('');
     } catch (e) { /* fall back to empty */ }
   }
+  // Load currencies
+  let currencyOptions = '<option value="">-- Select currency --</option>';
+  try {
+    const currencies = await getCurrencies();
+    currencyOptions = '<option value="">-- Select currency --</option>' +
+      currencies.map(c =>
+        `<option value="${c.CurrencyCode}" ${existingData?.Currency === c.CurrencyCode ? 'selected' : ''}>${c.CurrencyCode}</option>`
+      ).join('');
+  } catch (e) { /* fall back to empty */ }
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Role' : 'Add Role'}</h2>
@@ -163,12 +169,28 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
               value="${existingData?.Budget || ''}">
           </div>
           <div class="form-group">
+            <label>Currency</label>
+            <select name="Currency" id="role-currency-select">
+              ${currencyOptions}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
             <label>Priority</label>
             <select name="Priority">
               <option value="">--</option>
               <option value="1" ${existingData?.Priority == 1 ? 'selected' : ''}>1 — High</option>
               <option value="2" ${existingData?.Priority == 2 ? 'selected' : ''}>2 — Medium</option>
               <option value="3" ${existingData?.Priority == 3 ? 'selected' : ''}>3 — Low</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Backfill?</label>
+            <select name="Backfill">
+              <option value="">--</option>
+              <option value="Yes" ${existingData?.Backfill === 'Yes' ? 'selected' : ''}>Yes</option>
+              <option value="No" ${existingData?.Backfill === 'No' ? 'selected' : ''}>No</option>
             </select>
           </div>
         </div>
@@ -182,11 +204,9 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             </select>
           </div>
           <div class="form-group">
-            <label>Backfill?</label>
-            <select name="Backfill">
-              <option value="">--</option>
-              <option value="Yes" ${existingData?.Backfill === 'Yes' ? 'selected' : ''}>Yes</option>
-              <option value="No" ${existingData?.Backfill === 'No' ? 'selected' : ''}>No</option>
+            <label>Department</label>
+            <select name="Department" id="role-department-select">
+              ${departmentOptions}
             </select>
           </div>
         </div>
@@ -202,12 +222,6 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             <input type="date" name="TargetHireDate" id="role-target-date"
               value="${existingData?.TargetHireDate ? existingData.TargetHireDate.split('T')[0] : ''}">
           </div>
-        </div>
-        <div class="form-group">
-          <label>Department</label>
-          <select name="Department" id="role-department-select">
-            ${departmentOptions}
-          </select>
         </div>
         <div class="form-group">
           <label>Notes</label>
@@ -278,6 +292,7 @@ async function submitRoleForm(event, editId = null) {
     HiringManager:  data.HiringManager || undefined,
     TalentPartner:  data.TalentPartnerName || undefined,
     Budget:         data.Budget ? parseFloat(data.Budget) : undefined,
+    Currency:       data.Currency || undefined,
     Priority:       data.Priority ? parseInt(data.Priority) : undefined,
     Backfill:       data.Backfill === 'Yes' ? true : data.Backfill === 'No' ? false : undefined,
     Stage:          data.Stage,
@@ -298,7 +313,6 @@ async function submitRoleForm(event, editId = null) {
     showFormError('role-form', `Error saving role: ${e.message}`);
   }
 }
-
 // ── Weekly Activity Form ────────────────────────────────────────────
 function getISOWeek(date) {
   const d = new Date(date);
@@ -320,7 +334,6 @@ async function renderWeeklyActivityForm(existingData = null) {
   const email = currentUser.email;
   const userRole = getUserRole(email);
   const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
-  // Scoped project list
   const projects = await getScopedProjects(email, false);
   const projectOptions = projects.map(p =>
     `<option value="${p.id}" ${existingData?.ProjectID == p.id ? 'selected' : ''}>${p.CustomerName}</option>`
@@ -416,7 +429,7 @@ async function loadRolesForWeekly(projectId) {
 }
 async function loadTalentPartnersForWeekly(projectId) {
   const select = document.getElementById('weekly-tp-select');
-  if (!select) return; // not shown for TP users
+  if (!select) return;
   if (!projectId) {
     select.innerHTML = '<option value="">-- Select project first --</option>';
     return;
@@ -472,7 +485,6 @@ async function submitWeeklyForm(event, editId = null) {
     showFormError('weekly-form', `Error saving activity: ${e.message}`);
   }
 }
-
 // ── Placement Form ───────────────────────────────────────────────────
 async function renderPlacementForm(existingData = null, preselectedRoleId = null) {
   const isEdit = !!existingData;
@@ -480,12 +492,12 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   const email = currentUser.email;
   const userRole = getUserRole(email);
   const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
-
   const projects = await getScopedProjects(email, false);
   const projectOptions = projects.map(p =>
     `<option value="${p.id}" ${existingData?.ProjectID == p.id ? 'selected' : ''}>${p.CustomerName}</option>`
   ).join('');
-
+  // Pre-load currency if editing
+  let inheritedCurrency = existingData?.Currency || '';
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Placement' : 'Record Placement'}</h2>
@@ -501,7 +513,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
           </div>
           <div class="form-group">
             <label>Role *</label>
-            <select name="RoleID" id="placement-role-select" required>
+            <select name="RoleID" id="placement-role-select" required onchange="loadCurrencyForPlacement(this.value)">
               <option value="">-- Select project first --</option>
             </select>
           </div>
@@ -525,15 +537,24 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
               value="${existingData?.SalaryAgreed || ''}">
           </div>
           <div class="form-group">
+            <label>Currency</label>
+            <input type="text" id="placement-currency" name="Currency" readonly
+              style="background:#f5f5f5;color:#666;"
+              value="${inheritedCurrency}"
+              placeholder="Auto-filled from role">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
             <label>Offer Accepted Date</label>
             <input type="date" name="OfferAcceptedDate"
               value="${existingData?.OfferAcceptedDate ? existingData.OfferAcceptedDate.split('T')[0] : ''}">
           </div>
-        </div>
-        <div class="form-group">
-          <label>Provisional Start Date</label>
-          <input type="date" name="ProvisionalStartDate"
-            value="${existingData?.ProvisionalStartDate ? existingData.ProvisionalStartDate.split('T')[0] : ''}">
+          <div class="form-group">
+            <label>Provisional Start Date</label>
+            <input type="date" name="ProvisionalStartDate"
+              value="${existingData?.ProvisionalStartDate ? existingData.ProvisionalStartDate.split('T')[0] : ''}">
+          </div>
         </div>
         <div class="form-group">
           <label>Notes</label>
@@ -554,6 +575,19 @@ async function loadRolesForPlacement(projectId) {
   const roles = await getRolesForProject(projectId);
   select.innerHTML = '<option value="">-- Select role --</option>' +
     roles.map(r => `<option value="${r.id}">${r.RoleTitle}</option>`).join('');
+  // Clear currency when project changes
+  const currencyEl = document.getElementById('placement-currency');
+  if (currencyEl) currencyEl.value = '';
+}
+async function loadCurrencyForPlacement(roleId) {
+  const currencyEl = document.getElementById('placement-currency');
+  if (!currencyEl || !roleId) return;
+  try {
+    const role = await getItem('Roles', roleId);
+    currencyEl.value = role.Currency || '';
+  } catch(e) {
+    currencyEl.value = '';
+  }
 }
 async function loadTalentPartnersForPlacement(projectId) {
   const select = document.getElementById('placement-tp-select');
@@ -593,6 +627,7 @@ async function submitPlacementForm(event, editId = null) {
     Title:                data.CandidateName,
     TalentPartner:        data.TalentPartnerName || undefined,
     SalaryAgreed:         data.SalaryAgreed || undefined,
+    Currency:             data.Currency || undefined,
     OfferAcceptedDate:    offerDate || undefined,
     ProvisionalStartDate: startDate || undefined,
     TimeToHire:           timeToHire,
@@ -616,14 +651,12 @@ async function submitPlacementForm(event, editId = null) {
     showFormError('placement-form', `Error saving placement: ${e.message}`);
   }
 }
-
 // ── Rejected Offer Form ──────────────────────────────────────────────
 async function renderRejectedOfferForm(existingData = null, preselectedRoleId = null) {
   const isEdit = !!existingData;
   const email = getCurrentUser().email;
   const projectIds = await getUserProjectIds(email);
   const allRoles = await getAllRoles();
-  // Scope roles to user's projects
   const roles = projectIds === null
     ? allRoles
     : allRoles.filter(r =>

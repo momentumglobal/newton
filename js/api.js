@@ -131,7 +131,7 @@ async function getEffectiveRole(email) {
   const leadership = await getLeadershipAccess();
   if (leadership.some(l => l.UserEmail?.toLowerCase() === lower)) return 'leadership';
   const assignments = await getItems("UserAssignments",
-    `fields/UserEmail eq '${email}'`);
+    `fields/Title eq '${email}'`);
   if (assignments.length > 0) return assignments[0].AssignedRole;
   return 'viewer';
 }
@@ -149,7 +149,7 @@ async function ensureUserRegistered(email, displayName) {
   const lower = email.toLowerCase();
   if (CONFIG.ADMIN_USERS?.includes(lower)) return;
   const existing = await getItems("UserAssignments",
-    `fields/UserEmail eq '${email}'`);
+    `fields/Title eq '${email}'`);
   if (existing.length === 0) {
     await createItem("UserAssignments", {
       Title: email,

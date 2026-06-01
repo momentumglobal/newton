@@ -571,7 +571,7 @@ async function renderCompanyDashboard() {
 </div>
     <div class='form-group dash-project-selector'>
       <label>KPI Period</label>
-      <div class='filter-group'>${kpiBtns}</div>
+      <div class='filter-group' id='co-kpi-btns'>${kpiBtns}</div>
     </div>
     <div id='co-kpi-area'>${kpis}</div>
     ${longOpen}
@@ -587,6 +587,8 @@ function setCompanyPeriod(period) {
   const el = document.getElementById('co-kpi-area');
   if (el && window._lastCoRoles) {
     el.innerHTML = renderCompanyKPIStrip(window._lastCoRoles, window._lastCoActivity, window._lastCoProjects, _companyPeriod);
+    const btnsEl = document.getElementById('co-kpi-btns');
+    if (btnsEl) btnsEl.innerHTML = periodButtons([['month','Month'],['quarter','Quarter'],['year','Year']], _companyPeriod, 'setCompanyPeriod');
   } else {
     renderCompanyDashboard();
   }

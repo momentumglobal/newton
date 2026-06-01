@@ -99,6 +99,8 @@ async function renderAssignmentsTab() {
 const filtered = assignments.filter(a => {
   const start = a.StartDate ? new Date(a.StartDate) : null;
   const end   = a.EndDate   ? new Date(a.EndDate)   : null;
+  if (start) start.setHours(0,0,0,0);
+  if (end)   end.setHours(0,0,0,0);
   const isPlanned = start && start > today;
   const isCurrent = !isPlanned && (!end || end >= today);
   if (statusFilter === 'current') return isCurrent;

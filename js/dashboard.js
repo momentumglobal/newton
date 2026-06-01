@@ -616,31 +616,83 @@ function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period) {
   const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
   const openRoles      = allRoles.filter(r => !EXCLUDED.includes(r.Stage)).length;
   const activeProjects = allProjects.filter(p => p.Status === 'Active').length;
+
+  // Current period activity
   const acts      = allActivity.filter(a => activityInKpiPeriod(a, period));
   const submitted = sumField(acts, 'Submitted');
   const int1      = sumField(acts, 'Interview1');
   const offers    = sumField(acts, 'Offers');
   const hires     = sumField(acts, 'Hires');
-  const convPct  = submitted > 0 ? Math.round((int1 / submitted) * 100) + '%' : '—';
-  const ivOfferR = offers > 0 ? Math.round(int1 / offers) + ':1' : '—';
-  const offerPct = offers > 0 ? Math.round((hires / offers) * 100) + '%' : '—';
+
+  const convPct  = submitted > 0 ? Math.round((int1 / submitted) * 100) : null;
+  const ivOfferR = offers > 0    ? Math.round(int1 / offers)            : null;
+  const offerPct = offers > 0    ? Math.round((hires / offers) * 100)   : null;
+
   const periodRoles = allRoles.filter(r => roleHiredInKpiPeriod(r, period));
   const avgDays     = avgDaysToHire(periodRoles);
   const onTimePct   = hiredOnTimePct(periodRoles);
+
+  // Previous period for deltas
+  const prevPeriod = getPreviousPeriod(period);
+  const prevRange  = prevPeriod ? getDetailPeriodRange(prevPeriod) : null;
+
+  let prevHires = null, prevConvPct = null, prevIvOfferR = null;
+  let prevOfferPct = null, prevAvgDays = null, prevOnTimePct = null;
+
+  if (prevRange) {
+    const prevActs = allActivity.filter(a => {
+      const date = a.WeekEndingDate
+        ? new Date(a.WeekEndingDate)
+        : weekEndingDate(Number(a.Year), Number(a.WeekNumber));
+      return date >= prevRange.start && date <= prevRange.end;
+    });
+    const pSubmitted = sumField(prevActs, 'Submitted');
+    const pInt1      = sumField(prevActs, 'Interview1');
+    const pOffers    = sumField(prevActs, 'Offers');
+    prevHires    = sumField(prevActs, 'Hires');
+    prevConvPct  = pSubmitted > 0 ? Math.round((pInt1 / pSubmitted) * 100) : null;
+    prevIvOfferR = pOffers > 0    ? Math.round(pInt1 / pOffers)            : null;
+    prevOfferPct = pOffers > 0    ? Math.round((prevHires / pOffers) * 100): null;
+
+    const prevPeriodRoles = allRoles.filter(r => {
+      if (!r.ActualHireDate) return false;
+      const d = new Date(r.ActualHireDate);
+      return d >= prevRange.start && d <= prevRange.end;
+    });
+    prevAvgDays   = avgDaysToHire(prevPeriodRoles);
+    prevOnTimePct = hiredOnTimePct(prevPeriodRoles);
+  }
+
+  // Deltas
+  const hiresDelta  = kpiDelta(hires,    prevHires,    false, false);
+  const convDelta   = kpiDelta(convPct,  prevConvPct,  false, true);
+  const ivDelta     = kpiDelta(ivOfferR, prevIvOfferR, true,  false);
+  const offerDelta  = kpiDelta(offerPct, prevOfferPct, false, true);
+  const daysDelta   = kpiDelta(avgDays,  prevAvgDays,  true,  false);
+  const otDelta     = kpiDelta(onTimePct,prevOnTimePct,false, true);
+
+  // Display values
+  const convDisplay  = convPct   !== null ? convPct + '%'   : '—';
+  const ivDisplay    = ivOfferR  !== null ? ivOfferR + ':1' : '—';
+  const offerDisplay = offerPct  !== null ? offerPct + '%'  : '—';
+  const daysDisplay  = avgDays   !== null ? avgDays         : '—';
+  const otDisplay    = onTimePct !== null ? onTimePct + '%' : '—';
+
   return `
     <div class='kpi-strip'>
       ${kpiCard('Active Projects', activeProjects, 'current')}
       ${kpiCard('Open Roles', openRoles, 'current')}
     </div>
     <div class='kpi-strip kpi-strip-period'>
-      ${kpiCard('Hires', hires, 'in period')}
-      ${kpiCard('Submission Conversion', convPct, 'IV1 / Submitted')}
-      ${kpiCard('IV to Offer Ratio', ivOfferR, 'IV1 : Offers')}
-      ${kpiCard('Offer Success', offerPct, 'Hires / Offers')}
-      ${kpiCard('Avg Days to Hire', avgDays !== null ? avgDays : '—', 'hired roles in period')}
-      ${kpiCard('Hired On Time', onTimePct !== null ? onTimePct + '%' : '—', 'within 45-day target')}
+      ${kpiCard('Hires',                 hires + hiresDelta,          'in period')}
+      ${kpiCard('Submission Conversion', convDisplay  + convDelta,    'IV1 / Submitted')}
+      ${kpiCard('IV to Offer Ratio',     ivDisplay    + ivDelta,      'IV1 : Offers')}
+      ${kpiCard('Offer Success',         offerDisplay + offerDelta,   'Hires / Offers')}
+      ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,    'hired roles in period')}
+      ${kpiCard('Hired On Time',         otDisplay    + otDelta,      'within 45-day target')}
     </div>`;
 }
+
 // ── Roles open 30+ days panel ─────────────────────────────────────────
 function renderLongOpenRolesPanel(allRoles, projectMap) {
   const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];

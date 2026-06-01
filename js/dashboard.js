@@ -155,7 +155,7 @@ function kpiCard(label, value, sub = '') {
 }
 function renderKPIStrip(roles, activity, period) {
   const openRoles    = roles.filter(r => !['Backlog','Hired','Cancelled','On-hold'].includes(r.Stage)).length;
-  const totalHires   = roles.filter(r => r.Stage === 'Hired').length;
+  const totalHires = sumField(activity, 'Hires');
   const backlogRoles = roles.filter(r => r.Stage === 'Backlog').length;
 
   // Current period activity

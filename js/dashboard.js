@@ -379,7 +379,7 @@ async function renderProjectDashboard() {
     ${selectorHtml}
     <div class='form-group dash-project-selector'>
       <label>KPI Period</label>
-      <div class='filter-group'>${kpiBtns}</div>
+      <div class='filter-group' id='proj-kpi-btns'>${kpiBtns}</div>
     </div>
     <div id='proj-kpi-area'>${kpis}</div>
     ${longOpenProj}
@@ -400,6 +400,8 @@ function setDashPeriod(period) {
   const el = document.getElementById('proj-kpi-area');
   if (el && window._lastDashRoles && window._lastDashActivity) {
     el.innerHTML = renderKPIStrip(window._lastDashRoles, window._lastDashActivity, _dashPeriod);
+    const btnsEl = document.getElementById('proj-kpi-btns');
+    if (btnsEl) btnsEl.innerHTML = periodButtons([['month','Month'],['quarter','Quarter'],['year','Year']], _dashPeriod, 'setDashPeriod');
   } else {
     renderProjectDashboard();
   }

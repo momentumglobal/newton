@@ -328,6 +328,36 @@ function renderProjectLongOpenRolesPanel(roles) {
     </table>
   </div>`;
 }
+
+// ── Placements panel (project-scoped, period-filtered) ────────────────
+function renderPlacementsPanel(placements, roles, period) {
+  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), r.RoleTitle]));
+  const { start, end } = getDetailPeriodRange(period);
+  const filtered = placements.filter(p => {
+    if (!p.OfferAcceptedDate) return false;
+    const d = new Date(p.OfferAcceptedDate);
+    return d >= start && d <= end;
+  }).sort((a, b) => new Date(b.OfferAcceptedDate) - new Date(a.OfferAcceptedDate));
+  if (!filtered.length) return `<div class='dash-panel'>
+    <h3 class='panel-title'>Placements</h3>
+    <p class='no-data'>No placements recorded for this period.</p>
+  </div>`;
+  const rows = filtered.map(p => `
+    <tr>
+      <td>${p.CandidateName}</td>
+      <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '—'}</td>
+      <td>${p.OfferAcceptedDate ? p.OfferAcceptedDate.split('T')[0] : '—'}</td>
+      <td>${p.SalaryAgreed ? p.SalaryAgreed.toLocaleString('en-GB', {style:'currency',currency:'GBP',maximumFractionDigits:0}) : '—'}</td>
+    </tr>`).join('');
+  return `<div class='dash-panel'>
+    <h3 class='panel-title'>Placements</h3>
+    <table class='data-table'>
+      <thead><tr><th>Candidate</th><th>Role</th><th>Offer Accepted</th><th>Salary</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
 // ── Main renderer ─────────────────────────────────────────────────────
 async function renderProjectDashboard() {
   const main = document.getElementById('main-content');
@@ -366,7 +396,8 @@ async function renderProjectDashboard() {
   const kpiBtns      = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
   const kpis         = renderKPIStrip(roles, activity, _dashPeriod);
   const longOpenProj = renderProjectLongOpenRolesPanel(roles);
-  const pipelineAct  = renderPipelineActivityTable(activity, roles, _dashDetailPeriod);
+  const placementsPanel = renderPlacementsPanel(placements, roles, _dashDetailPeriod);
+  const pipelineAct     = renderPipelineActivityTable(activity, roles, _dashDetailPeriod);
   const tpTable      = isDMAdmin ? renderActivityByTPPanel(activity, _dashDetailPeriod) : '';
   const rejPanel     = isDMAdmin ? renderRejectionPanel(rejections, roles, _dashDetailPeriod) : '';
   const starters     = isDMAdmin ? renderUpcomingStartersPanel(placements, roles) : '';
@@ -387,6 +418,7 @@ async function renderProjectDashboard() {
       ${detailPeriodDropdown()}
     </div>
     <div id='proj-detail-grid' class='dash-grid'>
+      ${placementsPanel}
       ${pipelineAct}
       ${tpTable}
       ${rejPanel}
@@ -412,6 +444,7 @@ function setDetailPeriod(period) {
   if (el && window._lastDashRoles && window._lastDashActivity) {
     const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole);
     el.innerHTML =
+      renderPlacementsPanel(window._lastDashPlacements, window._lastDashRoles, _dashDetailPeriod) +
       renderPipelineActivityTable(window._lastDashActivity, window._lastDashRoles, _dashDetailPeriod) +
       (isDMAdmin ? renderActivityByTPPanel(window._lastDashActivity, _dashDetailPeriod) : '') +
       (isDMAdmin ? renderRejectionPanel(window._lastDashRejections, window._lastDashRoles, _dashDetailPeriod) : '') +

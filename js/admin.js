@@ -1,5 +1,6 @@
-// js/admin.js — Reporting Config Panel (Departments + Delete Records)
+// js/admin.js — Reporting Config Panel (Departments + Currencies + Delete Records)
 let _adminTab = 'departments';
+
 async function renderAdminPage() {
   const main = document.getElementById('main-content');
   const user = getCurrentUser();
@@ -11,22 +12,27 @@ async function renderAdminPage() {
   main.innerHTML = '<p>Loading...</p>';
   await renderAdminTab(_adminTab);
 }
+
 async function renderAdminTab(tab) {
   _adminTab = tab;
   const main = document.getElementById('main-content');
-  const tabs = ['departments', 'delete'];
-  const labels = { departments: 'Departments', delete: 'Delete Records' };
+  const tabs = ['departments', 'currencies', 'delete'];
+  const labels = { departments: 'Departments', currencies: 'Currencies', delete: 'Delete Records' };
   const tooltips = {
     departments: 'Manage the list of departments used when categorising roles and projects across the system.',
+    currencies:  'Manage the list of currencies available when creating roles and recording placements.',
     delete:      'Permanently delete records from the system. Use with caution — this action cannot be undone.',
   };
   const tabBar = tabs.map(t =>
     `<button class="btn-filter${_adminTab === t ? ' active' : ''}"
       onclick="renderAdminTab('${t}')">${labels[t]}<span class="help-tip">?<span class="help-tip-text">${tooltips[t]}</span></span></button>`
   ).join('');
+
   let content = '';
   if (tab === 'departments') content = await buildDepartmentsTab();
+  if (tab === 'currencies')  content = await buildCurrenciesTab();
   if (tab === 'delete')      content = await buildDeleteTab();
+
   main.innerHTML = `
     <div class="page-header">
       <h2>Config Panel</h2>
@@ -35,6 +41,7 @@ async function renderAdminTab(tab) {
     <div style="padding:24px">${content}</div>
   `;
 }
+
 // ── Departments Tab ──────────────────────────────────────────────────
 async function buildDepartmentsTab() {
   const [projects, depts] = await Promise.all([getProjects(false), getDepartments()]);
@@ -73,6 +80,7 @@ async function buildDepartmentsTab() {
     </div>
   `;
 }
+
 async function submitDepartment() {
   const name    = document.getElementById('dept-name').value.trim();
   const projVal = document.getElementById('dept-project').value;
@@ -93,6 +101,55 @@ async function submitDepartment() {
     errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
   }
 }
+
+// ── Currencies Tab ───────────────────────────────────────────────────
+async function buildCurrenciesTab() {
+  const currencies = await getCurrencies();
+  const rows = currencies.map(c => `
+    <tr>
+      <td>${c.CurrencyCode}</td>
+      <td><div class="row-actions"><button class="btn-danger" onclick="deleteAdminRecord('Currencies',${c.id})">Remove</button></div></td>
+    </tr>`).join('');
+  return `
+    <h3>Currency Options</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:16px">
+      These currencies are available when creating roles and are inherited by placements.
+    </p>
+    <table class="data-table" style="margin:0 0 24px">
+      <thead><tr><th>Currency Code</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan=2>No currencies defined yet.</td></tr>'}</tbody>
+    </table>
+    <h3>Add Currency</h3>
+    <div class="form-container" style="padding:0;max-width:300px">
+      <div class="form-group">
+        <label>Currency Code *</label>
+        <input type="text" id="currency-code" placeholder="e.g. GBP" maxlength="5" style="text-transform:uppercase">
+      </div>
+      <div id="currency-error" class="form-error"></div>
+      <button class="btn-primary" onclick="submitCurrency()">Add Currency</button>
+    </div>
+  `;
+}
+
+async function submitCurrency() {
+  const code  = document.getElementById('currency-code').value.trim().toUpperCase();
+  const errEl = document.getElementById('currency-error');
+  errEl.style.display = 'none';
+  if (!code) {
+    errEl.textContent = 'Currency code is required.';
+    errEl.style.display = 'block'; return;
+  }
+  const btn = document.querySelector('.btn-primary[onclick="submitCurrency()"]');
+  setButtonLoading(btn);
+  try {
+    await createItem('Currencies', { Title: code });
+    await renderAdminTab('currencies');
+  } catch(e) {
+    clearButtonLoading(btn);
+    errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
+  }
+}
+
 // ── Delete Tab ───────────────────────────────────────────────────────
 const DELETE_LIST_CONFIG = {
   Projects:        { label: 'Projects',         displayField: 'CustomerName' },
@@ -101,7 +158,9 @@ const DELETE_LIST_CONFIG = {
   Placements:      { label: 'Placements',       displayField: 'CandidateName' },
   RejectedOffers:  { label: 'Rejected Offers',  displayField: 'CandidateName' },
   Departments:     { label: 'Departments',      displayField: 'DepartmentName' },
+  Currencies:      { label: 'Currencies',       displayField: 'CurrencyCode' },
 };
+
 async function buildDeleteTab() {
   const listOptions = Object.entries(DELETE_LIST_CONFIG).map(([key, cfg]) =>
     `<option value="${key}">${cfg.label}</option>`
@@ -139,6 +198,7 @@ async function buildDeleteTab() {
     </div>
   `;
 }
+
 async function loadDeleteItems(listName) {
   const select = document.getElementById('del-item');
   if (!listName) { select.innerHTML = '<option value="">-- Select list first --</option>'; select.disabled = true; return; }
@@ -151,19 +211,21 @@ async function loadDeleteItems(listName) {
     select.disabled = false;
   } catch(e) { select.innerHTML = '<option value="">-- Error loading records --</option>'; }
 }
+
 function initiateDelete() {
-  const list = document.getElementById('del-list').value;
-  const id   = document.getElementById('del-item').value;
+  const list  = document.getElementById('del-list').value;
+  const id    = document.getElementById('del-item').value;
   const errEl = document.getElementById('del-error');
   errEl.style.display = 'none';
   if (!list || !id) { errEl.textContent = 'Please select a list and a record.'; errEl.style.display = 'block'; return; }
   document.getElementById('del-confirm').style.display = 'block';
   document.getElementById('del-btn').style.display = 'none';
 }
+
 async function confirmDelete() {
-  const list    = document.getElementById('del-list').value;
-  const id      = document.getElementById('del-item').value;
-  const yesBtn  = document.querySelector('#del-confirm .btn-primary');
+  const list   = document.getElementById('del-list').value;
+  const id     = document.getElementById('del-item').value;
+  const yesBtn = document.querySelector('#del-confirm .btn-primary');
   setButtonLoading(yesBtn, 'Deleting…');
   try {
     await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${list}/items/${id}`);
@@ -176,10 +238,12 @@ async function confirmDelete() {
     document.getElementById('del-btn').style.display = 'block';
   }
 }
+
 function cancelDelete() {
   document.getElementById('del-confirm').style.display = 'none';
   document.getElementById('del-btn').style.display = 'block';
 }
+
 async function deleteAdminRecord(listName, id) {
   if (!confirm('Remove this record?')) return;
   await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items/${id}`);

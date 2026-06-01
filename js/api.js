@@ -386,7 +386,8 @@ function computeMonthlyRows(assignments) {
     const aEnd   = new Date(a.EndDate);
     aStart.setHours(0,0,0,0);
     aEnd.setHours(0,0,0,0);
-    const effectiveEnd = aEnd < today ? aEnd : today;
+    const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const effectiveEnd = aEnd < thisMonthEnd ? aEnd : thisMonthEnd;
     const cur = new Date(aStart.getFullYear(), aStart.getMonth(), 1);
     const endMonth = new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth(), 1);
     while (cur <= endMonth) {

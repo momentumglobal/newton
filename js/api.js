@@ -11,6 +11,7 @@ const FIELD_ALIASES = {
   UserAssignments: { Title: "UserEmail" },
   LeadershipAccess:{ Title: "UserEmail" },
   Departments:     { Title: "DepartmentName" },
+  Currencies:      { Title: "CurrencyCode" },
   // ── People module ──────────────────────────────────────────
   People:          { Title: "EmployeeName" },
   Assignments:     { Title: "AssignmentID" },
@@ -164,6 +165,10 @@ async function ensureUserRegistered(email, displayName) {
 
 async function getDepartmentsForProject(projectId) {
   return getItems("Departments", `fields/ProjectID eq ${projectId}`);
+}
+
+async function getCurrencies() {
+  return getItems("Currencies");
 }
 
 async function getTalentPartnersForProject(projectId) {

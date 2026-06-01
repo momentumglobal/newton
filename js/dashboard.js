@@ -487,8 +487,10 @@ async function renderProjectDashboard() {
       <div class='filter-group' id='proj-kpi-btns'>${kpiBtns}</div>
     </div>
     <div id='proj-kpi-area'>${kpis}</div>
-    ${longOpenProj}
-    ${roleTracker}
+    <div style="display:flex;flex-direction:column;gap:20px;margin-bottom:20px">
+      ${longOpenProj}
+      ${roleTracker}
+    </div>
     <div class='dash-detail-header'>
       ${detailPeriodDropdown()}
     </div>

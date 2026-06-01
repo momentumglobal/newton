@@ -367,6 +367,40 @@ function renderProjectLongOpenRolesPanel(roles) {
   </div>`;
 }
 
+// ── Role Tracker panel ────────────────────────────────────────────────
+function renderRoleTrackerPanel(roles) {
+  const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
+  const today = new Date(); today.setHours(0,0,0,0);
+  const active = roles
+    .filter(r => !EXCLUDED.includes(r.Stage))
+    .sort((a, b) => new Date(a.OpenDate || 0) - new Date(b.OpenDate || 0));
+  if (!active.length) return `<div class='dash-panel'>
+    <h3 class='panel-title'>Role Tracker</h3>
+    <p class='no-data'>No active roles for this project.</p>
+  </div>`;
+  const rows = active.map(r => {
+    const days = r.OpenDate
+      ? Math.floor((today - new Date(r.OpenDate)) / 86400000)
+      : null;
+    const daysStyle = days !== null && days >= 45 ? 'color:#C00000;font-weight:600'
+      : days !== null && days >= 30 ? 'color:#b45309;font-weight:600' : '';
+    return `<tr>
+      <td>${r.RoleTitle}</td>
+      <td>${r.HiringManager || '—'}</td>
+      <td><span class='badge'>${r.Stage || '—'}</span></td>
+      <td>${r.OpenDate ? r.OpenDate.split('T')[0] : '—'}</td>
+      <td style="${daysStyle}">${days !== null ? days + ' days' : '—'}</td>
+    </tr>`;
+  }).join('');
+  return `<div class='dash-panel'>
+    <h3 class='panel-title'>Role Tracker</h3>
+    <table class='data-table'>
+      <thead><tr><th>Role</th><th>Hiring Manager</th><th>Stage</th><th>Open Date</th><th>Days Open</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
 // ── Placements panel (project-scoped, period-filtered) ────────────────
 function renderPlacementsPanel(placements, roles, period) {
   const roleMap = Object.fromEntries(roles.map(r => [String(r.id), r.RoleTitle]));
@@ -434,7 +468,8 @@ async function renderProjectDashboard() {
   const kpiPeriods   = [['month','Month'],['quarter','Quarter'],['year','Year']];
   const kpiBtns      = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
   const kpis         = renderKPIStrip(roles, activity, _dashPeriod);
-  const longOpenProj = renderProjectLongOpenRolesPanel(roles);
+  const longOpenProj    = renderProjectLongOpenRolesPanel(roles);
+  const roleTracker     = renderRoleTrackerPanel(roles);
   const placementsPanel = renderPlacementsPanel(placements, roles, _dashDetailPeriod);
   const pipelineAct     = renderPipelineActivityTable(activity, roles, _dashDetailPeriod);
   const tpTable      = isDMAdmin ? renderActivityByTPPanel(activity, _dashDetailPeriod) : '';
@@ -453,6 +488,7 @@ async function renderProjectDashboard() {
     </div>
     <div id='proj-kpi-area'>${kpis}</div>
     ${longOpenProj}
+    ${roleTracker}
     <div class='dash-detail-header'>
       ${detailPeriodDropdown()}
     </div>

@@ -584,6 +584,7 @@ body {
   font-size: 16px; line-height: 1; cursor: pointer;
 }
 .rb-full-btn { width: 100%; margin-top: 4px; }
+.page-header-actions .btn-secondary { padding: 6px 14px; }
 
 /* Rich text toolbar */
 .rb-rt-wrapper { flex: 1; border: 1px solid #D0D0D0; border-radius: 6px; overflow: hidden; }

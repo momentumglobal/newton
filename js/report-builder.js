@@ -128,6 +128,8 @@ function rbRenderCanvas() {
             <button type="button" onclick="rbFormat('underline')"><u>U</u></button>
             <button type="button" onclick="rbFormat('insertUnorderedList')">&#8226; List</button>
             <button type="button" onclick="rbFormat('insertOrderedList')">1. List</button>
+            <button type="button" onclick="rbFormatBlock('H3')">Heading</button>
+            <button type="button" onclick="rbFormatBlock('P')">Body Text</button>
           </div>
           <div class="rb-richtext" contenteditable="true" data-id="${block.id}"
             oninput="rbUpdateTextBlock('${block.id}', this.innerHTML)"
@@ -144,6 +146,11 @@ function rbRenderCanvas() {
 
 function rbFormat(cmd) {
   document.execCommand(cmd, false, null);
+  rbUpdateToolbarState();
+}
+
+function rbFormatBlock(tag) {
+  document.execCommand('formatBlock', false, tag);
   rbUpdateToolbarState();
 }
 

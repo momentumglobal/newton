@@ -1049,7 +1049,7 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
             </span>
           </div>
           <div style='font-size:11px;color:#aaa;margin-top:2px'>
-            Employees on bench / unassigned during the selected period
+            Employees on bench / unbilled during the selected period
           </div>
         </div>
         <div class='form-group' style='margin:0;min-width:140px'>

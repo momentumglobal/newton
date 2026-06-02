@@ -467,7 +467,7 @@ body {
   body { background: white; overflow: visible; height: auto; }
   #app-shell { display: block !important; height: auto; }
   #main-content {
-    padding: 0 16px !important;
+    padding: 0 8px !important;
     overflow: visible !important;
     max-height: none !important;
     height: auto !important;
@@ -480,7 +480,7 @@ body {
     background: #0A0B44 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    color: white; padding: 16px 32px; margin-bottom: 24px;
+    color: white; padding: 16px 8px; margin-bottom: 24px;
   }
   #print-header img { height: 28px; }
   .print-header-title { font-size: 16px; font-weight: 600; color: white; }

@@ -151,7 +151,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
           <select name="TalentPartnerName" id="role-tp-select" required>
             <option value="">-- Select project first --</option>
           </select>
-        </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.name || currentUser.email}">`}
+        </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.email}">`}
         <div class="form-group">
           <label>Role Title *</label>
           <input type="text" name="RoleTitle" required
@@ -253,7 +253,8 @@ async function loadTalentPartnersForRole(projectId) {
   try {
     const tps = await getTalentPartnersForProject(projectId);
     select.innerHTML = '<option value="">-- Select team member --</option>' +
-      tps.map(u => `<option value="${u.UserName || u.UserEmail}">${u.UserName || u.UserEmail}</option>`).join('');
+      tps.map(u => `<option value="${u.UserEmail}">${u.UserName || u.UserEmail}</option>`).join('');
+
   } catch(e) {
     select.innerHTML = '<option value="">-- Error loading team --</option>';
   }
@@ -367,7 +368,7 @@ async function renderWeeklyActivityForm(existingData = null) {
           <select name="TalentPartnerName" id="weekly-tp-select" required>
             <option value="">-- Select project first --</option>
           </select>
-        </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.name || currentUser.email}">`}
+        </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.email}">`}
         <div class="form-group">
           <label>Week Ending Date *</label>
           <input type="date" name="WeekEndingDate" required
@@ -438,7 +439,7 @@ async function loadTalentPartnersForWeekly(projectId) {
   try {
     const tps = await getTalentPartnersForProject(projectId);
     select.innerHTML = '<option value="">-- Select team member --</option>' +
-      tps.map(u => `<option value="${u.UserName || u.UserEmail}">${u.UserName || u.UserEmail}</option>`).join('');
+      tps.map(u => `<option value="${u.UserEmail}">${u.UserName || u.UserEmail}</option>`).join('');
   } catch(e) {
     select.innerHTML = '<option value="">-- Error loading team --</option>';
   }
@@ -524,7 +525,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
           <select name="TalentPartnerName" id="placement-tp-select" required>
             <option value="">-- Select project first --</option>
           </select>
-        </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.name || currentUser.email}">`}
+        </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.email}">`}
         <div class="form-group">
           <label>Candidate Name *</label>
           <input type="text" name="CandidateName" required
@@ -597,7 +598,7 @@ async function loadTalentPartnersForPlacement(projectId) {
   try {
     const tps = await getTalentPartnersForProject(projectId);
     select.innerHTML = '<option value="">-- Select team member --</option>' +
-      tps.map(u => `<option value="${u.UserName || u.UserEmail}">${u.UserName || u.UserEmail}</option>`).join('');
+      tps.map(u => `<option value="${u.UserEmail}">${u.UserName || u.UserEmail}</option>`).join('');
   } catch(e) {
     select.innerHTML = '<option value="">-- Error loading team --</option>';
   }

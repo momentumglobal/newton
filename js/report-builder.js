@@ -165,6 +165,11 @@ function rbUpdateToolbarState() {
   const olBtn = toolbar.querySelector(`button[onclick="rbFormat('insertOrderedList')"]`);
   if (ulBtn) ulBtn.classList.toggle('active', document.queryCommandState('insertUnorderedList'));
   if (olBtn) olBtn.classList.toggle('active', document.queryCommandState('insertOrderedList'));
+  const headingBtn  = toolbar.querySelector(`button[onclick="rbFormatBlock('H3')"]`);
+  const bodyBtn     = toolbar.querySelector(`button[onclick="rbFormatBlock('P')"]`);
+  const blockTag    = document.queryCommandValue('formatBlock').toUpperCase();
+  if (headingBtn) headingBtn.classList.toggle('active', blockTag === 'H3');
+  if (bodyBtn)    bodyBtn.classList.toggle('active',    blockTag === 'P' || blockTag === 'DIV' || blockTag === '');
 }
 
 function rbInitSortable() {

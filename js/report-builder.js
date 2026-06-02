@@ -1,5 +1,5 @@
 // js/report-builder.js
- 
+
 let _rbBlocks     = [];   // Array of block objects (panel or text)
 let _rbScope      = 'project';  // 'project' | 'company'
 let _rbProjectId  = null;
@@ -10,29 +10,29 @@ let _rbReportData = null;  // Cached fetch result { roles, activity, placements,
 let _rbTitle      = '';
 
 const RB_PALETTE = [
-  { key: 'kpiStrip',       label: 'KPI Strip',                scope: 'both'    },
-  { key: 'pipelineActivity',label: 'Pipeline Activity',        scope: 'project' },
-  { key: 'activityByTP',   label: 'Activity by Talent Partner',scope: 'both'    },
-  { key: 'rejections',     label: 'Offer Rejection Reasons',   scope: 'both'    },
-  { key: 'upcomingStarters',label: 'Upcoming Starters',        scope: 'both'    },
-  { key: 'spendVsBudget',  label: 'Actual Spend vs Budget',    scope: 'both'    },
-  { key: 'rolesOpen30',    label: 'Roles Open 30+ Days',       scope: 'both'    },
-  { key: 'roleTracker',    label: 'Role Tracker',              scope: 'project' },
-  { key: 'placements',     label: 'Placements',                scope: 'both'    },
+  { key: 'kpiStrip',        label: 'KPI Strip',                 scope: 'both'    },
+  { key: 'pipelineActivity', label: 'Pipeline Activity',         scope: 'project' },
+  { key: 'activityByTP',    label: 'Activity by Talent Partner', scope: 'both'    },
+  { key: 'rejections',      label: 'Offer Rejection Reasons',    scope: 'both'    },
+  { key: 'upcomingStarters', label: 'Upcoming Starters',         scope: 'both'    },
+  { key: 'spendVsBudget',   label: 'Actual Spend vs Budget',     scope: 'both'    },
+  { key: 'rolesOpen30',     label: 'Roles Open 30+ Days',        scope: 'both'    },
+  { key: 'roleTracker',     label: 'Role Tracker',               scope: 'project' },
+  { key: 'placements',      label: 'Placements',                 scope: 'both'    },
 ];
 
 async function renderReportBuilder() {
   const main  = document.getElementById('main-content');
   const role  = _resolvedRole;
   const user  = getCurrentUser();
- 
+
   // Load projects for the project selector
   const projects = await getScopedProjects(user.email, false);
   if (projects.length && !_rbProjectId) _rbProjectId = String(projects[0].id);
- 
+
   // Load saved reports from SharePoint
   const saved = await getSavedReports();
- 
+
   main.innerHTML = `
     <div class="page-header">
       <h2>Report Builder</h2>
@@ -50,7 +50,7 @@ async function renderReportBuilder() {
     <div id="rb-preview-modal" class="rb-modal" style="display:none"></div>
     <div id="rb-saved-modal"   class="rb-modal" style="display:none"></div>
   `;
- 
+
   rbInitSortable();
 }
 
@@ -58,13 +58,13 @@ function rbRenderSidebar(projects) {
   const projectOpts = projects.map(p =>
     `<option value="${p.id}" ${String(p.id) === _rbProjectId ? 'selected' : ''}>
       ${p.CustomerName}</option>`).join('');
- 
+
   const periodOpts = DETAIL_PERIOD_OPTIONS.map(([k, l]) =>
     `<option value="${k}" ${_rbPeriod === k ? 'selected' : ''}>${l}</option>`).join('');
- 
+
   const kpiOpts = [['month','Month'],['quarter','Quarter'],['year','Year']]
     .map(([k,l]) => `<option value="${k}" ${_rbKpiPeriod===k ? 'selected' : ''}>${l}</option>`).join('');
- 
+
   // Palette tiles — scope-filtered
   const paletteTiles = RB_PALETTE
     .filter(m => m.scope === 'both' || m.scope === _rbScope)
@@ -72,13 +72,13 @@ function rbRenderSidebar(projects) {
       ondblclick="rbAddPanelBlock('${m.key}')">${m.label}
       <button class="rb-add-btn" onclick="rbAddPanelBlock('${m.key}')">+</button>
     </div>`).join('');
- 
+
   return `
     <div class="rb-config">
       <div class="rb-section-label">Report Title</div>
       <input id="rb-title" class="rb-input" type="text" placeholder="Untitled Report"
         value="${_rbTitle || ''}" oninput="_rbTitle = this.value">
- 
+
       <div class="rb-section-label">Scope</div>
       <div class="filter-group">
         <button class="btn-filter ${_rbScope==='project'?'active':''}"
@@ -86,19 +86,19 @@ function rbRenderSidebar(projects) {
         <button class="btn-filter ${_rbScope==='company'?'active':''}"
           onclick="rbSetScope('company')">Company</button>
       </div>
- 
+
       ${_rbScope === 'project' ? '<div class="rb-section-label">Project</div><select class="rb-select" onchange="rbSetProject(this.value)">' + projectOpts + '</select>' : ''}
- 
+
       <div class="rb-section-label">Period</div>
       <select class="rb-select" onchange="_rbPeriod = this.value">${periodOpts}</select>
- 
+
       <div class="rb-section-label">KPI Period</div>
       <select class="rb-select" onchange="_rbKpiPeriod = this.value">${kpiOpts}</select>
     </div>
- 
+
     <div class="rb-section-label" style="margin-top:16px">Add Modules</div>
     <div class="rb-palette" id="rb-palette">${paletteTiles}</div>
- 
+
     <div class="rb-section-label" style="margin-top:16px">Add Text Block</div>
     <button class="btn-secondary rb-full-btn" onclick="rbAddTextBlock()">+ Text Block</button>
   `;
@@ -121,15 +121,26 @@ function rbRenderCanvas() {
     } else {
       return `<div class="rb-block rb-block-text" data-index="${i}" data-id="${block.id}">
         <span class="rb-drag-handle">&#9776;</span>
-        <textarea class="rb-textarea" placeholder="Enter text or notes..."
-          oninput="rbUpdateTextBlock('${block.id}', this.value)">${block.content || ''}</textarea>
+        <div class="rb-rt-wrapper">
+          <div class="rb-rt-toolbar">
+            <button type="button" onclick="rbFormat('bold')"><b>B</b></button>
+            <button type="button" onclick="rbFormat('italic')"><i>I</i></button>
+            <button type="button" onclick="rbFormat('underline')"><u>U</u></button>
+            <button type="button" onclick="rbFormat('insertUnorderedList')">&#8226; List</button>
+            <button type="button" onclick="rbFormat('insertOrderedList')">1. List</button>
+          </div>
+          <div class="rb-richtext" contenteditable="true" data-id="${block.id}"
+            oninput="rbUpdateTextBlock('${block.id}', this.innerHTML)">${block.content || ''}</div>
+        </div>
         <button class="rb-remove-btn" onclick="rbRemoveBlock('${block.id}')">&#x2715;</button>
       </div>`;
     }
   }).join('');
- 
+
   return `<div id="rb-sortable">${items}</div>`;
 }
+
+function rbFormat(cmd) { document.execCommand(cmd, false, null); }
 
 function rbInitSortable() {
   const el = document.getElementById('rb-sortable');
@@ -147,35 +158,35 @@ function rbInitSortable() {
 
 // Generate a simple unique ID for blocks
 function rbUid() { return 'b_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6); }
- 
+
 function rbAddPanelBlock(key) {
   _rbBlocks.push({ id: rbUid(), type: 'panel', key });
   document.getElementById('rb-canvas').innerHTML = rbRenderCanvas();
   rbInitSortable();
 }
- 
+
 function rbAddTextBlock() {
   _rbBlocks.push({ id: rbUid(), type: 'text', content: '' });
   document.getElementById('rb-canvas').innerHTML = rbRenderCanvas();
   rbInitSortable();
 }
- 
+
 function rbRemoveBlock(id) {
   _rbBlocks = _rbBlocks.filter(b => b.id !== id);
   document.getElementById('rb-canvas').innerHTML = rbRenderCanvas();
   rbInitSortable();
 }
- 
+
 function rbUpdateTextBlock(id, value) {
   const block = _rbBlocks.find(b => b.id === id);
   if (block) block.content = value;
 }
- 
+
 function rbSetScope(scope) {
   _rbScope = scope;
   renderReportBuilder();
 }
- 
+
 function rbSetProject(id) {
   _rbProjectId = String(id);
 }
@@ -221,35 +232,31 @@ async function rbPreview() {
     </div>
     <div id="rb-preview-content"><p>Loading data...</p></div>
   </div>`;
- 
+
   const data = await rbFetchData();
   if (!data) {
     document.getElementById('rb-preview-content').innerHTML = '<p>No data available.</p>';
     return;
   }
   _rbReportData = data;
- 
+
   const title = document.getElementById('rb-title')?.value || 'Report';
   const html  = rbRenderReportHtml(title, data);
   document.getElementById('rb-preview-content').innerHTML = html;
 }
 
 function rbRenderReportHtml(title, data) {
-  const titleHtml = `<div class="rb-report-title"><h2>${title}</h2>
-    <div class="rb-report-meta">
-      ${_rbScope === 'project' ? 'Project report' : 'Company-wide report'}
-      &nbsp;·&nbsp; ${DETAIL_PERIOD_OPTIONS.find(([k]) => k === _rbPeriod)?.[1] || _rbPeriod}
-    </div></div>`;
- 
+  const titleHtml = `<div class="rb-report-title"><h2>${title}</h2></div>`;
+
   const blocks = _rbBlocks.map(block => {
     if (block.type === 'panel') {
       const fn = REPORT_PANELS[block.key];
       return fn ? fn(data, _rbPeriod, _rbKpiPeriod) : '';
     } else {
-      return `<div class="rb-text-block">${block.content.replace(/\n/g, '<br>')}</div>`;
+      return `<div class="rb-text-block">${block.content}</div>`;
     }
   }).join('');
- 
+
   return titleHtml + blocks;
 }
 
@@ -258,12 +265,12 @@ async function rbExportPdf() {
   const data  = _rbReportData || await rbFetchData();
   if (!data) return;
   _rbReportData = data;
- 
+
   // Use existing printPage() — sets print-header title/sub and calls window.print()
   const main = document.getElementById('main-content');
   main.innerHTML = `<div class="page-header"><h2>${title}</h2></div>` + rbRenderReportHtml(title, data);
   printPage(title, false, 'Reporting');
- 
+
   // Restore builder after print dialog closes
   setTimeout(() => renderReportBuilder(), 500);
 }
@@ -271,7 +278,7 @@ async function rbExportPdf() {
 async function rbSaveReport() {
   const title = document.getElementById('rb-title')?.value?.trim();
   if (!title) { alert('Please enter a report title before saving.'); return; }
- 
+
   const payload = {
     Title:       title,
     Scope:       _rbScope,
@@ -281,7 +288,7 @@ async function rbSaveReport() {
     ModuleOrder: JSON.stringify(_rbBlocks),
     ModifiedBy:  getCurrentUser().email,
   };
- 
+
   if (_rbReportId) {
     await updateSavedReport(_rbReportId, payload);
   } else {
@@ -293,7 +300,7 @@ async function rbSaveReport() {
   const btn = document.querySelector('.page-header-actions .btn-secondary');
   if (btn) { btn.textContent = 'Saved ✓'; setTimeout(() => { btn.textContent = 'Save'; }, 2000); }
 }
- 
+
 async function rbOpenSavedModal() {
   const modal = document.getElementById('rb-saved-modal');
   modal.style.display = 'flex';
@@ -303,7 +310,7 @@ async function rbOpenSavedModal() {
     <button class="btn-secondary" onclick="document.getElementById('rb-saved-modal').style.display='none'">
       Close</button>
   </div>`;
- 
+
   const reports = await getSavedReports();
   const rows = reports.length
     ? reports.map(r => `<div class="rb-saved-row">
@@ -312,14 +319,14 @@ async function rbOpenSavedModal() {
         <button class="btn-secondary btn-sm" onclick="rbLoadReport(${r.id})">Open</button>
       </div>`).join('')
     : '<p class="no-data">No saved reports yet.</p>';
- 
+
   modal.innerHTML = `<div class="rb-modal-inner">
     <h3>Saved Reports</h3>${rows}
     <button class="btn-secondary" style="margin-top:16px"
       onclick="document.getElementById('rb-saved-modal').style.display='none'">Close</button>
   </div>`;
 }
- 
+
 async function rbLoadReport(id) {
   const report = await getSavedReportById(id);
   _rbReportId   = id;
@@ -334,20 +341,16 @@ async function rbLoadReport(id) {
 }
 
 // SharePoint API functions
- 
+
 async function getSavedReports() {
   return getItems('SavedReports');
 }
-
 async function getSavedReportById(id) {
   return getItem('SavedReports', id);
 }
-
 async function createSavedReport(fields) {
   return createItem('SavedReports', fields);
 }
-
 async function updateSavedReport(id, fields) {
   return updateItem('SavedReports', id, fields);
 }
-

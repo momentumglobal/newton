@@ -1096,7 +1096,7 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
 }
 
 let _ganttYear = new Date().getFullYear();
-let _ganttDeployableMonth = null; // null = all months
+let _ganttDeployableMonth = new Date().getMonth(); // default to current month
 
 async function _setGanttYear(year) {
   _ganttYear = year;

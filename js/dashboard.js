@@ -229,11 +229,11 @@ function renderPipelineActivityTable(acts, roles, period) {
     <p class='no-data'>No activity recorded for this period.</p>
   </div>`;
   const totals = FIELDS.map((_, i) => rids.reduce((s, r) => s + byRole[r][i], 0));
-  const hdr    = `<tr><th>Role</th>${LABELS.map(l => `<th>${l}</th>`).join('')}</tr>`;
+  const hdr    = `<tr><th>Role</th>${LABELS.map(l => `<th style="text-align:center">${l}</th>`).join('')}</tr>`;
   const rows   = rids.map(rid =>
-    `<tr><td>${roleMap[rid] || 'Unknown Role'}</td>${byRole[rid].map(v => `<td>${v}</td>`).join('')}</tr>`
+    `<tr><td>${roleMap[rid] || 'Unknown Role'}</td>${byRole[rid].map(v => `<td style="text-align:center">${v}</td>`).join('')}</tr>`
   ).join('');
-  const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${totals.map(v => `<td><strong>${v}</strong></td>`).join('')}</tr>`;
+  const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${totals.map(v => `<td style="text-align:center"><strong>${v}</strong></td>`).join('')}</tr>`;
   return `<div class='dash-panel'>
     <h3 class='panel-title'>Pipeline Activity</h3>
     <table class='data-table'><thead>${hdr}</thead><tbody>${rows}${totRow}</tbody></table>

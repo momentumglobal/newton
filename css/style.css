@@ -508,6 +508,7 @@ body {
     page-break-inside: avoid;
     break-inside: avoid;
     margin-bottom: 20px;
+    padding: 8px 6px !important;
   }
   /* Prevent mid-panel breaks */
   .dash-panel {

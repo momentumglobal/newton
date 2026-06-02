@@ -348,6 +348,7 @@ async function rbLoadReport(id) {
   _rbBlocks     = JSON.parse(report.ModuleOrder || '[]');
   _rbTitle      = report.Title;
   console.log('Loading ProjectID:', report.ProjectID, 'type:', typeof report.ProjectID);
+  console.log('_rbProjectId set to:', _rbProjectId, 'type:', typeof _rbProjectId);
   document.getElementById('rb-saved-modal').style.display = 'none';
   renderReportBuilder();
 }

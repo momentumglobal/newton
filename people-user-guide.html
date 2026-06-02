@@ -178,6 +178,10 @@
         <div class="faq-q">Who do I contact if something isn't working?</div>
         <div class="faq-a">Raise it with your Newton Admin. For access issues, they can update user assignments directly via the Admin link on the Newton home screen.</div>
       </div>
+      <div class="faq-item">
+        <div class="faq-q">What are bench assignments and do I need to manage them manually?</div>
+        <div class="faq-a">Bench assignments are automatically generated records that represent periods when an employee has no active customer assignment. They are created and maintained using the <strong>↻ Sync Bench</strong> button on the Assignments tab — you do not need to create or delete them manually. Syncing keeps the utilisation forecast accurate by filling gaps between customer assignments through to the end of the current year.</div>
+      </div>
     </div>
 
     <!-- User Roles -->
@@ -215,6 +219,8 @@
       <p><strong>Utilisation</strong> — billed capacity as a percentage of total capacity, YTD. Colour coded: green = 85%+, orange = 75–85%, red = below 75%.</p>
       <p><strong>Active Customers</strong> — number of distinct customers with a current active assignment today. The delta indicator (green/red) shows the change vs the last day of the previous quarter.</p>
       <p><strong>Billed Headcount</strong> — number of employees on a billed assignment today. The delta indicator shows the change vs the last day of the previous quarter.</p>
+      <h3>Team Utilisation Line Graph</h3>
+      <p>A full-width line graph showing monthly utilisation across the current year. The <strong>solid line</strong> covers January through to the current month (actual data). The <strong>dotted line</strong> continues from the current month to December, calculated from assignments already scheduled in the system (forecast). Hover over any data point to see the exact percentage for that month.</p>
       <h3>Period Filters</h3>
       <p>Use the <strong>Year</strong>, <strong>Month</strong>, and <strong>Quarter</strong> dropdowns to filter the three panels below. Selecting a month clears the quarter selection and vice versa. The year filter applies to both.</p>
       <h3>Panel 1 — Team Utilisation</h3>
@@ -254,6 +260,10 @@
       <p>Use the <strong>Status</strong> filter to switch between Current, Former, Planned, or All assignments. Filter further by Customer or Project Type using the dropdowns.</p>
       <p>Admins can add new assignments using <strong>+ Add Assignment</strong> and edit existing records via the Edit link on each row.</p>
       <div class="tip">The <strong>Billed</strong> field on an assignment determines whether it contributes to revenue and utilisation calculations. An assignment marked Billed = No counts toward capacity but not billed capacity.</div>
+      <h3>Bench Sync</h3>
+      <p>The <strong>↻ Sync Bench</strong> button (visible to Admins) automatically generates and maintains bench assignments for all active billable employees. When run, it identifies gaps between a person's customer assignments for the rest of the current year — from today up to their employment end date (or 31 December if no end date is set) — and creates an Unassigned / Internal assignment to fill each gap.</p>
+      <p>Bench records are marked as auto-generated and are managed entirely by the sync. If you add or extend a customer assignment that covers a period previously flagged as bench, running sync again will remove the now-redundant bench record automatically.</p>
+      <div class="tip">Run <strong>↻ Sync Bench</strong> any time you add, edit, or remove a customer assignment. The timestamp next to the button shows when the last sync ran. Bench assignments should not be edited manually — let the sync manage them.</div>
     </div>
 
     <!-- Deployment Timeline -->

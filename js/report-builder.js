@@ -86,10 +86,7 @@ function rbRenderSidebar(projects) {
           onclick="rbSetScope('company')">Company</button>
       </div>
  
-      ${_rbScope === 'project' ? `
-        <div class="rb-section-label">Project</div>
-        <select class="rb-select" onchange="rbSetProject(this.value)">${projectOpts}</select>
-      ` : ''}
+      ${_rbScope === 'project' ? '<div class="rb-section-label">Project</div><select class="rb-select" onchange="rbSetProject(this.value)">' + projectOpts + '</select>' : ''}
  
       <div class="rb-section-label">Period</div>
       <select class="rb-select" onchange="_rbPeriod = this.value">${periodOpts}</select>

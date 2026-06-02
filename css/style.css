@@ -16,9 +16,7 @@
   font-weight: 600;
   font-style: normal;
 }
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 body {
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
   background: #F5F4F1;
@@ -26,7 +24,6 @@ body {
   height: 100vh;
   overflow: hidden;
 }
-
 /* ── Login screen ───────────────────────────────────────────────────── */
 #login-screen {
   display: none;
@@ -70,14 +67,12 @@ body {
 }
 .btn-signin:hover  { background: #2E5FA3; }
 .btn-signin:active { transform: scale(0.97); }
-
 /* ── App shell ──────────────────────────────────────────────────────── */
 #app-shell {
   display: none;
   height: 100vh;
   flex-direction: row;
 }
-
 /* ── Sidebar ────────────────────────────────────────────────────────── */
 #sidebar {
   width: 220px;
@@ -121,7 +116,6 @@ body {
   margin: 0 20px 12px;
 }
 .nav-footer { padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.1); }
-
 /* ── Main content ───────────────────────────────────────────────────── */
 #main-content {
   flex: 1;
@@ -131,7 +125,6 @@ body {
 }
 .page-placeholder h1 { color: #0A0B44; margin-bottom: 12px; }
 .page-placeholder p  { color: #666; }
-
 /* ── Forms ──────────────────────────────────────────────────────────── */
 .form-container { max-width: 720px; padding: 24px; }
 .form-container h2 { margin-bottom: 20px; color: #0A0B44; font-weight: 600; }
@@ -168,7 +161,6 @@ body {
   margin-bottom: 16px;
   font-size: 13px;
 }
-
 /* ── Buttons ────────────────────────────────────────────────────────── */
 .btn-primary {
   background: #0A0B44;
@@ -184,7 +176,6 @@ body {
 }
 .btn-primary:hover  { background: #2E5FA3; box-shadow: 0 2px 8px rgba(10,11,68,0.18); }
 .btn-primary:active { transform: scale(0.97); }
-
 .btn-secondary {
   background: white;
   color: #0A0B44;
@@ -198,7 +189,6 @@ body {
 }
 .btn-secondary:hover  { background: #F5F4F1; }
 .btn-secondary:active { transform: scale(0.97); }
-
 /* Destructive actions — ghost by default, red on hover only */
 .btn-danger {
   background: none;
@@ -212,7 +202,6 @@ body {
   transition: color 150ms ease, background 150ms ease;
 }
 .btn-danger:hover { color: #c62828; background: #fde8e8; }
-
 /* ── Page header ────────────────────────────────────────────────────── */
 .page-header {
   display: flex;
@@ -226,7 +215,6 @@ body {
 .page-header-actions {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 }
-
 /* ── Filter buttons ─────────────────────────────────────────────────── */
 .filter-group { display: flex; gap: 4px; }
 .btn-filter {
@@ -249,7 +237,6 @@ body {
   border-color: #0A0B44;
   box-shadow: 0 1px 4px rgba(10,11,68,0.18);
 }
-
 /* ── Data table ─────────────────────────────────────────────────────── */
 .data-table {
   width: calc(100% - 48px);
@@ -288,7 +275,6 @@ body {
   transition: color 150ms ease;
 }
 .data-table a:hover { color: #2E5FA3; text-decoration: underline; }
-
 /* Inline row actions — visible only on row hover */
 .row-actions {
   display: flex;
@@ -300,7 +286,6 @@ body {
   transition: opacity 150ms ease;
 }
 .data-table tbody tr:hover .row-actions { opacity: 1; }
-
 /* ── Badges ─────────────────────────────────────────────────────────── */
 .badge {
   display: inline-block;
@@ -315,14 +300,12 @@ body {
 .badge-active     { background: #e6f4ea; color: #2e7d32; }
 .badge-transition { background: #fff8e1; color: #f57f17; }
 .badge-completed  { background: #f3e5f5; color: #6a1b9a; }
-
 /* ── Filter group with label ────────────────────────────────────────── */
 .filter-labeled-group { display: flex; flex-direction: column; gap: 4px; }
 .filter-label {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
   color: #888; letter-spacing: 0.04em;
 }
-
 /* ── Dashboard ──────────────────────────────────────────────────────── */
 .kpi-strip { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
 .kpi-strip-period { margin-bottom: 24px; }
@@ -344,7 +327,6 @@ body {
 .kpi-value { font-size: 26px; font-weight: 600; color: #0A0B44; font-variant-numeric: tabular-nums; }
 .kpi-label { font-size: 11px; color: #595959; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 .kpi-sub   { font-size: 11px; color: #888; margin-top: 2px; }
-
 .dash-grid { display: flex; flex-direction: column; gap: 20px; }
 .dash-panel {
   background: #fff;
@@ -352,6 +334,7 @@ body {
   border-radius: 8px;
   padding: 20px 24px;
   box-shadow: 0 1px 4px rgba(10,11,68,0.04);
+  margin-bottom: 20px;
 }
 .panel-title {
   font-size: 15px; font-weight: 600; color: #0A0B44;
@@ -375,7 +358,6 @@ body {
 .dash-project-selector { max-width: 320px; margin-bottom: 20px; }
 .detail-period-selector { max-width: 220px; margin-bottom: 16px; }
 .dash-detail-header { margin-bottom: 8px; }
-
 /* ── Table toolbar ──────────────────────────────────────────────────── */
 .table-toolbar {
   display: flex; align-items: flex-start; justify-content: space-between;
@@ -383,11 +365,9 @@ body {
 }
 .table-toolbar .project-filter-bar { padding: 0; }
 .table-toolbar .project-filter-select { margin: 0; }
-
 /* ── Placement filter rows ──────────────────────────────────────────── */
 .placement-filter-rows { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
 .placement-filter-row  { display: flex; align-items: flex-end; gap: 16px; }
-
 /* ── Help tooltips ──────────────────────────────────────────────────── */
 .help-tip {
   display: inline-flex; align-items: center; justify-content: center;
@@ -409,7 +389,6 @@ body {
   pointer-events: none;
 }
 .help-tip:hover .help-tip-text { display: block; }
-
 /* ── Module switcher dropdown ───────────────────────────────────────── */
 .nav-header-dropdown { cursor: pointer; position: relative; user-select: none; }
 .nav-header-arrow { font-size: 10px; opacity: 0.6; margin-left: 4px; }
@@ -458,7 +437,6 @@ body {
   color: rgba(255,255,255,0.45); letter-spacing: 0.08em;
   padding: 16px 16px 4px;
 }
-
 /* ── Print / PDF export ─────────────────────────────────────────────── */
 .print-btn {
   background: white; color: #0A0B44; border: 1px solid #0A0B44;
@@ -469,7 +447,6 @@ body {
 }
 .print-btn:hover { background: #F5F4F1; }
 #print-header { display: none; }
-
 @media print {
   #sidebar,
   .print-btn,
@@ -516,7 +493,6 @@ body {
   .kpi-strip        { page-break-inside: avoid; }
   div[style*="background:#fff"]          { page-break-inside: avoid; }
   div[style*="grid-template-columns"]    { page-break-inside: avoid; }
-
   /* Report Builder — hide builder chrome in print */
   .rb-shell,
   .rb-sidebar,
@@ -524,20 +500,17 @@ body {
   .rb-modal,
   .rb-palette,
   .rb-block { display: none !important; }
-
   /* Text blocks — keep together */
   .rb-text-block {
     page-break-inside: avoid;
     break-inside: avoid;
     margin-bottom: 20px;
   }
-
   /* Prevent mid-panel breaks */
   .dash-panel {
     break-inside: avoid;
     margin-bottom: 24px;
   }
-
   /* Sticky header fix */
   .data-table thead th {
     position: static !important;
@@ -546,12 +519,10 @@ body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-
   /* Allow report title to render */
   .rb-report-title { display: block !important; }
 }
 @page { size: A4 portrait; }
-
 /* ── Report Builder ─────────────────────────────────────────────── */
 .rb-shell {
   display: flex;
@@ -610,7 +581,14 @@ body {
   font-size: 16px; line-height: 1; cursor: pointer;
 }
 .rb-full-btn { width: 100%; margin-top: 4px; }
- 
+
+/* Rich text toolbar */
+.rb-rt-wrapper { flex: 1; border: 1px solid #D0D0D0; border-radius: 6px; overflow: hidden; }
+.rb-rt-toolbar { display: flex; gap: 4px; padding: 4px 6px; background: #F5F4F1; border-bottom: 1px solid #D0D0D0; }
+.rb-rt-toolbar button { background: none; border: 1px solid transparent; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-size: 13px; font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; }
+.rb-rt-toolbar button:hover { background: white; border-color: #D0D0D0; }
+.rb-richtext { min-height: 80px; padding: 8px 10px; font-size: 14px; font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; outline: none; }
+
 /* Canvas blocks */
 .rb-empty {
   display: flex; align-items: center; justify-content: center;
@@ -630,26 +608,20 @@ body {
   margin-bottom: 8px;
 }
 .rb-block-panel { background: #F9F9FF; border-left: 3px solid #0A0B44; }
-.rb-block-text  { background: #FFFDF5; border-left: 3px solid #F5A623; }
+.rb-block-text  { background: #F9F9FF; border-left: 3px solid #0A0B44; }
 .rb-drag-handle {
   cursor: grab; color: #999; font-size: 16px;
   padding-top: 2px; flex-shrink: 0;
 }
 .rb-drag-handle:active { cursor: grabbing; }
 .rb-block-label { flex: 1; font-size: 14px; font-weight: 500; padding-top: 2px; }
-.rb-textarea {
-  flex: 1; min-height: 80px;
-  border: none; resize: vertical;
-  font-size: 14px; font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-  background: transparent; outline: none;
-}
 .rb-remove-btn {
   background: none; border: none;
   color: #999; font-size: 16px;
   cursor: pointer; flex-shrink: 0; padding: 0 2px;
 }
 .rb-remove-btn:hover { color: #C00000; }
- 
+
 /* Modals */
 .rb-modal {
   position: fixed; inset: 0;
@@ -683,21 +655,19 @@ body {
 .rb-saved-row span:first-child { flex: 1; font-weight: 500; }
 .rb-saved-meta { color: #888; font-size: 12px; }
 .btn-sm { padding: 4px 10px !important; font-size: 12px !important; }
- 
+
 /* Rendered report blocks */
 .rb-report-title { margin-bottom: 20px; }
 .rb-report-title h2 { margin: 0 0 4px; }
-.rb-report-meta { font-size: 13px; color: #888; }
 .rb-text-block {
-  background: #FFFDF5;
-  border-left: 3px solid #F5A623;
-  padding: 14px 16px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px 24px;
   margin-bottom: 20px;
-  border-radius: 0 6px 6px 0;
+  box-shadow: 0 1px 4px rgba(10,11,68,0.04);
   font-size: 14px; line-height: 1.6; color: #333;
 }
-
-
 /* ── Announcement ticker ─────────────────────────────────────────────── */
 .announcement-ticker {
   display: none;

@@ -209,7 +209,7 @@ async function renderActivityPage() {
   // For Talent Partners, also scope to their own entries
   if (_resolvedRole === 'talent_partner') {
     filteredActivity = filteredActivity.filter(a =>
-      (a.TalentPartner || '').toLowerCase() === (user.name || '').toLowerCase()
+      (a.TalentPartner || '').toLowerCase() === (user.email || '').toLowerCase()
     );
   }
   if (canFilter && _activityProjectId) {

@@ -255,24 +255,50 @@ function _barChart(data, valueFormatter) {
 }
 
 // ── Team Utilisation Line Graph ───────────────────
-function _renderUtilisationLineGraph(allRows) {
+function _renderUtilisationLineGraph(allRows, assignments) {
   const now       = new Date();
   const thisYear  = now.getFullYear();
   const curMonth  = now.getMonth(); // 0-based
 
   const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+  // For forecast months, compute utilisation from assignments overlapping that month
+  function _forecastUtil(monthIdx) {
+    const mStart = new Date(thisYear, monthIdx, 1);
+    const mEnd   = new Date(thisYear, monthIdx + 1, 0);
+    // Find assignments active in this month
+    const active = assignments.filter(a => {
+      if (!a.StartDate || !a.EndDate) return false;
+      const s = new Date(a.StartDate);
+      const e = new Date(a.EndDate);
+      return s <= mEnd && e >= mStart && a.Level !== 'CSD';
+    });
+    if (!active.length) return null;
+    // Use capacity from existing rows if available, else estimate from assignment
+    const billedCap = active.filter(a => a.Billed === 'Yes')
+      .reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+    const totalCap  = active.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+    return totalCap > 0 ? billedCap / totalCap : null;
+  }
+
   const points = MONTH_LABELS.map((label, i) => {
     const monthRows = allRows.filter(r => r.Year === thisYear && r.Month === i + 1);
-    const util = monthRows.length ? _calcUtilisation(monthRows) : null;
+    let util;
+    if (i <= curMonth) {
+      // Actual: use computed monthly rows
+      util = monthRows.length ? _calcUtilisation(monthRows) : null;
+    } else {
+      // Forecast: derive from assignment overlap
+      util = _forecastUtil(i);
+    }
     return { label, util, monthIdx: i };
   });
 
   const actualPoints   = points.filter(p => p.monthIdx <= curMonth);
-  const forecastPoints = points.filter(p => p.monthIdx >= curMonth); // overlap at curMonth joins lines
+  const forecastPoints = points.filter(p => p.monthIdx >= curMonth);
 
   const W = 900, H = 200;
-  const PAD = { top: 18, right: 24, bottom: 32, left: 52 };
+  const PAD = { top: 10, right: 24, bottom: 32, left: 52 };
   const chartW = W - PAD.left - PAD.right;
   const chartH = H - PAD.top  - PAD.bottom;
 
@@ -304,7 +330,7 @@ function _renderUtilisationLineGraph(allRows) {
     : '';
 
   const forecastPts  = toPolyPoints(forecastPoints);
-  const forecastLine = forecastPts
+  const forecastLine = forecastPts && forecastPts.includes(' ')
     ? `<polyline points='${forecastPts}' fill='none' stroke='#2E75B6' stroke-width='2'
                 stroke-dasharray='5,4' stroke-linejoin='round' opacity='0.65'/>`
     : '';
@@ -325,15 +351,6 @@ function _renderUtilisationLineGraph(allRows) {
         <title>${p.label}: ${(p.util * 100).toFixed(1)}% (forecast)</title>
       </circle>`).join('');
 
-  const lx = PAD.left, ly = PAD.top - 4;
-  const legend = `
-    <line x1='${lx}' y1='${ly}' x2='${lx + 24}' y2='${ly}'
-          stroke='#2E75B6' stroke-width='2.5'/>
-    <text x='${lx + 30}' y='${ly + 4}' font-size='10' fill='#555'>Actual</text>
-    <line x1='${lx + 80}' y1='${ly}' x2='${lx + 104}' y2='${ly}'
-          stroke='#2E75B6' stroke-width='2' stroke-dasharray='5,4' opacity='0.65'/>
-    <text x='${lx + 110}' y='${ly + 4}' font-size='10' fill='#555'>Forecast</text>`;
-
   return `
     <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;
                 padding:20px 20px 12px;margin-bottom:24px'>
@@ -347,8 +364,22 @@ function _renderUtilisationLineGraph(allRows) {
         ${forecastLine}
         ${actualDots}
         ${forecastDots}
-        ${legend}
       </svg>
+      <div style='display:flex;justify-content:center;gap:24px;margin-top:8px;font-size:11px;color:#555'>
+        <div style='display:flex;align-items:center;gap:6px'>
+          <svg width='24' height='2' style='overflow:visible'>
+            <line x1='0' y1='1' x2='24' y2='1' stroke='#2E75B6' stroke-width='2.5'/>
+          </svg>
+          Actual
+        </div>
+        <div style='display:flex;align-items:center;gap:6px'>
+          <svg width='24' height='2' style='overflow:visible'>
+            <line x1='0' y1='1' x2='24' y2='1' stroke='#2E75B6' stroke-width='2'
+                  stroke-dasharray='5,4' opacity='0.65'/>
+          </svg>
+          Forecast
+        </div>
+      </div>
     </div>`;
 }
 
@@ -950,7 +981,7 @@ async function renderPeopleDashboard() {
 const { start, end } = _dashDateRange();
   const periodRows = _rowsInRange(allRows, start, end);
   const kpiStrip     = await _renderKPIStrip(allRows, people, assignments);
-  const utilLineGraph = _renderUtilisationLineGraph(allRows);
+  const utilLineGraph = _renderUtilisationLineGraph(allRows, assignments);
   const utilisPanel  = _renderUtilisationPanel(periodRows, people);
   const revenuePanel = _renderRevenuePanel(periodRows);
   const segmentPanel = _renderSegmentationPanel(people);

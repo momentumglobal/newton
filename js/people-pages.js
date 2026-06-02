@@ -993,6 +993,84 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
     `<option value='${y}' ${y === year ? 'selected' : ''}>${y}</option>`
   ).join('');
 
+  // ── Deployable Resources tile ─────────────────────────────
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const deployMonthOpts = `<option value=''>All months</option>` +
+    MONTHS.map((m, i) =>
+      `<option value='${i}' ${_ganttDeployableMonth === i ? 'selected' : ''}>${m}</option>`
+    ).join('');
+
+  // Find bench/unassigned assignments overlapping the selected month (or whole year)
+  const deployable = assignments.filter(a => {
+    if (a.Customer !== 'Unassigned' && a.Customer) return false;
+    if (!a.StartDate || !a.EndDate) return false;
+    const s = new Date(a.StartDate);
+    const e = new Date(a.EndDate);
+    if (_ganttDeployableMonth !== null) {
+      const mStart = new Date(year, _ganttDeployableMonth, 1);
+      const mEnd   = new Date(year, _ganttDeployableMonth + 1, 0);
+      return s <= mEnd && e >= mStart;
+    }
+    return s <= yearEnd && e >= yearStart;
+  });
+
+  // Deduplicate by employee — one row per person
+  const seen = new Set();
+  const deployableRows = [];
+  const levelOrder2 = { SDM: 1, STP: 2, TP: 3, CSD: 0 };
+  deployable
+    .filter(a => { if (seen.has(a.EmployeeName)) return false; seen.add(a.EmployeeName); return true; })
+    .sort((a, b) => {
+      const l = (levelOrder2[a.Level] ?? 99) - (levelOrder2[b.Level] ?? 99);
+      if (l !== 0) return l;
+      return (a.EmployeeName || '').localeCompare(b.EmployeeName || '');
+    })
+    .forEach(a => {
+      const person = peopleMap[a.EmployeeName] || {};
+      deployableRows.push(`
+        <tr>
+          <td style='padding:6px 10px;font-size:12px'>${a.EmployeeName}</td>
+          <td style='padding:6px 10px;font-size:12px'>${a.Level || '—'}</td>
+          <td style='padding:6px 10px;font-size:12px'>${person.ContractType || '—'}</td>
+          <td style='padding:6px 10px;font-size:12px'>${person.Location || '—'}</td>
+        </tr>`);
+    });
+
+  const deployableTile = `
+    <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;
+                padding:20px;margin-bottom:24px'>
+      <div style='display:flex;align-items:center;justify-content:space-between;
+                  flex-wrap:wrap;gap:12px;margin-bottom:16px'>
+        <div>
+          <div style='font-size:13px;font-weight:700;color:#1B3A5C'>
+            Deployable Resources
+            <span style='font-size:12px;font-weight:400;color:#888;margin-left:8px'>
+              ${deployableRows.length} available
+            </span>
+          </div>
+          <div style='font-size:11px;color:#aaa;margin-top:2px'>
+            Employees on bench / unassigned during the selected period
+          </div>
+        </div>
+        <div class='form-group' style='margin:0;min-width:140px'>
+          <select onchange='_setGanttDeployableMonth(this.value)'
+                  style='font-size:12px'>
+            ${deployMonthOpts}
+          </select>
+        </div>
+      </div>
+      ${deployableRows.length ? `
+        <table class='data-table'>
+          <thead><tr>
+            <th>Employee</th><th>Level</th><th>Contract</th><th>Location</th>
+          </tr></thead>
+          <tbody>${deployableRows.join('')}</tbody>
+        </table>` :
+        `<p style='font-size:13px;color:#888;margin:0'>
+          No unassigned employees during this period.</p>`
+      }
+    </div>`;
+
   main.innerHTML = `
 <div class='page-header'>
       <h2>Deployment Timeline</h2>
@@ -1002,6 +1080,7 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
         <button class='print-btn' onclick='printPage("Deployment Timeline", true, "People")'>⎙ Export PDF</button>
       </div>
     </div>
+    ${deployableTile}
     <div style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px'>${legend}</div>
 <div style='overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 200px);margin:0 -40px;padding:0 4px'>
     <table class='data-table' style='min-width:800px;table-layout:fixed'>
@@ -1018,11 +1097,17 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
 }
 
 let _ganttYear = new Date().getFullYear();
+let _ganttDeployableMonth = null; // null = all months
+
 async function _setGanttYear(year) {
   _ganttYear = year;
   await renderDeploymentTimeline();
 }
 
+async function _setGanttDeployableMonth(value) {
+  _ganttDeployableMonth = value !== '' ? +value : null;
+  await renderDeploymentTimeline();
+}
 async function renderGPInvoices() {
   const main    = document.getElementById('main-content');
   const canEdit = _resolvedRole === 'admin';

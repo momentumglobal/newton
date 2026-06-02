@@ -490,7 +490,7 @@ async function renderProjectDashboard() {
   }
   let selectorHtml = '', projectName = 'Project';
   if (isDMAdmin) {
-    const projects = await getScopedProjects(user.email, false);
+    const projects = (await getScopedProjects(user.email, false)).sort((a, b) => a.CustomerName.localeCompare(b.CustomerName));
     if (!projectId && projects.length) { projectId = String(projects[0].id); _dashProjectId = projectId; }
     projectName = (projects.find(p => String(p.id) === String(projectId)) || {}).CustomerName || 'Project';
     const opts = projects.map(p =>

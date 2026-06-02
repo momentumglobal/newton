@@ -1001,7 +1001,8 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
 
   // Find bench/unassigned assignments overlapping the selected month (or whole year)
   const deployable = assignments.filter(a => {
-    if (a.Customer !== 'Unassigned' && a.Customer) return false;
+    if (a.Billed === 'Yes') return false;
+    if (a.Level === 'CSD') return false;
     if (!a.StartDate || !a.EndDate) return false;
     const s = new Date(a.StartDate);
     const e = new Date(a.EndDate);

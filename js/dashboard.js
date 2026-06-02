@@ -96,9 +96,9 @@ async function fetchDashboardData(projectId, role) {
   ]);
   let roles = allRoles, acts = activity;
   if (isTP) {
-    const userName = (getCurrentUser().name || '').trim();
-    roles = allRoles.filter(r => r.TalentPartner && r.TalentPartner.trim() === userName);
-    acts  = activity.filter(a => a.TalentPartner && a.TalentPartner.trim() === userName);
+    const userEmail = (getCurrentUser().email || '').toLowerCase();
+    roles = allRoles.filter(r => (r.TalentPartner || '').toLowerCase() === userEmail);
+    acts  = activity.filter(a => (a.TalentPartner || '').toLowerCase() === userEmail);
   }
   const ids = new Set(roles.map(r => String(r.id)));
   return {

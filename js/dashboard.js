@@ -841,3 +841,36 @@ function setCompanyDetailPeriod(period) {
     renderCompanyDashboard();
   }
 }
+
+// ── Report Builder Panel Registry ──────────────────────────────────
+// Maps panel keys (used in saved report JSON) to render functions.
+// Each function receives (data, period, kpiPeriod) and returns an HTML string.
+// data = { roles, activity, placements, rejections }
+const REPORT_PANELS = {
+  kpiStrip: (data, period, kpiPeriod) =>
+    renderKPIStrip(data.roles, data.activity, kpiPeriod || 'quarter'),
+ 
+  pipelineActivity: (data, period) =>
+    renderPipelineActivityTable(data.activity, data.roles, period),
+ 
+  activityByTP: (data, period) =>
+    renderActivityByTPPanel(data.activity, period),
+ 
+  rejections: (data, period) =>
+    renderRejectionPanel(data.rejections, data.roles, period),
+ 
+  upcomingStarters: (data) =>
+    renderUpcomingStartersPanel(data.placements, data.roles),
+ 
+  spendVsBudget: (data) =>
+    renderSpendPanel(data.roles, data.placements),
+ 
+  rolesOpen30: (data) =>
+    renderProjectLongOpenRolesPanel(data.roles),
+ 
+  roleTracker: (data) =>
+    renderRoleTrackerPanel(data.roles),
+ 
+  placements: (data, period) =>
+    renderPlacementsPanel(data.placements, data.roles, period),
+};

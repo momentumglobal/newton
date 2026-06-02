@@ -488,6 +488,7 @@ body {
   .page-header { padding: 0 0 12px !important; }
   .data-table { table-layout: fixed; width: 100% !important; margin: 0 !important; }
   .data-table th, .data-table td { word-wrap: break-word; overflow-wrap: break-word; padding: 6px 6px !important; font-size: 11px !important; }
+  .data-table th:first-child, .data-table td:first-child { width: 18%; }
   .dash-panel { overflow: visible; padding: 12px 10px !important; }
   .data-table th { position: static; }
   .data-table tr    { page-break-inside: avoid; }

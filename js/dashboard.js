@@ -629,6 +629,7 @@ function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period) {
   const offerDelta  = kpiDelta(offerPct, prevOfferPct, false, true);
   const daysDelta   = kpiDelta(avgDays,  prevAvgDays,  true,  false);
   const otDelta     = kpiDelta(onTimePct,prevOnTimePct,false, true);
+  const periodLabel  = period === 'month' ? 'this month' : period === 'quarter' ? 'this quarter' : 'this year';
   const convDisplay  = convPct   !== null ? convPct + '%'   : '—';
   const ivDisplay    = ivOfferR  !== null ? ivOfferR + ':1' : '—';
   const offerDisplay = offerPct  !== null ? offerPct + '%'  : '—';
@@ -640,12 +641,12 @@ function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period) {
       ${kpiCard('Open Roles', openRoles, 'current')}
     </div>
     <div class='kpi-strip kpi-strip-period'>
-      ${kpiCard('Hires',                 hires + hiresDelta,          'in period')}
-      ${kpiCard('Submission Conversion', convDisplay  + convDelta,    'IV1 / Submitted')}
-      ${kpiCard('IV to Offer Ratio',     ivDisplay    + ivDelta,      'IV1 : Offers')}
-      ${kpiCard('Offer Success',         offerDisplay + offerDelta,   'Hires / Offers')}
-      ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,    'hired roles in period')}
-      ${kpiCard('Hired On Time',         otDisplay    + otDelta,      'within 45-day target')}
+      ${kpiCard('Hires',                 hires + hiresDelta,          periodLabel)}
+      ${kpiCard('Submission Conversion', convDisplay  + convDelta,    periodLabel)}
+      ${kpiCard('IV to Offer Ratio',     ivDisplay    + ivDelta,      periodLabel)}
+      ${kpiCard('Offer Success',         offerDisplay + offerDelta,   periodLabel)}
+      ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,    `hired roles · ${periodLabel}`)}
+      ${kpiCard('Hired On Time',         otDisplay    + otDelta,      `within 45-day target · ${periodLabel}`)}
     </div>`;
 }
 // ── Roles open 30+ days panel (company) ──────────────────────────────

@@ -292,24 +292,21 @@ async function rbExportPdf() {
 async function rbSaveReport() {
   const title = document.getElementById('rb-title')?.value?.trim();
   if (!title) { alert('Please enter a report title before saving.'); return; }
-
   const payload = {
     Title:       title,
     Scope:       _rbScope,
-    ProjectId:   _rbScope === 'project' ? _rbProjectId : null,
+    ProjectID:   _rbScope === 'project' ? _rbProjectId : null,
     Period:      _rbPeriod,
     KpiPeriod:   _rbKpiPeriod,
     ModuleOrder: JSON.stringify(_rbBlocks),
-    ModifiedBy:  getCurrentUser().email,
   };
-
   if (_rbReportId) {
     await updateSavedReport(_rbReportId, payload);
   } else {
-    payload.CreatedBy = getCurrentUser().email;
     const result = await createSavedReport(payload);
     _rbReportId = result.id;
   }
+  
   // Brief confirmation — no intrusive alert
   const btn = document.querySelector('.page-header-actions .btn-secondary');
   if (btn) { btn.textContent = 'Saved ✓'; setTimeout(() => { btn.textContent = 'Save'; }, 2000); }

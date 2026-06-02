@@ -178,6 +178,15 @@ async function getTalentPartnersForProject(projectId) {
   );
 }
 
+async function getTalentPartnerDisplayMap() {
+  const assignments = await getItems("UserAssignments");
+  const map = {};
+  assignments.forEach(u => {
+    if (u.UserEmail) map[u.UserEmail.toLowerCase()] = u.UserName || u.UserEmail;
+  });
+  return map;
+}
+
 // Role precedence: admin > leadership > talent_partner > delivery_manager > viewer
 const ROLE_PRECEDENCE = ['admin','leadership','talent_partner','delivery_manager','viewer'];
 function higherRole(a, b) {

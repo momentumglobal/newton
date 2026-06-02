@@ -101,11 +101,12 @@ async function renderRolesPage(filter) {
   main.innerHTML = "<p>Loading roles...</p>";
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
-  const [allRoles, allProjects, { projects: scopedProjects, canFilter }] = await Promise.all([
-    getAllRoles(),
-    getProjects(false),
-    getProjectFilterOptions(),
-  ]);
+  const [allRoles, allProjects, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
+  getAllRoles(),
+  getProjects(false),
+  getProjectFilterOptions(),
+  getTalentPartnerDisplayMap(),
+]);
   const projectMap = Object.fromEntries(allProjects.map(p => [String(p.id), p.CustomerName]));
   // Scope to user's assigned projects
   let roles = userProjectIds
@@ -158,7 +159,7 @@ async function renderRolesPage(filter) {
             <td>${projectName}</td>
             <td>${r.RoleTitle}</td>
             <td><span class="badge">${r.Stage || "—"}</span></td>
-            <td>${r.TalentPartner || "—"}</td>
+            <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || "—"}</td>
             <td>${formatSalary(r.Budget)}</td>
             <td>${r.OpenDate ? r.OpenDate.split("T")[0] : "—"}</td>
             <td>${r.TargetHireDate ? r.TargetHireDate.split("T")[0] : "—"}</td>
@@ -185,11 +186,12 @@ async function renderActivityPage() {
   main.innerHTML = "<p>Loading activity...</p>";
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
-  const [activity, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
-    getWeeklyActivity(),
-    getAllRoles(),
-    getProjectFilterOptions(),
-  ]);
+  const [activity, allRoles, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
+  getWeeklyActivity(),
+  getAllRoles(),
+  getProjectFilterOptions(),
+  getTalentPartnerDisplayMap(),
+]);
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
@@ -243,7 +245,7 @@ async function renderActivityPage() {
             <td>${a.Year}</td>
             <td>Wk ${a.WeekNumber}</td>
             <td>${roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || "—"}</td>
-            <td>${a.TalentPartner || "—"}</td>
+            <td>${tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || "—"}</td>
             <td>${a.Outreach || 0}</td>
             <td>${a.Screened || 0}</td>
             <td>${a.Submitted || 0}</td>

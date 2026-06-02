@@ -215,7 +215,7 @@ function renderKPIStrip(roles, activity, period) {
 function renderPipelineActivityTable(acts, roles, period) {
   const filtered = acts.filter(a => activityInDetailPeriod(a, period));
   const FIELDS   = ['Outreach','Responses','Screened','Submitted','Interview1','Interview2Plus','FinalInterview','Offers','Hires'];
-  const LABELS   = ['Outreach','Responses','Screened','Submitted','Interview 1','Interview 2+','Final Interview','Offers','Hires'];
+  const LABELS   = ['Outreach','Responses','Screened','Submitted','IV1','IV2+','Final IV','Offers','Hires'];
   const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), r.RoleTitle]));
   const byRole = {};
   filtered.forEach(a => {

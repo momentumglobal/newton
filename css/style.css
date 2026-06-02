@@ -586,8 +586,9 @@ body {
 .rb-rt-wrapper { flex: 1; border: 1px solid #D0D0D0; border-radius: 6px; overflow: hidden; }
 .rb-rt-toolbar { display: flex; gap: 4px; padding: 4px 6px; background: #F5F4F1; border-bottom: 1px solid #D0D0D0; }
 .rb-rt-toolbar button { background: none; border: 1px solid transparent; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-size: 13px; font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; }
-.rb-rt-toolbar button:hover { background: white; border-color: #D0D0D0; }
-.rb-richtext { min-height: 80px; padding: 8px 10px; font-size: 14px; font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; outline: none; }
+.rb-rt-toolbar button.active { background: white; border-color: #0A0B44; color: #0A0B44; font-weight: 600; }
+.rb-richtext ul, .rb-richtext ol { padding-left: 24px; margin: 4px 0; }
+.rb-text-block ul, .rb-text-block ol { padding-left: 24px; margin: 4px 0; }
 
 /* Canvas blocks */
 .rb-empty {

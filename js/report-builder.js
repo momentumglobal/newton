@@ -7,6 +7,7 @@ let _rbPeriod     = 'this_quarter';
 let _rbKpiPeriod  = 'quarter';
 let _rbReportId   = null;  // SharePoint item ID if editing a saved report
 let _rbReportData = null;  // Cached fetch result { roles, activity, placements, rejections }
+let _rbTitle      = '';
 
 const RB_PALETTE = [
   { key: 'kpiStrip',       label: 'KPI Strip',                scope: 'both'    },

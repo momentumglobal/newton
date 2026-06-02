@@ -342,7 +342,7 @@ async function rbLoadReport(id) {
   const report = await getSavedReportById(id);
   _rbReportId   = id;
   _rbScope      = report.Scope || 'project';
-  _rbProjectId  = report.ProjectId || null;
+  _rbProjectId  = report['ProjectID'] ? String(report['ProjectID']) : null;
   _rbPeriod     = report.Period || 'this_quarter';
   _rbKpiPeriod  = report.KpiPeriod || 'quarter';
   _rbBlocks     = JSON.parse(report.ModuleOrder || '[]');

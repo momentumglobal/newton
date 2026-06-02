@@ -994,7 +994,6 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
   ).join('');
 
   // ── Deployable Resources tile ─────────────────────────────
-  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const deployMonthOpts = `<option value=''>All months</option>` +
     MONTHS.map((m, i) =>
       `<option value='${i}' ${_ganttDeployableMonth === i ? 'selected' : ''}>${m}</option>`

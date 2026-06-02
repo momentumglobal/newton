@@ -254,6 +254,104 @@ function _barChart(data, valueFormatter) {
   </div>`;
 }
 
+// ── Team Utilisation Line Graph ───────────────────
+function _renderUtilisationLineGraph(allRows) {
+  const now       = new Date();
+  const thisYear  = now.getFullYear();
+  const curMonth  = now.getMonth(); // 0-based
+
+  const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const points = MONTH_LABELS.map((label, i) => {
+    const monthRows = allRows.filter(r => r.Year === thisYear && r.Month === i + 1);
+    const util = monthRows.length ? _calcUtilisation(monthRows) : null;
+    return { label, util, monthIdx: i };
+  });
+
+  const actualPoints   = points.filter(p => p.monthIdx <= curMonth);
+  const forecastPoints = points.filter(p => p.monthIdx >= curMonth); // overlap at curMonth joins lines
+
+  const W = 900, H = 200;
+  const PAD = { top: 18, right: 24, bottom: 32, left: 52 };
+  const chartW = W - PAD.left - PAD.right;
+  const chartH = H - PAD.top  - PAD.bottom;
+
+  const xOf = (i) => PAD.left + (i / 11) * chartW;
+  const yOf = (v) => PAD.top + chartH - (v * chartH);
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1.0].map(v => {
+    const y = yOf(v);
+    return `
+      <line x1='${PAD.left}' y1='${y}' x2='${W - PAD.right}' y2='${y}'
+            stroke='#e8e8e8' stroke-width='1'/>
+      <text x='${PAD.left - 6}' y='${y + 4}' text-anchor='end'
+            font-size='10' fill='#999'>${(v * 100).toFixed(0)}%</text>`;
+  }).join('');
+
+  const xLabels = MONTH_LABELS.map((lbl, i) =>
+    `<text x='${xOf(i)}' y='${PAD.top + chartH + 18}' text-anchor='middle'
+           font-size='10' fill='#888'>${lbl}</text>`
+  ).join('');
+
+  const toPolyPoints = (pts) =>
+    pts.filter(p => p.util !== null)
+       .map(p => `${xOf(p.monthIdx).toFixed(1)},${yOf(p.util).toFixed(1)}`)
+       .join(' ');
+
+  const actualPts  = toPolyPoints(actualPoints);
+  const actualLine = actualPts
+    ? `<polyline points='${actualPts}' fill='none' stroke='#2E75B6' stroke-width='2.5' stroke-linejoin='round'/>`
+    : '';
+
+  const forecastPts  = toPolyPoints(forecastPoints);
+  const forecastLine = forecastPts
+    ? `<polyline points='${forecastPts}' fill='none' stroke='#2E75B6' stroke-width='2'
+                stroke-dasharray='5,4' stroke-linejoin='round' opacity='0.65'/>`
+    : '';
+
+  const actualDots = actualPoints
+    .filter(p => p.util !== null)
+    .map(p => `
+      <circle cx='${xOf(p.monthIdx).toFixed(1)}' cy='${yOf(p.util).toFixed(1)}'
+              r='3.5' fill='#2E75B6' stroke='#fff' stroke-width='1.5'>
+        <title>${p.label}: ${(p.util * 100).toFixed(1)}%</title>
+      </circle>`).join('');
+
+  const forecastDots = forecastPoints
+    .filter(p => p.util !== null && p.monthIdx > curMonth)
+    .map(p => `
+      <circle cx='${xOf(p.monthIdx).toFixed(1)}' cy='${yOf(p.util).toFixed(1)}'
+              r='3' fill='#fff' stroke='#2E75B6' stroke-width='2' opacity='0.7'>
+        <title>${p.label}: ${(p.util * 100).toFixed(1)}% (forecast)</title>
+      </circle>`).join('');
+
+  const lx = PAD.left, ly = PAD.top - 4;
+  const legend = `
+    <line x1='${lx}' y1='${ly}' x2='${lx + 24}' y2='${ly}'
+          stroke='#2E75B6' stroke-width='2.5'/>
+    <text x='${lx + 30}' y='${ly + 4}' font-size='10' fill='#555'>Actual</text>
+    <line x1='${lx + 80}' y1='${ly}' x2='${lx + 104}' y2='${ly}'
+          stroke='#2E75B6' stroke-width='2' stroke-dasharray='5,4' opacity='0.65'/>
+    <text x='${lx + 110}' y='${ly + 4}' font-size='10' fill='#555'>Forecast</text>`;
+
+  return `
+    <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;
+                padding:20px 20px 12px;margin-bottom:24px'>
+      <div style='font-size:13px;font-weight:700;color:#1B3A5C;margin-bottom:8px'>
+        Team Utilisation ${thisYear}</div>
+      <svg viewBox='0 0 ${W} ${H}' style='width:100%;height:auto;display:block'
+           xmlns='http://www.w3.org/2000/svg'>
+        ${gridLines}
+        ${xLabels}
+        ${actualLine}
+        ${forecastLine}
+        ${actualDots}
+        ${forecastDots}
+        ${legend}
+      </svg>
+    </div>`;
+}
+
 // ── People Dashboard KPI Strip ────────────────────
 function _kpiCard(label, value, sub, bg) {
   return `<div style='background:${bg || '#fff'};border:1px solid #e0e0e0;border-radius:6px;
@@ -852,6 +950,7 @@ async function renderPeopleDashboard() {
 const { start, end } = _dashDateRange();
   const periodRows = _rowsInRange(allRows, start, end);
   const kpiStrip     = await _renderKPIStrip(allRows, people, assignments);
+  const utilLineGraph = _renderUtilisationLineGraph(allRows);
   const utilisPanel  = _renderUtilisationPanel(periodRows, people);
   const revenuePanel = _renderRevenuePanel(periodRows);
   const segmentPanel = _renderSegmentationPanel(people);
@@ -891,6 +990,8 @@ const { start, end } = _dashDateRange();
     </div>
 
     ${kpiStrip}
+
+    ${utilLineGraph}
 
  <div style='margin-bottom:24px'>${periodBtns}</div>
 

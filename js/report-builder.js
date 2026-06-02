@@ -347,6 +347,7 @@ async function rbLoadReport(id) {
   _rbKpiPeriod  = report.KpiPeriod || 'quarter';
   _rbBlocks     = JSON.parse(report.ModuleOrder || '[]');
   _rbTitle      = report.Title;
+  console.log('Loading ProjectID:', report.ProjectID, 'type:', typeof report.ProjectID);
   document.getElementById('rb-saved-modal').style.display = 'none';
   renderReportBuilder();
 }

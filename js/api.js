@@ -12,6 +12,7 @@ const FIELD_ALIASES = {
   LeadershipAccess:{ Title: "UserEmail" },
   Departments:     { Title: "DepartmentName" },
   Currencies:      { Title: "CurrencyCode" },
+  SavedReports:    {},
   // ── People module ──────────────────────────────────────────
   People:          { Title: "EmployeeName" },
   Assignments:     { Title: "AssignmentID" },

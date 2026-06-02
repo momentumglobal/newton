@@ -59,10 +59,10 @@ function rbRenderSidebar(projects) {
       ${p.CustomerName}</option>`).join('');
  
   const periodOpts = DETAIL_PERIOD_OPTIONS.map(([k, l]) =>
-    `<option value="${k}" ${_rbPeriod === k ? 'selected' : ''>${l}</option>`).join('');
+    `<option value="${k}" ${_rbPeriod === k ? 'selected' : ''$>{l}</option>`).join('');
  
   const kpiOpts = [['month','Month'],['quarter','Quarter'],['year','Year']]
-    .map(([k,l]) => `<option value="${k}" ${_rbKpiPeriod===k ? 'selected' : ''>${l}</option>`).join('');
+    .map(([k,l]) => `<option value="${k}" ${_rbKpiPeriod===k ? 'selected' : ''$>{l}</option>`).join('');
  
   // Palette tiles — scope-filtered
   const paletteTiles = RB_PALETTE

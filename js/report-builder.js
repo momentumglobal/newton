@@ -161,6 +161,10 @@ function rbUpdateToolbarState() {
     const btn = toolbar.querySelector(`button[onclick="rbFormat('${cmd}')"]`);
     if (btn) btn.classList.toggle('active', document.queryCommandState(cmd));
   });
+  const ulBtn = toolbar.querySelector(`button[onclick="rbFormat('insertUnorderedList')"]`);
+  const olBtn = toolbar.querySelector(`button[onclick="rbFormat('insertOrderedList')"]`);
+  if (ulBtn) ulBtn.classList.toggle('active', document.queryCommandState('insertUnorderedList'));
+  if (olBtn) olBtn.classList.toggle('active', document.queryCommandState('insertOrderedList'));
 }
 
 function rbInitSortable() {

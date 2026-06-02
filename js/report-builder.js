@@ -62,7 +62,7 @@ function rbRenderSidebar(projects) {
     `<option value="${k}" ${_rbPeriod === k ? 'selected' : ''}>${l}</option>`).join('');
  
   const kpiOpts = [['month','Month'],['quarter','Quarter'],['year','Year']]
-    .map(([k,l]) => `<option value="${k}" ${_rbKpiPeriod===k ? 'selected' : ''$>{l}</option>`).join('');
+    .map(([k,l]) => `<option value="${k}" ${_rbKpiPeriod===k ? 'selected' : ''}>${l}</option>`).join('');
  
   // Palette tiles — scope-filtered
   const paletteTiles = RB_PALETTE

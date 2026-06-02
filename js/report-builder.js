@@ -335,18 +335,18 @@ async function rbLoadReport(id) {
 // SharePoint API functions
  
 async function getSavedReports() {
-  return spGet('SavedReports', '$orderby=Modified desc&$top=100');
+  return getItems('SavedReports');
 }
- 
+
 async function getSavedReportById(id) {
-  return spGetById('SavedReports', id);
+  return getItem('SavedReports', id);
 }
- 
+
 async function createSavedReport(fields) {
-  return spCreate('SavedReports', fields);
+  return createItem('SavedReports', fields);
 }
- 
+
 async function updateSavedReport(id, fields) {
-  return spUpdate('SavedReports', id, fields);
+  return updateItem('SavedReports', id, fields);
 }
 

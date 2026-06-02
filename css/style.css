@@ -486,7 +486,9 @@ body {
   .print-header-title { font-size: 16px; font-weight: 600; color: white; }
   .print-header-sub   { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
   .page-header { padding: 0 0 12px !important; }
-  .data-table { width: 100% !important; margin: 0 !important; }
+  .data-table { table-layout: fixed; }
+  .data-table th, .data-table td { word-wrap: break-word; overflow-wrap: break-word; }
+  .dash-panel { overflow: visible; }
   .data-table th { position: static; }
   .data-table tr    { page-break-inside: avoid; }
   .dash-panel       { page-break-inside: avoid; }

@@ -282,7 +282,7 @@ async function rbExportPdf() {
 
   // Use existing printPage() — sets print-header title/sub and calls window.print()
   const main = document.getElementById('main-content');
-  main.innerHTML = `<div class="page-header"><h2>${title}</h2></div>` + rbRenderReportHtml(title, data);
+  main.innerHTML = rbRenderReportHtml(title, data);
   printPage(title, false, 'Reporting');
 
   // Restore builder after print dialog closes

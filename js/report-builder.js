@@ -130,7 +130,9 @@ function rbRenderCanvas() {
             <button type="button" onclick="rbFormat('insertOrderedList')">1. List</button>
           </div>
           <div class="rb-richtext" contenteditable="true" data-id="${block.id}"
-            oninput="rbUpdateTextBlock('${block.id}', this.innerHTML)">${block.content || ''}</div>
+            oninput="rbUpdateTextBlock('${block.id}', this.innerHTML)"
+            onkeyup="rbUpdateToolbarState()"
+            onmouseup="rbUpdateToolbarState()">${block.content || ''}</div>
         </div>
         <button class="rb-remove-btn" onclick="rbRemoveBlock('${block.id}')">&#x2715;</button>
       </div>`;
@@ -140,7 +142,19 @@ function rbRenderCanvas() {
   return `<div id="rb-sortable">${items}</div>`;
 }
 
-function rbFormat(cmd) { document.execCommand(cmd, false, null); }
+function rbFormat(cmd) {
+  document.execCommand(cmd, false, null);
+  rbUpdateToolbarState();
+}
+
+function rbUpdateToolbarState() {
+  const toolbar = document.activeElement?.closest('.rb-block-text')?.querySelector('.rb-rt-toolbar');
+  if (!toolbar) return;
+  ['bold','italic','underline'].forEach(cmd => {
+    const btn = toolbar.querySelector(`button[onclick="rbFormat('${cmd}')"]`);
+    if (btn) btn.classList.toggle('active', document.queryCommandState(cmd));
+  });
+}
 
 function rbInitSortable() {
   const el = document.getElementById('rb-sortable');

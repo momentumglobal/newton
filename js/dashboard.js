@@ -204,11 +204,11 @@ function renderKPIStrip(roles, activity, period) {
       ${kpiCard('Hires to Date', totalHires, 'all time')}
     </div>
     <div class='kpi-strip kpi-strip-period'>
-      ${kpiCard('Submission Conversion', convDisplay + convDelta,   'IV1 / Submitted')}
-      ${kpiCard('IV to Offer Ratio',     ivDisplay   + ivDelta,     'IV1 : Offers')}
-      ${kpiCard('Offer Success',         offerDisplay + offerDelta, 'Hires / Offers')}
+      ${kpiCard('Submission Conversion', convDisplay + convDelta,   'in period')}
+      ${kpiCard('IV to Offer Ratio',     ivDisplay   + ivDelta,     'in period')}
+      ${kpiCard('Offer Success',         offerDisplay + offerDelta, 'in period')}
       ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,  'hired roles in period')}
-      ${kpiCard('Hired On Time',         otDisplay    + otDelta,    'within 45-day target')}
+      ${kpiCard('Hired On Time',         otDisplay    + otDelta,    'in period, within 45-day target')}
     </div>`;
 }
 // ── Pipeline Activity table ───────────────────────────────────────────

@@ -711,11 +711,11 @@ function renderCompanyTPPanel(allActivity, projectMap, roleProjectMap, period, t
   if (!keys.length) return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3><p class='no-data'>No activity in this period.</p></div>`;
   const rows = keys.map(k => {
     const d = map[k];
-    return `<tr><td>${d.project}</td><td>${tpMap[d.tp.toLowerCase()] || d.tp}</td><td>${d.Outreach}</td><td>${d.Submitted}</td><td>${d.Interview1}</td><td>${d.Offers}</td><td>${d.Hires}</td></tr>`;
+    return `<tr><td>${d.project}</td><td>${tpMap[d.tp.toLowerCase()] || d.tp}</td><td style="text-align:center">${d.Outreach}</td><td style="text-align:center">${d.Submitted}</td><td style="text-align:center">${d.Interview1}</td><td style="text-align:center">${d.Offers}</td><td style="text-align:center">${d.Hires}</td></tr>`;
   }).join('');
   return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3>
     <table class='data-table'>
-      <thead><tr><th>Project</th><th>Talent Partner</th><th>Outreach</th><th>Submitted</th><th>Interview 1</th><th>Offers</th><th>Hires</th></tr></thead>
+      <thead><tr><th>Project</th><th>Talent Partner</th><th style="text-align:center">Outreach</th><th style="text-align:center">Submitted</th><th style="text-align:center">Interview 1</th><th style="text-align:center">Offers</th><th style="text-align:center">Hires</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </div>`;

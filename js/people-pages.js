@@ -279,14 +279,9 @@ async function _syncBenchAssignments() {
         gaps.push({ from: new Date(cursor), to: new Date(empEnd) });
       }
 
-      // Filter gaps to only future (start >= today)
-      const futureGaps = gaps.filter(g => g.to >= today);
-
-      // Clamp gap start to today if it started in the past
-      const clampedGaps = futureGaps.map(g => ({
-        from: g.from < today ? new Date(today) : g.from,
-        to:   g.to,
-      }));
+      // Use all gaps for the full year — past and future
+      // This ensures historical bench records are preserved/regenerated correctly
+      const clampedGaps = gaps;
 
       // Existing bench records for this person
       const personBench = existingBench.filter(

@@ -220,6 +220,13 @@ async function _syncBenchAssignments() {
     const toCreate = [];
     const toDelete = [];
 
+    // Clean up bench records for inactive employees — they're excluded from the main loop
+    // but their stale bench records still need removing
+    const inactiveBench = existingBench.filter(b =>
+      people.some(p => p.EmployeeName === b.EmployeeName && p.IsActive === false)
+    );
+    inactiveBench.forEach(b => { if (!toDelete.includes(b.id)) toDelete.push(b.id); });
+
     for (const person of billable) {
       // Employment end: use person's EndDate if set, else Dec 31
       const empEnd = person.EndDate

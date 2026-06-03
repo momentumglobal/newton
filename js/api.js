@@ -61,12 +61,18 @@ function listPath(listName) {
 // ── Read ─────────────────────────────────────────────────────────────
 async function getItems(listName, filter = "") {
   const qs = filter ? `?$expand=fields($select=*)&$filter=${encodeURIComponent(filter)}` : "?$expand=fields($select=*)";
-  const data = await graphRequest("GET", `${listPath(listName)}${qs}`);
-  return data.value.map(i => ({ id: i.id, ...normaliseFields(listName, i.fields) }));
+  let url = `${listPath(listName)}${qs}`;
+  const items = [];
+  while (url) {
+    const data = await graphRequest("GET", url);
+    if (listName === 'Assignments') console.log('[Fields] raw sample:', data.value[0]?.fields);
+    items.push(...data.value.map(i => ({ id: i.id, ...normaliseFields(listName, i.fields) })));
+    url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH, '') : null;
+  }
+  return items;
 }
-
 async function getItem(listName, itemId) {
-  const data = await graphRequest("GET", `${listPath(listName)}/${itemId}?$expand=fields`);
+  const data = await graphRequest("GET", `${listPath(listName)}/${itemId}?$expand=fields($select=*)`);
   return { id: data.id, ...normaliseFields(listName, data.fields) };
 }
 

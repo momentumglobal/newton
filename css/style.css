@@ -252,9 +252,6 @@ body {
   font-weight: 600;
   font-size: 13px;
   letter-spacing: 0.01em;
-  position: sticky;
-  top: 0;
-  z-index: 1;
 }
 
 .data-table.no-sticky th {

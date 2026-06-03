@@ -1060,7 +1060,7 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
         </div>
       </div>
       ${deployableRows.length ? `
-        <table class='data-table no-sticky'>
+        <table class='data-table'>
           <thead><tr>
             <th>Employee</th><th>Level</th><th>Contract</th><th>Location</th>
           </tr></thead>

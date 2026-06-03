@@ -438,31 +438,25 @@ function _barChart(data, valueFormatter) {
 }
 
 // ── Sales Forecast Utilisation helper ────────────
-function _salesForecastUtil(monthIdx, salesForecasts, totalActiveHeadcount, assignments) {
+function _salesForecastUtil(monthIdx, salesForecasts, totalActiveHeadcount, assignmentForecastUtil) {
   const now      = new Date();
   const thisYear = now.getFullYear();
   const mStart   = new Date(thisYear, monthIdx, 1);
   const mEnd     = new Date(thisYear, monthIdx + 1, 0);
 
-  // Count already-billed employees from existing assignments in this month
-  const existingBilled = assignments.filter(a => {
-    if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
-    const s = new Date(a.StartDate);
-    const e = new Date(a.EndDate);
-    return s <= mEnd && e >= mStart && a.Billed === 'Yes';
-  }).length;
-
-  // Add forecasted headcount from sales forecasts overlapping this month
+  // Additional headcount from sales forecasts overlapping this month
   const forecastedBilled = salesForecasts.reduce((sum, f) => {
     const s = new Date(f.ForecastStartDate);
     const e = new Date(f.ForecastEndDate);
     return (s <= mEnd && e >= mStart) ? sum + (f.ForecastedHeadcount || 0) : sum;
   }, 0);
 
-  const totalBilled = existingBilled + forecastedBilled;
-  if (totalBilled === 0) return null;
-  const capped = Math.min(totalBilled, totalActiveHeadcount);
-  return totalActiveHeadcount > 0 ? capped / totalActiveHeadcount : null;
+  // Base is the existing assignment forecast util (already a 0-1 ratio)
+  // Add sales headcount on top, expressed as a fraction of total headcount
+  const base = assignmentForecastUtil || 0;
+  const added = totalActiveHeadcount > 0 ? forecastedBilled / totalActiveHeadcount : 0;
+  const combined = Math.min(base + added, 1.0);
+  return combined > 0 ? combined : null;
 }
 
 // ── Team Utilisation Line Graph ───────────────────
@@ -510,7 +504,7 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
 
   const salesPoints = MONTH_LABELS.map((label, i) => {
     if (i < curMonth) return { label, util: null, monthIdx: i };
-    return { label, util: _salesForecastUtil(i, salesForecasts, totalActiveHeadcount, assignments), monthIdx: i };
+    return { label, util: _salesForecastUtil(i, salesForecasts, totalActiveHeadcount, _forecastUtil(i)), monthIdx: i };
   });
   
   const W = 900, H = 200;

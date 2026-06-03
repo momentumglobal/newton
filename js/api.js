@@ -65,7 +65,10 @@ async function getItems(listName, filter = "") {
   const items = [];
   while (url) {
     const data = await graphRequest("GET", url);
-    if (listName === 'Assignments') console.log('[Fields] raw sample:', data.value[0]?.fields);
+    if (listName === 'Assignments') {
+      const bench = data.value.find(i => i.fields?.Customer === 'Unassigned');
+      if (bench) console.log('[Fields] bench sample:', bench.fields);
+    }
     items.push(...data.value.map(i => ({ id: i.id, ...normaliseFields(listName, i.fields) })));
     url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH, '') : null;
   }

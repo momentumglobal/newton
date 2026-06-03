@@ -437,8 +437,26 @@ function _barChart(data, valueFormatter) {
   </div>`;
 }
 
+// ── Sales Forecast Utilisation helper ────────────
+function _salesForecastUtil(monthIdx, salesForecasts, totalActiveHeadcount) {
+  const now    = new Date();
+  const thisYear = now.getFullYear();
+  const mStart = new Date(thisYear, monthIdx, 1);
+  const mEnd   = new Date(thisYear, monthIdx + 1, 0);
+
+  const forecastedBilled = salesForecasts.reduce((sum, f) => {
+    const s = new Date(f.ForecastStartDate);
+    const e = new Date(f.ForecastEndDate);
+    return (s <= mEnd && e >= mStart) ? sum + (f.ForecastedHeadcount || 0) : sum;
+  }, 0);
+
+  if (forecastedBilled === 0) return null;
+  const capped = Math.min(forecastedBilled, totalActiveHeadcount);
+  return totalActiveHeadcount > 0 ? capped / totalActiveHeadcount : null;
+}
+
 // ── Team Utilisation Line Graph ───────────────────
-function _renderUtilisationLineGraph(allRows, assignments) {
+function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, totalActiveHeadcount) {
   const now       = new Date();
   const thisYear  = now.getFullYear();
   const curMonth  = now.getMonth(); // 0-based
@@ -480,6 +498,11 @@ function _renderUtilisationLineGraph(allRows, assignments) {
   const actualPoints   = points.filter(p => p.monthIdx <= curMonth);
   const forecastPoints = points.filter(p => p.monthIdx >= curMonth);
 
+  const salesPoints = MONTH_LABELS.map((label, i) => {
+    if (i < curMonth) return { label, util: null, monthIdx: i };
+    return { label, util: _salesForecastUtil(i, salesForecasts, totalActiveHeadcount), monthIdx: i };
+  });
+  
   const W = 900, H = 200;
   const PAD = { top: 10, right: 24, bottom: 32, left: 52 };
   const chartW = W - PAD.left - PAD.right;
@@ -518,6 +541,12 @@ function _renderUtilisationLineGraph(allRows, assignments) {
                 stroke-dasharray='5,4' stroke-linejoin='round' opacity='0.65'/>`
     : '';
 
+  const salesForecastPts  = toPolyPoints(salesPoints);
+  const salesForecastLine = salesForecastPts && salesForecastPts.includes(' ')
+    ? `<polyline points='${salesForecastPts}' fill='none' stroke='#E8703A' stroke-width='2'
+                stroke-dasharray='5,4' stroke-linejoin='round' opacity='0.85'/>`
+    : '';
+  
   const actualDots = actualPoints
     .filter(p => p.util !== null)
     .map(p => `
@@ -534,6 +563,14 @@ function _renderUtilisationLineGraph(allRows, assignments) {
         <title>${p.label}: ${(p.util * 100).toFixed(1)}% (forecast)</title>
       </circle>`).join('');
 
+  const salesForecastDots = salesPoints
+    .filter(p => p.util !== null && p.monthIdx >= curMonth)
+    .map(p => `
+      <circle cx='${xOf(p.monthIdx).toFixed(1)}' cy='${yOf(p.util).toFixed(1)}'
+              r='3' fill='#fff' stroke='#E8703A' stroke-width='2' opacity='0.85'>
+        <title>${p.label}: ${(p.util * 100).toFixed(1)}% (sales forecast)</title>
+      </circle>`).join('');
+  
   return `
     <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;
                 padding:20px 20px 12px;margin-bottom:24px'>
@@ -556,6 +593,8 @@ function _renderUtilisationLineGraph(allRows, assignments) {
         ${forecastLine}
         ${actualDots}
         ${forecastDots}
+        ${salesForecastLine}
+        ${salesForecastDots}
       </svg>
       <div style='display:flex;justify-content:center;gap:24px;margin-top:8px;font-size:11px;color:#555'>
         <div style='display:flex;align-items:center;gap:6px'>
@@ -570,6 +609,13 @@ function _renderUtilisationLineGraph(allRows, assignments) {
                   stroke-dasharray='5,4' opacity='0.65'/>
           </svg>
           Forecast
+        </div>
+        <div style='display:flex;align-items:center;gap:6px'>
+          <svg width='24' height='2' style='overflow:visible'>
+            <line x1='0' y1='1' x2='24' y2='1' stroke='#E8703A' stroke-width='2'
+                  stroke-dasharray='5,4' opacity='0.85'/>
+          </svg>
+          Sales Forecast
         </div>
       </div>
     </div>`;
@@ -1248,17 +1294,22 @@ async function renderPeopleDashboard() {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading dashboard...</p>';
 
-  const [assignments, people] = await Promise.all([
+  const [assignments, people, salesForecasts] = await Promise.all([
     getAssignments({}),
     getPeople(false),
+    getSalesForecasts(),
   ]);
+
+  const totalActiveHeadcount = people.filter(
+    p => p.IsActive !== false && ['SDM', 'STP', 'TP'].includes(p.Level)
+  ).length;
 
   const allRows = computeMonthlyRows(assignments);
 
 const { start, end } = _dashDateRange();
   const periodRows = _rowsInRange(allRows, start, end);
   const kpiStrip     = await _renderKPIStrip(allRows, people, assignments);
-  const utilLineGraph = _renderUtilisationLineGraph(allRows, assignments);
+  const utilLineGraph = _renderUtilisationLineGraph(allRows, assignments, salesForecasts, totalActiveHeadcount);
   const utilisPanel  = _renderUtilisationPanel(periodRows, people);
   const revenuePanel = _renderRevenuePanel(periodRows);
   const segmentPanel = _renderSegmentationPanel(people);

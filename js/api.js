@@ -17,6 +17,8 @@ const FIELD_ALIASES = {
   People:          { Title: "EmployeeName" },
   Assignments:     { Title: "AssignmentID" },
   GPInvoices:      { Title: "InvoiceNumber" },
+  // ── Sales module ──────────────────────────────────────────
+  SalesForecasts:  {},
 };
 
 function normaliseFields(listName, fields) {
@@ -120,6 +122,23 @@ async function getUserAssignments(projectId) {
 
 async function getLeadershipAccess() {
   return getItems("LeadershipAccess");
+}
+
+// ── Sales Forecasts ────────────────────────────────────────
+async function getSalesForecasts() {
+  return getItems("SalesForecasts");
+}
+
+async function createSalesForecast(payload) {
+  return createItem("SalesForecasts", payload);
+}
+
+async function updateSalesForecast(id, payload) {
+  return updateItem("SalesForecasts", id, payload);
+}
+
+async function deleteSalesForecast(id) {
+  return deleteItem("SalesForecasts", id);
 }
 
 async function getDepartments(projectId) {

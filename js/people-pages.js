@@ -438,20 +438,30 @@ function _barChart(data, valueFormatter) {
 }
 
 // ── Sales Forecast Utilisation helper ────────────
-function _salesForecastUtil(monthIdx, salesForecasts, totalActiveHeadcount) {
-  const now    = new Date();
+function _salesForecastUtil(monthIdx, salesForecasts, totalActiveHeadcount, assignments) {
+  const now      = new Date();
   const thisYear = now.getFullYear();
-  const mStart = new Date(thisYear, monthIdx, 1);
-  const mEnd   = new Date(thisYear, monthIdx + 1, 0);
+  const mStart   = new Date(thisYear, monthIdx, 1);
+  const mEnd     = new Date(thisYear, monthIdx + 1, 0);
 
+  // Count already-billed employees from existing assignments in this month
+  const existingBilled = assignments.filter(a => {
+    if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
+    const s = new Date(a.StartDate);
+    const e = new Date(a.EndDate);
+    return s <= mEnd && e >= mStart && a.Billed === 'Yes';
+  }).length;
+
+  // Add forecasted headcount from sales forecasts overlapping this month
   const forecastedBilled = salesForecasts.reduce((sum, f) => {
     const s = new Date(f.ForecastStartDate);
     const e = new Date(f.ForecastEndDate);
     return (s <= mEnd && e >= mStart) ? sum + (f.ForecastedHeadcount || 0) : sum;
   }, 0);
 
-  if (forecastedBilled === 0) return null;
-  const capped = Math.min(forecastedBilled, totalActiveHeadcount);
+  const totalBilled = existingBilled + forecastedBilled;
+  if (totalBilled === 0) return null;
+  const capped = Math.min(totalBilled, totalActiveHeadcount);
   return totalActiveHeadcount > 0 ? capped / totalActiveHeadcount : null;
 }
 

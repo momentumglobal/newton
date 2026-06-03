@@ -229,16 +229,21 @@ async function _syncBenchAssignments() {
 
     for (const person of billable) {
       // Employment end: use person's EndDate if set, else Dec 31
-      const empEnd = person.EndDate
-        ? new Date(Math.min(new Date(person.EndDate), yearEnd))
-        : yearEnd;
+      const _parseDate = (str) => {
+        if (!str) return null;
+        const d = new Date(str.slice(0, 10));
+        d.setHours(0,0,0,0);
+        return d;
+      };
+
+      const empEndRaw = _parseDate(person.EndDate);
+      const empEnd = empEndRaw && empEndRaw < yearEnd ? empEndRaw : new Date(yearEnd);
       empEnd.setHours(0,0,0,0);
 
-      // Only consider this year
-      const empStart = new Date(Math.max(
-        new Date(thisYear, 0, 1),
-        person.StartDate ? new Date(person.StartDate) : new Date(thisYear, 0, 1)
-      ));
+      const empStartRaw = _parseDate(person.StartDate);
+      const empStart = empStartRaw && empStartRaw > new Date(thisYear, 0, 1)
+        ? empStartRaw
+        : new Date(thisYear, 0, 1);
       empStart.setHours(0,0,0,0);
 
       if (empStart > empEnd) continue;
@@ -251,8 +256,8 @@ async function _syncBenchAssignments() {
           a.StartDate && a.EndDate
         )
         .map(a => ({
-          s: new Date(a.StartDate),
-          e: new Date(a.EndDate),
+          s: new Date(a.StartDate.slice(0, 10)),
+          e: new Date(a.EndDate.slice(0, 10)),
         }))
         .filter(a => a.s <= empEnd && a.e >= empStart)
         .sort((a, b) => a.s - b.s);
@@ -291,8 +296,8 @@ async function _syncBenchAssignments() {
 
       // Determine which existing bench records are still valid
       for (const bench of personBench) {
-        const bs = new Date(bench.StartDate); bs.setHours(0,0,0,0);
-        const be = new Date(bench.EndDate);   be.setHours(0,0,0,0);
+        const bs = new Date(bench.StartDate.slice(0, 10)); bs.setHours(0,0,0,0);
+        const be = new Date(bench.EndDate.slice(0, 10));   be.setHours(0,0,0,0);
         const stillNeeded = clampedGaps.some(
           g => g.from.getTime() === bs.getTime() && g.to.getTime() === be.getTime()
         );
@@ -302,8 +307,8 @@ async function _syncBenchAssignments() {
       // Determine which gaps don't yet have a bench record
       for (const gap of clampedGaps) {
         const alreadyExists = personBench.some(b => {
-          const bs = new Date(b.StartDate); bs.setHours(0,0,0,0);
-          const be = new Date(b.EndDate);   be.setHours(0,0,0,0);
+          const bs = new Date(b.StartDate.slice(0, 10)); bs.setHours(0,0,0,0);
+          const be = new Date(b.EndDate.slice(0, 10));   be.setHours(0,0,0,0);
           return bs.getTime() === gap.from.getTime() && be.getTime() === gap.to.getTime();
         });
         if (!alreadyExists) {

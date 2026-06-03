@@ -294,6 +294,8 @@ async function _syncBenchAssignments() {
         a => a.EmployeeName === person.EmployeeName
       );
 
+      console.log('[BenchSync]', person.EmployeeName, 'empStart:', empStart, 'empEnd:', empEnd, 'gaps:', clampedGaps, 'personBench:', personBench.map(b => ({s: b.StartDate, e: b.EndDate})));
+      
       // Determine which existing bench records are still valid
       for (const bench of personBench) {
         const bs = new Date(bench.StartDate.slice(0, 10)); bs.setHours(0,0,0,0);

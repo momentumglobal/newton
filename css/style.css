@@ -256,6 +256,11 @@ body {
   top: 0;
   z-index: 1;
 }
+
+.data-table.no-sticky th {
+  position: static;
+}
+
 .data-table th:first-child { border-radius: 6px 0 0 0; }
 .data-table th:last-child  { border-radius: 0 6px 0 0; }
 .data-table td {

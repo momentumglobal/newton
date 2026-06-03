@@ -1060,8 +1060,8 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
         </div>
       </div>
       ${deployableRows.length ? `
-        <table class='data-table' style='position:static'>
-          <thead style='position:static'><tr>
+        <table class='data-table no-sticky'>
+          <thead><tr>
             <th>Employee</th><th>Level</th><th>Contract</th><th>Location</th>
           </tr></thead>
           <tbody>${deployableRows.join('')}</tbody>

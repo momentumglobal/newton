@@ -703,19 +703,17 @@ async function _renderKPIStrip(allRows, people, assignments) {
 function _renderUtilisationPanel(rows, people) {
   const levelOrder = { SDM: 1, STP: 2, TP: 3 };
   const bands = ['SDM','STP','TP'];
-  const activePeople = people.filter(p => p.IsActive !== false);
   const bandRows = bands.map(band => {
     const r        = rows.filter(r => r.Level === band);
     const u        = _calcUtilisation(r);
-    const activeBandNames = new Set(activePeople.filter(p => p.Level === band).map(p => p.EmployeeName));
-    const utilised = new Set(r.filter(r => r.Billed === 'Yes' && activeBandNames.has(r.EmployeeName)).map(r => r.EmployeeName)).size;
-    const total    = activePeople.filter(p => p.Level === band).length;
+    // Headcount from assignment rows for the selected period (not today's people list)
+    const total    = new Set(r.map(r => r.EmployeeName)).size;
+    const utilised = new Set(r.filter(r => r.Billed === 'Yes').map(r => r.EmployeeName)).size;
     return { band, u, utilised, total };
   }).filter(b => b.total > 0);
   const totalUtil     = _calcUtilisation(rows);
-  const activeNames   = new Set(activePeople.filter(p => ['SDM','STP','TP'].includes(p.Level)).map(p => p.EmployeeName));
-  const totalUtilised = new Set(rows.filter(r => r.Billed === 'Yes' && activeNames.has(r.EmployeeName)).map(r => r.EmployeeName)).size;
-  const totalActive   = activePeople.filter(p => ['SDM','STP','TP'].includes(p.Level)).length;
+  const totalActive   = new Set(rows.filter(r => ['SDM','STP','TP'].includes(r.Level)).map(r => r.EmployeeName)).size;
+  const totalUtilised = new Set(rows.filter(r => r.Billed === 'Yes' && ['SDM','STP','TP'].includes(r.Level)).map(r => r.EmployeeName)).size;
   const bandTableRows = bandRows.map(b => `
     <tr>
       <td>${b.band}</td>

@@ -917,10 +917,15 @@ async function renderDeploymentTimeline() {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading deployment timeline...</p>';
 
-  const [assignments, people] = await Promise.all([
-    getAssignments({}),
-    getPeople(false),
-  ]);
+const [assignments, people, salesForecasts] = await Promise.all([
+  getAssignments({}),
+  getPeople(false),
+  getSalesForecasts(),
+]);
+
+const totalActiveHeadcount = people.filter(
+  p => p.IsActive !== false && ['SDM', 'STP', 'TP'].includes(p.Level)
+).length;
 
   _ganttYear = _ganttYear || new Date().getFullYear();
   const year = _ganttYear;

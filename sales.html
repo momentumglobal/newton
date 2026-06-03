@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newton - Sales</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/png" href="momentum-symbol.png">
+  <!-- Lucide icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+  <!-- Login screen -->
+  <div id="login-screen">
+    <div class="login-card">
+      <h1>Newton — Sales</h1>
+      <p>Sign in with your Momentum Global account to continue.</p>
+      <button class="btn-signin" onclick="signIn()">
+        Sign in with Microsoft
+      </button>
+    </div>
+  </div>
+
+  <!-- App shell (hidden until signed in) -->
+  <div id="app-shell">
+    <div id="print-header">
+      <div>
+        <div class="print-header-title" id="print-header-title">Newton</div>
+        <div class="print-header-sub" id="print-header-sub">Momentum Global</div>
+      </div>
+      <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
+    </div>
+    <div id="sidebar"></div>
+    <div id="main-content"></div>
+  </div>
+
+  <!-- MSAL.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+
+  <!-- Shared scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+
+  <!-- Sales module scripts — load in this order -->
+  <script src="js/sales-router.js"></script>
+  <script src="js/sales-nav.js"></script>
+  <script src="js/sales-pages.js"></script>
+  <script src="js/sales-app.js"></script>
+
+</body>
+</html>

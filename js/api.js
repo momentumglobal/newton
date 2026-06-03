@@ -60,7 +60,7 @@ function listPath(listName) {
 
 // ── Read ─────────────────────────────────────────────────────────────
 async function getItems(listName, filter = "") {
-  const qs = filter ? `?$expand=fields&$filter=${encodeURIComponent(filter)}` : "?$expand=fields";
+  const qs = filter ? `?$expand=fields($select=*)&$filter=${encodeURIComponent(filter)}` : "?$expand=fields($select=*)";
   const data = await graphRequest("GET", `${listPath(listName)}${qs}`);
   return data.value.map(i => ({ id: i.id, ...normaliseFields(listName, i.fields) }));
 }

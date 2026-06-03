@@ -10,8 +10,8 @@ const OS_MODULES = [
     href: 'reporting.html',    live: true,  roles: ['admin','delivery_manager','talent_partner','leadership'] },
   { key: 'people',    name: 'People',    icon: 'users',
     href: 'people.html',   live: true,  roles: ['admin','leadership'] },
-  { key: 'finance',   name: 'Finance',   icon: 'pound-sterling',
-    href: null,            live: false, roles: ['admin','leadership'] },
+  { key: 'sales',     name: 'Sales',     icon: 'trending-up',
+    href: 'sales.html',    live: true,  roles: ['admin','leadership'] },
   { key: 'operations',name: 'Operations',icon: 'settings-2',
     href: null,            live: false, roles: ['admin','leadership'] },
 ];

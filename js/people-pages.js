@@ -504,7 +504,11 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
 
   const salesPoints = MONTH_LABELS.map((label, i) => {
     if (i < curMonth) return { label, util: null, monthIdx: i };
-    return { label, util: _salesForecastUtil(i, salesForecasts, totalActiveHeadcount, _forecastUtil(i)), monthIdx: i };
+    // For current month, anchor to actual utilisation so lines share the same start point
+    const baseUtil = i === curMonth
+      ? (points.find(p => p.monthIdx === curMonth)?.util ?? _forecastUtil(i))
+      : _forecastUtil(i);
+    return { label, util: _salesForecastUtil(i, salesForecasts, totalActiveHeadcount, baseUtil), monthIdx: i };
   });
   
   const W = 900, H = 200;

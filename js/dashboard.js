@@ -390,7 +390,7 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
       const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
       return days >= 30;
     })
-    .sort((a, b) => a.RoleTitle.localeCompare(b.RoleTitle));
+    .sort((a, b) => new Date(a.OpenDate) - new Date(b.OpenDate));
   if (!longOpen.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Roles Open 30+ Days</h3>
     <p class='no-data'>No roles open 30+ days.</p>
@@ -428,14 +428,12 @@ function renderRoleTrackerPanel(roles) {
     const days = r.OpenDate
       ? Math.floor((today - new Date(r.OpenDate)) / 86400000)
       : null;
-    const daysClass = days !== null && days >= 45 ? 'text-critical'
-      : days !== null && days >= 30 ? 'text-warning' : '';
     return `<tr>
       <td>${r.RoleTitle}</td>
       <td>${r.HiringManager || '—'}</td>
       <td><span class='badge'>${r.Stage || '—'}</span></td>
       <td>${r.OpenDate ? r.OpenDate.split('T')[0] : '—'}</td>
-      <td class="${daysClass}">${days !== null ? days + ' days' : '—'}</td>
+      <td>${days !== null ? days + ' days' : '—'}</td>
     </tr>`;
   }).join('');
   return `<div class='dash-panel'>

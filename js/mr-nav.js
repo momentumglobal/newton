@@ -31,7 +31,7 @@ function navigateToMr(page) {
   const role = _mrResolvedRole || 'viewer';
   if (!mrCanAccess(page, role)) return;
   _mrCurrentPage = page;
-  renderMrNav(role);
+  updateNavActiveLink(page);
   renderMrPage(page);
 }
 

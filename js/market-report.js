@@ -207,10 +207,12 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
 
     <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">Resulting Pipeline Activity</div>
-      <table class="data-table" style="table-layout:fixed;width:100%">
-        <thead><tr>${pHeaders}</tr></thead>
-        <tbody><tr>${pValues}</tr></tbody>
-      </table>
+      <div style="overflow-x:auto">
+        <table class="data-table" style="table-layout:fixed;width:100%;min-width:500px">
+          <thead><tr>${pHeaders}</tr></thead>
+          <tbody><tr>${pValues}</tr></tbody>
+        </table>
+      </div>
     </div>
 
     ${rejHtml}
@@ -416,7 +418,7 @@ function mrPreview() {
   modal.innerHTML = `
     <div class="rb-modal-inner"
          style="max-width:860px;width:90%">
-      <div class="rb-report-preview">${mrRenderPrintCanvas()}</div>
+      <div class="rb-report-preview" style="overflow-x:auto">${mrRenderPrintCanvas()}</div>
       <div style="display:flex;gap:8px;margin-top:16px">
         <button class="print-btn" onclick="mrExportPdf()">Export PDF</button>
         <button class="btn-secondary"
@@ -513,17 +515,19 @@ function mrRenderPrintCanvas() {
   const rejHtml = rejections.length ? `
     <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">Offer Rejection Reasons</div>
-      <table class="data-table"><thead><tr>
-        <th>Candidate</th><th>Role</th><th>Reason</th><th>Detail</th>
-      </tr></thead><tbody>
-        ${rejections.map(r =>
-          `<tr>
-            <td>${r.CandidateName || "\u2014"}</td>
-            <td>${r.RoleTitle     || "\u2014"}</td>
-            <td>${r.Reason        || "\u2014"}</td>
-            <td>${r.Detail        || ""      }</td>
-          </tr>`).join("")}
-      </tbody></table>
+      <div style="overflow-x:auto">
+        <table class="data-table" style="width:100%;min-width:400px"><thead><tr>
+          <th>Candidate</th><th>Role</th><th>Reason</th><th>Detail</th>
+        </tr></thead><tbody>
+          ${rejections.map(r =>
+            `<tr>
+              <td>${r.CandidateName || "\u2014"}</td>
+              <td>${r.RoleTitle     || "\u2014"}</td>
+              <td>${r.Reason        || "\u2014"}</td>
+              <td>${r.Detail        || ""      }</td>
+            </tr>`).join("")}
+        </tbody></table>
+      </div>
     </div>` : "";
 
   return `

@@ -545,8 +545,8 @@ function mrSuggestTitle(roleSelect) {
   const dateStr = `${month} ${year}`;
 
   const suggested = customerName
-    ? `${customerName} x Momentum — ${roleName} Market Report — ${dateStr}`
-    : `Momentum — ${roleName} Market Report — ${dateStr}`;
+    ? `${customerName} x Momentum - ${roleName} (${dateStr})`
+    : `Momentum - ${roleName} (${dateStr})`;
 
   // Only overwrite if blank or was a previous auto-suggestion
   if (!_mrTitle || titleInput.dataset.autoSuggested === "true") {

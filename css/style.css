@@ -597,7 +597,7 @@ body {
 .rb-rt-toolbar button { background: none; border: 1px solid transparent; border-radius: 4px; padding: 2px 7px; cursor: pointer; font-size: 13px; font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; }
 .rb-rt-toolbar button:hover { background: white; border-color: #D0D0D0; }
 .rb-rt-toolbar button.active { background: white; border-color: #0A0B44; color: #0A0B44; font-weight: 600; }
-.rb-richtext h3 { font-size: 15px !important; font-weight: 600; color: #0A0B44; margin: 8px 0 4px; padding-bottom: 6px; border-bottom: 1px solid #eee; }
+.rb-richtext { min-height: 80px; padding: 8px 12px; font-size: 14px; font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; outline: none; caret-color: #0A0B44; }
 .rb-text-block h3 { font-size: 15px; font-weight: 600; color: #0A0B44; margin: 0 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid #eee; }
 .rb-richtext ul, .rb-richtext ol { padding-left: 24px; margin: 4px 0; list-style-position: inside; }
 .rb-richtext ul { list-style-type: disc; }

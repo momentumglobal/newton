@@ -367,17 +367,19 @@ async function mrLoadReport(id) {
 }
 
 function mrPreview() {
-  const canvas = document.getElementById("mr-canvas");
   if (!_mrData) {
     alert("Generate the report first before previewing.");
     return;
   }
+  const obsEl = document.getElementById("mr-obs-editor");
+  if (obsEl) _mrObs = obsEl.innerHTML;
+
   const modal = document.getElementById("mr-saved-modal");
   modal.style.display = "flex";
   modal.innerHTML = `
     <div class="rb-modal-inner"
          style="max-width:860px;width:90%">
-      <div class="rb-report-preview">${canvas.innerHTML}</div>
+      <div class="rb-report-preview">${mrRenderPrintCanvas()}</div>
       <button class="print-btn" style="margin-top:16px"
         onclick="mrExportPdf()">Export PDF</button>
       <button class="btn-secondary" style="margin-top:8px"
@@ -392,15 +394,96 @@ async function mrExportPdf() {
     alert("Generate the report first before exporting.");
     return;
   }
-  const title  = _mrTitle || "Market Report";
-  const main   = document.getElementById("main-content");
-  const canvas = document.getElementById("mr-canvas");
-  const snapshot = canvas.innerHTML;
+  const obsEl = document.getElementById("mr-obs-editor");
+  if (obsEl) _mrObs = obsEl.innerHTML;
 
-  main.innerHTML = snapshot;
+  const title = _mrTitle || "Market Report";
+  const main  = document.getElementById("main-content");
+
+  main.innerHTML = mrRenderPrintCanvas();
 
   printPage(title, false, "Market Report");
   setTimeout(() => renderMarketReport(), 500);
+}
+
+function mrRenderPrintCanvas() {
+  if (!_mrData) return "";
+  const { activity, role, rejections } = _mrData;
+
+  const totalOutreach  = sumField(activity, "Outreach");
+  const totalResponses = sumField(activity, "Responses");
+  const pctContacted   = Math.round((totalOutreach  / _mrTam) * 100);
+  const pctResponded   = Math.round((totalResponses / _mrTam) * 100);
+  const daysOpen = role.OpenDate
+    ? Math.floor((Date.now() - new Date(role.OpenDate)) / 86400000)
+    : null;
+
+  const pipeline = {
+    Screened:   sumField(activity, "Screened"),
+    Submitted:  sumField(activity, "Submitted"),
+    "IV1":      sumField(activity, "Interview1"),
+    "IV2+":     sumField(activity, "Interview2Plus"),
+    "Final IV": sumField(activity, "FinalInterview"),
+    Offers:     sumField(activity, "Offers"),
+    Hires:      sumField(activity, "Hires"),
+  };
+
+  const kpis = [
+    { label: "Total Addressable Market", value: _mrTam.toLocaleString() },
+    { label: "% of TAM Contacted",        value: pctContacted + "%" },
+    { label: "% of TAM Responded",         value: pctResponded + "%" },
+    { label: "Days Open",                  value: daysOpen !== null ? daysOpen : "\u2014" },
+  ];
+  const kpiHtml = kpis.map(k =>
+    `<div class="kpi-card">
+       <div class="kpi-value">${k.value}</div>
+       <div class="kpi-label">${k.label}</div>
+     </div>`).join("");
+
+  const colPct = Math.floor(100 / Object.keys(pipeline).length);
+  const colW = `style="width:${colPct}%;text-align:center"`;
+  const pHeaders = Object.keys(pipeline).map(h => `<th ${colW}>${h}</th>`).join("");
+  const pValues  = Object.values(pipeline).map(v => `<td ${colW}>${v}</td>`).join("");
+
+  const rejHtml = rejections.length ? `
+    <div class="rb-panel" style="padding:20px 24px 24px">
+      <div class="rb-panel-title" style="margin-bottom:16px">Offer Rejection Reasons</div>
+      <table class="data-table"><thead><tr>
+        <th>Candidate</th><th>Role</th><th>Reason</th><th>Detail</th>
+      </tr></thead><tbody>
+        ${rejections.map(r =>
+          `<tr>
+            <td>${r.CandidateName || "\u2014"}</td>
+            <td>${r.RoleTitle     || "\u2014"}</td>
+            <td>${r.Reason        || "\u2014"}</td>
+            <td>${r.Detail        || ""      }</td>
+          </tr>`).join("")}
+      </tbody></table>
+    </div>` : "";
+
+  return `
+    ${_mrTitle ? `<h2 class="rb-report-title">${_mrTitle}</h2>` : ""}
+
+    <div class="rb-panel" style="padding:20px 24px 24px">
+      <div class="rb-panel-title" style="margin-bottom:16px">Market Overview</div>
+      <div class="kpi-strip">${kpiHtml}</div>
+    </div>
+
+    <div class="rb-panel" style="padding:20px 24px 24px">
+      <div class="rb-panel-title" style="margin-bottom:16px">Resulting Pipeline Activity</div>
+      <table class="data-table" style="table-layout:fixed;width:100%">
+        <thead><tr>${pHeaders}</tr></thead>
+        <tbody><tr>${pValues}</tr></tbody>
+      </table>
+    </div>
+
+    ${rejHtml}
+
+    <div class="rb-panel" style="padding:20px 24px 24px">
+      <div class="rb-panel-title" style="margin-bottom:16px">Observations &amp; Recommendations</div>
+      <div class="rb-richtext" style="min-height:120px">${_mrObs || ""}</div>
+    </div>
+  `;
 }
 
 function mrSuggestTitle(roleSelect) {
@@ -420,8 +503,8 @@ function mrSuggestTitle(roleSelect) {
   const dateStr = `${month} ${year}`;
 
   const suggested = customerName
-    ? `${customerName} x Momentum — ${roleName} Market Report — ${dateStr}`
-    : `Momentum — ${roleName} Market Report — ${dateStr}`;
+    ? `${customerName} x Momentum - ${roleName} Market Report (${dateStr})`
+    : `Momentum - ${roleName} Market Report (${dateStr}`);
 
   // Only overwrite if blank or was a previous auto-suggestion
   if (!_mrTitle || titleInput.dataset.autoSuggested === "true") {

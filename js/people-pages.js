@@ -41,12 +41,6 @@ async function renderEmployeesTab() {
   const main    = document.getElementById('main-content');
   const canEdit = _resolvedRole === 'admin';
   const people  = await getPeople(!_showInactive);
-  const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
-people.sort((a, b) => {
-  const l = (levelOrder[a.Level] ?? 99) - (levelOrder[b.Level] ?? 99);
-  if (l !== 0) return l;
-  return (a.EmployeeName || '').localeCompare(b.EmployeeName || '');
-});
   const rows = people.map(p => `
     <tr>
       <td>${p.EmployeeName}</td>

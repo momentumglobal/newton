@@ -61,6 +61,7 @@ function renderMrNav(role) {
     <img src="momentum-symbol-and-name-global-white.png"
          alt="Momentum Global" class="nav-logo-img">
     <div class="nav-footer">
+      <a class="nav-link signout" href="market-reporting-user-guide.html" target="_blank">User Guide</a>
       <a class="nav-link signout" onclick="signOut()">Sign out</a>
     </div>
   `;

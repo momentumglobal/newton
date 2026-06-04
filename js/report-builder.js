@@ -319,6 +319,7 @@ async function rbSaveReport() {
   if (_rbReportId) {
     await updateSavedReport(_rbReportId, payload);
   } else {
+    payload.ReportOwner = getCurrentUser().email;
     const result = await createSavedReport(payload);
     _rbReportId = result.id;
   }
@@ -338,13 +339,25 @@ async function rbOpenSavedModal() {
       Close</button>
   </div>`;
 
-  const reports = await getSavedReports();
+  const [reports, tpMap] = await Promise.all([getSavedReports(), getTalentPartnerDisplayMap()]);
+  const currentUser = getCurrentUser();
+  const isAdmin = _resolvedRole === 'admin';
+
   const rows = reports.length
-    ? reports.map(r => `<div class="rb-saved-row">
-        <span>${r.Title}</span>
-        <span class="rb-saved-meta">${r.Scope} · ${r.Period}</span>
-        <button class="btn-secondary btn-sm" onclick="rbLoadReport(${r.id})">Open</button>
-      </div>`).join('')
+    ? reports.map(r => {
+        const owner = r.ReportOwner || '';
+        const ownerDisplay = tpMap[owner.toLowerCase()] || owner;
+        const canEdit = isAdmin || owner.toLowerCase() === currentUser.email.toLowerCase();
+        return `<div class="rb-saved-row">
+          <span>${r.Title}</span>
+          <span class="rb-saved-meta">${ownerDisplay}</span>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn-secondary btn-sm" onclick="rbLoadReport(${r.id})">Open</button>
+            ${canEdit ? `<button class="btn-secondary btn-sm" onclick="rbEditReport(${r.id})">Edit</button>` : ''}
+            ${canEdit ? `<button class="btn-danger btn-sm" onclick="rbDeleteReport(${r.id}, '${r.Title.replace(/'/g, "\\'")}')">Delete</button>` : ''}
+          </div>
+        </div>`;
+      }).join('')
     : '<p class="no-data">No saved reports yet.</p>';
 
   modal.innerHTML = `<div class="rb-modal-inner">
@@ -365,6 +378,17 @@ async function rbLoadReport(id) {
   _rbTitle      = report.Title;
   document.getElementById('rb-saved-modal').style.display = 'none';
   renderReportBuilder();
+}
+
+function rbEditReport(id) {
+  document.getElementById('rb-saved-modal').style.display = 'none';
+  rbLoadReport(id);
+}
+
+async function rbDeleteReport(id, title) {
+  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  await deleteItem('SavedReports', id);
+  rbOpenSavedModal();
 }
 
 // SharePoint API functions

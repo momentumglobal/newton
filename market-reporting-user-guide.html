@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Market Reporting — User Guide</title>
+  <link rel="icon" type="image/png" href="momentum-symbol.png">
+  <style>
+    @font-face { font-family: 'Polymath'; src: url('polymath-regular.ttf') format('truetype'); font-weight: 400; }
+    @font-face { font-family: 'Polymath'; src: url('polymath-semibold.ttf') format('truetype'); font-weight: 600; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; background: #F5F4F1; color: #1a1a2e; font-size: 15px; line-height: 1.6; }
+    .guide-header { background: #0A0B44; color: white; padding: 28px 48px; display: flex; align-items: center; justify-content: space-between; }
+    .guide-header-left h1 { font-size: 22px; font-weight: 600; }
+    .guide-header-left p { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+    .guide-header img { height: 36px; width: auto; }
+    .guide-body { display: flex; max-width: 1100px; margin: 0 auto; padding: 40px 24px; gap: 40px; }
+    .guide-nav { width: 200px; min-width: 200px; position: sticky; top: 24px; align-self: flex-start; }
+    .guide-nav ul { list-style: none; padding: 0; }
+    .guide-nav li a { display: block; padding: 7px 12px; color: #0A0B44; text-decoration: none; font-size: 13px; border-radius: 4px; transition: background 0.15s; }
+    .guide-nav li a:hover { background: #e8e7e3; }
+    .guide-nav .nav-section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; padding: 12px 12px 4px; }
+    .guide-content { flex: 1; min-width: 0; }
+    .guide-section { background: white; border-radius: 6px; border: 1px solid #ddd; padding: 28px 32px; margin-bottom: 24px; scroll-margin-top: 24px; }
+    .guide-section h2 { font-size: 18px; font-weight: 600; color: #0A0B44; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #EBF2FA; }
+    .guide-section h3 { font-size: 14px; font-weight: 600; color: #0A0B44; margin: 20px 0 8px; }
+    .guide-section p { color: #333; margin-bottom: 12px; }
+    .guide-section p:last-child { margin-bottom: 0; }
+    .faq-item { border-bottom: 1px solid #eee; padding: 14px 0; }
+    .faq-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .faq-q { font-weight: 600; color: #0A0B44; margin-bottom: 6px; font-size: 14px; }
+    .faq-a { color: #444; font-size: 14px; }
+    .role-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .role-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #EBF2FA; color: #0A0B44; }
+    .role-badge.admin { background: #0A0B44; color: white; }
+    .role-badge.dm    { background: #e8f4fd; color: #0A0B44; }
+    .role-badge.tp    { background: #e6f4ea; color: #2e7d32; }
+    .tip { background: #EBF2FA; border-left: 3px solid #0A0B44; border-radius: 0 4px 4px 0; padding: 10px 14px; font-size: 13px; color: #333; margin: 12px 0; }
+    .guide-footer { text-align: center; padding: 32px; font-size: 12px; color: #888; }
+  </style>
+</head>
+<body>
+
+<div class="guide-header">
+  <div class="guide-header-left">
+    <h1>Newton — Market Reporting User Guide</h1>
+    <p>Momentum Global</p>
+  </div>
+  <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
+</div>
+
+<div class="guide-body">
+  <nav class="guide-nav">
+    <ul>
+      <li><a href="market-reporting.html">&#8592; Back to Market Reporting</a></li>
+      <li><div style="height:8px;"></div></li>
+      <li><div class="nav-section-label">Getting Started</div></li>
+      <li><a href="#faq">FAQ</a></li>
+      <li><a href="#roles">User Roles</a></li>
+      <li><a href="#export">Exporting to PDF</a></li>
+      <li><div class="nav-section-label">Using the Module</div></li>
+      <li><a href="#builder">Market Report Builder</a></li>
+      <li><a href="#kpi-strip">KPI Strip</a></li>
+      <li><a href="#pipeline">Pipeline Activity</a></li>
+      <li><a href="#observations">Observations &amp; Recommendations</a></li>
+      <li><a href="#saved-reports">Saved Reports</a></li>
+    </ul>
+  </nav>
+
+  <div class="guide-content">
+
+    <div class="guide-section" id="faq">
+      <h2>Frequently Asked Questions</h2>
+      <div class="faq-item">
+        <div class="faq-q">Who can access the Market Reporting module?</div>
+        <div class="faq-a">Admins, Delivery Managers, and Talent Partners. Leadership and Viewer roles do not have access.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Why can I only see certain roles in the Role dropdown?</div>
+        <div class="faq-a">The roles available to you depend on your access level. Talent Partners see only roles they are directly assigned to. Delivery Managers see all roles across their assigned projects. Admins see all roles in the system.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Where does the data in the report come from?</div>
+        <div class="faq-a">All figures are drawn from the Weekly Activity SharePoint list. Outreach, Responses, Screened, Submitted, Interview stages, Offers, and Hires are summed across all activity records logged against the selected role — there is no date filter. The report always shows all-time totals for that role.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What is the Total Addressable Market (TAM)?</div>
+        <div class="faq-a">TAM is the estimated total pool of relevant candidates for the role. You set this manually when building the report. It is used to calculate the % of TAM Contacted and % of TAM Responded KPIs, giving stakeholders context for how far into the market you have reached.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">The report title was autogenerated but I want to change it — can I?</div>
+        <div class="faq-a">Yes. The title field is fully editable. Once you type in it manually, the autogenerate will not overwrite it again for that session.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I see saved reports created by other users?</div>
+        <div class="faq-a">Talent Partners and Delivery Managers can only see reports they created themselves. Admins can see all saved reports across the team.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">How often does the data update?</div>
+        <div class="faq-a">Newton reads directly from SharePoint via the Microsoft Graph API. Clicking Generate Report always fetches the latest data — there is no cache to clear.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Who do I contact if something isn't working?</div>
+        <div class="faq-a">Raise it with your Newton Admin. For access issues, they can update user assignments via the Config Panel in the Reporting module.</div>
+      </div>
+    </div>
+
+    <div class="guide-section" id="roles">
+      <h2>User Roles</h2>
+      <p>Three roles can access Market Reporting, each with different visibility over which roles they can report on.</p>
+      <h3><span class="role-badge admin">Admin</span></h3>
+      <p>Full access. Can generate reports for any role in the system. Can view, edit, and delete all saved reports regardless of who created them.</p>
+      <h3><span class="role-badge dm">Delivery Manager</span></h3>
+      <p>Can generate reports for all roles across their assigned project(s). The Project dropdown is visible to filter the Role list. Can view and manage their own saved reports.</p>
+      <h3><span class="role-badge tp">Talent Partner</span></h3>
+      <p>Can generate reports only for roles where they are the assigned Talent Partner. No Project dropdown — the Role dropdown is pre-scoped to their assignments. Can view and manage their own saved reports.</p>
+    </div>
+
+    <div class="guide-section" id="export">
+      <h2>Exporting to PDF</h2>
+      <p>Click <strong>&#8856; Export PDF</strong> to open the browser print dialog. Configure it as follows before saving:</p>
+      <h3>Destination</h3>
+      <p>Set to <strong>Save as PDF</strong>.</p>
+      <h3>Options</h3>
+      <p>Ensure <strong>Headers and footers</strong> is unticked and <strong>Background graphics</strong> is ticked. Background graphics must be enabled for the branded header block and table styling to print correctly.</p>
+      <div class="tip">These settings are not saved by the browser between sessions — you will need to set them each time you export.</div>
+    </div>
+
+    <div class="guide-section" id="builder">
+      <h2>Market Report Builder</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <p>The Market Report Builder generates a fixed-layout client-facing report for a single role, summarising sourcing reach, pipeline activity, and your written observations.</p>
+      <h3>Building a report</h3>
+      <p>Complete the fields in the left-hand panel, then click <strong>Generate Report</strong>:</p>
+      <p><strong>Report Title</strong> — autogenerated from your project and role selections in the format <em>Customer x Momentum - Role (Month Year)</em>. Edit freely at any time.</p>
+      <p><strong>Project</strong> (Admin and DM only) — select the customer project to filter the Role dropdown.</p>
+      <p><strong>Role</strong> — select the specific role you are reporting on. Only roles within your access scope are shown.</p>
+      <p><strong>Total Addressable Market (TAM)</strong> — enter the estimated candidate pool size for this role. This drives the two TAM percentage KPIs.</p>
+      <h3>Report layout</h3>
+      <p>Once generated, the report displays four sections in a fixed order: KPI Strip, Resulting Pipeline Activity, Offer Rejection Reasons (only shown if rejection data exists for the role), and Observations &amp; Recommendations.</p>
+      <h3>Action buttons</h3>
+      <p><strong>Saved Reports</strong> — open the list of reports you have previously saved.</p>
+      <p><strong>Save</strong> — save the current report to SharePoint. Saving again updates the existing record rather than creating a duplicate.</p>
+      <p><strong>Preview</strong> — open a read-only preview of the report as it will appear when exported.</p>
+      <p><strong>&#8856; Export PDF</strong> — render the report for printing and open the browser print dialog.</p>
+      <div class="tip">Always click Generate Report before saving or exporting. The save and export functions work from the most recently generated data.</div>
+    </div>
+
+    <div class="guide-section" id="kpi-strip">
+      <h2>KPI Strip</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <p>Four headline figures displayed as tiles at the top of the report. All figures are all-time totals for the selected role — there is no period filter.</p>
+      <h3>Total Addressable Market</h3>
+      <p>The TAM value you entered in the left-hand panel.</p>
+      <h3>% of TAM Contacted</h3>
+      <p>Total Outreach &#247; TAM &#215; 100. Shows how far into the candidate market you have reached with direct outreach.</p>
+      <h3>% of TAM Responded</h3>
+      <p>Total Responses &#247; TAM &#215; 100. Shows the proportion of the market that has engaged with your outreach.</p>
+      <h3>Days Open</h3>
+      <p>The number of calendar days since the role's Open Date was set, calculated automatically from the Roles list.</p>
+      <div class="tip">If Days Open shows "&#8212;", the Open Date has not been set on the role record. Update it in the Roles page within the Reporting module.</div>
+    </div>
+
+    <div class="guide-section" id="pipeline">
+      <h2>Resulting Pipeline Activity</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <p>A single-row summary table showing cumulative pipeline totals for the role across all time. Columns: <strong>Screened, Submitted, IV1, IV2+, Final IV, Offers, Hires</strong>.</p>
+      <p>Figures are summed across every Weekly Activity record associated with the role — not filtered by period or Talent Partner.</p>
+      <h3>Offer Rejection Reasons</h3>
+      <p>If any rejected offers have been logged against this role, a second tile appears below the pipeline table listing each rejection with candidate name, reason, and any additional detail. If there are no rejections recorded, this tile is hidden automatically.</p>
+    </div>
+
+    <div class="guide-section" id="observations">
+      <h2>Observations &amp; Recommendations</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <p>A free-text editor for your written commentary on the market. Use it to summarise what the data means, highlight trends, and set out recommended next steps for the client.</p>
+      <h3>Formatting toolbar</h3>
+      <p>The toolbar above the editor provides: <strong>Bold</strong>, <em>Italic</em>, <u>Underline</u>, bullet list, numbered list, Heading (larger bold text with a rule), and Body Text (returns a heading back to normal paragraph style).</p>
+      <div class="tip">Write your observations before saving or exporting — the content of this editor is included in both the Preview and the PDF export.</div>
+    </div>
+
+    <div class="guide-section" id="saved-reports">
+      <h2>Saved Reports</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <p>Click <strong>Saved Reports</strong> in the top-right to open the list of previously saved reports. Each entry shows the report title, role name, and the name of the user who created it.</p>
+      <h3>Opening a report</h3>
+      <p>Click <strong>Open</strong> to load a saved report. The builder repopulates with the saved title, role, TAM, and observations, and the report is automatically regenerated with the latest live data from SharePoint.</p>
+      <h3>Editing a saved report</h3>
+      <p>Click <strong>Edit</strong> to load the report into the builder. Make your changes, then click <strong>Save</strong> to update the record.</p>
+      <h3>Deleting a saved report</h3>
+      <p>Click <strong>Delete</strong> and confirm the prompt. Deletion is permanent within Newton — use SharePoint's recycle bin if you need to recover a deleted item.</p>
+      <div class="tip">Talent Partners and Delivery Managers can only see and manage reports they created themselves. Admins can see, edit, and delete all saved reports across the team.</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="guide-footer">
+  Newton &middot; Market Reporting &middot; Momentum Global
+</div>
+
+</body>
+</html>

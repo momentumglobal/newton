@@ -152,10 +152,10 @@ async function renderRolesPage(filter) {
       <tbody>
         ${roles.map(r => {
           const days = daysOpen(r.OpenDate, r.ActualHireDate);
-          const rowStyle = days !== null && days > 45 ? ' style="background-color:#ffd6d6;color:#000"' : '';
+          const rowClass = days !== null && days > 45 ? 'row-age-critical' : '';
           const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || "—";
           return `
-          <tr${rowStyle}>
+          <tr class="${rowClass}">
             <td>${projectName}</td>
             <td>${r.RoleTitle}</td>
             <td><span class="badge">${r.Stage || "—"}</span></td>

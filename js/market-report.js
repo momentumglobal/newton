@@ -337,16 +337,26 @@ async function mrOpenSavedModal() {
         r.CreatedByEmail?.toLowerCase() === user.email.toLowerCase()
       );
 
+  const userEmail = user.email.toLowerCase();
   const rows = visible.length
-    ? visible.map(r => `
+    ? visible.map(r => {
+        const canEdit = _mrResolvedRole === "admin" ||
+          r.CreatedByEmail?.toLowerCase() === userEmail;
+        return `
         <div class="rb-saved-row">
           <span>${r.ReportTitle}</span>
           <span class="rb-saved-meta">
-            ${r.RoleName} &middot; ${r.CustomerName}
+            ${r.RoleName} &middot; ${r.CreatedByEmail}
           </span>
           <button class="btn-secondary btn-sm"
             onclick="mrLoadReport(${r.id})">Open</button>
-        </div>`).join("")
+          ${canEdit ? `
+          <button class="btn-secondary btn-sm"
+            onclick="mrEditReport(${r.id})">Edit</button>
+          <button class="btn-secondary btn-sm" style="color:#c0392b;border-color:#c0392b"
+            onclick="mrDeleteReport(${r.id}, this)">Delete</button>` : ""}
+        </div>`;
+      }).join("")
     : '<p class="no-data">No saved reports yet.</p>';
 
   modal.innerHTML = `<div class="rb-modal-inner">
@@ -355,6 +365,26 @@ async function mrOpenSavedModal() {
       onclick="document.getElementById('mr-saved-modal')
         .style.display='none'">Close</button>
   </div>`;
+}
+
+async function mrEditReport(id) {
+  document.getElementById("mr-saved-modal").style.display = "none";
+  await mrLoadReport(id);
+}
+
+async function mrDeleteReport(id, btn) {
+  if (!confirm("Delete this report? This cannot be undone.")) return;
+  btn.textContent = "Deleting…";
+  btn.disabled = true;
+  try {
+    await deleteItem("MarketReports", id);
+    // Refresh the modal
+    mrOpenSavedModal();
+  } catch (e) {
+    alert("Delete failed: " + e.message);
+    btn.textContent = "Delete";
+    btn.disabled = false;
+  }
 }
 
 async function mrLoadReport(id) {

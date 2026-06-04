@@ -1,16 +1,7 @@
 // js/nav-core.js — shared sidebar renderer used by all Newton modules
 
 /**
- * Renders the sidebar for any Newton module.
- *
- * @param {string} subtitle         - Module name shown below "Newton"
- * @param {string} currentModuleKey - Which OS_MODULE key is active
- * @param {string} toggleFn         - Name of the dropdown toggle function
- * @param {Array}  pages            - Array of { key, label } from getAccessiblePages()
- * @param {string} currentPage      - The currently active page key
- * @param {string} role             - Resolved role string
- * @param {string} navigateFn       - Name of the navigate function for this module
- * @param {string} userGuideHref    - URL for the User Guide link (empty string to omit)
+ * Renders the full sidebar. Call once on module init.
  */
 function renderModuleNav({
   subtitle, currentModuleKey, toggleFn,
@@ -32,7 +23,8 @@ function renderModuleNav({
   }).join('');
 
   const navLinks = pages.map(p => `
-    <a class='nav-link ${p.key === currentPage ? 'active' : ''}'
+    <a class='nav-link${p.key === currentPage ? ' active' : ''}'
+       data-page='${p.key}'
        onclick='${navigateFn}("${p.key}")'>
       ${p.label}
     </a>`).join('');
@@ -55,7 +47,7 @@ function renderModuleNav({
       <div class='nav-user-name'>${user.name || user.email}</div>
       <div class='nav-user-role'>${role.replace(/_/g, ' ')}</div>
     </div>
-    <nav class='nav-links'>
+    <nav class='nav-links' id='nav-links'>
       ${navLinks}
     </nav>
     <img src='momentum-symbol-and-name-global-white.png' alt='Momentum Global' class='nav-logo-img'>
@@ -65,4 +57,19 @@ function renderModuleNav({
     </div>
   `;
   lucide.createIcons();
+}
+
+/**
+ * Updates the active nav link without rebuilding the sidebar.
+ * Call this on every navigation instead of re-calling renderModuleNav.
+ */
+function updateNavActiveLink(page) {
+  const links = document.querySelectorAll('#nav-links .nav-link');
+  links.forEach(a => {
+    if (a.dataset.page === page) {
+      a.classList.add('active');
+    } else {
+      a.classList.remove('active');
+    }
+  });
 }

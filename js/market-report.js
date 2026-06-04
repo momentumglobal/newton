@@ -432,7 +432,7 @@ function mrRenderPrintCanvas() {
     { label: "Total Addressable Market", value: _mrTam.toLocaleString() },
     { label: "% of TAM Contacted",        value: pctContacted + "%" },
     { label: "% of TAM Responded",         value: pctResponded + "%" },
-    { label: "Days Open",                  value: daysOpen !== null ? daysOpen : "\u2014" },
+    { label: "Days Open",                  value: daysOpen !== null ? daysOpen : "—" },
   ];
   const kpiHtml = kpis.map(k =>
     `<div class="kpi-card">
@@ -453,16 +453,16 @@ function mrRenderPrintCanvas() {
       </tr></thead><tbody>
         ${rejections.map(r =>
           `<tr>
-            <td>${r.CandidateName || "\u2014"}</td>
-            <td>${r.RoleTitle     || "\u2014"}</td>
-            <td>${r.Reason        || "\u2014"}</td>
+            <td>${r.CandidateName || "—"}</td>
+            <td>${r.RoleTitle     || "—"}</td>
+            <td>${r.Reason        || "—"}</td>
             <td>${r.Detail        || ""      }</td>
           </tr>`).join("")}
       </tbody></table>
     </div>` : "";
 
   return `
-    ${_mrTitle ? `<h2 class="rb-report-title">${_mrTitle}</h2>` : ""}
+    ${_mrTitle ? `<h2 class="rb-report-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_mrTitle}</h2>` : ""}
 
     <div class="rb-panel" style="padding:20px 24px 24px">
       <div class="rb-panel-title" style="margin-bottom:16px">Market Overview</div>
@@ -503,8 +503,8 @@ function mrSuggestTitle(roleSelect) {
   const dateStr = `${month} ${year}`;
 
   const suggested = customerName
-    ? `${customerName} x Momentum - ${roleName} Market Report (${dateStr})`
-    : `Momentum - ${roleName} Market Report (${dateStr}`);
+    ? `${customerName} x Momentum — ${roleName} Market Report — ${dateStr}`
+    : `Momentum — ${roleName} Market Report — ${dateStr}`;
 
   // Only overwrite if blank or was a previous auto-suggestion
   if (!_mrTitle || titleInput.dataset.autoSuggested === "true") {

@@ -328,8 +328,11 @@ async function mrOpenSavedModal() {
         .style.display='none'">Close</button>
   </div>`;
 
-  const reports = await getMarketReports();
-  const user    = getCurrentUser();
+  const [reports, displayMap] = await Promise.all([
+    getMarketReports(),
+    getTalentPartnerDisplayMap(),
+  ]);
+  const user = getCurrentUser();
   // Non-admins see only their own saved reports
   const visible = _mrResolvedRole === "admin"
     ? reports
@@ -346,7 +349,7 @@ async function mrOpenSavedModal() {
         <div class="rb-saved-row">
           <span>${r.ReportTitle}</span>
           <span class="rb-saved-meta">
-            ${r.RoleName} &middot; ${r.CreatedByEmail}
+            ${r.RoleName} &middot; ${displayMap[r.CreatedByEmail?.toLowerCase()] || r.CreatedByEmail}
           </span>
           <button class="btn-secondary btn-sm"
             onclick="mrLoadReport(${r.id})">Open</button>

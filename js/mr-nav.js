@@ -8,7 +8,7 @@ const MR_OS_MODULES = [
   { key: "reporting",  name: "Reporting",         icon: "bar-chart-2",
     href: "reporting.html",  live: true,
     roles: ["admin","delivery_manager","talent_partner","leadership"] },
-  { key: "marketing",  name: "Marketing Report",  icon: "megaphone",
+  { key: "marketing",  name: "Market Reporting",  icon: "megaphone",
     href: "market-reporting.html",  live: true,
     roles: ["admin","delivery_manager","talent_partner"] },
   { key: "people",     name: "People",            icon: "users",
@@ -16,9 +16,6 @@ const MR_OS_MODULES = [
     roles: ["admin","leadership"] },
   { key: "sales",      name: "Sales",             icon: "trending-up",
     href: "sales.html",      live: true,
-    roles: ["admin","leadership"] },
-  { key: "operations", name: "Operations",        icon: "settings-2",
-    href: null,              live: false,
     roles: ["admin","leadership"] },
 ];
 

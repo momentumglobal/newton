@@ -236,7 +236,7 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
           </div>
           <div id="mr-obs-editor" class="rb-richtext"
                contenteditable="true"
-               style="min-height:200px;caret-color:#0A0B44;cursor:text"
+               style="min-height:200px;caret-color:#0A0B44;cursor:text;padding:8px 10px"
                data-placeholder="Add observations &amp; recommendations here..."
                oninput="_mrObs = this.innerHTML; mrUpdateToolbarState()"
                onkeyup="mrUpdateToolbarState()"
@@ -512,7 +512,7 @@ function mrRenderPrintCanvas() {
     ${rejHtml}
 
     <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-      <div class="rb-richtext" style="min-height:120px">${_mrObs || ""}</div>
+      <div class="rb-richtext" style="min-height:120px;padding:8px 10px">${_mrObs || ""}</div>
     </div>
   `;
 }

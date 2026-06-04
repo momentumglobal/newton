@@ -207,7 +207,7 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
 
     <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">Resulting Pipeline Activity</div>
-            <table class="data-table" style="width:100%">
+            <table class="data-table" style="width:100%;margin:0">
         <thead><tr>${pHeaders}</tr></thead>
         <tbody><tr>${pValues}</tr></tbody>
       </table>
@@ -537,7 +537,7 @@ function mrRenderPrintCanvas() {
 
     <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">Resulting Pipeline Activity</div>
-      <table class="data-table" style="width:100%">
+      <table class="data-table" style="width:100%;margin:0">
         <thead><tr>${pHeaders}</tr></thead>
         <tbody><tr>${pValues}</tr></tbody>
       </table>

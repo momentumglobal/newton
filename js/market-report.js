@@ -192,6 +192,14 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
     </div>` : "";
 
   return `
+    <style>
+      #mr-obs-editor:empty:before {
+        content: attr(data-placeholder);
+        color: #aaa;
+        font-style: italic;
+        pointer-events: none;
+      }
+    </style>
     ${title ? `<h2 class="rb-report-title">${title}</h2>` : ""}
 
     <div class="rb-panel" style="padding:20px 24px 24px">
@@ -210,7 +218,6 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
     ${rejHtml}
 
     <div class="rb-panel" style="padding:20px 24px 24px">
-      <div class="rb-panel-title" style="margin-bottom:16px">Observations &amp; Recommendations</div>
       <div class="rb-block rb-block-text">
         <div class="rb-rt-wrapper">
           <div class="rb-rt-toolbar" id="mr-obs-toolbar">
@@ -231,7 +238,8 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
           </div>
           <div id="mr-obs-editor" class="rb-richtext"
                contenteditable="true"
-               style="min-height:200px"
+               style="min-height:200px; caret-color: #0A0B44; cursor: text;"
+               data-placeholder="Add observations &amp; recommendations here..."
                oninput="_mrObs = this.innerHTML; mrUpdateToolbarState()"
                onkeyup="mrUpdateToolbarState()"
                onmouseup="mrUpdateToolbarState()">
@@ -380,11 +388,14 @@ function mrPreview() {
     <div class="rb-modal-inner"
          style="max-width:860px;width:90%">
       <div class="rb-report-preview">${mrRenderPrintCanvas()}</div>
-      <button class="print-btn" style="margin-top:16px"
-        onclick="mrExportPdf()">Export PDF</button>
-      <button class="btn-secondary" style="margin-top:8px"
-        onclick="document.getElementById('mr-saved-modal')
-          .style.display='none'">Close</button>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="print-btn"
+          onclick="mrExportPdf()">Export PDF</button>
+        <button class="btn-secondary"
+          style="height:36px;line-height:1;padding:0 18px"
+          onclick="document.getElementById('mr-saved-modal')
+            .style.display='none'">Close</button>
+      </div>
     </div>
   `;
 }
@@ -403,7 +414,38 @@ async function mrExportPdf() {
   main.innerHTML = mrRenderPrintCanvas();
 
   printPage(title, false, "Market Report");
-  setTimeout(() => renderMarketReport(), 500);
+  setTimeout(() => {
+    // Restore canvas without resetting the whole page
+    const main = document.getElementById("main-content");
+    if (main && !document.getElementById("mr-canvas")) {
+      renderMarketReport().then(() => mrGenerate());
+    } else {
+      // Re-render just the canvas back to the interactive report
+      const canvas = document.getElementById("mr-canvas");
+      if (canvas) {
+        canvas.innerHTML = mrRenderCanvas({
+          title: _mrTitle, tam: _mrTam,
+          pctContacted: Math.round((sumField(_mrData.activity, "Outreach") / _mrTam) * 100),
+          pctResponded: Math.round((sumField(_mrData.activity, "Responses") / _mrTam) * 100),
+          daysOpen: _mrData.role.OpenDate
+            ? Math.floor((Date.now() - new Date(_mrData.role.OpenDate)) / 86400000)
+            : null,
+          pipeline: {
+            Screened:   sumField(_mrData.activity, "Screened"),
+            Submitted:  sumField(_mrData.activity, "Submitted"),
+            "IV1":      sumField(_mrData.activity, "Interview1"),
+            "IV2+":     sumField(_mrData.activity, "Interview2Plus"),
+            "Final IV": sumField(_mrData.activity, "FinalInterview"),
+            Offers:     sumField(_mrData.activity, "Offers"),
+            Hires:      sumField(_mrData.activity, "Hires"),
+          },
+          rejections: _mrData.rejections,
+          obsHtml: _mrObs,
+        });
+        mrInitEditor();
+      }
+    }
+  }, 500);
 }
 
 function mrRenderPrintCanvas() {

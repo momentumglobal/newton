@@ -41,7 +41,7 @@ function renderMrNav(role) {
          onclick="toggleMrModuleDropdown()">
       <div class="nav-logo">Newton
         <span class="nav-header-arrow">&#9662;</span></div>
-      <div class="nav-subtitle">Marketing Report</div>
+      <div class="nav-subtitle">Market Reporting</div>
       <div class="nav-module-dropdown" id="nav-module-dropdown">
         <a class="nav-module-home" href="index.html">&#8592; Home</a>
         <div class="nav-module-divider"></div>

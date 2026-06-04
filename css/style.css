@@ -544,7 +544,9 @@ body {
 }
 .rb-canvas {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0 4px 24px;
 }
 .rb-section-label {

@@ -8,7 +8,7 @@ const MR_ROLES = {
 
 const MR_PAGES = {
   marketReport: {
-    label: "Marketing Report",
+    label: "Market Report Builder",
     roles: [MR_ROLES.ADMIN, MR_ROLES.DM, MR_ROLES.TP],
   },
 };

@@ -33,7 +33,7 @@ function navigateTo(page) {
   const role = _resolvedRole || getUserRole(getCurrentUser().email);
   if (!canAccess(page, role)) return;
   currentPage = page;
-  renderNav(role);
+  updateNavActiveLink(page);
   renderPage(page);
 }
 

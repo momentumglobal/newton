@@ -6,15 +6,11 @@ let _resolvedRole      = null;  // set by people-app.js on init
 // OS_MODULES mirrors the Reporting module — used to render the
 // module switcher dropdown in the sidebar header.
 const OS_MODULES = [
-  { key: 'reporting', name: 'Reporting', icon: 'bar-chart-2',
-    href: 'reporting.html',    live: true,  roles: ['admin','delivery_manager','talent_partner','leadership'] },
-  { key: 'people',    name: 'People',    icon: 'users',
-    href: 'people.html',   live: true,  roles: ['admin','leadership'] },
-  { key: 'sales',     name: 'Sales',     icon: 'trending-up',
-    href: 'sales.html',    live: true,  roles: ['admin','leadership'] },
-  { key: 'operations',name: 'Operations',icon: 'settings-2',
-    href: null,            live: false, roles: ['admin','leadership'] },
-];
+  { key: 'reporting', name: 'Reporting', icon: 'bar-chart-2', href: 'reporting.html',    live: true,  roles: ['admin','delivery_manager','talent_partner','leadership'] },
+  { key: 'marketing', name: 'Market Reporting', icon: 'megaphone', href: 'market-reporting.html', live: true, roles: ['admin','delivery_manager','talent_partner'] },
+  { key: 'people',    name: 'People',    icon: 'users', href: 'people.html',   live: true,  roles: ['admin','leadership'] },
+  { key: 'sales',     name: 'Sales',     icon: 'trending-up', href: 'sales.html',    live: true,  roles: ['admin','leadership'] },
+  ];
 
 function renderPeopleNav(role) {
   const pages = getPeopleAccessiblePages(role);

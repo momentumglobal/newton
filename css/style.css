@@ -712,15 +712,14 @@ body {
 
 /* ── Row age indicators ──────────────────────────────────────────────── */
 /* Used in Roles table and dashboard panels for open-role ageing          */
-.row-age-warning td {
+.dash-panel .row-age-warning td {
   background: #fff3e0;
   color: #000;
 }
-.row-age-critical td {
+.dash-panel .row-age-critical td {
   background: #fde8e8;
   color: #000;
 }
-
 /* ── Cell-level text indicators ─────────────────────────────────────── */
 .text-critical {
   color: #C00000;

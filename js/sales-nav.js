@@ -1,19 +1,12 @@
 // js/sales-nav.js — Sales module navigation
 
-let _salesCurrentPage = null;
+let _salesCurrentPage  = null;
 let _salesResolvedRole = null;  // set by sales-app.js on init
-
-const SALES_OS_MODULES = [
-  { key: 'reporting', name: 'Reporting', icon: 'bar-chart-2', href: 'reporting.html', live: true,  roles: ['admin','delivery_manager','talent_partner','leadership'] },
-  { key: 'marketing', name: 'Market Reporting', icon: 'megaphone', href: 'market-reporting.html', live: true, roles: ['admin','delivery_manager','talent_partner'] },
-  { key: 'people',    name: 'People',    icon: 'users', href: 'people.html', live: true,  roles: ['admin','leadership'] },
-  { key: 'sales',     name: 'Sales',     icon: 'trending-up', href: 'sales.html', live: true,  roles: ['admin','leadership'] },
-];
 
 function renderSalesNav(role) {
   const pages = getSalesAccessiblePages(role);
   const user  = getCurrentUser();
-  const visibleModules = SALES_OS_MODULES.filter(m => m.roles.includes(role));
+  const visibleModules = CONFIG.OS_MODULES.filter(m => m.roles.includes(role));
 
   const moduleItems = visibleModules.map(m => {
     if (!m.live) {

@@ -1,0 +1,409 @@
+// js/market-report.js
+
+let _mrReportId  = null;   // SharePoint item ID when editing a saved report
+let _mrRoleId    = null;   // Selected role ID (string)
+let _mrProjectId = null;   // Selected project ID (string)
+let _mrTam       = null;   // TAM value (number)
+let _mrTitle     = "";     // Report title
+let _mrObs       = "";     // Observations HTML from rich text editor
+let _mrData      = null;   // Cached { activity, role, rejections }
+
+async function renderMarketReport() {
+  const main = document.getElementById("main-content");
+  const user = getCurrentUser();
+  _mrData = null;
+
+  const roles  = await getScopedRolesForMarketReport(user.email, _mrResolvedRole);
+  const saved  = await getMarketReports();
+  const showPF = ["admin","delivery_manager"].includes(_mrResolvedRole);
+  const projects = showPF ? await getScopedProjects(user.email, false) : [];
+
+  main.innerHTML = `
+    <div class="page-header">
+      <h2>Marketing Report</h2>
+      <div class="page-header-actions">
+        <button class="btn-secondary" onclick="mrOpenSavedModal()">
+          Saved Reports</button>
+        <button class="btn-secondary" id="mr-save-btn" onclick="mrSave()">
+          Save</button>
+        <button class="btn-secondary" onclick="mrPreview()">Preview</button>
+        <button class="print-btn" onclick="mrExportPdf()">
+          &#8856; Export PDF</button>
+      </div>
+    </div>
+    <div class="rb-shell">
+      <div class="rb-sidebar" id="mr-sidebar">
+        ${mrRenderSidebar(roles, projects, showPF)}
+      </div>
+      <div class="rb-canvas" id="mr-canvas">
+        <p class="no-data" style="padding:32px">
+          Complete the fields on the left and click
+          <strong>Generate Report</strong>.
+        </p>
+      </div>
+    </div>
+    <div id="mr-saved-modal" class="rb-modal" style="display:none"></div>
+  `;
+}
+
+function mrRenderSidebar(roles, projects, showProjectFilter) {
+  const sel = (id, cur) => id === cur ? " selected" : "";
+  const projectOpts = projects.map(p =>
+    `<option value="${p.id}"${sel(String(p.id), _mrProjectId)}>
+      ${p.CustomerName}</option>`
+  ).join("");
+  const roleOpts = roles.map(r =>
+    `<option value="${r.id}"${sel(String(r.id), _mrRoleId)}>
+      ${r.RoleTitle}</option>`
+  ).join("");
+
+  return `
+    <div class="rb-config">
+      <div class="rb-section-label">Report Title</div>
+      <input id="mr-title" class="rb-input" type="text"
+        placeholder="e.g. Momentum x Client — Role Market Report (London) — Jun 2026"
+        value="${_mrTitle || ""}"
+        oninput="_mrTitle = this.value">
+      <div class="rb-section-label"
+           style="font-size:11px;color:#888;margin-top:2px">
+        Recommended: [Customer] x Momentum — [Role] Market Report
+        ([Location]) — [Date]
+      </div>
+
+      ${showProjectFilter ? `
+        <div class="rb-section-label">Project</div>
+        <select class="rb-select" onchange="mrSetProject(this.value)">
+          <option value="">— select project —</option>
+          ${projectOpts}
+        </select>` : ""}
+
+      <div class="rb-section-label">Role</div>
+      <select class="rb-select" id="mr-role-select"
+        onchange="_mrRoleId = this.value">
+        <option value="">— select role —</option>
+        ${roleOpts}
+      </select>
+
+      <div class="rb-section-label">Total Addressable Market (TAM)</div>
+      <input id="mr-tam" class="rb-input" type="number" min="0"
+        placeholder="e.g. 500"
+        value="${_mrTam || ""}"
+        oninput="_mrTam = parseInt(this.value) || null">
+
+      <button class="btn-primary"
+        style="margin-top:20px;width:100%"
+        onclick="mrGenerate()">Generate Report</button>
+    </div>
+  `;
+}
+
+async function mrSetProject(projectId) {
+  _mrProjectId = projectId;
+  _mrRoleId    = null;
+  const roles  = projectId ? await getRolesForProject(projectId) : [];
+  const sel    = document.getElementById("mr-role-select");
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— select role —</option>' +
+    roles.map(r =>
+      `<option value="${r.id}">${r.RoleTitle}</option>`
+    ).join("");
+}
+
+async function mrGenerate() {
+  const canvas = document.getElementById("mr-canvas");
+  if (!_mrRoleId) {
+    canvas.innerHTML =
+      '<p class="no-data" style="padding:32px">Please select a role.</p>';
+    return;
+  }
+  if (!_mrTam || _mrTam <= 0) {
+    canvas.innerHTML =
+      '<p class="no-data" style="padding:32px">
+       Please enter a TAM value greater than 0.</p>';
+    return;
+  }
+  canvas.innerHTML =
+    '<p class="no-data" style="padding:32px">Loading...</p>';
+
+  const roleId = parseInt(_mrRoleId);
+  const [activity, role, rejections] = await Promise.all([
+    getWeeklyActivity(null, roleId),
+    getItem("Roles", roleId),
+    getRejectedOffers(roleId),
+  ]);
+  _mrData = { activity, role, rejections };
+
+  const totalOutreach  = sumField(activity, "Outreach");
+  const totalResponses = sumField(activity, "Responses");
+  const pctContacted   = Math.round((totalOutreach  / _mrTam) * 100);
+  const pctResponded   = Math.round((totalResponses / _mrTam) * 100);
+  const daysOpen = role.OpenDate
+    ? Math.floor((Date.now() - new Date(role.OpenDate)) / 86400000)
+    : null;
+
+  const pipeline = {
+    Screened:    sumField(activity, "Screened"),
+    Submitted:   sumField(activity, "Submitted"),
+    "IV1":       sumField(activity, "Interview1"),
+    "IV2+":      sumField(activity, "Interview2Plus"),
+    "Final IV":  sumField(activity, "FinalInterview"),
+    Offers:      sumField(activity, "Offers"),
+    Hires:       sumField(activity, "Hires"),
+  };
+
+  canvas.innerHTML = mrRenderCanvas({
+    title: _mrTitle, tam: _mrTam,
+    pctContacted, pctResponded, daysOpen,
+    pipeline, rejections, obsHtml: _mrObs,
+  });
+  mrInitEditor();
+}
+
+function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
+                          daysOpen, pipeline, rejections, obsHtml }) {
+  const kpis = [
+    { label: "Total Addressable Market", value: tam.toLocaleString() },
+    { label: "% of TAM Contacted",        value: pctContacted + "%" },
+    { label: "% of TAM Responded",         value: pctResponded + "%" },
+    { label: "Days Open",                  value: daysOpen !== null ? daysOpen : "—" },
+  ];
+  const kpiHtml = kpis.map(k =>
+    `<div class="kpi-card">
+       <div class="kpi-value">${k.value}</div>
+       <div class="kpi-label">${k.label}</div>
+     </div>`).join("");
+
+  const pHeaders = Object.keys(pipeline).join("</th><th>");
+  const pValues  = Object.values(pipeline).join("</td><td>");
+
+  const rejHtml = rejections.length ? `
+    <div class="rb-panel">
+      <div class="rb-panel-title">Offer Rejection Reasons</div>
+      <table class="data-table"><thead><tr>
+        <th>Candidate</th><th>Role</th><th>Reason</th><th>Detail</th>
+      </tr></thead><tbody>
+        ${rejections.map(r =>
+          `<tr>
+            <td>${r.CandidateName || "—"}</td>
+            <td>${r.RoleTitle     || "—"}</td>
+            <td>${r.Reason        || "—"}</td>
+            <td>${r.Detail        || "" }</td>
+          </tr>`).join("")}
+      </tbody></table>
+    </div>` : "";
+
+  return `
+    ${title ? `<h2 class="rb-report-title">${title}</h2>` : ""}
+
+    <div class="rb-panel">
+      <div class="rb-panel-title">Market Overview</div>
+      <div class="kpi-strip">${kpiHtml}</div>
+    </div>
+
+    <div class="rb-panel">
+      <div class="rb-panel-title">Resulting Pipeline Activity</div>
+      <table class="data-table">
+        <thead><tr><th>${pHeaders}</th></tr></thead>
+        <tbody><tr><td>${pValues}</td></tr></tbody>
+      </table>
+    </div>
+
+    ${rejHtml}
+
+    <div class="rb-panel">
+      <div class="rb-panel-title">Observations &amp; Recommendations</div>
+      <div class="rb-block rb-block-text">
+        <div class="rb-rt-wrapper">
+          <div class="rb-rt-toolbar" id="mr-obs-toolbar">
+            <button type="button"
+              onclick="mrFormat('bold')"><b>B</b></button>
+            <button type="button"
+              onclick="mrFormat('italic')"><i>I</i></button>
+            <button type="button"
+              onclick="mrFormat('underline')"><u>U</u></button>
+            <button type="button"
+              onclick="mrFormat('insertUnorderedList')">&#8226; List</button>
+            <button type="button"
+              onclick="mrFormat('insertOrderedList')">1. List</button>
+            <button type="button"
+              onclick="mrFormatBlock('H3')">Heading</button>
+            <button type="button"
+              onclick="mrFormatBlock('P')">Body Text</button>
+          </div>
+          <div id="mr-obs-editor" class="rb-richtext"
+               contenteditable="true"
+               oninput="_mrObs = this.innerHTML; mrUpdateToolbarState()"
+               onkeyup="mrUpdateToolbarState()"
+               onmouseup="mrUpdateToolbarState()">
+            ${obsHtml || ""}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function mrFormat(cmd) {
+  document.execCommand(cmd, false, null);
+  mrUpdateToolbarState();
+}
+
+function mrFormatBlock(tag) {
+  document.execCommand("formatBlock", false, tag);
+  mrUpdateToolbarState();
+}
+
+function mrUpdateToolbarState() {
+  const toolbar = document.getElementById("mr-obs-toolbar");
+  if (!toolbar) return;
+  ["bold","italic","underline"].forEach(cmd => {
+    const btn = toolbar.querySelector(
+      `button[onclick="mrFormat('${cmd}')"]`
+    );
+    if (btn) btn.classList.toggle("active",
+      document.queryCommandState(cmd));
+  });
+  const ulBtn = toolbar.querySelector(
+    'button[onclick="mrFormat('insertUnorderedList')"]');
+  const olBtn = toolbar.querySelector(
+    'button[onclick="mrFormat('insertOrderedList')"]');
+  if (ulBtn) ulBtn.classList.toggle("active",
+    document.queryCommandState("insertUnorderedList"));
+  if (olBtn) olBtn.classList.toggle("active",
+    document.queryCommandState("insertOrderedList"));
+  const blockTag = document.queryCommandValue("formatBlock").toUpperCase();
+  const hBtn = toolbar.querySelector('button[onclick="mrFormatBlock('H3')"]');
+  const pBtn = toolbar.querySelector('button[onclick="mrFormatBlock('P')"]');
+  if (hBtn) hBtn.classList.toggle("active", blockTag === "H3");
+  if (pBtn) pBtn.classList.toggle("active",
+    blockTag === "P" || blockTag === "DIV" || blockTag === "");
+}
+
+function mrInitEditor() {
+  // Editor is ready as soon as the canvas renders.
+  // mrUpdateToolbarState() fires on keyup/mouseup via the oninput binding.
+  // No additional init required.
+}
+
+async function mrSave() {
+  const title = document.getElementById("mr-title")?.value?.trim();
+  if (!title)     { alert("Please enter a report title before saving."); return; }
+  if (!_mrRoleId) { alert("Please select a role before saving.");        return; }
+
+  const user    = getCurrentUser();
+  const payload = {
+    Title:          title,
+    RoleID:         parseInt(_mrRoleId),
+    ProjectID:      _mrProjectId ? parseInt(_mrProjectId) : null,
+    TAM:            _mrTam,
+    Observations:   _mrObs,
+    CreatedByEmail: user.email,
+    RoleName:       _mrData?.role?.RoleTitle    || "",
+    CustomerName:   _mrData?.role?.CustomerName || "",
+  };
+
+  if (_mrReportId) {
+    await updateMarketReport(_mrReportId, payload);
+  } else {
+    const result = await createMarketReport(payload);
+    _mrReportId  = result.id;
+  }
+
+  const btn = document.getElementById("mr-save-btn");
+  if (btn) {
+    btn.textContent = "Saved ✓";
+    setTimeout(() => { btn.textContent = "Save"; }, 2000);
+  }
+}
+
+async function mrOpenSavedModal() {
+  const modal = document.getElementById("mr-saved-modal");
+  modal.style.display = "flex";
+  modal.innerHTML = `<div class="rb-modal-inner">
+    <h3>Saved Market Reports</h3><p>Loading...</p>
+    <button class="btn-secondary"
+      onclick="document.getElementById('mr-saved-modal')
+        .style.display='none'">Close</button>
+  </div>`;
+
+  const reports = await getMarketReports();
+  const user    = getCurrentUser();
+  // Non-admins see only their own saved reports
+  const visible = _mrResolvedRole === "admin"
+    ? reports
+    : reports.filter(r =>
+        r.CreatedByEmail?.toLowerCase() === user.email.toLowerCase()
+      );
+
+  const rows = visible.length
+    ? visible.map(r => `
+        <div class="rb-saved-row">
+          <span>${r.ReportTitle}</span>
+          <span class="rb-saved-meta">
+            ${r.RoleName} &middot; ${r.CustomerName}
+          </span>
+          <button class="btn-secondary btn-sm"
+            onclick="mrLoadReport(${r.id})">Open</button>
+        </div>`).join("")
+    : '<p class="no-data">No saved reports yet.</p>';
+
+  modal.innerHTML = `<div class="rb-modal-inner">
+    <h3>Saved Market Reports</h3>${rows}
+    <button class="btn-secondary" style="margin-top:16px"
+      onclick="document.getElementById('mr-saved-modal')
+        .style.display='none'">Close</button>
+  </div>`;
+}
+
+async function mrLoadReport(id) {
+  const report = await getMarketReportById(id);
+  _mrReportId  = id;
+  _mrRoleId    = report.RoleID    ? String(report.RoleID)    : null;
+  _mrProjectId = report.ProjectID ? String(report.ProjectID) : null;
+  _mrTam       = report.TAM       ? parseFloat(report.TAM)   : null;
+  _mrTitle     = report.ReportTitle || "";
+  _mrObs       = report.Observations || "";
+  document.getElementById("mr-saved-modal").style.display = "none";
+  await renderMarketReport();
+  await mrGenerate();
+}
+
+function mrPreview() {
+  const canvas = document.getElementById("mr-canvas");
+  if (!_mrData) {
+    alert("Generate the report first before previewing.");
+    return;
+  }
+  const modal = document.getElementById("mr-saved-modal");
+  modal.style.display = "flex";
+  modal.innerHTML = `
+    <div class="rb-modal-inner"
+         style="max-width:860px;width:90%">
+      <div class="rb-report-preview">${canvas.innerHTML}</div>
+      <button class="print-btn" style="margin-top:16px"
+        onclick="mrExportPdf()">Export PDF</button>
+      <button class="btn-secondary" style="margin-top:8px"
+        onclick="document.getElementById('mr-saved-modal')
+          .style.display='none'">Close</button>
+    </div>
+  `;
+}
+
+async function mrExportPdf() {
+  if (!_mrData) {
+    alert("Generate the report first before exporting.");
+    return;
+  }
+  const title  = _mrTitle || "Market Report";
+  const main   = document.getElementById("main-content");
+  const canvas = document.getElementById("mr-canvas");
+  const snapshot = canvas.innerHTML;
+
+  main.innerHTML = `
+    <h2 class="rb-report-title">${title}</h2>
+    ${snapshot}
+  `;
+
+  printPage(title, false, "Marketing Report");
+  setTimeout(() => renderMarketReport(), 500);
+}

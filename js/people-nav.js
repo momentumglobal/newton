@@ -3,19 +3,10 @@
 let _peopleCurrentPage = null;
 let _resolvedRole      = null;  // set by people-app.js on init
 
-// OS_MODULES mirrors the Reporting module — used to render the
-// module switcher dropdown in the sidebar header.
-const OS_MODULES = [
-  { key: 'reporting', name: 'Reporting', icon: 'bar-chart-2', href: 'reporting.html',    live: true,  roles: ['admin','delivery_manager','talent_partner','leadership'] },
-  { key: 'marketing', name: 'Market Reporting', icon: 'megaphone', href: 'market-reporting.html', live: true, roles: ['admin','delivery_manager','talent_partner'] },
-  { key: 'people',    name: 'People',    icon: 'users', href: 'people.html',   live: true,  roles: ['admin','leadership'] },
-  { key: 'sales',     name: 'Sales',     icon: 'trending-up', href: 'sales.html',    live: true,  roles: ['admin','leadership'] },
-  ];
-
 function renderPeopleNav(role) {
   const pages = getPeopleAccessiblePages(role);
   const user  = getCurrentUser();
-  const visibleModules = OS_MODULES.filter(m => m.roles.includes(role));
+  const visibleModules = CONFIG.OS_MODULES.filter(m => m.roles.includes(role));
 
   const moduleItems = visibleModules.map(m => {
     if (!m.live) {
@@ -82,10 +73,10 @@ function navigateToPeople(page) {
 async function renderPeoplePage(page) {
   const main = document.getElementById('main-content');
   switch (page) {
-    case 'peopleTracker':   await renderEmployeeTracker();   break;
-    case 'peopleDashboard': await renderPeopleDashboard();   break;
-    case 'peopleGantt':     await renderDeploymentTimeline();break;
-    case 'gpInvoices':      await renderGPInvoices();        break;
+    case 'peopleTracker':   await renderEmployeeTracker();    break;
+    case 'peopleDashboard': await renderPeopleDashboard();    break;
+    case 'peopleGantt':     await renderDeploymentTimeline(); break;
+    case 'gpInvoices':      await renderGPInvoices();         break;
     default:
       main.innerHTML = '<p>Page not found.</p>';
   }

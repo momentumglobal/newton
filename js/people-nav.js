@@ -31,7 +31,7 @@ function navigateToPeople(page) {
   const role = _resolvedRole || 'viewer';
   if (!peopleCanAccess(page, role)) return;
   _peopleCurrentPage = page;
-  renderPeopleNav(role);
+  updateNavActiveLink(page);
   renderPeoplePage(page);
 }
 

@@ -20,6 +20,7 @@ async function signIn() {
 
 function signOut() {
   localStorage.clear();
+  sessionStorage.clear();
   msalInstance.logoutRedirect();
 }
 

@@ -118,8 +118,7 @@ async function mrGenerate() {
   }
   if (!_mrTam || _mrTam <= 0) {
     canvas.innerHTML =
-      '<p class="no-data" style="padding:32px">
-       Please enter a TAM value greater than 0.</p>';
+      '<p class="no-data" style="padding:32px">Please enter a TAM value greater than 0.</p>';
     return;
   }
   canvas.innerHTML =
@@ -264,16 +263,16 @@ function mrUpdateToolbarState() {
       document.queryCommandState(cmd));
   });
   const ulBtn = toolbar.querySelector(
-    'button[onclick="mrFormat('insertUnorderedList')"]');
+    `button[onclick="mrFormat('insertUnorderedList')"]`);
   const olBtn = toolbar.querySelector(
-    'button[onclick="mrFormat('insertOrderedList')"]');
+    `button[onclick="mrFormat('insertOrderedList')"]`);
   if (ulBtn) ulBtn.classList.toggle("active",
     document.queryCommandState("insertUnorderedList"));
   if (olBtn) olBtn.classList.toggle("active",
     document.queryCommandState("insertOrderedList"));
   const blockTag = document.queryCommandValue("formatBlock").toUpperCase();
-  const hBtn = toolbar.querySelector('button[onclick="mrFormatBlock('H3')"]');
-  const pBtn = toolbar.querySelector('button[onclick="mrFormatBlock('P')"]');
+  const hBtn = toolbar.querySelector(`button[onclick="mrFormatBlock('H3')"]`);
+  const pBtn = toolbar.querySelector(`button[onclick="mrFormatBlock('P')"]`);
   if (hBtn) hBtn.classList.toggle("active", blockTag === "H3");
   if (pBtn) pBtn.classList.toggle("active",
     blockTag === "P" || blockTag === "DIV" || blockTag === "");

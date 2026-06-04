@@ -268,7 +268,7 @@ async function showEditActivityForm(id) {
 }
 // ── Placements ────────────────────────────────────────────────────────
 const PLACEMENT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const PLACEMENT_YEARS  = [2026, 2025, 2024, 2023];
+const PLACEMENT_YEARS = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - i);
 let _placementFilter    = { type: null, value: null };
 let _placementProjectId = null;
 function placementInFilter(p, filter) {

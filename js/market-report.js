@@ -172,12 +172,13 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
        <div class="kpi-label">${k.label}</div>
      </div>`).join("");
 
-  const pHeaders = Object.keys(pipeline).join("</th><th>");
-  const pValues  = Object.values(pipeline).join("</td><td>");
+  const colW = `style="width:${Math.floor(100/Object.keys(pipeline).length)}%;text-align:center"`;
+  const pHeaders = Object.keys(pipeline).map(h => `<th ${colW}>${h}</th>`).join("");
+  const pValues  = Object.values(pipeline).map(v => `<td ${colW}>${v}</td>`).join("");
 
   const rejHtml = rejections.length ? `
-    <div class="rb-panel">
-      <div class="rb-panel-title">Offer Rejection Reasons</div>
+    <div class="rb-panel" style="padding:20px 24px 24px">
+      <div class="rb-panel-title" style="margin-bottom:16px">Offer Rejection Reasons</div>
       <table class="data-table"><thead><tr>
         <th>Candidate</th><th>Role</th><th>Reason</th><th>Detail</th>
       </tr></thead><tbody>
@@ -194,23 +195,23 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
   return `
     ${title ? `<h2 class="rb-report-title">${title}</h2>` : ""}
 
-    <div class="rb-panel">
-      <div class="rb-panel-title">Market Overview</div>
+    <div class="rb-panel" style="padding:20px 24px 24px">
+      <div class="rb-panel-title" style="margin-bottom:16px">Market Overview</div>
       <div class="kpi-strip">${kpiHtml}</div>
     </div>
 
-    <div class="rb-panel">
-      <div class="rb-panel-title">Resulting Pipeline Activity</div>
-      <table class="data-table">
-        <thead><tr><th>${pHeaders}</th></tr></thead>
-        <tbody><tr><td>${pValues}</td></tr></tbody>
+    <div class="rb-panel" style="padding:20px 24px 24px">
+      <div class="rb-panel-title" style="margin-bottom:16px">Resulting Pipeline Activity</div>
+      <table class="data-table" style="table-layout:fixed;width:100%">
+        <thead><tr>${pHeaders}</tr></thead>
+        <tbody><tr>${pValues}</tr></tbody>
       </table>
     </div>
 
     ${rejHtml}
 
-    <div class="rb-panel">
-      <div class="rb-panel-title">Observations &amp; Recommendations</div>
+    <div class="rb-panel" style="padding:20px 24px 24px">
+      <div class="rb-panel-title" style="margin-bottom:16px">Observations &amp; Recommendations</div>
       <div class="rb-block rb-block-text">
         <div class="rb-rt-wrapper">
           <div class="rb-rt-toolbar" id="mr-obs-toolbar">
@@ -231,6 +232,7 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
           </div>
           <div id="mr-obs-editor" class="rb-richtext"
                contenteditable="true"
+               style="min-height:200px"
                oninput="_mrObs = this.innerHTML; mrUpdateToolbarState()"
                onkeyup="mrUpdateToolbarState()"
                onmouseup="mrUpdateToolbarState()">
@@ -262,10 +264,8 @@ function mrUpdateToolbarState() {
     if (btn) btn.classList.toggle("active",
       document.queryCommandState(cmd));
   });
-  const ulBtn = toolbar.querySelector(
-    `button[onclick="mrFormat('insertUnorderedList')"]`);
-  const olBtn = toolbar.querySelector(
-    `button[onclick="mrFormat('insertOrderedList')"]`);
+  const ulBtn = toolbar.querySelector(`button[onclick="mrFormat('insertUnorderedList')"]`);
+  const olBtn = toolbar.querySelector(`button[onclick="mrFormat('insertOrderedList')"]`);
   if (ulBtn) ulBtn.classList.toggle("active",
     document.queryCommandState("insertUnorderedList"));
   if (olBtn) olBtn.classList.toggle("active",

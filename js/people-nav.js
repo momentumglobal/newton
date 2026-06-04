@@ -4,51 +4,16 @@ let _peopleCurrentPage = null;
 let _resolvedRole      = null;  // set by people-app.js on init
 
 function renderPeopleNav(role) {
-  const pages = getPeopleAccessiblePages(role);
-  const user  = getCurrentUser();
-  const visibleModules = CONFIG.OS_MODULES.filter(m => m.roles.includes(role));
-
-  const moduleItems = visibleModules.map(m => {
-    if (!m.live) {
-      return `<div class='nav-module-item disabled'>
-        <i data-lucide="${m.icon}" class="nav-module-icon"></i>
-        ${m.name} <span class='nav-module-soon'>Soon</span></div>`;
-    }
-    const isCurrent = m.key === 'people';
-    return `<a class='nav-module-item${isCurrent ? " current" : ""}' href='${m.href}'>
-      <i data-lucide="${m.icon}" class="nav-module-icon"></i>${m.name}</a>`;
-  }).join('');
-
-  const nav = document.getElementById('sidebar');
-  nav.innerHTML = `
-    <div class='nav-header nav-header-dropdown' onclick='togglePeopleModuleDropdown()'>
-      <div class='nav-logo'>Newton <span class='nav-header-arrow'>▾</span></div>
-      <div class='nav-subtitle'>People</div>
-      <div class='nav-module-dropdown' id='nav-module-dropdown'>
-        <a class='nav-module-home' href='index.html'>← Home</a>
-        <div class='nav-module-divider'></div>
-        ${moduleItems}
-      </div>
-    </div>
-    <div class='nav-user'>
-      <div class='nav-user-name'>${user.name || user.email}</div>
-      <div class='nav-user-role'>${role.replace(/_/g, ' ')}</div>
-    </div>
-    <nav class='nav-links'>
-      ${pages.map(p => `
-        <a class='nav-link ${p.key === _peopleCurrentPage ? 'active' : ''}'
-           onclick='navigateToPeople("${p.key}")'>
-          ${p.label}
-        </a>`).join('')}
-    </nav>
-    <img src='momentum-symbol-and-name-global-white.png'
-         alt='Momentum Global' class='nav-logo-img'>
-    <div class='nav-footer'>
-      <a class='nav-link signout' href='people-user-guide.html' target='_blank'>User Guide</a>
-      <a class='nav-link signout' onclick='signOut()'>Sign out</a>
-    </div>`;
-
-  lucide.createIcons();
+  renderModuleNav({
+    subtitle:         'People',
+    currentModuleKey: 'people',
+    toggleFn:         'togglePeopleModuleDropdown',
+    pages:            getPeopleAccessiblePages(role),
+    currentPage:      _peopleCurrentPage,
+    role:             role,
+    navigateFn:       'navigateToPeople',
+    userGuideHref:    'people-user-guide.html',
+  });
 }
 
 function togglePeopleModuleDropdown() {

@@ -31,7 +31,7 @@ function navigateToSales(page) {
   const role = _salesResolvedRole || 'viewer';
   if (!salesCanAccess(page, role)) return;
   _salesCurrentPage = page;
-  renderSalesNav(role);
+  updateNavActiveLink(page);
   renderSalesPage(page);
 }
 

@@ -20,7 +20,7 @@ async function renderMarketReport() {
 
   main.innerHTML = `
     <div class="page-header">
-      <h2>Marketing Report</h2>
+      <h2>Market Report Builder</h2>
       <div class="page-header-actions">
         <button class="btn-secondary" onclick="mrOpenSavedModal()">
           Saved Reports</button>
@@ -403,6 +403,6 @@ async function mrExportPdf() {
     ${snapshot}
   `;
 
-  printPage(title, false, "Marketing Report");
+  printPage(title, false, "Market Report");
   setTimeout(() => renderMarketReport(), 500);
 }

@@ -13,6 +13,7 @@ const FIELD_ALIASES = {
   Departments:     { Title: "DepartmentName" },
   Currencies:      { Title: "CurrencyCode" },
   SavedReports:    {},
+  MarketReports:   { Title: "ReportTitle" },
   // ── People module ──────────────────────────────────────────
   People:          { Title: "EmployeeName" },
   Assignments:     { Title: "AssignmentID" },
@@ -485,4 +486,49 @@ function printPage(title, landscape = false, module = 'Newton') {
   if (styleEl) {
     setTimeout(() => styleEl.remove(), 1000);
   }
+}
+
+// ── Marketing Report ─────────────────────────────────────────────
+async function getMarketReports() {
+  return getItems("MarketReports");
+}
+async function getMarketReportById(id) {
+  return getItem("MarketReports", id);
+}
+async function createMarketReport(fields) {
+  return createItem("MarketReports", fields);
+}
+async function updateMarketReport(id, fields) {
+  return updateItem("MarketReports", id, fields);
+}
+
+async function getScopedRolesForMarketReport(email, effectiveRole) {
+  const lower = email.toLowerCase();
+
+  if (effectiveRole === "admin") {
+    return getAllRoles();
+  }
+
+  if (effectiveRole === "delivery_manager") {
+    const projectIds = await getUserProjectIds(email);
+    if (!projectIds) return getAllRoles();
+    const arrays = await Promise.all(
+      projectIds.map(pid => getRolesForProject(pid))
+    );
+    return arrays.flat();
+  }
+
+  // Talent Partner: only roles where TalentPartner column matches their email
+  const assignments = await getItems(
+    "UserAssignments",
+    `fields/Title eq '${lower}'`
+  );
+  if (!assignments.length) return [];
+  const projectIds = [...new Set(assignments.map(a => String(a.ProjectID)))];
+  const arrays = await Promise.all(
+    projectIds.map(pid => getRolesForProject(pid))
+  );
+  return arrays.flat().filter(r =>
+    r.TalentPartner && r.TalentPartner.toLowerCase() === lower
+  );
 }

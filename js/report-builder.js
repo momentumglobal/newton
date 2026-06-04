@@ -353,7 +353,6 @@ async function rbOpenSavedModal() {
           <span class="rb-saved-meta">${ownerDisplay}</span>
           <div style="display:flex;gap:6px;flex-shrink:0">
             <button class="btn-secondary btn-sm" onclick="rbLoadReport(${r.id})">Open</button>
-            ${canEdit ? `<button class="btn-secondary btn-sm" onclick="rbEditReport(${r.id})">Edit</button>` : ''}
             ${canEdit ? `<button class="btn-danger btn-sm" onclick="rbDeleteReport(${r.id}, '${r.Title.replace(/'/g, "\\'")}')">Delete</button>` : ''}
           </div>
         </div>`;
@@ -378,11 +377,6 @@ async function rbLoadReport(id) {
   _rbTitle      = report.Title;
   document.getElementById('rb-saved-modal').style.display = 'none';
   renderReportBuilder();
-}
-
-function rbEditReport(id) {
-  document.getElementById('rb-saved-modal').style.display = 'none';
-  rbLoadReport(id);
 }
 
 async function rbDeleteReport(id, title) {

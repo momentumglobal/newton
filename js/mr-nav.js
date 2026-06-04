@@ -1,28 +1,12 @@
 // js/mr-nav.js — Marketing Report module navigation
 
-let _mrCurrentPage   = null;
-let _mrResolvedRole  = null;  // set by mr-app.js on init
-
-// Full OS module switcher list — must include Marketing Report
-const MR_OS_MODULES = [
-  { key: "reporting",  name: "Reporting",         icon: "bar-chart-2",
-    href: "reporting.html",  live: true,
-    roles: ["admin","delivery_manager","talent_partner","leadership"] },
-  { key: "marketing",  name: "Market Reporting",  icon: "megaphone",
-    href: "market-reporting.html",  live: true,
-    roles: ["admin","delivery_manager","talent_partner"] },
-  { key: "people",     name: "People",            icon: "users",
-    href: "people.html",     live: true,
-    roles: ["admin","leadership"] },
-  { key: "sales",      name: "Sales",             icon: "trending-up",
-    href: "sales.html",      live: true,
-    roles: ["admin","leadership"] },
-];
+let _mrCurrentPage  = null;
+let _mrResolvedRole = null;  // set by mr-app.js on init
 
 function renderMrNav(role) {
   const pages   = getMrAccessiblePages(role);
   const user    = getCurrentUser();
-  const visible = MR_OS_MODULES.filter(m => m.roles.includes(role));
+  const visible = CONFIG.OS_MODULES.filter(m => m.roles.includes(role));
 
   const moduleItems = visible.map(m => {
     if (!m.live) {

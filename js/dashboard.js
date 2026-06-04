@@ -397,12 +397,12 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
   </div>`;
   const rows = longOpen.map(r => {
     const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
-    const rowStyle = days >= 45 ? "background:#fde8e8;" : "background:#fff3e0;";
-    return `<tr>
-      <td style="${rowStyle}">${r.RoleTitle}</td>
-      <td style="${rowStyle}">${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || '—'}</td>
-      <td style="${rowStyle}"><span class='badge'>${r.Stage}</span></td>
-      <td style="${rowStyle}">${days} days</td>
+    const rowClass = days >= 45 ? 'row-age-critical' : 'row-age-warning';
+    return `<tr class="${rowClass}">
+     <td>${r.RoleTitle}</td>
+     <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || '—'}</td>
+     <td><span class='badge'>${r.Stage}</span></td>
+     <td>${days} days</td>
     </tr>`;
   }).join('');
   return `<div class='dash-panel'>
@@ -428,14 +428,14 @@ function renderRoleTrackerPanel(roles) {
     const days = r.OpenDate
       ? Math.floor((today - new Date(r.OpenDate)) / 86400000)
       : null;
-    const daysStyle = days !== null && days >= 45 ? 'color:#C00000;font-weight:600'
-      : days !== null && days >= 30 ? 'color:#b45309;font-weight:600' : '';
+    const daysClass = days !== null && days >= 45 ? 'text-critical'
+      : days !== null && days >= 30 ? 'text-warning' : '';
     return `<tr>
       <td>${r.RoleTitle}</td>
       <td>${r.HiringManager || '—'}</td>
       <td><span class='badge'>${r.Stage || '—'}</span></td>
       <td>${r.OpenDate ? r.OpenDate.split('T')[0] : '—'}</td>
-      <td style="${daysStyle}">${days !== null ? days + ' days' : '—'}</td>
+      <td class="${daysClass}">${days !== null ? days + ' days' : '—'}</td>
     </tr>`;
   }).join('');
   return `<div class='dash-panel'>
@@ -672,17 +672,15 @@ function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}) {
   const rows = longOpen.map(r => {
     const proj = projectMap[String(r.ProjectIDLookupId || r.ProjectID)] || '—';
     const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
-    const rowStyle = days >= 45
-      ? "background:#fde8e8;"
-      : days >= 30
-      ? "background:#fff3e0;"
-      : "";
-    return `<tr>
-      <td style="${rowStyle}">${proj}</td>
-      <td style="${rowStyle}">${r.RoleTitle}</td>
-      <td style="${rowStyle}">${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || '—'}</td>
-      <td style="${rowStyle}"><span class='badge'>${r.Stage}</span></td>
-      <td style="${rowStyle}">${days} days</td>
+    const rowClass = days >= 45 ? 'row-age-critical'
+     : days >= 30 ? 'row-age-warning'
+     : '';
+    return `<tr class="${rowClass}">
+     <td>${proj}</td>
+     <td>${r.RoleTitle}</td>
+     <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || '—'}</td>
+     <td><span class='badge'>${r.Stage}</span></td>
+     <td>${days} days</td>
     </tr>`;
   }).join('');
   return `<div class='dash-panel'>

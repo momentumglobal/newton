@@ -79,7 +79,7 @@ function mrRenderSidebar(roles, projects, showProjectFilter) {
 
       <div class="rb-section-label">Role</div>
       <select class="rb-select" id="mr-role-select"
-        onchange="_mrRoleId = this.value">
+        onchange="_mrRoleId = this.value; mrSuggestTitle(this)">
         <option value="">— select role —</option>
         ${roleOpts}
       </select>
@@ -398,10 +398,7 @@ async function mrExportPdf() {
   const canvas = document.getElementById("mr-canvas");
   const snapshot = canvas.innerHTML;
 
-  main.innerHTML = `
-    <h2 class="rb-report-title">${title}</h2>
-    ${snapshot}
-  `;
+  main.innerHTML = snapshot;
 
   printPage(title, false, "Market Report");
   setTimeout(() => renderMarketReport(), 500);

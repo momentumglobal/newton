@@ -154,13 +154,29 @@ async function getDepartments(projectId) {
 // 4. Fall back to 'viewer'
 async function getEffectiveRole(email) {
   const lower = email.toLowerCase();
-  if (CONFIG.ADMIN_USERS?.includes(lower)) return 'admin';
-  const leadership = await getLeadershipAccess();
-  if (leadership.some(l => l.UserEmail?.toLowerCase() === lower)) return 'leadership';
-  const assignments = await getItems("UserAssignments",
-    `fields/Title eq '${lower}'`);
-  if (assignments.length > 0) return assignments[0].AssignedRole;
-  return 'viewer';
+
+  // Return cached role if available — role doesn't change during a session.
+  // Cache is cleared on sign-out via signOut() in auth.js.
+  const cacheKey = 'newton_role_' + lower;
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) return cached;
+
+  let role;
+  if (CONFIG.ADMIN_USERS?.includes(lower)) {
+    role = 'admin';
+  } else {
+    const leadership = await getLeadershipAccess();
+    if (leadership.some(l => l.UserEmail?.toLowerCase() === lower)) {
+      role = 'leadership';
+    } else {
+      const assignments = await getItems("UserAssignments",
+        `fields/Title eq '${lower}'`);
+      role = assignments.length > 0 ? assignments[0].AssignedRole : 'viewer';
+    }
+  }
+
+  sessionStorage.setItem(cacheKey, role);
+  return role;
 }
 
 // getUserProjectIds — defined above with admin null handling

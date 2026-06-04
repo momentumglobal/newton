@@ -1,6 +1,35 @@
 // js/api.js — Graph API data layer
 const GRAPH = "https://graph.microsoft.com/v1.0";
 
+// ── In-memory read cache ──────────────────────────────────────────────
+// Caches GET results for 30 seconds to avoid redundant SharePoint calls
+// during page navigation. Writes (POST/PATCH/DELETE) invalidate the
+// relevant list automatically.
+const _apiCache = new Map();
+const _CACHE_TTL_MS = 30000; // 30 seconds
+
+function _cacheKey(listName, filter) {
+  return listName + '|' + (filter || '');
+}
+function _cacheGet(listName, filter) {
+  const entry = _apiCache.get(_cacheKey(listName, filter));
+  if (!entry) return null;
+  if (Date.now() - entry.ts > _CACHE_TTL_MS) {
+    _apiCache.delete(_cacheKey(listName, filter));
+    return null;
+  }
+  return entry.data;
+}
+function _cacheSet(listName, filter, data) {
+  _apiCache.set(_cacheKey(listName, filter), { ts: Date.now(), data });
+}
+function _cacheInvalidate(listName) {
+  // Remove all cached entries for this list (any filter)
+  for (const key of _apiCache.keys()) {
+    if (key.startsWith(listName + '|')) _apiCache.delete(key);
+  }
+}
+
 // ── Field normalisers ───────────────────────────────────────────────
 const FIELD_ALIASES = {
   Projects:        { Title: "CustomerName", Yeare: "Year" },
@@ -63,6 +92,9 @@ function listPath(listName) {
 
 // ── Read ─────────────────────────────────────────────────────────────
 async function getItems(listName, filter = "") {
+  const cached = _cacheGet(listName, filter);
+  if (cached) return cached;
+
   const qs = filter ? `?$expand=fields($select=*)&$filter=${encodeURIComponent(filter)}` : "?$expand=fields($select=*)";
   let url = `${listPath(listName)}${qs}`;
   const items = [];
@@ -71,8 +103,11 @@ async function getItems(listName, filter = "") {
     items.push(...data.value.map(i => ({ id: i.id, ...normaliseFields(listName, i.fields) })));
     url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH, '') : null;
   }
+
+  _cacheSet(listName, filter, items);
   return items;
 }
+
 async function getItem(listName, itemId) {
   const data = await graphRequest("GET", `${listPath(listName)}/${itemId}?$expand=fields($select=*)`);
   return { id: data.id, ...normaliseFields(listName, data.fields) };
@@ -80,11 +115,19 @@ async function getItem(listName, itemId) {
 
 // ── Write ─────────────────────────────────────────────────────────────
 async function createItem(listName, fields) {
-  return graphRequest("POST", listPath(listName), { fields });
+  const result = await graphRequest("POST", listPath(listName), { fields });
+  _cacheInvalidate(listName);
+  return result;
 }
-
 async function updateItem(listName, itemId, fields) {
-  return graphRequest("PATCH", `${listPath(listName)}/${itemId}`, { fields });
+  const result = await graphRequest("PATCH", `${listPath(listName)}/${itemId}`, { fields });
+  _cacheInvalidate(listName);
+  return result;
+}
+async function deleteItem(listName, itemId) {
+  const result = await graphRequest("DELETE", `${listPath(listName)}/${itemId}`);
+  _cacheInvalidate(listName);
+  return result;
 }
 
 // ── List-specific helpers ─────────────────────────────────────────────
@@ -415,10 +458,6 @@ async function updateInvoice(id, fields) {
 }
 
 // ── Shared utilities ──────────────────────────────────────────────────
-async function deleteItem(listName, itemId) {
-  return graphRequest("DELETE", `${listPath(listName)}/${itemId}`);
-}
-
 function printPage(title, landscape = false, module = 'Newton') {
   document.getElementById('print-header-title').textContent = 'Newton';
   document.getElementById('print-header-sub').textContent = module;

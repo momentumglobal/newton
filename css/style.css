@@ -709,3 +709,26 @@ body {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-100%); }
 }
+
+/* ── Row age indicators ──────────────────────────────────────────────── */
+/* Used in Roles table and dashboard panels for open-role ageing          */
+.row-age-warning {
+  background: #fff3e0;  /* amber — 30-44 days open */
+}
+.row-age-critical {
+  background: #fde8e8;  /* red — 45+ days open */
+}
+.row-age-warning td,
+.row-age-critical td {
+  color: #000;
+}
+
+/* ── Cell-level text indicators ─────────────────────────────────────── */
+.text-critical {
+  color: #C00000;
+  font-weight: 600;
+}
+.text-warning {
+  color: #b45309;
+  font-weight: 600;
+}

@@ -176,8 +176,8 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
   const pValues  = Object.values(pipeline).map(v => `<td ${colW}>${v}</td>`).join("");
 
   const rejHtml = rejections.length ? `
-    <div class="rb-panel" style="padding:20px 24px 24px">
-      <div class="rb-panel-title" style="margin-bottom:16px">Offer Rejection Reasons</div>
+    <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">Offer Rejection Reasons</div>
       <table class="data-table"><thead><tr>
         <th>Candidate</th><th>Role</th><th>Reason</th><th>Detail</th>
       </tr></thead><tbody>
@@ -195,20 +195,18 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
     <style>
       #mr-obs-editor:empty:before {
         content: attr(data-placeholder);
-        color: #aaa;
-        font-style: italic;
-        pointer-events: none;
+        color: #aaa; font-style: italic; pointer-events: none;
       }
     </style>
     ${title ? `<h2 class="rb-report-title">${title}</h2>` : ""}
 
-    <div class="rb-panel" style="padding:20px 24px 24px">
-      <div class="rb-panel-title" style="margin-bottom:16px">Market Overview</div>
+    <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">Market Overview</div>
       <div class="kpi-strip">${kpiHtml}</div>
     </div>
 
-    <div class="rb-panel" style="padding:20px 24px 24px">
-      <div class="rb-panel-title" style="margin-bottom:16px">Resulting Pipeline Activity</div>
+    <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">Resulting Pipeline Activity</div>
       <table class="data-table" style="table-layout:fixed;width:100%">
         <thead><tr>${pHeaders}</tr></thead>
         <tbody><tr>${pValues}</tr></tbody>
@@ -217,7 +215,7 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
 
     ${rejHtml}
 
-    <div class="rb-panel" style="padding:20px 24px 24px">
+    <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div class="rb-block rb-block-text">
         <div class="rb-rt-wrapper">
           <div class="rb-rt-toolbar" id="mr-obs-toolbar">
@@ -238,13 +236,11 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
           </div>
           <div id="mr-obs-editor" class="rb-richtext"
                contenteditable="true"
-               style="min-height:200px; caret-color: #0A0B44; cursor: text;"
+               style="min-height:200px;caret-color:#0A0B44;cursor:text"
                data-placeholder="Add observations &amp; recommendations here..."
                oninput="_mrObs = this.innerHTML; mrUpdateToolbarState()"
                onkeyup="mrUpdateToolbarState()"
-               onmouseup="mrUpdateToolbarState()">
-            ${obsHtml || ""}
-          </div>
+               onmouseup="mrUpdateToolbarState()">${obsHtml || ""}</div>
         </div>
       </div>
     </div>
@@ -389,12 +385,10 @@ function mrPreview() {
          style="max-width:860px;width:90%">
       <div class="rb-report-preview">${mrRenderPrintCanvas()}</div>
       <div style="display:flex;gap:8px;margin-top:16px">
-        <button class="print-btn"
-          onclick="mrExportPdf()">Export PDF</button>
+        <button class="print-btn" onclick="mrExportPdf()">Export PDF</button>
         <button class="btn-secondary"
           style="height:36px;line-height:1;padding:0 18px"
-          onclick="document.getElementById('mr-saved-modal')
-            .style.display='none'">Close</button>
+          onclick="document.getElementById('mr-saved-modal').style.display='none'">Close</button>
       </div>
     </div>
   `;
@@ -415,35 +409,31 @@ async function mrExportPdf() {
 
   printPage(title, false, "Market Report");
   setTimeout(() => {
-    // Restore canvas without resetting the whole page
-    const main = document.getElementById("main-content");
-    if (main && !document.getElementById("mr-canvas")) {
-      renderMarketReport().then(() => mrGenerate());
+    const canvas = document.getElementById("mr-canvas");
+    if (canvas) {
+      const act = _mrData.activity;
+      canvas.innerHTML = mrRenderCanvas({
+        title: _mrTitle, tam: _mrTam,
+        pctContacted: Math.round((sumField(act, "Outreach")  / _mrTam) * 100),
+        pctResponded: Math.round((sumField(act, "Responses") / _mrTam) * 100),
+        daysOpen: _mrData.role.OpenDate
+          ? Math.floor((Date.now() - new Date(_mrData.role.OpenDate)) / 86400000)
+          : null,
+        pipeline: {
+          Screened:   sumField(act, "Screened"),
+          Submitted:  sumField(act, "Submitted"),
+          "IV1":      sumField(act, "Interview1"),
+          "IV2+":     sumField(act, "Interview2Plus"),
+          "Final IV": sumField(act, "FinalInterview"),
+          Offers:     sumField(act, "Offers"),
+          Hires:      sumField(act, "Hires"),
+        },
+        rejections: _mrData.rejections,
+        obsHtml: _mrObs,
+      });
+      mrInitEditor();
     } else {
-      // Re-render just the canvas back to the interactive report
-      const canvas = document.getElementById("mr-canvas");
-      if (canvas) {
-        canvas.innerHTML = mrRenderCanvas({
-          title: _mrTitle, tam: _mrTam,
-          pctContacted: Math.round((sumField(_mrData.activity, "Outreach") / _mrTam) * 100),
-          pctResponded: Math.round((sumField(_mrData.activity, "Responses") / _mrTam) * 100),
-          daysOpen: _mrData.role.OpenDate
-            ? Math.floor((Date.now() - new Date(_mrData.role.OpenDate)) / 86400000)
-            : null,
-          pipeline: {
-            Screened:   sumField(_mrData.activity, "Screened"),
-            Submitted:  sumField(_mrData.activity, "Submitted"),
-            "IV1":      sumField(_mrData.activity, "Interview1"),
-            "IV2+":     sumField(_mrData.activity, "Interview2Plus"),
-            "Final IV": sumField(_mrData.activity, "FinalInterview"),
-            Offers:     sumField(_mrData.activity, "Offers"),
-            Hires:      sumField(_mrData.activity, "Hires"),
-          },
-          rejections: _mrData.rejections,
-          obsHtml: _mrObs,
-        });
-        mrInitEditor();
-      }
+      renderMarketReport().then(() => mrGenerate());
     }
   }, 500);
 }
@@ -474,7 +464,7 @@ function mrRenderPrintCanvas() {
     { label: "Total Addressable Market", value: _mrTam.toLocaleString() },
     { label: "% of TAM Contacted",        value: pctContacted + "%" },
     { label: "% of TAM Responded",         value: pctResponded + "%" },
-    { label: "Days Open",                  value: daysOpen !== null ? daysOpen : "—" },
+    { label: "Days Open",                  value: daysOpen !== null ? daysOpen : "\u2014" },
   ];
   const kpiHtml = kpis.map(k =>
     `<div class="kpi-card">
@@ -488,16 +478,16 @@ function mrRenderPrintCanvas() {
   const pValues  = Object.values(pipeline).map(v => `<td ${colW}>${v}</td>`).join("");
 
   const rejHtml = rejections.length ? `
-    <div class="rb-panel" style="padding:20px 24px 24px">
-      <div class="rb-panel-title" style="margin-bottom:16px">Offer Rejection Reasons</div>
+    <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">Offer Rejection Reasons</div>
       <table class="data-table"><thead><tr>
         <th>Candidate</th><th>Role</th><th>Reason</th><th>Detail</th>
       </tr></thead><tbody>
         ${rejections.map(r =>
           `<tr>
-            <td>${r.CandidateName || "—"}</td>
-            <td>${r.RoleTitle     || "—"}</td>
-            <td>${r.Reason        || "—"}</td>
+            <td>${r.CandidateName || "\u2014"}</td>
+            <td>${r.RoleTitle     || "\u2014"}</td>
+            <td>${r.Reason        || "\u2014"}</td>
             <td>${r.Detail        || ""      }</td>
           </tr>`).join("")}
       </tbody></table>
@@ -506,13 +496,13 @@ function mrRenderPrintCanvas() {
   return `
     ${_mrTitle ? `<h2 class="rb-report-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_mrTitle}</h2>` : ""}
 
-    <div class="rb-panel" style="padding:20px 24px 24px">
-      <div class="rb-panel-title" style="margin-bottom:16px">Market Overview</div>
+    <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">Market Overview</div>
       <div class="kpi-strip">${kpiHtml}</div>
     </div>
 
-    <div class="rb-panel" style="padding:20px 24px 24px">
-      <div class="rb-panel-title" style="margin-bottom:16px">Resulting Pipeline Activity</div>
+    <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">Resulting Pipeline Activity</div>
       <table class="data-table" style="table-layout:fixed;width:100%">
         <thead><tr>${pHeaders}</tr></thead>
         <tbody><tr>${pValues}</tr></tbody>
@@ -521,8 +511,7 @@ function mrRenderPrintCanvas() {
 
     ${rejHtml}
 
-    <div class="rb-panel" style="padding:20px 24px 24px">
-      <div class="rb-panel-title" style="margin-bottom:16px">Observations &amp; Recommendations</div>
+    <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div class="rb-richtext" style="min-height:120px">${_mrObs || ""}</div>
     </div>
   `;

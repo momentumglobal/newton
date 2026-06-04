@@ -720,12 +720,3 @@ body {
   background: #fde8e8;
   color: #000;
 }
-/* ── Cell-level text indicators ─────────────────────────────────────── */
-.text-critical {
-  color: #C00000;
-  font-weight: 600;
-}
-.text-warning {
-  color: #b45309;
-  font-weight: 600;
-}

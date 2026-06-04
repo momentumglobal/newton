@@ -282,25 +282,6 @@ async function setSeasonalEffect(effect) {
   }
 }
 
-// ── Button loading state helpers ─────────────────────────────────────
-// Defined in api.js so both Reporting (forms.js) and People (people-forms.js)
-// can use them — api.js is loaded by every module.
-function setButtonLoading(btn, loadingText) {
-  if (!btn) return;
-  btn.dataset.originalText = btn.textContent;
-  btn.textContent = loadingText || 'Saving…';
-  btn.disabled = true;
-  btn.style.opacity = '0.7';
-  btn.style.cursor  = 'not-allowed';
-}
-function clearButtonLoading(btn) {
-  if (!btn) return;
-  btn.textContent = btn.dataset.originalText || btn.textContent;
-  btn.disabled = false;
-  btn.style.opacity = '';
-  btn.style.cursor  = '';
-}
-
 // ── People module: People list ────────────────────────────────────────
 async function getPeople(activeOnly = true) {
   const filter = activeOnly ? "fields/IsActive eq 1" : "";
@@ -415,56 +396,6 @@ async function updateInvoice(id, fields) {
   if (fields.Notes         !== undefined) payload.Notes       = fields.Notes;
   if (fields.Status        !== undefined) payload.Status      = fields.Status;
   return updateItem("GPInvoices", id, payload);
-}
-
-// ── People module: monthly calculation utility ────────────────────────
-function computeMonthlyRows(assignments) {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const rows = [];
-  for (const a of assignments) {
-    if (!a.StartDate || !a.EndDate) continue;
-    const aStart = new Date(a.StartDate);
-    const aEnd   = new Date(a.EndDate);
-    aStart.setHours(0,0,0,0);
-    aEnd.setHours(0,0,0,0);
-    const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    const effectiveEnd = aEnd < thisMonthEnd ? aEnd : thisMonthEnd;
-    const cur = new Date(aStart.getFullYear(), aStart.getMonth(), 1);
-    const endMonth = new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth(), 1);
-    while (cur <= endMonth) {
-      const year  = cur.getFullYear();
-      const month = cur.getMonth();
-      const monthStart = new Date(year, month, 1);
-      const monthEnd   = new Date(year, month + 1, 0);
-      const overlapStart = aStart > monthStart ? aStart : monthStart;
-      const overlapEnd   = effectiveEnd < monthEnd ? effectiveEnd : monthEnd;
-      const daysOverlap = (overlapEnd - overlapStart) / 86400000 + 1;
-      const daysInMonth = monthEnd.getDate();
-      const fraction    = daysInMonth > 0 ? daysOverlap / daysInMonth : 0;
-      const rate    = parseFloat(a.MonthlyBillRate) || 0;
-      const billed  = a.Billed === "Yes";
-      const prorated = rate * fraction;
-      rows.push({
-        AssignmentID:     a.AssignmentID,
-        EmployeeName:     a.EmployeeName,
-        Level:            a.Level,
-        Customer:         a.Customer,
-        ProjectType:      a.ProjectType,
-        Country:          a.Country,
-        Billed:           a.Billed,
-        Year:             year,
-        Month:            month + 1,
-        MonthStart:       monthStart.toISOString().slice(0, 10),
-        MonthFraction:    Math.round(fraction * 10000) / 10000,
-        ProratedRevenue:  Math.round(prorated * 100) / 100,
-        BilledRevenue:    billed ? Math.round(prorated * 100) / 100 : 0,
-        Capacity:         Math.round(fraction * 10000) / 10000,
-        BilledCapacity:   billed ? Math.round(fraction * 10000) / 10000 : 0,
-      });
-      cur.setMonth(cur.getMonth() + 1);
-    }
-  }
-  return rows;
 }
 
 // ── Shared utilities ──────────────────────────────────────────────────

@@ -124,15 +124,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
         ).join('');
     } catch (e) { /* fall back to empty */ }
   }
-  // Load currencies
-  let currencyOptions = '<option value="">-- Select currency --</option>';
-  try {
-    const currencies = await getCurrencies();
-    currencyOptions = '<option value="">-- Select currency --</option>' +
-      currencies.map(c =>
-        `<option value="${c.CurrencyCode}" ${existingData?.Currency === c.CurrencyCode ? 'selected' : ''}>${c.CurrencyCode}</option>`
-      ).join('');
-  } catch (e) { /* fall back to empty */ }
+  
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Role' : 'Add Role'}</h2>
@@ -169,10 +161,20 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
               value="${existingData?.Budget || ''}">
           </div>
           <div class="form-group">
-            <label>Currency</label>
-            <select name="Currency" id="role-currency-select">
-              ${currencyOptions}
+            <label>Location</label>
+            <select name="Location" id="role-location-select" onchange="updateCurrencyFromLocation(this.value)" required>
+              <option value="">-- Select location --</option>
+              ${Object.keys(CONFIG.COUNTRY_CURRENCY).map(country =>
+                `<option value="${country}" ${existingData?.Location === country ? 'selected' : ''}>${country}</option>`
+              ).join('')}
             </select>
+          </div>
+          <div class="form-group">
+            <label>Currency</label>
+            <input type="text" id="role-currency-display" name="Currency" readonly
+              style="background:#f5f5f5;color:#666;"
+              value="${existingData?.Location ? (CONFIG.COUNTRY_CURRENCY[existingData.Location] || '') : ''}"
+              placeholder="Auto-filled from location">
           </div>
         </div>
         <div class="form-row">
@@ -235,6 +237,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
     </div>
   `;
 }
+
 function autoFillTargetDate() {
   const open = document.getElementById('role-open-date').value;
   const target = document.getElementById('role-target-date');
@@ -242,6 +245,12 @@ function autoFillTargetDate() {
     target.value = addDays(open, 45);
   }
 }
+
+function updateCurrencyFromLocation(country) {
+  const currencyEl = document.getElementById('role-currency-display');
+  if (currencyEl) currencyEl.value = CONFIG.COUNTRY_CURRENCY[country] || '';
+}
+
 async function loadTalentPartnersForRole(projectId) {
   const select = document.getElementById('role-tp-select');
   if (!select) return;
@@ -293,7 +302,8 @@ async function submitRoleForm(event, editId = null) {
     HiringManager:  data.HiringManager || undefined,
     TalentPartner:  data.TalentPartnerName || undefined,
     Budget:         data.Budget ? parseFloat(data.Budget) : undefined,
-    Currency:       data.Currency || undefined,
+    Location:       data.Location || undefined,
+    Currency:       CONFIG.COUNTRY_CURRENCY[data.Location] || undefined,
     Priority:       data.Priority ? parseInt(data.Priority) : undefined,
     Backfill:       data.Backfill === 'Yes' ? true : data.Backfill === 'No' ? false : undefined,
     Stage:          data.Stage,
@@ -585,7 +595,7 @@ async function loadCurrencyForPlacement(roleId) {
   if (!currencyEl || !roleId) return;
   try {
     const role = await getItem('Roles', roleId);
-    currencyEl.value = role.Currency || '';
+    currencyEl.value = CONFIG.COUNTRY_CURRENCY[role.Location] || '';
   } catch(e) {
     currencyEl.value = '';
   }

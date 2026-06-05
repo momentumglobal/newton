@@ -42,14 +42,13 @@ async function renderAdminTab(tab) {
 
 // ── Functional Areas Tab ───────────────────────────────────────────────
 async function buildDepartmentsTab() {
-  const depts = await getDepartments();
+  const depts = (await getDepartments()).sort((a, b) => a.DepartmentName.localeCompare(b.DepartmentName));
   const rows = depts.map(d => `
     <tr>
       <td>${d.DepartmentName}</td>
       <td><div class="row-actions"><button class="btn-danger" onclick="deleteAdminRecord('Departments',${d.id})">Remove</button></div></td>
     </tr>`).join('');
   return `
-    <h3>Functional Area Options</h3>
     <table class="data-table" style="margin:0 0 24px">
       <thead><tr><th>Functional Area</th><th></th></tr></thead>
       <tbody>${rows || '<tr><td colspan=2>No functional areas defined yet.</td></tr>'}</tbody>

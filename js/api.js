@@ -317,8 +317,7 @@ async function getAnnouncementMessage() {
 }
 
 async function setAnnouncementMessage(message) {
-  const items = await getItems("AppSettings");
-  const row = items.find(i => (i.Title || '').toLowerCase() === 'config');
+  const row = await _getAppSettingsRow();
   if (row) {
     await updateItem("AppSettings", row.id, { AnnouncementMessage: message });
   } else {
@@ -332,8 +331,7 @@ async function getSeasonalEffect() {
 }
 
 async function setSeasonalEffect(effect) {
-  const items = await getItems("AppSettings");
-  const row = items.find(i => (i.Title || '').toLowerCase() === 'config');
+  const row = await _getAppSettingsRow();
   if (row) {
     await updateItem("AppSettings", row.id, { SeasonalEffect: effect });
   } else {

@@ -59,6 +59,7 @@ function renderModuleNav({
 
   // Ghost mode banner
   const ghostRole = getGhostRole();
+  const appShell  = document.getElementById('app-shell');
   let ghostBanner = document.getElementById('ghost-banner');
   if (ghostRole) {
     if (!ghostBanner) {
@@ -70,8 +71,10 @@ function renderModuleNav({
       👻 Ghost mode — viewing as <strong>${ghostRole.replace(/_/g, ' ')}</strong>
       <button onclick="exitGhostMode()">Exit Ghost Mode</button>
     `;
+    if (appShell) appShell.classList.add('ghost-active');
   } else {
     if (ghostBanner) ghostBanner.remove();
+    if (appShell) appShell.classList.remove('ghost-active');
   }
   
   lucide.createIcons();

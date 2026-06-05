@@ -88,16 +88,22 @@ function daysOpen(openDate, hireDate) {
 // Admin-only. Temporarily overrides the resolved role for testing.
 // Stored in sessionStorage — cleared on sign-out or by clearGhostRole().
 
-const GHOST_KEY = 'newton_ghost_role';
+const GHOST_KEY         = 'newton_ghost_role';
+const GHOST_PROJECT_KEY = 'newton_ghost_project';
 
 function setGhostRole(role) {
   sessionStorage.setItem(GHOST_KEY, role);
 }
-
 function getGhostRole() {
   return sessionStorage.getItem(GHOST_KEY);
 }
-
 function clearGhostRole() {
   sessionStorage.removeItem(GHOST_KEY);
+  sessionStorage.removeItem(GHOST_PROJECT_KEY);
+}
+function setGhostProject(projectId) {
+  sessionStorage.setItem(GHOST_PROJECT_KEY, String(projectId));
+}
+function getGhostProject() {
+  return sessionStorage.getItem(GHOST_PROJECT_KEY);
 }

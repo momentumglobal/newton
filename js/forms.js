@@ -302,7 +302,6 @@ async function submitRoleForm(event, editId = null) {
     HiringManager:  data.HiringManager || undefined,
     TalentPartner:  data.TalentPartnerName || undefined,
     Budget:         data.Budget ? parseFloat(data.Budget) : undefined,
-    Location:       data.Location || undefined,
     Currency:       CONFIG.COUNTRY_CURRENCY[data.Location] || undefined,
     Priority:       data.Priority ? parseInt(data.Priority) : undefined,
     Backfill:       data.Backfill === 'Yes' ? true : data.Backfill === 'No' ? false : undefined,
@@ -595,7 +594,7 @@ async function loadCurrencyForPlacement(roleId) {
   if (!currencyEl || !roleId) return;
   try {
     const role = await getItem('Roles', roleId);
-    currencyEl.value = CONFIG.COUNTRY_CURRENCY[role.Location] || '';
+    currencyEl.value = CONFIG.COUNTRY_CURRENCY[role.Currency] || '';
   } catch(e) {
     currencyEl.value = '';
   }

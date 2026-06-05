@@ -238,15 +238,13 @@ async function rbFetchData() {
       rejections: rejections.filter(r => ids.has(String(r.RoleIDLookupId)) || ids.has(String(r.RoleID))),
     };
   } else {
-    // Company scope — fetch all projects, aggregate
-    const allProjects = await getAllProjects();
-    const [activity, placements, rejections, ...roleArrays] = await Promise.all([
+    // Company scope — single call for all roles, matching Company Dashboard approach
+    const [roles, activity, placements, rejections] = await Promise.all([
+      getAllRoles(),
       getWeeklyActivity(null, null),
       getPlacements(null),
       getRejectedOffers(null),
-      ...allProjects.map(p => getRolesForProject(String(p.id))),
     ]);
-    const roles = roleArrays.flat();
     return { roles, activity, placements, rejections };
   }
 }

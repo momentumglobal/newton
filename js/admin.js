@@ -16,11 +16,10 @@ async function renderAdminPage() {
 async function renderAdminTab(tab) {
   _adminTab = tab;
   const main = document.getElementById('main-content');
-  const tabs = ['departments', 'currencies', 'delete'];
-  const labels = { departments: 'Departments', currencies: 'Currencies', delete: 'Delete Records' };
+  const tabs = ['departments', 'delete'];
+  const labels = { departments: 'Departments', delete: 'Delete Records' };
   const tooltips = {
     departments: 'Manage the list of departments used when categorising roles and projects across the system.',
-    currencies:  'Manage the list of currencies available when creating roles and recording placements.',
     delete:      'Permanently delete records from the system. Use with caution — this action cannot be undone.',
   };
   const tabBar = tabs.map(t =>
@@ -30,7 +29,6 @@ async function renderAdminTab(tab) {
 
   let content = '';
   if (tab === 'departments') content = await buildDepartmentsTab();
-  if (tab === 'currencies')  content = await buildCurrenciesTab();
   if (tab === 'delete')      content = await buildDeleteTab();
 
   main.innerHTML = `
@@ -158,7 +156,6 @@ const DELETE_LIST_CONFIG = {
   Placements:      { label: 'Placements',       displayField: 'CandidateName' },
   RejectedOffers:  { label: 'Rejected Offers',  displayField: 'CandidateName' },
   Departments:     { label: 'Departments',      displayField: 'DepartmentName' },
-  Currencies:      { label: 'Currencies',       displayField: 'CurrencyCode' },
 };
 
 async function buildDeleteTab() {

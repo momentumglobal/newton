@@ -236,7 +236,8 @@ async function renderActivityPage() {
     <table class="data-table">
       <thead><tr>
         <th>Year</th><th>Week</th><th>Role</th><th>Talent Partner</th>
-        <th>Outreach</th><th>Screened</th><th>Submitted</th>
+        <th>Outreach</th><th>Responses</th><th>Screened</th><th>Submitted</th>
+        <th>IV1</th><th>IV2+</th><th>Final IV</th>
         <th>Offers</th><th>Hires</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
@@ -247,8 +248,12 @@ async function renderActivityPage() {
             <td>${roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || "—"}</td>
             <td>${tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || "—"}</td>
             <td>${a.Outreach || 0}</td>
+            <td>${a.Responses || 0}</td>
             <td>${a.Screened || 0}</td>
             <td>${a.Submitted || 0}</td>
+            <td>${a.Interview1 || 0}</td>
+            <td>${a.InterviewTwoPlus || 0}</td>
+            <td>${a.FinalInterview || 0}</td>
             <td>${a.Offers || 0}</td>
             <td>${a.Hires || 0}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditActivityForm(${a.id})">Edit</a></div></td>` : ""}

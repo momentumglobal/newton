@@ -311,19 +311,47 @@ async function clearAnnouncement() {
 }
 
 // ── Ghost Mode Tab ───────────────────────────────────────────────────
-function buildGhostTab() {
-  const current = getGhostRole();
+const GHOST_PROJECT_ROLES = ['delivery_manager', 'talent_partner'];
+
+async function buildGhostTab() {
+  const current        = getGhostRole();
+  const currentProject = getGhostProject();
+  const projects       = await getProjects(false);
+
   const roles = [
     { key: 'delivery_manager', label: 'Delivery Manager' },
     { key: 'talent_partner',   label: 'Talent Partner' },
     { key: 'leadership',       label: 'Leadership' },
     { key: 'viewer',           label: 'Viewer' },
   ];
+
+  const projectOptions = projects
+    .sort((a, b) => a.CustomerName.localeCompare(b.CustomerName))
+    .map(p => `<option value="${p.id}" ${String(p.id) === currentProject ? 'selected' : ''}>${p.CustomerName}</option>`)
+    .join('');
+
   const roleButtons = roles.map(r => `
     <button class="btn-${current === r.key ? 'primary' : 'secondary'}"
-      onclick="activateGhost('${r.key}')" style="min-width:160px">
+      onclick="selectGhostRole('${r.key}')" style="min-width:160px">
       ${r.label}${current === r.key ? ' ✓' : ''}
     </button>`).join('');
+
+  const needsProject = current && GHOST_PROJECT_ROLES.includes(current);
+
+  const projectPicker = needsProject ? `
+    <div class="form-group" style="margin-top:16px;max-width:320px">
+      <label>Project to ghost as</label>
+      <select id="ghost-project-select">
+        <option value="">-- Select project --</option>
+        ${projectOptions}
+      </select>
+    </div>` : '';
+
+  const activateBtn = current ? `
+    <button class="btn-primary" style="margin-top:16px"
+      onclick="activateGhost()">
+      Activate Ghost Mode
+    </button>` : '';
 
   return `
     <h3>Ghost Mode</h3>
@@ -332,24 +360,44 @@ function buildGhostTab() {
       page while ghost mode is active. Navigate to any module to see that role's experience.
       Your real admin access is restored when you exit.
     </p>
-    <div style="background:white;border:1px solid #e0e0e0;border-radius:6px;padding:20px 24px;max-width:520px">
+    <div style="background:white;border:1px solid #e0e0e0;border-radius:6px;
+                padding:20px 24px;max-width:520px">
       ${current ? `
         <div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:4px;
                     padding:12px 16px;margin-bottom:20px;font-size:13px">
-          👻 Currently ghosting as <strong>${current.replace(/_/g, ' ')}</strong>
+          👻 Currently ghosting as <strong>${current.replace(/_/g, ' ')}
+          ${currentProject ? '— ' + (projects.find(p => String(p.id) === currentProject)?.CustomerName || '') : ''}
+          </strong>
         </div>` : ''}
-      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+      <div style="display:flex;flex-direction:column;gap:10px">
         ${roleButtons}
       </div>
+      ${projectPicker}
+      ${activateBtn}
       ${current ? `
-        <button class="btn-danger" onclick="deactivateGhost()">Exit Ghost Mode</button>` : ''}
+        <button class="btn-danger" style="margin-top:12px"
+          onclick="deactivateGhost()">Exit Ghost Mode</button>` : ''}
     </div>
   `;
 }
 
-function activateGhost(role) {
+function selectGhostRole(role) {
   setGhostRole(role);
-  // Navigate to the Reporting module so the ghost role takes effect immediately
+  sessionStorage.removeItem(GHOST_PROJECT_KEY);
+  renderOsAdminPage('ghost');
+}
+
+function activateGhost() {
+  const role = getGhostRole();
+  if (!role) return;
+  if (GHOST_PROJECT_ROLES.includes(role)) {
+    const projectId = document.getElementById('ghost-project-select')?.value;
+    if (!projectId) {
+      alert('Please select a project before activating ghost mode.');
+      return;
+    }
+    setGhostProject(projectId);
+  }
   window.location.href = 'reporting.html';
 }
 

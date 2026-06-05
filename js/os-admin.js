@@ -19,7 +19,7 @@ const tooltips = {
   if (tab === 'assignments') content = await buildAssignmentsTab();
   if (tab === 'leadership')  content = await buildLeadershipTab();
   if (tab === 'homepage')    content = await buildHomepageTab();
-  if (tab === 'ghost')       content = buildGhostTab();
+  if (tab === 'ghost') content = await buildGhostTab();
   main.innerHTML = `
     <div class="page-header">
       <h2>${labels[tab]}</h2>

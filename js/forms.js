@@ -113,17 +113,15 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
       (existingData?.ProjectID == p.id || preselectedProjectId == p.id) ? 'selected' : ''
     }>${p.CustomerName}</option>`
   ).join('');
-  // Pre-load departments if a project is already selected
-  let departmentOptions = '<option value="">-- Select project first --</option>';
-  if (selectedProjectId) {
-    try {
-      const depts = await getDepartmentsForProject(selectedProjectId);
-      departmentOptions = '<option value="">-- Select department --</option>' +
-        depts.map(d =>
-          `<option value="${d.DepartmentName}" ${existingData?.Department === d.DepartmentName ? 'selected' : ''}>${d.DepartmentName}</option>`
-        ).join('');
-    } catch (e) { /* fall back to empty */ }
-  }
+  // Pre-load function areas (global — not scoped to project)
+  let departmentOptions = '<option value="">-- Select functional area --</option>';
+  try {
+    const depts = (await getDepartments()).sort((a, b) => a.DepartmentName.localeCompare(b.DepartmentName));
+    departmentOptions = '<option value="">-- Select functional area --</option>' +
+      depts.map(d =>
+        `<option value="${d.DepartmentName}" ${existingData?.Department === d.DepartmentName ? 'selected' : ''}>${d.DepartmentName}</option>`
+      ).join('');
+  } catch (e) { /* fall back to empty */ }
   
   return `
     <div class="form-container">
@@ -132,7 +130,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
       <form id="role-form" onsubmit="submitRoleForm(event, ${existingData?.id || 'null'})">
         <div class="form-group">
           <label>Project *</label>
-          <select name="ProjectID" required onchange="loadDepartmentsForRole(this.value)${canAssign ? ';loadTalentPartnersForRole(this.value)' : ''}">
+          <select name="ProjectID" required onchange="${canAssign ? 'loadTalentPartnersForRole(this.value)' : ''}">
             <option value="">-- Select project --</option>
             ${projectOptions}
           </select>
@@ -164,7 +162,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             <label>Location</label>
             <select name="Location" id="role-location-select" onchange="updateCurrencyFromLocation(this.value)" required>
               <option value="">-- Select location --</option>
-              ${Object.keys(CONFIG.COUNTRY_CURRENCY).map(country =>
+              ${Object.keys(CONFIG.COUNTRY_CURRENCY).sort().map(country =>
                 `<option value="${country}" ${existingData?.Location === country ? 'selected' : ''}>${country}</option>`
               ).join('')}
             </select>
@@ -206,7 +204,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             </select>
           </div>
           <div class="form-group">
-            <label>Department</label>
+            <label>Functional Area</label>
             <select name="Department" id="role-department-select">
               ${departmentOptions}
             </select>
@@ -268,27 +266,7 @@ async function loadTalentPartnersForRole(projectId) {
     select.innerHTML = '<option value="">-- Error loading team --</option>';
   }
 }
-async function loadDepartmentsForRole(projectId) {
-  const select = document.getElementById('role-department-select');
-  if (!projectId) {
-    select.innerHTML = '<option value="">-- Select project first --</option>';
-    return;
-  }
-  select.innerHTML = '<option value="">Loading...</option>';
-  try {
-    const depts = await getDepartmentsForProject(projectId);
-    if (depts.length === 0) {
-      select.innerHTML = '<option value="">-- No departments found --</option>';
-    } else {
-      select.innerHTML = '<option value="">-- Select department --</option>' +
-        depts.map(d =>
-          `<option value="${d.DepartmentName}">${d.DepartmentName}</option>`
-        ).join('');
-    }
-  } catch (e) {
-    select.innerHTML = '<option value="">-- Error loading departments --</option>';
-  }
-}
+
 async function submitRoleForm(event, editId = null) {
   event.preventDefault();
   clearFormError('role-form');
@@ -302,7 +280,7 @@ async function submitRoleForm(event, editId = null) {
     HiringManager:  data.HiringManager || undefined,
     TalentPartner:  data.TalentPartnerName || undefined,
     Budget:         data.Budget ? parseFloat(data.Budget) : undefined,
-    Currency:       CONFIG.COUNTRY_CURRENCY[data.Location] || undefined,
+    Location:       data.Location || undefined,
     Priority:       data.Priority ? parseInt(data.Priority) : undefined,
     Backfill:       data.Backfill === 'Yes' ? true : data.Backfill === 'No' ? false : undefined,
     Stage:          data.Stage,

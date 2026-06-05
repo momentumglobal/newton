@@ -1,4 +1,4 @@
-// js/admin.js — Reporting Config Panel (Departments + Currencies + Delete Records)
+// js/admin.js — Reporting Config Panel (Functional Areas + Delete Records)
 let _adminTab = 'departments';
 
 async function renderAdminPage() {
@@ -17,9 +17,9 @@ async function renderAdminTab(tab) {
   _adminTab = tab;
   const main = document.getElementById('main-content');
   const tabs = ['departments', 'delete'];
-  const labels = { departments: 'Departments', delete: 'Delete Records' };
+  const labels = { departments: 'Functional Areas', delete: 'Delete Records' };
   const tooltips = {
-    departments: 'Manage the list of departments used when categorising roles and projects across the system.',
+    departments: 'Manage the list of functional areas used when categorising roles across the system.',
     delete:      'Permanently delete records from the system. Use with caution — this action cannot be undone.',
   };
   const tabBar = tabs.map(t =>
@@ -40,59 +40,44 @@ async function renderAdminTab(tab) {
   `;
 }
 
-// ── Departments Tab ──────────────────────────────────────────────────
+// ── Functional Areas Tab ───────────────────────────────────────────────
 async function buildDepartmentsTab() {
-  const [projects, depts] = await Promise.all([getProjects(false), getDepartments()]);
+  const depts = await getDepartments();
   const rows = depts.map(d => `
     <tr>
       <td>${d.DepartmentName}</td>
-      <td>${d.CustomerName || '—'}</td>
       <td><div class="row-actions"><button class="btn-danger" onclick="deleteAdminRecord('Departments',${d.id})">Remove</button></div></td>
     </tr>`).join('');
-  const projectOptions = projects.map(p =>
-    `<option value="${p.id}|${p.CustomerName}">${p.CustomerName}</option>`
-  ).join('');
   return `
-    <h3>Department Options</h3>
+    <h3>Functional Area Options</h3>
     <table class="data-table" style="margin:0 0 24px">
-      <thead><tr><th>Department</th><th>Customer</th><th></th></tr></thead>
-      <tbody>${rows || '<tr><td colspan=3>No departments defined yet.</td></tr>'}</tbody>
+      <thead><tr><th>Functional Area</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan=2>No functional areas defined yet.</td></tr>'}</tbody>
     </table>
-    <h3>Add Department</h3>
+    <h3>Add Functional Area</h3>
     <div class="form-container" style="padding:0;max-width:500px">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Department Name *</label>
-          <input type="text" id="dept-name" placeholder="e.g. Engineering">
-        </div>
-        <div class="form-group">
-          <label>Customer *</label>
-          <select id="dept-project">
-            <option value="">-- Select customer --</option>
-            ${projectOptions}
-          </select>
-        </div>
+      <div class="form-group">
+        <label>Functional Area Name *</label>
+        <input type="text" id="dept-name" placeholder="e.g. Software Engineering">
       </div>
       <div id="dept-error" class="form-error"></div>
-      <button class="btn-primary" onclick="submitDepartment()">Add Department</button>
+      <button class="btn-primary" onclick="submitDepartment()">Add Functional Area</button>
     </div>
   `;
 }
 
 async function submitDepartment() {
-  const name    = document.getElementById('dept-name').value.trim();
-  const projVal = document.getElementById('dept-project').value;
-  const errEl   = document.getElementById('dept-error');
+  const name  = document.getElementById('dept-name').value.trim();
+  const errEl = document.getElementById('dept-error');
   errEl.style.display = 'none';
-  if (!name || !projVal) {
-    errEl.textContent = 'Department name and customer are required.';
+  if (!name) {
+    errEl.textContent = 'Functional area name is required.';
     errEl.style.display = 'block'; return;
   }
   const btn = document.querySelector('.btn-primary[onclick="submitDepartment()"]');
   setButtonLoading(btn);
-  const [projectId, customerName] = projVal.split('|');
   try {
-    await createItem('Departments', { Title: name, ProjectID: parseInt(projectId), CustomerName: customerName });
+    await createItem('Departments', { Title: name });
     await renderAdminTab('departments');
   } catch(e) {
     clearButtonLoading(btn);
@@ -155,7 +140,7 @@ const DELETE_LIST_CONFIG = {
   WeeklyActivity:  { label: 'Weekly Activity',  displayField: 'ActivityTitle' },
   Placements:      { label: 'Placements',       displayField: 'CandidateName' },
   RejectedOffers:  { label: 'Rejected Offers',  displayField: 'CandidateName' },
-  Departments:     { label: 'Departments',      displayField: 'DepartmentName' },
+  Departments:     { label: 'Functional Areas',   displayField: 'DepartmentName' },
 };
 
 async function buildDeleteTab() {

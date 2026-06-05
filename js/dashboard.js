@@ -203,12 +203,12 @@ function renderKPIStrip(roles, activity, period) {
       ${kpiCard('Open Roles', openRoles, 'current')}
       ${kpiCard('Role Backlog', backlogRoles, 'current')}
       ${kpiCard('Hires to Date', totalHires, 'all time')}
+      ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,  `hired roles · ${periodLabel}`)}
     </div>
     <div class='kpi-strip kpi-strip-period'>
       ${kpiCard('Submission Conversion', convDisplay + convDelta,   periodLabel)}
       ${kpiCard('IV to Offer Ratio',     ivDisplay   + ivDelta,     periodLabel)}
       ${kpiCard('Offer Success',         offerDisplay + offerDelta, periodLabel)}
-      ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,  `hired roles · ${periodLabel}`)}
       ${kpiCard('Hired On Time',         otDisplay    + otDelta,    `within 45-day target · ${periodLabel}`)}
     </div>`;
 }

@@ -15,6 +15,14 @@ function getWeekEnding() {
   return sunday.toISOString().slice(0, 10);
 }
 
+function getISOWeek(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
 async function mobileInit() {
   // Show login screen while we check auth state
   document.getElementById('login-screen').style.display = 'flex';

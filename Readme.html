@@ -803,7 +803,6 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <h3>Minor improvements (low effort)</h3>
       <table>
         <tr><th>Item</th><th>Detail</th><th>File</th></tr>
-        <tr><td>AppSettings setter consolidation</td><td>setAnnouncementMessage and setSeasonalEffect could be merged into a single setAppSettings({message, effect}) to further reduce fetches.</td><td>api.js</td></tr>
         <tr><td>PLACEMENT_YEARS range</td><td>Currently shows 4 years. Could be made configurable via CONFIG if more historical data is needed.</td><td>pages.js</td></tr>
         <tr><td>Dashboard cache naming</td><td>window._last* variables are module-scoped globals. Could be moved into a dedicated dashboardCache object for clarity.</td><td>dashboard.js</td></tr>
       </table>

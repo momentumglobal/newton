@@ -33,14 +33,13 @@ function _cacheInvalidate(listName) {
 // ── Field normalisers ───────────────────────────────────────────────
 const FIELD_ALIASES = {
   Projects:        { Title: "CustomerName", Yeare: "Year" },
-  Roles:           { Title: "RoleTitle",    Yeare: "Year" },
+  Roles:           { Title: "RoleTitle",    Yeare: "Year", Location: "Location" },
   WeeklyActivity:  { Title: "ActivityTitle", Yeare: "Year", InterviewTwoPlus: "Interview2Plus" },
   Placements:      { Title: "CandidateName", Yeare: "Year" },
   RejectedOffers:  { Title: "CandidateName", Yeare: "Year" },
   UserAssignments: { Title: "UserEmail" },
   LeadershipAccess:{ Title: "UserEmail" },
   Departments:     { Title: "DepartmentName" },
-  Currencies:      { Title: "CurrencyCode" },
   SavedReports:    {},
   MarketReports:   { Title: "ReportTitle" },
   // ── People module ──────────────────────────────────────────
@@ -251,10 +250,6 @@ async function ensureUserRegistered(email, displayName) {
 
 async function getDepartmentsForProject(projectId) {
   return getItems("Departments", `fields/ProjectID eq ${projectId}`);
-}
-
-async function getCurrencies() {
-  return getItems("Currencies");
 }
 
 async function getTalentPartnersForProject(projectId) {

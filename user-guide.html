@@ -320,7 +320,7 @@
       <h3>Filtering</h3>
       <p>Use the <strong>Project</strong> dropdown to filter by project. Use the stage filter buttons (All / Active / Backlog / On-hold / Hired / Cancelled) to narrow by stage.</p>
       <h3>Adding and editing roles</h3>
-      <p>Admins and Delivery Managers can add new roles using the <strong>+ Add Role</strong> button. Any role can be edited or its stage updated using the action links in the table.</p>
+      <p>Admins and Delivery Managers can add new roles using the <strong>+ Add Role</strong> button. Any role can be edited or its stage updated using the action links in the table. When creating a role, select the hire <strong>Location</strong> — currency is auto-populated from the country and does not need to be entered manually.</p>
       <div class="tip">The "Roles Open 30+ Days" panel on both dashboards is driven by the <strong>Open Date</strong> field — make sure this is set accurately when a role is created.</div>
     </div>
     <!-- Weekly Activity -->
@@ -349,7 +349,7 @@
       <h3>Filtering</h3>
       <p>Filter by project, and by Month, Quarter, or Year using the filter rows below the project dropdown.</p>
       <h3>Recording a placement</h3>
-      <p>Use <strong>+ Record Placement</strong> to log a hire. The salary field feeds the Actual Spend vs Budget panel on the Project Dashboard, so accuracy here matters.</p>
+      <p>Use <strong>+ Record Placement</strong> to log a hire. Select the role and the currency field will auto-populate from the role's location. The salary field feeds the Actual Spend vs Budget panel on the Project Dashboard, so accuracy here matters.</p>
       <div class="tip">A placement's provisional start date is what populates the <strong>Upcoming Starters</strong> panel on the Project Dashboard.</div>
     </div>
     <!-- Rejected Offers -->
@@ -372,11 +372,11 @@
       <div class="role-badges">
         <span class="role-badge admin">Admin</span>
       </div>
-      <p>The Config Panel is visible to Admins only and provides two management functions within the Reporting module:</p>
-      <h3>Departments</h3>
-      <p>Manage the list of departments used when categorising roles and projects across the system. Departments are scoped per customer — add or remove them here as your project structures change.</p>
-      <h3>Delete Records</h3>
-      <p>Permanently delete records from any SharePoint list. Select the list and the specific record, then confirm the deletion. This cannot be undone from within Newton — use SharePoint's recycle bin if you need to recover a deleted item.</p>
+       <p>The Config Panel is visible to Admins only and provides two management functions within the Reporting module. Currencies are no longer managed here — they are auto-derived from the role's Location field.</p>
+       <h3>Departments</h3>
+       <p>Manage the list of departments used when categorising roles and projects across the system. Departments are scoped per customer — add or remove them here as your project structures change.</p>
+       <h3>Delete Records</h3>
+       <p>Permanently delete records from any SharePoint list. Select the list and the specific record, then confirm the deletion. This cannot be undone from within Newton — use SharePoint's recycle bin if you need to recover a deleted item.</p>
       <div class="tip">User and access management has moved to the Newton OS Admin area, accessible via the <strong>Admin</strong> link on the Newton home screen.</div>
     </div>
   </div><!-- end guide-content -->

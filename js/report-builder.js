@@ -38,7 +38,7 @@ async function renderReportBuilder() {
       <h2>Report Builder</h2>
       <div class="page-header-actions">
         <button class="btn-secondary" onclick="rbOpenSavedModal()">Saved Reports</button>
-        <button class="btn-secondary" onclick="rbSaveReport()">Save</button>
+        <button class="btn-secondary" id="rb-save-btn" onclick="rbSaveReport()">Save</button>
         <button class="btn-secondary" onclick="rbPreview()">Preview</button>
         <button class="print-btn"     onclick="rbExportPdf()">&#8856; Export PDF</button>
       </div>
@@ -323,8 +323,8 @@ async function rbSaveReport() {
   }
   
   // Brief confirmation — no intrusive alert
-  const btn = document.querySelector('.page-header-actions .btn-secondary');
-  if (btn) { btn.textContent = 'Saved ✓'; setTimeout(() => { btn.textContent = 'Save'; }, 2000); }
+   const btn = document.getElementById('rb-save-btn');
+ if (btn) { btn.textContent = 'Saved ✓'; setTimeout(() => { btn.textContent = 'Save'; }, 2000); }
 }
 
 async function rbOpenSavedModal() {

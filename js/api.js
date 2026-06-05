@@ -184,9 +184,8 @@ async function deleteSalesForecast(id) {
   return deleteItem("SalesForecasts", id);
 }
 
-async function getDepartments(projectId) {
-  return getItems("Departments",
-    projectId ? `fields/ProjectID eq ${projectId}` : "");
+async function getDepartments() {
+  return getItems("Departments", "");
 }
 
 // Resolve the signed-in user's effective role:
@@ -245,11 +244,6 @@ async function ensureUserRegistered(email, displayName) {
       AssignedRole: "talent_partner",
     });
   }
-}
-
-
-async function getDepartmentsForProject(projectId) {
-  return getItems("Departments", `fields/ProjectID eq ${projectId}`);
 }
 
 async function getTalentPartnersForProject(projectId) {

@@ -15,10 +15,10 @@ async function mobileInit() {
     // Attempt silent token acquisition first
     const account = msalInstance.getAllAccounts()[0];
     if (account) {
-      await msalInstance.acquireTokenSilent({
-        scopes: AUTH_SCOPES,
+       await msalInstance.acquireTokenSilent({
+        scopes: loginRequest.scopes,
         account,
-      });
+       });
       await mobileOnSignedIn();
     } else {
       // Check for redirect response (returning from Microsoft login)
@@ -59,7 +59,7 @@ async function mobileOnSignedIn() {
 }
 
 function signIn() {
-  msalInstance.loginRedirect({ scopes: AUTH_SCOPES });
+  msalInstance.loginRedirect(loginRequest);
 }
 
 function signOut() {

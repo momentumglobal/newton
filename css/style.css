@@ -720,3 +720,33 @@ body {
   background: #fde8e8;
   color: #000;
 }
+
+/* ── Ghost mode banner ───────────────────────────────────────────────── */
+#ghost-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: #b45309;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+#ghost-banner button {
+  background: white;
+  color: #b45309;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#ghost-banner button:hover {
+  background: #fff3e0;
+}

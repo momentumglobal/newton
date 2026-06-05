@@ -29,7 +29,7 @@ Newton is a static web application hosted on GitHub Pages, with Microsoft Azure 
 
 Full system directory including architecture, data flows, SharePoint data model, role/access matrix, coding conventions, and module build guide:
 
-👉 **[Readme.html](./Readme.html)**
+👉 **[README.html](https://momentumglobal.github.io/newton/Readme.html)**
 
 ## Quick links
 

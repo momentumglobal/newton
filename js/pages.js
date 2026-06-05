@@ -236,9 +236,16 @@ async function renderActivityPage() {
     <table class="data-table">
       <thead><tr>
         <th>Year</th><th>Week</th><th>Role</th><th>Talent Partner</th>
-        <th>Outreach</th><th>Responses</th><th>Screened</th><th>Submitted</th>
-        <th>IV1</th><th>IV2+</th><th>Final IV</th>
-        <th>Offers</th><th>Hires</th>${canEdit ? "<th></th>" : ""}
+        <th style="text-align:center">Outreach</th>
+        <th style="text-align:center">Responses</th>
+        <th style="text-align:center">Screened</th>
+        <th style="text-align:center">Submitted</th>
+        <th style="text-align:center">IV1</th>
+        <th style="text-align:center">IV2+</th>
+        <th style="text-align:center">Final IV</th>
+        <th style="text-align:center">Offers</th>
+        <th style="text-align:center">Hires</th>
+        ${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
         ${filteredActivity.map(a => `
@@ -247,15 +254,15 @@ async function renderActivityPage() {
             <td>Wk ${a.WeekNumber}</td>
             <td>${roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || "—"}</td>
             <td>${tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || "—"}</td>
-            <td>${a.Outreach || 0}</td>
-            <td>${a.Responses || 0}</td>
-            <td>${a.Screened || 0}</td>
-            <td>${a.Submitted || 0}</td>
-            <td>${a.Interview1 || 0}</td>
-            <td>${a.InterviewTwoPlus || 0}</td>
-            <td>${a.FinalInterview || 0}</td>
-            <td>${a.Offers || 0}</td>
-            <td>${a.Hires || 0}</td>
+            <td style="text-align:center">${a.Outreach || 0}</td>
+            <td style="text-align:center">${a.Responses || 0}</td>
+            <td style="text-align:center">${a.Screened || 0}</td>
+            <td style="text-align:center">${a.Submitted || 0}</td>
+            <td style="text-align:center">${a.Interview1 || 0}</td>
+            <td style="text-align:center">${a.InterviewTwoPlus || 0}</td>
+            <td style="text-align:center">${a.FinalInterview || 0}</td>
+            <td style="text-align:center">${a.Offers || 0}</td>
+            <td style="text-align:center">${a.Hires || 0}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditActivityForm(${a.id})">Edit</a></div></td>` : ""}
           </tr>
         `).join("")}

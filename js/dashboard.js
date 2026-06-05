@@ -307,9 +307,9 @@ function renderUpcomingStartersPanel(placements, roles) {
 // ── Actual Spend vs Budget ────────────────────────────────────────────
 function renderSpendPanel(roles, placements) {
   const roleCurrencyMap = Object.fromEntries(
-    roles.map(r => [String(r.id), CONFIG.COUNTRY_CURRENCY[r.Location] || r.Currency || 'GBP'])
+    roles.map(r => [String(r.id), CONFIG.COUNTRY_CURRENCY[r.Currency] || 'GBP'])
   );
-  const currencies = [...new Set(roles.filter(r => r.Budget).map(r => CONFIG.COUNTRY_CURRENCY[r.Location] || r.Currency || 'GBP'))];
+  const currencies = [...new Set(roles.filter(r => r.Budget).map(r => CONFIG.COUNTRY_CURRENCY[r.Currency] || 'GBP'))];
   if (!currencies.length) {
     return `<div class='dash-panel'><h3 class='panel-title'>Actual Spend vs Budget</h3><p class='no-data'>No budget data available.</p></div>`;
   }

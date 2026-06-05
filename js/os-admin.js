@@ -3,12 +3,13 @@ let _osAdminTab = 'assignments';
 async function renderOsAdminPage(tab = 'assignments') {
   _osAdminTab = tab;
   const main = document.getElementById('main-content');
-const tabs = ['assignments', 'leadership', 'homepage'];
-const labels = { assignments: 'User Assignments', leadership: 'Leadership Access', homepage: 'Homepage' };
+const tabs = ['assignments', 'leadership', 'homepage', 'ghost'];
+const labels = { assignments: 'User Assignments', leadership: 'Leadership Access', homepage: 'Homepage', ghost: 'Ghost Mode' };
 const tooltips = {
   assignments: 'Manage user roles and project access. Users are auto-registered on first login — assign their role and projects here.',
   leadership:  'Grant Leadership-level access to users who should see the Company Dashboard without full system access.',
   homepage:    'Manage homepage appearance and seasonal effects.',
+  ghost:       'Temporarily view Newton as a different role type for testing. Only visible to admins.',
 };
   const tabBar = tabs.map(t =>
     `<button class="btn-filter${_osAdminTab === t ? ' active' : ''}"
@@ -18,6 +19,7 @@ const tooltips = {
   if (tab === 'assignments') content = await buildAssignmentsTab();
   if (tab === 'leadership')  content = await buildLeadershipTab();
   if (tab === 'homepage')    content = await buildHomepageTab();
+  if (tab === 'ghost')       content = buildGhostTab();
   main.innerHTML = `
     <div class="page-header">
       <h2>${labels[tab]}</h2>
@@ -306,4 +308,52 @@ async function submitAnnouncement() {
 async function clearAnnouncement() {
   document.getElementById('announcement-text').value = '';
   await submitAnnouncement();
+}
+
+// ── Ghost Mode Tab ───────────────────────────────────────────────────
+function buildGhostTab() {
+  const current = getGhostRole();
+  const roles = [
+    { key: 'delivery_manager', label: 'Delivery Manager' },
+    { key: 'talent_partner',   label: 'Talent Partner' },
+    { key: 'leadership',       label: 'Leadership' },
+    { key: 'viewer',           label: 'Viewer' },
+  ];
+  const roleButtons = roles.map(r => `
+    <button class="btn-${current === r.key ? 'primary' : 'secondary'}"
+      onclick="activateGhost('${r.key}')" style="min-width:160px">
+      ${r.label}${current === r.key ? ' ✓' : ''}
+    </button>`).join('');
+
+  return `
+    <h3>Ghost Mode</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:24px">
+      Temporarily view Newton as a different role. A banner will appear at the top of every
+      page while ghost mode is active. Navigate to any module to see that role's experience.
+      Your real admin access is restored when you exit.
+    </p>
+    <div style="background:white;border:1px solid #e0e0e0;border-radius:6px;padding:20px 24px;max-width:520px">
+      ${current ? `
+        <div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:4px;
+                    padding:12px 16px;margin-bottom:20px;font-size:13px">
+          👻 Currently ghosting as <strong>${current.replace(/_/g, ' ')}</strong>
+        </div>` : ''}
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+        ${roleButtons}
+      </div>
+      ${current ? `
+        <button class="btn-danger" onclick="deactivateGhost()">Exit Ghost Mode</button>` : ''}
+    </div>
+  `;
+}
+
+function activateGhost(role) {
+  setGhostRole(role);
+  // Navigate to the Reporting module so the ghost role takes effect immediately
+  window.location.href = 'reporting.html';
+}
+
+function deactivateGhost() {
+  clearGhostRole();
+  window.location.reload();
 }

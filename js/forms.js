@@ -116,7 +116,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
   // Pre-load function areas (global — not scoped to project)
   let departmentOptions = '<option value="">-- Select functional area --</option>';
   try {
-    const depts = await getDepartments();
+    const depts = (await getDepartments()).sort((a, b) => a.DepartmentName.localeCompare(b.DepartmentName));
     departmentOptions = '<option value="">-- Select functional area --</option>' +
       depts.map(d =>
         `<option value="${d.DepartmentName}" ${existingData?.Department === d.DepartmentName ? 'selected' : ''}>${d.DepartmentName}</option>`
@@ -162,7 +162,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             <label>Location</label>
             <select name="Location" id="role-location-select" onchange="updateCurrencyFromLocation(this.value)" required>
               <option value="">-- Select location --</option>
-              ${Object.keys(CONFIG.COUNTRY_CURRENCY).map(country =>
+              ${Object.keys(CONFIG.COUNTRY_CURRENCY).sort().map(country =>
                 `<option value="${country}" ${existingData?.Location === country ? 'selected' : ''}>${country}</option>`
               ).join('')}
             </select>

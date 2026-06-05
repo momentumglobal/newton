@@ -10,6 +10,29 @@ const CONFIG = {
   // Hardcoded admin users — full access, never overridden by SharePoint data
   ADMIN_USERS:  ["admin@momentumglobal.co", "chris.friend@momentumglobal.co", "aliyah@momentumglobal.co"],
 
+  // Maps hire location (country) to ISO currency code.
+  // Used to auto-derive currency when a role is created/edited,
+  // and when a placement is recorded against a role.
+  COUNTRY_CURRENCY: {
+    "UK":              "GBP",
+    "Ireland":         "EUR",
+    "Croatia":         "EUR",
+    "Germany":         "EUR",
+    "France":          "EUR",
+    "Netherlands":     "EUR",
+    "Spain":           "EUR",
+    "Portugal":        "EUR",
+    "USA":             "USD",
+    "Canada":          "CAD",
+    "Australia":       "AUD",
+    "Singapore":       "SGD",
+    "UAE":             "AED",
+    "South Africa":    "ZAR",
+    "Sri Lanka":       "LKR",
+    "Tunisia":         "TND",
+    "Romania":         "RON",
+  },
+  
   // Single source of truth for the module switcher dropdown.
   // To add a new module, add it here only — all nav files reference this.
   OS_MODULES: [

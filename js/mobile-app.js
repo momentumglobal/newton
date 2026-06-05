@@ -6,6 +6,15 @@ let _mobileView    = 'roles'; // Current top-level view
 let _mobileRoleId  = null;  // Selected role ID for detail/action views
 let _mobileHistory = [];    // Simple back-stack
 
+function getWeekEnding() {
+  const today = new Date();
+  const day = today.getDay(); // 0=Sun, 6=Sat
+  const diff = day === 0 ? 0 : 7 - day; // next Sunday
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() + diff);
+  return sunday.toISOString().slice(0, 10);
+}
+
 async function mobileInit() {
   // Show login screen while we check auth state
   document.getElementById('login-screen').style.display = 'flex';

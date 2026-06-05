@@ -83,3 +83,21 @@ function daysOpen(openDate, hireDate) {
   const end = hireDate ? new Date(hireDate) : new Date();
   return Math.floor((end - start) / (1000 * 60 * 60 * 24));
 }
+
+// ── Ghost / impersonation mode ────────────────────────────────────────
+// Admin-only. Temporarily overrides the resolved role for testing.
+// Stored in sessionStorage — cleared on sign-out or by clearGhostRole().
+
+const GHOST_KEY = 'newton_ghost_role';
+
+function setGhostRole(role) {
+  sessionStorage.setItem(GHOST_KEY, role);
+}
+
+function getGhostRole() {
+  return sessionStorage.getItem(GHOST_KEY);
+}
+
+function clearGhostRole() {
+  sessionStorage.removeItem(GHOST_KEY);
+}

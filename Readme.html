@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newton — System Directory</title>
+  <style>
+    @font-face {
+      font-family: 'Polymath';
+      src: url('../polymath-regular.ttf') format('truetype');
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: 'Polymath';
+      src: url('../polymath-medium.ttf') format('truetype');
+      font-weight: 500;
+    }
+    @font-face {
+      font-family: 'Polymath';
+      src: url('../polymath-semibold.ttf') format('truetype');
+      font-weight: 600;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
+      background: #F5F4F1;
+      color: #1a1a2e;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ── */
+    .shell { display: flex; min-height: 100vh; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 240px;
+      min-width: 240px;
+      background: #0A0B44;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      overflow-y: auto;
+    }
+    .sidebar-header { padding: 28px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .sidebar-logo { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+    .sidebar-sub  { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 3px; }
+    .sidebar-nav  { padding: 12px 0; flex: 1; }
+    .sidebar-section {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: rgba(255,255,255,0.35);
+      padding: 16px 20px 6px;
+    }
+    .sidebar-link {
+      display: block;
+      padding: 9px 20px;
+      color: rgba(255,255,255,0.75);
+      text-decoration: none;
+      font-size: 13px;
+      border-left: 3px solid transparent;
+      transition: background 120ms, color 120ms;
+      cursor: pointer;
+    }
+    .sidebar-link:hover { background: rgba(255,255,255,0.07); color: white; }
+    .sidebar-link.active {
+      background: rgba(46,95,163,0.3);
+      color: white;
+      font-weight: 600;
+      border-left-color: #2E5FA3;
+    }
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      font-size: 11px;
+      color: rgba(255,255,255,0.3);
+    }
+
+    /* ── Main ── */
+    .main {
+      margin-left: 240px;
+      padding: 48px 56px;
+      max-width: 1100px;
+      flex: 1;
+    }
+
+    /* ── Sections ── */
+    .section { margin-bottom: 64px; }
+    .section-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: #0A0B44;
+      margin-bottom: 6px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #0A0B44;
+    }
+    .section-intro {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 24px;
+      max-width: 700px;
+    }
+    h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #0A0B44;
+      margin: 28px 0 10px;
+    }
+    p { font-size: 14px; color: #444; margin-bottom: 12px; }
+
+    /* ── Cover ── */
+    .cover {
+      background: #0A0B44;
+      color: white;
+      padding: 56px;
+      border-radius: 10px;
+      margin-bottom: 56px;
+    }
+    .cover-title { font-size: 36px; font-weight: 600; letter-spacing: -0.5px; }
+    .cover-sub   { font-size: 16px; color: rgba(255,255,255,0.6); margin-top: 8px; }
+    .cover-meta  { margin-top: 32px; display: flex; gap: 32px; }
+    .cover-meta-item label { font-size: 11px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.6px; display: block; margin-bottom: 4px; }
+    .cover-meta-item span  { font-size: 14px; color: rgba(255,255,255,0.85); }
+
+    /* ── Cards ── */
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      border: 1px solid #e4e4e4;
+      border-top: 3px solid #0A0B44;
+    }
+    .card.accent-blue  { border-top-color: #2E5FA3; }
+    .card.accent-green { border-top-color: #107C10; }
+    .card.accent-amber { border-top-color: #b45309; }
+    .card.accent-teal  { border-top-color: #0e7490; }
+    .card-title  { font-size: 14px; font-weight: 600; color: #0A0B44; margin-bottom: 6px; }
+    .card-file   { font-size: 12px; color: #666; margin-bottom: 8px; font-family: 'Courier New', monospace; }
+    .card-desc   { font-size: 13px; color: #555; }
+
+    /* ── Tables ── */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
+    th {
+      background: #0A0B44;
+      color: white;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+    }
+    td { padding: 10px 14px; border-bottom: 1px solid #eee; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: #fafafa; }
+
+    /* ── Role badges ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      margin: 2px;
+    }
+    .badge-admin      { background: #1F3864; color: white; }
+    .badge-leadership { background: #2E5FA3; color: white; }
+    .badge-dm         { background: #107C10; color: white; }
+    .badge-tp         { background: #0e7490; color: white; }
+    .badge-viewer     { background: #888; color: white; }
+
+    /* ── Code blocks ── */
+    .code-block {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      border-radius: 6px;
+      padding: 20px 24px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      margin-bottom: 20px;
+      overflow-x: auto;
+    }
+    .code-comment { color: #6c7086; }
+    .code-key     { color: #89b4fa; }
+    .code-val     { color: #a6e3a1; }
+
+    /* ── Flow diagrams ── */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      margin: 16px 0 24px;
+    }
+    .flow-step {
+      background: white;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      padding: 10px 16px;
+      font-size: 13px;
+      color: #0A0B44;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .flow-step.highlight { background: #0A0B44; color: white; border-color: #0A0B44; }
+    .flow-step.cache     { background: #fff3e0; border-color: #ffb74d; color: #7c4a00; }
+    .flow-step.sp        { background: #e8f5e9; border-color: #81c784; color: #1b5e20; }
+    .flow-arrow { font-size: 18px; color: #999; padding: 0 8px; }
+
+    /* ── File tag ── */
+    .file-tag {
+      display: inline-block;
+      background: #F0F4FB;
+      color: #2E5FA3;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+
+    /* ── Checklist ── */
+    .checklist { list-style: none; padding: 0; }
+    .checklist li {
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+      color: #444;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .checklist li:last-child { border-bottom: none; }
+    .checklist li::before { content: '→'; color: #2E5FA3; font-weight: 600; flex-shrink: 0; }
+
+    /* ── Callout ── */
+    .callout {
+      border-left: 4px solid #2E5FA3;
+      background: #F0F4FB;
+      padding: 14px 18px;
+      border-radius: 0 6px 6px 0;
+      font-size: 13px;
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .callout.amber { border-left-color: #b45309; background: #fff8f0; }
+    .callout.green { border-left-color: #107C10; background: #f0faf0; }
+  </style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ── Sidebar ── -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">Newton</div>
+      <div class="sidebar-sub">System Directory</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-section">Overview</div>
+      <a class="sidebar-link" onclick="show('overview')">Platform Overview</a>
+      <a class="sidebar-link" onclick="show('modules')">Modules</a>
+      <a class="sidebar-link" onclick="show('roles')">Roles &amp; Access</a>
+
+      <div class="sidebar-section">Architecture</div>
+      <a class="sidebar-link" onclick="show('files')">File Structure</a>
+      <a class="sidebar-link" onclick="show('loadorder')">Script Load Order</a>
+      <a class="sidebar-link" onclick="show('sharepoint')">SharePoint Data Model</a>
+
+      <div class="sidebar-section">Data Flows</div>
+      <a class="sidebar-link" onclick="show('authflow')">Auth Flow</a>
+      <a class="sidebar-link" onclick="show('readflow')">Read Flow</a>
+      <a class="sidebar-link" onclick="show('writeflow')">Write Flow</a>
+
+      <div class="sidebar-section">Developer Guide</div>
+      <a class="sidebar-link" onclick="show('conventions')">Coding Conventions</a>
+      <a class="sidebar-link" onclick="show('newmodule')">Adding a New Module</a>
+      <a class="sidebar-link" onclick="show('ghostmode')">Ghost Mode</a>
+      <a class="sidebar-link" onclick="show('backlog')">Backlog &amp; Future Work</a>
+    </nav>
+    <div class="sidebar-footer">Newton v1 &middot; June 2026</div>
+  </div>
+
+  <!-- ── Main ── -->
+  <div class="main">
+
+    <!-- Cover -->
+    <div class="cover">
+      <div class="cover-title">Newton</div>
+      <div class="cover-sub">System Directory &amp; Developer Reference</div>
+      <div class="cover-meta">
+        <div class="cover-meta-item"><label>Version</label><span>v1 (post-refactor)</span></div>
+        <div class="cover-meta-item"><label>Last updated</label><span>June 2026</span></div>
+        <div class="cover-meta-item"><label>Organisation</label><span>Momentum Global</span></div>
+        <div class="cover-meta-item"><label>Platform</label><span>GitHub Pages + SharePoint</span></div>
+      </div>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="section" id="sec-overview">
+      <div class="section-title">Platform Overview</div>
+      <p class="section-intro">Newton is a recruitment reporting and workforce management platform built for Momentum Global. It is a static web application hosted on GitHub Pages, with Microsoft Azure AD for authentication and SharePoint as its data backend.</p>
+      <p>There is no server-side logic. All data access is performed client-side via the Microsoft Graph API using an authenticated MSAL token. Role-based access control is enforced at the UI layer using role data fetched from SharePoint on sign-in.</p>
+
+      <h3>Technology stack</h3>
+      <table>
+        <tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr>
+        <tr><td>Hosting</td><td>GitHub Pages</td><td>Static file serving — no backend required</td></tr>
+        <tr><td>Authentication</td><td>Microsoft Azure AD + MSAL.js v2</td><td>SSO via Microsoft identity</td></tr>
+        <tr><td>Data</td><td>SharePoint Online (Graph API)</td><td>All application data storage</td></tr>
+        <tr><td>UI</td><td>Vanilla HTML, CSS, JavaScript</td><td>No framework dependencies</td></tr>
+        <tr><td>Icons</td><td>Lucide (CDN)</td><td>Icon library</td></tr>
+        <tr><td>Drag &amp; drop</td><td>SortableJS (CDN)</td><td>Report Builder block ordering</td></tr>
+        <tr><td>Fonts</td><td>Polymath (self-hosted)</td><td>Brand typography</td></tr>
+      </table>
+
+      <h3>Key configuration</h3>
+      <div class="code-block">
+<span class="code-comment">// js/config.js</span>
+<span class="code-key">TENANT_ID</span>:    <span class="code-val">"b73023b1-298a-42a2-bed9-985e0a762054"</span>
+<span class="code-key">CLIENT_ID</span>:    <span class="code-val">"bf71f2b2-de80-4728-9189-af8659fbd2b6"</span>
+<span class="code-key">REDIRECT_URI</span>: <span class="code-val">"https://momentumglobal.github.io/newton/"</span>
+<span class="code-key">SP_SITE_URL</span>:  <span class="code-val">"https://talentpoint.sharepoint.com/sites/SolutionsHubReporting"</span>
+      </div>
+      <div class="callout">Admin users are hardcoded in <code>CONFIG.ADMIN_USERS</code> in config.js. These users always receive admin role regardless of SharePoint data.</div>
+    </div>
+
+    <!-- MODULES -->
+    <div class="section" id="sec-modules" style="display:none">
+      <div class="section-title">Modules</div>
+      <p class="section-intro">Newton is organised into four functional modules, each a self-contained HTML page with its own script stack. A fifth admin interface exists outside the module system.</p>
+
+      <div class="card-grid">
+        <div class="card accent-blue">
+          <div class="card-title">Reporting</div>
+          <div class="card-file">reporting.html</div>
+          <div class="card-desc">Core recruitment reporting. Projects, Roles, Weekly Activity, Placements, Rejected Offers, Project &amp; Company Dashboards, Report Builder.</div>
+        </div>
+        <div class="card accent-teal">
+          <div class="card-title">Market Reporting</div>
+          <div class="card-file">market-reporting.html</div>
+          <div class="card-desc">Market intelligence reports. Create, edit and publish structured market reports linked to roles.</div>
+        </div>
+        <div class="card accent-green">
+          <div class="card-title">People</div>
+          <div class="card-file">people.html</div>
+          <div class="card-desc">Workforce management. Employee tracker, deployment timeline (Gantt), assignment tracking, G-P invoice management.</div>
+        </div>
+        <div class="card accent-amber">
+          <div class="card-title">Sales</div>
+          <div class="card-file">sales.html</div>
+          <div class="card-desc">Sales pipeline tracking. Revenue forecasting and pipeline management for the commercial team.</div>
+        </div>
+      </div>
+
+      <h3>Admin interfaces</h3>
+      <table>
+        <tr><th>Interface</th><th>File</th><th>Purpose</th></tr>
+        <tr><td>Newton OS Admin</td><td><span class="file-tag">admin.html</span></td><td>Platform-level admin: User Assignments, Leadership Access, Homepage settings, Ghost Mode</td></tr>
+        <tr><td>Config Panel</td><td>In-app (Reporting module)</td><td>Module-level admin: Departments, Currencies, Delete Records</td></tr>
+      </table>
+
+      <h3>Module switcher</h3>
+      <p>The module switcher dropdown in the sidebar is driven by <code>CONFIG.OS_MODULES</code> in <code>config.js</code>. This is the single source of truth — adding a new module requires only updating this array.</p>
+    </div>
+
+    <!-- ROLES -->
+    <div class="section" id="sec-roles" style="display:none">
+      <div class="section-title">Roles &amp; Access</div>
+      <p class="section-intro">Newton has five roles. Role is resolved asynchronously on sign-in from SharePoint and cached in sessionStorage for the session.</p>
+
+      <table>
+        <tr><th>Role</th><th>Source</th><th>Description</th></tr>
+        <tr><td><span class="badge badge-admin">admin</span></td><td>Hardcoded in CONFIG.ADMIN_USERS</td><td>Full access to all modules, pages, and admin interfaces. Never overridden by SharePoint.</td></tr>
+        <tr><td><span class="badge badge-leadership">leadership</span></td><td>LeadershipAccess list</td><td>Read-only access to Company Dashboard (Reporting) and People + Sales modules.</td></tr>
+        <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module. Can view all project data for assigned projects.</td></tr>
+        <tr><td><span class="badge badge-tp">talent_partner</span></td><td>UserAssignments list</td><td>Access to assigned project in Reporting module. Scoped to own activity and roles.</td></tr>
+        <tr><td><span class="badge badge-viewer">viewer</span></td><td>Fallback</td><td>Read-only, no meaningful access. Auto-registered on first login.</td></tr>
+      </table>
+
+      <h3>Module access matrix</h3>
+      <table>
+        <tr><th>Module / Page</th><th>Admin</th><th>Leadership</th><th>DM</th><th>TP</th><th>Viewer</th></tr>
+        <tr><td>Company Dashboard</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Project Dashboard</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
+        <tr><td>Report Builder</td><td>✓</td><td>—</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Projects</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
+        <tr><td>Roles</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
+        <tr><td>Weekly Activity</td><td>✓</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
+        <tr><td>Placements</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
+        <tr><td>Rejected Offers</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
+        <tr><td>Config Panel</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Market Reporting</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
+        <tr><td>People module</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Sales module</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Newton OS Admin</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      </table>
+
+      <h3>Role resolution order</h3>
+      <div class="flow">
+        <div class="flow-step highlight">Sign in</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Check CONFIG.ADMIN_USERS</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Check LeadershipAccess list</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Check UserAssignments list</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Fall back to 'viewer'</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step cache">Cache in sessionStorage</div>
+      </div>
+    </div>
+
+    <!-- FILE STRUCTURE -->
+    <div class="section" id="sec-files" style="display:none">
+      <div class="section-title">File Structure</div>
+      <p class="section-intro">Each file has a single, clearly defined responsibility. Never mix concerns across layers.</p>
+
+      <h3>HTML pages</h3>
+      <table>
+        <tr><th>File</th><th>Purpose</th></tr>
+        <tr><td><span class="file-tag">index.html</span></td><td>Home screen / module selector. Seasonal effects, announcements.</td></tr>
+        <tr><td><span class="file-tag">reporting.html</span></td><td>Reporting module entry point.</td></tr>
+        <tr><td><span class="file-tag">people.html</span></td><td>People module entry point.</td></tr>
+        <tr><td><span class="file-tag">sales.html</span></td><td>Sales module entry point.</td></tr>
+        <tr><td><span class="file-tag">market-reporting.html</span></td><td>Market Reporting module entry point.</td></tr>
+        <tr><td><span class="file-tag">admin.html</span></td><td>Newton OS Admin — platform-level administration.</td></tr>
+        <tr><td><span class="file-tag">user-guide.html</span></td><td>Reporting module user guide.</td></tr>
+        <tr><td><span class="file-tag">people-user-guide.html</span></td><td>People module user guide.</td></tr>
+        <tr><td><span class="file-tag">market-reporting-user-guide.html</span></td><td>Market Reporting user guide.</td></tr>
+        <tr><td><span class="file-tag">README.html</span></td><td>This document — system directory and developer reference.</td></tr>
+      </table>
+
+      <h3>Shared JavaScript (all modules)</h3>
+      <table>
+        <tr><th>File</th><th>Responsibility</th><th>Key exports</th></tr>
+        <tr><td><span class="file-tag">js/config.js</span></td><td>Static app configuration</td><td>CONFIG, CONFIG.OS_MODULES, getUserRole(), getUserRoleAsync()</td></tr>
+        <tr><td><span class="file-tag">js/auth.js</span></td><td>MSAL authentication only</td><td>signIn(), signOut(), getToken(), getCurrentUser(), isSignedIn()</td></tr>
+        <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), formatSalary(), daysOpen(), ghost mode helpers</td></tr>
+        <tr><td><span class="file-tag">js/api.js</span></td><td>All SharePoint/Graph API calls</td><td>getItems(), createItem(), updateItem(), deleteItem(), getEffectiveRole(), all list-specific helpers</td></tr>
+        <tr><td><span class="file-tag">js/nav-core.js</span></td><td>Shared sidebar renderer</td><td>renderModuleNav(), updateNavActiveLink(), exitGhostMode()</td></tr>
+      </table>
+
+      <h3>Reporting module</h3>
+      <table>
+        <tr><th>File</th><th>Responsibility</th></tr>
+        <tr><td><span class="file-tag">js/router.js</span></td><td>Page registry, role constants, canAccess(), getAccessiblePages()</td></tr>
+        <tr><td><span class="file-tag">js/nav.js</span></td><td>Calls renderModuleNav() with Reporting params. navigateTo(), renderPage()</td></tr>
+        <tr><td><span class="file-tag">js/app.js</span></td><td>Module init — MSAL redirect handler, role resolution, first navigation</td></tr>
+        <tr><td><span class="file-tag">js/pages.js</span></td><td>Page content renderers: Projects, Roles, Activity, Placements, Rejections</td></tr>
+        <tr><td><span class="file-tag">js/forms.js</span></td><td>Form renderers and submission logic for Reporting data entry</td></tr>
+        <tr><td><span class="file-tag">js/dashboard.js</span></td><td>Project Dashboard, Company Dashboard, REPORT_PANELS registry</td></tr>
+        <tr><td><span class="file-tag">js/report-builder.js</span></td><td>Report Builder — block canvas, save/load, PDF export</td></tr>
+        <tr><td><span class="file-tag">js/admin.js</span></td><td>Config Panel — Departments, Currencies, Delete Records</td></tr>
+      </table>
+
+      <h3>People module</h3>
+      <table>
+        <tr><th>File</th><th>Responsibility</th></tr>
+        <tr><td><span class="file-tag">js/people-router.js</span></td><td>Page registry for People module</td></tr>
+        <tr><td><span class="file-tag">js/people-nav.js</span></td><td>Calls renderModuleNav() with People params</td></tr>
+        <tr><td><span class="file-tag">js/people-app.js</span></td><td>Module init — role check, redirect if unauthorised</td></tr>
+        <tr><td><span class="file-tag">js/people-pages.js</span></td><td>People Dashboard, Employee Tracker, Deployment Timeline, G-P Invoices</td></tr>
+        <tr><td><span class="file-tag">js/people-forms.js</span></td><td>Form renderers for People data entry</td></tr>
+      </table>
+
+      <h3>Sales module</h3>
+      <table>
+        <tr><th>File</th><th>Responsibility</th></tr>
+        <tr><td><span class="file-tag">js/sales-router.js</span></td><td>Page registry for Sales module</td></tr>
+        <tr><td><span class="file-tag">js/sales-nav.js</span></td><td>Calls renderModuleNav() with Sales params</td></tr>
+        <tr><td><span class="file-tag">js/sales-app.js</span></td><td>Module init — role check, redirect if unauthorised</td></tr>
+        <tr><td><span class="file-tag">js/sales-pages.js</span></td><td>Sales Forecast page renderer</td></tr>
+      </table>
+
+      <h3>Market Reporting module</h3>
+      <table>
+        <tr><th>File</th><th>Responsibility</th></tr>
+        <tr><td><span class="file-tag">js/mr-router.js</span></td><td>Page registry for Market Reporting module</td></tr>
+        <tr><td><span class="file-tag">js/mr-nav.js</span></td><td>Calls renderModuleNav() with Market Reporting params</td></tr>
+        <tr><td><span class="file-tag">js/mr-app.js</span></td><td>Module init — role check, redirect if unauthorised</td></tr>
+        <tr><td><span class="file-tag">js/market-report.js</span></td><td>Market Report Builder page renderer</td></tr>
+      </table>
+
+      <h3>Admin</h3>
+      <table>
+        <tr><th>File</th><th>Responsibility</th></tr>
+        <tr><td><span class="file-tag">js/os-admin.js</span></td><td>Newton OS Admin — User Assignments, Leadership Access, Homepage, Ghost Mode</td></tr>
+      </table>
+    </div>
+
+    <!-- SCRIPT LOAD ORDER -->
+    <div class="section" id="sec-loadorder" style="display:none">
+      <div class="section-title">Script Load Order</div>
+      <p class="section-intro">All HTML files must load scripts in this order. Deviating causes "X is not defined" errors because later scripts depend on globals defined by earlier ones.</p>
+
+      <div class="callout"><strong>Critical:</strong> utils.js must always load before api.js. api.js calls functions defined in utils.js (ghost mode helpers, button loading state). This applies to every HTML file including admin.html and index.html.</div>
+
+      <h3>Standard module pages</h3>
+      <div class="code-block">
+<span class="code-comment">&lt;!-- External --&gt;</span>
+msal-browser.min.js
+lucide (CDN)
+
+<span class="code-comment">&lt;!-- Shared platform --&gt;</span>
+<span class="code-key">config.js</span>          <span class="code-comment">← CONFIG object, OS_MODULES, role helpers</span>
+<span class="code-key">auth.js</span>            <span class="code-comment">← MSAL instance, signIn/signOut/getToken</span>
+<span class="code-key">utils.js</span>           <span class="code-comment">← Pure helpers, ghost mode helpers</span>
+<span class="code-key">api.js</span>             <span class="code-comment">← Graph API layer, cache, role resolution</span>
+
+<span class="code-comment">&lt;!-- Module-specific --&gt;</span>
+<span class="code-key">[module]-router.js</span> <span class="code-comment">← Page registry</span>
+<span class="code-key">nav-core.js</span>        <span class="code-comment">← Shared sidebar renderer</span>
+<span class="code-key">[module]-nav.js</span>    <span class="code-comment">← Module nav wrapper</span>
+<span class="code-key">[module]-forms.js</span>  <span class="code-comment">← Form renderers</span>
+<span class="code-key">[module]-pages.js</span>  <span class="code-comment">← Page content renderers</span>
+dashboard.js       <span class="code-comment">← (Reporting only)</span>
+sortablejs          <span class="code-comment">← (Reporting only)</span>
+<span class="code-key">report-builder.js</span>  <span class="code-comment">← (Reporting only)</span>
+<span class="code-key">admin.js</span>           <span class="code-comment">← (Reporting only)</span>
+<span class="code-key">[module]-app.js</span>    <span class="code-comment">← Module init — always last</span>
+      </div>
+
+      <h3>admin.html and index.html</h3>
+      <div class="code-block">
+<span class="code-key">config.js</span>
+<span class="code-key">auth.js</span>
+<span class="code-key">utils.js</span>     <span class="code-comment">← Required — ghost helpers called by api.js</span>
+<span class="code-key">api.js</span>
+<span class="code-key">os-admin.js</span>  <span class="code-comment">← admin.html only</span>
+      </div>
+    </div>
+
+    <!-- SHAREPOINT DATA MODEL -->
+    <div class="section" id="sec-sharepoint" style="display:none">
+      <div class="section-title">SharePoint Data Model</div>
+      <p class="section-intro">All data is stored in SharePoint lists on the SolutionsHubReporting site. SharePoint's internal <code>Title</code> field is aliased to a meaningful name per list via <code>FIELD_ALIASES</code> in api.js.</p>
+
+      <h3>Reporting module lists</h3>
+      <table>
+        <tr><th>List</th><th>Title alias</th><th>Key fields</th><th>Relationships</th></tr>
+        <tr><td><strong>Projects</strong></td><td>CustomerName</td><td>Status, DeliveryManager, StartDate, EndDate</td><td>Parent of Roles, UserAssignments, Departments</td></tr>
+        <tr><td><strong>Roles</strong></td><td>RoleTitle</td><td>ProjectID, Stage, TalentPartner, OpenDate, TargetHireDate, ActualHireDate, Budget, Currency</td><td>Child of Projects. Parent of WeeklyActivity, Placements, RejectedOffers</td></tr>
+        <tr><td><strong>WeeklyActivity</strong></td><td>ActivityTitle</td><td>RoleID, Year, WeekNumber, WeekEndingDate, TalentPartner, Outreach, Responses, Screened, Submitted, Interview1, Interview2Plus, FinalInterview, Offers, Hires</td><td>Child of Roles</td></tr>
+        <tr><td><strong>Placements</strong></td><td>CandidateName</td><td>RoleID, OfferAcceptedDate, ProvisionalStartDate, SalaryAgreed, Currency, TimeToHire</td><td>Child of Roles</td></tr>
+        <tr><td><strong>RejectedOffers</strong></td><td>CandidateName</td><td>RoleID, RejectionReason, SalaryOffered, Notes</td><td>Child of Roles</td></tr>
+        <tr><td><strong>Departments</strong></td><td>DepartmentName</td><td>ProjectID, CustomerName</td><td>Child of Projects</td></tr>
+        <tr><td><strong>Currencies</strong></td><td>CurrencyCode</td><td>—</td><td>Reference list</td></tr>
+        <tr><td><strong>SavedReports</strong></td><td>—</td><td>Scope, ProjectID, Period, KpiPeriod, ModuleOrder (JSON), ReportOwner</td><td>Report Builder saves</td></tr>
+        <tr><td><strong>MarketReports</strong></td><td>ReportTitle</td><td>Market intelligence content fields</td><td>Linked to Roles via Market Report module</td></tr>
+      </table>
+
+      <h3>Access control lists</h3>
+      <table>
+        <tr><th>List</th><th>Title alias</th><th>Key fields</th><th>Purpose</th></tr>
+        <tr><td><strong>UserAssignments</strong></td><td>UserEmail</td><td>UserName, ProjectID, CustomerName, AssignedRole, LastLogin</td><td>Maps users to projects and roles (DM / TP / viewer)</td></tr>
+        <tr><td><strong>LeadershipAccess</strong></td><td>UserEmail</td><td>UserName</td><td>Grants Leadership role — Company Dashboard read access</td></tr>
+      </table>
+
+      <h3>Platform lists</h3>
+      <table>
+        <tr><th>List</th><th>Purpose</th><th>Key fields</th></tr>
+        <tr><td><strong>AppSettings</strong></td><td>Single-row config (Title = "config")</td><td>AnnouncementMessage, SeasonalEffect</td></tr>
+      </table>
+
+      <h3>People module lists</h3>
+      <table>
+        <tr><th>List</th><th>Title alias</th><th>Key fields</th></tr>
+        <tr><td><strong>People</strong></td><td>EmployeeName</td><td>Level (CSD/SDM/STP/TP), ContractType, Location, StartDate, EndDate, IsActive</td></tr>
+        <tr><td><strong>Assignments</strong></td><td>AssignmentID</td><td>EmployeeName, Level, Customer, ProjectType, StartDate, EndDate, MonthlyBillRate, Billed, Country, AutoGenerated</td></tr>
+        <tr><td><strong>GPInvoices</strong></td><td>InvoiceNumber</td><td>InvoiceDate, DueDate, Amount, Status, Notes</td></tr>
+      </table>
+
+      <h3>Sales module lists</h3>
+      <table>
+        <tr><th>List</th><th>Key fields</th></tr>
+        <tr><td><strong>SalesForecasts</strong></td><td>Sales pipeline and forecast data</td></tr>
+      </table>
+
+      <h3>Field normalisation</h3>
+      <p>SharePoint's <code>Title</code> field and the typo field <code>Yeare</code> are aliased to meaningful names in <code>FIELD_ALIASES</code> in <code>api.js</code>. All reads go through <code>normaliseFields()</code> so the application always sees consistent field names regardless of SharePoint's internal naming.</p>
+    </div>
+
+    <!-- AUTH FLOW -->
+    <div class="section" id="sec-authflow" style="display:none">
+      <div class="section-title">Auth Flow</div>
+      <p class="section-intro">Authentication uses MSAL.js with Microsoft's redirect flow. There is no session server — token and user info are stored in localStorage by MSAL.</p>
+
+      <h3>Sign-in sequence</h3>
+      <div class="flow">
+        <div class="flow-step">User visits page</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step highlight">handleRedirectPromise()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Store email + name in localStorage</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step highlight">APP.init()</div>
+      </div>
+      <div class="flow">
+        <div class="flow-step">APP.init()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step highlight">getEffectiveRole(email)</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step cache">Cache role in sessionStorage</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">renderNav() + navigateTo(firstPage)</div>
+      </div>
+
+      <h3>Token acquisition</h3>
+      <p>Every Graph API call goes through <code>getToken()</code> in auth.js. It attempts a silent refresh first (<code>acquireTokenSilent</code>). If expired or missing, it falls back to <code>acquireTokenRedirect</code>, triggering a full Microsoft login redirect.</p>
+
+      <h3>Sign-out</h3>
+      <div class="flow">
+        <div class="flow-step highlight">signOut()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">localStorage.clear()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">sessionStorage.clear()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step highlight">msalInstance.logoutRedirect()</div>
+      </div>
+      <div class="callout"><code>sessionStorage.clear()</code> is critical — it clears both the role cache and any active ghost mode session.</div>
+    </div>
+
+    <!-- READ FLOW -->
+    <div class="section" id="sec-readflow" style="display:none">
+      <div class="section-title">Read Flow</div>
+      <p class="section-intro">All data reads go through <code>getItems(listName, filter)</code> in api.js. A 30-second in-memory cache sits in front of every Graph API call to reduce SharePoint requests during navigation.</p>
+
+      <h3>Read sequence</h3>
+      <div class="flow">
+        <div class="flow-step">Page calls getItems()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step cache">Check _apiCache (30s TTL)</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step sp">Cache hit: return immediately</div>
+      </div>
+      <div class="flow">
+        <div class="flow-step">Cache miss</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step highlight">getToken()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step highlight">Graph API GET</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">normaliseFields()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step cache">Store in _apiCache</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step sp">Return to caller</div>
+      </div>
+
+      <h3>Pagination</h3>
+      <p><code>getItems()</code> handles SharePoint pagination automatically via <code>@odata.nextLink</code>. All pages of results are fetched and concatenated before returning.</p>
+
+      <h3>Performance rules</h3>
+      <ul style="font-size:14px;color:#444;padding-left:20px;line-height:2.2">
+        <li>Always fetch independent lists in parallel using <code>Promise.all()</code> — never await sequentially.</li>
+        <li>For company-scope views, use <code>getAllRoles()</code> — never loop <code>getRolesForProject()</code> per project.</li>
+        <li>Dashboard period-filter changes use cached <code>window._last*</code> data — no re-fetch.</li>
+      </ul>
+    </div>
+
+    <!-- WRITE FLOW -->
+    <div class="section" id="sec-writeflow" style="display:none">
+      <div class="section-title">Write Flow</div>
+      <p class="section-intro">All writes go through <code>createItem()</code>, <code>updateItem()</code>, or <code>deleteItem()</code> in api.js. Each write automatically invalidates the cache for the affected list.</p>
+
+      <h3>Write sequence</h3>
+      <div class="flow">
+        <div class="flow-step">Form submit</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">setButtonLoading()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step highlight">createItem / updateItem / deleteItem</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step highlight">Graph API POST/PATCH/DELETE</div>
+      </div>
+      <div class="flow">
+        <div class="flow-step sp">Success</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step cache">_cacheInvalidate(listName)</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">clearButtonLoading()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Re-render page</div>
+      </div>
+
+      <div class="callout amber"><strong>Cache invalidation:</strong> Writes only invalidate the specific list written to. If a write affects data shown via another list, that cache expires naturally within 30 seconds.</div>
+
+      <h3>Error handling</h3>
+      <p>All write functions are wrapped in try/catch in the form submission layer. On error: button loading state is cleared and an error message is displayed inline. No page navigation occurs on failure.</p>
+    </div>
+
+    <!-- CONVENTIONS -->
+    <div class="section" id="sec-conventions" style="display:none">
+      <div class="section-title">Coding Conventions</div>
+      <p class="section-intro">Established during the v1 refactor audit (June 2026). Apply to all future Newton build work.</p>
+
+      <h3>Single source of truth</h3>
+      <p>Any value referenced in more than one place lives in exactly one file. <code>CONFIG.OS_MODULES</code> is the canonical example — it defines the module switcher for all four nav files. Adding a new module means editing <code>config.js</code> only.</p>
+
+      <h3>File responsibilities — hard rules</h3>
+      <ul class="checklist">
+        <li>Never put UI helpers in api.js. Never put API calls in utils.js.</li>
+        <li>api.js owns all Graph API calls. If it touches the network, it lives here.</li>
+        <li>utils.js owns pure functions with no network I/O — formatting, calculations, button state, ghost helpers.</li>
+        <li>nav-core.js owns the sidebar renderer. Do not write sidebar HTML in module nav files.</li>
+        <li>*-app.js files handle init only — MSAL redirect, role resolution, first navigation.</li>
+      </ul>
+
+      <h3>CSS over inline styles</h3>
+      <ul class="checklist">
+        <li>Conditional styling uses CSS classes, not inline style="" attributes.</li>
+        <li>Scope classes to their context: <code>.dash-panel .row-age-critical td</code> prevents bleed into unrelated tables.</li>
+        <li>Colour values live in style.css only. JavaScript never hardcodes hex colours.</li>
+      </ul>
+
+      <h3>Dynamic over hardcoded</h3>
+      <p>Time-sensitive values are derived at runtime. Example: <code>PLACEMENT_YEARS</code> uses <code>Array.from({length:4}, (_, i) =&gt; new Date().getFullYear() - i)</code> — it never needs updating.</p>
+
+      <h3>No duplicate logic</h3>
+      <ul class="checklist">
+        <li>If the same function exists in more than one file, extract it to a shared file.</li>
+        <li>Never re-sort data already sorted by the API layer.</li>
+        <li>Never re-fetch data already cached in a window._ variable.</li>
+      </ul>
+
+      <h3>Nav optimisation</h3>
+      <p>Use <code>updateNavActiveLink(page)</code> on navigation — not a full <code>renderNav()</code> rebuild. The full render runs once on init only. This prevents sidebar flicker and unnecessary DOM work on every page click.</p>
+    </div>
+
+    <!-- ADDING A NEW MODULE -->
+    <div class="section" id="sec-newmodule" style="display:none">
+      <div class="section-title">Adding a New Module</div>
+      <p class="section-intro">Follow this checklist in order. Steps 1 and 6 are the most commonly forgotten.</p>
+
+      <ul class="checklist">
+        <li><strong>config.js</strong> — Add entry to <code>CONFIG.OS_MODULES</code> with key, name, icon, href, live, and roles array. This is the only place the module switcher is defined.</li>
+        <li><strong>[module]-router.js</strong> — Create page registry. Define PAGES object, <code>canAccess()</code>, and <code>getAccessiblePages()</code>.</li>
+        <li><strong>[module]-nav.js</strong> — Create nav wrapper. Call <code>renderModuleNav()</code> with subtitle, currentModuleKey, toggleFn, pages, currentPage, role, navigateFn, userGuideHref. Add toggle function and <code>navigateTo[Module]()</code>.</li>
+        <li><strong>[module]-app.js</strong> — Handle MSAL redirect, call <code>getEffectiveRole()</code>, redirect if role not permitted, call <code>ensureUserRegistered()</code>, render nav, navigate to first page.</li>
+        <li><strong>[module]-pages.js and [module]-forms.js</strong> — Create page renderers and form logic as needed.</li>
+        <li><strong>[module].html</strong> — Follow script load order exactly: config → auth → utils → api → [module]-router → nav-core → [module]-nav → [module]-forms → [module]-pages → [module]-app.</li>
+        <li><strong>admin.html sidebar</strong> — Add <code>&lt;a class="admin-nav-link"&gt;</code> entry if the module needs admin panel access.</li>
+        <li><strong>os-admin.js</strong> — Update role/access lists if the new module has different access requirements.</li>
+      </ul>
+
+      <div class="callout green">The Report Builder's <code>REPORT_PANELS</code> registry in dashboard.js is the pattern for adding new report panel types — each panel is a function that takes data and a period and returns HTML.</div>
+    </div>
+
+    <!-- GHOST MODE -->
+    <div class="section" id="sec-ghostmode" style="display:none">
+      <div class="section-title">Ghost Mode</div>
+      <p class="section-intro">Ghost Mode allows admins to temporarily view Newton as a different role, for testing or training video creation. Available from Newton OS Admin → Ghost Mode tab.</p>
+
+      <h3>Activation flow</h3>
+      <div class="flow">
+        <div class="flow-step">Select role (+ project for DM/TP)</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step highlight">setGhostRole() + setGhostProject()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Redirect to reporting.html</div>
+      </div>
+      <div class="flow">
+        <div class="flow-step">Module init</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step highlight">getEffectiveRole() checks getGhostRole() first</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step cache">Returns ghost role — real role bypassed</div>
+      </div>
+      <div class="flow">
+        <div class="flow-step">getUserProjectIds() checks getGhostProject()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Returns ghost project — scopes all data</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step cache">Banner rendered by nav-core.js</div>
+      </div>
+
+      <h3>Storage keys (sessionStorage)</h3>
+      <table>
+        <tr><th>Key</th><th>Value</th><th>Set by</th></tr>
+        <tr><td><code>newton_ghost_role</code></td><td>Role string e.g. "delivery_manager"</td><td>setGhostRole() in utils.js</td></tr>
+        <tr><td><code>newton_ghost_project</code></td><td>SharePoint project ID (string)</td><td>setGhostProject() in utils.js</td></tr>
+      </table>
+
+      <h3>Exiting ghost mode</h3>
+      <p>Exit from the banner button or the Ghost Mode tab. Both call <code>clearGhostRole()</code> which removes both sessionStorage keys. Sign-out also clears ghost mode via <code>sessionStorage.clear()</code>.</p>
+
+      <div class="callout amber">Ghost mode overrides role resolution but does not create a real session as that role. Actions taken while ghosting (form saves etc.) are attributed to your real admin account in SharePoint.</div>
+    </div>
+
+    <!-- BACKLOG -->
+    <div class="section" id="sec-backlog" style="display:none">
+      <div class="section-title">Backlog &amp; Future Work</div>
+      <p class="section-intro">Known improvement opportunities and architectural considerations for future development.</p>
+
+      <h3>Minor improvements (low effort)</h3>
+      <table>
+        <tr><th>Item</th><th>Detail</th><th>File</th></tr>
+        <tr><td>AppSettings setter consolidation</td><td>setAnnouncementMessage and setSeasonalEffect could be merged into a single setAppSettings({message, effect}) to further reduce fetches.</td><td>api.js</td></tr>
+        <tr><td>PLACEMENT_YEARS range</td><td>Currently shows 4 years. Could be made configurable via CONFIG if more historical data is needed.</td><td>pages.js</td></tr>
+        <tr><td>Dashboard cache naming</td><td>window._last* variables are module-scoped globals. Could be moved into a dedicated dashboardCache object for clarity.</td><td>dashboard.js</td></tr>
+      </table>
+
+      <h3>Architectural considerations (future builds)</h3>
+      <table>
+        <tr><th>Area</th><th>Consideration</th></tr>
+        <tr><td>Data volume</td><td>getItems() fetches all records and filters client-side. As data grows (especially WeeklyActivity), consider adding server-side OData filters to reduce payload size.</td></tr>
+        <tr><td>Multi-project users</td><td>DM and TP users can be assigned to multiple projects. The scoping model handles this but the UX could be more prominent for users with many assignments.</td></tr>
+        <tr><td>Real-time updates</td><td>The 30s API cache means two users editing simultaneously may see stale data briefly. For higher-traffic scenarios, consider a shorter TTL or manual refresh triggers.</td></tr>
+        <tr><td>Report Builder export</td><td>PDF export uses window.print(). Server-side generation would give more reliable formatting across browsers.</td></tr>
+        <tr><td>Offline / error states</td><td>Graph API failures show a basic error message. A structured error boundary with retry logic would improve resilience on poor connections.</td></tr>
+        <tr><td>Module expansion</td><td>The module pattern (router / nav / app / pages / forms) is repeatable. New modules can be added without touching shared platform code — only config.js needs updating for the switcher.</td></tr>
+      </table>
+
+      <h3>Dependencies to monitor</h3>
+      <table>
+        <tr><th>Dependency</th><th>Version</th><th>Notes</th></tr>
+        <tr><td>MSAL.js</td><td>2.38.3</td><td>Pin the version in the CDN URL. Breaking changes between major versions.</td></tr>
+        <tr><td>Lucide</td><td>Latest (CDN)</td><td>Currently unpinned — consider pinning to a specific version.</td></tr>
+        <tr><td>SortableJS</td><td>1.15.2</td><td>Pinned — safe.</td></tr>
+        <tr><td>Graph API</td><td>v1.0</td><td>Microsoft's stable channel. Breaking changes announced with deprecation periods.</td></tr>
+      </table>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<script>
+  const allSections = document.querySelectorAll('.section');
+  const allLinks    = document.querySelectorAll('.sidebar-link');
+
+  function show(id) {
+    allSections.forEach(s => s.style.display = 'none');
+    allLinks.forEach(l => l.classList.remove('active'));
+    const sec  = document.getElementById('sec-' + id);
+    const link = document.querySelector(`.sidebar-link[onclick="show('${id}')"]`);
+    if (sec)  sec.style.display  = 'block';
+    if (link) link.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  show('overview');
+</script>
+
+</body>
+</html>

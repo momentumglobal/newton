@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Newton Mobile</title>
+  <link rel="icon" type="image/png" href="momentum-symbol.png">
+  <style>
+    @font-face {
+      font-family: 'Polymath';
+      src: url('polymath-regular.ttf') format('truetype');
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: 'Polymath';
+      src: url('polymath-semibold.ttf') format('truetype');
+      font-weight: 600;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
+      background: #F5F4F1;
+      color: #1a1a2e;
+      font-size: 15px;
+      min-height: 100dvh;
+    }
+
+    /* ── Login ── */
+    #login-screen {
+      background: #090546;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    #login-watermark {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 120vmin; height: 120vmin;
+      opacity: 0.2;
+      pointer-events: none;
+    }
+    .m-login-logo {
+      height: 40px;
+      margin-bottom: 40px;
+      position: relative;
+      z-index: 2;
+    }
+    .m-login-card {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 16px;
+      padding: 36px 28px;
+      text-align: center;
+      width: 100%;
+      max-width: 340px;
+      position: relative;
+      z-index: 2;
+    }
+    .m-login-card h1 { color: white; font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+    .m-login-card p  { color: rgba(255,255,255,0.55); font-size: 14px; margin-bottom: 28px; }
+    .btn-signin {
+      background: rgba(255,255,255,0.15);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+      padding: 14px 28px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-family: inherit;
+      font-weight: 600;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    /* ── App shell ── */
+    #app-shell { display: none; min-height: 100dvh; flex-direction: column; }
+
+    /* ── Top bar ── */
+    .m-topbar {
+      background: #090546;
+      color: white;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .m-topbar-title { font-size: 16px; font-weight: 600; }
+    .m-topbar-sub   { font-size: 12px; opacity: 0.6; margin-top: 1px; }
+    .m-topbar img   { height: 28px; }
+    .m-back-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 22px;
+      cursor: pointer;
+      padding: 0 8px 0 0;
+      line-height: 1;
+    }
+
+    /* ── Main content ── */
+    #m-main {
+      flex: 1;
+      padding: 16px;
+      padding-bottom: 80px;
+    }
+
+    /* ── Role cards ── */
+    .m-role-card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e8e8e8;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      cursor: pointer;
+      transition: box-shadow 0.15s;
+    }
+    .m-role-card:active { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+    .m-role-title  { font-size: 15px; font-weight: 600; color: #0A0B44; margin-bottom: 4px; }
+    .m-role-meta   { font-size: 13px; color: #666; margin-bottom: 10px; }
+    .m-role-footer { display: flex; align-items: center; justify-content: space-between; }
+    .m-stage-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #EBF2FA;
+      color: #0A0B44;
+    }
+    .m-days-open { font-size: 12px; color: #888; }
+    .m-days-open.warn  { color: #b45309; }
+    .m-days-open.alert { color: #c62828; }
+
+    /* ── Section header ── */
+    .m-section-header {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+      margin: 20px 0 10px;
+    }
+    .m-section-header:first-child { margin-top: 4px; }
+
+    /* ── Role detail ── */
+    .m-detail-panel {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e8e8e8;
+      padding: 20px 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .m-detail-label { font-size: 12px; color: #888; margin-bottom: 2px; }
+    .m-detail-value { font-size: 15px; font-weight: 600; color: #0A0B44; margin-bottom: 12px; }
+    .m-detail-value:last-child { margin-bottom: 0; }
+
+    /* ── Stage selector ── */
+    .m-stage-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .m-stage-btn {
+      padding: 12px 8px;
+      border-radius: 8px;
+      border: 2px solid #e8e8e8;
+      background: white;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .m-stage-btn.active {
+      border-color: #0A0B44;
+      background: #EBF2FA;
+      color: #0A0B44;
+    }
+    .m-stage-btn:active { background: #dde8f5; }
+
+    /* ── Action buttons ── */
+    .m-action-row {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .m-btn-primary {
+      background: #0A0B44;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 15px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      text-align: center;
+    }
+    .m-btn-primary:active { background: #12156e; }
+    .m-btn-primary:disabled { opacity: 0.5; cursor: default; }
+    .m-btn-secondary {
+      background: white;
+      color: #0A0B44;
+      border: 2px solid #0A0B44;
+      border-radius: 10px;
+      padding: 13px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      text-align: center;
+    }
+    .m-btn-secondary:active { background: #EBF2FA; }
+    .m-btn-danger {
+      background: white;
+      color: #c0392b;
+      border: 2px solid #c0392b;
+      border-radius: 10px;
+      padding: 13px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      text-align: center;
+    }
+
+    /* ── Forms ── */
+    .m-form-group { margin-bottom: 16px; }
+    .m-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 6px;
+    }
+    .m-input, .m-select {
+      width: 100%;
+      padding: 13px 12px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 15px;
+      color: #1a1a2e;
+      background: white;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .m-input:focus, .m-select:focus {
+      outline: none;
+      border-color: #0A0B44;
+    }
+    .m-input[readonly] { background: #f5f5f5; color: #666; }
+    .m-input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .m-form-error {
+      color: #c0392b;
+      font-size: 13px;
+      margin-top: 6px;
+      display: none;
+    }
+
+    /* ── Bottom nav ── */
+    .m-bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: white;
+      border-top: 1px solid #e8e8e8;
+      display: flex;
+      z-index: 100;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .m-nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 0 8px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-family: inherit;
+      color: #888;
+      font-size: 11px;
+      gap: 3px;
+    }
+    .m-nav-item.active { color: #0A0B44; }
+    .m-nav-item svg { width: 22px; height: 22px; stroke-width: 2; }
+
+    /* ── Desktop override banner ── */
+    .m-desktop-link {
+      text-align: center;
+      padding: 10px;
+      font-size: 12px;
+      color: #888;
+      background: #f0f0ee;
+      border-top: 1px solid #e0e0de;
+    }
+    .m-desktop-link a { color: #0A0B44; text-decoration: underline; cursor: pointer; }
+
+    /* ── Empty state ── */
+    .m-empty {
+      text-align: center;
+      padding: 48px 24px;
+      color: #888;
+      font-size: 14px;
+    }
+
+    /* ── Toast ── */
+    .m-toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0A0B44;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .m-toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- Login -->
+  <div id="login-screen" style="display:none">
+    <img id="login-watermark" src="mg-visual-swirl.png" alt="">
+    <img class="m-login-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
+    <div class="m-login-card">
+      <h1>Newton</h1>
+      <p>Sign in with your Momentum Global account to continue.</p>
+      <button class="btn-signin" onclick="signIn()">Sign in with Microsoft</button>
+    </div>
+  </div>
+
+  <!-- App shell -->
+  <div id="app-shell">
+    <div class="m-topbar" id="m-topbar">
+      <div style="display:flex;align-items:center;gap:4px">
+        <button class="m-back-btn" id="m-back-btn" onclick="mobileBack()" style="display:none">&#8592;</button>
+        <div>
+          <div class="m-topbar-title" id="m-topbar-title">Newton</div>
+          <div class="m-topbar-sub"   id="m-topbar-sub">Momentum Global</div>
+        </div>
+      </div>
+      <img src="momentum-symbol.png" alt="">
+    </div>
+
+    <div id="m-main"></div>
+
+    <nav class="m-bottom-nav" id="m-bottom-nav">
+      <button class="m-nav-item active" id="m-nav-roles" onclick="mobileNav('roles')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        Roles
+      </button>
+      <button class="m-nav-item" id="m-nav-activity" onclick="mobileNav('activity')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Log Activity
+      </button>
+      <button class="m-nav-item" id="m-nav-placement" onclick="mobileNav('placement')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Placement
+      </button>
+    </nav>
+
+    <div class="m-desktop-link">
+      <a onclick="mobileForceDesktop()">Switch to desktop view</a>
+    </div>
+  </div>
+
+  <div class="m-toast" id="m-toast"></div>
+
+  <!-- MSAL -->
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+  <!-- Newton core -->
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <!-- Mobile app -->
+  <script src="js/mobile-app.js"></script>
+  <script src="js/mobile-pages.js"></script>
+</body>
+</html>

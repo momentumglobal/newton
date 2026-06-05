@@ -1,3 +1,9 @@
+// ── Mobile auto-detect redirect ───────────────────────────────────────
+// Redirect to mobile view if on a small screen, unless user has opted out
+if (window.innerWidth < 768 && !sessionStorage.getItem('newton_force_desktop')) {
+  window.location.replace('mobile.html');
+}
+
 window.APP = {
   async init(freshLogin = false) {
     if (!isSignedIn()) {

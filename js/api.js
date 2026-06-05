@@ -283,13 +283,16 @@ function higherRole(a, b) {
 
 // Return all project IDs this user is assigned to (null = admin, sees all)
 async function getUserProjectIds(email) {
+  // Ghost mode — return the single ghost project if set
+  const ghostProject = getGhostProject();
+  if (ghostProject) return [ghostProject];
+
   const lower = email.toLowerCase();
   if (CONFIG.ADMIN_USERS?.includes(lower)) return null;
   const assignments = await getItems("UserAssignments", `fields/Title eq '${email}'`);
   return assignments.map(a => String(a.ProjectID));
 }
 
-// Return scoped projects list
 async function getScopedProjects(email, activeOnly = false) {
   const projectIds = await getUserProjectIds(email);
   const allProjects = await getProjects(activeOnly);

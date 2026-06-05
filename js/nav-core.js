@@ -56,6 +56,24 @@ function renderModuleNav({
       <a class='nav-link signout' onclick='signOut()'>Sign out</a>
     </div>
   `;
+
+  // Ghost mode banner
+  const ghostRole = getGhostRole();
+  let ghostBanner = document.getElementById('ghost-banner');
+  if (ghostRole) {
+    if (!ghostBanner) {
+      ghostBanner = document.createElement('div');
+      ghostBanner.id = 'ghost-banner';
+      document.body.prepend(ghostBanner);
+    }
+    ghostBanner.innerHTML = `
+      👻 Ghost mode — viewing as <strong>${ghostRole.replace(/_/g, ' ')}</strong>
+      <button onclick="exitGhostMode()">Exit Ghost Mode</button>
+    `;
+  } else {
+    if (ghostBanner) ghostBanner.remove();
+  }
+  
   lucide.createIcons();
 }
 
@@ -72,4 +90,10 @@ function updateNavActiveLink(page) {
       a.classList.remove('active');
     }
   });
+}
+
+function exitGhostMode() {
+  clearGhostRole();
+  // Reload the current page to re-initialise with the real role
+  window.location.reload();
 }

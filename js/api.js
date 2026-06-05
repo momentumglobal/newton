@@ -33,7 +33,7 @@ function _cacheInvalidate(listName) {
 // ── Field normalisers ───────────────────────────────────────────────
 const FIELD_ALIASES = {
   Projects:        { Title: "CustomerName", Yeare: "Year" },
-  Roles:           { Title: "RoleTitle",    Yeare: "Year", Location: "Location" },
+  Roles:           { Title: "RoleTitle", Yeare: "Year" },
   WeeklyActivity:  { Title: "ActivityTitle", Yeare: "Year", InterviewTwoPlus: "Interview2Plus" },
   Placements:      { Title: "CandidateName", Yeare: "Year" },
   RejectedOffers:  { Title: "CandidateName", Yeare: "Year" },

@@ -118,7 +118,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
   if (selectedProjectId) {
     try {
       const depts = await getDepartmentsForProject(selectedProjectId);
-      departmentOptions = '<option value="">-- Select department --</option>' +
+      departmentOptions = '<option value="">-- Select functional area --</option>' +
         depts.map(d =>
           `<option value="${d.DepartmentName}" ${existingData?.Department === d.DepartmentName ? 'selected' : ''}>${d.DepartmentName}</option>`
         ).join('');
@@ -206,7 +206,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             </select>
           </div>
           <div class="form-group">
-            <label>Department</label>
+            <label>Functional Area</label>
             <select name="Department" id="role-department-select">
               ${departmentOptions}
             </select>
@@ -278,9 +278,9 @@ async function loadDepartmentsForRole(projectId) {
   try {
     const depts = await getDepartmentsForProject(projectId);
     if (depts.length === 0) {
-      select.innerHTML = '<option value="">-- No departments found --</option>';
+      select.innerHTML = '<option value="">-- No functional areas found --</option>';
     } else {
-      select.innerHTML = '<option value="">-- Select department --</option>' +
+      select.innerHTML = '<option value="">-- Select functional area --</option>' +
         depts.map(d =>
           `<option value="${d.DepartmentName}">${d.DepartmentName}</option>`
         ).join('');

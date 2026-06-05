@@ -196,10 +196,11 @@ async function getDepartments(projectId) {
 // 3. Check UserAssignments list
 // 4. Fall back to 'viewer'
 async function getEffectiveRole(email) {
-  const lower = email.toLowerCase();
+  // Ghost mode — admin testing a different role profile
+  const ghost = getGhostRole();
+  if (ghost) return ghost;
 
-  // Return cached role if available — role doesn't change during a session.
-  // Cache is cleared on sign-out via signOut() in auth.js.
+  const lower = email.toLowerCase();
   const cacheKey = 'newton_role_' + lower;
   const cached = sessionStorage.getItem(cacheKey);
   if (cached) return cached;

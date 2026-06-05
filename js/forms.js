@@ -280,7 +280,6 @@ async function submitRoleForm(event, editId = null) {
     HiringManager:  data.HiringManager || undefined,
     TalentPartner:  data.TalentPartnerName || undefined,
     Budget:         data.Budget ? parseFloat(data.Budget) : undefined,
-    Currency:       CONFIG.COUNTRY_CURRENCY[data.Location] || undefined,
     Location:       data.Location || undefined,
     Priority:       data.Priority ? parseInt(data.Priority) : undefined,
     Backfill:       data.Backfill === 'Yes' ? true : data.Backfill === 'No' ? false : undefined,

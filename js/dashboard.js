@@ -503,11 +503,7 @@ async function renderProjectDashboard() {
   }
   const { roles, activity, placements, rejections, tpMap } = await fetchDashboardData(projectId, role);
   // Cache for period filter updates (avoids full re-fetch on filter change)
-  window._lastDashRoles      = roles;
-  window._lastDashActivity   = activity;
-  window._lastDashPlacements = placements;
-  window._lastDashRejections = rejections;
-  window._lastDashTpMap      = tpMap;
+  window._dashCache = { roles, activity, placements, rejections, tpMap };
   const kpiPeriods      = [['month','Month'],['quarter','Quarter'],['year','Year']];
   const kpiBtns         = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
   const kpis            = renderKPIStrip(roles, activity, _dashPeriod);
@@ -550,27 +546,28 @@ function changeDashProject(id) { _dashProjectId = String(id); renderProjectDashb
 function setDashPeriod(period) {
   _dashPeriod = period;
   const el = document.getElementById('proj-kpi-area');
-  if (el && window._lastDashRoles && window._lastDashActivity) {
-    el.innerHTML = renderKPIStrip(window._lastDashRoles, window._lastDashActivity, _dashPeriod);
-    const btnsEl = document.getElementById('proj-kpi-btns');
-    if (btnsEl) btnsEl.innerHTML = periodButtons([['month','Month'],['quarter','Quarter'],['year','Year']], _dashPeriod, 'setDashPeriod');
-  } else {
+  if (el && window._dashCache) {
+  el.innerHTML = renderKPIStrip(window._dashCache.roles, window._dashCache.activity, _dashPeriod);
+  const btnsEl = document.getElementById('proj-kpi-btns');
+  if (btnsEl) btnsEl.innerHTML = periodButtons([['month','Month'],['quarter','Quarter'],['year','Year']], _dashPeriod, 'setDashPeriod');
+} else {
     renderProjectDashboard();
   }
 }
 function setDetailPeriod(period) {
   _dashDetailPeriod = period;
   const el = document.getElementById('proj-detail-grid');
-  if (el && window._lastDashRoles && window._lastDashActivity) {
-    const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole);
-    el.innerHTML =
-      renderPlacementsPanel(window._lastDashPlacements, window._lastDashRoles, _dashDetailPeriod) +
-      renderPipelineActivityTable(window._lastDashActivity, window._lastDashRoles, _dashDetailPeriod) +
-      (isDMAdmin ? renderActivityByTPPanel(window._lastDashActivity, _dashDetailPeriod, window._lastDashTpMap) : '') +
-      (isDMAdmin ? renderRejectionPanel(window._lastDashRejections, window._lastDashRoles, _dashDetailPeriod) : '') +
-      (isDMAdmin ? renderUpcomingStartersPanel(window._lastDashPlacements, window._lastDashRoles) : '') +
-      (isDMAdmin ? renderSpendPanel(window._lastDashRoles, window._lastDashPlacements) : '');
-  } else {
+  if (el && window._dashCache) {
+  const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole);
+  const c = window._dashCache;
+  el.innerHTML =
+    renderPlacementsPanel(c.placements, c.roles, _dashDetailPeriod) +
+    renderPipelineActivityTable(c.activity, c.roles, _dashDetailPeriod) +
+    (isDMAdmin ? renderActivityByTPPanel(c.activity, _dashDetailPeriod, c.tpMap) : '') +
+    (isDMAdmin ? renderRejectionPanel(c.rejections, c.roles, _dashDetailPeriod) : '') +
+    (isDMAdmin ? renderUpcomingStartersPanel(c.placements, c.roles) : '') +
+    (isDMAdmin ? renderSpendPanel(c.roles, c.placements) : '');
+} else {
     renderProjectDashboard();
   }
 }
@@ -743,12 +740,7 @@ async function renderCompanyDashboard() {
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
   // Cache for period filter updates
-  window._lastCoProjects       = allProjects;
-  window._lastCoRoles          = allRoles;
-  window._lastCoActivity       = allActivity;
-  window._lastCoProjectMap     = projectMap;
-  window._lastCoRoleProjectMap = roleProjectMap;
-  window._lastCoTpMap          = tpMap;
+  window._coCache = { projects: allProjects, roles: allRoles, activity: allActivity, projectMap, roleProjectMap, tpMap };
   const kpiPeriods = [['month','Month'],['quarter','Quarter'],['year','Year']];
   const kpiBtns    = periodButtons(kpiPeriods, _companyPeriod, 'setCompanyPeriod');
   const kpis     = renderCompanyKPIStrip(allRoles, allActivity, allProjects, _companyPeriod);
@@ -775,23 +767,25 @@ async function renderCompanyDashboard() {
 function setCompanyPeriod(period) {
   _companyPeriod = period;
   const el = document.getElementById('co-kpi-area');
-  if (el && window._lastCoRoles) {
-    el.innerHTML = renderCompanyKPIStrip(window._lastCoRoles, window._lastCoActivity, window._lastCoProjects, _companyPeriod);
-    const btnsEl = document.getElementById('co-kpi-btns');
-    if (btnsEl) btnsEl.innerHTML = periodButtons([['month','Month'],['quarter','Quarter'],['year','Year']], _companyPeriod, 'setCompanyPeriod');
-  } else {
+  if (el && window._coCache) {
+  const c = window._coCache;
+  el.innerHTML = renderCompanyKPIStrip(c.roles, c.activity, c.projects, _companyPeriod);
+  const btnsEl = document.getElementById('co-kpi-btns');
+  if (btnsEl) btnsEl.innerHTML = periodButtons([['month','Month'],['quarter','Quarter'],['year','Year']], _companyPeriod, 'setCompanyPeriod');
+} else {
     renderCompanyDashboard();
   }
 }
 function setCompanyDetailPeriod(period) {
   _companyDetailPeriod = period;
   const el = document.getElementById('co-detail-grid');
-  if (el && window._lastCoActivity) {
-    el.innerHTML = renderCompanyTPPanel(
-      window._lastCoActivity, window._lastCoProjectMap,
-      window._lastCoRoleProjectMap, _companyDetailPeriod, window._lastCoTpMap
-    );
-  } else {
+  if (el && window._coCache) {
+  const c = window._coCache;
+  el.innerHTML = renderCompanyTPPanel(
+    c.activity, c.projectMap,
+    c.roleProjectMap, _companyDetailPeriod, c.tpMap
+  );
+} else {
     renderCompanyDashboard();
   }
 }

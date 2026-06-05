@@ -733,9 +733,16 @@ body {
   font-size: 13px;
   font-weight: 500;
   padding: 8px 16px;
+  height: 40px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 16px;
+}
+/* Push the app shell down when ghost banner is active */
+#app-shell.ghost-active {
+  margin-top: 40px;
+  height: calc(100vh - 40px);
 }
 #ghost-banner button {
   background: white;

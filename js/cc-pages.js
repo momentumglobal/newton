@@ -33,9 +33,9 @@ function ccTileHTML(id, title, rag, statsHTML) {
   return `
     <div class="cc-tile cc-tile--${rag}" data-tile="${id}">
       <button class="cc-close" onclick="event.stopPropagation(); collapseTile(this.closest('.cc-grid'))">✕</button>
-      <div class="cc-rag-pill cc-rag-pill--${rag}">${rag.toUpperCase()}</div>
-      <div class="cc-tile__title">${title}</div>
-      <div class="cc-tile__stats">${statsHTML}</div>
+      <div class="cc-rag-pill cc-rag-pill--${rag}" style="margin-bottom:12px">${rag.toUpperCase()}</div>
+      <div class="cc-tile__title" style="font-size:20px;font-weight:600;margin-bottom:8px;color:#1a1a2e">${title}</div>
+      <div class="cc-tile__stats" style="font-size:14px;color:#444">${statsHTML}</div>
       <div class="cc-tile__detail" style="display:none"></div>
     </div>`;
 }
@@ -77,7 +77,7 @@ function ccHealthStats(roles, activity) {
     const acts = activity.filter(a => String(a.RoleIDLookupId) === String(role.id));
     return isRoleFlagged(role, acts);
   }).length;
-  return `<div>${open.length} open roles</div><div>${flagged} flagged</div>`;
+  return `${open.length} open roles · ${flagged} flagged`;
 }
 
 function ccPeopleStats(roles, activity, historical) {

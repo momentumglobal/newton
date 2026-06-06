@@ -14,7 +14,7 @@ window.PEOPLE_APP = {
 
     // People module is Admin and Leadership only.
     // Anyone else who lands here gets redirected to the Reporting module.
-    if (!['admin', 'leadership'].includes(_resolvedRole)) {
+    if (!['admin', 'leadership', 'delivery_manager'].includes(_resolvedRole)) {
       window.location.href = 'index.html';
       return;
     }
@@ -26,7 +26,8 @@ window.PEOPLE_APP = {
     document.getElementById('login-screen').style.display = 'none';
 
     renderPeopleNav(_resolvedRole);
-    navigateToPeople('peopleDashboard');
+    const landing = _resolvedRole === 'delivery_manager' ? 'scorecards' : 'peopleDashboard';
+    navigateToPeople(landing);
   },
 
   showLogin() {

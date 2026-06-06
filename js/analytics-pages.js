@@ -57,10 +57,16 @@ function renderScorecardPanel(scorecard, tpMap = {}) {
     </tr>`;
   }).join('');
 
+  const ragOrder = ['red','amber','green','grey'];
+  const overallRag = scorecard.metrics
+    .filter(m => !m.informational)
+    .map(m => m.rag)
+    .sort((a, b) => ragOrder.indexOf(a) - ragOrder.indexOf(b))[0] || 'grey';
+
   return `<div class='dash-panel sc-card'>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
       <h3 class='panel-title sc-tp-name' style="margin-bottom:0">${displayName}</h3>
-      <span class="sc-rag-pill sc-rag-pill--${scorecard.rag}">${scorecard.rag.toUpperCase()}</span>
+      <span class="sc-rag-pill sc-rag-pill--${overallRag}">${overallRag.toUpperCase()}</span>
     </div>
     <p class='sc-window'>Rolling Quarterly View</p>
     <table class='sc-table'><tbody>${rows}</tbody></table>

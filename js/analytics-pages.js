@@ -7,10 +7,11 @@ async function renderScorecardsPage() {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading scorecards...</p>';
 
-  const [activityRaw, historical, tpMap] = await Promise.all([
+  const [activityRaw, historical, tpMap, allRoles] = await Promise.all([
     getActivityForAnalytics(13),
     getHistoricalPlacements(),
     getTalentPartnerDisplayMap(),
+    getAllRoles(),
   ]);
 
   // Get unique TP emails from activity
@@ -31,11 +32,29 @@ async function renderScorecardsPage() {
     r.placementDate && new Date(r.placementDate) >= cutoff
   );
 
+  const CC_EXCLUDED = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled'];
+  const today = new Date();
+  const stageOrder = ['Sourcing', 'Interview 1', 'Interview 2+', 'Final Interview'];
+
   const cards = tpEmails.map(tpEmail => {
     const tpActivity   = activityRaw.filter(a => a.TalentPartner === tpEmail);
     const tpPlacements = recentPlacements.filter(r => r.tpEmail === tpEmail);
     const scorecard    = computeVelocityScore(tpEmail, tpActivity, tpPlacements, benchmarks);
-    return renderScorecardPanel(scorecard, tpMap);
+    const tpRoles      = allRoles.filter(r => !CC_EXCLUDED.includes(r.Stage) && r.TalentPartner && r.TalentPartner.toLowerCase() === tpEmail.toLowerCase());
+    const flaggedRoles = tpRoles.filter(r => {
+      const days = r.OpenDate ? Math.floor((today - new Date(r.OpenDate)) / 86400000) : 0;
+      const idx  = stageOrder.indexOf(r.Stage);
+      if (days >= 15 && idx < 0) return true;
+      if (days >= 25 && idx < 1) return true;
+      if (days >= 35 && idx < 2) return true;
+      if (days >= 40 && idx < 3) return true;
+      return false;
+    }).length;
+    const flaggedPct = tpRoles.length ? flaggedRoles / tpRoles.length : null;
+    const flaggedRag = flaggedPct === null ? 'grey'
+      : flaggedPct < 0.25 ? 'green'
+      : flaggedPct <= 0.50 ? 'amber' : 'red';
+    return renderScorecardPanel(scorecard, tpMap, { total: tpRoles.length, flagged: flaggedRoles, rag: flaggedRag });
   }).join('');
 
   main.innerHTML = `

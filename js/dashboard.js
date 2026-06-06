@@ -576,6 +576,7 @@ async function renderProjectDashboard() {
   const { roles, activity, placements, rejections, tpMap } = await fetchDashboardData(projectId, role);
   console.log('roles sample:', JSON.stringify(roles[0]));               // TEMP DEBUG
   console.log('role id check:', roles[0].id, roles[0].Id, roles[0].ID); // TEMP DEBUG
+  console.log('activity sample:', JSON.stringify(analyticsActs[0]));    // TEMP DEBUG
   const historical     = await getHistoricalPlacements();
   const analyticsActs  = await getActivityForAnalytics(52);
   // Cache for period filter updates (avoids full re-fetch on filter change)

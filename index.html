@@ -268,14 +268,15 @@ function ccBadgeHTML(rag, label) {
 }
 
 async function refreshCCBanner() {
-  const [roles, acts4, acts13, forecasts, assigns] = await Promise.all([
+  const [roles, acts4, acts13, forecasts, assigns, people] = await Promise.all([
     getAllRoles(),
     getActivityForAnalytics(4),
     getActivityForAnalytics(13),
     getItems('SalesForecasts'),
-    getItems('Assignments')
+    getItems('Assignments'),
+    getPeople(false)
   ]);
-
+  
   // Project Health RAG
   const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
   const flagged = open.filter(role => {

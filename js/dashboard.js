@@ -214,7 +214,7 @@ function renderPipelineActivityTable(acts, roles, period) {
   const filtered = acts.filter(a => activityInDetailPeriod(a, period));
   const FIELDS   = ['Outreach','Responses','Screened','Submitted','Interview1','Interview2Plus','FinalInterview','Offers','Hires'];
   const LABELS   = ['Outreach','Responses','Screened','Submitted','IV1','IV2+','Final IV','Offers','Hires'];
-  const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), r.RoleTitle]));
+  const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   const byRole = {};
   filtered.forEach(a => {
     const rid = String(a.RoleIDLookupId || a.RoleID || '');
@@ -285,7 +285,7 @@ function renderRejectionPanel(rejections, roles, period) {
 }
 // ── Upcoming Starters ─────────────────────────────────────────────────
 function renderUpcomingStartersPanel(placements, roles) {
-  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), r.RoleTitle]));
+  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   const today   = new Date(); today.setHours(0,0,0,0);
   const upcoming = placements
     .filter(p => p.ProvisionalStartDate && new Date(p.ProvisionalStartDate) >= today)
@@ -400,7 +400,7 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
     const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
     const rowClass = days >= 45 ? 'row-age-critical' : 'row-age-warning';
     return `<tr class="${rowClass}">
-     <td>${r.RoleTitle}</td>
+     <td>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</td>
      <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || '—'}</td>
      <td><span class='badge'>${r.Stage}</span></td>
      <td>${days} days</td>
@@ -430,7 +430,7 @@ function renderRoleTrackerPanel(roles) {
       ? Math.floor((today - new Date(r.OpenDate)) / 86400000)
       : null;
     return `<tr>
-      <td>${r.RoleTitle}</td>
+      <td>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</td>
       <td>${r.HiringManager || '—'}</td>
       <td><span class='badge'>${r.Stage || '—'}</span></td>
       <td>${r.OpenDate ? r.OpenDate.split('T')[0] : '—'}</td>
@@ -447,7 +447,7 @@ function renderRoleTrackerPanel(roles) {
 }
 // ── Placements panel (project-scoped, period-filtered) ────────────────
 function renderPlacementsPanel(placements, roles, period) {
-  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), r.RoleTitle]));
+  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   const { start, end } = getDetailPeriodRange(period);
   const filtered = placements.filter(p => {
     if (!p.OfferAcceptedDate) return false;
@@ -522,7 +522,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     }).join('');
 
     return `<tr>
-      <td class='ra-role'>${role.RoleTitle || role.LinkTitle || '—'}</td>
+      <td class='ra-role'>${role.Location ? `${role.RoleTitle || role.LinkTitle} (${role.Location})` : (role.RoleTitle || role.LinkTitle || '—')}</td>
       <td class='ra-tp'>${tpMap[(role.TalentPartner || '').toLowerCase()] || role.TalentPartner || '—'}</td>
       ${ttfCell}${flagCells}
     </tr>`;
@@ -756,7 +756,7 @@ function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}) {
      : '';
     return `<tr class="${rowClass}">
      <td>${proj}</td>
-     <td>${r.RoleTitle}</td>
+     <td>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</td>
      <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || '—'}</td>
      <td><span class='badge'>${r.Stage}</span></td>
      <td>${days} days</td>

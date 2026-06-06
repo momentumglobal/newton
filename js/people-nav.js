@@ -42,6 +42,7 @@ async function renderPeoplePage(page) {
     case 'peopleDashboard': await renderPeopleDashboard();    break;
     case 'peopleGantt':     await renderDeploymentTimeline(); break;
     case 'gpInvoices':      await renderGPInvoices();         break;
+    case 'scorecards':      await renderScorecardsPage();     break;
     default:
       main.innerHTML = '<p>Page not found.</p>';
   }

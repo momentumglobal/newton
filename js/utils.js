@@ -84,6 +84,11 @@ function daysOpen(openDate, hireDate) {
   return Math.floor((end - start) / (1000 * 60 * 60 * 24));
 }
 
+// ── Activity field summation ─────────────────────────────────────────
+function sumField(acts, field) {
+  return acts.reduce((s, a) => s + (Number(a[field]) || 0), 0);
+}
+
 // ── Ghost / impersonation mode ────────────────────────────────────────
 // Admin-only. Temporarily overrides the resolved role for testing.
 // Stored in sessionStorage — cleared on sign-out or by clearGhostRole().

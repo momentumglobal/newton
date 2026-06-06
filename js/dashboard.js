@@ -106,9 +106,6 @@ async function fetchDashboardData(projectId, role) {
   };
 }
 // ── Calculation helpers ───────────────────────────────────────────────
-function sumField(acts, field) {
-  return acts.reduce((s, a) => s + (Number(a[field]) || 0), 0);
-}
 function avgDaysToHire(roles) {
   const hired = roles.filter(r => r.ActualHireDate && r.OpenDate);
   if (!hired.length) return null;
@@ -217,7 +214,7 @@ function renderPipelineActivityTable(acts, roles, period) {
   const filtered = acts.filter(a => activityInDetailPeriod(a, period));
   const FIELDS   = ['Outreach','Responses','Screened','Submitted','Interview1','Interview2Plus','FinalInterview','Offers','Hires'];
   const LABELS   = ['Outreach','Responses','Screened','Submitted','IV1','IV2+','Final IV','Offers','Hires'];
-  const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), r.RoleTitle]));
+  const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   const byRole = {};
   filtered.forEach(a => {
     const rid = String(a.RoleIDLookupId || a.RoleID || '');
@@ -288,7 +285,7 @@ function renderRejectionPanel(rejections, roles, period) {
 }
 // ── Upcoming Starters ─────────────────────────────────────────────────
 function renderUpcomingStartersPanel(placements, roles) {
-  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), r.RoleTitle]));
+  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   const today   = new Date(); today.setHours(0,0,0,0);
   const upcoming = placements
     .filter(p => p.ProvisionalStartDate && new Date(p.ProvisionalStartDate) >= today)
@@ -403,7 +400,7 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
     const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
     const rowClass = days >= 45 ? 'row-age-critical' : 'row-age-warning';
     return `<tr class="${rowClass}">
-     <td>${r.RoleTitle}</td>
+     <td>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</td>
      <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || '—'}</td>
      <td><span class='badge'>${r.Stage}</span></td>
      <td>${days} days</td>
@@ -433,7 +430,7 @@ function renderRoleTrackerPanel(roles) {
       ? Math.floor((today - new Date(r.OpenDate)) / 86400000)
       : null;
     return `<tr>
-      <td>${r.RoleTitle}</td>
+      <td>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</td>
       <td>${r.HiringManager || '—'}</td>
       <td><span class='badge'>${r.Stage || '—'}</span></td>
       <td>${r.OpenDate ? r.OpenDate.split('T')[0] : '—'}</td>
@@ -450,7 +447,7 @@ function renderRoleTrackerPanel(roles) {
 }
 // ── Placements panel (project-scoped, period-filtered) ────────────────
 function renderPlacementsPanel(placements, roles, period) {
-  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), r.RoleTitle]));
+  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   const { start, end } = getDetailPeriodRange(period);
   const filtered = placements.filter(p => {
     if (!p.OfferAcceptedDate) return false;
@@ -477,6 +474,77 @@ function renderPlacementsPanel(placements, roles, period) {
     </table>
   </div>`;
 }
+
+// ── Role Analytics panel (Phase A + B) ───────────────────────────────
+
+async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {}) {
+  const b = CONFIG.ANALYTICS_BENCHMARKS;
+  const EXCLUDED = ['Backlog', 'Cancelled', 'On-hold'];
+  const activeRoles = roles.filter(r => !EXCLUDED.includes(r.Stage));
+
+  if (!activeRoles.length) {
+    return `<div class='dash-panel'>
+      <h3 class='panel-title'>Role Analytics</h3>
+      <p class='no-data'>No roles to display.</p>
+    </div>`;
+  }
+
+  const rows = activeRoles.map(role => {
+    const acts = activity.filter(a => String(a.RoleIDLookupId) === String(role.id));
+    const totals = {};
+    ['Outreach','Responses','Screened','Submitted',
+     'Interview1','Interview2Plus','FinalInterview',
+     'Offers','Hires'].forEach(f => {
+      totals[f] = sumField(acts, f);
+    });
+
+    const funnel = computeRoleFunnel(totals, b);
+    const ttf    = computeTTFPrediction(
+      role.Department, role.Currency, historical);
+
+    const flags = funnel.filter(s => s.benchmarked).map(s => s.rag);
+    const worst = flags.includes('red') ? 'red'
+      : flags.includes('amber') ? 'amber' : 'green';
+
+    return { role, funnel, ttf, worst };
+  });
+
+  const order = { red: 0, amber: 1, green: 2 };
+  rows.sort((a, b) => order[a.worst] - order[b.worst]);
+
+  const tableRows = rows.map(({ role, funnel, ttf }) => {
+    const ttfClass = ttf.sampleSize >= 3 ? 'ttf-badge' : 'ttf-badge ttf-badge--low-data';
+    const ttfCell  = `<td class='ra-ttf' style="text-align:center"><span class='${ttfClass}'>${ttf.label}</span></td>`;
+
+    const flagCells = funnel.filter(s => s.benchmarked).map(s => {
+      const label = s.conv !== null ? `${s.conv}%` : '—';
+      return `<td class='ra-cell ra-${s.rag}'><strong>${label}</strong></td>`;
+    }).join('');
+
+    return `<tr>
+      <td class='ra-role'>${role.Location ? `${role.RoleTitle || role.LinkTitle} (${role.Location})` : (role.RoleTitle || role.LinkTitle || '—')}</td>
+      <td class='ra-tp'>${tpMap[(role.TalentPartner || '').toLowerCase()] || role.TalentPartner || '—'}</td>
+      ${ttfCell}${flagCells}
+    </tr>`;
+  }).join('');
+
+  return `<div class='dash-panel'>
+    <h3 class='panel-title'>Role Analytics</h3>
+    <table class='data-table ra-table'>
+      <thead><tr>
+        <th>Role</th>
+        <th>Talent Partner</th>
+        <th style="text-align:center">Time to Hire Prediction</th>
+        <th style="text-align:center">Response</th>
+        <th style="text-align:center">Submission Conv.</th>
+        <th style="text-align:center">IV→Offer</th>
+        <th style="text-align:center">Offer Success</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>`;
+}
+
 // ── Main renderer ─────────────────────────────────────────────────────
 async function renderProjectDashboard() {
   const main = document.getElementById('main-content');
@@ -506,8 +574,12 @@ async function renderProjectDashboard() {
     return;
   }
   const { roles, activity, placements, rejections, tpMap } = await fetchDashboardData(projectId, role);
+  const historical     = await getHistoricalPlacements();
+  const analyticsActs  = await getActivityForAnalytics(52);
+
   // Cache for period filter updates (avoids full re-fetch on filter change)
-  window._dashCache = { roles, activity, placements, rejections, tpMap };
+  window._dashCache = { roles, activity, placements, rejections, tpMap, analyticsActs, historical };
+  const roleAnalytics   = await renderRoleAnalyticsPanel(roles, analyticsActs, historical, tpMap);
   const kpiPeriods      = [['month','Month'],['quarter','Quarter'],['year','Year']];
   const kpiBtns         = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
   const kpis            = renderKPIStrip(roles, activity, _dashPeriod);
@@ -540,6 +612,7 @@ async function renderProjectDashboard() {
     <div id='proj-detail-grid' class='dash-grid'>
       ${placementsPanel}
       ${pipelineAct}
+      ${roleAnalytics}
       ${tpTable}
       ${rejPanel}
       ${starters}
@@ -564,13 +637,20 @@ function setDetailPeriod(period) {
   if (el && window._dashCache) {
   const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole);
   const c = window._dashCache;
+  const roleAnalyticsPlaceholder = `<div id='role-analytics-placeholder'></div>`;
   el.innerHTML =
     renderPlacementsPanel(c.placements, c.roles, _dashDetailPeriod) +
     renderPipelineActivityTable(c.activity, c.roles, _dashDetailPeriod) +
+    roleAnalyticsPlaceholder +
     (isDMAdmin ? renderActivityByTPPanel(c.activity, _dashDetailPeriod, c.tpMap) : '') +
     (isDMAdmin ? renderRejectionPanel(c.rejections, c.roles, _dashDetailPeriod) : '') +
     (isDMAdmin ? renderUpcomingStartersPanel(c.placements, c.roles) : '') +
     (isDMAdmin ? renderSpendPanel(c.roles, c.placements) : '');
+  renderRoleAnalyticsPanel(c.roles, c.analyticsActs, c.historical, c.tpMap)
+    .then(html => {
+      const ph = document.getElementById('role-analytics-placeholder');
+      if (ph) ph.outerHTML = html;
+    });
 } else {
     renderProjectDashboard();
   }
@@ -676,7 +756,7 @@ function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}) {
      : '';
     return `<tr class="${rowClass}">
      <td>${proj}</td>
-     <td>${r.RoleTitle}</td>
+     <td>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</td>
      <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || '—'}</td>
      <td><span class='badge'>${r.Stage}</span></td>
      <td>${days} days</td>

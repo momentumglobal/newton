@@ -32,6 +32,15 @@ const CONFIG = {
     "Tunisia":         "TND",
     "Romania":         "RON",
   },
+
+  ANALYTICS_BENCHMARKS: {
+  outreachConversion:   0.25,  // 25% — Outreach → Response
+  submissionConversion: 0.80,  // 80% — Submitted → Interview 1
+  interviewToOffer:     0.20,  // 20% (5:1) — Interview 1 → Offer
+  offerSuccess:         0.80,  // 80% — Offer → Hire
+  timeToHireDays:       45,    // 45 days
+  flagThreshold:        0.80,  // flag at 80% of benchmark
+},
   
   // Single source of truth for the module switcher dropdown.
   // To add a new module, add it here only — all nav files reference this.

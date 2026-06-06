@@ -142,6 +142,34 @@ async function getAllRoles() {
   return getItems("Roles");
 }
 
+async function getHistoricalPlacements() {
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 1);
+  const roles = await getItems('Roles',
+    `fields/Stage eq 'Placed' and fields/ActualHireDate ge '${cutoff.toISOString().split('T')[0]}'`,
+    'Id,Title,Department,Currency,OpenDate,ActualHireDate'
+  );
+  return roles.map(r => ({
+    id:            r.Id,
+    title:         r.Title,
+    functionArea:  r.Department,
+    country:       r.Currency,
+    openDate:      r.OpenDate,
+    placementDate: r.ActualHireDate,
+  }));
+}
+
+async function getActivityForAnalytics(weeksBack) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - (weeksBack * 7));
+  const isoDate = cutoff.toISOString().split('T')[0];
+  const activity = await getItems('WeeklyActivity',
+    `fields/WeekEndingDate ge '${isoDate}'`,
+    'Id,RoleID,WeekEndingDate,Outreach,Responses,Screened,Submitted,Interview1,Interview2Plus,FinalInterview,Offers,Hires'
+  );
+  return activity;
+}
+
 async function getWeeklyActivity(projectId, roleId) {
   let filter = "";
   if (projectId) filter = `fields/ProjectID eq ${projectId}`;

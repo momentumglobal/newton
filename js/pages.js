@@ -146,7 +146,7 @@ async function renderRolesPage(filter) {
     </div>
     <table class="data-table">
       <thead><tr>
-        <th>Project</th><th>Role</th><th>Stage</th><th>Talent Partner</th>
+        <th>Project</th><th>Role</th><th>Location</th><th>Stage</th><th>Talent Partner</th>
         <th>Budget</th><th>Open Date</th><th>Target Hire Date</th><th>Days Open</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
@@ -158,6 +158,7 @@ async function renderRolesPage(filter) {
           <tr class="${rowClass}">
             <td>${projectName}</td>
             <td>${r.RoleTitle}</td>
+            <td>${r.Location || '—'}</td>
             <td><span class="badge">${r.Stage || "—"}</span></td>
             <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || "—"}</td>
             <td>${formatSalary(r.Budget)}</td>
@@ -195,7 +196,7 @@ async function renderActivityPage() {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
-  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.RoleTitle]));
+  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   activity.sort((a, b) => {
     const yr = Number(b.Year) - Number(a.Year);
     if (yr !== 0) return yr;
@@ -316,7 +317,7 @@ async function renderPlacementsPage() {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
-  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.RoleTitle]));
+  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   allPlacements.sort((a, b) =>
     new Date(b.OfferAcceptedDate || 0) - new Date(a.OfferAcceptedDate || 0)
   );
@@ -412,7 +413,7 @@ async function renderRejectionsPage() {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
-  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.RoleTitle]));
+  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   rejections.sort((a, b) => {
     const rA = roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || '';
     const rB = roleMap[String(b.RoleIDLookupId)] || roleMap[String(b.RoleID)] || '';

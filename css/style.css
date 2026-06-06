@@ -757,3 +757,72 @@ body {
 #ghost-banner button:hover {
   background: #fff3e0;
 }
+
+/* ── Predictive Analytics — TTF badge ── */
+.ttf-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: #D5E8F0;
+  color: #1F4E79;
+  margin-top: 4px;
+}
+.ttf-badge--low-data {
+  background: #F2F2F2;
+  color: #888;
+}
+
+/* ── Role Analytics panel ── */
+.ra-table td {
+  vertical-align: middle;
+}
+.ra-role { font-weight: 500; }
+.ra-tp   { color: #666; font-size: 12px; }
+.ra-ttf  { white-space: nowrap; }
+.ra-cell { text-align: center; font-size: 12px; line-height: 1.3; }
+.ra-green { background: #E8F5E9; color: #2E7D32; }
+.ra-amber { background: #FFF8E1; color: #F57F17; }
+.ra-red   { background: #FFEBEE; color: #C62828; }
+.ra-grey  { background: #F5F5F5; color: #9E9E9E; }
+
+/* ── People Scorecards ── */
+.scorecard-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 16px;
+}
+.sc-card {
+  flex: 1 1 280px;
+  max-width: 360px;
+}
+.sc-tp-name {
+  font-size: 14px;
+  word-break: break-all;
+}
+.sc-window {
+  font-size: 12px;
+  color: #888;
+  margin: -8px 0 12px;
+}
+.sc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.sc-table td {
+  padding: 5px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.sc-label { color: #555; }
+.sc-value {
+  text-align: right;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.sc-green { background: #E8F5E9; color: #2E7D32; }
+.sc-amber { background: #FFF8E1; color: #F57F17; }
+.sc-red   { background: #FFEBEE; color: #C62828; }
+.sc-grey  { background: #F5F5F5; color: #9E9E9E; }

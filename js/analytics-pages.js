@@ -65,22 +65,25 @@ async function renderScorecardsPage() {
     <div class='scorecard-grid'>${cards}</div>`;
 }
 
-function renderScorecardPanel(scorecard, tpMap = {}) {
+function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null) {
   const displayName = tpMap[scorecard.tpEmail.toLowerCase()] || scorecard.tpEmail;
+  const overallRag  = roleHealth ? roleHealth.rag : 'grey';
+
+  const healthRow = roleHealth ? (() => {
+    const display = roleHealth.total > 0 ? `${roleHealth.flagged}/${roleHealth.total}` : '—';
+    return `<tr>
+      <td class='sc-label'>Flagged roles</td>
+      <td class='sc-value sc-${roleHealth.rag}' style="text-align:center">${display}</td>
+    </tr>`;
+  })() : '';
+
   const rows = scorecard.metrics.map(m => {
     const display = m.value !== null ? `${m.value}${m.unit === '%' ? '%' : ' ' + m.unit}` : '—';
-    const ragClass = m.informational ? 'sc-grey' : `sc-${m.rag}`;
     return `<tr>
       <td class='sc-label'>${m.label}</td>
-      <td class='sc-value ${ragClass}' style="text-align:center">${display}</td>
+      <td class='sc-value sc-grey' style="text-align:center">${display}</td>
     </tr>`;
   }).join('');
-
-  const ragOrder = ['red','amber','green','grey'];
-  const overallRag = scorecard.metrics
-    .filter(m => !m.informational)
-    .map(m => m.rag)
-    .sort((a, b) => ragOrder.indexOf(a) - ragOrder.indexOf(b))[0] || 'grey';
 
   return `<div class='dash-panel sc-card'>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
@@ -88,6 +91,6 @@ function renderScorecardPanel(scorecard, tpMap = {}) {
       <span class="sc-rag-pill sc-rag-pill--${overallRag}">${overallRag.toUpperCase()}</span>
     </div>
     <p class='sc-window'>Rolling Quarterly View</p>
-    <table class='sc-table'><tbody>${rows}</tbody></table>
+    <table class='sc-table'><tbody>${healthRow}${rows}</tbody></table>
   </div>`;
 }

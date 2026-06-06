@@ -104,3 +104,21 @@ function computeVelocityScore(tpEmail, activity, placements, benchmarks) {
     ],
   };
 }
+
+// ── Role flag helpers (shared by cc-pages.js and analytics-pages.js) ──
+const ACTIVE_STAGES = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled'];
+const STAGE_ORDER   = ['Sourcing', 'Interview 1', 'Interview 2+', 'Final Interview'];
+
+function isRoleFlagged(role, activity) {
+  const today = new Date();
+  const days = role.OpenDate ? Math.floor((today - new Date(role.OpenDate)) / 86400000) : 0;
+  const idx  = STAGE_ORDER.indexOf(role.Stage);
+  if (days >= 15 && idx < 0) return true;
+  if (days >= 25 && idx < 1) return true;
+  if (days >= 35 && idx < 2) return true;
+  if (days >= 40 && idx < 3) return true;
+  const submitted = sumField(activity, 'Submitted');
+  const iv1       = sumField(activity, 'Interview1');
+  if (submitted > 0 && (iv1 / submitted) < 0.50) return true;
+  return false;
+}

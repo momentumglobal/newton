@@ -514,7 +514,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
 
   const tableRows = rows.map(({ role, funnel, ttf }) => {
     const ttfClass = ttf.sampleSize >= 3 ? 'ttf-badge' : 'ttf-badge ttf-badge--low-data';
-    const ttfCell  = `<td class='ra-ttf'><span class='${ttfClass}'>${ttf.label}</span></td>`;
+    const ttfCell  = `<td class='ra-ttf' style="text-align:center"><span class='${ttfClass}'>${ttf.label}</span></td>`;
 
     const flagCells = funnel.filter(s => s.benchmarked).map(s => {
       const label = s.conv !== null ? `${s.conv}%` : '—';
@@ -530,11 +530,15 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
 
   return `<div class='dash-panel'>
     <h3 class='panel-title'>Role Analytics</h3>
-    <table class='ra-table'>
+    class='data-table ra-table'
       <thead><tr>
-        <th>Role</th><th>TP</th><th>TTF</th>
-        <th>Response</th><th>IV1 Conv.</th>
-        <th>IV→Offer</th><th>Offer Success</th>
+        <th>Role</th>
+        <th>Talent Partner</th>
+        <th style="text-align:center">Time to Hire Prediction</th>
+        <th style="text-align:center">Response</th>
+        <th style="text-align:center">Submission Conv.</th>
+        <th style="text-align:center">IV→Offer</th>
+        <th style="text-align:center">Offer Success</th>
       </tr></thead>
       <tbody>${tableRows}</tbody>
     </table>

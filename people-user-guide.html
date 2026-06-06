@@ -141,6 +141,7 @@
       <li><a href="#employee-tracker">Employee Tracker</a></li>
       <li><a href="#deployment-timeline">Deployment Timeline</a></li>
       <li><a href="#gp-invoices">G-P Invoices</a></li>
+      <li><a href="#scorecards">Scorecards</a></li>
       <li><div class="nav-section-label">Newton OS</div></li>
       <li><a href="#homepage-admin">Homepage Admin</a></li>
     </ul>
@@ -152,7 +153,7 @@
       <h2>Frequently Asked Questions</h2>
       <div class="faq-item">
         <div class="faq-q">Who can access the People module?</div>
-        <div class="faq-a">The People module is restricted to Admin and Leadership roles. Delivery Managers and Talent Partners do not have access.</div>
+        <div class="faq-a">Admin and Leadership have full access to all pages. Delivery Managers can access the People module but are limited to the Scorecards page — they land there automatically on sign-in. Talent Partners do not have access.</div>
       </div>
       <div class="faq-item">
         <div class="faq-q">How does utilisation get calculated?</div>
@@ -187,11 +188,13 @@
     <!-- User Roles -->
     <div class="guide-section" id="roles">
       <h2>User Roles</h2>
-      <p>The People module is accessible to two roles only.</p>
+      <p>The People module is accessible to three roles. Access level varies — Delivery Managers have limited access to the Scorecards page only.</p>
       <h3><span class="role-badge admin">Admin</span></h3>
       <p>Full access to all People module pages. Can add, edit, and delete employees, assignments, and invoices. Sees all data across the entire workforce.</p>
       <h3><span class="role-badge leadership">Leadership</span></h3>
       <p>Read-only access to all People module pages. Can view the dashboard, employee list, deployment timeline, and invoices but cannot add or edit any records.</p>
+      <h3><span class="role-badge" style="background:#e8f4fd;color:#0A0B44;">Delivery Manager</span></h3>
+      <p>Access to the Scorecards page only. Delivery Managers land directly on Scorecards when they open the People module — other pages are not visible to this role.</p>
     </div>
 
     <!-- Export to PDF -->
@@ -306,27 +309,17 @@
       <div class="tip">G-P Invoice amounts are tracked separately from the Estimated Revenue figures on the People Dashboard. The dashboard calculates revenue from assignment bill rates — invoice amounts here reflect actual G-P charges which may differ.</div>
     </div>
 
-    <!-- Homepage Admin -->
-    <div class="guide-section" id="homepage-admin">
-      <h2>Homepage Admin</h2>
+    <!-- Scorecards -->
+    <div class="guide-section" id="scorecards">
+      <h2>Scorecards</h2>
       <div class="role-badges">
         <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">Leadership</span>
+        <span class="role-badge" style="background:#e8f4fd;color:#0A0B44;">Delivery Manager</span>
       </div>
-      <p>Admins can control two homepage features from the <strong>Homepage</strong> tab in the Newton OS Admin panel (accessible via the Admin link on the Newton home screen).</p>
-      <h3>Announcement Banner</h3>
-      <p>A scrolling ticker that appears at the bottom of the Newton home screen, visible to all users. Use it to share team-wide messages, reminders, or announcements.</p>
-      <p>To set a message, type it into the Message field and click <strong>Save</strong>. The banner appears on the home screen immediately for all users. To remove it, click <strong>Clear Banner</strong> — the ticker disappears until a new message is saved.</p>
-      <div class="tip">The message is stored in SharePoint and shown to every user on page load — it is not browser-specific. One active message can be set at a time.</div>
-      <h3>Seasonal Effects</h3>
-      <p>A canvas animation that plays on the Newton home screen. One effect can be active at a time. Toggle any effect on using its button — clicking again turns it off. Changes take effect immediately for all users on their next page load.</p>
-      <p>Available effects: Spring, Summer Scene, Autumn, Snowfall, and Christmas Lights.</p>
-      <div class="tip">Seasonal effects were previously per-browser (localStorage). They are now stored in SharePoint, meaning the Admin controls the effect for all users from a single setting.</div>
-    </div>
-
-  </div><!-- end guide-content -->
-</div><!-- end guide-body -->
-<div class="guide-footer">
-  Newton · People · Momentum Global
-</div>
-</body>
-</html>
+      <p>The Scorecards page provides activity analytics and performance benchmarking for each Talent Partner. It is the only People module page accessible to Delivery Managers.</p>
+      <h3>What the scorecards show</h3>
+      <p>Each Talent Partner is shown as a card displaying a rolling quarterly view of their pipeline activity and funnel conversion metrics across all roles. This gives a consistent, comparable picture of performance — how much activity is being generated, and how effectively it is converting through the funnel.</p>
+      <h3>Benchmarking</h3>
+      <p>Metrics are compared against configured benchmarks to indicate whether activity and conversion rates are tracking on target. The benchmarks are set in <code>CONFIG.ANALYTICS_BENCHMARKS</code> in <code>config.js</code> — contact your Newton Admin if they need to be adjusted.</p>
+      <div class="tip">Scorecards data i

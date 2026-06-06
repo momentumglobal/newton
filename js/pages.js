@@ -196,7 +196,7 @@ async function renderActivityPage() {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
-  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), { title: r.RoleTitle, location: r.Location }]));
+  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   activity.sort((a, b) => {
     const yr = Number(b.Year) - Number(a.Year);
     if (yr !== 0) return yr;
@@ -317,7 +317,7 @@ async function renderPlacementsPage() {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
-  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.RoleTitle]));
+  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   allPlacements.sort((a, b) =>
     new Date(b.OfferAcceptedDate || 0) - new Date(a.OfferAcceptedDate || 0)
   );
@@ -414,7 +414,7 @@ async function renderRejectionsPage() {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
-  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.RoleTitle]));
+  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   rejections.sort((a, b) => {
     const rA = roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || '';
     const rB = roleMap[String(b.RoleIDLookupId)] || roleMap[String(b.RoleID)] || '';

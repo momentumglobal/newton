@@ -29,6 +29,52 @@ function computeTTFPrediction(functionArea, country, historical) {
     return { label: 'Insufficient data', weeks: null, stdDevWeeks: null, sampleSize: pool.length };
   }
 
+// ── Phase B — Funnel Drop-off Analysis ───────────────────────────────
+
+/**
+ * Computes funnel conversion rates for a single role's activity totals.
+ * @param {Object} totals     - summed activity fields for this role
+ * @param {Object} benchmarks - CONFIG.ANALYTICS_BENCHMARKS
+ * @returns {Array} funnel stages with rag status
+ */
+function computeRoleFunnel(totals, benchmarks) {
+  const pct = (n, d) => d > 0 ? Math.round((n / d) * 100) : null;
+
+  const rag = (actual, bench) => {
+    if (actual === null) return 'grey';
+    if (actual >= bench * 100)                             return 'green';
+    if (actual >= bench * 100 * benchmarks.flagThreshold)  return 'amber';
+    return 'red';
+  };
+
+  return [
+    {
+      stage:       'Response',
+      conv:        pct(totals.Responses, totals.Outreach),
+      benchmarked: true,
+      rag:         rag(pct(totals.Responses, totals.Outreach), benchmarks.outreachConversion),
+    },
+    {
+      stage:       'IV1 Conv.',
+      conv:        pct(totals.Interview1, totals.Submitted),
+      benchmarked: true,
+      rag:         rag(pct(totals.Interview1, totals.Submitted), benchmarks.submissionConversion),
+    },
+    {
+      stage:       'IV→Offer',
+      conv:        pct(totals.Offers, totals.Interview1),
+      benchmarked: true,
+      rag:         rag(pct(totals.Offers, totals.Interview1), benchmarks.interviewToOffer),
+    },
+    {
+      stage:       'Offer Success',
+      conv:        pct(totals.Hires, totals.Offers),
+      benchmarked: true,
+      rag:         rag(pct(totals.Hires, totals.Offers), benchmarks.offerSuccess),
+    },
+  ];
+}
+  
   // Use most recent 12
   const sample = pool
     .slice()

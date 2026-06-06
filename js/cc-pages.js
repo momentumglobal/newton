@@ -72,7 +72,7 @@ function loadTileDetail(tile, data) {
 
 // ── Headline stats (at-a-glance tile summary) ──────────────────────
 function ccHealthStats(roles, activity) {
-  const open   = roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed').length;
+  const open   = roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed' && r.Stage !== 'Hired' && r.Stage !== 'Backlog' && r.Stage !== 'Cancelled').length;
   const atRisk = roles.filter(r => {
     const acts = activity.filter(a => String(a.RoleIDLookupId) === String(r.id));
     if (!acts.length) return false;
@@ -84,7 +84,7 @@ function ccHealthStats(roles, activity) {
 function ccPeopleStats(roles, activity, historical) {
   const b = CONFIG.ANALYTICS_BENCHMARKS;
   const tps = [...new Set(
-    roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed' && r.TalentPartner)
+    roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed' && r.Stage !== 'Hired' && r.Stage !== 'Backlog' && r.Stage !== 'Cancelled' && r.TalentPartner)
          .map(r => r.TalentPartner)
   )];
   const atRisk = tps.filter(tp => {
@@ -106,7 +106,7 @@ function ccUtilStats(forecasts, assigns) {
 
 // ── RAG logic ──────────────────────────────────────────────────────
 function computeProjectHealthRAG(roles, activity, historical) {
-  const open = roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed');
+  const open = roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed' && r.Stage !== 'Hired' && r.Stage !== 'Backlog' && r.Stage !== 'Cancelled');
   let atRisk = 0;
   open.forEach(role => {
     const acts = activity.filter(a => String(a.RoleIDLookupId) === String(role.id));

@@ -95,11 +95,11 @@ function computeVelocityScore(tpEmail, activity, placements, benchmarks) {
     tpEmail,
     window: '13 weeks',
     metrics: [
-      { label: 'Roles closed',          value: hir,            unit: 'hires', rag: 'grey', informational: true },
       { label: 'Outreach conversion',   value: pct(resp, out), unit: '%',     rag: rag(pct(resp, out),  benchmarks.outreachConversion) },
       { label: 'Submission conversion', value: pct(iv1, sub),  unit: '%',     rag: rag(pct(iv1, sub),   benchmarks.submissionConversion) },
       { label: 'Interview-to-offer',    value: pct(off, iv1),  unit: '%',     rag: rag(pct(off, iv1),   benchmarks.interviewToOffer) },
       { label: 'Offer success',         value: pct(hir, off),  unit: '%',     rag: rag(pct(hir, off),   benchmarks.offerSuccess) },
+      { label: 'Hires',                 value: hir,            unit: 'hires', rag: 'grey', informational: true },
       { label: 'Avg time to hire',      value: avgTTF,         unit: 'days',  rag: rag(avgTTF,          benchmarks.timeToHireDays, true) },
     ],
   };

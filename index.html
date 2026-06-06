@@ -181,24 +181,23 @@
 
     /* ── Command Centre banner ── */
 .cc-banner {
-  display: flex; align-items: center; gap: 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 18px 28px; border-radius: 14px;
   margin-bottom: 20px; text-decoration: none;
   transition: opacity 0.15s; width: 440px;
   background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
 }
 .cc-banner:hover { opacity: 0.88; }
-.cc-banner__left  { display: flex; flex-direction: column; align-items: flex-start; }
-.cc-banner__title { font-size: 15px; font-weight: 600; color: white; }
-.cc-banner__sub   { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; }
-.cc-banner__badges { display: flex; gap: 8px; flex: 1; justify-content: center; align-items: center; }
+.cc-banner__top   { display: flex; align-items: center; justify-content: center; width: 100%; position: relative; }
+.cc-banner__title { font-size: 15px; font-weight: 600; color: white; text-align: center; flex: 1; }
+.cc-banner__sub   { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; text-align: center; }
+.cc-banner__badges { display: flex; gap: 8px; justify-content: center; align-items: center; }
 .cc-badge { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 9px; border-radius: 10px; }
-.cc-badge--green { background: rgba(46,125,50,0.35); color: #81c784; border: 1px solid rgba(46,125,50,0.5); }
-.cc-badge--amber { background: rgba(245,127,23,0.35); color: #ffb74d; border: 1px solid rgba(245,127,23,0.5); }
-.cc-badge--red   { background: rgba(198,40,40,0.35);  color: #ef9a9a; border: 1px solid rgba(198,40,40,0.5); }
+.cc-badge--green   { background: rgba(46,125,50,0.35);  color: #81c784; border: 1px solid rgba(46,125,50,0.5); }
+.cc-badge--amber   { background: rgba(245,127,23,0.35); color: #ffb74d; border: 1px solid rgba(245,127,23,0.5); }
+.cc-badge--red     { background: rgba(198,40,40,0.35);  color: #ef9a9a; border: 1px solid rgba(198,40,40,0.5); }
 .cc-badge--neutral { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.12); }
-.cc-banner__cta  { font-size: 13px; color: rgba(255,255,255,0.45); display: flex; align-items: center; gap: 8px; }
-.cc-refresh { background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.3); font-size: 14px; padding: 2px; line-height: 1; transition: color 0.15s; }
+.cc-refresh { position: absolute; right: 0; background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.3); font-size: 14px; padding: 2px; line-height: 1; transition: color 0.15s; }
 .cc-refresh:hover { color: rgba(255,255,255,0.7); }
   </style>
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -335,18 +334,15 @@ function renderCCBadges(health, people, util) {
   if (!el) return;
   el.innerHTML = `
     <a href="command-centre.html" class="cc-banner">
-      <div class="cc-banner__left">
+      <div class="cc-banner__top">
         <div class="cc-banner__title">Command Centre</div>
-        <div class="cc-banner__sub">Executive Operations View</div>
+        <button class="cc-refresh" title="Refresh" onclick="event.preventDefault(); refreshCCBanner()">↻</button>
       </div>
+      <div class="cc-banner__sub">Executive Operations View</div>
       <div class="cc-banner__badges">
         ${ccBadgeHTML(health, 'Health')}
         ${ccBadgeHTML(people, 'People')}
         ${ccBadgeHTML(util,   'Utilisation')}
-      </div>
-      <div class="cc-banner__cta">
-        <button class="cc-refresh" title="Refresh" onclick="event.preventDefault(); refreshCCBanner()">↻</button>
-        Open &rarr;
       </div>
     </a>`;
 }

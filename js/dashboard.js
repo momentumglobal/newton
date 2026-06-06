@@ -479,7 +479,7 @@ function renderPlacementsPanel(placements, roles, period) {
 
 async function renderRoleAnalyticsPanel(roles, activity, historical) {
   const b = CONFIG.ANALYTICS_BENCHMARKS;
-  const activeRoles = roles.filter(r => r.Status === 'Active');
+  const activeRoles = roles.filter(r => r.Stage === 'Active');
 
   if (!activeRoles.length) {
     return `<div class='dash-panel'>

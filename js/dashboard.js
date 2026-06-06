@@ -106,9 +106,6 @@ async function fetchDashboardData(projectId, role) {
   };
 }
 // ── Calculation helpers ───────────────────────────────────────────────
-function sumField(acts, field) {
-  return acts.reduce((s, a) => s + (Number(a[field]) || 0), 0);
-}
 function avgDaysToHire(roles) {
   const hired = roles.filter(r => r.ActualHireDate && r.OpenDate);
   if (!hired.length) return null;

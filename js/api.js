@@ -159,6 +159,17 @@ async function getHistoricalPlacements() {
   }));
 }
 
+async function getActivityForAnalytics(weeksBack) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - (weeksBack * 7));
+  const isoDate = cutoff.toISOString().split('T')[0];
+  const activity = await getItems('WeeklyActivity',
+    `WeekEndingDate ge '${isoDate}'`,
+    'Id,RoleID,WeekEndingDate,Outreach,Responses,Screened,Submitted,Interview1,Interview2Plus,FinalInterview,Offers,Hires'
+  );
+  return activity;
+}
+
 async function getWeeklyActivity(projectId, roleId) {
   let filter = "";
   if (projectId) filter = `fields/ProjectID eq ${projectId}`;

@@ -6,85 +6,23 @@
   <title>People — User Guide</title>
   <link rel="icon" type="image/png" href="momentum-symbol.png">
   <style>
-    @font-face {
-      font-family: 'Polymath';
-      src: url('polymath-regular.ttf') format('truetype');
-      font-weight: 400;
-    }
-    @font-face {
-      font-family: 'Polymath';
-      src: url('polymath-semibold.ttf') format('truetype');
-      font-weight: 600;
-    }
+    @font-face { font-family: 'Polymath'; src: url('polymath-regular.ttf') format('truetype'); font-weight: 400; }
+    @font-face { font-family: 'Polymath'; src: url('polymath-semibold.ttf') format('truetype'); font-weight: 600; }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-      background: #F5F4F1;
-      color: #1a1a2e;
-      font-size: 15px;
-      line-height: 1.6;
-    }
-    .guide-header {
-      background: #0A0B44;
-      color: white;
-      padding: 28px 48px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+    body { font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; background: #F5F4F1; color: #1a1a2e; font-size: 15px; line-height: 1.6; }
+    .guide-header { background: #0A0B44; color: white; padding: 28px 48px; display: flex; align-items: center; justify-content: space-between; }
     .guide-header-left h1 { font-size: 22px; font-weight: 600; }
     .guide-header-left p { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px; }
     .guide-header img { height: 36px; width: auto; }
-    .guide-body {
-      display: flex;
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 40px 24px;
-      gap: 40px;
-    }
-    .guide-nav {
-      width: 200px;
-      min-width: 200px;
-      position: sticky;
-      top: 24px;
-      align-self: flex-start;
-    }
+    .guide-body { display: flex; max-width: 1100px; margin: 0 auto; padding: 40px 24px; gap: 40px; }
+    .guide-nav { width: 200px; min-width: 200px; position: sticky; top: 24px; align-self: flex-start; }
     .guide-nav ul { list-style: none; padding: 0; }
-    .guide-nav li a {
-      display: block;
-      padding: 7px 12px;
-      color: #0A0B44;
-      text-decoration: none;
-      font-size: 13px;
-      border-radius: 4px;
-      transition: background 0.15s;
-    }
+    .guide-nav li a { display: block; padding: 7px 12px; color: #0A0B44; text-decoration: none; font-size: 13px; border-radius: 4px; transition: background 0.15s; }
     .guide-nav li a:hover { background: #e8e7e3; }
-    .guide-nav .nav-section-label {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #888;
-      padding: 12px 12px 4px;
-    }
+    .guide-nav .nav-section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; padding: 12px 12px 4px; }
     .guide-content { flex: 1; min-width: 0; }
-    .guide-section {
-      background: white;
-      border-radius: 6px;
-      border: 1px solid #ddd;
-      padding: 28px 32px;
-      margin-bottom: 24px;
-      scroll-margin-top: 24px;
-    }
-    .guide-section h2 {
-      font-size: 18px;
-      font-weight: 600;
-      color: #0A0B44;
-      margin-bottom: 16px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #EBF2FA;
-    }
+    .guide-section { background: white; border-radius: 6px; border: 1px solid #ddd; padding: 28px 32px; margin-bottom: 24px; scroll-margin-top: 24px; }
+    .guide-section h2 { font-size: 18px; font-weight: 600; color: #0A0B44; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #EBF2FA; }
     .guide-section h3 { font-size: 14px; font-weight: 600; color: #0A0B44; margin: 20px 0 8px; }
     .guide-section p { color: #333; margin-bottom: 12px; }
     .guide-section p:last-child { margin-bottom: 0; }
@@ -93,26 +31,10 @@
     .faq-q { font-weight: 600; color: #0A0B44; margin-bottom: 6px; font-size: 14px; }
     .faq-a { color: #444; font-size: 14px; }
     .role-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-    .role-badge {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      background: #EBF2FA;
-      color: #0A0B44;
-    }
+    .role-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #EBF2FA; color: #0A0B44; }
     .role-badge.admin      { background: #0A0B44; color: white; }
     .role-badge.leadership { background: #fff3e0; color: #e65100; }
-    .tip {
-      background: #EBF2FA;
-      border-left: 3px solid #0A0B44;
-      border-radius: 0 4px 4px 0;
-      padding: 10px 14px;
-      font-size: 13px;
-      color: #333;
-      margin: 12px 0;
-    }
+    .tip { background: #EBF2FA; border-left: 3px solid #0A0B44; border-radius: 0 4px 4px 0; padding: 10px 14px; font-size: 13px; color: #333; margin: 12px 0; }
     .colour-key { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
     .colour-key-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #333; }
     .colour-swatch { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; }
@@ -147,8 +69,6 @@
     </ul>
   </nav>
   <div class="guide-content">
-
-    <!-- FAQ -->
     <div class="guide-section" id="faq">
       <h2>Frequently Asked Questions</h2>
       <div class="faq-item">
@@ -184,8 +104,6 @@
         <div class="faq-a">Bench assignments are automatically generated records that represent periods when an employee has no active customer assignment. They are created and maintained using the <strong>↻ Sync Bench</strong> button on the Assignments tab — you do not need to create or delete them manually. Syncing keeps the utilisation forecast accurate by filling gaps between customer assignments through to the end of the current year.</div>
       </div>
     </div>
-
-    <!-- User Roles -->
     <div class="guide-section" id="roles">
       <h2>User Roles</h2>
       <p>The People module is accessible to three roles. Access level varies — Delivery Managers have limited access to the Scorecards page only.</p>
@@ -196,8 +114,6 @@
       <h3><span class="role-badge" style="background:#e8f4fd;color:#0A0B44;">Delivery Manager</span></h3>
       <p>Access to the Scorecards page only. Delivery Managers land directly on Scorecards when they open the People module — other pages are not visible to this role.</p>
     </div>
-
-    <!-- Export to PDF -->
     <div class="guide-section" id="export">
       <h2>Exporting to PDF</h2>
       <p>Pages with an <strong>⎙ Export PDF</strong> button can be saved as a PDF document. Click the button to open your browser's print dialog, then configure it as follows before saving:</p>
@@ -207,8 +123,6 @@
       <p>Under the Options section, ensure <strong>Headers and footers</strong> is unticked and <strong>Background graphics</strong> is ticked. Background graphics must be enabled for the branded header block to print correctly.</p>
       <div class="tip">These settings are not saved by the browser between sessions — you will need to set them each time you export.</div>
     </div>
-
-    <!-- People Dashboard -->
     <div class="guide-section" id="people-dashboard">
       <h2>People Dashboard</h2>
       <div class="role-badges">
@@ -235,18 +149,10 @@
       <h3>Upcoming End Dates</h3>
       <p>Lists any active employees with an end date in the next 60 days, sorted by nearest first.</p>
       <div class="colour-key">
-        <div class="colour-key-item">
-          <div class="colour-swatch" style="background:#fce8e8"></div>
-          End date within 30 days
-        </div>
-        <div class="colour-key-item">
-          <div class="colour-swatch" style="background:#fff3e0"></div>
-          End date within 31–60 days
-        </div>
+        <div class="colour-key-item"><div class="colour-swatch" style="background:#fce8e8"></div>End date within 30 days</div>
+        <div class="colour-key-item"><div class="colour-swatch" style="background:#fff3e0"></div>End date within 31–60 days</div>
       </div>
     </div>
-
-    <!-- Employee Tracker -->
     <div class="guide-section" id="employee-tracker">
       <h2>Employee Tracker</h2>
       <div class="role-badges">
@@ -268,8 +174,6 @@
       <p>Bench records are marked as auto-generated and are managed entirely by the sync. If you add or extend a customer assignment that covers a period previously flagged as bench, running sync again will remove the now-redundant bench record automatically.</p>
       <div class="tip">Run <strong>↻ Sync Bench</strong> any time you add, edit, or remove a customer assignment. The timestamp next to the button shows when the last sync ran. Bench assignments should not be edited manually — let the sync manage them.</div>
     </div>
-
-    <!-- Deployment Timeline -->
     <div class="guide-section" id="deployment-timeline">
       <h2>Deployment Timeline</h2>
       <div class="role-badges">
@@ -291,8 +195,6 @@
       <p>If an employee has more than one assignment in the year, all bars appear on the same row. Bars from different assignments may overlap if the employee was deployed across more than one customer simultaneously.</p>
       <div class="tip">The Deployment Timeline shows future assignment dates as planned — it is not capped at today. This makes it useful for workforce planning and visualising upcoming capacity changes.</div>
     </div>
-
-    <!-- G-P Invoices -->
     <div class="guide-section" id="gp-invoices">
       <h2>G-P Invoices</h2>
       <div class="role-badges">
@@ -308,8 +210,6 @@
       <p>Admins can add new invoices using <strong>+ Add Invoice</strong> and edit existing records via the Edit link on each row. Once payment is received, use <strong>Mark Paid</strong> on the row to update the status directly without opening the edit form.</p>
       <div class="tip">G-P Invoice amounts are tracked separately from the Estimated Revenue figures on the People Dashboard. The dashboard calculates revenue from assignment bill rates — invoice amounts here reflect actual G-P charges which may differ.</div>
     </div>
-
-    <!-- Scorecards -->
     <div class="guide-section" id="scorecards">
       <h2>Scorecards</h2>
       <div class="role-badges">
@@ -322,4 +222,27 @@
       <p>Each Talent Partner is shown as a card displaying a rolling quarterly view of their pipeline activity and funnel conversion metrics across all roles. This gives a consistent, comparable picture of performance — how much activity is being generated, and how effectively it is converting through the funnel.</p>
       <h3>Benchmarking</h3>
       <p>Metrics are compared against configured benchmarks to indicate whether activity and conversion rates are tracking on target. The benchmarks are set in <code>CONFIG.ANALYTICS_BENCHMARKS</code> in <code>config.js</code> — contact your Newton Admin if they need to be adjusted.</p>
-      <div class="tip">Scorecards data i
+      <div class="tip">Scorecards data is calculated from Weekly Activity records. Ensure activity is being logged consistently each week for the metrics to be accurate.</div>
+    </div>
+    <div class="guide-section" id="homepage-admin">
+      <h2>Homepage Admin</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+      </div>
+      <p>Admins can control two homepage features from the <strong>Homepage</strong> tab in the Newton OS Admin panel (accessible via the Admin link on the Newton home screen).</p>
+      <h3>Announcement Banner</h3>
+      <p>A scrolling ticker that appears at the bottom of the Newton home screen, visible to all users. Use it to share team-wide messages, reminders, or announcements.</p>
+      <p>To set a message, type it into the Message field and click <strong>Save</strong>. The banner appears on the home screen immediately for all users. To remove it, click <strong>Clear Banner</strong> — the ticker disappears until a new message is saved.</p>
+      <div class="tip">The message is stored in SharePoint and shown to every user on page load — it is not browser-specific. One active message can be set at a time.</div>
+      <h3>Seasonal Effects</h3>
+      <p>A canvas animation that plays on the Newton home screen. One effect can be active at a time. Toggle any effect on using its button — clicking again turns it off. Changes take effect immediately for all users on their next page load.</p>
+      <p>Available effects: Spring, Summer Scene, Autumn, Snowfall, and Christmas Lights.</p>
+      <div class="tip">Seasonal effects were previously per-browser (localStorage). They are now stored in SharePoint, meaning the Admin controls the effect for all users from a single setting.</div>
+    </div>
+  </div>
+</div>
+<div class="guide-footer">
+  Newton · People · Momentum Global
+</div>
+</body>
+</html>

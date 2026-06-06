@@ -1,13 +1,13 @@
 // js/api.js — Graph API data layer
 const GRAPH = "https://graph.microsoft.com/v1.0";
-
+ 
 // ── In-memory read cache ──────────────────────────────────────────────
 // Caches GET results for 30 seconds to avoid redundant SharePoint calls
 // during page navigation. Writes (POST/PATCH/DELETE) invalidate the
 // relevant list automatically.
 const _apiCache = new Map();
 const _CACHE_TTL_MS = 30000; // 30 seconds
-
+ 
 function _cacheKey(listName, filter) {
   return listName + '|' + (filter || '');
 }
@@ -29,7 +29,7 @@ function _cacheInvalidate(listName) {
     if (key.startsWith(listName + '|')) _apiCache.delete(key);
   }
 }
-
+ 
 // ── Field normalisers ───────────────────────────────────────────────
 const FIELD_ALIASES = {
   Projects:        { Title: "CustomerName", Yeare: "Year" },
@@ -49,7 +49,7 @@ const FIELD_ALIASES = {
   // ── Sales module ──────────────────────────────────────────
   SalesForecasts:  {},
 };
-
+ 
 function normaliseFields(listName, fields) {
   const aliases = FIELD_ALIASES[listName];
   if (!aliases) return fields;
@@ -62,7 +62,7 @@ function normaliseFields(listName, fields) {
   }
   return result;
 }
-
+ 
 // ── Generic helpers ─────────────────────────────────────────────────
 async function graphRequest(method, path, body = null) {
   const token = await getToken();
@@ -84,16 +84,16 @@ async function graphRequest(method, path, body = null) {
   if (res.status === 204) return null;
   return res.json();
 }
-
+ 
 function listPath(listName) {
   return `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items`;
 }
-
+ 
 // ── Read ─────────────────────────────────────────────────────────────
 async function getItems(listName, filter = "") {
   const cached = _cacheGet(listName, filter);
   if (cached) return cached;
-
+ 
   const qs = filter ? `?$expand=fields($select=*)&$filter=${encodeURIComponent(filter)}` : "?$expand=fields($select=*)";
   let url = `${listPath(listName)}${qs}`;
   const items = [];
@@ -102,16 +102,16 @@ async function getItems(listName, filter = "") {
     items.push(...data.value.map(i => ({ id: i.id, ...normaliseFields(listName, i.fields) })));
     url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH, '') : null;
   }
-
+ 
   _cacheSet(listName, filter, items);
   return items;
 }
-
+ 
 async function getItem(listName, itemId) {
   const data = await graphRequest("GET", `${listPath(listName)}/${itemId}?$expand=fields($select=*)`);
   return { id: data.id, ...normaliseFields(listName, data.fields) };
 }
-
+ 
 // ── Write ─────────────────────────────────────────────────────────────
 async function createItem(listName, fields) {
   const result = await graphRequest("POST", listPath(listName), { fields });
@@ -128,20 +128,24 @@ async function deleteItem(listName, itemId) {
   _cacheInvalidate(listName);
   return result;
 }
-
+ 
 // ── List-specific helpers ─────────────────────────────────────────────
 async function getProjects(activeOnly = true) {
   return getItems("Projects", activeOnly ? "fields/Status eq 'Active'" : "");
 }
-
-async function getRolesForProject(projectId) {
-  return getItems("Roles", `fields/ProjectID eq ${projectId}`);
+ 
+async function getRolesForProject(projectId, talentPartnerEmail = null) {
+  let filter = `fields/ProjectID eq ${projectId}`;
+  if (talentPartnerEmail) {
+    filter += ` and fields/TalentPartner eq '${talentPartnerEmail.toLowerCase()}'`;
+  }
+  return getItems("Roles", filter);
 }
-
+ 
 async function getAllRoles() {
   return getItems("Roles");
 }
-
+ 
 async function getHistoricalPlacements() {
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
@@ -158,7 +162,7 @@ async function getHistoricalPlacements() {
     placementDate: r.ActualHireDate,
   }));
 }
-
+ 
 async function getActivityForAnalytics(weeksBack) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - (weeksBack * 7));
@@ -169,53 +173,53 @@ async function getActivityForAnalytics(weeksBack) {
   );
   return activity;
 }
-
+ 
 async function getWeeklyActivity(projectId, roleId) {
   let filter = "";
   if (projectId) filter = `fields/ProjectID eq ${projectId}`;
   if (roleId)    filter = `fields/RoleID eq ${roleId}`;
   return getItems("WeeklyActivity", filter);
 }
-
+ 
 async function getPlacements(roleId) {
   return getItems("Placements", roleId ? `fields/RoleID eq ${roleId}` : "");
 }
-
+ 
 async function getRejectedOffers(roleId) {
   return getItems("RejectedOffers", roleId ? `fields/RoleID eq ${roleId}` : "");
 }
-
+ 
 // ── Admin list helpers ───────────────────────────────────────────────
 async function getUserAssignments(projectId) {
   return getItems("UserAssignments",
     projectId ? `fields/ProjectID eq ${projectId}` : "");
 }
-
+ 
 async function getLeadershipAccess() {
   return getItems("LeadershipAccess");
 }
-
+ 
 // ── Sales Forecasts ────────────────────────────────────────
 async function getSalesForecasts() {
   return getItems("SalesForecasts");
 }
-
+ 
 async function createSalesForecast(payload) {
   return createItem("SalesForecasts", payload);
 }
-
+ 
 async function updateSalesForecast(id, payload) {
   return updateItem("SalesForecasts", id, payload);
 }
-
+ 
 async function deleteSalesForecast(id) {
   return deleteItem("SalesForecasts", id);
 }
-
+ 
 async function getDepartments() {
   return getItems("Departments", "");
 }
-
+ 
 // Resolve the signed-in user's effective role:
 // 1. Check ADMIN_USERS in config.js
 // 2. Check LeadershipAccess list
@@ -225,12 +229,12 @@ async function getEffectiveRole(email) {
   // Ghost mode — admin testing a different role profile
   const ghost = getGhostRole();
   if (ghost) return ghost;
-
+ 
   const lower = email.toLowerCase();
   const cacheKey = 'newton_role_' + lower;
   const cached = sessionStorage.getItem(cacheKey);
   if (cached) return cached;
-
+ 
   let role;
   if (CONFIG.ADMIN_USERS?.includes(lower)) {
     role = 'admin';
@@ -244,19 +248,19 @@ async function getEffectiveRole(email) {
       role = assignments.length > 0 ? assignments[0].AssignedRole : 'viewer';
     }
   }
-
+ 
   sessionStorage.setItem(cacheKey, role);
   return role;
 }
-
+ 
 // getUserProjectIds — defined above with admin null handling
-
+ 
 // Check if email is in LeadershipAccess list
 async function isLeadershipUser(email) {
   const list = await getLeadershipAccess();
   return list.some(l => l.UserEmail?.toLowerCase() === email.toLowerCase());
 }
-
+ 
 // Auto-register user on first login if not already in UserAssignments
 async function ensureUserRegistered(email, displayName) {
   const lower = email.toLowerCase();
@@ -273,14 +277,14 @@ async function ensureUserRegistered(email, displayName) {
     });
   }
 }
-
+ 
 async function getTalentPartnersForProject(projectId) {
   const assignments = await getItems("UserAssignments", `fields/ProjectID eq ${projectId}`);
   return assignments.filter(a =>
     a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager'
   );
 }
-
+ 
 async function getTalentPartnerDisplayMap() {
   const assignments = await getItems("UserAssignments");
   const map = {};
@@ -289,7 +293,7 @@ async function getTalentPartnerDisplayMap() {
   });
   return map;
 }
-
+ 
 // Role precedence: admin > leadership > talent_partner > delivery_manager > viewer
 const ROLE_PRECEDENCE = ['admin','leadership','talent_partner','delivery_manager','viewer'];
 function higherRole(a, b) {
@@ -297,32 +301,32 @@ function higherRole(a, b) {
   const bi = ROLE_PRECEDENCE.indexOf(b);
   return ai <= bi ? a : b;
 }
-
+ 
 // Return all project IDs this user is assigned to (null = admin, sees all)
 async function getUserProjectIds(email) {
   // Ghost mode — return the single ghost project if set
   const ghostProject = getGhostProject();
   if (ghostProject) return [ghostProject];
-
+ 
   const lower = email.toLowerCase();
   if (CONFIG.ADMIN_USERS?.includes(lower)) return null;
   const assignments = await getItems("UserAssignments", `fields/Title eq '${email}'`);
   return assignments.map(a => String(a.ProjectID));
 }
-
+ 
 async function getScopedProjects(email, activeOnly = false) {
   const projectIds = await getUserProjectIds(email);
   const allProjects = await getProjects(activeOnly);
   if (projectIds === null) return allProjects;
   return allProjects.filter(p => projectIds.includes(String(p.id)));
 }
-
+ 
 // ── App Settings ─────────────────────────────────────────────────────
 // AppSettings is a single-row SharePoint list with columns:
 //   Title (single line text, value always "config")
 //   AnnouncementMessage (multiple lines of text)
 //   SeasonalEffect (single line text, e.g. "snow", "spring", or "" for none)
-
+ 
 async function _getAppSettingsRow() {
   try {
     const items = await getItems("AppSettings");
@@ -331,12 +335,12 @@ async function _getAppSettingsRow() {
     return null;
   }
 }
-
+ 
 async function getAnnouncementMessage() {
   const row = await _getAppSettingsRow();
   return row ? (row.AnnouncementMessage || '') : '';
 }
-
+ 
 async function setAnnouncementMessage(message) {
   const row = await _getAppSettingsRow();
   if (row) {
@@ -345,12 +349,12 @@ async function setAnnouncementMessage(message) {
     await createItem("AppSettings", { Title: "config", AnnouncementMessage: message });
   }
 }
-
+ 
 async function getSeasonalEffect() {
   const row = await _getAppSettingsRow();
   return row ? (row.SeasonalEffect || 'none') : 'none';
 }
-
+ 
 async function setSeasonalEffect(effect) {
   const row = await _getAppSettingsRow();
   if (row) {
@@ -359,7 +363,7 @@ async function setSeasonalEffect(effect) {
     await createItem("AppSettings", { Title: "config", SeasonalEffect: effect });
   }
 }
-
+ 
 // ── People module: People list ────────────────────────────────────────
 async function getPeople(activeOnly = true) {
   const filter = activeOnly ? "fields/IsActive eq 1" : "";
@@ -393,7 +397,7 @@ async function updatePerson(id, fields) {
   if (fields.IsActive     !== undefined) payload.IsActive     = fields.IsActive;
   return updateItem("People", id, payload);
 }
-
+ 
 // ── People module: Assignments list ──────────────────────────────────
 async function getAssignments(filters = {}) {
   const parts = [];
@@ -445,7 +449,7 @@ async function updateAssignment(id, fields) {
   if (fields.Country         !== undefined) payload.Country         = fields.Country;
   return updateItem("Assignments", id, payload);
 }
-
+ 
 // ── People module: GPInvoices list ────────────────────────────────────
 async function getGPInvoices() {
   const invoices = await getItems("GPInvoices");
@@ -475,7 +479,7 @@ async function updateInvoice(id, fields) {
   if (fields.Status        !== undefined) payload.Status      = fields.Status;
   return updateItem("GPInvoices", id, payload);
 }
-
+ 
 // ── Shared utilities ──────────────────────────────────────────────────
 function printPage(title, landscape = false, module = 'Newton') {
   document.getElementById('print-header-title').textContent = 'Newton';
@@ -493,7 +497,7 @@ function printPage(title, landscape = false, module = 'Newton') {
   }
 }
 
-// ── Marketing Report ─────────────────────────────────────────────
+// ── Market Report ─────────────────────────────────────────────
 async function getMarketReports() {
   return getItems("MarketReports");
 }

@@ -774,21 +774,7 @@ body {
 }
 
 /* ── Role Analytics panel ── */
-.ra-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-.ra-table th {
-  text-align: left;
-  padding: 6px 8px;
-  border-bottom: 2px solid #e0e0e0;
-  font-weight: 600;
-  color: #555;
-}
 .ra-table td {
-  padding: 6px 8px;
-  border-bottom: 1px solid #f0f0f0;
   vertical-align: middle;
 }
 .ra-role { font-weight: 500; }

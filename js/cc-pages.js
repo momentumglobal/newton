@@ -103,7 +103,7 @@ function ccPeopleStats(roles, activity, historical) {
 
 function ccUtilStats(forecasts, assigns, people) {
   const { known, forecast } = _ccUtilCalc(forecasts, assigns, people);
-  return `<div>${(known * 100).toFixed(0)}% now · ${(forecast * 100).toFixed(0)}% forecast</div>`;
+  return `${(known * 100).toFixed(0)}% now · ${(forecast * 100).toFixed(0)}% forecast (next 3 months)`;
 }
 // ── RAG logic ──────────────────────────────────────────────────────
 function computeProjectHealthRAG(roles, activity, historical) {

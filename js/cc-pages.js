@@ -3,13 +3,14 @@
 // ── Main renderer ──────────────────────────────────────────────────
 async function renderCCOverview(container) {
   container.innerHTML = '<div class="cc-loading">Loading...</div>';
-  const [roles, acts4, acts13, forecasts, assigns, people] = await Promise.all([
+  const [roles, acts4, acts13, forecasts, assigns, people, projects] = await Promise.all([
     getAllRoles(),
     getActivityForAnalytics(4),
     getActivityForAnalytics(13),
     getItems('SalesForecasts'),
     getItems('Assignments'),
-    getPeople(false)
+    getPeople(false),
+    getItems('Projects'),
   ]);
   const historical = await getHistoricalPlacements();
   const ragHealth = computeProjectHealthRAG(roles, acts4, historical);
@@ -27,7 +28,7 @@ async function renderCCOverview(container) {
     </div>`;
 
   const grid = document.getElementById('cc-grid');
-  grid._data = { roles, acts4, acts13, historical, forecasts, assigns, people };
+  grid._data = { roles, acts4, acts13, historical, forecasts, assigns, people, projects };
   attachTileExpand(grid);
 }
 
@@ -98,7 +99,7 @@ function ccPeopleStats(roles, activity, historical) {
     const rag = pct === null ? 'grey' : pct < 0.25 ? 'green' : pct <= 0.50 ? 'amber' : 'red';
     if (rag !== 'grey') counts[rag]++;
   });
-  return `<div>${counts.green} green · ${counts.amber} amber · ${counts.red} red</div>`;
+  return `${counts.green} green · ${counts.amber} amber · ${counts.red} red`;
 }
 
 function ccUtilStats(forecasts, assigns, people) {
@@ -183,13 +184,128 @@ function computeUtilisationRAG(forecasts, assigns, people) {
   return 'red';
 }
 
-// ── Expanded detail renderers (stubs — flesh out in next iteration) ─
+// ── Expanded detail renderers ─
 function renderHealthDetail(data) {
-  return '<p>Project Health detail coming soon.</p>';
+  const { roles, acts4, assigns, projects } = data;
+  const now = new Date();
+  const projectMap = Object.fromEntries((projects || []).map(p => [String(p.id), p.CustomerName]));
+
+  const liveAssigns = assigns.filter(a => a.StartDate && a.EndDate &&
+    new Date(a.StartDate) <= now && new Date(a.EndDate) >= now);
+  const customers = [...new Set(liveAssigns.map(a => a.Customer).filter(Boolean))];
+
+  if (!customers.length) return '<p class="no-data">No live projects found.</p>';
+
+  const rows = customers.map(customer => {
+    const custAssigns = liveAssigns.filter(a => a.Customer === customer);
+    const headcount   = custAssigns.length;
+    const custRoles   = roles.filter(r => {
+      const pName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || '';
+      return pName === customer && !ACTIVE_STAGES.includes(r.Stage);
+    });
+    const liveRoles = custRoles.length;
+    const flagged   = custRoles.filter(r => {
+      const acts = acts4.filter(a => String(a.RoleIDLookupId) === String(r.id));
+      return isRoleFlagged(r, acts);
+    }).length;
+    return `<tr>
+      <td>${customer}</td>
+      <td style="text-align:center">${headcount}</td>
+      <td style="text-align:center">${liveRoles}</td>
+      <td style="text-align:center">${flagged > 0 ? `<span style="color:#c62828;font-weight:600">${flagged}</span>` : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  return `<table class="cc-detail-table">
+    <thead><tr>
+      <th>Customer</th><th>Headcount</th><th>Live Roles</th><th>Flagged</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
+
 function renderPeopleDetail(data) {
-  return '<p>People detail coming soon.</p>';
+  const { roles, acts13 } = data;
+  const tps = [...new Set(
+    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner).map(r => r.TalentPartner)
+  )];
+
+  if (!tps.length) return '<p class="no-data">No active Talent Partners found.</p>';
+
+  const weight = { green: 0, amber: 1, red: 2, grey: 0 };
+  const ragColours = { green: '#2e7d32', amber: '#e65100', red: '#c62828', grey: '#888' };
+
+  const rows = tps.map(tp => {
+    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner &&
+      r.TalentPartner.toLowerCase() === tp.toLowerCase());
+    const flagged = tpRoles.filter(r => {
+      const acts = acts13.filter(a => String(a.RoleIDLookupId) === String(r.id));
+      return isRoleFlagged(r, acts);
+    }).length;
+    const pct = tpRoles.length ? flagged / tpRoles.length : null;
+    const rag = pct === null ? 'grey' : pct < 0.25 ? 'green' : pct <= 0.50 ? 'amber' : 'red';
+    const name = tp.split('@')[0].replace('.', ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return { rag, html: `<tr>
+      <td>${name}</td>
+      <td style="text-align:center">${flagged}/${tpRoles.length}</td>
+      <td style="text-align:center"><span style="font-weight:600;color:${ragColours[rag]}">${rag.toUpperCase()}</span></td>
+    </tr>` };
+  }).sort((a, b) => weight[b.rag] - weight[a.rag]).map(r => r.html).join('');
+
+  return `<table class="cc-detail-table">
+    <thead><tr>
+      <th>Talent Partner</th><th>Flagged / Open</th><th>RAG</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
+
 function renderUtilDetail(data) {
-  return '<p>Utilisation detail coming soon.</p>';
+  const { forecasts, assigns, people } = data;
+  const now = new Date();
+  const { known } = _ccUtilCalc(forecasts, assigns, people);
+  const totalActiveHeadcount = (people || []).filter(p =>
+    p.IsActive !== false && ['SDM','STP','TP'].includes(p.Level)).length;
+
+  const months = [1, 2, 3].map(offset => {
+    const d      = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const mStart = d;
+    const mEnd   = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    const label  = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+
+    const active    = assigns.filter(a => {
+      if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
+      return new Date(a.StartDate) <= mEnd && new Date(a.EndDate) >= mStart;
+    });
+    const totalCap  = active.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+    const billedCap = active.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+    const planned   = totalCap > 0 ? billedCap / totalCap : 0;
+
+    const forecastedHC = forecasts.reduce((sum, f) => {
+      const s = new Date(f.ForecastStartDate);
+      const e = new Date(f.ForecastEndDate);
+      return (s <= mEnd && e >= mStart) ? sum + (f.ForecastedHeadcount || 0) : sum;
+    }, 0);
+    const forecast = Math.min(planned + (totalActiveHeadcount > 0 ? forecastedHC / totalActiveHeadcount : 0), 1.0);
+
+    return { label, planned, forecast };
+  });
+
+  const t = CONFIG.UTILISATION_THRESHOLDS;
+  const ragCol = v => v >= t.green ? '#2e7d32' : v >= t.amber ? '#e65100' : '#c62828';
+  const fmtPct = v => `${(v * 100).toFixed(0)}%`;
+
+  const headers      = months.map(m => `<th style="text-align:center">${m.label}</th>`).join('');
+  const plannedCells = months.map(m => `<td style="text-align:center;color:${ragCol(m.planned)};font-weight:600">${fmtPct(m.planned)}</td>`).join('');
+  const forecastCells = months.map(m => `<td style="text-align:center;color:${ragCol(m.forecast)};font-weight:600">${fmtPct(m.forecast)}</td>`).join('');
+
+  return `
+    <div style="margin-bottom:16px;font-size:14px">Current utilisation: <strong style="color:${ragCol(known)}">${fmtPct(known)}</strong></div>
+    <table class="cc-detail-table">
+      <thead><tr><th></th>${headers}</tr></thead>
+      <tbody>
+        <tr><td>Planned</td>${plannedCells}</tr>
+        <tr><td>Forecast</td>${forecastCells}</tr>
+      </tbody>
+    </table>`;
 }

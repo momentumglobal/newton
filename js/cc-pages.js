@@ -19,7 +19,7 @@ async function renderCCOverview(container) {
   container.innerHTML = `
     <div class="cc-grid" id="cc-grid">
       ${ccTileHTML('health', 'Project Health', ragHealth, ccHealthStats(roles, acts4))}
-      ${ccTileHTML('people', 'People',         ragPeople, ccPeopleStats(roles, acts13))}
+      ${ccTileHTML('people', 'People', ragPeople, ccPeopleStats(roles, acts13, historical))}
       ${ccTileHTML('util',   'Utilisation',    ragUtil,   ccUtilStats(forecasts, assigns))}
     </div>`;
 
@@ -81,14 +81,16 @@ function ccHealthStats(roles, activity) {
   return `<div>${open} open roles</div><div>${atRisk} flagged</div>`;
 }
 
-function ccPeopleStats(roles, activity) {
+function ccPeopleStats(roles, activity, historical) {
+  const b = CONFIG.ANALYTICS_BENCHMARKS;
   const tps = [...new Set(
     roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed' && r.TalentPartner)
          .map(r => r.TalentPartner)
   )];
   const atRisk = tps.filter(tp => {
-    const tpActs = activity.filter(a => a.TalentPartner === tp);
-    return computeVelocityScore(tpActs, CONFIG.ANALYTICS_BENCHMARKS).rag !== 'green';
+    const tpActs  = activity.filter(a => a.TalentPartner === tp);
+    const tpPlacs = (historical || []).filter(r => r.talentPartner === tp);
+    return computeVelocityScore(tp, tpActs, tpPlacs, b).rag !== 'green';
   }).length;
   return `<div>${tps.length} active TPs</div><div>${atRisk} below benchmark</div>`;
 }
@@ -117,14 +119,17 @@ function computeProjectHealthRAG(roles, activity, historical) {
 }
 
 function computePeopleRAG(roles, activity, historical) {
+  const b = CONFIG.ANALYTICS_BENCHMARKS;
   const tps = [...new Set(
     roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed' && r.TalentPartner)
          .map(r => r.TalentPartner)
   )];
   let atRisk = 0;
   tps.forEach(tp => {
-    const tpActs = activity.filter(a => a.TalentPartner === tp);
-    if (computeVelocityScore(tpActs, CONFIG.ANALYTICS_BENCHMARKS).rag !== 'green') atRisk++;
+    const tpActs  = activity.filter(a => a.TalentPartner === tp);
+    const tpPlacs = historical.filter(r => r.talentPartner === tp);
+    const score   = computeVelocityScore(tp, tpActs, tpPlacs, b);
+    if (score.rag !== 'green') atRisk++;
   });
   if (atRisk === 0) return 'green';
   if (atRisk <= 2)  return 'amber';

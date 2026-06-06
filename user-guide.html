@@ -6,169 +6,38 @@
   <title>Reporting — User Guide</title>
   <link rel="icon" type="image/png" href="momentum-symbol.png">
   <style>
-    @font-face {
-      font-family: 'Polymath';
-      src: url('polymath-regular.ttf') format('truetype');
-      font-weight: 400;
-    }
-    @font-face {
-      font-family: 'Polymath';
-      src: url('polymath-semibold.ttf') format('truetype');
-      font-weight: 600;
-    }
+    @font-face { font-family: 'Polymath'; src: url('polymath-regular.ttf') format('truetype'); font-weight: 400; }
+    @font-face { font-family: 'Polymath'; src: url('polymath-semibold.ttf') format('truetype'); font-weight: 600; }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-      background: #F5F4F1;
-      color: #1a1a2e;
-      font-size: 15px;
-      line-height: 1.6;
-    }
-    /* ── Header ── */
-    .guide-header {
-      background: #0A0B44;
-      color: white;
-      padding: 28px 48px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .guide-header-left h1 {
-      font-size: 22px;
-      font-weight: 600;
-    }
-    .guide-header-left p {
-      font-size: 13px;
-      color: rgba(255,255,255,0.6);
-      margin-top: 4px;
-    }
-    .guide-header img {
-      height: 36px;
-      width: auto;
-    }
-    /* ── Layout ── */
-    .guide-body {
-      display: flex;
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 40px 24px;
-      gap: 40px;
-    }
-    /* ── Sidebar nav ── */
-    .guide-nav {
-      width: 200px;
-      min-width: 200px;
-      position: sticky;
-      top: 24px;
-      align-self: flex-start;
-    }
-    .guide-nav ul {
-      list-style: none;
-      padding: 0;
-    }
-    .guide-nav li a {
-      display: block;
-      padding: 7px 12px;
-      color: #0A0B44;
-      text-decoration: none;
-      font-size: 13px;
-      border-radius: 4px;
-      transition: background 0.15s;
-    }
+    body { font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; background: #F5F4F1; color: #1a1a2e; font-size: 15px; line-height: 1.6; }
+    .guide-header { background: #0A0B44; color: white; padding: 28px 48px; display: flex; align-items: center; justify-content: space-between; }
+    .guide-header-left h1 { font-size: 22px; font-weight: 600; }
+    .guide-header-left p { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+    .guide-header img { height: 36px; width: auto; }
+    .guide-body { display: flex; max-width: 1100px; margin: 0 auto; padding: 40px 24px; gap: 40px; }
+    .guide-nav { width: 200px; min-width: 200px; position: sticky; top: 24px; align-self: flex-start; }
+    .guide-nav ul { list-style: none; padding: 0; }
+    .guide-nav li a { display: block; padding: 7px 12px; color: #0A0B44; text-decoration: none; font-size: 13px; border-radius: 4px; transition: background 0.15s; }
     .guide-nav li a:hover { background: #e8e7e3; }
-    .guide-nav .nav-section-label {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #888;
-      padding: 12px 12px 4px;
-    }
-    /* ── Content ── */
-    .guide-content {
-      flex: 1;
-      min-width: 0;
-    }
-    .guide-section {
-      background: white;
-      border-radius: 6px;
-      border: 1px solid #ddd;
-      padding: 28px 32px;
-      margin-bottom: 24px;
-      scroll-margin-top: 24px;
-    }
-    .guide-section h2 {
-      font-size: 18px;
-      font-weight: 600;
-      color: #0A0B44;
-      margin-bottom: 16px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #EBF2FA;
-    }
-    .guide-section h3 {
-      font-size: 14px;
-      font-weight: 600;
-      color: #0A0B44;
-      margin: 20px 0 8px;
-    }
-    .guide-section p {
-      color: #333;
-      margin-bottom: 12px;
-    }
+    .guide-nav .nav-section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; padding: 12px 12px 4px; }
+    .guide-content { flex: 1; min-width: 0; }
+    .guide-section { background: white; border-radius: 6px; border: 1px solid #ddd; padding: 28px 32px; margin-bottom: 24px; scroll-margin-top: 24px; }
+    .guide-section h2 { font-size: 18px; font-weight: 600; color: #0A0B44; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #EBF2FA; }
+    .guide-section h3 { font-size: 14px; font-weight: 600; color: #0A0B44; margin: 20px 0 8px; }
+    .guide-section p { color: #333; margin-bottom: 12px; }
     .guide-section p:last-child { margin-bottom: 0; }
-    /* ── FAQ ── */
-    .faq-item {
-      border-bottom: 1px solid #eee;
-      padding: 14px 0;
-    }
+    .faq-item { border-bottom: 1px solid #eee; padding: 14px 0; }
     .faq-item:last-child { border-bottom: none; padding-bottom: 0; }
-    .faq-q {
-      font-weight: 600;
-      color: #0A0B44;
-      margin-bottom: 6px;
-      font-size: 14px;
-    }
-    .faq-a {
-      color: #444;
-      font-size: 14px;
-    }
-    /* ── Role badge ── */
-    .role-badges {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-    .role-badge {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      background: #EBF2FA;
-      color: #0A0B44;
-    }
+    .faq-q { font-weight: 600; color: #0A0B44; margin-bottom: 6px; font-size: 14px; }
+    .faq-a { color: #444; font-size: 14px; }
+    .role-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .role-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #EBF2FA; color: #0A0B44; }
     .role-badge.admin    { background: #0A0B44; color: white; }
     .role-badge.dm       { background: #e8f4fd; color: #0A0B44; }
     .role-badge.tp       { background: #e6f4ea; color: #2e7d32; }
     .role-badge.leadership { background: #fff3e0; color: #e65100; }
-    /* ── Tips ── */
-    .tip {
-      background: #EBF2FA;
-      border-left: 3px solid #0A0B44;
-      border-radius: 0 4px 4px 0;
-      padding: 10px 14px;
-      font-size: 13px;
-      color: #333;
-      margin: 12px 0;
-    }
-    /* ── Footer ── */
-    .guide-footer {
-      text-align: center;
-      padding: 32px;
-      font-size: 12px;
-      color: #888;
-    }
+    .tip { background: #EBF2FA; border-left: 3px solid #0A0B44; border-radius: 0 4px 4px 0; padding: 10px 14px; font-size: 13px; color: #333; margin: 12px 0; }
+    .guide-footer { text-align: center; padding: 32px; font-size: 12px; color: #888; }
   </style>
 </head>
 <body>
@@ -180,7 +49,6 @@
   <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
 </div>
 <div class="guide-body">
-  <!-- Sidebar navigation -->
   <nav class="guide-nav">
     <ul>
       <li><a href="reporting.html">← Back to Reporting</a></li>
@@ -201,9 +69,7 @@
       <li><a href="#admin">Config Panel</a></li>
     </ul>
   </nav>
-  <!-- Main content -->
   <div class="guide-content">
-    <!-- FAQ -->
     <div class="guide-section" id="faq">
       <h2>Frequently Asked Questions</h2>
       <div class="faq-item">
@@ -235,7 +101,6 @@
         <div class="faq-a">Raise it with your Newton Admin. For access issues, they can update user assignments directly in the Config Panel.</div>
       </div>
     </div>
-    <!-- User Roles -->
     <div class="guide-section" id="roles">
       <h2>User Roles</h2>
       <p>Every Newton user is assigned one of four roles. Your role controls which pages you can see and whether you can add or edit data.</p>
@@ -248,7 +113,6 @@
       <h3><span class="role-badge leadership">Leadership</span></h3>
       <p>Read-only access to Company Dashboard. Provides a cross-project view of open roles, pipeline metrics, and Talent Partner activity. Cannot add or edit records.</p>
     </div>
-    <!-- Export to PDF -->
     <div class="guide-section" id="export">
       <h2>Exporting to PDF</h2>
       <p>Pages with an <strong>⎙ Export PDF</strong> button can be saved as a PDF document. Click the button to open your browser's print dialog, then configure it as follows before saving:</p>
@@ -258,7 +122,6 @@
       <p>Under the Options section, ensure <strong>Headers and footers</strong> is unticked and <strong>Background graphics</strong> is ticked. Background graphics must be enabled for the branded header block to print correctly.</p>
       <div class="tip">These settings are not saved by the browser between sessions — you will need to set them each time you export.</div>
     </div>
-    <!-- Company Dashboard -->
     <div class="guide-section" id="company-dashboard">
       <h2>Company Dashboard</h2>
       <div class="role-badges">
@@ -273,7 +136,6 @@
       <h3>Activity by Talent Partner</h3>
       <p>Shows outreach, submissions, interviews, offers, and hires per Talent Partner per project for the selected period. Use the <strong>Period</strong> dropdown to change the date range.</p>
     </div>
-    <!-- Project Dashboard -->
     <div class="guide-section" id="project-dashboard">
       <h2>Project Dashboard</h2>
       <div class="role-badges">
@@ -297,10 +159,9 @@
       <h3>Actual Spend vs Budget <em>(DM / Admin only)</em></h3>
       <p>Compares total agreed salaries against total role budgets, showing the variance as over or under budget.</p>
       <h3>Role Analytics <em>(DM / Admin only)</em></h3>
-      <p>A predictive analytics panel that appears below the core dashboard panels. For each active role it shows a <strong>Time-to-Hire prediction</strong> (estimated days remaining based on historical velocity) and a <strong>funnel conversion rate</strong> (submission conversion % and interview to offer ratio). This panel always shows all-time data for each active role — it is not affected by the Period dropdown.</p>
+      <p>A predictive analytics panel that appears below the core dashboard panels. For each active role it shows a <strong>Time-to-Fill prediction</strong> (estimated days remaining based on historical velocity) and a <strong>funnel conversion rate</strong> (submissions to hire). This panel always shows all-time data for each active role — it is not affected by the Period dropdown.</p>
       <div class="tip">Use the <strong>Period</strong> dropdown to filter the detail panels independently from the KPI period buttons.</div>
     </div>
-    <!-- Projects -->
     <div class="guide-section" id="projects">
       <h2>Projects</h2>
       <div class="role-badges">
@@ -311,7 +172,6 @@
       <p>Lists all projects you have access to, showing the customer name, status (Active / Transition / Completed), and start date. Admins and Delivery Managers can add new projects and edit existing ones using the buttons in the table.</p>
       <div class="tip">Project status drives what appears in the Company Dashboard — only Active projects count toward the Active Projects KPI.</div>
     </div>
-    <!-- Roles -->
     <div class="guide-section" id="roles-page">
       <h2>Roles</h2>
       <div class="role-badges">
@@ -326,7 +186,6 @@
       <p>Admins and Delivery Managers can add new roles using the <strong>+ Add Role</strong> button. Any role can be edited or its stage updated using the action links in the table. When creating a role, select the <strong>Functional Area</strong> and hire <strong>Location</strong> — currency is auto-populated from the location and does not need to be entered manually.</p>
       <div class="tip">The "Roles Open 30+ Days" panel on both dashboards is driven by the <strong>Open Date</strong> field — make sure this is set accurately when a role is created.</div>
     </div>
-    <!-- Weekly Activity -->
     <div class="guide-section" id="activity">
       <h2>Weekly Activity</h2>
       <div class="role-badges">
@@ -340,7 +199,6 @@
       <h3>Adding activity</h3>
       <p>Use <strong>+ Add Activity</strong> to log a week's numbers. Select the role, enter the week ending date, and fill in the activity counts. This data feeds directly into the dashboard pipeline panels.</p>
     </div>
-    <!-- Placements -->
     <div class="guide-section" id="placements">
       <h2>Placements</h2>
       <div class="role-badges">
@@ -355,7 +213,6 @@
       <p>Use <strong>+ Record Placement</strong> to log a hire. Select the role and the currency field will auto-populate from the role's location. The salary field feeds the Actual Spend vs Budget panel on the Project Dashboard, so accuracy here matters.</p>
       <div class="tip">A placement's provisional start date is what populates the <strong>Upcoming Starters</strong> panel on the Project Dashboard.</div>
     </div>
-    <!-- Rejected Offers -->
     <div class="guide-section" id="rejections">
       <h2>Rejected Offers</h2>
       <div class="role-badges">
@@ -369,7 +226,6 @@
       <h3>Recording a rejection</h3>
       <p>Use <strong>+ Record Rejection</strong> to log a declined offer. This data feeds the <strong>Offer Rejection Reasons</strong> panel on the Project Dashboard, helping identify trends over time.</p>
     </div>
-    <!-- Report Builder -->
     <div class="guide-section" id="report-builder">
       <h2>Report Builder</h2>
       <div class="role-badges">
@@ -378,4 +234,33 @@
       </div>
       <p>The Report Builder lets you compose a customisable client-facing report for a project. You choose which panels to include, the reporting period, and the scope (single project or company-wide), then save and export to PDF.</p>
       <h3>Building a report</h3>
-      <p>Use the left-hand configuration panel to set the <strong>Scope</strong> (project or company), select a <strong>Project</strong> (if project scope), choose a <strong>Period
+      <p>Use the left-hand configuration panel to set the <strong>Scope</strong> (project or company), select a <strong>Project</strong> (if project scope), choose a <strong>Period</strong>, and set the <strong>KPI Period</strong> (Month, Quarter, or Year). Then toggle the panels you want to include from the module list.</p>
+      <h3>Canvas and ordering</h3>
+      <p>Selected panels appear on the right-hand canvas. Drag and drop panels using the handle on the left of each block to reorder them. The order you set here is the order they appear in the PDF export.</p>
+      <h3>Saving a report</h3>
+      <p>Click <strong>Save Report</strong> to persist your current configuration (scope, project, period, panel selection, and order) to SharePoint. Saved reports can be reloaded — the data always reflects the latest live figures at the time you load it.</p>
+      <h3>Loading a saved report</h3>
+      <p>Click <strong>Load Report</strong> to open your previously saved configurations. Select one to restore the panel layout and settings. The report is automatically regenerated with current data.</p>
+      <h3>Exporting to PDF</h3>
+      <p>Click <strong>Export PDF</strong> to open the browser print dialog. Set Destination to <strong>Save as PDF</strong>, ensure <strong>Background graphics</strong> is ticked, and untick <strong>Headers and footers</strong>.</p>
+      <div class="tip">Each panel in the Report Builder corresponds to a section of the Project Dashboard. If a panel has no data for the selected period, it renders as empty — review your Period setting if panels appear blank.</div>
+    </div>
+    <div class="guide-section" id="admin">
+      <h2>Config Panel</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+      </div>
+      <p>The Config Panel is visible to Admins only and provides two management functions within the Reporting module. Currencies are no longer managed here — they are auto-derived from the role's Location field.</p>
+      <h3>Departments</h3>
+      <p>Manage the list of departments used when categorising roles and projects across the system. Departments are scoped per customer — add or remove them here as your project structures change.</p>
+      <h3>Delete Records</h3>
+      <p>Permanently delete records from any SharePoint list. Select the list and the specific record, then confirm the deletion. This cannot be undone from within Newton — use SharePoint's recycle bin if you need to recover a deleted item.</p>
+      <div class="tip">User and access management has moved to the Newton OS Admin area, accessible via the <strong>Admin</strong> link on the Newton home screen.</div>
+    </div>
+  </div>
+</div>
+<div class="guide-footer">
+  Newton · Reporting · Momentum Global
+</div>
+</body>
+</html>

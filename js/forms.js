@@ -264,9 +264,9 @@ async function loadTalentPartnersForRole(projectId) {
   select.innerHTML = '<option value="">Loading...</option>';
   try {
     const tps = await getTalentPartnersForProject(projectId);
+    const currentEmail = getCurrentUser().email.toLowerCase();
     select.innerHTML = '<option value="">-- Select team member --</option>' +
-      tps.map(u => `<option value="${u.UserEmail}">${u.UserName || u.UserEmail}</option>`).join('');
-
+      tps.map(u => `<option value="${u.UserEmail}" ${u.UserEmail?.toLowerCase() === currentEmail ? 'selected' : ''}>${u.UserName || u.UserEmail}</option>`).join('');
   } catch(e) {
     select.innerHTML = '<option value="">-- Error loading team --</option>';
   }
@@ -369,7 +369,6 @@ async function renderWeeklyActivityForm(existingData = null) {
               ${lockProject && preloadedRoleOptions
                 ? preloadedRoleOptions
                 : '<option value="">-- Select project first --</option>'}
-            </select>
           </div>
         </div>
         ${canLogOnBehalf ? `
@@ -449,8 +448,9 @@ async function loadTalentPartnersForWeekly(projectId) {
   select.innerHTML = '<option value="">Loading...</option>';
   try {
     const tps = await getTalentPartnersForProject(projectId);
+    const currentEmail = getCurrentUser().email.toLowerCase();
     select.innerHTML = '<option value="">-- Select team member --</option>' +
-      tps.map(u => `<option value="${u.UserEmail}">${u.UserName || u.UserEmail}</option>`).join('');
+      tps.map(u => `<option value="${u.UserEmail}" ${u.UserEmail?.toLowerCase() === currentEmail ? 'selected' : ''}>${u.UserName || u.UserEmail}</option>`).join('');
   } catch(e) {
     select.innerHTML = '<option value="">-- Error loading team --</option>';
   }
@@ -545,7 +545,6 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
               ${lockProject && preloadedPlacementRoleOptions
                 ? preloadedPlacementRoleOptions
                 : '<option value="">-- Select project first --</option>'}
-            </select>
           </div>
         </div>
         ${canLogOnBehalf ? `
@@ -628,8 +627,9 @@ async function loadTalentPartnersForPlacement(projectId) {
   select.innerHTML = '<option value="">Loading...</option>';
   try {
     const tps = await getTalentPartnersForProject(projectId);
+    const currentEmail = getCurrentUser().email.toLowerCase();
     select.innerHTML = '<option value="">-- Select team member --</option>' +
-      tps.map(u => `<option value="${u.UserEmail}">${u.UserName || u.UserEmail}</option>`).join('');
+      tps.map(u => `<option value="${u.UserEmail}" ${u.UserEmail?.toLowerCase() === currentEmail ? 'selected' : ''}>${u.UserName || u.UserEmail}</option>`).join('');
   } catch(e) {
     select.innerHTML = '<option value="">-- Error loading team --</option>';
   }

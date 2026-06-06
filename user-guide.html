@@ -197,6 +197,7 @@
       <li><a href="#activity">Weekly Activity</a></li>
       <li><a href="#placements">Placements</a></li>
       <li><a href="#rejections">Rejected Offers</a></li>
+      <li><a href="#report-builder">Report Builder</a></li>
       <li><a href="#admin">Config Panel</a></li>
     </ul>
   </nav>
@@ -295,6 +296,8 @@
       <p>Lists placed candidates with a provisional start date in the future.</p>
       <h3>Actual Spend vs Budget <em>(DM / Admin only)</em></h3>
       <p>Compares total agreed salaries against total role budgets, showing the variance as over or under budget.</p>
+      <h3>Role Analytics <em>(DM / Admin only)</em></h3>
+      <p>A predictive analytics panel that appears below the core dashboard panels. For each active role it shows a <strong>Time-to-Fill prediction</strong> (estimated days remaining based on historical velocity), a <strong>funnel conversion rate</strong> (submissions to hire), and a <strong>velocity score</strong> comparing current pipeline activity against benchmarks. Roles performing below benchmark are flagged with a warning badge. The panel updates when the Period dropdown changes.</p>
       <div class="tip">Use the <strong>Period</strong> dropdown to filter the detail panels independently from the KPI period buttons.</div>
     </div>
     <!-- Projects -->
@@ -366,23 +369,13 @@
       <h3>Recording a rejection</h3>
       <p>Use <strong>+ Record Rejection</strong> to log a declined offer. This data feeds the <strong>Offer Rejection Reasons</strong> panel on the Project Dashboard, helping identify trends over time.</p>
     </div>
-    <!-- Config Panel -->
-    <div class="guide-section" id="admin">
-      <h2>Config Panel</h2>
+    <!-- Report Builder -->
+    <div class="guide-section" id="report-builder">
+      <h2>Report Builder</h2>
       <div class="role-badges">
         <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
       </div>
-       <p>The Config Panel is visible to Admins only and provides two management functions within the Reporting module. Currencies are no longer managed here — they are auto-derived from the role's Location field.</p>
-       <h3>Departments</h3>
-       <p>Manage the list of departments used when categorising roles and projects across the system. Departments are scoped per customer — add or remove them here as your project structures change.</p>
-       <h3>Delete Records</h3>
-       <p>Permanently delete records from any SharePoint list. Select the list and the specific record, then confirm the deletion. This cannot be undone from within Newton — use SharePoint's recycle bin if you need to recover a deleted item.</p>
-      <div class="tip">User and access management has moved to the Newton OS Admin area, accessible via the <strong>Admin</strong> link on the Newton home screen.</div>
-    </div>
-  </div><!-- end guide-content -->
-</div><!-- end guide-body -->
-<div class="guide-footer">
-  Newton · Reporting · Momentum Global
-</div>
-</body>
-</html>
+      <p>The Report Builder lets you compose a customisable client-facing report for a project. You choose which panels to include, the reporting period, and the scope (single project or company-wide), then save and export to PDF.</p>
+      <h3>Building a report</h3>
+      <p>Use the left-hand configuration panel to set the <strong>Scope</strong> (project or company), select a <s

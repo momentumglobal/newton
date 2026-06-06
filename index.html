@@ -263,8 +263,6 @@
       },
     ];
 
-    const CC_EXCLUDED = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled'];
-
 function ccBadgeHTML(rag, label) {
   return `<span class="cc-badge cc-badge--${rag}">${label}</span>`;
 }
@@ -279,17 +277,10 @@ async function refreshCCBanner() {
   ]);
 
   // Project Health RAG
-  const open = roles.filter(r => !CC_EXCLUDED.includes(r.Stage));
-  const today = new Date();
-  const stageOrder = ['Sourcing', 'Interview 1', 'Interview 2+', 'Final Interview'];
+  const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
   const flagged = open.filter(role => {
-    const days = role.OpenDate ? Math.floor((today - new Date(role.OpenDate)) / 86400000) : 0;
-    const idx  = stageOrder.indexOf(role.Stage);
-    if (days >= 15 && idx < 0) return true;
-    if (days >= 25 && idx < 1) return true;
-    if (days >= 35 && idx < 2) return true;
-    if (days >= 40 && idx < 3) return true;
-    return false;
+    const acts = acts4.filter(a => String(a.RoleIDLookupId) === String(role.id));
+    return isRoleFlagged(role, acts);
   }).length;
   const healthPct = open.length ? flagged / open.length : 0;
   const ragHealth = healthPct < 0.25 ? 'green' : healthPct <= 0.50 ? 'amber' : 'red';

@@ -267,7 +267,7 @@
         getAllRoles(),
         getActivityForAnalytics(4)
       ]);
-      const open = roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed').length;
+      const open = roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed' && r.Stage !== 'Hired' && r.Stage !== 'Backlog' && r.Stage !== 'Cancelled').length;
       const atRisk = roles.filter(r => {
         const acts = activity.filter(a => String(a.RoleIDLookupId) === String(r.id));
         if (!acts.length) return false;

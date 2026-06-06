@@ -104,13 +104,16 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
   const isEdit = !!existingData;
   const currentUser = getCurrentUser();
   const email = currentUser.email;
-  const userRole = getUserRole(email);
+  const userRole = await getEffectiveRole(email);
   const canAssign = ['admin', 'delivery_manager'].includes(userRole);
   const projects = await getScopedProjects(email, false);
   const selectedProjectId = existingData?.ProjectID || preselectedProjectId || '';
+  // For talent partners: lock project if only one assigned, dropdown if bridging (2+)
+  const isTalentPartner = userRole === 'talent_partner';
+  const lockProject = isTalentPartner && projects.length === 1;
   const projectOptions = projects.map(p =>
     `<option value="${p.id}" ${
-      (existingData?.ProjectID == p.id || preselectedProjectId == p.id) ? 'selected' : ''
+      (existingData?.ProjectID == p.id || preselectedProjectId == p.id || lockProject) ? 'selected' : ''
     }>${p.CustomerName}</option>`
   ).join('');
   // Pre-load function areas (global — not scoped to project)
@@ -122,7 +125,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
         `<option value="${d.DepartmentName}" ${existingData?.Department === d.DepartmentName ? 'selected' : ''}>${d.DepartmentName}</option>`
       ).join('');
   } catch (e) { /* fall back to empty */ }
-  
+
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Role' : 'Add Role'}</h2>
@@ -130,10 +133,13 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
       <form id="role-form" onsubmit="submitRoleForm(event, ${existingData?.id || 'null'})">
         <div class="form-group">
           <label>Project *</label>
+          ${lockProject ? `
+          <input type="text" value="${projects[0].CustomerName}" disabled style="background:#f5f5f5;color:#666;">
+          <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
           <select name="ProjectID" required onchange="${canAssign ? 'loadTalentPartnersForRole(this.value)' : ''}">
             <option value="">-- Select project --</option>
             ${projectOptions}
-          </select>
+          </select>`}
         </div>
         ${canAssign ? `
         <div class="form-group">
@@ -320,15 +326,28 @@ async function renderWeeklyActivityForm(existingData = null) {
   const isEdit = !!existingData;
   const currentUser = getCurrentUser();
   const email = currentUser.email;
-  const userRole = getUserRole(email);
+  const userRole = await getEffectiveRole(email);
   const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
   const projects = await getScopedProjects(email, false);
+  // For talent partners: lock project if only one assigned, dropdown if bridging (2+)
+  const isTalentPartner = userRole === 'talent_partner';
+  const lockProject = isTalentPartner && projects.length === 1;
   const projectOptions = projects.map(p =>
-    `<option value="${p.id}" ${existingData?.ProjectID == p.id ? 'selected' : ''}>${p.CustomerName}</option>`
+    `<option value="${p.id}" ${(existingData?.ProjectID == p.id || lockProject) ? 'selected' : ''}>${p.CustomerName}</option>`
   ).join('');
   const today = new Date().toISOString().split('T')[0];
   const defaultWeek = existingData?.WeekNumber || getISOWeek(today);
   const defaultYear = existingData?.Year || new Date().getFullYear();
+  // If single project, pre-load roles immediately
+  let preloadedRoleOptions = '';
+  if (lockProject) {
+    try {
+      const roles = await getRolesForProject(projects[0].id);
+      preloadedRoleOptions = roles.map(r =>
+        `<option value="${r.id}" ${existingData?.RoleID == r.id ? 'selected' : ''}>${r.RoleTitle}</option>`
+      ).join('');
+    } catch (e) { /* fall back to empty */ }
+  }
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Weekly Activity' : 'Log Weekly Activity'}</h2>
@@ -337,15 +356,20 @@ async function renderWeeklyActivityForm(existingData = null) {
         <div class="form-row">
           <div class="form-group">
             <label>Project *</label>
+            ${lockProject ? `
+            <input type="text" value="${projects[0].CustomerName}" disabled style="background:#f5f5f5;color:#666;">
+            <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
             <select name="ProjectID" required onchange="loadRolesForWeekly(this.value)${canLogOnBehalf ? ';loadTalentPartnersForWeekly(this.value)' : ''}">
               <option value="">-- Select project --</option>
               ${projectOptions}
-            </select>
+            </select>`}
           </div>
           <div class="form-group">
             <label>Role *</label>
             <select name="RoleID" id="weekly-role-select" required>
-              <option value="">-- Select project first --</option>
+              ${lockProject && preloadedRoleOptions
+                ? preloadedRoleOptions
+                : '<option value="">-- Select project first --</option>'}
             </select>
           </div>
         </div>
@@ -478,7 +502,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   const isEdit = !!existingData;
   const currentUser = getCurrentUser();
   const email = currentUser.email;
-  const userRole = getUserRole(email);
+  const userRole = await getEffectiveRole(email);
   const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
   const projects = await getScopedProjects(email, false);
   const projectOptions = projects.map(p =>

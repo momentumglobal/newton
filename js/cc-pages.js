@@ -3,28 +3,28 @@
 // ── Main renderer ──────────────────────────────────────────────────
 async function renderCCOverview(container) {
   container.innerHTML = '<div class="cc-loading">Loading...</div>';
-  const [roles, acts4, acts13, forecasts, assigns] = await Promise.all([
+  const [roles, acts4, acts13, forecasts, assigns, people] = await Promise.all([
     getAllRoles(),
     getActivityForAnalytics(4),
     getActivityForAnalytics(13),
     getItems('SalesForecasts'),
-    getItems('Assignments')
+    getItems('Assignments'),
+    getPeople(false)
   ]);
   const historical = await getHistoricalPlacements();
-
   const ragHealth = computeProjectHealthRAG(roles, acts4, historical);
   const ragPeople = computePeopleRAG(roles, acts13, historical);
-  const ragUtil   = computeUtilisationRAG(forecasts, assigns);
+  const ragUtil   = computeUtilisationRAG(forecasts, assigns, people);
 
   container.innerHTML = `
     <div class="cc-grid" id="cc-grid">
       ${ccTileHTML('health', 'Project Health', ragHealth, ccHealthStats(roles, acts4))}
       ${ccTileHTML('people', 'People', ragPeople, ccPeopleStats(roles, acts13, historical))}
-      ${ccTileHTML('util',   'Utilisation',    ragUtil,   ccUtilStats(forecasts, assigns))}
+      ${ccTileHTML('util', 'Utilisation', ragUtil, ccUtilStats(forecasts, assigns, people))}
     </div>`;
 
   const grid = document.getElementById('cc-grid');
-  grid._data = { roles, acts4, acts13, historical, forecasts, assigns };
+  grid._data = { roles, acts4, acts13, historical, forecasts, assigns, people };
   attachTileExpand(grid);
 }
 
@@ -99,15 +99,10 @@ function ccPeopleStats(roles, activity, historical) {
   return `<div>${counts.green} green · ${counts.amber} amber · ${counts.red} red</div>`;
 }
 
-function ccUtilStats(forecasts, assigns) {
-  const now = new Date();
-  const active = assigns.filter(a => new Date(a.StartDate) <= now && new Date(a.EndDate) >= now);
-  const totalCap  = active.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const billedCap = active.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const util = totalCap > 0 ? billedCap / totalCap : 0;
-  return `<div>${(util * 100).toFixed(0)}% utilised</div>`;
+function ccUtilStats(forecasts, assigns, people) {
+  const { known, forecast } = _ccUtilCalc(forecasts, assigns, people);
+  return `<div>${(known * 100).toFixed(0)}% now · ${(forecast * 100).toFixed(0)}% forecast</div>`;
 }
-
 // ── RAG logic ──────────────────────────────────────────────────────
 function computeProjectHealthRAG(roles, activity, historical) {
   const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
@@ -146,15 +141,43 @@ function computePeopleRAG(roles, activity, historical) {
   return 'red';
 }
 
-function computeUtilisationRAG(forecasts, assigns) {
-  const t   = CONFIG.UTILISATION_THRESHOLDS;
-  const now = new Date();
-  const active    = assigns.filter(a => new Date(a.StartDate) <= now && new Date(a.EndDate) >= now);
-  const totalCap  = active.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const billedCap = active.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const util = totalCap > 0 ? billedCap / totalCap : 0;
-  if (util >= t.green) return 'green';
-  if (util >= t.amber) return 'amber';
+function _ccUtilCalc(forecasts, assigns, people) {
+  const now     = new Date();
+  const horizon = new Date(now.getTime() + 91 * 86400000); // 13 weeks
+
+  // Active headcount (SDM, STP, TP only — consistent with People Dashboard)
+  const totalActiveHeadcount = (people || []).filter(p =>
+    p.IsActive !== false && ['SDM', 'STP', 'TP'].includes(p.Level)
+  ).length;
+
+  // Known: assignments active at any point in the next 13 weeks
+  const known13 = assigns.filter(a => {
+    if (!a.StartDate || !a.EndDate) return false;
+    const s = new Date(a.StartDate);
+    const e = new Date(a.EndDate);
+    return s <= horizon && e >= now && a.Level !== 'CSD';
+  });
+  const totalCap  = known13.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const billedCap = known13.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const known = totalCap > 0 ? billedCap / totalCap : 0;
+
+  // Forecast: known + sales forecasts overlapping next 13 weeks
+  const forecastedHeadcount = forecasts.reduce((sum, f) => {
+    const s = new Date(f.ForecastStartDate);
+    const e = new Date(f.ForecastEndDate);
+    return (s <= horizon && e >= now) ? sum + (f.ForecastedHeadcount || 0) : sum;
+  }, 0);
+  const added    = totalActiveHeadcount > 0 ? forecastedHeadcount / totalActiveHeadcount : 0;
+  const forecast = Math.min(known + added, 1.0);
+
+  return { known, forecast };
+}
+
+function computeUtilisationRAG(forecasts, assigns, people) {
+  const t = CONFIG.UTILISATION_THRESHOLDS;
+  const { forecast } = _ccUtilCalc(forecasts, assigns, people);
+  if (forecast >= t.green) return 'green';
+  if (forecast >= t.amber) return 'amber';
   return 'red';
 }
 

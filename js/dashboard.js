@@ -530,7 +530,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
 
   return `<div class='dash-panel'>
     <h3 class='panel-title'>Role Analytics</h3>
-    class='data-table ra-table'
+    <table class='data-table ra-table'>
       <thead><tr>
         <th>Role</th>
         <th>Talent Partner</th>

@@ -839,9 +839,9 @@ body {
   transition: opacity 0.15s;
 }
 .cc-banner:hover { opacity: 0.88; }
-.cc-banner--green { background: rgba(46,125,50,0.35); border: 1px solid rgba(46,125,50,0.5); }
-.cc-banner--amber { background: rgba(245,127,23,0.35); border: 1px solid rgba(245,127,23,0.5); }
-.cc-banner--red   { background: rgba(198,40,40,0.35);  border: 1px solid rgba(198,40,40,0.6); }
+.cc-banner--green { background: rgba(46,125,50,0.45); border: 1px solid rgba(46,125,50,0.65); }
+.cc-banner--amber { background: rgba(245,127,23,0.45); border: 1px solid rgba(245,127,23,0.65); }
+.cc-banner--red   { background: rgba(198,40,40,0.45);  border: 1px solid rgba(198,40,40,0.65); }
 .cc-banner__title { font-size: 15px; font-weight: 600; color: white; }
 .cc-banner__sub   { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; }
 .cc-banner__kpis  { display: flex; gap: 20px; flex: 1; justify-content: center; }

@@ -58,7 +58,10 @@ function renderScorecardPanel(scorecard, tpMap = {}) {
   }).join('');
 
   return `<div class='dash-panel sc-card'>
-    <h3 class='panel-title sc-tp-name'>${displayName}</h3>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <h3 class='panel-title sc-tp-name' style="margin-bottom:0">${displayName}</h3>
+      <span class="sc-rag-pill sc-rag-pill--${scorecard.rag}">${scorecard.rag.toUpperCase()}</span>
+    </div>
     <p class='sc-window'>Rolling Quarterly View</p>
     <table class='sc-table'><tbody>${rows}</tbody></table>
   </div>`;

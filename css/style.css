@@ -827,6 +827,12 @@ body {
 .sc-red   { background: #FFEBEE; color: #C62828; }
 .sc-grey  { background: #F5F5F5; color: #9E9E9E; }
 
+/* People Scorecards — overall RAG pill */
+.sc-rag-pill { font-size:10px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; padding:2px 10px; border-radius:10px; }
+.sc-rag-pill--green { background:#e6f4ea; color:#2e7d32; }
+.sc-rag-pill--amber { background:#fff3e0; color:#e65100; }
+.sc-rag-pill--red   { background:#fce8e8; color:#c62828; }
+
 /* ═══════════════════════════════════════════════ */
 /* Command Centre                                  */
 /* ═══════════════════════════════════════════════ */

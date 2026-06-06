@@ -858,11 +858,14 @@ body {
 /* ── Command Centre module shell ── */
 .cc-grid {
   display: flex; gap: 16px; padding: 24px;
+  align-items: center; min-height: 50vh;
   transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
 }
 .cc-tile {
-  flex: 1; border-radius: 12px; padding: 24px;
+  flex: 1; border-radius: 12px; padding: 32px 28px;
   cursor: pointer; position: relative;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+  min-height: 50vh;
   transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
   overflow: hidden;
 }
@@ -870,8 +873,7 @@ body {
 
 /* Tile expand */
 .cc-grid--expanded .cc-tile { flex: 0 0 0; opacity: 0; padding: 0; pointer-events: none; }
-.cc-grid--expanded .cc-tile--active { flex: 1; opacity: 1; padding: 24px; pointer-events: all; min-height: calc(100vh - 160px); }
-
+.cc-grid--expanded .cc-tile--active { flex: 1; opacity: 1; padding: 32px 28px; pointer-events: all; min-height: calc(100vh - 160px); }
 /* RAG tile colours */
 .cc-tile--green { background: #E8F5E9; border-left: 5px solid #2E7D32; }
 .cc-tile--amber { background: #FFF8E1; border-left: 5px solid #F57F17; }

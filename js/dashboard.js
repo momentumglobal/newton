@@ -578,7 +578,7 @@ async function renderProjectDashboard() {
   const analyticsActs  = await getActivityForAnalytics(52);
 
   // Cache for period filter updates (avoids full re-fetch on filter change)
-  window._dashCache = { roles, activity, placements, rejections, tpMap };
+  window._dashCache = { roles, activity, placements, rejections, tpMap, analyticsActs, historical };
   const roleAnalytics   = await renderRoleAnalyticsPanel(roles, analyticsActs, historical, tpMap);
   const kpiPeriods      = [['month','Month'],['quarter','Quarter'],['year','Year']];
   const kpiBtns         = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
@@ -637,13 +637,20 @@ function setDetailPeriod(period) {
   if (el && window._dashCache) {
   const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole);
   const c = window._dashCache;
+  const roleAnalyticsPlaceholder = `<div id='role-analytics-placeholder'></div>`;
   el.innerHTML =
     renderPlacementsPanel(c.placements, c.roles, _dashDetailPeriod) +
     renderPipelineActivityTable(c.activity, c.roles, _dashDetailPeriod) +
+    roleAnalyticsPlaceholder +
     (isDMAdmin ? renderActivityByTPPanel(c.activity, _dashDetailPeriod, c.tpMap) : '') +
     (isDMAdmin ? renderRejectionPanel(c.rejections, c.roles, _dashDetailPeriod) : '') +
     (isDMAdmin ? renderUpcomingStartersPanel(c.placements, c.roles) : '') +
     (isDMAdmin ? renderSpendPanel(c.roles, c.placements) : '');
+  renderRoleAnalyticsPanel(c.roles, c.analyticsActs, c.historical, c.tpMap)
+    .then(html => {
+      const ph = document.getElementById('role-analytics-placeholder');
+      if (ph) ph.outerHTML = html;
+    });
 } else {
     renderProjectDashboard();
   }

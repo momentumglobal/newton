@@ -281,7 +281,7 @@ async function refreshCCBanner() {
   // Project Health RAG
   const open = roles.filter(r => !CC_EXCLUDED.includes(r.Stage));
   const today = new Date();
-  const stageOrder = ['Submitted','Interview1','Interview2Plus','FinalInterview'];
+  const stageOrder = ['Sourcing', 'Interview 1', 'Interview 2+', 'Final Interview'];
   const flagged = open.filter(role => {
     const days = role.OpenDate ? Math.floor((today - new Date(role.OpenDate)) / 86400000) : 0;
     const idx  = stageOrder.indexOf(role.Stage);

@@ -7,9 +7,10 @@ async function renderScorecardsPage() {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading scorecards...</p>';
 
-  const [activityRaw, historical] = await Promise.all([
+  const [activityRaw, historical, tpMap] = await Promise.all([
     getActivityForAnalytics(13),
     getHistoricalPlacements(),
+    getTalentPartnerDisplayMap(),
   ]);
 
   // Get unique TP emails from activity
@@ -34,30 +35,31 @@ async function renderScorecardsPage() {
     const tpActivity   = activityRaw.filter(a => a.TalentPartner === tpEmail);
     const tpPlacements = recentPlacements.filter(r => r.tpEmail === tpEmail);
     const scorecard    = computeVelocityScore(tpEmail, tpActivity, tpPlacements, benchmarks);
-    return renderScorecardPanel(scorecard);
+    return renderScorecardPanel(scorecard, tpMap);
   }).join('');
 
   main.innerHTML = `
     <div class='page-header'>
       <h2>People Scorecards</h2>
-      <p class='page-subtitle'>Rolling 13-week coaching view · Admin and Leadership only</p>
+      <p class='page-subtitle'>Rolling Quarterly Coaching View</p>
     </div>
     <div class='scorecard-grid'>${cards}</div>`;
 }
 
-function renderScorecardPanel(scorecard) {
+function renderScorecardPanel(scorecard, tpMap = {}) {
+  const displayName = tpMap[scorecard.tpEmail.toLowerCase()] || scorecard.tpEmail;
   const rows = scorecard.metrics.map(m => {
     const display = m.value !== null ? `${m.value}${m.unit === '%' ? '%' : ' ' + m.unit}` : '—';
     const ragClass = m.informational ? 'sc-grey' : `sc-${m.rag}`;
     return `<tr>
       <td class='sc-label'>${m.label}</td>
-      <td class='sc-value ${ragClass}'>${display}</td>
+      <td class='sc-value ${ragClass}' style="text-align:center">${display}</td>
     </tr>`;
   }).join('');
 
   return `<div class='dash-panel sc-card'>
-    <h3 class='panel-title sc-tp-name'>${scorecard.tpEmail}</h3>
-    <p class='sc-window'>${scorecard.window}</p>
+    <h3 class='panel-title sc-tp-name'>${displayName}</h3>
+    <p class='sc-window'>Rolling Quarterly View</p>
     <table class='sc-table'><tbody>${rows}</tbody></table>
   </div>`;
 }

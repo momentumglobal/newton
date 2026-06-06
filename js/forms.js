@@ -369,6 +369,7 @@ async function renderWeeklyActivityForm(existingData = null) {
               ${lockProject && preloadedRoleOptions
                 ? preloadedRoleOptions
                 : '<option value="">-- Select project first --</option>'}
+            </select>
           </div>
         </div>
         ${canLogOnBehalf ? `
@@ -545,6 +546,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
               ${lockProject && preloadedPlacementRoleOptions
                 ? preloadedPlacementRoleOptions
                 : '<option value="">-- Select project first --</option>'}
+            </select>
           </div>
         </div>
         ${canLogOnBehalf ? `

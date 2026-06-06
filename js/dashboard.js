@@ -490,7 +490,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
   }
 
   const rows = activeRoles.map(role => {
-    const acts = activity.filter(a => a.RoleID === role.Id);
+    const acts = activity.filter(a => String(a.RoleID) === String(role.id));
     const totals = {};
     ['Outreach','Responses','Screened','Submitted',
      'Interview1','Interview2Plus','FinalInterview',

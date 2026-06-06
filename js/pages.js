@@ -467,7 +467,7 @@ async function renderRejectionsPage() {
 }
 function setRejectionsProject(val) { _rejectionsProjectId = val || null; renderRejectionsPage(); }
 async function showAddRejectionForm() {
-  document.getElementById("main-content").innerHTML = await renderReject
+  document.getElementById("main-content").innerHTML = await renderRejectedOfferForm();
 }
 async function showEditRejectionForm(id) {
   const data = await getItem("RejectedOffers", id);

@@ -336,7 +336,7 @@ async function renderPlacementsPage() {
     });
   }
   const role    = _resolvedRole;
-  const canEdit = ["admin","talent_partner"].includes(role);
+  const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
   const monthBtns = PLACEMENT_MONTHS.map((m, i) =>
     `<button class="btn-filter${_placementFilter.type === "month" && _placementFilter.value === i ? " active" : ""}" onclick="setPlacementFilter('month',${i})">${m}</button>`
   ).join("");
@@ -433,7 +433,7 @@ async function renderRejectionsPage() {
     });
   }
   const role    = _resolvedRole;
-  const canEdit = ["admin","talent_partner"].includes(role);
+  const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _rejectionsProjectId, 'setRejectionsProject')
     : '';
@@ -467,7 +467,7 @@ async function renderRejectionsPage() {
 }
 function setRejectionsProject(val) { _rejectionsProjectId = val || null; renderRejectionsPage(); }
 async function showAddRejectionForm() {
-  document.getElementById("main-content").innerHTML = await renderRejectedOfferForm();
+  document.getElementById("main-content").innerHTML = await renderReject
 }
 async function showEditRejectionForm(id) {
   const data = await getItem("RejectedOffers", id);

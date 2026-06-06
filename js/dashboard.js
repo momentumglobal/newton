@@ -474,6 +474,72 @@ function renderPlacementsPanel(placements, roles, period) {
     </table>
   </div>`;
 }
+
+// ── Role Analytics panel (Phase A + B) ───────────────────────────────
+
+async function renderRoleAnalyticsPanel(roles, activity, historical) {
+  const b = CONFIG.ANALYTICS_BENCHMARKS;
+  const activeRoles = roles.filter(r => r.Status === 'Active');
+
+  if (!activeRoles.length) {
+    return `<div class='dash-panel'>
+      <h3 class='panel-title'>Role Analytics</h3>
+      <p class='no-data'>No active roles.</p>
+    </div>`;
+  }
+
+  const rows = activeRoles.map(role => {
+    const acts = activity.filter(a => a.RoleID === role.Id);
+    const totals = {};
+    ['Outreach','Responses','Screened','Submitted',
+     'Interview1','Interview2Plus','FinalInterview',
+     'Offers','Hires'].forEach(f => {
+      totals[f] = sumField(acts, f);
+    });
+
+    const funnel = computeRoleFunnel(totals, b);
+    const ttf    = computeTTFPrediction(
+      role.Department, role.Currency, historical);
+
+    const flags = funnel.filter(s => s.benchmarked).map(s => s.rag);
+    const worst = flags.includes('red') ? 'red'
+      : flags.includes('amber') ? 'amber' : 'green';
+
+    return { role, funnel, ttf, worst };
+  });
+
+  const order = { red: 0, amber: 1, green: 2 };
+  rows.sort((a, b) => order[a.worst] - order[b.worst]);
+
+  const tableRows = rows.map(({ role, funnel, ttf }) => {
+    const ttfClass = ttf.sampleSize >= 3 ? 'ttf-badge' : 'ttf-badge ttf-badge--low-data';
+    const ttfCell  = `<td class='ra-ttf'><span class='${ttfClass}'>${ttf.label}</span></td>`;
+
+    const flagCells = funnel.filter(s => s.benchmarked).map(s => {
+      const label = s.conv !== null ? `${s.conv}%` : '—';
+      return `<td class='ra-cell ra-${s.rag}'>${s.stage}<br><strong>${label}</strong></td>`;
+    }).join('');
+
+    return `<tr>
+      <td class='ra-role'>${role.Title}</td>
+      <td class='ra-tp'>${role.TalentPartner || '—'}</td>
+      ${ttfCell}${flagCells}
+    </tr>`;
+  }).join('');
+
+  return `<div class='dash-panel'>
+    <h3 class='panel-title'>Role Analytics</h3>
+    <table class='ra-table'>
+      <thead><tr>
+        <th>Role</th><th>TP</th><th>TTF</th>
+        <th>Response</th><th>IV1 Conv.</th>
+        <th>IV→Offer</th><th>Offer Success</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>`;
+}
+
 // ── Main renderer ─────────────────────────────────────────────────────
 async function renderProjectDashboard() {
   const main = document.getElementById('main-content');

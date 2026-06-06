@@ -17,10 +17,13 @@ async function renderCCOverview(container) {
   const ragUtil   = computeUtilisationRAG(forecasts, assigns, people);
 
   container.innerHTML = `
+    <div class="page-header">
+      <h2>MG Command Centre</h2>
+    </div>
     <div class="cc-grid" id="cc-grid">
       ${ccTileHTML('health', 'Project Health', ragHealth, ccHealthStats(roles, acts4))}
       ${ccTileHTML('people', 'People', ragPeople, ccPeopleStats(roles, acts13, historical))}
-      ${ccTileHTML('util', 'Utilisation', ragUtil, ccUtilStats(forecasts, assigns, people))}
+      ${ccTileHTML('util',   'Utilisation',    ragUtil,   ccUtilStats(forecasts, assigns, people))}
     </div>`;
 
   const grid = document.getElementById('cc-grid');

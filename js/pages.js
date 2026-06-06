@@ -222,7 +222,7 @@ async function renderActivityPage() {
     });
   }
   const role    = _resolvedRole;
-  const canEdit = ["admin","talent_partner"].includes(role);
+  const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _activityProjectId, 'setActivityProject')
     : '';

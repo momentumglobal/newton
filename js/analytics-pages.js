@@ -70,9 +70,10 @@ function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null) {
 
   const rows = scorecard.metrics.map(m => {
     const display = m.value !== null ? `${m.value}${m.unit === '%' ? '%' : ' ' + m.unit}` : '—';
+    const ragClass = m.informational ? 'sc-grey' : `sc-${m.rag}`;
     return `<tr>
       <td class='sc-label'>${m.label}</td>
-      <td class='sc-value sc-grey' style="text-align:center">${display}</td>
+      <td class='sc-value ${ragClass}' style="text-align:center">${display}</td>
     </tr>`;
   }).join('');
 

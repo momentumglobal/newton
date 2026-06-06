@@ -81,17 +81,22 @@ function ccHealthStats(roles, activity) {
 }
 
 function ccPeopleStats(roles, activity, historical) {
-  const b = CONFIG.ANALYTICS_BENCHMARKS;
   const tps = [...new Set(
-    roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed' && r.Stage !== 'Hired' && r.Stage !== 'Backlog' && r.Stage !== 'Cancelled' && r.TalentPartner)
+    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner)
          .map(r => r.TalentPartner)
   )];
-  const atRisk = tps.filter(tp => {
-    const tpActs  = activity.filter(a => a.TalentPartner === tp);
-    const tpPlacs = (historical || []).filter(r => r.talentPartner === tp);
-    return computeVelocityScore(tp, tpActs, tpPlacs, b).rag !== 'green';
-  }).length;
-  return `<div>${tps.length} active TPs</div><div>${atRisk} below benchmark</div>`;
+  const counts = { green: 0, amber: 0, red: 0 };
+  tps.forEach(tp => {
+    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner && r.TalentPartner.toLowerCase() === tp.toLowerCase());
+    const flagged = tpRoles.filter(r => {
+      const acts = activity.filter(a => String(a.RoleIDLookupId) === String(r.id));
+      return isRoleFlagged(r, acts);
+    }).length;
+    const pct = tpRoles.length ? flagged / tpRoles.length : null;
+    const rag = pct === null ? 'grey' : pct < 0.25 ? 'green' : pct <= 0.50 ? 'amber' : 'red';
+    if (rag !== 'grey') counts[rag]++;
+  });
+  return `<div>${counts.green} green · ${counts.amber} amber · ${counts.red} red</div>`;
 }
 
 function ccUtilStats(forecasts, assigns) {
@@ -120,18 +125,24 @@ function computeProjectHealthRAG(roles, activity, historical) {
 function computePeopleRAG(roles, activity, historical) {
   const b = CONFIG.ANALYTICS_BENCHMARKS;
   const tps = [...new Set(
-    roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed' && r.TalentPartner)
+    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner)
          .map(r => r.TalentPartner)
   )];
-  let atRisk = 0;
-  tps.forEach(tp => {
-    const tpActs  = activity.filter(a => a.TalentPartner === tp);
-    const tpPlacs = historical.filter(r => r.talentPartner === tp);
-    const score   = computeVelocityScore(tp, tpActs, tpPlacs, b);
-    if (score.rag !== 'green') atRisk++;
-  });
-  if (atRisk === 0) return 'green';
-  if (atRisk <= 2)  return 'amber';
+  if (!tps.length) return 'green';
+  const weight = { green: 0, amber: 1, red: 2, grey: 0 };
+  const total = tps.reduce((sum, tp) => {
+    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner && r.TalentPartner.toLowerCase() === tp.toLowerCase());
+    const flagged = tpRoles.filter(r => {
+      const acts = activity.filter(a => String(a.RoleIDLookupId) === String(r.id));
+      return isRoleFlagged(r, acts);
+    }).length;
+    const pct = tpRoles.length ? flagged / tpRoles.length : null;
+    const rag = pct === null ? 'grey' : pct < 0.25 ? 'green' : pct <= 0.50 ? 'amber' : 'red';
+    return sum + weight[rag];
+  }, 0);
+  const avg = total / tps.length;
+  if (avg < 0.5)  return 'green';
+  if (avg <= 1.0) return 'amber';
   return 'red';
 }
 

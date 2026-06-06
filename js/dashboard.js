@@ -477,7 +477,7 @@ function renderPlacementsPanel(placements, roles, period) {
 
 // ── Role Analytics panel (Phase A + B) ───────────────────────────────
 
-async function renderRoleAnalyticsPanel(roles, activity, historical) {
+async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {}) {
   const b = CONFIG.ANALYTICS_BENCHMARKS;
   const EXCLUDED = ['Backlog', 'Cancelled', 'On-hold'];
   const activeRoles = roles.filter(r => !EXCLUDED.includes(r.Stage));
@@ -522,8 +522,8 @@ async function renderRoleAnalyticsPanel(roles, activity, historical) {
     }).join('');
 
     return `<tr>
-      <td class='ra-role'>${role.Title}</td>
-      <td class='ra-tp'>${role.TalentPartner || '—'}</td>
+      <td class='ra-role'>${role.RoleTitle || role.LinkTitle || '—'}</td>
+      <td class='ra-tp'>${tpMap[(role.TalentPartner || '').toLowerCase()] || role.TalentPartner || '—'}</td>
       ${ttfCell}${flagCells}
     </tr>`;
   }).join('');
@@ -575,7 +575,7 @@ async function renderProjectDashboard() {
   const analyticsActs  = await getActivityForAnalytics(52);
   // Cache for period filter updates (avoids full re-fetch on filter change)
   window._dashCache = { roles, activity, placements, rejections, tpMap };
-  const roleAnalytics   = await renderRoleAnalyticsPanel(roles, analyticsActs, historical);
+  const roleAnalytics   = await renderRoleAnalyticsPanel(roles, analyticsActs, historical, tpMap);
   const kpiPeriods      = [['month','Month'],['quarter','Quarter'],['year','Year']];
   const kpiBtns         = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
   const kpis            = renderKPIStrip(roles, activity, _dashPeriod);

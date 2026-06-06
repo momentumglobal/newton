@@ -146,7 +146,7 @@ async function renderRolesPage(filter) {
     </div>
     <table class="data-table">
       <thead><tr>
-        <th>Project</th><th>Role</th><th>Stage</th><th>Talent Partner</th>
+        <th>Project</th><th>Role</th><th>Location</th><th>Stage</th><th>Talent Partner</th>
         <th>Budget</th><th>Open Date</th><th>Target Hire Date</th><th>Days Open</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
@@ -158,6 +158,7 @@ async function renderRolesPage(filter) {
           <tr class="${rowClass}">
             <td>${projectName}</td>
             <td>${r.RoleTitle}</td>
+            <td>${r.Location || '—'}</td>
             <td><span class="badge">${r.Stage || "—"}</span></td>
             <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || "—"}</td>
             <td>${formatSalary(r.Budget)}</td>
@@ -195,7 +196,7 @@ async function renderActivityPage() {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
-  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.RoleTitle]));
+  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), { title: r.RoleTitle, location: r.Location }]));
   activity.sort((a, b) => {
     const yr = Number(b.Year) - Number(a.Year);
     if (yr !== 0) return yr;
@@ -369,7 +370,7 @@ async function renderPlacementsPage() {
     </div>
     <table class="data-table">
       <thead><tr>
-        <th>Candidate</th><th>Role</th><th>Salary</th>
+        <th>Candidate</th><th>Role</th><th>Location</th><th>Salary</th>
         <th>Offer Accepted</th><th>Start Date</th><th>Time to Hire</th>
         ${canEdit ? "<th></th>" : ""}
       </tr></thead>
@@ -377,7 +378,8 @@ async function renderPlacementsPage() {
         ${placements.map(p => `
           <tr>
             <td>${p.CandidateName}</td>
-            <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || "—"}</td>
+            <td>${(roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || {}).title || "—"}</td>
+            <td>${(roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || {}).location || "—"}</td>
             <td>${formatSalary(p.SalaryAgreed)}</td>
             <td>${p.OfferAcceptedDate ? p.OfferAcceptedDate.split("T")[0] : "—"}</td>
             <td>${p.ProvisionalStartDate ? p.ProvisionalStartDate.split("T")[0] : "—"}</td>

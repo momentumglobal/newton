@@ -241,6 +241,36 @@
         roles: ['admin','delivery_manager','talent_partner'],
       },
     ];
+
+    async function renderCommandCentreBanner(role) {
+      if (role !== 'admin' && role !== 'leadership') return;
+      const [roles, activity] = await Promise.all([
+        getAllRoles(),
+        getActivityForAnalytics(4)
+      ]);
+      const open = roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed').length;
+      const atRisk = roles.filter(r => {
+        const acts = activity.filter(a => String(a.RoleIDLookupId) === String(r.id));
+        if (!acts.length) return false;
+        const f = computeRoleFunnel(acts, CONFIG.ANALYTICS_BENCHMARKS);
+        return f.some(s => s.rag !== 'green');
+      }).length;
+      const rag = atRisk === 0 ? 'green' : atRisk <= 2 ? 'amber' : 'red';
+      const el = document.getElementById('cc-banner-slot');
+      el.innerHTML = `
+        <a href="command-centre.html" class="cc-banner cc-banner--${rag}">
+          <div class="cc-banner__left">
+            <div class="cc-banner__title">Command Centre</div>
+            <div class="cc-banner__sub">Executive Operations View</div>
+          </div>
+          <div class="cc-banner__kpis">
+            <span class="cc-banner__kpi"><strong>${open}</strong> open roles</span>
+            <span class="cc-banner__kpi cc-banner__kpi--${rag}"><strong>${atRisk}</strong> at risk</span>
+          </div>
+          <div class="cc-banner__cta">Open &rarr;</div>
+        </a>`;
+    }
+    
     async function initHome() {
       const response = await msalInstance.handleRedirectPromise();
       if (response) {
@@ -271,6 +301,10 @@
         const adminLink = document.getElementById('admin-link');
         if (adminLink) adminLink.style.display = 'block';
       }
+
+      // NEW: CC banner for Admin/Leadership
+      await renderCommandCentreBanner(role);
+      
       // Load announcement banner
       getAnnouncementMessage().then(msg => {
         const ticker = document.getElementById('announcement-ticker');

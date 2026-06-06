@@ -5,6 +5,7 @@ async function initCC() {
   const user = getCurrentUser();
   const role = await getEffectiveRole(user.email);
   if (!ccCanAccess(role)) { window.location.href = 'index.html'; return; }
+  document.getElementById('app-shell').style.display = 'flex';
   renderCCNav(role, 'overview');
   const container = document.getElementById('page-content');
   await renderCCOverview(container);

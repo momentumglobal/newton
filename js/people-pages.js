@@ -687,7 +687,7 @@ async function _renderKPIStrip(allRows, people, assignments) {
   return `<div style='display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px'>
     ${_kpiCard('Estimated Revenue ' + thisY,   _fmtGBP(revYTD),   'Current year YTD')}
     ${_kpiCard('Utilisation ' + thisY,      _fmtPct(utilYTD),  'Current year YTD',
-        utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? '#e6f4ea' : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? '#fff3e0' : '#fce8e8'
+        utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? '#e6f4ea' : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? '#fff3e0' : '#fce8e8')}
     ${_kpiCard('Active Customers',  activeCustomers  + _delta(activeCustomers, prevQCustomers),  'As of today · vs last quarter')}
     ${_kpiCard('Billed Headcount',  billedHeadcount  + _delta(billedHeadcount, prevQHeadcount),  'As of today · vs last quarter')}
   </div>`;

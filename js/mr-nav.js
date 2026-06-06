@@ -1,11 +1,11 @@
-// js/mr-nav.js — Marketing Report module navigation
+// js/mr-nav.js — Market Analytics module navigation
 
 let _mrCurrentPage  = null;
 let _mrResolvedRole = null;  // set by mr-app.js on init
 
 function renderMrNav(role) {
   renderModuleNav({
-    subtitle:         'Market Reporting',
+    subtitle:         'Market Analytics',
     currentModuleKey: 'marketing',
     toggleFn:         'toggleMrModuleDropdown',
     pages:            getMrAccessiblePages(role),
@@ -37,7 +37,8 @@ function navigateToMr(page) {
 
 async function renderMrPage(page) {
   switch (page) {
-    case 'marketReport': await renderMarketReport(); break;
+    case 'marketReport':      await renderMarketReport();      break;
+    case 'placementAnalytics': await renderPlacementAnalytics(); break;
     default: document.getElementById('main-content').innerHTML
       = '<p>Page not found.</p>';
   }

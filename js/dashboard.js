@@ -479,12 +479,13 @@ function renderPlacementsPanel(placements, roles, period) {
 
 async function renderRoleAnalyticsPanel(roles, activity, historical) {
   const b = CONFIG.ANALYTICS_BENCHMARKS;
-  const activeRoles = roles.filter(r => r.Stage === 'Active');
+  const EXCLUDED = ['Backlog', 'Cancelled', 'On-hold'];
+  const activeRoles = roles.filter(r => !EXCLUDED.includes(r.Stage));
 
   if (!activeRoles.length) {
     return `<div class='dash-panel'>
       <h3 class='panel-title'>Role Analytics</h3>
-      <p class='no-data'>No active roles.</p>
+      <p class='no-data'>No roles to display.</p>
     </div>`;
   }
 

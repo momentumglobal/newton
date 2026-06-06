@@ -1,5 +1,7 @@
 // js/cc-pages.js
 
+const ACTIVE_STAGES = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled'];
+
 // ── Main renderer ──────────────────────────────────────────────────
 async function renderCCOverview(container) {
   container.innerHTML = '<div class="cc-loading">Loading...</div>';
@@ -72,13 +74,12 @@ function loadTileDetail(tile, data) {
 
 // ── Headline stats (at-a-glance tile summary) ──────────────────────
 function ccHealthStats(roles, activity) {
-  const open   = roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed' && r.Stage !== 'Hired' && r.Stage !== 'Backlog' && r.Stage !== 'Cancelled').length;
-  const atRisk = roles.filter(r => {
-    const acts = activity.filter(a => String(a.RoleIDLookupId) === String(r.id));
-    if (!acts.length) return false;
-    return computeRoleFunnel(acts, CONFIG.ANALYTICS_BENCHMARKS).some(s => s.rag !== 'green');
+  const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
+  const flagged = open.filter(role => {
+    const acts = activity.filter(a => String(a.RoleIDLookupId) === String(role.id));
+    return isRoleFlagged(role, acts);
   }).length;
-  return `<div>${open} open roles</div><div>${atRisk} flagged</div>`;
+  return `<div>${open.length} open roles</div><div>${flagged} flagged</div>`;
 }
 
 function ccPeopleStats(roles, activity, historical) {
@@ -105,16 +106,31 @@ function ccUtilStats(forecasts, assigns) {
 }
 
 // ── RAG logic ──────────────────────────────────────────────────────
+function isRoleFlagged(role, activity) {
+  const today = new Date();
+  const days = role.OpenDate ? Math.floor((today - new Date(role.OpenDate)) / 86400000) : 0;
+  const stageOrder = ['Submitted', 'Interview1', 'Interview2Plus', 'FinalInterview'];
+  const stageIdx = stageOrder.indexOf(role.Stage);
+  if (days >= 15 && stageIdx < 0)  return true; // not yet at Submitted
+  if (days >= 25 && stageIdx < 1)  return true; // not yet at Interview1
+  if (days >= 35 && stageIdx < 2)  return true; // not yet at Interview2Plus
+  if (days >= 40 && stageIdx < 3)  return true; // not yet at FinalInterview
+  const submitted = sumField(activity, 'Submitted');
+  const iv1       = sumField(activity, 'Interview1');
+  if (submitted > 0 && (iv1 / submitted) < 0.50) return true;
+  return false;
+}
+
 function computeProjectHealthRAG(roles, activity, historical) {
-  const open = roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed' && r.Stage !== 'Hired' && r.Stage !== 'Backlog' && r.Stage !== 'Cancelled');
-  let atRisk = 0;
-  open.forEach(role => {
+  const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
+  if (!open.length) return 'green';
+  const flagged = open.filter(role => {
     const acts = activity.filter(a => String(a.RoleIDLookupId) === String(role.id));
-    if (!acts.length) return;
-    if (computeRoleFunnel(acts, CONFIG.ANALYTICS_BENCHMARKS).some(s => s.rag !== 'green')) atRisk++;
-  });
-  if (atRisk === 0) return 'green';
-  if (atRisk <= 2)  return 'amber';
+    return isRoleFlagged(role, acts);
+  }).length;
+  const pct = flagged / open.length;
+  if (pct < 0.25)  return 'green';
+  if (pct <= 0.50) return 'amber';
   return 'red';
 }
 

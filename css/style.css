@@ -826,3 +826,57 @@ body {
 .sc-amber { background: #FFF8E1; color: #F57F17; }
 .sc-red   { background: #FFEBEE; color: #C62828; }
 .sc-grey  { background: #F5F5F5; color: #9E9E9E; }
+
+/* ═══════════════════════════════════════════════ */
+/* Command Centre                                  */
+/* ═══════════════════════════════════════════════ */
+
+/* ── Homepage banner ── */
+.cc-banner {
+  display: flex; align-items: center; gap: 24px;
+  padding: 18px 28px; border-radius: 14px;
+  margin-bottom: 20px; text-decoration: none;
+  transition: opacity 0.15s;
+}
+.cc-banner:hover { opacity: 0.88; }
+.cc-banner--green { background: rgba(46,125,50,0.18); border: 1px solid rgba(46,125,50,0.35); }
+.cc-banner--amber { background: rgba(245,127,23,0.18); border: 1px solid rgba(245,127,23,0.35); }
+.cc-banner--red   { background: rgba(198,40,40,0.18);  border: 1px solid rgba(198,40,40,0.45); }
+.cc-banner__title { font-size: 15px; font-weight: 600; color: white; }
+.cc-banner__sub   { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; }
+.cc-banner__kpis  { display: flex; gap: 20px; flex: 1; justify-content: center; }
+.cc-banner__kpi   { font-size: 13px; color: rgba(255,255,255,0.6); }
+.cc-banner__kpi strong { font-size: 20px; color: white; display: block; line-height: 1; }
+.cc-banner__cta   { font-size: 13px; color: rgba(255,255,255,0.45); }
+
+/* ── Command Centre module shell ── */
+.cc-grid {
+  display: flex; gap: 16px; padding: 24px;
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+.cc-tile {
+  flex: 1; border-radius: 12px; padding: 24px;
+  cursor: pointer; position: relative;
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  overflow: hidden;
+}
+.cc-tile:hover { transform: translateY(-2px); }
+
+/* Tile expand */
+.cc-grid--expanded .cc-tile { flex: 0 0 0; opacity: 0; padding: 0; pointer-events: none; }
+.cc-grid--expanded .cc-tile--active { flex: 1; opacity: 1; padding: 24px; pointer-events: all; min-height: calc(100vh - 160px); }
+
+/* RAG tile colours */
+.cc-tile--green { background: #E8F5E9; border-left: 5px solid #2E7D32; }
+.cc-tile--amber { background: #FFF8E1; border-left: 5px solid #F57F17; }
+.cc-tile--red   { background: #FFEBEE; border-left: 5px solid #C62828; }
+
+/* RAG pill */
+.cc-rag-pill { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.cc-rag-pill--green { background: #E8F5E9; color: #2E7D32; }
+.cc-rag-pill--amber { background: #FFF8E1; color: #E65100; }
+.cc-rag-pill--red   { background: #FFEBEE; color: #C62828; }
+
+/* Close button */
+.cc-close { display: none; position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 20px; cursor: pointer; color: #666; }
+.cc-grid--expanded .cc-close { display: block; }

@@ -106,11 +106,10 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);
   const canAssign = ['admin', 'delivery_manager'].includes(userRole);
-  const projects = await getScopedProjects(email, false);
-  const selectedProjectId = existingData?.ProjectID || preselectedProjectId || '';
-  // For talent partners: lock project if only one assigned, dropdown if bridging (2+)
   const isTalentPartner = userRole === 'talent_partner';
+  const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
+  const selectedProjectId = existingData?.ProjectID || preselectedProjectId || '';
   const projectOptions = projects.map(p =>
     `<option value="${p.id}" ${
       (existingData?.ProjectID == p.id || preselectedProjectId == p.id || lockProject) ? 'selected' : ''
@@ -328,9 +327,8 @@ async function renderWeeklyActivityForm(existingData = null) {
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);
   const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
-  const projects = await getScopedProjects(email, false);
-  // For talent partners: lock project if only one assigned, dropdown if bridging (2+)
   const isTalentPartner = userRole === 'talent_partner';
+  const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
   const projectOptions = projects.map(p =>
     `<option value="${p.id}" ${(existingData?.ProjectID == p.id || lockProject) ? 'selected' : ''}>${p.CustomerName}</option>`
@@ -338,11 +336,11 @@ async function renderWeeklyActivityForm(existingData = null) {
   const today = new Date().toISOString().split('T')[0];
   const defaultWeek = existingData?.WeekNumber || getISOWeek(today);
   const defaultYear = existingData?.Year || new Date().getFullYear();
-  // If single project, pre-load roles immediately (filtered to TP's own roles)
+  // If single project, pre-load TP's own roles immediately
   let preloadedRoleOptions = '';
   if (lockProject) {
     try {
-      const roles = await getRolesForProject(projects[0].id, isTalentPartner ? email : null);
+      const roles = await getRolesForProject(projects[0].id, email);
       preloadedRoleOptions = roles.map(r =>
         `<option value="${r.id}" ${existingData?.RoleID == r.id ? 'selected' : ''}>${r.RoleTitle}</option>`
       ).join('');
@@ -435,7 +433,6 @@ async function renderWeeklyActivityForm(existingData = null) {
 async function loadRolesForWeekly(projectId) {
   const select = document.getElementById('weekly-role-select');
   select.innerHTML = '<option value="">Loading...</option>';
-  // If select carries a tp-email, filter roles to only that TP's own roles
   const tpEmail = select.dataset.tpEmail || null;
   const roles = await getRolesForProject(projectId, tpEmail);
   select.innerHTML = roles.length
@@ -507,10 +504,22 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);
   const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
+  const isTalentPartner = userRole === 'talent_partner';
   const projects = await getScopedProjects(email, false);
+  const lockProject = isTalentPartner && projects.length === 1;
   const projectOptions = projects.map(p =>
-    `<option value="${p.id}" ${existingData?.ProjectID == p.id ? 'selected' : ''}>${p.CustomerName}</option>`
+    `<option value="${p.id}" ${(existingData?.ProjectID == p.id || lockProject) ? 'selected' : ''}>${p.CustomerName}</option>`
   ).join('');
+  // If single project, pre-load TP's own roles immediately
+  let preloadedPlacementRoleOptions = '';
+  if (lockProject) {
+    try {
+      const roles = await getRolesForProject(projects[0].id, email);
+      preloadedPlacementRoleOptions = roles.map(r =>
+        `<option value="${r.id}" ${(existingData?.RoleID == r.id || preselectedRoleId == r.id) ? 'selected' : ''}>${r.RoleTitle}</option>`
+      ).join('');
+    } catch (e) { /* fall back to empty */ }
+  }
   // Pre-load currency if editing
   let inheritedCurrency = existingData?.Currency || '';
   return `
@@ -521,15 +530,21 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
         <div class="form-row">
           <div class="form-group">
             <label>Project *</label>
+            ${lockProject ? `
+            <input type="text" value="${projects[0].CustomerName}" disabled style="background:#f5f5f5;color:#666;">
+            <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
             <select name="ProjectID" required onchange="loadRolesForPlacement(this.value)${canLogOnBehalf ? ';loadTalentPartnersForPlacement(this.value)' : ''}">
               <option value="">-- Select project --</option>
               ${projectOptions}
-            </select>
+            </select>`}
           </div>
           <div class="form-group">
             <label>Role *</label>
-            <select name="RoleID" id="placement-role-select" required onchange="loadCurrencyForPlacement(this.value)">
-              <option value="">-- Select project first --</option>
+            <select name="RoleID" id="placement-role-select" required onchange="loadCurrencyForPlacement(this.value)"
+              ${isTalentPartner ? `data-tp-email="${email}"` : ''}>
+              ${lockProject && preloadedPlacementRoleOptions
+                ? preloadedPlacementRoleOptions
+                : '<option value="">-- Select project first --</option>'}
             </select>
           </div>
         </div>
@@ -587,9 +602,11 @@ async function loadRolesForPlacement(projectId) {
   const select = document.getElementById('placement-role-select');
   if (!projectId) { select.innerHTML = '<option value="">-- Select project first --</option>'; return; }
   select.innerHTML = '<option value="">Loading...</option>';
-  const roles = await getRolesForProject(projectId);
-  select.innerHTML = '<option value="">-- Select role --</option>' +
-    roles.map(r => `<option value="${r.id}">${r.RoleTitle}</option>`).join('');
+  const tpEmail = select.dataset.tpEmail || null;
+  const roles = await getRolesForProject(projectId, tpEmail);
+  select.innerHTML = roles.length
+    ? '<option value="">-- Select role --</option>' + roles.map(r => `<option value="${r.id}">${r.RoleTitle}</option>`).join('')
+    : '<option value="">-- No roles assigned --</option>';
   // Clear currency when project changes
   const currencyEl = document.getElementById('placement-currency');
   if (currencyEl) currencyEl.value = '';
@@ -670,14 +687,18 @@ async function submitPlacementForm(event, editId = null) {
 async function renderRejectedOfferForm(existingData = null, preselectedRoleId = null) {
   const isEdit = !!existingData;
   const email = getCurrentUser().email;
+  const userRole = await getEffectiveRole(email);
+  const isTalentPartner = userRole === 'talent_partner';
   const projectIds = await getUserProjectIds(email);
-  const allRoles = await getAllRoles();
-  const roles = projectIds === null
-    ? allRoles
-    : allRoles.filter(r =>
-        projectIds.includes(String(r.ProjectIDLookupId)) ||
-        projectIds.includes(String(r.ProjectID))
-      );
+  let roles = [];
+  if (projectIds === null) {
+    roles = await getAllRoles();
+  } else {
+    const roleArrays = await Promise.all(
+      projectIds.map(pid => getRolesForProject(pid, isTalentPartner ? email : null))
+    );
+    roles = roleArrays.flat();
+  }
   const roleOptions = roles.map(r =>
     `<option value="${r.id}" ${
       (existingData?.RoleID == r.id || preselectedRoleId == r.id) ? 'selected' : ''

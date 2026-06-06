@@ -49,7 +49,7 @@ const FIELD_ALIASES = {
   // ── Sales module ──────────────────────────────────────────
   SalesForecasts:  {},
   // ── Command Centre ────────────────────────────────────────
-  CCStatus:        { RAG: 'RAG' },
+  CCStatus:        {},
 
 };
 

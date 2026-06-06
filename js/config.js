@@ -41,6 +41,12 @@ const CONFIG = {
   timeToHireDays:       45,    // 45 days
   flagThreshold:        0.80,  // flag at 80% of benchmark
 },
+
+  UTILISATION_THRESHOLDS: {
+  green: 0.85,  // >= 85% billed = healthy
+  amber: 0.75,  // >= 75% billed = watch
+  // < 75% = red — colour values in style.css as .cc-tile--red etc.
+},
   
   // Single source of truth for the module switcher dropdown.
   // To add a new module, add it here only — all nav files reference this.
@@ -49,6 +55,7 @@ const CONFIG = {
     { key: 'marketing', name: 'Market Reporting', icon: 'megaphone',    href: 'market-reporting.html', live: true, roles: ['admin','delivery_manager','talent_partner'] },
     { key: 'people',    name: 'People',           icon: 'users',        href: 'people.html',           live: true, roles: ['admin','leadership'] },
     { key: 'sales',     name: 'Sales',            icon: 'trending-up',  href: 'sales.html',            live: true, roles: ['admin','leadership'] },
+    { key: 'command',   name: 'Command Centre',   icon: 'monitor',      href: 'command-centre.html',   live: true, roles: ['admin','leadership'] },
   ],
 };
 

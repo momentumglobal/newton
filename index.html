@@ -178,6 +178,25 @@
       0%   { transform: translateX(0); }
       100% { transform: translateX(-100%); }
     }
+
+    /* ── Command Centre banner ── */
+    .cc-banner {
+      display: flex; align-items: center; gap: 24px;
+      padding: 18px 28px; border-radius: 14px;
+      margin-bottom: 20px; text-decoration: none;
+      transition: opacity 0.15s; width: 440px;
+    }
+    .cc-banner:hover { opacity: 0.88; }
+    .cc-banner--green { background: rgba(46,125,50,0.18); border: 1px solid rgba(46,125,50,0.35); }
+    .cc-banner--amber { background: rgba(245,127,23,0.18); border: 1px solid rgba(245,127,23,0.35); }
+    .cc-banner--red   { background: rgba(198,40,40,0.18);  border: 1px solid rgba(198,40,40,0.45); }
+    .cc-banner__left  { display: flex; flex-direction: column; align-items: flex-start; }
+    .cc-banner__title { font-size: 15px; font-weight: 600; color: white; }
+    .cc-banner__sub   { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; }
+    .cc-banner__kpis  { display: flex; gap: 20px; flex: 1; justify-content: center; }
+    .cc-banner__kpi   { font-size: 13px; color: rgba(255,255,255,0.6); text-align: center; }
+    .cc-banner__kpi strong { font-size: 20px; color: white; display: block; line-height: 1; }
+    .cc-banner__cta   { font-size: 13px; color: rgba(255,255,255,0.45); }
   </style>
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>

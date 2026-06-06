@@ -576,14 +576,14 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
       <svg viewBox='0 0 ${W} ${H}' style='width:100%;height:auto;display:block'
            xmlns='http://www.w3.org/2000/svg'>
         <rect x='${PAD.left}' y='${yOf(1.0)}' width='${chartW}'
-              height='${yOf(0.85) - yOf(1.0)}'
-              fill='#e6f4ea' opacity='0.6'/>
-        <rect x='${PAD.left}' y='${yOf(0.85)}' width='${chartW}'
-              height='${yOf(0.75) - yOf(0.85)}'
-              fill='#fff3e0' opacity='0.6'/>
-        <rect x='${PAD.left}' y='${yOf(0.75)}' width='${chartW}'
-              height='${yOf(0) - yOf(0.75)}'
-              fill='#fce8e8' opacity='0.6'/>
+           height='${yOf(CONFIG.UTILISATION_THRESHOLDS.green) - yOf(1.0)}'
+           fill='#e6f4ea' opacity='0.6'/>
+      <rect x='${PAD.left}' y='${yOf(CONFIG.UTILISATION_THRESHOLDS.green)}' width='${chartW}'
+           height='${yOf(CONFIG.UTILISATION_THRESHOLDS.amber) - yOf(CONFIG.UTILISATION_THRESHOLDS.green)}'
+           fill='#fff3e0' opacity='0.6'/>
+      <rect x='${PAD.left}' y='${yOf(CONFIG.UTILISATION_THRESHOLDS.amber)}' width='${chartW}'
+           height='${yOf(0) - yOf(CONFIG.UTILISATION_THRESHOLDS.amber)}'
+           fill='#fce8e8' opacity='0.6'/>
         ${gridLines}
         ${xLabels}
         ${actualLine}
@@ -687,7 +687,7 @@ async function _renderKPIStrip(allRows, people, assignments) {
   return `<div style='display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px'>
     ${_kpiCard('Estimated Revenue ' + thisY,   _fmtGBP(revYTD),   'Current year YTD')}
     ${_kpiCard('Utilisation ' + thisY,      _fmtPct(utilYTD),  'Current year YTD',
-        utilYTD >= 0.85 ? '#e6f4ea' : utilYTD >= 0.75 ? '#fff3e0' : '#fce8e8')}
+        utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? '#e6f4ea' : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? '#fff3e0' : '#fce8e8'
     ${_kpiCard('Active Customers',  activeCustomers  + _delta(activeCustomers, prevQCustomers),  'As of today · vs last quarter')}
     ${_kpiCard('Billed Headcount',  billedHeadcount  + _delta(billedHeadcount, prevQHeadcount),  'As of today · vs last quarter')}
   </div>`;

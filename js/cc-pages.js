@@ -109,12 +109,12 @@ function ccUtilStats(forecasts, assigns) {
 function isRoleFlagged(role, activity) {
   const today = new Date();
   const days = role.OpenDate ? Math.floor((today - new Date(role.OpenDate)) / 86400000) : 0;
-  const stageOrder = ['Submitted', 'Interview1', 'Interview2Plus', 'FinalInterview'];
+  const stageOrder = ['Sourcing', 'Interview 1', 'Interview 2+', 'Final Interview'];
   const stageIdx = stageOrder.indexOf(role.Stage);
-  if (days >= 15 && stageIdx < 0)  return true; // not yet at Submitted
-  if (days >= 25 && stageIdx < 1)  return true; // not yet at Interview1
-  if (days >= 35 && stageIdx < 2)  return true; // not yet at Interview2Plus
-  if (days >= 40 && stageIdx < 3)  return true; // not yet at FinalInterview
+  if (days >= 15 && stageIdx < 0)  return true; // not yet past Sourcing
+  if (days >= 25 && stageIdx < 1)  return true; // not yet at Interview 1
+  if (days >= 35 && stageIdx < 2)  return true; // not yet at Interview 2+
+  if (days >= 40 && stageIdx < 3)  return true; // not yet at Final Interview
   const submitted = sumField(activity, 'Submitted');
   const iv1       = sumField(activity, 'Interview1');
   if (submitted > 0 && (iv1 / submitted) < 0.50) return true;

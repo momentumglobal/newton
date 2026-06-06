@@ -757,3 +757,18 @@ body {
 #ghost-banner button:hover {
   background: #fff3e0;
 }
+
+/* ── Predictive Analytics — TTF badge ── */
+.ttf-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: #D5E8F0;
+  color: #1F4E79;
+  margin-top: 4px;
+}
+.ttf-badge--low-data {
+  background: #F2F2F2;
+  color: #888;
+}

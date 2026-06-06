@@ -180,23 +180,26 @@
     }
 
     /* ── Command Centre banner ── */
-    .cc-banner {
-      display: flex; align-items: center; gap: 24px;
-      padding: 18px 28px; border-radius: 14px;
-      margin-bottom: 20px; text-decoration: none;
-      transition: opacity 0.15s; width: 440px;
-    }
-    .cc-banner:hover { opacity: 0.88; }
-    .cc-banner--green { background: rgba(46,125,50,0.18); border: 1px solid rgba(46,125,50,0.35); }
-    .cc-banner--amber { background: rgba(245,127,23,0.18); border: 1px solid rgba(245,127,23,0.35); }
-    .cc-banner--red   { background: rgba(198,40,40,0.18);  border: 1px solid rgba(198,40,40,0.45); }
-    .cc-banner__left  { display: flex; flex-direction: column; align-items: flex-start; }
-    .cc-banner__title { font-size: 15px; font-weight: 600; color: white; }
-    .cc-banner__sub   { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; }
-    .cc-banner__kpis  { display: flex; gap: 20px; flex: 1; justify-content: center; }
-    .cc-banner__kpi   { font-size: 13px; color: rgba(255,255,255,0.6); text-align: center; }
-    .cc-banner__kpi strong { font-size: 20px; color: white; display: block; line-height: 1; }
-    .cc-banner__cta   { font-size: 13px; color: rgba(255,255,255,0.45); }
+.cc-banner {
+  display: flex; align-items: center; gap: 24px;
+  padding: 18px 28px; border-radius: 14px;
+  margin-bottom: 20px; text-decoration: none;
+  transition: opacity 0.15s; width: 440px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
+}
+.cc-banner:hover { opacity: 0.88; }
+.cc-banner__left  { display: flex; flex-direction: column; align-items: flex-start; }
+.cc-banner__title { font-size: 15px; font-weight: 600; color: white; }
+.cc-banner__sub   { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; }
+.cc-banner__badges { display: flex; gap: 8px; flex: 1; justify-content: center; align-items: center; }
+.cc-badge { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 9px; border-radius: 10px; }
+.cc-badge--green { background: rgba(46,125,50,0.35); color: #81c784; border: 1px solid rgba(46,125,50,0.5); }
+.cc-badge--amber { background: rgba(245,127,23,0.35); color: #ffb74d; border: 1px solid rgba(245,127,23,0.5); }
+.cc-badge--red   { background: rgba(198,40,40,0.35);  color: #ef9a9a; border: 1px solid rgba(198,40,40,0.5); }
+.cc-badge--neutral { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.12); }
+.cc-banner__cta  { font-size: 13px; color: rgba(255,255,255,0.45); display: flex; align-items: center; gap: 8px; }
+.cc-refresh { background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.3); font-size: 14px; padding: 2px; line-height: 1; transition: color 0.15s; }
+.cc-refresh:hover { color: rgba(255,255,255,0.7); }
   </style>
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -261,34 +264,105 @@
       },
     ];
 
-    async function renderCommandCentreBanner(role) {
-      if (role !== 'admin' && role !== 'leadership') return;
-      const [roles, activity] = await Promise.all([
-        getAllRoles(),
-        getActivityForAnalytics(4)
-      ]);
-      const open = roles.filter(r => r.Stage !== 'Placed' && r.Stage !== 'Closed' && r.Stage !== 'Hired' && r.Stage !== 'Backlog' && r.Stage !== 'Cancelled').length;
-      const atRisk = roles.filter(r => {
-        const acts = activity.filter(a => String(a.RoleIDLookupId) === String(r.id));
-        if (!acts.length) return false;
-        const f = computeRoleFunnel(acts, CONFIG.ANALYTICS_BENCHMARKS);
-        return f.some(s => s.rag !== 'green');
-      }).length;
-      const rag = atRisk === 0 ? 'green' : atRisk <= 2 ? 'amber' : 'red';
-      const el = document.getElementById('cc-banner-slot');
-      el.innerHTML = `
-        <a href="command-centre.html" class="cc-banner cc-banner--${rag}">
-          <div class="cc-banner__left">
-            <div class="cc-banner__title">Command Centre</div>
-            <div class="cc-banner__sub">Executive Operations View</div>
-          </div>
-          <div class="cc-banner__kpis">
-            <span class="cc-banner__kpi"><strong>${open}</strong> open roles</span>
-            <span class="cc-banner__kpi cc-banner__kpi--${rag}"><strong>${atRisk}</strong> at risk</span>
-          </div>
-          <div class="cc-banner__cta">Open &rarr;</div>
-        </a>`;
-    }
+    const CC_EXCLUDED = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled'];
+
+function ccBadgeHTML(rag, label) {
+  return `<span class="cc-badge cc-badge--${rag}">${label}</span>`;
+}
+
+async function refreshCCBanner() {
+  const [roles, acts4, acts13, forecasts, assigns] = await Promise.all([
+    getAllRoles(),
+    getActivityForAnalytics(4),
+    getActivityForAnalytics(13),
+    getItems('SalesForecasts'),
+    getItems('Assignments')
+  ]);
+
+  // Project Health RAG
+  const open = roles.filter(r => !CC_EXCLUDED.includes(r.Stage));
+  const today = new Date();
+  const stageOrder = ['Submitted','Interview1','Interview2Plus','FinalInterview'];
+  const flagged = open.filter(role => {
+    const days = role.OpenDate ? Math.floor((today - new Date(role.OpenDate)) / 86400000) : 0;
+    const idx  = stageOrder.indexOf(role.Stage);
+    if (days >= 15 && idx < 0) return true;
+    if (days >= 25 && idx < 1) return true;
+    if (days >= 35 && idx < 2) return true;
+    if (days >= 40 && idx < 3) return true;
+    return false;
+  }).length;
+  const healthPct = open.length ? flagged / open.length : 0;
+  const ragHealth = healthPct < 0.25 ? 'green' : healthPct <= 0.50 ? 'amber' : 'red';
+
+  // People RAG
+  const b = CONFIG.ANALYTICS_BENCHMARKS;
+  const tps = [...new Set(open.filter(r => r.TalentPartner).map(r => r.TalentPartner))];
+  const tpsAtRisk = tps.filter(tp => {
+    const tpActs = acts13.filter(a => a.TalentPartner === tp);
+    return computeVelocityScore(tp, tpActs, [], b).rag !== 'green';
+  }).length;
+  const peoplePct = tps.length ? tpsAtRisk / tps.length : 0;
+  const ragPeople = peoplePct < 0.25 ? 'green' : peoplePct <= 0.50 ? 'amber' : 'red';
+
+  // Utilisation RAG
+  const t = CONFIG.UTILISATION_THRESHOLDS;
+  const now = new Date();
+  const active = assigns.filter(a => new Date(a.StartDate) <= now && new Date(a.EndDate) >= now);
+  const totalCap  = active.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const billedCap = active.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const util = totalCap > 0 ? billedCap / totalCap : 0;
+  const ragUtil = util >= t.green ? 'green' : util >= t.amber ? 'amber' : 'red';
+
+  // Write to CCStatus SP list
+  const statuses = [
+    { title: 'health', rag: ragHealth },
+    { title: 'people', rag: ragPeople },
+    { title: 'util',   rag: ragUtil   },
+  ];
+  const existing = await getItems('CCStatus');
+  for (const s of statuses) {
+    const match = existing.find(e => e.Title === s.title);
+    if (match) { await updateItem('CCStatus', match.id, { RAG: s.rag }); }
+    else        { await createItem('CCStatus', { Title: s.title, RAG: s.rag }); }
+  }
+
+  renderCCBadges(ragHealth, ragPeople, ragUtil);
+}
+
+function renderCCBadges(health, people, util) {
+  const el = document.getElementById('cc-banner-slot');
+  if (!el) return;
+  el.innerHTML = `
+    <a href="command-centre.html" class="cc-banner">
+      <div class="cc-banner__left">
+        <div class="cc-banner__title">Command Centre</div>
+        <div class="cc-banner__sub">Executive Operations View</div>
+      </div>
+      <div class="cc-banner__badges">
+        ${ccBadgeHTML(health, 'Health')}
+        ${ccBadgeHTML(people, 'People')}
+        ${ccBadgeHTML(util,   'Utilisation')}
+      </div>
+      <div class="cc-banner__cta">
+        <button class="cc-refresh" title="Refresh" onclick="event.preventDefault(); refreshCCBanner()">↻</button>
+        Open &rarr;
+      </div>
+    </a>`;
+}
+
+async function renderCommandCentreBanner(role) {
+  if (role !== 'admin' && role !== 'leadership') return;
+
+  // Show last-known state from SP immediately
+  const existing = await getItems('CCStatus');
+  if (existing.length) {
+    const get = key => (existing.find(e => e.Title === key) || {}).RAG || 'neutral';
+    renderCCBadges(get('health'), get('people'), get('util'));
+  } else {
+    renderCCBadges('neutral', 'neutral', 'neutral');
+  }
+}
     
     async function initHome() {
       const response = await msalInstance.handleRedirectPromise();

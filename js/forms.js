@@ -338,11 +338,11 @@ async function renderWeeklyActivityForm(existingData = null) {
   const today = new Date().toISOString().split('T')[0];
   const defaultWeek = existingData?.WeekNumber || getISOWeek(today);
   const defaultYear = existingData?.Year || new Date().getFullYear();
-  // If single project, pre-load roles immediately
+  // If single project, pre-load roles immediately (filtered to TP's own roles)
   let preloadedRoleOptions = '';
   if (lockProject) {
     try {
-      const roles = await getRolesForProject(projects[0].id);
+      const roles = await getRolesForProject(projects[0].id, isTalentPartner ? email : null);
       preloadedRoleOptions = roles.map(r =>
         `<option value="${r.id}" ${existingData?.RoleID == r.id ? 'selected' : ''}>${r.RoleTitle}</option>`
       ).join('');
@@ -366,7 +366,8 @@ async function renderWeeklyActivityForm(existingData = null) {
           </div>
           <div class="form-group">
             <label>Role *</label>
-            <select name="RoleID" id="weekly-role-select" required>
+            <select name="RoleID" id="weekly-role-select" required
+              ${isTalentPartner ? `data-tp-email="${email}"` : ''}>
               ${lockProject && preloadedRoleOptions
                 ? preloadedRoleOptions
                 : '<option value="">-- Select project first --</option>'}
@@ -434,10 +435,12 @@ async function renderWeeklyActivityForm(existingData = null) {
 async function loadRolesForWeekly(projectId) {
   const select = document.getElementById('weekly-role-select');
   select.innerHTML = '<option value="">Loading...</option>';
-  const roles = await getRolesForProject(projectId);
-  select.innerHTML = roles.map(r =>
-    `<option value="${r.id}">${r.RoleTitle}</option>`
-  ).join('');
+  // If select carries a tp-email, filter roles to only that TP's own roles
+  const tpEmail = select.dataset.tpEmail || null;
+  const roles = await getRolesForProject(projectId, tpEmail);
+  select.innerHTML = roles.length
+    ? roles.map(r => `<option value="${r.id}">${r.RoleTitle}</option>`).join('')
+    : '<option value="">-- No roles assigned --</option>';
 }
 async function loadTalentPartnersForWeekly(projectId) {
   const select = document.getElementById('weekly-tp-select');

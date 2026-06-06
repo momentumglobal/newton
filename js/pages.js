@@ -370,7 +370,7 @@ async function renderPlacementsPage() {
     </div>
     <table class="data-table">
       <thead><tr>
-        <th>Candidate</th><th>Role</th><th>Location</th><th>Salary</th>
+        <th>Candidate</th><th>Role</th><th>Salary</th>
         <th>Offer Accepted</th><th>Start Date</th><th>Time to Hire</th>
         ${canEdit ? "<th></th>" : ""}
       </tr></thead>
@@ -378,8 +378,7 @@ async function renderPlacementsPage() {
         ${placements.map(p => `
           <tr>
             <td>${p.CandidateName}</td>
-            <td>${(roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || {}).title || "—"}</td>
-            <td>${(roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || {}).location || "—"}</td>
+            <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || "—"}</td>
             <td>${formatSalary(p.SalaryAgreed)}</td>
             <td>${p.OfferAcceptedDate ? p.OfferAcceptedDate.split("T")[0] : "—"}</td>
             <td>${p.ProvisionalStartDate ? p.ProvisionalStartDate.split("T")[0] : "—"}</td>

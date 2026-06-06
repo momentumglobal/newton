@@ -1,4 +1,4 @@
-// js/mr-router.js — Marketing Report module page registry
+// js/mr-router.js — Market Analytics module page registry
 
 const MR_ROLES = {
   ADMIN: "admin",
@@ -9,6 +9,10 @@ const MR_ROLES = {
 const MR_PAGES = {
   marketReport: {
     label: "Market Report Builder",
+    roles: [MR_ROLES.ADMIN, MR_ROLES.DM, MR_ROLES.TP],
+  },
+  placementAnalytics: {
+    label: "Placement Analytics",
     roles: [MR_ROLES.ADMIN, MR_ROLES.DM, MR_ROLES.TP],
   },
 };

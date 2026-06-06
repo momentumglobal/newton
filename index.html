@@ -286,24 +286,40 @@ async function refreshCCBanner() {
   const healthPct = open.length ? flagged / open.length : 0;
   const ragHealth = healthPct < 0.25 ? 'green' : healthPct <= 0.50 ? 'amber' : 'red';
 
-  // People RAG
-  const b = CONFIG.ANALYTICS_BENCHMARKS;
+  // People RAG — weighted score across TPs by flagged role ratio
   const tps = [...new Set(open.filter(r => r.TalentPartner).map(r => r.TalentPartner))];
-  const tpsAtRisk = tps.filter(tp => {
-    const tpActs = acts13.filter(a => a.TalentPartner === tp);
-    return computeVelocityScore(tp, tpActs, [], b).rag !== 'green';
-  }).length;
-  const peoplePct = tps.length ? tpsAtRisk / tps.length : 0;
-  const ragPeople = peoplePct < 0.25 ? 'green' : peoplePct <= 0.50 ? 'amber' : 'red';
+  const weight = { green: 0, amber: 1, red: 2, grey: 0 };
+  const peopleScore = tps.length ? tps.reduce((sum, tp) => {
+    const tpRoles  = open.filter(r => r.TalentPartner && r.TalentPartner.toLowerCase() === tp.toLowerCase());
+    const flaggedTP = tpRoles.filter(r => {
+      const acts = acts13.filter(a => String(a.RoleIDLookupId) === String(r.id));
+      return isRoleFlagged(r, acts);
+    }).length;
+    const pct = tpRoles.length ? flaggedTP / tpRoles.length : null;
+    const rag = pct === null ? 'grey' : pct < 0.25 ? 'green' : pct <= 0.50 ? 'amber' : 'red';
+    return sum + weight[rag];
+  }, 0) / tps.length : 0;
+  const ragPeople = peopleScore < 0.5 ? 'green' : peopleScore <= 1.0 ? 'amber' : 'red';
 
-  // Utilisation RAG
+  // Utilisation RAG — forecast over next 13 weeks
   const t = CONFIG.UTILISATION_THRESHOLDS;
   const now = new Date();
-  const active = assigns.filter(a => new Date(a.StartDate) <= now && new Date(a.EndDate) >= now);
-  const totalCap  = active.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const billedCap = active.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const util = totalCap > 0 ? billedCap / totalCap : 0;
-  const ragUtil = util >= t.green ? 'green' : util >= t.amber ? 'amber' : 'red';
+  const horizon = new Date(now.getTime() + 91 * 86400000);
+  const totalActiveHeadcount = people.filter(p => p.IsActive !== false && ['SDM','STP','TP'].includes(p.Level)).length;
+  const known13 = assigns.filter(a => {
+    if (!a.StartDate || !a.EndDate) return false;
+    const s = new Date(a.StartDate); const e = new Date(a.EndDate);
+    return s <= horizon && e >= now && a.Level !== 'CSD';
+  });
+  const totalCap  = known13.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const billedCap = known13.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const knownUtil = totalCap > 0 ? billedCap / totalCap : 0;
+  const forecastedHC = forecasts.reduce((sum, f) => {
+    const s = new Date(f.ForecastStartDate); const e = new Date(f.ForecastEndDate);
+    return (s <= horizon && e >= now) ? sum + (f.ForecastedHeadcount || 0) : sum;
+  }, 0);
+  const forecastUtil = Math.min(knownUtil + (totalActiveHeadcount > 0 ? forecastedHC / totalActiveHeadcount : 0), 1.0);
+  const ragUtil = forecastUtil >= t.green ? 'green' : forecastUtil >= t.amber ? 'amber' : 'red';
 
   // Write to CCStatus SP list
   const statuses = [

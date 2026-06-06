@@ -378,7 +378,7 @@
         <tr><th>Role</th><th>Source</th><th>Description</th></tr>
         <tr><td><span class="badge badge-admin">admin</span></td><td>Hardcoded in CONFIG.ADMIN_USERS</td><td>Full access to all modules, pages, and admin interfaces. Never overridden by SharePoint.</td></tr>
         <tr><td><span class="badge badge-leadership">leadership</span></td><td>LeadershipAccess list</td><td>Read-only access to Company Dashboard (Reporting) and People + Sales modules.</td></tr>
-        <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module. Can view all project data for assigned projects.</td></tr>
+        <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module and Market Reporting. Limited access to People module — Scorecards page only.</td></tr>
         <tr><td><span class="badge badge-tp">talent_partner</span></td><td>UserAssignments list</td><td>Access to assigned project in Reporting module. Scoped to own activity and roles.</td></tr>
         <tr><td><span class="badge badge-viewer">viewer</span></td><td>Fallback</td><td>Read-only, no meaningful access. Auto-registered on first login.</td></tr>
       </table>
@@ -396,7 +396,8 @@
         <tr><td>Rejected Offers</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
         <tr><td>Config Panel</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Market Reporting</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-        <tr><td>People module</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>People module (full)</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>People module (Scorecards only)</td><td>—</td><td>—</td><td>✓</td><td>—</td><td>—</td></tr>
         <tr><td>Sales module</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Newton OS Admin</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
       </table>
@@ -453,9 +454,10 @@
         <tr><td><span class="file-tag">js/router.js</span></td><td>Page registry, role constants, canAccess(), getAccessiblePages()</td></tr>
         <tr><td><span class="file-tag">js/nav.js</span></td><td>Calls renderModuleNav() with Reporting params. navigateTo(), renderPage()</td></tr>
         <tr><td><span class="file-tag">js/app.js</span></td><td>Module init — MSAL redirect handler, role resolution, first navigation</td></tr>
-        <tr><td><span class="file-tag">js/pages.js</span></td><td>Page content renderers: Projects, Roles, Activity, Placements, Rejections</td></tr>
+        <tr><td><span class="file-tag">js/pages.js</span></td><td>Page content renderers: Projects, Roles (with Location column), Activity, Placements, Rejections</td></tr>
         <tr><td><span class="file-tag">js/forms.js</span></td><td>Form renderers and submission logic for Reporting data entry</td></tr>
-        <tr><td><span class="file-tag">js/dashboard.js</span></td><td>Project Dashboard, Company Dashboard, REPORT_PANELS registry</td></tr>
+        <tr><td><span class="file-tag">js/dashboard.js</span></td><td>Project Dashboard (incl. Role Analytics panel), Company Dashboard, REPORT_PANELS registry</td></tr>
+        <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions — computeTTFPrediction(), computeRoleFunnel(), computeVelocityScore(). Loaded by reporting.html and people.html.</td></tr>
         <tr><td><span class="file-tag">js/report-builder.js</span></td><td>Report Builder — block canvas, save/load, PDF export</td></tr>
         <tr><td><span class="file-tag">js/admin.js</span></td><td>Config Panel — Departments, Currencies, Delete Records</td></tr>
       </table>
@@ -463,11 +465,13 @@
       <h3>People module</h3>
       <table>
         <tr><th>File</th><th>Responsibility</th></tr>
-        <tr><td><span class="file-tag">js/people-router.js</span></td><td>Page registry for People module</td></tr>
-        <tr><td><span class="file-tag">js/people-nav.js</span></td><td>Calls renderModuleNav() with People params</td></tr>
-        <tr><td><span class="file-tag">js/people-app.js</span></td><td>Module init — role check, redirect if unauthorised</td></tr>
+        <tr><td><span class="file-tag">js/people-router.js</span></td><td>Page registry for People module. Includes DELIVERY_MANAGER role and scorecards page access.</td></tr>
+        <tr><td><span class="file-tag">js/people-nav.js</span></td><td>Calls renderModuleNav() with People params. Routes scorecards page in renderPeoplePage() switch.</td></tr>
+        <tr><td><span class="file-tag">js/people-app.js</span></td><td>Module init — role check, redirect if unauthorised. DMs are allowed in; they land on scorecards page.</td></tr>
         <tr><td><span class="file-tag">js/people-pages.js</span></td><td>People Dashboard, Employee Tracker, Deployment Timeline, G-P Invoices</td></tr>
         <tr><td><span class="file-tag">js/people-forms.js</span></td><td>Form renderers for People data entry</td></tr>
+        <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions — computeTTFPrediction(), computeRoleFunnel(), computeVelocityScore(). No network I/O or DOM access.</td></tr>
+        <tr><td><span class="file-tag">js/analytics-pages.js</span></td><td>People Scorecards page renderers — renderScorecardsPage(), renderScorecardPanel()</td></tr>
       </table>
 
       <h3>Sales module</h3>
@@ -524,6 +528,8 @@ dashboard.js       <span class="code-comment">← (Reporting only)</span>
 sortablejs          <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">report-builder.js</span>  <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">admin.js</span>           <span class="code-comment">← (Reporting only)</span>
+<span class="code-key">analytics.js</span>       <span class="code-comment">← (Reporting + People) — pure functions, load before app.js</span>
+<span class="code-key">analytics-pages.js</span> <span class="code-comment">← (People only) — Scorecards page renderers</span>
 <span class="code-key">[module]-app.js</span>    <span class="code-comment">← Module init — always last</span>
       </div>
 
@@ -812,35 +818,4 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <tr><td>Module expansion</td><td>The module pattern (router / nav / app / pages / forms) is repeatable. New modules can be added without touching shared platform code — only config.js needs updating for the switcher.</td></tr>
       </table>
 
-      <h3>Dependencies to monitor</h3>
-      <table>
-        <tr><th>Dependency</th><th>Version</th><th>Notes</th></tr>
-        <tr><td>MSAL.js</td><td>2.38.3</td><td>Pin the version in the CDN URL. Breaking changes between major versions.</td></tr>
-        <tr><td>Lucide</td><td>Latest (CDN)</td><td>Currently unpinned — consider pinning to a specific version.</td></tr>
-        <tr><td>SortableJS</td><td>1.15.2</td><td>Pinned — safe.</td></tr>
-        <tr><td>Graph API</td><td>v1.0</td><td>Microsoft's stable channel. Breaking changes announced with deprecation periods.</td></tr>
-      </table>
-    </div>
-
-  </div><!-- /main -->
-</div><!-- /shell -->
-
-<script>
-  const allSections = document.querySelectorAll('.section');
-  const allLinks    = document.querySelectorAll('.sidebar-link');
-
-  function show(id) {
-    allSections.forEach(s => s.style.display = 'none');
-    allLinks.forEach(l => l.classList.remove('active'));
-    const sec  = document.getElementById('sec-' + id);
-    const link = document.querySelector(`.sidebar-link[onclick="show('${id}')"]`);
-    if (sec)  sec.style.display  = 'block';
-    if (link) link.classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  show('overview');
-</script>
-
-</body>
-</html>
+      <h3>Dependen

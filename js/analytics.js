@@ -74,6 +74,60 @@ function computeRoleFunnel(totals, benchmarks) {
     },
   ];
 }
+
+  // ── Phase C — People Scorecards ───────────────────────────────────────
+
+/**
+ * Computes a coaching scorecard for a single Talent Partner.
+ * @param {string} tpEmail
+ * @param {Array}  activity    - WeeklyActivity rows for this TP, last 13 weeks
+ * @param {Array}  placements  - historical placements for this TP, last 13 weeks
+ * @param {Object} benchmarks  - CONFIG.ANALYTICS_BENCHMARKS
+ */
+function computeVelocityScore(tpEmail, activity, placements, benchmarks) {
+  const pct = (n, d) => d > 0 ? Math.round((n / d) * 100) : null;
+  const rag = (actual, bench, invert = false) => {
+    if (actual === null) return 'grey';
+    if (!invert) {
+      if (actual >= bench * 100)                              return 'green';
+      if (actual >= bench * 100 * benchmarks.flagThreshold)  return 'amber';
+      return 'red';
+    } else {
+      if (actual <= bench)                                    return 'green';
+      if (actual <= bench / benchmarks.flagThreshold)        return 'amber';
+      return 'red';
+    }
+  };
+
+  const out  = sumField(activity, 'Outreach');
+  const resp = sumField(activity, 'Responses');
+  const sub  = sumField(activity, 'Submitted');
+  const iv1  = sumField(activity, 'Interview1');
+  const off  = sumField(activity, 'Offers');
+  const hir  = sumField(activity, 'Hires');
+
+  const ttfValues = placements
+    .filter(r => r.openDate && r.placementDate)
+    .map(r => Math.round(
+      (new Date(r.placementDate) - new Date(r.openDate)) / (1000 * 60 * 60 * 24)
+    ));
+  const avgTTF = ttfValues.length
+    ? Math.round(ttfValues.reduce((a, b) => a + b, 0) / ttfValues.length)
+    : null;
+
+  return {
+    tpEmail,
+    window: '13 weeks',
+    metrics: [
+      { label: 'Roles closed',         value: hir,             unit: 'hires', rag: 'grey', informational: true },
+      { label: 'Outreach conversion',  value: pct(resp, out),  unit: '%',     rag: rag(pct(resp, out),  benchmarks.outreachConversion) },
+      { label: 'Submission conversion',value: pct(iv1, sub),   unit: '%',     rag: rag(pct(iv1, sub),   benchmarks.submissionConversion) },
+      { label: 'Interview-to-offer',   value: pct(off, iv1),   unit: '%',     rag: rag(pct(off, iv1),   benchmarks.interviewToOffer) },
+      { label: 'Offer success',        value: pct(hir, off),   unit: '%',     rag: rag(pct(hir, off),   benchmarks.offerSuccess) },
+      { label: 'Avg time to hire',     value: avgTTF,          unit: 'days',  rag: rag(avgTTF,          benchmarks.timeToHireDays, true) },
+    ],
+  };
+}
   
   // Use most recent 12
   const sample = pool

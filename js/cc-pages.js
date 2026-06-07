@@ -153,16 +153,27 @@ function _ccUtilCalc(forecasts, assigns, people) {
     p.IsActive !== false && ['SDM', 'STP', 'TP'].includes(p.Level)
   ).length;
 
-  // Known: assignments active at any point in the next 13 weeks
-  const known13 = assigns.filter(a => {
-    if (!a.StartDate || !a.EndDate) return false;
+  // Current: assignments active right now only
+  const current = assigns.filter(a => {
+    if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
     const s = new Date(a.StartDate);
     const e = new Date(a.EndDate);
-    return s <= horizon && e >= now && a.Level !== 'CSD';
+    return s <= now && e >= now;
   });
-  const totalCap  = known13.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const billedCap = known13.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const totalCap  = current.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const billedCap = current.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
   const known = totalCap > 0 ? billedCap / totalCap : 0;
+
+  // Known 13 weeks: assignments active at any point in the next 13 weeks (for forecast base)
+  const known13 = assigns.filter(a => {
+    if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
+    const s = new Date(a.StartDate);
+    const e = new Date(a.EndDate);
+    return s <= horizon && e >= now;
+  });
+  const totalCap13  = known13.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const billedCap13 = known13.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const knownForecastBase = totalCap13 > 0 ? billedCap13 / totalCap13 : 0;
 
   // Forecast: known + sales forecasts overlapping next 13 weeks
   const forecastedHeadcount = forecasts.reduce((sum, f) => {
@@ -171,7 +182,7 @@ function _ccUtilCalc(forecasts, assigns, people) {
     return (s <= horizon && e >= now) ? sum + (f.ForecastedHeadcount || 0) : sum;
   }, 0);
   const added    = totalActiveHeadcount > 0 ? forecastedHeadcount / totalActiveHeadcount : 0;
-  const forecast = Math.min(known + added, 1.0);
+  const forecast = Math.min(knownForecastBase + added, 1.0);
 
   return { known, forecast };
 }

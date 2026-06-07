@@ -10,7 +10,7 @@ const PAGES = {
   reportBuilder:    { label: 'Report Builder',     roles: [ROLES.ADMIN, ROLES.DM] },
   projects:         { label: 'Projects',           roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
   roles:            { label: 'Roles',              roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
-  activity:         { label: 'Weekly Activity',    roles: [ROLES.ADMIN, ROLES.TP] },
+  activity:         { label: 'Weekly Activity',    roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
   placements:       { label: 'Placements',         roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
   rejections:       { label: 'Rejected Offers',    roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
   adminPanel:       { label: 'Config Panel',       roles: [ROLES.ADMIN] },

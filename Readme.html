@@ -342,9 +342,9 @@
           <div class="card-desc">Core recruitment reporting. Projects, Roles, Weekly Activity, Placements, Rejected Offers, Project &amp; Company Dashboards, Report Builder.</div>
         </div>
         <div class="card accent-teal">
-          <div class="card-title">Market Reporting</div>
+          <div class="card-title">Market Analytics</div>
           <div class="card-file">market-reporting.html</div>
-          <div class="card-desc">Market intelligence reports. Create, edit and publish structured market reports linked to roles.</div>
+          <div class="card-desc">Market intelligence and placement analytics. Create, edit and publish structured market reports linked to roles. Analyse historical placement data by location and functional area to predict time to hire and funnel drop-off.</div>
         </div>
         <div class="card accent-green">
           <div class="card-title">People</div>
@@ -378,7 +378,7 @@
         <tr><th>Role</th><th>Source</th><th>Description</th></tr>
         <tr><td><span class="badge badge-admin">admin</span></td><td>Hardcoded in CONFIG.ADMIN_USERS</td><td>Full access to all modules, pages, and admin interfaces. Never overridden by SharePoint.</td></tr>
         <tr><td><span class="badge badge-leadership">leadership</span></td><td>LeadershipAccess list</td><td>Read-only access to Company Dashboard (Reporting) and People + Sales modules.</td></tr>
-        <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module. Can view all project data for assigned projects.</td></tr>
+        <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module and Market Analytics. Limited access to People module — Scorecards page only.</td></tr>
         <tr><td><span class="badge badge-tp">talent_partner</span></td><td>UserAssignments list</td><td>Access to assigned project in Reporting module. Scoped to own activity and roles.</td></tr>
         <tr><td><span class="badge badge-viewer">viewer</span></td><td>Fallback</td><td>Read-only, no meaningful access. Auto-registered on first login.</td></tr>
       </table>
@@ -395,8 +395,10 @@
         <tr><td>Placements</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
         <tr><td>Rejected Offers</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
         <tr><td>Config Panel</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>Market Reporting</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-        <tr><td>People module</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Market Analytics — Market Report Builder</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
+        <tr><td>Market Analytics — Placement Analytics</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
+        <tr><td>People module (full)</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>People module (Scorecards only)</td><td>—</td><td>—</td><td>✓</td><td>—</td><td>—</td></tr>
         <tr><td>Sales module</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Newton OS Admin</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
       </table>
@@ -429,11 +431,11 @@
         <tr><td><span class="file-tag">reporting.html</span></td><td>Reporting module entry point.</td></tr>
         <tr><td><span class="file-tag">people.html</span></td><td>People module entry point.</td></tr>
         <tr><td><span class="file-tag">sales.html</span></td><td>Sales module entry point.</td></tr>
-        <tr><td><span class="file-tag">market-reporting.html</span></td><td>Market Reporting module entry point.</td></tr>
+        <tr><td><span class="file-tag">market-reporting.html</span></td><td>Market Analytics module entry point.</td></tr>
         <tr><td><span class="file-tag">admin.html</span></td><td>Newton OS Admin — platform-level administration.</td></tr>
         <tr><td><span class="file-tag">user-guide.html</span></td><td>Reporting module user guide.</td></tr>
         <tr><td><span class="file-tag">people-user-guide.html</span></td><td>People module user guide.</td></tr>
-        <tr><td><span class="file-tag">market-reporting-user-guide.html</span></td><td>Market Reporting user guide.</td></tr>
+        <tr><td><span class="file-tag">market-reporting-user-guide.html</span></td><td>Market Analytics user guide.</td></tr>
         <tr><td><span class="file-tag">README.html</span></td><td>This document — system directory and developer reference.</td></tr>
       </table>
 
@@ -453,9 +455,10 @@
         <tr><td><span class="file-tag">js/router.js</span></td><td>Page registry, role constants, canAccess(), getAccessiblePages()</td></tr>
         <tr><td><span class="file-tag">js/nav.js</span></td><td>Calls renderModuleNav() with Reporting params. navigateTo(), renderPage()</td></tr>
         <tr><td><span class="file-tag">js/app.js</span></td><td>Module init — MSAL redirect handler, role resolution, first navigation</td></tr>
-        <tr><td><span class="file-tag">js/pages.js</span></td><td>Page content renderers: Projects, Roles, Activity, Placements, Rejections</td></tr>
+        <tr><td><span class="file-tag">js/pages.js</span></td><td>Page content renderers: Projects, Roles (with Location column), Activity, Placements, Rejections</td></tr>
         <tr><td><span class="file-tag">js/forms.js</span></td><td>Form renderers and submission logic for Reporting data entry</td></tr>
-        <tr><td><span class="file-tag">js/dashboard.js</span></td><td>Project Dashboard, Company Dashboard, REPORT_PANELS registry</td></tr>
+        <tr><td><span class="file-tag">js/dashboard.js</span></td><td>Project Dashboard (incl. Role Analytics panel), Company Dashboard, REPORT_PANELS registry</td></tr>
+        <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions — computeTTFPrediction(), computeRoleFunnel(), computeVelocityScore(). Loaded by reporting.html, people.html, and market-reporting.html.</td></tr>
         <tr><td><span class="file-tag">js/report-builder.js</span></td><td>Report Builder — block canvas, save/load, PDF export</td></tr>
         <tr><td><span class="file-tag">js/admin.js</span></td><td>Config Panel — Departments, Currencies, Delete Records</td></tr>
       </table>
@@ -463,11 +466,13 @@
       <h3>People module</h3>
       <table>
         <tr><th>File</th><th>Responsibility</th></tr>
-        <tr><td><span class="file-tag">js/people-router.js</span></td><td>Page registry for People module</td></tr>
-        <tr><td><span class="file-tag">js/people-nav.js</span></td><td>Calls renderModuleNav() with People params</td></tr>
-        <tr><td><span class="file-tag">js/people-app.js</span></td><td>Module init — role check, redirect if unauthorised</td></tr>
+        <tr><td><span class="file-tag">js/people-router.js</span></td><td>Page registry for People module. Includes DELIVERY_MANAGER role and scorecards page access.</td></tr>
+        <tr><td><span class="file-tag">js/people-nav.js</span></td><td>Calls renderModuleNav() with People params. Routes scorecards page in renderPeoplePage() switch.</td></tr>
+        <tr><td><span class="file-tag">js/people-app.js</span></td><td>Module init — role check, redirect if unauthorised. DMs are allowed in; they land on scorecards page.</td></tr>
         <tr><td><span class="file-tag">js/people-pages.js</span></td><td>People Dashboard, Employee Tracker, Deployment Timeline, G-P Invoices</td></tr>
         <tr><td><span class="file-tag">js/people-forms.js</span></td><td>Form renderers for People data entry</td></tr>
+        <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions — computeTTFPrediction(), computeRoleFunnel(), computeVelocityScore(). No network I/O or DOM access.</td></tr>
+        <tr><td><span class="file-tag">js/analytics-pages.js</span></td><td>People Scorecards page renderers — renderScorecardsPage(), renderScorecardPanel()</td></tr>
       </table>
 
       <h3>Sales module</h3>
@@ -479,13 +484,14 @@
         <tr><td><span class="file-tag">js/sales-pages.js</span></td><td>Sales Forecast page renderer</td></tr>
       </table>
 
-      <h3>Market Reporting module</h3>
+      <h3>Market Analytics module</h3>
       <table>
         <tr><th>File</th><th>Responsibility</th></tr>
-        <tr><td><span class="file-tag">js/mr-router.js</span></td><td>Page registry for Market Reporting module</td></tr>
-        <tr><td><span class="file-tag">js/mr-nav.js</span></td><td>Calls renderModuleNav() with Market Reporting params</td></tr>
+        <tr><td><span class="file-tag">js/mr-router.js</span></td><td>Page registry for Market Analytics module</td></tr>
+        <tr><td><span class="file-tag">js/mr-nav.js</span></td><td>Calls renderModuleNav() with Market Analytics params. Routes placementAnalytics in renderMrPage() switch.</td></tr>
         <tr><td><span class="file-tag">js/mr-app.js</span></td><td>Module init — role check, redirect if unauthorised</td></tr>
         <tr><td><span class="file-tag">js/market-report.js</span></td><td>Market Report Builder page renderer</td></tr>
+        <tr><td><span class="file-tag">js/placement-analytics.js</span></td><td>Placement Analytics page — Location/Functional Area filters, summary cards, funnel drop-off, role breakdown table. Uses computeTTFPrediction() and computeRoleFunnel() from analytics.js.</td></tr>
       </table>
 
       <h3>Admin</h3>
@@ -524,6 +530,9 @@ dashboard.js       <span class="code-comment">← (Reporting only)</span>
 sortablejs          <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">report-builder.js</span>  <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">admin.js</span>           <span class="code-comment">← (Reporting only)</span>
+<span class="code-key">analytics.js</span>       <span class="code-comment">← (Reporting + People + Market Analytics) — pure functions, load before app.js</span>
+<span class="code-key">analytics-pages.js</span> <span class="code-comment">← (People only) — Scorecards page renderers</span>
+<span class="code-key">placement-analytics.js</span> <span class="code-comment">← (Market Analytics only) — load after analytics.js, before mr-app.js</span>
 <span class="code-key">[module]-app.js</span>    <span class="code-comment">← Module init — always last</span>
       </div>
 

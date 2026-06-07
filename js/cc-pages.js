@@ -153,16 +153,14 @@ function _ccUtilCalc(forecasts, assigns, people) {
     p.IsActive !== false && ['SDM', 'STP', 'TP'].includes(p.Level)
   ).length;
 
-  // Current: assignments active right now only
-  const current = assigns.filter(a => {
-    if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
-    const s = new Date(a.StartDate);
-    const e = new Date(a.EndDate);
-    return s <= now && e >= now;
-  });
-  const totalCap  = current.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const billedCap = current.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const known = totalCap > 0 ? billedCap / totalCap : 0;
+  // Current: use computeMonthlyRows for current month — consistent with People Dashboard
+  const allRows     = computeMonthlyRows(assigns);
+  const curMonth    = now.getMonth() + 1;
+  const curYear     = now.getFullYear();
+  const currentRows = allRows.filter(r => r.Year === curYear && r.Month === curMonth && r.Level !== 'CSD');
+  const totalCap    = currentRows.reduce((s, r) => s + r.Capacity, 0);
+  const billedCap   = currentRows.reduce((s, r) => s + r.BilledCapacity, 0);
+  const known       = totalCap > 0 ? billedCap / totalCap : 0;
 
   // Known 13 weeks: assignments active at any point in the next 13 weeks (for forecast base)
   const known13 = assigns.filter(a => {

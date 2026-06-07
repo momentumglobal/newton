@@ -192,7 +192,7 @@ function renderHealthDetail(data) {
 
   const liveAssigns = assigns.filter(a => a.StartDate && a.EndDate &&
     new Date(a.StartDate) <= now && new Date(a.EndDate) >= now);
-  const customers = [...new Set(liveAssigns.map(a => a.Customer).filter(Boolean))];
+  const customers = [...new Set(liveAssigns.map(a => a.Customer).filter(Boolean))].sort();
 
   if (!customers.length) return '<p class="no-data">No live projects found.</p>';
 
@@ -300,7 +300,8 @@ function renderUtilDetail(data) {
   const forecastCells = months.map(m => `<td style="text-align:center;color:${ragCol(m.forecast)};font-weight:600">${fmtPct(m.forecast)}</td>`).join('');
 
   return `
-    <div style="margin-bottom:16px;font-size:14px">Current utilisation: <strong style="color:${ragCol(known)}">${fmtPct(known)}</strong></div>
+    return `
+    <div style="margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #eee;font-size:14px">Current utilisation: <strong style="color:${ragCol(known)}">${fmtPct(known)}</strong></div>
     <table class="cc-detail-table">
       <thead><tr><th></th>${headers}</tr></thead>
       <tbody>

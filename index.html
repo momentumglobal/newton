@@ -211,7 +211,7 @@ async function renderCommandCentreBanner(role) {
 
       // NEW: CC banner for Admin/Leadership
       await renderCommandCentreBanner(role);
-      initQuickLinks(role);
+      setTimeout(() => initQuickLinks(role), 0);
       
       // Load announcement banner
       getAnnouncementMessage().then(msg => {

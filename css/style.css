@@ -896,6 +896,162 @@ body {
 .cc-detail-table td { padding: 8px; border-bottom: 1px solid #f0f0f0; color: #333; }
 .cc-detail-table tbody tr:last-child td { border-bottom: none; }
 
+/* ── Homepage (index.html) ───────────────────────────────────────────── */
+#watermark {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120vmin; height: 120vmin;
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 0;
+}
+.home-center {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.home-greeting {
+  font-size: 13px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+}
+.home-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 6px;
+}
+.home-subtitle {
+  font-size: 11px;
+  color: rgba(255,255,255,0.28);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 48px;
+}
+.module-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 440px;
+}
+.module-grid.single {
+  grid-template-columns: 1fr;
+  width: 220px;
+}
+.module-card {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 12px;
+  padding: 24px 20px;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  display: block;
+  transition: background 0.15s, border-color 0.15s;
+}
+.module-card:hover {
+  background: rgba(255,255,255,0.21);
+  border-color: rgba(255,255,255,0.32);
+}
+.module-card.disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+.module-icon {
+  width: 24px; height: 24px;
+  margin-bottom: 12px;
+  display: block;
+  color: rgba(255,255,255,0.75);
+  stroke-width: 1.5;
+}
+.module-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 4px;
+}
+.module-desc {
+  font-size: 12px;
+  color: rgba(255,255,255,0.48);
+  line-height: 1.45;
+}
+.module-badge {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.badge-live { background: rgba(46,95,163,0.55);   color: rgba(255,255,255,0.85); }
+.badge-soon { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.38); }
+.home-logo {
+  height: 36px;
+  width: auto;
+  opacity: 0.7;
+  flex-shrink: 0;
+  margin-left: 32px;
+}
+.home-signout {
+  font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
+  background: none;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-right: 32px;
+}
+.home-signout:hover { color: rgba(255,255,255,0.7); }
+.home-bottom-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+}
+#announcement-ticker {
+  display: none;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.65);
+  margin: 0 24px;
+}
+#announcement-ticker.visible { display: block; }
+#announcement-ticker-inner {
+  display: inline-block;
+  padding-left: 100%;
+  animation: ticker-scroll 28s linear infinite;
+}
+#announcement-ticker-inner:hover { animation-play-state: paused; }
+
+/* ── Command Centre homepage banner (index.html) ── */
+/* Note: distinct from .cc-banner used in command-centre.html module shell */
+.cc-home-banner {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 18px 28px; border-radius: 14px;
+  margin-bottom: 20px; text-decoration: none;
+  transition: background 0.15s, border-color 0.15s; width: 440px;
+  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.14);
+}
+.cc-home-banner:hover { background: rgba(255,255,255,0.21); border-color: rgba(255,255,255,0.32); }
+.cc-home-banner__top    { display: flex; align-items: center; justify-content: center; width: 100%; position: relative; }
+.cc-home-banner__title  { font-size: 15px; font-weight: 600; color: white; text-align: center; flex: 1; }
+.cc-home-banner__sub    { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; text-align: center; }
+.cc-home-banner__badges { display: flex; gap: 8px; justify-content: center; align-items: center; }
+
 /* ── Quick Links Drawer (homepage) ──────────────────────────────────── */
 .ql-trigger {
   display: none;

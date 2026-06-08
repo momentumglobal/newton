@@ -1046,11 +1046,18 @@ body {
   transition: background 0.15s, border-color 0.15s; width: 440px;
   background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.14);
 }
-.cc-home-banner:hover { background: rgba(255,255,255,0.21); border-color: rgba(255,255,255,0.32); }
+.cc-home-banner:hover   { background: rgba(255,255,255,0.21); border-color: rgba(255,255,255,0.32); }
 .cc-home-banner__top    { display: flex; align-items: center; justify-content: center; width: 100%; position: relative; }
 .cc-home-banner__title  { font-size: 15px; font-weight: 600; color: white; text-align: center; flex: 1; }
 .cc-home-banner__sub    { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; text-align: center; }
 .cc-home-banner__badges { display: flex; gap: 8px; justify-content: center; align-items: center; }
+.cc-badge               { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 9px; border-radius: 10px; }
+.cc-badge--green        { background: rgba(46,125,50,0.35);  color: #81c784; border: 1px solid rgba(46,125,50,0.5); }
+.cc-badge--amber        { background: rgba(245,127,23,0.35); color: #ffb74d; border: 1px solid rgba(245,127,23,0.5); }
+.cc-badge--red          { background: rgba(198,40,40,0.35);  color: #ef9a9a; border: 1px solid rgba(198,40,40,0.5); }
+.cc-badge--neutral      { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.12); }
+.cc-refresh             { position: absolute; right: 0; background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.3); font-size: 14px; padding: 2px; line-height: 1; transition: color 0.15s; }
+.cc-refresh:hover       { color: rgba(255,255,255,0.7); }
 
 /* ── Quick Links Drawer (homepage) ──────────────────────────────────── */
 .ql-trigger {

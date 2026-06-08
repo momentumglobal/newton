@@ -1088,7 +1088,7 @@ body {
 .ql-overlay.open { display: block; }
 .ql-drawer {
   position: fixed;
-  bottom: 0; right: 0;
+  bottom: 68px; right: 0;
   width: 280px;
   max-height: 60vh;
   background: #0f1160;

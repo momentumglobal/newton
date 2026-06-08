@@ -5,204 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Newton - Home</title>
   <link rel="icon" type="image/png" href="momentum-symbol.png">
-  <style>
-    @font-face {
-      font-family: 'Polymath';
-      src: url('polymath-regular.ttf') format('truetype');
-      font-weight: 400;
-    }
-    @font-face {
-      font-family: 'Polymath';
-      src: url('polymath-semibold.ttf') format('truetype');
-      font-weight: 600;
-    }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-      background: #090546;
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    #watermark {
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 120vmin; height: 120vmin;
-      opacity: 0.25;
-      pointer-events: none;
-      z-index: 0;
-    }
-    .home-center {
-      position: relative;
-      z-index: 2;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-    }
-    .home-greeting {
-      font-size: 13px;
-      color: rgba(255,255,255,0.4);
-      letter-spacing: 0.03em;
-      margin-bottom: 6px;
-    }
-    .home-title {
-      font-size: 28px;
-      font-weight: 600;
-      color: white;
-      margin-bottom: 6px;
-    }
-    .home-subtitle {
-      font-size: 11px;
-      color: rgba(255,255,255,0.28);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin-bottom: 48px;
-    }
-    .module-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      width: 440px;
-    }
-    .module-grid.single {
-      grid-template-columns: 1fr;
-      width: 220px;
-    }
-    .module-card {
-      background: rgba(255,255,255,0.15);
-      border: 1px solid rgba(255,255,255,0.14);
-      border-radius: 12px;
-      padding: 24px 20px;
-      cursor: pointer;
-      text-align: left;
-      text-decoration: none;
-      display: block;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .module-card:hover {
-      background: rgba(255,255,255,0.21);
-      border-color: rgba(255,255,255,0.32);
-    }
-    .module-card.disabled {
-      opacity: 0.45;
-      cursor: default;
-      pointer-events: none;
-    }
-    .module-icon {
-      width: 24px;
-      height: 24px;
-      margin-bottom: 12px;
-      display: block;
-      color: rgba(255,255,255,0.75);
-      stroke-width: 1.5;
-    }
-    .module-name {
-      font-size: 15px;
-      font-weight: 600;
-      color: white;
-      margin-bottom: 4px;
-    }
-    .module-desc {
-      font-size: 12px;
-      color: rgba(255,255,255,0.48);
-      line-height: 1.45;
-    }
-    .module-badge {
-      display: inline-block;
-      margin-top: 10px;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      padding: 2px 8px;
-      border-radius: 10px;
-    }
-    .badge-live {
-      background: rgba(46,95,163,0.55);
-      color: rgba(255,255,255,0.85);
-    }
-    .badge-soon {
-      background: rgba(255,255,255,0.08);
-      color: rgba(255,255,255,0.38);
-    }
-    /* ── Bottom bar ── */
-    .home-logo {
-      height: 36px;
-      width: auto;
-      opacity: 0.7;
-      flex-shrink: 0;
-      margin-left: 32px;
-    }
-    .home-signout {
-      font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-      font-size: 13px;
-      color: rgba(255,255,255,0.35);
-      background: none;
-      border: none;
-      cursor: pointer;
-      flex-shrink: 0;
-      margin-right: 32px;
-    }
-    .home-signout:hover { color: rgba(255,255,255,0.7); }
-    .home-bottom-bar {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      height: 68px;
-      display: flex;
-      align-items: center;
-      z-index: 2;
-    }
-    /* ── Announcement ticker ── */
-    #announcement-ticker {
-      display: none;
-      flex: 1;
-      overflow: hidden;
-      white-space: nowrap;
-      font-size: 15px;
-      font-weight: 500;
-      color: rgba(255,255,255,0.65);
-      margin: 0 24px;
-    }
-    #announcement-ticker.visible { display: block; }
-    #announcement-ticker-inner {
-      display: inline-block;
-      padding-left: 100%;
-      animation: ticker-scroll 28s linear infinite;
-    }
-    #announcement-ticker-inner:hover { animation-play-state: paused; }
-    @keyframes ticker-scroll {
-      0%   { transform: translateX(0); }
-      100% { transform: translateX(-100%); }
-    }
-
-    /* ── Command Centre banner ── */
-.cc-banner {
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
-  padding: 18px 28px; border-radius: 14px;
-  margin-bottom: 20px; text-decoration: none;
-  transition: background 0.15s, border-color 0.15s; width: 440px;
-  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.14);
-}
-.cc-banner:hover { background: rgba(255,255,255,0.21); border-color: rgba(255,255,255,0.32); }
-.cc-banner__top   { display: flex; align-items: center; justify-content: center; width: 100%; position: relative; }
-.cc-banner__title { font-size: 15px; font-weight: 600; color: white; text-align: center; flex: 1; }
-.cc-banner__sub   { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; text-align: center; }
-.cc-banner__badges { display: flex; gap: 8px; justify-content: center; align-items: center; }
-.cc-badge { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 9px; border-radius: 10px; }
-.cc-badge--green   { background: rgba(46,125,50,0.35);  color: #81c784; border: 1px solid rgba(46,125,50,0.5); }
-.cc-badge--amber   { background: rgba(245,127,23,0.35); color: #ffb74d; border: 1px solid rgba(245,127,23,0.5); }
-.cc-badge--red     { background: rgba(198,40,40,0.35);  color: #ef9a9a; border: 1px solid rgba(198,40,40,0.5); }
-.cc-badge--neutral { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.12); }
-.cc-refresh { position: absolute; right: 0; background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.3); font-size: 14px; padding: 2px; line-height: 1; transition: color 0.15s; }
-.cc-refresh:hover { color: rgba(255,255,255,0.7); }
-  </style>
+  <link rel="stylesheet" href="css/style.css">
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body>
+<body style="background:#090546;overflow:hidden;display:flex;align-items:center;justify-content:center;">
   <img id="watermark" src="mg-visual-swirl.png" alt="">
   <div class="home-bottom-bar">
     <img class="home-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
@@ -344,13 +150,13 @@ function renderCCBadges(health, people, util) {
   const el = document.getElementById('cc-banner-slot');
   if (!el) return;
   el.innerHTML = `
-    <a href="command-centre.html" class="cc-banner">
-      <div class="cc-banner__top">
-        <div class="cc-banner__title">Command Centre</div>
+    <a href="command-centre.html" class="cc-home-banner">
+      <div class="cc-home-banner__top">
+        <div class="cc-home-banner__title">Command Centre</div>
         <button class="cc-refresh" title="Refresh" onclick="event.preventDefault(); refreshCCBanner()">↻</button>
       </div>
-      <div class="cc-banner__sub">Executive Operations View</div>
-      <div class="cc-banner__badges">
+      <div class="cc-home-banner__sub">Executive Operations View</div>
+      <div class="cc-home-banner__badges">
         ${ccBadgeHTML(health, 'Health')}
         ${ccBadgeHTML(people, 'People')}
         ${ccBadgeHTML(util,   'Utilisation')}

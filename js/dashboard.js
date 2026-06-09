@@ -626,11 +626,11 @@ async function renderProjectDashboard() {
     <div id='proj-detail-grid' class='dash-grid'>
       ${placementsPanel}
       ${pipelineAct}
-      ${roleAnalytics}
       ${tpTable}
       ${rejPanel}
       ${starters}
       ${spend}
+      ${roleAnalytics}
     </div>`;
 }
 function changeDashProject(id) { _dashProjectId = String(id); renderProjectDashboard(); }
@@ -655,11 +655,11 @@ function setDetailPeriod(period) {
   el.innerHTML =
     renderPlacementsPanel(c.placements, c.roles, _dashDetailPeriod) +
     renderPipelineActivityTable(c.activity, c.roles, _dashDetailPeriod) +
-    roleAnalyticsPlaceholder +
     (isDMAdmin ? renderActivityByTPPanel(c.activity, _dashDetailPeriod, c.tpMap) : '') +
     (isDMAdmin ? renderRejectionPanel(c.rejections, c.roles, _dashDetailPeriod) : '') +
     (isDMAdmin ? renderUpcomingStartersPanel(c.placements, c.roles) : '') +
     (isDMAdmin ? renderSpendPanel(c.roles, c.placements) : '');
+    roleAnalyticsPlaceholder +
   renderRoleAnalyticsPanel(c.roles, c.analyticsActs, c.historical, c.tpMap)
     .then(html => {
       const ph = document.getElementById('role-analytics-placeholder');

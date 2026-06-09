@@ -134,18 +134,18 @@ async function submitCurrency() {
 
 // ── Delete Tab ───────────────────────────────────────────────────────
 const DELETE_LIST_CONFIG = {
-  Projects:        { label: 'Projects',         displayField: 'CustomerName' },
-  Roles:           { label: 'Roles',            displayField: 'RoleTitle' },
-  WeeklyActivity:  { label: 'Weekly Activity',  displayField: 'ActivityTitle' },
-  Placements:      { label: 'Placements',       displayField: 'CandidateName' },
-  RejectedOffers:  { label: 'Rejected Offers',  displayField: 'CandidateName' },
-  Departments:     { label: 'Functional Areas',   displayField: 'DepartmentName' },
+  Projects:       { label: 'Projects' },
+  Roles:          { label: 'Roles' },
+  WeeklyActivity: { label: 'Weekly Activity' },
+  Placements:     { label: 'Placements' },
+  RejectedOffers: { label: 'Rejected Offers' },
 };
 
 async function buildDeleteTab() {
   const listOptions = Object.entries(DELETE_LIST_CONFIG).map(([key, cfg]) =>
     `<option value="${key}">${cfg.label}</option>`
   ).join('');
+ 
   return `
     <h3>Delete Records</h3>
     <p style="font-size:13px;color:#666;margin-bottom:16px">
@@ -185,10 +185,90 @@ async function loadDeleteItems(listName) {
   if (!listName) { select.innerHTML = '<option value="">-- Select list first --</option>'; select.disabled = true; return; }
   select.innerHTML = '<option value="">Loading...</option>'; select.disabled = true;
   try {
-    const items = await getItems(listName);
-    const displayField = DELETE_LIST_CONFIG[listName]?.displayField || 'id';
+    let options = [];
+
+    if (listName === 'Projects') {
+      const items = await getItems('Projects');
+      options = items
+        .sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''))
+        .map(i => ({ id: i.id, label: i.CustomerName || `ID ${i.id}` }));
+
+    } else if (listName === 'Roles') {
+      const [items, projects] = await Promise.all([getItems('Roles'), getItems('Projects')]);
+      const projMap = Object.fromEntries(projects.map(p => [String(p.id), p.CustomerName]));
+      options = items
+        .sort((a, b) => {
+          const pa = projMap[String(a.ProjectIDLookupId)] || '';
+          const pb = projMap[String(b.ProjectIDLookupId)] || '';
+          const pc = pa.localeCompare(pb);
+          if (pc !== 0) return pc;
+          const ra = a.Location ? `${a.RoleTitle} (${a.Location})` : (a.RoleTitle || '');
+          const rb = b.Location ? `${b.RoleTitle} (${b.Location})` : (b.RoleTitle || '');
+          return ra.localeCompare(rb);
+        })
+        .map(i => {
+          const proj = projMap[String(i.ProjectIDLookupId)] || '—';
+          const role = i.Location ? `${i.RoleTitle} (${i.Location})` : (i.RoleTitle || `ID ${i.id}`);
+          return { id: i.id, label: `${proj} — ${role}` };
+        });
+
+    } else if (listName === 'WeeklyActivity') {
+      const [items, roles, projects] = await Promise.all([getItems('WeeklyActivity'), getItems('Roles'), getItems('Projects')]);
+      const projMap = Object.fromEntries(projects.map(p => [String(p.id), p.CustomerName]));
+      const roleMap = Object.fromEntries(roles.map(r => [String(r.id), { title: r.RoleTitle, location: r.Location, projectId: String(r.ProjectIDLookupId) }]));
+      options = items
+        .sort((a, b) => {
+          const rid_a = String(a.RoleIDLookupId || a.RoleID || '');
+          const rid_b = String(b.RoleIDLookupId || b.RoleID || '');
+          const pa = projMap[roleMap[rid_a]?.projectId] || '';
+          const pb = projMap[roleMap[rid_b]?.projectId] || '';
+          const pc = pa.localeCompare(pb);
+          if (pc !== 0) return pc;
+          const wc = Number(b.WeekNumber) - Number(a.WeekNumber);
+          if (wc !== 0) return wc;
+          const ra = roleMap[rid_a] ? (roleMap[rid_a].location ? `${roleMap[rid_a].title} (${roleMap[rid_a].location})` : roleMap[rid_a].title) : '';
+          const rb = roleMap[rid_b] ? (roleMap[rid_b].location ? `${roleMap[rid_b].title} (${roleMap[rid_b].location})` : roleMap[rid_b].title) : '';
+          return ra.localeCompare(rb);
+        })
+        .map(i => {
+          const rid = String(i.RoleIDLookupId || i.RoleID || '');
+          const r = roleMap[rid];
+          const proj = r ? (projMap[r.projectId] || '—') : '—';
+          const role = r ? (r.location ? `${r.title} (${r.location})` : r.title) : '—';
+          return { id: i.id, label: `${proj} — ${role} — Wk ${i.WeekNumber}` };
+        });
+
+    } else if (listName === 'Placements') {
+      const [items, roles, projects] = await Promise.all([getItems('Placements'), getItems('Roles'), getItems('Projects')]);
+      const projMap = Object.fromEntries(projects.map(p => [String(p.id), p.CustomerName]));
+      const roleMap = Object.fromEntries(roles.map(r => [String(r.id), { title: r.RoleTitle, projectId: String(r.ProjectIDLookupId) }]));
+      options = items
+        .sort((a, b) => new Date(b.OfferAcceptedDate || 0) - new Date(a.OfferAcceptedDate || 0))
+        .map(i => {
+          const rid = String(i.RoleIDLookupId || i.RoleID || '');
+          const r = roleMap[rid];
+          const proj = r ? (projMap[r.projectId] || '—') : '—';
+          const role = r ? r.title : '—';
+          return { id: i.id, label: `${proj} — ${role} — ${i.CandidateName || `ID ${i.id}`}` };
+        });
+
+    } else if (listName === 'RejectedOffers') {
+      const [items, roles, projects] = await Promise.all([getItems('RejectedOffers'), getItems('Roles'), getItems('Projects')]);
+      const projMap = Object.fromEntries(projects.map(p => [String(p.id), p.CustomerName]));
+      const roleMap = Object.fromEntries(roles.map(r => [String(r.id), { title: r.RoleTitle, projectId: String(r.ProjectIDLookupId) }]));
+      options = items
+        .sort((a, b) => new Date(b.RejectionDate || 0) - new Date(a.RejectionDate || 0))
+        .map(i => {
+          const rid = String(i.RoleIDLookupId || i.RoleID || '');
+          const r = roleMap[rid];
+          const proj = r ? (projMap[r.projectId] || '—') : '—';
+          const role = r ? r.title : '—';
+          return { id: i.id, label: `${proj} — ${role} — ${i.CandidateName || `ID ${i.id}`}` };
+        });
+    }
+
     select.innerHTML = '<option value="">-- Select record --</option>' +
-      items.map(i => `<option value="${i.id}">${i[displayField] || `ID ${i.id}`}</option>`).join('');
+      options.map(o => `<option value="${o.id}">${o.label}</option>`).join('');
     select.disabled = false;
   } catch(e) { select.innerHTML = '<option value="">-- Error loading records --</option>'; }
 }

@@ -157,8 +157,8 @@ async function getHistoricalPlacements() {
     'Id,Title,Department,Currency,OpenDate,ActualHireDate'
   );
   return roles.map(r => ({
-    id:            r.Id,
-    title:         r.Title,
+    id:            r.id,
+    title:         r.RoleTitle,
     functionArea:  r.Department,
     country:       r.Location,
     openDate:      r.OpenDate,

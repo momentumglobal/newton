@@ -93,7 +93,21 @@ function paRenderResults() {
   }
 
   // ── Summary metrics ───────────────────────────────────────────────
-  const ttfResult  = computeTTFPrediction(_paFunctionArea || null, _paLocation || null, historical);
+const ttfDays = filtered
+  .filter(r => r.openDate && r.placementDate)
+  .map(r => Math.round((new Date(r.placementDate) - new Date(r.openDate)) / (1000 * 60 * 60 * 24)));
+const ttfWeeks = ttfDays.length >= 3
+  ? Math.round(ttfDays.reduce((s, v) => s + v, 0) / ttfDays.length / 7)
+  : null;
+const ttfStdDev = ttfDays.length >= 3
+  ? Math.round(Math.sqrt(ttfDays.reduce((s, d) => s + Math.pow(d - ttfDays.reduce((a, b) => a + b, 0) / ttfDays.length, 2), 0) / ttfDays.length) / 7)
+  : null;
+const ttfResult = {
+  weeks: ttfWeeks,
+  stdDevWeeks: ttfStdDev,
+  label: ttfWeeks !== null ? `~${ttfWeeks}w ±${ttfStdDev}w` : 'Insufficient data',
+  sampleSize: ttfDays.length
+};
   const avgTTHDays = _paAvgTTH(filtered);
   const sampleSize = filtered.length;
 
@@ -134,7 +148,7 @@ function paRenderResults() {
           </div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-value">${avgTTHDays !== null ? `${Math.round(avgTTHDays / 7)}w` : "—"}</div>
+          <div class="kpi-value">${avgTTHDays !== null ? `${Math.round(avgTTHDays)}d` : "—"}</div>
           <div class="kpi-label">Avg. Actual Time to Hire</div>
           <div style="font-size:11px;color:#888;margin-top:4px">${sampleSize} placement${sampleSize !== 1 ? "s" : ""}</div>
         </div>

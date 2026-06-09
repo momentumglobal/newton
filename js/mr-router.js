@@ -7,12 +7,12 @@ const MR_ROLES = {
 };
 
 const MR_PAGES = {
-  marketReport: {
-    label: "Market Report Builder",
-    roles: [MR_ROLES.ADMIN, MR_ROLES.DM, MR_ROLES.TP],
-  },
   placementAnalytics: {
     label: "Placement Analytics",
+    roles: [MR_ROLES.ADMIN, MR_ROLES.DM, MR_ROLES.TP],
+  },
+  marketReport: {
+    label: "Market Report Builder",
     roles: [MR_ROLES.ADMIN, MR_ROLES.DM, MR_ROLES.TP],
   },
 };

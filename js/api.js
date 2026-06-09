@@ -153,7 +153,7 @@ async function getHistoricalPlacements() {
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
   const roles = await getItems('Roles',
-    `fields/Stage eq 'Placed' and fields/ActualHireDate ge '${cutoff.toISOString().split('T')[0]}'`,
+    `fields/Stage eq 'Hired' and fields/ActualHireDate ge '${cutoff.toISOString().split('T')[0]}'`,
     'Id,Title,Department,Currency,OpenDate,ActualHireDate'
   );
   return roles.map(r => ({

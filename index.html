@@ -5,194 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Newton - Home</title>
   <link rel="icon" type="image/png" href="momentum-symbol.png">
-  <style>
-    @font-face {
-      font-family: 'Polymath';
-      src: url('polymath-regular.ttf') format('truetype');
-      font-weight: 400;
-    }
-    @font-face {
-      font-family: 'Polymath';
-      src: url('polymath-semibold.ttf') format('truetype');
-      font-weight: 600;
-    }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-      background: #090546;
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    #watermark {
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 120vmin; height: 120vmin;
-      opacity: 0.25;
-      pointer-events: none;
-      z-index: 0;
-    }
-    .home-center {
-      position: relative;
-      z-index: 2;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-    }
-    .home-greeting {
-      font-size: 13px;
-      color: rgba(255,255,255,0.4);
-      letter-spacing: 0.03em;
-      margin-bottom: 6px;
-    }
-    .home-title {
-      font-size: 28px;
-      font-weight: 600;
-      color: white;
-      margin-bottom: 6px;
-    }
-    .home-subtitle {
-      font-size: 11px;
-      color: rgba(255,255,255,0.28);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin-bottom: 48px;
-    }
-    .module-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      width: 440px;
-    }
-    .module-grid.single {
-      grid-template-columns: 1fr;
-      width: 220px;
-    }
-    .module-card {
-      background: rgba(255,255,255,0.15);
-      border: 1px solid rgba(255,255,255,0.14);
-      border-radius: 12px;
-      padding: 24px 20px;
-      cursor: pointer;
-      text-align: left;
-      text-decoration: none;
-      display: block;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .module-card:hover {
-      background: rgba(255,255,255,0.21);
-      border-color: rgba(255,255,255,0.32);
-    }
-    .module-card.disabled {
-      opacity: 0.45;
-      cursor: default;
-      pointer-events: none;
-    }
-    .module-icon {
-      width: 24px;
-      height: 24px;
-      margin-bottom: 12px;
-      display: block;
-      color: rgba(255,255,255,0.75);
-      stroke-width: 1.5;
-    }
-    .module-name {
-      font-size: 15px;
-      font-weight: 600;
-      color: white;
-      margin-bottom: 4px;
-    }
-    .module-desc {
-      font-size: 12px;
-      color: rgba(255,255,255,0.48);
-      line-height: 1.45;
-    }
-    .module-badge {
-      display: inline-block;
-      margin-top: 10px;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      padding: 2px 8px;
-      border-radius: 10px;
-    }
-    .badge-live {
-      background: rgba(46,95,163,0.55);
-      color: rgba(255,255,255,0.85);
-    }
-    .badge-soon {
-      background: rgba(255,255,255,0.08);
-      color: rgba(255,255,255,0.38);
-    }
-    /* ── Bottom bar ── */
-    .home-logo {
-      height: 36px;
-      width: auto;
-      opacity: 0.7;
-      flex-shrink: 0;
-      margin-left: 32px;
-    }
-    .home-signout {
-      font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-      font-size: 13px;
-      color: rgba(255,255,255,0.35);
-      background: none;
-      border: none;
-      cursor: pointer;
-      flex-shrink: 0;
-      margin-right: 32px;
-    }
-    .home-signout:hover { color: rgba(255,255,255,0.7); }
-    .home-bottom-bar {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      height: 68px;
-      display: flex;
-      align-items: center;
-      z-index: 2;
-    }
-    /* ── Announcement ticker ── */
-    #announcement-ticker {
-      display: none;
-      flex: 1;
-      overflow: hidden;
-      white-space: nowrap;
-      font-size: 15px;
-      font-weight: 500;
-      color: rgba(255,255,255,0.65);
-      margin: 0 24px;
-    }
-    #announcement-ticker.visible { display: block; }
-    #announcement-ticker-inner {
-      display: inline-block;
-      padding-left: 100%;
-      animation: ticker-scroll 28s linear infinite;
-    }
-    #announcement-ticker-inner:hover { animation-play-state: paused; }
-    @keyframes ticker-scroll {
-      0%   { transform: translateX(0); }
-      100% { transform: translateX(-100%); }
-    }
-  </style>
+  <link rel="stylesheet" href="css/style.css">
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body>
+<body style="background:#090546;overflow:visible;display:flex;align-items:center;justify-content:center;min-height:100vh;">
   <img id="watermark" src="mg-visual-swirl.png" alt="">
   <div class="home-bottom-bar">
     <img class="home-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
     <div id="announcement-ticker"><span id="announcement-ticker-inner"></span></div>
     <a id="admin-link" href="admin.html" style="display:none;font-family:'Polymath','Segoe UI',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.35);text-decoration:none;margin-right:16px;">Admin</a>
+    <button id="ql-trigger" class="ql-trigger" onclick="openQuickLinks()" style="display:none;" title="Quick Links">
+      <i data-lucide="zap" style="width:16px;height:16px;stroke-width:1.8;"></i>
+      <span style="font-size:13px;margin-left:6px;">Quick Links</span>
+    </button>
     <button class="home-signout" onclick="handleSignOut()">Sign out</button>
   </div>
   <div class="home-center">
     <div class="home-greeting" id="home-greeting">Welcome back</div>
     <div class="home-title">Newton</div>
     <div class="home-subtitle">Momentum Global &nbsp;·&nbsp; Operating System</div>
+    <div id="cc-banner-slot"></div>
     <div class="module-grid" id="module-grid"></div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
@@ -233,13 +65,119 @@
       {
         key: 'marketing',
         name: 'Market Analytics',
-        desc: 'Create Customer Market Reports & Access Placement Analytics',
+        desc: 'Customer Market Reports & Placement Analytics',
         icon: 'brain',
         href: 'market-reporting.html',
         live: true,
         roles: ['admin','delivery_manager','talent_partner'],
       },
     ];
+
+function ccBadgeHTML(rag, label) {
+  return `<span class="cc-badge cc-badge--${rag}">${label}</span>`;
+}
+
+async function refreshCCBanner() {
+  const [roles, acts4, acts13, forecasts, assigns, people] = await Promise.all([
+    getAllRoles(),
+    getActivityForAnalytics(4),
+    getActivityForAnalytics(13),
+    getItems('SalesForecasts'),
+    getItems('Assignments'),
+    getPeople(false)
+  ]);
+  
+  // Project Health RAG
+  const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
+  const flagged = open.filter(role => {
+    const acts = acts4.filter(a => String(a.RoleIDLookupId) === String(role.id));
+    return isRoleFlagged(role, acts);
+  }).length;
+  const healthPct = open.length ? flagged / open.length : 0;
+  const ragHealth = healthPct < 0.25 ? 'green' : healthPct <= 0.50 ? 'amber' : 'red';
+
+  // People RAG — weighted score across TPs by flagged role ratio
+  const tps = [...new Set(open.filter(r => r.TalentPartner).map(r => r.TalentPartner))];
+  const weight = { green: 0, amber: 1, red: 2, grey: 0 };
+  const peopleScore = tps.length ? tps.reduce((sum, tp) => {
+    const tpRoles  = open.filter(r => r.TalentPartner && r.TalentPartner.toLowerCase() === tp.toLowerCase());
+    const flaggedTP = tpRoles.filter(r => {
+      const acts = acts13.filter(a => String(a.RoleIDLookupId) === String(r.id));
+      return isRoleFlagged(r, acts);
+    }).length;
+    const pct = tpRoles.length ? flaggedTP / tpRoles.length : null;
+    const rag = pct === null ? 'grey' : pct < 0.25 ? 'green' : pct <= 0.50 ? 'amber' : 'red';
+    return sum + weight[rag];
+  }, 0) / tps.length : 0;
+  const ragPeople = peopleScore < 0.5 ? 'green' : peopleScore <= 1.0 ? 'amber' : 'red';
+
+  // Utilisation RAG — forecast over next 13 weeks
+  const t = CONFIG.UTILISATION_THRESHOLDS;
+  const now = new Date();
+  const horizon = new Date(now.getTime() + 91 * 86400000);
+  const totalActiveHeadcount = people.filter(p => p.IsActive !== false && ['SDM','STP','TP'].includes(p.Level)).length;
+  const known13 = assigns.filter(a => {
+    if (!a.StartDate || !a.EndDate) return false;
+    const s = new Date(a.StartDate); const e = new Date(a.EndDate);
+    return s <= horizon && e >= now && a.Level !== 'CSD';
+  });
+  const totalCap  = known13.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const billedCap = known13.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const knownUtil = totalCap > 0 ? billedCap / totalCap : 0;
+  const forecastedHC = forecasts.reduce((sum, f) => {
+    const s = new Date(f.ForecastStartDate); const e = new Date(f.ForecastEndDate);
+    return (s <= horizon && e >= now) ? sum + (f.ForecastedHeadcount || 0) : sum;
+  }, 0);
+  const forecastUtil = Math.min(knownUtil + (totalActiveHeadcount > 0 ? forecastedHC / totalActiveHeadcount : 0), 1.0);
+  const ragUtil = forecastUtil >= t.green ? 'green' : forecastUtil >= t.amber ? 'amber' : 'red';
+
+  // Write to CCStatus SP list
+  const statuses = [
+    { title: 'health', rag: ragHealth },
+    { title: 'people', rag: ragPeople },
+    { title: 'util',   rag: ragUtil   },
+  ];
+  const existing = await getItems('CCStatus');
+  for (const s of statuses) {
+    const match = existing.find(e => e.Title === s.title);
+    if (match) { await updateItem('CCStatus', match.id, { RAG: s.rag }); }
+    else        { await createItem('CCStatus', { Title: s.title, RAG: s.rag }); }
+  }
+
+  renderCCBadges(ragHealth, ragPeople, ragUtil);
+}
+
+function renderCCBadges(health, people, util) {
+  const el = document.getElementById('cc-banner-slot');
+  if (!el) return;
+  el.innerHTML = `
+    <a href="command-centre.html" class="cc-home-banner">
+      <div class="cc-home-banner__top">
+        <div class="cc-home-banner__title">Command Centre</div>
+        <button class="cc-refresh" title="Refresh" onclick="event.preventDefault(); refreshCCBanner()">↻</button>
+      </div>
+      <div class="cc-home-banner__sub">Executive Operations View</div>
+      <div class="cc-home-banner__badges">
+        ${ccBadgeHTML(health, 'Projects')}
+        ${ccBadgeHTML(people, 'People')}
+        ${ccBadgeHTML(util,   'Utilisation')}
+      </div>
+    </a>`;
+}
+
+async function renderCommandCentreBanner(role) {
+  if (role !== 'admin' && role !== 'leadership') return;
+
+  // Show last-known state from SP immediately
+  const existing = await getItems('CCStatus');
+  if (existing.length) {
+    const get = key => (existing.find(e => e.Title === key) || {}).RAG || 'neutral';
+    renderCCBadges(get('health'), get('people'), get('util'));
+  } else {
+    renderCCBadges('neutral', 'neutral', 'neutral');
+  }
+}
+    
     async function initHome() {
       const response = await msalInstance.handleRedirectPromise();
       if (response) {
@@ -270,6 +208,12 @@
         const adminLink = document.getElementById('admin-link');
         if (adminLink) adminLink.style.display = 'block';
       }
+
+      // NEW: CC banner for Admin/Leadership
+      await renderCommandCentreBanner(role);
+      initGhostBanner();
+      setTimeout(() => initQuickLinks(role), 0);
+      
       // Load announcement banner
       getAnnouncementMessage().then(msg => {
         const ticker = document.getElementById('announcement-ticker');
@@ -282,9 +226,58 @@
       });
     }
     function handleSignOut() { signOut(); }
+    function initGhostBanner() {
+      const ghostRole = getGhostRole();
+      if (!ghostRole) return;
+      const banner = document.createElement('div');
+      banner.id = 'ghost-banner';
+      banner.innerHTML = `
+        👻 Ghost mode — viewing as <strong>${ghostRole.replace(/_/g, ' ')}</strong>
+        <button onclick="exitGhostMode()">Exit Ghost Mode</button>
+      `;
+      document.body.prepend(banner);
+    }
+    function exitGhostMode() {
+      clearGhostRole();
+      window.location.reload();
+    }
+    function openQuickLinks() {
+      document.getElementById('ql-drawer').classList.add('open');
+      document.getElementById('ql-overlay').classList.add('open');
+    }
+    function closeQuickLinks() {
+      document.getElementById('ql-drawer').classList.remove('open');
+      document.getElementById('ql-overlay').classList.remove('open');
+    }
+    function initQuickLinks(role) {
+      const links = (CONFIG.QUICK_LINKS || []).filter(l => l.roles.includes(role));
+      if (!links.length) return;
+      const trigger = document.getElementById('ql-trigger');
+      if (trigger) { trigger.style.display = 'flex'; lucide.createIcons(); }
+      const container = document.getElementById('ql-links');
+      if (!container) return;
+      container.innerHTML = links.map(l => `
+        <a class="ql-link" href="${l.href}">
+          <i data-lucide="${l.icon}" class="ql-link-icon"></i>
+          <span>${l.label}</span>
+        </a>
+      `).join('');
+      lucide.createIcons();
+    }
     initHome();
   </script>
-<canvas id="fx-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;display:none"></canvas>
+<!-- Quick Links Drawer -->
+<div id="ql-overlay" class="ql-overlay" onclick="closeQuickLinks()"></div>
+<div id="ql-drawer" class="ql-drawer">
+  <div class="ql-header">
+    <span class="ql-title">Quick Links</span>
+    <button class="ql-close" onclick="closeQuickLinks()">
+      <i data-lucide="x" style="width:16px;height:16px;stroke-width:2;"></i>
+    </button>
+  </div>
+  <div id="ql-links" class="ql-links"></div>
+</div>
+<canvas id="fx-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;display:none">
 <script>
 (function() {
   const canvas = document.getElementById('fx-canvas');

@@ -42,12 +42,15 @@ const FIELD_ALIASES = {
   Departments:     { Title: "DepartmentName" },
   SavedReports:    {},
   MarketReports:   { Title: "ReportTitle" },
-  // ── People module ──────────────────────────────────────────
+  // ── People module ─────────────────────────────────────────
   People:          { Title: "EmployeeName" },
   Assignments:     { Title: "AssignmentID" },
   GPInvoices:      { Title: "InvoiceNumber" },
   // ── Sales module ──────────────────────────────────────────
   SalesForecasts:  {},
+  // ── Command Centre ────────────────────────────────────────
+  CCStatus:        {},
+
 };
  
 function normaliseFields(listName, fields) {

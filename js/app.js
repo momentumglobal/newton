@@ -4,6 +4,27 @@ if (window.innerWidth < 768 && !sessionStorage.getItem('newton_force_desktop')) 
   window.location.replace('mobile.html');
 }
 
+// ── Quick Links deep-link handler ─────────────────────────────────────
+// Hash format: #<pageKey>  or  #<pageKey>?action=add
+// Returns true if handled (suppresses default first-page nav).
+function handleDeepLink() {
+  const raw = window.location.hash.slice(1);
+  if (!raw) return false;
+  const [pageKey, queryStr] = raw.split('?');
+  const page = pageKey.trim();
+  if (!page || !canAccess(page, _resolvedRole)) return false;
+  navigateTo(page);
+  if (new URLSearchParams(queryStr || '').get('action') === 'add') {
+    setTimeout(() => {
+      if      (page === 'activity')   showAddActivityForm();
+      else if (page === 'placements') showAddPlacementForm();
+      else if (page === 'rejections') showAddRejectionForm();
+    }, 50);
+  }
+  history.replaceState(null, '', window.location.pathname);
+  return true;
+}
+
 window.APP = {
   async init(freshLogin = false) {
     if (!isSignedIn()) {
@@ -25,7 +46,7 @@ window.APP = {
     document.title = 'Newton – Reporting';
     renderNav(_resolvedRole);
     const firstPage = getAccessiblePages(_resolvedRole)[0].key;
-    navigateTo(firstPage);
+    if (!handleDeepLink()) navigateTo(firstPage);
     // Auto-register user in UserAssignments on first login (non-blocking)
     ensureUserRegistered(user.email, user.name).catch(e =>
       console.warn('Auto-registration failed:', e)

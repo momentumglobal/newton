@@ -95,12 +95,30 @@ function computeVelocityScore(tpEmail, activity, placements, benchmarks) {
     tpEmail,
     window: '13 weeks',
     metrics: [
-      { label: 'Roles closed',          value: hir,            unit: 'hires', rag: 'grey', informational: true },
       { label: 'Outreach conversion',   value: pct(resp, out), unit: '%',     rag: rag(pct(resp, out),  benchmarks.outreachConversion) },
       { label: 'Submission conversion', value: pct(iv1, sub),  unit: '%',     rag: rag(pct(iv1, sub),   benchmarks.submissionConversion) },
       { label: 'Interview-to-offer',    value: pct(off, iv1),  unit: '%',     rag: rag(pct(off, iv1),   benchmarks.interviewToOffer) },
       { label: 'Offer success',         value: pct(hir, off),  unit: '%',     rag: rag(pct(hir, off),   benchmarks.offerSuccess) },
+      { label: 'Hires',                 value: hir,            unit: 'hires', rag: 'grey', informational: true },
       { label: 'Avg time to hire',      value: avgTTF,         unit: 'days',  rag: rag(avgTTF,          benchmarks.timeToHireDays, true) },
     ],
   };
+}
+
+// ── Role flag helpers (shared by cc-pages.js and analytics-pages.js) ──
+const ACTIVE_STAGES = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled'];
+const STAGE_ORDER   = ['Sourcing', 'Interview 1', 'Interview 2+', 'Final Interview'];
+
+function isRoleFlagged(role, activity) {
+  const today = new Date();
+  const days = role.OpenDate ? Math.floor((today - new Date(role.OpenDate)) / 86400000) : 0;
+  const idx  = STAGE_ORDER.indexOf(role.Stage);
+  if (days >= 15 && idx < 0) return true;
+  if (days >= 25 && idx < 1) return true;
+  if (days >= 35 && idx < 2) return true;
+  if (days >= 40 && idx < 3) return true;
+  const submitted = sumField(activity, 'Submitted');
+  const iv1       = sumField(activity, 'Interview1');
+  if (submitted > 0 && (iv1 / submitted) < 0.50) return true;
+  return false;
 }

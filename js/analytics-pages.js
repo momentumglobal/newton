@@ -7,10 +7,11 @@ async function renderScorecardsPage() {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading scorecards...</p>';
 
-  const [activityRaw, historical, tpMap] = await Promise.all([
+  const [activityRaw, historical, tpMap, allRoles] = await Promise.all([
     getActivityForAnalytics(13),
     getHistoricalPlacements(),
     getTalentPartnerDisplayMap(),
+    getAllRoles(),
   ]);
 
   // Get unique TP emails from activity
@@ -35,7 +36,16 @@ async function renderScorecardsPage() {
     const tpActivity   = activityRaw.filter(a => a.TalentPartner === tpEmail);
     const tpPlacements = recentPlacements.filter(r => r.tpEmail === tpEmail);
     const scorecard    = computeVelocityScore(tpEmail, tpActivity, tpPlacements, benchmarks);
-    return renderScorecardPanel(scorecard, tpMap);
+    const tpRoles      = allRoles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner && r.TalentPartner.toLowerCase() === tpEmail.toLowerCase());
+    const flaggedRoles = tpRoles.filter(r => {
+      const acts = activityRaw.filter(a => String(a.RoleIDLookupId) === String(r.id));
+      return isRoleFlagged(r, acts);
+    }).length;
+    const flaggedPct = tpRoles.length ? flaggedRoles / tpRoles.length : null;
+    const flaggedRag = flaggedPct === null ? 'grey'
+      : flaggedPct < 0.25 ? 'green'
+      : flaggedPct <= 0.50 ? 'amber' : 'red';
+    return renderScorecardPanel(scorecard, tpMap, { total: tpRoles.length, flagged: flaggedRoles, rag: flaggedRag });
   }).join('');
 
   main.innerHTML = `
@@ -46,8 +56,18 @@ async function renderScorecardsPage() {
     <div class='scorecard-grid'>${cards}</div>`;
 }
 
-function renderScorecardPanel(scorecard, tpMap = {}) {
+function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null) {
   const displayName = tpMap[scorecard.tpEmail.toLowerCase()] || scorecard.tpEmail;
+  const overallRag  = roleHealth ? roleHealth.rag : 'grey';
+
+  const healthRow = roleHealth ? (() => {
+    const display = roleHealth.total > 0 ? `${roleHealth.flagged}/${roleHealth.total}` : '—';
+    return `<tr>
+      <td class='sc-label'>Flagged roles</td>
+      <td class='sc-value sc-${roleHealth.rag}' style="text-align:center">${display}</td>
+    </tr>`;
+  })() : '';
+
   const rows = scorecard.metrics.map(m => {
     const display = m.value !== null ? `${m.value}${m.unit === '%' ? '%' : ' ' + m.unit}` : '—';
     const ragClass = m.informational ? 'sc-grey' : `sc-${m.rag}`;
@@ -58,8 +78,11 @@ function renderScorecardPanel(scorecard, tpMap = {}) {
   }).join('');
 
   return `<div class='dash-panel sc-card'>
-    <h3 class='panel-title sc-tp-name'>${displayName}</h3>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <h3 class='panel-title sc-tp-name' style="margin-bottom:0">${displayName}</h3>
+      <span class="sc-rag-pill sc-rag-pill--${overallRag}">${overallRag.toUpperCase()}</span>
+    </div>
     <p class='sc-window'>Rolling Quarterly View</p>
-    <table class='sc-table'><tbody>${rows}</tbody></table>
+    <table class='sc-table'><tbody>${healthRow}${rows}</tbody></table>
   </div>`;
 }

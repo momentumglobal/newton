@@ -593,18 +593,19 @@ async function renderProjectDashboard() {
 
   // Cache for period filter updates (avoids full re-fetch on filter change)
   window._dashCache = { roles, activity, placements, rejections, tpMap, analyticsActs, historical };
-  const roleAnalytics   = await renderRoleAnalyticsPanel(roles, analyticsActs, historical, tpMap);
+  const hideEmpty = html => html.includes('no-data') ? '' : html;
+  const roleAnalytics   = hideEmpty(await renderRoleAnalyticsPanel(roles, analyticsActs, historical, tpMap));
   const kpiPeriods      = [['month','Month'],['quarter','Quarter'],['year','Year']];
   const kpiBtns         = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
   const kpis            = renderKPIStrip(roles, activity, _dashPeriod);
-  const longOpenProj    = renderProjectLongOpenRolesPanel(roles, tpMap);
-  const roleTracker     = renderRoleTrackerPanel(roles);
-  const placementsPanel = renderPlacementsPanel(placements, roles, _dashDetailPeriod);
-  const pipelineAct     = renderPipelineActivityTable(activity, roles, _dashDetailPeriod);
-  const tpTable         = isDMAdmin ? renderActivityByTPPanel(activity, _dashDetailPeriod, tpMap) : '';
-  const rejPanel        = isDMAdmin ? renderRejectionPanel(rejections, roles, _dashDetailPeriod) : '';
-  const starters        = isDMAdmin ? renderUpcomingStartersPanel(placements, roles) : '';
-  const spend           = isDMAdmin ? renderSpendPanel(roles, placements) : '';
+  const longOpenProj    = hideEmpty(renderProjectLongOpenRolesPanel(roles, tpMap));
+  const roleTracker     = hideEmpty(renderRoleTrackerPanel(roles));
+  const placementsPanel = hideEmpty(renderPlacementsPanel(placements, roles, _dashDetailPeriod));
+  const pipelineAct     = hideEmpty(renderPipelineActivityTable(activity, roles, _dashDetailPeriod));
+  const tpTable         = isDMAdmin ? hideEmpty(renderActivityByTPPanel(activity, _dashDetailPeriod, tpMap)) : '';
+  const rejPanel        = isDMAdmin ? hideEmpty(renderRejectionPanel(rejections, roles, _dashDetailPeriod)) : '';
+  const starters        = isDMAdmin ? hideEmpty(renderUpcomingStartersPanel(placements, roles)) : '';
+  const spend           = isDMAdmin ? hideEmpty(renderSpendPanel(roles, placements)) : '';
   main.innerHTML = `
     <div class='page-header'>
       <h2>Project Dashboard${isDMAdmin ? ' — ' + projectName : ''}</h2>

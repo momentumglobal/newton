@@ -33,7 +33,7 @@ function computeTTFPrediction(functionArea, country, historical) {
   const bandWeeks = Math.round(bandDays / 7);
 
   return {
-    label:       `~${weeks}w ±${bandWeeks}w (n=${sample.length})`,
+    label:       `~${weeks}w ±${bandWeeks}w`,
     weeks,
     stdDevWeeks: bandWeeks,
     sampleSize:  sample.length,

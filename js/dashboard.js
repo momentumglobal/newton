@@ -535,7 +535,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
 
     const flagCells = funnel.filter(s => s.benchmarked).map(s => {
       const label = s.conv !== null ? `${s.conv}%` : '—';
-      return \<td class='ra-cell'><strong>${label}</strong></td>`;
+      return `<td class='ra-cell'><strong>${label}</strong></td>`;
     }).join('');
 
     return `<tr>

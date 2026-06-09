@@ -175,12 +175,23 @@ function paRenderResults() {
     </div>
   `;
 
-  // ── Role-by-role breakdown ────────────────────────────────────────
-  const rows = filtered
-    .map(role => {
-      const roleAct = activityRaw.filter(a =>
-        String(a.RoleIDLookupId) === String(role.id)
-      );
+ // ── Role-by-role breakdown (grouped by RoleTitle + Location) ─────────
+  const groupMap = {};
+  filtered.forEach(role => {
+    const key = role.title && role.country
+      ? `${role.title} (${role.country})`
+      : (role.title || '—');
+    if (!groupMap[key]) {
+      groupMap[key] = { key, functionArea: role.functionArea, country: role.country, roles: [] };
+    }
+    groupMap[key].roles.push(role);
+  });
+
+  const rows = Object.values(groupMap)
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map(group => {
+      const groupIds = new Set(group.roles.map(r => String(r.id)));
+      const roleAct = activityRaw.filter(a => groupIds.has(String(a.RoleIDLookupId)));
       const roleTotals = {
         Outreach:      sumField(roleAct, "Outreach"),
         Responses:     sumField(roleAct, "Responses"),
@@ -193,12 +204,15 @@ function paRenderResults() {
         Hires:         sumField(roleAct, "Hires"),
       };
 
-      const tth = (role.openDate && role.placementDate)
-        ? Math.round((new Date(role.placementDate) - new Date(role.openDate)) / (1000 * 60 * 60 * 24 * 7))
+      // Avg TTH across all roles in the group that have both dates
+      const tthValues = group.roles
+        .filter(r => r.openDate && r.placementDate)
+        .map(r => Math.round((new Date(r.placementDate) - new Date(r.openDate)) / (1000 * 60 * 60 * 24 * 7)));
+      const avgTth = tthValues.length
+        ? Math.round(tthValues.reduce((s, v) => s + v, 0) / tthValues.length)
         : null;
 
       const roleFunnel = computeRoleFunnel(roleTotals, benchmarks);
-      const worstRag   = _paWorstRag(roleFunnel);
 
       const funnelSummary = roleFunnel
         .map(s => `<span title="${s.stage}: ${s.conv !== null ? s.conv + "%" : "—"}">${ragDot(s.rag)}</span>`)
@@ -206,11 +220,10 @@ function paRenderResults() {
 
       return `
         <tr>
-          <td>${_paEsc(role.title || "—")}</td>
-          <td>${_paEsc(role.functionArea || "—")}</td>
-          <td>${_paEsc(role.country || "—")}</td>
-          <td style="text-align:center">${tth !== null ? tth + "w" : "—"}</td>
-          <td style="text-align:center">${roleTotals.Outreach}</td>
+          <td>${_paEsc(group.key)}</td>
+          <td>${_paEsc(group.functionArea || "—")}</td>
+          <td style="text-align:center">${avgTth !== null ? avgTth + "w" : "—"}</td>
+          <td style="text-align:center">${roleTotals.Outreach || "—"}</td>
           <td style="text-align:center">${funnelSummary}</td>
           <td style="text-align:center">${roleTotals.Offers > 0
             ? Math.round((roleTotals.Hires / roleTotals.Offers) * 100) + "%"
@@ -222,15 +235,14 @@ function paRenderResults() {
   const breakdownHtml = `
     <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">
-        Role Breakdown <span style="font-size:12px;font-weight:400;color:#888">(${filtered.length} roles)</span>
+        Role Breakdown <span style="font-size:12px;font-weight:400;color:#888">(${Object.keys(groupMap).length} role type${Object.keys(groupMap).length !== 1 ? "s" : ""})</span>
       </div>
       <table class="data-table" style="width:100%;margin:0">
         <thead>
           <tr>
             <th>Role</th>
             <th>Functional Area</th>
-            <th>Location</th>
-            <th style="text-align:center">Actual TTH</th>
+            <th style="text-align:center">Avg. Actual TTH</th>
             <th style="text-align:center">Outreach</th>
             <th style="text-align:center">Funnel (RAG)</th>
             <th style="text-align:center">Offer Success</th>

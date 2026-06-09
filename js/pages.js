@@ -251,8 +251,10 @@ async function renderActivityPage() {
       ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddActivityForm()">+ Log Activity</button></div>' : ""}
     </div>
     <div class="table-toolbar">
+     <div style="display:flex;gap:16px;align-items:flex-end">
       ${projDropdown}
       ${roleDropdown}
+     </div>
     </div>
     <table class="data-table">
       <thead><tr>

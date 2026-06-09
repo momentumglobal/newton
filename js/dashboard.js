@@ -221,7 +221,7 @@ function renderPipelineActivityTable(acts, roles, period) {
     if (!byRole[rid]) byRole[rid] = FIELDS.map(() => 0);
     FIELDS.forEach((f, i) => { byRole[rid][i] += Number(a[f]) || 0; });
   });
-  `const rids = Object.keys(byRole).sort((a, b) => (roleMap[a]
+  const rids = Object.keys(byRole).sort((a, b) => (roleMap[a] || '').localeCompare(roleMap[b] || ''));
   if (!rids.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Pipeline Activity</h3>
     <p class='no-data'>No activity recorded for this period.</p>

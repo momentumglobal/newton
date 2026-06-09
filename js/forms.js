@@ -617,7 +617,7 @@ async function loadCurrencyForPlacement(roleId) {
   if (!currencyEl || !roleId) return;
   try {
     const role = await getItem('Roles', roleId);
-    currencyEl.value = CONFIG.COUNTRY_CURRENCY[role.Currency] || '';
+    currencyEl.value = CONFIG.COUNTRY_CURRENCY[role.Location] || '';
   } catch(e) {
     currencyEl.value = '';
   }

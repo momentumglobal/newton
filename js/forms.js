@@ -711,10 +711,11 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
     );
     roles = roleArrays.flat();
   }
+  roles.sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
   const roleOptions = roles.map(r =>
     `<option value="${r.id}" ${
       (existingData?.RoleID == r.id || preselectedRoleId == r.id) ? 'selected' : ''
-    }>${r.RoleTitle}</option>`
+    }>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`
   ).join('');
   return `
     <div class="form-container">

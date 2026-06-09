@@ -308,9 +308,9 @@ function renderSpendPanel(roles, placements) {
   const placedRoles = roles.filter(r => placedRoleIds.has(String(r.id)));
 
   const roleCurrencyMap = Object.fromEntries(
-    roles.map(r => [String(r.id), CONFIG.COUNTRY_CURRENCY[r.Currency] || 'GBP'])
+    roles.map(r => [String(r.id), CONFIG.COUNTRY_CURRENCY[r.Location] || 'GBP'])
   );
-  const currencies = [...new Set(placedRoles.filter(r => r.Budget).map(r => CONFIG.COUNTRY_CURRENCY[r.Currency] || 'GBP'))];
+  const currencies = [...new Set(placedRoles.filter(r => r.Budget).map(r => CONFIG.COUNTRY_CURRENCY[r.Location] || 'GBP'))];
   if (!currencies.length) {
     return `<div class='dash-panel'><h3 class='panel-title'>Actual Spend vs Budget</h3><p class='no-data'>No budget data available.</p></div>`;
   }
@@ -326,7 +326,7 @@ function renderSpendPanel(roles, placements) {
     return Math.round(n).toLocaleString('en-GB') + ' ' + sym;
   };
   const breakdownRows = currencies.map(ccy => {
-    const ccyRoles = placedRoles.filter(r => (CONFIG.COUNTRY_CURRENCY[r.Currency] || 'GBP') === ccy && r.Budget);
+    const ccyRoles = placedRoles.filter(r => (CONFIG.COUNTRY_CURRENCY[r.Location] || 'GBP') === ccy && r.Budget);
     const ccyPlacements = placements.filter(p => {
       const rid = String(p.RoleIDLookupId || p.RoleID || '');
       return (roleCurrencyMap[rid] || 'GBP') === ccy && p.SalaryAgreed;

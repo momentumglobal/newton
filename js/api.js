@@ -160,7 +160,7 @@ async function getHistoricalPlacements() {
     id:            r.Id,
     title:         r.Title,
     functionArea:  r.Department,
-    country:       r.Currency,
+    country:       r.Location,
     openDate:      r.OpenDate,
     placementDate: r.ActualHireDate,
   }));

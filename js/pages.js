@@ -260,7 +260,7 @@ async function renderActivityPage() {
             <td style="text-align:center">${a.Screened || 0}</td>
             <td style="text-align:center">${a.Submitted || 0}</td>
             <td style="text-align:center">${a.Interview1 || 0}</td>
-            <td style="text-align:center">${a.InterviewTwoPlus || 0}</td>
+            <td style="text-align:center">${a.Interview2Plus || 0}</td>
             <td style="text-align:center">${a.FinalInterview || 0}</td>
             <td style="text-align:center">${a.Offers || 0}</td>
             <td style="text-align:center">${a.Hires || 0}</td>

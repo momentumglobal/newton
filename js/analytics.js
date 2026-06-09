@@ -12,9 +12,7 @@ function computeTTFPrediction(functionArea, country, historical) {
   let pool = valid.filter(r =>
     r.functionArea === functionArea && r.country === country
   );
-  if (pool.length < 3) {
-    pool = valid.filter(r => r.functionArea === functionArea);
-  }
+  
   if (pool.length < 3) {
     return { label: 'Insufficient data', weeks: null, stdDevWeeks: null, sampleSize: pool.length };
   }

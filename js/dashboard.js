@@ -221,7 +221,7 @@ function renderPipelineActivityTable(acts, roles, period) {
     if (!byRole[rid]) byRole[rid] = FIELDS.map(() => 0);
     FIELDS.forEach((f, i) => { byRole[rid][i] += Number(a[f]) || 0; });
   });
-  const rids = Object.keys(byRole);
+  `const rids = Object.keys(byRole).sort((a, b) => (roleMap[a]
   if (!rids.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Pipeline Activity</h3>
     <p class='no-data'>No activity recorded for this period.</p>
@@ -527,8 +527,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     return { key, funnel, ttf, worst };
   });
 
-  const order = { red: 0, amber: 1, green: 2 };
-  rows.sort((a, b) => order[a.worst] - order[b.worst]);
+  rows.sort((a, b) => a.key.localeCompare(b.key));
 
   const tableRows = rows.map(({ key, funnel, ttf }) => {
     const ttfClass = ttf.sampleSize >= 3 ? 'ttf-badge' : 'ttf-badge ttf-badge--low-data';
@@ -536,7 +535,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
 
     const flagCells = funnel.filter(s => s.benchmarked).map(s => {
       const label = s.conv !== null ? `${s.conv}%` : '—';
-      return `<td class='ra-cell ra-${s.rag}'><strong>${label}</strong></td>`;
+      return \<td class='ra-cell'><strong>${label}</strong></td>`;
     }).join('');
 
     return `<tr>

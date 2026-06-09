@@ -500,7 +500,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
 
     const funnel = computeRoleFunnel(totals, b);
     const ttf    = computeTTFPrediction(
-      role.Department, role.Currency, historical);
+      role.Department, role.Location, historical);
 
     const flags = funnel.filter(s => s.benchmarked).map(s => s.rag);
     const worst = flags.includes('red') ? 'red'

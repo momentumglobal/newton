@@ -489,8 +489,27 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     </div>`;
   }
 
-  const rows = activeRoles.map(role => {
-    const acts = activity.filter(a => String(a.RoleIDLookupId) === String(role.id));
+  // Build a cross-project role lookup for mapping activity records
+  const allRoles = await getAllRoles();
+  const allRoleMap = Object.fromEntries(
+    allRoles.map(r => [String(r.id), r])
+  );
+
+  // Derive unique groups from live roles: key = "RoleTitle (Location)" or "RoleTitle"
+  const groupKey = r => r.Location ? `${r.RoleTitle || r.LinkTitle} (${r.Location})` : (r.RoleTitle || r.LinkTitle || '—');
+  const groupMeta = {}; // key → { department, location, roleTitle }
+  activeRoles.forEach(r => {
+    const key = groupKey(r);
+    if (!groupMeta[key]) groupMeta[key] = { department: r.Department, location: r.Location, roleTitle: r.RoleTitle || r.LinkTitle };
+  });
+
+  const rows = Object.entries(groupMeta).map(([key, meta]) => {
+    // Funnel: all historical activity where the role matches this RoleTitle + Location
+    const acts = activity.filter(a => {
+      const r = allRoleMap[String(a.RoleIDLookupId || a.RoleID || '')];
+      if (!r) return false;
+      return groupKey(r) === key;
+    });
     const totals = {};
     ['Outreach','Responses','Screened','Submitted',
      'Interview1','Interview2Plus','FinalInterview',
@@ -499,20 +518,19 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     });
 
     const funnel = computeRoleFunnel(totals, b);
-    const ttf    = computeTTFPrediction(
-      role.Department, role.Location, historical);
+    const ttf    = computeTTFPrediction(meta.department, meta.location, historical);
 
     const flags = funnel.filter(s => s.benchmarked).map(s => s.rag);
     const worst = flags.includes('red') ? 'red'
       : flags.includes('amber') ? 'amber' : 'green';
 
-    return { role, funnel, ttf, worst };
+    return { key, funnel, ttf, worst };
   });
 
   const order = { red: 0, amber: 1, green: 2 };
   rows.sort((a, b) => order[a.worst] - order[b.worst]);
 
-  const tableRows = rows.map(({ role, funnel, ttf }) => {
+  const tableRows = rows.map(({ key, funnel, ttf }) => {
     const ttfClass = ttf.sampleSize >= 3 ? 'ttf-badge' : 'ttf-badge ttf-badge--low-data';
     const ttfCell  = `<td class='ra-ttf' style="text-align:center"><span class='${ttfClass}'>${ttf.label}</span></td>`;
 
@@ -522,8 +540,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     }).join('');
 
     return `<tr>
-      <td class='ra-role'>${role.Location ? `${role.RoleTitle || role.LinkTitle} (${role.Location})` : (role.RoleTitle || role.LinkTitle || '—')}</td>
-      <td class='ra-tp'>${tpMap[(role.TalentPartner || '').toLowerCase()] || role.TalentPartner || '—'}</td>
+      <td class='ra-role'>${key}</td>
       ${ttfCell}${flagCells}
     </tr>`;
   }).join('');
@@ -533,18 +550,16 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     <table class='data-table ra-table'>
       <thead><tr>
         <th>Role</th>
-        <th>Talent Partner</th>
-        <th style="text-align:center">Time to Hire Prediction</th>
-        <th style="text-align:center">Response</th>
+        <th style="text-align:center">Time-to-Hire Prediction</th>
+        <th style="text-align:center">Outreach Response</th>
         <th style="text-align:center">Submission Conv.</th>
-        <th style="text-align:center">IV→Offer</th>
+        <th style="text-align:center">IV → Offer</th>
         <th style="text-align:center">Offer Success</th>
       </tr></thead>
       <tbody>${tableRows}</tbody>
     </table>
   </div>`;
 }
-
 // ── Main renderer ─────────────────────────────────────────────────────
 async function renderProjectDashboard() {
   const main = document.getElementById('main-content');

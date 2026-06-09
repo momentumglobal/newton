@@ -163,6 +163,7 @@ async function getHistoricalPlacements() {
     country:       r.Location,
     openDate:      r.OpenDate,
     placementDate: r.ActualHireDate,
+    tpEmail:       r.TalentPartner || null,
   }));
 }
  

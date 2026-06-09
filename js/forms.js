@@ -330,7 +330,8 @@ async function renderWeeklyActivityForm(existingData = null) {
   const isTalentPartner = userRole === 'talent_partner';
   const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
-  const projectOptions = projects.map(p =>
+  const projectOptions = [...projects].sort((a, b) =>
+   a.CustomerName.localeCompare(b.CustomerName)).map(p =>
     `<option value="${p.id}" ${(existingData?.ProjectID == p.id || lockProject) ? 'selected' : ''}>${p.CustomerName}</option>`
   ).join('');
   const today = new Date().toISOString().split('T')[0];
@@ -340,10 +341,12 @@ async function renderWeeklyActivityForm(existingData = null) {
   let preloadedRoleOptions = '';
   if (lockProject) {
     try {
-      const roles = (await getRolesForProject(projects[0].id, email)).filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage));
-      preloadedRoleOptions = roles.map(r =>
-        `<option value="${r.id}" ${existingData?.RoleID == r.id ? 'selected' : ''}>${r.RoleTitle}</option>`
-      ).join('');
+      const roles = (await getRolesForProject(projects[0].id, email))
+        .filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage))
+        .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
+       preloadedRoleOptions = roles.map(r =>
+        `<option value="${r.id}" ${existingData?.RoleID == r.id ? 'selected' : ''}>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`
+       ).join('');
     } catch (e) { /* fall back to empty */ }
   }
   return `
@@ -434,9 +437,11 @@ async function loadRolesForWeekly(projectId) {
   const select = document.getElementById('weekly-role-select');
   select.innerHTML = '<option value="">Loading...</option>';
   const tpEmail = select.dataset.tpEmail || null;
-  const roles = (await getRolesForProject(projectId, tpEmail)).filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage));
+  const roles = (await getRolesForProject(projectId, tpEmail))
+    .filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage))
+    .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
   select.innerHTML = roles.length
-    ? roles.map(r => `<option value="${r.id}">${r.RoleTitle}</option>`).join('')
+    ? roles.map(r => `<option value="${r.id}">${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`).join('')
     : '<option value="">-- No roles assigned --</option>';
 }
 async function loadTalentPartnersForWeekly(projectId) {

@@ -16,13 +16,14 @@ async function renderPlacementAnalytics() {
   `;
 
   // Load all data in parallel
-  const [historical, activityRaw] = await Promise.all([
+  const [historical, activityRaw, allPlacements] = await Promise.all([
     getHistoricalPlacements(),
-    getActivityForAnalytics(52),   // rolling 12 months of activity
+    getActivityForAnalytics(52),
+    getPlacements(null),
   ]);
   const benchmarks = CONFIG.ANALYTICS_BENCHMARKS;
 
-  _paData = { historical, activityRaw, benchmarks };
+  _paData = { historical, activityRaw, benchmarks, allPlacements };
 
   // Build unique filter options from historical placements
   const locations     = _paUnique(historical, "country").sort();
@@ -78,7 +79,7 @@ function paRenderResults() {
   const container = document.getElementById("pa-results");
   if (!container || !_paData) return;
 
-  const { historical, activityRaw, benchmarks } = _paData;
+  const { historical, activityRaw, benchmarks, allPlacements } = _paData;
 
   // Filter historical placements by selected dimensions
   let filtered = historical;
@@ -207,13 +208,19 @@ function paRenderResults() {
       // Avg TTH across all roles in the group that have both dates
       const tthValues = group.roles
         .filter(r => r.openDate && r.placementDate)
-        .map(r => Math.round((new Date(r.placementDate) - new Date(r.openDate)) / (1000 * 60 * 60 * 24 * 7)));
+        .map(r => Math.round((new Date(r.placementDate) - new Date(r.openDate)) / (1000 * 60 * 60 * 24)));
       const avgTth = tthValues.length
         ? Math.round(tthValues.reduce((s, v) => s + v, 0) / tthValues.length)
         : null;
 
-      const roleFunnel = computeRoleFunnel(roleTotals, benchmarks);
+      const groupPlacements = allPlacements.filter(p => groupIds.has(String(p.RoleIDLookupId || p.RoleID || '')));
+      const salaries = groupPlacements.map(p => parseFloat(p.SalaryAgreed)).filter(v => !isNaN(v) && v > 0);
+      const avgSalary = salaries.length ? Math.round(salaries.reduce((s, v) => s + v, 0) / salaries.length) : null;
+      const currency = groupPlacements.find(p => p.Currency)?.Currency || '';
+      const SYMBOLS = { GBP: '£', EUR: '€', USD: '$', CAD: 'CA$', AUD: 'A$', SGD: 'S$', AED: 'AED', ZAR: 'R', LKR: 'LKR' };
+      const sym = SYMBOLS[currency] || currency;
 
+      const roleFunnel = computeRoleFunnel(roleTotals, benchmarks);
       const funnelSummary = roleFunnel
         .map(s => `<span title="${s.stage}: ${s.conv !== null ? s.conv + "%" : "—"}">${ragDot(s.rag)}</span>`)
         .join("");
@@ -222,8 +229,9 @@ function paRenderResults() {
         <tr>
           <td>${_paEsc(group.key)}</td>
           <td>${_paEsc(group.functionArea || "—")}</td>
-          <td style="text-align:center">${avgTth !== null ? avgTth + "w" : "—"}</td>
-          <td style="text-align:center">${roleTotals.Outreach || "—"}</td>
+          <td style="text-align:center">${avgSalary !== null ? sym + avgSalary.toLocaleString('en-GB') : "—"}</td>
+          <td style="text-align:center">${avgTth !== null ? avgTth + "d" : "—"}</td>
+          <td style="text-align:center">${roleTotals.Outreach > 0 ? Math.round((roleTotals.Responses / roleTotals.Outreach) * 100) + "%" : "—"}</td>
           <td style="text-align:center">${funnelSummary}</td>
           <td style="text-align:center">${roleTotals.Offers > 0
             ? Math.round((roleTotals.Hires / roleTotals.Offers) * 100) + "%"
@@ -242,8 +250,9 @@ function paRenderResults() {
           <tr>
             <th>Role</th>
             <th>Functional Area</th>
+            <th style="text-align:center">Avg. Salary</th>
             <th style="text-align:center">Avg. Actual TTH</th>
-            <th style="text-align:center">Outreach</th>
+            <th style="text-align:center">Outreach Response</th>
             <th style="text-align:center">Funnel (RAG)</th>
             <th style="text-align:center">Offer Success</th>
           </tr>

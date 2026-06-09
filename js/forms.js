@@ -340,7 +340,7 @@ async function renderWeeklyActivityForm(existingData = null) {
   let preloadedRoleOptions = '';
   if (lockProject) {
     try {
-      const roles = await getRolesForProject(projects[0].id, email);
+      const roles = (await getRolesForProject(projects[0].id, email)).filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage));
       preloadedRoleOptions = roles.map(r =>
         `<option value="${r.id}" ${existingData?.RoleID == r.id ? 'selected' : ''}>${r.RoleTitle}</option>`
       ).join('');
@@ -434,7 +434,7 @@ async function loadRolesForWeekly(projectId) {
   const select = document.getElementById('weekly-role-select');
   select.innerHTML = '<option value="">Loading...</option>';
   const tpEmail = select.dataset.tpEmail || null;
-  const roles = await getRolesForProject(projectId, tpEmail);
+  const roles = (await getRolesForProject(projectId, tpEmail)).filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage));
   select.innerHTML = roles.length
     ? roles.map(r => `<option value="${r.id}">${r.RoleTitle}</option>`).join('')
     : '<option value="">-- No roles assigned --</option>';
@@ -515,7 +515,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   let preloadedPlacementRoleOptions = '';
   if (lockProject) {
     try {
-      const roles = await getRolesForProject(projects[0].id, email);
+      const roles = (await getRolesForProject(projects[0].id, email)).filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage));
       preloadedPlacementRoleOptions = roles.map(r =>
         `<option value="${r.id}" ${(existingData?.RoleID == r.id || preselectedRoleId == r.id) ? 'selected' : ''}>${r.RoleTitle}</option>`
       ).join('');
@@ -604,7 +604,7 @@ async function loadRolesForPlacement(projectId) {
   if (!projectId) { select.innerHTML = '<option value="">-- Select project first --</option>'; return; }
   select.innerHTML = '<option value="">Loading...</option>';
   const tpEmail = select.dataset.tpEmail || null;
-  const roles = await getRolesForProject(projectId, tpEmail);
+  const roles = (await getRolesForProject(projectId, tpEmail)).filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage));
   select.innerHTML = roles.length
     ? '<option value="">-- Select role --</option>' + roles.map(r => `<option value="${r.id}">${r.RoleTitle}</option>`).join('')
     : '<option value="">-- No roles assigned --</option>';
@@ -694,10 +694,10 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
   const projectIds = await getUserProjectIds(email);
   let roles = [];
   if (projectIds === null) {
-    roles = await getAllRoles();
+    roles = (await getAllRoles()).filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage));
   } else {
     const roleArrays = await Promise.all(
-      projectIds.map(pid => getRolesForProject(pid, isTalentPartner ? email : null))
+      projectIds.map(async pid => (await getRolesForProject(pid, isTalentPartner ? email : null)).filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage)))
     );
     roles = roleArrays.flat();
   }

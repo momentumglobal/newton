@@ -479,7 +479,7 @@ function renderPlacementsPanel(placements, roles, period) {
 
 async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {}) {
   const b = CONFIG.ANALYTICS_BENCHMARKS;
-  const EXCLUDED = ['Backlog', 'Cancelled', 'On-hold'];
+  const EXCLUDED = ['Backlog', 'Cancelled', 'On-hold', 'Hired'];
   const activeRoles = roles.filter(r => !EXCLUDED.includes(r.Stage));
 
   if (!activeRoles.length) {

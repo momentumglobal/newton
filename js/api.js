@@ -630,7 +630,7 @@ async function updateSurveyTemplate(id, fields) {
 
 async function createSurveyQuestion(fields) {
   return createItem("SurveyQuestions", {
-    TemplateID:         fields.TemplateID,
+    TemplateID:         Number(fields.TemplateID),
     QuestionText:       fields.QuestionText,
     QuestionType:       fields.QuestionType,
     ScaleMin:           fields.ScaleMin    ?? 1,

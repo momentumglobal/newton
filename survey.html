@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newton - Survey</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/png" href="momentum-symbol.png">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+  <!-- Login screen -->
+  <div id="login-screen">
+    <div class="login-card">
+      <h1>Newton — Survey</h1>
+      <p>Sign in with your Momentum Global account to continue.</p>
+      <button class="btn-signin" onclick="signIn()">
+        Sign in with Microsoft
+      </button>
+    </div>
+  </div>
+
+  <!-- Survey shell (hidden until signed in) -->
+  <div id="app-shell">
+    <div id="survey-container"></div>
+  </div>
+
+  <!-- MSAL.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/survey-router.js"></script>
+  <script src="js/survey-app.js"></script>
+
+</body>
+</html>

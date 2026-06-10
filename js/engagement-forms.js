@@ -76,7 +76,8 @@ async function submitTemplateForm(event, editId = null) {
   const form = document.getElementById('eng-template-form');
   const btn  = form.querySelector('[type=submit]');
   setButtonLoading(btn);
-
+console.log('templateId:', templateId, 'type:', typeof templateId);
+  
   const data = Object.fromEntries(new FormData(form));
   const errEl = document.getElementById('eng-template-form-error');
   errEl.textContent = '';

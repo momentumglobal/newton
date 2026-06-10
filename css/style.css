@@ -1167,38 +1167,40 @@ body {
 
 /* ── Homepage survey widget ────────────────────────────────────────── */
 .survey-widget {
-  background: white;
-  border: 1px solid #dde3f0;
-  border-left: 4px solid #1F3864;
-  border-radius: 10px;
-  padding: 16px 20px;
-  margin: 12px auto 0;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin: 0 auto 32px;
   max-width: 480px;
   display: flex; flex-direction: column; gap: 8px;
+  align-items: center;
+  text-align: center;
+  backdrop-filter: blur(8px);
 }
 .survey-widget--reminder {
-  border-left-color: #e67e22;
+  border-color: rgba(230,126,34,0.5);
 }
 .survey-widget-badge {
   display: inline-block;
-  background: #fff3cd; color: #7B4F00;
+  background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85);
   font-size: 11px; font-weight: 700;
   padding: 2px 8px; border-radius: 20px;
   text-transform: uppercase; letter-spacing: 0.05em;
-  align-self: flex-start;
 }
 .survey-widget-title {
-  font-size: 15px; font-weight: 700; color: #0A0B44;
+  font-size: 15px; font-weight: 700; color: #fff;
 }
 .survey-widget-desc {
-  font-size: 13px; color: #555; line-height: 1.5;
+  font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.5;
 }
 .survey-widget-cta {
   display: inline-block; margin-top: 4px;
   background: #1F3864; color: white;
-  padding: 8px 18px; border-radius: 7px;
+  padding: 8px 20px; border-radius: 7px;
   font-size: 13px; font-weight: 600;
-  text-decoration: none; align-self: flex-start;
+  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.2);
   transition: background 0.15s;
 }
 .survey-widget-cta:hover { background: #2E5FA3; }

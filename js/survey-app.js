@@ -28,6 +28,10 @@ const SurveyApp = (() => {
       return;
     }
 
+    // Show app shell
+    document.getElementById('app-shell').style.display = 'block';
+    document.getElementById('login-screen').style.display = 'none';
+
     // Load active run
     _run = await getActiveSurveyRun();
     if (!_run) {

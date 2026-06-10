@@ -235,6 +235,7 @@ async function submitQuestionForm(event, templateId, editId = null) {
     };
 
     if (editId) {
+      console.log('Question payload:', JSON.stringify(payload));
       await updateSurveyQuestion(editId, payload);
     } else {
       await createSurveyQuestion(payload);

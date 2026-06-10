@@ -633,9 +633,11 @@ async function createSurveyQuestion(fields) {
     TemplateID:         String(fields.TemplateID),
     QuestionText:       fields.QuestionText,
     QuestionType:       fields.QuestionType,
-    ScaleMin:           fields.ScaleMin    ?? 1,
-    ScaleMax:           fields.ScaleMax    ?? 5,
-    Options:            fields.Options     || "",
+    ScaleMin:           fields.ScaleMin       ?? 1,
+    ScaleMax:           fields.ScaleMax       ?? 5,
+    ScaleMinLabel:      fields.ScaleMinLabel  || "",
+    ScaleMaxLabel:      fields.ScaleMaxLabel  || "",
+    Options:            fields.Options        || "",
     IsRequired:         fields.IsRequired  ?? false,
     SortOrder:          fields.SortOrder   ?? 0,
   });
@@ -645,9 +647,11 @@ async function updateSurveyQuestion(id, fields) {
   const payload = {};
   if (fields.QuestionText !== undefined) payload.QuestionText = fields.QuestionText;
   if (fields.QuestionType !== undefined) payload.QuestionType = fields.QuestionType;
-  if (fields.ScaleMin     !== undefined) payload.ScaleMin     = fields.ScaleMin;
-  if (fields.ScaleMax     !== undefined) payload.ScaleMax     = fields.ScaleMax;
-  if (fields.Options      !== undefined) payload.Options      = fields.Options;
+  if (fields.ScaleMin      !== undefined) payload.ScaleMin      = fields.ScaleMin;
+  if (fields.ScaleMax      !== undefined) payload.ScaleMax      = fields.ScaleMax;
+  if (fields.ScaleMinLabel !== undefined) payload.ScaleMinLabel = fields.ScaleMinLabel;
+  if (fields.ScaleMaxLabel !== undefined) payload.ScaleMaxLabel = fields.ScaleMaxLabel;
+  if (fields.Options       !== undefined) payload.Options       = fields.Options;
   if (fields.IsRequired   !== undefined) payload.IsRequired   = fields.IsRequired;
   if (fields.SortOrder    !== undefined) payload.SortOrder    = fields.SortOrder;
   return updateItem("SurveyQuestions", id, payload);

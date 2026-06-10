@@ -201,6 +201,7 @@ async function submitQuestionForm(event, templateId, editId = null) {
   const errEl = document.getElementById('eng-q-form-error');
   errEl.textContent = '';
   setButtonLoading(btn);
+  const _saveTimeout = setTimeout(() => setButtonLoading(btn, false), 8000);
 
   const data = Object.fromEntries(new FormData(form));
   const isRequired = form.querySelector('[name=IsRequired]')?.checked || false;
@@ -237,10 +238,12 @@ async function submitQuestionForm(event, templateId, editId = null) {
       await createSurveyQuestion(payload);
     }
 
+    clearTimeout(_saveTimeout);
     _closeEngModal();
     await _refreshQuestionList(templateId);
 
   } catch (err) {
+    clearTimeout(_saveTimeout);
     errEl.textContent = `Error saving question: ${err.message}`;
     setButtonLoading(btn, false);
   }

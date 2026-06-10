@@ -338,12 +338,14 @@ function _engEmptyState() {
     <div class="page-header">
       <h1 class="page-title">Engagement</h1>
       ${_resolvedRole === 'admin' ? `
-        <button class="btn-secondary" onclick="openManageTemplateModal()">
-          <i data-lucide="settings"></i> Manage Template
-        </button>
-        <button class="btn-primary" onclick="openActivateRunModal()">
-          <i data-lucide="play-circle"></i> Activate Run
-        </button>` : ''}
+        <div style="display:inline-flex; gap:8px; align-items:center;">
+          <button class="btn-secondary" onclick="openManageTemplateModal()">
+            <i data-lucide="settings"></i> Manage Template
+          </button>
+          <button class="btn-primary" onclick="openActivateRunModal()">
+            <i data-lucide="play-circle"></i> Activate Run
+          </button>
+        </div>` : ''}
     </div>
     <div class="eng-empty">
       <i data-lucide="bar-chart-2" class="eng-empty-icon"></i>

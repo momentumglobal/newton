@@ -238,8 +238,7 @@ async function submitQuestionForm(event, templateId, editId = null) {
     }
 
     _closeEngModal();
-    // Re-open template manager to show updated question list
-    await openManageTemplateModal();
+    await _refreshQuestionList(templateId);
 
   } catch (err) {
     errEl.textContent = `Error saving question: ${err.message}`;
@@ -250,7 +249,8 @@ async function submitQuestionForm(event, templateId, editId = null) {
 async function deleteQuestion(questionId) {
   if (!confirm('Delete this question? This cannot be undone.')) return;
   await deleteSurveyQuestion(questionId);
-  await openManageTemplateModal();
+  const templates = await getSurveyTemplates();
+  if (templates.length) await _refreshQuestionList(templates[0].id);
 }
 
 async function moveQuestion(questionId, direction, questions) {
@@ -264,7 +264,8 @@ async function moveQuestion(questionId, direction, questions) {
     updateSurveyQuestion(a.id, { SortOrder: b.SortOrder }),
     updateSurveyQuestion(b.id, { SortOrder: a.SortOrder }),
   ]);
-  await openManageTemplateModal();
+  const templates = await getSurveyTemplates();
+  if (templates.length) await _refreshQuestionList(templates[0].id);
 }
 
 // ── Activate Run modal ───────────────────────────────────────────────
@@ -386,6 +387,19 @@ async function submitActivateRun(event) {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
+async function _refreshQuestionList(templateId) {
+  const questions = await getSurveyQuestions(templateId);
+  window._engQuestions = questions;
+  const listEl = document.getElementById('eng-questions-list');
+  const countEl = document.querySelector('.eng-q-count');
+  if (listEl) {
+    listEl.innerHTML = questions.length
+      ? questions.map((q, i) => _questionRow(q, i, questions.length)).join('')
+      : '<p class="eng-hint">No questions yet.</p>';
+    lucide.createIcons();
+  }
+  if (countEl) countEl.textContent = `(${questions.length})`;
+}
 
 function _questionRow(q, index, total) {
   return `

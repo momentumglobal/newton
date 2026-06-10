@@ -934,6 +934,7 @@ body {
   margin-bottom: 48px;
 }
 .module-grid {
+  margin-top: 24px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;

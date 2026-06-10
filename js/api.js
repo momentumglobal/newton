@@ -582,24 +582,24 @@ async function getSurveyRuns() {
 }
 
 async function getSurveyQuestions(templateId) {
-  const questions = await getItems("SurveyQuestions", `fields/TemplateID eq ${templateId}`);
+  const questions = await getItems("SurveyQuestions", `fields/TemplateID eq '${templateId}'`);
   return questions.sort((a, b) => (a.SortOrder ?? 0) - (b.SortOrder ?? 0));
 }
 
 async function getSurveyResponses(runId) {
-  return getItems("SurveyResponses", `fields/RunID eq ${runId}`);
+  return getItems("SurveyResponses", `fields/RunID eq '${runId}'`);
 }
 
 async function hasCompletedSurvey(runId, email) {
   const completions = await getItems(
     "SurveyCompletions",
-    `fields/RunID eq ${runId} and fields/RespondentEmail eq '${email.toLowerCase()}'`
+    `fields/RunID eq '${runId}' and fields/RespondentEmail eq '${email.toLowerCase()}'`
   );
   return completions.length > 0;
 }
 
 async function getSurveyCompletionCount(runId) {
-  const completions = await getItems("SurveyCompletions", `fields/RunID eq ${runId}`);
+  const completions = await getItems("SurveyCompletions", `fields/RunID eq '${runId}'`);
   return completions.length;
 }
 
@@ -665,7 +665,7 @@ async function createSurveyRun(fields) {
   })();
   return createItem("SurveyRuns", {
     Title:              fields.RunLabel,
-    TemplateID:         fields.TemplateID,
+    TemplateID:         String(fields.TemplateID),
     OpenDate:           openDate,
     CloseDate:          closeDate,
     Status:             "Active",
@@ -685,8 +685,8 @@ async function updateSurveyRun(id, fields) {
 // UUID only — no email, no user identifier.
 async function createSurveyResponse(fields) {
   return createItem("SurveyResponses", {
-    RunID:              fields.RunID,
-    QuestionID:         fields.QuestionID,
+    RunID:              String(fields.RunID),
+    QuestionID:         String(fields.QuestionID),
     RespondentUUID:     fields.RespondentUUID,
     AnswerValue:        String(fields.AnswerValue),
     SubmittedAt:        new Date().toISOString(),
@@ -696,7 +696,7 @@ async function createSurveyResponse(fields) {
 // Called once on submit — email only, no answers.
 async function createSurveyCompletion(runId, email) {
   return createItem("SurveyCompletions", {
-    RunID:           runId,
+    RunID:           String(runId),
     RespondentEmail: email.toLowerCase(),
   });
 }

@@ -109,6 +109,7 @@ console.log('templateId:', templateId, 'type:', typeof templateId);
 // ── Question manager ─────────────────────────────────────────────────
 
 function openAddQuestionModal(templateId, existingQuestion = null) {
+  _closeEngModal();
   const isEdit = !!existingQuestion;
   const q      = existingQuestion || {};
 
@@ -241,7 +242,7 @@ async function submitQuestionForm(event, templateId, editId = null) {
 
     clearTimeout(_saveTimeout);
     _closeEngModal();
-    await _refreshQuestionList(templateId);
+    await openManageTemplateModal();
 
   } catch (err) {
     clearTimeout(_saveTimeout);
@@ -253,8 +254,7 @@ async function submitQuestionForm(event, templateId, editId = null) {
 async function deleteQuestion(questionId) {
   if (!confirm('Delete this question? This cannot be undone.')) return;
   await deleteSurveyQuestion(questionId);
-  const templates = await getSurveyTemplates();
-  if (templates.length) await _refreshQuestionList(templates[0].id);
+  await openManageTemplateModal();
 }
 
 async function moveQuestion(questionId, direction, questions) {
@@ -268,8 +268,7 @@ async function moveQuestion(questionId, direction, questions) {
     updateSurveyQuestion(a.id, { SortOrder: b.SortOrder }),
     updateSurveyQuestion(b.id, { SortOrder: a.SortOrder }),
   ]);
-  const templates = await getSurveyTemplates();
-  if (templates.length) await _refreshQuestionList(templates[0].id);
+  await openManageTemplateModal();
 }
 
 // ── Activate Run modal ───────────────────────────────────────────────

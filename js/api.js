@@ -630,7 +630,7 @@ async function updateSurveyTemplate(id, fields) {
 
 async function createSurveyQuestion(fields) {
   return createItem("SurveyQuestions", {
-    TemplateIDLookupID: fields.TemplateID,
+    TemplateID:         fields.TemplateID,
     QuestionText:       fields.QuestionText,
     QuestionType:       fields.QuestionType,
     ScaleMin:           fields.ScaleMin    ?? 1,
@@ -685,8 +685,8 @@ async function updateSurveyRun(id, fields) {
 // UUID only — no email, no user identifier.
 async function createSurveyResponse(fields) {
   return createItem("SurveyResponses", {
-    RunIDLookupId:      fields.RunID,
-    QuestionIDLookupId: fields.QuestionID,
+    RunID:              fields.RunID,
+    QuestionID:         fields.QuestionID,
     RespondentUUID:     fields.RespondentUUID,
     AnswerValue:        String(fields.AnswerValue),
     SubmittedAt:        new Date().toISOString(),
@@ -696,7 +696,7 @@ async function createSurveyResponse(fields) {
 // Called once on submit — email only, no answers.
 async function createSurveyCompletion(runId, email) {
   return createItem("SurveyCompletions", {
-    RunIDLookupID:   runId,
+    RunID:           runId,
     RespondentEmail: email.toLowerCase(),
   });
 }

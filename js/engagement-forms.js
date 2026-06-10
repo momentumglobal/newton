@@ -56,7 +56,7 @@ async function openManageTemplateModal() {
       <div class="eng-questions-section">
         <div class="eng-questions-header">
           <h3>Questions <span class="eng-q-count">(${questions.length})</span></h3>
-          ${template ? `<button class="btn-primary btn--sm" onclick="openAddQuestionModal(${Number(template.id)})">
+          ${template ? `<button class="btn-primary btn--sm" onclick="openAddQuestionModal(${template.id})">
             <i data-lucide="plus"></i> Add Question
           </button>` : '<p class="eng-hint">Save the template first, then add questions.</p>'}
         </div>
@@ -422,7 +422,7 @@ function _questionRow(q, index, total) {
           ${index === total - 1 ? 'disabled' : ''}>
           <i data-lucide="chevron-down"></i>
         </button>
-        <button class="btn-icon" title="Edit" onclick="openAddQuestionModal(${Number(q.templateId)}, ${JSON.stringify(q).replace(/"/g, '&quot;')})">
+        <button class="btn-icon" title="Edit" onclick="openAddQuestionModal(${q.templateId}, ${JSON.stringify(q).replace(/"/g, '&quot;')})">
           <i data-lucide="edit-2"></i>
         </button>
         <button class="btn-icon btn-icon--danger" title="Delete" onclick="deleteQuestion('${q.id}')">

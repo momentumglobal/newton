@@ -56,6 +56,8 @@ const FIELD_ALIASES = {
   SurveyRuns:        {},
   SurveyResponses:   {},
   SurveyCompletions: {},
+  // ── Notifications ─────────────────────────────────────────
+  Notifications: {},
 };
  
 function normaliseFields(listName, fields) {

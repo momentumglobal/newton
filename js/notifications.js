@@ -95,7 +95,7 @@ function paintBell(rows, unread) {
       <div class="notif-item-icon notif-tone--${n.Tone || 'attention'}">
         <i data-lucide="${NOTIF_ICON[n.Tone] || 'bell'}"></i>
       </div>
-      <div class="notif-item-body" onclick="notifOpen('${n.id}', '${(n.DeepLink||'').replace(/'/g,"")}')">
+      <div class="notif-item-body">
         <div class="notif-item-text">${notifEsc(n.Body)}</div>
         <div class="notif-item-time">${notifTimeAgo(n.CreatedAt)}</div>
       </div>
@@ -130,13 +130,23 @@ function notifOpen(id, deepLink) {
   if (deepLink) window.location.href = deepLink;
 }
 async function notifTick(id) {
+  const wasOpen = document.getElementById('notif-drawer')?.classList.contains('open');
   await markRead(id);
-  renderNotificationBell();        // re-render to dim it + drop the badge count
+  await renderNotificationBell();   // re-render to dim it + drop the badge count
+  if (wasOpen) {
+    document.getElementById('notif-drawer')?.classList.add('open');
+    document.getElementById('notif-overlay')?.classList.add('open');
+  }
 }
 async function notifMarkAll() {
+  const wasOpen = document.getElementById('notif-drawer')?.classList.contains('open');
   const me = (getCurrentUser().email||'').toLowerCase();
   const rows = await getItems('Notifications',
     `fields/RecipientEmail eq '${me}' and fields/Status eq 'active'`);
   for (const n of rows.filter(r => !r.IsRead)) await markRead(n.id);
-  renderNotificationBell();
+  await renderNotificationBell();
+  if (wasOpen) {
+    document.getElementById('notif-drawer')?.classList.add('open');
+    document.getElementById('notif-overlay')?.classList.add('open');
+  }
 }

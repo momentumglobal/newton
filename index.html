@@ -14,6 +14,7 @@
     <img class="home-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
     <div id="announcement-ticker"><span id="announcement-ticker-inner"></span></div>
     <a id="admin-link" href="admin.html" style="display:none;font-family:'Polymath','Segoe UI',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.35);text-decoration:none;margin-right:16px;">Admin</a>
+    <div class="nav-notif-slot home-notif-slot" id="notif-slot"></div>
     <button id="ql-trigger" class="ql-trigger" onclick="openQuickLinks()" style="display:none;" title="Quick Links">
       <i data-lucide="zap" style="width:16px;height:16px;stroke-width:1.8;"></i>
       <span style="font-size:13px;margin-left:6px;">Quick Links</span>
@@ -273,6 +274,7 @@ async function renderCommandCentreBanner(role) {
       await renderCommandCentreBanner(role);
       initGhostBanner();
       setTimeout(() => initQuickLinks(role), 0);
+      renderNotificationBell();
 
       // Survey widget — TP and DM only
       if (['talent_partner', 'delivery_manager'].includes(role)) {

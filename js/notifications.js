@@ -10,6 +10,19 @@ async function getCcRecipients() {            // admin + leadership
 }
 const getLeadershipRecipients = getCcRecipients;  // same set for v1
 
+// --- normalise a recipient (email passes through; a name is resolved) ---
+let _uaCache = null;
+async function resolveRecipientEmail(value) {
+  if (!value) return null;
+  const v = String(value).trim();
+  if (v.includes('@')) return v.toLowerCase();        // already an email
+  // looks like a name — resolve via UserAssignments (UserName -> UserEmail)
+  if (!_uaCache) _uaCache = await getItems('UserAssignments');
+  const hit = _uaCache.find(u =>
+    (u.UserName||'').trim().toLowerCase() === v.toLowerCase());
+  return hit ? (hit.UserEmail||'').toLowerCase() : null; // null = unresolved, skip
+}
+
 // --- fire (dedupe + one row per recipient) -------------------------
 async function fireNotification(opts) {
   const { triggerType, triggerKey, tone, deepLink, body, recipients } = opts;
@@ -18,7 +31,7 @@ async function fireNotification(opts) {
     `fields/TriggerKey eq '${triggerKey}' and fields/Status eq 'active'`);
   const alreadyFor = new Set(existing.map(n => (n.RecipientEmail||'').toLowerCase()));
   for (const raw of recipients) {
-    const email = (raw||'').toLowerCase();
+    const email = await resolveRecipientEmail(raw);
     if (!email || alreadyFor.has(email)) continue;
     await createItem('Notifications', {
       Title: body.slice(0,80), RecipientEmail: email,

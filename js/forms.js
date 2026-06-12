@@ -36,9 +36,10 @@ function renderProjectForm(existingData = null) {
             value="${existingData?.CustomerName || ''}">
         </div>
         <div class="form-group">
-          <label>Delivery Manager *</label>
-          <input type="text" name="DeliveryManager" required
-            value="${existingData?.DeliveryManager || ''}">
+          <label>Delivery Manager</label>
+          <select name="DeliveryManager" id="project-dm-select">
+            <option value="">-- Unassigned --</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Status *</label>
@@ -252,6 +253,21 @@ function autoFillTargetDate() {
 function updateCurrencyFromLocation(country) {
   const currencyEl = document.getElementById('role-currency-display');
   if (currencyEl) currencyEl.value = CONFIG.COUNTRY_CURRENCY[country] || '';
+}
+
+async function loadDeliveryManagersForProject(selectedEmail) {
+  const select = document.getElementById('project-dm-select');
+  if (!select) return;
+  try {
+    const users = await getAllAssignableUsers();
+    const sel = (selectedEmail || '').toLowerCase();
+    select.innerHTML = '<option value="">-- Unassigned --</option>' +
+      users.map(u => `<option value="${u.UserEmail}" ${
+        u.UserEmail?.toLowerCase() === sel ? 'selected' : ''
+      }>${u.UserName || u.UserEmail}</option>`).join('');
+  } catch (e) {
+    select.innerHTML = '<option value="">-- Error loading team --</option>';
+  }
 }
 
 async function loadTalentPartnersForRole(projectId) {

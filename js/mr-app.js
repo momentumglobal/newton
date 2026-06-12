@@ -19,7 +19,7 @@ window.MR_APP = {
     document.getElementById("login-screen").style.display = "none";
 
     renderMrNav(_mrResolvedRole);
-    navigateToMr("marketReport");
+    navigateToMr("placementAnalytics");
   },
 
   showLogin() {

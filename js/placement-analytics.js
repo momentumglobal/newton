@@ -16,13 +16,14 @@ async function renderPlacementAnalytics() {
   `;
 
   // Load all data in parallel
-  const [historical, activityRaw] = await Promise.all([
+  const [historical, activityRaw, allPlacements] = await Promise.all([
     getHistoricalPlacements(),
-    getActivityForAnalytics(52),   // rolling 12 months of activity
+    getActivityForAnalytics(52),
+    getPlacements(null),
   ]);
   const benchmarks = CONFIG.ANALYTICS_BENCHMARKS;
 
-  _paData = { historical, activityRaw, benchmarks };
+  _paData = { historical, activityRaw, benchmarks, allPlacements };
 
   // Build unique filter options from historical placements
   const locations     = _paUnique(historical, "country").sort();
@@ -78,7 +79,7 @@ function paRenderResults() {
   const container = document.getElementById("pa-results");
   if (!container || !_paData) return;
 
-  const { historical, activityRaw, benchmarks } = _paData;
+  const { historical, activityRaw, benchmarks, allPlacements } = _paData;
 
   // Filter historical placements by selected dimensions
   let filtered = historical;
@@ -92,7 +93,21 @@ function paRenderResults() {
   }
 
   // ── Summary metrics ───────────────────────────────────────────────
-  const ttfResult  = computeTTFPrediction(_paFunctionArea || null, _paLocation || null, historical);
+const ttfDays = filtered
+  .filter(r => r.openDate && r.placementDate)
+  .map(r => Math.round((new Date(r.placementDate) - new Date(r.openDate)) / (1000 * 60 * 60 * 24)));
+const ttfAvgDays = ttfDays.length >= 3
+  ? Math.round(ttfDays.reduce((s, v) => s + v, 0) / ttfDays.length)
+  : null;
+const ttfStdDev = ttfDays.length >= 3
+  ? Math.round(Math.sqrt(ttfDays.reduce((s, d) => s + Math.pow(d - ttfDays.reduce((a, b) => a + b, 0) / ttfDays.length, 2), 0) / ttfDays.length))
+  : null;
+const ttfResult = {
+  weeks: ttfAvgDays,
+  stdDevWeeks: ttfStdDev,
+  label: ttfAvgDays !== null ? `~${ttfAvgDays}d ±${ttfStdDev}d` : 'Insufficient data',
+  sampleSize: ttfDays.length
+};
   const avgTTHDays = _paAvgTTH(filtered);
   const sampleSize = filtered.length;
 
@@ -126,14 +141,14 @@ function paRenderResults() {
       </div>
       <div class="kpi-strip">
         <div class="kpi-card">
-          <div class="kpi-value">${ttfResult.weeks !== null ? `~${ttfResult.weeks}w` : "—"}</div>
+          <div class="kpi-value">${ttfResult.weeks !== null ? `~${ttfResult.weeks}d` : "—"}</div>
           <div class="kpi-label">Predicted Time to Hire</div>
           <div style="font-size:11px;color:#888;margin-top:4px">
-            ${ttfResult.stdDevWeeks !== null ? `±${ttfResult.stdDevWeeks}w · n=${ttfResult.sampleSize}` : ttfResult.label}
+            ${ttfResult.stdDevWeeks !== null ? `±${ttfResult.stdDevWeeks}d` : ttfResult.label}
           </div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-value">${avgTTHDays !== null ? `${Math.round(avgTTHDays / 7)}w` : "—"}</div>
+          <div class="kpi-value">${avgTTHDays !== null ? `${Math.round(avgTTHDays)}d` : "—"}</div>
           <div class="kpi-label">Avg. Actual Time to Hire</div>
           <div style="font-size:11px;color:#888;margin-top:4px">${sampleSize} placement${sampleSize !== 1 ? "s" : ""}</div>
         </div>
@@ -175,12 +190,23 @@ function paRenderResults() {
     </div>
   `;
 
-  // ── Role-by-role breakdown ────────────────────────────────────────
-  const rows = filtered
-    .map(role => {
-      const roleAct = activityRaw.filter(a =>
-        String(a.RoleIDLookupId) === String(role.id)
-      );
+ // ── Role-by-role breakdown (grouped by RoleTitle + Location) ─────────
+  const groupMap = {};
+  filtered.forEach(role => {
+    const key = role.title && role.country
+      ? `${role.title} (${role.country})`
+      : (role.title || '—');
+    if (!groupMap[key]) {
+      groupMap[key] = { key, functionArea: role.functionArea, country: role.country, roles: [] };
+    }
+    groupMap[key].roles.push(role);
+  });
+
+  const rows = Object.values(groupMap)
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map(group => {
+      const groupIds = new Set(group.roles.map(r => String(r.id)));
+      const roleAct = activityRaw.filter(a => groupIds.has(String(a.RoleIDLookupId)));
       const roleTotals = {
         Outreach:      sumField(roleAct, "Outreach"),
         Responses:     sumField(roleAct, "Responses"),
@@ -193,24 +219,33 @@ function paRenderResults() {
         Hires:         sumField(roleAct, "Hires"),
       };
 
-      const tth = (role.openDate && role.placementDate)
-        ? Math.round((new Date(role.placementDate) - new Date(role.openDate)) / (1000 * 60 * 60 * 24 * 7))
+      // Avg TTH across all roles in the group that have both dates
+      const tthValues = group.roles
+        .filter(r => r.openDate && r.placementDate)
+        .map(r => Math.round((new Date(r.placementDate) - new Date(r.openDate)) / (1000 * 60 * 60 * 24)));
+      const avgTth = tthValues.length
+        ? Math.round(tthValues.reduce((s, v) => s + v, 0) / tthValues.length)
         : null;
 
-      const roleFunnel = computeRoleFunnel(roleTotals, benchmarks);
-      const worstRag   = _paWorstRag(roleFunnel);
+      const groupPlacements = allPlacements.filter(p => groupIds.has(String(p.RoleIDLookupId || p.RoleID || '')));
+      const salaries = groupPlacements.map(p => parseFloat(p.SalaryAgreed)).filter(v => !isNaN(v) && v > 0);
+      const avgSalary = salaries.length ? Math.round(salaries.reduce((s, v) => s + v, 0) / salaries.length) : null;
+      const currency = groupPlacements.find(p => p.Currency)?.Currency || '';
+      const SYMBOLS = { GBP: '£', EUR: '€', USD: '$', CAD: 'CA$', AUD: 'A$', SGD: 'S$', AED: 'AED', ZAR: 'R', LKR: 'LKR' };
+      const sym = SYMBOLS[currency] || currency;
 
+      const roleFunnel = computeRoleFunnel(roleTotals, benchmarks);
       const funnelSummary = roleFunnel
         .map(s => `<span title="${s.stage}: ${s.conv !== null ? s.conv + "%" : "—"}">${ragDot(s.rag)}</span>`)
         .join("");
 
       return `
         <tr>
-          <td>${_paEsc(role.title || "—")}</td>
-          <td>${_paEsc(role.functionArea || "—")}</td>
-          <td>${_paEsc(role.country || "—")}</td>
-          <td style="text-align:center">${tth !== null ? tth + "w" : "—"}</td>
-          <td style="text-align:center">${roleTotals.Outreach}</td>
+          <td>${_paEsc(group.key)}</td>
+          <td>${_paEsc(group.functionArea || "—")}</td>
+          <td style="text-align:center">${avgSalary !== null ? sym + avgSalary.toLocaleString('en-GB') : "—"}</td>
+          <td style="text-align:center">${avgTth !== null ? avgTth + "d" : "—"}</td>
+          <td style="text-align:center">${roleTotals.Outreach > 0 ? Math.round((roleTotals.Responses / roleTotals.Outreach) * 100) + "%" : "—"}</td>
           <td style="text-align:center">${funnelSummary}</td>
           <td style="text-align:center">${roleTotals.Offers > 0
             ? Math.round((roleTotals.Hires / roleTotals.Offers) * 100) + "%"
@@ -222,16 +257,16 @@ function paRenderResults() {
   const breakdownHtml = `
     <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">
-        Role Breakdown <span style="font-size:12px;font-weight:400;color:#888">(${filtered.length} roles)</span>
+        Role Breakdown <span style="font-size:12px;font-weight:400;color:#888">(${Object.keys(groupMap).length} role type${Object.keys(groupMap).length !== 1 ? "s" : ""})</span>
       </div>
       <table class="data-table" style="width:100%;margin:0">
         <thead>
           <tr>
             <th>Role</th>
             <th>Functional Area</th>
-            <th>Location</th>
-            <th style="text-align:center">Actual TTH</th>
-            <th style="text-align:center">Outreach</th>
+            <th style="text-align:center">Avg. Salary</th>
+            <th style="text-align:center">Avg. Actual TTH</th>
+            <th style="text-align:center">Outreach Response</th>
             <th style="text-align:center">Funnel (RAG)</th>
             <th style="text-align:center">Offer Success</th>
           </tr>

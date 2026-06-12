@@ -66,6 +66,18 @@ const CONFIG = {
     { label: '+ Record Placement', icon: 'user-check', href: 'reporting.html#placements?action=add',roles: ['admin', 'delivery_manager', 'talent_partner'] },
     { label: 'Log Rejection',      icon: 'user-x',     href: 'reporting.html#rejections?action=add',roles: ['admin', 'delivery_manager', 'talent_partner'] },
   ],
+  // ── Employee Engagement ───────────────────────────────────────────────
+  // Single source of truth for all survey constants.
+  // No hardcoded values in engagement-pages.js, engagement-forms.js, or survey-app.js.
+  SURVEY: {
+    QUESTION_TYPES:       ['Rating', 'SingleChoice', 'MultiChoice', 'FreeText'],
+    STATUSES:             ['Draft', 'Active', 'Closed'],
+    AUDIENCES:            ['All', 'TalentPartners', 'DeliveryManagers'],
+    DEFAULT_DURATION_DAYS: 14,
+    REMINDER_DAY:          7,
+    RATING_SCALE_MIN:      1,
+    RATING_SCALE_MAX:      5,
+  },
 };
 
 // Synchronous role check — only resolves admin (from config) or viewer

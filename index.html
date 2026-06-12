@@ -25,6 +25,7 @@
     <div class="home-title">Newton</div>
     <div class="home-subtitle">Momentum Global &nbsp;·&nbsp; Operating System</div>
     <div id="cc-banner-slot"></div>
+    <div id="survey-widget-slot"></div>
     <div class="module-grid" id="module-grid"></div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
@@ -178,6 +179,37 @@ async function renderCommandCentreBanner(role) {
   }
 }
     
+    async function initSurveyWidget(email) {
+      const run = await getActiveSurveyRun();
+      if (!run) return;
+
+      const completed = await hasCompletedSurvey(run.id, email);
+      if (completed) return;
+
+      const openDate   = new Date(run.OpenDate);
+      const today      = new Date();
+      const daysSince  = Math.floor((today - openDate) / 86400000);
+      const isReminder = daysSince >= CONFIG.SURVEY.REMINDER_DAY;
+
+      const slot = document.getElementById('survey-widget-slot');
+      if (!slot) return;
+
+      slot.innerHTML = `
+        <div class="survey-widget${isReminder ? ' survey-widget--reminder' : ''}">
+          ${isReminder ? '<span class="survey-widget-badge">Reminder</span>' : ''}
+          <div class="survey-widget-title">${_escHtml(run.Title || 'Team Survey')}</div>
+          <div class="survey-widget-desc">${isReminder
+            ? 'Still time to complete — your response is anonymous and takes ~3 minutes.'
+            : 'Your quarterly pulse survey is open - it is 100% anonymous and takes ~3 minutes to complete'}</div>
+          <a href="survey.html" class="survey-widget-cta">Start Survey</a>
+        </div>`;
+      lucide.createIcons();
+    }
+
+    function _escHtml(str) {
+      return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
     async function initHome() {
       const response = await msalInstance.handleRedirectPromise();
       if (response) {
@@ -213,6 +245,11 @@ async function renderCommandCentreBanner(role) {
       await renderCommandCentreBanner(role);
       initGhostBanner();
       setTimeout(() => initQuickLinks(role), 0);
+
+      // Survey widget — TP and DM only
+      if (['talent_partner', 'delivery_manager'].includes(role)) {
+        initSurveyWidget(user.email);
+      }
       
       // Load announcement banner
       getAnnouncementMessage().then(msg => {

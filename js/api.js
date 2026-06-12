@@ -50,7 +50,12 @@ const FIELD_ALIASES = {
   SalesForecasts:  {},
   // ── Command Centre ────────────────────────────────────────
   CCStatus:        {},
-
+  // ── Engagement ────────────────────────────────────────────
+  SurveyTemplates:   {},
+  SurveyQuestions:   {},
+  SurveyRuns:        {},
+  SurveyResponses:   {},
+  SurveyCompletions: {},
 };
  
 function normaliseFields(listName, fields) {
@@ -153,16 +158,17 @@ async function getHistoricalPlacements() {
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
   const roles = await getItems('Roles',
-    `fields/Stage eq 'Placed' and fields/ActualHireDate ge '${cutoff.toISOString().split('T')[0]}'`,
+    `fields/Stage eq 'Hired' and fields/ActualHireDate ge '${cutoff.toISOString().split('T')[0]}'`,
     'Id,Title,Department,Currency,OpenDate,ActualHireDate'
   );
   return roles.map(r => ({
-    id:            r.Id,
-    title:         r.Title,
+    id:            r.id,
+    title:         r.RoleTitle,
     functionArea:  r.Department,
-    country:       r.Currency,
+    country:       r.Location,
     openDate:      r.OpenDate,
     placementDate: r.ActualHireDate,
+    tpEmail:       r.TalentPartner || null,
   }));
 }
  
@@ -543,4 +549,158 @@ async function getScopedRolesForMarketReport(email, effectiveRole) {
   return arrays.flat().filter(r =>
     r.TalentPartner && r.TalentPartner.toLowerCase() === lower
   );
+}
+
+// ── Employee Engagement ───────────────────────────────────────────────
+
+// Field aliases for the 5 new survey lists.
+// Extend FIELD_ALIASES at the top of the file with these entries:
+//   SurveyTemplates:   {},
+//   SurveyQuestions:   {},
+//   SurveyRuns:        {},
+//   SurveyResponses:   {},
+//   SurveyCompletions: {},
+// (No aliasing needed — all SP column names match the display names.)
+
+// ── Read ──────────────────────────────────────────────────────────────
+
+async function getSurveyTemplates() {
+  return getItems("SurveyTemplates");
+}
+
+async function getActiveSurveyRun() {
+  const runs = await getItems("SurveyRuns", "fields/Status eq 'Active'");
+  return runs.length > 0 ? runs[0] : null;
+}
+
+async function getSurveyRunById(runId) {
+  return getItem("SurveyRuns", runId);
+}
+
+async function getSurveyRuns() {
+  return getItems("SurveyRuns");
+}
+
+async function getSurveyQuestions(templateId) {
+  const questions = await getItems("SurveyQuestions", `fields/TemplateID eq '${templateId}'`);
+  return questions.sort((a, b) => (a.SortOrder ?? 0) - (b.SortOrder ?? 0));
+}
+
+async function getSurveyResponses(runId) {
+  return getItems("SurveyResponses", `fields/RunID eq '${runId}'`);
+}
+
+async function hasCompletedSurvey(runId, email) {
+  const completions = await getItems(
+    "SurveyCompletions",
+    `fields/RunID eq '${runId}' and fields/RespondentEmail eq '${email.toLowerCase()}'`
+  );
+  return completions.length > 0;
+}
+
+async function getSurveyCompletionCount(runId) {
+  const completions = await getItems("SurveyCompletions", `fields/RunID eq '${runId}'`);
+  return completions.length;
+}
+
+// ── Write ─────────────────────────────────────────────────────────────
+
+async function createSurveyTemplate(fields) {
+  return createItem("SurveyTemplates", {
+    Title:          fields.Title,
+    Description:    fields.Description   || "",
+    TargetAudience: fields.TargetAudience || "All",
+    Status:         fields.Status         || "Draft",
+    TargetDate:     fields.TargetDate     || undefined,
+    CloseDate:      fields.CloseDate      || undefined,
+    CreatedByEmail: fields.CreatedByEmail || "",
+  });
+}
+
+async function updateSurveyTemplate(id, fields) {
+  const payload = {};
+  if (fields.Title          !== undefined) payload.Title          = fields.Title;
+  if (fields.Description    !== undefined) payload.Description    = fields.Description;
+  if (fields.TargetAudience !== undefined) payload.TargetAudience = fields.TargetAudience;
+  if (fields.Status         !== undefined) payload.Status         = fields.Status;
+  if (fields.TargetDate     !== undefined) payload.TargetDate     = fields.TargetDate;
+  if (fields.CloseDate      !== undefined) payload.CloseDate      = fields.CloseDate;
+  return updateItem("SurveyTemplates", id, payload);
+}
+
+async function createSurveyQuestion(fields) {
+  return createItem("SurveyQuestions", {
+    TemplateID:         String(fields.TemplateID),
+    QuestionText:       fields.QuestionText,
+    QuestionType:       fields.QuestionType,
+    ScaleMin:           fields.ScaleMin       ?? 1,
+    ScaleMax:           fields.ScaleMax       ?? 5,
+    ScaleMinLabel:      fields.ScaleMinLabel  || "",
+    ScaleMaxLabel:      fields.ScaleMaxLabel  || "",
+    Options:            fields.Options        || "",
+    IsRequired:         fields.IsRequired  ?? false,
+    SortOrder:          fields.SortOrder   ?? 0,
+  });
+}
+
+async function updateSurveyQuestion(id, fields) {
+  const payload = {};
+  if (fields.QuestionText !== undefined) payload.QuestionText = fields.QuestionText;
+  if (fields.QuestionType !== undefined) payload.QuestionType = fields.QuestionType;
+  if (fields.ScaleMin      !== undefined) payload.ScaleMin      = fields.ScaleMin;
+  if (fields.ScaleMax      !== undefined) payload.ScaleMax      = fields.ScaleMax;
+  if (fields.ScaleMinLabel !== undefined) payload.ScaleMinLabel = fields.ScaleMinLabel;
+  if (fields.ScaleMaxLabel !== undefined) payload.ScaleMaxLabel = fields.ScaleMaxLabel;
+  if (fields.Options       !== undefined) payload.Options       = fields.Options;
+  if (fields.IsRequired   !== undefined) payload.IsRequired   = fields.IsRequired;
+  if (fields.SortOrder    !== undefined) payload.SortOrder    = fields.SortOrder;
+  return updateItem("SurveyQuestions", id, payload);
+}
+
+async function deleteSurveyQuestion(id) {
+  return deleteItem("SurveyQuestions", id);
+}
+
+async function createSurveyRun(fields) {
+  const openDate  = fields.OpenDate  || new Date().toISOString().split('T')[0];
+  const closeDate = fields.CloseDate || (() => {
+    const d = new Date(); d.setDate(d.getDate() + CONFIG.SURVEY.DEFAULT_DURATION_DAYS);
+    return d.toISOString().split('T')[0];
+  })();
+  return createItem("SurveyRuns", {
+    Title:              fields.RunLabel,
+    TemplateID:         String(fields.TemplateID),
+    OpenDate:           openDate,
+    CloseDate:          closeDate,
+    Status:             "Active",
+    EligibleCount:      fields.EligibleCount || 0,
+  });
+}
+
+async function updateSurveyRun(id, fields) {
+  const payload = {};
+  if (fields.Status        !== undefined) payload.Status    = fields.Status;
+  if (fields.CloseDate     !== undefined) payload.CloseDate = fields.CloseDate;
+  if (fields.EligibleCount !== undefined) payload.EligibleCount = fields.EligibleCount;
+  return updateItem("SurveyRuns", id, payload);
+}
+
+// Called once per question answer on survey submission.
+// UUID only — no email, no user identifier.
+async function createSurveyResponse(fields) {
+  return createItem("SurveyResponses", {
+    RunID:              String(fields.RunID),
+    QuestionID:         String(fields.QuestionID),
+    RespondentUUID:     fields.RespondentUUID,
+    AnswerValue:        String(fields.AnswerValue),
+    SubmittedAt:        new Date().toISOString(),
+  });
+}
+
+// Called once on submit — email only, no answers.
+async function createSurveyCompletion(runId, email) {
+  return createItem("SurveyCompletions", {
+    RunID:           String(runId),
+    RespondentEmail: email.toLowerCase(),
+  });
 }

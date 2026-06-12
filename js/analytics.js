@@ -12,9 +12,7 @@ function computeTTFPrediction(functionArea, country, historical) {
   let pool = valid.filter(r =>
     r.functionArea === functionArea && r.country === country
   );
-  if (pool.length < 3) {
-    pool = valid.filter(r => r.functionArea === functionArea);
-  }
+  
   if (pool.length < 3) {
     return { label: 'Insufficient data', weeks: null, stdDevWeeks: null, sampleSize: pool.length };
   }
@@ -33,7 +31,7 @@ function computeTTFPrediction(functionArea, country, historical) {
   const bandWeeks = Math.round(bandDays / 7);
 
   return {
-    label:       `~${weeks}w ±${bandWeeks}w (n=${sample.length})`,
+    label:       `~${weeks}w ±${bandWeeks}w`,
     weeks,
     stdDevWeeks: bandWeeks,
     sampleSize:  sample.length,
@@ -97,7 +95,7 @@ function computeVelocityScore(tpEmail, activity, placements, benchmarks) {
     metrics: [
       { label: 'Outreach conversion',   value: pct(resp, out), unit: '%',     rag: rag(pct(resp, out),  benchmarks.outreachConversion) },
       { label: 'Submission conversion', value: pct(iv1, sub),  unit: '%',     rag: rag(pct(iv1, sub),   benchmarks.submissionConversion) },
-      { label: 'Interview-to-offer',    value: pct(off, iv1),  unit: '%',     rag: rag(pct(off, iv1),   benchmarks.interviewToOffer) },
+      { label: 'Interview-to-offer',    value: iv1 > 0 && off > 0 ? +(iv1 / off).toFixed(1) : null, unit: ':1', rag: iv1 > 0 && off > 0 ? (iv1 / off <= 7 ? 'green' : iv1 / off <= 10 ? 'amber' : 'red') : 'grey' },
       { label: 'Offer success',         value: pct(hir, off),  unit: '%',     rag: rag(pct(hir, off),   benchmarks.offerSuccess) },
       { label: 'Hires',                 value: hir,            unit: 'hires', rag: 'grey', informational: true },
       { label: 'Avg time to hire',      value: avgTTF,         unit: 'days',  rag: rag(avgTTF,          benchmarks.timeToHireDays, true) },

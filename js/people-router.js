@@ -13,8 +13,8 @@ const PEOPLE_PAGES = {
   peopleGantt:     { label: 'Deployment Timeline',roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP] },
   peopleTracker:   { label: 'Employee Tracker',   roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP] },
   gpInvoices:      { label: 'G-P Invoices',       roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP] },
-  scorecards: { label: 'People Scorecards',       roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP, PEOPLE_ROLES.DELIVERY_MANAGER] },
-
+  scorecards:      { label: 'People Scorecards',  roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP, PEOPLE_ROLES.DELIVERY_MANAGER] },
+  engagement:      { label: 'Engagement',         roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP] },
 };
 
 function peopleCanAccess(page, role) {

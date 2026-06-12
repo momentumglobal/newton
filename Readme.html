@@ -136,10 +136,11 @@
       border: 1px solid #e4e4e4;
       border-top: 3px solid #0A0B44;
     }
-    .card.accent-blue  { border-top-color: #2E5FA3; }
-    .card.accent-green { border-top-color: #107C10; }
-    .card.accent-amber { border-top-color: #b45309; }
-    .card.accent-teal  { border-top-color: #0e7490; }
+    .card.accent-blue   { border-top-color: #2E5FA3; }
+    .card.accent-green  { border-top-color: #107C10; }
+    .card.accent-amber  { border-top-color: #b45309; }
+    .card.accent-teal   { border-top-color: #0e7490; }
+    .card.accent-purple { border-top-color: #6b21a8; }
     .card-title  { font-size: 14px; font-weight: 600; color: #0A0B44; margin-bottom: 6px; }
     .card-file   { font-size: 12px; color: #666; margin-bottom: 8px; font-family: 'Courier New', monospace; }
     .card-desc   { font-size: 13px; color: #555; }
@@ -249,6 +250,19 @@
     }
     .callout.amber { border-left-color: #b45309; background: #fff8f0; }
     .callout.green { border-left-color: #107C10; background: #f0faf0; }
+
+    /* ── Changelog ── */
+    .changelog-entry {
+      background: white;
+      border: 1px solid #e4e4e4;
+      border-left: 4px solid #2E5FA3;
+      border-radius: 0 8px 8px 0;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+    .changelog-date { font-size: 12px; color: #888; margin-bottom: 6px; }
+    .changelog-title { font-size: 15px; font-weight: 600; color: #0A0B44; margin-bottom: 10px; }
+    .changelog-entry ul { padding-left: 18px; font-size: 13px; color: #444; line-height: 2; }
   </style>
 </head>
 <body>
@@ -281,6 +295,7 @@
       <a class="sidebar-link" onclick="show('conventions')">Coding Conventions</a>
       <a class="sidebar-link" onclick="show('newmodule')">Adding a New Module</a>
       <a class="sidebar-link" onclick="show('ghostmode')">Ghost Mode</a>
+      <a class="sidebar-link" onclick="show('changelog')">Changelog</a>
       <a class="sidebar-link" onclick="show('backlog')">Backlog &amp; Future Work</a>
     </nav>
     <div class="sidebar-footer">Newton v1 &middot; June 2026</div>
@@ -333,7 +348,7 @@
     <!-- MODULES -->
     <div class="section" id="sec-modules" style="display:none">
       <div class="section-title">Modules</div>
-      <p class="section-intro">Newton is organised into four functional modules, each a self-contained HTML page with its own script stack. A fifth admin interface exists outside the module system.</p>
+      <p class="section-intro">Newton is organised into five functional modules, each a self-contained HTML page with its own script stack. A sixth admin interface exists outside the module system.</p>
 
       <div class="card-grid">
         <div class="card accent-blue">
@@ -349,12 +364,17 @@
         <div class="card accent-green">
           <div class="card-title">People</div>
           <div class="card-file">people.html</div>
-          <div class="card-desc">Workforce management. Employee tracker, deployment timeline (Gantt), assignment tracking, G-P invoice management.</div>
+          <div class="card-desc">Workforce management. Employee tracker, deployment timeline (Gantt), assignment tracking, G-P invoice management. Includes Engagement tab — quarterly pulse survey builder, results dashboard, and trends view (Admin/Leadership only).</div>
         </div>
         <div class="card accent-amber">
           <div class="card-title">Sales</div>
           <div class="card-file">sales.html</div>
           <div class="card-desc">Sales pipeline tracking. Revenue forecasting and pipeline management for the commercial team.</div>
+        </div>
+        <div class="card accent-purple">
+          <div class="card-title">MG Command Centre</div>
+          <div class="card-file">command-centre.html</div>
+          <div class="card-desc">Executive ops dashboard. Three live RAG tiles — Project Health, People, and Utilisation — each with an expandable detail panel. Available to Admin and Leadership only.</div>
         </div>
       </div>
 
@@ -367,6 +387,24 @@
 
       <h3>Module switcher</h3>
       <p>The module switcher dropdown in the sidebar is driven by <code>CONFIG.OS_MODULES</code> in <code>config.js</code>. This is the single source of truth — adding a new module requires only updating this array.</p>
+
+      <h3>MG Command Centre — RAG logic</h3>
+      <p>Each CC tile uses a dedicated RAG calculation. All three are driven by shared functions in <code>analytics.js</code>.</p>
+      <table>
+        <tr><th>Tile</th><th>Signal</th><th>Green</th><th>Amber</th><th>Red</th></tr>
+        <tr><td><strong>Project Health</strong></td><td>% of live roles flagged (days-open vs stage timeline + submission conversion &lt;50%)</td><td>&lt;25%</td><td>≤50%</td><td>&gt;50%</td></tr>
+        <tr><td><strong>People</strong></td><td>Weighted flagged-role score across TPs (green=0, amber=1, red=2) ÷ TP count</td><td>&lt;0.5</td><td>≤1.0</td><td>&gt;1.0</td></tr>
+        <tr><td><strong>Utilisation</strong></td><td>13-week forecast % (known assignments this month via <code>computeMonthlyRows()</code> + SalesForecasts headcount / total active headcount)</td><td>≥85%</td><td>≥75%</td><td>&lt;75%</td></tr>
+      </table>
+      <div class="callout">RAG thresholds for Utilisation are defined in <code>CONFIG.UTILISATION_THRESHOLDS</code> in config.js (<code>green: 0.85, amber: 0.75</code>). Never hardcode these values in page scripts.</div>
+
+      <h3>CCStatus SharePoint list</h3>
+      <p>The Command Centre writes its three RAG values to the <strong>CCStatus</strong> SharePoint list on every load. The homepage reads CCStatus on load to display badge colours instantly without recomputing. The homepage refresh button recomputes live and writes back to SharePoint.</p>
+      <table>
+        <tr><th>Field</th><th>Values</th><th>Notes</th></tr>
+        <tr><td>Title</td><td><code>health</code> / <code>people</code> / <code>util</code></td><td>One row per tile</td></tr>
+        <tr><td>RAG</td><td><code>green</code> / <code>amber</code> / <code>red</code> / <code>grey</code></td><td>Custom column — must use <code>CCStatus: {}</code> in FIELD_ALIASES (not <code>{ RAG: 'RAG' }</code>, which deletes the field)</td></tr>
+      </table>
     </div>
 
     <!-- ROLES -->
@@ -377,7 +415,7 @@
       <table>
         <tr><th>Role</th><th>Source</th><th>Description</th></tr>
         <tr><td><span class="badge badge-admin">admin</span></td><td>Hardcoded in CONFIG.ADMIN_USERS</td><td>Full access to all modules, pages, and admin interfaces. Never overridden by SharePoint.</td></tr>
-        <tr><td><span class="badge badge-leadership">leadership</span></td><td>LeadershipAccess list</td><td>Read-only access to Company Dashboard (Reporting) and People + Sales modules.</td></tr>
+        <tr><td><span class="badge badge-leadership">leadership</span></td><td>LeadershipAccess list</td><td>Read-only access to Company Dashboard (Reporting), People module, Sales module, and MG Command Centre.</td></tr>
         <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module and Market Analytics. Limited access to People module — Scorecards page only.</td></tr>
         <tr><td><span class="badge badge-tp">talent_partner</span></td><td>UserAssignments list</td><td>Access to assigned project in Reporting module. Scoped to own activity and roles.</td></tr>
         <tr><td><span class="badge badge-viewer">viewer</span></td><td>Fallback</td><td>Read-only, no meaningful access. Auto-registered on first login.</td></tr>
@@ -399,7 +437,10 @@
         <tr><td>Market Analytics — Placement Analytics</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
         <tr><td>People module (full)</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>People module (Scorecards only)</td><td>—</td><td>—</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Engagement (survey builder + results)</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Engagement (survey respondent widget)</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
         <tr><td>Sales module</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>MG Command Centre</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Newton OS Admin</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
       </table>
 
@@ -427,22 +468,24 @@
       <h3>HTML pages</h3>
       <table>
         <tr><th>File</th><th>Purpose</th></tr>
-        <tr><td><span class="file-tag">index.html</span></td><td>Home screen / module selector. Seasonal effects, announcements.</td></tr>
+        <tr><td><span class="file-tag">index.html</span></td><td>Home screen / module selector. Seasonal effects, announcements, CC banner with RAG badges.</td></tr>
         <tr><td><span class="file-tag">reporting.html</span></td><td>Reporting module entry point.</td></tr>
         <tr><td><span class="file-tag">people.html</span></td><td>People module entry point.</td></tr>
         <tr><td><span class="file-tag">sales.html</span></td><td>Sales module entry point.</td></tr>
         <tr><td><span class="file-tag">market-reporting.html</span></td><td>Market Analytics module entry point.</td></tr>
+        <tr><td><span class="file-tag">command-centre.html</span></td><td>MG Command Centre entry point.</td></tr>
         <tr><td><span class="file-tag">admin.html</span></td><td>Newton OS Admin — platform-level administration.</td></tr>
         <tr><td><span class="file-tag">user-guide.html</span></td><td>Reporting module user guide.</td></tr>
         <tr><td><span class="file-tag">people-user-guide.html</span></td><td>People module user guide.</td></tr>
         <tr><td><span class="file-tag">market-reporting-user-guide.html</span></td><td>Market Analytics user guide.</td></tr>
+        <tr><td><span class="file-tag">survey.html</span></td><td>Standalone survey respondent page — no module chrome, full-screen survey flow for TPs and DMs.</td></tr>
         <tr><td><span class="file-tag">README.html</span></td><td>This document — system directory and developer reference.</td></tr>
       </table>
 
       <h3>Shared JavaScript (all modules)</h3>
       <table>
         <tr><th>File</th><th>Responsibility</th><th>Key exports</th></tr>
-        <tr><td><span class="file-tag">js/config.js</span></td><td>Static app configuration</td><td>CONFIG, CONFIG.OS_MODULES, getUserRole(), getUserRoleAsync()</td></tr>
+        <tr><td><span class="file-tag">js/config.js</span></td><td>Static app configuration</td><td>CONFIG, CONFIG.OS_MODULES, CONFIG.UTILISATION_THRESHOLDS, getUserRole(), getUserRoleAsync()</td></tr>
         <tr><td><span class="file-tag">js/auth.js</span></td><td>MSAL authentication only</td><td>signIn(), signOut(), getToken(), getCurrentUser(), isSignedIn()</td></tr>
         <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), formatSalary(), daysOpen(), ghost mode helpers</td></tr>
         <tr><td><span class="file-tag">js/api.js</span></td><td>All SharePoint/Graph API calls</td><td>getItems(), createItem(), updateItem(), deleteItem(), getEffectiveRole(), all list-specific helpers</td></tr>
@@ -458,7 +501,7 @@
         <tr><td><span class="file-tag">js/pages.js</span></td><td>Page content renderers: Projects, Roles (with Location column), Activity, Placements, Rejections</td></tr>
         <tr><td><span class="file-tag">js/forms.js</span></td><td>Form renderers and submission logic for Reporting data entry</td></tr>
         <tr><td><span class="file-tag">js/dashboard.js</span></td><td>Project Dashboard (incl. Role Analytics panel), Company Dashboard, REPORT_PANELS registry</td></tr>
-        <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions — computeTTFPrediction(), computeRoleFunnel(), computeVelocityScore(). Loaded by reporting.html, people.html, and market-reporting.html.</td></tr>
+        <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions — computeTTFPrediction(), computeRoleFunnel(), computeVelocityScore(), isRoleFlagged(), ACTIVE_STAGES, STAGE_ORDER. Loaded by reporting.html, people.html, market-reporting.html, and command-centre.html.</td></tr>
         <tr><td><span class="file-tag">js/report-builder.js</span></td><td>Report Builder — block canvas, save/load, PDF export</td></tr>
         <tr><td><span class="file-tag">js/admin.js</span></td><td>Config Panel — Departments, Currencies, Delete Records</td></tr>
       </table>
@@ -469,10 +512,20 @@
         <tr><td><span class="file-tag">js/people-router.js</span></td><td>Page registry for People module. Includes DELIVERY_MANAGER role and scorecards page access.</td></tr>
         <tr><td><span class="file-tag">js/people-nav.js</span></td><td>Calls renderModuleNav() with People params. Routes scorecards page in renderPeoplePage() switch.</td></tr>
         <tr><td><span class="file-tag">js/people-app.js</span></td><td>Module init — role check, redirect if unauthorised. DMs are allowed in; they land on scorecards page.</td></tr>
-        <tr><td><span class="file-tag">js/people-pages.js</span></td><td>People Dashboard, Employee Tracker, Deployment Timeline, G-P Invoices</td></tr>
+        <tr><td><span class="file-tag">js/people-pages.js</span></td><td>People Dashboard, Employee Tracker, Deployment Timeline, G-P Invoices. Utilisation thresholds reference CONFIG.UTILISATION_THRESHOLDS.</td></tr>
         <tr><td><span class="file-tag">js/people-forms.js</span></td><td>Form renderers for People data entry</td></tr>
-        <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions — computeTTFPrediction(), computeRoleFunnel(), computeVelocityScore(). No network I/O or DOM access.</td></tr>
-        <tr><td><span class="file-tag">js/analytics-pages.js</span></td><td>People Scorecards page renderers — renderScorecardsPage(), renderScorecardPanel()</td></tr>
+        <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions. No network I/O or DOM access.</td></tr>
+        <tr><td><span class="file-tag">js/analytics-pages.js</span></td><td>People Scorecards page renderers — renderScorecardsPage(), renderScorecardPanel(). Card RAG driven by flagged-roles ratio.</td></tr>
+        <tr><td><span class="file-tag">js/engagement-pages.js</span></td><td>Engagement dashboard renderers — renderEngagementPage(), summary cards, question result cards (Rating/Choice/FreeText), trends chart (Chart.js), run selector, close run, export PDF.</td></tr>
+        <tr><td><span class="file-tag">js/engagement-forms.js</span></td><td>Survey builder modals — Manage Template, Add/Edit Question, Activate Run. Question reordering and deletion.</td></tr>
+      </table>
+
+      <h3>Survey respondent page</h3>
+      <table>
+        <tr><th>File</th><th>Responsibility</th></tr>
+        <tr><td><span class="file-tag">survey.html</span></td><td>Standalone survey respondent page. No module chrome — full-screen survey flow only.</td></tr>
+        <tr><td><span class="file-tag">js/survey-router.js</span></td><td>Access control for survey respondents. SURVEY_RESPONDENT_ROLES = ['talent_partner', 'delivery_manager']. surveyCanAccess(role).</td></tr>
+        <tr><td><span class="file-tag">js/survey-app.js</span></td><td>Full respondent flow — question renderer, draft save/restore (sessionStorage), rating/choice/free-text input handlers, anonymous submission. UUID stored in sessionStorage; responses written with UUID only; completion written with email only.</td></tr>
       </table>
 
       <h3>Sales module</h3>
@@ -492,6 +545,15 @@
         <tr><td><span class="file-tag">js/mr-app.js</span></td><td>Module init — role check, redirect if unauthorised</td></tr>
         <tr><td><span class="file-tag">js/market-report.js</span></td><td>Market Report Builder page renderer</td></tr>
         <tr><td><span class="file-tag">js/placement-analytics.js</span></td><td>Placement Analytics page — Location/Functional Area filters, summary cards, funnel drop-off, role breakdown table. Uses computeTTFPrediction() and computeRoleFunnel() from analytics.js.</td></tr>
+      </table>
+
+      <h3>MG Command Centre</h3>
+      <table>
+        <tr><th>File</th><th>Responsibility</th></tr>
+        <tr><td><span class="file-tag">js/cc-router.js</span></td><td>Page registry for Command Centre. Defines CC_PAGES, ccCanAccess(), ccGetAccessiblePages(). Access: Admin and Leadership only.</td></tr>
+        <tr><td><span class="file-tag">js/cc-nav.js</span></td><td>Calls renderModuleNav() with CC params. renderCCNav(), toggleCCModuleDropdown(), navigateToCC().</td></tr>
+        <tr><td><span class="file-tag">js/cc-app.js</span></td><td>Module init — MSAL redirect, role check, sets app-shell display:flex, calls renderCCNav() and renderCCOverview().</td></tr>
+        <tr><td><span class="file-tag">js/cc-pages.js</span></td><td>All CC renderers: renderCCOverview(), tile builders, RAG calculations (computeProjectHealthRAG, computePeopleRAG, computeUtilisationRAG), expandable detail panel renderers (renderHealthDetail, renderPeopleDetail, renderUtilDetail).</td></tr>
       </table>
 
       <h3>Admin</h3>
@@ -530,10 +592,24 @@ dashboard.js       <span class="code-comment">← (Reporting only)</span>
 sortablejs          <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">report-builder.js</span>  <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">admin.js</span>           <span class="code-comment">← (Reporting only)</span>
-<span class="code-key">analytics.js</span>       <span class="code-comment">← (Reporting + People + Market Analytics) — pure functions, load before app.js</span>
+<span class="code-key">analytics.js</span>       <span class="code-comment">← (Reporting + People + Market Analytics + Command Centre) — pure functions, load before app.js</span>
 <span class="code-key">analytics-pages.js</span> <span class="code-comment">← (People only) — Scorecards page renderers</span>
 <span class="code-key">placement-analytics.js</span> <span class="code-comment">← (Market Analytics only) — load after analytics.js, before mr-app.js</span>
 <span class="code-key">[module]-app.js</span>    <span class="code-comment">← Module init — always last</span>
+      </div>
+
+      <h3>command-centre.html</h3>
+      <div class="code-block">
+<span class="code-key">config.js</span>
+<span class="code-key">auth.js</span>
+<span class="code-key">utils.js</span>
+<span class="code-key">api.js</span>
+<span class="code-key">analytics.js</span>    <span class="code-comment">← isRoleFlagged(), ACTIVE_STAGES, STAGE_ORDER — load before cc-pages.js</span>
+<span class="code-key">nav-core.js</span>
+<span class="code-key">cc-router.js</span>
+<span class="code-key">cc-nav.js</span>
+<span class="code-key">cc-pages.js</span>
+<span class="code-key">cc-app.js</span>       <span class="code-comment">← always last</span>
       </div>
 
       <h3>admin.html and index.html</h3>
@@ -542,6 +618,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">auth.js</span>
 <span class="code-key">utils.js</span>     <span class="code-comment">← Required — ghost helpers called by api.js</span>
 <span class="code-key">api.js</span>
+<span class="code-key">analytics.js</span> <span class="code-comment">← index.html only — required for refreshCCBanner()</span>
 <span class="code-key">os-admin.js</span>  <span class="code-comment">← admin.html only</span>
       </div>
     </div>
@@ -576,6 +653,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <table>
         <tr><th>List</th><th>Purpose</th><th>Key fields</th></tr>
         <tr><td><strong>AppSettings</strong></td><td>Single-row config (Title = "config")</td><td>AnnouncementMessage, SeasonalEffect</td></tr>
+        <tr><td><strong>CCStatus</strong></td><td>Command Centre RAG state — one row per tile</td><td>Title (<code>health</code> / <code>people</code> / <code>util</code>), RAG (<code>green</code> / <code>amber</code> / <code>red</code> / <code>grey</code>). Written by CC on load and by index.html refresh button. Read by index.html on load.</td></tr>
       </table>
 
       <h3>People module lists</h3>
@@ -586,14 +664,27 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <tr><td><strong>GPInvoices</strong></td><td>InvoiceNumber</td><td>InvoiceDate, DueDate, Amount, Status, Notes</td></tr>
       </table>
 
+      <h3>Engagement (survey) lists</h3>
+      <p>All ID relationship columns (TemplateID, RunID, QuestionID) are Single line of text columns — not Lookup columns. Values are stored as strings and filter queries use quoted values (<code>eq '${id}'</code>).</p>
+      <table>
+        <tr><th>List</th><th>Key fields</th><th>Notes</th></tr>
+        <tr><td><strong>SurveyTemplates</strong></td><td>Title, Description, TargetAudience, Status (Draft/Active/Closed), TargetDate, CreatedByEmail</td><td>One template per organisation. Admin manages via Manage Template modal.</td></tr>
+        <tr><td><strong>SurveyQuestions</strong></td><td>TemplateID (text), QuestionText, QuestionType (Rating/SingleChoice/MultiChoice/FreeText), ScaleMin, ScaleMax, ScaleMinLabel, ScaleMaxLabel, Options (JSON), IsRequired, SortOrder</td><td>Child of SurveyTemplates. Ordered by SortOrder on read.</td></tr>
+        <tr><td><strong>SurveyRuns</strong></td><td>Title (RunLabel), TemplateID (text), OpenDate, CloseDate, Status (Active/Closed), EligibleCount</td><td>One active run at a time. Status enforced by Activate Run modal.</td></tr>
+        <tr><td><strong>SurveyResponses</strong></td><td>RunID (text), QuestionID (text), RespondentUUID, AnswerValue, SubmittedAt</td><td>One row per question per respondent. UUID only — no email stored here.</td></tr>
+        <tr><td><strong>SurveyCompletions</strong></td><td>RunID (text), RespondentEmail</td><td>One row per respondent per run. Email only — no answers stored here. Used to prevent re-submission and clear the homepage widget.</td></tr>
+      </table>
+      <div class="callout amber"><strong>Anonymity model:</strong> SurveyResponses and SurveyCompletions share no common key — UUID and email are never stored together. Re-identification is architecturally impossible.</div>
+
       <h3>Sales module lists</h3>
       <table>
         <tr><th>List</th><th>Key fields</th></tr>
-        <tr><td><strong>SalesForecasts</strong></td><td>Sales pipeline and forecast data</td></tr>
+        <tr><td><strong>SalesForecasts</strong></td><td>Start (date), End (date), Headcount — used by Command Centre Utilisation RAG for 13-week forward forecast</td></tr>
       </table>
 
       <h3>Field normalisation</h3>
       <p>SharePoint's <code>Title</code> field and the typo field <code>Yeare</code> are aliased to meaningful names in <code>FIELD_ALIASES</code> in <code>api.js</code>. All reads go through <code>normaliseFields()</code> so the application always sees consistent field names regardless of SharePoint's internal naming.</p>
+      <div class="callout amber"><strong>CCStatus alias:</strong> The CCStatus entry in FIELD_ALIASES must be <code>CCStatus: {}</code>. Using <code>{ RAG: 'RAG' }</code> causes normaliseFields() to delete the RAG field on every read.</div>
     </div>
 
     <!-- AUTH FLOW -->
@@ -712,7 +803,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <p class="section-intro">Established during the v1 refactor audit (June 2026). Apply to all future Newton build work.</p>
 
       <h3>Single source of truth</h3>
-      <p>Any value referenced in more than one place lives in exactly one file. <code>CONFIG.OS_MODULES</code> is the canonical example — it defines the module switcher for all four nav files. Adding a new module means editing <code>config.js</code> only.</p>
+      <p>Any value referenced in more than one place lives in exactly one file. <code>CONFIG.OS_MODULES</code> is the canonical example — it defines the module switcher for all nav files. <code>CONFIG.UTILISATION_THRESHOLDS</code> defines utilisation RAG thresholds for both the People Dashboard and the Command Centre. Adding a new module means editing <code>config.js</code> only.</p>
 
       <h3>File responsibilities — hard rules</h3>
       <ul class="checklist">
@@ -721,6 +812,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <li>utils.js owns pure functions with no network I/O — formatting, calculations, button state, ghost helpers.</li>
         <li>nav-core.js owns the sidebar renderer. Do not write sidebar HTML in module nav files.</li>
         <li>*-app.js files handle init only — MSAL redirect, role resolution, first navigation.</li>
+        <li>analytics.js owns shared analytics logic — isRoleFlagged(), ACTIVE_STAGES, STAGE_ORDER, computeVelocityScore(). Never duplicate these in page scripts.</li>
       </ul>
 
       <h3>CSS over inline styles</h3>
@@ -731,13 +823,14 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       </ul>
 
       <h3>Dynamic over hardcoded</h3>
-      <p>Time-sensitive values are derived at runtime. Example: <code>PLACEMENT_YEARS</code> uses <code>Array.from({length:4}, (_, i) =&gt; new Date().getFullYear() - i)</code> — it never needs updating.</p>
+      <p>Time-sensitive values are derived at runtime. Example: <code>PLACEMENT_YEARS</code> uses <code>Array.from({length:4}, (_, i) =&gt; new Date().getFullYear() - i)</code> — it never needs updating. Utilisation thresholds use <code>CONFIG.UTILISATION_THRESHOLDS</code> — never hardcode <code>0.85</code> or <code>0.75</code> in page scripts.</p>
 
       <h3>No duplicate logic</h3>
       <ul class="checklist">
         <li>If the same function exists in more than one file, extract it to a shared file.</li>
         <li>Never re-sort data already sorted by the API layer.</li>
         <li>Never re-fetch data already cached in a window._ variable.</li>
+        <li>isRoleFlagged() is defined once in analytics.js and used by cc-pages.js, analytics-pages.js, and index.html — do not redefine it locally.</li>
       </ul>
 
       <h3>Nav optimisation</h3>
@@ -753,9 +846,9 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <li><strong>config.js</strong> — Add entry to <code>CONFIG.OS_MODULES</code> with key, name, icon, href, live, and roles array. This is the only place the module switcher is defined.</li>
         <li><strong>[module]-router.js</strong> — Create page registry. Define PAGES object, <code>canAccess()</code>, and <code>getAccessiblePages()</code>.</li>
         <li><strong>[module]-nav.js</strong> — Create nav wrapper. Call <code>renderModuleNav()</code> with subtitle, currentModuleKey, toggleFn, pages, currentPage, role, navigateFn, userGuideHref. Add toggle function and <code>navigateTo[Module]()</code>.</li>
-        <li><strong>[module]-app.js</strong> — Handle MSAL redirect, call <code>getEffectiveRole()</code>, redirect if role not permitted, call <code>ensureUserRegistered()</code>, render nav, navigate to first page.</li>
+        <li><strong>[module]-app.js</strong> — Handle MSAL redirect, call <code>getEffectiveRole()</code>, redirect if role not permitted, call <code>ensureUserRegistered()</code>, render nav, navigate to first page. Set <code>document.getElementById('app-shell').style.display = 'flex'</code> after auth.</li>
         <li><strong>[module]-pages.js and [module]-forms.js</strong> — Create page renderers and form logic as needed.</li>
-        <li><strong>[module].html</strong> — Follow script load order exactly: config → auth → utils → api → [module]-router → nav-core → [module]-nav → [module]-forms → [module]-pages → [module]-app.</li>
+        <li><strong>[module].html</strong> — Follow script load order exactly: config → auth → utils → api → [module]-router → nav-core → [module]-nav → [module]-forms → [module]-pages → [module]-app. Load analytics.js before app.js if the module uses isRoleFlagged() or other shared analytics functions.</li>
         <li><strong>admin.html sidebar</strong> — Add <code>&lt;a class="admin-nav-link"&gt;</code> entry if the module needs admin panel access.</li>
         <li><strong>os-admin.js</strong> — Update role/access lists if the new module has different access requirements.</li>
       </ul>
@@ -804,11 +897,65 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <div class="callout amber">Ghost mode overrides role resolution but does not create a real session as that role. Actions taken while ghosting (form saves etc.) are attributed to your real admin account in SharePoint.</div>
     </div>
 
+    <!-- CHANGELOG -->
+    <div class="section" id="sec-changelog" style="display:none">
+      <div class="section-title">Changelog</div>
+      <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">June 2026</div>
+        <div class="changelog-title">Employee Engagement — Quarterly Pulse Surveys</div>
+        <ul>
+          <li>New Engagement tab in the People module (Admin and Leadership only)</li>
+          <li>Survey template builder — create and manage questions (Rating, Single Choice, Multi Choice, Free Text) with scale labels and sort ordering</li>
+          <li>Run activation — manual activation per quarter with configurable open/close dates and eligible respondent count</li>
+          <li>Results dashboard — per-question breakdown, response distribution, completion rate banner, run selector for historical comparison, trends chart (Chart.js)</li>
+          <li>PDF export of survey results via browser print</li>
+          <li>Homepage survey widget for TPs and DMs — persists until submission, clears automatically on completion</li>
+          <li>Standalone respondent page (<code>survey.html</code>) with progress bar, draft save/restore, and full anonymous submission flow</li>
+          <li>Anonymity architecture: UUID-only in SurveyResponses, email-only in SurveyCompletions — no shared key between the two lists</li>
+          <li>New files: <code>js/engagement-pages.js</code>, <code>js/engagement-forms.js</code>, <code>js/survey-router.js</code>, <code>js/survey-app.js</code>, <code>survey.html</code></li>
+          <li>New SharePoint lists: SurveyTemplates, SurveyQuestions, SurveyRuns, SurveyResponses, SurveyCompletions (all ID fields as Single line of text)</li>
+          <li>New config block: <code>CONFIG.SURVEY</code> — QUESTION_TYPES, STATUSES, AUDIENCES, DEFAULT_DURATION_DAYS, RATING_SCALE_MIN/MAX</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">June 2026</div>
+        <div class="changelog-title">MG Command Centre</div>
+        <ul>
+          <li>New module: <code>command-centre.html</code> — executive ops dashboard for Admin and Leadership</li>
+          <li>Three live RAG tiles: Project Health, People, Utilisation — each with expandable detail panel</li>
+          <li>New files: <code>js/cc-router.js</code>, <code>js/cc-nav.js</code>, <code>js/cc-app.js</code>, <code>js/cc-pages.js</code></li>
+          <li>New CCStatus SharePoint list — persists RAG state between sessions; read by homepage on load</li>
+          <li>Homepage CC tile redesigned: three RAG badges + refresh button</li>
+          <li>New shared functions in <code>analytics.js</code>: <code>isRoleFlagged()</code>, <code>ACTIVE_STAGES</code>, <code>STAGE_ORDER</code></li>
+          <li>People RAG uses weighted score (green=0, amber=1, red=2) across TPs by flagged-role ratio</li>
+          <li>Utilisation RAG uses 13-week forward forecast: <code>computeMonthlyRows()</code> for current month + SalesForecasts headcount / active headcount</li>
+          <li>Utilisation thresholds centralised in <code>CONFIG.UTILISATION_THRESHOLDS</code>; removed hardcoded values from <code>people-pages.js</code></li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">June 2026</div>
+        <div class="changelog-title">Bug fixes</div>
+        <ul>
+          <li><strong>Ghost mode</strong> — fixed role resolution and project scoping for DM and TP ghost sessions</li>
+          <li><strong>TP role scoping</strong> — fixed cases where Talent Partners could see roles outside their assigned project</li>
+          <li><strong>DM role access</strong> — Delivery Managers now correctly land on the Scorecards page in the People module</li>
+          <li><strong>forms.js</strong> — fixed <code>&lt;select&gt;</code> tag rendering where closing tags were missing</li>
+          <li><strong>People Scorecards RAG pill</strong> — card RAG now driven by flagged-roles ratio; fixed <code>toUpperCase</code> error on undefined when using velocity score</li>
+          <li><strong>api.js FIELD_ALIASES (CCStatus)</strong> — <code>{ RAG: 'RAG' }</code> alias caused <code>normaliseFields()</code> to delete the RAG field; corrected to <code>CCStatus: {}</code></li>
+          <li><strong>Stage names</strong> — <code>isRoleFlagged()</code> and CC RAG logic updated to use SharePoint's actual stage values (<code>'Interview 1'</code>, <code>'Interview 2+'</code>, <code>'Sourcing'</code>)</li>
+          <li><strong>Utilisation calculation</strong> — Command Centre was using a 13-week window for current month denominator (too large); fixed to use <code>computeMonthlyRows()</code> consistent with the People Dashboard</li>
+        </ul>
+      </div>
+    </div>
+
     <!-- BACKLOG -->
     <div class="section" id="sec-backlog" style="display:none">
       <div class="section-title">Backlog &amp; Future Work</div>
       <p class="section-intro">Known improvement opportunities and architectural considerations for future development.</p>
-
 
       <h3>Architectural considerations (future builds)</h3>
       <table>
@@ -819,6 +966,8 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <tr><td>Report Builder export</td><td>PDF export uses window.print(). Server-side generation would give more reliable formatting across browsers.</td></tr>
         <tr><td>Offline / error states</td><td>Graph API failures show a basic error message. A structured error boundary with retry logic would improve resilience on poor connections.</td></tr>
         <tr><td>Module expansion</td><td>The module pattern (router / nav / app / pages / forms) is repeatable. New modules can be added without touching shared platform code — only config.js needs updating for the switcher.</td></tr>
+        <tr><td>Command Centre alerts</td><td>Future: push notifications or email digest when a CC tile flips to Red.</td></tr>
+        <tr><td>CCStatus freshness</td><td>CCStatus is only updated when an Admin or Leadership user loads the CC or triggers a homepage refresh. Consider a scheduled write from the CC page to keep state fresh.</td></tr>
       </table>
 
       <h3>Dependencies to monitor</h3>

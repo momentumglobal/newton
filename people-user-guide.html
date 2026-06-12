@@ -64,6 +64,7 @@
       <li><a href="#deployment-timeline">Deployment Timeline</a></li>
       <li><a href="#gp-invoices">G-P Invoices</a></li>
       <li><a href="#scorecards">Scorecards</a></li>
+      <li><a href="#engagement">Engagement</a></li>
       <li><div class="nav-section-label">Newton OS</div></li>
       <li><a href="#homepage-admin">Homepage Admin</a></li>
     </ul>
@@ -73,7 +74,7 @@
       <h2>Frequently Asked Questions</h2>
       <div class="faq-item">
         <div class="faq-q">Who can access the People module?</div>
-        <div class="faq-a">Admin and Leadership have full access to all pages. Delivery Managers can access the People module but are limited to the Scorecards page — they land there automatically on sign-in. Talent Partners do not have access.</div>
+        <div class="faq-a">Admin and Leadership have full access to all pages. Delivery Managers can access the People module but are limited to the Scorecards page - they land there automatically on sign-in. Talent Partners do not have currently have access.</div>
       </div>
       <div class="faq-item">
         <div class="faq-q">How does utilisation get calculated?</div>
@@ -98,6 +99,14 @@
       <div class="faq-item">
         <div class="faq-q">Who do I contact if something isn't working?</div>
         <div class="faq-a">Raise it with your Newton Admin. For access issues, they can update user assignments directly via the Admin link on the Newton home screen.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Are survey responses really anonymous?</div>
+        <div class="faq-a">Yes. Survey responses are stored with a random UUID only — there is no link between your answers and your identity. A separate completion record confirms you have responded (so the widget clears from your homepage) but it contains no answers. Admins can see how many people have responded but cannot identify who said what.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I edit my survey response after submitting?</div>
+        <div class="faq-a">No. Once submitted, responses are final. The survey widget will no longer appear on your homepage.</div>
       </div>
       <div class="faq-item">
         <div class="faq-q">What are bench assignments and do I need to manage them manually?</div>
@@ -223,6 +232,29 @@
       <h3>Benchmarking</h3>
       <p>Metrics are compared against configured benchmarks to indicate whether activity and conversion rates are tracking on target. The benchmarks are set in <code>CONFIG.ANALYTICS_BENCHMARKS</code> in <code>config.js</code> — contact your Newton Admin if they need to be adjusted.</p>
       <div class="tip">Scorecards data is calculated from Weekly Activity records. Ensure activity is being logged consistently each week for the metrics to be accurate.</div>
+    </div>
+    <div class="guide-section" id="engagement">
+      <h2>Engagement</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">Leadership</span>
+      </div>
+      <p>The Engagement page is where Admins build and manage quarterly pulse surveys, and where Admins and Leadership view the results. Survey responses are fully anonymous — see the FAQ for details.</p>
+      <h3>Survey Template</h3>
+      <p>Before a survey can be run, a template must be created. Click <strong>Manage Template</strong> to open the template editor. Set a title, an introduction paragraph (shown to respondents before the first question), the target audience, and an optional target activation date.</p>
+      <p>Once the template is saved, add questions using <strong>+ Add Question</strong>. Each question has a type — Rating (1–5 scale with optional labels), Single Choice, Multiple Choice, or Free Text. Questions can be reordered using the up/down arrows and deleted individually. At least 3 questions are required before a run can be activated.</p>
+      <div class="tip">The template title can be updated before each quarter's run to reflect the current period (e.g. "Q3 2026 Pulse Survey"). Updating the title does not affect historical run results — past runs retain their own labels.</div>
+      <h3>Activating a Run</h3>
+      <p>Click <strong>Activate Run</strong> to start a new survey run. Set the run label (e.g. "Q3 2026"), confirm the open and close dates, and click <strong>Activate Now</strong>. The survey widget will appear on the homepage for all eligible respondents (Talent Partners and Delivery Managers) immediately.</p>
+      <p>Only one run can be active at a time. If a run is already active, you must close it before activating a new one.</p>
+      <h3>Viewing Results</h3>
+      <p>Once responses start coming in, the Engagement page displays a summary dashboard for the active run. Each question is shown with its response distribution — rating questions show average score and a bar chart of responses, choice questions show percentage breakdowns, and free-text responses are listed in full.</p>
+      <p>Use the <strong>run selector</strong> dropdown to switch between historical runs and compare results over time. The Trends tab shows how average scores have changed across runs for each rating question.</p>
+      <h3>Closing a Run</h3>
+      <p>Click <strong>Close Run</strong> to end the active survey. Respondents will no longer be able to submit. The run's results remain visible in the dashboard indefinitely under the run selector.</p>
+      <h3>Exporting Results</h3>
+      <p>Click <strong>Export PDF</strong> to save the current run's results as a PDF. This uses the browser print dialog — set the destination to <strong>Save as PDF</strong> and enable <strong>Background graphics</strong> before saving. See the Exporting to PDF section for full instructions.</p>
+      <div class="tip">The survey widget remains on a respondent's homepage until they submit. If they close the browser and return later, the widget will still be there — responses are tracked in SharePoint, not the browser.</div>
     </div>
     <div class="guide-section" id="homepage-admin">
       <h2>Homepage Admin</h2>

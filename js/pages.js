@@ -182,6 +182,7 @@ async function showEditRoleForm(id) {
 }
 // ── Weekly Activity ───────────────────────────────────────────────────
 let _activityProjectId = null;
+let _activityRoleId    = null;
 async function renderActivityPage() {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading activity...</p>";
@@ -221,6 +222,24 @@ async function renderActivityPage() {
       return roleProjectMap[rid] === String(_activityProjectId);
     });
   }
+  if (_activityRoleId) {
+    filteredActivity = filteredActivity.filter(a =>
+      String(a.RoleIDLookupId || a.RoleID || '') === String(_activityRoleId)
+    );
+  }
+  // Build scoped role options for dropdown (respects existing project + role scoping)
+  const scopedRoleIds = new Set(filteredActivity.map(a => String(a.RoleIDLookupId || a.RoleID || '')));
+  const roleOptions = [
+    `<option value="" ${!_activityRoleId ? 'selected' : ''}>All Roles</option>`,
+    ...allRoles
+      .filter(r => scopedRoleIds.has(String(r.id)))
+      .sort((a, b) => (roleMap[String(a.id)] || '').localeCompare(roleMap[String(b.id)] || ''))
+      .map(r => `<option value="${r.id}" ${String(_activityRoleId) === String(r.id) ? 'selected' : ''}>${roleMap[String(r.id)]}</option>`)
+  ].join('');
+  const roleDropdown = `<div class="form-group project-filter-select">
+    <label>Role</label>
+    <select onchange="setActivityRole(this.value)">${roleOptions}</select>
+  </div>`;
   const role    = _resolvedRole;
   const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
   const projDropdown = canFilter
@@ -232,7 +251,10 @@ async function renderActivityPage() {
       ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddActivityForm()">+ Log Activity</button></div>' : ""}
     </div>
     <div class="table-toolbar">
+     <div style="display:flex;gap:16px;align-items:flex-end">
       ${projDropdown}
+      ${roleDropdown}
+     </div>
     </div>
     <table class="data-table">
       <thead><tr>
@@ -260,7 +282,7 @@ async function renderActivityPage() {
             <td style="text-align:center">${a.Screened || 0}</td>
             <td style="text-align:center">${a.Submitted || 0}</td>
             <td style="text-align:center">${a.Interview1 || 0}</td>
-            <td style="text-align:center">${a.InterviewTwoPlus || 0}</td>
+            <td style="text-align:center">${a.Interview2Plus || 0}</td>
             <td style="text-align:center">${a.FinalInterview || 0}</td>
             <td style="text-align:center">${a.Offers || 0}</td>
             <td style="text-align:center">${a.Hires || 0}</td>
@@ -271,7 +293,8 @@ async function renderActivityPage() {
     </table>
   `;
 }
-function setActivityProject(val) { _activityProjectId = val || null; renderActivityPage(); }
+function setActivityProject(val) { _activityProjectId = val || null; _activityRoleId = null; renderActivityPage(); }
+function setActivityRole(val) { _activityRoleId = val || null; renderActivityPage(); }
 async function showAddActivityForm() {
   document.getElementById("main-content").innerHTML = await renderWeeklyActivityForm();
 }

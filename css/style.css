@@ -1550,3 +1550,11 @@ body {
   transform: translateY(-50%);
   z-index: 5;
 }
+
+.home-notif-slot {
+  position: static;     /* override sidebar's absolute positioning */
+  transform: none;
+  display: flex;
+  align-items: center;
+  margin-right: 14px;   /* gap before Quick Links */
+}

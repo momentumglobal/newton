@@ -661,8 +661,8 @@ function setDetailPeriod(period) {
     (isDMAdmin ? renderActivityByTPPanel(c.activity, _dashDetailPeriod, c.tpMap) : '') +
     (isDMAdmin ? renderRejectionPanel(c.rejections, c.roles, _dashDetailPeriod) : '') +
     (isDMAdmin ? renderUpcomingStartersPanel(c.placements, c.roles) : '') +
-    (isDMAdmin ? renderSpendPanel(c.roles, c.placements) : '');
-    roleAnalyticsPlaceholder +
+    (isDMAdmin ? renderSpendPanel(c.roles, c.placements) : '') +
+    roleAnalyticsPlaceholder;
   renderRoleAnalyticsPanel(c.roles, c.analyticsActs, c.historical, c.tpMap)
     .then(html => {
       const ph = document.getElementById('role-analytics-placeholder');

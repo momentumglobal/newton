@@ -37,7 +37,6 @@ function renderModuleNav({
     <div class='nav-header nav-header-dropdown' onclick='${toggleFn}()'>
       <div class='nav-logo'>Newton <span class='nav-header-arrow'>▾</span></div>
       <div class='nav-subtitle'>${subtitle}</div>
-      <div class='nav-notif-slot' id='notif-slot'></div>
       <div class='nav-module-dropdown' id='nav-module-dropdown'>
         <a class='nav-module-home' href='index.html'>← Home</a>
         <div class='nav-module-divider'></div>
@@ -47,6 +46,7 @@ function renderModuleNav({
     <div class='nav-user'>
       <div class='nav-user-name'>${user.name || user.email}</div>
       <div class='nav-user-role'>${role.replace(/_/g, ' ')}</div>
+      <div class='nav-notif-slot' id='notif-slot'></div>
     </div>
     <nav class='nav-links' id='nav-links'>
       ${navLinks}

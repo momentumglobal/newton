@@ -1560,3 +1560,54 @@ body {
   align-items: center;
   margin-right: 14px;   /* gap before Quick Links */
 }
+
+/* ── Skeleton loading shimmer ────────────────────────────────────── */
+@keyframes skeleton-sweep {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skel {
+  background: linear-gradient(90deg,
+    #ececec 25%, #f5f5f5 37%, #ececec 63%);
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+.skel-strip { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+.skel-card {
+  flex: 1; min-width: 140px;
+  background: #fff;
+  border: 1px solid #ececec;
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+.skel-card .skel-line-value { height: 26px; width: 60%; margin-bottom: 10px; }
+.skel-card .skel-line-label { height: 10px; width: 80%; }
+.skel-panel {
+  background: #fff;
+  border: 1px solid #ececec;
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 16px;
+}
+.skel-panel .skel-line {
+  height: 14px; margin-bottom: 12px;
+  width: 100%;
+}
+.skel-panel .skel-line:nth-child(2) { width: 92%; }
+.skel-panel .skel-line:nth-child(3) { width: 78%; }
+.skel-panel .skel-line:nth-child(4) { width: 85%; }
+.skel-panel .skel-line:last-child   { width: 60%; margin-bottom: 0; }
+
+/* ── Count-up: digits don't jitter (kpi-value already tabular-nums) ─ */
+.kpi-value.counting { font-variant-numeric: tabular-nums; }
+
+/* ── Respect reduced-motion: kill shimmer + count-up + transitions ── */
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none; background: #ececec; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

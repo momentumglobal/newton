@@ -562,7 +562,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
 // ── Main renderer ─────────────────────────────────────────────────────
 async function renderProjectDashboard() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading dashboard...</p>';
+  main.innerHTML = dashboardSkeleton(6);
   const user      = getCurrentUser();
   const role      = _resolvedRole;
   const isTP      = role === 'talent_partner';
@@ -633,6 +633,7 @@ async function renderProjectDashboard() {
       ${spend}
       ${roleAnalytics}
     </div>`;
+  runKpiCountUps(main);
 }
 function changeDashProject(id) { _dashProjectId = String(id); renderProjectDashboard(); }
 function setDashPeriod(period) {
@@ -640,6 +641,7 @@ function setDashPeriod(period) {
   const el = document.getElementById('proj-kpi-area');
   if (el && window._dashCache) {
   el.innerHTML = renderKPIStrip(window._dashCache.roles, window._dashCache.activity, _dashPeriod);
+  runKpiCountUps(el);
   const btnsEl = document.getElementById('proj-kpi-btns');
   if (btnsEl) btnsEl.innerHTML = periodButtons([['month','Month'],['quarter','Quarter'],['year','Year']], _dashPeriod, 'setDashPeriod');
 } else {
@@ -827,7 +829,7 @@ function companyDetailPeriodDropdown() {
 // ── Main renderer ─────────────────────────────────────────────────────
 async function renderCompanyDashboard() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading company dashboard...</p>';
+  main.innerHTML = dashboardSkeleton(8);
   const [allProjects, allRoles, allActivity, tpMap] = await Promise.all([
     getProjects(false),
     getAllRoles(),
@@ -862,6 +864,7 @@ async function renderCompanyDashboard() {
     <div id='co-detail-grid' class='dash-grid'>
       ${tpPanel}
     </div>`;
+  runKpiCountUps(main);
 }
 function setCompanyPeriod(period) {
   _companyPeriod = period;
@@ -869,6 +872,7 @@ function setCompanyPeriod(period) {
   if (el && window._coCache) {
   const c = window._coCache;
   el.innerHTML = renderCompanyKPIStrip(c.roles, c.activity, c.projects, _companyPeriod);
+  runKpiCountUps(el);
   const btnsEl = document.getElementById('co-kpi-btns');
   if (btnsEl) btnsEl.innerHTML = periodButtons([['month','Month'],['quarter','Quarter'],['year','Year']], _companyPeriod, 'setCompanyPeriod');
 } else {

@@ -31,8 +31,8 @@ async function fireNotification(opts) {
     `fields/TriggerKey eq '${triggerKey}' and fields/Status eq 'active'`);
   const alreadyFor = new Set(existing.map(n => (n.RecipientEmail||'').toLowerCase()));
   for (const raw of recipients) {
-    const email = await resolveRecipientEmail(raw);
-    if (!email || alreadyFor.has(email)) continue;
+    const email = (raw||'').toLowerCase();
+    if (!email || !email.includes('@') || alreadyFor.has(email)) continue;
     await createItem('Notifications', {
       Title: body.slice(0,80), RecipientEmail: email,
       TriggerType: triggerType, TriggerKey: triggerKey,

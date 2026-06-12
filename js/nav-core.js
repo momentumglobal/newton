@@ -37,6 +37,7 @@ function renderModuleNav({
     <div class='nav-header nav-header-dropdown' onclick='${toggleFn}()'>
       <div class='nav-logo'>Newton <span class='nav-header-arrow'>▾</span></div>
       <div class='nav-subtitle'>${subtitle}</div>
+      <div class='nav-notif-slot' id='notif-slot'></div>
       <div class='nav-module-dropdown' id='nav-module-dropdown'>
         <a class='nav-module-home' href='index.html'>← Home</a>
         <div class='nav-module-divider'></div>
@@ -78,6 +79,7 @@ function renderModuleNav({
   }
   
   lucide.createIcons();
+  if (typeof renderNotificationBell === 'function') renderNotificationBell();
 }
 
 /**

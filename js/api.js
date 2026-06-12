@@ -295,7 +295,21 @@ async function getTalentPartnersForProject(projectId) {
     a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager'
   );
 }
- 
+
+// All assignable users (deduped by email) — used to populate DM dropdown
+async function getAllAssignableUsers() {
+  const assignments = await getItems("UserAssignments");
+  const seen = new Map();
+  assignments.forEach(u => {
+    const email = (u.UserEmail || '').toLowerCase();
+    if (email && !seen.has(email)) {
+      seen.set(email, { UserEmail: u.UserEmail, UserName: u.UserName || u.UserEmail });
+    }
+  });
+  return [...seen.values()].sort((a, b) =>
+    (a.UserName || '').localeCompare(b.UserName || ''));
+}
+
 async function getTalentPartnerDisplayMap() {
   const assignments = await getItems("UserAssignments");
   const map = {};

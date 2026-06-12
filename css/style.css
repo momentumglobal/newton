@@ -1545,9 +1545,11 @@ body {
 .nav-user { position: relative; }   /* anchor for the bell */
 .nav-notif-slot {
   position: absolute;
-  top: 50%;
+  top: 0;
+  bottom: 0;
   right: 18px;
-  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
   z-index: 5;
 }
 

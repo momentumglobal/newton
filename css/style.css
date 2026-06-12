@@ -1541,3 +1541,12 @@ body {
 }
 .notif-item-tick:hover { color: #7ddc7d; }
 .notif-item-tick i { width: 16px; height: 16px; }
+
+.nav-user { position: relative; }   /* anchor for the bell */
+.nav-notif-slot {
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  transform: translateY(-50%);
+  z-index: 5;
+}

@@ -77,6 +77,13 @@ function notifTimeAgo(iso) {
 
 const NOTIF_ICON = { attention: 'alert-triangle', celebrate: 'party-popper', milestone: 'flag' };
 
+// local HTML escape — so the module pages don't depend on index.html's _escHtml
+function notifEsc(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 // --- render the bell + drawer --------------------------------------
 function paintBell(rows, unread) {
   const slot = document.getElementById('notif-slot');
@@ -89,7 +96,7 @@ function paintBell(rows, unread) {
         <i data-lucide="${NOTIF_ICON[n.Tone] || 'bell'}"></i>
       </div>
       <div class="notif-item-body" onclick="notifOpen('${n.id}', '${(n.DeepLink||'').replace(/'/g,"")}')">
-        <div class="notif-item-text">${_escHtml ? _escHtml(n.Body||'') : (n.Body||'')}</div>
+        <div class="notif-item-text">${notifEsc(n.Body)}</div>
         <div class="notif-item-time">${notifTimeAgo(n.CreatedAt)}</div>
       </div>
       ${n.IsRead ? '' : `<button class="notif-item-tick" title="Mark read"

@@ -677,11 +677,13 @@ async function submitPlacementForm(event, editId = null) {
     TimeToHire:           timeToHire,
     Notes:                data.Notes || undefined,
   };
+  
   try {
+    let created = null;
     if (editId) {
       await updateItem('Placements', editId, fields);
     } else {
-      await createItem('Placements', fields);
+      created = await createItem('Placements', fields);
     }
     if (startDate && data.RoleID) {
       await updateItem('Roles', data.RoleID, { CurrentStartDate: startDate });
@@ -689,7 +691,34 @@ async function submitPlacementForm(event, editId = null) {
     if (offerDate && data.RoleID) {
       await updateItem('Roles', data.RoleID, { ActualHireDate: offerDate });
     }
+    if (created) {                       // new placement only
+      const allRoles = await getAllRoles();
+      const rolesById = Object.fromEntries(allRoles.map(r => [String(r.id), r]));
+      const role  = rolesById[String(parseInt(data.RoleID))];
+      const projId = String(role.ProjectIDLookupId || role.ProjectID);
+      const projects = await getItems('Projects');
+      const proj = projects.find(pr => String(pr.id) === projId) || {};
+      // 6.4 placement landed (TP + DM)
+      await fireNotification({ triggerType:'placement',
+        triggerKey:`placement:${created.id}`, tone:'celebrate',
+        deepLink:'reporting.html#placements',
+        body:`Placement: ${data.CandidateName} placed`,
+        recipients:[data.TalentPartnerName, proj.DeliveryManager] });
+      // 6.5 project first placement (leadership)
+      const allPlac = await getItems('Placements');
+      const prior = allPlac.filter(pl => String(pl.id) !== String(created.id) &&
+        String((rolesById[String(pl.RoleIDLookupId)]||{}).ProjectIDLookupId ||
+               (rolesById[String(pl.RoleIDLookupId)]||{}).ProjectID) === projId).length;
+      if (prior === 0) {
+        await fireNotification({ triggerType:'firstPlacement',
+          triggerKey:`firstplacement:${projId}`, tone:'milestone',
+          deepLink:'reporting.html#placements',
+          body:`${proj.CustomerName} has its first placement!`,
+          recipients: await getLeadershipRecipients() });
+      }
+    }
     navigateTo('placements');
+
   } catch (e) {
     clearButtonLoading(btn);
     showFormError('placement-form', `Error saving placement: ${e.message}`);

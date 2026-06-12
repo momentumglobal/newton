@@ -1527,7 +1527,7 @@ body {
 .notif-tone--celebrate { background: rgba(16,124,16,0.20);  color: #7ddc7d; }
 .notif-tone--milestone { background: rgba(46,95,163,0.22);  color: #8fb6ec; }
 
-.notif-item-body { flex: 1; cursor: pointer; min-width: 0; }
+.notif-item-body { flex: 1; min-width: 0; }
 .notif-item-text {
   font-size: 13px; color: rgba(255,255,255,0.92); line-height: 1.4;
 }

@@ -112,3 +112,41 @@ function setGhostProject(projectId) {
 function getGhostProject() {
   return sessionStorage.getItem(GHOST_PROJECT_KEY);
 }
+
+// ── Dashboard skeleton placeholder ───────────────────────────────
+function dashboardSkeleton(cardCount = 5) {
+  const card = `<div class="skel-card">
+    <div class="skel skel-line-value"></div>
+    <div class="skel skel-line-label"></div>
+  </div>`;
+  const panelLines = Array.from({length: 5},
+    () => `<div class="skel skel-line"></div>`).join('');
+  return `
+    <div class="skel-strip">${card.repeat(cardCount)}</div>
+    <div class="skel-panel">${panelLines}</div>`;
+}
+
+// ── Count-up animation on a .kpi-value element ───────────────────
+function animateCountUp(el) {
+  const raw = (el.textContent || '').trim();
+  // only animate clean integers/decimals — skip "82%", "— ", "5 ▲3" etc.
+  if (!/^-?\d+(\.\d+)?$/.test(raw)) return;
+  const target = parseFloat(raw);
+  if (!isFinite(target)) return;
+  const dur = 650, start = performance.now();
+  const decimals = (raw.split('.')[1] || '').length;
+  el.classList.add('counting');
+  function tick(now) {
+    const t = Math.min((now - start) / dur, 1);
+    const eased = 1 - Math.pow(1 - t, 3);          // ease-out cubic
+    el.textContent = (target * eased).toFixed(decimals);
+    if (t < 1) requestAnimationFrame(tick);
+    else el.textContent = raw;                      // settle on exact original
+  }
+  requestAnimationFrame(tick);
+}
+
+function runKpiCountUps(scope = document) {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  scope.querySelectorAll('.kpi-value').forEach(animateCountUp);
+}

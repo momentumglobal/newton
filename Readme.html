@@ -298,7 +298,7 @@
       <a class="sidebar-link" onclick="show('changelog')">Changelog</a>
       <a class="sidebar-link" onclick="show('backlog')">Backlog &amp; Future Work</a>
     </nav>
-    <div class="sidebar-footer">Newton v1 &middot; June 2026</div>
+    <div class="sidebar-footer">Newton v2 &middot; June 2026</div>
   </div>
 
   <!-- ── Main ── -->
@@ -309,7 +309,7 @@
       <div class="cover-title">Newton</div>
       <div class="cover-sub">System Directory &amp; Developer Reference</div>
       <div class="cover-meta">
-        <div class="cover-meta-item"><label>Version</label><span>v1 (post-refactor)</span></div>
+        <div class="cover-meta-item"><label>Version</label><span>v2 (notifications + premium UI)</span></div>
         <div class="cover-meta-item"><label>Last updated</label><span>June 2026</span></div>
         <div class="cover-meta-item"><label>Organisation</label><span>Momentum Global</span></div>
         <div class="cover-meta-item"><label>Platform</label><span>GitHub Pages + SharePoint</span></div>
@@ -490,6 +490,7 @@
         <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), formatSalary(), daysOpen(), ghost mode helpers</td></tr>
         <tr><td><span class="file-tag">js/api.js</span></td><td>All SharePoint/Graph API calls</td><td>getItems(), createItem(), updateItem(), deleteItem(), getEffectiveRole(), all list-specific helpers</td></tr>
         <tr><td><span class="file-tag">js/nav-core.js</span></td><td>Shared sidebar renderer</td><td>renderModuleNav(), updateNavActiveLink(), exitGhostMode()</td></tr>
+        <tr><td><span class="file-tag">js/notifications.js</span></td><td>In-app notification engine — bell, drawer, triggers</td><td>fireNotification(), clearNotification(), renderNotificationBell(), markRead(), paintBell(), notifEsc(). Suppressed in ghost mode. Loaded after nav-core.js on every sidebar page + on index.html.</td></tr>
       </table>
 
       <h3>Reporting module</h3>
@@ -654,6 +655,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <tr><th>List</th><th>Purpose</th><th>Key fields</th></tr>
         <tr><td><strong>AppSettings</strong></td><td>Single-row config (Title = "config")</td><td>AnnouncementMessage, SeasonalEffect</td></tr>
         <tr><td><strong>CCStatus</strong></td><td>Command Centre RAG state — one row per tile</td><td>Title (<code>health</code> / <code>people</code> / <code>util</code>), RAG (<code>green</code> / <code>amber</code> / <code>red</code> / <code>grey</code>). Written by CC on load and by index.html refresh button. Read by index.html on load.</td></tr>
+        <tr><td><strong>Notifications</strong></td><td>In-app notification rows — one per recipient</td><td>RecipientEmail (email), TriggerType (<code>roleFlag</code> / <code>ccRed</code> / <code>surveyClose</code> / <code>placement</code> / <code>firstPlacement</code>), TriggerKey (dedupe), Status (<code>active</code> / <code>cleared</code>), IsRead (Yes/No), Tone (<code>attention</code> / <code>celebrate</code> / <code>milestone</code>), DeepLink, Body, CreatedAt. Written by triggers in index.html (refreshCCBanner) and forms.js (submitPlacementForm). FIELD_ALIASES entry must be <code>Notifications: {}</code>.</td></tr>
       </table>
 
       <h3>People module lists</h3>
@@ -901,6 +903,23 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
       <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">June 2026</div>
+        <div class="changelog-title">In-app Notifications, Premium UI &amp; fixes</div>
+        <ul>
+          <li><strong>In-app notifications</strong> — bell with unread badge + slide-out drawer, rendered across every module (sidebar <code>.nav-user</code> block) and on the homepage (bottom bar, left of Quick Links). Suppressed in Ghost Mode. Computed and persisted client-side on page load — no server process.</li>
+          <li>Engine isolated in new <code>js/notifications.js</code> (not nav-core.js). Five notification types from four triggers: role flagged (TP + DM), CC tile → Red (Admin + Leadership), survey closing within 48h (Admin + Leadership), placement landed (TP + DM), project first placement (Leadership milestone).</li>
+          <li>Dedupe via a <code>TriggerKey</code> per row. Transition triggers (role flag, CC red) re-arm when the condition reverses; one-shot triggers (placement, first placement, survey close) fire once.</li>
+          <li>Drawer: read-only items, per-item mark-read tick + "Mark all read", read items stay dimmed, active-only newest 20.</li>
+          <li><strong>New SharePoint list: Notifications</strong> — one row per recipient. Fields: RecipientEmail, TriggerType, TriggerKey, Status (active/cleared), IsRead (Yes/No), Tone, DeepLink, Body, CreatedAt. <code>Notifications: {}</code> in FIELD_ALIASES (empty object — self-alias would strip fields, per CCStatus precedent).</li>
+          <li><strong>Data model: <code>DeliveryManager</code> is now email-based.</strong> The project form's DM field is now a dropdown bound to <code>getAllAssignableUsers()</code> (new in api.js), storing the user's email — consistent with TalentPartner. Previously free-text names broke notification recipient resolution. DM is now optional; the notification write loop skips non-email recipients (<code>includes('@')</code> guard) as a safety net. Existing projects need DM re-selected once to convert legacy names.</li>
+          <li><strong>Premium UI:</strong> skeleton shimmer on both dashboards while data loads (<code>dashboardSkeleton()</code> in utils.js); KPI count-up on load and period switch (<code>runKpiCountUps()</code> in utils.js — only clean numbers animate); <code>prefers-reduced-motion</code> guard disables shimmer/count-up/transitions.</li>
+          <li><strong>Bug fix:</strong> <code>dashboard.js</code> <code>setDetailPeriod()</code> — a stray <code>;</code> (instead of <code>+</code>) after <code>renderSpendPanel(...)</code> orphaned the Role Analytics placeholder, silently dropping the Role Analytics panel on detail-period change. Corrected.</li>
+          <li><strong>Bug fix:</strong> notifications drawer used <code>index.html</code>'s <code>_escHtml</code> (undefined on module pages); now uses a self-contained <code>notifEsc()</code> helper.</li>
+          <li><strong>CSS note:</strong> <code>.nav-notif-slot</code> must not carry a <code>transform</code> — a transformed ancestor re-anchors the <code>position: fixed</code> drawer to the sidebar instead of the viewport. Centring uses top/bottom + flex.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">June 2026</div>

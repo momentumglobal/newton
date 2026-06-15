@@ -1038,6 +1038,13 @@ body {
 }
 #announcement-ticker-inner:hover { animation-play-state: paused; }
 
+/* Compress homepage spacing on short screens (laptop, no external monitor) */
+@media (max-height: 760px) {
+  .home-subtitle { margin-bottom: 24px; }
+  .module-grid   { margin-top: 12px; gap: 12px; }
+  .module-card   { padding: 16px 18px; }
+}
+
 /* ── Command Centre homepage banner (index.html) ── */
 /* Note: distinct from .cc-banner used in command-centre.html module shell */
 .cc-home-banner {

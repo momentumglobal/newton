@@ -113,7 +113,12 @@ function paintBell(rows, unread) {
     <div class="notif-drawer" id="notif-drawer">
       <div class="notif-drawer-head">
         <span class="notif-drawer-title">Notifications</span>
-        ${unread ? `<button class="notif-markall" onclick="notifMarkAll()">Mark all read</button>` : ''}
+        <div class="notif-head-actions">
+          ${unread ? `<button class="notif-markall" onclick="notifMarkAll()">Mark all read</button>` : ''}
+          <button class="notif-close" onclick="notifToggle()" title="Close" aria-label="Close">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
       </div>
       <div class="notif-list">${items}</div>
     </div>`;

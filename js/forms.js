@@ -726,11 +726,42 @@ async function submitPlacementForm(event, editId = null) {
         String((rolesById[String(pl.RoleIDLookupId)]||{}).ProjectIDLookupId ||
                (rolesById[String(pl.RoleIDLookupId)]||{}).ProjectID) === projId).length;
       if (prior === 0) {
+        const roleTitle = role.Location
+          ? `${role.RoleTitle} (${role.Location})` : role.RoleTitle;
+ 
+        // resolve emails -> names. TP = who MADE the placement;
+        // DM = who owns the project. May be the same person
+        // (a DM can log their own placement).
+        const nameMap = await getTalentPartnerDisplayMap(); // email -> UserName
+        const tpEmail = (data.TalentPartnerName || '').toLowerCase();
+        const dmEmail = (proj.DeliveryManager  || '').toLowerCase();
+        const tpName  = nameMap[tpEmail] || data.TalentPartnerName || '';
+        const dmName  = nameMap[dmEmail] || proj.DeliveryManager  || '';
+        const samePerson = tpEmail && dmEmail && tpEmail === dmEmail;
+ 
+        const enrich = {
+          RoleTitle: roleTitle,
+          CustomerName: proj.CustomerName,
+          TalentPartnerName: tpName,       // the placer
+          DeliveryManagerName: dmName,     // project DM
+          SamePerson: samePerson ? 'yes' : 'no',
+        };
+ 
+        // in-app rows for Leadership (enriched)
         await fireNotification({ triggerType:'firstPlacement',
           triggerKey:`firstplacement:${projId}`, tone:'milestone',
           deepLink:'reporting.html#placements',
           body:`${proj.CustomerName} has its first placement!`,
-          recipients: await getLeadershipRecipients() });
+          recipients: await getLeadershipRecipients(),
+          extraFields: enrich });
+ 
+        // sentinel row — drives the Power Automate email (one per placement)
+        await fireNotification({ triggerType:'firstPlacement',
+          triggerKey:`firstplacement-email:${projId}`, tone:'milestone',
+          deepLink:'reporting.html#placements',
+          body:`${proj.CustomerName} has its first placement!`,
+          recipients: ['system@newton'],
+          extraFields: enrich });
       }
     }
     navigateTo('placements');

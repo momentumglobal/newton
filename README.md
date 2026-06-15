@@ -39,6 +39,32 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### June 2026 — Notifications, premium UI + fixes
+
+**New: In-app notifications (`notifications.js`)**
+A bell with unread badge and a slide-out drawer, rendered across every module (in the sidebar `.nav-user` block) and on the homepage (bottom bar, left of Quick Links). Self-suppresses in Ghost Mode. Notifications are computed and persisted client-side on page load — there is no server process.
+
+- Bell + drawer engine isolated in `js/notifications.js` (not `nav-core.js`).
+- Five notification types from four triggers: **role flagged** (TP + DM), **CC tile → Red** (Admin + Leadership), **survey closing within 48h** (Admin + Leadership), **placement landed** (TP + DM), **project first placement** (Leadership milestone).
+- Dedupe via a `TriggerKey` per row; transition triggers (role flag, CC red) re-arm when the condition reverses, one-shot triggers fire once.
+- Drawer: read-only items, per-item "mark read" tick + "Mark all read", read items stay dimmed, active-only newest 20.
+
+**New: `Notifications` SharePoint list**
+One row per recipient. Fields: `RecipientEmail`, `TriggerType`, `TriggerKey`, `Status` (active/cleared), `IsRead` (Yes/No), `Tone`, `DeepLink`, `Body`, `CreatedAt`. Registered as `Notifications: {}` in `FIELD_ALIASES` (empty object — a self-alias would strip fields, per the CCStatus precedent).
+
+**Premium UI**
+- **Skeleton shimmer** — both dashboards now show shaped skeleton placeholders (KPI card outlines + panel lines, sweeping shimmer) while data loads, replacing the plain "Loading…" text. Helper `dashboardSkeleton()` in `utils.js`.
+- **KPI count-up** — dashboard KPI values animate from zero on load and on period switch. Helper `runKpiCountUps()` in `utils.js`; only clean numeric values animate (values with `%`, `:1`, deltas, or `—` stay static).
+- **Reduced-motion** — a `prefers-reduced-motion` guard disables shimmer, count-up, and transitions for users who request reduced motion.
+
+**Data model: `DeliveryManager` is now email-based**
+`Projects.DeliveryManager` previously stored a free-text name, which broke notification recipient resolution (rows were written with names that never matched the email-keyed bell query). The project form's DM field is now a dropdown bound to `getAllAssignableUsers()` (new helper in `api.js`), storing the user's email — consistent with `TalentPartner`. DM is now optional. The notification write loop also skips any recipient that isn't an email (`includes('@')` guard) as a permanent safety net. Existing projects need their DM re-selected once to convert legacy names.
+
+**Bug fixes**
+- `dashboard.js` `setDetailPeriod()`: a stray `;` (instead of `+`) after `renderSpendPanel(...)` orphaned the Role Analytics placeholder, causing the Role Analytics panel to silently drop when changing the detail period. Corrected.
+- `notifications.js`: the drawer uses its own `notifEsc()` escape helper instead of `index.html`'s `_escHtml`, which is undefined on module pages (previously caused the bell to fail rendering in modules).
+- Notification drawer positioning: `.nav-notif-slot` must not carry a CSS `transform` — a transformed ancestor re-anchors the `position: fixed` drawer to the sidebar instead of the viewport. Centring uses `top`/`bottom` + flex.
+
 ### June 2026 — Command Centre + bug fixes
 
 **New: MG Command Centre (`command-centre.html`)**

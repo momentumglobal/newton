@@ -8,12 +8,13 @@
   <link rel="stylesheet" href="css/style.css">
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body style="background:#090546;overflow:visible;display:flex;align-items:center;justify-content:center;min-height:100vh;">
+<body style="background:#090546;overflow:visible;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px 0 92px;box-sizing:border-box;">
   <img id="watermark" src="mg-visual-swirl.png" alt="">
   <div class="home-bottom-bar">
     <img class="home-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
     <div id="announcement-ticker"><span id="announcement-ticker-inner"></span></div>
     <a id="admin-link" href="admin.html" style="display:none;font-family:'Polymath','Segoe UI',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.35);text-decoration:none;margin-right:16px;">Admin</a>
+    <div class="nav-notif-slot home-notif-slot" id="notif-slot"></div>
     <button id="ql-trigger" class="ql-trigger" onclick="openQuickLinks()" style="display:none;" title="Quick Links">
       <i data-lucide="zap" style="width:16px;height:16px;stroke-width:1.8;"></i>
       <span style="font-size:13px;margin-left:6px;">Quick Links</span>
@@ -34,6 +35,7 @@
   <script src="js/utils.js"></script>
   <script src="js/api.js"></script>
   <script src="js/analytics.js"></script>
+  <script src="js/notifications.js"></script>
   <script>
     const ALL_MODULES = [
       {
@@ -79,21 +81,36 @@ function ccBadgeHTML(rag, label) {
 }
 
 async function refreshCCBanner() {
-  const [roles, acts4, acts13, forecasts, assigns, people] = await Promise.all([
-    getAllRoles(),
-    getActivityForAnalytics(4),
-    getActivityForAnalytics(13),
-    getItems('SalesForecasts'),
-    getItems('Assignments'),
-    getPeople(false)
-  ]);
+ const [roles, acts4, acts13, forecasts, assigns, people, projects] = await Promise.all([
+  getAllRoles(),
+  getActivityForAnalytics(4),
+  getActivityForAnalytics(13),
+  getItems('SalesForecasts'),
+  getItems('Assignments'),
+  getPeople(false),
+  getItems('Projects')
+ ]);
+ const projectsById = Object.fromEntries(projects.map(pr => [String(pr.id), pr]));
   
   // Project Health RAG
   const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
+  for (const role of open) {
+    const acts = acts4.filter(a => String(a.RoleIDLookupId) === String(role.id));
+    const key = `flag:${role.id}`;
+    if (isRoleFlagged(role, acts)) {
+      const projId = String(role.ProjectIDLookupId || role.ProjectID);
+      const proj = projectsById[projId];
+      await fireNotification({ triggerType:'roleFlag', triggerKey:key,
+        tone:'attention', deepLink:`reporting.html#role-${role.id}`,
+        body:`Role flagged: ${role.RoleTitle} needs attention`,
+        recipients:[role.TalentPartner, proj && proj.DeliveryManager] });
+    } else { await clearNotification(key); }
+  }
   const flagged = open.filter(role => {
     const acts = acts4.filter(a => String(a.RoleIDLookupId) === String(role.id));
     return isRoleFlagged(role, acts);
   }).length;
+
   const healthPct = open.length ? flagged / open.length : 0;
   const ragHealth = healthPct < 0.25 ? 'green' : healthPct <= 0.50 ? 'amber' : 'red';
 
@@ -139,11 +156,23 @@ async function refreshCCBanner() {
     { title: 'util',   rag: ragUtil   },
   ];
   const existing = await getItems('CCStatus');
+  const ccRecipients = await getCcRecipients();
   for (const s of statuses) {
     const match = existing.find(e => e.Title === s.title);
+    const prev  = match ? match.RAG : 'neutral';
+    const key   = `ccred:${s.title}`;
+    if (s.rag === 'red' && prev !== 'red') {
+      await fireNotification({ triggerType:'ccRed', triggerKey:key,
+        tone:'attention', deepLink:`command-centre.html#${s.title}`,
+        body:`Command Centre: ${s.title} is now RED`,
+        recipients: ccRecipients });
+    } else if (s.rag !== 'red' && prev === 'red') {
+      await clearNotification(key);
+    }
     if (match) { await updateItem('CCStatus', match.id, { RAG: s.rag }); }
     else        { await createItem('CCStatus', { Title: s.title, RAG: s.rag }); }
   }
+
 
   renderCCBadges(ragHealth, ragPeople, ragUtil);
 }
@@ -245,10 +274,26 @@ async function renderCommandCentreBanner(role) {
       await renderCommandCentreBanner(role);
       initGhostBanner();
       setTimeout(() => initQuickLinks(role), 0);
+      renderNotificationBell();
 
       // Survey widget — TP and DM only
       if (['talent_partner', 'delivery_manager'].includes(role)) {
         initSurveyWidget(user.email);
+      }
+
+      // Survey closing notification — Admin and Leadership only
+      if (['admin', 'leadership'].includes(role)) {
+        const run = await getActiveSurveyRun();
+      if (run && run.CloseDate) {
+        const hrsLeft = (new Date(run.CloseDate) - Date.now()) / 3600000;
+      if (hrsLeft > 0 && hrsLeft <= 48) {
+        await fireNotification({ triggerType:'surveyClose',
+          triggerKey:`surveyclose:${run.id}`, tone:'attention',
+          deepLink:'people.html#engagement',
+          body:`Pulse survey closes in ${Math.round(hrsLeft)}h`,
+          recipients: await getCcRecipients() });
+        }
+       }
       }
       
       // Load announcement banner

@@ -46,6 +46,7 @@ function renderModuleNav({
     <div class='nav-user'>
       <div class='nav-user-name'>${user.name || user.email}</div>
       <div class='nav-user-role'>${role.replace(/_/g, ' ')}</div>
+      <div class='nav-notif-slot' id='notif-slot'></div>
     </div>
     <nav class='nav-links' id='nav-links'>
       ${navLinks}
@@ -78,6 +79,7 @@ function renderModuleNav({
   }
   
   lucide.createIcons();
+  if (typeof renderNotificationBell === 'function') renderNotificationBell();
 }
 
 /**

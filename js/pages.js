@@ -81,10 +81,12 @@ async function renderProjectsPage() {
 }
 async function showAddProjectForm() {
   document.getElementById("main-content").innerHTML = renderProjectForm();
+  loadDeliveryManagersForProject('');
 }
 async function showEditProjectForm(id) {
   const data = await getItem("Projects", id);
   document.getElementById("main-content").innerHTML = renderProjectForm(data);
+  loadDeliveryManagersForProject(data.DeliveryManager);
 }
 // ── Roles ─────────────────────────────────────────────────────────────
 const ROLE_FILTERS = {

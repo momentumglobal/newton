@@ -25,7 +25,8 @@ async function resolveRecipientEmail(value) {
 
 // --- fire (dedupe + one row per recipient) -------------------------
 async function fireNotification(opts) {
-  const { triggerType, triggerKey, tone, deepLink, body, recipients } = opts;
+  const { triggerType, triggerKey, tone, deepLink, body, recipients,
+          extraFields = {} } = opts;          // NEW: optional extra columns
   if (!recipients || !recipients.length) return;
   const existing = await getItems('Notifications',
     `fields/TriggerKey eq '${triggerKey}' and fields/Status eq 'active'`);
@@ -39,6 +40,7 @@ async function fireNotification(opts) {
       Status: 'active', IsRead: false, Tone: tone,
       DeepLink: deepLink, Body: body,
       CreatedAt: new Date().toISOString(),
+      ...extraFields,                          // NEW: RoleTitle, TeamCredit, etc.
     });
   }
 }

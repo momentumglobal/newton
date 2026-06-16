@@ -47,13 +47,16 @@ const CONFIG = {
   amber: 0.75,  // >= 75% billed = watch
   // < 75% = red — colour values in style.css as .cc-tile--red etc.
 },
-  
+
   // Single source of truth for the module switcher dropdown.
   // To add a new module, add it here only — all nav files reference this.
+  // NOTE: People is visible to DM + TP so they can reach People Scorecards.
+  // The People module's own nav (people-router.js) restricts them to the
+  // Scorecards page only; data scoping is applied in renderScorecardsPage.
   OS_MODULES: [
     { key: 'reporting', name: 'Reporting',        icon: 'bar-chart-2',  href: 'reporting.html',        live: true, roles: ['admin','delivery_manager','talent_partner','leadership'] },
     { key: 'marketing', name: 'Market Analytics', icon: 'brain',        href: 'market-reporting.html', live: true, roles: ['admin','delivery_manager','talent_partner'] },
-    { key: 'people',    name: 'People',           icon: 'users',        href: 'people.html',           live: true, roles: ['admin','leadership'] },
+    { key: 'people',    name: 'People',           icon: 'users',        href: 'people.html',           live: true, roles: ['admin','leadership','delivery_manager','talent_partner'] },
     { key: 'sales',     name: 'Sales',            icon: 'trending-up',  href: 'sales.html',            live: true, roles: ['admin','leadership'] },
     { key: 'command',   name: 'Command Centre',   icon: 'monitor',      href: 'command-centre.html',   live: true, roles: ['admin','leadership'] },
   ],

@@ -12,9 +12,10 @@ window.PEOPLE_APP = {
     // Resolve full role (checks LeadershipAccess + UserAssignments)
     _resolvedRole = await getEffectiveRole(user.email);
 
-    // People module is Admin and Leadership only.
+    // People module access: Admin, Leadership, Delivery Manager, and Talent
+    // Partner (TP sees only their own scorecard — scoped in renderScorecardsPage).
     // Anyone else who lands here gets redirected to the Reporting module.
-    if (!['admin', 'leadership', 'delivery_manager'].includes(_resolvedRole)) {
+    if (!['admin', 'leadership', 'delivery_manager', 'talent_partner'].includes(_resolvedRole)) {
       window.location.href = 'index.html';
       return;
     }
@@ -26,7 +27,7 @@ window.PEOPLE_APP = {
     document.getElementById('login-screen').style.display = 'none';
 
     renderPeopleNav(_resolvedRole);
-    const landing = _resolvedRole === 'delivery_manager' ? 'scorecards' : 'peopleDashboard';
+    const landing = ['delivery_manager', 'talent_partner'].includes(_resolvedRole) ? 'scorecards' : 'peopleDashboard';
     navigateToPeople(landing);
   },
 

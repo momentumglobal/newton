@@ -33,9 +33,10 @@ async function renderReportBuilder() {
   if (projects.length && !_rbProjectId) _rbProjectId = String(projects[0].id);
 
   // Load roles for the selected project (drives the Role filter dropdown).
-  // Only needed in Project scope.
+  // Only needed in Project scope. Talent Partners are scoped to their own roles.
   if (_rbScope === 'project' && _rbProjectId) {
-    _rbProjectRoles = await getRolesForProject(_rbProjectId);
+    const tpEmail = _resolvedRole === 'talent_partner' ? user.email : null;
+    _rbProjectRoles = await getRolesForProject(_rbProjectId, tpEmail);
     // Reset the role filter if the selected role isn't in this project.
     if (_rbRoleId !== 'all' && !_rbProjectRoles.some(r => String(r.id) === String(_rbRoleId))) {
       _rbRoleId = 'all';
@@ -104,8 +105,8 @@ function rbRenderSidebar(projects) {
       <div class="filter-group">
         <button class="btn-filter ${_rbScope==='project'?'active':''}"
           onclick="rbSetScope('project')">Project</button>
-        <button class="btn-filter ${_rbScope==='company'?'active':''}"
-          onclick="rbSetScope('company')">Company</button>
+        ${_resolvedRole === 'talent_partner' ? '' : `<button class="btn-filter ${_rbScope==='company'?'active':''}"
+          onclick="rbSetScope('company')">Company</button>`}
       </div>
 
       ${_rbScope === 'project' ? '<div class="rb-section-label">Project</div><select class="rb-select" onchange="rbSetProject(this.value)">' + projectOpts + '</select>' : ''}
@@ -236,6 +237,8 @@ function rbUpdateTextBlock(id, value) {
 }
 
 function rbSetScope(scope) {
+  // Talent Partners are restricted to Project scope (Company scope is unscoped).
+  if (scope === 'company' && _resolvedRole === 'talent_partner') return;
   _rbScope = scope;
   renderReportBuilder();
 }
@@ -254,8 +257,10 @@ function rbSetRole(id) {
 async function rbFetchData() {
   if (_rbScope === 'project') {
     if (!_rbProjectId) return null;
+    // Talent Partners are scoped to their own assigned roles within the project.
+    const tpEmail = _resolvedRole === 'talent_partner' ? getCurrentUser().email : null;
     const [allRoles, activity, placements, rejections] = await Promise.all([
-      getRolesForProject(_rbProjectId),
+      getRolesForProject(_rbProjectId, tpEmail),
       getWeeklyActivity(_rbProjectId, null),
       getPlacements(null),
       getRejectedOffers(null),
@@ -265,11 +270,11 @@ async function rbFetchData() {
       ? allRoles
       : allRoles.filter(r => String(r.id) === String(_rbRoleId));
     const ids = new Set(roles.map(r => String(r.id)));
+    // Always constrain to the roles id-set. For Admin/DM with "All Roles" this is
+    // every project role (no-op); for a TP it narrows to their assigned roles.
     return {
       roles,
-      activity: _rbRoleId === 'all'
-        ? activity
-        : activity.filter(a => ids.has(String(a.RoleIDLookupId)) || ids.has(String(a.RoleID))),
+      activity:   activity.filter(a => ids.has(String(a.RoleIDLookupId)) || ids.has(String(a.RoleID))),
       placements: placements.filter(p => ids.has(String(p.RoleIDLookupId)) || ids.has(String(p.RoleID))),
       rejections: rejections.filter(r => ids.has(String(r.RoleIDLookupId)) || ids.has(String(r.RoleID))),
     };

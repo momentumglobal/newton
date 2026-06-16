@@ -15,7 +15,13 @@ async function renderScorecardsPage() {
   ]);
 
   // Get unique TP emails from activity
-  const tpEmails = [...new Set(activityRaw.map(a => a.TalentPartner).filter(Boolean))];
+  let tpEmails = [...new Set(activityRaw.map(a => a.TalentPartner).filter(Boolean))];
+
+  // Talent Partners only ever see their own scorecard.
+  if (_resolvedRole === 'talent_partner') {
+    const myEmail = (getCurrentUser().email || '').toLowerCase();
+    tpEmails = tpEmails.filter(e => e.toLowerCase() === myEmail);
+  }
 
   if (!tpEmails.length) {
     main.innerHTML = `<div class='page-header'><h2>People Scorecards</h2></div>

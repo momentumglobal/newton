@@ -3,11 +3,13 @@
 let _rbBlocks     = [];   // Array of block objects (panel or text)
 let _rbScope      = 'project';  // 'project' | 'company'
 let _rbProjectId  = null;
+let _rbRoleId     = 'all';  // 'all' | role id — Project-scope role filter
 let _rbPeriod     = 'this_quarter';
 let _rbKpiPeriod  = 'quarter';
 let _rbReportId   = null;  // SharePoint item ID if editing a saved report
 let _rbReportData = null;  // Cached fetch result { roles, activity, placements, rejections }
 let _rbTitle      = '';
+let _rbProjectRoles = [];  // Roles for the selected project (drives Role dropdown)
 
 const RB_PALETTE = [
   { key: 'kpiStrip',        label: 'KPI Strip',                 scope: 'both'    },
@@ -29,6 +31,18 @@ async function renderReportBuilder() {
   // Load projects for the project selector
   const projects = await getScopedProjects(user.email, false);
   if (projects.length && !_rbProjectId) _rbProjectId = String(projects[0].id);
+
+  // Load roles for the selected project (drives the Role filter dropdown).
+  // Only needed in Project scope.
+  if (_rbScope === 'project' && _rbProjectId) {
+    _rbProjectRoles = await getRolesForProject(_rbProjectId);
+    // Reset the role filter if the selected role isn't in this project.
+    if (_rbRoleId !== 'all' && !_rbProjectRoles.some(r => String(r.id) === String(_rbRoleId))) {
+      _rbRoleId = 'all';
+    }
+  } else {
+    _rbProjectRoles = [];
+  }
 
   // Load saved reports from SharePoint
   const saved = await getSavedReports();
@@ -59,6 +73,13 @@ function rbRenderSidebar(projects) {
     `<option value="${p.id}" ${String(p.id) === _rbProjectId ? 'selected' : ''}>
       ${p.CustomerName}</option>`).join('');
 
+  // Role options for the selected project, with an "All Roles" default.
+  const roleOpts = ['<option value="all"' + (_rbRoleId === 'all' ? ' selected' : '') + '>All Roles</option>']
+    .concat(_rbProjectRoles.map(r => {
+      const label = r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle;
+      return `<option value="${r.id}" ${String(r.id) === String(_rbRoleId) ? 'selected' : ''}>${label}</option>`;
+    })).join('');
+
   const periodOpts = DETAIL_PERIOD_OPTIONS.map(([k, l]) =>
     `<option value="${k}" ${_rbPeriod === k ? 'selected' : ''}>${l}</option>`).join('');
 
@@ -88,6 +109,8 @@ function rbRenderSidebar(projects) {
       </div>
 
       ${_rbScope === 'project' ? '<div class="rb-section-label">Project</div><select class="rb-select" onchange="rbSetProject(this.value)">' + projectOpts + '</select>' : ''}
+
+      ${_rbScope === 'project' ? '<div class="rb-section-label">Role</div><select class="rb-select" onchange="rbSetRole(this.value)">' + roleOpts + '</select>' : ''}
 
       <div class="rb-section-label">Period</div>
       <select class="rb-select" onchange="_rbPeriod = this.value">${periodOpts}</select>
@@ -219,6 +242,13 @@ function rbSetScope(scope) {
 
 function rbSetProject(id) {
   _rbProjectId = String(id);
+  // Role list is project-specific — reset filter and re-render to refresh options.
+  _rbRoleId = 'all';
+  renderReportBuilder();
+}
+
+function rbSetRole(id) {
+  _rbRoleId = id === 'all' ? 'all' : String(id);
 }
 
 async function rbFetchData() {
@@ -230,10 +260,16 @@ async function rbFetchData() {
       getPlacements(null),
       getRejectedOffers(null),
     ]);
-    const ids = new Set(allRoles.map(r => String(r.id)));
+    // Apply the Role filter — narrow to a single role if one is selected.
+    const roles = _rbRoleId === 'all'
+      ? allRoles
+      : allRoles.filter(r => String(r.id) === String(_rbRoleId));
+    const ids = new Set(roles.map(r => String(r.id)));
     return {
-      roles: allRoles,
-      activity,
+      roles,
+      activity: _rbRoleId === 'all'
+        ? activity
+        : activity.filter(a => ids.has(String(a.RoleIDLookupId)) || ids.has(String(a.RoleID))),
       placements: placements.filter(p => ids.has(String(p.RoleIDLookupId)) || ids.has(String(p.RoleID))),
       rejections: rejections.filter(r => ids.has(String(r.RoleIDLookupId)) || ids.has(String(r.RoleID))),
     };
@@ -310,6 +346,7 @@ async function rbSaveReport() {
     Title:       title,
     Scope:       _rbScope,
     ProjectID:   _rbScope === 'project' ? _rbProjectId : null,
+    RoleID:      _rbScope === 'project' && _rbRoleId !== 'all' ? _rbRoleId : null,
     Period:      _rbPeriod,
     KpiPeriod:   _rbKpiPeriod,
     ModuleOrder: JSON.stringify(_rbBlocks),
@@ -321,7 +358,7 @@ async function rbSaveReport() {
     const result = await createSavedReport(payload);
     _rbReportId = result.id;
   }
-  
+
   // Brief confirmation — no intrusive alert
    const btn = document.getElementById('rb-save-btn');
  if (btn) { btn.textContent = 'Saved ✓'; setTimeout(() => { btn.textContent = 'Save'; }, 2000); }
@@ -369,6 +406,7 @@ async function rbLoadReport(id) {
   _rbReportId   = id;
   _rbScope      = report.Scope || 'project';
   _rbProjectId  = report['ProjectID'] ? String(report['ProjectID']) : null;
+  _rbRoleId     = report['RoleID'] ? String(report['RoleID']) : 'all';
   _rbPeriod     = report.Period || 'this_quarter';
   _rbKpiPeriod  = report.KpiPeriod || 'quarter';
   _rbBlocks     = JSON.parse(report.ModuleOrder || '[]');

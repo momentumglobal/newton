@@ -17,10 +17,19 @@ async function renderScorecardsPage() {
   // Get unique TP emails from activity
   let tpEmails = [...new Set(activityRaw.map(a => a.TalentPartner).filter(Boolean))];
 
-  // Talent Partners only ever see their own scorecard.
+  // ── Role-based scoping ──────────────────────────────────────────────
+  // Talent Partners see only their own scorecard.
+  // Delivery Managers see only TPs assigned to their projects.
+  // Admin / Leadership see all.
   if (_resolvedRole === 'talent_partner') {
     const myEmail = (getCurrentUser().email || '').toLowerCase();
     tpEmails = tpEmails.filter(e => e.toLowerCase() === myEmail);
+  } else if (_resolvedRole === 'delivery_manager') {
+    const allowed = await getScopedTpEmails(getCurrentUser().email);
+    // null = unrestricted (e.g. admin); otherwise filter to assigned TPs.
+    if (allowed !== null) {
+      tpEmails = tpEmails.filter(e => allowed.has(e.toLowerCase()));
+    }
   }
 
   if (!tpEmails.length) {
@@ -60,6 +69,23 @@ async function renderScorecardsPage() {
       <p class='page-subtitle'>Rolling Quarterly Coaching View</p>
     </div>
     <div class='scorecard-grid'>${cards}</div>`;
+}
+
+// Returns a Set of lowercased TP emails assigned to the given user's projects.
+// Used to scope a Delivery Manager to the scorecards of TPs on their projects.
+async function getScopedTpEmails(userEmail) {
+  const projectIds = await getUserProjectIds(userEmail);
+  // Admins resolve to null (all projects) — treat as unrestricted.
+  if (projectIds === null) return null;
+  const allowed = new Set();
+  for (const pid of projectIds) {
+    const assignments = await getTalentPartnersForProject(pid);
+    assignments.forEach(a => {
+      const email = (a.UserEmail || a.Title || '').toLowerCase();
+      if (email) allowed.add(email);
+    });
+  }
+  return allowed;
 }
 
 function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null) {

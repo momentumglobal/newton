@@ -654,19 +654,21 @@ function setDetailPeriod(period) {
   if (el && window._dashCache) {
   const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole);
   const c = window._dashCache;
+  const hideEmpty = html => html.includes('no-data') ? '' : html;
   const roleAnalyticsPlaceholder = `<div id='role-analytics-placeholder'></div>`;
   el.innerHTML =
-    renderPlacementsPanel(c.placements, c.roles, _dashDetailPeriod) +
-    renderPipelineActivityTable(c.activity, c.roles, _dashDetailPeriod) +
-    (isDMAdmin ? renderActivityByTPPanel(c.activity, _dashDetailPeriod, c.tpMap) : '') +
-    (isDMAdmin ? renderRejectionPanel(c.rejections, c.roles, _dashDetailPeriod) : '') +
-    (isDMAdmin ? renderUpcomingStartersPanel(c.placements, c.roles) : '') +
-    (isDMAdmin ? renderSpendPanel(c.roles, c.placements) : '') +
+    hideEmpty(renderPlacementsPanel(c.placements, c.roles, _dashDetailPeriod)) +
+    hideEmpty(renderPipelineActivityTable(c.activity, c.roles, _dashDetailPeriod)) +
+    (isDMAdmin ? hideEmpty(renderActivityByTPPanel(c.activity, _dashDetailPeriod, c.tpMap)) : '') +
+    (isDMAdmin ? hideEmpty(renderRejectionPanel(c.rejections, c.roles, _dashDetailPeriod)) : '') +
+    (isDMAdmin ? hideEmpty(renderUpcomingStartersPanel(c.placements, c.roles)) : '') +
+    (isDMAdmin ? hideEmpty(renderSpendPanel(c.roles, c.placements)) : '') +
     roleAnalyticsPlaceholder;
   renderRoleAnalyticsPanel(c.roles, c.analyticsActs, c.historical, c.tpMap)
     .then(html => {
       const ph = document.getElementById('role-analytics-placeholder');
-      if (ph) ph.outerHTML = html;
+      const cleaned = html.includes('no-data') ? '' : html;
+      if (ph) ph.outerHTML = cleaned;
     });
 } else {
     renderProjectDashboard();
@@ -884,10 +886,11 @@ function setCompanyDetailPeriod(period) {
   const el = document.getElementById('co-detail-grid');
   if (el && window._coCache) {
   const c = window._coCache;
-  el.innerHTML = renderCompanyTPPanel(
+  const cleaned = renderCompanyTPPanel(
     c.activity, c.projectMap,
     c.roleProjectMap, _companyDetailPeriod, c.tpMap
   );
+  el.innerHTML = cleaned.includes('no-data') ? '' : cleaned;
 } else {
     renderCompanyDashboard();
   }

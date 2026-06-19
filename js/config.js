@@ -48,6 +48,13 @@ const CONFIG = {
   // < 75% = red — colour values in style.css as .cc-tile--red etc.
 },
 
+  // Monthly estimated revenue bands — Sales > Revenue Tracking chart
+  REVENUE_THRESHOLDS: {
+  green: 225000,  // >= £225k / month = healthy
+  amber: 200000,  // >= £200k / month = watch
+  // < £200k = red
+},
+  
   // Single source of truth for the module switcher dropdown.
   // To add a new module, add it here only — all nav files reference this.
   // NOTE: People is visible to DM + TP so they can reach People Scorecards.

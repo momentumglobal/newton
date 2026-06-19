@@ -165,7 +165,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
               value="${existingData?.Budget || ''}">
           </div>
           <div class="form-group">
-            <label>Location</label>
+            <label>Location *</label>
             <select name="Location" id="role-location-select" onchange="updateCurrencyFromLocation(this.value)" required>
               <option value="">-- Select location --</option>
               ${Object.keys(CONFIG.COUNTRY_CURRENCY).sort().map(country =>
@@ -210,8 +210,8 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             </select>
           </div>
           <div class="form-group">
-            <label>Functional Area</label>
-            <select name="Department" id="role-department-select">
+            <label>Functional Area *</label>
+            <select name="Department" id="role-department-select" required>
               ${departmentOptions}
             </select>
           </div>

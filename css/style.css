@@ -875,7 +875,12 @@ body {
 
 /* Tile expand */
 .cc-grid--expanded .cc-tile { flex: 0 0 0; opacity: 0; padding: 0; pointer-events: none; }
-.cc-grid--expanded .cc-tile--active { flex: 1; opacity: 1; padding: 32px 28px; pointer-events: all; min-height: calc(100vh - 160px); }
+.cc-grid--expanded .cc-tile--active { flex: 1; opacity: 1; padding: 32px 28px; pointer-events: all; min-height: calc(100vh - 160px); justify-content: flex-start; }
+
+/* Expanded Revenue tile: title + stats top-aligned, chart fills the rest */
+.cc-grid--expanded .cc-tile--active .cc-tile__detail { flex: 1; width: 100%; display: flex; margin-top: 20px; }
+.cc-grid--expanded .cc-tile--active .cc-tile__detail > div { flex: 1; display: flex; flex-direction: column; margin-bottom: 0; }
+.cc-grid--expanded .cc-tile--active .cc-tile__detail svg { flex: 1; min-height: 0; height: auto; }
 /* RAG tile colours */
 .cc-tile { background: #F5F5F5; border-left: 5px solid #BBBBBB; }
 .cc-tile--green { background: #E8F5E9; border-left: 5px solid #2E7D32; }

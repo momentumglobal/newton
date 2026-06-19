@@ -6,7 +6,8 @@ const SALES_ROLES = {
 };
 
 const SALES_PAGES = {
-  salesForecast: { label: 'Sales Forecast', roles: [SALES_ROLES.ADMIN, SALES_ROLES.LEADERSHIP] },
+  revenueTracking: { label: 'Revenue Tracking', roles: [SALES_ROLES.ADMIN, SALES_ROLES.LEADERSHIP] },
+  salesForecast:   { label: 'Sales Forecast',   roles: [SALES_ROLES.ADMIN, SALES_ROLES.LEADERSHIP] },
 };
 
 function salesCanAccess(page, role) {

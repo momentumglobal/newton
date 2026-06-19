@@ -38,7 +38,8 @@ function navigateToSales(page) {
 async function renderSalesPage(page) {
   const main = document.getElementById('main-content');
   switch (page) {
-    case 'salesForecast': await renderSalesForecastPage(); break;
+    case 'revenueTracking': await renderRevenueTrackingPage(); break;
+    case 'salesForecast':   await renderSalesForecastPage();   break;
     default:
       main.innerHTML = '<p>Page not found.</p>';
   }

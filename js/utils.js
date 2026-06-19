@@ -97,6 +97,35 @@ function computeMonthlyRevenueForYear(assignments, year) {
   return months.map(v => Math.round(v));
 }
 
+// ── Forecast revenue per month for a given year ───────────────────────
+// From the SalesForecasts list. Monthly £ = ForecastedHeadcount ×
+// ForecastMonthlyRevenuePerHead, pro-rated by day-overlap per month.
+// Rows overlapping a month are summed. Returns array[12], index 0 = Jan.
+function computeMonthlyForecastRevenueForYear(salesForecasts, year) {
+  const months = new Array(12).fill(0);
+  for (const f of salesForecasts) {
+    if (!f.ForecastStartDate || !f.ForecastEndDate) continue;
+    const fStart = new Date(f.ForecastStartDate); fStart.setHours(0,0,0,0);
+    const fEnd   = new Date(f.ForecastEndDate);   fEnd.setHours(0,0,0,0);
+    const hc     = parseFloat(f.ForecastedHeadcount) || 0;
+    const rate   = parseFloat(f.ForecastMonthlyRevenuePerHead) || 0;
+    const monthly = hc * rate;
+    if (!monthly) continue;
+    for (let m = 0; m < 12; m++) {
+      const monthStart = new Date(year, m, 1);
+      const monthEnd   = new Date(year, m + 1, 0);
+      if (fStart > monthEnd || fEnd < monthStart) continue; // no overlap
+      const overlapStart = fStart > monthStart ? fStart : monthStart;
+      const overlapEnd   = fEnd   < monthEnd   ? fEnd   : monthEnd;
+      const daysOverlap  = (overlapEnd - overlapStart) / 86400000 + 1;
+      const daysInMonth  = monthEnd.getDate();
+      const fraction     = daysInMonth > 0 ? daysOverlap / daysInMonth : 0;
+      months[m] += monthly * fraction;
+    }
+  }
+  return months.map(v => Math.round(v));
+}
+
 // ── Distinct years spanned by assignment data (ascending) ─────────────
 function getAssignmentDataYears(assignments) {
   const years = new Set();

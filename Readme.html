@@ -369,12 +369,12 @@
         <div class="card accent-amber">
           <div class="card-title">Sales</div>
           <div class="card-file">sales.html</div>
-          <div class="card-desc">Sales pipeline tracking. Revenue forecasting and pipeline management for the commercial team.</div>
+          <div class="card-desc">Sales pipeline tracking. Revenue Tracking (estimated + forecast monthly revenue chart, default landing page) and Sales Forecast pipeline management for the commercial team.</div>
         </div>
         <div class="card accent-purple">
           <div class="card-title">MG Command Centre</div>
           <div class="card-file">command-centre.html</div>
-          <div class="card-desc">Executive ops dashboard. Three live RAG tiles — Project Health, People, and Utilisation — each with an expandable detail panel. Available to Admin and Leadership only.</div>
+          <div class="card-desc">Executive ops dashboard. Four live RAG tiles — Revenue, Project Health, People, and Utilisation — each with an expandable detail panel. The Revenue tile expands to the full Revenue Tracking chart. Available to Admin and Leadership only.</div>
         </div>
       </div>
 
@@ -389,20 +389,21 @@
       <p>The module switcher dropdown in the sidebar is driven by <code>CONFIG.OS_MODULES</code> in <code>config.js</code>. This is the single source of truth — adding a new module requires only updating this array.</p>
 
       <h3>MG Command Centre — RAG logic</h3>
-      <p>Each CC tile uses a dedicated RAG calculation. All three are driven by shared functions in <code>analytics.js</code>.</p>
+      <p>Each CC tile uses a dedicated RAG calculation. Project Health, People and Utilisation are driven by shared functions in <code>analytics.js</code>; Revenue is driven by the shared revenue helpers in <code>utils.js</code>.</p>
       <table>
         <tr><th>Tile</th><th>Signal</th><th>Green</th><th>Amber</th><th>Red</th></tr>
+        <tr><td><strong>Revenue</strong></td><td>3-month avg of estimated + forecast monthly revenue (current month + next 2). Estimated from Assignments (<code>computeMonthlyRevenueForYear()</code>); forecast from SalesForecasts (<code>computeMonthlyForecastRevenueForYear()</code>)</td><td>≥£225k</td><td>≥£200k</td><td>&lt;£200k</td></tr>
         <tr><td><strong>Project Health</strong></td><td>% of live roles flagged (days-open vs stage timeline + submission conversion &lt;50%)</td><td>&lt;25%</td><td>≤50%</td><td>&gt;50%</td></tr>
         <tr><td><strong>People</strong></td><td>Weighted flagged-role score across TPs (green=0, amber=1, red=2) ÷ TP count</td><td>&lt;0.5</td><td>≤1.0</td><td>&gt;1.0</td></tr>
         <tr><td><strong>Utilisation</strong></td><td>13-week forecast % (known assignments this month via <code>computeMonthlyRows()</code> + SalesForecasts headcount / total active headcount)</td><td>≥85%</td><td>≥75%</td><td>&lt;75%</td></tr>
       </table>
-      <div class="callout">RAG thresholds for Utilisation are defined in <code>CONFIG.UTILISATION_THRESHOLDS</code> in config.js (<code>green: 0.85, amber: 0.75</code>). Never hardcode these values in page scripts.</div>
+      <div class="callout">RAG thresholds are centralised in config.js: Utilisation in <code>CONFIG.UTILISATION_THRESHOLDS</code> (<code>green: 0.85, amber: 0.75</code>) and Revenue in <code>CONFIG.REVENUE_THRESHOLDS</code> (<code>green: 225000, amber: 200000</code> — monthly £). Never hardcode these values in page scripts.</div>
 
       <h3>CCStatus SharePoint list</h3>
-      <p>The Command Centre writes its three RAG values to the <strong>CCStatus</strong> SharePoint list on every load. The homepage reads CCStatus on load to display badge colours instantly without recomputing. The homepage refresh button recomputes live and writes back to SharePoint.</p>
+      <p>The homepage refresh button computes the four RAG values and writes them to the <strong>CCStatus</strong> SharePoint list. The homepage reads CCStatus on load to display badge colours instantly without recomputing. The <code>revenue</code> row is auto-created on first refresh (shows neutral/grey until then) — no schema change required.</p>
       <table>
         <tr><th>Field</th><th>Values</th><th>Notes</th></tr>
-        <tr><td>Title</td><td><code>health</code> / <code>people</code> / <code>util</code></td><td>One row per tile</td></tr>
+        <tr><td>Title</td><td><code>health</code> / <code>people</code> / <code>util</code> / <code>revenue</code></td><td>One row per tile</td></tr>
         <tr><td>RAG</td><td><code>green</code> / <code>amber</code> / <code>red</code> / <code>grey</code></td><td>Custom column — must use <code>CCStatus: {}</code> in FIELD_ALIASES (not <code>{ RAG: 'RAG' }</code>, which deletes the field)</td></tr>
       </table>
     </div>
@@ -468,7 +469,7 @@
       <h3>HTML pages</h3>
       <table>
         <tr><th>File</th><th>Purpose</th></tr>
-        <tr><td><span class="file-tag">index.html</span></td><td>Home screen / module selector. Seasonal effects, announcements, CC banner with RAG badges.</td></tr>
+        <tr><td><span class="file-tag">index.html</span></td><td>Home screen / module selector. Seasonal effects, announcements, CC banner with four RAG badges (Revenue, Projects, People, Utilisation). The Revenue pill uses the same 3-month est+forecast basis as the CC Revenue tile.</td></tr>
         <tr><td><span class="file-tag">reporting.html</span></td><td>Reporting module entry point.</td></tr>
         <tr><td><span class="file-tag">people.html</span></td><td>People module entry point.</td></tr>
         <tr><td><span class="file-tag">sales.html</span></td><td>Sales module entry point.</td></tr>
@@ -487,7 +488,7 @@
         <tr><th>File</th><th>Responsibility</th><th>Key exports</th></tr>
         <tr><td><span class="file-tag">js/config.js</span></td><td>Static app configuration</td><td>CONFIG, CONFIG.OS_MODULES, CONFIG.UTILISATION_THRESHOLDS, getUserRole(), getUserRoleAsync()</td></tr>
         <tr><td><span class="file-tag">js/auth.js</span></td><td>MSAL authentication only</td><td>signIn(), signOut(), getToken(), getCurrentUser(), isSignedIn()</td></tr>
-        <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), formatSalary(), daysOpen(), ghost mode helpers</td></tr>
+        <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), computeMonthlyRevenueForYear(), computeMonthlyForecastRevenueForYear(), getAssignmentDataYears(), formatSalary(), daysOpen(), ghost mode helpers</td></tr>
         <tr><td><span class="file-tag">js/api.js</span></td><td>All SharePoint/Graph API calls</td><td>getItems(), createItem(), updateItem(), deleteItem(), getEffectiveRole(), all list-specific helpers</td></tr>
         <tr><td><span class="file-tag">js/nav-core.js</span></td><td>Shared sidebar renderer</td><td>renderModuleNav(), updateNavActiveLink(), exitGhostMode()</td></tr>
         <tr><td><span class="file-tag">js/notifications.js</span></td><td>In-app notification engine — bell, drawer, triggers</td><td>fireNotification(), clearNotification(), renderNotificationBell(), markRead(), paintBell(), notifEsc(). Suppressed in ghost mode. Loaded after nav-core.js on every sidebar page + on index.html.</td></tr>
@@ -534,8 +535,9 @@
         <tr><th>File</th><th>Responsibility</th></tr>
         <tr><td><span class="file-tag">js/sales-router.js</span></td><td>Page registry for Sales module</td></tr>
         <tr><td><span class="file-tag">js/sales-nav.js</span></td><td>Calls renderModuleNav() with Sales params</td></tr>
-        <tr><td><span class="file-tag">js/sales-app.js</span></td><td>Module init — role check, redirect if unauthorised</td></tr>
-        <tr><td><span class="file-tag">js/sales-pages.js</span></td><td>Sales Forecast page renderer</td></tr>
+        <tr><td><span class="file-tag">js/sales-app.js</span></td><td>Module init — role check, redirect if unauthorised. Lands on Revenue Tracking (default page).</td></tr>
+        <tr><td><span class="file-tag">js/sales-pages.js</span></td><td>Revenue Tracking page (year dropdown + chart) and Sales Forecast page renderers. Sales Forecast modal includes the Monthly Revenue per Head field.</td></tr>
+        <tr><td><span class="file-tag">js/revenue-chart.js</span></td><td>Shared Revenue Tracking chart renderer — <code>_renderRevenueLineGraph()</code>, <code>_fmtGBPk()</code>. Pure presentation, no network I/O. Loaded by sales.html and command-centre.html. Pattern mirrors analytics.js (pure fns, multiple entry points).</td></tr>
       </table>
 
       <h3>Market Analytics module</h3>
@@ -554,7 +556,7 @@
         <tr><td><span class="file-tag">js/cc-router.js</span></td><td>Page registry for Command Centre. Defines CC_PAGES, ccCanAccess(), ccGetAccessiblePages(). Access: Admin and Leadership only.</td></tr>
         <tr><td><span class="file-tag">js/cc-nav.js</span></td><td>Calls renderModuleNav() with CC params. renderCCNav(), toggleCCModuleDropdown(), navigateToCC().</td></tr>
         <tr><td><span class="file-tag">js/cc-app.js</span></td><td>Module init — MSAL redirect, role check, sets app-shell display:flex, calls renderCCNav() and renderCCOverview().</td></tr>
-        <tr><td><span class="file-tag">js/cc-pages.js</span></td><td>All CC renderers: renderCCOverview(), tile builders, RAG calculations (computeProjectHealthRAG, computePeopleRAG, computeUtilisationRAG), expandable detail panel renderers (renderHealthDetail, renderPeopleDetail, renderUtilDetail).</td></tr>
+        <tr><td><span class="file-tag">js/cc-pages.js</span></td><td>All CC renderers: renderCCOverview(), tile builders, RAG calculations (computeRevenueRAG, computeProjectHealthRAG, computePeopleRAG, computeUtilisationRAG), expandable detail panel renderers (renderRevenueDetail — calls the shared chart, renderHealthDetail, renderPeopleDetail, renderUtilDetail). Revenue helpers: _ccRevenueCalc(), ccRevenueStats().</td></tr>
       </table>
 
       <h3>Admin</h3>
@@ -607,6 +609,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">api.js</span>
 <span class="code-key">analytics.js</span>    <span class="code-comment">← isRoleFlagged(), ACTIVE_STAGES, STAGE_ORDER — load before cc-pages.js</span>
 <span class="code-key">nav-core.js</span>
+<span class="code-key">revenue-chart.js</span> <span class="code-comment">← _renderRevenueLineGraph() for the Revenue tile — load before cc-pages.js</span>
 <span class="code-key">cc-router.js</span>
 <span class="code-key">cc-nav.js</span>
 <span class="code-key">cc-pages.js</span>
@@ -620,6 +623,8 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">utils.js</span>     <span class="code-comment">← Required — ghost helpers called by api.js</span>
 <span class="code-key">api.js</span>
 <span class="code-key">analytics.js</span> <span class="code-comment">← index.html only — required for refreshCCBanner()</span>
+<span class="code-comment">// index.html uses computeMonthlyRevenueForYear() + computeMonthlyForecastRevenueForYear()</span>
+<span class="code-comment">// from utils.js for the Revenue banner pill — no revenue-chart.js needed (data only, no chart)</span>
 <span class="code-key">os-admin.js</span>  <span class="code-comment">← admin.html only</span>
       </div>
     </div>
@@ -654,7 +659,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <table>
         <tr><th>List</th><th>Purpose</th><th>Key fields</th></tr>
         <tr><td><strong>AppSettings</strong></td><td>Single-row config (Title = "config")</td><td>AnnouncementMessage, SeasonalEffect</td></tr>
-        <tr><td><strong>CCStatus</strong></td><td>Command Centre RAG state — one row per tile</td><td>Title (<code>health</code> / <code>people</code> / <code>util</code>), RAG (<code>green</code> / <code>amber</code> / <code>red</code> / <code>grey</code>). Written by CC on load and by index.html refresh button. Read by index.html on load.</td></tr>
+        <tr><td><strong>CCStatus</strong></td><td>Command Centre RAG state — one row per tile</td><td>Title (<code>revenue</code> / <code>health</code> / <code>people</code> / <code>util</code>), RAG (<code>green</code> / <code>amber</code> / <code>red</code> / <code>grey</code>). Written by index.html refresh button. Read by index.html on load. The <code>revenue</code> row is auto-created on first refresh.</td></tr>
         <tr><td><strong>Notifications</strong></td><td>In-app notification rows — one per recipient</td><td>RecipientEmail (email), TriggerType (<code>roleFlag</code> / <code>ccRed</code> / <code>surveyClose</code> / <code>placement</code> / <code>firstPlacement</code>), TriggerKey (dedupe), Status (<code>active</code> / <code>cleared</code>), IsRead (Yes/No), Tone (<code>attention</code> / <code>celebrate</code> / <code>milestone</code>), DeepLink, Body, CreatedAt. Written by triggers in index.html (refreshCCBanner) and forms.js (submitPlacementForm). FIELD_ALIASES entry must be <code>Notifications: {}</code>.</td></tr>
       </table>
 
@@ -680,9 +685,10 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 
       <h3>Sales module lists</h3>
       <table>
-        <tr><th>List</th><th>Key fields</th></tr>
-        <tr><td><strong>SalesForecasts</strong></td><td>Start (date), End (date), Headcount — used by Command Centre Utilisation RAG for 13-week forward forecast</td></tr>
+        <tr><th>List</th><th>Title alias</th><th>Key fields</th></tr>
+        <tr><td><strong>SalesForecasts</strong></td><td>(Customer / Project name)</td><td>ForecastStartDate (date), ForecastEndDate (date), ForecastedHeadcount, <code>ForecastMonthlyRevenuePerHead</code> (number, £ — added June 2026), Notes. Used by Command Centre Utilisation RAG (13-week forward headcount forecast) and by the Revenue Tracking chart / Revenue tile (monthly forecast revenue = ForecastedHeadcount × ForecastMonthlyRevenuePerHead, pro-rated by day-overlap).</td></tr>
       </table>
+      <div class="callout"><strong>Assignments — revenue:</strong> the Revenue Tracking chart and CC Revenue tile derive estimated monthly revenue from the <strong>Assignments</strong> list (People module), pro-rating <code>MonthlyBillRate</code> by day-overlap across each month. All assignments count (former, current, planned) — the Billed flag is ignored. Empty MonthlyBillRate (or empty ForecastMonthlyRevenuePerHead) contributes £0.</div>
 
       <h3>Field normalisation</h3>
       <p>SharePoint's <code>Title</code> field and the typo field <code>Yeare</code> are aliased to meaningful names in <code>FIELD_ALIASES</code> in <code>api.js</code>. All reads go through <code>normaliseFields()</code> so the application always sees consistent field names regardless of SharePoint's internal naming.</p>
@@ -805,7 +811,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <p class="section-intro">Established during the v1 refactor audit (June 2026). Apply to all future Newton build work.</p>
 
       <h3>Single source of truth</h3>
-      <p>Any value referenced in more than one place lives in exactly one file. <code>CONFIG.OS_MODULES</code> is the canonical example — it defines the module switcher for all nav files. <code>CONFIG.UTILISATION_THRESHOLDS</code> defines utilisation RAG thresholds for both the People Dashboard and the Command Centre. Adding a new module means editing <code>config.js</code> only.</p>
+      <p>Any value referenced in more than one place lives in exactly one file. <code>CONFIG.OS_MODULES</code> is the canonical example — it defines the module switcher for all nav files. <code>CONFIG.UTILISATION_THRESHOLDS</code> defines utilisation RAG thresholds for both the People Dashboard and the Command Centre; <code>CONFIG.REVENUE_THRESHOLDS</code> defines revenue RAG bands for the Sales Revenue Tracking chart, the CC Revenue tile and the homepage Revenue pill. Adding a new module means editing <code>config.js</code> only.</p>
 
       <h3>File responsibilities — hard rules</h3>
       <ul class="checklist">
@@ -903,6 +909,22 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
       <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">June 2026</div>
+        <div class="changelog-title">Sales — Revenue Tracking, forecast line &amp; Command Centre wiring</div>
+        <ul>
+          <li><strong>New Sales page: Revenue Tracking</strong> — default landing page (top of the Sales nav, above Sales Forecast). SVG line graph of estimated monthly revenue (Jan–Dec) with green/amber/red threshold bands; year dropdown lists only years assignment data spans. Estimated revenue pro-rates each Assignment's <code>MonthlyBillRate</code> by day-overlap; counts former, current and planned assignments (Billed flag ignored).</li>
+          <li><strong>Forecasted Revenue line</strong> — dashed orange line forking at the current month, showing estimated + forecast revenue. Forecast revenue = <code>ForecastedHeadcount × ForecastMonthlyRevenuePerHead</code> per SalesForecasts row, pro-rated by day-overlap. New SharePoint column on SalesForecasts: <code>ForecastMonthlyRevenuePerHead</code> (number, optional); new field added to the Sales Forecast modal.</li>
+          <li><strong>Command Centre Revenue tile</strong> — added as the first tile in the CC grid. RAG = 3-month avg of estimated + forecast revenue vs <code>CONFIG.REVENUE_THRESHOLDS</code>. Expands to the full Revenue Tracking chart (current year).</li>
+          <li><strong>Homepage banner Revenue pill</strong> — fourth pill (Revenue, Projects, People, Utilisation), same RAG basis as the CC tile, persisted to the <code>revenue</code> row in CCStatus (auto-created on first refresh; fires the <code>ccRed:revenue</code> notification).</li>
+          <li><strong>Shared chart extraction:</strong> <code>_renderRevenueLineGraph()</code> + <code>_fmtGBPk()</code> moved from <code>sales-pages.js</code> into new <code>js/revenue-chart.js</code>, loaded by sales.html and command-centre.html (pattern mirrors analytics.js).</li>
+          <li><strong>New config block:</strong> <code>CONFIG.REVENUE_THRESHOLDS</code> (<code>green: 225000, amber: 200000</code> — monthly £).</li>
+          <li><strong>New utils.js helpers:</strong> <code>computeMonthlyRevenueForYear()</code>, <code>computeMonthlyForecastRevenueForYear()</code>, <code>getAssignmentDataYears()</code> (all array[12], no today-cap — unlike <code>computeMonthlyRows()</code>).</li>
+          <li><strong>Bug fix (CSS):</strong> added a fallback <code>.cc-tile { background:#F5F5F5; border-left:5px solid #BBBBBB; }</code> before the RAG colour rules. Without it, a tile whose RAG class doesn't resolve (<code>cc-tile--undefined</code>) renders as an invisible white-on-white block that still takes its flex slot.</li>
+          <li><strong>Expanded tile layout:</strong> <code>.cc-grid--expanded .cc-tile--active</code> now <code>justify-content: flex-start</code> (was inheriting <code>center</code>, floating content mid-tile); the detail panel fills remaining height with the chart.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">June 2026</div>

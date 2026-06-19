@@ -2,7 +2,8 @@
 
 // ── Revenue Tracking Page ─────────────────────────────────────────
 
-let _revTrackYear = null; // selected year, set on first render
+let _revTrackYear = null;      // selected year, set on first render
+let _revTrackForecasts = null; // SalesForecasts cache for the chart
 
 async function renderRevenueTrackingPage() {
   const main = document.getElementById('main-content');
@@ -10,6 +11,7 @@ async function renderRevenueTrackingPage() {
 
   try {
     const assignments = await getAssignments();
+    _revTrackForecasts = await getSalesForecasts();
     const years = getAssignmentDataYears(assignments);
     if (_revTrackYear === null || !years.includes(_revTrackYear)) {
       const thisYear = new Date().getFullYear();
@@ -46,19 +48,26 @@ function _renderRevenueTrackingPage(assignments, years) {
         </select>
       </div>
     </div>
-    ${_renderRevenueLineGraph(assignments, _revTrackYear)}`;
+    ${_renderRevenueLineGraph(assignments, _revTrackYear, _revTrackForecasts || [])}`;
 }
 
 // ── Revenue Line Graph (mirrors People > Team Utilisation) ────────
-function _renderRevenueLineGraph(assignments, year) {
+function _renderRevenueLineGraph(assignments, year, salesForecasts) {
   const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const revenue = computeMonthlyRevenueForYear(assignments, year); // array[12]
+  const forecastRev = computeMonthlyForecastRevenueForYear(salesForecasts || [], year);
+
+  // Combined (estimated + forecast) series, used from the fork month onward
+  const combined = revenue.map((v, i) => v + forecastRev[i]);
+
+  // Fork at the current calendar month (same index rule for all years)
+  const forkIdx = new Date().getMonth();
 
   const green = CONFIG.REVENUE_THRESHOLDS.green;
   const amber = CONFIG.REVENUE_THRESHOLDS.amber;
 
-  // Dynamic y-axis: top is 10% above the higher of (max month, green band)
-  const dataMax = Math.max(...revenue, green);
+  // Dynamic y-axis: top is 10% above the higher of (max month, combined, green band)
+  const dataMax = Math.max(...revenue, ...combined, green);
   const yMax    = Math.ceil((dataMax * 1.1) / 25000) * 25000; // round to £25k
 
   const W = 900, H = 240;
@@ -101,11 +110,36 @@ function _renderRevenueLineGraph(assignments, year) {
   const line = `<polyline points='${linePts}' fill='none' stroke='#2E75B6'
                   stroke-width='2.5' stroke-linejoin='round'/>`;
 
+  // Dashed forecast line: forks at forkIdx (shares that point with the solid
+  // line), runs to Dec. Only drawn if any forecast revenue exists from the
+  // fork month onward.
+  const hasForecast = forecastRev.slice(forkIdx).some(v => v > 0);
+  const forecastPts = combined
+    .map((v, i) => ({ v, i }))
+    .filter(p => p.i >= forkIdx)
+    .map(p => `${xOf(p.i).toFixed(1)},${yOf(p.v).toFixed(1)}`)
+    .join(' ');
+  const forecastLine = hasForecast && forecastPts.includes(' ')
+    ? `<polyline points='${forecastPts}' fill='none' stroke='#E8703A'
+                stroke-width='2' stroke-dasharray='5,4'
+                stroke-linejoin='round' opacity='0.85'/>`
+    : '';
+
   const dots = revenue.map((v, i) => `
     <circle cx='${xOf(i).toFixed(1)}' cy='${yOf(v).toFixed(1)}'
             r='3.5' fill='#2E75B6' stroke='#fff' stroke-width='1.5'>
       <title>${MONTH_LABELS[i]} ${year}: ${_fmtGBPk(v)}</title>
     </circle>`).join('');
+
+  const forecastDots = hasForecast
+    ? combined.map((v, i) => ({ v, i }))
+        .filter(p => p.i > forkIdx && forecastRev[p.i] > 0)
+        .map(p => `
+          <circle cx='${xOf(p.i).toFixed(1)}' cy='${yOf(p.v).toFixed(1)}'
+                  r='3' fill='#fff' stroke='#E8703A' stroke-width='2' opacity='0.85'>
+            <title>${MONTH_LABELS[p.i]} ${year}: ${_fmtGBPk(p.v)} (est. + forecast)</title>
+          </circle>`).join('')
+    : '';
 
   return `
     <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;
@@ -118,8 +152,26 @@ function _renderRevenueLineGraph(assignments, year) {
         ${gridLines}
         ${xLabels}
         ${line}
+        ${forecastLine}
         ${dots}
+        ${forecastDots}
       </svg>
+      <div style='display:flex;justify-content:center;gap:24px;margin-top:4px;
+                  font-size:11px;color:#555'>
+        <div style='display:flex;align-items:center;gap:6px'>
+          <svg width='24' height='2' style='overflow:visible'>
+            <line x1='0' y1='1' x2='24' y2='1' stroke='#2E75B6' stroke-width='2.5'/>
+          </svg>
+          Estimated (booked)
+        </div>
+        <div style='display:flex;align-items:center;gap:6px'>
+          <svg width='24' height='2' style='overflow:visible'>
+            <line x1='0' y1='1' x2='24' y2='1' stroke='#E8703A' stroke-width='2'
+                  stroke-dasharray='5,4' opacity='0.85'/>
+          </svg>
+          Estimated + Forecast
+        </div>
+      </div>
       <div style='display:flex;justify-content:center;gap:24px;margin-top:8px;
                   font-size:11px;color:#555'>
         <div style='display:flex;align-items:center;gap:6px'>
@@ -230,6 +282,10 @@ function _forecastModal() {
           <input type="number" id="forecast-hc" class="form-control" min="1" step="1">
         </div>
         <div class="form-group">
+          <label>Monthly Revenue per Head (£)</label>
+          <input type="number" id="forecast-rev-per-head" class="form-control" min="0" step="100">
+        </div>
+        <div class="form-group">
           <label>Notes</label>
           <textarea id="forecast-notes" class="form-control" rows="3"></textarea>
         </div>
@@ -251,6 +307,7 @@ async function openForecastModal(id) {
   document.getElementById('forecast-start').value = '';
   document.getElementById('forecast-end').value = '';
   document.getElementById('forecast-hc').value = '';
+  document.getElementById('forecast-rev-per-head').value = '';
   document.getElementById('forecast-notes').value = '';
   document.getElementById('forecast-edit-id').value = '';
 
@@ -267,6 +324,7 @@ async function openForecastModal(id) {
         document.getElementById('forecast-end').value = f.ForecastEndDate
           ? f.ForecastEndDate.substring(0, 10) : '';
         document.getElementById('forecast-hc').value = f.ForecastedHeadcount ?? '';
+        document.getElementById('forecast-rev-per-head').value = f.ForecastMonthlyRevenuePerHead ?? '';
         document.getElementById('forecast-notes').value = f.Notes || '';
       }
     } catch (e) {
@@ -294,6 +352,7 @@ async function saveForecast() {
   const start = document.getElementById('forecast-start').value;
   const end   = document.getElementById('forecast-end').value;
   const hc    = parseInt(document.getElementById('forecast-hc').value, 10);
+  const revPerHead = document.getElementById('forecast-rev-per-head').value;
   const notes = document.getElementById('forecast-notes').value.trim();
   const editId = document.getElementById('forecast-edit-id').value;
 
@@ -316,6 +375,7 @@ async function saveForecast() {
       ForecastStartDate: start,
       ForecastEndDate: end,
       ForecastedHeadcount: hc,
+      ForecastMonthlyRevenuePerHead: revPerHead === '' ? null : parseFloat(revPerHead),
       Notes: notes,
     };
     if (editId) {

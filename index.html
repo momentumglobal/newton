@@ -149,11 +149,24 @@ async function refreshCCBanner() {
   const forecastUtil = Math.min(knownUtil + (totalActiveHeadcount > 0 ? forecastedHC / totalActiveHeadcount : 0), 1.0);
   const ragUtil = forecastUtil >= t.green ? 'green' : forecastUtil >= t.amber ? 'amber' : 'red';
 
+  // Revenue RAG — 3-month avg of estimated + forecast (matches CC Revenue tile)
+  const rt = CONFIG.REVENUE_THRESHOLDS;
+  const revYear   = now.getFullYear();
+  const revEst    = computeMonthlyRevenueForYear(assigns, revYear);
+  const revFcast  = computeMonthlyForecastRevenueForYear(forecasts, revYear);
+  const revM      = now.getMonth();
+  const revIdxs   = [revM, revM + 1, revM + 2].filter(i => i <= 11);
+  const revForecast = revIdxs.reduce((s, i) => s + revEst[i] + revFcast[i], 0) / revIdxs.length;
+  const ragRevenue = revForecast >= rt.green ? 'green' : revForecast >= rt.amber ? 'amber' : 'red';
+
+  // Write to CCStatus SP list
+
   // Write to CCStatus SP list
   const statuses = [
-    { title: 'health', rag: ragHealth },
-    { title: 'people', rag: ragPeople },
-    { title: 'util',   rag: ragUtil   },
+    { title: 'health',  rag: ragHealth  },
+    { title: 'people',  rag: ragPeople  },
+    { title: 'util',    rag: ragUtil    },
+    { title: 'revenue', rag: ragRevenue },
   ];
   const existing = await getItems('CCStatus');
   const ccRecipients = await getCcRecipients();
@@ -174,10 +187,10 @@ async function refreshCCBanner() {
   }
 
 
-  renderCCBadges(ragHealth, ragPeople, ragUtil);
+  renderCCBadges(ragHealth, ragPeople, ragUtil, ragRevenue);
 }
 
-function renderCCBadges(health, people, util) {
+function renderCCBadges(health, people, util, revenue) {
   const el = document.getElementById('cc-banner-slot');
   if (!el) return;
   el.innerHTML = `
@@ -188,9 +201,10 @@ function renderCCBadges(health, people, util) {
       </div>
       <div class="cc-home-banner__sub">Executive Operations View</div>
       <div class="cc-home-banner__badges">
-        ${ccBadgeHTML(health, 'Projects')}
-        ${ccBadgeHTML(people, 'People')}
-        ${ccBadgeHTML(util,   'Utilisation')}
+        ${ccBadgeHTML(revenue, 'Revenue')}
+        ${ccBadgeHTML(health,  'Projects')}
+        ${ccBadgeHTML(people,  'People')}
+        ${ccBadgeHTML(util,    'Utilisation')}
       </div>
     </a>`;
 }
@@ -202,9 +216,9 @@ async function renderCommandCentreBanner(role) {
   const existing = await getItems('CCStatus');
   if (existing.length) {
     const get = key => (existing.find(e => e.Title === key) || {}).RAG || 'neutral';
-    renderCCBadges(get('health'), get('people'), get('util'));
+    renderCCBadges(get('health'), get('people'), get('util'), get('revenue'));
   } else {
-    renderCCBadges('neutral', 'neutral', 'neutral');
+    renderCCBadges('neutral', 'neutral', 'neutral', 'neutral');
   }
 }
     

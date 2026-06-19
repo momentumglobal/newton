@@ -69,6 +69,47 @@ function computeMonthlyRows(assignments) {
   return rows;
 }
 
+// ── Revenue per month for a given year (no today cap) ─────────────────
+// Pro-rates each assignment's MonthlyBillRate by day-overlap across all 12
+// months of `year`. Includes former, current AND planned assignments
+// (ignores the Billed flag — this is estimated revenue, not billed).
+// Returns an array of 12 numbers, index 0 = Jan.
+function computeMonthlyRevenueForYear(assignments, year) {
+  const months = new Array(12).fill(0);
+  for (const a of assignments) {
+    if (!a.StartDate || !a.EndDate) continue;
+    const aStart = new Date(a.StartDate); aStart.setHours(0,0,0,0);
+    const aEnd   = new Date(a.EndDate);   aEnd.setHours(0,0,0,0);
+    const rate   = parseFloat(a.MonthlyBillRate) || 0;
+    if (!rate) continue;
+    for (let m = 0; m < 12; m++) {
+      const monthStart = new Date(year, m, 1);
+      const monthEnd   = new Date(year, m + 1, 0);
+      if (aStart > monthEnd || aEnd < monthStart) continue; // no overlap
+      const overlapStart = aStart > monthStart ? aStart : monthStart;
+      const overlapEnd   = aEnd   < monthEnd   ? aEnd   : monthEnd;
+      const daysOverlap  = (overlapEnd - overlapStart) / 86400000 + 1;
+      const daysInMonth  = monthEnd.getDate();
+      const fraction     = daysInMonth > 0 ? daysOverlap / daysInMonth : 0;
+      months[m] += rate * fraction;
+    }
+  }
+  return months.map(v => Math.round(v));
+}
+
+// ── Distinct years spanned by assignment data (ascending) ─────────────
+function getAssignmentDataYears(assignments) {
+  const years = new Set();
+  for (const a of assignments) {
+    if (!a.StartDate || !a.EndDate) continue;
+    const s = new Date(a.StartDate).getFullYear();
+    const e = new Date(a.EndDate).getFullYear();
+    for (let y = s; y <= e; y++) years.add(y);
+  }
+  if (!years.size) years.add(new Date().getFullYear());
+  return [...years].sort((x, y) => x - y);
+}
+
 // ── Formatting ────────────────────────────────────────────────────────
 function formatSalary(val) {
   if (!val) return '—';

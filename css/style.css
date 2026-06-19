@@ -1064,7 +1064,7 @@ body {
 .cc-home-banner__top    { display: flex; align-items: center; justify-content: center; width: 100%; position: relative; }
 .cc-home-banner__title  { font-size: 15px; font-weight: 600; color: white; text-align: center; flex: 1; }
 .cc-home-banner__sub    { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; text-align: center; }
-.cc-home-banner__badges { display: flex; gap: 8px; justify-content: center; align-items: center; }
+.cc-home-banner__badges { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
 .cc-badge               { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 9px; border-radius: 10px; }
 .cc-badge--green        { background: rgba(46,125,50,0.35);  color: #81c784; border: 1px solid rgba(46,125,50,0.5); }
 .cc-badge--amber        { background: rgba(245,127,23,0.35); color: #ffb74d; border: 1px solid rgba(245,127,23,0.5); }

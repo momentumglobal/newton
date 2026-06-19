@@ -1,5 +1,146 @@
 // js/sales-pages.js — Sales module pages
 
+// ── Revenue Tracking Page ─────────────────────────────────────────
+
+let _revTrackYear = null; // selected year, set on first render
+
+async function renderRevenueTrackingPage() {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<p>Loading...</p>';
+
+  try {
+    const assignments = await getAssignments();
+    const years = getAssignmentDataYears(assignments);
+    if (_revTrackYear === null || !years.includes(_revTrackYear)) {
+      const thisYear = new Date().getFullYear();
+      _revTrackYear = years.includes(thisYear) ? thisYear : years[years.length - 1];
+    }
+    main.innerHTML = _renderRevenueTrackingPage(assignments, years);
+  } catch (e) {
+    main.innerHTML = `<p style="color:red">Error loading revenue data: ${e.message}</p>`;
+  }
+}
+
+function onRevTrackYearChange(val) {
+  _revTrackYear = parseInt(val, 10);
+  renderRevenueTrackingPage();
+}
+
+function _fmtGBPk(v) {
+  return '£' + Math.round(v).toLocaleString('en-GB');
+}
+
+function _renderRevenueTrackingPage(assignments, years) {
+  const yearOptions = years.map(y =>
+    `<option value="${y}"${y === _revTrackYear ? ' selected' : ''}>${y}</option>`
+  ).join('');
+
+  return `
+    <div class="page-header">
+      <h2>Revenue Tracking</h2>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:13px;color:#555">Year</label>
+        <select class="form-control" style="width:auto"
+                onchange="onRevTrackYearChange(this.value)">
+          ${yearOptions}
+        </select>
+      </div>
+    </div>
+    ${_renderRevenueLineGraph(assignments, _revTrackYear)}`;
+}
+
+// ── Revenue Line Graph (mirrors People > Team Utilisation) ────────
+function _renderRevenueLineGraph(assignments, year) {
+  const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const revenue = computeMonthlyRevenueForYear(assignments, year); // array[12]
+
+  const green = CONFIG.REVENUE_THRESHOLDS.green;
+  const amber = CONFIG.REVENUE_THRESHOLDS.amber;
+
+  // Dynamic y-axis: top is 10% above the higher of (max month, green band)
+  const dataMax = Math.max(...revenue, green);
+  const yMax    = Math.ceil((dataMax * 1.1) / 25000) * 25000; // round to £25k
+
+  const W = 900, H = 240;
+  const PAD = { top: 10, right: 24, bottom: 32, left: 64 };
+  const chartW = W - PAD.left - PAD.right;
+  const chartH = H - PAD.top  - PAD.bottom;
+
+  const xOf = (i) => PAD.left + (i / 11) * chartW;
+  const yOf = (v) => PAD.top + chartH - (Math.min(v, yMax) / yMax) * chartH;
+
+  // Gridlines every £50k
+  const gridVals = [];
+  for (let v = 0; v <= yMax; v += 50000) gridVals.push(v);
+  const gridLines = gridVals.map(v => {
+    const y = yOf(v);
+    return `
+      <line x1='${PAD.left}' y1='${y}' x2='${W - PAD.right}' y2='${y}'
+            stroke='#e8e8e8' stroke-width='1'/>
+      <text x='${PAD.left - 6}' y='${y + 4}' text-anchor='end'
+            font-size='10' fill='#999'>£${(v / 1000).toFixed(0)}k</text>`;
+  }).join('');
+
+  const xLabels = MONTH_LABELS.map((lbl, i) =>
+    `<text x='${xOf(i)}' y='${PAD.top + chartH + 18}' text-anchor='middle'
+           font-size='10' fill='#888'>${lbl}</text>`
+  ).join('');
+
+  // Threshold bands: green from green→top, orange amber→green, red 0→amber
+  const bands = `
+    <rect x='${PAD.left}' y='${yOf(yMax)}' width='${chartW}'
+          height='${yOf(green) - yOf(yMax)}' fill='#e6f4ea' opacity='0.6'/>
+    <rect x='${PAD.left}' y='${yOf(green)}' width='${chartW}'
+          height='${yOf(amber) - yOf(green)}' fill='#fff3e0' opacity='0.6'/>
+    <rect x='${PAD.left}' y='${yOf(amber)}' width='${chartW}'
+          height='${yOf(0) - yOf(amber)}' fill='#fce8e8' opacity='0.6'/>`;
+
+  const linePts = revenue
+    .map((v, i) => `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`)
+    .join(' ');
+  const line = `<polyline points='${linePts}' fill='none' stroke='#2E75B6'
+                  stroke-width='2.5' stroke-linejoin='round'/>`;
+
+  const dots = revenue.map((v, i) => `
+    <circle cx='${xOf(i).toFixed(1)}' cy='${yOf(v).toFixed(1)}'
+            r='3.5' fill='#2E75B6' stroke='#fff' stroke-width='1.5'>
+      <title>${MONTH_LABELS[i]} ${year}: ${_fmtGBPk(v)}</title>
+    </circle>`).join('');
+
+  return `
+    <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;
+                padding:20px 20px 12px;margin-bottom:24px'>
+      <div style='font-size:13px;font-weight:700;color:#1B3A5C;margin-bottom:8px'>
+        Estimated Monthly Revenue ${year}</div>
+      <svg viewBox='0 0 ${W} ${H}' style='width:100%;height:auto;display:block'
+           xmlns='http://www.w3.org/2000/svg'>
+        ${bands}
+        ${gridLines}
+        ${xLabels}
+        ${line}
+        ${dots}
+      </svg>
+      <div style='display:flex;justify-content:center;gap:24px;margin-top:8px;
+                  font-size:11px;color:#555'>
+        <div style='display:flex;align-items:center;gap:6px'>
+          <span style='width:12px;height:12px;background:#e6f4ea;border:1px solid #cde6d4;
+                       display:inline-block;border-radius:2px'></span>
+          ≥ ${_fmtGBPk(green)}
+        </div>
+        <div style='display:flex;align-items:center;gap:6px'>
+          <span style='width:12px;height:12px;background:#fff3e0;border:1px solid #f0dcc0;
+                       display:inline-block;border-radius:2px'></span>
+          ${_fmtGBPk(amber)} – ${_fmtGBPk(green)}
+        </div>
+        <div style='display:flex;align-items:center;gap:6px'>
+          <span style='width:12px;height:12px;background:#fce8e8;border:1px solid #efcccc;
+                       display:inline-block;border-radius:2px'></span>
+          < ${_fmtGBPk(amber)}
+        </div>
+      </div>
+    </div>`;
+}
+
 // ── Sales Forecast Page ───────────────────────────────────────────
 
 async function renderSalesForecastPage() {

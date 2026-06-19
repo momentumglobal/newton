@@ -24,7 +24,7 @@ window.SALES_APP = {
     document.getElementById('login-screen').style.display = 'none';
 
     renderSalesNav(_salesResolvedRole);
-    navigateToSales('salesForecast');
+    navigateToSales('revenueTracking');
   },
 
   showLogin() {

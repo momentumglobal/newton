@@ -1,10 +1,41 @@
-// js/mobile-app.js — Mobile entry point, auth, and navigation controller
+// js/mobile-app.js - Mobile entry point, auth, and navigation controller
 
 let _mobileRole    = null;  // Resolved role for current user
 let _mobileUser    = null;  // { email, name }
-let _mobileView    = 'roles'; // Current top-level view
+let _mobileModule  = 'home';// Active module key ('home' | 'reporting' | ...)
+let _mobileView    = 'home';// Current view within the active module
 let _mobileRoleId  = null;  // Selected role ID for detail/action views
-let _mobileHistory = [];    // Simple back-stack
+let _mobileHistory = [];    // Simple back-stack (stores {module, view})
+
+// === Mobile module registry ===
+// Single source of truth for WHICH modules have a built mobile experience.
+// A module from CONFIG.OS_MODULES only appears in the launcher / switcher
+// if its key is in this set. Add a key here when its mobile view ships.
+// (Command Centre is intentionally excluded from mobile entirely.)
+const MOBILE_MODULES = new Set([
+  'reporting',
+  // 'people',     // Phase B
+  // 'sales',      // Phase C
+  // 'marketing',  // Phase C (Market Analytics -> Placement Analytics)
+]);
+
+// Per-module bottom-nav definitions. Each item: {view, label, icon(svg)}.
+// 'home' has no bottom nav (it's the launcher).
+const MOBILE_NAV = {
+  reporting: [
+    { view: 'roles',     label: 'Roles',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>' },
+    { view: 'activity',  label: 'Log Activity',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' },
+    { view: 'placement', label: 'Placement',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' },
+  ],
+};
+
+// Default view when a module is opened.
+const MOBILE_MODULE_HOME = {
+  reporting: 'roles',
+};
 
 function getWeekEnding() {
   const today = new Date();
@@ -24,12 +55,10 @@ function getISOWeek(date) {
 }
 
 async function mobileInit() {
-  // Show login screen while we check auth state
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app-shell').style.display    = 'none';
 
   try {
-    // Attempt silent token acquisition first
     const account = msalInstance.getAllAccounts()[0];
     if (account) {
        await msalInstance.acquireTokenSilent({
@@ -38,15 +67,12 @@ async function mobileInit() {
        });
       await mobileOnSignedIn();
     } else {
-      // Check for redirect response (returning from Microsoft login)
       const response = await msalInstance.handleRedirectPromise();
       if (response) {
         await mobileOnSignedIn();
       }
-      // else: show login screen (already visible)
     }
   } catch (e) {
-    // Silent auth failed — show login screen
     console.warn('Mobile auth:', e.message);
   }
 }
@@ -57,7 +83,7 @@ async function mobileOnSignedIn() {
   _mobileUser = user;
   _mobileRole = await getEffectiveRole(user.email);
 
-  // Only TP and DM have mobile access
+  // Only TP, DM and admin have mobile access
   if (!['talent_partner', 'delivery_manager', 'admin'].includes(_mobileRole)) {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('login-screen').innerHTML = `
@@ -72,7 +98,8 @@ async function mobileOnSignedIn() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-shell').style.display    = 'flex';
 
-  mobileNav('roles');
+  // Land on the Home launcher
+  mobileOpenHome();
 }
 
 function signIn() {
@@ -84,28 +111,61 @@ function signOut() {
   msalInstance.logoutRedirect();
 }
 
-// ── Navigation ────────────────────────────────────────────────────────
+// === Module navigation ===
 
+// Open the Home launcher (no active module).
+function mobileOpenHome(pushHistory = true) {
+  if (pushHistory) _mobileHistory.push({ module: _mobileModule, view: _mobileView });
+  _mobileModule = 'home';
+  _mobileView   = 'home';
+  mobileSyncChrome();
+  mobileRenderHome(document.getElementById('m-main'));
+}
+
+// Open a module at its default view.
+function mobileOpenModule(moduleKey, pushHistory = true) {
+  if (!MOBILE_MODULES.has(moduleKey)) return;
+  if (pushHistory) _mobileHistory.push({ module: _mobileModule, view: _mobileView });
+  _mobileModule = moduleKey;
+  _mobileView   = MOBILE_MODULE_HOME[moduleKey] || 'home';
+  mobileSyncChrome();
+  mobileRenderView();
+}
+
+// Navigate to a view within the current module.
 function mobileNav(view, pushHistory = true) {
   if (pushHistory && _mobileView !== view) {
-    _mobileHistory.push(_mobileView);
+    _mobileHistory.push({ module: _mobileModule, view: _mobileView });
   }
   _mobileView = view;
+  mobileSyncChrome();
+  mobileRenderView();
+}
 
-  // Update bottom nav active state (only for top-level views)
-  const topLevel = ['roles', 'activity', 'placement'];
-  topLevel.forEach(v => {
-    const el = document.getElementById(`m-nav-${v}`);
-    if (el) el.classList.toggle('active', v === view);
-  });
+function mobileBack() {
+  if (_mobileHistory.length) {
+    const prev = _mobileHistory.pop();
+    // Back-compat: mobile-pages.js may push a bare string (just a view).
+    // Tolerate both {module,view} objects and plain strings.
+    if (typeof prev === 'string') {
+      _mobileView = prev;                 // same module, previous view
+    } else {
+      _mobileModule = prev.module;
+      _mobileView   = prev.view;
+    }
+    mobileSyncChrome();
+    if (_mobileModule === 'home') mobileRenderHome(document.getElementById('m-main'));
+    else mobileRenderView();
+  }
+}
 
-  // Show/hide back button
-  const backBtn = document.getElementById('m-back-btn');
-  if (backBtn) backBtn.style.display = _mobileHistory.length ? 'block' : 'none';
-
-  // Render the view
+// Render the current module/view.
+function mobileRenderView() {
   const main = document.getElementById('m-main');
-  switch (view) {
+  if (_mobileModule === 'home') { mobileRenderHome(main); return; }
+
+  switch (_mobileView) {
+    // Reporting
     case 'roles':        mobileRenderRoles(main);               break;
     case 'role-detail':  mobileRenderRoleDetail(main);          break;
     case 'stage-update': mobileRenderStageUpdate(main);         break;
@@ -113,16 +173,83 @@ function mobileNav(view, pushHistory = true) {
     case 'activity-role':mobileRenderActivityForm(main, true);  break;
     case 'placement':    mobileRenderPlacementForm(main, false);break;
     case 'placement-role':mobileRenderPlacementForm(main, true);break;
-    default:             mobileRenderRoles(main);
+    default:
+      // Fallback to the module's home view
+      mobileNav(MOBILE_MODULE_HOME[_mobileModule] || 'home', false);
   }
 }
 
-function mobileBack() {
-  if (_mobileHistory.length) {
-    const prev = _mobileHistory.pop();
-    mobileNav(prev, false);
+// === Chrome (top bar, switcher, bottom nav) ===
+
+// Keep the back button, bottom nav and switcher in sync with state.
+function mobileSyncChrome() {
+  // Back button: shown whenever there's history
+  const backBtn = document.getElementById('m-back-btn');
+  if (backBtn) backBtn.style.display = _mobileHistory.length ? 'block' : 'none';
+
+  // Module switcher button label
+  const swLabel = document.getElementById('m-switcher-label');
+  if (swLabel) {
+    const mod = (CONFIG.OS_MODULES || []).find(m => m.key === _mobileModule);
+    swLabel.textContent = _mobileModule === 'home' ? 'Newton' : (mod?.name || 'Newton');
   }
+
+  // Bottom nav: rebuild for the active module (hidden on home)
+  mobileRenderBottomNav();
 }
+
+function mobileRenderBottomNav() {
+  const nav = document.getElementById('m-bottom-nav');
+  if (!nav) return;
+  const items = MOBILE_NAV[_mobileModule];
+  if (!items || _mobileModule === 'home') {
+    nav.innerHTML = '';
+    nav.style.display = 'none';
+    return;
+  }
+  nav.style.display = 'flex';
+  nav.innerHTML = items.map(it => `
+    <button class="m-nav-item ${_mobileView === it.view ? 'active' : ''}"
+      onclick="mobileNav('${it.view}')">
+      ${it.icon}
+      ${it.label}
+    </button>`).join('');
+}
+
+// === Module switcher dropdown ===
+
+function mobileToggleSwitcher() {
+  const menu = document.getElementById('m-switcher-menu');
+  if (!menu) return;
+  const open = menu.style.display === 'block';
+  if (open) { menu.style.display = 'none'; return; }
+
+  // Build menu items: Home + accessible modules
+  const modules = mobileGetAccessibleModules();
+  let html = `<button class="m-switcher-item ${_mobileModule==='home'?'active':''}"
+                onclick="mobileSwitcherGo('home')">Home</button>`;
+  html += modules.map(m => `
+    <button class="m-switcher-item ${_mobileModule===m.key?'active':''}"
+      onclick="mobileSwitcherGo('${m.key}')">${m.name}</button>`).join('');
+  menu.innerHTML = html;
+  menu.style.display = 'block';
+}
+
+function mobileSwitcherGo(key) {
+  const menu = document.getElementById('m-switcher-menu');
+  if (menu) menu.style.display = 'none';
+  if (key === 'home') mobileOpenHome();
+  else mobileOpenModule(key);
+}
+
+// Close the switcher if tapping outside it
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('m-switcher-menu');
+  const btn  = document.getElementById('m-switcher-btn');
+  if (!menu || menu.style.display !== 'block') return;
+  if (btn && (btn.contains(e.target) || menu.contains(e.target))) return;
+  menu.style.display = 'none';
+});
 
 function mobileSetTitle(title, sub = 'Momentum Global') {
   document.getElementById('m-topbar-title').textContent = title;
@@ -134,7 +261,7 @@ function mobileForceDesktop() {
   window.location.href = 'reporting.html';
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────
+// === Toast ===
 
 function mobileToast(msg) {
   const toast = document.getElementById('m-toast');
@@ -143,6 +270,6 @@ function mobileToast(msg) {
   setTimeout(() => toast.classList.remove('show'), 2500);
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────
+// === Boot ===
 
 document.addEventListener('DOMContentLoaded', mobileInit);

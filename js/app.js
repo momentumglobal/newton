@@ -45,7 +45,12 @@ window.APP = {
       await ensureUserRegistered(user.email, user.name).catch(e =>
         console.warn('Auto-registration failed:', e)
       );
-      window.location.href = 'index.html';
+      // If this session is the mobile app, return to mobile.html after the
+      // login round-trip instead of the desktop home.
+      var isAppLogin = false;
+      try { isAppLogin = localStorage.getItem('newton_mobile') === '1'; } catch (e) {}
+      var optedOutLogin = sessionStorage.getItem('newton_force_desktop');
+      window.location.href = (isAppLogin && !optedOutLogin) ? 'mobile.html' : 'index.html';
       return;
     }
     document.getElementById('app-shell').style.display = 'flex';

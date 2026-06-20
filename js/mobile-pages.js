@@ -82,11 +82,7 @@ async function mobileGetRoles() {
 
 async function mobileSelectRole(roleId) {
   _mobileRoleId = roleId;
-  _mobileHistory.push(_mobileView);
-  _mobileView = 'role-detail';
-  const backBtn = document.getElementById('m-back-btn');
-  if (backBtn) backBtn.style.display = 'block';
-  await mobileRenderRoleDetail(document.getElementById('m-main'));
+  mobileNav('role-detail');
 }
 
 async function mobileRenderRoleDetail(main) {
@@ -180,10 +176,7 @@ async function mobileSaveStage() {
   try {
     await updateItem('Roles', _mobileRoleId, { Stage: stage });
     mobileToast('Stage updated ✓');
-    // Go back to role detail
-    _mobileHistory.pop();
-    await mobileRenderRoleDetail(document.getElementById('m-main'));
-    _mobileView = 'role-detail';
+    mobileNav('role-detail', false);
   } catch (e) {
     btn.disabled    = false;
     btn.textContent = 'Save Stage';
@@ -366,9 +359,7 @@ async function mobileSubmitActivity(rolePreselected) {
     });
     mobileToast('Activity saved ✓');
     if (rolePreselected) {
-      _mobileHistory.pop();
-      await mobileRenderRoleDetail(document.getElementById('m-main'));
-      _mobileView = 'role-detail';
+      mobileNav('role-detail', false);
     } else {
       mobileNav('roles');
     }
@@ -540,9 +531,7 @@ async function mobileSubmitPlacement(rolePreselected) {
 
     mobileToast('Placement recorded ✓');
     if (rolePreselected) {
-      _mobileHistory.pop();
-      await mobileRenderRoleDetail(document.getElementById('m-main'));
-      _mobileView = 'role-detail';
+      mobileNav('role-detail', false);
     } else {
       mobileNav('roles');
     }

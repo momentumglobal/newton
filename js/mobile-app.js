@@ -258,6 +258,7 @@ function mobileSetTitle(title, sub = 'Momentum Global') {
 
 function mobileForceDesktop() {
   sessionStorage.setItem('newton_force_desktop', '1');
+  try { localStorage.removeItem('newton_mobile'); } catch (e) {}
   window.location.href = 'reporting.html';
 }
 

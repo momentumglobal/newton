@@ -345,6 +345,94 @@
       white-space: nowrap;
     }
     .m-toast.show { opacity: 1; }
+    
+    /* ── Module switcher (top bar) ── */
+    .m-switcher-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 7px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .m-switcher-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: white;
+      border: 1px solid #e8e8e8;
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+      overflow: hidden;
+      min-width: 180px;
+      z-index: 300;
+    }
+    .m-switcher-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 14px;
+      color: #0A0B44;
+      padding: 13px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid #f0f0ee;
+    }
+    .m-switcher-item:last-child { border-bottom: none; }
+    .m-switcher-item.active { background: #EBF2FA; font-weight: 600; }
+    .m-switcher-item:active { background: #dde8f5; }
+
+    /* ── Home launcher ── */
+    .m-home-greeting { margin: 4px 2px 18px; }
+    .m-home-hello { font-size: 20px; font-weight: 600; color: #0A0B44; }
+    .m-home-sub   { font-size: 13px; color: #888; margin-top: 2px; }
+    .m-module-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .m-module-card {
+      background: white;
+      border: 1px solid #e8e8e8;
+      border-radius: 14px;
+      padding: 22px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: left;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      transition: box-shadow 0.15s, transform 0.1s;
+    }
+    .m-module-card:active {
+      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+      transform: scale(0.98);
+    }
+    .m-module-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      background: #EBF2FA;
+      color: #0A0B44;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .m-module-icon svg { width: 22px; height: 22px; }
+    .m-module-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #0A0B44;
+    }
   </style>
 </head>
 <body>
@@ -370,25 +458,18 @@
           <div class="m-topbar-sub"   id="m-topbar-sub">Momentum Global</div>
         </div>
       </div>
-      <img src="momentum-symbol.png" alt="">
+      <div style="position:relative">
+        <button class="m-switcher-btn" id="m-switcher-btn" onclick="mobileToggleSwitcher()">
+          <span id="m-switcher-label">Newton</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="m-switcher-menu" id="m-switcher-menu" style="display:none"></div>
+      </div>
     </div>
 
     <div id="m-main"></div>
 
-    <nav class="m-bottom-nav" id="m-bottom-nav">
-      <button class="m-nav-item active" id="m-nav-roles" onclick="mobileNav('roles')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-        Roles
-      </button>
-      <button class="m-nav-item" id="m-nav-activity" onclick="mobileNav('activity')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        Log Activity
-      </button>
-      <button class="m-nav-item" id="m-nav-placement" onclick="mobileNav('placement')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        Placement
-      </button>
-    </nav>
+    <nav class="m-bottom-nav" id="m-bottom-nav" style="display:none"></nav>
 
     <div class="m-desktop-link">
       <a onclick="mobileForceDesktop()">Switch to desktop view</a>
@@ -407,5 +488,6 @@
   <!-- Mobile app -->
   <script src="js/mobile-app.js"></script>
   <script src="js/mobile-pages.js"></script>
+  <script src="js/mobile-home.js"></script>
 </body>
 </html>

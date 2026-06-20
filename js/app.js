@@ -1,8 +1,15 @@
 // ── Mobile auto-detect redirect ───────────────────────────────────────
-// Redirect to mobile view if on a small screen, unless user has opted out
-if (window.innerWidth < 768 && !sessionStorage.getItem('newton_force_desktop')) {
-  window.location.replace('mobile.html');
-}
+// Redirect to mobile view if on a small screen OR if this session is
+// running inside the mobile app (flag set by mobile.html), unless the user
+// has explicitly opted out via "Switch to desktop view".
+(function () {
+  var optedOut = sessionStorage.getItem('newton_force_desktop');
+  var isApp    = false;
+  try { isApp = localStorage.getItem('newton_mobile') === '1'; } catch (e) {}
+  if (!optedOut && (window.innerWidth < 768 || isApp)) {
+    window.location.replace('mobile.html');
+  }
+})();
 
 // ── Quick Links deep-link handler ─────────────────────────────────────
 // Hash format: #<pageKey>  or  #<pageKey>?action=add

@@ -103,21 +103,7 @@ async function mobileOnSignedIn() {
 }
 
 function signIn() {
-  try {
-    // Surface what we're about to do + environment, so a dead button is diagnosable.
-    var diag = 'redirectUri=' + (CONFIG && CONFIG.REDIRECT_URI) +
-               ' | href=' + location.href +
-               ' | msal=' + (typeof msal !== 'undefined');
-    alert('Starting sign-in...\n' + diag);
-    var p = msalInstance.loginRedirect(loginRequest);
-    if (p && typeof p.catch === 'function') {
-      p.catch(function (e) {
-        alert('loginRedirect FAILED:\n' + (e && (e.errorCode || '') + ' ' + (e.message || e)));
-      });
-    }
-  } catch (e) {
-    alert('signIn threw immediately:\n' + (e && (e.message || e)));
-  }
+  msalInstance.loginRedirect(loginRequest);
 }
 
 function signOut() {

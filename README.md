@@ -16,6 +16,7 @@ Newton is a static web application hosted on GitHub Pages, with Microsoft Azure 
 | Sales | `sales.html` | Admin, Leadership |
 | MG Command Centre | `command-centre.html` | Admin, Leadership |
 | Newton OS Admin | `admin.html` | Admin only |
+| Mobile App (PWA) | `mobile.html` | Admin, Delivery Manager, Talent Partner |
 
 ## Stack
 
@@ -23,21 +24,43 @@ Newton is a static web application hosted on GitHub Pages, with Microsoft Azure 
 - **Auth** — Microsoft Azure AD + MSAL.js v2
 - **Data** — SharePoint Online via Microsoft Graph API v1.0
 - **UI** — Vanilla HTML, CSS, JavaScript (no framework)
+- **Mobile** — Installable PWA (`manifest.webmanifest` + `sw.js`) over the same codebase
 - **Icons** — Lucide
 - **Fonts** — Polymath (self-hosted)
 
 ## Developer Reference
 
-Full system directory including architecture, data flows, SharePoint data model, role/access matrix, coding conventions, and module build guide:
+Full system directory including architecture, data flows, SharePoint data model, role/access matrix, coding conventions, mobile app, and module build guide:
 
 👉 **[README.html](https://momentumglobal.github.io/newton/Readme.html)**
 
 ## Quick links
 
 - [Newton platform](https://momentumglobal.github.io/newton/)
+- [Newton mobile](https://momentumglobal.github.io/newton/mobile.html)
 - [SharePoint site](https://talentpoint.sharepoint.com/sites/SolutionsHubReporting)
 
 ## Changelog
+
+### June 2026 — Mobile App (installable PWA)
+
+**New: Newton mobile as a Progressive Web App (`mobile.html`)**
+Installable to a phone home screen ("Add to Home screen" / "Install app") with a standalone launch, over the same codebase as the desktop site — no separate native build. An earlier Flutter WebView prototype was retired because embedded WebViews block Microsoft login; the PWA runs in the device browser engine where login works.
+
+- `manifest.webmanifest` — installability (name, navy Momentum icons 192/512, standalone display, `#090546` theme).
+- `sw.js` — service worker, network-first, caches **no** app code (so there is never stale JS after a commit); ignores cross-origin and non-GET requests, so Microsoft login and SharePoint writes are never intercepted.
+- Mobile shell: Home launcher + top-bar module switcher driven by `CONFIG.OS_MODULES` filtered through a new `MOBILE_MODULES` registry; per-module bottom nav via `MOBILE_NAV` (`mobile-app.js`, `mobile-home.js`).
+
+**Module coverage on mobile**
+- **Reporting** (write) — Summary, roles list with search/stage filter, role detail, stage update, weekly activity, placement, Add Role, Log Rejection (`mobile-pages.js`, `mobile-roleform.js`, `mobile-reporting-ext.js`).
+- **People** (read-only) — dashboard KPI tiles (`mobile-people.js`) + Scorecards with a swipe carousel for DM/Admin (`mobile-scorecards.js`).
+- **Sales** (write) — Sales Forecast list + add/edit (`mobile-sales.js`).
+- **Market Analytics** (read-only) — condensed Placement Analytics: Summary + Funnel Drop-off tiles, filter by location / functional area (`mobile-analytics.js`).
+- Command Centre is excluded from mobile.
+
+**Single source of truth preserved** — every mobile view reuses the existing data-layer and calculation functions (`computeMonthlyRows`, `computeVelocityScore`, `computeRoleFunnel`, etc.); no business logic is duplicated. Mobile access is limited to Talent Partners, Delivery Managers and Admins, with per-module visibility inherited from `CONFIG.OS_MODULES`.
+
+**Login robustness** — `mobileInit()` processes `handleRedirectPromise()` first and reads user email/name straight from the MSAL account, so `mobile.html` is self-sufficient after the login round-trip. `app.js` returns app sessions to `mobile.html` via a `newton_mobile` localStorage flag.
 
 ### June 2026 — Notifications, premium UI + fixes
 
@@ -68,7 +91,7 @@ One row per recipient. Fields: `RecipientEmail`, `TriggerType`, `TriggerKey`, `S
 ### June 2026 — Command Centre + bug fixes
 
 **New: MG Command Centre (`command-centre.html`)**
-Executive ops dashboard for Admin and Leadership users. Three live RAG tiles — Project Health, People, and Utilisation — each with an expandable detail panel. Accessible from the module switcher on the homepage.
+Executive ops dashboard for Admin and Leadership users. Three live RAG tiles — Project Health, People, and Utilisation — each with an expandable detail panel. Accessible from the module switcher on the homepage. _(A fourth tile, Revenue, was added later — see the Sales changelog entry; the live grid now shows four tiles, Revenue first.)_
 
 - `js/cc-router.js` — page registry and role access
 - `js/cc-nav.js` — nav wrapper using shared `renderModuleNav()`

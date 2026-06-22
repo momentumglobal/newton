@@ -16,7 +16,11 @@ async function mobileRenderRoles(main) {
     const roles = await mobileGetRoles();
 
     if (!roles.length) {
-      main.innerHTML = '<div class="m-empty">No active roles assigned to you.</div>';
+      main.innerHTML = `
+        <div class="m-action-row" style="margin-bottom:14px">
+          <button class="m-btn-primary" onclick="mobileNav('add-role')">+ Add Role</button>
+        </div>
+        <div class="m-empty">No active roles assigned to you.</div>`;
       return;
     }
 
@@ -28,7 +32,10 @@ async function mobileRenderRoles(main) {
       byProject[key].push(r);
     });
 
-    let html = '';
+    let html = `
+      <div class="m-action-row" style="margin-bottom:14px">
+        <button class="m-btn-primary" onclick="mobileNav('add-role')">+ Add Role</button>
+      </div>`;
     for (const [project, projectRoles] of Object.entries(byProject)) {
       html += `<div class="m-section-header">${project}</div>`;
       html += projectRoles.map(r => {

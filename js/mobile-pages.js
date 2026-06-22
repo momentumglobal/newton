@@ -126,6 +126,9 @@ async function mobileRenderRoleDetail(main) {
         <button class="m-btn-secondary" onclick="mobileNav('placement-role')">
           Record Placement
         </button>
+        <button class="m-btn-secondary" onclick="mobileNav('rejection-role')">
+          Log Rejection
+        </button>
       </div>
     `;
   } catch (e) {
@@ -182,6 +185,7 @@ async function mobileSaveStage() {
   btn.textContent = 'Saving…';
   try {
     await updateItem('Roles', _mobileRoleId, { Stage: stage });
+    if (typeof mobileInvalidateRolesCache === 'function') mobileInvalidateRolesCache();
     mobileToast('Stage updated ✓');
     mobileNav('role-detail', false);
   } catch (e) {

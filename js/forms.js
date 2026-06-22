@@ -365,6 +365,10 @@ async function renderWeeklyActivityForm(existingData = null) {
        ).join('');
     } catch (e) { /* fall back to empty */ }
   }
+  // On edit (non-locked project), reload + reselect the saved role after the form mounts
+  if (isEdit && !lockProject && existingData?.ProjectID) {
+    setTimeout(() => loadRolesForWeekly(existingData.ProjectID, existingData.RoleID), 0);
+  }
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Weekly Activity' : 'Log Weekly Activity'}</h2>
@@ -449,15 +453,16 @@ async function renderWeeklyActivityForm(existingData = null) {
     </div>
   `;
 }
-async function loadRolesForWeekly(projectId) {
+async function loadRolesForWeekly(projectId, selectedRoleId = null) {
   const select = document.getElementById('weekly-role-select');
+  if (!projectId) { select.innerHTML = '<option value="">-- Select project first --</option>'; return; }
   select.innerHTML = '<option value="">Loading...</option>';
   const tpEmail = select.dataset.tpEmail || null;
   const roles = (await getRolesForProject(projectId, tpEmail))
     .filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage))
     .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
   select.innerHTML = roles.length
-    ? roles.map(r => `<option value="${r.id}">${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`).join('')
+    ? '<option value="">-- Select role --</option>' + roles.map(r => `<option value="${r.id}" ${selectedRoleId == r.id ? 'selected' : ''}>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`).join('')
     : '<option value="">-- No roles assigned --</option>';
 }
 async function loadTalentPartnersForWeekly(projectId) {

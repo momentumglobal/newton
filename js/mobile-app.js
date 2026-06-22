@@ -22,6 +22,12 @@ const MOBILE_MODULES = new Set([
 // Per-module bottom-nav definitions. Each item: {view, label, icon(svg)}.
 // 'home' has no bottom nav (it's the launcher).
 const MOBILE_NAV = {
+  people: [
+    { view: 'people-dashboard', label: 'Dashboard',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
+    { view: 'scorecards', label: 'Scorecards',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>' },
+  ],
   reporting: [
     { view: 'roles',     label: 'Roles',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>' },
@@ -191,6 +197,7 @@ function mobileRenderView() {
     case 'add-role':     mobileRenderAddRole(main);             break;
     // People
     case 'people-dashboard': mobileRenderPeopleDashboard(main); break;
+    case 'scorecards':       mobileRenderScorecards(main);      break;
     default:
       // Fallback to the module's home view
       mobileNav(MOBILE_MODULE_HOME[_mobileModule] || 'home', false);

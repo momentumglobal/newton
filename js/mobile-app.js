@@ -14,7 +14,7 @@ let _mobileHistory = [];    // Simple back-stack (stores {module, view})
 // (Command Centre is intentionally excluded from mobile entirely.)
 const MOBILE_MODULES = new Set([
   'reporting',
-  // 'people',     // Phase B
+  'people',        // Phase B - read-only dashboard
   // 'sales',      // Phase C
   // 'marketing',  // Phase C (Market Analytics -> Placement Analytics)
 ]);
@@ -35,6 +35,7 @@ const MOBILE_NAV = {
 // Default view when a module is opened.
 const MOBILE_MODULE_HOME = {
   reporting: 'roles',
+  people:    'people-dashboard',
 };
 
 function getWeekEnding() {
@@ -187,6 +188,9 @@ function mobileRenderView() {
     case 'activity-role':mobileRenderActivityForm(main, true);  break;
     case 'placement':    mobileRenderPlacementForm(main, false);break;
     case 'placement-role':mobileRenderPlacementForm(main, true);break;
+    case 'add-role':     mobileRenderAddRole(main);             break;
+    // People
+    case 'people-dashboard': mobileRenderPeopleDashboard(main); break;
     default:
       // Fallback to the module's home view
       mobileNav(MOBILE_MODULE_HOME[_mobileModule] || 'home', false);

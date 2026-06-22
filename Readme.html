@@ -280,6 +280,7 @@
       <a class="sidebar-link" onclick="show('overview')">Platform Overview</a>
       <a class="sidebar-link" onclick="show('modules')">Modules</a>
       <a class="sidebar-link" onclick="show('roles')">Roles &amp; Access</a>
+      <a class="sidebar-link" onclick="show('mobile')">Mobile App</a>
 
       <div class="sidebar-section">Architecture</div>
       <a class="sidebar-link" onclick="show('files')">File Structure</a>
@@ -376,6 +377,11 @@
           <div class="card-file">command-centre.html</div>
           <div class="card-desc">Executive ops dashboard. Four live RAG tiles — Revenue, Project Health, People, and Utilisation — each with an expandable detail panel. The Revenue tile expands to the full Revenue Tracking chart. Available to Admin and Leadership only.</div>
         </div>
+        <div class="card accent-blue">
+          <div class="card-title">Mobile App (PWA)</div>
+          <div class="card-file">mobile.html</div>
+          <div class="card-desc">Installable phone app (Progressive Web App) over the same codebase. Home launcher + module switcher; mobile views for Reporting (full), People (dashboard + scorecards), Sales (forecast) and Market Analytics (placement analytics). See the Mobile App section.</div>
+        </div>
       </div>
 
       <h3>Admin interfaces</h3>
@@ -461,7 +467,56 @@
       </div>
     </div>
 
-    <!-- FILE STRUCTURE -->
+    <!-- MOBILE APP -->
+    <div class="section" id="sec-mobile" style="display:none">
+      <div class="section-title">Mobile App</div>
+      <p class="section-intro">Newton is installable on phones as a Progressive Web App (PWA). It is the same web application served from <code>mobile.html</code>, not a separate native build — so it shares one codebase, one data model and one auth flow with the desktop site. Earlier prototyping used a Flutter WebView wrapper; this was retired in favour of the PWA, which runs in the device browser engine and avoids embedded-WebView authentication issues.</p>
+
+      <h3>Installing</h3>
+      <p class="section-intro">On the phone, open <span class="file-tag">momentumglobal.github.io/newton/mobile.html</span> in Chrome (Android) or Safari (iOS), then choose "Add to Home screen" / "Install app". A Newton icon is added to the home screen and launches standalone (no browser address bar). Sign-in uses the same Microsoft account as the desktop site.</p>
+
+      <h3>How it works</h3>
+      <table>
+        <tr><th>Piece</th><th>File</th><th>Purpose</th></tr>
+        <tr><td>Manifest</td><td><span class="file-tag">manifest.webmanifest</span></td><td>Declares the app name, icons (navy Momentum mark, 192/512px), standalone display and <code>#090546</code> theme. Makes the site installable.</td></tr>
+        <tr><td>Service worker</td><td><span class="file-tag">sw.js</span></td><td>Network-first and caches no app code, so there is never stale JS after a commit. Ignores cross-origin and non-GET requests, so Microsoft login and SharePoint writes are never intercepted.</td></tr>
+        <tr><td>Mobile entry</td><td><span class="file-tag">mobile.html</span></td><td>Registers the service worker, sets a <code>newton_mobile</code> localStorage flag (so desktop pages redirect back to mobile after the login round-trip), and loads the mobile script stack.</td></tr>
+      </table>
+
+      <h3>Mobile shell &amp; navigation</h3>
+      <p class="section-intro">After login the app lands on a <strong>Home launcher</strong> — a role-aware grid of modules. A top-bar <strong>module switcher</strong> dropdown moves between modules; each module has its own bottom-nav tabs. Both are driven by <code>CONFIG.OS_MODULES</code> (single source of truth) filtered through <code>MOBILE_MODULES</code> — a module appears only if it has a built mobile view and the user's role allows it. Command Centre is intentionally excluded from mobile.</p>
+
+      <h3>Mobile JavaScript</h3>
+      <table>
+        <tr><th>File</th><th>Responsibility</th></tr>
+        <tr><td><span class="file-tag">mobile-app.js</span></td><td>Shell controller: auth/init, module registry (<code>MOBILE_MODULES</code>), per-module bottom nav (<code>MOBILE_NAV</code>), routing, module switcher, back-stack.</td></tr>
+        <tr><td><span class="file-tag">mobile-home.js</span></td><td>Home launcher — role-aware module grid.</td></tr>
+        <tr><td><span class="file-tag">mobile-pages.js</span></td><td>Reporting views: roles list, role detail, stage update, weekly activity, placement forms.</td></tr>
+        <tr><td><span class="file-tag">mobile-roleform.js</span></td><td>Reporting "Add Role" form (role-aware; identical write payload to the desktop role form).</td></tr>
+        <tr><td><span class="file-tag">mobile-reporting-ext.js</span></td><td>Reporting expansion: Summary view (KPIs + roles-by-stage), client-side search/stage filter on the roles list, Log Rejection form.</td></tr>
+        <tr><td><span class="file-tag">mobile-people.js</span></td><td>People dashboard — 4 KPI tiles (read-only), reusing the desktop calculations.</td></tr>
+        <tr><td><span class="file-tag">mobile-scorecards.js</span></td><td>People Scorecards — reuses <code>computeVelocityScore</code> from analytics.js. TP sees their own card; DM/Admin get a swipe carousel (dots + counter).</td></tr>
+        <tr><td><span class="file-tag">mobile-sales.js</span></td><td>Sales Forecast list with add/edit (write-enabled; identical payload to desktop). Admin/Leadership only.</td></tr>
+        <tr><td><span class="file-tag">mobile-analytics.js</span></td><td>Market Analytics — condensed Placement Analytics (Summary + Funnel Drop-off tiles, filter by location / functional area). Read-only; reuses <code>computeRoleFunnel</code>.</td></tr>
+      </table>
+
+      <h3>Module coverage on mobile</h3>
+      <table>
+        <tr><th>Module</th><th>Mobile scope</th><th>Write?</th></tr>
+        <tr><td>Reporting</td><td>Summary, roles list (search/filter), role detail, stage update, weekly activity, placement, add role, log rejection</td><td>Yes</td></tr>
+        <tr><td>People</td><td>Dashboard KPI tiles + Scorecards</td><td>Read-only</td></tr>
+        <tr><td>Sales</td><td>Sales Forecast list + add/edit</td><td>Yes</td></tr>
+        <tr><td>Market Analytics</td><td>Placement Analytics (Summary + Funnel Drop-off)</td><td>Read-only</td></tr>
+        <tr><td>Command Centre</td><td>Excluded from mobile</td><td>—</td></tr>
+      </table>
+
+      <h3>Access</h3>
+      <p class="section-intro">Mobile access is restricted to Talent Partners, Delivery Managers and Admins. Per-module visibility follows the same <code>CONFIG.OS_MODULES</code> roles as desktop — e.g. a Talent Partner does not see Sales but does see Market Analytics; Scorecards are role-scoped (TP sees own, DM sees their projects' TPs, Admin sees all).</p>
+
+      <h3>Adding a module to mobile</h3>
+      <p class="section-intro">Mirror the desktop convention: create a <code>mobile-&lt;module&gt;.js</code> renderer that reuses the existing data/calculation functions, add the module key to <code>MOBILE_MODULES</code>, add a <code>MOBILE_NAV</code> entry and default view, route its views in <code>mobileRenderView()</code>, and load the script in <code>mobile.html</code>. No Flutter rebuild is ever required — the installed PWA picks up changes on next load.</p>
+    </div>
+
     <div class="section" id="sec-files" style="display:none">
       <div class="section-title">File Structure</div>
       <p class="section-intro">Each file has a single, clearly defined responsibility. Never mix concerns across layers.</p>
@@ -909,6 +964,20 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
       <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">June 2026</div>
+        <div class="changelog-title">Mobile App — installable PWA + full module coverage</div>
+        <ul>
+          <li><strong>Installable PWA</strong> — <code>manifest.webmanifest</code> + <code>sw.js</code> (network-first, caches no app code, ignores auth/cross-origin) make <code>mobile.html</code> installable to the home screen with a standalone launch. Replaced an earlier Flutter WebView prototype, which was retired because embedded WebViews block Microsoft login; the PWA runs in the device browser engine where login works.</li>
+          <li><strong>Mobile shell</strong> — Home launcher + top-bar module switcher, both driven by <code>CONFIG.OS_MODULES</code> filtered through a new <code>MOBILE_MODULES</code> registry; per-module bottom-nav via <code>MOBILE_NAV</code>. Files: <code>mobile-app.js</code>, <code>mobile-home.js</code>.</li>
+          <li><strong>Reporting (full):</strong> Summary KPIs + roles-by-stage, roles list with client-side search/stage filter, role detail, stage update, weekly activity, placement, Add Role and Log Rejection forms (<code>mobile-pages.js</code>, <code>mobile-roleform.js</code>, <code>mobile-reporting-ext.js</code>).</li>
+          <li><strong>People (read-only):</strong> dashboard KPI tiles (<code>mobile-people.js</code>) + Scorecards with a swipe carousel for DM/Admin (<code>mobile-scorecards.js</code>, reuses <code>computeVelocityScore</code>).</li>
+          <li><strong>Sales (write):</strong> Sales Forecast list + add/edit (<code>mobile-sales.js</code>). <strong>Market Analytics (read-only):</strong> condensed Placement Analytics — Summary + Funnel Drop-off tiles, filterable by location / functional area (<code>mobile-analytics.js</code>, reuses <code>computeRoleFunnel</code>).</li>
+          <li><strong>Single source of truth preserved</strong> — every mobile view reuses the existing data-layer and calculation functions; no business logic duplicated. Command Centre excluded from mobile. Mobile access limited to TP / DM / Admin, with per-module roles inherited from <code>CONFIG.OS_MODULES</code>.</li>
+          <li><strong>Login robustness:</strong> <code>mobileInit()</code> processes <code>handleRedirectPromise()</code> first and derives user email/name directly from the MSAL account, so <code>mobile.html</code> is self-sufficient after the login round-trip. <code>app.js</code> redirects app sessions back to <code>mobile.html</code> via a <code>newton_mobile</code> flag.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">June 2026</div>

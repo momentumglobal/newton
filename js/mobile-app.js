@@ -15,13 +15,17 @@ let _mobileHistory = [];    // Simple back-stack (stores {module, view})
 const MOBILE_MODULES = new Set([
   'reporting',
   'people',        // Phase B - read-only dashboard
-  // 'sales',      // Phase C
-  // 'marketing',  // Phase C (Market Analytics -> Placement Analytics)
+  'sales',         // Phase C - write-enabled (forecast)
+  'marketing',     // Phase C - read-only Placement Analytics
 ]);
 
 // Per-module bottom-nav definitions. Each item: {view, label, icon(svg)}.
 // 'home' has no bottom nav (it's the launcher).
 const MOBILE_NAV = {
+  sales: [
+    { view: 'sales-forecast', label: 'Forecast',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>' },
+  ],
   people: [
     { view: 'people-dashboard', label: 'Dashboard',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
@@ -42,6 +46,8 @@ const MOBILE_NAV = {
 const MOBILE_MODULE_HOME = {
   reporting: 'roles',
   people:    'people-dashboard',
+  sales:     'sales-forecast',
+  marketing: 'placement-analytics',
 };
 
 function getWeekEnding() {
@@ -198,6 +204,10 @@ function mobileRenderView() {
     // People
     case 'people-dashboard': mobileRenderPeopleDashboard(main); break;
     case 'scorecards':       mobileRenderScorecards(main);      break;
+    // Sales
+    case 'sales-forecast':   mobileRenderSalesForecast(main);   break;
+    // Market Analytics
+    case 'placement-analytics': mobileRenderPlacementAnalytics(main); break;
     default:
       // Fallback to the module's home view
       mobileNav(MOBILE_MODULE_HOME[_mobileModule] || 'home', false);

@@ -226,6 +226,7 @@ async function mobileSubmitAddRole() {
 
   try {
     await createItem('Roles', fields);
+    if (typeof mobileInvalidateRolesCache === 'function') mobileInvalidateRolesCache();
     mobileToast('Role added ✓');
     // Back to the roles list (refreshed).
     mobileNav('roles', false);

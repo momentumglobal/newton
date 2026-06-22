@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Newton Mobile</title>
   <link rel="icon" type="image/png" href="momentum-symbol.png">
+
+  <!-- PWA: installable home-screen app -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#090546">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Newton">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <style>
     @font-face {
       font-family: 'Polymath';
@@ -495,5 +504,16 @@
   <script src="js/mobile-app.js"></script>
   <script src="js/mobile-pages.js"></script>
   <script src="js/mobile-home.js"></script>
+
+  <!-- PWA: register the service worker (makes the site installable) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function (e) {
+          console.warn('SW registration failed:', e);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

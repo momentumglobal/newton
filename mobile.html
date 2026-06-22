@@ -442,6 +442,74 @@
       font-weight: 600;
       color: #0A0B44;
     }
+
+    /* ── People Scorecards (mobile) ── */
+    .m-sc-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .m-sc-table td { padding: 9px 0; border-bottom: 1px solid #f0f0ee; font-size: 14px; }
+    .m-sc-table tr:last-child td { border-bottom: none; }
+    .m-sc-metric { color: #444; }
+    .m-sc-val { text-align: right; font-weight: 700; white-space: nowrap; }
+    .m-sc-pill {
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: .04em;
+    }
+
+    /* Carousel */
+    .m-sc-carousel { overflow: hidden; width: 100%; }
+    .m-sc-track {
+      display: flex;
+      transition: transform 0.25s ease;
+    }
+    .m-sc-slide {
+      flex: 0 0 100%;
+      min-width: 100%;
+      box-sizing: border-box;
+    }
+    .m-sc-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .m-sc-arrow {
+      background: #fff;
+      border: 1.5px solid #0A0B44;
+      color: #0A0B44;
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .m-sc-arrow:disabled { opacity: 0.3; cursor: default; }
+    .m-sc-counter {
+      flex: 1;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0A0B44;
+    }
+    .m-sc-dots {
+      display: flex;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 12px;
+    }
+    .m-sc-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      border: none;
+      background: #cfcfda;
+      cursor: pointer;
+      padding: 0;
+    }
+    .m-sc-dot.active { background: #0A0B44; }
   </style>
 </head>
 <body>
@@ -494,6 +562,7 @@
   <script src="js/auth.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/analytics.js"></script>
   <!-- Mark this session as running the mobile app, so desktop pages
        (index.html etc.) redirect back here after the MSAL login round-trip,
        even when the WebView reports a non-mobile width. -->
@@ -506,6 +575,7 @@
   <script src="js/mobile-home.js"></script>
   <script src="js/mobile-people.js"></script>
   <script src="js/mobile-roleform.js"></script>
+  <script src="js/mobile-scorecards.js"></script>
 
   <!-- PWA: register the service worker (makes the site installable) -->
   <script>

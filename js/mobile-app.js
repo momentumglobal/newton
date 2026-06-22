@@ -59,27 +59,41 @@ async function mobileInit() {
   document.getElementById('app-shell').style.display    = 'none';
 
   try {
-    const account = msalInstance.getAllAccounts()[0];
-    if (account) {
-       await msalInstance.acquireTokenSilent({
-        scopes: loginRequest.scopes,
-        account,
-       });
-      await mobileOnSignedIn();
-    } else {
-      const response = await msalInstance.handleRedirectPromise();
-      if (response) {
-        await mobileOnSignedIn();
-      }
+    // Always process a pending redirect response FIRST. After a fresh login
+    // this returns the auth result; on a normal load it returns null.
+    const redirectResponse = await msalInstance.handleRedirectPromise();
+
+    // Resolve the active account (from the redirect response, or the cache).
+    const account =
+      (redirectResponse && redirectResponse.account) ||
+      msalInstance.getAllAccounts()[0];
+
+    if (!account) {
+      // Not signed in - leave the login screen showing.
+      return;
     }
+
+    // Persist user details straight from the MSAL account, so we never rely
+    // on another page having populated localStorage.
+    if (account.username) localStorage.setItem('userEmail', account.username.toLowerCase());
+    if (account.name)     localStorage.setItem('userName',  account.name);
+
+    // Warm the token cache (non-fatal if it needs interaction).
+    try {
+      await msalInstance.acquireTokenSilent({ scopes: loginRequest.scopes, account });
+    } catch (silentErr) {
+      console.warn('Silent token acquisition deferred:', silentErr && silentErr.message);
+    }
+
+    await mobileOnSignedIn();
   } catch (e) {
-    console.warn('Mobile auth:', e.message);
+    console.warn('Mobile auth:', e && e.message);
   }
 }
 
 async function mobileOnSignedIn() {
   const user = getCurrentUser();
-  if (!user) return;
+  if (!user || !user.email) return;
   _mobileUser = user;
   _mobileRole = await getEffectiveRole(user.email);
 

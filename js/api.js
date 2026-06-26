@@ -511,8 +511,7 @@ async function uploadInvoiceAttachment(itemId, file) {
  const filename = `invoice-${itemId}-${file.name}`;
  const token = await getToken();
  if (!token) throw new Error('Not authenticated');
- const url = `${GRAPH}/sites/${CONFIG.SP_SITE_ID}/drives/$
-{CONFIG.GP_INVOICE_DRIVE_ID}/items/root:/${encodeURIComponent(filename)}:/content`;
+ const url = `${GRAPH}/sites/${CONFIG.SP_SITE_ID}/drives/${CONFIG.GP_INVOICE_DRIVE_ID}/items/root:/${encodeURIComponent(filename)}:/content`;
  const res = await fetch(url, {
  method: 'PUT',
  headers: {

@@ -504,7 +504,29 @@ async function updateInvoice(id, fields) {
   if (fields.Status        !== undefined) payload.Status      = fields.Status;
   return updateItem("GPInvoices", id, payload);
 }
- 
+
+async function uploadInvoiceAttachment(itemId, file) {
+  // Uploads a file to a GPInvoices list item via Graph API.
+  // Uses raw fetch (not graphRequest) because body is binary, not JSON.
+  const token = await getToken();
+  if (!token) throw new Error("Not authenticated");
+  const url = `${GRAPH}/sites/${CONFIG.SP_SITE_ID}/lists/GPInvoices/items/${itemId}/attachments`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/octet-stream",
+      "x-ms-name": encodeURIComponent(file.name),
+    },
+    body: file,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Attachment upload failed: HTTP ${res.status}`);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
 // ── Shared utilities ──────────────────────────────────────────────────
 function printPage(title, landscape = false, module = 'Newton') {
   document.getElementById('print-header-title').textContent = 'Newton';

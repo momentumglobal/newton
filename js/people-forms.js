@@ -315,6 +315,12 @@ function renderInvoiceForm(existingData = null) {
           <input type='text' name='Notes'
             value='${existingData?.Notes || ''}'>
         </div>
+        <div class='form-group'>
+          <label>Invoice PDF ${isEdit ? '(leave blank to keep existing)' : '*'}</label>
+          <input type='file' name='InvoicePDF' accept='.pdf'
+            ${isEdit ? '' : 'required'}>
+          <small style='color:#888;font-size:12px'>PDF only. One file per invoice.</small>
+        </div>
         <div class='form-actions'>
           <button type='submit' class='btn-primary'>
             ${isEdit ? 'Save Changes' : 'Add Invoice'}</button>
@@ -331,6 +337,8 @@ async function submitInvoiceForm(event, editId = null) {
   const btn   = form.querySelector('[type=submit]');
   const data  = Object.fromEntries(new FormData(form));
   const errEl = document.getElementById('invoice-form-error');
+  const fileInput = form.querySelector('input[name="InvoicePDF"]');
+  const file = fileInput?.files?.[0] || null;
   if (errEl) { errEl.style.display = 'none'; }
   setButtonLoading(btn);
   const fields = {
@@ -342,8 +350,15 @@ async function submitInvoiceForm(event, editId = null) {
     Status:        data.Status,
   };
   try {
-    if (editId) { await updateInvoice(editId, fields); }
-    else        { await createInvoice(fields); }
+    if (editId) {
+      await updateInvoice(editId, fields);
+      if (file) { await uploadInvoiceAttachment(editId, file); }
+    } else {
+      const result = await createInvoice(fields);
+      const newId  = result?.id;
+      if (!newId) throw new Error('Failed to retrieve new invoice ID for attachment upload.');
+      await uploadInvoiceAttachment(newId, file);
+    }
     navigateToPeople('gpInvoices');
   } catch (e) {
     clearButtonLoading(btn);

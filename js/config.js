@@ -7,6 +7,7 @@ const CONFIG = {
   REDIRECT_URI: "https://momentumglobal.github.io/newton/",
   SP_SITE_URL:  "https://talentpoint.sharepoint.com/sites/SolutionsHubReporting",
   SP_SITE_ID:   "talentpoint.sharepoint.com,330e562f-0ba1-4fd8-ae06-ffe3a9287271,b864c9c9-6fe0-4837-9713-5aaa4530de0d",
+  GP_INVOICE_DRIVE_ID: 'b!L1YOM6EL2E-uBv_jqShyccnJZLjgbzdIlxNaqkUw3g1MjqGliBUrRY2BqPmtPnw5',
   // Hardcoded admin users — full access, never overridden by SharePoint data
   ADMIN_USERS:  ["admin@momentumglobal.co", "chris.friend@momentumglobal.co", "aliyah@momentumglobal.co"],
 

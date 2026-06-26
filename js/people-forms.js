@@ -333,12 +333,12 @@ function renderInvoiceForm(existingData = null) {
 
 async function submitInvoiceForm(event, editId = null) {
   event.preventDefault();
-  const form  = document.getElementById('invoice-form');
-  const btn   = form.querySelector('[type=submit]');
-  const data  = Object.fromEntries(new FormData(form));
-  const errEl = document.getElementById('invoice-form-error');
+  const form      = document.getElementById('invoice-form');
+  const btn       = form.querySelector('[type=submit]');
+  const data      = Object.fromEntries(new FormData(form));
+  const errEl     = document.getElementById('invoice-form-error');
   const fileInput = form.querySelector('input[name="InvoicePDF"]');
-  const file = fileInput?.files?.[0] || null;
+  const file      = fileInput?.files?.[0] || null;
   if (errEl) { errEl.style.display = 'none'; }
   setButtonLoading(btn);
   const fields = {
@@ -352,12 +352,16 @@ async function submitInvoiceForm(event, editId = null) {
   try {
     if (editId) {
       await updateInvoice(editId, fields);
-      if (file) { await uploadInvoiceAttachment(editId, file); }
+      if (file) {
+        const fileUrl = await uploadInvoiceAttachment(editId, file);
+        if (fileUrl) { await addInvoiceFileURL(editId, fileUrl); }
+      }
     } else {
       const result = await createInvoice(fields);
       const newId  = result?.id;
-      if (!newId) throw new Error('Failed to retrieve new invoice ID for attachment upload.');
-      await uploadInvoiceAttachment(newId, file);
+      if (!newId) throw new Error('Failed to retrieve new invoice ID.');
+      const fileUrl = await uploadInvoiceAttachment(newId, file);
+      if (fileUrl) { await addInvoiceFileURL(newId, fileUrl); }
     }
     navigateToPeople('gpInvoices');
   } catch (e) {

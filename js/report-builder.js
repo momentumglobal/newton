@@ -94,8 +94,7 @@ function rbRenderSidebar(projects) {
   // Palette tiles — scope-filtered, grouped under subheadings.
   // Group order follows first appearance in RB_PALETTE. Empty groups are skipped.
   const tileHtml = m => `<div class="rb-palette-tile" data-key="${m.key}" draggable="false"
-      ondblclick="rbAddPanelBlock('${m.key}')">${m.label}${m.filtered ? '<span class="rb-filter-mark">*</span>' : ''}
-      <button class="rb-add-btn" onclick="rbAddPanelBlock('${m.key}')">+</button>
+      ondblclick="rbAddPanelBlock('${m.key}')"><span>${m.label}${m.filtered ? '<span class="rb-filter-mark">*</span>' : ''}</span><button class="rb-add-btn" onclick="rbAddPanelBlock('${m.key}')">+</button>
     </div>`;
 
   const groupOrder = [...new Set(RB_PALETTE.map(m => m.group))];

@@ -237,6 +237,102 @@ function renderPipelineActivityTable(acts, roles, period) {
     <table class='data-table'><thead>${hdr}</thead><tbody>${rows}${totRow}</tbody></table>
   </div>`;
 }
+
+// ── Pipeline Summary (last 4 completed weeks, all roles) ──────────────
+// Report Builder module. Hardcoded to the last 4 completed calendar weeks
+// (Mon–Fri), most recent first. Leading empty weeks (project not yet live)
+// are trimmed; interior/trailing empty weeks render as a full '-' row.
+function renderPipelineSummaryPanel(activity) {
+  const FIELDS = ['Outreach','Responses','Screened','Submitted','Interview1','Interview2Plus','FinalInterview','Offers','Hires'];
+  const LABELS = ['Outreach','Responses','Screened','Submitted','IV1 Booked','IV2+ Booked','Final IV Booked','Offer Made','Hired'];
+
+  // Monday of the current week (weeks run Mon–Fri).
+  const now = new Date();
+  const dow = now.getDay() === 0 ? 6 : now.getDay() - 1; // Mon=0 … Sun=6
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() - dow);
+  thisMonday.setHours(0, 0, 0, 0);
+
+  // Build the 4 most recent COMPLETED weeks (week before current, going back).
+  // Each entry: { monday, friday } describing the Mon–Fri span.
+  const weeks = [];
+  for (let i = 1; i <= 4; i++) {
+    const monday = new Date(thisMonday);
+    monday.setDate(thisMonday.getDate() - (7 * i));
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    friday.setHours(23, 59, 59, 999);
+    weeks.push({ monday, friday });
+  }
+  // weeks is currently newest→oldest (i=1 is most recent). Keep that order for display.
+
+  // Bucket activity into each week by its effective week-ending (Friday) date.
+  const dateOf = a => a.WeekEndingDate
+    ? new Date(a.WeekEndingDate)
+    : weekEndingDate(Number(a.Year), Number(a.WeekNumber));
+
+  const rows = weeks.map(w => {
+    const inWeek = activity.filter(a => {
+      const d = dateOf(a);
+      return d >= w.monday && d <= w.friday;
+    });
+    const totals = FIELDS.map(f => sumField(inWeek, f));
+    const hasData = inWeek.length > 0 && totals.some(v => v > 0);
+    return { ...w, totals, hasData };
+  });
+
+  // Trim LEADING empty weeks only (oldest end of the window). Display order is
+  // newest→oldest, so the oldest weeks are at the END of the array.
+  let trimmed = [...rows];
+  while (trimmed.length && !trimmed[trimmed.length - 1].hasData) {
+    trimmed.pop();
+  }
+
+  if (!trimmed.length) return `<div class='dash-panel'>
+    <h3 class='panel-title'>Pipeline Summary (last 4 weeks)</h3>
+    <p class='no-data'>No pipeline activity recorded in the last 4 weeks.</p>
+  </div>`;
+
+  // Date-range label, e.g. "1st – 5th June" or "29th June – 3rd July".
+  const ord = n => {
+    const s = ['th','st','nd','rd'], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const rangeLabel = (mon, fri) => {
+    const dM = ord(mon.getDate()), dF = ord(fri.getDate());
+    const mM = MONTHS[mon.getMonth()], mF = MONTHS[fri.getMonth()];
+    return mon.getMonth() === fri.getMonth()
+      ? `${dM} – ${dF} ${mF}`
+      : `${dM} ${mM} – ${dF} ${mF}`;
+  };
+
+  // Column grand totals (across the displayed weeks) for the Totals row.
+  const colTotals = FIELDS.map((_, i) => trimmed.reduce((s, r) => s + r.totals[i], 0));
+
+  const hdr = `<tr><th>Week</th>${LABELS.map(l => `<th style="text-align:center">${l}</th>`).join('')}</tr>`;
+
+  const bodyRows = trimmed.map(r => {
+    const cells = r.totals.map(v => `<td style="text-align:center">${v > 0 ? v : '–'}</td>`).join('');
+    return `<tr><td>${rangeLabel(r.monday, r.friday)}</td>${cells}</tr>`;
+  }).join('');
+
+  // Totals row: Outreach = raw; each later column adds (col ÷ previous col %).
+  const totalCells = colTotals.map((v, i) => {
+    if (i === 0) return `<td style="text-align:center"><strong>${v}</strong></td>`;
+    const prev = colTotals[i - 1];
+    const pct  = prev > 0 ? `<br>(${Math.round((v / prev) * 100)}%)` : '';
+    return `<td style="text-align:center"><strong>${v}</strong>${pct}</td>`;
+  }).join('');
+  const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${totalCells}</tr>`;
+
+  return `<div class='dash-panel'>
+    <h3 class='panel-title'>Pipeline Summary (last 4 weeks)</h3>
+    <table class='data-table'><thead>${hdr}</thead><tbody>${bodyRows}${totRow}</tbody></table>
+  </div>`;
+}
+
 // ── Activity by Talent Partner ────────────────────────────────────────
 function renderActivityByTPPanel(acts, period, tpMap = {}) {
   const f = acts.filter(a => activityInDetailPeriod(a, period));
@@ -902,6 +998,9 @@ const REPORT_PANELS = {
 
   pipelineActivity: (data, period) =>
     renderPipelineActivityTable(data.activity, data.roles, period),
+
+  pipelineSummary: (data) =>
+    renderPipelineSummaryPanel(data.activity),
 
   activityByTP: (data, period) =>
     renderActivityByTPPanel(data.activity, period, data.tpMap || {}),

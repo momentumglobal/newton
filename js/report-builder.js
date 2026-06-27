@@ -91,21 +91,19 @@ function rbRenderSidebar(projects) {
     .map(([k,l]) => `<option value="${k}" ${_rbKpiPeriod===k ? 'selected' : ''}>${l}</option>`).join('');
 
   // Palette tiles — scope-filtered, grouped under subheadings.
-  // Group order follows first appearance in RB_PALETTE; the first group
-  // ("Overview") renders with no subheading. Empty groups are skipped.
+  // Group order follows first appearance in RB_PALETTE. Empty groups are skipped.
   const tileHtml = m => `<div class="rb-palette-tile" data-key="${m.key}" draggable="false"
       ondblclick="rbAddPanelBlock('${m.key}')">${m.label}
       <button class="rb-add-btn" onclick="rbAddPanelBlock('${m.key}')">+</button>
     </div>`;
 
   const groupOrder = [...new Set(RB_PALETTE.map(m => m.group))];
-  const paletteTiles = groupOrder.map((group, i) => {
+  const paletteTiles = groupOrder.map(group => {
     const tiles = RB_PALETTE
       .filter(m => m.group === group && (m.scope === 'both' || m.scope === _rbScope))
       .map(tileHtml).join('');
     if (!tiles) return '';  // hide empty group (e.g. Pipeline in Company scope)
-    const subheading = i === 0 ? '' : `<div class="rb-subheading">${group}</div>`;
-    return subheading + tiles;
+    return `<div class="rb-subheading">${group}</div>` + tiles;
   }).join('');
 
   return `

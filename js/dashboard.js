@@ -239,34 +239,34 @@ function renderPipelineActivityTable(acts, roles, period) {
 }
 
 // ── Pipeline Summary (last 4 completed weeks, all roles) ──────────────
-// Report Builder module. Hardcoded to the last 4 completed calendar weeks
-// (Mon–Fri), most recent first. Leading empty weeks (project not yet live)
-// are trimmed; interior/trailing empty weeks render as a full '-' row.
+// Report Builder module. Hardcoded to the last 4 completed calendar weeks,
+// most recent first. Week buckets run Mon–Sun (the activity form stores
+// WeekEndingDate as the Sunday) but are LABELLED Mon–Fri. Leading empty
+// weeks (project not yet live) are trimmed; interior/trailing empty weeks
+// render as a full '–' row.
 function renderPipelineSummaryPanel(activity) {
   const FIELDS = ['Outreach','Responses','Screened','Submitted','Interview1','Interview2Plus','FinalInterview','Offers','Hires'];
   const LABELS = ['Outreach','Responses','Screened','Submitted','IV1 Booked','IV2+ Booked','Final IV Booked','Offer Made','Hired'];
 
-  // Monday of the current week (weeks run Mon–Fri).
   const now = new Date();
-  const dow = now.getDay() === 0 ? 6 : now.getDay() - 1; // Mon=0 … Sun=6
+  const dow = now.getDay() === 0 ? 6 : now.getDay() - 1;
   const thisMonday = new Date(now);
   thisMonday.setDate(now.getDate() - dow);
   thisMonday.setHours(0, 0, 0, 0);
 
-  // Build the 4 most recent COMPLETED weeks (week before current, going back).
-  // Each entry: { monday, friday } describing the Mon–Fri span.
   const weeks = [];
   for (let i = 1; i <= 4; i++) {
     const monday = new Date(thisMonday);
     monday.setDate(thisMonday.getDate() - (7 * i));
-    const friday = new Date(monday);
+    const friday = new Date(monday);              // for the displayed label (Mon–Fri)
     friday.setDate(monday.getDate() + 4);
     friday.setHours(23, 59, 59, 999);
-    weeks.push({ monday, friday });
+    const weekEnd = new Date(monday);             // ← CHANGED: bucket boundary = Sunday,
+    weekEnd.setDate(monday.getDate() + 6);        //   matching how WeekEndingDate is stored
+    weekEnd.setHours(23, 59, 59, 999);
+    weeks.push({ monday, friday, weekEnd });
   }
-  // weeks is currently newest→oldest (i=1 is most recent). Keep that order for display.
 
-  // Bucket activity into each week by its effective week-ending (Friday) date.
   const dateOf = a => a.WeekEndingDate
     ? new Date(a.WeekEndingDate)
     : weekEndingDate(Number(a.Year), Number(a.WeekNumber));
@@ -274,15 +274,13 @@ function renderPipelineSummaryPanel(activity) {
   const rows = weeks.map(w => {
     const inWeek = activity.filter(a => {
       const d = dateOf(a);
-      return d >= w.monday && d <= w.friday;
+      return d >= w.monday && d <= w.weekEnd;     // ← CHANGED: Sunday cutoff, not Friday
     });
     const totals = FIELDS.map(f => sumField(inWeek, f));
     const hasData = inWeek.length > 0 && totals.some(v => v > 0);
     return { ...w, totals, hasData };
   });
 
-  // Trim LEADING empty weeks only (oldest end of the window). Display order is
-  // newest→oldest, so the oldest weeks are at the END of the array.
   let trimmed = [...rows];
   while (trimmed.length && !trimmed[trimmed.length - 1].hasData) {
     trimmed.pop();
@@ -293,7 +291,6 @@ function renderPipelineSummaryPanel(activity) {
     <p class='no-data'>No pipeline activity recorded in the last 4 weeks.</p>
   </div>`;
 
-  // Date-range label, e.g. "1st – 5th June" or "29th June – 3rd July".
   const ord = n => {
     const s = ['th','st','nd','rd'], v = n % 100;
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
@@ -308,7 +305,6 @@ function renderPipelineSummaryPanel(activity) {
       : `${dM} ${mM} – ${dF} ${mF}`;
   };
 
-  // Column grand totals (across the displayed weeks) for the Totals row.
   const colTotals = FIELDS.map((_, i) => trimmed.reduce((s, r) => s + r.totals[i], 0));
 
   const hdr = `<tr><th>Week</th>${LABELS.map(l => `<th style="text-align:center">${l}</th>`).join('')}</tr>`;
@@ -318,7 +314,6 @@ function renderPipelineSummaryPanel(activity) {
     return `<tr><td>${rangeLabel(r.monday, r.friday)}</td>${cells}</tr>`;
   }).join('');
 
-  // Totals row: Outreach = raw; each later column adds (col ÷ previous col %).
   const totalCells = colTotals.map((v, i) => {
     if (i === 0) return `<td style="text-align:center"><strong>${v}</strong></td>`;
     const prev = colTotals[i - 1];

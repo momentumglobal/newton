@@ -539,8 +539,10 @@ body {
 .rb-sidebar {
   width: 260px;
   flex-shrink: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   padding: 0 4px 24px;
+  display: flex;
+  flex-direction: column;
 }
 .rb-canvas {
   flex: 1;
@@ -597,6 +599,21 @@ body {
   font-size: 16px; line-height: 1; cursor: pointer;
 }
 .rb-full-btn { width: 100%; margin-top: 4px; }
+.rb-sidebar-scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+.rb-sidebar-footer {
+  flex-shrink: 0;
+  border-top: 1px solid #E0E0E0;
+  padding-top: 12px;
+  margin-top: 8px;
+  background: white;
+}
+.rb-filter-mark { color: #0A0B44; font-weight: 700; margin-left: 2px; }
+.rb-footnote {
+  font-size: 11px;
+  color: #595959;
+  line-height: 1.4;
+  margin: 10px 0 0;
+}
 .page-header-actions .btn-secondary { padding: 6px 14px; }
 
 /* Rich text toolbar */

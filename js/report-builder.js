@@ -12,15 +12,18 @@ let _rbTitle      = '';
 let _rbProjectRoles = [];  // Roles for the selected project (drives Role dropdown)
 
 const RB_PALETTE = [
-  { key: 'kpiStrip',        label: 'KPI Strip',                 scope: 'both'    },
-  { key: 'pipelineActivity', label: 'Pipeline Activity',         scope: 'project' },
-  { key: 'activityByTP',    label: 'Activity by Talent Partner', scope: 'both'    },
-  { key: 'rejections',      label: 'Offer Rejection Reasons',    scope: 'both'    },
-  { key: 'upcomingStarters', label: 'Upcoming Starters',         scope: 'both'    },
-  { key: 'spendVsBudget',   label: 'Actual Spend vs Budget',     scope: 'both'    },
-  { key: 'rolesOpen30',     label: 'Roles Open 30+ Days',        scope: 'both'    },
-  { key: 'roleTracker',     label: 'Role Tracker',               scope: 'project' },
-  { key: 'placements',      label: 'Placements',                 scope: 'both'    },
+  // Overview — no subheading; tiles sit directly under "Add Modules"
+  { key: 'kpiStrip',         label: 'KPI Strip',                  scope: 'both',    group: 'Overview' },
+  { key: 'roleTracker',      label: 'Role Tracker',               scope: 'project', group: 'Overview' },
+  { key: 'rolesOpen30',      label: 'Roles Open 30+ Days',        scope: 'both',    group: 'Overview' },
+  // Pipeline
+  { key: 'pipelineActivity', label: 'Pipeline Activity',          scope: 'project', group: 'Pipeline' },
+  { key: 'activityByTP',     label: 'Activity by Talent Partner', scope: 'both',    group: 'Pipeline' },
+  // Placements & Rejections
+  { key: 'placements',       label: 'Placements',                 scope: 'both',    group: 'Placements & Rejections' },
+  { key: 'spendVsBudget',    label: 'Actual Spend vs Budget',     scope: 'both',    group: 'Placements & Rejections' },
+  { key: 'upcomingStarters', label: 'Upcoming Starters',          scope: 'both',    group: 'Placements & Rejections' },
+  { key: 'rejections',       label: 'Offer Rejection Reasons',    scope: 'both',    group: 'Placements & Rejections' },
 ];
 
 async function renderReportBuilder() {
@@ -87,13 +90,23 @@ function rbRenderSidebar(projects) {
   const kpiOpts = [['month','Month'],['quarter','Quarter'],['year','Year']]
     .map(([k,l]) => `<option value="${k}" ${_rbKpiPeriod===k ? 'selected' : ''}>${l}</option>`).join('');
 
-  // Palette tiles — scope-filtered
-  const paletteTiles = RB_PALETTE
-    .filter(m => m.scope === 'both' || m.scope === _rbScope)
-    .map(m => `<div class="rb-palette-tile" data-key="${m.key}" draggable="false"
+  // Palette tiles — scope-filtered, grouped under subheadings.
+  // Group order follows first appearance in RB_PALETTE; the first group
+  // ("Overview") renders with no subheading. Empty groups are skipped.
+  const tileHtml = m => `<div class="rb-palette-tile" data-key="${m.key}" draggable="false"
       ondblclick="rbAddPanelBlock('${m.key}')">${m.label}
       <button class="rb-add-btn" onclick="rbAddPanelBlock('${m.key}')">+</button>
-    </div>`).join('');
+    </div>`;
+
+  const groupOrder = [...new Set(RB_PALETTE.map(m => m.group))];
+  const paletteTiles = groupOrder.map((group, i) => {
+    const tiles = RB_PALETTE
+      .filter(m => m.group === group && (m.scope === 'both' || m.scope === _rbScope))
+      .map(tileHtml).join('');
+    if (!tiles) return '';  // hide empty group (e.g. Pipeline in Company scope)
+    const subheading = i === 0 ? '' : `<div class="rb-subheading">${group}</div>`;
+    return subheading + tiles;
+  }).join('');
 
   return `
     <div class="rb-config">

@@ -13,18 +13,18 @@ let _rbProjectRoles = [];  // Roles for the selected project (drives Role dropdo
 
 const RB_PALETTE = [
   // Overview — no subheading; tiles sit directly under "Add Modules"
-  { key: 'kpiStrip',         label: 'KPI Strip',                  scope: 'both',    group: 'Overview' },
+  { key: 'kpiStrip',         label: 'KPI Strip',                  scope: 'both',    group: 'Overview', filtered: true },
   { key: 'roleTracker',      label: 'Role Tracker',               scope: 'project', group: 'Overview' },
   { key: 'rolesOpen30',      label: 'Roles Open 30+ Days',        scope: 'both',    group: 'Overview' },
   // Pipeline
-  { key: 'pipelineActivity', label: 'Pipeline Activity',          scope: 'project', group: 'Pipeline' },
-  { key: 'activityByTP',     label: 'Activity by Talent Partner', scope: 'both',    group: 'Pipeline' },
+  { key: 'pipelineActivity', label: 'Pipeline Activity',          scope: 'project', group: 'Pipeline', filtered: true },
+  { key: 'activityByTP',     label: 'Activity by Talent Partner', scope: 'both',    group: 'Pipeline', filtered: true },
   { key: 'pipelineSummary',  label: 'Pipeline Summary (last 4 weeks)', scope: 'both', group: 'Pipeline' },
   // Placements & Rejections
-  { key: 'placements',       label: 'Placements',                 scope: 'both',    group: 'Placements & Rejections' },
+  { key: 'placements',       label: 'Placements',                 scope: 'both',    group: 'Placements & Rejections', filtered: true },
   { key: 'spendVsBudget',    label: 'Actual Spend vs Budget',     scope: 'both',    group: 'Placements & Rejections' },
   { key: 'upcomingStarters', label: 'Upcoming Starters',          scope: 'both',    group: 'Placements & Rejections' },
-  { key: 'rejections',       label: 'Offer Rejection Reasons',    scope: 'both',    group: 'Placements & Rejections' },
+  { key: 'rejections',       label: 'Offer Rejection Reasons',    scope: 'both',    group: 'Placements & Rejections', filtered: true },
 ];
 
 async function renderReportBuilder() {
@@ -94,7 +94,7 @@ function rbRenderSidebar(projects) {
   // Palette tiles — scope-filtered, grouped under subheadings.
   // Group order follows first appearance in RB_PALETTE. Empty groups are skipped.
   const tileHtml = m => `<div class="rb-palette-tile" data-key="${m.key}" draggable="false"
-      ondblclick="rbAddPanelBlock('${m.key}')">${m.label}
+      ondblclick="rbAddPanelBlock('${m.key}')">${m.label}${m.filtered ? '<span class="rb-filter-mark">*</span>' : ''}
       <button class="rb-add-btn" onclick="rbAddPanelBlock('${m.key}')">+</button>
     </div>`;
 
@@ -108,6 +108,7 @@ function rbRenderSidebar(projects) {
   }).join('');
 
   return `
+    <div class="rb-sidebar-scroll">
     <div class="rb-config">
       <div class="rb-section-label">Report Title</div>
       <input id="rb-title" class="rb-input" type="text" placeholder="Untitled Report"
@@ -134,9 +135,13 @@ function rbRenderSidebar(projects) {
 
     <div class="rb-section-label" style="margin-top:16px">Add Modules</div>
     <div class="rb-palette" id="rb-palette">${paletteTiles}</div>
+    </div>
 
-    <div class="rb-section-label" style="margin-top:16px">Add Text Block</div>
-    <button class="btn-secondary rb-full-btn" onclick="rbAddTextBlock()">+ Text Block</button>
+    <div class="rb-sidebar-footer">
+      <div class="rb-section-label">Add Text Block</div>
+      <button class="btn-secondary rb-full-btn" onclick="rbAddTextBlock()">+ Text Block</button>
+      <p class="rb-footnote"><span class="rb-filter-mark">*</span> Controlled by the Period / KPI Period filter above. Unmarked modules show all available data.</p>
+    </div>
   `;
 }
 

@@ -569,6 +569,14 @@ body {
   box-sizing: border-box;
 }
 .rb-palette { display: flex; flex-direction: column; gap: 6px; }
+.rb-subheading {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #8A8A8A;
+  font-weight: 600;
+  margin: 10px 0 2px;
+}
 .rb-palette-tile {
   display: flex;
   align-items: center;

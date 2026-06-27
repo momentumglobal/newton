@@ -605,7 +605,6 @@ body {
   border-top: 1px solid #E0E0E0;
   padding-top: 12px;
   margin-top: 8px;
-  background: white;
 }
 .rb-filter-mark { color: #0A0B44; font-weight: 700; margin-left: 2px; }
 .rb-footnote {
@@ -613,6 +612,7 @@ body {
   color: #595959;
   line-height: 1.4;
   margin: 10px 0 0;
+  background: white;
 }
 .page-header-actions .btn-secondary { padding: 6px 14px; }
 

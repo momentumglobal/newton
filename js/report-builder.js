@@ -19,6 +19,7 @@ const RB_PALETTE = [
   // Pipeline
   { key: 'pipelineActivity', label: 'Pipeline Activity',          scope: 'project', group: 'Pipeline' },
   { key: 'activityByTP',     label: 'Activity by Talent Partner', scope: 'both',    group: 'Pipeline' },
+  { key: 'pipelineSummary',  label: 'Pipeline Summary (last 4 weeks)', scope: 'both', group: 'Pipeline' },
   // Placements & Rejections
   { key: 'placements',       label: 'Placements',                 scope: 'both',    group: 'Placements & Rejections' },
   { key: 'spendVsBudget',    label: 'Actual Spend vs Budget',     scope: 'both',    group: 'Placements & Rejections' },

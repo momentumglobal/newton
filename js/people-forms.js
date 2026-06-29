@@ -50,6 +50,11 @@ function renderPersonForm(existingData = null) {
               value='${existingData?.EndDate ? existingData.EndDate.split('T')[0] : ''}'>
           </div>
         </div>
+        <div class='form-group'>
+          <label>Salary (£) <span style='font-size:11px;color:#888;font-weight:normal'>UK staff only</span></label>
+          <input type='number' name='Salary' min='0' step='0.01'
+            value='${existingData?.Salary || ''}'>
+        </div>
         ${isEdit ? `
         <div class='form-group'>
           <label style='display:flex;align-items:center;gap:8px;cursor:pointer'>
@@ -57,7 +62,7 @@ function renderPersonForm(existingData = null) {
               ${existingData?.IsActive !== false ? 'checked' : ''}>
             Active employee
           </label>
-        </div>` : ''}
+        <\div>` : ''}
         <div class='form-actions'>
           <button type='submit' class='btn-primary'>
             ${isEdit ? 'Save Changes' : 'Add Employee'}</button>
@@ -83,6 +88,7 @@ async function submitPersonForm(event, editId = null) {
     StartDate:    isoDate(data.StartDate) || undefined,
     EndDate:      isoDate(data.EndDate)   || undefined,
     IsActive:     editId ? (form.querySelector('[name=IsActive]')?.checked !== false) : true,
+    Salary:       data.Salary ? parseFloat(data.Salary) : undefined,
   };
   try {
     if (editId) { await updatePerson(editId, fields); }

@@ -409,6 +409,7 @@ async function createPerson(fields) {
     StartDate:    fields.StartDate || undefined,
     EndDate:      fields.EndDate   || undefined,
     IsActive:     fields.IsActive !== false,
+    Salary:       fields.Salary   || undefined,
   });
 }
 async function updatePerson(id, fields) {
@@ -420,6 +421,7 @@ async function updatePerson(id, fields) {
   if (fields.StartDate    !== undefined) payload.StartDate    = fields.StartDate;
   if (fields.EndDate      !== undefined) payload.EndDate      = fields.EndDate;
   if (fields.IsActive     !== undefined) payload.IsActive     = fields.IsActive;
+  if (fields.Salary       !== undefined) payload.Salary       = fields.Salary;
   return updateItem("People", id, payload);
 }
  
@@ -531,6 +533,23 @@ async function uploadInvoiceAttachment(itemId, file) {
 async function addInvoiceFileURL(itemId, fileUrl) {
  // Write the uploaded file's URL back to the GPInvoices list item.
  return updateItem('GPInvoices', itemId, { FileURL: fileUrl });
+}
+
+// ── Payroll summary ───────────────────────────────────────────────────
+async function createPayrollNotification({ month, year, joiners, leavers, bonus }) {
+  const extraFields = {
+    Month:      String(month),
+    Year:       String(year),
+    Joiners:    JSON.stringify(joiners),
+    Leavers:    JSON.stringify(leavers),
+    BonusData:  bonus ? JSON.stringify(bonus) : null,
+  };
+  return fireNotification({
+    triggerType:    'payrollSummary',
+    recipientEmail: 'system@newton',
+    triggerKey:     `payrollsummary-${year}-${month}`,
+    extraFields,
+  });
 }
 
 // ── Shared utilities ──────────────────────────────────────────────────

@@ -326,7 +326,6 @@ async function _sendPayrollSummary(month, year, includeBonus) {
   }
 
   try {
-    console.log('payroll payload', { month, year, joiners, leavers, bonus });
     await createPayrollNotification({ month, year, joiners, leavers, bonus });
     document.getElementById('payroll-modal-body').innerHTML = `
       <div style='text-align:center;padding:40px 0'>

@@ -545,9 +545,12 @@ async function createPayrollNotification({ month, year, joiners, leavers, bonus 
     BonusData:  bonus ? JSON.stringify(bonus) : null,
   };
   return fireNotification({
-    triggerType:    'payrollSummary',
-    recipientEmail: 'system@newton',
-    triggerKey:     `payrollsummary-${year}-${month}`,
+    triggerType: 'payrollSummary',
+    recipients:  ['system@newton'],
+    triggerKey:  `payrollsummary-${year}-${month}`,
+    tone:        'info',
+    deepLink:    '',
+    body:        `Payroll summary for ${month}/${year}`,
     extraFields,
   });
 }

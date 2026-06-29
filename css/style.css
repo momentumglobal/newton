@@ -1658,3 +1658,23 @@ body {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ── Payroll Summary ─────────────────────────────────────── */
+.salary-cell {
+  white-space: nowrap;
+}
+.btn-padlock {
+  font-size: 13px;
+  vertical-align: middle;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.btn-padlock:hover {
+  opacity: 1;
+}
+#payroll-modal-overlay {
+  animation: fadeIn 0.15s ease;
+}
+#payroll-modal-overlay > div {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}

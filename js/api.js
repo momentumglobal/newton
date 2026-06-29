@@ -538,7 +538,7 @@ async function addInvoiceFileURL(itemId, fileUrl) {
 // ── Payroll summary ───────────────────────────────────────────────────
 async function createPayrollNotification({ month, year, joiners, leavers, bonus }) {
   const extraFields = {
-    Month:      String(month),
+    Month:      ['January','February','March','April','May','June','July','August','September','October','November','December'][month - 1],
     Year:       String(year),
     Joiners:    JSON.stringify(joiners),
     Leavers:    JSON.stringify(leavers),

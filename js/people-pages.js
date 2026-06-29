@@ -211,19 +211,21 @@ async function _generatePayrollPreview() {
   const all     = await getPeople(false);
   const ukStaff = all.filter(p => p.Location === 'UK');
 
-  const monthStart = new Date(year, month - 1, 1);
-  const monthEnd   = new Date(year, month, 0, 23, 59, 59);
+  const joinerStart = new Date(year, month - 2, 18); // 18th of previous month
+  const joinerEnd   = new Date(year, month - 1, 18, 23, 59, 59); // 18th of current month
+  const leaverStart = new Date(year, month - 1, 1);
+  const leaverEnd   = new Date(year, month, 0, 23, 59, 59);
 
   const joiners = ukStaff.filter(p => {
     if (!p.StartDate) return false;
     const d = new Date(p.StartDate);
-    return d >= monthStart && d <= monthEnd;
+    return d >= joinerStart && d <= joinerEnd;
   });
 
   const leavers = ukStaff.filter(p => {
-    if (!p.EndDate || p.IsActive !== false) return false;
+    if (!p.EndDate) return false;
     const d = new Date(p.EndDate);
-    return d >= monthStart && d <= monthEnd;
+    return d >= leaverStart && d <= leaverEnd;
   });
 
   const monthName = ['January','February','March','April','May','June',
@@ -293,19 +295,21 @@ async function _sendPayrollSummary(month, year, includeBonus) {
   const all     = await getPeople(false);
   const ukStaff = all.filter(p => p.Location === 'UK');
 
-  const monthStart = new Date(year, month - 1, 1);
-  const monthEnd   = new Date(year, month, 0, 23, 59, 59);
+  const joinerStart = new Date(year, month - 2, 18); // 18th of previous month
+  const joinerEnd   = new Date(year, month - 1, 18, 23, 59, 59); // 18th of current month
+  const leaverStart = new Date(year, month - 1, 1);
+  const leaverEnd   = new Date(year, month, 0, 23, 59, 59);
 
   const joiners = ukStaff.filter(p => {
     if (!p.StartDate) return false;
     const d = new Date(p.StartDate);
-    return d >= monthStart && d <= monthEnd;
+    return d >= joinerStart && d <= joinerEnd;
   }).map(p => ({ name: p.EmployeeName, startDate: p.StartDate.split('T')[0], salary: p.Salary || null }));
 
   const leavers = ukStaff.filter(p => {
-    if (!p.EndDate || p.IsActive !== false) return false;
+    if (!p.EndDate) return false;
     const d = new Date(p.EndDate);
-    return d >= monthStart && d <= monthEnd;
+    return d >= leaverStart && d <= leaverEnd;
   }).map(p => ({ name: p.EmployeeName, endDate: p.EndDate.split('T')[0] }));
 
   let bonus = null;

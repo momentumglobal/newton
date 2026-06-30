@@ -339,6 +339,9 @@ function getWeekEnding(date) {
 }
 async function renderWeeklyActivityForm(existingData = null) {
   const isEdit = !!existingData;
+  // SharePoint returns lookup columns as *LookupId; fall back so edits preselect correctly
+  const existingProjectId = existingData?.ProjectIDLookupId ?? existingData?.ProjectID;
+  const existingRoleId    = existingData?.RoleIDLookupId    ?? existingData?.RoleID;
   const currentUser = getCurrentUser();
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);
@@ -348,7 +351,7 @@ async function renderWeeklyActivityForm(existingData = null) {
   const lockProject = isTalentPartner && projects.length === 1;
   const projectOptions = [...projects].sort((a, b) =>
    a.CustomerName.localeCompare(b.CustomerName)).map(p =>
-    `<option value="${p.id}" ${(existingData?.ProjectID == p.id || lockProject) ? 'selected' : ''}>${p.CustomerName}</option>`
+    `<option value="${p.id}" ${(existingProjectId == p.id || lockProject) ? 'selected' : ''}>${p.CustomerName}</option>`
   ).join('');
   const today = new Date().toISOString().split('T')[0];
   const defaultWeek = existingData?.WeekNumber || getISOWeek(today);
@@ -361,13 +364,13 @@ async function renderWeeklyActivityForm(existingData = null) {
         .filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage))
         .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
        preloadedRoleOptions = roles.map(r =>
-        `<option value="${r.id}" ${existingData?.RoleID == r.id ? 'selected' : ''}>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`
+        `<option value="${r.id}" ${existingRoleId == r.id ? 'selected' : ''}>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`
        ).join('');
     } catch (e) { /* fall back to empty */ }
   }
   // On edit (non-locked project), reload + reselect the saved role after the form mounts
-  if (isEdit && !lockProject && existingData?.ProjectID) {
-    setTimeout(() => loadRolesForWeekly(existingData.ProjectID, existingData.RoleID), 0);
+  if (isEdit && !lockProject && existingProjectId) {
+    setTimeout(() => loadRolesForWeekly(existingProjectId, existingRoleId), 0);
   }
   return `
     <div class="form-container">

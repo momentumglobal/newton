@@ -586,8 +586,80 @@ async function renderCommandCentreBanner(role) {
     }
     draw();
   }
+  // ── World Cup Football ────────────────────────────────────────────
+  function startFootball() {
+    stopAll(); activeEffect = 'football';
+    canvas.style.display = 'block'; resize();
+    const ball = {
+      x: canvas.width * 0.35, y: canvas.height * 0.45,
+      vx: 2.4, vy: 1.7, r: 18, angle: 0,
+    };
+    function drawPitch(w, h) {
+      const stripes = 10, bandH = h / stripes;
+      for (let i = 0; i < stripes; i++) {
+        ctx.fillStyle = i % 2 === 0 ? 'rgba(40,135,55,0.9)' : 'rgba(50,150,65,0.9)';
+        ctx.fillRect(0, i * bandH, w, bandH + 1);
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.lineWidth = 2.5;
+      const m = 40;
+      ctx.strokeRect(m, m, w - m * 2, h - m * 2);
+      ctx.beginPath(); ctx.moveTo(w / 2, m); ctx.lineTo(w / 2, h - m); ctx.stroke();
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) * 0.13, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fill();
+      const boxH = h * 0.42, boxW = w * 0.10, sixH = h * 0.20, sixW = w * 0.04;
+      ctx.strokeRect(m, (h - boxH) / 2, boxW, boxH);
+      ctx.strokeRect(m, (h - sixH) / 2, sixW, sixH);
+      ctx.strokeRect(w - m - boxW, (h - boxH) / 2, boxW, boxH);
+      ctx.strokeRect(w - m - sixW, (h - sixH) / 2, sixW, sixH);
+      ctx.beginPath(); ctx.arc(m + boxW, h / 2, boxW * 0.55, -Math.PI * 0.4, Math.PI * 0.4); ctx.stroke();
+      ctx.beginPath(); ctx.arc(w - m - boxW, h / 2, boxW * 0.55, Math.PI * 0.6, Math.PI * 1.4); ctx.stroke();
+    }
+    function drawBall(x, y, r, angle) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+      ctx.beginPath(); ctx.arc(3, 5, r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.stroke();
+      ctx.beginPath();
+      for (let p = 0; p < 5; p++) {
+        const a = -Math.PI / 2 + p * (Math.PI * 2 / 5);
+        const px = Math.cos(a) * r * 0.42, py = Math.sin(a) * r * 0.42;
+        p === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.fillStyle = '#1a1a1a'; ctx.fill();
+      for (let p = 0; p < 5; p++) {
+        const a = -Math.PI / 2 + p * (Math.PI * 2 / 5);
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * r * 0.42, Math.sin(a) * r * 0.42);
+        ctx.lineTo(Math.cos(a) * r * 0.9, Math.sin(a) * r * 0.9);
+        ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(26,26,26,0.85)'; ctx.stroke();
+      }
+      ctx.restore();
+    }
+    function draw() {
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      drawPitch(w, h);
+      ball.x += ball.vx; ball.y += ball.vy;
+      const minX = 40 + ball.r, maxX = w - 40 - ball.r;
+      const minY = 40 + ball.r, maxY = h - 40 - ball.r;
+      if (ball.x < minX) { ball.x = minX; ball.vx *= -1; }
+      if (ball.x > maxX) { ball.x = maxX; ball.vx *= -1; }
+      if (ball.y < minY) { ball.y = minY; ball.vy *= -1; }
+      if (ball.y > maxY) { ball.y = maxY; ball.vy *= -1; }
+      ball.angle += ball.vx * 0.03;
+      drawBall(ball.x, ball.y, ball.r, ball.angle);
+      animFrame = requestAnimationFrame(draw);
+    }
+    draw();
+  }
+  
   // ── Public API ────────────────────────────────────────────────────
-  window.fxStop   = stopAll;
+  window.fxStop     = stopAll;
+  window.fxFootball = startFootball;
   window.fxSnow   = startSnow;
   window.fxLights = startLights;
   window.fxSummer = startSummer;
@@ -600,7 +672,8 @@ async function renderCommandCentreBanner(role) {
     if (saved === 'lights') startLights();
     if (saved === 'summer') startSummer();
     if (saved === 'spring') startSpring();
-    if (saved === 'autumn') startAutumn();
+    if (saved === 'autumn')   startAutumn();
+    if (saved === 'football') startFootball();
   });
 })();
 </script>

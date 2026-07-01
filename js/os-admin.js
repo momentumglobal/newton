@@ -238,6 +238,7 @@ async function buildHomepageTab() {
     { key: 'autumn', label: '🍂 Autumn',           desc: 'Falling autumn leaves' },
     { key: 'snow',   label: '❄ Snowfall',         desc: 'Falling snow animation' },
     { key: 'lights', label: '🎄 Christmas Lights', desc: 'String of twinkling coloured lights across the top' },
+    { key: 'football', label: '⚽ World Cup Football', desc: 'Full-screen grass pitch with line markings and a ball bouncing around' },
   ];
   const effectRows = effects.map(e => `
     <div style="display:flex;align-items:center;justify-content:space-between;

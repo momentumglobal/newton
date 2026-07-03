@@ -480,7 +480,7 @@ async function loadTalentPartnersForWeekly(projectId, selectedEmail = null) {
   }
   select.innerHTML = '<option value="">Loading...</option>';
   try {
-    const tps = await getTalentPartnersForProject(projectId);
+    const tps = await getTalentPartnersForProject(projectId, selectedEmail);
     const targetEmail = (selectedEmail || getCurrentUser().email).toLowerCase();
     select.innerHTML = '<option value="">-- Select team member --</option>' +
       tps.map(u => `<option value="${u.UserEmail}" ${u.UserEmail?.toLowerCase() === targetEmail ? 'selected' : ''}>${u.UserName || u.UserEmail}</option>`).join('');

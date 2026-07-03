@@ -38,9 +38,11 @@ async function buildAssignmentsTab(editId = null) {
   ).join('');
   let editRecord = null;
   if (editId) editRecord = assignments.find(a => String(a.id) === String(editId));
-const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.UserName || '')).map(a => `
-    <tr id="assign-row-${a.id}">
-      <td>${a.UserName || '—'}</td>
+const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.UserName || '')).map(a => {
+    const isActive = a.Active !== false;
+    return `
+    <tr id="assign-row-${a.id}" style="${isActive ? '' : 'opacity:0.55'}">
+      <td>${a.UserName || '—'}${isActive ? '' : ' <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:#eee;color:#666;">Inactive</span>'}</td>
       <td>${a.UserEmail}</td>
       <td>${a.CustomerName || '—'}</td>
       <td>${a.AssignedRole === 'talent_partner' ? 'Talent Partner' : a.AssignedRole === 'delivery_manager' ? 'Delivery Manager' : a.AssignedRole || '—'}</td>
@@ -48,10 +50,13 @@ const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.
       <td>
         <div class="row-actions" style="gap:12px;align-items:center">
           <a href="#" onclick="showEditAssignment(${a.id})">Edit</a>
+          <button class="btn-secondary" onclick="toggleAssignmentActive(${a.id}, ${!isActive})">${isActive ? 'Deactivate' : 'Reactivate'}</button>
           <button class="btn-danger" onclick="deleteOsAdminRecord('UserAssignments',${a.id})">Remove</button>
         </div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+  
   const editForm = editRecord ? `
     <h3>Edit Assignment</h3>
     <div class="form-container" style="padding:0;max-width:600px">
@@ -170,6 +175,12 @@ async function submitAssignment(editId = null) {
     errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
   }
 }
+
+async function toggleAssignmentActive(id, makeActive) {
+  await updateItem('UserAssignments', id, { Active: makeActive });
+  renderOsAdminPage('assignments');
+}
+
 // ── Leadership Tab ───────────────────────────────────────────────────
 async function buildLeadershipTab() {
   const list = await getLeadershipAccess();

@@ -370,7 +370,10 @@ async function renderWeeklyActivityForm(existingData = null) {
   }
   // On edit (non-locked project), reload + reselect the saved role after the form mounts
   if (isEdit && !lockProject && existingProjectId) {
-    setTimeout(() => loadRolesForWeekly(existingProjectId, existingRoleId), 0);
+    setTimeout(() => {
+      loadRolesForWeekly(existingProjectId, existingRoleId);
+      if (canLogOnBehalf) loadTalentPartnersForWeekly(existingProjectId, existingData.TalentPartner);
+    }, 0);
   }
   return `
     <div class="form-container">
@@ -468,7 +471,7 @@ async function loadRolesForWeekly(projectId, selectedRoleId = null) {
     ? '<option value="">-- Select role --</option>' + roles.map(r => `<option value="${r.id}" ${selectedRoleId == r.id ? 'selected' : ''}>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`).join('')
     : '<option value="">-- No roles assigned --</option>';
 }
-async function loadTalentPartnersForWeekly(projectId) {
+async function loadTalentPartnersForWeekly(projectId, selectedEmail = null) {
   const select = document.getElementById('weekly-tp-select');
   if (!select) return;
   if (!projectId) {
@@ -478,9 +481,9 @@ async function loadTalentPartnersForWeekly(projectId) {
   select.innerHTML = '<option value="">Loading...</option>';
   try {
     const tps = await getTalentPartnersForProject(projectId);
-    const currentEmail = getCurrentUser().email.toLowerCase();
+    const targetEmail = (selectedEmail || getCurrentUser().email).toLowerCase();
     select.innerHTML = '<option value="">-- Select team member --</option>' +
-      tps.map(u => `<option value="${u.UserEmail}" ${u.UserEmail?.toLowerCase() === currentEmail ? 'selected' : ''}>${u.UserName || u.UserEmail}</option>`).join('');
+      tps.map(u => `<option value="${u.UserEmail}" ${u.UserEmail?.toLowerCase() === targetEmail ? 'selected' : ''}>${u.UserName || u.UserEmail}</option>`).join('');
   } catch(e) {
     select.innerHTML = '<option value="">-- Error loading team --</option>';
   }

@@ -289,10 +289,12 @@ async function ensureUserRegistered(email, displayName) {
   }
 }
  
-async function getTalentPartnersForProject(projectId) {
+async function getTalentPartnersForProject(projectId, includeEmail = null) {
   const assignments = await getItems("UserAssignments", `fields/ProjectID eq ${projectId}`);
+  const keep = includeEmail ? includeEmail.toLowerCase() : null;
   return assignments.filter(a =>
-    a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager'
+    (a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager') &&
+    (a.Active !== false || (keep && a.UserEmail?.toLowerCase() === keep))
   );
 }
 
@@ -301,6 +303,7 @@ async function getAllAssignableUsers() {
   const assignments = await getItems("UserAssignments");
   const seen = new Map();
   assignments.forEach(u => {
+    if (u.Active === false) return;
     const email = (u.UserEmail || '').toLowerCase();
     if (email && !seen.has(email)) {
       seen.set(email, { UserEmail: u.UserEmail, UserName: u.UserName || u.UserEmail });

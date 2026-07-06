@@ -14,8 +14,9 @@ async function renderScorecardsPage() {
     getAllRoles(),
   ]);
 
-  // Get unique TP emails from activity
+  // Get unique TP emails from activity, then drop inactive employees
   let tpEmails = [...new Set(activityRaw.map(a => a.TalentPartner).filter(Boolean))];
+  tpEmails = await filterToActiveTpEmails(tpEmails, tpMap);
 
   // ── Role-based scoping ──────────────────────────────────────────────
   // Talent Partners see only their own scorecard.

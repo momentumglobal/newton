@@ -49,6 +49,7 @@ async function mobileRenderScorecards(main) {
     ]);
 
     let tpEmails = [...new Set(activityRaw.map(a => a.TalentPartner).filter(Boolean))];
+    tpEmails = await filterToActiveTpEmails(tpEmails, tpMap);
 
     // Role-based scoping (same rules as desktop).
     if (_mobileRole === 'talent_partner') {

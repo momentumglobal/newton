@@ -321,6 +321,18 @@ async function getTalentPartnerDisplayMap() {
   });
   return map;
 }
+
+// Filter a list of TP emails down to those matching an ACTIVE People record.
+// People has no email column, so we match the UserAssignments display name
+// against People.EmployeeName (case/whitespace-insensitive).
+// If the People list is empty/unavailable, returns the list unfiltered.
+async function filterToActiveTpEmails(tpEmails, tpMap) {
+  const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  const activePeople = await getPeople(true); // IsActive eq 1
+  if (!activePeople.length) return tpEmails;
+  const activeNames = new Set(activePeople.map(p => norm(p.EmployeeName)));
+  return tpEmails.filter(e => activeNames.has(norm(tpMap[e.toLowerCase()])));
+}
  
 // Role precedence: admin > leadership > talent_partner > delivery_manager > viewer
 const ROLE_PRECEDENCE = ['admin','leadership','talent_partner','delivery_manager','viewer'];

@@ -104,7 +104,7 @@ function computeVelocityScore(tpEmail, activity, placements, benchmarks) {
 }
 
 // ── Role flag helpers (shared by cc-pages.js and analytics-pages.js) ──
-const ACTIVE_STAGES = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled'];
+const ACTIVE_STAGES = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled', 'On-hold'];
 const STAGE_ORDER   = ['Sourcing', 'Interview 1', 'Interview 2+', 'Final Interview'];
 
 function isRoleFlagged(role, activity) {

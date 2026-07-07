@@ -275,7 +275,7 @@ function coeRenderForecastTable() {
   }).join('');
 
   host.innerHTML = `<table class="coe-fvp-table">
-    <thead><tr><th>Month</th><th>Forecasted Hires</th><th>Planned Hires</th><th>Variance</th></tr></thead>
+    <thead><tr><th>Month</th><th>Planned Hires</th><th>Forecasted Hires</th><th>Variance</th></tr></thead>
     <tbody>${body}
       <tr><th>Total</th><th>${totF}</th><th>${totP}</th><th></th></tr>
     </tbody></table>`;

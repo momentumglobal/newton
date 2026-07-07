@@ -266,7 +266,7 @@ function coeRenderForecastTable() {
     const fRow = fByMonth[key];
     const fVal = fRow ? fRow.ForecastedHires : '';
     totP += planned; totF += Number(fVal) || 0;
-    const varc = fVal === '' ? '' : Number(fVal) - planned;
+    const varc = fVal === '' ? '' : planned - Number(fVal);
     const varCls = varc === '' ? '' : varc < 0 ? 'coe-fvp-var-neg' : varc > 0 ? 'coe-fvp-var-pos' : '';
     // Build the ISO date manually — toISOString() shifts to UTC and can
     // land on the last day of the previous month during BST.

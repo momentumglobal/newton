@@ -42,6 +42,22 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### July 2026 — Hiring Plan (CoE projects)
+
+**New: Hiring Plan page (Reporting module, `js/coe-plan.js`)**
+Gantt-style week-by-week hiring roadmap for Centre of Excellence projects — replaces the Excel plan used for TP capacity planning and customer expectation-setting. Visible to all Reporting roles; Admin/DM edit, TP/Leadership read-only. The page lists only projects marked as CoE.
+
+- **Plan builder** — rows need only a role title and open date; Recruitment/Notice/Onboarding phases auto-complete from `CONFIG.COE_PHASE_DEFAULTS`, with optional per-row week overrides. Target Hire Date is derived (open date + recruitment weeks), never stored. Handover excluded from v1.
+- **Capacity strip** — weekly # in Recruitment/Notice/Onboarding above the timeline, with a Talent Partner filter for per-TP workload.
+- **Forecast vs Planned hires** — monthly table; forecast derived from target hire dates, planned entered inline by the DM (stored in `CoEPlanForecast`), variance highlighted.
+- **Roles linkage** — Link picker + "Create Role" (pre-filled Add Role form). Linked rows overlay actual progress as a thin bar: R from `Roles.OpenDate`, N from `Roles.ActualHireDate`, O from `Placements.ProvisionalStartDate`.
+
+**Data model**
+- `Projects` gains a `ProjectType` choice column (Embedded/CoE, default Embedded) — added to the project form; gates the Hiring Plan page.
+- New lists: `CoEPlanRows` (planned roles + phase overrides + `LinkedRoleID`) and `CoEPlanForecast` (monthly forecast hires). Both registered as `{}` in `FIELD_ALIASES`.
+
+**Gotcha (timezone)** — forecast month dates must be written as manually built ISO strings and read back via `new Date()` local parsing. `toISOString()` or string-slicing shifts the 1st of a month into the prior month under BST (SharePoint returns the value as a UTC datetime, e.g. `2026-06-30T23:00:00Z` for 1 July).
+
 ### June 2026 — Mobile App (installable PWA)
 
 **New: Newton mobile as a Progressive Web App (`mobile.html`)**

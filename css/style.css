@@ -1716,10 +1716,12 @@ body {
 @media print {
   .coe-toolbar, .coe-col-actions, #coe-modal-host { display: none !important; }
   .coe-gantt-wrap { overflow: visible !important; border: none; }
-  /* Compress the grid so a long plan fits A4 landscape */
-  .coe-gantt { font-size: 8px; }
-  .coe-gantt th, .coe-gantt td { padding: 1px 2px; }
-  .coe-cell { min-width: 0; height: 12px; }
+  /* Page 1 = Gantt, page 2 = forecast table */
+  .coe-fvp-header { break-before: page; page-break-before: always; margin-top: 0 !important; }
+  /* Grid can breathe now it has the page to itself */
+  .coe-gantt { font-size: 10px; }
+  .coe-gantt th, .coe-gantt td { padding: 2px 3px; }
+  .coe-cell { min-width: 0; height: 16px; }
   .coe-gantt .coe-sticky { position: static; box-shadow: none; }
   .coe-gantt .coe-sticky--1 { min-width: 0; }
   .coe-gantt .coe-sticky--2, .coe-gantt .coe-sticky--3, .coe-gantt .coe-sticky--4 { min-width: 0; }

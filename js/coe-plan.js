@@ -135,7 +135,7 @@ function coeRenderBody() {
       <span>Thin bar = actual (linked roles)</span>
     </div>
     <div id="coe-gantt"></div>
-    <div class="page-header" style="margin-top:28px"><h3>Forecast vs Planned Hires</h3></div>
+    <div class="page-header coe-fvp-header" style="margin-top:28px"><h3>Forecast vs Planned Hires</h3></div>
     <div id="coe-fvp"></div>
     <div id="coe-modal-host"></div>
   `;

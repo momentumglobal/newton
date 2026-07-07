@@ -1720,6 +1720,7 @@ body {
   .coe-fvp-header { break-before: page; page-break-before: always; margin-top: 0 !important; }
   /* Grid can breathe now it has the page to itself */
   .coe-gantt { font-size: 10px; }
+  .coe-capacity td, .coe-capacity th { font-size: inherit; }
   .coe-gantt th, .coe-gantt td { padding: 2px 3px; }
   .coe-cell { min-width: 0; height: 16px; }
   .coe-gantt .coe-sticky { position: static; box-shadow: none; }

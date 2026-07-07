@@ -9,6 +9,7 @@ let _rbKpiPeriod  = 'quarter';
 let _rbReportId   = null;  // SharePoint item ID if editing a saved report
 let _rbReportData = null;  // Cached fetch result { roles, activity, placements, rejections }
 let _rbTitle      = '';
+let _rbIncludeGantt = false;  // append Hiring Plan as landscape final page (CoE projects)
 let _rbProjectRoles = [];  // Roles for the selected project (drives Role dropdown)
 
 const RB_PALETTE = [
@@ -56,6 +57,12 @@ async function renderReportBuilder() {
     <div class="page-header">
       <h2>Report Builder</h2>
       <div class="page-header-actions">
+        ${(_rbScope === 'project' && projects.find(p => String(p.id) === _rbProjectId)?.ProjectType === 'CoE') ? `
+        <label class="rb-gantt-toggle">
+          <input type="checkbox" ${_rbIncludeGantt ? 'checked' : ''}
+            onchange="_rbIncludeGantt = this.checked">
+          Hiring Plan final page
+        </label>` : ''}
         <button class="btn-secondary" onclick="rbOpenSavedModal()">Saved Reports</button>
         <button class="btn-secondary" id="rb-save-btn" onclick="rbSaveReport()">Save</button>
         <button class="btn-secondary" onclick="rbPreview()">Preview</button>
@@ -326,11 +333,12 @@ async function rbPreview() {
   _rbReportData = data;
 
   const title = document.getElementById('rb-title')?.value || 'Report';
-  const html  = rbRenderReportHtml(title, data);
+  const html  = rbRenderReportHtml(title, data, { forPrint: false });
   document.getElementById('rb-preview-content').innerHTML = html;
 }
 
-function rbRenderReportHtml(title, data) {
+function rbRenderReportHtml(title, data, ganttOpts = null) {
+  // ganttOpts: { coeRows, forPrint } — appended Hiring Plan final page
   const titleHtml = `<div class="rb-report-title"><h2>${title}</h2></div>`;
 
   const blocks = _rbBlocks.map(block => {
@@ -342,7 +350,19 @@ function rbRenderReportHtml(title, data) {
     }
   }).join('');
 
-  return titleHtml + blocks;
+  let ganttHtml = '';
+  if (_rbIncludeGantt && _rbScope === 'project' && ganttOpts) {
+    if (!ganttOpts.forPrint) {
+      ganttHtml = `<div class="rb-gantt-placeholder">
+        Hiring Plan — renders as a landscape final page on PDF export</div>`;
+    } else if (ganttOpts.coeRows?.length) {
+      ganttHtml = `<div class="rb-hiring-plan-page">
+        <h3>Hiring Plan</h3>
+        ${coeGanttHtml(coeSortRows(ganttOpts.coeRows), { readOnly: true, canEdit: false, showActuals: false })}
+      </div>`;
+    }
+  }
+  return titleHtml + blocks + ganttHtml;
 }
 
 async function rbExportPdf() {
@@ -351,9 +371,13 @@ async function rbExportPdf() {
   if (!data) return;
   _rbReportData = data;
 
+  // Fetch plan rows only when the Hiring Plan page is enabled
+  const coeRows = (_rbIncludeGantt && _rbScope === 'project' && _rbProjectId)
+    ? await getCoEPlanRows(_rbProjectId) : [];
+
   // Use existing printPage() — sets print-header title/sub and calls window.print()
   const main = document.getElementById('main-content');
-  main.innerHTML = rbRenderReportHtml(title, data);
+  main.innerHTML = rbRenderReportHtml(title, data, { forPrint: true, coeRows });
   printPage(title, false, 'Reporting');
 
   // Restore builder after print dialog closes
@@ -370,7 +394,7 @@ async function rbSaveReport() {
     RoleID:      _rbScope === 'project' && _rbRoleId !== 'all' ? _rbRoleId : null,
     Period:      _rbPeriod,
     KpiPeriod:   _rbKpiPeriod,
-    ModuleOrder: JSON.stringify(_rbBlocks),
+    ModuleOrder: JSON.stringify(_rbIncludeGantt ? [..._rbBlocks, { type: 'hiringPlan' }] : _rbBlocks),
   };
   if (_rbReportId) {
     await updateSavedReport(_rbReportId, payload);
@@ -430,7 +454,9 @@ async function rbLoadReport(id) {
   _rbRoleId     = report['RoleID'] ? String(report['RoleID']) : 'all';
   _rbPeriod     = report.Period || 'this_quarter';
   _rbKpiPeriod  = report.KpiPeriod || 'quarter';
-  _rbBlocks     = JSON.parse(report.ModuleOrder || '[]');
+  const _loadedBlocks = JSON.parse(report.ModuleOrder || '[]');
+  _rbIncludeGantt = _loadedBlocks.some(b => b.type === 'hiringPlan');
+  _rbBlocks     = _loadedBlocks.filter(b => b.type !== 'hiringPlan');
   _rbTitle      = report.Title;
   document.getElementById('rb-saved-modal').style.display = 'none';
   renderReportBuilder();

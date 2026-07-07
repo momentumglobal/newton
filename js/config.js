@@ -55,6 +55,15 @@ const CONFIG = {
   amber: 200000,  // >= £200k / month = watch
   // < £200k = red
 },
+
+  // CoE Hiring Plan — default phase lengths in weeks.
+  // Per-row overrides live on the CoEPlanRows list.
+  // Handover excluded from v1 (planned for later).
+  COE_PHASE_DEFAULTS: {
+    recruitmentWeeks: 7,   // R — Open Date → offer accepted
+    noticeWeeks:      4,   // N — offer accepted → start
+    onboardingWeeks:  6,   // O — start → fully onboarded
+  },
   
   // Single source of truth for the module switcher dropdown.
   // To add a new module, add it here only — all nav files reference this.

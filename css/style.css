@@ -1735,3 +1735,29 @@ body {
   .coe-fvp-input { border: none; background: transparent; }
   .coe-fvp-table { break-inside: avoid; font-size: 11px; }
 }
+
+/* ── Report Builder — Hiring Plan landscape final page ─────────────── */
+.rb-gantt-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; margin-right: 8px; cursor: pointer; user-select: none;
+}
+.rb-gantt-placeholder {
+  border: 2px dashed #BBBBBB; border-radius: 6px;
+  padding: 24px; margin-top: 24px; text-align: center;
+  color: #777; font-size: 14px;
+}
+.rb-hiring-plan-page { display: none; } /* print-only content */
+
+@media print {
+  .rb-gantt-placeholder { display: none !important; }
+  /* Named page: this block prints landscape while the rest stays portrait.
+     Chromium (Chrome/Edge) only — Firefox ignores named pages. */
+  @page coe-gantt { size: A4 landscape; }
+  .rb-hiring-plan-page {
+    display: block;
+    page: coe-gantt;
+    break-before: page;
+    page-break-before: always;
+  }
+  .rb-hiring-plan-page h3 { margin-bottom: 10px; }
+}

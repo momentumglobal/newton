@@ -126,6 +126,7 @@ function coeRenderBody() {
       <select onchange="renderHiringPlanPage(parseInt(this.value))">${projOpts}</select>
       <select onchange="_coeTPFilter=this.value; coeRenderBody()">${tpOpts}</select>
       ${canEdit ? `<button class="btn-primary" onclick="coeOpenRowModal()">+ Add Planned Role</button>` : ''}
+      <button class="print-btn" onclick="coeExportPDF()">⎙ Export PDF</button>
     </div>
     <div class="coe-legend">
       <span><span class="coe-swatch" style="background:#BDE3F5"></span> Recruitment</span>
@@ -189,7 +190,7 @@ function coeRenderGantt() {
     const names = { R: '# in Recruitment', N: '# in Notice', O: '# in Onboarding' };
     return `<tr class="coe-capacity"><th class="coe-sticky coe-sticky--1 coe-cap-label" colspan="1">${names[ph]}</th>
       <th class="coe-sticky coe-sticky--2"></th><th class="coe-sticky coe-sticky--3"></th><th class="coe-sticky coe-sticky--4"></th>
-      ${cap[ph].map(c => `<td>${c || '–'}</td>`).join('')}${canEdit ? '<td></td>' : ''}</tr>`;
+      ${cap[ph].map(c => `<td>${c || '–'}</td>`).join('')}${canEdit ? '<td class="coe-col-actions"></td>' : ''}</tr>`;
   }).join('');
 
   const bodyHtml = rows.map(row => {
@@ -206,7 +207,7 @@ function coeRenderGantt() {
         w === todayIdx ? 'coe-cell--today' : ''].filter(Boolean).join(' ');
       cells.push(`<td class="${cls}">${ph}</td>`);
     }
-    const actions = canEdit ? `<td><div class="coe-row-actions">
+    const actions = canEdit ? `<td class="coe-col-actions"><div class="coe-row-actions">
         <button class="btn-secondary" onclick="coeOpenRowModal(${row.id})">Edit</button>
         <button class="btn-secondary" onclick="coeOpenLinkPicker(${row.id})">${row.LinkedRoleID ? 'Re-link' : 'Link'}</button>
         ${!row.LinkedRoleID ? `<button class="btn-secondary" onclick="coeCreateRoleFromRow(${row.id})">Create Role</button>` : ''}
@@ -227,7 +228,7 @@ function coeRenderGantt() {
           <th class="coe-sticky coe-sticky--3" rowspan="2">Open</th>
           <th class="coe-sticky coe-sticky--4" rowspan="2">Target Hire</th>
           ${monthCells.map(m => `<th class="coe-month" colspan="${m.span}">${m.label}</th>`).join('')}
-          ${canEdit ? '<th rowspan="2"></th>' : ''}</tr>
+          ${canEdit ? '<th rowspan="2" class="coe-col-actions"></th>' : ''}</tr>
       <tr>${Array.from({ length: nWeeks }, (_, w) => `<th>${coeAddWeeks(tStart, w).getDate()}</th>`).join('')}</tr>
       ${capHtml}
     </thead>
@@ -404,4 +405,10 @@ async function coeCreateRoleFromRow(rowId) {
   if (titleInput && row) titleInput.value = row.Title;
   const openInput = document.querySelector('#role-form [name="OpenDate"]');
   if (openInput && row?.OpenDate) openInput.value = row.OpenDate.split('T')[0];
+}
+
+// ── Print / PDF export ──────────────────────────────────────────────
+function coeExportPDF() {
+  const proj = _coeCache.projects.find(p => p.id == _coeCache.projectId);
+  printPage(`Hiring Plan — ${proj ? proj.CustomerName : ''}`, true, 'Reporting');
 }

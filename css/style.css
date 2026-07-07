@@ -1711,3 +1711,25 @@ body {
 .coe-fvp-var-pos { color:#1E8449; font-weight:600; }
 .coe-row-actions { display:flex; gap:6px; justify-content:flex-start; }
 .coe-row-actions button { font-size:11px; padding:2px 8px; }
+
+/* ── CoE Hiring Plan — print/PDF ───────────────────────────────────── */
+@media print {
+  .coe-toolbar, .coe-col-actions, #coe-modal-host { display: none !important; }
+  .coe-gantt-wrap { overflow: visible !important; border: none; }
+  /* Compress the grid so a long plan fits A4 landscape */
+  .coe-gantt { font-size: 8px; }
+  .coe-gantt th, .coe-gantt td { padding: 1px 2px; }
+  .coe-cell { min-width: 0; height: 12px; }
+  .coe-gantt .coe-sticky { position: static; box-shadow: none; }
+  .coe-gantt .coe-sticky--1 { min-width: 0; }
+  .coe-gantt .coe-sticky--2, .coe-gantt .coe-sticky--3, .coe-gantt .coe-sticky--4 { min-width: 0; }
+  /* Force phase colours to print */
+  .coe-cell--R, .coe-cell--N, .coe-cell--O, .coe-swatch,
+  .coe-cell--aR, .coe-cell--aN, .coe-cell--aO {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .coe-legend { font-size: 10px; }
+  /* Forecast table: inputs print as plain values */
+  .coe-fvp-input { border: none; background: transparent; }
+  .coe-fvp-table { break-inside: avoid; font-size: 11px; }
+}

@@ -58,6 +58,9 @@ const FIELD_ALIASES = {
   SurveyCompletions: {},
   // ── Notifications ─────────────────────────────────────────
   Notifications: {},
+  // ── CoE Hiring Plan ───────────────────────────────────────
+  CoEPlanRows:     {},
+  CoEPlanForecast: {},
 };
  
 function normaliseFields(listName, fields) {
@@ -227,6 +230,27 @@ async function deleteSalesForecast(id) {
   return deleteItem("SalesForecasts", id);
 }
  
+// ── CoE Hiring Plan ─────────────────────────────────────────────────
+async function getCoEPlanRows(projectId) {
+  return getItems("CoEPlanRows", `fields/ProjectID eq ${projectId}`);
+}
+async function createCoEPlanRow(payload) {
+  return createItem("CoEPlanRows", payload);
+}
+async function updateCoEPlanRow(id, payload) {
+  return updateItem("CoEPlanRows", id, payload);
+}
+async function deleteCoEPlanRow(id) {
+  return deleteItem("CoEPlanRows", id);
+}
+async function getCoEPlanForecast(projectId) {
+  return getItems("CoEPlanForecast", `fields/ProjectID eq ${projectId}`);
+}
+async function saveCoEForecastMonth(projectId, monthISO, hires, existingId = null) {
+  if (existingId) return updateItem("CoEPlanForecast", existingId, { ForecastedHires: hires });
+  return createItem("CoEPlanForecast", { ProjectID: projectId, ForecastMonth: monthISO, ForecastedHires: hires });
+}
+
 async function getDepartments() {
   return getItems("Departments", "");
 }

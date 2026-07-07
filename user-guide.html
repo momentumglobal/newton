@@ -65,6 +65,7 @@
       <li><a href="#activity">Weekly Activity</a></li>
       <li><a href="#placements">Placements</a></li>
       <li><a href="#rejections">Rejected Offers</a></li>
+      <li><a href="#hiring-plan">Hiring Plan (CoE)</a></li>
       <li><a href="#report-builder">Report Builder</a></li>
       <li><a href="#admin">Config Panel</a></li>
     </ul>
@@ -225,6 +226,24 @@
       <p>Filter by project using the dropdown.</p>
       <h3>Recording a rejection</h3>
       <p>Use <strong>+ Record Rejection</strong> to log a declined offer. This data feeds the <strong>Offer Rejection Reasons</strong> panel on the Project Dashboard, helping identify trends over time.</p>
+    </div>
+    <div class="guide-section" id="hiring-plan">
+      <h2>Hiring Plan (CoE projects)</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+        <span class="role-badge leadership">Leadership</span>
+      </div>
+      <p>A month-by-month hiring roadmap for Centre of Excellence (CoE) projects. Each planned role appears as a row on a Gantt-style timeline showing its <strong>Recruitment</strong> (blue), <strong>Notice</strong> (pink), and <strong>Onboarding</strong> (green) phases week by week. The page only shows projects marked as <strong>CoE</strong> in the project form. Admins and Delivery Managers can build and edit the plan; Talent Partners and Leadership have a read-only view.</p>
+      <h3>Building the plan</h3>
+      <p>Use <strong>+ Add Planned Role</strong> and enter a role title and planned open date — the phases fill in automatically from the standard assumptions. Leave the phase-length fields blank to use the defaults, or enter a number of weeks to override any phase for that role. The <strong>Target Hire Date</strong> is calculated automatically as the open date plus the recruitment phase.</p>
+      <h3>Capacity and filtering</h3>
+      <p>The rows above the timeline show how many roles are in each phase every week — use these to spot capacity peaks. Assign a Talent Partner to each row and use the Talent Partner dropdown to view one person's workload at a time.</p>
+      <h3>Linking to live roles</h3>
+      <p>Once a planned role kicks off, use <strong>Link</strong> to connect it to the live role, or <strong>Create Role</strong> to open a pre-filled Add Role form. Linked rows (marked 🔗) show a thin bar along the bottom of the timeline tracking actual progress against the plan — based on the role's open date, hire date, and the placement's start date.</p>
+      <h3>Forecast vs Planned Hires</h3>
+      <p>The table below the timeline compares monthly hire numbers. <strong>Forecasted</strong> is calculated from the target hire dates on the timeline; the planned column is entered by the Delivery Manager. The variance column highlights months where the plan and forecast diverge, supporting conversations about scope and customer expectations.</p>
     </div>
     <div class="guide-section" id="report-builder">
       <h2>Report Builder</h2>

@@ -1678,3 +1678,36 @@ body {
 #payroll-modal-overlay > div {
   box-shadow: 0 8px 32px rgba(0,0,0,0.18);
 }
+
+/* ── CoE Hiring Plan ─────────────────────────────────────────────── */
+.coe-toolbar { display:flex; gap:12px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+.coe-gantt-wrap { overflow-x:auto; border:1px solid #E0E0E0; border-radius:6px; }
+.coe-gantt { border-collapse:collapse; font-size:12px; }
+.coe-gantt th, .coe-gantt td { border:1px solid #EDEDED; padding:2px 6px; text-align:center; white-space:nowrap; }
+.coe-gantt th.coe-month { background:#F5F5F5; font-weight:600; }
+.coe-gantt .coe-sticky { position:sticky; background:#fff; z-index:2; text-align:left; }
+.coe-gantt .coe-sticky--1 { left:0; min-width:160px; }
+.coe-gantt .coe-sticky--2 { left:160px; min-width:80px; }
+.coe-gantt .coe-sticky--3 { left:240px; min-width:90px; }
+.coe-gantt .coe-sticky--4 { left:330px; min-width:90px; box-shadow:2px 0 3px rgba(0,0,0,0.06); }
+.coe-cell { min-width:26px; height:22px; }
+.coe-cell--R { background:#BDE3F5; }
+.coe-cell--N { background:#F5CCE8; }
+.coe-cell--O { background:#CDEBD3; }
+.coe-cell--today { outline:2px solid #E8703A; outline-offset:-2px; }
+/* actuals overlay — thin bar along the bottom of the cell */
+.coe-cell--aR { box-shadow: inset 0 -5px 0 #2E86C1; }
+.coe-cell--aN { box-shadow: inset 0 -5px 0 #C0392B; }
+.coe-cell--aO { box-shadow: inset 0 -5px 0 #1E8449; }
+.coe-legend { display:flex; gap:16px; margin:10px 0; font-size:12px; align-items:center; flex-wrap:wrap; }
+.coe-legend span { display:inline-flex; align-items:center; gap:5px; }
+.coe-swatch { width:14px; height:14px; border-radius:3px; display:inline-block; }
+.coe-capacity td, .coe-capacity th { font-size:11px; }
+.coe-capacity .coe-cap-label { text-align:left; font-weight:600; }
+.coe-fvp-table { border-collapse:collapse; margin-top:10px; font-size:13px; }
+.coe-fvp-table th, .coe-fvp-table td { border:1px solid #E0E0E0; padding:6px 12px; text-align:center; }
+.coe-fvp-input { width:60px; text-align:center; }
+.coe-fvp-var-neg { color:#C0392B; font-weight:600; }
+.coe-fvp-var-pos { color:#1E8449; font-weight:600; }
+.coe-row-actions { display:flex; gap:6px; justify-content:flex-start; }
+.coe-row-actions button { font-size:11px; padding:2px 8px; }

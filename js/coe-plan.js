@@ -252,9 +252,11 @@ function coeRenderForecastTable() {
 
   const fByMonth = {};
   forecast.forEach(f => {
-    // ForecastMonth arrives as an ISO string — slice it to avoid TZ shifts
-    const [y, mo] = String(f.ForecastMonth).slice(0, 10).split('-');
-    fByMonth[`${parseInt(y)}-${parseInt(mo) - 1}`] = f;
+    // SP returns ForecastMonth as UTC datetime (e.g. 2026-06-30T23:00:00Z
+    // = 1 July 00:00 BST). new Date() converts back to local, so local
+    // year/month give the intended month.
+    const d = new Date(f.ForecastMonth);
+    fByMonth[`${d.getFullYear()}-${d.getMonth()}`] = f;
   });
 
   let totP = 0, totF = 0;

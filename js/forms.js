@@ -49,6 +49,13 @@ function renderProjectForm(existingData = null) {
             <option value="Completed" ${existingData?.Status === 'Completed' ? 'selected' : ''}>Completed</option>
           </select>
         </div>
+        <div class="form-group">
+          <label>Project Type *</label>
+          <select name="ProjectType" required>
+            <option value="Embedded" ${(!existingData?.ProjectType || existingData?.ProjectType === 'Embedded') ? 'selected' : ''}>Embedded</option>
+            <option value="CoE" ${existingData?.ProjectType === 'CoE' ? 'selected' : ''}>CoE</option>
+          </select>
+        </div>
         <div class="form-row">
           <div class="form-group">
             <label>Start Date</label>
@@ -84,6 +91,7 @@ async function submitProjectForm(event, editId = null) {
     Title:           data.CustomerName,
     DeliveryManager: data.DeliveryManager,
     Status:          data.Status,
+    ProjectType:     data.ProjectType,
     StartDate:       isoDate(data.StartDate) || undefined,
     EndDate:         isoDate(data.EndDate) || undefined,
     Notes:           data.Notes || undefined,

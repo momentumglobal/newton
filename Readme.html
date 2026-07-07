@@ -355,7 +355,7 @@
         <div class="card accent-blue">
           <div class="card-title">Reporting</div>
           <div class="card-file">reporting.html</div>
-          <div class="card-desc">Core recruitment reporting. Projects, Roles, Weekly Activity, Placements, Rejected Offers, Project &amp; Company Dashboards, Report Builder.</div>
+          <div class="card-desc">Core recruitment reporting. Projects, Roles, Weekly Activity, Placements, Rejected Offers, Project &amp; Company Dashboards, Report Builder, and Hiring Plan (Gantt-style hiring roadmap for CoE projects).</div>
         </div>
         <div class="card accent-teal">
           <div class="card-title">Market Analytics</div>
@@ -560,6 +560,7 @@
         <tr><td><span class="file-tag">js/dashboard.js</span></td><td>Project Dashboard (incl. Role Analytics panel), Company Dashboard, REPORT_PANELS registry</td></tr>
         <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions — computeTTFPrediction(), computeRoleFunnel(), computeVelocityScore(), isRoleFlagged(), ACTIVE_STAGES, STAGE_ORDER. Loaded by reporting.html, people.html, market-reporting.html, and command-centre.html.</td></tr>
         <tr><td><span class="file-tag">js/report-builder.js</span></td><td>Report Builder — block canvas, save/load, PDF export</td></tr>
+        <tr><td><span class="file-tag">js/coe-plan.js</span></td><td>Hiring Plan (CoE projects) — Gantt builder, weekly capacity strip, forecast vs planned table, role linkage with actuals overlay</td></tr>
         <tr><td><span class="file-tag">js/admin.js</span></td><td>Config Panel — Departments, Currencies, Delete Records</td></tr>
       </table>
 
@@ -692,12 +693,14 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <h3>Reporting module lists</h3>
       <table>
         <tr><th>List</th><th>Title alias</th><th>Key fields</th><th>Relationships</th></tr>
-        <tr><td><strong>Projects</strong></td><td>CustomerName</td><td>Status, DeliveryManager, StartDate, EndDate</td><td>Parent of Roles, UserAssignments, Departments</td></tr>
+        <tr><td><strong>Projects</strong></td><td>CustomerName</td><td>Status, DeliveryManager, StartDate, EndDate, ProjectType (Embedded/CoE — gates the Hiring Plan page)</td><td>Parent of Roles, UserAssignments, Departments, CoEPlanRows, CoEPlanForecast</td></tr>
         <tr><td><strong>Roles</strong></td><td>RoleTitle</td><td>ProjectID, Stage, TalentPartner, OpenDate, TargetHireDate, ActualHireDate, Budget, Currency</td><td>Child of Projects. Parent of WeeklyActivity, Placements, RejectedOffers</td></tr>
         <tr><td><strong>WeeklyActivity</strong></td><td>ActivityTitle</td><td>RoleID, Year, WeekNumber, WeekEndingDate, TalentPartner, Outreach, Responses, Screened, Submitted, Interview1, Interview2Plus, FinalInterview, Offers, Hires</td><td>Child of Roles</td></tr>
         <tr><td><strong>Placements</strong></td><td>CandidateName</td><td>RoleID, OfferAcceptedDate, ProvisionalStartDate, SalaryAgreed, Currency, TimeToHire</td><td>Child of Roles</td></tr>
         <tr><td><strong>RejectedOffers</strong></td><td>CandidateName</td><td>RoleID, RejectionReason, SalaryOffered, Notes</td><td>Child of Roles</td></tr>
         <tr><td><strong>Departments</strong></td><td>DepartmentName</td><td>ProjectID, CustomerName</td><td>Child of Projects</td></tr>
+        <tr><td><strong>CoEPlanRows</strong></td><td>(Role title)</td><td>ProjectID, TalentPartner, OpenDate, RecruitmentWeeks/NoticeWeeks/OnboardingWeeks/HandoverWeeks (per-row overrides, blank = CONFIG.COE_PHASE_DEFAULTS), LinkedRoleID, SortOrder. Target Hire Date is derived (OpenDate + recruitment weeks), never stored.</td><td>Child of Projects. Optionally linked to a Role via LinkedRoleID</td></tr>
+        <tr><td><strong>CoEPlanForecast</strong></td><td>(unused)</td><td>ProjectID, ForecastMonth (date, always 1st of month; SP returns UTC datetime — parse with new Date(), never string-slice), ForecastedHires</td><td>Child of Projects</td></tr>
         <tr><td><strong>Currencies</strong></td><td>CurrencyCode</td><td>—</td><td>Reference list</td></tr>
         <tr><td><strong>SavedReports</strong></td><td>—</td><td>Scope, ProjectID, Period, KpiPeriod, ModuleOrder (JSON), ReportOwner</td><td>Report Builder saves</td></tr>
         <tr><td><strong>MarketReports</strong></td><td>ReportTitle</td><td>Market intelligence content fields</td><td>Linked to Roles via Market Report module</td></tr>
@@ -964,6 +967,19 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
       <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">July 2026</div>
+        <div class="changelog-title">Hiring Plan — CoE hiring roadmap (Reporting module)</div>
+        <ul>
+          <li><strong>New page: Hiring Plan</strong> — Gantt-style week-by-week hiring roadmap for CoE projects, registered in <code>router.js</code> for all four roles; Admin/DM edit, TP/Leadership read-only. New file <code>js/coe-plan.js</code> loaded by <code>reporting.html</code>.</li>
+          <li><strong>Plan builder</strong> — rows need only Title + Open Date; Recruitment/Notice/Onboarding phases auto-complete from new <code>CONFIG.COE_PHASE_DEFAULTS</code>, with optional per-row week overrides. Target Hire Date derived (Open Date + recruitment weeks). Handover excluded from v1.</li>
+          <li><strong>Capacity &amp; forecast views</strong> — weekly # in R/N/O strip above the timeline with Talent Partner filter; Forecast vs Planned hires table (planned derived from target hire dates; forecast entered inline by DM, stored per month).</li>
+          <li><strong>Roles linkage</strong> — Link picker + "Create Role" (pre-filled Add Role form). Linked rows overlay actuals as a thin bar: R from Role.OpenDate, N from Role.ActualHireDate, O from Placement.ProvisionalStartDate.</li>
+          <li><strong>Data model:</strong> Projects gains <code>ProjectType</code> choice column (Embedded/CoE, gates the page + project form field); new lists <code>CoEPlanRows</code> and <code>CoEPlanForecast</code>; both added to FIELD_ALIASES as empty objects.</li>
+          <li><strong>Gotcha fixed during build:</strong> forecast months must be written as manual ISO strings and read via <code>new Date()</code> local parsing — <code>toISOString()</code>/string-slicing shifts the 1st of a month into the prior month under BST.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">June 2026</div>

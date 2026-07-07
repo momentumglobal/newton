@@ -252,8 +252,9 @@ function coeRenderForecastTable() {
 
   const fByMonth = {};
   forecast.forEach(f => {
-    const d = new Date(f.ForecastMonth);
-    fByMonth[`${d.getFullYear()}-${d.getMonth()}`] = f;
+    // ForecastMonth arrives as an ISO string — slice it to avoid TZ shifts
+    const [y, mo] = String(f.ForecastMonth).slice(0, 10).split('-');
+    fByMonth[`${parseInt(y)}-${parseInt(mo) - 1}`] = f;
   });
 
   let totP = 0, totF = 0;
@@ -265,9 +266,12 @@ function coeRenderForecastTable() {
     totP += planned; totF += Number(fVal) || 0;
     const varc = fVal === '' ? '' : Number(fVal) - planned;
     const varCls = varc === '' ? '' : varc < 0 ? 'coe-fvp-var-neg' : varc > 0 ? 'coe-fvp-var-pos' : '';
+    // Build the ISO date manually — toISOString() shifts to UTC and can
+    // land on the last day of the previous month during BST.
+    const monthISO = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-01`;
     const fCell = canEdit
       ? `<input type="number" min="0" class="coe-fvp-input" value="${fVal}"
-           onchange="coeSaveForecast('${m.toISOString().slice(0, 10)}', this.value, ${fRow ? fRow.id : 'null'})">`
+           onchange="coeSaveForecast('${monthISO}', this.value, ${fRow ? fRow.id : 'null'})">`
       : (fVal === '' ? '—' : fVal);
     return `<tr><td>${m.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</td>
       <td>${fCell}</td><td>${planned}</td>

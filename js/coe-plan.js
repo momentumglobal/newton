@@ -2,6 +2,8 @@
 // Entry point: renderHiringPlanPage() — wired in nav.js
 // Data: CoEPlanRows + CoEPlanForecast lists via api.js getters.
 // Phase defaults: CONFIG.COE_PHASE_DEFAULTS. Handover excluded from v1.
+// coeGanttHtml() is a pure renderer shared with the Report Builder
+// (landscape final-page export) — no DOM access, no cache reads.
 
 let _coeCache = null;   // { projectId, planRows, roles, placements, forecast }
 let _coeTPFilter = '';  // '' = all TPs
@@ -145,14 +147,26 @@ function coeRenderBody() {
 
 // ── Gantt + capacity strip ──────────────────────────────────────────
 
+// Shared row sort — used by the page and the Report Builder export
+function coeSortRows(planRows) {
+  return [...planRows].sort((a, b) =>
+    (a.SortOrder || 0) - (b.SortOrder || 0) || new Date(a.OpenDate) - new Date(b.OpenDate));
+}
+
+// Thin DOM wrapper for the Hiring Plan page
 function coeRenderGantt() {
   const { planRows, roles, placements, canEdit } = _coeCache;
   const host = document.getElementById('coe-gantt');
-  const rows = planRows
-    .filter(r => !_coeTPFilter || r.TalentPartner === _coeTPFilter)
-    .sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0) || new Date(a.OpenDate) - new Date(b.OpenDate));
-
+  const rows = coeSortRows(planRows.filter(r => !_coeTPFilter || r.TalentPartner === _coeTPFilter));
   if (!rows.length) { host.innerHTML = '<p>No planned roles yet.</p>'; return; }
+  host.innerHTML = coeGanttHtml(rows, { roles, placements, canEdit, showActuals: true });
+}
+
+// Pure renderer — no DOM access, no cache reads. Returns the Gantt table HTML.
+// opts: roles, placements (for actuals overlay), canEdit (actions column),
+//       showActuals (thin actual bars on linked rows)
+function coeGanttHtml(rows, opts = {}) {
+  const { roles = [], placements = [], canEdit = false, showActuals = true } = opts;
 
   // Timeline: earliest plan/actual start → latest plan end, +2wk buffer each side
   const spans = rows.map(computePlanSpans);
@@ -200,7 +214,7 @@ function coeRenderGantt() {
     const cells = [];
     for (let w = 0; w < nWeeks; w++) {
       const ph  = coePhaseAt(row, tStart, w);
-      const aph = coeActualPhaseAt(row, role, plc, tStart, w);
+      const aph = showActuals ? coeActualPhaseAt(row, role, plc, tStart, w) : '';
       const cls = ['coe-cell',
         ph  ? `coe-cell--${ph}`  : '',
         aph ? `coe-cell--a${aph}` : '',
@@ -221,7 +235,7 @@ function coeRenderGantt() {
       ${cells.join('')}${actions}</tr>`;
   }).join('');
 
-  host.innerHTML = `<div class="coe-gantt-wrap"><table class="coe-gantt">
+  return `<div class="coe-gantt-wrap"><table class="coe-gantt">
     <thead>
       <tr><th class="coe-sticky coe-sticky--1" rowspan="2">Role</th>
           <th class="coe-sticky coe-sticky--2" rowspan="2">TP</th>

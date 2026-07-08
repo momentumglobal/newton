@@ -243,11 +243,11 @@ function _lciRoadmapRowHtml(r, idx, horizon) {
   const cost = lciMonthlyCost(r, _lciEd.model);
   return `
     <tr data-row-idx="${idx}">
-      <td><input type="text" class="lci-cell lci-cell--wide" value="${r.Title || ''}"
+      <td><input type="text" class="lci-cell lci-cell--grow" value="${r.Title || ''}"
                  onchange="lciCoeFieldChanged(${idx}, 'Title', this.value)"></td>
       <td><input type="text" class="lci-cell lci-cell--sm" value="${r.CareerLevel || ''}"
                  onchange="lciCoeFieldChanged(${idx}, 'CareerLevel', this.value)"></td>
-      <td><input type="number" class="lci-cell" min="0" value="${r.AnnualSalary ?? ''}"
+      <td><input type="number" class="lci-cell lci-cell--grow" min="0" value="${r.AnnualSalary ?? ''}"
                  onchange="lciCoeFieldChanged(${idx}, 'AnnualSalary', this.value)"></td>
       <td><input type="number" class="lci-cell lci-cell--sm" min="0" max="100" step="1" value="${r.BonusPct != null ? Math.round(r.BonusPct * 100 * 100) / 100 : ''}"
                  onchange="lciCoeFieldChanged(${idx}, 'BonusPct', this.value)"></td>

@@ -117,7 +117,7 @@ function _lciSettingsHtml() {
         ${field('Notice period (months)', numInput('NoticeMonths', m.NoticeMonths ?? 0, '1'))}
         ${field(`Office / head / month (${m.LocalCurrency})`, numInput('OfficeCostPerHead', m.OfficeCostPerHead, '10'))}
         ${field(`EoR / head / month (${m.DisplayCurrency})`, numInput('EoRFeePerHead', m.EoRFeePerHead, '10'))}
-        ${field(`Travel / month (${m.LocalCurrency})`, numInput('TravelPerMonth', m.TravelPerMonth, '100'))}
+        ${field(`Travel / month (${m.DisplayCurrency})`, numInput('TravelPerMonth', m.TravelPerMonth, '100'))}
         ${canAssign ? field('Assigned DM (email)',
           `<input type="email" class="form-control" data-setting="AssignedDMEmail" value="${m.AssignedDMEmail || ''}" onchange="lciSettingChanged()">`) : ''}
       </div>

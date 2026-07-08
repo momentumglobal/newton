@@ -1816,3 +1816,16 @@ body {
 .lci-derived { text-align: center; color: #1B3A5C; font-weight: 600; }
 .lci-team-row td { background: #F5F7FA; padding: 6px 8px; }
 .lci-row-del { padding: 2px 8px; line-height: 1; }
+
+/* LCI cost output */
+.lci-output td { text-align: right; }
+.lci-output td:first-child { text-align: left; }
+.lci-out-subtotal td { font-weight: 600; border-top: 1px solid #ddd; }
+.lci-out-total td { font-weight: 700; color: #1B3A5C; background: #F5F7FA; }
+.lci-warn { color: #E8703A; margin-left: 4px; cursor: help; }
+
+/* LCI cumulative spend chart */
+.lci-chart-line { stroke: #1B3A5C; stroke-width: 2.5; }
+.lci-chart-dot  { fill: #1B3A5C; }
+.lci-chart-grid { stroke: #eee; stroke-width: 1; }
+.lci-chart-tick { fill: #888; font-size: 11px; }

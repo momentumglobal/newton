@@ -203,7 +203,7 @@ function lciToggleFxInput() {
 async function saveLCIModel(event) {
   event.preventDefault();
   const btn = document.getElementById('lci-model-save-btn');
-  setButtonLoading(btn, true);
+  setButtonLoading(btn);
   try {
     const data = Object.fromEntries(new FormData(event.target).entries());
     const user = getCurrentUser();
@@ -252,24 +252,14 @@ async function saveLCIModel(event) {
   } catch (e) {
     alert('Error creating model: ' + e.message);
   } finally {
-    setButtonLoading(btn, false);
+    clearButtonLoading(btn);
   }
 }
 
 // ── Row actions ──────────────────────────────────────────────────────
 
 function openLCIModel(id) {
-  // Editor arrives in build step 5. Placeholder keeps the action wired.
-  const m = (_lciModelsCache || []).find(x => String(x.id) === String(id));
-  const main = document.getElementById('main-content');
-  main.innerHTML = `
-    <div class="page-header">
-      <h2>${m ? m.Title : 'Model'}</h2>
-      <button class="btn-secondary" onclick="renderLCIModelsPage()">← Back to models</button>
-    </div>
-    <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px;color:#666">
-      Model editor is delivered in build step 5.
-    </div>`;
+  renderLCIEditorPage(id);
 }
 
 async function copyLCIModelAction(id) {

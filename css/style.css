@@ -1834,4 +1834,5 @@ body {
 .lci-chart-line { stroke: #1B3A5C; stroke-width: 2.5; }
 .lci-chart-dot  { fill: #1B3A5C; }
 .lci-chart-grid { stroke: #eee; stroke-width: 1; }
-.lci-chart-tick { fill: #888; font-size: 11px; }
+.lci-chart-tick { fill: #888; font-size: 9px; }
+.lci-chart-grid--minor { stroke: #f7f7f7; }

@@ -51,9 +51,9 @@ function _lciLegacyHtml() {
     const noExit = !r.ExitMonth;
     return `
       <tr>
-        <td><input type="text" class="lci-cell lci-cell--wide" value="${r.Title || ''}"
+        <td><input type="text" class="lci-cell lci-cell--grow" value="${r.Title || ''}"
                    onchange="lciRowFieldChanged(${gidx}, 'Title', this.value)"></td>
-        <td><input type="text" class="lci-cell" value="${r.Team || ''}"
+        <td><input type="text" class="lci-cell lci-cell--grow" value="${r.Team || ''}"
                    onchange="lciRowFieldChanged(${gidx}, 'Team', this.value)"></td>
         <td><input type="number" class="lci-cell lci-cell--sm" min="1" value="${r.Quantity ?? 1}"
                    onchange="lciRowFieldChanged(${gidx}, 'Quantity', this.value)"></td>
@@ -74,7 +74,7 @@ function _lciLegacyHtml() {
     'addLCILegacyRow', `
     <table class="data-table">
       <thead><tr>
-        <th>Role</th><th>Team</th><th>Qty</th><th>Annual salary</th><th>Bonus %</th>
+        <th style="width:24%">Role</th><th style="width:24%">Team</th><th>Qty</th><th>Annual salary</th><th>Bonus %</th>
         <th>Exit month</th><th>Cost/mo</th><th></th>
       </tr></thead>
       <tbody>${body}</tbody>
@@ -117,8 +117,8 @@ function _lciMonthGridHtml(sectionId, type, title, subtitle, addFn) {
 
   return _lciSectionShell(sectionId, title, subtitle, addFn, `
     <div class="lci-grid-scroll">
-      <table class="data-table lci-grid">
-        <thead><tr><th style="min-width:180px">Item</th>${monthHead}<th>Total</th><th></th></tr></thead>
+      <table class="data-table lci-grid lci-grid--amounts">
+        <thead><tr><th style="min-width:130px">Item</th>${monthHead}<th>Total</th><th></th></tr></thead>
         <tbody>${body}</tbody>
       </table>
     </div>`);

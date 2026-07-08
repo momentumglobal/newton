@@ -207,7 +207,7 @@ function _lciRoadmapHtml() {
           <thead>
             <tr>
               <th style="min-width:180px">Role</th><th>Level</th>
-              <th>Salary</th><th>Bonus %</th>
+              <th>Annual salary</th><th>Bonus %</th>
               ${monthHead}
               <th>Hires</th><th>Cost/mo</th><th></th>
             </tr>

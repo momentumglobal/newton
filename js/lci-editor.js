@@ -239,7 +239,7 @@ function _lciRoadmapRowHtml(r, idx, horizon) {
                  onchange="lciCoeFieldChanged(${idx}, 'CareerLevel', this.value)"></td>
       <td><input type="number" class="lci-cell" min="0" value="${r.AnnualSalary ?? ''}"
                  onchange="lciCoeFieldChanged(${idx}, 'AnnualSalary', this.value)"></td>
-      <td><input type="number" class="lci-cell lci-cell--sm" min="0" max="1" step="0.01" value="${r.BonusPct ?? ''}"
+      <td><input type="number" class="lci-cell lci-cell--sm" min="0" max="100" step="1" value="${r.BonusPct != null ? Math.round(r.BonusPct * 100 * 100) / 100 : ''}"
                  onchange="lciCoeFieldChanged(${idx}, 'BonusPct', this.value)"></td>
       ${cells}
       <td class="lci-derived" id="lci-hires-${idx}">${vals.reduce((a, b) => a + b, 0)}</td>
@@ -277,8 +277,13 @@ function lciCoeCellChanged(idx, monthIdx, value) {
 
 function lciCoeFieldChanged(idx, field, value) {
   const r = _lciCoeRows()[idx];
-  r[field] = (field === 'AnnualSalary' || field === 'BonusPct')
-    ? (value === '' ? null : Number(value)) : value;
+  if (field === 'BonusPct') {
+    r[field] = value === '' ? null : Number(value) / 100; // UI is whole %, stored as decimal
+  } else if (field === 'AnnualSalary') {
+    r[field] = value === '' ? null : Number(value);
+  } else {
+    r[field] = value;
+  }
   _lciMarkRowsDirty();
   _lciRefreshDerived(idx);
 }

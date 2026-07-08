@@ -61,6 +61,10 @@ const FIELD_ALIASES = {
   // ── CoE Hiring Plan ───────────────────────────────────────
   CoEPlanRows:     {},
   CoEPlanForecast: {},
+  // ── LCI Cost Model ────────────────────────────────────────
+  LCIModels:       {},
+  LCIModelRows:    {},
+  LCIMilestones:   {},
 };
  
 function normaliseFields(listName, fields) {
@@ -249,6 +253,79 @@ async function getCoEPlanForecast(projectId) {
 async function saveCoEForecastMonth(projectId, monthISO, hires, existingId = null) {
   if (existingId) return updateItem("CoEPlanForecast", existingId, { ForecastedHires: hires });
   return createItem("CoEPlanForecast", { ProjectID: projectId, ForecastMonth: monthISO, ForecastedHires: hires });
+}
+
+// ── LCI Cost Model ──────────────────────────────────────────────────
+async function getLCIModels() {
+  return getItems("LCIModels");
+}
+async function getLCIModelById(id) {
+  return getItem("LCIModels", id);
+}
+async function createLCIModel(fields) {
+  return createItem("LCIModels", fields);
+}
+async function updateLCIModel(id, fields) {
+  return updateItem("LCIModels", id, fields);
+}
+async function deleteLCIModel(id) {
+  // Delete rows + milestones first, then the header.
+  const [rows, milestones] = await Promise.all([getLCIRows(id), getLCIMilestones(id)]);
+  for (const r of rows)       await deleteItem("LCIModelRows", r.id);
+  for (const m of milestones) await deleteItem("LCIMilestones", m.id);
+  return deleteItem("LCIModels", id);
+}
+
+async function getLCIRows(modelId) {
+  return getItems("LCIModelRows", `fields/ModelID eq ${modelId}`);
+}
+async function createLCIRow(fields) {
+  return createItem("LCIModelRows", fields);
+}
+async function updateLCIRow(id, fields) {
+  return updateItem("LCIModelRows", id, fields);
+}
+async function deleteLCIRow(id) {
+  return deleteItem("LCIModelRows", id);
+}
+
+async function getLCIMilestones(modelId) {
+  return getItems("LCIMilestones", `fields/ModelID eq ${modelId}`);
+}
+async function createLCIMilestone(fields) {
+  return createItem("LCIMilestones", fields);
+}
+async function updateLCIMilestone(id, fields) {
+  return updateItem("LCIMilestones", id, fields);
+}
+async function deleteLCIMilestone(id) {
+  return deleteItem("LCIMilestones", id);
+}
+
+// Duplicate a model: header (status reset to Draft) + all rows + milestones.
+async function copyLCIModel(modelId, newTitle) {
+  const [model, rows, milestones] = await Promise.all([
+    getLCIModelById(modelId), getLCIRows(modelId), getLCIMilestones(modelId),
+  ]);
+  const { id, ...headerFields } = model;
+  delete headerFields['@odata.etag'];
+  const created = await createLCIModel({
+    ...headerFields,
+    Title:  newTitle || `${model.Title} (copy)`,
+    Status: 'Draft',
+  });
+  const newId = created.id;
+  for (const r of rows) {
+    const { id: _rid, ...f } = r;
+    delete f['@odata.etag'];
+    await createLCIRow({ ...f, ModelID: newId });
+  }
+  for (const m of milestones) {
+    const { id: _mid, ...f } = m;
+    delete f['@odata.etag'];
+    await createLCIMilestone({ ...f, ModelID: newId });
+  }
+  return created;
 }
 
 async function getDepartments() {

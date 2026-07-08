@@ -201,6 +201,7 @@ async function saveLCIModel(event) {
       OfficeCostPerHead:    D.OfficeCostPerHead,
       EoRFeePerHead:        D.EoRFeePerHead,
       TravelPerMonth:       D.TravelPerMonth,
+      NoticeMonths:         D.NoticeMonths,
       SectionsEnabled:      JSON.stringify({ coe: true, legacy: true, oneoffs: true, fees: true }),
     });
     closeLCIModelModal();

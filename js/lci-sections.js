@@ -228,7 +228,7 @@ function lciRefreshOutput() {
   if (el) el.innerHTML = _lciOutputInnerHtml();
 }
 
-function _lciOutputInnerHtml() {
+function _lciOutputInnerHtml(includeChart = true) {
   const m = _lciEd.model;
   const c = lciComputeModel(m, _lciEd.rows);
   const ccy = m.DisplayCurrency;
@@ -270,7 +270,7 @@ function _lciOutputInnerHtml() {
           </tbody>
         </table>
       </div>
-      ${_lciSpendChartSvg(c, ccy, horizon)}
+      ${includeChart ? _lciSpendChartSvg(c, ccy, horizon) : ''}
     </div>`;
 }
 

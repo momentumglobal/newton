@@ -1826,6 +1826,10 @@ body {
 .lci-out-indent td:first-child { padding-left: 18px; }
 .lci-out-section td { border-top: 1px solid #e0e0e0; }
 .lci-out-heavy td { border-top: 3px double #1B3A5C; }
+.lci-cell--grow { width: 95%; min-width: 130px; }
+.lci-grid--amounts .lci-mcol { min-width: 78px; }
+.lci-grid--amounts .lci-mcol .lci-cell { width: 70px; text-align: right; }
+.lci-grid--amounts .lci-cell--wide { width: 120px; }
 
 /* LCI cumulative spend chart */
 .lci-chart-line { stroke: #1B3A5C; stroke-width: 2.5; }

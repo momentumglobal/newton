@@ -42,9 +42,9 @@ function lciSections(model) {
 // ── Currency model ───────────────────────────────────────────────────
 // Each model has two currencies:
 //   LocalCurrency   — CoE location currency. CoE-side inputs are entered in
-//                     it: salaries, OfficeCostPerHead, TravelPerMonth.
-//                     (EoRFeePerHead is the exception: entered in
-//                     DisplayCurrency, so it is NOT FX-converted.)
+//                     it: salaries, OfficeCostPerHead.
+//                     (EoRFeePerHead and TravelPerMonth are exceptions:
+//                     entered in DisplayCurrency, NOT FX-converted.)
 //   DisplayCurrency — the customer's modelling currency. Customer-side
 //                     inputs are entered in it: legacy rows, one-offs, fees.
 //                     ALL outputs render in DisplayCurrency.
@@ -181,7 +181,8 @@ function lciComputeModel(model, rows) {
   // EoR fee is entered in DisplayCurrency (customer-side) — no FX conversion.
   const eor    = coe.headcount.map(h => h * (Number(model.EoRFeePerHead)    || 0));
   const office = coe.headcount.map(h => h * (Number(model.OfficeCostPerHead)|| 0) * fx);
-  const travel = new Array(horizon).fill((Number(model.TravelPerMonth) || 0) * fx);
+  // Travel is entered in DisplayCurrency (customer-side) — no FX conversion.
+  const travel = new Array(horizon).fill(Number(model.TravelPerMonth) || 0);
   if (!sections.coe) travel.fill(0);
 
   const coeOperating   = coe.total.map((c, i) => c + eor[i] + office[i] + travel[i]);

@@ -228,7 +228,9 @@ function lciRefreshOutput() {
   if (el) el.innerHTML = _lciOutputInnerHtml();
 }
 
-function _lciOutputInnerHtml(includeChart = true) {
+// plain=true renders without the white box wrapper (summary cards provide
+// their own tile — avoids a double border in the print view).
+function _lciOutputInnerHtml(includeChart = true, plain = false) {
   const m = _lciEd.model;
   const c = lciComputeModel(m, _lciEd.rows);
   const ccy = m.DisplayCurrency;
@@ -243,7 +245,7 @@ function _lciOutputInnerHtml(includeChart = true) {
     `<tr class="lci-out-indent"><td>${team}</td>${td(arr)}</tr>`).join('');
 
   return `
-    <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px">
+    <div style="${plain ? '' : 'background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'}">
       <h3 style="margin:0 0 12px;color:#1B3A5C">Cost Model <span style="font-weight:400;font-size:13px;color:#888">(all values in ${ccy})</span></h3>
       <div class="lci-grid-scroll">
         <table class="data-table lci-grid lci-output">
@@ -278,7 +280,7 @@ function _lciOutputInnerHtml(includeChart = true) {
 // (Revenue Tracking / Team Utilisation pattern — not Chart.js).
 // Y grid: major lines every 500k (labelled, compact format), minor every 250k.
 function _lciSpendChartSvg(c, ccy, horizon) {
-  const W = 900, H = 240, padL = 70, padR = 20, padT = 16, padB = 28;
+  const W = 900, H = 248, padL = 70, padR = 20, padT = 16, padB = 38;
   const data = c.cumulativeSpend;
   const MAJOR = 500000, MINOR = 250000;
   const maxY = Math.max(Math.ceil(Math.max(...data, 1) / MAJOR) * MAJOR, MAJOR);
@@ -292,8 +294,13 @@ function _lciSpendChartSvg(c, ccy, horizon) {
   const points = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   const dots = data.map((v, i) =>
     `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="lci-chart-dot"><title>${c.labels[i]}: ${_lciFmt(v, ccy)}</title></circle>`).join('');
-  const ticks = c.labels.map((l, i) =>
-    (horizon <= 12 || i % 2 === 0) ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" font-size="10" fill="#888" text-anchor="middle">M${i + 1}</text>` : '').join('');
+  // Two-line x labels: M# with (Mon YY) beneath, matching the roadmap headers
+  const ticks = c.labels.map((l, i) => {
+    if (!(horizon <= 12 || i % 2 === 0)) return '';
+    const sub = (l.match(/\((.+)\)/) || [])[1] || '';
+    return `<text x="${x(i).toFixed(1)}" y="${H - 18}" font-size="10" fill="#888" text-anchor="middle">M${i + 1}</text>
+            <text x="${x(i).toFixed(1)}" y="${H - 6}" font-size="8" fill="#aaa" text-anchor="middle">(${sub})</text>`;
+  }).join('');
 
   let gridLines = '';
   for (let v = MINOR; v <= maxY; v += MINOR) {
@@ -305,7 +312,7 @@ function _lciSpendChartSvg(c, ccy, horizon) {
 
   return `
     <div style="margin-top:16px">
-      <h4 style="margin:0 0 8px;color:#1B3A5C;font-size:14px">Cumulative Spend</h4>
+      <h3 style="margin:0 0 12px;color:#1B3A5C">Cumulative Spend <span style="font-weight:400;font-size:13px;color:#888">(${ccy})</span></h3>
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
         ${gridLines}
         <polyline points="${points}" class="lci-chart-line" fill="none"/>

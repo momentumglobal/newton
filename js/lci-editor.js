@@ -58,10 +58,11 @@ function _lciEditorHtml() {
       <button class="btn-secondary" onclick="lciEditorBack()">← Back to models</button>
     </div>
     ${_lciSettingsHtml()}
-    ${_lciRoadmapHtml()}
-    <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px;margin-top:16px;color:#888">
-      Legacy team, one-offs, fees and the live cost output are delivered in build step 6.
-    </div>`;
+    ${lciSections(m).coe ? _lciRoadmapHtml() : ''}
+    ${_lciLegacyHtml()}
+    ${_lciOneoffsHtml()}
+    ${_lciFeesHtml()}
+    ${_lciOutputHtml()}`;
 }
 
 // ── Settings bar ─────────────────────────────────────────────────────
@@ -95,7 +96,7 @@ function _lciSettingsHtml() {
         <div id="lci-fx-setting" style="${fxDiffer ? '' : 'display:none'}">
           ${field(`FX rate (local→display)`, numInput('FXRateLocalToDisplay', m.FXRateLocalToDisplay, '0.0001'))}
         </div>
-        ${field(`Employer burden (0–1)`, numInput('EmployerBurdenPct', m.EmployerBurdenPct, '0.005'))}
+        ${field(`Employer burden %`, numInput('EmployerBurdenPct', m.EmployerBurdenPct != null ? Math.round(m.EmployerBurdenPct * 100 * 100) / 100 : '', '0.5'))}
         ${field('Salary months', `<select class="form-control" data-setting="SalaryMonths" onchange="lciSettingChanged()">${smOpts}</select>`)}
         ${field(`Office / head / month (${m.LocalCurrency})`, numInput('OfficeCostPerHead', m.OfficeCostPerHead, '10'))}
         ${field(`EoR / head / month (${m.DisplayCurrency})`, numInput('EoRFeePerHead', m.EoRFeePerHead, '10'))}
@@ -134,6 +135,7 @@ async function saveLCISettings() {
       const key = input.dataset.setting;
       let val = input.value;
       if (input.type === 'number') val = val === '' ? null : Number(val);
+      if (key === 'EmployerBurdenPct' && val !== null) val = val / 100; // UI is whole %, stored as decimal
       fields[key] = val;
     });
     const sections = {};
@@ -153,7 +155,15 @@ async function saveLCISettings() {
     _lciEd.dirtySettings = false;
     clearButtonLoading(btn);
     btn.disabled = true;
-    _lciRefreshDerived(); // burden / salary-months / FX changes affect row costs
+    // Settings affect row costs, currency labels and section visibility.
+    // Full re-render when rows are clean; targeted refresh otherwise (a full
+    // re-render would drop unsaved row edits).
+    if (!_lciEd.dirtyRows) {
+      document.getElementById('main-content').innerHTML = _lciEditorHtml();
+      if (window.lucide) lucide.createIcons();
+    } else {
+      _lciRefreshDerived();
+    }
   } catch (e) {
     clearButtonLoading(btn);
     alert('Error saving settings: ' + e.message);
@@ -261,8 +271,7 @@ function _lciRoadmapFootHtml(horizon) {
 // ── Grid change handlers ─────────────────────────────────────────────
 
 function _lciMarkRowsDirty() {
-  _lciEd.dirtyRows = true;
-  document.getElementById('lci-roadmap-save').disabled = false;
+  lciMarkRowsDirtyAll(); // defined in lci-sections.js — syncs all save buttons
 }
 
 function lciCoeCellChanged(idx, monthIdx, value) {
@@ -304,6 +313,7 @@ function _lciRefreshDerived(idx = null) {
   }
   const foot = document.getElementById('lci-roadmap-foot');
   if (foot) foot.innerHTML = _lciRoadmapFootHtml(horizon);
+  if (typeof lciRefreshOutput === 'function') lciRefreshOutput();
 }
 
 // ── Add / remove rows ────────────────────────────────────────────────

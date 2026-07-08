@@ -1823,6 +1823,9 @@ body {
 .lci-out-subtotal td { font-weight: 600; border-top: 1px solid #ddd; }
 .lci-out-total td { font-weight: 700; color: #1B3A5C; background: #F5F7FA; }
 .lci-warn { color: #E8703A; margin-left: 4px; cursor: help; }
+.lci-out-indent td:first-child { padding-left: 18px; }
+.lci-out-section td { border-top: 1px solid #e0e0e0; }
+.lci-out-heavy td { border-top: 3px double #1B3A5C; }
 
 /* LCI cumulative spend chart */
 .lci-chart-line { stroke: #1B3A5C; stroke-width: 2.5; }

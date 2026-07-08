@@ -206,7 +206,7 @@ function lciMarkRowsDirtyAll() {
   _lciSyncSaveButtons();
 }
 function _lciSyncSaveButtons() {
-  const disabled = !_lciEd.dirtyRows;
+  const disabled = !(_lciEd.dirtyRows || _lciEd.dirtyMilestones);
   document.querySelectorAll('.lci-rows-save, #lci-roadmap-save').forEach(b => { b.disabled = disabled; });
 }
 
@@ -252,7 +252,7 @@ function _lciOutputInnerHtml() {
             ${sections.coe ? `
             ${teamRows}
             <tr class="lci-out-subtotal"><td>Total Employee Cost</td>${td(c.coeEmployeeCost)}</tr>
-            <tr><td>CoE Headcount</td>${tdInt(c.coeHeadcount)}</tr>
+            <tr><td>CoE Headcount (on payroll)</td>${tdInt(c.coeHeadcount)}</tr>
             <tr class="lci-out-section lci-out-indent"><td>EoR Costs</td>${td(c.eor)}</tr>
             <tr class="lci-out-indent"><td>Office Costs</td>${td(c.office)}</tr>
             <tr class="lci-out-indent"><td>Travel Costs</td>${td(c.travel)}</tr>
@@ -276,7 +276,7 @@ function _lciOutputInnerHtml() {
 
 // Cumulative spend line chart — hand-built inline SVG
 // (Revenue Tracking / Team Utilisation pattern — not Chart.js).
-// Y grid: major lines every 500k (labelled), minor every 250k.
+// Y grid: major lines every 500k (labelled, compact format), minor every 250k.
 function _lciSpendChartSvg(c, ccy, horizon) {
   const W = 900, H = 240, padL = 70, padR = 20, padT = 16, padB = 28;
   const data = c.cumulativeSpend;
@@ -293,14 +293,14 @@ function _lciSpendChartSvg(c, ccy, horizon) {
   const dots = data.map((v, i) =>
     `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="lci-chart-dot"><title>${c.labels[i]}: ${_lciFmt(v, ccy)}</title></circle>`).join('');
   const ticks = c.labels.map((l, i) =>
-    (horizon <= 12 || i % 2 === 0) ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" class="lci-chart-tick" text-anchor="middle">M${i + 1}</text>` : '').join('');
+    (horizon <= 12 || i % 2 === 0) ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" font-size="10" fill="#888" text-anchor="middle">M${i + 1}</text>` : '').join('');
 
   let gridLines = '';
   for (let v = MINOR; v <= maxY; v += MINOR) {
     const gy = y(v);
     const isMajor = v % MAJOR === 0;
     gridLines += `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" class="lci-chart-grid${isMajor ? '' : ' lci-chart-grid--minor'}"/>`;
-    if (isMajor) gridLines += `<text x="${padL - 6}" y="${gy + 3}" class="lci-chart-tick" text-anchor="end">${fmtCompact(v)}</text>`;
+    if (isMajor) gridLines += `<text x="${padL - 6}" y="${gy + 3}" font-size="10" fill="#999" text-anchor="end">${fmtCompact(v)}</text>`;
   }
 
   return `

@@ -168,9 +168,9 @@ function _lciSummaryHtml() {
       ${_lciSummaryRoadmapHtml()}
     </div>
 
-    <!-- Section 2: cost model -->
+    <!-- Section 2: cost model (plain — the card provides the tile) -->
     <div id="lci-print-p2" class="lci-summary-card">
-      ${_lciOutputInnerHtml(false)}
+      ${_lciOutputInnerHtml(false, true)}
     </div>
 
     <!-- Section 3: cumulative spend chart -->
@@ -182,7 +182,7 @@ function _lciSummaryHtml() {
     <div id="lci-print-p4" class="lci-summary-card">
       <h3 style="margin:0 0 12px;color:#1B3A5C">Model Guide and Assumptions</h3>
       ${m.Assumptions ? `<div style="white-space:pre-wrap;font-size:13px;line-height:1.6">${m.Assumptions}</div>` : ''}
-      <table class="data-table" style="max-width:480px;margin-top:16px">
+      <table class="data-table lci-assump" style="max-width:640px;margin-top:16px">
         <tbody>
           <tr><td>Employer burden</td><td>${Math.round((m.EmployerBurdenPct || 0) * 1000) / 10}%</td></tr>
           <tr><td>Salary payments / year</td><td>${m.SalaryMonths || 12}</td></tr>

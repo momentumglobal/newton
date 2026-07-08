@@ -63,7 +63,7 @@ function _lciLegacyHtml() {
                    onchange="lciRowFieldChanged(${gidx}, 'BonusPct', this.value)"></td>
         <td><select class="lci-cell" onchange="lciRowFieldChanged(${gidx}, 'ExitMonth', this.value)">${exitOpts(r.ExitMonth)}</select>
             ${noExit ? '<span class="lci-warn" title="No exit month — cost runs to horizon">⚠</span>' : ''}</td>
-        <td class="lci-derived">${_lciFmt(monthly, m.DisplayCurrency)}</td>
+        <td class="lci-derived" id="lci-legacy-cost-${gidx}">${_lciFmt(monthly, m.DisplayCurrency)}</td>
         <td><button class="btn-danger lci-row-del" onclick="removeLCIRowAction(${gidx}, '_lciLegacyHtml', 'lci-legacy-section')">×</button></td>
       </tr>`;
   }).join('')
@@ -109,7 +109,7 @@ function _lciMonthGridHtml(sectionId, type, title, subtitle, addFn) {
         <td><input type="text" class="lci-cell lci-cell--wide" value="${r.Title || ''}"
                    onchange="lciRowFieldChanged(${gidx}, 'Title', this.value)"></td>
         ${cells}
-        <td class="lci-derived">${_lciFmt(vals.reduce((a, b) => a + b, 0), m.DisplayCurrency)}</td>
+        <td class="lci-derived" id="lci-mtotal-${gidx}">${_lciFmt(vals.reduce((a, b) => a + b, 0), m.DisplayCurrency)}</td>
         <td><button class="btn-danger lci-row-del" onclick="removeLCIRowAction(${gidx}, '_lci${type === 'oneoff' ? 'Oneoffs' : 'Fees'}Html', '${sectionId}')">×</button></td>
       </tr>`;
   }).join('')
@@ -169,6 +169,15 @@ function lciRowFieldChanged(gidx, field, value) {
     r[field] = numeric.includes(field) ? (value === '' ? null : Number(value)) : value;
   }
   lciMarkRowsDirtyAll();
+  if (field === 'ExitMonth') {
+    // Re-render the section so the ⚠ marker and cost drop-off refresh
+    _lciReplaceSection('_lciLegacyHtml', 'lci-legacy-section');
+    return; // _lciReplaceSection already refreshes the output
+  }
+  if (r.RowType === 'legacy') {
+    const el = document.getElementById(`lci-legacy-cost-${gidx}`);
+    if (el) el.textContent = _lciFmt(lciMonthlyCost(r, _lciEd.model) * (Number(r.Quantity) || 1), _lciEd.model.DisplayCurrency);
+  }
   lciRefreshOutput();
 }
 
@@ -179,6 +188,8 @@ function lciRowMonthChanged(gidx, monthIdx, value) {
   vals[monthIdx] = Number(value) || 0;
   r.MonthValues = JSON.stringify(vals);
   lciMarkRowsDirtyAll();
+  const el = document.getElementById(`lci-mtotal-${gidx}`);
+  if (el) el.textContent = _lciFmt(vals.reduce((a, b) => a + b, 0), _lciEd.model.DisplayCurrency);
   lciRefreshOutput();
 }
 
@@ -251,7 +262,9 @@ function _lciOutputInnerHtml() {
             <tr><td>Legacy Team Costs</td>${td(c.legacyCost)}</tr>` : ''}
             ${sections.oneoffs ? `<tr><td>Retention & Relocation</td>${td(c.oneoffs)}</tr>` : ''}
             <tr class="lci-out-subtotal"><td>Total Team Costs</td>${td(c.teamCosts)}</tr>
-            ${sections.fees ? `<tr><td>Project Fees</td>${td(c.fees)}</tr>` : ''}
+            ${sections.fees ? _lciRowsOfType('fee').map(r =>
+              `<tr><td style="padding-left:18px">${r.Title || 'Fee'}</td>${td(lciMonthValues(r, horizon))}</tr>`).join('') +
+              `<tr class="lci-out-subtotal"><td>Total Project Fees</td>${td(c.fees)}</tr>` : ''}
             <tr class="lci-out-total"><td>Total Monthly Spend</td>${td(c.totalMonthly)}</tr>
             <tr class="lci-out-total"><td>Cumulative Spend</td>${td(c.cumulativeSpend)}</tr>
           </tbody>

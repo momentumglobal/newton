@@ -13,18 +13,24 @@ async function renderLCIEditorPage(modelId) {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading...</p>';
   try {
-    const [model, rows] = await Promise.all([
+    const [model, rows, milestones] = await Promise.all([
       getLCIModelById(modelId),
       getLCIRows(modelId),
+      getLCIMilestones(modelId),
     ]);
     rows.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
+    milestones.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
     _lciEd = {
       model,
       rows,
+      milestones,
       deletedRowIds: [],
+      deletedMilestoneIds: [],
       origRows: new Map(rows.map(r => [String(r.id), JSON.stringify(_lciRowSnapshot(r))])),
+      origMilestones: new Map(milestones.map(s => [String(s.id), JSON.stringify(_lciMilestoneSnapshot(s))])),
       dirtySettings: false,
       dirtyRows: false,
+      dirtyMilestones: false,
     };
     main.innerHTML = _lciEditorHtml();
     if (window.lucide) lucide.createIcons();
@@ -42,7 +48,7 @@ function _lciRowSnapshot(r) {
 }
 
 function lciEditorBack() {
-  if ((_lciEd?.dirtySettings || _lciEd?.dirtyRows) &&
+  if ((_lciEd?.dirtySettings || _lciEd?.dirtyRows || _lciEd?.dirtyMilestones) &&
       !confirm('You have unsaved changes. Leave without saving?')) return;
   _lciEd = null;
   renderLCIModelsPage();
@@ -55,14 +61,24 @@ function _lciEditorHtml() {
   return `
     <div class="page-header">
       <h2>${m.Title} <span style="font-weight:400;color:#888;font-size:15px">— ${m.ClientName || ''}</span></h2>
-      <button class="btn-secondary" onclick="lciEditorBack()">← Back to models</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary" onclick="lciEditorBack()">← Back to models</button>
+        <button class="btn-primary" onclick="lciOpenSummary()">Summary / Print</button>
+      </div>
     </div>
     ${_lciSettingsHtml()}
+    ${_lciMilestonesHtml()}
     ${lciSections(m).coe ? _lciRoadmapHtml() : ''}
     ${_lciLegacyHtml()}
     ${_lciOneoffsHtml()}
     ${_lciFeesHtml()}
     ${_lciOutputHtml()}`;
+}
+
+function lciOpenSummary() {
+  if ((_lciEd?.dirtySettings || _lciEd?.dirtyRows || _lciEd?.dirtyMilestones) &&
+      !confirm('You have unsaved changes that will not appear in the summary. Continue?')) return;
+  renderLCISummaryPage(_lciEd.model.id);
 }
 
 // ── Settings bar ─────────────────────────────────────────────────────

@@ -106,7 +106,7 @@ function _lciMonthGridHtml(sectionId, type, title, subtitle, addFn) {
       </td>`).join('');
     return `
       <tr>
-        <td><input type="text" class="lci-cell lci-cell--wide" value="${r.Title || ''}"
+        <td><input type="text" class="lci-cell lci-cell--grow" value="${r.Title || ''}"
                    onchange="lciRowFieldChanged(${gidx}, 'Title', this.value)"></td>
         ${cells}
         <td class="lci-derived" id="lci-mtotal-${gidx}">${_lciFmt(vals.reduce((a, b) => a + b, 0), m.DisplayCurrency)}</td>

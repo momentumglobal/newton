@@ -98,6 +98,38 @@ const CONFIG = {
     RATING_SCALE_MIN:      1,
     RATING_SCALE_MAX:      5,
   },
+
+  // ── LCI Cost Model ────────────────────────────────────────────────
+  // Defaults for new models; all editable per model in the Settings bar.
+  // NOTE: no CURRENCIES list here — LCI currency dropdowns (LocalCurrency
+  // and DisplayCurrency) are DERIVED from CONFIG.COUNTRY_CURRENCY via
+  // lciCurrencyOptions(CONFIG.COUNTRY_CURRENCY) in lci-model.js.
+  // Single source of truth: adding a new location/currency to
+  // COUNTRY_CURRENCY automatically flows into LCI (and the Add Role modal).
+  // LocalCurrency = CoE location (salaries, office, EoR, travel entered in
+  // it); DisplayCurrency = customer's modelling currency (legacy/one-offs/
+  // fees entered in it; all outputs render in it). FXRateLocalToDisplay
+  // converts the CoE side; ignored when the two currencies match.
+  LCI: {
+    STATUSES:            ['Draft', 'Presented', 'Won', 'Lost'],
+    SALARY_MONTHS:       [12, 13, 14],
+    HORIZON_MIN:         3,
+    HORIZON_MAX:         24,
+    DEFAULTS: {
+      HorizonMonths:     9,
+      EmployerBurdenPct: 0.30,
+      SalaryMonths:      12,
+      OfficeCostPerHead: 300,
+      EoRFeePerHead:     0,
+      TravelPerMonth:    0,
+    },
+    SECTION_LABELS: {
+      coe:     'CoE Team',
+      legacy:  'Legacy Team',
+      oneoffs: 'Retention & Relocation',
+      fees:    'Project Fees',
+    },
+  },
 };
 
 // Synchronous role check — only resolves admin (from config) or viewer

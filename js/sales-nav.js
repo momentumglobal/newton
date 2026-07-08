@@ -40,6 +40,7 @@ async function renderSalesPage(page) {
   switch (page) {
     case 'revenueTracking': await renderRevenueTrackingPage(); break;
     case 'salesForecast':   await renderSalesForecastPage();   break;
+    case 'lciModels':       await renderLCIModelsPage();       break;
     default:
       main.innerHTML = '<p>Page not found.</p>';
   }

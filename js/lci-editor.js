@@ -98,7 +98,7 @@ function _lciSettingsHtml() {
         ${field(`Employer burden (0–1)`, numInput('EmployerBurdenPct', m.EmployerBurdenPct, '0.005'))}
         ${field('Salary months', `<select class="form-control" data-setting="SalaryMonths" onchange="lciSettingChanged()">${smOpts}</select>`)}
         ${field(`Office / head / month (${m.LocalCurrency})`, numInput('OfficeCostPerHead', m.OfficeCostPerHead, '10'))}
-        ${field(`EoR / head / month (${m.LocalCurrency})`, numInput('EoRFeePerHead', m.EoRFeePerHead, '10'))}
+        ${field(`EoR / head / month (${m.DisplayCurrency})`, numInput('EoRFeePerHead', m.EoRFeePerHead, '10'))}
         ${field(`Travel / month (${m.LocalCurrency})`, numInput('TravelPerMonth', m.TravelPerMonth, '100'))}
         ${canAssign ? field('Assigned DM (email)',
           `<input type="email" class="form-control" data-setting="AssignedDMEmail" value="${m.AssignedDMEmail || ''}" onchange="lciSettingChanged()">`) : ''}

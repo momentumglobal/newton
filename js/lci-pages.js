@@ -58,8 +58,9 @@ function _renderLCIModelList(models, role) {
           <td>
             <div class="row-actions">
               <button class="btn-secondary" onclick="openLCIModel(${m.id})">Open</button>
+              <button class="btn-secondary" onclick="openLCIModelModal(${m.id})">Edit</button>
               <button class="btn-secondary" onclick="copyLCIModelAction(${m.id})">Copy</button>
-              ${isAdmin ? `<button class="btn-danger" onclick="deleteLCIModelAction(${m.id})">Delete</button>` : ''}
+              ${isAdmin ? `<button class="btn-secondary lci-btn-muted" onclick="deleteLCIModelAction(${m.id})">Delete</button>` : ''}
             </div>
           </td>
         </tr>`).join('')
@@ -100,7 +101,7 @@ function _lciModelModal(role) {
          z-index:1000;align-items:center;justify-content:center">
       <div style="background:#fff;border-radius:8px;padding:32px;width:520px;max-width:95vw;
                   max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
-        <h3 style="margin:0 0 20px;color:#1B3A5C">New LCI Cost Model</h3>
+        <h3 style="margin:0 0 20px;color:#1B3A5C" id="lci-model-modal-title">New LCI Cost Model</h3>
         <form id="lci-model-form" onsubmit="saveLCIModel(event)">
           <div class="form-group">
             <label>Model name *</label>
@@ -158,11 +159,34 @@ function _lciModelModal(role) {
     </div>`;
 }
 
-function openLCIModelModal() {
+let _lciEditingModelId = null;
+
+// No arg = create; with a model id = edit (name, client, location, currencies,
+// FX, start month, horizon, assigned DM — assumptions/status stay on the model).
+function openLCIModelModal(modelId = null) {
+  _lciEditingModelId = modelId;
+  const form = document.getElementById('lci-model-form');
+  form.reset();
+  if (modelId) {
+    const m = (_lciModelsCache || []).find(x => String(x.id) === String(modelId));
+    if (m) {
+      for (const [k, v] of Object.entries({
+        Title: m.Title, ClientName: m.ClientName, Location: m.Location,
+        LocalCurrency: m.LocalCurrency, DisplayCurrency: m.DisplayCurrency,
+        FXRateLocalToDisplay: m.FXRateLocalToDisplay, StartMonth: m.StartMonth,
+        HorizonMonths: m.HorizonMonths, AssignedDMEmail: m.AssignedDMEmail,
+      })) {
+        if (form.elements[k] && v !== null && v !== undefined) form.elements[k].value = v;
+      }
+    }
+  }
+  document.getElementById('lci-model-modal-title').textContent = modelId ? 'Edit LCI Cost Model' : 'New LCI Cost Model';
+  document.getElementById('lci-model-save-btn').textContent = modelId ? 'Save Changes' : 'Create Model';
   document.getElementById('lci-model-modal').style.display = 'flex';
   lciToggleFxInput();
 }
 function closeLCIModelModal() {
+  _lciEditingModelId = null;
   document.getElementById('lci-model-modal').style.display = 'none';
 }
 function lciToggleFxInput() {
@@ -185,6 +209,25 @@ async function saveLCIModel(event) {
     const user = getCurrentUser();
     const role = _salesResolvedRole;
     const D = CONFIG.LCI.DEFAULTS;
+
+    if (_lciEditingModelId) {
+      // Edit: update header fields only — rows, status, assumptions untouched.
+      await updateLCIModel(_lciEditingModelId, {
+        Title:                data.Title,
+        ClientName:           data.ClientName,
+        Location:             data.Location,
+        LocalCurrency:        data.LocalCurrency,
+        DisplayCurrency:      data.DisplayCurrency,
+        FXRateLocalToDisplay: data.LocalCurrency !== data.DisplayCurrency ? Number(data.FXRateLocalToDisplay) : null,
+        StartMonth:           data.StartMonth,
+        HorizonMonths:        Number(data.HorizonMonths),
+        ...(data.AssignedDMEmail !== undefined ? { AssignedDMEmail: data.AssignedDMEmail || null } : {}),
+      });
+      closeLCIModelModal();
+      await renderLCIModelsPage();
+      return;
+    }
+
     await createLCIModel({
       Title:                data.Title,
       ClientName:           data.ClientName,

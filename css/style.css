@@ -1845,8 +1845,12 @@ body {
                     padding: 20px; margin-bottom: 16px; }
 @media print {
   .lci-noprint, #sidebar { display: none !important; }
-  .lci-summary-card { border: none; padding: 0; }
-  /* Page breaks: p1 plan, p2 cost model, p3 assumptions */
+  /* Client-facing summary: no 'Confidential — Internal' banner */
+  body.lci-summary-mode::before { display: none !important; content: none !important; }
+  /* Sections keep tile styling in print */
+  .lci-summary-card { break-inside: avoid; }
+  /* Page breaks: p1 plan, p2 cost model, p3 chart, p4 assumptions */
+  #lci-print-p2, #lci-print-p3, #lci-print-p4 { break-before: page; page-break-before: always; }
   #lci-print-p2, #lci-print-p3 { break-before: page; page-break-before: always; }
   .lci-grid { font-size: 10px; }
   .lci-grid th, .lci-grid td { padding: 2px 3px; }

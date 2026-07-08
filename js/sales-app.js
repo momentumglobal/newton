@@ -12,8 +12,9 @@ window.SALES_APP = {
     // Resolve full role (checks LeadershipAccess + UserAssignments)
     _salesResolvedRole = await getEffectiveRole(user.email);
 
-    // Sales module is Admin and Leadership only.
-    if (!['admin', 'leadership'].includes(_salesResolvedRole)) {
+    // Admin/Leadership: full module. DMs: LCI Cost Models page only
+    // (enforced by sales-router.js page registry).
+    if (!['admin', 'leadership', 'delivery_manager'].includes(_salesResolvedRole)) {
       window.location.href = 'index.html';
       return;
     }
@@ -24,7 +25,7 @@ window.SALES_APP = {
     document.getElementById('login-screen').style.display = 'none';
 
     renderSalesNav(_salesResolvedRole);
-    navigateToSales('revenueTracking');
+    navigateToSales(_salesResolvedRole === 'delivery_manager' ? 'lciModels' : 'revenueTracking');
   },
 
   showLogin() {

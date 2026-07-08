@@ -1829,7 +1829,6 @@ body {
 .lci-cell--grow { width: 95%; min-width: 130px; }
 .lci-grid--amounts .lci-mcol { min-width: 78px; }
 .lci-grid--amounts .lci-mcol .lci-cell { width: 70px; text-align: right; }
-.lci-grid--amounts .lci-cell--wide { width: 120px; }
 
 /* LCI cumulative spend chart */
 .lci-chart-line { stroke: #1B3A5C; stroke-width: 2.5; }

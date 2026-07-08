@@ -309,7 +309,7 @@ const _LCI_MODEL_COPY_FIELDS = [
   'ClientName', 'ProjectID', 'Location', 'LocalCurrency', 'DisplayCurrency',
   'FXRateLocalToDisplay', 'StartMonth', 'HorizonMonths', 'AssignedDMEmail',
   'EmployerBurdenPct', 'SalaryMonths', 'OfficeCostPerHead', 'EoRFeePerHead',
-  'TravelPerMonth', 'SectionsEnabled', 'Assumptions',
+  'TravelPerMonth', 'SectionsEnabled', 'Assumptions', 'NoticeMonths',
 ];
 const _LCI_ROW_COPY_FIELDS = [
   'Title', 'RowType', 'Team', 'CareerLevel', 'AnnualSalary', 'BonusPct',

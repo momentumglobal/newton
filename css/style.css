@@ -1836,3 +1836,29 @@ body {
 .lci-chart-grid { stroke: #eee; stroke-width: 1; }
 .lci-chart-tick { fill: #888; font-size: 9px; }
 .lci-chart-grid--minor { stroke: #f7f7f7; }
+
+/* LCI milestones strip */
+.lci-ms-strip { margin-bottom: 16px; }
+.lci-ms-row { display: flex; align-items: center; }
+.lci-ms-label { width: 180px; flex-shrink: 0; font-size: 12px; color: #333;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lci-ms-track { display: flex; flex: 1; }
+.lci-ms-col { flex: 1; min-width: 0; text-align: center; font-size: 10px; color: #888;
+              padding: 3px 1px; }
+.lci-ms-bar { height: 10px; background: #1B3A5C; border-radius: 5px; margin: 0 1px; }
+
+/* LCI summary / print */
+.lci-summary-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;
+                    padding: 20px; margin-bottom: 16px; }
+@media print {
+  .lci-noprint, #sidebar { display: none !important; }
+  .lci-summary-card { border: none; padding: 0; }
+  /* Page breaks: p1 plan, p2 cost model, p3 assumptions */
+  #lci-print-p2, #lci-print-p3 { break-before: page; page-break-before: always; }
+  .lci-grid { font-size: 10px; }
+  .lci-grid th, .lci-grid td { padding: 2px 3px; }
+  .lci-grid-scroll { overflow: visible !important; }
+  .lci-out-total td, .lci-out-subtotal td, .lci-team-row td, .lci-ms-bar {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+}

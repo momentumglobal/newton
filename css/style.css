@@ -1798,6 +1798,7 @@ body {
 }
 .lci-settings__toggles .btn-primary { margin-left: auto; }
 .lci-toggle { font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.lci-btn-muted { background: #eee !important; color: #888 !important; border-color: #ddd !important; }
 
 /* LCI editor — roadmap grid */
 .lci-grid-scroll { overflow-x: auto; }

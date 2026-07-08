@@ -57,7 +57,7 @@ function _lciLegacyHtml() {
                    onchange="lciRowFieldChanged(${gidx}, 'Team', this.value)"></td>
         <td><input type="number" class="lci-cell lci-cell--sm" min="1" value="${r.Quantity ?? 1}"
                    onchange="lciRowFieldChanged(${gidx}, 'Quantity', this.value)"></td>
-        <td><input type="number" class="lci-cell" min="0" value="${r.AnnualSalary ?? ''}"
+        <td><input type="number" class="lci-cell lci-cell--grow" min="0" value="${r.AnnualSalary ?? ''}"
                    onchange="lciRowFieldChanged(${gidx}, 'AnnualSalary', this.value)"></td>
         <td><input type="number" class="lci-cell lci-cell--sm" min="0" max="100" step="1" value="${r.BonusPct != null ? Math.round(r.BonusPct * 100 * 100) / 100 : ''}"
                    onchange="lciRowFieldChanged(${gidx}, 'BonusPct', this.value)"></td>

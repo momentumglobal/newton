@@ -276,23 +276,32 @@ function _lciOutputInnerHtml() {
 
 // Cumulative spend line chart — hand-built inline SVG
 // (Revenue Tracking / Team Utilisation pattern — not Chart.js).
+// Y grid: major lines every 500k (labelled), minor every 250k.
 function _lciSpendChartSvg(c, ccy, horizon) {
   const W = 900, H = 240, padL = 70, padR = 20, padT = 16, padB = 28;
   const data = c.cumulativeSpend;
-  const maxY = Math.max(...data, 1);
+  const MAJOR = 500000, MINOR = 250000;
+  const maxY = Math.max(Math.ceil(Math.max(...data, 1) / MAJOR) * MAJOR, MAJOR);
   const x = i => padL + (i / Math.max(horizon - 1, 1)) * (W - padL - padR);
   const y = v => padT + (1 - v / maxY) * (H - padT - padB);
+
+  const fmtCompact = v => new Intl.NumberFormat('en-GB', {
+    style: 'currency', currency: ccy || 'EUR', notation: 'compact', maximumFractionDigits: 1,
+  }).format(v);
 
   const points = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   const dots = data.map((v, i) =>
     `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="lci-chart-dot"><title>${c.labels[i]}: ${_lciFmt(v, ccy)}</title></circle>`).join('');
   const ticks = c.labels.map((l, i) =>
     (horizon <= 12 || i % 2 === 0) ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" class="lci-chart-tick" text-anchor="middle">M${i + 1}</text>` : '').join('');
-  const gridLines = [0.25, 0.5, 0.75, 1].map(f => {
-    const gy = y(maxY * f);
-    return `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" class="lci-chart-grid"/>
-            <text x="${padL - 6}" y="${gy + 4}" class="lci-chart-tick" text-anchor="end">${_lciFmt(maxY * f, ccy)}</text>`;
-  }).join('');
+
+  let gridLines = '';
+  for (let v = MINOR; v <= maxY; v += MINOR) {
+    const gy = y(v);
+    const isMajor = v % MAJOR === 0;
+    gridLines += `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" class="lci-chart-grid${isMajor ? '' : ' lci-chart-grid--minor'}"/>`;
+    if (isMajor) gridLines += `<text x="${padL - 6}" y="${gy + 3}" class="lci-chart-tick" text-anchor="end">${fmtCompact(v)}</text>`;
+  }
 
   return `
     <div style="margin-top:16px">

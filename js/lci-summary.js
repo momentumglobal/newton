@@ -175,7 +175,7 @@ function _lciSummaryHtml() {
     <!-- Page 3: assumptions -->
     <div id="lci-print-p3" class="lci-summary-card">
       <h3 style="margin:0 0 12px;color:#1B3A5C">Model Guide and Assumptions</h3>
-      <div style="white-space:pre-wrap;font-size:13px;line-height:1.6">${m.Assumptions || 'No assumptions recorded.'}</div>
+      ${m.Assumptions ? `<div style="white-space:pre-wrap;font-size:13px;line-height:1.6">${m.Assumptions}</div>` : ''}
       <table class="data-table" style="max-width:480px;margin-top:16px">
         <tbody>
           <tr><td>Employer burden</td><td>${Math.round((m.EmployerBurdenPct || 0) * 1000) / 10}%</td></tr>

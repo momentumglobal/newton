@@ -240,7 +240,7 @@ function _lciOutputInnerHtml() {
   const monthHead = c.labels.map(l => `<th class="lci-mcol">${l.replace(' (', '<br>(')}</th>`).join('');
 
   const teamRows = Object.entries(c.coeByTeam).map(([team, arr]) =>
-    `<tr><td>${team}</td>${td(arr)}</tr>`).join('');
+    `<tr class="lci-out-indent"><td>${team}</td>${td(arr)}</tr>`).join('');
 
   return `
     <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px">
@@ -253,19 +253,19 @@ function _lciOutputInnerHtml() {
             ${teamRows}
             <tr class="lci-out-subtotal"><td>Total Employee Cost</td>${td(c.coeEmployeeCost)}</tr>
             <tr><td>CoE Headcount</td>${tdInt(c.coeHeadcount)}</tr>
-            <tr><td>EoR Costs</td>${td(c.eor)}</tr>
-            <tr><td>Office Costs</td>${td(c.office)}</tr>
-            <tr><td>Travel Costs</td>${td(c.travel)}</tr>
+            <tr class="lci-out-section lci-out-indent"><td>EoR Costs</td>${td(c.eor)}</tr>
+            <tr class="lci-out-indent"><td>Office Costs</td>${td(c.office)}</tr>
+            <tr class="lci-out-indent"><td>Travel Costs</td>${td(c.travel)}</tr>
             <tr class="lci-out-subtotal"><td>Total CoE Operating Costs</td>${td(c.coeOperating)}</tr>` : ''}
-            ${sections.legacy ? `
-            <tr><td>Legacy Headcount</td>${tdInt(c.legacyHeadcount)}</tr>
-            <tr><td>Legacy Team Costs</td>${td(c.legacyCost)}</tr>` : ''}
-            ${sections.oneoffs ? `<tr><td>Retention & Relocation</td>${td(c.oneoffs)}</tr>` : ''}
-            <tr class="lci-out-subtotal"><td>Total Team Costs</td>${td(c.teamCosts)}</tr>
-            ${sections.fees ? _lciRowsOfType('fee').map(r =>
-              `<tr><td style="padding-left:18px">${r.Title || 'Fee'}</td>${td(lciMonthValues(r, horizon))}</tr>`).join('') +
-              `<tr class="lci-out-subtotal"><td>Total Project Fees</td>${td(c.fees)}</tr>` : ''}
-            <tr class="lci-out-total"><td>Total Monthly Spend</td>${td(c.totalMonthly)}</tr>
+            ${sections.legacy || sections.oneoffs ? `
+            ${sections.legacy ? `<tr class="lci-out-section"><td>Legacy Headcount</td>${tdInt(c.legacyHeadcount)}</tr>
+            <tr class="lci-out-indent"><td>Legacy Team Costs</td>${td(c.legacyCost)}</tr>` : ''}
+            ${sections.oneoffs ? `<tr class="lci-out-indent${sections.legacy ? '' : ' lci-out-section'}"><td>Retention & Relocation</td>${td(c.oneoffs)}</tr>` : ''}
+            <tr class="lci-out-subtotal"><td>Total Legacy Costs</td>${td(c.legacyCost.map((v, i) => v + c.oneoffs[i]))}</tr>` : ''}
+            ${sections.fees ? `${_lciRowsOfType('fee').map((r, i) =>
+              `<tr class="lci-out-indent${i === 0 ? ' lci-out-section' : ''}"><td>${r.Title || 'Fee'}</td>${td(lciMonthValues(r, horizon))}</tr>`).join('')}
+            <tr class="lci-out-subtotal"><td>Total Project Fees</td>${td(c.fees)}</tr>` : ''}
+            <tr class="lci-out-total lci-out-heavy"><td>Total Monthly Spend</td>${td(c.totalMonthly)}</tr>
             <tr class="lci-out-total"><td>Cumulative Spend</td>${td(c.cumulativeSpend)}</tr>
           </tbody>
         </table>

@@ -1844,17 +1844,25 @@ body {
 /* LCI summary / print */
 .lci-summary-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;
                     padding: 20px; margin-bottom: 16px; }
-.lci-assump td:first-child { white-space: nowrap; padding-right: 32px; }
+.lci-assump td:first-child { width: 45%; padding-right: 32px; }
 
 @media print {
   .lci-noprint, #sidebar { display: none !important; }
   /* Client-facing summary: no 'Confidential — Internal' banner */
   body.lci-summary-mode::before { display: none !important; content: none !important; }
-  /* Sections keep tile styling in print (no break-inside:avoid — tall cards
-     would get pushed to a fresh page, leaving page 1 blank) */
+  /* Banner sits flush on the first section; sections match banner width */
+  body.lci-summary-mode #print-header { margin-bottom: 0 !important; }
+  body.lci-summary-mode #main-content { padding: 0 !important; margin: 0 !important; }
+  #lci-print-p1 { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+  /* Tighter title block */
+  .lci-summary-card { padding: 14px 20px; }
+  #lci-print-p1 .lci-summary-head h2 { margin: 0; font-size: 20px; }
+  #lci-print-p1 .lci-grid-scroll { margin-top: 8px !important; }
   /* Page breaks: p1 plan, p2 cost model, p3 chart, p4 assumptions */
   #lci-print-p2, #lci-print-p3, #lci-print-p4 { break-before: page; page-break-before: always; }
-  #lci-print-p2, #lci-print-p3 { break-before: page; page-break-before: always; }
+  /* Multi-page sections: don't split rows; keep team headers with their rows */
+  .lci-grid tr { break-inside: avoid; }
+  .lci-team-row { break-after: avoid; }
   .lci-grid { font-size: 10px; }
   .lci-grid th, .lci-grid td { padding: 2px 3px; }
   .lci-grid-scroll { overflow: visible !important; }

@@ -277,7 +277,7 @@ async function deleteLCIModel(id) {
 }
 
 async function getLCIRows(modelId) {
-  return getItems("LCIModelRows", `fields/ModelID eq ${modelId}`);
+  return getItems("LCIModelRows", `fields/ModelIDLookupId eq ${modelId}`);
 }
 async function createLCIRow(fields) {
   return createItem("LCIModelRows", fields);
@@ -290,7 +290,7 @@ async function deleteLCIRow(id) {
 }
 
 async function getLCIMilestones(modelId) {
-  return getItems("LCIMilestones", `fields/ModelID eq ${modelId}`);
+  return getItems("LCIMilestones", `fields/ModelIDLookupId eq ${modelId}`);
 }
 async function createLCIMilestone(fields) {
   return createItem("LCIMilestones", fields);
@@ -336,10 +336,10 @@ async function copyLCIModel(modelId, newTitle) {
   });
   const newId = created.id;
   for (const r of rows) {
-    await createLCIRow({ ..._pickFields(r, _LCI_ROW_COPY_FIELDS), ModelID: newId });
+    await createLCIRow({ ..._pickFields(r, _LCI_ROW_COPY_FIELDS), ModelIDLookupId: Number(newId) });
   }
   for (const m of milestones) {
-    await createLCIMilestone({ ..._pickFields(m, _LCI_MILESTONE_COPY_FIELDS), ModelID: newId });
+    await createLCIMilestone({ ..._pickFields(m, _LCI_MILESTONE_COPY_FIELDS), ModelIDLookupId: Number(newId) });
   }
   return created;
 }

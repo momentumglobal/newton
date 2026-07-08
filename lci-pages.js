@@ -1,0 +1,252 @@
+// js/lci-pages.js — LCI Cost Model pages (Sales module)
+// Step 4 scope: model list page (create / copy / delete / visibility scoping).
+// Editor, summary, compare and export pages arrive in later build steps.
+
+let _lciModelsCache = null; // page-level cache; invalidated by api.js writes anyway
+
+// ── Model list page ──────────────────────────────────────────────────
+
+async function renderLCIModelsPage() {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<p>Loading...</p>';
+
+  try {
+    let models = await getLCIModels();
+
+    // Visibility: Admin/Leadership see all; DMs only models assigned to them.
+    const role = _salesResolvedRole;
+    if (role === 'delivery_manager') {
+      const email = (getCurrentUser().email || '').toLowerCase();
+      models = models.filter(m => (m.AssignedDMEmail || '').toLowerCase() === email);
+    }
+
+    models.sort((a, b) => (a.Title || '').localeCompare(b.Title || ''));
+    _lciModelsCache = models;
+    main.innerHTML = _renderLCIModelList(models, role);
+    if (window.lucide) lucide.createIcons();
+  } catch (e) {
+    main.innerHTML = `<p style="color:red">Error loading LCI models: ${e.message}</p>`;
+  }
+}
+
+function _lciStatusPill(status) {
+  const s = status || 'Draft';
+  return `<span class="lci-status lci-status--${s.toLowerCase()}">${s}</span>`;
+}
+
+function _lciTotalHires(model) {
+  // Header-only list view: hires shown after rows load in the editor.
+  // Kept as a placeholder column for now (populated in step 5+).
+  return '—';
+}
+
+function _renderLCIModelList(models, role) {
+  const isAdmin = role === 'admin';
+  const canManage = role === 'admin' || role === 'leadership';
+
+  const rows = models.length
+    ? models.map(m => `
+        <tr>
+          <td><strong>${m.Title || '—'}</strong></td>
+          <td>${m.ClientName || '—'}</td>
+          <td>${m.Location || '—'}</td>
+          <td>${m.LocalCurrency || '—'} → ${m.DisplayCurrency || '—'}</td>
+          <td>${_lciStatusPill(m.Status)}</td>
+          <td>${m.AssignedDMEmail || '—'}</td>
+          <td>${m.HorizonMonths ? m.HorizonMonths + 'm' : '—'}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-secondary" onclick="openLCIModel(${m.id})">Open</button>
+              <button class="btn-secondary" onclick="copyLCIModelAction(${m.id})">Copy</button>
+              ${isAdmin ? `<button class="btn-danger" onclick="deleteLCIModelAction(${m.id})">Delete</button>` : ''}
+            </div>
+          </td>
+        </tr>`).join('')
+    : `<tr><td colspan="8" style="color:#888;text-align:center">No models yet${role === 'delivery_manager' ? ' assigned to you' : ''}.</td></tr>`;
+
+  return `
+    <div class="page-header">
+      <h2>LCI Cost Models</h2>
+      ${canManage || role === 'delivery_manager' ? '<button class="btn-primary" onclick="openLCIModelModal()">+ New Model</button>' : ''}
+    </div>
+    <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Model</th><th>Client</th><th>Location</th><th>Currency (local → display)</th>
+            <th>Status</th><th>Assigned DM</th><th>Horizon</th><th></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${_lciModelModal(role)}`;
+}
+
+// ── New Model modal ──────────────────────────────────────────────────
+
+function _lciModelModal(role) {
+  const canAssign = role === 'admin' || role === 'leadership';
+  const currencies = lciCurrencyOptions(CONFIG.COUNTRY_CURRENCY);
+  const ccyOptions = sel => currencies.map(c =>
+    `<option value="${c}"${c === sel ? ' selected' : ''}>${c}</option>`).join('');
+  const D = CONFIG.LCI.DEFAULTS;
+  const thisMonth = new Date();
+  const defaultStart = `${thisMonth.getFullYear()}-${String(thisMonth.getMonth() + 1).padStart(2, '0')}`;
+
+  return `
+    <div id="lci-model-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);
+         z-index:1000;align-items:center;justify-content:center">
+      <div style="background:#fff;border-radius:8px;padding:32px;width:520px;max-width:95vw;
+                  max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
+        <h3 style="margin:0 0 20px;color:#1B3A5C">New LCI Cost Model</h3>
+        <form id="lci-model-form" onsubmit="saveLCIModel(event)">
+          <div class="form-group">
+            <label>Model name *</label>
+            <input type="text" class="form-control" name="Title" required placeholder="e.g. Bucharest v1">
+          </div>
+          <div class="form-group">
+            <label>Client name *</label>
+            <input type="text" class="form-control" name="ClientName" required>
+          </div>
+          <div class="form-group">
+            <label>CoE location *</label>
+            <input type="text" class="form-control" name="Location" required placeholder="e.g. Bucharest, Romania">
+          </div>
+          <div style="display:flex;gap:12px">
+            <div class="form-group" style="flex:1">
+              <label>Local currency *</label>
+              <select class="form-control" name="LocalCurrency" onchange="lciToggleFxInput()" id="lci-local-ccy">
+                ${ccyOptions('EUR')}
+              </select>
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Display currency *</label>
+              <select class="form-control" name="DisplayCurrency" onchange="lciToggleFxInput()" id="lci-display-ccy">
+                ${ccyOptions('EUR')}
+              </select>
+            </div>
+          </div>
+          <div class="form-group" id="lci-fx-group" style="display:none">
+            <label>FX rate (local → display) *</label>
+            <input type="number" class="form-control" name="FXRateLocalToDisplay" step="0.0001" min="0" id="lci-fx-rate"
+                   placeholder="e.g. 0.2 (1 local = 0.2 display)">
+          </div>
+          <div style="display:flex;gap:12px">
+            <div class="form-group" style="flex:1">
+              <label>Start month (M1) *</label>
+              <input type="month" class="form-control" name="StartMonth" required value="${defaultStart}">
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Horizon (months) *</label>
+              <input type="number" class="form-control" name="HorizonMonths" required
+                     min="${CONFIG.LCI.HORIZON_MIN}" max="${CONFIG.LCI.HORIZON_MAX}" value="${D.HorizonMonths}">
+            </div>
+          </div>
+          ${canAssign ? `
+          <div class="form-group">
+            <label>Assigned DM (email)</label>
+            <input type="email" class="form-control" name="AssignedDMEmail" placeholder="Optional">
+          </div>` : ''}
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:24px">
+            <button type="button" class="btn-secondary" onclick="closeLCIModelModal()">Cancel</button>
+            <button type="submit" class="btn-primary" id="lci-model-save-btn">Create Model</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+}
+
+function openLCIModelModal() {
+  document.getElementById('lci-model-modal').style.display = 'flex';
+  lciToggleFxInput();
+}
+function closeLCIModelModal() {
+  document.getElementById('lci-model-modal').style.display = 'none';
+}
+function lciToggleFxInput() {
+  const local   = document.getElementById('lci-local-ccy')?.value;
+  const display = document.getElementById('lci-display-ccy')?.value;
+  const group   = document.getElementById('lci-fx-group');
+  const rate    = document.getElementById('lci-fx-rate');
+  if (!group || !rate) return;
+  const differ = local !== display;
+  group.style.display = differ ? '' : 'none';
+  rate.required = differ;
+}
+
+async function saveLCIModel(event) {
+  event.preventDefault();
+  const btn = document.getElementById('lci-model-save-btn');
+  setButtonLoading(btn, true);
+  try {
+    const data = Object.fromEntries(new FormData(event.target).entries());
+    const user = getCurrentUser();
+    const role = _salesResolvedRole;
+    const D = CONFIG.LCI.DEFAULTS;
+    await createLCIModel({
+      Title:                data.Title,
+      ClientName:           data.ClientName,
+      Location:             data.Location,
+      LocalCurrency:        data.LocalCurrency,
+      DisplayCurrency:      data.DisplayCurrency,
+      FXRateLocalToDisplay: data.LocalCurrency !== data.DisplayCurrency ? Number(data.FXRateLocalToDisplay) : null,
+      StartMonth:           data.StartMonth,            // YYYY-MM string, never a Date
+      HorizonMonths:        Number(data.HorizonMonths),
+      Status:               'Draft',
+      // DMs creating their own model are auto-assigned to it.
+      AssignedDMEmail:      data.AssignedDMEmail || (role === 'delivery_manager' ? user.email : null),
+      EmployerBurdenPct:    D.EmployerBurdenPct,
+      SalaryMonths:         D.SalaryMonths,
+      OfficeCostPerHead:    D.OfficeCostPerHead,
+      EoRFeePerHead:        D.EoRFeePerHead,
+      TravelPerMonth:       D.TravelPerMonth,
+      SectionsEnabled:      JSON.stringify({ coe: true, legacy: true, oneoffs: true, fees: true }),
+    });
+    closeLCIModelModal();
+    await renderLCIModelsPage();
+  } catch (e) {
+    alert('Error creating model: ' + e.message);
+  } finally {
+    setButtonLoading(btn, false);
+  }
+}
+
+// ── Row actions ──────────────────────────────────────────────────────
+
+function openLCIModel(id) {
+  // Editor arrives in build step 5. Placeholder keeps the action wired.
+  const m = (_lciModelsCache || []).find(x => String(x.id) === String(id));
+  const main = document.getElementById('main-content');
+  main.innerHTML = `
+    <div class="page-header">
+      <h2>${m ? m.Title : 'Model'}</h2>
+      <button class="btn-secondary" onclick="renderLCIModelsPage()">← Back to models</button>
+    </div>
+    <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px;color:#666">
+      Model editor is delivered in build step 5.
+    </div>`;
+}
+
+async function copyLCIModelAction(id) {
+  const m = (_lciModelsCache || []).find(x => String(x.id) === String(id));
+  const newTitle = prompt('Name for the copy:', m ? `${m.Title} (copy)` : 'Copy');
+  if (!newTitle) return;
+  try {
+    await copyLCIModel(id, newTitle);
+    await renderLCIModelsPage();
+  } catch (e) {
+    alert('Error copying model: ' + e.message);
+  }
+}
+
+async function deleteLCIModelAction(id) {
+  const m = (_lciModelsCache || []).find(x => String(x.id) === String(id));
+  if (!confirm(`Delete "${m ? m.Title : 'this model'}" and all its rows? This cannot be undone.`)) return;
+  try {
+    await deleteLCIModel(id);
+    await renderLCIModelsPage();
+  } catch (e) {
+    alert('Error deleting model: ' + e.message);
+  }
+}

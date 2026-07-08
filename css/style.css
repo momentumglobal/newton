@@ -1819,7 +1819,7 @@ body {
 .lci-row-del { padding: 2px 8px; line-height: 1; }
 
 /* LCI cost output */
-.lci-output td { text-align: right; }
+.lci-output td { text-align: center; }
 .lci-output td:first-child { text-align: left; }
 .lci-out-subtotal td { font-weight: 600; border-top: 1px solid #ddd; }
 .lci-out-total td { font-weight: 700; color: #1B3A5C; background: #F5F7FA; }
@@ -1844,12 +1844,14 @@ body {
 /* LCI summary / print */
 .lci-summary-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;
                     padding: 20px; margin-bottom: 16px; }
+.lci-assump td:first-child { white-space: nowrap; padding-right: 32px; }
+
 @media print {
   .lci-noprint, #sidebar { display: none !important; }
   /* Client-facing summary: no 'Confidential — Internal' banner */
   body.lci-summary-mode::before { display: none !important; content: none !important; }
-  /* Sections keep tile styling in print */
-  .lci-summary-card { break-inside: avoid; }
+  /* Sections keep tile styling in print (no break-inside:avoid — tall cards
+     would get pushed to a fresh page, leaving page 1 blank) */
   /* Page breaks: p1 plan, p2 cost model, p3 chart, p4 assumptions */
   #lci-print-p2, #lci-print-p3, #lci-print-p4 { break-before: page; page-break-before: always; }
   #lci-print-p2, #lci-print-p3 { break-before: page; page-break-before: always; }

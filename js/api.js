@@ -303,27 +303,43 @@ async function deleteLCIMilestone(id) {
 }
 
 // Duplicate a model: header (status reset to Draft) + all rows + milestones.
+// Fields are whitelisted — Graph returns read-only system fields (LinkTitle,
+// Created, Modified, Author...) that must not be sent back on create.
+const _LCI_MODEL_COPY_FIELDS = [
+  'ClientName', 'ProjectID', 'Location', 'LocalCurrency', 'DisplayCurrency',
+  'FXRateLocalToDisplay', 'StartMonth', 'HorizonMonths', 'AssignedDMEmail',
+  'EmployerBurdenPct', 'SalaryMonths', 'OfficeCostPerHead', 'EoRFeePerHead',
+  'TravelPerMonth', 'SectionsEnabled', 'Assumptions',
+];
+const _LCI_ROW_COPY_FIELDS = [
+  'Title', 'RowType', 'Team', 'CareerLevel', 'AnnualSalary', 'BonusPct',
+  'Quantity', 'ExitMonth', 'MonthValues', 'SortOrder',
+];
+const _LCI_MILESTONE_COPY_FIELDS = ['Title', 'StartMonth', 'EndMonth', 'SortOrder'];
+
+function _pickFields(obj, keys) {
+  const out = {};
+  for (const k of keys) {
+    if (obj[k] !== undefined && obj[k] !== null) out[k] = obj[k];
+  }
+  return out;
+}
+
 async function copyLCIModel(modelId, newTitle) {
   const [model, rows, milestones] = await Promise.all([
     getLCIModelById(modelId), getLCIRows(modelId), getLCIMilestones(modelId),
   ]);
-  const { id, ...headerFields } = model;
-  delete headerFields['@odata.etag'];
   const created = await createLCIModel({
-    ...headerFields,
+    ..._pickFields(model, _LCI_MODEL_COPY_FIELDS),
     Title:  newTitle || `${model.Title} (copy)`,
     Status: 'Draft',
   });
   const newId = created.id;
   for (const r of rows) {
-    const { id: _rid, ...f } = r;
-    delete f['@odata.etag'];
-    await createLCIRow({ ...f, ModelID: newId });
+    await createLCIRow({ ..._pickFields(r, _LCI_ROW_COPY_FIELDS), ModelID: newId });
   }
   for (const m of milestones) {
-    const { id: _mid, ...f } = m;
-    delete f['@odata.etag'];
-    await createLCIMilestone({ ...f, ModelID: newId });
+    await createLCIMilestone({ ..._pickFields(m, _LCI_MILESTONE_COPY_FIELDS), ModelID: newId });
   }
   return created;
 }

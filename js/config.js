@@ -125,6 +125,7 @@ const CONFIG = {
       OfficeCostPerHead: 300,
       EoRFeePerHead:     0,
       TravelPerMonth:    0,
+      NoticeMonths:      1,
     },
     SECTION_LABELS: {
       coe:     'CoE Team',

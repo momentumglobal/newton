@@ -189,7 +189,7 @@ function _lciSummaryHtml() {
           <tr><td>Notice period (months)</td><td>${m.NoticeMonths ?? 0}</td></tr>
           <tr><td>Office cost / head / month</td><td>${m.OfficeCostPerHead ?? 0} ${m.LocalCurrency}</td></tr>
           <tr><td>EoR fee / head / month</td><td>${m.EoRFeePerHead ?? 0} ${m.DisplayCurrency}</td></tr>
-          <tr><td>Travel / month</td><td>${m.TravelPerMonth ?? 0} ${m.LocalCurrency}</td></tr>
+          <tr><td>Travel / month</td><td>${m.TravelPerMonth ?? 0} ${m.DisplayCurrency}</td></tr>
           ${m.LocalCurrency !== m.DisplayCurrency ? `<tr><td>FX rate (${m.LocalCurrency}→${m.DisplayCurrency})</td><td>${m.FXRateLocalToDisplay ?? '—'}</td></tr>` : ''}
         </tbody>
       </table>

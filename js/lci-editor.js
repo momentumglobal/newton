@@ -67,7 +67,6 @@ function _lciEditorHtml() {
       </div>
     </div>
     ${_lciSettingsHtml()}
-    ${_lciMilestonesHtml()}
     ${lciSections(m).coe ? _lciRoadmapHtml() : ''}
     ${_lciLegacyHtml()}
     ${_lciOneoffsHtml()}
@@ -114,6 +113,7 @@ function _lciSettingsHtml() {
         </div>
         ${field(`Employer burden %`, numInput('EmployerBurdenPct', m.EmployerBurdenPct != null ? Math.round(m.EmployerBurdenPct * 100 * 100) / 100 : '', '0.5'))}
         ${field('Salary months', `<select class="form-control" data-setting="SalaryMonths" onchange="lciSettingChanged()">${smOpts}</select>`)}
+        ${field('Notice period (months)', numInput('NoticeMonths', m.NoticeMonths ?? 0, '1'))}
         ${field(`Office / head / month (${m.LocalCurrency})`, numInput('OfficeCostPerHead', m.OfficeCostPerHead, '10'))}
         ${field(`EoR / head / month (${m.DisplayCurrency})`, numInput('EoRFeePerHead', m.EoRFeePerHead, '10'))}
         ${field(`Travel / month (${m.LocalCurrency})`, numInput('TravelPerMonth', m.TravelPerMonth, '100'))}
@@ -224,6 +224,7 @@ function _lciRoadmapHtml() {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 style="margin:0;color:#1B3A5C">Hiring Roadmap <span style="font-weight:400;font-size:13px;color:#888">(salaries in ${m.LocalCurrency})</span></h3>
         <div style="display:flex;gap:8px">
+          <button class="btn-secondary" onclick="addLCIMilestone()">+ Add Milestone</button>
           <button class="btn-secondary" onclick="addLCICoeRow()">+ Add Role</button>
           <button class="btn-primary" id="lci-roadmap-save" onclick="saveLCIRoadmap()" disabled>Save Roadmap</button>
         </div>
@@ -239,6 +240,7 @@ function _lciRoadmapHtml() {
             </tr>
           </thead>
           <tbody id="lci-roadmap-body">
+            ${_lciRoadmapMilestoneRows(horizon)}
             ${bodyRows || `<tr><td colspan="${horizon + 7}" style="color:#888;text-align:center">No roles yet — click + Add Role.</td></tr>`}
           </tbody>
           <tfoot id="lci-roadmap-foot">
@@ -281,7 +283,7 @@ function _lciRoadmapFootHtml(horizon) {
   const hireCells = hires.map(h => `<td class="lci-mcol lci-derived">${h || ''}</td>`).join('');
   return `
     <tr><td colspan="4"><strong>Hires per month</strong></td>${hireCells}<td class="lci-derived">${hires.reduce((a, b) => a + b, 0)}</td><td></td><td></td></tr>
-    <tr><td colspan="4"><strong>Cumulative headcount</strong></td>${cumCells}<td></td><td></td><td></td></tr>`;
+    <tr><td colspan="4"><strong>Cumulative hires</strong></td>${cumCells}<td></td><td></td><td></td></tr>`;
 }
 
 // ── Grid change handlers ─────────────────────────────────────────────
@@ -394,6 +396,9 @@ async function saveLCIRoadmap() {
         _lciEd.origRows.set(String(r.id), JSON.stringify(snapshot));
       }
     }
+
+    // Milestones save through the same button (separate SP list, diff-only)
+    if (typeof _lciSaveMilestonesData === 'function') await _lciSaveMilestonesData();
 
     _lciEd.dirtyRows = false;
     clearButtonLoading(btn);

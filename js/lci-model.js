@@ -81,13 +81,19 @@ function lciMonthlyCost(row, model) {
 
 // ── CoE section ──────────────────────────────────────────────────────
 
-// Running headcount for one coe row (hires per month → cumulative).
-// Hire month = first paid month. Stays flat after last hire (auto run-rate).
-function lciCumulativeHeadcount(row, horizon) {
+// Running PAYROLL headcount for one coe row.
+// A hire in month N reaches payroll in month N + notice (model.NoticeMonths,
+// default 0 — hire month = first paid month). Assumes 1st-of-month starts.
+// Stays flat after the last start (auto run-rate).
+function lciCumulativeHeadcount(row, horizon, noticeMonths = 0) {
   const hires = lciMonthValues(row, horizon);
   const out = new Array(horizon).fill(0);
   let cum = 0;
-  for (let i = 0; i < horizon; i++) { cum += hires[i]; out[i] = cum; }
+  for (let i = 0; i < horizon; i++) {
+    const src = i - noticeMonths;
+    if (src >= 0) cum += hires[src];
+    out[i] = cum;
+  }
   return out;
 }
 
@@ -95,13 +101,14 @@ function lciCumulativeHeadcount(row, horizon) {
 // Costs returned in LOCAL currency (converted in lciComputeModel).
 function lciCoeCosts(rows, model) {
   const horizon = Number(model.HorizonMonths);
+  const notice  = Math.max(0, Number(model.NoticeMonths) || 0);
   const coeRows = rows.filter(r => r.RowType === 'coe');
   const total     = new Array(horizon).fill(0);
   const headcount = new Array(horizon).fill(0);
   const byTeam    = {}; // team → array[horizon]
 
   for (const row of coeRows) {
-    const cum  = lciCumulativeHeadcount(row, horizon);
+    const cum  = lciCumulativeHeadcount(row, horizon, notice);
     const cost = lciMonthlyCost(row, model);
     const team = row.Team || 'Other';
     if (!byTeam[team]) byTeam[team] = new Array(horizon).fill(0);
@@ -171,7 +178,7 @@ function lciComputeModel(model, rows) {
   // CoE side: local currency → DisplayCurrency
   coe.total = coe.total.map(v => v * fx);
   for (const t of Object.keys(coe.byTeam)) coe.byTeam[t] = coe.byTeam[t].map(v => v * fx);
-  // EoR fee is entered in DisplayCurrency (per-head provider fee, customer-side) — no FX.
+  // EoR fee is entered in DisplayCurrency (customer-side) — no FX conversion.
   const eor    = coe.headcount.map(h => h * (Number(model.EoRFeePerHead)    || 0));
   const office = coe.headcount.map(h => h * (Number(model.OfficeCostPerHead)|| 0) * fx);
   const travel = new Array(horizon).fill((Number(model.TravelPerMonth) || 0) * fx);

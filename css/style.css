@@ -1817,6 +1817,9 @@ body {
 .lci-derived { text-align: center; color: #1B3A5C; font-weight: 600; }
 .lci-team-row td { background: #F5F7FA; padding: 6px 8px; }
 .lci-row-del { padding: 2px 8px; line-height: 1; }
+/* Header cells centre-aligned to match data, col 1 stays left */
+.lci-grid th { text-align: center; }
+.lci-grid th:first-child { text-align: left; }
 
 /* LCI cost output */
 .lci-output td { text-align: center; }

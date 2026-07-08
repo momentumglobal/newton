@@ -132,6 +132,9 @@ async function renderLCISummaryPage(modelId) {
       origRows: new Map(), origMilestones: new Map(),
       dirtySettings: false, dirtyRows: false, dirtyMilestones: false,
     };
+    // Suppress the global 'Confidential — Internal' print banner for the
+    // client-facing summary (body class read by @media print CSS).
+    document.body.classList.add('lci-summary-mode');
     main.innerHTML = _lciSummaryHtml();
     if (window.lucide) lucide.createIcons();
   } catch (e) {
@@ -142,38 +145,41 @@ async function renderLCISummaryPage(modelId) {
 function _lciSummaryHtml() {
   const m = _lciEd.model;
   const horizon = Number(m.HorizonMonths);
-  const labels = lciMonthLabels(m.StartMonth, horizon);
-  const fxNote = m.LocalCurrency !== m.DisplayCurrency
-    ? ` · FX ${m.LocalCurrency}→${m.DisplayCurrency}: ${m.FXRateLocalToDisplay}` : '';
+  const exportDate = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const c = lciComputeModel(m, _lciEd.rows);
 
   return `
     <div class="page-header lci-noprint">
       <h2>${m.Title} — Summary</h2>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="openLCIModel(${m.id})">← Edit model</button>
-        <button class="btn-primary" onclick="printPage('${(m.Title || 'LCI Model').replace(/'/g, '')}', true, 'Sales — LCI')">Print / PDF</button>
+        <button class="btn-primary" onclick="printPage('${(m.Title || 'LCI Model').replace(/'/g, '')}', true, 'LCI')">Print / PDF</button>
       </div>
     </div>
 
-    <!-- Page 1: recruitment plan (milestones integrated) -->
+    <!-- Section 1: recruitment plan (milestones integrated) -->
     <div id="lci-print-p1" class="lci-summary-card">
       <div class="lci-summary-head">
         <h2 style="margin:0;color:#1B3A5C">${m.Title}</h2>
         <div style="color:#666;font-size:13px;margin-top:4px">
-          ${m.ClientName || ''} · ${m.Location || ''} · ${labels[0]} – ${labels[horizon - 1]}
-          · Values in ${m.DisplayCurrency}${fxNote}
+          ${m.ClientName || 'Client'} x Momentum Global — ${exportDate}
         </div>
       </div>
       ${_lciSummaryRoadmapHtml()}
     </div>
 
-    <!-- Page 2: cost model -->
+    <!-- Section 2: cost model -->
     <div id="lci-print-p2" class="lci-summary-card">
-      ${_lciOutputInnerHtml()}
+      ${_lciOutputInnerHtml(false)}
     </div>
 
-    <!-- Page 3: assumptions -->
+    <!-- Section 3: cumulative spend chart -->
     <div id="lci-print-p3" class="lci-summary-card">
+      ${_lciSpendChartSvg(c, m.DisplayCurrency, horizon)}
+    </div>
+
+    <!-- Section 4: assumptions -->
+    <div id="lci-print-p4" class="lci-summary-card">
       <h3 style="margin:0 0 12px;color:#1B3A5C">Model Guide and Assumptions</h3>
       ${m.Assumptions ? `<div style="white-space:pre-wrap;font-size:13px;line-height:1.6">${m.Assumptions}</div>` : ''}
       <table class="data-table" style="max-width:480px;margin-top:16px">

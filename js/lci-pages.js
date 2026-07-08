@@ -7,6 +7,7 @@ let _lciModelsCache = null; // page-level cache; invalidated by api.js writes an
 // ── Model list page ──────────────────────────────────────────────────
 
 async function renderLCIModelsPage() {
+  document.body.classList.remove('lci-summary-mode');
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading...</p>';
 
@@ -178,7 +179,7 @@ function lciToggleFxInput() {
 async function saveLCIModel(event) {
   event.preventDefault();
   const btn = document.getElementById('lci-model-save-btn');
-  setButtonLoading(btn);
+  setButtonLoading(btn, true);
   try {
     const data = Object.fromEntries(new FormData(event.target).entries());
     const user = getCurrentUser();
@@ -201,7 +202,6 @@ async function saveLCIModel(event) {
       OfficeCostPerHead:    D.OfficeCostPerHead,
       EoRFeePerHead:        D.EoRFeePerHead,
       TravelPerMonth:       D.TravelPerMonth,
-      NoticeMonths:         D.NoticeMonths,
       SectionsEnabled:      JSON.stringify({ coe: true, legacy: true, oneoffs: true, fees: true }),
     });
     closeLCIModelModal();
@@ -209,14 +209,24 @@ async function saveLCIModel(event) {
   } catch (e) {
     alert('Error creating model: ' + e.message);
   } finally {
-    clearButtonLoading(btn);
+    setButtonLoading(btn, false);
   }
 }
 
 // ── Row actions ──────────────────────────────────────────────────────
 
 function openLCIModel(id) {
-  renderLCIEditorPage(id);
+  // Editor arrives in build step 5. Placeholder keeps the action wired.
+  const m = (_lciModelsCache || []).find(x => String(x.id) === String(id));
+  const main = document.getElementById('main-content');
+  main.innerHTML = `
+    <div class="page-header">
+      <h2>${m ? m.Title : 'Model'}</h2>
+      <button class="btn-secondary" onclick="renderLCIModelsPage()">← Back to models</button>
+    </div>
+    <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px;color:#666">
+      Model editor is delivered in build step 5.
+    </div>`;
 }
 
 async function copyLCIModelAction(id) {

@@ -691,6 +691,9 @@ async function createPayrollNotification({ month, year, joiners, leavers, bonus 
 function printPage(title, landscape = false, module = 'Newton') {
   document.getElementById('print-header-title').textContent = 'Newton';
   document.getElementById('print-header-sub').textContent = module;
+  // Set the document title so it becomes the default PDF filename, then restore.
+  const prevDocTitle = document.title;
+  if (title) document.title = title;
   let styleEl = null;
   if (landscape) {
     styleEl = document.createElement('style');
@@ -702,6 +705,7 @@ function printPage(title, landscape = false, module = 'Newton') {
   if (styleEl) {
     setTimeout(() => styleEl.remove(), 1000);
   }
+  setTimeout(() => { document.title = prevDocTitle; }, 1000);
 }
 
 // ── Market Report ─────────────────────────────────────────────

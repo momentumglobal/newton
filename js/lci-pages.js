@@ -3,6 +3,7 @@
 // Editor, summary, compare and export pages arrive in later build steps.
 
 let _lciModelsCache = null; // page-level cache; invalidated by api.js writes anyway
+let _lciListFilters = { client: '', location: '' }; // '' = all; persists across re-renders this session
 
 // ── Model list page ──────────────────────────────────────────────────
 
@@ -41,9 +42,30 @@ function _lciTotalHires(model) {
   return '—';
 }
 
-function _renderLCIModelList(models, role) {
+function lciListFilterChanged(which, value) {
+  _lciListFilters[which] = value;
+  document.getElementById('main-content').innerHTML =
+    _renderLCIModelList(_lciModelsCache || [], _salesResolvedRole);
+  if (window.lucide) lucide.createIcons();
+}
+
+// Distinct sorted values for a filter dropdown, from the visible models.
+function _lciFilterOptions(models, field, selected) {
+  const values = [...new Set(models.map(m => m[field]).filter(Boolean))].sort();
+  return ['<option value="">All</option>']
+    .concat(values.map(v => `<option value="${v}"${v === selected ? ' selected' : ''}>${v}</option>`))
+    .join('');
+}
+
+function _renderLCIModelList(allModels, role) {
   const isAdmin = role === 'admin';
   const canManage = role === 'admin' || role === 'leadership';
+
+  // Apply filters (dropdown options always come from the full visible set)
+  const f = _lciListFilters;
+  const models = allModels.filter(m =>
+    (!f.client || m.ClientName === f.client) &&
+    (!f.location || m.Location === f.location));
 
   const rows = models.length
     ? models.map(m => `
@@ -68,12 +90,20 @@ function _renderLCIModelList(models, role) {
             </div>
           </td>
         </tr>`).join('')
-    : `<tr><td colspan="9" style="color:#888;text-align:center">No models yet${role === 'delivery_manager' ? ' assigned to you' : ''}.</td></tr>`;
+    : `<tr><td colspan="9" style="color:#888;text-align:center">${allModels.length ? 'No models match the current filters.' : `No models yet${role === 'delivery_manager' ? ' assigned to you' : ''}.`}</td></tr>`;
 
   return `
     <div class="page-header">
       <h2>LCI Cost Models</h2>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:13px;color:#555">Client</label>
+        <select class="form-control" style="width:auto" onchange="lciListFilterChanged('client', this.value)">
+          ${_lciFilterOptions(allModels, 'ClientName', f.client)}
+        </select>
+        <label style="font-size:13px;color:#555">Location</label>
+        <select class="form-control" style="width:auto" onchange="lciListFilterChanged('location', this.value)">
+          ${_lciFilterOptions(allModels, 'Location', f.location)}
+        </select>
         <button class="btn-secondary" id="lci-report-btn" onclick="lciExportReport()" disabled
                 title="Tick one or more models">Export Report</button>
         <button class="btn-secondary" id="lci-compare-btn" onclick="lciCompareSelected()" disabled

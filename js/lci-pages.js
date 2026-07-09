@@ -48,6 +48,10 @@ function _renderLCIModelList(models, role) {
   const rows = models.length
     ? models.map(m => `
         <tr>
+          <td style="width:32px;text-align:center">
+            <input type="checkbox" class="lci-compare-cb" value="${m.id}"
+                   data-ccy="${m.DisplayCurrency || ''}" onchange="lciCompareSelectionChanged()">
+          </td>
           <td><strong>${m.Title || '—'}</strong></td>
           <td>${m.ClientName || '—'}</td>
           <td>${m.Location || '—'}</td>
@@ -64,18 +68,22 @@ function _renderLCIModelList(models, role) {
             </div>
           </td>
         </tr>`).join('')
-    : `<tr><td colspan="8" style="color:#888;text-align:center">No models yet${role === 'delivery_manager' ? ' assigned to you' : ''}.</td></tr>`;
+    : `<tr><td colspan="9" style="color:#888;text-align:center">No models yet${role === 'delivery_manager' ? ' assigned to you' : ''}.</td></tr>`;
 
   return `
     <div class="page-header">
       <h2>LCI Cost Models</h2>
-      ${canManage || role === 'delivery_manager' ? '<button class="btn-primary" onclick="openLCIModelModal()">+ New Model</button>' : ''}
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary" id="lci-compare-btn" onclick="lciCompareSelected()" disabled
+                title="Tick two models with the same display currency">Compare (0/2)</button>
+        ${canManage || role === 'delivery_manager' ? '<button class="btn-primary" onclick="openLCIModelModal()">+ New Model</button>' : ''}
+      </div>
     </div>
     <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px">
       <table class="data-table">
         <thead>
           <tr>
-            <th>Model</th><th>Client</th><th>Location</th><th>Currency (local → display)</th>
+            <th></th><th>Model</th><th>Client</th><th>Location</th><th>Currency (local → display)</th>
             <th>Status</th><th>Assigned DM</th><th>Horizon</th><th></th>
           </tr>
         </thead>
@@ -254,6 +262,31 @@ async function saveLCIModel(event) {
   } finally {
     clearButtonLoading(btn);
   }
+}
+
+// ── Compare selection ────────────────────────────────────────────────
+
+function _lciCheckedCompareBoxes() {
+  return [...document.querySelectorAll('.lci-compare-cb:checked')];
+}
+
+function lciCompareSelectionChanged() {
+  const checked = _lciCheckedCompareBoxes();
+  const btn = document.getElementById('lci-compare-btn');
+  if (!btn) return;
+  const sameCcy = checked.length === 2 && checked[0].dataset.ccy &&
+                  checked[0].dataset.ccy === checked[1].dataset.ccy;
+  btn.disabled = !sameCcy;
+  btn.textContent = `Compare (${checked.length}/2)`;
+  btn.title = checked.length !== 2
+    ? 'Tick two models with the same display currency'
+    : (sameCcy ? 'Compare selected models' : 'Models must share the same display currency');
+}
+
+function lciCompareSelected() {
+  const checked = _lciCheckedCompareBoxes();
+  if (checked.length !== 2) return;
+  renderLCIComparePage(checked[0].value, checked[1].value);
 }
 
 // ── Row actions ──────────────────────────────────────────────────────

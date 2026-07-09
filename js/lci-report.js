@@ -126,26 +126,26 @@ function lciReportFormatBlock(tag) {
 
 // ── Navy cover + dividers ────────────────────────────────────────────
 
-function _lciReportCoverHtml(title, subtitle) {
+// Shared navy-page layout: logo top-left, brand swirl right, title lower-left
+// (mirrors the Momentum brand slide composition).
+function _lciReportNavyPage(title, subtitle, extraClass = '') {
   return `
-    <div class="lci-report-navy lci-report-cover">
+    <div class="lci-report-navy ${extraClass}">
       <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="lci-report-logo">
-      <div>
+      <img src="mg-visual-swirl.png" alt="" class="lci-report-swirl">
+      <div class="lci-report-titleblock">
         <h1>${title}</h1>
         <div class="lci-report-sub">${subtitle}</div>
       </div>
     </div>`;
 }
 
+function _lciReportCoverHtml(title, subtitle) {
+  return _lciReportNavyPage(title, subtitle, 'lci-report-cover');
+}
+
 function _lciReportDividerHtml(m) {
-  return `
-    <div class="lci-report-navy lci-report-divider lci-report-break">
-      <div>
-        <h1>${m.Title}</h1>
-        <div class="lci-report-sub">${m.Location || ''}</div>
-      </div>
-      <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="lci-report-logo lci-report-logo--small">
-    </div>`;
+  return _lciReportNavyPage(m.Title, m.Location || '', 'lci-report-divider lci-report-break');
 }
 
 // ── Comparison section (2+ models, all sharing a display currency) ───
@@ -162,13 +162,7 @@ function _lciReportComparisonHtml(bundles) {
   }));
 
   return `
-    <div class="lci-report-navy lci-report-divider lci-report-break">
-      <div>
-        <h1>Location Comparison</h1>
-        <div class="lci-report-sub">${entries.map(e => e.name).join(' · ')}</div>
-      </div>
-      <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="lci-report-logo lci-report-logo--small">
-    </div>
+    ${_lciReportNavyPage('Location Comparison', entries.map(e => e.name).join(' · '), 'lci-report-divider lci-report-break')}
     <div class="lci-summary-card lci-report-break">
       ${_lciCompareTableHtml(entries, ccy)}
       <div style="margin-top:20px">

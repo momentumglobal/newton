@@ -114,7 +114,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
   const currentUser = getCurrentUser();
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);
-  const canAssign = ['admin', 'delivery_manager'].includes(userRole);
+  const canAssign = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
   const isTalentPartner = userRole === 'talent_partner';
   const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
@@ -353,7 +353,7 @@ async function renderWeeklyActivityForm(existingData = null) {
   const currentUser = getCurrentUser();
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);
-  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
+  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
   const isTalentPartner = userRole === 'talent_partner';
   const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
@@ -544,7 +544,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   const currentUser = getCurrentUser();
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);
-  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
+  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
   const isTalentPartner = userRole === 'talent_partner';
   const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;

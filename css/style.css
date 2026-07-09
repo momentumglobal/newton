@@ -1849,6 +1849,15 @@ body {
                     padding: 20px; margin-bottom: 16px; }
 .lci-assump td:first-child { width: 45%; padding-right: 32px; }
 
+/* LCI compare view */
+.lci-compare td { text-align: center; }
+.lci-compare td:first-child { text-align: left; }
+.lci-compare th { text-align: center; }
+.lci-compare th:first-child { text-align: left; }
+.lci-chart-line--b { stroke: #E8703A; stroke-width: 2.5; stroke-dasharray: 5 4; }
+.lci-chart-line--b-dot { fill: #E8703A; }
+.lci-chart-line-dot { fill: #1B3A5C; }
+
 @media print {
   .lci-noprint, #sidebar { display: none !important; }
   /* Client-facing summary: no 'Confidential — Internal' banner */

@@ -293,37 +293,41 @@ function _lciCompareChartSvg(cmp) {
     const gy = y(v);
     const isMajor = v % MAJOR === 0;
     gridLines += `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" class="lci-chart-grid${isMajor ? '' : ' lci-chart-grid--minor'}"/>`;
-    if (isMajor) gridLines += `<text x="${padL - 6}" y="${gy + 3}" font-size="10" fill="#999" text-anchor="end">${fmtCompact(v)}</text>`;
+    if (isMajor) gridLines += `<text x="${padL - 6}" y="${gy + 3}" font-size="8" fill="#999" text-anchor="end">${fmtCompact(v)}</text>`;
   }
 
-  const line = (data, cls) => {
+  // Both lines solid; colours inline so rendering never depends on CSS deploy
+  const COL_A = '#1B3A5C', COL_B = '#E8703A';
+  const line = (data, col) => {
     const pts = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
     const dots = data.map((v, i) =>
-      `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="${cls}-dot"><title>${labels[i]}: ${_lciFmt(v, ccy)}</title></circle>`).join('');
-    return `<polyline points="${pts}" class="${cls}" fill="none"/>${dots}`;
+      `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" fill="${col}"><title>${labels[i]}: ${_lciFmt(v, ccy)}</title></circle>`).join('');
+    return `<polyline points="${pts}" stroke="${col}" stroke-width="2.5" fill="none"/>${dots}`;
   };
 
   const ticks = labels.map((l, i) => {
     if (!(horizon <= 12 || i % 2 === 0)) return '';
     const sub = (l.match(/\((.+)\)/) || [])[1] || '';
-    return `<text x="${x(i).toFixed(1)}" y="${H - 30}" font-size="10" fill="#888" text-anchor="middle">M${i + 1}</text>
-            <text x="${x(i).toFixed(1)}" y="${H - 18}" font-size="8" fill="#aaa" text-anchor="middle">(${sub})</text>`;
+    return `<text x="${x(i).toFixed(1)}" y="${H - 30}" font-size="8" fill="#888" text-anchor="middle">M${i + 1}</text>
+            <text x="${x(i).toFixed(1)}" y="${H - 20}" font-size="7" fill="#aaa" text-anchor="middle">(${sub})</text>`;
   }).join('');
 
+  // Legend centred under the x axis: fixed-width items placed around W/2
+  const itemW = 30 + cmp.a.name.length * 5.5;
   const legend = `
-    <g font-size="10">
-      <line x1="${padL}" y1="${H - 5}" x2="${padL + 24}" y2="${H - 5}" class="lci-chart-line"/>
-      <text x="${padL + 30}" y="${H - 2}" fill="#555">${cmp.a.name}</text>
-      <line x1="${padL + 200}" y1="${H - 5}" x2="${padL + 224}" y2="${H - 5}" class="lci-chart-line--b"/>
-      <text x="${padL + 230}" y="${H - 2}" fill="#555">${cmp.b.name}</text>
+    <g font-size="9">
+      <line x1="${W / 2 - itemW - 20}" y1="${H - 6}" x2="${W / 2 - itemW + 4}" y2="${H - 6}" stroke="${COL_A}" stroke-width="2.5"/>
+      <text x="${W / 2 - itemW + 10}" y="${H - 3}" fill="#555">${cmp.a.name}</text>
+      <line x1="${W / 2 + 20}" y1="${H - 6}" x2="${W / 2 + 44}" y2="${H - 6}" stroke="${COL_B}" stroke-width="2.5"/>
+      <text x="${W / 2 + 50}" y="${H - 3}" fill="#555">${cmp.b.name}</text>
     </g>`;
 
   return `
     <h3 style="margin:0 0 12px;color:#1B3A5C">Cumulative Spend <span style="font-weight:400;font-size:13px;color:#888">(${ccy})</span></h3>
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
       ${gridLines}
-      ${line(cmp.a.cumulativeSpend, 'lci-chart-line')}
-      ${line(cmp.b.cumulativeSpend, 'lci-chart-line--b')}
+      ${line(cmp.a.cumulativeSpend, COL_A)}
+      ${line(cmp.b.cumulativeSpend, COL_B)}
       ${ticks}
       ${legend}
     </svg>`;

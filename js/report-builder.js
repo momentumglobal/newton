@@ -11,6 +11,14 @@ let _rbReportData = null;  // Cached fetch result { roles, activity, placements,
 let _rbTitle      = '';
 let _rbIncludeGantt = false;  // append Hiring Plan as landscape final page (CoE projects)
 let _rbProjectRoles = [];  // Roles for the selected project (drives Role dropdown)
+let _rbLiveRoles = [];  // Live roles for the current project/role filter — drives the Snapshot editor
+const SNAP_FIELDS = [   // Candidate Pipeline Snapshot columns: [valueKey, header]
+  ['hmReview', 'HM Review'],
+  ['iv1',      'IV1'],
+  ['iv2plus',  'IV2+'],
+  ['finalIv',  'Final IV'],
+  ['offer',    'Offer'],
+];
 
 const RB_PALETTE = [
   // Overview — no subheading; tiles sit directly under "Add Modules"
@@ -21,6 +29,7 @@ const RB_PALETTE = [
   { key: 'pipelineActivity', label: 'Pipeline Activity',          scope: 'project', group: 'Pipeline', filtered: true },
   { key: 'activityByTP',     label: 'Activity by Talent Partner', scope: 'both',    group: 'Pipeline', filtered: true },
   { key: 'pipelineSummary',  label: 'Pipeline Summary (last 4 weeks)', scope: 'both', group: 'Pipeline' },
+  { key: 'candidateSnapshot', label: 'Candidate Pipeline Snapshot',    scope: 'project', group: 'Pipeline' },
   // Placements & Rejections
   { key: 'placements',       label: 'Placements',                 scope: 'both',    group: 'Placements & Rejections', filtered: true },
   { key: 'spendVsBudget',    label: 'Actual Spend vs Budget',     scope: 'both',    group: 'Placements & Rejections' },
@@ -49,6 +58,14 @@ async function renderReportBuilder() {
   } else {
     _rbProjectRoles = [];
   }
+
+  // Live roles for the Candidate Pipeline Snapshot editor — excluded stages
+  // removed, respecting the single-role filter. Mirrors what the output uses.
+  const RB_EXCLUDED_STAGES = ['Backlog','Hired','Cancelled','On-hold'];
+  _rbLiveRoles = _rbProjectRoles
+    .filter(r => !RB_EXCLUDED_STAGES.includes(r.Stage))
+    .filter(r => _rbRoleId === 'all' || String(r.id) === String(_rbRoleId))
+    .map(r => ({ id: r.id, label: r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle }));
 
   // Load saved reports from SharePoint
   const saved = await getSavedReports();
@@ -159,6 +176,7 @@ function rbRenderCanvas() {
   }
   const items = _rbBlocks.map((block, i) => {
     if (block.type === 'panel') {
+      if (block.key === 'candidateSnapshot') return rbRenderSnapshotBlock(block, i);
       const meta = RB_PALETTE.find(p => p.key === block.key) || { label: block.key };
       return `<div class="rb-block rb-block-panel" data-index="${i}" data-id="${block.id}">
         <span class="rb-drag-handle">&#9776;</span>
@@ -189,6 +207,71 @@ function rbRenderCanvas() {
   }).join('');
 
   return `<div id="rb-sortable">${items}</div>`;
+}
+
+// ── Candidate Pipeline Snapshot (input module) ────────────────────────
+// A manual-entry table: one row per live role, user types candidate counts
+// per stage. Values are stored on the block (block.values, keyed by role id)
+// and persist with the saved report. Empty rows are hidden in the output.
+function rbRenderSnapshotBlock(block, i) {
+  const values = block.values || {};
+  const head = `<tr><th>Role</th>${SNAP_FIELDS.map(([, l]) => `<th>${l}</th>`).join('')}</tr>`;
+  const bodyRows = _rbLiveRoles.map(r => {
+    const rid = String(r.id);
+    const v = values[rid] || {};
+    const cells = SNAP_FIELDS.map(([f]) =>
+      `<td><input type="number" min="0" class="rb-snap-input" value="${v[f] ?? ''}"
+        oninput="rbUpdateSnapshotValue('${block.id}','${rid}','${f}',this.value)"></td>`
+    ).join('');
+    return `<tr><td>${r.label}</td>${cells}</tr>`;
+  }).join('');
+  const table = _rbLiveRoles.length
+    ? `<table class="rb-snap-table"><thead>${head}</thead><tbody>${bodyRows}</tbody></table>`
+    : `<p class="no-data">No live roles for this project.</p>`;
+  return `<div class="rb-block rb-block-snap" data-index="${i}" data-id="${block.id}">
+    <span class="rb-drag-handle">&#9776;</span>
+    <div class="rb-snap">
+      <div class="rb-snap-title">Candidate Pipeline Snapshot</div>
+      ${table}
+    </div>
+    <button class="rb-remove-btn" onclick="rbRemoveBlock('${block.id}')">&#x2715;</button>
+  </div>`;
+}
+
+function rbUpdateSnapshotValue(blockId, roleId, field, value) {
+  const block = _rbBlocks.find(b => b.id === blockId);
+  if (!block) return;
+  if (!block.values) block.values = {};
+  if (!block.values[roleId]) block.values[roleId] = {};
+  block.values[roleId][field] = value;
+  // No re-render — keeps input focus, matching text-block behaviour.
+}
+
+// Output renderer — read-only table, empty rows hidden, with a Total row.
+function rbRenderSnapshotOutput(block, liveRoles) {
+  const values = block.values || {};
+  const rows = liveRoles.map(r => {
+    const v = values[String(r.id)] || {};
+    const nums = SNAP_FIELDS.map(([f]) => Number(v[f]) || 0);
+    return { label: r.label, nums, hasData: nums.some(n => n > 0) };
+  }).filter(row => row.hasData);
+
+  if (!rows.length) return `<div class="dash-panel">
+    <h3 class="panel-title">Candidate Pipeline Snapshot</h3>
+    <p class="no-data">No candidate pipeline data entered.</p>
+  </div>`;
+
+  const head = `<tr><th>Role</th>${SNAP_FIELDS.map(([, l]) => `<th style="text-align:center">${l}</th>`).join('')}</tr>`;
+  const body = rows.map(row =>
+    `<tr><td>${row.label}</td>${row.nums.map(n => `<td style="text-align:center">${n > 0 ? n : '–'}</td>`).join('')}</tr>`
+  ).join('');
+  const totals = SNAP_FIELDS.map((_, i) => rows.reduce((s, row) => s + row.nums[i], 0));
+  const totRow = `<tr class="totals-row"><td><strong>Total</strong></td>${totals.map(n => `<td style="text-align:center"><strong>${n}</strong></td>`).join('')}</tr>`;
+
+  return `<div class="dash-panel">
+    <h3 class="panel-title">Candidate Pipeline Snapshot</h3>
+    <table class="data-table"><thead>${head}</thead><tbody>${body}${totRow}</tbody></table>
+  </div>`;
 }
 
 function rbFormat(cmd) {
@@ -237,7 +320,9 @@ function rbInitSortable() {
 function rbUid() { return 'b_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6); }
 
 function rbAddPanelBlock(key) {
-  _rbBlocks.push({ id: rbUid(), type: 'panel', key });
+  const block = { id: rbUid(), type: 'panel', key };
+  if (key === 'candidateSnapshot') block.values = {};
+  _rbBlocks.push(block);
   document.getElementById('rb-canvas').innerHTML = rbRenderCanvas();
   rbInitSortable();
 }
@@ -343,6 +428,13 @@ function rbRenderReportHtml(title, data, ganttOpts = null) {
 
   const blocks = _rbBlocks.map(block => {
     if (block.type === 'panel') {
+      if (block.key === 'candidateSnapshot') {
+        const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
+        const liveRoles = data.roles
+          .filter(r => !EXCLUDED.includes(r.Stage))
+          .map(r => ({ id: r.id, label: r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle }));
+        return rbRenderSnapshotOutput(block, liveRoles);
+      }
       const fn = REPORT_PANELS[block.key];
       return fn ? fn(data, _rbPeriod, _rbKpiPeriod) : '';
     } else {

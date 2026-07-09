@@ -199,6 +199,136 @@ function _lciSummaryHtml() {
     </div>`;
 }
 
+// ── Compare view (step 8) ────────────────────────────────────────────
+
+async function renderLCIComparePage(idA, idB) {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<p>Loading...</p>';
+  try {
+    const [modelA, rowsA, modelB, rowsB] = await Promise.all([
+      getLCIModelById(idA), getLCIRows(idA),
+      getLCIModelById(idB), getLCIRows(idB),
+    ]);
+    if (!lciModelsComparable(modelA, modelB)) {
+      main.innerHTML = '<p style="color:red">Models must share the same display currency.</p>';
+      return;
+    }
+    const cmp = lciCompareModels(modelA, rowsA, modelB, rowsB);
+    main.innerHTML = _lciCompareHtml(cmp);
+    if (window.lucide) lucide.createIcons();
+  } catch (e) {
+    main.innerHTML = `<p style="color:red">Error loading comparison: ${e.message}</p>`;
+  }
+}
+
+function _lciCompareHtml(cmp) {
+  const ccy = cmp.currency;
+  const money = v => _lciFmt(v, ccy);
+  const month = v => v ? `M${v}` : '—';
+  const plain = v => v ?? '—';
+  const delta = (a, b, fmt, goodWhenLower = true) => {
+    const d = b - a;
+    if (!isFinite(d) || d === 0) return '<span style="color:#888">—</span>';
+    const good = goodWhenLower ? d < 0 : d > 0;
+    return `<span style="color:${good ? '#2E7D32' : '#C62828'}">${d > 0 ? '+' : '−'}${fmt(Math.abs(d))}</span>`;
+  };
+
+  const K = [
+    ['Total spend (horizon)',      k => money(k.totalSpend),        (a, b) => delta(a.totalSpend, b.totalSpend, money)],
+    ['Steady-state monthly cost',  k => money(k.steadyMonthly),     (a, b) => delta(a.steadyMonthly, b.steadyMonthly, money)],
+    ['Steady-state annual cost',   k => money(k.steadyAnnual),      (a, b) => delta(a.steadyAnnual, b.steadyAnnual, money)],
+    ['Cost per head (steady)',     k => money(k.costPerHead),       (a, b) => delta(a.costPerHead, b.costPerHead, money)],
+    ['Total hires',                k => plain(k.totalHires),        (a, b) => delta(a.totalHires, b.totalHires, v => v, false)],
+    ['Time to full ramp',          k => month(k.lastHireMonth),     (a, b) => delta(a.lastHireMonth, b.lastHireMonth, v => `${v}mo`)],
+    ['Peak crossover month',       k => month(k.peakCrossoverMonth), () => ''],
+    ['Peak crossover spend',       k => money(k.peakCrossoverSpend), (a, b) => delta(a.peakCrossoverSpend, b.peakCrossoverSpend, money)],
+  ];
+
+  const kpiRows = K.map(([label, fmt, dl]) => `
+    <tr>
+      <td>${label}</td>
+      <td>${fmt(cmp.a.kpis)}</td>
+      <td>${fmt(cmp.b.kpis)}</td>
+      <td>${dl(cmp.a.kpis, cmp.b.kpis)}</td>
+    </tr>`).join('');
+
+  return `
+    <div class="page-header">
+      <h2>Compare Models <span style="font-weight:400;color:#888;font-size:15px">(${ccy})</span></h2>
+      <button class="btn-secondary" onclick="renderLCIModelsPage()">← Back to models</button>
+    </div>
+    <div class="lci-summary-card">
+      <table class="data-table lci-compare">
+        <thead>
+          <tr><th style="width:32%"></th><th>${cmp.a.name}</th><th>${cmp.b.name}</th><th>Δ (B − A)</th></tr>
+        </thead>
+        <tbody>${kpiRows}</tbody>
+      </table>
+      <p style="font-size:12px;color:#888;margin:8px 0 0">Δ green = ${cmp.b.name} favourable, red = unfavourable (cost down / hires up = good).</p>
+    </div>
+    <div class="lci-summary-card">
+      ${_lciCompareChartSvg(cmp)}
+    </div>`;
+}
+
+// Two-line cumulative spend chart: A solid navy, B dashed orange
+// (mirrors the Revenue Tracking forecast-fork styling).
+function _lciCompareChartSvg(cmp) {
+  const ccy = cmp.currency;
+  const horizon = Math.max(cmp.a.cumulativeSpend.length, cmp.b.cumulativeSpend.length);
+  const labels = cmp.a.cumulativeSpend.length >= cmp.b.cumulativeSpend.length ? cmp.a.labels : cmp.b.labels;
+  const W = 900, H = 260, padL = 70, padR = 20, padT = 16, padB = 50;
+  const MAJOR = 500000, MINOR = 250000;
+  const maxData = Math.max(...cmp.a.cumulativeSpend, ...cmp.b.cumulativeSpend, 1);
+  const maxY = Math.max(Math.ceil(maxData / MAJOR) * MAJOR, MAJOR);
+  const x = i => padL + (i / Math.max(horizon - 1, 1)) * (W - padL - padR);
+  const y = v => padT + (1 - v / maxY) * (H - padT - padB);
+
+  const fmtCompact = v => new Intl.NumberFormat('en-GB', {
+    style: 'currency', currency: ccy || 'EUR', notation: 'compact', maximumFractionDigits: 1,
+  }).format(v);
+
+  let gridLines = '';
+  for (let v = MINOR; v <= maxY; v += MINOR) {
+    const gy = y(v);
+    const isMajor = v % MAJOR === 0;
+    gridLines += `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" class="lci-chart-grid${isMajor ? '' : ' lci-chart-grid--minor'}"/>`;
+    if (isMajor) gridLines += `<text x="${padL - 6}" y="${gy + 3}" font-size="10" fill="#999" text-anchor="end">${fmtCompact(v)}</text>`;
+  }
+
+  const line = (data, cls) => {
+    const pts = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    const dots = data.map((v, i) =>
+      `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="${cls}-dot"><title>${labels[i]}: ${_lciFmt(v, ccy)}</title></circle>`).join('');
+    return `<polyline points="${pts}" class="${cls}" fill="none"/>${dots}`;
+  };
+
+  const ticks = labels.map((l, i) => {
+    if (!(horizon <= 12 || i % 2 === 0)) return '';
+    const sub = (l.match(/\((.+)\)/) || [])[1] || '';
+    return `<text x="${x(i).toFixed(1)}" y="${H - 30}" font-size="10" fill="#888" text-anchor="middle">M${i + 1}</text>
+            <text x="${x(i).toFixed(1)}" y="${H - 18}" font-size="8" fill="#aaa" text-anchor="middle">(${sub})</text>`;
+  }).join('');
+
+  const legend = `
+    <g font-size="10">
+      <line x1="${padL}" y1="${H - 5}" x2="${padL + 24}" y2="${H - 5}" class="lci-chart-line"/>
+      <text x="${padL + 30}" y="${H - 2}" fill="#555">${cmp.a.name}</text>
+      <line x1="${padL + 200}" y1="${H - 5}" x2="${padL + 224}" y2="${H - 5}" class="lci-chart-line--b"/>
+      <text x="${padL + 230}" y="${H - 2}" fill="#555">${cmp.b.name}</text>
+    </g>`;
+
+  return `
+    <h3 style="margin:0 0 12px;color:#1B3A5C">Cumulative Spend <span style="font-weight:400;font-size:13px;color:#888">(${ccy})</span></h3>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
+      ${gridLines}
+      ${line(cmp.a.cumulativeSpend, 'lci-chart-line')}
+      ${line(cmp.b.cumulativeSpend, 'lci-chart-line--b')}
+      ${ticks}
+      ${legend}
+    </svg>`;
+}
+
 // Read-only roadmap: milestones + roles by team, hires per month, cumulative hires.
 function _lciSummaryRoadmapHtml() {
   const m = _lciEd.model;

@@ -1879,6 +1879,8 @@ body {
   top: 50%;
   transform: translateY(-50%);
   width: 36%;
+  mask-image: radial-gradient(ellipse at center, black 55%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 55%, transparent 78%);
 }
 .lci-report-titleblock { position: absolute; left: 40px; bottom: 18%; max-width: 55%; }
 

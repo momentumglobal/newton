@@ -1492,12 +1492,6 @@ body {
   #sidebar, .eng-controls, .eng-tab-strip, .eng-rate-banner .btn-secondary,
   .eng-modal-overlay, .home-bottom-bar { display: none !important; }
   .eng-card { break-inside: avoid; }
-  body::before {
-    content: 'Confidential — Momentum Global - Internal';
-    display: block; text-align: center;
-    font-size: 11px; color: #aaa; padding: 8px 0 4px;
-    border-bottom: 1px solid #eee; margin-bottom: 16px;
-  }
 }
 
 /* ── Button icon alignment ─────────────────────────────────────────── */

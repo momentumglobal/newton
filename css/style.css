@@ -1858,6 +1858,24 @@ body {
 .lci-chart-line--b-dot { fill: #E8703A; }
 .lci-chart-line-dot { fill: #1B3A5C; }
 
+/* LCI report — navy cover & divider pages */
+.lci-report-navy {
+  background: #0A0B44;
+  color: #fff;
+  border-radius: 6px;
+  padding: 40px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.lci-report-navy h1 { margin: 0; font-size: 34px; color: #fff; }
+.lci-report-sub { font-size: 15px; color: rgba(255,255,255,0.65); margin-top: 8px; }
+.lci-report-cover { min-height: 320px; }
+.lci-report-divider { min-height: 200px; flex-direction: column-reverse; }
+.lci-report-logo { height: 40px; align-self: flex-end; }
+.lci-report-logo--small { height: 28px; }
+
 @media print {
   .lci-noprint, #sidebar { display: none !important; }
   /* Client-facing summary: no 'Confidential — Internal' banner */
@@ -1881,4 +1899,14 @@ body {
   .lci-out-total td, .lci-out-subtotal td, .lci-team-row td, .lci-ms-bar {
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
+  /* Report: every section/divider on its own page; navy pages fill the sheet */
+  .lci-report-break { break-before: page; page-break-before: always; }
+  .lci-report-navy {
+    border-radius: 0;
+    min-height: 180mm;
+    justify-content: center;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .lci-report-navy h1 { font-size: 40px; }
+  body.lci-summary-mode #print-header { display: none !important; }
 }

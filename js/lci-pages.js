@@ -74,8 +74,10 @@ function _renderLCIModelList(models, role) {
     <div class="page-header">
       <h2>LCI Cost Models</h2>
       <div style="display:flex;gap:8px">
+        <button class="btn-secondary" id="lci-report-btn" onclick="lciExportReport()" disabled
+                title="Tick one or more models">Export Report</button>
         <button class="btn-secondary" id="lci-compare-btn" onclick="lciCompareSelected()" disabled
-                title="Tick two models with the same display currency">Compare (0/2)</button>
+                title="Tick two or more models with the same display currency">Compare</button>
         ${canManage || role === 'delivery_manager' ? '<button class="btn-primary" onclick="openLCIModelModal()">+ New Model</button>' : ''}
       </div>
     </div>
@@ -274,19 +276,31 @@ function lciCompareSelectionChanged() {
   const checked = _lciCheckedCompareBoxes();
   const btn = document.getElementById('lci-compare-btn');
   if (!btn) return;
-  const sameCcy = checked.length === 2 && checked[0].dataset.ccy &&
-                  checked[0].dataset.ccy === checked[1].dataset.ccy;
+  const sameCcy = checked.length >= 2 && checked[0].dataset.ccy &&
+                  checked.every(cb => cb.dataset.ccy === checked[0].dataset.ccy);
   btn.disabled = !sameCcy;
-  btn.textContent = `Compare (${checked.length}/2)`;
-  btn.title = checked.length !== 2
-    ? 'Tick two models with the same display currency'
+  btn.textContent = `Compare (${checked.length})`;
+  btn.title = checked.length < 2
+    ? 'Tick two or more models with the same display currency'
     : (sameCcy ? 'Compare selected models' : 'Models must share the same display currency');
+
+  const reportBtn = document.getElementById('lci-report-btn');
+  if (reportBtn) {
+    reportBtn.disabled = checked.length === 0;
+    reportBtn.textContent = checked.length ? `Export Report (${checked.length})` : 'Export Report';
+  }
 }
 
 function lciCompareSelected() {
   const checked = _lciCheckedCompareBoxes();
-  if (checked.length !== 2) return;
-  renderLCIComparePage(checked[0].value, checked[1].value);
+  if (checked.length < 2) return;
+  renderLCIComparePage(checked.map(cb => cb.value));
+}
+
+function lciExportReport() {
+  const checked = _lciCheckedCompareBoxes();
+  if (!checked.length) return;
+  renderLCIReportPage(checked.map(cb => cb.value));
 }
 
 // ── Row actions ──────────────────────────────────────────────────────

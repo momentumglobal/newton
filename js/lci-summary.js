@@ -180,6 +180,13 @@ function _lciSummaryHtml() {
 
     <!-- Section 4: assumptions -->
     <div id="lci-print-p4" class="lci-summary-card">
+      ${_lciAssumptionsHtml(m)}
+    </div>`;
+}
+
+// Shared by the summary view and the full report export (lci-report.js)
+function _lciAssumptionsHtml(m) {
+  return `
       <h3 style="margin:0 0 12px;color:#1B3A5C">Model Guide and Assumptions</h3>
       ${m.Assumptions ? `<div style="white-space:pre-wrap;font-size:13px;line-height:1.6">${m.Assumptions}</div>` : ''}
       <table class="data-table lci-assump" style="max-width:640px;margin-top:16px">
@@ -195,142 +202,46 @@ function _lciSummaryHtml() {
       </table>
       <p style="font-size:12px;color:#888;margin-top:12px">
         A hire in month N reaches payroll in month N + notice period. Costs shown from the payroll month onward.
-      </p>
-    </div>`;
+      </p>`;
 }
 
 // ── Compare view (step 8) ────────────────────────────────────────────
 
-async function renderLCIComparePage(idA, idB) {
+// Accepts an array of model ids (2+). All must share a display currency
+// (the list-page button enforces this before we get here).
+async function renderLCIComparePage(ids) {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading...</p>';
   try {
-    const [modelA, rowsA, modelB, rowsB] = await Promise.all([
-      getLCIModelById(idA), getLCIRows(idA),
-      getLCIModelById(idB), getLCIRows(idB),
-    ]);
-    if (!lciModelsComparable(modelA, modelB)) {
+    const bundles = await Promise.all(ids.map(async id => {
+      const [model, rows] = await Promise.all([getLCIModelById(id), getLCIRows(id)]);
+      return { model, rows };
+    }));
+    const ccy = bundles[0].model.DisplayCurrency;
+    if (!ccy || !bundles.every(b => b.model.DisplayCurrency === ccy)) {
       main.innerHTML = '<p style="color:red">Models must share the same display currency.</p>';
       return;
     }
-    const cmp = lciCompareModels(modelA, rowsA, modelB, rowsB);
-    main.innerHTML = _lciCompareHtml(cmp);
+    const entries = bundles.map(b => ({
+      name: b.model.Title,
+      kpis: lciComputeKPIs(b.model, b.rows),
+      comp: lciComputeModel(b.model, b.rows),
+    }));
+    main.innerHTML = `
+      <div class="page-header">
+        <h2>Compare Models <span style="font-weight:400;color:#888;font-size:15px">(${ccy})</span></h2>
+        <button class="btn-secondary" onclick="renderLCIModelsPage()">← Back to models</button>
+      </div>
+      <div class="lci-summary-card">
+        ${_lciCompareTableHtml(entries, ccy)}
+      </div>
+      <div class="lci-summary-card">
+        ${_lciReportCompareChartSvg(entries, ccy)}
+      </div>`;
     if (window.lucide) lucide.createIcons();
   } catch (e) {
     main.innerHTML = `<p style="color:red">Error loading comparison: ${e.message}</p>`;
   }
-}
-
-function _lciCompareHtml(cmp) {
-  const ccy = cmp.currency;
-  const money = v => _lciFmt(v, ccy);
-  const month = v => v ? `M${v}` : '—';
-  const plain = v => v ?? '—';
-  const delta = (a, b, fmt, goodWhenLower = true) => {
-    const d = b - a;
-    if (!isFinite(d) || d === 0) return '<span style="color:#888">—</span>';
-    const good = goodWhenLower ? d < 0 : d > 0;
-    return `<span style="color:${good ? '#2E7D32' : '#C62828'}">${d > 0 ? '+' : '−'}${fmt(Math.abs(d))}</span>`;
-  };
-
-  const K = [
-    ['Total spend (horizon)',      k => money(k.totalSpend),        (a, b) => delta(a.totalSpend, b.totalSpend, money)],
-    ['Steady-state monthly cost',  k => money(k.steadyMonthly),     (a, b) => delta(a.steadyMonthly, b.steadyMonthly, money)],
-    ['Steady-state annual cost',   k => money(k.steadyAnnual),      (a, b) => delta(a.steadyAnnual, b.steadyAnnual, money)],
-    ['Cost per head (steady)',     k => money(k.costPerHead),       (a, b) => delta(a.costPerHead, b.costPerHead, money)],
-    ['Total hires',                k => plain(k.totalHires),        (a, b) => delta(a.totalHires, b.totalHires, v => v, false)],
-    ['Time to full ramp',          k => month(k.lastHireMonth),     (a, b) => delta(a.lastHireMonth, b.lastHireMonth, v => `${v}mo`)],
-    ['Peak crossover month',       k => month(k.peakCrossoverMonth), () => ''],
-    ['Peak crossover spend',       k => money(k.peakCrossoverSpend), (a, b) => delta(a.peakCrossoverSpend, b.peakCrossoverSpend, money)],
-  ];
-
-  const kpiRows = K.map(([label, fmt, dl]) => `
-    <tr>
-      <td>${label}</td>
-      <td>${fmt(cmp.a.kpis)}</td>
-      <td>${fmt(cmp.b.kpis)}</td>
-      <td>${dl(cmp.a.kpis, cmp.b.kpis)}</td>
-    </tr>`).join('');
-
-  return `
-    <div class="page-header">
-      <h2>Compare Models <span style="font-weight:400;color:#888;font-size:15px">(${ccy})</span></h2>
-      <button class="btn-secondary" onclick="renderLCIModelsPage()">← Back to models</button>
-    </div>
-    <div class="lci-summary-card">
-      <table class="data-table lci-compare">
-        <thead>
-          <tr><th style="width:32%"></th><th>${cmp.a.name}</th><th>${cmp.b.name}</th><th>Δ (B − A)</th></tr>
-        </thead>
-        <tbody>${kpiRows}</tbody>
-      </table>
-      <p style="font-size:12px;color:#888;margin:8px 0 0">Δ green = ${cmp.b.name} favourable, red = unfavourable (cost down / hires up = good).</p>
-    </div>
-    <div class="lci-summary-card">
-      ${_lciCompareChartSvg(cmp)}
-    </div>`;
-}
-
-// Two-line cumulative spend chart: A solid navy, B dashed orange
-// (mirrors the Revenue Tracking forecast-fork styling).
-function _lciCompareChartSvg(cmp) {
-  const ccy = cmp.currency;
-  const horizon = Math.max(cmp.a.cumulativeSpend.length, cmp.b.cumulativeSpend.length);
-  const labels = cmp.a.cumulativeSpend.length >= cmp.b.cumulativeSpend.length ? cmp.a.labels : cmp.b.labels;
-  const W = 900, H = 260, padL = 70, padR = 20, padT = 16, padB = 50;
-  const MAJOR = 500000, MINOR = 250000;
-  const maxData = Math.max(...cmp.a.cumulativeSpend, ...cmp.b.cumulativeSpend, 1);
-  const maxY = Math.max(Math.ceil(maxData / MAJOR) * MAJOR, MAJOR);
-  const x = i => padL + (i / Math.max(horizon - 1, 1)) * (W - padL - padR);
-  const y = v => padT + (1 - v / maxY) * (H - padT - padB);
-
-  const fmtCompact = v => new Intl.NumberFormat('en-GB', {
-    style: 'currency', currency: ccy || 'EUR', notation: 'compact', maximumFractionDigits: 1,
-  }).format(v);
-
-  let gridLines = '';
-  for (let v = MINOR; v <= maxY; v += MINOR) {
-    const gy = y(v);
-    const isMajor = v % MAJOR === 0;
-    gridLines += `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" class="lci-chart-grid${isMajor ? '' : ' lci-chart-grid--minor'}"/>`;
-    if (isMajor) gridLines += `<text x="${padL - 6}" y="${gy + 3}" font-size="8" fill="#999" text-anchor="end">${fmtCompact(v)}</text>`;
-  }
-
-  // Both lines solid; colours inline so rendering never depends on CSS deploy
-  const COL_A = '#1B3A5C', COL_B = '#E8703A';
-  const line = (data, col) => {
-    const pts = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-    const dots = data.map((v, i) =>
-      `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" fill="${col}"><title>${labels[i]}: ${_lciFmt(v, ccy)}</title></circle>`).join('');
-    return `<polyline points="${pts}" stroke="${col}" stroke-width="2.5" fill="none"/>${dots}`;
-  };
-
-  const ticks = labels.map((l, i) => {
-    if (!(horizon <= 12 || i % 2 === 0)) return '';
-    const sub = (l.match(/\((.+)\)/) || [])[1] || '';
-    return `<text x="${x(i).toFixed(1)}" y="${H - 30}" font-size="8" fill="#888" text-anchor="middle">M${i + 1}</text>
-            <text x="${x(i).toFixed(1)}" y="${H - 20}" font-size="7" fill="#aaa" text-anchor="middle">(${sub})</text>`;
-  }).join('');
-
-  // Legend centred under the x axis: fixed-width items placed around W/2
-  const itemW = 30 + cmp.a.name.length * 5.5;
-  const legend = `
-    <g font-size="9">
-      <line x1="${W / 2 - itemW - 20}" y1="${H - 6}" x2="${W / 2 - itemW + 4}" y2="${H - 6}" stroke="${COL_A}" stroke-width="2.5"/>
-      <text x="${W / 2 - itemW + 10}" y="${H - 3}" fill="#555">${cmp.a.name}</text>
-      <line x1="${W / 2 + 20}" y1="${H - 6}" x2="${W / 2 + 44}" y2="${H - 6}" stroke="${COL_B}" stroke-width="2.5"/>
-      <text x="${W / 2 + 50}" y="${H - 3}" fill="#555">${cmp.b.name}</text>
-    </g>`;
-
-  return `
-    <h3 style="margin:0 0 12px;color:#1B3A5C">Cumulative Spend <span style="font-weight:400;font-size:13px;color:#888">(${ccy})</span></h3>
-    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
-      ${gridLines}
-      ${line(cmp.a.cumulativeSpend, COL_A)}
-      ${line(cmp.b.cumulativeSpend, COL_B)}
-      ${ticks}
-      ${legend}
-    </svg>`;
 }
 
 // Read-only roadmap: milestones + roles by team, hires per month, cumulative hires.

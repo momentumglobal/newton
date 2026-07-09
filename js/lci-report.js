@@ -29,6 +29,7 @@ async function renderLCIReportPage(ids) {
     if (title === null) { renderLCIModelsPage(); return; }
 
     document.body.classList.add('lci-summary-mode'); // suppress Confidential banner + print header margins
+    window._lciReportObs = ''; // Observations & Recommendations (session-only, not persisted)
     main.innerHTML = _lciReportHtml(title, clients, bundles);
     if (window.lucide) lucide.createIcons();
   } catch (e) {
@@ -63,13 +64,16 @@ function _lciReportHtml(title, clients, bundles) {
       <div class="lci-summary-card lci-report-break">
         ${_lciOutputInnerHtml(false, true)}
       </div>
+      ${bundles.length === 1 ? `
       <div class="lci-summary-card lci-report-break">
         ${_lciSpendChartSvg(c, m.DisplayCurrency, Number(m.HorizonMonths))}
-      </div>
+      </div>` : ''}
       <div class="lci-summary-card lci-report-break">
         ${_lciAssumptionsHtml(m)}
       </div>`;
   }).join('');
+  // Note: per-model cumulative spend charts are omitted in multi-model
+  // reports — the combined chart in the comparison section covers them.
 
   return `
     <div class="page-header lci-noprint">
@@ -81,7 +85,43 @@ function _lciReportHtml(title, clients, bundles) {
     </div>
     ${_lciReportCoverHtml(title, subtitle)}
     ${modelSections}
-    ${_lciReportComparisonHtml(bundles)}`;
+    ${_lciReportComparisonHtml(bundles)}
+    ${_lciReportObsHtml()}`;
+}
+
+// ── Observations & Recommendations (final page, rich text) ──────────
+// Mirrors the Market Report observations editor (rb-richtext + toolbar).
+// Session-only: typed content prints but is not persisted to SharePoint.
+
+function _lciReportObsHtml() {
+  return `
+    <div class="lci-summary-card lci-report-break">
+      <h3 style="margin:0 0 12px;color:#1B3A5C">Observations and Recommendations</h3>
+      <div class="rb-rt-wrapper">
+        <div class="rb-rt-toolbar lci-noprint">
+          <button type="button" onclick="lciReportFormat('bold')"><b>B</b></button>
+          <button type="button" onclick="lciReportFormat('italic')"><i>I</i></button>
+          <button type="button" onclick="lciReportFormat('underline')"><u>U</u></button>
+          <button type="button" onclick="lciReportFormat('insertUnorderedList')">&#8226; List</button>
+          <button type="button" onclick="lciReportFormat('insertOrderedList')">1. List</button>
+          <button type="button" onclick="lciReportFormatBlock('H3')">Heading</button>
+          <button type="button" onclick="lciReportFormatBlock('P')">Body Text</button>
+        </div>
+        <div id="lci-report-obs" class="rb-richtext" contenteditable="true"
+             style="min-height:200px;caret-color:#0A0B44;cursor:text;padding:8px 10px"
+             data-placeholder="Add observations &amp; recommendations here..."
+             oninput="window._lciReportObs = this.innerHTML">${window._lciReportObs || ''}</div>
+      </div>
+    </div>`;
+}
+
+function lciReportFormat(cmd) {
+  document.execCommand(cmd, false, null);
+  document.getElementById('lci-report-obs')?.focus();
+}
+function lciReportFormatBlock(tag) {
+  document.execCommand('formatBlock', false, tag);
+  document.getElementById('lci-report-obs')?.focus();
 }
 
 // ── Navy cover + dividers ────────────────────────────────────────────
@@ -131,9 +171,9 @@ function _lciReportComparisonHtml(bundles) {
     </div>
     <div class="lci-summary-card lci-report-break">
       ${_lciCompareTableHtml(entries, ccy)}
-    </div>
-    <div class="lci-summary-card lci-report-break">
-      ${_lciReportCompareChartSvg(entries, ccy)}
+      <div style="margin-top:20px">
+        ${_lciReportCompareChartSvg(entries, ccy)}
+      </div>
     </div>`;
 }
 

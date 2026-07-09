@@ -128,11 +128,11 @@ function lciReportFormatBlock(tag) {
 
 // Shared navy-page layout: logo top-left, brand swirl right, title lower-left
 // (mirrors the Momentum brand slide composition).
-function _lciReportNavyPage(title, subtitle, extraClass = '') {
+function _lciReportNavyPage(title, subtitle, extraClass = '', withSwirl = false) {
   return `
     <div class="lci-report-navy ${extraClass}">
       <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="lci-report-logo">
-      <img src="mg-visual-swirl.png" alt="" class="lci-report-swirl">
+      ${withSwirl ? '<img src="mg-visual-swirl.png" alt="" class="lci-report-swirl">' : ''}
       <div class="lci-report-titleblock">
         <h1>${title}</h1>
         <div class="lci-report-sub">${subtitle}</div>
@@ -141,7 +141,7 @@ function _lciReportNavyPage(title, subtitle, extraClass = '') {
 }
 
 function _lciReportCoverHtml(title, subtitle) {
-  return _lciReportNavyPage(title, subtitle, 'lci-report-cover');
+  return _lciReportNavyPage(title, subtitle, 'lci-report-cover', true);
 }
 
 function _lciReportDividerHtml(m) {

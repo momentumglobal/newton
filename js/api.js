@@ -370,6 +370,13 @@ async function getEffectiveRole(email) {
     const leadership = await getLeadershipAccess();
     if (leadership.some(l => l.UserEmail?.toLowerCase() === lower)) {
       role = 'leadership';
+      // Leadership user may ALSO hold explicit DM assignments — cache those project IDs
+      const assignments = await getItems("UserAssignments",
+        `fields/Title eq '${lower}'`);
+      const dmProjects = assignments
+        .filter(a => a.AssignedRole === 'delivery_manager' && a.ProjectID && a.ProjectID !== 0)
+        .map(a => String(a.ProjectID));
+      sessionStorage.setItem('newton_dm_grants_' + lower, JSON.stringify(dmProjects));
     } else {
       const assignments = await getItems("UserAssignments",
         `fields/Title eq '${lower}'`);
@@ -388,7 +395,15 @@ async function isLeadershipUser(email) {
   const list = await getLeadershipAccess();
   return list.some(l => l.UserEmail?.toLowerCase() === email.toLowerCase());
 }
- 
+
+// True if the signed-in user holds an explicit DM grant.
+// Pass a projectId to scope the check; omit for "any DM grant?"
+function hasDMGrant(projectId = null) {
+  const email = (getCurrentUser()?.email || '').toLowerCase();
+  const grants = JSON.parse(sessionStorage.getItem('newton_dm_grants_' + email) || '[]');
+  return projectId ? grants.includes(String(projectId)) : grants.length > 0;
+}
+
 // Auto-register user on first login if not already in UserAssignments
 async function ensureUserRegistered(email, displayName) {
   const lower = email.toLowerCase();

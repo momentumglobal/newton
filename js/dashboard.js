@@ -214,6 +214,8 @@ function renderPipelineActivityTable(acts, roles, period) {
   const filtered = acts.filter(a => activityInDetailPeriod(a, period));
   const FIELDS   = ['Outreach','Responses','Screened','Submitted','Interview1','Interview2Plus','FinalInterview','Offers','Hires'];
   const LABELS   = ['Outreach','Responses','Screened','Submitted','IV1','IV2+','Final IV','Offers','Hires'];
+  const periodLabel = (DETAIL_PERIOD_OPTIONS.find(([k]) => k === period) || [])[1];
+  const panelTitle  = periodLabel ? `Pipeline Activity (${periodLabel})` : 'Pipeline Activity';
   const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   const byRole = {};
   filtered.forEach(a => {
@@ -223,7 +225,7 @@ function renderPipelineActivityTable(acts, roles, period) {
   });
   const rids = Object.keys(byRole).sort((a, b) => (roleMap[a] || '').localeCompare(roleMap[b] || ''));
   if (!rids.length) return `<div class='dash-panel'>
-    <h3 class='panel-title'>Pipeline Activity</h3>
+    <h3 class='panel-title'>${panelTitle}</h3>
     <p class='no-data'>No activity recorded for this period.</p>
   </div>`;
   const totals = FIELDS.map((_, i) => rids.reduce((s, r) => s + byRole[r][i], 0));
@@ -233,7 +235,7 @@ function renderPipelineActivityTable(acts, roles, period) {
   ).join('');
   const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${totals.map(v => `<td style="text-align:center"><strong>${v}</strong></td>`).join('')}</tr>`;
   return `<div class='dash-panel'>
-    <h3 class='panel-title'>Pipeline Activity</h3>
+    <h3 class='panel-title'>${panelTitle}</h3>
     <table class='data-table'><thead>${hdr}</thead><tbody>${rows}${totRow}</tbody></table>
   </div>`;
 }

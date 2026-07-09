@@ -48,7 +48,7 @@ async function renderProjectsPage() {
   const role = _resolvedRole;
   const user = getCurrentUser();
   const projects = await getScopedProjects(user.email, false);
-  const canEdit = ["admin","delivery_manager"].includes(role);
+  const canEdit = ["admin","delivery_manager"].includes(role) || hasDMGrant();
   projects.sort((a, b) => {
     const dm = (a.DeliveryManager || '').localeCompare(b.DeliveryManager || '');
     if (dm !== 0) return dm;

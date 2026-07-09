@@ -1858,23 +1858,29 @@ body {
 .lci-chart-line--b-dot { fill: #E8703A; }
 .lci-chart-line-dot { fill: #1B3A5C; }
 
-/* LCI report — navy cover & divider pages */
+/* LCI report — navy cover & divider pages (brand slide layout) */
+/* Background #0A0545 matches the baked-in bg of mg-visual-swirl-report.png */
 .lci-report-navy {
-  background: #0A0B44;
+  position: relative;
+  overflow: hidden;
+  background: #0A0545;
   color: #fff;
   border-radius: 6px;
-  padding: 40px;
   margin-bottom: 16px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
 }
 .lci-report-navy h1 { margin: 0; font-size: 34px; color: #fff; }
 .lci-report-sub { font-size: 15px; color: rgba(255,255,255,0.65); margin-top: 8px; }
-.lci-report-cover { min-height: 320px; }
-.lci-report-divider { min-height: 200px; flex-direction: column-reverse; }
-.lci-report-logo { height: 40px; align-self: flex-end; }
-.lci-report-logo--small { height: 28px; }
+.lci-report-cover   { min-height: 400px; }
+.lci-report-divider { min-height: 300px; }
+.lci-report-logo { height: 36px; position: absolute; top: 32px; left: 40px; }
+.lci-report-swirl {
+  position: absolute;
+  right: 4%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36%;
+}
+.lci-report-titleblock { position: absolute; left: 40px; bottom: 18%; max-width: 55%; }
 
 @media print {
   .lci-noprint, #sidebar { display: none !important; }
@@ -1904,7 +1910,6 @@ body {
   .lci-report-navy {
     border-radius: 0;
     min-height: 180mm;
-    justify-content: center;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   .lci-report-navy h1 { font-size: 40px; }

@@ -599,6 +599,20 @@ body {
   font-size: 16px; line-height: 1; cursor: pointer;
 }
 .rb-full-btn { width: 100%; margin-top: 4px; }
+.rb-block-snap { align-items: flex-start; }
+.rb-snap { flex: 1; min-width: 0; }
+.rb-snap-title { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+.rb-snap-table { width: 100%; border-collapse: collapse; }
+.rb-snap-table th,
+.rb-snap-table td { padding: 4px 6px; border-bottom: 1px solid #EEE; font-size: 13px; }
+.rb-snap-table th { text-align: center; color: #595959; font-weight: 600; }
+.rb-snap-table th:first-child,
+.rb-snap-table td:first-child { text-align: left; }
+.rb-snap-input {
+  width: 52px; padding: 4px; text-align: center;
+  border: 1px solid #D0D0D0; border-radius: 4px;
+  font-family: inherit; font-size: 13px;
+}
 .rb-sidebar-scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
 .rb-sidebar-footer {
   flex-shrink: 0;

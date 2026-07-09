@@ -132,7 +132,7 @@ function _lciReportNavyPage(title, subtitle, extraClass = '', withSwirl = false)
   return `
     <div class="lci-report-navy ${extraClass}">
       <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="lci-report-logo">
-      ${withSwirl ? '<img src="mg-visual-swirl.png" alt="" class="lci-report-swirl">' : ''}
+      ${withSwirl ? '<img src="mg-visual-swirl-report.png" alt="" class="lci-report-swirl">' : ''}
       <div class="lci-report-titleblock">
         <h1>${title}</h1>
         <div class="lci-report-sub">${subtitle}</div>

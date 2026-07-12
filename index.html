@@ -600,6 +600,67 @@ async function renderCommandCentreBanner(role) {
     function onMove(e) { mouse.x = e.clientX; mouse.y = e.clientY; }
     window.addEventListener('mousemove', onMove);
     _footballCleanup = () => window.removeEventListener('mousemove', onMove);
+    // ── Players: 5 per team (1 keeper + 4 outfield) ──
+    const players = [];
+    function makeTeam(side, colour) {
+      // side = -1 (left, attacking right) or +1 (right)
+      const w = canvas.width, h = canvas.height;
+      const keeperX = side < 0 ? 70 : w - 70;
+      players.push({ x: keeperX, y: h / 2, r: 15, colour, keeper: true, side,
+                     tx: keeperX, ty: h / 2, spd: 0.4 });
+      // Outfield roam within their own half-ish
+      const zoneMin = side < 0 ? 0.12 : 0.52;
+      const zoneMax = side < 0 ? 0.48 : 0.88;
+      for (let i = 0; i < 4; i++) {
+        const x = w * (zoneMin + Math.random() * (zoneMax - zoneMin));
+        const y = h * (0.2 + Math.random() * 0.6);
+        players.push({ x, y, r: 15, colour, keeper: false, side,
+                       tx: x, ty: y, spd: 0.5 + Math.random() * 0.3,
+                       zoneMin, zoneMax });
+      }
+    }
+    makeTeam(-1, '#d33');   // red team, left
+    makeTeam(+1, '#36c');   // blue team, right
+    function movePlayers(w, h) {
+      players.forEach(p => {
+        if (Math.hypot(p.tx - p.x, p.ty - p.y) < 6) {
+          // pick a new wander target
+          if (p.keeper) {
+            p.tx = p.side < 0 ? 70 : w - 70;
+            p.ty = h / 2 + (Math.random() - 0.5) * h * 0.25;
+          } else {
+            p.tx = w * (p.zoneMin + Math.random() * (p.zoneMax - p.zoneMin));
+            p.ty = h * (0.15 + Math.random() * 0.7);
+          }
+        }
+        const a = Math.atan2(p.ty - p.y, p.tx - p.x);
+        p.x += Math.cos(a) * p.spd; p.y += Math.sin(a) * p.spd;
+      });
+    }
+    function drawPlayers() {
+      players.forEach(p => {
+        ctx.beginPath(); ctx.arc(p.x, p.y + 4, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.keeper ? '#eee' : p.colour; ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.stroke();
+      });
+    }
+    function collideBall() {
+      players.forEach(p => {
+        const dx = ball.x - p.x, dy = ball.y - p.y;
+        const d = Math.hypot(dx, dy), min = ball.r + p.r;
+        if (d < min && d > 0.1) {
+          const nx = dx / d, ny = dy / d;
+          // push ball clear of the player
+          ball.x = p.x + nx * min; ball.y = p.y + ny * min;
+          // reflect velocity about the collision normal
+          const dot = ball.vx * nx + ball.vy * ny;
+          ball.vx -= 2 * dot * nx; ball.vy -= 2 * dot * ny;
+          ball.vx *= 1.05; ball.vy *= 1.05; // small kick off the player
+        }
+      });
+    }
     function drawPitch(w, h) {
       const stripes = 10, bandH = h / stripes;
       for (let i = 0; i < stripes; i++) {
@@ -649,6 +710,7 @@ async function renderCommandCentreBanner(role) {
       const w = canvas.width, h = canvas.height;
       ctx.clearRect(0, 0, w, h);
       drawPitch(w, h);
+      drawPlayers();
       // Cursor kick
       const dx = ball.x - mouse.x, dy = ball.y - mouse.y;
       const dist = Math.hypot(dx, dy);
@@ -666,6 +728,8 @@ async function renderCommandCentreBanner(role) {
       const sp = Math.hypot(ball.vx, ball.vy), MAX = 14, MIN = 1.2;
       if (sp > MAX) { ball.vx *= MAX / sp; ball.vy *= MAX / sp; }
       if (sp < MIN && sp > 0) { ball.vx *= MIN / sp; ball.vy *= MIN / sp; }
+      movePlayers(w, h);
+      collideBall();
       ball.x += ball.vx; ball.y += ball.vy;
       const minX = 40 + ball.r, maxX = w - 40 - ball.r;
       const minY = 40 + ball.r, maxY = h - 40 - ball.r;

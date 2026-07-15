@@ -73,10 +73,10 @@ async function mobileRenderAddRole(main) {
 
         ${canAssign ? `
         <div class="m-form-group">
-          <label class="m-label">Assign to *</label>
-          <select class="m-select" id="mr-tp">
-            <option value="">- Select project first -</option>
-          </select>
+          <label class="m-label">Assign to * (tick one or more)</label>
+          <div id="mr-tp" style="border:1px solid #ccc;border-radius:8px;padding:10px;max-height:180px;overflow-y:auto;background:#fff;">
+            <span style="color:#888;">- Select project first -</span>
+          </div>
         </div>` : `<input type="hidden" id="mr-tp" value="${email}">`}
 
         <div class="m-form-group">
@@ -155,17 +155,21 @@ async function mobileRenderAddRole(main) {
 }
 
 async function mobileLoadTPsForRole(projectId) {
-  const sel = document.getElementById('mr-tp');
-  if (!sel) return;
-  if (!projectId) { sel.innerHTML = '<option value="">- Select project first -</option>'; return; }
-  sel.innerHTML = '<option value="">Loading...</option>';
+  const box = document.getElementById('mr-tp');
+  if (!box) return;
+  if (!projectId) { box.innerHTML = '<span style="color:#888;">- Select project first -</span>'; return; }
+  box.innerHTML = '<span style="color:#888;">Loading...</span>';
   try {
     const tps = await getTalentPartnersForProject(projectId);
     const me  = getCurrentUser().email.toLowerCase();
-    sel.innerHTML = '<option value="">- Select team member -</option>' +
-      tps.map(u => `<option value="${u.UserEmail}" ${u.UserEmail?.toLowerCase() === me ? 'selected' : ''}>${u.UserName || u.UserEmail}</option>`).join('');
+    box.innerHTML = tps.map(u => `
+      <label style="display:block;font-weight:normal;margin:3px 0;">
+        <input type="checkbox" class="mr-tp-check" value="${u.UserEmail}"
+          ${(u.UserEmail || '').toLowerCase() === me ? 'checked' : ''}>
+        ${u.UserName || u.UserEmail}
+      </label>`).join('') || '<span style="color:#888;">- No team members -</span>';
   } catch (e) {
-    sel.innerHTML = '<option value="">- Error loading team -</option>';
+    box.innerHTML = '<span style="color:#c00;">- Error loading team -</span>';
   }
 }
 
@@ -186,7 +190,10 @@ async function mobileSubmitAddRole() {
   errEl.style.display = 'none';
 
   const projectId = document.getElementById('mr-project').value;
-  const tp        = document.getElementById('mr-tp').value;
+  const tpEl = document.getElementById('mr-tp');
+  const tp   = tpEl.tagName === 'INPUT'
+    ? tpEl.value   // TP path: hidden input, own email
+    : [...tpEl.querySelectorAll('.mr-tp-check:checked')].map(cb => cb.value).join(';');
   const title     = document.getElementById('mr-title').value.trim();
   const location  = document.getElementById('mr-location').value;
   const stage     = document.getElementById('mr-stage').value;

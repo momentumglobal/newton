@@ -92,7 +92,7 @@ async function mobileRenderPeopleDashboard(main) {
       assignments.filter(a => {
         const s = a.StartDate ? new Date(a.StartDate) : null;
         const e = a.EndDate   ? new Date(a.EndDate)   : null;
-        return a.Billed === 'Yes' && s && s <= asOf && (!e || e >= asOf);
+        return !isForecastAssignment(a) && a.Billed === 'Yes' && s && s <= asOf && (!e || e >= asOf);
       }).map(a => a.EmployeeName)
     ).size;
 

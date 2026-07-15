@@ -88,12 +88,12 @@ function ccHealthStats(roles, activity) {
 
 function ccPeopleStats(roles, activity, historical) {
   const tps = [...new Set(
-    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner)
-         .map(r => r.TalentPartner)
+    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage))
+         .flatMap(r => tpList(r.TalentPartner))
   )];
   const counts = { green: 0, amber: 0, red: 0 };
   tps.forEach(tp => {
-    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner && r.TalentPartner.toLowerCase() === tp.toLowerCase());
+    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
     const flagged = tpRoles.filter(r => {
       const acts = activity.filter(a => String(a.RoleIDLookupId) === String(r.id));
       return isRoleFlagged(r, acts);
@@ -166,13 +166,13 @@ function computeProjectHealthRAG(roles, activity, historical) {
 function computePeopleRAG(roles, activity, historical) {
   const b = CONFIG.ANALYTICS_BENCHMARKS;
   const tps = [...new Set(
-    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner)
-         .map(r => r.TalentPartner)
+    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage))
+         .flatMap(r => tpList(r.TalentPartner))
   )];
   if (!tps.length) return 'green';
   const weight = { green: 0, amber: 1, red: 2, grey: 0 };
   const total = tps.reduce((sum, tp) => {
-    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner && r.TalentPartner.toLowerCase() === tp.toLowerCase());
+    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
     const flagged = tpRoles.filter(r => {
       const acts = activity.filter(a => String(a.RoleIDLookupId) === String(r.id));
       return isRoleFlagged(r, acts);
@@ -280,19 +280,16 @@ function renderHealthDetail(data) {
 function renderPeopleDetail(data) {
   const { roles, acts13 } = data;
   const tps = [...new Set(
-    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner).map(r => r.TalentPartner)
+    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage))
+         .flatMap(r => tpList(r.TalentPartner))
   )];
-
-  if (!tps.length) return '<p class="no-data">No active Talent Partners found.</p>';
-
+    if (!tps.length) return '<p class="no-data">No active Talent Partners found.</p>';
   const weight = { green: 0, amber: 1, red: 2, grey: 0 };
   const ragColours = { green: '#2e7d32', amber: '#e65100', red: '#c62828', grey: '#888' };
-
   const rows = tps.map(tp => {
-    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner &&
-      r.TalentPartner.toLowerCase() === tp.toLowerCase());
-    const flagged = tpRoles.filter(r => {
-      const acts = acts13.filter(a => String(a.RoleIDLookupId) === String(r.id));
+  const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
+  const flagged = tpRoles.filter(r => {
+  const acts = acts13.filter(a => String(a.RoleIDLookupId) === String(r.id));
       return isRoleFlagged(r, acts);
     }).length;
     const pct = tpRoles.length ? flagged / tpRoles.length : null;

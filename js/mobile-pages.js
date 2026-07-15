@@ -77,7 +77,7 @@ async function mobileGetRoles() {
   // TP: scoped to their own roles only
   if (!isDM) {
     allRoles = allRoles.filter(r =>
-      r.TalentPartner?.toLowerCase() === user.email.toLowerCase()
+      tpMatches(r.TalentPartner, user.email)
     );
   }
 

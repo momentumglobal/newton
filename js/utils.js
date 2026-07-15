@@ -20,11 +20,17 @@ function clearButtonLoading(btn) {
 }
 
 // ── Monthly calculation ───────────────────────────────────────────────
+// True when an assignment is a forecast (SP Yes/No may come back as true/1/'Yes')
+function isForecastAssignment(a) {
+  return a.IsForecast === true || a.IsForecast === 1 || a.IsForecast === 'Yes';
+}
+
 function computeMonthlyRows(assignments) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const rows = [];
   for (const a of assignments) {
     if (!a.StartDate || !a.EndDate) continue;
+    if (isForecastAssignment(a)) continue; // forecasts never feed utilisation/revenue
     const aStart = new Date(a.StartDate);
     const aEnd   = new Date(a.EndDate);
     aStart.setHours(0,0,0,0);

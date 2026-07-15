@@ -482,7 +482,7 @@ async function getUserProjectIds(email) {
  
   const lower = email.toLowerCase();
   if (CONFIG.ADMIN_USERS?.includes(lower)) return null;
-  const assignments = await getItems("UserAssignments", `fields/Title eq '${email}'`);
+  const assignments = await getItems("UserAssignments", `fields/Title eq '${lower}'`);
   return assignments.map(a => String(a.ProjectID));
 }
  

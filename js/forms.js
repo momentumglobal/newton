@@ -149,12 +149,12 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             ${projectOptions}
           </select>`}
         </div>
-        ${canAssign ? `
+       ${canAssign ? `
         <div class="form-group">
-          <label>Assign to *</label>
-          <select name="TalentPartnerName" id="role-tp-select" required>
-            <option value="">-- Select project first --</option>
-          </select>
+          <label>Assign to * <span style="font-weight:normal;color:#888;">(tick one or more)</span></label>
+          <div id="role-tp-select" style="border:1px solid #ccc;border-radius:4px;padding:8px;max-height:170px;overflow-y:auto;background:#fff;">
+            <span style="color:#888;">-- Select project first --</span>
+          </div>
         </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.email}">`}
         <div class="form-group">
           <label>Role Title *</label>
@@ -278,21 +278,27 @@ async function loadDeliveryManagersForProject(selectedEmail) {
   }
 }
 
-async function loadTalentPartnersForRole(projectId) {
-  const select = document.getElementById('role-tp-select');
-  if (!select) return;
+async function loadTalentPartnersForRole(projectId, selected = '') {
+  const box = document.getElementById('role-tp-select');
+  if (!box) return;
   if (!projectId) {
-    select.innerHTML = '<option value="">-- Select project first --</option>';
+    box.innerHTML = '<span style="color:#888;">-- Select project first --</span>';
     return;
   }
-  select.innerHTML = '<option value="">Loading...</option>';
+  box.innerHTML = '<span style="color:#888;">Loading...</span>';
   try {
     const tps = await getTalentPartnersForProject(projectId);
-    const currentEmail = getCurrentUser().email.toLowerCase();
-    select.innerHTML = '<option value="">-- Select team member --</option>' +
-      tps.map(u => `<option value="${u.UserEmail}" ${u.UserEmail?.toLowerCase() === currentEmail ? 'selected' : ''}>${u.UserName || u.UserEmail}</option>`).join('');
+    const pre = tpList(selected);
+    const mine = getCurrentUser().email.toLowerCase();
+    const checked = e => pre.length ? pre.includes(e) : e === mine;
+    box.innerHTML = tps.map(u => `
+      <label style="display:block;font-weight:normal;margin:3px 0;cursor:pointer;">
+        <input type="checkbox" name="TalentPartnerName" value="${u.UserEmail}"
+          ${checked((u.UserEmail || '').toLowerCase()) ? 'checked' : ''}>
+        ${u.UserName || u.UserEmail}
+      </label>`).join('') || '<span style="color:#888;">-- No team members --</span>';
   } catch(e) {
-    select.innerHTML = '<option value="">-- Error loading team --</option>';
+    box.innerHTML = '<span style="color:#c00;">-- Error loading team --</span>';
   }
 }
 
@@ -302,12 +308,19 @@ async function submitRoleForm(event, editId = null) {
   const form = document.getElementById('role-form');
   const btn  = form.querySelector('[type=submit]');
   setButtonLoading(btn);
-  const data = Object.fromEntries(new FormData(form));
+  const fd   = new FormData(form);
+  const data = Object.fromEntries(fd);
+  const tpJoined = fd.getAll('TalentPartnerName').filter(Boolean).join(';');
+  if (!tpJoined) {
+    clearButtonLoading(btn);
+    showFormError('role-form', 'Please assign at least one Talent Partner.');
+    return;
+  }
   const fields = {
     ProjectIDLookupId: parseInt(data.ProjectID),
     Title:          data.RoleTitle,
     HiringManager:  data.HiringManager || undefined,
-    TalentPartner:  data.TalentPartnerName || undefined,
+    TalentPartner:  tpJoined,
     Budget:         data.Budget ? parseFloat(data.Budget) : undefined,
     Currency:       data.Location || undefined,
     Priority:       data.Priority ? parseInt(data.Priority) : undefined,

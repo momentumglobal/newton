@@ -47,7 +47,7 @@ async function mobileRenderRoles(main) {
         return `
           <div class="m-role-card" onclick="mobileSelectRole(${r.id})">
             <div class="m-role-title">${r.RoleTitle}</div>
-            <div class="m-role-meta">${r.TalentPartner || ''}</div>
+            <div class="m-role-meta">${tpList(r.TalentPartner).join(', ')}</div>
             <div class="m-role-footer">
               <span class="m-stage-badge">${r.Stage || '—'}</span>
               ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}
@@ -109,7 +109,7 @@ async function mobileRenderRoleDetail(main) {
         <div class="m-detail-label">Stage</div>
         <div class="m-detail-value">${role.Stage || '—'}</div>
         <div class="m-detail-label">Talent Partner</div>
-        <div class="m-detail-value">${role.TalentPartner || '—'}</div>
+        <div class="m-detail-value">${tpList(role.TalentPartner).join(', ') || '—'}</div>
         <div class="m-detail-label">Open Date</div>
         <div class="m-detail-value">${role.OpenDate ? role.OpenDate.split('T')[0] : '—'}${days !== null ? ` (${days} days)` : ''}</div>
         <div class="m-detail-label">Target Hire Date</div>

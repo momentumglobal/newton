@@ -76,11 +76,10 @@ async function mobileRenderScorecards(main) {
     // Build one card per TP.
     _mScCards = tpEmails.map(tpEmail => {
       const tpActivity   = activityRaw.filter(a => a.TalentPartner === tpEmail);
-      const tpPlacements = recentPlacements.filter(r => r.tpEmail === tpEmail);
+      const tpPlacements = recentPlacements.filter(r => tpMatches(r.tpEmail, tpEmail));
       const scorecard    = computeVelocityScore(tpEmail, tpActivity, tpPlacements, benchmarks);
-      const tpRoles      = allRoles.filter(r =>
-        !ACTIVE_STAGES.includes(r.Stage) &&
-        r.TalentPartner && r.TalentPartner.toLowerCase() === tpEmail.toLowerCase());
+      const tpRoles = allRoles.filter(r => !ACTIVE_STAGES.includes(r.Stage) &&
+        tpMatches(r.TalentPartner, tpEmail));
       const flaggedRoles = tpRoles.filter(r => {
         const acts = activityRaw.filter(a => String(a.RoleIDLookupId) === String(r.id));
         return isRoleFlagged(r, acts);

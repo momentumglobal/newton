@@ -207,6 +207,7 @@ function _ccUtilCalc(forecasts, assigns, people) {
 
   // Known 13 weeks: assignments active at any point in the next 13 weeks (for forecast base)
   const known13 = assigns.filter(a => {
+    if (isForecastAssignment(a)) return false;
     if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
     const s = new Date(a.StartDate);
     const e = new Date(a.EndDate);
@@ -326,6 +327,7 @@ function renderUtilDetail(data) {
     const label  = d.toLocaleString('default', { month: 'short', year: '2-digit' });
 
     const active    = assigns.filter(a => {
+      if (isForecastAssignment(a)) return false;
       if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
       return new Date(a.StartDate) <= mEnd && new Date(a.EndDate) >= mStart;
     });

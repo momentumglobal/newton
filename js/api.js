@@ -79,7 +79,19 @@ function normaliseFields(listName, fields) {
   }
   return result;
 }
- 
+
+// ── Multi-TP helpers (TalentPartner column may hold 'a@x.com;b@x.com') ──
+function tpList(val) {
+  return String(val || '').split(';').map(s => s.trim().toLowerCase()).filter(Boolean);
+}
+function tpMatches(val, email) {
+  return tpList(val).includes((email || '').trim().toLowerCase());
+}
+function tpDisplay(val, nameMap = {}) {
+  const names = tpList(val).map(e => nameMap[e] || e);
+  return names.length ? names.join(', ') : '—';
+}
+
 // ── Generic helpers ─────────────────────────────────────────────────
 async function graphRequest(method, path, body = null) {
   const token = await getToken();
@@ -152,11 +164,9 @@ async function getProjects(activeOnly = true) {
 }
  
 async function getRolesForProject(projectId, talentPartnerEmail = null) {
-  let filter = `fields/ProjectID eq ${projectId}`;
-  if (talentPartnerEmail) {
-    filter += ` and fields/TalentPartner eq '${talentPartnerEmail.toLowerCase()}'`;
-  }
-  return getItems("Roles", filter);
+  const roles = await getItems("Roles", `fields/ProjectID eq ${projectId}`);
+  if (!talentPartnerEmail) return roles;
+  return roles.filter(r => tpMatches(r.TalentPartner, talentPartnerEmail));
 }
  
 async function getAllRoles() {
@@ -765,9 +775,7 @@ async function getScopedRolesForMarketReport(email, effectiveRole) {
   const arrays = await Promise.all(
     projectIds.map(pid => getRolesForProject(pid))
   );
-  return arrays.flat().filter(r =>
-    r.TalentPartner && r.TalentPartner.toLowerCase() === lower
-  );
+  return arrays.flat().filter(r => tpMatches(r.TalentPartner, lower));
 }
 
 // ── Employee Engagement ───────────────────────────────────────────────

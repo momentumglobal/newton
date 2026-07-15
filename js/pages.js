@@ -162,7 +162,7 @@ async function renderRolesPage(filter) {
             <td>${r.RoleTitle}</td>
             <td>${r.Location || '—'}</td>
             <td><span class="badge">${r.Stage || "—"}</span></td>
-            <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || "—"}</td>
+            <td>${tpDisplay(r.TalentPartner, tpMap)}</td>
             <td>${formatSalary(r.Budget)}</td>
             <td>${r.OpenDate ? r.OpenDate.split("T")[0] : "—"}</td>
             <td>${r.TargetHireDate ? r.TargetHireDate.split("T")[0] : "—"}</td>
@@ -181,6 +181,8 @@ async function showAddRoleForm() {
 async function showEditRoleForm(id) {
   const data = await getItem("Roles", id);
   document.getElementById("main-content").innerHTML = await renderRoleForm(data);
+  const pid = data.ProjectID || data.ProjectIDLookupId;
+  if (pid) loadTalentPartnersForRole(pid, data.TalentPartner || '');
 }
 // ── Weekly Activity ───────────────────────────────────────────────────
 let _activityProjectId = null;

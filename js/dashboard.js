@@ -93,7 +93,7 @@ async function fetchDashboardData(projectId, role) {
   let roles = allRoles, acts = activity;
   if (isTP) {
     const userEmail = (getCurrentUser().email || '').toLowerCase();
-    roles = allRoles.filter(r => (r.TalentPartner || '').toLowerCase() === userEmail);
+    roles = allRoles.filter(r => tpMatches(r.TalentPartner, userEmail));
     acts  = activity.filter(a => (a.TalentPartner || '').toLowerCase() === userEmail);
   }
   const ids = new Set(roles.map(r => String(r.id)));
@@ -494,7 +494,7 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
     const rowClass = days >= 45 ? 'row-age-critical' : 'row-age-warning';
     return `<tr class="${rowClass}">
      <td>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</td>
-     <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || '—'}</td>
+     <td>${tpDisplay(r.TalentPartner, tpMap)}</td>
      <td><span class='badge'>${r.Stage}</span></td>
      <td>${days} days</td>
     </tr>`;
@@ -869,7 +869,7 @@ function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}) {
     return `<tr class="${rowClass}">
      <td>${proj}</td>
      <td>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</td>
-     <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || '—'}</td>
+     <td>${tpDisplay(r.TalentPartner, tpMap)}</td>
      <td><span class='badge'>${r.Stage}</span></td>
      <td>${days} days</td>
     </tr>`;

@@ -158,13 +158,13 @@ async function submitAssignment(editId = null) {
   try {
     if (editId) {
       await updateItem('UserAssignments', editId, {
-        Title: email, UserName: name,
+        Title: email.toLowerCase(), UserName: name,
         ProjectID: parseInt(projectId) || 0,
         CustomerName: customerName || '', AssignedRole: role
       });
     } else {
       await createItem('UserAssignments', {
-        Title: email, UserName: name,
+        Title: email.toLowerCase(), UserName: name,
         ProjectID: parseInt(projectId) || 0,
         CustomerName: customerName || '', AssignedRole: role
       });

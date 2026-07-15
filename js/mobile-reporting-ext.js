@@ -136,7 +136,7 @@ function mobileDrawRolesList(main) {
         return `
           <div class="m-role-card" onclick="mobileSelectRole(${r.id})">
             <div class="m-role-title">${r.RoleTitle}</div>
-            <div class="m-role-meta">${r.TalentPartner || ''}</div>
+            <div class="m-role-meta">${tpList(role.TalentPartner).join(', ') || '—'}</div>
             <div class="m-role-footer">
               <span class="m-stage-badge">${r.Stage || '-'}</span>
               ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}
@@ -191,7 +191,7 @@ function mobileRedrawRolesListOnly() {
       return `
         <div class="m-role-card" onclick="mobileSelectRole(${r.id})">
           <div class="m-role-title">${r.RoleTitle}</div>
-          <div class="m-role-meta">${r.TalentPartner || ''}</div>
+          <div class="m-role-meta">${tpList(role.TalentPartner).join(', ') || '—'}</div>
           <div class="m-role-footer">
             <span class="m-stage-badge">${r.Stage || '-'}</span>
             ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}

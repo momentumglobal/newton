@@ -86,6 +86,8 @@ function _renderLCIModelList(allModels, role) {
               <button class="btn-secondary" onclick="openLCIModel(${m.id})">Open</button>
               <button class="btn-secondary" onclick="openLCIModelModal(${m.id})">Edit</button>
               <button class="btn-secondary" onclick="copyLCIModelAction(${m.id})">Copy</button>
+              ${canManage && m.Status === 'Won'
+                ? `<button class="btn-secondary" onclick="openLCILinkModal(${m.id})">${m.ProjectID ? 'Plan ✓' : 'Link'}</button>` : ''}
               ${isAdmin ? `<button class="btn-secondary lci-btn-muted" onclick="deleteLCIModelAction(${m.id})">Delete</button>` : ''}
             </div>
           </td>

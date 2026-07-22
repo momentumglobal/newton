@@ -1925,3 +1925,12 @@ body {
   .lci-report-navy h1 { font-size: 40px; }
   body.lci-summary-mode #print-header { display: none !important; }
 }
+
+.lci-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
+}
+.lci-modal-card {
+  background: #fff; border-radius: 8px; padding: 28px;
+  width: 460px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}

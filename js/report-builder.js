@@ -13,6 +13,7 @@ let _rbIncludeGantt = false;  // append Hiring Plan as landscape final page (CoE
 let _rbProjectRoles = [];  // Roles for the selected project (drives Role dropdown)
 let _rbLiveRoles = [];  // Live roles for the current project/role filter — drives the Snapshot editor
 const SNAP_FIELDS = [   // Candidate Pipeline Snapshot columns: [valueKey, header]
+  ['screening', 'Screening'],
   ['hmReview', 'HM Review'],
   ['iv1',      'IV1'],
   ['iv2plus',  'IV2+'],
@@ -261,12 +262,21 @@ function rbRenderSnapshotOutput(block, liveRoles) {
     <p class="no-data">No candidate pipeline data entered.</p>
   </div>`;
 
-  const head = `<tr><th>Role</th>${SNAP_FIELDS.map(([, l]) => `<th style="text-align:center">${l}</th>`).join('')}</tr>`;
+  // Column totals across shown rows; keep only columns that have data.
+  const colTotals = SNAP_FIELDS.map((_, i) => rows.reduce((s, row) => s + row.nums[i], 0));
+  const keep = SNAP_FIELDS.map((_, i) => colTotals[i] > 0);
+
+  const head = `<tr><th>Role</th>${SNAP_FIELDS
+    .filter((_, i) => keep[i])
+    .map(([, l]) => `<th style="text-align:center">${l}</th>`).join('')}</tr>`;
   const body = rows.map(row =>
-    `<tr><td>${row.label}</td>${row.nums.map(n => `<td style="text-align:center">${n > 0 ? n : '–'}</td>`).join('')}</tr>`
+    `<tr><td>${row.label}</td>${row.nums
+      .filter((_, i) => keep[i])
+      .map(n => `<td style="text-align:center">${n > 0 ? n : '–'}</td>`).join('')}</tr>`
   ).join('');
-  const totals = SNAP_FIELDS.map((_, i) => rows.reduce((s, row) => s + row.nums[i], 0));
-  const totRow = `<tr class="totals-row"><td><strong>Total</strong></td>${totals.map(n => `<td style="text-align:center"><strong>${n}</strong></td>`).join('')}</tr>`;
+  const totRow = `<tr class="totals-row"><td><strong>Total</strong></td>${colTotals
+    .filter((_, i) => keep[i])
+    .map(n => `<td style="text-align:center"><strong>${n}</strong></td>`).join('')}</tr>`;
 
   return `<div class="dash-panel">
     <h3 class="panel-title">Candidate Pipeline Snapshot</h3>

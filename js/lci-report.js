@@ -30,7 +30,7 @@ async function renderLCIReportPage(ids, opts = {}) {
         milestones.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
         bundles.push({ model, rows, milestones });
       } catch (_) {
-        missing.push(id); // model deleted since the report was saved
+        missing.push(id);
       }
     }
     if (!bundles.length) {
@@ -40,7 +40,7 @@ async function renderLCIReportPage(ids, opts = {}) {
 
     const clients = [...new Set(bundles.map(b => b.model.ClientName).filter(Boolean))];
     let title = opts.title;
-    if (title == null) { // new export → prompt
+    if (title == null) {
       title = prompt('Report title:', `${clients[0] || 'Client'} — Location & Cost Intelligence`);
       if (title === null) { renderLCIModelsPage(); return; }
     }
@@ -74,7 +74,7 @@ async function saveLCIReport() {
       _lciReport.id = created.id;
     }
     clearButtonLoading(btn);
-    btn.textContent = 'Saved ✓';
+    btn.textContent = 'Saved \u2713';
     setTimeout(() => { if (btn) btn.textContent = 'Save Report'; }, 2000);
   } catch (e) {
     clearButtonLoading(btn);
@@ -89,9 +89,8 @@ function lciReportRename() {
   document.querySelectorAll('.lci-report-title').forEach(el => { el.textContent = t; });
 }
 
-// Return to the model list to change the selection, carrying the current
-// report's identity + current (possibly renamed / edited) title+observations
-// so the re-export continues to update the same saved report.
+// Return to the model list to change selection, carrying the report identity
+// + current title/observations so re-export updates the same saved report.
 function lciEditSelectionFromReport() {
   const title = document.querySelector('.lci-report-title')?.textContent || _lciReport.title;
   lciEditReportSelection(_lciReport.ids, {

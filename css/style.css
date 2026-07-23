@@ -1963,7 +1963,9 @@ body {
 .lm-watchouts { margin-top: 18px; }
 .lm-watchouts h4 { color: #1B3A5C; margin-bottom: 6px; }
 .lm-watchouts p { white-space: pre-wrap; font-size: 13px; }
-.lm-foot { font-size: 11px; color: #888; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
+.lm-method { margin-top: 20px; border-top: 1px solid #eee; padding-top: 12px; }
+.lm-method h4 { color: #1B3A5C; font-size: 13px; margin-bottom: 6px; }
+.lm-method p { font-size: 11px; color: #777; line-height: 1.5; }
 
 @media print {
   body.lci-summary-mode #print-header { display: none !important; }

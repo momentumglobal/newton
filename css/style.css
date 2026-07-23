@@ -1892,6 +1892,9 @@ body {
 }
 .lci-report-titleblock { position: absolute; left: 40px; bottom: 18%; max-width: 55%; }
 
+.lci-bench-hint { font-size: 11px; color: #888; margin-top: 3px; line-height: 1.3; }
+.lci-bench-hint a { color: #1B3A5C; font-weight: 600; cursor: pointer; text-decoration: underline; }
+
 @media print {
   .lci-noprint, #sidebar { display: none !important; }
   /* Client-facing summary: no 'Confidential — Internal' banner */

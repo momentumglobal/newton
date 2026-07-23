@@ -15,14 +15,16 @@ const LM_METHODOLOGY = {
 
 // ── Pure calc ────────────────────────────────────────────────────────
 // GBP cost of employment for a location/discipline, or null if no salary.
-// cost = annualSalary × (1 + burden) × fxToGBP  (all normalised to GBP).
+// FXRateToGBP is entered as LOCAL UNITS PER £1 (i.e. 1 GBP = X local), so we
+// DIVIDE to convert to GBP. Home/GBP markets use 1.
+// cost = annualSalary × (1 + burden) ÷ fx  (normalised to GBP).
 function _lmCostGBP(loc, disc) {
   const sal = Number(loc[disc.col]);
   if (!sal || sal <= 0) return null;
   const burden = Number(loc.EmployerBurdenPct) || 0;
   const fx = Number(loc.FXRateToGBP) || 0;
   if (!fx) return null;
-  return sal * (1 + burden) * fx;
+  return sal * (1 + burden) / fx;
 }
 
 // Compare a current location against scoped locations across disciplines.
@@ -129,7 +131,7 @@ function _lmLibraryHtml() {
       </div>
       <div class="lm-scroll">
         <table class="data-table lm-grid">
-          <thead><tr><th>Location</th><th>Burden %</th><th>FX → GBP</th>${head}<th></th></tr></thead>
+          <thead><tr><th>Location</th><th>Burden %</th><th>FX (1 GBP =)</th>${head}<th></th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -154,8 +156,8 @@ function _lmLocationModal() {
               <input type="text" class="form-control" name="Title" required placeholder="e.g. Bucharest, Romania"></div>
             <div class="form-group" style="flex:1"><label>Employer burden %</label>
               <input type="number" class="form-control" name="EmployerBurdenPct" min="0" step="0.001" placeholder="e.g. 32.525"></div>
-            <div class="form-group" style="flex:1"><label>FX rate → GBP</label>
-              <input type="number" class="form-control" name="FXRateToGBP" min="0" step="0.0001" placeholder="GBP per 1 local"></div>
+            <div class="form-group" style="flex:1"><label>FX rate (1 GBP = X local)</label>
+              <input type="number" class="form-control" name="FXRateToGBP" min="0" step="0.0001" placeholder="e.g. 5.9 (RON); GBP = 1"></div>
           </div>
           <p style="font-size:12px;color:#888;margin:4px 0 12px">Average annual salary per discipline, in local currency. Leave blank where unknown.</p>
           <div class="lci-settings__grid">${salFields}</div>

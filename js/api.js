@@ -65,6 +65,7 @@ const FIELD_ALIASES = {
   LCIModels:       {},
   LCIModelRows:    {},
   LCIMilestones:   {},
+  LCIReports:      {},
 };
  
 function normaliseFields(listName, fields) {
@@ -352,6 +353,23 @@ async function copyLCIModel(modelId, newTitle) {
     await createLCIMilestone({ ..._pickFields(m, _LCI_MILESTONE_COPY_FIELDS), ModelIDLookupId: Number(newId) });
   }
   return created;
+}
+
+// ── LCI Reports (saved report definitions) ──────────────────────────
+async function getLCIReports() {
+  return getItems("LCIReports");
+}
+async function getLCIReportById(id) {
+  return getItem("LCIReports", id);
+}
+async function createLCIReport(fields) {
+  return createItem("LCIReports", fields);
+}
+async function updateLCIReport(id, fields) {
+  return updateItem("LCIReports", id, fields);
+}
+async function deleteLCIReport(id) {
+  return deleteItem("LCIReports", id);
 }
 
 async function getDepartments() {

@@ -8,38 +8,102 @@
 
 const LCI_REPORT_COLOURS = ['#1B3A5C', '#E8703A', '#2E8B8B', '#7B5EA7', '#B0578D'];
 
-// ── Entry (wired from lci-pages.js Export Report button) ─────────────
+// Currently-open report: {id, title, ids}. id null = unsaved (new export).
+let _lciReport = { id: null, title: '', ids: [] };
 
-async function renderLCIReportPage(ids) {
+// ── Entry ────────────────────────────────────────────────────────────
+// Called two ways:
+//   renderLCIReportPage(ids)                    — new export (prompts title)
+//   renderLCIReportPage(ids, {reportId, title, observations})  — open saved
+async function renderLCIReportPage(ids, opts = {}) {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Assembling report...</p>';
   try {
-    const bundles = await Promise.all(ids.map(async id => {
-      const [model, rows, milestones] = await Promise.all([
-        getLCIModelById(id), getLCIRows(id), getLCIMilestones(id),
-      ]);
-      rows.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
-      milestones.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
-      return { model, rows, milestones };
-    }));
+    const bundles = [];
+    const missing = [];
+    for (const id of ids) {
+      try {
+        const [model, rows, milestones] = await Promise.all([
+          getLCIModelById(id), getLCIRows(id), getLCIMilestones(id),
+        ]);
+        rows.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
+        milestones.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
+        bundles.push({ model, rows, milestones });
+      } catch (_) {
+        missing.push(id); // model deleted since the report was saved
+      }
+    }
+    if (!bundles.length) {
+      main.innerHTML = '<p style="color:red">None of this report\'s models still exist.</p>';
+      return;
+    }
 
     const clients = [...new Set(bundles.map(b => b.model.ClientName).filter(Boolean))];
-    const defaultTitle = `${clients[0] || 'Client'} — Location & Cost Intelligence`;
-    const title = prompt('Report title:', defaultTitle);
-    if (title === null) { renderLCIModelsPage(); return; }
+    let title = opts.title;
+    if (title == null) { // new export → prompt
+      title = prompt('Report title:', `${clients[0] || 'Client'} — Location & Cost Intelligence`);
+      if (title === null) { renderLCIModelsPage(); return; }
+    }
 
-    document.body.classList.add('lci-summary-mode'); // suppress Confidential banner + print header margins
-    window._lciReportObs = ''; // Observations & Recommendations (session-only, not persisted)
-    main.innerHTML = _lciReportHtml(title, clients, bundles);
+    _lciReport = { id: opts.reportId || null, title, ids: bundles.map(b => b.model.id) };
+    document.body.classList.add('lci-summary-mode');
+    window._lciReportObs = opts.observations || '';
+    main.innerHTML = _lciReportHtml(title, clients, bundles, missing.length);
     if (window.lucide) lucide.createIcons();
   } catch (e) {
     main.innerHTML = `<p style="color:red">Error assembling report: ${e.message}</p>`;
   }
 }
 
+// ── Save / update the open report ────────────────────────────────────
+
+async function saveLCIReport() {
+  const btn = document.getElementById('lci-report-save-btn');
+  setButtonLoading(btn);
+  try {
+    const fields = {
+      Title:        _lciReport.title,
+      ModelIDs:     JSON.stringify(_lciReport.ids),
+      Observations: window._lciReportObs || '',
+    };
+    if (_lciReport.id) {
+      await updateLCIReport(_lciReport.id, fields);
+    } else {
+      fields.CreatedByEmail = (getCurrentUser().email || '').toLowerCase();
+      const created = await createLCIReport(fields);
+      _lciReport.id = created.id;
+    }
+    clearButtonLoading(btn);
+    btn.textContent = 'Saved ✓';
+    setTimeout(() => { if (btn) btn.textContent = 'Save Report'; }, 2000);
+  } catch (e) {
+    clearButtonLoading(btn);
+    alert('Error saving report: ' + e.message);
+  }
+}
+
+function lciReportRename() {
+  const t = prompt('Report title:', _lciReport.title);
+  if (t === null) return;
+  _lciReport.title = t;
+  document.querySelectorAll('.lci-report-title').forEach(el => { el.textContent = t; });
+}
+
+// Return to the model list to change the selection, carrying the current
+// report's identity + current (possibly renamed / edited) title+observations
+// so the re-export continues to update the same saved report.
+function lciEditSelectionFromReport() {
+  const title = document.querySelector('.lci-report-title')?.textContent || _lciReport.title;
+  lciEditReportSelection(_lciReport.ids, {
+    id: _lciReport.id,
+    title,
+    observations: window._lciReportObs || '',
+  });
+}
+
 // ── Document assembly ────────────────────────────────────────────────
 
-function _lciReportHtml(title, clients, bundles) {
+function _lciReportHtml(title, clients, bundles, missingCount = 0) {
   const exportDate = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
   const subtitle = `${clients.length === 1 ? clients[0] + ' x ' : ''}Momentum Global — ${exportDate}`;
 
@@ -77,12 +141,16 @@ function _lciReportHtml(title, clients, bundles) {
 
   return `
     <div class="page-header lci-noprint">
-      <h2>${title}</h2>
+      <h2 class="lci-report-title">${title}</h2>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="renderLCIModelsPage()">← Back to models</button>
-        <button class="btn-primary" onclick="printPage('${title.replace(/'/g, '')}', true, 'LCI')">Print / PDF</button>
+        <button class="btn-secondary" onclick="lciEditSelectionFromReport()">Edit selection</button>
+        <button class="btn-secondary" onclick="lciReportRename()">Rename</button>
+        <button class="btn-secondary" id="lci-report-save-btn" onclick="saveLCIReport()">Save Report</button>
+        <button class="btn-primary" onclick="printPage(document.querySelector('.lci-report-title').textContent.replace(/'/g,''), true, 'LCI')">Print / PDF</button>
       </div>
     </div>
+    ${missingCount ? `<p class="lci-noprint" style="color:#E8703A;font-size:13px;margin:0 0 12px">${missingCount} model(s) in this saved report no longer exist and were skipped.</p>` : ''}
     ${_lciReportCoverHtml(title, subtitle)}
     ${modelSections}
     ${_lciReportComparisonHtml(bundles)}

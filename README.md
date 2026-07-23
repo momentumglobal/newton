@@ -13,7 +13,7 @@ Newton is a static web application hosted on GitHub Pages, with Microsoft Azure 
 | Reporting | `reporting.html` | Admin, Delivery Manager, Talent Partner, Leadership |
 | Market Analytics | `market-reporting.html` | Admin, Delivery Manager, Talent Partner |
 | People | `people.html` | Admin, Leadership, Delivery Manager |
-| Sales | `sales.html` | Admin, Leadership |
+| Sales | `sales.html` | Admin, Leadership; Delivery Manager (LCI Cost Models only) |
 | MG Command Centre | `command-centre.html` | Admin, Leadership |
 | Newton OS Admin | `admin.html` | Admin only |
 | Mobile App (PWA) | `mobile.html` | Admin, Delivery Manager, Talent Partner |
@@ -41,6 +41,18 @@ Full system directory including architecture, data flows, SharePoint data model,
 - [SharePoint site](https://talentpoint.sharepoint.com/sites/SolutionsHubReporting)
 
 ## Changelog
+
+### July 2026 — LCI Cost Models (Sales module)
+
+**New: Location & Cost Intelligence (LCI) Cost Models** — a native replacement for the Excel recruitment ramp & cost model used on LCI location-research engagements. Built as a new page in the Sales module (`js/lci-*.js`); Admin/Leadership full access, Delivery Managers scoped to models assigned to them.
+
+- **Model editor** — settings bar (two currencies: local CoE currency + customer display currency, with a manual FX rate; employer burden, salary-months for 13th/14th-month markets, notice period, office/EoR/travel per head), a hiring roadmap grid with project milestones, and CoE / legacy / one-off / project-fee sections. A live cost-model table + cumulative-spend chart recompute on every edit.
+- **Compare** — N models side by side (same display currency): KPI table + multi-line cumulative-spend chart.
+- **Report export** — assemble one or more models into a branded multi-page PDF: navy cover, per-model sections, a Location Comparison section, and a rich-text Observations & Recommendations page. Reports can be **saved** (definition only — numbers live-recompute on re-open) via the new `LCIReports` list.
+- **Hiring Plan linkage** — a Won model links to a CoE project and generates one CoE Hiring Plan row per hire (Open Dates derived from the ramp), bridging sales to delivery.
+- **Salary benchmarks** — as a role title is typed, an inline hint suggests the median salary for that exact title in the same location + currency, drawn equally from all prior models.
+- **Data model:** new SharePoint lists `LCIModels`, `LCIModelRows` (RowType = coe/legacy/oneoff/fee; per-month values stored as JSON), `LCIMilestones`, `LCIReports`. All added to `FIELD_ALIASES` as empty objects. StartMonth is stored as a `YYYY-MM` **text** column (never a date — avoids the BST month-shift gotcha).
+- **Access:** Sales module opened to Delivery Managers, scoped to the LCI Cost Models page only (Revenue Tracking / Sales Forecast remain Admin/Leadership).
 
 ### July 2026 — Hiring Plan (CoE projects)
 

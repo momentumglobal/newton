@@ -5,7 +5,22 @@
 // Loaded by sales.html after lci-report.js.
 
 let _lmLocations = null; // cache of LCILocations
-let _lmSel = { current: '', scoped: [], disciplines: [], preparedFor: '', watchouts: '' };
+let _lmSel = { current: '', scoped: [], disciplines: [], preparedFor: '', watchouts: '', displayCcy: 'GBP' };
+
+// Distinct currency codes in the library + GBP (for the display-currency dropdown).
+function _lmCurrencies() {
+  const set = new Set(['GBP']);
+  (_lmLocations || []).forEach(l => { if (l.Currency) set.add(l.Currency); });
+  return [...set].sort();
+}
+// GBP→display rate (local per 1 GBP). Prefer the current location's rate when
+// its currency matches the chosen display currency; else any library match; GBP = 1.
+function _lmRateFor(ccy, currentLoc) {
+  if (!ccy || ccy === 'GBP') return 1;
+  if (currentLoc && currentLoc.Currency === ccy && Number(currentLoc.FXRateToGBP)) return Number(currentLoc.FXRateToGBP);
+  const m = (_lmLocations || []).find(l => l.Currency === ccy && Number(l.FXRateToGBP));
+  return m ? Number(m.FXRateToGBP) : 1;
+}
 
 // Methodology / disclaimer shown on every generated report. Edit here.
 const LM_METHODOLOGY = {
@@ -57,6 +72,16 @@ if (typeof module !== 'undefined') module.exports = { lciLeadMagnetCompute, _lmC
 function _lmGBP(v) {
   if (v == null || isNaN(v)) return '—';
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }).format(v);
+}
+// Format a value already in the display currency, with that currency's symbol.
+// Falls back to "12,345 CODE" for currency codes Intl doesn't recognise.
+function _lmMoney(v, ccy) {
+  if (v == null || isNaN(v)) return '—';
+  try {
+    return new Intl.NumberFormat('en-GB', { style: 'currency', currency: ccy || 'GBP', maximumFractionDigits: 0 }).format(v);
+  } catch (_) {
+    return Math.round(v).toLocaleString() + ' ' + (ccy || '');
+  }
 }
 function _lmPct(v) {
   if (v == null || isNaN(v)) return '—';
@@ -113,6 +138,7 @@ function _lmLibraryHtml() {
           <td><strong>${l.Title || '—'}</strong></td>
           <td>${l.EmployerBurdenPct != null ? (Math.round(l.EmployerBurdenPct * 100000) / 1000) + '%' : '—'}</td>
           <td>${l.FXRateToGBP ?? '—'}</td>
+          <td>${l.Currency || '—'}</td>
           ${D.map(d => `<td class="lm-scol">${l[d.col] != null ? Number(l[d.col]).toLocaleString() : '—'}</td>`).join('')}
           <td>
             <div class="row-actions">
@@ -121,7 +147,7 @@ function _lmLibraryHtml() {
             </div>
           </td>
         </tr>`).join('')
-    : `<tr><td colspan="${D.length + 4}" style="color:#888;text-align:center">No locations yet.</td></tr>`;
+    : `<tr><td colspan="${D.length + 5}" style="color:#888;text-align:center">No locations yet.</td></tr>`;
 
   return `
     <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px;margin-top:16px">
@@ -131,7 +157,7 @@ function _lmLibraryHtml() {
       </div>
       <div class="lm-scroll">
         <table class="data-table lm-grid">
-          <thead><tr><th>Location</th><th>Burden %</th><th>FX (1 GBP =)</th>${head}<th></th></tr></thead>
+          <thead><tr><th>Location</th><th>Burden %</th><th>FX (1 GBP =)</th><th>Currency</th>${head}<th></th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -141,6 +167,7 @@ function _lmLibraryHtml() {
 
 function _lmLocationModal() {
   const D = CONFIG.LCI_DISCIPLINES;
+  const ccyOpts = lciCurrencyOptions(CONFIG.COUNTRY_CURRENCY).map(c => `<option value="${c}">${c}</option>`).join('');
   const salFields = D.map(d => `
     <div class="form-group" style="margin:0">
       <label style="font-size:12px">${d.label}</label>
@@ -158,6 +185,8 @@ function _lmLocationModal() {
               <input type="number" class="form-control" name="EmployerBurdenPct" min="0" step="0.001" placeholder="e.g. 32.525"></div>
             <div class="form-group" style="flex:1"><label>FX rate (1 GBP = X local)</label>
               <input type="number" class="form-control" name="FXRateToGBP" min="0" step="0.0001" placeholder="e.g. 5.9 (RON); GBP = 1"></div>
+            <div class="form-group" style="flex:1"><label>Currency</label>
+              <select class="form-control" name="Currency"><option value="">—</option>${ccyOpts}</select></div>
           </div>
           <p style="font-size:12px;color:#888;margin:4px 0 12px">Average annual salary per discipline, in local currency. Leave blank where unknown.</p>
           <div class="lci-settings__grid">${salFields}</div>
@@ -182,6 +211,7 @@ function openLMLocation(id = null) {
       form.elements['Title'].value = l.Title || '';
       form.elements['EmployerBurdenPct'].value = l.EmployerBurdenPct != null ? Math.round(l.EmployerBurdenPct * 100000) / 1000 : '';
       form.elements['FXRateToGBP'].value = l.FXRateToGBP ?? '';
+      form.elements['Currency'].value = l.Currency || '';
       CONFIG.LCI_DISCIPLINES.forEach(d => { if (form.elements[d.col]) form.elements[d.col].value = l[d.col] ?? ''; });
     }
   }
@@ -202,6 +232,7 @@ async function saveLMLocation(event) {
       Title: data.Title,
       EmployerBurdenPct: data.EmployerBurdenPct !== '' ? Number(data.EmployerBurdenPct) / 100 : null, // whole % → decimal
       FXRateToGBP: data.FXRateToGBP !== '' ? Number(data.FXRateToGBP) : null,
+      Currency: data.Currency || null,
     };
     CONFIG.LCI_DISCIPLINES.forEach(d => {
       fields[d.col] = data[d.col] !== '' ? Number(data[d.col]) : null;
@@ -230,6 +261,7 @@ async function deleteLMLocation(id) {
 // ── Part 2: Insights Report Builder ──────────────────────────────────
 function _lmBuilderHtml() {
   const locOpts = _lmLocations.map(l => `<option value="${l.id}">${l.Title}</option>`).join('');
+  const ccyOpts = _lmCurrencies().map(c => `<option value="${c}"${c === (_lmSel.displayCcy || 'GBP') ? ' selected' : ''}>${c}</option>`).join('');
   const scopedBoxes = _lmLocations.map(l =>
     `<label class="lm-chk"><input type="checkbox" class="lm-scoped" value="${l.id}" onchange="_lmSelChanged()"> ${l.Title}</label>`).join('');
   const discBoxes = CONFIG.LCI_DISCIPLINES.map(d =>
@@ -241,9 +273,13 @@ function _lmBuilderHtml() {
       <div style="display:flex;gap:24px;flex-wrap:wrap">
         <div class="form-group" style="min-width:220px">
           <label>Current location</label>
-          <select class="form-control" id="lm-current" onchange="_lmSelChanged()">
+          <select class="form-control" id="lm-current" onchange="_lmCurrentChanged()">
             <option value="">— Select —</option>${locOpts}
           </select>
+        </div>
+        <div class="form-group" style="min-width:150px">
+          <label>Display currency</label>
+          <select class="form-control" id="lm-display-ccy" onchange="_lmDisplayCcyChanged()">${ccyOpts}</select>
         </div>
         <div class="form-group" style="flex:1;min-width:220px">
           <label>Scoped locations</label>
@@ -278,6 +314,21 @@ function _lmSelChanged() {
   _lmRenderPreview();
 }
 
+// Current-location change also defaults the display currency to that location's
+// currency (user can still override via the display-currency dropdown after).
+function _lmCurrentChanged() {
+  const cur = (_lmLocations || []).find(l => String(l.id) === String(document.getElementById('lm-current').value));
+  _lmSel.displayCcy = (cur && cur.Currency) ? cur.Currency : 'GBP';
+  const dd = document.getElementById('lm-display-ccy');
+  if (dd) dd.value = _lmSel.displayCcy;
+  _lmSelChanged();
+}
+
+function _lmDisplayCcyChanged() {
+  _lmSel.displayCcy = document.getElementById('lm-display-ccy').value || 'GBP';
+  _lmRenderPreview();
+}
+
 function _lmResolve() {
   const byId = id => (_lmLocations || []).find(l => String(l.id) === String(id));
   const current = byId(_lmSel.current);
@@ -302,14 +353,17 @@ function _lmRenderPreview() {
 function _lmReportHtml(computed, current) {
   const preparedFor = (_lmSel.preparedFor || '').trim();
   const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-  const disc = _lmResolve().disciplines;
+  // All figures computed in GBP, then converted to the chosen display currency.
+  const displayCcy = _lmSel.displayCcy || 'GBP';
+  const displayRate = _lmRateFor(displayCcy, current);
+  const money = v => _lmMoney(v == null ? null : v * displayRate, displayCcy);
 
   const locBlocks = computed.results.map(r => {
     const discRows = r.rows.map(row => `
       <tr>
         <td>${row.label}</td>
-        <td>${_lmGBP(row.currentGBP)}</td>
-        <td>${_lmGBP(row.scopedGBP)}</td>
+        <td>${money(row.currentGBP)}</td>
+        <td>${money(row.scopedGBP)}</td>
         <td style="color:${_lmDeltaColour(row.deltaPct)};font-weight:600">${_lmPct(row.deltaPct)}</td>
       </tr>`).join('');
     return `
@@ -330,12 +384,13 @@ function _lmReportHtml(computed, current) {
     <div id="lm-report" class="lm-report">
       <div class="lm-report-band">
         <div>
-          <div class="lm-report-title">Location &amp; Cost Intelligence — Country Comparison</div>
+          <div class="lm-report-title">Location &amp; Cost Intelligence — Location Comparison</div>
           <div class="lm-report-sub">Current location: ${current.Title}${preparedFor ? ' · Prepared for ' + preparedFor : ''} · ${date}</div>
         </div>
         <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="lm-report-logo">
       </div>
       <div class="lm-report-body">
+        <p class="lm-caption">Figures show the average fully-loaded cost of employment per role, in ${displayCcy}, across each discipline's standard role scope.</p>
         ${locBlocks}
         ${(_lmSel.watchouts || '').trim() ? `<div class="lm-watchouts"><h4>Watchouts</h4><p>${(_lmSel.watchouts).trim().replace(/</g,'&lt;')}</p></div>` : ''}
         <div class="lm-method">
@@ -353,5 +408,5 @@ function _lmPrint() {
     return;
   }
   document.body.classList.add('lci-summary-mode'); // suppress the Confidential print banner
-  printPage(`LCI Report Lite - ${current.Title}`, false, 'LCI'); // portrait
+  printPage(`LCI - Location Comparison - ${current.Title}`, false, 'LCI'); // portrait
 }

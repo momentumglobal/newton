@@ -12,7 +12,7 @@ function renderSalesNav(role) {
     currentPage:      _salesCurrentPage,
     role:             role,
     navigateFn:       'navigateToSales',
-    userGuideHref:    '',
+    userGuideHref:    'sales-user-guide.html',
   });
 }
 

@@ -41,6 +41,7 @@ async function renderSalesPage(page) {
     case 'revenueTracking': await renderRevenueTrackingPage(); break;
     case 'salesForecast':   await renderSalesForecastPage();   break;
     case 'lciModels':       await renderLCIModelsPage();       break;
+    case 'lciLeadMagnet':   await renderLCILeadMagnetPage();   break;
     default:
       main.innerHTML = '<p>Page not found.</p>';
   }

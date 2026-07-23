@@ -10,7 +10,7 @@ let _lmSel = { current: '', scoped: [], disciplines: [], preparedFor: '', watcho
 // Methodology / disclaimer shown on every generated report. Edit here.
 const LM_METHODOLOGY = {
   heading: 'Methodology & important notes',
-  body: 'These figures are indicative only — intended to illustrate the relative cost of employment between locations, not to set budgets or salary bands. Role banding aligned to your own pay philosophy is delivered as part of a full LCI project. Salary estimates are 75th-percentile gross annual basic salaries (excluding bonus and commission) in local currency, taken from credible market sources, using a consistent role scope assessed across every location to keep the comparison like-for-like. Currency is normalised to GBP using a two-year average exchange rate, and all figures include employer on-costs.',
+  body: 'These figures are indicative only — intended to illustrate the relative cost of employment between locations, not to set budgets or salary bands. Cost modeling aligned to your own pay philosophy and career levelling frameworks is provided as part of a full LCI project. Estimates are based on 75th-percentile gross annual basic salaries (excluding bonus and commission) in local currency, taken from credible market sources, using a consistent role scope assessed across every location to keep the comparison like-for-like. Location comparisons include fully loaded employer costs.',
 };
 
 // ── Pure calc ────────────────────────────────────────────────────────

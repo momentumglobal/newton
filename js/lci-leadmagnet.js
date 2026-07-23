@@ -300,7 +300,8 @@ function _lmBuilderHtml() {
           <textarea class="form-control" id="lm-watchouts" rows="2" placeholder="Any caveats to note on the report..." oninput="_lmSel.watchouts=this.value"></textarea>
         </div>
       </div>
-      <div style="display:flex;justify-content:flex-end;margin-top:8px">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+        <button class="btn-secondary" onclick="_lmUpdatePreview()">Update preview</button>
         <button class="btn-primary" onclick="_lmPrint()">Generate PDF</button>
       </div>
     </div>
@@ -326,6 +327,14 @@ function _lmCurrentChanged() {
 
 function _lmDisplayCcyChanged() {
   _lmSel.displayCcy = document.getElementById('lm-display-ccy').value || 'GBP';
+  _lmRenderPreview();
+}
+
+// Pull the free-text fields into state and re-render (they update on input but
+// don't auto-refresh the report; this button + the PDF handler force a refresh).
+function _lmUpdatePreview() {
+  const p = document.getElementById('lm-prepared');   if (p) _lmSel.preparedFor = p.value;
+  const w = document.getElementById('lm-watchouts');  if (w) _lmSel.watchouts = w.value;
   _lmRenderPreview();
 }
 
@@ -402,6 +411,7 @@ function _lmReportHtml(computed, current) {
 }
 
 function _lmPrint() {
+  _lmUpdatePreview(); // ensure the printed report reflects the latest text
   const { current, scoped, disciplines } = _lmResolve();
   if (!current || !scoped.length || !disciplines.length) {
     alert('Select a current location, at least one scoped location, and at least one discipline first.');

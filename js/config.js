@@ -136,6 +136,23 @@ const CONFIG = {
   },
 };
 
+// ── LCI Lead Magnet ───────────────────────────────────────────────
+  // Disciplines for the Lead Magnet location comparator. key = internal id,
+  // label = UI text, col = LCILocations salary column name. Add a discipline
+  // here + a matching Sal_* column on the list to extend.
+  LCI_DISCIPLINES: [
+    { key: 'softwareEngineering', label: 'Software Engineering', col: 'Sal_SoftwareEngineering' },
+    { key: 'technology',          label: 'Technology',           col: 'Sal_Technology' },
+    { key: 'product',             label: 'Product',              col: 'Sal_Product' },
+    { key: 'salesGtm',            label: 'Sales/GTM',            col: 'Sal_SalesGTM' },
+    { key: 'customerSuccess',     label: 'Customer Success',     col: 'Sal_CustomerSuccess' },
+    { key: 'finance',             label: 'Finance',              col: 'Sal_Finance' },
+    { key: 'marketing',           label: 'Marketing',            col: 'Sal_Marketing' },
+    { key: 'operations',          label: 'Operations',           col: 'Sal_Operations' },
+    { key: 'hr',                  label: 'HR',                   col: 'Sal_HR' },
+    { key: 'legal',               label: 'Legal',                col: 'Sal_Legal' },
+  ],
+
 // Synchronous role check — only resolves admin (from config) or viewer
 // Used for immediate UI gating (show/hide buttons)
 function getUserRole(email) {

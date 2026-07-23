@@ -10,7 +10,7 @@ let _lmSel = { current: '', scoped: [], disciplines: [], preparedFor: '', watcho
 // Methodology / disclaimer shown on every generated report. Edit here.
 const LM_METHODOLOGY = {
   heading: 'Methodology & important notes',
-  body: 'These figures are indicative only — intended to illustrate the relative cost of employment between locations and support nearshoring or insourcing decision-making, not to set budgets or salary bands. Cost models aligned to your existing pay philosophy and career levelling are delivered as part of a full LCI project. Estimates are based on 75th-percentile gross annual basic salaries (excluding bonus and commission) in local currency, taken from credible market sources, using a consistent role scope assessed across every location to keep the comparison like-for-like. Cost deltas are based on fully loaded employment costs.',
+  body: 'These figures are indicative only — intended to illustrate the relative cost of employment between locations, not to set budgets or salary bands. Role banding aligned to your own pay philosophy is delivered as part of a full LCI project. Salary estimates are 75th-percentile gross annual basic salaries (excluding bonus and commission) in local currency, taken from credible market sources, using a consistent role scope assessed across every location to keep the comparison like-for-like. Currency is normalised to GBP using a two-year average exchange rate, and all figures include employer on-costs.',
 };
 
 // ── Pure calc ────────────────────────────────────────────────────────
@@ -73,13 +73,32 @@ async function renderLCILeadMagnetPage() {
   main.innerHTML = '<p>Loading...</p>';
   try {
     _lmLocations = await getLCILocations();
-    _lmLocations.sort((a, b) => (a.Title || '').localeCompare(b.Title || ''));
-    main.innerHTML = _lmLibraryHtml() + _lmBuilderHtml();
+    _lmLocations.sort(_lmLocationSort);
+    // Insights builder first, then the location library.
+    main.innerHTML = _lmPageHeaderHtml() + _lmBuilderHtml() + _lmLibraryHtml();
     _lmRenderPreview();
     if (window.lucide) lucide.createIcons();
   } catch (e) {
     main.innerHTML = `<p style="color:red">Error loading locations: ${e.message}</p>`;
   }
+}
+
+// Page title header (Add Location button lives in the library card now).
+function _lmPageHeaderHtml() {
+  return `<div class="page-header"><h2>LCI Lead Magnet</h2></div>`;
+}
+
+// Sort: A–Z by country (word after the comma), then A–Z by city (before it).
+// No comma → the whole string is treated as the country key (rule 1 applies).
+function _lmSortKey(title) {
+  const t = (title || '').trim();
+  const i = t.lastIndexOf(',');
+  if (i === -1) return { country: t.toLowerCase(), city: '' };
+  return { country: t.slice(i + 1).trim().toLowerCase(), city: t.slice(0, i).trim().toLowerCase() };
+}
+function _lmLocationSort(a, b) {
+  const ka = _lmSortKey(a.Title), kb = _lmSortKey(b.Title);
+  return ka.country.localeCompare(kb.country) || ka.city.localeCompare(kb.city);
 }
 
 // ── Part 1: Location Library ─────────────────────────────────────────
@@ -103,12 +122,11 @@ function _lmLibraryHtml() {
     : `<tr><td colspan="${D.length + 4}" style="color:#888;text-align:center">No locations yet.</td></tr>`;
 
   return `
-    <div class="page-header">
-      <h2>LCI Lead Magnet</h2>
-      <button class="btn-primary" onclick="openLMLocation()">+ Add Location</button>
-    </div>
-    <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px">
-      <h3 style="margin:0 0 12px;color:#1B3A5C">Location Library <span style="font-weight:400;font-size:13px;color:#888">(annual average salaries, local currency)</span></h3>
+    <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px;margin-top:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="margin:0;color:#1B3A5C">Location Library <span style="font-weight:400;font-size:13px;color:#888">(annual average salaries, local currency)</span></h3>
+        <button class="btn-primary" onclick="openLMLocation()">+ Add Location</button>
+      </div>
       <div class="lm-scroll">
         <table class="data-table lm-grid">
           <thead><tr><th>Location</th><th>Burden %</th><th>FX → GBP</th>${head}<th></th></tr></thead>
@@ -310,7 +328,7 @@ function _lmReportHtml(computed, current) {
     <div id="lm-report" class="lm-report">
       <div class="lm-report-band">
         <div>
-          <div class="lm-report-title">Location &amp; Momentum Global - Cost Intelligence Insights</div>
+          <div class="lm-report-title">Location &amp; Cost Intelligence — Report Lite</div>
           <div class="lm-report-sub">Current location: ${current.Title}${preparedFor ? ' · Prepared for ' + preparedFor : ''} · ${date}</div>
         </div>
         <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="lm-report-logo">

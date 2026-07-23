@@ -66,6 +66,7 @@ const FIELD_ALIASES = {
   LCIModelRows:    {},
   LCIMilestones:   {},
   LCIReports:      {},
+  LCILocations:    {},
 };
  
 function normaliseFields(listName, fields) {
@@ -375,7 +376,21 @@ async function deleteLCIReport(id) {
 async function getDepartments() {
   return getItems("Departments", "");
 }
- 
+
+// ── LCI Lead Magnet locations ───────────────────────────────────────
+async function getLCILocations() {
+  return getItems("LCILocations");
+}
+async function createLCILocation(fields) {
+  return createItem("LCILocations", fields);
+}
+async function updateLCILocation(id, fields) {
+  return updateItem("LCILocations", id, fields);
+}
+async function deleteLCILocation(id) {
+  return deleteItem("LCILocations", id);
+}
+
 // Resolve the signed-in user's effective role:
 // 1. Check ADMIN_USERS in config.js
 // 2. Check LeadershipAccess list

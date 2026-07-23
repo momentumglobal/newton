@@ -1966,6 +1966,7 @@ body {
 .lm-method { margin-top: 20px; border-top: 1px solid #eee; padding-top: 12px; }
 .lm-method h4 { color: #1B3A5C; font-size: 13px; margin-bottom: 6px; }
 .lm-method p { font-size: 11px; color: #777; line-height: 1.5; }
+.lm-caption { font-size: 12px; color: #777; font-style: italic; margin-bottom: 16px; }
 
 @media print {
   body.lci-summary-mode #print-header { display: none !important; }

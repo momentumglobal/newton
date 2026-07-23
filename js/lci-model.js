@@ -255,6 +255,30 @@ function lciComputeKPIs(model, rows) {
 // Both models already render in their own DisplayCurrency, so comparison
 // is only offered when DisplayCurrency matches (UI disables Compare
 // otherwise). No extra conversion layer.
+// ── Salary benchmark library (step 13) ───────────────────────────────
+// The library IS the accumulated LCIModelRows data — no separate storage.
+// bench = array of { title, location, ccy, salary } from coe rows across all
+// models (built in the editor). Returns median for an exact title match in
+// the same location AND local currency, or null. All matches weighted equally.
+function lciBenchmark(bench, title, location, ccy, excludeIds) {
+  if (!title || !location || !ccy) return null;
+  const t = String(title).trim().toLowerCase();
+  const loc = String(location).trim().toLowerCase();
+  const ex = new Set((excludeIds || []).map(String));
+  const vals = (bench || [])
+    .filter(b => !ex.has(String(b.modelId)) &&
+                 b.salary != null && Number(b.salary) > 0 &&
+                 String(b.title || '').trim().toLowerCase() === t &&
+                 String(b.location || '').trim().toLowerCase() === loc &&
+                 String(b.ccy || '') === String(ccy))
+    .map(b => Number(b.salary))
+    .sort((a, b) => a - b);
+  if (!vals.length) return null;
+  const mid = Math.floor(vals.length / 2);
+  const median = vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
+  return { median: Math.round(median), n: vals.length, min: vals[0], max: vals[vals.length - 1] };
+}
+
 function lciModelsComparable(modelA, modelB) {
   return !!modelA.DisplayCurrency &&
          modelA.DisplayCurrency === modelB.DisplayCurrency;

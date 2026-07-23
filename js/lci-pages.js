@@ -3,8 +3,8 @@
 // Editor, summary, compare and export pages arrive in later build steps.
 
 let _lciModelsCache = null; // page-level cache; invalidated by api.js writes anyway
-let _lciReportsCache = null; // saved LCIReports, scoped to visibility
 let _lciListFilters = { client: '', location: '' }; // '' = all; persists across re-renders this session
+let _lciReportsCache = null; // saved LCIReports, scoped to visibility
 let _lciPreTick = []; // model ids to pre-tick on next list render (from "Edit selection")
 let _lciEditingReport = null; // {id, title, observations} carried through "Edit selection" so re-export updates the same report
 
@@ -35,7 +35,7 @@ async function renderLCIModelsPage() {
     _lciReportsCache = reports;
     main.innerHTML = _renderLCIModelList(models, role) + _renderLCIReportsSection(reports, role);
     if (window.lucide) lucide.createIcons();
-    if (_lciPreTick.length) { lciCompareSelectionChanged(); _lciPreTick = []; } // reflect pre-ticked in the buttons, then reset
+    if (_lciPreTick.length) { lciCompareSelectionChanged(); _lciPreTick = []; }
   } catch (e) {
     main.innerHTML = `<p style="color:red">Error loading LCI models: ${e.message}</p>`;
   }
@@ -343,8 +343,6 @@ function lciExportReport() {
   const checked = _lciCheckedCompareBoxes();
   if (!checked.length) return;
   const ids = checked.map(cb => cb.value);
-  // If we came from "Edit selection" on a saved report, keep updating THAT
-  // report (retain its id/title/observations); otherwise a fresh export.
   const opts = _lciEditingReport
     ? { reportId: _lciEditingReport.id, title: _lciEditingReport.title, observations: _lciEditingReport.observations }
     : {};
@@ -352,7 +350,7 @@ function lciExportReport() {
   renderLCIReportPage(ids, opts);
 }
 
-// ── Saved reports section ────────────────────────────────────────────
+// ── Saved reports section ────────────────────────────
 
 function _renderLCIReportsSection(reports, role) {
   const isAdmin = role === 'admin';
@@ -406,9 +404,6 @@ async function deleteLCIReportAction(id) {
   }
 }
 
-// Called from the report view "Edit selection" — returns to the list with
-// the report's models pre-ticked so the user can add/remove then re-export.
-// Carries the saved-report identity (if any) so re-export updates it.
 function lciEditReportSelection(ids, reportMeta) {
   _lciPreTick = ids || [];
   _lciEditingReport = (reportMeta && reportMeta.id) ? reportMeta : null;

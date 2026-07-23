@@ -129,7 +129,7 @@ function _lmLocationModal() {
             <div class="form-group" style="flex:2"><label>Location (City, Country) *</label>
               <input type="text" class="form-control" name="Title" required placeholder="e.g. Bucharest, Romania"></div>
             <div class="form-group" style="flex:1"><label>Employer burden %</label>
-              <input type="number" class="form-control" name="EmployerBurdenPct" min="0" step="0.5" placeholder="e.g. 32.5"></div>
+              <input type="number" class="form-control" name="EmployerBurdenPct" min="0" step="0.001" placeholder="e.g. 32.525"></div>
             <div class="form-group" style="flex:1"><label>FX rate → GBP</label>
               <input type="number" class="form-control" name="FXRateToGBP" min="0" step="0.0001" placeholder="GBP per 1 local"></div>
           </div>

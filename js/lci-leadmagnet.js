@@ -175,7 +175,7 @@ function _lmLocationModal() {
     </div>`).join('');
   return `
     <div id="lm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
-      <div style="background:#fff;border-radius:8px;padding:28px;width:640px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
+      <div style="background:#fff;border-radius:8px;padding:28px;width:880px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
         <h3 style="margin:0 0 16px;color:#1B3A5C" id="lm-modal-title">Add Location</h3>
         <form id="lm-form" onsubmit="saveLMLocation(event)">
           <div style="display:flex;gap:12px">
@@ -189,7 +189,7 @@ function _lmLocationModal() {
               <select class="form-control" name="Currency"><option value="">—</option>${ccyOpts}</select></div>
           </div>
           <p style="font-size:12px;color:#888;margin:4px 0 12px">Average annual salary per discipline, in local currency. Leave blank where unknown.</p>
-          <div class="lci-settings__grid">${salFields}</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 14px">${salFields}</div>
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">
             <button type="button" class="btn-secondary" onclick="closeLMLocation()">Cancel</button>
             <button type="submit" class="btn-primary" id="lm-save-btn">Save Location</button>
@@ -384,7 +384,7 @@ function _lmReportHtml(computed, current) {
     <div id="lm-report" class="lm-report">
       <div class="lm-report-band">
         <div>
-          <div class="lm-report-title">Location &amp; Cost Intelligence — Location Comparison</div>
+          <div class="lm-report-title">Location &amp; Cost Intelligence — Report Lite</div>
           <div class="lm-report-sub">Current location: ${current.Title}${preparedFor ? ' · Prepared for ' + preparedFor : ''} · ${date}</div>
         </div>
         <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="lm-report-logo">
@@ -408,5 +408,5 @@ function _lmPrint() {
     return;
   }
   document.body.classList.add('lci-summary-mode'); // suppress the Confidential print banner
-  printPage(`LCI - Location Comparison - ${current.Title}`, false, 'LCI'); // portrait
+  printPage(`LCI Report Lite - ${current.Title}`, false, 'LCI'); // portrait
 }

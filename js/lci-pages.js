@@ -3,7 +3,10 @@
 // Editor, summary, compare and export pages arrive in later build steps.
 
 let _lciModelsCache = null; // page-level cache; invalidated by api.js writes anyway
+let _lciReportsCache = null; // saved LCIReports, scoped to visibility
 let _lciListFilters = { client: '', location: '' }; // '' = all; persists across re-renders this session
+let _lciPreTick = []; // model ids to pre-tick on next list render (from "Edit selection")
+let _lciEditingReport = null; // {id, title, observations} carried through "Edit selection" so re-export updates the same report
 
 // ── Model list page ──────────────────────────────────────────────────
 
@@ -13,19 +16,26 @@ async function renderLCIModelsPage() {
   main.innerHTML = '<p>Loading...</p>';
 
   try {
-    let models = await getLCIModels();
+    const role = _salesResolvedRole;
+    const email = (getCurrentUser().email || '').toLowerCase();
+    let [models, reports] = await Promise.all([getLCIModels(), getLCIReports()]);
 
     // Visibility: Admin/Leadership see all; DMs only models assigned to them.
-    const role = _salesResolvedRole;
     if (role === 'delivery_manager') {
-      const email = (getCurrentUser().email || '').toLowerCase();
       models = models.filter(m => (m.AssignedDMEmail || '').toLowerCase() === email);
+    }
+    // Reports: Admin/Leadership all; DM own-created only.
+    if (role === 'delivery_manager') {
+      reports = reports.filter(r => (r.CreatedByEmail || '').toLowerCase() === email);
     }
 
     models.sort((a, b) => (a.Title || '').localeCompare(b.Title || ''));
+    reports.sort((a, b) => (a.Title || '').localeCompare(b.Title || ''));
     _lciModelsCache = models;
-    main.innerHTML = _renderLCIModelList(models, role);
+    _lciReportsCache = reports;
+    main.innerHTML = _renderLCIModelList(models, role) + _renderLCIReportsSection(reports, role);
     if (window.lucide) lucide.createIcons();
+    if (_lciPreTick.length) { lciCompareSelectionChanged(); _lciPreTick = []; } // reflect pre-ticked in the buttons, then reset
   } catch (e) {
     main.innerHTML = `<p style="color:red">Error loading LCI models: ${e.message}</p>`;
   }
@@ -71,7 +81,7 @@ function _renderLCIModelList(allModels, role) {
     ? models.map(m => `
         <tr>
           <td style="width:32px;text-align:center">
-            <input type="checkbox" class="lci-compare-cb" value="${m.id}"
+            <input type="checkbox" class="lci-compare-cb" value="${m.id}"${_lciPreTick.map(String).includes(String(m.id)) ? ' checked' : ''}
                    data-ccy="${m.DisplayCurrency || ''}" onchange="lciCompareSelectionChanged()">
           </td>
           <td><strong>${m.Title || '—'}</strong></td>
@@ -332,7 +342,77 @@ function lciCompareSelected() {
 function lciExportReport() {
   const checked = _lciCheckedCompareBoxes();
   if (!checked.length) return;
-  renderLCIReportPage(checked.map(cb => cb.value));
+  const ids = checked.map(cb => cb.value);
+  // If we came from "Edit selection" on a saved report, keep updating THAT
+  // report (retain its id/title/observations); otherwise a fresh export.
+  const opts = _lciEditingReport
+    ? { reportId: _lciEditingReport.id, title: _lciEditingReport.title, observations: _lciEditingReport.observations }
+    : {};
+  _lciEditingReport = null;
+  renderLCIReportPage(ids, opts);
+}
+
+// ── Saved reports section ────────────────────────────────────────────
+
+function _renderLCIReportsSection(reports, role) {
+  const isAdmin = role === 'admin';
+  const rows = reports.length
+    ? reports.map(r => {
+        let count = 0;
+        try { count = JSON.parse(r.ModelIDs || '[]').length; } catch (_) {}
+        return `
+        <tr>
+          <td><strong>${r.Title || 'Untitled'}</strong></td>
+          <td>${count} model${count === 1 ? '' : 's'}</td>
+          <td>${r.CreatedByEmail || '—'}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-secondary" onclick="openLCIReport(${r.id})">Open</button>
+              ${(isAdmin || (r.CreatedByEmail || '').toLowerCase() === (getCurrentUser().email || '').toLowerCase())
+                ? `<button class="btn-secondary lci-btn-muted" onclick="deleteLCIReportAction(${r.id})">Delete</button>` : ''}
+            </div>
+          </td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="4" style="color:#888;text-align:center">No saved reports.</td></tr>`;
+
+  return `
+    <div class="page-header" style="margin-top:24px"><h2>Saved Reports</h2></div>
+    <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px">
+      <table class="data-table">
+        <thead><tr><th>Report</th><th>Models</th><th>Created by</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+async function openLCIReport(id) {
+  const r = (_lciReportsCache || []).find(x => String(x.id) === String(id));
+  if (!r) return;
+  let ids = [];
+  try { ids = JSON.parse(r.ModelIDs || '[]'); } catch (_) {}
+  if (!ids.length) { alert('This report has no models.'); return; }
+  renderLCIReportPage(ids, { reportId: r.id, title: r.Title, observations: r.Observations || '' });
+}
+
+async function deleteLCIReportAction(id) {
+  const r = (_lciReportsCache || []).find(x => String(x.id) === String(id));
+  if (!confirm(`Delete saved report "${r ? r.Title : ''}"? (The models are not affected.)`)) return;
+  try {
+    await deleteLCIReport(id);
+    await renderLCIModelsPage();
+  } catch (e) {
+    alert('Error deleting report: ' + e.message);
+  }
+}
+
+// Called from the report view "Edit selection" — returns to the list with
+// the report's models pre-ticked so the user can add/remove then re-export.
+// Carries the saved-report identity (if any) so re-export updates it.
+function lciEditReportSelection(ids, reportMeta) {
+  _lciPreTick = ids || [];
+  _lciEditingReport = (reportMeta && reportMeta.id) ? reportMeta : null;
+  renderLCIModelsPage();
 }
 
 // ── Row actions ──────────────────────────────────────────────────────

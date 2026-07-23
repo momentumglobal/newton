@@ -12,6 +12,7 @@ const SALES_PAGES = {
   revenueTracking: { label: 'Revenue Tracking', roles: [SALES_ROLES.ADMIN, SALES_ROLES.LEADERSHIP] },
   salesForecast:   { label: 'Sales Forecast',   roles: [SALES_ROLES.ADMIN, SALES_ROLES.LEADERSHIP] },
   lciModels:       { label: 'LCI Cost Models',  roles: [SALES_ROLES.ADMIN, SALES_ROLES.LEADERSHIP, SALES_ROLES.DELIVERY_MANAGER] },
+  lciLeadMagnet:   { label: 'LCI Lead Magnet',  roles: [SALES_ROLES.ADMIN, SALES_ROLES.LEADERSHIP] },
 };
 
 function salesCanAccess(page, role) {

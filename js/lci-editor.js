@@ -1,5 +1,5 @@
 // js/lci-editor.js — LCI Cost Model editor
-// Step 5 scope: settings bar + CoE hiring roadmap grid.
+// Settings bar + CoE roadmap (milestones) + salary benchmark hints.
 // Legacy / one-offs / fees sections and the live cost output arrive in step 6
 // (placeholders rendered below the roadmap).
 // Load order: after lci-model.js and lci-pages.js, before sales-app.js.
@@ -21,10 +21,27 @@ async function renderLCIEditorPage(modelId) {
     ]);
     rows.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
     milestones.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
+
+    // Benchmark library: flatten coe rows across ALL models (excluding this
+    // one at match time) into { modelId, title, location, ccy, salary }.
+    let bench = [];
+    try {
+      const allModels = await getLCIModels();
+      const rowArrays = await Promise.all(allModels.map(mm => getLCIRows(mm.id)));
+      allModels.forEach((mm, i) => {
+        for (const r of rowArrays[i]) {
+          if (r.RowType === 'coe' && r.AnnualSalary != null) {
+            bench.push({ modelId: mm.id, title: r.Title, location: mm.Location, ccy: mm.LocalCurrency, salary: r.AnnualSalary });
+          }
+        }
+      });
+    } catch (_) { bench = []; }
+
     _lciEd = {
       model,
       rows,
       milestones,
+      bench,
       deletedRowIds: [],
       deletedMilestoneIds: [],
       origRows: new Map(rows.map(r => [String(r.id), JSON.stringify(_lciRowSnapshot(r))])),
@@ -267,7 +284,8 @@ function _lciRoadmapRowHtml(r, idx, horizon) {
       <td><input type="text" class="lci-cell lci-cell--sm" value="${r.CareerLevel || ''}"
                  onchange="lciCoeFieldChanged(${idx}, 'CareerLevel', this.value)"></td>
       <td><input type="number" class="lci-cell lci-cell--grow" min="0" value="${r.AnnualSalary ?? ''}"
-                 onchange="lciCoeFieldChanged(${idx}, 'AnnualSalary', this.value)"></td>
+                 onchange="lciCoeFieldChanged(${idx}, 'AnnualSalary', this.value)">
+          <div class="lci-bench-hint" id="lci-bench-${idx}">${_lciBenchHintHtml(r, idx)}</div></td>
       <td><input type="number" class="lci-cell lci-cell--sm" min="0" max="100" step="1" value="${r.BonusPct != null ? Math.round(r.BonusPct * 100 * 100) / 100 : ''}"
                  onchange="lciCoeFieldChanged(${idx}, 'BonusPct', this.value)"></td>
       ${cells}
@@ -285,6 +303,39 @@ function _lciRoadmapFootHtml(horizon) {
   return `
     <tr><td colspan="4"><strong>Hires per month</strong></td>${hireCells}<td class="lci-derived">${hires.reduce((a, b) => a + b, 0)}</td><td></td><td></td></tr>
     <tr><td colspan="4"><strong>Cumulative hires</strong></td>${cumCells}<td></td><td></td><td></td></tr>`;
+}
+
+// ── Benchmark salary hints ───────────────────────────────────────────
+
+// HTML for the hint under a coe row's salary input, or '' if no match.
+function _lciBenchHintHtml(r, idx) {
+  const m = _lciEd.model;
+  const b = lciBenchmark(_lciEd.bench, r.Title, m.Location, m.LocalCurrency, [m.id]);
+  if (!b) return '';
+  const same = Number(r.AnnualSalary) === b.median;
+  return `Benchmark: ${b.median.toLocaleString()} (n=${b.n})` +
+    (same ? '' : ` <a onclick="lciApplyBenchmark(${idx})">apply</a>`);
+}
+
+// Refresh just one row's hint (title/salary change) without touching inputs.
+function _lciRefreshBenchHint(idx) {
+  const el = document.getElementById(`lci-bench-${idx}`);
+  if (el) el.innerHTML = _lciBenchHintHtml(_lciCoeRows()[idx], idx);
+}
+
+function lciApplyBenchmark(idx) {
+  const m = _lciEd.model;
+  const r = _lciCoeRows()[idx];
+  const b = lciBenchmark(_lciEd.bench, r.Title, m.Location, m.LocalCurrency, [m.id]);
+  if (!b) return;
+  r.AnnualSalary = b.median;
+  _lciMarkRowsDirty();
+  // update the visible salary input + derived cells + hint
+  const row = document.querySelector(`tr[data-row-idx="${idx}"]`);
+  const inp = row && row.querySelectorAll('input')[2]; // Title, Level, Salary
+  if (inp) inp.value = b.median;
+  _lciRefreshDerived(idx);
+  _lciRefreshBenchHint(idx);
 }
 
 // ── Grid change handlers ─────────────────────────────────────────────
@@ -314,6 +365,7 @@ function lciCoeFieldChanged(idx, field, value) {
   }
   _lciMarkRowsDirty();
   _lciRefreshDerived(idx);
+  if (field === 'Title' || field === 'AnnualSalary') _lciRefreshBenchHint(idx);
 }
 
 // Refresh derived cells (row totals + footer) without a full re-render,

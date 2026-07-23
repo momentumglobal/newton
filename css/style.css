@@ -1940,9 +1940,12 @@ body {
 
 /* ── LCI Lead Magnet ──────────────────────────────────────────────── */
 .lm-scroll { overflow-x: auto; }
-.lm-grid th, .lm-grid td { white-space: nowrap; padding: 6px 8px; }
-.lm-scol { text-align: right; min-width: 92px; }
-.lm-grid td.lm-scol { text-align: right; }
+.lm-grid { font-size: 13px; }
+.lm-grid th, .lm-grid td { padding: 6px 6px; text-align: center; }        /* centre all columns */
+.lm-grid th { white-space: normal; vertical-align: bottom; }              /* 2-word discipline headers wrap to 2 lines */
+.lm-grid td { white-space: nowrap; }
+.lm-grid th:first-child, .lm-grid td:first-child { text-align: left; white-space: nowrap; }  /* Location stays left */
+.lm-scol { min-width: 64px; }
 .lm-chk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 12px; }
 .lm-chk { font-size: 13px; display: flex; align-items: center; gap: 6px; }
 

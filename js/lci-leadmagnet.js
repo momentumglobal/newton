@@ -124,7 +124,7 @@ function _lmLocationModal() {
   const salFields = D.map(d => `
     <div class="form-group" style="margin:0">
       <label style="font-size:12px">${d.label}</label>
-      <input type="number" class="form-control" name="${d.col}" min="0" step="1000">
+      <input type="number" class="form-control" name="${d.col}" min="0" step="1">
     </div>`).join('');
   return `
     <div id="lm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">

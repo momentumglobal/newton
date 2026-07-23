@@ -45,6 +45,13 @@ const CONFIG = {
     "Czech Republic":  "CZK",
     "Colombia":        "COP",
     "Argentina":       "ARS",
+    "Peru":            "PEN",
+    "Costa Rica":      "CRC",
+    "Denmark":         "DKK",
+    "Serbia":          "RSD",
+    "Estonia":         "EUR",
+    "Sweden":          "SEK",
+    "Belgium":         "EUR",
   },
 
   ANALYTICS_BENCHMARKS: {

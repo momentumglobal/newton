@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales — User Guide</title>
+  <link rel="icon" type="image/png" href="momentum-symbol.png">
+  <style>
+    @font-face { font-family: 'Polymath'; src: url('polymath-regular.ttf') format('truetype'); font-weight: 400; }
+    @font-face { font-family: 'Polymath'; src: url('polymath-semibold.ttf') format('truetype'); font-weight: 600; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; background: #F5F4F1; color: #1a1a2e; font-size: 15px; line-height: 1.6; }
+    .guide-header { background: #0A0B44; color: white; padding: 28px 48px; display: flex; align-items: center; justify-content: space-between; }
+    .guide-header-left h1 { font-size: 22px; font-weight: 600; }
+    .guide-header-left p { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+    .guide-header img { height: 36px; width: auto; }
+    .guide-body { display: flex; max-width: 1100px; margin: 0 auto; padding: 40px 24px; gap: 40px; }
+    .guide-nav { width: 210px; min-width: 210px; position: sticky; top: 24px; align-self: flex-start; }
+    .guide-nav ul { list-style: none; padding: 0; }
+    .guide-nav li a { display: block; padding: 7px 12px; color: #0A0B44; text-decoration: none; font-size: 13px; border-radius: 4px; transition: background 0.15s; }
+    .guide-nav li a:hover { background: #e8e7e3; }
+    .guide-nav .nav-section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; padding: 12px 12px 4px; }
+    .guide-content { flex: 1; min-width: 0; }
+    .guide-section { background: white; border-radius: 6px; border: 1px solid #ddd; padding: 28px 32px; margin-bottom: 24px; scroll-margin-top: 24px; }
+    .guide-section h2 { font-size: 18px; font-weight: 600; color: #0A0B44; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #EBF2FA; }
+    .guide-section h3 { font-size: 14px; font-weight: 600; color: #0A0B44; margin: 20px 0 8px; }
+    .guide-section p { color: #333; margin-bottom: 12px; }
+    .guide-section p:last-child { margin-bottom: 0; }
+    .guide-section ul { margin: 0 0 12px 20px; color: #333; }
+    .guide-section li { margin-bottom: 6px; }
+    .faq-item { border-bottom: 1px solid #eee; padding: 14px 0; }
+    .faq-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .faq-q { font-weight: 600; color: #0A0B44; margin-bottom: 6px; font-size: 14px; }
+    .faq-a { color: #444; font-size: 14px; }
+    .role-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .role-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #EBF2FA; color: #0A0B44; }
+    .role-badge.admin      { background: #0A0B44; color: white; }
+    .role-badge.leadership { background: #fff3e0; color: #e65100; }
+    .tip { background: #EBF2FA; border-left: 3px solid #0A0B44; border-radius: 0 4px 4px 0; padding: 10px 14px; font-size: 13px; color: #333; margin: 12px 0; }
+    .status-key { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+    .status-key-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #333; }
+    .status-pill { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .status-pill.draft     { background: #ECEFF1; color: #546E7A; }
+    .status-pill.presented { background: #E3F2FD; color: #1565C0; }
+    .status-pill.won       { background: #E8F5E9; color: #2E7D32; }
+    .status-pill.lost      { background: #FBE9E7; color: #C62828; }
+    .guide-footer { text-align: center; padding: 32px; font-size: 12px; color: #888; }
+    code { background: #EBF2FA; padding: 1px 5px; border-radius: 3px; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="guide-header">
+  <div class="guide-header-left">
+    <h1>Newton — Sales User Guide</h1>
+    <p>Momentum Global</p>
+  </div>
+  <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
+</div>
+<div class="guide-body">
+  <nav class="guide-nav">
+    <ul>
+      <li><a href="sales.html">← Back to Sales</a></li>
+      <li><div style="height:8px;"></div></li>
+      <li><div class="nav-section-label">Getting Started</div></li>
+      <li><a href="#faq">FAQ</a></li>
+      <li><a href="#roles">User Roles</a></li>
+      <li><a href="#export">Exporting to PDF</a></li>
+      <li><div class="nav-section-label">Pages</div></li>
+      <li><a href="#revenue-tracking">Revenue Tracking</a></li>
+      <li><a href="#sales-forecast">Sales Forecast</a></li>
+      <li><div class="nav-section-label">LCI Cost Models</div></li>
+      <li><a href="#lci-overview">Overview</a></li>
+      <li><a href="#lci-create">Creating a Model</a></li>
+      <li><a href="#lci-settings">Settings &amp; Currencies</a></li>
+      <li><a href="#lci-roadmap">Hiring Roadmap</a></li>
+      <li><a href="#lci-costs">Cost Sections</a></li>
+      <li><a href="#lci-output">Cost Model &amp; Chart</a></li>
+      <li><a href="#lci-benchmarks">Salary Benchmarks</a></li>
+      <li><a href="#lci-compare">Comparing Models</a></li>
+      <li><a href="#lci-reports">Summary &amp; Reports</a></li>
+      <li><a href="#lci-linkage">Linking to a Hiring Plan</a></li>
+    </ul>
+  </nav>
+  <div class="guide-content">
+
+    <div class="guide-section" id="faq">
+      <h2>Frequently Asked Questions</h2>
+      <div class="faq-item">
+        <div class="faq-q">Who can access the Sales module?</div>
+        <div class="faq-a">Admin and Leadership have full access to all Sales pages. Delivery Managers can access the module but are limited to the <strong>LCI Cost Models</strong> page — they land there automatically on sign-in and see only the models assigned to them. Talent Partners do not have access.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What is an LCI Cost Model?</div>
+        <div class="faq-a">Location &amp; Cost Intelligence (LCI) models are the recruitment ramp &amp; cost models we build on location-research engagements — a client wants to build or transition a team into a new location, and we model the salary spend, recruitment fees, and any crossover costs over time. The LCI Cost Models page replaces the Excel version we used to build by hand.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Why does a model have two currencies?</div>
+        <div class="faq-a">Salaries are scoped in the local currency of the new location (e.g. Romanian Leu), but the client usually wants the model presented in their own currency (e.g. Euro). Each model has a <strong>Local currency</strong> for the CoE-side inputs and a <strong>Display currency</strong> for everything the client sees; a manual FX rate converts between them. If both are the same, the FX rate is ignored.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Are the salary figures annual or monthly?</div>
+        <div class="faq-a">Salaries are entered as <strong>annual</strong> amounts. Newton splits them into a monthly cost automatically, adding employer burden, any bonus %, and a 13th/14th-month gross-up if the market uses one.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">When does a hire start costing money?</div>
+        <div class="faq-a">A hire placed in a given month starts hitting payroll after the notice period set in the model's settings. For example, a hire in M2 with a one-month notice period starts costing from M3. Starts are assumed to be on the 1st of the month.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">If I save a report and a model changes later, does the report update?</div>
+        <div class="faq-a">Yes. A saved report stores which models it contains plus your observations text — not the numbers. When you re-open it, the figures are recalculated from the current model data. The PDF you exported at the time stays as the fixed record of what was presented.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">How often does the data update?</div>
+        <div class="faq-a">Newton reads directly from SharePoint Lists via the Microsoft Graph API. Data updates in real time — refreshing the page reflects the latest entries.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Who do I contact if something isn't working?</div>
+        <div class="faq-a">Raise it with your Newton Admin. For access issues (including which models are assigned to you), they can update the model's Assigned DM directly.</div>
+      </div>
+    </div>
+
+    <div class="guide-section" id="roles">
+      <h2>User Roles</h2>
+      <p>The Sales module is accessible to three roles, with different reach.</p>
+      <h3><span class="role-badge admin">Admin</span></h3>
+      <p>Full access to every Sales page — Revenue Tracking, Sales Forecast, and LCI Cost Models. Can create, edit, copy and delete any model, assign models to Delivery Managers, and delete saved reports.</p>
+      <h3><span class="role-badge leadership">Leadership</span></h3>
+      <p>Full access to all Sales pages and all LCI models and reports. Can create and edit models and reports, but cannot delete models (Admin only).</p>
+      <h3><span class="role-badge" style="background:#e8f4fd;color:#0A0B44;">Delivery Manager</span></h3>
+      <p>Access to the <strong>LCI Cost Models</strong> page only — Delivery Managers land there directly on opening the Sales module. They see and edit only the models assigned to them (matched on their email), and only their own saved reports. Revenue Tracking and Sales Forecast are not visible to this role.</p>
+    </div>
+
+    <div class="guide-section" id="export">
+      <h2>Exporting to PDF</h2>
+      <p>Model summaries and reports are saved as PDFs through your browser's print dialog. Click <strong>Print / PDF</strong> to open it, then configure as follows before saving:</p>
+      <h3>Destination</h3>
+      <p>Set to <strong>Save as PDF</strong>.</p>
+      <h3>Layout &amp; Options</h3>
+      <p>Use <strong>Landscape</strong> layout, untick <strong>Headers and footers</strong>, and tick <strong>Background graphics</strong> — background graphics must be on for the navy cover pages, table shading and charts to print correctly.</p>
+      <div class="tip">These settings are not saved by the browser between sessions — set them each time you export. For the best result use Chrome or Edge; the branded cover/divider pages use print features that are most reliable in Chromium browsers.</div>
+    </div>
+
+    <div class="guide-section" id="revenue-tracking">
+      <h2>Revenue Tracking</h2>
+      <p>The default landing page for Admin and Leadership. A line graph of estimated monthly revenue across the year, with green / amber / red threshold bands behind the line so you can see at a glance which months are healthy.</p>
+      <h3>Estimated vs Forecast</h3>
+      <p>The solid line is <strong>estimated</strong> revenue, derived from live assignment data (each assignment's monthly bill rate, pro-rated by how many days fall in each month). The dashed orange line is <strong>estimated + forecast</strong>, forking at the current month and using the pipeline's forecast headcount and revenue-per-head.</p>
+      <h3>Year selector</h3>
+      <p>The year dropdown lists only the years your assignment data spans. Switching year redraws both lines and the threshold bands.</p>
+    </div>
+
+    <div class="guide-section" id="sales-forecast">
+      <h2>Sales Forecast</h2>
+      <p>A simple pipeline table of forecast engagements — customer/project, start and end dates, forecast headcount, an optional monthly revenue-per-head figure, and notes. Use <strong>+ Add Forecast</strong> to add a row, or Edit / Delete on an existing one.</p>
+      <p>Forecast rows feed two places elsewhere in Newton: the dashed forecast line on Revenue Tracking, and the Command Centre's Revenue and Utilisation tiles.</p>
+    </div>
+
+    <div class="guide-section" id="lci-overview">
+      <h2>LCI Cost Models — Overview</h2>
+      <p>The LCI Cost Models page is the home for Location &amp; Cost Intelligence models. It opens on a list of your models with quick filters for <strong>Client</strong> and <strong>Location</strong>, and actions to create, open, edit, copy, compare, report on, and (for Admin) delete them.</p>
+      <h3>Model status</h3>
+      <p>Every model carries a status, shown as a coloured pill:</p>
+      <div class="status-key">
+        <div class="status-key-item"><span class="status-pill draft">Draft</span> Work in progress.</div>
+        <div class="status-key-item"><span class="status-pill presented">Presented</span> Shared with the client.</div>
+        <div class="status-key-item"><span class="status-pill won">Won</span> Engagement confirmed — a Won model can be linked to a delivery project (see Linking to a Hiring Plan).</div>
+        <div class="status-key-item"><span class="status-pill lost">Lost</span> Not proceeding.</div>
+      </div>
+      <h3>Row actions</h3>
+      <ul>
+        <li><strong>Open</strong> — open the model editor.</li>
+        <li><strong>Edit</strong> — quick-edit the header details (name, client, location, currencies, start month, horizon, assigned DM) without opening the full editor.</li>
+        <li><strong>Copy</strong> — duplicate a model (all rows and milestones), reset to Draft. Ideal for building a v2 or a second location from an existing model.</li>
+        <li><strong>Link / Plan ✓</strong> — (Won models only) link to a CoE delivery project.</li>
+        <li><strong>Delete</strong> — Admin only; removes the model and all its rows.</li>
+      </ul>
+    </div>
+
+    <div class="guide-section" id="lci-create">
+      <h2>Creating a Model</h2>
+      <p>Click <strong>+ New Model</strong> and complete the dialog: model name, client name, CoE location, the local and display currencies (with an FX rate if they differ), the start month (this becomes M1), and the horizon in months. Leadership and Admin can also assign the model to a Delivery Manager here.</p>
+      <div class="tip">A Delivery Manager who creates a model is automatically assigned to it, so it appears in their list straight away.</div>
+      <p>The model is created as a Draft. Click <strong>Open</strong> to start building it in the editor.</p>
+    </div>
+
+    <div class="guide-section" id="lci-settings">
+      <h2>Settings &amp; Currencies</h2>
+      <p>The settings bar at the top of the editor holds every assumption behind the model. Changing a setting and clicking <strong>Save Settings</strong> instantly recalculates the whole model.</p>
+      <h3>Currencies</h3>
+      <p>The <strong>Local currency</strong> applies to the CoE-side inputs (role salaries and office cost per head). The <strong>Display currency</strong> applies to the customer-side inputs (legacy team, retention/relocation, project fees) and to every output — tables, charts, KPIs and the exported report. When the two differ, enter an <strong>FX rate</strong> (local → display); it is hidden when they match.</p>
+      <div class="tip">EoR fee and Travel are the two exceptions to the "CoE side = local currency" rule — they are entered in the Display currency, because they are typically billed to the client in their own currency.</div>
+      <h3>Cost assumptions</h3>
+      <ul>
+        <li><strong>Employer burden %</strong> — added on top of salary + bonus for every CoE and legacy role.</li>
+        <li><strong>Salary months</strong> — 12, 13 or 14, to gross up salaries in markets with a 13th/14th-month convention (e.g. Spain, Portugal).</li>
+        <li><strong>Notice period (months)</strong> — delays the point at which a hire starts costing money (a hire in M2 with a 1-month notice starts on payroll in M3).</li>
+        <li><strong>Office / EoR / Travel per head</strong> — monthly per-head running costs.</li>
+      </ul>
+      <h3>Section toggles</h3>
+      <p>Not every engagement needs every cost section. The toggles let you switch off Legacy Team, Retention &amp; Relocation, or Project Fees for a given model, and they disappear from the editor and the output.</p>
+    </div>
+
+    <div class="guide-section" id="lci-roadmap">
+      <h2>Hiring Roadmap</h2>
+      <p>The roadmap is where you plan the CoE hires month by month. Each row is a role (grouped by team); enter the annual salary, bonus %, and the number of hires in each month. The <strong>Hires</strong> and <strong>Cost/mo</strong> columns update live, along with the Hires-per-month and Cumulative-hires totals at the foot.</p>
+      <div class="tip">Repeat hires are easy — a single "Software Engineer" row can carry, say, 3 hires in one month and 2 in another. You don't need one row per person.</div>
+      <h3>Project milestones</h3>
+      <p>Milestones (e.g. Project Signoff, Offers Made, Employees Start) sit as their own rows at the top of the roadmap, with a bar spanning the months they cover — aligned to the same month columns as the hires, so the plan reads like the Excel version. Use <strong>+ Add Milestone</strong> to add one.</p>
+      <p>Salaries here are shown in the model's local currency. Click <strong>Save Roadmap</strong> to save both the hires and milestones.</p>
+    </div>
+
+    <div class="guide-section" id="lci-costs">
+      <h2>Cost Sections</h2>
+      <p>Below the roadmap are the remaining cost inputs, all entered in the model's display currency:</p>
+      <h3>Legacy Team</h3>
+      <p>The existing team being replaced during a transition. Enter each role with its annual salary, quantity, and an <strong>exit month</strong> — the cost runs from M1 up to and including the exit month, then stops. A warning marker (⚠) appears if no exit month is set (the cost would otherwise run to the end of the horizon).</p>
+      <h3>Retention &amp; Relocation</h3>
+      <p>One-off amounts (retention packages, relocation costs) entered in the specific month(s) they land.</p>
+      <h3>Project Fees</h3>
+      <p>Momentum's own fees — build team, licences, office sourcing and so on — entered as monthly amounts. Each fee line is itemised in the cost output with a subtotal.</p>
+    </div>
+
+    <div class="guide-section" id="lci-output">
+      <h2>Cost Model &amp; Chart</h2>
+      <p>At the bottom of the editor, a read-only <strong>Cost Model</strong> table mirrors the classic spreadsheet layout: per-team employee cost, CoE operating costs (EoR, office, travel), legacy costs, one-offs, project fees, total monthly spend and cumulative spend — all in the display currency, all recalculating live as you edit above.</p>
+      <p>Below the table, a <strong>Cumulative Spend</strong> chart plots the running total across the horizon.</p>
+      <div class="tip">Headcount rows show the number of people <em>on payroll</em> in each month, which lags the recruitment plan by the notice period. The roadmap's "hires per month" is recruitment-based; the cost model's headcount is payroll-based.</div>
+    </div>
+
+    <div class="guide-section" id="lci-benchmarks">
+      <h2>Salary Benchmarks</h2>
+      <p>As you type a role title in the roadmap, Newton may show a small hint under the salary box, e.g. <em>Benchmark: 34,000 (n=5)</em>. This is the median salary for that exact role title in the same location and local currency, drawn from all your other models. Click <strong>apply</strong> to drop the median into the salary cell.</p>
+      <p>The benchmark uses every prior model equally, and grows more useful as the library of models builds up. If there's no match for the title/location/currency, no hint appears.</p>
+      <div class="tip">Consistent naming helps — "Senior Software Engineer" and "Snr Software Engineer" are treated as different titles, and locations must match too. Keeping titles and location names consistent across models makes the benchmarks far more valuable.</div>
+    </div>
+
+    <div class="guide-section" id="lci-compare">
+      <h2>Comparing Models</h2>
+      <p>To compare locations or versions, tick two or more models on the list page (they must share the same display currency) and click <strong>Compare</strong>. The comparison shows a side-by-side KPI table — total spend, steady-state monthly and annual cost, cost per head, total hires, time to full ramp, and peak crossover spend — with a delta column when exactly two models are selected. A single cumulative-spend chart overlays all the selected models.</p>
+      <div class="tip"><strong>Peak crossover spend</strong> is the highest combined monthly cost during the transition — the worst month of paying both the new CoE team and the legacy team at once. A useful figure when discussing transition budgets with a client.</div>
+    </div>
+
+    <div class="guide-section" id="lci-reports">
+      <h2>Summary &amp; Reports</h2>
+      <h3>Single-model summary</h3>
+      <p>From inside the editor, <strong>Summary / Print</strong> opens a clean, read-only view of one model — hiring plan with milestones, cost model, cumulative spend chart, and an assumptions page — ready to print or save as a PDF for the client.</p>
+      <h3>Full report export</h3>
+      <p>From the model list, tick one or more models and click <strong>Export Report</strong>. Newton assembles a branded, multi-page document: a navy cover page, a section per model, a Location Comparison section (when two or more models share a currency), and a final <strong>Observations and Recommendations</strong> page with a rich-text editor for your narrative. Then <strong>Print / PDF</strong> to produce the client deliverable.</p>
+      <h3>Saving a report</h3>
+      <p>Click <strong>Save Report</strong> to keep a report for later. Saved reports appear in the <strong>Saved Reports</strong> table on the list page. A saved report stores its title, the models it contains, and your observations text — the figures are always recomputed live when you re-open it, so a saved report never goes stale. Use <strong>Edit selection</strong> from within a report to add or remove models and re-save.</p>
+      <div class="tip">Admin and Leadership see all saved reports; Delivery Managers see only the ones they created. Deleting a report never affects the underlying models.</div>
+    </div>
+
+    <div class="guide-section" id="lci-linkage">
+      <h2>Linking to a Hiring Plan</h2>
+      <p>Once an engagement is <strong>Won</strong>, the model can hand over to delivery. Click <strong>Link</strong> on a Won model, choose the CoE project, and either just save the link or <strong>Save &amp; Generate Plan</strong>.</p>
+      <p>Generating creates one row in the project's CoE Hiring Plan (in the Reporting module) for every hire in the roadmap, with each row's open date worked backwards from its hire month so recruitment lands in the right month. Talent Partners are left blank for the Delivery Manager to assign.</p>
+      <div class="tip">This is a one-time hand-off: after generating, the Hiring Plan is the live delivery record and further edits to the model don't change it. If the project already has plan rows, Newton asks before adding more. Phase lengths use the Hiring Plan's own defaults, not the model's notice period.</div>
+    </div>
+
+  </div>
+</div>
+<div class="guide-footer">Newton — Momentum Global · Sales User Guide</div>
+</body>
+</html>

@@ -370,7 +370,7 @@
         <div class="card accent-amber">
           <div class="card-title">Sales</div>
           <div class="card-file">sales.html</div>
-          <div class="card-desc">Sales pipeline tracking. Revenue Tracking (estimated + forecast monthly revenue chart, default landing page) and Sales Forecast pipeline management for the commercial team.</div>
+          <div class="card-desc">Sales pipeline &amp; commercial tooling. Revenue Tracking (estimated + forecast monthly revenue chart, default landing) and Sales Forecast pipeline management (Admin/Leadership), plus <strong>LCI Cost Models</strong> — Location &amp; Cost Intelligence recruitment ramp &amp; cost models with compare, branded PDF report export, Hiring Plan linkage and salary benchmarks (Admin/Leadership + Delivery Managers, scoped to their models).</div>
         </div>
         <div class="card accent-purple">
           <div class="card-title">MG Command Centre</div>
@@ -423,7 +423,7 @@
         <tr><th>Role</th><th>Source</th><th>Description</th></tr>
         <tr><td><span class="badge badge-admin">admin</span></td><td>Hardcoded in CONFIG.ADMIN_USERS</td><td>Full access to all modules, pages, and admin interfaces. Never overridden by SharePoint.</td></tr>
         <tr><td><span class="badge badge-leadership">leadership</span></td><td>LeadershipAccess list</td><td>Read-only access to Company Dashboard (Reporting), People module, Sales module, and MG Command Centre.</td></tr>
-        <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module and Market Analytics. Limited access to People module — Scorecards page only.</td></tr>
+        <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module and Market Analytics. Limited access to People module — Scorecards page only — and to the Sales module — LCI Cost Models only (scoped to models assigned to them).</td></tr>
         <tr><td><span class="badge badge-tp">talent_partner</span></td><td>UserAssignments list</td><td>Access to assigned project in Reporting module. Scoped to own activity and roles.</td></tr>
         <tr><td><span class="badge badge-viewer">viewer</span></td><td>Fallback</td><td>Read-only, no meaningful access. Auto-registered on first login.</td></tr>
       </table>
@@ -446,10 +446,12 @@
         <tr><td>People module (Scorecards only)</td><td>—</td><td>—</td><td>✓</td><td>—</td><td>—</td></tr>
         <tr><td>Engagement (survey builder + results)</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Engagement (survey respondent widget)</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-        <tr><td>Sales module</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Sales — Revenue Tracking &amp; Sales Forecast</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Sales — LCI Cost Models</td><td>✓</td><td>✓</td><td>✓*</td><td>—</td><td>—</td></tr>
         <tr><td>MG Command Centre</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Newton OS Admin</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
       </table>
+      <p style="font-size:13px;color:#555">* Delivery Managers see only LCI Cost Models assigned to them (matched on the model's Assigned DM email); Revenue Tracking and Sales Forecast stay Admin/Leadership.</p>
 
       <h3>Role resolution order</h3>
       <div class="flow">
@@ -744,6 +746,10 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <h3>Sales module lists</h3>
       <table>
         <tr><th>List</th><th>Title alias</th><th>Key fields</th></tr>
+        <tr><td><strong>LCIModels</strong></td><td>(Model name)</td><td>ClientName, ProjectID (optional — links a Won model to a CoE project), Location, LocalCurrency (CoE side: salaries, office), DisplayCurrency (customer side: legacy/one-offs/fees; all outputs), FXRateLocalToDisplay, StartMonth (<code>YYYY-MM</code> <strong>text</strong>, never a date — avoids BST month-shift), HorizonMonths, Status (Draft/Presented/Won/Lost), AssignedDMEmail (DM visibility scoping), EmployerBurdenPct, SalaryMonths (12/13/14), NoticeMonths, OfficeCostPerHead, EoRFeePerHead, TravelPerMonth, SectionsEnabled (JSON), Assumptions</td></tr>
+        <tr><td><strong>LCIModelRows</strong></td><td>(Role / line label)</td><td>ModelID (lookup → LCIModels), RowType (<code>coe</code> / <code>legacy</code> / <code>oneoff</code> / <code>fee</code>), Team, CareerLevel, AnnualSalary, BonusPct, Quantity, ExitMonth (legacy), MonthValues (JSON per-month array), SortOrder</td></tr>
+        <tr><td><strong>LCIMilestones</strong></td><td>(Milestone label)</td><td>ModelID (lookup → LCIModels), StartMonth / EndMonth (month index), SortOrder. Rendered as marker bars inside the roadmap grid.</td></tr>
+        <tr><td><strong>LCIReports</strong></td><td>(Report title)</td><td>ModelIDs (JSON array of LCIModels ids), Observations (rich-text HTML), CreatedByEmail. Saved report = <em>definition only</em>; numbers live-recompute from current model data on re-open. Multiline columns are <strong>plain text</strong>, not enhanced rich text.</td></tr>
         <tr><td><strong>SalesForecasts</strong></td><td>(Customer / Project name)</td><td>ForecastStartDate (date), ForecastEndDate (date), ForecastedHeadcount, <code>ForecastMonthlyRevenuePerHead</code> (number, £ — added June 2026), Notes. Used by Command Centre Utilisation RAG (13-week forward headcount forecast) and by the Revenue Tracking chart / Revenue tile (monthly forecast revenue = ForecastedHeadcount × ForecastMonthlyRevenuePerHead, pro-rated by day-overlap).</td></tr>
       </table>
       <div class="callout"><strong>Assignments — revenue:</strong> the Revenue Tracking chart and CC Revenue tile derive estimated monthly revenue from the <strong>Assignments</strong> list (People module), pro-rating <code>MonthlyBillRate</code> by day-overlap across each month. All assignments count (former, current, planned) — the Billed flag is ignored. Empty MonthlyBillRate (or empty ForecastMonthlyRevenuePerHead) contributes £0.</div>
@@ -967,6 +973,21 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
       <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">July 2026</div>
+        <div class="changelog-title">LCI Cost Models — Location &amp; Cost Intelligence (Sales module)</div>
+        <ul>
+          <li><strong>New Sales page: LCI Cost Models</strong> — a native replacement for the Excel recruitment ramp &amp; cost model used on LCI location-research engagements. New files <code>js/lci-model.js</code> (pure calc), <code>lci-pages.js</code> (list), <code>lci-editor.js</code> (settings + roadmap), <code>lci-sections.js</code> (legacy/one-offs/fees + live output), <code>lci-summary.js</code> (milestones + summary + compare), <code>lci-report.js</code> (multi-model report), <code>lci-link.js</code> (Hiring Plan bridge). Loaded by <code>sales.html</code>.</li>
+          <li><strong>Two-currency model</strong> — CoE-side inputs (salaries, office) in a Local currency; customer-side inputs (legacy, one-offs, fees) and all outputs in a Display currency; a manual FX rate converts the CoE side. Costs include employer burden, 13th/14th-month salary gross-up, and a notice-period shift (a hire in month N reaches payroll in N + notice).</li>
+          <li><strong>Editor</strong> — hiring roadmap grid with project milestones (rows inside the grid), CoE / legacy / one-off / fee sections (toggleable), and a live cost-model table + cumulative-spend SVG that recompute on every edit. Diff-only saves.</li>
+          <li><strong>Compare &amp; report</strong> — N same-currency models side by side (KPI table + multi-line chart); one-or-more models assembled into a branded multi-page PDF (navy cover with the Momentum swirl, per-model sections, Location Comparison, rich-text Observations &amp; Recommendations). Reports save as a definition to <code>LCIReports</code> and live-recompute on re-open.</li>
+          <li><strong>Hiring Plan linkage</strong> — a Won model links to a CoE project and generates one <code>CoEPlanRows</code> row per hire, with Open Dates derived backwards from each hire month (recruitment weeks); bridges sales to delivery. One-time generate; plan is the delivery source of truth afterwards.</li>
+          <li><strong>Salary benchmarks</strong> — typing a role title surfaces an inline median-salary hint for that exact title in the same location + local currency, drawn equally from all prior models (the library is the accumulated <code>LCIModelRows</code> data — no separate store).</li>
+          <li><strong>Data model:</strong> new lists <code>LCIModels</code>, <code>LCIModelRows</code>, <code>LCIMilestones</code>, <code>LCIReports</code> — all empty objects in FIELD_ALIASES. StartMonth is a <code>YYYY-MM</code> text column (never a date). Multiline JSON/HTML columns are plain text.</li>
+          <li><strong>Access:</strong> Sales module opened to Delivery Managers, scoped to the LCI Cost Models page and to models where <code>AssignedDMEmail</code> matches; Revenue Tracking / Sales Forecast remain Admin/Leadership.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">July 2026</div>

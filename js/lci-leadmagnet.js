@@ -84,7 +84,7 @@ function _lmLibraryHtml() {
     ? _lmLocations.map(l => `
         <tr>
           <td><strong>${l.Title || '—'}</strong></td>
-          <td>${l.EmployerBurdenPct != null ? (Math.round(l.EmployerBurdenPct * 1000) / 10) + '%' : '—'}</td>
+          <td>${l.EmployerBurdenPct != null ? (Math.round(l.EmployerBurdenPct * 100000) / 1000) + '%' : '—'}</td>
           <td>${l.FXRateToGBP ?? '—'}</td>
           ${D.map(d => `<td class="lm-scol">${l[d.col] != null ? Number(l[d.col]).toLocaleString() : '—'}</td>`).join('')}
           <td>
@@ -154,7 +154,7 @@ function openLMLocation(id = null) {
     const l = (_lmLocations || []).find(x => String(x.id) === String(id));
     if (l) {
       form.elements['Title'].value = l.Title || '';
-      form.elements['EmployerBurdenPct'].value = l.EmployerBurdenPct != null ? Math.round(l.EmployerBurdenPct * 1000) / 10 : '';
+      form.elements['EmployerBurdenPct'].value = l.EmployerBurdenPct != null ? Math.round(l.EmployerBurdenPct * 100000) / 1000 : '';
       form.elements['FXRateToGBP'].value = l.FXRateToGBP ?? '';
       CONFIG.LCI_DISCIPLINES.forEach(d => { if (form.elements[d.col]) form.elements[d.col].value = l[d.col] ?? ''; });
     }

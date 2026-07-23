@@ -134,7 +134,6 @@ const CONFIG = {
       fees:    'Project Fees',
     },
   },
-};
 
 // ── LCI Lead Magnet ───────────────────────────────────────────────
   // Disciplines for the Lead Magnet location comparator. key = internal id,
@@ -152,6 +151,7 @@ const CONFIG = {
     { key: 'hr',                  label: 'HR',                   col: 'Sal_HR' },
     { key: 'legal',               label: 'Legal',                col: 'Sal_Legal' },
   ],
+};
 
 // Synchronous role check — only resolves admin (from config) or viewer
 // Used for immediate UI gating (show/hide buttons)

@@ -330,7 +330,7 @@ function _lmReportHtml(computed, current) {
     <div id="lm-report" class="lm-report">
       <div class="lm-report-band">
         <div>
-          <div class="lm-report-title">Location &amp; Cost Intelligence — Report Lite</div>
+          <div class="lm-report-title">Location &amp; Cost Intelligence — Country Comparison</div>
           <div class="lm-report-sub">Current location: ${current.Title}${preparedFor ? ' · Prepared for ' + preparedFor : ''} · ${date}</div>
         </div>
         <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="lm-report-logo">

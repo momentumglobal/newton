@@ -7,6 +7,12 @@
 let _lmLocations = null; // cache of LCILocations
 let _lmSel = { current: '', scoped: [], disciplines: [], preparedFor: '', watchouts: '' };
 
+// Methodology / disclaimer shown on every generated report. Edit here.
+const LM_METHODOLOGY = {
+  heading: 'Methodology & important notes',
+  body: 'These figures are indicative only — intended to illustrate the relative cost of employment between locations and support nearshoring or insourcing decision-making, not to set budgets or salary bands. Cost models aligned to your existing pay philosophy and career levelling are delivered as part of a full LCI project. Estimates are based on 75th-percentile gross annual basic salaries (excluding bonus and commission) in local currency, taken from credible market sources, using a consistent role scope assessed across every location to keep the comparison like-for-like. Cost deltas are based on fully loaded employment costs.',
+};
+
 // ── Pure calc ────────────────────────────────────────────────────────
 // GBP cost of employment for a location/discipline, or null if no salary.
 // cost = annualSalary × (1 + burden) × fxToGBP  (all normalised to GBP).
@@ -304,7 +310,7 @@ function _lmReportHtml(computed, current) {
     <div id="lm-report" class="lm-report">
       <div class="lm-report-band">
         <div>
-          <div class="lm-report-title">Location &amp; Cost Intelligence — Report Lite</div>
+          <div class="lm-report-title">Location &amp; Momentum Global - Cost Intelligence Insights</div>
           <div class="lm-report-sub">Current location: ${current.Title}${preparedFor ? ' · Prepared for ' + preparedFor : ''} · ${date}</div>
         </div>
         <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="lm-report-logo">
@@ -312,7 +318,10 @@ function _lmReportHtml(computed, current) {
       <div class="lm-report-body">
         ${locBlocks}
         ${(_lmSel.watchouts || '').trim() ? `<div class="lm-watchouts"><h4>Watchouts</h4><p>${(_lmSel.watchouts).trim().replace(/</g,'&lt;')}</p></div>` : ''}
-        <p class="lm-foot">All figures converted to GBP for comparison and include employer on-costs. Estimates for discussion only.</p>
+        <div class="lm-method">
+          <h4>${LM_METHODOLOGY.heading}</h4>
+          <p>${LM_METHODOLOGY.body}</p>
+        </div>
       </div>
     </div>`;
 }

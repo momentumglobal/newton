@@ -1937,3 +1937,45 @@ body {
   background: #fff; border-radius: 8px; padding: 28px;
   width: 460px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,0.18);
 }
+
+/* ── LCI Lead Magnet ──────────────────────────────────────────────── */
+.lm-scroll { overflow-x: auto; }
+.lm-grid th, .lm-grid td { white-space: nowrap; padding: 6px 8px; }
+.lm-scol { text-align: right; min-width: 92px; }
+.lm-grid td.lm-scol { text-align: right; }
+.lm-chk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 12px; }
+.lm-chk { font-size: 13px; display: flex; align-items: center; gap: 6px; }
+
+/* Report (preview + print) */
+.lm-report { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+.lm-report-band { background: #0A0B44; color: #fff; padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; }
+.lm-report-title { font-size: 18px; font-weight: 600; }
+.lm-report-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 4px; }
+.lm-report-logo { height: 30px; }
+.lm-report-body { padding: 24px 28px; }
+.lm-loc-block { margin-bottom: 22px; }
+.lm-loc-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.lm-loc-name { font-size: 15px; font-weight: 600; color: #1B3A5C; }
+.lm-overall { font-size: 16px; font-weight: 700; }
+.lm-report-table td, .lm-report-table th { text-align: right; }
+.lm-report-table td:first-child, .lm-report-table th:first-child { text-align: left; }
+.lm-missing { font-size: 12px; color: #888; margin-top: 4px; }
+.lm-watchouts { margin-top: 18px; }
+.lm-watchouts h4 { color: #1B3A5C; margin-bottom: 6px; }
+.lm-watchouts p { white-space: pre-wrap; font-size: 13px; }
+.lm-foot { font-size: 11px; color: #888; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
+
+@media print {
+  body.lci-summary-mode #print-header { display: none !important; }
+  body.lci-summary-mode #sidebar,
+  body.lci-summary-mode .page-header,
+  body.lci-summary-mode #lm-modal { display: none !important; }
+  /* Print only the report block: hide the library + builder cards */
+  body.lci-summary-mode #main-content > div:not(#lm-preview) { display: none !important; }
+  body.lci-summary-mode #main-content > #lm-preview { margin: 0 !important; }
+  .lm-report { border: none; border-radius: 0; }
+  .lm-report-band, .lm-loc-head .lm-overall, .lm-report-table td, .lm-report-table th {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  @page { size: A4 portrait; }
+}

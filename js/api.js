@@ -590,6 +590,35 @@ async function getPeople(activeOnly = true) {
     return (a.EmployeeName || "").localeCompare(b.EmployeeName || "");
   });
 }
+
+// ── Org Chart data ────────────────────────────────────────────────────
+// Active projects keyed by overseeing CSD display name (normalised).
+async function getProjectsByCSD() {
+  const projects = await getProjects(true); // active only
+  const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  const map = {};
+  projects.forEach(p => {
+    const key = norm(p.CSDName) || '__unassigned__';
+    (map[key] = map[key] || []).push(p);
+  });
+  return map;
+}
+
+// Current (non-forecast) assignments per employee → { EmployeeName: [row,…] }.
+// Keeps ALL current rows so a split person can be duplicated under each project.
+async function getCurrentAssignmentsByEmployee() {
+  const all = await getAssignments();       // no year filter = current list
+  const today = new Date();
+  const map = {};
+  all.filter(a => !a.IsForecast).forEach(a => {
+    const s = a.StartDate ? new Date(a.StartDate) : null;
+    const e = a.EndDate   ? new Date(a.EndDate)   : null;
+    const current = (!s || s <= today) && (!e || e >= today);
+    if (current) (map[a.EmployeeName] = map[a.EmployeeName] || []).push(a);
+  });
+  return map;
+}
+
 async function createPerson(fields) {
   return createItem("People", {
     Title:        fields.EmployeeName,

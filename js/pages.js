@@ -47,13 +47,13 @@ async function renderProjectsPage() {
   main.innerHTML = "<p>Loading projects...</p>";
   const role = _resolvedRole;
   const user = getCurrentUser();
-  const projects = await getScopedProjects(user.email, false);
+  const [projects, dmMap] = await Promise.all([
+    getScopedProjects(user.email, false),
+    getTalentPartnerDisplayMap(),
+  ]);
   const canEdit = ["admin","delivery_manager"].includes(role) || hasDMGrant();
-  projects.sort((a, b) => {
-    const dm = (a.DeliveryManager || '').localeCompare(b.DeliveryManager || '');
-    if (dm !== 0) return dm;
-    return (a.CustomerName || '').localeCompare(b.CustomerName || '');
-  });
+  const dmName = email => email ? (dmMap[email.toLowerCase()] || email) : "—";
+  projects.sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''));
   main.innerHTML = `
     <div class="page-header">
       <h2>Projects</h2>
@@ -68,7 +68,7 @@ async function renderProjectsPage() {
         ${projects.map(p => `
           <tr>
             <td>${p.CustomerName}</td>
-            <td>${p.DeliveryManager || "—"}</td>
+            <td>${dmName(p.DeliveryManager)}</td>
             <td><span class="badge badge-${p.Status?.toLowerCase()}">${p.Status}</span></td>
             <td>${p.StartDate ? p.StartDate.split("T")[0] : "—"}</td>
             <td>${p.EndDate ? p.EndDate.split("T")[0] : "—"}</td>

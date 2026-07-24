@@ -370,7 +370,7 @@
         <div class="card accent-amber">
           <div class="card-title">Sales</div>
           <div class="card-file">sales.html</div>
-          <div class="card-desc">Sales pipeline &amp; commercial tooling. Revenue Tracking (estimated + forecast monthly revenue chart, default landing) and Sales Forecast pipeline management (Admin/Leadership), plus <strong>LCI Cost Models</strong> — Location &amp; Cost Intelligence recruitment ramp &amp; cost models with compare, branded PDF report export, Hiring Plan linkage and salary benchmarks (Admin/Leadership + Delivery Managers, scoped to their models).</div>
+          <div class="card-desc">Sales pipeline &amp; commercial tooling. Revenue Tracking (estimated + forecast monthly revenue chart, default landing) and Sales Forecast pipeline management (Admin/Leadership), plus <strong>LCI Cost Models</strong> — Location &amp; Cost Intelligence recruitment ramp &amp; cost models with compare, branded PDF report export, Hiring Plan linkage and salary benchmarks (Admin/Leadership + Delivery Managers, scoped to their models). Also <strong>LCI Lead Magnet</strong> — a lightweight location cost comparator that produces a one-page Country Comparison PDF from a shared salary library (Admin/Leadership).</div>
         </div>
         <div class="card accent-purple">
           <div class="card-title">MG Command Centre</div>
@@ -448,6 +448,7 @@
         <tr><td>Engagement (survey respondent widget)</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
         <tr><td>Sales — Revenue Tracking &amp; Sales Forecast</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Sales — LCI Cost Models</td><td>✓</td><td>✓</td><td>✓*</td><td>—</td><td>—</td></tr>
+        <tr><td>Sales — LCI Lead Magnet</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>MG Command Centre</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Newton OS Admin</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
       </table>
@@ -750,6 +751,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <tr><td><strong>LCIModelRows</strong></td><td>(Role / line label)</td><td>ModelID (lookup → LCIModels), RowType (<code>coe</code> / <code>legacy</code> / <code>oneoff</code> / <code>fee</code>), Team, CareerLevel, AnnualSalary, BonusPct, Quantity, ExitMonth (legacy), MonthValues (JSON per-month array), SortOrder</td></tr>
         <tr><td><strong>LCIMilestones</strong></td><td>(Milestone label)</td><td>ModelID (lookup → LCIModels), StartMonth / EndMonth (month index), SortOrder. Rendered as marker bars inside the roadmap grid.</td></tr>
         <tr><td><strong>LCIReports</strong></td><td>(Report title)</td><td>ModelIDs (JSON array of LCIModels ids), Observations (rich-text HTML), CreatedByEmail. Saved report = <em>definition only</em>; numbers live-recompute from current model data on re-open. Multiline columns are <strong>plain text</strong>, not enhanced rich text.</td></tr>
+        <tr><td><strong>LCILocations</strong></td><td>(City, Country)</td><td>EmployerBurdenPct, FXRateToGBP (entered as 1 GBP = X local — calc divides), Currency (ISO code), + one <code>Sal_*</code> column per discipline (average annual salary, local currency). Shared master library for the LCI Lead Magnet. Disciplines mapped via <code>CONFIG.LCI_DISCIPLINES</code>.</td></tr>
         <tr><td><strong>SalesForecasts</strong></td><td>(Customer / Project name)</td><td>ForecastStartDate (date), ForecastEndDate (date), ForecastedHeadcount, <code>ForecastMonthlyRevenuePerHead</code> (number, £ — added June 2026), Notes. Used by Command Centre Utilisation RAG (13-week forward headcount forecast) and by the Revenue Tracking chart / Revenue tile (monthly forecast revenue = ForecastedHeadcount × ForecastMonthlyRevenuePerHead, pro-rated by day-overlap).</td></tr>
       </table>
       <div class="callout"><strong>Assignments — revenue:</strong> the Revenue Tracking chart and CC Revenue tile derive estimated monthly revenue from the <strong>Assignments</strong> list (People module), pro-rating <code>MonthlyBillRate</code> by day-overlap across each month. All assignments count (former, current, planned) — the Billed flag is ignored. Empty MonthlyBillRate (or empty ForecastMonthlyRevenuePerHead) contributes £0.</div>
@@ -973,6 +975,18 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
       <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">July 2026</div>
+        <div class="changelog-title">LCI Lead Magnet — location cost comparator (Sales module)</div>
+        <ul>
+          <li><strong>New Sales page: LCI Lead Magnet</strong> — a lightweight BD tool producing a one-page "Country Comparison" PDF of the cost-of-employment delta between a prospect's current location and scoped locations. New file <code>js/lci-leadmagnet.js</code>; Admin/Leadership only. Distinct from the full LCI Cost Models.</li>
+          <li><strong>Location Library</strong> — shared master list <code>LCILocations</code>: Location ("City, Country"), Employer Burden %, FX rate (<strong>1 GBP = X local</strong>; calc divides), Currency (ISO), and one average-annual-salary column per discipline. Sorted by country then city.</li>
+          <li><strong>Report Builder</strong> — pick current + scoped locations, disciplines, and a display currency (defaults to current location's, overridable). Costs computed in GBP (<code>salary × (1 + burden) ÷ fx</code>) then converted for display. Overall delta = delta of average cost across selected disciplines, plus a per-discipline breakdown. Live preview + "Update preview" for the free-text fields.</li>
+          <li><strong>Output</strong> — single-page portrait branded PDF with a fixed methodology/disclaimer note; generate-and-download only (no saved reports).</li>
+          <li><strong>Config:</strong> <code>CONFIG.LCI_DISCIPLINES</code> is the single source of truth for the 10 disciplines (mapped to <code>Sal_*</code> columns). <code>CONFIG.COUNTRY_CURRENCY</code> extended with common nearshore/offshore markets so their currencies appear in the dropdowns.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">July 2026</div>

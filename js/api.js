@@ -629,6 +629,7 @@ async function createPerson(fields) {
     EndDate:      fields.EndDate   || undefined,
     IsActive:     fields.IsActive !== false,
     Salary:       fields.Salary   || undefined,
+    PhotoUrl:     fields.PhotoUrl || undefined,
   });
 }
 async function updatePerson(id, fields) {
@@ -641,6 +642,7 @@ async function updatePerson(id, fields) {
   if (fields.EndDate      !== undefined) payload.EndDate      = fields.EndDate;
   if (fields.IsActive     !== undefined) payload.IsActive     = fields.IsActive;
   if (fields.Salary       !== undefined) payload.Salary       = fields.Salary;
+  if (fields.PhotoUrl     !== undefined) payload.PhotoUrl     = fields.PhotoUrl;
   return updateItem("People", id, payload);
 }
  
@@ -754,6 +756,39 @@ async function uploadInvoiceAttachment(itemId, file) {
 async function addInvoiceFileURL(itemId, fileUrl) {
  // Write the uploaded file's URL back to the GPInvoices list item.
  return updateItem('GPInvoices', itemId, { FileURL: fileUrl });
+}
+
+// ── People photos: upload into the PeoplePhotos document library ───────
+let _peoplePhotosDriveId = null;
+async function getPeoplePhotosDriveId() {
+  if (_peoplePhotosDriveId) return _peoplePhotosDriveId;
+  const data = await graphRequest('GET', `/sites/${CONFIG.SP_SITE_ID}/drives`);
+  const drive = (data.value || []).find(d => d.name === 'PeoplePhotos');
+  if (!drive) throw new Error("'PeoplePhotos' document library not found on the site.");
+  _peoplePhotosDriveId = drive.id;
+  return drive.id;
+}
+
+// Upload an image; returns its web URL. prefix = 'person' | 'leader'.
+// Stable filename (prefix-id.ext) so re-uploads overwrite the previous photo.
+async function uploadPeoplePhoto(prefix, id, file) {
+  const token = await getToken();
+  if (!token) throw new Error('Not authenticated');
+  const driveId = await getPeoplePhotosDriveId();
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const filename = `${prefix}-${id}.${ext}`;
+  const url = `${GRAPH}/sites/${CONFIG.SP_SITE_ID}/drives/${driveId}/items/root:/${encodeURIComponent(filename)}:/content`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': file.type || 'image/jpeg' },
+    body: file,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Photo upload failed: HTTP ${res.status}`);
+  }
+  const result = await res.json();
+  return result?.webUrl || null;
 }
 
 // ── Payroll summary ───────────────────────────────────────────────────

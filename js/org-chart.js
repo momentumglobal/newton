@@ -48,8 +48,10 @@ async function renderOrgChart() {
     <div id='org-chart-page'>
       <div class='org-print-title'>Momentum Global - Org Chart - ${monthYear}</div>
       <div id='org-chart-canvas'>
-        ${renderTreeHtml(roots)}
-        ${renderBenchHtml(bench)}
+        <div id='org-chart-inner'>
+          ${renderTreeHtml(roots)}
+          ${renderBenchHtml(bench)}
+        </div>
       </div>
     </div>`;
   if (window.lucide) lucide.createIcons();
@@ -167,19 +169,20 @@ function renderBenchHtml(bench) {
 
 // ── landscape scale-to-fit PDF ─────────────────────────────────────────
 function exportOrgChartPdf() {
-  const canvas = document.getElementById('org-chart-canvas');
-  if (!canvas) return;
-  const pageW = 1040, pageH = 650;                  // A4 landscape minus margins, header & title
-  const scale = Math.min(1, pageW / canvas.scrollWidth, pageH / canvas.scrollHeight);
-  const tx = Math.max(0, (pageW - canvas.scrollWidth * scale) / 2); // centre horizontally
-  canvas.style.setProperty('--org-print-scale', scale);
-  canvas.style.setProperty('--org-print-tx', tx + 'px');
+  const inner = document.getElementById('org-chart-inner');
+  if (!inner) return;
+  const pageW = 1040, pageH = 600;                  // A4 landscape usable, minus header & title
+  const w = inner.scrollWidth, h = inner.scrollHeight;
+  const scale = Math.min(1, pageW / w, pageH / h);  // only shrink if too big
+  const tx = Math.max(0, (pageW - w * scale) / 2);  // centre the scaled chart
+  inner.style.setProperty('--org-print-scale', scale);
+  inner.style.setProperty('--org-print-tx', tx + 'px');
   document.body.classList.add('org-printing');
   printPage('Org Chart', true, 'People');
   setTimeout(() => {
     document.body.classList.remove('org-printing');
-    canvas.style.removeProperty('--org-print-scale');
-    canvas.style.removeProperty('--org-print-tx');
+    inner.style.removeProperty('--org-print-scale');
+    inner.style.removeProperty('--org-print-tx');
   }, 1200);
 }
 

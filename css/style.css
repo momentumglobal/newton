@@ -1988,7 +1988,8 @@ body {
 
 /* ── Org Chart ─────────────────────────────────────────────────────── */
 #org-chart-page { overflow: auto; padding: 8px 0 24px; }
-#org-chart-canvas { display: inline-block; min-width: 100%; }
+#org-chart-canvas { text-align: center; min-width: 100%; }
+#org-chart-inner { display: inline-block; text-align: left; }
 
 .org-tree, .org-tree ul { position: relative; padding-top: 20px; text-align: center;
   white-space: nowrap; list-style: none; margin: 0; }
@@ -2037,7 +2038,8 @@ body {
   body.org-printing .org-print-title {
     display: block; text-align: center; font-size: 16px; font-weight: 600;
     color: #0A0B44; margin: 0 0 14px; }
-  body.org-printing #org-chart-canvas {
+  body.org-printing #org-chart-canvas { text-align: left; min-width: 0; }
+  body.org-printing #org-chart-inner {
     transform: translateX(var(--org-print-tx, 0)) scale(var(--org-print-scale, 1));
     transform-origin: top left; }
 }

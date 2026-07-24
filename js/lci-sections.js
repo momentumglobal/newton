@@ -255,10 +255,10 @@ function _lciOutputInnerHtml(includeChart = true, plain = false) {
             ${teamRows}
             <tr class="lci-out-subtotal"><td>Total Employee Cost</td>${td(c.coeEmployeeCost)}</tr>
             <tr><td>CoE Headcount (on payroll)</td>${tdInt(c.coeHeadcount)}</tr>
-            <tr class="lci-out-section lci-out-indent"><td>EoR Costs</td>${td(c.eor)}</tr>
-            <tr class="lci-out-indent"><td>Office Costs</td>${td(c.office)}</tr>
-            <tr class="lci-out-indent"><td>Travel Costs</td>${td(c.travel)}</tr>
-            <tr class="lci-out-subtotal"><td>Total CoE Operating Costs</td>${td(c.coeOperating)}</tr>` : ''}
+            ${(Number(m.EoRFeePerHead) || 0) > 0 ? `<tr class="lci-out-section lci-out-indent"><td>EoR Costs</td>${td(c.eor)}</tr>` : ''}
+            ${(Number(m.OfficeCostPerHead) || 0) > 0 ? `<tr class="lci-out-indent"><td>Office Costs</td>${td(c.office)}</tr>` : ''}
+            ${(Number(m.TravelPerMonth) || 0) > 0 ? `<tr class="lci-out-indent"><td>Travel Costs</td>${td(c.travel)}</tr>` : ''}
+            ${((Number(m.EoRFeePerHead) || 0) > 0 || (Number(m.OfficeCostPerHead) || 0) > 0 || (Number(m.TravelPerMonth) || 0) > 0) ? `<tr class="lci-out-subtotal"><td>Total CoE Operating Costs</td>${td(c.coeOperating)}</tr>` : ''}` : ''}
             ${sections.legacy || sections.oneoffs ? `
             ${sections.legacy ? `<tr class="lci-out-section"><td>Legacy Headcount</td>${tdInt(c.legacyHeadcount)}</tr>
             <tr class="lci-out-indent"><td>Legacy Team Costs</td>${td(c.legacyCost)}</tr>` : ''}

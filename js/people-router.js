@@ -11,7 +11,7 @@ const PEOPLE_ROLES = {
 // Add new pages here as each phase is built.
 const PEOPLE_PAGES = {
   peopleDashboard: { label: 'People Dashboard',   roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP] },
-  orgChart:        { label: 'Org Chart',          roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP] },
+  orgChart:        { label: 'Org Chart',          roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP, PEOPLE_ROLES.DELIVERY_MANAGER, PEOPLE_ROLES.TALENT_PARTNER] },
   peopleGantt:     { label: 'Deployment Timeline',roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP] },
   peopleTracker:   { label: 'Employee Tracker',   roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP] },
   gpInvoices:      { label: 'G-P Invoices',       roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP] },

@@ -79,6 +79,11 @@
       <li><a href="#lci-compare">Comparing Models</a></li>
       <li><a href="#lci-reports">Summary &amp; Reports</a></li>
       <li><a href="#lci-linkage">Linking to a Hiring Plan</a></li>
+      <li><div class="nav-section-label">LCI Lead Magnet</div></li>
+      <li><a href="#lm-overview">Overview</a></li>
+      <li><a href="#lm-library">Location Library</a></li>
+      <li><a href="#lm-builder">Building a Report</a></li>
+      <li><a href="#lm-output">The Report Output</a></li>
     </ul>
   </nav>
   <div class="guide-content">
@@ -256,6 +261,51 @@
       <p>Once an engagement is <strong>Won</strong>, the model can hand over to delivery. Click <strong>Link</strong> on a Won model, choose the CoE project, and either just save the link or <strong>Save &amp; Generate Plan</strong>.</p>
       <p>Generating creates one row in the project's CoE Hiring Plan (in the Reporting module) for every hire in the roadmap, with each row's open date worked backwards from its hire month so recruitment lands in the right month. Talent Partners are left blank for the Delivery Manager to assign.</p>
       <div class="tip">This is a one-time hand-off: after generating, the Hiring Plan is the live delivery record and further edits to the model don't change it. If the project already has plan rows, Newton asks before adding more. Phase lengths use the Hiring Plan's own defaults, not the model's notice period.</div>
+    </div>
+
+    <div class="guide-section" id="lm-overview">
+      <h2>LCI Lead Magnet — Overview</h2>
+      <p>The LCI Lead Magnet is a lightweight business-development tool, separate from the full LCI Cost Models. Where a Cost Model is a detailed month-by-month build plan for a live engagement, the Lead Magnet produces a quick one-page <strong>Country Comparison</strong> — showing how the cost of employment in one or more target locations compares to a prospect's current location. It's designed to support early sales conversations off the back of a website enquiry.</p>
+      <p>The page has two parts, top to bottom: the <strong>Insights Report Builder</strong> (where you configure and generate a report) and the <strong>Location Library</strong> (the shared salary-and-cost data all reports draw on). Access is Admin and Leadership only.</p>
+      <div class="tip">The figures are deliberately indicative — a directional cost comparison, not a budget. Accurate cost modelling aligned to a client's pay philosophy and levelling is delivered as part of a full paid LCI project. The report footer states this clearly.</div>
+    </div>
+
+    <div class="guide-section" id="lm-library">
+      <h2>Location Library</h2>
+      <p>The Location Library is a shared master table of locations and their salary data, reused across every report. Keeping it accurate and consistent is what makes the comparisons credible.</p>
+      <h3>Adding &amp; editing a location</h3>
+      <p>Click <strong>+ Add Location</strong> (or Edit on a row). Each location holds:</p>
+      <ul>
+        <li><strong>Location</strong> — entered as "City, Country" (e.g. <em>Bucharest, Romania</em>). The table sorts by country, then city.</li>
+        <li><strong>Employer burden %</strong> — the on-cost added to salary (accepts up to 3 decimal places).</li>
+        <li><strong>FX rate</strong> — entered as <strong>1 GBP = X local</strong> (e.g. for Romania, ~5.9). A GBP location uses 1.</li>
+        <li><strong>Currency</strong> — the local currency code, chosen from the dropdown. This drives how figures can be displayed in reports, so set it on every location.</li>
+        <li><strong>Average annual salary per discipline</strong> — one field per discipline, in local currency. Leave blank where you have no data.</li>
+      </ul>
+      <div class="tip">Enter salaries as gross annual basic figures on a consistent role basis across every location — that consistency is what keeps the comparison like-for-like. If a location's currency isn't in the dropdown, it can be added to the central currency list; ask your Newton Admin.</div>
+    </div>
+
+    <div class="guide-section" id="lm-builder">
+      <h2>Building a Report</h2>
+      <p>In the Insights Report Builder, choose:</p>
+      <ul>
+        <li><strong>Current location</strong> — the prospect's existing base (the comparison baseline).</li>
+        <li><strong>Display currency</strong> — auto-selects the current location's currency, but you can switch it to whichever currency will make most sense to the prospect. All figures are computed in GBP behind the scenes and converted to this currency for display.</li>
+        <li><strong>Scoped locations</strong> — one or more target locations to compare against the current one.</li>
+        <li><strong>Disciplines</strong> — the functions to include (e.g. Software Engineering, Finance).</li>
+        <li><strong>Prepared for</strong> — optional prospect/company name, shown on the report.</li>
+        <li><strong>Watchouts / comments</strong> — optional free text for any caveats.</li>
+      </ul>
+      <p>A live preview builds below as you make selections. The two free-text boxes (Prepared for, Watchouts) don't refresh the preview automatically — click <strong>Update preview</strong> to pull them in. <strong>Generate PDF</strong> also refreshes automatically before producing the document, so the export is always current.</p>
+    </div>
+
+    <div class="guide-section" id="lm-output">
+      <h2>The Report Output</h2>
+      <p>The report is a single-page, brand-consistent document (portrait). For each scoped location it shows a headline <strong>overall cost delta</strong> versus the current location, then a per-discipline breakdown: the average cost per role at each location and the percentage difference. Cheaper-than-current figures are green, more expensive are red.</p>
+      <p>Below the comparison sit your Watchouts (if any) and a fixed <strong>Methodology &amp; important notes</strong> statement explaining the basis of the figures.</p>
+      <h3>Generating the PDF</h3>
+      <p>Click <strong>Generate PDF</strong>, then use your browser's print dialog with <strong>Save as PDF</strong>, portrait layout, headers/footers off and background graphics on (see Exporting to PDF above). Nothing is saved in Newton — the Lead Magnet is generate-and-download only, so keep the PDF if you need a record.</p>
+      <div class="tip">Any figure with "no data" at either the current or a scoped location for a given discipline is automatically excluded from that comparison and noted on the report — so populate a location's salaries before running a report for it.</div>
     </div>
 
   </div>

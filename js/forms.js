@@ -545,6 +545,13 @@ async function submitWeeklyForm(event, editId = null) {
     } else {
       await createItem('WeeklyActivity', fields);
     }
+    // Hire logged → offer to record a placement, prefilled with this role/project
+    if (fields.Hires > 0 &&
+        confirm('You logged a hire. Would you like to record a placement now?')) {
+      document.getElementById('main-content').innerHTML =
+        await renderPlacementForm(null, fields.RoleIDLookupId, fields.ProjectIDLookupId);
+      return;
+    }
     navigateTo('activity');
   } catch (e) {
     clearButtonLoading(btn);
@@ -552,7 +559,7 @@ async function submitWeeklyForm(event, editId = null) {
   }
 }
 // ── Placement Form ───────────────────────────────────────────────────
-async function renderPlacementForm(existingData = null, preselectedRoleId = null) {
+async function renderPlacementForm(existingData = null, preselectedRoleId = null, preselectedProjectId = null) {
   const isEdit = !!existingData;
   const currentUser = getCurrentUser();
   const email = currentUser.email;
@@ -562,7 +569,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
   const projectOptions = [...projects].sort((a, b) => a.CustomerName.localeCompare(b.CustomerName)).map(p =>
-  `<option value="${p.id}" ${(existingData?.ProjectID == p.id || lockProject) ? 'selected' : ''}>${p.CustomerName}</option>`
+  `<option value="${p.id}" ${(existingData?.ProjectID == p.id || lockProject || preselectedProjectId == p.id) ? 'selected' : ''}>${p.CustomerName}</option>`
 ).join('');
   // If single project, pre-load TP's own roles immediately
   let preloadedPlacementRoleOptions = '';
@@ -578,6 +585,19 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   }
   // Pre-load currency if editing
   let inheritedCurrency = existingData?.Currency || '';
+
+  // Arriving from a logged hire: prefill role/project + currency after the form mounts
+  if (preselectedRoleId) {
+    setTimeout(async () => {
+      if (!lockProject && preselectedProjectId) {
+        await loadRolesForPlacement(preselectedProjectId);
+        const roleSel = document.getElementById('placement-role-select');
+        if (roleSel) roleSel.value = preselectedRoleId;
+        if (canLogOnBehalf) loadTalentPartnersForPlacement(preselectedProjectId);
+      }
+      loadCurrencyForPlacement(preselectedRoleId);
+    }, 0);
+  }
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Placement' : 'Record Placement'}</h2>

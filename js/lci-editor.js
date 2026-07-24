@@ -127,7 +127,7 @@ function _lciSettingsHtml() {
         ${field(`Local currency`, `<select class="form-control" data-setting="LocalCurrency" onchange="lciSettingChanged()">${ccyOpts(m.LocalCurrency)}</select>`)}
         ${field(`Display currency`, `<select class="form-control" data-setting="DisplayCurrency" onchange="lciSettingChanged()">${ccyOpts(m.DisplayCurrency)}</select>`)}
         <div id="lci-fx-setting" style="${fxDiffer ? '' : 'display:none'}">
-          ${field(`FX rate (local→display)`, numInput('FXRateLocalToDisplay', m.FXRateLocalToDisplay, '0.0001'))}
+        ${field(`FX rate (1 ${m.LocalCurrency} = X ${m.DisplayCurrency})`, numInput('FXRateLocalToDisplay', m.FXRateLocalToDisplay, '0.0001'))}
         </div>
         ${field(`Employer burden %`, numInput('EmployerBurdenPct', m.EmployerBurdenPct != null ? Math.round(m.EmployerBurdenPct * 100 * 100) / 100 : '', '0.5'))}
         ${field('Salary months', `<select class="form-control" data-setting="SalaryMonths" onchange="lciSettingChanged()">${smOpts}</select>`)}
@@ -232,9 +232,11 @@ function _lciRoadmapHtml() {
     const teamRows = coeRows.map((r, globalIdx) => ({ r, globalIdx }))
       .filter(({ r }) => (r.Team || 'Other') === team);
     const teamHtml = teamRows.map(({ r, globalIdx }) => _lciRoadmapRowHtml(r, globalIdx, horizon)).join('');
+    const teamEsc = String(team).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     return `
       <tr class="lci-team-row"><td colspan="${horizon + 6}"><strong>${team}</strong></td></tr>
-      ${teamHtml}`;
+      ${teamHtml}
+      <tr class="lci-add-role-row"><td colspan="${horizon + 7}"><button class="lci-add-role-btn" onclick="addLCIRoleToTeam('${teamEsc}')">+ Add role to ${team}</button></td></tr>`;
   }).join('');
 
   return `
@@ -243,7 +245,7 @@ function _lciRoadmapHtml() {
         <h3 style="margin:0;color:#1B3A5C">Hiring Roadmap <span style="font-weight:400;font-size:13px;color:#888">(salaries in ${m.LocalCurrency})</span></h3>
         <div style="display:flex;gap:8px">
           <button class="btn-secondary" onclick="addLCIMilestone()">+ Add Milestone</button>
-          <button class="btn-secondary" onclick="addLCICoeRow()">+ Add Role</button>
+          <button class="btn-secondary" onclick="addLCITeam()">+ Add Team</button>
           <button class="btn-primary" id="lci-roadmap-save" onclick="saveLCIRoadmap()" disabled>Save Roadmap</button>
         </div>
       </div>
@@ -259,7 +261,7 @@ function _lciRoadmapHtml() {
           </thead>
           <tbody id="lci-roadmap-body">
             ${_lciRoadmapMilestoneRows(horizon)}
-            ${bodyRows || `<tr><td colspan="${horizon + 7}" style="color:#888;text-align:center">No roles yet — click + Add Role.</td></tr>`}
+            ${bodyRows || `<tr><td colspan="${horizon + 7}" style="color:#888;text-align:center">No teams yet — click + Add Team.</td></tr>`}
           </tbody>
           <tfoot id="lci-roadmap-foot">
             ${_lciRoadmapFootHtml(horizon)}
@@ -389,24 +391,26 @@ function _lciRefreshDerived(idx = null) {
 
 // ── Add / remove rows ────────────────────────────────────────────────
 
-function addLCICoeRow() {
-  const team = prompt('Team (existing teams: ' + (_lciTeamsInOrder().join(', ') || 'none') + '):');
-  if (team === null) return;
+// Push an empty CoE role row for a team, then re-render the roadmap.
+function _lciPushCoeRow(team) {
   const maxSort = Math.max(0, ..._lciEd.rows.map(r => r.SortOrder || 0));
   _lciEd.rows.push({
-    // no id → created on save
-    RowType: 'coe',
-    Title: '',
-    Team: team || 'Other',
-    CareerLevel: '',
-    AnnualSalary: null,
-    BonusPct: 0,
-    Quantity: 1,
-    MonthValues: '[]',
+    RowType: 'coe', Title: '', Team: team || 'Other', CareerLevel: '',
+    AnnualSalary: null, BonusPct: 0, Quantity: 1, MonthValues: '[]',
     SortOrder: maxSort + 1,
   });
   _lciMarkRowsDirty();
   _lciRerenderRoadmap();
+}
+// "+ Add Team" — prompt for a name, seed it with one empty role.
+function addLCITeam() {
+  const team = prompt('New team name:');
+  if (team === null) return;
+  _lciPushCoeRow(team.trim() || 'Other');
+}
+// "+ Add role to [team]" — add an empty role to an existing team (no prompt).
+function addLCIRoleToTeam(team) {
+  _lciPushCoeRow(team);
 }
 
 function removeLCICoeRow(idx) {

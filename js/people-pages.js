@@ -62,6 +62,9 @@ async function renderEmployeesTab() {
       </td>` : (canPayroll ? `<td>—</td>` : '');
     return `
     <tr>
+      <td>${p.PhotoUrl
+            ? `<img src="${p.PhotoUrl}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
+            : '<span style="color:#aaa;font-size:12px">—</span>'}</td>
       <td>${p.EmployeeName}</td>
       <td>${p.Level || '—'}</td>
       <td>${p.ContractType || '—'}</td>
@@ -104,7 +107,7 @@ async function renderEmployeesTab() {
     </div>
     <table class='data-table'>
       <thead><tr>
-        <th>Name</th><th>Level</th><th>Contract</th><th>Location</th>
+        <th>Photo</th><th>Name</th><th>Level</th><th>Contract</th><th>Location</th>
         <th>Start</th><th>End</th><th>Status</th>
         ${canPayroll ? '<th>Salary</th>' : ''}
         ${canEdit ? '<th></th>' : ''}

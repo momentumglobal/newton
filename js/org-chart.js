@@ -54,20 +54,30 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
   const csds = people.filter(p => p.Level === 'CSD');
 
   // Project node for a given CSD (by display name), with its team hung beneath.
+  const personNode = (p) => ({ kind: 'person', label: p.EmployeeName,
+    sub: `${p.Level || ''}${p.Location ? ' · ' + p.Location : ''}`, children: [] });
+
   const projectNode = (proj) => {
-    const team = [];
+    const members = [];
     people.forEach(p => {
       (currentAssign[p.EmployeeName] || []).forEach(a => {
-        if (_ocNorm(a.Customer) === _ocNorm(proj.CustomerName)) {
-          team.push({ kind: 'person', label: p.EmployeeName,
-                      sub: `${p.Level || ''}${p.Location ? ' · ' + p.Location : ''}`,
-                      children: [] });
-        }
+        if (_ocNorm(a.Customer) === _ocNorm(proj.CustomerName)) members.push(p);
       });
     });
-    team.sort((a, b) => a.label.localeCompare(b.label));
+    const byName = (a, b) => a.EmployeeName.localeCompare(b.EmployeeName);
+    const sdms    = members.filter(p => p.Level === 'SDM').sort(byName);
+    const reports = members.filter(p => p.Level !== 'SDM').sort(byName);
+
+    let children;
+    if (sdms.length) {
+      const sdmNodes = sdms.map(personNode);
+      sdmNodes[0].children = reports.map(personNode); // TPs/STPs report into the SDM
+      children = sdmNodes;                            // (extra SDMs sit as siblings)
+    } else {
+      children = reports.map(personNode);             // no SDM → team reports into the bubble
+    }
     return { kind: 'project', label: proj.CustomerName,
-             sub: proj.ProjectType || 'Project', children: team };
+             sub: proj.ProjectType || 'Project', children };
   };
 
   // CSD node: children are the projects that CSD owns.
@@ -88,8 +98,8 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
     leadership.filter(l => _ocEmail(l.ReportsTo) === email)
       .forEach(l => { const n = buildLeader(l, seen); if (n) kids.push(n); });
     csds.filter(c => _ocEmail(c.ReportsTo) === email).forEach(c => kids.push(csdNode(c)));
-    return { kind: 'leader', label: leader.DisplayName || leader.UserEmail,
-             sub: leader.Title || 'Leadership', children: kids };
+    return { kind: 'leader', label: leader.UserName || leader.UserEmail,
+             sub: leader.JobTitle || 'Leadership', children: kids };
   };
 
   const seen = new Set();
@@ -182,11 +192,11 @@ async function showOrgChartEditForm() {
   const emailOpts = (sel) => `<option value=''>— top of tree —</option>` +
     leadership.map(l => `<option value='${_ocEsc(_ocEmail(l.UserEmail))}' ${
       _ocEmail(l.UserEmail) === _ocEmail(sel) ? 'selected' : ''
-    }>${_ocEsc(l.DisplayName || l.UserEmail)}</option>`).join('');
+    }>${_ocEsc(l.UserName || l.UserEmail)}</option>`).join('');
 
   const leaderRows = leadership.map(l => `
     <tr>
-      <td>${_ocEsc(l.DisplayName || l.UserEmail)} <span class='org-tag'>Leadership</span></td>
+      <td>${_ocEsc(l.UserName || l.UserEmail)} <span class='org-tag'>Leadership</span></td>
       <td><select data-lead='${l.id}'>${emailOpts(l.ReportsTo)}</select></td>
     </tr>`).join('');
   const csdRows = csds.map(c => `

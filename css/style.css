@@ -1987,7 +1987,10 @@ body {
 }
 
 /* ── Org Chart ─────────────────────────────────────────────────────── */
-#org-chart-page { overflow: auto; padding: 8px 0 24px; }
+#org-chart-page {
+  overflow: auto; padding: 24px; background: #F5F4F1; border-radius: 8px;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
 #org-chart-canvas { text-align: center; min-width: 100%; }
 #org-chart-inner { display: inline-block; text-align: left; }
 
@@ -2017,7 +2020,15 @@ body {
 .org-node--leader  { background: #0A0B44; border-color: #0A0B44; }
 .org-node--leader  .org-node__name { color: #fff; }
 .org-node--leader  .org-node__sub  { color: #b0bec5; }
-.org-node--csd     { border-color: #1565C0; background: #E3F2FD; }
+.org-node--csd { background: #1E3A6E; border-color: #1E3A6E; }
+.org-node--csd .org-node__name { color: #fff; }
+.org-node--csd .org-node__sub  { color: #cdd8ee; }
+.org-node--sdm { background: #37589C; border-color: #37589C; }
+.org-node--sdm .org-node__name { color: #fff; }
+.org-node--sdm .org-node__sub  { color: #dbe4f5; }
+.org-node--tp  { background: #AEC6E8; border-color: #9db8de; }
+.org-node--tp  .org-node__name { color: #0A0B44; }
+.org-node--tp  .org-node__sub  { color: #33507f; }
 .org-node--project { border-color: #2E7D32; background: #E8F5E9; }
 .org-node--bench   { border-style: dashed; background: #fafafa; }
 .org-node--person { padding: 3px 8px; min-width: 84px; }
@@ -2034,7 +2045,7 @@ body {
   body.org-printing #main-content > *:not(#org-chart-page),
   body.org-printing .page-header .btn-secondary,
   body.org-printing .page-header .print-btn { display: none !important; }
-  body.org-printing #org-chart-page { overflow: visible !important; }  /* hide bottom scrollbar */
+  body.org-printing #org-chart-page { overflow: visible !important; min-height: 640px; }  /* hide scrollbar, fill tile */
   body.org-printing .org-print-title {
     display: block; text-align: center; font-size: 16px; font-weight: 600;
     color: #0A0B44; margin: 0 0 14px; }

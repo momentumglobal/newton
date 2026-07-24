@@ -171,18 +171,14 @@ function renderBenchHtml(bench) {
 function exportOrgChartPdf() {
   const inner = document.getElementById('org-chart-inner');
   if (!inner) return;
-  const pageW = 1040, pageH = 600;                  // A4 landscape usable, minus header & title
-  const w = inner.scrollWidth, h = inner.scrollHeight;
-  const scale = Math.min(1, pageW / w, pageH / h);  // only shrink if too big
-  const tx = Math.max(0, (pageW - w * scale) / 2);  // centre the scaled chart
+  const pageW = 1050, pageH = 600;                  // A4 landscape usable, minus header & title
+  const scale = Math.min(1, pageW / inner.scrollWidth, pageH / inner.scrollHeight);
   inner.style.setProperty('--org-print-scale', scale);
-  inner.style.setProperty('--org-print-tx', tx + 'px');
   document.body.classList.add('org-printing');
   printPage('Org Chart', true, 'People');
   setTimeout(() => {
     document.body.classList.remove('org-printing');
     inner.style.removeProperty('--org-print-scale');
-    inner.style.removeProperty('--org-print-tx');
   }, 1200);
 }
 

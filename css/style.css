@@ -1988,7 +1988,7 @@ body {
 
 /* ── Org Chart ─────────────────────────────────────────────────────── */
 #org-chart-page {
-  overflow: auto; padding: 24px; background: #F5F4F1; border-radius: 8px;
+  overflow: auto; padding: 24px; background: #fff; border-radius: 8px;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 #org-chart-canvas { text-align: center; min-width: 100%; }

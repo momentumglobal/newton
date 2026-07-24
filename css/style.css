@@ -1985,3 +1985,51 @@ body {
   }
   @page { size: A4 portrait; }
 }
+
+/* ── Org Chart ─────────────────────────────────────────────────────── */
+#org-chart-page { overflow: auto; padding: 8px 0 24px; }
+#org-chart-canvas { display: inline-block; min-width: 100%; }
+
+.org-tree, .org-tree ul { position: relative; padding-top: 20px; text-align: center;
+  white-space: nowrap; list-style: none; margin: 0; }
+.org-tree ul { display: flex; justify-content: center; }
+.org-tree li { position: relative; padding: 20px 10px 0; }
+/* connector elbows */
+.org-tree li::before, .org-tree li::after {
+  content: ''; position: absolute; top: 0; right: 50%;
+  border-top: 1px solid #cfd8dc; width: 50%; height: 20px; }
+.org-tree li::after { right: auto; left: 50%; border-left: 1px solid #cfd8dc; }
+.org-tree li:only-child::before, .org-tree li:only-child::after { display: none; }
+.org-tree li:first-child::before, .org-tree li:last-child::after { border: 0; }
+.org-tree li:last-child::before {
+  border-right: 1px solid #cfd8dc; border-radius: 0 5px 0 0; }
+.org-tree li:first-child::after { border-radius: 5px 0 0 0; }
+.org-tree ul::before { content: ''; position: absolute; top: 0; left: 50%;
+  border-left: 1px solid #cfd8dc; width: 0; height: 20px; }
+.org-tree > ul::before { display: none; }
+
+.org-node { display: inline-block; padding: 8px 14px; border: 1px solid #e0e0e0;
+  border-radius: 6px; background: #fff; min-width: 120px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.org-node__name { font-weight: 600; font-size: 13px; color: #1a1a1a; }
+.org-node__sub  { font-size: 11px; color: #78909c; margin-top: 2px; }
+.org-node--leader  { background: #263238; border-color: #263238; }
+.org-node--leader  .org-node__name { color: #fff; }
+.org-node--leader  .org-node__sub  { color: #b0bec5; }
+.org-node--csd     { border-color: #1565C0; background: #E3F2FD; }
+.org-node--project { border-color: #2E7D32; background: #E8F5E9; }
+.org-node--bench   { border-style: dashed; background: #fafafa; }
+.org-empty { color: #777; padding: 40px; text-align: center; }
+
+.org-bench { margin-top: 32px; border-top: 1px dashed #cfd8dc; padding-top: 16px; }
+.org-bench__title { font-weight: 600; font-size: 13px; color: #546E7A; margin-bottom: 10px; }
+.org-bench__grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.org-tag { font-size: 10px; background: #ECEFF1; color: #546E7A;
+  padding: 1px 6px; border-radius: 8px; margin-left: 6px; }
+
+@media print {
+  body.org-printing #main-content > *:not(#org-chart-page),
+  body.org-printing .page-header .btn-secondary,
+  body.org-printing .page-header .print-btn { display: none !important; }
+  body.org-printing #org-chart-canvas {
+    transform: scale(var(--org-print-scale, 1)); transform-origin: top left; }
+}

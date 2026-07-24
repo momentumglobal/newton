@@ -1895,6 +1895,14 @@ body {
 .lci-bench-hint { font-size: 11px; color: #888; margin-top: 3px; line-height: 1.3; }
 .lci-bench-hint a { color: #1B3A5C; font-weight: 600; cursor: pointer; text-decoration: underline; }
 
+/* Freeze the Hiring Roadmap header row on scroll */
+.lci-grid-scroll:has(#lci-roadmap-table) { max-height: 65vh; overflow: auto; }
+#lci-roadmap-table thead th { position: sticky; top: 0; z-index: 3; }
+/* Per-team add-role row */
+.lci-add-role-row td { padding: 4px 8px; background: #fbfcfe; }
+.lci-add-role-btn { background: none; border: none; color: #1B3A5C; font-weight: 600; cursor: pointer; font-size: 13px; }
+.lci-add-role-btn:hover { text-decoration: underline; }
+
 @media print {
   .lci-noprint, #sidebar { display: none !important; }
   /* Client-facing summary: no 'Confidential — Internal' banner */

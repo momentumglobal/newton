@@ -33,9 +33,12 @@ async function buildAssignmentsTab(editId = null) {
   const [projects, assignments] = await Promise.all([
     getProjects(false), getUserAssignments()
   ]);
-  const projectOptions = projects.map(p =>
-    `<option value="${p.id}|${p.CustomerName}">${p.CustomerName}</option>`
-  ).join('');
+  const projectOptions = projects
+    .slice()
+    .sort((a, b) => a.CustomerName.localeCompare(b.CustomerName))
+    .map(p =>
+      `<option value="${p.id}|${p.CustomerName}">${p.CustomerName}</option>`
+    ).join('');
   let editRecord = null;
   if (editId) editRecord = assignments.find(a => String(a.id) === String(editId));
 const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.UserName || '')).map(a => {

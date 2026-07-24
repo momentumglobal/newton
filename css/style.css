@@ -2003,8 +2003,12 @@ body {
   content: ''; position: absolute; top: 0; right: 50%;
   border-top: 1px solid #cfd8dc; width: 50%; height: 20px; }
 .org-tree li::after { right: auto; left: 50%; border-left: 1px solid #cfd8dc; }
-.org-tree li:only-child::before, .org-tree li:only-child::after { display: none; }
-.org-tree li:only-child { padding-top: 0; }   /* close the gap so the line connects */
+.org-tree li:only-child { padding-top: 24px; }        /* same gap as multi-child rows */
+.org-tree li:only-child::before { display: none; }    /* no horizontal elbow for a single child */
+.org-tree li:only-child::after {                       /* straight vertical connector instead */
+  display: block; content: ''; top: 0; left: 50%; right: auto;
+  width: 0; height: 24px; border-left: 1px solid #cfd8dc; border-top: 0; border-radius: 0;
+}
 .org-tree li:first-child::before, .org-tree li:last-child::after { border: 0; }
 .org-tree li:last-child::before {
   border-right: 1px solid #cfd8dc; border-radius: 0 5px 0 0; }

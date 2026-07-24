@@ -15,6 +15,11 @@ function _ocIsBench(customer) {
   return !c || c === 'bench' || c === 'unassigned';
 }
 
+const OC_TYPE_COLOURS = {   // matches Deployment Timeline
+  'Embedded':'#2E75B6','CoE':'#2e7d32','Transformation':'#e65100','LCI':'#6a1b9a','Internal':'#888',
+};
+function _ocTypeColour(t){ return OC_TYPE_COLOURS[t] || '#aaa'; }
+
 // ── page entry ─────────────────────────────────────────────────────────
 async function renderOrgChart() {
   const main = document.getElementById('main-content');
@@ -29,6 +34,7 @@ async function renderOrgChart() {
 
   const roots = buildOrgTree({ people, leadership, projectsByCSD, currentAssign });
   const bench = buildBenchPool(people, currentAssign);
+  const monthYear = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
   main.innerHTML = `
     <div class='page-header'>
@@ -40,6 +46,7 @@ async function renderOrgChart() {
       </div>
     </div>
     <div id='org-chart-page'>
+      <div class='org-print-title'>Momentum Global - Org Chart - ${monthYear}</div>
       <div id='org-chart-canvas'>
         ${renderTreeHtml(roots)}
         ${renderBenchHtml(bench)}
@@ -77,7 +84,8 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
       children = reports.map(personNode);             // no SDM → team reports into the bubble
     }
     return { kind: 'project', label: proj.CustomerName,
-             sub: proj.ProjectType || 'Project', children };
+             sub: proj.ProjectType || 'Project',
+             _colour: _ocTypeColour(proj.ProjectType), children };
   };
 
   // CSD node: children are the projects that CSD owns.
@@ -125,15 +133,19 @@ function buildBenchPool(people, currentAssign) {
 // ── rendering ──────────────────────────────────────────────────────────
 function renderTreeHtml(roots) {
   if (!roots.length) return `<p class='org-empty'>No reporting structure to display yet.</p>`;
-  const node = (n) => `
+  const node = (n) => {
+    const style = n._colour
+      ? ` style='border-color:${n._colour};background:${n._colour}1A'` : '';
+    return `
     <li>
-      <div class='org-node org-node--${n.kind}'>
+      <div class='org-node org-node--${n.kind}'${style}>
         <div class='org-node__name'>${_ocEsc(n.label)}</div>
         ${n.sub ? `<div class='org-node__sub'>${_ocEsc(n.sub)}</div>` : ''}
       </div>
       ${n.children && n.children.length
         ? `<ul>${n.children.map(node).join('')}</ul>` : ''}
     </li>`;
+  };
   return `<div class='org-tree'><ul>${roots.map(node).join('')}</ul></div>`;
 }
 
@@ -157,14 +169,17 @@ function renderBenchHtml(bench) {
 function exportOrgChartPdf() {
   const canvas = document.getElementById('org-chart-canvas');
   if (!canvas) return;
-  const pageW = 1122, pageH = 793;                  // ~A4 landscape @96dpi minus margins
+  const pageW = 1040, pageH = 650;                  // A4 landscape minus margins, header & title
   const scale = Math.min(1, pageW / canvas.scrollWidth, pageH / canvas.scrollHeight);
+  const tx = Math.max(0, (pageW - canvas.scrollWidth * scale) / 2); // centre horizontally
   canvas.style.setProperty('--org-print-scale', scale);
+  canvas.style.setProperty('--org-print-tx', tx + 'px');
   document.body.classList.add('org-printing');
   printPage('Org Chart', true, 'People');
   setTimeout(() => {
     document.body.classList.remove('org-printing');
     canvas.style.removeProperty('--org-print-scale');
+    canvas.style.removeProperty('--org-print-tx');
   }, 1200);
 }
 

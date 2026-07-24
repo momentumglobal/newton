@@ -15,6 +15,29 @@ function _ocIsBench(customer) {
   return !c || c === 'bench' || c === 'unassigned';
 }
 
+function _ocInitials(name) {
+  const p = String(name || '').trim().split(/\s+/).filter(Boolean);
+  return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '?';
+}
+
+// PhotoUrl holds a full URL (from upload); a bare filename is also resolved
+// against the PeoplePhotos library, just in case one is entered by hand.
+function _ocPhotoSrc(val) {
+  const v = String(val || '').trim();
+  if (!v) return '';
+  if (/^https?:\/\//i.test(v)) return v;
+  return `${CONFIG.SP_SITE_URL}/PeoplePhotos/${v.replace(/^\/+/, '')}`;
+}
+function _ocAvatar(name, photo) {
+  const ini = _ocEsc(_ocInitials(name));
+  const src = _ocPhotoSrc(photo);
+  return `<span class='org-avatar-wrap'>`
+    + `<span class='org-avatar org-avatar--initials'>${ini}</span>`
+    + (src ? `<img class='org-avatar org-avatar--img' src='${_ocEsc(src)}' alt=''
+               onerror="this.style.display='none'">` : '')
+    + `</span>`;
+}
+
 const OC_TYPE_COLOURS = {   // matches Deployment Timeline
   'Embedded':'#2E75B6','CoE':'#2e7d32','Transformation':'#e65100','LCI':'#6a1b9a','Internal':'#888',
 };
@@ -65,7 +88,7 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
   // Project node for a given CSD (by display name), with its team hung beneath.
   const personNode = (p) => ({ kind: 'person', label: p.EmployeeName,
     sub: `${p.Level || ''}${p.Location ? ' · ' + p.Location : ''}`,
-    _band: p.Level === 'STP' ? 'TP' : p.Level, children: [] });
+    _band: p.Level === 'STP' ? 'TP' : p.Level, _photo: p.PhotoUrl, children: [] });
 
   const projectNode = (proj) => {
     const members = [];
@@ -96,7 +119,7 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
     const projs = projectsByCSD[_ocNorm(csd.EmployeeName)] || [];
     return { kind: 'csd', label: csd.EmployeeName,
              sub: `CSD${csd.Location ? ' · ' + csd.Location : ''}`,
-             _email: _ocEmail(csd.ReportsTo),
+             _email: _ocEmail(csd.ReportsTo), _photo: csd.PhotoUrl,
              children: projs.map(projectNode) };
   };
 
@@ -110,7 +133,7 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
       .forEach(l => { const n = buildLeader(l, seen); if (n) kids.push(n); });
     csds.filter(c => _ocEmail(c.ReportsTo) === email).forEach(c => kids.push(csdNode(c)));
     return { kind: 'leader', label: leader.UserName || leader.UserEmail,
-             sub: leader.JobTitle || 'Leadership', children: kids };
+             sub: leader.JobTitle || 'Leadership', _photo: leader.PhotoUrl, children: kids };
   };
 
   const seen = new Set();
@@ -139,9 +162,12 @@ function renderTreeHtml(roots) {
   const node = (n) => {
     const style = n._colour
       ? ` style='border-color:${n._colour};background:${n._colour}1A'` : '';
+    const avatar = n.kind === 'project' ? '' : _ocAvatar(n.label, n._photo);
+    const avCls  = avatar ? ' org-node--has-avatar' : '';
     return `
     <li>
-      <div class='org-node org-node--${n.kind}${n._band ? ' org-node--' + n._band.toLowerCase() : ''}'${style}>
+      <div class='org-node org-node--${n.kind}${n._band ? ' org-node--' + n._band.toLowerCase() : ''}${avCls}'${style}>
+        ${avatar}
         <div class='org-node__name'>${_ocEsc(n.label)}</div>
         ${n.sub ? `<div class='org-node__sub'>${_ocEsc(n.sub)}</div>` : ''}
       </div>
@@ -159,7 +185,8 @@ function renderBenchHtml(bench) {
       <div class='org-bench__title'>Bench / Unassigned (${bench.length})</div>
       <div class='org-bench__grid'>
         ${bench.map(p => `
-          <div class='org-node org-node--bench'>
+          <div class='org-node org-node--bench org-node--has-avatar'>
+            ${_ocAvatar(p.EmployeeName, p.PhotoUrl)}
             <div class='org-node__name'>${_ocEsc(p.EmployeeName)}</div>
             <div class='org-node__sub'>${_ocEsc(p.Level || '')}${
               p.Location ? ' · ' + _ocEsc(p.Location) : ''}</div>

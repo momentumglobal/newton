@@ -42,6 +42,16 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### July 2026 — LCI Lead Magnet (Sales module)
+
+**New: LCI Lead Magnet page** — a lightweight business-development tool that produces a one-page "Country Comparison" PDF showing the cost-of-employment delta between a prospect's current location and one or more scoped locations. Distinct from the full LCI Cost Models (which model a live engagement month by month). New file `js/lci-leadmagnet.js`; Admin/Leadership only.
+
+- **Location Library** — a shared master table (`LCILocations`): Location ("City, Country"), Employer Burden %, FX rate (entered as 1 GBP = X local), Currency (ISO code), and one average-annual-salary column per discipline. Add/edit/delete inline.
+- **Insights Report Builder** — select current location, scoped locations, disciplines, and a display currency (defaults to the current location's currency, overridable). Figures are computed in GBP then converted for display. Live preview; optional "Prepared for" and "Watchouts" free text.
+- **Cost delta** — overall (delta of average cost across selected disciplines) plus a per-discipline breakdown; lower-than-current in green. All costs are `salary × (1 + burden) ÷ fx`, normalised to GBP.
+- **Output** — single-page portrait branded PDF with a fixed methodology/disclaimer note. Generate-and-download only (no saved reports).
+- **Config:** disciplines live in `CONFIG.LCI_DISCIPLINES` (single source of truth, mapped to the `Sal_*` columns); `CONFIG.COUNTRY_CURRENCY` extended with common nearshore/offshore markets so their currencies are selectable.
+
 ### July 2026 — LCI Cost Models (Sales module)
 
 **New: Location & Cost Intelligence (LCI) Cost Models** — a native replacement for the Excel recruitment ramp & cost model used on LCI location-research engagements. Built as a new page in the Sales module (`js/lci-*.js`); Admin/Leadership full access, Delivery Managers scoped to models assigned to them.

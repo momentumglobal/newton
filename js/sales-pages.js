@@ -173,7 +173,7 @@ async function openForecastModal(id) {
     document.getElementById('forecast-edit-id').value = id;
     try {
       const forecasts = await getSalesForecasts();
-      const f = forecasts.find(x => x.id === id);
+      const f = forecasts.find(x => String(x.id) === String(id));
       if (f) {
         document.getElementById('forecast-title').value = f.Title || '';
         document.getElementById('forecast-start').value = f.ForecastStartDate

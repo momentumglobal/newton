@@ -175,8 +175,9 @@ function exportOrgChartPdf() {
   const pageW = 1050, pageH = 600;                  // A4 landscape usable, minus header & title
   const scale = Math.min(1, pageW / inner.scrollWidth, pageH / inner.scrollHeight);
   inner.style.setProperty('--org-print-scale', scale);
+  const monthYear = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
   document.body.classList.add('org-printing');
-  printPage('Org Chart', true, 'People');
+  printPage(`MG Org Chart - ${monthYear}`, true, 'People');
   setTimeout(() => {
     document.body.classList.remove('org-printing');
     inner.style.removeProperty('--org-print-scale');

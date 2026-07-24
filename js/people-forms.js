@@ -55,6 +55,14 @@ function renderPersonForm(existingData = null) {
           <input type='number' name='Salary' min='0' step='0.01'
             value='${existingData?.Salary || ''}'>
         </div>
+        <div class='form-group'>
+          <label>Photo</label>
+          ${existingData?.PhotoUrl
+            ? `<img src='${existingData.PhotoUrl}' alt='' style='width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:6px'>`
+            : ''}
+          <input type='file' name='PhotoFile' accept='image/*'>
+          <span style='font-size:11px;color:#888'>Uploads to PeoplePhotos. Square images crop best.</span>
+        </div>
         ${isEdit ? `
         <div class='form-group'>
           <label style='display:flex;align-items:center;gap:8px;cursor:pointer'>
@@ -90,9 +98,15 @@ async function submitPersonForm(event, editId = null) {
     IsActive:     editId ? (form.querySelector('[name=IsActive]')?.checked !== false) : true,
     Salary:       data.Salary ? parseFloat(data.Salary) : undefined,
   };
+  const file = form.querySelector('[name=PhotoFile]')?.files?.[0] || null;
   try {
+    let id = editId;
     if (editId) { await updatePerson(editId, fields); }
-    else        { await createPerson(fields); }
+    else        { const saved = await createPerson(fields); id = saved.id; }
+    if (file && id) {
+      const url = await uploadPeoplePhoto('person', id, file);
+      if (url) await updatePerson(id, { PhotoUrl: url });
+    }
     navigateToPeople('peopleTracker');
   } catch (e) {
     clearButtonLoading(btn);

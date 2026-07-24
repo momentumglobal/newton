@@ -788,7 +788,8 @@ async function uploadPeoplePhoto(prefix, id, file) {
     throw new Error(err?.error?.message || `Photo upload failed: HTTP ${res.status}`);
   }
   const result = await res.json();
-  return result?.webUrl || null;
+  const web = result?.webUrl;
+  return web ? web + (web.includes('?') ? '&' : '?') + 'v=' + Date.now() : null;
 }
 
 // ── Payroll summary ───────────────────────────────────────────────────

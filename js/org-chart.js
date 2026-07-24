@@ -34,7 +34,8 @@ async function renderOrgChart() {
     <div class='page-header'>
       <h2>Org Chart</h2>
       <div style='display:flex;gap:8px'>
-        <button class='btn-secondary' onclick='showOrgChartEditForm()'>Edit reporting lines</button>
+        ${['admin','leadership'].includes(_resolvedRole)
+          ? `<button class='btn-secondary' onclick='showOrgChartEditForm()'>Edit reporting lines</button>` : ''}
         <button class='print-btn' onclick='exportOrgChartPdf()'>⎙ Export PDF</button>
       </div>
     </div>

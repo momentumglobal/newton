@@ -64,7 +64,8 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
 
   // Project node for a given CSD (by display name), with its team hung beneath.
   const personNode = (p) => ({ kind: 'person', label: p.EmployeeName,
-    sub: `${p.Level || ''}${p.Location ? ' · ' + p.Location : ''}`, children: [] });
+    sub: `${p.Level || ''}${p.Location ? ' · ' + p.Location : ''}`,
+    _band: p.Level, children: [] });
 
   const projectNode = (proj) => {
     const members = [];
@@ -140,7 +141,7 @@ function renderTreeHtml(roots) {
       ? ` style='border-color:${n._colour};background:${n._colour}1A'` : '';
     return `
     <li>
-      <div class='org-node org-node--${n.kind}'${style}>
+      <div class='org-node org-node--${n.kind}${n._band ? ' org-node--' + n._band.toLowerCase() : ''}'${style}>
         <div class='org-node__name'>${_ocEsc(n.label)}</div>
         ${n.sub ? `<div class='org-node__sub'>${_ocEsc(n.sub)}</div>` : ''}
       </div>

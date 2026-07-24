@@ -2032,12 +2032,13 @@ body {
 .org-node--project { border-color: #2E7D32; background: #E8F5E9; }
 .org-node--bench   { border-style: dashed; background: #fafafa; }
 .org-node--person { padding: 3px 8px; min-width: 84px; }
-.org-node--has-avatar { padding-top: 20px; }
+.org-node--has-avatar { padding-top: 25px; }
 .org-avatar {
-  position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
-  width: 30px; height: 30px; border-radius: 50%; box-sizing: border-box;
+  position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
+  width: 40px; height: 40px; border-radius: 50%; box-sizing: border-box;
   border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25);
   display: flex; align-items: center; justify-content: center; overflow: hidden;
+  z-index: 2;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 .org-avatar--initials { background: #37589C; color: #fff; font-size: 11px; font-weight: 600; }

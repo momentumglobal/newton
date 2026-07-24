@@ -1994,7 +1994,7 @@ body {
 .org-tree, .org-tree ul { position: relative; padding-top: 20px; text-align: center;
   white-space: nowrap; list-style: none; margin: 0; }
 .org-tree ul { display: flex; justify-content: center; }
-.org-tree li { position: relative; padding: 20px 10px 0; }
+.org-tree li { position: relative; padding: 16px 4px 0; }
 /* connector elbows */
 .org-tree li::before, .org-tree li::after {
   content: ''; position: absolute; top: 0; right: 50%;
@@ -2020,7 +2020,7 @@ body {
 .org-node--csd     { border-color: #1565C0; background: #E3F2FD; }
 .org-node--project { border-color: #2E7D32; background: #E8F5E9; }
 .org-node--bench   { border-style: dashed; background: #fafafa; }
-.org-node--person { padding: 3px 10px; min-width: 100px; }
+.org-node--person { padding: 3px 8px; min-width: 84px; }
 .org-empty { color: #777; padding: 40px; text-align: center; }
 
 .org-bench { margin-top: 32px; border-top: 1px dashed #cfd8dc; padding-top: 16px; }
@@ -2038,8 +2038,6 @@ body {
   body.org-printing .org-print-title {
     display: block; text-align: center; font-size: 16px; font-weight: 600;
     color: #0A0B44; margin: 0 0 14px; }
-  body.org-printing #org-chart-canvas { text-align: left; min-width: 0; }
-  body.org-printing #org-chart-inner {
-    transform: translateX(var(--org-print-tx, 0)) scale(var(--org-print-scale, 1));
-    transform-origin: top left; }
+  body.org-printing #org-chart-canvas { text-align: center; min-width: 0; }
+  body.org-printing #org-chart-inner { zoom: var(--org-print-scale, 1); }
 }

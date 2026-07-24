@@ -40,6 +40,7 @@ async function renderPeoplePage(page) {
   switch (page) {
     case 'peopleTracker':   await renderEmployeeTracker();    break;
     case 'peopleDashboard': await renderPeopleDashboard();    break;
+    case 'orgChart':        await renderOrgChart();           break;
     case 'peopleGantt':     await renderDeploymentTimeline(); break;
     case 'gpInvoices':      await renderGPInvoices();         break;
     case 'scorecards':      await renderScorecardsPage();     break;

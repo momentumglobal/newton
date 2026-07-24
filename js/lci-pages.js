@@ -182,7 +182,7 @@ function _lciModelModal(role) {
             </div>
           </div>
           <div class="form-group" id="lci-fx-group" style="display:none">
-            <label>FX rate (local → display) *</label>
+            <label id="lci-fx-label">FX rate (1 local = X display) *</label>
             <input type="number" class="form-control" name="FXRateLocalToDisplay" step="0.0001" min="0" id="lci-fx-rate"
                    placeholder="e.g. 0.2 (1 local = 0.2 display)">
           </div>
@@ -250,6 +250,8 @@ function lciToggleFxInput() {
   const differ = local !== display;
   group.style.display = differ ? '' : 'none';
   rate.required = differ;
+  const label = document.getElementById('lci-fx-label');
+  if (label) label.textContent = `FX rate (1 ${local || 'local'} = X ${display || 'display'}) *`;
 }
 
 async function saveLCIModel(event) {

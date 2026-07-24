@@ -186,9 +186,18 @@ async function buildLeadershipTab() {
   const list = await getLeadershipAccess();
   const rows = list.map(l => `
     <tr>
+      <td>${l.PhotoUrl
+            ? `<img src="${l.PhotoUrl}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
+            : '<span style="color:#aaa;font-size:12px">—</span>'}</td>
       <td>${l.UserName || '—'}</td>
       <td>${l.UserEmail}</td>
-      <td><div class="row-actions"><button class="btn-danger" onclick="deleteOsAdminRecord('LeadershipAccess',${l.id})">Remove</button></div></td>
+      <td>
+        <div class="row-actions" style="gap:6px">
+          <input type="file" id="lead-photofile-${l.id}" accept="image/*">
+          <button class="btn-secondary" onclick="uploadLeadershipPhoto(${l.id})">Upload photo</button>
+          <button class="btn-danger" onclick="deleteOsAdminRecord('LeadershipAccess',${l.id})">Remove</button>
+        </div>
+      </td>
     </tr>`).join('');
   return `
     <h3>Leadership Access List</h3>
@@ -196,8 +205,8 @@ async function buildLeadershipTab() {
       These individuals have read-only access to the Company Dashboard.
     </p>
     <table class="data-table" style="margin:0 0 24px">
-      <thead><tr><th>Name</th><th>Email</th><th></th></tr></thead>
-      <tbody>${rows || '<tr><td colspan=3>No leadership users yet.</td></tr>'}</tbody>
+      <thead><tr><th>Photo</th><th>Name</th><th>Email</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan=4>No leadership users yet.</td></tr>'}</tbody>
     </table>
     <h3>Add User</h3>
     <div class="form-container" style="padding:0;max-width:500px">
@@ -211,6 +220,10 @@ async function buildLeadershipTab() {
           <input type="email" id="lead-email" placeholder="alex@company.com">
         </div>
       </div>
+      <div class="form-group">
+        <label>Photo <span style="font-size:11px;color:#888;font-weight:normal">optional</span></label>
+        <input type="file" id="lead-photofile" accept="image/*">
+      </div>
       <div id="lead-error" class="form-error"></div>
       <button class="btn-primary" onclick="submitLeadershipUser()">Add User</button>
     </div>
@@ -219,17 +232,37 @@ async function buildLeadershipTab() {
 async function submitLeadershipUser() {
   const name  = document.getElementById('lead-name').value.trim();
   const email = document.getElementById('lead-email').value.trim();
+  const file  = document.getElementById('lead-photofile')?.files?.[0] || null;
   const errEl = document.getElementById('lead-error');
   errEl.style.display = 'none';
   if (!email) { errEl.textContent = 'Email is required.'; errEl.style.display = 'block'; return; }
   const btn = document.querySelector('.btn-primary[onclick="submitLeadershipUser()"]');
   setButtonLoading(btn);
   try {
-    await createItem('LeadershipAccess', { Title: email, UserName: name });
+    const saved = await createItem('LeadershipAccess', { Title: email, UserName: name });
+    if (file && saved?.id) {
+      const url = await uploadPeoplePhoto('leader', saved.id, file);
+      if (url) await updateItem('LeadershipAccess', saved.id, { PhotoUrl: url });
+    }
     await renderOsAdminPage('leadership');
   } catch(e) {
     clearButtonLoading(btn);
     errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
+  }
+}
+async function uploadLeadershipPhoto(id) {
+  const input = document.getElementById('lead-photofile-' + id);
+  const file = input?.files?.[0];
+  if (!file) { alert('Choose an image first.'); return; }
+  const btn = input.nextElementSibling;
+  setButtonLoading(btn);
+  try {
+    const url = await uploadPeoplePhoto('leader', id, file);
+    await updateItem('LeadershipAccess', id, { PhotoUrl: url });
+    await renderOsAdminPage('leadership');
+  } catch (e) {
+    clearButtonLoading(btn);
+    alert('Error uploading photo: ' + e.message);
   }
 }
 async function deleteOsAdminRecord(listName, id) {

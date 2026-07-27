@@ -239,3 +239,9 @@ function escHtml(str) {
 function escHtmlLines(str) {
   return escHtml(str).replace(/\r?\n/g, '<br>');
 }
+
+// First non-empty line of a multi-line string. Returns '' for empty input.
+function firstLine(str) {
+  const lines = String(str ?? '').split(/\r?\n/).map(l => l.trim());
+  return lines.find(l => l !== '') || '';
+}

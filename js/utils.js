@@ -226,3 +226,16 @@ function runKpiCountUps(scope = document) {
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
   scope.querySelectorAll('.kpi-value').forEach(animateCountUp);
 }
+
+// ── Text escaping ─────────────────────────────────────────────
+// Escape a value for safe interpolation into an HTML template string.
+function escHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[c]);
+}
+
+// As escHtml, but preserves user line breaks as <br>.
+function escHtmlLines(str) {
+  return escHtml(str).replace(/\r?\n/g, '<br>');
+}

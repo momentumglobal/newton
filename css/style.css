@@ -1773,13 +1773,21 @@ body {
   /* Named page: this block prints landscape while the rest stays portrait.
      Chromium (Chrome/Edge) only — Firefox ignores named pages. */
   @page coe-gantt { size: A4 landscape; }
-  .rb-hiring-plan-page {
+    .rb-hiring-plan-page {
     display: block;
     page: coe-gantt;
     break-before: page;
     page-break-before: always;
   }
-  .rb-hiring-plan-page h3 { margin-bottom: 10px; }
+  /* Tile border fills the whole landscape page even if the chart is shorter. */
+  .rb-hiring-plan-panel {
+    min-height: 100vh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0;
+  }
+  .rb-hiring-plan-panel .panel-title { margin-bottom: 10px; }
 }
 
 /* ── LCI Cost Model ─────────────────────────────────────────────── */

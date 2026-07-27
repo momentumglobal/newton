@@ -366,14 +366,14 @@ function renderInvoiceForm(existingData = null) {
         </div>
         <div class='form-group'>
           <label>Notes</label>
-          <input type='text' name='Notes'
-            value='${existingData?.Notes || ''}'>
+          <small class='form-hint'>Leave a message for Finance here — it appears in the email they receive.</small>
+          <textarea name='Notes' rows='3'>${escHtml(existingData?.Notes)}</textarea>
         </div>
         <div class='form-group'>
           <label>Invoice PDF ${isEdit ? '(leave blank to keep existing)' : '*'}</label>
           <input type='file' name='InvoicePDF' accept='.pdf'
             ${isEdit ? '' : 'required'}>
-          <small style='color:#888;font-size:12px'>PDF only. One file per invoice.</small>
+          <small class='form-hint'>PDF only. One file per invoice.</small>
         </div>
         <div class='form-actions'>
           <button type='submit' class='btn-primary'>

@@ -112,6 +112,12 @@ function avgDaysToHire(roles) {
   return Math.round(hired.reduce((s, r) =>
     s + Math.floor((new Date(r.ActualHireDate) - new Date(r.OpenDate)) / 86400000), 0) / hired.length);
 }
+function avgDaysOpen(roles) {
+  const active = roles.filter(r =>
+    !['Backlog','Hired','Cancelled','On-hold'].includes(r.Stage) && r.OpenDate);
+  if (!active.length) return null;
+  return Math.round(active.reduce((s, r) => s + daysOpen(r.OpenDate), 0) / active.length);
+}
 function hiredOnTimePct(roles) {
   const hired = roles.filter(r => r.ActualHireDate && r.TargetHireDate);
   if (!hired.length) return null;
@@ -147,6 +153,7 @@ function renderKPIStrip(roles, activity, period) {
   const openRoles    = roles.filter(r => !['Backlog','Hired','Cancelled','On-hold'].includes(r.Stage)).length;
   const totalHires   = sumField(activity, 'Hires');
   const backlogRoles = roles.filter(r => r.Stage === 'Backlog').length;
+  const avgOpenDays  = avgDaysOpen(roles);
   const acts      = activity.filter(a => activityInKpiPeriod(a, period));
   const submitted = sumField(acts, 'Submitted');
   const int1      = sumField(acts, 'Interview1');
@@ -188,8 +195,9 @@ function renderKPIStrip(roles, activity, period) {
   const convDisplay  = convPct  !== null ? convPct + '%'   : '—';
   const ivDisplay    = ivOfferR !== null ? ivOfferR + ':1' : '—';
   const offerDisplay = offerPct !== null ? offerPct + '%'  : '—';
-  const daysDisplay  = avgDays  !== null ? avgDays         : '—';
+    const daysDisplay  = avgDays  !== null ? avgDays         : '—';
   const otDisplay    = onTimePct !== null ? onTimePct + '%' : '—';
+  const avgOpenDaysDisplay = avgOpenDays !== null ? avgOpenDays : '—';
   const convDelta  = kpiDelta(convPct,  prevConvPct,  false, true);
   const ivDelta    = kpiDelta(ivOfferR, prevIvOfferR, true,  false);
   const offerDelta = kpiDelta(offerPct, prevOfferPct, false, true);
@@ -199,6 +207,7 @@ function renderKPIStrip(roles, activity, period) {
     <div class='kpi-strip'>
       ${kpiCard('Open Roles', openRoles, 'current')}
       ${kpiCard('Role Backlog', backlogRoles, 'current')}
+      ${kpiCard('Avg Days Open', avgOpenDaysDisplay, 'current')}
       ${kpiCard('Hires to Date', totalHires, 'all time')}
       ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,  `hired roles · ${periodLabel}`)}
     </div>

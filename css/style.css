@@ -145,6 +145,8 @@ body {
   box-shadow: 0 0 0 3px rgba(10,11,68,0.08);
 }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-hint { display: block; font-size: 12px; color: #888; margin-top: 4px; line-height: 1.4; }
+.cell-notes { max-width: 260px; white-space: normal; word-break: break-word; }
 .form-section-title {
   font-weight: 700; font-size: 13px; text-transform: uppercase;
   color: #0A0B44; margin: 16px 0 8px;

@@ -1544,7 +1544,7 @@ async function renderGPInvoices() {
       <td>${inv.DueDate     ? inv.DueDate.split('T')[0]     : '—'}</td>
       <td>£${inv.Amount ? Number(inv.Amount).toLocaleString('en-GB',
               {minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
-      <td class='cell-notes'>${inv.Notes ? escHtmlLines(inv.Notes) : '—'}</td>
+      <td class='cell-notes'>${renderInvoiceNotesCell(inv)}</td>
       <td>${statusBadge}</td>
 ${canEdit ? `<td style='white-space:nowrap'>
   <div class='row-actions' style='gap:12px'>
@@ -1570,6 +1570,35 @@ ${canEdit ? `<td style='white-space:nowrap'>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+}
+
+// Notes cell: first line only, with a "See more" toggle when there is more to show.
+function renderInvoiceNotesCell(inv) {
+  const notes = inv.Notes || '';
+  if (!notes.trim()) return '—';
+
+  const head     = firstLine(notes);
+  const hasMore  = /\r?\n/.test(notes.trim())
+                   || head.length > CONFIG.NOTES_PREVIEW_CHARS;
+
+  if (!hasMore) return `<span class='notes-body'>${escHtml(head)}</span>`;
+
+  return `
+    <div class='notes-cell' id='notes-${inv.id}'>
+      <div class='notes-short'>
+        <span class='notes-preview'>${escHtml(head)}</span><a href='#' class='notes-toggle'
+          onclick='toggleInvoiceNotes(event, ${inv.id})'>See more</a>
+      </div>
+      <div class='notes-full'>
+        <span class='notes-body'>${escHtmlLines(notes)}</span><a href='#' class='notes-toggle'
+          onclick='toggleInvoiceNotes(event, ${inv.id})'>See less</a>
+      </div>
+    </div>`;
+}
+
+function toggleInvoiceNotes(event, id) {
+  event.preventDefault();
+  document.getElementById(`notes-${id}`)?.classList.toggle('is-expanded');
 }
 
 async function markInvoicePaid(id) {

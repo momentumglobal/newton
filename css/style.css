@@ -146,7 +146,16 @@ body {
 }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .form-hint { display: block; font-size: 12px; color: #888; margin-top: 4px; line-height: 1.4; }
-.cell-notes { max-width: 260px; white-space: normal; word-break: break-word; }
+.cell-notes { max-width: 320px; white-space: normal; word-break: break-word; vertical-align: top; }
+.notes-cell .notes-full  { display: none; }
+.notes-cell.is-expanded .notes-short { display: none; }
+.notes-cell.is-expanded .notes-full  { display: block; }
+.notes-preview {
+  display: inline-block; max-width: 240px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;
+}
+.notes-toggle { font-size: 12px; margin-left: 6px; white-space: nowrap; cursor: pointer; }
+.notes-body { line-height: 1.5; }
 .form-section-title {
   font-weight: 700; font-size: 13px; text-transform: uppercase;
   color: #0A0B44; margin: 16px 0 8px;

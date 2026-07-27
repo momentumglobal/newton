@@ -457,10 +457,12 @@ function rbRenderReportHtml(title, data, ganttOpts = null) {
     if (!ganttOpts.forPrint) {
       ganttHtml = `<div class="rb-gantt-placeholder">
         Hiring Plan — renders as a landscape final page on PDF export</div>`;
-    } else if (ganttOpts.coeRows?.length) {
+        } else if (ganttOpts.coeRows?.length) {
       ganttHtml = `<div class="rb-hiring-plan-page">
-        <h3>Hiring Plan</h3>
-        ${coeGanttHtml(coeSortRows(ganttOpts.coeRows), { readOnly: true, canEdit: false, showActuals: false })}
+        <div class="dash-panel rb-hiring-plan-panel">
+          <h3 class="panel-title">Hiring Plan</h3>
+          ${coeGanttHtml(coeSortRows(ganttOpts.coeRows), { readOnly: true, canEdit: false, showActuals: false })}
+        </div>
       </div>`;
     }
   }
@@ -477,10 +479,10 @@ async function rbExportPdf() {
   const coeRows = (_rbIncludeGantt && _rbScope === 'project' && _rbProjectId)
     ? await getCoEPlanRows(_rbProjectId) : [];
 
-  // Use existing printPage() — sets print-header title/sub and calls window.print()
+    // Use existing printPage() — sets print-header title/sub and calls window.print()
   const main = document.getElementById('main-content');
   main.innerHTML = rbRenderReportHtml(title, data, { forPrint: true, coeRows });
-  printPage(title, false, 'Reporting');
+  printPage(title, true, 'Reporting');
 
   // Restore builder after print dialog closes
   setTimeout(() => renderReportBuilder(), 500);

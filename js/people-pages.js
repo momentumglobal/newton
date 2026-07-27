@@ -1544,7 +1544,7 @@ async function renderGPInvoices() {
       <td>${inv.DueDate     ? inv.DueDate.split('T')[0]     : '—'}</td>
       <td>£${inv.Amount ? Number(inv.Amount).toLocaleString('en-GB',
               {minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
-      <td>${inv.Notes || '—'}</td>
+      <td class='cell-notes'>${inv.Notes ? escHtmlLines(inv.Notes) : '—'}</td>
       <td>${statusBadge}</td>
 ${canEdit ? `<td style='white-space:nowrap'>
   <div class='row-actions' style='gap:12px'>

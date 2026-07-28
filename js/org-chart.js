@@ -208,8 +208,11 @@ function renderTreeHtml(roots) {
     const phCls  = n._placeholder ? ' org-node--placeholder' : '';
     const kids   = n.children || [];
     // Wide sibling rows blow out the chart width (and shrink the whole PDF), so
-    // past the threshold they run vertically off a single spine instead.
-    const ulCls  = kids.length >= CONFIG.ORG_STACK_THRESHOLD ? " class='org-stack'" : '';
+    // past the threshold they run vertically off a single spine instead — except
+    // for the structural leadership/CSD rows, which always stay side-by-side.
+    const canStack = !CONFIG.ORG_STACK_EXEMPT_KINDS.includes(n.kind);
+    const ulCls  = (canStack && kids.length >= CONFIG.ORG_STACK_THRESHOLD)
+      ? " class='org-stack'" : '';
     return `
     <li>
       <div class='org-node org-node--${n.kind}${n._band ? ' org-node--' + n._band.toLowerCase() : ''}${avCls}${phCls}'${style}>

@@ -84,12 +84,12 @@ function _renderLCIModelList(allModels, role) {
             <input type="checkbox" class="lci-compare-cb" value="${m.id}"${_lciPreTick.map(String).includes(String(m.id)) ? ' checked' : ''}
                    data-ccy="${m.DisplayCurrency || ''}" onchange="lciCompareSelectionChanged()">
           </td>
-          <td><strong>${m.Title || '—'}</strong></td>
-          <td>${m.ClientName || '—'}</td>
-          <td>${m.Location || '—'}</td>
+          <td><strong>${escHtml(m.Title || '—')}</strong></td>
+          <td>${escHtml(m.ClientName || '—')}</td>
+          <td>${escHtml(m.Location || '—')}</td>
           <td>${m.LocalCurrency || '—'} → ${m.DisplayCurrency || '—'}</td>
           <td>${_lciStatusPill(m.Status)}</td>
-          <td>${m.AssignedDMEmail || '—'}</td>
+          <td>${escHtml(m.AssignedDMEmail || '—')}</td>
           <td>${m.HorizonMonths ? m.HorizonMonths + 'm' : '—'}</td>
           <td>
             <div class="row-actions">
@@ -361,7 +361,7 @@ function _renderLCIReportsSection(reports, role) {
         try { count = JSON.parse(r.ModelIDs || '[]').length; } catch (_) {}
         return `
         <tr>
-          <td><strong>${r.Title || 'Untitled'}</strong></td>
+          <td><strong>${escHtml(r.Title || 'Untitled')}</strong></td>
           <td>${count} model${count === 1 ? '' : 's'}</td>
           <td>${r.CreatedByEmail || '—'}</td>
           <td>

@@ -24,7 +24,7 @@ function _lciRoadmapMilestoneRows(horizon) {
       `<td class="lci-mcol">${i + 1 >= start && i + 1 <= end ? '<div class="lci-ms-bar"></div>' : ''}</td>`).join('');
     return `
       <tr>
-        <td><input type="text" class="lci-cell lci-cell--grow" value="${s.Title || ''}"
+        <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(s.Title)}"
                    onchange="lciMilestoneChanged(${idx}, 'Title', this.value)"></td>
         <td colspan="3">
           <div style="display:flex;gap:4px;align-items:center;font-size:12px">

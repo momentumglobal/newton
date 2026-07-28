@@ -57,9 +57,9 @@ function _lciLegacyHtml() {
       `<option value="${k}"${k === cat ? ' selected' : ''}>${v.label}</option>`).join('');
     return `
       <tr>
-        <td><input type="text" class="lci-cell lci-cell--grow" value="${r.Title || ''}"
+        <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(r.Title)}"
                    onchange="lciRowFieldChanged(${gidx}, 'Title', this.value)"></td>
-        <td><input type="text" class="lci-cell lci-cell--grow" value="${r.Team || ''}"
+        <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(r.Team)}"
                    onchange="lciRowFieldChanged(${gidx}, 'Team', this.value)"></td>
         <td><select class="lci-cell" onchange="lciRowFieldChanged(${gidx}, 'LegacyCategory', this.value)">${catOpts}</select></td>
         <td><input type="number" class="lci-cell lci-cell--sm" min="1" value="${r.Quantity ?? 1}"
@@ -122,7 +122,7 @@ function _lciMonthGridHtml(sectionId, type, title, subtitle, addFn) {
       </td>`).join('');
     return `
       <tr>
-        <td><input type="text" class="lci-cell lci-cell--grow" value="${r.Title || ''}"
+        <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(r.Title)}"
                    onchange="lciRowFieldChanged(${gidx}, 'Title', this.value)"></td>
         ${cells}
         <td class="lci-derived" id="lci-mtotal-${gidx}">${_lciFmt(vals.reduce((a, b) => a + b, 0), m.DisplayCurrency)}</td>

@@ -13,13 +13,12 @@ const CONFIG = {
   // Org Chart: a manager with this many direct reports (or more) renders them
   // stacked vertically off a single spine instead of side-by-side, to keep the
   // chart narrow enough for the one-page landscape PDF.
-  ORG_STACK_THRESHOLD: 3,
+  // Stack at 2+ so every multi-report manager reads the same way down the chart.
+  ORG_STACK_THRESHOLD: 2,
   // Node kinds that never stack their children, however many they have. The
   // leadership/CSD rows are few, wide and structural — stacking them buries the
   // top of the hierarchy. Width accumulates further down, so stack there instead.
   ORG_STACK_EXEMPT_KINDS: ['leader', 'csd'],
-  // Sub-label shown on a placeholder (vacant / not-yet-hired) org chart node.
-  ORG_PLACEHOLDER_LABEL: 'To be hired',
   // Bubble type used for a synthetic (placeholder-only) team that has no Projects row.
   ORG_PLACEHOLDER_PROJECT_TYPE: 'Internal',
   // Hardcoded admin users — full access, never overridden by SharePoint data

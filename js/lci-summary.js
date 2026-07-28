@@ -263,7 +263,11 @@ function _lciSummaryRoadmapHtml() {
     const teamRows = coeRows.filter(r => (r.Team || 'Other') === team).map(r => {
       const vals = lciMonthValues(r, horizon);
       const cells = vals.map(v => `<td class="lci-mcol">${v || ''}</td>`).join('');
-      return `<tr><td class="lci-out-indent" style="padding-left:18px">${r.Title || ''}</td>${cells}<td class="lci-derived">${vals.reduce((a, b) => a + b, 0)}</td></tr>`;
+      // Level shown in brackets after the title. Trimmed so a whitespace-only
+      // CareerLevel renders no empty "( )"; handles '' (new rows) and null
+      // (older SharePoint rows) alike.
+      const lvl = String(r.CareerLevel || '').trim();
+      return `<tr><td class="lci-out-indent" style="padding-left:18px">${r.Title || ''}${lvl ? ` (${lvl})` : ''}</td>${cells}<td class="lci-derived">${vals.reduce((a, b) => a + b, 0)}</td></tr>`;
     }).join('');
     return `<tr class="lci-team-row"><td colspan="${horizon + 2}"><strong>${team}</strong></td></tr>${teamRows}`;
   }).join('');

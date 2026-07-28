@@ -88,6 +88,15 @@ function addLCILegacyRow() {
 
 // ── One-offs & fees (month-value grids) ──────────────────────────────
 
+// Row type → the function that re-renders its section. A lookup, not an inline
+// ternary: the delete button below needs the right renderer per type, and a
+// two-way ternary silently sent any third type to _lciFeesHtml.
+const _LCI_GRID_RENDERERS = {
+  oneoff: '_lciOneoffsHtml',
+  fee:    '_lciFeesHtml',
+  travel: '_lciTravelHtml',
+};
+
 function _lciMonthGridHtml(sectionId, type, title, subtitle, addFn) {
   const m = _lciEd.model;
   const horizon = Number(m.HorizonMonths);
@@ -110,7 +119,7 @@ function _lciMonthGridHtml(sectionId, type, title, subtitle, addFn) {
                    onchange="lciRowFieldChanged(${gidx}, 'Title', this.value)"></td>
         ${cells}
         <td class="lci-derived" id="lci-mtotal-${gidx}">${_lciFmt(vals.reduce((a, b) => a + b, 0), m.DisplayCurrency)}</td>
-        <td><button class="btn-danger lci-row-del" onclick="removeLCIRowAction(${gidx}, '_lci${type === 'oneoff' ? 'Oneoffs' : 'Fees'}Html', '${sectionId}')">×</button></td>
+        <td><button class="btn-danger lci-row-del" onclick="removeLCIRowAction(${gidx}, '${_LCI_GRID_RENDERERS[type]}', '${sectionId}')">×</button></td>
       </tr>`;
   }).join('')
     : `<tr><td colspan="${horizon + 3}" style="color:#888;text-align:center">No rows yet.</td></tr>`;
@@ -122,6 +131,15 @@ function _lciMonthGridHtml(sectionId, type, title, subtitle, addFn) {
         <tbody>${body}</tbody>
       </table>
     </div>`);
+}
+
+function _lciTravelHtml() {
+  if (!lciSections(_lciEd.model).travel) return '';
+  return _lciMonthGridHtml('lci-travel-section', 'travel', 'Travel',
+    `(amounts in ${_lciEd.model.DisplayCurrency}, entered in the month(s) they land)`, 'addLCITravelRow');
+}
+function addLCITravelRow() {
+  _lciAddRow({ RowType: 'travel', Title: '', MonthValues: '[]' }, '_lciTravelHtml', 'lci-travel-section');
 }
 
 function _lciOneoffsHtml() {
@@ -269,8 +287,8 @@ function _lciOutputInnerHtml(includeChart = true, plain = false) {
             <tr><td>CoE Headcount (on payroll)</td>${tdInt(c.coeHeadcount)}</tr>
             ${(Number(m.EoRFeePerHead) || 0) > 0 ? `<tr class="lci-out-section lci-out-indent"><td>EoR Costs</td>${td(c.eor)}</tr>` : ''}
             ${(Number(m.OfficeCostPerHead) || 0) > 0 ? `<tr class="lci-out-indent"><td>Office Costs</td>${td(c.office)}</tr>` : ''}
-            ${(Number(m.TravelPerMonth) || 0) > 0 ? `<tr class="lci-out-indent"><td>Travel Costs</td>${td(c.travel)}</tr>` : ''}
-            ${((Number(m.EoRFeePerHead) || 0) > 0 || (Number(m.OfficeCostPerHead) || 0) > 0 || (Number(m.TravelPerMonth) || 0) > 0) ? `<tr class="lci-out-subtotal"><td>Total CoE Operating Costs</td>${td(c.coeOperating)}</tr>` : ''}` : ''}
+            ${c.travel.some(v => v) ? `<tr class="lci-out-indent"><td>Travel Costs</td>${td(c.travel)}</tr>` : ''}
+            ${((Number(m.EoRFeePerHead) || 0) > 0 || (Number(m.OfficeCostPerHead) || 0) > 0 || c.travel.some(v => v)) ? `<tr class="lci-out-subtotal"><td>Total CoE Operating Costs</td>${td(c.coeOperating)}</tr>` : ''}` : ''}
             ${sections.legacy || sections.oneoffs ? `
             ${sections.legacy ? `<tr class="lci-out-section"><td>Legacy Headcount</td>${tdInt(c.legacyHeadcount)}</tr>
             <tr class="lci-out-indent"><td>Legacy Team Costs</td>${td(c.legacyCost)}</tr>` : ''}

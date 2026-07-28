@@ -120,9 +120,12 @@ async function renderLCISummaryPage(modelId) {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading...</p>';
   try {
-    const [model, rows, milestones] = await Promise.all([
+    const [model, rawRows, milestones] = await Promise.all([
       getLCIModelById(modelId), getLCIRows(modelId), getLCIMilestones(modelId),
     ]);
+    // N-009: same seed as the editor, so an unmigrated model prints correctly.
+    // Read-only here — nothing is written back from the summary view.
+    const rows = lciMigrateTravelRows(model, rawRows);
     rows.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
     milestones.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
     // Read-only view reuses _lciEd so the shared renderers work unchanged.
@@ -196,7 +199,6 @@ function _lciAssumptionsHtml(m) {
           <tr><td>Notice period (months)</td><td>${m.NoticeMonths ?? 0}</td></tr>
           <tr><td>Office cost / head / month</td><td>${m.OfficeCostPerHead ?? 0} ${m.LocalCurrency}</td></tr>
           <tr><td>EoR fee / head / month</td><td>${m.EoRFeePerHead ?? 0} ${m.DisplayCurrency}</td></tr>
-          <tr><td>Travel / month</td><td>${m.TravelPerMonth ?? 0} ${m.DisplayCurrency}</td></tr>
           ${m.LocalCurrency !== m.DisplayCurrency ? `<tr><td>FX rate (${m.LocalCurrency}→${m.DisplayCurrency})</td><td>${m.FXRateLocalToDisplay ?? '—'}</td></tr>` : ''}
         </tbody>
       </table>

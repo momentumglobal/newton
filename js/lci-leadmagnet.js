@@ -135,7 +135,7 @@ function _lmLibraryHtml() {
   const rows = _lmLocations.length
     ? _lmLocations.map(l => `
         <tr>
-          <td><strong>${l.Title || '—'}</strong></td>
+          <td><strong>${escHtml(l.Title || '—')}</strong></td>
           <td>${l.EmployerBurdenPct != null ? (Math.round(l.EmployerBurdenPct * 100000) / 1000) + '%' : '—'}</td>
           <td>${l.FXRateToGBP ?? '—'}</td>
           <td>${l.Currency || '—'}</td>
@@ -260,10 +260,10 @@ async function deleteLMLocation(id) {
 
 // ── Part 2: Insights Report Builder ──────────────────────────────────
 function _lmBuilderHtml() {
-  const locOpts = _lmLocations.map(l => `<option value="${l.id}">${l.Title}</option>`).join('');
+  const locOpts = _lmLocations.map(l => `<option value="${l.id}">${escHtml(l.Title)}</option>`).join('');
   const ccyOpts = _lmCurrencies().map(c => `<option value="${c}"${c === (_lmSel.displayCcy || 'GBP') ? ' selected' : ''}>${c}</option>`).join('');
   const scopedBoxes = _lmLocations.map(l =>
-    `<label class="lm-chk"><input type="checkbox" class="lm-scoped" value="${l.id}" onchange="_lmSelChanged()"> ${l.Title}</label>`).join('');
+    `<label class="lm-chk"><input type="checkbox" class="lm-scoped" value="${l.id}" onchange="_lmSelChanged()"> ${escHtml(l.Title)}</label>`).join('');
   const discBoxes = CONFIG.LCI_DISCIPLINES.map(d =>
     `<label class="lm-chk"><input type="checkbox" class="lm-disc" value="${d.key}" onchange="_lmSelChanged()"> ${d.label}</label>`).join('');
 
@@ -382,7 +382,7 @@ function _lmReportHtml(computed, current) {
           <span class="lm-overall" style="color:${_lmDeltaColour(r.overallPct)}">${_lmPct(r.overallPct)} <span style="font-weight:400;color:#888;font-size:12px">overall vs current</span></span>
         </div>
         <table class="data-table lm-report-table">
-          <thead><tr><th>Discipline</th><th>${current.Title}</th><th>${r.location}</th><th>Delta</th></tr></thead>
+          <thead><tr><th>Discipline</th><th>${escHtml(current.Title)}</th><th>${escHtml(r.location)}</th><th>Delta</th></tr></thead>
           <tbody>${discRows || `<tr><td colspan="4" style="color:#888">No comparable salary data.</td></tr>`}</tbody>
         </table>
         ${r.missing.length ? `<p class="lm-missing">No data for: ${r.missing.join(', ')} — excluded from this comparison.</p>` : ''}
@@ -394,7 +394,7 @@ function _lmReportHtml(computed, current) {
       <div class="lm-report-band">
         <div>
           <div class="lm-report-title">Location &amp; Cost Intelligence — Country Comparison</div>
-          <div class="lm-report-sub">Current location: ${current.Title}${preparedFor ? ' · Prepared for ' + preparedFor : ''} · ${date}</div>
+          <div class="lm-report-sub">Current location: ${escHtml(current.Title)}${preparedFor ? ' · Prepared for ' + escHtml(preparedFor) : ''} · ${date}</div>
         </div>
         <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="lm-report-logo">
       </div>

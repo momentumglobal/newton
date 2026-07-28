@@ -1922,6 +1922,15 @@ body {
 .lci-add-role-btn { background: none; border: none; color: #1B3A5C; font-weight: 600; cursor: pointer; font-size: 13px; }
 .lci-add-role-btn:hover { text-decoration: underline; }
 
+/* Team header row actions (rename / delete) */
+.lci-team-btn {
+  background: none; border: none; cursor: pointer;
+  color: #6b7a8d; font-size: 12px; font-weight: 600;
+  padding: 0 4px; margin-left: 8px;
+}
+.lci-team-btn:hover { text-decoration: underline; color: #1B3A5C; }
+.lci-team-btn--danger:hover { color: #C0392B; }
+
 @media print {
   .lci-noprint, #sidebar { display: none !important; }
   /* Client-facing summary: no 'Confidential — Internal' banner */

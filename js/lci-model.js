@@ -128,23 +128,42 @@ function lciCoeCosts(rows, model) {
 // ── Legacy section ───────────────────────────────────────────────────
 // Individual rows by default (Quantity 1); grouped allowed via Quantity.
 // Salaries entered in DISPLAY currency (customer-side).
-// Cost runs M1 → ExitMonth inclusive; no ExitMonth = runs to horizon (UI warns).
+// Exiting rows run M1 → ExitMonth inclusive; no ExitMonth = runs to horizon
+// (UI warns). Retained rows are the hybrid team — they stay in post, so they
+// always run to the horizon and any stored ExitMonth is ignored.
+
+// Blank/unknown → 'exiting', so rows created before N-010 behave exactly as
+// they did. Only an explicit 'retained' opts in.
+function lciLegacyCategory(row) {
+  return String(row.LegacyCategory || '').trim().toLowerCase() === 'retained'
+    ? 'retained' : 'exiting';
+}
+
 function lciLegacyCosts(rows, model) {
   const horizon = Number(model.HorizonMonths);
   const legacyRows = rows.filter(r => r.RowType === 'legacy');
   const total     = new Array(horizon).fill(0);
   const headcount = new Array(horizon).fill(0);
+  // Cost splits by category; headcount stays combined by design.
+  const byCategory = {
+    exiting:  new Array(horizon).fill(0),
+    retained: new Array(horizon).fill(0),
+  };
 
   for (const row of legacyRows) {
     const qty  = Number(row.Quantity) || 1;
     const cost = lciMonthlyCost(row, model) * qty;
-    const exit = Number(row.ExitMonth) || horizon; // last paid month index (1-based)
+    const cat  = lciLegacyCategory(row);
+    // Category drives the end month, not the stored ExitMonth: a value left
+    // over from before a row was switched to Retained must not truncate it.
+    const exit = cat === 'retained' ? horizon : (Number(row.ExitMonth) || horizon);
     for (let i = 0; i < Math.min(exit, horizon); i++) {
-      total[i]     += cost;
-      headcount[i] += qty;
+      total[i]           += cost;
+      headcount[i]       += qty;
+      byCategory[cat][i] += cost;
     }
   }
-  return { total, headcount };
+  return { total, headcount, byCategory };
 }
 
 // ── One-offs & fees ──────────────────────────────────────────────────
@@ -196,8 +215,8 @@ function lciComputeModel(model, rows) {
   const fx       = lciFxRate(model);
   const zero = () => new Array(horizon).fill(0);
 
-  const coe     = sections.coe     ? lciCoeCosts(rows, model)   : { total: zero(), headcount: zero(), byTeam: {} };
-  const legacy  = sections.legacy  ? lciLegacyCosts(rows, model): { total: zero(), headcount: zero() };
+  const coe     = sections.coe     ? lciCoeCosts(rows, model)    : { total: zero(), headcount: zero(), byTeam: {} };
+  const legacy  = sections.legacy  ? lciLegacyCosts(rows, model) : { total: zero(), headcount: zero(), byCategory: { exiting: zero(), retained: zero() } };
   const oneoffs = sections.oneoffs ? lciSumByType(rows, model, 'oneoff') : zero();
   const fees    = sections.fees    ? lciSumByType(rows, model, 'fee')    : zero();
 
@@ -225,8 +244,9 @@ function lciComputeModel(model, rows) {
     coeHeadcount:    coe.headcount,
     eor, office, travel,
     coeOperating,
-    legacyCost:      legacy.total,
-    legacyHeadcount: legacy.headcount,
+    legacyCost:        legacy.total,
+    legacyHeadcount:   legacy.headcount,
+    legacyByCategory:  legacy.byCategory,
     totalHeadcount:  coe.headcount.map((h, i) => h + legacy.headcount[i]),
     oneoffs, fees,
     teamCosts, totalMonthly, cumulativeSpend,

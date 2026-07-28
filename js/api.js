@@ -580,9 +580,14 @@ async function setSeasonalEffect(effect) {
 }
  
 // ── People module: People list ────────────────────────────────────────
-async function getPeople(activeOnly = true) {
+// Placeholder rows (vacancies / fictional roles) are EXCLUDED unless the caller
+// opts in — only the Org Chart does. Filtered client-side, not in the OData
+// $filter: rows created before the IsPlaceholder column existed have no value
+// for it, and a server-side "eq 0" would drop every one of them.
+async function getPeople(activeOnly = true, includePlaceholders = false) {
   const filter = activeOnly ? "fields/IsActive eq 1" : "";
-  const people = await getItems("People", filter);
+  const all = await getItems("People", filter);
+  const people = includePlaceholders ? all : all.filter(p => !p.IsPlaceholder);
   const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
   return people.sort((a, b) => {
     const lDiff = (levelOrder[a.Level] ?? 99) - (levelOrder[b.Level] ?? 99);

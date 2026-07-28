@@ -159,6 +159,15 @@ const CONFIG = {
       oneoffs: 'Retention & Relocation',
       fees:    'Project Fees',
     },
+    // Legacy row categories (N-010). Keys are stored in
+    // LCIModelRows.LegacyCategory; blank means 'exiting', so rows created
+    // before N-010 keep exactly the behaviour they had.
+    //   label    — editor dropdown
+    //   costLine — client-facing Cost Model row
+    LEGACY_CATEGORIES: {
+      exiting:  { label: 'Exiting',  costLine: 'Exiting Team Costs'  },
+      retained: { label: 'Retained', costLine: 'Retained Team Costs' },
+    },
   },
 
 // ── LCI Lead Magnet ───────────────────────────────────────────────

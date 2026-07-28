@@ -280,7 +280,7 @@ function _lciOutputInnerHtml(includeChart = true, plain = false) {
   const monthHead = c.labels.map(l => `<th class="lci-mcol">${l.replace(' (', '<br>(')}</th>`).join('');
 
   const teamRows = Object.entries(c.coeByTeam).map(([team, arr]) =>
-    `<tr class="lci-out-indent"><td>${team}</td>${td(arr)}</tr>`).join('');
+    `<tr class="lci-out-indent"><td>${escHtml(team)}</td>${td(arr)}</tr>`).join('');
 
   // N-010: split legacy cost lines only when the model actually uses BOTH
   // categories — with one category the split line would just duplicate the
@@ -313,7 +313,7 @@ function _lciOutputInnerHtml(includeChart = true, plain = false) {
             ${sections.oneoffs ? `<tr class="lci-out-indent${sections.legacy ? '' : ' lci-out-section'}"><td>Retention & Relocation</td>${td(c.oneoffs)}</tr>` : ''}
             <tr class="lci-out-subtotal"><td>Total Legacy Costs</td>${td(c.legacyCost.map((v, i) => v + c.oneoffs[i]))}</tr>` : ''}
             ${sections.fees ? `${_lciRowsOfType('fee').map((r, i) =>
-              `<tr class="lci-out-indent${i === 0 ? ' lci-out-section' : ''}"><td>${r.Title || 'Fee'}</td>${td(lciMonthValues(r, horizon))}</tr>`).join('')}
+              `<tr class="lci-out-indent${i === 0 ? ' lci-out-section' : ''}"><td>${escHtml(r.Title || 'Fee')}</td>${td(lciMonthValues(r, horizon))}</tr>`).join('')}
             <tr class="lci-out-subtotal"><td>Total Project Fees</td>${td(c.fees)}</tr>` : ''}
             <tr class="lci-out-total lci-out-heavy"><td>Total Monthly Spend</td>${td(c.totalMonthly)}</tr>
             <tr class="lci-out-total"><td>Cumulative Spend</td>${td(c.cumulativeSpend)}</tr>

@@ -14,11 +14,16 @@ async function renderLCIEditorPage(modelId) {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading...</p>';
   try {
-    const [model, rows, milestones] = await Promise.all([
+    const [model, rawRows, milestones] = await Promise.all([
       getLCIModelById(modelId),
       getLCIRows(modelId),
       getLCIMilestones(modelId),
     ]);
+    // N-009: seed a travel row from a legacy flat TravelPerMonth, if needed.
+    // Idempotent — does nothing once the model has any travel row. Deliberately
+    // does NOT mark the editor dirty: the seeded row has no id, so a normal save
+    // creates it, and leaving without saving just re-migrates next open.
+    const rows = lciMigrateTravelRows(model, rawRows);
     rows.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
     milestones.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
 
@@ -86,6 +91,7 @@ function _lciEditorHtml() {
     </div>
     ${_lciSettingsHtml()}
     ${lciSections(m).coe ? _lciRoadmapHtml() : ''}
+    ${_lciTravelHtml()}
     ${_lciLegacyHtml()}
     ${_lciOneoffsHtml()}
     ${_lciFeesHtml()}
@@ -134,7 +140,6 @@ function _lciSettingsHtml() {
         ${field('Notice period (months)', numInput('NoticeMonths', m.NoticeMonths ?? 0, '1'))}
         ${field(`Office / head / month (${m.LocalCurrency})`, numInput('OfficeCostPerHead', m.OfficeCostPerHead, '10'))}
         ${field(`EoR / head / month (${m.DisplayCurrency})`, numInput('EoRFeePerHead', m.EoRFeePerHead, '10'))}
-        ${field(`Travel / month (${m.DisplayCurrency})`, numInput('TravelPerMonth', m.TravelPerMonth, '100'))}
         ${canAssign ? field('Assigned DM (email)',
           `<input type="email" class="form-control" data-setting="AssignedDMEmail" value="${m.AssignedDMEmail || ''}" onchange="lciSettingChanged()">`) : ''}
       </div>
@@ -471,6 +476,15 @@ async function saveLCIRoadmap() {
 
     // Milestones save through the same button (separate SP list, diff-only)
     if (typeof _lciSaveMilestonesData === 'function') await _lciSaveMilestonesData();
+
+    // N-009: once a travel row is persisted, retire the flat field. Without
+    // this, deleting every travel row would let lciMigrateTravelRows re-seed
+    // one from the stale TravelPerMonth on the next open.
+    if (Number(_lciEd.model.TravelPerMonth) > 0 &&
+        _lciEd.rows.some(r => r.RowType === 'travel' && r.id)) {
+      await updateLCIModel(_lciEd.model.id, { TravelPerMonth: null });
+      _lciEd.model.TravelPerMonth = null;
+    }
 
     _lciEd.dirtyRows = false;
   } catch (e) {

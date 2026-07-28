@@ -426,14 +426,24 @@ function _lciRerenderRoadmap() {
   // Full roadmap re-render (add/remove only — cell edits use _lciRefreshDerived)
   const section = document.getElementById('lci-roadmap-section');
   if (section) section.outerHTML = _lciRoadmapHtml();
-  document.getElementById('lci-roadmap-save').disabled = !_lciEd.dirtyRows;
+  // Shared state (lci-sections.js): also covers dirtyMilestones — a
+  // milestone-only change used to leave this button disabled — and is safe
+  // when the CoE section is toggled off and the button doesn't exist.
+  _lciSyncSaveButtons();
 }
 
 // ── Save roadmap (diff-only batch) ───────────────────────────────────
 
 async function saveLCIRoadmap() {
+  // Re-entrancy guard: four buttons call this saver (roadmap + the three
+  // section "Save Changes" buttons via saveLCIRows), and setButtonLoading only
+  // ever disables the roadmap one. A second click while a save is in flight is
+  // a silent no-op — the disabled buttons are the feedback.
+  if (_lciSaveInFlight) return;
   const btn = document.getElementById('lci-roadmap-save');
+  _lciSaveInFlight = true;
   setButtonLoading(btn);
+  _lciSyncSaveButtons(); // disable ALL save buttons, not just btn
   try {
     const modelId = _lciEd.model.id;
 
@@ -458,10 +468,15 @@ async function saveLCIRoadmap() {
     if (typeof _lciSaveMilestonesData === 'function') await _lciSaveMilestonesData();
 
     _lciEd.dirtyRows = false;
-    clearButtonLoading(btn);
-    btn.disabled = true;
   } catch (e) {
-    clearButtonLoading(btn);
+    // dirtyRows stays true so the retry writes whatever didn't land; rows
+    // already created carry their id, so the retry can't duplicate them.
     alert('Error saving roadmap: ' + e.message);
+  } finally {
+    // Must clear on every path — a stuck flag would leave the editor
+    // permanently read-only until a page reload.
+    _lciSaveInFlight = false;
+    clearButtonLoading(btn);
+    _lciSyncSaveButtons();
   }
 }

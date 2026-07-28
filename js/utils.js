@@ -19,6 +19,37 @@ function clearButtonLoading(btn) {
   btn.style.cursor  = '';
 }
 
+// ── Re-render without losing scroll position ──────────────────────────
+// Replace an element's outerHTML while preserving the scroll offsets of any
+// scroll containers inside it. Replacing outerHTML destroys and rebuilds those
+// containers, which resets scrollLeft/scrollTop to 0 — the "snaps back to the
+// top-left" effect.
+//   elementId     — id of the element being replaced. The replacement markup
+//                   MUST carry the same id, or the restore is skipped.
+//   html          — the new markup.
+//   scrollSelector — selector for the scroll containers inside it (required;
+//                   this helper stays module-agnostic). Containers are paired
+//                   by document order, which re-rendered sections preserve.
+// Returns the new element, or null if the id wasn't in the DOM.
+function replaceHtmlKeepingScroll(elementId, html, scrollSelector) {
+  const old = document.getElementById(elementId);
+  if (!old) return null;
+  const offsets = [...old.querySelectorAll(scrollSelector)]
+    .map(n => ({ left: n.scrollLeft, top: n.scrollTop }));
+  old.outerHTML = html;                          // `old` is detached from here
+  const next = document.getElementById(elementId);
+  if (!next) return null;
+  // Fresh look-up, set synchronously — a deferred restore shows a visible
+  // jump-then-snap. Over-large offsets are clamped by the browser.
+  [...next.querySelectorAll(scrollSelector)].forEach((n, i) => {
+    const pos = offsets[i];
+    if (!pos) return;
+    n.scrollLeft = pos.left;
+    n.scrollTop  = pos.top;
+  });
+  return next;
+}
+
 // ── Monthly calculation ───────────────────────────────────────────────
 // True when an assignment is a forecast (SP Yes/No may come back as true/1/'Yes')
 function isForecastAssignment(a) {

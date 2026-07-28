@@ -91,8 +91,8 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
   const personNode = (p) => {
     const ph = !!p.IsPlaceholder;
     return { kind: 'person', label: p.EmployeeName,
-      sub: ph ? `${p.Level || ''} · ${CONFIG.ORG_PLACEHOLDER_LABEL}`
-              : `${p.Level || ''}${p.Location ? ' · ' + p.Location : ''}`,
+      // Placeholders carry no sub-label — the vacancy is stated in the name itself.
+      sub: ph ? '' : `${p.Level || ''}${p.Location ? ' · ' + p.Location : ''}`,
       _band: ph ? '' : (p.Level === 'STP' ? 'TP' : p.Level),
       _placeholder: ph, _photo: p.PhotoUrl, children: [] };
   };

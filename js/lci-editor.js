@@ -137,7 +137,7 @@ function _lciSettingsHtml() {
         ${field(`Office / head / month (${m.LocalCurrency})`, numInput('OfficeCostPerHead', m.OfficeCostPerHead, '10'))}
         ${field(`EoR / head / month (${m.DisplayCurrency})`, numInput('EoRFeePerHead', m.EoRFeePerHead, '10'))}
         ${canAssign ? field('Assigned DM (email)',
-          `<input type="email" class="form-control" data-setting="AssignedDMEmail" value="${m.AssignedDMEmail || ''}" onchange="lciSettingChanged()">`) : ''}
+          `<input type="email" class="form-control" data-setting="AssignedDMEmail" value="${escHtml(m.AssignedDMEmail)}" onchange="lciSettingChanged()">`) : ''}
       </div>
       <div class="lci-settings__toggles">
         ${Object.entries(CONFIG.LCI.SECTION_LABELS).map(([key, label]) => `
@@ -288,9 +288,9 @@ function _lciRoadmapRowHtml(r, idx, horizon) {
   const cost = lciMonthlyCost(r, _lciEd.model);
   return `
     <tr data-row-idx="${idx}">
-      <td><input type="text" class="lci-cell lci-cell--grow" value="${r.Title || ''}"
+      <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(r.Title)}"
                  onchange="lciCoeFieldChanged(${idx}, 'Title', this.value)"></td>
-      <td><input type="text" class="lci-cell lci-cell--sm" value="${r.CareerLevel || ''}"
+      <td><input type="text" class="lci-cell lci-cell--sm" value="${escHtml(r.CareerLevel)}"
                  onchange="lciCoeFieldChanged(${idx}, 'CareerLevel', this.value)"></td>
       <td><input type="number" class="lci-cell lci-cell--grow" min="0" value="${r.AnnualSalary ?? ''}"
                  onchange="lciCoeFieldChanged(${idx}, 'AnnualSalary', this.value)">

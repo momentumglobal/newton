@@ -194,8 +194,9 @@ function lciRowMonthChanged(gidx, monthIdx, value) {
 }
 
 function _lciReplaceSection(renderFnName, sectionId) {
-  const el = document.getElementById(sectionId);
-  if (el) el.outerHTML = window[renderFnName]();
+  // Scroll-preserving replace: the One-off / Fee month grids are horizontally
+  // scrollable. Sections with no .lci-grid-scroll (Legacy) are unaffected.
+  replaceHtmlKeepingScroll(sectionId, window[renderFnName](), '.lci-grid-scroll');
   _lciSyncSaveButtons();
   lciRefreshOutput();
 }

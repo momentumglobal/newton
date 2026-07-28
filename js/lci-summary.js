@@ -120,12 +120,9 @@ async function renderLCISummaryPage(modelId) {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading...</p>';
   try {
-    const [model, rawRows, milestones] = await Promise.all([
+    const [model, rows, milestones] = await Promise.all([
       getLCIModelById(modelId), getLCIRows(modelId), getLCIMilestones(modelId),
     ]);
-    // N-009: same seed as the editor, so an unmigrated model prints correctly.
-    // Read-only here — nothing is written back from the summary view.
-    const rows = lciMigrateTravelRows(model, rawRows);
     rows.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
     milestones.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
     // Read-only view reuses _lciEd so the shared renderers work unchanged.

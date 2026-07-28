@@ -244,7 +244,7 @@ function _lciRoadmapHtml() {
       .filter(({ r }) => (r.Team || 'Other') === team);
     const teamHtml = teamRows.map(({ r, globalIdx }) => _lciRoadmapRowHtml(r, globalIdx, horizon)).join('');
     return `
-      <tr class="lci-team-row"><td colspan="${horizon + 6}"><strong>${escHtml(team)}</strong></td></tr>
+      <tr class="lci-team-row"><td colspan="${horizon + 6}"><strong>${escHtml(team)}</strong><button class="lci-team-btn" onclick="renameLCITeam(${ti})">Rename</button><button class="lci-team-btn lci-team-btn--danger" onclick="deleteLCITeam(${ti})">Delete</button></td></tr>
       ${teamHtml}
       <tr class="lci-add-role-row"><td colspan="${horizon + 7}"><button class="lci-add-role-btn" onclick="addLCIRoleToTeam(${ti})">+ Add role to ${escHtml(team)}</button></td></tr>`;
   }).join('');
@@ -422,12 +422,66 @@ function addLCITeam() {
 // Takes the team's index into _lciTeamsInOrder(), re-derived here so the button
 // carries no user text. Every mutation that could reorder that list
 // (_lciPushCoeRow, removeLCICoeRow) re-renders the roadmap and regenerates the
-// buttons, and the CoE grid has no Team input, so the index cannot go stale.
+// buttons. renameLCITeam / deleteLCITeam also change the team list, and they
+// re-render too, so the index is always regenerated alongside the list.
 // Guarded anyway: a stale index is a no-op, never a row on the wrong team.
 function addLCIRoleToTeam(teamIndex) {
   const team = _lciTeamsInOrder()[teamIndex];
   if (team === undefined) return;
   _lciPushCoeRow(team);
+}
+
+// Teams are not an entity — they are derived from the Team field on CoE rows.
+// So renaming a team rewrites Team on its rows, and deleting one deletes them.
+// Rows are matched with the same expression the renderer groups by,
+// `(r.Team || 'Other') === team`, so a row with a blank Team (shown under
+// "Other") is picked up. Scoped to _lciCoeRows(): legacy rows have their own
+// free-text Team column and must not be touched.
+function _lciRowsInTeam(team) {
+  return _lciCoeRows().filter(r => (r.Team || 'Other') === team);
+}
+
+// "Rename" — retitle every row in the team. Renaming onto an existing team
+// merges the two, after an explicit confirm.
+function renameLCITeam(teamIndex) {
+  const teams = _lciTeamsInOrder();
+  const team = teams[teamIndex];
+  if (team === undefined) return;
+
+  const input = prompt('Rename team:', team);
+  if (input === null) return;                    // cancelled
+  const next = input.trim() || 'Other';          // matches "+ Add Team"
+  if (next === team) return;                     // no change — stay clean
+
+  const rows = _lciRowsInTeam(team);
+  if (teams.includes(next) &&
+      !confirm(`"${next}" already exists. Merge "${team}" into "${next}"? ` +
+               `${rows.length} role${rows.length === 1 ? '' : 's'} will move.`)) return;
+
+  for (const r of rows) r.Team = next;
+  _lciMarkRowsDirty();
+  _lciRerenderRoadmap();
+}
+
+// "Delete" — remove the team and every role in it. Nothing else to remove: a
+// team with no roles cannot exist. Rows with an id go to deletedRowIds so the
+// next Save Roadmap deletes them in SharePoint.
+function deleteLCITeam(teamIndex) {
+  const team = _lciTeamsInOrder()[teamIndex];
+  if (team === undefined) return;
+
+  const rows = _lciRowsInTeam(team);
+  if (!confirm(`Delete team "${team}" and its ${rows.length} ` +
+               `role${rows.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+
+  for (const r of rows) {
+    if (r.id) _lciEd.deletedRowIds.push(r.id);
+    // Remove by identity, not a captured index — indices shift as we splice.
+    const at = _lciEd.rows.indexOf(r);
+    if (at !== -1) _lciEd.rows.splice(at, 1);
+  }
+  _lciMarkRowsDirty();
+  _lciRerenderRoadmap();
 }
 
 function removeLCICoeRow(idx) {

@@ -247,7 +247,11 @@ function renderBenchHtml(bench) {
 function exportOrgChartPdf() {
   const inner = document.getElementById('org-chart-inner');
   if (!inner) return;
-  const pageW = 1050, pageH = 600;                  // A4 landscape usable, minus header & title
+  // A4 landscape at 96dpi is ~717px of usable height. Subtract the print header
+  // (~72px after diff 7 trims its margin), the title (~26px) and the tile padding
+  // (~16px) and ~600px remains — so 600 left no headroom at all and a full-height
+  // chart tipped onto a second page. 540 keeps a deliberate safety margin.
+  const pageW = 1050, pageH = 540;                  // A4 landscape usable, minus header & title
   const scale = Math.min(1, pageW / inner.scrollWidth, pageH / inner.scrollHeight);
   inner.style.setProperty('--org-print-scale', scale);
   const monthYear = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });

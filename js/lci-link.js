@@ -91,20 +91,20 @@ async function openLCILinkModal(modelId) {
     const alreadyLinked = m.ProjectID
       ? projects.find(p => String(p.id) === String(m.ProjectID)) : null;
     const opts = projects.length
-      ? projects.map(p => `<option value="${p.id}"${String(p.id) === String(m.ProjectID) ? ' selected' : ''}>${p.CustomerName || p.Title || ('Project ' + p.id)}</option>`).join('')
+      ? projects.map(p => `<option value="${p.id}"${String(p.id) === String(m.ProjectID) ? ' selected' : ''}>${escHtml(p.CustomerName || p.Title || ('Project ' + p.id))}</option>`).join('')
       : '';
 
     host.innerHTML = `
       <div class="lci-modal-overlay" onclick="if(event.target===this)closeLCILink()">
         <div class="lci-modal-card">
-          <h3 style="margin:0 0 16px;color:#1B3A5C">Link "${m.Title}" to a CoE Project</h3>
+          <h3 style="margin:0 0 16px;color:#1B3A5C">Link "${escHtml(m.Title)}" to a CoE Project</h3>
           ${projects.length ? `
             <div class="form-group">
               <label>CoE Project</label>
               <select class="form-control" id="lci-link-project">${opts}</select>
             </div>
             <p style="font-size:12px;color:#888">
-              ${alreadyLinked ? `Currently linked to <strong>${alreadyLinked.CustomerName || alreadyLinked.Title}</strong>. ` : ''}
+              ${alreadyLinked ? `Currently linked to <strong>${escHtml(alreadyLinked.CustomerName || alreadyLinked.Title)}</strong>. ` : ''}
               Generating creates one hiring-plan row per hire. Phase lengths use plan defaults (recruitment/notice/onboarding), not the model's notice period.
             </p>
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">

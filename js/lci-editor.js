@@ -502,6 +502,12 @@ function _lciRerenderRoadmap() {
   // milestone-only change used to leave this button disabled — and is safe
   // when the CoE section is toggled off and the button doesn't exist.
   _lciSyncSaveButtons();
+  // Structural roadmap changes (add/remove role, add/rename/delete team) alter
+  // the cost model, so recompute the output below — same as _lciReplaceSection
+  // does for the legacy / one-off / fee sections. Cell edits reach this via
+  // _lciRefreshDerived instead. Defensive typeof: lci-sections.js loads after
+  // this file.
+  if (typeof lciRefreshOutput === 'function') lciRefreshOutput();
 }
 
 // ── Save roadmap (diff-only batch) ───────────────────────────────────

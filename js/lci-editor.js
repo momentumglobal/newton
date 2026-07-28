@@ -79,7 +79,7 @@ function _lciEditorHtml() {
   const m = _lciEd.model;
   return `
     <div class="page-header">
-      <h2>${m.Title} <span style="font-weight:400;color:#888;font-size:15px">— ${m.ClientName || ''}</span></h2>
+      <h2>${escHtml(m.Title)} <span style="font-weight:400;color:#888;font-size:15px">— ${escHtml(m.ClientName)}</span></h2>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="lciEditorBack()">← Back to models</button>
         <button class="btn-primary" onclick="lciOpenSummary()">Summary / Print</button>
@@ -241,9 +241,9 @@ function _lciRoadmapHtml() {
     const teamHtml = teamRows.map(({ r, globalIdx }) => _lciRoadmapRowHtml(r, globalIdx, horizon)).join('');
     const teamEsc = String(team).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     return `
-      <tr class="lci-team-row"><td colspan="${horizon + 6}"><strong>${team}</strong></td></tr>
+      <tr class="lci-team-row"><td colspan="${horizon + 6}"><strong>${escHtml(team)}</strong></td></tr>
       ${teamHtml}
-      <tr class="lci-add-role-row"><td colspan="${horizon + 7}"><button class="lci-add-role-btn" onclick="addLCIRoleToTeam('${teamEsc}')">+ Add role to ${team}</button></td></tr>`;
+      <tr class="lci-add-role-row"><td colspan="${horizon + 7}"><button class="lci-add-role-btn" onclick="addLCIRoleToTeam('${teamEsc}')">+ Add role to ${escHtml(team)}</button></td></tr>`;
   }).join('');
 
   return `

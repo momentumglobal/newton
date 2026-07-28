@@ -28,8 +28,7 @@ async function renderLCIReportPage(ids, opts = {}) {
         ]);
         rows.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
         milestones.sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
-        // N-009: seed travel from a legacy flat TravelPerMonth (read-only).
-        bundles.push({ model, rows: lciMigrateTravelRows(model, rows), milestones });
+        bundles.push({ model, rows, milestones });
       } catch (_) {
         missing.push(id);
       }

@@ -150,8 +150,9 @@ const CONFIG = {
       TravelPerMonth:    0,
       NoticeMonths:      1,
     },
+    // CoE has no entry: it is always on (N-008 — the toggle was removed to stop
+    // the roadmap being hidden mid-build by mistake). lciSections() forces it.
     SECTION_LABELS: {
-      coe:     'CoE Team',
       legacy:  'Legacy Team',
       oneoffs: 'Retention & Relocation',
       fees:    'Project Fees',

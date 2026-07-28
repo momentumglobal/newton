@@ -63,7 +63,7 @@ function lciListFilterChanged(which, value) {
 function _lciFilterOptions(models, field, selected) {
   const values = [...new Set(models.map(m => m[field]).filter(Boolean))].sort();
   return ['<option value="">All</option>']
-    .concat(values.map(v => `<option value="${v}"${v === selected ? ' selected' : ''}>${v}</option>`))
+    .concat(values.map(v => `<option value="${escHtml(v)}"${v === selected ? ' selected' : ''}>${escHtml(v)}</option>`))
     .join('');
 }
 

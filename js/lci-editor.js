@@ -66,7 +66,8 @@ function _lciRowSnapshot(r) {
   return {
     Title: r.Title, RowType: r.RowType, Team: r.Team, CareerLevel: r.CareerLevel,
     AnnualSalary: r.AnnualSalary, BonusPct: r.BonusPct, Quantity: r.Quantity,
-    ExitMonth: r.ExitMonth, MonthValues: r.MonthValues, SortOrder: r.SortOrder,
+    ExitMonth: r.ExitMonth, LegacyCategory: r.LegacyCategory,
+    MonthValues: r.MonthValues, SortOrder: r.SortOrder,
   };
 }
 

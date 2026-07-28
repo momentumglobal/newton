@@ -56,7 +56,7 @@ function _lciSummaryMilestoneRows(horizon) {
     const end = Math.min(horizon, Math.max(start, Number(s.EndMonth) || start));
     const cells = Array.from({ length: horizon }, (_, i) =>
       `<td class="lci-mcol">${i + 1 >= start && i + 1 <= end ? '<div class="lci-ms-bar"></div>' : ''}</td>`).join('');
-    return `<tr><td class="lci-out-indent" style="padding-left:18px">${s.Title}</td>${cells}<td></td></tr>`;
+    return `<tr><td class="lci-out-indent" style="padding-left:18px">${escHtml(s.Title)}</td>${cells}<td></td></tr>`;
   }).join('');
 
   return `
@@ -150,7 +150,7 @@ function _lciSummaryHtml() {
 
   return `
     <div class="page-header lci-noprint">
-      <h2>${m.Title} — Summary</h2>
+      <h2>${escHtml(m.Title)} — Summary</h2>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="openLCIModel(${m.id})">← Edit model</button>
         <button class="btn-primary" onclick="printPage('${(m.Title || 'LCI Model').replace(/'/g, '')}', true, 'LCI')">Print / PDF</button>
@@ -160,9 +160,9 @@ function _lciSummaryHtml() {
     <!-- Section 1: recruitment plan (milestones integrated) -->
     <div id="lci-print-p1" class="lci-summary-card">
       <div class="lci-summary-head">
-        <h2 style="margin:0;color:#1B3A5C">${m.Title}</h2>
+        <h2 style="margin:0;color:#1B3A5C">${escHtml(m.Title)}</h2>
         <div style="color:#666;font-size:13px;margin-top:4px">
-          ${m.ClientName || 'Client'} x Momentum Global — ${exportDate}
+          ${escHtml(m.ClientName || 'Client')} x Momentum Global — ${exportDate}
         </div>
       </div>
       ${_lciSummaryRoadmapHtml()}
@@ -188,7 +188,7 @@ function _lciSummaryHtml() {
 function _lciAssumptionsHtml(m) {
   return `
       <h3 style="margin:0 0 12px;color:#1B3A5C">Model Guide and Assumptions</h3>
-      ${m.Assumptions ? `<div style="white-space:pre-wrap;font-size:13px;line-height:1.6">${m.Assumptions}</div>` : ''}
+      ${m.Assumptions ? `<div style="white-space:pre-wrap;font-size:13px;line-height:1.6">${escHtml(m.Assumptions)}</div>` : ''}
       <table class="data-table lci-assump" style="max-width:640px;margin-top:16px">
         <tbody>
           <tr><td>Employer burden</td><td>${Math.round((m.EmployerBurdenPct || 0) * 1000) / 10}%</td></tr>
@@ -266,7 +266,7 @@ function _lciSummaryRoadmapHtml() {
       // CareerLevel renders no empty "( )"; handles '' (new rows) and null
       // (older SharePoint rows) alike.
       const lvl = String(r.CareerLevel || '').trim();
-      return `<tr><td class="lci-out-indent" style="padding-left:18px">${r.Title || ''}${lvl ? ` (${lvl})` : ''}</td>${cells}<td class="lci-derived">${vals.reduce((a, b) => a + b, 0)}</td></tr>`;
+      return `<tr><td class="lci-out-indent" style="padding-left:18px">${escHtml(r.Title)}${lvl ? ` (${escHtml(lvl)})` : ''}</td>${cells}<td class="lci-derived">${vals.reduce((a, b) => a + b, 0)}</td></tr>`;
     }).join('');
     return `<tr class="lci-team-row"><td colspan="${horizon + 2}"><strong>${team}</strong></td></tr>${teamRows}`;
   }).join('');

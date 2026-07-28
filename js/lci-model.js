@@ -36,6 +36,10 @@ function lciMonthValues(row, horizon) {
 function lciSections(model) {
   let s = { coe: true, legacy: true, oneoffs: true, fees: true };
   try { s = { ...s, ...JSON.parse(model.SectionsEnabled || '{}') }; } catch (e) {}
+  // N-008: CoE is always on — the toggle was removed. Must come AFTER the merge
+  // above, or a stored "coe":false from before the toggle was dropped would win
+  // and leave the model with a hidden roadmap and no way to switch it back on.
+  s.coe = true;
   return s;
 }
 

@@ -119,8 +119,8 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
       ${_lciReportDividerHtml(m)}
       <div class="lci-summary-card lci-report-break">
         <div class="lci-summary-head">
-          <h2 style="margin:0;color:#1B3A5C">${m.Title}</h2>
-          <div style="color:#666;font-size:13px;margin-top:4px">${m.Location || ''}</div>
+          <h2 style="margin:0;color:#1B3A5C">${escHtml(m.Title)}</h2>
+          <div style="color:#666;font-size:13px;margin-top:4px">${escHtml(m.Location)}</div>
         </div>
         ${_lciSummaryRoadmapHtml()}
       </div>
@@ -140,7 +140,7 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
 
   return `
     <div class="page-header lci-noprint">
-      <h2 class="lci-report-title">${title}</h2>
+      <h2 class="lci-report-title">${escHtml(title)}</h2>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="renderLCIModelsPage()">← Back to models</button>
         <button class="btn-secondary" onclick="lciEditSelectionFromReport()">Edit selection</button>
@@ -201,8 +201,8 @@ function _lciReportNavyPage(title, subtitle, extraClass = '', withSwirl = false)
       <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="lci-report-logo">
       ${withSwirl ? '<img src="mg-visual-swirl-report.png" alt="" class="lci-report-swirl">' : ''}
       <div class="lci-report-titleblock">
-        <h1>${title}</h1>
-        <div class="lci-report-sub">${subtitle}</div>
+        <h1>${escHtml(title)}</h1>
+        <div class="lci-report-sub">${escHtml(subtitle)}</div>
       </div>
     </div>`;
 }
@@ -261,7 +261,7 @@ function _lciCompareTableHtml(entries, ccy) {
     ['Peak crossover spend',      k => money(k.peakCrossoverSpend), 'peakCrossoverSpend', money, true],
   ];
 
-  const head = `<tr><th style="width:26%"></th>${entries.map(e => `<th>${e.name}</th>`).join('')}${twoModels ? '<th>Δ (B − A)</th>' : ''}</tr>`;
+  const head = `<tr><th style="width:26%"></th>${entries.map(e => `<th>${escHtml(e.name)}</th>`).join('')}${twoModels ? '<th>Δ (B − A)</th>' : ''}</tr>`;
   const rows = K.map(([label, fmt, key, dfmt, lower]) => `
     <tr>
       <td>${label}</td>
@@ -275,7 +275,7 @@ function _lciCompareTableHtml(entries, ccy) {
       <thead>${head}</thead>
       <tbody>${rows}</tbody>
     </table>
-    ${twoModels ? `<p style="font-size:12px;color:#888;margin:8px 0 0">Δ green = ${entries[1].name} favourable, red = unfavourable (cost down / hires up = good).</p>` : ''}`;
+    ${twoModels ? `<p style="font-size:12px;color:#888;margin:8px 0 0">Δ green = ${escHtml(entries[1].name)} favourable, red = unfavourable (cost down / hires up = good).</p>` : ''}`;
 }
 
 // N-line cumulative spend chart, all solid, palette colours, centred legend.
@@ -325,7 +325,7 @@ function _lciReportCompareChartSvg(entries, ccy) {
         const col = LCI_REPORT_COLOURS[n % LCI_REPORT_COLOURS.length];
         const lx = startX + n * itemW;
         return `<line x1="${lx}" y1="${H - 6}" x2="${lx + 24}" y2="${H - 6}" stroke="${col}" stroke-width="2.5"/>
-                <text x="${lx + 30}" y="${H - 3}" fill="#555">${e.name}</text>`;
+                <text x="${lx + 30}" y="${H - 3}" fill="#555">${escHtml(e.name)}</text>`;
       }).join('')}
     </g>`;
 

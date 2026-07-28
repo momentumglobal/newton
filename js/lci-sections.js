@@ -200,13 +200,24 @@ function _lciReplaceSection(renderFnName, sectionId) {
   lciRefreshOutput();
 }
 
+// True while saveLCIRoadmap() is mid-flight. New rows/milestones are identified
+// by the absence of an id, which is only assigned after their POST resolves —
+// so two overlapping save passes would create every pending item twice.
+// Module-level (not on _lciEd): _lciEd is wholesale reassigned by
+// renderLCIEditorPage / renderLCISummaryPage, which would reset it mid-flight.
+let _lciSaveInFlight = false;
+
 // Enable/disable every rows-save button together (roadmap + sections).
 function lciMarkRowsDirtyAll() {
   _lciEd.dirtyRows = true;
   _lciSyncSaveButtons();
 }
+// Single control point for save-button state. A button is live only when there
+// is something to save AND no save is running — this is what stops a mid-save
+// re-render (_lciReplaceSection / _lciRerenderRoadmap) re-arming the buttons.
 function _lciSyncSaveButtons() {
-  const disabled = !(_lciEd.dirtyRows || _lciEd.dirtyMilestones);
+  if (!_lciEd) return; // editor torn down mid-save (Back) — nothing to sync
+  const disabled = _lciSaveInFlight || !(_lciEd.dirtyRows || _lciEd.dirtyMilestones);
   document.querySelectorAll('.lci-rows-save, #lci-roadmap-save').forEach(b => { b.disabled = disabled; });
 }
 

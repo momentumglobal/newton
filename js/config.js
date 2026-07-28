@@ -10,6 +10,14 @@ const CONFIG = {
   GP_INVOICE_DRIVE_ID: 'b!L1YOM6EL2E-uBv_jqShyccnJZLjgbzdIlxNaqkUw3g1MjqGliBUrRY2BqPmtPnw5',
   // Notes preview: chars of the first line shown before a "See more" toggle appears.
   NOTES_PREVIEW_CHARS: 60,
+  // Org Chart: a manager with this many direct reports (or more) renders them
+  // stacked vertically off a single spine instead of side-by-side, to keep the
+  // chart narrow enough for the one-page landscape PDF.
+  ORG_STACK_THRESHOLD: 3,
+  // Sub-label shown on a placeholder (vacant / not-yet-hired) org chart node.
+  ORG_PLACEHOLDER_LABEL: 'To be hired',
+  // Bubble type used for a synthetic (placeholder-only) team that has no Projects row.
+  ORG_PLACEHOLDER_PROJECT_TYPE: 'Internal',
   // Hardcoded admin users — full access, never overridden by SharePoint data
   ADMIN_USERS:  ["admin@momentumglobal.co", "chris.friend@momentumglobal.co", "aliyah@momentumglobal.co", "jon.stanners@momentumglobal.co"],
 

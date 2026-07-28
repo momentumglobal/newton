@@ -142,6 +142,14 @@ async function renderLCISummaryPage(modelId) {
   }
 }
 
+// Print the summary. Reads the title from state rather than taking it through
+// an onclick attribute, so no escaping question arises. The title becomes the
+// document title / default PDF filename — it is never parsed as markup, so it
+// must be passed raw (escaping it would put &amp; in the filename).
+function lciPrintSummary() {
+  printPage(_lciEd?.model?.Title || 'LCI Model', true, 'LCI');
+}
+
 function _lciSummaryHtml() {
   const m = _lciEd.model;
   const horizon = Number(m.HorizonMonths);
@@ -153,7 +161,7 @@ function _lciSummaryHtml() {
       <h2>${escHtml(m.Title)} — Summary</h2>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="openLCIModel(${m.id})">← Edit model</button>
-        <button class="btn-primary" onclick="printPage('${(m.Title || 'LCI Model').replace(/'/g, '')}', true, 'LCI')">Print / PDF</button>
+        <button class="btn-primary" onclick="lciPrintSummary()">Print / PDF</button>
       </div>
     </div>
 

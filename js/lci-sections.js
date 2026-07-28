@@ -48,33 +48,39 @@ function _lciLegacyHtml() {
   const body = rows.length ? rows.map(r => {
     const gidx = _lciEd.rows.indexOf(r);
     const monthly = lciMonthlyCost(r, m) * (Number(r.Quantity) || 1);
-    const noExit = !r.ExitMonth;
+    const cat = lciLegacyCategory(r);
+    const retained = cat === 'retained';
+    // ⚠ only means something for Exiting rows — a Retained row running to the
+    // horizon with no exit month is correct by design, not a missing value.
+    const noExit = !retained && !r.ExitMonth;
+    const catOpts = Object.entries(CONFIG.LCI.LEGACY_CATEGORIES).map(([k, v]) =>
+      `<option value="${k}"${k === cat ? ' selected' : ''}>${v.label}</option>`).join('');
     return `
       <tr>
         <td><input type="text" class="lci-cell lci-cell--grow" value="${r.Title || ''}"
                    onchange="lciRowFieldChanged(${gidx}, 'Title', this.value)"></td>
         <td><input type="text" class="lci-cell lci-cell--grow" value="${r.Team || ''}"
                    onchange="lciRowFieldChanged(${gidx}, 'Team', this.value)"></td>
+        <td><select class="lci-cell" onchange="lciRowFieldChanged(${gidx}, 'LegacyCategory', this.value)">${catOpts}</select></td>
         <td><input type="number" class="lci-cell lci-cell--sm" min="1" value="${r.Quantity ?? 1}"
-                   onchange="lciRowFieldChanged(${gidx}, 'Quantity', this.value)"></td>
         <td><input type="number" class="lci-cell lci-cell--grow" min="0" value="${r.AnnualSalary ?? ''}"
                    onchange="lciRowFieldChanged(${gidx}, 'AnnualSalary', this.value)"></td>
         <td><input type="number" class="lci-cell lci-cell--sm" min="0" max="100" step="1" value="${r.BonusPct != null ? Math.round(r.BonusPct * 100 * 100) / 100 : ''}"
                    onchange="lciRowFieldChanged(${gidx}, 'BonusPct', this.value)"></td>
-        <td><select class="lci-cell" onchange="lciRowFieldChanged(${gidx}, 'ExitMonth', this.value)">${exitOpts(r.ExitMonth)}</select>
+        <td><select class="lci-cell"${retained ? ' disabled title="Retained rows stay in post — cost runs to the full horizon"' : ''} onchange="lciRowFieldChanged(${gidx}, 'ExitMonth', this.value)">${exitOpts(r.ExitMonth)}</select>
             ${noExit ? '<span class="lci-warn" title="No exit month — cost runs to horizon">⚠</span>' : ''}</td>
         <td class="lci-derived" id="lci-legacy-cost-${gidx}">${_lciFmt(monthly, m.DisplayCurrency)}</td>
         <td><button class="btn-danger lci-row-del" onclick="removeLCIRowAction(${gidx}, '_lciLegacyHtml', 'lci-legacy-section')">×</button></td>
       </tr>`;
   }).join('')
-    : `<tr><td colspan="8" style="color:#888;text-align:center">No legacy roles yet.</td></tr>`;
+    : `<tr><td colspan="9" style="color:#888;text-align:center">No legacy roles yet.</td></tr>`;
 
   return _lciSectionShell('lci-legacy-section', 'Legacy Team',
-    `(salaries in ${m.DisplayCurrency}; costs run M1 → exit month)`,
+    `(salaries in ${m.DisplayCurrency}; Exiting rows run M1 → exit month, Retained run to the horizon)`,
     'addLCILegacyRow', `
     <table class="data-table">
       <thead><tr>
-        <th style="width:24%">Role</th><th style="width:24%">Team</th><th>Qty</th><th>Annual salary</th><th>Bonus %</th>
+        <th style="width:22%">Role</th><th style="width:22%">Team</th><th>Category</th><th>Qty</th><th>Annual salary</th><th>Bonus %</th>
         <th>Exit month</th><th>Cost/mo</th><th></th>
       </tr></thead>
       <tbody>${body}</tbody>
@@ -187,8 +193,9 @@ function lciRowFieldChanged(gidx, field, value) {
     r[field] = numeric.includes(field) ? (value === '' ? null : Number(value)) : value;
   }
   lciMarkRowsDirtyAll();
-  if (field === 'ExitMonth') {
-    // Re-render the section so the ⚠ marker and cost drop-off refresh
+  if (field === 'ExitMonth' || field === 'LegacyCategory') {
+    // Re-render the section so the ⚠ marker, the disabled exit-month select
+    // and the cost drop-off refresh
     _lciReplaceSection('_lciLegacyHtml', 'lci-legacy-section');
     return; // _lciReplaceSection already refreshes the output
   }
@@ -274,6 +281,15 @@ function _lciOutputInnerHtml(includeChart = true, plain = false) {
   const teamRows = Object.entries(c.coeByTeam).map(([team, arr]) =>
     `<tr class="lci-out-indent"><td>${team}</td>${td(arr)}</tr>`).join('');
 
+  // N-010: split legacy cost lines only when the model actually uses BOTH
+  // categories — with one category the split line would just duplicate the
+  // Legacy Team Costs total, so a single-category model renders as before.
+  const lbc = c.legacyByCategory || { exiting: [], retained: [] };
+  const legacyCatRows = (lbc.exiting.some(v => v) && lbc.retained.some(v => v))
+    ? Object.entries(CONFIG.LCI.LEGACY_CATEGORIES).map(([k, v]) =>
+        `<tr class="lci-out-indent"><td>${v.costLine}</td>${td(lbc[k])}</tr>`).join('')
+    : '';
+
   return `
     <div style="${plain ? '' : 'background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'}">
       <h3 style="margin:0 0 12px;color:#1B3A5C">Cost Model <span style="font-weight:400;font-size:13px;color:#888">(all values in ${ccy})</span></h3>
@@ -291,7 +307,8 @@ function _lciOutputInnerHtml(includeChart = true, plain = false) {
             ${((Number(m.EoRFeePerHead) || 0) > 0 || (Number(m.OfficeCostPerHead) || 0) > 0 || c.travel.some(v => v)) ? `<tr class="lci-out-subtotal"><td>Total CoE Operating Costs</td>${td(c.coeOperating)}</tr>` : ''}` : ''}
             ${sections.legacy || sections.oneoffs ? `
             ${sections.legacy ? `<tr class="lci-out-section"><td>Legacy Headcount</td>${tdInt(c.legacyHeadcount)}</tr>
-            <tr class="lci-out-indent"><td>Legacy Team Costs</td>${td(c.legacyCost)}</tr>` : ''}
+            <tr class="lci-out-indent"><td>Legacy Team Costs</td>${td(c.legacyCost)}</tr>
+            ${legacyCatRows}` : ''}
             ${sections.oneoffs ? `<tr class="lci-out-indent${sections.legacy ? '' : ' lci-out-section'}"><td>Retention & Relocation</td>${td(c.oneoffs)}</tr>` : ''}
             <tr class="lci-out-subtotal"><td>Total Legacy Costs</td>${td(c.legacyCost.map((v, i) => v + c.oneoffs[i]))}</tr>` : ''}
             ${sections.fees ? `${_lciRowsOfType('fee').map((r, i) =>

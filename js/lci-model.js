@@ -47,7 +47,7 @@ function lciSections(model) {
 // Each model has two currencies:
 //   LocalCurrency   — CoE location currency. CoE-side inputs are entered in
 //                     it: salaries, OfficeCostPerHead.
-//                     (EoRFeePerHead and TravelPerMonth are exceptions:
+//                     (EoRFeePerHead and travel rows are exceptions:
 //                     entered in DisplayCurrency, NOT FX-converted.)
 //   DisplayCurrency — the customer's modelling currency. Customer-side
 //                     inputs are entered in it: legacy rows, one-offs, fees.
@@ -178,28 +178,6 @@ function lciSumByType(rows, model, rowType) {
   return out;
 }
 
-// ── Travel migration (N-009) ─────────────────────────────────────────
-// Models built before per-month travel carry a flat model.TravelPerMonth.
-// Seed it as a single travel row so no cost is silently lost when the flat
-// field disappears from the settings bar.
-//
-// Pure and idempotent — returns the input array untouched once any travel row
-// exists, so it is safe to call on every load. The seeded row carries no id:
-// the editor persists it on the next save (and clears TravelPerMonth at that
-// point, which is what stops a deliberately-deleted row being resurrected);
-// the read-only summary and report views simply render it.
-function lciMigrateTravelRows(model, rows) {
-  const flat = Number(model.TravelPerMonth) || 0;
-  if (flat <= 0 || rows.some(r => r.RowType === 'travel')) return rows;
-  const horizon = Number(model.HorizonMonths) || 0;
-  const maxSort = Math.max(0, ...rows.map(r => r.SortOrder || 0));
-  return [...rows, {
-    RowType:     'travel',
-    Title:       'Travel',
-    MonthValues: JSON.stringify(new Array(horizon).fill(flat)),
-    SortOrder:   maxSort + 1,
-  }];
-}
 // ── Full model computation ───────────────────────────────────────────
 // All outputs are in DisplayCurrency: the CoE side is computed in
 // LocalCurrency then converted via lciFxRate(model); the legacy / one-off /
@@ -227,8 +205,8 @@ function lciComputeModel(model, rows) {
   const eor    = coe.headcount.map(h => h * (Number(model.EoRFeePerHead)    || 0));
   const office = coe.headcount.map(h => h * (Number(model.OfficeCostPerHead)|| 0) * fx);
   // Travel is entered in DisplayCurrency (customer-side) — no FX conversion.
-  // N-009: per-month travel rows replace the flat model.TravelPerMonth. Travel
-  // stays inside coeOperating below, so existing models reconcile unchanged.
+  // Travel comes from per-month travel rows and stays inside coeOperating
+  // below, alongside EoR and office costs.
   const travel = sections.travel ? lciSumByType(rows, model, 'travel') : zero();
 
   const coeOperating   = coe.total.map((c, i) => c + eor[i] + office[i] + travel[i]);

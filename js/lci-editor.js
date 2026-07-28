@@ -174,6 +174,10 @@ async function saveLCISettings() {
     });
     const sections = {};
     el.querySelectorAll('[data-section]').forEach(cb => { sections[cb.dataset.section] = cb.checked; });
+    // N-008: no CoE checkbox to read — re-assert it so the stored JSON stays
+    // self-describing (matches the create path in lci-pages.js) and a stale
+    // "coe":false is cleaned up the next time settings are saved.
+    sections.coe = true;
     fields.SectionsEnabled = JSON.stringify(sections);
     if (fields.LocalCurrency === fields.DisplayCurrency) fields.FXRateLocalToDisplay = null;
 

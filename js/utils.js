@@ -31,23 +31,44 @@ function clearButtonLoading(btn) {
 //                   this helper stays module-agnostic). Containers are paired
 //                   by document order, which re-rendered sections preserve.
 // Returns the new element, or null if the id wasn't in the DOM.
-function replaceHtmlKeepingScroll(elementId, html, scrollSelector) {
-  const old = document.getElementById(elementId);
-  if (!old) return null;
-  const offsets = [...old.querySelectorAll(scrollSelector)]
+// Snapshot / restore the scroll offsets of every container matching `selector`
+// inside `root`. Containers are paired by document order, which re-rendered
+// markup preserves. Restore is synchronous — a deferred one shows a visible
+// jump-then-snap. Over-large offsets are clamped by the browser.
+function _scrollOffsets(root, selector) {
+  return [...root.querySelectorAll(selector)]
     .map(n => ({ left: n.scrollLeft, top: n.scrollTop }));
-  old.outerHTML = html;                          // `old` is detached from here
-  const next = document.getElementById(elementId);
-  if (!next) return null;
-  // Fresh look-up, set synchronously — a deferred restore shows a visible
-  // jump-then-snap. Over-large offsets are clamped by the browser.
-  [...next.querySelectorAll(scrollSelector)].forEach((n, i) => {
+}
+function _restoreScrollOffsets(root, selector, offsets) {
+  [...root.querySelectorAll(selector)].forEach((n, i) => {
     const pos = offsets[i];
     if (!pos) return;
     n.scrollLeft = pos.left;
     n.scrollTop  = pos.top;
   });
+}
+
+function replaceHtmlKeepingScroll(elementId, html, scrollSelector) {
+  const old = document.getElementById(elementId);
+  if (!old) return null;
+  const offsets = _scrollOffsets(old, scrollSelector);
+  old.outerHTML = html;                          // `old` is detached from here
+  const next = document.getElementById(elementId);  // so re-look-up by id
+  if (!next) return null;
+  _restoreScrollOffsets(next, scrollSelector, offsets);
   return next;
+}
+
+// innerHTML variant: the element itself survives the assignment, so there is
+// no re-look-up and no same-id requirement on the replacement markup — only
+// the scroll containers inside it are destroyed and rebuilt.
+function replaceInnerHtmlKeepingScroll(elementId, html, scrollSelector) {
+  const el = document.getElementById(elementId);
+  if (!el) return null;
+  const offsets = _scrollOffsets(el, scrollSelector);
+  el.innerHTML = html;
+  _restoreScrollOffsets(el, scrollSelector, offsets);
+  return el;
 }
 
 // ── Monthly calculation ───────────────────────────────────────────────

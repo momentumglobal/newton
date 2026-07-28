@@ -423,9 +423,10 @@ function removeLCICoeRow(idx) {
 }
 
 function _lciRerenderRoadmap() {
-  // Full roadmap re-render (add/remove only — cell edits use _lciRefreshDerived)
-  const section = document.getElementById('lci-roadmap-section');
-  if (section) section.outerHTML = _lciRoadmapHtml();
+  // Full roadmap re-render (add/remove only — cell edits use _lciRefreshDerived).
+  // Keeps the grid's horizontal/vertical scroll position; no-op when the
+  // roadmap section isn't rendered (CoE section toggled off).
+  replaceHtmlKeepingScroll('lci-roadmap-section', _lciRoadmapHtml(), '.lci-grid-scroll');
   // Shared state (lci-sections.js): also covers dirtyMilestones — a
   // milestone-only change used to leave this button disabled — and is safe
   // when the CoE section is toggled off and the button doesn't exist.

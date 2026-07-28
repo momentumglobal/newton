@@ -2073,7 +2073,10 @@ body {
   width: 50%; height: 0; border-top: 1px solid #cfd8dc; }
 /* 24px clears the 40px avatar that protrudes above each node (was overlapping) */
 .org-tree ul.org-stack > li { padding: 24px 0 0 0; }
-.org-tree ul.org-stack > li > .org-node { margin-left: 18px; }
+/* text-align:left on the stacked list stops the li boxes centring, but it also
+   cascades into the node. Restore centring on the node itself — visible on short
+   labels like "QA", which sat hard against the left edge. */
+.org-tree ul.org-stack > li > .org-node { margin-left: 18px; text-align: center; }
 .org-tree ul.org-stack > li::before {          /* horizontal tick into the node */
   top: 46px; left: 0; right: auto; width: 18px; height: 0;
   border-top: 1px solid #cfd8dc; border-right: 0; border-radius: 0; }
@@ -2129,10 +2132,15 @@ body {
   body.org-printing #main-content > *:not(#org-chart-page),
   body.org-printing .page-header .btn-secondary,
   body.org-printing .page-header .print-btn { display: none !important; }
-  body.org-printing #org-chart-page { overflow: visible !important; min-height: 640px; }  /* hide scrollbar, fill tile */
+  /* No min-height in print: it forced ~640px of tile regardless of chart size and
+     was the main reason the title and chart split across two pages. Padding and
+     title margin trimmed for the same reason — on screen both stay as they were. */
+  body.org-printing #org-chart-page {
+    overflow: visible !important; min-height: 0; padding: 8px; }
   body.org-printing .org-print-title {
-    display: block; text-align: center; font-size: 16px; font-weight: 600;
-    color: #0A0B44; margin: 0 0 14px; }
+    display: block; text-align: center; font-size: 15px; font-weight: 600;
+    color: #0A0B44; margin: 0 0 6px; }
+  body.org-printing .org-tree { padding-top: 4px; }
   body.org-printing #org-chart-canvas { text-align: center; min-width: 0; }
   body.org-printing #org-chart-inner { zoom: var(--org-print-scale, 1); }
 }

@@ -2063,8 +2063,11 @@ body {
    centres it under the parent node. Everything inside is fixed-pixel: the previous
    percentage padding was resolved against a width the content itself determined,
    which is what threw the alignment and overflowed the page edge. */
-.org-tree ul.org-stack { display: inline-block; position: relative; text-align: left;
-  padding-top: 20px; }
+/* block-level (so it sits BELOW the parent node, not beside it — .org-node is
+   inline-block and .org-tree sets white-space:nowrap) but shrink-to-fit via
+   fit-content, with auto margins to re-centre it under the parent. */
+.org-tree ul.org-stack { display: block; width: fit-content; margin-left: auto;
+  margin-right: auto; position: relative; text-align: left; padding-top: 20px; }
 /* elbow: parent's 20px stub (ul::before, at 50%) then across to the spine at left:0 */
 .org-tree ul.org-stack::after { content: ''; position: absolute; top: 20px; left: 0;
   width: 50%; height: 0; border-top: 1px solid #cfd8dc; }

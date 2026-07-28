@@ -147,12 +147,14 @@ const CONFIG = {
       SalaryMonths:      12,
       OfficeCostPerHead: 300,
       EoRFeePerHead:     0,
-      TravelPerMonth:    0,
       NoticeMonths:      1,
     },
     // CoE has no entry: it is always on (N-008 — the toggle was removed to stop
     // the roadmap being hidden mid-build by mistake). lciSections() forces it.
+    // Order here drives the toggle row, which mirrors the section order down
+    // the editor page.
     SECTION_LABELS: {
+      travel:  'Travel',
       legacy:  'Legacy Team',
       oneoffs: 'Retention & Relocation',
       fees:    'Project Fees',

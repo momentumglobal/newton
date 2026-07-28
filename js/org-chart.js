@@ -49,7 +49,7 @@ async function renderOrgChart() {
   main.innerHTML = '<p>Loading org chart…</p>';
 
   const [people, leadership, projectsByCSD, currentAssign] = await Promise.all([
-    getPeople(true),                       // active only, sorted by Level
+    getPeople(true, true),                 // active only, sorted by Level; incl. placeholders
     getLeadershipAccess(),
     getProjectsByCSD(),                    // { csdNameLower: [projectRow,…] }
     getCurrentAssignmentsByEmployee(),     // { EmployeeName: [assignmentRow,…] }
@@ -86,41 +86,81 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
   const csds = people.filter(p => p.Level === 'CSD');
 
   // Project node for a given CSD (by display name), with its team hung beneath.
-  const personNode = (p) => ({ kind: 'person', label: p.EmployeeName,
-    sub: `${p.Level || ''}${p.Location ? ' · ' + p.Location : ''}`,
-    _band: p.Level === 'STP' ? 'TP' : p.Level, _photo: p.PhotoUrl, children: [] });
+  // A placeholder drops its level band colour (the dashed treatment reads better on
+  // white) and shows "To be hired" in place of a location it doesn't have yet.
+  const personNode = (p) => {
+    const ph = !!p.IsPlaceholder;
+    return { kind: 'person', label: p.EmployeeName,
+      sub: ph ? `${p.Level || ''} · ${CONFIG.ORG_PLACEHOLDER_LABEL}`
+              : `${p.Level || ''}${p.Location ? ' · ' + p.Location : ''}`,
+      _band: ph ? '' : (p.Level === 'STP' ? 'TP' : p.Level),
+      _placeholder: ph, _photo: p.PhotoUrl, children: [] };
+  };
+
+  // Shared by real and synthetic bubbles so the two can't drift apart: the SDM sits
+  // directly under the bubble and everyone else reports into the first SDM; with no
+  // SDM the team hangs straight off the bubble.
+  const teamChildren = (members) => {
+    const byName = (a, b) => a.EmployeeName.localeCompare(b.EmployeeName);
+    const sdms    = members.filter(p => p.Level === 'SDM').sort(byName);
+    const reports = members.filter(p => p.Level !== 'SDM').sort(byName);
+    if (!sdms.length) return reports.map(personNode); // no SDM → team reports into the bubble
+    const sdmNodes = sdms.map(personNode);
+    sdmNodes[0].children = reports.map(personNode);   // TPs/STPs report into the SDM
+    return sdmNodes;                                  // (extra SDMs sit as siblings)
+  };
 
   const projectNode = (proj) => {
     const members = [];
     people.forEach(p => {
+      // Placeholders anchor via People.PlaceholderProject, never via Assignments —
+      // fake assignment rows would leak into utilisation, bench sync and the timeline.
+      if (p.IsPlaceholder) {
+        const pp = _ocNorm(p.PlaceholderProject);
+        if (pp && pp === _ocNorm(proj.CustomerName)) members.push(p);
+        return;
+      }
       (currentAssign[p.EmployeeName] || []).forEach(a => {
         if (_ocNorm(a.Customer) === _ocNorm(proj.CustomerName)) members.push(p);
       });
     });
-    const byName = (a, b) => a.EmployeeName.localeCompare(b.EmployeeName);
-    const sdms    = members.filter(p => p.Level === 'SDM').sort(byName);
-    const reports = members.filter(p => p.Level !== 'SDM').sort(byName);
-
-    let children;
-    if (sdms.length) {
-      const sdmNodes = sdms.map(personNode);
-      sdmNodes[0].children = reports.map(personNode); // TPs/STPs report into the SDM
-      children = sdmNodes;                            // (extra SDMs sit as siblings)
-    } else {
-      children = reports.map(personNode);             // no SDM → team reports into the bubble
-    }
     return { kind: 'project', label: proj.CustomerName,
              sub: proj.ProjectType || 'Project',
-             _colour: _ocTypeColour(proj.ProjectType), children };
+             _colour: _ocTypeColour(proj.ProjectType),
+             children: teamChildren(members) };
   };
 
-  // CSD node: children are the projects that CSD owns.
+  // Every real (Projects-list) customer name, so a synthetic bubble never duplicates one.
+  const realProjects = new Set();
+  Object.values(projectsByCSD).forEach(list =>
+    list.forEach(pr => realProjects.add(_ocNorm(pr.CustomerName))));
+
+  // Synthetic bubbles: placeholder-only teams with NO Projects row at all. Keeps
+  // fictional/vacant teams out of the Projects list, and therefore out of Reporting.
+  const syntheticNodes = (csd) => {
+    const groups = {};
+    people.forEach(p => {
+      if (!p.IsPlaceholder) return;
+      const name = String(p.PlaceholderProject || '').trim();
+      if (!name || realProjects.has(_ocNorm(name))) return;   // real bubble wins
+      if (_ocNorm(p.PlaceholderCSD) !== _ocNorm(csd.EmployeeName)) return;
+      (groups[name] = groups[name] || []).push(p);
+    });
+    return Object.keys(groups).sort().map(name => ({
+      kind: 'project', label: name,
+      sub: CONFIG.ORG_PLACEHOLDER_PROJECT_TYPE,
+      _colour: _ocTypeColour(CONFIG.ORG_PLACEHOLDER_PROJECT_TYPE),
+      children: teamChildren(groups[name]),
+    }));
+  };
+
+  // CSD node: children are the projects that CSD owns, plus any synthetic bubbles.
   const csdNode = (csd) => {
     const projs = projectsByCSD[_ocNorm(csd.EmployeeName)] || [];
     return { kind: 'csd', label: csd.EmployeeName,
              sub: `CSD${csd.Location ? ' · ' + csd.Location : ''}`,
              _email: _ocEmail(csd.ReportsTo), _photo: csd.PhotoUrl,
-             children: projs.map(projectNode) };
+             children: [...projs.map(projectNode), ...syntheticNodes(csd)] };
   };
 
   // Leadership node: children are leaders + CSDs whose ReportsTo == this email.
@@ -150,6 +190,7 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
 
 function buildBenchPool(people, currentAssign) {
   return people.filter(p => {
+    if (p.IsPlaceholder) return false;              // a vacancy is not on the bench
     if (p.Level === 'CSD') return false;            // CSDs sit in the tree
     const rows = currentAssign[p.EmployeeName] || [];
     return rows.length === 0 || rows.every(a => _ocIsBench(a.Customer));
@@ -164,15 +205,19 @@ function renderTreeHtml(roots) {
       ? ` style='border-color:${n._colour};background:${n._colour}1A'` : '';
     const avatar = n.kind === 'project' ? '' : _ocAvatar(n.label, n._photo);
     const avCls  = avatar ? ' org-node--has-avatar' : '';
+    const phCls  = n._placeholder ? ' org-node--placeholder' : '';
+    const kids   = n.children || [];
+    // Wide sibling rows blow out the chart width (and shrink the whole PDF), so
+    // past the threshold they run vertically off a single spine instead.
+    const ulCls  = kids.length >= CONFIG.ORG_STACK_THRESHOLD ? " class='org-stack'" : '';
     return `
     <li>
-      <div class='org-node org-node--${n.kind}${n._band ? ' org-node--' + n._band.toLowerCase() : ''}${avCls}'${style}>
+      <div class='org-node org-node--${n.kind}${n._band ? ' org-node--' + n._band.toLowerCase() : ''}${avCls}${phCls}'${style}>
         ${avatar}
         <div class='org-node__name'>${_ocEsc(n.label)}</div>
         ${n.sub ? `<div class='org-node__sub'>${_ocEsc(n.sub)}</div>` : ''}
       </div>
-      ${n.children && n.children.length
-        ? `<ul>${n.children.map(node).join('')}</ul>` : ''}
+      ${kids.length ? `<ul${ulCls}>${kids.map(node).join('')}</ul>` : ''}
     </li>`;
   };
   return `<div class='org-tree'><ul>${roots.map(node).join('')}</ul></div>`;

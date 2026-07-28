@@ -325,7 +325,7 @@ const _LCI_MODEL_COPY_FIELDS = [
 ];
 const _LCI_ROW_COPY_FIELDS = [
   'Title', 'RowType', 'Team', 'CareerLevel', 'AnnualSalary', 'BonusPct',
-  'Quantity', 'ExitMonth', 'MonthValues', 'SortOrder',
+  'Quantity', 'ExitMonth', 'LegacyCategory', 'MonthValues', 'SortOrder',
 ];
 const _LCI_MILESTONE_COPY_FIELDS = ['Title', 'StartMonth', 'EndMonth', 'SortOrder'];
 

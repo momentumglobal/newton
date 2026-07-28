@@ -2141,6 +2141,9 @@ body {
     display: block; text-align: center; font-size: 15px; font-weight: 600;
     color: #0A0B44; margin: 0 0 6px; }
   body.org-printing .org-tree { padding-top: 4px; }
+  /* 24px below the header is tuned for multi-page reports; the org chart is a
+     single page and needs the pixels more than the breathing room. */
+  body.org-printing #print-header { margin-bottom: 12px !important; }
   body.org-printing #org-chart-canvas { text-align: center; min-width: 0; }
   body.org-printing #org-chart-inner { zoom: var(--org-print-scale, 1); }
 }

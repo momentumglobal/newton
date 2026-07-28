@@ -235,15 +235,18 @@ function _lciRoadmapHtml() {
 
   const monthHead = labels.map(l => `<th class="lci-mcol">${l.replace(' (', '<br>(')}</th>`).join('');
 
-  const bodyRows = teams.map(team => {
+  // `ti` is the TEAM index (not a row index like globalIdx). The button passes
+  // it instead of the team name, so no user text ever reaches an onclick —
+  // escaping a JS string inside an HTML attribute is not something escHtml can
+  // do correctly (attribute entities are decoded before the JS is parsed).
+  const bodyRows = teams.map((team, ti) => {
     const teamRows = coeRows.map((r, globalIdx) => ({ r, globalIdx }))
       .filter(({ r }) => (r.Team || 'Other') === team);
     const teamHtml = teamRows.map(({ r, globalIdx }) => _lciRoadmapRowHtml(r, globalIdx, horizon)).join('');
-    const teamEsc = String(team).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     return `
       <tr class="lci-team-row"><td colspan="${horizon + 6}"><strong>${escHtml(team)}</strong></td></tr>
       ${teamHtml}
-      <tr class="lci-add-role-row"><td colspan="${horizon + 7}"><button class="lci-add-role-btn" onclick="addLCIRoleToTeam('${teamEsc}')">+ Add role to ${escHtml(team)}</button></td></tr>`;
+      <tr class="lci-add-role-row"><td colspan="${horizon + 7}"><button class="lci-add-role-btn" onclick="addLCIRoleToTeam(${ti})">+ Add role to ${escHtml(team)}</button></td></tr>`;
   }).join('');
 
   return `
@@ -416,7 +419,14 @@ function addLCITeam() {
   _lciPushCoeRow(team.trim() || 'Other');
 }
 // "+ Add role to [team]" — add an empty role to an existing team (no prompt).
-function addLCIRoleToTeam(team) {
+// Takes the team's index into _lciTeamsInOrder(), re-derived here so the button
+// carries no user text. Every mutation that could reorder that list
+// (_lciPushCoeRow, removeLCICoeRow) re-renders the roadmap and regenerates the
+// buttons, and the CoE grid has no Team input, so the index cannot go stale.
+// Guarded anyway: a stale index is a no-op, never a row on the wrong team.
+function addLCIRoleToTeam(teamIndex) {
+  const team = _lciTeamsInOrder()[teamIndex];
+  if (team === undefined) return;
   _lciPushCoeRow(team);
 }
 

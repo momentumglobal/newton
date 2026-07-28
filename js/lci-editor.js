@@ -194,15 +194,17 @@ async function saveLCISettings() {
     _lciEd.dirtySettings = false;
     clearButtonLoading(btn);
     btn.disabled = true;
-    // Settings affect row costs, currency labels and section visibility.
-    // Full re-render when rows are clean; targeted refresh otherwise (a full
-    // re-render would drop unsaved row edits).
-    if (!_lciEd.dirtyRows) {
-      document.getElementById('main-content').innerHTML = _lciEditorHtml();
-      if (window.lucide) lucide.createIcons();
-    } else {
-      _lciRefreshDerived();
-    }
+    // Settings affect row costs, currency labels and section visibility, so
+    // always re-render in full — a targeted refresh left a toggled section
+    // visible until reload. Unsaved row edits survive: every cell commits to
+    // _lciEd.rows on change, clicking Save Settings blurs and fires that
+    // change first, and _lciEditorHtml() renders from _lciEd.rows.
+    replaceInnerHtmlKeepingScroll('main-content', _lciEditorHtml(), '.lci-grid-scroll');
+    if (window.lucide) lucide.createIcons();
+    // Mandatory: the section shells and the roadmap emit their save buttons
+    // with a hardcoded `disabled`, so without this a re-render with pending
+    // row edits would lock the user out of saving them.
+    _lciSyncSaveButtons();
   } catch (e) {
     clearButtonLoading(btn);
     alert('Error saving settings: ' + e.message);

@@ -113,18 +113,27 @@ function lciCumulativeHeadcount(row, horizon, noticeMonths = 0) {
   return out;
 }
 
+// Notice period for one CoE row. A blank/absent NoticeMonthsOverride inherits
+// the model default; 0 is a REAL value meaning "starts in the hire month".
+// Deliberately not `Number(x) || fallback` — `Number('')` is 0, so that form
+// would silently turn every blank cell into an immediate start.
+function lciRowNotice(row, model) {
+  const raw = row.NoticeMonthsOverride;
+  const has = raw !== null && raw !== undefined && raw !== '' && Number.isFinite(Number(raw));
+  return Math.max(0, Number(has ? raw : model.NoticeMonths) || 0);
+}
+
 // Per-month CoE employee cost + headcount, with per-Team subtotals.
 // Costs returned in LOCAL currency (converted in lciComputeModel).
 function lciCoeCosts(rows, model) {
   const horizon = Number(model.HorizonMonths);
-  const notice  = Math.max(0, Number(model.NoticeMonths) || 0);
   const coeRows = rows.filter(r => r.RowType === 'coe');
   const total     = new Array(horizon).fill(0);
   const headcount = new Array(horizon).fill(0);
   const byTeam    = {}; // team → array[horizon]
 
   for (const row of coeRows) {
-    const cum  = lciCumulativeHeadcount(row, horizon, notice);
+    const cum  = lciCumulativeHeadcount(row, horizon, lciRowNotice(row, model));
     const cost = lciMonthlyCost(row, model);
     const team = row.Team || 'Other';
     if (!byTeam[team]) byTeam[team] = new Array(horizon).fill(0);

@@ -47,7 +47,7 @@ function _lciLegacyHtml() {
 
   const body = rows.length ? rows.map(r => {
     const gidx = _lciEd.rows.indexOf(r);
-    const monthly = lciMonthlyCost(r, m) * (Number(r.Quantity) || 1);
+    const monthly = lciLegacyMonthlyCost(r) * (Number(r.Quantity) || 1);
     const cat = lciLegacyCategory(r);
     const retained = cat === 'retained';
     // ⚠ only means something for Exiting rows — a Retained row running to the
@@ -77,7 +77,7 @@ function _lciLegacyHtml() {
     : `<tr><td colspan="9" style="color:#888;text-align:center">No legacy roles yet.</td></tr>`;
 
   return _lciSectionShell('lci-legacy-section', 'Legacy Team',
-    `(salaries in ${m.DisplayCurrency}; Exiting rows run M1 → exit month, Retained run to the horizon)`,
+    `(fully loaded salaries in ${m.DisplayCurrency}; Exiting rows run M1 → exit month, Retained run to the horizon)`,
     'addLCILegacyRow', `
     <table class="data-table">
       <thead><tr>
@@ -202,7 +202,7 @@ function lciRowFieldChanged(gidx, field, value) {
   }
   if (r.RowType === 'legacy') {
     const el = document.getElementById(`lci-legacy-cost-${gidx}`);
-    if (el) el.textContent = _lciFmt(lciMonthlyCost(r, _lciEd.model) * (Number(r.Quantity) || 1), _lciEd.model.DisplayCurrency);
+    if (el) el.textContent = _lciFmt(lciLegacyMonthlyCost(r) * (Number(r.Quantity) || 1), _lciEd.model.DisplayCurrency);
   }
   lciRefreshOutput();
 }

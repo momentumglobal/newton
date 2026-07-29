@@ -291,6 +291,17 @@ function _lciOutputInnerHtml(includeChart = true, plain = false) {
         `<tr class="lci-out-indent"><td>${v.costLine}</td>${td(lbc[k])}</tr>`).join('')
     : '';
 
+  // N-018: "Legacy Team Costs" only earns a row when it is NOT derivable from
+  // the rows around it. It equals Exiting + Retained (so it is redundant
+  // whenever the split renders) and it equals Total Legacy Costs whenever
+  // Retention & Relocation contributes nothing. That leaves exactly one case:
+  // a single category WITH R&R amounts, where it is the only place the legacy
+  // team figure appears.
+  // Test the computed series, not sections.oneoffs — the section can be on with
+  // every row zero, which is the reported case. `legacyCatRows` is '' when the
+  // split isn't shown, so reusing it keeps this in step with the test above.
+  const showLegacyTeamCosts = !legacyCatRows && c.oneoffs.some(v => v);
+
   return `
     <div style="${plain ? '' : 'background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'}">
       <h3 style="margin:0 0 12px;color:#1B3A5C">Cost Model <span style="font-weight:400;font-size:13px;color:#888">(all values in ${ccy})</span></h3>
@@ -308,7 +319,7 @@ function _lciOutputInnerHtml(includeChart = true, plain = false) {
             ${((Number(m.EoRFeePerHead) || 0) > 0 || (Number(m.OfficeCostPerHead) || 0) > 0 || c.travel.some(v => v)) ? `<tr class="lci-out-subtotal"><td>Total CoE Operating Costs</td>${td(c.coeOperating)}</tr>` : ''}` : ''}
             ${sections.legacy || sections.oneoffs ? `
             ${sections.legacy ? `<tr class="lci-out-section"><td>Legacy Headcount</td>${tdInt(c.legacyHeadcount)}</tr>
-            <tr class="lci-out-indent"><td>Legacy Team Costs</td>${td(c.legacyCost)}</tr>
+            ${showLegacyTeamCosts ? `<tr class="lci-out-indent"><td>Legacy Team Costs</td>${td(c.legacyCost)}</tr>` : ''}
             ${legacyCatRows}` : ''}
             ${sections.oneoffs ? `<tr class="lci-out-indent${sections.legacy ? '' : ' lci-out-section'}"><td>Retention & Relocation</td>${td(c.oneoffs)}</tr>` : ''}
             <tr class="lci-out-subtotal"><td>Total Legacy Costs</td>${td(c.legacyCost.map((v, i) => v + c.oneoffs[i]))}</tr>` : ''}

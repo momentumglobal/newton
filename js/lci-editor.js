@@ -321,8 +321,8 @@ function _lciRoadmapFootHtml(horizon) {
   const cumCells = hires.map(h => { cum += h; return `<td class="lci-mcol lci-derived">${cum}</td>`; }).join('');
   const hireCells = hires.map(h => `<td class="lci-mcol lci-derived">${h || ''}</td>`).join('');
   return `
-    <tr><td colspan="4"><strong>Hires per month</strong></td>${hireCells}<td class="lci-derived">${hires.reduce((a, b) => a + b, 0)}</td><td></td><td></td></tr>
-    <tr><td colspan="4"><strong>Cumulative hires</strong></td>${cumCells}<td></td><td></td><td></td></tr>`;
+    <tr><td colspan="5"><strong>Hires per month</strong></td>${hireCells}<td class="lci-derived">${hires.reduce((a, b) => a + b, 0)}</td><td></td><td></td></tr>
+    <tr><td colspan="5"><strong>Cumulative hires</strong></td>${cumCells}<td></td><td></td><td></td></tr>`;
 }
 
 // ── Benchmark salary hints ───────────────────────────────────────────

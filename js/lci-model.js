@@ -79,8 +79,20 @@ function lciMonthlyCost(row, model) {
   const burden       = Number(model.EmployerBurdenPct) || 0;
   const grossAnnual  = salary * (salaryMonths / 12);
   const annualBonus  = salary * (Number(row.BonusPct) || 0);
-  const monthlyBase  = (grossAnnual + annualBonus) / 12;
+    const monthlyBase  = (grossAnnual + annualBonus) / 12;
   return monthlyBase * (1 + burden);
+}
+
+// Legacy rows are customer-side: entered in DisplayCurrency with on-costs
+// already included. EmployerBurdenPct and SalaryMonths describe the CoE
+// location and must NOT be applied to them (N-017 — they were, inflating every
+// model's legacy cost by 1 + burden, more at 13/14 salary months).
+// Deliberately takes `row` only, with no `model` argument: the CoE settings are
+// not in scope here and cannot be reintroduced by accident.
+function lciLegacyMonthlyCost(row) {
+  const salary      = Number(row.AnnualSalary) || 0;
+  const annualBonus = salary * (Number(row.BonusPct) || 0);
+  return (salary + annualBonus) / 12;
 }
 
 // ── CoE section ──────────────────────────────────────────────────────
@@ -152,7 +164,7 @@ function lciLegacyCosts(rows, model) {
 
   for (const row of legacyRows) {
     const qty  = Number(row.Quantity) || 1;
-    const cost = lciMonthlyCost(row, model) * qty;
+    const cost = lciLegacyMonthlyCost(row) * qty;
     const cat  = lciLegacyCategory(row);
     // Category drives the end month, not the stored ExitMonth: a value left
     // over from before a row was switched to Retained must not truncate it.

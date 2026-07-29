@@ -21,6 +21,16 @@ const CONFIG = {
   ORG_STACK_EXEMPT_KINDS: ['leader', 'csd'],
   // Bubble type used for a synthetic (placeholder-only) team that has no Projects row.
   ORG_PLACEHOLDER_PROJECT_TYPE: 'Internal',
+  // Written on every placeholder created in-app. SharePoint marks these People
+  // columns required, but nothing ever reads them for a placeholder — getPeople()
+  // filters placeholders out for every other consumer. Location must NOT be 'UK':
+  // that is the value gating the salary and payroll paths. StartDate is historic
+  // so it falls outside every joiner/payroll window; T12:00:00Z avoids the BST shift.
+  ORG_PLACEHOLDER_DEFAULTS: {
+    ContractType: 'Core',
+    Location:     'Global',
+    StartDate:    '2000-01-01T12:00:00Z',
+  },
   // Hardcoded admin users — full access, never overridden by SharePoint data
   ADMIN_USERS:  ["admin@momentumglobal.co", "chris.friend@momentumglobal.co", "aliyah@momentumglobal.co", "jon.stanners@momentumglobal.co"],
 

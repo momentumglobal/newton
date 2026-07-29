@@ -79,13 +79,15 @@ function _lciLegacyHtml() {
   return _lciSectionShell('lci-legacy-section', 'Legacy Team',
     `(fully loaded salaries in ${m.DisplayCurrency}; Exiting rows run M1 → exit month, Retained run to the horizon)`,
     'addLCILegacyRow', `
-    <table class="data-table">
-      <thead><tr>
-        <th style="width:16%">Role</th><th style="width:16%">Team</th><th>Category</th><th>Qty</th><th>Annual salary</th><th>Bonus %</th>
-        <th>Exit month</th><th>Cost/mo</th><th></th>
-      </tr></thead>
-      <tbody>${body}</tbody>
-    </table>`);
+    <div class="lci-grid-scroll">
+      <table class="data-table" id="lci-legacy-table">
+        <thead><tr>
+          <th style="width:16%">Role</th><th style="width:16%">Team</th><th>Category</th><th>Qty</th><th>Annual salary</th><th>Bonus %</th>
+          <th>Exit month</th><th>Cost/mo</th><th></th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>`);
 }
 
 function addLCILegacyRow() {

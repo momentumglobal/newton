@@ -62,6 +62,7 @@ function _lciRowSnapshot(r) {
     Title: r.Title, RowType: r.RowType, Team: r.Team, CareerLevel: r.CareerLevel,
     AnnualSalary: r.AnnualSalary, BonusPct: r.BonusPct, Quantity: r.Quantity,
     ExitMonth: r.ExitMonth, LegacyCategory: r.LegacyCategory,
+    NoticeMonthsOverride: r.NoticeMonthsOverride,
     MonthValues: r.MonthValues, SortOrder: r.SortOrder,
   };
 }
@@ -133,7 +134,7 @@ function _lciSettingsHtml() {
         </div>
         ${field(`Employer burden %`, numInput('EmployerBurdenPct', m.EmployerBurdenPct != null ? Math.round(m.EmployerBurdenPct * 100 * 100) / 100 : '', '0.5'))}
         ${field('Salary months', `<select class="form-control" data-setting="SalaryMonths" onchange="lciSettingChanged()">${smOpts}</select>`)}
-        ${field('Notice period (months)', numInput('NoticeMonths', m.NoticeMonths ?? 0, '1'))}
+        ${field('Notice period (default, months)', numInput('NoticeMonths', m.NoticeMonths ?? 0, '1'))}
         ${field(`Office / head / month (${m.LocalCurrency})`, numInput('OfficeCostPerHead', m.OfficeCostPerHead, '10'))}
         ${field(`EoR / head / month (${m.DisplayCurrency})`, numInput('EoRFeePerHead', m.EoRFeePerHead, '10'))}
         ${canAssign ? field('Assigned DM (email)',
@@ -244,9 +245,9 @@ function _lciRoadmapHtml() {
       .filter(({ r }) => (r.Team || 'Other') === team);
     const teamHtml = teamRows.map(({ r, globalIdx }) => _lciRoadmapRowHtml(r, globalIdx, horizon)).join('');
     return `
-      <tr class="lci-team-row"><td colspan="${horizon + 6}"><strong>${escHtml(team)}</strong><button class="lci-team-btn" onclick="renameLCITeam(${ti})">Rename</button><button class="lci-team-btn lci-team-btn--danger" onclick="deleteLCITeam(${ti})">Delete</button></td></tr>
+      <tr class="lci-team-row"><td colspan="${horizon + 7}"><strong>${escHtml(team)}</strong><button class="lci-team-btn" onclick="renameLCITeam(${ti})">Rename</button><button class="lci-team-btn lci-team-btn--danger" onclick="deleteLCITeam(${ti})">Delete</button></td></tr>
       ${teamHtml}
-      <tr class="lci-add-role-row"><td colspan="${horizon + 7}"><button class="lci-add-role-btn" onclick="addLCIRoleToTeam(${ti})">+ Add role to ${escHtml(team)}</button></td></tr>`;
+      <tr class="lci-add-role-row"><td colspan="${horizon + 8}"><button class="lci-add-role-btn" onclick="addLCIRoleToTeam(${ti})">+ Add role to ${escHtml(team)}</button></td></tr>`;
   }).join('');
 
   return `
@@ -264,14 +265,14 @@ function _lciRoadmapHtml() {
           <thead>
             <tr>
               <th style="min-width:180px">Role</th><th>Level</th>
-              <th>Annual salary</th><th>Bonus %</th>
+              <th>Annual salary</th><th>Bonus %</th><th>Notice</th>
               ${monthHead}
               <th>Hires</th><th>Cost/mo</th><th></th>
             </tr>
           </thead>
           <tbody id="lci-roadmap-body">
             ${_lciRoadmapMilestoneRows(horizon)}
-            ${bodyRows || `<tr><td colspan="${horizon + 7}" style="color:#888;text-align:center">No teams yet — click + Add Team.</td></tr>`}
+            ${bodyRows || `<tr><td colspan="${horizon + 8}" style="color:#888;text-align:center">No teams yet — click + Add Team.</td></tr>`}
           </tbody>
           <tfoot id="lci-roadmap-foot">
             ${_lciRoadmapFootHtml(horizon)}
@@ -300,6 +301,13 @@ function _lciRoadmapRowHtml(r, idx, horizon) {
           <div class="lci-bench-hint" id="lci-bench-${idx}">${_lciBenchHintHtml(r, idx)}</div></td>
       <td><input type="number" class="lci-cell lci-cell--sm" min="0" max="100" step="1" value="${r.BonusPct != null ? Math.round(r.BonusPct * 100 * 100) / 100 : ''}"
                  onchange="lciCoeFieldChanged(${idx}, 'BonusPct', this.value)"></td>
+      <td><input type="number" class="lci-cell lci-cell--sm" min="0" step="1"
+                 value="${r.NoticeMonthsOverride ?? ''}"
+                 placeholder="${_lciEd.model.NoticeMonths ?? 0}"
+                 title="Notice period for this role. Blank inherits the model default."
+                 onchange="lciCoeFieldChanged(${idx}, 'NoticeMonthsOverride', this.value)">
+          ${Number(r.NoticeMonthsOverride) === 0 && r.NoticeMonthsOverride !== null && r.NoticeMonthsOverride !== undefined && r.NoticeMonthsOverride !== ''
+            ? '<span class="lci-warn" title="No notice period — this role starts in the month it is hired">⚠</span>' : ''}</td>
       ${cells}
       <td class="lci-derived" id="lci-hires-${idx}">${vals.reduce((a, b) => a + b, 0)}</td>
       <td class="lci-derived" id="lci-cost-${idx}">${Math.round(cost).toLocaleString()}</td>
@@ -370,12 +378,21 @@ function lciCoeFieldChanged(idx, field, value) {
   const r = _lciCoeRows()[idx];
   if (field === 'BonusPct') {
     r[field] = value === '' ? null : Number(value) / 100; // UI is whole %, stored as decimal
-  } else if (field === 'AnnualSalary') {
+  } else if (field === 'AnnualSalary' || field === 'NoticeMonthsOverride') {
+    // Blank must stay null — it means "inherit the model default", which is
+    // not the same as 0 (start in the hire month).
     r[field] = value === '' ? null : Number(value);
   } else {
     r[field] = value;
   }
   _lciMarkRowsDirty();
+  if (field === 'NoticeMonthsOverride') {
+    // Shifts payroll timing for this role and toggles the ⚠, so re-render the
+    // section rather than just the derived cells. _lciRerenderRoadmap also
+    // refreshes the Cost Model output (N-018 rides on it).
+    _lciRerenderRoadmap();
+    return;
+  }
   _lciRefreshDerived(idx);
   if (field === 'Title' || field === 'AnnualSalary') _lciRefreshBenchHint(idx);
 }

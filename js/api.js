@@ -636,6 +636,9 @@ async function createPerson(fields) {
     IsActive:     fields.IsActive !== false,
     Salary:       fields.Salary   || undefined,
     PhotoUrl:     fields.PhotoUrl || undefined,
+    IsPlaceholder:      fields.IsPlaceholder || undefined,
+    PlaceholderProject: fields.PlaceholderProject || undefined,
+    PlaceholderCSD:     fields.PlaceholderCSD     || undefined,
   });
 }
 async function updatePerson(id, fields) {
@@ -649,6 +652,9 @@ async function updatePerson(id, fields) {
   if (fields.IsActive     !== undefined) payload.IsActive     = fields.IsActive;
   if (fields.Salary       !== undefined) payload.Salary       = fields.Salary;
   if (fields.PhotoUrl     !== undefined) payload.PhotoUrl     = fields.PhotoUrl;
+  if (fields.IsPlaceholder      !== undefined) payload.IsPlaceholder      = fields.IsPlaceholder;
+  if (fields.PlaceholderProject !== undefined) payload.PlaceholderProject = fields.PlaceholderProject;
+  if (fields.PlaceholderCSD     !== undefined) payload.PlaceholderCSD     = fields.PlaceholderCSD;
   return updateItem("People", id, payload);
 }
  

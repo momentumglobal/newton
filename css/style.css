@@ -1917,6 +1917,11 @@ body {
 /* Freeze the Hiring Roadmap header row on scroll */
 .lci-grid-scroll:has(#lci-roadmap-table) { max-height: 65vh; overflow: auto; }
 #lci-roadmap-table thead th { position: sticky; top: 0; z-index: 3; }
+/* Same treatment for the Legacy Team table — it can grow to a large number of
+   rows. Sticky headers rely on .data-table th's opaque background (#0A0B44);
+   don't make that transparent. */
+.lci-grid-scroll:has(#lci-legacy-table) { max-height: 65vh; overflow: auto; }
+#lci-legacy-table thead th { position: sticky; top: 0; z-index: 3; }
 /* Per-team add-role row */
 .lci-add-role-row td { padding: 4px 8px; background: #fbfcfe; }
 .lci-add-role-btn { background: none; border: none; color: #1B3A5C; font-weight: 600; cursor: pointer; font-size: 13px; }

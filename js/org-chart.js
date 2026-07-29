@@ -64,7 +64,8 @@ async function renderOrgChart() {
       <h2>Org Chart</h2>
       <div style='display:flex;gap:8px'>
         ${['admin','leadership'].includes(_resolvedRole)
-          ? `<button class='btn-secondary' onclick='showOrgChartEditForm()'>Edit reporting lines</button>` : ''}
+          ? `<button class='btn-secondary' onclick='showPlaceholderManager()'>+ Placeholders</button>
+             <button class='btn-secondary' onclick='showOrgChartEditForm()'>Edit reporting lines</button>` : ''}
         <button class='print-btn' onclick='exportOrgChartPdf()'>⎙ Export PDF</button>
       </div>
     </div>
@@ -261,6 +262,188 @@ function exportOrgChartPdf() {
     document.body.classList.remove('org-printing');
     inner.style.removeProperty('--org-print-scale');
   }, 1200);
+}
+
+// ── placeholder management: add / edit / remove ────────────────────────
+// Cached so the row buttons can pass an id only. Interpolating a name into an
+// onclick attribute is the JS-string-in-HTML-attribute trap from N-012d, where
+// escHtml is the wrong tool and an apostrophe breaks the button outright.
+let _ocPlaceholders = [];
+
+// CSD is deliberately absent: buildOrgTree() derives csds from Level==='CSD' with
+// no placeholder check, so a placeholder CSD would render as a real CSD node, own
+// projects, and appear in the reporting-lines editor.
+const OC_PLACEHOLDER_LEVELS = ['SDM', 'STP', 'TP'];
+
+function _ocFormError(msg) {
+  const el = document.getElementById('ph-form-error');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+async function showPlaceholderManager() {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<p>Loading…</p>';
+  const people = await getPeople(true, true);     // must opt in — default excludes them
+  _ocPlaceholders = people.filter(p => p.IsPlaceholder)
+    .sort((a, b) => (a.PlaceholderProject || '').localeCompare(b.PlaceholderProject || '')
+                 || (a.EmployeeName || '').localeCompare(b.EmployeeName || ''));
+
+  const rows = _ocPlaceholders.map(p => `
+    <tr>
+      <td>${_ocEsc(p.EmployeeName)}</td>
+      <td>${_ocEsc(p.Level || '')}</td>
+      <td>${_ocEsc(p.PlaceholderProject || '—')}</td>
+      <td>${_ocEsc(p.PlaceholderCSD || '—')}</td>
+      <td style='white-space:nowrap'>
+        <button class='btn-secondary' onclick='showPlaceholderForm(${p.id})'>Edit</button>
+        <button class='btn-secondary' onclick='deletePlaceholder(${p.id})'>Remove</button>
+      </td>
+    </tr>`).join('');
+
+  main.innerHTML = `
+    <div class='form-container' style='max-width:860px'>
+      <h2>Placeholders</h2>
+      <p style='color:#666;font-size:13px;margin-top:-6px'>
+        Vacancies and fictional roles shown on the org chart. They never appear in
+        headcount, utilisation, the Employees tab or any report.
+      </p>
+      ${_ocPlaceholders.length ? `
+      <table class='data-table'>
+        <thead><tr><th>Name</th><th>Level</th><th>Team</th><th>CSD owner</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>` : `<p class='org-empty'>No placeholders yet.</p>`}
+      <div class='form-actions'>
+        <button type='button' class='btn-primary' onclick='showPlaceholderForm(null)'>Add placeholder</button>
+        <button type='button' class='btn-secondary' onclick='navigateToPeople("orgChart")'>Back to chart</button>
+      </div>
+    </div>`;
+}
+
+async function showPlaceholderForm(id = null) {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<p>Loading…</p>';
+  const [people, projects] = await Promise.all([getPeople(true, true), getProjects(true)]);
+  const existing = id ? people.find(p => String(p.id) === String(id)) : null;
+  const csds = people.filter(p => p.Level === 'CSD' && !p.IsPlaceholder);
+  const projNames = projects.map(p => p.CustomerName).filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+
+  const curTeam = existing ? String(existing.PlaceholderProject || '') : '';
+  const matched = projNames.find(n => _ocNorm(n) === _ocNorm(curTeam)) || '';
+
+  const levelOpts = OC_PLACEHOLDER_LEVELS.map(l =>
+    `<option value='${l}' ${existing && existing.Level === l ? 'selected' : ''}>${l}</option>`).join('');
+  const teamOpts = `<option value=''>— new team —</option>` + projNames.map(n =>
+    `<option value='${_ocEsc(n)}' ${_ocNorm(n) === _ocNorm(matched) && matched ? 'selected' : ''}>${_ocEsc(n)}</option>`).join('');
+  const csdOpts = `<option value=''>— choose —</option>` + csds.map(c =>
+    `<option value='${_ocEsc(c.EmployeeName)}' ${
+      existing && _ocNorm(c.EmployeeName) === _ocNorm(existing.PlaceholderCSD) ? 'selected' : ''
+    }>${_ocEsc(c.EmployeeName)}</option>`).join('');
+
+  main.innerHTML = `
+    <div class='form-container' style='max-width:560px'>
+      <h2>${existing ? 'Edit placeholder' : 'Add placeholder'}</h2>
+      <div id='ph-form-error' class='form-error'></div>
+      <div class='form-group'>
+        <label>Name *</label>
+        <input type='text' id='ph-name' value='${_ocEsc(existing ? existing.EmployeeName : '')}'
+          placeholder='e.g. TBH — Talent Partner'>
+      </div>
+      <div class='form-group'>
+        <label>Level *</label>
+        <select id='ph-level'>${levelOpts}</select>
+        <small style='color:#888'>SDM sits directly under the team bubble; STP/TP report into the SDM.</small>
+      </div>
+      <div class='form-group'>
+        <label>Team *</label>
+        <select id='ph-team' onchange='_ocTeamModeChanged()'>${teamOpts}</select>
+      </div>
+      <div class='form-group' id='ph-new-team-wrap'>
+        <label>New team name *</label>
+        <input type='text' id='ph-team-new' oninput='_ocCheckTeamName()'
+          value='${_ocEsc(matched ? '' : curTeam)}' placeholder='e.g. Newton Dev'>
+        <small id='ph-team-warn' style='color:#b26a00;display:none'></small>
+      </div>
+      <div class='form-group' id='ph-csd-wrap'>
+        <label>CSD owner *</label>
+        <select id='ph-csd'>${csdOpts}</select>
+        <small style='color:#888'>Only needed for a new team — an existing project uses its own CSD.</small>
+      </div>
+      <div class='form-actions'>
+        <button type='button' class='btn-primary'
+          onclick='savePlaceholder(this, ${existing ? existing.id : 'null'})'>Save</button>
+        <button type='button' class='btn-secondary' onclick='showPlaceholderManager()'>Cancel</button>
+      </div>
+    </div>`;
+  _ocTeamModeChanged();
+}
+
+// A real project carries its own CSD (Projects.CSDName), so the owner picker and the
+// free-text box are only relevant for a synthetic team.
+function _ocTeamModeChanged() {
+  const isNew = !document.getElementById('ph-team').value;
+  document.getElementById('ph-new-team-wrap').style.display = isNew ? '' : 'none';
+  document.getElementById('ph-csd-wrap').style.display      = isNew ? '' : 'none';
+  if (isNew) _ocCheckTeamName();
+}
+
+// Warn rather than surprise: syntheticNodes() suppresses a synthetic bubble whose name
+// matches a real project (the realProjects guard), so the placeholder would silently
+// join that project instead of getting its own bubble.
+function _ocCheckTeamName() {
+  const warn = document.getElementById('ph-team-warn');
+  const val  = _ocNorm(document.getElementById('ph-team-new').value);
+  const opts = [...document.getElementById('ph-team').options]
+    .map(o => _ocNorm(o.value)).filter(Boolean);
+  if (val && opts.includes(val)) {
+    warn.textContent = 'That matches an existing project — this placeholder will attach to it '
+      + 'rather than creating a new team.';
+    warn.style.display = 'block';
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
+async function savePlaceholder(btn, id) {
+  const name  = document.getElementById('ph-name').value.trim();
+  const level = document.getElementById('ph-level').value;
+  const sel   = document.getElementById('ph-team').value;
+  const free  = document.getElementById('ph-team-new').value.trim();
+  const csd   = document.getElementById('ph-csd').value;
+  const team  = sel || free;
+
+  if (!name) return _ocFormError('Name is required.');
+  if (!team) return _ocFormError('Choose an existing team or type a new team name.');
+  if (!sel && !csd) return _ocFormError('A new team needs a CSD owner.');
+
+  setButtonLoading(btn);
+  try {
+    // PlaceholderCSD is only meaningful for a synthetic bubble; cleared for a real
+    // project so a later rename of the project's CSD doesn't leave a stale value.
+    const fields = { EmployeeName: name, Level: level, IsPlaceholder: true,
+                     PlaceholderProject: team, PlaceholderCSD: sel ? '' : csd };
+    if (id) {
+      await updatePerson(id, fields);        // defaults NOT reapplied, so manual
+    } else {                                 // SharePoint edits (e.g. PhotoUrl) survive
+      await createPerson({ ...fields, IsActive: true, ...CONFIG.ORG_PLACEHOLDER_DEFAULTS });
+    }
+    showPlaceholderManager();
+  } catch (e) {
+    clearButtonLoading(btn);
+    _ocFormError(`Error saving: ${e.message}`);
+  }
+}
+
+async function deletePlaceholder(id) {
+  const p = _ocPlaceholders.find(x => String(x.id) === String(id));
+  const name = p ? p.EmployeeName : 'this placeholder';
+  if (!confirm(`Remove placeholder "${name}"?\n\nThis permanently deletes the row from the People list.`)) return;
+  try {
+    await deleteItem('People', id);
+    showPlaceholderManager();
+  } catch (e) {
+    alert(`Error removing placeholder: ${e.message}`);
+  }
 }
 
 // ── in-app edit form: set Projects.CSDName + ReportsTo lines ────────────

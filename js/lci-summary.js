@@ -26,7 +26,7 @@ function _lciRoadmapMilestoneRows(horizon) {
       <tr>
         <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(s.Title)}"
                    onchange="lciMilestoneChanged(${idx}, 'Title', this.value)"></td>
-        <td colspan="3">
+        <td colspan="4">
           <div style="display:flex;gap:4px;align-items:center;font-size:12px">
             <select class="lci-cell" onchange="lciMilestoneChanged(${idx}, 'StartMonth', this.value)">${monthOpts(start)}</select>
             –
@@ -40,7 +40,7 @@ function _lciRoadmapMilestoneRows(horizon) {
   }).join('');
 
   return `
-    <tr class="lci-team-row"><td colspan="${horizon + 6}"><strong>Project Milestones</strong></td></tr>
+    <tr class="lci-team-row"><td colspan="${horizon + 7}"><strong>Project Milestones</strong></td></tr>
     ${rows}`;
 }
 

@@ -1974,20 +1974,42 @@ body {
   body.lci-summary-mode #print-header { display: none !important; }
 
   /* N-022: print the year slices, hide the full-horizon screen table.
-     Each slice takes its own page. The slices are siblings inside an existing
-     .lci-summary-card, so the card's own border/padding is neutralised and the
-     tile treatment moves onto each slice — otherwise one card's border would
-     be sliced in half by the page break. */
+     Each slice after the first takes its own page. The slices are siblings
+     inside an existing .lci-summary-card, so the card's own border/padding is
+     neutralised and the tile treatment moves onto each slice — otherwise one
+     card's border would be sliced in half by the page break. */
   .lci-screenonly { display: none !important; }
-  .lci-printonly { display: block; break-before: page; page-break-before: always; }
+  .lci-printonly { display: block; }
+  /* Break BEFORE every slice that follows another slice — never the first.
+     Do not use :first-of-type here: it means "first div among siblings", and
+     the first div inside #lci-print-p1 is .lci-summary-head (the title block),
+     so the reset matched nothing and Year 1 pushed the title onto a page of
+     its own. The sibling combinator keys on the slices themselves. */
+  .lci-printonly ~ .lci-printonly { break-before: page; page-break-before: always; }
   .lci-summary-card:has(.lci-printonly) {
     border: none; border-radius: 0; padding: 0; margin-bottom: 0;
   }
   .lci-summary-card:has(.lci-printonly) > .lci-summary-head { padding: 14px 20px 0; }
   .lci-summary-card > .lci-printonly { padding: 14px 20px; }
-  /* The first slice inherits its page break from the section it replaces
-     (#lci-print-p2 / .lci-report-break on the parent card). */
-  .lci-summary-card > .lci-printonly:first-of-type { break-before: auto; page-break-before: auto; }
+
+  /* Roadmap column 1 wraps instead of overrunning into the M1 header.
+     .lci-grid sets white-space:nowrap for the month columns, which is right for
+     them but not for a long role title or the sliced "Hiring Roadmap — Year 2
+     (M13–M24)" label. Scoped to the roadmap: the Cost Model's first column is
+     short and fixed. break-word (not anywhere) so "Customer Solutions Director"
+     wraps at spaces rather than mid-word. */
+  .lci-grid--roadmap th:first-child,
+  .lci-grid--roadmap td:first-child {
+    white-space: normal;
+    overflow-wrap: break-word;
+    max-width: 180px;
+    vertical-align: top;
+  }
+
+  /* Sliced Cost Model carries a 13th column (Year N total); pull the type in a
+     step so the right-hand months don't collide. */
+  .lci-printonly .lci-output { font-size: 9px; }
+  .lci-printonly .lci-output th, .lci-printonly .lci-output td { padding: 2px; }
 }
 
 .lci-modal-overlay {

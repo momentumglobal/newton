@@ -1874,6 +1874,10 @@ body {
 /* LCI summary / print */
 .lci-summary-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;
                     padding: 20px; margin-bottom: 16px; }
+
+/* N-022 print year-slices: both variants sit in the DOM, CSS picks one.
+   Screen shows the single full-horizon table exactly as before. */
+.lci-printonly { display: none; }
 .lci-assump td:first-child { width: 45%; padding-right: 32px; }
 
 /* LCI compare view */
@@ -1968,6 +1972,22 @@ body {
   }
   .lci-report-navy h1 { font-size: 40px; }
   body.lci-summary-mode #print-header { display: none !important; }
+
+  /* N-022: print the year slices, hide the full-horizon screen table.
+     Each slice takes its own page. The slices are siblings inside an existing
+     .lci-summary-card, so the card's own border/padding is neutralised and the
+     tile treatment moves onto each slice — otherwise one card's border would
+     be sliced in half by the page break. */
+  .lci-screenonly { display: none !important; }
+  .lci-printonly { display: block; break-before: page; page-break-before: always; }
+  .lci-summary-card:has(.lci-printonly) {
+    border: none; border-radius: 0; padding: 0; margin-bottom: 0;
+  }
+  .lci-summary-card:has(.lci-printonly) > .lci-summary-head { padding: 14px 20px 0; }
+  .lci-summary-card > .lci-printonly { padding: 14px 20px; }
+  /* The first slice inherits its page break from the section it replaces
+     (#lci-print-p2 / .lci-report-break on the parent card). */
+  .lci-summary-card > .lci-printonly:first-of-type { break-before: auto; page-break-before: auto; }
 }
 
 .lci-modal-overlay {

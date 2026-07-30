@@ -181,12 +181,12 @@ function _lciSummaryHtml() {
           ${escHtml(m.ClientName || 'Client')} x Momentum Global — ${exportDate}
         </div>
       </div>
-      ${_lciSummaryRoadmapHtml()}
+      ${_lciRoadmapBlocksHtml()}
     </div>
 
     <!-- Section 2: cost model (plain — the card provides the tile) -->
     <div id="lci-print-p2" class="lci-summary-card">
-      ${_lciOutputInnerHtml(false, true)}
+      ${_lciCostModelBlocksHtml(false, true)}
     </div>
 
     <!-- Section 3: cumulative spend chart -->

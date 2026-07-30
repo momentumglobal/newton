@@ -297,3 +297,26 @@ function firstLine(str) {
   const lines = String(str ?? '').split(/\r?\n/).map(l => l.trim());
   return lines.find(l => l !== '') || '';
 }
+
+// ── LCI horizon slicing (N-022) ───────────────────────────────
+// Split a model horizon into printable chunks of `chunk` months.
+// Returns [{ start, end, index, label }] — start inclusive / end exclusive,
+// both 0-based month indices; index is the 1-based year number.
+// A horizon of `chunk` or less returns one slice with label null, which every
+// renderer treats as "no slicing" — a 12-month model is unchanged.
+// A trailing partial year is its own slice, labelled with its true range
+// (18 months → "Year 2 (M13–M18)", not M13–M24).
+function lciYearSlices(horizon, chunk = 12) {
+  const h = Math.max(1, Number(horizon) || 0);
+  if (h <= chunk) return [{ start: 0, end: h, index: 1, label: null }];
+  const out = [];
+  for (let start = 0; start < h; start += chunk) {
+    const end = Math.min(start + chunk, h);
+    out.push({
+      start, end,
+      index: out.length + 1,
+      label: `Year ${out.length + 1} (M${start + 1}\u2013M${end})`,
+    });
+  }
+  return out;
+}

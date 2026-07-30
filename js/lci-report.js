@@ -122,10 +122,10 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
           <h2 style="margin:0;color:#1B3A5C">${escHtml(m.Title)}</h2>
           <div style="color:#666;font-size:13px;margin-top:4px">${escHtml(m.Location)}</div>
         </div>
-        ${_lciSummaryRoadmapHtml()}
+        ${_lciRoadmapBlocksHtml()}
       </div>
       <div class="lci-summary-card lci-report-break">
-        ${_lciOutputInnerHtml(false, true)}
+        ${_lciCostModelBlocksHtml(false, true)}
       </div>
       ${bundles.length === 1 ? `
       <div class="lci-summary-card lci-report-break">

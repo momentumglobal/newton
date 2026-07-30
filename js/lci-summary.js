@@ -319,8 +319,8 @@ function _lciSummaryRoadmapHtml(slice) {
 
   return `
     <div class="lci-grid-scroll" style="margin-top:16px">
-      <table class="data-table lci-grid">
-        <thead><tr><th style="min-width:180px">Hiring Roadmap${sl.label ? ` \u2014 ${sl.label}` : ''}</th>${monthHead}<th>Hires</th></tr></thead>
+      <table class="data-table lci-grid lci-grid--roadmap">
+        <thead><tr><th style="min-width:180px">Hiring Roadmap${sl.label ? ` — ${sl.label}` : ''}</th>${monthHead}<th>Hires</th></tr></thead>
         <tbody>
           ${_lciSummaryMilestoneRows(horizon, sl)}
           ${body}

@@ -268,18 +268,44 @@ function lciRefreshOutput() {
   if (el) el.innerHTML = _lciOutputInnerHtml();
 }
 
+// Print-only year splitting (N-022) — see _lciRoadmapBlocksHtml for the
+// screen/print rationale. One slice (horizon <= 12) returns the bare table
+// with no wrapper divs, identical to pre-N-022 output.
+function _lciCostModelBlocksHtml(includeChart = false, plain = true) {
+  const slices = lciYearSlices(Number(_lciEd.model.HorizonMonths));
+  if (slices.length === 1) return _lciOutputInnerHtml(includeChart, plain);
+  return `<div class="lci-screenonly">${_lciOutputInnerHtml(includeChart, plain)}</div>` +
+    slices.map(s => `<div class="lci-printonly">${_lciOutputInnerHtml(false, plain, s)}</div>`).join('');
+}
+
 // plain=true renders without the white box wrapper (summary cards provide
 // their own tile — avoids a double border in the print view).
-function _lciOutputInnerHtml(includeChart = true, plain = false) {
+// `slice` (N-022) is optional; absent = the full horizon, exactly as before.
+// lciComputeModel still runs over the whole horizon — slicing is presentation
+// only, so no figure anywhere in the model changes.
+function _lciOutputInnerHtml(includeChart = true, plain = false, slice = null) {
   const m = _lciEd.model;
   const c = lciComputeModel(m, _lciEd.rows);
   const ccy = m.DisplayCurrency;
   const horizon = Number(m.HorizonMonths);
   const sections = lciSections(m);
 
-  const td = arr => arr.map(v => `<td>${_lciFmt(v, ccy)}</td>`).join('');
-  const tdInt = arr => arr.map(v => `<td>${v || ''}</td>`).join('');
-  const monthHead = c.labels.map(l => `<th class="lci-mcol">${l.replace(' (', '<br>(')}</th>`).join('');
+  const sl = slice || { start: 0, end: horizon, label: null };
+  const cut = arr => (arr || []).slice(sl.start, sl.end);
+  // Trailing total column exists only when the table is sliced.
+  const totCell = html => sl.label ? `<td class="lci-derived">${html}</td>` : '';
+  const sum = arr => cut(arr).reduce((a, b) => a + (Number(b) || 0), 0);
+  const close = arr => { const s = cut(arr); return s.length ? s[s.length - 1] : 0; };
+
+  // td   — flow rows (costs): year column is the sum of the slice.
+  // tdCum/tdInt — stock rows (cumulative spend, headcount): year column is the
+  //   slice's CLOSING month. Summing a cumulative or headcount series produces
+  //   a plausible-looking but meaningless figure; do not "simplify" these.
+  const td    = arr => cut(arr).map(v => `<td>${_lciFmt(v, ccy)}</td>`).join('') + totCell(_lciFmt(sum(arr), ccy));
+  const tdCum = arr => cut(arr).map(v => `<td>${_lciFmt(v, ccy)}</td>`).join('') + totCell(_lciFmt(close(arr), ccy));
+  const tdInt = arr => cut(arr).map(v => `<td>${v || ''}</td>`).join('') + totCell(close(arr) || '');
+  const monthHead = cut(c.labels).map(l => `<th class="lci-mcol">${l.replace(' (', '<br>(')}</th>`).join('')
+    + (sl.label ? `<th class="lci-mcol">Year ${sl.index}<br>total</th>` : '');
 
   const teamRows = Object.entries(c.coeByTeam).map(([team, arr]) =>
     `<tr class="lci-out-indent"><td>${escHtml(team)}</td>${td(arr)}</tr>`).join('');
@@ -306,7 +332,7 @@ function _lciOutputInnerHtml(includeChart = true, plain = false) {
 
   return `
     <div style="${plain ? '' : 'background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'}">
-      <h3 style="margin:0 0 12px;color:#1B3A5C">Cost Model <span style="font-weight:400;font-size:13px;color:#888">(all values in ${ccy})</span></h3>
+      <h3 style="margin:0 0 12px;color:#1B3A5C">Cost Model${sl.label ? ` \u2014 ${sl.label}` : ''} <span style="font-weight:400;font-size:13px;color:#888">(all values in ${ccy})</span></h3>
       <div class="lci-grid-scroll">
         <table class="data-table lci-grid lci-output">
           <thead><tr><th style="min-width:220px"></th>${monthHead}</tr></thead>
@@ -329,7 +355,7 @@ function _lciOutputInnerHtml(includeChart = true, plain = false) {
               `<tr class="lci-out-indent${i === 0 ? ' lci-out-section' : ''}"><td>${escHtml(r.Title || 'Fee')}</td>${td(lciMonthValues(r, horizon))}</tr>`).join('')}
             <tr class="lci-out-subtotal"><td>Total Project Fees</td>${td(c.fees)}</tr>` : ''}
             <tr class="lci-out-total lci-out-heavy"><td>Total Monthly Spend</td>${td(c.totalMonthly)}</tr>
-            <tr class="lci-out-total"><td>Cumulative Spend</td>${td(c.cumulativeSpend)}</tr>
+            <tr class="lci-out-total"><td>Cumulative Spend</td>${tdCum(c.cumulativeSpend)}</tr>
           </tbody>
         </table>
       </div>

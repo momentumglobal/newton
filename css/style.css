@@ -2013,18 +2013,21 @@ body {
 .lm-caption { font-size: 12px; color: #777; font-style: italic; margin-bottom: 16px; }
 
 @media print {
-  body.lci-summary-mode #print-header { display: none !important; }
-  body.lci-summary-mode #sidebar,
-  body.lci-summary-mode .page-header,
-  body.lci-summary-mode #lm-modal { display: none !important; }
+  /* Scoped to the Lead Magnet only — #main-content must actually contain
+     #lm-preview. Without :has(), these rules also fired on the full LCI
+     report (which shares body.lci-summary-mode) and blanked the whole print. */
+  body.lci-summary-mode #main-content:has(#lm-preview) #print-header { display: none !important; }
+  body.lci-summary-mode:has(#lm-preview) #sidebar,
+  body.lci-summary-mode:has(#lm-preview) .page-header,
+  body.lci-summary-mode:has(#lm-preview) #lm-modal { display: none !important; }
   /* Print only the report block: hide the library + builder cards */
-  body.lci-summary-mode #main-content > div:not(#lm-preview) { display: none !important; }
+  body.lci-summary-mode #main-content:has(#lm-preview) > div:not(#lm-preview) { display: none !important; }
   body.lci-summary-mode #main-content > #lm-preview { margin: 0 !important; }
   .lm-report { border: none; border-radius: 0; }
   .lm-report-band, .lm-loc-head .lm-overall, .lm-report-table td, .lm-report-table th {
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
-  @page { size: A4 portrait; }
+  body:has(#lm-preview) { --lm-portrait: 1; }
 }
 
 /* ── Org Chart ─────────────────────────────────────────────────────── */

@@ -46,21 +46,29 @@ function _lciRoadmapMilestoneRows(horizon) {
 
 // Read-only milestone rows for the summary roadmap table:
 // Label | months… | (Hires col blank)
-function _lciSummaryMilestoneRows(horizon) {
+// `slice` (N-022) is optional; absent = the full horizon, exactly as before.
+// A milestone spanning a slice boundary draws a clipped bar in both slices —
+// start/end are still tested against absolute month numbers.
+function _lciSummaryMilestoneRows(horizon, slice) {
   const stones = (_lciEd.milestones || []).filter(s => s.Title && s.StartMonth)
     .sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
   if (!stones.length) return '';
 
+  const sl = slice || { start: 0, end: horizon };
+  const span = sl.end - sl.start;
+
   const rows = stones.map(s => {
     const start = Math.max(1, Number(s.StartMonth));
     const end = Math.min(horizon, Math.max(start, Number(s.EndMonth) || start));
-    const cells = Array.from({ length: horizon }, (_, i) =>
-      `<td class="lci-mcol">${i + 1 >= start && i + 1 <= end ? '<div class="lci-ms-bar"></div>' : ''}</td>`).join('');
+    const cells = Array.from({ length: span }, (_, i) => {
+      const mn = sl.start + i + 1;
+      return `<td class="lci-mcol">${mn >= start && mn <= end ? '<div class="lci-ms-bar"></div>' : ''}</td>`;
+    }).join('');
     return `<tr><td class="lci-out-indent" style="padding-left:18px">${escHtml(s.Title)}</td>${cells}<td></td></tr>`;
   }).join('');
 
   return `
-    <tr class="lci-team-row"><td colspan="${horizon + 2}"><strong>Project Milestones</strong></td></tr>
+    <tr class="lci-team-row"><td colspan="${span + 2}"><strong>Project Milestones</strong></td></tr>
     ${rows}`;
 }
 
@@ -251,12 +259,33 @@ async function renderLCIComparePage(ids) {
   }
 }
 
+// Print-only year splitting (N-022). Screen keeps one full-horizon table;
+// print gets one table per 12-month slice, each on its own page. Both copies
+// live in the DOM and CSS chooses — there is no reliable render-time signal
+// for "is printing", and the user can change paper size in the print dialog.
+// A model of 12 months or less has one slice, so this returns the bare table
+// with no wrapper divs — that output is byte-identical to pre-N-022.
+function _lciRoadmapBlocksHtml() {
+  const m = _lciEd.model;
+  if (!lciSections(m).coe) return '';
+  const slices = lciYearSlices(Number(m.HorizonMonths));
+  if (slices.length === 1) return _lciSummaryRoadmapHtml();
+  return `<div class="lci-screenonly">${_lciSummaryRoadmapHtml()}</div>` +
+    slices.map(s => `<div class="lci-printonly">${_lciSummaryRoadmapHtml(s)}</div>`).join('');
+}
+
 // Read-only roadmap: milestones + roles by team, hires per month, cumulative hires.
-function _lciSummaryRoadmapHtml() {
+// `slice` (N-022) is optional; absent = the full horizon, exactly as before.
+// Every series is still computed over the FULL horizon and only cut at render
+// time, so no figure changes — cumulative hires in Year 2 correctly continues
+// from the Year 1 closing count rather than restarting at zero.
+function _lciSummaryRoadmapHtml(slice) {
   const m = _lciEd.model;
   if (!lciSections(m).coe) return '';
   const horizon = Number(m.HorizonMonths);
-  const labels = lciMonthLabels(m.StartMonth, horizon);
+  const sl = slice || { start: 0, end: horizon, label: null };
+  const cut = arr => arr.slice(sl.start, sl.end);
+  const labels = cut(lciMonthLabels(m.StartMonth, horizon));
   const coeRows = _lciEd.rows.filter(r => r.RowType === 'coe');
 
   const monthHead = labels.map(l => `<th class="lci-mcol">${l.replace(' (', '<br>(')}</th>`).join('');
@@ -268,7 +297,7 @@ function _lciSummaryRoadmapHtml() {
 
   const body = teams.map(team => {
     const teamRows = coeRows.filter(r => (r.Team || 'Other') === team).map(r => {
-      const vals = lciMonthValues(r, horizon);
+      const vals = cut(lciMonthValues(r, horizon));
       const cells = vals.map(v => `<td class="lci-mcol">${v || ''}</td>`).join('');
       // Level shown in brackets after the title. Trimmed so a whitespace-only
       // CareerLevel renders no empty "( )"; handles '' (new rows) and null
@@ -276,24 +305,28 @@ function _lciSummaryRoadmapHtml() {
       const lvl = String(r.CareerLevel || '').trim();
       return `<tr><td class="lci-out-indent" style="padding-left:18px">${escHtml(r.Title)}${lvl ? ` (${escHtml(lvl)})` : ''}</td>${cells}<td class="lci-derived">${vals.reduce((a, b) => a + b, 0)}</td></tr>`;
     }).join('');
-    return `<tr class="lci-team-row"><td colspan="${horizon + 2}"><strong>${team}</strong></td></tr>${teamRows}`;
+    return `<tr class="lci-team-row"><td colspan="${(sl.end - sl.start) + 2}"><strong>${team}</strong></td></tr>${teamRows}`;
   }).join('');
 
   const hires = lciHiresPerMonth(_lciEd.rows, m);
-  let cum = 0;
-  const hireCells = hires.map(h => `<td class="lci-mcol lci-derived">${h || ''}</td>`).join('');
-  const cumCells = hires.map(h => { cum += h; return `<td class="lci-mcol lci-derived">${cum}</td>`; }).join('');
+  // Cumulative runs over the full horizon before cutting, so Year 2 opens at
+  // the Year 1 closing total instead of restarting.
+  let running = 0;
+  const cumAll = hires.map(h => (running += h));
+  const sliceHires = cut(hires);
+  const hireCells = sliceHires.map(h => `<td class="lci-mcol lci-derived">${h || ''}</td>`).join('');
+  const cumCells = cut(cumAll).map(v => `<td class="lci-mcol lci-derived">${v}</td>`).join('');
 
   return `
     <div class="lci-grid-scroll" style="margin-top:16px">
       <table class="data-table lci-grid">
-        <thead><tr><th style="min-width:180px">Hiring Roadmap</th>${monthHead}<th>Hires</th></tr></thead>
+        <thead><tr><th style="min-width:180px">Hiring Roadmap${sl.label ? ` \u2014 ${sl.label}` : ''}</th>${monthHead}<th>Hires</th></tr></thead>
         <tbody>
-          ${_lciSummaryMilestoneRows(horizon)}
+          ${_lciSummaryMilestoneRows(horizon, sl)}
           ${body}
         </tbody>
         <tfoot>
-          <tr><td><strong>Hires per month</strong></td>${hireCells}<td class="lci-derived">${hires.reduce((a, b) => a + b, 0)}</td></tr>
+          <tr><td><strong>Hires per month</strong></td>${hireCells}<td class="lci-derived">${sliceHires.reduce((a, b) => a + b, 0)}</td></tr>
           <tr><td><strong>Cumulative hires</strong></td>${cumCells}<td></td></tr>
         </tfoot>
       </table>

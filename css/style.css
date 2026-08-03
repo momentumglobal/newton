@@ -493,7 +493,7 @@ body {
     background: #0A0B44 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    color: white; padding: 16px 8px; margin-bottom: 24px;
+    color: white; padding: 10px 8px; margin-bottom: 14px;
   }
   #print-header img { height: 28px; }
   .print-header-title { font-size: 16px; font-weight: 600; color: white; }
@@ -506,7 +506,14 @@ body {
   .data-table th { position: static; }
   .data-table tr    { page-break-inside: avoid; }
   .dash-panel       { page-break-inside: avoid; }
-  .kpi-strip        { page-break-inside: avoid; }
+  /* N-028 — print density. The KPI strip is the tallest fixed-height block in a
+     Report Builder export; trimming it is what lets the next tile share page 1.
+     Print-only: the screen rules (.kpi-strip / .kpi-card / .kpi-value, above)
+     are unchanged. These win on source order at equal specificity. */
+  .kpi-strip        { page-break-inside: avoid; margin-bottom: 8px; }
+  .kpi-strip-period { margin-bottom: 14px; }
+  .kpi-card         { padding: 6px 14px; }
+  .kpi-value        { font-size: 22px; }
   div[style*="background:#fff"]          { page-break-inside: avoid; }
   div[style*="grid-template-columns"]    { page-break-inside: avoid; }
   /* Report Builder — hide builder chrome in print */
@@ -516,13 +523,21 @@ body {
   .rb-modal,
   .rb-palette,
   .rb-block { display: none !important; }
-  /* Text blocks — keep together */
+  /* Text blocks — flow across pages rather than jump one.
+     A blanket break-inside:avoid stranded up to 290pt of a page whenever a
+     block missed the remaining space by a few lines (N-028). Orphans/widows
+     keep the split readable; the heading and bullet rules below stop the
+     break landing anywhere ugly. Chromium's default box-decoration-break:
+     slice draws border-top on the first fragment and border-bottom on the
+     last — do not set `clone`, it makes one block look like two tiles. */
   .rb-text-block {
-    page-break-inside: avoid;
-    break-inside: avoid;
+    orphans: 3;
+    widows: 3;
     margin-bottom: 20px;
     padding: 8px 6px !important;
   }
+  .rb-text-block h3 { break-after: avoid; page-break-after: avoid; }
+  .rb-text-block li { break-inside: avoid; page-break-inside: avoid; }
   /* Prevent mid-panel breaks */
   .dash-panel {
     break-inside: avoid;
@@ -536,8 +551,9 @@ body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* Allow report title to render */
-  .rb-report-title { display: block !important; }
+  /* Allow report title to render. !important on margin-bottom because the
+     screen rule (.rb-report-title, line ~726) sits later in the file. */
+  .rb-report-title { display: block !important; margin-bottom: 12px !important; }
 }
 @page { size: A4 portrait; }
 /* ── Report Builder ─────────────────────────────────────────────── */

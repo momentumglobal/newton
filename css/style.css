@@ -2069,7 +2069,6 @@ body {
   .lm-report-band, .lm-loc-head .lm-overall, .lm-report-table td, .lm-report-table th {
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
-  body:has(#lm-preview) { --lm-portrait: 1; }
 }
 
 /* ── Org Chart ─────────────────────────────────────────────────────── */

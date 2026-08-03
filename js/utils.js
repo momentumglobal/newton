@@ -298,6 +298,17 @@ function firstLine(str) {
   return lines.find(l => l !== '') || '';
 }
 
+// Strip characters Windows/macOS reject in filenames, collapse whitespace.
+// Apostrophes and ampersands SURVIVE — they are legal in a filename and
+// mangling them is exactly the N-012d regression. Never HTML-escape a
+// filename: &amp; in a download name is a bug, not a safety measure.
+function safeFilename(str, fallback = 'export') {
+  const out = String(str ?? '')
+    .replace(/[\\/:*?"<>|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return out || fallback;
+}
 // ── LCI horizon slicing (N-022) ───────────────────────────────
 // Split a model horizon into printable chunks of `chunk` months.
 // Returns [{ start, end, index, label }] — start inclusive / end exclusive,

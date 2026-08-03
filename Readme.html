@@ -332,6 +332,7 @@
         <tr><td>UI</td><td>Vanilla HTML, CSS, JavaScript</td><td>No framework dependencies</td></tr>
         <tr><td>Icons</td><td>Lucide (CDN)</td><td>Icon library</td></tr>
         <tr><td>Drag &amp; drop</td><td>SortableJS (CDN)</td><td>Report Builder block ordering</td></tr>
+        <tr><td>Spreadsheets</td><td>ExcelJS (CDN, lazy-loaded)</td><td>LCI Cost Model Excel export — loaded on first click only, never on page render</td></tr>
         <tr><td>Fonts</td><td>Polymath (self-hosted)</td><td>Brand typography</td></tr>
       </table>
 
@@ -597,6 +598,15 @@
         <tr><td><span class="file-tag">js/sales-app.js</span></td><td>Module init — role check, redirect if unauthorised. Lands on Revenue Tracking (default page).</td></tr>
         <tr><td><span class="file-tag">js/sales-pages.js</span></td><td>Revenue Tracking page (year dropdown + chart) and Sales Forecast page renderers. Sales Forecast modal includes the Monthly Revenue per Head field.</td></tr>
         <tr><td><span class="file-tag">js/revenue-chart.js</span></td><td>Shared Revenue Tracking chart renderer — <code>_renderRevenueLineGraph()</code>, <code>_fmtGBPk()</code>. Pure presentation, no network I/O. Loaded by sales.html and command-centre.html. Pattern mirrors analytics.js (pure fns, multiple entry points).</td></tr>
+        <tr><td><span class="file-tag">js/lci-model.js</span></td><td>LCI Cost Model calculation layer. Pure functions only — no network I/O, no DOM (analytics.js pattern). <code>lciComputeModel()</code>, <code>lciComputeKPIs()</code>, <code>lciCumulativeHeadcount()</code>, <code>lciMonthlyCost()</code>, <code>lciLegacyMonthlyCost()</code>, <code>lciSections()</code>, <code>lciFxRate()</code>, <code>lciBenchmark()</code>. <strong>The single source of truth for every LCI figure</strong> — every other LCI file renders its output rather than recomputing it.</td></tr>
+        <tr><td><span class="file-tag">js/lci-pages.js</span></td><td>Model list page — client/location filters, New/Edit modal, Copy, Delete, compare checkboxes, Saved Reports table.</td></tr>
+        <tr><td><span class="file-tag">js/lci-editor.js</span></td><td>Editor shell — settings bar (diff-only save) and the CoE hiring roadmap grid, incl. team rename/delete and per-role notice overrides. Owns the shared <code>_lciEd</code> editor state.</td></tr>
+        <tr><td><span class="file-tag">js/lci-sections.js</span></td><td>Legacy Team / one-off / fee / travel grids, plus the live cost-model output table and cumulative-spend SVG. Owns the output row-visibility rules.</td></tr>
+        <tr><td><span class="file-tag">js/lci-summary.js</span></td><td>Project milestones (rows inside the roadmap grid), the single-model summary / print view, and the compare view.</td></tr>
+        <tr><td><span class="file-tag">js/lci-excel.js</span></td><td>Excel export — lazy ExcelJS loader, seven sheet builders, download. Writes every formula as <code>{ formula, result }</code>: the formula makes the workbook live, the cached result makes it correct on open. Never recalculates — all numbers come from lci-model.js.</td></tr>
+        <tr><td><span class="file-tag">js/lci-report.js</span></td><td>Multi-model report export — navy cover, per-model sections, Location Comparison, rich-text Observations &amp; Recommendations.</td></tr>
+        <tr><td><span class="file-tag">js/lci-link.js</span></td><td>Hiring Plan bridge — links a Won model to a CoE project and generates one <code>CoEPlanRows</code> row per hire.</td></tr>
+        <tr><td><span class="file-tag">js/lci-leadmagnet.js</span></td><td>LCI Lead Magnet — self-contained location cost comparator + one-page Country Comparison PDF. <strong>Its FX convention is the opposite of the Cost Model's</strong> (local per GBP, divides) — do not conflate the two.</td></tr>
       </table>
 
       <h3>Market Analytics module</h3>
@@ -977,6 +987,20 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <p class="section-intro">Significant changes shipped to the live repo.</p>
 
       <div class="changelog-entry">
+        <div class="changelog-date">August 2026</div>
+        <div class="changelog-title">LCI Cost Model — Export to Excel (Sales module)</div>
+        <ul>
+          <li><strong>New: Export to Excel</strong> on the model Summary page, beside Print / PDF. A branded seven-sheet workbook holding every input, assumption and derived figure behind the client PDF — an <strong>internal working file</strong>, not a client deliverable. New file <code>js/lci-excel.js</code>, loaded by <code>sales.html</code> after <code>lci-summary.js</code>. No SharePoint change.</li>
+          <li><strong>Live formulas, not a value dump</strong> — every figure is a real Excel formula driven by named cells on the Assumptions sheet (<code>Burden</code>, <code>SalaryMonths</code>, <code>NoticeDefault</code>, <code>OfficePerHead</code>, <code>EoRPerHead</code>, <code>FXRate</code>, <code>Horizon</code>). Notice-period offsets, auto run-rate and cumulative spend are all expressed in-cell; nothing is hardcoded.</li>
+          <li><strong>Section switches</strong> — <code>TravelOn</code>, <code>LegacyOn</code>, <code>OneoffsOn</code>, <code>FeesOn</code> as 1/0 cells mirroring the Newton toggles. They exist because Monthly Calc keeps every per-row line populated even when its section is off, so the subtotals need something to switch them off with; without them the cached values and the live formulas disagree.</li>
+          <li><strong>Sheets:</strong> Assumptions · CoE Roadmap · Legacy Team · One-offs &amp; Fees · Monthly Calc (audit sheet — every line, every month, regardless of toggles) · Output Summary (mirrors the client PDF line for line, incl. the conditional legacy rows) · Milestones.</li>
+          <li><strong>Every formula carries its computed value</strong> (<code>{ formula, result }</code>), so the file is right the moment it opens rather than after a recalculation — and a disagreement between formula and value becomes visible instead of silent.</li>
+          <li><strong>ExcelJS 4.4.0</strong>, pinned, lazy-loaded from CDN on first click only (~950KB, never on page render). Chosen over SheetJS, whose free build cannot style cells. <strong>Colours for this export live in <code>CONFIG.LCI.EXCEL.COLOURS</code> as ARGB</strong> — a documented exception to "no hex in JS", because a workbook cannot read <code>style.css</code>.</li>
+          <li>The <strong>LCI Lead Magnet is unaffected</strong> — it remains PDF-only.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
         <div class="changelog-date">July 2026</div>
         <div class="changelog-title">LCI Lead Magnet — location cost comparator (Sales module)</div>
         <ul>
@@ -1137,6 +1161,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <tr><td>MSAL.js</td><td>2.38.3</td><td>Pin the version in the CDN URL. Breaking changes between major versions.</td></tr>
         <tr><td>Lucide</td><td>Latest (CDN)</td><td>Currently unpinned — consider pinning to a specific version.</td></tr>
         <tr><td>SortableJS</td><td>1.15.2</td><td>Pinned — safe.</td></tr>
+        <tr><td>ExcelJS</td><td>4.4.0</td><td>Pinned in <code>CONFIG.LCI.EXCEL.CDN</code>. Lazy-loaded on first Export to Excel click only. Keep pinned — the workbook relies on <code>{ formula, result }</code> cell values and defined names.</td></tr>
         <tr><td>Graph API</td><td>v1.0</td><td>Microsoft's stable channel. Breaking changes announced with deprecation periods.</td></tr>
       </table>
     </div>

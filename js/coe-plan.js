@@ -314,7 +314,9 @@ async function coeSaveForecast(monthISO, value, existingId) {
 
 async function coeOpenRowModal(rowId = null) {
   const { projectId, planRows } = _coeCache;
-  const row = rowId ? planRows.find(r => r.id === rowId) : null;
+  // SharePoint item ids come back from getItems() as strings, but the Gantt's
+  // onclick emits a number literal — compare as strings (cf. roleById below).
+  const row = rowId ? planRows.find(r => String(r.id) === String(rowId)) : null;
   const dflt = CONFIG.COE_PHASE_DEFAULTS;
   const tps = await getTalentPartnersForProject(projectId);
   // getTalentPartnersForProject returns UserAssignments rows (UserName / UserEmail)
@@ -384,11 +386,13 @@ async function coeDeleteRow(rowId) {
 
 function coeOpenLinkPicker(rowId) {
   const { roles, planRows } = _coeCache;
-  const linked = new Set(planRows.map(r => r.LinkedRoleID).filter(Boolean));
+  // LinkedRoleID is stored as a number, r.id arrives as a string — key on String.
+  const linked = new Set(planRows.map(r => r.LinkedRoleID).filter(Boolean).map(String));
+  // ACTIVE_STAGES (analytics.js) is the terminal-stage list; negate it for "open".
   const opts = roles
-    .filter(r => !linked.has(r.id))
-    .map(r => `<option value="${r.id}">${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`).join('');
-  document.getElementById('coe-modal-host').innerHTML = `
+    .filter(r => !linked.has(String(r.id)) && !ACTIVE_STAGES.includes(r.Stage))
+    .map(r => `<option value="${r.id}">${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`).join('')
+    || '<option value="" disabled>-- No active roles available --</option>';  document.getElementById('coe-modal-host').innerHTML = `
     <div class="form-container" id="coe-link-modal">
       <h2>Link to Live Role</h2>
       <div class="form-group"><label>Role</label>
@@ -412,7 +416,7 @@ async function coeSaveLink(rowId, unlink = false) {
 // After the role is saved (form navigates to Roles page), return to the
 // Hiring Plan and use Link to connect the new role to the plan row.
 async function coeCreateRoleFromRow(rowId) {
-  const row = _coeCache.planRows.find(r => r.id === rowId);
+  const row = _coeCache.planRows.find(r => String(r.id) === String(rowId));
   const main = document.getElementById('main-content');
   main.innerHTML = await renderRoleForm(null, _coeCache.projectId);
   const titleInput = document.querySelector('#role-form [name="RoleTitle"]');

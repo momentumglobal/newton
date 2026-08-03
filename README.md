@@ -42,6 +42,17 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### August 2026 — LCI Cost Model: Export to Excel (Sales module)
+
+**New: Export to Excel** on the LCI model Summary page, beside Print / PDF. Produces a branded seven-sheet workbook containing every input, assumption and derived figure behind the client PDF — built as an **internal working file**, not a client deliverable. New file `js/lci-excel.js`; no SharePoint change.
+
+- **Live formulas, not a value dump.** Every figure is a real Excel formula driven by named cells on the Assumptions sheet (`Burden`, `SalaryMonths`, `NoticeDefault`, `OfficePerHead`, `EoRPerHead`, `FXRate`, `Horizon`). Change an assumption and the whole model re-totals — including notice-period offsets, auto run-rate, and the cumulative spend line.
+- **Section switches** — `TravelOn`, `LegacyOn`, `OneoffsOn`, `FeesOn` as 1/0 cells, mirroring the section toggles in Newton. Set one to 0 to strip that section out of the totals without deleting a row.
+- **Sheets:** Assumptions · CoE Roadmap · Legacy Team · One-offs & Fees · Monthly Calc (the audit sheet — every line, every month, including sections switched off) · Output Summary (mirrors the client PDF line for line) · Milestones.
+- **Every formula also carries its computed value**, so the file is correct the moment it opens rather than after a recalculation — and any disagreement between the two is visible instead of silent.
+- **Library:** ExcelJS 4.4.0, lazy-loaded from CDN on first click only (~950KB, never on page render). Pinned. Chosen over SheetJS, whose free build cannot style cells.
+- The **LCI Lead Magnet is unaffected** — it remains PDF-only.
+
 ### July 2026 — LCI Lead Magnet (Sales module)
 
 **New: LCI Lead Magnet page** — a lightweight business-development tool that produces a one-page "Country Comparison" PDF showing the cost-of-employment delta between a prospect's current location and one or more scoped locations. Distinct from the full LCI Cost Models (which model a live engagement month by month). New file `js/lci-leadmagnet.js`; Admin/Leadership only.

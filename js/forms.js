@@ -213,7 +213,14 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             <label>Stage *</label>
             <select name="Stage" required>
               ${'Backlog,Planning,Sourcing,Submitted,Interview 1,Interview 2+,Final Interview,Offered,Hired,On-hold,Cancelled'.split(',')
-                .map(s => `<option value="${s}" ${existingData?.Stage === s ? 'selected' : ''}>${s}</option>`)
+                .map(s => {
+                  // New roles start at Backlog by design (Role Backlog KPI, Roles page
+                  // Backlog tab). State it explicitly — don't rely on the browser
+                  // selecting the first option, which a reorder would silently change.
+                  // Matches mobile-roleform.js:59.
+                  const sel = isEdit ? existingData.Stage === s : s === 'Backlog';
+                  return `<option value="${s}" ${sel ? 'selected' : ''}>${s}</option>`;
+                })
                 .join('')}
             </select>
           </div>

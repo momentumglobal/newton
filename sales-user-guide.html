@@ -78,6 +78,7 @@
       <li><a href="#lci-benchmarks">Salary Benchmarks</a></li>
       <li><a href="#lci-compare">Comparing Models</a></li>
       <li><a href="#lci-reports">Summary &amp; Reports</a></li>
+      <li><a href="#lci-excel">Export to Excel</a></li>
       <li><a href="#lci-linkage">Linking to a Hiring Plan</a></li>
       <li><div class="nav-section-label">LCI Lead Magnet</div></li>
       <li><a href="#lm-overview">Overview</a></li>
@@ -254,6 +255,31 @@
       <h3>Saving a report</h3>
       <p>Click <strong>Save Report</strong> to keep a report for later. Saved reports appear in the <strong>Saved Reports</strong> table on the list page. A saved report stores its title, the models it contains, and your observations text — the figures are always recomputed live when you re-open it, so a saved report never goes stale. Use <strong>Edit selection</strong> from within a report to add or remove models and re-save.</p>
       <div class="tip">Admin and Leadership see all saved reports; Delivery Managers see only the ones they created. Deleting a report never affects the underlying models.</div>
+    </div>
+
+    <div class="guide-section" id="lci-excel">
+      <h2>Export to Excel</h2>
+      <p>On a model's <strong>Summary</strong> page, next to Print / PDF, <strong>Export to Excel</strong> downloads the whole model as a spreadsheet — every input, assumption and calculation that sits behind the client PDF. Where the PDF is the polished answer, this is the working out.</p>
+
+      <h3>What you get</h3>
+      <p>Seven sheets:</p>
+      <ul>
+        <li><strong>Assumptions</strong> — the model's settings, plus a plain-English guide to reading the workbook. The blue cells are the ones you can edit.</li>
+        <li><strong>CoE Roadmap</strong> — one row per role, mirroring the roadmap grid, with salary, bonus, notice and hires per month.</li>
+        <li><strong>Legacy Team</strong> — the legacy roles, their category, and when each one leaves.</li>
+        <li><strong>One-offs &amp; Fees</strong> — retention &amp; relocation, project fees and travel, month by month.</li>
+        <li><strong>Monthly Calc</strong> — the audit sheet. Every cost line for every month, including sections you have switched off in Newton, so you can trace any number back to the role it came from.</li>
+        <li><strong>Output Summary</strong> — the same table you see on screen and in the PDF. If it ever disagrees with the PDF, something is wrong.</li>
+        <li><strong>Milestones</strong> — the project milestones from the roadmap.</li>
+      </ul>
+
+      <h3>The numbers are live</h3>
+      <p>This is not a static dump. Every figure is a real Excel formula, so you can change an assumption and watch the model re-total. Drop the employer burden, move the FX rate, add a hire in a different month, extend a notice period — headcount, costs, cumulative spend and the KPIs all follow, exactly as they would in Newton.</p>
+      <p>The Assumptions sheet also carries four <strong>section switches</strong> — Travel, Legacy Team, Retention &amp; Relocation and Project Fees — each set to 1 or 0 to match the toggles in Newton. Set one to 0 and that section drops out of the totals; set it back to 1 and it returns. The underlying rows stay on their own sheets either way, so nothing is lost.</p>
+
+      <div class="tip">Editing the workbook changes <em>the workbook only</em>. Nothing flows back into Newton. It is the ideal place to try "what if we hired two months later" before committing anything to the model itself.</div>
+
+      <div class="tip">This is an <strong>internal working file</strong>, not a client deliverable — it is built for completeness and traceability rather than polish. Send clients the PDF; use the Excel for your own analysis, for a pricing conversation, or when someone asks how a number was arrived at.</div>
     </div>
 
     <div class="guide-section" id="lci-linkage">

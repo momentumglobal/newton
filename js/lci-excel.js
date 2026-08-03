@@ -171,6 +171,31 @@ function _lciXlAssumptions(ctx) {
     r++;
   });
 
+  // Section switches. These exist because Monthly Calc keeps every per-row line
+  // populated even when its section is off (that is the audit sheet's job), so
+  // the subtotals need something to switch them off with. Without them the
+  // cached 0 from lciComputeModel() and the live SUM over the row block
+  // disagree, and the workbook changes its own totals the first time anything
+  // recalculates. Only the six series lciComputeModel() actually gates are
+  // multiplied by these — see the notes in _lciXlCalc.
+  r += 1;
+  _lciXlSet(ws, r, 1, 'Section switches — 1 includes the section, 0 excludes it',
+    { bold: true, color: C.navyText });
+  _lciXlBand(ws, r, 3, C.navy);
+  r++;
+  const sec = lciSections(m);
+  // CoE has no switch: it is always on (N-008).
+  [['TravelOn', 'travel'], ['LegacyOn', 'legacy'], ['OneoffsOn', 'oneoffs'], ['FeesOn', 'fees']]
+    .forEach(([name, key]) => {
+      _lciXlSet(ws, r, 1, `${CONFIG.LCI.SECTION_LABELS[key]} included?`, { bold: true });
+      _lciXlSet(ws, r, 2, sec[key] ? 1 : 0, {
+        fmt: E.FORMATS.integer, fill: C.inputFill,
+        note: 'Mirrors the section toggle in Newton. Set to 0 to strip this section out of the totals, or 1 to bring it back in — the underlying rows stay on their own sheets either way.',
+      });
+      ctx.named[name] = `${_lciXlSheet(E.SHEETS.assumptions)}!$B$${r}`;
+      r++;
+    });
+
   r += 1;
   _lciXlSet(ws, r++, 1, 'How to read this workbook', { bold: true, size: 12 });
   [
@@ -429,6 +454,10 @@ function _lciXlCalc(ctx) {
   };
   // SUM down a contiguous block of rows in this sheet; 0 when the block is empty.
   const sumBlock = (first, last, i) => (last >= first ? `SUM(${ML(i)}${first}:${ML(i)}${last})` : '0');
+  // Apply a section switch to a subtotal formula. A already-constant '0' is left
+  // alone rather than becoming '0*LegacyOn' — same answer, less noise in the
+  // formula bar for models with no rows of that type.
+  const gate = (f, flag) => (f === '0' ? '0' : `${f}*${flag}`);
 
   // ── CoE payroll headcount by role ──
   // A hire in month N is on payroll in month N + notice. INDEX's argument is
@@ -477,7 +506,7 @@ function _lciXlCalc(ctx) {
   K.office = line('Office costs', i => `${ML(i)}${K.coeHeadcount}*OfficePerHead*FXRate`,  c.office);
   const tb = ctx.oneoffBlocks.travel;
   K.travel = line('Travel costs',
-    i => (tb.last >= tb.first ? `SUM(${SO}!${ML(i)}${tb.first}:${ML(i)}${tb.last})` : '0'), c.travel);
+    i => gate(tb.last >= tb.first ? `SUM(${SO}!${ML(i)}${tb.first}:${ML(i)}${tb.last})` : '0', 'TravelOn'),c.travel);
   K.coeOperating = line('Total CoE operating costs',
     i => `${ML(i)}${K.coeEmployeeCost}+${ML(i)}${K.eor}+${ML(i)}${K.office}+${ML(i)}${K.travel}`,
     c.coeOperating, { fill: C.subtotalFill, labelOpts: { bold: true } });
@@ -504,30 +533,30 @@ function _lciXlCalc(ctx) {
   const lcLast = r - 1;
 
   heading('Legacy totals');
-  K.legacyHeadcount = line('Legacy headcount', i => sumBlock(lhFirst, lhLast, i),
+  K.legacyHeadcount = line('Legacy headcount', i => gate(sumBlock(lhFirst, lhLast, i), 'LegacyOn'),
     c.legacyHeadcount, { fmt: E.FORMATS.integer, fill: C.derivedFill });
   Object.keys(CONFIG.LCI.LEGACY_CATEGORIES).forEach(cat => {
     K[`legacy:${cat}`] = line(CONFIG.LCI.LEGACY_CATEGORIES[cat].costLine,
-      i => (lcLast >= lcFirst
+      i => gate(lcLast >= lcFirst
         ? `SUMPRODUCT(($${keyL}$${lcFirst}:$${keyL}$${lcLast}=${_lciXlLit(cat)})*${ML(i)}${lcFirst}:${ML(i)}${lcLast})`
-        : '0'),
+        : '0', 'LegacyOn'),
       c.legacyByCategory[cat], { fill: C.derivedFill });
   });
-  K.legacyCost = line('Legacy team costs', i => sumBlock(lcFirst, lcLast, i),
+  K.legacyCost = line('Legacy team costs', i => gate(sumBlock(lcFirst, lcLast, i), 'LegacyOn'),
     c.legacyCost, { fill: C.subtotalFill, labelOpts: { bold: true } });
 
   // ── One-offs & fees ──
   heading('One-offs & project fees');
   const ob = ctx.oneoffBlocks.oneoff, fb = ctx.oneoffBlocks.fee;
   K.oneoffs = line('Retention & Relocation',
-    i => (ob.last >= ob.first ? `SUM(${SO}!${ML(i)}${ob.first}:${ML(i)}${ob.last})` : '0'), c.oneoffs);
+    i => gate(ob.last >= ob.first ? `SUM(${SO}!${ML(i)}${ob.first}:${ML(i)}${ob.last})` : '0', 'OneoffsOn'),c.oneoffs);
   K.fee = {};
   fb.rows.forEach(({ row, excelRow }) => {
     K.fee[excelRow] = line(row.Title || 'Fee', i => `${SO}!${ML(i)}${excelRow}`,
       lciMonthValues(row, h));
   });
   K.fees = line('Total project fees',
-    i => (fb.last >= fb.first ? `SUM(${SO}!${ML(i)}${fb.first}:${ML(i)}${fb.last})` : '0'),
+    i => gate(fb.last >= fb.first ? `SUM(${SO}!${ML(i)}${fb.first}:${ML(i)}${fb.last})` : '0', 'FeesOn'),
     c.fees, { fill: C.subtotalFill, labelOpts: { bold: true } });
 
   // ── Totals ──

@@ -106,6 +106,10 @@ function computeVelocityScore(tpEmail, activity, placements, benchmarks) {
 // ── Role flag helpers (shared by cc-pages.js and analytics-pages.js) ──
 const ACTIVE_STAGES = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled', 'On-hold'];
 const STAGE_ORDER   = ['Sourcing', 'Interview 1', 'Interview 2+', 'Final Interview'];
+// Stages that block linking a live role to a Hiring Plan row. Narrower than
+// ACTIVE_STAGES: a Backlog role is dormant for velocity metrics but is exactly
+// what a plan row tracks, so it stays linkable. Derived — not a second list.
+const PLAN_LINKABLE_EXCLUDED_STAGES = ACTIVE_STAGES.filter(s => s !== 'Backlog');
 
 function isRoleFlagged(role, activity) {
   const today = new Date();

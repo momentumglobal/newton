@@ -538,16 +538,31 @@ body {
   }
   .rb-text-block h3 { break-after: avoid; page-break-after: avoid; }
   .rb-text-block li { break-inside: avoid; page-break-inside: avoid; }
-  /* N-029 — bold-only lines are the sub-headings users actually write; the
+ /* N-029 — bold-only lines are the sub-headings users actually write; the
      toolbar's only heading command is H3 (report-builder.js:197) and that is
      spent on the block title. Keep them with the content below now that
      N-028 allows this block to split.
-     :only-child is load-bearing: it matches a line that is entirely bold, not
-     one that merely opens with bold text ("<b>First Hire Confirmed - </b>…").
-     Widening to :first-child would put break-after:avoid on most bullets and
-     paragraphs, chaining them into one unbreakable run — the exact failure
-     N-028 removed. :has() is Chromium 105+, consistent with the print rules
-     below; Firefox ignores it and falls back to N-028 behaviour. */
+
+     What :only-child actually does: it counts ELEMENT children and ignores
+     text nodes. So it excludes two-element shapes — a trailing <br>, or bold
+     followed by another element — but it does NOT exclude
+     <p><b>Lead</b> followed by plain text</p>, which still matches. That is a
+     known false positive and it is not fixable in CSS: no selector can test
+     whether a bold child accounts for all of its parent's text.
+
+     The bullets are safe because they are <li>, which these selectors never
+     target — NOT because of :only-child. Do not widen this rule to li on the
+     assumption that :only-child protects them; it does not, and every
+     "<b>First Hire Confirmed - </b>…" bullet would take break-after: avoid
+     and chain into one unbreakable run — the exact failure N-028 removed.
+
+     Consequence to live with: a body paragraph that merely opens in bold also
+     gets break-after: avoid. Harmless in isolation; several consecutive ones
+     would chain. If that ever shows up in a real report, the fix is a real
+     heading tag in the toolbar (the H4 option), not a cleverer selector.
+
+     :has() is Chromium 105+, consistent with the print rules below; Firefox
+     ignores it and falls back to N-028 behaviour. */
   .rb-text-block p:has(> b:only-child),
   .rb-text-block p:has(> strong:only-child),
   .rb-text-block div:has(> b:only-child),

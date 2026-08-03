@@ -169,6 +169,7 @@ function _lciSummaryHtml() {
       <h2>${escHtml(m.Title)} — Summary</h2>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="openLCIModel(${m.id})">← Edit model</button>
+        <button class="btn-secondary" onclick="lciExportModelExcel(this)">Export to Excel</button>
         <button class="btn-primary" onclick="lciPrintSummary()">Print / PDF</button>
       </div>
     </div>

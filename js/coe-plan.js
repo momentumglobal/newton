@@ -419,6 +419,9 @@ async function coeCreateRoleFromRow(rowId) {
   if (titleInput && row) titleInput.value = row.Title;
   const openInput = document.querySelector('#role-form [name="OpenDate"]');
   if (openInput && row?.OpenDate) openInput.value = row.OpenDate.split('T')[0];
+  // The project is pre-selected in markup, so the select's onchange never fires.
+  // Load the Assign-to list explicitly (no-ops when the user can't assign).
+  loadTalentPartnersForRole(_coeCache.projectId);
 }
 
 // ── Print / PDF export ──────────────────────────────────────────────

@@ -388,9 +388,9 @@ function coeOpenLinkPicker(rowId) {
   const { roles, planRows } = _coeCache;
   // LinkedRoleID is stored as a number, r.id arrives as a string — key on String.
   const linked = new Set(planRows.map(r => r.LinkedRoleID).filter(Boolean).map(String));
-  // ACTIVE_STAGES (analytics.js) is the terminal-stage list; negate it for "open".
+  // Linkable = not already linked, not closed. Backlog is deliberately included.
   const opts = roles
-    .filter(r => !linked.has(String(r.id)) && !ACTIVE_STAGES.includes(r.Stage))
+    .filter(r => !linked.has(String(r.id)) && !PLAN_LINKABLE_EXCLUDED_STAGES.includes(r.Stage))
     .map(r => `<option value="${r.id}">${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`).join('')
     || '<option value="" disabled>-- No active roles available --</option>';  document.getElementById('coe-modal-host').innerHTML = `
     <div class="form-container" id="coe-link-modal">

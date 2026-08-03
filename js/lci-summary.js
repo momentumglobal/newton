@@ -305,7 +305,7 @@ function _lciSummaryRoadmapHtml(slice) {
       const lvl = String(r.CareerLevel || '').trim();
       return `<tr><td class="lci-out-indent" style="padding-left:18px">${escHtml(r.Title)}${lvl ? ` (${escHtml(lvl)})` : ''}</td>${cells}<td class="lci-derived">${vals.reduce((a, b) => a + b, 0)}</td></tr>`;
     }).join('');
-    return `<tr class="lci-team-row"><td colspan="${(sl.end - sl.start) + 2}"><strong>${team}</strong></td></tr>${teamRows}`;
+    return `<tr class="lci-team-row"><td colspan="${(sl.end - sl.start) + 2}"><strong>${escHtml(team)}</strong></td></tr>${teamRows}`;
   }).join('');
 
   const hires = lciHiresPerMonth(_lciEd.rows, m);

@@ -189,6 +189,48 @@ const CONFIG = {
       exiting:  { label: 'Exiting',  costLine: 'Exiting Team Costs'  },
       retained: { label: 'Retained', costLine: 'Retained Team Costs' },
     },
+
+    // ── Excel export (N-030) ──────────────────────────────────────
+    // ExcelJS, lazy-loaded on first click only (~950KB — never on page
+    // render). PIN THE VERSION: an unpinned CDN has bitten this codebase
+    // before (see the Dependencies table in Readme.html).
+    EXCEL: {
+      CDN: 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
+      // Tab order is the order the builders run in — see lci-excel.js.
+      SHEETS: {
+        assumptions: 'Assumptions',
+        roadmap:     'CoE Roadmap',
+        legacy:      'Legacy Team',
+        oneoffs:     'One-offs & Fees',
+        calc:        'Monthly Calc',
+        output:      'Output Summary',
+        milestones:  'Milestones',
+      },
+      // ARGB, not CSS hex. Deliberate, documented exception to "no hex in
+      // JS": a workbook cannot read style.css custom properties, so the
+      // palette has to live somewhere in config — here, once, rather than
+      // scattered through the sheet builders. `navy` must stay in step with
+      // .data-table th (#0A0B44) in style.css.
+      COLOURS: {
+        navy:         'FF0A0B44',
+        navyText:     'FFFFFFFF',
+        headerFill:   'FFEDEFF5',
+        subtotalFill: 'FFE4E8F2',
+        totalFill:    'FFD6DCEC',
+        inputFill:    'FFDCE9F7',
+        derivedFill:  'FFF5F5F5',
+        bandFill:     'FFEFEFEF',
+      },
+      // {ccy} is replaced with the model's currency code at build time —
+      // a code, never a locale symbol, so EUR/RON/GBP all read unambiguously.
+      FORMATS: {
+        money:   '"{ccy}" #,##0',
+        money2:  '"{ccy}" #,##0.00',
+        integer: '#,##0',
+        percent: '0.0%',
+        rate:    '#,##0.0000',
+      },
+    },
   },
 
 // ── LCI Lead Magnet ───────────────────────────────────────────────

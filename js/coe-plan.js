@@ -392,7 +392,9 @@ function coeOpenLinkPicker(rowId) {
   const opts = roles
     .filter(r => !linked.has(String(r.id)) && !PLAN_LINKABLE_EXCLUDED_STAGES.includes(r.Stage))
     .map(r => `<option value="${r.id}">${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`).join('')
-    || '<option value="" disabled>-- No active roles available --</option>';  document.getElementById('coe-modal-host').innerHTML = `
+    || '<option value="" disabled>-- No active roles available --</option>';
+
+  document.getElementById('coe-modal-host').innerHTML = `
     <div class="form-container" id="coe-link-modal">
       <h2>Link to Live Role</h2>
       <div class="form-group"><label>Role</label>

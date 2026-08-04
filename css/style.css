@@ -2220,7 +2220,10 @@ body {
 
 .org-bench { margin-top: 32px; border-top: 1px dashed #cfd8dc; padding-top: 16px; }
 .org-bench__title { font-weight: 600; font-size: 13px; color: #546E7A; margin-bottom: 10px; }
-.org-bench__grid { display: flex; flex-wrap: wrap; gap: 8px; }
+/* .org-avatar sits at top:-20px, so each card overhangs upward by 20px — the
+   tree absorbs this via .org-tree li's padding-top. The bench grid needs its
+   own headroom (heading clearance) and a row-gap larger than the overhang. */
+.org-bench__grid { display: flex; flex-wrap: wrap; gap: 26px 8px; padding-top: 22px; }
 .org-tag { font-size: 10px; background: #ECEFF1; color: #546E7A;
   padding: 1px 6px; border-radius: 8px; margin-left: 6px; }
 

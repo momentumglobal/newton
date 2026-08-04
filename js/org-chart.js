@@ -231,7 +231,7 @@ function renderBenchHtml(bench) {
   if (!bench.length) return '';
   return `
     <div class='org-bench'>
-      <div class='org-bench__title'>Bench / Unassigned (${bench.length})</div>
+      <div class='org-bench__title'>Unassigned (${bench.length})</div>
       <div class='org-bench__grid'>
         ${bench.map(p => `
           <div class='org-node org-node--bench org-node--has-avatar'>

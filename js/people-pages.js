@@ -1558,7 +1558,7 @@ ${canEdit ? `<td style='white-space:nowrap'>
 
   main.innerHTML = `
     <div class='page-header'>
-      <h2>G-P Invoices</h2>
+      <h2>Supplier Invoices</h2>
       ${canEdit ? "<button class='btn-primary' onclick='showAddInvoiceForm()'>+ Add Invoice</button>" : ''}
     </div>
     ${summaryBar}

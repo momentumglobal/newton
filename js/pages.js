@@ -146,15 +146,22 @@ async function renderRolesPage(filter) {
       ${projDropdown}
       <div class="filter-group">${filterBtns}</div>
     </div>
-    <table class="data-table">
+        <table class="data-table">
       <thead><tr>
         <th>Project</th><th>Role</th><th>Location</th><th>Stage</th><th>Talent Partner</th>
-        <th>Budget</th><th>Open Date</th><th>Target Hire Date</th><th>Days Open</th>${canEdit ? "<th></th>" : ""}
+        <th>Budget</th><th>Open Date</th><th>${_rolesFilter === "Hired" ? "Actual Hire Date" : "Target Hire Date"}</th><th>Days Open</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
         ${roles.map(r => {
-          const days = daysOpen(r.OpenDate, r.ActualHireDate);
-          const rowClass = days !== null && days > 45 ? 'row-age-critical' : '';
+          const isHired    = _rolesFilter === "Hired";
+          const daysHidden = _rolesFilter === "Backlog" || _rolesFilter === "Cancelled";
+          const days       = (!daysHidden && (!isHired || r.ActualHireDate))
+            ? daysOpen(r.OpenDate, r.ActualHireDate) : null;
+          const rowClass   = (isHired || _rolesFilter === "Active") && days !== null && days > 45
+            ? 'row-age-critical' : '';
+          const dateCell   = isHired
+            ? (r.ActualHireDate ? r.ActualHireDate.split("T")[0] : "—")
+            : (r.TargetHireDate ? r.TargetHireDate.split("T")[0] : "—");
           const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || "—";
           return `
           <tr class="${rowClass}">
@@ -165,7 +172,7 @@ async function renderRolesPage(filter) {
             <td>${tpDisplay(r.TalentPartner, tpMap)}</td>
             <td>${formatSalary(r.Budget)}</td>
             <td>${r.OpenDate ? r.OpenDate.split("T")[0] : "—"}</td>
-            <td>${r.TargetHireDate ? r.TargetHireDate.split("T")[0] : "—"}</td>
+            <td>${dateCell}</td>
             <td>${days !== null ? days + " days" : "—"}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a></div></td>` : ""}
           </tr>`;

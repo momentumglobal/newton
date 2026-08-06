@@ -25,6 +25,7 @@ async function getProjectFilterOptions() {
     const idSet = new Set(ids.map(String));
     projects = all.filter(p => idSet.has(String(p.id)));
   }
+  projects.sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''));
   return { projects, canFilter: true };
 }
 function projectFilterDropdown(projects, selectedId, callbackFn) {

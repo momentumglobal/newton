@@ -8,20 +8,20 @@ const GRAPH = "https://graph.microsoft.com/v1.0";
 const _apiCache = new Map();
 const _CACHE_TTL_MS = 30000; // 30 seconds
  
-function _cacheKey(listName, filter) {
-  return listName + '|' + (filter || '');
+function _cacheKey(listName, filter, selectStr) {
+  return listName + '|' + (filter || '') + '|' + (selectStr || '*');
 }
-function _cacheGet(listName, filter) {
-  const entry = _apiCache.get(_cacheKey(listName, filter));
+function _cacheGet(listName, filter, selectStr) {
+  const entry = _apiCache.get(_cacheKey(listName, filter, selectStr));
   if (!entry) return null;
   if (Date.now() - entry.ts > _CACHE_TTL_MS) {
-    _apiCache.delete(_cacheKey(listName, filter));
+    _apiCache.delete(_cacheKey(listName, filter, selectStr));
     return null;
   }
   return entry.data;
 }
-function _cacheSet(listName, filter, data) {
-  _apiCache.set(_cacheKey(listName, filter), { ts: Date.now(), data });
+function _cacheSet(listName, filter, selectStr, data) {
+  _apiCache.set(_cacheKey(listName, filter, selectStr), { ts: Date.now(), data });
 }
 function _cacheInvalidate(listName) {
   // Remove all cached entries for this list (any filter)
@@ -121,11 +121,26 @@ function listPath(listName) {
 }
  
 // ── Read ─────────────────────────────────────────────────────────────
-async function getItems(listName, filter = "") {
-  const cached = _cacheGet(listName, filter);
+// `select`, if passed, is a comma-separated string of internal SharePoint
+// field names (already the shape the two existing analytics callers use).
+// If omitted, resolves from CONFIG.LIST_FIELDS[listName] when present and
+// non-empty; otherwise falls back to '*' (today's behaviour, unchanged for
+// every list not yet in the manifest).
+async function getItems(listName, filter = "", select = null) {
+  let selectStr = select;
+  if (!selectStr) {
+    const manifestFields = CONFIG.LIST_FIELDS && CONFIG.LIST_FIELDS[listName];
+    if (Array.isArray(manifestFields) && manifestFields.length) {
+      selectStr = manifestFields.includes('Id') ? manifestFields.join(',') : ['Id', ...manifestFields].join(',');
+    } else {
+      selectStr = '*';
+    }
+  }
+
+  const cached = _cacheGet(listName, filter, selectStr);
   if (cached) return cached;
  
-  const qs = filter ? `?$expand=fields($select=*)&$filter=${encodeURIComponent(filter)}` : "?$expand=fields($select=*)";
+  const qs = filter ? `?$expand=fields($select=${selectStr})&$filter=${encodeURIComponent(filter)}` : `?$expand=fields($select=${selectStr})`;
   let url = `${listPath(listName)}${qs}`;
   const items = [];
   while (url) {
@@ -134,10 +149,13 @@ async function getItems(listName, filter = "") {
     url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH, '') : null;
   }
  
-  _cacheSet(listName, filter, items);
+  _cacheSet(listName, filter, selectStr, items);
   return items;
 }
  
+// NOTE: getItem() (single-item read, below) intentionally keeps
+// fields($select=*) — it's a low-volume detail fetch, not a list scan, so
+// it's out of scope for F-1 projection.
 async function getItem(listName, itemId) {
   const data = await graphRequest("GET", `${listPath(listName)}/${itemId}?$expand=fields($select=*)`);
   return { id: data.id, ...normaliseFields(listName, data.fields) };

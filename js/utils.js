@@ -212,6 +212,38 @@ function daysOpen(openDate, hireDate) {
   return Math.floor((end - start) / (1000 * 60 * 60 * 24));
 }
 
+// ── Date helpers (N-054: consolidated from forms.js + five duplicate/
+// shim copies previously scattered across people-forms.js, mobile-app.js,
+// lci-link.js, mobile-pages.js and mobile-roleform.js) ─────────────────
+
+// Extracts 'YYYY-MM-DDT12:00:00Z' from a date-input value (or any string
+// starting with YYYY-MM-DD); null if none. Midday UTC avoids the
+// SharePoint UTC↔BST date-shift on write.
+function isoDate(dateStr) {
+  if (!dateStr) return null;
+  const match = String(dateStr).match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] + 'T12:00:00Z' : null;
+}
+
+function getISOWeek(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+// Returns the Sunday on/after `date` (or today, if omitted) as 'YYYY-MM-DD'.
+// WeeklyActivity.WeekEndingDate buckets on this Sunday boundary, not
+// Friday — verify against that convention before changing this.
+function getWeekEnding(date = new Date()) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? 0 : 7 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split('T')[0];
+}
+
 // ── Activity field summation ─────────────────────────────────────────
 function sumField(acts, field) {
   return acts.reduce((s, a) => s + (Number(a[field]) || 0), 0);

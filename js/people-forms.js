@@ -316,15 +316,7 @@ async function showEditAssignmentForm(id) {
   document.getElementById('main-content').innerHTML = await renderAssignmentForm(data);
 }
 
-// ── Date utility (not shared from forms.js in this module) ────
-function isoDate(dateStr) {
-  if (!dateStr) return null;
-  const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
-  return match ? match[1] + 'T12:00:00Z' : null;
-}
-
 // ── G-P Invoice forms ─────────────────────────────────────────
-
 function renderInvoiceForm(existingData = null) {
   const isEdit = !!existingData;
   return `

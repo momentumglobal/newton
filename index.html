@@ -240,17 +240,13 @@ async function renderCommandCentreBanner(role) {
       slot.innerHTML = `
         <div class="survey-widget${isReminder ? ' survey-widget--reminder' : ''}">
           ${isReminder ? '<span class="survey-widget-badge">Reminder</span>' : ''}
-          <div class="survey-widget-title">${_escHtml(run.Title || 'Team Survey')}</div>
+          <div class="survey-widget-title">${escHtml(run.Title || 'Team Survey')}</div>
           <div class="survey-widget-desc">${isReminder
             ? 'Still time to complete — your response is anonymous and takes ~3 minutes.'
             : 'Your quarterly pulse survey is open - it is 100% anonymous and takes ~3 minutes to complete'}</div>
           <a href="survey.html" class="survey-widget-cta">Start Survey</a>
         </div>`;
       lucide.createIcons();
-    }
-
-    function _escHtml(str) {
-      return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     async function initHome() {

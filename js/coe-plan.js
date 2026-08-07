@@ -93,6 +93,7 @@ async function renderHiringPlanPage(selectedProjectId = null) {
   const email = getCurrentUser().email;
   const role  = _resolvedRole || getUserRole(email);
   const canEdit = role === 'admin' || role === 'delivery_manager';
+  const isAdmin = role === 'admin';
 
   const projects = (await getScopedProjects(email, false)).filter(p => p.ProjectType === 'CoE');
   if (!projects.length) {
@@ -112,12 +113,12 @@ async function renderHiringPlanPage(selectedProjectId = null) {
   const placements = [];
   for (const rid of linkedRoleIds) placements.push(...await getPlacements(rid));
 
-  _coeCache = { projectId: pid, projects, planRows, roles, placements, forecast, canEdit };
+  _coeCache = { projectId: pid, projects, planRows, roles, placements, forecast, canEdit, isAdmin };
   coeRenderBody();
 }
 
 function coeRenderBody() {
-  const { projectId, projects, planRows, canEdit } = _coeCache;
+  const { projectId, projects, planRows, canEdit, isAdmin } = _coeCache;
   const main = document.getElementById('main-content');
 
   const projOpts = projects.map(p =>
@@ -133,6 +134,7 @@ function coeRenderBody() {
       <select onchange="_coeTPFilter=this.value; coeRenderBody()">${tpOpts}</select>
       ${canEdit ? `<button class="btn-primary" onclick="coeOpenRowModal()">+ Add Planned Role</button>` : ''}
       <button class="print-btn" onclick="coeExportPDF()">⎙ Export PDF</button>
+      ${isAdmin && planRows.length ? `<button class="btn-danger" id="coe-delete-plan-btn" onclick="coeDeletePlan()">Delete Plan</button>` : ''}
     </div>
     <div class="coe-legend">
       <span><span class="coe-swatch" style="background:#BDE3F5"></span> Recruitment</span>
@@ -384,6 +386,29 @@ async function coeDeleteRow(rowId) {
   if (!confirm('Remove this planned role from the hiring plan?')) return;
   await deleteCoEPlanRow(rowId);
   await renderHiringPlanPage(_coeCache.projectId);
+}
+
+// N-080: admin-only — delete the project's ENTIRE hiring plan (all rows,
+// ignoring the TP filter). Linked live Roles, Placements and Forecast
+// values are untouched. Sequential deletes match the v1 write pattern.
+async function coeDeletePlan() {
+  const { planRows, projectId } = _coeCache;
+  if (!planRows.length) return;
+  if (!confirm(`Delete the entire hiring plan — all ${planRows.length} planned role(s) on this project? (Applies to the whole plan regardless of the TP filter. Linked live Roles and Forecast values are kept.)`)) return;
+  const btn = document.getElementById('coe-delete-plan-btn');
+  setButtonLoading(btn, 'Deleting…');
+  try {
+    let done = 0;
+    for (const r of planRows) {
+      await deleteCoEPlanRow(r.id);
+      done++;
+      if (btn) btn.textContent = `Deleting… ${done}/${planRows.length}`;
+    }
+    await renderHiringPlanPage(projectId);
+  } catch (e) {
+    clearButtonLoading(btn);
+    alert(`Error deleting plan: ${e.message}`);
+  }
 }
 
 // ── Roles linkage ───────────────────────────────────────────────────

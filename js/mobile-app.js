@@ -54,23 +54,6 @@ const MOBILE_MODULE_HOME = {
   marketing: 'placement-analytics',
 };
 
-function getWeekEnding() {
-  const today = new Date();
-  const day = today.getDay(); // 0=Sun, 6=Sat
-  const diff = day === 0 ? 0 : 7 - day; // next Sunday
-  const sunday = new Date(today);
-  sunday.setDate(today.getDate() + diff);
-  return sunday.toISOString().slice(0, 10);
-}
-
-function getISOWeek(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-  const yearStart = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-}
-
 async function mobileInit() {
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app-shell').style.display    = 'none';

@@ -119,6 +119,7 @@ async function openLCILinkModal(modelId) {
               Generating creates one hiring-plan row per hire, with the hire landing in the last week of its target month. Recruitment &amp; onboarding use plan defaults; notice comes from the model (incl. per-role overrides).
             </p>
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">
+              ${m.ProjectID && _salesResolvedRole === 'admin' ? `<button class="btn-danger" id="lci-unlink-btn" onclick="unlinkLCIModel(${m.id})">Unlink Project</button>` : ''}
               <button class="btn-secondary" onclick="closeLCILink()">Cancel</button>
               <button class="btn-secondary" id="lci-link-save-btn" onclick="saveLCILink(${m.id})">Save Link</button>
               <button class="btn-primary" id="lci-link-gen-btn" onclick="generateLCIPlan(${m.id})">Save & Generate Plan</button>
@@ -155,6 +156,31 @@ async function saveLCILink(modelId) {
   } catch (e) {
     clearButtonLoading(btn);
     alert('Error saving link: ' + e.message);
+  }
+}
+
+// N-080: admin-only — clear the model's project link. Existing hiring-plan
+// rows are deliberately KEPT (Delete Plan on the Hiring Plan page removes
+// them); unlink and plan-delete are independent actions.
+async function unlinkLCIModel(modelId) {
+  const m = (_lciModelsCache || []).find(x => String(x.id) === String(modelId));
+  if (!m || !m.ProjectID) return;
+  let name = `project ${m.ProjectID}`;
+  try {
+    const proj = (await getProjects(false)).find(p => String(p.id) === String(m.ProjectID));
+    if (proj) name = proj.CustomerName || proj.Title || name;
+  } catch (e) { /* name lookup is cosmetic */ }
+  if (!confirm(`Unlink "${m.Title}" from ${name}? Existing hiring-plan rows are NOT deleted — use Delete Plan on the Hiring Plan page for that.`)) return;
+  const btn = document.getElementById('lci-unlink-btn');
+  setButtonLoading(btn, 'Unlinking…');
+  try {
+    await updateLCIModel(modelId, { ProjectID: null });
+    m.ProjectID = null;
+    closeLCILink();
+    await renderLCIModelsPage();
+  } catch (e) {
+    clearButtonLoading(btn);
+    alert('Error unlinking: ' + e.message);
   }
 }
 

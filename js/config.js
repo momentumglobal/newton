@@ -57,21 +57,71 @@ const CONFIG = {
   //    shipping, and do a key-set diff against $select=* after.
   LIST_FIELDS: {
     Roles: [
-      'Title', 'ProjectID', 'ProjectIDLookupId', 'Stage', 'TalentPartner',
+      // N-053: 'ProjectID' dropped — only 'ProjectIDLookupId' is ever read
+      // (dashboard.js:103, pages.js:116-128, admin.js:220-250 all check
+      // LookupId first; the display-name fallback is dead).
+      'Title', 'ProjectIDLookupId', 'Stage', 'TalentPartner',
       'OpenDate', 'TargetHireDate', 'ActualHireDate', 'CurrentStartDate',
       'Budget', 'Currency', 'Priority', 'Backfill', 'Department',
       'HiringManager', 'Notes', 'Yeare',
     ],
     WeeklyActivity: [
-      'Title', 'RoleID', 'RoleIDLookupId', 'ProjectID', 'ProjectIDLookupId',
+      // N-053: 'RoleID' and 'ProjectID' dropped — same dead-fallback reason.
+      'Title', 'RoleIDLookupId', 'ProjectIDLookupId',
       'Yeare', 'WeekNumber', 'WeekEndingDate', 'TalentPartner',
       'Outreach', 'Responses', 'Screened', 'Submitted', 'Interview1',
       'InterviewTwoPlus', 'FinalInterview', 'Offers', 'Hires', 'SubmittedAt',
     ],
     Placements: [
-      'Title', 'RoleID', 'RoleIDLookupId', 'TalentPartner', 'SalaryAgreed',
+      // N-053: 'RoleID' dropped — same dead-fallback reason.
+      'Title', 'RoleIDLookupId', 'TalentPartner', 'SalaryAgreed',
       'Currency', 'OfferAcceptedDate', 'ProvisionalStartDate', 'TimeToHire',
       'Notes', 'Yeare',
+    ],
+    // ── N-053 (F-1c) ──────────────────────────────────────────────────
+    Projects: [
+      'Title', 'DeliveryManager', 'Status', 'ProjectType', 'StartDate',
+      'EndDate', 'Notes', 'CSDName',
+    ],
+    People: [
+      'Title', 'Level', 'ContractType', 'Location', 'StartDate', 'EndDate',
+      'IsActive', 'Salary', 'PhotoUrl', 'IsPlaceholder', 'PlaceholderProject',
+      'PlaceholderCSD', 'ReportsTo',
+    ],
+    LCIModels: [
+      'Title', 'Status', 'ClientName', 'ProjectID', 'Location',
+      'LocalCurrency', 'DisplayCurrency', 'FXRateLocalToDisplay', 'StartMonth',
+      'HorizonMonths', 'AssignedDMEmail', 'EmployerBurdenPct', 'SalaryMonths',
+      'OfficeCostPerHead', 'EoRFeePerHead', 'SectionsEnabled', 'Assumptions',
+      'NoticeMonths',
+    ],
+    LCIModelRows: [
+      'Title', 'RowType', 'Team', 'CareerLevel', 'AnnualSalary', 'BonusPct',
+      'Quantity', 'ExitMonth', 'LegacyCategory', 'NoticeMonthsOverride',
+      'MonthValues', 'SortOrder', 'ModelIDLookupId',
+    ],
+    LCIMilestones: [
+      'Title', 'StartMonth', 'EndMonth', 'SortOrder', 'ModelIDLookupId',
+    ],
+    LCIReports: [
+      'Title', 'ModelIDs', 'Observations', 'CreatedByEmail',
+    ],
+    LCILocations: [
+      'Title', 'EmployerBurdenPct', 'FXRateToGBP', 'Currency',
+      'Sal_SoftwareEngineering', 'Sal_Technology', 'Sal_Product',
+      'Sal_SalesGTM', 'Sal_CustomerSuccess', 'Sal_Finance', 'Sal_Marketing',
+      'Sal_Operations', 'Sal_HR', 'Sal_Legal',
+    ],
+    CoEPlanRows: [
+      'Title', 'ProjectID', 'TalentPartner', 'OpenDate', 'RecruitmentWeeks',
+      'NoticeWeeks', 'OnboardingWeeks', 'LinkedRoleID', 'SortOrder',
+    ],
+    CoEPlanForecast: [
+      'ProjectID', 'ForecastMonth', 'ForecastedHires',
+    ],
+    Notifications: [
+      'Title', 'RecipientEmail', 'CreatedAt', 'IsRead', 'Tone', 'Body',
+      'Status', 'TriggerKey', 'TriggerType',
     ],
   },
 

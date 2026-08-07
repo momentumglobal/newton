@@ -348,8 +348,6 @@ async function mobileSubmitActivity(rolePreselected) {
   btn.disabled    = true;
   btn.textContent = 'Saving…';
 
-  const isoDate = d => d ? d + 'T12:00:00Z' : null;
-
   try {
     await createItem('WeeklyActivity', {
       RoleIDLookupId:   roleId,
@@ -511,7 +509,6 @@ async function mobileSubmitPlacement(rolePreselected) {
   btn.disabled    = true;
   btn.textContent = 'Saving…';
 
-  const isoDate   = d => d ? d + 'T12:00:00Z' : null;
   const offerDate = isoDate(document.getElementById('mp-offer-date').value);
   const startDate = isoDate(document.getElementById('mp-start-date').value);
 

@@ -207,7 +207,6 @@ async function mobileSubmitAddRole() {
   if (!location)  return fail('Please select a location.');
   if (!dept)      return fail('Please select a functional area.');
 
-  const isoDate = d => d ? d + 'T12:00:00Z' : undefined;
   const openVal   = document.getElementById('mr-open').value;
   const targetVal = document.getElementById('mr-target').value;
   const budgetVal = document.getElementById('mr-budget').value;
@@ -226,8 +225,8 @@ async function mobileSubmitAddRole() {
     Currency:       location || undefined,   // desktop stores Location in Currency field
     Priority:       priVal ? parseInt(priVal) : undefined,
     Stage:          stage,
-    OpenDate:       isoDate(openVal),
-    TargetHireDate: isoDate(targetVal),
+    OpenDate:       isoDate(openVal) || undefined,
+    TargetHireDate: isoDate(targetVal) || undefined,
     Department:     dept || undefined,
   };
 

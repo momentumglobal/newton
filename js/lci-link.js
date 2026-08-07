@@ -2,19 +2,9 @@
 // generate CoE Hiring Plan rows (one CoEPlanRow per individual hire).
 // One-time generate: the plan is delivery source of truth afterwards.
 // Loaded after lci-pages.js. Admin/Leadership only (gated in lci-pages actions).
-
-// isoDate() lives in forms.js, which the Sales page does not load. Shim it
-// here (identical implementation) rather than pulling in all of forms.js.
-if (typeof isoDate === 'undefined') {
-  window.isoDate = function (s) {
-    if (!s) return null;
-    const match = String(s).match(/^(\d{4}-\d{2}-\d{2})/);
-    return match ? match[1] + 'T12:00:00Z' : null;
-  };
-}
+// isoDate() comes from utils.js (N-054), loaded on every page incl. this one.
 
 // ── Date maths (integer-only; never ISO round-trip — BST gotcha) ─────
-
 // First calendar day of the model's month index N (0 = M1).
 // Returns a Date at local midnight.
 function _lciHireMonthDate(model, monthIdx) {

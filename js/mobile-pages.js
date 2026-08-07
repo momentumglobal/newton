@@ -395,7 +395,7 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
     if (rolePreselected && _mobileRoleId) {
       const role = await getItem('Roles', _mobileRoleId);
       roleName   = role.RoleTitle;
-      currency   = CONFIG.COUNTRY_CURRENCY[role.Currency] || '';
+      currency   = CONFIG.COUNTRY_CURRENCY[role.Location] || '';
       mobileSetTitle('Record Placement', roleName);
     } else {
       _mobileRoleId = null;
@@ -490,7 +490,7 @@ async function mobileLoadCurrencyForPlacement(roleId) {
   if (!cur || !roleId) return;
   try {
     const role = await getItem('Roles', roleId);
-    cur.value  = CONFIG.COUNTRY_CURRENCY[role.Currency] || '';
+    cur.value  = CONFIG.COUNTRY_CURRENCY[role.Location] || '';
   } catch (e) { cur.value = ''; }
 }
 

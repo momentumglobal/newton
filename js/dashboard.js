@@ -597,12 +597,14 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     allRoles.map(r => [String(r.id), r])
   );
 
-  // Derive unique groups from live roles: key = "RoleTitle (Location)" or "RoleTitle"
-  const groupKey = r => r.Location ? `${r.RoleTitle || r.LinkTitle} (${r.Location})` : (r.RoleTitle || r.LinkTitle || '—');
+    // Derive unique groups from live roles: key = "RoleTitle (Location)" or "RoleTitle"
+  // (LinkTitle fallback removed in N-052 — computed system column, excluded by
+  // the CONFIG.LIST_FIELDS projection; RoleTitle is the aliased Title.)
+  const groupKey = r => r.Location ? `${r.RoleTitle} (${r.Location})` : (r.RoleTitle || '—');
   const groupMeta = {}; // key → { department, location, roleTitle }
   activeRoles.forEach(r => {
     const key = groupKey(r);
-    if (!groupMeta[key]) groupMeta[key] = { department: r.Department, location: r.Location, roleTitle: r.RoleTitle || r.LinkTitle };
+    if (!groupMeta[key]) groupMeta[key] = { department: r.Department, location: r.Location, roleTitle: r.RoleTitle };
   });
 
   const rows = Object.entries(groupMeta).map(([key, meta]) => {

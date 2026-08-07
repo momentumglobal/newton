@@ -377,11 +377,12 @@ async function rbFetchData() {
     if (!_rbProjectId) return null;
     // Talent Partners are scoped to their own assigned roles within the project.
     const tpEmail = _resolvedRole === 'talent_partner' ? getCurrentUser().email : null;
-    const [allRoles, activity, placements, rejections] = await Promise.all([
+    const [allRoles, activity, placements, rejections, tpMap] = await Promise.all([
       getRolesForProject(_rbProjectId, tpEmail),
       getWeeklyActivity(_rbProjectId, null),
       getPlacements(null),
       getRejectedOffers(null),
+      getTalentPartnerDisplayMap(),
     ]);
     // Apply the Role filter — narrow to a single role if one is selected.
     const roles = _rbRoleId === 'all'
@@ -395,16 +396,18 @@ async function rbFetchData() {
       activity:   activity.filter(a => ids.has(String(a.RoleIDLookupId)) || ids.has(String(a.RoleID))),
       placements: placements.filter(p => ids.has(String(p.RoleIDLookupId)) || ids.has(String(p.RoleID))),
       rejections: rejections.filter(r => ids.has(String(r.RoleIDLookupId)) || ids.has(String(r.RoleID))),
+      tpMap,
     };
   } else {
     // Company scope — single call for all roles, matching Company Dashboard approach
-    const [roles, activity, placements, rejections] = await Promise.all([
+    const [roles, activity, placements, rejections, tpMap] = await Promise.all([
       getAllRoles(),
       getWeeklyActivity(null, null),
       getPlacements(null),
       getRejectedOffers(null),
+      getTalentPartnerDisplayMap(),
     ]);
-    return { roles, activity, placements, rejections };
+    return { roles, activity, placements, rejections, tpMap };
   }
 }
 

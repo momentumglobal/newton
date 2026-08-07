@@ -23,7 +23,11 @@ function coeAddWeeks(d, n) {
   return x;
 }
 function coeWeekIndex(timelineStart, d) {
-  return Math.floor((coeMonday(d) - timelineStart) / (7 * 24 * 3600 * 1000));
+  // Math.round, not floor (N-081): coeMonday() returns LOCAL midnight, so
+  // Mondays either side of a GMT/BST switch sit ±1h off exact-week
+  // multiples — floor drops a week whenever tStart is GMT and d is BST.
+  // Gaps are always whole weeks ±1h, so round is exact.
+  return Math.round((coeMonday(d) - timelineStart) / (7 * 24 * 3600 * 1000));
 }
 function coeFmtShort(d) {
   return d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—';

@@ -34,16 +34,46 @@ const CONFIG = {
   // Hardcoded admin users — full access, never overridden by SharePoint data
   ADMIN_USERS:  ["admin@momentumglobal.co", "chris.friend@momentumglobal.co", "aliyah@momentumglobal.co", "jon.stanners@momentumglobal.co"],
 
-  // Field projection manifest (F-1). Per-list array of INTERNAL SharePoint
+    // Field projection manifest (F-1). Per-list array of INTERNAL SharePoint
   // column names to request via Graph $select — NOT the aliased names
   // normaliseFields()/FIELD_ALIASES produce. 'Id' is implied automatically
   // by getItems() if omitted; no need to list it here.
-  // Empty by design: any list absent from this map (i.e. every list today)
-  // falls back to fields($select=*), so adding this manifest changes
-  // nothing on its own. Populated list-by-list in N-052/N-053 — don't add
-  // entries here without doing that task's full field-usage audit first,
-  // since an omitted field returns undefined silently rather than erroring.
-  LIST_FIELDS: {},
+  // Any list absent from this map falls back to fields($select=*).
+  //
+  // Rules for adding a list (N-052/N-053):
+  //  • Names are INTERNAL. The alias table in api.js is the translation —
+  //    e.g. Roles 'Title'→RoleTitle and 'Currency'→Location; 'Yeare'→Year on
+  //    Roles/WeeklyActivity/Placements; WeeklyActivity 'InterviewTwoPlus'
+  //    →Interview2Plus. Never put an aliased name in here.
+  //  • Lookup columns need BOTH entries — Graph exposes 'ProjectID' and
+  //    'ProjectIDLookupId' separately and Newton reads both.
+  //  • List the FULL business-column set, not a minimal read set. The saving
+  //    comes from excluding SharePoint's system columns (Created, Modified,
+  //    Author, Editor, Attachments, ContentType, _UIVersion*, Compliance*,
+  //    App*, OData__*), none of which Newton reads. Trimming business columns
+  //    buys little and reintroduces silent-undefined risk.
+  //  • An OMITTED field returns undefined silently; an UNKNOWN field makes
+  //    Graph return 400. Verify every name against the live list before
+  //    shipping, and do a key-set diff against $select=* after.
+  LIST_FIELDS: {
+    Roles: [
+      'Title', 'ProjectID', 'ProjectIDLookupId', 'Stage', 'TalentPartner',
+      'OpenDate', 'TargetHireDate', 'ActualHireDate', 'CurrentStartDate',
+      'Budget', 'Currency', 'Priority', 'Backfill', 'Department',
+      'HiringManager', 'Notes', 'Yeare',
+    ],
+    WeeklyActivity: [
+      'Title', 'RoleID', 'RoleIDLookupId', 'ProjectID', 'ProjectIDLookupId',
+      'Yeare', 'WeekNumber', 'WeekEndingDate', 'TalentPartner',
+      'Outreach', 'Responses', 'Screened', 'Submitted', 'Interview1',
+      'InterviewTwoPlus', 'FinalInterview', 'Offers', 'Hires', 'SubmittedAt',
+    ],
+    Placements: [
+      'Title', 'RoleID', 'RoleIDLookupId', 'TalentPartner', 'SalaryAgreed',
+      'Currency', 'OfferAcceptedDate', 'ProvisionalStartDate', 'TimeToHire',
+      'Notes', 'Yeare',
+    ],
+  },
 
   // Maps hire location (country) to ISO currency code.
   // Used to auto-derive currency when a role is created/edited,

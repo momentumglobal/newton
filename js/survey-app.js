@@ -116,14 +116,14 @@ const SurveyApp = (() => {
       <div class="survey-page">
         <div class="survey-header">
           <img src="momentum-symbol.png" alt="Newton" class="survey-logo">
-          <span class="survey-title">${_escHtml(_run.Title || 'Survey')}</span>
+          <span class="survey-title">${escHtml(_run.Title || 'Survey')}</span>
         </div>
         <div class="survey-progress-bar">
           <div class="survey-progress-fill" style="width:${pct}%"></div>
         </div>
         <div class="survey-card">
           <p class="survey-counter">Question ${_current + 1} of ${total}</p>
-          <h2 class="survey-question-text">${_escHtml(q.QuestionText)}${q.IsRequired ? ' <span class="survey-required">*</span>' : ''}</h2>
+          <h2 class="survey-question-text">${escHtml(q.QuestionText)}${q.IsRequired ? ' <span class="survey-required">*</span>' : ''}</h2>
           <div class="survey-answer-area" id="answer-area">
             ${_renderAnswerInput(q, saved)}
           </div>
@@ -151,8 +151,8 @@ const SurveyApp = (() => {
       return `
         <div class="survey-rating-row">${btns.join('')}</div>
         <div class="survey-rating-labels">
-          <span>${_escHtml(q.ScaleMinLabel || 'Low')}</span>
-          <span>${_escHtml(q.ScaleMaxLabel || 'High')}</span>
+          <span>${escHtml(q.ScaleMinLabel || 'Low')}</span>
+          <span>${escHtml(q.ScaleMaxLabel || 'High')}</span>
         </div>`;
     }
 
@@ -160,8 +160,8 @@ const SurveyApp = (() => {
       const options = _parseOptions(q.Options);
       return options.map(opt => `
         <label class="survey-choice-label">
-          <input type="radio" name="q_${q.id}" value="${_escHtml(opt)}" ${saved === opt ? 'checked' : ''}>
-          ${_escHtml(opt)}
+          <input type="radio" name="q_${q.id}" value="${escHtml(opt)}" ${saved === opt ? 'checked' : ''}>
+          ${escHtml(opt)}
         </label>`).join('');
     }
 
@@ -170,15 +170,15 @@ const SurveyApp = (() => {
       const savedArr = saved ? JSON.parse(saved) : [];
       return options.map(opt => `
         <label class="survey-choice-label">
-          <input type="checkbox" name="q_${q.id}" value="${_escHtml(opt)}" ${savedArr.includes(opt) ? 'checked' : ''}>
-          ${_escHtml(opt)}
+          <input type="checkbox" name="q_${q.id}" value="${escHtml(opt)}" ${savedArr.includes(opt) ? 'checked' : ''}>
+          ${escHtml(opt)}
         </label>`).join('');
     }
 
     if (q.QuestionType === 'FreeText') {
       return `<textarea class="survey-textarea" id="freetext_${q.id}" maxlength="1000" 
                 oninput="SurveyApp.onFreeText('${q.id}', this.value)"
-                placeholder="Type your response here...">${_escHtml(saved || '')}</textarea>
+                placeholder="Type your response here...">${escHtml(saved || '')}</textarea>
               <div class="survey-char-count" id="cc_${q.id}">${(saved || '').length} / 1000</div>`;
     }
 
@@ -307,11 +307,7 @@ const SurveyApp = (() => {
     try { return JSON.parse(raw); } catch { return raw.split('\n').map(s => s.trim()).filter(Boolean); }
   }
 
-  function _escHtml(str) {
-    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  // ── Boot ────────────────────────────────────────────────────────────
+  // ── Boot
 
   window.addEventListener('DOMContentLoaded', () => {
     msalInstance.handleRedirectPromise().then(() => {

@@ -5,12 +5,14 @@
 // isoDate() comes from utils.js (N-054), loaded on every page incl. this one.
 
 // ── Date maths (integer-only; never ISO round-trip — BST gotcha) ─────
-// First calendar day of the model's month index N (0 = M1).
-// Returns a Date at local midnight.
-function _lciHireMonthDate(model, monthIdx) {
+// Monday of the week containing the LAST calendar day of the model's
+// month index N (0 = M1). The hire (offer accepted, end of Recruitment)
+// lands in this week (N-077). Returns a Date at local midnight.
+function _lciHireWeekMonday(model, monthIdx) {
   const [y, m] = String(model.StartMonth).split('-').map(Number); // m = 1..12
   const total = (m - 1) + monthIdx;
-  return new Date(y + Math.floor(total / 12), total % 12, 1);
+  const lastDay = new Date(y + Math.floor(total / 12), (total % 12) + 1, 0);
+  return _lciMonday(lastDay);
 }
 
 // Monday on/before a date (mirror of coeMonday in coe-plan.js, kept local
@@ -29,13 +31,26 @@ function _lciDateStr(d) {
 }
 
 // Open Date for a hire landing in monthIdx: offer accepted = end of
-// Recruitment = start of the hire month; Open Date = that Monday minus
-// recruitmentWeeks. Uses plan defaults (model NoticeMonths NOT reconciled).
+// Recruitment = LAST week of the hire month (N-077); Open Date = that
+// week's Monday minus recruitmentWeeks. computePlanSpans re-derives
+// Target Hire as coeMonday(OpenDate) + RecruitmentWeeks, which lands
+// back on this exact Monday (OpenDate is already a Monday).
 function _lciOpenDateForHire(model, monthIdx) {
   const rWeeks = CONFIG.COE_PHASE_DEFAULTS.recruitmentWeeks;
-  const hireMonday = _lciMonday(_lciHireMonthDate(model, monthIdx));
+  const hireMonday = _lciHireWeekMonday(model, monthIdx);
   hireMonday.setDate(hireMonday.getDate() - rWeeks * 7);
   return _lciDateStr(hireMonday); // isoDate() adds the T12:00:00Z on write
+}
+
+// Effective notice for an LCI coe row, in plan WEEKS (N-077).
+// Override semantics mirror N-019 / lci-editor.js:309 exactly:
+// '' | null | undefined = inherit the model default; explicit 0 = zero notice.
+function _lciNoticeWeeksFor(model, r) {
+  const o = r.NoticeMonthsOverride;
+  const months = (o === '' || o === null || o === undefined)
+    ? Number(model.NoticeMonths || 0)
+    : Number(o);
+  return months * CONFIG.COE_PHASE_DEFAULTS.weeksPerNoticeMonth;
 }
 
 // Expand coe rows → one plan-row payload per hire. Pure; returns array.
@@ -52,8 +67,14 @@ function lciExpandToPlanRows(model, rows, projectId) {
           Title:     n > 1 ? `${r.Title || 'Role'} #${k + 1}` : (r.Title || 'Role'),
           ProjectID: Number(projectId),
           OpenDate:  isoDate(_lciOpenDateForHire(model, mi)),
+          // Pin the OpenDate → Target Hire derivation against any future
+          // change to the default (N-077).
+          RecruitmentWeeks: CONFIG.COE_PHASE_DEFAULTS.recruitmentWeeks,
+          // Always written, including explicit 0 — blank would wrongly
+          // fall back to the plan's 4-week default (computePlanSpans).
+          NoticeWeeks: _lciNoticeWeeksFor(model, r),
           SortOrder: sort++,
-          // TalentPartner + phase-week overrides left blank → plan defaults
+          // TalentPartner + OnboardingWeeks left blank → plan defaults
         });
       }
     }
@@ -95,7 +116,7 @@ async function openLCILinkModal(modelId) {
             </div>
             <p style="font-size:12px;color:#888">
               ${alreadyLinked ? `Currently linked to <strong>${escHtml(alreadyLinked.CustomerName || alreadyLinked.Title)}</strong>. ` : ''}
-              Generating creates one hiring-plan row per hire. Phase lengths use plan defaults (recruitment/notice/onboarding), not the model's notice period.
+              Generating creates one hiring-plan row per hire, with the hire landing in the last week of its target month. Recruitment &amp; onboarding use plan defaults; notice comes from the model (incl. per-role overrides).
             </p>
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">
               <button class="btn-secondary" onclick="closeLCILink()">Cancel</button>

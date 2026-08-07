@@ -28,7 +28,7 @@ function renderProjectForm(existingData = null) {
         <div class="form-group">
           <label>Customer Name *</label>
           <input type="text" name="CustomerName" required
-            value="${existingData?.CustomerName || ''}">
+            value="${escAttr(existingData?.CustomerName || '')}">
         </div>
         <div class="form-group">
           <label>Delivery Manager</label>
@@ -55,17 +55,17 @@ function renderProjectForm(existingData = null) {
           <div class="form-group">
             <label>Start Date</label>
             <input type="date" name="StartDate"
-              value="${existingData?.StartDate ? existingData.StartDate.split('T')[0] : ''}">
+              value="${escAttr(existingData?.StartDate ? existingData.StartDate.split('T')[0] : '')}">
           </div>
           <div class="form-group">
             <label>End Date</label>
             <input type="date" name="EndDate"
-              value="${existingData?.EndDate ? existingData.EndDate.split('T')[0] : ''}">
+              value="${escAttr(existingData?.EndDate ? existingData.EndDate.split('T')[0] : '')}">
           </div>
         </div>
         <div class="form-group">
           <label>Notes</label>
-          <textarea name="Notes" rows="3">${existingData?.Notes || ''}</textarea>
+          <textarea name="Notes" rows="3">${escHtml(existingData?.Notes || '')}</textarea>
         </div>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${isEdit ? 'Save Changes' : 'Add Project'}</button>
@@ -117,7 +117,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
   const projectOptions = projects.map(p =>
     `<option value="${p.id}" ${
       (existingData?.ProjectID == p.id || preselectedProjectId == p.id || lockProject) ? 'selected' : ''
-    }>${p.CustomerName}</option>`
+    }>${escHtml(p.CustomerName)}</option>`
   ).join('');
   // Pre-load function areas (global — not scoped to project)
   let departmentOptions = '<option value="">-- Select functional area --</option>';
@@ -125,7 +125,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
     const depts = (await getDepartments()).sort((a, b) => a.DepartmentName.localeCompare(b.DepartmentName));
     departmentOptions = '<option value="">-- Select functional area --</option>' +
       depts.map(d =>
-        `<option value="${d.DepartmentName}" ${existingData?.Department === d.DepartmentName ? 'selected' : ''}>${d.DepartmentName}</option>`
+        `<option value="${escAttr(d.DepartmentName)}" ${existingData?.Department === d.DepartmentName ? 'selected' : ''}>${escHtml(d.DepartmentName)}</option>`
       ).join('');
   } catch (e) { /* fall back to empty */ }
 
@@ -137,7 +137,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
         <div class="form-group">
           <label>Project *</label>
           ${lockProject ? `
-          <input type="text" value="${projects[0].CustomerName}" disabled style="background:#f5f5f5;color:#666;">
+          <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:#f5f5f5;color:#666;">
           <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
           <select name="ProjectID" required onchange="${canAssign ? 'loadTalentPartnersForRole(this.value)' : ''}">
             <option value="">-- Select project --</option>
@@ -150,29 +150,29 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
           <div id="role-tp-select" style="border:1px solid #ccc;border-radius:4px;padding:8px;max-height:170px;overflow-y:auto;background:#fff;">
             <span style="color:#888;">-- Select project first --</span>
           </div>
-        </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.email}">`}
+        </div>` : `<input type="hidden" name="TalentPartnerName" value="${escAttr(currentUser.email)}">`}
         <div class="form-group">
           <label>Role Title *</label>
           <input type="text" name="RoleTitle" required
-            value="${existingData?.RoleTitle || ''}">
+            value="${escAttr(existingData?.RoleTitle || '')}">
         </div>
         <div class="form-group">
           <label>Hiring Manager</label>
           <input type="text" name="HiringManager"
-            value="${existingData?.HiringManager || ''}">
+            value="${escAttr(existingData?.HiringManager || '')}">
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Budget</label>
             <input type="text" name="Budget"
-              value="${existingData?.Budget || ''}">
+              value="${escAttr(existingData?.Budget || '')}">
           </div>
           <div class="form-group">
             <label>Location *</label>
             <select name="Location" id="role-location-select" onchange="updateCurrencyFromLocation(this.value)" required>
               <option value="">-- Select location --</option>
               ${Object.keys(CONFIG.COUNTRY_CURRENCY).sort().map(country =>
-                `<option value="${country}" ${existingData?.Location === country ? 'selected' : ''}>${country}</option>`
+                `<option value="${escAttr(country)}" ${existingData?.Location === country ? 'selected' : ''}>${escHtml(country)}</option>`
               ).join('')}
             </select>
           </div>
@@ -180,7 +180,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             <label>Currency</label>
             <input type="text" id="role-currency-display" name="Currency" readonly
               style="background:#f5f5f5;color:#666;"
-              value="${existingData?.Location ? (CONFIG.COUNTRY_CURRENCY[existingData.Location] || '') : ''}"
+              value="${escAttr(existingData?.Location ? (CONFIG.COUNTRY_CURRENCY[existingData.Location] || '') : '')}"
               placeholder="Auto-filled from location">
           </div>
         </div>
@@ -231,17 +231,17 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             <label>Open Date</label>
             <input type="date" name="OpenDate" id="role-open-date"
               onchange="autoFillTargetDate()"
-              value="${existingData?.OpenDate ? existingData.OpenDate.split('T')[0] : ''}">
+              value="${escAttr(existingData?.OpenDate ? existingData.OpenDate.split('T')[0] : '')}">
           </div>
           <div class="form-group">
             <label>Target Hire Date (auto: Open + 45d)</label>
             <input type="date" name="TargetHireDate" id="role-target-date"
-              value="${existingData?.TargetHireDate ? existingData.TargetHireDate.split('T')[0] : ''}">
+              value="${escAttr(existingData?.TargetHireDate ? existingData.TargetHireDate.split('T')[0] : '')}">
           </div>
         </div>
         <div class="form-group">
           <label>Notes</label>
-          <textarea name="Notes" rows="3">${existingData?.Notes || ''}</textarea>
+          <textarea name="Notes" rows="3">${escHtml(existingData?.Notes || '')}</textarea>
         </div>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${isEdit ? 'Save Changes' : 'Add Role'}</button>
@@ -272,9 +272,9 @@ async function loadDeliveryManagersForProject(selectedEmail) {
     const users = await getAllAssignableUsers();
     const sel = (selectedEmail || '').toLowerCase();
     select.innerHTML = '<option value="">-- Unassigned --</option>' +
-      users.map(u => `<option value="${u.UserEmail}" ${
+      users.map(u => `<option value="${escAttr(u.UserEmail)}" ${
         u.UserEmail?.toLowerCase() === sel ? 'selected' : ''
-      }>${u.UserName || u.UserEmail}</option>`).join('');
+      }>${escHtml(u.UserName || u.UserEmail)}</option>`).join('');
   } catch (e) {
     select.innerHTML = '<option value="">-- Error loading team --</option>';
   }
@@ -295,9 +295,9 @@ async function loadTalentPartnersForRole(projectId, selected = '') {
     const checked = e => pre.length ? pre.includes(e) : e === mine;
     box.innerHTML = tps.map(u => `
       <label style="display:block;font-weight:normal;margin:3px 0;cursor:pointer;">
-        <input type="checkbox" name="TalentPartnerName" value="${u.UserEmail}"
+        <input type="checkbox" name="TalentPartnerName" value="${escAttr(u.UserEmail)}"
           ${checked((u.UserEmail || '').toLowerCase()) ? 'checked' : ''}>
-        ${u.UserName || u.UserEmail}
+        ${escHtml(u.UserName || u.UserEmail)}
       </label>`).join('') || '<span style="color:#888;">-- No team members --</span>';
   } catch(e) {
     box.innerHTML = '<span style="color:#c00;">-- Error loading team --</span>';
@@ -360,7 +360,7 @@ async function renderWeeklyActivityForm(existingData = null) {
   const lockProject = isTalentPartner && projects.length === 1;
   const projectOptions = [...projects].sort((a, b) =>
    a.CustomerName.localeCompare(b.CustomerName)).map(p =>
-    `<option value="${p.id}" ${(existingProjectId == p.id || lockProject) ? 'selected' : ''}>${p.CustomerName}</option>`
+    `<option value="${p.id}" ${(existingProjectId == p.id || lockProject) ? 'selected' : ''}>${escHtml(p.CustomerName)}</option>`
   ).join('');
   const today = new Date().toISOString().split('T')[0];
   const defaultWeek = existingData?.WeekNumber || getISOWeek(today);
@@ -373,7 +373,7 @@ async function renderWeeklyActivityForm(existingData = null) {
         .filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage))
         .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
        preloadedRoleOptions = roles.map(r =>
-        `<option value="${r.id}" ${existingRoleId == r.id ? 'selected' : ''}>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`
+        `<option value="${r.id}" ${existingRoleId == r.id ? 'selected' : ''}>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</option>`
        ).join('');
     } catch (e) { /* fall back to empty */ }
   }
@@ -393,7 +393,7 @@ async function renderWeeklyActivityForm(existingData = null) {
           <div class="form-group">
             <label>Project *</label>
             ${lockProject ? `
-            <input type="text" value="${projects[0].CustomerName}" disabled style="background:#f5f5f5;color:#666;">
+            <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:#f5f5f5;color:#666;">
             <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
             <select name="ProjectID" required onchange="loadRolesForWeekly(this.value)${canLogOnBehalf ? ';loadTalentPartnersForWeekly(this.value)' : ''}">
               <option value="">-- Select project --</option>
@@ -403,7 +403,7 @@ async function renderWeeklyActivityForm(existingData = null) {
           <div class="form-group">
             <label>Role *</label>
             <select name="RoleID" id="weekly-role-select" required
-              ${isTalentPartner ? `data-tp-email="${email}"` : ''}>
+              ${isTalentPartner ? `data-tp-email="${escAttr(email)}"` : ''}>
               ${lockProject && preloadedRoleOptions
                 ? preloadedRoleOptions
                 : '<option value="">-- Select project first --</option>'}
@@ -416,12 +416,12 @@ async function renderWeeklyActivityForm(existingData = null) {
           <select name="TalentPartnerName" id="weekly-tp-select" required>
             <option value="">-- Select project first --</option>
           </select>
-        </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.email}">`}
+        </div>` : `<input type="hidden" name="TalentPartnerName" value="${escAttr(currentUser.email)}">`}
         <div class="form-group">
           <label>Week Ending Date *</label>
           <input type="date" name="WeekEndingDate" required
             onchange="autoFillWeekYear(this.value)"
-            value="${existingData?.WeekEndingDate ? existingData.WeekEndingDate.split('T')[0] : getWeekEnding(today)}">
+            value="${existingData?.WeekEndingDate ? escAttr(existingData.WeekEndingDate.split('T')[0]) : getWeekEnding(today)}">
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -477,7 +477,7 @@ async function loadRolesForWeekly(projectId, selectedRoleId = null) {
     .filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage))
     .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
   select.innerHTML = roles.length
-    ? '<option value="">-- Select role --</option>' + roles.map(r => `<option value="${r.id}" ${selectedRoleId == r.id ? 'selected' : ''}>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`).join('')
+    ? '<option value="">-- Select role --</option>' + roles.map(r => `<option value="${r.id}" ${selectedRoleId == r.id ? 'selected' : ''}>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</option>`).join('')
     : '<option value="">-- No roles assigned --</option>';
 }
 async function loadTalentPartnersForWeekly(projectId, selectedEmail = null) {
@@ -492,7 +492,7 @@ async function loadTalentPartnersForWeekly(projectId, selectedEmail = null) {
     const tps = await getTalentPartnersForProject(projectId, selectedEmail);
     const targetEmail = (selectedEmail || getCurrentUser().email).toLowerCase();
     select.innerHTML = '<option value="">-- Select team member --</option>' +
-      tps.map(u => `<option value="${u.UserEmail}" ${u.UserEmail?.toLowerCase() === targetEmail ? 'selected' : ''}>${u.UserName || u.UserEmail}</option>`).join('');
+      tps.map(u => `<option value="${escAttr(u.UserEmail)}" ${u.UserEmail?.toLowerCase() === targetEmail ? 'selected' : ''}>${escHtml(u.UserName || u.UserEmail)}</option>`).join('');
   } catch(e) {
     select.innerHTML = '<option value="">-- Error loading team --</option>';
   }
@@ -557,7 +557,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
   const projectOptions = [...projects].sort((a, b) => a.CustomerName.localeCompare(b.CustomerName)).map(p =>
-  `<option value="${p.id}" ${(existingData?.ProjectID == p.id || lockProject || preselectedProjectId == p.id) ? 'selected' : ''}>${p.CustomerName}</option>`
+  `<option value="${p.id}" ${(existingData?.ProjectID == p.id || lockProject || preselectedProjectId == p.id) ? 'selected' : ''}>${escHtml(p.CustomerName)}</option>`
 ).join('');
   // If single project, pre-load TP's own roles immediately
   let preloadedPlacementRoleOptions = '';
@@ -567,7 +567,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
     .filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage))
     .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
   preloadedPlacementRoleOptions = roles.map(r =>
-    `<option value="${r.id}" ${(existingData?.RoleID == r.id || preselectedRoleId == r.id) ? 'selected' : ''}>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`
+    `<option value="${r.id}" ${(existingData?.RoleID == r.id || preselectedRoleId == r.id) ? 'selected' : ''}>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</option>`
   ).join('');
     } catch (e) { /* fall back to empty */ }
   }
@@ -595,7 +595,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
           <div class="form-group">
             <label>Project *</label>
             ${lockProject ? `
-            <input type="text" value="${projects[0].CustomerName}" disabled style="background:#f5f5f5;color:#666;">
+            <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:#f5f5f5;color:#666;">
             <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
             <select name="ProjectID" required onchange="loadRolesForPlacement(this.value)${canLogOnBehalf ? ';loadTalentPartnersForPlacement(this.value)' : ''}">
               <option value="">-- Select project --</option>
@@ -605,7 +605,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
           <div class="form-group">
             <label>Role *</label>
             <select name="RoleID" id="placement-role-select" required onchange="loadCurrencyForPlacement(this.value)"
-              ${isTalentPartner ? `data-tp-email="${email}"` : ''}>
+              ${isTalentPartner ? `data-tp-email="${escAttr(email)}"` : ''}>
               ${lockProject && preloadedPlacementRoleOptions
                 ? preloadedPlacementRoleOptions
                 : '<option value="">-- Select project first --</option>'}
@@ -618,23 +618,23 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
           <select name="TalentPartnerName" id="placement-tp-select" required>
             <option value="">-- Select project first --</option>
           </select>
-        </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.email}">`}
+        </div>` : `<input type="hidden" name="TalentPartnerName" value="${escAttr(currentUser.email)}">`}
         <div class="form-group">
           <label>Candidate Name *</label>
           <input type="text" name="CandidateName" required
-            value="${existingData?.CandidateName || ''}">
+            value="${escAttr(existingData?.CandidateName || '')}">
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Salary Agreed</label>
             <input type="text" name="SalaryAgreed"
-              value="${existingData?.SalaryAgreed || ''}">
+              value="${escAttr(existingData?.SalaryAgreed || '')}">
           </div>
           <div class="form-group">
             <label>Currency</label>
             <input type="text" id="placement-currency" name="Currency" readonly
               style="background:#f5f5f5;color:#666;"
-              value="${inheritedCurrency}"
+              value="${escAttr(inheritedCurrency)}"
               placeholder="Auto-filled from role">
           </div>
         </div>
@@ -642,17 +642,17 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
           <div class="form-group">
             <label>Offer Accepted Date</label>
             <input type="date" name="OfferAcceptedDate"
-              value="${existingData?.OfferAcceptedDate ? existingData.OfferAcceptedDate.split('T')[0] : ''}">
+              value="${escAttr(existingData?.OfferAcceptedDate ? existingData.OfferAcceptedDate.split('T')[0] : '')}">
           </div>
           <div class="form-group">
             <label>Provisional Start Date</label>
             <input type="date" name="ProvisionalStartDate"
-              value="${existingData?.ProvisionalStartDate ? existingData.ProvisionalStartDate.split('T')[0] : ''}">
+              value="${escAttr(existingData?.ProvisionalStartDate ? existingData.ProvisionalStartDate.split('T')[0] : '')}">
           </div>
         </div>
         <div class="form-group">
           <label>Notes</label>
-          <textarea name="Notes" rows="3">${existingData?.Notes || ''}</textarea>
+          <textarea name="Notes" rows="3">${escHtml(existingData?.Notes || '')}</textarea>
         </div>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${isEdit ? 'Save Changes' : 'Record Placement'}</button>
@@ -671,7 +671,7 @@ async function loadRolesForPlacement(projectId) {
     .filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage))
     .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
   select.innerHTML = roles.length
-    ? '<option value="">-- Select role --</option>' + roles.map(r => `<option value="${r.id}">${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`).join('')
+    ? '<option value="">-- Select role --</option>' + roles.map(r => `<option value="${r.id}">${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</option>`).join('')
     : '<option value="">-- No roles assigned --</option>';
   
   // Clear currency when project changes
@@ -697,7 +697,7 @@ async function loadTalentPartnersForPlacement(projectId) {
     const tps = await getTalentPartnersForProject(projectId);
     const currentEmail = getCurrentUser().email.toLowerCase();
     select.innerHTML = '<option value="">-- Select team member --</option>' +
-      tps.map(u => `<option value="${u.UserEmail}" ${u.UserEmail?.toLowerCase() === currentEmail ? 'selected' : ''}>${u.UserName || u.UserEmail}</option>`).join('');
+      tps.map(u => `<option value="${escAttr(u.UserEmail)}" ${u.UserEmail?.toLowerCase() === currentEmail ? 'selected' : ''}>${escHtml(u.UserName || u.UserEmail)}</option>`).join('');
   } catch(e) {
     select.innerHTML = '<option value="">-- Error loading team --</option>';
   }
@@ -831,7 +831,7 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
   const roleOptions = roles.map(r =>
     `<option value="${r.id}" ${
       (existingData?.RoleID == r.id || preselectedRoleId == r.id) ? 'selected' : ''
-    }>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`
+    }>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</option>`
   ).join('');
   return `
     <div class="form-container">
@@ -848,13 +848,13 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
         <div class="form-group">
           <label>Candidate Name *</label>
           <input type="text" name="CandidateName" required
-            value="${existingData?.CandidateName || ''}">
+            value="${escAttr(existingData?.CandidateName || '')}">
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Salary Offered</label>
             <input type="text" name="SalaryOffered"
-              value="${existingData?.SalaryOffered || ''}">
+              value="${escAttr(existingData?.SalaryOffered || '')}">
           </div>
           <div class="form-group">
             <label>Rejection Reason *</label>
@@ -868,7 +868,7 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
         </div>
         <div class="form-group">
           <label>Notes</label>
-          <textarea name="Notes" rows="3">${existingData?.Notes || ''}</textarea>
+          <textarea name="Notes" rows="3">${escHtml(existingData?.Notes || '')}</textarea>
         </div>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${isEdit ? 'Save Changes' : 'Log Rejection'}</button>

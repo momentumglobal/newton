@@ -72,7 +72,7 @@ async function mobileGetRoles() {
   let allRoles = await getAllRoles();
 
   // Filter to accessible projects
-  allRoles = allRoles.filter(r => projectIds.has(String(r.ProjectID)));
+  allRoles = allRoles.filter(r => projectIds.has(String(r.ProjectIDLookupId || r.ProjectID)));
 
   // TP: scoped to their own roles only
   if (!isDM) {

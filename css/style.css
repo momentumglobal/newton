@@ -1748,7 +1748,7 @@ body {
 
 /* ── CoE Hiring Plan ─────────────────────────────────────────────── */
 .coe-toolbar { display:flex; gap:12px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
-.coe-gantt-wrap { overflow-x:auto; border:1px solid #E0E0E0; border-radius:6px; }
+.coe-gantt-wrap { overflow:auto; max-height:65vh; border:1px solid #E0E0E0; border-radius:6px; }
 .coe-gantt { border-collapse:collapse; font-size:12px; }
 .coe-gantt th, .coe-gantt td { border:1px solid #EDEDED; padding:2px 6px; text-align:center; white-space:nowrap; }
 .coe-gantt th.coe-month { background:#F5F5F5; font-weight:600; }
@@ -1782,7 +1782,7 @@ body {
 /* ── CoE Hiring Plan — print/PDF ───────────────────────────────────── */
 @media print {
   .coe-toolbar, .coe-col-actions, #coe-modal-host { display: none !important; }
-  .coe-gantt-wrap { overflow: visible !important; border: none; }
+  .coe-gantt-wrap { overflow: visible !important; max-height: none !important; border: none; }
   /* Page 1 = Gantt, page 2 = forecast table */
   .coe-fvp-header { break-before: page; page-break-before: always; margin-top: 0 !important; }
   /* Grid can breathe now it has the page to itself */

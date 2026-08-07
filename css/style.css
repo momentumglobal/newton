@@ -1757,6 +1757,8 @@ body {
 .coe-gantt .coe-sticky--2 { left:160px; min-width:80px; }
 .coe-gantt .coe-sticky--3 { left:240px; min-width:90px; }
 .coe-gantt .coe-sticky--4 { left:330px; min-width:90px; box-shadow:2px 0 3px rgba(0,0,0,0.06); }
+.coe-gantt thead { position:sticky; top:0; z-index:3; }
+.coe-gantt thead th, .coe-gantt thead td { background:#fff; }
 .coe-cell { min-width:26px; height:22px; }
 .coe-cell--R { background:#BDE3F5; }
 .coe-cell--N { background:#F5CCE8; }
@@ -1783,6 +1785,7 @@ body {
 @media print {
   .coe-toolbar, .coe-col-actions, #coe-modal-host { display: none !important; }
   .coe-gantt-wrap { overflow: visible !important; max-height: none !important; border: none; }
+  .coe-gantt thead { position: static !important; }
   /* Page 1 = Gantt, page 2 = forecast table */
   .coe-fvp-header { break-before: page; page-break-before: always; margin-top: 0 !important; }
   /* Grid can breathe now it has the page to itself */

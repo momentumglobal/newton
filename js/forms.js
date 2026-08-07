@@ -8,11 +8,6 @@ function clearFormError(formId) {
   const el = document.getElementById(`${formId}-error`);
   if (el) { el.textContent = ''; el.style.display = 'none'; }
 }
-function isoDate(dateStr) {
-  if (!dateStr) return null;
-  const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
-  return match ? match[1] + 'T12:00:00Z' : null;
-}
 function addDays(dateStr, days) {
   const [y, m, d] = dateStr.split('-').map(Number);
   const date = new Date(y, m - 1, d + days);
@@ -351,20 +346,6 @@ async function submitRoleForm(event, editId = null) {
   }
 }
 // ── Weekly Activity Form ────────────────────────────────────────────
-function getISOWeek(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-  const yearStart = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-}
-function getWeekEnding(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? 0 : 7 - day;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().split('T')[0];
-}
 async function renderWeeklyActivityForm(existingData = null) {
   const isEdit = !!existingData;
   // SharePoint returns lookup columns as *LookupId; fall back so edits preselect correctly

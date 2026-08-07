@@ -198,6 +198,7 @@ const CONFIG = {
     recruitmentWeeks: 7,   // R — Open Date → offer accepted
     noticeWeeks:      4,   // N — offer accepted → start
     onboardingWeeks:  6,   // O — start → fully onboarded
+    weeksPerNoticeMonth: 4, // months→weeks for LCI notice carried into the plan (N-077)
   },
   
   // Single source of truth for the module switcher dropdown.

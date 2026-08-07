@@ -122,10 +122,13 @@ function listPath(listName) {
  
 // ── Read ─────────────────────────────────────────────────────────────
 // `select`, if passed, is a comma-separated string of internal SharePoint
-// field names (already the shape the two existing analytics callers use).
-// If omitted, resolves from CONFIG.LIST_FIELDS[listName] when present and
-// non-empty; otherwise falls back to '*' (today's behaviour, unchanged for
-// every list not yet in the manifest).
+// field names. No caller passes it yet — CONFIG.LIST_FIELDS is empty and
+// every existing call site is intentionally left on '*' (see N-050 QA:
+// two callers already carried an unaudited third argument here that broke
+// People Scorecards when activated; that argument is now dropped at the
+// call sites below, pending the full field audit in N-052/N-053).
+// If select is omitted, resolves from CONFIG.LIST_FIELDS[listName] when
+// present and non-empty; otherwise falls back to '*' (today's behaviour).
 async function getItems(listName, filter = "", select = null) {
   let selectStr = select;
   if (!selectStr) {
@@ -196,9 +199,12 @@ async function getAllRoles() {
 async function getHistoricalPlacements() {
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
+  // No select passed — the field list this used to carry was incomplete
+  // (missing TalentPartner, silently breaking tpEmail below once select
+  // support went live; see N-050 QA). Stays on '*' until N-052 audits and
+  // re-adds a correct list.
   const roles = await getItems('Roles',
-    `fields/Stage eq 'Hired' and fields/ActualHireDate ge '${cutoff.toISOString().split('T')[0]}'`,
-    'Id,Title,Department,Currency,OpenDate,ActualHireDate'
+    `fields/Stage eq 'Hired' and fields/ActualHireDate ge '${cutoff.toISOString().split('T')[0]}'`
   );
   return roles.map(r => ({
     id:            r.id,
@@ -215,9 +221,12 @@ async function getActivityForAnalytics(weeksBack) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - (weeksBack * 7));
   const isoDate = cutoff.toISOString().split('T')[0];
+  // No select passed — the field list this used to carry was incomplete
+  // (missing TalentPartner, silently breaking People Scorecards once select
+  // support went live; see N-050 QA). Stays on '*' until N-052 audits and
+  // re-adds a correct list.
   const activity = await getItems('WeeklyActivity',
-    `fields/WeekEndingDate ge '${isoDate}'`,
-    'Id,RoleID,WeekEndingDate,Outreach,Responses,Screened,Submitted,Interview1,Interview2Plus,FinalInterview,Offers,Hires'
+    `fields/WeekEndingDate ge '${isoDate}'`
   );
   return activity;
 }

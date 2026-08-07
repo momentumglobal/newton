@@ -17,6 +17,132 @@
   font-style: normal;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  /* ── Design tokens (N-067) — definitions only; single source of truth for X-1 ── */
+  /* Colour — brand & blues */
+  --c-brand: #0A0B44;
+  --c-brand-2: #0f1160;
+  --c-navy-slate: #1F3864;
+  --c-navy-steel: #1B3A5C;
+  --c-blue: #2E5FA3;
+  --c-blue-mid: #37589C;
+  --c-ink: #1a1a2e;
+  --c-accent: #E8703A;
+  /* Colour — neutral ramp */
+  --c-black: #000;
+  --c-gray-900: #1A1A1A;
+  --c-gray-800: #333;
+  --c-gray-750: #444;
+  --c-gray-700: #555;
+  --c-gray-650: #595959;
+  --c-gray-600: #666;
+  --c-gray-550: #777;
+  --c-gray-500: #888;
+  --c-gray-450: #999;
+  --c-gray-400: #aaa;
+  --c-gray-350: #BBBBBB;
+  --c-gray-300: #ccc;
+  --c-gray-250: #D0D0D0;
+  --c-gray-200: #ddd;
+  --c-gray-150: #e0e0e0;
+  --c-gray-100: #eee;
+  --c-gray-075: #f0f0f0;
+  --c-gray-050: #F5F5F5;
+  --c-gray-025: #f9f9f9;
+  --c-white: #fff;
+  /* Colour — semantic */
+  --c-success: #2E7D32;
+  --c-success-bg: #E8F5E9;
+  --c-success-alt: #27ae60;
+  --c-danger: #C62828;
+  --c-danger-alt: #c0392b;
+  --c-danger-bg: #FFEBEE;
+  --c-danger-bg-soft: #fde8e8;
+  --c-warn: #F57F17;
+  --c-warn-deep: #e65100;
+  --c-warn-text: #b45309;
+  --c-warn-bg: #FFF8E1;
+  --c-warn-bg-soft: #fff3e0;
+  --c-bluegrey: #546E7A;
+  --c-bluegrey-bg: #cfd8dc;
+  /* Colour — surfaces & tints */
+  --c-surface: #F5F4F1;
+  --c-surface-blue: #f4f6fb;
+  --c-surface-border: #dde3f0;
+  --c-surface-lav: #F9F9FF;
+  --c-gray-mid: #ececec;
+  /* Colour — white-alpha ramp */
+  --c-wa-08: rgba(255,255,255,0.08);
+  --c-wa-10: rgba(255,255,255,0.1);
+  --c-wa-12: rgba(255,255,255,0.12);
+  --c-wa-15: rgba(255,255,255,0.15);
+  --c-wa-30: rgba(255,255,255,0.3);
+  --c-wa-35: rgba(255,255,255,0.35);
+  --c-wa-40: rgba(255,255,255,0.4);
+  --c-wa-45: rgba(255,255,255,0.45);
+  --c-wa-50: rgba(255,255,255,0.5);
+  --c-wa-55: rgba(255,255,255,0.55);
+  --c-wa-60: rgba(255,255,255,0.6);
+  --c-wa-70: rgba(255,255,255,0.7);
+  --c-wa-75: rgba(255,255,255,0.75);
+  --c-wa-80: rgba(255,255,255,0.8);
+  --c-wa-85: rgba(255,255,255,0.85);
+  /* Spacing scale */
+  --sp-1: 2px;
+  --sp-2: 4px;
+  --sp-3: 6px;
+  --sp-4: 8px;
+  --sp-5: 10px;
+  --sp-6: 12px;
+  --sp-7: 16px;
+  --sp-8: 20px;
+  --sp-9: 24px;
+  --sp-10: 32px;
+  --sp-11: 40px;
+  --sp-12: 48px;
+  /* Radius scale */
+  --r-xs: 2px;
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-xl: 10px;
+  --r-2xl: 12px;
+  --r-3xl: 14px;
+  --r-pill: 20px;
+  --r-round: 50%;
+  /* Type scale */
+  --fs-10: 10px;
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --fs-16: 16px;
+  --fs-18: 18px;
+  --fs-20: 20px;
+  --fs-22: 22px;
+  --fs-26: 26px;
+  --fs-32: 32px;
+  --fs-40: 40px;
+  /* Font weights */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  /* Shadows */
+  --sh-1: 0 1px 4px rgba(10,11,68,0.06);
+  --sh-2: 0 2px 8px rgba(10,11,68,0.18);
+  --sh-3: 0 4px 16px rgba(10,11,68,0.10);
+  --sh-4: 0 4px 24px rgba(10,11,68,0.10);
+  --sh-modal: 0 8px 32px rgba(0,0,0,0.18);
+  --sh-drawer: -8px 0 32px rgba(0,0,0,0.4);
+  --sh-focus: 0 0 0 3px rgba(10,11,68,0.08);
+  /* Transition durations */
+  --dur-fast: 120ms;
+  --dur-base: 150ms;
+  --dur-slow: 300ms;
+  --dur-slower: 350ms;
+}
 body {
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
   background: #F5F4F1;

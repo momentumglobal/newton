@@ -292,6 +292,27 @@ function escHtmlLines(str) {
   return escHtml(str).replace(/\r?\n/g, '<br>');
 }
 
+// Escape for safe interpolation into a double-quoted HTML attribute.
+// Example: value="${escAttr(title)}" where title may contain "
+function escAttr(str) {
+  return String(str ?? '').replace(/[&<>"]/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'
+  })[c]);
+}
+
+// Escape for safe interpolation into a JavaScript string inside an HTML attribute.
+// Example: onclick="func('${escJsAttr(title)}')" where title may contain ' or \
+// Escape backslash first, then apostrophe in JS-safe way, then HTML entities.
+function escJsAttr(str) {
+  return String(str ?? '')
+    .replace(/\\/g, '\\\\')      // backslash to \\
+    .replace(/'/g, "\\'")        // apostrophe to \'
+    .replace(/&/g, '&amp;')      // ampersand (HTML)
+    .replace(/"/g, '&quot;')     // quote (HTML attribute)
+    .replace(/</g, '&lt;')       // less-than (defensive)
+    .replace(/>/g, '&gt;');      // greater-than (defensive)
+}
+
 // First non-empty line of a multi-line string. Returns '' for empty input.
 function firstLine(str) {
   const lines = String(str ?? '').split(/\r?\n/).map(l => l.trim());

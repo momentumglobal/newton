@@ -34,6 +34,17 @@ const CONFIG = {
   // Hardcoded admin users — full access, never overridden by SharePoint data
   ADMIN_USERS:  ["admin@momentumglobal.co", "chris.friend@momentumglobal.co", "aliyah@momentumglobal.co", "jon.stanners@momentumglobal.co"],
 
+  // Field projection manifest (F-1). Per-list array of INTERNAL SharePoint
+  // column names to request via Graph $select — NOT the aliased names
+  // normaliseFields()/FIELD_ALIASES produce. 'Id' is implied automatically
+  // by getItems() if omitted; no need to list it here.
+  // Empty by design: any list absent from this map (i.e. every list today)
+  // falls back to fields($select=*), so adding this manifest changes
+  // nothing on its own. Populated list-by-list in N-052/N-053 — don't add
+  // entries here without doing that task's full field-usage audit first,
+  // since an omitted field returns undefined silently rather than erroring.
+  LIST_FIELDS: {},
+
   // Maps hire location (country) to ISO currency code.
   // Used to auto-derive currency when a role is created/edited,
   // and when a placement is recorded against a role.

@@ -561,7 +561,10 @@
         <tr><td><span class="file-tag">js/app.js</span></td><td>Module init — MSAL redirect handler, role resolution, first navigation</td></tr>
         <tr><td><span class="file-tag">js/pages.js</span></td><td>Page content renderers: Projects, Roles (with Location column), Activity, Placements, Rejections</td></tr>
         <tr><td><span class="file-tag">js/forms.js</span></td><td>Form renderers and submission logic for Reporting data entry</td></tr>
-        <tr><td><span class="file-tag">js/dashboard.js</span></td><td>Project Dashboard (incl. Role Analytics panel), Company Dashboard, REPORT_PANELS registry</td></tr>
+        <tr><td><span class="file-tag">js/dashboard-core.js</span></td><td>Shared Dashboard state, helpers, KPI maths</td></tr>
+        <tr><td><span class="file-tag">js/dashboard-project-panels.js</span></td><td>Project Dashboard panel renderers (incl. Role Analytics panel), REPORT_PANELS registry</td></tr>
+        <tr><td><span class="file-tag">js/dashboard-project.js</span></td><td>Project Dashboard entry/orchestration</td></tr>
+        <tr><td><span class="file-tag">js/dashboard-company.js</span></td><td>Company Dashboard</td></tr>
         <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions — computeTTFPrediction(), computeRoleFunnel(), computeVelocityScore(), isRoleFlagged(), ACTIVE_STAGES, STAGE_ORDER. Loaded by reporting.html, people.html, market-reporting.html, and command-centre.html.</td></tr>
         <tr><td><span class="file-tag">js/report-builder.js</span></td><td>Report Builder — block canvas, save/load, PDF export</td></tr>
         <tr><td><span class="file-tag">js/coe-plan.js</span></td><td>Hiring Plan (CoE projects) — Gantt builder, weekly capacity strip, forecast vs planned table, role linkage with actuals overlay</td></tr>
@@ -937,7 +940,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <li><strong>os-admin.js</strong> — Update role/access lists if the new module has different access requirements.</li>
       </ul>
 
-      <div class="callout green">The Report Builder's <code>REPORT_PANELS</code> registry in dashboard.js is the pattern for adding new report panel types — each panel is a function that takes data and a period and returns HTML.</div>
+      <div class="callout green">The Report Builder's <code>REPORT_PANELS</code> registry in dashboard-project-panels.js is the pattern for adding new report panel types — each panel is a function that takes data and a period and returns HTML.</div>
     </div>
 
     <!-- GHOST MODE -->

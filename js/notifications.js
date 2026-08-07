@@ -25,7 +25,8 @@ async function resolveRecipientEmail(value) {
 
 // --- fire (dedupe + one row per recipient) -------------------------
 async function fireNotification(opts) {
-  const { triggerType, triggerKey, tone, deepLink, body, recipients } = opts;
+  const { triggerType, triggerKey, tone, deepLink, body, recipients,
+          extraFields = {} } = opts;          // NEW: optional extra columns
   if (!recipients || !recipients.length) return;
   const existing = await getItems('Notifications',
     `fields/TriggerKey eq '${triggerKey}' and fields/Status eq 'active'`);
@@ -39,6 +40,7 @@ async function fireNotification(opts) {
       Status: 'active', IsRead: false, Tone: tone,
       DeepLink: deepLink, Body: body,
       CreatedAt: new Date().toISOString(),
+      ...extraFields,                          // NEW: RoleTitle, TeamCredit, etc.
     });
   }
 }
@@ -77,14 +79,7 @@ function notifTimeAgo(iso) {
 
 const NOTIF_ICON = { attention: 'alert-triangle', celebrate: 'party-popper', milestone: 'flag' };
 
-// local HTML escape — so the module pages don't depend on index.html's _escHtml
-function notifEsc(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-// --- render the bell + drawer --------------------------------------
+// --- render the bell + drawer
 function paintBell(rows, unread) {
   const slot = document.getElementById('notif-slot');
   if (!slot) return;
@@ -96,7 +91,7 @@ function paintBell(rows, unread) {
         <i data-lucide="${NOTIF_ICON[n.Tone] || 'bell'}"></i>
       </div>
       <div class="notif-item-body">
-        <div class="notif-item-text">${notifEsc(n.Body)}</div>
+        <div class="notif-item-text">${escHtml(n.Body)}</div>
         <div class="notif-item-time">${notifTimeAgo(n.CreatedAt)}</div>
       </div>
       ${n.IsRead ? '' : `<button class="notif-item-tick" title="Mark read"

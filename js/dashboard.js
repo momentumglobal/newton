@@ -93,7 +93,7 @@ async function fetchDashboardData(projectId, role) {
   let roles = allRoles, acts = activity;
   if (isTP) {
     const userEmail = (getCurrentUser().email || '').toLowerCase();
-    roles = allRoles.filter(r => (r.TalentPartner || '').toLowerCase() === userEmail);
+    roles = allRoles.filter(r => tpMatches(r.TalentPartner, userEmail));
     acts  = activity.filter(a => (a.TalentPartner || '').toLowerCase() === userEmail);
   }
   const ids = new Set(roles.map(r => String(r.id)));
@@ -111,6 +111,12 @@ function avgDaysToHire(roles) {
   if (!hired.length) return null;
   return Math.round(hired.reduce((s, r) =>
     s + Math.floor((new Date(r.ActualHireDate) - new Date(r.OpenDate)) / 86400000), 0) / hired.length);
+}
+function avgDaysOpen(roles) {
+  const active = roles.filter(r =>
+    !['Backlog','Hired','Cancelled','On-hold'].includes(r.Stage) && r.OpenDate);
+  if (!active.length) return null;
+  return Math.round(active.reduce((s, r) => s + daysOpen(r.OpenDate), 0) / active.length);
 }
 function hiredOnTimePct(roles) {
   const hired = roles.filter(r => r.ActualHireDate && r.TargetHireDate);
@@ -147,6 +153,7 @@ function renderKPIStrip(roles, activity, period) {
   const openRoles    = roles.filter(r => !['Backlog','Hired','Cancelled','On-hold'].includes(r.Stage)).length;
   const totalHires   = sumField(activity, 'Hires');
   const backlogRoles = roles.filter(r => r.Stage === 'Backlog').length;
+  const avgOpenDays  = avgDaysOpen(roles);
   const acts      = activity.filter(a => activityInKpiPeriod(a, period));
   const submitted = sumField(acts, 'Submitted');
   const int1      = sumField(acts, 'Interview1');
@@ -188,8 +195,9 @@ function renderKPIStrip(roles, activity, period) {
   const convDisplay  = convPct  !== null ? convPct + '%'   : '—';
   const ivDisplay    = ivOfferR !== null ? ivOfferR + ':1' : '—';
   const offerDisplay = offerPct !== null ? offerPct + '%'  : '—';
-  const daysDisplay  = avgDays  !== null ? avgDays         : '—';
+    const daysDisplay  = avgDays  !== null ? avgDays         : '—';
   const otDisplay    = onTimePct !== null ? onTimePct + '%' : '—';
+  const avgOpenDaysDisplay = avgOpenDays !== null ? avgOpenDays : '—';
   const convDelta  = kpiDelta(convPct,  prevConvPct,  false, true);
   const ivDelta    = kpiDelta(ivOfferR, prevIvOfferR, true,  false);
   const offerDelta = kpiDelta(offerPct, prevOfferPct, false, true);
@@ -199,6 +207,7 @@ function renderKPIStrip(roles, activity, period) {
     <div class='kpi-strip'>
       ${kpiCard('Open Roles', openRoles, 'current')}
       ${kpiCard('Role Backlog', backlogRoles, 'current')}
+      ${kpiCard('Avg Days Open', avgOpenDaysDisplay, 'current')}
       ${kpiCard('Hires to Date', totalHires, 'all time')}
       ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,  `hired roles · ${periodLabel}`)}
     </div>
@@ -214,6 +223,8 @@ function renderPipelineActivityTable(acts, roles, period) {
   const filtered = acts.filter(a => activityInDetailPeriod(a, period));
   const FIELDS   = ['Outreach','Responses','Screened','Submitted','Interview1','Interview2Plus','FinalInterview','Offers','Hires'];
   const LABELS   = ['Outreach','Responses','Screened','Submitted','IV1','IV2+','Final IV','Offers','Hires'];
+  const periodLabel = (DETAIL_PERIOD_OPTIONS.find(([k]) => k === period) || [])[1];
+  const panelTitle  = periodLabel ? `Pipeline Activity (${periodLabel})` : 'Pipeline Activity';
   const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
   const byRole = {};
   filtered.forEach(a => {
@@ -223,7 +234,7 @@ function renderPipelineActivityTable(acts, roles, period) {
   });
   const rids = Object.keys(byRole).sort((a, b) => (roleMap[a] || '').localeCompare(roleMap[b] || ''));
   if (!rids.length) return `<div class='dash-panel'>
-    <h3 class='panel-title'>Pipeline Activity</h3>
+    <h3 class='panel-title'>${panelTitle}</h3>
     <p class='no-data'>No activity recorded for this period.</p>
   </div>`;
   const totals = FIELDS.map((_, i) => rids.reduce((s, r) => s + byRole[r][i], 0));
@@ -233,10 +244,101 @@ function renderPipelineActivityTable(acts, roles, period) {
   ).join('');
   const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${totals.map(v => `<td style="text-align:center"><strong>${v}</strong></td>`).join('')}</tr>`;
   return `<div class='dash-panel'>
-    <h3 class='panel-title'>Pipeline Activity</h3>
+    <h3 class='panel-title'>${panelTitle}</h3>
     <table class='data-table'><thead>${hdr}</thead><tbody>${rows}${totRow}</tbody></table>
   </div>`;
 }
+
+// ── Pipeline Summary (last 4 completed weeks, all roles) ──────────────
+// Report Builder module. Hardcoded to the last 4 completed calendar weeks,
+// most recent first. Week buckets run Mon–Sun (the activity form stores
+// WeekEndingDate as the Sunday) but are LABELLED Mon–Fri. Leading empty
+// weeks (project not yet live) are trimmed; interior/trailing empty weeks
+// render as a full '–' row.
+function renderPipelineSummaryPanel(activity) {
+  const FIELDS = ['Outreach','Responses','Screened','Submitted','Interview1','Interview2Plus','FinalInterview','Offers','Hires'];
+  const LABELS = ['Outreach','Responses','Screened','Submitted','IV1 Booked','IV2+ Booked','Final IV Booked','Offer Made','Hired'];
+
+  const now = new Date();
+  const dow = now.getDay() === 0 ? 6 : now.getDay() - 1;
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() - dow);
+  thisMonday.setHours(0, 0, 0, 0);
+
+  const weeks = [];
+  for (let i = 1; i <= 4; i++) {
+    const monday = new Date(thisMonday);
+    monday.setDate(thisMonday.getDate() - (7 * i));
+    const friday = new Date(monday);              // for the displayed label (Mon–Fri)
+    friday.setDate(monday.getDate() + 4);
+    friday.setHours(23, 59, 59, 999);
+    const weekEnd = new Date(monday);             // ← CHANGED: bucket boundary = Sunday,
+    weekEnd.setDate(monday.getDate() + 6);        //   matching how WeekEndingDate is stored
+    weekEnd.setHours(23, 59, 59, 999);
+    weeks.push({ monday, friday, weekEnd });
+  }
+
+  const dateOf = a => a.WeekEndingDate
+    ? new Date(a.WeekEndingDate)
+    : weekEndingDate(Number(a.Year), Number(a.WeekNumber));
+
+  const rows = weeks.map(w => {
+    const inWeek = activity.filter(a => {
+      const d = dateOf(a);
+      return d >= w.monday && d <= w.weekEnd;     // ← CHANGED: Sunday cutoff, not Friday
+    });
+    const totals = FIELDS.map(f => sumField(inWeek, f));
+    const hasData = inWeek.length > 0 && totals.some(v => v > 0);
+    return { ...w, totals, hasData };
+  });
+
+  let trimmed = [...rows];
+  while (trimmed.length && !trimmed[trimmed.length - 1].hasData) {
+    trimmed.pop();
+  }
+
+  if (!trimmed.length) return `<div class='dash-panel'>
+    <h3 class='panel-title'>Pipeline Summary (last 4 weeks)</h3>
+    <p class='no-data'>No pipeline activity recorded in the last 4 weeks.</p>
+  </div>`;
+
+  const ord = n => {
+    const s = ['th','st','nd','rd'], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const rangeLabel = (mon, fri) => {
+    const dM = ord(mon.getDate()), dF = ord(fri.getDate());
+    const mM = MONTHS[mon.getMonth()], mF = MONTHS[fri.getMonth()];
+    return mon.getMonth() === fri.getMonth()
+      ? `${dM} – ${dF} ${mF}`
+      : `${dM} ${mM} – ${dF} ${mF}`;
+  };
+
+  const colTotals = FIELDS.map((_, i) => trimmed.reduce((s, r) => s + r.totals[i], 0));
+
+  const hdr = `<tr><th>Week</th>${LABELS.map(l => `<th style="text-align:center">${l}</th>`).join('')}</tr>`;
+
+  const bodyRows = trimmed.map(r => {
+    const cells = r.totals.map(v => `<td style="text-align:center">${v > 0 ? v : '–'}</td>`).join('');
+    return `<tr><td>${rangeLabel(r.monday, r.friday)}</td>${cells}</tr>`;
+  }).join('');
+
+  const totalCells = colTotals.map((v, i) => {
+    if (i === 0) return `<td style="text-align:center"><strong>${v}</strong></td>`;
+    const prev = colTotals[i - 1];
+    const pct  = prev > 0 ? `<br>(${Math.round((v / prev) * 100)}%)` : '';
+    return `<td style="text-align:center"><strong>${v}</strong>${pct}</td>`;
+  }).join('');
+  const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${totalCells}</tr>`;
+
+  return `<div class='dash-panel'>
+    <h3 class='panel-title'>Pipeline Summary (last 4 weeks)</h3>
+    <table class='data-table'><thead>${hdr}</thead><tbody>${bodyRows}${totRow}</tbody></table>
+  </div>`;
+}
+
 // ── Activity by Talent Partner ────────────────────────────────────────
 function renderActivityByTPPanel(acts, period, tpMap = {}) {
   const f = acts.filter(a => activityInDetailPeriod(a, period));
@@ -401,7 +503,7 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
     const rowClass = days >= 45 ? 'row-age-critical' : 'row-age-warning';
     return `<tr class="${rowClass}">
      <td>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</td>
-     <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || '—'}</td>
+     <td>${tpDisplay(r.TalentPartner, tpMap)}</td>
      <td><span class='badge'>${r.Stage}</span></td>
      <td>${days} days</td>
     </tr>`;
@@ -495,12 +597,14 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     allRoles.map(r => [String(r.id), r])
   );
 
-  // Derive unique groups from live roles: key = "RoleTitle (Location)" or "RoleTitle"
-  const groupKey = r => r.Location ? `${r.RoleTitle || r.LinkTitle} (${r.Location})` : (r.RoleTitle || r.LinkTitle || '—');
+    // Derive unique groups from live roles: key = "RoleTitle (Location)" or "RoleTitle"
+  // (LinkTitle fallback removed in N-052 — computed system column, excluded by
+  // the CONFIG.LIST_FIELDS projection; RoleTitle is the aliased Title.)
+  const groupKey = r => r.Location ? `${r.RoleTitle} (${r.Location})` : (r.RoleTitle || '—');
   const groupMeta = {}; // key → { department, location, roleTitle }
   activeRoles.forEach(r => {
     const key = groupKey(r);
-    if (!groupMeta[key]) groupMeta[key] = { department: r.Department, location: r.Location, roleTitle: r.RoleTitle || r.LinkTitle };
+    if (!groupMeta[key]) groupMeta[key] = { department: r.Department, location: r.Location, roleTitle: r.RoleTitle };
   });
 
   const rows = Object.entries(groupMeta).map(([key, meta]) => {
@@ -566,7 +670,7 @@ async function renderProjectDashboard() {
   const user      = getCurrentUser();
   const role      = _resolvedRole;
   const isTP      = role === 'talent_partner';
-  const isDMAdmin = ['delivery_manager', 'admin'].includes(role);
+  const isDMAdmin = ['delivery_manager', 'admin'].includes(role) || hasDMGrant();
   let   projectId = _dashProjectId;
   if (isTP && !projectId) {
     const ids = await getUserProjectIds(user.email);
@@ -652,21 +756,23 @@ function setDetailPeriod(period) {
   _dashDetailPeriod = period;
   const el = document.getElementById('proj-detail-grid');
   if (el && window._dashCache) {
-  const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole);
+  const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole) || hasDMGrant();
   const c = window._dashCache;
+  const hideEmpty = html => html.includes('no-data') ? '' : html;
   const roleAnalyticsPlaceholder = `<div id='role-analytics-placeholder'></div>`;
   el.innerHTML =
-    renderPlacementsPanel(c.placements, c.roles, _dashDetailPeriod) +
-    renderPipelineActivityTable(c.activity, c.roles, _dashDetailPeriod) +
-    (isDMAdmin ? renderActivityByTPPanel(c.activity, _dashDetailPeriod, c.tpMap) : '') +
-    (isDMAdmin ? renderRejectionPanel(c.rejections, c.roles, _dashDetailPeriod) : '') +
-    (isDMAdmin ? renderUpcomingStartersPanel(c.placements, c.roles) : '') +
-    (isDMAdmin ? renderSpendPanel(c.roles, c.placements) : '') +
+    hideEmpty(renderPlacementsPanel(c.placements, c.roles, _dashDetailPeriod)) +
+    hideEmpty(renderPipelineActivityTable(c.activity, c.roles, _dashDetailPeriod)) +
+    (isDMAdmin ? hideEmpty(renderActivityByTPPanel(c.activity, _dashDetailPeriod, c.tpMap)) : '') +
+    (isDMAdmin ? hideEmpty(renderRejectionPanel(c.rejections, c.roles, _dashDetailPeriod)) : '') +
+    (isDMAdmin ? hideEmpty(renderUpcomingStartersPanel(c.placements, c.roles)) : '') +
+    (isDMAdmin ? hideEmpty(renderSpendPanel(c.roles, c.placements)) : '') +
     roleAnalyticsPlaceholder;
   renderRoleAnalyticsPanel(c.roles, c.analyticsActs, c.historical, c.tpMap)
     .then(html => {
       const ph = document.getElementById('role-analytics-placeholder');
-      if (ph) ph.outerHTML = html;
+      const cleaned = html.includes('no-data') ? '' : html;
+      if (ph) ph.outerHTML = cleaned;
     });
 } else {
     renderProjectDashboard();
@@ -774,7 +880,7 @@ function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}) {
     return `<tr class="${rowClass}">
      <td>${proj}</td>
      <td>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</td>
-     <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || '—'}</td>
+     <td>${tpDisplay(r.TalentPartner, tpMap)}</td>
      <td><span class='badge'>${r.Stage}</span></td>
      <td>${days} days</td>
     </tr>`;
@@ -884,10 +990,11 @@ function setCompanyDetailPeriod(period) {
   const el = document.getElementById('co-detail-grid');
   if (el && window._coCache) {
   const c = window._coCache;
-  el.innerHTML = renderCompanyTPPanel(
+  const cleaned = renderCompanyTPPanel(
     c.activity, c.projectMap,
     c.roleProjectMap, _companyDetailPeriod, c.tpMap
   );
+  el.innerHTML = cleaned.includes('no-data') ? '' : cleaned;
 } else {
     renderCompanyDashboard();
   }
@@ -899,6 +1006,9 @@ const REPORT_PANELS = {
 
   pipelineActivity: (data, period) =>
     renderPipelineActivityTable(data.activity, data.roles, period),
+
+  pipelineSummary: (data) =>
+    renderPipelineSummaryPanel(data.activity),
 
   activityByTP: (data, period) =>
     renderActivityByTPPanel(data.activity, period, data.tpMap || {}),

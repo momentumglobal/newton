@@ -33,14 +33,19 @@ async function buildAssignmentsTab(editId = null) {
   const [projects, assignments] = await Promise.all([
     getProjects(false), getUserAssignments()
   ]);
-  const projectOptions = projects.map(p =>
-    `<option value="${p.id}|${p.CustomerName}">${p.CustomerName}</option>`
-  ).join('');
+  const projectOptions = projects
+    .slice()
+    .sort((a, b) => a.CustomerName.localeCompare(b.CustomerName))
+    .map(p =>
+      `<option value="${p.id}|${p.CustomerName}">${p.CustomerName}</option>`
+    ).join('');
   let editRecord = null;
   if (editId) editRecord = assignments.find(a => String(a.id) === String(editId));
-const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.UserName || '')).map(a => `
-    <tr id="assign-row-${a.id}">
-      <td>${a.UserName || '—'}</td>
+const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.UserName || '')).map(a => {
+    const isActive = a.Active !== false;
+    return `
+    <tr id="assign-row-${a.id}" style="${isActive ? '' : 'opacity:0.55'}">
+      <td>${a.UserName || '—'}${isActive ? '' : ' <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:#eee;color:#666;">Inactive</span>'}</td>
       <td>${a.UserEmail}</td>
       <td>${a.CustomerName || '—'}</td>
       <td>${a.AssignedRole === 'talent_partner' ? 'Talent Partner' : a.AssignedRole === 'delivery_manager' ? 'Delivery Manager' : a.AssignedRole || '—'}</td>
@@ -48,10 +53,13 @@ const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.
       <td>
         <div class="row-actions" style="gap:12px;align-items:center">
           <a href="#" onclick="showEditAssignment(${a.id})">Edit</a>
+          <button class="btn-secondary" onclick="toggleAssignmentActive(${a.id}, ${!isActive})">${isActive ? 'Deactivate' : 'Reactivate'}</button>
           <button class="btn-danger" onclick="deleteOsAdminRecord('UserAssignments',${a.id})">Remove</button>
         </div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+  
   const editForm = editRecord ? `
     <h3>Edit Assignment</h3>
     <div class="form-container" style="padding:0;max-width:600px">
@@ -153,13 +161,13 @@ async function submitAssignment(editId = null) {
   try {
     if (editId) {
       await updateItem('UserAssignments', editId, {
-        Title: email, UserName: name,
+        Title: email.toLowerCase(), UserName: name,
         ProjectID: parseInt(projectId) || 0,
         CustomerName: customerName || '', AssignedRole: role
       });
     } else {
       await createItem('UserAssignments', {
-        Title: email, UserName: name,
+        Title: email.toLowerCase(), UserName: name,
         ProjectID: parseInt(projectId) || 0,
         CustomerName: customerName || '', AssignedRole: role
       });
@@ -170,14 +178,29 @@ async function submitAssignment(editId = null) {
     errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
   }
 }
+
+async function toggleAssignmentActive(id, makeActive) {
+  await updateItem('UserAssignments', id, { Active: makeActive });
+  renderOsAdminPage('assignments');
+}
+
 // ── Leadership Tab ───────────────────────────────────────────────────
 async function buildLeadershipTab() {
   const list = await getLeadershipAccess();
   const rows = list.map(l => `
     <tr>
+      <td>${l.PhotoUrl
+            ? `<img src="${l.PhotoUrl}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
+            : '<span style="color:#aaa;font-size:12px">—</span>'}</td>
       <td>${l.UserName || '—'}</td>
       <td>${l.UserEmail}</td>
-      <td><div class="row-actions"><button class="btn-danger" onclick="deleteOsAdminRecord('LeadershipAccess',${l.id})">Remove</button></div></td>
+      <td>
+        <div class="row-actions" style="gap:6px">
+          <input type="file" id="lead-photofile-${l.id}" accept="image/*">
+          <button class="btn-secondary" onclick="uploadLeadershipPhoto(${l.id})">Upload photo</button>
+          <button class="btn-danger" onclick="deleteOsAdminRecord('LeadershipAccess',${l.id})">Remove</button>
+        </div>
+      </td>
     </tr>`).join('');
   return `
     <h3>Leadership Access List</h3>
@@ -185,8 +208,8 @@ async function buildLeadershipTab() {
       These individuals have read-only access to the Company Dashboard.
     </p>
     <table class="data-table" style="margin:0 0 24px">
-      <thead><tr><th>Name</th><th>Email</th><th></th></tr></thead>
-      <tbody>${rows || '<tr><td colspan=3>No leadership users yet.</td></tr>'}</tbody>
+      <thead><tr><th>Photo</th><th>Name</th><th>Email</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan=4>No leadership users yet.</td></tr>'}</tbody>
     </table>
     <h3>Add User</h3>
     <div class="form-container" style="padding:0;max-width:500px">
@@ -200,6 +223,10 @@ async function buildLeadershipTab() {
           <input type="email" id="lead-email" placeholder="alex@company.com">
         </div>
       </div>
+      <div class="form-group">
+        <label>Photo <span style="font-size:11px;color:#888;font-weight:normal">optional</span></label>
+        <input type="file" id="lead-photofile" accept="image/*">
+      </div>
       <div id="lead-error" class="form-error"></div>
       <button class="btn-primary" onclick="submitLeadershipUser()">Add User</button>
     </div>
@@ -208,17 +235,37 @@ async function buildLeadershipTab() {
 async function submitLeadershipUser() {
   const name  = document.getElementById('lead-name').value.trim();
   const email = document.getElementById('lead-email').value.trim();
+  const file  = document.getElementById('lead-photofile')?.files?.[0] || null;
   const errEl = document.getElementById('lead-error');
   errEl.style.display = 'none';
   if (!email) { errEl.textContent = 'Email is required.'; errEl.style.display = 'block'; return; }
   const btn = document.querySelector('.btn-primary[onclick="submitLeadershipUser()"]');
   setButtonLoading(btn);
   try {
-    await createItem('LeadershipAccess', { Title: email, UserName: name });
+    const saved = await createItem('LeadershipAccess', { Title: email, UserName: name });
+    if (file && saved?.id) {
+      const url = await uploadPeoplePhoto('leader', saved.id, file);
+      if (url) await updateItem('LeadershipAccess', saved.id, { PhotoUrl: url });
+    }
     await renderOsAdminPage('leadership');
   } catch(e) {
     clearButtonLoading(btn);
     errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
+  }
+}
+async function uploadLeadershipPhoto(id) {
+  const input = document.getElementById('lead-photofile-' + id);
+  const file = input?.files?.[0];
+  if (!file) { alert('Choose an image first.'); return; }
+  const btn = input.nextElementSibling;
+  setButtonLoading(btn);
+  try {
+    const url = await uploadPeoplePhoto('leader', id, file);
+    await updateItem('LeadershipAccess', id, { PhotoUrl: url });
+    await renderOsAdminPage('leadership');
+  } catch (e) {
+    clearButtonLoading(btn);
+    alert('Error uploading photo: ' + e.message);
   }
 }
 async function deleteOsAdminRecord(listName, id) {
@@ -238,6 +285,7 @@ async function buildHomepageTab() {
     { key: 'autumn', label: '🍂 Autumn',           desc: 'Falling autumn leaves' },
     { key: 'snow',   label: '❄ Snowfall',         desc: 'Falling snow animation' },
     { key: 'lights', label: '🎄 Christmas Lights', desc: 'String of twinkling coloured lights across the top' },
+    { key: 'football', label: '⚽ World Cup Football', desc: 'Full-screen grass pitch with line markings and a ball bouncing around' },
   ];
   const effectRows = effects.map(e => `
     <div style="display:flex;align-items:center;justify-content:space-between;

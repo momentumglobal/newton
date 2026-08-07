@@ -49,6 +49,7 @@ async function renderPage(page) {
     case 'activity':          await renderActivityPage();     break;
     case 'placements':        await renderPlacementsPage();   break;
     case 'rejections':        await renderRejectionsPage();   break;
+    case 'hiringPlan':        await renderHiringPlanPage();   break;
     case 'projectDashboard':  await renderProjectDashboard(); break;
     case 'companyDashboard':  await renderCompanyDashboard(); break;
     case 'reportBuilder':     await renderReportBuilder();    break;

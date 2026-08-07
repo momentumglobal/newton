@@ -1,63 +1,103 @@
-// js/mobile-app.js — Mobile entry point, auth, and navigation controller
+// js/mobile-app.js - Mobile entry point, auth, and navigation controller
 
 let _mobileRole    = null;  // Resolved role for current user
 let _mobileUser    = null;  // { email, name }
-let _mobileView    = 'roles'; // Current top-level view
+let _mobileModule  = 'home';// Active module key ('home' | 'reporting' | ...)
+let _mobileView    = 'home';// Current view within the active module
 let _mobileRoleId  = null;  // Selected role ID for detail/action views
-let _mobileHistory = [];    // Simple back-stack
+let _mobileHistory = [];    // Simple back-stack (stores {module, view})
 
-function getWeekEnding() {
-  const today = new Date();
-  const day = today.getDay(); // 0=Sun, 6=Sat
-  const diff = day === 0 ? 0 : 7 - day; // next Sunday
-  const sunday = new Date(today);
-  sunday.setDate(today.getDate() + diff);
-  return sunday.toISOString().slice(0, 10);
-}
+// === Mobile module registry ===
+// Single source of truth for WHICH modules have a built mobile experience.
+// A module from CONFIG.OS_MODULES only appears in the launcher / switcher
+// if its key is in this set. Add a key here when its mobile view ships.
+// (Command Centre is intentionally excluded from mobile entirely.)
+const MOBILE_MODULES = new Set([
+  'reporting',
+  'people',        // Phase B - read-only dashboard
+  'sales',         // Phase C - write-enabled (forecast)
+  'marketing',     // Phase C - read-only Placement Analytics
+]);
 
-function getISOWeek(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-  const yearStart = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-}
+// Per-module bottom-nav definitions. Each item: {view, label, icon(svg)}.
+// 'home' has no bottom nav (it's the launcher).
+const MOBILE_NAV = {
+  sales: [
+    { view: 'sales-forecast', label: 'Forecast',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>' },
+  ],
+  people: [
+    { view: 'people-dashboard', label: 'Dashboard',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
+    { view: 'scorecards', label: 'Scorecards',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>' },
+  ],
+  reporting: [
+    { view: 'summary',   label: 'Summary',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
+    { view: 'roles',     label: 'Roles',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>' },
+    { view: 'activity',  label: 'Activity',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' },
+    { view: 'placement', label: 'Placement',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' },
+    { view: 'rejection', label: 'Rejected',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' },
+  ],
+};
+
+// Default view when a module is opened.
+const MOBILE_MODULE_HOME = {
+  reporting: 'summary',
+  people:    'people-dashboard',
+  sales:     'sales-forecast',
+  marketing: 'placement-analytics',
+};
 
 async function mobileInit() {
-  // Show login screen while we check auth state
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app-shell').style.display    = 'none';
 
   try {
-    // Attempt silent token acquisition first
-    const account = msalInstance.getAllAccounts()[0];
-    if (account) {
-       await msalInstance.acquireTokenSilent({
-        scopes: loginRequest.scopes,
-        account,
-       });
-      await mobileOnSignedIn();
-    } else {
-      // Check for redirect response (returning from Microsoft login)
-      const response = await msalInstance.handleRedirectPromise();
-      if (response) {
-        await mobileOnSignedIn();
-      }
-      // else: show login screen (already visible)
+    // Always process a pending redirect response FIRST. After a fresh login
+    // this returns the auth result; on a normal load it returns null.
+    const redirectResponse = await msalInstance.handleRedirectPromise();
+
+    // Resolve the active account (from the redirect response, or the cache).
+    const account =
+      (redirectResponse && redirectResponse.account) ||
+      msalInstance.getAllAccounts()[0];
+
+    if (!account) {
+      // Not signed in - leave the login screen showing.
+      return;
     }
+
+    // Persist user details straight from the MSAL account, so we never rely
+    // on another page having populated localStorage.
+    if (account.username) localStorage.setItem('userEmail', account.username.toLowerCase());
+    if (account.name)     localStorage.setItem('userName',  account.name);
+
+    // Warm the token cache (non-fatal if it needs interaction).
+    try {
+      await msalInstance.acquireTokenSilent({ scopes: loginRequest.scopes, account });
+    } catch (silentErr) {
+      console.warn('Silent token acquisition deferred:', silentErr && silentErr.message);
+    }
+
+    await mobileOnSignedIn();
   } catch (e) {
-    // Silent auth failed — show login screen
-    console.warn('Mobile auth:', e.message);
+    console.warn('Mobile auth:', e && e.message);
   }
 }
 
 async function mobileOnSignedIn() {
   const user = getCurrentUser();
-  if (!user) return;
+  if (!user || !user.email) return;
   _mobileUser = user;
   _mobileRole = await getEffectiveRole(user.email);
 
-  // Only TP and DM have mobile access
+  // Only TP, DM and admin have mobile access
   if (!['talent_partner', 'delivery_manager', 'admin'].includes(_mobileRole)) {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('login-screen').innerHTML = `
@@ -72,7 +112,8 @@ async function mobileOnSignedIn() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-shell').style.display    = 'flex';
 
-  mobileNav('roles');
+  // Land on the Home launcher
+  mobileOpenHome();
 }
 
 function signIn() {
@@ -84,45 +125,156 @@ function signOut() {
   msalInstance.logoutRedirect();
 }
 
-// ── Navigation ────────────────────────────────────────────────────────
+// === Module navigation ===
 
+// Open the Home launcher (no active module).
+function mobileOpenHome(pushHistory = true) {
+  if (pushHistory) _mobileHistory.push({ module: _mobileModule, view: _mobileView });
+  _mobileModule = 'home';
+  _mobileView   = 'home';
+  mobileSyncChrome();
+  mobileRenderHome(document.getElementById('m-main'));
+}
+
+// Open a module at its default view.
+function mobileOpenModule(moduleKey, pushHistory = true) {
+  if (!MOBILE_MODULES.has(moduleKey)) return;
+  if (pushHistory) _mobileHistory.push({ module: _mobileModule, view: _mobileView });
+  _mobileModule = moduleKey;
+  _mobileView   = MOBILE_MODULE_HOME[moduleKey] || 'home';
+  mobileSyncChrome();
+  mobileRenderView();
+}
+
+// Navigate to a view within the current module.
 function mobileNav(view, pushHistory = true) {
   if (pushHistory && _mobileView !== view) {
-    _mobileHistory.push(_mobileView);
+    _mobileHistory.push({ module: _mobileModule, view: _mobileView });
   }
   _mobileView = view;
+  mobileSyncChrome();
+  mobileRenderView();
+}
 
-  // Update bottom nav active state (only for top-level views)
-  const topLevel = ['roles', 'activity', 'placement'];
-  topLevel.forEach(v => {
-    const el = document.getElementById(`m-nav-${v}`);
-    if (el) el.classList.toggle('active', v === view);
-  });
+function mobileBack() {
+  if (_mobileHistory.length) {
+    const prev = _mobileHistory.pop();
+    // Back-compat: mobile-pages.js may push a bare string (just a view).
+    // Tolerate both {module,view} objects and plain strings.
+    if (typeof prev === 'string') {
+      _mobileView = prev;                 // same module, previous view
+    } else {
+      _mobileModule = prev.module;
+      _mobileView   = prev.view;
+    }
+    mobileSyncChrome();
+    if (_mobileModule === 'home') mobileRenderHome(document.getElementById('m-main'));
+    else mobileRenderView();
+  }
+}
 
-  // Show/hide back button
-  const backBtn = document.getElementById('m-back-btn');
-  if (backBtn) backBtn.style.display = _mobileHistory.length ? 'block' : 'none';
-
-  // Render the view
+// Render the current module/view.
+function mobileRenderView() {
   const main = document.getElementById('m-main');
-  switch (view) {
-    case 'roles':        mobileRenderRoles(main);               break;
+  if (_mobileModule === 'home') { mobileRenderHome(main); return; }
+
+  switch (_mobileView) {
+    // Reporting
+    case 'summary':      mobileRenderReportingSummary(main);    break;
+    case 'roles':        mobileRenderRolesFiltered(main);       break;
+    case 'rejection':    mobileRenderRejectionForm(main, false);break;
+    case 'rejection-role':mobileRenderRejectionForm(main, true);break;
     case 'role-detail':  mobileRenderRoleDetail(main);          break;
     case 'stage-update': mobileRenderStageUpdate(main);         break;
     case 'activity':     mobileRenderActivityForm(main, false); break;
     case 'activity-role':mobileRenderActivityForm(main, true);  break;
     case 'placement':    mobileRenderPlacementForm(main, false);break;
     case 'placement-role':mobileRenderPlacementForm(main, true);break;
-    default:             mobileRenderRoles(main);
+    case 'add-role':     mobileRenderAddRole(main);             break;
+    // People
+    case 'people-dashboard': mobileRenderPeopleDashboard(main); break;
+    case 'scorecards':       mobileRenderScorecards(main);      break;
+    // Sales
+    case 'sales-forecast':   mobileRenderSalesForecast(main);   break;
+    // Market Analytics
+    case 'placement-analytics': mobileRenderPlacementAnalytics(main); break;
+    default:
+      // Fallback to the module's home view
+      mobileNav(MOBILE_MODULE_HOME[_mobileModule] || 'home', false);
   }
 }
 
-function mobileBack() {
-  if (_mobileHistory.length) {
-    const prev = _mobileHistory.pop();
-    mobileNav(prev, false);
+// === Chrome (top bar, switcher, bottom nav) ===
+
+// Keep the back button, bottom nav and switcher in sync with state.
+function mobileSyncChrome() {
+  // Back button: shown whenever there's history
+  const backBtn = document.getElementById('m-back-btn');
+  if (backBtn) backBtn.style.display = _mobileHistory.length ? 'block' : 'none';
+
+  // Module switcher button label
+  const swLabel = document.getElementById('m-switcher-label');
+  if (swLabel) {
+    const mod = (CONFIG.OS_MODULES || []).find(m => m.key === _mobileModule);
+    swLabel.textContent = _mobileModule === 'home' ? 'Newton' : (mod?.name || 'Newton');
   }
+
+  // Bottom nav: rebuild for the active module (hidden on home)
+  mobileRenderBottomNav();
 }
+
+function mobileRenderBottomNav() {
+  const nav = document.getElementById('m-bottom-nav');
+  if (!nav) return;
+  const items = MOBILE_NAV[_mobileModule];
+  if (!items || _mobileModule === 'home') {
+    nav.innerHTML = '';
+    nav.style.display = 'none';
+    return;
+  }
+  nav.style.display = 'flex';
+  nav.innerHTML = items.map(it => `
+    <button class="m-nav-item ${_mobileView === it.view ? 'active' : ''}"
+      onclick="mobileNav('${it.view}')">
+      ${it.icon}
+      ${it.label}
+    </button>`).join('');
+}
+
+// === Module switcher dropdown ===
+
+function mobileToggleSwitcher() {
+  const menu = document.getElementById('m-switcher-menu');
+  if (!menu) return;
+  const open = menu.style.display === 'block';
+  if (open) { menu.style.display = 'none'; return; }
+
+  // Build menu items: Home + accessible modules
+  const modules = mobileGetAccessibleModules();
+  let html = `<button class="m-switcher-item ${_mobileModule==='home'?'active':''}"
+                onclick="mobileSwitcherGo('home')">Home</button>`;
+  html += modules.map(m => `
+    <button class="m-switcher-item ${_mobileModule===m.key?'active':''}"
+      onclick="mobileSwitcherGo('${m.key}')">${m.name}</button>`).join('');
+  menu.innerHTML = html;
+  menu.style.display = 'block';
+}
+
+function mobileSwitcherGo(key) {
+  const menu = document.getElementById('m-switcher-menu');
+  if (menu) menu.style.display = 'none';
+  if (key === 'home') mobileOpenHome();
+  else mobileOpenModule(key);
+}
+
+// Close the switcher if tapping outside it
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('m-switcher-menu');
+  const btn  = document.getElementById('m-switcher-btn');
+  if (!menu || menu.style.display !== 'block') return;
+  if (btn && (btn.contains(e.target) || menu.contains(e.target))) return;
+  menu.style.display = 'none';
+});
 
 function mobileSetTitle(title, sub = 'Momentum Global') {
   document.getElementById('m-topbar-title').textContent = title;
@@ -131,10 +283,11 @@ function mobileSetTitle(title, sub = 'Momentum Global') {
 
 function mobileForceDesktop() {
   sessionStorage.setItem('newton_force_desktop', '1');
+  try { localStorage.removeItem('newton_mobile'); } catch (e) {}
   window.location.href = 'reporting.html';
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────
+// === Toast ===
 
 function mobileToast(msg) {
   const toast = document.getElementById('m-toast');
@@ -143,6 +296,6 @@ function mobileToast(msg) {
   setTimeout(() => toast.classList.remove('show'), 2500);
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────
+// === Boot ===
 
 document.addEventListener('DOMContentLoaded', mobileInit);

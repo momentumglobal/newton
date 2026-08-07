@@ -13,9 +13,10 @@ Newton is a static web application hosted on GitHub Pages, with Microsoft Azure 
 | Reporting | `reporting.html` | Admin, Delivery Manager, Talent Partner, Leadership |
 | Market Analytics | `market-reporting.html` | Admin, Delivery Manager, Talent Partner |
 | People | `people.html` | Admin, Leadership, Delivery Manager |
-| Sales | `sales.html` | Admin, Leadership |
+| Sales | `sales.html` | Admin, Leadership; Delivery Manager (LCI Cost Models only) |
 | MG Command Centre | `command-centre.html` | Admin, Leadership |
 | Newton OS Admin | `admin.html` | Admin only |
+| Mobile App (PWA) | `mobile.html` | Admin, Delivery Manager, Talent Partner |
 
 ## Stack
 
@@ -23,21 +24,92 @@ Newton is a static web application hosted on GitHub Pages, with Microsoft Azure 
 - **Auth** — Microsoft Azure AD + MSAL.js v2
 - **Data** — SharePoint Online via Microsoft Graph API v1.0
 - **UI** — Vanilla HTML, CSS, JavaScript (no framework)
+- **Mobile** — Installable PWA (`manifest.webmanifest` + `sw.js`) over the same codebase
 - **Icons** — Lucide
 - **Fonts** — Polymath (self-hosted)
 
 ## Developer Reference
 
-Full system directory including architecture, data flows, SharePoint data model, role/access matrix, coding conventions, and module build guide:
+Full system directory including architecture, data flows, SharePoint data model, role/access matrix, coding conventions, mobile app, and module build guide:
 
 👉 **[README.html](https://momentumglobal.github.io/newton/Readme.html)**
 
 ## Quick links
 
 - [Newton platform](https://momentumglobal.github.io/newton/)
+- [Newton mobile](https://momentumglobal.github.io/newton/mobile.html)
 - [SharePoint site](https://talentpoint.sharepoint.com/sites/SolutionsHubReporting)
 
 ## Changelog
+
+### August 2026 — LCI Cost Model: Export to Excel (Sales module)
+
+**New: Export to Excel** on the LCI model Summary page, beside Print / PDF. Produces a branded seven-sheet workbook containing every input, assumption and derived figure behind the client PDF — built as an **internal working file**, not a client deliverable. New file `js/lci-excel.js`; no SharePoint change.
+
+- **Live formulas, not a value dump.** Every figure is a real Excel formula driven by named cells on the Assumptions sheet (`Burden`, `SalaryMonths`, `NoticeDefault`, `OfficePerHead`, `EoRPerHead`, `FXRate`, `Horizon`). Change an assumption and the whole model re-totals — including notice-period offsets, auto run-rate, and the cumulative spend line.
+- **Section switches** — `TravelOn`, `LegacyOn`, `OneoffsOn`, `FeesOn` as 1/0 cells, mirroring the section toggles in Newton. Set one to 0 to strip that section out of the totals without deleting a row.
+- **Sheets:** Assumptions · CoE Roadmap · Legacy Team · One-offs & Fees · Monthly Calc (the audit sheet — every line, every month, including sections switched off) · Output Summary (mirrors the client PDF line for line) · Milestones.
+- **Every formula also carries its computed value**, so the file is correct the moment it opens rather than after a recalculation — and any disagreement between the two is visible instead of silent.
+- **Library:** ExcelJS 4.4.0, lazy-loaded from CDN on first click only (~950KB, never on page render). Pinned. Chosen over SheetJS, whose free build cannot style cells.
+- The **LCI Lead Magnet is unaffected** — it remains PDF-only.
+
+### July 2026 — LCI Lead Magnet (Sales module)
+
+**New: LCI Lead Magnet page** — a lightweight business-development tool that produces a one-page "Country Comparison" PDF showing the cost-of-employment delta between a prospect's current location and one or more scoped locations. Distinct from the full LCI Cost Models (which model a live engagement month by month). New file `js/lci-leadmagnet.js`; Admin/Leadership only.
+
+- **Location Library** — a shared master table (`LCILocations`): Location ("City, Country"), Employer Burden %, FX rate (entered as 1 GBP = X local), Currency (ISO code), and one average-annual-salary column per discipline. Add/edit/delete inline.
+- **Insights Report Builder** — select current location, scoped locations, disciplines, and a display currency (defaults to the current location's currency, overridable). Figures are computed in GBP then converted for display. Live preview; optional "Prepared for" and "Watchouts" free text.
+- **Cost delta** — overall (delta of average cost across selected disciplines) plus a per-discipline breakdown; lower-than-current in green. All costs are `salary × (1 + burden) ÷ fx`, normalised to GBP.
+- **Output** — single-page portrait branded PDF with a fixed methodology/disclaimer note. Generate-and-download only (no saved reports).
+- **Config:** disciplines live in `CONFIG.LCI_DISCIPLINES` (single source of truth, mapped to the `Sal_*` columns); `CONFIG.COUNTRY_CURRENCY` extended with common nearshore/offshore markets so their currencies are selectable.
+
+### July 2026 — LCI Cost Models (Sales module)
+
+**New: Location & Cost Intelligence (LCI) Cost Models** — a native replacement for the Excel recruitment ramp & cost model used on LCI location-research engagements. Built as a new page in the Sales module (`js/lci-*.js`); Admin/Leadership full access, Delivery Managers scoped to models assigned to them.
+
+- **Model editor** — settings bar (two currencies: local CoE currency + customer display currency, with a manual FX rate; employer burden, salary-months for 13th/14th-month markets, notice period, office/EoR/travel per head), a hiring roadmap grid with project milestones, and CoE / legacy / one-off / project-fee sections. A live cost-model table + cumulative-spend chart recompute on every edit.
+- **Compare** — N models side by side (same display currency): KPI table + multi-line cumulative-spend chart.
+- **Report export** — assemble one or more models into a branded multi-page PDF: navy cover, per-model sections, a Location Comparison section, and a rich-text Observations & Recommendations page. Reports can be **saved** (definition only — numbers live-recompute on re-open) via the new `LCIReports` list.
+- **Hiring Plan linkage** — a Won model links to a CoE project and generates one CoE Hiring Plan row per hire (Open Dates derived from the ramp), bridging sales to delivery.
+- **Salary benchmarks** — as a role title is typed, an inline hint suggests the median salary for that exact title in the same location + currency, drawn equally from all prior models.
+- **Data model:** new SharePoint lists `LCIModels`, `LCIModelRows` (RowType = coe/legacy/oneoff/fee; per-month values stored as JSON), `LCIMilestones`, `LCIReports`. All added to `FIELD_ALIASES` as empty objects. StartMonth is stored as a `YYYY-MM` **text** column (never a date — avoids the BST month-shift gotcha).
+- **Access:** Sales module opened to Delivery Managers, scoped to the LCI Cost Models page only (Revenue Tracking / Sales Forecast remain Admin/Leadership).
+
+### July 2026 — Hiring Plan (CoE projects)
+
+**New: Hiring Plan page (Reporting module, `js/coe-plan.js`)**
+Gantt-style week-by-week hiring roadmap for Centre of Excellence projects — replaces the Excel plan used for TP capacity planning and customer expectation-setting. Visible to all Reporting roles; Admin/DM edit, TP/Leadership read-only. The page lists only projects marked as CoE.
+
+- **Plan builder** — rows need only a role title and open date; Recruitment/Notice/Onboarding phases auto-complete from `CONFIG.COE_PHASE_DEFAULTS`, with optional per-row week overrides. Target Hire Date is derived (open date + recruitment weeks), never stored. Handover excluded from v1.
+- **Capacity strip** — weekly # in Recruitment/Notice/Onboarding above the timeline, with a Talent Partner filter for per-TP workload.
+- **Forecast vs Planned hires** — monthly table; forecast derived from target hire dates, planned entered inline by the DM (stored in `CoEPlanForecast`), variance highlighted.
+- **Roles linkage** — Link picker + "Create Role" (pre-filled Add Role form). Linked rows overlay actual progress as a thin bar: R from `Roles.OpenDate`, N from `Roles.ActualHireDate`, O from `Placements.ProvisionalStartDate`.
+
+**Data model**
+- `Projects` gains a `ProjectType` choice column (Embedded/CoE, default Embedded) — added to the project form; gates the Hiring Plan page.
+- New lists: `CoEPlanRows` (planned roles + phase overrides + `LinkedRoleID`) and `CoEPlanForecast` (monthly forecast hires). Both registered as `{}` in `FIELD_ALIASES`.
+
+**Gotcha (timezone)** — forecast month dates must be written as manually built ISO strings and read back via `new Date()` local parsing. `toISOString()` or string-slicing shifts the 1st of a month into the prior month under BST (SharePoint returns the value as a UTC datetime, e.g. `2026-06-30T23:00:00Z` for 1 July).
+
+### June 2026 — Mobile App (installable PWA)
+
+**New: Newton mobile as a Progressive Web App (`mobile.html`)**
+Installable to a phone home screen ("Add to Home screen" / "Install app") with a standalone launch, over the same codebase as the desktop site — no separate native build. An earlier Flutter WebView prototype was retired because embedded WebViews block Microsoft login; the PWA runs in the device browser engine where login works.
+
+- `manifest.webmanifest` — installability (name, navy Momentum icons 192/512, standalone display, `#090546` theme).
+- `sw.js` — service worker, network-first, caches **no** app code (so there is never stale JS after a commit); ignores cross-origin and non-GET requests, so Microsoft login and SharePoint writes are never intercepted.
+- Mobile shell: Home launcher + top-bar module switcher driven by `CONFIG.OS_MODULES` filtered through a new `MOBILE_MODULES` registry; per-module bottom nav via `MOBILE_NAV` (`mobile-app.js`, `mobile-home.js`).
+
+**Module coverage on mobile**
+- **Reporting** (write) — Summary, roles list with search/stage filter, role detail, stage update, weekly activity, placement, Add Role, Log Rejection (`mobile-pages.js`, `mobile-roleform.js`, `mobile-reporting-ext.js`).
+- **People** (read-only) — dashboard KPI tiles (`mobile-people.js`) + Scorecards with a swipe carousel for DM/Admin (`mobile-scorecards.js`).
+- **Sales** (write) — Sales Forecast list + add/edit (`mobile-sales.js`).
+- **Market Analytics** (read-only) — condensed Placement Analytics: Summary + Funnel Drop-off tiles, filter by location / functional area (`mobile-analytics.js`).
+- Command Centre is excluded from mobile.
+
+**Single source of truth preserved** — every mobile view reuses the existing data-layer and calculation functions (`computeMonthlyRows`, `computeVelocityScore`, `computeRoleFunnel`, etc.); no business logic is duplicated. Mobile access is limited to Talent Partners, Delivery Managers and Admins, with per-module visibility inherited from `CONFIG.OS_MODULES`.
+
+**Login robustness** — `mobileInit()` processes `handleRedirectPromise()` first and reads user email/name straight from the MSAL account, so `mobile.html` is self-sufficient after the login round-trip. `app.js` returns app sessions to `mobile.html` via a `newton_mobile` localStorage flag.
 
 ### June 2026 — Notifications, premium UI + fixes
 
@@ -68,7 +140,7 @@ One row per recipient. Fields: `RecipientEmail`, `TriggerType`, `TriggerKey`, `S
 ### June 2026 — Command Centre + bug fixes
 
 **New: MG Command Centre (`command-centre.html`)**
-Executive ops dashboard for Admin and Leadership users. Three live RAG tiles — Project Health, People, and Utilisation — each with an expandable detail panel. Accessible from the module switcher on the homepage.
+Executive ops dashboard for Admin and Leadership users. Three live RAG tiles — Project Health, People, and Utilisation — each with an expandable detail panel. Accessible from the module switcher on the homepage. _(A fourth tile, Revenue, was added later — see the Sales changelog entry; the live grid now shows four tiles, Revenue first.)_
 
 - `js/cc-router.js` — page registry and role access
 - `js/cc-nav.js` — nav wrapper using shared `renderModuleNav()`

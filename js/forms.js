@@ -8,11 +8,6 @@ function clearFormError(formId) {
   const el = document.getElementById(`${formId}-error`);
   if (el) { el.textContent = ''; el.style.display = 'none'; }
 }
-function isoDate(dateStr) {
-  if (!dateStr) return null;
-  const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
-  return match ? match[1] + 'T12:00:00Z' : null;
-}
 function addDays(dateStr, days) {
   const [y, m, d] = dateStr.split('-').map(Number);
   const date = new Date(y, m - 1, d + days);
@@ -47,6 +42,13 @@ function renderProjectForm(existingData = null) {
             <option value="Active" ${existingData?.Status === 'Active' ? 'selected' : ''}>Active</option>
             <option value="Transition" ${existingData?.Status === 'Transition' ? 'selected' : ''}>Transition</option>
             <option value="Completed" ${existingData?.Status === 'Completed' ? 'selected' : ''}>Completed</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Project Type *</label>
+          <select name="ProjectType" required>
+            <option value="Embedded" ${(!existingData?.ProjectType || existingData?.ProjectType === 'Embedded') ? 'selected' : ''}>Embedded</option>
+            <option value="CoE" ${existingData?.ProjectType === 'CoE' ? 'selected' : ''}>CoE</option>
           </select>
         </div>
         <div class="form-row">
@@ -84,6 +86,7 @@ async function submitProjectForm(event, editId = null) {
     Title:           data.CustomerName,
     DeliveryManager: data.DeliveryManager,
     Status:          data.Status,
+    ProjectType:     data.ProjectType,
     StartDate:       isoDate(data.StartDate) || undefined,
     EndDate:         isoDate(data.EndDate) || undefined,
     Notes:           data.Notes || undefined,
@@ -106,7 +109,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
   const currentUser = getCurrentUser();
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);
-  const canAssign = ['admin', 'delivery_manager'].includes(userRole);
+  const canAssign = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
   const isTalentPartner = userRole === 'talent_partner';
   const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
@@ -141,12 +144,12 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             ${projectOptions}
           </select>`}
         </div>
-        ${canAssign ? `
+       ${canAssign ? `
         <div class="form-group">
-          <label>Assign to *</label>
-          <select name="TalentPartnerName" id="role-tp-select" required>
-            <option value="">-- Select project first --</option>
-          </select>
+          <label>Assign to * <span style="font-weight:normal;color:#888;">(tick one or more)</span></label>
+          <div id="role-tp-select" style="border:1px solid #ccc;border-radius:4px;padding:8px;max-height:170px;overflow-y:auto;background:#fff;">
+            <span style="color:#888;">-- Select project first --</span>
+          </div>
         </div>` : `<input type="hidden" name="TalentPartnerName" value="${currentUser.email}">`}
         <div class="form-group">
           <label>Role Title *</label>
@@ -165,7 +168,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
               value="${existingData?.Budget || ''}">
           </div>
           <div class="form-group">
-            <label>Location</label>
+            <label>Location *</label>
             <select name="Location" id="role-location-select" onchange="updateCurrencyFromLocation(this.value)" required>
               <option value="">-- Select location --</option>
               ${Object.keys(CONFIG.COUNTRY_CURRENCY).sort().map(country =>
@@ -205,13 +208,20 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             <label>Stage *</label>
             <select name="Stage" required>
               ${'Backlog,Planning,Sourcing,Submitted,Interview 1,Interview 2+,Final Interview,Offered,Hired,On-hold,Cancelled'.split(',')
-                .map(s => `<option value="${s}" ${existingData?.Stage === s ? 'selected' : ''}>${s}</option>`)
+                .map(s => {
+                  // New roles start at Backlog by design (Role Backlog KPI, Roles page
+                  // Backlog tab). State it explicitly — don't rely on the browser
+                  // selecting the first option, which a reorder would silently change.
+                  // Matches mobile-roleform.js:59.
+                  const sel = isEdit ? existingData.Stage === s : s === 'Backlog';
+                  return `<option value="${s}" ${sel ? 'selected' : ''}>${s}</option>`;
+                })
                 .join('')}
             </select>
           </div>
           <div class="form-group">
-            <label>Functional Area</label>
-            <select name="Department" id="role-department-select">
+            <label>Functional Area *</label>
+            <select name="Department" id="role-department-select" required>
               ${departmentOptions}
             </select>
           </div>
@@ -270,21 +280,27 @@ async function loadDeliveryManagersForProject(selectedEmail) {
   }
 }
 
-async function loadTalentPartnersForRole(projectId) {
-  const select = document.getElementById('role-tp-select');
-  if (!select) return;
+async function loadTalentPartnersForRole(projectId, selected = '') {
+  const box = document.getElementById('role-tp-select');
+  if (!box) return;
   if (!projectId) {
-    select.innerHTML = '<option value="">-- Select project first --</option>';
+    box.innerHTML = '<span style="color:#888;">-- Select project first --</span>';
     return;
   }
-  select.innerHTML = '<option value="">Loading...</option>';
+  box.innerHTML = '<span style="color:#888;">Loading...</span>';
   try {
     const tps = await getTalentPartnersForProject(projectId);
-    const currentEmail = getCurrentUser().email.toLowerCase();
-    select.innerHTML = '<option value="">-- Select team member --</option>' +
-      tps.map(u => `<option value="${u.UserEmail}" ${u.UserEmail?.toLowerCase() === currentEmail ? 'selected' : ''}>${u.UserName || u.UserEmail}</option>`).join('');
+    const pre = tpList(selected);
+    const mine = getCurrentUser().email.toLowerCase();
+    const checked = e => pre.length ? pre.includes(e) : e === mine;
+    box.innerHTML = tps.map(u => `
+      <label style="display:block;font-weight:normal;margin:3px 0;cursor:pointer;">
+        <input type="checkbox" name="TalentPartnerName" value="${u.UserEmail}"
+          ${checked((u.UserEmail || '').toLowerCase()) ? 'checked' : ''}>
+        ${u.UserName || u.UserEmail}
+      </label>`).join('') || '<span style="color:#888;">-- No team members --</span>';
   } catch(e) {
-    select.innerHTML = '<option value="">-- Error loading team --</option>';
+    box.innerHTML = '<span style="color:#c00;">-- Error loading team --</span>';
   }
 }
 
@@ -294,12 +310,19 @@ async function submitRoleForm(event, editId = null) {
   const form = document.getElementById('role-form');
   const btn  = form.querySelector('[type=submit]');
   setButtonLoading(btn);
-  const data = Object.fromEntries(new FormData(form));
+  const fd   = new FormData(form);
+  const data = Object.fromEntries(fd);
+  const tpJoined = fd.getAll('TalentPartnerName').filter(Boolean).join(';');
+  if (!tpJoined) {
+    clearButtonLoading(btn);
+    showFormError('role-form', 'Please assign at least one Talent Partner.');
+    return;
+  }
   const fields = {
     ProjectIDLookupId: parseInt(data.ProjectID),
     Title:          data.RoleTitle,
     HiringManager:  data.HiringManager || undefined,
-    TalentPartner:  data.TalentPartnerName || undefined,
+    TalentPartner:  tpJoined,
     Budget:         data.Budget ? parseFloat(data.Budget) : undefined,
     Currency:       data.Location || undefined,
     Priority:       data.Priority ? parseInt(data.Priority) : undefined,
@@ -323,32 +346,21 @@ async function submitRoleForm(event, editId = null) {
   }
 }
 // ── Weekly Activity Form ────────────────────────────────────────────
-function getISOWeek(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-  const yearStart = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-}
-function getWeekEnding(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? 0 : 7 - day;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().split('T')[0];
-}
 async function renderWeeklyActivityForm(existingData = null) {
   const isEdit = !!existingData;
+  // SharePoint returns lookup columns as *LookupId; fall back so edits preselect correctly
+  const existingProjectId = existingData?.ProjectIDLookupId ?? existingData?.ProjectID;
+  const existingRoleId    = existingData?.RoleIDLookupId    ?? existingData?.RoleID;
   const currentUser = getCurrentUser();
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);
-  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
+  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
   const isTalentPartner = userRole === 'talent_partner';
   const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
   const projectOptions = [...projects].sort((a, b) =>
    a.CustomerName.localeCompare(b.CustomerName)).map(p =>
-    `<option value="${p.id}" ${(existingData?.ProjectID == p.id || lockProject) ? 'selected' : ''}>${p.CustomerName}</option>`
+    `<option value="${p.id}" ${(existingProjectId == p.id || lockProject) ? 'selected' : ''}>${p.CustomerName}</option>`
   ).join('');
   const today = new Date().toISOString().split('T')[0];
   const defaultWeek = existingData?.WeekNumber || getISOWeek(today);
@@ -361,9 +373,16 @@ async function renderWeeklyActivityForm(existingData = null) {
         .filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage))
         .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
        preloadedRoleOptions = roles.map(r =>
-        `<option value="${r.id}" ${existingData?.RoleID == r.id ? 'selected' : ''}>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`
+        `<option value="${r.id}" ${existingRoleId == r.id ? 'selected' : ''}>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`
        ).join('');
     } catch (e) { /* fall back to empty */ }
+  }
+  // On edit (non-locked project), reload + reselect the saved role after the form mounts
+  if (isEdit && !lockProject && existingProjectId) {
+    setTimeout(() => {
+      loadRolesForWeekly(existingProjectId, existingRoleId);
+      if (canLogOnBehalf) loadTalentPartnersForWeekly(existingProjectId, existingData.TalentPartner);
+    }, 0);
   }
   return `
     <div class="form-container">
@@ -449,18 +468,19 @@ async function renderWeeklyActivityForm(existingData = null) {
     </div>
   `;
 }
-async function loadRolesForWeekly(projectId) {
+async function loadRolesForWeekly(projectId, selectedRoleId = null) {
   const select = document.getElementById('weekly-role-select');
+  if (!projectId) { select.innerHTML = '<option value="">-- Select project first --</option>'; return; }
   select.innerHTML = '<option value="">Loading...</option>';
   const tpEmail = select.dataset.tpEmail || null;
   const roles = (await getRolesForProject(projectId, tpEmail))
     .filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage))
     .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
   select.innerHTML = roles.length
-    ? roles.map(r => `<option value="${r.id}">${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`).join('')
+    ? '<option value="">-- Select role --</option>' + roles.map(r => `<option value="${r.id}" ${selectedRoleId == r.id ? 'selected' : ''}>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`).join('')
     : '<option value="">-- No roles assigned --</option>';
 }
-async function loadTalentPartnersForWeekly(projectId) {
+async function loadTalentPartnersForWeekly(projectId, selectedEmail = null) {
   const select = document.getElementById('weekly-tp-select');
   if (!select) return;
   if (!projectId) {
@@ -469,10 +489,10 @@ async function loadTalentPartnersForWeekly(projectId) {
   }
   select.innerHTML = '<option value="">Loading...</option>';
   try {
-    const tps = await getTalentPartnersForProject(projectId);
-    const currentEmail = getCurrentUser().email.toLowerCase();
+    const tps = await getTalentPartnersForProject(projectId, selectedEmail);
+    const targetEmail = (selectedEmail || getCurrentUser().email).toLowerCase();
     select.innerHTML = '<option value="">-- Select team member --</option>' +
-      tps.map(u => `<option value="${u.UserEmail}" ${u.UserEmail?.toLowerCase() === currentEmail ? 'selected' : ''}>${u.UserName || u.UserEmail}</option>`).join('');
+      tps.map(u => `<option value="${u.UserEmail}" ${u.UserEmail?.toLowerCase() === targetEmail ? 'selected' : ''}>${u.UserName || u.UserEmail}</option>`).join('');
   } catch(e) {
     select.innerHTML = '<option value="">-- Error loading team --</option>';
   }
@@ -513,6 +533,13 @@ async function submitWeeklyForm(event, editId = null) {
     } else {
       await createItem('WeeklyActivity', fields);
     }
+    // Hire logged → offer to record a placement, prefilled with this role/project
+    if (fields.Hires > 0 &&
+        confirm('You logged a hire. Would you like to record a placement now?')) {
+      document.getElementById('main-content').innerHTML =
+        await renderPlacementForm(null, fields.RoleIDLookupId, fields.ProjectIDLookupId);
+      return;
+    }
     navigateTo('activity');
   } catch (e) {
     clearButtonLoading(btn);
@@ -520,17 +547,17 @@ async function submitWeeklyForm(event, editId = null) {
   }
 }
 // ── Placement Form ───────────────────────────────────────────────────
-async function renderPlacementForm(existingData = null, preselectedRoleId = null) {
+async function renderPlacementForm(existingData = null, preselectedRoleId = null, preselectedProjectId = null) {
   const isEdit = !!existingData;
   const currentUser = getCurrentUser();
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);
-  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
+  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
   const isTalentPartner = userRole === 'talent_partner';
   const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
   const projectOptions = [...projects].sort((a, b) => a.CustomerName.localeCompare(b.CustomerName)).map(p =>
-  `<option value="${p.id}" ${(existingData?.ProjectID == p.id || lockProject) ? 'selected' : ''}>${p.CustomerName}</option>`
+  `<option value="${p.id}" ${(existingData?.ProjectID == p.id || lockProject || preselectedProjectId == p.id) ? 'selected' : ''}>${p.CustomerName}</option>`
 ).join('');
   // If single project, pre-load TP's own roles immediately
   let preloadedPlacementRoleOptions = '';
@@ -546,6 +573,19 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   }
   // Pre-load currency if editing
   let inheritedCurrency = existingData?.Currency || '';
+
+  // Arriving from a logged hire: prefill role/project + currency after the form mounts
+  if (preselectedRoleId) {
+    setTimeout(async () => {
+      if (!lockProject && preselectedProjectId) {
+        await loadRolesForPlacement(preselectedProjectId);
+        const roleSel = document.getElementById('placement-role-select');
+        if (roleSel) roleSel.value = preselectedRoleId;
+        if (canLogOnBehalf) loadTalentPartnersForPlacement(preselectedProjectId);
+      }
+      loadCurrencyForPlacement(preselectedRoleId);
+    }, 0);
+  }
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Placement' : 'Record Placement'}</h2>
@@ -726,11 +766,42 @@ async function submitPlacementForm(event, editId = null) {
         String((rolesById[String(pl.RoleIDLookupId)]||{}).ProjectIDLookupId ||
                (rolesById[String(pl.RoleIDLookupId)]||{}).ProjectID) === projId).length;
       if (prior === 0) {
+        const roleTitle = role.Location
+          ? `${role.RoleTitle} (${role.Location})` : role.RoleTitle;
+ 
+        // resolve emails -> names. TP = who MADE the placement;
+        // DM = who owns the project. May be the same person
+        // (a DM can log their own placement).
+        const nameMap = await getTalentPartnerDisplayMap(); // email -> UserName
+        const tpEmail = (data.TalentPartnerName || '').toLowerCase();
+        const dmEmail = (proj.DeliveryManager  || '').toLowerCase();
+        const tpName  = nameMap[tpEmail] || data.TalentPartnerName || '';
+        const dmName  = nameMap[dmEmail] || proj.DeliveryManager  || '';
+        const samePerson = tpEmail && dmEmail && tpEmail === dmEmail;
+ 
+        const enrich = {
+          RoleTitle: roleTitle,
+          CustomerName: proj.CustomerName,
+          TalentPartnerName: tpName,       // the placer
+          DeliveryManagerName: dmName,     // project DM
+          SamePerson: samePerson ? 'yes' : 'no',
+        };
+ 
+        // in-app rows for Leadership (enriched)
         await fireNotification({ triggerType:'firstPlacement',
           triggerKey:`firstplacement:${projId}`, tone:'milestone',
           deepLink:'reporting.html#placements',
           body:`${proj.CustomerName} has its first placement!`,
-          recipients: await getLeadershipRecipients() });
+          recipients: await getLeadershipRecipients(),
+          extraFields: enrich });
+ 
+        // sentinel row — drives the Power Automate email (one per placement)
+        await fireNotification({ triggerType:'firstPlacement',
+          triggerKey:`firstplacement-email:${projId}`, tone:'milestone',
+          deepLink:'reporting.html#placements',
+          body:`${proj.CustomerName} has its first placement!`,
+          recipients: ['system@newton'],
+          extraFields: enrich });
       }
     }
     navigateTo('placements');

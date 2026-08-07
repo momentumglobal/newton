@@ -8,20 +8,20 @@ const GRAPH = "https://graph.microsoft.com/v1.0";
 const _apiCache = new Map();
 const _CACHE_TTL_MS = 30000; // 30 seconds
  
-function _cacheKey(listName, filter) {
-  return listName + '|' + (filter || '');
+function _cacheKey(listName, filter, selectStr) {
+  return listName + '|' + (filter || '') + '|' + (selectStr || '*');
 }
-function _cacheGet(listName, filter) {
-  const entry = _apiCache.get(_cacheKey(listName, filter));
+function _cacheGet(listName, filter, selectStr) {
+  const entry = _apiCache.get(_cacheKey(listName, filter, selectStr));
   if (!entry) return null;
   if (Date.now() - entry.ts > _CACHE_TTL_MS) {
-    _apiCache.delete(_cacheKey(listName, filter));
+    _apiCache.delete(_cacheKey(listName, filter, selectStr));
     return null;
   }
   return entry.data;
 }
-function _cacheSet(listName, filter, data) {
-  _apiCache.set(_cacheKey(listName, filter), { ts: Date.now(), data });
+function _cacheSet(listName, filter, selectStr, data) {
+  _apiCache.set(_cacheKey(listName, filter, selectStr), { ts: Date.now(), data });
 }
 function _cacheInvalidate(listName) {
   // Remove all cached entries for this list (any filter)
@@ -58,6 +58,15 @@ const FIELD_ALIASES = {
   SurveyCompletions: {},
   // ── Notifications ─────────────────────────────────────────
   Notifications: {},
+  // ── CoE Hiring Plan ───────────────────────────────────────
+  CoEPlanRows:     {},
+  CoEPlanForecast: {},
+  // ── LCI Cost Model ────────────────────────────────────────
+  LCIModels:       {},
+  LCIModelRows:    {},
+  LCIMilestones:   {},
+  LCIReports:      {},
+  LCILocations:    {},
 };
  
 function normaliseFields(listName, fields) {
@@ -72,7 +81,19 @@ function normaliseFields(listName, fields) {
   }
   return result;
 }
- 
+
+// ── Multi-TP helpers (TalentPartner column may hold 'a@x.com;b@x.com') ──
+function tpList(val) {
+  return String(val || '').split(';').map(s => s.trim().toLowerCase()).filter(Boolean);
+}
+function tpMatches(val, email) {
+  return tpList(val).includes((email || '').trim().toLowerCase());
+}
+function tpDisplay(val, nameMap = {}) {
+  const names = tpList(val).map(e => nameMap[e] || e);
+  return names.length ? names.join(', ') : '—';
+}
+
 // ── Generic helpers ─────────────────────────────────────────────────
 async function graphRequest(method, path, body = null) {
   const token = await getToken();
@@ -100,11 +121,29 @@ function listPath(listName) {
 }
  
 // ── Read ─────────────────────────────────────────────────────────────
-async function getItems(listName, filter = "") {
-  const cached = _cacheGet(listName, filter);
+// `select`, if passed, is a comma-separated string of internal SharePoint
+// field names. No caller passes it yet — CONFIG.LIST_FIELDS is empty and
+// every existing call site is intentionally left on '*' (see N-050 QA:
+// two callers already carried an unaudited third argument here that broke
+// People Scorecards when activated; that argument is now dropped at the
+// call sites below, pending the full field audit in N-052/N-053).
+// If select is omitted, resolves from CONFIG.LIST_FIELDS[listName] when
+// present and non-empty; otherwise falls back to '*' (today's behaviour).
+async function getItems(listName, filter = "", select = null) {
+  let selectStr = select;
+  if (!selectStr) {
+    const manifestFields = CONFIG.LIST_FIELDS && CONFIG.LIST_FIELDS[listName];
+    if (Array.isArray(manifestFields) && manifestFields.length) {
+      selectStr = manifestFields.includes('Id') ? manifestFields.join(',') : ['Id', ...manifestFields].join(',');
+    } else {
+      selectStr = '*';
+    }
+  }
+
+  const cached = _cacheGet(listName, filter, selectStr);
   if (cached) return cached;
  
-  const qs = filter ? `?$expand=fields($select=*)&$filter=${encodeURIComponent(filter)}` : "?$expand=fields($select=*)";
+  const qs = filter ? `?$expand=fields($select=${selectStr})&$filter=${encodeURIComponent(filter)}` : `?$expand=fields($select=${selectStr})`;
   let url = `${listPath(listName)}${qs}`;
   const items = [];
   while (url) {
@@ -113,10 +152,13 @@ async function getItems(listName, filter = "") {
     url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH, '') : null;
   }
  
-  _cacheSet(listName, filter, items);
+  _cacheSet(listName, filter, selectStr, items);
   return items;
 }
  
+// NOTE: getItem() (single-item read, below) intentionally keeps
+// fields($select=*) — it's a low-volume detail fetch, not a list scan, so
+// it's out of scope for F-1 projection.
 async function getItem(listName, itemId) {
   const data = await graphRequest("GET", `${listPath(listName)}/${itemId}?$expand=fields($select=*)`);
   return { id: data.id, ...normaliseFields(listName, data.fields) };
@@ -145,11 +187,9 @@ async function getProjects(activeOnly = true) {
 }
  
 async function getRolesForProject(projectId, talentPartnerEmail = null) {
-  let filter = `fields/ProjectID eq ${projectId}`;
-  if (talentPartnerEmail) {
-    filter += ` and fields/TalentPartner eq '${talentPartnerEmail.toLowerCase()}'`;
-  }
-  return getItems("Roles", filter);
+  const roles = await getItems("Roles", `fields/ProjectID eq ${projectId}`);
+  if (!talentPartnerEmail) return roles;
+  return roles.filter(r => tpMatches(r.TalentPartner, talentPartnerEmail));
 }
  
 async function getAllRoles() {
@@ -159,9 +199,12 @@ async function getAllRoles() {
 async function getHistoricalPlacements() {
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
+  // No select passed — the field list this used to carry was incomplete
+  // (missing TalentPartner, silently breaking tpEmail below once select
+  // support went live; see N-050 QA). Stays on '*' until N-052 audits and
+  // re-adds a correct list.
   const roles = await getItems('Roles',
-    `fields/Stage eq 'Hired' and fields/ActualHireDate ge '${cutoff.toISOString().split('T')[0]}'`,
-    'Id,Title,Department,Currency,OpenDate,ActualHireDate'
+    `fields/Stage eq 'Hired' and fields/ActualHireDate ge '${cutoff.toISOString().split('T')[0]}'`
   );
   return roles.map(r => ({
     id:            r.id,
@@ -178,9 +221,12 @@ async function getActivityForAnalytics(weeksBack) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - (weeksBack * 7));
   const isoDate = cutoff.toISOString().split('T')[0];
+  // No select passed — the field list this used to carry was incomplete
+  // (missing TalentPartner, silently breaking People Scorecards once select
+  // support went live; see N-050 QA). Stays on '*' until N-052 audits and
+  // re-adds a correct list.
   const activity = await getItems('WeeklyActivity',
-    `fields/WeekEndingDate ge '${isoDate}'`,
-    'Id,RoleID,WeekEndingDate,Outreach,Responses,Screened,Submitted,Interview1,Interview2Plus,FinalInterview,Offers,Hires'
+    `fields/WeekEndingDate ge '${isoDate}'`
   );
   return activity;
 }
@@ -227,10 +273,152 @@ async function deleteSalesForecast(id) {
   return deleteItem("SalesForecasts", id);
 }
  
+// ── CoE Hiring Plan ─────────────────────────────────────────────────
+async function getCoEPlanRows(projectId) {
+  return getItems("CoEPlanRows", `fields/ProjectID eq ${projectId}`);
+}
+async function createCoEPlanRow(payload) {
+  return createItem("CoEPlanRows", payload);
+}
+async function updateCoEPlanRow(id, payload) {
+  return updateItem("CoEPlanRows", id, payload);
+}
+async function deleteCoEPlanRow(id) {
+  return deleteItem("CoEPlanRows", id);
+}
+async function getCoEPlanForecast(projectId) {
+  return getItems("CoEPlanForecast", `fields/ProjectID eq ${projectId}`);
+}
+async function saveCoEForecastMonth(projectId, monthISO, hires, existingId = null) {
+  if (existingId) return updateItem("CoEPlanForecast", existingId, { ForecastedHires: hires });
+  return createItem("CoEPlanForecast", { ProjectID: projectId, ForecastMonth: monthISO, ForecastedHires: hires });
+}
+
+// ── LCI Cost Model ──────────────────────────────────────────────────
+async function getLCIModels() {
+  return getItems("LCIModels");
+}
+async function getLCIModelById(id) {
+  return getItem("LCIModels", id);
+}
+async function createLCIModel(fields) {
+  return createItem("LCIModels", fields);
+}
+async function updateLCIModel(id, fields) {
+  return updateItem("LCIModels", id, fields);
+}
+async function deleteLCIModel(id) {
+  // Delete rows + milestones first, then the header.
+  const [rows, milestones] = await Promise.all([getLCIRows(id), getLCIMilestones(id)]);
+  for (const r of rows)       await deleteItem("LCIModelRows", r.id);
+  for (const m of milestones) await deleteItem("LCIMilestones", m.id);
+  return deleteItem("LCIModels", id);
+}
+
+async function getLCIRows(modelId) {
+  return getItems("LCIModelRows", `fields/ModelIDLookupId eq ${modelId}`);
+}
+async function createLCIRow(fields) {
+  return createItem("LCIModelRows", fields);
+}
+async function updateLCIRow(id, fields) {
+  return updateItem("LCIModelRows", id, fields);
+}
+async function deleteLCIRow(id) {
+  return deleteItem("LCIModelRows", id);
+}
+
+async function getLCIMilestones(modelId) {
+  return getItems("LCIMilestones", `fields/ModelIDLookupId eq ${modelId}`);
+}
+async function createLCIMilestone(fields) {
+  return createItem("LCIMilestones", fields);
+}
+async function updateLCIMilestone(id, fields) {
+  return updateItem("LCIMilestones", id, fields);
+}
+async function deleteLCIMilestone(id) {
+  return deleteItem("LCIMilestones", id);
+}
+
+// Duplicate a model: header (status reset to Draft) + all rows + milestones.
+// Fields are whitelisted — Graph returns read-only system fields (LinkTitle,
+// Created, Modified, Author...) that must not be sent back on create.
+const _LCI_MODEL_COPY_FIELDS = [
+  'ClientName', 'ProjectID', 'Location', 'LocalCurrency', 'DisplayCurrency',
+  'FXRateLocalToDisplay', 'StartMonth', 'HorizonMonths', 'AssignedDMEmail',
+  'EmployerBurdenPct', 'SalaryMonths', 'OfficeCostPerHead', 'EoRFeePerHead',
+  'SectionsEnabled', 'Assumptions', 'NoticeMonths',
+];
+const _LCI_ROW_COPY_FIELDS = [
+  'Title', 'RowType', 'Team', 'CareerLevel', 'AnnualSalary', 'BonusPct',
+  'Quantity', 'ExitMonth', 'LegacyCategory', 'NoticeMonthsOverride',
+  'MonthValues', 'SortOrder',
+];
+const _LCI_MILESTONE_COPY_FIELDS = ['Title', 'StartMonth', 'EndMonth', 'SortOrder'];
+
+function _pickFields(obj, keys) {
+  const out = {};
+  for (const k of keys) {
+    if (obj[k] !== undefined && obj[k] !== null) out[k] = obj[k];
+  }
+  return out;
+}
+
+async function copyLCIModel(modelId, newTitle) {
+  const [model, rows, milestones] = await Promise.all([
+    getLCIModelById(modelId), getLCIRows(modelId), getLCIMilestones(modelId),
+  ]);
+  const created = await createLCIModel({
+    ..._pickFields(model, _LCI_MODEL_COPY_FIELDS),
+    Title:  newTitle || `${model.Title} (copy)`,
+    Status: 'Draft',
+  });
+  const newId = created.id;
+  for (const r of rows) {
+    await createLCIRow({ ..._pickFields(r, _LCI_ROW_COPY_FIELDS), ModelIDLookupId: Number(newId) });
+  }
+  for (const m of milestones) {
+    await createLCIMilestone({ ..._pickFields(m, _LCI_MILESTONE_COPY_FIELDS), ModelIDLookupId: Number(newId) });
+  }
+  return created;
+}
+
+// ── LCI Reports (saved report definitions) ──────────────────────────
+async function getLCIReports() {
+  return getItems("LCIReports");
+}
+async function getLCIReportById(id) {
+  return getItem("LCIReports", id);
+}
+async function createLCIReport(fields) {
+  return createItem("LCIReports", fields);
+}
+async function updateLCIReport(id, fields) {
+  return updateItem("LCIReports", id, fields);
+}
+async function deleteLCIReport(id) {
+  return deleteItem("LCIReports", id);
+}
+
 async function getDepartments() {
   return getItems("Departments", "");
 }
- 
+
+// ── LCI Lead Magnet locations ───────────────────────────────────────
+async function getLCILocations() {
+  return getItems("LCILocations");
+}
+async function createLCILocation(fields) {
+  return createItem("LCILocations", fields);
+}
+async function updateLCILocation(id, fields) {
+  return updateItem("LCILocations", id, fields);
+}
+async function deleteLCILocation(id) {
+  return deleteItem("LCILocations", id);
+}
+
 // Resolve the signed-in user's effective role:
 // 1. Check ADMIN_USERS in config.js
 // 2. Check LeadershipAccess list
@@ -253,6 +441,13 @@ async function getEffectiveRole(email) {
     const leadership = await getLeadershipAccess();
     if (leadership.some(l => l.UserEmail?.toLowerCase() === lower)) {
       role = 'leadership';
+      // Leadership user may ALSO hold explicit DM assignments — cache those project IDs
+      const assignments = await getItems("UserAssignments",
+        `fields/Title eq '${lower}'`);
+      const dmProjects = assignments
+        .filter(a => a.AssignedRole === 'delivery_manager' && a.ProjectID && a.ProjectID !== 0)
+        .map(a => String(a.ProjectID));
+      sessionStorage.setItem('newton_dm_grants_' + lower, JSON.stringify(dmProjects));
     } else {
       const assignments = await getItems("UserAssignments",
         `fields/Title eq '${lower}'`);
@@ -271,7 +466,15 @@ async function isLeadershipUser(email) {
   const list = await getLeadershipAccess();
   return list.some(l => l.UserEmail?.toLowerCase() === email.toLowerCase());
 }
- 
+
+// True if the signed-in user holds an explicit DM grant.
+// Pass a projectId to scope the check; omit for "any DM grant?"
+function hasDMGrant(projectId = null) {
+  const email = (getCurrentUser()?.email || '').toLowerCase();
+  const grants = JSON.parse(sessionStorage.getItem('newton_dm_grants_' + email) || '[]');
+  return projectId ? grants.includes(String(projectId)) : grants.length > 0;
+}
+
 // Auto-register user on first login if not already in UserAssignments
 async function ensureUserRegistered(email, displayName) {
   const lower = email.toLowerCase();
@@ -289,10 +492,12 @@ async function ensureUserRegistered(email, displayName) {
   }
 }
  
-async function getTalentPartnersForProject(projectId) {
+async function getTalentPartnersForProject(projectId, includeEmail = null) {
   const assignments = await getItems("UserAssignments", `fields/ProjectID eq ${projectId}`);
+  const keep = includeEmail ? includeEmail.toLowerCase() : null;
   return assignments.filter(a =>
-    a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager'
+    (a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager') &&
+    (a.Active !== false || (keep && a.UserEmail?.toLowerCase() === keep))
   );
 }
 
@@ -301,6 +506,7 @@ async function getAllAssignableUsers() {
   const assignments = await getItems("UserAssignments");
   const seen = new Map();
   assignments.forEach(u => {
+    if (u.Active === false) return;
     const email = (u.UserEmail || '').toLowerCase();
     if (email && !seen.has(email)) {
       seen.set(email, { UserEmail: u.UserEmail, UserName: u.UserName || u.UserEmail });
@@ -317,6 +523,18 @@ async function getTalentPartnerDisplayMap() {
     if (u.UserEmail) map[u.UserEmail.toLowerCase()] = u.UserName || u.UserEmail;
   });
   return map;
+}
+
+// Filter a list of TP emails down to those matching an ACTIVE People record.
+// People has no email column, so we match the UserAssignments display name
+// against People.EmployeeName (case/whitespace-insensitive).
+// If the People list is empty/unavailable, returns the list unfiltered.
+async function filterToActiveTpEmails(tpEmails, tpMap) {
+  const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  const activePeople = await getPeople(true); // IsActive eq 1
+  if (!activePeople.length) return tpEmails;
+  const activeNames = new Set(activePeople.map(p => norm(p.EmployeeName)));
+  return tpEmails.filter(e => activeNames.has(norm(tpMap[e.toLowerCase()])));
 }
  
 // Role precedence: admin > leadership > talent_partner > delivery_manager > viewer
@@ -335,7 +553,7 @@ async function getUserProjectIds(email) {
  
   const lower = email.toLowerCase();
   if (CONFIG.ADMIN_USERS?.includes(lower)) return null;
-  const assignments = await getItems("UserAssignments", `fields/Title eq '${email}'`);
+  const assignments = await getItems("UserAssignments", `fields/Title eq '${lower}'`);
   return assignments.map(a => String(a.ProjectID));
 }
  
@@ -390,9 +608,14 @@ async function setSeasonalEffect(effect) {
 }
  
 // ── People module: People list ────────────────────────────────────────
-async function getPeople(activeOnly = true) {
+// Placeholder rows (vacancies / fictional roles) are EXCLUDED unless the caller
+// opts in — only the Org Chart does. Filtered client-side, not in the OData
+// $filter: rows created before the IsPlaceholder column existed have no value
+// for it, and a server-side "eq 0" would drop every one of them.
+async function getPeople(activeOnly = true, includePlaceholders = false) {
   const filter = activeOnly ? "fields/IsActive eq 1" : "";
-  const people = await getItems("People", filter);
+  const all = await getItems("People", filter);
+  const people = includePlaceholders ? all : all.filter(p => !p.IsPlaceholder);
   const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
   return people.sort((a, b) => {
     const lDiff = (levelOrder[a.Level] ?? 99) - (levelOrder[b.Level] ?? 99);
@@ -400,6 +623,35 @@ async function getPeople(activeOnly = true) {
     return (a.EmployeeName || "").localeCompare(b.EmployeeName || "");
   });
 }
+
+// ── Org Chart data ────────────────────────────────────────────────────
+// Active projects keyed by overseeing CSD display name (normalised).
+async function getProjectsByCSD() {
+  const projects = await getProjects(true); // active only
+  const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  const map = {};
+  projects.forEach(p => {
+    const key = norm(p.CSDName) || '__unassigned__';
+    (map[key] = map[key] || []).push(p);
+  });
+  return map;
+}
+
+// Current (non-forecast) assignments per employee → { EmployeeName: [row,…] }.
+// Keeps ALL current rows so a split person can be duplicated under each project.
+async function getCurrentAssignmentsByEmployee() {
+  const all = await getAssignments();       // no year filter = current list
+  const today = new Date();
+  const map = {};
+  all.filter(a => !a.IsForecast).forEach(a => {
+    const s = a.StartDate ? new Date(a.StartDate) : null;
+    const e = a.EndDate   ? new Date(a.EndDate)   : null;
+    const current = (!s || s <= today) && (!e || e >= today);
+    if (current) (map[a.EmployeeName] = map[a.EmployeeName] || []).push(a);
+  });
+  return map;
+}
+
 async function createPerson(fields) {
   return createItem("People", {
     Title:        fields.EmployeeName,
@@ -409,6 +661,11 @@ async function createPerson(fields) {
     StartDate:    fields.StartDate || undefined,
     EndDate:      fields.EndDate   || undefined,
     IsActive:     fields.IsActive !== false,
+    Salary:       fields.Salary   || undefined,
+    PhotoUrl:     fields.PhotoUrl || undefined,
+    IsPlaceholder:      fields.IsPlaceholder || undefined,
+    PlaceholderProject: fields.PlaceholderProject || undefined,
+    PlaceholderCSD:     fields.PlaceholderCSD     || undefined,
   });
 }
 async function updatePerson(id, fields) {
@@ -420,6 +677,11 @@ async function updatePerson(id, fields) {
   if (fields.StartDate    !== undefined) payload.StartDate    = fields.StartDate;
   if (fields.EndDate      !== undefined) payload.EndDate      = fields.EndDate;
   if (fields.IsActive     !== undefined) payload.IsActive     = fields.IsActive;
+  if (fields.Salary       !== undefined) payload.Salary       = fields.Salary;
+  if (fields.PhotoUrl     !== undefined) payload.PhotoUrl     = fields.PhotoUrl;
+  if (fields.IsPlaceholder      !== undefined) payload.IsPlaceholder      = fields.IsPlaceholder;
+  if (fields.PlaceholderProject !== undefined) payload.PlaceholderProject = fields.PlaceholderProject;
+  if (fields.PlaceholderCSD     !== undefined) payload.PlaceholderCSD     = fields.PlaceholderCSD;
   return updateItem("People", id, payload);
 }
  
@@ -457,6 +719,7 @@ async function createAssignment(fields) {
     MonthlyBillRate: fields.MonthlyBillRate || undefined,
     Billed:          fields.Billed,
     Country:         fields.Country,
+    IsForecast:      fields.IsForecast || false,
     AutoGenerated:   fields.AutoGenerated || false,
   });
 }
@@ -472,6 +735,7 @@ async function updateAssignment(id, fields) {
   if (fields.MonthlyBillRate !== undefined) payload.MonthlyBillRate = fields.MonthlyBillRate;
   if (fields.Billed          !== undefined) payload.Billed          = fields.Billed;
   if (fields.Country         !== undefined) payload.Country         = fields.Country;
+  if (fields.IsForecast      !== undefined) payload.IsForecast      = fields.IsForecast;
   return updateItem("Assignments", id, payload);
 }
  
@@ -504,11 +768,96 @@ async function updateInvoice(id, fields) {
   if (fields.Status        !== undefined) payload.Status      = fields.Status;
   return updateItem("GPInvoices", id, payload);
 }
- 
+
+async function uploadInvoiceAttachment(itemId, file) {
+ // Upload PDF to GPInvoiceFiles document library via Graph Drive API.
+ // filename includes itemId to avoid collisions.
+ const filename = `invoice-${itemId}-${file.name}`;
+ const token = await getToken();
+ if (!token) throw new Error('Not authenticated');
+ const url = `${GRAPH}/sites/${CONFIG.SP_SITE_ID}/drives/${CONFIG.GP_INVOICE_DRIVE_ID}/items/root:/${encodeURIComponent(filename)}:/content`;
+ const res = await fetch(url, {
+ method: 'PUT',
+ headers: {
+ 'Authorization': `Bearer ${token}`,
+ 'Content-Type': 'application/pdf',
+ },
+ body: file,
+ });
+ if (!res.ok) {
+ const err = await res.json().catch(() => ({}));
+ throw new Error(err?.error?.message || `Upload failed: HTTP ${res.status}`);
+ }
+ const result = await res.json();
+ // Return the web URL so it can be stored on the list item
+ return result?.webUrl || null;
+}
+async function addInvoiceFileURL(itemId, fileUrl) {
+ // Write the uploaded file's URL back to the GPInvoices list item.
+ return updateItem('GPInvoices', itemId, { FileURL: fileUrl });
+}
+
+// ── People photos: upload into the PeoplePhotos document library ───────
+let _peoplePhotosDriveId = null;
+async function getPeoplePhotosDriveId() {
+  if (_peoplePhotosDriveId) return _peoplePhotosDriveId;
+  const data = await graphRequest('GET', `/sites/${CONFIG.SP_SITE_ID}/drives`);
+  const drive = (data.value || []).find(d => d.name === 'PeoplePhotos');
+  if (!drive) throw new Error("'PeoplePhotos' document library not found on the site.");
+  _peoplePhotosDriveId = drive.id;
+  return drive.id;
+}
+
+// Upload an image; returns its web URL. prefix = 'person' | 'leader'.
+// Stable filename (prefix-id.ext) so re-uploads overwrite the previous photo.
+async function uploadPeoplePhoto(prefix, id, file) {
+  const token = await getToken();
+  if (!token) throw new Error('Not authenticated');
+  const driveId = await getPeoplePhotosDriveId();
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const filename = `${prefix}-${id}.${ext}`;
+  const url = `${GRAPH}/sites/${CONFIG.SP_SITE_ID}/drives/${driveId}/items/root:/${encodeURIComponent(filename)}:/content`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': file.type || 'image/jpeg' },
+    body: file,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Photo upload failed: HTTP ${res.status}`);
+  }
+  const result = await res.json();
+  const web = result?.webUrl;
+  return web ? web + (web.includes('?') ? '&' : '?') + 'v=' + Date.now() : null;
+}
+
+// ── Payroll summary ───────────────────────────────────────────────────
+async function createPayrollNotification({ month, year, joiners, leavers, bonus }) {
+  const extraFields = {
+    Month:      ['January','February','March','April','May','June','July','August','September','October','November','December'][month - 1],
+    Year:       String(year),
+    Joiners:    JSON.stringify(joiners),
+    Leavers:    JSON.stringify(leavers),
+    BonusData:  bonus ? JSON.stringify(bonus) : null,
+  };
+  return fireNotification({
+    triggerType: 'payrollSummary',
+    recipients:  ['system@newton'],
+    triggerKey:  `payrollsummary-${year}-${month}`,
+    tone:        'info',
+    deepLink:    '',
+    body:        `Payroll summary for ${month}/${year}`,
+    extraFields,
+  });
+}
+
 // ── Shared utilities ──────────────────────────────────────────────────
 function printPage(title, landscape = false, module = 'Newton') {
   document.getElementById('print-header-title').textContent = 'Newton';
   document.getElementById('print-header-sub').textContent = module;
+  // Set the document title so it becomes the default PDF filename, then restore.
+  const prevDocTitle = document.title;
+  if (title) document.title = title;
   let styleEl = null;
   if (landscape) {
     styleEl = document.createElement('style');
@@ -520,6 +869,7 @@ function printPage(title, landscape = false, module = 'Newton') {
   if (styleEl) {
     setTimeout(() => styleEl.remove(), 1000);
   }
+  setTimeout(() => { document.title = prevDocTitle; }, 1000);
 }
 
 // ── Market Report ─────────────────────────────────────────────
@@ -562,9 +912,7 @@ async function getScopedRolesForMarketReport(email, effectiveRole) {
   const arrays = await Promise.all(
     projectIds.map(pid => getRolesForProject(pid))
   );
-  return arrays.flat().filter(r =>
-    r.TalentPartner && r.TalentPartner.toLowerCase() === lower
-  );
+  return arrays.flat().filter(r => tpMatches(r.TalentPartner, lower));
 }
 
 // ── Employee Engagement ───────────────────────────────────────────────

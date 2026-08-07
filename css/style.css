@@ -145,6 +145,17 @@ body {
   box-shadow: 0 0 0 3px rgba(10,11,68,0.08);
 }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-hint { display: block; font-size: 12px; color: #888; margin-top: 4px; line-height: 1.4; }
+.cell-notes { max-width: 320px; white-space: normal; word-break: break-word; vertical-align: top; }
+.notes-cell .notes-full  { display: none; }
+.notes-cell.is-expanded .notes-short { display: none; }
+.notes-cell.is-expanded .notes-full  { display: block; }
+.notes-preview {
+  display: inline-block; max-width: 240px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;
+}
+.notes-toggle { font-size: 12px; margin-left: 6px; white-space: nowrap; cursor: pointer; }
+.notes-body { line-height: 1.5; }
 .form-section-title {
   font-weight: 700; font-size: 13px; text-transform: uppercase;
   color: #0A0B44; margin: 16px 0 8px;
@@ -482,7 +493,7 @@ body {
     background: #0A0B44 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    color: white; padding: 16px 8px; margin-bottom: 24px;
+    color: white; padding: 10px 8px; margin-bottom: 14px;
   }
   #print-header img { height: 28px; }
   .print-header-title { font-size: 16px; font-weight: 600; color: white; }
@@ -495,7 +506,14 @@ body {
   .data-table th { position: static; }
   .data-table tr    { page-break-inside: avoid; }
   .dash-panel       { page-break-inside: avoid; }
-  .kpi-strip        { page-break-inside: avoid; }
+  /* N-028 — print density. The KPI strip is the tallest fixed-height block in a
+     Report Builder export; trimming it is what lets the next tile share page 1.
+     Print-only: the screen rules (.kpi-strip / .kpi-card / .kpi-value, above)
+     are unchanged. These win on source order at equal specificity. */
+  .kpi-strip        { page-break-inside: avoid; margin-bottom: 8px; }
+  .kpi-strip-period { margin-bottom: 14px; }
+  .kpi-card         { padding: 6px 14px; }
+  .kpi-value        { font-size: 22px; }
   div[style*="background:#fff"]          { page-break-inside: avoid; }
   div[style*="grid-template-columns"]    { page-break-inside: avoid; }
   /* Report Builder — hide builder chrome in print */
@@ -505,12 +523,52 @@ body {
   .rb-modal,
   .rb-palette,
   .rb-block { display: none !important; }
-  /* Text blocks — keep together */
+  /* Text blocks — flow across pages rather than jump one.
+     A blanket break-inside:avoid stranded up to 290pt of a page whenever a
+     block missed the remaining space by a few lines (N-028). Orphans/widows
+     keep the split readable; the heading and bullet rules below stop the
+     break landing anywhere ugly. Chromium's default box-decoration-break:
+     slice draws border-top on the first fragment and border-bottom on the
+     last — do not set `clone`, it makes one block look like two tiles. */
   .rb-text-block {
-    page-break-inside: avoid;
-    break-inside: avoid;
+    orphans: 3;
+    widows: 3;
     margin-bottom: 20px;
     padding: 8px 6px !important;
+  }
+  .rb-text-block h3 { break-after: avoid; page-break-after: avoid; }
+  .rb-text-block li { break-inside: avoid; page-break-inside: avoid; }
+ /* N-029 — bold-only lines are the sub-headings users actually write; the
+     toolbar's only heading command is H3 (report-builder.js:197) and that is
+     spent on the block title. Keep them with the content below now that
+     N-028 allows this block to split.
+
+     What :only-child actually does: it counts ELEMENT children and ignores
+     text nodes. So it excludes two-element shapes — a trailing <br>, or bold
+     followed by another element — but it does NOT exclude
+     <p><b>Lead</b> followed by plain text</p>, which still matches. That is a
+     known false positive and it is not fixable in CSS: no selector can test
+     whether a bold child accounts for all of its parent's text.
+
+     The bullets are safe because they are <li>, which these selectors never
+     target — NOT because of :only-child. Do not widen this rule to li on the
+     assumption that :only-child protects them; it does not, and every
+     "<b>First Hire Confirmed - </b>…" bullet would take break-after: avoid
+     and chain into one unbreakable run — the exact failure N-028 removed.
+
+     Consequence to live with: a body paragraph that merely opens in bold also
+     gets break-after: avoid. Harmless in isolation; several consecutive ones
+     would chain. If that ever shows up in a real report, the fix is a real
+     heading tag in the toolbar (the H4 option), not a cleverer selector.
+
+     :has() is Chromium 105+, consistent with the print rules below; Firefox
+     ignores it and falls back to N-028 behaviour. */
+  .rb-text-block p:has(> b:only-child),
+  .rb-text-block p:has(> strong:only-child),
+  .rb-text-block div:has(> b:only-child),
+  .rb-text-block div:has(> strong:only-child) {
+    break-after: avoid;
+    page-break-after: avoid;
   }
   /* Prevent mid-panel breaks */
   .dash-panel {
@@ -525,8 +583,9 @@ body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* Allow report title to render */
-  .rb-report-title { display: block !important; }
+  /* Allow report title to render. !important on margin-bottom because the
+     screen rule (.rb-report-title, line ~726) sits later in the file. */
+  .rb-report-title { display: block !important; margin-bottom: 12px !important; }
 }
 @page { size: A4 portrait; }
 /* ── Report Builder ─────────────────────────────────────────────── */
@@ -539,8 +598,10 @@ body {
 .rb-sidebar {
   width: 260px;
   flex-shrink: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   padding: 0 4px 24px;
+  display: flex;
+  flex-direction: column;
 }
 .rb-canvas {
   flex: 1;
@@ -569,6 +630,14 @@ body {
   box-sizing: border-box;
 }
 .rb-palette { display: flex; flex-direction: column; gap: 6px; }
+.rb-subheading {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #8A8A8A;
+  font-weight: 600;
+  margin: 10px 0 2px;
+}
 .rb-palette-tile {
   display: flex;
   align-items: center;
@@ -589,6 +658,34 @@ body {
   font-size: 16px; line-height: 1; cursor: pointer;
 }
 .rb-full-btn { width: 100%; margin-top: 4px; }
+.rb-block-snap { align-items: flex-start; }
+.rb-snap { flex: 1; min-width: 0; }
+.rb-snap-title { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+.rb-snap-table { width: 100%; border-collapse: collapse; }
+.rb-snap-table th,
+.rb-snap-table td { padding: 4px 6px; border-bottom: 1px solid #EEE; font-size: 13px; }
+.rb-snap-table th { text-align: center; color: #595959; font-weight: 600; }
+.rb-snap-table th:first-child,
+.rb-snap-table td:first-child { text-align: left; }
+.rb-snap-input {
+  width: 52px; padding: 4px; text-align: center;
+  border: 1px solid #D0D0D0; border-radius: 4px;
+  font-family: inherit; font-size: 13px;
+}
+.rb-sidebar-scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+.rb-sidebar-footer {
+  flex-shrink: 0;
+  border-top: 1px solid #E0E0E0;
+  padding-top: 12px;
+  margin-top: 8px;
+}
+.rb-filter-mark { color: #0A0B44; font-weight: 700; margin-left: 2px; }
+.rb-footnote {
+  font-size: 11px;
+  color: #595959;
+  line-height: 1.4;
+  margin: 10px 0 0;
+}
 .page-header-actions .btn-secondary { padding: 6px 14px; }
 
 /* Rich text toolbar */
@@ -875,8 +972,14 @@ body {
 
 /* Tile expand */
 .cc-grid--expanded .cc-tile { flex: 0 0 0; opacity: 0; padding: 0; pointer-events: none; }
-.cc-grid--expanded .cc-tile--active { flex: 1; opacity: 1; padding: 32px 28px; pointer-events: all; min-height: calc(100vh - 160px); }
+.cc-grid--expanded .cc-tile--active { flex: 1; opacity: 1; padding: 32px 28px; pointer-events: all; min-height: calc(100vh - 160px); justify-content: flex-start; }
+
+/* Expanded Revenue tile: title + stats top-aligned, chart fills the rest */
+.cc-grid--expanded .cc-tile--active .cc-tile__detail { flex: 1; width: 100%; display: flex; margin-top: 20px; }
+.cc-grid--expanded .cc-tile--active .cc-tile__detail > div { flex: 1; display: flex; flex-direction: column; margin-bottom: 0; }
+.cc-grid--expanded .cc-tile--active .cc-tile__detail svg { flex: 1; min-height: 0; height: auto; }
 /* RAG tile colours */
+.cc-tile { background: #F5F5F5; border-left: 5px solid #BBBBBB; }
 .cc-tile--green { background: #E8F5E9; border-left: 5px solid #2E7D32; }
 .cc-tile--amber { background: #FFF8E1; border-left: 5px solid #F57F17; }
 .cc-tile--red   { background: #FFEBEE; border-left: 5px solid #C62828; }
@@ -1058,7 +1161,7 @@ body {
 .cc-home-banner__top    { display: flex; align-items: center; justify-content: center; width: 100%; position: relative; }
 .cc-home-banner__title  { font-size: 15px; font-weight: 600; color: white; text-align: center; flex: 1; }
 .cc-home-banner__sub    { font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; text-align: center; }
-.cc-home-banner__badges { display: flex; gap: 8px; justify-content: center; align-items: center; }
+.cc-home-banner__badges { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
 .cc-badge               { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 9px; border-radius: 10px; }
 .cc-badge--green        { background: rgba(46,125,50,0.35);  color: #81c784; border: 1px solid rgba(46,125,50,0.5); }
 .cc-badge--amber        { background: rgba(245,127,23,0.35); color: #ffb74d; border: 1px solid rgba(245,127,23,0.5); }
@@ -1448,12 +1551,6 @@ body {
   #sidebar, .eng-controls, .eng-tab-strip, .eng-rate-banner .btn-secondary,
   .eng-modal-overlay, .home-bottom-bar { display: none !important; }
   .eng-card { break-inside: avoid; }
-  body::before {
-    content: 'Confidential — Momentum Global - Internal';
-    display: block; text-align: center;
-    font-size: 11px; color: #aaa; padding: 8px 0 4px;
-    border-bottom: 1px solid #eee; margin-bottom: 16px;
-  }
 }
 
 /* ── Button icon alignment ─────────────────────────────────────────── */
@@ -1627,4 +1724,526 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* ── Payroll Summary ─────────────────────────────────────── */
+.salary-cell {
+  white-space: nowrap;
+}
+.btn-padlock {
+  font-size: 13px;
+  vertical-align: middle;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.btn-padlock:hover {
+  opacity: 1;
+}
+#payroll-modal-overlay {
+  animation: fadeIn 0.15s ease;
+}
+#payroll-modal-overlay > div {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+
+/* ── CoE Hiring Plan ─────────────────────────────────────────────── */
+.coe-toolbar { display:flex; gap:12px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+.coe-gantt-wrap { overflow-x:auto; border:1px solid #E0E0E0; border-radius:6px; }
+.coe-gantt { border-collapse:collapse; font-size:12px; }
+.coe-gantt th, .coe-gantt td { border:1px solid #EDEDED; padding:2px 6px; text-align:center; white-space:nowrap; }
+.coe-gantt th.coe-month { background:#F5F5F5; font-weight:600; }
+.coe-gantt .coe-sticky { position:sticky; background:#fff; z-index:2; text-align:left; }
+.coe-gantt .coe-sticky--1 { left:0; min-width:160px; }
+.coe-gantt .coe-sticky--2 { left:160px; min-width:80px; }
+.coe-gantt .coe-sticky--3 { left:240px; min-width:90px; }
+.coe-gantt .coe-sticky--4 { left:330px; min-width:90px; box-shadow:2px 0 3px rgba(0,0,0,0.06); }
+.coe-cell { min-width:26px; height:22px; }
+.coe-cell--R { background:#BDE3F5; }
+.coe-cell--N { background:#F5CCE8; }
+.coe-cell--O { background:#CDEBD3; }
+.coe-cell--today { outline:2px solid #E8703A; outline-offset:-2px; }
+/* actuals overlay — thin bar along the bottom of the cell */
+.coe-cell--aR { box-shadow: inset 0 -5px 0 #2E86C1; }
+.coe-cell--aN { box-shadow: inset 0 -5px 0 #C0392B; }
+.coe-cell--aO { box-shadow: inset 0 -5px 0 #1E8449; }
+.coe-legend { display:flex; gap:16px; margin:10px 0; font-size:12px; align-items:center; flex-wrap:wrap; }
+.coe-legend span { display:inline-flex; align-items:center; gap:5px; }
+.coe-swatch { width:14px; height:14px; border-radius:3px; display:inline-block; }
+.coe-capacity td, .coe-capacity th { font-size:11px; }
+.coe-capacity .coe-cap-label { text-align:left; font-weight:600; }
+.coe-fvp-table { border-collapse:collapse; margin-top:10px; font-size:13px; }
+.coe-fvp-table th, .coe-fvp-table td { border:1px solid #E0E0E0; padding:6px 12px; text-align:center; }
+.coe-fvp-input { width:60px; text-align:center; }
+.coe-fvp-var-neg { color:#C0392B; font-weight:600; }
+.coe-fvp-var-pos { color:#1E8449; font-weight:600; }
+.coe-row-actions { display:flex; gap:6px; justify-content:flex-start; }
+.coe-row-actions button { font-size:11px; padding:2px 8px; }
+
+/* ── CoE Hiring Plan — print/PDF ───────────────────────────────────── */
+@media print {
+  .coe-toolbar, .coe-col-actions, #coe-modal-host { display: none !important; }
+  .coe-gantt-wrap { overflow: visible !important; border: none; }
+  /* Page 1 = Gantt, page 2 = forecast table */
+  .coe-fvp-header { break-before: page; page-break-before: always; margin-top: 0 !important; }
+  /* Grid can breathe now it has the page to itself */
+  .coe-gantt { font-size: 10px; }
+  .coe-capacity td, .coe-capacity th { font-size: inherit; }
+  .coe-gantt th, .coe-gantt td { padding: 2px 3px; }
+  .coe-cell { min-width: 0; height: 16px; }
+  .coe-gantt .coe-sticky { position: static; box-shadow: none; }
+  .coe-gantt .coe-sticky--1 { min-width: 0; }
+  .coe-gantt .coe-sticky--2, .coe-gantt .coe-sticky--3, .coe-gantt .coe-sticky--4 { min-width: 0; }
+  /* Force phase colours to print */
+  .coe-cell--R, .coe-cell--N, .coe-cell--O, .coe-swatch,
+  .coe-cell--aR, .coe-cell--aN, .coe-cell--aO {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .coe-legend { font-size: 10px; }
+  /* Forecast table: inputs print as plain values */
+  .coe-fvp-input { border: none; background: transparent; }
+  .coe-fvp-table { break-inside: avoid; font-size: 11px; }
+}
+
+/* ── Report Builder — Hiring Plan landscape final page ─────────────── */
+.rb-gantt-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; margin-right: 8px; cursor: pointer; user-select: none;
+}
+.rb-gantt-placeholder {
+  border: 2px dashed #BBBBBB; border-radius: 6px;
+  padding: 24px; margin-top: 24px; text-align: center;
+  color: #777; font-size: 14px;
+}
+.rb-hiring-plan-page { display: none; } /* print-only content */
+
+@media print {
+  .rb-gantt-placeholder { display: none !important; }
+  /* Named page: this block prints landscape while the rest stays portrait.
+     Chromium (Chrome/Edge) only — Firefox ignores named pages. */
+  @page coe-gantt { size: A4 landscape; }
+    .rb-hiring-plan-page {
+    display: block;
+    page: coe-gantt;
+    break-before: page;
+    page-break-before: always;
+  }
+  /* Tile border fills the whole landscape page even if the chart is shorter. */
+  .rb-hiring-plan-panel {
+    min-height: 100vh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0;
+  }
+  .rb-hiring-plan-panel .panel-title { margin-bottom: 10px; }
+}
+
+/* ── LCI Cost Model ─────────────────────────────────────────────── */
+.lci-status {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.lci-status--draft     { background: #ECEFF1; color: #546E7A; }
+.lci-status--presented { background: #E3F2FD; color: #1565C0; }
+.lci-status--won       { background: #E8F5E9; color: #2E7D32; }
+.lci-status--lost      { background: #FBE9E7; color: #C62828; }
+
+/* LCI editor — settings bar */
+.lci-settings {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 20px;
+}
+.lci-settings__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px 16px;
+}
+.lci-settings__toggles {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+.lci-settings__toggles .btn-primary { margin-left: auto; }
+.lci-toggle { font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.lci-btn-muted { background: #eee !important; color: #888 !important; border-color: #ddd !important; }
+
+/* LCI editor — roadmap grid */
+.lci-grid-scroll { overflow-x: auto; }
+.lci-grid th, .lci-grid td { padding: 4px 6px; white-space: nowrap; }
+.lci-mcol { min-width: 52px; text-align: center; }
+.lci-cell {
+  width: 70px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 13px;
+}
+.lci-cell--wide { width: 170px; }
+.lci-cell--sm   { width: 50px; }
+.lci-mcol .lci-cell { width: 44px; text-align: center; }
+.lci-derived { text-align: center; color: #1B3A5C; font-weight: 600; }
+.lci-team-row td { background: #F5F7FA; padding: 6px 8px; }
+.lci-row-del { padding: 2px 8px; line-height: 1; }
+/* Header cells centre-aligned to match data, col 1 stays left */
+.lci-grid th { text-align: center; }
+.lci-grid th:first-child { text-align: left; }
+
+/* LCI cost output */
+.lci-output td { text-align: center; }
+.lci-output td:first-child { text-align: left; }
+.lci-out-subtotal td { font-weight: 600; border-top: 1px solid #ddd; }
+.lci-out-total td { font-weight: 700; color: #1B3A5C; background: #F5F7FA; }
+.lci-warn { color: #E8703A; margin-left: 4px; cursor: help; }
+.lci-out-indent td:first-child { padding-left: 18px; }
+.lci-out-section td { border-top: 1px solid #e0e0e0; }
+.lci-out-heavy td { border-top: 3px double #1B3A5C; }
+.lci-cell--grow { width: 95%; min-width: 130px; }
+.lci-grid--amounts .lci-mcol { min-width: 78px; }
+.lci-grid--amounts .lci-mcol .lci-cell { width: 70px; text-align: right; }
+
+/* LCI cumulative spend chart */
+.lci-chart-line { stroke: #1B3A5C; stroke-width: 2.5; }
+.lci-chart-dot  { fill: #1B3A5C; }
+.lci-chart-grid { stroke: #eee; stroke-width: 1; }
+.lci-chart-tick { fill: #888; font-size: 9px; }
+.lci-chart-grid--minor { stroke: #f7f7f7; }
+
+/* LCI milestone bars (rows inside the roadmap grid; navy matches .data-table th) */
+.lci-ms-bar { height: 12px; background: #0A0B44; border-radius: 6px; margin: 0 -3px; }
+
+/* LCI summary / print */
+.lci-summary-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;
+                    padding: 20px; margin-bottom: 16px; }
+
+/* N-022 print year-slices: both variants sit in the DOM, CSS picks one.
+   Screen shows the single full-horizon table exactly as before. */
+.lci-printonly { display: none; }
+.lci-assump td:first-child { width: 45%; padding-right: 32px; }
+
+/* LCI compare view */
+.lci-compare td { text-align: center; }
+.lci-compare td:first-child { text-align: left; }
+.lci-compare th { text-align: center; }
+.lci-compare th:first-child { text-align: left; }
+.lci-chart-line--b { stroke: #E8703A; stroke-width: 2.5; stroke-dasharray: 5 4; }
+.lci-chart-line--b-dot { fill: #E8703A; }
+.lci-chart-line-dot { fill: #1B3A5C; }
+
+/* LCI report — navy cover & divider pages (brand slide layout) */
+/* Background #0A0545 matches the baked-in bg of mg-visual-swirl-report.png */
+.lci-report-navy {
+  position: relative;
+  overflow: hidden;
+  background: #050542;
+  color: #fff;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+.lci-report-navy h1 { margin: 0; font-size: 34px; color: #fff; }
+.lci-report-sub { font-size: 15px; color: rgba(255,255,255,0.65); margin-top: 8px; }
+.lci-report-cover   { min-height: 400px; }
+.lci-report-divider { min-height: 300px; }
+.lci-report-logo { height: 36px; position: absolute; top: 32px; left: 40px; }
+.lci-report-swirl {
+  position: absolute;
+  right: 4%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36%;
+  mask-image: radial-gradient(ellipse at center, black 55%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 55%, transparent 78%);
+}
+.lci-report-titleblock { position: absolute; left: 40px; bottom: 18%; max-width: 55%; }
+
+.lci-bench-hint { font-size: 11px; color: #888; margin-top: 3px; line-height: 1.3; }
+.lci-bench-hint a { color: #1B3A5C; font-weight: 600; cursor: pointer; text-decoration: underline; }
+
+/* Freeze the Hiring Roadmap header row on scroll */
+.lci-grid-scroll:has(#lci-roadmap-table) { max-height: 65vh; overflow: auto; }
+#lci-roadmap-table thead th { position: sticky; top: 0; z-index: 3; }
+/* Same treatment for the Legacy Team table — it can grow to a large number of
+   rows. Sticky headers rely on .data-table th's opaque background (#0A0B44);
+   don't make that transparent. */
+.lci-grid-scroll:has(#lci-legacy-table) { max-height: 65vh; overflow: auto; }
+#lci-legacy-table thead th { position: sticky; top: 0; z-index: 3; }
+/* Per-team add-role row */
+.lci-add-role-row td { padding: 4px 8px; background: #fbfcfe; }
+.lci-add-role-btn { background: none; border: none; color: #1B3A5C; font-weight: 600; cursor: pointer; font-size: 13px; }
+.lci-add-role-btn:hover { text-decoration: underline; }
+
+/* Team header row actions (rename / delete) */
+.lci-team-btn {
+  background: none; border: none; cursor: pointer;
+  color: #6b7a8d; font-size: 12px; font-weight: 600;
+  padding: 0 4px; margin-left: 8px;
+}
+.lci-team-btn:hover { text-decoration: underline; color: #1B3A5C; }
+.lci-team-btn--danger:hover { color: #C0392B; }
+
+@media print {
+  .lci-noprint, #sidebar { display: none !important; }
+  /* Client-facing summary: no 'Confidential — Internal' banner */
+  body.lci-summary-mode::before { display: none !important; content: none !important; }
+  /* Banner sits flush on the first section; sections match banner width */
+  body.lci-summary-mode #print-header { margin-bottom: 0 !important; }
+  body.lci-summary-mode #main-content { padding: 0 !important; margin: 0 !important; }
+  #lci-print-p1 { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+  /* Tighter title block */
+  .lci-summary-card { padding: 14px 20px; }
+  #lci-print-p1 .lci-summary-head h2 { margin: 0; font-size: 20px; }
+  #lci-print-p1 .lci-grid-scroll { margin-top: 8px !important; }
+  /* Page breaks: p1 plan, p2 cost model, p3 chart, p4 assumptions */
+  #lci-print-p2, #lci-print-p3, #lci-print-p4 { break-before: page; page-break-before: always; }
+  /* Multi-page sections: don't split rows; keep team headers with their rows */
+  .lci-grid tr { break-inside: avoid; }
+  .lci-team-row { break-after: avoid; }
+  .lci-grid { font-size: 10px; }
+  .lci-grid th, .lci-grid td { padding: 2px 3px; }
+  .lci-grid-scroll { overflow: visible !important; }
+  .lci-out-total td, .lci-out-subtotal td, .lci-team-row td, .lci-ms-bar {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  /* Report: every section/divider on its own page; navy pages fill the sheet */
+  .lci-report-break { break-before: page; page-break-before: always; }
+  .lci-report-navy {
+    border-radius: 0;
+    min-height: 180mm;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .lci-report-navy h1 { font-size: 40px; }
+  body.lci-summary-mode #print-header { display: none !important; }
+
+  /* N-022: print the year slices, hide the full-horizon screen table.
+     Each slice after the first takes its own page. The slices are siblings
+     inside an existing .lci-summary-card, so the card's own border/padding is
+     neutralised and the tile treatment moves onto each slice — otherwise one
+     card's border would be sliced in half by the page break. */
+  .lci-screenonly { display: none !important; }
+  .lci-printonly { display: block; }
+  /* Break BEFORE every slice that follows another slice — never the first.
+     Do not use :first-of-type here: it means "first div among siblings", and
+     the first div inside #lci-print-p1 is .lci-summary-head (the title block),
+     so the reset matched nothing and Year 1 pushed the title onto a page of
+     its own. The sibling combinator keys on the slices themselves. */
+  .lci-printonly ~ .lci-printonly { break-before: page; page-break-before: always; }
+  .lci-summary-card:has(.lci-printonly) {
+    border: none; border-radius: 0; padding: 0; margin-bottom: 0;
+  }
+  .lci-summary-card:has(.lci-printonly) > .lci-summary-head { padding: 14px 20px 0; }
+  .lci-summary-card > .lci-printonly { padding: 14px 20px; }
+
+  /* Roadmap column 1 wraps instead of overrunning into the M1 header.
+     .lci-grid sets white-space:nowrap for the month columns, which is right for
+     them but not for a long role title or the sliced "Hiring Roadmap — Year 2
+     (M13–M24)" label. Scoped to the roadmap: the Cost Model's first column is
+     short and fixed. break-word (not anywhere) so "Customer Solutions Director"
+     wraps at spaces rather than mid-word. */
+  .lci-grid--roadmap th:first-child,
+  .lci-grid--roadmap td:first-child {
+    white-space: normal;
+    overflow-wrap: break-word;
+    max-width: 180px;
+    vertical-align: top;
+  }
+
+  /* Sliced Cost Model carries a 13th column (Year N total); pull the type in a
+     step so the right-hand months don't collide. */
+  .lci-printonly .lci-output { font-size: 9px; }
+  .lci-printonly .lci-output th, .lci-printonly .lci-output td { padding: 2px; }
+}
+
+.lci-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
+}
+.lci-modal-card {
+  background: #fff; border-radius: 8px; padding: 28px;
+  width: 460px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+
+/* ── LCI Lead Magnet ──────────────────────────────────────────────── */
+.lm-scroll { overflow-x: auto; }
+.lm-grid { font-size: 13px; }
+.lm-grid th, .lm-grid td { padding: 6px 6px; text-align: center; }        /* centre all columns */
+.lm-grid th { white-space: normal; vertical-align: bottom; }              /* 2-word discipline headers wrap to 2 lines */
+.lm-grid td { white-space: nowrap; }
+.lm-grid th:first-child, .lm-grid td:first-child { text-align: left; white-space: nowrap; }  /* Location stays left */
+.lm-scol { min-width: 64px; }
+.lm-chk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 12px; }
+.lm-chk { font-size: 13px; display: flex; align-items: center; gap: 6px; }
+
+/* Report (preview + print) */
+.lm-report { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+.lm-report-band { background: #0A0B44; color: #fff; padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; }
+.lm-report-title { font-size: 18px; font-weight: 600; }
+.lm-report-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 4px; }
+.lm-report-logo { height: 30px; }
+.lm-report-body { padding: 24px 28px; }
+.lm-loc-block { margin-bottom: 22px; }
+.lm-loc-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.lm-loc-name { font-size: 15px; font-weight: 600; color: #1B3A5C; }
+.lm-overall { font-size: 16px; font-weight: 700; }
+.lm-report-table td, .lm-report-table th { text-align: right; }
+.lm-report-table td:first-child, .lm-report-table th:first-child { text-align: left; }
+.lm-missing { font-size: 12px; color: #888; margin-top: 4px; }
+.lm-watchouts { margin-top: 18px; }
+.lm-watchouts h4 { color: #1B3A5C; margin-bottom: 6px; }
+.lm-watchouts p { white-space: pre-wrap; font-size: 13px; }
+.lm-method { margin-top: 20px; border-top: 1px solid #eee; padding-top: 12px; }
+.lm-method h4 { color: #1B3A5C; font-size: 13px; margin-bottom: 6px; }
+.lm-method p { font-size: 11px; color: #777; line-height: 1.5; }
+.lm-caption { font-size: 12px; color: #777; font-style: italic; margin-bottom: 16px; }
+
+@media print {
+  /* Scoped to the Lead Magnet only — #main-content must actually contain
+     #lm-preview. Without :has(), these rules also fired on the full LCI
+     report (which shares body.lci-summary-mode) and blanked the whole print. */
+  body.lci-summary-mode #main-content:has(#lm-preview) #print-header { display: none !important; }
+  body.lci-summary-mode:has(#lm-preview) #sidebar,
+  body.lci-summary-mode:has(#lm-preview) .page-header,
+  body.lci-summary-mode:has(#lm-preview) #lm-modal { display: none !important; }
+  /* Print only the report block: hide the library + builder cards */
+  body.lci-summary-mode #main-content:has(#lm-preview) > div:not(#lm-preview) { display: none !important; }
+  body.lci-summary-mode #main-content > #lm-preview { margin: 0 !important; }
+  .lm-report { border: none; border-radius: 0; }
+  .lm-report-band, .lm-loc-head .lm-overall, .lm-report-table td, .lm-report-table th {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+}
+
+/* ── Org Chart ─────────────────────────────────────────────────────── */
+#org-chart-page {
+  overflow: auto; padding: 24px; background: #fff; border-radius: 8px;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+#org-chart-canvas { text-align: center; min-width: 100%; }
+#org-chart-inner { display: inline-block; text-align: left; }
+
+.org-tree, .org-tree ul { position: relative; padding-top: 20px; text-align: center;
+  white-space: nowrap; list-style: none; margin: 0; }
+.org-tree ul { display: flex; justify-content: center; }
+.org-tree li { position: relative; padding: 24px 4px 0; }
+/* connector elbows */
+.org-tree li::before, .org-tree li::after {
+  content: ''; position: absolute; top: 0; right: 50%;
+  border-top: 1px solid #cfd8dc; width: 50%; height: 20px; }
+.org-tree li::after { right: auto; left: 50%; border-left: 1px solid #cfd8dc; }
+.org-tree li:only-child { padding-top: 24px; }        /* same gap as multi-child rows */
+.org-tree li:only-child::before { display: none; }    /* no horizontal elbow for a single child */
+.org-tree li:only-child::after {                       /* straight vertical connector instead */
+  display: block; content: ''; top: 0; left: 50%; right: auto;
+  width: 0; height: 24px; border-left: 1px solid #cfd8dc; border-top: 0; border-radius: 0;
+}
+.org-tree li:first-child::before, .org-tree li:last-child::after { border: 0; }
+.org-tree li:last-child::before {
+  border-right: 1px solid #cfd8dc; border-radius: 0 5px 0 0; }
+.org-tree li:first-child::after { border-radius: 5px 0 0 0; }
+.org-tree ul::before { content: ''; position: absolute; top: 0; left: 50%;
+  border-left: 1px solid #cfd8dc; width: 0; height: 20px; }
+.org-tree > ul::before { display: none; }
+
+/* Stacked siblings: children run vertically off one spine dropped from the parent's
+   centre line, each reached by a short horizontal tick. Keeps subtree width to the
+   widest single child instead of the sum of all of them.
+   These rules are (0,2,2) and so beat the generic (0,2,1) :first-child / :last-child /
+   :only-child connector rules above — but they must therefore restate every border
+   property those rules set, rather than relying on the cascade. */
+/* inline-block => the list shrink-wraps its content, so the parent li's text-align
+   centres it under the parent node. Everything inside is fixed-pixel: the previous
+   percentage padding was resolved against a width the content itself determined,
+   which is what threw the alignment and overflowed the page edge. */
+/* block-level (so it sits BELOW the parent node, not beside it — .org-node is
+   inline-block and .org-tree sets white-space:nowrap) but shrink-to-fit via
+   fit-content, with auto margins to re-centre it under the parent. */
+.org-tree ul.org-stack { display: block; width: fit-content; margin-left: auto;
+  margin-right: auto; position: relative; text-align: left; padding-top: 20px; }
+/* elbow: parent's 20px stub (ul::before, at 50%) then across to the spine at left:0 */
+.org-tree ul.org-stack::after { content: ''; position: absolute; top: 20px; left: 0;
+  width: 50%; height: 0; border-top: 1px solid #cfd8dc; }
+/* 24px clears the 40px avatar that protrudes above each node (was overlapping) */
+.org-tree ul.org-stack > li { padding: 24px 0 0 0; }
+/* text-align:left on the stacked list stops the li boxes centring, but it also
+   cascades into the node. Restore centring on the node itself — visible on short
+   labels like "QA", which sat hard against the left edge. */
+.org-tree ul.org-stack > li > .org-node { margin-left: 18px; text-align: center; }
+.org-tree ul.org-stack > li::before {          /* horizontal tick into the node */
+  top: 46px; left: 0; right: auto; width: 18px; height: 0;
+  border-top: 1px solid #cfd8dc; border-right: 0; border-radius: 0; }
+.org-tree ul.org-stack > li::after {           /* vertical spine segment */
+  top: 0; left: 0; right: auto; width: 0; height: 100%;
+  border-left: 1px solid #cfd8dc; border-top: 0; border-radius: 0; }
+.org-tree ul.org-stack > li:last-child::after { height: 46px; }
+.org-node { position: relative; display: inline-block; padding: 8px 14px; border: 1px solid #e0e0e0;
+  border-radius: 6px; background: #fff; min-width: 120px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.org-node__name { font-weight: 600; font-size: 13px; color: #1a1a1a; }
+.org-node__sub  { font-size: 11px; color: #78909c; margin-top: 2px; }
+.org-node--leader  { background: #0A0B44; border-color: #0A0B44; }
+.org-node--leader  .org-node__name { color: #fff; }
+.org-node--leader  .org-node__sub  { color: #b0bec5; }
+.org-node--csd { background: #1E3A6E; border-color: #1E3A6E; }
+.org-node--csd .org-node__name { color: #fff; }
+.org-node--csd .org-node__sub  { color: #cdd8ee; }
+.org-node--sdm { background: #37589C; border-color: #37589C; }
+.org-node--sdm .org-node__name { color: #fff; }
+.org-node--sdm .org-node__sub  { color: #dbe4f5; }
+.org-node--tp  { background: #AEC6E8; border-color: #9db8de; }
+.org-node--tp  .org-node__name { color: #0A0B44; }
+.org-node--tp  .org-node__sub  { color: #33507f; }
+.org-node--project { border-color: #2E7D32; background: #E8F5E9; }
+.org-node--bench   { border-style: dashed; background: #fafafa; }
+/* placeholder (vacant / not-yet-hired): no level band colour, dashed outline */
+.org-node--placeholder { border: 1px dashed #90A4AE; background: #fff; box-shadow: none; }
+.org-node--placeholder .org-node__name { color: #455A64; font-style: italic; }
+.org-node--placeholder .org-node__sub  { color: #90A4AE; }
+.org-node--placeholder .org-avatar--initials { background: #B0BEC5; }
+.org-node--person { padding: 3px 8px; min-width: 84px; }
+.org-node--has-avatar { padding-top: 25px; }
+.org-avatar {
+  position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
+  width: 40px; height: 40px; border-radius: 50%; box-sizing: border-box;
+  border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  z-index: 2;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.org-avatar--initials { background: #37589C; color: #fff; font-size: 11px; font-weight: 600; }
+.org-avatar--img { object-fit: cover; background: #fff; }
+.org-empty { color: #777; padding: 40px; text-align: center; }
+
+.org-bench { margin-top: 32px; border-top: 1px dashed #cfd8dc; padding-top: 16px; }
+.org-bench__title { font-weight: 600; font-size: 13px; color: #546E7A; margin-bottom: 10px; }
+/* .org-avatar sits at top:-20px, so each card overhangs upward by 20px — the
+   tree absorbs this via .org-tree li's padding-top. The bench grid needs its
+   own headroom (heading clearance) and a row-gap larger than the overhang. */
+.org-bench__grid { display: flex; flex-wrap: wrap; gap: 26px 8px; padding-top: 22px; }
+.org-tag { font-size: 10px; background: #ECEFF1; color: #546E7A;
+  padding: 1px 6px; border-radius: 8px; margin-left: 6px; }
+
+.org-print-title { display: none; }
+@media print {
+  body.org-printing #main-content > *:not(#org-chart-page),
+  body.org-printing .page-header .btn-secondary,
+  body.org-printing .page-header .print-btn { display: none !important; }
+  /* No min-height in print: it forced ~640px of tile regardless of chart size and
+     was the main reason the title and chart split across two pages. Padding and
+     title margin trimmed for the same reason — on screen both stay as they were. */
+  body.org-printing #org-chart-page {
+    overflow: visible !important; min-height: 0; padding: 8px; }
+  body.org-printing .org-print-title {
+    display: block; text-align: center; font-size: 15px; font-weight: 600;
+    color: #0A0B44; margin: 0 0 6px; }
+  body.org-printing .org-tree { padding-top: 4px; }
+  /* 24px below the header is tuned for multi-page reports; the org chart is a
+     single page and needs the pixels more than the breathing room. */
+  body.org-printing #print-header { margin-bottom: 12px !important; }
+  body.org-printing #org-chart-canvas { text-align: center; min-width: 0; }
+  body.org-printing #org-chart-inner { zoom: var(--org-print-scale, 1); }
 }

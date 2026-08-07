@@ -1,5 +1,55 @@
 // js/sales-pages.js — Sales module pages
 
+// ── Revenue Tracking Page ─────────────────────────────────────────
+
+let _revTrackYear = null;      // selected year, set on first render
+let _revTrackForecasts = null; // SalesForecasts cache for the chart
+
+async function renderRevenueTrackingPage() {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<p>Loading...</p>';
+
+  try {
+    const assignments = await getAssignments();
+    _revTrackForecasts = await getSalesForecasts();
+    const years = getAssignmentDataYears(assignments);
+    if (_revTrackYear === null || !years.includes(_revTrackYear)) {
+      const thisYear = new Date().getFullYear();
+      _revTrackYear = years.includes(thisYear) ? thisYear : years[years.length - 1];
+    }
+    main.innerHTML = _renderRevenueTrackingPage(assignments, years);
+  } catch (e) {
+    main.innerHTML = `<p style="color:red">Error loading revenue data: ${e.message}</p>`;
+  }
+}
+
+function onRevTrackYearChange(val) {
+  _revTrackYear = parseInt(val, 10);
+  renderRevenueTrackingPage();
+}
+
+function _renderRevenueTrackingPage(assignments, years) {
+  const yearOptions = years.map(y =>
+    `<option value="${y}"${y === _revTrackYear ? ' selected' : ''}>${y}</option>`
+  ).join('');
+
+  return `
+    <div class="page-header">
+      <h2>Revenue Tracking</h2>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:13px;color:#555">Year</label>
+        <select class="form-control" style="width:auto"
+                onchange="onRevTrackYearChange(this.value)">
+          ${yearOptions}
+        </select>
+      </div>
+    </div>
+    ${_renderRevenueLineGraph(assignments, _revTrackYear, _revTrackForecasts || [])}`;
+}
+
+// ── Revenue Line Graph ────────────────────────────────────────────
+// Moved to js/revenue-chart.js (shared with Command Centre).
+
 // ── Sales Forecast Page ───────────────────────────────────────────
 
 async function renderSalesForecastPage() {
@@ -89,6 +139,10 @@ function _forecastModal() {
           <input type="number" id="forecast-hc" class="form-control" min="1" step="1">
         </div>
         <div class="form-group">
+          <label>Monthly Revenue per Head (£)</label>
+          <input type="number" id="forecast-rev-per-head" class="form-control" min="0" step="100">
+        </div>
+        <div class="form-group">
           <label>Notes</label>
           <textarea id="forecast-notes" class="form-control" rows="3"></textarea>
         </div>
@@ -110,6 +164,7 @@ async function openForecastModal(id) {
   document.getElementById('forecast-start').value = '';
   document.getElementById('forecast-end').value = '';
   document.getElementById('forecast-hc').value = '';
+  document.getElementById('forecast-rev-per-head').value = '';
   document.getElementById('forecast-notes').value = '';
   document.getElementById('forecast-edit-id').value = '';
 
@@ -118,7 +173,7 @@ async function openForecastModal(id) {
     document.getElementById('forecast-edit-id').value = id;
     try {
       const forecasts = await getSalesForecasts();
-      const f = forecasts.find(x => x.id === id);
+      const f = forecasts.find(x => String(x.id) === String(id));
       if (f) {
         document.getElementById('forecast-title').value = f.Title || '';
         document.getElementById('forecast-start').value = f.ForecastStartDate
@@ -126,6 +181,7 @@ async function openForecastModal(id) {
         document.getElementById('forecast-end').value = f.ForecastEndDate
           ? f.ForecastEndDate.substring(0, 10) : '';
         document.getElementById('forecast-hc').value = f.ForecastedHeadcount ?? '';
+        document.getElementById('forecast-rev-per-head').value = f.ForecastMonthlyRevenuePerHead ?? '';
         document.getElementById('forecast-notes').value = f.Notes || '';
       }
     } catch (e) {
@@ -153,6 +209,7 @@ async function saveForecast() {
   const start = document.getElementById('forecast-start').value;
   const end   = document.getElementById('forecast-end').value;
   const hc    = parseInt(document.getElementById('forecast-hc').value, 10);
+  const revPerHead = document.getElementById('forecast-rev-per-head').value;
   const notes = document.getElementById('forecast-notes').value.trim();
   const editId = document.getElementById('forecast-edit-id').value;
 
@@ -175,6 +232,7 @@ async function saveForecast() {
       ForecastStartDate: start,
       ForecastEndDate: end,
       ForecastedHeadcount: hc,
+      ForecastMonthlyRevenuePerHead: revPerHead === '' ? null : parseFloat(revPerHead),
       Notes: notes,
     };
     if (editId) {

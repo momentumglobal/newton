@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Newton Mobile</title>
   <link rel="icon" type="image/png" href="momentum-symbol.png">
+
+  <!-- PWA: installable home-screen app -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#090546">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Newton">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <style>
     @font-face {
       font-family: 'Polymath';
@@ -345,6 +354,198 @@
       white-space: nowrap;
     }
     .m-toast.show { opacity: 1; }
+    
+    /* ── Module switcher (top bar) ── */
+    .m-switcher-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 7px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .m-switcher-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: white;
+      border: 1px solid #e8e8e8;
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+      overflow: hidden;
+      min-width: 180px;
+      z-index: 300;
+    }
+    .m-switcher-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 14px;
+      color: #0A0B44;
+      padding: 13px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid #f0f0ee;
+    }
+    .m-switcher-item:last-child { border-bottom: none; }
+    .m-switcher-item.active { background: #EBF2FA; font-weight: 600; }
+    .m-switcher-item:active { background: #dde8f5; }
+
+    /* ── Home launcher ── */
+    .m-home-greeting { margin: 4px 2px 18px; }
+    .m-home-hello { font-size: 20px; font-weight: 600; color: #0A0B44; }
+    .m-home-sub   { font-size: 13px; color: #888; margin-top: 2px; }
+    .m-module-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .m-module-card {
+      background: white;
+      border: 1px solid #e8e8e8;
+      border-radius: 14px;
+      padding: 22px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: left;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      transition: box-shadow 0.15s, transform 0.1s;
+    }
+    .m-module-card:active {
+      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+      transform: scale(0.98);
+    }
+    .m-module-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      background: #EBF2FA;
+      color: #0A0B44;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .m-module-icon svg { width: 22px; height: 22px; }
+    .m-module-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #0A0B44;
+    }
+
+    /* ── People Scorecards (mobile) ── */
+    .m-sc-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .m-sc-table td { padding: 9px 0; border-bottom: 1px solid #f0f0ee; font-size: 14px; }
+    .m-sc-table tr:last-child td { border-bottom: none; }
+    .m-sc-metric { color: #444; }
+    .m-sc-val { text-align: right; font-weight: 700; white-space: nowrap; }
+    .m-sc-pill {
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: .04em;
+    }
+
+    /* Carousel */
+    .m-sc-carousel { overflow: hidden; width: 100%; }
+    .m-sc-track {
+      display: flex;
+      transition: transform 0.25s ease;
+    }
+    .m-sc-slide {
+      flex: 0 0 100%;
+      min-width: 100%;
+      box-sizing: border-box;
+    }
+    .m-sc-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .m-sc-arrow {
+      background: #fff;
+      border: 1.5px solid #0A0B44;
+      color: #0A0B44;
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .m-sc-arrow:disabled { opacity: 0.3; cursor: default; }
+    .m-sc-counter {
+      flex: 1;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0A0B44;
+    }
+    .m-sc-dots {
+      display: flex;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 12px;
+    }
+    .m-sc-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      border: none;
+      background: #cfcfda;
+      cursor: pointer;
+      padding: 0;
+    }
+    .m-sc-dot.active { background: #0A0B44; }
+  
+/* ── Placement Analytics tiles (mobile) ── */
+    .m-an-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .m-an-tile {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 12px;
+      padding: 14px 14px 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .m-an-tile-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #0A0B44;
+      line-height: 1.1;
+    }
+    .m-an-tile-label {
+      font-size: 12px;
+      color: #555;
+      margin-top: 5px;
+      font-weight: 600;
+    }
+    .m-an-tile-sub {
+      font-size: 11px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    /* ── Phase D: tighten bottom nav for 5 Reporting tabs ── */
+    .m-nav-item { font-size: 10px; padding-left: 2px; padding-right: 2px; }
+    .m-nav-item svg { width: 20px; height: 20px; }
   </style>
 </head>
 <body>
@@ -370,25 +571,18 @@
           <div class="m-topbar-sub"   id="m-topbar-sub">Momentum Global</div>
         </div>
       </div>
-      <img src="momentum-symbol.png" alt="">
+      <div style="position:relative">
+        <button class="m-switcher-btn" id="m-switcher-btn" onclick="mobileToggleSwitcher()">
+          <span id="m-switcher-label">Newton</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="m-switcher-menu" id="m-switcher-menu" style="display:none"></div>
+      </div>
     </div>
 
     <div id="m-main"></div>
 
-    <nav class="m-bottom-nav" id="m-bottom-nav">
-      <button class="m-nav-item active" id="m-nav-roles" onclick="mobileNav('roles')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-        Roles
-      </button>
-      <button class="m-nav-item" id="m-nav-activity" onclick="mobileNav('activity')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        Log Activity
-      </button>
-      <button class="m-nav-item" id="m-nav-placement" onclick="mobileNav('placement')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        Placement
-      </button>
-    </nav>
+    <nav class="m-bottom-nav" id="m-bottom-nav" style="display:none"></nav>
 
     <div class="m-desktop-link">
       <a onclick="mobileForceDesktop()">Switch to desktop view</a>
@@ -404,8 +598,33 @@
   <script src="js/auth.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/analytics.js"></script>
+  <!-- Mark this session as running the mobile app, so desktop pages
+       (index.html etc.) redirect back here after the MSAL login round-trip,
+       even when the WebView reports a non-mobile width. -->
+  <script>
+    try { localStorage.setItem('newton_mobile', '1'); } catch (e) {}
+  </script>
   <!-- Mobile app -->
   <script src="js/mobile-app.js"></script>
   <script src="js/mobile-pages.js"></script>
+  <script src="js/mobile-home.js"></script>
+  <script src="js/mobile-people.js"></script>
+  <script src="js/mobile-roleform.js"></script>
+  <script src="js/mobile-scorecards.js"></script>
+  <script src="js/mobile-sales.js"></script>
+  <script src="js/mobile-analytics.js"></script>
+  <script src="js/mobile-reporting-ext.js"></script>
+
+  <!-- PWA: register the service worker (makes the site installable) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function (e) {
+          console.warn('SW registration failed:', e);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

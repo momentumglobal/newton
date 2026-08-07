@@ -25,6 +25,7 @@ async function getProjectFilterOptions() {
     const idSet = new Set(ids.map(String));
     projects = all.filter(p => idSet.has(String(p.id)));
   }
+  projects.sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''));
   return { projects, canFilter: true };
 }
 function projectFilterDropdown(projects, selectedId, callbackFn) {
@@ -47,13 +48,13 @@ async function renderProjectsPage() {
   main.innerHTML = "<p>Loading projects...</p>";
   const role = _resolvedRole;
   const user = getCurrentUser();
-  const projects = await getScopedProjects(user.email, false);
-  const canEdit = ["admin","delivery_manager"].includes(role);
-  projects.sort((a, b) => {
-    const dm = (a.DeliveryManager || '').localeCompare(b.DeliveryManager || '');
-    if (dm !== 0) return dm;
-    return (a.CustomerName || '').localeCompare(b.CustomerName || '');
-  });
+  const [projects, dmMap] = await Promise.all([
+    getScopedProjects(user.email, false),
+    getTalentPartnerDisplayMap(),
+  ]);
+  const canEdit = ["admin","delivery_manager"].includes(role) || hasDMGrant();
+  const dmName = email => email ? (dmMap[email.toLowerCase()] || email) : "—";
+  projects.sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''));
   main.innerHTML = `
     <div class="page-header">
       <h2>Projects</h2>
@@ -68,7 +69,7 @@ async function renderProjectsPage() {
         ${projects.map(p => `
           <tr>
             <td>${p.CustomerName}</td>
-            <td>${p.DeliveryManager || "—"}</td>
+            <td>${dmName(p.DeliveryManager)}</td>
             <td><span class="badge badge-${p.Status?.toLowerCase()}">${p.Status}</span></td>
             <td>${p.StartDate ? p.StartDate.split("T")[0] : "—"}</td>
             <td>${p.EndDate ? p.EndDate.split("T")[0] : "—"}</td>
@@ -146,15 +147,22 @@ async function renderRolesPage(filter) {
       ${projDropdown}
       <div class="filter-group">${filterBtns}</div>
     </div>
-    <table class="data-table">
+        <table class="data-table">
       <thead><tr>
         <th>Project</th><th>Role</th><th>Location</th><th>Stage</th><th>Talent Partner</th>
-        <th>Budget</th><th>Open Date</th><th>Target Hire Date</th><th>Days Open</th>${canEdit ? "<th></th>" : ""}
+        <th>Budget</th><th>Open Date</th><th>${_rolesFilter === "Hired" ? "Actual Hire Date" : "Target Hire Date"}</th><th>Days Open</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
         ${roles.map(r => {
-          const days = daysOpen(r.OpenDate, r.ActualHireDate);
-          const rowClass = days !== null && days > 45 ? 'row-age-critical' : '';
+          const isHired    = _rolesFilter === "Hired";
+          const daysHidden = _rolesFilter === "Backlog" || _rolesFilter === "Cancelled";
+          const days       = (!daysHidden && (!isHired || r.ActualHireDate))
+            ? daysOpen(r.OpenDate, r.ActualHireDate) : null;
+          const rowClass   = (isHired || _rolesFilter === "Active") && days !== null && days > 45
+            ? 'row-age-critical' : '';
+          const dateCell   = isHired
+            ? (r.ActualHireDate ? r.ActualHireDate.split("T")[0] : "—")
+            : (r.TargetHireDate ? r.TargetHireDate.split("T")[0] : "—");
           const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || "—";
           return `
           <tr class="${rowClass}">
@@ -162,10 +170,10 @@ async function renderRolesPage(filter) {
             <td>${r.RoleTitle}</td>
             <td>${r.Location || '—'}</td>
             <td><span class="badge">${r.Stage || "—"}</span></td>
-            <td>${tpMap[(r.TalentPartner || '').toLowerCase()] || r.TalentPartner || "—"}</td>
+            <td>${tpDisplay(r.TalentPartner, tpMap)}</td>
             <td>${formatSalary(r.Budget)}</td>
             <td>${r.OpenDate ? r.OpenDate.split("T")[0] : "—"}</td>
-            <td>${r.TargetHireDate ? r.TargetHireDate.split("T")[0] : "—"}</td>
+            <td>${dateCell}</td>
             <td>${days !== null ? days + " days" : "—"}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a></div></td>` : ""}
           </tr>`;
@@ -181,6 +189,8 @@ async function showAddRoleForm() {
 async function showEditRoleForm(id) {
   const data = await getItem("Roles", id);
   document.getElementById("main-content").innerHTML = await renderRoleForm(data);
+  const pid = data.ProjectID || data.ProjectIDLookupId;
+  if (pid) loadTalentPartnersForRole(pid, data.TalentPartner || '');
 }
 // ── Weekly Activity ───────────────────────────────────────────────────
 let _activityProjectId = null;

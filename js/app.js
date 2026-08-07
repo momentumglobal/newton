@@ -1,8 +1,15 @@
 // ── Mobile auto-detect redirect ───────────────────────────────────────
-// Redirect to mobile view if on a small screen, unless user has opted out
-if (window.innerWidth < 768 && !sessionStorage.getItem('newton_force_desktop')) {
-  window.location.replace('mobile.html');
-}
+// Redirect to mobile view if on a small screen OR if this session is
+// running inside the mobile app (flag set by mobile.html), unless the user
+// has explicitly opted out via "Switch to desktop view".
+(function () {
+  var optedOut = sessionStorage.getItem('newton_force_desktop');
+  var isApp    = false;
+  try { isApp = localStorage.getItem('newton_mobile') === '1'; } catch (e) {}
+  if (!optedOut && (window.innerWidth < 768 || isApp)) {
+    window.location.replace('mobile.html');
+  }
+})();
 
 // ── Quick Links deep-link handler ─────────────────────────────────────
 // Hash format: #<pageKey>  or  #<pageKey>?action=add
@@ -38,7 +45,12 @@ window.APP = {
       await ensureUserRegistered(user.email, user.name).catch(e =>
         console.warn('Auto-registration failed:', e)
       );
-      window.location.href = 'index.html';
+      // If this session is the mobile app, return to mobile.html after the
+      // login round-trip instead of the desktop home.
+      var isAppLogin = false;
+      try { isAppLogin = localStorage.getItem('newton_mobile') === '1'; } catch (e) {}
+      var optedOutLogin = sessionStorage.getItem('newton_force_desktop');
+      window.location.href = (isAppLogin && !optedOutLogin) ? 'mobile.html' : 'index.html';
       return;
     }
     document.getElementById('app-shell').style.display = 'flex';

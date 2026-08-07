@@ -16,7 +16,11 @@ async function mobileRenderRoles(main) {
     const roles = await mobileGetRoles();
 
     if (!roles.length) {
-      main.innerHTML = '<div class="m-empty">No active roles assigned to you.</div>';
+      main.innerHTML = `
+        <div class="m-action-row" style="margin-bottom:14px">
+          <button class="m-btn-primary" onclick="mobileNav('add-role')">+ Add Role</button>
+        </div>
+        <div class="m-empty">No active roles assigned to you.</div>`;
       return;
     }
 
@@ -28,7 +32,10 @@ async function mobileRenderRoles(main) {
       byProject[key].push(r);
     });
 
-    let html = '';
+    let html = `
+      <div class="m-action-row" style="margin-bottom:14px">
+        <button class="m-btn-primary" onclick="mobileNav('add-role')">+ Add Role</button>
+      </div>`;
     for (const [project, projectRoles] of Object.entries(byProject)) {
       html += `<div class="m-section-header">${project}</div>`;
       html += projectRoles.map(r => {
@@ -40,7 +47,7 @@ async function mobileRenderRoles(main) {
         return `
           <div class="m-role-card" onclick="mobileSelectRole(${r.id})">
             <div class="m-role-title">${r.RoleTitle}</div>
-            <div class="m-role-meta">${r.TalentPartner || ''}</div>
+            <div class="m-role-meta">${tpList(r.TalentPartner).join(', ')}</div>
             <div class="m-role-footer">
               <span class="m-stage-badge">${r.Stage || '—'}</span>
               ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}
@@ -65,12 +72,12 @@ async function mobileGetRoles() {
   let allRoles = await getAllRoles();
 
   // Filter to accessible projects
-  allRoles = allRoles.filter(r => projectIds.has(String(r.ProjectID)));
+  allRoles = allRoles.filter(r => projectIds.has(String(r.ProjectIDLookupId || r.ProjectID)));
 
   // TP: scoped to their own roles only
   if (!isDM) {
     allRoles = allRoles.filter(r =>
-      r.TalentPartner?.toLowerCase() === user.email.toLowerCase()
+      tpMatches(r.TalentPartner, user.email)
     );
   }
 
@@ -82,11 +89,7 @@ async function mobileGetRoles() {
 
 async function mobileSelectRole(roleId) {
   _mobileRoleId = roleId;
-  _mobileHistory.push(_mobileView);
-  _mobileView = 'role-detail';
-  const backBtn = document.getElementById('m-back-btn');
-  if (backBtn) backBtn.style.display = 'block';
-  await mobileRenderRoleDetail(document.getElementById('m-main'));
+  mobileNav('role-detail');
 }
 
 async function mobileRenderRoleDetail(main) {
@@ -106,7 +109,7 @@ async function mobileRenderRoleDetail(main) {
         <div class="m-detail-label">Stage</div>
         <div class="m-detail-value">${role.Stage || '—'}</div>
         <div class="m-detail-label">Talent Partner</div>
-        <div class="m-detail-value">${role.TalentPartner || '—'}</div>
+        <div class="m-detail-value">${tpList(role.TalentPartner).join(', ') || '—'}</div>
         <div class="m-detail-label">Open Date</div>
         <div class="m-detail-value">${role.OpenDate ? role.OpenDate.split('T')[0] : '—'}${days !== null ? ` (${days} days)` : ''}</div>
         <div class="m-detail-label">Target Hire Date</div>
@@ -122,6 +125,9 @@ async function mobileRenderRoleDetail(main) {
         </button>
         <button class="m-btn-secondary" onclick="mobileNav('placement-role')">
           Record Placement
+        </button>
+        <button class="m-btn-secondary" onclick="mobileNav('rejection-role')">
+          Log Rejection
         </button>
       </div>
     `;
@@ -179,11 +185,9 @@ async function mobileSaveStage() {
   btn.textContent = 'Saving…';
   try {
     await updateItem('Roles', _mobileRoleId, { Stage: stage });
+    if (typeof mobileInvalidateRolesCache === 'function') mobileInvalidateRolesCache();
     mobileToast('Stage updated ✓');
-    // Go back to role detail
-    _mobileHistory.pop();
-    await mobileRenderRoleDetail(document.getElementById('m-main'));
-    _mobileView = 'role-detail';
+    mobileNav('role-detail', false);
   } catch (e) {
     btn.disabled    = false;
     btn.textContent = 'Save Stage';
@@ -344,8 +348,6 @@ async function mobileSubmitActivity(rolePreselected) {
   btn.disabled    = true;
   btn.textContent = 'Saving…';
 
-  const isoDate = d => d ? d + 'T12:00:00Z' : null;
-
   try {
     await createItem('WeeklyActivity', {
       RoleIDLookupId:   roleId,
@@ -366,9 +368,7 @@ async function mobileSubmitActivity(rolePreselected) {
     });
     mobileToast('Activity saved ✓');
     if (rolePreselected) {
-      _mobileHistory.pop();
-      await mobileRenderRoleDetail(document.getElementById('m-main'));
-      _mobileView = 'role-detail';
+      mobileNav('role-detail', false);
     } else {
       mobileNav('roles');
     }
@@ -393,7 +393,7 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
     if (rolePreselected && _mobileRoleId) {
       const role = await getItem('Roles', _mobileRoleId);
       roleName   = role.RoleTitle;
-      currency   = CONFIG.COUNTRY_CURRENCY[role.Currency] || '';
+      currency   = CONFIG.COUNTRY_CURRENCY[role.Location] || '';
       mobileSetTitle('Record Placement', roleName);
     } else {
       _mobileRoleId = null;
@@ -488,7 +488,7 @@ async function mobileLoadCurrencyForPlacement(roleId) {
   if (!cur || !roleId) return;
   try {
     const role = await getItem('Roles', roleId);
-    cur.value  = CONFIG.COUNTRY_CURRENCY[role.Currency] || '';
+    cur.value  = CONFIG.COUNTRY_CURRENCY[role.Location] || '';
   } catch (e) { cur.value = ''; }
 }
 
@@ -509,7 +509,6 @@ async function mobileSubmitPlacement(rolePreselected) {
   btn.disabled    = true;
   btn.textContent = 'Saving…';
 
-  const isoDate   = d => d ? d + 'T12:00:00Z' : null;
   const offerDate = isoDate(document.getElementById('mp-offer-date').value);
   const startDate = isoDate(document.getElementById('mp-start-date').value);
 
@@ -540,9 +539,7 @@ async function mobileSubmitPlacement(rolePreselected) {
 
     mobileToast('Placement recorded ✓');
     if (rolePreselected) {
-      _mobileHistory.pop();
-      await mobileRenderRoleDetail(document.getElementById('m-main'));
-      _mobileView = 'role-detail';
+      mobileNav('role-detail', false);
     } else {
       mobileNav('roles');
     }

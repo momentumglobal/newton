@@ -19,12 +19,70 @@ function clearButtonLoading(btn) {
   btn.style.cursor  = '';
 }
 
+// ── Re-render without losing scroll position ──────────────────────────
+// Replace an element's outerHTML while preserving the scroll offsets of any
+// scroll containers inside it. Replacing outerHTML destroys and rebuilds those
+// containers, which resets scrollLeft/scrollTop to 0 — the "snaps back to the
+// top-left" effect.
+//   elementId     — id of the element being replaced. The replacement markup
+//                   MUST carry the same id, or the restore is skipped.
+//   html          — the new markup.
+//   scrollSelector — selector for the scroll containers inside it (required;
+//                   this helper stays module-agnostic). Containers are paired
+//                   by document order, which re-rendered sections preserve.
+// Returns the new element, or null if the id wasn't in the DOM.
+// Snapshot / restore the scroll offsets of every container matching `selector`
+// inside `root`. Containers are paired by document order, which re-rendered
+// markup preserves. Restore is synchronous — a deferred one shows a visible
+// jump-then-snap. Over-large offsets are clamped by the browser.
+function _scrollOffsets(root, selector) {
+  return [...root.querySelectorAll(selector)]
+    .map(n => ({ left: n.scrollLeft, top: n.scrollTop }));
+}
+function _restoreScrollOffsets(root, selector, offsets) {
+  [...root.querySelectorAll(selector)].forEach((n, i) => {
+    const pos = offsets[i];
+    if (!pos) return;
+    n.scrollLeft = pos.left;
+    n.scrollTop  = pos.top;
+  });
+}
+
+function replaceHtmlKeepingScroll(elementId, html, scrollSelector) {
+  const old = document.getElementById(elementId);
+  if (!old) return null;
+  const offsets = _scrollOffsets(old, scrollSelector);
+  old.outerHTML = html;                          // `old` is detached from here
+  const next = document.getElementById(elementId);  // so re-look-up by id
+  if (!next) return null;
+  _restoreScrollOffsets(next, scrollSelector, offsets);
+  return next;
+}
+
+// innerHTML variant: the element itself survives the assignment, so there is
+// no re-look-up and no same-id requirement on the replacement markup — only
+// the scroll containers inside it are destroyed and rebuilt.
+function replaceInnerHtmlKeepingScroll(elementId, html, scrollSelector) {
+  const el = document.getElementById(elementId);
+  if (!el) return null;
+  const offsets = _scrollOffsets(el, scrollSelector);
+  el.innerHTML = html;
+  _restoreScrollOffsets(el, scrollSelector, offsets);
+  return el;
+}
+
 // ── Monthly calculation ───────────────────────────────────────────────
+// True when an assignment is a forecast (SP Yes/No may come back as true/1/'Yes')
+function isForecastAssignment(a) {
+  return a.IsForecast === true || a.IsForecast === 1 || a.IsForecast === 'Yes';
+}
+
 function computeMonthlyRows(assignments) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const rows = [];
   for (const a of assignments) {
     if (!a.StartDate || !a.EndDate) continue;
+    if (isForecastAssignment(a)) continue; // forecasts never feed utilisation/revenue
     const aStart = new Date(a.StartDate);
     const aEnd   = new Date(a.EndDate);
     aStart.setHours(0,0,0,0);
@@ -69,6 +127,76 @@ function computeMonthlyRows(assignments) {
   return rows;
 }
 
+// ── Revenue per month for a given year (no today cap) ─────────────────
+// Pro-rates each assignment's MonthlyBillRate by day-overlap across all 12
+// months of `year`. Includes former, current AND planned assignments
+// (ignores the Billed flag — this is estimated revenue, not billed).
+// Returns an array of 12 numbers, index 0 = Jan.
+function computeMonthlyRevenueForYear(assignments, year) {
+  const months = new Array(12).fill(0);
+  for (const a of assignments) {
+    if (!a.StartDate || !a.EndDate) continue;
+    const aStart = new Date(a.StartDate); aStart.setHours(0,0,0,0);
+    const aEnd   = new Date(a.EndDate);   aEnd.setHours(0,0,0,0);
+    const rate   = parseFloat(a.MonthlyBillRate) || 0;
+    if (!rate) continue;
+    for (let m = 0; m < 12; m++) {
+      const monthStart = new Date(year, m, 1);
+      const monthEnd   = new Date(year, m + 1, 0);
+      if (aStart > monthEnd || aEnd < monthStart) continue; // no overlap
+      const overlapStart = aStart > monthStart ? aStart : monthStart;
+      const overlapEnd   = aEnd   < monthEnd   ? aEnd   : monthEnd;
+      const daysOverlap  = (overlapEnd - overlapStart) / 86400000 + 1;
+      const daysInMonth  = monthEnd.getDate();
+      const fraction     = daysInMonth > 0 ? daysOverlap / daysInMonth : 0;
+      months[m] += rate * fraction;
+    }
+  }
+  return months.map(v => Math.round(v));
+}
+
+// ── Forecast revenue per month for a given year ───────────────────────
+// From the SalesForecasts list. Monthly £ = ForecastedHeadcount ×
+// ForecastMonthlyRevenuePerHead, pro-rated by day-overlap per month.
+// Rows overlapping a month are summed. Returns array[12], index 0 = Jan.
+function computeMonthlyForecastRevenueForYear(salesForecasts, year) {
+  const months = new Array(12).fill(0);
+  for (const f of salesForecasts) {
+    if (!f.ForecastStartDate || !f.ForecastEndDate) continue;
+    const fStart = new Date(f.ForecastStartDate); fStart.setHours(0,0,0,0);
+    const fEnd   = new Date(f.ForecastEndDate);   fEnd.setHours(0,0,0,0);
+    const hc     = parseFloat(f.ForecastedHeadcount) || 0;
+    const rate   = parseFloat(f.ForecastMonthlyRevenuePerHead) || 0;
+    const monthly = hc * rate;
+    if (!monthly) continue;
+    for (let m = 0; m < 12; m++) {
+      const monthStart = new Date(year, m, 1);
+      const monthEnd   = new Date(year, m + 1, 0);
+      if (fStart > monthEnd || fEnd < monthStart) continue; // no overlap
+      const overlapStart = fStart > monthStart ? fStart : monthStart;
+      const overlapEnd   = fEnd   < monthEnd   ? fEnd   : monthEnd;
+      const daysOverlap  = (overlapEnd - overlapStart) / 86400000 + 1;
+      const daysInMonth  = monthEnd.getDate();
+      const fraction     = daysInMonth > 0 ? daysOverlap / daysInMonth : 0;
+      months[m] += monthly * fraction;
+    }
+  }
+  return months.map(v => Math.round(v));
+}
+
+// ── Distinct years spanned by assignment data (ascending) ─────────────
+function getAssignmentDataYears(assignments) {
+  const years = new Set();
+  for (const a of assignments) {
+    if (!a.StartDate || !a.EndDate) continue;
+    const s = new Date(a.StartDate).getFullYear();
+    const e = new Date(a.EndDate).getFullYear();
+    for (let y = s; y <= e; y++) years.add(y);
+  }
+  if (!years.size) years.add(new Date().getFullYear());
+  return [...years].sort((x, y) => x - y);
+}
+
 // ── Formatting ────────────────────────────────────────────────────────
 function formatSalary(val) {
   if (!val) return '—';
@@ -82,6 +210,38 @@ function daysOpen(openDate, hireDate) {
   const start = new Date(openDate);
   const end = hireDate ? new Date(hireDate) : new Date();
   return Math.floor((end - start) / (1000 * 60 * 60 * 24));
+}
+
+// ── Date helpers (N-054: consolidated from forms.js + five duplicate/
+// shim copies previously scattered across people-forms.js, mobile-app.js,
+// lci-link.js, mobile-pages.js and mobile-roleform.js) ─────────────────
+
+// Extracts 'YYYY-MM-DDT12:00:00Z' from a date-input value (or any string
+// starting with YYYY-MM-DD); null if none. Midday UTC avoids the
+// SharePoint UTC↔BST date-shift on write.
+function isoDate(dateStr) {
+  if (!dateStr) return null;
+  const match = String(dateStr).match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] + 'T12:00:00Z' : null;
+}
+
+function getISOWeek(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+// Returns the Sunday on/after `date` (or today, if omitted) as 'YYYY-MM-DD'.
+// WeeklyActivity.WeekEndingDate buckets on this Sunday boundary, not
+// Friday — verify against that convention before changing this.
+function getWeekEnding(date = new Date()) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? 0 : 7 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split('T')[0];
 }
 
 // ── Activity field summation ─────────────────────────────────────────
@@ -149,4 +309,78 @@ function animateCountUp(el) {
 function runKpiCountUps(scope = document) {
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
   scope.querySelectorAll('.kpi-value').forEach(animateCountUp);
+}
+
+// ── Text escaping ─────────────────────────────────────────────
+// Escape a value for safe interpolation into an HTML template string.
+function escHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[c]);
+}
+
+// As escHtml, but preserves user line breaks as <br>.
+function escHtmlLines(str) {
+  return escHtml(str).replace(/\r?\n/g, '<br>');
+}
+
+// Escape for safe interpolation into a double-quoted HTML attribute.
+// Example: value="${escAttr(title)}" where title may contain "
+function escAttr(str) {
+  return String(str ?? '').replace(/[&<>"]/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'
+  })[c]);
+}
+
+// Escape for safe interpolation into a JavaScript string inside an HTML attribute.
+// Example: onclick="func('${escJsAttr(title)}')" where title may contain ' or \
+// Escape backslash first, then apostrophe in JS-safe way, then HTML entities.
+function escJsAttr(str) {
+  return String(str ?? '')
+    .replace(/\\/g, '\\\\')      // backslash to \\
+    .replace(/'/g, "\\'")        // apostrophe to \'
+    .replace(/&/g, '&amp;')      // ampersand (HTML)
+    .replace(/"/g, '&quot;')     // quote (HTML attribute)
+    .replace(/</g, '&lt;')       // less-than (defensive)
+    .replace(/>/g, '&gt;');      // greater-than (defensive)
+}
+
+// First non-empty line of a multi-line string. Returns '' for empty input.
+function firstLine(str) {
+  const lines = String(str ?? '').split(/\r?\n/).map(l => l.trim());
+  return lines.find(l => l !== '') || '';
+}
+
+// Strip characters Windows/macOS reject in filenames, collapse whitespace.
+// Apostrophes and ampersands SURVIVE — they are legal in a filename and
+// mangling them is exactly the N-012d regression. Never HTML-escape a
+// filename: &amp; in a download name is a bug, not a safety measure.
+function safeFilename(str, fallback = 'export') {
+  const out = String(str ?? '')
+    .replace(/[\\/:*?"<>|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return out || fallback;
+}
+// ── LCI horizon slicing (N-022) ───────────────────────────────
+// Split a model horizon into printable chunks of `chunk` months.
+// Returns [{ start, end, index, label }] — start inclusive / end exclusive,
+// both 0-based month indices; index is the 1-based year number.
+// A horizon of `chunk` or less returns one slice with label null, which every
+// renderer treats as "no slicing" — a 12-month model is unchanged.
+// A trailing partial year is its own slice, labelled with its true range
+// (18 months → "Year 2 (M13–M18)", not M13–M24).
+function lciYearSlices(horizon, chunk = 12) {
+  const h = Math.max(1, Number(horizon) || 0);
+  if (h <= chunk) return [{ start: 0, end: h, index: 1, label: null }];
+  const out = [];
+  for (let start = 0; start < h; start += chunk) {
+    const end = Math.min(start + chunk, h);
+    out.push({
+      start, end,
+      index: out.length + 1,
+      label: `Year ${out.length + 1} (M${start + 1}\u2013M${end})`,
+    });
+  }
+  return out;
 }

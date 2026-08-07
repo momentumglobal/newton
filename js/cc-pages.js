@@ -15,13 +15,15 @@ async function renderCCOverview(container) {
   const historical = await getHistoricalPlacements();
   const ragHealth = computeProjectHealthRAG(roles, acts4, historical);
   const ragPeople = computePeopleRAG(roles, acts13, historical);
-  const ragUtil   = computeUtilisationRAG(forecasts, assigns, people);
+  const ragUtil    = computeUtilisationRAG(forecasts, assigns, people);
+  const ragRevenue = computeRevenueRAG(forecasts, assigns);
 
   container.innerHTML = `
     <div class="page-header">
       <h2>MG Command Centre</h2>
     </div>
     <div class="cc-grid" id="cc-grid">
+      ${ccTileHTML('revenue', 'Revenue', ragRevenue, ccRevenueStats(forecasts, assigns))}
       ${ccTileHTML('health', 'Project Health', ragHealth, ccHealthStats(roles, acts4))}
       ${ccTileHTML('people', 'People', ragPeople, ccPeopleStats(roles, acts13, historical))}
       ${ccTileHTML('util',   'Utilisation',    ragUtil,   ccUtilStats(forecasts, assigns, people))}
@@ -70,7 +72,8 @@ function loadTileDetail(tile, data) {
   el.style.display = 'block';
   if (id === 'health') el.innerHTML = renderHealthDetail(data);
   if (id === 'people') el.innerHTML = renderPeopleDetail(data);
-  if (id === 'util')   el.innerHTML = renderUtilDetail(data);
+  if (id === 'util')    el.innerHTML = renderUtilDetail(data);
+  if (id === 'revenue') el.innerHTML = renderRevenueDetail(data);
 }
 
 // ── Headline stats (at-a-glance tile summary) ──────────────────────
@@ -85,12 +88,12 @@ function ccHealthStats(roles, activity) {
 
 function ccPeopleStats(roles, activity, historical) {
   const tps = [...new Set(
-    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner)
-         .map(r => r.TalentPartner)
+    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage))
+         .flatMap(r => tpList(r.TalentPartner))
   )];
   const counts = { green: 0, amber: 0, red: 0 };
   tps.forEach(tp => {
-    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner && r.TalentPartner.toLowerCase() === tp.toLowerCase());
+    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
     const flagged = tpRoles.filter(r => {
       const acts = activity.filter(a => String(a.RoleIDLookupId) === String(r.id));
       return isRoleFlagged(r, acts);
@@ -106,6 +109,46 @@ function ccUtilStats(forecasts, assigns, people) {
   const { known, forecast } = _ccUtilCalc(forecasts, assigns, people);
   return `${(known * 100).toFixed(0)}% now · ${(forecast * 100).toFixed(0)}% forecast (next 3 months)`;
 }
+
+// ── Revenue tile ────────────────────────────────────────────────────
+// Reuses the Revenue Tracking helpers (utils.js) and chart (revenue-chart.js).
+// Current month = estimated only; 3-month forecast = avg of est. + forecast
+// over the current month + next 2.
+function _ccRevenueCalc(forecasts, assigns) {
+  const now   = new Date();
+  const year  = now.getFullYear();
+  const estByMonth      = computeMonthlyRevenueForYear(assigns, year);          // array[12]
+  const forecastByMonth = computeMonthlyForecastRevenueForYear(forecasts, year); // array[12]
+
+  const m = now.getMonth();
+  const thisMonth = estByMonth[m];
+
+  // Average combined (est + forecast) across current month + next 2 (clamp to Dec)
+  const idxs = [m, m + 1, m + 2].filter(i => i <= 11);
+  const combinedAvg = idxs.reduce((s, i) => s + estByMonth[i] + forecastByMonth[i], 0) / idxs.length;
+
+  return { thisMonth, forecast: combinedAvg };
+}
+
+function ccRevenueStats(forecasts, assigns) {
+  const { thisMonth, forecast } = _ccRevenueCalc(forecasts, assigns);
+  return `${_fmtGBPk(thisMonth)} this month · ${_fmtGBPk(forecast)} avg forecast (next 3 months)`;
+}
+
+function computeRevenueRAG(forecasts, assigns) {
+  const t = CONFIG.REVENUE_THRESHOLDS;
+  const { forecast } = _ccRevenueCalc(forecasts, assigns);
+  if (forecast >= t.green) return 'green';
+  if (forecast >= t.amber) return 'amber';
+  return 'red';
+}
+
+function renderRevenueDetail(data) {
+  const { assigns, forecasts } = data;
+  const year = new Date().getFullYear();
+  return _renderRevenueLineGraph(assigns, year, forecasts);
+}
+
 // ── RAG logic ──────────────────────────────────────────────────────
 function computeProjectHealthRAG(roles, activity, historical) {
   const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
@@ -123,13 +166,13 @@ function computeProjectHealthRAG(roles, activity, historical) {
 function computePeopleRAG(roles, activity, historical) {
   const b = CONFIG.ANALYTICS_BENCHMARKS;
   const tps = [...new Set(
-    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner)
-         .map(r => r.TalentPartner)
+    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage))
+         .flatMap(r => tpList(r.TalentPartner))
   )];
   if (!tps.length) return 'green';
   const weight = { green: 0, amber: 1, red: 2, grey: 0 };
   const total = tps.reduce((sum, tp) => {
-    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner && r.TalentPartner.toLowerCase() === tp.toLowerCase());
+    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
     const flagged = tpRoles.filter(r => {
       const acts = activity.filter(a => String(a.RoleIDLookupId) === String(r.id));
       return isRoleFlagged(r, acts);
@@ -164,6 +207,7 @@ function _ccUtilCalc(forecasts, assigns, people) {
 
   // Known 13 weeks: assignments active at any point in the next 13 weeks (for forecast base)
   const known13 = assigns.filter(a => {
+    if (isForecastAssignment(a)) return false;
     if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
     const s = new Date(a.StartDate);
     const e = new Date(a.EndDate);
@@ -236,19 +280,16 @@ function renderHealthDetail(data) {
 function renderPeopleDetail(data) {
   const { roles, acts13 } = data;
   const tps = [...new Set(
-    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner).map(r => r.TalentPartner)
+    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage))
+         .flatMap(r => tpList(r.TalentPartner))
   )];
-
-  if (!tps.length) return '<p class="no-data">No active Talent Partners found.</p>';
-
+    if (!tps.length) return '<p class="no-data">No active Talent Partners found.</p>';
   const weight = { green: 0, amber: 1, red: 2, grey: 0 };
   const ragColours = { green: '#2e7d32', amber: '#e65100', red: '#c62828', grey: '#888' };
-
   const rows = tps.map(tp => {
-    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && r.TalentPartner &&
-      r.TalentPartner.toLowerCase() === tp.toLowerCase());
-    const flagged = tpRoles.filter(r => {
-      const acts = acts13.filter(a => String(a.RoleIDLookupId) === String(r.id));
+  const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
+  const flagged = tpRoles.filter(r => {
+  const acts = acts13.filter(a => String(a.RoleIDLookupId) === String(r.id));
       return isRoleFlagged(r, acts);
     }).length;
     const pct = tpRoles.length ? flagged / tpRoles.length : null;
@@ -283,6 +324,7 @@ function renderUtilDetail(data) {
     const label  = d.toLocaleString('default', { month: 'short', year: '2-digit' });
 
     const active    = assigns.filter(a => {
+      if (isForecastAssignment(a)) return false;
       if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
       return new Date(a.StartDate) <= mEnd && new Date(a.EndDate) >= mStart;
     });

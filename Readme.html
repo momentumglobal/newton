@@ -280,6 +280,7 @@
       <a class="sidebar-link" onclick="show('overview')">Platform Overview</a>
       <a class="sidebar-link" onclick="show('modules')">Modules</a>
       <a class="sidebar-link" onclick="show('roles')">Roles &amp; Access</a>
+      <a class="sidebar-link" onclick="show('mobile')">Mobile App</a>
 
       <div class="sidebar-section">Architecture</div>
       <a class="sidebar-link" onclick="show('files')">File Structure</a>
@@ -331,6 +332,7 @@
         <tr><td>UI</td><td>Vanilla HTML, CSS, JavaScript</td><td>No framework dependencies</td></tr>
         <tr><td>Icons</td><td>Lucide (CDN)</td><td>Icon library</td></tr>
         <tr><td>Drag &amp; drop</td><td>SortableJS (CDN)</td><td>Report Builder block ordering</td></tr>
+        <tr><td>Spreadsheets</td><td>ExcelJS (CDN, lazy-loaded)</td><td>LCI Cost Model Excel export — loaded on first click only, never on page render</td></tr>
         <tr><td>Fonts</td><td>Polymath (self-hosted)</td><td>Brand typography</td></tr>
       </table>
 
@@ -354,7 +356,7 @@
         <div class="card accent-blue">
           <div class="card-title">Reporting</div>
           <div class="card-file">reporting.html</div>
-          <div class="card-desc">Core recruitment reporting. Projects, Roles, Weekly Activity, Placements, Rejected Offers, Project &amp; Company Dashboards, Report Builder.</div>
+          <div class="card-desc">Core recruitment reporting. Projects, Roles, Weekly Activity, Placements, Rejected Offers, Project &amp; Company Dashboards, Report Builder, and Hiring Plan (Gantt-style hiring roadmap for CoE projects).</div>
         </div>
         <div class="card accent-teal">
           <div class="card-title">Market Analytics</div>
@@ -364,17 +366,22 @@
         <div class="card accent-green">
           <div class="card-title">People</div>
           <div class="card-file">people.html</div>
-          <div class="card-desc">Workforce management. Employee tracker, deployment timeline (Gantt), assignment tracking, G-P invoice management. Includes Engagement tab — quarterly pulse survey builder, results dashboard, and trends view (Admin/Leadership only).</div>
+          <div class="card-desc">Workforce management. Employee tracker, deployment timeline (Gantt), assignment tracking, Supplier invoice management. Includes Engagement tab — quarterly pulse survey builder, results dashboard, and trends view (Admin/Leadership only).</div>
         </div>
         <div class="card accent-amber">
           <div class="card-title">Sales</div>
           <div class="card-file">sales.html</div>
-          <div class="card-desc">Sales pipeline tracking. Revenue forecasting and pipeline management for the commercial team.</div>
+          <div class="card-desc">Sales pipeline &amp; commercial tooling. Revenue Tracking (estimated + forecast monthly revenue chart, default landing) and Sales Forecast pipeline management (Admin/Leadership), plus <strong>LCI Cost Models</strong> — Location &amp; Cost Intelligence recruitment ramp &amp; cost models with compare, branded PDF report export, Hiring Plan linkage and salary benchmarks (Admin/Leadership + Delivery Managers, scoped to their models). Also <strong>LCI Lead Magnet</strong> — a lightweight location cost comparator that produces a one-page Country Comparison PDF from a shared salary library (Admin/Leadership).</div>
         </div>
         <div class="card accent-purple">
           <div class="card-title">MG Command Centre</div>
           <div class="card-file">command-centre.html</div>
-          <div class="card-desc">Executive ops dashboard. Three live RAG tiles — Project Health, People, and Utilisation — each with an expandable detail panel. Available to Admin and Leadership only.</div>
+          <div class="card-desc">Executive ops dashboard. Four live RAG tiles — Revenue, Project Health, People, and Utilisation — each with an expandable detail panel. The Revenue tile expands to the full Revenue Tracking chart. Available to Admin and Leadership only.</div>
+        </div>
+        <div class="card accent-blue">
+          <div class="card-title">Mobile App (PWA)</div>
+          <div class="card-file">mobile.html</div>
+          <div class="card-desc">Installable phone app (Progressive Web App) over the same codebase. Home launcher + module switcher; mobile views for Reporting (full), People (dashboard + scorecards), Sales (forecast) and Market Analytics (placement analytics). See the Mobile App section.</div>
         </div>
       </div>
 
@@ -389,20 +396,21 @@
       <p>The module switcher dropdown in the sidebar is driven by <code>CONFIG.OS_MODULES</code> in <code>config.js</code>. This is the single source of truth — adding a new module requires only updating this array.</p>
 
       <h3>MG Command Centre — RAG logic</h3>
-      <p>Each CC tile uses a dedicated RAG calculation. All three are driven by shared functions in <code>analytics.js</code>.</p>
+      <p>Each CC tile uses a dedicated RAG calculation. Project Health, People and Utilisation are driven by shared functions in <code>analytics.js</code>; Revenue is driven by the shared revenue helpers in <code>utils.js</code>.</p>
       <table>
         <tr><th>Tile</th><th>Signal</th><th>Green</th><th>Amber</th><th>Red</th></tr>
+        <tr><td><strong>Revenue</strong></td><td>3-month avg of estimated + forecast monthly revenue (current month + next 2). Estimated from Assignments (<code>computeMonthlyRevenueForYear()</code>); forecast from SalesForecasts (<code>computeMonthlyForecastRevenueForYear()</code>)</td><td>≥£225k</td><td>≥£200k</td><td>&lt;£200k</td></tr>
         <tr><td><strong>Project Health</strong></td><td>% of live roles flagged (days-open vs stage timeline + submission conversion &lt;50%)</td><td>&lt;25%</td><td>≤50%</td><td>&gt;50%</td></tr>
         <tr><td><strong>People</strong></td><td>Weighted flagged-role score across TPs (green=0, amber=1, red=2) ÷ TP count</td><td>&lt;0.5</td><td>≤1.0</td><td>&gt;1.0</td></tr>
         <tr><td><strong>Utilisation</strong></td><td>13-week forecast % (known assignments this month via <code>computeMonthlyRows()</code> + SalesForecasts headcount / total active headcount)</td><td>≥85%</td><td>≥75%</td><td>&lt;75%</td></tr>
       </table>
-      <div class="callout">RAG thresholds for Utilisation are defined in <code>CONFIG.UTILISATION_THRESHOLDS</code> in config.js (<code>green: 0.85, amber: 0.75</code>). Never hardcode these values in page scripts.</div>
+      <div class="callout">RAG thresholds are centralised in config.js: Utilisation in <code>CONFIG.UTILISATION_THRESHOLDS</code> (<code>green: 0.85, amber: 0.75</code>) and Revenue in <code>CONFIG.REVENUE_THRESHOLDS</code> (<code>green: 225000, amber: 200000</code> — monthly £). Never hardcode these values in page scripts.</div>
 
       <h3>CCStatus SharePoint list</h3>
-      <p>The Command Centre writes its three RAG values to the <strong>CCStatus</strong> SharePoint list on every load. The homepage reads CCStatus on load to display badge colours instantly without recomputing. The homepage refresh button recomputes live and writes back to SharePoint.</p>
+      <p>The homepage refresh button computes the four RAG values and writes them to the <strong>CCStatus</strong> SharePoint list. The homepage reads CCStatus on load to display badge colours instantly without recomputing. The <code>revenue</code> row is auto-created on first refresh (shows neutral/grey until then) — no schema change required.</p>
       <table>
         <tr><th>Field</th><th>Values</th><th>Notes</th></tr>
-        <tr><td>Title</td><td><code>health</code> / <code>people</code> / <code>util</code></td><td>One row per tile</td></tr>
+        <tr><td>Title</td><td><code>health</code> / <code>people</code> / <code>util</code> / <code>revenue</code></td><td>One row per tile</td></tr>
         <tr><td>RAG</td><td><code>green</code> / <code>amber</code> / <code>red</code> / <code>grey</code></td><td>Custom column — must use <code>CCStatus: {}</code> in FIELD_ALIASES (not <code>{ RAG: 'RAG' }</code>, which deletes the field)</td></tr>
       </table>
     </div>
@@ -416,7 +424,7 @@
         <tr><th>Role</th><th>Source</th><th>Description</th></tr>
         <tr><td><span class="badge badge-admin">admin</span></td><td>Hardcoded in CONFIG.ADMIN_USERS</td><td>Full access to all modules, pages, and admin interfaces. Never overridden by SharePoint.</td></tr>
         <tr><td><span class="badge badge-leadership">leadership</span></td><td>LeadershipAccess list</td><td>Read-only access to Company Dashboard (Reporting), People module, Sales module, and MG Command Centre.</td></tr>
-        <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module and Market Analytics. Limited access to People module — Scorecards page only.</td></tr>
+        <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module and Market Analytics. Limited access to People module — Scorecards page only — and to the Sales module — LCI Cost Models only (scoped to models assigned to them).</td></tr>
         <tr><td><span class="badge badge-tp">talent_partner</span></td><td>UserAssignments list</td><td>Access to assigned project in Reporting module. Scoped to own activity and roles.</td></tr>
         <tr><td><span class="badge badge-viewer">viewer</span></td><td>Fallback</td><td>Read-only, no meaningful access. Auto-registered on first login.</td></tr>
       </table>
@@ -439,10 +447,13 @@
         <tr><td>People module (Scorecards only)</td><td>—</td><td>—</td><td>✓</td><td>—</td><td>—</td></tr>
         <tr><td>Engagement (survey builder + results)</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Engagement (survey respondent widget)</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-        <tr><td>Sales module</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Sales — Revenue Tracking &amp; Sales Forecast</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Sales — LCI Cost Models</td><td>✓</td><td>✓</td><td>✓*</td><td>—</td><td>—</td></tr>
+        <tr><td>Sales — LCI Lead Magnet</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>MG Command Centre</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Newton OS Admin</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
       </table>
+      <p style="font-size:13px;color:#555">* Delivery Managers see only LCI Cost Models assigned to them (matched on the model's Assigned DM email); Revenue Tracking and Sales Forecast stay Admin/Leadership.</p>
 
       <h3>Role resolution order</h3>
       <div class="flow">
@@ -460,7 +471,56 @@
       </div>
     </div>
 
-    <!-- FILE STRUCTURE -->
+    <!-- MOBILE APP -->
+    <div class="section" id="sec-mobile" style="display:none">
+      <div class="section-title">Mobile App</div>
+      <p class="section-intro">Newton is installable on phones as a Progressive Web App (PWA). It is the same web application served from <code>mobile.html</code>, not a separate native build — so it shares one codebase, one data model and one auth flow with the desktop site. Earlier prototyping used a Flutter WebView wrapper; this was retired in favour of the PWA, which runs in the device browser engine and avoids embedded-WebView authentication issues.</p>
+
+      <h3>Installing</h3>
+      <p class="section-intro">On the phone, open <span class="file-tag">momentumglobal.github.io/newton/mobile.html</span> in Chrome (Android) or Safari (iOS), then choose "Add to Home screen" / "Install app". A Newton icon is added to the home screen and launches standalone (no browser address bar). Sign-in uses the same Microsoft account as the desktop site.</p>
+
+      <h3>How it works</h3>
+      <table>
+        <tr><th>Piece</th><th>File</th><th>Purpose</th></tr>
+        <tr><td>Manifest</td><td><span class="file-tag">manifest.webmanifest</span></td><td>Declares the app name, icons (navy Momentum mark, 192/512px), standalone display and <code>#090546</code> theme. Makes the site installable.</td></tr>
+        <tr><td>Service worker</td><td><span class="file-tag">sw.js</span></td><td>Network-first and caches no app code, so there is never stale JS after a commit. Ignores cross-origin and non-GET requests, so Microsoft login and SharePoint writes are never intercepted.</td></tr>
+        <tr><td>Mobile entry</td><td><span class="file-tag">mobile.html</span></td><td>Registers the service worker, sets a <code>newton_mobile</code> localStorage flag (so desktop pages redirect back to mobile after the login round-trip), and loads the mobile script stack.</td></tr>
+      </table>
+
+      <h3>Mobile shell &amp; navigation</h3>
+      <p class="section-intro">After login the app lands on a <strong>Home launcher</strong> — a role-aware grid of modules. A top-bar <strong>module switcher</strong> dropdown moves between modules; each module has its own bottom-nav tabs. Both are driven by <code>CONFIG.OS_MODULES</code> (single source of truth) filtered through <code>MOBILE_MODULES</code> — a module appears only if it has a built mobile view and the user's role allows it. Command Centre is intentionally excluded from mobile.</p>
+
+      <h3>Mobile JavaScript</h3>
+      <table>
+        <tr><th>File</th><th>Responsibility</th></tr>
+        <tr><td><span class="file-tag">mobile-app.js</span></td><td>Shell controller: auth/init, module registry (<code>MOBILE_MODULES</code>), per-module bottom nav (<code>MOBILE_NAV</code>), routing, module switcher, back-stack.</td></tr>
+        <tr><td><span class="file-tag">mobile-home.js</span></td><td>Home launcher — role-aware module grid.</td></tr>
+        <tr><td><span class="file-tag">mobile-pages.js</span></td><td>Reporting views: roles list, role detail, stage update, weekly activity, placement forms.</td></tr>
+        <tr><td><span class="file-tag">mobile-roleform.js</span></td><td>Reporting "Add Role" form (role-aware; identical write payload to the desktop role form).</td></tr>
+        <tr><td><span class="file-tag">mobile-reporting-ext.js</span></td><td>Reporting expansion: Summary view (KPIs + roles-by-stage), client-side search/stage filter on the roles list, Log Rejection form.</td></tr>
+        <tr><td><span class="file-tag">mobile-people.js</span></td><td>People dashboard — 4 KPI tiles (read-only), reusing the desktop calculations.</td></tr>
+        <tr><td><span class="file-tag">mobile-scorecards.js</span></td><td>People Scorecards — reuses <code>computeVelocityScore</code> from analytics.js. TP sees their own card; DM/Admin get a swipe carousel (dots + counter).</td></tr>
+        <tr><td><span class="file-tag">mobile-sales.js</span></td><td>Sales Forecast list with add/edit (write-enabled; identical payload to desktop). Admin/Leadership only.</td></tr>
+        <tr><td><span class="file-tag">mobile-analytics.js</span></td><td>Market Analytics — condensed Placement Analytics (Summary + Funnel Drop-off tiles, filter by location / functional area). Read-only; reuses <code>computeRoleFunnel</code>.</td></tr>
+      </table>
+
+      <h3>Module coverage on mobile</h3>
+      <table>
+        <tr><th>Module</th><th>Mobile scope</th><th>Write?</th></tr>
+        <tr><td>Reporting</td><td>Summary, roles list (search/filter), role detail, stage update, weekly activity, placement, add role, log rejection</td><td>Yes</td></tr>
+        <tr><td>People</td><td>Dashboard KPI tiles + Scorecards</td><td>Read-only</td></tr>
+        <tr><td>Sales</td><td>Sales Forecast list + add/edit</td><td>Yes</td></tr>
+        <tr><td>Market Analytics</td><td>Placement Analytics (Summary + Funnel Drop-off)</td><td>Read-only</td></tr>
+        <tr><td>Command Centre</td><td>Excluded from mobile</td><td>—</td></tr>
+      </table>
+
+      <h3>Access</h3>
+      <p class="section-intro">Mobile access is restricted to Talent Partners, Delivery Managers and Admins. Per-module visibility follows the same <code>CONFIG.OS_MODULES</code> roles as desktop — e.g. a Talent Partner does not see Sales but does see Market Analytics; Scorecards are role-scoped (TP sees own, DM sees their projects' TPs, Admin sees all).</p>
+
+      <h3>Adding a module to mobile</h3>
+      <p class="section-intro">Mirror the desktop convention: create a <code>mobile-&lt;module&gt;.js</code> renderer that reuses the existing data/calculation functions, add the module key to <code>MOBILE_MODULES</code>, add a <code>MOBILE_NAV</code> entry and default view, route its views in <code>mobileRenderView()</code>, and load the script in <code>mobile.html</code>. No Flutter rebuild is ever required — the installed PWA picks up changes on next load.</p>
+    </div>
+
     <div class="section" id="sec-files" style="display:none">
       <div class="section-title">File Structure</div>
       <p class="section-intro">Each file has a single, clearly defined responsibility. Never mix concerns across layers.</p>
@@ -468,7 +528,7 @@
       <h3>HTML pages</h3>
       <table>
         <tr><th>File</th><th>Purpose</th></tr>
-        <tr><td><span class="file-tag">index.html</span></td><td>Home screen / module selector. Seasonal effects, announcements, CC banner with RAG badges.</td></tr>
+        <tr><td><span class="file-tag">index.html</span></td><td>Home screen / module selector. Seasonal effects, announcements, CC banner with four RAG badges (Revenue, Projects, People, Utilisation). The Revenue pill uses the same 3-month est+forecast basis as the CC Revenue tile.</td></tr>
         <tr><td><span class="file-tag">reporting.html</span></td><td>Reporting module entry point.</td></tr>
         <tr><td><span class="file-tag">people.html</span></td><td>People module entry point.</td></tr>
         <tr><td><span class="file-tag">sales.html</span></td><td>Sales module entry point.</td></tr>
@@ -487,7 +547,7 @@
         <tr><th>File</th><th>Responsibility</th><th>Key exports</th></tr>
         <tr><td><span class="file-tag">js/config.js</span></td><td>Static app configuration</td><td>CONFIG, CONFIG.OS_MODULES, CONFIG.UTILISATION_THRESHOLDS, getUserRole(), getUserRoleAsync()</td></tr>
         <tr><td><span class="file-tag">js/auth.js</span></td><td>MSAL authentication only</td><td>signIn(), signOut(), getToken(), getCurrentUser(), isSignedIn()</td></tr>
-        <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), formatSalary(), daysOpen(), ghost mode helpers</td></tr>
+        <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), computeMonthlyRevenueForYear(), computeMonthlyForecastRevenueForYear(), getAssignmentDataYears(), formatSalary(), daysOpen(), ghost mode helpers</td></tr>
         <tr><td><span class="file-tag">js/api.js</span></td><td>All SharePoint/Graph API calls</td><td>getItems(), createItem(), updateItem(), deleteItem(), getEffectiveRole(), all list-specific helpers</td></tr>
         <tr><td><span class="file-tag">js/nav-core.js</span></td><td>Shared sidebar renderer</td><td>renderModuleNav(), updateNavActiveLink(), exitGhostMode()</td></tr>
         <tr><td><span class="file-tag">js/notifications.js</span></td><td>In-app notification engine — bell, drawer, triggers</td><td>fireNotification(), clearNotification(), renderNotificationBell(), markRead(), paintBell(), notifEsc(). Suppressed in ghost mode. Loaded after nav-core.js on every sidebar page + on index.html.</td></tr>
@@ -504,6 +564,7 @@
         <tr><td><span class="file-tag">js/dashboard.js</span></td><td>Project Dashboard (incl. Role Analytics panel), Company Dashboard, REPORT_PANELS registry</td></tr>
         <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions — computeTTFPrediction(), computeRoleFunnel(), computeVelocityScore(), isRoleFlagged(), ACTIVE_STAGES, STAGE_ORDER. Loaded by reporting.html, people.html, market-reporting.html, and command-centre.html.</td></tr>
         <tr><td><span class="file-tag">js/report-builder.js</span></td><td>Report Builder — block canvas, save/load, PDF export</td></tr>
+        <tr><td><span class="file-tag">js/coe-plan.js</span></td><td>Hiring Plan (CoE projects) — Gantt builder, weekly capacity strip, forecast vs planned table, role linkage with actuals overlay</td></tr>
         <tr><td><span class="file-tag">js/admin.js</span></td><td>Config Panel — Departments, Currencies, Delete Records</td></tr>
       </table>
 
@@ -513,7 +574,7 @@
         <tr><td><span class="file-tag">js/people-router.js</span></td><td>Page registry for People module. Includes DELIVERY_MANAGER role and scorecards page access.</td></tr>
         <tr><td><span class="file-tag">js/people-nav.js</span></td><td>Calls renderModuleNav() with People params. Routes scorecards page in renderPeoplePage() switch.</td></tr>
         <tr><td><span class="file-tag">js/people-app.js</span></td><td>Module init — role check, redirect if unauthorised. DMs are allowed in; they land on scorecards page.</td></tr>
-        <tr><td><span class="file-tag">js/people-pages.js</span></td><td>People Dashboard, Employee Tracker, Deployment Timeline, G-P Invoices. Utilisation thresholds reference CONFIG.UTILISATION_THRESHOLDS.</td></tr>
+        <tr><td><span class="file-tag">js/people-pages.js</span></td><td>People Dashboard, Employee Tracker, Deployment Timeline, Supplier Invoices. Utilisation thresholds reference CONFIG.UTILISATION_THRESHOLDS.</td></tr>
         <tr><td><span class="file-tag">js/people-forms.js</span></td><td>Form renderers for People data entry</td></tr>
         <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions. No network I/O or DOM access.</td></tr>
         <tr><td><span class="file-tag">js/analytics-pages.js</span></td><td>People Scorecards page renderers — renderScorecardsPage(), renderScorecardPanel(). Card RAG driven by flagged-roles ratio.</td></tr>
@@ -534,8 +595,18 @@
         <tr><th>File</th><th>Responsibility</th></tr>
         <tr><td><span class="file-tag">js/sales-router.js</span></td><td>Page registry for Sales module</td></tr>
         <tr><td><span class="file-tag">js/sales-nav.js</span></td><td>Calls renderModuleNav() with Sales params</td></tr>
-        <tr><td><span class="file-tag">js/sales-app.js</span></td><td>Module init — role check, redirect if unauthorised</td></tr>
-        <tr><td><span class="file-tag">js/sales-pages.js</span></td><td>Sales Forecast page renderer</td></tr>
+        <tr><td><span class="file-tag">js/sales-app.js</span></td><td>Module init — role check, redirect if unauthorised. Lands on Revenue Tracking (default page).</td></tr>
+        <tr><td><span class="file-tag">js/sales-pages.js</span></td><td>Revenue Tracking page (year dropdown + chart) and Sales Forecast page renderers. Sales Forecast modal includes the Monthly Revenue per Head field.</td></tr>
+        <tr><td><span class="file-tag">js/revenue-chart.js</span></td><td>Shared Revenue Tracking chart renderer — <code>_renderRevenueLineGraph()</code>, <code>_fmtGBPk()</code>. Pure presentation, no network I/O. Loaded by sales.html and command-centre.html. Pattern mirrors analytics.js (pure fns, multiple entry points).</td></tr>
+        <tr><td><span class="file-tag">js/lci-model.js</span></td><td>LCI Cost Model calculation layer. Pure functions only — no network I/O, no DOM (analytics.js pattern). <code>lciComputeModel()</code>, <code>lciComputeKPIs()</code>, <code>lciCumulativeHeadcount()</code>, <code>lciMonthlyCost()</code>, <code>lciLegacyMonthlyCost()</code>, <code>lciSections()</code>, <code>lciFxRate()</code>, <code>lciBenchmark()</code>. <strong>The single source of truth for every LCI figure</strong> — every other LCI file renders its output rather than recomputing it.</td></tr>
+        <tr><td><span class="file-tag">js/lci-pages.js</span></td><td>Model list page — client/location filters, New/Edit modal, Copy, Delete, compare checkboxes, Saved Reports table.</td></tr>
+        <tr><td><span class="file-tag">js/lci-editor.js</span></td><td>Editor shell — settings bar (diff-only save) and the CoE hiring roadmap grid, incl. team rename/delete and per-role notice overrides. Owns the shared <code>_lciEd</code> editor state.</td></tr>
+        <tr><td><span class="file-tag">js/lci-sections.js</span></td><td>Legacy Team / one-off / fee / travel grids, plus the live cost-model output table and cumulative-spend SVG. Owns the output row-visibility rules.</td></tr>
+        <tr><td><span class="file-tag">js/lci-summary.js</span></td><td>Project milestones (rows inside the roadmap grid), the single-model summary / print view, and the compare view.</td></tr>
+        <tr><td><span class="file-tag">js/lci-excel.js</span></td><td>Excel export — lazy ExcelJS loader, seven sheet builders, download. Writes every formula as <code>{ formula, result }</code>: the formula makes the workbook live, the cached result makes it correct on open. Never recalculates — all numbers come from lci-model.js.</td></tr>
+        <tr><td><span class="file-tag">js/lci-report.js</span></td><td>Multi-model report export — navy cover, per-model sections, Location Comparison, rich-text Observations &amp; Recommendations.</td></tr>
+        <tr><td><span class="file-tag">js/lci-link.js</span></td><td>Hiring Plan bridge — links a Won model to a CoE project and generates one <code>CoEPlanRows</code> row per hire.</td></tr>
+        <tr><td><span class="file-tag">js/lci-leadmagnet.js</span></td><td>LCI Lead Magnet — self-contained location cost comparator + one-page Country Comparison PDF. <strong>Its FX convention is the opposite of the Cost Model's</strong> (local per GBP, divides) — do not conflate the two.</td></tr>
       </table>
 
       <h3>Market Analytics module</h3>
@@ -554,7 +625,7 @@
         <tr><td><span class="file-tag">js/cc-router.js</span></td><td>Page registry for Command Centre. Defines CC_PAGES, ccCanAccess(), ccGetAccessiblePages(). Access: Admin and Leadership only.</td></tr>
         <tr><td><span class="file-tag">js/cc-nav.js</span></td><td>Calls renderModuleNav() with CC params. renderCCNav(), toggleCCModuleDropdown(), navigateToCC().</td></tr>
         <tr><td><span class="file-tag">js/cc-app.js</span></td><td>Module init — MSAL redirect, role check, sets app-shell display:flex, calls renderCCNav() and renderCCOverview().</td></tr>
-        <tr><td><span class="file-tag">js/cc-pages.js</span></td><td>All CC renderers: renderCCOverview(), tile builders, RAG calculations (computeProjectHealthRAG, computePeopleRAG, computeUtilisationRAG), expandable detail panel renderers (renderHealthDetail, renderPeopleDetail, renderUtilDetail).</td></tr>
+        <tr><td><span class="file-tag">js/cc-pages.js</span></td><td>All CC renderers: renderCCOverview(), tile builders, RAG calculations (computeRevenueRAG, computeProjectHealthRAG, computePeopleRAG, computeUtilisationRAG), expandable detail panel renderers (renderRevenueDetail — calls the shared chart, renderHealthDetail, renderPeopleDetail, renderUtilDetail). Revenue helpers: _ccRevenueCalc(), ccRevenueStats().</td></tr>
       </table>
 
       <h3>Admin</h3>
@@ -607,6 +678,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">api.js</span>
 <span class="code-key">analytics.js</span>    <span class="code-comment">← isRoleFlagged(), ACTIVE_STAGES, STAGE_ORDER — load before cc-pages.js</span>
 <span class="code-key">nav-core.js</span>
+<span class="code-key">revenue-chart.js</span> <span class="code-comment">← _renderRevenueLineGraph() for the Revenue tile — load before cc-pages.js</span>
 <span class="code-key">cc-router.js</span>
 <span class="code-key">cc-nav.js</span>
 <span class="code-key">cc-pages.js</span>
@@ -620,6 +692,8 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">utils.js</span>     <span class="code-comment">← Required — ghost helpers called by api.js</span>
 <span class="code-key">api.js</span>
 <span class="code-key">analytics.js</span> <span class="code-comment">← index.html only — required for refreshCCBanner()</span>
+<span class="code-comment">// index.html uses computeMonthlyRevenueForYear() + computeMonthlyForecastRevenueForYear()</span>
+<span class="code-comment">// from utils.js for the Revenue banner pill — no revenue-chart.js needed (data only, no chart)</span>
 <span class="code-key">os-admin.js</span>  <span class="code-comment">← admin.html only</span>
       </div>
     </div>
@@ -632,12 +706,14 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <h3>Reporting module lists</h3>
       <table>
         <tr><th>List</th><th>Title alias</th><th>Key fields</th><th>Relationships</th></tr>
-        <tr><td><strong>Projects</strong></td><td>CustomerName</td><td>Status, DeliveryManager, StartDate, EndDate</td><td>Parent of Roles, UserAssignments, Departments</td></tr>
+        <tr><td><strong>Projects</strong></td><td>CustomerName</td><td>Status, DeliveryManager, StartDate, EndDate, ProjectType (Embedded/CoE — gates the Hiring Plan page)</td><td>Parent of Roles, UserAssignments, Departments, CoEPlanRows, CoEPlanForecast</td></tr>
         <tr><td><strong>Roles</strong></td><td>RoleTitle</td><td>ProjectID, Stage, TalentPartner, OpenDate, TargetHireDate, ActualHireDate, Budget, Currency</td><td>Child of Projects. Parent of WeeklyActivity, Placements, RejectedOffers</td></tr>
         <tr><td><strong>WeeklyActivity</strong></td><td>ActivityTitle</td><td>RoleID, Year, WeekNumber, WeekEndingDate, TalentPartner, Outreach, Responses, Screened, Submitted, Interview1, Interview2Plus, FinalInterview, Offers, Hires</td><td>Child of Roles</td></tr>
         <tr><td><strong>Placements</strong></td><td>CandidateName</td><td>RoleID, OfferAcceptedDate, ProvisionalStartDate, SalaryAgreed, Currency, TimeToHire</td><td>Child of Roles</td></tr>
         <tr><td><strong>RejectedOffers</strong></td><td>CandidateName</td><td>RoleID, RejectionReason, SalaryOffered, Notes</td><td>Child of Roles</td></tr>
         <tr><td><strong>Departments</strong></td><td>DepartmentName</td><td>ProjectID, CustomerName</td><td>Child of Projects</td></tr>
+        <tr><td><strong>CoEPlanRows</strong></td><td>(Role title)</td><td>ProjectID, TalentPartner, OpenDate, RecruitmentWeeks/NoticeWeeks/OnboardingWeeks/HandoverWeeks (per-row overrides, blank = CONFIG.COE_PHASE_DEFAULTS), LinkedRoleID, SortOrder. Target Hire Date is derived (OpenDate + recruitment weeks), never stored.</td><td>Child of Projects. Optionally linked to a Role via LinkedRoleID</td></tr>
+        <tr><td><strong>CoEPlanForecast</strong></td><td>(unused)</td><td>ProjectID, ForecastMonth (date, always 1st of month; SP returns UTC datetime — parse with new Date(), never string-slice), ForecastedHires</td><td>Child of Projects</td></tr>
         <tr><td><strong>Currencies</strong></td><td>CurrencyCode</td><td>—</td><td>Reference list</td></tr>
         <tr><td><strong>SavedReports</strong></td><td>—</td><td>Scope, ProjectID, Period, KpiPeriod, ModuleOrder (JSON), ReportOwner</td><td>Report Builder saves</td></tr>
         <tr><td><strong>MarketReports</strong></td><td>ReportTitle</td><td>Market intelligence content fields</td><td>Linked to Roles via Market Report module</td></tr>
@@ -654,7 +730,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <table>
         <tr><th>List</th><th>Purpose</th><th>Key fields</th></tr>
         <tr><td><strong>AppSettings</strong></td><td>Single-row config (Title = "config")</td><td>AnnouncementMessage, SeasonalEffect</td></tr>
-        <tr><td><strong>CCStatus</strong></td><td>Command Centre RAG state — one row per tile</td><td>Title (<code>health</code> / <code>people</code> / <code>util</code>), RAG (<code>green</code> / <code>amber</code> / <code>red</code> / <code>grey</code>). Written by CC on load and by index.html refresh button. Read by index.html on load.</td></tr>
+        <tr><td><strong>CCStatus</strong></td><td>Command Centre RAG state — one row per tile</td><td>Title (<code>revenue</code> / <code>health</code> / <code>people</code> / <code>util</code>), RAG (<code>green</code> / <code>amber</code> / <code>red</code> / <code>grey</code>). Written by index.html refresh button. Read by index.html on load. The <code>revenue</code> row is auto-created on first refresh.</td></tr>
         <tr><td><strong>Notifications</strong></td><td>In-app notification rows — one per recipient</td><td>RecipientEmail (email), TriggerType (<code>roleFlag</code> / <code>ccRed</code> / <code>surveyClose</code> / <code>placement</code> / <code>firstPlacement</code>), TriggerKey (dedupe), Status (<code>active</code> / <code>cleared</code>), IsRead (Yes/No), Tone (<code>attention</code> / <code>celebrate</code> / <code>milestone</code>), DeepLink, Body, CreatedAt. Written by triggers in index.html (refreshCCBanner) and forms.js (submitPlacementForm). FIELD_ALIASES entry must be <code>Notifications: {}</code>.</td></tr>
       </table>
 
@@ -680,9 +756,15 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 
       <h3>Sales module lists</h3>
       <table>
-        <tr><th>List</th><th>Key fields</th></tr>
-        <tr><td><strong>SalesForecasts</strong></td><td>Start (date), End (date), Headcount — used by Command Centre Utilisation RAG for 13-week forward forecast</td></tr>
+        <tr><th>List</th><th>Title alias</th><th>Key fields</th></tr>
+        <tr><td><strong>LCIModels</strong></td><td>(Model name)</td><td>ClientName, ProjectID (optional — links a Won model to a CoE project), Location, LocalCurrency (CoE side: salaries, office), DisplayCurrency (customer side: legacy/one-offs/fees; all outputs), FXRateLocalToDisplay, StartMonth (<code>YYYY-MM</code> <strong>text</strong>, never a date — avoids BST month-shift), HorizonMonths, Status (Draft/Presented/Won/Lost), AssignedDMEmail (DM visibility scoping), EmployerBurdenPct, SalaryMonths (12/13/14), NoticeMonths, OfficeCostPerHead, EoRFeePerHead, SectionsEnabled (JSON), Assumptions</td></tr>
+        <tr><td><strong>LCIModelRows</strong></td><td>(Role / line label)</td><td>ModelID (lookup → LCIModels), RowType (<code>coe</code> / <code>legacy</code> / <code>oneoff</code> / <code>fee</code>), Team, CareerLevel, AnnualSalary, BonusPct, Quantity, ExitMonth (legacy), MonthValues (JSON per-month array), SortOrder</td></tr>
+        <tr><td><strong>LCIMilestones</strong></td><td>(Milestone label)</td><td>ModelID (lookup → LCIModels), StartMonth / EndMonth (month index), SortOrder. Rendered as marker bars inside the roadmap grid.</td></tr>
+        <tr><td><strong>LCIReports</strong></td><td>(Report title)</td><td>ModelIDs (JSON array of LCIModels ids), Observations (rich-text HTML), CreatedByEmail. Saved report = <em>definition only</em>; numbers live-recompute from current model data on re-open. Multiline columns are <strong>plain text</strong>, not enhanced rich text.</td></tr>
+        <tr><td><strong>LCILocations</strong></td><td>(City, Country)</td><td>EmployerBurdenPct, FXRateToGBP (entered as 1 GBP = X local — calc divides), Currency (ISO code), + one <code>Sal_*</code> column per discipline (average annual salary, local currency). Shared master library for the LCI Lead Magnet. Disciplines mapped via <code>CONFIG.LCI_DISCIPLINES</code>.</td></tr>
+        <tr><td><strong>SalesForecasts</strong></td><td>(Customer / Project name)</td><td>ForecastStartDate (date), ForecastEndDate (date), ForecastedHeadcount, <code>ForecastMonthlyRevenuePerHead</code> (number, £ — added June 2026), Notes. Used by Command Centre Utilisation RAG (13-week forward headcount forecast) and by the Revenue Tracking chart / Revenue tile (monthly forecast revenue = ForecastedHeadcount × ForecastMonthlyRevenuePerHead, pro-rated by day-overlap).</td></tr>
       </table>
+      <div class="callout"><strong>Assignments — revenue:</strong> the Revenue Tracking chart and CC Revenue tile derive estimated monthly revenue from the <strong>Assignments</strong> list (People module), pro-rating <code>MonthlyBillRate</code> by day-overlap across each month. All assignments count (former, current, planned) — the Billed flag is ignored. Empty MonthlyBillRate (or empty ForecastMonthlyRevenuePerHead) contributes £0.</div>
 
       <h3>Field normalisation</h3>
       <p>SharePoint's <code>Title</code> field and the typo field <code>Yeare</code> are aliased to meaningful names in <code>FIELD_ALIASES</code> in <code>api.js</code>. All reads go through <code>normaliseFields()</code> so the application always sees consistent field names regardless of SharePoint's internal naming.</p>
@@ -805,7 +887,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <p class="section-intro">Established during the v1 refactor audit (June 2026). Apply to all future Newton build work.</p>
 
       <h3>Single source of truth</h3>
-      <p>Any value referenced in more than one place lives in exactly one file. <code>CONFIG.OS_MODULES</code> is the canonical example — it defines the module switcher for all nav files. <code>CONFIG.UTILISATION_THRESHOLDS</code> defines utilisation RAG thresholds for both the People Dashboard and the Command Centre. Adding a new module means editing <code>config.js</code> only.</p>
+      <p>Any value referenced in more than one place lives in exactly one file. <code>CONFIG.OS_MODULES</code> is the canonical example — it defines the module switcher for all nav files. <code>CONFIG.UTILISATION_THRESHOLDS</code> defines utilisation RAG thresholds for both the People Dashboard and the Command Centre; <code>CONFIG.REVENUE_THRESHOLDS</code> defines revenue RAG bands for the Sales Revenue Tracking chart, the CC Revenue tile and the homepage Revenue pill. Adding a new module means editing <code>config.js</code> only.</p>
 
       <h3>File responsibilities — hard rules</h3>
       <ul class="checklist">
@@ -905,6 +987,90 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <p class="section-intro">Significant changes shipped to the live repo.</p>
 
       <div class="changelog-entry">
+        <div class="changelog-date">August 2026</div>
+        <div class="changelog-title">LCI Cost Model — Export to Excel (Sales module)</div>
+        <ul>
+          <li><strong>New: Export to Excel</strong> on the model Summary page, beside Print / PDF. A branded seven-sheet workbook holding every input, assumption and derived figure behind the client PDF — an <strong>internal working file</strong>, not a client deliverable. New file <code>js/lci-excel.js</code>, loaded by <code>sales.html</code> after <code>lci-summary.js</code>. No SharePoint change.</li>
+          <li><strong>Live formulas, not a value dump</strong> — every figure is a real Excel formula driven by named cells on the Assumptions sheet (<code>Burden</code>, <code>SalaryMonths</code>, <code>NoticeDefault</code>, <code>OfficePerHead</code>, <code>EoRPerHead</code>, <code>FXRate</code>, <code>Horizon</code>). Notice-period offsets, auto run-rate and cumulative spend are all expressed in-cell; nothing is hardcoded.</li>
+          <li><strong>Section switches</strong> — <code>TravelOn</code>, <code>LegacyOn</code>, <code>OneoffsOn</code>, <code>FeesOn</code> as 1/0 cells mirroring the Newton toggles. They exist because Monthly Calc keeps every per-row line populated even when its section is off, so the subtotals need something to switch them off with; without them the cached values and the live formulas disagree.</li>
+          <li><strong>Sheets:</strong> Assumptions · CoE Roadmap · Legacy Team · One-offs &amp; Fees · Monthly Calc (audit sheet — every line, every month, regardless of toggles) · Output Summary (mirrors the client PDF line for line, incl. the conditional legacy rows) · Milestones.</li>
+          <li><strong>Every formula carries its computed value</strong> (<code>{ formula, result }</code>), so the file is right the moment it opens rather than after a recalculation — and a disagreement between formula and value becomes visible instead of silent.</li>
+          <li><strong>ExcelJS 4.4.0</strong>, pinned, lazy-loaded from CDN on first click only (~950KB, never on page render). Chosen over SheetJS, whose free build cannot style cells. <strong>Colours for this export live in <code>CONFIG.LCI.EXCEL.COLOURS</code> as ARGB</strong> — a documented exception to "no hex in JS", because a workbook cannot read <code>style.css</code>.</li>
+          <li>The <strong>LCI Lead Magnet is unaffected</strong> — it remains PDF-only.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">July 2026</div>
+        <div class="changelog-title">LCI Lead Magnet — location cost comparator (Sales module)</div>
+        <ul>
+          <li><strong>New Sales page: LCI Lead Magnet</strong> — a lightweight BD tool producing a one-page "Country Comparison" PDF of the cost-of-employment delta between a prospect's current location and scoped locations. New file <code>js/lci-leadmagnet.js</code>; Admin/Leadership only. Distinct from the full LCI Cost Models.</li>
+          <li><strong>Location Library</strong> — shared master list <code>LCILocations</code>: Location ("City, Country"), Employer Burden %, FX rate (<strong>1 GBP = X local</strong>; calc divides), Currency (ISO), and one average-annual-salary column per discipline. Sorted by country then city.</li>
+          <li><strong>Report Builder</strong> — pick current + scoped locations, disciplines, and a display currency (defaults to current location's, overridable). Costs computed in GBP (<code>salary × (1 + burden) ÷ fx</code>) then converted for display. Overall delta = delta of average cost across selected disciplines, plus a per-discipline breakdown. Live preview + "Update preview" for the free-text fields.</li>
+          <li><strong>Output</strong> — single-page portrait branded PDF with a fixed methodology/disclaimer note; generate-and-download only (no saved reports).</li>
+          <li><strong>Config:</strong> <code>CONFIG.LCI_DISCIPLINES</code> is the single source of truth for the 10 disciplines (mapped to <code>Sal_*</code> columns). <code>CONFIG.COUNTRY_CURRENCY</code> extended with common nearshore/offshore markets so their currencies appear in the dropdowns.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">July 2026</div>
+        <div class="changelog-title">LCI Cost Models — Location &amp; Cost Intelligence (Sales module)</div>
+        <ul>
+          <li><strong>New Sales page: LCI Cost Models</strong> — a native replacement for the Excel recruitment ramp &amp; cost model used on LCI location-research engagements. New files <code>js/lci-model.js</code> (pure calc), <code>lci-pages.js</code> (list), <code>lci-editor.js</code> (settings + roadmap), <code>lci-sections.js</code> (legacy/one-offs/fees + live output), <code>lci-summary.js</code> (milestones + summary + compare), <code>lci-report.js</code> (multi-model report), <code>lci-link.js</code> (Hiring Plan bridge). Loaded by <code>sales.html</code>.</li>
+          <li><strong>Two-currency model</strong> — CoE-side inputs (salaries, office) in a Local currency; customer-side inputs (legacy, one-offs, fees) and all outputs in a Display currency; a manual FX rate converts the CoE side. Costs include employer burden, 13th/14th-month salary gross-up, and a notice-period shift (a hire in month N reaches payroll in N + notice).</li>
+          <li><strong>Editor</strong> — hiring roadmap grid with project milestones (rows inside the grid), CoE / legacy / one-off / fee sections (toggleable), and a live cost-model table + cumulative-spend SVG that recompute on every edit. Diff-only saves.</li>
+          <li><strong>Compare &amp; report</strong> — N same-currency models side by side (KPI table + multi-line chart); one-or-more models assembled into a branded multi-page PDF (navy cover with the Momentum swirl, per-model sections, Location Comparison, rich-text Observations &amp; Recommendations). Reports save as a definition to <code>LCIReports</code> and live-recompute on re-open.</li>
+          <li><strong>Hiring Plan linkage</strong> — a Won model links to a CoE project and generates one <code>CoEPlanRows</code> row per hire, with Open Dates derived backwards from each hire month (recruitment weeks); bridges sales to delivery. One-time generate; plan is the delivery source of truth afterwards.</li>
+          <li><strong>Salary benchmarks</strong> — typing a role title surfaces an inline median-salary hint for that exact title in the same location + local currency, drawn equally from all prior models (the library is the accumulated <code>LCIModelRows</code> data — no separate store).</li>
+          <li><strong>Data model:</strong> new lists <code>LCIModels</code>, <code>LCIModelRows</code>, <code>LCIMilestones</code>, <code>LCIReports</code> — all empty objects in FIELD_ALIASES. StartMonth is a <code>YYYY-MM</code> text column (never a date). Multiline JSON/HTML columns are plain text.</li>
+          <li><strong>Access:</strong> Sales module opened to Delivery Managers, scoped to the LCI Cost Models page and to models where <code>AssignedDMEmail</code> matches; Revenue Tracking / Sales Forecast remain Admin/Leadership.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">July 2026</div>
+        <div class="changelog-title">Hiring Plan — CoE hiring roadmap (Reporting module)</div>
+        <ul>
+          <li><strong>New page: Hiring Plan</strong> — Gantt-style week-by-week hiring roadmap for CoE projects, registered in <code>router.js</code> for all four roles; Admin/DM edit, TP/Leadership read-only. New file <code>js/coe-plan.js</code> loaded by <code>reporting.html</code>.</li>
+          <li><strong>Plan builder</strong> — rows need only Title + Open Date; Recruitment/Notice/Onboarding phases auto-complete from new <code>CONFIG.COE_PHASE_DEFAULTS</code>, with optional per-row week overrides. Target Hire Date derived (Open Date + recruitment weeks). Handover excluded from v1.</li>
+          <li><strong>Capacity &amp; forecast views</strong> — weekly # in R/N/O strip above the timeline with Talent Partner filter; Forecast vs Planned hires table (planned derived from target hire dates; forecast entered inline by DM, stored per month).</li>
+          <li><strong>Roles linkage</strong> — Link picker + "Create Role" (pre-filled Add Role form). Linked rows overlay actuals as a thin bar: R from Role.OpenDate, N from Role.ActualHireDate, O from Placement.ProvisionalStartDate.</li>
+          <li><strong>Data model:</strong> Projects gains <code>ProjectType</code> choice column (Embedded/CoE, gates the page + project form field); new lists <code>CoEPlanRows</code> and <code>CoEPlanForecast</code>; both added to FIELD_ALIASES as empty objects.</li>
+          <li><strong>Gotcha fixed during build:</strong> forecast months must be written as manual ISO strings and read via <code>new Date()</code> local parsing — <code>toISOString()</code>/string-slicing shifts the 1st of a month into the prior month under BST.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">June 2026</div>
+        <div class="changelog-title">Mobile App — installable PWA + full module coverage</div>
+        <ul>
+          <li><strong>Installable PWA</strong> — <code>manifest.webmanifest</code> + <code>sw.js</code> (network-first, caches no app code, ignores auth/cross-origin) make <code>mobile.html</code> installable to the home screen with a standalone launch. Replaced an earlier Flutter WebView prototype, which was retired because embedded WebViews block Microsoft login; the PWA runs in the device browser engine where login works.</li>
+          <li><strong>Mobile shell</strong> — Home launcher + top-bar module switcher, both driven by <code>CONFIG.OS_MODULES</code> filtered through a new <code>MOBILE_MODULES</code> registry; per-module bottom-nav via <code>MOBILE_NAV</code>. Files: <code>mobile-app.js</code>, <code>mobile-home.js</code>.</li>
+          <li><strong>Reporting (full):</strong> Summary KPIs + roles-by-stage, roles list with client-side search/stage filter, role detail, stage update, weekly activity, placement, Add Role and Log Rejection forms (<code>mobile-pages.js</code>, <code>mobile-roleform.js</code>, <code>mobile-reporting-ext.js</code>).</li>
+          <li><strong>People (read-only):</strong> dashboard KPI tiles (<code>mobile-people.js</code>) + Scorecards with a swipe carousel for DM/Admin (<code>mobile-scorecards.js</code>, reuses <code>computeVelocityScore</code>).</li>
+          <li><strong>Sales (write):</strong> Sales Forecast list + add/edit (<code>mobile-sales.js</code>). <strong>Market Analytics (read-only):</strong> condensed Placement Analytics — Summary + Funnel Drop-off tiles, filterable by location / functional area (<code>mobile-analytics.js</code>, reuses <code>computeRoleFunnel</code>).</li>
+          <li><strong>Single source of truth preserved</strong> — every mobile view reuses the existing data-layer and calculation functions; no business logic duplicated. Command Centre excluded from mobile. Mobile access limited to TP / DM / Admin, with per-module roles inherited from <code>CONFIG.OS_MODULES</code>.</li>
+          <li><strong>Login robustness:</strong> <code>mobileInit()</code> processes <code>handleRedirectPromise()</code> first and derives user email/name directly from the MSAL account, so <code>mobile.html</code> is self-sufficient after the login round-trip. <code>app.js</code> redirects app sessions back to <code>mobile.html</code> via a <code>newton_mobile</code> flag.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">June 2026</div>
+        <div class="changelog-title">Sales — Revenue Tracking, forecast line &amp; Command Centre wiring</div>
+        <ul>
+          <li><strong>New Sales page: Revenue Tracking</strong> — default landing page (top of the Sales nav, above Sales Forecast). SVG line graph of estimated monthly revenue (Jan–Dec) with green/amber/red threshold bands; year dropdown lists only years assignment data spans. Estimated revenue pro-rates each Assignment's <code>MonthlyBillRate</code> by day-overlap; counts former, current and planned assignments (Billed flag ignored).</li>
+          <li><strong>Forecasted Revenue line</strong> — dashed orange line forking at the current month, showing estimated + forecast revenue. Forecast revenue = <code>ForecastedHeadcount × ForecastMonthlyRevenuePerHead</code> per SalesForecasts row, pro-rated by day-overlap. New SharePoint column on SalesForecasts: <code>ForecastMonthlyRevenuePerHead</code> (number, optional); new field added to the Sales Forecast modal.</li>
+          <li><strong>Command Centre Revenue tile</strong> — added as the first tile in the CC grid. RAG = 3-month avg of estimated + forecast revenue vs <code>CONFIG.REVENUE_THRESHOLDS</code>. Expands to the full Revenue Tracking chart (current year).</li>
+          <li><strong>Homepage banner Revenue pill</strong> — fourth pill (Revenue, Projects, People, Utilisation), same RAG basis as the CC tile, persisted to the <code>revenue</code> row in CCStatus (auto-created on first refresh; fires the <code>ccRed:revenue</code> notification).</li>
+          <li><strong>Shared chart extraction:</strong> <code>_renderRevenueLineGraph()</code> + <code>_fmtGBPk()</code> moved from <code>sales-pages.js</code> into new <code>js/revenue-chart.js</code>, loaded by sales.html and command-centre.html (pattern mirrors analytics.js).</li>
+          <li><strong>New config block:</strong> <code>CONFIG.REVENUE_THRESHOLDS</code> (<code>green: 225000, amber: 200000</code> — monthly £).</li>
+          <li><strong>New utils.js helpers:</strong> <code>computeMonthlyRevenueForYear()</code>, <code>computeMonthlyForecastRevenueForYear()</code>, <code>getAssignmentDataYears()</code> (all array[12], no today-cap — unlike <code>computeMonthlyRows()</code>).</li>
+          <li><strong>Bug fix (CSS):</strong> added a fallback <code>.cc-tile { background:#F5F5F5; border-left:5px solid #BBBBBB; }</code> before the RAG colour rules. Without it, a tile whose RAG class doesn't resolve (<code>cc-tile--undefined</code>) renders as an invisible white-on-white block that still takes its flex slot.</li>
+          <li><strong>Expanded tile layout:</strong> <code>.cc-grid--expanded .cc-tile--active</code> now <code>justify-content: flex-start</code> (was inheriting <code>center</code>, floating content mid-tile); the detail panel fills remaining height with the chart.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
         <div class="changelog-date">June 2026</div>
         <div class="changelog-title">In-app Notifications, Premium UI &amp; fixes</div>
         <ul>
@@ -944,7 +1110,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <div class="changelog-title">MG Command Centre</div>
         <ul>
           <li>New module: <code>command-centre.html</code> — executive ops dashboard for Admin and Leadership</li>
-          <li>Three live RAG tiles: Project Health, People, Utilisation — each with expandable detail panel</li>
+          <li>Three live RAG tiles: Project Health, People, Utilisation — each with expandable detail panel <em>(a fourth tile, Revenue, was added later — see the Sales changelog entry; the live grid now shows four tiles, Revenue first)</em></li>
           <li>New files: <code>js/cc-router.js</code>, <code>js/cc-nav.js</code>, <code>js/cc-app.js</code>, <code>js/cc-pages.js</code></li>
           <li>New CCStatus SharePoint list — persists RAG state between sessions; read by homepage on load</li>
           <li>Homepage CC tile redesigned: three RAG badges + refresh button</li>
@@ -995,6 +1161,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <tr><td>MSAL.js</td><td>2.38.3</td><td>Pin the version in the CDN URL. Breaking changes between major versions.</td></tr>
         <tr><td>Lucide</td><td>Latest (CDN)</td><td>Currently unpinned — consider pinning to a specific version.</td></tr>
         <tr><td>SortableJS</td><td>1.15.2</td><td>Pinned — safe.</td></tr>
+        <tr><td>ExcelJS</td><td>4.4.0</td><td>Pinned in <code>CONFIG.LCI.EXCEL.CDN</code>. Lazy-loaded on first Export to Excel click only. Keep pinned — the workbook relies on <code>{ formula, result }</code> cell values and defined names.</td></tr>
         <tr><td>Graph API</td><td>v1.0</td><td>Microsoft's stable channel. Breaking changes announced with deprecation periods.</td></tr>
       </table>
     </div>

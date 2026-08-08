@@ -378,10 +378,12 @@ function _pickFields(obj, keys) {
   return out;
 }
 
-async function copyLCIModel(modelId, newTitle) {
+async function copyLCIModel(modelId, newTitle, onProgress = null) {
   const [model, rows, milestones] = await Promise.all([
     getLCIModelById(modelId), getLCIRows(modelId), getLCIMilestones(modelId),
   ]);
+  const total = rows.length + milestones.length;
+  let done = 0;
   const created = await createLCIModel({
     ..._pickFields(model, _LCI_MODEL_COPY_FIELDS),
     Title:  newTitle || `${model.Title} (copy)`,
@@ -394,10 +396,12 @@ async function copyLCIModel(modelId, newTitle) {
     for (const r of rows) {
       const cr = await createLCIRow({ ..._pickFields(r, _LCI_ROW_COPY_FIELDS), ModelIDLookupId: Number(newId) });
       createdRowIds.push(cr.id);
+      if (onProgress) onProgress(++done, total);
     }
     for (const m of milestones) {
       const cm = await createLCIMilestone({ ..._pickFields(m, _LCI_MILESTONE_COPY_FIELDS), ModelIDLookupId: Number(newId) });
       createdMilestoneIds.push(cm.id);
+      if (onProgress) onProgress(++done, total);
     }
   } catch (e) {
     // N-082: roll back the partial copy — best-effort, and a failed

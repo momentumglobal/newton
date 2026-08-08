@@ -19,7 +19,7 @@ async function renderProjectDashboard() {
     if (!projectId && projects.length) { projectId = String(projects[0].id); _dashProjectId = projectId; }
     projectName = (projects.find(p => String(p.id) === String(projectId)) || {}).CustomerName || 'Project';
     const opts = projects.map(p =>
-      `<option value='${p.id}' ${String(p.id) === String(projectId) ? 'selected' : ''}>${p.CustomerName}</option>`
+      `<option value='${p.id}' ${String(p.id) === String(projectId) ? 'selected' : ''}>${escHtml(p.CustomerName)}</option>`
     ).join('');
     selectorHtml = `<div class='form-group dash-project-selector'><label>Project</label><select onchange='changeDashProject(this.value)'>${opts}</select></div>`;
   }
@@ -48,8 +48,8 @@ async function renderProjectDashboard() {
   const spend           = isDMAdmin ? hideEmpty(renderSpendPanel(roles, placements)) : '';
   main.innerHTML = `
     <div class='page-header'>
-      <h2>Project Dashboard${isDMAdmin ? ' — ' + projectName : ''}</h2>
-    <button class='print-btn' onclick='printPage("Project Dashboard${isDMAdmin ? ' — ' + projectName : ''}", false, "Reporting")'>⎙ Export PDF</button>
+      <h2>Project Dashboard${isDMAdmin ? ' — ' + escHtml(projectName) : ''}</h2>
+    <button class='print-btn' onclick="printPage('Project Dashboard${isDMAdmin ? ' — ' + escJsAttr(projectName) : ''}', false, 'Reporting')">⎙ Export PDF</button>
     </div>
     ${selectorHtml}
     <div class='form-group dash-project-selector'>

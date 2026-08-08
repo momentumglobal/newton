@@ -200,6 +200,10 @@ const CONFIG = {
     onboardingWeeks:  6,   // O — start → fully onboarded
     weeksPerNoticeMonth: 4, // months→weeks for LCI notice carried into the plan (N-077)
   },
+
+  // Graph 429/503 retry (N-082): total attempts incl. the first; backoff
+  // doubles from baseDelayMs unless SharePoint sends a Retry-After header.
+  GRAPH_RETRY: { maxAttempts: 4, baseDelayMs: 1000 },
   
   // Single source of truth for the module switcher dropdown.
   // To add a new module, add it here only — all nav files reference this.

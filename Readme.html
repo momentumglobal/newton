@@ -567,7 +567,7 @@
         <tr><td><span class="file-tag">js/dashboard-company.js</span></td><td>Company Dashboard</td></tr>
         <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions — computeTTFPrediction(), computeRoleFunnel(), computeVelocityScore(), isRoleFlagged(), ACTIVE_STAGES, STAGE_ORDER. Loaded by reporting.html, people.html, market-reporting.html, and command-centre.html.</td></tr>
         <tr><td><span class="file-tag">js/report-builder.js</span></td><td>Report Builder — block canvas, save/load, PDF export</td></tr>
-        <tr><td><span class="file-tag">js/coe-plan.js</span></td><td>Hiring Plan (CoE projects) — Gantt builder, weekly capacity strip, forecast vs planned table, role linkage with actuals overlay</td></tr>
+        <tr><td><span class="file-tag">js/coe-plan.js</span></td><td>Hiring Plan (CoE projects) — Gantt builder, weekly capacity strip, forecast vs planned table, role linkage with actuals overlay, admin-only Delete Plan (bulk row delete; Roles/Placements/Forecast kept). Week indexing uses <code>Math.round</code>, never floor — local-midnight Mondays sit ±1h off exact weeks across the GMT/BST switch</td></tr>
         <tr><td><span class="file-tag">js/admin.js</span></td><td>Config Panel — Departments, Currencies, Delete Records</td></tr>
       </table>
 
@@ -606,13 +606,13 @@
         <tr><td><span class="file-tag">js/sales-pages.js</span></td><td>Revenue Tracking page (year dropdown + chart) and Sales Forecast page renderers. Sales Forecast modal includes the Monthly Revenue per Head field.</td></tr>
         <tr><td><span class="file-tag">js/revenue-chart.js</span></td><td>Shared Revenue Tracking chart renderer — <code>_renderRevenueLineGraph()</code>, <code>_fmtGBPk()</code>. Pure presentation, no network I/O. Loaded by sales.html and command-centre.html. Pattern mirrors analytics.js (pure fns, multiple entry points).</td></tr>
         <tr><td><span class="file-tag">js/lci-model.js</span></td><td>LCI Cost Model calculation layer. Pure functions only — no network I/O, no DOM (analytics.js pattern). <code>lciComputeModel()</code>, <code>lciComputeKPIs()</code>, <code>lciCumulativeHeadcount()</code>, <code>lciMonthlyCost()</code>, <code>lciLegacyMonthlyCost()</code>, <code>lciSections()</code>, <code>lciFxRate()</code>, <code>lciBenchmark()</code>. <strong>The single source of truth for every LCI figure</strong> — every other LCI file renders its output rather than recomputing it.</td></tr>
-        <tr><td><span class="file-tag">js/lci-pages.js</span></td><td>Model list page — client/location filters, New/Edit modal, Copy, Delete, compare checkboxes, Saved Reports table.</td></tr>
+        <tr><td><span class="file-tag">js/lci-pages.js</span></td><td>Model list page — client/location filters, New/Edit modal, Copy (shows <em>Copying… n/N</em> progress; a failed copy rolls back fully — never leaves a partial model), Delete, compare checkboxes, Saved Reports table.</td></tr>
         <tr><td><span class="file-tag">js/lci-editor.js</span></td><td>Editor shell — settings bar (diff-only save) and the CoE hiring roadmap grid, incl. team rename/delete and per-role notice overrides. Owns the shared <code>_lciEd</code> editor state.</td></tr>
         <tr><td><span class="file-tag">js/lci-sections.js</span></td><td>Legacy Team / one-off / fee / travel grids, plus the live cost-model output table and cumulative-spend SVG. Owns the output row-visibility rules.</td></tr>
         <tr><td><span class="file-tag">js/lci-summary.js</span></td><td>Project milestones (rows inside the roadmap grid), the single-model summary / print view, and the compare view.</td></tr>
         <tr><td><span class="file-tag">js/lci-excel.js</span></td><td>Excel export — lazy ExcelJS loader, seven sheet builders, download. Writes every formula as <code>{ formula, result }</code>: the formula makes the workbook live, the cached result makes it correct on open. Never recalculates — all numbers come from lci-model.js.</td></tr>
         <tr><td><span class="file-tag">js/lci-report.js</span></td><td>Multi-model report export — navy cover, per-model sections, Location Comparison, rich-text Observations &amp; Recommendations.</td></tr>
-        <tr><td><span class="file-tag">js/lci-link.js</span></td><td>Hiring Plan bridge — links a Won model to a CoE project and generates one <code>CoEPlanRows</code> row per hire.</td></tr>
+        <tr><td><span class="file-tag">js/lci-link.js</span></td><td>Hiring Plan bridge — links a Won model to a CoE project (admins can also unlink) and generates one <code>CoEPlanRows</code> row per hire. Generated rows anchor the hire (end of Recruitment) on the Monday of the <strong>last week of the LCI target hire month</strong>, working the Open Date backwards, and carry the model's notice (per-role override or model default, × <code>CONFIG.COE_PHASE_DEFAULTS.weeksPerNoticeMonth</code>) plus an explicit RecruitmentWeeks. Manual plan rows still build forward from Planned Open Date.</td></tr>
         <tr><td><span class="file-tag">js/lci-leadmagnet.js</span></td><td>LCI Lead Magnet — self-contained location cost comparator + one-page Country Comparison PDF. <strong>Its FX convention is the opposite of the Cost Model's</strong> (local per GBP, divides) — do not conflate the two.</td></tr>
       </table>
 
@@ -826,6 +826,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-readflow" style="display:none">
       <div class="section-title">Read Flow</div>
       <p class="section-intro">All data reads go through <code>getItems(listName, filter)</code> in api.js. A 30-second in-memory cache sits in front of every Graph API call to reduce SharePoint requests during navigation.</p>
+      <p class="section-intro"><strong>Throttle retry:</strong> every Graph call (reads and writes) retries on HTTP 429/503, honouring SharePoint's <code>Retry-After</code> header or exponential backoff, up to <code>CONFIG.GRAPH_RETRY.maxAttempts</code>. Sequential write bursts (model copy, plan generation, bulk plan delete) rely on this — never add per-call retry loops in page scripts.</p>
 
       <h3>Read sequence</h3>
       <div class="flow">
@@ -914,6 +915,14 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <li>Conditional styling uses CSS classes, not inline style="" attributes.</li>
         <li>Scope classes to their context: <code>.dash-panel .row-age-critical td</code> prevents bleed into unrelated tables.</li>
         <li>Colour values live in style.css only. JavaScript never hardcodes hex colours.</li>
+        <li><strong>Design tokens (Aug 2026):</strong> style.css opens with a <code>:root</code> block — <code>--c-*</code> colours, <code>--sp-*</code> spacing, <code>--r-*</code> radius, <code>--fs-*</code>/<code>--fw-*</code> type, <code>--sh-*</code> shadows, <code>--dur-*</code> durations. New CSS uses <code>var()</code> tokens; never define or shadow <code>--org-print-scale</code> (set at runtime by org-chart.js). Literal-vs-token mapping decisions live in <code>newton-pipeline/specs/N-067-mapping.md</code>.</li>
+      </ul>
+
+      <h3>Output escaping</h3>
+      <ul class="checklist">
+        <li>Data interpolated into HTML uses the utils.js helpers by context: text → <code>escHtml</code> (multi-line: <code>escHtmlLines</code>), double-quoted attribute → <code>escAttr</code>, JS string inside an attribute handler → <code>escJsAttr</code>.</li>
+        <li>Escape inside the <code>.map()</code> that builds an option/row string, never again where the composed variable is interpolated — composed markup stays raw.</li>
+        <li>Never escape inside comparison expressions (<code>selected</code>/<code>checked</code> ternaries compare raw values).</li>
       </ul>
 
       <h3>Dynamic over hardcoded</h3>
@@ -995,6 +1004,18 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
       <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">August 2026</div>
+        <div class="changelog-title">Hardening block — escaping, design tokens, Hiring Plan & LCI copy fixes (N-057, N-067, N-077, N-080–N-082)</div>
+        <ul>
+          <li><strong>forms.js escaping pass (N-057):</strong> every data interpolation context-escaped (escAttr/escHtml); first file of the F-5b series.</li>
+          <li><strong>Design tokens (N-067):</strong> 112-token <code>:root</code> vocabulary in style.css, definitions only; rewires follow in N-068–72.</li>
+          <li><strong>Hiring Plan (N-077/N-081):</strong> LCI-generated rows anchor the hire in the last week of the target month and carry model notice; Gantt week-indexing DST fix — cells now align with headers across the GMT/BST switch.</li>
+          <li><strong>Admin tooling (N-080):</strong> unlink a Won model from its project; bulk-delete a hiring plan.</li>
+          <li><strong>Reliability (N-082):</strong> app-wide Graph 429/503 retry (<code>CONFIG.GRAPH_RETRY</code>); model copy shows progress and rolls back fully on failure.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">August 2026</div>

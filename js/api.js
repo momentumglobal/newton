@@ -107,7 +107,20 @@ async function graphRequest(method, path, body = null) {
     },
   };
   if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(`${GRAPH}${path}`, opts);
+  // N-082: retry 429/503 only — throttle responses were rejected, not
+  // applied, so re-POSTing is safe. Everything else throws immediately.
+  const { maxAttempts, baseDelayMs } = CONFIG.GRAPH_RETRY;
+  let res;
+  for (let attempt = 1; ; attempt++) {
+    res = await fetch(`${GRAPH}${path}`, opts);
+    if ((res.status === 429 || res.status === 503) && attempt < maxAttempts) {
+      const ra = Number(res.headers.get('Retry-After'));
+      const waitMs = ra > 0 ? ra * 1000 : baseDelayMs * Math.pow(2, attempt - 1);
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+      continue;
+    }
+    break;
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err?.error?.message || `HTTP ${res.status}`);
@@ -375,11 +388,24 @@ async function copyLCIModel(modelId, newTitle) {
     Status: 'Draft',
   });
   const newId = created.id;
-  for (const r of rows) {
-    await createLCIRow({ ..._pickFields(r, _LCI_ROW_COPY_FIELDS), ModelIDLookupId: Number(newId) });
-  }
-  for (const m of milestones) {
-    await createLCIMilestone({ ..._pickFields(m, _LCI_MILESTONE_COPY_FIELDS), ModelIDLookupId: Number(newId) });
+  const createdRowIds = [];
+  const createdMilestoneIds = [];
+  try {
+    for (const r of rows) {
+      const cr = await createLCIRow({ ..._pickFields(r, _LCI_ROW_COPY_FIELDS), ModelIDLookupId: Number(newId) });
+      createdRowIds.push(cr.id);
+    }
+    for (const m of milestones) {
+      const cm = await createLCIMilestone({ ..._pickFields(m, _LCI_MILESTONE_COPY_FIELDS), ModelIDLookupId: Number(newId) });
+      createdMilestoneIds.push(cm.id);
+    }
+  } catch (e) {
+    // N-082: roll back the partial copy — best-effort, and a failed
+    // cleanup delete must never mask the original error.
+    for (const id of createdMilestoneIds) { try { await deleteLCIMilestone(id); } catch (_) { /* best-effort */ } }
+    for (const id of createdRowIds)       { try { await deleteLCIRow(id); } catch (_) { /* best-effort */ } }
+    try { await deleteLCIModel(newId); } catch (_) { /* best-effort */ }
+    throw new Error('Copy failed — nothing was created. ' + e.message);
   }
   return created;
 }

@@ -319,7 +319,7 @@ function _renderRevenuePanel(rows) {
     });
   const customerRows = Object.entries(byCustomer)
     .sort((a,b) => b[1] - a[1])
-    .map(([c,v]) => `<tr><td>${c}</td><td>${_fmtGBP(v)}</td></tr>`).join('');
+    .map(([c,v]) => `<tr><td>${escHtml(c)}</td><td>${_fmtGBP(v)}</td></tr>`).join('');
   const customerTotal = Object.values(byCustomer).reduce((s,v)=>s+v,0);
 
   // Revenue by project type
@@ -379,7 +379,7 @@ function _renderSegmentationPanel(people) {
 
   const tableHTML = (entries) => entries.map(([k,v]) => `
     <tr>
-      <td>${k}</td>
+      <td>${escHtml(k)}</td>
       <td>${v}</td>
       <td>${total > 0 ? ((v/total)*100).toFixed(0) + '%' : '—'}</td>
     </tr>`).join('');
@@ -443,8 +443,8 @@ function _renderEndDatesPanel(people) {
     const bg      = days <= 30 ? '#fce8e8' : '#fff3e0';
     const dateStr = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     return `<tr>
-      <td style='background:${bg}'>${p.EmployeeName}</td>
-      <td style='background:${bg}'>${p.Level || '—'}</td>
+      <td style='background:${bg}'>${escHtml(p.EmployeeName)}</td>
+      <td style='background:${bg}'>${escHtml(p.Level || '—')}</td>
       <td style='background:${bg}'>${dateStr}</td>
       <td style='background:${bg}'>${days} days</td>
     </tr>`;

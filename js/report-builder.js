@@ -66,7 +66,7 @@ async function renderReportBuilder() {
   _rbLiveRoles = _rbProjectRoles
     .filter(r => !RB_EXCLUDED_STAGES.includes(r.Stage))
     .filter(r => _rbRoleId === 'all' || String(r.id) === String(_rbRoleId))
-    .map(r => ({ id: r.id, label: r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle }));
+    .map(r => ({ id: r.id, label: escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle) }));
 
   // Load saved reports from SharePoint
   const saved = await getSavedReports();
@@ -101,12 +101,12 @@ async function renderReportBuilder() {
 function rbRenderSidebar(projects) {
   const projectOpts = projects.map(p =>
     `<option value="${p.id}" ${String(p.id) === _rbProjectId ? 'selected' : ''}>
-      ${p.CustomerName}</option>`).join('');
+      ${escHtml(p.CustomerName)}</option>`).join('');
 
   // Role options for the selected project, with an "All Roles" default.
   const roleOpts = ['<option value="all"' + (_rbRoleId === 'all' ? ' selected' : '') + '>All Roles</option>']
     .concat(_rbProjectRoles.map(r => {
-      const label = r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle;
+      const label = escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle);
       return `<option value="${r.id}" ${String(r.id) === String(_rbRoleId) ? 'selected' : ''}>${label}</option>`;
     })).join('');
 
@@ -136,7 +136,7 @@ function rbRenderSidebar(projects) {
     <div class="rb-config">
       <div class="rb-section-label">Report Title</div>
       <input id="rb-title" class="rb-input" type="text" placeholder="Untitled Report"
-        value="${_rbTitle || ''}" oninput="_rbTitle = this.value">
+        value="${escAttr(_rbTitle || '')}" oninput="_rbTitle = this.value">
 
       <div class="rb-section-label">Scope</div>
       <div class="filter-group">
@@ -181,7 +181,7 @@ function rbRenderCanvas() {
       const meta = RB_PALETTE.find(p => p.key === block.key) || { label: block.key };
       return `<div class="rb-block rb-block-panel" data-index="${i}" data-id="${block.id}">
         <span class="rb-drag-handle">&#9776;</span>
-        <span class="rb-block-label">${meta.label}</span>
+        <span class="rb-block-label">${escHtml(meta.label)}</span>
         <button class="rb-remove-btn" onclick="rbRemoveBlock('${block.id}')">&#x2715;</button>
       </div>`;
     } else {
@@ -221,7 +221,7 @@ function rbRenderSnapshotBlock(block, i) {
     const rid = String(r.id);
     const v = values[rid] || {};
     const cells = SNAP_FIELDS.map(([f]) =>
-      `<td><input type="number" min="0" class="rb-snap-input" value="${v[f] ?? ''}"
+      `<td><input type="number" min="0" class="rb-snap-input" value="${escAttr(v[f] ?? '')}"
         oninput="rbUpdateSnapshotValue('${block.id}','${rid}','${f}',this.value)"></td>`
     ).join('');
     return `<tr><td>${r.label}</td>${cells}</tr>`;
@@ -437,7 +437,7 @@ async function rbPreview() {
 
 function rbRenderReportHtml(title, data, ganttOpts = null) {
   // ganttOpts: { coeRows, forPrint } — appended Hiring Plan final page
-  const titleHtml = `<div class="rb-report-title"><h2>${title}</h2></div>`;
+  const titleHtml = `<div class="rb-report-title"><h2>${escHtml(title)}</h2></div>`;
 
   const blocks = _rbBlocks.map(block => {
     if (block.type === 'panel') {
@@ -445,7 +445,7 @@ function rbRenderReportHtml(title, data, ganttOpts = null) {
         const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
         const liveRoles = data.roles
           .filter(r => !EXCLUDED.includes(r.Stage))
-          .map(r => ({ id: r.id, label: r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle }));
+          .map(r => ({ id: r.id, label: escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle) }));
         return rbRenderSnapshotOutput(block, liveRoles);
       }
       const fn = REPORT_PANELS[block.key];
@@ -536,11 +536,11 @@ async function rbOpenSavedModal() {
         const ownerDisplay = tpMap[owner.toLowerCase()] || owner;
         const canEdit = isAdmin || owner.toLowerCase() === currentUser.email.toLowerCase();
         return `<div class="rb-saved-row">
-          <span>${r.Title}</span>
-          <span class="rb-saved-meta">${ownerDisplay}</span>
+          <span>${escHtml(r.Title)}</span>
+          <span class="rb-saved-meta">${escHtml(ownerDisplay)}</span>
           <div style="display:flex;gap:6px;flex-shrink:0">
             <button class="btn-secondary btn-sm" onclick="rbLoadReport(${r.id})">Open</button>
-            ${canEdit ? `<button class="btn-danger btn-sm" onclick="rbDeleteReport(${r.id}, '${r.Title.replace(/'/g, "\\'")}')">Delete</button>` : ''}
+            ${canEdit ? `<button class="btn-danger btn-sm" onclick="rbDeleteReport(${r.id}, '${escJsAttr(r.Title)}')">Delete</button>` : ''}
           </div>
         </div>`;
       }).join('')

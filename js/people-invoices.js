@@ -63,7 +63,7 @@ async function renderGPInvoices() {
       : '';
 
     return `<tr>
-      <td>${inv.InvoiceNumber || '—'}</td>
+      <td>${escHtml(inv.InvoiceNumber || '—')}</td>
       <td>${inv.InvoiceDate ? inv.InvoiceDate.split('T')[0] : '—'}</td>
       <td>${inv.DueDate     ? inv.DueDate.split('T')[0]     : '—'}</td>
       <td>£${inv.Amount ? Number(inv.Amount).toLocaleString('en-GB',

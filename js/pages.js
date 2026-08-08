@@ -32,7 +32,7 @@ function projectFilterDropdown(projects, selectedId, callbackFn) {
   const options = [
     `<option value="" ${!selectedId ? 'selected' : ''}>All Projects</option>`,
     ...projects.map(p =>
-      `<option value="${p.id}" ${String(selectedId) === String(p.id) ? 'selected' : ''}>${p.CustomerName}</option>`
+      `<option value="${p.id}" ${String(selectedId) === String(p.id) ? 'selected' : ''}>${escHtml(p.CustomerName)}</option>`
     )
   ].join('');
   return `<div class="project-filter-bar">
@@ -68,9 +68,9 @@ async function renderProjectsPage() {
       <tbody>
         ${projects.map(p => `
           <tr>
-            <td>${p.CustomerName}</td>
-            <td>${dmName(p.DeliveryManager)}</td>
-            <td><span class="badge badge-${p.Status?.toLowerCase()}">${p.Status}</span></td>
+            <td>${escHtml(p.CustomerName)}</td>
+            <td>${escHtml(dmName(p.DeliveryManager))}</td>
+            <td><span class="badge badge-${escAttr(p.Status?.toLowerCase())}">${escHtml(p.Status)}</span></td>
             <td>${p.StartDate ? p.StartDate.split("T")[0] : "—"}</td>
             <td>${p.EndDate ? p.EndDate.split("T")[0] : "—"}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditProjectForm(${p.id})">Edit</a></div></td>` : ""}
@@ -166,12 +166,12 @@ async function renderRolesPage(filter) {
           const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || "—";
           return `
           <tr class="${rowClass}">
-            <td>${projectName}</td>
-            <td>${r.RoleTitle}</td>
-            <td>${r.Location || '—'}</td>
-            <td><span class="badge">${r.Stage || "—"}</span></td>
-            <td>${tpDisplay(r.TalentPartner, tpMap)}</td>
-            <td>${formatSalary(r.Budget)}</td>
+            <td>${escHtml(projectName)}</td>
+            <td>${escHtml(r.RoleTitle)}</td>
+            <td>${escHtml(r.Location || '—')}</td>
+            <td><span class="badge">${escHtml(r.Stage || "—")}</span></td>
+            <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
+            <td>${escHtml(formatSalary(r.Budget))}</td>
             <td>${r.OpenDate ? r.OpenDate.split("T")[0] : "—"}</td>
             <td>${dateCell}</td>
             <td>${days !== null ? days + " days" : "—"}</td>
@@ -209,7 +209,7 @@ async function renderActivityPage() {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
-  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
+  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
   activity.sort((a, b) => {
     const yr = Number(b.Year) - Number(a.Year);
     if (yr !== 0) return yr;
@@ -288,7 +288,7 @@ async function renderActivityPage() {
             <td>${a.Year}</td>
             <td>Wk ${a.WeekNumber}</td>
             <td>${roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || "—"}</td>
-            <td>${tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || "—"}</td>
+            <td>${escHtml(tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || "—")}</td>
             <td style="text-align:center">${a.Outreach || 0}</td>
             <td style="text-align:center">${a.Responses || 0}</td>
             <td style="text-align:center">${a.Screened || 0}</td>
@@ -352,7 +352,7 @@ async function renderPlacementsPage() {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
-  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
+  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
   allPlacements.sort((a, b) =>
     new Date(b.OfferAcceptedDate || 0) - new Date(a.OfferAcceptedDate || 0)
   );
@@ -412,9 +412,9 @@ async function renderPlacementsPage() {
       <tbody>
         ${placements.map(p => `
           <tr>
-            <td>${p.CandidateName}</td>
+            <td>${escHtml(p.CandidateName)}</td>
             <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || "—"}</td>
-            <td>${formatSalary(p.SalaryAgreed)}</td>
+            <td>${escHtml(formatSalary(p.SalaryAgreed))}</td>
             <td>${p.OfferAcceptedDate ? p.OfferAcceptedDate.split("T")[0] : "—"}</td>
             <td>${p.ProvisionalStartDate ? p.ProvisionalStartDate.split("T")[0] : "—"}</td>
             <td>${p.TimeToHire != null ? p.TimeToHire + " days" : "—"}</td>
@@ -448,7 +448,7 @@ async function renderRejectionsPage() {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
-  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
+  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
   rejections.sort((a, b) => {
     const rA = roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || '';
     const rB = roleMap[String(b.RoleIDLookupId)] || roleMap[String(b.RoleID)] || '';
@@ -488,11 +488,11 @@ async function renderRejectionsPage() {
       <tbody>
         ${filteredRejections.map(r => `
           <tr>
-            <td>${r.CandidateName}</td>
+            <td>${escHtml(r.CandidateName)}</td>
             <td>${roleMap[String(r.RoleIDLookupId)] || roleMap[String(r.RoleID)] || "—"}</td>
-            <td>${formatSalary(r.SalaryOffered)}</td>
-            <td>${r.RejectionReason || "—"}</td>
-            <td>${r.Notes || "—"}</td>
+            <td>${escHtml(formatSalary(r.SalaryOffered))}</td>
+            <td>${escHtml(r.RejectionReason || "—")}</td>
+            <td>${escHtml(r.Notes || "—")}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRejectionForm(${r.id})">Edit</a></div></td>` : ""}
           </tr>
         `).join("")}

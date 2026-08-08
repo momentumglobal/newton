@@ -96,7 +96,7 @@ async function _generatePayrollPreview() {
       <thead><tr><th>Name</th><th>Start Date</th><th>Salary</th></tr></thead>
       <tbody>${joiners.map(p => `
         <tr>
-          <td>${p.EmployeeName}</td>
+          <td>${escHtml(p.EmployeeName)}</td>
           <td>${p.StartDate.split('T')[0]}</td>
           <td>${p.Salary ? '£' + Number(p.Salary).toLocaleString('en-GB', { minimumFractionDigits: 2 }) : '—'}</td>
         </tr>`).join('')}
@@ -108,7 +108,7 @@ async function _generatePayrollPreview() {
       <thead><tr><th>Name</th><th>End Date</th></tr></thead>
       <tbody>${leavers.map(p => `
         <tr>
-          <td>${p.EmployeeName}</td>
+          <td>${escHtml(p.EmployeeName)}</td>
           <td>${p.EndDate.split('T')[0]}</td>
         </tr>`).join('')}
       </tbody>
@@ -120,11 +120,11 @@ async function _generatePayrollPreview() {
     <div id='bonus-inputs' style='max-height:240px;overflow-y:auto;border:1px solid #eee;border-radius:4px;padding:12px'>
       ${ukStaff.filter(p => p.IsActive !== false).map(p => `
         <div style='display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5'>
-          <span style='font-size:14px'>${p.EmployeeName}</span>
+          <span style='font-size:14px'>${escHtml(p.EmployeeName)}</span>
           <div style='display:flex;align-items:center;gap:6px'>
             <span style='color:#888'>£</span>
             <input type='number' min='0' step='0.01' placeholder='—'
-              data-employee='${p.EmployeeName}'
+              data-employee='${escHtml(p.EmployeeName)}'
               style='width:100px;padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px'>
           </div>
         </div>`).join('')}

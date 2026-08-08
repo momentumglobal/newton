@@ -92,7 +92,7 @@ const totalActiveHeadcount = people.filter(
       const startStr = new Date(a.StartDate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
       const endStr   = new Date(a.EndDate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
       const rate     = a.MonthlyBillRate ? '£' + Number(a.MonthlyBillRate).toLocaleString('en-GB') : '—';
-      const tooltip  = `${a.Customer || 'Unassigned'}${isFc ? ' (Forecast)' : ''} · ${rate} · ${startStr} – ${endStr}`;
+      const tooltip  = `${escHtml(a.Customer || 'Unassigned')}${isFc ? ' (Forecast)' : ''} · ${rate} · ${startStr} – ${endStr}`;
       const bg = isFc
         ? 'repeating-linear-gradient(45deg,#FAD9BC,#FAD9BC 5px,#FDF0E3 5px,#FDF0E3 10px)'
         : colour;
@@ -123,7 +123,7 @@ const totalActiveHeadcount = people.filter(
     rowsHtml += `<tr>
       <td colspan='14' style='padding:6px 8px 2px;font-size:12px;font-weight:700;
           color:#1B3A5C;background:#f5f7fa;border-top:1px solid #e0e0e0'>
-        ${isBench ? 'Unassigned' : customer}
+        ${isBench ? 'Unassigned' : escHtml(customer)}
       </td>
     </tr>`;
 
@@ -142,9 +142,9 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
       const cells = MONTHS.map((_, i) => monthCell(empAssignments, i)).join('');
       rowsHtml += `<tr>
         <td style='padding:4px 8px;font-size:12px;width:180px;min-width:180px;overflow:hidden;
-                   text-overflow:ellipsis;white-space:nowrap'>${emp}</td>
+                   text-overflow:ellipsis;white-space:nowrap'>${escHtml(emp)}</td>
         <td style='padding:4px 8px;font-size:11px;color:#888;width:50px;
-                   min-width:50px;white-space:nowrap'>${level}</td>
+                   min-width:50px;white-space:nowrap'>${escHtml(level)}</td>
         ${cells}
       </tr>`;
     });
@@ -217,10 +217,10 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
       const person = peopleMap[a.EmployeeName] || {};
       deployableRows.push(`
         <tr>
-          <td style='padding:6px 10px;font-size:12px'>${a.EmployeeName}</td>
-          <td style='padding:6px 10px;font-size:12px'>${a.Level || '—'}</td>
-          <td style='padding:6px 10px;font-size:12px'>${person.ContractType || '—'}</td>
-          <td style='padding:6px 10px;font-size:12px'>${person.Location || '—'}</td>
+          <td style='padding:6px 10px;font-size:12px'>${escHtml(a.EmployeeName)}</td>
+          <td style='padding:6px 10px;font-size:12px'>${escHtml(a.Level || '—')}</td>
+          <td style='padding:6px 10px;font-size:12px'>${escHtml(person.ContractType || '—')}</td>
+          <td style='padding:6px 10px;font-size:12px'>${escHtml(person.Location || '—')}</td>
         </tr>`);
     });
 

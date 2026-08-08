@@ -95,7 +95,7 @@ function _renderLCIModelList(allModels, role) {
             <div class="row-actions">
               <button class="btn-secondary" onclick="openLCIModel(${m.id})">Open</button>
               <button class="btn-secondary" onclick="openLCIModelModal(${m.id})">Edit</button>
-              <button class="btn-secondary" onclick="copyLCIModelAction(${m.id})">Copy</button>
+              <button class="btn-secondary" onclick="copyLCIModelAction(${m.id}, this)">Copy</button>
               ${canManage && m.Status === 'Won'
                 ? `<button class="btn-secondary" onclick="openLCILinkModal(${m.id})">${m.ProjectID ? 'Plan ✓' : 'Link'}</button>` : ''}
               ${isAdmin ? `<button class="btn-secondary lci-btn-muted" onclick="deleteLCIModelAction(${m.id})">Delete</button>` : ''}
@@ -417,14 +417,20 @@ function openLCIModel(id) {
   renderLCIEditorPage(id);
 }
 
-async function copyLCIModelAction(id) {
+async function copyLCIModelAction(id, btn = null) {
   const m = (_lciModelsCache || []).find(x => String(x.id) === String(id));
   const newTitle = prompt('Name for the copy:', m ? `${m.Title} (copy)` : 'Copy');
   if (!newTitle) return;
+  // N-082 QA: visible progress — larger models take a while to copy, and
+  // users interrupting a silent copy is what lost rows/milestones.
+  setButtonLoading(btn, 'Copying…');
   try {
-    await copyLCIModel(id, newTitle);
+    await copyLCIModel(id, newTitle, (done, total) => {
+      if (btn) btn.textContent = `Copying… ${done}/${total}`;
+    });
     await renderLCIModelsPage();
   } catch (e) {
+    clearButtonLoading(btn);
     alert('Error copying model: ' + e.message);
   }
 }

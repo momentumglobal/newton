@@ -97,9 +97,9 @@ function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}) {
      : '';
     return `<tr class="${rowClass}">
      <td>${proj}</td>
-     <td>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</td>
-     <td>${tpDisplay(r.TalentPartner, tpMap)}</td>
-     <td><span class='badge'>${r.Stage}</span></td>
+     <td>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</td>
+     <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
+     <td><span class='badge'>${escHtml(r.Stage)}</span></td>
      <td>${days} days</td>
     </tr>`;
   }).join('');
@@ -131,7 +131,7 @@ function renderCompanyTPPanel(allActivity, projectMap, roleProjectMap, period, t
   if (!keys.length) return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3><p class='no-data'>No activity in this period.</p></div>`;
   const rows = keys.map(k => {
     const d = map[k];
-    return `<tr><td>${d.project}</td><td>${tpMap[d.tp.toLowerCase()] || d.tp}</td><td style="text-align:center">${d.Outreach}</td><td style="text-align:center">${d.Submitted}</td><td style="text-align:center">${d.Interview1}</td><td style="text-align:center">${d.Offers}</td><td style="text-align:center">${d.Hires}</td></tr>`;
+    return `<tr><td>${d.project}</td><td>${escHtml(tpMap[d.tp.toLowerCase()] || d.tp)}</td><td style="text-align:center">${d.Outreach}</td><td style="text-align:center">${d.Submitted}</td><td style="text-align:center">${d.Interview1}</td><td style="text-align:center">${d.Offers}</td><td style="text-align:center">${d.Hires}</td></tr>`;
   }).join('');
   return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3>
     <table class='data-table'>
@@ -160,7 +160,7 @@ async function renderCompanyDashboard() {
     getWeeklyActivity(null, null),
     getTalentPartnerDisplayMap(),
   ]);
-  const projectMap     = Object.fromEntries(allProjects.map(p => [String(p.id), p.CustomerName]));
+  const projectMap     = Object.fromEntries(allProjects.map(p => [String(p.id), escHtml(p.CustomerName)]));
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );

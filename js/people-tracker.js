@@ -62,12 +62,12 @@ async function renderEmployeesTab() {
     return `
     <tr>
       <td>${p.PhotoUrl
-            ? `<img src="${p.PhotoUrl}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
+            ? `<img src="${escAttr(p.PhotoUrl)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
             : '<span style="color:#aaa;font-size:12px">—</span>'}</td>
-      <td>${p.EmployeeName}</td>
-      <td>${p.Level || '—'}</td>
-      <td>${p.ContractType || '—'}</td>
-      <td>${p.Location || '—'}</td>
+      <td>${escHtml(p.EmployeeName)}</td>
+      <td>${escHtml(p.Level || '—')}</td>
+      <td>${escHtml(p.ContractType || '—')}</td>
+      <td>${escHtml(p.Location || '—')}</td>
       <td>${p.StartDate ? p.StartDate.split('T')[0] : '—'}</td>
       <td>${p.EndDate   ? p.EndDate.split('T')[0]   : '—'}</td>
       <td><span class='badge badge-${p.IsActive ? 'active' : 'inactive'}'>${p.IsActive ? 'Active' : 'Inactive'}</span></td>
@@ -172,7 +172,7 @@ const filtered = assignments.filter(a => {
 
   const opts = (vals, cur, blank) =>
     `<option value=''>${blank}</option>` +
-    vals.map(v => `<option value='${v}' ${cur===v?'selected':''}>${v}</option>`).join('');
+    vals.map(v => `<option value='${escHtml(v)}' ${cur===v?'selected':''}>${escHtml(v)}</option>`).join('');
 
   const filterBar = `
     <div class='project-filter-bar' style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px'>
@@ -209,15 +209,15 @@ filtered.sort((a, b) => {
 });
   const rows = filtered.map(a => `
     <tr>
-      <td>${a.AssignmentID || '—'}</td>
-      <td>${a.EmployeeName || '—'}</td>
-      <td>${a.Level || '—'}</td>
-      <td>${a.Customer || '—'}</td>
-      <td>${a.ProjectType || '—'}</td>
+      <td>${escHtml(a.AssignmentID || '—')}</td>
+      <td>${escHtml(a.EmployeeName || '—')}</td>
+      <td>${escHtml(a.Level || '—')}</td>
+      <td>${escHtml(a.Customer || '—')}</td>
+      <td>${escHtml(a.ProjectType || '—')}</td>
       <td>${a.StartDate ? a.StartDate.split('T')[0] : '—'}</td>
       <td>${a.EndDate   ? a.EndDate.split('T')[0]   : '—'}</td>
       <td>${a.MonthlyBillRate ? '£' + Number(a.MonthlyBillRate).toLocaleString('en-GB') : '—'}</td>
-      <td><span class='badge badge-${a.Billed==="Yes"?"active":"inactive"}'>${a.Billed}</span>${
+      <td><span class='badge badge-${a.Billed==="Yes"?"active":"inactive"}'>${escHtml(a.Billed)}</span>${
         isForecastAssignment(a) ? ` <span class='badge' style='background:#fff3e0;color:#b45309'>Forecast</span>` : ''}</td>
       ${canEdit ? `<td><div class='row-actions'>
         <a href='#' onclick='showEditAssignmentForm(${a.id})'>Edit</a>${

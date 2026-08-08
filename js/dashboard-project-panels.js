@@ -75,7 +75,7 @@ function renderPipelineActivityTable(acts, roles, period) {
   const LABELS   = ['Outreach','Responses','Screened','Submitted','IV1','IV2+','Final IV','Offers','Hires'];
   const periodLabel = (DETAIL_PERIOD_OPTIONS.find(([k]) => k === period) || [])[1];
   const panelTitle  = periodLabel ? `Pipeline Activity (${periodLabel})` : 'Pipeline Activity';
-  const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
+  const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
   const byRole = {};
   filtered.forEach(a => {
     const rid = String(a.RoleIDLookupId || a.RoleID || '');
@@ -201,7 +201,7 @@ function renderActivityByTPPanel(acts, period, tpMap = {}) {
   const tps = Object.keys(map);
   if (!tps.length) return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3><p class='no-data'>No activity in this period.</p></div>`;
   const rows = tps.map(tp =>
-    `<tr><td>${tpMap[tp.toLowerCase()] || tp}</td><td style="text-align:center">${map[tp].Outreach}</td><td style="text-align:center">${map[tp].Submitted}</td><td style="text-align:center">${map[tp].Interview1}</td><td style="text-align:center">${map[tp].Offers}</td><td style="text-align:center">${map[tp].Hires}</td></tr>`
+    `<tr><td>${escHtml(tpMap[tp.toLowerCase()] || tp)}</td><td style="text-align:center">${map[tp].Outreach}</td><td style="text-align:center">${map[tp].Submitted}</td><td style="text-align:center">${map[tp].Interview1}</td><td style="text-align:center">${map[tp].Offers}</td><td style="text-align:center">${map[tp].Hires}</td></tr>`
   ).join('');
   return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3>
     <table class='data-table'>
@@ -237,14 +237,14 @@ function renderRejectionPanel(rejections, roles, period) {
 }
 // ── Upcoming Starters ─────────────────────────────────────────────────
 function renderUpcomingStartersPanel(placements, roles) {
-  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
+  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
   const today   = new Date(); today.setHours(0,0,0,0);
   const upcoming = placements
     .filter(p => p.ProvisionalStartDate && new Date(p.ProvisionalStartDate) >= today)
     .sort((a, b) => new Date(a.ProvisionalStartDate) - new Date(b.ProvisionalStartDate));
   if (!upcoming.length) return `<div class='dash-panel'><h3 class='panel-title'>Upcoming Starters</h3><p class='no-data'>No upcoming starters.</p></div>`;
   const rows = upcoming.map(p =>
-    `<tr><td>${p.CandidateName}</td><td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '—'}</td><td>${p.ProvisionalStartDate.split('T')[0]}</td></tr>`
+    `<tr><td>${escHtml(p.CandidateName)}</td><td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '—'}</td><td>${p.ProvisionalStartDate.split('T')[0]}</td></tr>`
   ).join('');
   return `<div class='dash-panel'><h3 class='panel-title'>Upcoming Starters</h3>
     <table class='data-table'>
@@ -337,9 +337,9 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
     const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
     const rowClass = days >= 45 ? 'row-age-critical' : 'row-age-warning';
     return `<tr class="${rowClass}">
-     <td>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</td>
-     <td>${tpDisplay(r.TalentPartner, tpMap)}</td>
-     <td><span class='badge'>${r.Stage}</span></td>
+     <td>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</td>
+     <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
+     <td><span class='badge'>${escHtml(r.Stage)}</span></td>
      <td>${days} days</td>
     </tr>`;
   }).join('');
@@ -367,9 +367,9 @@ function renderRoleTrackerPanel(roles) {
       ? Math.floor((today - new Date(r.OpenDate)) / 86400000)
       : null;
     return `<tr>
-      <td>${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</td>
-      <td>${r.HiringManager || '—'}</td>
-      <td><span class='badge'>${r.Stage || '—'}</span></td>
+      <td>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</td>
+      <td>${escHtml(r.HiringManager || '—')}</td>
+      <td><span class='badge'>${escHtml(r.Stage || '—')}</span></td>
       <td>${r.OpenDate ? r.OpenDate.split('T')[0] : '—'}</td>
       <td>${days !== null ? days + ' days' : '—'}</td>
     </tr>`;
@@ -384,7 +384,7 @@ function renderRoleTrackerPanel(roles) {
 }
 // ── Placements panel (project-scoped, period-filtered) ────────────────
 function renderPlacementsPanel(placements, roles, period) {
-  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle]));
+  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
   const { start, end } = getDetailPeriodRange(period);
   const filtered = placements.filter(p => {
     if (!p.OfferAcceptedDate) return false;
@@ -397,10 +397,10 @@ function renderPlacementsPanel(placements, roles, period) {
   </div>`;
   const rows = filtered.map(p => `
     <tr>
-      <td>${p.CandidateName}</td>
+      <td>${escHtml(p.CandidateName)}</td>
       <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '—'}</td>
       <td>${p.OfferAcceptedDate ? p.OfferAcceptedDate.split('T')[0] : '—'}</td>
-      <td>${p.Currency || '—'}</td>
+      <td>${escHtml(p.Currency || '—')}</td>
       <td>${p.SalaryAgreed ? Number(p.SalaryAgreed).toLocaleString('en-GB') : '—'}</td>
     </tr>`).join('');
   return `<div class='dash-panel'>
@@ -435,7 +435,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     // Derive unique groups from live roles: key = "RoleTitle (Location)" or "RoleTitle"
   // (LinkTitle fallback removed in N-052 — computed system column, excluded by
   // the CONFIG.LIST_FIELDS projection; RoleTitle is the aliased Title.)
-  const groupKey = r => r.Location ? `${r.RoleTitle} (${r.Location})` : (r.RoleTitle || '—');
+  const groupKey = r => escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : (r.RoleTitle || '—'));
   const groupMeta = {}; // key → { department, location, roleTitle }
   activeRoles.forEach(r => {
     const key = groupKey(r);

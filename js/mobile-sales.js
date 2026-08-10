@@ -36,7 +36,7 @@ async function mobileRenderSalesForecast(main) {
 
     const cards = forecasts.map(f => `
       <div class="m-role-card" onclick="mobileSalesForecastForm(${f.id})">
-        <div class="m-role-title">${f.Title || '-'}</div>
+        <div class="m-role-title">${escHtml(f.Title || '-')}</div>
         <div class="m-role-meta">${msFmtForecastDate(f.ForecastStartDate)} - ${msFmtForecastDate(f.ForecastEndDate)}</div>
         <div class="m-role-footer">
           <span class="m-stage-badge">${f.ForecastedHeadcount ?? '-'} HC</span>
@@ -70,7 +70,7 @@ async function mobileSalesForecastForm(editId) {
     <div class="m-detail-panel">
       <div class="m-form-group">
         <label class="m-label">Customer / Project Name *</label>
-        <input class="m-input" type="text" id="msf-title" value="${(f.Title || '').replace(/"/g, '&quot;')}">
+        <input class="m-input" type="text" id="msf-title" value="${escAttr(f.Title || '')}">
       </div>
       <div class="m-input-row">
         <div class="m-form-group">
@@ -94,7 +94,7 @@ async function mobileSalesForecastForm(editId) {
       </div>
       <div class="m-form-group">
         <label class="m-label">Notes</label>
-        <input class="m-input" type="text" id="msf-notes" value="${(f.Notes || '').replace(/"/g, '&quot;')}">
+        <input class="m-input" type="text" id="msf-notes" value="${escAttr(f.Notes || '')}">
       </div>
       <div class="m-form-error" id="msf-error"></div>
     </div>

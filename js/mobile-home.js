@@ -48,7 +48,7 @@ function mobileRenderHome(main) {
 
   main.innerHTML = `
     <div class="m-home-greeting">
-      <div class="m-home-hello">Welcome back, ${(_mobileUser?.name || '').split(' ')[0] || ''}</div>
+      <div class="m-home-hello">Welcome back, ${escHtml((_mobileUser?.name || '').split(' ')[0] || '')}</div>
       <div class="m-home-sub">Select a module to get started</div>
     </div>
     <div class="m-module-grid">${cards}</div>

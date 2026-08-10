@@ -1,18 +1,21 @@
 @font-face {
   font-family: 'Polymath';
-  src: url('../polymath-regular.ttf') format('truetype');
+  src: url('../polymath-regular.woff2') format('woff2'),
+       url('../polymath-regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
 }
 @font-face {
   font-family: 'Polymath';
-  src: url('../polymath-medium.ttf') format('truetype');
+  src: url('../polymath-medium.woff2') format('woff2'),
+       url('../polymath-medium.ttf') format('truetype');
   font-weight: 500;
   font-style: normal;
 }
 @font-face {
   font-family: 'Polymath';
-  src: url('../polymath-semibold.ttf') format('truetype');
+  src: url('../polymath-semibold.woff2') format('woff2'),
+       url('../polymath-semibold.ttf') format('truetype');
   font-weight: 600;
   font-style: normal;
 }

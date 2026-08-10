@@ -40,7 +40,7 @@ async function mobileRenderAddRole(main) {
 
     const projectOpts = [...projects]
       .sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''))
-      .map(p => `<option value="${p.id}">${p.CustomerName}</option>`).join('');
+      .map(p => `<option value="${p.id}">${escHtml(p.CustomerName)}</option>`).join('');
 
     // Functional areas (global)
     let deptOpts = '<option value="">- Select functional area -</option>';
@@ -48,7 +48,7 @@ async function mobileRenderAddRole(main) {
       const depts = (await getDepartments()).sort((a, b) =>
         a.DepartmentName.localeCompare(b.DepartmentName));
       deptOpts += depts.map(d =>
-        `<option value="${d.DepartmentName}">${d.DepartmentName}</option>`).join('');
+        `<option value="${escAttr(d.DepartmentName)}">${escHtml(d.DepartmentName)}</option>`).join('');
     } catch (e) { /* leave empty */ }
 
     const locationOpts = '<option value="">- Select location -</option>' +
@@ -63,7 +63,7 @@ async function mobileRenderAddRole(main) {
         <div class="m-form-group">
           <label class="m-label">Project *</label>
           ${lockProject ? `
-            <input class="m-input" readonly value="${projects[0].CustomerName}">
+            <input class="m-input" readonly value="${escAttr(projects[0].CustomerName)}">
             <input type="hidden" id="mr-project" value="${projects[0].id}">` : `
             <select class="m-select" id="mr-project" ${canAssign ? 'onchange="mobileLoadTPsForRole(this.value)"' : ''}>
               <option value="">- Select project -</option>
@@ -77,7 +77,7 @@ async function mobileRenderAddRole(main) {
           <div id="mr-tp" style="border:1px solid #ccc;border-radius:8px;padding:10px;max-height:180px;overflow-y:auto;background:#fff;">
             <span style="color:#888;">- Select project first -</span>
           </div>
-        </div>` : `<input type="hidden" id="mr-tp" value="${email}">`}
+        </div>` : `<input type="hidden" id="mr-tp" value="${escAttr(email)}">`}
 
         <div class="m-form-group">
           <label class="m-label">Role Title *</label>
@@ -164,9 +164,9 @@ async function mobileLoadTPsForRole(projectId) {
     const me  = getCurrentUser().email.toLowerCase();
     box.innerHTML = tps.map(u => `
       <label style="display:block;font-weight:normal;margin:3px 0;">
-        <input type="checkbox" class="mr-tp-check" value="${u.UserEmail}"
+        <input type="checkbox" class="mr-tp-check" value="${escAttr(u.UserEmail)}"
           ${(u.UserEmail || '').toLowerCase() === me ? 'checked' : ''}>
-        ${u.UserName || u.UserEmail}
+        ${escHtml(u.UserName || u.UserEmail)}
       </label>`).join('') || '<span style="color:#888;">- No team members -</span>';
   } catch (e) {
     box.innerHTML = '<span style="color:#c00;">- Error loading team -</span>';

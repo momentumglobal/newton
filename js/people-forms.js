@@ -11,9 +11,10 @@ function renderPersonForm(existingData = null) {
       <form id='person-form'
         onsubmit='submitPersonForm(event, ${existingData?.id || 'null'})'>
         <div class='form-group'>
+          <div class='form-group'>
           <label>Full Name *</label>
           <input type='text' name='EmployeeName' required
-            value='${existingData?.EmployeeName || ''}'>
+            value='${escHtml(existingData?.EmployeeName || '')}'>
         </div>
         <div class='form-row'>
           <div class='form-group'>
@@ -36,7 +37,7 @@ function renderPersonForm(existingData = null) {
         <div class='form-group'>
           <label>Location *</label>
           <input type='text' name='Location' required
-            value='${existingData?.Location || ''}'>
+            value='${escHtml(existingData?.Location || '')}'>
         </div>
         <div class='form-row'>
           <div class='form-group'>
@@ -53,12 +54,12 @@ function renderPersonForm(existingData = null) {
         <div class='form-group'>
           <label>Salary (£) <span style='font-size:11px;color:#888;font-weight:normal'>UK staff only</span></label>
           <input type='number' name='Salary' min='0' step='0.01'
-            value='${existingData?.Salary || ''}'>
+            value='${escHtml(existingData?.Salary || '')}'>
         </div>
         <div class='form-group'>
           <label>Photo</label>
           ${existingData?.PhotoUrl
-            ? `<img src='${existingData.PhotoUrl}' alt='' style='width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:6px'>`
+            ? `<img src='${escHtml(existingData.PhotoUrl)}' alt='' style='width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:6px'>`
             : ''}
           <input type='file' name='PhotoFile' accept='image/*'>
           <span style='font-size:11px;color:#888'>Uploads to PeoplePhotos. Square images crop best.</span>
@@ -138,9 +139,9 @@ async function renderAssignmentForm(existingData = null) {
   const people = await getPeople(false);
 
   const employeeOptions = people.map(p =>
-    `<option value='${p.EmployeeName}' data-level='${p.Level}'
+    `<option value='${escHtml(p.EmployeeName)}' data-level='${escHtml(p.Level)}'
       ${existingData?.EmployeeName === p.EmployeeName ? 'selected' : ''}>
-      ${p.EmployeeName} (${p.Level})</option>`
+      ${escHtml(p.EmployeeName)} (${escHtml(p.Level)})</option>`
   ).join('');
 
   return `
@@ -161,7 +162,7 @@ async function renderAssignmentForm(existingData = null) {
           <div class='form-group'>
             <label>Level (auto-filled)</label>
             <input type='text' name='Level' id='assignment-level' readonly
-              value='${existingData?.Level || ''}'
+              value='${escHtml(existingData?.Level || '')}'
               style='background:#f5f5f5;cursor:default'>
           </div>
         </div>
@@ -169,7 +170,7 @@ async function renderAssignmentForm(existingData = null) {
           <div class='form-group'>
             <label>Customer *</label>
             <input type='text' name='Customer' required
-              value='${existingData?.Customer || ''}'>
+              value='${escHtml(existingData?.Customer || '')}'>
           </div>
           <div class='form-group'>
             <label>Project Type *</label>
@@ -196,7 +197,7 @@ async function renderAssignmentForm(existingData = null) {
           <div class='form-group'>
             <label>Monthly Bill Rate (£)</label>
             <input type='number' name='MonthlyBillRate' min='0' step='0.01'
-              value='${existingData?.MonthlyBillRate || ''}'>
+              value='${escHtml(existingData?.MonthlyBillRate || '')}'>
           </div>
           <div class='form-group'>
             <label>Billed? *</label>
@@ -209,7 +210,7 @@ async function renderAssignmentForm(existingData = null) {
         <div class='form-group'>
           <label>Country *</label>
           <input type='text' name='Country' required
-            value='${existingData?.Country || ''}'>
+            value='${escHtml(existingData?.Country || '')}'>
         </div>
         <div class='form-group'>
           <label style='display:flex;align-items:center;gap:8px;cursor:pointer'>
@@ -328,7 +329,7 @@ function renderInvoiceForm(existingData = null) {
         <div class='form-group'>
           <label>Invoice Number *</label>
           <input type='text' name='InvoiceNumber' required
-            value='${existingData?.InvoiceNumber || ''}'>
+            value='${escHtml(existingData?.InvoiceNumber || '')}'>
         </div>
         <div class='form-row'>
           <div class='form-group'>
@@ -346,7 +347,7 @@ function renderInvoiceForm(existingData = null) {
           <div class='form-group'>
             <label>Amount (£) *</label>
             <input type='number' name='Amount' min='0' step='0.01' required
-              value='${existingData?.Amount || ''}'>
+              value='${escHtml(existingData?.Amount || '')}'>
           </div>
           <div class='form-group'>
             <label>Status *</label>

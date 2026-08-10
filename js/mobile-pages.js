@@ -37,7 +37,7 @@ async function mobileRenderRoles(main) {
         <button class="m-btn-primary" onclick="mobileNav('add-role')">+ Add Role</button>
       </div>`;
     for (const [project, projectRoles] of Object.entries(byProject)) {
-      html += `<div class="m-section-header">${project}</div>`;
+      html += `<div class="m-section-header">${escHtml(project)}</div>`;
       html += projectRoles.map(r => {
         const days = r.OpenDate
           ? Math.floor((Date.now() - new Date(r.OpenDate)) / 86400000)
@@ -46,8 +46,8 @@ async function mobileRenderRoles(main) {
         const daysLabel = days !== null ? `${days}d open` : '';
         return `
           <div class="m-role-card" onclick="mobileSelectRole(${r.id})">
-            <div class="m-role-title">${r.RoleTitle}</div>
-            <div class="m-role-meta">${tpList(r.TalentPartner).join(', ')}</div>
+            <div class="m-role-title">${escHtml(r.RoleTitle)}</div>
+            <div class="m-role-meta">${escHtml(tpList(r.TalentPartner).join(', '))}</div>
             <div class="m-role-footer">
               <span class="m-stage-badge">${r.Stage || '—'}</span>
               ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}
@@ -105,11 +105,11 @@ async function mobileRenderRoleDetail(main) {
     main.innerHTML = `
       <div class="m-detail-panel">
         <div class="m-detail-label">Project</div>
-        <div class="m-detail-value">${role.CustomerName || '—'}</div>
+        <div class="m-detail-value">${escHtml(role.CustomerName || '—')}</div>
         <div class="m-detail-label">Stage</div>
         <div class="m-detail-value">${role.Stage || '—'}</div>
         <div class="m-detail-label">Talent Partner</div>
-        <div class="m-detail-value">${tpList(role.TalentPartner).join(', ') || '—'}</div>
+        <div class="m-detail-value">${escHtml(tpList(role.TalentPartner).join(', ')) || '—'}</div>
         <div class="m-detail-label">Open Date</div>
         <div class="m-detail-value">${role.OpenDate ? role.OpenDate.split('T')[0] : '—'}${days !== null ? ` (${days} days)` : ''}</div>
         <div class="m-detail-label">Target Hire Date</div>
@@ -216,7 +216,7 @@ async function mobileRenderActivityForm(main, rolePreselected) {
     const today       = new Date().toISOString().split('T')[0];
     const weekEnding  = getWeekEnding(today);
     const projectOpts = projects.map(p =>
-      `<option value="${p.id}">${p.CustomerName}</option>`
+      `<option value="${p.id}">${escHtml(p.CustomerName)}</option>`
     ).join('');
 
     main.innerHTML = `
@@ -224,7 +224,7 @@ async function mobileRenderActivityForm(main, rolePreselected) {
         ${rolePreselected && _mobileRoleId ? `
           <div class="m-form-group">
             <div class="m-label">Role</div>
-            <input class="m-input" readonly value="${roleName}">
+            <input class="m-input" readonly value="${escAttr(roleName)}">
             <input type="hidden" id="ma-role-id" value="${_mobileRoleId}">
           </div>` : `
           <div class="m-form-group">
@@ -319,7 +319,7 @@ async function mobileLoadRolesForActivity(projectId) {
   const roles = await getRolesForProject(projectId);
   sel.innerHTML = '<option value="">— select role —</option>' +
     roles.filter(r => !['Hired','Cancelled'].includes(r.Stage))
-         .map(r => `<option value="${r.id}">${r.RoleTitle}</option>`).join('');
+         .map(r => `<option value="${r.id}">${escHtml(r.RoleTitle)}</option>`).join('');
 }
 
 async function mobileSubmitActivity(rolePreselected) {
@@ -401,7 +401,7 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
     }
 
     const projectOpts = projects.map(p =>
-      `<option value="${p.id}">${p.CustomerName}</option>`
+      `<option value="${p.id}">${escHtml(p.CustomerName)}</option>`
     ).join('');
 
     const today = new Date().toISOString().split('T')[0];
@@ -411,7 +411,7 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
         ${rolePreselected && _mobileRoleId ? `
           <div class="m-form-group">
             <div class="m-label">Role</div>
-            <input class="m-input" readonly value="${roleName}">
+            <input class="m-input" readonly value="${escAttr(roleName)}">
             <input type="hidden" id="mp-role-id" value="${_mobileRoleId}">
           </div>` : `
           <div class="m-form-group">
@@ -480,7 +480,7 @@ async function mobileLoadRolesForPlacement(projectId) {
   const roles = await getRolesForProject(projectId);
   sel.innerHTML = '<option value="">— select role —</option>' +
     roles.filter(r => !['Hired','Cancelled'].includes(r.Stage))
-         .map(r => `<option value="${r.id}">${r.RoleTitle}</option>`).join('');
+         .map(r => `<option value="${r.id}">${escHtml(r.RoleTitle)}</option>`).join('');
 }
 
 async function mobileLoadCurrencyForPlacement(roleId) {

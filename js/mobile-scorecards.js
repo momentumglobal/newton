@@ -153,7 +153,7 @@ function mScCardHtml(scorecard, displayName, roleHealth) {
   return `
     <div class="m-detail-panel" style="margin-bottom:0">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
-        <div class="m-detail-value" style="margin-bottom:0">${displayName}</div>
+        <div class="m-detail-value" style="margin-bottom:0">${escHtml(displayName)}</div>
         <span class="m-sc-pill" style="background:${ragColour(overallRag)}">${overallRag.toUpperCase()}</span>
       </div>
       <div class="m-detail-label">Rolling Quarterly View</div>

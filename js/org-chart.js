@@ -216,7 +216,7 @@ function renderTreeHtml(roots) {
       ? " class='org-stack'" : '';
     return `
     <li>
-      <div class='org-node org-node--${n.kind}${n._band ? ' org-node--' + n._band.toLowerCase() : ''}${avCls}${phCls}'${style}>
+      <div class='org-node org-node--${n.kind}${n._band ? ' org-node--' + _ocEsc(n._band.toLowerCase()) : ''}${avCls}${phCls}'${style}>
         ${avatar}
         <div class='org-node__name'>${_ocEsc(n.label)}</div>
         ${n.sub ? `<div class='org-node__sub'>${_ocEsc(n.sub)}</div>` : ''}

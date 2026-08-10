@@ -37,7 +37,7 @@ async function buildAssignmentsTab(editId = null) {
     .slice()
     .sort((a, b) => a.CustomerName.localeCompare(b.CustomerName))
     .map(p =>
-      `<option value="${p.id}|${p.CustomerName}">${p.CustomerName}</option>`
+      `<option value="${p.id}|${escAttr(p.CustomerName)}">${escHtml(p.CustomerName)}</option>`
     ).join('');
   let editRecord = null;
   if (editId) editRecord = assignments.find(a => String(a.id) === String(editId));
@@ -45,9 +45,9 @@ const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.
     const isActive = a.Active !== false;
     return `
     <tr id="assign-row-${a.id}" style="${isActive ? '' : 'opacity:0.55'}">
-      <td>${a.UserName || '—'}${isActive ? '' : ' <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:#eee;color:#666;">Inactive</span>'}</td>
-      <td>${a.UserEmail}</td>
-      <td>${a.CustomerName || '—'}</td>
+      <td>${escHtml(a.UserName || '—')}${isActive ? '' : ' <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:#eee;color:#666;">Inactive</span>'}</td>
+      <td>${escHtml(a.UserEmail)}</td>
+      <td>${escHtml(a.CustomerName || '—')}</td>
       <td>${a.AssignedRole === 'talent_partner' ? 'Talent Partner' : a.AssignedRole === 'delivery_manager' ? 'Delivery Manager' : a.AssignedRole || '—'}</td>
       <td>${a.LastLogin ? new Date(a.LastLogin).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'}</td>
       <td>
@@ -66,11 +66,11 @@ const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.
       <div class="form-row">
         <div class="form-group">
           <label>User Display Name</label>
-          <input type="text" id="assign-name" value="${editRecord.UserName || ''}">
+          <input type="text" id="assign-name" value="${escAttr(editRecord.UserName || '')}">
         </div>
         <div class="form-group">
           <label>User Email *</label>
-          <input type="email" id="assign-email" value="${editRecord.UserEmail || ''}">
+          <input type="email" id="assign-email" value="${escAttr(editRecord.UserEmail || '')}">
         </div>
       </div>
       <div class="form-row">
@@ -79,8 +79,8 @@ const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.
           <select id="assign-project">
             <option value="">-- Select customer --</option>
             ${projects.map(p => `
-              <option value="${p.id}|${p.CustomerName}" ${String(p.id) === String(editRecord.ProjectID) ? 'selected' : ''}>
-                ${p.CustomerName}
+              <option value="${p.id}|${escAttr(p.CustomerName)}" ${String(p.id) === String(editRecord.ProjectID) ? 'selected' : ''}>
+                ${escHtml(p.CustomerName)}
               </option>`).join('')}
           </select>
         </div>
@@ -190,10 +190,10 @@ async function buildLeadershipTab() {
   const rows = list.map(l => `
     <tr>
       <td>${l.PhotoUrl
-            ? `<img src="${l.PhotoUrl}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
+            ? `<img src="${escAttr(l.PhotoUrl)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
             : '<span style="color:#aaa;font-size:12px">—</span>'}</td>
-      <td>${l.UserName || '—'}</td>
-      <td>${l.UserEmail}</td>
+      <td>${escHtml(l.UserName || '—')}</td>
+      <td>${escHtml(l.UserEmail)}</td>
       <td>
         <div class="row-actions" style="gap:6px">
           <input type="file" id="lead-photofile-${l.id}" accept="image/*">
@@ -311,7 +311,7 @@ async function buildHomepageTab() {
         <label>Message</label>
         <textarea id="announcement-text" rows="3"
           placeholder="e.g. Welcome to Newton — Q2 targets are live!"
-          style="resize:vertical">${current ? current.replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''}</textarea>
+          style="resize:vertical">${current ? escHtml(current) : ''}</textarea>
       </div>
       <div id="announcement-status" style="display:none;font-size:13px;margin-bottom:12px"></div>
       <div style="display:flex;gap:10px;align-items:center">
@@ -375,7 +375,7 @@ async function buildGhostTab() {
 
   const projectOptions = projects
     .sort((a, b) => a.CustomerName.localeCompare(b.CustomerName))
-    .map(p => `<option value="${p.id}" ${String(p.id) === currentProject ? 'selected' : ''}>${p.CustomerName}</option>`)
+    .map(p => `<option value="${p.id}" ${String(p.id) === currentProject ? 'selected' : ''}>${escHtml(p.CustomerName)}</option>`)
     .join('');
 
   const roleButtons = roles.map(r => `
@@ -414,7 +414,7 @@ async function buildGhostTab() {
         <div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:4px;
                     padding:12px 16px;margin-bottom:20px;font-size:13px">
           👻 Currently ghosting as <strong>${current.replace(/_/g, ' ')}
-          ${currentProject ? '— ' + (projects.find(p => String(p.id) === currentProject)?.CustomerName || '') : ''}
+          ${currentProject ? '— ' + escHtml(projects.find(p => String(p.id) === currentProject)?.CustomerName || '') : ''}
           </strong>
         </div>` : ''}
       <div style="display:flex;flex-direction:column;gap:10px">

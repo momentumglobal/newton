@@ -11,7 +11,6 @@ function renderPersonForm(existingData = null) {
       <form id='person-form'
         onsubmit='submitPersonForm(event, ${existingData?.id || 'null'})'>
         <div class='form-group'>
-          <div class='form-group'>
           <label>Full Name *</label>
           <input type='text' name='EmployeeName' required
             value='${escHtml(existingData?.EmployeeName || '')}'>

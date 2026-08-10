@@ -99,7 +99,7 @@ function mobileDrawRolesList(main) {
     </div>
     <div class="m-detail-panel" style="margin-bottom:12px">
       <input class="m-input" type="text" id="mrl-search" placeholder="Search role or TP..."
-        value="${_mRoleSearch.replace(/"/g, '&quot;')}"
+        value="${escAttr(_mRoleSearch)}"
         oninput="mobileRoleSearch(this.value)">
       <div class="m-form-group" style="margin:10px 0 0">
         <select class="m-select" id="mrl-stage" onchange="mobileRoleStageFilter(this.value)">
@@ -127,7 +127,7 @@ function mobileDrawRolesList(main) {
     });
     listHtml = '';
     for (const [project, projectRoles] of Object.entries(byProject)) {
-      listHtml += `<div class="m-section-header">${project}</div>`;
+      listHtml += `<div class="m-section-header">${escHtml(project)}</div>`;
       listHtml += projectRoles.map(r => {
         const days = r.OpenDate
           ? Math.floor((Date.now() - new Date(r.OpenDate)) / 86400000) : null;
@@ -135,8 +135,8 @@ function mobileDrawRolesList(main) {
         const daysLabel = days !== null ? `${days}d open` : '';
         return `
           <div class="m-role-card" onclick="mobileSelectRole(${r.id})">
-            <div class="m-role-title">${r.RoleTitle}</div>
-            <div class="m-role-meta">${tpList(r.TalentPartner).join(', ') || '—'}</div>
+            <div class="m-role-title">${escHtml(r.RoleTitle)}</div>
+            <div class="m-role-meta">${escHtml(tpList(r.TalentPartner).join(', ')) || '—'}</div>
             <div class="m-role-footer">
               <span class="m-stage-badge">${r.Stage || '-'}</span>
               ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}
@@ -182,7 +182,7 @@ function mobileRedrawRolesListOnly() {
   });
   let html = '';
   for (const [project, projectRoles] of Object.entries(byProject)) {
-    html += `<div class="m-section-header">${project}</div>`;
+    html += `<div class="m-section-header">${escHtml(project)}</div>`;
     html += projectRoles.map(r => {
       const days = r.OpenDate
         ? Math.floor((Date.now() - new Date(r.OpenDate)) / 86400000) : null;
@@ -190,8 +190,8 @@ function mobileRedrawRolesListOnly() {
       const daysLabel = days !== null ? `${days}d open` : '';
       return `
         <div class="m-role-card" onclick="mobileSelectRole(${r.id})">
-          <div class="m-role-title">${r.RoleTitle}</div>
-          <div class="m-role-meta">${tpList(r.TalentPartner).join(', ') || '—'}</div>
+          <div class="m-role-title">${escHtml(r.RoleTitle)}</div>
+          <div class="m-role-meta">${escHtml(tpList(r.TalentPartner).join(', ')) || '—'}</div>
           <div class="m-role-footer">
             <span class="m-stage-badge">${r.Stage || '-'}</span>
             ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}
@@ -226,7 +226,7 @@ async function mobileRenderRejectionForm(main, rolePreselected) {
       const roles = _mRolesCache || await mobileGetRoles();
       roleOpts = '<option value="">- select role -</option>' +
         [...roles].sort((a, b) => (a.RoleTitle || '').localeCompare(b.RoleTitle || ''))
-          .map(r => `<option value="${r.id}">${r.RoleTitle}${r.CustomerName ? ' - ' + r.CustomerName : ''}</option>`).join('');
+          .map(r => `<option value="${r.id}">${escHtml(r.RoleTitle)}${r.CustomerName ? ' - ' + escHtml(r.CustomerName) : ''}</option>`).join('');
     }
 
     const reasonOpts = '<option value="">- select reason -</option>' +
@@ -237,7 +237,7 @@ async function mobileRenderRejectionForm(main, rolePreselected) {
         ${rolePreselected && _mobileRoleId ? `
           <div class="m-form-group">
             <div class="m-label">Role</div>
-            <input class="m-input" readonly value="${roleName}">
+            <input class="m-input" readonly value="${escAttr(roleName)}">
             <input type="hidden" id="mrj-role-id" value="${_mobileRoleId}">
           </div>` : `
           <div class="m-form-group">

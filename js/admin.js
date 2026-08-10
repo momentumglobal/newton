@@ -45,7 +45,7 @@ async function buildDepartmentsTab() {
   const depts = (await getDepartments()).sort((a, b) => a.DepartmentName.localeCompare(b.DepartmentName));
   const rows = depts.map(d => `
     <tr>
-      <td>${d.DepartmentName}</td>
+      <td>${escHtml(d.DepartmentName)}</td>
       <td><div class="row-actions"><button class="btn-danger" onclick="deleteAdminRecord('Departments',${d.id})">Remove</button></div></td>
     </tr>`).join('');
   return `
@@ -89,7 +89,7 @@ async function buildCurrenciesTab() {
   const currencies = await getCurrencies();
   const rows = currencies.map(c => `
     <tr>
-      <td>${c.CurrencyCode}</td>
+      <td>${escHtml(c.CurrencyCode)}</td>
       <td><div class="row-actions"><button class="btn-danger" onclick="deleteAdminRecord('Currencies',${c.id})">Remove</button></div></td>
     </tr>`).join('');
   return `
@@ -268,7 +268,7 @@ async function loadDeleteItems(listName) {
     }
 
     select.innerHTML = '<option value="">-- Select record --</option>' +
-      options.map(o => `<option value="${o.id}">${o.label}</option>`).join('');
+      options.map(o => `<option value="${o.id}">${escHtml(o.label)}</option>`).join('');
     select.disabled = false;
   } catch(e) { select.innerHTML = '<option value="">-- Error loading records --</option>'; }
 }

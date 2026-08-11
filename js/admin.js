@@ -16,11 +16,12 @@ async function renderAdminPage() {
 async function renderAdminTab(tab) {
   _adminTab = tab;
   const main = document.getElementById('main-content');
-  const tabs = ['departments', 'delete'];
-  const labels = { departments: 'Functional Areas', delete: 'Delete Records' };
+  const tabs = ['departments', 'delete', 'snapshots'];
+  const labels = { departments: 'Functional Areas', delete: 'Delete Records', snapshots: 'Snapshots' };
   const tooltips = {
     departments: 'Manage the list of functional areas used when categorising roles across the system.',
     delete:      'Permanently delete records from the system. Use with caution — this action cannot be undone.',
+    snapshots:   'Write a weekly time-series snapshot (open roles, roles by stage, avg days open, placements, activity totals) for every active project.',
   };
   const tabBar = tabs.map(t =>
     `<button class="btn-filter${_adminTab === t ? ' active' : ''}"
@@ -30,6 +31,7 @@ async function renderAdminTab(tab) {
   let content = '';
   if (tab === 'departments') content = await buildDepartmentsTab();
   if (tab === 'delete')      content = await buildDeleteTab();
+  if (tab === 'snapshots')   content = await buildSnapshotsTab();
 
   main.innerHTML = `
     <div class="page-header">
@@ -309,4 +311,109 @@ async function deleteAdminRecord(listName, id) {
   if (!confirm('Remove this record?')) return;
   await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items/${id}`);
   await renderAdminTab(_adminTab);
+}
+
+// ── Snapshots Tab (N-085 / L-1a) ─────────────────────────────────────
+async function buildSnapshotsTab() {
+  const [snapshots, projects] = await Promise.all([getItems('Snapshots'), getProjects(false)]);
+  const projMap = Object.fromEntries(projects.map(p => [String(p.id), p.CustomerName]));
+  const rows = snapshots
+    .slice()
+    .sort((a, b) => new Date(b.WeekEndingDate || 0) - new Date(a.WeekEndingDate || 0))
+    .slice(0, 30)
+    .map(s => `
+    <tr>
+      <td>${escHtml(projMap[String(s.ProjectIDLookupId)] || '—')}</td>
+      <td>${s.WeekEndingDate ? new Date(s.WeekEndingDate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}) : '—'}</td>
+      <td>${s.OpenRoles ?? '—'}</td>
+      <td>${s.AvgDaysOpen ?? '—'}</td>
+      <td>${s.PlacementsInPeriod ?? '—'}</td>
+    </tr>`).join('');
+  return `
+    <h3>Time-Series Snapshots</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:16px">
+      Writes one row per active project into the <code>Snapshots</code> list for the current week —
+      open roles, roles by stage, avg days open, placements and activity totals. Running it again in
+      the same week updates the existing rows rather than duplicating them. Flagged count and
+      utilisation are left blank until a later ticket populates them.
+    </p>
+    <button class="btn-primary" id="snapshot-btn" onclick="writeSnapshotsNow()">Write Snapshot Now</button>
+    <div id="snapshot-status" style="display:none;font-size:13px;margin:12px 0"></div>
+    <table class="data-table" style="margin-top:20px">
+      <thead><tr><th>Project</th><th>Week Ending</th><th>Open Roles</th><th>Avg Days Open</th><th>Placements</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan=5>No snapshots written yet.</td></tr>'}</tbody>
+    </table>
+  `;
+}
+
+async function writeSnapshotsNow() {
+  const btn    = document.getElementById('snapshot-btn');
+  const status = document.getElementById('snapshot-status');
+  status.style.display = 'none';
+  setButtonLoading(btn, 'Loading data…');
+  try {
+    // Same-week 6-day offset, not a month-boundary crossing — safe local
+    // Date arithmetic, same pattern getWeekEnding() itself already uses.
+    const weekEnding    = getWeekEnding();
+    const weekStartDate = new Date(weekEnding);
+    weekStartDate.setDate(weekStartDate.getDate() - 6);
+    const weekStart = weekStartDate.toISOString().slice(0, 10);
+
+    const [projects, allRoles, allActivity, allPlacements, existing] = await Promise.all([
+      getProjects(true), getAllRoles(), getWeeklyActivity(null, null), getPlacements(null), getItems('Snapshots'),
+    ]);
+
+    for (let i = 0; i < projects.length; i++) {
+      const p = projects[i];
+      setButtonLoading(btn, `Writing ${i + 1} of ${projects.length}…`);
+
+      const roles   = allRoles.filter(r => String(r.ProjectIDLookupId) === String(p.id));
+      const roleIds = new Set(roles.map(r => String(r.id)));
+
+      const weekActivity = allActivity.filter(a =>
+        String(a.ProjectIDLookupId) === String(p.id) &&
+        a.WeekEndingDate && a.WeekEndingDate.slice(0, 10) === weekEnding);
+
+      const weekPlacements = allPlacements.filter(pl => {
+        const rid = String(pl.RoleIDLookupId || pl.RoleID || '');
+        if (!roleIds.has(rid) || !pl.OfferAcceptedDate) return false;
+        const d = pl.OfferAcceptedDate.slice(0, 10);
+        return d >= weekStart && d <= weekEnding;
+      });
+
+      const metrics = computeSnapshotMetrics(roles, weekActivity, weekPlacements);
+
+      const fields = {
+        Title:              `${p.CustomerName || 'Project ' + p.id} — wk ending ${weekEnding}`,
+        ProjectIDLookupId:  parseInt(p.id),
+        WeekEndingDate:     isoDate(weekEnding),
+        OpenRoles:          metrics.openRoles,
+        RolesByStage:       JSON.stringify(metrics.rolesByStage),
+        AvgDaysOpen:        metrics.avgDaysOpen,
+        PlacementsInPeriod: metrics.placementsInPeriod,
+        ActivityTotals:     JSON.stringify(metrics.activityTotals),
+        FlaggedCount:       null,
+        Utilisation:        null,
+        CreatedAt:          new Date().toISOString(),
+      };
+
+      const match = existing.find(s =>
+        String(s.ProjectIDLookupId) === String(p.id) &&
+        s.WeekEndingDate && s.WeekEndingDate.slice(0, 10) === weekEnding);
+
+      if (match) await updateItem('Snapshots', match.id, fields);
+      else       await createItem('Snapshots', fields);
+    }
+
+    clearButtonLoading(btn);
+    status.style.color   = '#2e7d32';
+    status.textContent   = `Wrote snapshots for ${projects.length} project${projects.length === 1 ? '' : 's'} (week ending ${weekEnding}).`;
+    status.style.display = 'block';
+    await renderAdminTab('snapshots');
+  } catch (e) {
+    clearButtonLoading(btn);
+    status.style.color   = '#c62828';
+    status.textContent   = `Error: ${e.message}`;
+    status.style.display = 'block';
+  }
 }

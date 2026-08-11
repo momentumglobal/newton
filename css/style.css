@@ -1125,6 +1125,7 @@ body {
 .cc-trend-arrow--up   { color: var(--c-danger); }
 .cc-trend-arrow--flat { color: var(--c-gray-500); }
 .cc-tile .help-tip { background: var(--c-gray-500); color: white; }
+.cc-tile .help-tip-text { left: 50%; right: auto; transform: translateX(-50%); }
 
 /* Close button */
 .cc-close { display: none; position: absolute; top: var(--sp-7); right: var(--sp-7); background: none; border: none; font-size: var(--fs-20); cursor: pointer; color: var(--c-gray-600); }

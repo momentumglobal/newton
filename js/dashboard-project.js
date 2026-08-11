@@ -15,12 +15,17 @@ async function renderProjectDashboard() {
   }
   let selectorHtml = '', projectName = 'Project';
   if (isDMAdmin) {
-    const projects = (await getScopedProjects(user.email, false)).sort((a, b) => a.CustomerName.localeCompare(b.CustomerName));
+    const projects = sortProjectsByName(await getScopedProjects(user.email, false));
     if (!projectId && projects.length) { projectId = String(projects[0].id); _dashProjectId = projectId; }
     projectName = (projects.find(p => String(p.id) === String(projectId)) || {}).CustomerName || 'Project';
-    const opts = projects.map(p =>
-      `<option value='${p.id}' ${String(p.id) === String(projectId) ? 'selected' : ''}>${escHtml(p.CustomerName)}</option>`
-    ).join('');
+    // N-112: Active/Archive optgroup split (projects already sorted, so each
+    // filtered subgroup stays A-Z).
+    const activeProjects  = projects.filter(isProjectActive);
+    const archiveProjects = projects.filter(p => !isProjectActive(p));
+    const opts = [
+      activeProjects.length  ? `<optgroup label="Active">${buildProjectOptionsHtml(activeProjects, projectId)}</optgroup>`   : '',
+      archiveProjects.length ? `<optgroup label="Archive">${buildProjectOptionsHtml(archiveProjects, projectId)}</optgroup>` : '',
+    ].join('');
     selectorHtml = `<div class='form-group dash-project-selector'><label>Project</label><select onchange='changeDashProject(this.value)'>${opts}</select></div>`;
   }
   if (!projectId) {

@@ -3,7 +3,7 @@
 // ── Main renderer ──────────────────────────────────────────────────
 async function renderCCOverview(container) {
   container.innerHTML = '<div class="cc-loading">Loading...</div>';
-  const [roles, acts4, acts13, forecasts, assigns, people, projects] = await Promise.all([
+  const [roles, acts4, acts13, forecasts, assigns, people, projects, snapshots] = await Promise.all([
     getAllRoles(),
     getActivityForAnalytics(4),
     getActivityForAnalytics(13),
@@ -11,12 +11,17 @@ async function renderCCOverview(container) {
     getItems('Assignments'),
     getPeople(false),
     getItems('Projects'),
+    getItems('Snapshots'),
   ]);
   const historical = await getHistoricalPlacements();
   const ragHealth = computeProjectHealthRAG(roles, acts4, historical);
   const ragPeople = computePeopleRAG(roles, acts13, historical);
   const ragUtil    = computeUtilisationRAG(forecasts, assigns, people);
   const ragRevenue = computeRevenueRAG(forecasts, assigns);
+  // N-108: company-wide flagged-role trend, Health tile only — see the
+  // Scope note in specs/N-108.md for why Revenue/People/Utilisation don't
+  // get one.
+  const healthTrendHTML = _ccTrendArrowHTML(computeHealthTrend(snapshots)) + _ccHealthTrendTooltipHTML();
 
   container.innerHTML = `
     <div class="page-header">
@@ -24,7 +29,7 @@ async function renderCCOverview(container) {
     </div>
     <div class="cc-grid" id="cc-grid">
       ${ccTileHTML('revenue', 'Revenue', ragRevenue, ccRevenueStats(forecasts, assigns))}
-      ${ccTileHTML('health', 'Project Health', ragHealth, ccHealthStats(roles, acts4))}
+      ${ccTileHTML('health', 'Project Health', ragHealth, ccHealthStats(roles, acts4), healthTrendHTML)}
       ${ccTileHTML('people', 'People', ragPeople, ccPeopleStats(roles, acts13, historical))}
       ${ccTileHTML('util',   'Utilisation',    ragUtil,   ccUtilStats(forecasts, assigns, people))}
     </div>`;
@@ -35,11 +40,11 @@ async function renderCCOverview(container) {
 }
 
 // ── Tile HTML ──────────────────────────────────────────────────────
-function ccTileHTML(id, title, rag, statsHTML) {
+function ccTileHTML(id, title, rag, statsHTML, trendHTML = '') {
   return `
     <div class="cc-tile cc-tile--${rag}" data-tile="${id}">
       <button class="cc-close" onclick="event.stopPropagation(); collapseTile(this.closest('.cc-grid'))">✕</button>
-      <div class="cc-tile__title" style="font-size:20px;font-weight:600;margin-bottom:8px;color:#1a1a2e">${title}</div>
+      <div class="cc-tile__title" style="font-size:20px;font-weight:600;margin-bottom:8px;color:#1a1a2e">${title}${trendHTML}</div>
       <div class="cc-tile__stats" style="font-size:14px;color:#444">${statsHTML}</div>
       <div class="cc-tile__detail" style="display:none"></div>
     </div>`;
@@ -161,6 +166,58 @@ function computeProjectHealthRAG(roles, activity, historical) {
   if (pct < 0.25)  return 'green';
   if (pct <= 0.50) return 'amber';
   return 'red';
+}
+
+// ── Health tile trend (N-108) ─────────────────────────────────────
+// Company-wide flagged-role rate, week over week, from Snapshots.
+// NOTE: Snapshots only ever contains active-project rows (N-085's writer
+// calls getProjects(true)), while the live tile above reads getAllRoles()
+// -- every role, including archived-project ones. The trend is therefore
+// scoped slightly narrower than "now". Pre-existing gap, not introduced here.
+function computeHealthTrend(snapshots) {
+  const byWeek = {};
+  snapshots.forEach(s => {
+    if (!s.WeekEndingDate || s.OpenRoles == null || s.FlaggedCount == null) return;
+    const wk = s.WeekEndingDate.slice(0, 10);
+    if (!byWeek[wk]) byWeek[wk] = { openRoles: 0, flagged: 0 };
+    byWeek[wk].openRoles += s.OpenRoles;
+    byWeek[wk].flagged   += s.FlaggedCount;
+  });
+  const weeks = Object.keys(byWeek)
+    .sort()
+    .map(wk => ({ week: wk, pct: byWeek[wk].openRoles > 0 ? byWeek[wk].flagged / byWeek[wk].openRoles : null }))
+    .filter(w => w.pct !== null);
+
+  if (weeks.length < 3) return null; // not enough history -- degrade gracefully
+
+  const latest   = weeks[weeks.length - 1].pct;
+  const previous = weeks[weeks.length - 2].pct;
+  if (latest === previous) return { direction: 'flat' };
+  return latest < previous
+    ? { direction: 'down', improving: true }   // fewer flagged this week -- good
+    : { direction: 'up',   improving: false }; // more flagged this week -- bad
+}
+
+// Arrow/dash glyph next to the Health tile title. `trend` is
+// computeHealthTrend()'s return value -- null means "no arrow" (insufficient
+// history), never rendered as if it were a zero-change "flat" result.
+function _ccTrendArrowHTML(trend) {
+  if (!trend) return '';
+  if (trend.direction === 'flat') {
+    return ` <span class="cc-trend-arrow cc-trend-arrow--flat" title="Unchanged vs last week">▬</span>`;
+  }
+  return trend.improving
+    ? ` <span class="cc-trend-arrow cc-trend-arrow--down" title="Improving vs last week">▼</span>`
+    : ` <span class="cc-trend-arrow cc-trend-arrow--up" title="Worsening vs last week">▲</span>`;
+}
+
+// Explainer tooltip for the Health tile trend, shown whether or not an arrow
+// is currently rendered -- a TP looking at a tile with no arrow still needs
+// to know the feature exists and why it isn't showing yet. Reuses the
+// existing .help-tip/.help-tip-text pattern (admin.js/os-admin.js tab
+// tooltips) rather than inventing a new tooltip mechanism.
+function _ccHealthTrendTooltipHTML() {
+  return ` <span class="help-tip">?<span class="help-tip-text">Compares this week's flagged-role rate (across all active projects) to last week's, from the Snapshots list. Needs 3+ weeks of history -- someone must run Admin > Snapshots > Write Snapshot Now weekly for it to build up.</span></span>`;
 }
 
 function computePeopleRAG(roles, activity, historical) {

@@ -123,6 +123,12 @@ const CONFIG = {
       'Title', 'RecipientEmail', 'CreatedAt', 'IsRead', 'Tone', 'Body',
       'Status', 'TriggerKey', 'TriggerType',
     ],
+    // ── Time-series snapshots (N-085 / L-1a) ───────────────────
+    Snapshots: [
+      'Title', 'ProjectIDLookupId', 'WeekEndingDate', 'OpenRoles',
+      'RolesByStage', 'AvgDaysOpen', 'PlacementsInPeriod', 'ActivityTotals',
+      'FlaggedCount', 'Utilisation', 'CreatedAt',
+    ],
   },
 
   // Maps hire location (country) to ISO currency code.

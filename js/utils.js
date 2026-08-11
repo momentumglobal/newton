@@ -427,6 +427,31 @@ function _calcUtilisation(rows) {
   return totalCap > 0 ? billedCap / totalCap : 0;
 }
 
+// Utilisation for a single project (by customer name) in a given month (N-114).
+// Composes computeMonthlyRows()/_calcUtilisation() — no new formula, so it
+// stays in lockstep with the live People > Team Utilisation panel.
+// computeMonthlyRows() already excludes forecast assignments and
+// _calcUtilisation() already excludes Level === 'CSD' rows — do not
+// re-filter either here.
+//
+// Assignments.Customer is free text, not a lookup — it's expected to match
+// Projects.Title (aliased to CustomerName). Matched trimmed + case-insensitive,
+// the same convention already used for revenue-by-customer grouping in
+// people-dashboard.js. A renamed project or a typo'd Customer value will
+// silently return null rather than error — a known limitation, not a bug
+// introduced here.
+//
+// Returns null (not 0) when the project has no matching assignment rows that
+// month, to distinguish "no data" from "0% utilised" — same convention as
+// avgDaysOpen in computeSnapshotMetrics().
+function computeProjectUtilisation(assignments, customerName, year, month) {
+  const name = (customerName || '').trim().toLowerCase();
+  const projectAssignments = assignments.filter(a =>
+    (a.Customer || '').trim().toLowerCase() === name);
+  const rows = computeMonthlyRows(projectAssignments)
+    .filter(r => r.Year === year && r.Month === month);
+  return rows.length ? _calcUtilisation(rows) : null;
+}
 function _barChart(data, valueFormatter) {
   const max = Math.max(...data.map(d => d.value), 0.001);
   return `<div style='margin-top:12px'>

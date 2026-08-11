@@ -1119,6 +1119,13 @@ body {
 .cc-rag-pill--amber { background: var(--c-warn-bg); color: var(--c-warn-deep); }
 .cc-rag-pill--red   { background: var(--c-danger-bg); color: var(--c-danger); }
 
+/* Health tile trend arrow + explainer tooltip (N-108) */
+.cc-trend-arrow { font-size: var(--fs-14); vertical-align: middle; }
+.cc-trend-arrow--down { color: var(--c-success); }
+.cc-trend-arrow--up   { color: var(--c-danger); }
+.cc-trend-arrow--flat { color: var(--c-gray-500); }
+.cc-tile .help-tip { background: var(--c-gray-500); color: white; }
+
 /* Close button */
 .cc-close { display: none; position: absolute; top: var(--sp-7); right: var(--sp-7); background: none; border: none; font-size: var(--fs-20); cursor: pointer; color: var(--c-gray-600); }
 .cc-grid--expanded .cc-close { display: block; }

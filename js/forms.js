@@ -113,10 +113,10 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
   const isTalentPartner = userRole === 'talent_partner';
   const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
-  const selectedProjectId = existingData?.ProjectID || preselectedProjectId || '';
+  const selectedProjectId = existingData?.ProjectIDLookupId ?? existingData?.ProjectID ?? preselectedProjectId ?? '';
   const projectOptions = projects.map(p =>
     `<option value="${p.id}" ${
-      (existingData?.ProjectID == p.id || preselectedProjectId == p.id || lockProject) ? 'selected' : ''
+      (selectedProjectId == p.id || lockProject) ? 'selected' : ''
     }>${escHtml(p.CustomerName)}</option>`
   ).join('');
   // Pre-load function areas (global — not scoped to project)

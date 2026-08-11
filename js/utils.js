@@ -311,6 +311,27 @@ function runKpiCountUps(scope = document) {
   scope.querySelectorAll('.kpi-value').forEach(animateCountUp);
 }
 
+// ── Project Active/Archive (N-112) ─────────────────────────────
+// Active bucket = Status Active or Transition. Archive bucket = Status
+// Completed. This is the single source of truth for that line — every
+// caller filters through this predicate rather than checking p.Status inline.
+function isProjectActive(project) {
+  return project?.Status !== 'Completed';
+}
+
+// Returns a NEW array sorted by CustomerName A-Z. Does not mutate the input.
+function sortProjectsByName(projects) {
+  return [...projects].sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''));
+}
+
+// Flat, escaped <option> list for a project array — no grouping, no "All
+// Projects" default. Shared by every project <select> in the app.
+function buildProjectOptionsHtml(projects, selectedId) {
+  return projects.map(p =>
+    `<option value="${p.id}" ${String(selectedId) === String(p.id) ? 'selected' : ''}>${escHtml(p.CustomerName)}</option>`
+  ).join('');
+}
+
 // ── Text escaping ─────────────────────────────────────────────
 // Escape a value for safe interpolation into an HTML template string.
 function escHtml(str) {

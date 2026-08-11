@@ -114,11 +114,15 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
   const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
   const selectedProjectId = existingData?.ProjectIDLookupId ?? existingData?.ProjectID ?? preselectedProjectId ?? '';
-  const projectOptions = projects.map(p =>
-    `<option value="${p.id}" ${
-      (selectedProjectId == p.id || lockProject) ? 'selected' : ''
-    }>${escHtml(p.CustomerName)}</option>`
-  ).join('');
+  // N-112: only Active/Transition projects are selectable; a Completed project
+  // that's already selected (editing an old record) stays visible so the edit
+  // doesn't silently lose its project.
+  let selectableProjects = sortProjectsByName(projects.filter(isProjectActive));
+  if (selectedProjectId && !selectableProjects.some(p => String(p.id) === String(selectedProjectId))) {
+    const existingProject = projects.find(p => String(p.id) === String(selectedProjectId));
+    if (existingProject) selectableProjects = sortProjectsByName([...selectableProjects, existingProject]);
+  }
+  const projectOptions = buildProjectOptionsHtml(selectableProjects, selectedProjectId);
   // Pre-load function areas (global — not scoped to project)
   let departmentOptions = '<option value="">-- Select functional area --</option>';
   try {
@@ -358,10 +362,14 @@ async function renderWeeklyActivityForm(existingData = null) {
   const isTalentPartner = userRole === 'talent_partner';
   const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
-  const projectOptions = [...projects].sort((a, b) =>
-   a.CustomerName.localeCompare(b.CustomerName)).map(p =>
-    `<option value="${p.id}" ${(existingProjectId == p.id || lockProject) ? 'selected' : ''}>${escHtml(p.CustomerName)}</option>`
-  ).join('');
+  // N-112: only Active/Transition projects are selectable; keep an already-
+  // selected Completed project visible so editing an old record doesn't lose it.
+  let selectableProjects = sortProjectsByName(projects.filter(isProjectActive));
+  if (existingProjectId && !selectableProjects.some(p => String(p.id) === String(existingProjectId))) {
+    const existingProject = projects.find(p => String(p.id) === String(existingProjectId));
+    if (existingProject) selectableProjects = sortProjectsByName([...selectableProjects, existingProject]);
+  }
+  const projectOptions = buildProjectOptionsHtml(selectableProjects, existingProjectId);
   const today = new Date().toISOString().split('T')[0];
   const defaultWeek = existingData?.WeekNumber || getISOWeek(today);
   const defaultYear = existingData?.Year || new Date().getFullYear();
@@ -556,9 +564,15 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   const isTalentPartner = userRole === 'talent_partner';
   const projects = await getScopedProjects(email, false);
   const lockProject = isTalentPartner && projects.length === 1;
-  const projectOptions = [...projects].sort((a, b) => a.CustomerName.localeCompare(b.CustomerName)).map(p =>
-  `<option value="${p.id}" ${(existingData?.ProjectID == p.id || lockProject || preselectedProjectId == p.id) ? 'selected' : ''}>${escHtml(p.CustomerName)}</option>`
-).join('');
+  const selectedProjectId = existingData?.ProjectID ?? preselectedProjectId ?? '';
+  // N-112: only Active/Transition projects are selectable; keep an already-
+  // selected Completed project visible so editing an old record doesn't lose it.
+  let selectableProjects = sortProjectsByName(projects.filter(isProjectActive));
+  if (selectedProjectId && !selectableProjects.some(p => String(p.id) === String(selectedProjectId))) {
+    const existingProject = projects.find(p => String(p.id) === String(selectedProjectId));
+    if (existingProject) selectableProjects = sortProjectsByName([...selectableProjects, existingProject]);
+  }
+  const projectOptions = buildProjectOptionsHtml(selectableProjects, selectedProjectId);
   // If single project, pre-load TP's own roles immediately
   let preloadedPlacementRoleOptions = '';
   if (lockProject) {

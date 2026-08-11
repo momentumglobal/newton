@@ -139,10 +139,19 @@ function isRoleFlagged(role, activity) {
 // flow reimplements this same "open role" definition and cannot read this
 // file, so this function is the one place the contract is authoritative
 // from — keep it that way.
+//
+// RolesByStage deliberately excludes 'Hired' and 'Cancelled' (N-111).
+// Both are terminal — a role never leaves them once it lands there — so
+// their counts only ever grow, unlike every other stage here, which
+// reflects roles genuinely still in flight and can rise or fall week to
+// week. Left in, they'd eventually swamp the stages this field exists to
+// show. Cumulative hires-to-date isn't tracked here either — sum
+// PlacementsInPeriod across a project's Snapshots rows for that instead.
 function computeSnapshotMetrics(roles, weekActivity, weekPlacements) {
   const openRoleSet = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
 
   const rolesByStage = roles.reduce((acc, r) => {
+    if (r.Stage === 'Hired' || r.Stage === 'Cancelled') return acc;
     acc[r.Stage] = (acc[r.Stage] || 0) + 1;
     return acc;
   }, {});

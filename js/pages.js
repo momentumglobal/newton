@@ -52,7 +52,7 @@ async function renderProjectsPage() {
   main.innerHTML = "<p>Loading projects...</p>";
   const role = _resolvedRole;
   const user = getCurrentUser();
-  et [projects, dmMap] = await Promise.all([
+  let [projects, dmMap] = await Promise.all([
     getScopedProjects(user.email, false),
     getTalentPartnerDisplayMap(),
   ]);

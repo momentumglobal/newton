@@ -124,3 +124,51 @@ function isRoleFlagged(role, activity) {
   if (submitted > 0 && (iv1 / submitted) < 0.50) return true;
   return false;
 }
+
+// ── Time-series snapshots (N-085 / L-1a) ───────────────────────────────
+// Pure aggregation for one project's weekly Snapshots row.
+// `roles` = that project's full role set (any stage).
+// `weekActivity` / `weekPlacements` = already filtered by the caller to
+// the snapshot's week window (WeeklyActivity by WeekEndingDate equality,
+// Placements by OfferAcceptedDate range).
+//
+// CONTRACT: openRoles / avgDaysOpen MUST derive from ACTIVE_STAGES, not
+// any other "active stage" list in the codebase (dashboard-core.js's
+// avgDaysOpen() and the KPI-strip openRoles count use a different,
+// narrower, undocumented local array — do not copy that here). N-086's
+// flow reimplements this same "open role" definition and cannot read this
+// file, so this function is the one place the contract is authoritative
+// from — keep it that way.
+function computeSnapshotMetrics(roles, weekActivity, weekPlacements) {
+  const openRoleSet = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
+
+  const rolesByStage = roles.reduce((acc, r) => {
+    acc[r.Stage] = (acc[r.Stage] || 0) + 1;
+    return acc;
+  }, {});
+
+  const openWithDate = openRoleSet.filter(r => r.OpenDate);
+  const avgDaysOpen = openWithDate.length
+    ? Math.round(openWithDate.reduce((s, r) => s + daysOpen(r.OpenDate), 0) / openWithDate.length)
+    : null;
+
+  const activityTotals = {
+    Outreach:       sumField(weekActivity, 'Outreach'),
+    Responses:      sumField(weekActivity, 'Responses'),
+    Screened:       sumField(weekActivity, 'Screened'),
+    Submitted:      sumField(weekActivity, 'Submitted'),
+    Interview1:     sumField(weekActivity, 'Interview1'),
+    Interview2Plus: sumField(weekActivity, 'Interview2Plus'),
+    FinalInterview: sumField(weekActivity, 'FinalInterview'),
+    Offers:         sumField(weekActivity, 'Offers'),
+    Hires:          sumField(weekActivity, 'Hires'),
+  };
+
+  return {
+    openRoles:          openRoleSet.length,
+    rolesByStage,
+    avgDaysOpen,
+    placementsInPeriod: weekPlacements.length,
+    activityTotals,
+  };
+}

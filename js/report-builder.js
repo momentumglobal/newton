@@ -99,9 +99,14 @@ async function renderReportBuilder() {
 }
 
 function rbRenderSidebar(projects) {
-  const projectOpts = projects.map(p =>
-    `<option value="${p.id}" ${String(p.id) === _rbProjectId ? 'selected' : ''}>
-      ${escHtml(p.CustomerName)}</option>`).join('');
+  // N-112: Active/Archive optgroup split.
+  const sortedProjects  = sortProjectsByName(projects);
+  const activeProjects  = sortedProjects.filter(isProjectActive);
+  const archiveProjects = sortedProjects.filter(p => !isProjectActive(p));
+  const projectOpts = [
+    activeProjects.length  ? `<optgroup label="Active">${buildProjectOptionsHtml(activeProjects, _rbProjectId)}</optgroup>`   : '',
+    archiveProjects.length ? `<optgroup label="Archive">${buildProjectOptionsHtml(archiveProjects, _rbProjectId)}</optgroup>` : '',
+  ].join('');
 
   // Role options for the selected project, with an "All Roles" default.
   const roleOpts = ['<option value="all"' + (_rbRoleId === 'all' ? ' selected' : '') + '>All Roles</option>']

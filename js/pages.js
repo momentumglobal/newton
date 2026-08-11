@@ -25,16 +25,20 @@ async function getProjectFilterOptions() {
     const idSet = new Set(ids.map(String));
     projects = all.filter(p => idSet.has(String(p.id)));
   }
-  projects.sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''));
+  projects = sortProjectsByName(projects);
   return { projects, canFilter: true };
 }
+// N-112: Active (Status Active/Transition) and Archive (Status Completed)
+// render as separate <optgroup>s, each sorted A-Z. "All Projects" stays the
+// ungrouped default option.
 function projectFilterDropdown(projects, selectedId, callbackFn) {
-  const options = [
-    `<option value="" ${!selectedId ? 'selected' : ''}>All Projects</option>`,
-    ...projects.map(p =>
-      `<option value="${p.id}" ${String(selectedId) === String(p.id) ? 'selected' : ''}>${escHtml(p.CustomerName)}</option>`
-    )
+  const active  = sortProjectsByName(projects.filter(isProjectActive));
+  const archive = sortProjectsByName(projects.filter(p => !isProjectActive(p)));
+  const groups = [
+    active.length  ? `<optgroup label="Active">${buildProjectOptionsHtml(active, selectedId)}</optgroup>`   : '',
+    archive.length ? `<optgroup label="Archive">${buildProjectOptionsHtml(archive, selectedId)}</optgroup>` : '',
   ].join('');
+  const options = `<option value="" ${!selectedId ? 'selected' : ''}>All Projects</option>${groups}`;
   return `<div class="project-filter-bar">
     <div class="form-group project-filter-select">
       <label>Project</label>
@@ -48,13 +52,13 @@ async function renderProjectsPage() {
   main.innerHTML = "<p>Loading projects...</p>";
   const role = _resolvedRole;
   const user = getCurrentUser();
-  const [projects, dmMap] = await Promise.all([
+  et [projects, dmMap] = await Promise.all([
     getScopedProjects(user.email, false),
     getTalentPartnerDisplayMap(),
   ]);
   const canEdit = ["admin","delivery_manager"].includes(role) || hasDMGrant();
   const dmName = email => email ? (dmMap[email.toLowerCase()] || email) : "—";
-  projects.sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''));
+  projects = sortProjectsByName(projects);
   main.innerHTML = `
     <div class="page-header">
       <h2>Projects</h2>

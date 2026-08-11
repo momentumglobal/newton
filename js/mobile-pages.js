@@ -215,9 +215,8 @@ async function mobileRenderActivityForm(main, rolePreselected) {
 
     const today       = new Date().toISOString().split('T')[0];
     const weekEnding  = getWeekEnding(today);
-    const projectOpts = projects.map(p =>
-      `<option value="${p.id}">${escHtml(p.CustomerName)}</option>`
-    ).join('');
+    // N-112: only Active/Transition projects are selectable
+    const projectOpts = buildProjectOptionsHtml(sortProjectsByName(projects.filter(isProjectActive)), '');
 
     main.innerHTML = `
       <div class="m-detail-panel">
@@ -400,9 +399,8 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
       mobileSetTitle('Record Placement', 'New Placement');
     }
 
-    const projectOpts = projects.map(p =>
-      `<option value="${p.id}">${escHtml(p.CustomerName)}</option>`
-    ).join('');
+    // N-112: only Active/Transition projects are selectable
+    const projectOpts = buildProjectOptionsHtml(sortProjectsByName(projects.filter(isProjectActive)), '');
 
     const today = new Date().toISOString().split('T')[0];
 

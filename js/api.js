@@ -58,6 +58,8 @@ const FIELD_ALIASES = {
   SurveyCompletions: {},
   // ── Notifications ─────────────────────────────────────────
   Notifications: {},
+  // ── Time-series snapshots (N-085 / L-1a) ────────────────────
+  Snapshots: {},
   // ── CoE Hiring Plan ───────────────────────────────────────
   CoEPlanRows:     {},
   CoEPlanForecast: {},

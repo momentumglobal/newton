@@ -147,7 +147,13 @@ function isRoleFlagged(role, activity) {
 // week. Left in, they'd eventually swamp the stages this field exists to
 // show. Cumulative hires-to-date isn't tracked here either — sum
 // PlacementsInPeriod across a project's Snapshots rows for that instead.
-function computeSnapshotMetrics(roles, weekActivity, weekPlacements) {
+//
+// `allActivityForRoles` (N-114) is the project's FULL-HISTORY WeeklyActivity
+// rows for its roles — NOT `weekActivity`, which is already windowed to the
+// snapshot's single week. isRoleFlagged() needs a role's entire activity
+// history to evaluate correctly (same pattern as cc-pages.js:ccHealthStats()),
+// so flaggedCount would be silently wrong if passed the windowed set instead.
+function computeSnapshotMetrics(roles, weekActivity, weekPlacements, allActivityForRoles = []) {
   const openRoleSet = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
 
   const rolesByStage = roles.reduce((acc, r) => {
@@ -160,6 +166,11 @@ function computeSnapshotMetrics(roles, weekActivity, weekPlacements) {
   const avgDaysOpen = openWithDate.length
     ? Math.round(openWithDate.reduce((s, r) => s + daysOpen(r.OpenDate), 0) / openWithDate.length)
     : null;
+
+  const flaggedCount = openRoleSet.filter(r => {
+    const acts = allActivityForRoles.filter(a => String(a.RoleIDLookupId) === String(r.id));
+    return isRoleFlagged(r, acts);
+  }).length;
 
   const activityTotals = {
     Outreach:       sumField(weekActivity, 'Outreach'),
@@ -177,6 +188,7 @@ function computeSnapshotMetrics(roles, weekActivity, weekPlacements) {
     openRoles:          openRoleSet.length,
     rolesByStage,
     avgDaysOpen,
+    flaggedCount,
     placementsInPeriod: weekPlacements.length,
     activityTotals,
   };

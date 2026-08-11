@@ -38,9 +38,8 @@ async function mobileRenderAddRole(main) {
     const projects = await getScopedProjects(email, false);
     const lockProject = isTP && projects.length === 1;
 
-    const projectOpts = [...projects]
-      .sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''))
-      .map(p => `<option value="${p.id}">${escHtml(p.CustomerName)}</option>`).join('');
+    // N-112: only Active/Transition projects are selectable when adding a new role
+    const projectOpts = buildProjectOptionsHtml(sortProjectsByName(projects.filter(isProjectActive)), '');
 
     // Functional areas (global)
     let deptOpts = '<option value="">- Select functional area -</option>';

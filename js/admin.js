@@ -328,24 +328,26 @@ async function buildSnapshotsTab() {
       <td>${s.OpenRoles ?? '—'}</td>
       <td>${s.AvgDaysOpen ?? '—'}</td>
       <td>${s.PlacementsInPeriod ?? '—'}</td>
+      <td>${s.FlaggedCount ?? '—'}</td>
+      <td>${(s.Utilisation === null || s.Utilisation === undefined) ? '—' : _fmtPct(s.Utilisation)}</td>
     </tr>`).join('');
   return `
     <h3>Time-Series Snapshots</h3>
     <p style="font-size:13px;color:#666;margin-bottom:16px">
       Writes one row per active project into the <code>Snapshots</code> list for the current week —
-      open roles, roles by stage, avg days open, placements and activity totals. Running it again in
-      the same week updates the existing rows rather than duplicating them. Flagged count and
-      utilisation are left blank until a later ticket populates them.
+      open roles, roles by stage, avg days open, placements, activity totals, flagged count and
+      utilisation. Running it again in the same week updates the existing rows rather than
+      duplicating them. Utilisation reflects the project's calendar month and so repeats across every
+      week within it, and shows blank where no matching assignment data exists for that month.
     </p>
     <button class="btn-primary" id="snapshot-btn" onclick="writeSnapshotsNow()">Write Snapshot Now</button>
     <div id="snapshot-status" style="display:none;font-size:13px;margin:12px 0"></div>
     <table class="data-table" style="margin-top:20px">
-      <thead><tr><th>Project</th><th>Week Ending</th><th>Open Roles</th><th>Avg Days Open</th><th>Placements</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan=5>No snapshots written yet.</td></tr>'}</tbody>
+      <thead><tr><th>Project</th><th>Week Ending</th><th>Open Roles</th><th>Avg Days Open</th><th>Placements</th><th>Flagged</th><th>Utilisation</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan=7>No snapshots written yet.</td></tr>'}</tbody>
     </table>
   `;
 }
-
 async function writeSnapshotsNow() {
   const btn    = document.getElementById('snapshot-btn');
   const status = document.getElementById('snapshot-status');
@@ -358,9 +360,15 @@ async function writeSnapshotsNow() {
     const weekStartDate = new Date(weekEnding);
     weekStartDate.setDate(weekStartDate.getDate() - 6);
     const weekStart = weekStartDate.toISOString().slice(0, 10);
+    // Utilisation is inherently monthly (computeMonthlyRows/_calcUtilisation),
+    // while Snapshots are weekly rows — every week within this calendar month
+    // writes the same Utilisation value. Expected (N-114), not a bug.
+    const weekEndingAsDate = new Date(weekEnding);
+    const snapshotYear     = weekEndingAsDate.getFullYear();
+    const snapshotMonth    = weekEndingAsDate.getMonth() + 1;
 
-    const [projects, allRoles, allActivity, allPlacements, existing] = await Promise.all([
-      getProjects(true), getAllRoles(), getWeeklyActivity(null, null), getPlacements(null), getItems('Snapshots'),
+    const [projects, allRoles, allActivity, allPlacements, existing, allAssignments] = await Promise.all([
+      getProjects(true), getAllRoles(), getWeeklyActivity(null, null), getPlacements(null), getItems('Snapshots'), getAssignments(),
     ]);
 
     for (let i = 0; i < projects.length; i++) {
@@ -374,6 +382,11 @@ async function writeSnapshotsNow() {
         String(a.ProjectIDLookupId) === String(p.id) &&
         a.WeekEndingDate && a.WeekEndingDate.slice(0, 10) === weekEnding);
 
+      // Full history, not week-windowed — isRoleFlagged() needs a role's
+      // entire activity to evaluate correctly (N-114; see computeSnapshotMetrics).
+      const roleActivityForFlagging = allActivity.filter(a =>
+        roleIds.has(String(a.RoleIDLookupId)));
+
       const weekPlacements = allPlacements.filter(pl => {
         const rid = String(pl.RoleIDLookupId || pl.RoleID || '');
         if (!roleIds.has(rid) || !pl.OfferAcceptedDate) return false;
@@ -381,7 +394,8 @@ async function writeSnapshotsNow() {
         return d >= weekStart && d <= weekEnding;
       });
 
-      const metrics = computeSnapshotMetrics(roles, weekActivity, weekPlacements);
+      const metrics     = computeSnapshotMetrics(roles, weekActivity, weekPlacements, roleActivityForFlagging);
+      const utilisation = computeProjectUtilisation(allAssignments, p.CustomerName, snapshotYear, snapshotMonth);
 
       const fields = {
         Title:              `${p.CustomerName || 'Project ' + p.id} — wk ending ${weekEnding}`,
@@ -392,8 +406,8 @@ async function writeSnapshotsNow() {
         AvgDaysOpen:        metrics.avgDaysOpen,
         PlacementsInPeriod: metrics.placementsInPeriod,
         ActivityTotals:     JSON.stringify(metrics.activityTotals),
-        FlaggedCount:       null,
-        Utilisation:        null,
+        FlaggedCount:       metrics.flaggedCount,
+        Utilisation:        utilisation,
         CreatedAt:          new Date().toISOString(),
       };
 

@@ -86,7 +86,8 @@ function paintBell(rows, unread) {
   const recent = rows.slice(0, 20);               // active only, newest 20
 
   const items = recent.length ? recent.map(n => `
-    <div class="notif-item${n.IsRead ? ' is-read' : ''}" data-id="${n.id}">
+    <div class="notif-item${n.IsRead ? ' is-read' : ''}" data-id="${n.id}"
+      onclick="notifOpen('${n.id}', '${escJsAttr(n.DeepLink || '')}')">
       <div class="notif-item-icon notif-tone--${n.Tone || 'attention'}">
         <i data-lucide="${NOTIF_ICON[n.Tone] || 'bell'}"></i>
       </div>
@@ -125,9 +126,13 @@ function notifToggle() {
   document.getElementById('notif-drawer')?.classList.toggle('open');
   document.getElementById('notif-overlay')?.classList.toggle('open');
 }
-function notifOpen(id, deepLink) {
-  // deep-link only (marking is separate, via the tick / mark-all)
-  if (deepLink) window.location.href = deepLink;
+async function notifOpen(id, deepLink) {
+  if (deepLink) {
+    await markRead(id);
+    window.location.href = deepLink;
+    return;
+  }
+  await notifTick(id);   // no link: just mark read + re-render in place
 }
 async function notifTick(id) {
   const wasOpen = document.getElementById('notif-drawer')?.classList.contains('open');

@@ -671,11 +671,13 @@ async function getProjectsByCSD() {
 // Keeps ALL current rows so a split person can be duplicated under each project.
 async function getCurrentAssignmentsByEmployee() {
   const all = await getAssignments();       // no year filter = current list
-  const today = new Date();
+  const today = new Date(); today.setHours(0,0,0,0);
   const map = {};
   all.filter(a => !a.IsForecast).forEach(a => {
     const s = a.StartDate ? new Date(a.StartDate) : null;
     const e = a.EndDate   ? new Date(a.EndDate)   : null;
+    if (s) s.setHours(0,0,0,0);
+    if (e) e.setHours(0,0,0,0);
     const current = (!s || s <= today) && (!e || e >= today);
     if (current) (map[a.EmployeeName] = map[a.EmployeeName] || []).push(a);
   });

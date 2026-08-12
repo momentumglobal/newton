@@ -18,7 +18,7 @@ function mpFmtPct(n) {
 
 // Utilisation % from monthly rows (excludes CSD level), as desktop.
 function mpCalcUtilisation(rows) {
-  const filtered  = rows.filter(r => r.Level !== 'CSD');
+  const filtered  = rows.filter(r => isBillableLevel(r.Level));
   const billedCap = filtered.reduce((s, r) => s + r.BilledCapacity, 0);
   const totalCap  = filtered.reduce((s, r) => s + r.Capacity, 0);
   return totalCap > 0 ? billedCap / totalCap : 0;

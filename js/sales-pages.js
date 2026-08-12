@@ -135,12 +135,29 @@ function _forecastModal() {
           </div>
         </div>
         <div class="form-group">
-          <label>Forecasted Headcount *</label>
-          <input type="number" id="forecast-hc" class="form-control" min="1" step="1">
+          <label>Project Type *</label>
+          <select id="forecast-type" class="form-control"
+            onchange="_onForecastTypeChange()">
+            ${CONFIG.PROJECT_TYPES.map(t =>
+              `<option value="${escAttr(t)}">${escHtml(t)}</option>`).join('')}
+          </select>
         </div>
         <div class="form-group">
+          <label>Forecasted Headcount *</label>
+          <input type="number" id="forecast-hc" class="form-control" min="1" step="1">
+          <span class="form-hint" id="forecast-hc-hint"></span>
+        </div>
+        <div class="form-group" id="forecast-rate-group">
           <label>Monthly Revenue per Head (£)</label>
           <input type="number" id="forecast-rev-per-head" class="form-control" min="0" step="100">
+        </div>
+        <div class="form-group is-hidden" id="forecast-splitfee-group">
+          <label>Retainer per Search (£)</label>
+          <input type="number" id="forecast-retainer" class="form-control" min="0" step="100">
+          <span class="form-hint">Recognised in the forecast's start month.</span>
+          <label style="margin-top:12px">Placement Fee per Search (£)</label>
+          <input type="number" id="forecast-placement" class="form-control" min="0" step="100">
+          <span class="form-hint">Recognised in the month after the end month.</span>
         </div>
         <div class="form-group">
           <label>Notes</label>
@@ -165,8 +182,12 @@ async function openForecastModal(id) {
   document.getElementById('forecast-end').value = '';
   document.getElementById('forecast-hc').value = '';
   document.getElementById('forecast-rev-per-head').value = '';
+  document.getElementById('forecast-retainer').value = '';
+  document.getElementById('forecast-placement').value = '';
+  document.getElementById('forecast-type').value = CONFIG.PROJECT_TYPES[0];
   document.getElementById('forecast-notes').value = '';
   document.getElementById('forecast-edit-id').value = '';
+  _onForecastTypeChange();
 
   if (id) {
     document.getElementById('forecast-modal-title').textContent = 'Edit Forecast';
@@ -182,7 +203,14 @@ async function openForecastModal(id) {
           ? f.ForecastEndDate.substring(0, 10) : '';
         document.getElementById('forecast-hc').value = f.ForecastedHeadcount ?? '';
         document.getElementById('forecast-rev-per-head').value = f.ForecastMonthlyRevenuePerHead ?? '';
+        // N-116: rows saved before this change have no ProjectType. Default them
+        // to the first configured type so they keep their monthly-rate behaviour.
+        document.getElementById('forecast-type').value =
+          CONFIG.PROJECT_TYPES.includes(f.ProjectType) ? f.ProjectType : CONFIG.PROJECT_TYPES[0];
+        document.getElementById('forecast-retainer').value  = f.RetainerFee  ?? '';
+        document.getElementById('forecast-placement').value = f.PlacementFee ?? '';
         document.getElementById('forecast-notes').value = f.Notes || '';
+        _onForecastTypeChange();
       }
     } catch (e) {
       showForecastError('Error loading forecast: ' + e.message);
@@ -196,6 +224,19 @@ function closeForecastModal() {
   document.getElementById('forecast-modal').style.display = 'none';
 }
 
+// N-116: Exec Search / MG AI forecast a retainer + placement fee per search
+// instead of a monthly rate per head, so the fields swap and the Headcount
+// label's meaning changes from "people" to "searches".
+function _onForecastTypeChange() {
+  const type    = document.getElementById('forecast-type')?.value;
+  const isSplit = CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(type);
+  document.getElementById('forecast-rate-group')
+    ?.classList.toggle('is-hidden', isSplit);
+  document.getElementById('forecast-splitfee-group')
+    ?.classList.toggle('is-hidden', !isSplit);
+  const hint = document.getElementById('forecast-hc-hint');
+  if (hint) hint.textContent = isSplit ? 'Number of searches forecast.' : '';
+}
 function showForecastError(msg) {
   const el = document.getElementById('forecast-error');
   el.textContent = msg;
@@ -210,6 +251,10 @@ async function saveForecast() {
   const end   = document.getElementById('forecast-end').value;
   const hc    = parseInt(document.getElementById('forecast-hc').value, 10);
   const revPerHead = document.getElementById('forecast-rev-per-head').value;
+  const fcType     = document.getElementById('forecast-type').value;
+  const retainer   = document.getElementById('forecast-retainer').value;
+  const placement  = document.getElementById('forecast-placement').value;
+  const isSplit    = CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(fcType);
   const notes = document.getElementById('forecast-notes').value.trim();
   const editId = document.getElementById('forecast-edit-id').value;
 
@@ -232,7 +277,14 @@ async function saveForecast() {
       ForecastStartDate: start,
       ForecastEndDate: end,
       ForecastedHeadcount: hc,
-      ForecastMonthlyRevenuePerHead: revPerHead === '' ? null : parseFloat(revPerHead),
+      // N-116: a row is either monthly-rate OR split-fee, never both — the
+      // unused side is written null so a type change leaves nothing stale
+      // behind that would double-count in the revenue chart.
+      ProjectType: fcType,
+      ForecastMonthlyRevenuePerHead:
+        isSplit || revPerHead === '' ? null : parseFloat(revPerHead),
+      RetainerFee:  isSplit && retainer  !== '' ? parseFloat(retainer)  : null,
+      PlacementFee: isSplit && placement !== '' ? parseFloat(placement) : null,
       Notes: notes,
     };
     if (editId) {

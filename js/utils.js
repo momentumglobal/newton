@@ -77,6 +77,83 @@ function isForecastAssignment(a) {
   return a.IsForecast === true || a.IsForecast === 1 || a.IsForecast === 'Yes';
 }
 
+// ── Split-fee revenue (N-116) ─────────────────────────────────────────
+// Exec Search and MG AI bill as a retainer up front plus the balance on
+// placement, not a monthly rate. Each is recognised as a single lump sum in a
+// single month, never pro-rated:
+//   retainer  → the month of StartDate
+//   placement → the month AFTER the month of EndDate
+// The placement month therefore falls OUTSIDE the assignment window, and for a
+// December end lands in January of the following year.
+
+// 'YYYY-MM' from an ISO date string, BY STRING SLICE — deliberately never via
+// new Date(). SharePoint returns UTC; parsed in BST a month-boundary date can
+// shift a day, which for a lump sum moves the whole fee into the wrong month
+// and at a year end into the wrong year. Returns null on anything unparseable.
+function monthKeyFromISO(iso) {
+  if (!iso) return null;
+  const key = String(iso).slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(key) ? key : null;
+}
+
+// Add n months to a 'YYYY-MM' key, rolling the year over. Integer arithmetic
+// only — no Date object, for the same reason as above.
+function addMonthsToKey(key, n) {
+  if (!key) return null;
+  const y = parseInt(key.slice(0, 4), 10);
+  const m = parseInt(key.slice(5, 7), 10) - 1 + n;
+  const year  = y + Math.floor(m / 12);
+  const month = ((m % 12) + 12) % 12;
+  return `${year}-${String(month + 1).padStart(2, '0')}`;
+}
+
+function monthKeyYear(key)  { return parseInt(key.slice(0, 4), 10); }
+function monthKeyMonth(key) { return parseInt(key.slice(5, 7), 10); } // 1-12
+
+function isSplitFeeAssignment(a) {
+  return CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(a?.ProjectType);
+}
+
+// Revenue events for a split-fee assignment. [] for anything else.
+// A blank or zero fee is omitted entirely — a search with no placement fee
+// agreed yet contributes its retainer and nothing more (no zero-amount row).
+function splitFeeRevenueEvents(a) {
+  if (!isSplitFeeAssignment(a)) return [];
+  const events    = [];
+  const retainer  = parseFloat(a.RetainerFee)  || 0;
+  const placement = parseFloat(a.PlacementFee) || 0;
+  const startKey  = monthKeyFromISO(a.StartDate);
+  const endKey    = monthKeyFromISO(a.EndDate);
+  if (retainer && startKey) {
+    events.push({ monthKey: startKey, amount: retainer, kind: 'retainer' });
+  }
+  if (placement && endKey) {
+    events.push({ monthKey: addMonthsToKey(endKey, 1), amount: placement, kind: 'placement' });
+  }
+  return events;
+}
+
+// Same shape for a SalesForecasts row. ForecastedHeadcount is the number of
+// SEARCHES on a split-fee line, so it multiplies each fee rather than being
+// pro-rated across the window.
+function splitFeeForecastEvents(f) {
+  if (!CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(f?.ProjectType)) return [];
+  const hc = parseFloat(f.ForecastedHeadcount) || 0;
+  if (!hc) return [];
+  const events    = [];
+  const retainer  = (parseFloat(f.RetainerFee)  || 0) * hc;
+  const placement = (parseFloat(f.PlacementFee) || 0) * hc;
+  const startKey  = monthKeyFromISO(f.ForecastStartDate);
+  const endKey    = monthKeyFromISO(f.ForecastEndDate);
+  if (retainer && startKey) {
+    events.push({ monthKey: startKey, amount: retainer, kind: 'retainer' });
+  }
+  if (placement && endKey) {
+    events.push({ monthKey: addMonthsToKey(endKey, 1), amount: placement, kind: 'placement' });
+  }
+  return events;
+}
+
 function computeMonthlyRows(assignments) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const rows = [];
@@ -89,6 +166,9 @@ function computeMonthlyRows(assignments) {
     aEnd.setHours(0,0,0,0);
     const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     const effectiveEnd = aEnd < thisMonthEnd ? aEnd : thisMonthEnd;
+    // N-116: null for every non-split-fee assignment, so the branch below is
+    // a no-op and existing revenue figures are byte-identical.
+    const _splitEvents = isSplitFeeAssignment(a) ? splitFeeRevenueEvents(a) : null;
     const cur = new Date(aStart.getFullYear(), aStart.getMonth(), 1);
     const endMonth = new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth(), 1);
     while (cur <= endMonth) {
@@ -103,7 +183,13 @@ function computeMonthlyRows(assignments) {
       const fraction    = daysInMonth > 0 ? daysOverlap / daysInMonth : 0;
       const rate    = parseFloat(a.MonthlyBillRate) || 0;
       const billed  = a.Billed === 'Yes';
-      const prorated = rate * fraction;
+      // N-116: split-fee lines carry no monthly rate. Revenue is the lump sum
+      // due in THIS month (usually nothing); capacity below is unaffected.
+      const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+      const prorated = _splitEvents
+        ? _splitEvents.filter(ev => ev.monthKey === monthKey)
+                      .reduce((sum, ev) => sum + ev.amount, 0)
+        : rate * fraction;
       rows.push({
         AssignmentID:     a.AssignmentID,
         EmployeeName:     a.EmployeeName,
@@ -123,6 +209,38 @@ function computeMonthlyRows(assignments) {
       });
       cur.setMonth(cur.getMonth() + 1);
     }
+
+    // N-116: the placement fee lands the month AFTER the assignment ends, which
+    // the loop above never reaches. Emit it as a ZERO-CAPACITY revenue row — the
+    // person is not assigned that month — subject to the same "not in the
+    // future" cap that effectiveEnd applies to every other row.
+    if (_splitEvents) {
+      const lastKey  = `${endMonth.getFullYear()}-${String(endMonth.getMonth() + 1).padStart(2, '0')}`;
+      const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      const billedFlag = a.Billed === 'Yes';
+      for (const ev of _splitEvents) {
+        if (ev.monthKey <= lastKey)  continue; // already emitted inside the loop
+        if (ev.monthKey > todayKey)  continue; // future month, same cap as above
+        const amount = Math.round(ev.amount * 100) / 100;
+        rows.push({
+          AssignmentID:     a.AssignmentID,
+          EmployeeName:     a.EmployeeName,
+          Level:            a.Level,
+          Customer:         a.Customer,
+          ProjectType:      a.ProjectType,
+          Country:          a.Country,
+          Billed:           a.Billed,
+          Year:             monthKeyYear(ev.monthKey),
+          Month:            monthKeyMonth(ev.monthKey),
+          MonthStart:       `${ev.monthKey}-01`,
+          MonthFraction:    0,
+          ProratedRevenue:  amount,
+          BilledRevenue:    billedFlag ? amount : 0,
+          Capacity:         0,
+          BilledCapacity:   0,
+        });
+      }
+    }
   }
   return rows;
 }
@@ -135,6 +253,16 @@ function computeMonthlyRows(assignments) {
 function computeMonthlyRevenueForYear(assignments, year) {
   const months = new Array(12).fill(0);
   for (const a of assignments) {
+    // N-116: split-fee lines recognise two lump sums, not a pro-rated rate.
+    // Checked BEFORE the date guards because the placement month sits outside
+    // the assignment window and may belong to a different year entirely.
+    if (isSplitFeeAssignment(a)) {
+      for (const ev of splitFeeRevenueEvents(a)) {
+        if (monthKeyYear(ev.monthKey) !== year) continue;
+        months[monthKeyMonth(ev.monthKey) - 1] += ev.amount;
+      }
+      continue;
+    }
     if (!a.StartDate || !a.EndDate) continue;
     const aStart = new Date(a.StartDate); aStart.setHours(0,0,0,0);
     const aEnd   = new Date(a.EndDate);   aEnd.setHours(0,0,0,0);
@@ -192,6 +320,10 @@ function getAssignmentDataYears(assignments) {
     const s = new Date(a.StartDate).getFullYear();
     const e = new Date(a.EndDate).getFullYear();
     for (let y = s; y <= e; y++) years.add(y);
+    // N-116: a placement fee on a December-ending split-fee assignment is
+    // recognised in January of the following year — that year must be
+    // selectable or the revenue is invisible.
+    for (const ev of splitFeeRevenueEvents(a)) years.add(monthKeyYear(ev.monthKey));
   }
   if (!years.size) years.add(new Date().getFullYear());
   return [...years].sort((x, y) => x - y);

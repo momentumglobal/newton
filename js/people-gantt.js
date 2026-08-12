@@ -11,7 +11,7 @@ const [assignments, people, salesForecasts] = await Promise.all([
 ]);
 
 const totalActiveHeadcount = people.filter(
-  p => p.IsActive !== false && ['SDM', 'STP', 'TP'].includes(p.Level)
+  p => p.IsActive !== false && isBillableLevel(p.Level)
 ).length;
 
   _ganttYear = _ganttYear || new Date().getFullYear();
@@ -128,11 +128,10 @@ const totalActiveHeadcount = people.filter(
     </tr>`;
 
     // Employee rows
-const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
     const employees = Object.keys(customerMap[customer]).sort((a, b) => {
       const aLevel = customerMap[customer][a][0]?.Level;
       const bLevel = customerMap[customer][b][0]?.Level;
-      const l = (levelOrder[aLevel] ?? 99) - (levelOrder[bLevel] ?? 99);
+      const l = levelSortIndex(aLevel) - levelSortIndex(bLevel);
       if (l !== 0) return l;
       return a.localeCompare(b);
     });
@@ -205,11 +204,10 @@ const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
   // Deduplicate by employee — one row per person
   const seen = new Set();
   const deployableRows = [];
-  const levelOrder2 = { SDM: 1, STP: 2, TP: 3, CSD: 0 };
   deployable
     .filter(a => { if (seen.has(a.EmployeeName)) return false; seen.add(a.EmployeeName); return true; })
     .sort((a, b) => {
-      const l = (levelOrder2[a.Level] ?? 99) - (levelOrder2[b.Level] ?? 99);
+      const l = levelSortIndex(a.Level) - levelSortIndex(b.Level);
       if (l !== 0) return l;
       return (a.EmployeeName || '').localeCompare(b.EmployeeName || '');
     })

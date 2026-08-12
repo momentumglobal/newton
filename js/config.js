@@ -40,6 +40,36 @@ const CONFIG = {
   // utils.js:levelSortIndex() rather than redeclaring its own copy.
   PEOPLE_LEVELS: ['CSD', 'SDM', 'PTP', 'STP', 'TP'],
 
+  // ── Project types (N-116) ─────────────────────────────────────────
+  // TWO enums, deliberately. Projects.ProjectType gates the Hiring Plan page,
+  // the LCI link picker and the Report Builder CoE panel, so its dropdown stays
+  // narrow. Assignments.ProjectType is the wider delivery-shape enum.
+  // Never redeclare either list in a page file.
+  PROJECT_TYPES:            ['Embedded', 'CoE', 'Exec Search', 'MG AI'],
+  ASSIGNMENT_PROJECT_TYPES: ['Embedded', 'CoE', 'Transformation', 'LCI',
+                             'Exec Search', 'MG AI', 'Internal'],
+
+  // Types that bill on a retainer + placement-fee split rather than a monthly
+  // rate. Drives the conditional fee fields on the Assignment and Sales Forecast
+  // forms, and the revenue-recognition branch in utils.js.
+  SPLIT_FEE_PROJECT_TYPES: ['Exec Search', 'MG AI'],
+
+  // Types excluded from revenue reporting (People Dashboard "By project type").
+  NON_REVENUE_PROJECT_TYPES: ['Internal'],
+
+  // Token NAMES, not hex — the values live in the :root block in style.css.
+  // Consumed by the Deployment Timeline bars/legend and the Org Chart bubbles.
+  PROJECT_TYPE_COLOUR_VARS: {
+    'Embedded':       'var(--c-ptype-embedded)',
+    'CoE':            'var(--c-ptype-coe)',
+    'Transformation': 'var(--c-ptype-transformation)',
+    'LCI':            'var(--c-ptype-lci)',
+    'Exec Search':    'var(--c-ptype-exec-search)',
+    'MG AI':          'var(--c-ptype-mg-ai)',
+    'Internal':       'var(--c-ptype-internal)',
+  },
+  PROJECT_TYPE_COLOUR_FALLBACK: 'var(--c-ptype-fallback)',
+
     // Field projection manifest (F-1). Per-list array of INTERNAL SharePoint
   // column names to request via Graph $select — NOT the aliased names
   // normaliseFields()/FIELD_ALIASES produce. 'Id' is implied automatically

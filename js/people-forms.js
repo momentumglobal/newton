@@ -173,7 +173,8 @@ async function renderAssignmentForm(existingData = null) {
           </div>
           <div class='form-group'>
             <label>Project Type *</label>
-            <select name='ProjectType' required>
+            <select name='ProjectType' required
+              onchange='_onAssignmentTypeChange()'>
               ${CONFIG.ASSIGNMENT_PROJECT_TYPES.map(t =>
                 `<option value='${escAttr(t)}' ${
                   existingData?.ProjectType===t?'selected':''
@@ -194,11 +195,11 @@ async function renderAssignmentForm(existingData = null) {
               value='${existingData?.EndDate ? existingData.EndDate.split('T')[0] : ''}'>
           </div>
         </div>
-        <div class='form-row'>
+        <div class='form-row' id='assignment-rate-row'>
           <div class='form-group'>
             <label>Monthly Bill Rate (£)</label>
             <input type='number' name='MonthlyBillRate' min='0' step='0.01'
-              value='${escHtml(existingData?.MonthlyBillRate || '')}'>
+              value='${escAttr(existingData?.MonthlyBillRate || '')}'>
           </div>
           <div class='form-group'>
             <label>Billed? *</label>
@@ -208,10 +209,24 @@ async function renderAssignmentForm(existingData = null) {
             </select>
           </div>
         </div>
+        <div class='form-row' id='assignment-splitfee-row'>
+          <div class='form-group'>
+            <label>Retainer (£)</label>
+            <input type='number' name='RetainerFee' min='0' step='0.01'
+              value='${escAttr(existingData?.RetainerFee || '')}'>
+            <span class='form-hint'>Recognised in the assignment's start month.</span>
+          </div>
+          <div class='form-group'>
+            <label>Placement Fee (£)</label>
+            <input type='number' name='PlacementFee' min='0' step='0.01'
+              value='${escAttr(existingData?.PlacementFee || '')}'>
+            <span class='form-hint'>Recognised in the month after the end month.</span>
+          </div>
+        </div>
         <div class='form-group'>
           <label>Country *</label>
           <input type='text' name='Country' required
-            value='${escHtml(existingData?.Country || '')}'>
+            value='${escAttr(existingData?.Country || '')}'>
         </div>
         <div class='form-group'>
           <label style='display:flex;align-items:center;gap:8px;cursor:pointer'>
@@ -237,6 +252,20 @@ function _onAssignmentEmployeeChange(select) {
   document.getElementById('assignment-level').value = opt.dataset.level || '';
 }
 
+// N-116: Exec Search / MG AI bill on a retainer + placement split, so they swap
+// the Monthly Bill Rate row for the two fee inputs. Called on change AND once on
+// first render, so editing an existing assignment opens in the right state.
+function _onAssignmentTypeChange() {
+  const form = document.getElementById('assignment-form');
+  if (!form) return;
+  const type    = form.querySelector('[name=ProjectType]')?.value;
+  const isSplit = CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(type);
+  document.getElementById('assignment-rate-row')
+    ?.classList.toggle('is-hidden', isSplit);
+  document.getElementById('assignment-splitfee-row')
+    ?.classList.toggle('is-hidden', !isSplit);
+}
+const _isSplitType = (t) => CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(t);
 async function submitAssignmentForm(event, editId = null) {
   event.preventDefault();
   clearAssignmentFormError();
@@ -255,7 +284,15 @@ async function submitAssignmentForm(event, editId = null) {
     ProjectType:     data.ProjectType,
     StartDate:       isoDate(data.StartDate),
     EndDate:         isoDate(data.EndDate),
-    MonthlyBillRate: data.MonthlyBillRate ? parseFloat(data.MonthlyBillRate) : null,
+    // N-116: a row is either monthly-rate OR split-fee, never both. Writing the
+    // unused side as null keeps a type change from leaving a stale figure behind
+    // that would double-count in revenue.
+    MonthlyBillRate: _isSplitType(data.ProjectType) || !data.MonthlyBillRate
+                       ? null : parseFloat(data.MonthlyBillRate),
+    RetainerFee:     _isSplitType(data.ProjectType) && data.RetainerFee
+                       ? parseFloat(data.RetainerFee)  : null,
+    PlacementFee:    _isSplitType(data.ProjectType) && data.PlacementFee
+                       ? parseFloat(data.PlacementFee) : null,
     Billed:          data.Billed,
     Country:         data.Country,
     IsForecast:      form.querySelector('[name=IsForecast]')?.checked === true,
@@ -311,13 +348,14 @@ function showAddAssignmentForm() {
   document.getElementById('main-content').innerHTML = '<p>Loading...</p>';
   renderAssignmentForm().then(html => {
     document.getElementById('main-content').innerHTML = html;
+    _onAssignmentTypeChange();   // N-116: match the fee fields to the type
   });
 }
 async function showEditAssignmentForm(id) {
   const data = await getItem('Assignments', id);
   document.getElementById('main-content').innerHTML = await renderAssignmentForm(data);
+  _onAssignmentTypeChange();     // N-116: ditto, for the saved type
 }
-
 // ── G-P Invoice forms ─────────────────────────────────────────
 function renderInvoiceForm(existingData = null) {
   const isEdit = !!existingData;

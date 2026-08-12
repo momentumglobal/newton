@@ -48,15 +48,9 @@ const totalActiveHeadcount = people.filter(
     .sort();
   if (customerMap[BENCH_KEY]) customers.push(BENCH_KEY);
 
-  // Colour by project type
-  const TYPE_COLOURS = {
-    'Embedded':       '#2E75B6',
-    'CoE':            '#2e7d32',
-    'Transformation': '#e65100',
-    'LCI':            '#6a1b9a',
-    'Internal':       '#888',
-  };
-  const typeColour = (t) => TYPE_COLOURS[t] || '#aaa';
+  // Colour by project type — values are CSS tokens from style.css (N-116)
+  const TYPE_COLOURS = CONFIG.PROJECT_TYPE_COLOUR_VARS;
+  const typeColour = (t) => TYPE_COLOURS[t] || CONFIG.PROJECT_TYPE_COLOUR_FALLBACK;
 
   // Month headers
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];

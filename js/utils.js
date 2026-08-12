@@ -303,10 +303,10 @@ function computeMonthlyRevenueForYear(assignments, year) {
 function computeMonthlyForecastRevenueForYear(salesForecasts, year) {
   const months = new Array(12).fill(0);
   for (const f of salesForecasts) {
-    // N-116: split-fee forecast lines recognise two lump sums. ForecastedHeadcount
-    // is the number of SEARCHES here, so it multiplies each fee rather than being
-    // pro-rated across the window. Checked before the date guards because the
-    // placement month sits outside the window and may belong to another year.
+    // N-116: split-fee forecast lines recognise two FLAT lump sums — see
+    // splitFeeForecastEvents() for why ForecastedHeadcount is deliberately not a
+    // multiplier. Checked before the date guards because the placement month
+    // sits outside the window and may belong to another year.
     if (CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(f.ProjectType)) {
       for (const ev of splitFeeForecastEvents(f)) {
         if (monthKeyYear(ev.monthKey) !== year) continue;

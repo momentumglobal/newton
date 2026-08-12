@@ -96,7 +96,8 @@ async function mobileSalesForecastForm(editId) {
       <div class="m-input-row">
         <div class="m-form-group">
           <label class="m-label">Headcount *</label>
-          <input class="m-input" type="number" id="msf-hc" min="1" step="1" value="${f.ForecastedHeadcount ?? ''}">
+          <input class="m-input" type="number" id="msf-hc" min="1" step="1"
+            data-min-retained="1" data-min-split="0" value="${f.ForecastedHeadcount ?? ''}">
         </div>
         <div class="m-form-group" id="msf-rev-group">
           <label class="m-label">Rev / head (£)</label>
@@ -135,6 +136,11 @@ function _msfTypeChange() {
   const isSplit = CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(type);
   document.getElementById('msf-rev-group')?.classList.toggle('is-hidden', isSplit);
   document.getElementById('msf-splitfee-row')?.classList.toggle('is-hidden', !isSplit);
+  // N-116 QA2: mirrors the desktop spinner floor — 0 allowed on split-fee lines.
+  const hcInput = document.getElementById('msf-hc');
+  if (hcInput) {
+    hcInput.min = isSplit ? hcInput.dataset.minSplit : hcInput.dataset.minRetained;
+  }
   // N-116 QA1: the label stays "Headcount" on every type — one TP can run several
   // concurrent engagements, so headcount is not an engagement count.
 }

@@ -39,10 +39,9 @@ async function mobileRenderSalesForecast(main) {
         <div class="m-role-title">${escHtml(f.Title || '-')}</div>
         <div class="m-role-meta">${msFmtForecastDate(f.ForecastStartDate)} - ${msFmtForecastDate(f.ForecastEndDate)}</div>
         <div class="m-role-footer">
-          <span class="m-stage-badge">${f.ForecastedHeadcount ?? '-'} ${
-            CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(f.ProjectType) ? 'searches' : 'HC'}</span>
+          <span class="m-stage-badge">${f.ForecastedHeadcount ?? '-'} HC</span>
           ${CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(f.ProjectType)
-            ? `<span class="m-days-open">£${Number((parseFloat(f.RetainerFee)||0) + (parseFloat(f.PlacementFee)||0)).toLocaleString('en-GB')}/search</span>`
+            ? `<span class="m-days-open">£${Number((parseFloat(f.RetainerFee)||0) + (parseFloat(f.PlacementFee)||0)).toLocaleString('en-GB')} split</span>`
             : (f.ForecastMonthlyRevenuePerHead ? `<span class="m-days-open">£${Number(f.ForecastMonthlyRevenuePerHead).toLocaleString('en-GB')}/head</span>` : '')}
         </div>
       </div>`).join('');
@@ -96,7 +95,7 @@ async function mobileSalesForecastForm(editId) {
       </div>
       <div class="m-input-row">
         <div class="m-form-group">
-          <label class="m-label" id="msf-hc-label">Headcount *</label>
+          <label class="m-label">Headcount *</label>
           <input class="m-input" type="number" id="msf-hc" min="1" step="1" value="${f.ForecastedHeadcount ?? ''}">
         </div>
         <div class="m-form-group" id="msf-rev-group">
@@ -136,8 +135,8 @@ function _msfTypeChange() {
   const isSplit = CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(type);
   document.getElementById('msf-rev-group')?.classList.toggle('is-hidden', isSplit);
   document.getElementById('msf-splitfee-row')?.classList.toggle('is-hidden', !isSplit);
-  const label = document.getElementById('msf-hc-label');
-  if (label) label.textContent = isSplit ? 'Searches *' : 'Headcount *';
+  // N-116 QA1: the label stays "Headcount" on every type — one TP can run several
+  // concurrent engagements, so headcount is not an engagement count.
 }
 
 async function mobileSaveForecast(editId) {
@@ -161,15 +160,16 @@ async function mobileSaveForecast(editId) {
   if (!start) return fail('Start date is required.');
   if (!end)   return fail('End date is required.');
   if (new Date(end) <= new Date(start)) return fail('End date must be after start date.');
-  if (!hc || hc < 1) return fail('Headcount must be at least 1.');
+  if (Number.isNaN(hc) || hc < 0) return fail('Headcount must be 0 or more.');
+  if (!isSplit && hc < 1)         return fail('Headcount must be at least 1.');
 
   btn.disabled = true; btn.textContent = 'Saving...';
 
   // IDENTICAL payload to desktop saveForecast.
   const payload = {
     Title: title,
-    ForecastStartDate: start,
-    ForecastEndDate: end,
+    ForecastStartDate: isoDate(start),   // N-116 QA1 — see sales-pages.js
+    ForecastEndDate: isoDate(end),
     ForecastedHeadcount: hc,
     ProjectType: fcType,
     ForecastMonthlyRevenuePerHead:

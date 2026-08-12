@@ -38,7 +38,7 @@ const CONFIG = {
   // truth for the Add/Edit Employee dropdown and for level sort order —
   // every levelOrder map in the codebase should read from this via
   // utils.js:levelSortIndex() rather than redeclaring its own copy.
-  PEOPLE_LEVELS: ['CSD', 'SDM', 'STP', 'TP', 'PTP'],
+  PEOPLE_LEVELS: ['CSD', 'SDM', 'PTP', 'STP', 'TP'],
 
     // Field projection manifest (F-1). Per-list array of INTERNAL SharePoint
   // column names to request via Graph $select — NOT the aliased names

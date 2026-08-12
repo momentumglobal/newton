@@ -96,7 +96,7 @@ async function buildCurrenciesTab() {
     </tr>`).join('');
   return `
     <h3>Currency Options</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:16px">
+    <p class="admin-tab-intro">
       These currencies are available when creating roles and are inherited by placements.
     </p>
     <table class="data-table" style="margin:0 0 24px">
@@ -150,7 +150,7 @@ async function buildDeleteTab() {
  
   return `
     <h3>Delete Records</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:16px">
+    <p class="admin-tab-intro">
       Select a list, then choose the record to delete. This cannot be undone from the app —
       use SharePoint's recycle bin to recover deleted items.
     </p>
@@ -330,7 +330,7 @@ async function buildSnapshotsTab() {
     </tr>`).join('');
   return `
     <h3>Time-Series Snapshots</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:16px">
+    <p class="admin-tab-intro">
       Writes one row per active project into the <code>Snapshots</code> list for the current week —
       open roles, roles by stage, avg days open, placements, activity totals and flagged count.
       Running it again in the same week updates the existing rows rather than duplicating them.

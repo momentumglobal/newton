@@ -152,10 +152,10 @@ function _forecastModal() {
           <input type="number" id="forecast-rev-per-head" class="form-control" min="0" step="100">
         </div>
         <div class="form-group is-hidden" id="forecast-splitfee-group">
-          <label>Retainer per Search (£)</label>
+          <label>Retainer (£)</label>
           <input type="number" id="forecast-retainer" class="form-control" min="0" step="100">
           <span class="form-hint">Recognised in the forecast's start month.</span>
-          <label style="margin-top:12px">Placement Fee per Search (£)</label>
+          <label style="margin-top:12px">Placement Fee (£)</label>
           <input type="number" id="forecast-placement" class="form-control" min="0" step="100">
           <span class="form-hint">Recognised in the month after the end month.</span>
         </div>
@@ -235,7 +235,13 @@ function _onForecastTypeChange() {
   document.getElementById('forecast-splitfee-group')
     ?.classList.toggle('is-hidden', !isSplit);
   const hint = document.getElementById('forecast-hc-hint');
-  if (hint) hint.textContent = isSplit ? 'Number of searches forecast.' : '';
+  if (hint) {
+    hint.textContent = isSplit
+      ? 'Headcount drives utilisation only — the fees below are the total for this '
+        + 'line, not per head. Enter 0 for a double-up on an already-deployed '
+        + 'employee: no extra capacity, but the revenue is still recognised.'
+      : '';
+  }
 }
 function showForecastError(msg) {
   const el = document.getElementById('forecast-error');
@@ -264,7 +270,14 @@ async function saveForecast() {
   if (!start) return showForecastError('Start date is required.');
   if (!end)   return showForecastError('End date is required.');
   if (new Date(end) <= new Date(start)) return showForecastError('End date must be after start date.');
-  if (!hc || hc < 1) return showForecastError('Headcount must be at least 1.');
+  // N-116 QA1: split-fee lines may forecast 0 headcount — a double-up on an
+  // already-deployed employee, which adds revenue but no capacity.
+  if (Number.isNaN(hc) || hc < 0) {
+    return showForecastError('Headcount must be 0 or more.');
+  }
+  if (!isSplit && hc < 1) {
+    return showForecastError('Headcount must be at least 1.');
+  }
 
   const btn = document.getElementById('forecast-save-btn');
   const orig = btn.textContent;
@@ -274,8 +287,12 @@ async function saveForecast() {
   try {
     const payload = {
       Title: title,
-      ForecastStartDate: start,
-      ForecastEndDate: end,
+      // N-116 QA1: isoDate() pins to T12:00:00Z. Without it SharePoint stores a
+      // BST midnight as the previous day in UTC and 1 Sept reloads as 31 Aug —
+      // which moves a whole split-fee lump sum into the wrong month. Every other
+      // write path in Newton already does this; this form was the only omission.
+      ForecastStartDate: isoDate(start),
+      ForecastEndDate: isoDate(end),
       ForecastedHeadcount: hc,
       // N-116: a row is either monthly-rate OR split-fee, never both — the
       // unused side is written null so a type change leaves nothing stale

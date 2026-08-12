@@ -168,12 +168,10 @@ async function buildDeleteTab() {
           <option value="">-- Select list first --</option>
         </select>
       </div>
-      <div id="del-error" class="form-error"></div>
-      <div id="del-confirm" style="display:none;background:#fde8e8;border:1px solid #e57373;
-        padding:12px;border-radius:4px;margin-bottom:12px;font-size:13px">
+      <div id="del-confirm" class="form-danger-box">
         Are you sure? This record will be permanently deleted.
         <div style="margin-top:10px;display:flex;gap:8px">
-          <button class="btn-primary" style="background:#c00000" onclick="confirmDelete()">Yes, Delete</button>
+          <button class="btn-primary btn-danger-confirm" onclick="confirmDelete()">Yes, Delete</button>
           <button class="btn-secondary" onclick="cancelDelete()">Cancel</button>
         </div>
       </div>
@@ -412,13 +410,15 @@ async function writeSnapshotsNow() {
     }
 
     clearButtonLoading(btn);
-    status.style.color   = '#2e7d32';
+    status.classList.add('form-status--ok');
+    status.classList.remove('form-status--error');
     status.textContent   = `Wrote snapshots for ${projects.length} project${projects.length === 1 ? '' : 's'} (week ending ${weekEnding}).`;
     status.style.display = 'block';
     await renderAdminTab('snapshots');
   } catch (e) {
     clearButtonLoading(btn);
-    status.style.color   = '#c62828';
+    status.classList.add('form-status--error');
+    status.classList.remove('form-status--ok');
     status.textContent   = `Error: ${e.message}`;
     status.style.display = 'block';
   }

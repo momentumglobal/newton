@@ -248,9 +248,9 @@ function _ccUtilCalc(forecasts, assigns, people) {
   const now     = new Date();
   const horizon = new Date(now.getTime() + 91 * 86400000); // 13 weeks
 
-  // Active headcount (SDM, STP, TP only — consistent with People Dashboard)
+  // Active headcount (billable levels only — consistent with People Dashboard)
   const totalActiveHeadcount = (people || []).filter(p =>
-    p.IsActive !== false && ['SDM', 'STP', 'TP'].includes(p.Level)
+    p.IsActive !== false && isBillableLevel(p.Level)
   ).length;
 
   // Current: use computeMonthlyRows for current month — consistent with People Dashboard
@@ -372,7 +372,7 @@ function renderUtilDetail(data) {
   const now = new Date();
   const { known } = _ccUtilCalc(forecasts, assigns, people);
   const totalActiveHeadcount = (people || []).filter(p =>
-    p.IsActive !== false && ['SDM','STP','TP'].includes(p.Level)).length;
+    p.IsActive !== false && isBillableLevel(p.Level)).length;
 
   const months = [1, 2, 3].map(offset => {
     const d      = new Date(now.getFullYear(), now.getMonth() + offset, 1);

@@ -318,20 +318,20 @@ function computeMonthlyForecastRevenueForYear(salesForecasts, year) {
       continue;
     }
     if (!f.ForecastStartDate || !f.ForecastEndDate) continue;
-    const fStart = new Date(f.ForecastStartDate); fStart.setHours(0,0,0,0);
-    const fEnd   = new Date(f.ForecastEndDate);   fEnd.setHours(0,0,0,0);
+    const fStart = utcDateOnly(f.ForecastStartDate);
+    const fEnd   = utcDateOnly(f.ForecastEndDate);
     const hc     = parseFloat(f.ForecastedHeadcount) || 0;
     const rate   = parseFloat(f.ForecastMonthlyRevenuePerHead) || 0;
     const monthly = hc * rate;
     if (!monthly) continue;
     for (let m = 0; m < 12; m++) {
-      const monthStart = new Date(year, m, 1);
-      const monthEnd   = new Date(year, m + 1, 0);
+      const monthStart = new Date(Date.UTC(year, m, 1));
+      const monthEnd   = new Date(Date.UTC(year, m + 1, 0));
       if (fStart > monthEnd || fEnd < monthStart) continue; // no overlap
       const overlapStart = fStart > monthStart ? fStart : monthStart;
       const overlapEnd   = fEnd   < monthEnd   ? fEnd   : monthEnd;
       const daysOverlap  = (overlapEnd - overlapStart) / 86400000 + 1;
-      const daysInMonth  = monthEnd.getDate();
+      const daysInMonth  = monthEnd.getUTCDate();
       const fraction     = daysInMonth > 0 ? daysOverlap / daysInMonth : 0;
       months[m] += monthly * fraction;
     }

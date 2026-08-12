@@ -255,7 +255,7 @@ async function _renderKPIStrip(allRows, people, assignments) {
 
 // Panel 1 - Team Utilisation
 function _renderUtilisationPanel(rows, people) {
-  const bands = ['PTP.'SDM','STP','TP'];
+  const bands = CONFIG.PEOPLE_LEVELS.filter(l => l !== 'CSD');
   const bandRows = bands.map(band => {
     const r        = rows.filter(r => r.Level === band);
     const u        = _calcUtilisation(r);

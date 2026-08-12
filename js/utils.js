@@ -133,16 +133,17 @@ function splitFeeRevenueEvents(a) {
   return events;
 }
 
-// Same shape for a SalesForecasts row. ForecastedHeadcount is the number of
-// SEARCHES on a split-fee line, so it multiplies each fee rather than being
-// pro-rated across the window.
+// Same shape for a SalesForecasts row. The fees are FLAT for the whole line —
+// deliberately NOT multiplied by ForecastedHeadcount. One TP can run several
+// concurrent Exec Search / MG AI engagements, so headcount is not an engagement
+// count; it drives utilisation only and never touches revenue. A headcount of 0
+// is legal and means a double-up on an already-deployed employee: no incremental
+// capacity, but the fees are still recognised — hence no `if (!hc) return []`.
 function splitFeeForecastEvents(f) {
   if (!CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(f?.ProjectType)) return [];
-  const hc = parseFloat(f.ForecastedHeadcount) || 0;
-  if (!hc) return [];
   const events    = [];
-  const retainer  = (parseFloat(f.RetainerFee)  || 0) * hc;
-  const placement = (parseFloat(f.PlacementFee) || 0) * hc;
+  const retainer  = parseFloat(f.RetainerFee)  || 0;
+  const placement = parseFloat(f.PlacementFee) || 0;
   const startKey  = monthKeyFromISO(f.ForecastStartDate);
   const endKey    = monthKeyFromISO(f.ForecastEndDate);
   if (retainer && startKey) {

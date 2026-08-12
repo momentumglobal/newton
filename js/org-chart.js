@@ -274,8 +274,10 @@ let _ocPlaceholders = [];
 
 // CSD is deliberately absent: buildOrgTree() derives csds from Level==='CSD' with
 // no placeholder check, so a placeholder CSD would render as a real CSD node, own
-// projects, and appear in the reporting-lines editor.
-const OC_PLACEHOLDER_LEVELS = ['PTP','SDM', 'STP', 'TP'];
+// projects, and appear in the reporting-lines editor. Derived from
+// CONFIG.PEOPLE_LEVELS (minus CSD) rather than a separate hardcoded copy —
+// stays in sync with the canonical order by construction.
+const OC_PLACEHOLDER_LEVELS = CONFIG.PEOPLE_LEVELS.filter(l => l !== 'CSD');
 
 function _ocFormError(msg) {
   const el = document.getElementById('ph-form-error');

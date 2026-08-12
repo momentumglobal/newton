@@ -292,6 +292,7 @@ body {
 }
 .form-actions { display: flex; gap: var(--sp-6); margin-top: var(--sp-9); }
 .form-error {
+  .form-error {
   display: none;
   background: var(--c-danger-bg-soft);
   border: 1px solid #e57373;
@@ -301,6 +302,18 @@ body {
   margin-bottom: var(--sp-7);
   font-size: var(--fs-13);
 }
+.form-status--ok    { color: var(--c-success); }
+.form-status--error { color: var(--c-danger); }
+.form-danger-box {
+  display: none;
+  background: var(--c-danger-bg-soft);
+  border: 1px solid #e57373;
+  padding: var(--sp-5) 14px;
+  border-radius: var(--r-md);
+  margin-bottom: var(--sp-7);
+  font-size: var(--fs-13);
+}
+.btn-danger-confirm { background: var(--c-danger); }
 /* ── Buttons ────────────────────────────────────────────────────────── */
 .btn-primary {
   background: var(--c-brand);

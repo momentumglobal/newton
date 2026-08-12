@@ -326,7 +326,9 @@ function _renderRevenuePanel(rows) {
   rows.forEach(r => {
     byType[r.ProjectType] = (byType[r.ProjectType] || 0) + r.BilledRevenue;
   });
-  const typeOrder = ['Embedded','CoE','Transformation','LCI'];
+  // N-116: derived from config so new project types appear automatically
+  const typeOrder = CONFIG.ASSIGNMENT_PROJECT_TYPES
+    .filter(t => !CONFIG.NON_REVENUE_PROJECT_TYPES.includes(t));
   const typeRows = typeOrder
     .filter(t => byType[t] !== undefined)
     .map(t => `<tr><td>${t}</td><td>${_fmtGBP(byType[t])}</td></tr>`).join('');

@@ -154,6 +154,18 @@ function splitFeeForecastEvents(f) {
   return events;
 }
 
+// N-116: one label for both the tracker Rate column and the Gantt tooltip.
+function assignmentRateLabel(a) {
+  const gbp = (v) => '£' + Number(v).toLocaleString('en-GB');
+  if (isSplitFeeAssignment(a)) {
+    const r = parseFloat(a.RetainerFee)  || 0;
+    const p = parseFloat(a.PlacementFee) || 0;
+    if (!r && !p) return '—';
+    return `${r ? gbp(r) : '—'} + ${p ? gbp(p) : '—'} (split)`;
+  }
+  return a.MonthlyBillRate ? gbp(a.MonthlyBillRate) : '—';
+}
+
 function computeMonthlyRows(assignments) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const rows = [];

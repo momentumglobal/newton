@@ -144,7 +144,8 @@ function _forecastModal() {
         </div>
         <div class="form-group">
           <label>Forecasted Headcount *</label>
-          <input type="number" id="forecast-hc" class="form-control" min="1" step="1">
+          <input type="number" id="forecast-hc" class="form-control" min="1" step="1"
+            data-min-retained="1" data-min-split="0">
           <span class="form-hint" id="forecast-hc-hint"></span>
         </div>
         <div class="form-group" id="forecast-rate-group">
@@ -224,9 +225,11 @@ function closeForecastModal() {
   document.getElementById('forecast-modal').style.display = 'none';
 }
 
-// N-116: Exec Search / MG AI forecast a retainer + placement fee per search
-// instead of a monthly rate per head, so the fields swap and the Headcount
-// label's meaning changes from "people" to "searches".
+// N-116: Exec Search / MG AI forecast a flat retainer + placement fee for the
+// whole line instead of a monthly rate per head, so the fee fields swap in. The
+// Headcount label is UNCHANGED on every type — one TP can run several concurrent
+// engagements, so headcount is a people count, never an engagement count. It
+// drives utilisation only and is not part of the revenue calculation.
 function _onForecastTypeChange() {
   const type    = document.getElementById('forecast-type')?.value;
   const isSplit = CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(type);
@@ -234,6 +237,13 @@ function _onForecastTypeChange() {
     ?.classList.toggle('is-hidden', isSplit);
   document.getElementById('forecast-splitfee-group')
     ?.classList.toggle('is-hidden', !isSplit);
+  // N-116 QA2: the spinner must be able to reach 0 on a split-fee line, or the
+  // hint below tells the user to do something the control won't allow. Retained
+  // lines keep their floor of 1 so the guard stays visible, not just at save.
+  const hcInput = document.getElementById('forecast-hc');
+  if (hcInput) {
+    hcInput.min = isSplit ? hcInput.dataset.minSplit : hcInput.dataset.minRetained;
+  }
   const hint = document.getElementById('forecast-hc-hint');
   if (hint) {
     hint.textContent = isSplit

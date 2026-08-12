@@ -199,11 +199,10 @@ const filtered = assignments.filter(a => {
       </div>
     </div>`;
 
-  const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
-filtered.sort((a, b) => {
+  filtered.sort((a, b) => {
   const c = (a.Customer || '').localeCompare(b.Customer || '');
   if (c !== 0) return c;
-  const l = (levelOrder[a.Level] ?? 99) - (levelOrder[b.Level] ?? 99);
+  const l = levelSortIndex(a.Level) - levelSortIndex(b.Level);
   if (l !== 0) return l;
   return (a.EmployeeName || '').localeCompare(b.EmployeeName || '');
 });
@@ -280,7 +279,7 @@ async function _syncBenchAssignments() {
 
     // Only sync active employees at billable levels
     const billable = people.filter(p =>
-      p.IsActive !== false && ['SDM','STP','TP'].includes(p.Level)
+      p.IsActive !== false && isBillableLevel(p.Level)
     );
 
     // Existing auto-generated bench records (so we can diff)

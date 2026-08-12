@@ -42,6 +42,14 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### August 2026 — Split-fee revenue: Exec Search & MG AI
+
+**New: split-fee product lines** — two new project types, Exec Search and MG AI, bill as a retainer plus a placement fee rather than a monthly rate. Selecting either on an assignment swaps the Monthly Bill Rate field for **Retainer (£)** and **Placement Fee (£)**; every other project type is unchanged. The retainer is recognised in the assignment's start month and the placement fee in the **month after** its end month — so an Aug–Oct assignment books its placement fee in November, and a December-ending one books it in January of the following year. Neither is pro-rated. Utilisation is unaffected: a split-fee assignment occupies its person exactly as any other, because billed capacity comes from date overlap and the `Billed` flag, not from the rate.
+
+The same treatment is applied to the Sales Forecast (desktop and mobile), which gains a Project Type selector; on a split-fee line, Forecasted Headcount means **number of searches** and multiplies each fee. Forecast rows saved before this change have no project type and keep their existing monthly-rate behaviour with no backfill needed.
+
+Consolidated the project-type enums and colours, previously duplicated across five files, into `config.js` (`PROJECT_TYPES`, `ASSIGNMENT_PROJECT_TYPES`, `SPLIT_FEE_PROJECT_TYPES`, `PROJECT_TYPE_COLOUR_VARS`) and `--c-ptype-*` tokens in `style.css`. New `Assignments` columns `RetainerFee`/`PlacementFee`; new `SalesForecasts` columns `ProjectType`/`RetainerFee`/`PlacementFee`.
+
 ### August 2026 — Project filters, PTP level, Command Centre trend arrow, and fixes
 
 **New: Active/Archive project filters (Reporting module)** — every project dropdown across Roles, Weekly Activity, Placements, Rejected Offers, the Project Dashboard selector, and the Report Builder's project selector now groups projects into two sorted sections, Active (Status = Active/Transition) and Archive (Status = Completed). The Add Role, Add Weekly Activity, and Record Placement forms show Active projects only when creating a new record — editing an existing record still shows its project even if that project has since moved to Archive. New shared helpers in `js/utils.js`: `isProjectActive()`, `sortProjectsByName()`, `buildProjectOptionsHtml()`.

@@ -85,7 +85,7 @@ const totalActiveHeadcount = people.filter(
       const isFc     = isForecastAssignment(a);
       const startStr = new Date(a.StartDate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
       const endStr   = new Date(a.EndDate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
-      const rate     = a.MonthlyBillRate ? '£' + Number(a.MonthlyBillRate).toLocaleString('en-GB') : '—';
+      const rate     = assignmentRateLabel(a);
       const tooltip  = `${escHtml(a.Customer || 'Unassigned')}${isFc ? ' (Forecast)' : ''} · ${rate} · ${startStr} – ${endStr}`;
       const bg = isFc
         ? 'repeating-linear-gradient(45deg,#FAD9BC,#FAD9BC 5px,#FDF0E3 5px,#FDF0E3 10px)'

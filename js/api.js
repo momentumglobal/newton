@@ -648,9 +648,8 @@ async function getPeople(activeOnly = true, includePlaceholders = false) {
   const filter = activeOnly ? "fields/IsActive eq 1" : "";
   const all = await getItems("People", filter);
   const people = includePlaceholders ? all : all.filter(p => !p.IsPlaceholder);
-  const levelOrder = { CSD: 0, SDM: 1, STP: 2, TP: 3 };
   return people.sort((a, b) => {
-    const lDiff = (levelOrder[a.Level] ?? 99) - (levelOrder[b.Level] ?? 99);
+    const lDiff = levelSortIndex(a.Level) - levelSortIndex(b.Level);
     if (lDiff !== 0) return lDiff;
     return (a.EmployeeName || "").localeCompare(b.EmployeeName || "");
   });

@@ -215,7 +215,7 @@ const filtered = assignments.filter(a => {
       <td>${escHtml(a.ProjectType || '—')}</td>
       <td>${a.StartDate ? a.StartDate.split('T')[0] : '—'}</td>
       <td>${a.EndDate   ? a.EndDate.split('T')[0]   : '—'}</td>
-      <td>${a.MonthlyBillRate ? '£' + Number(a.MonthlyBillRate).toLocaleString('en-GB') : '—'}</td>
+      <td>${assignmentRateLabel(a)}</td>
       <td><span class='badge badge-${a.Billed==="Yes"?"active":"inactive"}'>${escHtml(a.Billed)}</span>${
         isForecastAssignment(a) ? ` <span class='badge' style='background:#fff3e0;color:#b45309'>Forecast</span>` : ''}</td>
       ${canEdit ? `<td><div class='row-actions'>

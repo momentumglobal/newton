@@ -47,8 +47,11 @@ function renderProjectForm(existingData = null) {
         <div class="form-group">
           <label>Project Type *</label>
           <select name="ProjectType" required>
-            <option value="Embedded" ${(!existingData?.ProjectType || existingData?.ProjectType === 'Embedded') ? 'selected' : ''}>Embedded</option>
-            <option value="CoE" ${existingData?.ProjectType === 'CoE' ? 'selected' : ''}>CoE</option>
+            ${CONFIG.PROJECT_TYPES.map(t => `
+            <option value="${escAttr(t)}" ${
+              (existingData?.ProjectType === t
+                || (!existingData?.ProjectType && t === 'Embedded')) ? 'selected' : ''
+            }>${escHtml(t)}</option>`).join('')}
           </select>
         </div>
         <div class="form-row">

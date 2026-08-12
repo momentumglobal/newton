@@ -440,9 +440,25 @@ function _fmtPct(n) {
   return ((n || 0) * 100).toFixed(1) + '%';
 }
 
+// ── People.Level helpers (N-117) ────────────────────────────────
+// Sort rank for a Level value, per CONFIG.PEOPLE_LEVELS order. Unknown/blank
+// levels sort last (99), matching every levelOrder map's prior fallback.
+function levelSortIndex(level) {
+  const i = CONFIG.PEOPLE_LEVELS.indexOf(level);
+  return i === -1 ? 99 : i;
+}
+
+// True for every "billable team" level (everyone except CSD). Single source
+// of truth for the "counts toward TP-tier headcount/utilisation" line — a
+// future new Level value only ever needs to be added to CONFIG.PEOPLE_LEVELS
+// for this to keep working, no call site needs to change.
+function isBillableLevel(level) {
+  return level !== 'CSD';
+}
+
 // Calculates utilisation % from an array of monthly rows.
 function _calcUtilisation(rows) {
-  const filtered  = rows.filter(r => r.Level !== 'CSD');
+  const filtered  = rows.filter(r => isBillableLevel(r.Level));
   const billedCap = filtered.reduce((s, r) => s + r.BilledCapacity, 0);
   const totalCap  = filtered.reduce((s, r) => s + r.Capacity, 0);
   return totalCap > 0 ? billedCap / totalCap : 0;

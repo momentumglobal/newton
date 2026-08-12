@@ -19,7 +19,7 @@ function renderPersonForm(existingData = null) {
           <div class='form-group'>
             <label>Level *</label>
             <select name='Level' required>
-              ${['CSD','SDM','STP','TP'].map(l =>
+              ${CONFIG.PEOPLE_LEVELS.map(l =>
                 `<option value='${l}' ${existingData?.Level===l?'selected':''}>${l}</option>`
               ).join('')}
             </select>

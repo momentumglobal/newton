@@ -750,6 +750,8 @@ async function createAssignment(fields) {
     StartDate:       fields.StartDate,
     EndDate:         fields.EndDate,
     MonthlyBillRate: fields.MonthlyBillRate || undefined,
+    RetainerFee:     fields.RetainerFee  || undefined,   // N-116 split-fee
+    PlacementFee:    fields.PlacementFee || undefined,   // N-116 split-fee
     Billed:          fields.Billed,
     Country:         fields.Country,
     IsForecast:      fields.IsForecast || false,
@@ -766,6 +768,8 @@ async function updateAssignment(id, fields) {
   if (fields.StartDate       !== undefined) payload.StartDate       = fields.StartDate;
   if (fields.EndDate         !== undefined) payload.EndDate         = fields.EndDate;
   if (fields.MonthlyBillRate !== undefined) payload.MonthlyBillRate = fields.MonthlyBillRate;
+  if (fields.RetainerFee     !== undefined) payload.RetainerFee     = fields.RetainerFee;
+  if (fields.PlacementFee    !== undefined) payload.PlacementFee    = fields.PlacementFee;
   if (fields.Billed          !== undefined) payload.Billed          = fields.Billed;
   if (fields.Country         !== undefined) payload.Country         = fields.Country;
   if (fields.IsForecast      !== undefined) payload.IsForecast      = fields.IsForecast;

@@ -94,7 +94,9 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
     return { kind: 'person', label: p.EmployeeName,
       // Placeholders carry no sub-label — the vacancy is stated in the name itself.
       sub: ph ? '' : `${p.Level || ''}${p.Location ? ' · ' + p.Location : ''}`,
-      _band: ph ? '' : (p.Level === 'STP' ? 'TP' : p.Level),
+      // STP and PTP both render in the TP band colour (.org-node--tp) — no
+      // separate CSS needed for either.
+      _band: ph ? '' : ((p.Level === 'STP' || p.Level === 'PTP') ? 'TP' : p.Level),
       _placeholder: ph, _photo: p.PhotoUrl, children: [] };
   };
 
@@ -273,7 +275,7 @@ let _ocPlaceholders = [];
 // CSD is deliberately absent: buildOrgTree() derives csds from Level==='CSD' with
 // no placeholder check, so a placeholder CSD would render as a real CSD node, own
 // projects, and appear in the reporting-lines editor.
-const OC_PLACEHOLDER_LEVELS = ['SDM', 'STP', 'TP'];
+const OC_PLACEHOLDER_LEVELS = ['PTP','SDM', 'STP', 'TP'];
 
 function _ocFormError(msg) {
   const el = document.getElementById('ph-form-error');

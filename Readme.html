@@ -299,7 +299,7 @@
       <a class="sidebar-link" onclick="show('changelog')">Changelog</a>
       <a class="sidebar-link" onclick="show('backlog')">Backlog &amp; Future Work</a>
     </nav>
-    <div class="sidebar-footer">Newton v2 &middot; June 2026</div>
+    <div class="sidebar-footer">Newton v2 &middot; August 2026</div>
   </div>
 
   <!-- ── Main ── -->
@@ -311,7 +311,7 @@
       <div class="cover-sub">System Directory &amp; Developer Reference</div>
       <div class="cover-meta">
         <div class="cover-meta-item"><label>Version</label><span>v2 (notifications + premium UI)</span></div>
-        <div class="cover-meta-item"><label>Last updated</label><span>June 2026</span></div>
+        <div class="cover-meta-item"><label>Last updated</label><span>August 2026</span></div>
         <div class="cover-meta-item"><label>Organisation</label><span>Momentum Global</span></div>
         <div class="cover-meta-item"><label>Platform</label><span>GitHub Pages + SharePoint</span></div>
       </div>
@@ -389,7 +389,7 @@
       <table>
         <tr><th>Interface</th><th>File</th><th>Purpose</th></tr>
         <tr><td>Newton OS Admin</td><td><span class="file-tag">admin.html</span></td><td>Platform-level admin: User Assignments, Leadership Access, Homepage settings, Ghost Mode</td></tr>
-        <tr><td>Config Panel</td><td>In-app (Reporting module)</td><td>Module-level admin: Departments, Currencies, Delete Records</td></tr>
+        <tr><td>Config Panel</td><td>In-app (Reporting module)</td><td>Module-level admin: Departments, Currencies, Delete Records, Snapshots (manual "Write Snapshot Now" + recent rows)</td></tr>
       </table>
 
       <h3>Module switcher</h3>
@@ -405,6 +405,11 @@
         <tr><td><strong>Utilisation</strong></td><td>13-week forecast % (known assignments this month via <code>computeMonthlyRows()</code> + SalesForecasts headcount / total active headcount)</td><td>≥85%</td><td>≥75%</td><td>&lt;75%</td></tr>
       </table>
       <div class="callout">RAG thresholds are centralised in config.js: Utilisation in <code>CONFIG.UTILISATION_THRESHOLDS</code> (<code>green: 0.85, amber: 0.75</code>) and Revenue in <code>CONFIG.REVENUE_THRESHOLDS</code> (<code>green: 225000, amber: 200000</code> — monthly £). Never hardcode these values in page scripts.</div>
+
+      <h3>Health tile trend arrow</h3>
+      <p>The Health tile shows a small trend arrow next to its title once 3+ distinct weeks of <strong>Snapshots</strong> history exist, comparing the two most recent weeks' company-wide <code>FlaggedCount ÷ OpenRoles</code> ratio across active projects. Green/down = improving, red/up = worsening, grey/flat = unchanged. Below 3 weeks it renders nothing. A <code>?</code> tooltip beside the title explains the mechanism regardless of whether the arrow itself is showing. Logic lives in <code>computeHealthTrend()</code> / <code>_ccTrendArrowHTML()</code> in cc-pages.js — deliberately not promoted to analytics.js, since nothing else consumes it. Revenue, People and Utilisation tiles do not get a trend arrow (no Snapshots-backed data for Revenue; Utilisation was descoped; People's RAG needs a per-TP breakdown Snapshots doesn't track).</p>
+
+      <h3>CCStatus SharePoint list</h3>
 
       <h3>CCStatus SharePoint list</h3>
       <p>The homepage refresh button computes the four RAG values and writes them to the <strong>CCStatus</strong> SharePoint list. The homepage reads CCStatus on load to display badge colours instantly without recomputing. The <code>revenue</code> row is auto-created on first refresh (shows neutral/grey until then) — no schema change required.</p>
@@ -545,9 +550,9 @@
       <h3>Shared JavaScript (all modules)</h3>
       <table>
         <tr><th>File</th><th>Responsibility</th><th>Key exports</th></tr>
-        <tr><td><span class="file-tag">js/config.js</span></td><td>Static app configuration</td><td>CONFIG, CONFIG.OS_MODULES, CONFIG.UTILISATION_THRESHOLDS, getUserRole(), getUserRoleAsync()</td></tr>
+        <tr><td><span class="file-tag">js/config.js</span></td><td>Static app configuration</td><td>CONFIG, CONFIG.OS_MODULES, CONFIG.UTILISATION_THRESHOLDS, CONFIG.PEOPLE_LEVELS, getUserRole(), getUserRoleAsync()</td></tr>
         <tr><td><span class="file-tag">js/auth.js</span></td><td>MSAL authentication only</td><td>signIn(), signOut(), getToken(), getCurrentUser(), isSignedIn()</td></tr>
-        <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), computeMonthlyRevenueForYear(), computeMonthlyForecastRevenueForYear(), getAssignmentDataYears(), formatSalary(), daysOpen(), ghost mode helpers</td></tr>
+        <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), computeMonthlyRevenueForYear(), computeMonthlyForecastRevenueForYear(), getAssignmentDataYears(), formatSalary(), daysOpen(), ghost mode helpers, isProjectActive(), sortProjectsByName(), buildProjectOptionsHtml(), levelSortIndex(), isBillableLevel()</td></tr>
         <tr><td><span class="file-tag">js/api.js</span></td><td>All SharePoint/Graph API calls</td><td>getItems(), createItem(), updateItem(), deleteItem(), getEffectiveRole(), all list-specific helpers</td></tr>
         <tr><td><span class="file-tag">js/nav-core.js</span></td><td>Shared sidebar renderer</td><td>renderModuleNav(), updateNavActiveLink(), exitGhostMode()</td></tr>
         <tr><td><span class="file-tag">js/notifications.js</span></td><td>In-app notification engine — bell, drawer, triggers</td><td>fireNotification(), clearNotification(), renderNotificationBell(), markRead(), paintBell(), notifEsc(). Suppressed in ghost mode. Loaded after nav-core.js on every sidebar page + on index.html.</td></tr>
@@ -565,10 +570,10 @@
         <tr><td><span class="file-tag">js/dashboard-project-panels.js</span></td><td>Project Dashboard panel renderers (incl. Role Analytics panel), REPORT_PANELS registry</td></tr>
         <tr><td><span class="file-tag">js/dashboard-project.js</span></td><td>Project Dashboard entry/orchestration</td></tr>
         <tr><td><span class="file-tag">js/dashboard-company.js</span></td><td>Company Dashboard</td></tr>
-        <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions — computeTTFPrediction(), computeRoleFunnel(), computeVelocityScore(), isRoleFlagged(), ACTIVE_STAGES, STAGE_ORDER. Loaded by reporting.html, people.html, market-reporting.html, and command-centre.html.</td></tr>
+        <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions — computeTTFPrediction(), computeRoleFunnel(), computeVelocityScore(), isRoleFlagged(), computeSnapshotMetrics(), ACTIVE_STAGES, STAGE_ORDER. Loaded by reporting.html, people.html, market-reporting.html, and command-centre.html.</td></tr>
         <tr><td><span class="file-tag">js/report-builder.js</span></td><td>Report Builder — block canvas, save/load, PDF export</td></tr>
         <tr><td><span class="file-tag">js/coe-plan.js</span></td><td>Hiring Plan (CoE projects) — Gantt builder, weekly capacity strip, forecast vs planned table, role linkage with actuals overlay, admin-only Delete Plan (bulk row delete; Roles/Placements/Forecast kept). Week indexing uses <code>Math.round</code>, never floor — local-midnight Mondays sit ±1h off exact weeks across the GMT/BST switch</td></tr>
-        <tr><td><span class="file-tag">js/admin.js</span></td><td>Config Panel — Departments, Currencies, Delete Records</td></tr>
+        <tr><td><span class="file-tag">js/admin.js</span></td><td>Config Panel — Departments, Currencies, Delete Records, Snapshots (buildSnapshotsTab(), writeSnapshotsNow())</td></tr>
       </table>
 
       <h3>People module</h3>
@@ -632,7 +637,7 @@
         <tr><td><span class="file-tag">js/cc-router.js</span></td><td>Page registry for Command Centre. Defines CC_PAGES, ccCanAccess(), ccGetAccessiblePages(). Access: Admin and Leadership only.</td></tr>
         <tr><td><span class="file-tag">js/cc-nav.js</span></td><td>Calls renderModuleNav() with CC params. renderCCNav(), toggleCCModuleDropdown(), navigateToCC().</td></tr>
         <tr><td><span class="file-tag">js/cc-app.js</span></td><td>Module init — MSAL redirect, role check, sets app-shell display:flex, calls renderCCNav() and renderCCOverview().</td></tr>
-        <tr><td><span class="file-tag">js/cc-pages.js</span></td><td>All CC renderers: renderCCOverview(), tile builders, RAG calculations (computeRevenueRAG, computeProjectHealthRAG, computePeopleRAG, computeUtilisationRAG), expandable detail panel renderers (renderRevenueDetail — calls the shared chart, renderHealthDetail, renderPeopleDetail, renderUtilDetail). Revenue helpers: _ccRevenueCalc(), ccRevenueStats().</td></tr>
+        <tr><td><span class="file-tag">js/cc-pages.js</span></td><td>All CC renderers: renderCCOverview(), tile builders, RAG calculations (computeRevenueRAG, computeProjectHealthRAG, computePeopleRAG, computeUtilisationRAG), expandable detail panel renderers (renderRevenueDetail — calls the shared chart, renderHealthDetail, renderPeopleDetail, renderUtilDetail). Revenue helpers: _ccRevenueCalc(), ccRevenueStats(). Health tile trend arrow: computeHealthTrend(), _ccTrendArrowHTML() — reads Snapshots, degrades to nothing below 3 weeks of history.</td></tr>
       </table>
 
       <h3>Admin</h3>
@@ -742,12 +747,13 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <tr><td><strong>AppSettings</strong></td><td>Single-row config (Title = "config")</td><td>AnnouncementMessage, SeasonalEffect</td></tr>
         <tr><td><strong>CCStatus</strong></td><td>Command Centre RAG state — one row per tile</td><td>Title (<code>revenue</code> / <code>health</code> / <code>people</code> / <code>util</code>), RAG (<code>green</code> / <code>amber</code> / <code>red</code> / <code>grey</code>). Written by index.html refresh button. Read by index.html on load. The <code>revenue</code> row is auto-created on first refresh.</td></tr>
         <tr><td><strong>Notifications</strong></td><td>In-app notification rows — one per recipient</td><td>RecipientEmail (email), TriggerType (<code>roleFlag</code> / <code>ccRed</code> / <code>surveyClose</code> / <code>placement</code> / <code>firstPlacement</code>), TriggerKey (dedupe), Status (<code>active</code> / <code>cleared</code>), IsRead (Yes/No), Tone (<code>attention</code> / <code>celebrate</code> / <code>milestone</code>), DeepLink, Body, CreatedAt. Written by triggers in index.html (refreshCCBanner) and forms.js (submitPlacementForm). FIELD_ALIASES entry must be <code>Notifications: {}</code>.</td></tr>
+        <tr><td><strong>Snapshots</strong></td><td>Time-series metrics — one row per project per week</td><td>ProjectID, WeekEndingDate (Sunday, mirrors WeeklyActivity), OpenRoles, RolesByStage (JSON), AvgDaysOpen, PlacementsInPeriod, ActivityTotals (JSON), FlaggedCount, Utilisation (nullable — descoped in N-114, always null today), CreatedAt. Written by the Config Panel's "Write Snapshot Now" action (admin.js); read by the Command Centre Health tile trend arrow (cc-pages.js). FIELD_ALIASES entry is <code>Snapshots: {}</code>.</td></tr>
       </table>
 
       <h3>People module lists</h3>
       <table>
         <tr><th>List</th><th>Title alias</th><th>Key fields</th></tr>
-        <tr><td><strong>People</strong></td><td>EmployeeName</td><td>Level (CSD/SDM/STP/TP), ContractType, Location, StartDate, EndDate, IsActive</td></tr>
+        <tr><td><strong>People</strong></td><td>EmployeeName</td><td>Level (CSD/SDM/STP/TP/PTP — canonical order in <code>CONFIG.PEOPLE_LEVELS</code>), ContractType, Location, StartDate, EndDate, IsActive</td></tr>
         <tr><td><strong>Assignments</strong></td><td>AssignmentID</td><td>EmployeeName, Level, Customer, ProjectType, StartDate, EndDate, MonthlyBillRate, Billed, Country, AutoGenerated</td></tr>
         <tr><td><strong>GPInvoices</strong></td><td>InvoiceNumber</td><td>InvoiceDate, DueDate, Amount, Status, Notes</td></tr>
       </table>
@@ -1007,7 +1013,18 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 
       <div class="changelog-entry">
         <div class="changelog-date">August 2026</div>
-        <div class="changelog-title">Hardening block — escaping, design tokens, Hiring Plan & LCI copy fixes (N-057, N-067, N-077, N-080–N-082)</div>
+        <div class="changelog-title">Project filters, PTP level, Command Centre trend arrow, and fixes (N-075, N-076, N-083–N-085, N-108, N-111, N-112, N-114, N-117)</div>
+        <ul>
+          <li><strong>Active/Archive project filters (N-112):</strong> every project dropdown in the Reporting module now groups projects into Active (Status Active/Transition) and Archive (Status Completed) sections, A-Z within each. Add Role, Add Weekly Activity and Record Placement forms show Active projects only when creating new records; editing an existing record still shows its project. New shared helpers <code>isProjectActive()</code>, <code>sortProjectsByName()</code>, <code>buildProjectOptionsHtml()</code> in utils.js.</li>
+          <li><strong>PTP employee level (N-117):</strong> new fifth <code>People.Level</code> value, ranked below TP, treated identically to TP everywhere the app already treated SDM/STP/TP as the billable team tier. Job-grade only — no change to permission roles. Consolidated 9 files' worth of duplicated level-order/billable-filter logic into <code>levelSortIndex()</code> / <code>isBillableLevel()</code> in utils.js.</li>
+          <li><strong>Time-series snapshots + CC trend arrow (N-085/N-108/N-114):</strong> new <code>Snapshots</code> list, populated by a manual "Write Snapshot Now" action in the Config Panel. Command Centre Health tile gets a trend arrow once 3+ weeks of history exist. Per-project Utilisation was tried and descoped (N-114) — structurally near-100% by construction, not a meaningful signal. The automated weekly writer (Power Automate, N-086) was dropped 11 Aug 2026; a GitHub Actions replacement (N-086.1) is scoped but not built.</li>
+          <li><strong>Bug fixes:</strong> notification bell items are now clickable (N-075, deep-link wiring was dead); editing a role no longer drops the selected project (N-083); a same-day new Assignment no longer shows staff as Unassigned in the Org Chart (N-084, ISO date fix); Snapshots' weekly stage breakdown no longer counts terminal Hired/Cancelled roles (N-111); removed the unused <code>Projects.Yeare</code> field alias (N-076).</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">August 2026</div>
+        <div class="changelog-title">Hardening block — escaping, design tokens, Hiring Plan &amp; LCI copy fixes (N-057, N-067, N-077, N-080–N-082)</div>
         <ul>
           <li><strong>forms.js escaping pass (N-057):</strong> every data interpolation context-escaped (escAttr/escHtml); first file of the F-5b series.</li>
           <li><strong>Design tokens (N-067):</strong> 112-token <code>:root</code> vocabulary in style.css, definitions only; rewires follow in N-068–72.</li>

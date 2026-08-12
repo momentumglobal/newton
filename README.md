@@ -42,6 +42,21 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### August 2026 — Project filters, PTP level, Command Centre trend arrow, and fixes
+
+**New: Active/Archive project filters (Reporting module)** — every project dropdown across Roles, Weekly Activity, Placements, Rejected Offers, the Project Dashboard selector, and the Report Builder's project selector now groups projects into two sorted sections, Active (Status = Active/Transition) and Archive (Status = Completed). The Add Role, Add Weekly Activity, and Record Placement forms show Active projects only when creating a new record — editing an existing record still shows its project even if that project has since moved to Archive. New shared helpers in `js/utils.js`: `isProjectActive()`, `sortProjectsByName()`, `buildProjectOptionsHtml()`.
+
+**New: PTP employee level (People module)** — `People.Level` gains a fifth value, PTP, ranked immediately below TP. PTP employees are treated identically to TP in every "billable team" calculation — headcount, utilisation, roster/Gantt sort order, Org Chart banding (renders in the same colour as TP) and placeholder ("vacancy") creation. This is a job-grade change only: PTP employees still authenticate via the existing `talent_partner` permission role, so login access is unchanged. Consolidated the level-order and billable-filter logic — previously duplicated across 9 files — into two shared helpers, `levelSortIndex()` and `isBillableLevel()`, in `js/utils.js`.
+
+**New: Time-series snapshots + Command Centre Health trend arrow** — a new `Snapshots` SharePoint list (one row per project per week: open roles, roles by stage, avg days open, placements, activity totals, flagged count) is populated by a "Write Snapshot Now" action on a new Snapshots tab in the Config Panel. Once 3+ weeks of history exist, the Command Centre's Health tile shows a small trend arrow (hover for an explainer tooltip) indicating whether the company-wide flagged-role rate is improving or worsening week over week; it shows nothing below that threshold. An earlier plan to automate the weekly write via Power Automate was dropped 11 Aug 2026 in favour of a future GitHub Actions-based writer (not yet built) — for now, someone needs to click "Write Snapshot Now" weekly. A parallel plan to track per-project Utilisation in Snapshots was descoped after testing showed the metric is structurally always near-100% at the per-project level, which would make it meaningless.
+
+**Bug fixes**
+- Notification bell items are now clickable — the deep-link wiring existed but was never connected to the click handler.
+- Editing a role in the Reporting module no longer loses the selected project on load.
+- A new customer assignment starting today no longer shows the affected team members as Unassigned in the Org Chart (date-comparison fix).
+- The weekly pipeline-stage breakdown behind Snapshots no longer counts terminal `Hired`/`Cancelled` roles, which was drowning out genuinely in-flight stages.
+- Removed the unused `Projects.Yeare` field alias.
+
 ### August 2026 — LCI Cost Model: Export to Excel (Sales module)
 
 **New: Export to Excel** on the LCI model Summary page, beside Print / PDF. Produces a branded seven-sheet workbook containing every input, assumption and derived figure behind the client PDF — built as an **internal working file**, not a client deliverable. New file `js/lci-excel.js`; no SharePoint change.

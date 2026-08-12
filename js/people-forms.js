@@ -174,8 +174,10 @@ async function renderAssignmentForm(existingData = null) {
           <div class='form-group'>
             <label>Project Type *</label>
             <select name='ProjectType' required>
-              ${['Embedded','CoE','Transformation','LCI','Internal'].map(t =>
-                `<option value='${t}' ${existingData?.ProjectType===t?'selected':''}>${t}</option>`
+              ${CONFIG.ASSIGNMENT_PROJECT_TYPES.map(t =>
+                `<option value='${escAttr(t)}' ${
+                  existingData?.ProjectType===t?'selected':''
+                }>${escHtml(t)}</option>`
               ).join('')}
             </select>
           </div>

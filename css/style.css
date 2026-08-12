@@ -293,7 +293,6 @@ body {
 }
 .form-actions { display: flex; gap: var(--sp-6); margin-top: var(--sp-9); }
 .form-error {
-  .form-error {
   display: none;
   background: var(--c-danger-bg-soft);
   border: 1px solid #e57373;

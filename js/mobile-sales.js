@@ -39,8 +39,11 @@ async function mobileRenderSalesForecast(main) {
         <div class="m-role-title">${escHtml(f.Title || '-')}</div>
         <div class="m-role-meta">${msFmtForecastDate(f.ForecastStartDate)} - ${msFmtForecastDate(f.ForecastEndDate)}</div>
         <div class="m-role-footer">
-          <span class="m-stage-badge">${f.ForecastedHeadcount ?? '-'} HC</span>
-          ${f.ForecastMonthlyRevenuePerHead ? `<span class="m-days-open">£${Number(f.ForecastMonthlyRevenuePerHead).toLocaleString('en-GB')}/head</span>` : ''}
+          <span class="m-stage-badge">${f.ForecastedHeadcount ?? '-'} ${
+            CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(f.ProjectType) ? 'searches' : 'HC'}</span>
+          ${CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(f.ProjectType)
+            ? `<span class="m-days-open">£${Number((parseFloat(f.RetainerFee)||0) + (parseFloat(f.PlacementFee)||0)).toLocaleString('en-GB')}/search</span>`
+            : (f.ForecastMonthlyRevenuePerHead ? `<span class="m-days-open">£${Number(f.ForecastMonthlyRevenuePerHead).toLocaleString('en-GB')}/head</span>` : '')}
         </div>
       </div>`).join('');
 
@@ -82,14 +85,33 @@ async function mobileSalesForecastForm(editId) {
           <input class="m-input" type="date" id="msf-end" value="${dVal(f.ForecastEndDate)}">
         </div>
       </div>
+      <div class="m-form-group">
+        <label class="m-label">Project Type *</label>
+        <select class="m-input" id="msf-type" onchange="_msfTypeChange()">
+          ${CONFIG.PROJECT_TYPES.map(t =>
+            `<option value="${escAttr(t)}" ${
+              (CONFIG.PROJECT_TYPES.includes(f.ProjectType) ? f.ProjectType : CONFIG.PROJECT_TYPES[0]) === t
+                ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
+        </select>
+      </div>
       <div class="m-input-row">
         <div class="m-form-group">
-          <label class="m-label">Headcount *</label>
+          <label class="m-label" id="msf-hc-label">Headcount *</label>
           <input class="m-input" type="number" id="msf-hc" min="1" step="1" value="${f.ForecastedHeadcount ?? ''}">
         </div>
-        <div class="m-form-group">
+        <div class="m-form-group" id="msf-rev-group">
           <label class="m-label">Rev / head (£)</label>
           <input class="m-input" type="number" id="msf-rev" min="0" step="100" value="${f.ForecastMonthlyRevenuePerHead ?? ''}">
+        </div>
+      </div>
+      <div class="m-input-row is-hidden" id="msf-splitfee-row">
+        <div class="m-form-group">
+          <label class="m-label">Retainer (£)</label>
+          <input class="m-input" type="number" id="msf-retainer" min="0" step="100" value="${f.RetainerFee ?? ''}">
+        </div>
+        <div class="m-form-group">
+          <label class="m-label">Placement (£)</label>
+          <input class="m-input" type="number" id="msf-placement" min="0" step="100" value="${f.PlacementFee ?? ''}">
         </div>
       </div>
       <div class="m-form-group">
@@ -105,6 +127,17 @@ async function mobileSalesForecastForm(editId) {
       <button class="m-btn-secondary" onclick="mobileNav('sales-forecast', false)">Cancel</button>
     </div>
   `;
+  _msfTypeChange();   // N-116: match the fee fields to the saved/default type
+}
+
+// N-116: mirrors _onForecastTypeChange() on desktop.
+function _msfTypeChange() {
+  const type    = document.getElementById('msf-type')?.value;
+  const isSplit = CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(type);
+  document.getElementById('msf-rev-group')?.classList.toggle('is-hidden', isSplit);
+  document.getElementById('msf-splitfee-row')?.classList.toggle('is-hidden', !isSplit);
+  const label = document.getElementById('msf-hc-label');
+  if (label) label.textContent = isSplit ? 'Searches *' : 'Headcount *';
 }
 
 async function mobileSaveForecast(editId) {
@@ -118,6 +151,10 @@ async function mobileSaveForecast(editId) {
   const end   = document.getElementById('msf-end').value;
   const hc    = parseInt(document.getElementById('msf-hc').value, 10);
   const rev   = document.getElementById('msf-rev').value;
+  const fcType    = document.getElementById('msf-type').value;
+  const retainer  = document.getElementById('msf-retainer').value;
+  const placement = document.getElementById('msf-placement').value;
+  const isSplit   = CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(fcType);
   const notes = document.getElementById('msf-notes').value.trim();
 
   if (!title) return fail('Customer / Project name is required.');
@@ -134,7 +171,11 @@ async function mobileSaveForecast(editId) {
     ForecastStartDate: start,
     ForecastEndDate: end,
     ForecastedHeadcount: hc,
-    ForecastMonthlyRevenuePerHead: rev === '' ? null : parseFloat(rev),
+    ProjectType: fcType,
+    ForecastMonthlyRevenuePerHead:
+      isSplit || rev === '' ? null : parseFloat(rev),
+    RetainerFee:  isSplit && retainer  !== '' ? parseFloat(retainer)  : null,
+    PlacementFee: isSplit && placement !== '' ? parseFloat(placement) : null,
     Notes: notes,
   };
 

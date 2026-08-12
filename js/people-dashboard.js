@@ -255,8 +255,7 @@ async function _renderKPIStrip(allRows, people, assignments) {
 
 // Panel 1 - Team Utilisation
 function _renderUtilisationPanel(rows, people) {
-  const levelOrder = { SDM: 1, STP: 2, TP: 3 };
-  const bands = ['SDM','STP','TP'];
+  const bands = ['PTP.'SDM','STP','TP'];
   const bandRows = bands.map(band => {
     const r        = rows.filter(r => r.Level === band);
     const u        = _calcUtilisation(r);
@@ -266,8 +265,8 @@ function _renderUtilisationPanel(rows, people) {
     return { band, u, utilised, total };
   }).filter(b => b.total > 0);
   const totalUtil     = _calcUtilisation(rows);
-  const totalActive   = new Set(rows.filter(r => ['SDM','STP','TP'].includes(r.Level)).map(r => r.EmployeeName)).size;
-  const totalUtilised = new Set(rows.filter(r => r.Billed === 'Yes' && ['SDM','STP','TP'].includes(r.Level)).map(r => r.EmployeeName)).size;
+  const totalActive   = new Set(rows.filter(r => isBillableLevel(r.Level)).map(r => r.EmployeeName)).size;
+  const totalUtilised = new Set(rows.filter(r => r.Billed === 'Yes' && isBillableLevel(r.Level)).map(r => r.EmployeeName)).size;
   const bandTableRows = bandRows.map(b => `
     <tr>
       <td>${b.band}</td>
@@ -384,10 +383,9 @@ function _renderSegmentationPanel(people) {
       <td>${total > 0 ? ((v/total)*100).toFixed(0) + '%' : '—'}</td>
     </tr>`).join('');
 
-  const levelOrder = { CSD:0, SDM:1, STP:2, TP:3 };
   const byLevel = Object.entries(
     active.reduce((m,p) => { m[p.Level||'Unknown']=(m[p.Level||'Unknown']||0)+1; return m; },{}))
-    .sort((a,b)=>(levelOrder[a[0]]??99)-(levelOrder[b[0]]??99));
+    .sort((a,b)=>levelSortIndex(a[0])-levelSortIndex(b[0]));
 
   return `
     <div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:8px'>
@@ -470,7 +468,7 @@ async function renderPeopleDashboard() {
   ]);
 
   const totalActiveHeadcount = people.filter(
-    p => p.IsActive !== false && ['SDM', 'STP', 'TP'].includes(p.Level)
+    p => p.IsActive !== false && isBillableLevel(p.Level)
   ).length;
 
   const allRows = computeMonthlyRows(assignments);

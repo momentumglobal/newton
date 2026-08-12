@@ -74,6 +74,17 @@
   --c-surface-border: #dde3f0;
   --c-surface-lav: #F9F9FF;
   --c-gray-mid: #ececec;
+  /* Colour — project types (N-116). Consumed via CONFIG.PROJECT_TYPE_COLOUR_VARS;
+     the five original values are transcribed unchanged from the duplicated maps
+     that previously lived in people-gantt.js and org-chart.js. */
+  --c-ptype-embedded: #2E75B6;
+  --c-ptype-coe: var(--c-success);
+  --c-ptype-transformation: var(--c-warn-deep);
+  --c-ptype-lci: #6a1b9a;
+  --c-ptype-exec-search: #00838F;
+  --c-ptype-mg-ai: #AD1457;
+  --c-ptype-internal: var(--c-gray-500);
+  --c-ptype-fallback: var(--c-gray-400);
   /* Colour — white-alpha ramp */
   --c-wa-08: rgba(255,255,255,0.08);
   --c-wa-10: rgba(255,255,255,0.1);
@@ -146,6 +157,8 @@
   --dur-slow: 300ms;
   --dur-slower: 350ms;
 }
+/* Utility — toggled from JS for conditionally-shown form fields (N-116) */
+.is-hidden { display: none !important; }
 body {
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
   background: var(--c-surface);

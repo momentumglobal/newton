@@ -931,6 +931,15 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <li>Never escape inside comparison expressions (<code>selected</code>/<code>checked</code> ternaries compare raw values).</li>
       </ul>
 
+      <h3>Project types and split-fee revenue (N-116)</h3>
+      <ul class="checklist">
+        <li><strong>Two enums, deliberately not one.</strong> <code>CONFIG.PROJECT_TYPES</code> drives the Projects list and the Sales Forecast (Embedded, CoE, Exec Search, MG AI); <code>CONFIG.ASSIGNMENT_PROJECT_TYPES</code> drives Assignments and adds Transformation, LCI, Internal. <code>Projects.ProjectType</code> gates the Hiring Plan page, the LCI link picker and the Report Builder CoE panel, so its list stays narrow. Never redeclare either in a page file.</li>
+        <li>Project-type colours are <code>--c-ptype-*</code> tokens in style.css, surfaced to JS as <code>var()</code> strings via <code>CONFIG.PROJECT_TYPE_COLOUR_VARS</code>. No hex in JS.</li>
+        <li><strong>Split-fee lines</strong> (<code>CONFIG.SPLIT_FEE_PROJECT_TYPES</code> — Exec Search, MG AI) recognise two un-pro-rated lump sums: the retainer in the assignment's start month, the placement fee in the month <em>after</em> its end month. The placement month sits outside the assignment window and may fall in the next calendar year — any loop over "months this assignment overlaps" needs one extra month.</li>
+        <li>A row is either monthly-rate or split-fee, never both. The unused side is written <code>null</code> on save so a type change leaves nothing stale behind to double-count.</li>
+        <li><strong>Month arithmetic on the split-fee path uses <code>monthKeyFromISO()</code> / <code>addMonthsToKey()</code> in utils.js, never <code>new Date().getMonth()</code>.</strong> These slice <code>YYYY-MM</code> straight from the ISO string. SharePoint returns UTC; parsed in BST a month-boundary date can shift a day, and for a lump sum that moves the entire fee into the wrong month — at a year end, the wrong year. This is the same class of bug as the <code>WeekEndingDate</code> gotcha.</li>
+      </ul>
+
       <h3>Dynamic over hardcoded</h3>
       <p>Time-sensitive values are derived at runtime. Example: <code>PLACEMENT_YEARS</code> uses <code>Array.from({length:4}, (_, i) =&gt; new Date().getFullYear() - i)</code> — it never needs updating. Utilisation thresholds use <code>CONFIG.UTILISATION_THRESHOLDS</code> — never hardcode <code>0.85</code> or <code>0.75</code> in page scripts.</p>
 

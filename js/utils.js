@@ -168,31 +168,34 @@ function assignmentRateLabel(a) {
 }
 
 function computeMonthlyRows(assignments) {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  // N-120: anchor "today" to a UTC-midnight instant for the same calendar
+  // day, so it composes safely with the UTC day-overlap arithmetic below —
+  // mixing a local-midnight cap with UTC month boundaries could shift the
+  // current-month cap by up to an hour across a BST/GMT transition.
+  const todayLocal = new Date();
+  const today = new Date(Date.UTC(todayLocal.getFullYear(), todayLocal.getMonth(), todayLocal.getDate()));
   const rows = [];
   for (const a of assignments) {
     if (!a.StartDate || !a.EndDate) continue;
     if (isForecastAssignment(a)) continue; // forecasts never feed utilisation/revenue
-    const aStart = new Date(a.StartDate);
-    const aEnd   = new Date(a.EndDate);
-    aStart.setHours(0,0,0,0);
-    aEnd.setHours(0,0,0,0);
-    const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const aStart = utcDateOnly(a.StartDate);
+    const aEnd   = utcDateOnly(a.EndDate);
+    const thisMonthEnd = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
     const effectiveEnd = aEnd < thisMonthEnd ? aEnd : thisMonthEnd;
     // N-116: null for every non-split-fee assignment, so the branch below is
     // a no-op and existing revenue figures are byte-identical.
     const _splitEvents = isSplitFeeAssignment(a) ? splitFeeRevenueEvents(a) : null;
-    const cur = new Date(aStart.getFullYear(), aStart.getMonth(), 1);
-    const endMonth = new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth(), 1);
+    const cur = new Date(Date.UTC(aStart.getUTCFullYear(), aStart.getUTCMonth(), 1));
+    const endMonth = new Date(Date.UTC(effectiveEnd.getUTCFullYear(), effectiveEnd.getUTCMonth(), 1));
     while (cur <= endMonth) {
-      const year  = cur.getFullYear();
-      const month = cur.getMonth();
-      const monthStart = new Date(year, month, 1);
-      const monthEnd   = new Date(year, month + 1, 0);
+      const year  = cur.getUTCFullYear();
+      const month = cur.getUTCMonth();
+      const monthStart = new Date(Date.UTC(year, month, 1));
+      const monthEnd   = new Date(Date.UTC(year, month + 1, 0));
       const overlapStart = aStart > monthStart ? aStart : monthStart;
       const overlapEnd   = effectiveEnd < monthEnd ? effectiveEnd : monthEnd;
       const daysOverlap = (overlapEnd - overlapStart) / 86400000 + 1;
-      const daysInMonth = monthEnd.getDate();
+      const daysInMonth = monthEnd.getUTCDate();
       const fraction    = daysInMonth > 0 ? daysOverlap / daysInMonth : 0;
       const rate    = parseFloat(a.MonthlyBillRate) || 0;
       const billed  = a.Billed === 'Yes';
@@ -220,7 +223,7 @@ function computeMonthlyRows(assignments) {
         Capacity:         Math.round(fraction * 10000) / 10000,
         BilledCapacity:   billed ? Math.round(fraction * 10000) / 10000 : 0,
       });
-      cur.setMonth(cur.getMonth() + 1);
+      cur.setUTCMonth(cur.getUTCMonth() + 1);
     }
 
     // N-116: the placement fee lands the month AFTER the assignment ends, which
@@ -277,18 +280,18 @@ function computeMonthlyRevenueForYear(assignments, year) {
       continue;
     }
     if (!a.StartDate || !a.EndDate) continue;
-    const aStart = new Date(a.StartDate); aStart.setHours(0,0,0,0);
-    const aEnd   = new Date(a.EndDate);   aEnd.setHours(0,0,0,0);
+    const aStart = utcDateOnly(a.StartDate);
+    const aEnd   = utcDateOnly(a.EndDate);
     const rate   = parseFloat(a.MonthlyBillRate) || 0;
     if (!rate) continue;
     for (let m = 0; m < 12; m++) {
-      const monthStart = new Date(year, m, 1);
-      const monthEnd   = new Date(year, m + 1, 0);
+      const monthStart = new Date(Date.UTC(year, m, 1));
+      const monthEnd   = new Date(Date.UTC(year, m + 1, 0));
       if (aStart > monthEnd || aEnd < monthStart) continue; // no overlap
       const overlapStart = aStart > monthStart ? aStart : monthStart;
       const overlapEnd   = aEnd   < monthEnd   ? aEnd   : monthEnd;
       const daysOverlap  = (overlapEnd - overlapStart) / 86400000 + 1;
-      const daysInMonth  = monthEnd.getDate();
+      const daysInMonth  = monthEnd.getUTCDate();
       const fraction     = daysInMonth > 0 ? daysOverlap / daysInMonth : 0;
       months[m] += rate * fraction;
     }
@@ -379,6 +382,19 @@ function isoDate(dateStr) {
   if (!dateStr) return null;
   const match = String(dateStr).match(/^(\d{4}-\d{2}-\d{2})/);
   return match ? match[1] + 'T12:00:00Z' : null;
+}
+
+// Returns a UTC-midnight Date for the calendar day encoded in `dateStr`
+// (ignores time-of-day/offset in the source string). Use this — never
+// `new Date(str); d.setHours(0,0,0,0)` — for any day-overlap/day-count
+// arithmetic: local setHours() zeroes wall-clock time, not the UTC
+// instant, so months spanning a BST/GMT transition silently gain or lose
+// an hour and skew fraction math (N-120 — MonthFraction came out 1.0013
+// instead of 1.0 for a full month).
+function utcDateOnly(dateStr) {
+  const match = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+  return new Date(Date.UTC(+match[1], +match[2] - 1, +match[3]));
 }
 
 function getISOWeek(date) {

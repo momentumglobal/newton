@@ -299,8 +299,11 @@ async function submitAssignmentForm(event, editId = null) {
   };
 
   // Confirmed assignments: warn if dates clash with another confirmed
-  // customer assignment for this employee (forecasts may overlap freely)
-  if (!fields.IsForecast) {
+  // customer assignment for this employee (forecasts may overlap freely).
+  // N-116 QA1: split-fee lines are exempt — one TP routinely runs several
+  // concurrent Exec Search / MG AI engagements, so the confirm would fire on
+  // every legitimate save and train people to click straight through it.
+  if (!fields.IsForecast && !_isSplitType(fields.ProjectType)) {
     try {
       const all = await getAssignments({ employeeName: fields.EmployeeName });
       const s = new Date(fields.StartDate), e = new Date(fields.EndDate);

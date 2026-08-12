@@ -38,11 +38,10 @@ function _ocAvatar(name, photo) {
     + `</span>`;
 }
 
-const OC_TYPE_COLOURS = {   // matches Deployment Timeline
-  'Embedded':'#2E75B6','CoE':'#2e7d32','Transformation':'#e65100','LCI':'#6a1b9a','Internal':'#888',
-};
-function _ocTypeColour(t){ return OC_TYPE_COLOURS[t] || '#aaa'; }
-
+// N-116: single source of truth in config.js; values are CSS tokens (style.css)
+function _ocTypeColour(t){
+  return CONFIG.PROJECT_TYPE_COLOUR_VARS[t] || CONFIG.PROJECT_TYPE_COLOUR_FALLBACK;
+}
 // ── page entry ─────────────────────────────────────────────────────────
 async function renderOrgChart() {
   const main = document.getElementById('main-content');

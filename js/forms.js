@@ -144,7 +144,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
         <div class="form-group">
           <label>Project *</label>
           ${lockProject ? `
-          <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--c-gray-050);color:var(--c-gray-600);">
+          <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--surface-sunken);color:var(--text-label);">
           <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
           <select name="ProjectID" required onchange="${canAssign ? 'loadTalentPartnersForRole(this.value)' : ''}">
             <option value="">-- Select project --</option>
@@ -153,9 +153,9 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
         </div>
        ${canAssign ? `
         <div class="form-group">
-          <label>Assign to * <span style="font-weight:normal;color:var(--c-gray-500);">(tick one or more)</span></label>
-          <div id="role-tp-select" class="print-avoid-break" style="border:1px solid var(--c-gray-300);border-radius:4px;padding:8px;max-height:170px;overflow-y:auto;background:var(--c-white);">
-            <span style="color:var(--c-gray-500);">-- Select project first --</span>
+          <label>Assign to * <span style="font-weight:normal;color:var(--text-muted);">(tick one or more)</span></label>
+          <div id="role-tp-select" class="print-avoid-break" style="border:1px solid var(--border-strong);border-radius:4px;padding:8px;max-height:170px;overflow-y:auto;background:var(--surface);">
+            <span style="color:var(--text-muted);">-- Select project first --</span>
           </div>
         </div>` : `<input type="hidden" name="TalentPartnerName" value="${escAttr(currentUser.email)}">`}
         <div class="form-group">
@@ -186,7 +186,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
           <div class="form-group">
             <label>Currency</label>
             <input type="text" id="role-currency-display" name="Currency" readonly
-              style="background:var(--c-gray-050);color:var(--c-gray-600);"
+              style="background:var(--surface-sunken);color:var(--text-label);"
               value="${escAttr(existingData?.Location ? (CONFIG.COUNTRY_CURRENCY[existingData.Location] || '') : '')}"
               placeholder="Auto-filled from location">
           </div>
@@ -291,10 +291,10 @@ async function loadTalentPartnersForRole(projectId, selected = '') {
   const box = document.getElementById('role-tp-select');
   if (!box) return;
   if (!projectId) {
-    box.innerHTML = '<span style="color:var(--c-gray-500);">-- Select project first --</span>';
+    box.innerHTML = '<span style="color:var(--text-muted);">-- Select project first --</span>';
     return;
   }
-  box.innerHTML = '<span style="color:var(--c-gray-500);">Loading...</span>';
+  box.innerHTML = '<span style="color:var(--text-muted);">Loading...</span>';
   try {
     const tps = await getTalentPartnersForProject(projectId);
     const pre = tpList(selected);
@@ -305,9 +305,9 @@ async function loadTalentPartnersForRole(projectId, selected = '') {
         <input type="checkbox" name="TalentPartnerName" value="${escAttr(u.UserEmail)}"
           ${checked((u.UserEmail || '').toLowerCase()) ? 'checked' : ''}>
         ${escHtml(u.UserName || u.UserEmail)}
-      </label>`).join('') || '<span style="color:var(--c-gray-500);">-- No team members --</span>';
+      </label>`).join('') || '<span style="color:var(--text-muted);">-- No team members --</span>';
   } catch(e) {
-    box.innerHTML = '<span style="color:var(--c-red-error);">-- Error loading team --</span>';
+    box.innerHTML = '<span style="color:var(--status-danger-text);">-- Error loading team --</span>';
   }
 }
 
@@ -404,7 +404,7 @@ async function renderWeeklyActivityForm(existingData = null) {
           <div class="form-group">
             <label>Project *</label>
             ${lockProject ? `
-            <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--c-gray-050);color:var(--c-gray-600);">
+            <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--surface-sunken);color:var(--text-label);">
             <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
             <select name="ProjectID" required onchange="loadRolesForWeekly(this.value)${canLogOnBehalf ? ';loadTalentPartnersForWeekly(this.value)' : ''}">
               <option value="">-- Select project --</option>
@@ -612,7 +612,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
           <div class="form-group">
             <label>Project *</label>
             ${lockProject ? `
-            <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--c-gray-050);color:var(--c-gray-600);">
+            <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--surface-sunken);color:var(--text-label);">
             <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
             <select name="ProjectID" required onchange="loadRolesForPlacement(this.value)${canLogOnBehalf ? ';loadTalentPartnersForPlacement(this.value)' : ''}">
               <option value="">-- Select project --</option>
@@ -650,7 +650,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
           <div class="form-group">
             <label>Currency</label>
             <input type="text" id="placement-currency" name="Currency" readonly
-              style="background:var(--c-gray-050);color:var(--c-gray-600);"
+              style="background:var(--surface-sunken);color:var(--text-label);"
               value="${escAttr(inheritedCurrency)}"
               placeholder="Auto-filled from role">
           </div>

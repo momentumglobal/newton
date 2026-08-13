@@ -42,7 +42,7 @@ async function mobileRenderReportingSummary(main) {
       .map(s => `
         <tr>
           <td class="m-sc-metric">${s}</td>
-          <td class="m-sc-val" style="color:#0A0B44">${byStage[s]}</td>
+          <td class="m-sc-val" style="color:var(--c-brand)">${byStage[s]}</td>
         </tr>`).join('');
 
     main.innerHTML = `

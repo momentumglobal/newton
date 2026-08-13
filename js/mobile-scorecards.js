@@ -130,8 +130,8 @@ function mScCardHtml(scorecard, displayName, roleHealth) {
   const overallRag = roleHealth ? roleHealth.rag : 'grey';
 
   const ragColour = (rag) => ({
-    green: '#2e7d32', amber: '#b45309', red: '#c62828', grey: '#888',
-  }[rag] || '#888');
+    green: 'var(--c-success)', amber: 'var(--c-warn-text)', red: 'var(--c-danger)', grey: 'var(--c-gray-500)',
+  }[rag] || 'var(--c-gray-500)');
 
   const healthRow = roleHealth ? (() => {
     const display = roleHealth.total > 0 ? `${roleHealth.flagged}/${roleHealth.total}` : '-';
@@ -143,7 +143,7 @@ function mScCardHtml(scorecard, displayName, roleHealth) {
 
   const rows = scorecard.metrics.map(m => {
     const display = m.value !== null ? `${m.value}${m.unit === '%' ? '%' : ' ' + m.unit}` : '-';
-    const colour  = m.informational ? '#888' : ragColour(m.rag);
+    const colour  = m.informational ? 'var(--c-gray-500)' : ragColour(m.rag);
     return `<tr>
       <td class="m-sc-metric">${m.label}</td>
       <td class="m-sc-val" style="color:${colour}">${display}</td>

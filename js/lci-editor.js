@@ -80,7 +80,7 @@ function _lciEditorHtml() {
   const m = _lciEd.model;
   return `
     <div class="page-header">
-      <h2>${escHtml(m.Title)} <span style="font-weight:400;color:#888;font-size:15px">— ${escHtml(m.ClientName)}</span></h2>
+      <h2>${escHtml(m.Title)} <span style="font-weight:400;color:var(--c-gray-500);font-size:15px">— ${escHtml(m.ClientName)}</span></h2>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="lciEditorBack()">← Back to models</button>
         <button class="btn-primary" onclick="lciOpenSummary()">Summary / Print</button>
@@ -251,9 +251,9 @@ function _lciRoadmapHtml() {
   }).join('');
 
   return `
-    <div id="lci-roadmap-section" style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px;margin-top:16px">
+    <div id="lci-roadmap-section" style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 style="margin:0;color:#1B3A5C">Hiring Roadmap <span style="font-weight:400;font-size:13px;color:#888">(salaries in ${m.LocalCurrency})</span></h3>
+        <h3 style="margin:0;color:var(--c-navy-steel)">Hiring Roadmap <span style="font-weight:400;font-size:13px;color:var(--c-gray-500)">(salaries in ${m.LocalCurrency})</span></h3>
         <div style="display:flex;gap:8px">
           <button class="btn-secondary" onclick="addLCIMilestone()">+ Add Milestone</button>
           <button class="btn-secondary" onclick="addLCITeam()">+ Add Team</button>
@@ -272,7 +272,7 @@ function _lciRoadmapHtml() {
           </thead>
           <tbody id="lci-roadmap-body">
             ${_lciRoadmapMilestoneRows(horizon)}
-            ${bodyRows || `<tr><td colspan="${horizon + 8}" style="color:#888;text-align:center">No teams yet — click + Add Team.</td></tr>`}
+            ${bodyRows || `<tr><td colspan="${horizon + 8}" style="color:var(--c-gray-500);text-align:center">No teams yet — click + Add Team.</td></tr>`}
           </tbody>
           <tfoot id="lci-roadmap-foot">
             ${_lciRoadmapFootHtml(horizon)}

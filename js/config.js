@@ -77,10 +77,10 @@ const CONFIG = {
   // different shade. mobile-analytics.js / placement-analytics.js use a
   // different palette entirely (Palette B) and are NOT consolidated here.
   RAG_COLOUR_VARS: {
-    green: 'var(--c-success)',
-    amber: 'var(--c-warn-deep)',
-    red:   'var(--c-danger)',
-    grey:  'var(--c-gray-500)',
+    green: 'var(--status-success)',
+    amber: 'var(--status-warn-strong)',
+    red:   'var(--status-danger)',
+    grey:  'var(--text-muted)',
   },
 
     // Field projection manifest (F-1). Per-list array of INTERNAL SharePoint

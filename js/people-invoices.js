@@ -27,35 +27,35 @@ async function renderGPInvoices() {
 
   const summaryBar = `
     <div style='display:flex;gap:24px;flex-wrap:wrap;padding:16px 0;margin-bottom:8px;
-                border-bottom:1px solid #e0e0e0'>
+                border-bottom:1px solid var(--c-gray-150)'>
       <div>
         <div style='font-size:11px;font-weight:700;text-transform:uppercase;
-                    color:#666;letter-spacing:.05em'>Total Outstanding</div>
-        <div style='font-size:22px;font-weight:700;color:#1B3A5C'>
+                    color:var(--c-gray-600);letter-spacing:.05em'>Total Outstanding</div>
+        <div style='font-size:22px;font-weight:700;color:var(--c-navy-steel)'>
           £${outstanding.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}
         </div>
       </div>
       <div>
         <div style='font-size:11px;font-weight:700;text-transform:uppercase;
-                    color:#666;letter-spacing:.05em'>Overdue Invoices</div>
-        <div style='font-size:22px;font-weight:700;color:${overdueList.length > 0 ? '#c62828' : '#1B3A5C'}'>
+                    color:var(--c-gray-600);letter-spacing:.05em'>Overdue Invoices</div>
+        <div style='font-size:22px;font-weight:700;color:${overdueList.length > 0 ? 'var(--c-danger)' : 'var(--c-navy-steel)'}'>
           ${overdueList.length}
         </div>
       </div>
       ${oldestOverdue ? `
       <div>
         <div style='font-size:11px;font-weight:700;text-transform:uppercase;
-                    color:#666;letter-spacing:.05em'>Oldest Overdue</div>
-        <div style='font-size:22px;font-weight:700;color:#c62828'>${oldestOverdue}</div>
+                    color:var(--c-gray-600);letter-spacing:.05em'>Oldest Overdue</div>
+        <div style='font-size:22px;font-weight:700;color:var(--c-danger)'>${oldestOverdue}</div>
       </div>` : ''}
     </div>`;
 
   const rows = withStatus.map(inv => {
     const statusBadge = inv.isOverdue
-      ? `<span class='badge' style='background:#fde8e8;color:#c62828'>Overdue</span>`
+      ? `<span class='badge' style='background:var(--c-danger-bg-soft);color:var(--c-danger)'>Overdue</span>`
       : inv.Status === 'Paid'
         ? `<span class='badge badge-active'>Paid</span>`
-        : `<span class='badge' style='background:#fff8e1;color:#b45309'>Sent</span>`;
+        : `<span class='badge' style='background:var(--c-warn-bg);color:var(--c-warn-text)'>Sent</span>`;
 
     const markPaidBtn = canEdit && inv.Status !== 'Paid'
       ? `<a href='#' onclick='markInvoicePaid(${inv.id})' style='white-space:nowrap'>

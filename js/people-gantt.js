@@ -56,8 +56,8 @@ const totalActiveHeadcount = people.filter(
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const monthHeaders = MONTHS.map(m =>
     `<th style='text-align:center;font-size:11px;font-weight:600;
-                color:#555;padding:6px 2px;min-width:52px;
-                position:sticky;top:0;background:#fff'>${m}</th>`
+                color:var(--c-gray-700);padding:6px 2px;min-width:52px;
+                position:sticky;top:0;background:var(--c-white)'>${m}</th>`
   ).join('');
 
   // Build a bar cell for a month given a list of assignments
@@ -88,11 +88,11 @@ const totalActiveHeadcount = people.filter(
       const rate     = assignmentRateLabel(a);
       const tooltip  = `${escHtml(a.Customer || 'Unassigned')}${isFc ? ' (Forecast)' : ''} · ${rate} · ${startStr} – ${endStr}`;
       const bg = isFc
-        ? 'repeating-linear-gradient(45deg,#FAD9BC,#FAD9BC 5px,#FDF0E3 5px,#FDF0E3 10px)'
+        ? 'repeating-linear-gradient(45deg,var(--c-stripe-amber-dark),var(--c-stripe-amber-dark) 5px,var(--c-stripe-amber-light) 5px,var(--c-stripe-amber-light) 10px)'
         : colour;
       return `<div title='${tooltip}' style='position:absolute;top:3px;bottom:3px;
         left:${leftPct}%;width:${widthPct}%;background:${bg};
-        ${isFc ? 'border:1px solid #E8703A;' : ''}
+        ${isFc ? 'border:1px solid var(--c-accent);' : ''}
         border-radius:3px;cursor:default'></div>`;
     }).join('');
 
@@ -109,14 +109,14 @@ const totalActiveHeadcount = people.filter(
     // Bench divider
     if (isBench && ci > 0) {
       rowsHtml += `<tr><td colspan='14' style='padding:0'>
-        <div style='border-top:2px dashed #ccc;margin:8px 0'></div>
+        <div style='border-top:2px dashed var(--c-gray-300);margin:8px 0'></div>
       </td></tr>`;
     }
 
     // Customer header row
     rowsHtml += `<tr>
       <td colspan='14' style='padding:6px 8px 2px;font-size:12px;font-weight:700;
-          color:#1B3A5C;background:#f5f7fa;border-top:1px solid #e0e0e0'>
+          color:var(--c-navy-steel);background:var(--c-surface-blue-alt);border-top:1px solid var(--c-gray-150)'>
         ${isBench ? 'Unassigned' : escHtml(customer)}
       </td>
     </tr>`;
@@ -136,7 +136,7 @@ const totalActiveHeadcount = people.filter(
       rowsHtml += `<tr>
         <td style='padding:4px 8px;font-size:12px;width:180px;min-width:180px;overflow:hidden;
                    text-overflow:ellipsis;white-space:nowrap'>${escHtml(emp)}</td>
-        <td style='padding:4px 8px;font-size:11px;color:#888;width:50px;
+        <td style='padding:4px 8px;font-size:11px;color:var(--c-gray-500);width:50px;
                    min-width:50px;white-space:nowrap'>${escHtml(level)}</td>
         ${cells}
       </tr>`;
@@ -145,14 +145,14 @@ const totalActiveHeadcount = people.filter(
 
   // Legend
   const legend = Object.entries(TYPE_COLOURS).map(([type, colour]) =>
-    `<div style='display:flex;align-items:center;gap:6px;font-size:12px;color:#555'>
+    `<div style='display:flex;align-items:center;gap:6px;font-size:12px;color:var(--c-gray-700)'>
       <div style='width:14px;height:14px;border-radius:3px;background:${colour};flex-shrink:0'></div>
       ${type}
     </div>`
   ).join('') + `
-    <div style='display:flex;align-items:center;gap:6px;font-size:12px;color:#555'>
-      <div style='width:14px;height:14px;border-radius:3px;flex-shrink:0;border:1px solid #E8703A;
-        background:repeating-linear-gradient(45deg,#FAD9BC,#FAD9BC 5px,#FDF0E3 5px,#FDF0E3 10px)'></div>
+    <div style='display:flex;align-items:center;gap:6px;font-size:12px;color:var(--c-gray-700)'>
+      <div style='width:14px;height:14px;border-radius:3px;flex-shrink:0;border:1px solid var(--c-accent);
+        background:repeating-linear-gradient(45deg,var(--c-stripe-amber-dark),var(--c-stripe-amber-dark) 5px,var(--c-stripe-amber-light) 5px,var(--c-stripe-amber-light) 10px)'></div>
       Forecast
     </div>`;
 
@@ -217,18 +217,18 @@ const totalActiveHeadcount = people.filter(
     });
 
   const deployableTile = `
-    <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;
+    <div style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;
                 padding:20px;margin-bottom:24px'>
       <div style='display:flex;align-items:center;justify-content:space-between;
                   flex-wrap:wrap;gap:12px;margin-bottom:16px'>
         <div>
-          <div style='font-size:13px;font-weight:700;color:#1B3A5C'>
+          <div style='font-size:13px;font-weight:700;color:var(--c-navy-steel)'>
             Deployable Resources
-            <span style='font-size:12px;font-weight:400;color:#888;margin-left:8px'>
+            <span style='font-size:12px;font-weight:400;color:var(--c-gray-500);margin-left:8px'>
               ${deployableRows.length} available
             </span>
           </div>
-          <div style='font-size:11px;color:#aaa;margin-top:2px'>
+          <div style='font-size:11px;color:var(--c-gray-400);margin-top:2px'>
             Employees on bench / unbilled during the selected period
           </div>
         </div>
@@ -246,7 +246,7 @@ const totalActiveHeadcount = people.filter(
           </tr></thead>
           <tbody>${deployableRows.join('')}</tbody>
         </table>` :
-        `<p style='font-size:13px;color:#888;margin:0'>
+        `<p style='font-size:13px;color:var(--c-gray-500);margin:0'>
           No unassigned employees during this period.</p>`
       }
     </div>`;
@@ -255,7 +255,7 @@ const totalActiveHeadcount = people.filter(
 <div class='page-header'>
       <h2>Deployment Timeline</h2>
       <div style='display:flex;align-items:center;gap:12px'>
-        <label style='font-size:13px;color:#555'>Year</label>
+        <label style='font-size:13px;color:var(--c-gray-700)'>Year</label>
         <select onchange='_setGanttYear(+this.value)'>${yearOpts}</select>
         <button class='print-btn' onclick='printPage("Deployment Timeline", true, "People")'>⎙ Export PDF</button>
       </div>
@@ -264,11 +264,11 @@ const totalActiveHeadcount = people.filter(
     <div style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px'>${legend}</div>
 <div style='overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 200px);margin:0 -40px;padding:0 4px'>
     <table class='data-table' style='min-width:800px;table-layout:fixed'>
-        <thead style='position:sticky;top:0;z-index:10;background:#fff'><tr>
+        <thead style='position:sticky;top:0;z-index:10;background:var(--c-white)'><tr>
 <th style='width:180px;min-width:180px;text-align:left;padding:6px 8px;font-size:11px;
-                     font-weight:600;color:#555;position:sticky;top:0;background:#fff'>Employee</th>
+                     font-weight:600;color:var(--c-gray-700);position:sticky;top:0;background:var(--c-white)'>Employee</th>
           <th style='width:50px;min-width:50px;text-align:left;padding:6px 8px;font-size:11px;
-                     font-weight:600;color:#555;position:sticky;top:0;background:#fff'>Level</th>
+                     font-weight:600;color:var(--c-gray-700);position:sticky;top:0;background:var(--c-white)'>Level</th>
           ${monthHeaders}
         </tr></thead>
         <tbody>${rowsHtml}</tbody>

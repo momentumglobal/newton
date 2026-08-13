@@ -1439,6 +1439,7 @@ body {
 
 /* People Scorecards — overall RAG pill */
 .sc-rag-pill { font-size:var(--fs-10); font-weight:600; letter-spacing:0.06em; text-transform:uppercase; padding:var(--sp-1) var(--sp-5); border-radius:var(--r-xl); }
+.sc-rag-pill--grey  { background:var(--status-neutral-bg); color:var(--status-neutral); }
 .sc-rag-pill--green { background:var(--status-success-bg); color:var(--status-success); }
 .sc-rag-pill--amber { background:var(--status-warn-bg-soft); color:var(--status-warn-strong); }
 .sc-rag-pill--red   { background:var(--status-danger-bg-soft); color:var(--status-danger); }

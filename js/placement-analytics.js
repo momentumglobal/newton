@@ -131,7 +131,7 @@ const ttfResult = {
 
   // ── Summary cards ─────────────────────────────────────────────────
   const summaryHtml = `
-    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">
         Summary
         ${_paLocation || _paFunctionArea
@@ -173,7 +173,7 @@ const ttfResult = {
   };
 
   const funnelHtml = `
-    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">Funnel Drop-off</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         ${funnelStages.map(s => `
@@ -255,7 +255,7 @@ const ttfResult = {
     .join("");
 
   const breakdownHtml = `
-    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">
         Role Breakdown <span style="font-size:12px;font-weight:400;color:var(--c-gray-500)">(${Object.keys(groupMap).length} role type${Object.keys(groupMap).length !== 1 ? "s" : ""})</span>
       </div>

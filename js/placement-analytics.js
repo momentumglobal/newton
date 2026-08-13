@@ -12,7 +12,7 @@ async function renderPlacementAnalytics() {
     <div class="page-header">
       <h2>Placement Analytics</h2>
     </div>
-    <div style="padding:32px;color:#888">Loading data…</div>
+    <div style="padding:32px;color:var(--c-gray-500)">Loading data…</div>
   `;
 
   // Load all data in parallel
@@ -131,11 +131,11 @@ const ttfResult = {
 
   // ── Summary cards ─────────────────────────────────────────────────
   const summaryHtml = `
-    <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-      <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">
+    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">
         Summary
         ${_paLocation || _paFunctionArea
-          ? `<span style="font-size:12px;font-weight:400;color:#888;margin-left:8px">
+          ? `<span style="font-size:12px;font-weight:400;color:var(--c-gray-500);margin-left:8px">
               ${[_paFunctionArea, _paLocation].filter(Boolean).join(" · ")}</span>`
           : ""}
       </div>
@@ -143,24 +143,24 @@ const ttfResult = {
         <div class="kpi-card">
           <div class="kpi-value">${ttfResult.weeks !== null ? `~${ttfResult.weeks}d` : "—"}</div>
           <div class="kpi-label">Predicted Time to Hire</div>
-          <div style="font-size:11px;color:#888;margin-top:4px">
+          <div style="font-size:11px;color:var(--c-gray-500);margin-top:4px">
             ${ttfResult.stdDevWeeks !== null ? `±${ttfResult.stdDevWeeks}d` : ttfResult.label}
           </div>
         </div>
         <div class="kpi-card">
           <div class="kpi-value">${avgTTHDays !== null ? `${Math.round(avgTTHDays)}d` : "—"}</div>
           <div class="kpi-label">Avg. Actual Time to Hire</div>
-          <div style="font-size:11px;color:#888;margin-top:4px">${sampleSize} placement${sampleSize !== 1 ? "s" : ""}</div>
+          <div style="font-size:11px;color:var(--c-gray-500);margin-top:4px">${sampleSize} placement${sampleSize !== 1 ? "s" : ""}</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-value">${totals.Hires > 0 ? Math.round(totals.Outreach / totals.Hires) : "—"}</div>
           <div class="kpi-label">Outreach per Hire</div>
-          <div style="font-size:11px;color:#888;margin-top:4px">avg. across filtered roles</div>
+          <div style="font-size:11px;color:var(--c-gray-500);margin-top:4px">avg. across filtered roles</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-value">${totals.Offers > 0 ? Math.round((totals.Hires / totals.Offers) * 100) + "%" : "—"}</div>
           <div class="kpi-label">Offer Success Rate</div>
-          <div style="font-size:11px;color:#888;margin-top:4px">${totals.Offers} offer${totals.Offers !== 1 ? "s" : ""} made</div>
+          <div style="font-size:11px;color:var(--c-gray-500);margin-top:4px">${totals.Offers} offer${totals.Offers !== 1 ? "s" : ""} made</div>
         </div>
       </div>
     </div>
@@ -168,18 +168,18 @@ const ttfResult = {
 
   // ── Funnel drop-off ───────────────────────────────────────────────
   const ragDot = rag => {
-    const colours = { green: "#27AE60", amber: "#F39C12", red: "#E74C3C", grey: "#CCC" };
+    const colours = { green: "var(--c-success-alt)", amber: "var(--c-amber-mid)", red: "var(--c-red-mid)", grey: "var(--c-gray-300)" };
     return `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${colours[rag] || colours.grey};margin-right:6px"></span>`;
   };
 
   const funnelHtml = `
-    <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-      <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">Funnel Drop-off</div>
+    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">Funnel Drop-off</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         ${funnelStages.map(s => `
-          <div style="flex:1;min-width:130px;background:#F9F9FC;border:1px solid #E8E8E8;border-radius:6px;padding:14px 16px">
-            <div style="font-size:12px;color:#888;margin-bottom:6px">${s.stage}</div>
-            <div style="font-size:22px;font-weight:700;color:#0A0B44">
+          <div style="flex:1;min-width:130px;background:var(--c-surface-lav-alt);border:1px solid var(--c-gray-115);border-radius:6px;padding:14px 16px">
+            <div style="font-size:12px;color:var(--c-gray-500);margin-bottom:6px">${s.stage}</div>
+            <div style="font-size:22px;font-weight:700;color:var(--c-brand)">
               ${s.conv !== null ? s.conv + "%" : "—"}
             </div>
             <div style="font-size:12px;margin-top:6px">
@@ -255,9 +255,9 @@ const ttfResult = {
     .join("");
 
   const breakdownHtml = `
-    <div style="background:#fff;border:1px solid #E8E8E8;border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-      <div style="font-size:15px;font-weight:600;color:#0A0B44;margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid #eee">
-        Role Breakdown <span style="font-size:12px;font-weight:400;color:#888">(${Object.keys(groupMap).length} role type${Object.keys(groupMap).length !== 1 ? "s" : ""})</span>
+    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">
+        Role Breakdown <span style="font-size:12px;font-weight:400;color:var(--c-gray-500)">(${Object.keys(groupMap).length} role type${Object.keys(groupMap).length !== 1 ? "s" : ""})</span>
       </div>
       <table class="data-table" style="width:100%;margin:0">
         <thead>
@@ -273,7 +273,7 @@ const ttfResult = {
         </thead>
         <tbody>${rows}</tbody>
       </table>
-      <div style="font-size:11px;color:#aaa;margin-top:12px">
+      <div style="font-size:11px;color:var(--c-gray-400);margin-top:12px">
         Funnel RAG dots: Response rate · IV1 Conversion · IV→Offer · Offer Success. Hover for values.
       </div>
     </div>

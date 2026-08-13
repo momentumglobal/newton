@@ -47,7 +47,9 @@ function projectFilterDropdown(projects, selectedId, callbackFn) {
   </div>`;
 }
 // ── Projects ─────────────────────────────────────────────────────────
-async function renderProjectsPage() {
+let _projectsFilter = "Active";
+async function renderProjectsPage(filter) {
+  if (filter !== undefined) _projectsFilter = filter;
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading projects...</p>";
   const role = _resolvedRole;
@@ -59,10 +61,17 @@ async function renderProjectsPage() {
   const canEdit = ["admin","delivery_manager"].includes(role) || hasDMGrant();
   const dmName = email => email ? (dmMap[email.toLowerCase()] || email) : "—";
   projects = sortProjectsByName(projects);
+  projects = projects.filter(_projectsFilter === "Active" ? isProjectActive : p => !isProjectActive(p));
+  const filterBtns = ["Active", "Archive"].map(f =>
+    `<button class="btn-filter${_projectsFilter === f ? " active" : ""}" onclick="renderProjectsPage('${f}')">${f}</button>`
+  ).join("");
   main.innerHTML = `
     <div class="page-header">
       <h2>Projects</h2>
       ${canEdit ? '<button class="btn-primary" onclick="showAddProjectForm()">+ Add Project</button>' : ""}
+    </div>
+    <div class="table-toolbar">
+      <div class="filter-group">${filterBtns}</div>
     </div>
     <table class="data-table">
       <thead><tr>

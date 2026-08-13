@@ -44,8 +44,8 @@ function ccTileHTML(id, title, rag, statsHTML, trendHTML = '') {
   return `
     <div class="cc-tile cc-tile--${rag}" data-tile="${id}">
       <button class="cc-close" onclick="event.stopPropagation(); collapseTile(this.closest('.cc-grid'))">✕</button>
-      <div class="cc-tile__title" style="font-size:20px;font-weight:600;margin-bottom:8px;color:#1a1a2e">${title}${trendHTML}</div>
-      <div class="cc-tile__stats" style="font-size:14px;color:#444">${statsHTML}</div>
+      <div class="cc-tile__title" style="font-size:20px;font-weight:600;margin-bottom:8px;color:var(--c-ink)">${title}${trendHTML}</div>
+      <div class="cc-tile__stats" style="font-size:14px;color:var(--c-gray-750)">${statsHTML}</div>
       <div class="cc-tile__detail" style="display:none"></div>
     </div>`;
 }
@@ -322,7 +322,7 @@ function renderHealthDetail(data) {
       <td>${customer}</td>
       <td style="text-align:center">${headcount}</td>
       <td style="text-align:center">${liveRoles}</td>
-      <td style="text-align:center">${flagged > 0 ? `<span style="color:#c62828;font-weight:600">${flagged}</span>` : '—'}</td>
+      <td style="text-align:center">${flagged > 0 ? `<span style="color:var(--c-danger);font-weight:600">${flagged}</span>` : '—'}</td>
     </tr>`;
   }).join('');
 
@@ -342,7 +342,7 @@ function renderPeopleDetail(data) {
   )];
     if (!tps.length) return '<p class="no-data">No active Talent Partners found.</p>';
   const weight = { green: 0, amber: 1, red: 2, grey: 0 };
-  const ragColours = { green: '#2e7d32', amber: '#e65100', red: '#c62828', grey: '#888' };
+  const ragColours = CONFIG.RAG_COLOUR_VARS;
   const rows = tps.map(tp => {
   const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
   const flagged = tpRoles.filter(r => {
@@ -400,7 +400,7 @@ function renderUtilDetail(data) {
   });
 
   const t = CONFIG.UTILISATION_THRESHOLDS;
-  const ragCol = v => v >= t.green ? '#2e7d32' : v >= t.amber ? '#e65100' : '#c62828';
+  const ragCol = v => v >= t.green ? 'var(--c-success)' : v >= t.amber ? 'var(--c-warn-deep)' : 'var(--c-danger)';
   const fmtPct = v => `${(v * 100).toFixed(0)}%`;
 
   const headers      = months.map(m => `<th style="text-align:center">${m.label}</th>`).join('');

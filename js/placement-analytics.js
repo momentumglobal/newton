@@ -131,8 +131,8 @@ const ttfResult = {
 
   // ── Summary cards ─────────────────────────────────────────────────
   const summaryHtml = `
-    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-      <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">
+      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:var(--brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">
         Summary
         ${_paLocation || _paFunctionArea
           ? `<span style="font-size:12px;font-weight:400;color:var(--c-gray-500);margin-left:8px">
@@ -173,11 +173,11 @@ const ttfResult = {
   };
 
   const funnelHtml = `
-    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-      <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">Funnel Drop-off</div>
+      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:var(--brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">Funnel Drop-off</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         ${funnelStages.map(s => `
-          <div style="flex:1;min-width:130px;background:var(--c-surface-lav-alt);border:1px solid var(--c-gray-115);border-radius:6px;padding:14px 16px">
+          <div style="flex:1;min-width:130px;background:var(--surface-tint);border:1px solid var(--c-gray-115);border-radius:6px;padding:14px 16px">
             <div style="font-size:12px;color:var(--c-gray-500);margin-bottom:6px">${s.stage}</div>
             <div style="font-size:22px;font-weight:700;color:var(--c-brand)">
               ${s.conv !== null ? s.conv + "%" : "—"}
@@ -255,9 +255,9 @@ const ttfResult = {
     .join("");
 
   const breakdownHtml = `
-    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-      <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">
-        Role Breakdown <span style="font-size:12px;font-weight:400;color:var(--c-gray-500)">(${Object.keys(groupMap).length} role type${Object.keys(groupMap).length !== 1 ? "s" : ""})</span>
+      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:var(--brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">
+        Role Breakdown <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(${Object.keys(groupMap).length} role type${Object.keys(groupMap).length !== 1 ? "s" : ""})</span>
       </div>
       <table class="data-table" style="width:100%;margin:0">
         <thead>

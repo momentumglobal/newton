@@ -102,17 +102,17 @@ function _renderLCIModelList(allModels, role) {
             </div>
           </td>
         </tr>`).join('')
-    : `<tr><td colspan="9" style="color:var(--c-gray-500);text-align:center">${allModels.length ? 'No models match the current filters.' : `No models yet${role === 'delivery_manager' ? ' assigned to you' : ''}.`}</td></tr>`;
+    : `<tr><td colspan="9" style="color:var(--text-muted);text-align:center">${allModels.length ? 'No models match the current filters.' : `No models yet${role === 'delivery_manager' ? ' assigned to you' : ''}.`}</td></tr>`;
 
   return `
     <div class="page-header">
       <h2>LCI Cost Models</h2>
       <div style="display:flex;gap:8px;align-items:center">
-        <label style="font-size:13px;color:var(--c-gray-700)">Client</label>
+        <label style="font-size:13px;color:var(--text-label)">Client</label>
         <select class="form-control" style="width:auto" onchange="lciListFilterChanged('client', this.value)">
           ${_lciFilterOptions(allModels, 'ClientName', f.client)}
         </select>
-        <label style="font-size:13px;color:var(--c-gray-700)">Location</label>
+        <label style="font-size:13px;color:var(--text-label)">Location</label>
         <select class="form-control" style="width:auto" onchange="lciListFilterChanged('location', this.value)">
           ${_lciFilterOptions(allModels, 'Location', f.location)}
         </select>
@@ -123,7 +123,7 @@ function _renderLCIModelList(allModels, role) {
         ${canManage || role === 'delivery_manager' ? '<button class="btn-primary" onclick="openLCIModelModal()">+ New Model</button>' : ''}
       </div>
     </div>
-    <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px">
+    <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px">
       <table class="data-table">
         <thead>
           <tr>
@@ -373,11 +373,11 @@ function _renderLCIReportsSection(reports, role) {
           </td>
         </tr>`;
       }).join('')
-    : `<tr><td colspan="4" style="color:var(--c-gray-500);text-align:center">No saved reports.</td></tr>`;
+    : `<tr><td colspan="4" style="color:var(--text-muted);text-align:center">No saved reports.</td></tr>`;
 
   return `
     <div class="page-header" style="margin-top:24px"><h2>Saved Reports</h2></div>
-    <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px">
+    <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px">
       <table class="data-table">
         <thead><tr><th>Report</th><th>Models</th><th>Created by</th><th></th></tr></thead>
         <tbody>${rows}</tbody>

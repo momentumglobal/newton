@@ -177,8 +177,8 @@ function _lciSummaryHtml() {
     <!-- Section 1: recruitment plan (milestones integrated) -->
     <div id="lci-print-p1" class="lci-summary-card">
       <div class="lci-summary-head">
-        <h2 style="margin:0;color:#1B3A5C">${escHtml(m.Title)}</h2>
-        <div style="color:#666;font-size:13px;margin-top:4px">
+        <h2 style="margin:0;color:var(--c-navy-steel)">${escHtml(m.Title)}</h2>
+        <div style="color:var(--c-gray-600);font-size:13px;margin-top:4px">
           ${escHtml(m.ClientName || 'Client')} x Momentum Global — ${exportDate}
         </div>
       </div>
@@ -204,7 +204,7 @@ function _lciSummaryHtml() {
 // Shared by the summary view and the full report export (lci-report.js)
 function _lciAssumptionsHtml(m) {
   return `
-      <h3 style="margin:0 0 12px;color:#1B3A5C">Model Guide and Assumptions</h3>
+      <h3 style="margin:0 0 12px;color:var(--c-navy-steel)">Model Guide and Assumptions</h3>
       ${m.Assumptions ? `<div style="white-space:pre-wrap;font-size:13px;line-height:1.6">${escHtml(m.Assumptions)}</div>` : ''}
       <table class="data-table lci-assump" style="max-width:640px;margin-top:16px">
         <tbody>
@@ -216,7 +216,7 @@ function _lciAssumptionsHtml(m) {
           ${m.LocalCurrency !== m.DisplayCurrency ? `<tr><td>FX rate (${m.LocalCurrency}→${m.DisplayCurrency})</td><td>${m.FXRateLocalToDisplay ?? '—'}</td></tr>` : ''}
         </tbody>
       </table>
-      <p style="font-size:12px;color:#888;margin-top:12px">
+      <p style="font-size:12px;color:var(--c-gray-500);margin-top:12px">
         A hire in month N reaches payroll in month N + notice period. Costs shown from the payroll month onward.
       </p>`;
 }
@@ -245,7 +245,7 @@ async function renderLCIComparePage(ids) {
     }));
     main.innerHTML = `
       <div class="page-header">
-        <h2>Compare Models <span style="font-weight:400;color:#888;font-size:15px">(${ccy})</span></h2>
+        <h2>Compare Models <span style="font-weight:400;color:var(--c-gray-500);font-size:15px">(${ccy})</span></h2>
         <button class="btn-secondary" onclick="renderLCIModelsPage()">← Back to models</button>
       </div>
       <div class="lci-summary-card">

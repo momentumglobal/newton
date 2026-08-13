@@ -100,9 +100,9 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
     : '';
 
   return `
-    <div class='print-avoid-break' style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;
+      <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;
                 padding:20px 20px 12px;margin-bottom:24px'>
-      <div style='font-size:13px;font-weight:700;color:var(--c-navy-steel);margin-bottom:8px'>
+      <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
         Estimated Monthly Revenue ${year}</div>
       <svg viewBox='0 0 ${W} ${H}' style='width:100%;height:auto;display:block'
            xmlns='http://www.w3.org/2000/svg'>

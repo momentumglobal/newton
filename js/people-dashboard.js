@@ -246,7 +246,7 @@ async function _renderKPIStrip(allRows, people, assignments) {
   return `<div style='display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px'>
     ${_kpiCard('Estimated Revenue ' + thisY,   _fmtGBP(revYTD),   'Current year YTD')}
     ${_kpiCard('Utilisation ' + thisY,      _fmtPct(utilYTD),  'Current year YTD',
-        utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? 'var(--c-success-bg-alt)' : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? 'var(--c-warn-bg-soft)' : 'var(--c-danger-bg-alt)')}
+        utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? 'var(--status-success-bg)' : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? 'var(--status-warn-bg-soft)' : 'var(--status-danger-bg)')}
     ${_kpiCard('Active Customers',  activeCustomers  + _delta(activeCustomers, prevQCustomers),  'As of today · vs last quarter')}
     ${_kpiCard('Billed Headcount',  billedHeadcount  + _delta(billedHeadcount, prevQHeadcount),  'As of today · vs last quarter')}
   </div>`;
@@ -432,14 +432,14 @@ function _renderEndDatesPanel(people) {
     .map(p => ({ ...p, _end: new Date(p.EndDate) }))
     .sort((a, b) => a._end - b._end);
 
-  if (!upcoming.length) {
-    return `<p style='font-size:13px;color:var(--c-gray-500)'>No employee end dates in the next 60 days.</p>`;
+    if (!upcoming.length) {
+    return `<p style='font-size:13px;color:var(--text-muted)'>No employee end dates in the next 60 days.</p>`;
   }
 
   const rows = upcoming.map(p => {
     const end     = p._end; end.setHours(0, 0, 0, 0);
     const days    = Math.round((end - today) / 86400000);
-    const bg      = days <= 30 ? 'var(--c-danger-bg-alt)' : 'var(--c-warn-bg-soft)';
+    const bg      = days <= 30 ? 'var(--status-danger-bg)' : 'var(--status-warn-bg-soft)';
     const dateStr = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     return `<tr>
       <td style='background:${bg}'>${escHtml(p.EmployeeName)}</td>

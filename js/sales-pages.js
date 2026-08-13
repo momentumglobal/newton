@@ -94,7 +94,7 @@ function _renderForecastPage(forecasts) {
       <h2>Sales Forecast</h2>
       <button class="btn-primary" onclick="openForecastModal()">+ Add Forecast</button>
     </div>
-    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px">
+      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px">
       <table class="data-table">
         <thead>
           <tr>
@@ -116,9 +116,9 @@ function _forecastModal() {
   return `
     <div id="forecast-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);
          z-index:1000;align-items:center;justify-content:center">
-      <div class="print-avoid-break" style="background:var(--c-white);border-radius:8px;padding:32px;width:480px;max-width:95vw;
+        <div class="print-avoid-break" style="background:var(--surface);border-radius:8px;padding:32px;width:480px;max-width:95vw;
                   box-shadow:0 8px 32px rgba(0,0,0,0.18)">
-        <h3 id="forecast-modal-title" style="margin:0 0 20px;color:var(--c-navy-steel)">Add Forecast</h3>
+          <h3 id="forecast-modal-title" style="margin:0 0 20px;color:var(--brand-tertiary)">Add Forecast</h3>
         <input type="hidden" id="forecast-edit-id">
         <div class="form-group">
           <label>Customer / Project Name *</label>

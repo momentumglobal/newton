@@ -351,7 +351,7 @@ async function coeOpenRowModal(rowId = null) {
           <div class="form-group"><label>Onboarding (wks)</label>
             <input type="number" min="0" name="OnboardingWeeks" placeholder="${dflt.onboardingWeeks}" value="${row?.OnboardingWeeks ?? ''}"></div>
         </div>
-        <p style="font-size:12px;color:var(--c-gray-550)">Leave phase fields blank to use defaults. Target Hire Date = Open Date + Recruitment weeks.</p>
+        <p style="font-size:12px;color:var(--text-muted)">Leave phase fields blank to use defaults. Target Hire Date = Open Date + Recruitment weeks.</p>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${row ? 'Save Changes' : 'Add to Plan'}</button>
           <button type="button" class="btn-secondary" onclick="document.getElementById('coe-modal-host').innerHTML=''">Cancel</button>

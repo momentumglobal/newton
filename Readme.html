@@ -922,6 +922,8 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <li>Scope classes to their context: <code>.dash-panel .row-age-critical td</code> prevents bleed into unrelated tables.</li>
         <li>Colour values live in style.css only. JavaScript never hardcodes hex colours.</li>
         <li><strong>Design tokens (Aug 2026):</strong> style.css opens with a <code>:root</code> block — <code>--c-*</code> colours, <code>--sp-*</code> spacing, <code>--r-*</code> radius, <code>--fs-*</code>/<code>--fw-*</code> type, <code>--sh-*</code> shadows, <code>--dur-*</code> durations. New CSS uses <code>var()</code> tokens; never define or shadow <code>--org-print-scale</code> (set at runtime by org-chart.js). Literal-vs-token mapping decisions live in <code>newton-pipeline/specs/N-067-mapping.md</code>.</li>
+        <li><strong>Dark mode (Aug 2026):</strong> a second tier, <code>--c-dark-*</code> palette tokens plus a <code>[data-theme="dark"]</code> block, redefines the themeable subset of the N-101 semantic layer — component rules never change. The full light→dark mapping and the permanently-dark-chrome exclusion list live in <code>newton-pipeline/specs/N-102-mapping.md</code>. <code>js/theme-init.js</code> is a deliberate exception to normal script placement: it must load first in <code>&lt;head&gt;</code>, unmarked (no <code>defer</code>/<code>async</code>), on every page linking <code>css/style.css</code>, so the theme is set before first paint. <code>mobile.html</code> is excluded — it does not use <code>css/style.css</code>.</li>
+      </ul>
       </ul>
 
       <h3>Output escaping</h3>

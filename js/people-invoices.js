@@ -27,35 +27,35 @@ async function renderGPInvoices() {
 
   const summaryBar = `
     <div style='display:flex;gap:24px;flex-wrap:wrap;padding:16px 0;margin-bottom:8px;
-                border-bottom:1px solid var(--c-gray-150)'>
+                border-bottom:1px solid var(--border)'>
       <div>
         <div style='font-size:11px;font-weight:700;text-transform:uppercase;
-                    color:var(--c-gray-600);letter-spacing:.05em'>Total Outstanding</div>
-        <div style='font-size:22px;font-weight:700;color:var(--c-navy-steel)'>
+                    color:var(--text-label);letter-spacing:.05em'>Total Outstanding</div>
+        <div style='font-size:22px;font-weight:700;color:var(--brand-tertiary)'>
           £${outstanding.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}
         </div>
       </div>
       <div>
         <div style='font-size:11px;font-weight:700;text-transform:uppercase;
-                    color:var(--c-gray-600);letter-spacing:.05em'>Overdue Invoices</div>
-        <div style='font-size:22px;font-weight:700;color:${overdueList.length > 0 ? 'var(--c-danger)' : 'var(--c-navy-steel)'}'>
+                    color:var(--text-label);letter-spacing:.05em'>Overdue Invoices</div>
+        <div style='font-size:22px;font-weight:700;color:${overdueList.length > 0 ? 'var(--status-danger)' : 'var(--brand-tertiary)'}'>
           ${overdueList.length}
         </div>
       </div>
       ${oldestOverdue ? `
       <div>
         <div style='font-size:11px;font-weight:700;text-transform:uppercase;
-                    color:var(--c-gray-600);letter-spacing:.05em'>Oldest Overdue</div>
-        <div style='font-size:22px;font-weight:700;color:var(--c-danger)'>${oldestOverdue}</div>
+                    color:var(--text-label);letter-spacing:.05em'>Oldest Overdue</div>
+        <div style='font-size:22px;font-weight:700;color:var(--status-danger)'>${oldestOverdue}</div>
       </div>` : ''}
     </div>`;
 
   const rows = withStatus.map(inv => {
     const statusBadge = inv.isOverdue
-      ? `<span class='badge' style='background:var(--c-danger-bg-soft);color:var(--c-danger)'>Overdue</span>`
+      ? `<span class='badge' style='background:var(--status-danger-bg-soft);color:var(--status-danger)'>Overdue</span>`
       : inv.Status === 'Paid'
         ? `<span class='badge badge-active'>Paid</span>`
-        : `<span class='badge' style='background:var(--c-warn-bg);color:var(--c-warn-text)'>Sent</span>`;
+        : `<span class='badge' style='background:var(--status-warn-bg);color:var(--status-warn-text)'>Sent</span>`;
 
     const markPaidBtn = canEdit && inv.Status !== 'Paid'
       ? `<a href='#' onclick='markInvoicePaid(${inv.id})' style='white-space:nowrap'>

@@ -70,6 +70,19 @@ const CONFIG = {
   },
   PROJECT_TYPE_COLOUR_FALLBACK: 'var(--c-ptype-fallback)',
 
+  // RAG status colour map (N-123). Token NAMES, not hex — consolidates the
+  // duplicated {green,amber,red,grey} object literal previously hardcoded in
+  // cc-pages.js. mobile-scorecards.js keeps its own distinct amber
+  // (var(--c-warn-text)) — do not repoint it at this map, its amber is a
+  // different shade. mobile-analytics.js / placement-analytics.js use a
+  // different palette entirely (Palette B) and are NOT consolidated here.
+  RAG_COLOUR_VARS: {
+    green: 'var(--c-success)',
+    amber: 'var(--c-warn-deep)',
+    red:   'var(--c-danger)',
+    grey:  'var(--c-gray-500)',
+  },
+
     // Field projection manifest (F-1). Per-list array of INTERNAL SharePoint
   // column names to request via Graph $select — NOT the aliased names
   // normaliseFields()/FIELD_ALIASES produce. 'Id' is implied automatically

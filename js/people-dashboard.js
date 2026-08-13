@@ -127,10 +127,10 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
         <title>${p.label}: ${(p.util * 100).toFixed(1)}% (sales forecast)</title>
       </circle>`).join('');
   
-  return `
-    <div class='print-avoid-break' style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;
+    return `
+    <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;
                 padding:20px 20px 12px;margin-bottom:24px'>
-      <div style='font-size:13px;font-weight:700;color:var(--c-navy-steel);margin-bottom:8px'>
+      <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
         Team Utilisation ${thisYear}</div>
       <svg viewBox='0 0 ${W} ${H}' style='width:100%;height:auto;display:block'
            xmlns='http://www.w3.org/2000/svg'>
@@ -179,15 +179,14 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
 
 // ── People Dashboard KPI Strip ────────────────────
 function _kpiCard(label, value, sub, bg) {
-  return `<div style='background:${bg || 'var(--c-white)'};border:1px solid var(--c-gray-150);border-radius:6px;
+  return `<div style='background:${bg || 'var(--surface)'};border:1px solid var(--c-gray-150);border-radius:6px;
                       padding:16px 20px;min-width:160px;flex:1'>
     <div style='font-size:11px;font-weight:700;text-transform:uppercase;
-                color:var(--c-gray-600);letter-spacing:.05em;margin-bottom:6px'>${label}</div>
-    <div style='font-size:24px;font-weight:700;color:var(--c-navy-steel)'>${value}</div>
-    ${sub ? `<div style='font-size:12px;color:var(--c-gray-500);margin-top:4px'>${sub}</div>` : ''}
+                color:var(--text-label);letter-spacing:.05em;margin-bottom:6px'>${label}</div>
+    <div style='font-size:24px;font-weight:700;color:var(--brand-tertiary)'>${value}</div>
+    ${sub ? `<div style='font-size:12px;color:var(--text-muted);margin-top:4px'>${sub}</div>` : ''}
   </div>`;
 }
-
 async function _renderKPIStrip(allRows, people, assignments) {
   const now     = new Date();
   const thisY   = now.getFullYear();
@@ -523,27 +522,27 @@ const { start, end } = _dashDateRange(_dashFilter);
 
  <div style='margin-bottom:24px'>${periodBtns}</div>
 
-    <div style='display:grid;grid-template-columns:40fr 60fr;gap:24px;margin-bottom:32px'>
-      <div class='print-avoid-break' style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
+        <div style='display:grid;grid-template-columns:40fr 60fr;gap:24px;margin-bottom:32px'>
+      <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
         ${utilisPanel}
       </div>
-      <div class='print-avoid-break' style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
+      <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
         <div class='page-header' style='margin-bottom:12px'>
-          <h3 style='margin:0;color:var(--c-navy-steel)'>Estimated Revenue</h3>
+          <h3 style='margin:0;color:var(--brand-tertiary)'>Estimated Revenue</h3>
         </div>
         ${revenuePanel}
       </div>
     </div>
 
-   <div class='print-avoid-break' style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
+      <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
       <div class='page-header' style='margin-bottom:12px'>
-        <h3 style='margin:0;color:var(--c-navy-steel)'>Workforce Segmentation</h3>
+        <h3 style='margin:0;color:var(--brand-tertiary)'>Workforce Segmentation</h3>
       </div>
       ${segmentPanel}
     </div>
-    <div class='print-avoid-break' style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:24px'>
+    <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:24px'>
       <div class='page-header' style='margin-bottom:12px'>
-        <h3 style='margin:0;color:var(--c-navy-steel)'>Upcoming Employee End Dates</h3>
+        <h3 style='margin:0;color:var(--brand-tertiary)'>Upcoming Employee End Dates</h3>
       </div>
       ${endDatesPanel}
     </div>`;

@@ -137,9 +137,9 @@ function coeRenderBody() {
       ${isAdmin && planRows.length ? `<button class="btn-danger" id="coe-delete-plan-btn" onclick="coeDeletePlan()">Delete Plan</button>` : ''}
     </div>
     <div class="coe-legend">
-      <span><span class="coe-swatch" style="background:#BDE3F5"></span> Recruitment</span>
-      <span><span class="coe-swatch" style="background:#F5CCE8"></span> Notice</span>
-      <span><span class="coe-swatch" style="background:#CDEBD3"></span> Onboarding</span>
+      <span><span class="coe-swatch" style="background:var(--c-blue-pale)"></span> Recruitment</span>
+      <span><span class="coe-swatch" style="background:var(--c-pink-pale)"></span> Notice</span>
+      <span><span class="coe-swatch" style="background:var(--c-green-pale-border)"></span> Onboarding</span>
       <span>Thin bar = actual (linked roles)</span>
     </div>
     <div id="coe-gantt"></div>
@@ -351,7 +351,7 @@ async function coeOpenRowModal(rowId = null) {
           <div class="form-group"><label>Onboarding (wks)</label>
             <input type="number" min="0" name="OnboardingWeeks" placeholder="${dflt.onboardingWeeks}" value="${row?.OnboardingWeeks ?? ''}"></div>
         </div>
-        <p style="font-size:12px;color:#777">Leave phase fields blank to use defaults. Target Hire Date = Open Date + Recruitment weeks.</p>
+        <p style="font-size:12px;color:var(--c-gray-550)">Leave phase fields blank to use defaults. Target Hire Date = Open Date + Recruitment weeks.</p>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${row ? 'Save Changes' : 'Add to Plan'}</button>
           <button type="button" class="btn-secondary" onclick="document.getElementById('coe-modal-host').innerHTML=''">Cancel</button>

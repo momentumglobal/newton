@@ -42,6 +42,10 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### August 2026 — Test harness (F-6a)
+
+**New: `tests/` — Newton's first automated test infra.** A pass/fail page (`tests/index.html`) and a dependency-free Node runner (`tests/run.js`) share one assertion list (`tests/assertions.js`) against fixture data (`tests/fixtures.js`), run against the real `utils.js`/`analytics.js`/`lci-model.js` in production script order. Ships with 4 seed assertions covering revenue proration, role flagging, LCI headcount and LCI horizon slicing — enough to prove the rig, not full coverage. `.github/workflows/static.yml` now runs `node tests/run.js` in a `test` job before `deploy`, so a broken calc can't reach `main`. Real coverage of the date/week layer, the LCI calc layer, and the analytics layer follows in three further tasks that extend `tests/fixtures.js`/`tests/assertions.js` rather than replace them.
+
 ### August 2026 — Split-fee revenue: Exec Search & MG AI
 
 **New: split-fee product lines** — two new project types, Exec Search and MG AI, bill as a retainer plus a placement fee rather than a monthly rate. Selecting either on an assignment swaps the Monthly Bill Rate field for **Retainer (£)** and **Placement Fee (£)**; every other project type is unchanged. The retainer is recognised in the assignment's start month and the placement fee in the **month after** its end month — so an Aug–Oct assignment books its placement fee in November, and a December-ending one books it in January of the following year. Neither is pro-rated. Utilisation is unaffected: a split-fee assignment occupies its person exactly as any other, because billed capacity comes from date overlap and the `Billed` flag, not from the rate.

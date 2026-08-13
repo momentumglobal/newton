@@ -87,7 +87,7 @@ function _renderForecastPage(forecasts) {
             </div>
           </td>
         </tr>`).join('')
-    `<tr><td colspan="6" style="color:var(--text-muted);text-align:center">No forecasts added yet.</td></tr>`;
+    : `<tr><td colspan="6" style="color:var(--text-muted);text-align:center">No forecasts added yet.</td></tr>`;
 
   return `
     <div class="page-header">

@@ -55,7 +55,7 @@ const totalActiveHeadcount = people.filter(
   // Month headers
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const monthHeaders = MONTHS.map(m =>
-    `<th style='text-align:center;font-size:11px;font-weight:600;
+    `<th class='print-avoid-break' style='text-align:center;font-size:11px;font-weight:600;
                 color:var(--c-gray-700);padding:6px 2px;min-width:52px;
                 position:sticky;top:0;background:var(--c-white)'>${m}</th>`
   ).join('');
@@ -217,7 +217,7 @@ const totalActiveHeadcount = people.filter(
     });
 
   const deployableTile = `
-    <div style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;
+    <div class='print-avoid-break' style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;
                 padding:20px;margin-bottom:24px'>
       <div style='display:flex;align-items:center;justify-content:space-between;
                   flex-wrap:wrap;gap:12px;margin-bottom:16px'>
@@ -264,10 +264,10 @@ const totalActiveHeadcount = people.filter(
     <div style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px'>${legend}</div>
 <div style='overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 200px);margin:0 -40px;padding:0 4px'>
     <table class='data-table' style='min-width:800px;table-layout:fixed'>
-        <thead style='position:sticky;top:0;z-index:10;background:var(--c-white)'><tr>
-<th style='width:180px;min-width:180px;text-align:left;padding:6px 8px;font-size:11px;
+        <thead class='print-avoid-break' style='position:sticky;top:0;z-index:10;background:var(--c-white)'><tr>
+<th class='print-avoid-break' style='width:180px;min-width:180px;text-align:left;padding:6px 8px;font-size:11px;
                      font-weight:600;color:var(--c-gray-700);position:sticky;top:0;background:var(--c-white)'>Employee</th>
-          <th style='width:50px;min-width:50px;text-align:left;padding:6px 8px;font-size:11px;
+          <th class='print-avoid-break' style='width:50px;min-width:50px;text-align:left;padding:6px 8px;font-size:11px;
                      font-weight:600;color:var(--c-gray-700);position:sticky;top:0;background:var(--c-white)'>Level</th>
           ${monthHeaders}
         </tr></thead>

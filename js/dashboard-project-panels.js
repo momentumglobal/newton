@@ -271,7 +271,7 @@ function renderSpendPanel(roles, placements) {
   const overallPct  = totalBudget > 0 ? Math.round(((totalBudget - totalSpend) / totalBudget) * 100) : null;
   const overallLabel = overallPct === null ? '—'
     : overallPct >= 0 ? `${overallPct}% under budget` : `${Math.abs(overallPct)}% over budget`;
-  const overallColor = overallPct === null ? '#666' : overallPct >= 0 ? '#107C10' : '#C00000';
+  const overallColor = overallPct === null ? 'var(--c-gray-600)' : overallPct >= 0 ? 'var(--c-green-msft)' : 'var(--c-red-variance)';
   const SYMBOLS = { GBP: '£', EUR: '€', USD: '$', CAD: 'CA$', AUD: 'A$', SGD: 'S$', AED: 'AED', ZAR: 'R', LKR: 'LKR' };
   const fmt = (n, ccy) => {
     const sym = SYMBOLS[ccy] || ccy;
@@ -286,7 +286,7 @@ function renderSpendPanel(roles, placements) {
     const budget = ccyRoles.reduce((s, r) => s + (parseFloat(r.Budget) || 0), 0);
     const spend  = ccyPlacements.reduce((s, p) => s + (parseFloat(p.SalaryAgreed) || 0), 0);
     const diff   = budget - spend;
-    const diffColor = diff >= 0 ? '#107C10' : '#C00000';
+    const diffColor = diff >= 0 ? 'var(--c-green-msft)' : 'var(--c-red-variance)';
     const diffLabel = diff >= 0 ? `${fmt(diff, ccy)} under` : `${fmt(Math.abs(diff), ccy)} over`;
     return `<tr>
       <td><strong>${ccy}</strong></td>

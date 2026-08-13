@@ -445,6 +445,29 @@ function getGhostProject() {
   return sessionStorage.getItem(GHOST_PROJECT_KEY);
 }
 
+// ── Theme (light / dark) ────────────────────────────────────────────
+// Explicit user choice, once made, overrides prefers-color-scheme permanently.
+// theme-init.js sets the initial data-theme attribute before first paint using
+// the same localStorage key — keep THEME_KEY's value in sync with the literal
+// string in theme-init.js if it ever changes.
+const THEME_KEY = 'newton_theme';
+
+function getTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+function setTheme(theme) {
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+}
+function toggleTheme() {
+  setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+  if (typeof updateThemeToggleIcon === 'function') updateThemeToggleIcon();
+}
+
 // ── Dashboard skeleton placeholder ───────────────────────────────
 function dashboardSkeleton(cardCount = 5) {
   const card = `<div class="skel-card">

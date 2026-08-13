@@ -322,7 +322,7 @@ function renderHealthDetail(data) {
       <td>${customer}</td>
       <td style="text-align:center">${headcount}</td>
       <td style="text-align:center">${liveRoles}</td>
-      <td style="text-align:center">${flagged > 0 ? `<span style="color:var(--c-danger);font-weight:600">${flagged}</span>` : '—'}</td>
+      <td style="text-align:center">${flagged > 0 ? `<span style="color:var(--status-danger);font-weight:600">${flagged}</span>` : '—'}</td>
     </tr>`;
   }).join('');
 
@@ -400,7 +400,7 @@ function renderUtilDetail(data) {
   });
 
   const t = CONFIG.UTILISATION_THRESHOLDS;
-  const ragCol = v => v >= t.green ? 'var(--c-success)' : v >= t.amber ? 'var(--c-warn-deep)' : 'var(--c-danger)';
+  const ragCol = v => v >= t.green ? 'var(--status-success)' : v >= t.amber ? 'var(--status-warn-strong)' : 'var(--status-danger)';
   const fmtPct = v => `${(v * 100).toFixed(0)}%`;
 
   const headers      = months.map(m => `<th style="text-align:center">${m.label}</th>`).join('');

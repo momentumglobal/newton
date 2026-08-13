@@ -51,7 +51,7 @@ function renderPersonForm(existingData = null) {
           </div>
         </div>
         <div class='form-group'>
-          <label>Salary (£) <span style='font-size:11px;color:#888;font-weight:normal'>UK staff only</span></label>
+          <label>Salary (£) <span style='font-size:11px;color:var(--c-gray-500);font-weight:normal'>UK staff only</span></label>
           <input type='number' name='Salary' min='0' step='0.01'
             value='${escHtml(existingData?.Salary || '')}'>
         </div>
@@ -61,7 +61,7 @@ function renderPersonForm(existingData = null) {
             ? `<img src='${escHtml(existingData.PhotoUrl)}' alt='' style='width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:6px'>`
             : ''}
           <input type='file' name='PhotoFile' accept='image/*'>
-          <span style='font-size:11px;color:#888'>Uploads to PeoplePhotos. Square images crop best.</span>
+          <span style='font-size:11px;color:var(--c-gray-500)'>Uploads to PeoplePhotos. Square images crop best.</span>
         </div>
         ${isEdit ? `
         <div class='form-group'>
@@ -162,7 +162,7 @@ async function renderAssignmentForm(existingData = null) {
             <label>Level (auto-filled)</label>
             <input type='text' name='Level' id='assignment-level' readonly
               value='${escHtml(existingData?.Level || '')}'
-              style='background:#f5f5f5;cursor:default'>
+              style='background:var(--c-gray-050);cursor:default'>
           </div>
         </div>
         <div class='form-row'>
@@ -233,7 +233,7 @@ async function renderAssignmentForm(existingData = null) {
             <input type='checkbox' name='IsForecast'
               ${existingData && isForecastAssignment(existingData) ? 'checked' : ''}>
             Forecast assignment
-            <span style='font-size:11px;color:#888;font-weight:normal'>
+            <span style='font-size:11px;color:var(--c-gray-500);font-weight:normal'>
               (shown as forecast on the Deployment Timeline; excluded from utilisation)</span>
           </label>
         </div>

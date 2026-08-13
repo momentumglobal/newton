@@ -967,6 +967,9 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 
       <h3>Testing (Aug 2026)</h3>
       <p>Fixture assertions against the pure calc/helper layer live in <code>tests/</code>. Open <code>tests/index.html</code> in a browser for a visual pass/fail table, or run <code>node tests/run.js</code> (no dependencies) for the same result on the command line — the latter is also what <code>.github/workflows/static.yml</code>'s <code>test</code> job runs before every deploy. <code>tests/fixtures.js</code> and <code>tests/assertions.js</code> are shared by both entry points unmodified, so they never drift apart.</p>
+
+      <h3>Timezone discipline (Aug 2026)</h3>
+      <p>Two standing rules, both handled by named helpers in <code>utils.js</code> rather than convention/comments: <strong>WeeklyActivity.WeekEndingDate is a Sunday</strong>, not Friday — bucket on that boundary via <code>getWeekEnding(date)</code>. <strong>SharePoint returns dates as UTC datetimes</strong>, so <code>toISOString()</code> or raw string-slicing on a <code>Date</code> object shifts the 1st of a month into the prior month under BST — for the write side (a <code>Date</code> object going out) use <code>spDateOut(date)</code>; for the read side (a SharePoint string coming in) use <code>spDateIn(str)</code>. <code>isoDate()</code> (date-input-string → write string) and <code>utcDateOnly()</code> (SharePoint string → safe <code>Date</code> for arithmetic) remain in use for their existing call sites and are not deprecated by N-087 — <code>spDateOut</code>/<code>spDateIn</code> cover the two shapes those didn't: a <code>Date</code> object going out, and a safe day-string (no <code>Date</code> construction) coming in.</p>
     </div>
 
     <!-- ADDING A NEW MODULE -->

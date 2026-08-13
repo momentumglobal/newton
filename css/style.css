@@ -405,6 +405,7 @@
        --lci-status-*, --org-*, --eng-*-text-deep, --badge-completed-bg,
        --ttf-badge-*, --btn-icon-danger-hover-border) here — see
        newton-pipeline/specs/N-102-mapping.md for the full exclusion list. ── */
+  color-scheme: dark; /* themes native <select>/<input type=date> popups (QA round 1) */
   --surface-app:          var(--c-dark-bg);
   --surface:              var(--c-dark-surface);
   --surface-raised:       var(--c-dark-surface-raised);
@@ -419,6 +420,7 @@
   --surface-tooltip:      var(--c-dark-surface-raised);
   --brand:                var(--c-blue);
   --brand-hover:          var(--c-blue-mid);
+  --brand-tertiary:       var(--c-blue-mid); /* LCI ink; QA round 1 — was unthemed, JS sites read it directly */
   --text-primary:         var(--c-dark-text-primary);
   --text-secondary:       var(--c-dark-text-secondary);
   --text-label:           var(--c-dark-text-label);
@@ -468,6 +470,7 @@
     --surface-tooltip: var(--c-ink);
     --brand: var(--c-brand);
     --brand-hover: var(--c-blue);
+    --brand-tertiary: var(--c-navy-steel);
     --text-primary: var(--c-ink);
     --text-secondary: var(--c-gray-800);
     --text-label: var(--c-gray-650);

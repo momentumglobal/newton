@@ -20,7 +20,7 @@ function _lciRowsOfType(type) {
 // changed rows are written, so saves are effectively per-section anyway.
 function _lciSectionShell(id, title, subtitle, addFn, bodyHtml) {
   return `
-    <div id="${id}" style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:16px">
+    <div id="${id}" class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 style="margin:0;color:var(--c-navy-steel)">${title} <span style="font-weight:400;font-size:13px;color:var(--c-gray-500)">${subtitle}</span></h3>
         <div style="display:flex;gap:8px">
@@ -331,7 +331,7 @@ function _lciOutputInnerHtml(includeChart = true, plain = false, slice = null) {
   const showLegacyTeamCosts = !legacyCatRows && c.oneoffs.some(v => v);
 
   return `
-    <div style="${plain ? '' : 'background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'}">
+    <div class="${plain ? '' : 'print-avoid-break'}" style="${plain ? '' : 'background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'}">
       <h3 style="margin:0 0 12px;color:var(--c-navy-steel)">Cost Model${sl.label ? ` \u2014 ${sl.label}` : ''} <span style="font-weight:400;font-size:13px;color:var(--c-gray-500)">(all values in ${ccy})</span></h3>
       <div class="lci-grid-scroll">
         <table class="data-table lci-grid lci-output">

@@ -37,7 +37,7 @@ function _renderRevenueTrackingPage(assignments, years) {
     <div class="page-header">
       <h2>Revenue Tracking</h2>
       <div style="display:flex;align-items:center;gap:8px">
-        <label style="font-size:13px;color:var(--c-gray-700)">Year</label>
+        <label style="font-size:13px;color:var(--text-label)">Year</label>
         <select class="form-control" style="width:auto"
                 onchange="onRevTrackYearChange(this.value)">
           ${yearOptions}
@@ -87,14 +87,14 @@ function _renderForecastPage(forecasts) {
             </div>
           </td>
         </tr>`).join('')
-    : `<tr><td colspan="6" style="color:var(--c-gray-500);text-align:center">No forecasts added yet.</td></tr>`;
+    `<tr><td colspan="6" style="color:var(--text-muted);text-align:center">No forecasts added yet.</td></tr>`;
 
   return `
     <div class="page-header">
       <h2>Sales Forecast</h2>
       <button class="btn-primary" onclick="openForecastModal()">+ Add Forecast</button>
     </div>
-      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px">
+      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px">
       <table class="data-table">
         <thead>
           <tr>

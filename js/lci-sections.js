@@ -331,8 +331,8 @@ function _lciOutputInnerHtml(includeChart = true, plain = false, slice = null) {
   const showLegacyTeamCosts = !legacyCatRows && c.oneoffs.some(v => v);
 
   return `
-    <div class="${plain ? '' : 'print-avoid-break'}" style="${plain ? '' : 'background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'}">
-      <h3 style="margin:0 0 12px;color:var(--c-navy-steel)">Cost Model${sl.label ? ` \u2014 ${sl.label}` : ''} <span style="font-weight:400;font-size:13px;color:var(--c-gray-500)">(all values in ${ccy})</span></h3>
+    <div class="${plain ? '' : 'print-avoid-break'}" style="${plain ? '' : 'background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'}">
+      <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Cost Model${sl.label ? ` — ${sl.label}` : ''} <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(all values in ${ccy})</span></h3>
       <div class="lci-grid-scroll">
         <table class="data-table lci-grid lci-output">
           <thead><tr><th style="min-width:220px"></th>${monthHead}</tr></thead>

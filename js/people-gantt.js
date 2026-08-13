@@ -92,7 +92,7 @@ const totalActiveHeadcount = people.filter(
         : colour;
       return `<div title='${tooltip}' style='position:absolute;top:3px;bottom:3px;
         left:${leftPct}%;width:${widthPct}%;background:${bg};
-        ${isFc ? 'border:1px solid var(--c-accent);' : ''}
+        ${isFc ? 'border:1px solid var(--accent);' : ''}
         border-radius:3px;cursor:default'></div>`;
     }).join('');
 
@@ -109,7 +109,7 @@ const totalActiveHeadcount = people.filter(
     // Bench divider
     if (isBench && ci > 0) {
       rowsHtml += `<tr><td colspan='14' style='padding:0'>
-        <div style='border-top:2px dashed var(--c-gray-300);margin:8px 0'></div>
+        <div style='border-top:2px dashed var(--border-strong);margin:8px 0'></div>
       </td></tr>`;
     }
 
@@ -136,7 +136,7 @@ const totalActiveHeadcount = people.filter(
       rowsHtml += `<tr>
         <td style='padding:4px 8px;font-size:12px;width:180px;min-width:180px;overflow:hidden;
                    text-overflow:ellipsis;white-space:nowrap'>${escHtml(emp)}</td>
-        <td style='padding:4px 8px;font-size:11px;color:var(--c-gray-500);width:50px;
+        <td style='padding:4px 8px;font-size:11px;color:var(--text-muted);width:50px;
                    min-width:50px;white-space:nowrap'>${escHtml(level)}</td>
         ${cells}
       </tr>`;
@@ -145,13 +145,13 @@ const totalActiveHeadcount = people.filter(
 
   // Legend
   const legend = Object.entries(TYPE_COLOURS).map(([type, colour]) =>
-    `<div style='display:flex;align-items:center;gap:6px;font-size:12px;color:var(--c-gray-700)'>
+    `<div style='display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-label)'>
       <div style='width:14px;height:14px;border-radius:3px;background:${colour};flex-shrink:0'></div>
       ${type}
     </div>`
   ).join('') + `
-    <div style='display:flex;align-items:center;gap:6px;font-size:12px;color:var(--c-gray-700)'>
-      <div style='width:14px;height:14px;border-radius:3px;flex-shrink:0;border:1px solid var(--c-accent);
+    <div style='display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-label)'>
+      <div style='width:14px;height:14px;border-radius:3px;flex-shrink:0;border:1px solid var(--accent);
         background:repeating-linear-gradient(45deg,var(--c-stripe-amber-dark),var(--c-stripe-amber-dark) 5px,var(--c-stripe-amber-light) 5px,var(--c-stripe-amber-light) 10px)'></div>
       Forecast
     </div>`;
@@ -217,18 +217,18 @@ const totalActiveHeadcount = people.filter(
     });
 
     const deployableTile = `
-    <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;
+    <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--border);border-radius:6px;
                 padding:20px;margin-bottom:24px'>
       <div style='display:flex;align-items:center;justify-content:space-between;
                   flex-wrap:wrap;gap:12px;margin-bottom:16px'>
         <div>
-          <div style='font-size:13px;font-weight:700;color:var(--c-navy-steel)'>
+          <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary)'>
             Deployable Resources
-            <span style='font-size:12px;font-weight:400;color:var(--c-gray-500);margin-left:8px'>
+            <span style='font-size:12px;font-weight:400;color:var(--text-muted);margin-left:8px'>
               ${deployableRows.length} available
             </span>
           </div>
-          <div style='font-size:11px;color:var(--c-gray-400);margin-top:2px'>
+          <div style='font-size:11px;color:var(--text-faint);margin-top:2px'>
             Employees on bench / unbilled during the selected period
           </div>
         </div>
@@ -246,7 +246,7 @@ const totalActiveHeadcount = people.filter(
           </tr></thead>
           <tbody>${deployableRows.join('')}</tbody>
         </table>` :
-        `<p style='font-size:13px;color:var(--c-gray-500);margin:0'>
+        `<p style='font-size:13px;color:var(--text-muted);margin:0'>
           No unassigned employees during this period.</p>`
       }
     </div>`;
@@ -255,7 +255,7 @@ const totalActiveHeadcount = people.filter(
 <div class='page-header'>
       <h2>Deployment Timeline</h2>
       <div style='display:flex;align-items:center;gap:12px'>
-        <label style='font-size:13px;color:var(--c-gray-700)'>Year</label>
+        <label style='font-size:13px;color:var(--text-label)'>Year</label>
         <select onchange='_setGanttYear(+this.value)'>${yearOpts}</select>
         <button class='print-btn' onclick='printPage("Deployment Timeline", true, "People")'>⎙ Export PDF</button>
       </div>

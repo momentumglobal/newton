@@ -20,9 +20,9 @@ function _lciRowsOfType(type) {
 // changed rows are written, so saves are effectively per-section anyway.
 function _lciSectionShell(id, title, subtitle, addFn, bodyHtml) {
   return `
-    <div id="${id}" style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px;margin-top:16px">
+    <div id="${id}" style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 style="margin:0;color:#1B3A5C">${title} <span style="font-weight:400;font-size:13px;color:#888">${subtitle}</span></h3>
+        <h3 style="margin:0;color:var(--c-navy-steel)">${title} <span style="font-weight:400;font-size:13px;color:var(--c-gray-500)">${subtitle}</span></h3>
         <div style="display:flex;gap:8px">
           <button class="btn-secondary" onclick="${addFn}()">+ Add Row</button>
           <button class="btn-primary lci-rows-save" onclick="saveLCIRows()" disabled>Save Changes</button>
@@ -74,7 +74,7 @@ function _lciLegacyHtml() {
         <td><button class="btn-danger lci-row-del" onclick="removeLCIRowAction(${gidx}, '_lciLegacyHtml', 'lci-legacy-section')">×</button></td>
       </tr>`;
   }).join('')
-    : `<tr><td colspan="9" style="color:#888;text-align:center">No legacy roles yet.</td></tr>`;
+    : `<tr><td colspan="9" style="color:var(--c-gray-500);text-align:center">No legacy roles yet.</td></tr>`;
 
   return _lciSectionShell('lci-legacy-section', 'Legacy Team',
     `(fully loaded salaries in ${m.DisplayCurrency}; Exiting rows run M1 → exit month, Retained run to the horizon)`,
@@ -131,7 +131,7 @@ function _lciMonthGridHtml(sectionId, type, title, subtitle, addFn) {
         <td><button class="btn-danger lci-row-del" onclick="removeLCIRowAction(${gidx}, '${_LCI_GRID_RENDERERS[type]}', '${sectionId}')">×</button></td>
       </tr>`;
   }).join('')
-    : `<tr><td colspan="${horizon + 3}" style="color:#888;text-align:center">No rows yet.</td></tr>`;
+    : `<tr><td colspan="${horizon + 3}" style="color:var(--c-gray-500);text-align:center">No rows yet.</td></tr>`;
 
   return _lciSectionShell(sectionId, title, subtitle, addFn, `
     <div class="lci-grid-scroll">
@@ -331,8 +331,8 @@ function _lciOutputInnerHtml(includeChart = true, plain = false, slice = null) {
   const showLegacyTeamCosts = !legacyCatRows && c.oneoffs.some(v => v);
 
   return `
-    <div style="${plain ? '' : 'background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px'}">
-      <h3 style="margin:0 0 12px;color:#1B3A5C">Cost Model${sl.label ? ` \u2014 ${sl.label}` : ''} <span style="font-weight:400;font-size:13px;color:#888">(all values in ${ccy})</span></h3>
+    <div style="${plain ? '' : 'background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'}">
+      <h3 style="margin:0 0 12px;color:var(--c-navy-steel)">Cost Model${sl.label ? ` \u2014 ${sl.label}` : ''} <span style="font-weight:400;font-size:13px;color:var(--c-gray-500)">(all values in ${ccy})</span></h3>
       <div class="lci-grid-scroll">
         <table class="data-table lci-grid lci-output">
           <thead><tr><th style="min-width:220px"></th>${monthHead}</tr></thead>
@@ -385,8 +385,8 @@ function _lciSpendChartSvg(c, ccy, horizon) {
   const ticks = c.labels.map((l, i) => {
     if (!(horizon <= 12 || i % 2 === 0)) return '';
     const sub = (l.match(/\((.+)\)/) || [])[1] || '';
-    return `<text x="${x(i).toFixed(1)}" y="${H - 18}" font-size="10" fill="#888" text-anchor="middle">M${i + 1}</text>
-            <text x="${x(i).toFixed(1)}" y="${H - 6}" font-size="8" fill="#aaa" text-anchor="middle">(${sub})</text>`;
+    return `<text x="${x(i).toFixed(1)}" y="${H - 18}" font-size="10" fill="var(--c-gray-500)" text-anchor="middle">M${i + 1}</text>
+            <text x="${x(i).toFixed(1)}" y="${H - 6}" font-size="8" fill="var(--c-gray-400)" text-anchor="middle">(${sub})</text>`;
   }).join('');
 
   let gridLines = '';
@@ -394,12 +394,12 @@ function _lciSpendChartSvg(c, ccy, horizon) {
     const gy = y(v);
     const isMajor = v % MAJOR === 0;
     gridLines += `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" class="lci-chart-grid${isMajor ? '' : ' lci-chart-grid--minor'}"/>`;
-    if (isMajor) gridLines += `<text x="${padL - 6}" y="${gy + 3}" font-size="10" fill="#999" text-anchor="end">${fmtCompact(v)}</text>`;
+    if (isMajor) gridLines += `<text x="${padL - 6}" y="${gy + 3}" font-size="10" fill="var(--c-gray-450)" text-anchor="end">${fmtCompact(v)}</text>`;
   }
 
   return `
     <div style="margin-top:16px">
-      <h3 style="margin:0 0 12px;color:#1B3A5C">Cumulative Spend <span style="font-weight:400;font-size:13px;color:#888">(${ccy})</span></h3>
+      <h3 style="margin:0 0 12px;color:var(--c-navy-steel)">Cumulative Spend <span style="font-weight:400;font-size:13px;color:var(--c-gray-500)">(${ccy})</span></h3>
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
         ${gridLines}
         <polyline points="${points}" class="lci-chart-line" fill="none"/>

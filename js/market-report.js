@@ -176,7 +176,7 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
   const pValues  = Object.values(pipeline).map(v => `<td ${colW}>${v}</td>`).join("");
 
   const rejHtml = rejections.length ? `
-    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">Offer Rejection Reasons</div>
       <table class="data-table"><thead><tr>
         <th>Candidate</th><th>Role</th><th>Reason</th><th>Detail</th>
@@ -200,12 +200,12 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
     </style>
     ${title ? `<h2 class="rb-report-title">${title}</h2>` : ""}
 
-    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">Market Overview</div>
       <div class="kpi-strip">${kpiHtml}</div>
     </div>
 
-    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">Resulting Pipeline Activity</div>
             <table class="data-table" style="width:100%;margin:0">
         <thead><tr>${pHeaders}</tr></thead>
@@ -215,7 +215,7 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
 
     ${rejHtml}
 
-    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div class="rb-block rb-block-text">
         <div class="rb-rt-wrapper">
           <div class="rb-rt-toolbar" id="mr-obs-toolbar">
@@ -511,7 +511,7 @@ function mrRenderPrintCanvas() {
   const pValues  = Object.values(pipeline).map(v => `<td ${colW}>${v}</td>`).join("");
 
   const rejHtml = rejections.length ? `
-    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">Offer Rejection Reasons</div>
       <table class="data-table" style="width:100%"><thead><tr>
           <th>Candidate</th><th>Role</th><th>Reason</th><th>Detail</th>
@@ -530,12 +530,12 @@ function mrRenderPrintCanvas() {
   return `
     ${_mrTitle ? `<h2 class="rb-report-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_mrTitle}</h2>` : ""}
 
-    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">Market Overview</div>
       <div class="kpi-strip">${kpiHtml}</div>
     </div>
 
-    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:var(--c-brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--c-gray-100)">Resulting Pipeline Activity</div>
       <table class="data-table" style="width:100%;margin:0">
         <thead><tr>${pHeaders}</tr></thead>
@@ -545,7 +545,7 @@ function mrRenderPrintCanvas() {
 
     ${rejHtml}
 
-    <div style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-115);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div class="rb-richtext" style="min-height:120px;padding:8px 10px">${_mrObs || ""}</div>
     </div>
   `;

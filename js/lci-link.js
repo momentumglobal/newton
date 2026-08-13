@@ -108,13 +108,13 @@ async function openLCILinkModal(modelId) {
     host.innerHTML = `
       <div class="lci-modal-overlay" onclick="if(event.target===this)closeLCILink()">
         <div class="lci-modal-card">
-          <h3 style="margin:0 0 16px;color:#1B3A5C">Link "${escHtml(m.Title)}" to a CoE Project</h3>
+          <h3 style="margin:0 0 16px;color:var(--c-navy-steel)">Link "${escHtml(m.Title)}" to a CoE Project</h3>
           ${projects.length ? `
             <div class="form-group">
               <label>CoE Project</label>
               <select class="form-control" id="lci-link-project">${opts}</select>
             </div>
-            <p style="font-size:12px;color:#888">
+            <p style="font-size:12px;color:var(--c-gray-500)">
               ${alreadyLinked ? `Currently linked to <strong>${escHtml(alreadyLinked.CustomerName || alreadyLinked.Title)}</strong>. ` : ''}
               Generating creates one hiring-plan row per hire, with the hire landing in the last week of its target month. Recruitment &amp; onboarding use plan defaults; notice comes from the model (incl. per-role overrides).
             </p>
@@ -124,7 +124,7 @@ async function openLCILinkModal(modelId) {
               <button class="btn-secondary" id="lci-link-save-btn" onclick="saveLCILink(${m.id})">Save Link</button>
               <button class="btn-primary" id="lci-link-gen-btn" onclick="generateLCIPlan(${m.id})">Save & Generate Plan</button>
             </div>`
-          : `<p style="color:#888">No CoE-type projects found. Set a project's <em>ProjectType</em> to "CoE" first.</p>
+          : `<p style="color:var(--c-gray-500)">No CoE-type projects found. Set a project's <em>ProjectType</em> to "CoE" first.</p>
              <div style="display:flex;justify-content:flex-end;margin-top:20px"><button class="btn-secondary" onclick="closeLCILink()">Close</button></div>`}
         </div>
       </div>`;

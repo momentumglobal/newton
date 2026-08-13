@@ -271,7 +271,7 @@ function renderSpendPanel(roles, placements) {
   const overallPct  = totalBudget > 0 ? Math.round(((totalBudget - totalSpend) / totalBudget) * 100) : null;
   const overallLabel = overallPct === null ? '—'
     : overallPct >= 0 ? `${overallPct}% under budget` : `${Math.abs(overallPct)}% over budget`;
-  const overallColor = overallPct === null ? 'var(--c-gray-600)' : overallPct >= 0 ? 'var(--c-green-msft)' : 'var(--c-red-variance)';
+  const overallColor = overallPct === null ? 'var(--text-label)' : overallPct >= 0 ? 'var(--status-success)' : 'var(--status-danger)';
   const SYMBOLS = { GBP: '£', EUR: '€', USD: '$', CAD: 'CA$', AUD: 'A$', SGD: 'S$', AED: 'AED', ZAR: 'R', LKR: 'LKR' };
   const fmt = (n, ccy) => {
     const sym = SYMBOLS[ccy] || ccy;

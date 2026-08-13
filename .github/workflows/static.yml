@@ -22,8 +22,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Blocks deploy on a failing calc assertion (N-095).
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run test harness
+        run: node tests/run.js
+
   # Single deploy job since we're just deploying
   deploy:
+    needs: test
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

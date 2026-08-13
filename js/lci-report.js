@@ -119,8 +119,8 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
       ${_lciReportDividerHtml(m)}
       <div class="lci-summary-card lci-report-break">
         <div class="lci-summary-head">
-          <h2 style="margin:0;color:var(--c-navy-steel)">${escHtml(m.Title)}</h2>
-          <div style="color:var(--c-gray-600);font-size:13px;margin-top:4px">${escHtml(m.Location)}</div>
+          <h2 style="margin:0;color:var(--brand-tertiary)">${escHtml(m.Title)}</h2>
+          <div style="color:var(--text-label);font-size:13px;margin-top:4px">${escHtml(m.Location)}</div>
         </div>
         ${_lciRoadmapBlocksHtml()}
       </div>
@@ -149,7 +149,7 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
         <button class="btn-primary" onclick="printPage(document.querySelector('.lci-report-title').textContent.replace(/'/g,''), true, 'LCI')">Print / PDF</button>
       </div>
     </div>
-    ${missingCount ? `<p class="lci-noprint" style="color:var(--c-accent);font-size:13px;margin:0 0 12px">${missingCount} model(s) in this saved report no longer exist and were skipped.</p>` : ''}
+    ${missingCount ? `<p class="lci-noprint" style="color:var(--accent);font-size:13px;margin:0 0 12px">${missingCount} model(s) in this saved report no longer exist and were skipped.</p>` : ''}
     ${_lciReportCoverHtml(title, subtitle)}
     ${modelSections}
     ${_lciReportComparisonHtml(bundles)}
@@ -163,7 +163,7 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
 function _lciReportObsHtml() {
   return `
     <div class="lci-summary-card lci-report-break">
-      <h3 style="margin:0 0 12px;color:var(--c-navy-steel)">Observations and Recommendations</h3>
+      <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Observations and Recommendations</h3>
       <div class="rb-rt-wrapper">
         <div class="rb-rt-toolbar lci-noprint">
           <button type="button" onclick="lciReportFormat('bold')"><b>B</b></button>
@@ -175,7 +175,7 @@ function _lciReportObsHtml() {
           <button type="button" onclick="lciReportFormatBlock('P')">Body Text</button>
         </div>
         <div id="lci-report-obs" class="rb-richtext" contenteditable="true"
-             style="min-height:200px;caret-color:var(--c-brand);cursor:text;padding:8px 10px"
+             style="min-height:200px;caret-color:var(--brand);cursor:text;padding:8px 10px"
              data-placeholder="Add observations &amp; recommendations here..."
              oninput="window._lciReportObs = this.innerHTML">${window._lciReportObs || ''}</div>
       </div>
@@ -246,9 +246,9 @@ function _lciCompareTableHtml(entries, ccy) {
   const twoModels = entries.length === 2;
   const delta = (a, b, fmt, goodWhenLower = true) => {
     const d = b - a;
-    if (!isFinite(d) || d === 0) return '<span style="color:var(--c-gray-500)">—</span>';
+    if (!isFinite(d) || d === 0) return '<span style="color:var(--text-muted)">—</span>';
     const good = goodWhenLower ? d < 0 : d > 0;
-    return `<span style="color:${good ? 'var(--c-success)' : 'var(--c-danger)'}">${d > 0 ? '+' : '−'}${fmt(Math.abs(d))}</span>`;
+    return `<span style="color:${good ? 'var(--status-success)' : 'var(--status-danger)'}">${d > 0 ? '+' : '−'}${fmt(Math.abs(d))}</span>`;
   };
 
   const K = [
@@ -270,12 +270,12 @@ function _lciCompareTableHtml(entries, ccy) {
     </tr>`).join('');
 
   return `
-    <h3 style="margin:0 0 12px;color:var(--c-navy-steel)">Key Metrics <span style="font-weight:400;font-size:13px;color:var(--c-gray-500)">(${ccy})</span></h3>
+    <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Key Metrics <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(${ccy})</span></h3>
     <table class="data-table lci-compare">
       <thead>${head}</thead>
       <tbody>${rows}</tbody>
     </table>
-    ${twoModels ? `<p style="font-size:12px;color:var(--c-gray-500);margin:8px 0 0">Δ green = ${escHtml(entries[1].name)} favourable, red = unfavourable (cost down / hires up = good).</p>` : ''}`;
+    ${twoModels ? `<p style="font-size:12px;color:var(--text-muted);margin:8px 0 0">Δ green = ${escHtml(entries[1].name)} favourable, red = unfavourable (cost down / hires up = good).</p>` : ''}`;
 }
 
 // N-line cumulative spend chart, all solid, palette colours, centred legend.
@@ -298,7 +298,7 @@ function _lciReportCompareChartSvg(entries, ccy) {
     const gy = y(v);
     const isMajor = v % MAJOR === 0;
     gridLines += `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" class="lci-chart-grid${isMajor ? '' : ' lci-chart-grid--minor'}"/>`;
-    if (isMajor) gridLines += `<text x="${padL - 6}" y="${gy + 3}" font-size="8" fill="var(--c-gray-450)" text-anchor="end">${fmtCompact(v)}</text>`;
+    if (isMajor) gridLines += `<text x="${padL - 6}" y="${gy + 3}" font-size="8" fill="var(--text-faint)" text-anchor="end">${fmtCompact(v)}</text>`;
   }
 
   const lines = entries.map((e, n) => {
@@ -312,8 +312,8 @@ function _lciReportCompareChartSvg(entries, ccy) {
   const ticks = labels.map((l, i) => {
     if (!(horizon <= 12 || i % 2 === 0)) return '';
     const sub = (l.match(/\((.+)\)/) || [])[1] || '';
-    return `<text x="${x(i).toFixed(1)}" y="${H - 30}" font-size="8" fill="var(--c-gray-500)" text-anchor="middle">M${i + 1}</text>
-            <text x="${x(i).toFixed(1)}" y="${H - 20}" font-size="7" fill="var(--c-gray-400)" text-anchor="middle">(${sub})</text>`;
+    return `<text x="${x(i).toFixed(1)}" y="${H - 30}" font-size="8" fill="var(--text-muted)" text-anchor="middle">M${i + 1}</text>
+            <text x="${x(i).toFixed(1)}" y="${H - 20}" font-size="7" fill="var(--text-faint)" text-anchor="middle">(${sub})</text>`;
   }).join('');
 
   // Centred legend: items spaced evenly around W/2
@@ -325,12 +325,12 @@ function _lciReportCompareChartSvg(entries, ccy) {
         const col = LCI_REPORT_COLOURS[n % LCI_REPORT_COLOURS.length];
         const lx = startX + n * itemW;
         return `<line x1="${lx}" y1="${H - 6}" x2="${lx + 24}" y2="${H - 6}" stroke="${col}" stroke-width="2.5"/>
-                <text x="${lx + 30}" y="${H - 3}" fill="var(--c-gray-700)">${escHtml(e.name)}</text>`;
+                <text x="${lx + 30}" y="${H - 3}" fill="var(--text-label)">${escHtml(e.name)}</text>`;
       }).join('')}
     </g>`;
 
   return `
-    <h3 style="margin:0 0 12px;color:var(--c-navy-steel)">Cumulative Spend <span style="font-weight:400;font-size:13px;color:var(--c-gray-500)">(${ccy})</span></h3>
+    <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Cumulative Spend <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(${ccy})</span></h3>
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
       ${gridLines}
       ${lines}

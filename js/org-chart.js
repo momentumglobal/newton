@@ -306,7 +306,7 @@ async function showPlaceholderManager() {
   main.innerHTML = `
     <div class='form-container' style='max-width:860px'>
       <h2>Placeholders</h2>
-      <p style='color:#666;font-size:13px;margin-top:-6px'>
+      <p style='color:var(--c-gray-600);font-size:13px;margin-top:-6px'>
         Vacancies and fictional roles shown on the org chart. They never appear in
         headcount, utilisation, the Employees tab or any report.
       </p>
@@ -355,7 +355,7 @@ async function showPlaceholderForm(id = null) {
       <div class='form-group'>
         <label>Level *</label>
         <select id='ph-level'>${levelOpts}</select>
-        <small style='color:#888'>SDM sits directly under the team bubble; STP/TP report into the SDM.</small>
+        <small style='color:var(--c-gray-500)'>SDM sits directly under the team bubble; STP/TP report into the SDM.</small>
       </div>
       <div class='form-group'>
         <label>Team *</label>
@@ -365,12 +365,12 @@ async function showPlaceholderForm(id = null) {
         <label>New team name *</label>
         <input type='text' id='ph-team-new' oninput='_ocCheckTeamName()'
           value='${_ocEsc(matched ? '' : curTeam)}' placeholder='e.g. Newton Dev'>
-        <small id='ph-team-warn' style='color:#b26a00;display:none'></small>
+        <small id='ph-team-warn' style='color:var(--c-amber-warn-text);display:none'></small>
       </div>
       <div class='form-group' id='ph-csd-wrap'>
         <label>CSD owner *</label>
         <select id='ph-csd'>${csdOpts}</select>
-        <small style='color:#888'>Only needed for a new team — an existing project uses its own CSD.</small>
+        <small style='color:var(--c-gray-500)'>Only needed for a new team — an existing project uses its own CSD.</small>
       </div>
       <div class='form-actions'>
         <button type='button' class='btn-primary'

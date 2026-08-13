@@ -286,7 +286,7 @@ function renderSpendPanel(roles, placements) {
     const budget = ccyRoles.reduce((s, r) => s + (parseFloat(r.Budget) || 0), 0);
     const spend  = ccyPlacements.reduce((s, p) => s + (parseFloat(p.SalaryAgreed) || 0), 0);
     const diff   = budget - spend;
-    const diffColor = diff >= 0 ? 'var(--c-green-msft)' : 'var(--c-red-variance)';
+    const diffColor = diff >= 0 ? 'var(--status-success)' : 'var(--status-danger)';
     const diffLabel = diff >= 0 ? `${fmt(diff, ccy)} under` : `${fmt(Math.abs(diff), ccy)} over`;
     return `<tr>
       <td><strong>${ccy}</strong></td>

@@ -128,7 +128,7 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
       </circle>`).join('');
   
   return `
-    <div style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;
+    <div class='print-avoid-break' style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;
                 padding:20px 20px 12px;margin-bottom:24px'>
       <div style='font-size:13px;font-weight:700;color:var(--c-navy-steel);margin-bottom:8px'>
         Team Utilisation ${thisYear}</div>
@@ -524,10 +524,10 @@ const { start, end } = _dashDateRange(_dashFilter);
  <div style='margin-bottom:24px'>${periodBtns}</div>
 
     <div style='display:grid;grid-template-columns:40fr 60fr;gap:24px;margin-bottom:32px'>
-      <div style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
+      <div class='print-avoid-break' style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
         ${utilisPanel}
       </div>
-      <div style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
+      <div class='print-avoid-break' style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
         <div class='page-header' style='margin-bottom:12px'>
           <h3 style='margin:0;color:var(--c-navy-steel)'>Estimated Revenue</h3>
         </div>
@@ -535,13 +535,13 @@ const { start, end } = _dashDateRange(_dashFilter);
       </div>
     </div>
 
-   <div style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
+   <div class='print-avoid-break' style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
       <div class='page-header' style='margin-bottom:12px'>
         <h3 style='margin:0;color:var(--c-navy-steel)'>Workforce Segmentation</h3>
       </div>
       ${segmentPanel}
     </div>
-    <div style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:24px'>
+    <div class='print-avoid-break' style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:24px'>
       <div class='page-header' style='margin-bottom:12px'>
         <h3 style='margin:0;color:var(--c-navy-steel)'>Upcoming Employee End Dates</h3>
       </div>

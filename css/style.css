@@ -215,11 +215,41 @@
   --sh-modal: 0 8px 32px rgba(0,0,0,0.18);
   --sh-drawer: -8px 0 32px rgba(0,0,0,0.4);
   --sh-focus: 0 0 0 3px rgba(10,11,68,0.08);
-  /* Transition durations */
+    /* Transition durations */
   --dur-fast: 120ms;
   --dur-base: 150ms;
   --dur-slow: 300ms;
   --dur-slower: 350ms;
+  /* Colour — dark-mode neutral ramp (N-102). Palette only; referenced
+     exclusively by the [data-theme="dark"] semantic override block below. */
+  --c-dark-bg:             #12131C;
+  --c-dark-surface:        #1B1D29;
+  --c-dark-surface-raised: #232636;
+  --c-dark-surface-sunken: #14151E;
+  --c-dark-surface-hover:  #262838;
+  --c-dark-surface-faint:  #181A25;
+  --c-dark-surface-disabled: #20222E;
+  --c-dark-surface-alt:    #1A2333;
+  --c-dark-surface-alt-border: #2A3B57;
+  --c-dark-surface-tint:   #201F30;
+  --c-dark-border:         #363A4F;
+  --c-dark-border-strong:  #454A63;
+  --c-dark-border-subtle:  #262838;
+  --c-dark-border-neutral: #5B5E75;
+  --c-dark-text-primary:   #EDEDF3;
+  --c-dark-text-secondary: #C6C8D6;
+  --c-dark-text-label:     #A3A6BC;
+  --c-dark-text-muted:     #82869E;
+  --c-dark-text-faint:     #5C5F78;
+  --c-dark-success:        #4CAF50;
+  --c-dark-success-bg:     #1C3620;
+  --c-dark-warn:           #FFB74D;
+  --c-dark-warn-bg:        #3A2E14;
+  --c-dark-warn-bg-soft:   #332912;
+  --c-dark-danger:         #EF5350;
+  --c-dark-danger-bg:      #3A1F1F;
+  --c-dark-danger-bg-soft: #331B1B;
+  --c-dark-neutral-bg:     #232733;
 }
 :root {
   /* ── Semantic tokens (N-101) — role names mapped onto the N-067 palette.
@@ -362,7 +392,109 @@
   --badge-completed-bg:           var(--c-purple-pale);
   --ttf-badge-bg:                 var(--c-blue-muted);
   --ttf-badge-text:               var(--c-navy-deep);
-  --btn-icon-danger-hover-border: var(--c-red-border-soft);
+    --btn-icon-danger-hover-border: var(--c-red-border-soft);
+}
+[data-theme="dark"] {
+  /* ── Dark theme (N-102) — redefines the themeable subset of the N-101
+       semantic layer. Component rules are untouched; they already reference
+       semantic tokens only. Selector is the bare attribute form (NOT
+       :root[data-theme="dark"]) so its specificity ties with the plain
+       :root print re-pin below — do not "fix" this to :root[data-theme=dark],
+       it would break print (spec Gotcha G1). Do NOT add the permanently-dark
+       chrome groups (--inverse-*, --badge-cc-*, --notif-*, --coe-*,
+       --lci-status-*, --org-*, --eng-*-text-deep, --badge-completed-bg,
+       --ttf-badge-*, --btn-icon-danger-hover-border) here — see
+       newton-pipeline/specs/N-102-mapping.md for the full exclusion list. ── */
+  --surface-app:          var(--c-dark-bg);
+  --surface:              var(--c-dark-surface);
+  --surface-raised:       var(--c-dark-surface-raised);
+  --surface-sunken:       var(--c-dark-surface-sunken);
+  --surface-hover:        var(--c-dark-surface-hover);
+  --surface-faint:        var(--c-dark-surface-faint);
+  --surface-muted:        var(--c-dark-surface-disabled);
+  --surface-disabled:     var(--c-dark-surface-disabled);
+  --surface-alt:          var(--c-dark-surface-alt);
+  --surface-alt-border:   var(--c-dark-surface-alt-border);
+  --surface-tint:         var(--c-dark-surface-tint);
+  --surface-tooltip:      var(--c-dark-surface-raised);
+  --brand:                var(--c-blue);
+  --brand-hover:          var(--c-blue-mid);
+  --text-primary:         var(--c-dark-text-primary);
+  --text-secondary:       var(--c-dark-text-secondary);
+  --text-label:           var(--c-dark-text-label);
+  --text-muted:           var(--c-dark-text-muted);
+  --text-faint:           var(--c-dark-text-faint);
+  --text-heading:         var(--c-blue);
+  --text-link:            var(--c-blue);
+  --text-link-hover:      var(--c-blue-mid);
+  --border-strong:        var(--c-dark-border-strong);
+  --border-mid:           var(--c-dark-border);
+  --border:               var(--c-dark-border);
+  --border-subtle:        var(--c-dark-border-subtle);
+  --border-faint:         var(--c-dark-border-subtle);
+  --border-muted:         var(--c-dark-border);
+  --border-focus:         var(--c-blue);
+  --border-neutral:       var(--c-dark-border-neutral);
+  --status-success:       var(--c-dark-success);
+  --status-success-bg:    var(--c-dark-success-bg);
+  --status-warn:          var(--c-dark-warn);
+  --status-warn-strong:   var(--c-dark-warn);
+  --status-warn-bg:       var(--c-dark-warn-bg);
+  --status-warn-bg-soft:  var(--c-dark-warn-bg-soft);
+  --status-danger:        var(--c-dark-danger);
+  --status-danger-bg:     var(--c-dark-danger-bg);
+  --status-danger-bg-soft: var(--c-dark-danger-bg-soft);
+  --status-neutral-bg:    var(--c-dark-neutral-bg);
+}
+@media print {
+  :root {
+    /* Forces every N-102-themed token back to its light value regardless of
+       data-theme — print stays light in both themes. Plain :root, same
+       specificity as [data-theme="dark"] above; this rule is later in the
+       file, so it wins the tie for print media (spec Gotcha G1). The other
+       component-specific @media print blocks further down this file need no
+       changes — they already consume var(--surface)/var(--brand)/etc. */
+    --surface-app: var(--c-surface);
+    --surface: var(--c-white);
+    --surface-raised: var(--c-white);
+    --surface-sunken: var(--c-gray-050);
+    --surface-hover: var(--c-gray-075);
+    --surface-faint: var(--c-gray-025);
+    --surface-muted: var(--c-gray-mid);
+    --surface-disabled: var(--c-gray-100);
+    --surface-alt: var(--c-surface-blue);
+    --surface-alt-border: var(--c-surface-border);
+    --surface-tint: var(--c-surface-lav);
+    --surface-tooltip: var(--c-ink);
+    --brand: var(--c-brand);
+    --brand-hover: var(--c-blue);
+    --text-primary: var(--c-ink);
+    --text-secondary: var(--c-gray-800);
+    --text-label: var(--c-gray-650);
+    --text-muted: var(--c-gray-500);
+    --text-faint: var(--c-gray-400);
+    --text-heading: var(--c-brand);
+    --text-link: var(--c-brand);
+    --text-link-hover: var(--c-blue);
+    --border-strong: var(--c-gray-250);
+    --border-mid: var(--c-gray-200);
+    --border: var(--c-gray-150);
+    --border-subtle: var(--c-gray-100);
+    --border-faint: var(--c-gray-075);
+    --border-muted: var(--c-gray-mid);
+    --border-focus: var(--c-brand);
+    --border-neutral: var(--c-gray-350);
+    --status-success: var(--c-success);
+    --status-success-bg: var(--c-success-bg);
+    --status-warn: var(--c-warn);
+    --status-warn-strong: var(--c-warn-deep);
+    --status-warn-bg: var(--c-warn-bg);
+    --status-warn-bg-soft: var(--c-warn-bg-soft);
+    --status-danger: var(--c-danger);
+    --status-danger-bg: var(--c-danger-bg);
+    --status-danger-bg-soft: var(--c-danger-bg-soft);
+    --status-neutral-bg: var(--c-bluegrey-bg);
+  }
 }
 /* Utility — toggled from JS for conditionally-shown form fields (N-116) */
 .is-hidden { display: none !important; }
@@ -465,6 +597,22 @@ body {
   margin: 0 var(--sp-8) var(--sp-6);
 }
 .nav-footer { padding: var(--sp-6) 0; border-top: 1px solid var(--inverse-divider); }
+.nav-theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  width: 100%;
+  padding: var(--sp-5) var(--sp-8);
+  background: none;
+  border: none;
+  color: var(--inverse-text-label);
+  font-size: var(--fs-13);
+  font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+.nav-theme-toggle:hover { background: var(--inverse-hover-bg); color: var(--inverse-text); }
+.nav-theme-toggle-icon { width: 15px; height: 15px; }
 /* ── Main content ───────────────────────────────────────────────────── */
 #main-content {
   flex: 1;

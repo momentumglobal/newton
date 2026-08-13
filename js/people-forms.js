@@ -135,12 +135,23 @@ async function showEditPersonForm(id) {
 
 async function renderAssignmentForm(existingData = null) {
   const isEdit = !!existingData;
-  const people = await getPeople(false);
+  const people = await getPeople(true);
+
+  // N-126: if editing an assignment whose employee has since been deactivated,
+  // re-inject them (labelled inactive) so the saved value isn't silently dropped.
+  if (existingData?.EmployeeName &&
+      !people.some(p => p.EmployeeName === existingData.EmployeeName)) {
+    people.unshift({
+      EmployeeName: existingData.EmployeeName,
+      Level: existingData.Level,
+      _inactive: true
+    });
+  }
 
   const employeeOptions = people.map(p =>
     `<option value='${escHtml(p.EmployeeName)}' data-level='${escHtml(p.Level)}'
       ${existingData?.EmployeeName === p.EmployeeName ? 'selected' : ''}>
-      ${escHtml(p.EmployeeName)} (${escHtml(p.Level)})</option>`
+      ${escHtml(p.EmployeeName)} (${escHtml(p.Level)})${p._inactive ? ' — inactive' : ''}</option>`
   ).join('');
 
   return `

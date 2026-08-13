@@ -150,7 +150,7 @@ function _lmLibraryHtml() {
     : `<tr><td colspan="${D.length + 5}" style="color:var(--c-gray-500);text-align:center">No locations yet.</td></tr>`;
 
   return `
-    <div style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:16px">
+    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 style="margin:0;color:var(--c-navy-steel)">Location Library <span style="font-weight:400;font-size:13px;color:var(--c-gray-500)">(annual average salaries, local currency)</span></h3>
         <button class="btn-primary" onclick="openLMLocation()">+ Add Location</button>
@@ -175,7 +175,7 @@ function _lmLocationModal() {
     </div>`).join('');
   return `
     <div id="lm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
-      <div style="background:var(--c-white);border-radius:8px;padding:28px;width:880px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
+      <div class="print-avoid-break" style="background:var(--c-white);border-radius:8px;padding:28px;width:880px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
         <h3 style="margin:0 0 16px;color:var(--c-navy-steel)" id="lm-modal-title">Add Location</h3>
         <form id="lm-form" onsubmit="saveLMLocation(event)">
           <div style="display:flex;gap:12px">
@@ -268,7 +268,7 @@ function _lmBuilderHtml() {
     `<label class="lm-chk"><input type="checkbox" class="lm-disc" value="${d.key}" onchange="_lmSelChanged()"> ${d.label}</label>`).join('');
 
   return `
-    <div style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:16px">
+    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:16px">
       <h3 style="margin:0 0 12px;color:var(--c-navy-steel)">Insights Report Builder</h3>
       <div style="display:flex;gap:24px;flex-wrap:wrap">
         <div class="form-group" style="min-width:220px">
@@ -351,7 +351,7 @@ function _lmRenderPreview() {
   if (!host) return;
   const { current, scoped, disciplines } = _lmResolve();
   if (!current || !scoped.length || !disciplines.length) {
-    host.innerHTML = `<div style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;color:var(--c-gray-500)">
+    host.innerHTML = `<div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;color:var(--c-gray-500)">
       Select a current location, at least one scoped location, and at least one discipline to preview the report.</div>`;
     return;
   }

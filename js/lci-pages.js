@@ -123,7 +123,7 @@ function _renderLCIModelList(allModels, role) {
         ${canManage || role === 'delivery_manager' ? '<button class="btn-primary" onclick="openLCIModelModal()">+ New Model</button>' : ''}
       </div>
     </div>
-    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px">
+    <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px">
       <table class="data-table">
         <thead>
           <tr>
@@ -151,9 +151,9 @@ function _lciModelModal(role) {
   return `
     <div id="lci-model-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);
          z-index:1000;align-items:center;justify-content:center">
-      <div class="print-avoid-break" style="background:var(--c-white);border-radius:8px;padding:32px;width:520px;max-width:95vw;
+        <div class="print-avoid-break" style="background:var(--surface);border-radius:8px;padding:32px;width:520px;max-width:95vw;
                   max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
-        <h3 style="margin:0 0 20px;color:var(--c-navy-steel)" id="lci-model-modal-title">New LCI Cost Model</h3>
+        <h3 style="margin:0 0 20px;color:var(--brand-tertiary)" id="lci-model-modal-title">New LCI Cost Model</h3>
         <form id="lci-model-form" onsubmit="saveLCIModel(event)">
           <div class="form-group">
             <label>Model name *</label>
@@ -377,7 +377,7 @@ function _renderLCIReportsSection(reports, role) {
 
   return `
     <div class="page-header" style="margin-top:24px"><h2>Saved Reports</h2></div>
-    <div class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px">
+    <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px">
       <table class="data-table">
         <thead><tr><th>Report</th><th>Models</th><th>Created by</th><th></th></tr></thead>
         <tbody>${rows}</tbody>

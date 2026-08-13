@@ -128,9 +128,9 @@ function hiredOnTimePct(roles) {
 function kpiDelta(curr, prev, lowerIsBetter = false, isPercent = false) {
   if (curr === null || prev === null || prev === 0) return '';
   const diff = curr - prev;
-  if (diff === 0) return `<span style='color:#999;font-size:13px;margin-left:6px'>—</span>`;
+  if (diff === 0) return `<span style='color:var(--c-gray-450);font-size:13px;margin-left:6px'>—</span>`;
   const positive = lowerIsBetter ? diff < 0 : diff > 0;
-  const colour   = positive ? '#2e7d32' : '#c62828';
+  const colour   = positive ? 'var(--c-success)' : 'var(--c-danger)';
   const sign     = diff > 0 ? '+' : '';
   const label    = isPercent ? `${sign}${diff}%` : `${sign}${diff}`;
   return `<span style='color:${colour};font-size:13px;font-weight:500;margin-left:6px'>${label}</span>`;

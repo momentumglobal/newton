@@ -73,7 +73,7 @@ async function mobileRenderAddRole(main) {
         ${canAssign ? `
         <div class="m-form-group">
           <label class="m-label">Assign to * (tick one or more)</label>
-          <div id="mr-tp" style="border:1px solid var(--c-gray-300);border-radius:8px;padding:10px;max-height:180px;overflow-y:auto;background:var(--c-white);">
+          <div id="mr-tp" class="print-avoid-break" style="border:1px solid var(--c-gray-300);border-radius:8px;padding:10px;max-height:180px;overflow-y:auto;background:var(--c-white);">
             <span style="color:var(--c-gray-500);">- Select project first -</span>
           </div>
         </div>` : `<input type="hidden" id="mr-tp" value="${escAttr(email)}">`}

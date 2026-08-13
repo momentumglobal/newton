@@ -645,6 +645,15 @@
         <tr><th>File</th><th>Responsibility</th></tr>
         <tr><td><span class="file-tag">js/os-admin.js</span></td><td>Newton OS Admin — User Assignments, Leadership Access, Homepage, Ghost Mode</td></tr>
       </table>
+
+      <h3>Test harness</h3>
+      <table>
+        <tr><th>File</th><th>Responsibility</th></tr>
+        <tr><td><span class="file-tag">tests/index.html</span></td><td>Standalone page — loads config.js, utils.js, analytics.js, lci-model.js plus the fixtures/assertions below, renders a pass/fail table. No auth, no SharePoint/Graph calls.</td></tr>
+        <tr><td><span class="file-tag">tests/fixtures.js</span></td><td>Fixture data for the seed assertions. Data only — no functions. Extended by N-096/097/098.</td></tr>
+        <tr><td><span class="file-tag">tests/assertions.js</span></td><td>The assertion list (<code>ASSERTIONS</code>) — one per target layer. Shared unmodified by index.html and run.js.</td></tr>
+        <tr><td><span class="file-tag">tests/run.js</span></td><td>Node CLI runner (no dependencies) — loads the source files into a shared <code>vm</code> context in production script order, runs <code>ASSERTIONS</code>, exits non-zero on any failure. Run by the <code>test</code> job in <code>.github/workflows/static.yml</code>, which the <code>deploy</code> job now depends on.</td></tr>
+      </table>
     </div>
 
     <!-- SCRIPT LOAD ORDER -->
@@ -955,6 +964,9 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 
       <h3>Nav optimisation</h3>
       <p>Use <code>updateNavActiveLink(page)</code> on navigation — not a full <code>renderNav()</code> rebuild. The full render runs once on init only. This prevents sidebar flicker and unnecessary DOM work on every page click.</p>
+
+      <h3>Testing (Aug 2026)</h3>
+      <p>Fixture assertions against the pure calc/helper layer live in <code>tests/</code>. Open <code>tests/index.html</code> in a browser for a visual pass/fail table, or run <code>node tests/run.js</code> (no dependencies) for the same result on the command line — the latter is also what <code>.github/workflows/static.yml</code>'s <code>test</code> job runs before every deploy. <code>tests/fixtures.js</code> and <code>tests/assertions.js</code> are shared by both entry points unmodified, so they never drift apart.</p>
     </div>
 
     <!-- ADDING A NEW MODULE -->

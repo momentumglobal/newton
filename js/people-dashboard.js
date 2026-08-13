@@ -523,10 +523,10 @@ const { start, end } = _dashDateRange(_dashFilter);
  <div style='margin-bottom:24px'>${periodBtns}</div>
 
         <div style='display:grid;grid-template-columns:40fr 60fr;gap:24px;margin-bottom:32px'>
-      <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
+      <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px'>
         ${utilisPanel}
       </div>
-      <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
+      <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px'>
         <div class='page-header' style='margin-bottom:12px'>
           <h3 style='margin:0;color:var(--brand-tertiary)'>Estimated Revenue</h3>
         </div>
@@ -534,13 +534,13 @@ const { start, end } = _dashDateRange(_dashFilter);
       </div>
     </div>
 
-      <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px'>
+      <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px'>
       <div class='page-header' style='margin-bottom:12px'>
         <h3 style='margin:0;color:var(--brand-tertiary)'>Workforce Segmentation</h3>
       </div>
       ${segmentPanel}
     </div>
-    <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:24px'>
+    <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;margin-top:24px'>
       <div class='page-header' style='margin-bottom:12px'>
         <h3 style='margin:0;color:var(--brand-tertiary)'>Upcoming Employee End Dates</h3>
       </div>

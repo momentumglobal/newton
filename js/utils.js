@@ -397,6 +397,36 @@ function utcDateOnly(dateStr) {
   return new Date(Date.UTC(+match[1], +match[2] - 1, +match[3]));
 }
 
+// N-087: canonical write-path helper for a Date object (isoDate() above
+// covers the date-input-STRING case; this covers the case where the
+// caller already has a Date). Reads the input via UTC getters only —
+// never local getters — so the caller must hand it a Date whose UTC
+// getters already reflect the intended calendar day (e.g. built via
+// Date.UTC(...), same "UTC getters once inside date-safe code" discipline
+// computeMonthlyRows follows per its N-120 comment). Returns null for
+// anything that isn't a valid Date — a wrong type here should surface,
+// not get silently coerced.
+function spDateOut(date) {
+  if (!(date instanceof Date) || isNaN(date.getTime())) return null;
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}T12:00:00Z`;
+}
+
+// N-087: canonical read-path helper for a SharePoint-returned datetime
+// string (utcDateOnly() above covers the case where the caller needs a
+// Date for arithmetic; this covers the case where a safe display/compare
+// STRING is enough). Regex/string-slice only, same pattern as
+// monthKeyFromISO() and for the same reason — never construct a Date from
+// a SharePoint string and never call a local getter on it. That is
+// precisely the operation that shifts the 1st of a month into the prior
+// month under BST. Returns null on anything unparseable.
+function spDateIn(str) {
+  const match = String(str).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
+}
+
 function getISOWeek(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);

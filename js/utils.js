@@ -663,13 +663,13 @@ function _barChart(data, valueFormatter) {
   return `<div style='margin-top:12px'>
     ${data.map(d => `
       <div style='display:flex;align-items:center;gap:8px;margin-bottom:6px'>
-        <div style='width:80px;font-size:12px;color:var(--c-gray-700);text-align:right;
+        <div style='width:80px;font-size:12px;color:var(--text-label);text-align:right;
                     flex-shrink:0'>${d.label}</div>
-        <div style='flex:1;background:var(--c-gray-075);border-radius:3px;height:18px'>
-          <div style='width:${Math.round((d.value/max)*100)}%;background:var(--c-ptype-embedded);
+        <div style='flex:1;background:var(--surface-hover);border-radius:3px;height:18px'>
+          <div style='width:${Math.round((d.value/max)*100)}%;background:var(--surface-accent);
                       height:18px;border-radius:3px;min-width:2px'></div>
         </div>
-        <div style='width:50px;font-size:12px;color:var(--c-gray-800);flex-shrink:0'>
+        <div style='width:50px;font-size:12px;color:var(--text-secondary);flex-shrink:0'>
           ${valueFormatter ? valueFormatter(d.value) : d.value}</div>
       </div>`).join('')}
   </div>`;

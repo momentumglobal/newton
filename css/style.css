@@ -74,6 +74,39 @@
   --c-surface-border: #dde3f0;
   --c-surface-lav: #F9F9FF;
   --c-gray-mid: #ececec;
+  /* Colour — badges, tones & chart accents (N-122) */
+  --c-green-soft: #81c784;
+  --c-amber-soft: #ffb74d;
+  --c-red-soft: #ef9a9a;
+  --c-red-bright: #e63946;
+  --c-blue-soft: #7da9e8;
+  --c-blue-softer: #a9c8f0;
+  --c-pink-soft: #ff8a93;
+  --c-green-bright: #7ddc7d;
+  --c-blue-milestone: #8fb6ec;
+  --c-blue-pale: #BDE3F5;
+  --c-pink-pale: #F5CCE8;
+  --c-blue-accent: #2E86C1;
+  --c-green-deep: #1E8449;
+  --c-neutral-pale: #ECEFF1;
+  --c-blue-pale-2: #E3F2FD;
+  --c-blue-deep: #1565C0;
+  --c-slate-400: #6b7a8d;
+  --c-blue-slate-300: #AEC6E8;
+  --c-blue-slate-400: #9db8de;
+  --c-blue-slate-700: #33507f;
+  --c-slate-500: #78909c;
+  --c-slate-250: #b0bec5;
+  --c-blue-slate-200: #cdd8ee;
+  --c-blue-slate-250: #dbe4f5;
+  --c-slate-300: #90A4AE;
+  --c-slate-600: #455A64;
+  --c-green-text-deep: #155724;
+  --c-red-text-deep: #721c24;
+  --c-purple-pale: #f3e5f5;
+  --c-blue-muted: #D5E8F0;
+  --c-navy-deep: #1F4E79;
+  --c-red-border-soft: #e0b0b0;
   /* Colour — project types (N-116). Consumed via CONFIG.PROJECT_TYPE_COLOUR_VARS;
      the five original values are transcribed unchanged from the duplicated maps
      that previously lived in people-gantt.js and org-chart.js. */
@@ -229,6 +262,51 @@
   --inverse-text:        var(--c-white);
   --inverse-text-muted:  var(--c-wa-45);
   --inverse-border:      var(--c-wa-12);
+  /* Badges & tones (N-122) — CC homepage banner + Notifications drawer are
+     permanently-dark chrome (see note above); N-102 must NOT redefine this
+     group. */
+  --badge-cc-green:       var(--c-green-soft);
+  --badge-cc-amber:       var(--c-amber-soft);
+  --badge-cc-red:         var(--c-red-soft);
+  --notif-badge-bg:       var(--c-red-bright);
+  --notif-link:           var(--c-blue-soft);
+  --notif-link-hover:     var(--c-blue-softer);
+  --notif-tone-attention: var(--c-pink-soft);
+  --notif-tone-celebrate: var(--c-green-bright);
+  --notif-tone-milestone: var(--c-blue-milestone);
+  /* CoE Hiring Plan cells (N-122) */
+  --coe-cell-r:         var(--c-blue-pale);
+  --coe-cell-n:         var(--c-pink-pale);
+  --coe-cell-actual-r:  var(--c-blue-accent);
+  --coe-cell-actual-n:  var(--c-danger-alt);
+  --coe-cell-actual-o:  var(--c-green-deep);
+  --coe-var-pos:        var(--c-green-deep);
+  /* LCI status pills (N-122) */
+  --lci-status-draft-bg:       var(--c-neutral-pale);
+  --lci-status-presented-bg:   var(--c-blue-pale-2);
+  --lci-status-presented-text: var(--c-blue-deep);
+  --lci-muted-text:            var(--c-slate-400);
+  /* Org chart (N-122) */
+  --org-sub-default:          var(--c-slate-500);
+  --org-sub-leader:           var(--c-slate-250);
+  --org-sub-csd:               var(--c-blue-slate-200);
+  --org-sub-sdm:               var(--c-blue-slate-250);
+  --org-tp-bg:                 var(--c-blue-slate-300);
+  --org-tp-border:             var(--c-blue-slate-400);
+  --org-tp-sub:                var(--c-blue-slate-700);
+  --org-placeholder-border:    var(--c-slate-300);
+  --org-placeholder-name:      var(--c-slate-600);
+  --org-placeholder-sub:       var(--c-slate-300);
+  --org-placeholder-avatar-bg: var(--c-slate-250);
+  --org-tag-bg:                var(--c-neutral-pale);
+  /* Engagement (N-122) */
+  --eng-success-text-deep: var(--c-green-text-deep);
+  --eng-danger-text-deep:  var(--c-red-text-deep);
+  /* Misc badges (N-122) */
+  --badge-completed-bg:           var(--c-purple-pale);
+  --ttf-badge-bg:                 var(--c-blue-muted);
+  --ttf-badge-text:               var(--c-navy-deep);
+  --btn-icon-danger-hover-border: var(--c-red-border-soft);
 }
 /* Utility — toggled from JS for conditionally-shown form fields (N-116) */
 .is-hidden { display: none !important; }
@@ -540,7 +618,7 @@ body {
 }
 .badge-active     { background: var(--status-success-bg); color: var(--status-success); }
 .badge-transition { background: var(--status-warn-bg); color: var(--status-warn); }
-.badge-completed  { background: #f3e5f5; color: #6a1b9a; }
+.badge-completed  { background: var(--badge-completed-bg); color: var(--c-ptype-lci); }
 /* ── Filter group with label ────────────────────────────────────────── */
 .filter-labeled-group { display: flex; flex-direction: column; gap: var(--sp-2); }
 .filter-label {
@@ -1089,8 +1167,8 @@ body {
   padding: var(--sp-1) var(--sp-4);
   border-radius: var(--r-sm);
   font-size: var(--fs-12);
-  background: #D5E8F0;
-  color: #1F4E79;
+  background: var(--ttf-badge-bg);
+  color: var(--ttf-badge-text);
   margin-top: var(--sp-2);
 }
 .ttf-badge--low-data {
@@ -1399,9 +1477,9 @@ body {
 .cc-home-banner__sub    { font-size: var(--fs-11); color: var(--inverse-text-muted); text-transform: uppercase; letter-spacing: 0.08em; text-align: center; }
 .cc-home-banner__badges { display: flex; flex-wrap: wrap; gap: var(--sp-4); justify-content: center; align-items: center; }
 .cc-badge               { font-size: var(--fs-10); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: var(--sp-1) var(--sp-4); border-radius: var(--r-xl); }
-.cc-badge--green        { background: rgba(46,125,50,0.35);  color: #81c784; border: 1px solid rgba(46,125,50,0.5); }
-.cc-badge--amber        { background: rgba(245,127,23,0.35); color: #ffb74d; border: 1px solid rgba(245,127,23,0.5); }
-.cc-badge--red          { background: rgba(198,40,40,0.35);  color: #ef9a9a; border: 1px solid rgba(198,40,40,0.5); }
+.cc-badge--green        { background: rgba(46,125,50,0.35);  color: var(--badge-cc-green); border: 1px solid rgba(46,125,50,0.5); }
+.cc-badge--amber        { background: rgba(245,127,23,0.35); color: var(--badge-cc-amber); border: 1px solid rgba(245,127,23,0.5); }
+.cc-badge--red          { background: rgba(198,40,40,0.35);  color: var(--badge-cc-red); border: 1px solid rgba(198,40,40,0.5); }
 .cc-badge--neutral      { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.35); border: 1px solid var(--inverse-border); }
 .cc-refresh             { position: absolute; right: 0; background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.3); font-size: var(--fs-14); padding: var(--sp-1); line-height: 1; transition: color 0.15s; }
 .cc-refresh:hover       { color: rgba(255,255,255,0.7); }
@@ -1510,7 +1588,7 @@ body {
 }
 .btn-icon:hover { background: var(--surface-hover); color: var(--brand); }
 .btn-icon:disabled { opacity: 0.35; cursor: default; }
-.btn-icon--danger:hover { background: var(--status-danger-bg-soft); color: var(--status-danger-text); border-color: #e0b0b0; }
+.btn-icon--danger:hover { background: var(--status-danger-bg-soft); color: var(--status-danger-text); border-color: var(--btn-icon-danger-hover-border); }
 
 /* ── Homepage survey widget ────────────────────────────────────────── */
 .survey-widget {
@@ -1667,7 +1745,7 @@ body {
   font-size: var(--fs-11); font-weight: 700; padding: var(--sp-1) var(--sp-4);
   border-radius: var(--r-pill); text-transform: uppercase; letter-spacing: 0.05em;
 }
-.eng-status-badge--active { background: var(--status-success-bg); color: #155724; }
+.eng-status-badge--active { background: var(--status-success-bg); color: var(--eng-success-text-deep); }
 
 /* Question cards */
 .eng-cards { display: flex; flex-direction: column; gap: var(--sp-7); }
@@ -1691,8 +1769,8 @@ body {
   font-size: var(--fs-12); font-weight: 700; padding: var(--sp-1) var(--sp-4);
   border-radius: var(--r-pill);
 }
-.eng-delta--up      { background: var(--status-success-bg); color: #155724; }
-.eng-delta--down    { background: var(--status-danger-bg); color: #721c24; }
+.eng-delta--up      { background: var(--status-success-bg); color: var(--eng-success-text-deep); }
+.eng-delta--down    { background: var(--status-danger-bg); color: var(--eng-danger-text-deep); }
 .eng-delta--neutral { background: var(--surface-alt); color: var(--text-label); }
 
 /* Distribution bar */
@@ -1814,7 +1892,7 @@ body {
 .notif-badge {
   position: absolute; top: -3px; right: -4px;
   min-width: var(--sp-7); height: var(--sp-7); padding: 0 var(--sp-2);
-  background: #e63946; color: var(--inverse-text);
+  background: var(--notif-badge-bg); color: var(--inverse-text);
   font-size: var(--fs-10); font-weight: 700; line-height: var(--sp-7);
   text-align: center; border-radius: var(--r-lg);
 }
@@ -1844,10 +1922,9 @@ body {
 }
 .notif-markall {
   background: none; border: none; cursor: pointer;
-  color: #7da9e8; font-size: var(--fs-12); font-weight: 600;
+  color: var(--notif-link); font-size: var(--fs-12); font-weight: 600;
 }
-.notif-markall:hover { color: #a9c8f0; text-decoration: underline; }
-
+.notif-markall:hover { color: var(--notif-link-hover); text-decoration: underline; }
 .notif-list { overflow-y: auto; flex: 1; padding: var(--sp-4) 0; }
 .notif-empty { padding: var(--sp-11) var(--sp-8); text-align: center;
   color: rgba(255,255,255,0.45); font-size: var(--fs-13); }
@@ -1863,9 +1940,9 @@ body {
   display: flex; align-items: center; justify-content: center;
 }
 .notif-item-icon i { width: var(--sp-7); height: var(--sp-7); }
-.notif-tone--attention { background: rgba(230,57,70,0.18);  color: #ff8a93; }
-.notif-tone--celebrate { background: rgba(16,124,16,0.20);  color: #7ddc7d; }
-.notif-tone--milestone { background: rgba(46,95,163,0.22);  color: #8fb6ec; }
+.notif-tone--attention { background: rgba(230,57,70,0.18);  color: var(--notif-tone-attention); }
+.notif-tone--celebrate { background: rgba(16,124,16,0.20);  color: var(--notif-tone-celebrate); }
+.notif-tone--milestone { background: rgba(46,95,163,0.22);  color: var(--notif-tone-milestone); }
 
 .notif-item-body { flex: 1; min-width: 0; }
 .notif-item-text {
@@ -1879,7 +1956,7 @@ body {
   flex-shrink: 0; background: none; border: none; cursor: pointer;
   color: rgba(255,255,255,0.4); padding: var(--sp-1);
 }
-.notif-item-tick:hover { color: #7ddc7d; }
+.notif-item-tick:hover { color: var(--notif-tone-celebrate); }
 .notif-item-tick i { width: var(--sp-7); height: var(--sp-7); }
 
 .nav-user { position: relative; }   /* anchor for the bell */
@@ -1996,14 +2073,14 @@ body {
 .coe-gantt thead { position:sticky; top:0; z-index:3; }
 .coe-gantt thead th, .coe-gantt thead td { background:var(--surface); }
 .coe-cell { min-width:26px; height:22px; }
-.coe-cell--R { background:#BDE3F5; }
-.coe-cell--N { background:#F5CCE8; }
+.coe-cell--R { background:var(--coe-cell-r); }
+.coe-cell--N { background:var(--coe-cell-n); }
 .coe-cell--O { background:var(--status-success-bg); }
 .coe-cell--today { outline:var(--sp-1) solid var(--accent); outline-offset:-2px; }
 /* actuals overlay — thin bar along the bottom of the cell */
-.coe-cell--aR { box-shadow: inset 0 -5px 0 #2E86C1; }
-.coe-cell--aN { box-shadow: inset 0 -5px 0 #C0392B; }
-.coe-cell--aO { box-shadow: inset 0 -5px 0 #1E8449; }
+.coe-cell--aR { box-shadow: inset 0 -5px 0 var(--coe-cell-actual-r); }
+.coe-cell--aN { box-shadow: inset 0 -5px 0 var(--coe-cell-actual-n); }
+.coe-cell--aO { box-shadow: inset 0 -5px 0 var(--coe-cell-actual-o); }
 .coe-legend { display:flex; gap:var(--sp-7); margin:var(--sp-5) 0; font-size:var(--fs-12); align-items:center; flex-wrap:wrap; }
 .coe-legend span { display:inline-flex; align-items:center; gap:var(--sp-2); }
 .coe-swatch { width:14px; height:14px; border-radius:var(--r-sm); display:inline-block; }
@@ -2013,7 +2090,7 @@ body {
 .coe-fvp-table th, .coe-fvp-table td { border:1px solid var(--border); padding:var(--sp-3) var(--sp-6); text-align:center; }
 .coe-fvp-input { width:60px; text-align:center; }
 .coe-fvp-var-neg { color:var(--status-danger-text); font-weight:600; }
-.coe-fvp-var-pos { color:#1E8449; font-weight:600; }
+.coe-fvp-var-pos { color:var(--coe-var-pos); font-weight:600; }
 .coe-row-actions { display:flex; gap:var(--sp-3); justify-content:flex-start; }
 .coe-row-actions button { font-size:var(--fs-11); padding:var(--sp-1) var(--sp-4); }
 
@@ -2085,8 +2162,8 @@ body {
   font-size: var(--fs-12);
   font-weight: 600;
 }
-.lci-status--draft     { background: #ECEFF1; color: var(--status-neutral); }
-.lci-status--presented { background: #E3F2FD; color: #1565C0; }
+.lci-status--draft     { background: var(--lci-status-draft-bg); color: var(--status-neutral); }
+.lci-status--presented { background: var(--lci-status-presented-bg); color: var(--lci-status-presented-text); }
 .lci-status--won       { background: var(--status-success-bg); color: var(--status-success); }
 .lci-status--lost      { background: var(--status-warn-bg-soft); color: var(--status-danger); }
 
@@ -2221,7 +2298,7 @@ body {
 /* Team header row actions (rename / delete) */
 .lci-team-btn {
   background: none; border: none; cursor: pointer;
-  color: #6b7a8d; font-size: var(--fs-12); font-weight: 600;
+  color: var(--lci-muted-text); font-size: var(--fs-12); font-weight: 600;
   padding: 0 var(--sp-2); margin-left: var(--sp-4);
 }
 .lci-team-btn:hover { text-decoration: underline; color: var(--brand-tertiary); }
@@ -2423,26 +2500,26 @@ body {
 .org-node { position: relative; display: inline-block; padding: var(--sp-4) 14px; border: 1px solid var(--border);
   border-radius: var(--r-md); background: var(--surface); min-width: 120px; box-shadow: 0 1px var(--sp-1) rgba(0,0,0,.06); }
 .org-node__name { font-weight: 600; font-size: var(--fs-13); color: var(--text-primary); }
-.org-node__sub  { font-size: var(--fs-11); color: #78909c; margin-top: var(--sp-1); }
+.org-node__sub  { font-size: var(--fs-11); color: var(--org-sub-default); margin-top: var(--sp-1); }
 .org-node--leader  { background: var(--brand); border-color: var(--brand); }
 .org-node--leader  .org-node__name { color: var(--text-on-brand); }
-.org-node--leader  .org-node__sub  { color: #b0bec5; }
+.org-node--leader  .org-node__sub  { color: var(--org-sub-leader); }
 .org-node--csd { background: var(--brand-secondary); border-color: var(--brand-secondary); }
 .org-node--csd .org-node__name { color: var(--text-on-brand); }
-.org-node--csd .org-node__sub  { color: #cdd8ee; }
+.org-node--csd .org-node__sub  { color: var(--org-sub-csd); }
 .org-node--sdm { background: var(--surface-accent-2); border-color: var(--surface-accent-2); }
 .org-node--sdm .org-node__name { color: var(--text-on-brand); }
-.org-node--sdm .org-node__sub  { color: #dbe4f5; }
-.org-node--tp  { background: #AEC6E8; border-color: #9db8de; }
+.org-node--sdm .org-node__sub  { color: var(--org-sub-sdm); }
+.org-node--tp  { background: var(--org-tp-bg); border-color: var(--org-tp-border); }
 .org-node--tp  .org-node__name { color: var(--brand); }
-.org-node--tp  .org-node__sub  { color: #33507f; }
+.org-node--tp  .org-node__sub  { color: var(--org-tp-sub); }
 .org-node--project { border-color: var(--status-success); background: var(--status-success-bg); }
 .org-node--bench   { border-style: dashed; background: var(--surface-faint); }
 /* placeholder (vacant / not-yet-hired): no level band colour, dashed outline */
-.org-node--placeholder { border: 1px dashed #90A4AE; background: var(--surface); box-shadow: none; }
-.org-node--placeholder .org-node__name { color: #455A64; font-style: italic; }
-.org-node--placeholder .org-node__sub  { color: #90A4AE; }
-.org-node--placeholder .org-avatar--initials { background: #B0BEC5; }
+.org-node--placeholder { border: 1px dashed var(--org-placeholder-border); background: var(--surface); box-shadow: none; }
+.org-node--placeholder .org-node__name { color: var(--org-placeholder-name); font-style: italic; }
+.org-node--placeholder .org-node__sub  { color: var(--org-placeholder-sub); }
+.org-node--placeholder .org-avatar--initials { background: var(--org-placeholder-avatar-bg); }
 .org-node--person { padding: var(--sp-1) var(--sp-4); min-width: 84px; }
 .org-node--has-avatar { padding-top: var(--sp-9); }
 .org-avatar {
@@ -2463,7 +2540,7 @@ body {
    tree absorbs this via .org-tree li's padding-top. The bench grid needs its
    own headroom (heading clearance) and a row-gap larger than the overhang. */
 .org-bench__grid { display: flex; flex-wrap: wrap; gap: 26px var(--sp-4); padding-top: 22px; }
-.org-tag { font-size: var(--fs-10); background: #ECEFF1; color: var(--status-neutral);
+.org-tag { font-size: var(--fs-10); background: var(--org-tag-bg); color: var(--status-neutral);
   padding: 1px var(--sp-3); border-radius: var(--r-lg); margin-left: var(--sp-3); }
 
 .org-print-title { display: none; }

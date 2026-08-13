@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newton — Test Harness</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="../js/theme-init.js"></script>
+  <link rel="icon" type="image/png" href="../momentum-symbol.png">
+</head>
+<body>
+
+  <div style="max-width: 760px; margin: 0 auto; padding: 40px 24px;">
+    <h1 class="page-title">Newton — Test Harness</h1>
+    <p style="color: var(--text-muted); font-size: var(--fs-13); margin-top: 8px;">
+      Fixture assertions against <code>utils.js</code>, <code>analytics.js</code> and
+      <code>lci-model.js</code>. Same assertion list runs in CI via
+      <code>node tests/run.js</code>.
+    </p>
+
+    <table class="data-table" style="margin: 24px 0 0;">
+      <thead>
+        <tr><th>Assertion</th><th>Result</th></tr>
+      </thead>
+      <tbody id="results-body"></tbody>
+    </table>
+
+    <p id="summary" style="margin: 16px 9px; font-weight: 600;"></p>
+  </div>
+
+  <!-- Source under test, in production load order -->
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/analytics.js"></script>
+  <script src="../js/lci-model.js"></script>
+
+  <!-- Test harness -->
+  <script src="fixtures.js"></script>
+  <script src="assertions.js"></script>
+  <script>
+    const tbody   = document.getElementById('results-body');
+    const summary = document.getElementById('summary');
+    let failures = 0;
+
+    for (const { name, fn } of ASSERTIONS) {
+      const tr = document.createElement('tr');
+      const nameCell = document.createElement('td');
+      nameCell.textContent = name;
+      const resultCell = document.createElement('td');
+
+      try {
+        fn();
+        resultCell.textContent = 'PASS';
+        resultCell.className = 'form-status--ok';
+      } catch (err) {
+        failures++;
+        resultCell.textContent = `FAIL — ${err.message}`;
+        resultCell.className = 'form-status--error';
+      }
+
+      tr.appendChild(nameCell);
+      tr.appendChild(resultCell);
+      tbody.appendChild(tr);
+    }
+
+    const total = ASSERTIONS.length;
+    summary.textContent = `${total - failures}/${total} passed`;
+    summary.className = failures > 0 ? 'form-status--error' : 'form-status--ok';
+  </script>
+
+</body>
+</html>

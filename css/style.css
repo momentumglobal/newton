@@ -841,7 +841,7 @@ body {
   .kpi-strip-period { margin-bottom: 14px; }
   .kpi-card         { padding: var(--sp-3) 14px; }
   .kpi-value        { font-size: var(--fs-22); }
-  div[style*="background:var(--c-white)"]          { page-break-inside: avoid; }
+  .print-avoid-break                                { page-break-inside: avoid; }
   div[style*="grid-template-columns"]    { page-break-inside: avoid; }
   /* Report Builder — hide builder chrome in print */
   .rb-shell,

@@ -52,8 +52,12 @@ function renderModuleNav({
       ${navLinks}
     </nav>
     <img src='momentum-symbol-and-name-global-white.png' alt='Momentum Global' class='nav-logo-img'>
-    <div class='nav-footer'>
+        <div class='nav-footer'>
       ${userGuideLink}
+      <button class='nav-theme-toggle' id='theme-toggle-btn' onclick='toggleTheme()' title='Toggle dark mode'>
+        <i data-lucide="${getTheme() === 'dark' ? 'sun' : 'moon'}" class="nav-theme-toggle-icon"></i>
+        ${getTheme() === 'dark' ? 'Light mode' : 'Dark mode'}
+      </button>
       <a class='nav-link signout' onclick='signOut()'>Sign out</a>
     </div>
   `;
@@ -101,4 +105,16 @@ function exitGhostMode() {
   clearGhostRole();
   // Reload the current page to re-initialise with the real role
   window.location.reload();
+}
+
+/**
+ * Refreshes the sidebar theme toggle's icon/label to match the current theme.
+ * Called after toggleTheme() and after a live prefers-color-scheme change.
+ */
+function updateThemeToggleIcon() {
+  const btn = document.getElementById('theme-toggle-btn');
+  if (!btn) return;
+  const dark = getTheme() === 'dark';
+  btn.innerHTML = `<i data-lucide="${dark ? 'sun' : 'moon'}" class="nav-theme-toggle-icon"></i>${dark ? 'Light mode' : 'Dark mode'}`;
+  lucide.createIcons();
 }

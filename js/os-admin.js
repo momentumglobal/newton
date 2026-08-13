@@ -45,7 +45,7 @@ const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.
     const isActive = a.Active !== false;
     return `
     <tr id="assign-row-${a.id}" style="${isActive ? '' : 'opacity:0.55'}">
-      <td>${escHtml(a.UserName || '—')}${isActive ? '' : ' <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:#eee;color:#666;">Inactive</span>'}</td>
+      <td>${escHtml(a.UserName || '—')}${isActive ? '' : ' <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--c-gray-100);color:var(--c-gray-600);">Inactive</span>'}</td>
       <td>${escHtml(a.UserEmail)}</td>
       <td>${escHtml(a.CustomerName || '—')}</td>
       <td>${a.AssignedRole === 'talent_partner' ? 'Talent Partner' : a.AssignedRole === 'delivery_manager' ? 'Delivery Manager' : a.AssignedRole || '—'}</td>
@@ -191,7 +191,7 @@ async function buildLeadershipTab() {
     <tr>
       <td>${l.PhotoUrl
             ? `<img src="${escAttr(l.PhotoUrl)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
-            : '<span style="color:#aaa;font-size:12px">—</span>'}</td>
+            : '<span style="color:var(--c-gray-400);font-size:12px">—</span>'}</td>
       <td>${escHtml(l.UserName || '—')}</td>
       <td>${escHtml(l.UserEmail)}</td>
       <td>
@@ -204,7 +204,7 @@ async function buildLeadershipTab() {
     </tr>`).join('');
   return `
     <h3>Leadership Access List</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:16px">
+    <p style="font-size:13px;color:var(--c-gray-600);margin-bottom:16px">
       These individuals have read-only access to the Company Dashboard.
     </p>
     <table class="data-table" style="margin:0 0 24px">
@@ -224,7 +224,7 @@ async function buildLeadershipTab() {
         </div>
       </div>
       <div class="form-group">
-        <label>Photo <span style="font-size:11px;color:#888;font-weight:normal">optional</span></label>
+        <label>Photo <span style="font-size:11px;color:var(--c-gray-500);font-weight:normal">optional</span></label>
         <input type="file" id="lead-photofile" accept="image/*">
       </div>
       <div id="lead-error" class="form-error"></div>
@@ -289,10 +289,10 @@ async function buildHomepageTab() {
   ];
   const effectRows = effects.map(e => `
     <div style="display:flex;align-items:center;justify-content:space-between;
-                padding:16px 0;border-bottom:1px solid #eee">
+                padding:16px 0;border-bottom:1px solid var(--c-gray-100)">
       <div>
-        <div style="font-size:14px;font-weight:600;color:#0A0B44">${e.label}</div>
-        <div style="font-size:13px;color:#666;margin-top:2px">${e.desc}</div>
+        <div style="font-size:14px;font-weight:600;color:var(--c-brand)">${e.label}</div>
+        <div style="font-size:13px;color:var(--c-gray-600);margin-top:2px">${e.desc}</div>
       </div>
       <button class="btn-${active === e.key ? 'primary' : 'secondary'}"
         onclick="setFx('${active === e.key ? 'none' : e.key}')" style="min-width:80px">
@@ -301,11 +301,11 @@ async function buildHomepageTab() {
     </div>`).join('');
   return `
     <h3>Announcement Banner</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:16px">
+    <p style="font-size:13px;color:var(--c-gray-600);margin-bottom:16px">
       Set a scrolling message that appears at the bottom of the screen for all users.
       Clear the field and save to remove it.
     </p>
-    <div style="background:white;border:1px solid #e0e0e0;border-radius:6px;
+    <div style="background:white;border:1px solid var(--c-gray-150);border-radius:6px;
                 padding:20px 24px;max-width:520px;margin-bottom:32px">
       <div class="form-group">
         <label>Message</label>
@@ -320,10 +320,10 @@ async function buildHomepageTab() {
       </div>
     </div>
     <h3>Seasonal Effects</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:16px">
+    <p style="font-size:13px;color:var(--c-gray-600);margin-bottom:16px">
       One effect can be active at a time. Changes take effect on the Newton home screen immediately.
     </p>
-    <div style="background:white;border:1px solid #e0e0e0;border-radius:6px;
+    <div style="background:white;border:1px solid var(--c-gray-150);border-radius:6px;
                 padding:4px 24px;max-width:520px">
       ${effectRows}
     </div>`;
@@ -343,12 +343,12 @@ async function submitAnnouncement() {
   try {
     await setAnnouncementMessage(msg);
     clearButtonLoading(btn);
-    status.style.color   = '#2e7d32';
+    status.style.color   = 'var(--c-success)';
     status.textContent   = msg ? 'Banner updated.' : 'Banner cleared.';
     status.style.display = 'block';
   } catch(e) {
     clearButtonLoading(btn);
-    status.style.color   = '#c62828';
+    status.style.color   = 'var(--c-danger)';
     status.textContent   = `Error: ${e.message}`;
     status.style.display = 'block';
   }
@@ -403,15 +403,15 @@ async function buildGhostTab() {
 
   return `
     <h3>Ghost Mode</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:24px">
+    <p style="font-size:13px;color:var(--c-gray-600);margin-bottom:24px">
       Temporarily view Newton as a different role. A banner will appear at the top of every
       page while ghost mode is active. Navigate to any module to see that role's experience.
       Your real admin access is restored when you exit.
     </p>
-    <div style="background:white;border:1px solid #e0e0e0;border-radius:6px;
+    <div style="background:white;border:1px solid var(--c-gray-150);border-radius:6px;
                 padding:20px 24px;max-width:520px">
       ${current ? `
-        <div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:4px;
+        <div style="background:var(--c-warn-bg-soft);border:1px solid var(--c-amber-soft);border-radius:4px;
                     padding:12px 16px;margin-bottom:20px;font-size:13px">
           👻 Currently ghosting as <strong>${current.replace(/_/g, ' ')}
           ${currentProject ? '— ' + escHtml(projects.find(p => String(p.id) === currentProject)?.CustomerName || '') : ''}

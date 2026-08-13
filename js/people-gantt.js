@@ -116,7 +116,7 @@ const totalActiveHeadcount = people.filter(
     // Customer header row
     rowsHtml += `<tr>
       <td colspan='14' style='padding:6px 8px 2px;font-size:12px;font-weight:700;
-          color:var(--brand-tertiary);background:var(--surface-alt);border-top:1px solid var(--c-gray-150)'>
+          color:var(--brand-tertiary);background:var(--surface-alt);border-top:1px solid var(--border)'>
         ${isBench ? 'Unassigned' : escHtml(customer)}
       </td>
     </tr>`;

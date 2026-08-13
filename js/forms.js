@@ -154,7 +154,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
        ${canAssign ? `
         <div class="form-group">
           <label>Assign to * <span style="font-weight:normal;color:var(--c-gray-500);">(tick one or more)</span></label>
-          <div id="role-tp-select" style="border:1px solid var(--c-gray-300);border-radius:4px;padding:8px;max-height:170px;overflow-y:auto;background:var(--c-white);">
+          <div id="role-tp-select" class="print-avoid-break" style="border:1px solid var(--c-gray-300);border-radius:4px;padding:8px;max-height:170px;overflow-y:auto;background:var(--c-white);">
             <span style="color:var(--c-gray-500);">-- Select project first --</span>
           </div>
         </div>` : `<input type="hidden" name="TalentPartnerName" value="${escAttr(currentUser.email)}">`}

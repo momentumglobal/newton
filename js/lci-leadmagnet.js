@@ -89,8 +89,8 @@ function _lmPct(v) {
   return `${s}${Math.abs(v).toFixed(1)}%`;
 }
 function _lmDeltaColour(v) { // lower cost than current = favourable (green)
-  if (v == null || isNaN(v)) return '#888';
-  return v < 0 ? '#2E7D32' : (v > 0 ? '#C62828' : '#555');
+  if (v == null || isNaN(v)) return 'var(--c-gray-500)';
+  return v < 0 ? 'var(--c-success)' : (v > 0 ? 'var(--c-danger)' : 'var(--c-gray-700)');
 }
 
 // ── Page entry ───────────────────────────────────────────────────────
@@ -147,12 +147,12 @@ function _lmLibraryHtml() {
             </div>
           </td>
         </tr>`).join('')
-    : `<tr><td colspan="${D.length + 5}" style="color:#888;text-align:center">No locations yet.</td></tr>`;
+    : `<tr><td colspan="${D.length + 5}" style="color:var(--c-gray-500);text-align:center">No locations yet.</td></tr>`;
 
   return `
-    <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px;margin-top:16px">
+    <div style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 style="margin:0;color:#1B3A5C">Location Library <span style="font-weight:400;font-size:13px;color:#888">(annual average salaries, local currency)</span></h3>
+        <h3 style="margin:0;color:var(--c-navy-steel)">Location Library <span style="font-weight:400;font-size:13px;color:var(--c-gray-500)">(annual average salaries, local currency)</span></h3>
         <button class="btn-primary" onclick="openLMLocation()">+ Add Location</button>
       </div>
       <div class="lm-scroll">
@@ -175,8 +175,8 @@ function _lmLocationModal() {
     </div>`).join('');
   return `
     <div id="lm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
-      <div style="background:#fff;border-radius:8px;padding:28px;width:880px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
-        <h3 style="margin:0 0 16px;color:#1B3A5C" id="lm-modal-title">Add Location</h3>
+      <div style="background:var(--c-white);border-radius:8px;padding:28px;width:880px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
+        <h3 style="margin:0 0 16px;color:var(--c-navy-steel)" id="lm-modal-title">Add Location</h3>
         <form id="lm-form" onsubmit="saveLMLocation(event)">
           <div style="display:flex;gap:12px">
             <div class="form-group" style="flex:2"><label>Location (City, Country) *</label>
@@ -188,7 +188,7 @@ function _lmLocationModal() {
             <div class="form-group" style="flex:1"><label>Currency</label>
               <select class="form-control" name="Currency"><option value="">—</option>${ccyOpts}</select></div>
           </div>
-          <p style="font-size:12px;color:#888;margin:4px 0 12px">Average annual salary per discipline, in local currency. Leave blank where unknown.</p>
+          <p style="font-size:12px;color:var(--c-gray-500);margin:4px 0 12px">Average annual salary per discipline, in local currency. Leave blank where unknown.</p>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 14px">${salFields}</div>
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">
             <button type="button" class="btn-secondary" onclick="closeLMLocation()">Cancel</button>
@@ -268,8 +268,8 @@ function _lmBuilderHtml() {
     `<label class="lm-chk"><input type="checkbox" class="lm-disc" value="${d.key}" onchange="_lmSelChanged()"> ${d.label}</label>`).join('');
 
   return `
-    <div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px;margin-top:16px">
-      <h3 style="margin:0 0 12px;color:#1B3A5C">Insights Report Builder</h3>
+    <div style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:16px">
+      <h3 style="margin:0 0 12px;color:var(--c-navy-steel)">Insights Report Builder</h3>
       <div style="display:flex;gap:24px;flex-wrap:wrap">
         <div class="form-group" style="min-width:220px">
           <label>Current location</label>
@@ -283,7 +283,7 @@ function _lmBuilderHtml() {
         </div>
         <div class="form-group" style="flex:1;min-width:220px">
           <label>Scoped locations</label>
-          <div class="lm-chk-grid">${scopedBoxes || '<span style="color:#888">Add locations first.</span>'}</div>
+          <div class="lm-chk-grid">${scopedBoxes || '<span style="color:var(--c-gray-500)">Add locations first.</span>'}</div>
         </div>
         <div class="form-group" style="flex:1;min-width:220px">
           <label>Disciplines</label>
@@ -351,7 +351,7 @@ function _lmRenderPreview() {
   if (!host) return;
   const { current, scoped, disciplines } = _lmResolve();
   if (!current || !scoped.length || !disciplines.length) {
-    host.innerHTML = `<div style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:20px;color:#888">
+    host.innerHTML = `<div style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;color:var(--c-gray-500)">
       Select a current location, at least one scoped location, and at least one discipline to preview the report.</div>`;
     return;
   }
@@ -379,11 +379,11 @@ function _lmReportHtml(computed, current) {
       <div class="lm-loc-block">
         <div class="lm-loc-head">
           <span class="lm-loc-name">${r.location}</span>
-          <span class="lm-overall" style="color:${_lmDeltaColour(r.overallPct)}">${_lmPct(r.overallPct)} <span style="font-weight:400;color:#888;font-size:12px">overall vs current</span></span>
+          <span class="lm-overall" style="color:${_lmDeltaColour(r.overallPct)}">${_lmPct(r.overallPct)} <span style="font-weight:400;color:var(--c-gray-500);font-size:12px">overall vs current</span></span>
         </div>
         <table class="data-table lm-report-table">
           <thead><tr><th>Discipline</th><th>${escHtml(current.Title)}</th><th>${escHtml(r.location)}</th><th>Delta</th></tr></thead>
-          <tbody>${discRows || `<tr><td colspan="4" style="color:#888">No comparable salary data.</td></tr>`}</tbody>
+          <tbody>${discRows || `<tr><td colspan="4" style="color:var(--c-gray-500)">No comparable salary data.</td></tr>`}</tbody>
         </table>
         ${r.missing.length ? `<p class="lm-missing">No data for: ${r.missing.join(', ')} — excluded from this comparison.</p>` : ''}
       </div>`;

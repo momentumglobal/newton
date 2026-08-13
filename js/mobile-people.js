@@ -37,7 +37,7 @@ function mpKpiCard(label, value, sub, bg) {
   return `
     <div class="m-detail-panel" style="${bg ? 'background:' + bg + ';' : ''}margin-bottom:12px">
       <div class="m-detail-label" style="text-transform:uppercase;letter-spacing:.05em;font-weight:700">${label}</div>
-      <div class="kpi-value" style="font-size:26px;font-weight:700;color:#0A0B44;margin:2px 0">${value}</div>
+      <div class="kpi-value" style="font-size:26px;font-weight:700;color:var(--c-brand);margin:2px 0">${value}</div>
       ${sub ? `<div class="m-detail-label" style="margin-bottom:0">${sub}</div>` : ''}
     </div>`;
 }
@@ -45,8 +45,8 @@ function mpKpiCard(label, value, sub, bg) {
 // Delta chip (+/- vs last quarter), mirrors desktop colours.
 function mpDelta(curr, prev) {
   const d = curr - prev;
-  if (d === 0) return ` <span style="color:#999;font-size:15px">-</span>`;
-  const colour = d > 0 ? '#2e7d32' : '#c62828';
+  if (d === 0) return ` <span style="color:var(--c-gray-450);font-size:15px">-</span>`;
+  const colour = d > 0 ? 'var(--c-success)' : 'var(--c-danger)';
   return ` <span style="color:${colour};font-size:15px">${d > 0 ? '+' : ''}${d}</span>`;
 }
 
@@ -101,9 +101,9 @@ async function mobileRenderPeopleDashboard(main) {
     const billedHeadcount = countBilledHC(today);
     const prevQHeadcount  = countBilledHC(prevQEnd);
 
-    const utilBg = utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? '#e6f4ea'
-                 : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? '#fff3e0'
-                 : '#fce8e8';
+    const utilBg = utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? 'var(--c-success-bg-alt)'
+                 : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? 'var(--c-warn-bg-soft)'
+                 : 'var(--c-danger-bg-alt)';
 
     main.innerHTML = `
       ${mpKpiCard('Estimated Revenue ' + thisY, mpFmtGBP(revYTD), 'Current year YTD')}

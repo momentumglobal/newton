@@ -123,7 +123,7 @@ function maRenderResults() {
     </div>`;
 
   // Funnel drop-off tiles
-  const ragColour = { green: '#27AE60', amber: '#F39C12', red: '#E74C3C', grey: '#CCC' };
+  const ragColour = { green: 'var(--c-success-alt)', amber: 'var(--c-amber-mid)', red: 'var(--c-red-mid)', grey: 'var(--c-gray-300)' };
   const funnelTiles = `
     <div class="m-section-header">Funnel Drop-off</div>
     <div class="m-an-grid">

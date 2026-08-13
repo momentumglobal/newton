@@ -71,14 +71,14 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
     const y = yOf(v);
     return `
       <line x1='${PAD.left}' y1='${y}' x2='${W - PAD.right}' y2='${y}'
-            stroke='var(--c-gray-115)' stroke-width='1'/>
+            stroke='var(--border-subtle)' stroke-width='1'/>
       <text x='${PAD.left - 6}' y='${y + 4}' text-anchor='end'
-            font-size='10' fill='var(--c-gray-450)'>${(v * 100).toFixed(0)}%</text>`;
+            font-size='10' fill='var(--text-faint)'>${(v * 100).toFixed(0)}%</text>`;
   }).join('');
 
   const xLabels = MONTH_LABELS.map((lbl, i) =>
     `<text x='${xOf(i)}' y='${PAD.top + chartH + 18}' text-anchor='middle'
-           font-size='10' fill='var(--c-gray-500)'>${lbl}</text>`
+           font-size='10' fill='var(--text-muted)'>${lbl}</text>`
   ).join('');
 
   const toPolyPoints = (pts) =>
@@ -88,18 +88,18 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
 
   const actualPts  = toPolyPoints(actualPoints);
   const actualLine = actualPts
-    ? `<polyline points='${actualPts}' fill='none' stroke='var(--c-ptype-embedded)' stroke-width='2.5' stroke-linejoin='round'/>`
+    ? `<polyline points='${actualPts}' fill='none' stroke='var(--surface-accent)' stroke-width='2.5' stroke-linejoin='round'/>`
     : '';
 
   const forecastPts  = toPolyPoints(forecastPoints);
   const forecastLine = forecastPts && forecastPts.includes(' ')
-    ? `<polyline points='${forecastPts}' fill='none' stroke='var(--c-ptype-embedded)' stroke-width='2'
+    ? `<polyline points='${forecastPts}' fill='none' stroke='var(--surface-accent)' stroke-width='2'
                 stroke-dasharray='5,4' stroke-linejoin='round' opacity='0.65'/>`
     : '';
 
   const salesForecastPts  = toPolyPoints(salesPoints);
   const salesForecastLine = salesForecastPts && salesForecastPts.includes(' ')
-    ? `<polyline points='${salesForecastPts}' fill='none' stroke='var(--c-accent)' stroke-width='2'
+    ? `<polyline points='${salesForecastPts}' fill='none' stroke='var(--accent)' stroke-width='2'
                 stroke-dasharray='5,4' stroke-linejoin='round' opacity='0.85'/>`
     : '';
   
@@ -107,7 +107,7 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
     .filter(p => p.util !== null)
     .map(p => `
       <circle cx='${xOf(p.monthIdx).toFixed(1)}' cy='${yOf(p.util).toFixed(1)}'
-              r='3.5' fill='var(--c-ptype-embedded)' stroke='var(--c-white)' stroke-width='1.5'>
+              r='3.5' fill='var(--surface-accent)' stroke='var(--c-white)' stroke-width='1.5'>
         <title>${p.label}: ${(p.util * 100).toFixed(1)}%</title>
       </circle>`).join('');
 
@@ -115,7 +115,7 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
     .filter(p => p.util !== null && p.monthIdx > curMonth)
     .map(p => `
       <circle cx='${xOf(p.monthIdx).toFixed(1)}' cy='${yOf(p.util).toFixed(1)}'
-              r='3' fill='var(--c-white)' stroke='var(--c-ptype-embedded)' stroke-width='2' opacity='0.7'>
+              r='3' fill='var(--c-white)' stroke='var(--surface-accent)' stroke-width='2' opacity='0.7'>
         <title>${p.label}: ${(p.util * 100).toFixed(1)}% (forecast)</title>
       </circle>`).join('');
 
@@ -123,12 +123,12 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
     .filter(p => p.util !== null && p.monthIdx >= curMonth)
     .map(p => `
       <circle cx='${xOf(p.monthIdx).toFixed(1)}' cy='${yOf(p.util).toFixed(1)}'
-              r='3' fill='var(--c-white)' stroke='var(--c-accent)' stroke-width='2' opacity='0.85'>
+              r='3' fill='var(--c-white)' stroke='var(--accent)' stroke-width='2' opacity='0.85'>
         <title>${p.label}: ${(p.util * 100).toFixed(1)}% (sales forecast)</title>
       </circle>`).join('');
   
     return `
-    <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;
+    <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--border);border-radius:6px;
                 padding:20px 20px 12px;margin-bottom:24px'>
       <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
         Team Utilisation ${thisYear}</div>
@@ -136,13 +136,13 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
            xmlns='http://www.w3.org/2000/svg'>
         <rect x='${PAD.left}' y='${yOf(1.0)}' width='${chartW}'
            height='${yOf(CONFIG.UTILISATION_THRESHOLDS.green) - yOf(1.0)}'
-           fill='var(--c-success-bg-alt)' opacity='0.6'/>
+           fill='var(--status-success-bg)' opacity='0.6'/>
       <rect x='${PAD.left}' y='${yOf(CONFIG.UTILISATION_THRESHOLDS.green)}' width='${chartW}'
            height='${yOf(CONFIG.UTILISATION_THRESHOLDS.amber) - yOf(CONFIG.UTILISATION_THRESHOLDS.green)}'
-           fill='var(--c-warn-bg-soft)' opacity='0.6'/>
+           fill='var(--status-warn-bg-soft)' opacity='0.6'/>
       <rect x='${PAD.left}' y='${yOf(CONFIG.UTILISATION_THRESHOLDS.amber)}' width='${chartW}'
            height='${yOf(0) - yOf(CONFIG.UTILISATION_THRESHOLDS.amber)}'
-           fill='var(--c-danger-bg-alt)' opacity='0.6'/>
+           fill='var(--status-danger-bg)' opacity='0.6'/>
         ${gridLines}
         ${xLabels}
         ${actualLine}
@@ -152,23 +152,23 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
         ${salesForecastLine}
         ${salesForecastDots}
       </svg>
-      <div style='display:flex;justify-content:center;gap:24px;margin-top:8px;font-size:11px;color:var(--c-gray-700)'>
+      <div style='display:flex;justify-content:center;gap:24px;margin-top:8px;font-size:11px;color:var(--text-label)'>
         <div style='display:flex;align-items:center;gap:6px'>
           <svg width='24' height='2' style='overflow:visible'>
-            <line x1='0' y1='1' x2='24' y2='1' stroke='var(--c-ptype-embedded)' stroke-width='2.5'/>
+            <line x1='0' y1='1' x2='24' y2='1' stroke='var(--surface-accent)' stroke-width='2.5'/>
           </svg>
           Actual
         </div>
         <div style='display:flex;align-items:center;gap:6px'>
           <svg width='24' height='2' style='overflow:visible'>
-            <line x1='0' y1='1' x2='24' y2='1' stroke='var(--c-ptype-embedded)' stroke-width='2'
+            <line x1='0' y1='1' x2='24' y2='1' stroke='var(--surface-accent)' stroke-width='2'
                   stroke-dasharray='5,4' opacity='0.65'/>
           </svg>
           Forecast
         </div>
         <div style='display:flex;align-items:center;gap:6px'>
           <svg width='24' height='2' style='overflow:visible'>
-            <line x1='0' y1='1' x2='24' y2='1' stroke='var(--c-accent)' stroke-width='2'
+            <line x1='0' y1='1' x2='24' y2='1' stroke='var(--accent)' stroke-width='2'
                   stroke-dasharray='5,4' opacity='0.85'/>
           </svg>
           Sales Forecast
@@ -179,7 +179,7 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
 
 // ── People Dashboard KPI Strip ────────────────────
 function _kpiCard(label, value, sub, bg) {
-  return `<div style='background:${bg || 'var(--surface)'};border:1px solid var(--c-gray-150);border-radius:6px;
+  return `<div style='background:${bg || 'var(--surface)'};border:1px solid var(--border);border-radius:6px;
                       padding:16px 20px;min-width:160px;flex:1'>
     <div style='font-size:11px;font-weight:700;text-transform:uppercase;
                 color:var(--text-label);letter-spacing:.05em;margin-bottom:6px'>${label}</div>
@@ -238,8 +238,8 @@ async function _renderKPIStrip(allRows, people, assignments) {
 
   const _delta = (curr, prev) => {
     const d = curr - prev;
-    if (d === 0) return `<span style='color:var(--c-gray-450);font-size:14px;margin-left:8px'>—</span>`;
-    const colour = d > 0 ? 'var(--c-success)' : 'var(--c-danger)';
+    if (d === 0) return `<span style='color:var(--text-faint);font-size:14px;margin-left:8px'>—</span>`;
+    const colour = d > 0 ? 'var(--status-success)' : 'var(--status-danger)';
     return `<span style='color:${colour};font-size:14px;margin-left:8px'>${d > 0 ? '+' : ''}${d}</span>`;
   };
   
@@ -288,20 +288,20 @@ function _renderUtilisationPanel(rows, people) {
 
   return `
     <div class='page-header' style='margin-bottom:12px'>
-      <h3 style='margin:0;color:var(--c-navy-steel)'>Team Utilisation</h3>
+      <h3 style='margin:0;color:var(--brand-tertiary)'>Team Utilisation</h3>
     </div>
     <table class='data-table' style='margin-bottom:16px'>
       <thead><tr><th>Role Band</th><th>Utilisation</th><th>Headcount</th></tr></thead>
       <tbody>
         ${bandTableRows}
-        <tr style='font-weight:700;border-top:2px solid var(--c-gray-300)'>
+        <tr style='font-weight:700;border-top:2px solid var(--border-strong)'>
           <td>Total</td>
           <td>${_fmtPct(totalUtil)}</td>
           <td>${totalUtilised} / ${totalActive}</td>
         </tr>
       </tbody>
     </table>
-    <div style='font-size:12px;font-weight:600;color:var(--c-gray-700);margin-bottom:4px'>
+    <div style='font-size:12px;font-weight:600;color:var(--text-label);margin-bottom:4px'>
       Monthly Trend</div>
     ${_barChart(chartData, _fmtPct)}`;
 }
@@ -336,25 +336,25 @@ function _renderRevenuePanel(rows) {
   return `
     <div style='display:grid;grid-template-columns:1fr 1fr;gap:24px'>
       <div>
-        <div style='font-size:13px;font-weight:700;color:var(--c-navy-steel);margin-bottom:8px'>
+        <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
           By Customer</div>
         <table class='data-table'>
           <thead><tr><th>Customer</th><th>Estimated Revenue</th></tr></thead>
           <tbody>
             ${customerRows}
-            <tr style='font-weight:700;border-top:2px solid var(--c-gray-300)'>
+            <tr style='font-weight:700;border-top:2px solid var(--border-strong)'>
               <td>Total</td><td>${_fmtGBP(customerTotal)}</td></tr>
           </tbody>
         </table>
       </div>
       <div>
-        <div style='font-size:13px;font-weight:700;color:var(--c-navy-steel);margin-bottom:8px'>
+        <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
           By Project Type</div>
         <table class='data-table'>
           <thead><tr><th>Project Type</th><th>Estimated Revenue</th></tr></thead>
           <tbody>
             ${typeRows}
-            <tr style='font-weight:700;border-top:2px solid var(--c-gray-300)'>
+            <tr style='font-weight:700;border-top:2px solid var(--border-strong)'>
               <td>Total</td><td>${_fmtGBP(typeTotal)}</td></tr>
           </tbody>
         </table>
@@ -391,7 +391,7 @@ function _renderSegmentationPanel(people) {
   return `
     <div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:8px'>
       <div>
-        <div style='font-size:13px;font-weight:700;color:var(--c-navy-steel);margin-bottom:8px'>
+        <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
           By Location</div>
         <table class='data-table'>
           <thead><tr><th>Location</th><th>#</th><th>%</th></tr></thead>
@@ -399,7 +399,7 @@ function _renderSegmentationPanel(people) {
         </table>
       </div>
       <div>
-        <div style='font-size:13px;font-weight:700;color:var(--c-navy-steel);margin-bottom:8px'>
+        <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
           By Contract Type</div>
         <table class='data-table'>
           <thead><tr><th>Contract</th><th>#</th><th>%</th></tr></thead>
@@ -407,7 +407,7 @@ function _renderSegmentationPanel(people) {
         </table>
       </div>
       <div>
-        <div style='font-size:13px;font-weight:700;color:var(--c-navy-steel);margin-bottom:8px'>
+        <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
           By Role Band</div>
         <table class='data-table'>
           <thead><tr><th>Level</th><th>#</th><th>%</th></tr></thead>

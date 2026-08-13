@@ -301,11 +301,11 @@ async function buildHomepageTab() {
     </div>`).join('');
   return `
     <h3>Announcement Banner</h3>
-    <p style="font-size:13px;color:var(--c-gray-600);margin-bottom:16px">
+        <p style="font-size:13px;color:var(--text-label);margin-bottom:16px">
       Set a scrolling message that appears at the bottom of the screen for all users.
       Clear the field and save to remove it.
     </p>
-    <div style="background:white;border:1px solid var(--c-gray-150);border-radius:6px;
+    <div style="background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;
                 padding:20px 24px;max-width:520px;margin-bottom:32px">
       <div class="form-group">
         <label>Message</label>
@@ -320,10 +320,10 @@ async function buildHomepageTab() {
       </div>
     </div>
     <h3>Seasonal Effects</h3>
-    <p style="font-size:13px;color:var(--c-gray-600);margin-bottom:16px">
+        <p style="font-size:13px;color:var(--text-label);margin-bottom:16px">
       One effect can be active at a time. Changes take effect on the Newton home screen immediately.
     </p>
-    <div style="background:white;border:1px solid var(--c-gray-150);border-radius:6px;
+    <div style="background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;
                 padding:4px 24px;max-width:520px">
       ${effectRows}
     </div>`;
@@ -403,12 +403,12 @@ async function buildGhostTab() {
 
   return `
     <h3>Ghost Mode</h3>
-    <p style="font-size:13px;color:var(--c-gray-600);margin-bottom:24px">
+        <p style="font-size:13px;color:var(--text-label);margin-bottom:24px">
       Temporarily view Newton as a different role. A banner will appear at the top of every
       page while ghost mode is active. Navigate to any module to see that role's experience.
       Your real admin access is restored when you exit.
     </p>
-    <div style="background:white;border:1px solid var(--c-gray-150);border-radius:6px;
+    <div style="background:var(--surface);border:1px solid var(--c-gray-150);border-radius:6px;
                 padding:20px 24px;max-width:520px">
       ${current ? `
         <div style="background:var(--c-warn-bg-soft);border:1px solid var(--c-amber-soft);border-radius:4px;

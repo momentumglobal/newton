@@ -74,6 +74,27 @@
   --c-surface-border: #dde3f0;
   --c-surface-lav: #F9F9FF;
   --c-gray-mid: #ececec;
+  /* Colour — JavaScript-consumed tones (N-123) */
+  --c-gray-115: #e8e8e8;
+  --c-success-bg-alt: #e6f4ea;
+  --c-danger-bg-alt: #fce8e8;
+  --c-stripe-amber-dark: #fad9bc;
+  --c-stripe-amber-light: #fdf0e3;
+  --c-green-msft: #107c10;
+  --c-red-variance: #c00000;
+  --c-red-error: #c00;
+  --c-amber-mid: #f39c12;
+  --c-red-mid: #e74c3c;
+  --c-green-pale-border: #cdebd3;
+  --c-teal-chart: #2e8b8b;
+  --c-purple-chart: #7b5ea7;
+  --c-pink-chart: #b0578d;
+  --c-amber-warn-text: #b26a00;
+  --c-surface-blue-alt: #f5f7fa;
+  --c-surface-lav-alt: #f9f9fc;
+  --c-green-border-pale: #cde6d4;
+  --c-warn-border-pale: #f0dcc0;
+  --c-red-border-pale: #efcccc;
   /* Colour — badges, tones & chart accents (N-122) */
   --c-green-soft: #81c784;
   --c-amber-soft: #ffb74d;

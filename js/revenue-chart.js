@@ -43,29 +43,29 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
     const y = yOf(v);
     return `
       <line x1='${PAD.left}' y1='${y}' x2='${W - PAD.right}' y2='${y}'
-            stroke='#e8e8e8' stroke-width='1'/>
+            stroke='var(--c-gray-115)' stroke-width='1'/>
       <text x='${PAD.left - 6}' y='${y + 4}' text-anchor='end'
-            font-size='10' fill='#999'>£${(v / 1000).toFixed(0)}k</text>`;
+            font-size='10' fill='var(--c-gray-450)'>£${(v / 1000).toFixed(0)}k</text>`;
   }).join('');
 
   const xLabels = MONTH_LABELS.map((lbl, i) =>
     `<text x='${xOf(i)}' y='${PAD.top + chartH + 18}' text-anchor='middle'
-           font-size='10' fill='#888'>${lbl}</text>`
+           font-size='10' fill='var(--c-gray-500)'>${lbl}</text>`
   ).join('');
 
   // Threshold bands: green from green→top, orange amber→green, red 0→amber
   const bands = `
     <rect x='${PAD.left}' y='${yOf(yMax)}' width='${chartW}'
-          height='${yOf(green) - yOf(yMax)}' fill='#e6f4ea' opacity='0.6'/>
+          height='${yOf(green) - yOf(yMax)}' fill='var(--c-success-bg-alt)' opacity='0.6'/>
     <rect x='${PAD.left}' y='${yOf(green)}' width='${chartW}'
-          height='${yOf(amber) - yOf(green)}' fill='#fff3e0' opacity='0.6'/>
+          height='${yOf(amber) - yOf(green)}' fill='var(--c-warn-bg-soft)' opacity='0.6'/>
     <rect x='${PAD.left}' y='${yOf(amber)}' width='${chartW}'
-          height='${yOf(0) - yOf(amber)}' fill='#fce8e8' opacity='0.6'/>`;
+          height='${yOf(0) - yOf(amber)}' fill='var(--c-danger-bg-alt)' opacity='0.6'/>`;
 
   const linePts = revenue
     .map((v, i) => `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`)
     .join(' ');
-  const line = `<polyline points='${linePts}' fill='none' stroke='#2E75B6'
+  const line = `<polyline points='${linePts}' fill='none' stroke='var(--c-ptype-embedded)'
                   stroke-width='2.5' stroke-linejoin='round'/>`;
 
   // Dashed forecast line: forks at forkIdx (shares that point with the solid
@@ -78,14 +78,14 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
     .map(p => `${xOf(p.i).toFixed(1)},${yOf(p.v).toFixed(1)}`)
     .join(' ');
   const forecastLine = hasForecast && forecastPts.includes(' ')
-    ? `<polyline points='${forecastPts}' fill='none' stroke='#E8703A'
+    ? `<polyline points='${forecastPts}' fill='none' stroke='var(--c-accent)'
                 stroke-width='2' stroke-dasharray='5,4'
                 stroke-linejoin='round' opacity='0.85'/>`
     : '';
 
   const dots = revenue.map((v, i) => `
     <circle cx='${xOf(i).toFixed(1)}' cy='${yOf(v).toFixed(1)}'
-            r='3.5' fill='#2E75B6' stroke='#fff' stroke-width='1.5'>
+            r='3.5' fill='var(--c-ptype-embedded)' stroke='var(--c-white)' stroke-width='1.5'>
       <title>${MONTH_LABELS[i]} ${year}: ${_fmtGBPk(v)}</title>
     </circle>`).join('');
 
@@ -94,15 +94,15 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
         .filter(p => p.i > forkIdx && forecastRev[p.i] > 0)
         .map(p => `
           <circle cx='${xOf(p.i).toFixed(1)}' cy='${yOf(p.v).toFixed(1)}'
-                  r='3' fill='#fff' stroke='#E8703A' stroke-width='2' opacity='0.85'>
+                  r='3' fill='var(--c-white)' stroke='var(--c-accent)' stroke-width='2' opacity='0.85'>
             <title>${MONTH_LABELS[p.i]} ${year}: ${_fmtGBPk(p.v)} (est. + forecast)</title>
           </circle>`).join('')
     : '';
 
   return `
-    <div style='background:#fff;border:1px solid #e0e0e0;border-radius:6px;
+    <div style='background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;
                 padding:20px 20px 12px;margin-bottom:24px'>
-      <div style='font-size:13px;font-weight:700;color:#1B3A5C;margin-bottom:8px'>
+      <div style='font-size:13px;font-weight:700;color:var(--c-navy-steel);margin-bottom:8px'>
         Estimated Monthly Revenue ${year}</div>
       <svg viewBox='0 0 ${W} ${H}' style='width:100%;height:auto;display:block'
            xmlns='http://www.w3.org/2000/svg'>
@@ -115,32 +115,32 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
         ${forecastDots}
       </svg>
       <div style='display:flex;justify-content:center;gap:24px;margin-top:4px;
-                  font-size:11px;color:#555'>
+                  font-size:11px;color:var(--c-gray-700)'>
         <div style='display:flex;align-items:center;gap:6px'>
           <svg width='24' height='2' style='overflow:visible'>
-            <line x1='0' y1='1' x2='24' y2='1' stroke='#2E75B6' stroke-width='2.5'/>
+            <line x1='0' y1='1' x2='24' y2='1' stroke='var(--c-ptype-embedded)' stroke-width='2.5'/>
           </svg>
           Estimated (booked)
         </div>
         <div style='display:flex;align-items:center;gap:6px'>
           <svg width='24' height='2' style='overflow:visible'>
-            <line x1='0' y1='1' x2='24' y2='1' stroke='#E8703A' stroke-width='2'
+            <line x1='0' y1='1' x2='24' y2='1' stroke='var(--c-accent)' stroke-width='2'
                   stroke-dasharray='5,4' opacity='0.85'/>
           </svg>
           Estimated + Forecast
         </div>
         <div style='display:flex;align-items:center;gap:6px'>
-          <span style='width:12px;height:12px;background:#e6f4ea;border:1px solid #cde6d4;
+          <span style='width:12px;height:12px;background:var(--c-success-bg-alt);border:1px solid var(--c-green-border-pale);
                        display:inline-block;border-radius:2px'></span>
           ≥ ${_fmtGBPk(green)}
         </div>
         <div style='display:flex;align-items:center;gap:6px'>
-          <span style='width:12px;height:12px;background:#fff3e0;border:1px solid #f0dcc0;
+          <span style='width:12px;height:12px;background:var(--c-warn-bg-soft);border:1px solid var(--c-warn-border-pale);
                        display:inline-block;border-radius:2px'></span>
           ${_fmtGBPk(amber)} – ${_fmtGBPk(green)}
         </div>
         <div style='display:flex;align-items:center;gap:6px'>
-          <span style='width:12px;height:12px;background:#fce8e8;border:1px solid #efcccc;
+          <span style='width:12px;height:12px;background:var(--c-danger-bg-alt);border:1px solid var(--c-red-border-pale);
                        display:inline-block;border-radius:2px'></span>
           < ${_fmtGBPk(amber)}
         </div>

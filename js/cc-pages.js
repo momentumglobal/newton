@@ -44,8 +44,8 @@ function ccTileHTML(id, title, rag, statsHTML, trendHTML = '') {
   return `
     <div class="cc-tile cc-tile--${rag}" data-tile="${id}">
       <button class="cc-close" onclick="event.stopPropagation(); collapseTile(this.closest('.cc-grid'))">✕</button>
-      <div class="cc-tile__title" style="font-size:20px;font-weight:600;margin-bottom:8px;color:var(--c-ink)">${title}${trendHTML}</div>
-      <div class="cc-tile__stats" style="font-size:14px;color:var(--c-gray-750)">${statsHTML}</div>
+            <div class="cc-tile__title" style="font-size:20px;font-weight:600;margin-bottom:8px;color:var(--text-primary)">${title}${trendHTML}</div>
+      <div class="cc-tile__stats" style="font-size:14px;color:var(--text-secondary)">${statsHTML}</div>
       <div class="cc-tile__detail" style="display:none"></div>
     </div>`;
 }

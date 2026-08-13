@@ -251,7 +251,7 @@ function _lciRoadmapHtml() {
   }).join('');
 
   return `
-    <div id="lci-roadmap-section" style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:16px">
+    <div id="lci-roadmap-section" class="print-avoid-break" style="background:var(--c-white);border:1px solid var(--c-gray-150);border-radius:6px;padding:20px;margin-top:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 style="margin:0;color:var(--c-navy-steel)">Hiring Roadmap <span style="font-weight:400;font-size:13px;color:var(--c-gray-500)">(salaries in ${m.LocalCurrency})</span></h3>
         <div style="display:flex;gap:8px">

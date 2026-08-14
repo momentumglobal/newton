@@ -178,7 +178,7 @@ function computeHealthTrend(snapshots) {
   const byWeek = {};
   snapshots.forEach(s => {
     if (!s.WeekEndingDate || s.OpenRoles == null || s.FlaggedCount == null) return;
-    const wk = s.WeekEndingDate.slice(0, 10);
+    const wk = spDateIn(s.WeekEndingDate);
     if (!byWeek[wk]) byWeek[wk] = { openRoles: 0, flagged: 0 };
     byWeek[wk].openRoles += s.OpenRoles;
     byWeek[wk].flagged   += s.FlaggedCount;

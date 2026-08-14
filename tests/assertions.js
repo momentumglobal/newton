@@ -143,6 +143,63 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'coeFmtShort — renders the intended day at every offset, incl. +12 and +14 (N-136)',
+    fn: function () {
+      const F = FIXTURES.dateWeek.middayHeadroom;
+      // Runtime-timezone independent: Intl's timeZone option simulates the zone,
+      // so this asserts the same thing under every CI zone (N-134) without
+      // needing a Pacific runner.
+      [F.okZone, F.breakZone, F.realZone, F.extreme].forEach(function (z) {
+        _assertEqual(
+          new Date(F.stored).toLocaleDateString('en-GB',
+            { day: '2-digit', month: 'short', timeZone: 'UTC' }),
+          F.intended, 'UTC-pinned render viewed from ' + z);
+      });
+      // And the function itself. NOTE: calling coeFmtShort() and checking the
+      // output CANNOT catch a missing timeZone option from any CI zone — from
+      // London, UTC or New York the answer is '01 Jul' either way, because all
+      // three sit inside the ±11h headroom. The behaviour only diverges at
+      // >=+12, which N-134 deliberately does not run. So the option is pinned
+      // at SOURCE level instead: crude, but it is the only check that fails
+      // wherever the suite happens to run. Verified to fail on removal.
+      _assertEqual(coeFmtShort(F.stored), F.intended, 'coeFmtShort output');
+      _assertEqual(/timeZone:\s*'UTC'/.test(String(coeFmtShort)), true,
+        "coeFmtShort must pin its formatter to UTC — see the ±11h limit (N-136)");
+    },
+  },
+  {
+    name: 'a LOCAL read of a midday-UTC value really does break in the far east (N-136)',
+    fn: function () {
+      const F = FIXTURES.dateWeek.middayHeadroom;
+      const render = function (z) {
+        return new Date(F.stored).toLocaleDateString('en-GB',
+          { day: '2-digit', month: 'short', timeZone: z });
+      };
+      // Characterisation, not a bug report: this documents WHY coeFmtShort pins
+      // its formatter to UTC. If it ever stops being true, that function's
+      // timeZone option has become unnecessary — and the assertion above has
+      // stopped testing anything.
+      _assertEqual(render(F.realZone), '02 Jul', 'Pacific/Auckland (+12/+13)');
+      _assertEqual(render(F.extreme),  '02 Jul', 'Pacific/Kiritimati (+14)');
+    },
+  },
+  {
+    name: 'the headroom boundary is ±11h — +11 holds, +12 breaks (N-136)',
+    fn: function () {
+      const F = FIXTURES.dateWeek.middayHeadroom;
+      const render = function (z) {
+        return new Date(F.stored).toLocaleDateString('en-GB',
+          { day: '2-digit', month: 'short', timeZone: z });
+      };
+      // This is what makes the corrected ±11h documentation checkable rather
+      // than a claim. NOTE the POSIX sign inversion: Etc/GMT-11 is UTC+11 and
+      // Etc/GMT-12 is UTC+12. Reading those backwards would make this pass for
+      // entirely the wrong reason.
+      _assertEqual(render(F.okZone),    '01 Jul', 'UTC+11 — last offset that holds');
+      _assertEqual(render(F.breakZone), '02 Jul', 'UTC+12 — first offset that breaks');
+    },
+  },
+  {
     name: 'spMonthIn — all three ForecastMonth stored shapes map to the intended month (N-130)',
     fn: function () {
       const F = FIXTURES.dateWeek.forecastMonth;

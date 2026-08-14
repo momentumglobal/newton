@@ -8,7 +8,14 @@
 // where there's no skew to catch a regression against. Must be the very
 // first statement, before any Date is constructed anywhere in this
 // process (including inside the files loaded below).
-process.env.TZ = 'Europe/London';
+process.env.TZ = process.env.NEWTON_TZ || 'Europe/London';
+//
+// N-130: the default is still forced, so CI and a bare `node tests/run.js` are
+// unchanged. NEWTON_TZ overrides it so a timezone-dependence bug can actually
+// be exercised — `NEWTON_TZ=America/New_York node tests/run.js`. A plain TZ=...
+// prefix would NOT work: the line above overwrites it, so such a run would
+// report a pass that proves nothing. Any assertion claiming timezone
+// independence must be checked this way.
 //
 // utils.js / api.js / analytics.js / lci-model.js / coe-plan.js declare
 // plain global functions (<script>-tag style, not CommonJS modules), so

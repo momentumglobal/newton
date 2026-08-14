@@ -22,7 +22,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Blocks deploy on a failing calc assertion (N-095).
+  # Blocks deploy on a failing calc assertion (N-095), and on a timezone
+  # dependence in any of three zones (N-134).
   test:
     runs-on: ubuntu-latest
     steps:
@@ -32,8 +33,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Run test harness
+      # N-134: three zones, covering the three distinct relationships to UTC.
+      # tests/run.js FORCES TZ=Europe/London on line 11, so a bare `TZ=` prefix
+      # is silently overwritten and would give three identical London runs
+      # reporting a pass that proves nothing — NEWTON_TZ is the override that
+      # actually works. Skips do not fail the build: run.js exits non-zero only
+      # on failures, so the UTC run's legitimate 33/34 + 1 skip still passes.
+      # Zones deliberately NOT added: Athens/Los Angeles/Tokyo behave identically
+      # to those below (the midday-UTC convention absorbs any offset inside
+      # ±11h), and Pacific/Auckland would pass despite the convention genuinely
+      # breaking at exactly +12 — that gap needs an assertion, not a zone (N-136).
+      - name: Test — Europe/London (site timezone, observes DST)
         run: node tests/run.js
+      - name: Test — UTC (no DST offset; where CI containers live)
+        run: NEWTON_TZ=UTC node tests/run.js
+      - name: Test — America/New_York (behind UTC — the N-130 class)
+        run: NEWTON_TZ=America/New_York node tests/run.js
 
   # Single deploy job since we're just deploying
   deploy:

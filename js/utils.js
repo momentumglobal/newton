@@ -450,8 +450,13 @@ function spDateIn(str) {
 // component the ±12h rounding depends on.
 //
 // Precondition: the stored instant is within ±12h of the intended month's 1st
-// at UTC midnight, which holds for any site offset in ±12h. Returns null on
-// anything unparseable.
+// at UTC midnight, which holds for any SITE offset in ±12h (verified: correct
+// through exactly +12, breaking only at +13). N-136: this ±12h is a DIFFERENT
+// quantity from the ±11h browser-offset limit documented in coe-plan.js — that
+// one governs reading a stored midday value with a local getter, this one
+// governs how far the SharePoint site's own offset can move a bare write. Both
+// figures are correct; do not reconcile them. Returns null on anything
+// unparseable.
 function spMonthIn(str) {
   const t = Date.parse(str);
   if (isNaN(t)) return null;

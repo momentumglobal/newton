@@ -244,7 +244,7 @@ function renderUpcomingStartersPanel(placements, roles) {
     .sort((a, b) => new Date(a.ProvisionalStartDate) - new Date(b.ProvisionalStartDate));
   if (!upcoming.length) return `<div class='dash-panel'><h3 class='panel-title'>Upcoming Starters</h3><p class='no-data'>No upcoming starters.</p></div>`;
   const rows = upcoming.map(p =>
-    `<tr><td>${escHtml(p.CandidateName)}</td><td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '—'}</td><td>${p.ProvisionalStartDate.split('T')[0]}</td></tr>`
+    `<tr><td>${escHtml(p.CandidateName)}</td><td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '—'}</td><td>${spDateIn(p.ProvisionalStartDate) || '—'}</td></tr>`
   ).join('');
   return `<div class='dash-panel'><h3 class='panel-title'>Upcoming Starters</h3>
     <table class='data-table'>
@@ -370,7 +370,7 @@ function renderRoleTrackerPanel(roles) {
       <td>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</td>
       <td>${escHtml(r.HiringManager || '—')}</td>
       <td><span class='badge'>${escHtml(r.Stage || '—')}</span></td>
-      <td>${r.OpenDate ? r.OpenDate.split('T')[0] : '—'}</td>
+      <td>${spDateIn(r.OpenDate) || '—'}</td>
       <td>${days !== null ? days + ' days' : '—'}</td>
     </tr>`;
   }).join('');
@@ -399,7 +399,7 @@ function renderPlacementsPanel(placements, roles, period) {
     <tr>
       <td>${escHtml(p.CandidateName)}</td>
       <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '—'}</td>
-      <td>${p.OfferAcceptedDate ? p.OfferAcceptedDate.split('T')[0] : '—'}</td>
+      <td>${spDateIn(p.OfferAcceptedDate) || '—'}</td>
       <td>${escHtml(p.Currency || '—')}</td>
       <td>${p.SalaryAgreed ? Number(p.SalaryAgreed).toLocaleString('en-GB') : '—'}</td>
     </tr>`).join('');

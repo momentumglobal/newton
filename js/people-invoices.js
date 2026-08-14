@@ -20,9 +20,9 @@ async function renderGPInvoices() {
     .reduce((sum, i) => sum + (parseFloat(i.Amount) || 0), 0);
   const overdueList = withStatus.filter(i => i.isOverdue);
   const oldestOverdue = overdueList.length
-    ? overdueList.reduce((oldest, i) =>
+    ? spDateIn(overdueList.reduce((oldest, i) =>
         new Date(i.DueDate) < new Date(oldest.DueDate) ? i : oldest
-      ).DueDate.split('T')[0]
+      ).DueDate)
     : null;
 
   const summaryBar = `
@@ -64,8 +64,8 @@ async function renderGPInvoices() {
 
     return `<tr>
       <td>${escHtml(inv.InvoiceNumber || '—')}</td>
-      <td>${inv.InvoiceDate ? inv.InvoiceDate.split('T')[0] : '—'}</td>
-      <td>${inv.DueDate     ? inv.DueDate.split('T')[0]     : '—'}</td>
+      <td>${spDateIn(inv.InvoiceDate) || '—'}</td>
+      <td>${spDateIn(inv.DueDate) || '—'}</td>
       <td>£${inv.Amount ? Number(inv.Amount).toLocaleString('en-GB',
               {minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
       <td class='cell-notes'>${renderInvoiceNotesCell(inv)}</td>

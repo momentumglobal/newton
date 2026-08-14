@@ -308,7 +308,10 @@ async function getCoEPlanForecast(projectId) {
 }
 async function saveCoEForecastMonth(projectId, monthISO, hires, existingId = null) {
   if (existingId) return updateItem("CoEPlanForecast", existingId, { ForecastedHires: hires });
-  return createItem("CoEPlanForecast", { ProjectID: projectId, ForecastMonth: monthISO, ForecastedHires: hires });
+  // N-130: isoDate() puts ForecastMonth on the same midday-UTC convention as
+  // every other CoE date. Existing rows keep their legacy shape — nothing is
+  // migrated — and spMonthIn() on the read side handles both.
+  return createItem("CoEPlanForecast", { ProjectID: projectId, ForecastMonth: isoDate(monthISO), ForecastedHires: hires });
 }
 
 // ── LCI Cost Model ──────────────────────────────────────────────────

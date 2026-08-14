@@ -230,7 +230,7 @@ async function renderCommandCentreBanner(role) {
       const completed = await hasCompletedSurvey(run.id, email);
       if (completed) return;
 
-       // N-131: whole CALENDAR days, not a millisecond subtraction. Both sides
+      // N-131: whole CALENDAR days, not a millisecond subtraction. Both sides
       // are UTC-midnight Dates for a calendar day, so this is exact and has no
       // time-of-day component — with OpenDate now stored at midday UTC, the old
       // ms arithmetic would have returned one day fewer for part of every day

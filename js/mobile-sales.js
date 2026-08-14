@@ -65,9 +65,7 @@ async function mobileSalesForecastForm(editId) {
       f = forecasts.find(x => x.id === editId) || {};
     } catch (e) { /* fall back to empty */ }
   }
-
-  const dVal = iso => iso ? iso.substring(0, 10) : '';
-
+  
   main.innerHTML = `
     <div class="m-detail-panel">
       <div class="m-form-group">
@@ -77,11 +75,11 @@ async function mobileSalesForecastForm(editId) {
       <div class="m-input-row">
         <div class="m-form-group">
           <label class="m-label">Start *</label>
-          <input class="m-input" type="date" id="msf-start" value="${dVal(f.ForecastStartDate)}">
+          <input class="m-input" type="date" id="msf-start" value="${spDateIn(f.ForecastStartDate) || ''}">
         </div>
         <div class="m-form-group">
           <label class="m-label">End *</label>
-          <input class="m-input" type="date" id="msf-end" value="${dVal(f.ForecastEndDate)}">
+          <input class="m-input" type="date" id="msf-end" value="${spDateIn(f.ForecastEndDate) || ''}">
         </div>
       </div>
       <div class="m-form-group">

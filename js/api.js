@@ -1017,8 +1017,14 @@ async function createSurveyTemplate(fields) {
     Description:    fields.Description   || "",
     TargetAudience: fields.TargetAudience || "All",
     Status:         fields.Status         || "Draft",
-    TargetDate:     fields.TargetDate     || undefined,
-    CloseDate:      fields.CloseDate      || undefined,
+    // N-133: isoDate() pins these to T12:00:00Z. Written bare, SharePoint
+    // resolved them in the SITE's timezone, so a BST-season date stored 23:00Z
+    // on the PREVIOUS day — and because the edit form redisplays the stored day
+    // and re-saves it, the value walked back one day on every edit. CloseDate
+    // is currently supplied by no caller, but it is the same shape one line
+    // over and would ratchet identically the moment one does.
+    TargetDate:     isoDate(fields.TargetDate) || undefined,
+    CloseDate:      isoDate(fields.CloseDate)  || undefined,
     CreatedByEmail: fields.CreatedByEmail || "",
   });
 }
@@ -1029,8 +1035,12 @@ async function updateSurveyTemplate(id, fields) {
   if (fields.Description    !== undefined) payload.Description    = fields.Description;
   if (fields.TargetAudience !== undefined) payload.TargetAudience = fields.TargetAudience;
   if (fields.Status         !== undefined) payload.Status         = fields.Status;
-  if (fields.TargetDate     !== undefined) payload.TargetDate     = fields.TargetDate;
-  if (fields.CloseDate      !== undefined) payload.CloseDate      = fields.CloseDate;
+  // N-133: the UPDATE path is what actually drove the ratchet — each edit
+  // re-stored the (already shifted) day the form was showing. isoDate() returns
+  // null for an empty value, which is the correct way to clear a SharePoint
+  // date field, so deliberately emptying the field still clears it.
+  if (fields.TargetDate     !== undefined) payload.TargetDate     = isoDate(fields.TargetDate);
+  if (fields.CloseDate      !== undefined) payload.CloseDate      = isoDate(fields.CloseDate);
   return updateItem("SurveyTemplates", id, payload);
 }
 

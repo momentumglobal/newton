@@ -124,8 +124,14 @@ var ASSERTIONS = [
       const dt = new Date(y, m - 1, d, h, min);
       _assertEqual(localDayISO(dt), '2026-07-01', 'localDayISO');
       // Guard the guard: if this ever stops differing from the pattern
-      // N-088 replaced, the assertion has stopped testing anything.
-      _assertEqual(dt.toISOString().split('T')[0], '2026-06-30', 'pre-N-088 pattern still skews');
+      // N-088 replaced, the assertion has stopped testing anything. Only
+      // meaningful where local is AHEAD of UTC — that is the whole failure
+      // window. N-130 added NEWTON_TZ, so this file can now be run from a
+      // timezone behind UTC, where the old pattern was never wrong and
+      // asserting it unconditionally would report a bug that isn't there.
+      if (dt.getTimezoneOffset() < 0) {
+        _assertEqual(dt.toISOString().split('T')[0], '2026-06-30', 'pre-N-088 pattern still skews');
+      }
     },
   },
   {
@@ -134,6 +140,40 @@ var ASSERTIONS = [
       _assertEqual(/^\d{4}-\d{2}-\d{2}$/.test(localDayISO()), true, 'no-arg shape');
       _assertEqual(localDayISO('2026-07-01'), null, 'string input');
       _assertEqual(localDayISO(new Date('nonsense')), null, 'invalid Date');
+    },
+  },
+  {
+    name: 'spMonthIn — all three ForecastMonth stored shapes map to the intended month (N-130)',
+    fn: function () {
+      const F = FIXTURES.dateWeek.forecastMonth;
+      _assertEqual(spMonthIn(F.legacyBst.stored), F.legacyBst.month, 'legacy BST write');
+      _assertEqual(spMonthIn(F.legacyGmt.stored), F.legacyGmt.month, 'legacy GMT write');
+      _assertEqual(spMonthIn(F.canonical.stored), F.canonical.month, 'canonical midday-UTC write');
+      _assertEqual(spMonthIn(F.yearEnd.stored),   F.yearEnd.month,   'year boundary');
+      _assertEqual(spMonthIn('not a date'), null, 'unparseable');
+      _assertEqual(spMonthIn(null), null, 'null input');
+      // Guard the guard: the read this replaced used local getters, so under a
+      // timezone BEHIND the site it returned the PREVIOUS month. Reproduce that
+      // only where the runtime can actually show it, so the assertion stays
+      // honest under TZ=Europe/London (where the old code was correct too).
+      const legacy = new Date(F.legacyBst.stored);
+      const legacyKey = `${legacy.getFullYear()}-${String(legacy.getMonth() + 1).padStart(2, '0')}`;
+      if (legacy.getTimezoneOffset() > 0) {
+        _assertEqual(legacyKey, '2026-06', 'pre-N-130 local read still skews behind UTC');
+      }
+    },
+  },
+  {
+    name: 'spMonthIn — forecast key matches the render-loop key for the same month (N-130)',
+    fn: function () {
+      // Both sides of the fByMonth lookup must agree, or every forecast cell
+      // renders empty with no error raised. Render loop builds its key from a
+      // LOCAL-midnight Date (coe-plan.js is local by design, N-089); the
+      // forecast map builds its key from the stored string.
+      const F = FIXTURES.dateWeek.forecastMonth;
+      const m = new Date(2026, 6, 1); // local 1 Jul 2026
+      _assertEqual(monthKeyFromISO(localDayISO(m)), spMonthIn(F.canonical.stored), 'canonical row');
+      _assertEqual(monthKeyFromISO(localDayISO(m)), spMonthIn(F.legacyBst.stored), 'legacy BST row');
     },
   },
   {
@@ -159,10 +199,14 @@ var ASSERTIONS = [
       _assertEqual(spDateOut(utcDateOnly(src)), src, 'bench write round-trip');
       // Guard the guard: the pairing N-090 replaced (local-midnight read, then
       // toISOString on the way out) really does lose a day here. If this stops
-      // being true the assertion above has stopped testing anything.
+      // being true the assertion above has stopped testing anything. Guarded on
+      // local being AHEAD of UTC for the same reason as the N-088 assertion —
+      // see there.
       const legacy = new Date(src.slice(0, 10));
       legacy.setHours(0, 0, 0, 0);
-      _assertEqual(legacy.toISOString().slice(0, 10), '2026-06-30', 'pre-N-090 pairing still skews');
+      if (legacy.getTimezoneOffset() < 0) {
+        _assertEqual(legacy.toISOString().slice(0, 10), '2026-06-30', 'pre-N-090 pairing still skews');
+      }
     },
   },
   {

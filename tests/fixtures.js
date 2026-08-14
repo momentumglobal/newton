@@ -64,6 +64,19 @@ var FIXTURES = {
     // instant is still 30 Jun, so the pre-N-088
     // `toISOString().split('T')[0]` returns '2026-06-30'.
     localDayInput: { y: 2026, m: 7, d: 1, h: 0, min: 30 },
+    // ForecastMonth stored shapes (N-130). CoEPlanForecast.ForecastMonth is
+    // always the 1st of a month, but SharePoint resolved the old bare-date
+    // write in the SITE's timezone, so three shapes exist in the list. All
+    // three must resolve to the SAME month regardless of browser timezone —
+    // the old local-getter read only managed that from UK or further east.
+    forecastMonth: {
+      legacyBst:  { stored: '2026-06-30T23:00:00Z', month: '2026-07' },
+      legacyGmt:  { stored: '2026-01-01T00:00:00Z', month: '2026-01' },
+      canonical:  { stored: '2026-07-01T12:00:00Z', month: '2026-07' },
+      // Year boundary — where an off-by-one month is most expensive, because
+      // it moves the figure into the wrong YEAR's forecast as well.
+      yearEnd:    { stored: '2025-12-31T23:00:00Z', month: '2026-01' },
+    },
     // Bench sync round-trip (N-090) — a midday-UTC SharePoint date on a BST
     // day. utcDateOnly → spDateOut is the exact pairing the bench sync now
     // uses to read a stored date and write it back; before N-090 the read side

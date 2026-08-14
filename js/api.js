@@ -219,7 +219,7 @@ async function getHistoricalPlacements() {
   // support went live; see N-050 QA). Stays on '*' until N-052 audits and
   // re-adds a correct list.
   const roles = await getItems('Roles',
-    `fields/Stage eq 'Hired' and fields/ActualHireDate ge '${cutoff.toISOString().split('T')[0]}'`
+    `fields/Stage eq 'Hired' and fields/ActualHireDate ge '${localDayISO(cutoff)}'`
   );
   return roles.map(r => ({
     id:            r.id,
@@ -235,13 +235,15 @@ async function getHistoricalPlacements() {
 async function getActivityForAnalytics(weeksBack) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - (weeksBack * 7));
-  const isoDate = cutoff.toISOString().split('T')[0];
+  // N-088: named cutoffDay, not isoDate — the old name shadowed the global
+  // isoDate() helper from utils.js for the rest of this function.
+  const cutoffDay = localDayISO(cutoff);
   // No select passed — the field list this used to carry was incomplete
   // (missing TalentPartner, silently breaking People Scorecards once select
   // support went live; see N-050 QA). Stays on '*' until N-052 audits and
   // re-adds a correct list.
   const activity = await getItems('WeeklyActivity',
-    `fields/WeekEndingDate ge '${isoDate}'`
+    `fields/WeekEndingDate ge '${cutoffDay}'`
   );
   return activity;
 }
@@ -1063,10 +1065,15 @@ async function deleteSurveyQuestion(id) {
 }
 
 async function createSurveyRun(fields) {
-  const openDate  = fields.OpenDate  || new Date().toISOString().split('T')[0];
+  // N-088: bare 'YYYY-MM-DD' on purpose — SurveyRuns dates are NOT passed
+  // through isoDate(). index.html reads OpenDate/CloseDate back with
+  // new Date() and derives an hours-left countdown from CloseDate, so
+  // adding the T12:00:00Z midday suffix would shift it by 12h. Only the
+  // derivation changed here, not the stored shape.
+  const openDate  = fields.OpenDate  || localDayISO();
   const closeDate = fields.CloseDate || (() => {
     const d = new Date(); d.setDate(d.getDate() + CONFIG.SURVEY.DEFAULT_DURATION_DAYS);
-    return d.toISOString().split('T')[0];
+    return localDayISO(d);
   })();
   return createItem("SurveyRuns", {
     Title:              fields.RunLabel,

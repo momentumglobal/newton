@@ -68,8 +68,8 @@ async function renderEmployeesTab() {
       <td>${escHtml(p.Level || '—')}</td>
       <td>${escHtml(p.ContractType || '—')}</td>
       <td>${escHtml(p.Location || '—')}</td>
-      <td>${p.StartDate ? p.StartDate.split('T')[0] : '—'}</td>
-      <td>${p.EndDate   ? p.EndDate.split('T')[0]   : '—'}</td>
+      <td>${spDateIn(p.StartDate) || '—'}</td>
+      <td>${spDateIn(p.EndDate) || '—'}</td>
       <td><span class='badge badge-${p.IsActive ? 'active' : 'inactive'}'>${p.IsActive ? 'Active' : 'Inactive'}</span></td>
       ${salaryCell}
       ${canEdit ? `<td><div class='row-actions'><a href='#' onclick='showEditPersonForm(${p.id})'>Edit</a></div></td>` : ''}
@@ -213,8 +213,8 @@ const filtered = assignments.filter(a => {
       <td>${escHtml(a.Level || '—')}</td>
       <td>${escHtml(a.Customer || '—')}</td>
       <td>${escHtml(a.ProjectType || '—')}</td>
-      <td>${a.StartDate ? a.StartDate.split('T')[0] : '—'}</td>
-      <td>${a.EndDate   ? a.EndDate.split('T')[0]   : '—'}</td>
+      <td>${spDateIn(a.StartDate) || '—'}</td>
+      <td>${spDateIn(a.EndDate) || '—'}</td>
       <td>${assignmentRateLabel(a)}</td>
       <td><span class='badge badge-${a.Billed==="Yes"?"active":"inactive"}'>${escHtml(a.Billed)}</span>${
         isForecastAssignment(a) ? ` <span class='badge' style='background:var(--status-warn-bg-soft);color:var(--status-warn-text)'>Forecast</span>` : ''}</td>
@@ -273,9 +273,16 @@ async function _syncBenchAssignments() {
       getAssignments({}),
     ]);
 
-    const today    = new Date(); today.setHours(0,0,0,0);
-    const thisYear = today.getFullYear();
-    const yearEnd  = new Date(thisYear, 11, 31);
+    // N-090: this whole function is UTC by construction. Every Date below is
+    // UTC midnight (utcDateOnly / Date.UTC), every mutation uses a UTC setter,
+    // and every write goes out through spDateOut(). Do NOT reintroduce
+    // setHours() or a local getter: mixing the two conventions is what wrote
+    // bench StartDates a day early during BST, and made the stored value never
+    // match on re-read — so every affected record was deleted and recreated on
+    // every sync run.
+    const today    = new Date();
+    const thisYear = today.getUTCFullYear();
+    const yearEnd  = new Date(Date.UTC(thisYear, 11, 31));
 
     // Only sync active employees at billable levels
     const billable = people.filter(p =>
@@ -295,23 +302,19 @@ async function _syncBenchAssignments() {
     inactiveBench.forEach(b => { if (!toDelete.includes(b.id)) toDelete.push(b.id); });
 
     for (const person of billable) {
-      // Employment end: use person's EndDate if set, else Dec 31
-      const _parseDate = (str) => {
-        if (!str) return null;
-        const d = new Date(str.slice(0, 10));
-        d.setHours(0,0,0,0);
-        return d;
-      };
+      // Employment end: use person's EndDate if set, else Dec 31.
+      // utcDateOnly() replaces the old local _parseDate helper — it returns a
+      // UTC-midnight Date for the encoded calendar day and is documented for
+      // exactly this case (never `new Date(str)` + setHours).
+      const yearStart = new Date(Date.UTC(thisYear, 0, 1));
 
-      const empEndRaw = _parseDate(person.EndDate);
+      const empEndRaw = utcDateOnly(person.EndDate);
       const empEnd = empEndRaw && empEndRaw < yearEnd ? empEndRaw : new Date(yearEnd);
-      empEnd.setHours(0,0,0,0);
 
-      const empStartRaw = _parseDate(person.StartDate);
-      const empStart = empStartRaw && empStartRaw > new Date(thisYear, 0, 1)
+      const empStartRaw = utcDateOnly(person.StartDate);
+      const empStart = empStartRaw && empStartRaw > yearStart
         ? empStartRaw
-        : new Date(thisYear, 0, 1);
-      empStart.setHours(0,0,0,0);
+        : new Date(yearStart);
 
       if (empStart > empEnd) continue;
 
@@ -323,8 +326,8 @@ async function _syncBenchAssignments() {
           a.StartDate && a.EndDate
         )
         .map(a => ({
-          s: new Date(a.StartDate.slice(0, 10)),
-          e: new Date(a.EndDate.slice(0, 10)),
+          s: utcDateOnly(a.StartDate),
+          e: utcDateOnly(a.EndDate),
         }))
         .filter(a => a.s <= empEnd && a.e >= empStart)
         .sort((a, b) => a.s - b.s);
@@ -339,7 +342,7 @@ async function _syncBenchAssignments() {
           gaps.push({ from: new Date(cursor), to: new Date(assignStart - 86400000) });
         }
         const after = new Date(ca.e);
-        after.setDate(after.getDate() + 1);
+        after.setUTCDate(after.getUTCDate() + 1);
         if (after > cursor) cursor = after;
       }
       // Gap after last assignment to empEnd
@@ -358,8 +361,8 @@ async function _syncBenchAssignments() {
       
       // Determine which existing bench records are still valid
       for (const bench of personBench) {
-        const bs = new Date(bench.StartDate.slice(0, 10)); bs.setHours(0,0,0,0);
-        const be = new Date(bench.EndDate.slice(0, 10));   be.setHours(0,0,0,0);
+        const bs = utcDateOnly(bench.StartDate);
+        const be = utcDateOnly(bench.EndDate);
         const stillNeeded = clampedGaps.some(
           g => g.from.getTime() === bs.getTime() && g.to.getTime() === be.getTime()
         );
@@ -369,8 +372,8 @@ async function _syncBenchAssignments() {
       // Determine which gaps don't yet have a bench record
       for (const gap of clampedGaps) {
         const alreadyExists = personBench.some(b => {
-          const bs = new Date(b.StartDate.slice(0, 10)); bs.setHours(0,0,0,0);
-          const be = new Date(b.EndDate.slice(0, 10));   be.setHours(0,0,0,0);
+          const bs = utcDateOnly(b.StartDate);
+          const be = utcDateOnly(b.EndDate);
           return bs.getTime() === gap.from.getTime() && be.getTime() === gap.to.getTime();
         });
         if (!alreadyExists) {
@@ -379,8 +382,8 @@ async function _syncBenchAssignments() {
             Level:         person.Level,
             Customer:      'Unassigned',
             ProjectType:   'Internal',
-            StartDate:     gap.from.toISOString().slice(0,10) + 'T12:00:00Z',
-            EndDate:       gap.to.toISOString().slice(0,10)   + 'T12:00:00Z',
+            StartDate:     spDateOut(gap.from),
+            EndDate:       spDateOut(gap.to),
             Billed:        'No',
             Country:       person.Location || '',
             AutoGenerated: true,

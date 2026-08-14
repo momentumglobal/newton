@@ -129,4 +129,68 @@ var ASSERTIONS = [
       _assertEqual(coeWeekIndex(tStart, d), 26, 'coeWeekIndex');
     },
   },
+  {
+    name: 'lciRowNotice — a row override wins over a different model default',
+    fn: function () {
+      const { row, model } = FIXTURES.lci2.noticeOverrideWins;
+      _assertEqual(lciRowNotice(row, model), 3, 'lciRowNotice');
+    },
+  },
+  {
+    name: 'lciRowNotice — a blank override falls back to the model default',
+    fn: function () {
+      const { row, model } = FIXTURES.lci2.noticeBlankFallback;
+      _assertEqual(lciRowNotice(row, model), 2, 'lciRowNotice');
+    },
+  },
+  {
+    name: 'lciRowNotice — zero is a real override value, not "blank"',
+    fn: function () {
+      const { row, model } = FIXTURES.lci2.noticeZeroIsReal;
+      _assertEqual(lciRowNotice(row, model), 0, 'lciRowNotice');
+    },
+  },
+  {
+    name: 'lciCumulativeHeadcount — fed a per-role-resolved notice end-to-end',
+    fn: function () {
+      const { row, horizon } = FIXTURES.lci2.headcountViaResolvedNotice;
+      const { model } = FIXTURES.lci2.noticeOverrideWins; // NoticeMonths: 1, row above overrides to 3
+      const overrideRow = { ...row, NoticeMonthsOverride: 3 };
+      const notice = lciRowNotice(overrideRow, model);
+      const out = lciCumulativeHeadcount(row, horizon, notice);
+      _assertEqual(out, [0, 0, 0, 1, 2, 3], 'lciCumulativeHeadcount via lciRowNotice');
+    },
+  },
+  {
+    name: 'lciYearSlices — horizon at/under the chunk size stays a single slice',
+    fn: function () {
+      const { horizon, chunk } = FIXTURES.lci2.yearSlicesUnderChunk;
+      const slices = lciYearSlices(horizon, chunk);
+      _assertEqual(slices, [{ start: 0, end: 6, index: 1, label: null }], 'lciYearSlices');
+    },
+  },
+  {
+    name: 'lciYearSlices — a horizon exactly divisible into chunks has no partial year',
+    fn: function () {
+      const { horizon, chunk } = FIXTURES.lci2.yearSlicesExactMultiple;
+      const slices = lciYearSlices(horizon, chunk);
+      _assertEqual(slices.length, 2, 'slice count');
+      _assertEqual(slices[0], { start: 0, end: 12, index: 1, label: 'Year 1 (M1–M12)' }, 'slice 1');
+      _assertEqual(slices[1], { start: 12, end: 24, index: 2, label: 'Year 2 (M13–M24)' }, 'slice 2');
+    },
+  },
+  {
+    name: 'lciLegacyMonthlyCost — salary plus bonus, spread over 12 months',
+    fn: function () {
+      const { row } = FIXTURES.lci2.legacyCost;
+      _assertEqual(lciLegacyMonthlyCost(row), 5500, 'lciLegacyMonthlyCost');
+    },
+  },
+  {
+    name: '_pickFields — whitelists keys and drops undefined/null even when whitelisted',
+    fn: function () {
+      const { obj, keys } = FIXTURES.lci2.pickFields;
+      _assertEqual(_pickFields(obj, keys), { A: 1, D: 5 }, '_pickFields');
+    },
+  },
 ];

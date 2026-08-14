@@ -216,7 +216,7 @@ function computeMonthlyRows(assignments) {
         Billed:           a.Billed,
         Year:             year,
         Month:            month + 1,
-        MonthStart:       monthStart.toISOString().slice(0, 10),
+        MonthStart:       `${monthKey}-01`,
         MonthFraction:    Math.round(fraction * 10000) / 10000,
         ProratedRevenue:  Math.round(prorated * 100) / 100,
         BilledRevenue:    billed ? Math.round(prorated * 100) / 100 : 0,
@@ -425,6 +425,26 @@ function spDateOut(date) {
 function spDateIn(str) {
   const match = String(str).match(/^(\d{4})-(\d{2})-(\d{2})/);
   return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
+}
+
+// N-088: the LOCAL calendar day as 'YYYY-MM-DD'. Use this — never
+// `new Date().toISOString().split('T')[0]` — whenever "today", or a
+// relative cutoff derived from it, is needed as a day string.
+// toISOString() re-expresses a local instant in UTC, and under BST (local
+// ahead of UTC) that returns YESTERDAY for any moment between 00:00 and
+// 01:00 local. Local getters here are deliberate and are NOT a breach of
+// spDateOut's "UTC getters only" rule: that rule governs a Date standing
+// for a SharePoint calendar day, whereas this answers the local
+// wall-clock question "what day is it where the user is". Same root cause
+// as N-129, which fixed the identical pattern inside getWeekEnding();
+// that function keeps its own inlined copy deliberately (see its comment)
+// rather than being rewired through here.
+function localDayISO(date = new Date()) {
+  if (!(date instanceof Date) || isNaN(date.getTime())) return null;
+  const y  = date.getFullYear();
+  const m  = String(date.getMonth() + 1).padStart(2, '0');
+  const d  = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 function getISOWeek(date) {

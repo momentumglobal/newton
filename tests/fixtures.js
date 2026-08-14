@@ -59,6 +59,11 @@ var FIXTURES = {
     spDateInInput: '2026-07-01T00:00:00Z',
     // spDateOut — Date.UTC-constructed, same calendar day as isoDateInput.
     spDateOutInput: { y: 2026, m: 7, d: 1 },
+    // localDayISO (N-088) — 00:30 LOCAL on a BST day. That half-hour after
+    // local midnight is the whole failure window: the equivalent UTC
+    // instant is still 30 Jun, so the pre-N-088
+    // `toISOString().split('T')[0]` returns '2026-06-30'.
+    localDayInput: { y: 2026, m: 7, d: 1, h: 0, min: 30 },
     // coeWeekIndex — the exact dates from the N-081 fix's own code comment
     // ("29 Dec 2025 tStart → 29 Jun 2026 = 26wks − 1h → 25" pre-fix).
     coeGantt: {

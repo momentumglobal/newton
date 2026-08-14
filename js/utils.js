@@ -427,6 +427,38 @@ function spDateIn(str) {
   return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
 }
 
+// N-130: the MONTH a SharePoint month-marker date refers to, as 'YYYY-MM'.
+// CoEPlanForecast.ForecastMonth is by contract always the 1st of a month, but
+// three stored shapes exist: 'T00:00:00Z' (written while the site was on GMT),
+// '(prev-day)T23:00:00Z' (written on BST — SharePoint resolves a bare date in
+// the SITE's timezone, so 1 Jul 00:00 BST is stored as 30 Jun 23:00Z), and
+// 'T12:00:00Z' (written via isoDate() from N-130 on). The BST shape is CONFIRMED
+// against live data (14 Aug 2026): four real CoEPlanForecast rows read back as
+// 2026-06-30T23:00:00Z, 2026-07-31T23:00:00Z, 2026-08-31T23:00:00Z and
+// 2026-09-30T23:00:00Z — i.e. Jul/Aug/Sep/Oct markers, each stored on the last
+// day of the preceding month. The GMT shape is inferred, not observed (no
+// winter forecast month existed to check), but it is the benign one: no shift. Adding 12h before
+// reading the UTC month collapses all three onto the intended month, and reads
+// no local getter — so unlike the `new Date()` + local-getter code this
+// replaced, it returns the same month in every browser timezone. That old read
+// keyed the row to the PREVIOUS month on any browser behind the site's offset,
+// silently dropping the figure out of the forecast table.
+//
+// This is the one place where `new Date(<SharePoint string>)` is correct: the
+// value being recovered is an INSTANT, not a calendar day, and only UTC getters
+// are read from it. Do NOT "fix" this to utcDateOnly() — that discards the time
+// component the ±12h rounding depends on.
+//
+// Precondition: the stored instant is within ±12h of the intended month's 1st
+// at UTC midnight, which holds for any site offset in ±12h. Returns null on
+// anything unparseable.
+function spMonthIn(str) {
+  const t = Date.parse(str);
+  if (isNaN(t)) return null;
+  const d = new Date(t + 12 * 3600 * 1000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 // N-088: the LOCAL calendar day as 'YYYY-MM-DD'. Use this — never
 // `new Date().toISOString().split('T')[0]` — whenever "today", or a
 // relative cutoff derived from it, is needed as a day string.

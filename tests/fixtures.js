@@ -64,6 +64,12 @@ var FIXTURES = {
     // instant is still 30 Jun, so the pre-N-088
     // `toISOString().split('T')[0]` returns '2026-06-30'.
     localDayInput: { y: 2026, m: 7, d: 1, h: 0, min: 30 },
+    // Bench sync round-trip (N-090) — a midday-UTC SharePoint date on a BST
+    // day. utcDateOnly → spDateOut is the exact pairing the bench sync now
+    // uses to read a stored date and write it back; before N-090 the read side
+    // produced a LOCAL-midnight Date and the write side re-expressed it in
+    // UTC, landing a day early and never matching on re-read.
+    benchRoundTrip: '2026-07-01T12:00:00Z',
     // coeMonday (N-089) — one GMT date and one BST date. Both must come back
     // at LOCAL midnight: that is the precondition coeWeekIndex's Math.round
     // relies on, and nothing tested it before.

@@ -97,7 +97,7 @@ async function _generatePayrollPreview() {
       <tbody>${joiners.map(p => `
         <tr>
           <td>${escHtml(p.EmployeeName)}</td>
-          <td>${p.StartDate.split('T')[0]}</td>
+          <td>${spDateIn(p.StartDate) || '—'}</td>
           <td>${p.Salary ? '£' + Number(p.Salary).toLocaleString('en-GB', { minimumFractionDigits: 2 }) : '—'}</td>
         </tr>`).join('')}
       </tbody>
@@ -109,7 +109,7 @@ async function _generatePayrollPreview() {
       <tbody>${leavers.map(p => `
         <tr>
           <td>${escHtml(p.EmployeeName)}</td>
-          <td>${p.EndDate.split('T')[0]}</td>
+          <td>${spDateIn(p.EndDate) || '—'}</td>
         </tr>`).join('')}
       </tbody>
     </table>` : `<p style='color:var(--text-muted);font-size:13px'>No leavers this month.</p>`;
@@ -164,13 +164,13 @@ async function _sendPayrollSummary(month, year, includeBonus) {
     if (!p.StartDate) return false;
     const d = new Date(p.StartDate);
     return d >= joinerStart && d <= joinerEnd;
-  }).map(p => ({ name: p.EmployeeName, startDate: p.StartDate.split('T')[0], salary: p.Salary || null }));
+  }).map(p => ({ name: p.EmployeeName, startDate: spDateIn(p.StartDate), salary: p.Salary || null }));
 
   const leavers = ukStaff.filter(p => {
     if (!p.EndDate) return false;
     const d = new Date(p.EndDate);
     return d >= leaverStart && d <= leaverEnd;
-  }).map(p => ({ name: p.EmployeeName, endDate: p.EndDate.split('T')[0] }));
+  }).map(p => ({ name: p.EmployeeName, endDate: spDateIn(p.EndDate) }));
 
   let bonus = null;
   if (includeBonus) {

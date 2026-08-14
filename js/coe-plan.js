@@ -14,9 +14,17 @@ let _coeTPFilter = '';  // '' = all TPs
 // utcDateOnly() — a local-midnight BST Date read through UTC getters is the
 // PREVIOUS day, which is exactly the N-081 bug (every Gantt cell rendered one
 // week left of its header). The local model is safe only because every CoE
-// date is written through isoDate() as 'T12:00:00Z': midday UTC carries ±12h
+// date is written through isoDate() as 'T12:00:00Z': midday UTC carries ±11h
 // of headroom, so the intended calendar day survives any realistic browser
-// offset. N-130 closed the last gap: CoEPlanForecast.ForecastMonth used to be
+// offset. N-136: ±11h, NOT ±12h — at exactly UTC+12 midday UTC is midnight the
+// NEXT local day, so a local-getter read returns the following date. Real zones
+// affected: Pacific/Auckland (+12 winter, +13 summer) and Pacific/Kiritimati
+// (+14). coeFmtShort() is immune since N-136 (it pins its formatter to UTC);
+// coeMonday()/coeWeekIndex() still share the limit and are deliberately NOT
+// rebuilt on UTC — that is the rewrite N-089 considered and rejected, of the
+// one code path N-077 and N-081 broke twice. Not a live concern at UK+0..+2.
+// Note the ±12h figure on spMonthIn() in utils.js is a DIFFERENT quantity (the
+// SITE's offset) and is correct — do not "fix" it to match this one. N-130 closed the last gap: CoEPlanForecast.ForecastMonth used to be
 // written as a bare 'YYYY-MM-01' (SharePoint reinterpreted it in the site's
 // timezone) and read back with local getters, which cancelled out only for
 // browsers at or AHEAD of the site's offset. It now writes through isoDate()
@@ -42,7 +50,12 @@ function coeWeekIndex(timelineStart, d) {
   return Math.round((coeMonday(d) - timelineStart) / (7 * 24 * 3600 * 1000));
 }
 function coeFmtShort(d) {
-  return d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—';
+  // N-136: timeZone 'UTC' is load-bearing, not decoration. CoE dates are stored
+  // at T12:00:00Z and the stored value's UTC day IS the intended day, so pinning
+  // the formatter to UTC makes the output independent of the viewer's offset. A
+  // LOCAL render is not: at exactly UTC+12 midday-UTC is midnight the NEXT local
+  // day, so this returned the following date from NZ/Fiji/Kiribati.
+  return d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }) : '—';
 }
 
 // ── Plan span computation ───────────────────────────────────────────

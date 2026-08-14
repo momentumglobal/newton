@@ -137,6 +137,35 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'coeMonday — returns LOCAL midnight in both GMT and BST (N-089)',
+    fn: function () {
+      const g = FIXTURES.dateWeek.coeMondayGmt, b = FIXTURES.dateWeek.coeMondayBst;
+      const mg = coeMonday(new Date(g.y, g.m - 1, g.d));
+      const mb = coeMonday(new Date(b.y, b.m - 1, b.d));
+      _assertEqual(mg.getHours(), 0, 'GMT Monday local hour');
+      _assertEqual(mb.getHours(), 0, 'BST Monday local hour');
+      // Both must be a Monday, or the floor-to-Monday logic has drifted.
+      _assertEqual(mg.getDay(), 1, 'GMT result is a Monday');
+      _assertEqual(mb.getDay(), 1, 'BST result is a Monday');
+    },
+  },
+  {
+    name: 'computePlanSpans — target hire date survives GMT→BST (re-verifies N-077)',
+    fn: function () {
+      const { row, expected } = FIXTURES.dateWeek.coePlanSpanDst;
+      const s = computePlanSpans(row);
+      const t = s.targetHireDate;
+      _assertEqual(
+        [t.getFullYear(), t.getMonth() + 1, t.getDate()],
+        [expected.y, expected.m, expected.d],
+        'targetHireDate'
+      );
+      // Local midnight, not 23:00 the day before — the shape ms-based week
+      // arithmetic would produce across the March transition.
+      _assertEqual(t.getHours(), 0, 'targetHireDate local hour');
+    },
+  },
+  {
     name: 'coeWeekIndex — GMT tStart / BST target does not drop a week (N-081)',
     fn: function () {
       const { timelineStart, target } = FIXTURES.dateWeek.coeGantt;

@@ -9,6 +9,20 @@ let _coeCache = null;   // { projectId, planRows, roles, placements, forecast }
 let _coeTPFilter = '';  // '' = all TPs
 
 // ── Date helpers ────────────────────────────────────────────────────
+// N-089: this file's date model is deliberately LOCAL midnight throughout.
+// coeMonday/coeAddWeeks/coeWeekIndex must NOT be migrated to spDateOut() or
+// utcDateOnly() — a local-midnight BST Date read through UTC getters is the
+// PREVIOUS day, which is exactly the N-081 bug (every Gantt cell rendered one
+// week left of its header). The local model is safe only because every CoE
+// date is written through isoDate() as 'T12:00:00Z': midday UTC carries ±12h
+// of headroom, so the intended calendar day survives any realistic browser
+// offset. The one write that bypasses that convention is
+// CoEPlanForecast.ForecastMonth (coeSaveForecast → api.js saveCoEForecastMonth),
+// which stores a bare 'YYYY-MM-01'; SharePoint reinterprets it in the site's
+// timezone and the local-getter read below cancels the error out — but only
+// for browsers at or AHEAD of the site's offset. Left as-is deliberately;
+// fixing it needs a stored-shape change plus a back-compat read, raised as its
+// own task.
 
 function coeMonday(d) {
   const x = new Date(d);
@@ -289,12 +303,13 @@ function coeRenderForecastTable() {
     totP += planned; totF += Number(fVal) || 0;
     const varc = fVal === '' ? '' : planned - Number(fVal);
     const varCls = varc === '' ? '' : varc < 0 ? 'coe-fvp-var-neg' : varc > 0 ? 'coe-fvp-var-pos' : '';
-    // Build the ISO date manually — toISOString() shifts to UTC and can
-    // land on the last day of the previous month during BST.
-    const monthISO = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-01`;
+    // N-089: localDayISO() is the canonical form of the manual build this
+    // replaced — m is already local-midnight on the 1st, so the string is
+    // byte-identical, and toISOString() is still the thing being avoided.
+    const monthISO = localDayISO(m);
     const fCell = canEdit
       ? `<input type="number" min="0" class="coe-fvp-input" value="${fVal}"
-           onchange="coeSaveForecast('${monthISO}', this.value, ${fRow ? fRow.id : 'null'})">`
+           onchange="coeSaveForecast('${escJsAttr(monthISO)}', this.value, ${fRow ? fRow.id : 'null'})">`
       : (fVal === '' ? '—' : fVal);
     return `<tr><td>${m.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</td>
       <td>${fCell}</td><td>${planned}</td>
@@ -342,7 +357,7 @@ async function coeOpenRowModal(rowId = null) {
         <div class="form-group"><label>Talent Partner</label>
           <select name="TalentPartner">${tpOpts}</select></div>
         <div class="form-group"><label>Planned Open Date *</label>
-          <input type="date" name="OpenDate" required value="${row?.OpenDate ? row.OpenDate.split('T')[0] : ''}"></div>
+          <input type="date" name="OpenDate" required value="${escAttr(spDateIn(row?.OpenDate) || '')}"></div>
         <div class="form-row">
           <div class="form-group"><label>Recruitment (wks)</label>
             <input type="number" min="1" name="RecruitmentWeeks" placeholder="${dflt.recruitmentWeeks}" value="${row?.RecruitmentWeeks || ''}"></div>
@@ -453,7 +468,7 @@ async function coeCreateRoleFromRow(rowId) {
   const titleInput = document.querySelector('#role-form [name="RoleTitle"]');
   if (titleInput && row) titleInput.value = row.Title;
   const openInput = document.querySelector('#role-form [name="OpenDate"]');
-  if (openInput && row?.OpenDate) openInput.value = row.OpenDate.split('T')[0];
+  if (openInput && row?.OpenDate) openInput.value = spDateIn(row.OpenDate) || '';
   // The project is pre-selected in markup, so the select's onchange never fires.
   // Load the Assign-to list explicitly (no-ops when the user can't assign).
   loadTalentPartnersForRole(_coeCache.projectId);

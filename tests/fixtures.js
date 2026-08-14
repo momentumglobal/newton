@@ -41,4 +41,29 @@ var FIXTURES = {
     horizon: 6,
     noticeMonths: 2,
   },
+
+  // Date/week layer (N-096) — getWeekEnding, getISOWeek, isoDate,
+  // spDateIn/spDateOut, and the coeWeekIndex GMT/BST Gantt regression
+  // (N-077/N-081 class). Plain {y,m,d} objects, not Date instances — Date
+  // construction (where the timezone-sensitivity actually lives) happens
+  // in assertions.js, next to the logic that needs to reason about it.
+  dateWeek: {
+    // getWeekEnding / getISOWeek — 1 Jul 2026 is a Wednesday, BST.
+    bstFirstOfMonth: { y: 2026, m: 7, d: 1 },
+    // getWeekEnding — the date itself is a Sunday (locks N-129's second,
+    // smaller fix: a same-Sunday input used to come back as the day before).
+    exactSunday: { y: 2026, m: 8, d: 16 },
+    // isoDate — pure string parsing, no Date object involved.
+    isoDateInput: '2026-07-01',
+    // spDateIn — a SharePoint-style UTC datetime string on the BST boundary.
+    spDateInInput: '2026-07-01T00:00:00Z',
+    // spDateOut — Date.UTC-constructed, same calendar day as isoDateInput.
+    spDateOutInput: { y: 2026, m: 7, d: 1 },
+    // coeWeekIndex — the exact dates from the N-081 fix's own code comment
+    // ("29 Dec 2025 tStart → 29 Jun 2026 = 26wks − 1h → 25" pre-fix).
+    coeGantt: {
+      timelineStart: { y: 2025, m: 12, d: 29 },
+      target:        { y: 2026, m: 6,  d: 29 },
+    },
+  },
 };

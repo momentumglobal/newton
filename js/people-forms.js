@@ -42,12 +42,12 @@ function renderPersonForm(existingData = null) {
           <div class='form-group'>
             <label>Start Date *</label>
             <input type='date' name='StartDate' required
-              value='${existingData?.StartDate ? existingData.StartDate.split('T')[0] : ''}'>
+              value='${escHtml(spDateIn(existingData?.StartDate) || '')}'>
           </div>
           <div class='form-group'>
             <label>End Date</label>
             <input type='date' name='EndDate'
-              value='${existingData?.EndDate ? existingData.EndDate.split('T')[0] : ''}'>
+              value='${escHtml(spDateIn(existingData?.EndDate) || '')}'>
           </div>
         </div>
         <div class='form-group'>
@@ -198,12 +198,12 @@ async function renderAssignmentForm(existingData = null) {
           <div class='form-group'>
             <label>Start Date *</label>
             <input type='date' name='StartDate' required
-              value='${existingData?.StartDate ? existingData.StartDate.split('T')[0] : ''}'>
+              value='${escHtml(spDateIn(existingData?.StartDate) || '')}'>
           </div>
           <div class='form-group'>
             <label>End Date *</label>
             <input type='date' name='EndDate' required
-              value='${existingData?.EndDate ? existingData.EndDate.split('T')[0] : ''}'>
+              value='${escHtml(spDateIn(existingData?.EndDate) || '')}'>
           </div>
         </div>
         <div class='form-row' id='assignment-rate-row'>
@@ -329,7 +329,7 @@ async function submitAssignmentForm(event, editId = null) {
       if (clash) {
         const ok = confirm(
           `Warning: ${fields.EmployeeName} already has a confirmed assignment with ` +
-          `${clash.Customer} (${clash.StartDate.split('T')[0]} – ${clash.EndDate.split('T')[0]}) ` +
+          `${clash.Customer} (${spDateIn(clash.StartDate)} – ${spDateIn(clash.EndDate)}) ` +
           `overlapping these dates.\n\nSave anyway?`);
         if (!ok) { clearButtonLoading(btn); return; }
       }
@@ -388,12 +388,12 @@ function renderInvoiceForm(existingData = null) {
           <div class='form-group'>
             <label>Invoice Date *</label>
             <input type='date' name='InvoiceDate' required
-              value='${existingData?.InvoiceDate ? existingData.InvoiceDate.split('T')[0] : ''}'>
+              value='${escHtml(spDateIn(existingData?.InvoiceDate) || '')}'>
           </div>
           <div class='form-group'>
             <label>Due Date *</label>
             <input type='date' name='DueDate' required
-              value='${existingData?.DueDate ? existingData.DueDate.split('T')[0] : ''}'>
+              value='${escHtml(spDateIn(existingData?.DueDate) || '')}'>
           </div>
         </div>
         <div class='form-row'>

@@ -111,9 +111,9 @@ async function mobileRenderRoleDetail(main) {
         <div class="m-detail-label">Talent Partner</div>
         <div class="m-detail-value">${escHtml(tpList(role.TalentPartner).join(', ')) || '—'}</div>
         <div class="m-detail-label">Open Date</div>
-        <div class="m-detail-value">${role.OpenDate ? role.OpenDate.split('T')[0] : '—'}${days !== null ? ` (${days} days)` : ''}</div>
+        <div class="m-detail-value">${spDateIn(role.OpenDate) || '—'}${days !== null ? ` (${days} days)` : ''}</div>
         <div class="m-detail-label">Target Hire Date</div>
-        <div class="m-detail-value">${role.TargetHireDate ? role.TargetHireDate.split('T')[0] : '—'}</div>
+        <div class="m-detail-value">${spDateIn(role.TargetHireDate) || '—'}</div>
       </div>
 
       <div class="m-action-row">
@@ -213,7 +213,7 @@ async function mobileRenderActivityForm(main, rolePreselected) {
       mobileSetTitle('Log Activity', 'Weekly Activity');
     }
 
-    const today       = new Date().toISOString().split('T')[0];
+    const today       = localDayISO();
     const weekEnding  = getWeekEnding(today);
     // N-112: only Active/Transition projects are selectable
     const projectOpts = buildProjectOptionsHtml(sortProjectsByName(projects.filter(isProjectActive)), '');
@@ -402,7 +402,7 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
     // N-112: only Active/Transition projects are selectable
     const projectOpts = buildProjectOptionsHtml(sortProjectsByName(projects.filter(isProjectActive)), '');
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDayISO();
 
     main.innerHTML = `
       <div class="m-detail-panel">

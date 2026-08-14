@@ -64,6 +64,19 @@ var FIXTURES = {
     // instant is still 30 Jun, so the pre-N-088
     // `toISOString().split('T')[0]` returns '2026-06-30'.
     localDayInput: { y: 2026, m: 7, d: 1, h: 0, min: 30 },
+    // Midday-UTC headroom boundary (N-136). A canonical CoE date, plus the
+    // zones that bracket the limit. Etc/GMT-11 is UTC+11 and Etc/GMT-12 is
+    // UTC+12 — the POSIX sign convention is INVERTED, so these read backwards
+    // from what the names suggest. Getting that wrong makes the boundary
+    // assertion pass for the wrong reason.
+    middayHeadroom: {
+      stored:   '2026-07-01T12:00:00Z',
+      intended: '01 Jul',
+      okZone:   'Etc/GMT-11',        // UTC+11 — inside the ±11h headroom
+      breakZone:'Etc/GMT-12',        // UTC+12 — the exact breaking point
+      realZone: 'Pacific/Auckland',  // +12 winter / +13 summer
+      extreme:  'Pacific/Kiritimati',// +14
+    },
     // ForecastMonth stored shapes (N-130). CoEPlanForecast.ForecastMonth is
     // always the 1st of a month, but SharePoint resolved the old bare-date
     // write in the SITE's timezone, so three shapes exist in the list. All

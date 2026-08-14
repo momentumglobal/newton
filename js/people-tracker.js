@@ -147,14 +147,22 @@ async function renderAssignmentsTab() {
 
   const assignments = await getAssignments({});
 
-  const today = new Date(); today.setHours(0,0,0,0);
+  // N-132: UTC by construction, matching syncBenchAssignments below (N-090) —
+  // this file no longer carries two date conventions. localDayISO() answers
+  // "what day is it where the user is" (the filter follows the USER's calendar,
+  // not UTC's), and utcDateOnly() expresses that day as UTC midnight so it
+  // compares like-for-like against the assignment dates. Do NOT reintroduce
+  // `new Date(str)` + setHours(): mixing the two conventions in one file is
+  // exactly what produced N-090's off-by-one bench writes.
+  const today = utcDateOnly(localDayISO());
   const statusFilter = _assignmentFilter.status || 'current';
 
 const filtered = assignments.filter(a => {
-  const start = a.StartDate ? new Date(a.StartDate) : null;
-  const end   = a.EndDate   ? new Date(a.EndDate)   : null;
-  if (start) start.setHours(0,0,0,0);
-  if (end)   end.setHours(0,0,0,0);
+  // utcDateOnly() returns null for a missing/unparseable value, which is what
+  // the old `a.StartDate ? ... : null` ternary produced — so the null-guards
+  // and comparisons below are unchanged.
+  const start = utcDateOnly(a.StartDate);
+  const end   = utcDateOnly(a.EndDate);
   const isPlanned = start && start > today;
   const isCurrent = !isPlanned && (!end || end >= today);
   if (statusFilter === 'current') return isCurrent;

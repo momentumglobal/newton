@@ -66,4 +66,38 @@ var FIXTURES = {
       target:        { y: 2026, m: 6,  d: 29 },
     },
   },
+
+  // LCI calc layer, round 2 (N-097) — lciRowNotice, lciCumulativeHeadcount
+  // via a resolved per-role notice, more lciYearSlices edge cases,
+  // lciLegacyMonthlyCost, and the _pickFields copy-whitelist helper.
+  lci2: {
+    // lciRowNotice — three branches: override wins over a different model
+    // default; a blank override falls back to the model default; zero is
+    // a REAL override value and must not be treated as blank (the exact
+    // case the function's own source comment warns a naive `raw ||
+    // fallback` rewrite would silently break).
+    noticeOverrideWins:  { row: { NoticeMonthsOverride: 3 },  model: { NoticeMonths: 1 } },
+    noticeBlankFallback: { row: { NoticeMonthsOverride: '' }, model: { NoticeMonths: 2 } },
+    noticeZeroIsReal:    { row: { NoticeMonthsOverride: 0 },  model: { NoticeMonths: 5 } },
+    // lciCumulativeHeadcount fed a per-role-resolved notice end-to-end —
+    // same row shape as noticeOverrideWins, 6-month horizon.
+    headcountViaResolvedNotice: {
+      row: { MonthValues: JSON.stringify([1, 1, 1, 1, 1, 1]) },
+      horizon: 6,
+    },
+    // lciYearSlices — horizon at/under the chunk size (single slice, no
+    // label), and a horizon exactly divisible into whole chunks (two full
+    // slices, no partial year) — distinct from N-095's 18-month case,
+    // which has a partial second year.
+    yearSlicesUnderChunk: { horizon: 6, chunk: 12 },
+    yearSlicesExactMultiple: { horizon: 24, chunk: 12 },
+    // lciLegacyMonthlyCost — (salary + salary*bonusPct) / 12.
+    legacyCost: { row: { AnnualSalary: 60000, BonusPct: 0.1 } },
+    // _pickFields (api.js) — whitelisted keys only, undefined/null dropped
+    // even when whitelisted, non-whitelisted keys always ignored.
+    pickFields: {
+      obj: { A: 1, B: undefined, C: null, D: 5, E: 'extra' },
+      keys: ['A', 'B', 'C', 'D'],
+    },
+  },
 };

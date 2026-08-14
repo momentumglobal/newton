@@ -16,14 +16,12 @@ let _coeTPFilter = '';  // '' = all TPs
 // week left of its header). The local model is safe only because every CoE
 // date is written through isoDate() as 'T12:00:00Z': midday UTC carries ±12h
 // of headroom, so the intended calendar day survives any realistic browser
-// offset. The one write that bypasses that convention is
-// CoEPlanForecast.ForecastMonth (coeSaveForecast → api.js saveCoEForecastMonth),
-// which stores a bare 'YYYY-MM-01'; SharePoint reinterprets it in the site's
-// timezone and the local-getter read below cancels the error out — but only
-// for browsers at or AHEAD of the site's offset. Left as-is deliberately;
-// fixing it needs a stored-shape change plus a back-compat read, raised as its
-// own task.
-
+// offset. N-130 closed the last gap: CoEPlanForecast.ForecastMonth used to be
+// written as a bare 'YYYY-MM-01' (SharePoint reinterpreted it in the site's
+// timezone) and read back with local getters, which cancelled out only for
+// browsers at or AHEAD of the site's offset. It now writes through isoDate()
+// and reads through spMonthIn(), which is timezone-independent and still
+// handles the legacy stored shapes — no rows were migrated.
 function coeMonday(d) {
   const x = new Date(d);
   const day = (x.getDay() + 6) % 7; // Mon=0
@@ -285,18 +283,19 @@ function coeRenderForecastTable() {
   const cur = new Date(min.getFullYear(), min.getMonth(), 1);
   while (cur <= max) { months.push(new Date(cur)); cur.setMonth(cur.getMonth() + 1); }
 
+  // N-130: spMonthIn() reads UTC only and tolerates all three stored shapes,
+  // so the key no longer depends on the browser's offset. Both sides of this
+  // lookup use 'YYYY-MM' — if only one is changed, every forecast cell silently
+  // renders empty because the keys stop matching.
   const fByMonth = {};
   forecast.forEach(f => {
-    // SP returns ForecastMonth as UTC datetime (e.g. 2026-06-30T23:00:00Z
-    // = 1 July 00:00 BST). new Date() converts back to local, so local
-    // year/month give the intended month.
-    const d = new Date(f.ForecastMonth);
-    fByMonth[`${d.getFullYear()}-${d.getMonth()}`] = f;
+    const key = spMonthIn(f.ForecastMonth);
+    if (key) fByMonth[key] = f;
   });
 
   let totP = 0, totF = 0;
   const body = months.map(m => {
-    const key = `${m.getFullYear()}-${m.getMonth()}`;
+    const key = monthKeyFromISO(localDayISO(m));
     const planned = targets.filter(t => t.getFullYear() === m.getFullYear() && t.getMonth() === m.getMonth()).length;
     const fRow = fByMonth[key];
     const fVal = fRow ? fRow.ForecastedHires : '';

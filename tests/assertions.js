@@ -118,6 +118,25 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'localDayISO — 00:30 BST returns today, not yesterday (N-088)',
+    fn: function () {
+      const { y, m, d, h, min } = FIXTURES.dateWeek.localDayInput;
+      const dt = new Date(y, m - 1, d, h, min);
+      _assertEqual(localDayISO(dt), '2026-07-01', 'localDayISO');
+      // Guard the guard: if this ever stops differing from the pattern
+      // N-088 replaced, the assertion has stopped testing anything.
+      _assertEqual(dt.toISOString().split('T')[0], '2026-06-30', 'pre-N-088 pattern still skews');
+    },
+  },
+  {
+    name: 'localDayISO — defaults to now, and rejects a non-Date (N-088)',
+    fn: function () {
+      _assertEqual(/^\d{4}-\d{2}-\d{2}$/.test(localDayISO()), true, 'no-arg shape');
+      _assertEqual(localDayISO('2026-07-01'), null, 'string input');
+      _assertEqual(localDayISO(new Date('nonsense')), null, 'invalid Date');
+    },
+  },
+  {
     name: 'coeWeekIndex — GMT tStart / BST target does not drop a week (N-081)',
     fn: function () {
       const { timelineStart, target } = FIXTURES.dateWeek.coeGantt;

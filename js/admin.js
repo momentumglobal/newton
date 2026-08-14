@@ -354,9 +354,15 @@ async function writeSnapshotsNow() {
     // Same-week 6-day offset, not a month-boundary crossing — safe local
     // Date arithmetic, same pattern getWeekEnding() itself already uses.
     const weekEnding    = getWeekEnding();
-    const weekStartDate = new Date(weekEnding);
-    weekStartDate.setDate(weekStartDate.getDate() - 6);
-    const weekStart = weekStartDate.toISOString().slice(0, 10);
+    // N-090: UTC throughout. weekEnding is a 'YYYY-MM-DD' day string, and
+    // weekStart is compared as one against spDateIn(pl.OfferAcceptedDate)
+    // below — so derive it without ever touching a local getter.
+    // spDateOut → spDateIn is a deliberate round-trip: Date → canonical
+    // SharePoint string → safe day string. localDayISO() would be WRONG here:
+    // ws is UTC-midnight, and local getters would shift it under BST.
+    const weekStartDate = utcDateOnly(weekEnding);
+    weekStartDate.setUTCDate(weekStartDate.getUTCDate() - 6);
+    const weekStart = spDateIn(spDateOut(weekStartDate));
 
     const [projects, allRoles, allActivity, allPlacements, existing] = await Promise.all([
       getProjects(true), getAllRoles(), getWeeklyActivity(null, null), getPlacements(null), getItems('Snapshots'),
@@ -371,7 +377,7 @@ async function writeSnapshotsNow() {
 
       const weekActivity = allActivity.filter(a =>
         String(a.ProjectIDLookupId) === String(p.id) &&
-        a.WeekEndingDate && a.WeekEndingDate.slice(0, 10) === weekEnding);
+        a.WeekEndingDate && spDateIn(a.WeekEndingDate) === weekEnding);
 
       // Full history, not week-windowed — isRoleFlagged() needs a role's
       // entire activity to evaluate correctly (N-114; see computeSnapshotMetrics).
@@ -381,7 +387,7 @@ async function writeSnapshotsNow() {
       const weekPlacements = allPlacements.filter(pl => {
         const rid = String(pl.RoleIDLookupId || pl.RoleID || '');
         if (!roleIds.has(rid) || !pl.OfferAcceptedDate) return false;
-        const d = pl.OfferAcceptedDate.slice(0, 10);
+        const d = spDateIn(pl.OfferAcceptedDate);
         return d >= weekStart && d <= weekEnding;
       });
 
@@ -403,7 +409,7 @@ async function writeSnapshotsNow() {
 
       const match = existing.find(s =>
         String(s.ProjectIDLookupId) === String(p.id) &&
-        s.WeekEndingDate && s.WeekEndingDate.slice(0, 10) === weekEnding);
+        s.WeekEndingDate && spDateIn(s.WeekEndingDate) === weekEnding);
 
       if (match) await updateItem('Snapshots', match.id, fields);
       else       await createItem('Snapshots', fields);

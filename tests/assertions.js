@@ -137,6 +137,29 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'utcDateOnly → spDateOut round-trips a BST date unchanged (N-090)',
+    fn: function () {
+      const src = FIXTURES.dateWeek.benchRoundTrip;
+      _assertEqual(spDateOut(utcDateOnly(src)), src, 'bench write round-trip');
+      // Guard the guard: the pairing N-090 replaced (local-midnight read, then
+      // toISOString on the way out) really does lose a day here. If this stops
+      // being true the assertion above has stopped testing anything.
+      const legacy = new Date(src.slice(0, 10));
+      legacy.setHours(0, 0, 0, 0);
+      _assertEqual(legacy.toISOString().slice(0, 10), '2026-06-30', 'pre-N-090 pairing still skews');
+    },
+  },
+  {
+    name: 'bench date round-trip is idempotent — no delete/recreate churn (N-090)',
+    fn: function () {
+      // The property whose failure made every affected bench record get
+      // deleted and recreated on every sync: a written record, read back,
+      // must compare equal to the Date that produced it.
+      const d = utcDateOnly(FIXTURES.dateWeek.benchRoundTrip);
+      _assertEqual(utcDateOnly(spDateOut(d)).getTime(), d.getTime(), 'read-back getTime');
+    },
+  },
+  {
     name: 'coeMonday — returns LOCAL midnight in both GMT and BST (N-089)',
     fn: function () {
       const g = FIXTURES.dateWeek.coeMondayGmt, b = FIXTURES.dateWeek.coeMondayBst;

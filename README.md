@@ -42,6 +42,10 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### August 2026 — Tests for the date/week layer (F-6b)
+
+**Real test coverage, not just seed assertions.** `tests/` now asserts `getWeekEnding`, `getISOWeek`, `isoDate`, `spDateIn`/`spDateOut`, and — the one that mattered most — a dedicated regression test for `coeWeekIndex`, locking the N-077/N-081 GMT/BST Gantt class shut for good (also confirms N-129's `getWeekEnding` fix, shipped just before this task, stays fixed). That Gantt assertion only reproduces under a DST-observing timezone, so `tests/run.js` now forces `TZ=Europe/London` before anything else runs — verified this override wins even when the shell sets a conflicting `TZ` first. `tests/index.html` detects when a browser's own timezone can't show the same GMT/BST skew and renders a clearly-labelled SKIP rather than a meaningless PASS or FAIL.
+
 ### August 2026 — Fix: getWeekEnding() BST rollback bug
 
 **Bug fix.** `getWeekEnding()` returned the Saturday before the correct Sunday whenever it was called with a `Date` object during British Summer Time — it computed the right day locally but round-tripped the result through `toISOString()`, which re-expresses a local-midnight instant in UTC and rolled it back a day. In GMT months the bug was invisible, which is why it shipped unnoticed. The only live call site affected is `admin.js`'s `writeSnapshotsNow()` ("Write Snapshot Now" in the Config Panel), which writes `Snapshots.WeekEndingDate` — every click during BST (late March–late October) since Snapshots shipped wrote the wrong Sunday. `forms.js` and `mobile-pages.js` call `getWeekEnding()` with a date-only string, which parses as UTC and was never affected. No backfill of previously-written Snapshots rows is included in this fix.

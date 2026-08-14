@@ -1078,11 +1078,17 @@ async function deleteSurveyQuestion(id) {
 }
 
 async function createSurveyRun(fields) {
-  // N-088: bare 'YYYY-MM-DD' on purpose — SurveyRuns dates are NOT passed
-  // through isoDate(). index.html reads OpenDate/CloseDate back with
-  // new Date() and derives an hours-left countdown from CloseDate, so
-  // adding the T12:00:00Z midday suffix would shift it by 12h. Only the
-  // derivation changed here, not the stored shape.
+  // N-131: canonical midday-UTC, like every other SharePoint date write. The
+  // bare shape was kept until now (see N-088) because index.html does
+  // ARITHMETIC on these two values, so changing the shape moves behaviour:
+  //   index.html ~233  daysSince -> the reminder gate (CONFIG.SURVEY.REMINDER_DAY)
+  //   index.html ~299  hrsLeft   -> the "closes in Xh" notification
+  // Both were reworked in the same change to be time-of-day insensitive —
+  // daysSince now counts calendar days, and hrsLeft counts to the END of the
+  // close date (a run closing on the 20th is open THROUGH the 20th). If either
+  // consumer is touched again, keep them insensitive to the stored time.
+  // localDayISO() below still produces the correct local DAY; isoDate() only
+  // pins it to midday so no browser offset can shift it.
   const openDate  = fields.OpenDate  || localDayISO();
   const closeDate = fields.CloseDate || (() => {
     const d = new Date(); d.setDate(d.getDate() + CONFIG.SURVEY.DEFAULT_DURATION_DAYS);
@@ -1091,8 +1097,8 @@ async function createSurveyRun(fields) {
   return createItem("SurveyRuns", {
     Title:              fields.RunLabel,
     TemplateID:         String(fields.TemplateID),
-    OpenDate:           openDate,
-    CloseDate:          closeDate,
+    OpenDate:           isoDate(openDate),
+    CloseDate:          isoDate(closeDate),
     Status:             "Active",
     EligibleCount:      fields.EligibleCount || 0,
   });
@@ -1101,7 +1107,9 @@ async function createSurveyRun(fields) {
 async function updateSurveyRun(id, fields) {
   const payload = {};
   if (fields.Status        !== undefined) payload.Status    = fields.Status;
-  if (fields.CloseDate     !== undefined) payload.CloseDate = fields.CloseDate;
+  // N-131: the edit path needs it too — fixing only createSurveyRun would
+  // leave a close date changed after activation writing the bare shape.
+  if (fields.CloseDate     !== undefined) payload.CloseDate = isoDate(fields.CloseDate);
   if (fields.EligibleCount !== undefined) payload.EligibleCount = fields.EligibleCount;
   return updateItem("SurveyRuns", id, payload);
 }

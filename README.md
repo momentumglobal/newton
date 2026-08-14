@@ -42,6 +42,10 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### August 2026 — Fix: getWeekEnding() BST rollback bug
+
+**Bug fix.** `getWeekEnding()` returned the Saturday before the correct Sunday whenever it was called with a `Date` object during British Summer Time — it computed the right day locally but round-tripped the result through `toISOString()`, which re-expresses a local-midnight instant in UTC and rolled it back a day. In GMT months the bug was invisible, which is why it shipped unnoticed. The only live call site affected is `admin.js`'s `writeSnapshotsNow()` ("Write Snapshot Now" in the Config Panel), which writes `Snapshots.WeekEndingDate` — every click during BST (late March–late October) since Snapshots shipped wrote the wrong Sunday. `forms.js` and `mobile-pages.js` call `getWeekEnding()` with a date-only string, which parses as UTC and was never affected. No backfill of previously-written Snapshots rows is included in this fix.
+
 ### August 2026 — Test harness (F-6a)
 
 **New: `tests/` — Newton's first automated test infra.** A pass/fail page (`tests/index.html`) and a dependency-free Node runner (`tests/run.js`) share one assertion list (`tests/assertions.js`) against fixture data (`tests/fixtures.js`), run against the real `utils.js`/`analytics.js`/`lci-model.js` in production script order. Ships with 4 seed assertions covering revenue proration, role flagging, LCI headcount and LCI horizon slicing — enough to prove the rig, not full coverage. `.github/workflows/static.yml` now runs `node tests/run.js` in a `test` job before `deploy`, so a broken calc can't reach `main`. Real coverage of the date/week layer, the LCI calc layer, and the analytics layer follows in three further tasks that extend `tests/fixtures.js`/`tests/assertions.js` rather than replace them.

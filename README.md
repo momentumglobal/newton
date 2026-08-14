@@ -42,6 +42,10 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### August 2026 — Tests for the LCI calc layer (F-6c)
+
+**More real test coverage.** `tests/` now asserts `lciRowNotice` (including the exact "zero is a real override value" case its own source comment warns a naive rewrite would break), `lciCumulativeHeadcount` fed a per-role-resolved notice end-to-end, two more `lciYearSlices` edge cases, `lciLegacyMonthlyCost`, and `_pickFields` — the one pure, non-network export in `api.js`, which the test rig now also loads (verified zero top-level execution first, same check already applied to `coe-plan.js`; nothing else in `api.js` is called). This does **not** fully close the N-082 gap (LCI model copy losing rows) — the copy field-whitelists have no static schema to verify completeness against without a live Graph read, which is what F-11 (Schema contract check, scoped, not yet built) is for. This task locks in that `_pickFields` itself filters correctly, nothing more.
+
 ### August 2026 — Tests for the date/week layer (F-6b)
 
 **Real test coverage, not just seed assertions.** `tests/` now asserts `getWeekEnding`, `getISOWeek`, `isoDate`, `spDateIn`/`spDateOut`, and — the one that mattered most — a dedicated regression test for `coeWeekIndex`, locking the N-077/N-081 GMT/BST Gantt class shut for good (also confirms N-129's `getWeekEnding` fix, shipped just before this task, stays fixed). That Gantt assertion only reproduces under a DST-observing timezone, so `tests/run.js` now forces `TZ=Europe/London` before anything else runs — verified this override wins even when the shell sets a conflicting `TZ` first. `tests/index.html` detects when a browser's own timezone can't show the same GMT/BST skew and renders a clearly-labelled SKIP rather than a meaningless PASS or FAIL.

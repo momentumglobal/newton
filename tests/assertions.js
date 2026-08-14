@@ -4,8 +4,8 @@
 // — see the coeWeekIndex assertion) so the same list runs unmodified in
 // both index.html (browser) and run.js (Node).
 // N-095 seeded this file (revenue/role/LCI cases); N-096 added real
-// date/week-layer coverage; N-097 added the rest of the LCI calc layer.
-// N-098 (analytics layer) extends it further, not replace it.
+// date/week-layer coverage; N-097 added the rest of the LCI calc layer;
+// N-098 added the analytics layer.
 
 function _deepEqual(a, b) {
   if (a === b) return true;
@@ -191,6 +191,75 @@ var ASSERTIONS = [
     fn: function () {
       const { obj, keys } = FIXTURES.lci2.pickFields;
       _assertEqual(_pickFields(obj, keys), { A: 1, D: 5 }, '_pickFields');
+    },
+  },
+  {
+    name: 'isRoleFlagged — days-open threshold fires when the stage has no STAGE_ORDER entry',
+    fn: function () {
+      const { role, daysOpenOffset, activity } = FIXTURES.analytics2.flaggedNoStageMatch;
+      const openRole = { ...role, OpenDate: new Date(Date.now() - daysOpenOffset * 86400000).toISOString() };
+      _assertEqual(isRoleFlagged(openRole, activity), true, 'isRoleFlagged');
+    },
+  },
+  {
+    name: 'isRoleFlagged — days-open threshold fires for a mid-STAGE_ORDER stage',
+    fn: function () {
+      const { role, daysOpenOffset, activity } = FIXTURES.analytics2.flaggedMidStage;
+      const openRole = { ...role, OpenDate: new Date(Date.now() - daysOpenOffset * 86400000).toISOString() };
+      _assertEqual(isRoleFlagged(openRole, activity), true, 'isRoleFlagged');
+    },
+  },
+  {
+    name: 'isRoleFlagged — does not flag a fresh role with a healthy conversion rate',
+    fn: function () {
+      const { role, daysOpenOffset, activity } = FIXTURES.analytics2.notFlagged;
+      const openRole = { ...role, OpenDate: new Date(Date.now() - daysOpenOffset * 86400000).toISOString() };
+      _assertEqual(isRoleFlagged(openRole, activity), false, 'isRoleFlagged');
+    },
+  },
+  {
+    name: 'computeVelocityScore — full metrics array against fixed benchmarks',
+    fn: function () {
+      const { tpEmail, activity, placements, benchmarks } = FIXTURES.analytics2.velocity;
+      const out = computeVelocityScore(tpEmail, activity, placements, benchmarks);
+      _assertEqual(out, {
+        tpEmail: 'tp@x.com',
+        window: '13 weeks',
+        metrics: [
+          { label: 'Outreach conversion', value: 40, unit: '%', rag: 'green' },
+          { label: 'Submission conversion', value: 50, unit: '%', rag: 'green' },
+          { label: 'Interview-to-offer', value: 2, unit: ':1', rag: 'green' },
+          { label: 'Offer success', value: 40, unit: '%', rag: 'green' },
+          { label: 'Hires', value: 2, unit: 'hires', rag: 'grey', informational: true },
+          { label: 'Avg time to hire', value: 45, unit: 'days', rag: 'green' },
+        ],
+      }, 'computeVelocityScore');
+    },
+  },
+  {
+    name: 'computeRoleFunnel — full funnel array against fixed benchmarks',
+    fn: function () {
+      const { totals, benchmarks } = FIXTURES.analytics2.funnel;
+      const out = computeRoleFunnel(totals, benchmarks);
+      _assertEqual(out, [
+        { stage: 'Response', conv: 40, benchmarked: true, rag: 'green' },
+        { stage: 'IV1 Conv.', conv: 50, benchmarked: true, rag: 'green' },
+        { stage: 'IV→Offer', conv: 50, benchmarked: true, rag: 'green' },
+        { stage: 'Offer Success', conv: 40, benchmarked: true, rag: 'green' },
+      ], 'computeRoleFunnel');
+    },
+  },
+  {
+    name: 'computeMonthlyRows — split-fee revenue: retainer at start, placement fee the month after end (N-116)',
+    fn: function () {
+      const rows = computeMonthlyRows(FIXTURES.analytics2.splitFee.assignments);
+      _assertEqual(rows.length, 4, 'row count');
+      _assertEqual(rows[0].MonthStart, '2024-03-01', 'retainer month MonthStart');
+      _assertEqual(rows[0].ProratedRevenue, 10000, 'retainer month ProratedRevenue');
+      const feeRow = rows[3];
+      _assertEqual(feeRow.MonthStart, '2024-06-01', 'placement fee month MonthStart');
+      _assertEqual(feeRow.ProratedRevenue, 20000, 'placement fee month ProratedRevenue');
+      _assertEqual(feeRow.Capacity, 0, 'placement fee month Capacity');
     },
   },
 ];

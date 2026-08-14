@@ -100,4 +100,64 @@ var FIXTURES = {
       keys: ['A', 'B', 'C', 'D'],
     },
   },
+
+  // Analytics layer, round 2 (N-098) — isRoleFlagged's days-open branches
+  // (previously only the ratio branch had coverage), computeVelocityScore,
+  // computeRoleFunnel, and computeMonthlyRows' split-fee revenue path
+  // (N-116 — untested since it shipped).
+  analytics2: {
+    // isRoleFlagged — days-open threshold branches. OpenDate is NOT stored
+    // here as a fixed date: the function measures against `new Date()` at
+    // call time, so a fixed date would silently stop exercising the
+    // intended branch as real time passes. Only the offset is fixed; the
+    // Date itself is built from it in assertions.js, at assertion run time.
+    flaggedNoStageMatch: {
+      role: { RoleID: 'R-2', Stage: 'Backlog' },
+      daysOpenOffset: 20,
+      activity: [],
+    },
+    flaggedMidStage: {
+      role: { RoleID: 'R-3', Stage: 'Interview 2+' },
+      daysOpenOffset: 40,
+      activity: [],
+    },
+    notFlagged: {
+      role: { RoleID: 'R-4', Stage: 'Sourcing' },
+      daysOpenOffset: 10,
+      activity: [{ RoleID: 'R-4', Submitted: 10, Interview1: 6 }],
+    },
+    // computeVelocityScore — one TP, one activity window, one placement.
+    velocity: {
+      tpEmail: 'tp@x.com',
+      activity: [{ Outreach: 100, Responses: 40, Submitted: 20, Interview1: 10, Offers: 5, Hires: 2 }],
+      placements: [{ openDate: '2026-01-01', placementDate: '2026-02-15' }],
+      benchmarks: { outreachConversion: 0.3, submissionConversion: 0.4, offerSuccess: 0.3, timeToHireDays: 45, flagThreshold: 0.7 },
+    },
+    // computeRoleFunnel — same shape totals, funnel-specific benchmarks.
+    funnel: {
+      totals: { Outreach: 100, Responses: 40, Submitted: 20, Interview1: 10, Offers: 5, Hires: 2 },
+      benchmarks: { outreachConversion: 0.3, submissionConversion: 0.4, interviewToOffer: 0.4, offerSuccess: 0.3, flagThreshold: 0.7 },
+    },
+    // computeMonthlyRows — split-fee assignment (N-116). Retainer recognised
+    // in the start month; placement fee lands the month AFTER EndDate's
+    // month as a zero-capacity revenue row. Dates fixed in the past (2024)
+    // for the same "not in the future" reason as FIXTURES.monthlyRows.
+    splitFee: {
+      assignments: [
+        {
+          AssignmentID: 'SF-1',
+          EmployeeName: 'Split Fee',
+          Level: 'Senior',
+          Customer: 'Acme',
+          ProjectType: 'Exec Search',
+          Country: 'UK',
+          Billed: 'Yes',
+          StartDate: '2024-03-10',
+          EndDate: '2024-05-20',
+          RetainerFee: '10000',
+          PlacementFee: '20000',
+        },
+      ],
+    },
+  },
 };

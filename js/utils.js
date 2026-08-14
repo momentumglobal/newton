@@ -443,9 +443,17 @@ function getWeekEnding(date = new Date()) {
   const day = d.getDay();
   const diff = day === 0 ? 0 : 7 - day;
   d.setDate(d.getDate() + diff);
-  return d.toISOString().split('T')[0];
+  // N-129: local getters, not toISOString(). getDay()/setDate() above
+  // already computed the right Sunday in LOCAL calendar terms — routing
+  // the result back through toISOString() re-expresses it in UTC, and in
+  // BST (local ahead of UTC) that rolls it back to the previous day. This
+  // also silently fixed a same-Sunday-input case that was off by a day
+  // for the identical reason.
+  const y  = d.getFullYear();
+  const m  = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
 }
-
 // ── Activity field summation ─────────────────────────────────────────
 function sumField(acts, field) {
   return acts.reduce((s, a) => s + (Number(a[field]) || 0), 0);

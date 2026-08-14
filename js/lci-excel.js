@@ -747,7 +747,7 @@ async function lciExportModelExcel(btn) {
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    const stamp = new Date().toISOString().slice(0, 10);
+    const stamp = localDayISO();
     // Title passed RAW then filename-sanitised — apostrophes and ampersands
     // must survive (N-012d). Never escHtml a filename.
     a.href = url;

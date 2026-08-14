@@ -84,8 +84,8 @@ async function renderProjectsPage(filter) {
             <td>${escHtml(p.CustomerName)}</td>
             <td>${escHtml(dmName(p.DeliveryManager))}</td>
             <td><span class="badge badge-${escAttr(p.Status?.toLowerCase())}">${escHtml(p.Status)}</span></td>
-            <td>${p.StartDate ? p.StartDate.split("T")[0] : "—"}</td>
-            <td>${p.EndDate ? p.EndDate.split("T")[0] : "—"}</td>
+            <td>${spDateIn(p.StartDate) || "—"}</td>
+            <td>${spDateIn(p.EndDate) || "—"}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditProjectForm(${p.id})">Edit</a></div></td>` : ""}
           </tr>
         `).join("")}
@@ -174,8 +174,8 @@ async function renderRolesPage(filter) {
           const rowClass   = (isHired || _rolesFilter === "Active") && days !== null && days > 45
             ? 'row-age-critical' : '';
           const dateCell   = isHired
-            ? (r.ActualHireDate ? r.ActualHireDate.split("T")[0] : "—")
-            : (r.TargetHireDate ? r.TargetHireDate.split("T")[0] : "—");
+            ? (spDateIn(r.ActualHireDate) || "—")
+            : (spDateIn(r.TargetHireDate) || "—");
           const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || "—";
           return `
           <tr class="${rowClass}">
@@ -185,7 +185,7 @@ async function renderRolesPage(filter) {
             <td><span class="badge">${escHtml(r.Stage || "—")}</span></td>
             <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
             <td>${escHtml(formatSalary(r.Budget))}</td>
-            <td>${r.OpenDate ? r.OpenDate.split("T")[0] : "—"}</td>
+            <td>${spDateIn(r.OpenDate) || "—"}</td>
             <td>${dateCell}</td>
             <td>${days !== null ? days + " days" : "—"}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a></div></td>` : ""}
@@ -428,8 +428,8 @@ async function renderPlacementsPage() {
             <td>${escHtml(p.CandidateName)}</td>
             <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || "—"}</td>
             <td>${escHtml(formatSalary(p.SalaryAgreed))}</td>
-            <td>${p.OfferAcceptedDate ? p.OfferAcceptedDate.split("T")[0] : "—"}</td>
-            <td>${p.ProvisionalStartDate ? p.ProvisionalStartDate.split("T")[0] : "—"}</td>
+            <td>${spDateIn(p.OfferAcceptedDate) || "—"}</td>
+            <td>${spDateIn(p.ProvisionalStartDate) || "—"}</td>
             <td>${p.TimeToHire != null ? p.TimeToHire + " days" : "—"}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditPlacementForm(${p.id})">Edit</a></div></td>` : ""}
           </tr>

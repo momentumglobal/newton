@@ -10,12 +10,14 @@
 // process (including inside the files loaded below).
 process.env.TZ = 'Europe/London';
 //
-// utils.js / analytics.js / lci-model.js / coe-plan.js declare plain
-// global functions (<script>-tag style, not CommonJS modules), so they're
-// loaded as scripts into one shared vm context in production script order
-// rather than `require()`d. Same approach as the Node-VM rig built for
-// N-030's Excel export testing.
-
+// utils.js / api.js / analytics.js / lci-model.js / coe-plan.js declare
+// plain global functions (<script>-tag style, not CommonJS modules), so
+// they're loaded as scripts into one shared vm context in production
+// script order rather than `require()`d. Same approach as the Node-VM rig
+// built for N-030's Excel export testing. api.js (N-097) is entirely
+// network-calling functions except one pure helper, _pickFields — nothing
+// in api.js executes at load time, only when called, so loading the whole
+// file touches no network.
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -23,12 +25,13 @@ const vm = require('vm');
 const TESTS_DIR = __dirname;
 const JS_DIR = path.join(TESTS_DIR, '..', 'js');
 
-// Production script order (index.html): config.js before utils.js before
-// analytics.js before lci-model.js before coe-plan.js. Fixtures/assertions
-// load last.
+// Production script order (index.html / reporting.html): config.js before
+// utils.js before api.js before analytics.js before lci-model.js before
+// coe-plan.js. Fixtures/assertions load last.
 const SOURCE_FILES = [
   path.join(JS_DIR, 'config.js'),
   path.join(JS_DIR, 'utils.js'),
+  path.join(JS_DIR, 'api.js'),
   path.join(JS_DIR, 'analytics.js'),
   path.join(JS_DIR, 'lci-model.js'),
   path.join(JS_DIR, 'coe-plan.js'),

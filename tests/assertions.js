@@ -137,6 +137,22 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'no day-truncating date handling in js/ (N-091 — F-12 guard)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const found = lintDateUsage(ALL_SOURCES);
+      // Report file:line:pattern rather than a count, so a CI failure names the
+      // offending line directly instead of just saying "1 !== 0".
+      _assertEqual(
+        found.map(v => `${v.file}:${v.line}  ${v.pattern}  ${v.text.trim()}`),
+        [],
+        'banned date patterns in js/'
+      );
+    },
+  },
+  {
     name: 'utcDateOnly → spDateOut round-trips a BST date unchanged (N-090)',
     fn: function () {
       const src = FIXTURES.dateWeek.benchRoundTrip;

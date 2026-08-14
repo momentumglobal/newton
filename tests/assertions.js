@@ -4,8 +4,8 @@
 // — see the coeWeekIndex assertion) so the same list runs unmodified in
 // both index.html (browser) and run.js (Node).
 // N-095 seeded this file (revenue/role/LCI cases); N-096 added real
-// date/week-layer coverage. N-097 (LCI calc layer) and N-098 (analytics
-// layer) extend it further, not replace it.
+// date/week-layer coverage; N-097 added the rest of the LCI calc layer.
+// N-098 (analytics layer) extends it further, not replace it.
 
 function _deepEqual(a, b) {
   if (a === b) return true;

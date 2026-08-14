@@ -42,7 +42,7 @@ async function openManageTemplateModal() {
           <div class="form-group">
             <label>Target Activation Date</label>
             <input type="date" name="TargetDate"
-              value="${template?.TargetDate ? template.TargetDate.split('T')[0] : ''}">
+              value="${escAttr(spDateIn(template?.TargetDate) || '')}">
           </div>
         </div>
         <div class="form-actions">
@@ -288,11 +288,11 @@ async function openActivateRunModal() {
     return;
   }
 
-  const today     = new Date().toISOString().split('T')[0];
+  const today     = localDayISO();
   const closeDate = (() => {
     const d = new Date();
     d.setDate(d.getDate() + CONFIG.SURVEY.DEFAULT_DURATION_DAYS);
-    return d.toISOString().split('T')[0];
+    return localDayISO(d);
   })();
 
   // Count eligible respondents

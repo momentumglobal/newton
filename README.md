@@ -42,6 +42,10 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### August 2026 — Tests for the analytics layer (F-6d)
+
+**Real test coverage for the numbers clients see.** `tests/` now asserts three previously-untested `isRoleFlagged` branches (the days-open thresholds — only the submitted/interview1 ratio branch had coverage before — plus a negative case confirming the function doesn't over-flag), `computeVelocityScore`, `computeRoleFunnel` (neither had any prior coverage), and the split-fee revenue path in `computeMonthlyRows` (N-116 — shipped with zero test coverage until now), including the rule that the placement fee lands the month *after* the assignment ends as a zero-capacity revenue row. This closes out F-6's four-part test harness build (F-6a scaffold, F-6b date/week layer, F-6c LCI calc layer, F-6d analytics layer).
+
 ### August 2026 — Tests for the LCI calc layer (F-6c)
 
 **More real test coverage.** `tests/` now asserts `lciRowNotice` (including the exact "zero is a real override value" case its own source comment warns a naive rewrite would break), `lciCumulativeHeadcount` fed a per-role-resolved notice end-to-end, two more `lciYearSlices` edge cases, `lciLegacyMonthlyCost`, and `_pickFields` — the one pure, non-network export in `api.js`, which the test rig now also loads (verified zero top-level execution first, same check already applied to `coe-plan.js`; nothing else in `api.js` is called). This does **not** fully close the N-082 gap (LCI model copy losing rows) — the copy field-whitelists have no static schema to verify completeness against without a live Graph read, which is what F-11 (Schema contract check, scoped, not yet built) is for. This task locks in that `_pickFields` itself filters correctly, nothing more.

@@ -198,10 +198,8 @@ async function openForecastModal(id) {
       const f = forecasts.find(x => String(x.id) === String(id));
       if (f) {
         document.getElementById('forecast-title').value = f.Title || '';
-        document.getElementById('forecast-start').value = f.ForecastStartDate
-          ? f.ForecastStartDate.substring(0, 10) : '';
-        document.getElementById('forecast-end').value = f.ForecastEndDate
-          ? f.ForecastEndDate.substring(0, 10) : '';
+        document.getElementById('forecast-start').value = spDateIn(f.ForecastStartDate) || '';
+        document.getElementById('forecast-end').value   = spDateIn(f.ForecastEndDate) || '';
         document.getElementById('forecast-hc').value = f.ForecastedHeadcount ?? '';
         document.getElementById('forecast-rev-per-head').value = f.ForecastMonthlyRevenuePerHead ?? '';
         // N-116: rows saved before this change have no ProjectType. Default them

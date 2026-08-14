@@ -58,12 +58,12 @@ function renderProjectForm(existingData = null) {
           <div class="form-group">
             <label>Start Date</label>
             <input type="date" name="StartDate"
-              value="${escAttr(existingData?.StartDate ? existingData.StartDate.split('T')[0] : '')}">
+              value="${escAttr(spDateIn(existingData?.StartDate) || '')}">
           </div>
           <div class="form-group">
             <label>End Date</label>
             <input type="date" name="EndDate"
-              value="${escAttr(existingData?.EndDate ? existingData.EndDate.split('T')[0] : '')}">
+              value="${escAttr(spDateIn(existingData?.EndDate) || '')}">
           </div>
         </div>
         <div class="form-group">
@@ -238,12 +238,12 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
             <label>Open Date</label>
             <input type="date" name="OpenDate" id="role-open-date"
               onchange="autoFillTargetDate()"
-              value="${escAttr(existingData?.OpenDate ? existingData.OpenDate.split('T')[0] : '')}">
+              value="${escAttr(spDateIn(existingData?.OpenDate) || '')}">
           </div>
           <div class="form-group">
             <label>Target Hire Date (auto: Open + 45d)</label>
             <input type="date" name="TargetHireDate" id="role-target-date"
-              value="${escAttr(existingData?.TargetHireDate ? existingData.TargetHireDate.split('T')[0] : '')}">
+              value="${escAttr(spDateIn(existingData?.TargetHireDate) || '')}">
           </div>
         </div>
         <div class="form-group">
@@ -373,7 +373,7 @@ async function renderWeeklyActivityForm(existingData = null) {
     if (existingProject) selectableProjects = sortProjectsByName([...selectableProjects, existingProject]);
   }
   const projectOptions = buildProjectOptionsHtml(selectableProjects, existingProjectId);
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDayISO();
   const defaultWeek = existingData?.WeekNumber || getISOWeek(today);
   const defaultYear = existingData?.Year || new Date().getFullYear();
   // If single project, pre-load TP's own roles immediately
@@ -432,7 +432,7 @@ async function renderWeeklyActivityForm(existingData = null) {
           <label>Week Ending Date *</label>
           <input type="date" name="WeekEndingDate" required
             onchange="autoFillWeekYear(this.value)"
-            value="${existingData?.WeekEndingDate ? escAttr(existingData.WeekEndingDate.split('T')[0]) : getWeekEnding(today)}">
+            value="${existingData?.WeekEndingDate ? escAttr(spDateIn(existingData.WeekEndingDate) || '') : getWeekEnding(today)}">
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -659,12 +659,12 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
           <div class="form-group">
             <label>Offer Accepted Date</label>
             <input type="date" name="OfferAcceptedDate"
-              value="${escAttr(existingData?.OfferAcceptedDate ? existingData.OfferAcceptedDate.split('T')[0] : '')}">
+              value="${escAttr(spDateIn(existingData?.OfferAcceptedDate) || '')}">
           </div>
           <div class="form-group">
             <label>Provisional Start Date</label>
             <input type="date" name="ProvisionalStartDate"
-              value="${escAttr(existingData?.ProvisionalStartDate ? existingData.ProvisionalStartDate.split('T')[0] : '')}">
+              value="${escAttr(spDateIn(existingData?.ProvisionalStartDate) || '')}">
           </div>
         </div>
         <div class="form-group">

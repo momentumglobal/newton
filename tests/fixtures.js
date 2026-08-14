@@ -64,6 +64,21 @@ var FIXTURES = {
     // instant is still 30 Jun, so the pre-N-088
     // `toISOString().split('T')[0]` returns '2026-06-30'.
     localDayInput: { y: 2026, m: 7, d: 1, h: 0, min: 30 },
+    // coeMonday (N-089) — one GMT date and one BST date. Both must come back
+    // at LOCAL midnight: that is the precondition coeWeekIndex's Math.round
+    // relies on, and nothing tested it before.
+    coeMondayGmt: { y: 2026, m: 1, d: 15 },
+    coeMondayBst: { y: 2026, m: 7, d: 1 },
+    // computePlanSpans (N-089) — re-verifies N-077. OpenDate is a midday-UTC
+    // SharePoint string (as isoDate writes it) on Thu 19 Feb 2026 = GMT;
+    // coeMonday floors it to Mon 16 Feb, and 7 recruitment weeks lands on
+    // Mon 6 Apr 2026 — the far side of the 29 Mar BST switch. RecruitmentWeeks
+    // is passed explicitly so the expected date doesn't move if
+    // CONFIG.COE_PHASE_DEFAULTS ever changes.
+    coePlanSpanDst: {
+      row:      { OpenDate: '2026-02-19T12:00:00Z', RecruitmentWeeks: 7 },
+      expected: { y: 2026, m: 4, d: 6 },
+    },
     // coeWeekIndex — the exact dates from the N-081 fix's own code comment
     // ("29 Dec 2025 tStart → 29 Jun 2026 = 26wks − 1h → 25" pre-fix).
     coeGantt: {

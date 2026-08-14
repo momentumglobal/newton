@@ -36,11 +36,27 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'analytics.js'),
   path.join(JS_DIR, 'lci-model.js'),
   path.join(JS_DIR, 'coe-plan.js'),
+  path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'fixtures.js'),
   path.join(TESTS_DIR, 'assertions.js'),
 ];
 
 const sandbox = {};
+
+// N-091: the F-12 date guard lints SOURCE TEXT, not runtime behaviour, so it
+// needs every js/ file as a string — not just the six loaded above for their
+// functions. Read them here (fs is unavailable inside the vm) and expose the
+// map as ALL_SOURCES; lint-dates.js is a pure function over it. The guard
+// assertion skips when ALL_SOURCES is undefined, which is how tests/index.html
+// (no filesystem) stays honest rather than reporting a meaningless PASS.
+sandbox.ALL_SOURCES = fs.readdirSync(JS_DIR)
+  .filter(f => f.endsWith('.js'))
+  .sort()
+  .reduce((acc, f) => {
+    acc[f] = fs.readFileSync(path.join(JS_DIR, f), 'utf8');
+    return acc;
+  }, {});
+
 vm.createContext(sandbox);
 
 for (const file of SOURCE_FILES) {

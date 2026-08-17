@@ -3,13 +3,14 @@ let _osAdminTab = 'assignments';
 async function renderOsAdminPage(tab = 'assignments') {
   _osAdminTab = tab;
   const main = document.getElementById('main-content');
-const tabs = ['assignments', 'leadership', 'homepage', 'ghost'];
-const labels = { assignments: 'User Assignments', leadership: 'Leadership Access', homepage: 'Homepage', ghost: 'Ghost Mode' };
+const tabs = ['assignments', 'leadership', 'homepage', 'ghost', 'datahealth'];
+const labels = { assignments: 'User Assignments', leadership: 'Leadership Access', homepage: 'Homepage', ghost: 'Ghost Mode', datahealth: 'Data Health' };
 const tooltips = {
   assignments: 'Manage user roles and project access. Users are auto-registered on first login — assign their role and projects here.',
   leadership:  'Grant Leadership-level access to users who should see the Company Dashboard without full system access.',
   homepage:    'Manage homepage appearance and seasonal effects.',
   ghost:       'Temporarily view Newton as a different role type for testing. Only visible to admins.',
+  datahealth:  'Row counts per list and index status on the columns N-093 is about to filter server-side.',
 };
   const tabBar = tabs.map(t =>
     `<button class="btn-filter${_osAdminTab === t ? ' active' : ''}"
@@ -20,6 +21,7 @@ const tooltips = {
   if (tab === 'leadership')  content = await buildLeadershipTab();
   if (tab === 'homepage')    content = await buildHomepageTab();
   if (tab === 'ghost') content = await buildGhostTab();
+  if (tab === 'datahealth') content = await buildDataHealthTab();
   main.innerHTML = `
     <div class="page-header">
       <h2>${labels[tab]}</h2>
@@ -452,4 +454,77 @@ function activateGhost() {
 function deactivateGhost() {
   clearGhostRole();
   window.location.reload();
+}
+
+// ── Data Health Tab (F-10 / N-092) ───────────────────────────────────
+async function buildDataHealthTab() {
+  const lists = Object.keys(CONFIG.LIST_FIELDS);
+  const counts = await Promise.all(lists.map(l => getListItemCount(l).catch(() => null)));
+  const countRows = lists.map((l, i) => {
+    const count = counts[i];
+    const warn = count !== null && count >= CONFIG.LIST_ROW_COUNT_WARNING_THRESHOLD;
+    return `
+    <tr>
+      <td>${escHtml(l)}</td>
+      <td>${count === null ? '<span style="color:var(--text-faint)">—</span>' : count.toLocaleString('en-GB')}</td>
+      <td>${warn ? '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--status-warn-bg-soft);color:var(--status-warn-strong);font-weight:600">Amber</span>' : ''}</td>
+    </tr>`;
+  }).join('');
+
+  const targetLists = [...new Set(CONFIG.INDEX_TARGETS.map(t => t.list))];
+  const statusByList = {};
+  await Promise.all(targetLists.map(async l => {
+    const names = CONFIG.INDEX_TARGETS.filter(t => t.list === l).map(t => t.column);
+    statusByList[l] = await getColumnIndexStatus(l, names).catch(() => []);
+  }));
+  const indexRows = CONFIG.INDEX_TARGETS.map(t => {
+    const status = (statusByList[t.list] || []).find(s => s.name === t.column);
+    const indexed = status?.indexed;
+    return `
+    <tr>
+      <td>${escHtml(t.list)}</td>
+      <td>${escHtml(t.column)}</td>
+      <td>${indexed
+            ? '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--status-success-bg);color:var(--status-success);font-weight:600">Indexed</span>'
+            : '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--status-warn-bg-soft);color:var(--status-warn-strong);font-weight:600">Not indexed</span>'}</td>
+      <td>${(indexed || !status)
+            ? ''
+            : `<button class="btn-secondary" onclick="indexColumnNow('${t.list}','${status.id}')">Index now</button>`}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <h3>List Row Counts</h3>
+    <p style="font-size:13px;color:var(--text-label);margin-bottom:16px">
+      SharePoint scans the whole list to evaluate a filter on an unindexed
+      column, and throws once a result set passes 5,000 rows. Amber below
+      flags a list approaching that — index the columns below before it does.
+    </p>
+    <table class="data-table" style="margin:0 0 32px">
+      <thead><tr><th>List</th><th>Row count</th><th></th></tr></thead>
+      <tbody>${countRows || '<tr><td colspan=3>No lists configured.</td></tr>'}</tbody>
+    </table>
+    <h3>Index Status</h3>
+    <p style="font-size:13px;color:var(--text-label);margin-bottom:16px">
+      Columns Newton is about to filter on server-side (N-093). Indexing is a
+      one-time SharePoint schema change — confirm before applying.
+    </p>
+    <table class="data-table" style="margin:0">
+      <thead><tr><th>List</th><th>Column</th><th>Status</th><th></th></tr></thead>
+      <tbody>${indexRows || '<tr><td colspan=4>No index targets configured.</td></tr>'}</tbody>
+    </table>
+  `;
+}
+
+async function indexColumnNow(listName, columnId) {
+  if (!confirm(`Index this column on ${listName}? This changes the SharePoint schema and cannot be undone from here.`)) return;
+  const btn = event?.target;
+  setButtonLoading(btn);
+  try {
+    await setColumnIndexed(listName, columnId);
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    alert('Error indexing column: ' + e.message);
+  }
 }

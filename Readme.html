@@ -1052,6 +1052,28 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 
       <div class="changelog-entry">
         <div class="changelog-date">August 2026</div>
+        <div class="changelog-title">Projects list, Weekly Activity & dashboard fixes (N-126, N-127, N-137, N-138, N-139, N-141, N-142, N-143)</div>
+        <ul>
+          <li><strong>Projects list Active/Archive filter (N-127):</strong> the Projects list/page now has the same Active/Archive filter buttons as Roles, defaulting to Active, reusing the shared <code>isProjectActive()</code> / <code>sortProjectsByName()</code> helpers from N-112.</li>
+          <li><strong>Bug fixes:</strong> +Add Assignment no longer offers leavers in the Employee dropdown, though editing a record whose employee has since left still shows them, labelled inactive (N-126); notification clicks now navigate to their target page instead of only marking read — the deep link field was being dropped from the read query (N-137); a multi-TP role's weekly activity is no longer dropped from that TP's Project Dashboard KPIs (N-141); editing Week Number directly on the desktop Weekly Activity form no longer leaves it out of sync with Week Ending Date, which was silently dropping rows from period-filtered dashboard tiles — the field is now read-only and always derived from the date (N-142).</li>
+          <li><strong>Data Health reliability (N-138):</strong> the "WeeklyActivity rows missing ProjectID" check in Admin → Data Health now distinguishes a genuine zero from a rejected query, with the real error logged to console instead of both cases showing the same dash. Tidied onto CSS classes rather than inline styles while touched (N-139).</li>
+          <li><strong>Empty states, X-2 follow-up (N-143):</strong> remaining Project/Company Dashboard panels, Admin tabs and Sales/LCI list/table empty states migrated to the shared empty-state component with icons; Project Dashboard's hide-when-empty behaviour preserved by design; mobile stays text-only.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">August 2026</div>
+        <div class="changelog-title">Date/timezone write-path hardening (N-129–N-136)</div>
+        <ul>
+          <li><strong>Bug fixes:</strong> <code>getWeekEnding()</code> no longer rolls back a day during BST when called with no argument, which had been writing Snapshots' week-ending date as Saturday instead of Sunday every "Write Snapshot Now" click (N-129); CoE Hiring Plan forecast months, Survey run Open/Close dates and Survey template target dates are now all written via <code>isoDate()</code> instead of bare date strings, closing the last three SharePoint date writes that could resolve in the wrong day/month for a browser behind the UK (N-130, N-131, N-133).</li>
+          <li><strong>Consistency (N-132):</strong> <code>people-tracker.js</code>'s Assignments tab moved its last local-midnight date handling onto the same UTC model as the rest of the file, closing the exact inconsistency that caused N-090's earlier bench-sync bug.</li>
+          <li><strong>Data correction (N-135):</strong> eight historic <code>Assignments</code> dates that predated the <code>isoDate()</code> convention — five stored a day early, three merely off-midday — were confirmed and corrected in Newton (not SharePoint directly); no code change, both writers were already correct.</li>
+          <li><strong>Docs/infra:</strong> corrected this document's own claim that the midday-UTC convention has ±12h of headroom — it's ±11h, and breaks at exactly UTC+12 (Pacific/Auckland, Pacific/Kiritimati); see the Date/Timezone section below (N-136). CI now runs the test suite under three timezones (default, UTC, America/New_York) and blocks deploy on any failure, catching the class of bug that every one of N-077/N-081/N-129/N-090/N-130 shared: invisible from London (N-134).</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">August 2026</div>
         <div class="changelog-title">Project filters, PTP level, Command Centre trend arrow, and fixes (N-075, N-076, N-083–N-085, N-108, N-111, N-112, N-114, N-117)</div>
         <ul>
           <li><strong>Active/Archive project filters (N-112):</strong> every project dropdown in the Reporting module now groups projects into Active (Status Active/Transition) and Archive (Status Completed) sections, A-Z within each. Add Role, Add Weekly Activity and Record Placement forms show Active projects only when creating new records; editing an existing record still shows its project. New shared helpers <code>isProjectActive()</code>, <code>sortProjectsByName()</code>, <code>buildProjectOptionsHtml()</code> in utils.js.</li>

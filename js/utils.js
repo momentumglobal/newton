@@ -484,6 +484,23 @@ function localDayISO(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
+// N-093 (F-2a): the earliest calendar day the Placements page's existing
+// month/quarter/year filter can possibly match, as 'YYYY-MM-DD', or null
+// when no filter is set. Used ONLY as a server-side `ge` lower bound — it is
+// deliberately loose (a quarter/month filter returns that year's 1 January),
+// because placementInFilter() still applies the exact test client-side. A
+// loose lower bound over-fetches and stays correct; a tight one that got the
+// boundary wrong would silently drop placements.
+// Local getters, matching localDayISO's reasoning: this answers "what does
+// the user's wall-clock year look like", not "what calendar day does a
+// SharePoint value stand for".
+function placementFilterCutoff(filter, today = new Date()) {
+  if (!filter || !filter.type) return null;
+  const year = filter.type === 'year' ? filter.value : today.getFullYear();
+  if (!Number.isFinite(year)) return null;
+  return `${year}-01-01`;
+}
+
 function getISOWeek(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);

@@ -272,7 +272,7 @@ function _lciRoadmapHtml() {
           </thead>
           <tbody id="lci-roadmap-body">
             ${_lciRoadmapMilestoneRows(horizon)}
-            ${bodyRows || `<tr><td colspan="${horizon + 8}" style="color:var(--text-muted);text-align:center">No teams yet — click + Add Team.</td></tr>`}
+            ${bodyRows || emptyStateRow({ colspan: horizon + 8, icon: 'users', message: 'No teams yet — click + Add Team.' })}
           </tbody>
           <tfoot id="lci-roadmap-foot">
             ${_lciRoadmapFootHtml(horizon)}

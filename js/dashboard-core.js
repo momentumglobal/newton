@@ -94,7 +94,7 @@ async function fetchDashboardData(projectId, role) {
   if (isTP) {
     const userEmail = (getCurrentUser().email || '').toLowerCase();
     roles = allRoles.filter(r => tpMatches(r.TalentPartner, userEmail));
-    acts  = activity.filter(a => (a.TalentPartner || '').toLowerCase() === userEmail);
+    acts  = activity.filter(a => tpMatches(a.TalentPartner, userEmail));
   }
   const ids = new Set(roles.map(r => String(r.id)));
   return {

@@ -489,7 +489,7 @@ async function buildDataHealthTab() {
             : '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--status-warn-bg-soft);color:var(--status-warn-strong);font-weight:600">Not indexed</span>'}</td>
       <td>${(indexed || !status)
             ? ''
-            : `<button class="btn-secondary" onclick="indexColumnNow('${t.list}','${status.id}')">Index now</button>`}</td>
+            : `<button class="btn-secondary" onclick="indexColumnNow('${t.list}','${escJsAttr(status.id)}')">Index now</button>`}</td>
     </tr>`;
   }).join('');
 

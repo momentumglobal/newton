@@ -50,13 +50,15 @@ function projectFilterDropdown(projects, selectedId, callbackFn) {
 // changes the $filter sent to SharePoint. Options come from
 // CONFIG.DATE_WINDOW_WEEKS; 0 renders as "All time" and sends no date clause.
 function periodFilterDropdown(selectedWeeks, callbackFn) {
-  const options = CONFIG.DATE_WINDOW_WEEKS.map(w =>
-    `<option value="${w}" ${Number(selectedWeeks) === w ? 'selected' : ''}>${w ? `Last ${w} weeks` : 'All time'}</option>`
-  ).join('');
-  return `<div class="form-group project-filter-select">
-    <label>Period</label>
-    <select onchange="${callbackFn}(this.value)">${options}</select>
-  </div>`;
+  const options = CONFIG.DATE_WINDOW_WEEKS.map(function (w) {
+    const label = w ? 'Last ' + w + ' weeks' : 'All time';
+    const sel   = Number(selectedWeeks) === w ? ' selected' : '';
+    return '<option value="' + w + '"' + sel + '>' + label + '</option>';
+  }).join('');
+  return '<div class="form-group project-filter-select">' +
+    '<label>Period</label>' +
+    '<select onchange="' + callbackFn + '(this.value)">' + options + '</select>' +
+    '</div>';
 }
 // ── Projects ─────────────────────────────────────────────────────────
 let _projectsFilter = "Active";

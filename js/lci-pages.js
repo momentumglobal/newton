@@ -102,7 +102,11 @@ function _renderLCIModelList(allModels, role) {
             </div>
           </td>
         </tr>`).join('')
-    : `<tr><td colspan="9" style="color:var(--text-muted);text-align:center">${allModels.length ? 'No models match the current filters.' : `No models yet${role === 'delivery_manager' ? ' assigned to you' : ''}.`}</td></tr>`;
+    : emptyStateRow({
+        colspan: 9,
+        icon: 'folder',
+        message: allModels.length ? 'No models match the current filters.' : `No models yet${role === 'delivery_manager' ? ' assigned to you' : ''}.`,
+      });
 
   return `
     <div class="page-header">
@@ -373,7 +377,7 @@ function _renderLCIReportsSection(reports, role) {
           </td>
         </tr>`;
       }).join('')
-    : `<tr><td colspan="4" style="color:var(--text-muted);text-align:center">No saved reports.</td></tr>`;
+    : emptyStateRow({ colspan: 4, icon: 'file-text', message: 'No saved reports.' });
 
   return `
     <div class="page-header" style="margin-top:24px"><h2>Saved Reports</h2></div>

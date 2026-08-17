@@ -85,7 +85,7 @@ function renderPipelineActivityTable(acts, roles, period) {
   const rids = Object.keys(byRole).sort((a, b) => (roleMap[a] || '').localeCompare(roleMap[b] || ''));
   if (!rids.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>${panelTitle}</h3>
-    <p class='no-data'>No activity recorded for this period.</p>
+    ${emptyStateBlock({ icon: 'activity', message: 'No activity recorded for this period.' })}
   </div>`;
   const totals = FIELDS.map((_, i) => rids.reduce((s, r) => s + byRole[r][i], 0));
   const hdr    = `<tr><th>Role</th>${LABELS.map(l => `<th style="text-align:center">${l}</th>`).join('')}</tr>`;
@@ -149,7 +149,7 @@ function renderPipelineSummaryPanel(activity) {
 
   if (!trimmed.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Pipeline Summary (last 4 weeks)</h3>
-    <p class='no-data'>No pipeline activity recorded in the last 4 weeks.</p>
+    ${emptyStateBlock({ icon: 'bar-chart-2', message: 'No pipeline activity recorded in the last 4 weeks.' })}
   </div>`;
 
   const ord = n => {
@@ -199,7 +199,7 @@ function renderActivityByTPPanel(acts, period, tpMap = {}) {
     ['Outreach','Submitted','Interview1','Offers','Hires'].forEach(k => { map[tp][k] += Number(a[k]) || 0; });
   });
   const tps = Object.keys(map);
-  if (!tps.length) return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3><p class='no-data'>No activity in this period.</p></div>`;
+  if (!tps.length) return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3>${emptyStateBlock({ icon: 'activity', message: 'No activity in this period.' })}</div>`;
   const rows = tps.map(tp =>
     `<tr><td>${escHtml(tpMap[tp.toLowerCase()] || tp)}</td><td style="text-align:center">${map[tp].Outreach}</td><td style="text-align:center">${map[tp].Submitted}</td><td style="text-align:center">${map[tp].Interview1}</td><td style="text-align:center">${map[tp].Offers}</td><td style="text-align:center">${map[tp].Hires}</td></tr>`
   ).join('');
@@ -224,7 +224,7 @@ function renderRejectionPanel(rejections, roles, period) {
   const reasons = ['Salary','Motivations','Counter-offer','Took another opportunity','Other'];
   const counts  = reasons.map(r => filtered.filter(x => x.RejectionReason === r).length);
   const total   = counts.reduce((a, b) => a + b, 0);
-  if (!total) return `<div class='dash-panel'><h3 class='panel-title'>Offer Rejection Reasons</h3><p class='no-data'>No rejections recorded for this period.</p></div>`;
+  if (!total) return `<div class='dash-panel'><h3 class='panel-title'>Offer Rejection Reasons</h3>${emptyStateBlock({ icon: 'user-x', message: 'No rejections recorded for this period.' })}</div>`;
   const rows = reasons.map((r, i) => counts[i] > 0 ?
     `<tr><td>${r}</td><td>${counts[i]}</td><td>${Math.round((counts[i]/total)*100)}%</td></tr>` : ''
   ).join('');
@@ -242,7 +242,7 @@ function renderUpcomingStartersPanel(placements, roles) {
   const upcoming = placements
     .filter(p => p.ProvisionalStartDate && new Date(p.ProvisionalStartDate) >= today)
     .sort((a, b) => new Date(a.ProvisionalStartDate) - new Date(b.ProvisionalStartDate));
-  if (!upcoming.length) return `<div class='dash-panel'><h3 class='panel-title'>Upcoming Starters</h3><p class='no-data'>No upcoming starters.</p></div>`;
+  if (!upcoming.length) return `<div class='dash-panel'><h3 class='panel-title'>Upcoming Starters</h3>${emptyStateBlock({ icon: 'calendar', message: 'No upcoming starters.' })}</div>`;
   const rows = upcoming.map(p =>
     `<tr><td>${escHtml(p.CandidateName)}</td><td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '—'}</td><td>${spDateIn(p.ProvisionalStartDate) || '—'}</td></tr>`
   ).join('');
@@ -264,7 +264,7 @@ function renderSpendPanel(roles, placements) {
   );
   const currencies = [...new Set(placedRoles.filter(r => r.Budget).map(r => CONFIG.COUNTRY_CURRENCY[r.Location] || 'GBP'))];
   if (!currencies.length) {
-    return `<div class='dash-panel'><h3 class='panel-title'>Actual Spend vs Budget</h3><p class='no-data'>No budget data available.</p></div>`;
+    return `<div class='dash-panel'><h3 class='panel-title'>Actual Spend vs Budget</h3>${emptyStateBlock({ icon: 'wallet', message: 'No budget data available.' })}</div>`;
   }
   const totalBudget = placedRoles.filter(r => r.Budget).reduce((s, r) => s + (parseFloat(r.Budget) || 0), 0);
   const totalSpend  = placements.filter(p => p.SalaryAgreed).reduce((s, p) => s + (parseFloat(p.SalaryAgreed) || 0), 0);
@@ -331,7 +331,7 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
     .sort((a, b) => new Date(a.OpenDate) - new Date(b.OpenDate));
   if (!longOpen.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Roles Open 30+ Days</h3>
-    <p class='no-data'>No roles open 30+ days.</p>
+    ${emptyStateBlock({ icon: 'briefcase', message: 'No roles open 30+ days.' })}
   </div>`;
   const rows = longOpen.map(r => {
     const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
@@ -360,7 +360,7 @@ function renderRoleTrackerPanel(roles) {
     .sort((a, b) => new Date(a.OpenDate || 0) - new Date(b.OpenDate || 0));
   if (!active.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Role Tracker</h3>
-    <p class='no-data'>No active roles for this project.</p>
+    ${emptyStateBlock({ icon: 'briefcase', message: 'No active roles for this project.' })}
   </div>`;
   const rows = active.map(r => {
     const days = r.OpenDate
@@ -393,7 +393,7 @@ function renderPlacementsPanel(placements, roles, period) {
   }).sort((a, b) => new Date(b.OfferAcceptedDate) - new Date(a.OfferAcceptedDate));
   if (!filtered.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Placements</h3>
-    <p class='no-data'>No placements recorded for this period.</p>
+    ${emptyStateBlock({ icon: 'user-check', message: 'No placements recorded for this period.' })}
   </div>`;
   const rows = filtered.map(p => `
     <tr>
@@ -422,7 +422,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
   if (!activeRoles.length) {
     return `<div class='dash-panel'>
       <h3 class='panel-title'>Role Analytics</h3>
-      <p class='no-data'>No roles to display.</p>
+      ${emptyStateBlock({ icon: 'bar-chart-2', message: 'No roles to display.' })}
     </div>`;
   }
 

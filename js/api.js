@@ -97,8 +97,8 @@ function tpDisplay(val, nameMap = {}) {
 }
 
 // ── Generic helpers ─────────────────────────────────────────────────
-async function graphRequest(method, path, body = null) {
-  const token = await getToken();
+async function graphRequest(method, path, body = null, elevated = false) {
+  const token = elevated ? await getElevatedToken() : await getToken();
   if (!token) throw new Error("Not authenticated");
   const opts = {
     method,
@@ -208,7 +208,7 @@ async function getColumnIndexStatus(listName, columnNames) {
 // Schema mutation, not a data write — no _cacheInvalidate (doesn't touch
 // item cache). Caller must confirm with the user before calling this.
 async function setColumnIndexed(listName, columnId) {
-  return graphRequest("PATCH", `${listColumnsPath(listName)}/${columnId}`, { indexed: true });
+  return graphRequest("PATCH", `${listColumnsPath(listName)}/${columnId}`, { indexed: true }, true);
 }
  
 // ── Write ─────────────────────────────────────────────────────────────

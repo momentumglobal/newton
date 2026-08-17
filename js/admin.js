@@ -40,6 +40,7 @@ async function renderAdminTab(tab) {
     </div>
     <div style="padding:24px">${content}</div>
   `;
+  lucide.createIcons();
 }
 
 // ── Functional Areas Tab ───────────────────────────────────────────────
@@ -53,7 +54,7 @@ async function buildDepartmentsTab() {
   return `
     <table class="data-table" style="margin:0 0 24px">
       <thead><tr><th>Functional Area</th><th></th></tr></thead>
-      <tbody>${rows || '<tr><td colspan=2>No functional areas defined yet.</td></tr>'}</tbody>
+      <tbody>${rows || emptyStateRow({ colspan: 2, icon: 'layers', message: 'No functional areas defined yet.' })}</tbody>
     </table>
     <h3>Add Functional Area</h3>
     <div class="form-container" style="padding:0;max-width:500px">
@@ -86,52 +87,6 @@ async function submitDepartment() {
   }
 }
 
-// ── Currencies Tab ───────────────────────────────────────────────────
-async function buildCurrenciesTab() {
-  const currencies = await getCurrencies();
-  const rows = currencies.map(c => `
-    <tr>
-      <td>${escHtml(c.CurrencyCode)}</td>
-      <td><div class="row-actions"><button class="btn-danger" onclick="deleteAdminRecord('Currencies',${c.id})">Remove</button></div></td>
-    </tr>`).join('');
-  return `
-    <h3>Currency Options</h3>
-    <p class="admin-tab-intro">
-      These currencies are available when creating roles and are inherited by placements.
-    </p>
-    <table class="data-table" style="margin:0 0 24px">
-      <thead><tr><th>Currency Code</th><th></th></tr></thead>
-      <tbody>${rows || '<tr><td colspan=2>No currencies defined yet.</td></tr>'}</tbody>
-    </table>
-    <h3>Add Currency</h3>
-    <div class="form-container" style="padding:0;max-width:300px">
-      <div class="form-group">
-        <label>Currency Code *</label>
-        <input type="text" id="currency-code" placeholder="e.g. GBP" maxlength="5" style="text-transform:uppercase">
-      </div>
-      <div id="currency-error" class="form-error"></div>
-      <button class="btn-primary" onclick="submitCurrency()">Add Currency</button>
-    </div>
-  `;
-}
-
-async function submitCurrency() {
-  const code  = document.getElementById('currency-code').value.trim().toUpperCase();
-  const errEl = document.getElementById('currency-error');
-  errEl.style.display = 'none';
-  if (!code) {
-    errEl.textContent = 'Currency code is required.';
-    errEl.style.display = 'block'; return;
-  }
-  const btn = document.querySelector('.btn-primary[onclick="submitCurrency()"]');
-  setButtonLoading(btn);
-  try {
-    await createItem('Currencies', { Title: code });
-    await renderAdminTab('currencies');
-  } catch(e) {
-    clearButtonLoading(btn);
-    errEl.textContent = `Error: ${e.message}`; errEl.style.display = 'block';
-  }
 }
 
 // ── Delete Tab ───────────────────────────────────────────────────────
@@ -340,7 +295,7 @@ async function buildSnapshotsTab() {
     <div id="snapshot-status" style="display:none;font-size:13px;margin:12px 0"></div>
     <table class="data-table" style="margin-top:20px">
       <thead><tr><th>Project</th><th>Week Ending</th><th>Open Roles</th><th>Avg Days Open</th><th>Placements</th><th>Flagged</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan=6>No snapshots written yet.</td></tr>'}</tbody>
+      <tbody>${rows || emptyStateRow({ colspan: 6, icon: 'camera', message: 'No snapshots written yet.' })}</tbody>
     </table>
   `;
 }

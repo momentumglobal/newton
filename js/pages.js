@@ -283,7 +283,7 @@ async function renderActivityPage() {
   </div>`;
   const role    = _resolvedRole;
   const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
-  cconst projDropdown = canFilter
+  const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _activityProjectId, 'setActivityProject')
     : '';
   const periodDropdown = periodFilterDropdown(_activityWeeks, 'setActivityWeeks');

@@ -38,7 +38,7 @@ async function renderProjectDashboard() {
 
   // Cache for period filter updates (avoids full re-fetch on filter change)
   window._dashCache = { roles, activity, placements, rejections, tpMap, analyticsActs, historical };
-  const hideEmpty = html => html.includes('no-data') ? '' : html;
+  const hideEmpty = html => html.includes('empty-state') ? '' : html;
   const roleAnalytics   = hideEmpty(await renderRoleAnalyticsPanel(roles, analyticsActs, historical, tpMap));
   const kpiPeriods      = [['month','Month'],['quarter','Quarter'],['year','Year']];
   const kpiBtns         = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
@@ -78,6 +78,7 @@ async function renderProjectDashboard() {
       ${spend}
       ${roleAnalytics}
     </div>`;
+  lucide.createIcons();
   runKpiCountUps(main);
 }
 function changeDashProject(id) { _dashProjectId = String(id); renderProjectDashboard(); }
@@ -99,7 +100,7 @@ function setDetailPeriod(period) {
   if (el && window._dashCache) {
   const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole) || hasDMGrant();
   const c = window._dashCache;
-  const hideEmpty = html => html.includes('no-data') ? '' : html;
+  const hideEmpty = html => html.includes('empty-state') ? '' : html;
   const roleAnalyticsPlaceholder = `<div id='role-analytics-placeholder'></div>`;
   el.innerHTML =
     hideEmpty(renderPlacementsPanel(c.placements, c.roles, _dashDetailPeriod)) +
@@ -109,11 +110,13 @@ function setDetailPeriod(period) {
     (isDMAdmin ? hideEmpty(renderUpcomingStartersPanel(c.placements, c.roles)) : '') +
     (isDMAdmin ? hideEmpty(renderSpendPanel(c.roles, c.placements)) : '') +
     roleAnalyticsPlaceholder;
+  lucide.createIcons();
   renderRoleAnalyticsPanel(c.roles, c.analyticsActs, c.historical, c.tpMap)
     .then(html => {
       const ph = document.getElementById('role-analytics-placeholder');
-      const cleaned = html.includes('no-data') ? '' : html;
+      const cleaned = html.includes('empty-state') ? '' : html;
       if (ph) ph.outerHTML = cleaned;
+      lucide.createIcons();
     });
 } else {
     renderProjectDashboard();

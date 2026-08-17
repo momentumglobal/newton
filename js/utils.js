@@ -673,6 +673,42 @@ function escJsAttr(str) {
     .replace(/>/g, '&gt;');      // greater-than (defensive)
 }
 
+// ── Empty states (N-103 / X-2) ─────────────────────────────────
+// Block-level empty state for a panel/page area with no surrounding table
+// (the whole panel is this markup — nothing else to preserve). icon is a
+// lucide icon name; the caller's page must load lucide and call
+// lucide.createIcons() after setting innerHTML, same as every other
+// data-lucide site in the app. actionLabel/actionOnClick are optional —
+// omit both for a message-only state (read-only panels, no add-flow).
+function emptyStateBlock({ icon = 'inbox', title = '', message = '', actionLabel = '', actionOnClick = '' } = {}) {
+  const titleHtml  = title ? `<p class="empty-state-title">${escHtml(title)}</p>` : '';
+  const actionHtml = (actionLabel && actionOnClick)
+    ? `<button class="btn-primary empty-state-action" onclick="${escAttr(actionOnClick)}">${escHtml(actionLabel)}</button>`
+    : '';
+  return `<div class="empty-state">
+    <i data-lucide="${escAttr(icon)}" class="empty-state-icon"></i>
+    ${titleHtml}
+    <p class="empty-state-message">${escHtml(message)}</p>
+    ${actionHtml}
+  </div>`;
+}
+
+// Compact inline empty state for a single <tr> inside an existing table's
+// <tbody> — same intent (icon + message + optional action), sized to sit
+// inside the table grid instead of replacing it. colspan MUST match the
+// table's real column count, including any conditional trailing action
+// column — get this wrong and the row breaks the grid.
+function emptyStateRow({ colspan, icon = 'inbox', message = '', actionLabel = '', actionOnClick = '' } = {}) {
+  const actionHtml = (actionLabel && actionOnClick)
+    ? `<a href="#" onclick="${escAttr(actionOnClick)};return false;">${escHtml(actionLabel)}</a>`
+    : '';
+  return `<tr><td colspan="${colspan}" class="empty-state-row">
+    <i data-lucide="${escAttr(icon)}" class="empty-state-row-icon"></i>
+    <span>${escHtml(message)}</span>${actionHtml}
+  </td></tr>`;
+}
+
+// First non-empty line of a multi-line string. Returns '' for empty input.
 // First non-empty line of a multi-line string. Returns '' for empty input.
 function firstLine(str) {
   const lines = String(str ?? '').split(/\r?\n/).map(l => l.trim());

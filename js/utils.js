@@ -709,7 +709,6 @@ function emptyStateRow({ colspan, icon = 'inbox', message = '', actionLabel = ''
 }
 
 // First non-empty line of a multi-line string. Returns '' for empty input.
-// First non-empty line of a multi-line string. Returns '' for empty input.
 function firstLine(str) {
   const lines = String(str ?? '').split(/\r?\n/).map(l => l.trim());
   return lines.find(l => l !== '') || '';

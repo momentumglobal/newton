@@ -87,7 +87,7 @@ function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}) {
     });
   if (!longOpen.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Roles Open 30+ Days</h3>
-    <p class='no-data'>No roles open 30+ days.</p>
+    ${emptyStateBlock({ icon: 'briefcase', message: 'No roles open 30+ days.' })}
   </div>`;
   const rows = longOpen.map(r => {
     const proj = projectMap[String(r.ProjectIDLookupId || r.ProjectID)] || '—';
@@ -128,7 +128,7 @@ function renderCompanyTPPanel(allActivity, projectMap, roleProjectMap, period, t
     if (projCmp !== 0) return projCmp;
     return map[a].tp.localeCompare(map[b].tp);
   });
-  if (!keys.length) return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3><p class='no-data'>No activity in this period.</p></div>`;
+  if (!keys.length) return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3>${emptyStateBlock({ icon: 'activity', message: 'No activity in this period.' })}</div>`;
   const rows = keys.map(k => {
     const d = map[k];
     return `<tr><td>${d.project}</td><td>${escHtml(tpMap[d.tp.toLowerCase()] || d.tp)}</td><td style="text-align:center">${d.Outreach}</td><td style="text-align:center">${d.Submitted}</td><td style="text-align:center">${d.Interview1}</td><td style="text-align:center">${d.Offers}</td><td style="text-align:center">${d.Hires}</td></tr>`;
@@ -188,6 +188,7 @@ async function renderCompanyDashboard() {
     <div id='co-detail-grid' class='dash-grid'>
       ${tpPanel}
     </div>`;
+  lucide.createIcons();
   runKpiCountUps(main);
 }
 function setCompanyPeriod(period) {
@@ -208,11 +209,11 @@ function setCompanyDetailPeriod(period) {
   const el = document.getElementById('co-detail-grid');
   if (el && window._coCache) {
   const c = window._coCache;
-  const cleaned = renderCompanyTPPanel(
+  el.innerHTML = renderCompanyTPPanel(
     c.activity, c.projectMap,
     c.roleProjectMap, _companyDetailPeriod, c.tpMap
   );
-  el.innerHTML = cleaned.includes('no-data') ? '' : cleaned;
+  lucide.createIcons();
 } else {
     renderCompanyDashboard();
   }

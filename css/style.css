@@ -2029,12 +2029,23 @@ body {
 .eng-trends { background: var(--surface); border: 1px solid var(--border-subtle); border-radius: var(--r-xl); padding: var(--sp-8) var(--sp-9); }
 .eng-trends-empty { color: var(--text-muted); font-size: var(--fs-14); padding: var(--sp-9) 0; }
 
-/* Empty state */
-.eng-empty {
-  display: flex; flex-direction: column; align-items: center;
+/* Empty state — shared component (N-103), generalised from the engagement-only version */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
   padding: 60px var(--sp-8); gap: var(--sp-6); color: var(--text-muted);
 }
-.eng-empty-icon { width: var(--sp-11); height: var(--sp-11); stroke-width: 1.2; color: var(--text-faint); }
+.empty-state-icon { width: var(--sp-11); height: var(--sp-11); stroke-width: 1.2; color: var(--text-faint); }
+.empty-state-title { font-size: var(--fs-16); font-weight: 600; color: var(--text-secondary); margin: 0; }
+.empty-state-message { font-size: var(--fs-14); color: var(--text-muted); margin: 0; max-width: 420px; }
+.empty-state-action { margin-top: var(--sp-2); }
+
+/* Empty state — compact inline variant for a table <td> fallback row */
+.empty-state-row {
+  display: flex; align-items: center; justify-content: center; gap: var(--sp-3);
+  color: var(--text-muted); font-size: var(--fs-13); font-style: italic; padding: var(--sp-6) 0;
+}
+.empty-state-row-icon { width: var(--sp-6); height: var(--sp-6); stroke-width: 1.4; color: var(--text-faint); flex-shrink: 0; }
+.empty-state-row a { font-style: normal; margin-left: var(--sp-2); }
 
 /* Engagement modal */
 .eng-modal-overlay {

@@ -347,8 +347,8 @@ function _engEmptyState() {
           </button>
         </div>` : ''}
     </div>
-    <div class="eng-empty">
-      <i data-lucide="bar-chart-2" class="eng-empty-icon"></i>
-      <p>No survey runs yet. Activate a run to begin collecting responses.</p>
+    <div class="empty-state">
+      <i data-lucide="bar-chart-2" class="empty-state-icon"></i>
+      <p class="empty-state-message">No survey runs yet. Activate a run to begin collecting responses.</p>
     </div>`;
 }

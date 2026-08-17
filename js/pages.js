@@ -79,6 +79,9 @@ async function renderProjectsPage(filter) {
   const filterBtns = ["Active", "Archive"].map(f =>
     `<button class="btn-filter${_projectsFilter === f ? " active" : ""}" onclick="renderProjectsPage('${f}')">${f}</button>`
   ).join("");
+  const projectsEmptyMsg = _projectsFilter === "Archive"
+    ? "No archived projects."
+    : "No active projects yet.";
   main.innerHTML = `
     <div class="page-header">
       <h2>Projects</h2>
@@ -93,7 +96,7 @@ async function renderProjectsPage(filter) {
         <th>Start</th><th>End</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${projects.map(p => `
+        ${projects.length ? projects.map(p => `
           <tr>
             <td>${escHtml(p.CustomerName)}</td>
             <td>${escHtml(dmName(p.DeliveryManager))}</td>
@@ -102,10 +105,17 @@ async function renderProjectsPage(filter) {
             <td>${spDateIn(p.EndDate) || "—"}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditProjectForm(${p.id})">Edit</a></div></td>` : ""}
           </tr>
-        `).join("")}
+        `).join("") : emptyStateRow({
+          colspan: canEdit ? 6 : 5,
+          icon: "building-2",
+          message: projectsEmptyMsg,
+          actionLabel: (canEdit && _projectsFilter !== "Archive") ? "+ Add Project" : "",
+          actionOnClick: (canEdit && _projectsFilter !== "Archive") ? "showAddProjectForm()" : "",
+        })}
       </tbody>
     </table>
   `;
+  lucide.createIcons();
 }
 async function showAddProjectForm() {
   document.getElementById("main-content").innerHTML = renderProjectForm();
@@ -165,6 +175,10 @@ async function renderRolesPage(filter) {
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _rolesProjectId, 'setRolesProject')
     : '';
+  const ROLE_FILTER_LABELS = { Backlog: 'backlog', Active: 'active', Hired: 'hired', Cancelled: 'cancelled' };
+  const rolesEmptyMsg = _rolesProjectId
+    ? `No ${ROLE_FILTER_LABELS[_rolesFilter] || 'matching'} roles for the selected project.`
+    : `No ${ROLE_FILTER_LABELS[_rolesFilter] || 'matching'} roles.`;
   main.innerHTML = `
     <div class="page-header">
       <h2>Roles</h2>
@@ -180,7 +194,7 @@ async function renderRolesPage(filter) {
         <th>Budget</th><th>Open Date</th><th>${_rolesFilter === "Hired" ? "Actual Hire Date" : "Target Hire Date"}</th><th>Days Open</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${roles.map(r => {
+        ${roles.length ? roles.map(r => {
           const isHired    = _rolesFilter === "Hired";
           const daysHidden = _rolesFilter === "Backlog" || _rolesFilter === "Cancelled";
           const days       = (!daysHidden && (!isHired || r.ActualHireDate))
@@ -204,10 +218,17 @@ async function renderRolesPage(filter) {
             <td>${days !== null ? days + " days" : "—"}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a></div></td>` : ""}
           </tr>`;
-        }).join("")}
+        }).join("") : emptyStateRow({
+          colspan: canEdit ? 10 : 9,
+          icon: "briefcase",
+          message: rolesEmptyMsg,
+          actionLabel: canEdit ? "+ Add Role" : "",
+          actionOnClick: canEdit ? "showAddRoleForm()" : "",
+        })}
       </tbody>
     </table>
   `;
+  lucide.createIcons();
 }
 function setRolesProject(val) { _rolesProjectId = val || null; renderRolesPage(); }
 async function showAddRoleForm() {
@@ -283,10 +304,10 @@ async function renderActivityPage() {
   </div>`;
   const role    = _resolvedRole;
   const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
-  const projDropdown = canFilter
-    ? projectFilterDropdown(scopedProjects, _activityProjectId, 'setActivityProject')
-    : '';
   const periodDropdown = periodFilterDropdown(_activityWeeks, 'setActivityWeeks');
+  const activityEmptyMsg = (_activityProjectId || _activityRoleId)
+    ? "No activity logged for the selected filters."
+    : "No activity logged yet.";
   main.innerHTML = `
     <div class="page-header">
       <h2>Weekly Activity</h2>
@@ -314,7 +335,7 @@ async function renderActivityPage() {
         ${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${filteredActivity.map(a => `
+        ${filteredActivity.length ? filteredActivity.map(a => `
           <tr>
             <td>${a.Year}</td>
             <td>Wk ${a.WeekNumber}</td>
@@ -331,10 +352,17 @@ async function renderActivityPage() {
             <td style="text-align:center">${a.Hires || 0}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditActivityForm(${a.id})">Edit</a></div></td>` : ""}
           </tr>
-        `).join("")}
+        `).join("") : emptyStateRow({
+          colspan: canEdit ? 14 : 13,
+          icon: "activity",
+          message: activityEmptyMsg,
+          actionLabel: canEdit ? "+ Log Activity" : "",
+          actionOnClick: canEdit ? "showAddActivityForm()" : "",
+        })}
       </tbody>
     </table>
   `;
+  lucide.createIcons();
 }
 function setActivityWeeks(val) { _activityWeeks = Number(val); renderActivityPage(); }
 function setActivityProject(val) { _activityProjectId = val || null; _activityRoleId = null; renderActivityPage(); }
@@ -419,6 +447,13 @@ async function renderPlacementsPage() {
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _placementProjectId, 'setPlacementProject')
     : '';
+  const placementFilterLabel = _placementFilter.type === "month" ? PLACEMENT_MONTHS[_placementFilter.value]
+    : _placementFilter.type === "quarter" ? `Q${_placementFilter.value}`
+    : _placementFilter.type === "year" ? String(_placementFilter.value)
+    : '';
+  const placementsEmptyMsg = placementFilterLabel
+    ? `No placements recorded for ${placementFilterLabel}.`
+    : "No placements recorded yet.";
   main.innerHTML = `
     <div class="page-header">
       <h2>Placements</h2>
@@ -445,7 +480,7 @@ async function renderPlacementsPage() {
         ${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${placements.map(p => `
+        ${placements.length ? placements.map(p => `
           <tr>
             <td>${escHtml(p.CandidateName)}</td>
             <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || "—"}</td>
@@ -455,10 +490,17 @@ async function renderPlacementsPage() {
             <td>${p.TimeToHire != null ? p.TimeToHire + " days" : "—"}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditPlacementForm(${p.id})">Edit</a></div></td>` : ""}
           </tr>
-        `).join("")}
+        `).join("") : emptyStateRow({
+          colspan: canEdit ? 7 : 6,
+          icon: "user-check",
+          message: placementsEmptyMsg,
+          actionLabel: canEdit ? "+ Record Placement" : "",
+          actionOnClick: canEdit ? "showAddPlacementForm()" : "",
+        })}
       </tbody>
     </table>
   `;
+  lucide.createIcons();
 }
 function setPlacementProject(val) { _placementProjectId = val || null; renderPlacementsPage(); }
 async function showAddPlacementForm() {
@@ -507,6 +549,9 @@ async function renderRejectionsPage() {
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _rejectionsProjectId, 'setRejectionsProject')
     : '';
+  const rejectionsEmptyMsg = _rejectionsProjectId
+    ? "No rejected offers for this project."
+    : "No rejected offers logged yet.";
   main.innerHTML = `
     <div class="page-header">
       <h2>Rejected Offers</h2>
@@ -521,7 +566,7 @@ async function renderRejectionsPage() {
         <th>Reason</th><th>Notes</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${filteredRejections.map(r => `
+        ${filteredRejections.length ? filteredRejections.map(r => `
           <tr>
             <td>${escHtml(r.CandidateName)}</td>
             <td>${roleMap[String(r.RoleIDLookupId)] || roleMap[String(r.RoleID)] || "—"}</td>
@@ -530,10 +575,17 @@ async function renderRejectionsPage() {
             <td>${escHtml(r.Notes || "—")}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRejectionForm(${r.id})">Edit</a></div></td>` : ""}
           </tr>
-        `).join("")}
+        `).join("") : emptyStateRow({
+          colspan: canEdit ? 6 : 5,
+          icon: "user-x",
+          message: rejectionsEmptyMsg,
+          actionLabel: canEdit ? "+ Log Rejection" : "",
+          actionOnClick: canEdit ? "showAddRejectionForm()" : "",
+        })}
       </tbody>
     </table>
   `;
+  lucide.createIcons();
 }
 function setRejectionsProject(val) { _rejectionsProjectId = val || null; renderRejectionsPage(); }
 async function showAddRejectionForm() {

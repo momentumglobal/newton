@@ -406,7 +406,7 @@ async function rbFetchData() {
   } else {
     // Company scope — single call for all roles, matching Company Dashboard approach
     const [roles, activity, placements, rejections, tpMap] = await Promise.all([
-      getAllRoles(),
+      getRolesForUser(getCurrentUser().email),
       getWeeklyActivity(null, null),
       getPlacements(null),
       getRejectedOffers(null),

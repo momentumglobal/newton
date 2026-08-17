@@ -187,20 +187,33 @@ const CONFIG = {
   // is fixed by SharePoint itself and is not configurable.
   LIST_ROW_COUNT_WARNING_THRESHOLD: 4000,
 
-  // Columns to index before N-093 (F-2) pushes filtering server-side.
+  // Columns indexed so N-093 (F-2) can push filtering server-side.
   // These are the base SharePoint columns (the ones SharePoint indexes),
   // NOT the Graph shadow properties Newton reads data through — e.g.
   // 'ProjectID' here is the lookup column itself, distinct from
   // 'ProjectIDLookupId' in CONFIG.LIST_FIELDS.
-  // Placements deliberately excluded: it has no ProjectID column of its
-  // own (only RoleIDLookupId). Project-scoping a Placements query in
-  // N-093 will have to join through Roles rather than filter a single
-  // indexed column — revisit this list once that filter is designed.
+  // Placements has no ProjectID column of its own (only RoleIDLookupId), so
+  // it cannot be project-scoped server-side at all — N-093 confirmed this
+  // against forms.js:submitPlacementForm, which never persists the form's
+  // project dropdown. Placements is date-scoped instead, on
+  // OfferAcceptedDate, which is why that column joins this list.
   INDEX_TARGETS: [
     { list: 'Roles',           column: 'ProjectID' },
     { list: 'Roles',           column: 'Stage' },
     { list: 'WeeklyActivity',  column: 'WeekEndingDate' },
+    { list: 'Placements',      column: 'OfferAcceptedDate' },
   ],
+
+  // N-093 (F-2a). Above this many assigned projects, getRolesForUser stops
+  // fanning out one filtered request per project and falls back to a single
+  // unfiltered fetch — past this point the request storm costs more than the
+  // payload it saves.
+  SCOPE_FANOUT_MAX: 25,
+
+  // N-093 (F-2a). Options for the Weekly Activity period selector, in weeks.
+  // 0 means "All time" and must produce NO date clause at all.
+  DATE_WINDOW_WEEKS: [13, 26, 52, 0],
+  DATE_WINDOW_DEFAULT_WEEKS: 26,
 
   // Maps hire location (country) to ISO currency code.
   // Used to auto-derive currency when a role is created/edited,

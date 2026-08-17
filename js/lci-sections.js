@@ -74,7 +74,7 @@ function _lciLegacyHtml() {
         <td><button class="btn-danger lci-row-del" onclick="removeLCIRowAction(${gidx}, '_lciLegacyHtml', 'lci-legacy-section')">×</button></td>
       </tr>`;
   }).join('')
-    : `<tr><td colspan="9" style="color:var(--text-muted);text-align:center">No legacy roles yet.</td></tr>`;
+    : emptyStateRow({ colspan: 9, icon: 'users', message: 'No legacy roles yet.' });
 
   return _lciSectionShell('lci-legacy-section', 'Legacy Team',
     `(fully loaded salaries in ${m.DisplayCurrency}; Exiting rows run M1 → exit month, Retained run to the horizon)`,
@@ -131,7 +131,7 @@ function _lciMonthGridHtml(sectionId, type, title, subtitle, addFn) {
         <td><button class="btn-danger lci-row-del" onclick="removeLCIRowAction(${gidx}, '${_LCI_GRID_RENDERERS[type]}', '${sectionId}')">×</button></td>
       </tr>`;
   }).join('')
-    : `<tr><td colspan="${horizon + 3}" style="color:var(--text-muted);text-align:center">No rows yet.</td></tr>`;
+    : emptyStateRow({ colspan: horizon + 3, icon: 'inbox', message: 'No rows yet.' });
 
   return _lciSectionShell(sectionId, title, subtitle, addFn, `
     <div class="lci-grid-scroll">

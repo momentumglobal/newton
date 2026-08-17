@@ -765,9 +765,8 @@ async function submitPlacementForm(event, editId = null) {
       await updateItem('Roles', data.RoleID, { ActualHireDate: offerDate });
     }
     if (created) {                       // new placement only
-      const allRoles = await getAllRoles();
-      const rolesById = Object.fromEntries(allRoles.map(r => [String(r.id), r]));
-      const role  = rolesById[String(parseInt(data.RoleID))];
+      // N-093: was getAllRoles() + a lookup map to find one role by id.
+      const role  = await getItem('Roles', parseInt(data.RoleID));
       const projId = String(role.ProjectIDLookupId || role.ProjectID);
       const projects = await getItems('Projects');
       const proj = projects.find(pr => String(pr.id) === projId) || {};

@@ -147,7 +147,7 @@ function _lmLibraryHtml() {
             </div>
           </td>
         </tr>`).join('')
-    : `<tr><td colspan="${D.length + 5}" style="color:var(--text-muted);text-align:center">No locations yet.</td></tr>`;
+    : emptyStateRow({ colspan: D.length + 5, icon: 'map-pin', message: 'No locations yet.' });
 
   return `
     <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;margin-top:16px">
@@ -356,6 +356,7 @@ function _lmRenderPreview() {
     return;
   }
   host.innerHTML = _lmReportHtml(lciLeadMagnetCompute(current, scoped, disciplines), current);
+  if (window.lucide) lucide.createIcons();
 }
 
 // Shared report markup (preview + print).
@@ -383,7 +384,7 @@ function _lmReportHtml(computed, current) {
         </div>
         <table class="data-table lm-report-table">
           <thead><tr><th>Discipline</th><th>${escHtml(current.Title)}</th><th>${escHtml(r.location)}</th><th>Delta</th></tr></thead>
-          <tbody>${discRows || `<tr><td colspan="4" style="color:var(--text-muted)">No comparable salary data.</td></tr>`}</tbody>
+          <tbody>${discRows || emptyStateRow({ colspan: 4, icon: 'inbox', message: 'No comparable salary data.' })}</tbody>
         </table>
         ${r.missing.length ? `<p class="lm-missing">No data for: ${r.missing.join(', ')} — excluded from this comparison.</p>` : ''}
       </div>`;

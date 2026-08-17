@@ -191,6 +191,17 @@ async function getListItemCount(listName) {
   return items.length;
 }
 
+// N-093 (F-2a): how many WeeklyActivity rows have no ProjectID. The column is
+// written by forms.js:submitWeeklyActivityForm but read by nothing in js/, so
+// a blank on historical rows has never had a way to surface — while the
+// Project Dashboard has been filtering on it server-side for some time. A
+// non-zero count here means that filter is already silently dropping rows.
+// id-only $select, same discipline as getListItemCount.
+async function getWeeklyActivityNullProjectCount() {
+  const items = await getItems("WeeklyActivity", "fields/ProjectID eq null", "Id");
+  return items.length;
+}
+
 // Raw columnDefinition[] for a list — includes system columns; callers filter.
 async function getListColumns(listName) {
   const data = await graphRequest("GET", listColumnsPath(listName));
@@ -242,6 +253,46 @@ async function getRolesForProject(projectId, talentPartnerEmail = null) {
 async function getAllRoles() {
   return getItems("Roles");
 }
+
+// N-093 (F-2a): the roles this user is allowed to see, fetched server-side
+// instead of fetching every role and filtering in JS.
+//   - getUserProjectIds returns null for admins/leadership → genuinely all
+//     roles, unfiltered, exactly as before.
+//   - ghost mode returns a single-element array → one filtered request.
+//   - otherwise one filtered request per assigned project, in parallel.
+// Fan-out rather than an OR chain, reusing the pattern already proven in
+// getScopedRolesForMarketReport: each project's response then caches under
+// its own listName|filter|select key and is reused across pages, and there
+// is no OR-chain length limit to discover the hard way.
+async function getRolesForUser(email) {
+  const projectIds = await getUserProjectIds(email);
+  if (projectIds === null) return getAllRoles();
+  if (!projectIds.length) return [];
+  if (projectIds.length > CONFIG.SCOPE_FANOUT_MAX) return getAllRoles();
+  const arrays = await Promise.all(projectIds.map(pid => getRolesForProject(pid)));
+  const byId = new Map();
+  arrays.flat().forEach(r => byId.set(String(r.id), r));
+  return [...byId.values()];
+}
+
+// N-093 (F-2a): OData `ge` clause for a date column, `weeksBack` weeks before
+// today, or '' when weeksBack is falsy ("All time" must send NO clause).
+// localDayISO, NOT spDateOut — see the getActivityForAnalytics cutoff above,
+// which this deliberately matches. The bound is a local wall-clock "N weeks
+// ago", which is exactly what localDayISO is documented to answer; spDateOut
+// requires a Date whose UTC getters already stand for the intended calendar
+// day, which this is not.
+function _odataDateFrom(field, weeksBack) {
+  if (!weeksBack) return '';
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - (weeksBack * 7));
+  return `fields/${field} ge '${localDayISO(cutoff)}'`;
+}
+
+// N-093 (F-2a): joins non-empty OData clauses with `and`.
+function _odataAnd(...clauses) {
+  return clauses.filter(Boolean).join(' and ');
+}
  
 async function getHistoricalPlacements() {
   const cutoff = new Date();
@@ -280,15 +331,29 @@ async function getActivityForAnalytics(weeksBack) {
   return activity;
 }
  
-async function getWeeklyActivity(projectId, roleId) {
-  let filter = "";
-  if (projectId) filter = `fields/ProjectID eq ${projectId}`;
-  if (roleId)    filter = `fields/RoleID eq ${roleId}`;
+// N-093 (F-2a): `opts.sinceWeeks` adds a WeekEndingDate lower bound.
+// The projectId/roleId branches are UNCHANGED — both were already
+// server-side before this task (Project Dashboard, Report Builder).
+// WeekEndingDate is stored as the SUNDAY, and the bound is a plain
+// 'YYYY-MM-DD' matching getActivityForAnalytics.
+async function getWeeklyActivity(projectId, roleId, opts = {}) {
+  let scope = "";
+  if (projectId) scope = `fields/ProjectID eq ${projectId}`;
+  if (roleId)    scope = `fields/RoleID eq ${roleId}`;
+  const filter = _odataAnd(scope, _odataDateFrom('WeekEndingDate', opts.sinceWeeks));
   return getItems("WeeklyActivity", filter);
 }
  
-async function getPlacements(roleId) {
-  return getItems("Placements", roleId ? `fields/RoleID eq ${roleId}` : "");
+// N-093 (F-2a): `opts.fromDay` ('YYYY-MM-DD') adds an OfferAcceptedDate lower
+// bound. There is deliberately NO project filter: Placements has no
+// ProjectID column, only RoleIDLookupId. Project scoping stays client-side —
+// documented here so N-094 does not rediscover it.
+async function getPlacements(roleId, opts = {}) {
+  const filter = _odataAnd(
+    roleId ? `fields/RoleID eq ${roleId}` : '',
+    opts.fromDay ? `fields/OfferAcceptedDate ge '${opts.fromDay}'` : ''
+  );
+  return getItems("Placements", filter);
 }
  
 async function getRejectedOffers(roleId) {

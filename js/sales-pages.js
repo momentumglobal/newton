@@ -60,6 +60,7 @@ async function renderSalesForecastPage() {
     const forecasts = await getSalesForecasts();
     forecasts.sort((a, b) => new Date(a.ForecastStartDate) - new Date(b.ForecastStartDate));
     main.innerHTML = _renderForecastPage(forecasts);
+    if (window.lucide) lucide.createIcons();
   } catch (e) {
     main.innerHTML = `<p style="color:red">Error loading forecasts: ${e.message}</p>`;
   }
@@ -87,7 +88,7 @@ function _renderForecastPage(forecasts) {
             </div>
           </td>
         </tr>`).join('')
-    : `<tr><td colspan="6" style="color:var(--text-muted);text-align:center">No forecasts added yet.</td></tr>`;
+    : emptyStateRow({ colspan: 6, icon: 'trending-up', message: 'No forecasts added yet.' });
 
   return `
     <div class="page-header">

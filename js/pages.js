@@ -298,6 +298,9 @@ async function renderActivityPage() {
       .sort((a, b) => (roleMap[String(a.id)] || '').localeCompare(roleMap[String(b.id)] || ''))
       .map(r => `<option value="${r.id}" ${String(_activityRoleId) === String(r.id) ? 'selected' : ''}>${roleMap[String(r.id)]}</option>`)
   ].join('');
+  const projDropdown = canFilter
+    ? projectFilterDropdown(scopedProjects, _activityProjectId, 'setActivityProject')
+    : '';
   const roleDropdown = `<div class="form-group project-filter-select">
     <label>Role</label>
     <select onchange="setActivityRole(this.value)">${roleOptions}</select>

@@ -471,7 +471,7 @@ async function buildDataHealthTab() {
     </tr>`;
   }).join('');
 
-  const nullProjectCount = await getWeeklyActivityNullProjectCount().catch(() => null);
+  const { ok: nullProjectOk, count: nullProjectCount } = await getWeeklyActivityNullProjectCount();
 
   const targetLists = [...new Set(CONFIG.INDEX_TARGETS.map(t => t.list))];
   const statusByList = {};
@@ -512,15 +512,16 @@ async function buildDataHealthTab() {
       page — every view maps activity to its project through the role instead.
       The Project Dashboard nonetheless filters on it server-side, so any row
       missing a value is being dropped from that view silently. This must read
-      zero.
+      zero. A "Query error" badge means the check itself failed — unknown,
+      not zero — see the browser console for the underlying error.
     </p>
     <table class="data-table" style="margin:0 0 32px">
       <thead><tr><th>Check</th><th>Rows</th><th></th></tr></thead>
       <tbody>
         <tr>
           <td>WeeklyActivity rows missing ProjectID</td>
-          <td>${nullProjectCount === null ? '<span style="color:var(--text-faint)">—</span>' : nullProjectCount.toLocaleString('en-GB')}</td>
-          <td>${nullProjectCount ? '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--status-warn-bg-soft);color:var(--status-warn-strong);font-weight:600">Amber</span>' : ''}</td>
+          <td>${nullProjectOk ? nullProjectCount.toLocaleString('en-GB') : '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--status-danger-bg-soft);color:var(--status-danger);font-weight:600">Query error</span>'}</td>
+          <td>${nullProjectOk && nullProjectCount ? '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--status-warn-bg-soft);color:var(--status-warn-strong);font-weight:600">Amber</span>' : ''}</td>
         </tr>
       </tbody>
     </table>

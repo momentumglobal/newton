@@ -257,6 +257,7 @@ const CONFIG = {
     "Sweden":          "SEK",
     "Belgium":         "EUR",
     "Slovakia":        "EUR",
+    "Finland":         "EUR", 
   },
 
   ANALYTICS_BENCHMARKS: {

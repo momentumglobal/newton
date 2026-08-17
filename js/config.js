@@ -170,7 +170,7 @@ const CONFIG = {
     ],
     Notifications: [
       'Title', 'RecipientEmail', 'CreatedAt', 'IsRead', 'Tone', 'Body',
-      'Status', 'TriggerKey', 'TriggerType',
+      'Status', 'TriggerKey', 'TriggerType', 'DeepLink',
     ],
     // ── Time-series snapshots (N-085 / L-1a) ───────────────────
     Snapshots: [

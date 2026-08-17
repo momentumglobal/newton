@@ -46,6 +46,18 @@ function projectFilterDropdown(projects, selectedId, callbackFn) {
     </div>
   </div>`;
 }
+// N-093: how much history to FETCH, not how much to render — changing this
+// changes the $filter sent to SharePoint. Options come from
+// CONFIG.DATE_WINDOW_WEEKS; 0 renders as "All time" and sends no date clause.
+function periodFilterDropdown(selectedWeeks, callbackFn) {
+  const options = CONFIG.DATE_WINDOW_WEEKS.map(w =>
+    `<option value="${w}" ${Number(selectedWeeks) === w ? 'selected' : ''}>${w ? `Last ${w} weeks` : 'All time'}</option>`
+  ).join('');
+  return `<div class="form-group project-filter-select">
+    <label>Period</label>
+    <select onchange="${callbackFn}(this.value)">${options}</select>
+  </div>`;
+}
 // ── Projects ─────────────────────────────────────────────────────────
 let _projectsFilter = "Active";
 async function renderProjectsPage(filter) {
@@ -118,7 +130,7 @@ async function renderRolesPage(filter) {
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
   const [allRoles, allProjects, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
-  getAllRoles(),
+  getRolesForUser(user.email),
   getProjects(false),
   getProjectFilterOptions(),
   getTalentPartnerDisplayMap(),
@@ -208,14 +220,16 @@ async function showEditRoleForm(id) {
 // ── Weekly Activity ───────────────────────────────────────────────────
 let _activityProjectId = null;
 let _activityRoleId    = null;
+// N-093: weeks of history fetched from SharePoint. 0 = All time (no clause).
+let _activityWeeks     = CONFIG.DATE_WINDOW_DEFAULT_WEEKS;
 async function renderActivityPage() {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading activity...</p>";
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
   const [activity, allRoles, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
-  getWeeklyActivity(),
-  getAllRoles(),
+  getWeeklyActivity(null, null, { sinceWeeks: _activityWeeks }),
+  getRolesForUser(user.email),
   getProjectFilterOptions(),
   getTalentPartnerDisplayMap(),
 ]);
@@ -267,9 +281,10 @@ async function renderActivityPage() {
   </div>`;
   const role    = _resolvedRole;
   const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
-  const projDropdown = canFilter
+  cconst projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _activityProjectId, 'setActivityProject')
     : '';
+  const periodDropdown = periodFilterDropdown(_activityWeeks, 'setActivityWeeks');
   main.innerHTML = `
     <div class="page-header">
       <h2>Weekly Activity</h2>
@@ -279,6 +294,7 @@ async function renderActivityPage() {
      <div style="display:flex;gap:16px;align-items:flex-end">
       ${projDropdown}
       ${roleDropdown}
+      ${periodDropdown}
      </div>
     </div>
     <table class="data-table">
@@ -318,6 +334,7 @@ async function renderActivityPage() {
     </table>
   `;
 }
+function setActivityWeeks(val) { _activityWeeks = Number(val); renderActivityPage(); }
 function setActivityProject(val) { _activityProjectId = val || null; _activityRoleId = null; renderActivityPage(); }
 function setActivityRole(val) { _activityRoleId = val || null; renderActivityPage(); }
 async function showAddActivityForm() {
@@ -358,8 +375,11 @@ async function renderPlacementsPage() {
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
   const [allPlacements, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
-    getPlacements(),
-    getAllRoles(),
+    // N-093: the existing month/quarter/year buttons now also narrow the
+    // QUERY, via a deliberately loose lower bound. placementInFilter() below
+    // still applies the exact test, so this can only ever over-fetch.
+    getPlacements(null, { fromDay: placementFilterCutoff(_placementFilter) }),
+    getRolesForUser(user.email),
     getProjectFilterOptions(),
   ]);
   const roleProjectMap = Object.fromEntries(

@@ -87,8 +87,6 @@ async function submitDepartment() {
   }
 }
 
-}
-
 // ── Delete Tab ───────────────────────────────────────────────────────
 const DELETE_LIST_CONFIG = {
   Projects:       { label: 'Projects' },

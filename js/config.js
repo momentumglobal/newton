@@ -192,11 +192,14 @@ const CONFIG = {
   // NOT the Graph shadow properties Newton reads data through — e.g.
   // 'ProjectID' here is the lookup column itself, distinct from
   // 'ProjectIDLookupId' in CONFIG.LIST_FIELDS.
+  // Placements deliberately excluded: it has no ProjectID column of its
+  // own (only RoleIDLookupId). Project-scoping a Placements query in
+  // N-093 will have to join through Roles rather than filter a single
+  // indexed column — revisit this list once that filter is designed.
   INDEX_TARGETS: [
     { list: 'Roles',           column: 'ProjectID' },
     { list: 'Roles',           column: 'Stage' },
     { list: 'WeeklyActivity',  column: 'WeekEndingDate' },
-    { list: 'Placements',      column: 'ProjectID' },
   ],
 
   // Maps hire location (country) to ISO currency code.

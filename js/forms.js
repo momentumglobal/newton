@@ -438,12 +438,12 @@ async function renderWeeklyActivityForm(existingData = null) {
           <div class="form-group">
             <label>Year</label>
             <input type="number" name="Year" id="weekly-year" min="2020" max="2099"
-              value="${defaultYear}">
+              value="${defaultYear}" readonly>
           </div>
           <div class="form-group">
             <label>Week Number</label>
             <input type="number" name="WeekNumber" id="weekly-weeknum" min="1" max="53"
-              value="${defaultWeek}">
+              value="${defaultWeek}" readonly>
           </div>
         </div>
         <div class="form-section-title">Activity Counts</div>
@@ -524,8 +524,8 @@ async function submitWeeklyForm(event, editId = null) {
     ProjectIDLookupId: parseInt(data.ProjectID),
     RoleIDLookupId:    parseInt(data.RoleID),
     TalentPartner:     data.TalentPartnerName || undefined,
-    Yeare:             parseInt(data.Year),
-    WeekNumber:        parseInt(data.WeekNumber),
+    Yeare:             new Date(data.WeekEndingDate).getFullYear(),
+    WeekNumber:        getISOWeek(data.WeekEndingDate),
     WeekEndingDate:    isoDate(data.WeekEndingDate),
     Outreach:          parseInt(data.Outreach) || 0,
     Responses:         parseInt(data.Responses) || 0,

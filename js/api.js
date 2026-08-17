@@ -134,6 +134,9 @@ async function graphRequest(method, path, body = null) {
 function listPath(listName) {
   return `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items`;
 }
+function listColumnsPath(listName) {
+  return `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/columns`;
+}
  
 // ── Read ─────────────────────────────────────────────────────────────
 // `select`, if passed, is a comma-separated string of internal SharePoint
@@ -177,6 +180,35 @@ async function getItems(listName, filter = "", select = null) {
 async function getItem(listName, itemId) {
   const data = await graphRequest("GET", `${listPath(listName)}/${itemId}?$expand=fields($select=*)`);
   return { id: data.id, ...normaliseFields(listName, data.fields) };
+}
+
+// ── Data Health (F-10 / N-092) ──────────────────────────────────────
+// Row count only — id-only $select, same nextLink pagination as getItems.
+// Deliberately NOT $count/ConsistencyLevel:eventual: that combination is
+// inconsistently supported on SharePoint-backed list items in Graph v1.0.
+async function getListItemCount(listName) {
+  const items = await getItems(listName, "", "Id");
+  return items.length;
+}
+
+// Raw columnDefinition[] for a list — includes system columns; callers filter.
+async function getListColumns(listName) {
+  const data = await graphRequest("GET", listColumnsPath(listName));
+  return data.value || [];
+}
+
+// { name, id, indexed }[] for just the requested internal column names.
+async function getColumnIndexStatus(listName, columnNames) {
+  const columns = await getListColumns(listName);
+  return columns
+    .filter(c => columnNames.includes(c.name))
+    .map(c => ({ name: c.name, id: c.id, indexed: !!c.indexed }));
+}
+
+// Schema mutation, not a data write — no _cacheInvalidate (doesn't touch
+// item cache). Caller must confirm with the user before calling this.
+async function setColumnIndexed(listName, columnId) {
+  return graphRequest("PATCH", `${listColumnsPath(listName)}/${columnId}`, { indexed: true });
 }
  
 // ── Write ─────────────────────────────────────────────────────────────

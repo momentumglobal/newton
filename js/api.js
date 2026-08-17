@@ -198,10 +198,14 @@ async function getListItemCount(listName) {
 // non-zero count here means that filter is already silently dropping rows.
 // id-only $select, same discipline as getListItemCount.
 async function getWeeklyActivityNullProjectCount() {
-  const items = await getItems("WeeklyActivity", "fields/ProjectID eq null", "Id");
-  return items.length;
+  try {
+    const items = await getItems("WeeklyActivity", "fields/ProjectID eq null", "Id");
+    return { ok: true, count: items.length };
+  } catch (e) {
+    console.error("WeeklyActivity null-ProjectID probe rejected:", e);
+    return { ok: false, count: null };
+  }
 }
-
 // Raw columnDefinition[] for a list — includes system columns; callers filter.
 async function getListColumns(listName) {
   const data = await graphRequest("GET", listColumnsPath(listName));

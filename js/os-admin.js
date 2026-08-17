@@ -471,6 +471,8 @@ async function buildDataHealthTab() {
     </tr>`;
   }).join('');
 
+  const nullProjectCount = await getWeeklyActivityNullProjectCount().catch(() => null);
+
   const targetLists = [...new Set(CONFIG.INDEX_TARGETS.map(t => t.list))];
   const statusByList = {};
   await Promise.all(targetLists.map(async l => {
@@ -504,10 +506,28 @@ async function buildDataHealthTab() {
       <thead><tr><th>List</th><th>Row count</th><th></th></tr></thead>
       <tbody>${countRows || '<tr><td colspan=3>No lists configured.</td></tr>'}</tbody>
     </table>
+    <h3>Data Integrity</h3>
+    <p style="font-size:13px;color:var(--text-label);margin-bottom:16px">
+      WeeklyActivity.ProjectID is written by the activity form but read by no
+      page — every view maps activity to its project through the role instead.
+      The Project Dashboard nonetheless filters on it server-side, so any row
+      missing a value is being dropped from that view silently. This must read
+      zero.
+    </p>
+    <table class="data-table" style="margin:0 0 32px">
+      <thead><tr><th>Check</th><th>Rows</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td>WeeklyActivity rows missing ProjectID</td>
+          <td>${nullProjectCount === null ? '<span style="color:var(--text-faint)">—</span>' : nullProjectCount.toLocaleString('en-GB')}</td>
+          <td>${nullProjectCount ? '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--status-warn-bg-soft);color:var(--status-warn-strong);font-weight:600">Amber</span>' : ''}</td>
+        </tr>
+      </tbody>
+    </table>
     <h3>Index Status</h3>
     <p style="font-size:13px;color:var(--text-label);margin-bottom:16px">
-      Columns Newton is about to filter on server-side (N-093). Indexing is a
-      one-time SharePoint schema change — confirm before applying.
+      Columns Newton filters on server-side (N-093). Indexing is a one-time
+      SharePoint schema change — confirm before applying.
     </p>
     <table class="data-table" style="margin:0">
       <thead><tr><th>List</th><th>Column</th><th>Status</th><th></th></tr></thead>

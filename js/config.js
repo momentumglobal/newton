@@ -180,6 +180,25 @@ const CONFIG = {
     ],
   },
 
+  // ── SharePoint list-view threshold guard (F-10 / N-092) ────────────
+  // Row-count warning threshold shown on Admin > Data Health. This is the
+  // amber warning line, not the SharePoint hard limit — the hard limit
+  // (5,000 rows scanned by a filtered/sorted query on an unindexed column)
+  // is fixed by SharePoint itself and is not configurable.
+  LIST_ROW_COUNT_WARNING_THRESHOLD: 4000,
+
+  // Columns to index before N-093 (F-2) pushes filtering server-side.
+  // These are the base SharePoint columns (the ones SharePoint indexes),
+  // NOT the Graph shadow properties Newton reads data through — e.g.
+  // 'ProjectID' here is the lookup column itself, distinct from
+  // 'ProjectIDLookupId' in CONFIG.LIST_FIELDS.
+  INDEX_TARGETS: [
+    { list: 'Roles',           column: 'ProjectID' },
+    { list: 'Roles',           column: 'Stage' },
+    { list: 'WeeklyActivity',  column: 'WeekEndingDate' },
+    { list: 'Placements',      column: 'ProjectID' },
+  ],
+
   // Maps hire location (country) to ISO currency code.
   // Used to auto-derive currency when a role is created/edited,
   // and when a placement is recorded against a role.

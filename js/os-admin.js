@@ -466,8 +466,8 @@ async function buildDataHealthTab() {
     return `
     <tr>
       <td>${escHtml(l)}</td>
-      <td>${count === null ? '<span style="color:var(--text-faint)">—</span>' : count.toLocaleString('en-GB')}</td>
-      <td>${warn ? '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--status-warn-bg-soft);color:var(--status-warn-strong);font-weight:600">Amber</span>' : ''}</td>
+      <td>${count === null ? '<span class="dh-muted">—</span>' : count.toLocaleString('en-GB')}</td>
+      <td>${warn ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
     </tr>`;
   }).join('');
 
@@ -487,8 +487,8 @@ async function buildDataHealthTab() {
       <td>${escHtml(t.list)}</td>
       <td>${escHtml(t.column)}</td>
       <td>${indexed
-            ? '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--status-success-bg);color:var(--status-success);font-weight:600">Indexed</span>'
-            : '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--status-warn-bg-soft);color:var(--status-warn-strong);font-weight:600">Not indexed</span>'}</td>
+            ? '<span class="dh-badge dh-badge-success">Indexed</span>'
+            : '<span class="dh-badge dh-badge-warn">Not indexed</span>'}</td>
       <td>${(indexed || !status)
             ? ''
             : `<button class="btn-secondary" onclick="indexColumnNow('${t.list}','${escJsAttr(status.id)}')">Index now</button>`}</td>
@@ -497,17 +497,17 @@ async function buildDataHealthTab() {
 
   return `
     <h3>List Row Counts</h3>
-    <p style="font-size:13px;color:var(--text-label);margin-bottom:16px">
+    <p class="dh-note">
       SharePoint scans the whole list to evaluate a filter on an unindexed
       column, and throws once a result set passes 5,000 rows. Amber below
       flags a list approaching that — index the columns below before it does.
     </p>
-    <table class="data-table" style="margin:0 0 32px">
+    <table class="data-table dh-table">
       <thead><tr><th>List</th><th>Row count</th><th></th></tr></thead>
       <tbody>${countRows || '<tr><td colspan=3>No lists configured.</td></tr>'}</tbody>
     </table>
     <h3>Data Integrity</h3>
-    <p style="font-size:13px;color:var(--text-label);margin-bottom:16px">
+    <p class="dh-note">
       WeeklyActivity.ProjectID is written by the activity form but read by no
       page — every view maps activity to its project through the role instead.
       The Project Dashboard nonetheless filters on it server-side, so any row
@@ -515,22 +515,22 @@ async function buildDataHealthTab() {
       zero. A "Query error" badge means the check itself failed — unknown,
       not zero — see the browser console for the underlying error.
     </p>
-    <table class="data-table" style="margin:0 0 32px">
+    <table class="data-table dh-table">
       <thead><tr><th>Check</th><th>Rows</th><th></th></tr></thead>
       <tbody>
         <tr>
           <td>WeeklyActivity rows missing ProjectID</td>
-          <td>${nullProjectOk ? nullProjectCount.toLocaleString('en-GB') : '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--status-danger-bg-soft);color:var(--status-danger);font-weight:600">Query error</span>'}</td>
-          <td>${nullProjectOk && nullProjectCount ? '<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--status-warn-bg-soft);color:var(--status-warn-strong);font-weight:600">Amber</span>' : ''}</td>
+          <td>${nullProjectOk ? nullProjectCount.toLocaleString('en-GB') : '<span class="dh-badge dh-badge-danger">Query error</span>'}</td>
+          <td>${nullProjectOk && nullProjectCount ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
         </tr>
       </tbody>
     </table>
     <h3>Index Status</h3>
-    <p style="font-size:13px;color:var(--text-label);margin-bottom:16px">
+    <p class="dh-note">
       Columns Newton filters on server-side (N-093). Indexing is a one-time
       SharePoint schema change — confirm before applying.
     </p>
-    <table class="data-table" style="margin:0">
+    <table class="data-table dh-table-tight">
       <thead><tr><th>List</th><th>Column</th><th>Status</th><th></th></tr></thead>
       <tbody>${indexRows || '<tr><td colspan=4>No index targets configured.</td></tr>'}</tbody>
     </table>

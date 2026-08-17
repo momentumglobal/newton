@@ -29,6 +29,7 @@ const tooltips = {
     </div>
     <div style="padding:24px">${content}</div>
   `;
+  lucide.createIcons();
 }
 // ── Assignments Tab ──────────────────────────────────────────────────
 async function buildAssignmentsTab(editId = null) {
@@ -139,7 +140,7 @@ const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.
     <h3>Current Assignments</h3>
     <table class="data-table" style="margin:0 0 24px">
       <thead><tr><th>Name</th><th>Email</th><th>Customer</th><th>Role</th><th>Last Login</th><th></th></tr></thead>
-      <tbody>${rows || '<tr><td colspan=5>No assignments yet.</td></tr>'}</tbody>
+      <tbody>${rows || emptyStateRow({ colspan: 6, icon: 'users', message: 'No assignments yet.' })}</tbody>
     </table>
     ${editForm}
   `;
@@ -211,7 +212,7 @@ async function buildLeadershipTab() {
     </p>
     <table class="data-table" style="margin:0 0 24px">
       <thead><tr><th>Photo</th><th>Name</th><th>Email</th><th></th></tr></thead>
-      <tbody>${rows || '<tr><td colspan=4>No leadership users yet.</td></tr>'}</tbody>
+      <tbody>${rows || emptyStateRow({ colspan: 4, icon: 'shield', message: 'No leadership users yet.' })}</tbody>
     </table>
     <h3>Add User</h3>
     <div class="form-container" style="padding:0;max-width:500px">
@@ -504,7 +505,7 @@ async function buildDataHealthTab() {
     </p>
     <table class="data-table dh-table">
       <thead><tr><th>List</th><th>Row count</th><th></th></tr></thead>
-      <tbody>${countRows || '<tr><td colspan=3>No lists configured.</td></tr>'}</tbody>
+      <tbody>${countRows || emptyStateRow({ colspan: 3, icon: 'database', message: 'No lists configured.' })}</tbody>
     </table>
     <h3>Data Integrity</h3>
     <p class="dh-note">
@@ -532,7 +533,7 @@ async function buildDataHealthTab() {
     </p>
     <table class="data-table dh-table-tight">
       <thead><tr><th>List</th><th>Column</th><th>Status</th><th></th></tr></thead>
-      <tbody>${indexRows || '<tr><td colspan=4>No index targets configured.</td></tr>'}</tbody>
+      <tbody>${indexRows || emptyStateRow({ colspan: 4, icon: 'database', message: 'No index targets configured.' })}</tbody>
     </table>
   `;
 }

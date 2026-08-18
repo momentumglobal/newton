@@ -21,11 +21,20 @@ function handleDeepLink() {
   const page = pageKey.trim();
   if (!page || !canAccess(page, _resolvedRole)) return false;
   navigateTo(page);
-  if (new URLSearchParams(queryStr || '').get('action') === 'add') {
+  const params = new URLSearchParams(queryStr || '');
+  const action = params.get('action');
+  if (action === 'add') {
     setTimeout(() => {
       if      (page === 'activity')   showAddActivityForm();
       else if (page === 'placements') showAddPlacementForm();
       else if (page === 'rejections') showAddRejectionForm();
+    }, 50);
+  } else if (action === 'edit') {
+    // N-145 — Command Bar entity-search deep link.
+    const id = Number(params.get('id'));
+    setTimeout(() => {
+      if      (page === 'roles')    showEditRoleForm(id);
+      else if (page === 'projects') showEditProjectForm(id);
     }, 50);
   }
   history.replaceState(null, '', window.location.pathname);

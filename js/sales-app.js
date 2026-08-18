@@ -1,5 +1,16 @@
 // js/sales-app.js — Sales module initialisation
 
+// Hash format: #<pageKey> — set by the Command Bar (N-144) when jumping
+// here from another module. Mirrors js/app.js's handleDeepLink(), minus
+// the ?action=add extension (reporting-specific, not needed here).
+function handleSalesDeepLink() {
+  const page = window.location.hash.slice(1).trim();
+  if (!page || !salesCanAccess(page, _salesResolvedRole)) return false;
+  navigateToSales(page);
+  history.replaceState(null, '', window.location.pathname);
+  return true;
+}
+
 window.SALES_APP = {
   async init() {
     if (!isSignedIn()) {
@@ -25,7 +36,8 @@ window.SALES_APP = {
     document.getElementById('login-screen').style.display = 'none';
 
     renderSalesNav(_salesResolvedRole);
-    navigateToSales(_salesResolvedRole === 'delivery_manager' ? 'lciModels' : 'revenueTracking');
+    initCommandBar({ currentModule: 'sales', role: _salesResolvedRole, navigateFn: 'navigateToSales' });
+    if (!handleSalesDeepLink()) navigateToSales(_salesResolvedRole === 'delivery_manager' ? 'lciModels' : 'revenueTracking');
   },
 
   showLogin() {

@@ -304,7 +304,10 @@ async function engRenderTrends() {
 // ── Actions ──────────────────────────────────────────────────────────
 
 async function engCloseRun(runId) {
-  if (!confirm('Close this survey run? No further responses will be accepted.')) return;
+  if (!(await confirmModal({
+    message: 'Close this survey run? No further responses will be accepted.',
+    confirmLabel: 'Close run',
+  }))) return;
   await updateSurveyRun(runId, { Status: 'Closed' });
   await renderEngagementPage();
 }

@@ -333,6 +333,6 @@ async function deleteForecastRecord(id) {
     await deleteSalesForecast(id);
     await renderSalesForecastPage();
   } catch (e) {
-    alert('Error deleting forecast: ' + e.message);
+    toast('Error deleting forecast: ' + e.message, { type: 'error' });
   }
 }

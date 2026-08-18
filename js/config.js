@@ -383,11 +383,47 @@ const CONFIG = {
 
   // Quick Links — declarative config for the homepage drawer.
   // To add a new link: add one entry here only. No other files need changing.
-  QUICK_LINKS: [
+    QUICK_LINKS: [
     { label: 'Roles',              icon: 'briefcase',  href: 'reporting.html#roles',                roles: ['admin', 'delivery_manager', 'talent_partner'] },
     { label: '+ Log Activity',     icon: 'activity',   href: 'reporting.html#activity?action=add',  roles: ['admin', 'delivery_manager', 'talent_partner'] },
     { label: '+ Record Placement', icon: 'user-check', href: 'reporting.html#placements?action=add',roles: ['admin', 'delivery_manager', 'talent_partner'] },
     { label: 'Log Rejection',      icon: 'user-x',     href: 'reporting.html#rejections?action=add',roles: ['admin', 'delivery_manager', 'talent_partner'] },
+  ],
+  // Command Bar directory (N-144) — single source of truth for the ⌘K /
+  // Ctrl+K overlay's cross-module page list (js/command-bar.js).
+  // Deliberately duplicates label/roles already declared per-module in
+  // router.js / people-router.js / sales-router.js / cc-router.js — same
+  // shape of duplication QUICK_LINKS above already carries, for the same
+  // reason (a different consumer needs the same data without loading
+  // every module's own script). If a page is added/removed/renamed in
+  // one of those four files, mirror the change here too.
+  COMMAND_BAR_PAGES: [
+    // router.js — Reporting (10)
+    { key: 'companyDashboard', label: 'Company Dashboard', module: 'reporting', href: 'reporting.html#companyDashboard', roles: ['admin', 'leadership'] },
+    { key: 'projectDashboard', label: 'Project Dashboard',  module: 'reporting', href: 'reporting.html#projectDashboard',  roles: ['admin', 'delivery_manager', 'talent_partner'] },
+    { key: 'reportBuilder',    label: 'Report Builder',     module: 'reporting', href: 'reporting.html#reportBuilder',     roles: ['admin', 'delivery_manager', 'talent_partner'] },
+    { key: 'projects',         label: 'Projects',           module: 'reporting', href: 'reporting.html#projects',          roles: ['admin', 'delivery_manager', 'talent_partner'] },
+    { key: 'roles',            label: 'Roles',              module: 'reporting', href: 'reporting.html#roles',             roles: ['admin', 'delivery_manager', 'talent_partner'] },
+    { key: 'activity',         label: 'Weekly Activity',    module: 'reporting', href: 'reporting.html#activity',          roles: ['admin', 'delivery_manager', 'talent_partner'] },
+    { key: 'placements',       label: 'Placements',         module: 'reporting', href: 'reporting.html#placements',        roles: ['admin', 'delivery_manager', 'talent_partner'] },
+    { key: 'rejections',       label: 'Rejected Offers',    module: 'reporting', href: 'reporting.html#rejections',        roles: ['admin', 'delivery_manager', 'talent_partner'] },
+    { key: 'hiringPlan',       label: 'Hiring Plan',        module: 'reporting', href: 'reporting.html#hiringPlan',        roles: ['admin', 'delivery_manager', 'talent_partner', 'leadership'] },
+    { key: 'adminPanel',       label: 'Config Panel',       module: 'reporting', href: 'reporting.html#adminPanel',        roles: ['admin'] },
+    // people-router.js — People (7)
+    { key: 'peopleDashboard', label: 'People Dashboard',    module: 'people', href: 'people.html#peopleDashboard', roles: ['admin', 'leadership'] },
+    { key: 'orgChart',        label: 'Org Chart',           module: 'people', href: 'people.html#orgChart',        roles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'] },
+    { key: 'peopleGantt',     label: 'Deployment Timeline', module: 'people', href: 'people.html#peopleGantt',     roles: ['admin', 'leadership'] },
+    { key: 'peopleTracker',   label: 'Employee Tracker',    module: 'people', href: 'people.html#peopleTracker',   roles: ['admin', 'leadership'] },
+    { key: 'gpInvoices',      label: 'Supplier Invoices',   module: 'people', href: 'people.html#gpInvoices',      roles: ['admin', 'leadership'] },
+    { key: 'scorecards',      label: 'People Scorecards',   module: 'people', href: 'people.html#scorecards',      roles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'] },
+    { key: 'engagement',      label: 'Engagement',          module: 'people', href: 'people.html#engagement',      roles: ['admin', 'leadership'] },
+    // sales-router.js — Sales (4)
+    { key: 'revenueTracking', label: 'Revenue Tracking', module: 'sales', href: 'sales.html#revenueTracking', roles: ['admin', 'leadership'] },
+    { key: 'salesForecast',   label: 'Sales Forecast',   module: 'sales', href: 'sales.html#salesForecast',   roles: ['admin', 'leadership'] },
+    { key: 'lciModels',       label: 'LCI Cost Models',  module: 'sales', href: 'sales.html#lciModels',       roles: ['admin', 'leadership', 'delivery_manager'] },
+    { key: 'lciLeadMagnet',   label: 'LCI Lead Magnet',  module: 'sales', href: 'sales.html#lciLeadMagnet',   roles: ['admin', 'leadership'] },
+    // cc-router.js — Command Centre (1)
+    { key: 'overview', label: 'Overview', module: 'command', href: 'command-centre.html', roles: ['admin', 'leadership'] },
   ],
   // ── Employee Engagement ───────────────────────────────────────────────
   // Single source of truth for all survey constants.

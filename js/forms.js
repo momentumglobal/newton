@@ -546,7 +546,10 @@ async function submitWeeklyForm(event, editId = null) {
     }
     // Hire logged → offer to record a placement, prefilled with this role/project
     if (fields.Hires > 0 &&
-        confirm('You logged a hire. Would you like to record a placement now?')) {
+        await confirmModal({
+          message: 'You logged a hire. Would you like to record a placement now?',
+          confirmLabel: 'Record placement', cancelLabel: 'Not now',
+        })) {
       document.getElementById('main-content').innerHTML =
         await renderPlacementForm(null, fields.RoleIDLookupId, fields.ProjectIDLookupId);
       return;

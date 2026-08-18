@@ -197,6 +197,18 @@ const CONFIG = {
   // is fixed by SharePoint itself and is not configurable.
   LIST_ROW_COUNT_WARNING_THRESHOLD: 4000,
 
+  // N-154 (F-10b). Data Health watches EVERY list registered in
+  // FIELD_ALIASES. This is the opt-OUT, and it ships empty on purpose.
+  //
+  // Before N-154 the watched set was Object.keys(CONFIG.LIST_FIELDS) — a map
+  // that exists for field projection, not monitoring — so a list was watched
+  // only as a side effect of someone having optimised its payload, and 15 of
+  // 29 lists were invisible to the threshold guard. Any opt-IN registry
+  // recreates that: the next list gets added to FIELD_ALIASES and forgotten
+  // here. Add a name below only with a comment saying why it does not need
+  // watching, and expect it to be named on the Data Health tab.
+  DATA_HEALTH_EXCLUDED_LISTS: [],
+
   // Columns indexed so N-093 (F-2) can push filtering server-side.
   // These are the base SharePoint columns (the ones SharePoint indexes),
   // NOT the Graph shadow properties Newton reads data through — e.g.

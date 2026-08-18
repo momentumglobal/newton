@@ -186,9 +186,27 @@ async function getItem(listName, itemId) {
 // Row count only — id-only $select, same nextLink pagination as getItems.
 // Deliberately NOT $count/ConsistencyLevel:eventual: that combination is
 // inconsistently supported on SharePoint-backed list items in Graph v1.0.
+// N-154: the caller renders a failure as an em-dash, which at a glance reads
+// like a small number rather than "this did not run". With 29 lists watched
+// instead of 14, a list name that no longer exists would hide there
+// indefinitely — so failures are logged by name here.
 async function getListItemCount(listName) {
   const items = await getItems(listName, "", "Id");
   return items.length;
+}
+
+// N-154 (F-10b): every list Newton knows about, minus deliberate exclusions.
+// FIELD_ALIASES is the canonical registry — registering a list there is
+// already mandatory — so deriving from it means a new list is monitored the
+// day it is added, with no second place to forget.
+//
+// The derived array leaves api.js; FIELD_ALIASES itself deliberately does
+// NOT. Exporting the raw map would make the registry editable from outside
+// the one file that owns it. The EXCLUSIONS are config and live in
+// config.js; the registry is not config and lives here.
+function getMonitoredLists() {
+  const excluded = new Set(CONFIG.DATA_HEALTH_EXCLUDED_LISTS || []);
+  return Object.keys(FIELD_ALIASES).filter(l => !excluded.has(l)).sort();
 }
 
 // N-093 (F-2a): how many WeeklyActivity rows have no ProjectID. The column is

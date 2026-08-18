@@ -127,6 +127,14 @@ const CONFIG = {
       'Currency', 'OfferAcceptedDate', 'ProvisionalStartDate', 'TimeToHire',
       'Notes', 'Yeare',
     ],
+    // N-094 (F-2b): this list had no entry at all, so it stayed on
+    // fields($select=*). These five are the complete read set across js/ —
+    // 'Yeare' is deliberately absent: FIELD_ALIASES registers it, but no
+    // writer sets it and no reader uses it. An UNKNOWN field returns 400 for
+    // every fetch, so it stays out until the live list is checked.
+    RejectedOffers: [
+      'Title', 'RoleIDLookupId', 'SalaryOffered', 'RejectionReason', 'Notes',
+    ],
     // ── N-053 (F-1c) ──────────────────────────────────────────────────
     Projects: [
       'Title', 'DeliveryManager', 'Status', 'ProjectType', 'StartDate',
@@ -202,6 +210,12 @@ const CONFIG = {
     { list: 'Roles',           column: 'Stage' },
     { list: 'WeeklyActivity',  column: 'WeekEndingDate' },
     { list: 'Placements',      column: 'OfferAcceptedDate' },
+    // N-094 (F-2b): the Project Dashboard scopes Placements and
+    // RejectedOffers by the project's role-id set, because neither list has
+    // a ProjectID column. That is an OR chain on a lookup column — index it
+    // or it becomes the exact shape SharePoint degrades on.
+    { list: 'Placements',      column: 'RoleID' },
+    { list: 'RejectedOffers',  column: 'RoleID' },
   ],
 
   // N-093 (F-2a). Above this many assigned projects, getRolesForUser stops
@@ -209,6 +223,13 @@ const CONFIG = {
   // unfiltered fetch — past this point the request storm costs more than the
   // payload it saves.
   SCOPE_FANOUT_MAX: 25,
+
+  // N-094 (F-2b). Ceiling on the role-id OR chain built by _odataIn(). Above
+  // this many roles on one project, the query drops the clause and the
+  // caller falls back to an unfiltered fetch plus its existing client-side
+  // filter — past this point the URL length and the OR-chain scan cost more
+  // than the payload they save.
+  ROLE_ID_FILTER_MAX: 40,
 
   // N-093 (F-2a). Options for the Weekly Activity period selector, in weeks.
   // 0 means "All time" and must produce NO date clause at all.

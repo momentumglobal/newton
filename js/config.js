@@ -128,12 +128,14 @@ const CONFIG = {
       'Notes', 'Yeare',
     ],
     // N-094 (F-2b): this list had no entry at all, so it stayed on
-    // fields($select=*). These five are the complete read set across js/ —
+    // fields($select=*). These are the complete read set across js/ —
     // 'Yeare' is deliberately absent: FIELD_ALIASES registers it, but no
     // writer sets it and no reader uses it. An UNKNOWN field returns 400 for
     // every fetch, so it stays out until the live list is checked.
+    // N-153: 'RejectionDate' added — the list's first temporal column.
     RejectedOffers: [
       'Title', 'RoleIDLookupId', 'SalaryOffered', 'RejectionReason', 'Notes',
+      'RejectionDate',
     ],
     // ── N-053 (F-1c) ──────────────────────────────────────────────────
     Projects: [
@@ -216,6 +218,8 @@ const CONFIG = {
     // or it becomes the exact shape SharePoint degrades on.
     { list: 'Placements',      column: 'RoleID' },
     { list: 'RejectedOffers',  column: 'RoleID' },
+    // N-153: the list's first date column, so N-152 can window on it.
+    { list: 'RejectedOffers',  column: 'RejectionDate' },
   ],
 
   // N-093 (F-2a). Above this many assigned projects, getRolesForUser stops

@@ -437,10 +437,14 @@ const CONFIG = {
   // COMMAND_BAR_PAGES entry via pageKey at runtime, so there is exactly
   // one place role/module data lives per page (see command-bar.js for
   // why it can't call canAccess()/peopleCanAccess() directly instead).
-  COMMAND_BAR_ENTITY_TYPES: [
-    { type: 'role',    label: 'Role',    pageKey: 'roles',        openerFn: 'showEditRoleForm',    titleField: 'RoleTitle' },
-    { type: 'project', label: 'Project', pageKey: 'projects',      openerFn: 'showEditProjectForm', titleField: 'CustomerName' },
-    { type: 'person',  label: 'Person',  pageKey: 'peopleTracker', openerFn: 'showEditPersonForm',  titleField: 'EmployeeName' },
+    COMMAND_BAR_ENTITY_TYPES: [
+    { type: 'role',    label: 'Role',    pageKey: 'roles',           activationKind: 'edit',   openerFn: 'showEditRoleForm',     titleField: 'RoleTitle' },
+    // N-145 addendum (18 Aug 2026) — Project no longer opens an edit form.
+    // It navigates to Project Dashboard with the filter pre-set via
+    // setterFn (see js/dashboard-project.js) BEFORE navigating, not an
+    // opener called after — see command-bar.js's activate() for why.
+    { type: 'project', label: 'Project', pageKey: 'projectDashboard', activationKind: 'filter', setterFn: 'setDashProjectFilter', titleField: 'CustomerName' },
+    { type: 'person',  label: 'Person',  pageKey: 'peopleTracker',   activationKind: 'edit',   openerFn: 'showEditPersonForm',   titleField: 'EmployeeName' },
   ],
   // Max entity results shown per type, and the minimum characters typed
   // before entity results appear at all (an empty/1-char query would

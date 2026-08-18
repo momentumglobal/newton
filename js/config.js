@@ -240,6 +240,11 @@ const CONFIG = {
   DATE_WINDOW_WEEKS: [13, 26, 52, 0],
   DATE_WINDOW_DEFAULT_WEEKS: 26,
 
+  // N-151 (T-8a). Placements gets its OWN default, not Activity's 26: it is a
+  // far lower-volume list and the page showed everything until now, so a year
+  // is the least surprising bound. Must be one of DATE_WINDOW_WEEKS.
+  PLACEMENTS_DEFAULT_WEEKS: 52,
+
   // Maps hire location (country) to ISO currency code.
   // Used to auto-derive currency when a role is created/edited,
   // and when a placement is recorded against a role.

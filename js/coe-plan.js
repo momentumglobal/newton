@@ -434,7 +434,7 @@ async function coeDeletePlan() {
     await renderHiringPlanPage(projectId);
   } catch (e) {
     clearButtonLoading(btn);
-    alert(`Error deleting plan: ${e.message}`);
+    toast(`Error deleting plan: ${e.message}`, { type: 'error' });
   }
 }
 

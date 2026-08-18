@@ -250,12 +250,24 @@ const CONFIG = {
   // N-093 (F-2a). Options for the Weekly Activity period selector, in weeks.
   // 0 means "All time" and must produce NO date clause at all.
   DATE_WINDOW_WEEKS: [13, 26, 52, 0],
-  DATE_WINDOW_DEFAULT_WEEKS: 26,
+  // N-158: a server-side `ge` bound cannot match a null WeekEndingDate, so
+  // any non-zero default here SILENTLY DROPS every WeeklyActivity row with
+  // no WeekEndingDate from the Activity list page — the four
+  // weekEndingDate(Year, WeekNumber) fallback call sites (dashboard-core.js,
+  // dashboard-company.js, dashboard-project-panels.js x2) exist because such
+  // rows are expected. Measured 18 Aug 2026: WeeklyActivity 184 rows total —
+  // nowhere near the volume a bound exists to protect against. Revisit once
+  // WeeklyActivity passes ~1,500 rows, and only after the null case is
+  // handled (see the Data Health "missing WeekEndingDate" probe in api.js).
+  DATE_WINDOW_DEFAULT_WEEKS: 0,
 
-    // N-151 (T-8a). Placements gets its OWN default, not Activity's 26: it is a
-  // far lower-volume list and the page showed everything until now, so a year
-  // is the least surprising bound. Must be one of DATE_WINDOW_WEEKS.
-  PLACEMENTS_DEFAULT_WEEKS: 52,
+  // N-151 (T-8a). Placements gets its OWN default, not Activity's: it is a
+  // far lower-volume list. Must be one of DATE_WINDOW_WEEKS.
+  // N-158: same null-drop rule as DATE_WINDOW_DEFAULT_WEEKS above — a bound
+  // here cannot match a null OfferAcceptedDate. Measured 18 Aug 2026:
+  // Placements 18 rows total, so a year-long default was hiding rows for no
+  // payload gain. Set to All time; revisit alongside DATE_WINDOW_DEFAULT_WEEKS.
+  PLACEMENTS_DEFAULT_WEEKS: 0,
 
   // N-152 (T-8b). Rejected Offers defaults to 0 = All time, and this must NOT
   // be changed to a bounded value without first solving the null problem:

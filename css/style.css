@@ -188,6 +188,17 @@
   --r-3xl: 14px;
   --r-pill: 20px;
   --r-round: 50%;
+  /* Z-index scale (N-159) — single source of truth for stacking order.
+     --z-base/--z-sticky/--z-dropdown are reserved for a future migration
+     of .rb-modal, .notif-overlay, .ql-overlay and the sticky table
+     headers — nothing is rewired onto them yet. */
+  --z-base: 0;
+  --z-sticky: 50;
+  --z-dropdown: 100;
+  --z-modal: 1000;
+  --z-confirm: 1100;
+  --z-banner: 9999;
+  --z-toast: 10000;
   /* Type scale */
   --fs-10: 10px;
   --fs-11: 11px;
@@ -1361,7 +1372,7 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 9999;
+  z-index: var(--z-banner);
   background: var(--status-warn-text);
   color: var(--text-on-brand);
   font-size: var(--fs-13);
@@ -2058,7 +2069,7 @@ body {
 .eng-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.45);
   display: flex; align-items: center; justify-content: center;
-  z-index: 1000; padding: var(--sp-8);
+  z-index: var(--z-modal); padding: var(--sp-8);
 }
 .eng-modal {
   background: var(--surface-raised); border-radius: var(--r-2xl);
@@ -2284,13 +2295,13 @@ body {
 
 /* ── Toast + confirm modal (N-104 / X-3a) — engine only, no call sites
    migrated yet (N-105/106/107). Don't touch .eng-modal-*/.payroll-modal-*/
-   .lci-modal-* — this is a separate, shared component. ── */
+   .lci-modal-* — this is a separate, shared component. Both this and the
+   modal overlays now share the --z-* scale defined in :root (N-159). ── */
 .toast-container {
   position: fixed;
   right: var(--sp-9);
   bottom: var(--sp-9);
-  z-index: 10000; /* above the 1000-tier modals and the 9999 one-off at
-                      style.css:1364 — no --z-* token scale exists yet */
+  z-index: var(--z-toast); /* --z-* scale defined in :root (N-159) */
   display: flex;
   flex-direction: column-reverse;
   gap: var(--sp-4);
@@ -2333,7 +2344,7 @@ body {
 .confirm-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.45);
   display: flex; align-items: center; justify-content: center;
-  z-index: 1000; padding: var(--sp-8);
+  z-index: var(--z-confirm); padding: var(--sp-8);
 }
 .confirm-modal {
   background: var(--surface-raised);
@@ -2705,7 +2716,7 @@ body {
 
 .lci-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-  z-index: 1000; display: flex; align-items: center; justify-content: center;
+  z-index: var(--z-modal); display: flex; align-items: center; justify-content: center;
 }
 .lci-modal-card {
   background: var(--surface); border-radius: var(--r-lg); padding: 28px;

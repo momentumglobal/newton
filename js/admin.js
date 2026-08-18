@@ -260,7 +260,7 @@ function cancelDelete() {
 }
 
 async function deleteAdminRecord(listName, id) {
-  if (!confirm('Remove this record?')) return;
+  if (!(await confirmModal({ message: 'Remove this record?', confirmLabel: 'Remove', danger: true }))) return;
   await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items/${id}`);
   await renderAdminTab(_adminTab);
 }

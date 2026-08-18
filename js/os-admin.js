@@ -259,7 +259,7 @@ async function submitLeadershipUser() {
 async function uploadLeadershipPhoto(id) {
   const input = document.getElementById('lead-photofile-' + id);
   const file = input?.files?.[0];
-  if (!file) { alert('Choose an image first.'); return; }
+  if (!file) { toast('Choose an image first.', { type: 'error' }); return; }
   const btn = input.nextElementSibling;
   setButtonLoading(btn);
   try {
@@ -268,7 +268,7 @@ async function uploadLeadershipPhoto(id) {
     await renderOsAdminPage('leadership');
   } catch (e) {
     clearButtonLoading(btn);
-    alert('Error uploading photo: ' + e.message);
+    toast('Error uploading photo: ' + e.message, { type: 'error' });
   }
 }
 async function deleteOsAdminRecord(listName, id) {
@@ -444,7 +444,7 @@ function activateGhost() {
   if (GHOST_PROJECT_ROLES.includes(role)) {
     const projectId = document.getElementById('ghost-project-select')?.value;
     if (!projectId) {
-      alert('Please select a project before activating ghost mode.');
+      toast('Please select a project before activating ghost mode.', { type: 'error' });
       return;
     }
     setGhostProject(projectId);
@@ -568,6 +568,6 @@ async function indexColumnNow(listName, columnId) {
     await renderOsAdminPage('datahealth');
   } catch (e) {
     clearButtonLoading(btn);
-    alert('Error indexing column: ' + e.message);
+    toast('Error indexing column: ' + e.message, { type: 'error' });
   }
 }

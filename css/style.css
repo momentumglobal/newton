@@ -908,6 +908,8 @@ body {
 }
 .table-toolbar .project-filter-bar { padding: 0; }
 .table-toolbar .project-filter-select { margin: 0; }
+/* ── List controls bar (N-152 / T-8b) ────────────────────────────────── */
+.list-controls-bar { display: flex; gap: var(--sp-7); align-items: flex-end; }
 /* ── List result count (N-151 / T-8a) ────────────────────────────────── */
 .list-result-count {
   padding: 0 var(--sp-9) var(--sp-6);

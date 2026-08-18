@@ -494,6 +494,31 @@ function localDayISO(date = new Date()) {
 // Local getters, matching localDayISO's reasoning: this answers "what does
 // the user's wall-clock year look like", not "what calendar day does a
 // SharePoint value stand for".
+// N-151: the calendar day `weeks` weeks before today, as 'YYYY-MM-DD', or
+// null for 0 — which must produce NO date clause at all, per
+// CONFIG.DATE_WINDOW_WEEKS. localDayISO, not spDateOut: this is a local
+// wall-clock "N weeks ago", which is exactly what localDayISO answers.
+function weeksAgoDay(weeks, today = new Date()) {
+  const w = Number(weeks);
+  if (!w) return null;
+  const cutoff = new Date(today);
+  cutoff.setDate(cutoff.getDate() - (w * 7));
+  return localDayISO(cutoff);
+}
+
+// N-151: the lower bound for a list query that has BOTH a background date
+// window and an optional explicit period selection. The query must be a
+// superset of whatever either control needs, so an explicit selection WIDENS
+// the window rather than intersecting with it — otherwise picking "Jan" under
+// a 13-week window returns nothing, from two controls that each look correct.
+// A null window means "All time" and always wins; a null selection means the
+// selection imposes no requirement and the window stands.
+function listQueryFromDay(windowDay, selectionDay) {
+  if (!windowDay) return null;
+  if (!selectionDay) return windowDay;
+  return selectionDay < windowDay ? selectionDay : windowDay;
+}
+
 function placementFilterCutoff(filter, today = new Date()) {
   if (!filter || !filter.type) return null;
   const year = filter.type === 'year' ? filter.value : today.getFullYear();

@@ -68,7 +68,15 @@ const FIELD_ALIASES = {
   LCIModelRows:    {},
   LCIMilestones:   {},
   LCIReports:      {},
-  LCILocations:    {},
+    LCILocations:    {},
+  // ── Role history (N-099 / D-3a) ──────────────────────────────
+  // {} is deliberate — every RoleHistory column (Field, OldValue,
+  // NewValue, ChangedBy, ChangedAt) is already the display name Newton
+  // wants. A self-mapping alias (e.g. { Field: 'Field' }) would delete
+  // the field — normaliseFields() deletes the internal key after copying
+  // it to display, so display === internal nets to nothing. Same trap
+  // documented on the CCStatus entry above.
+  RoleHistory: {},
 };
  
 function normaliseFields(listName, fields) {
@@ -270,6 +278,61 @@ async function updateItem(listName, itemId, fields) {
   const result = await graphRequest("PATCH", `${listPath(listName)}/${itemId}`, { fields });
   _cacheInvalidate(listName);
   return result;
+}
+// ── Role history (N-099 / D-3a) ────────────────────────────────────────
+// Drop-in replacement for `updateItem('Roles', roleId, fields)` at the six
+// call sites that mutate an existing Role. Reads the pre-update Role,
+// performs the real update exactly as updateItem always did, then fires
+// the RoleHistory write in the background — never awaited, never allowed
+// to block or fail the caller's save (same non-blocking shape as
+// ensureUserRegistered(...).catch(...) elsewhere in this codebase).
+async function updateRoleWithHistory(roleId, fields) {
+  let oldRole = null;
+  try {
+    oldRole = await getItem('Roles', roleId);
+  } catch (e) {
+    console.warn('RoleHistory: could not read prior Roles state', e);
+  }
+  const result = await updateItem('Roles', roleId, fields);
+  if (oldRole) {
+    _logRoleHistory(oldRole, fields).catch(e =>
+      console.warn('RoleHistory: write failed', e)
+    );
+  }
+  return result;
+}
+// `newFields` uses raw SharePoint internal names for aliased Roles columns
+// (Title, Currency) because it's the same object handed to updateItem().
+// `oldRole` is normalised (RoleTitle, Location) because it came from
+// getItem(). Resolving each written field through FIELD_ALIASES.Roles
+// before comparing is load-bearing: skip it and every save would log a
+// false "Title changed" row, since oldRole.Title is always undefined.
+function _resolveRoleDisplayField(internalField) {
+  const aliases = FIELD_ALIASES.Roles;
+  return (aliases && aliases[internalField]) || internalField;
+}
+async function _logRoleHistory(oldRole, newFields) {
+  const email     = getCurrentUser().email;
+  const changedAt = new Date().toISOString(); // genuine instant — N-091 exempt
+  const rows = Object.keys(newFields)
+    .filter(internalField => newFields[internalField] !== undefined)
+    .map(internalField => {
+      const field    = _resolveRoleDisplayField(internalField);
+      const oldValue = oldRole[field];
+      const newValue = newFields[internalField];
+      return { field, oldValue, newValue };
+    })
+    .filter(({ oldValue, newValue }) => String(oldValue ?? '') !== String(newValue ?? ''));
+  await Promise.all(rows.map(({ field, oldValue, newValue }) =>
+    createItem('RoleHistory', {
+      RoleIDLookupId: parseInt(oldRole.id),
+      Field:          field,
+      OldValue:       oldValue !== undefined && oldValue !== null ? String(oldValue) : '',
+      NewValue:       newValue !== undefined && newValue !== null ? String(newValue) : '',
+      ChangedBy:      email,
+      ChangedAt:      changedAt,
+    })
+  ));
 }
 async function deleteItem(listName, itemId) {
   const result = await graphRequest("DELETE", `${listPath(listName)}/${itemId}`);

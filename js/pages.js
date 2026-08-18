@@ -1,65 +1,7 @@
 // js/pages.js — Page content renderers
-function formatSalary(val) {
-  if (!val) return "—";
-  const num = parseFloat(String(val).replace(/,/g, ""));
-  if (isNaN(num)) return val;
-  return num.toLocaleString("en-GB");
-}
-function daysOpen(openDate, hireDate) {
-  if (!openDate) return null;
-  const start = new Date(openDate);
-  const end = hireDate ? new Date(hireDate) : new Date();
-  return Math.floor((end - start) / (1000 * 60 * 60 * 24));
-}
-// ── Project filter helper ─────────────────────────────────────────────
-async function getProjectFilterOptions() {
-  const role = _resolvedRole;
-  if (role === 'talent_partner') return { projects: [], canFilter: false };
-  const user = getCurrentUser();
-  let projects;
-  if (role === 'admin') {
-    projects = await getProjects(false);
-  } else {
-    const ids = await getUserProjectIds(user.email);
-    const all = await getProjects(false);
-    const idSet = new Set(ids.map(String));
-    projects = all.filter(p => idSet.has(String(p.id)));
-  }
-  projects = sortProjectsByName(projects);
-  return { projects, canFilter: true };
-}
-// N-112: Active (Status Active/Transition) and Archive (Status Completed)
-// render as separate <optgroup>s, each sorted A-Z. "All Projects" stays the
-// ungrouped default option.
-function projectFilterDropdown(projects, selectedId, callbackFn) {
-  const active  = sortProjectsByName(projects.filter(isProjectActive));
-  const archive = sortProjectsByName(projects.filter(p => !isProjectActive(p)));
-  const groups = [
-    active.length  ? `<optgroup label="Active">${buildProjectOptionsHtml(active, selectedId)}</optgroup>`   : '',
-    archive.length ? `<optgroup label="Archive">${buildProjectOptionsHtml(archive, selectedId)}</optgroup>` : '',
-  ].join('');
-  const options = `<option value="" ${!selectedId ? 'selected' : ''}>All Projects</option>${groups}`;
-  return `<div class="project-filter-bar">
-    <div class="form-group project-filter-select">
-      <label>Project</label>
-      <select onchange="${callbackFn}(this.value)">${options}</select>
-    </div>
-  </div>`;
-}
-// N-093: how much history to FETCH, not how much to render — changing this
-// changes the $filter sent to SharePoint. Options come from
-// CONFIG.DATE_WINDOW_WEEKS; 0 renders as "All time" and sends no date clause.
-function periodFilterDropdown(selectedWeeks, callbackFn) {
-  const options = CONFIG.DATE_WINDOW_WEEKS.map(function (w) {
-    const label = w ? 'Last ' + w + ' weeks' : 'All time';
-    const sel   = Number(selectedWeeks) === w ? ' selected' : '';
-    return '<option value="' + w + '"' + sel + '>' + label + '</option>';
-  }).join('');
-  return '<div class="form-group project-filter-select">' +
-    '<label>Period</label>' +
-    '<select onchange="' + callbackFn + '(this.value)">' + options + '</select>' +
-    '</div>';
-}
+// N-151: formatSalary/daysOpen deleted — they were duplicates of the
+// utils.js definitions and silently shadowed them. The project/period
+// dropdowns and getProjectFilterOptions moved to js/list-controls.js.
 // ── Projects ─────────────────────────────────────────────────────────
 let _projectsFilter = "Active";
 async function renderProjectsPage(filter) {
@@ -382,6 +324,7 @@ const PLACEMENT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep",
 const PLACEMENT_YEARS = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - i);
 let _placementFilter    = { type: null, value: null };
 let _placementProjectId = null;
+let _placementWeeks     = CONFIG.PLACEMENTS_DEFAULT_WEEKS;
 function placementInFilter(p, filter) {
   if (!filter.type) return true;
   const dateStr = p.OfferAcceptedDate;
@@ -408,10 +351,12 @@ async function renderPlacementsPage() {
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
   const [allPlacements, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
-    // N-093: the existing month/quarter/year buttons now also narrow the
-    // QUERY, via a deliberately loose lower bound. placementInFilter() below
-    // still applies the exact test, so this can only ever over-fetch.
-    getPlacements(null, { fromDay: placementFilterCutoff(_placementFilter) }),
+    // N-093 / N-151: the query is bounded by the background date window and,
+    // when one is active, by the month/quarter/year selection — whichever is
+    // LOOSER (see listQueryFromDay). placementInFilter() below still applies
+    // the exact test, so this can only ever over-fetch.
+    getPlacements(null, { fromDay: listQueryFromDay(
+      weeksAgoDay(_placementWeeks), placementFilterCutoff(_placementFilter)) }),
     getRolesForUser(user.email),
     getProjectFilterOptions(),
   ]);
@@ -450,6 +395,11 @@ async function renderPlacementsPage() {
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _placementProjectId, 'setPlacementProject')
     : '';
+  const periodDropdown = periodFilterDropdown(_placementWeeks, 'setPlacementWeeks');
+  // N-151: the denominator is scopedPlacements, NOT allPlacements — a talent
+  // partner would otherwise read "Showing 3 of 128" and think 125 rows were
+  // hidden by their filters, when most are hidden by their permissions.
+  const resultCount = listResultCount(placements.length, scopedPlacements.length, _placementWeeks, 'placement');
   const placementFilterLabel = _placementFilter.type === "month" ? PLACEMENT_MONTHS[_placementFilter.value]
     : _placementFilter.type === "quarter" ? `Q${_placementFilter.value}`
     : _placementFilter.type === "year" ? String(_placementFilter.value)
@@ -465,7 +415,10 @@ async function renderPlacementsPage() {
       </div>
     </div>
     <div class="table-toolbar">
+     <div style="display:flex;gap:16px;align-items:flex-end">
       ${projDropdown}
+      ${periodDropdown}
+     </div>
       <div class="placement-filter-rows">
         <div class="placement-filter-row">
           <div class="filter-labeled-group"><span class="filter-label">Month</span><div class="filter-group">${monthBtns}</div></div>
@@ -476,6 +429,7 @@ async function renderPlacementsPage() {
         </div>
       </div>
     </div>
+    ${resultCount}
     <table class="data-table">
       <thead><tr>
         <th>Candidate</th><th>Role</th><th>Salary</th>
@@ -506,6 +460,7 @@ async function renderPlacementsPage() {
   lucide.createIcons();
 }
 function setPlacementProject(val) { _placementProjectId = val || null; renderPlacementsPage(); }
+function setPlacementWeeks(val) { _placementWeeks = Number(val); renderPlacementsPage(); }
 async function showAddPlacementForm() {
   document.getElementById("main-content").innerHTML = await renderPlacementForm();
 }

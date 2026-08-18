@@ -208,7 +208,7 @@ async function saveLCISettings() {
     _lciSyncSaveButtons();
   } catch (e) {
     clearButtonLoading(btn);
-    alert('Error saving settings: ' + e.message);
+    toast('Error saving settings: ' + e.message, { type: 'error' });
   }
 }
 
@@ -566,7 +566,7 @@ async function saveLCIRoadmap() {
   } catch (e) {
     // dirtyRows stays true so the retry writes whatever didn't land; rows
     // already created carry their id, so the retry can't duplicate them.
-    alert('Error saving roadmap: ' + e.message);
+    toast('Error saving roadmap: ' + e.message, { type: 'error' });
   } finally {
     // Must clear on every path — a stuck flag would leave the editor
     // permanently read-only until a page reload.

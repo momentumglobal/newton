@@ -376,7 +376,10 @@ async function mrEditReport(id) {
 }
 
 async function mrDeleteReport(id, btn) {
-  if (!confirm("Delete this report? This cannot be undone.")) return;
+  if (!(await confirmModal({
+    message: "Delete this report? This cannot be undone.",
+    confirmLabel: 'Delete', danger: true,
+  }))) return;
   btn.textContent = "Deleting…";
   btn.disabled = true;
   try {

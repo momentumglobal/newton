@@ -459,8 +459,14 @@ function deactivateGhost() {
 
 // ── Data Health Tab (F-10 / N-092) ───────────────────────────────────
 async function buildDataHealthTab() {
-  const lists = Object.keys(CONFIG.LIST_FIELDS);
-  const counts = await Promise.all(lists.map(l => getListItemCount(l).catch(() => null)));
+  // N-154 (F-10b): every registered list, not just the ones with a
+  // LIST_FIELDS projection entry. See getMonitoredLists().
+  const lists = getMonitoredLists();
+  const counts = await Promise.all(lists.map(l => getListItemCount(l).catch(e => {
+    console.warn('Data Health: row count failed for list "' + l + '"', e);
+    return null;  // one broken list must not take out the whole tab
+  })));
+  const excludedLists = CONFIG.DATA_HEALTH_EXCLUDED_LISTS || [];
   const countRows = lists.map((l, i) => {
     const count = counts[i];
     const warn = count !== null && count >= CONFIG.LIST_ROW_COUNT_WARNING_THRESHOLD;
@@ -502,6 +508,12 @@ async function buildDataHealthTab() {
       SharePoint scans the whole list to evaluate a filter on an unindexed
       column, and throws once a result set passes 5,000 rows. Amber below
       flags a list approaching that — index the columns below before it does.
+      Every list Newton is registered against is watched.
+      ${excludedLists.length
+        ? 'Deliberately excluded: ' + escHtml(excludedLists.join(', ')) + '.'
+        : 'No lists are excluded.'}
+      An em-dash means the count failed, not that the list is empty — the
+      browser console names which.
     </p>
     <table class="data-table dh-table">
       <thead><tr><th>List</th><th>Row count</th><th></th></tr></thead>

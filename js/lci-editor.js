@@ -430,8 +430,8 @@ function _lciPushCoeRow(team) {
   _lciRerenderRoadmap();
 }
 // "+ Add Team" — prompt for a name, seed it with one empty role.
-function addLCITeam() {
-  const team = prompt('New team name:');
+async function addLCITeam() {
+  const team = await promptModal({ message: 'New team name:' });
   if (team === null) return;
   _lciPushCoeRow(team.trim() || 'Other');
 }
@@ -460,12 +460,12 @@ function _lciRowsInTeam(team) {
 
 // "Rename" — retitle every row in the team. Renaming onto an existing team
 // merges the two, after an explicit confirm.
-function renameLCITeam(teamIndex) {
+async function renameLCITeam(teamIndex) {
   const teams = _lciTeamsInOrder();
   const team = teams[teamIndex];
   if (team === undefined) return;
 
-  const input = prompt('Rename team:', team);
+  const input = await promptModal({ message: 'Rename team:', defaultValue: team });
   if (input === null) return;                    // cancelled
   const next = input.trim() || 'Other';          // matches "+ Add Team"
   if (next === team) return;                     // no change — stay clean

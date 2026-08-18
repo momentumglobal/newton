@@ -78,7 +78,7 @@ async function saveLCIReport() {
     setTimeout(() => { if (btn) btn.textContent = 'Save Report'; }, 2000);
   } catch (e) {
     clearButtonLoading(btn);
-    alert('Error saving report: ' + e.message);
+    toast('Error saving report: ' + e.message, { type: 'error' });
   }
 }
 

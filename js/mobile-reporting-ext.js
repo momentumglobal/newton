@@ -249,6 +249,10 @@ async function mobileRenderRejectionForm(main, rolePreselected) {
           <label class="m-label">Candidate Name *</label>
           <input class="m-input" type="text" id="mrj-candidate" placeholder="Full name">
         </div>
+        <div class="m-form-group">
+          <label class="m-label">Rejection Date *</label>
+          <input class="m-input" type="date" id="mrj-date" value="${escAttr(localDayISO())}">
+        </div>
         <div class="m-input-row">
           <div class="m-form-group">
             <label class="m-label">Salary Offered</label>
@@ -289,10 +293,12 @@ async function mobileSubmitRejection(rolePreselected) {
   const reason    = document.getElementById('mrj-reason').value;
   const salary    = document.getElementById('mrj-salary').value.trim();
   const notes     = document.getElementById('mrj-notes').value.trim();
+  const rejDate   = document.getElementById('mrj-date').value;
 
   if (!roleId)    return fail('Please select a role.');
   if (!candidate) return fail('Please enter a candidate name.');
   if (!reason)    return fail('Please select a rejection reason.');
+  if (!rejDate)   return fail('Please enter a rejection date.');
 
   btn.disabled = true; btn.textContent = 'Saving...';
 
@@ -302,6 +308,7 @@ async function mobileSubmitRejection(rolePreselected) {
     Title:           candidate,
     SalaryOffered:   salary || undefined,
     RejectionReason: reason,
+    RejectionDate:   isoDate(rejDate) || undefined,
     Notes:           notes || undefined,
   };
 

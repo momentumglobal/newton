@@ -37,6 +37,7 @@
   <script src="js/api.js"></script>
   <script src="js/analytics.js"></script>
   <script src="js/notifications.js"></script>
+  <script src="js/command-bar.js"></script>
   <script>
     const ALL_MODULES = [
       {
@@ -268,6 +269,7 @@ async function renderCommandCentreBanner(role) {
       const firstName = (user.name || user.email || '').split(' ')[0];
       document.getElementById('home-greeting').textContent = `Welcome back, ${firstName}`;
       const role = await getUserRoleAsync(user.email);
+      initCommandBar({ currentModule: 'home', role, navigateFn: null });
       const visible = ALL_MODULES.filter(m => m.roles.includes(role));
       const grid = document.getElementById('module-grid');
       if (visible.length === 1) grid.classList.add('single');

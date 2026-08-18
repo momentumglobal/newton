@@ -41,7 +41,7 @@ async function renderLCIReportPage(ids, opts = {}) {
     const clients = [...new Set(bundles.map(b => b.model.ClientName).filter(Boolean))];
     let title = opts.title;
     if (title == null) {
-      title = prompt('Report title:', `${clients[0] || 'Client'} — Location & Cost Intelligence`);
+      title = await promptModal({ message: 'Report title:', defaultValue: `${clients[0] || 'Client'} — Location & Cost Intelligence` });
       if (title === null) { renderLCIModelsPage(); return; }
     }
 
@@ -82,8 +82,8 @@ async function saveLCIReport() {
   }
 }
 
-function lciReportRename() {
-  const t = prompt('Report title:', _lciReport.title);
+async function lciReportRename() {
+  const t = await promptModal({ message: 'Report title:', defaultValue: _lciReport.title });
   if (t === null) return;
   _lciReport.title = t;
   document.querySelectorAll('.lci-report-title').forEach(el => { el.textContent = t; });

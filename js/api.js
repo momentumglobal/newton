@@ -297,6 +297,30 @@ function _odataDateFrom(field, weeksBack) {
 function _odataAnd(...clauses) {
   return clauses.filter(Boolean).join(' and ');
 }
+
+// N-094 (F-2b): builds `(fields/X eq 1 or fields/X eq 2 ...)` for a set of
+// lookup ids. Returns '' for an empty set, or for one above
+// CONFIG.ROLE_ID_FILTER_MAX, so _odataAnd drops the clause and the caller
+// falls back to its client-side filter.
+// Deliberately NOT in utils.js: it encodes Graph/SharePoint $filter grammar,
+// and utils.js must not gain Graph knowledge. Same call N-093 made for its
+// own OData helpers, and it is why the "pure functions -> utils.js" rule
+// does not apply here.
+// String concatenation, no nested template literals: a backtick inside a
+// ${...} of another template literal is what broke pages.js in N-093 fix-1.
+function _odataIn(field, ids) {
+  if (!Array.isArray(ids) || !ids.length) return '';
+  const nums = ids.map(Number);
+  // Any unusable id means the set cannot be trusted as complete, so drop the
+  // whole clause and over-fetch instead. Number(null) is 0, not NaN — a
+  // Number.isFinite() test would have turned a null id into a filter for
+  // role 0, which returns nothing and silently empties the page.
+  if (nums.some(n => !Number.isInteger(n) || n <= 0)) return '';
+  const uniq = [...new Set(nums)];
+  if (uniq.length > CONFIG.ROLE_ID_FILTER_MAX) return '';
+  const clauses = uniq.map(function (n) { return 'fields/' + field + ' eq ' + n; });
+  return '(' + clauses.join(' or ') + ')';
+}
  
 async function getHistoricalPlacements() {
   const cutoff = new Date();
@@ -355,13 +379,23 @@ async function getWeeklyActivity(projectId, roleId, opts = {}) {
 async function getPlacements(roleId, opts = {}) {
   const filter = _odataAnd(
     roleId ? `fields/RoleID eq ${roleId}` : '',
+    _odataIn('RoleID', opts.roleIds),
     opts.fromDay ? `fields/OfferAcceptedDate ge '${opts.fromDay}'` : ''
   );
   return getItems("Placements", filter);
 }
  
-async function getRejectedOffers(roleId) {
-  return getItems("RejectedOffers", roleId ? `fields/RoleID eq ${roleId}` : "");
+// N-094 (F-2b): `opts.roleIds` scopes to a set of roles. There is
+// deliberately NO date parameter — RejectedOffers has no temporal column at
+// all (submitRejectedOffer writes RoleIDLookupId, Title, SalaryOffered,
+// RejectionReason, Notes and nothing else), which is why N-152 cannot give
+// this list a date window until one is added.
+async function getRejectedOffers(roleId, opts = {}) {
+  const filter = _odataAnd(
+    roleId ? `fields/RoleID eq ${roleId}` : '',
+    _odataIn('RoleID', opts.roleIds)
+  );
+  return getItems("RejectedOffers", filter);
 }
  
 // ── Admin list helpers ───────────────────────────────────────────────

@@ -479,6 +479,7 @@ async function buildDataHealthTab() {
   }).join('');
 
   const { ok: nullProjectOk, count: nullProjectCount } = await getWeeklyActivityNullProjectCount();
+  const { ok: nullWeekEndingOk, count: nullWeekEndingCount } = await getWeeklyActivityNullWeekEndingCount();
 
   const targetLists = [...new Set(CONFIG.INDEX_TARGETS.map(t => t.list))];
   const statusByList = {};
@@ -536,9 +537,17 @@ async function buildDataHealthTab() {
           <td>${nullProjectOk ? nullProjectCount.toLocaleString('en-GB') : '<span class="dh-badge dh-badge-danger">Query error</span>'}</td>
           <td>${nullProjectOk && nullProjectCount ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
         </tr>
+        <tr>
+          <td>WeeklyActivity rows missing WeekEndingDate</td>
+          <td>${nullWeekEndingOk ? nullWeekEndingCount.toLocaleString('en-GB') : '<span class="dh-badge dh-badge-danger">Query error</span>'}</td>
+          <td>${nullWeekEndingOk && nullWeekEndingCount ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
+        </tr>
       </tbody>
     </table>
     <h3>Index Status</h3>
+        </tr>
+      </tbody>
+    </table>
     <p class="dh-note">
       Columns Newton filters on server-side (N-093). Indexing is a one-time
       SharePoint schema change — confirm before applying.

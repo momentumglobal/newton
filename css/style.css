@@ -2439,6 +2439,26 @@ body {
   color: var(--text-secondary);
   text-align: center;
 }
+/* N-145 — entity search rows (Role/Project/Person) */
+.cmd-bar-result-entity {
+  align-items: flex-start;
+}
+.cmd-bar-result-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.cmd-bar-result-subtitle {
+  font-size: var(--fs-11);
+  color: var(--text-secondary);
+}
+.cmd-bar-loading {
+  padding: var(--sp-5) var(--sp-8);
+  font-size: var(--fs-11);
+  color: var(--text-secondary);
+  text-align: center;
+}
 
 /* ── Payroll Summary ─────────────────────────────────────── */
 .salary-cell {

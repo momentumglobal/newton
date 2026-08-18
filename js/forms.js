@@ -866,6 +866,11 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
           <input type="text" name="CandidateName" required
             value="${escAttr(existingData?.CandidateName || '')}">
         </div>
+        <div class="form-group">
+          <label>Rejection Date *</label>
+          <input type="date" name="RejectionDate" required
+            value="${escAttr(spDateIn(existingData?.RejectionDate) || (isEdit ? '' : localDayISO()))}">
+        </div>
         <div class="form-row">
           <div class="form-group">
             <label>Salary Offered</label>
@@ -906,6 +911,7 @@ async function submitRejectedForm(event, editId = null) {
     Title:           data.CandidateName,
     SalaryOffered:   data.SalaryOffered || undefined,
     RejectionReason: data.RejectionReason,
+    RejectionDate:   isoDate(data.RejectionDate) || undefined,
     Notes:           data.Notes || undefined,
   };
   try {

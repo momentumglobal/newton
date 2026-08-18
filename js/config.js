@@ -240,10 +240,25 @@ const CONFIG = {
   DATE_WINDOW_WEEKS: [13, 26, 52, 0],
   DATE_WINDOW_DEFAULT_WEEKS: 26,
 
-  // N-151 (T-8a). Placements gets its OWN default, not Activity's 26: it is a
+    // N-151 (T-8a). Placements gets its OWN default, not Activity's 26: it is a
   // far lower-volume list and the page showed everything until now, so a year
   // is the least surprising bound. Must be one of DATE_WINDOW_WEEKS.
   PLACEMENTS_DEFAULT_WEEKS: 52,
+
+  // N-152 (T-8b). Rejected Offers defaults to 0 = All time, and this must NOT
+  // be changed to a bounded value without first solving the null problem:
+  // getRejectedOffers({fromDay}) sends `RejectionDate ge ...`, and SharePoint
+  // cannot match a null against `ge`, so any bounded default SILENTLY DROPS
+  // every row with no RejectionDate — including the pre-N-153 rows that were
+  // deliberately never backfilled. Client-side the rule is the opposite: null
+  // is always-included. The list is small enough that there is no payload win
+  // to trade for that risk. See the caution comment on getRejectedOffers().
+  REJECTIONS_DEFAULT_WEEKS: 0,
+
+  // N-152 (T-8b). Render-only page sizes for long tables — these NEVER reach
+  // a $filter. 0 means "All", and must render every matching row.
+  PAGE_SIZES: [25, 50, 100, 0],
+  PAGE_SIZE_DEFAULT: 50,
 
   // Maps hire location (country) to ISO currency code.
   // Used to auto-derive currency when a role is created/edited,

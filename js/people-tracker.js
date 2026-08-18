@@ -261,7 +261,10 @@ async function _setAssignmentFilter(key, value) {
 }
 
 async function _deleteAssignment(id) {
-  if (!confirm('Delete this assignment? This cannot be undone.')) return;
+  if (!(await confirmModal({
+    message: 'Delete this assignment? This cannot be undone.',
+    confirmLabel: 'Delete', danger: true,
+  }))) return;
   try {
     await deleteItem('Assignments', id);
     await renderAssignmentsTab();

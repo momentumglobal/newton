@@ -698,6 +698,38 @@ function escJsAttr(str) {
     .replace(/>/g, '&gt;');      // greater-than (defensive)
 }
 
+// ── Fuzzy search (N-144) ─────────────────────────────────────────
+// Case-insensitive subsequence match: every character of `query` must
+// appear in `text`, in order (not necessarily contiguous). Returns a
+// numeric score (higher = better) or null when query isn't a subsequence
+// of text at all. Rewards a match starting at position 0 and rewards
+// runs of consecutive matched characters, so short queries rank a
+// prefix/contiguous hit above a scattered one. Pure function — no
+// network I/O, no DOM — used by js/command-bar.js to filter
+// CONFIG.COMMAND_BAR_PAGES against what the user types.
+function fuzzyMatch(query, text) {
+  const q = String(query ?? '').toLowerCase().trim();
+  const t = String(text ?? '').toLowerCase();
+  if (!q) return 0;
+  let score = 0;
+  let searchFrom = 0;
+  let runLength = 0;
+  for (let qi = 0; qi < q.length; qi++) {
+    const idx = t.indexOf(q[qi], searchFrom);
+    if (idx === -1) return null;
+    if (idx === searchFrom) {
+      runLength++;
+      score += runLength * 2; // consecutive-match bonus, compounding
+    } else {
+      runLength = 1;
+      score += 1;
+    }
+    if (idx === 0) score += 3; // starts-with bonus
+    searchFrom = idx + 1;
+  }
+  return score;
+}
+
 // ── Empty states (N-103 / X-2) ─────────────────────────────────
 // Block-level empty state for a panel/page area with no surrounding table
 // (the whole panel is this markup — nothing else to preserve). icon is a

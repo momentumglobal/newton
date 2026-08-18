@@ -908,6 +908,11 @@ body {
 }
 .table-toolbar .project-filter-bar { padding: 0; }
 .table-toolbar .project-filter-select { margin: 0; }
+/* ── List result count (N-151 / T-8a) ────────────────────────────────── */
+.list-result-count {
+  padding: 0 var(--sp-9) var(--sp-6);
+  font-size: var(--fs-13); color: var(--text-muted);
+}
 /* ── Placement filter rows ──────────────────────────────────────────── */
 .placement-filter-rows { display: flex; flex-direction: column; gap: var(--sp-4); align-items: flex-end; }
 .placement-filter-row  { display: flex; align-items: flex-end; gap: var(--sp-7); }

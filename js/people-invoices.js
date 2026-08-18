@@ -135,7 +135,10 @@ async function markInvoicePaid(id) {
 }
 
 async function deleteInvoice(id) {
-  if (!confirm('Delete this invoice? This cannot be undone.')) return;
+  if (!(await confirmModal({
+    message: 'Delete this invoice? This cannot be undone.',
+    confirmLabel: 'Delete', danger: true,
+  }))) return;
   try {
     await deleteItem('GPInvoices', id);
     await renderGPInvoices();

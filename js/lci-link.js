@@ -88,7 +88,7 @@ async function openLCILinkModal(modelId) {
   const m = (_lciModelsCache || []).find(x => String(x.id) === String(modelId));
   if (!m) return;
   if (m.Status !== 'Won') {
-    alert('Only models with status "Won" can be linked to a project.');
+    toast('Only models with status "Won" can be linked to a project.', { type: 'error' });
     return;
   }
   const main = document.getElementById('main-content');
@@ -155,7 +155,7 @@ async function saveLCILink(modelId) {
     await renderLCIModelsPage();
   } catch (e) {
     clearButtonLoading(btn);
-    alert('Error saving link: ' + e.message);
+    toast('Error saving link: ' + e.message, { type: 'error' });
   }
 }
 
@@ -180,7 +180,7 @@ async function unlinkLCIModel(modelId) {
     await renderLCIModelsPage();
   } catch (e) {
     clearButtonLoading(btn);
-    alert('Error unlinking: ' + e.message);
+    toast('Error unlinking: ' + e.message, { type: 'error' });
   }
 }
 
@@ -198,7 +198,7 @@ async function generateLCIPlan(modelId) {
 
     if (!payloads.length) {
       clearButtonLoading(btn);
-      alert('This model has no hires to generate.');
+      toast('This model has no hires to generate.', { type: 'error' });
       return;
     }
     if (existing.length) {
@@ -223,9 +223,9 @@ async function generateLCIPlan(modelId) {
 
     closeLCILink();
     await renderLCIModelsPage();
-    alert(`Created ${done} hiring-plan row(s). Open the project's Hiring Plan (Reporting module) to assign Talent Partners.`);
+    toast(`Created ${done} hiring-plan row(s). Open the project's Hiring Plan (Reporting module) to assign Talent Partners.`, { type: 'success' });
   } catch (e) {
     clearButtonLoading(btn);
-    alert('Error generating plan: ' + e.message);
+    toast('Error generating plan: ' + e.message, { type: 'error' });
   }
 }

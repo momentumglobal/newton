@@ -81,8 +81,8 @@ async function _cmdBarLoadEntities(role) {
   const email = getCurrentUser().email;
   const records = [];
 
-  const roleInfo    = _cmdBarEntityPageInfo('roles');
-  const projectInfo = _cmdBarEntityPageInfo('projects');
+    const roleInfo    = _cmdBarEntityPageInfo('roles');
+  const projectInfo = _cmdBarEntityPageInfo('projectDashboard'); // N-145 addendum — was 'projects'
   const personInfo  = _cmdBarEntityPageInfo('peopleTracker');
 
   const wantRoles    = !!roleInfo    && roleInfo.roles.includes(role);
@@ -242,19 +242,31 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
       return;
     }
 
-    // N-145 — entity row: same in-place-vs-full-navigation branch as a
-    // page row, plus opening the entity's edit form once its page is up.
-    // Same-module timing deliberately matches handleDeepLink()'s existing
-    // action=add setTimeout(…, 50) — see spec Gotchas for why this isn't
-    // "fixed" here.
-    const rec       = row.record;
-    const typeInfo   = CONFIG.COMMAND_BAR_ENTITY_TYPES.find(t => t.type === rec.entityType);
-    const pageInfo   = _cmdBarEntityPageInfo(typeInfo.pageKey);
+    // N-145 — entity row. Two activation kinds:
+    //  'edit'   (Role, Person) — navigate, then open the edit form once
+    //           the page is up. Same-module timing deliberately matches
+    //           handleDeepLink()'s existing action=add setTimeout(…, 50).
+    //  'filter' (Project, addendum 18 Aug 2026) — set the destination
+    //           page's filter state BEFORE navigating, so its very first
+    //           render is already scoped — no setTimeout, no race,
+    //           because the target render function reads that state
+    //           synchronously at the top, before any await.
+    const rec      = row.record;
+    const typeInfo = CONFIG.COMMAND_BAR_ENTITY_TYPES.find(t => t.type === rec.entityType);
+    const pageInfo = _cmdBarEntityPageInfo(typeInfo.pageKey);
     if (pageInfo.module === currentModule) {
-      window[navigateFn](typeInfo.pageKey);
-      setTimeout(() => window[typeInfo.openerFn](rec.id), 50);
+      if (typeInfo.activationKind === 'filter') {
+        window[typeInfo.setterFn](rec.id);
+        window[navigateFn](typeInfo.pageKey);
+      } else {
+        window[navigateFn](typeInfo.pageKey);
+        setTimeout(() => window[typeInfo.openerFn](rec.id), 50);
+      }
     } else {
-      window.location.href = `${pageInfo.href}?action=edit&id=${rec.id}`;
+      const actionQs = typeInfo.activationKind === 'filter'
+        ? `action=filter&projectId=${rec.id}`
+        : `action=edit&id=${rec.id}`;
+      window.location.href = `${pageInfo.href}?${actionQs}`;
     }
   }
 

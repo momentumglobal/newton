@@ -69,15 +69,56 @@ function dateWindowLabel(weeks) {
   return Number(weeks) ? 'Last ' + Number(weeks) + ' weeks' : 'All time';
 }
 
-// N-151: the count that makes a narrowed list legible as narrowed.
-// `fetched` is what the query returned (after the date window, before any
-// client-side filter); `shown` is what actually renders. The window label is
-// ALWAYS present — including for "All time" — so this line can never be read
-// as "these are all the records" while a window is active.
-function listResultCount(shown, fetched, weeks, noun) {
-  const label = dateWindowLabel(weeks);
-  const body  = shown === fetched
-    ? shown + ' ' + noun + (shown === 1 ? '' : 's')
-    : 'Showing ' + shown + ' of ' + fetched;
-  return '<div class="list-result-count">' + escHtml(body + ' \u00b7 ' + label) + '</div>';
+// N-152: render-only page sizes. `0` means All. Mirrors periodFilterDropdown;
+// string concatenation, no nested template literals (N-093 fix-1).
+function pageSizeDropdown(selectedSize, callbackFn) {
+  const options = CONFIG.PAGE_SIZES.map(function (n) {
+    const label = n ? String(n) : 'All';
+    const sel   = Number(selectedSize) === n ? ' selected' : '';
+    return '<option value="' + n + '"' + sel + '>' + label + '</option>';
+  }).join('');
+  return '<div class="form-group project-filter-select">' +
+    '<label>Show</label>' +
+    '<select onchange="' + callbackFn + '(this.value)">' + options + '</select>' +
+    '</div>';
+}
+
+// N-152: RENDER-ONLY row cap. This must never influence a query — it runs
+// after every sort and every client-side filter, so the page always shows the
+// first N of what the user actually asked for, not an arbitrary N.
+function paginate(rows, size) {
+  const n = Number(size);
+  return n > 0 ? rows.slice(0, n) : rows;
+}
+
+// N-152: one flex row for a page's controls, replacing the inline
+// style="display:flex..." each page was hand-rolling. Empty parts drop out.
+function listControlsBar(parts) {
+  const inner = parts.filter(Boolean).join('');
+  return inner ? '<div class="list-controls-bar">' + inner + '</div>' : '';
+}
+
+// N-151 / N-152: the count that makes a narrowed list legible as narrowed.
+// Three quantities, deliberately kept apart now that a page cap exists:
+//   shown   — rows actually rendered (after the page cap)
+//   matched — rows passing every client-side filter
+//   total   — rows the user is entitled to see in this window, pre-filter
+// "Showing first N" is what distinguishes a PAGE CAP from a FILTER RESULT;
+// without that word "Showing 25 of 42" is ambiguous. The window label is
+// ALWAYS present — including "All time" — so no state can be read as "these
+// are all the records" while a window is active. Do not regress that.
+function listResultCount(shown, matched, total, weeks, noun) {
+  // weeks === null means the page has NO date window at all (Roles). Showing
+  // "All time" there would advertise a control that does not exist.
+  const label = weeks === null ? '' : dateWindowLabel(weeks);
+  let body;
+  if (shown < matched) {
+    body = 'Showing first ' + shown + ' of ' + matched
+         + (matched < total ? ' matching (' + total + ' total)' : '');
+  } else if (matched < total) {
+    body = 'Showing ' + matched + ' of ' + total;
+  } else {
+    body = matched + ' ' + noun + (matched === 1 ? '' : 's');
+  }
+  return '<div class="list-result-count">' + escHtml(label ? body + ' \u00b7 ' + label : body) + '</div>';
 }

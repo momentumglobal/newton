@@ -410,7 +410,10 @@ async function coeSubmitRow(event, rowId) {
 }
 
 async function coeDeleteRow(rowId) {
-  if (!confirm('Remove this planned role from the hiring plan?')) return;
+  if (!(await confirmModal({
+    message: 'Remove this planned role from the hiring plan?',
+    confirmLabel: 'Remove', danger: true,
+  }))) return;
   await deleteCoEPlanRow(rowId);
   await renderHiringPlanPage(_coeCache.projectId);
 }
@@ -421,7 +424,10 @@ async function coeDeleteRow(rowId) {
 async function coeDeletePlan() {
   const { planRows, projectId } = _coeCache;
   if (!planRows.length) return;
-  if (!confirm(`Delete the entire hiring plan — all ${planRows.length} planned role(s) on this project? (Applies to the whole plan regardless of the TP filter. Linked live Roles and Forecast values are kept.)`)) return;
+  if (!(await confirmModal({
+    message: `Delete the entire hiring plan — all ${planRows.length} planned role(s) on this project? (Applies to the whole plan regardless of the TP filter. Linked live Roles and Forecast values are kept.)`,
+    confirmLabel: 'Delete plan', danger: true,
+  }))) return;
   const btn = document.getElementById('coe-delete-plan-btn');
   setButtonLoading(btn, 'Deleting…');
   try {

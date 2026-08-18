@@ -7,6 +7,7 @@ async function initCC() {
   if (!ccCanAccess(role)) { window.location.href = 'index.html'; return; }
   document.getElementById('app-shell').style.display = 'flex';
   renderCCNav(role, 'overview');
+  initCommandBar({ currentModule: 'command', role, navigateFn: 'navigateToCC' });
   const container = document.getElementById('page-content');
   await renderCCOverview(container);
 }

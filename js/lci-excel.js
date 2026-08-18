@@ -711,7 +711,7 @@ function _lciXlMilestones(ctx) {
 // ── Entry point ──────────────────────────────────────────────────────
 async function lciExportModelExcel(btn) {
   const m = _lciEd && _lciEd.model;
-  if (!m) { alert('No model open.'); return; }
+  if (!m) { toast('No model open.', { type: 'error' }); return; }
   if (btn) setButtonLoading(btn, 'Building…');
   try {
     const ExcelJSLib = await _lciLoadExcelJS();
@@ -757,7 +757,7 @@ async function lciExportModelExcel(btn) {
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   } catch (e) {
-    alert(`Excel export failed: ${e.message}`);
+    toast(`Excel export failed: ${e.message}`, { type: 'error' });
   } finally {
     if (btn) clearButtonLoading(btn);
   }

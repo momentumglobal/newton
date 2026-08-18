@@ -424,6 +424,12 @@ const CONFIG = {
     { key: 'lciLeadMagnet',   label: 'LCI Lead Magnet',  module: 'sales', href: 'sales.html#lciLeadMagnet',   roles: ['admin', 'leadership'] },
     // cc-router.js — Command Centre (1)
     { key: 'overview', label: 'Overview', module: 'command', href: 'command-centre.html', roles: ['admin', 'leadership'] },
+    // mr-router.js — Market Analytics (2) — added 18 Aug 2026, folded into
+    // N-144 after Chris asked to expand scope; fits the same page/role
+    // shape as the four router files above (mrCanAccess(page, role)),
+    // unlike survey-router.js which stays excluded (role-only, no pages).
+    { key: 'placementAnalytics', label: 'Placement Analytics',   module: 'marketing', href: 'market-reporting.html#placementAnalytics', roles: ['admin', 'delivery_manager', 'talent_partner'] },
+    { key: 'marketReport',       label: 'Market Report Builder', module: 'marketing', href: 'market-reporting.html#marketReport',       roles: ['admin', 'delivery_manager', 'talent_partner'] },
   ],
   // ── Employee Engagement ───────────────────────────────────────────────
   // Single source of truth for all survey constants.

@@ -328,7 +328,10 @@ async function saveForecast() {
 }
 
 async function deleteForecastRecord(id) {
-  if (!confirm('Delete this forecast? This cannot be undone.')) return;
+  if (!(await confirmModal({
+    message: 'Delete this forecast? This cannot be undone.',
+    confirmLabel: 'Delete', danger: true,
+  }))) return;
   try {
     await deleteSalesForecast(id);
     await renderSalesForecastPage();

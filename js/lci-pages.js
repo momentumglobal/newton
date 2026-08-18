@@ -307,7 +307,7 @@ async function saveLCIModel(event) {
     closeLCIModelModal();
     await renderLCIModelsPage();
   } catch (e) {
-    alert('Error creating model: ' + e.message);
+    toast('Error creating model: ' + e.message, { type: 'error' });
   } finally {
     clearButtonLoading(btn);
   }
@@ -394,7 +394,7 @@ async function openLCIReport(id) {
   if (!r) return;
   let ids = [];
   try { ids = JSON.parse(r.ModelIDs || '[]'); } catch (_) {}
-  if (!ids.length) { alert('This report has no models.'); return; }
+  if (!ids.length) { toast('This report has no models.', { type: 'error' }); return; }
   renderLCIReportPage(ids, { reportId: r.id, title: r.Title, observations: r.Observations || '' });
 }
 
@@ -405,7 +405,7 @@ async function deleteLCIReportAction(id) {
     await deleteLCIReport(id);
     await renderLCIModelsPage();
   } catch (e) {
-    alert('Error deleting report: ' + e.message);
+    toast('Error deleting report: ' + e.message, { type: 'error' });
   }
 }
 
@@ -435,7 +435,7 @@ async function copyLCIModelAction(id, btn = null) {
     await renderLCIModelsPage();
   } catch (e) {
     clearButtonLoading(btn);
-    alert('Error copying model: ' + e.message);
+    toast('Error copying model: ' + e.message, { type: 'error' });
   }
 }
 
@@ -446,6 +446,6 @@ async function deleteLCIModelAction(id) {
     await deleteLCIModel(id);
     await renderLCIModelsPage();
   } catch (e) {
-    alert('Error deleting model: ' + e.message);
+    toast('Error deleting model: ' + e.message, { type: 'error' });
   }
 }

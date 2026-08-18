@@ -57,6 +57,7 @@ window.APP = {
     document.getElementById('login-screen').style.display = 'none';
     document.title = 'Newton – Reporting';
     renderNav(_resolvedRole);
+    initCommandBar({ currentModule: 'reporting', role: _resolvedRole, navigateFn: 'navigateTo' });
     const firstPage = getAccessiblePages(_resolvedRole)[0].key;
     if (!handleDeepLink()) navigateTo(firstPage);
     // Auto-register user in UserAssignments on first login (non-blocking)

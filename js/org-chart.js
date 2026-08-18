@@ -440,7 +440,11 @@ async function savePlaceholder(btn, id) {
 async function deletePlaceholder(id) {
   const p = _ocPlaceholders.find(x => String(x.id) === String(id));
   const name = p ? p.EmployeeName : 'this placeholder';
-  if (!confirm(`Remove placeholder "${name}"?\n\nThis permanently deletes the row from the People list.`)) return;
+  if (!(await confirmModal({
+    title: `Remove placeholder "${name}"?`,
+    message: 'This permanently deletes the row from the People list.',
+    confirmLabel: 'Remove', danger: true,
+  }))) return;
   try {
     await deleteItem('People', id);
     showPlaceholderManager();

@@ -1,12 +1,21 @@
 // js/people-app.js — People module initialisation
 
-// Hash format: #<pageKey> — set by the Command Bar (N-144) when jumping
-// here from another module. Mirrors js/app.js's handleDeepLink(), minus
-// the ?action=add extension (reporting-specific, not needed here).
+// Hash format: #<pageKey> or #<pageKey>?action=edit&id=<n> — set by the
+// Command Bar (N-144 page jumps; N-145 entity-search jumps into
+// peopleTracker). Mirrors js/app.js's handleDeepLink().
 function handlePeopleDeepLink() {
-  const page = window.location.hash.slice(1).trim();
+  const raw = window.location.hash.slice(1);
+  if (!raw) return false;
+  const [pageKey, queryStr] = raw.split('?');
+  const page = pageKey.trim();
   if (!page || !peopleCanAccess(page, _resolvedRole)) return false;
   navigateToPeople(page);
+  const params = new URLSearchParams(queryStr || '');
+  if (page === 'peopleTracker' && params.get('action') === 'edit') {
+    // N-145 — Command Bar entity-search deep link.
+    const id = Number(params.get('id'));
+    setTimeout(() => showEditPersonForm(id), 50);
+  }
   history.replaceState(null, '', window.location.pathname);
   return true;
 }

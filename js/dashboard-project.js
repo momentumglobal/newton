@@ -82,6 +82,12 @@ async function renderProjectDashboard() {
   runKpiCountUps(main);
 }
 function changeDashProject(id) { _dashProjectId = String(id); renderProjectDashboard(); }
+// N-145 addendum (18 Aug 2026) — Command Bar Project entity jump. Sets the
+// filter WITHOUT re-rendering: the caller (command-bar.js's activate(), or
+// handleDeepLink() for a cross-module jump) calls navigateTo('projectDashboard')
+// immediately after this, which triggers the one render this needs — a
+// second render here would just flash.
+function setDashProjectFilter(id) { _dashProjectId = String(id); }
 function setDashPeriod(period) {
   _dashPeriod = period;
   const el = document.getElementById('proj-kpi-area');

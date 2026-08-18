@@ -224,6 +224,22 @@ async function getWeeklyActivityNullProjectCount() {
     return { ok: false, count: null };
   }
 }
+// N-158: how many WeeklyActivity rows have no WeekEndingDate. This is the
+// row set DATE_WINDOW_DEFAULT_WEEKS: 26 was silently dropping from the
+// Activity list page — a server-side `ge` bound cannot match a null date.
+// Both date-window defaults now sit at 0 (All time) so this can't happen
+// today, but the count stays visible so a future bounded default doesn't
+// reintroduce the drop unnoticed. Same id-only $select discipline as
+// getWeeklyActivityNullProjectCount().
+async function getWeeklyActivityNullWeekEndingCount() {
+  try {
+    const items = await getItems("WeeklyActivity", "fields/WeekEndingDate eq null", "Id");
+    return { ok: true, count: items.length };
+  } catch (e) {
+    console.error("WeeklyActivity null-WeekEndingDate probe rejected:", e);
+    return { ok: false, count: null };
+  }
+}
 // Raw columnDefinition[] for a list — includes system columns; callers filter.
 async function getListColumns(listName) {
   const data = await graphRequest("GET", listColumnsPath(listName));

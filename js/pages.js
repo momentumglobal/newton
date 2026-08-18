@@ -565,21 +565,21 @@ async function renderRejectionsPage() {
     </div>
     <table class="data-table">
       <thead><tr>
-        <th>Candidate</th><th>Role</th><th>Salary Offered</th>
-        <th>Reason</th><th>Notes</th>${canEdit ? "<th></th>" : ""}
+        <th>Candidate</th><th>Role</th><th>Rejected</th><th>Salary Offered</th><th>Reason</th><th>Notes</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
         ${filteredRejections.length ? filteredRejections.map(r => `
           <tr>
             <td>${escHtml(r.CandidateName)}</td>
             <td>${roleMap[String(r.RoleIDLookupId)] || roleMap[String(r.RoleID)] || "—"}</td>
+            <td>${escHtml(spDateIn(r.RejectionDate) || "—")}</td>
             <td>${escHtml(formatSalary(r.SalaryOffered))}</td>
             <td>${escHtml(r.RejectionReason || "—")}</td>
             <td>${escHtml(r.Notes || "—")}</td>
             ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRejectionForm(${r.id})">Edit</a></div></td>` : ""}
           </tr>
         `).join("") : emptyStateRow({
-          colspan: canEdit ? 6 : 5,
+          colspan: canEdit ? 7 : 6,
           icon: "user-x",
           message: rejectionsEmptyMsg,
           actionLabel: canEdit ? "+ Log Rejection" : "",

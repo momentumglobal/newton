@@ -1,5 +1,16 @@
 // js/mr-app.js — Marketing Report module initialisation
 
+// Hash format: #<pageKey> — set by the Command Bar (N-144) when jumping
+// here from another module. Mirrors js/app.js's handleDeepLink(), minus
+// the ?action=add extension (reporting-specific, not needed here).
+function handleMrDeepLink() {
+  const page = window.location.hash.slice(1).trim();
+  if (!page || !mrCanAccess(page, _mrResolvedRole)) return false;
+  navigateToMr(page);
+  history.replaceState(null, '', window.location.pathname);
+  return true;
+}
+
 window.MR_APP = {
   async init() {
     if (!isSignedIn()) { this.showLogin(); return; }
@@ -19,7 +30,8 @@ window.MR_APP = {
     document.getElementById("login-screen").style.display = "none";
 
     renderMrNav(_mrResolvedRole);
-    navigateToMr("placementAnalytics");
+    initCommandBar({ currentModule: 'marketing', role: _mrResolvedRole, navigateFn: 'navigateToMr' });
+    if (!handleMrDeepLink()) navigateToMr("placementAnalytics");
   },
 
   showLogin() {

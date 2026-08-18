@@ -20,6 +20,12 @@
 let _cmdBarInitialized = false;
 let _cmdBarState        = null; // non-null while the overlay is open
 
+// N-145 — entity search cache. null = not yet fetched this page session.
+// Populated once, lazily, on first overlay open (never on init, never on
+// keystroke) — see _cmdBarLoadEntities and its call site in _cmdBarOpen.
+let _cmdBarEntityCache         = null;
+let _cmdBarEntityFetchInFlight = null;
+
 // Call once per module, right after that module's nav render.
 //   currentModule — matches a CONFIG.OS_MODULES key ('reporting' | 'people' | 'sales' | 'command')
 //   role          — the signed-in user's resolved role
@@ -58,6 +64,82 @@ function _cmdBarModuleName(moduleKey) {
   return m ? m.name : moduleKey;
 }
 
+// N-145 — looks up a COMMAND_BAR_PAGES entry by key. Entity gating and
+// navigation both go through this rather than canAccess()/peopleCanAccess()
+// directly: command-bar.js runs on sales.html, command-centre.html,
+// index.html and market-reporting.html, none of which load router.js or
+// people-router.js, so calling either function here would throw.
+function _cmdBarEntityPageInfo(pageKey) {
+  return CONFIG.COMMAND_BAR_PAGES.find(p => p.key === pageKey);
+}
+
+// Fetches Roles/Projects/People once, filtered to what `role` may see via
+// each type's COMMAND_BAR_PAGES.roles (not a fresh Graph call — reuses
+// getRolesForUser/getScopedProjects/getPeople exactly as their own pages
+// call them, so this rides the existing _apiCache like any other caller).
+async function _cmdBarLoadEntities(role) {
+  const email = getCurrentUser().email;
+  const records = [];
+
+  const roleInfo    = _cmdBarEntityPageInfo('roles');
+  const projectInfo = _cmdBarEntityPageInfo('projects');
+  const personInfo  = _cmdBarEntityPageInfo('peopleTracker');
+
+  const wantRoles    = !!roleInfo    && roleInfo.roles.includes(role);
+  const wantProjects = !!projectInfo && projectInfo.roles.includes(role);
+  const wantPeople   = !!personInfo  && personInfo.roles.includes(role);
+  // Role results need a project NAME even when Project results themselves
+  // aren't shown, so fetch scoped projects whenever either is wanted.
+  const needProjectNames = wantRoles || wantProjects;
+
+  const [roles, projects, people] = await Promise.all([
+    wantRoles       ? getRolesForUser(email)          : Promise.resolve([]),
+    needProjectNames ? getScopedProjects(email, false) : Promise.resolve([]),
+    wantPeople       ? getPeople(true)                 : Promise.resolve([]),
+  ]);
+
+  const projectMap = Object.fromEntries(projects.map(p => [String(p.id), p.CustomerName]));
+
+  if (wantRoles) {
+    roles.forEach(r => {
+      const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || '';
+      records.push({
+        entityType:   'role',
+        id:           r.id,
+        title:        r.RoleTitle,
+        subtitleText: [projectName, r.Stage].filter(Boolean).join(' · '),
+        searchText:   [r.RoleTitle, projectName, r.TalentPartner].filter(Boolean).join(' '),
+      });
+    });
+  }
+
+  if (wantProjects) {
+    projects.forEach(p => {
+      records.push({
+        entityType:   'project',
+        id:           p.id,
+        title:        p.CustomerName,
+        subtitleText: p.Status || '',
+        searchText:   p.CustomerName || '',
+      });
+    });
+  }
+
+  if (wantPeople) {
+    people.forEach(p => {
+      records.push({
+        entityType:   'person',
+        id:           p.id,
+        title:        p.EmployeeName,
+        subtitleText: p.Level || '',
+        searchText:   p.EmployeeName || '',
+      });
+    });
+  }
+
+  return records;
+}
+
 function _cmdBarOpen({ currentModule, role, navigateFn }) {
   const previouslyFocused = document.activeElement;
   const allPages = _cmdBarAccessiblePages(role);
@@ -75,42 +157,104 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
   const input     = overlay.querySelector('.cmd-bar-input');
   const resultsEl  = overlay.querySelector('.cmd-bar-results');
 
-  let visible   = allPages;
-  let highlight = 0;
+    let visible      = allPages.map(page => ({ kind: 'page', page }));
+  let highlight    = 0;
+  let currentQuery = '';
+
+  // N-145 — page rows render as before; entity rows show a title, an
+  // optional subtitle (project/stage for a Role, status for a Project,
+  // level for a Person), and an always-on type badge (unlike the page
+  // badge, which only shows when the result is in a different module).
+  const ENTITY_BADGE_LABEL = { role: 'Role', project: 'Project', person: 'Person' };
 
   function render() {
-    if (!visible.length) {
-      resultsEl.innerHTML = `<div class="cmd-bar-empty">No matching pages</div>`;
-      return;
-    }
-    resultsEl.innerHTML = visible.map((p, i) => `
-      <div class="cmd-bar-result${i === highlight ? ' active' : ''}" data-index="${i}">
+    const rowsHtml = visible.map((row, i) => {
+      const activeClass = i === highlight ? ' active' : '';
+      if (row.kind === 'page') {
+        const p = row.page;
+        return `
+      <div class="cmd-bar-result${activeClass}" data-index="${i}">
         <span class="cmd-bar-result-label">${escHtml(p.label)}</span>
         ${p.module !== currentModule
           ? `<span class="cmd-bar-result-badge">${escHtml(_cmdBarModuleName(p.module))}</span>`
           : ''}
-      </div>
-    `).join('');
+      </div>`;
+      }
+      const rec = row.record;
+      return `
+      <div class="cmd-bar-result cmd-bar-result-entity${activeClass}" data-index="${i}">
+        <div class="cmd-bar-result-text">
+          <span class="cmd-bar-result-label">${escHtml(rec.title)}</span>
+          ${rec.subtitleText ? `<span class="cmd-bar-result-subtitle">${escHtml(rec.subtitleText)}</span>` : ''}
+        </div>
+        <span class="cmd-bar-result-badge">${escHtml(ENTITY_BADGE_LABEL[rec.entityType] || rec.entityType)}</span>
+      </div>`;
+    }).join('');
+
+    const showLoading = !!_cmdBarEntityFetchInFlight
+      && currentQuery.trim().length >= CONFIG.COMMAND_BAR_ENTITY_MIN_QUERY_LEN;
+    const loadingHtml = showLoading
+      ? `<div class="cmd-bar-loading">Loading roles, projects and people…</div>`
+      : '';
+
+    resultsEl.innerHTML = (visible.length ? rowsHtml : `<div class="cmd-bar-empty">No matches</div>`) + loadingHtml;
   }
 
   function filter(query) {
-    visible = allPages
-      .map(p => ({ page: p, score: fuzzyMatch(query, p.label) }))
-      .filter(r => r.score !== null)
-      .sort((a, b) => b.score - a.score)
-      .map(r => r.page);
+    currentQuery = query;
+    const q = query.trim();
+
+    const pageMatches = allPages
+      .map(page => ({ kind: 'page', page, score: fuzzyMatch(q, page.label) }))
+      .filter(r => r.score !== null);
+
+    let entityMatches = [];
+    if (_cmdBarEntityCache && q.length >= CONFIG.COMMAND_BAR_ENTITY_MIN_QUERY_LEN) {
+      const byType = {};
+      _cmdBarEntityCache.forEach(record => {
+        const score = fuzzyMatch(q, record.searchText);
+        if (score === null) return;
+        (byType[record.entityType] = byType[record.entityType] || []).push({ kind: 'entity', record, score });
+      });
+      Object.values(byType).forEach(list => {
+        list.sort((a, b) => b.score - a.score);
+        entityMatches = entityMatches.concat(list.slice(0, CONFIG.COMMAND_BAR_ENTITY_RESULT_CAP));
+      });
+    }
+
+    visible = pageMatches.concat(entityMatches).sort((a, b) => b.score - a.score);
     highlight = 0;
     render();
   }
 
   function activate(index) {
-    const page = visible[index];
-    if (!page) return;
+    const row = visible[index];
+    if (!row) return;
     close();
-    if (page.module === currentModule) {
-      window[navigateFn](page.key);
+
+    if (row.kind === 'page') {
+      const page = row.page;
+      if (page.module === currentModule) {
+        window[navigateFn](page.key);
+      } else {
+        window.location.href = page.href;
+      }
+      return;
+    }
+
+    // N-145 — entity row: same in-place-vs-full-navigation branch as a
+    // page row, plus opening the entity's edit form once its page is up.
+    // Same-module timing deliberately matches handleDeepLink()'s existing
+    // action=add setTimeout(…, 50) — see spec Gotchas for why this isn't
+    // "fixed" here.
+    const rec       = row.record;
+    const typeInfo   = CONFIG.COMMAND_BAR_ENTITY_TYPES.find(t => t.type === rec.entityType);
+    const pageInfo   = _cmdBarEntityPageInfo(typeInfo.pageKey);
+    if (pageInfo.module === currentModule) {
+      window[navigateFn](typeInfo.pageKey);
+      setTimeout(() => window[typeInfo.openerFn](rec.id), 50);
     } else {
-      window.location.href = page.href;
+      window.location.href = `${pageInfo.href}?action=edit&id=${rec.id}`;
     }
   }
 
@@ -151,7 +295,19 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
   input.addEventListener('input', () => filter(input.value));
   document.addEventListener('keydown', onOverlayKeydown);
 
-  _cmdBarState = { close };
+    _cmdBarState = { close };
   render();
   input.focus();
+
+  // N-145 — kick off the entity fetch once per page session, without
+  // blocking the overlay's own open/render above. If the overlay is
+  // still open when it resolves, re-run the current filter so any
+  // matching entities appear without the user retyping.
+  if (_cmdBarEntityCache === null && !_cmdBarEntityFetchInFlight) {
+    _cmdBarEntityFetchInFlight = _cmdBarLoadEntities(role).then(records => {
+      _cmdBarEntityCache = records;
+      _cmdBarEntityFetchInFlight = null;
+      if (_cmdBarState) filter(currentQuery);
+    });
+  }
 }

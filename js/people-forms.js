@@ -327,10 +327,14 @@ async function submitAssignmentForm(event, editId = null) {
         new Date(a.StartDate) <= e && new Date(a.EndDate) >= s
       );
       if (clash) {
-        const ok = confirm(
-          `Warning: ${fields.EmployeeName} already has a confirmed assignment with ` +
-          `${clash.Customer} (${spDateIn(clash.StartDate)} – ${spDateIn(clash.EndDate)}) ` +
-          `overlapping these dates.\n\nSave anyway?`);
+        const ok = await confirmModal({
+          title: 'Overlapping assignment',
+          message:
+            `Warning: ${fields.EmployeeName} already has a confirmed assignment with ` +
+            `${clash.Customer} (${spDateIn(clash.StartDate)} – ${spDateIn(clash.EndDate)}) ` +
+            `overlapping these dates.`,
+          confirmLabel: 'Save anyway',
+        });
         if (!ok) { clearButtonLoading(btn); return; }
       }
     } catch (_) { /* clash check is advisory — never block the save on error */ }

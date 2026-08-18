@@ -289,8 +289,8 @@ function mrInitEditor() {
 
 async function mrSave() {
   const title = document.getElementById("mr-title")?.value?.trim();
-  if (!title)     { alert("Please enter a report title before saving."); return; }
-  if (!_mrRoleId) { alert("Please select a role before saving.");        return; }
+  if (!title)     { toast("Please enter a report title before saving.", { type: 'error' }); return; }
+  if (!_mrRoleId) { toast("Please select a role before saving.", { type: 'error' });        return; }
 
   const user    = getCurrentUser();
   const payload = {
@@ -384,7 +384,7 @@ async function mrDeleteReport(id, btn) {
     // Refresh the modal
     mrOpenSavedModal();
   } catch (e) {
-    alert("Delete failed: " + e.message);
+    toast("Delete failed: " + e.message, { type: 'error' });
     btn.textContent = "Delete";
     btn.disabled = false;
   }
@@ -405,7 +405,7 @@ async function mrLoadReport(id) {
 
 function mrPreview() {
   if (!_mrData) {
-    alert("Generate the report first before previewing.");
+    toast("Generate the report first before previewing.", { type: 'error' });
     return;
   }
   const obsEl = document.getElementById("mr-obs-editor");
@@ -429,7 +429,7 @@ function mrPreview() {
 
 async function mrExportPdf() {
   if (!_mrData) {
-    alert("Generate the report first before exporting.");
+    toast("Generate the report first before exporting.", { type: 'error' });
     return;
   }
   const obsEl = document.getElementById("mr-obs-editor");

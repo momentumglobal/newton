@@ -170,7 +170,10 @@ async function unlinkLCIModel(modelId) {
     const proj = (await getProjects(false)).find(p => String(p.id) === String(m.ProjectID));
     if (proj) name = proj.CustomerName || proj.Title || name;
   } catch (e) { /* name lookup is cosmetic */ }
-  if (!confirm(`Unlink "${m.Title}" from ${name}? Existing hiring-plan rows are NOT deleted — use Delete Plan on the Hiring Plan page for that.`)) return;
+  if (!(await confirmModal({
+    message: `Unlink "${m.Title}" from ${name}? Existing hiring-plan rows are NOT deleted — use Delete Plan on the Hiring Plan page for that.`,
+    confirmLabel: 'Unlink',
+  }))) return;
   const btn = document.getElementById('lci-unlink-btn');
   setButtonLoading(btn, 'Unlinking…');
   try {
@@ -202,10 +205,16 @@ async function generateLCIPlan(modelId) {
       return;
     }
     if (existing.length) {
-      const ok = confirm(`This project already has ${existing.length} hiring-plan row(s). Add ${payloads.length} more from "${model.Title}"? (Existing rows are kept — cancel to abort.)`);
+      const ok = await confirmModal({
+        message: `This project already has ${existing.length} hiring-plan row(s). Add ${payloads.length} more from "${model.Title}"? (Existing rows are kept — cancel to abort.)`,
+        confirmLabel: 'Add rows',
+      });
       if (!ok) { clearButtonLoading(btn); return; }
     } else {
-      const ok = confirm(`Create ${payloads.length} hiring-plan row(s) in the linked project from "${model.Title}"?`);
+      const ok = await confirmModal({
+        message: `Create ${payloads.length} hiring-plan row(s) in the linked project from "${model.Title}"?`,
+        confirmLabel: 'Create rows',
+      });
       if (!ok) { clearButtonLoading(btn); return; }
     }
 

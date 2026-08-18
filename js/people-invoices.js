@@ -130,7 +130,7 @@ async function markInvoicePaid(id) {
     await updateInvoice(id, { Status: 'Paid' });
     await renderGPInvoices();
   } catch (e) {
-    alert('Error updating invoice: ' + e.message);
+    toast('Error updating invoice: ' + e.message, { type: 'error' });
   }
 }
 
@@ -140,6 +140,6 @@ async function deleteInvoice(id) {
     await deleteItem('GPInvoices', id);
     await renderGPInvoices();
   } catch (e) {
-    alert('Error deleting invoice: ' + e.message);
+    toast('Error deleting invoice: ' + e.message, { type: 'error' });
   }
 }

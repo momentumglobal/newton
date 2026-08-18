@@ -184,7 +184,7 @@ async function mobileSaveStage() {
   btn.disabled    = true;
   btn.textContent = 'Saving…';
   try {
-    await updateItem('Roles', _mobileRoleId, { Stage: stage });
+    await updateRoleWithHistory(_mobileRoleId, { Stage: stage });
     if (typeof mobileInvalidateRolesCache === 'function') mobileInvalidateRolesCache();
     mobileToast('Stage updated ✓');
     mobileNav('role-detail', false);
@@ -532,8 +532,8 @@ async function mobileSubmitPlacement(rolePreselected) {
       TimeToHire:           timeToHire,
     });
 
-    if (startDate) await updateItem('Roles', roleId, { CurrentStartDate: startDate });
-    if (offerDate) await updateItem('Roles', roleId, { ActualHireDate: offerDate });
+    if (startDate) await updateRoleWithHistory(roleId, { CurrentStartDate: startDate });
+    if (offerDate) await updateRoleWithHistory(roleId, { ActualHireDate: offerDate });
 
     mobileToast('Placement recorded ✓');
     if (rolePreselected) {

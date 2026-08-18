@@ -93,9 +93,12 @@ function addLCIMilestone() {
   _lciRerenderRoadmap();
 }
 
-function removeLCIMilestone(idx) {
+async function removeLCIMilestone(idx) {
   const s = _lciEd.milestones[idx];
-  if (s.Title && !confirm(`Remove milestone "${s.Title}"?`)) return;
+  if (s.Title && !(await confirmModal({
+    message: `Remove milestone "${s.Title}"?`,
+    confirmLabel: 'Remove', danger: true,
+  }))) return;
   if (s.id) _lciEd.deletedMilestoneIds.push(s.id);
   _lciEd.milestones.splice(idx, 1);
   _lciEd.dirtyMilestones = true;

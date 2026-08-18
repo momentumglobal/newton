@@ -83,12 +83,20 @@ function activityInDetailPeriod(a, period) {
 // ── Data fetch ────────────────────────────────────────────────────────
 async function fetchDashboardData(projectId, role) {
   const isTP = role === 'talent_partner';
-  const [allRoles, activity, placements, rejections, tpMap] = await Promise.all([
+  // N-094 (F-2b): roles resolve first so their ids can scope the Placements
+  // and RejectedOffers queries server-side — neither list has a ProjectID
+  // column, so the role-id set is the only lever there is. The ids come from
+  // allRoles, BEFORE the isTP narrowing below, on purpose: the server filter
+  // must stay a superset of what the client filter keeps, never narrower.
+  const [allRoles, activity, tpMap] = await Promise.all([
     getRolesForProject(projectId),
     getWeeklyActivity(projectId, null),
-    getPlacements(null),
-    getRejectedOffers(null),
     getTalentPartnerDisplayMap(),
+  ]);
+  const roleIds = allRoles.map(r => r.id);
+  const [placements, rejections] = await Promise.all([
+    getPlacements(null, { roleIds }),
+    getRejectedOffers(null, { roleIds }),
   ]);
   let roles = allRoles, acts = activity;
   if (isTP) {

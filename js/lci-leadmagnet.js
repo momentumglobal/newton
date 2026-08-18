@@ -249,7 +249,10 @@ async function saveLMLocation(event) {
 
 async function deleteLMLocation(id) {
   const l = (_lmLocations || []).find(x => String(x.id) === String(id));
-  if (!confirm(`Delete "${l ? l.Title : 'this location'}" from the library?`)) return;
+  if (!(await confirmModal({
+    message: `Delete "${l ? l.Title : 'this location'}" from the library?`,
+    confirmLabel: 'Delete', danger: true,
+  }))) return;
   try {
     await deleteLCILocation(id);
     await renderLCILeadMagnetPage();

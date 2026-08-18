@@ -575,7 +575,10 @@ async function rbLoadReport(id) {
 }
 
 async function rbDeleteReport(id, title) {
-  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  if (!(await confirmModal({
+    message: `Delete "${title}"? This cannot be undone.`,
+    confirmLabel: 'Delete', danger: true,
+  }))) return;
   await deleteItem('SavedReports', id);
   rbOpenSavedModal();
 }

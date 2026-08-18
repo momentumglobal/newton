@@ -211,14 +211,22 @@ function renderActivityByTPPanel(acts, period, tpMap = {}) {
   </div>`;
 }
 // ── Offer Rejection Reasons ───────────────────────────────────────────
-function renderRejectionPanel(rejections, roles, period) {
-  const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), r]));
+// N-153: was periodising through the LINKED ROLE's ActualHireDate, so any
+// rejection whose role had no ActualHireDate returned true and was counted in
+// EVERY period. Now uses the rejection's own date. The `roles` parameter goes
+// with the roleMap it fed — the single caller is updated to match.
+function renderRejectionPanel(rejections, period) {
   const { start, end } = getDetailPeriodRange(period);
   const filtered = rejections.filter(rej => {
-    const rid  = String(rej.RoleIDLookupId || rej.RoleID || '');
-    const role = roleMap[rid];
-    if (!role || !role.ActualHireDate) return true;
-    const d = new Date(role.ActualHireDate);
+    // A blank RejectionDate stays always-included, by decision: the two
+    // pre-N-153 rows were not backfilled, and excluding them would silently
+    // drop real rejections.
+    if (!rej.RejectionDate) return true;
+    // isoDate() stores T12:00:00Z — that midday anchor is what makes a plain
+    // new Date() safe against these LOCAL period bounds. Do NOT switch to
+    // utcDateOnly: UTC midnight against a local 23:59:59 end loses the last
+    // day of every period in BST.
+    const d = new Date(rej.RejectionDate);
     return d >= start && d <= end;
   });
   const reasons = ['Salary','Motivations','Counter-offer','Took another opportunity','Other'];
@@ -514,7 +522,7 @@ const REPORT_PANELS = {
     renderActivityByTPPanel(data.activity, period, data.tpMap || {}),
 
   rejections: (data, period) =>
-    renderRejectionPanel(data.rejections, data.roles, period),
+    renderRejectionPanel(data.rejections, period),
 
   upcomingStarters: (data) =>
     renderUpcomingStartersPanel(data.placements, data.roles),

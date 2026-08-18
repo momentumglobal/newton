@@ -862,7 +862,82 @@ function confirmModal({ title = '', message = '', confirmLabel = 'Confirm', canc
     overlay.addEventListener('click', e => { if (e.target === overlay) close(false); });
     document.addEventListener('keydown', onKeydown);
 
-    cancelBtn.focus();
+        cancelBtn.focus();
+  });
+}
+
+// Promise-returning replacement for prompt(). Resolves with the input's
+// current value on Confirm click or Enter-in-input, null on Cancel click,
+// backdrop click, or Escape — matches native prompt()'s cancel return
+// value, so every call site's existing `=== null` check keeps working
+// unchanged. Shares _confirmModalOpen with confirmModal (see above) rather
+// than a separate flag — one "a dialog from this family is already open"
+// guard for both.
+function promptModal({ title = '', message = '', defaultValue = '', placeholder = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
+  if (_confirmModalOpen) {
+    console.warn('promptModal: a confirm/prompt dialog is already open');
+    return Promise.resolve(null);
+  }
+  _confirmModalOpen = true;
+
+  return new Promise(resolve => {
+    const previouslyFocused = document.activeElement;
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-modal-overlay';
+    const titleHtml = title ? `<h3 class="confirm-modal-title">${escHtml(title)}</h3>` : '';
+    const messageHtml = message ? `<p class="confirm-modal-message">${escHtml(message)}</p>` : '';
+    overlay.innerHTML = `
+      <div class="confirm-modal" role="alertdialog" aria-modal="true">
+        ${titleHtml}
+        ${messageHtml}
+        <input type="text" class="confirm-modal-input" placeholder="${escAttr(placeholder)}">
+        <div class="confirm-modal-actions">
+          <button type="button" class="btn-secondary confirm-modal-cancel">${escHtml(cancelLabel)}</button>
+          <button type="button" class="btn-primary confirm-modal-confirm">${escHtml(confirmLabel)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // defaultValue is set via the .value property, not interpolated into
+    // the template string above — avoids a second escaping path for a
+    // value that was never going through HTML parsing in the first place.
+    const input = overlay.querySelector('.confirm-modal-input');
+    input.value = defaultValue;
+
+    const cancelBtn  = overlay.querySelector('.confirm-modal-cancel');
+    const confirmBtn = overlay.querySelector('.confirm-modal-confirm');
+
+    const close = result => {
+      _confirmModalOpen = false;
+      document.removeEventListener('keydown', onKeydown);
+      overlay.remove();
+      if (previouslyFocused && previouslyFocused.focus) previouslyFocused.focus();
+      resolve(result);
+    };
+
+    // Focus trap over 3 elements: input → Cancel → Confirm → input (and
+    // reverse on Shift+Tab) — confirmModal's simpler 2-element swap doesn't
+    // generalise to 3, so this walks an explicit order array instead.
+    const onKeydown = e => {
+      if (e.key === 'Escape') { close(null); return; }
+      if (e.key === 'Enter' && document.activeElement === input) { close(input.value); return; }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const order = [input, cancelBtn, confirmBtn];
+        const i = order.indexOf(document.activeElement);
+        const next = order[(i + (e.shiftKey ? -1 : 1) + order.length) % order.length];
+        next.focus();
+      }
+    };
+
+    cancelBtn.addEventListener('click', () => close(null));
+    confirmBtn.addEventListener('click', () => close(input.value));
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(null); });
+    document.addEventListener('keydown', onKeydown);
+
+    input.focus();
+    if (defaultValue) input.select();
   });
 }
 

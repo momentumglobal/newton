@@ -385,15 +385,19 @@ async function getPlacements(roleId, opts = {}) {
   return getItems("Placements", filter);
 }
  
-// N-094 (F-2b): `opts.roleIds` scopes to a set of roles. There is
-// deliberately NO date parameter — RejectedOffers has no temporal column at
-// all (submitRejectedOffer writes RoleIDLookupId, Title, SalaryOffered,
-// RejectionReason, Notes and nothing else), which is why N-152 cannot give
-// this list a date window until one is added.
+// N-094 (F-2b): `opts.roleIds` scopes to a set of roles.
+// N-153: `opts.fromDay` ('YYYY-MM-DD') adds a RejectionDate lower bound,
+// mirroring getPlacements.
+// CAUTION for N-152: a server-side `ge` bound EXCLUDES rows with a null
+// RejectionDate — SharePoint cannot match null against `ge`. That is the
+// opposite of the client-side rule, where null is always-included. Any
+// caller that sets fromDay either adds those rows back or states that it
+// drops them; today only the two pre-N-153 rows are affected.
 async function getRejectedOffers(roleId, opts = {}) {
   const filter = _odataAnd(
     roleId ? `fields/RoleID eq ${roleId}` : '',
-    _odataIn('RoleID', opts.roleIds)
+    _odataIn('RoleID', opts.roleIds),
+    opts.fromDay ? `fields/RejectionDate ge '${opts.fromDay}'` : ''
   );
   return getItems("RejectedOffers", filter);
 }

@@ -252,7 +252,10 @@ async function submitQuestionForm(event, templateId, editId = null) {
 }
 
 async function deleteQuestion(questionId) {
-  if (!confirm('Delete this question? This cannot be undone.')) return;
+  if (!(await confirmModal({
+    message: 'Delete this question? This cannot be undone.',
+    confirmLabel: 'Delete', danger: true,
+  }))) return;
   await deleteSurveyQuestion(questionId);
   await openManageTemplateModal();
 }

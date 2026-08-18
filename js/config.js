@@ -428,9 +428,25 @@ const CONFIG = {
     // N-144 after Chris asked to expand scope; fits the same page/role
     // shape as the four router files above (mrCanAccess(page, role)),
     // unlike survey-router.js which stays excluded (role-only, no pages).
-    { key: 'placementAnalytics', label: 'Placement Analytics',   module: 'marketing', href: 'market-reporting.html#placementAnalytics', roles: ['admin', 'delivery_manager', 'talent_partner'] },
+        { key: 'placementAnalytics', label: 'Placement Analytics',   module: 'marketing', href: 'market-reporting.html#placementAnalytics', roles: ['admin', 'delivery_manager', 'talent_partner'] },
     { key: 'marketReport',       label: 'Market Report Builder', module: 'marketing', href: 'market-reporting.html#marketReport',       roles: ['admin', 'delivery_manager', 'talent_partner'] },
   ],
+  // Command Bar entity search (N-145) — maps an entity type to the
+  // COMMAND_BAR_PAGES entry that owns it. Deliberately does NOT restate
+  // module/roles here — command-bar.js looks those up from the matching
+  // COMMAND_BAR_PAGES entry via pageKey at runtime, so there is exactly
+  // one place role/module data lives per page (see command-bar.js for
+  // why it can't call canAccess()/peopleCanAccess() directly instead).
+  COMMAND_BAR_ENTITY_TYPES: [
+    { type: 'role',    label: 'Role',    pageKey: 'roles',        openerFn: 'showEditRoleForm',    titleField: 'RoleTitle' },
+    { type: 'project', label: 'Project', pageKey: 'projects',      openerFn: 'showEditProjectForm', titleField: 'CustomerName' },
+    { type: 'person',  label: 'Person',  pageKey: 'peopleTracker', openerFn: 'showEditPersonForm',  titleField: 'EmployeeName' },
+  ],
+  // Max entity results shown per type, and the minimum characters typed
+  // before entity results appear at all (an empty/1-char query would
+  // otherwise dump every role/person in the company into the list).
+  COMMAND_BAR_ENTITY_RESULT_CAP:    8,
+  COMMAND_BAR_ENTITY_MIN_QUERY_LEN: 2,
   // ── Employee Engagement ───────────────────────────────────────────────
   // Single source of truth for all survey constants.
   // No hardcoded values in engagement-pages.js, engagement-forms.js, or survey-app.js.

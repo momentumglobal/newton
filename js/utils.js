@@ -862,7 +862,7 @@ function confirmModal({ title = '', message = '', confirmLabel = 'Confirm', canc
     overlay.addEventListener('click', e => { if (e.target === overlay) close(false); });
     document.addEventListener('keydown', onKeydown);
 
-        cancelBtn.focus();
+    cancelBtn.focus();
   });
 }
 

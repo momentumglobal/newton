@@ -266,7 +266,7 @@ async function _deleteAssignment(id) {
     await deleteItem('Assignments', id);
     await renderAssignmentsTab();
   } catch (e) {
-    alert('Error deleting assignment: ' + e.message);
+    toast('Error deleting assignment: ' + e.message, { type: 'error' });
   }
 }
 
@@ -431,7 +431,7 @@ async function _syncBenchAssignments() {
 
   } catch (e) {
     if (btn) { btn.textContent = '↻ Sync Bench'; btn.disabled = false; }
-    alert('Sync failed: ' + e.message);
+    toast('Sync failed: ' + e.message, { type: 'error' });
   }
 }
 

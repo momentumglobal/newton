@@ -277,14 +277,14 @@ async function openActivateRunModal() {
   const templates = await getSurveyTemplates();
   const template  = templates.length ? templates[0] : null;
 
-  if (!template) {
-    alert('No survey template found. Please create a template first.');
+    if (!template) {
+    toast('No survey template found. Please create a template first.', { type: 'error' });
     return;
   }
 
   const questions = await getSurveyQuestions(template.id);
-  if (questions.length < 3) {
-    alert(`The template needs at least 3 questions before a run can be activated (currently ${questions.length}).`);
+    if (questions.length < 3) {
+    toast(`The template needs at least 3 questions before a run can be activated (currently ${questions.length}).`, { type: 'error' });
     return;
   }
 

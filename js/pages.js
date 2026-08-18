@@ -77,6 +77,7 @@ const ROLE_FILTERS = {
 };
 let _rolesFilter    = "Active";
 let _rolesProjectId = null;
+let _rolesPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
 async function renderRolesPage(filter) {
   if (filter !== undefined) _rolesFilter = filter;
   const main = document.getElementById("main-content");
@@ -94,6 +95,7 @@ async function renderRolesPage(filter) {
   let roles = userProjectIds
     ? allRoles.filter(r => userProjectIds.includes(String(r.ProjectIDLookupId || r.ProjectID)))
     : allRoles;
+  const rolesTotal = roles.length;  // N-152: pre-filter denominator for the count
   // Apply project dropdown filter
   if (canFilter && _rolesProjectId) {
     roles = roles.filter(r =>
@@ -117,6 +119,7 @@ async function renderRolesPage(filter) {
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _rolesProjectId, 'setRolesProject')
     : '';
+  const pagedRoles = paginate(roles, _rolesPageSize);
   const ROLE_FILTER_LABELS = { Backlog: 'backlog', Active: 'active', Hired: 'hired', Cancelled: 'cancelled' };
   const rolesEmptyMsg = _rolesProjectId
     ? `No ${ROLE_FILTER_LABELS[_rolesFilter] || 'matching'} roles for the selected project.`
@@ -127,16 +130,17 @@ async function renderRolesPage(filter) {
       ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddRoleForm()">+ Add Role</button></div>' : ""}
     </div>
     <div class="table-toolbar">
-      ${projDropdown}
+      ${listControlsBar([projDropdown, pageSizeDropdown(_rolesPageSize, 'setRolesPageSize')])}
       <div class="filter-group">${filterBtns}</div>
     </div>
+    ${listResultCount(pagedRoles.length, roles.length, rolesTotal, null, 'role')}
         <table class="data-table">
       <thead><tr>
         <th>Project</th><th>Role</th><th>Location</th><th>Stage</th><th>Talent Partner</th>
         <th>Budget</th><th>Open Date</th><th>${_rolesFilter === "Hired" ? "Actual Hire Date" : "Target Hire Date"}</th><th>Days Open</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${roles.length ? roles.map(r => {
+        ${pagedRoles.length ? pagedRoles.map(r => {
           const isHired    = _rolesFilter === "Hired";
           const daysHidden = _rolesFilter === "Backlog" || _rolesFilter === "Cancelled";
           const days       = (!daysHidden && (!isHired || r.ActualHireDate))
@@ -173,6 +177,7 @@ async function renderRolesPage(filter) {
   lucide.createIcons();
 }
 function setRolesProject(val) { _rolesProjectId = val || null; renderRolesPage(); }
+function setRolesPageSize(val) { _rolesPageSize = Number(val); renderRolesPage(); }
 async function showAddRoleForm() {
   document.getElementById("main-content").innerHTML = await renderRoleForm();
 }
@@ -187,6 +192,7 @@ let _activityProjectId = null;
 let _activityRoleId    = null;
 // N-093: weeks of history fetched from SharePoint. 0 = All time (no clause).
 let _activityWeeks     = CONFIG.DATE_WINDOW_DEFAULT_WEEKS;
+let _activityPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
 async function renderActivityPage() {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading activity...</p>";
@@ -220,6 +226,9 @@ async function renderActivityPage() {
       (a.TalentPartner || '').toLowerCase() === (user.email || '').toLowerCase()
     );
   }
+  // N-152: denominator captured AFTER both permission scopes and BEFORE any
+  // user-chosen filter — a TP must not be told about rows they cannot see.
+  const activityTotal = filteredActivity.length;
   if (canFilter && _activityProjectId) {
     filteredActivity = filteredActivity.filter(a => {
       const rid = String(a.RoleIDLookupId || a.RoleID || '');
@@ -250,6 +259,7 @@ async function renderActivityPage() {
   const role    = _resolvedRole;
   const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
   const periodDropdown = periodFilterDropdown(_activityWeeks, 'setActivityWeeks');
+  const pagedActivity = paginate(filteredActivity, _activityPageSize);
   const activityEmptyMsg = (_activityProjectId || _activityRoleId)
     ? "No activity logged for the selected filters."
     : "No activity logged yet.";
@@ -259,12 +269,9 @@ async function renderActivityPage() {
       ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddActivityForm()">+ Log Activity</button></div>' : ""}
     </div>
     <div class="table-toolbar">
-     <div style="display:flex;gap:16px;align-items:flex-end">
-      ${projDropdown}
-      ${roleDropdown}
-      ${periodDropdown}
-     </div>
+      ${listControlsBar([projDropdown, roleDropdown, periodDropdown, pageSizeDropdown(_activityPageSize, 'setActivityPageSize')])}
     </div>
+    ${listResultCount(pagedActivity.length, filteredActivity.length, activityTotal, _activityWeeks, 'activity row')}
     <table class="data-table">
       <thead><tr>
         <th>Year</th><th>Week</th><th>Role</th><th>Talent Partner</th>
@@ -280,7 +287,7 @@ async function renderActivityPage() {
         ${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${filteredActivity.length ? filteredActivity.map(a => `
+        ${pagedActivity.length ? pagedActivity.map(a => `
           <tr>
             <td>${a.Year}</td>
             <td>Wk ${a.WeekNumber}</td>
@@ -310,6 +317,7 @@ async function renderActivityPage() {
   lucide.createIcons();
 }
 function setActivityWeeks(val) { _activityWeeks = Number(val); renderActivityPage(); }
+function setActivityPageSize(val) { _activityPageSize = Number(val); renderActivityPage(); }
 function setActivityProject(val) { _activityProjectId = val || null; _activityRoleId = null; renderActivityPage(); }
 function setActivityRole(val) { _activityRoleId = val || null; renderActivityPage(); }
 async function showAddActivityForm() {
@@ -325,6 +333,7 @@ const PLACEMENT_YEARS = Array.from({ length: 4 }, (_, i) => new Date().getFullYe
 let _placementFilter    = { type: null, value: null };
 let _placementProjectId = null;
 let _placementWeeks     = CONFIG.PLACEMENTS_DEFAULT_WEEKS;
+let _placementPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
 function placementInFilter(p, filter) {
   if (!filter.type) return true;
   const dateStr = p.OfferAcceptedDate;
@@ -396,10 +405,11 @@ async function renderPlacementsPage() {
     ? projectFilterDropdown(scopedProjects, _placementProjectId, 'setPlacementProject')
     : '';
   const periodDropdown = periodFilterDropdown(_placementWeeks, 'setPlacementWeeks');
+  const pagedPlacements = paginate(placements, _placementPageSize);
   // N-151: the denominator is scopedPlacements, NOT allPlacements — a talent
   // partner would otherwise read "Showing 3 of 128" and think 125 rows were
   // hidden by their filters, when most are hidden by their permissions.
-  const resultCount = listResultCount(placements.length, scopedPlacements.length, _placementWeeks, 'placement');
+  const resultCount = listResultCount(pagedPlacements.length, placements.length, scopedPlacements.length, _placementWeeks, 'placement');
   const placementFilterLabel = _placementFilter.type === "month" ? PLACEMENT_MONTHS[_placementFilter.value]
     : _placementFilter.type === "quarter" ? `Q${_placementFilter.value}`
     : _placementFilter.type === "year" ? String(_placementFilter.value)
@@ -415,10 +425,7 @@ async function renderPlacementsPage() {
       </div>
     </div>
     <div class="table-toolbar">
-     <div style="display:flex;gap:16px;align-items:flex-end">
-      ${projDropdown}
-      ${periodDropdown}
-     </div>
+      ${listControlsBar([projDropdown, periodDropdown, pageSizeDropdown(_placementPageSize, 'setPlacementPageSize')])}
       <div class="placement-filter-rows">
         <div class="placement-filter-row">
           <div class="filter-labeled-group"><span class="filter-label">Month</span><div class="filter-group">${monthBtns}</div></div>
@@ -437,7 +444,7 @@ async function renderPlacementsPage() {
         ${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${placements.length ? placements.map(p => `
+        ${pagedPlacements.length ? pagedPlacements.map(p => `
           <tr>
             <td>${escHtml(p.CandidateName)}</td>
             <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || "—"}</td>
@@ -461,6 +468,7 @@ async function renderPlacementsPage() {
 }
 function setPlacementProject(val) { _placementProjectId = val || null; renderPlacementsPage(); }
 function setPlacementWeeks(val) { _placementWeeks = Number(val); renderPlacementsPage(); }
+function setPlacementPageSize(val) { _placementPageSize = Number(val); renderPlacementsPage(); }
 async function showAddPlacementForm() {
   document.getElementById("main-content").innerHTML = await renderPlacementForm();
 }
@@ -470,13 +478,19 @@ async function showEditPlacementForm(id) {
 }
 // ── Rejected Offers ───────────────────────────────────────────────────
 let _rejectionsProjectId = null;
+let _rejectionsWeeks     = CONFIG.REJECTIONS_DEFAULT_WEEKS;
+let _rejectionsPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
 async function renderRejectionsPage() {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading rejections...</p>";
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
   const [rejections, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
-    getRejectedOffers(),
+    // N-152: bounded ONLY when the user picks a window. The default is 0
+    // (All time) and must stay that way — a `ge` bound cannot match a null
+    // RejectionDate, so a bounded default would silently drop the rows that
+    // were deliberately never backfilled. See CONFIG.REJECTIONS_DEFAULT_WEEKS.
+    getRejectedOffers(null, { fromDay: weeksAgoDay(_rejectionsWeeks) }),
     getRolesForUser(user.email),
     getProjectFilterOptions(),
   ]);
@@ -496,6 +510,7 @@ async function renderRejectionsPage() {
         return userProjectIds.includes(roleProjectMap[rid]);
       })
     : rejections;
+  const rejectionsTotal = filteredRejections.length;  // N-152: pre-filter denominator
   if (canFilter && _rejectionsProjectId) {
     filteredRejections = filteredRejections.filter(r => {
       const rid = String(r.RoleIDLookupId || r.RoleID || '');
@@ -507,6 +522,7 @@ async function renderRejectionsPage() {
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _rejectionsProjectId, 'setRejectionsProject')
     : '';
+  const pagedRejections = paginate(filteredRejections, _rejectionsPageSize);
   const rejectionsEmptyMsg = _rejectionsProjectId
     ? "No rejected offers for this project."
     : "No rejected offers logged yet.";
@@ -516,14 +532,15 @@ async function renderRejectionsPage() {
       ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddRejectionForm()">+ Log Rejection</button></div>' : ""}
     </div>
     <div class="table-toolbar">
-      ${projDropdown}
+      ${listControlsBar([projDropdown, periodFilterDropdown(_rejectionsWeeks, 'setRejectionsWeeks'), pageSizeDropdown(_rejectionsPageSize, 'setRejectionsPageSize')])}
     </div>
+    ${listResultCount(pagedRejections.length, filteredRejections.length, rejectionsTotal, _rejectionsWeeks, 'rejection')}
     <table class="data-table">
       <thead><tr>
         <th>Candidate</th><th>Role</th><th>Rejected</th><th>Salary Offered</th><th>Reason</th><th>Notes</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${filteredRejections.length ? filteredRejections.map(r => `
+        ${pagedRejections.length ? pagedRejections.map(r => `
           <tr>
             <td>${escHtml(r.CandidateName)}</td>
             <td>${roleMap[String(r.RoleIDLookupId)] || roleMap[String(r.RoleID)] || "—"}</td>
@@ -546,6 +563,8 @@ async function renderRejectionsPage() {
   lucide.createIcons();
 }
 function setRejectionsProject(val) { _rejectionsProjectId = val || null; renderRejectionsPage(); }
+function setRejectionsWeeks(val) { _rejectionsWeeks = Number(val); renderRejectionsPage(); }
+function setRejectionsPageSize(val) { _rejectionsPageSize = Number(val); renderRejectionsPage(); }
 async function showAddRejectionForm() {
   document.getElementById("main-content").innerHTML = await renderRejectedOfferForm();
 }

@@ -871,8 +871,17 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <h3>Performance rules</h3>
       <ul style="font-size:14px;color:#444;padding-left:20px;line-height:2.2">
         <li>Always fetch independent lists in parallel using <code>Promise.all()</code> — never await sequentially.</li>
-        <li>For company-scope views, use <code>getAllRoles()</code> — never loop <code>getRolesForProject()</code> per project.</li>
+        <li>For company-scope views, use <code>getAllRoles()</code>. For user-scoped views, use <code>getRolesForUser(email)</code> — it fans out one filtered <code>getRolesForProject()</code> request per assigned project, bounded by <code>CONFIG.SCOPE_FANOUT_MAX</code>, and falls back to <code>getAllRoles()</code> above that ceiling. Never hand-roll either loop at a call site.</li>
         <li>Dashboard period-filter changes use cached <code>window._last*</code> data — no re-fetch.</li>
+      </ul>
+
+      <h3>Filters that cannot go server-side</h3>
+      <p style="font-size:14px;color:#444">Established by N-093 and N-094. Check this list before adding a <code>$filter</code> — each entry has already been investigated and ruled out. "Permanent" means the data model forbids it; "blocked" means a schema change would unblock it.</p>
+      <ul style="font-size:14px;color:#444;padding-left:20px;line-height:2.2">
+        <li><strong>Multi-TP <code>contains</code></strong> — the <code>TalentPartner</code> column may hold several addresses in one string (<code>a@x.com;b@x.com</code>), and OData <code>contains</code> on it is unsupported at scale. <em>Permanent.</em></li>
+        <li><strong><code>Placements</code> project scoping</strong> — the list has no <code>ProjectID</code> column. It is a child of <code>Roles</code> via <code>RoleIDLookupId</code> only, and <code>submitPlacementForm</code> never persists the form's project dropdown (that dropdown exists solely to cascade the role list). Scope by role id via <code>_odataIn()</code> instead. <em>Permanent.</em></li>
+        <li><strong><code>Roles.Stage</code> negative filter</strong> (in <code>forms.js</code>) — there is no enumerated Stage list to invert against; <code>ACTIVE_STAGES</code> in <code>analytics.js</code> is misleadingly named and holds the <em>terminal</em> stages, a different set. An OData <code>ne</code> chain is also the shape SharePoint degrades on above 5,000 rows. <em>Permanent.</em></li>
+        <li><strong><code>RejectedOffers</code> date scoping</strong> — the list has no temporal column at all: <code>submitRejectedOffer</code> writes <code>RoleIDLookupId</code>, <code>Title</code>, <code>SalaryOffered</code>, <code>RejectionReason</code> and <code>Notes</code>, and nothing else. Rejections are periodised through the linked role's <code>ActualHireDate</code>, and a rejection whose role has no <code>ActualHireDate</code> is counted in every period. <em>Blocked pending a schema change.</em></li>
       </ul>
     </div>
 

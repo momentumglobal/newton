@@ -2282,6 +2282,73 @@ body {
   }
 }
 
+/* ── Toast + confirm modal (N-104 / X-3a) — engine only, no call sites
+   migrated yet (N-105/106/107). Don't touch .eng-modal-*/.payroll-modal-*/
+   .lci-modal-* — this is a separate, shared component. ── */
+.toast-container {
+  position: fixed;
+  right: var(--sp-9);
+  bottom: var(--sp-9);
+  z-index: 10000; /* above the 1000-tier modals and the 9999 one-off at
+                      style.css:1364 — no --z-* token scale exists yet */
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--sp-4);
+  max-width: 360px;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-6) var(--sp-7);
+  border-radius: var(--r-lg);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  box-shadow: 0 var(--sp-3) var(--sp-9) rgba(0,0,0,0.18);
+  font-size: var(--fs-13);
+  color: var(--text-primary);
+  animation: toast-in 180ms ease;
+}
+.toast--leaving { animation: toast-out 180ms ease forwards; }
+.toast-icon { width: var(--sp-8); height: var(--sp-8); flex-shrink: 0; }
+.toast--info    .toast-icon { color: var(--brand); }
+.toast--success .toast-icon { color: var(--status-success); }
+.toast--error   .toast-icon { color: var(--status-danger); }
+.toast-message { flex: 1; }
+.toast-action {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-link); font-weight: 600; font-size: var(--fs-13);
+  padding: 0; flex-shrink: 0;
+}
+.toast-action:hover { color: var(--text-link-hover); }
+.toast-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-size: var(--fs-16); line-height: 1;
+  padding: 0 0 0 var(--sp-2); flex-shrink: 0;
+}
+.toast-close:hover { color: var(--text-muted); }
+@keyframes toast-in  { from { opacity: 0; transform: translateY(var(--sp-6)); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toast-out { from { opacity: 1; } to { opacity: 0; } }
+
+.confirm-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: var(--sp-8);
+}
+.confirm-modal {
+  background: var(--surface-raised);
+  border-radius: var(--r-2xl);
+  box-shadow: 0 var(--sp-4) var(--sp-10) rgba(0,0,0,0.18);
+  padding: var(--sp-10);
+  width: 100%;
+  max-width: 420px;
+}
+.confirm-modal-title { margin: 0 0 var(--sp-5); font-size: var(--fs-18); color: var(--text-heading); }
+.confirm-modal-message { margin: 0 0 var(--sp-9); font-size: var(--fs-14); color: var(--text-secondary); }
+.confirm-modal-actions { display: flex; justify-content: flex-end; gap: var(--sp-6); }
+.confirm-modal-confirm--danger { background: var(--status-danger); }
+.confirm-modal-confirm--danger:hover { background: var(--status-danger-text); }
+
 /* ── Payroll Summary ─────────────────────────────────────── */
 .salary-cell {
   white-space: nowrap;

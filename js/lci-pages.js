@@ -400,7 +400,10 @@ async function openLCIReport(id) {
 
 async function deleteLCIReportAction(id) {
   const r = (_lciReportsCache || []).find(x => String(x.id) === String(id));
-  if (!confirm(`Delete saved report "${r ? r.Title : ''}"? (The models are not affected.)`)) return;
+  if (!(await confirmModal({
+    message: `Delete saved report "${r ? r.Title : ''}"? (The models are not affected.)`,
+    confirmLabel: 'Delete', danger: true,
+  }))) return;
   try {
     await deleteLCIReport(id);
     await renderLCIModelsPage();
@@ -441,7 +444,10 @@ async function copyLCIModelAction(id, btn = null) {
 
 async function deleteLCIModelAction(id) {
   const m = (_lciModelsCache || []).find(x => String(x.id) === String(id));
-  if (!confirm(`Delete "${m ? m.Title : 'this model'}" and all its rows? This cannot be undone.`)) return;
+  if (!(await confirmModal({
+    message: `Delete "${m ? m.Title : 'this model'}" and all its rows? This cannot be undone.`,
+    confirmLabel: 'Delete', danger: true,
+  }))) return;
   try {
     await deleteLCIModel(id);
     await renderLCIModelsPage();

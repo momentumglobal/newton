@@ -272,7 +272,7 @@ async function uploadLeadershipPhoto(id) {
   }
 }
 async function deleteOsAdminRecord(listName, id) {
-  if (!confirm('Remove this record?')) return;
+  if (!(await confirmModal({ message: 'Remove this record?', confirmLabel: 'Remove', danger: true }))) return;
   await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items/${id}`);
   await renderOsAdminPage(_osAdminTab);
 }
@@ -560,8 +560,14 @@ async function buildDataHealthTab() {
 }
 
 async function indexColumnNow(listName, columnId) {
-  if (!confirm(`Index this column on ${listName}? This changes the SharePoint schema and cannot be undone from here.`)) return;
+  // N-106: capture the button BEFORE awaiting the modal. The implicit global
+  // `event` is only populated during synchronous dispatch, so reading it after
+  // an await would yield undefined and silently break the loading state.
   const btn = event?.target;
+  if (!(await confirmModal({
+    message: `Index this column on ${listName}? This changes the SharePoint schema and cannot be undone from here.`,
+    confirmLabel: 'Index column',
+  }))) return;
   setButtonLoading(btn);
   try {
     await setColumnIndexed(listName, columnId);

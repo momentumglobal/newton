@@ -115,7 +115,7 @@ async function renderEmployeesTab() {
     </table>
 
     <!-- Payroll modal -->
-    <div id='payroll-modal-overlay' style='display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;overflow-y:auto'>
+    <div id='payroll-modal-overlay' style='display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:var(--z-modal);overflow-y:auto'>
       <div class='print-avoid-break' style='background:var(--surface);border-radius:8px;max-width:640px;margin:60px auto;padding:32px;position:relative'>
         <button onclick='_closePayrollModal()' style='position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted)'>&times;</button>
         <div id='payroll-modal-body'></div>

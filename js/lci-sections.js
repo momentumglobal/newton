@@ -178,9 +178,12 @@ function _lciAddRow(row, renderFnName, sectionId) {
   _lciReplaceSection(renderFnName, sectionId);
 }
 
-function removeLCIRowAction(gidx, renderFnName, sectionId) {
+async function removeLCIRowAction(gidx, renderFnName, sectionId) {
   const r = _lciEd.rows[gidx];
-  if (!confirm(`Remove "${r.Title || 'this row'}"?`)) return;
+  if (!(await confirmModal({
+    message: `Remove "${r.Title || 'this row'}"?`,
+    confirmLabel: 'Remove', danger: true,
+  }))) return;
   if (r.id) _lciEd.deletedRowIds.push(r.id);
   _lciEd.rows.splice(gidx, 1);
   lciMarkRowsDirtyAll();

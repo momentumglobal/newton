@@ -314,7 +314,7 @@ async function submitAssignmentForm(event, editId = null) {
   // N-116 QA1: split-fee lines are exempt — one TP routinely runs several
   // concurrent Exec Search / MG AI engagements, so the confirm would fire on
   // every legitimate save and train people to click straight through it.
-    if (!fields.IsForecast && !_isSplitType(fields.ProjectType)) {
+  if (!fields.IsForecast && !_isSplitType(fields.ProjectType)) {
     let all = [];
     try {
       all = await getAssignments({ employeeName: fields.EmployeeName });

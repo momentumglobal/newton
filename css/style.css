@@ -2348,6 +2348,23 @@ body {
 .confirm-modal-actions { display: flex; justify-content: flex-end; gap: var(--sp-6); }
 .confirm-modal-confirm--danger { background: var(--status-danger); }
 .confirm-modal-confirm--danger:hover { background: var(--status-danger-text); }
+.confirm-modal-input {
+  width: 100%;
+  margin: 0 0 var(--sp-8);
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  font-size: var(--fs-14);
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--surface);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.confirm-modal-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 var(--sp-1) rgba(10,11,68,0.08);
+}
 
 /* ── Payroll Summary ─────────────────────────────────────── */
 .salary-cell {

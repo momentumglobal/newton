@@ -243,7 +243,7 @@ async function saveLMLocation(event) {
     await renderLCILeadMagnetPage();
   } catch (e) {
     clearButtonLoading(btn);
-    alert('Error saving location: ' + e.message);
+    toast('Error saving location: ' + e.message, { type: 'error' });
   }
 }
 
@@ -254,7 +254,7 @@ async function deleteLMLocation(id) {
     await deleteLCILocation(id);
     await renderLCILeadMagnetPage();
   } catch (e) {
-    alert('Error deleting location: ' + e.message);
+    toast('Error deleting location: ' + e.message, { type: 'error' });
   }
 }
 
@@ -415,7 +415,7 @@ function _lmPrint() {
   _lmUpdatePreview(); // ensure the printed report reflects the latest text
   const { current, scoped, disciplines } = _lmResolve();
   if (!current || !scoped.length || !disciplines.length) {
-    alert('Select a current location, at least one scoped location, and at least one discipline first.');
+    toast('Select a current location, at least one scoped location, and at least one discipline first.', { type: 'error' });
     return;
   }
   document.body.classList.add('lci-summary-mode'); // suppress the Confidential print banner

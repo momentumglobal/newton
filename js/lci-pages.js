@@ -423,7 +423,7 @@ function openLCIModel(id) {
 
 async function copyLCIModelAction(id, btn = null) {
   const m = (_lciModelsCache || []).find(x => String(x.id) === String(id));
-  const newTitle = prompt('Name for the copy:', m ? `${m.Title} (copy)` : 'Copy');
+  const newTitle = await promptModal({ message: 'Name for the copy:', defaultValue: m ? `${m.Title} (copy)` : 'Copy' });
   if (!newTitle) return;
   // N-082 QA: visible progress — larger models take a while to copy, and
   // users interrupting a silent copy is what lost rows/milestones.

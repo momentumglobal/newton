@@ -197,6 +197,7 @@
   --z-dropdown: 100;
   --z-modal: 1000;
   --z-confirm: 1100;
+  --z-command: 1150; /* N-144 — command bar overlay, above confirm dialogs */
   --z-banner: 9999;
   --z-toast: 10000;
   /* Type scale */
@@ -2375,6 +2376,68 @@ body {
   outline: none;
   border-color: var(--border-focus);
   box-shadow: 0 0 0 var(--sp-1) rgba(10,11,68,0.08);
+}
+
+/* ── Command Bar (N-144) — ⌘K / Ctrl+K overlay ───────────────────────
+   Shares the --z-* scale (N-159); see js/command-bar.js for behaviour.
+   No entrance animation: style.css's one existing `animation: fadeIn`
+   use (#payroll-modal-overlay above) references a keyframe that isn't
+   defined anywhere in this file — a pre-existing gap, not repeated
+   here, and not fixed here either (out of scope for N-144). ── */
+.cmd-bar-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  display: flex; align-items: flex-start; justify-content: center;
+  z-index: var(--z-command); padding: var(--sp-8);
+}
+.cmd-bar-panel {
+  background: var(--surface-raised);
+  border-radius: var(--r-2xl);
+  box-shadow: var(--sh-modal);
+  width: 100%;
+  max-width: 560px;
+  margin-top: 10vh;
+  overflow: hidden;
+}
+.cmd-bar-input {
+  width: 100%;
+  padding: var(--sp-8);
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--fs-16);
+  font-family: inherit;
+  color: var(--text-primary);
+  background: transparent;
+}
+.cmd-bar-input:focus { outline: none; }
+.cmd-bar-results {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.cmd-bar-result {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-5);
+  padding: var(--sp-5) var(--sp-8);
+  font-size: var(--fs-14);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--dur-fast) ease;
+}
+.cmd-bar-result:hover,
+.cmd-bar-result.active {
+  background: var(--surface-hover);
+}
+.cmd-bar-result-badge {
+  font-size: var(--fs-11);
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border-radius: var(--r-pill);
+  padding: 2px var(--sp-4);
+}
+.cmd-bar-empty {
+  padding: var(--sp-8);
+  font-size: var(--fs-14);
+  color: var(--text-secondary);
+  text-align: center;
 }
 
 /* ── Payroll Summary ─────────────────────────────────────── */

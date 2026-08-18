@@ -522,7 +522,7 @@ async function renderRejectionsPage() {
   const userProjectIds = await getUserProjectIds(user.email);
   const [rejections, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
     getRejectedOffers(),
-    getAllRoles(),
+    getRolesForUser(user.email),
     getProjectFilterOptions(),
   ]);
   const roleProjectMap = Object.fromEntries(

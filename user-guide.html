@@ -182,7 +182,8 @@
       </div>
       <p>A list of all roles across your accessible projects. Each row shows the role title, project, stage, assigned Talent Partner, open date, and target hire date.</p>
       <h3>Filtering</h3>
-      <p>Use the <strong>Project</strong> dropdown to filter by project — grouped into <strong>Active</strong> and <strong>Archive</strong> sections (A–Z within each). Use the stage filter buttons (All / Active / Backlog / On-hold / Hired / Cancelled) to narrow by stage.</p>
+      <p>Use the <strong>Project</strong> dropdown to filter by project — grouped into <strong>Active</strong> and <strong>Archive</strong> sections (A–Z within each). Use the stage filter buttons (Backlog / Active / Hired / Cancelled) to narrow by stage — <strong>Backlog</strong> covers both Backlog and On-hold roles, and <strong>Active</strong> means everything that is not Backlog, On-hold, Hired or Cancelled.</p>
+      <p>The <strong>Show</strong> dropdown sets how many rows are drawn (25 / 50 / 100 / All, default 50). It only affects the display — nothing is re-fetched — and the line under the toolbar tells you what you are looking at. Roles has <strong>no</strong> date window on purpose: a role that has been open a long time is the one you most need to see, so the list is never bounded by date.</p>
       <h3>Adding and editing roles</h3>
       <p>Admins and Delivery Managers can add new roles using the <strong>+ Add Role</strong> button. Any role can be edited or its stage updated using the action links in the table. When creating a role, select the <strong>Functional Area</strong> and hire <strong>Location</strong> — currency is auto-populated from the location and does not need to be entered manually. The Project dropdown on this form lists Active projects only; an existing role already linked to a project that has since moved to Archive still shows it when you edit that role.</p>
       <div class="tip">The "Roles Open 30+ Days" panel on both dashboards is driven by the <strong>Open Date</strong> field — make sure this is set accurately when a role is created.</div>
@@ -197,6 +198,7 @@
       <p>Records weekly pipeline activity against specific roles — Outreach, Responses, Screened, Submitted, Interview 1, Interview 2+, Final Interview, Offers, and Hires. Each entry is tied to a role, a Talent Partner, a year, and a week number.</p>
       <h3>Filtering</h3>
       <p>Filter by project using the dropdown, grouped into <strong>Active</strong> and <strong>Archive</strong> sections. Talent Partners see only their own entries; Delivery Managers and Admins see all entries for their projects.</p>
+      <p>The <strong>Period</strong> dropdown controls how much history is <em>fetched</em> — it defaults to <strong>Last 26 weeks</strong>, so older entries are not loaded until you widen it. Choose <strong>All time</strong> to load everything. If a count looks lower than you expect, check this first. The <strong>Show</strong> dropdown (25 / 50 / 100 / All, default 50) then limits how many of those rows are drawn, without re-fetching. The line under the toolbar always names the period you are viewing.</p>
       <h3>Adding activity</h3>
       <p>Use <strong>+ Add Activity</strong> to log a week's numbers. Select the role, enter the week ending date, and fill in the activity counts. This data feeds directly into the dashboard pipeline panels. The Project dropdown on this form lists Active projects only.</p>
     </div>
@@ -210,6 +212,7 @@
       <p>Records successful hires — candidate name, role, agreed salary, and provisional start date. Each placement is linked to a specific role.</p>
       <h3>Filtering</h3>
       <p>Filter by project — grouped into <strong>Active</strong> and <strong>Archive</strong> sections — and by Month, Quarter, or Year using the filter rows below the project dropdown.</p>
+      <p>The <strong>Period</strong> dropdown controls how far back placements are <em>fetched</em>, and defaults to <strong>Last 52 weeks</strong>. Choose <strong>All time</strong> to load every placement ever recorded. The Month / Quarter / Year buttons still work regardless of the period — picking an earlier month widens the fetch automatically rather than returning nothing. The <strong>Show</strong> dropdown (25 / 50 / 100 / All, default 50) limits how many rows are drawn without re-fetching, and the line under the toolbar names the period so a narrowed list is never mistaken for the whole list.</p>
       <h3>Recording a placement</h3>
       <p>Use <strong>+ Record Placement</strong> to log a hire. Select the role and the currency field will auto-populate from the role's location. The salary field feeds the Actual Spend vs Budget panel on the Project Dashboard, so accuracy here matters. The Project dropdown on this form lists Active projects only.</p>
       <div class="tip">A placement's provisional start date is what populates the <strong>Upcoming Starters</strong> panel on the Project Dashboard.</div>
@@ -224,8 +227,10 @@
       <p>Logs offers that were not accepted, recording the candidate name, role, and rejection reason. Reason categories are: Salary, Motivations, Counter-offer, Took another opportunity, and Other.</p>
       <h3>Filtering</h3>
       <p>Filter by project using the dropdown, grouped into <strong>Active</strong> and <strong>Archive</strong> sections.</p>
+      <p>A <strong>Period</strong> dropdown is available but defaults to <strong>All time</strong>, so nothing is hidden unless you choose to narrow it. Note that rejections logged before the Rejection Date field existed have no date, and choosing a bounded period will exclude them — that is why All time is the default. The <strong>Show</strong> dropdown (25 / 50 / 100 / All, default 50) limits how many rows are drawn.</p>
       <h3>Recording a rejection</h3>
-      <p>Use <strong>+ Record Rejection</strong> to log a declined offer. This data feeds the <strong>Offer Rejection Reasons</strong> panel on the Project Dashboard, helping identify trends over time.</p>
+      <p>Use <strong>+ Record Rejection</strong> to log a declined offer. <strong>Rejection Date is required</strong> and defaults to today — change it if you are logging something that happened earlier. This data feeds the <strong>Offer Rejection Reasons</strong> panel on the Project Dashboard, helping identify trends over time.</p>
+      <p>That panel is period-scoped by the rejection date. Before this field existed it fell back to the linked role's hire date, which meant any rejection against a role that had not been filled was counted in <em>every</em> period — so historical rejection trends before N-153 should be read with that in mind.</p>
     </div>
     <div class="guide-section" id="hiring-plan">
       <h2>Hiring Plan (CoE projects)</h2>

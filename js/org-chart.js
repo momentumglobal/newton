@@ -445,7 +445,7 @@ async function deletePlaceholder(id) {
     await deleteItem('People', id);
     showPlaceholderManager();
   } catch (e) {
-    alert(`Error removing placeholder: ${e.message}`);
+    toast(`Error removing placeholder: ${e.message}`, { type: 'error' });
   }
 }
 

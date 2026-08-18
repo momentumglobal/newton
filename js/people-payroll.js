@@ -196,6 +196,6 @@ async function _sendPayrollSummary(month, year, includeBonus) {
       </div>`;
   } catch (e) {
     if (btn) clearButtonLoading(btn);
-    alert('Error sending payroll summary: ' + e.message);
+    toast('Error sending payroll summary: ' + e.message, { type: 'error' });
   }
 }

@@ -342,7 +342,7 @@ async function submitRoleForm(event, editId = null) {
   };
   try {
     if (editId) {
-      await updateItem('Roles', editId, fields);
+      await updateRoleWithHistory(editId, fields);
     } else {
       await createItem('Roles', fields);
     }
@@ -762,10 +762,10 @@ async function submitPlacementForm(event, editId = null) {
       created = await createItem('Placements', fields);
     }
     if (startDate && data.RoleID) {
-      await updateItem('Roles', data.RoleID, { CurrentStartDate: startDate });
+      await updateRoleWithHistory(data.RoleID, { CurrentStartDate: startDate });
     }
     if (offerDate && data.RoleID) {
-      await updateItem('Roles', data.RoleID, { ActualHireDate: offerDate });
+      await updateRoleWithHistory(data.RoleID, { ActualHireDate: offerDate });
     }
     if (created) {                       // new placement only
       // N-093: was getAllRoles() + a lookup map to find one role by id.

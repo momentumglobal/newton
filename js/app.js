@@ -20,9 +20,16 @@ function handleDeepLink() {
   const [pageKey, queryStr] = raw.split('?');
   const page = pageKey.trim();
   if (!page || !canAccess(page, _resolvedRole)) return false;
-  navigateTo(page);
   const params = new URLSearchParams(queryStr || '');
   const action = params.get('action');
+  if (action === 'filter' && page === 'projectDashboard') {
+    // N-145 addendum (18 Aug 2026) — Command Bar Project entity jump,
+    // cross-module case. Must run BEFORE navigateTo(): renderProjectDashboard()
+    // reads _dashProjectId synchronously at the top of its own function, so
+    // the filter has to be in place before that render fires, not after.
+    setDashProjectFilter(params.get('projectId'));
+  }
+  navigateTo(page);
   if (action === 'add') {
     setTimeout(() => {
       if      (page === 'activity')   showAddActivityForm();
@@ -33,14 +40,12 @@ function handleDeepLink() {
     // N-145 — Command Bar entity-search deep link.
     const id = Number(params.get('id'));
     setTimeout(() => {
-      if      (page === 'roles')    showEditRoleForm(id);
-      else if (page === 'projects') showEditProjectForm(id);
+      if (page === 'roles') showEditRoleForm(id);
     }, 50);
   }
   history.replaceState(null, '', window.location.pathname);
   return true;
 }
-
 window.APP = {
   async init(freshLogin = false) {
     if (!isSignedIn()) {

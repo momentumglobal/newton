@@ -67,9 +67,12 @@ function _lciRowSnapshot(r) {
   };
 }
 
-function lciEditorBack() {
+async function lciEditorBack() {
   if ((_lciEd?.dirtySettings || _lciEd?.dirtyRows || _lciEd?.dirtyMilestones) &&
-      !confirm('You have unsaved changes. Leave without saving?')) return;
+      !(await confirmModal({
+        message: 'You have unsaved changes. Leave without saving?',
+        confirmLabel: 'Leave', danger: true,
+      }))) return;
   _lciEd = null;
   renderLCIModelsPage();
 }
@@ -95,9 +98,12 @@ function _lciEditorHtml() {
     ${_lciOutputHtml()}`;
 }
 
-function lciOpenSummary() {
+async function lciOpenSummary() {
   if ((_lciEd?.dirtySettings || _lciEd?.dirtyRows || _lciEd?.dirtyMilestones) &&
-      !confirm('You have unsaved changes that will not appear in the summary. Continue?')) return;
+      !(await confirmModal({
+        message: 'You have unsaved changes that will not appear in the summary. Continue?',
+        confirmLabel: 'Continue',
+      }))) return;
   renderLCISummaryPage(_lciEd.model.id);
 }
 
@@ -472,8 +478,11 @@ async function renameLCITeam(teamIndex) {
 
   const rows = _lciRowsInTeam(team);
   if (teams.includes(next) &&
-      !confirm(`"${next}" already exists. Merge "${team}" into "${next}"? ` +
-               `${rows.length} role${rows.length === 1 ? '' : 's'} will move.`)) return;
+      !(await confirmModal({
+        message: `"${next}" already exists. Merge "${team}" into "${next}"? ` +
+                 `${rows.length} role${rows.length === 1 ? '' : 's'} will move.`,
+        confirmLabel: 'Merge',
+      }))) return;
 
   for (const r of rows) r.Team = next;
   _lciMarkRowsDirty();
@@ -483,13 +492,16 @@ async function renameLCITeam(teamIndex) {
 // "Delete" — remove the team and every role in it. Nothing else to remove: a
 // team with no roles cannot exist. Rows with an id go to deletedRowIds so the
 // next Save Roadmap deletes them in SharePoint.
-function deleteLCITeam(teamIndex) {
+async function deleteLCITeam(teamIndex) {
   const team = _lciTeamsInOrder()[teamIndex];
   if (team === undefined) return;
 
   const rows = _lciRowsInTeam(team);
-  if (!confirm(`Delete team "${team}" and its ${rows.length} ` +
-               `role${rows.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+  if (!(await confirmModal({
+    message: `Delete team "${team}" and its ${rows.length} ` +
+             `role${rows.length === 1 ? '' : 's'}? This cannot be undone.`,
+    confirmLabel: 'Delete team', danger: true,
+  }))) return;
 
   for (const r of rows) {
     if (r.id) _lciEd.deletedRowIds.push(r.id);
@@ -501,9 +513,12 @@ function deleteLCITeam(teamIndex) {
   _lciRerenderRoadmap();
 }
 
-function removeLCICoeRow(idx) {
+async function removeLCICoeRow(idx) {
   const r = _lciCoeRows()[idx];
-  if (!confirm(`Remove "${r.Title || 'this role'}" from the roadmap?`)) return;
+  if (!(await confirmModal({
+    message: `Remove "${r.Title || 'this role'}" from the roadmap?`,
+    confirmLabel: 'Remove', danger: true,
+  }))) return;
   if (r.id) _lciEd.deletedRowIds.push(r.id);
   _lciEd.rows.splice(_lciEd.rows.indexOf(r), 1);
   _lciMarkRowsDirty();

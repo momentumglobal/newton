@@ -727,10 +727,143 @@ function emptyStateRow({ colspan, icon = 'inbox', message = '', actionLabel = ''
   const actionHtml = (actionLabel && actionOnClick)
     ? `<a href="#" onclick="${escAttr(actionOnClick)};return false;">${escHtml(actionLabel)}</a>`
     : '';
-  return `<tr><td colspan="${colspan}" class="empty-state-row">
+    return `<tr><td colspan="${colspan}" class="empty-state-row">
     <i data-lucide="${escAttr(icon)}" class="empty-state-row-icon"></i>
     <span>${escHtml(message)}</span>${actionHtml}
   </td></tr>`;
+}
+
+// ── Toast + confirm modal (N-104 / X-3a) ────────────────────────
+// Reusable non-blocking toast + promise-returning confirm modal, replacing
+// alert()/confirm()/prompt() call sites. Engine only — migrating existing
+// call sites is N-105 (alert→toast), N-106 (confirm→modal) and N-107
+// (prompt→modal); nothing below is wired to a caller yet. Both lazily
+// build their own DOM on first use, so no page/app.js needs an init call.
+
+const TOAST_ICONS = { info: 'info', success: 'check-circle', error: 'alert-circle' };
+
+function _ensureToastContainer() {
+  let el = document.getElementById('toast-container');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast-container';
+    el.className = 'toast-container';
+    el.setAttribute('aria-live', 'polite');
+    el.setAttribute('aria-atomic', 'false');
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+// Removes a toast, clearing any pending auto-dismiss timer first so a
+// stale timeout can never fire against an already-detached node.
+function _removeToast(el) {
+  if (el._toastTimer) { clearTimeout(el._toastTimer); el._toastTimer = null; }
+  el.classList.add('toast--leaving');
+  setTimeout(() => el.remove(), 200);
+}
+
+// Non-blocking toast. type: 'info' | 'success' | 'error'. duration is ms;
+// 0 = persistent (manual close only — the close button is always shown
+// regardless of duration). action, if given, is { label, onClick } and
+// renders as a text button (e.g. "Undo") that fires onClick once and
+// dismisses the toast immediately, without waiting for the timer.
+function toast(message, { type = 'info', duration = 4000, action = null } = {}) {
+  const container = _ensureToastContainer();
+  const el = document.createElement('div');
+  el.className = `toast toast--${type}`;
+  const icon = TOAST_ICONS[type] || TOAST_ICONS.info;
+  const actionHtml = action
+    ? `<button type="button" class="toast-action">${escHtml(action.label)}</button>`
+    : '';
+  el.innerHTML = `
+    <i data-lucide="${escAttr(icon)}" class="toast-icon"></i>
+    <span class="toast-message">${escHtml(message)}</span>
+    ${actionHtml}
+    <button type="button" class="toast-close" aria-label="Dismiss">&times;</button>
+  `;
+  container.appendChild(el);
+  if (window.lucide) lucide.createIcons();
+
+  const startTimer = () => {
+    if (duration > 0) el._toastTimer = setTimeout(() => _removeToast(el), duration);
+  };
+  const stopTimer = () => {
+    if (el._toastTimer) { clearTimeout(el._toastTimer); el._toastTimer = null; }
+  };
+
+  el.addEventListener('mouseenter', stopTimer);
+  el.addEventListener('mouseleave', startTimer);
+  el.querySelector('.toast-close').addEventListener('click', () => _removeToast(el));
+  if (action) {
+    el.querySelector('.toast-action').addEventListener('click', () => {
+      action.onClick();
+      _removeToast(el);
+    });
+  }
+  startTimer();
+}
+
+let _confirmModalOpen = false;
+
+// Promise-returning replacement for confirm(). Resolves true on Confirm
+// click, false on Cancel click, backdrop click, or Escape. danger:true
+// styles the Confirm button for destructive actions. Only one instance may
+// be open at a time — a second call while one is open resolves false
+// immediately (native confirm() was always single-instance/blocking; no
+// caller needs concurrent dialogs).
+function confirmModal({ title = '', message = '', confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false } = {}) {
+  if (_confirmModalOpen) {
+    console.warn('confirmModal: a confirm dialog is already open');
+    return Promise.resolve(false);
+  }
+  _confirmModalOpen = true;
+
+  return new Promise(resolve => {
+    const previouslyFocused = document.activeElement;
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-modal-overlay';
+    const titleHtml = title ? `<h3 class="confirm-modal-title">${escHtml(title)}</h3>` : '';
+    overlay.innerHTML = `
+      <div class="confirm-modal" role="alertdialog" aria-modal="true">
+        ${titleHtml}
+        <p class="confirm-modal-message">${escHtml(message)}</p>
+        <div class="confirm-modal-actions">
+          <button type="button" class="btn-secondary confirm-modal-cancel">${escHtml(cancelLabel)}</button>
+          <button type="button" class="btn-primary confirm-modal-confirm${danger ? ' confirm-modal-confirm--danger' : ''}">${escHtml(confirmLabel)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const cancelBtn  = overlay.querySelector('.confirm-modal-cancel');
+    const confirmBtn = overlay.querySelector('.confirm-modal-confirm');
+
+    const close = result => {
+      _confirmModalOpen = false;
+      document.removeEventListener('keydown', onKeydown);
+      overlay.remove();
+      if (previouslyFocused && previouslyFocused.focus) previouslyFocused.focus();
+      resolve(result);
+    };
+
+    // Minimal focus trap: exactly two focusable elements, so Tab and
+    // Shift+Tab both just swap focus between them.
+    const onKeydown = e => {
+      if (e.key === 'Escape') { close(false); return; }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        (document.activeElement === confirmBtn ? cancelBtn : confirmBtn).focus();
+      }
+    };
+
+    cancelBtn.addEventListener('click', () => close(false));
+    confirmBtn.addEventListener('click', () => close(true));
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(false); });
+    document.addEventListener('keydown', onKeydown);
+
+    cancelBtn.focus();
+  });
 }
 
 // First non-empty line of a multi-line string. Returns '' for empty input.

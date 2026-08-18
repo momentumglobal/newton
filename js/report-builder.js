@@ -498,7 +498,7 @@ async function rbExportPdf() {
 
 async function rbSaveReport() {
   const title = document.getElementById('rb-title')?.value?.trim();
-  if (!title) { alert('Please enter a report title before saving.'); return; }
+  if (!title) { toast('Please enter a report title before saving.', { type: 'error' }); return; }
   const payload = {
     Title:       title,
     Scope:       _rbScope,

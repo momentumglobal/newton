@@ -121,6 +121,7 @@ async function buildDeleteTab() {
           <option value="">-- Select list first --</option>
         </select>
       </div>
+      <div id="del-error" class="form-error"></div>
       <div id="del-confirm" class="form-danger-box">
         Are you sure? This record will be permanently deleted.
         <div style="margin-top:10px;display:flex;gap:8px">

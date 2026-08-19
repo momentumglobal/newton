@@ -604,27 +604,26 @@ function sumField(acts, field) {
 }
 
 // ── Ghost / impersonation mode ────────────────────────────────────────
-// Admin-only. Temporarily overrides the resolved role for testing.
-// Stored in sessionStorage — cleared on sign-out or by clearGhostRole().
+// Admin-only. Temporarily resolves role/project scope as a real chosen user
+// instead of the signed-in admin. Stored in sessionStorage — cleared on
+// sign-out or by clearGhostUser().
 
-const GHOST_KEY         = 'newton_ghost_role';
-const GHOST_PROJECT_KEY = 'newton_ghost_project';
+const GHOST_USER_KEY  = 'newton_ghost_user';
+const GHOST_LABEL_KEY = 'newton_ghost_label';
 
-function setGhostRole(role) {
-  sessionStorage.setItem(GHOST_KEY, role);
+function setGhostUser(email, displayName) {
+  sessionStorage.setItem(GHOST_USER_KEY, email.toLowerCase());
+  sessionStorage.setItem(GHOST_LABEL_KEY, displayName || email);
 }
-function getGhostRole() {
-  return sessionStorage.getItem(GHOST_KEY);
+function getGhostUser() {
+  return sessionStorage.getItem(GHOST_USER_KEY);
 }
-function clearGhostRole() {
-  sessionStorage.removeItem(GHOST_KEY);
-  sessionStorage.removeItem(GHOST_PROJECT_KEY);
+function getGhostLabel() {
+  return sessionStorage.getItem(GHOST_LABEL_KEY);
 }
-function setGhostProject(projectId) {
-  sessionStorage.setItem(GHOST_PROJECT_KEY, String(projectId));
-}
-function getGhostProject() {
-  return sessionStorage.getItem(GHOST_PROJECT_KEY);
+function clearGhostUser() {
+  sessionStorage.removeItem(GHOST_USER_KEY);
+  sessionStorage.removeItem(GHOST_LABEL_KEY);
 }
 
 // ── Theme (light / dark) ────────────────────────────────────────────

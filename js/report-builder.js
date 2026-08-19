@@ -50,7 +50,7 @@ async function renderReportBuilder() {
   // Load roles for the selected project (drives the Role filter dropdown).
   // Only needed in Project scope. Talent Partners are scoped to their own roles.
   if (_rbScope === 'project' && _rbProjectId) {
-    const tpEmail = _resolvedRole === 'talent_partner' ? user.email : null;
+    const tpEmail = _resolvedRole === 'talent_partner' ? getScopedUserEmail() : null;
     _rbProjectRoles = await getRolesForProject(_rbProjectId, tpEmail);
     // Reset the role filter if the selected role isn't in this project.
     if (_rbRoleId !== 'all' && !_rbProjectRoles.some(r => String(r.id) === String(_rbRoleId))) {
@@ -381,7 +381,7 @@ async function rbFetchData() {
   if (_rbScope === 'project') {
     if (!_rbProjectId) return null;
     // Talent Partners are scoped to their own assigned roles within the project.
-    const tpEmail = _resolvedRole === 'talent_partner' ? getCurrentUser().email : null;
+    const tpEmail = _resolvedRole === 'talent_partner' ? getScopedUserEmail() : null;
     const [allRoles, activity, placements, rejections, tpMap] = await Promise.all([
       getRolesForProject(_rbProjectId, tpEmail),
       getWeeklyActivity(_rbProjectId, null),

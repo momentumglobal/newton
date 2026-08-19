@@ -107,8 +107,11 @@ async function submitProjectForm(event, editId = null) {
   }
 }
 // ── Role Form ────────────────────────────────────────────────────────
-async function renderRoleForm(existingData = null, preselectedProjectId = null) {
-  const isEdit = !!existingData;
+// N-150: isDuplicate decouples "is this an edit" from "was prefill data
+// supplied" — Duplicate opens this same form pre-filled from the source
+// role's data but must still render as Add Role (new item), not Edit Role.
+async function renderRoleForm(existingData = null, preselectedProjectId = null, isDuplicate = false) {
+  const isEdit = !!existingData && !isDuplicate;
   const currentUser = getCurrentUser();
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);

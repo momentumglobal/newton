@@ -34,14 +34,12 @@ const BULK_COUNT_FIELDS = [
   { readKey: 'Hires',           writeKey: 'Hires',            label: 'Hires'     },
 ];
 
-// Role stages that never appear in an activity picker. Deliberately the same
-// literal renderWeeklyActivityForm() and loadRolesForWeekly() already use in
-// forms.js, so the bulk grid and the single form agree on which roles exist.
-// N-164 promotes all three copies to CONFIG.ROLE_STAGES_ACTIVITY_EXCLUDED —
-// this is a known duplicate awaiting that refactor, not an oversight.
+// Role stages that never appear in an activity picker. Sourced from
+// CONFIG.ROLE_STAGES_ACTIVITY_EXCLUDED (N-164) so the bulk grid and the
+// single form in forms.js agree on which roles exist.
 // NOT analytics.js's ACTIVE_STAGES: config.js carries an explicit warning that
 // it references two stage values ('Placed', 'Closed') absent from this build.
-const BULK_EXCLUDED_STAGES = ['Backlog', 'Hired', 'On-hold', 'Cancelled'];
+const BULK_EXCLUDED_STAGES = CONFIG.ROLE_STAGES_ACTIVITY_EXCLUDED;
 
 let _bulkWeekEnding = null;  // 'YYYY-MM-DD', always a Sunday
 let _bulkRows       = [];

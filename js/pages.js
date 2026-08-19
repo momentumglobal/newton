@@ -187,6 +187,21 @@ function unlockStageEdit(roleId, currentStage) {
   if (!cell) return;
   cell.innerHTML = stageSelectHtml(roleId, currentStage);
 }
+// N-146 — Command Bar "Update stage" action on a Role row. Called after
+// navigating to the Roles page (same-module) or after the cross-module
+// deep link lands here (app.js:handleDeepLink, action=updateStage).
+// Reuses unlockStageEdit/stageSelectHtml rather than a second dropdown —
+// per N-146's spec decision to keep exactly one stage-picker implementation.
+async function scrollToAndUnlockStage(roleId) {
+  const cell = document.getElementById(`stage-cell-${roleId}`);
+  if (!cell) return;
+  cell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const user = getCurrentUser();
+  const roles = await getRolesForUser(user.email);
+  const role = roles.find(r => String(r.id) === String(roleId));
+  if (!role) return;
+  unlockStageEdit(roleId, role.Stage || '');
+}
 async function updateRoleStage(roleId, selectEl) {
   const newStage = selectEl.value;
   setSelectPending(selectEl, true);
@@ -343,8 +358,11 @@ function setActivityWeeks(val) { _activityWeeks = Number(val); renderActivityPag
 function setActivityPageSize(val) { _activityPageSize = Number(val); renderActivityPage(); }
 function setActivityProject(val) { _activityProjectId = val || null; _activityRoleId = null; renderActivityPage(); }
 function setActivityRole(val) { _activityRoleId = val || null; renderActivityPage(); }
-async function showAddActivityForm() {
-  document.getElementById("main-content").innerHTML = await renderWeeklyActivityForm();
+// N-146 — preselectedRoleId/preselectedProjectId let the Command Bar's
+// Log activity row action pre-scope the form to a role, same shape as
+// showAddPlacementForm below.
+async function showAddActivityForm(preselectedRoleId = null, preselectedProjectId = null) {
+  document.getElementById("main-content").innerHTML = await renderWeeklyActivityForm(null, preselectedRoleId, preselectedProjectId);
 }
 async function showEditActivityForm(id) {
   const data = await getItem("WeeklyActivity", id);
@@ -492,8 +510,11 @@ async function renderPlacementsPage() {
 function setPlacementProject(val) { _placementProjectId = val || null; renderPlacementsPage(); }
 function setPlacementWeeks(val) { _placementWeeks = Number(val); renderPlacementsPage(); }
 function setPlacementPageSize(val) { _placementPageSize = Number(val); renderPlacementsPage(); }
-async function showAddPlacementForm() {
-  document.getElementById("main-content").innerHTML = await renderPlacementForm();
+// N-146 — preselectedRoleId/preselectedProjectId let the Command Bar's
+// Add placement row action pre-scope the form to a role; renderPlacementForm
+// already accepts them (N-145's logged-hire flow uses the same params).
+async function showAddPlacementForm(preselectedRoleId = null, preselectedProjectId = null) {
+  document.getElementById("main-content").innerHTML = await renderPlacementForm(null, preselectedRoleId, preselectedProjectId);
 }
 async function showEditPlacementForm(id) {
   const data = await getItem("Placements", id);

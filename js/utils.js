@@ -402,6 +402,19 @@ function daysOpen(openDate, hireDate) {
   return Math.floor((end - start) / (1000 * 60 * 60 * 24));
 }
 
+// N-100: turns a plain integer day count into a short human label for the
+// Role History timeline ("time in stage"). Takes a number only — never a
+// date string — so it carries none of the SharePoint UTC/BST date-shift
+// risk the date helpers above exist to guard against.
+function formatDurationDays(days) {
+  if (days == null || isNaN(days)) return '—';
+  if (days < 1) return '<1 day';
+  if (days === 1) return '1 day';
+  if (days < 14) return `${days} days`;
+  const weeks = Math.round(days / 7);
+  return weeks === 1 ? '1 week' : `${weeks} weeks`;
+}
+
 // ── Date helpers (N-054: consolidated from forms.js + five duplicate/
 // shim copies previously scattered across people-forms.js, mobile-app.js,
 // lci-link.js, mobile-pages.js and mobile-roleform.js) ─────────────────

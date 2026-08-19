@@ -54,7 +54,7 @@ async function clearNotification(triggerKey) {
 
 // --- bell render (suppressed in ghost mode) ------------------------
 async function renderNotificationBell() {
-  if (getGhostRole()) return;
+  if (getGhostUser()) return;
   const me = (getCurrentUser().email||'').toLowerCase();
   const rows = await getItems('Notifications',
     `fields/RecipientEmail eq '${me}' and fields/Status eq 'active'`);

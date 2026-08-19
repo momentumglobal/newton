@@ -347,7 +347,7 @@ async function submitRoleForm(event, editId = null) {
     if (editId) {
       await updateRoleWithHistory(editId, fields);
     } else {
-      await createItem('Roles', fields);
+      await createRoleWithHistory(fields);
     }
     navigateTo('roles');
   } catch (e) {

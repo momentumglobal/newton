@@ -84,11 +84,12 @@ async function renderRolesPage(filter) {
   main.innerHTML = "<p>Loading roles...</p>";
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
-  const [allRoles, allProjects, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
+  const [allRoles, allProjects, { projects: scopedProjects, canFilter }, tpMap, historyRoleIds] = await Promise.all([
   getRolesForUser(user.email),
   getProjects(false),
   getProjectFilterOptions(),
   getTalentPartnerDisplayMap(),
+  getRoleHistoryRoleIds(),
 ]);
   const projectMap = Object.fromEntries(allProjects.map(p => [String(p.id), p.CustomerName]));
   // Scope to user's assigned projects
@@ -166,7 +167,7 @@ async function renderRolesPage(filter) {
             <td>${spDateIn(r.OpenDate) || "—"}</td>
             <td>${dateCell}</td>
             <td>${days !== null ? days + " days" : "—"}</td>
-            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a><a href="#" onclick="showDuplicateRoleForm(${r.id})">Duplicate</a></div></td>` : ""}
+            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a><a href="#" onclick="showDuplicateRoleForm(${r.id})">Duplicate</a>${historyRoleIds.has(String(r.id)) ? `<a href="#" onclick="showRoleTimeline(${r.id})">Timeline</a>` : ""}</div></td>` : ""}
           </tr>`;
         }).join("") : emptyStateRow({
           colspan: canEdit ? 10 : 9,
@@ -239,6 +240,76 @@ async function showDuplicateRoleForm(id) {
   document.getElementById("main-content").innerHTML = await renderRoleForm(prefill, null, true);
   const pid = prefill.ProjectIDLookupId;
   if (pid) loadTalentPartnersForRole(pid, prefill.TalentPartner || '');
+}
+// N-100 — Role History timeline. Read-only. Only reachable via the
+// "Timeline" row action above, which is itself only shown for roles with
+// at least one RoleHistory row (historyRoleIds in renderRolesPage) — so a
+// role landing here always has >=1 node. Stage-only: other RoleHistory
+// fields (Title, Location, Budget, TalentPartner, dates) are out of scope
+// for this view per the N-100 spec.
+async function showRoleTimeline(roleId) {
+  const main = document.getElementById("main-content");
+  main.innerHTML = "<p>Loading role history...</p>";
+  const [role, allProjects, history] = await Promise.all([
+    getItem('Roles', roleId),
+    getProjects(false),
+    getRoleHistory(roleId),
+  ]);
+  const projectName = allProjects.find(p => String(p.id) === String(role.ProjectIDLookupId || role.ProjectID))?.CustomerName || '—';
+  const stageChanges = history
+    .filter(h => h.Field === 'Stage')
+    .sort((a, b) => new Date(a.ChangedAt) - new Date(b.ChangedAt));
+  const nodesHtml = stageChanges.map((h, i) => {
+    const cls = _roleTimelineNodeClass(h.OldValue, h.NewValue);
+    const isCreated = h.OldValue === '';
+    const label = isCreated
+      ? `Role created — entered ${escHtml(h.NewValue || '—')}`
+      : `${escHtml(h.OldValue || '—')} → ${escHtml(h.NewValue || '—')}`;
+    const next = stageChanges[i + 1];
+    const gapDays = Math.floor(((next ? new Date(next.ChangedAt) : new Date()) - new Date(h.ChangedAt)) / 86400000);
+    const gapLabel = next
+      ? `${formatDurationDays(gapDays)} in ${escHtml(h.NewValue || '—')}`
+      : `${formatDurationDays(gapDays)} in ${escHtml(h.NewValue || '—')} so far`;
+    return `
+      <div class="role-timeline-node role-timeline-node--${cls}">
+        <div class="role-timeline-track">
+          <div class="role-timeline-connector"></div>
+          <div class="role-timeline-dot"></div>
+        </div>
+        <div class="role-timeline-content">
+          <div class="role-timeline-label">${label}</div>
+          <div class="role-timeline-meta">${spDateIn(h.ChangedAt) || "—"} · ${escHtml(h.ChangedBy || '—')}</div>
+          <div class="role-timeline-duration${!next ? ' role-timeline-duration--ongoing' : ''}">${gapLabel}</div>
+        </div>
+      </div>`;
+  }).join("");
+  main.innerHTML = `
+    <div class="page-header">
+      <h2>Role History — ${escHtml(role.RoleTitle)}</h2>
+      <div class="page-header-actions"><button class="btn-secondary" onclick="navigateTo('roles')">← Back to Roles</button></div>
+    </div>
+    <p class="role-timeline-subhead">${escHtml(projectName)} · Current stage: <span class="badge">${escHtml(role.Stage || "—")}</span></p>
+    <div class="role-timeline">
+      ${nodesHtml || '<p style="color:var(--text-muted);">No stage history recorded.</p>'}
+    </div>
+  `;
+  lucide.createIcons();
+}
+// Classifies a Stage RoleHistory row for the timeline's colour coding.
+// 'start' = the creation row (OldValue ''); 'branch' = On-hold/Cancelled on
+// either end, or an unresolvable/equal comparison — deliberately neutral,
+// never green or red, since neither is a point on the linear pipeline.
+// Forward/backward is index comparison on CONFIG.ROLE_STAGES — the full
+// 11-stage canonical order — NEVER analytics.js's STAGE_ORDER, which is a
+// 4-stage subset built only for isRoleFlagged's velocity check.
+function _roleTimelineNodeClass(oldStage, newStage) {
+  if (oldStage === '') return 'start';
+  const branchStages = ['On-hold', 'Cancelled'];
+  if (branchStages.includes(newStage) || branchStages.includes(oldStage)) return 'branch';
+  const oldIdx = CONFIG.ROLE_STAGES.indexOf(oldStage);
+  const newIdx = CONFIG.ROLE_STAGES.indexOf(newStage);
+  if (oldIdx === -1 || newIdx === -1 || newIdx === oldIdx) return 'branch';
+  return newIdx > oldIdx ? 'forward' : 'backward';
 }
 // ── Weekly Activity ───────────────────────────────────────────────────
 let _activityProjectId = null;

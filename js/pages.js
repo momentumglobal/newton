@@ -150,21 +150,17 @@ async function renderRolesPage(filter) {
           const dateCell   = isHired
             ? (spDateIn(r.ActualHireDate) || "—")
             : (spDateIn(r.TargetHireDate) || "—");
-                    const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || "—";
+          const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || "—";
           const stageLocked = CONFIG.ROLE_STAGE_TERMINAL.includes(r.Stage);
           const stageCell   = (canEdit && !stageLocked)
-            ? `<select id="stage-select-${r.id}" data-prev-value="${escAttr(r.Stage || '')}" onchange="updateRoleStage(${r.id}, this)">
-                ${CONFIG.ROLE_STAGES.filter(s => !CONFIG.ROLE_STAGE_TERMINAL.includes(s)).map(s =>
-                  `<option value="${s}" ${r.Stage === s ? 'selected' : ''}>${s}</option>`
-                ).join('')}
-              </select>`
+            ? `<span class="badge">${escHtml(r.Stage || "—")}</span><button type="button" class="stage-unlock-btn" title="Change stage" onclick="unlockStageEdit(${r.id}, '${escAttr(r.Stage || '')}')"><i data-lucide="lock"></i></button>`
             : `<span class="badge">${escHtml(r.Stage || "—")}</span>`;
           return `
           <tr class="${rowClass}">
             <td>${escHtml(projectName)}</td>
             <td>${escHtml(r.RoleTitle)}</td>
             <td>${escHtml(r.Location || '—')}</td>
-            <td>${stageCell}</td>
+            <td id="stage-cell-${r.id}">${stageCell}</td>
             <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
             <td>${escHtml(formatSalary(r.Budget))}</td>
             <td>${spDateIn(r.OpenDate) || "—"}</td>
@@ -186,6 +182,11 @@ async function renderRolesPage(filter) {
 }
 function setRolesProject(val) { _rolesProjectId = val || null; renderRolesPage(); }
 function setRolesPageSize(val) { _rolesPageSize = Number(val); renderRolesPage(); }
+function unlockStageEdit(roleId, currentStage) {
+  const cell = document.getElementById(`stage-cell-${roleId}`);
+  if (!cell) return;
+  cell.innerHTML = stageSelectHtml(roleId, currentStage);
+}
 async function updateRoleStage(roleId, selectEl) {
   const newStage = selectEl.value;
   setSelectPending(selectEl, true);

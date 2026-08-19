@@ -2481,6 +2481,36 @@ body {
   color: var(--text-secondary);
   text-align: center;
 }
+/* N-146 — inline action buttons + badge, grouped at the end of a Role row */
+.cmd-bar-result-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-shrink: 0;
+}
+.cmd-bar-result-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+.cmd-bar-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+.cmd-bar-action-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+.cmd-bar-action-btn svg { width: 14px; height: 14px; }
 
 /* ── Payroll Summary ─────────────────────────────────────── */
 .salary-cell {

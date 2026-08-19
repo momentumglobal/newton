@@ -113,9 +113,6 @@ async function renderBulkActivityPage(weekEnding = null) {
   // no local Map de-dupe is needed here any more.
   _bulkRows = roles
     .filter(r => !BULK_EXCLUDED_STAGES.includes(r.Stage))
-
-  _bulkRows = uniqueRoles
-    .filter(r => !BULK_EXCLUDED_STAGES.includes(r.Stage))
     .map(r => {
       const roleId    = String(r.id);
       const projectId = String(r.ProjectIDLookupId || r.ProjectID || '');

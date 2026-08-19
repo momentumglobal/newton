@@ -44,10 +44,10 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'lci-model.js'),
   path.join(JS_DIR, 'coe-plan.js'),
   path.join(TESTS_DIR, 'lint-dates.js'),
+  path.join(TESTS_DIR, 'lint-role-copy-fields.js'),
   path.join(TESTS_DIR, 'fixtures.js'),
   path.join(TESTS_DIR, 'assertions.js'),
 ];
-
 const sandbox = {};
 
 // N-091: the F-12 date guard lints SOURCE TEXT, not runtime behaviour, so it

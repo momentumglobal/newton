@@ -53,6 +53,12 @@ const CONFIG = {
   // don't exist in this build — do not reuse it here.
   ROLE_STAGE_TERMINAL: ['Hired', 'Cancelled'],
 
+  // Stages hidden from the weekly-activity role picker (single form and bulk
+  // grid both read this — N-164). Deliberately distinct from ACTIVE_STAGES in
+  // analytics.js, which references 'Placed'/'Closed', stage values that don't
+  // exist in this build — do not reuse it here.
+  ROLE_STAGES_ACTIVITY_EXCLUDED: ['Backlog', 'Hired', 'On-hold', 'Cancelled'],
+
   // ── Project types (N-116) ─────────────────────────────────────────
   // TWO enums, deliberately. Projects.ProjectType gates the Hiring Plan page,
   // the LCI link picker and the Report Builder CoE panel, so its dropdown stays

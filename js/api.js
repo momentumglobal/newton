@@ -104,6 +104,20 @@ function tpDisplay(val, nameMap = {}) {
   return names.length ? names.join(', ') : '—';
 }
 
+// N-147 (T-2a), moved here from utils.js by N-166: which Talent Partner a
+// bulk-activity grid row is written against. Prefers the signed-in user when
+// they are one of the role's owners, so a TP logging their own week is
+// always attributed to them; otherwise the first listed owner. Returns null
+// when the role has NO owner — the caller must render that row disabled and
+// exclude it from the save rather than attributing someone else's week to
+// whoever happened to open the grid.
+function resolveRowTalentPartner(roleTalentPartnerValue, currentUserEmail) {
+  const list = tpList(roleTalentPartnerValue);
+  if (!list.length) return null;
+  const me = String(currentUserEmail || '').trim().toLowerCase();
+  return (me && list.includes(me)) ? me : list[0];
+}
+
 // ── Generic helpers ─────────────────────────────────────────────────
 async function graphRequest(method, path, body = null, elevated = false) {
   const token = elevated ? await getElevatedToken() : await getToken();

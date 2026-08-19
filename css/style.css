@@ -2363,6 +2363,7 @@ body {
 .toast-close:hover { color: var(--text-muted); }
 @keyframes toast-in  { from { opacity: 0; transform: translateY(var(--sp-6)); } to { opacity: 1; transform: translateY(0); } }
 @keyframes toast-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .confirm-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.45);
@@ -2402,10 +2403,8 @@ body {
 
 /* ── Command Bar (N-144) — ⌘K / Ctrl+K overlay ───────────────────────
    Shares the --z-* scale (N-159); see js/command-bar.js for behaviour.
-   No entrance animation: style.css's one existing `animation: fadeIn`
-   use (#payroll-modal-overlay above) references a keyframe that isn't
-   defined anywhere in this file — a pre-existing gap, not repeated
-   here, and not fixed here either (out of scope for N-144). ── */
+   No entrance animation — see #payroll-modal-overlay above for the
+   fadeIn keyframe (fixed N-161). ── */
 .cmd-bar-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.45);
   display: flex; align-items: flex-start; justify-content: center;

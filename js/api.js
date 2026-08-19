@@ -288,6 +288,29 @@ async function createItem(listName, fields) {
   _cacheInvalidate(listName);
   return result;
 }
+// ── Role creation history (N-100) ─────────────────────────────────
+// Companion to N-099's updateRoleWithHistory: createItem('Roles', fields)
+// has no "old" state to diff against, so this does not reuse
+// _logRoleHistory. It writes one deliberate RoleHistory row so the Role
+// History timeline (N-100) has a real first node instead of starting at
+// the first edit. OldValue: '' is the signal the timeline UI uses to
+// render this row as "Role created" rather than a transition.
+// Fire-and-forget, same non-blocking shape as updateRoleWithHistory — a
+// history-write failure must never block or fail the role save.
+async function createRoleWithHistory(fields) {
+  const result = await createItem('Roles', fields);
+  if (result && result.id) {
+    createItem('RoleHistory', {
+      RoleIDLookupId: parseInt(result.id),
+      Field:          'Stage',
+      OldValue:       '',
+      NewValue:       fields.Stage || '',
+      ChangedBy:      getCurrentUser().email,
+      ChangedAt:      new Date().toISOString(),
+    }).catch(e => console.warn('RoleHistory: creation write failed', e));
+  }
+  return result;
+}
 async function updateItem(listName, itemId, fields) {
   const result = await graphRequest("PATCH", `${listPath(listName)}/${itemId}`, { fields });
   _cacheInvalidate(listName);
@@ -347,6 +370,22 @@ async function _logRoleHistory(oldRole, newFields) {
       ChangedAt:      changedAt,
     })
   ));
+}
+// ── Role History reads (N-100) ────────────────────────────────────
+// Full-row read for one role's timeline. RoleIDLookupId is the Graph
+// filter name for the RoleID lookup column, same convention as every
+// other RoleIDLookupId filter in this file.
+async function getRoleHistory(roleId) {
+  return getItems('RoleHistory', `fields/RoleIDLookupId eq ${parseInt(roleId)}`);
+}
+// Existence check across the WHOLE list, used only to decide which
+// Roles-list rows get a "Timeline" action. $select-limited to the lookup
+// column so this stays cheap regardless of list size — never loop
+// getRoleHistory(id) per row to build this; that's the N+1 pattern
+// getAllRoles/getRolesForUser already avoid elsewhere in this file.
+async function getRoleHistoryRoleIds() {
+  const rows = await getItems('RoleHistory', '', 'RoleIDLookupId');
+  return new Set(rows.map(r => String(r.RoleIDLookupId)));
 }
 async function deleteItem(listName, itemId) {
   const result = await graphRequest("DELETE", `${listPath(listName)}/${itemId}`);

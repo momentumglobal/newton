@@ -42,6 +42,10 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### August 2026 — Bulk weekly activity entry (T-2)
+
+**Log a whole week in one save.** A "Bulk log week" button on the Weekly Activity page opens a grid with one row per role the signed-in user can see, grouped by project, for a chosen week-ending Sunday. Rows already logged for that week are pre-filled from the existing records and update in place rather than creating duplicates; rows the user does not touch are never written at all. Each row saves against the Talent Partner assigned to that role — a role with no assigned TP is shown disabled rather than being attributed to whoever opened the grid. Saves run sequentially with every control locked for the duration, and a failure on one row leaves the others saved and the failed row editable and marked. The single-role "Log Activity" form is unchanged.
+
 ### August 2026 — Tests for the analytics layer (F-6d)
 
 **Real test coverage for the numbers clients see.** `tests/` now asserts three previously-untested `isRoleFlagged` branches (the days-open thresholds — only the submitted/interview1 ratio branch had coverage before — plus a negative case confirming the function doesn't over-flag), `computeVelocityScore`, `computeRoleFunnel` (neither had any prior coverage), and the split-fee revenue path in `computeMonthlyRows` (N-116 — shipped with zero test coverage until now), including the rule that the placement fee lands the month *after* the assignment ends as a zero-capacity revenue row. This closes out F-6's four-part test harness build (F-6a scaffold, F-6b date/week layer, F-6c LCI calc layer, F-6d analytics layer).

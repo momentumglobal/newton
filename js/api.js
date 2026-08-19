@@ -468,6 +468,18 @@ async function getWeeklyActivity(projectId, roleId, opts = {}) {
   const filter = _odataAnd(scope, _odataDateFrom('WeekEndingDate', opts.sinceWeeks));
   return getItems("WeeklyActivity", filter);
 }
+
+// N-147 (T-2a): every WeeklyActivity row for ONE week, for the bulk-entry
+// grid's pre-fill. `weekEndingISO` is a plain 'YYYY-MM-DD' SUNDAY — the same
+// bare day-string shape _odataDateFrom and getActivityForAnalytics use as a
+// bound, and NOT spDateOut output. WeekEndingDate buckets on the Sunday
+// boundary, so an equality filter here is exact, not a range.
+// No `select` list, matching getWeeklyActivity above — deliberately on '*'
+// until N-052's field audit.
+async function getWeeklyActivityForWeek(weekEndingISO) {
+  if (!weekEndingISO) return [];
+  return getItems("WeeklyActivity", `fields/WeekEndingDate eq '${weekEndingISO}'`);
+}
  
 // N-093 (F-2a): `opts.fromDay` ('YYYY-MM-DD') adds an OfferAcceptedDate lower
 // bound. There is deliberately NO project filter: Placements has no

@@ -38,7 +38,20 @@ const CONFIG = {
   // truth for the Add/Edit Employee dropdown and for level sort order —
   // every levelOrder map in the codebase should read from this via
   // utils.js:levelSortIndex() rather than redeclaring its own copy.
-  PEOPLE_LEVELS: ['CSD', 'SDM', 'PTP', 'STP', 'TP'],
+    PEOPLE_LEVELS: ['CSD', 'SDM', 'PTP', 'STP', 'TP'],
+
+  // Roles.Stage enum, in pipeline order (N-149). Single source of truth for
+  // the full role Stage <select> (forms.js) and the Roles-list inline stage
+  // dropdown (pages.js) — never redeclare this list in a page file.
+  ROLE_STAGES: ['Backlog', 'Planning', 'Sourcing', 'Submitted', 'Interview 1',
+                'Interview 2+', 'Final Interview', 'Offered', 'Hired',
+                'On-hold', 'Cancelled'],
+  // Stages that carry side effects (ActualHireDate, placement records) and so
+  // must only ever be set via the full role form, never the inline dropdown.
+  // Deliberately narrower than analytics.js's ACTIVE_STAGES, which mixes
+  // KPI/velocity scoping with two stage values ('Placed', 'Closed') that
+  // don't exist in this build — do not reuse it here.
+  ROLE_STAGE_TERMINAL: ['Hired', 'Cancelled'],
 
   // ── Project types (N-116) ─────────────────────────────────────────
   // TWO enums, deliberately. Projects.ProjectType gates the Hiring Plan page,

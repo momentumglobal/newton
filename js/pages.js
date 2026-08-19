@@ -304,7 +304,7 @@ async function renderActivityPage() {
   main.innerHTML = `
     <div class="page-header">
       <h2>Weekly Activity</h2>
-      ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddActivityForm()">+ Log Activity</button></div>' : ""}
+      ${canEdit ? '<div class="page-header-actions"><button class="btn-secondary" onclick="showBulkActivityPage()">Bulk log week</button><button class="btn-primary" onclick="showAddActivityForm()">+ Log Activity</button></div>' : ""}
     </div>
     <div class="table-toolbar">
       ${listControlsBar([projDropdown, roleDropdown, periodDropdown, pageSizeDropdown(_activityPageSize, 'setActivityPageSize')])}
@@ -367,6 +367,12 @@ async function showAddActivityForm(preselectedRoleId = null, preselectedProjectI
 async function showEditActivityForm(id) {
   const data = await getItem("WeeklyActivity", id);
   document.getElementById("main-content").innerHTML = await renderWeeklyActivityForm(data);
+}
+// N-147 (T-2a) — the bulk grid is a sub-view of this page, not a PAGES entry:
+// it renders into #main-content exactly as showAddActivityForm does, and
+// returns via navigateTo('activity'). Grid logic lives in bulk-activity.js.
+async function showBulkActivityPage() {
+  await renderBulkActivityPage();
 }
 // ── Placements ────────────────────────────────────────────────────────
 const PLACEMENT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];

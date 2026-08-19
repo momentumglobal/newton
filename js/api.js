@@ -362,7 +362,7 @@ async function getAllRoles() {
 //   - ghost mode returns a single-element array → one filtered request.
 //   - otherwise one filtered request per assigned project, in parallel.
 // Fan-out rather than an OR chain, reusing the pattern already proven in
-// getScopedRolesForMarketReport: each project's response then caches under
+// getScopedRolesVisibleTo: each project's response then caches under
 // its own listName|filter|select key and is reused across pages, and there
 // is no OR-chain length limit to discover the hard way.
 async function getRolesForUser(email) {
@@ -839,7 +839,10 @@ async function getUserProjectIds(email) {
   const lower = email.toLowerCase();
   if (CONFIG.ADMIN_USERS?.includes(lower)) return null;
   const assignments = await getItems("UserAssignments", `fields/Title eq '${lower}'`);
-  return assignments.map(a => String(a.ProjectID));
+  // N-165: de-duped — a user with two UserAssignments rows for the same
+  // project (e.g. TP + DM-granted) must not get that project ID twice, or
+  // every downstream per-project role fan-out doubles that project's roles.
+  return [...new Set(assignments.map(a => String(a.ProjectID)))];
 }
  
 async function getScopedProjects(email, activeOnly = false) {
@@ -1176,7 +1179,9 @@ async function updateMarketReport(id, fields) {
   return updateItem("MarketReports", id, fields);
 }
 
-async function getScopedRolesForMarketReport(email, effectiveRole) {
+// Generic role-visibility resolver, despite the old name — used by both the
+// Market Report builder and the bulk weekly-activity grid (N-147, N-165).
+async function getScopedRolesVisibleTo(email, effectiveRole) {
   const lower = email.toLowerCase();
 
   if (effectiveRole === "admin") {
@@ -1192,7 +1197,9 @@ async function getScopedRolesForMarketReport(email, effectiveRole) {
     return arrays.flat();
   }
 
-  // Talent Partner: only roles where TalentPartner column matches their email
+  // Talent Partner: only roles where TalentPartner column matches their email.
+  // projectIds is de-duped here (not via getUserProjectIds, which this branch
+  // doesn't call) so the per-project role fan-out below can't double up.
   const assignments = await getItems(
     "UserAssignments",
     `fields/Title eq '${lower}'`

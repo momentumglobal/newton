@@ -250,6 +250,19 @@ var ASSERTIONS = [
     },
   },
   {
+    name: "_ROLE_COPY_FIELDS stays in sync with submitRoleForm's write set (N-150)",
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const { missingFromCopyFields, extraInCopyFields } = checkRoleFormFieldSync(
+        ALL_SOURCES, _ROLE_COPY_FIELDS, _ROLE_RESET_FIELDS
+      );
+      _assertEqual(missingFromCopyFields, [], 'fields submitRoleForm writes that _ROLE_COPY_FIELDS/_ROLE_RESET_FIELDS does not account for');
+      _assertEqual(extraInCopyFields, [], 'fields in _ROLE_COPY_FIELDS/_ROLE_RESET_FIELDS that submitRoleForm no longer writes');
+    },
+  },
+  {
     name: 'utcDateOnly → spDateOut round-trips a BST date unchanged (N-090)',
     fn: function () {
       const src = FIXTURES.dateWeek.benchRoundTrip;

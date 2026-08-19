@@ -530,7 +530,12 @@ async function submitWeeklyForm(event, editId = null) {
     ProjectIDLookupId: parseInt(data.ProjectID),
     RoleIDLookupId:    parseInt(data.RoleID),
     TalentPartner:     data.TalentPartnerName || undefined,
-    Yeare:             new Date(data.WeekEndingDate).getFullYear(),
+    // The year is read off the day string itself, not via new Date() — see
+    // _bulkFieldsFor in bulk-activity.js for the identical pattern.
+    // data.WeekEndingDate IS the calendar day; re-parsing it into a Date and
+    // asking for a local year is the exact shape that shifts a boundary date
+    // by a day under BST.
+    Yeare:             Number(data.WeekEndingDate.slice(0, 4)),
     WeekNumber:        getISOWeek(data.WeekEndingDate),
     WeekEndingDate:    isoDate(data.WeekEndingDate),
     Outreach:          parseInt(data.Outreach) || 0,

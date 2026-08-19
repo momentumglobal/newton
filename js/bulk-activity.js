@@ -47,7 +47,31 @@ let _bulkWeekEnding = null;  // 'YYYY-MM-DD', always a Sunday
 let _bulkRows       = [];
 let _bulkSaving     = false; // N-006 in-flight guard
 
+// N-147 diff-2 — the bulk grid is desktop-only: twelve columns and a 900px
+// minimum table width, which is not a phone layout under any amount of
+// squeezing. mobile.html never loads this file and app.js already redirects
+// sub-768px viewports away from reporting.html, so the app itself was never
+// exposed. What this guards is "Switch to desktop view"
+// (sessionStorage newton_force_desktop), which suppresses that redirect and
+// leaves a phone on the desktop page. Deliberately the SAME two signals
+// app.js redirects on, so the two can never disagree about what "mobile"
+// means. Evaluated per render, not cached — a resize between renders is
+// picked up on the next navigation.
+function bulkEntryAvailable() {
+  let isApp = false;
+  try { isApp = localStorage.getItem('newton_mobile') === '1'; } catch (e) {}
+  return !isApp && window.innerWidth >= 768;
+}
+
 async function renderBulkActivityPage(weekEnding = null) {
+  // Belt and braces. pages.js hides the entry button when this is false, but
+  // a deep link, a bookmark or a console call still lands here directly.
+  if (!bulkEntryAvailable()) {
+    toast('Bulk log week is desktop only — use Log Activity to record a single role.',
+      { type: 'info', duration: 6000 });
+    navigateTo('activity');
+    return;
+  }
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading roles...</p>';
   _bulkWeekEnding = getWeekEnding(weekEnding || localDayISO());

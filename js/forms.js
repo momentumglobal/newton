@@ -214,7 +214,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null) 
           <div class="form-group">
             <label>Stage *</label>
             <select name="Stage" required>
-              ${'Backlog,Planning,Sourcing,Submitted,Interview 1,Interview 2+,Final Interview,Offered,Hired,On-hold,Cancelled'.split(',')
+              ${CONFIG.ROLE_STAGES
                 .map(s => {
                   // New roles start at Backlog by design (Role Backlog KPI, Roles page
                   // Backlog tab). State it explicitly — don't rely on the browser

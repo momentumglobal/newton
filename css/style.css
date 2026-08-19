@@ -824,6 +824,28 @@ body {
   transition: opacity 150ms ease;
 }
 .data-table tbody tr:hover .row-actions { opacity: 1; }
+/* Stage inline-edit unlock icon (N-149 addendum) — same hover-reveal
+   pattern as .row-actions above, so the Stage column reads as a plain
+   badge until the row is hovered. */
+.stage-unlock-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: var(--sp-3);
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease, color 150ms ease;
+}
+.stage-unlock-btn svg { width: 13px; height: 13px; }
+.data-table tbody tr:hover .stage-unlock-btn { opacity: 1; }
+.stage-unlock-btn:hover { color: var(--text-muted); }
 /* ── Badges ─────────────────────────────────────────────────────────── */
 .badge {
   display: inline-block;

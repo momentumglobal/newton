@@ -626,6 +626,17 @@ function clearGhostUser() {
   sessionStorage.removeItem(GHOST_LABEL_KEY);
 }
 
+// Effective identity for READ-scoping "my own records" views (e.g. a
+// Talent Partner's own Weekly Activity, their own Scorecard) — the ghosted
+// user's email when Ghost Mode is active, else the real signed-in user's.
+// Distinct from getCurrentUser().email, which must stay untouched wherever
+// an action is being ATTRIBUTED (ChangedBy, CreatedByEmail, ReportOwner,
+// etc.) — ghosting never changes who is really making a change, only what
+// they can see.
+function getScopedUserEmail() {
+  return (getGhostUser() || getCurrentUser()?.email || '').toLowerCase();
+}
+
 // ── Theme (light / dark) ────────────────────────────────────────────
 // Explicit user choice, once made, overrides prefers-color-scheme permanently.
 // theme-init.js sets the initial data-theme attribute before first paint using

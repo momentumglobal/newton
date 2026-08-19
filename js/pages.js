@@ -396,10 +396,11 @@ async function renderActivityPage() {
         return userProjectIds.includes(roleProjectMap[rid]);
       })
     : activity;
-  // For Talent Partners, also scope to their own entries
+  // For Talent Partners, also scope to their own entries — the ghosted
+  // user's own entries when Ghost Mode is active (N-162 fix).
   if (_resolvedRole === 'talent_partner') {
     filteredActivity = filteredActivity.filter(a =>
-      (a.TalentPartner || '').toLowerCase() === (user.email || '').toLowerCase()
+      (a.TalentPartner || '').toLowerCase() === getScopedUserEmail()
     );
   }
   // N-152: denominator captured AFTER both permission scopes and BEFORE any

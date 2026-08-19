@@ -73,6 +73,18 @@ function _cmdBarEntityPageInfo(pageKey) {
   return CONFIG.COMMAND_BAR_PAGES.find(p => p.key === pageKey);
 }
 
+// N-146 — action buttons for a Role entity row (Log activity / Update
+// stage / Add placement), pre-scoped to that role. Update stage is left
+// out for a terminal-stage role (Hired/Cancelled) — same rule N-149
+// already applies to the Roles-list lock icon; there is nothing to
+// unlock for those rows.
+function _cmdBarRoleActions(rec) {
+  const typeInfo = CONFIG.COMMAND_BAR_ENTITY_TYPES.find(t => t.type === 'role');
+  const actions = (typeInfo && typeInfo.actions) || [];
+  const isTerminal = CONFIG.ROLE_STAGE_TERMINAL.includes(rec.stage);
+  return isTerminal ? actions.filter(a => a.key !== 'updateStage') : actions;
+}
+
 // Fetches Roles/Projects/People once, filtered to what `role` may see via
 // each type's COMMAND_BAR_PAGES.roles (not a fresh Graph call — reuses
 // getRolesForUser/getScopedProjects/getPeople exactly as their own pages
@@ -109,6 +121,11 @@ async function _cmdBarLoadEntities(role) {
         title:        r.RoleTitle,
         subtitleText: [projectName, r.Stage].filter(Boolean).join(' · '),
         searchText:   [r.RoleTitle, projectName, r.TalentPartner].filter(Boolean).join(' '),
+        // N-146 — needed by the row's inline action buttons: projectId to
+        // pre-scope Log activity / Add placement, stage to know whether
+        // Update stage applies (terminal stages don't get the button).
+        projectId:    r.ProjectIDLookupId || r.ProjectID || null,
+        stage:        r.Stage || null,
       });
     });
   }
@@ -181,13 +198,23 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
       </div>`;
       }
       const rec = row.record;
+      // N-146 — inline action buttons, Role rows only (empty for Project/Person).
+      const roleActions = rec.entityType === 'role' ? _cmdBarRoleActions(rec) : [];
+      const actionsHtml = roleActions.length
+        ? `<div class="cmd-bar-result-actions">${roleActions.map(a =>
+            `<button type="button" class="cmd-bar-action-btn" title="${escHtml(a.label)}" data-action="${a.key}"><i data-lucide="${a.icon}"></i></button>`
+          ).join('')}</div>`
+        : '';
       return `
       <div class="cmd-bar-result cmd-bar-result-entity${activeClass}" data-index="${i}">
         <div class="cmd-bar-result-text">
           <span class="cmd-bar-result-label">${escHtml(rec.title)}</span>
           ${rec.subtitleText ? `<span class="cmd-bar-result-subtitle">${escHtml(rec.subtitleText)}</span>` : ''}
         </div>
-        <span class="cmd-bar-result-badge">${escHtml(ENTITY_BADGE_LABEL[rec.entityType] || rec.entityType)}</span>
+        <div class="cmd-bar-result-meta">
+          ${actionsHtml}
+          <span class="cmd-bar-result-badge">${escHtml(ENTITY_BADGE_LABEL[rec.entityType] || rec.entityType)}</span>
+        </div>
       </div>`;
     }).join('');
 
@@ -198,6 +225,10 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
       : '';
 
     resultsEl.innerHTML = (visible.length ? rowsHtml : `<div class="cmd-bar-empty">No matches</div>`) + loadingHtml;
+    // N-146 — action buttons render lucide icon tags; paint them on every
+    // re-render (first open and every filter keystroke), same as every
+    // other page that calls lucide.createIcons() after building markup.
+    lucide.createIcons();
   }
 
   function filter(query) {
@@ -270,6 +301,38 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
     }
   }
 
+  // N-146 — dispatch for an inline action button on a Role row (Log
+  // activity / Update stage / Add placement), pre-scoped to that role.
+  // Same-module/cross-module split as activate() above, and the same
+  // href?action=…&param=… convention app.js's handleDeepLink() already
+  // parses for action=edit/action=add.
+  function activateEntityAction(rec, actionKey) {
+    close();
+
+    if (actionKey === 'updateStage') {
+      const pageInfo = _cmdBarEntityPageInfo('roles');
+      if (pageInfo.module === currentModule) {
+        window[navigateFn]('roles');
+        setTimeout(() => window.scrollToAndUnlockStage(rec.id), 50);
+      } else {
+        window.location.href = `${pageInfo.href}?action=updateStage&roleId=${rec.id}`;
+      }
+      return;
+    }
+
+    const targetPageKey = actionKey === 'logActivity' ? 'activity' : 'placements';
+    const pageInfo = _cmdBarEntityPageInfo(targetPageKey);
+    if (pageInfo.module === currentModule) {
+      window[navigateFn](targetPageKey);
+      setTimeout(() => {
+        if (actionKey === 'logActivity') window.showAddActivityForm(rec.id, rec.projectId);
+        else                              window.showAddPlacementForm(rec.id, rec.projectId);
+      }, 50);
+    } else {
+      window.location.href = `${pageInfo.href}?action=${actionKey}&roleId=${rec.id}&projectId=${rec.projectId}`;
+    }
+  }
+
   function close() {
     document.removeEventListener('keydown', onOverlayKeydown);
     overlay.remove();
@@ -300,6 +363,16 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
   }
 
   resultsEl.addEventListener('click', e => {
+    // N-146 — action buttons are nested inside a .cmd-bar-result row, so
+    // this more specific check must run first and return, or the row's
+    // own click (activate — open the role) fires as well.
+    const actionBtn = e.target.closest('.cmd-bar-action-btn');
+    if (actionBtn) {
+      const row = actionBtn.closest('.cmd-bar-result');
+      const rec = row && visible[Number(row.dataset.index)]?.record;
+      if (rec) activateEntityAction(rec, actionBtn.dataset.action);
+      return;
+    }
     const row = e.target.closest('.cmd-bar-result');
     if (row) activate(Number(row.dataset.index));
   });

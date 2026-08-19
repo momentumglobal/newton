@@ -42,6 +42,26 @@ function handleDeepLink() {
     setTimeout(() => {
       if (page === 'roles') showEditRoleForm(id);
     }, 50);
+  } else if (action === 'logActivity') {
+    // N-146 — Command Bar Role row "Log activity" action, cross-module case.
+    const roleId    = Number(params.get('roleId'));
+    const projectId = params.get('projectId') ? Number(params.get('projectId')) : null;
+    setTimeout(() => {
+      if (page === 'activity') showAddActivityForm(roleId, projectId);
+    }, 50);
+  } else if (action === 'addPlacement') {
+    // N-146 — Command Bar Role row "Add placement" action, cross-module case.
+    const roleId    = Number(params.get('roleId'));
+    const projectId = params.get('projectId') ? Number(params.get('projectId')) : null;
+    setTimeout(() => {
+      if (page === 'placements') showAddPlacementForm(roleId, projectId);
+    }, 50);
+  } else if (action === 'updateStage') {
+    // N-146 — Command Bar Role row "Update stage" action, cross-module case.
+    const roleId = Number(params.get('roleId'));
+    setTimeout(() => {
+      if (page === 'roles') scrollToAndUnlockStage(roleId);
+    }, 50);
   }
   history.replaceState(null, '', window.location.pathname);
   return true;

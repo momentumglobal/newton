@@ -33,6 +33,20 @@ function setSelectPending(selectEl, isPending) {
   selectEl.style.cursor  = isPending ? 'not-allowed' : '';
 }
 
+// ── Role stage <select> markup (N-149 addendum) ─────────────────────────
+// Pure HTML string builder for the Roles-list inline stage dropdown.
+// Called once, when a row is unlocked (pages.js:unlockStageEdit) — not at
+// initial table render, which now shows a plain badge. Per N-149's spec,
+// meant for N-146 (Command Bar) to reuse rather than reimplementing the
+// same option list.
+function stageSelectHtml(roleId, currentStage) {
+  const options = CONFIG.ROLE_STAGES
+    .filter(s => !CONFIG.ROLE_STAGE_TERMINAL.includes(s))
+    .map(s => `<option value="${s}" ${currentStage === s ? 'selected' : ''}>${s}</option>`)
+    .join('');
+  return `<select id="stage-select-${roleId}" data-prev-value="${escAttr(currentStage || '')}" onchange="updateRoleStage(${roleId}, this)">${options}</select>`;
+}
+
 // ── Re-render without losing scroll position ──────────────────────────
 // Replace an element's outerHTML while preserving the scroll offsets of any
 // scroll containers inside it. Replacing outerHTML destroys and rebuilds those

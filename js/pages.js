@@ -166,7 +166,7 @@ async function renderRolesPage(filter) {
             <td>${spDateIn(r.OpenDate) || "—"}</td>
             <td>${dateCell}</td>
             <td>${days !== null ? days + " days" : "—"}</td>
-            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a></div></td>` : ""}
+            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a><a href="#" onclick="showDuplicateRoleForm(${r.id})">Duplicate</a></div></td>` : ""}
           </tr>`;
         }).join("") : emptyStateRow({
           colspan: canEdit ? 10 : 9,
@@ -224,6 +224,21 @@ async function showEditRoleForm(id) {
   document.getElementById("main-content").innerHTML = await renderRoleForm(data);
   const pid = data.ProjectID || data.ProjectIDLookupId;
   if (pid) loadTalentPartnersForRole(pid, data.TalentPartner || '');
+}
+// N-150 — "Duplicate" row action: opens the Add Role form pre-filled from an
+// existing role. Always re-fetches via getItem rather than reusing the row's
+// cached list data, same reasoning showEditRoleForm follows above. Stage
+// resets to Backlog and TargetHireDate is left blank purely because
+// _ROLE_COPY_FIELDS excludes them — renderRoleForm's own isEdit-gated Stage
+// default (forms.js) does the rest. OpenDate is the one field explicitly
+// overridden here, via localDayISO() (today, local) rather than carried.
+async function showDuplicateRoleForm(id) {
+  const data = await getItem("Roles", id);
+  const prefill = _pickFields(data, _ROLE_COPY_FIELDS);
+  prefill.OpenDate = localDayISO();
+  document.getElementById("main-content").innerHTML = await renderRoleForm(prefill, null, true);
+  const pid = prefill.ProjectIDLookupId;
+  if (pid) loadTalentPartnersForRole(pid, prefill.TalentPartner || '');
 }
 // ── Weekly Activity ───────────────────────────────────────────────────
 let _activityProjectId = null;

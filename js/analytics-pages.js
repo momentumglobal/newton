@@ -23,7 +23,7 @@ async function renderScorecardsPage() {
   // Delivery Managers see only TPs assigned to their projects.
   // Admin / Leadership see all.
   if (_resolvedRole === 'talent_partner') {
-    const myEmail = (getCurrentUser().email || '').toLowerCase();
+    const myEmail = getScopedUserEmail();
     tpEmails = tpEmails.filter(e => e.toLowerCase() === myEmail);
   } else if (_resolvedRole === 'delivery_manager') {
     const allowed = await getScopedTpEmails(getCurrentUser().email);

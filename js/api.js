@@ -639,6 +639,21 @@ const _LCI_ROW_COPY_FIELDS = [
 ];
 const _LCI_MILESTONE_COPY_FIELDS = ['Title', 'StartMonth', 'EndMonth', 'SortOrder'];
 
+// N-150: Duplicate role — fields carried from the source role onto the new
+// one, in display-normalized names (the shape getItem('Roles', id) returns,
+// which is what renderRoleForm's pre-fill already reads). Kept in sync with
+// submitRoleForm's actual write set (forms.js) by
+// tests/lint-role-copy-fields.js — update that test's expectations, don't
+// just edit this list, if the write set changes.
+const _ROLE_COPY_FIELDS = [
+  'ProjectIDLookupId', 'RoleTitle', 'HiringManager', 'TalentPartner', 'Budget',
+  'Location', 'Priority', 'Backfill', 'Department', 'Notes',
+];
+// Fields submitRoleForm writes that duplication deliberately does NOT carry
+// over — Stage always resets to Backlog, OpenDate resets to today, and
+// TargetHireDate is cleared. Used only by the sync test above.
+const _ROLE_RESET_FIELDS = ['Stage', 'OpenDate', 'TargetHireDate'];
+
 function _pickFields(obj, keys) {
   const out = {};
   for (const k of keys) {

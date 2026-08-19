@@ -3036,3 +3036,48 @@ body {
   body.org-printing #org-chart-canvas { text-align: center; min-width: 0; }
   body.org-printing #org-chart-inner { zoom: var(--org-print-scale, 1); }
 }
+
+/* ── Bulk weekly activity grid (N-147 / T-2a) ─────────────────────────
+   Twelve columns (role + nine counts + status) is wider than the content
+   area on a laptop, so the table scrolls horizontally inside its own
+   container rather than shrinking the inputs below a usable click target.
+   Semantic tokens only — dark mode comes free from the [data-theme="dark"]
+   override block; there is deliberately no dark-specific rule here.
+   Row-state backgrounds are scoped .bulk-grid tbody tr.X td (0,3,2) so they
+   out-specify both .data-table td and .data-table tbody tr:hover td — on this
+   grid, "this row failed" matters more than hover feedback. */
+.bulk-grid-scroll { overflow-x: auto; }
+.bulk-grid { min-width: 900px; }
+.bulk-grid-hint {
+  font-size: var(--fs-12); color: var(--text-muted); align-self: flex-end;
+}
+.bulk-grid-num { text-align: center; }
+.bulk-grid-input {
+  width: 60px; text-align: center;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--text-primary);
+  font-size: var(--fs-13); font-variant-numeric: tabular-nums;
+}
+.bulk-grid-input:focus {
+  outline: none; border-color: var(--border-focus); box-shadow: var(--sh-focus);
+}
+.bulk-grid-input:disabled {
+  background: var(--surface-muted); color: var(--text-faint); cursor: not-allowed;
+}
+.bulk-grid tbody tr.bulk-grid-group-head td {
+  background: var(--surface-alt);
+  border-top: 1px solid var(--surface-alt-border);
+  color: var(--text-heading);
+  font-weight: var(--fw-semibold); font-size: var(--fs-12);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding: var(--sp-4) var(--sp-6);
+}
+.bulk-grid-row-status { white-space: nowrap; font-size: var(--fs-12); }
+.bulk-status-note { color: var(--text-muted); }
+.bulk-status-ok   { color: var(--status-success-text); font-weight: var(--fw-medium); }
+.bulk-status-fail { color: var(--status-danger-text);  font-weight: var(--fw-medium); }
+.bulk-grid tbody tr.bulk-row--dirty td      { background: var(--status-warn-bg-soft); }
+.bulk-grid tbody tr.bulk-row--saved td      { background: var(--status-success-bg); }
+.bulk-grid tbody tr.bulk-row--failed td     { background: var(--status-danger-bg); }
+.bulk-grid tbody tr.bulk-row--unassigned td { background: var(--surface-sunken); color: var(--text-muted); }

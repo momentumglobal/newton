@@ -63,17 +63,17 @@ function renderModuleNav({
   `;
 
   // Ghost mode banner
-  const ghostRole = getGhostRole();
-  const appShell  = document.getElementById('app-shell');
-  let ghostBanner = document.getElementById('ghost-banner');
-  if (ghostRole) {
+  const ghostEmail = getGhostUser();
+  const appShell    = document.getElementById('app-shell');
+  let ghostBanner   = document.getElementById('ghost-banner');
+  if (ghostEmail) {
     if (!ghostBanner) {
       ghostBanner = document.createElement('div');
       ghostBanner.id = 'ghost-banner';
       document.body.prepend(ghostBanner);
     }
     ghostBanner.innerHTML = `
-      👻 Ghost mode — viewing as <strong>${ghostRole.replace(/_/g, ' ')}</strong>
+      👻 Ghost mode — viewing as <strong>${escHtml(getGhostLabel() || ghostEmail)}</strong>
       <button onclick="exitGhostMode()">Exit Ghost Mode</button>
     `;
     if (appShell) appShell.classList.add('ghost-active');
@@ -102,7 +102,7 @@ function updateNavActiveLink(page) {
 }
 
 function exitGhostMode() {
-  clearGhostRole();
+  clearGhostUser();
   // Reload the current page to re-initialise with the real role
   window.location.reload();
 }

@@ -42,9 +42,21 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### August 2026 — Duplicate role (T-6)
+
+**Stop retyping roles that repeat.** A "Duplicate" action next to Edit on the Roles page opens the Add Role form pre-filled from the source role — Project, Title, Hiring Manager, Talent Partner(s), Budget, Location, Priority, Backfill, Department and Notes all carried over. Stage resets to Backlog, Open Date resets to today, and Target Hire Date is cleared, so the copy starts its own pipeline clean. Saving creates a new role; the source role is untouched.
+
 ### August 2026 — Bulk weekly activity entry (T-2)
 
 **Log a whole week in one save.** A "Bulk log week" button on the Weekly Activity page opens a grid with one row per role the signed-in user can see, grouped by project, for a chosen week-ending Sunday. Rows already logged for that week are pre-filled from the existing records and update in place rather than creating duplicates; rows the user does not touch are never written at all. Each row saves against the Talent Partner assigned to that role — a role with no assigned TP is shown disabled rather than being attributed to whoever opened the grid. Saves run sequentially with every control locked for the duration, and a failure on one row leaves the others saved and the failed row editable and marked. The single-role "Log Activity" form is unchanged.
+
+### August 2026 — Command Bar (T-1)
+
+**⌘K / Ctrl+K, anywhere.** A fuzzy-searchable overlay opens over any of the four command-bar-enabled modules (Reporting, People, Sales, Command Centre) and lists every page you can reach across all of them — arrow keys, Enter and Escape drive it like any command palette, and picking a result outside your current module navigates you straight there. Typing also searches already-loaded Roles, Projects and People and deep-links to the matching record's edit form — nothing is fetched on keypress. Role results carry three inline actions — Log activity, Update stage, Add placement — so a Talent Partner can jump straight into the action they came for without opening the role first.
+
+### August 2026 — Inline stage update from the roles list (T-4)
+
+**Move a role forward without opening the form.** A stage dropdown on each row of the Roles table lets you change a role's stage directly from the list, for every stage except Hired and Cancelled — those two carry side effects and still require the full Edit form. Works in either direction, matching the existing full-form Stage field.
 
 ### August 2026 — Tests for the analytics layer (F-6d)
 

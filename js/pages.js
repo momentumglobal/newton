@@ -150,13 +150,21 @@ async function renderRolesPage(filter) {
           const dateCell   = isHired
             ? (spDateIn(r.ActualHireDate) || "—")
             : (spDateIn(r.TargetHireDate) || "—");
-          const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || "—";
+                    const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || "—";
+          const stageLocked = CONFIG.ROLE_STAGE_TERMINAL.includes(r.Stage);
+          const stageCell   = (canEdit && !stageLocked)
+            ? `<select id="stage-select-${r.id}" data-prev-value="${escAttr(r.Stage || '')}" onchange="updateRoleStage(${r.id}, this)">
+                ${CONFIG.ROLE_STAGES.filter(s => !CONFIG.ROLE_STAGE_TERMINAL.includes(s)).map(s =>
+                  `<option value="${s}" ${r.Stage === s ? 'selected' : ''}>${s}</option>`
+                ).join('')}
+              </select>`
+            : `<span class="badge">${escHtml(r.Stage || "—")}</span>`;
           return `
           <tr class="${rowClass}">
             <td>${escHtml(projectName)}</td>
             <td>${escHtml(r.RoleTitle)}</td>
             <td>${escHtml(r.Location || '—')}</td>
-            <td><span class="badge">${escHtml(r.Stage || "—")}</span></td>
+            <td>${stageCell}</td>
             <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
             <td>${escHtml(formatSalary(r.Budget))}</td>
             <td>${spDateIn(r.OpenDate) || "—"}</td>
@@ -178,6 +186,20 @@ async function renderRolesPage(filter) {
 }
 function setRolesProject(val) { _rolesProjectId = val || null; renderRolesPage(); }
 function setRolesPageSize(val) { _rolesPageSize = Number(val); renderRolesPage(); }
+async function updateRoleStage(roleId, selectEl) {
+  const newStage = selectEl.value;
+  setSelectPending(selectEl, true);
+  try {
+    await updateRoleWithHistory(roleId, { Stage: newStage });
+    toast('Stage updated', { type: 'success' });
+    await renderRolesPage();
+  } catch (e) {
+    selectEl.value = selectEl.dataset.prevValue;
+    toast('Could not update stage: ' + e.message, { type: 'error' });
+  } finally {
+    setSelectPending(selectEl, false);
+  }
+}
 async function showAddRoleForm() {
   document.getElementById("main-content").innerHTML = await renderRoleForm();
 }

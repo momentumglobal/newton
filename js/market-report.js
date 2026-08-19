@@ -13,7 +13,7 @@ async function renderMarketReport() {
   const user = getCurrentUser();
   _mrData = null;
 
-  const roles  = await getScopedRolesForMarketReport(user.email, _mrResolvedRole);
+  const roles  = await getScopedRolesVisibleTo(user.email, _mrResolvedRole);
   const saved  = await getMarketReports();
   const showPF = ["admin","delivery_manager"].includes(_mrResolvedRole);
   const projects = showPF ? await getScopedProjects(user.email, false) : [];

@@ -451,7 +451,15 @@ const CONFIG = {
   // one place role/module data lives per page (see command-bar.js for
   // why it can't call canAccess()/peopleCanAccess() directly instead).
     COMMAND_BAR_ENTITY_TYPES: [
-    { type: 'role',    label: 'Role',    pageKey: 'roles',           activationKind: 'edit',   openerFn: 'showEditRoleForm',     titleField: 'RoleTitle' },
+    // N-146 — `actions` renders inline buttons (Log activity / Update stage /
+    // Add placement) on this entity type's Command Bar rows, pre-scoped to
+    // the row's record. Only Role declares any; Project/Person stay as-is.
+    { type: 'role',    label: 'Role',    pageKey: 'roles',           activationKind: 'edit',   openerFn: 'showEditRoleForm',     titleField: 'RoleTitle',
+      actions: [
+        { key: 'logActivity',  label: 'Log activity',  icon: 'clock' },
+        { key: 'updateStage',  label: 'Update stage',  icon: 'refresh-cw' },
+        { key: 'addPlacement', label: 'Add placement', icon: 'user-check' },
+      ] },
     // N-145 addendum (18 Aug 2026) — Project no longer opens an edit form.
     // It navigates to Project Dashboard with the filter pre-set via
     // setterFn (see js/dashboard-project.js) BEFORE navigating, not an

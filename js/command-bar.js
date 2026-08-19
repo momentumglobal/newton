@@ -113,7 +113,12 @@ async function _cmdBarLoadEntities(role) {
   const projectMap = Object.fromEntries(projects.map(p => [String(p.id), p.CustomerName]));
 
   if (wantRoles) {
-    roles.forEach(r => {
+    // N-146 addendum (19 Aug 2026) — only active roles are searchable
+    // here, matching the exclusion every other role-picker in the app
+    // already applies (forms.js's role dropdowns, pages.js's Roles-list
+    // "Active" filter) — cuts noise from roles nobody needs to act on via
+    // the Command Bar.
+    roles.filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage)).forEach(r => {
       const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || '';
       records.push({
         entityType:   'role',
@@ -234,6 +239,7 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
   function filter(query) {
     currentQuery = query;
     const q = query.trim();
+    const qLower = q.toLowerCase();
 
     const pageMatches = allPages
       .map(page => ({ kind: 'page', page, score: fuzzyMatch(q, page.label) }))
@@ -250,6 +256,27 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
       Object.values(byType).forEach(list => {
         list.sort((a, b) => b.score - a.score);
         entityMatches = entityMatches.concat(list.slice(0, CONFIG.COMMAND_BAR_ENTITY_RESULT_CAP));
+      });
+
+      // N-146 addendum (19 Aug 2026) — browse mode: typing a prefix of an
+      // entity-bearing page's own label (e.g. "Roles") lists every cached
+      // record of that entity type, uncapped. fuzzyMatch is a subsequence
+      // match over each record's title/project/TP text, so a role like
+      // "Recruiter" has no reason to contain the letters "roles" in order —
+      // typing the category name was never going to surface it. The CAP
+      // above exists to bound a free-text search's noise, not to truncate
+      // a deliberate "show me all of them" browse, so this skips it
+      // entirely (still excludes anything already included above from a
+      // genuine text match, and still respects the active-roles-only
+      // filter already applied when the cache was built).
+      const includedIds = new Set(entityMatches.map(m => `${m.record.entityType}:${m.record.id}`));
+      CONFIG.COMMAND_BAR_ENTITY_TYPES.forEach(typeInfo => {
+        const page = allPages.find(p => p.key === typeInfo.pageKey);
+        if (!page || !qLower || !page.label.toLowerCase().startsWith(qLower)) return;
+        _cmdBarEntityCache
+          .filter(r => r.entityType === typeInfo.type && !includedIds.has(`${r.entityType}:${r.id}`))
+          .sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+          .forEach(record => entityMatches.push({ kind: 'entity', record, score: 0 }));
       });
     }
 

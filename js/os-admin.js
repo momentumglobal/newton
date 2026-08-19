@@ -9,7 +9,7 @@ const tooltips = {
   assignments: 'Manage user roles and project access. Users are auto-registered on first login — assign their role and projects here.',
   leadership:  'Grant Leadership-level access to users who should see the Company Dashboard without full system access.',
   homepage:    'Manage homepage appearance and seasonal effects.',
-  ghost:       'Temporarily view Newton as a different role type for testing. Only visible to admins.',
+  ghost:       'Temporarily view Newton as a specific real user for testing or investigating a bug. Only visible to admins.',
   datahealth:  'Row counts per list and index status on the columns N-093 is about to filter server-side.',
 };
   const tabBar = tabs.map(t =>
@@ -362,101 +362,80 @@ async function clearAnnouncement() {
 }
 
 // ── Ghost Mode Tab ───────────────────────────────────────────────────
-const GHOST_PROJECT_ROLES = ['delivery_manager', 'talent_partner'];
-
 async function buildGhostTab() {
-  const current        = getGhostRole();
-  const currentProject = getGhostProject();
-  const projects       = await getProjects(false);
+  const currentEmail = getGhostUser();
+  const currentLabel = getGhostLabel();
 
-  const roles = [
-    { key: 'delivery_manager', label: 'Delivery Manager' },
-    { key: 'talent_partner',   label: 'Talent Partner' },
-    { key: 'leadership',       label: 'Leadership' },
-    { key: 'viewer',           label: 'Viewer' },
-  ];
+  const [assignable, leadership] = await Promise.all([
+    getAllAssignableUsers(), getLeadershipAccess()
+  ]);
+  const merged = new Map();
+  assignable.forEach(u => merged.set(u.UserEmail.toLowerCase(), u.UserName || u.UserEmail));
+  leadership.forEach(l => {
+    if (l.UserEmail) merged.set(l.UserEmail.toLowerCase(), l.UserName || l.UserEmail);
+  });
+  const users = [...merged.entries()]
+    .map(([email, name]) => ({ email, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-  const projectOptions = projects
-    .sort((a, b) => a.CustomerName.localeCompare(b.CustomerName))
-    .map(p => `<option value="${p.id}" ${String(p.id) === currentProject ? 'selected' : ''}>${escHtml(p.CustomerName)}</option>`)
-    .join('');
+  const userOptions = users.map(u => `
+    <option value="${escAttr(u.email)}" data-name="${escAttr(u.name)}" ${currentEmail === u.email ? 'selected' : ''}>
+      ${escHtml(u.name)} (${escHtml(u.email)})
+    </option>`).join('');
 
-  const roleButtons = roles.map(r => `
-    <button class="btn-${current === r.key ? 'primary' : 'secondary'}"
-      onclick="selectGhostRole('${r.key}')" style="min-width:160px">
-      ${r.label}${current === r.key ? ' ✓' : ''}
-    </button>`).join('');
-
-  const needsProject = current && GHOST_PROJECT_ROLES.includes(current);
-
-  const projectPicker = needsProject ? `
-    <div class="form-group" style="margin-top:16px;max-width:320px">
-      <label>Project to ghost as</label>
-      <select id="ghost-project-select">
-        <option value="">-- Select project --</option>
-        ${projectOptions}
-      </select>
-    </div>` : '';
-
-  const activateBtn = current ? `
+  const activateBtn = `
     <button class="btn-primary" style="margin-top:16px"
-      onclick="activateGhost()">
+      onclick="activateGhostUser()">
       Activate Ghost Mode
-    </button>` : '';
+    </button>`;
 
   return `
     <h3>Ghost Mode</h3>
         <p style="font-size:13px;color:var(--text-label);margin-bottom:24px">
-      Temporarily view Newton as a different role. A banner will appear at the top of every
-      page while ghost mode is active. Navigate to any module to see that role's experience.
-      Your real admin access is restored when you exit.
+      Temporarily view Newton as a specific real user — their real resolved role and real
+      project scope. A banner will appear at the top of every page while ghost mode is
+      active. Navigate to any module to see their experience. Your real admin access is
+      restored when you exit.
     </p>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;
                 padding:20px 24px;max-width:520px">
-      ${current ? `
+      ${currentEmail ? `
         <div style="background:var(--status-warn-bg-soft);border:1px solid var(--badge-cc-amber);border-radius:4px;
                     padding:12px 16px;margin-bottom:20px;font-size:13px">
-          👻 Currently ghosting as <strong>${current.replace(/_/g, ' ')}
-          ${currentProject ? '— ' + escHtml(projects.find(p => String(p.id) === currentProject)?.CustomerName || '') : ''}
-          </strong>
+          👻 Currently ghosting as <strong>${escHtml(currentLabel || currentEmail)}</strong>
+          (${escHtml(currentEmail)})
         </div>` : ''}
-      <div style="display:flex;flex-direction:column;gap:10px">
-        ${roleButtons}
+      <div class="form-group" style="max-width:420px">
+        <label>User to ghost as</label>
+        <select id="ghost-user-select">
+          <option value="">-- Select user --</option>
+          ${userOptions}
+        </select>
       </div>
-      ${projectPicker}
       ${activateBtn}
-      ${current ? `
+      ${currentEmail ? `
         <button class="btn-danger" style="margin-top:12px"
           onclick="deactivateGhost()">Exit Ghost Mode</button>` : ''}
     </div>
   `;
 }
 
-function selectGhostRole(role) {
-  setGhostRole(role);
-  sessionStorage.removeItem(GHOST_PROJECT_KEY);
-  renderOsAdminPage('ghost');
-}
-
-function activateGhost() {
-  const role = getGhostRole();
-  if (!role) return;
-  if (GHOST_PROJECT_ROLES.includes(role)) {
-    const projectId = document.getElementById('ghost-project-select')?.value;
-    if (!projectId) {
-      toast('Please select a project before activating ghost mode.', { type: 'error' });
-      return;
-    }
-    setGhostProject(projectId);
+function activateGhostUser() {
+  const sel = document.getElementById('ghost-user-select');
+  const email = sel?.value;
+  if (!email) {
+    toast('Please select a user before activating ghost mode.', { type: 'error' });
+    return;
   }
+  const opt = sel.options[sel.selectedIndex];
+  setGhostUser(email, opt?.dataset.name || email);
   window.location.href = 'reporting.html';
 }
 
 function deactivateGhost() {
-  clearGhostRole();
+  clearGhostUser();
   window.location.reload();
 }
-
 // ── Data Health Tab (F-10 / N-092) ───────────────────────────────────
 async function buildDataHealthTab() {
   // N-154 (F-10b): every registered list, not just the ones with a

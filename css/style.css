@@ -3074,10 +3074,10 @@ body {
   padding: var(--sp-4) var(--sp-6);
 }
 .bulk-grid-row-status { white-space: nowrap; font-size: var(--fs-12); }
-.bulk-status-note { color: var(--text-muted); }
-.bulk-status-ok   { color: var(--status-success-text); font-weight: var(--fw-medium); }
-.bulk-status-fail { color: var(--status-danger-text);  font-weight: var(--fw-medium); }
+.bulk-status-note { color: var(--text-secondary); }
+.bulk-status-ok   { color: var(--text-primary); font-weight: var(--fw-semibold); }
+.bulk-status-fail { color: var(--text-primary); font-weight: var(--fw-semibold); }
 .bulk-grid tbody tr.bulk-row--dirty td      { background: var(--status-warn-bg-soft); }
 .bulk-grid tbody tr.bulk-row--saved td      { background: var(--status-success-bg); }
 .bulk-grid tbody tr.bulk-row--failed td     { background: var(--status-danger-bg); }
-.bulk-grid tbody tr.bulk-row--unassigned td { background: var(--surface-sunken); color: var(--text-muted); }
+.bulk-grid tbody tr.bulk-row--unassigned td { background: var(--surface-sunken); color: var(--text-secondary); }

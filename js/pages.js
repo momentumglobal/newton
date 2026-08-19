@@ -260,25 +260,62 @@ async function showRoleTimeline(roleId) {
   const stageChanges = history
     .filter(h => h.Field === 'Stage')
     .sort((a, b) => new Date(a.ChangedAt) - new Date(b.ChangedAt));
-  // N-100 UAT fix: a role's real-world journey can start before Newton ever
-  // logged it (OpenDate entered as a past date on a role added late). If the
-  // first node is the genuine creation row (OldValue === '') and OpenDate
-  // predates its ChangedAt, back-date that ONE node to OpenDate — for both
-  // its own display date and the "time in stage" gap into the next node —
-  // and relabel it "Role opened" so it's honest about which date is shown.
-  // Never applied to a later transition node: OpenDate is not that node's
-  // timestamp, only ever a candidate for the very first (creation) node.
-  const openDateMs = role.OpenDate ? new Date(role.OpenDate).getTime() : null;
+  // N-100 UAT fix (round 2): a role's real-world journey can start before
+  // Newton ever logged it. Two cases, both driven off role.OpenDate:
+  //  (a) the role was entered into Newton after it actually opened — the
+  //      creation row (node 0) is later than OpenDate — so node 0 shows
+  //      OpenDate and relabels "Role opened".
+  //  (b) the role sat in Planning/Backlog with no OpenDate, then was moved
+  //      to Sourcing later with OpenDate backfilled to when it truly went
+  //      live — the FIRST row whose NewValue is 'Sourcing' (which may not
+  //      be node 0) shows OpenDate instead of the system-logged transition
+  //      date. This also shrinks the *preceding* node's "time in stage" —
+  //      Planning is measured up to when the role actually opened, not up
+  //      to whenever the Sourcing transition happened to get logged.
+  // A role can only ever get ONE of these: node 0 is only also the
+  // Sourcing-entry node when the role was created directly into Sourcing,
+  // in which case case (a)'s condition already covers it identically.
+  //
+  // All day comparisons/diffs below use utcDateOnly (this codebase's
+  // canonical calendar-day helper — see daysOpen() in utils.js), not raw
+  // millisecond arithmetic on ChangedAt instants: OpenDate is a day marker
+  // with no real time-of-day (always written as T12:00:00Z via isoDate()),
+  // so comparing/diffing it against a genuine ChangedAt instant at
+  // millisecond precision would flip by ±1 day depending purely on what
+  // time of day the role happened to be created/moved, or what time of
+  // day someone views an ongoing "so far" count. Calendar-day diffing is
+  // stable regardless of time-of-day on either end.
+  const openDateDay = role.OpenDate ? utcDateOnly(role.OpenDate) : null;
+  const sourcingIdx = stageChanges.findIndex(h => h.NewValue === 'Sourcing');
+  const useOpenDateFlags = stageChanges.map((h, i) =>
+    (i === 0 || i === sourcingIdx) && openDateDay !== null && openDateDay < utcDateOnly(h.ChangedAt)
+  );
+  const effectiveDates = stageChanges.map((h, i) => useOpenDateFlags[i] ? role.OpenDate : h.ChangedAt);
+  const dayGap = (startStr, endStrOrNow) => {
+    const start = utcDateOnly(startStr);
+    const end = endStrOrNow instanceof Date
+      ? new Date(Date.UTC(endStrOrNow.getUTCFullYear(), endStrOrNow.getUTCMonth(), endStrOrNow.getUTCDate()))
+      : utcDateOnly(endStrOrNow);
+    return Math.floor((end - start) / 86400000);
+  };
   const nodesHtml = stageChanges.map((h, i) => {
     const cls = _roleTimelineNodeClass(h.OldValue, h.NewValue);
-    const isCreated = h.OldValue === '';
-    const useOpenDate = i === 0 && isCreated && openDateMs !== null && openDateMs < new Date(h.ChangedAt).getTime();
-    const effectiveChangedAt = useOpenDate ? role.OpenDate : h.ChangedAt;
+    // N-100 UAT fix (round 2): loosened from `h.OldValue === ''` — Graph/
+    // SharePoint normalises a text column written as '' back to null on
+    // read, so the strict empty-string check silently never matched the
+    // real creation row (wrong "— → Sourcing" label, wrong 'branch'/orange
+    // dot in _roleTimelineNodeClass below, and skipped the OpenDate
+    // back-date since useOpenDate required isCreated). Falsy catches '',
+    // null, and undefined alike; a real Stage name is never falsy, so this
+    // can't misfire on an actual transition.
+    const isCreated = !h.OldValue;
+    const useOpenDate = useOpenDateFlags[i];
+    const effectiveChangedAt = effectiveDates[i];
     const label = isCreated
       ? `${useOpenDate ? 'Role opened' : 'Role created'} — entered ${escHtml(h.NewValue || '—')}`
-      : `${escHtml(h.OldValue || '—')} → ${escHtml(h.NewValue || '—')}`;
+      : `${escHtml(h.OldValue || '—')} → ${escHtml(h.NewValue || '—')}${useOpenDate ? ' — role opened' : ''}`;
     const next = stageChanges[i + 1];
-    const gapDays = Math.floor(((next ? new Date(next.ChangedAt) : new Date()) - new Date(effectiveChangedAt)) / 86400000);
+    const gapDays = dayGap(effectiveChangedAt, next ? effectiveDates[i + 1] : new Date());
     const gapLabel = next
       ? `${formatDurationDays(gapDays)} in ${escHtml(h.NewValue || '—')}`
       : `${formatDurationDays(gapDays)} in ${escHtml(h.NewValue || '—')} so far`;
@@ -315,7 +352,10 @@ async function showRoleTimeline(roleId) {
 // 11-stage canonical order — NEVER analytics.js's STAGE_ORDER, which is a
 // 4-stage subset built only for isRoleFlagged's velocity check.
 function _roleTimelineNodeClass(oldStage, newStage) {
-  if (oldStage === '') return 'start';
+  // N-100 UAT fix (round 2): same SharePoint null-vs-empty-string quirk as
+  // showRoleTimeline's isCreated check above — a falsy check catches the
+  // real creation row whether SharePoint hands it back as '' or null.
+  if (!oldStage) return 'start';
   const branchStages = ['On-hold', 'Cancelled'];
   if (branchStages.includes(newStage) || branchStages.includes(oldStage)) return 'branch';
   const oldIdx = CONFIG.ROLE_STAGES.indexOf(oldStage);

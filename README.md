@@ -42,6 +42,12 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### August 2026 — Role History timeline (D-3a/D-3b)
+
+**See exactly how a role got to where it is.** A "Timeline" action next to Edit on the Roles page opens a vertical, stage-by-stage history for that role — every stage change with the date it happened and how long the role spent in the stage before it, forward progress in green, a move backward in red, and a move onto or off On-hold/Cancelled in amber, since neither is a step forward or back. The first entry marks when the role was created. If its Open Date predates that — or predates the date it was actually moved into Sourcing — the timeline uses the Open Date instead and labels it "Role opened," so a role logged into Newton after the fact (or moved into Sourcing with a backfilled Open Date) still shows an honest start point and accurate stage duration. `ChangedBy` shows the person's name, not a raw email, matching the rest of the platform. Timeline only appears on roles that have recorded history — a role created before this shipped has nothing to show, so the action doesn't appear on it. Desktop only for now; mobile has no Roles list to hang the action off.
+
+**Data model:** new `RoleHistory` SharePoint list (RoleID lookup, Field, OldValue, NewValue, ChangedBy, ChangedAt) — one row per field that actually changed, written on every role edit and, as of this feature, on role creation too. Registered as `RoleHistory: {}` in `FIELD_ALIASES`.
+
 ### August 2026 — Duplicate role (T-6)
 
 **Stop retyping roles that repeat.** A "Duplicate" action next to Edit on the Roles page opens the Add Role form pre-filled from the source role — Project, Title, Hiring Manager, Talent Partner(s), Budget, Location, Priority, Backfill, Department and Notes all carried over. Stage resets to Backlog, Open Date resets to today, and Target Hire Date is cleared, so the copy starts its own pipeline clean. Saving creates a new role; the source role is untouched.

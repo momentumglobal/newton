@@ -250,23 +250,35 @@ async function showDuplicateRoleForm(id) {
 async function showRoleTimeline(roleId) {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading role history...</p>";
-  const [role, allProjects, history] = await Promise.all([
+  const [role, allProjects, history, tpMap] = await Promise.all([
     getItem('Roles', roleId),
     getProjects(false),
     getRoleHistory(roleId),
+    getTalentPartnerDisplayMap(),
   ]);
   const projectName = allProjects.find(p => String(p.id) === String(role.ProjectIDLookupId || role.ProjectID))?.CustomerName || '—';
   const stageChanges = history
     .filter(h => h.Field === 'Stage')
     .sort((a, b) => new Date(a.ChangedAt) - new Date(b.ChangedAt));
+  // N-100 UAT fix: a role's real-world journey can start before Newton ever
+  // logged it (OpenDate entered as a past date on a role added late). If the
+  // first node is the genuine creation row (OldValue === '') and OpenDate
+  // predates its ChangedAt, back-date that ONE node to OpenDate — for both
+  // its own display date and the "time in stage" gap into the next node —
+  // and relabel it "Role opened" so it's honest about which date is shown.
+  // Never applied to a later transition node: OpenDate is not that node's
+  // timestamp, only ever a candidate for the very first (creation) node.
+  const openDateMs = role.OpenDate ? new Date(role.OpenDate).getTime() : null;
   const nodesHtml = stageChanges.map((h, i) => {
     const cls = _roleTimelineNodeClass(h.OldValue, h.NewValue);
     const isCreated = h.OldValue === '';
+    const useOpenDate = i === 0 && isCreated && openDateMs !== null && openDateMs < new Date(h.ChangedAt).getTime();
+    const effectiveChangedAt = useOpenDate ? role.OpenDate : h.ChangedAt;
     const label = isCreated
-      ? `Role created — entered ${escHtml(h.NewValue || '—')}`
+      ? `${useOpenDate ? 'Role opened' : 'Role created'} — entered ${escHtml(h.NewValue || '—')}`
       : `${escHtml(h.OldValue || '—')} → ${escHtml(h.NewValue || '—')}`;
     const next = stageChanges[i + 1];
-    const gapDays = Math.floor(((next ? new Date(next.ChangedAt) : new Date()) - new Date(h.ChangedAt)) / 86400000);
+    const gapDays = Math.floor(((next ? new Date(next.ChangedAt) : new Date()) - new Date(effectiveChangedAt)) / 86400000);
     const gapLabel = next
       ? `${formatDurationDays(gapDays)} in ${escHtml(h.NewValue || '—')}`
       : `${formatDurationDays(gapDays)} in ${escHtml(h.NewValue || '—')} so far`;
@@ -278,7 +290,7 @@ async function showRoleTimeline(roleId) {
         </div>
         <div class="role-timeline-content">
           <div class="role-timeline-label">${label}</div>
-          <div class="role-timeline-meta">${spDateIn(h.ChangedAt) || "—"} · ${escHtml(h.ChangedBy || '—')}</div>
+          <div class="role-timeline-meta">${spDateIn(effectiveChangedAt) || "—"} · ${escHtml(tpDisplay(h.ChangedBy, tpMap))}</div>
           <div class="role-timeline-duration${!next ? ' role-timeline-duration--ongoing' : ''}">${gapLabel}</div>
         </div>
       </div>`;

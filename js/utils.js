@@ -585,23 +585,6 @@ function getWeekEnding(date = new Date()) {
   return `${y}-${m}-${dd}`;
 }
 
-// N-147 (T-2a): which Talent Partner a bulk-activity grid row is written
-// against. Roles.TalentPartner may hold a semicolon list ('a@x.com;b@x.com'),
-// so this reuses api.js's tpList() rather than re-parsing it — utils.js loads
-// BEFORE api.js, but this is only ever called at runtime, long after every
-// script has parsed, so the forward reference is safe.
-// Prefers the signed-in user when they are one of the role's owners, so a TP
-// logging their own week is always attributed to them; otherwise the first
-// listed owner. Returns null when the role has NO owner — the caller must
-// render that row disabled and exclude it from the save rather than
-// attributing someone else's week to whoever happened to open the grid.
-function resolveRowTalentPartner(roleTalentPartnerValue, currentUserEmail) {
-  const list = tpList(roleTalentPartnerValue);
-  if (!list.length) return null;
-  const me = String(currentUserEmail || '').trim().toLowerCase();
-  return (me && list.includes(me)) ? me : list[0];
-}
-
 // ── Activity field summation ─────────────────────────────────────────
 function sumField(acts, field) {
   return acts.reduce((s, a) => s + (Number(a[field]) || 0), 0);

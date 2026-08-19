@@ -353,11 +353,15 @@ async function submitRoleForm(event, editId = null) {
   }
 }
 // ── Weekly Activity Form ────────────────────────────────────────────
-async function renderWeeklyActivityForm(existingData = null) {
+// N-146 — preselectedRoleId/preselectedProjectId let a caller (the
+// Command Bar's Log activity row action) pre-scope the form to a role
+// without an existing record, mirroring renderPlacementForm's own
+// preselectedRoleId/preselectedProjectId params below.
+async function renderWeeklyActivityForm(existingData = null, preselectedRoleId = null, preselectedProjectId = null) {
   const isEdit = !!existingData;
   // SharePoint returns lookup columns as *LookupId; fall back so edits preselect correctly
-  const existingProjectId = existingData?.ProjectIDLookupId ?? existingData?.ProjectID;
-  const existingRoleId    = existingData?.RoleIDLookupId    ?? existingData?.RoleID;
+  const existingProjectId = existingData?.ProjectIDLookupId ?? existingData?.ProjectID ?? preselectedProjectId;
+  const existingRoleId    = existingData?.RoleIDLookupId    ?? existingData?.RoleID    ?? preselectedRoleId;
   const currentUser = getCurrentUser();
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);
@@ -388,11 +392,13 @@ async function renderWeeklyActivityForm(existingData = null) {
        ).join('');
     } catch (e) { /* fall back to empty */ }
   }
-  // On edit (non-locked project), reload + reselect the saved role after the form mounts
-  if (isEdit && !lockProject && existingProjectId) {
+  // On edit, or when arriving pre-scoped to a role (N-146 Command Bar
+  // action) — either way non-locked-project only — reload + reselect the
+  // target role after the form mounts.
+  if ((isEdit || preselectedRoleId) && !lockProject && existingProjectId) {
     setTimeout(() => {
       loadRolesForWeekly(existingProjectId, existingRoleId);
-      if (canLogOnBehalf) loadTalentPartnersForWeekly(existingProjectId, existingData.TalentPartner);
+      if (canLogOnBehalf) loadTalentPartnersForWeekly(existingProjectId, existingData?.TalentPartner);
     }, 0);
   }
   return `

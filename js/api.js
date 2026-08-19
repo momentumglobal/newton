@@ -300,14 +300,26 @@ async function createItem(listName, fields) {
 async function createRoleWithHistory(fields) {
   const result = await createItem('Roles', fields);
   if (result && result.id) {
-    createItem('RoleHistory', {
-      RoleIDLookupId: parseInt(result.id),
-      Field:          'Stage',
-      OldValue:       '',
-      NewValue:       fields.Stage || '',
-      ChangedBy:      getCurrentUser().email,
-      ChangedAt:      new Date().toISOString(),
-    }).catch(e => console.warn('RoleHistory: creation write failed', e));
+    // N-100 QA fix (round 2): AWAITED — unlike updateRoleWithHistory's six
+    // existing fire-and-forget call sites, the Roles-list "Timeline" link's
+    // very first appearance depends on this row existing by the time
+    // navigateTo('roles') re-renders the list right after this function
+    // returns. Without awaiting, that GET raced the RoleHistory POST and
+    // won almost every time (found in N-100 QA). A failed write still never
+    // blocks or fails the role save — only a console warning, same
+    // guarantee the fire-and-forget version gave.
+    try {
+      await createItem('RoleHistory', {
+        RoleIDLookupId: parseInt(result.id),
+        Field:          'Stage',
+        OldValue:       '',
+        NewValue:       fields.Stage || '',
+        ChangedBy:      getCurrentUser().email,
+        ChangedAt:      new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn('RoleHistory: creation write failed', e);
+    }
   }
   return result;
 }

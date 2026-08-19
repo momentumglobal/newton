@@ -58,6 +58,7 @@
       <li><a href="#roles">User Roles</a></li>
       <li><a href="#export">Exporting to PDF</a></li>
       <li><div class="nav-section-label">Pages</div></li>
+      <li><a href="#command-bar">Command Bar</a></li>
       <li><a href="#company-dashboard">Company Dashboard</a></li>
       <li><a href="#project-dashboard">Project Dashboard</a></li>
       <li><a href="#projects">Projects</a></li>
@@ -123,6 +124,23 @@
       <p>Under the Options section, ensure <strong>Headers and footers</strong> is unticked and <strong>Background graphics</strong> is ticked. Background graphics must be enabled for the branded header block to print correctly.</p>
       <div class="tip">These settings are not saved by the browser between sessions — you will need to set them each time you export.</div>
     </div>
+    <div class="guide-section" id="command-bar">
+      <h2>Command Bar</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+        <span class="role-badge leadership">Leadership</span>
+      </div>
+      <p>Press <strong>⌘K</strong> (Mac) or <strong>Ctrl+K</strong> (Windows) anywhere in Reporting, People, Sales or Command Centre to open the Command Bar — a search overlay covering every page you have access to across all of Newton, not just your current module. Use the arrow keys and Enter to select a result, or Escape to close.</p>
+      <h3>Finding a page</h3>
+      <p>Start typing and matching pages appear immediately, ranked by how closely they match. Picking a page outside your current module takes you straight there.</p>
+      <h3>Finding a role, project or person</h3>
+      <p>Keep typing (2+ characters) and matching Roles, Projects and People appear alongside the page results, each labelled with its type. Selecting one opens that record's edit form directly — no need to find it in a list first.</p>
+      <h3>Acting on a role</h3>
+      <p>Role results carry three quick actions — <strong>Log activity</strong>, <strong>Update stage</strong>, <strong>Add placement</strong> — so you can go straight from a search to the action you needed, pre-scoped to that role.</p>
+      <div class="tip">The Command Bar only searches data already loaded in your session — nothing is fetched as you type, so results appear instantly.</div>
+    </div>
     <div class="guide-section" id="company-dashboard">
       <h2>Company Dashboard</h2>
       <div class="role-badges">
@@ -185,8 +203,12 @@
       <p>Use the <strong>Project</strong> dropdown to filter by project — grouped into <strong>Active</strong> and <strong>Archive</strong> sections (A–Z within each). Use the stage filter buttons (Backlog / Active / Hired / Cancelled) to narrow by stage — <strong>Backlog</strong> covers both Backlog and On-hold roles, and <strong>Active</strong> means everything that is not Backlog, On-hold, Hired or Cancelled.</p>
       <p>The <strong>Show</strong> dropdown sets how many rows are drawn (25 / 50 / 100 / All, default 50). It only affects the display — nothing is re-fetched — and the line under the toolbar tells you what you are looking at. Roles has <strong>no</strong> date window on purpose: a role that has been open a long time is the one you most need to see, so the list is never bounded by date.</p>
       <h3>Adding and editing roles</h3>
-      <p>Admins and Delivery Managers can add new roles using the <strong>+ Add Role</strong> button. Any role can be edited or its stage updated using the action links in the table. When creating a role, select the <strong>Functional Area</strong> and hire <strong>Location</strong> — currency is auto-populated from the location and does not need to be entered manually. The Project dropdown on this form lists Active projects only; an existing role already linked to a project that has since moved to Archive still shows it when you edit that role.</p>
-      <div class="tip">The "Roles Open 30+ Days" panel on both dashboards is driven by the <strong>Open Date</strong> field — make sure this is set accurately when a role is created.</div>
+      <p>Admins and Delivery Managers can add new roles using the <strong>+ Add Role</strong> button. Any role can be edited using the action links in the table. When creating a role, select the <strong>Functional Area</strong> and hire <strong>Location</strong> — currency is auto-populated from the location and does not need to be entered manually. The Project dropdown on this form lists Active projects only; an existing role already linked to a project that has since moved to Archive still shows it when you edit that role.</p>
+      <h3>Updating a stage without opening the form</h3>
+      <p>Each row has its own stage dropdown — pick a new stage and it saves immediately, no need to open Edit. This covers every stage except <strong>Hired</strong> and <strong>Cancelled</strong>, which still go through the full Edit form since they trigger other changes elsewhere in Newton.</p>
+      <h3>Duplicating a role</h3>
+      <p>Use the <strong>Duplicate</strong> action next to Edit to open the Add Role form pre-filled with the source role's Project, Title, Hiring Manager, Talent Partner(s), Budget, Location, Priority, Backfill, Department and Notes. Stage resets to Backlog, Open Date resets to today, and Target Hire Date is left blank for you to set. The original role is untouched — useful for a project backfilling several near-identical roles.</p>
+      <div class="tip">The "Roles Open 30+ Days" panel on both dashboards is driven by the <strong>Open Date</strong> field — make sure this is set accurately when a role is created or duplicated.</div>
     </div>
     <div class="guide-section" id="activity">
       <h2>Weekly Activity</h2>
@@ -200,7 +222,9 @@
       <p>Filter by project using the dropdown, grouped into <strong>Active</strong> and <strong>Archive</strong> sections. Talent Partners see only their own entries; Delivery Managers and Admins see all entries for their projects.</p>
       <p>The <strong>Period</strong> dropdown controls how much history is <em>fetched</em> — it defaults to <strong>Last 26 weeks</strong>, so older entries are not loaded until you widen it. Choose <strong>All time</strong> to load everything. If a count looks lower than you expect, check this first. The <strong>Show</strong> dropdown (25 / 50 / 100 / All, default 50) then limits how many of those rows are drawn, without re-fetching. The line under the toolbar always names the period you are viewing.</p>
       <h3>Adding activity</h3>
-      <p>Use <strong>+ Add Activity</strong> to log a week's numbers. Select the role, enter the week ending date, and fill in the activity counts. This data feeds directly into the dashboard pipeline panels. The Project dropdown on this form lists Active projects only.</p>
+      <p>Use <strong>+ Add Activity</strong> to log a week's numbers for a single role. Select the role, enter the week ending date, and fill in the activity counts. This data feeds directly into the dashboard pipeline panels. The Project dropdown on this form lists Active projects only.</p>
+      <h3>Bulk logging a whole week</h3>
+      <p>Use <strong>⚡ Bulk log week</strong> to log every role you can see in one grid, one save, instead of opening the single-role form repeatedly. Pick a week-ending date and the grid loads a row per role, grouped by project; any rows already logged for that week are pre-filled so this is also how you correct a week you've already entered. Only the rows you actually change are saved — untouched rows are left alone. Each row saves against the Talent Partner assigned to that role; a role with no Talent Partner assigned shows as disabled. If one row fails to save, the rest still go through — the failed row stays open and marked so you can retry it.</p>
     </div>
     <div class="guide-section" id="placements">
       <h2>Placements</h2>

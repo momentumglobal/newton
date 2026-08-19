@@ -304,7 +304,7 @@ async function renderActivityPage() {
   main.innerHTML = `
     <div class="page-header">
       <h2>Weekly Activity</h2>
-      ${canEdit ? '<div class="page-header-actions"><button class="btn-secondary" onclick="showBulkActivityPage()">Bulk log week</button><button class="btn-primary" onclick="showAddActivityForm()">+ Log Activity</button></div>' : ""}
+      ${canEdit ? '<div class="page-header-actions">' + (typeof bulkEntryAvailable === 'function' && bulkEntryAvailable() ? '<button class="btn-secondary" onclick="showBulkActivityPage()">Bulk log week</button>' : '') + '<button class="btn-primary" onclick="showAddActivityForm()">+ Log Activity</button></div>' : ""}
     </div>
     <div class="table-toolbar">
       ${listControlsBar([projDropdown, roleDropdown, periodDropdown, pageSizeDropdown(_activityPageSize, 'setActivityPageSize')])}

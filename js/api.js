@@ -784,17 +784,15 @@ async function deleteLCILocation(id) {
   return deleteItem("LCILocations", id);
 }
 
-// Resolve the signed-in user's effective role:
+// Resolve the effective role for `email` — or, if Ghost Mode is active, for
+// the ghosted user instead (N-162: ghosting simulates a real user's actual
+// resolved role, not a synthetic label):
 // 1. Check ADMIN_USERS in config.js
 // 2. Check LeadershipAccess list
 // 3. Check UserAssignments list
 // 4. Fall back to 'viewer'
 async function getEffectiveRole(email) {
-  // Ghost mode — admin testing a different role profile
-  const ghost = getGhostRole();
-  if (ghost) return ghost;
- 
-  const lower = email.toLowerCase();
+  const lower = (getGhostUser() || email).toLowerCase();
   const cacheKey = 'newton_role_' + lower;
   const cached = sessionStorage.getItem(cacheKey);
   if (cached) return cached;
@@ -832,10 +830,11 @@ async function isLeadershipUser(email) {
   return list.some(l => l.UserEmail?.toLowerCase() === email.toLowerCase());
 }
 
-// True if the signed-in user holds an explicit DM grant.
+// True if the resolved user (the ghosted user if Ghost Mode is active, else
+// the signed-in user) holds an explicit DM grant.
 // Pass a projectId to scope the check; omit for "any DM grant?"
 function hasDMGrant(projectId = null) {
-  const email = (getCurrentUser()?.email || '').toLowerCase();
+  const email = (getGhostUser() || getCurrentUser()?.email || '').toLowerCase();
   const grants = JSON.parse(sessionStorage.getItem('newton_dm_grants_' + email) || '[]');
   return projectId ? grants.includes(String(projectId)) : grants.length > 0;
 }
@@ -910,13 +909,11 @@ function higherRole(a, b) {
   return ai <= bi ? a : b;
 }
  
-// Return all project IDs this user is assigned to (null = admin, sees all)
+// Return all project IDs this user is assigned to (null = admin, sees all).
+// N-162: resolves against the ghosted user's real assignments when Ghost
+// Mode is active, instead of a single manually-picked ghost project.
 async function getUserProjectIds(email) {
-  // Ghost mode — return the single ghost project if set
-  const ghostProject = getGhostProject();
-  if (ghostProject) return [ghostProject];
- 
-  const lower = email.toLowerCase();
+  const lower = (getGhostUser() || email).toLowerCase();
   if (CONFIG.ADMIN_USERS?.includes(lower)) return null;
   const assignments = await getItems("UserAssignments", `fields/Title eq '${lower}'`);
   // N-165: de-duped — a user with two UserAssignments rows for the same

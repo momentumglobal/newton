@@ -438,7 +438,7 @@
   --text-label:           var(--c-dark-text-label);
   --text-muted:           var(--c-dark-text-muted);
   --text-faint:           var(--c-dark-text-faint);
-  --text-heading:         var(--c-blue);
+  --text-heading:         var(--c-blue-soft);
   --text-link:            var(--c-blue);
   --text-link-hover:      var(--c-blue-mid);
   --border-strong:        var(--c-dark-border-strong);

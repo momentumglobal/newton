@@ -366,8 +366,11 @@ function formatSalary(val) {
 
 function daysOpen(openDate, hireDate) {
   if (!openDate) return null;
-  const start = new Date(openDate);
-  const end = hireDate ? new Date(hireDate) : new Date();
+  const start = utcDateOnly(openDate);
+  if (!start) return null;
+  const now = new Date();
+  const end = hireDate ? utcDateOnly(hireDate)
+    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   return Math.floor((end - start) / (1000 * 60 * 60 * 24));
 }
 

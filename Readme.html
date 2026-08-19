@@ -556,6 +556,7 @@
         <tr><td><span class="file-tag">js/api.js</span></td><td>All SharePoint/Graph API calls</td><td>getItems(), createItem(), updateItem(), deleteItem(), getEffectiveRole(), all list-specific helpers</td></tr>
         <tr><td><span class="file-tag">js/nav-core.js</span></td><td>Shared sidebar renderer</td><td>renderModuleNav(), updateNavActiveLink(), exitGhostMode()</td></tr>
         <tr><td><span class="file-tag">js/notifications.js</span></td><td>In-app notification engine — bell, drawer, triggers</td><td>fireNotification(), clearNotification(), renderNotificationBell(), markRead(), paintBell(), notifEsc(). Suppressed in ghost mode. Loaded after nav-core.js on every sidebar page + on index.html.</td></tr>
+        <tr><td><span class="file-tag">js/command-bar.js</span></td><td>Shared ⌘K/Ctrl+K overlay (N-144/N-145/N-146) — cross-module page directory, entity search (Roles/Projects/People), inline Role actions. Mirrors nav-core.js's role as a module-agnostic renderer wired in by each module. Driven by CONFIG.COMMAND_BAR_PAGES / COMMAND_BAR_ENTITY_TYPES.</td><td>fuzzyMatch() (utils.js) is the matching primitive; no exported entry points beyond the keydown listener/init this file installs</td></tr>
       </table>
 
       <h3>Reporting module</h3>
@@ -564,7 +565,7 @@
         <tr><td><span class="file-tag">js/router.js</span></td><td>Page registry, role constants, canAccess(), getAccessiblePages()</td></tr>
         <tr><td><span class="file-tag">js/nav.js</span></td><td>Calls renderModuleNav() with Reporting params. navigateTo(), renderPage()</td></tr>
         <tr><td><span class="file-tag">js/app.js</span></td><td>Module init — MSAL redirect handler, role resolution, first navigation</td></tr>
-        <tr><td><span class="file-tag">js/pages.js</span></td><td>Page content renderers: Projects, Roles (with Location column), Activity, Placements, Rejections</td></tr>
+        <tr><td><span class="file-tag">js/pages.js</span></td><td>Page content renderers: Projects, Roles (with Location column, inline stage <code>&lt;select&gt;</code> per row (N-149), Duplicate row action (N-150)), Activity, Placements, Rejections</td></tr>
         <tr><td><span class="file-tag">js/list-controls.js</span></td><td>Shared list-page controls (N-151/N-152) — <code>getProjectFilterOptions()</code>, <code>projectFilterDropdown()</code>, <code>periodFilterDropdown()</code>, <code>pageSizeDropdown()</code>, <code>listControlsBar()</code>, <code>listResultCount()</code>, <code>dateWindowLabel()</code>, <code>paginate()</code>. <strong>Must load after utils.js/api.js and before pages.js</strong>, which calls all of it. The date window bounds the QUERY; the page size is render-only and never reaches a <code>$filter</code>.</td></tr>
         <tr><td><span class="file-tag">js/forms.js</span></td><td>Form renderers and submission logic for Reporting data entry</td></tr>
         <tr><td><span class="file-tag">js/bulk-activity.js</span></td><td>Bulk weekly activity grid (N-147) — <code>renderBulkActivityPage()</code>, <code>saveBulkActivity()</code>. A sub-view of the Weekly Activity page, not a <code>PAGES</code> entry. <strong>Must load after pages.js</strong>. Reads via <code>getWeeklyActivityForWeek()</code>, writes via <code>createItem()</code>/<code>updateItem()</code> — no Graph calls of its own. Only rows the user edited are written.</td></tr>
@@ -1060,6 +1061,17 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
       <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">August 2026</div>
+        <div class="changelog-title">Productivity block — Command Bar, bulk activity, inline stage update, duplicate role (N-144&ndash;N-150)</div>
+        <ul>
+          <li><strong>Command Bar (T-1, N-144/N-145/N-146):</strong> new shared overlay component, <code>js/command-bar.js</code>, mirroring <code>nav-core.js</code>'s role as a module-agnostic renderer wired into each module with its own params. <code>⌘K</code>/<code>Ctrl+K</code> opens a fuzzy-matched (<code>fuzzyMatch()</code> in <code>utils.js</code>) overlay over the cross-module page directory (<code>CONFIG.COMMAND_BAR_PAGES</code>) &mdash; full ~22-page directory everywhere, not scoped to the current module. N-145 layers in entity search over already-cached Roles/Projects/People (<code>CONFIG.COMMAND_BAR_ENTITY_TYPES</code>, capped/thresholded via <code>CONFIG.COMMAND_BAR_ENTITY_RESULT_CAP</code>/<code>_MIN_QUERY_LEN</code>) &mdash; no fetch on keypress, one lazy once-per-session load. N-146 adds three inline action buttons (Log activity, Update stage, Add placement) to Role rows only, pre-scoped to that role; Update stage reuses N-149's roles-list dropdown rather than a second in-overlay picker.</li>
+          <li><strong>Bulk weekly activity entry (T-2, N-147):</strong> see <code>js/bulk-activity.js</code> in Reporting module files below. Upsert semantics (reads the week first, writes only touched rows), sequential saves with full lock, per-row failure isolation. N-148 (carry-forward from prior week) was scoped as T-2b but <strong>dropped</strong> &mdash; Chris's call, not wanted.</li>
+          <li><strong>Inline stage update (T-4, N-149):</strong> new <code>&lt;select&gt;</code> per row in <code>renderRolesPage</code> (<code>pages.js</code>) covering every non-terminal stage (Backlog through On-hold) &mdash; deliberately not scoped to <code>analytics.js</code>'s <code>STAGE_ORDER</code>, which is a flagging progression, not the full stage list. Hired and Cancelled are excluded (side effects) and still require the full Edit form. No directional restriction.</li>
+          <li><strong>Duplicate role (T-6, N-150):</strong> "Duplicate" row action beside Edit on Roles, opens Add Role pre-filled via new <code>_ROLE_COPY_FIELDS</code>/<code>_ROLE_RESET_FIELDS</code> constants in <code>api.js</code> (same pattern as <code>_LCI_MODEL_COPY_FIELDS</code>). Carries Project/Title/Hiring Manager/TP(s)/Budget/Location/Priority/Backfill/Department/Notes; resets Stage to Backlog, Open Date to today, clears Target Hire Date.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">August 2026</div>

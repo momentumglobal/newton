@@ -9,7 +9,7 @@
 //
 // Rules this file follows — read before editing:
 //  * No graphRequest here. Reads go through getWeeklyActivityForWeek(),
-//    getScopedRolesForMarketReport() and getProjects(); writes through
+//    getScopedRolesVisibleTo() and getProjects(); writes through
 //    createItem()/updateItem(). All of those belong to api.js.
 //  * WeeklyActivity field names are ASYMMETRIC. Write `Yeare` and
 //    `InterviewTwoPlus`; the same values read back as `Year` and
@@ -79,10 +79,9 @@ async function renderBulkActivityPage(weekEnding = null) {
   let roles, weekRows, projects;
   try {
     [roles, weekRows, projects] = await Promise.all([
-      // Despite the name this is the generic role-visibility resolver:
-      // admin -> all roles, DM -> roles on their projects, TP -> roles whose
-      // TalentPartner column matches them. N-165 renames it.
-      getScopedRolesForMarketReport(user.email, _resolvedRole),
+      // Generic role-visibility resolver: admin -> all roles, DM -> roles on
+      // their projects, TP -> roles whose TalentPartner column matches them.
+      getScopedRolesVisibleTo(user.email, _resolvedRole),
       getWeeklyActivityForWeek(_bulkWeekEnding),
       getProjects(false),
     ]);
@@ -109,10 +108,11 @@ async function renderBulkActivityPage(weekEnding = null) {
     existingByKey[`${rid}|${tp}`] = r;
   });
 
-  // getScopedRolesForMarketReport's DM/TP branches flat() per-project arrays
-  // without de-duping; a role reachable two ways would otherwise render twice
-  // and be saved twice.
-  const uniqueRoles = [...new Map(roles.map(r => [String(r.id), r])).values()];
+  // N-165: getScopedRolesVisibleTo's per-project arrays can no longer contain
+  // duplicate roles — getUserProjectIds de-dupes project IDs at source — so
+  // no local Map de-dupe is needed here any more.
+  _bulkRows = roles
+    .filter(r => !BULK_EXCLUDED_STAGES.includes(r.Stage))
 
   _bulkRows = uniqueRoles
     .filter(r => !BULK_EXCLUDED_STAGES.includes(r.Stage))

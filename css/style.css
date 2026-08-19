@@ -3080,3 +3080,60 @@ body {
 .bulk-grid tbody tr.bulk-row--saved td      { background: var(--status-success-bg); }
 .bulk-grid tbody tr.bulk-row--failed td     { background: var(--status-danger-bg); }
 .bulk-grid tbody tr.bulk-row--unassigned td { background: var(--surface-sunken); color: var(--text-secondary); }
+
+/* ── Role History timeline (N-100) ─────────────────────────────────────
+   Vertical, read-only stage journey for one role. The dot/connector pair
+   carries all state meaning (forward=green/backward=red/branch=amber/
+   start=neutral); every text element stays on the neutral --text-* scale
+   — --status-*-text tokens have no dark override and must not carry
+   meaning on their own (see feedback_newton_status_token_contrast). */
+.role-timeline-subhead {
+  color: var(--text-muted);
+  margin: 0 0 var(--sp-6) 0;
+}
+.role-timeline {
+  display: flex;
+  flex-direction: column;
+  max-width: 640px;
+}
+.role-timeline-node {
+  display: flex;
+  gap: var(--sp-4);
+}
+.role-timeline-track {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 20px;
+  flex-shrink: 0;
+}
+.role-timeline-connector {
+  width: 3px;
+  flex: 1;
+  min-height: var(--sp-6);
+  background: var(--border-strong);
+}
+.role-timeline-node:first-child .role-timeline-connector { visibility: hidden; }
+.role-timeline-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid var(--border-strong);
+  background: var(--surface);
+  flex-shrink: 0;
+  margin: var(--sp-2) 0;
+}
+.role-timeline-content { padding-bottom: var(--sp-6); flex: 1; }
+.role-timeline-label { color: var(--text-primary); font-weight: var(--fw-semibold); }
+.role-timeline-meta { color: var(--text-muted); font-size: var(--fs-13); margin-top: 2px; }
+.role-timeline-duration { color: var(--text-secondary); font-size: var(--fs-13); margin-top: 4px; }
+.role-timeline-duration--ongoing { font-style: italic; }
+
+.role-timeline-node--forward  .role-timeline-dot        { border-color: var(--status-success); }
+.role-timeline-node--forward  .role-timeline-connector  { background: var(--status-success); }
+.role-timeline-node--backward .role-timeline-dot        { border-color: var(--status-danger); }
+.role-timeline-node--backward .role-timeline-connector  { background: var(--status-danger); }
+.role-timeline-node--branch   .role-timeline-dot        { border-color: var(--status-warn); }
+.role-timeline-node--branch   .role-timeline-connector  { background: var(--status-warn); }
+.role-timeline-node--start    .role-timeline-dot        { border-color: var(--status-neutral); }
+.role-timeline-node--start    .role-timeline-connector  { background: var(--status-neutral); }

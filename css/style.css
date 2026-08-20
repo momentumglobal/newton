@@ -865,7 +865,7 @@ body {
    out of inline style="…" attributes. */
 .dh-note        { font-size: var(--fs-13); color: var(--text-label); margin-bottom: var(--sp-7); }
 .dh-table       { margin: 0 0 var(--sp-10); }
-.dh-table-tight { margin: 0; }
+.dh-table-tight { margin: 0 0 var(--sp-10); }
 .dh-muted       { color: var(--text-faint); }
 .dh-badge {
   display: inline-block;

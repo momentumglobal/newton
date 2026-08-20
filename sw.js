@@ -33,5 +33,10 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Network-first: always fetch fresh. No caching of app code.
-  event.respondWith(fetch(req));
+  // .catch() swallows fetches that reject because the page navigated away
+  // or the tab closed mid-request (browser cancels the in-flight fetch) -
+  // that's not a real failure, just console noise if left unhandled.
+  event.respondWith(
+    fetch(req).catch(() => new Response(null, { status: 408, statusText: 'Request cancelled' }))
+  );
 });

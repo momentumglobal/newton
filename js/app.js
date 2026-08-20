@@ -94,10 +94,6 @@ window.APP = {
     initCommandBar({ currentModule: 'reporting', role: _resolvedRole, navigateFn: 'navigateTo' });
     const firstPage = getAccessiblePages(_resolvedRole)[0].key;
     if (!handleDeepLink()) navigateTo(firstPage);
-    // Auto-register user in UserAssignments on first login (non-blocking)
-    ensureUserRegistered(user.email, user.name).catch(e =>
-      console.warn('Auto-registration failed:', e)
-    );
   },
   showLogin() {
     document.getElementById('app-shell').style.display = 'none';

@@ -48,7 +48,7 @@ async function mobileRenderSalesForecast(main) {
 
     main.innerHTML = addBtn + cards;
   } catch (e) {
-    main.innerHTML = `<div class="m-empty">Error loading forecasts: ${e.message}</div>`;
+    main.innerHTML = mobilePageError(e.message, `mobileRenderSalesForecast(document.getElementById('m-main'))`);
   }
 }
 

@@ -919,6 +919,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 
       <h3>Error handling</h3>
       <p>All write functions are wrapped in try/catch in the form submission layer. On error: button loading state is cleared and an error message is displayed inline. No page navigation occurs on failure.</p>
+      <p>Page-level read failures (a list fails to load) go through a separate, shared path added by F-9b (N-171): <code>pageErrorBlock()</code> in utils.js (<code>mobilePageError()</code> on mobile) renders one inline failure state with a Retry button, replacing ~20 hand-written <code>Error loading X: ${e.message}</code> variants. Mid-action failures (save, modal prefill) route through <code>toast()</code> instead. Both sit on top of the <code>graphRequest()</code> 429/503 retry layer (N-082, see Data flow above) — this is presentation only, for whatever still throws after retries exhaust.</p>
     </div>
 
     <!-- CONVENTIONS -->
@@ -1311,7 +1312,6 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <tr><td>Multi-project users</td><td>DM and TP users can be assigned to multiple projects. The scoping model handles this but the UX could be more prominent for users with many assignments.</td></tr>
         <tr><td>Real-time updates</td><td>The 30s API cache means two users editing simultaneously may see stale data briefly. For higher-traffic scenarios, consider a shorter TTL or manual refresh triggers.</td></tr>
         <tr><td>Report Builder export</td><td>PDF export uses window.print(). Server-side generation would give more reliable formatting across browsers.</td></tr>
-        <tr><td>Offline / error states</td><td>Graph API failures show a basic error message. A structured error boundary with retry logic would improve resilience on poor connections.</td></tr>
         <tr><td>Module expansion</td><td>The module pattern (router / nav / app / pages / forms) is repeatable. New modules can be added without touching shared platform code — only config.js needs updating for the switcher.</td></tr>
         <tr><td>Command Centre alerts</td><td>Future: push notifications or email digest when a CC tile flips to Red.</td></tr>
         <tr><td>CCStatus freshness</td><td>CCStatus is only updated when an Admin or Leadership user loads the CC or triggers a homepage refresh. Consider a scheduled write from the CC page to keep state fresh.</td></tr>

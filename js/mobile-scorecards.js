@@ -121,7 +121,7 @@ async function mobileRenderScorecards(main) {
     mScSetupSwipe();
     mScRender();
   } catch (e) {
-    main.innerHTML = `<div class="m-empty">Error loading scorecards: ${e.message}</div>`;
+    main.innerHTML = mobilePageError(e.message, `mobileRenderScorecards(document.getElementById('m-main'))`);
   }
 }
 

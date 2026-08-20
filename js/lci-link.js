@@ -129,7 +129,8 @@ async function openLCILinkModal(modelId) {
         </div>
       </div>`;
   } catch (e) {
-    host.innerHTML = `<div class="lci-modal-overlay" onclick="closeLCILink()"><div class="lci-modal-card"><p style="color:red">Error loading projects: ${e.message}</p></div></div>`;
+    host.innerHTML = `<div class="lci-modal-overlay" onclick="closeLCILink()"><div class="lci-modal-card">${pageErrorBlock({ message: e.message, retryOnClick: `openLCILinkModal(${modelId})` })}</div></div>`;
+    if (window.lucide) lucide.createIcons();
   }
 }
 

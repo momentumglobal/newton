@@ -106,7 +106,15 @@ function reportError(errorType, message, stack) {
     // are where deliberate error-hunting happens.
     if (getGhostUser()) return;
 
-    const msg = String(message || '').trim();
+    // N-173: strip a leading 'Uncaught ' (Chrome) and then a leading
+    // 'Error: ' (Firefox/Safari) so the SAME defect groups under one key
+    // regardless of which browser reported it. unhandledrejection messages
+    // already read reason.message directly and pass through unchanged.
+    // Historical rows written before this fix keep their prefix — N-173's
+    // grouping panel will show them as separate, older groups.
+    const msg = String(message || '').trim()
+      .replace(/^Uncaught\s+/, '')
+      .replace(/^Error:\s+/, '');
     if (!msg) return;
 
     // Errors thrown inside cross-origin scripts (unpkg lucide, jsdelivr

@@ -882,6 +882,11 @@ async function ensureUserRegistered(email, displayName) {
       ProjectID: 0,
       CustomerName: "",
       AssignedRole: "talent_partner",
+      LastLogin: new Date().toISOString(),
+    });
+  } else {
+    await updateItem("UserAssignments", existing[0].id, {
+      LastLogin: new Date().toISOString(),
     });
   }
 }

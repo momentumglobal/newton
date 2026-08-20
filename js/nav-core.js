@@ -62,26 +62,9 @@ function renderModuleNav({
     </div>
   `;
 
-  // Ghost mode banner
-  const ghostEmail = getGhostUser();
-  const appShell    = document.getElementById('app-shell');
-  let ghostBanner   = document.getElementById('ghost-banner');
-  if (ghostEmail) {
-    if (!ghostBanner) {
-      ghostBanner = document.createElement('div');
-      ghostBanner.id = 'ghost-banner';
-      document.body.prepend(ghostBanner);
-    }
-    ghostBanner.innerHTML = `
-      👻 Ghost mode — viewing as <strong>${escHtml(getGhostLabel() || ghostEmail)}</strong>
-      <button onclick="exitGhostMode()">Exit Ghost Mode</button>
-    `;
-    if (appShell) appShell.classList.add('ghost-active');
-  } else {
-    if (ghostBanner) ghostBanner.remove();
-    if (appShell) appShell.classList.remove('ghost-active');
-  }
-  
+  // Ghost mode banner (N-170: shared with index.html via utils.js)
+  renderGhostBanner();
+
   lucide.createIcons();
   if (typeof renderNotificationBell === 'function') renderNotificationBell();
 }
@@ -99,12 +82,6 @@ function updateNavActiveLink(page) {
       a.classList.remove('active');
     }
   });
-}
-
-function exitGhostMode() {
-  clearGhostUser();
-  // Reload the current page to re-initialise with the real role
-  window.location.reload();
 }
 
 /**

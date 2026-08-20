@@ -603,6 +603,17 @@ function sumField(acts, field) {
   return acts.reduce((s, a) => s + (Number(a[field]) || 0), 0);
 }
 
+// ── Schema check (N-174 / F-11a) ────────────────────────────────────
+// CONFIG.LIST_FIELDS lists Graph READ-time property names, and lookup
+// columns need both the base name and a 'LookupId' shadow name (see the
+// comment on LIST_FIELDS in config.js). The columns endpoint only ever
+// returns the base column — 'ProjectID', never 'ProjectIDLookupId' — so a
+// literal name diff would report every lookup field as permanently
+// missing. Strip the suffix before comparing.
+function schemaBaseColumnName(fieldName) {
+  return fieldName.endsWith('LookupId') ? fieldName.slice(0, -'LookupId'.length) : fieldName;
+}
+
 // ── Ghost / impersonation mode ────────────────────────────────────────
 // Admin-only. Temporarily resolves role/project scope as a real chosen user
 // instead of the signed-in admin. Stored in sessionStorage — cleared on

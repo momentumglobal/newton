@@ -296,6 +296,21 @@ function mobileToast(msg) {
   setTimeout(() => toast.classList.remove('show'), 2500);
 }
 
+// === Page error (N-171 / F-9b) ===
+// Mobile's page-level failure state — mirrors utils.js's pageErrorBlock()
+// but built with mobile.html's own markup (no lucide icon library loaded
+// here). retryOnClick is a literal JS call-expression string; every mobile
+// render function takes its container as a parameter, so retry must
+// re-fetch it by id (`document.getElementById('m-main')`) rather than
+// reference the caller's local `main` variable, which an onclick
+// attribute can't see.
+function mobilePageError(message, retryOnClick) {
+  return `<div class="m-empty m-empty--error">
+    <div>${escHtml(message)}</div>
+    <button class="m-btn-secondary m-empty-retry" onclick="${escAttr(retryOnClick)}">Retry</button>
+  </div>`;
+}
+
 // === Boot ===
 
 document.addEventListener('DOMContentLoaded', mobileInit);

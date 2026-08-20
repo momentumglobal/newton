@@ -53,7 +53,8 @@ async function renderLCIEditorPage(modelId) {
     main.innerHTML = _lciEditorHtml();
     if (window.lucide) lucide.createIcons();
   } catch (e) {
-    main.innerHTML = `<p style="color:red">Error loading model: ${e.message}</p>`;
+    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: `renderLCIEditorPage(${modelId})` });
+    if (window.lucide) lucide.createIcons();
   }
 }
 

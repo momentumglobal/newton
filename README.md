@@ -42,6 +42,28 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### August 2026 — Client-side error telemetry (F-7a/F-7b, N-172/N-173)
+
+**Newton now catches its own errors instead of dying silently.** An uncaught error or unhandled promise rejection anywhere in the app writes a row to a new `Diagnostics` list — no console nobody is watching. Admin → Data Health gets a new Error Telemetry section: errors grouped by message, with occurrence count, affected users, module and last-seen time, and an Acknowledge action to clear a group once it's understood and fixed. Nothing changes for the ordinary user — this is Admin-only tooling.
+
+**Data model:** new `Diagnostics` SharePoint list (UserEmail, Module, Page, Message, Stack, UserAgent, OccurredAt, ErrorType, Status). Registered as `Diagnostics: {}` in `FIELD_ALIASES`.
+
+### August 2026 — Unified error surface (F-9b, N-171)
+
+**One consistent failure state, not twenty different ones.** A page that fails to load its data now shows the same inline state with a Retry button, replacing around 20 hand-written "Error loading X" messages that had each been invented separately. A failure that happens mid-action — saving, or loading data into a modal that's already open — shows a toast instead of replacing content still visible on screen. Covers the desktop Reporting/Sales/Market Analytics modules and the mobile app.
+
+### August 2026 — Ghost Mode as a real user (N-162)
+
+**See exactly what a real person sees, not a synthetic role.** Ghost Mode now impersonates an actual user picked from Newton's existing records, resolving their real role and their real project scope from their own assignments — instead of a role label paired with one manually chosen project. This also fixes the previous gap where ghosting someone with no assignment on the picked project left dropdowns like "Assign to" empty.
+
+### August 2026 — Search bar on the User Guides (N-163)
+
+**Find a topic without scrolling.** All four user guides — Reporting, People, Sales, Market Analytics — now have a search box at the top that filters the page to matching topics as you type.
+
+### August 2026 — Fix: unreadable headings in dark mode (N-168)
+
+Section and modal headings were near-invisible in dark mode (2.34–2.89:1 contrast against the 4.5:1 accessibility requirement). Fixed at the token layer — headings across every screen now render in a lighter blue that passes contrast in dark mode, with no change to light mode.
+
 ### August 2026 — Role History timeline (D-3a/D-3b)
 
 **See exactly how a role got to where it is.** A "Timeline" action next to Edit on the Roles page opens a vertical, stage-by-stage history for that role — every stage change with the date it happened and how long the role spent in the stage before it, forward progress in green, a move backward in red, and a move onto or off On-hold/Cancelled in amber, since neither is a step forward or back. The first entry marks when the role was created. If its Open Date predates that — or predates the date it was actually moved into Sourcing — the timeline uses the Open Date instead and labels it "Role opened," so a role logged into Newton after the fact (or moved into Sourcing with a backfilled Open Date) still shows an honest start point and accurate stage duration. `ChangedBy` shows the person's name, not a raw email, matching the rest of the platform. Timeline only appears on roles that have recorded history — a role created before this shipped has nothing to show, so the action doesn't appear on it. Desktop only for now; mobile has no Roles list to hang the action off.

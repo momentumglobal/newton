@@ -19,7 +19,8 @@ async function renderRevenueTrackingPage() {
     }
     main.innerHTML = _renderRevenueTrackingPage(assignments, years);
   } catch (e) {
-    main.innerHTML = `<p style="color:red">Error loading revenue data: ${e.message}</p>`;
+    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'renderRevenueTrackingPage()' });
+    if (window.lucide) lucide.createIcons();
   }
 }
 
@@ -62,7 +63,8 @@ async function renderSalesForecastPage() {
     main.innerHTML = _renderForecastPage(forecasts);
     if (window.lucide) lucide.createIcons();
   } catch (e) {
-    main.innerHTML = `<p style="color:red">Error loading forecasts: ${e.message}</p>`;
+    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'renderSalesForecastPage()' });
+    if (window.lucide) lucide.createIcons();
   }
 }
 
@@ -213,7 +215,7 @@ async function openForecastModal(id) {
         _onForecastTypeChange();
       }
     } catch (e) {
-      showForecastError('Error loading forecast: ' + e.message);
+      toast('Failed to load forecast: ' + e.message, { type: 'error' });
     }
   } else {
     document.getElementById('forecast-modal-title').textContent = 'Add Forecast';
@@ -321,7 +323,7 @@ async function saveForecast() {
     closeForecastModal();
     await renderSalesForecastPage();
   } catch (e) {
-    showForecastError('Error saving forecast: ' + e.message);
+    toast('Failed to save forecast: ' + e.message, { type: 'error' });
     btn.textContent = orig;
     btn.disabled = false;
   }

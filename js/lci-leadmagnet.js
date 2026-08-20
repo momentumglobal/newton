@@ -106,7 +106,8 @@ async function renderLCILeadMagnetPage() {
     _lmRenderPreview();
     if (window.lucide) lucide.createIcons();
   } catch (e) {
-    main.innerHTML = `<p style="color:red">Error loading locations: ${e.message}</p>`;
+    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'renderLCILeadMagnetPage()' });
+    if (window.lucide) lucide.createIcons();
   }
 }
 

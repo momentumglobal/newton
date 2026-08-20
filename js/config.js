@@ -237,6 +237,15 @@ const CONFIG = {
   // watching, and expect it to be named on the Data Health tab.
   DATA_HEALTH_EXCLUDED_LISTS: [],
 
+  // N-174 (F-11a). Columns the Schema Check panel never reports as
+  // "Unexpected", regardless of whether a list's FIELD_ALIASES/LIST_FIELDS
+  // entry mentions them. 'Title' is the only member today: it physically
+  // exists on every SharePoint list, but 9 lists register FIELD_ALIASES as
+  // {} (no alias) and CoEPlanForecast's LIST_FIELDS entry omits it on
+  // purpose (never read) — without this list those rows would show a
+  // permanent false "Unexpected: Title" that isn't a real schema problem.
+  SCHEMA_CHECK_IGNORE_COLUMNS: ['Title'],
+
   // Columns indexed so N-093 (F-2) can push filtering server-side.
   // These are the base SharePoint columns (the ones SharePoint indexes),
   // NOT the Graph shadow properties Newton reads data through — e.g.

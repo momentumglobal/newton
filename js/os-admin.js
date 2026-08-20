@@ -498,6 +498,41 @@ async function buildDataHealthTab() {
     </tr>`;
   }).join('');
 
+  // N-174 (F-11a): schema contract check. One row per list registered in
+  // FIELD_ALIASES; getSchemaDiffs() already tolerates a single list's
+  // failure, so no extra .catch() batching is needed here.
+  const schemaResults = await getSchemaDiffs();
+  const schemaRows = schemaResults.map(r => {
+    let statusCell;
+    let detailCell;
+    if (!r.checked) {
+      statusCell = '<span class="dh-muted">—</span>';
+      detailCell = '<span class="dh-muted">No columns registered</span>';
+    } else if (r.error) {
+      statusCell = '<span class="dh-badge dh-badge-danger">Query error</span>';
+      detailCell = '<span class="dh-muted">—</span>';
+    } else if (r.missing.length === 0 && r.unexpected.length === 0) {
+      statusCell = '<span class="dh-badge dh-badge-success">OK</span>';
+      detailCell = '<span class="dh-muted">—</span>';
+    } else {
+      const parts = [];
+      if (r.missing.length) parts.push(r.missing.length + ' missing');
+      if (r.unexpected.length) parts.push(r.unexpected.length + ' unexpected');
+      statusCell = '<span class="dh-badge dh-badge-warn">' + escHtml(parts.join(', ')) + '</span>';
+      const detailParts = [];
+      if (r.missing.length) detailParts.push('Missing: ' + escHtml(r.missing.join(', ')));
+      if (r.unexpected.length) detailParts.push('Unexpected: ' + escHtml(r.unexpected.join(', ')));
+      detailCell = detailParts.join('<br>');
+    }
+    return `
+    <tr>
+      <td>${escHtml(r.list)}</td>
+      <td>${r.checked ? r.expectedCount.toLocaleString('en-GB') : '<span class="dh-muted">—</span>'}</td>
+      <td>${detailCell}</td>
+      <td>${statusCell}</td>
+    </tr>`;
+  }).join('');
+
   // N-173: client-side read + group. Graph has no GROUP BY; this mirrors
   // the dedupe key diagnostics.js:reportError() uses (errorType|message|
   // first real stack line) via the SAME diagStackHead() helper — reused,
@@ -587,6 +622,20 @@ async function buildDataHealthTab() {
     <table class="data-table dh-table-tight">
       <thead><tr><th>List</th><th>Column</th><th>Status</th><th></th></tr></thead>
       <tbody>${indexRows || emptyStateRow({ colspan: 4, icon: 'database', message: 'No index targets configured.' })}</tbody>
+    </table>
+    <h3>Schema Check</h3>
+    <p class="dh-note">
+      Every list registered in FIELD_ALIASES, diffed against what Newton
+      expects to read (CONFIG.LIST_FIELDS for a projected list, otherwise
+      just its aliased columns). Missing means an expected column is gone;
+      Unexpected means a real column exists that no projection knows about
+      — a rename usually shows up as both at once, on the same list. Lists
+      with nothing registered to check show "No columns registered" rather
+      than a false pass.
+    </p>
+    <table class="data-table dh-table">
+      <thead><tr><th>List</th><th>Checked columns</th><th>Detail</th><th>Status</th></tr></thead>
+      <tbody>${schemaRows || emptyStateRow({ colspan: 4, icon: 'database', message: 'No lists registered.' })}</tbody>
     </table>
     <h3>Error Telemetry</h3>
     <p class="dh-note">

@@ -626,6 +626,38 @@ function clearGhostUser() {
   sessionStorage.removeItem(GHOST_LABEL_KEY);
 }
 
+// Shared ghost-mode banner. Create-or-update: safe to call once from
+// index.html's initHome() and repeatedly from nav-core.js's
+// renderModuleNav() (re-run on every page navigation) without ever
+// creating a second #ghost-banner or re-prepending an existing one.
+// (N-170 — was duplicated between nav-core.js and index.html.)
+function renderGhostBanner() {
+  const ghostEmail = getGhostUser();
+  const appShell    = document.getElementById('app-shell');
+  let ghostBanner   = document.getElementById('ghost-banner');
+  if (ghostEmail) {
+    if (!ghostBanner) {
+      ghostBanner = document.createElement('div');
+      ghostBanner.id = 'ghost-banner';
+      document.body.prepend(ghostBanner);
+    }
+    ghostBanner.innerHTML = `
+      👻 Ghost mode — viewing as <strong>${escHtml(getGhostLabel() || ghostEmail)}</strong>
+      <button onclick="exitGhostMode()">Exit Ghost Mode</button>
+    `;
+    if (appShell) appShell.classList.add('ghost-active');
+  } else {
+    if (ghostBanner) ghostBanner.remove();
+    if (appShell) appShell.classList.remove('ghost-active');
+  }
+}
+
+function exitGhostMode() {
+  clearGhostUser();
+  // Reload the current page to re-initialise with the real role
+  window.location.reload();
+}
+
 // Effective identity for READ-scoping "my own records" views (e.g. a
 // Talent Partner's own Weekly Activity, their own Scorecard) — the ghosted
 // user's email when Ghost Mode is active, else the real signed-in user's.

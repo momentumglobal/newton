@@ -482,6 +482,46 @@ async function buildDataHealthTab() {
     </tr>`;
   }).join('');
 
+  // N-173: client-side read + group. Graph has no GROUP BY; this mirrors
+  // the dedupe key diagnostics.js:reportError() uses (errorType|message|
+  // first real stack line) via the SAME diagStackHead() helper — reused,
+  // not duplicated, since diagnostics.js loads before this file in every
+  // shell that has this tab.
+  const diagRows = await getDiagnostics().catch(e => {
+    console.warn('Data Health: diagnostics fetch failed', e);
+    return [];
+  });
+  const diagGroups = {};
+  diagRows.forEach(r => {
+    const key = r.ErrorType + '|' + r.Message + '|' + diagStackHead(r.Stack);
+    if (!diagGroups[key]) {
+      diagGroups[key] = { message: r.Message, module: r.Module, users: new Set(), ids: [], lastSeen: r.OccurredAt, count: 0 };
+    }
+    const g = diagGroups[key];
+    g.count++;
+    g.ids.push(r.id);
+    if (r.UserEmail) g.users.add(r.UserEmail);
+    if (r.OccurredAt > g.lastSeen) { g.lastSeen = r.OccurredAt; g.module = r.Module; }
+  });
+  const diagList = Object.values(diagGroups).sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
+  const diagTableRows = diagList.map(g => {
+    const users = [...g.users];
+    // Display-only truncation, not a business threshold — no CONFIG entry.
+    const usersDisplay = users.length > 3
+      ? escHtml(users.slice(0, 3).join(', ')) + ' <span class="dh-muted">+' + (users.length - 3) + ' more</span>'
+      : escHtml(users.join(', ') || '—');
+    const lastSeenDisplay = new Date(g.lastSeen).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    return `
+    <tr>
+      <td>${escHtml(g.message)}</td>
+      <td>${escHtml(g.module)}</td>
+      <td>${g.count}</td>
+      <td>${usersDisplay}</td>
+      <td>${lastSeenDisplay}</td>
+      <td><button class="btn-secondary" onclick="acknowledgeDiagnosticsGroup('${escJsAttr(g.ids.join(','))}')">Acknowledge</button></td>
+    </tr>`;
+  }).join('');
+
   return `
     <h3>List Row Counts</h3>
     <p class="dh-note">
@@ -535,7 +575,35 @@ async function buildDataHealthTab() {
       <thead><tr><th>List</th><th>Column</th><th>Status</th><th></th></tr></thead>
       <tbody>${indexRows || emptyStateRow({ colspan: 4, icon: 'database', message: 'No index targets configured.' })}</tbody>
     </table>
+    <h3>Error Telemetry</h3>
+    <p class="dh-note">
+      Uncaught errors and unhandled promise rejections from any Newton screen
+      (N-172), grouped by message. Acknowledging a group clears it from this
+      view — the underlying Diagnostics rows are never deleted.
+    </p>
+    <table class="data-table dh-table">
+      <thead><tr><th>Message</th><th>Module</th><th>Occurrences</th><th>Users</th><th>Last seen</th><th></th></tr></thead>
+      <tbody>${diagTableRows || emptyStateRow({ colspan: 6, icon: 'bug', message: 'No unacknowledged errors.' })}</tbody>
+    </table>
   `;
+}
+async function acknowledgeDiagnosticsGroup(idsCsv) {
+  // N-106 pattern: capture the button synchronously — the implicit global
+  // `event` is only populated during the synchronous dispatch, so reading it
+  // after the confirmModal await would yield undefined.
+  const btn = event?.target;
+  if (!(await confirmModal({
+    message: 'Acknowledge this error group? It will disappear from this view.',
+    confirmLabel: 'Acknowledge',
+  }))) return;
+  setButtonLoading(btn);
+  try {
+    await acknowledgeDiagnosticGroup(idsCsv.split(',').map(Number));
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error acknowledging group: ' + e.message, { type: 'error' });
+  }
 }
 
 async function indexColumnNow(listName, columnId) {

@@ -2079,6 +2079,7 @@ body {
 .empty-state-title { font-size: var(--fs-16); font-weight: 600; color: var(--text-secondary); margin: 0; }
 .empty-state-message { font-size: var(--fs-14); color: var(--text-muted); margin: 0; max-width: 420px; }
 .empty-state-action { margin-top: var(--sp-2); }
+.empty-state-icon--error { color: var(--status-danger-text); }
 
 /* Empty state — compact inline variant for a table <td> fallback row */
 .empty-state-row {

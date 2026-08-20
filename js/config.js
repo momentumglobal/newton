@@ -207,6 +207,15 @@ const CONFIG = {
       'RolesByStage', 'AvgDaysOpen', 'PlacementsInPeriod', 'ActivityTotals',
       'FlaggedCount', 'Utilisation', 'CreatedAt',
     ],
+    // ── Client-side error telemetry (N-172 / F-7a) ──────────────
+    // Full business-column set, per the rules above. 'OccurredAt' is a TEXT
+    // column holding an ISO 8601 string, deliberately not a SharePoint Date
+    // and Time column — see the note in the N-172 spec. 'ErrorType' and
+    // 'Status' are written by the engine and read by N-173.
+    Diagnostics: [
+      'Title', 'UserEmail', 'Module', 'Page', 'Message', 'Stack',
+      'UserAgent', 'OccurredAt', 'ErrorType', 'Status',
+    ],
   },
 
   // ── SharePoint list-view threshold guard (F-10 / N-092) ────────────
@@ -383,6 +392,19 @@ const CONFIG = {
   // Graph 429/503 retry (N-082): total attempts incl. the first; backoff
   // doubles from baseDelayMs unless SharePoint sends a Retry-After header.
   GRAPH_RETRY: { maxAttempts: 4, baseDelayMs: 1000 },
+
+  // Client-side error telemetry (N-172 / F-7a). js/diagnostics.js reads
+  // these on EVERY captured error, so `enabled: false` is a live kill
+  // switch — it takes effect with no reload.
+  // maxPerSession is a HARD cap per browser-tab session, counted in
+  // sessionStorage and spent even when the write itself fails: that is what
+  // stops a broken write path becoming an unbounded loop against SharePoint.
+  DIAGNOSTICS: {
+    enabled:         true,
+    maxPerSession:   20,
+    maxMessageChars: 1000,
+    maxStackChars:   2000,
+  },
   
   // Single source of truth for the module switcher dropdown.
   // To add a new module, add it here only — all nav files reference this.

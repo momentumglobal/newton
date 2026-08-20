@@ -305,6 +305,19 @@ async function createItem(listName, fields) {
 async function createDiagnostic(fields) {
   return createItem('Diagnostics', fields);
 }
+// ── Error telemetry reads/acks (N-173 / F-7b) ──────────────────────
+// Server-side filtered to Status = 'new' so acknowledged groups are never
+// fetched, not merely hidden client-side. FIELD_ALIASES.Diagnostics is {},
+// so 'Status' here is the same name Graph and os-admin.js both use.
+async function getDiagnostics() {
+  return getItems('Diagnostics', "fields/Status eq 'new'");
+}
+// One PATCH per row id in a group. updateItem already calls
+// _cacheInvalidate('Diagnostics'), so the next getDiagnostics() read is
+// fresh with no manual cache handling here.
+async function acknowledgeDiagnosticGroup(ids) {
+  await Promise.all(ids.map(id => updateItem('Diagnostics', id, { Status: 'acknowledged' })));
+}
 // ── Role creation history (N-100) ─────────────────────────────────
 // Companion to N-099's updateRoleWithHistory: createItem('Roles', fields)
 // has no "old" state to diff against, so this does not reuse

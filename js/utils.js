@@ -824,19 +824,19 @@ function fuzzyMatch(query, text) {
 // lucide.createIcons() after setting innerHTML, same as every other
 // data-lucide site in the app. actionLabel/actionOnClick are optional —
 // omit both for a message-only state (read-only panels, no add-flow).
-function emptyStateBlock({ icon = 'inbox', title = '', message = '', actionLabel = '', actionOnClick = '' } = {}) {
+function emptyStateBlock({ icon = 'inbox', title = '', message = '', actionLabel = '', actionOnClick = '', variant = 'default' } = {}) {
   const titleHtml  = title ? `<p class="empty-state-title">${escHtml(title)}</p>` : '';
   const actionHtml = (actionLabel && actionOnClick)
     ? `<button class="btn-primary empty-state-action" onclick="${escAttr(actionOnClick)}">${escHtml(actionLabel)}</button>`
     : '';
+  const iconClass = variant === 'error' ? 'empty-state-icon empty-state-icon--error' : 'empty-state-icon';
   return `<div class="empty-state">
-    <i data-lucide="${escAttr(icon)}" class="empty-state-icon"></i>
+    <i data-lucide="${escAttr(icon)}" class="${iconClass}"></i>
     ${titleHtml}
     <p class="empty-state-message">${escHtml(message)}</p>
     ${actionHtml}
   </div>`;
 }
-
 // Compact inline empty state for a single <tr> inside an existing table's
 // <tbody> — same intent (icon + message + optional action), sized to sit
 // inside the table grid instead of replacing it. colspan MUST match the
@@ -850,6 +850,24 @@ function emptyStateRow({ colspan, icon = 'inbox', message = '', actionLabel = ''
     <i data-lucide="${escAttr(icon)}" class="empty-state-row-icon"></i>
     <span>${escHtml(message)}</span>${actionHtml}
   </td></tr>`;
+}
+
+// ── Page-level failure state (N-171 / F-9b) ─────────────────────
+// Shared renderer for a page-render catch block: replaces #main-content
+// (or a modal's content pane) with a Retry button, distinct from an
+// action failure mid-page (toast(), N-104). retryOnClick is a literal JS
+// call-expression string, e.g. "renderLCIModelsPage()" — the caller
+// re-invokes its own render function, so it must build that string with
+// whatever arguments its own render function needs.
+function pageErrorBlock({ message = '', retryOnClick = '' } = {}) {
+  return emptyStateBlock({
+    icon: 'alert-circle',
+    variant: 'error',
+    title: 'Something went wrong',
+    message,
+    actionLabel: retryOnClick ? 'Retry' : '',
+    actionOnClick: retryOnClick,
+  });
 }
 
 // ── Toast + confirm modal (N-104 / X-3a) ────────────────────────

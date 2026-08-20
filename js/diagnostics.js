@@ -198,3 +198,17 @@ window.addEventListener('unhandledrejection', function (e) {
     reportError('unhandledrejection', String(reason), '');
   }
 });
+
+// Drain the early-load buffer (N-179 / js/diag-buffer.js), if present. This
+// is the ONLY call to reportError() from outside this file's own two
+// listeners above — every buffered record goes through the same guard order
+// (re-entrancy -> enabled -> ghost -> cap -> dedupe -> ...) as a live error,
+// so nothing is duplicated. Guarded on the buffer existing so this file still
+// loads cleanly on its own (tests, or any future page that omits the shim).
+if (typeof window.__diagBuffer !== 'undefined' && window.__diagBuffer.length) {
+  window.__diagBuffer.forEach(function (rec) {
+    reportError(rec.errorType, rec.message, rec.stack);
+  });
+}
+window.__diagBuffer = [];
+window.__diagBufferActive = false;

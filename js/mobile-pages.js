@@ -58,7 +58,7 @@ async function mobileRenderRoles(main) {
 
     main.innerHTML = html;
   } catch (e) {
-    main.innerHTML = `<div class="m-empty">Error loading roles: ${e.message}</div>`;
+    main.innerHTML = mobilePageError(e.message, `mobileRenderRoles(document.getElementById('m-main'))`);
   }
 }
 
@@ -132,7 +132,7 @@ async function mobileRenderRoleDetail(main) {
       </div>
     `;
   } catch (e) {
-    main.innerHTML = `<div class="m-empty">Error: ${e.message}</div>`;
+    main.innerHTML = mobilePageError(e.message, `mobileRenderRoleDetail(document.getElementById('m-main'))`);
   }
 }
 
@@ -166,7 +166,7 @@ async function mobileRenderStageUpdate(main) {
     `;
     main._selectedStage = role.Stage;
   } catch (e) {
-    main.innerHTML = `<div class="m-empty">Error: ${e.message}</div>`;
+    main.innerHTML = mobilePageError(e.message, `mobileRenderStageUpdate(document.getElementById('m-main'))`);
   }
 }
 
@@ -307,7 +307,7 @@ async function mobileRenderActivityForm(main, rolePreselected) {
       </div>
     `;
   } catch (e) {
-    main.innerHTML = `<div class="m-empty">Error: ${e.message}</div>`;
+    main.innerHTML = mobilePageError(e.message, `mobileRenderActivityForm(document.getElementById('m-main'), ${rolePreselected})`);
   }
 }
 
@@ -465,7 +465,7 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
       </div>
     `;
   } catch (e) {
-    main.innerHTML = `<div class="m-empty">Error: ${e.message}</div>`;
+    main.innerHTML = mobilePageError(e.message, `mobileRenderPlacementForm(document.getElementById('m-main'), ${rolePreselected})`);
   }
 }
 

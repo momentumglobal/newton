@@ -239,12 +239,31 @@ const CONFIG = {
 
   // N-174 (F-11a). Columns the Schema Check panel never reports as
   // "Unexpected", regardless of whether a list's FIELD_ALIASES/LIST_FIELDS
-  // entry mentions them. 'Title' is the only member today: it physically
-  // exists on every SharePoint list, but 9 lists register FIELD_ALIASES as
-  // {} (no alias) and CoEPlanForecast's LIST_FIELDS entry omits it on
-  // purpose (never read) — without this list those rows would show a
-  // permanent false "Unexpected: Title" that isn't a real schema problem.
-  SCHEMA_CHECK_IGNORE_COLUMNS: ['Title'],
+  // entry mentions them. 'Title' physically exists on every SharePoint
+  // list, but 9 lists register FIELD_ALIASES as {} (no alias) and
+  // CoEPlanForecast's LIST_FIELDS entry omits it on purpose (never read) —
+  // without this exclusion those rows would show a permanent false
+  // "Unexpected: Title" that isn't a real schema problem.
+  //
+  // The rest of this array is SharePoint's own built-in list-item columns.
+  // Originally this filter relied on getListColumns()'s `hidden` flag
+  // instead (see api.js history) — that was proven wrong in QA (20 Aug
+  // 2026): a live console check against Newton's own tenant showed
+  // `_ColorTag` and `Author` — both genuine SharePoint system columns —
+  // coming back `hidden: false`. `readOnly` doesn't substitute either
+  // (`Attachments` is a real built-in field but `readOnly: false`). Name is
+  // the only signal that actually works here. This list is small and
+  // stable — Microsoft hasn't changed these internal names in years — so
+  // the maintenance cost is low.
+  SCHEMA_CHECK_IGNORE_COLUMNS: [
+    'Title',
+    'ID', 'ContentType', 'Created', 'Modified', 'Author', 'Editor',
+    'Attachments', 'Edit', 'LinkTitle', 'LinkTitleNoMenu', 'DocIcon',
+    'ItemChildCount', 'FolderChildCount', '_UIVersionString', '_ColorTag',
+    'ComplianceAssetId', '_ComplianceFlags', '_ComplianceTag',
+    '_ComplianceTagWrittenTime', '_ComplianceTagUserId', '_IsRecord',
+    'AppAuthor', 'AppEditor',
+  ],
 
   // Columns indexed so N-093 (F-2) can push filtering server-side.
   // These are the base SharePoint columns (the ones SharePoint indexes),

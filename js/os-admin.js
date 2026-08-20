@@ -506,7 +506,7 @@ async function buildDataHealthTab() {
     let statusCell;
     let detailCell;
     if (!r.checked) {
-      statusCell = '<span class="dh-muted">—</span>';
+      statusCell = '<span class="dh-muted">Not checked</span>';
       detailCell = '<span class="dh-muted">No columns registered</span>';
     } else if (r.error) {
       statusCell = '<span class="dh-badge dh-badge-danger">Query error</span>';

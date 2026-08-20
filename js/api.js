@@ -58,6 +58,15 @@ const FIELD_ALIASES = {
   SurveyCompletions: {},
   // ── Notifications ─────────────────────────────────────────
   Notifications: {},
+  // ── Client-side error telemetry (N-172 / F-7a) ────────────
+  // {} is deliberate — every Diagnostics column is already the display name
+  // Newton wants. A self-mapping alias would DELETE the field, for the
+  // reason spelled out on the RoleHistory entry below.
+  // Registering here also enrols the list in N-154's Data Health row-count
+  // watch for free, which is wanted: this is the one list in Newton with an
+  // unbounded write path, so it is exactly the list that should be watched
+  // against LIST_ROW_COUNT_WARNING_THRESHOLD.
+  Diagnostics: {},
   // ── Time-series snapshots (N-085 / L-1a) ────────────────────
   Snapshots: {},
   // ── CoE Hiring Plan ───────────────────────────────────────
@@ -287,6 +296,14 @@ async function createItem(listName, fields) {
   const result = await graphRequest("POST", listPath(listName), { fields });
   _cacheInvalidate(listName);
   return result;
+}
+// ── Error telemetry write (N-172 / F-7a) ──────────────────────────
+// A named wrapper rather than a raw createItem call in diagnostics.js, so
+// the telemetry write is greppable and so N-173's Diagnostics reads land
+// next to it. Deliberately does NOT swallow: the caller owns the swallow,
+// which keeps the reporter's failure path in exactly one place.
+async function createDiagnostic(fields) {
+  return createItem('Diagnostics', fields);
 }
 // ── Role creation history (N-100) ─────────────────────────────────
 // Companion to N-099's updateRoleWithHistory: createItem('Roles', fields)

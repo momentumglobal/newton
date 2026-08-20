@@ -178,11 +178,20 @@ const totalActiveHeadcount = people.filter(
     ).map(a => a.EmployeeName)
   );
 
+  // People with a billed assignment overlapping the period are not deployable,
+  // even if a different, unbilled assignment of theirs also overlaps it (N-178)
+  const billedCovered = new Set(
+    assignments.filter(a =>
+      a.Billed === 'Yes' && a.StartDate && a.EndDate &&
+      new Date(a.StartDate) <= _dpEnd && new Date(a.EndDate) >= _dpStart
+    ).map(a => a.EmployeeName)
+  );
+
   // Find bench/unassigned assignments overlapping the selected month (or whole year)
   const deployable = assignments.filter(a => {
     if (isForecastAssignment(a)) return false;
     if (forecastCovered.has(a.EmployeeName)) return false;
-    if (a.Billed === 'Yes') return false;
+    if (billedCovered.has(a.EmployeeName)) return false;
     if (a.Level === 'CSD') return false;
     if (!a.StartDate || !a.EndDate) return false;
     const s = new Date(a.StartDate);

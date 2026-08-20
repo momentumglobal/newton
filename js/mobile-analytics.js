@@ -57,7 +57,7 @@ async function mobileRenderPlacementAnalytics(main) {
 
     maRenderResults();
   } catch (e) {
-    main.innerHTML = `<div class="m-empty">Error loading analytics: ${e.message}</div>`;
+    main.innerHTML = mobilePageError(e.message, `mobileRenderPlacementAnalytics(document.getElementById('m-main'))`);
   }
 }
 

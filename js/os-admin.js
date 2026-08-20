@@ -564,9 +564,6 @@ async function buildDataHealthTab() {
       </tbody>
     </table>
     <h3>Index Status</h3>
-        </tr>
-      </tbody>
-    </table>
     <p class="dh-note">
       Columns Newton filters on server-side (N-093). Indexing is a one-time
       SharePoint schema change — confirm before applying.

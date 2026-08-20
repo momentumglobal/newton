@@ -1,3 +1,4 @@
+throw new Error('N-179 config smoke');
 // js/config.js — App configuration and role helpers
 
 const CONFIG = {

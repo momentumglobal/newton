@@ -59,7 +59,7 @@ async function mobileRenderReportingSummary(main) {
     `;
     if (typeof runKpiCountUps === 'function') runKpiCountUps(main);
   } catch (e) {
-    main.innerHTML = `<div class="m-empty">Error loading summary: ${e.message}</div>`;
+    main.innerHTML = mobilePageError(e.message, `mobileRenderReportingSummary(document.getElementById('m-main'))`);
   }
 }
 
@@ -82,7 +82,7 @@ async function mobileRenderRolesFiltered(main) {
     if (!_mRolesCache) _mRolesCache = await mobileGetRoles();
     mobileDrawRolesList(main);
   } catch (e) {
-    main.innerHTML = `<div class="m-empty">Error loading roles: ${e.message}</div>`;
+    main.innerHTML = mobilePageError(e.message, `mobileRenderRolesFiltered(document.getElementById('m-main'))`);
   }
 }
 
@@ -276,7 +276,7 @@ async function mobileRenderRejectionForm(main, rolePreselected) {
       </div>
     `;
   } catch (e) {
-    main.innerHTML = `<div class="m-empty">Error: ${e.message}</div>`;
+    main.innerHTML = mobilePageError(e.message, `mobileRenderRejectionForm(document.getElementById('m-main'), ${rolePreselected})`);
   }
 }
 

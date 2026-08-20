@@ -149,7 +149,8 @@ async function renderLCISummaryPage(modelId) {
     main.innerHTML = _lciSummaryHtml();
     if (window.lucide) lucide.createIcons();
   } catch (e) {
-    main.innerHTML = `<p style="color:red">Error loading summary: ${e.message}</p>`;
+    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: `renderLCISummaryPage(${modelId})` });
+    if (window.lucide) lucide.createIcons();
   }
 }
 
@@ -259,7 +260,11 @@ async function renderLCIComparePage(ids) {
       </div>`;
     if (window.lucide) lucide.createIcons();
   } catch (e) {
-    main.innerHTML = `<p style="color:red">Error loading comparison: ${e.message}</p>`;
+    main.innerHTML = pageErrorBlock({
+      message: e.message,
+      retryOnClick: `renderLCIComparePage([${ids.map(id => `'${id}'`).join(',')}])`,
+    });
+    if (window.lucide) lucide.createIcons();
   }
 }
 

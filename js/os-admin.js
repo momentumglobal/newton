@@ -1,5 +1,6 @@
 // js/os-admin.js — Newton OS Admin (User Assignments + Leadership Access)
 let _osAdminTab = 'assignments';
+let _showInactiveAssignments = false;
 async function renderOsAdminPage(tab = 'assignments') {
   _osAdminTab = tab;
   const main = document.getElementById('main-content');
@@ -36,6 +37,9 @@ async function buildAssignmentsTab(editId = null) {
   const [projects, assignments] = await Promise.all([
     getProjects(false), getUserAssignments()
   ]);
+  const visibleAssignments = _showInactiveAssignments
+    ? assignments
+    : assignments.filter(a => a.Active !== false);
   const projectOptions = projects
     .slice()
     .sort((a, b) => a.CustomerName.localeCompare(b.CustomerName))
@@ -44,7 +48,7 @@ async function buildAssignmentsTab(editId = null) {
     ).join('');
   let editRecord = null;
   if (editId) editRecord = assignments.find(a => String(a.id) === String(editId));
-const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.UserName || '')).map(a => {
+const rows = [...visibleAssignments].sort((a, b) => (a.UserName || '').localeCompare(b.UserName || '')).map(a => {
     const isActive = a.Active !== false;
     return `
     <tr id="assign-row-${a.id}" style="${isActive ? '' : 'opacity:0.55'}">
@@ -137,7 +141,14 @@ const rows = [...assignments].sort((a, b) => (a.UserName || '').localeCompare(b.
     </div>
   `;
   return `
-    <h3>Current Assignments</h3>
+    <div style="margin-bottom:12px">
+      <label style="font-size:13px;cursor:pointer">
+        <input type="checkbox" ${_showInactiveAssignments ? 'checked' : ''}
+          onchange="_toggleShowInactiveAssignments(this.checked)"
+          style="margin-right:6px">
+        Show inactive assignments
+      </label>
+    </div>
     <table class="data-table" style="margin:0 0 24px">
       <thead><tr><th>Name</th><th>Email</th><th>Customer</th><th>Role</th><th>Last Login</th><th></th></tr></thead>
       <tbody>${rows || emptyStateRow({ colspan: 6, icon: 'users', message: 'No assignments yet.' })}</tbody>
@@ -184,6 +195,11 @@ async function submitAssignment(editId = null) {
 
 async function toggleAssignmentActive(id, makeActive) {
   await updateItem('UserAssignments', id, { Active: makeActive });
+  renderOsAdminPage('assignments');
+}
+
+async function _toggleShowInactiveAssignments(checked) {
+  _showInactiveAssignments = checked;
   renderOsAdminPage('assignments');
 }
 

@@ -37,7 +37,8 @@ async function renderLCIModelsPage() {
     if (window.lucide) lucide.createIcons();
     if (_lciPreTick.length) { lciCompareSelectionChanged(); _lciPreTick = []; }
   } catch (e) {
-    main.innerHTML = `<p style="color:red">Error loading LCI models: ${e.message}</p>`;
+    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'renderLCIModelsPage()' });
+    if (window.lucide) lucide.createIcons();
   }
 }
 

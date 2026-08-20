@@ -289,7 +289,7 @@ async function renderCommandCentreBanner(role) {
 
       // NEW: CC banner for Admin/Leadership
       await renderCommandCentreBanner(role);
-      initGhostBanner();
+      renderGhostBanner();
       setTimeout(() => initQuickLinks(role), 0);
       renderNotificationBell();
 
@@ -331,21 +331,6 @@ async function renderCommandCentreBanner(role) {
       });
     }
     function handleSignOut() { signOut(); }
-    function initGhostBanner() {
-      const ghostEmail = getGhostUser();
-      if (!ghostEmail) return;
-      const banner = document.createElement('div');
-      banner.id = 'ghost-banner';
-      banner.innerHTML = `
-        👻 Ghost mode — viewing as <strong>${escHtml(getGhostLabel() || ghostEmail)}</strong>
-        <button onclick="exitGhostMode()">Exit Ghost Mode</button>
-      `;
-      document.body.prepend(banner);
-    }
-    function exitGhostMode() {
-      clearGhostUser();
-      window.location.reload();
-    }
     function openQuickLinks() {
       document.getElementById('ql-drawer').classList.add('open');
       document.getElementById('ql-overlay').classList.add('open');

@@ -110,9 +110,11 @@ const CONFIG = {
   //
   // Rules for adding a list (N-052/N-053):
   //  • Names are INTERNAL. The alias table in api.js is the translation —
-  //    e.g. Roles 'Title'→RoleTitle and 'Currency'→Location; 'Yeare'→Year on
-  //    Roles/WeeklyActivity/Placements; WeeklyActivity 'InterviewTwoPlus'
-  //    →Interview2Plus. Never put an aliased name in here.
+  //    e.g. Roles 'Title'→RoleTitle and 'Currency'→Location; WeeklyActivity
+  //    'Yeare'→Year and 'InterviewTwoPlus'→Interview2Plus — the only list
+  //    that still carries either alias (N-175 removed both from Roles and
+  //    Placements, both confirmed dead there). Never put an aliased name
+  //    in here.
   //  • Lookup columns need BOTH entries — Graph exposes 'ProjectID' and
   //    'ProjectIDLookupId' separately and Newton reads both.
   //  • List the FULL business-column set, not a minimal read set. The saving
@@ -131,7 +133,7 @@ const CONFIG = {
       'Title', 'ProjectIDLookupId', 'Stage', 'TalentPartner',
       'OpenDate', 'TargetHireDate', 'ActualHireDate', 'CurrentStartDate',
       'Budget', 'Currency', 'Priority', 'Backfill', 'Department',
-      'HiringManager', 'Notes', 'Yeare',
+      'HiringManager', 'Notes',
     ],
     WeeklyActivity: [
       // N-053: 'RoleID' and 'ProjectID' dropped — same dead-fallback reason.
@@ -144,7 +146,7 @@ const CONFIG = {
       // N-053: 'RoleID' dropped — same dead-fallback reason.
       'Title', 'RoleIDLookupId', 'TalentPartner', 'SalaryAgreed',
       'Currency', 'OfferAcceptedDate', 'ProvisionalStartDate', 'TimeToHire',
-      'Notes', 'Yeare',
+      'Notes',
     ],
     // N-094 (F-2b): this list had no entry at all, so it stayed on
     // fields($select=*). These are the complete read set across js/ —

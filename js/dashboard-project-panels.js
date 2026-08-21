@@ -362,7 +362,6 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
 // ── Role Tracker panel ────────────────────────────────────────────────
 function renderRoleTrackerPanel(roles) {
   const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
-  const today = new Date(); today.setHours(0,0,0,0);
   const active = roles
     .filter(r => !EXCLUDED.includes(r.Stage))
     .sort((a, b) => new Date(a.OpenDate || 0) - new Date(b.OpenDate || 0));
@@ -371,7 +370,7 @@ function renderRoleTrackerPanel(roles) {
     ${emptyStateBlock({ icon: 'briefcase', message: 'No active roles for this project.' })}
   </div>`;
   const rows = active.map(r => {
-    const days = r.OpenDate
+    const days = r.OpenDate ? daysOpen(r.OpenDate) : null;
       ? Math.floor((today - new Date(r.OpenDate)) / 86400000)
       : null;
     return `<tr>

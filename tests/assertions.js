@@ -263,6 +263,20 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'FIELD_ALIASES entries have at least one consumer (N-175 — F-11b guard)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const found = checkAliasConsumers(ALL_SOURCES, FIELD_ALIASES);
+      _assertEqual(
+        found.map(v => `${v.list}.${v.internal} → ${v.display}`),
+        [],
+        'FIELD_ALIASES entries with no consumers found in js/'
+      );
+    },
+  },
+  {
     name: 'utcDateOnly → spDateOut round-trips a BST date unchanged (N-090)',
     fn: function () {
       const src = FIXTURES.dateWeek.benchRoundTrip;

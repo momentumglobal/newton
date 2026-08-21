@@ -371,8 +371,6 @@ function renderRoleTrackerPanel(roles) {
   </div>`;
   const rows = active.map(r => {
     const days = r.OpenDate ? daysOpen(r.OpenDate) : null;
-      ? Math.floor((today - new Date(r.OpenDate)) / 86400000)
-      : null;
     return `<tr>
       <td>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</td>
       <td>${escHtml(r.HiringManager || '—')}</td>

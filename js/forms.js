@@ -795,9 +795,12 @@ async function submitPlacementForm(event, editId = null) {
         recipients:[data.TalentPartnerName, proj.DeliveryManager] });
       // 6.5 project first placement (leadership)
       const allPlac = await getItems('Placements');
+      // N-183: rolesById was removed by N-093; scope the lookup to this
+      // project's roles via getRolesForProject instead of refetching everything.
+      const projectRoles = await getRolesForProject(projId);
+      const projectRoleIds = new Set(projectRoles.map(r => String(r.id)));
       const prior = allPlac.filter(pl => String(pl.id) !== String(created.id) &&
-        String((rolesById[String(pl.RoleIDLookupId)]||{}).ProjectIDLookupId ||
-               (rolesById[String(pl.RoleIDLookupId)]||{}).ProjectID) === projId).length;
+        projectRoleIds.has(String(pl.RoleIDLookupId))).length;
       if (prior === 0) {
         const roleTitle = role.Location
           ? `${role.RoleTitle} (${role.Location})` : role.RoleTitle;

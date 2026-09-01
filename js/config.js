@@ -429,25 +429,41 @@ const CONFIG = {
   // different build — that is the whole deploy-busts-the-cache mechanism.
   // Deliberately separate from sw.js's SW_VERSION: a service worker cannot
   // read config.js and the two have different lifecycles. Bump both.
-  APP_BUILD: '2026-09-01a',
+  APP_BUILD: '2026-09-01b',
 
   // Two-tier read cache (N-176 / F-3a). Tier 1 is the 30s in-memory Map in
   // api.js and is NOT configured here. This block configures tier 2, the
   // sessionStorage tier that survives navigation.
   // `enabled: false` is a live kill switch — it takes effect on the next
   // read, with no reload.
-  // persistentLists IS EMPTY ON PURPOSE: N-176 ships the engine and the
-  // invalidation contract only, so no list is enrolled and no key is
-  // written. N-177 adds the reference lists (Projects, People, Departments,
-  // LCILocations, UserAssignments, LeadershipAccess); transactional lists
-  // (Roles, WeeklyActivity, Placements, Assignments, RoleHistory) stay on
-  // tier 1 only and must never appear here.
+  // persistentLists (N-177 / F-3b): the REFERENCE lists — data that is read
+  // on nearly every page and edited rarely, by an admin, from one place.
+  // This array is the single source of truth for enrolment; no list name
+  // appears in api.js.
+  //
+  // NEVER ADD A TRANSACTIONAL LIST HERE. Roles, WeeklyActivity, Placements,
+  // Assignments and RoleHistory are the lists a user edits and immediately
+  // expects to see change; they stay on tier 1's 30s TTL. N-084 (assignments
+  // edited, org chart still showing five people as Unassigned) is what this
+  // rule exists to prevent, and a 10-minute TTL would make that class worse.
+  //
+  // Before enrolling anything new, confirm every write to it goes through
+  // createItem/updateItem/deleteItem — those are the only paths that call
+  // _cacheInvalidate(). A raw graphRequest('POST'|'PATCH'|'DELETE', ...)
+  // against an enrolled list leaves stale data for the full TTL.
   CACHE: {
     enabled:         true,
     prefix:          'newton_cache',
     ttlMs:           600000,   // 10 minutes
     maxEntryBytes:   262144,   // skip persisting anything larger
-    persistentLists: [],
+    persistentLists: [
+      'Projects',
+      'People',
+      'Departments',
+      'LCILocations',
+      'UserAssignments',
+      'LeadershipAccess',
+    ],
   },
 
   // Client-side error telemetry (N-172 / F-7a). js/diagnostics.js reads

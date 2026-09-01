@@ -558,17 +558,32 @@ async function renderPlacementsPage() {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
+  // N-207: scope Placements by the linked Role's TalentPartner (not
+  // Placements' own TalentPartner column) — see spec N-207.md for why: the
+  // Rejected Offers page below has no TalentPartner column of its own and
+  // must use the Role's, so both pages use the same source for consistency.
+  const roleTpMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.TalentPartner]));
   const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
   allPlacements.sort((a, b) =>
     new Date(b.OfferAcceptedDate || 0) - new Date(a.OfferAcceptedDate || 0)
   );
   // Scope to user's assigned projects
-  const scopedPlacements = userProjectIds
+  let scopedPlacements = userProjectIds
     ? allPlacements.filter(p => {
         const rid = String(p.RoleIDLookupId || p.RoleID || '');
         return userProjectIds.includes(roleProjectMap[rid]);
       })
     : allPlacements;
+  // N-207: also scope to the TP's own placements, via the linked Role's
+  // TalentPartner (tpMatches handles a multi-TP role) — folded into
+  // scopedPlacements itself, before it, so the N-151 "Showing X of Y"
+  // denominator below already reflects it.
+  if (_resolvedRole === 'talent_partner') {
+    scopedPlacements = scopedPlacements.filter(p => {
+      const rid = String(p.RoleIDLookupId || p.RoleID || '');
+      return tpMatches(roleTpMap[rid], getScopedUserEmail());
+    });
+  }
   let placements = scopedPlacements.filter(p => placementInFilter(p, _placementFilter));
   if (canFilter && _placementProjectId) {
     placements = placements.filter(p => {
@@ -686,6 +701,10 @@ async function renderRejectionsPage() {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
+  // N-207: RejectedOffers has no TalentPartner column of its own — the linked
+  // Role's TalentPartner is the only source, and it's what Placements above
+  // uses too, for consistency between the two pages.
+  const roleTpMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.TalentPartner]));
   const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
   rejections.sort((a, b) => {
     const rA = roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || '';
@@ -699,6 +718,16 @@ async function renderRejectionsPage() {
         return userProjectIds.includes(roleProjectMap[rid]);
       })
     : rejections;
+  // N-207: also scope to the TP's own rejections, via the linked Role's
+  // TalentPartner (tpMatches handles a multi-TP role) — inserted BEFORE the
+  // N-152 pre-filter denominator capture below, so "Showing X of Y" never
+  // counts a row the TP cannot see.
+  if (_resolvedRole === 'talent_partner') {
+    filteredRejections = filteredRejections.filter(r => {
+      const rid = String(r.RoleIDLookupId || r.RoleID || '');
+      return tpMatches(roleTpMap[rid], getScopedUserEmail());
+    });
+  }
   const rejectionsTotal = filteredRejections.length;  // N-152: pre-filter denominator
   if (canFilter && _rejectionsProjectId) {
     filteredRejections = filteredRejections.filter(r => {

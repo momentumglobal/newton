@@ -477,4 +477,77 @@ var ASSERTIONS = [
       _assertEqual(feeRow.Capacity, 0, 'placement fee month Capacity');
     },
   },
+  // ── N-176 (F-3a): two-tier cache key/stamp helpers ──────────────────
+  // These are the PURE helpers only. _ssGet/_ssSet/_ssPurge touch
+  // sessionStorage, which does not exist in the Node harness, so they are
+  // covered by the live QA checks in the ticket's QA doc instead.
+  {
+    name: 'N-176 _ssKey — embeds prefix, current APP_BUILD and the tier-1 cache key',
+    fn: function () {
+      _assertEqual(
+        _ssKey('Projects', '', '*'),
+        CONFIG.CACHE.prefix + '|' + CONFIG.APP_BUILD + '|' + _cacheKey('Projects', '', '*'),
+        '_ssKey composition'
+      );
+      _assertEqual(_ssKey('Projects', '', '*').split('|')[1], CONFIG.APP_BUILD, '_ssKey build segment');
+      _assertEqual(_ssKey('Projects', '', '*').split('|')[2], 'Projects', '_ssKey list segment');
+    },
+  },
+  {
+    name: 'N-176 _ssIsCacheKey — matches only our prefix, never another feature\'s keys',
+    fn: function () {
+      _assertEqual(_ssIsCacheKey(_ssKey('People', '', '*')), true, 'own key');
+      _assertEqual(_ssIsCacheKey('newton_role_a@b.com'), false, 'role cache key');
+      _assertEqual(_ssIsCacheKey('newton_dm_grants_a@b.com'), false, 'dm grants key');
+      _assertEqual(_ssIsCacheKey('newton_ghost_user'), false, 'ghost key');
+      _assertEqual(_ssIsCacheKey('newton_force_desktop'), false, 'force-desktop key');
+      _assertEqual(_ssIsCacheKey('newton_survey_uuid'), false, 'survey key');
+      _assertEqual(_ssIsCacheKey(null), false, 'null');
+    },
+  },
+  {
+    name: 'N-176 _ssKeyBuild — a stamp mismatch is detectable',
+    fn: function () {
+      const current = _ssKey('Projects', '', '*');
+      const stale = CONFIG.CACHE.prefix + '|OLD-BUILD|Projects||*';
+      _assertEqual(_ssKeyBuild(current), CONFIG.APP_BUILD, 'current stamp');
+      _assertEqual(_ssKeyBuild(stale) !== CONFIG.APP_BUILD, true, 'stale stamp differs');
+      _assertEqual(_ssKeyBuild('newton_role_a@b.com'), null, 'foreign key has no stamp');
+    },
+  },
+  {
+    name: 'N-176 _ssKeyMatchesList — targets one list, any build; null matches all ours',
+    fn: function () {
+      const projects = _ssKey('Projects', '', '*');
+      const projectsFiltered = _ssKey('Projects', "fields/Status eq 'Active'", 'Id,Title');
+      const people = _ssKey('People', '', '*');
+      const staleProjects = CONFIG.CACHE.prefix + '|OLD-BUILD|Projects||*';
+      _assertEqual(_ssKeyMatchesList(projects, 'Projects'), true, 'exact list');
+      _assertEqual(_ssKeyMatchesList(projectsFiltered, 'Projects'), true, 'same list, different filter');
+      _assertEqual(_ssKeyMatchesList(staleProjects, 'Projects'), true, 'same list, older build');
+      _assertEqual(_ssKeyMatchesList(people, 'Projects'), false, 'different list');
+      _assertEqual(_ssKeyMatchesList(projects, null), true, 'null purges all ours');
+      _assertEqual(_ssKeyMatchesList('newton_role_a@b.com', null), false, 'null still spares foreign keys');
+    },
+  },
+  {
+    name: 'N-176 CONFIG.CACHE — engine ships inert (persistentLists empty) and fully configured',
+    fn: function () {
+      _assertEqual(Array.isArray(CONFIG.CACHE.persistentLists), true, 'persistentLists is an array');
+      _assertEqual(CONFIG.CACHE.persistentLists.length, 0, 'N-176 enrols no list — that is N-177');
+      _assertEqual(typeof CONFIG.APP_BUILD === 'string' && CONFIG.APP_BUILD.length > 0, true, 'APP_BUILD set');
+      _assertEqual(typeof CONFIG.CACHE.ttlMs, 'number', 'ttlMs');
+      _assertEqual(typeof CONFIG.CACHE.maxEntryBytes, 'number', 'maxEntryBytes');
+      _assertEqual(typeof CONFIG.CACHE.prefix, 'string', 'prefix');
+      _assertEqual(CONFIG.CACHE.prefix.indexOf('|'), -1, 'prefix must not contain the key separator');
+      _assertEqual(CONFIG.APP_BUILD.indexOf('|'), -1, 'APP_BUILD must not contain the key separator');
+    },
+  },
+  {
+    name: 'N-176 _ssEnabled — false for every list while persistentLists is empty',
+    fn: function () {
+      _assertEqual(_ssEnabled('Projects'), false, 'not enrolled');
+      _assertEqual(_ssEnabled('Roles'), false, 'transactional list never enrolled');
+    },
+  },
 ];

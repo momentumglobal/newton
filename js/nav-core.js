@@ -3,11 +3,18 @@
 /**
  * Renders the full sidebar. Call once on module init.
  */
+// N-176: the navigate function NAME this sidebar was rendered with, kept so
+// "Refresh data" can re-render whichever page is current at click time.
+// A page key baked into the button's onclick would go stale — navigation
+// calls updateNavActiveLink(), not renderModuleNav().
+let _navNavigateFn = null;
+
 function renderModuleNav({
   subtitle, currentModuleKey, toggleFn,
   pages, currentPage, role,
   navigateFn, userGuideHref,
 }) {
+  _navNavigateFn = navigateFn;
   const user = getCurrentUser();
   const visibleModules = CONFIG.OS_MODULES.filter(m => m.roles.includes(role));
 
@@ -54,6 +61,10 @@ function renderModuleNav({
     <img src='momentum-symbol-and-name-global-white.png' alt='Momentum Global' class='nav-logo-img'>
         <div class='nav-footer'>
       ${userGuideLink}
+      <button class='nav-footer-btn' id='refresh-data-btn' onclick='refreshModuleData()' title='Clear cached data and reload this page'>
+        <i data-lucide="refresh-cw" class="nav-footer-btn-icon"></i>
+        Refresh data
+      </button>
       <button class='nav-theme-toggle' id='theme-toggle-btn' onclick='toggleTheme()' title='Toggle dark mode'>
         <i data-lucide="${getTheme() === 'dark' ? 'sun' : 'moon'}" class="nav-theme-toggle-icon"></i>
         ${getTheme() === 'dark' ? 'Light mode' : 'Dark mode'}
@@ -94,4 +105,16 @@ function updateThemeToggleIcon() {
   const dark = getTheme() === 'dark';
   btn.innerHTML = `<i data-lucide="${dark ? 'sun' : 'moon'}" class="nav-theme-toggle-icon"></i>${dark ? 'Light mode' : 'Dark mode'}`;
   lucide.createIcons();
+}
+
+/**
+ * "Refresh data" (N-176 / F-3a). Busts both cache tiers via api.js, then
+ * re-renders the page currently marked active in the sidebar. NO cache
+ * logic lives here — this file only knows which page to redraw.
+ */
+function refreshModuleData() {
+  const active = document.querySelector('#nav-links .nav-link.active');
+  const page = active ? active.dataset.page : null;
+  const fn = _navNavigateFn ? window[_navNavigateFn] : null;
+  refreshData(page && typeof fn === 'function' ? () => fn(page) : null);
 }

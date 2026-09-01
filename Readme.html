@@ -423,7 +423,7 @@
     <!-- ROLES -->
     <div class="section" id="sec-roles" style="display:none">
       <div class="section-title">Roles &amp; Access</div>
-      <p class="section-intro">Newton has five roles. Role is resolved asynchronously on sign-in from SharePoint and cached in sessionStorage for the session.</p>
+      <p class="section-intro">Newton has five roles. Role is resolved asynchronously on sign-in from SharePoint and cached in sessionStorage. <strong>That cache is bounded (N-177):</strong> the entry carries a timestamp and the current <code>CONFIG.APP_BUILD</code>, and is discarded after <code>CONFIG.CACHE.ttlMs</code> (10 minutes) or on a build change, so an access change now takes effect within the TTL rather than only on sign-out. <code>getEffectiveRole()</code> re-resolves on every module init, so an expired entry is refreshed on the next module switch.</p>
 
       <table>
         <tr><th>Role</th><th>Source</th><th>Description</th></tr>
@@ -845,19 +845,27 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <!-- READ FLOW -->
     <div class="section" id="sec-readflow" style="display:none">
       <div class="section-title">Read Flow</div>
-      <p class="section-intro">All data reads go through <code>getItems(listName, filter)</code> in api.js. A 30-second in-memory cache sits in front of every Graph API call to reduce SharePoint requests during navigation.</p>
+      <p class="section-intro">All data reads go through <code>getItems(listName, filter)</code> in api.js, behind a <strong>two-tier cache</strong> (F-3, N-176/N-177). <strong>Tier 1</strong> is a 30-second in-memory <code>Map</code> that dies on every page navigation. <strong>Tier 2</strong> is a <code>sessionStorage</code> tier with a 10-minute TTL that survives navigation, so switching module no longer re-fetches data that has not changed.</p>
+      <p class="section-intro"><strong>Tier 2 is opt-in per list, and the enrolment list is the single source of truth.</strong> <code>CONFIG.CACHE.persistentLists</code> holds the six <em>reference</em> lists — Projects, People, Departments, LCILocations, UserAssignments, LeadershipAccess. The <em>transactional</em> lists a user edits and expects to see change immediately — Roles, WeeklyActivity, Placements, Assignments, RoleHistory — stay on tier 1 only and <strong>must never be added</strong>. N-084 (assignments edited, org chart still showing five people as Unassigned) is the failure this rule exists to prevent, and a 10-minute TTL would make that class worse, not better. No list name appears in api.js.</p>
       <p class="section-intro"><strong>Throttle retry:</strong> every Graph call (reads and writes) retries on HTTP 429/503, honouring SharePoint's <code>Retry-After</code> header or exponential backoff, up to <code>CONFIG.GRAPH_RETRY.maxAttempts</code>. Sequential write bursts (model copy, plan generation, bulk plan delete) rely on this — never add per-call retry loops in page scripts.</p>
 
       <h3>Read sequence</h3>
       <div class="flow">
         <div class="flow-step">Page calls getItems()</div>
         <div class="flow-arrow">→</div>
-        <div class="flow-step cache">Check _apiCache (30s TTL)</div>
+        <div class="flow-step cache">Tier 1 — _apiCache (30s, in-memory)</div>
         <div class="flow-arrow">→</div>
-        <div class="flow-step sp">Cache hit: return immediately</div>
+        <div class="flow-step sp">Hit: return immediately</div>
       </div>
       <div class="flow">
-        <div class="flow-step">Cache miss</div>
+        <div class="flow-step">Tier 1 miss</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step cache">Tier 2 — sessionStorage (10 min, enrolled lists only)</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step sp">Hit: promote into tier 1, then return</div>
+      </div>
+      <div class="flow">
+        <div class="flow-step">Both miss</div>
         <div class="flow-arrow">→</div>
         <div class="flow-step highlight">getToken()</div>
         <div class="flow-arrow">→</div>
@@ -865,10 +873,31 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <div class="flow-arrow">→</div>
         <div class="flow-step">normaliseFields()</div>
         <div class="flow-arrow">→</div>
-        <div class="flow-step cache">Store in _apiCache</div>
+        <div class="flow-step cache">Store in BOTH tiers</div>
         <div class="flow-arrow">→</div>
         <div class="flow-step sp">Return to caller</div>
       </div>
+
+      <div class="callout amber"><strong>Deploying: bump <code>CONFIG.APP_BUILD</code>.</strong> Every tier-2 key embeds the build stamp, and api.js discards any entry stamped with a different build when it loads. That is the only mechanism that busts the cache on a deploy — <strong>forget it and users keep serving the previous deploy's reference data for the rest of their session.</strong> Bump <code>SW_VERSION</code> in <code>sw.js</code> at the same time; the two are deliberately separate (a service worker cannot read config.js) and neither substitutes for the other.</div>
+
+      <h3>Refreshing on demand</h3>
+      <p>The sidebar footer carries a <strong>Refresh data</strong> button (<code>nav-core.js</code>, present on the five module shells that load it). It clears both tiers via <code>refreshData()</code> in api.js and re-renders the current page. It deliberately does <em>not</em> clear the role or ghost keys — a refresh that silently re-resolved someone's role would change the nav under them and drop a ghosting admin's context.</p>
+
+      <h3>sessionStorage key families</h3>
+      <p>Seven families now share <code>sessionStorage</code>, each owned by a different feature with a different lifetime. <strong>The cache purge helpers match on <code>CONFIG.CACHE.prefix + '|'</code> and nothing else — this is load-bearing.</strong> A greedy purge here would sign a user out of Ghost Mode and bin a half-finished survey draft.</p>
+      <table>
+        <tr><th>Key</th><th>Owner</th><th>Lifetime</th></tr>
+        <tr><td><code>newton_cache|&lt;build&gt;|&lt;list&gt;|&lt;filter&gt;|&lt;select&gt;</code></td><td>api.js tier 2</td><td>10 min, or until the build stamp changes</td></tr>
+        <tr><td><code>newton_role_&lt;email&gt;</code></td><td><code>getEffectiveRole()</code></td><td>10 min + build stamp (N-177)</td></tr>
+        <tr><td><code>newton_dm_grants_&lt;email&gt;</code></td><td><code>getEffectiveRole()</code>, read by <code>hasDMGrant()</code></td><td>build stamp only — see note below</td></tr>
+        <tr><td><code>newton_ghost_user</code> / <code>newton_ghost_label</code></td><td><code>setGhostUser()</code> in utils.js</td><td>until exit or sign-out</td></tr>
+        <tr><td><code>newton_diag_*</code></td><td>diagnostics.js (dedupe set, session cap)</td><td>session</td></tr>
+        <tr><td><code>newton_survey_*</code></td><td>survey-app.js (draft, respondent UUID)</td><td>until submitted</td></tr>
+        <tr><td><code>newton_force_desktop</code></td><td>mobile-app.js opt-out</td><td>session</td></tr>
+      </table>
+      <div class="callout"><strong>Why <code>hasDMGrant()</code> ignores the TTL.</strong> It is synchronous, so it cannot re-resolve on a miss — treating an aged entry as absent would silently strip a leadership user's DM access mid-page. A build change implies a page load and is safe to honour; a TTL expiry is not. The TTL still bounds those grants in practice, because <code>getEffectiveRole()</code> rewrites them on every module init. Do not "tidy" this asymmetry away.</div>
+
+      <p>Sign-out clears every one of these at once via <code>sessionStorage.clear()</code> in <code>auth.js</code>.</p>
 
       <h3>Pagination</h3>
       <p><code>getItems()</code> handles SharePoint pagination automatically via <code>@odata.nextLink</code>. All pages of results are fetched and concatenated before returning.</p>
@@ -893,7 +922,8 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <!-- WRITE FLOW -->
     <div class="section" id="sec-writeflow" style="display:none">
       <div class="section-title">Write Flow</div>
-      <p class="section-intro">All writes go through <code>createItem()</code>, <code>updateItem()</code>, or <code>deleteItem()</code> in api.js. Each write automatically invalidates the cache for the affected list.</p>
+      <p class="section-intro">All writes go through <code>createItem()</code>, <code>updateItem()</code>, or <code>deleteItem()</code> in api.js. Each calls <code>_cacheInvalidate(listName)</code>, which clears <strong>both</strong> cache tiers for that list. Those three functions are the entire invalidation contract — nothing else needs to know about the cache.</p>
+      <div class="callout amber"><strong>Hard rule: never call <code>graphRequest('POST'|'PATCH'|'DELETE', …)</code> directly.</strong> A hand-rolled write URL bypasses <code>_cacheInvalidate()</code> completely and leaves the deleted or edited row in the cache for the full TTL — <strong>up to 10 minutes on an enrolled list, on every page.</strong> This is not hypothetical: N-176 found three such bypasses in <code>admin.js</code> (<code>confirmDelete</code>, <code>deleteAdminRecord</code>) and <code>os-admin.js</code> (<code>deleteOsAdminRecord</code>) that had been invisible only because the 30-second tier expired before anyone noticed. The only legitimate direct write in the codebase is <code>setColumnIndexed()</code>, a schema mutation that touches no item cache. Before enrolling any new list in <code>CONFIG.CACHE.persistentLists</code>, confirm every write to it goes through the three helpers.</div>
 
       <h3>Write sequence</h3>
       <div class="flow">
@@ -915,7 +945,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <div class="flow-step">Re-render page</div>
       </div>
 
-      <div class="callout amber"><strong>Cache invalidation:</strong> Writes only invalidate the specific list written to. If a write affects data shown via another list, that cache expires naturally within 30 seconds.</div>
+      <div class="callout amber"><strong>Cache invalidation is per-list and per-browser.</strong> A write invalidates only the list written to. If it affects data shown via a <em>different</em> list, that list's cache expires on its own — <strong>within 30 seconds for a transactional list, but up to 10 minutes for one of the six enrolled in tier 2.</strong> Separately, the invalidation is local to the writer's browser: your write cannot clear another user's cache, so a colleague with the page open may see the old value until their own TTL lapses or they use <strong>Refresh data</strong>. No client-side cache can do better than this; it is the trade the F-3 tickets deliberately accepted, and it is why the Refresh button shipped first, in N-176, before any list was enrolled in N-177.</div>
 
       <h3>Error handling</h3>
       <p>All write functions are wrapped in try/catch in the form submission layer. On error: button loading state is cleared and an error message is displayed inline. No page navigation occurs on failure.</p>
@@ -1021,40 +1051,46 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <!-- GHOST MODE -->
     <div class="section" id="sec-ghostmode" style="display:none">
       <div class="section-title">Ghost Mode</div>
-      <p class="section-intro">Ghost Mode allows admins to temporarily view Newton as a different role, for testing or training video creation. Available from Newton OS Admin → Ghost Mode tab.</p>
+      <p class="section-intro">Ghost Mode lets an admin temporarily view Newton <strong>as a specific real person</strong>, for testing or training video creation. Available from Newton OS Admin → Ghost Mode tab. Since N-162 this is true impersonation: the admin picks a real user (sourced from <code>UserAssignments</code> + <code>LeadershipAccess</code>, deduped by email) and their <em>actual</em> resolved role and project scope are used — not a synthetic role plus a hand-picked project, which is what this section used to describe.</p>
 
       <h3>Activation flow</h3>
       <div class="flow">
-        <div class="flow-step">Select role (+ project for DM/TP)</div>
+        <div class="flow-step">Select a real user</div>
         <div class="flow-arrow">→</div>
-        <div class="flow-step highlight">setGhostRole() + setGhostProject()</div>
+        <div class="flow-step highlight">setGhostUser(email, name)</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step cache">Tier-2 cache purged</div>
         <div class="flow-arrow">→</div>
         <div class="flow-step">Redirect to reporting.html</div>
       </div>
       <div class="flow">
         <div class="flow-step">Module init</div>
         <div class="flow-arrow">→</div>
-        <div class="flow-step highlight">getEffectiveRole() checks getGhostRole() first</div>
+        <div class="flow-step highlight">getEffectiveRole() resolves for getGhostUser()</div>
         <div class="flow-arrow">→</div>
-        <div class="flow-step cache">Returns ghost role — real role bypassed</div>
+        <div class="flow-step cache">Returns that person's REAL role</div>
       </div>
       <div class="flow">
-        <div class="flow-step">getUserProjectIds() checks getGhostProject()</div>
+        <div class="flow-step">getUserProjectIds() / hasDMGrant() also key off the ghosted email</div>
         <div class="flow-arrow">→</div>
-        <div class="flow-step">Returns ghost project — scopes all data</div>
+        <div class="flow-step">Their real project scope applies</div>
         <div class="flow-arrow">→</div>
         <div class="flow-step cache">Banner rendered by nav-core.js</div>
       </div>
+      <div class="callout amber"><strong>Role keys are per-email.</strong> <code>getEffectiveRole()</code> caches under <code>newton_role_&lt;ghosted email&gt;</code>, so ghosting never overwrites the admin's own cached role and the two coexist. Note that an account in <code>CONFIG.ADMIN_USERS</code> resolves to <code>admin</code> before the LeadershipAccess branch runs — so ghosting an admin will never produce DM grants, by design.</div>
 
       <h3>Storage keys (sessionStorage)</h3>
+      <p>Corrected to match the code as of N-162 — the old <code>newton_ghost_role</code> / <code>newton_ghost_project</code> keys and the <code>setGhostRole()</code> / <code>clearGhostRole()</code> functions no longer exist anywhere in <code>js/</code>.</p>
       <table>
         <tr><th>Key</th><th>Value</th><th>Set by</th></tr>
-        <tr><td><code>newton_ghost_role</code></td><td>Role string e.g. "delivery_manager"</td><td>setGhostRole() in utils.js</td></tr>
-        <tr><td><code>newton_ghost_project</code></td><td>SharePoint project ID (string)</td><td>setGhostProject() in utils.js</td></tr>
+        <tr><td><code>newton_ghost_user</code></td><td>The ghosted person's email, lower-cased</td><td><code>setGhostUser()</code> in utils.js</td></tr>
+        <tr><td><code>newton_ghost_label</code></td><td>Their display name, for the banner</td><td><code>setGhostUser()</code> in utils.js</td></tr>
       </table>
+      <p>See <strong>sessionStorage key families</strong> under Read Flow for how these sit alongside the cache, role and diagnostics keys.</p>
 
       <h3>Exiting ghost mode</h3>
-      <p>Exit from the banner button or the Ghost Mode tab. Both call <code>clearGhostRole()</code> which removes both sessionStorage keys. Sign-out also clears ghost mode via <code>sessionStorage.clear()</code>.</p>
+      <p>Exit from the banner button or the Ghost Mode tab. Both call <code>clearGhostUser()</code>, which removes both keys. Sign-out also clears ghost mode via <code>sessionStorage.clear()</code>.</p>
+      <p><strong>Both transitions also purge the tier-2 cache</strong> (<code>_ssPurge()</code>, N-176). Cached list payloads are not user-scoped — <code>getItems()</code> fetches whole lists and scoping is applied client-side — so this cannot leak data between identities; it is a guard against cross-identity confusion rather than a security boundary. Note it purges tier 2 only: tier 1 survives the call, which is harmless today because every ghost transition immediately navigates or reloads. Tracked as N-205.</p>
 
       <div class="callout amber">Ghost mode overrides role resolution but does not create a real session as that role. Actions taken while ghosting (form saves etc.) are attributed to your real admin account in SharePoint.</div>
     </div>
@@ -1310,7 +1346,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <tr><th>Area</th><th>Consideration</th></tr>
         <tr><td>Data volume</td><td>getItems() fetches all records and filters client-side. As data grows (especially WeeklyActivity), consider adding server-side OData filters to reduce payload size.</td></tr>
         <tr><td>Multi-project users</td><td>DM and TP users can be assigned to multiple projects. The scoping model handles this but the UX could be more prominent for users with many assignments.</td></tr>
-        <tr><td>Real-time updates</td><td>The 30s API cache means two users editing simultaneously may see stale data briefly. For higher-traffic scenarios, consider a shorter TTL or manual refresh triggers.</td></tr>
+        <tr><td>Real-time updates</td><td>Two users editing simultaneously may see stale data briefly. The window is 30 seconds for transactional lists (tier 1) and up to 10 minutes for the six reference lists enrolled in tier 2 — a write invalidates only the writer's own browser, so a colleague's open tab is unaffected until their TTL lapses. The <strong>Refresh data</strong> button in the sidebar footer is the manual trigger this row used to call for. A genuinely live view would need a push channel (Graph change notifications or SharePoint webhooks), which is out of scope under the no-additional-spend constraint.</td></tr>
         <tr><td>Report Builder export</td><td>PDF export uses window.print(). Server-side generation would give more reliable formatting across browsers.</td></tr>
         <tr><td>Module expansion</td><td>The module pattern (router / nav / app / pages / forms) is repeatable. New modules can be added without touching shared platform code — only config.js needs updating for the switcher.</td></tr>
         <tr><td>Command Centre alerts</td><td>Future: push notifications or email digest when a CC tile flips to Red.</td></tr>

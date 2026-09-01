@@ -531,10 +531,12 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-176 CONFIG.CACHE — engine ships inert (persistentLists empty) and fully configured',
+    name: 'N-176/N-177 CONFIG.CACHE — fully configured, six lists enrolled',
     fn: function () {
       _assertEqual(Array.isArray(CONFIG.CACHE.persistentLists), true, 'persistentLists is an array');
-      _assertEqual(CONFIG.CACHE.persistentLists.length, 0, 'N-176 enrols no list — that is N-177');
+      // N-176 asserted this was 0 (engine inert). N-177 enrols the six
+      // reference lists, so the guard becomes "the expected six", not "none".
+      _assertEqual(CONFIG.CACHE.persistentLists.length, 6, 'N-177 enrols exactly six lists');
       _assertEqual(typeof CONFIG.APP_BUILD === 'string' && CONFIG.APP_BUILD.length > 0, true, 'APP_BUILD set');
       _assertEqual(typeof CONFIG.CACHE.ttlMs, 'number', 'ttlMs');
       _assertEqual(typeof CONFIG.CACHE.maxEntryBytes, 'number', 'maxEntryBytes');
@@ -543,11 +545,69 @@ var ASSERTIONS = [
       _assertEqual(CONFIG.APP_BUILD.indexOf('|'), -1, 'APP_BUILD must not contain the key separator');
     },
   },
+  // ── N-177 (F-3b): enrolment set + role-cache stamping ───────────────
   {
-    name: 'N-176 _ssEnabled — false for every list while persistentLists is empty',
+    name: 'N-177 persistentLists — exactly the six reference lists',
     fn: function () {
-      _assertEqual(_ssEnabled('Projects'), false, 'not enrolled');
-      _assertEqual(_ssEnabled('Roles'), false, 'transactional list never enrolled');
+      _assertEqual([...CONFIG.CACHE.persistentLists].sort(),
+        ['Departments', 'LCILocations', 'LeadershipAccess', 'People', 'Projects', 'UserAssignments'],
+        'enrolment set');
+    },
+  },
+  {
+    name: 'N-177 persistentLists — no transactional list is enrolled',
+    fn: function () {
+      ['Roles', 'WeeklyActivity', 'Placements', 'Assignments', 'RoleHistory'].forEach(function (l) {
+        _assertEqual(CONFIG.CACHE.persistentLists.includes(l), false, l + ' must never be enrolled');
+      });
+    },
+  },
+  {
+    name: 'N-177 _ssEnabled — true for the six, false for the transactional five',
+    fn: function () {
+      // _ssEnabled() returns false whenever sessionStorage is absent, which it
+      // is under Node (tests/run.js). Skipping is honest; asserting here would
+      // report a meaningless PASS on the storage guard rather than on
+      // enrolment. Runs for real in tests/index.html.
+      if (typeof sessionStorage === 'undefined') _skip('no sessionStorage under Node — run tests/index.html for this one');
+      ['Projects', 'People', 'Departments', 'LCILocations', 'UserAssignments', 'LeadershipAccess']
+        .forEach(function (l) { _assertEqual(_ssEnabled(l), true, l + ' enrolled'); });
+      ['Roles', 'WeeklyActivity', 'Placements', 'Assignments', 'RoleHistory']
+        .forEach(function (l) { _assertEqual(_ssEnabled(l), false, l + ' not enrolled'); });
+    },
+  },
+  {
+    name: 'N-177 _roleEntryUsable — a well-formed current-build entry is usable',
+    fn: function () {
+      _assertEqual(_roleEntryUsable({ ts: Date.now(), build: CONFIG.APP_BUILD, value: 'admin' }, true), true, 'fresh');
+      _assertEqual(_roleEntryUsable({ ts: Date.now(), build: CONFIG.APP_BUILD, value: [] }, true), true, 'empty array value is a value');
+    },
+  },
+  {
+    name: 'N-177 _roleEntryUsable — a foreign build stamp is rejected under both TTL modes',
+    fn: function () {
+      const e = { ts: Date.now(), build: 'SOME-OTHER-BUILD', value: 'admin' };
+      _assertEqual(_roleEntryUsable(e, true), false, 'honourTtl true');
+      _assertEqual(_roleEntryUsable(e, false), false, 'honourTtl false — hasDMGrant still rejects a foreign build');
+    },
+  },
+  {
+    name: 'N-177 _roleEntryUsable — an aged entry is rejected when honourTtl, ACCEPTED when not',
+    fn: function () {
+      const aged = { ts: Date.now() - (CONFIG.CACHE.ttlMs + 60000), build: CONFIG.APP_BUILD, value: ['12'] };
+      _assertEqual(_roleEntryUsable(aged, true), false, 'getEffectiveRole re-resolves');
+      _assertEqual(_roleEntryUsable(aged, false), true, 'hasDMGrant must NOT lose a live grant to age');
+    },
+  },
+  {
+    name: 'N-177 _roleEntryUsable — legacy bare values are treated as absent, never thrown on',
+    fn: function () {
+      _assertEqual(_roleEntryUsable('admin', true), false, 'legacy bare string');
+      _assertEqual(_roleEntryUsable(['12', '13'], true), false, 'legacy bare array');
+      _assertEqual(_roleEntryUsable(null, true), false, 'null');
+      _assertEqual(_roleEntryUsable(undefined, true), false, 'undefined');
+      _assertEqual(_roleEntryUsable({ build: CONFIG.APP_BUILD, value: 'admin' }, true), false, 'no ts');
+      _assertEqual(_roleEntryUsable({ ts: Date.now(), build: CONFIG.APP_BUILD }, true), false, 'no value');
     },
   },
 ];

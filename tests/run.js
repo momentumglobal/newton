@@ -22,9 +22,12 @@ process.env.TZ = process.env.NEWTON_TZ || 'Europe/London';
 // they're loaded as scripts into one shared vm context in production
 // script order rather than `require()`d. Same approach as the Node-VM rig
 // built for N-030's Excel export testing. api.js (N-097) is entirely
-// network-calling functions except one pure helper, _pickFields — nothing
-// in api.js executes at load time, only when called, so loading the whole
-// file touches no network.
+// network-calling functions except a few pure helpers (_pickFields, and
+// N-176's _ssKey / _ssIsCacheKey / _ssKeyBuild / _ssKeyMatchesList).
+// N-176 also added the ONE thing api.js executes at load time: the
+// _ssPurgeStaleBuilds() cache sweep, which returns immediately when
+// sessionStorage is undefined — as it is here. Loading the whole file
+// still touches no network.
 
 const fs = require('fs');
 const path = require('path');

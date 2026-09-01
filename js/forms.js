@@ -452,7 +452,7 @@ async function renderWeeklyActivityForm(existingData = null, preselectedRoleId =
           <div class="form-group">
             <label>Week Number</label>
             <input type="number" name="WeekNumber" id="weekly-weeknum" min="1" max="53"
-              value="${defaultWeek}" readonly>
+              value="${defaultWeek}" onchange="autoFillWeekEndingFromWeekNum(this.value)">
           </div>
         </div>
         <div class="form-section-title">Activity Counts</div>
@@ -521,6 +521,23 @@ function autoFillWeekYear(dateStr) {
   if (!dateStr) return;
   document.getElementById('weekly-year').value = new Date(dateStr).getFullYear();
   document.getElementById('weekly-weeknum').value = getISOWeek(dateStr);
+}
+// N-204: inverse of autoFillWeekYear. Week Number → Week Ending Date, using
+// the currently-displayed Year. If the resolved week's Sunday lands in a
+// different calendar year (week 1/52/53 edge cases), corrects the Year field
+// to match so the three fields never end up mismatched.
+function autoFillWeekEndingFromWeekNum(weekNumStr) {
+  const weekNum = parseInt(weekNumStr, 10);
+  if (!Number.isFinite(weekNum) || weekNum < 1 || weekNum > 53) return;
+  const yearField = document.getElementById('weekly-year');
+  const year = parseInt(yearField.value, 10);
+  if (!Number.isFinite(year)) return;
+  const weekEnding = weekEndingFromWeekNumber(year, weekNum);
+  if (!weekEnding) return;
+  const dateField = document.querySelector('input[name="WeekEndingDate"]');
+  if (dateField) dateField.value = weekEnding;
+  const resolvedYear = Number(weekEnding.slice(0, 4));
+  if (resolvedYear !== year) yearField.value = resolvedYear;
 }
 async function submitWeeklyForm(event, editId = null) {
   event.preventDefault();

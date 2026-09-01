@@ -1237,6 +1237,27 @@ async function getUserProjectIds(email) {
   // every downstream per-project role fan-out doubles that project's roles.
   return [...new Set(assignments.map(a => String(a.ProjectID)))];
 }
+
+// N-206: picks the ONE project to default a Talent Partner's Project Dashboard
+// to, when they have no project selector to correct a wrong guess (unlike a
+// DM/admin — see renderProjectDashboard()). Prefers an Active UserAssignments
+// row over an inactive one, so a TP who has just been reassigned lands on
+// their current project, not an old one they still hold a historical
+// (inactive) assignment row for. Falls back to the first assignment if none
+// are Active (fully rolled off with no live assignment) — there is no
+// "correct" project to prefer in that edge case.
+// Deliberately re-queries UserAssignments rather than extending
+// getUserProjectIds() with an activeOnly flag: that function's 13 other
+// callers all correctly want the union of a user's projects, old and new, and
+// must not change. The read is cached, so this doesn't add a real extra
+// network round-trip alongside a getUserProjectIds() call for the same user.
+async function getDefaultUserProjectId(email) {
+  const lower = (getGhostUser() || email).toLowerCase();
+  const assignments = await getItems("UserAssignments", `fields/Title eq '${lower}'`);
+  if (!assignments.length) return null;
+  const active = assignments.find(a => a.Active !== false);
+  return String((active || assignments[0]).ProjectID);
+}
  
 async function getScopedProjects(email, activeOnly = false) {
   const projectIds = await getUserProjectIds(email);

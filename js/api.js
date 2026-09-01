@@ -1116,6 +1116,11 @@ async function getEffectiveRole(email) {
     }
   }
  
+  // N-177 (beyond spec): a user demoted OUT of leadership keeps their old
+  // newton_dm_grants_ entry, because only the leadership branch above ever
+  // writes that key. Write an empty grant set on every other path so the
+  // demotion actually lands within the TTL.
+  if (role !== 'leadership') _roleCacheSet('newton_dm_grants_' + lower, []);
   _roleCacheSet(cacheKey, role);
   return role;
 }

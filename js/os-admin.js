@@ -289,7 +289,9 @@ async function uploadLeadershipPhoto(id) {
 }
 async function deleteOsAdminRecord(listName, id) {
   if (!(await confirmModal({ message: 'Remove this record?', confirmLabel: 'Remove', danger: true }))) return;
-  await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items/${id}`);
+  // N-176: raw DELETE bypassed _cacheInvalidate(); deleteItem() is the same
+  // request plus both-tier invalidation.
+  await deleteItem(listName, id);
   await renderOsAdminPage(_osAdminTab);
 }
 // ── Homepage Tab ───────────────────────────────────────────────────

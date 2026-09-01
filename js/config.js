@@ -423,6 +423,33 @@ const CONFIG = {
   // doubles from baseDelayMs unless SharePoint sends a Retry-After header.
   GRAPH_RETRY: { maxAttempts: 4, baseDelayMs: 1000 },
 
+  // Build stamp (N-176 / F-3a). BUMP THIS BY HAND ON EVERY DEPLOY that
+  // changes js/ or the shape of any list's data. Every sessionStorage cache
+  // key embeds it, and api.js discards on load any entry stamped with a
+  // different build — that is the whole deploy-busts-the-cache mechanism.
+  // Deliberately separate from sw.js's SW_VERSION: a service worker cannot
+  // read config.js and the two have different lifecycles. Bump both.
+  APP_BUILD: '2026-09-01a',
+
+  // Two-tier read cache (N-176 / F-3a). Tier 1 is the 30s in-memory Map in
+  // api.js and is NOT configured here. This block configures tier 2, the
+  // sessionStorage tier that survives navigation.
+  // `enabled: false` is a live kill switch — it takes effect on the next
+  // read, with no reload.
+  // persistentLists IS EMPTY ON PURPOSE: N-176 ships the engine and the
+  // invalidation contract only, so no list is enrolled and no key is
+  // written. N-177 adds the reference lists (Projects, People, Departments,
+  // LCILocations, UserAssignments, LeadershipAccess); transactional lists
+  // (Roles, WeeklyActivity, Placements, Assignments, RoleHistory) stay on
+  // tier 1 only and must never appear here.
+  CACHE: {
+    enabled:         true,
+    prefix:          'newton_cache',
+    ttlMs:           600000,   // 10 minutes
+    maxEntryBytes:   262144,   // skip persisting anything larger
+    persistentLists: [],
+  },
+
   // Client-side error telemetry (N-172 / F-7a). js/diagnostics.js reads
   // these on EVERY captured error, so `enabled: false` is a live kill
   // switch — it takes effect with no reload.

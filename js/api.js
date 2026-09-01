@@ -1026,11 +1026,73 @@ async function deleteLCILocation(id) {
 // 1. Check ADMIN_USERS in config.js
 // 2. Check LeadershipAccess list
 // 3. Check UserAssignments list
+// ── Role / DM-grant cache (N-177 / F-3b) ─────────────────────────────
+// newton_role_<email> and newton_dm_grants_<email> are NOT part of the
+// tier-2 list cache. They hold a value DERIVED from UserAssignments and
+// LeadershipAccess, they are keyed by email rather than by list, and they
+// are not gated on CONFIG.CACHE.persistentLists. They borrow only the TTL
+// and the build stamp.
+//
+// Before N-177 both were bare, unstamped values that lived for the whole
+// browser-tab session, so an admin changing someone's access had no effect
+// on that person until they signed out. Enrolling UserAssignments and
+// LeadershipAccess on a 10-minute TTL made that incoherent — the cheaper
+// cache would have been the fresher one. Stamping these two makes access
+// data strictly fresher than it was.
+//
+// Entry shape: { ts, build, value }.
+
+// PURE — no storage access, no side effects. Split out so the shape, stamp
+// and TTL rules are testable in the Node harness, where sessionStorage does
+// not exist. Exposed for tests/assertions.js.
+function _roleEntryUsable(entry, honourTtl) {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false;
+  if (typeof entry.ts !== 'number') return false;
+  if (entry.build !== CONFIG.APP_BUILD) return false;
+  if (!('value' in entry)) return false;
+  if (honourTtl && Date.now() - entry.ts > CONFIG.CACHE.ttlMs) return false;
+  return true;
+}
+
+// honourTtl: false is for hasDMGrant() ONLY — see the comment there. Anything
+// that is not a well-formed stamped entry, INCLUDING a legacy bare string or
+// bare array written before N-177, is treated as absent so the caller
+// re-resolves. Never migrated in place, never allowed to throw.
+function _roleCacheGet(key, { honourTtl = true } = {}) {
+  try {
+    if (typeof sessionStorage === 'undefined') return null;
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    let entry = null;
+    try { entry = JSON.parse(raw); } catch (e) { entry = null; }
+    if (!_roleEntryUsable(entry, honourTtl)) {
+      sessionStorage.removeItem(key);
+      return null;
+    }
+    return entry.value;
+  } catch (e) {
+    try { sessionStorage.removeItem(key); } catch (e2) { /* ignore */ }
+    return null;
+  }
+}
+
+// A failed write must degrade to "resolve every time", never to an error.
+function _roleCacheSet(key, value) {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), build: CONFIG.APP_BUILD, value }));
+  } catch (e) {
+    /* quota exceeded or private mode — the role is simply re-resolved */
+  }
+}
+
 // 4. Fall back to 'viewer'
 async function getEffectiveRole(email) {
   const lower = (getGhostUser() || email).toLowerCase();
   const cacheKey = 'newton_role_' + lower;
-  const cached = sessionStorage.getItem(cacheKey);
+  // N-177: honours both the build stamp and CONFIG.CACHE.ttlMs, so an access
+  // change now takes effect within the TTL instead of only on sign-out.
+  const cached = _roleCacheGet(cacheKey);
   if (cached) return cached;
  
   let role;
@@ -1046,7 +1108,7 @@ async function getEffectiveRole(email) {
       const dmProjects = assignments
         .filter(a => a.AssignedRole === 'delivery_manager' && a.ProjectID && a.ProjectID !== 0)
         .map(a => String(a.ProjectID));
-      sessionStorage.setItem('newton_dm_grants_' + lower, JSON.stringify(dmProjects));
+      _roleCacheSet('newton_dm_grants_' + lower, dmProjects);
     } else {
       const assignments = await getItems("UserAssignments",
         `fields/Title eq '${lower}'`);
@@ -1054,7 +1116,7 @@ async function getEffectiveRole(email) {
     }
   }
  
-  sessionStorage.setItem(cacheKey, role);
+  _roleCacheSet(cacheKey, role);
   return role;
 }
  
@@ -1069,9 +1131,17 @@ async function isLeadershipUser(email) {
 // True if the resolved user (the ghosted user if Ghost Mode is active, else
 // the signed-in user) holds an explicit DM grant.
 // Pass a projectId to scope the check; omit for "any DM grant?"
+// N-177: reads the stamped entry, but deliberately does NOT honour the TTL.
+// This function is SYNCHRONOUS — it cannot re-resolve on a miss, so treating
+// an aged entry as absent would silently strip a leadership user's DM access
+// mid-page. A build change implies a page load and is therefore safe to
+// honour; a TTL expiry is not. The TTL still bounds these grants in practice
+// because getEffectiveRole() re-resolves and rewrites them on every module
+// init (app.js, cc-app.js, mr-app.js, people-app.js, mobile-app.js, forms.js).
+// Do not "tidy" this asymmetry away.
 function hasDMGrant(projectId = null) {
   const email = (getGhostUser() || getCurrentUser()?.email || '').toLowerCase();
-  const grants = JSON.parse(sessionStorage.getItem('newton_dm_grants_' + email) || '[]');
+  const grants = _roleCacheGet('newton_dm_grants_' + email, { honourTtl: false }) || [];
   return projectId ? grants.includes(String(projectId)) : grants.length > 0;
 }
 

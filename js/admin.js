@@ -243,7 +243,10 @@ async function confirmDelete() {
   const yesBtn = document.querySelector('#del-confirm .btn-primary');
   setButtonLoading(yesBtn, 'Deleting…');
   try {
-    await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${list}/items/${id}`);
+    // N-176: was a raw graphRequest('DELETE', ...), which bypassed
+    // _cacheInvalidate() entirely and left the deleted row in the read
+    // cache. deleteItem() is the identical DELETE plus invalidation.
+    await deleteItem(list, id);
     await renderAdminTab('delete');
   } catch(e) {
     clearButtonLoading(yesBtn);
@@ -261,7 +264,8 @@ function cancelDelete() {
 
 async function deleteAdminRecord(listName, id) {
   if (!(await confirmModal({ message: 'Remove this record?', confirmLabel: 'Remove', danger: true }))) return;
-  await graphRequest('DELETE', `/sites/${CONFIG.SP_SITE_ID}/lists/${listName}/items/${id}`);
+  // N-176: see confirmDelete() above — raw DELETE skipped cache invalidation.
+  await deleteItem(listName, id);
   await renderAdminTab(_adminTab);
 }
 

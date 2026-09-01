@@ -9,8 +9,12 @@ async function renderProjectDashboard() {
   const isDMAdmin = ['delivery_manager', 'admin'].includes(role) || hasDMGrant();
   let   projectId = _dashProjectId;
   if (isTP && !projectId) {
-    const ids = await getUserProjectIds(user.email);
-    projectId = ids && ids.length ? ids[0] : null;
+    // N-206: was `(await getUserProjectIds(user.email))[0]`, which picks
+    // among ALL of a TP's UserAssignments rows (old + new) in undefined
+    // order — a recently-reassigned TP could default to an old, inactive
+    // project with no way to switch. getDefaultUserProjectId() prefers an
+    // Active row.
+    projectId = await getDefaultUserProjectId(user.email);
     _dashProjectId = projectId;
   }
   let selectorHtml = '', projectName = 'Project';

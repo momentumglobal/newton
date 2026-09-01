@@ -42,6 +42,20 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### September 2026 — Two-tier cache (F-3a/F-3b, N-176/N-177)
+
+**Switching module no longer re-fetches data that hasn't changed.** Reference data (Projects, People, Departments, LCILocations, UserAssignments, LeadershipAccess) is now cached in `sessionStorage` for 10 minutes and survives page navigation, instead of dying with the 30-second in-memory cache on every page load. Transactional lists — Roles, WeeklyActivity, Placements, Assignments, RoleHistory — deliberately stay on the 30-second tier, because those are the ones a user edits and expects to see change immediately. The win is round-trip latency on module switching, not payload size: every list is under 100 rows.
+
+**⚠️ New deploy step: bump `CONFIG.APP_BUILD` on every deploy that changes `js/` or the shape of any list's data.** Every cache key embeds the build stamp and api.js discards entries from any other build on load — that is the only thing that busts the cache on a deploy. Forget it and users keep serving the previous deploy's reference data for the rest of their session. Bump `SW_VERSION` in `sw.js` alongside it; the two are separate on purpose (a service worker cannot read `config.js`) and neither substitutes for the other.
+
+**New:** a **Refresh data** button in the sidebar footer clears both tiers and re-renders. It shipped in N-176, before any list was enrolled in N-177 — the escape hatch had to exist before the staleness window widened.
+
+**The invalidation contract is the actual deliverable.** A longer TTL makes the N-084 class of bug worse, not better, so N-176 was engine-plus-contract only, enrolling nothing: one invalidation path (`_cacheInvalidate`) that clears both tiers, a build stamp that busts the cache on deploy, and the Refresh button. N-177 then enrolled the six lists. In the course of that, three write paths were found calling `graphRequest('DELETE', …)` directly — `admin.js:confirmDelete`, `admin.js:deleteAdminRecord`, `os-admin.js:deleteOsAdminRecord` — bypassing cache invalidation entirely. Harmless while the TTL was 30 seconds and died on navigation; a live bug the moment it became 10 minutes. All three now route through `deleteItem()`. **Never call `graphRequest` with POST/PATCH/DELETE directly** — see Read Flow and Write Flow in the Developer Reference.
+
+**Role cache bounded.** `newton_role_<email>` and `newton_dm_grants_<email>` were bare, unstamped values that lived for the whole browser session, so an admin changing someone's access had no effect on that person until they signed out. Both now carry a timestamp and the build stamp and expire on the same 10-minute TTL, making access data strictly fresher than before. `hasDMGrant()` deliberately honours the build stamp but **not** the TTL: it is synchronous and cannot re-resolve, so treating an aged entry as absent would silently strip a leadership user's DM access mid-page.
+
+**Config:** `CONFIG.APP_BUILD` (new) and `CONFIG.CACHE` (`enabled` as a live kill switch, `prefix`, `ttlMs`, `maxEntryBytes`, `persistentLists`). Enrolment lives only in `persistentLists` — no list name appears in `api.js`. No SharePoint change, no new dependency.
+
 ### August 2026 — Client-side error telemetry (F-7a/F-7b, N-172/N-173)
 
 **Newton now catches its own errors instead of dying silently.** An uncaught error or unhandled promise rejection anywhere in the app writes a row to a new `Diagnostics` list — no console nobody is watching. Admin → Data Health gets a new Error Telemetry section: errors grouped by message, with occurrence count, affected users, module and last-seen time, and an Acknowledge action to clear a group once it's understood and fixed. Nothing changes for the ordinary user — this is Admin-only tooling.

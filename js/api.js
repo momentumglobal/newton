@@ -28,7 +28,134 @@ function _cacheInvalidate(listName) {
   for (const key of _apiCache.keys()) {
     if (key.startsWith(listName + '|')) _apiCache.delete(key);
   }
+  // N-176 (F-3a): tier 2 as well. This one line IS the invalidation
+  // contract — createItem/updateItem/deleteItem already call this function,
+  // so every compliant write path invalidates both tiers with no change at
+  // the call site. Any new write path that bypasses those three helpers
+  // bypasses this too; that is why N-176 converted the three raw
+  // graphRequest('DELETE', ...) sites in admin.js/os-admin.js.
+  _ssPurge(listName);
 }
+
+// ── Session-persistent read cache — tier 2 (N-176 / F-3a) ─────────────
+// Tier 1 (_apiCache, above) is per-page and dies on every navigation.
+// Tier 2 keeps a list across navigations within one browser-tab session.
+//
+// ENROLMENT IS OPT-IN AND SHIPS EMPTY: CONFIG.CACHE.persistentLists is [],
+// so this tier is inert and NO key is ever written. N-176 is the engine and
+// the invalidation contract only; N-177 enrols the reference lists after
+// its transactional-vs-reference analysis. Do not enrol a list here to
+// "prove it works" — that is N-177's ticket.
+//
+// Every entry point below is wrapped and returns a safe value on throw.
+// sessionStorage throws in private mode and on quota, and a cache tier must
+// never be able to break a read — the same "must not throw" rule N-172 put
+// on diagnostics.js. It is also absent entirely under the Node test
+// harness (tests/run.js), which every helper handles by no-op.
+
+// Is tier 2 live for this list? Storage-touching, hence guarded.
+function _ssEnabled(listName) {
+  try {
+    if (typeof sessionStorage === 'undefined') return false;
+    if (!CONFIG.CACHE || !CONFIG.CACHE.enabled) return false;
+    return (CONFIG.CACHE.persistentLists || []).includes(listName);
+  } catch (e) {
+    return false;
+  }
+}
+
+// Pure. Reuses _cacheKey so the two tiers can never disagree on identity.
+// Shape: <prefix>|<build>|<list>|<filter>|<select>
+function _ssKey(listName, filter, selectStr) {
+  return CONFIG.CACHE.prefix + '|' + CONFIG.APP_BUILD + '|' + _cacheKey(listName, filter, selectStr);
+}
+
+// Pure. True only for OUR keys. Six unrelated sessionStorage key families
+// already exist (newton_role_, newton_dm_grants_, newton_ghost_,
+// newton_diag_, newton_survey_, newton_force_desktop) and none of them may
+// ever be touched by a cache purge.
+function _ssIsCacheKey(key) {
+  return typeof key === 'string' && key.indexOf(CONFIG.CACHE.prefix + '|') === 0;
+}
+
+// Pure. The build stamp embedded in one of our keys, or null.
+function _ssKeyBuild(key) {
+  return _ssIsCacheKey(key) ? (key.split('|')[1] || null) : null;
+}
+
+// Pure. Does this key belong to `listName`? Null/omitted listName matches
+// every one of our keys. Build-independent on purpose: a purge should clear
+// a list's stale-build entries too, not just the current build's.
+function _ssKeyMatchesList(key, listName) {
+  if (!_ssIsCacheKey(key)) return false;
+  if (!listName) return true;
+  return key.split('|')[2] === listName;
+}
+
+// Purge tier 2. listName omitted = every entry we own.
+function _ssPurge(listName = null) {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    // Snapshot the keys first — never iterate the live index while deleting.
+    for (const key of Object.keys(sessionStorage)) {
+      if (_ssKeyMatchesList(key, listName)) sessionStorage.removeItem(key);
+    }
+  } catch (e) {
+    /* storage unavailable — nothing to purge */
+  }
+}
+
+// Discard every entry written by a different deploy. This is what makes
+// bumping CONFIG.APP_BUILD bust the cache.
+function _ssPurgeStaleBuilds() {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    for (const key of Object.keys(sessionStorage)) {
+      if (_ssIsCacheKey(key) && _ssKeyBuild(key) !== CONFIG.APP_BUILD) sessionStorage.removeItem(key);
+    }
+  } catch (e) {
+    /* storage unavailable — nothing to purge */
+  }
+}
+
+function _ssGet(listName, filter, selectStr) {
+  if (!_ssEnabled(listName)) return null;
+  const key = _ssKey(listName, filter, selectStr);
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    if (!entry || typeof entry.ts !== 'number' || Date.now() - entry.ts > CONFIG.CACHE.ttlMs) {
+      sessionStorage.removeItem(key);
+      return null;
+    }
+    return entry.data;
+  } catch (e) {
+    // Unparseable or unreadable — drop it and fall through to the network.
+    try { sessionStorage.removeItem(key); } catch (e2) { /* ignore */ }
+    return null;
+  }
+}
+
+function _ssSet(listName, filter, selectStr, data) {
+  if (!_ssEnabled(listName)) return;
+  try {
+    const payload = JSON.stringify({ ts: Date.now(), data });
+    // Measured as JSON string length. SharePoint list text is near-ASCII so
+    // length tracks bytes closely enough for a skip-if-huge guard; this is a
+    // safety valve against blowing the ~5MB origin quota, not an accounting
+    // figure.
+    if (payload.length > CONFIG.CACHE.maxEntryBytes) return;
+    sessionStorage.setItem(_ssKey(listName, filter, selectStr), payload);
+  } catch (e) {
+    /* quota exceeded or private mode — tier 1 still serves the page */
+  }
+}
+
+// Runs once when api.js parses, after config.js has defined CONFIG (script
+// load order is config.js -> auth.js -> utils.js -> api.js in every shell).
+// No-op under the Node test harness and no-op while persistentLists is empty.
+_ssPurgeStaleBuilds();
  
 // ── Field normalisers ───────────────────────────────────────────────
 const FIELD_ALIASES = {
@@ -191,6 +318,13 @@ async function getItems(listName, filter = "", select = null) {
 
   const cached = _cacheGet(listName, filter, selectStr);
   if (cached) return cached;
+  // N-176: tier 2. A hit is promoted into tier 1 so repeated reads within
+  // one page still cost nothing and still expire on the 30s in-memory TTL.
+  const persisted = _ssGet(listName, filter, selectStr);
+  if (persisted) {
+    _cacheSet(listName, filter, selectStr, persisted);
+    return persisted;
+  }
  
   const qs = filter ? `?$expand=fields($select=${selectStr})&$filter=${encodeURIComponent(filter)}` : `?$expand=fields($select=${selectStr})`;
   let url = `${listPath(listName)}${qs}`;
@@ -202,6 +336,7 @@ async function getItems(listName, filter = "", select = null) {
   }
  
   _cacheSet(listName, filter, selectStr, items);
+  _ssSet(listName, filter, selectStr, items);
   return items;
 }
  
@@ -483,6 +618,27 @@ async function deleteItem(listName, itemId) {
   const result = await graphRequest("DELETE", `${listPath(listName)}/${itemId}`);
   _cacheInvalidate(listName);
   return result;
+}
+
+// ── Explicit refresh (N-176 / F-3a) ──────────────────────────────────
+// The user's escape hatch from a stale cache, behind the sidebar's
+// "Refresh data" button. Clears BOTH tiers and nothing else: newton_role_*,
+// newton_dm_grants_*, newton_ghost_*, newton_diag_*, newton_survey_* and
+// newton_force_desktop belong to other features, and a "Refresh data" that
+// silently re-resolved the user's role or dropped them out of Ghost Mode
+// would be a different and surprising action.
+// onDone re-renders in place when the caller can (nav-core.js passes the
+// current page's navigate call); with no callback we fall back to a full
+// reload, which is correct but loses the toast.
+function refreshData(onDone = null) {
+  _apiCache.clear();
+  _ssPurge();
+  if (typeof onDone === 'function') {
+    if (typeof toast === 'function') toast('Data refreshed', { type: 'success' });
+    onDone();
+    return;
+  }
+  location.reload();
 }
  
 // ── List-specific helpers ─────────────────────────────────────────────

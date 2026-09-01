@@ -29,6 +29,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -49,6 +51,48 @@ jobs:
         run: NEWTON_TZ=UTC node tests/run.js
       - name: Test — America/New_York (behind UTC — the N-130 class)
         run: NEWTON_TZ=America/New_York node tests/run.js
+      # N-210: catches the silent-stale-cache failure mode — js/ changes
+      # deployed without a CONFIG.APP_BUILD bump give users up to 10 minutes
+      # of stale reference data with no visible error. Compares the
+      # APP_BUILD value (not just its presence) between the base commit and
+      # HEAD, so a no-op reformat of the line still fails. Skips cleanly on
+      # a brand-new branch or an unresolvable force-push base rather than
+      # false-failing an unrelated push.
+      - name: Guard — APP_BUILD bump when js/ changes
+        run: |
+          BASE="${{ github.event.before }}"
+          ZERO="0000000000000000000000000000000000000000"
+          if [ -z "$BASE" ] || [ "$BASE" = "$ZERO" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "No base commit to compare against (new branch or unresolvable force-push) — skipping guard."
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "$BASE" "${{ github.sha }}" -- js/)
+          if [ -z "$CHANGED" ]; then
+            echo "No js/ changes in this push — skipping guard."
+            exit 0
+          fi
+
+          NEW=$(grep -oP "APP_BUILD:\s*'\K[^']+" js/config.js || echo "__MISSING__")
+          if [ "$NEW" = "__MISSING__" ]; then
+            echo "::error file=js/config.js::APP_BUILD stamp not found in js/config.js — it must always be present."
+            exit 1
+          fi
+
+          OLD=$(git show "$BASE:js/config.js" 2>/dev/null | grep -oP "APP_BUILD:\s*'\K[^']+" || echo "__MISSING__")
+          if [ "$OLD" = "__MISSING__" ]; then
+            echo "js/config.js is new in this push (or had no APP_BUILD line before) — nothing to compare, skipping guard."
+            exit 0
+          fi
+
+          if [ "$OLD" = "$NEW" ]; then
+            echo "::error file=js/config.js::js/ changed but CONFIG.APP_BUILD in js/config.js was not bumped (still '$NEW'). Bump the APP_BUILD stamp (e.g. to today's date) before merging — see js/config.js line ~432."
+            echo "Changed js/ files:"
+            echo "$CHANGED"
+            exit 1
+          fi
+
+          echo "APP_BUILD bumped ($OLD -> $NEW) for this js/ change — guard passed."
 
   # Single deploy job since we're just deploying
   deploy:

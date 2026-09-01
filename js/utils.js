@@ -625,6 +625,11 @@ const GHOST_LABEL_KEY = 'newton_ghost_label';
 function setGhostUser(email, displayName) {
   sessionStorage.setItem(GHOST_USER_KEY, email.toLowerCase());
   sessionStorage.setItem(GHOST_LABEL_KEY, displayName || email);
+  // N-176: entering ghost mode changes which rows the UI derives from a
+  // cached list. Purging tier 2 on both transitions is cheaper and safer
+  // than reasoning about which lists happen to be identity-independent.
+  // Guarded because utils.js parses before api.js.
+  if (typeof _ssPurge === 'function') _ssPurge();
 }
 function getGhostUser() {
   return sessionStorage.getItem(GHOST_USER_KEY);
@@ -635,6 +640,8 @@ function getGhostLabel() {
 function clearGhostUser() {
   sessionStorage.removeItem(GHOST_USER_KEY);
   sessionStorage.removeItem(GHOST_LABEL_KEY);
+  // N-176: see setGhostUser() — purge tier 2 on the way out too.
+  if (typeof _ssPurge === 'function') _ssPurge();
 }
 
 // Shared ghost-mode banner. Create-or-update: safe to call once from

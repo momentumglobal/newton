@@ -328,12 +328,11 @@ function detailPeriodDropdown() {
 // ── Roles open 30+ days panel (project-scoped) ────────────────────────
 function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
   const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
-  const today    = new Date(); today.setHours(0,0,0,0);
   const longOpen = roles
     .filter(r => {
       if (EXCLUDED.includes(r.Stage)) return false;
       if (!r.OpenDate) return false;
-      const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
+      const days = daysOpen(r.OpenDate);
       return days >= 30;
     })
     .sort((a, b) => new Date(a.OpenDate) - new Date(b.OpenDate));
@@ -342,7 +341,7 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
     ${emptyStateBlock({ icon: 'briefcase', message: 'No roles open 30+ days.' })}
   </div>`;
   const rows = longOpen.map(r => {
-    const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
+    const days = daysOpen(r.OpenDate);
     const rowClass = days >= 45 ? 'row-age-critical' : 'row-age-warning';
     return `<tr class="${rowClass}">
      <td>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</td>

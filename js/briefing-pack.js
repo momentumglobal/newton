@@ -565,11 +565,37 @@ function bpPreview() {
 // Portrait — printPage's second argument stays false so no @page override is
 // added and the global A4 portrait rule applies. This is the only portrait
 // export in Newton; see N-202.
-function bpExportPdf() {
+// The cover and closing swirl is a CSS background image, and window.print()
+// snapshots the page immediately. On a cold cache — exactly the state a hard
+// refresh leaves the browser in — the print can be taken before that artwork
+// has loaded, producing brand pages with no swirl and no error anywhere.
+// Wait for every <img> in the pack and for the swirl itself before printing,
+// with a ceiling so a missing asset can never block the export.
+function bpAwaitArtwork(root) {
+  const waits = [...root.querySelectorAll('img')].map(img =>
+    img.complete
+      ? Promise.resolve()
+      : new Promise(res => { img.onload = img.onerror = res; }));
+
+  waits.push(new Promise(res => {
+    const probe = new Image();
+    probe.onload = probe.onerror = res;
+    probe.src = 'mg-visual-swirl-report.png';
+  }));
+
+  return Promise.race([
+    Promise.all(waits),
+    new Promise(res => setTimeout(res, 3000)),
+  ]);
+}
+
+async function bpExportPdf() {
   const modal = document.getElementById('bp-preview-modal');
   if (modal) modal.style.display = 'none';
   document.body.classList.add('bp-printing');
-  document.getElementById('main-content').innerHTML = bpRenderPackHtml();
+  const main = document.getElementById('main-content');
+  main.innerHTML = bpRenderPackHtml();
+  await bpAwaitArtwork(main);
   printPage(_bpTitle || 'Briefing Pack', false, 'Reporting');
   setTimeout(() => {
     document.body.classList.remove('bp-printing');

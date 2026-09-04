@@ -131,13 +131,23 @@ async function bpUploadClientLogo(input) {
   if (!dataUri.startsWith('data:image/')) {
     toast('That file is not an image.', { type: 'error' });
     input.value = '';
-    return;
+        return;
   }
 
-  await upsertClientLogo(_bpProjectId, dataUri, file.name);
+  // Never fail silently. The first version swallowed the Graph rejection
+  // inside this async onchange handler, so a logo that never saved looked
+  // exactly like one that did — no row, no error, nothing to go on.
+  try {
+    await upsertClientLogo(_bpProjectId, dataUri, file.name);
+  } catch (e) {
+    toast(`Could not save the logo: ${e.message || e}`, { type: 'error' });
+    input.value = '';
+    return;
+  }
   _bpClientLogo     = dataUri;
   _bpClientLogoName = file.name;
   document.getElementById('bp-sidebar').innerHTML = bpRenderSidebar();
+  toast('Client logo saved for this project.');
 }
 
 async function bpRemoveClientLogo() {
@@ -502,19 +512,23 @@ function bpRenderPackHtml() {
   }
 
   // Flowing content goes inside a table per contiguous run: thead repeats the
-  // running header on every page AND reserves its space, tfoot reserves space
+    // running header on every page AND reserves its space, tfoot reserves space
   // above the fixed confidential footer. Full-bleed pages stay outside the
   // tables, which is why no running header can ever appear on one.
+  // Confidential line rides in the SAME thead band as the running header.
+  // Chrome repeats a thead on every page and reserves its space, and it is the
+  // only band that does: a tfoot renders once, on the last page of a run, and
+  // a fixed element places unpredictably in this document (N-213 F2, N-214 QA).
   const runhead = `<div class="bp-runhead">
       <span>${escHtml(_bpRoleTitle)}</span><span>${escHtml(_bpClientName)}</span>
-    </div>`;
+    </div>
+    <div class="bp-confidential">${escHtml(bpConfidentialText())}</div>`;
   const out = [];
   let run = [];
   const flushRun = () => {
     if (!run.length) return;
     out.push(`<table class="bp-flow">
       <thead><tr><td>${runhead}</td></tr></thead>
-      <tfoot><tr><td><div class="bp-flow-foot-spacer"></div></td></tr></tfoot>
       <tbody><tr><td>${run.join('')}</td></tr></tbody>
     </table>`);
     run = [];
@@ -525,8 +539,7 @@ function bpRenderPackHtml() {
   });
   flushRun();
 
-  const conf = `<div class="bp-confidential">${escHtml(bpConfidentialText())}</div>`;
-  return `<div class="bp-pack" style="--bp-measure:${cfg.MEASURE_CH}ch;--bp-swirl-opacity:${cfg.SWIRL_OPACITY}">${out.join('')}${conf}</div>`;
+  return `<div class="bp-pack" style="--bp-measure:${cfg.MEASURE_CH}ch;--bp-swirl-opacity:${cfg.SWIRL_OPACITY}">${out.join('')}</div>`;
 }
 
 function bpPreview() {

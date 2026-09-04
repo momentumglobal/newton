@@ -218,7 +218,13 @@ const FIELD_ALIASES = {
   // name Newton wants, including Title (the pack title). Deliberately NOT
   // in CONFIG.CACHE.persistentLists: packs are user-edited and must appear
   // in the library the moment they are saved.
-  BriefingPacks: {},
+    BriefingPacks: {},
+  // ── Client logos, one row per project (N-214) ─────────────
+  // Deliberately its own list rather than a column on Projects: Projects is
+  // enrolled in CONFIG.CACHE.persistentLists and bounded by
+  // CONFIG.CACHE.maxEntryBytes (262144), and base64 logos on that row would
+  // push it past the cap and silently disable tier-2 caching app-wide.
+  ClientLogos: {},
 };
  
 function normaliseFields(listName, fields) {
@@ -1583,6 +1589,30 @@ function printPage(title, landscape = false, module = 'Newton') {
     setTimeout(() => styleEl.remove(), 1000);
   }
   setTimeout(() => { document.title = prevDocTitle; }, 1000);
+}
+
+// ── Client logos (N-214) ──────────────────────────────────────
+// Keyed by project id held as text in Title, so one filtered read serves the
+// briefing pack builder without touching the Projects payload.
+async function getClientLogo(projectId) {
+  const rows = await getItems("ClientLogos", `fields/Title eq '${String(projectId)}'`);
+  return rows.length ? rows[0] : null;
+}
+async function upsertClientLogo(projectId, logoData, logoName) {
+  const existing = await getClientLogo(projectId);
+  const fields = {
+    Title:     String(projectId),
+    ProjectID: parseInt(projectId),
+    LogoData:  logoData,
+    LogoName:  logoName || "",
+  };
+  return existing
+    ? updateItem("ClientLogos", existing.id, fields)
+    : createItem("ClientLogos", fields);
+}
+async function deleteClientLogo(projectId) {
+  const existing = await getClientLogo(projectId);
+  if (existing) await deleteItem("ClientLogos", existing.id);
 }
 
 // ── Candidate briefing packs (N-211) ──────────────────────────

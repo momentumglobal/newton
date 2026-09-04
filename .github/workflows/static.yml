@@ -60,11 +60,20 @@ jobs:
       # false-failing an unrelated push.
       - name: Guard — APP_BUILD bump when js/ changes
         run: |
-          BASE="${{ github.event.before }}"
+          git fetch origin 'refs/tags/*:refs/tags/*' --force >/dev/null 2>&1 || true
           ZERO="0000000000000000000000000000000000000000"
-          if [ -z "$BASE" ] || [ "$BASE" = "$ZERO" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
-            echo "No base commit to compare against (new branch or unresolvable force-push) — skipping guard."
-            exit 0
+
+          DEPLOYED=$(git rev-parse -q --verify refs/tags/last-deploy^{commit} 2>/dev/null || true)
+          if [ -n "$DEPLOYED" ]; then
+            BASE="$DEPLOYED"
+            echo "Using last-deploy tag as base: $BASE"
+          else
+            BASE="${{ github.event.before }}"
+            if [ -z "$BASE" ] || [ "$BASE" = "$ZERO" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+              echo "No base commit to compare against (no last-deploy tag yet, and new branch or unresolvable force-push) — skipping guard."
+              exit 0
+            fi
+            echo "No last-deploy tag yet — falling back to previous-push base: $BASE"
           fi
 
           CHANGED=$(git diff --name-only "$BASE" "${{ github.sha }}" -- js/)
@@ -97,6 +106,13 @@ jobs:
   # Single deploy job since we're just deploying
   deploy:
     needs: test
+    # Job-level permissions REPLACE the top-level block for this job (they
+    # don't merge) — pages/id-token must be repeated alongside the new
+    # contents: write, or Pages deploy itself would lose permission.
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -114,3 +130,12 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+      # N-212: moves the "last known good" pointer the test job's APP_BUILD
+      # guard diffs against. Only runs after a real deploy succeeds, so a
+      # broken push can never move the baseline. Lightweight tag — no git
+      # identity/commit needed — pushed with the checkout's default token.
+      - name: Record last deployed commit
+        if: success()
+        run: |
+          git tag -f last-deploy
+          git push origin last-deploy --force

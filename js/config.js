@@ -102,6 +102,15 @@ const CONFIG = {
     grey:  'var(--text-muted)',
   },
 
+  // Candidate briefing packs (N-211). CONFIDENTIAL_TEXT is fixed and prints on
+  // every page of every pack — it is deliberately not editable per pack.
+  BRIEFING_PACK: {
+    CONFIDENTIAL_TEXT: 'Confidential — prepared by Momentum Global. Not for onward distribution.',
+    DEFAULT_CONTACT_TITLE: 'Talent Partner',
+    TABLE_DEFAULT_ROWS: 3,
+    TABLE_DEFAULT_COLS: 3,
+  },
+
     // Field projection manifest (F-1). Per-list array of INTERNAL SharePoint
   // column names to request via Graph $select — NOT the aliased names
   // normaliseFields()/FIELD_ALIASES produce. 'Id' is implied automatically
@@ -429,7 +438,7 @@ const CONFIG = {
   // different build — that is the whole deploy-busts-the-cache mechanism.
   // Deliberately separate from sw.js's SW_VERSION: a service worker cannot
   // read config.js and the two have different lifecycles. Bump both.
-  APP_BUILD: '2026-09-01b',
+  APP_BUILD: '2026-09-04a',
 
   // Two-tier read cache (N-176 / F-3a). Tier 1 is the 30s in-memory Map in
   // api.js and is NOT configured here. This block configures tier 2, the

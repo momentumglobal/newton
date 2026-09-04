@@ -25,6 +25,8 @@ let _bpContactName  = '';
 let _bpContactTitle = '';
 let _bpContactEmail = '';
 let _bpCoverDate    = '';    // YYYY-MM text — never a Date (BST shift)
+let _bpClientLogo     = '';  // data: URI, held against the PROJECT not the pack
+let _bpClientLogoName = '';
 
 function bpUid() { return 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6); }
 
@@ -67,18 +69,100 @@ async function showBriefingPackPage() {
 
   const user = getCurrentUser();
   _bpProjects = await getScopedProjects(user.email, false);
-  if (_bpProjects.length && !_bpProjectId) _bpProjectId = String(_bpProjects[0].id);
+    if (_bpProjects.length && !_bpProjectId) _bpProjectId = String(_bpProjects[0].id);
   _bpTpMap = await getTalentPartnerDisplayMap();
   await bpLoadRoles();
+  await bpLoadClientLogo();
   bpApplyRoleAutofill();
   bpRender();
 }
 
 async function bpLoadRoles() {
   if (!_bpProjectId) { _bpProjectRoles = []; return; }
-  const tpEmail = _resolvedRole === 'talent_partner' ? getScopedUserEmail() : null;
+    const tpEmail = _resolvedRole === 'talent_partner' ? getScopedUserEmail() : null;
   _bpProjectRoles = await getRolesForProject(_bpProjectId, tpEmail);
   if (_bpRoleId && !_bpProjectRoles.some(r => String(r.id) === String(_bpRoleId))) _bpRoleId = '';
+}
+
+// ── Client logo (N-214) ───────────────────────────────────────────────
+// Stored against the project, so uploading it once serves every pack built
+// for that client. Never written into a BriefingPacks row.
+async function bpLoadClientLogo() {
+  _bpClientLogo = '';
+  _bpClientLogoName = '';
+  if (!_bpProjectId) return;
+  const row = await getClientLogo(_bpProjectId);
+  if (row && String(row.LogoData || '').startsWith('data:image/')) {
+    _bpClientLogo     = row.LogoData;
+    _bpClientLogoName = row.LogoName || '';
+  }
+}
+
+async function bpUploadClientLogo(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!_bpProjectId) {
+    toast('Select a project before uploading a logo.', { type: 'error' });
+    input.value = '';
+    return;
+  }
+  const max = CONFIG.BRIEFING_PACK.CLIENT_LOGO_MAX_BYTES;
+  if (file.size > max) {
+    toast(`Logo must be under ${Math.round(max / 1024)} KB — that file is ${Math.round(file.size / 1024)} KB.`,
+          { type: 'error' });
+    input.value = '';
+    return;
+  }
+
+  let dataUri = '';
+  try {
+    dataUri = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload  = () => resolve(String(fr.result || ''));
+      fr.onerror = () => reject(fr.error);
+      fr.readAsDataURL(file);
+    });
+  } catch (e) {
+    toast('Could not read that file.', { type: 'error' });
+    input.value = '';
+    return;
+  }
+  // Only ever store an image data URI — nothing else reaches an <img src>.
+  if (!dataUri.startsWith('data:image/')) {
+    toast('That file is not an image.', { type: 'error' });
+    input.value = '';
+    return;
+  }
+
+  await upsertClientLogo(_bpProjectId, dataUri, file.name);
+  _bpClientLogo     = dataUri;
+  _bpClientLogoName = file.name;
+  document.getElementById('bp-sidebar').innerHTML = bpRenderSidebar();
+}
+
+async function bpRemoveClientLogo() {
+  if (!_bpProjectId) return;
+  if (!(await confirmModal({
+    message: 'Remove the client logo for this project? Every pack for this client loses it.',
+    confirmLabel: 'Remove', danger: true,
+  }))) return;
+  await deleteClientLogo(_bpProjectId);
+  _bpClientLogo = '';
+  _bpClientLogoName = '';
+  document.getElementById('bp-sidebar').innerHTML = bpRenderSidebar();
+}
+
+// Momentum x Client lockup. With no logo uploaded the chip carries the client
+// NAME, so the lockup always renders and never shows a broken image.
+function bpLockupHtml() {
+  const chip = _bpClientLogo
+    ? `<img class="bp-lockup-logo" src="${escAttr(_bpClientLogo)}" alt="${escAttr(_bpClientName || 'Client')}">`
+    : `<span class="bp-lockup-client-name">${escHtml(_bpClientName || 'Client')}</span>`;
+  return `<div class="bp-lockup">
+    <img class="bp-lockup-mg" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
+    <span class="bp-lockup-x">&times;</span>
+    <span class="bp-lockup-chip">${chip}</span>
+  </div>`;
 }
 
 // Pre-populate the header fields from the selected project/role. Every value
@@ -146,8 +230,20 @@ function bpRenderSidebar() {
       <div class="rb-section-label">Project</div>
       <select class="rb-select" onchange="bpSetProject(this.value)">${projectOpts}</select>
 
+      
       <div class="rb-section-label">Role</div>
       <select class="rb-select" onchange="bpSetRole(this.value)">${roleOpts}</select>
+
+      <div class="rb-section-label">Client Logo</div>
+      <div class="bp-logo-control">
+        ${_bpClientLogo
+          ? `<img class="bp-logo-thumb" src="${escAttr(_bpClientLogo)}" alt="${escAttr(_bpClientLogoName || 'Client logo')}">`
+          : '<span class="bp-logo-empty">No logo uploaded</span>'}
+        <input type="file" class="bp-logo-input" accept="image/png,image/jpeg,image/svg+xml"
+          onchange="bpUploadClientLogo(this)">
+        ${_bpClientLogo ? '<button class="btn-secondary btn-sm" onclick="bpRemoveClientLogo()">Remove</button>' : ''}
+      </div>
+      <p class="rb-footnote">Saved against the project and reused by every pack for this client.</p>
 
       <div class="rb-section-label">Pack Title</div>
       <input id="bp-title" class="rb-input" type="text" placeholder="Untitled Briefing Pack"
@@ -292,9 +388,10 @@ function bpRemovePage(id) {
 }
 
 async function bpSetProject(val) {
-  _bpProjectId = val || null;
+    _bpProjectId = val || null;
   _bpRoleId    = '';
   await bpLoadRoles();
+  await bpLoadClientLogo();
   bpApplyRoleAutofill();
   document.getElementById('bp-sidebar').innerHTML = bpRenderSidebar();
 }
@@ -321,7 +418,7 @@ function bpConfidentialText() {
 function bpRenderTitlePageHtml(page) {
   const sub = page && page.subtitle ? page.subtitle : '';
   return `<section class="bp-page bp-page-full bp-page-title">
-    <img class="bp-cover-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
+    ${bpLockupHtml()}
     <div class="bp-cover-spacer"></div>
     <div class="bp-cover-block">
       <h1 class="bp-cover-title">${escHtml(_bpTitle || 'Candidate Briefing Pack')}</h1>
@@ -332,19 +429,21 @@ function bpRenderTitlePageHtml(page) {
       <p class="bp-cover-date">${escHtml(bpMonthLabel(_bpCoverDate))}</p>
     </div>
     <p class="bp-page-conf">${escHtml(bpConfidentialText())}</p>
-  </section>`;
+    </section>`;
 }
 
-// Closing page is now full-bleed brand like the cover, content vertically
-// centred. Logo switches to the white lockup to sit on the brand fill.
+// Closing page mirrors the cover exactly: lockup top, spacer, contact block in
+// the lower third, swirl centred behind, confidential line at the foot.
 function bpRenderClosingPageHtml() {
   return `<section class="bp-page bp-page-full bp-page-closing">
-    <div class="bp-closing-inner">
-      <h2 class="bp-closing-heading">Your Talent Partner</h2>
+    ${bpLockupHtml()}
+    <div class="bp-cover-spacer"></div>
+    <div class="bp-cover-block">
+      <h2 class="bp-closing-heading">Your Key Contact</h2>
+      <span class="bp-cover-rule"></span>
       <p class="bp-contact-name">${escHtml(_bpContactName)}</p>
       <p class="bp-contact-title">${escHtml(_bpContactTitle)}</p>
       <p class="bp-contact-email">${escHtml(_bpContactEmail)}</p>
-      <img class="bp-closing-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
       <p class="bp-closing-partner">Momentum Global in partnership with ${escHtml(_bpClientName)}</p>
     </div>
     <p class="bp-page-conf">${escHtml(bpConfidentialText())}</p>
@@ -360,53 +459,74 @@ function bpRenderPackHtml() {
   let dividerNo = 0;
 
   const pages = _bpPages.map(p => {
-    if (p.type === 'title')   return bpRenderTitlePageHtml(p);
-    if (p.type === 'closing') return bpRenderClosingPageHtml();
+    if (p.type === 'title')   return { full: true, html: bpRenderTitlePageHtml(p) };
+    if (p.type === 'closing') return { full: true, html: bpRenderClosingPageHtml() };
     if (p.type === 'divider') {
       // Printed numeral comes from a CSS counter so reordering renumbers for
       // free; this JS count exists only to label the contents page.
       dividerNo += 1;
       contents.push({
         kind: 'divider',
-        num: String(dividerNo).padStart(2, '0'),
+                num: String(dividerNo).padStart(2, '0'),
         heading: p.heading || '',
       });
-      return `<section class="bp-page bp-page-full bp-page-divider">
+      return { full: true, html: `<section class="bp-page bp-page-full bp-page-divider">
         <div class="bp-divider-inner">
           <h2 class="bp-divider-heading">${escHtml(p.heading || '')}</h2>
         </div>
         <p class="bp-page-conf">${escHtml(bpConfidentialText())}</p>
-      </section>`;
+      </section>` };
     }
     if (p.heading) contents.push({ kind: 'section', heading: p.heading });
-    return `<section class="bp-page bp-page-section">
+    // A tile, not a page (N-214): sections share pages and break-inside:avoid
+    // moves one that does not fit whole onto the next page. Deliberately not
+    // .bp-page, so it carries no break-after — dividers and the contents page
+    // still force a new page, which is what makes a divider mean something.
+    return { full: false, html: `<article class="bp-section-tile">
       ${p.heading ? `<h2 class="bp-section-heading">${escHtml(p.heading)}</h2>` : ''}
       <div class="bp-section-body">${p.content || ''}</div>
-    </section>`;
+    </article>` };
   });
 
   // Contents page — generated, never a page object, never saved. Headings
   // only: a flowing document cannot carry honest page numbers.
   if (contents.length) {
     const rows = contents.map(c => c.kind === 'divider'
-      ? `<li><span class="bp-contents-num">${escHtml(c.num)}</span>${escHtml(c.heading)}</li>`
+            ? `<li><span class="bp-contents-num">${escHtml(c.num)}</span>${escHtml(c.heading)}</li>`
       : `<li class="bp-contents-item--section">${escHtml(c.heading)}</li>`).join('');
     const coverIdx = _bpPages.findIndex(p => p.type === 'title');
-    pages.splice(coverIdx + 1, 0, `<section class="bp-page bp-page-section bp-page-contents">
+    pages.splice(coverIdx + 1, 0, { full: false, html: `<section class="bp-page-contents">
       <h2 class="bp-section-heading">${escHtml(cfg.CONTENTS_HEADING)}</h2>
       <ul class="bp-contents-list">${rows}</ul>
-    </section>`);
+    </section>` });
   }
 
-  // Running header and footer are fixed at document level and repeat on every
-  // printed page; full-bleed pages sit above them (z-index) so neither shows
-  // on the cover, dividers or closing page — those carry their own footer line.
+  // Flowing content goes inside a table per contiguous run: thead repeats the
+  // running header on every page AND reserves its space, tfoot reserves space
+  // above the fixed confidential footer. Full-bleed pages stay outside the
+  // tables, which is why no running header can ever appear on one.
   const runhead = `<div class="bp-runhead">
       <span>${escHtml(_bpRoleTitle)}</span><span>${escHtml(_bpClientName)}</span>
     </div>`;
-  const conf = `<div class="bp-confidential">${escHtml(bpConfidentialText())}</div>`;
+  const out = [];
+  let run = [];
+  const flushRun = () => {
+    if (!run.length) return;
+    out.push(`<table class="bp-flow">
+      <thead><tr><td>${runhead}</td></tr></thead>
+      <tfoot><tr><td><div class="bp-flow-foot-spacer"></div></td></tr></tfoot>
+      <tbody><tr><td>${run.join('')}</td></tr></tbody>
+    </table>`);
+    run = [];
+  };
+  pages.forEach(item => {
+    if (item.full) { flushRun(); out.push(item.html); }
+    else run.push(item.html);
+  });
+  flushRun();
 
-  return `<div class="bp-pack" style="--bp-measure:${cfg.MEASURE_CH}ch">${runhead}${pages.join('')}${conf}</div>`;
+  const conf = `<div class="bp-confidential">${escHtml(bpConfidentialText())}</div>`;
+  return `<div class="bp-pack" style="--bp-measure:${cfg.MEASURE_CH}ch;--bp-swirl-opacity:${cfg.SWIRL_OPACITY}">${out.join('')}${conf}</div>`;
 }
 
 function bpPreview() {
@@ -525,6 +645,7 @@ async function bpLoadPack(id) {
 
   document.getElementById('bp-library-modal').style.display = 'none';
   await bpLoadRoles();
+  await bpLoadClientLogo();
   bpRender();
 }
 

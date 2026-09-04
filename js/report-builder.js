@@ -201,6 +201,7 @@ function rbRenderCanvas() {
             <button type="button" onclick="rbFormat('insertOrderedList')">1. List</button>
             <button type="button" onclick="rbFormatBlock('H3')">Heading</button>
             <button type="button" onclick="rbFormatBlock('P')">Body Text</button>
+            ${rtTableToolbarButtonHtml()}
           </div>
           <div class="rb-richtext" contenteditable="true" data-id="${block.id}"
             oninput="rbUpdateTextBlock('${block.id}', this.innerHTML)"

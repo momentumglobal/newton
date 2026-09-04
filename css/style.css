@@ -3141,3 +3141,89 @@ body {
 .role-timeline-node--branch   .role-timeline-connector  { background: var(--status-warn); }
 .role-timeline-node--start    .role-timeline-dot        { border-color: var(--status-neutral); }
 .role-timeline-node--start    .role-timeline-connector  { background: var(--status-neutral); }
+
+/* ── Shared rich-text tables (N-211) ─────────────────────────────── */
+.rt-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: var(--sp-4) 0; }
+.rt-table th,
+.rt-table td {
+  border: 1px solid var(--border-strong);
+  padding: var(--sp-2) var(--sp-3);
+  text-align: left;
+  vertical-align: top;
+  font-size: var(--fs-13);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+.rt-table th { background: var(--surface-app); font-weight: var(--fw-semibold); }
+
+/* ── Briefing pack builder (N-211) ───────────────────────────────── */
+.bp-block {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.bp-block-fixed { border-style: dashed; }
+.bp-block-body  { flex: 1; display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.bp-block-tag   { font-size: var(--fs-12); font-weight: var(--fw-semibold); color: var(--text-secondary); }
+
+/* ── Briefing pack output (N-211) ────────────────────────────────── */
+.bp-page { padding: var(--sp-7) 0; }
+.bp-page-title,
+.bp-page-divider {
+  background: var(--brand);
+  color: var(--text-on-brand);
+  border-radius: var(--r-md);
+  padding: var(--sp-9) var(--sp-6);
+}
+.bp-cover-logo    { height: 40px; margin-bottom: var(--sp-7); }
+.bp-cover-title   { color: var(--text-on-brand); margin: 0 0 var(--sp-4); }
+.bp-divider-heading { color: var(--text-on-brand); margin: 0; }
+.bp-cover-subtitle,
+.bp-cover-role,
+.bp-cover-partner,
+.bp-cover-date    { color: var(--inverse-text-subtitle); margin: var(--sp-2) 0; }
+.bp-section-heading { color: var(--brand-tertiary); margin: 0 0 var(--sp-4); }
+.bp-section-body    { font-size: var(--fs-14); }
+.bp-page-closing    { text-align: center; }
+.bp-closing-heading { color: var(--brand-tertiary); margin: 0 0 var(--sp-6); }
+.bp-contact-name    { font-size: var(--fs-18); font-weight: var(--fw-semibold); margin: var(--sp-2) 0; }
+.bp-contact-title,
+.bp-contact-email   { color: var(--text-secondary); margin: var(--sp-1) 0; }
+.bp-closing-logo    { height: 36px; margin-top: var(--sp-7); }
+.bp-closing-partner { color: var(--text-secondary); font-size: var(--fs-13); margin-top: var(--sp-3); }
+.bp-confidential    { text-align: center; font-size: var(--fs-11); color: var(--text-secondary); padding: var(--sp-4) 0; }
+
+/* Print — scoped entirely to body.bp-printing so nothing here can reach
+   another feature's export. Orientation is NOT set here: printPage() is
+   called with landscape=false, so the global A4 portrait rule applies.
+   This is the only portrait export in Newton (see N-202). */
+@media print {
+  body.bp-printing #print-header { display: none !important; }
+  body.bp-printing .bp-page {
+    break-after: page;
+    page-break-after: always;
+    padding: 0 0 var(--sp-9);
+  }
+  body.bp-printing .bp-page:last-of-type { break-after: auto; page-break-after: auto; }
+  body.bp-printing .bp-page-title,
+  body.bp-printing .bp-page-divider {
+    background: var(--brand) !important;
+    color: var(--text-on-brand) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    border-radius: 0;
+    min-height: 55vh;
+  }
+  body.bp-printing .bp-confidential {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: var(--sp-2) 0;
+  }
+  body.bp-printing .rt-table tr { break-inside: avoid; page-break-inside: avoid; }
+  body.bp-printing .bp-section-body img { max-width: 100%; }
+}

@@ -108,10 +108,17 @@ const CONFIG = {
     // Fixed wording — only the client name varies. {client} is substituted at
     // render time by bpConfidentialText(); the NO_CLIENT variant is used
     // verbatim when a pack has no client name, so it never prints a stray "for".
-    CONFIDENTIAL_TEXT: 'Confidential — prepared by Momentum Global for {client}. Not for onward distribution.',
+        CONFIDENTIAL_TEXT: 'Confidential — prepared by Momentum Global for {client}. Not for onward distribution.',
     CONFIDENTIAL_TEXT_NO_CLIENT: 'Confidential — prepared by Momentum Global. Not for onward distribution.',
     CONTENTS_HEADING: 'Contents',
-    MEASURE_CH: 75,
+    // N-213 QA F3: `ch` is the width of "0"; at 75 Polymath rendered ~100
+    // characters per line. 58 lands near the intended 65-75.
+    MEASURE_CH: 58,
+    // Cover and closing swirl. Tunable without a code change.
+    SWIRL_OPACITY: 0.38,
+    // Client logo upload cap. Base64 inflates by ~33%, and the row lives in
+    // ClientLogos, never on the cached Projects payload.
+    CLIENT_LOGO_MAX_BYTES: 150000,
     DEFAULT_CONTACT_TITLE: 'Talent Partner',
     TABLE_DEFAULT_ROWS: 3,
     TABLE_DEFAULT_COLS: 3,
@@ -441,10 +448,10 @@ const CONFIG = {
   // Build stamp (N-176 / F-3a). BUMP THIS BY HAND ON EVERY DEPLOY that
   // changes js/ or the shape of any list's data. Every sessionStorage cache
   // key embeds it, and api.js discards on load any entry stamped with a
-  // different build — that is the whole deploy-busts-the-cache mechanism.
+    // different build — that is the whole deploy-busts-the-cache mechanism.
   // Deliberately separate from sw.js's SW_VERSION: a service worker cannot
   // read config.js and the two have different lifecycles. Bump both.
-  APP_BUILD: '2026-09-04c',
+  APP_BUILD: '2026-09-04d',
 
   // Two-tier read cache (N-176 / F-3a). Tier 1 is the 30s in-memory Map in
   // api.js and is NOT configured here. This block configures tier 2, the

@@ -162,7 +162,6 @@ async function bpRemoveClientLogo() {
   document.getElementById('bp-sidebar').innerHTML = bpRenderSidebar();
 }
 
-
 // Momentum x Client lockup. With no logo uploaded the chip carries the client
 // NAME, so the lockup always renders and never shows a broken image.
 // Mirrors the Momentum lockup's own structure — mark then wordmark — so the two

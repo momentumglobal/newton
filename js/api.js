@@ -213,6 +213,12 @@ const FIELD_ALIASES = {
   // it to display, so display === internal nets to nothing. Same trap
   // documented on the CCStatus entry above.
   RoleHistory: {},
+  // ── Candidate briefing packs (N-211) ─────────────────────────
+  // {} is deliberate — every BriefingPacks column is already the display
+  // name Newton wants, including Title (the pack title). Deliberately NOT
+  // in CONFIG.CACHE.persistentLists: packs are user-edited and must appear
+  // in the library the moment they are saved.
+  BriefingPacks: {},
 };
  
 function normaliseFields(listName, fields) {
@@ -1577,6 +1583,20 @@ function printPage(title, landscape = false, module = 'Newton') {
     setTimeout(() => styleEl.remove(), 1000);
   }
   setTimeout(() => { document.title = prevDocTitle; }, 1000);
+}
+
+// ── Candidate briefing packs (N-211) ──────────────────────────
+async function getBriefingPacks() {
+  return getItems("BriefingPacks");
+}
+async function getBriefingPackById(id) {
+  return getItem("BriefingPacks", id);
+}
+async function createBriefingPack(fields) {
+  return createItem("BriefingPacks", fields);
+}
+async function updateBriefingPack(id, fields) {
+  return updateItem("BriefingPacks", id, fields);
 }
 
 // ── Market Report ─────────────────────────────────────────────

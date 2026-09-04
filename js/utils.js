@@ -1257,3 +1257,54 @@ function _salesForecastUtil(monthIdx, salesForecasts, totalActiveHeadcount, assi
   const combined = Math.min(base + added, 1.0);
   return combined > 0 ? combined : null;
 }
+
+// ── Shared rich-text editor helpers (N-211) ──────────────────────────
+// Used by every `.rb-richtext` editor in Newton: Report Builder text blocks,
+// Market Report observations, LCI Report observations, briefing pack sections.
+// Kept here so there is exactly one table implementation to fix.
+
+function rtFormat(cmd) {
+  document.execCommand(cmd, false, null);
+}
+
+function rtFormatBlock(tag) {
+  document.execCommand('formatBlock', false, tag);
+}
+
+// Returns the canonical toolbar button markup. The onmousedown preventDefault
+// is load-bearing: a plain button steals focus on mousedown and collapses the
+// selection, and insertHTML — unlike bold/italic — cannot recover from that.
+function rtTableToolbarButtonHtml() {
+  return '<button type="button" title="Insert table"'
+       + ' onmousedown="event.preventDefault()"'
+       + ' onclick="rtInsertTable()">&#8862; Table</button>';
+}
+
+// Insert a bordered table at the caret. Returns false and toasts if the caret
+// is not inside a rich-text editor. Dispatches an `input` event on the host
+// editor so each caller's existing oninput persistence path runs unchanged —
+// no caller needs its own save handling for tables.
+function rtInsertTable(rows, cols) {
+  const cfg = (typeof CONFIG !== 'undefined' && CONFIG.BRIEFING_PACK) || {};
+  const r = Math.max(2, rows || cfg.TABLE_DEFAULT_ROWS || 3);
+  const c = Math.max(1, cols || cfg.TABLE_DEFAULT_COLS || 3);
+
+  const sel = window.getSelection();
+  const node = sel && sel.rangeCount ? sel.getRangeAt(0).commonAncestorContainer : null;
+  const host = node && (node.nodeType === 1 ? node : node.parentElement);
+  const editor = host && host.closest ? host.closest('.rb-richtext') : null;
+  if (!editor) {
+    toast('Click inside the text area first, then insert a table.', { type: 'error' });
+    return false;
+  }
+
+  const headCells = Array.from({ length: c }, () => '<th>&nbsp;</th>').join('');
+  const bodyRow   = '<tr>' + Array.from({ length: c }, () => '<td>&nbsp;</td>').join('') + '</tr>';
+  const html = '<table class="rt-table"><thead><tr>' + headCells + '</tr></thead><tbody>'
+             + Array.from({ length: r - 1 }, () => bodyRow).join('')
+             + '</tbody></table><p><br></p>';
+
+  document.execCommand('insertHTML', false, html);
+  editor.dispatchEvent(new Event('input', { bubbles: true }));
+  return true;
+}

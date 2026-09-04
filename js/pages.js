@@ -128,7 +128,10 @@ async function renderRolesPage(filter) {
   main.innerHTML = `
     <div class="page-header">
       <h2>Roles</h2>
-      ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddRoleForm()">+ Add Role</button></div>' : ""}
+      <div class="page-header-actions">
+        <button class="btn-secondary" onclick="showBriefingPackPage()">+ Briefing Pack</button>
+        ${canEdit ? '<button class="btn-primary" onclick="showAddRoleForm()">+ Add Role</button>' : ""}
+      </div>
     </div>
     <div class="table-toolbar">
       ${listControlsBar([projDropdown, pageSizeDropdown(_rolesPageSize, 'setRolesPageSize')])}

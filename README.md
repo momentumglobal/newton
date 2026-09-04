@@ -42,6 +42,26 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
+### September 2026 — Candidate briefing packs (N-211, N-213, N-214)
+
+**Talent Partners can author a Momentum-branded, client-referencing briefing pack from the Roles list and export it as a portrait PDF.** A `+ Briefing Pack` button in the Roles page header opens a builder: a title page, content section pages using the shared rich-text editor, divider pages, and a closing contact page. Packs save to a library (`BriefingPacks`) and can be reopened and amended before cutting a new PDF. Phase 1 is PDF only; hosting packs online behind an access link is the phase 2 follow-up.
+
+**This is the only PORTRAIT export in Newton.** `printPage(title, false, …)` requests no `@page` override, so the global `@page { size: A4 portrait; }` applies. Every other export stays landscape — noted against **N-202** (print migration), which must preserve the portrait default when the eight `@media print` blocks move onto the N-201 foundation.
+
+**Print furniture: only a `thead` repeats per page.** Three mechanisms were measured on this document before one worked. `position: fixed` anchors to the page *content box* rather than the page box, reserves no space (so it prints over body text), and a **negative** offset is clipped away entirely and never renders. A `tfoot` renders only on the **last** page of a table run. A `thead` repeats on every page *and* reserves its space. Flowing content is therefore wrapped in a table per contiguous run, with the running header and the Confidential line in its `thead`; full-bleed pages sit outside every table, which is what structurally guarantees no running header appears on one. Anything that must repeat on every printed page in Newton should use this pattern.
+
+**Full bleed needs a named page.** `@page bp-full { margin: 0 }` for the cover, dividers and closing page; the default margined `@page` for flowing content, which is what gives page three of a long section correct margins automatically. Named pages are Chromium-only — the same documented limitation as the CoE Gantt's `@page coe-gantt`.
+
+**Don't use SharePoint Lookup columns for ids Newton reads or writes.** `BriefingPacks.ProjectID`/`.RoleID` and `ClientLogos.ProjectID` are plain **Number** columns, matching `SavedReports`. Built as Lookups first, they failed in two silent ways: Graph writes lookups as `<Name>LookupId`, so a bare-name write was dropped without error (a pack saved without its project, its Role dropdown empty on reopen; a client logo that never created a row at all), and reading a Lookup under its bare name returns the *display text*, not the id.
+
+**Client logos live in their own list.** `ClientLogos` holds one row per project, uploaded once in the builder and reused by every pack for that client. Deliberately **not** a column on `Projects`: that list is in `CONFIG.CACHE.persistentLists` and bounded by `CONFIG.CACHE.maxEntryBytes` (262144), so base64 logos on that row would push the payload past the cap and silently disable tier-2 caching app-wide.
+
+**Shared table tool.** `rtInsertTable()` in `utils.js` adds an Insert Table button to every `.rb-richtext` editor in Newton — Report Builder text blocks, Market Report and LCI Report observations, and briefing pack sections. It dispatches an `input` event on the host editor so each caller's existing persistence path runs unchanged. The `onmousedown="event.preventDefault()"` on the button is load-bearing: `insertHTML`, unlike bold/italic, cannot recover from a collapsed selection.
+
+**Gotcha worth remembering: `window.print()` does not wait for images.** The cover swirl is a CSS background image, and the export called print immediately after swapping the DOM — so on a cold cache the PDF came out with no swirl and no error anywhere. `bpAwaitArtwork()` now waits for every image in the pack plus the swirl before printing, raced against a 3-second ceiling so a missing asset degrades gracefully rather than hanging the dialog.
+
+**New SharePoint lists:** `BriefingPacks`, `ClientLogos`. **Config:** `CONFIG.BRIEFING_PACK` (confidential wording template, contents heading, measure, swirl opacity, client logo size cap, table defaults). **New file:** `js/briefing-pack.js`, loaded in `reporting.html` after `report-builder.js` (which pulls in Sortable, reused here) and before `app.js`.
+
 ### September 2026 — Two-tier cache (F-3a/F-3b, N-176/N-177)
 
 **Switching module no longer re-fetches data that hasn't changed.** Reference data (Projects, People, Departments, LCILocations, UserAssignments, LeadershipAccess) is now cached in `sessionStorage` for 10 minutes and survives page navigation, instead of dying with the 30-second in-memory cache on every page load. Transactional lists — Roles, WeeklyActivity, Placements, Assignments, RoleHistory — deliberately stay on the 30-second tier, because those are the ones a user edits and expects to see change immediately. The win is round-trip latency on module switching, not payload size: every list is under 100 rows.

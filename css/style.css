@@ -3197,7 +3197,7 @@ body {
   content: '';
   position: absolute;
   left: 50%;
-  top: 8%;
+  top: 17%;
   transform: translateX(-50%);
   width: 62%;
   height: 62%;
@@ -3371,7 +3371,6 @@ body {
 .bp-flow > thead { display: table-header-group; }
 .bp-flow > tfoot { display: table-footer-group; }
 .bp-flow td { padding: 0; vertical-align: top; }
-.bp-flow-foot-spacer { height: var(--sp-9); }
 .bp-runhead      { display: none; }
 .bp-confidential { text-align: center; font-size: var(--fs-11); color: var(--text-secondary); padding: var(--sp-4) 0; }
 
@@ -3435,7 +3434,7 @@ body {
      box at 30mm puts it clear of both. */
   body.bp-printing .bp-page-title::after,
   body.bp-printing .bp-page-closing::after {
-    top: 30mm;
+    top: 51mm;
     height: 175mm;
     width: 175mm;
   }
@@ -3444,29 +3443,24 @@ body {
      its own space — no overlap possible. It cannot appear on a full-bleed
      page because those pages sit outside every table. */
   body.bp-printing .bp-runhead {
-    display: flex;
+        display: flex;
     justify-content: space-between;
     padding-bottom: var(--sp-2);
-    margin-bottom: var(--sp-7);
-    border-bottom: 1px solid var(--border);
     font-size: var(--fs-11);
     color: var(--text-secondary);
   }
-  /* Fixed at the bottom of the page CONTENT box. Measured, not assumed: in an
-     isolated A4 harness with these margins, bottom:0 lands at 277.7mm on a
-     297mm page and repeats on every page, while any NEGATIVE offset is clipped
-     away entirely (which is what broke N-213). The tfoot spacer above reserves
-     the band so body text can never reach it. */
+  /* In the thead band, under the running header. Not fixed and not a tfoot:
+     both were tried on this document and neither places reliably. */
   body.bp-printing .bp-confidential {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 0;
-    padding: 0;
+    padding: 0 0 var(--sp-2);
+    margin-bottom: var(--sp-7);
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    font-size: var(--fs-11);
+    color: var(--text-muted);
   }
 
-  body.bp-printing .rt-table { break-inside: auto; }
+  body.bp-printing .rt-table { break-inside: auto; }   
   body.bp-printing .rt-table thead { display: table-header-group; }
   body.bp-printing .rt-table tr { break-inside: avoid; page-break-inside: avoid; }
   body.bp-printing .rt-table th {

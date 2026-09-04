@@ -3171,59 +3171,220 @@ body {
 .bp-block-body  { flex: 1; display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
 .bp-block-tag   { font-size: var(--fs-12); font-weight: var(--fw-semibold); color: var(--text-secondary); }
 
-/* ── Briefing pack output (N-211) ────────────────────────────────── */
-.bp-page { padding: var(--sp-7) 0; }
-.bp-page-title,
-.bp-page-divider {
+/* ── Briefing pack output (N-211, redesigned N-213) ──────────────── */
+.bp-pack { counter-reset: bp-divider; }
+
+/* Full-bleed pages — cover, dividers, closing. On screen they are rounded
+   brand cards; in print they are sized to the whole sheet (see @media print). */
+.bp-page-full {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: var(--brand);
   color: var(--text-on-brand);
   border-radius: var(--r-md);
   padding: var(--sp-9) var(--sp-6);
 }
-.bp-cover-logo    { height: 40px; margin-bottom: var(--sp-7); }
-.bp-cover-title   { color: var(--text-on-brand); margin: 0 0 var(--sp-4); }
-.bp-divider-heading { color: var(--text-on-brand); margin: 0; }
-.bp-cover-subtitle,
-.bp-cover-role,
+.bp-page-full h1,
+.bp-page-full h2 { color: var(--text-on-brand); }
+
+/* Momentum swirl, lower right. Its own layer so opacity never touches text. */
+.bp-page-title::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 62%;
+  height: 55%;
+  background: url('../mg-visual-swirl-report.png') no-repeat right bottom / contain;
+  opacity: 0.16;
+}
+.bp-cover-logo     { height: 40px; align-self: flex-start; }
+.bp-cover-spacer   { flex: 1 1 auto; }
+.bp-cover-block    { position: relative; z-index: 1; }
+.bp-cover-title    { font-size: var(--fs-32); line-height: 1.15; margin: 0; }
+.bp-cover-rule     { display: block; width: 64px; height: 3px; background: var(--text-on-brand); margin: var(--sp-6) 0; }
+.bp-cover-subtitle { font-size: var(--fs-18); color: var(--inverse-text-subtitle); margin: var(--sp-3) 0 0; }
+.bp-cover-role     { font-size: var(--fs-16); margin: var(--sp-2) 0; }
 .bp-cover-partner,
-.bp-cover-date    { color: var(--inverse-text-subtitle); margin: var(--sp-2) 0; }
-.bp-section-heading { color: var(--brand-tertiary); margin: 0 0 var(--sp-4); }
-.bp-section-body    { font-size: var(--fs-14); }
-.bp-page-closing    { text-align: center; }
-.bp-closing-heading { color: var(--brand-tertiary); margin: 0 0 var(--sp-6); }
-.bp-contact-name    { font-size: var(--fs-18); font-weight: var(--fw-semibold); margin: var(--sp-2) 0; }
+.bp-cover-date     { color: var(--inverse-text-subtitle); margin: var(--sp-2) 0; }
+
+/* Dividers — numeral from a CSS counter, so reordering renumbers with no
+   state to keep in sync. */
+.bp-divider-inner { position: relative; z-index: 1; margin: auto 0; }
+.bp-divider-inner::before {
+  counter-increment: bp-divider;
+  content: counter(bp-divider, decimal-leading-zero);
+  display: block;
+  font-size: var(--fs-40);
+  font-weight: var(--fw-bold);
+  color: var(--inverse-text-subtitle);
+  margin-bottom: var(--sp-4);
+}
+.bp-divider-heading { font-size: var(--fs-32); margin: 0; }
+
+/* Closing page */
+.bp-closing-inner   { margin: auto 0; text-align: center; position: relative; z-index: 1; }
+.bp-closing-heading { font-size: var(--fs-22); margin: 0 0 var(--sp-7); }
+.bp-contact-name    { font-size: var(--fs-26); font-weight: var(--fw-semibold); margin: var(--sp-2) 0; }
 .bp-contact-title,
-.bp-contact-email   { color: var(--text-secondary); margin: var(--sp-1) 0; }
-.bp-closing-logo    { height: 36px; margin-top: var(--sp-7); }
-.bp-closing-partner { color: var(--text-secondary); font-size: var(--fs-13); margin-top: var(--sp-3); }
-.bp-confidential    { text-align: center; font-size: var(--fs-11); color: var(--text-secondary); padding: var(--sp-4) 0; }
+.bp-contact-email   { color: var(--inverse-text-subtitle); margin: var(--sp-1) 0; }
+.bp-closing-logo    { height: 36px; margin-top: var(--sp-9); }
+.bp-closing-partner { color: var(--inverse-text-subtitle); font-size: var(--fs-13); margin-top: var(--sp-3); }
+
+/* Per-page confidential line on full-bleed pages. The fixed footer is
+   dark-on-white and would be invisible against the brand fill. */
+.bp-page-conf {
+  margin: auto 0 0;
+  padding-top: var(--sp-6);
+  font-size: var(--fs-11);
+  color: var(--inverse-text-subtitle);
+  position: relative;
+  z-index: 1;
+}
+
+/* Content pages */
+.bp-page-section { padding: var(--sp-7) 0; }
+.bp-section-heading {
+  color: var(--brand-tertiary);
+  font-size: var(--fs-22);
+  margin: 0 0 var(--sp-5);
+  padding-bottom: var(--sp-3);
+  border-bottom: 2px solid var(--border);
+  break-after: avoid;
+  page-break-after: avoid;
+}
+.bp-section-body {
+  font-size: var(--fs-14);
+  line-height: 1.55;
+  max-width: var(--bp-measure, 75ch);
+}
+.bp-section-body p { margin: 0 0 var(--sp-5); orphans: 3; widows: 3; }
+.bp-section-body h3 {
+  font-size: var(--fs-16);
+  font-weight: var(--fw-semibold);
+  color: var(--brand-tertiary);
+  text-decoration: none;
+  margin: var(--sp-7) 0 var(--sp-3);
+  break-after: avoid;
+  page-break-after: avoid;
+}
+.bp-section-body h4 {
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin: var(--sp-6) 0 var(--sp-2);
+  break-after: avoid;
+  page-break-after: avoid;
+}
+.bp-section-body ul,
+.bp-section-body ol { padding-left: var(--sp-9); margin: 0 0 var(--sp-5); }
+.bp-section-body li { margin-bottom: var(--sp-2); }
+
+/* Callout */
+.bp-callout {
+  border-left: 3px solid var(--brand);
+  background: var(--surface-app);
+  padding: var(--sp-5) var(--sp-6);
+  margin: var(--sp-6) 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.bp-callout p:last-child { margin-bottom: 0; }
+
+/* Contents */
+.bp-contents-list { list-style: none; padding: 0; margin: 0; max-width: var(--bp-measure, 75ch); }
+.bp-contents-list li {
+  display: flex;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-14);
+  break-inside: avoid;
+}
+.bp-contents-num { color: var(--brand-tertiary); font-weight: var(--fw-semibold); min-width: 28px; }
+.bp-contents-item--section { padding-left: var(--sp-9); color: var(--text-secondary); }
+
+/* Running header — print only. */
+.bp-runhead      { display: none; }
+.bp-confidential { text-align: center; font-size: var(--fs-11); color: var(--text-secondary); padding: var(--sp-4) 0; }
 
 /* Print — scoped entirely to body.bp-printing so nothing here can reach
-   another feature's export. Orientation is NOT set here: printPage() is
-   called with landscape=false, so the global A4 portrait rule applies.
-   This is the only portrait export in Newton (see N-202). */
+   another feature's export. Two page contexts: the default margined page for
+   flowing content, and a named zero-margin page for the full-bleed pages.
+   Named pages are Chromium-only, the same documented limitation as the CoE
+   Gantt's @page coe-gantt above. Still the only portrait export in Newton
+   (see N-202). */
 @media print {
+  @page { size: A4 portrait; margin: 20mm 18mm 16mm; }
+  @page bp-full { size: A4 portrait; margin: 0; }
+
   body.bp-printing #print-header { display: none !important; }
-  body.bp-printing .bp-page {
-    break-after: page;
-    page-break-after: always;
-    padding: 0 0 var(--sp-9);
-  }
+  /* The shared print rule insets #main-content; full bleed cannot survive it. */
+  body.bp-printing #main-content { padding: 0 !important; }
+
+  body.bp-printing .bp-page { break-after: page; page-break-after: always; }
   body.bp-printing .bp-page:last-of-type { break-after: auto; page-break-after: auto; }
-  body.bp-printing .bp-page-title,
-  body.bp-printing .bp-page-divider {
+  /* No padding on the shared .bp-page class — that rule outranked the cover's
+     own padding in N-211 and pushed headings off the panel edge. */
+
+  body.bp-printing .bp-page-full {
+    page: bp-full;
+    width: 210mm;
+    height: 297mm;
+    box-sizing: border-box;
+    padding: 24mm 22mm 18mm;
+    border-radius: 0;
     background: var(--brand) !important;
     color: var(--text-on-brand) !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    border-radius: 0;
-    min-height: 55vh;
+    position: relative;
+    z-index: 1;
+  }
+  body.bp-printing .bp-page-title::after {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.bp-printing .bp-page-section { padding: 0; }
+
+  /* Fixed furniture sits in the reserved @page margin bands, and behind the
+     full-bleed pages (z-index 0 vs 1) so it never shows on cover, dividers or
+     closing — those carry their own .bp-page-conf line instead. */
+  body.bp-printing .bp-runhead {
+    display: flex;
+    justify-content: space-between;
+    position: fixed;
+    top: 9mm;
+    left: 18mm;
+    right: 18mm;
+    z-index: 0;
+    padding-bottom: var(--sp-2);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--fs-11);
+    color: var(--text-secondary);
   }
   body.bp-printing .bp-confidential {
     position: fixed;
-    bottom: 0; left: 0; right: 0;
-    padding: var(--sp-2) 0;
+    bottom: 7mm;
+    left: 18mm;
+    right: 18mm;
+    z-index: 0;
+    padding: 0;
   }
+
+  body.bp-printing .rt-table { break-inside: auto; }
+  body.bp-printing .rt-table thead { display: table-header-group; }
   body.bp-printing .rt-table tr { break-inside: avoid; page-break-inside: avoid; }
+  body.bp-printing .rt-table th {
+    background: var(--surface-app) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.bp-printing .bp-callout {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
   body.bp-printing .bp-section-body img { max-width: 100%; }
 }

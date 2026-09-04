@@ -113,7 +113,7 @@ const CONFIG = {
     CONTENTS_HEADING: 'Contents',
     // N-213 QA F3: `ch` is the width of "0"; at 75 Polymath rendered ~100
     // characters per line. 58 lands near the intended 65-75.
-    MEASURE_CH: 58,
+    MEASURE_CH: 48,
     // Cover and closing swirl. Tunable without a code change.
     SWIRL_OPACITY: 0.38,
     // Client logo upload cap. Base64 inflates by ~33%, and the row lives in
@@ -448,10 +448,10 @@ const CONFIG = {
   // Build stamp (N-176 / F-3a). BUMP THIS BY HAND ON EVERY DEPLOY that
   // changes js/ or the shape of any list's data. Every sessionStorage cache
   // key embeds it, and api.js discards on load any entry stamped with a
-    // different build — that is the whole deploy-busts-the-cache mechanism.
+  // different build — that is the whole deploy-busts-the-cache mechanism.
   // Deliberately separate from sw.js's SW_VERSION: a service worker cannot
   // read config.js and the two have different lifecycles. Bump both.
-  APP_BUILD: '2026-09-04d',
+  APP_BUILD: '2026-09-04e',
 
   // Two-tier read cache (N-176 / F-3a). Tier 1 is the 30s in-memory Map in
   // api.js and is NOT configured here. This block configures tier 2, the

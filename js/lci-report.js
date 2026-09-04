@@ -173,6 +173,7 @@ function _lciReportObsHtml() {
           <button type="button" onclick="lciReportFormat('insertOrderedList')">1. List</button>
           <button type="button" onclick="lciReportFormatBlock('H3')">Heading</button>
           <button type="button" onclick="lciReportFormatBlock('P')">Body Text</button>
+          ${rtTableToolbarButtonHtml()}
         </div>
         <div id="lci-report-obs" class="rb-richtext" contenteditable="true"
              style="min-height:200px;caret-color:var(--brand);cursor:text;padding:8px 10px"

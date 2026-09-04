@@ -162,16 +162,24 @@ async function bpRemoveClientLogo() {
   document.getElementById('bp-sidebar').innerHTML = bpRenderSidebar();
 }
 
+
 // Momentum x Client lockup. With no logo uploaded the chip carries the client
 // NAME, so the lockup always renders and never shows a broken image.
+// Mirrors the Momentum lockup's own structure — mark then wordmark — so the two
+// sides balance: [MG symbol + name]  x  [square logo tile + client name].
+// The tile is square by design; a roughly square client logo sits in it best.
+// With no logo the name stands alone and no empty tile is drawn.
 function bpLockupHtml() {
-  const chip = _bpClientLogo
-    ? `<img class="bp-lockup-logo" src="${escAttr(_bpClientLogo)}" alt="${escAttr(_bpClientName || 'Client')}">`
-    : `<span class="bp-lockup-client-name">${escHtml(_bpClientName || 'Client')}</span>`;
+  const tile = _bpClientLogo
+    ? `<span class="bp-lockup-chip"><img class="bp-lockup-logo"
+         src="${escAttr(_bpClientLogo)}" alt="${escAttr(_bpClientName || 'Client')}"></span>`
+    : '';
   return `<div class="bp-lockup">
     <img class="bp-lockup-mg" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
     <span class="bp-lockup-x">&times;</span>
-    <span class="bp-lockup-chip">${chip}</span>
+    <span class="bp-lockup-client">
+      ${tile}<span class="bp-lockup-client-name">${escHtml(_bpClientName || 'Client')}</span>
+    </span>
   </div>`;
 }
 

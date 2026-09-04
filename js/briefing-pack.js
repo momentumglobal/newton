@@ -230,6 +230,7 @@ function bpRenderCanvas() {
               <button type="button" onclick="rtFormatBlock('H3')">Heading</button>
               <button type="button" onclick="rtFormatBlock('P')">Body Text</button>
               ${rtTableToolbarButtonHtml()}
+              ${rtCalloutToolbarButtonHtml()}
             </div>
             <div class="rb-richtext" contenteditable="true" data-id="${p.id}"
               oninput="bpUpdatePage('${p.id}', 'content', this.innerHTML)">${p.content || ''}</div>
@@ -305,26 +306,48 @@ function bpSetRole(val) {
 }
 
 // ── Output ────────────────────────────────────────────────────────────
+// Footer wording is fixed; only the client name varies. Falls back to the
+// client-free variant so a pack with no client never prints a stray "for".
+function bpConfidentialText() {
+  const cfg = CONFIG.BRIEFING_PACK;
+  const client = (_bpClientName || '').trim();
+  return client
+    ? cfg.CONFIDENTIAL_TEXT.replace('{client}', client)
+    : cfg.CONFIDENTIAL_TEXT_NO_CLIENT;
+}
+
+// Cover: logo top, flexible spacer, title block anchored to the lower third.
+// The swirl graphic is a CSS layer on .bp-page-title, not markup.
 function bpRenderTitlePageHtml(page) {
   const sub = page && page.subtitle ? page.subtitle : '';
-  return `<section class="bp-page bp-page-title">
+  return `<section class="bp-page bp-page-full bp-page-title">
     <img class="bp-cover-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
-    <h1 class="bp-cover-title">${escHtml(_bpTitle || 'Candidate Briefing Pack')}</h1>
-    ${sub ? `<p class="bp-cover-subtitle">${escHtml(sub)}</p>` : ''}
-    <p class="bp-cover-role">${escHtml(_bpRoleTitle)}${_bpLocation ? ' &middot; ' + escHtml(_bpLocation) : ''}</p>
-    <p class="bp-cover-partner">Momentum Global in partnership with ${escHtml(_bpClientName)}</p>
-    <p class="bp-cover-date">${escHtml(bpMonthLabel(_bpCoverDate))}</p>
+    <div class="bp-cover-spacer"></div>
+    <div class="bp-cover-block">
+      <h1 class="bp-cover-title">${escHtml(_bpTitle || 'Candidate Briefing Pack')}</h1>
+      ${sub ? `<p class="bp-cover-subtitle">${escHtml(sub)}</p>` : ''}
+      <span class="bp-cover-rule"></span>
+      <p class="bp-cover-role">${escHtml(_bpRoleTitle)}${_bpLocation ? ' &middot; ' + escHtml(_bpLocation) : ''}</p>
+      <p class="bp-cover-partner">Momentum Global in partnership with ${escHtml(_bpClientName)}</p>
+      <p class="bp-cover-date">${escHtml(bpMonthLabel(_bpCoverDate))}</p>
+    </div>
+    <p class="bp-page-conf">${escHtml(bpConfidentialText())}</p>
   </section>`;
 }
 
+// Closing page is now full-bleed brand like the cover, content vertically
+// centred. Logo switches to the white lockup to sit on the brand fill.
 function bpRenderClosingPageHtml() {
-  return `<section class="bp-page bp-page-closing">
-    <h2 class="bp-closing-heading">Your Talent Partner</h2>
-    <p class="bp-contact-name">${escHtml(_bpContactName)}</p>
-    <p class="bp-contact-title">${escHtml(_bpContactTitle)}</p>
-    <p class="bp-contact-email">${escHtml(_bpContactEmail)}</p>
-    <img class="bp-closing-logo" src="momentum-symbol-and-name-global.png" alt="Momentum Global">
-    <p class="bp-closing-partner">Momentum Global in partnership with ${escHtml(_bpClientName)}</p>
+  return `<section class="bp-page bp-page-full bp-page-closing">
+    <div class="bp-closing-inner">
+      <h2 class="bp-closing-heading">Your Talent Partner</h2>
+      <p class="bp-contact-name">${escHtml(_bpContactName)}</p>
+      <p class="bp-contact-title">${escHtml(_bpContactTitle)}</p>
+      <p class="bp-contact-email">${escHtml(_bpContactEmail)}</p>
+      <img class="bp-closing-logo" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
+      <p class="bp-closing-partner">Momentum Global in partnership with ${escHtml(_bpClientName)}</p>
+    </div>
+    <p class="bp-page-conf">${escHtml(bpConfidentialText())}</p>
   </section>`;
 }
 
@@ -332,22 +355,58 @@ function bpRenderClosingPageHtml() {
 // as Report Builder text blocks and Market Report observations, and is
 // injected raw for the same reason. Every other field is escaped.
 function bpRenderPackHtml() {
+  const cfg = CONFIG.BRIEFING_PACK;
+  const contents = [];
+  let dividerNo = 0;
+
   const pages = _bpPages.map(p => {
     if (p.type === 'title')   return bpRenderTitlePageHtml(p);
     if (p.type === 'closing') return bpRenderClosingPageHtml();
     if (p.type === 'divider') {
-      return `<section class="bp-page bp-page-divider">
-        <h2 class="bp-divider-heading">${escHtml(p.heading || '')}</h2>
+      // Printed numeral comes from a CSS counter so reordering renumbers for
+      // free; this JS count exists only to label the contents page.
+      dividerNo += 1;
+      contents.push({
+        kind: 'divider',
+        num: String(dividerNo).padStart(2, '0'),
+        heading: p.heading || '',
+      });
+      return `<section class="bp-page bp-page-full bp-page-divider">
+        <div class="bp-divider-inner">
+          <h2 class="bp-divider-heading">${escHtml(p.heading || '')}</h2>
+        </div>
+        <p class="bp-page-conf">${escHtml(bpConfidentialText())}</p>
       </section>`;
     }
+    if (p.heading) contents.push({ kind: 'section', heading: p.heading });
     return `<section class="bp-page bp-page-section">
       ${p.heading ? `<h2 class="bp-section-heading">${escHtml(p.heading)}</h2>` : ''}
       <div class="bp-section-body">${p.content || ''}</div>
     </section>`;
-  }).join('');
+  });
 
-  const conf = `<div class="bp-confidential">${escHtml(CONFIG.BRIEFING_PACK.CONFIDENTIAL_TEXT)}</div>`;
-  return `<div class="bp-pack">${pages}${conf}</div>`;
+  // Contents page — generated, never a page object, never saved. Headings
+  // only: a flowing document cannot carry honest page numbers.
+  if (contents.length) {
+    const rows = contents.map(c => c.kind === 'divider'
+      ? `<li><span class="bp-contents-num">${escHtml(c.num)}</span>${escHtml(c.heading)}</li>`
+      : `<li class="bp-contents-item--section">${escHtml(c.heading)}</li>`).join('');
+    const coverIdx = _bpPages.findIndex(p => p.type === 'title');
+    pages.splice(coverIdx + 1, 0, `<section class="bp-page bp-page-section bp-page-contents">
+      <h2 class="bp-section-heading">${escHtml(cfg.CONTENTS_HEADING)}</h2>
+      <ul class="bp-contents-list">${rows}</ul>
+    </section>`);
+  }
+
+  // Running header and footer are fixed at document level and repeat on every
+  // printed page; full-bleed pages sit above them (z-index) so neither shows
+  // on the cover, dividers or closing page — those carry their own footer line.
+  const runhead = `<div class="bp-runhead">
+      <span>${escHtml(_bpRoleTitle)}</span><span>${escHtml(_bpClientName)}</span>
+    </div>`;
+  const conf = `<div class="bp-confidential">${escHtml(bpConfidentialText())}</div>`;
+
+  return `<div class="bp-pack" style="--bp-measure:${cfg.MEASURE_CH}ch">${runhead}${pages.join('')}${conf}</div>`;
 }
 
 function bpPreview() {

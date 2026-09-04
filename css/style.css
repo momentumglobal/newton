@@ -3211,24 +3211,28 @@ body {
 .bp-lockup {
   display: flex;
   align-items: center;
-  gap: var(--sp-5);
-  align-self: flex-start;
+  gap: var(--sp-7);
+  align-self: stretch;
   position: relative;
   z-index: 1;
 }
-.bp-lockup-mg   { height: 34px; }
-.bp-lockup-x    { font-size: var(--fs-20); color: var(--inverse-text-subtitle); }
+.bp-lockup-mg   { height: 52px; flex-shrink: 0; }
+.bp-lockup-x    { font-size: var(--fs-26); color: var(--inverse-text-subtitle); flex-shrink: 0; }
 .bp-lockup-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 34px;
-  padding: var(--sp-3) var(--sp-5);
+  min-height: 60px;
+  /* Grows to fill the strip so the lockup reads as a balanced partnership
+     mark rather than two small marks huddled on the left. */
+  flex: 1 1 auto;
+  max-width: 62%;
+  padding: var(--sp-4) var(--sp-7);
   background: var(--surface);
   border-radius: var(--r-md);
 }
-.bp-lockup-logo { display: block; max-height: 28px; max-width: 150px; object-fit: contain; }
-.bp-lockup-client-name { color: var(--brand); font-weight: var(--fw-semibold); font-size: var(--fs-14); }
+.bp-lockup-logo { display: block; max-height: 44px; max-width: 100%; object-fit: contain; }
+.bp-lockup-client-name { color: var(--brand); font-weight: var(--fw-semibold); font-size: var(--fs-20); }
 
 /* Cover and closing share one composition: lockup, spacer, lower-third block. */
 .bp-cover-spacer   { flex: 1 1 auto; }
@@ -3307,7 +3311,12 @@ body {
 .bp-section-body {
   font-size: var(--fs-14);
   line-height: 1.55;
-  max-width: var(--bp-measure, 58ch);
+  /* Fills the tile: the tile's own padding sets the measure, so there is no
+     dead column on the right. Justified with hyphenation to keep the ragged
+     edge from turning into rivers at this width. */
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
 }
 .bp-section-body p { margin: 0 0 var(--sp-5); orphans: 3; widows: 3; }
 .bp-section-body p:last-child { margin-bottom: 0; }
@@ -3390,9 +3399,19 @@ body {
   
   body.bp-printing .bp-page { break-after: page; page-break-after: always; }
   body.bp-printing .bp-page:last-of-type { break-after: auto; page-break-after: auto; }
-  /* A full-bleed page following a flow table must start its own page. */
+    /* A full-bleed page following a flow table must start its own page. */
   body.bp-printing .bp-page-full { break-before: page; page-break-before: always; }
   body.bp-printing .bp-pack > .bp-page-full:first-child { break-before: auto; page-break-before: auto; }
+  /* The last page must not be an exact 297mm block: a sub-pixel overflow at the
+     printer's scale spills into a trailing blank sheet. Letting it size to its
+     content, with a min-height that still fills the sheet visually, removes the
+     boundary the overflow needs. */
+  body.bp-printing .bp-pack > .bp-page-full:last-child {
+    height: auto;
+    min-height: 280mm;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
   /* No padding on the shared .bp-page class — that rule outranked the cover's
      own padding in N-211 and pushed headings off the panel edge. */
 
@@ -3455,7 +3474,7 @@ body {
     padding: 0 0 var(--sp-2);
     margin-bottom: var(--sp-7);
     border-bottom: 1px solid var(--border);
-    text-align: left;
+    text-align: center;
     font-size: var(--fs-11);
     color: var(--text-muted);
   }

@@ -233,6 +233,7 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
               onclick="mrFormatBlock('H3')">Heading</button>
             <button type="button"
               onclick="mrFormatBlock('P')">Body Text</button>
+            ${rtTableToolbarButtonHtml()}
           </div>
           <div id="mr-obs-editor" class="rb-richtext"
                contenteditable="true"

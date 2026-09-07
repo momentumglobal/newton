@@ -749,16 +749,45 @@ function toggleTheme() {
 }
 
 // ── Dashboard skeleton placeholder ───────────────────────────────
-function dashboardSkeleton(cardCount = 5) {
+// N-191: dashboardSkeleton() is now a thin wrapper over the primitives
+// below (kept for byte-identical output on its two existing callers,
+// Company and Project). Table/list variants are for future callers
+// (N-192) to use directly. There is no separate "detail" variant — a
+// detail view is a panel of lines at a different line count, so
+// skeletonPanel(n) covers it; don't add a skeletonDetail().
+function skeletonStrip(cardCount = 5) {
   const card = `<div class="skel-card">
     <div class="skel skel-line-value"></div>
     <div class="skel skel-line-label"></div>
   </div>`;
-  const panelLines = Array.from({length: 5},
+  return `<div class="skel-strip">${card.repeat(cardCount)}</div>`;
+}
+
+function skeletonPanel(lineCount = 5) {
+  const panelLines = Array.from({length: lineCount},
     () => `<div class="skel skel-line"></div>`).join('');
+  return `<div class="skel-panel">${panelLines}</div>`;
+}
+
+function skeletonTable(rowCount = 5, colCount = 4) {
+  const row = `<div class="skel-row">${
+    Array.from({length: colCount}, () => `<div class="skel skel-cell"></div>`).join('')
+  }</div>`;
+  return `<div class="skel-table">${row.repeat(rowCount)}</div>`;
+}
+
+function skeletonList(itemCount = 5) {
+  const item = `<div class="skel-list-item">
+    <div class="skel skel-list-icon"></div>
+    <div class="skel skel-list-line"></div>
+  </div>`;
+  return `<div class="skel-list">${item.repeat(itemCount)}</div>`;
+}
+
+function dashboardSkeleton(cardCount = 5) {
   return `
-    <div class="skel-strip">${card.repeat(cardCount)}</div>
-    <div class="skel-panel">${panelLines}</div>`;
+    ${skeletonStrip(cardCount)}
+    ${skeletonPanel(5)}`;
 }
 
 // ── Count-up animation on a .kpi-value element ───────────────────

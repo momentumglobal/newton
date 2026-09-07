@@ -104,7 +104,7 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
                 padding:20px 20px 12px;margin-bottom:24px'>
       <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
         Estimated Monthly Revenue ${year}</div>
-      <svg viewBox='0 0 ${W} ${H}' style='width:100%;height:auto;display:block'
+      <svg viewBox='0 0 ${W} ${H}' class='chart-in' style='width:100%;height:auto;display:block'
            xmlns='http://www.w3.org/2000/svg'>
         ${bands}
         ${gridLines}

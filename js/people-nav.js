@@ -32,7 +32,7 @@ function navigateToPeople(page) {
   if (!peopleCanAccess(page, role)) return;
   _peopleCurrentPage = page;
   updateNavActiveLink(page);
-  renderPeoplePage(page);
+  withViewTransition(() => renderPeoplePage(page));
 }
 
 async function renderPeoplePage(page) {

@@ -3392,7 +3392,21 @@ body.bp-printing .rt-table-controls { display: none !important; }
   break-inside: avoid;
 }
 .bp-contents-num { color: var(--brand-tertiary); font-weight: var(--fw-semibold); min-width: 28px; }
-.bp-contents-item--section { padding-left: var(--sp-9); color: var(--text-secondary); }
+.bp-contents-item--divider { font-weight: var(--fw-semibold); font-size: var(--fs-15); color: var(--text-heading); }
+.bp-contents-item--section {
+  /* 36px, not a spacing token: aligns under a divider row's own heading
+     text, which starts at bp-contents-num's min-width (28px) + the row's
+     gap (var(--sp-4), 8px) — not an arbitrary deeper indent. */
+  padding-left: 36px;
+  font-size: var(--fs-13);
+  color: var(--text-secondary);
+  border-bottom-color: var(--border-subtle);
+}
+.bp-contents-item--section::before {
+  content: '\2013';
+  margin-right: var(--sp-3);
+  color: var(--text-faint);
+}
 
 /* Client logo control in the builder sidebar */
 .bp-logo-control { display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start; }

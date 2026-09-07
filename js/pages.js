@@ -155,10 +155,7 @@ async function renderRolesPage(filter) {
             ? (spDateIn(r.ActualHireDate) || "—")
             : (spDateIn(r.TargetHireDate) || "—");
           const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || "—";
-          const stageLocked = CONFIG.ROLE_STAGE_TERMINAL.includes(r.Stage);
-          const stageCell   = (canEdit && !stageLocked)
-            ? `<span class="badge">${escHtml(r.Stage || "—")}</span><button type="button" class="stage-unlock-btn" title="Change stage" onclick="unlockStageEdit(${r.id}, '${escAttr(r.Stage || '')}')"><i data-lucide="lock"></i></button>`
-            : `<span class="badge">${escHtml(r.Stage || "—")}</span>`;
+          const stageCell   = stageBadgeHtml(r.id, r.Stage, canEdit);
           return `
           <tr class="${rowClass}">
             <td>${escHtml(projectName)}</td>
@@ -207,18 +204,30 @@ async function scrollToAndUnlockStage(roleId) {
   unlockStageEdit(roleId, role.Stage || '');
 }
 async function updateRoleStage(roleId, selectEl) {
-  const newStage = selectEl.value;
-  setSelectPending(selectEl, true);
-  try {
-    await updateRoleWithHistory(roleId, { Stage: newStage });
-    toast('Stage updated', { type: 'success' });
-    await renderRolesPage();
-  } catch (e) {
-    selectEl.value = selectEl.dataset.prevValue;
-    toast('Could not update stage: ' + e.message, { type: 'error' });
-  } finally {
-    setSelectPending(selectEl, false);
-  }
+  const prevStage = selectEl.dataset.prevValue;
+  const newStage  = selectEl.value;
+  const row = selectEl.closest('tr');
+  await optimisticWrite({
+    apply: () => {
+      if (!(ROLE_FILTERS[_rolesFilter] || (() => true))({ Stage: newStage })) {
+        row?.remove();          // no longer belongs in this filtered view
+        return;
+      }
+      const cell = document.getElementById(`stage-cell-${roleId}`);
+      if (cell) {
+        cell.innerHTML = stageBadgeHtml(roleId, newStage, true);
+        lucide.createIcons();
+      }
+    },
+    revert: async () => {
+      // The write never landed server-side, so a fresh render (cache still
+      // holds the pre-write Stage) is the correct rollback -- also the only
+      // way to safely restore a row that apply() removed.
+      await renderRolesPage(_rolesFilter);
+    },
+    commit: () => updateRoleWithHistory(roleId, { Stage: newStage }),
+    errorMessage: `Could not update stage from ${prevStage || '—'}.`
+  });
 }
 async function showAddRoleForm() {
   document.getElementById("main-content").innerHTML = await renderRoleForm();

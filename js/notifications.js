@@ -136,12 +136,35 @@ async function notifOpen(id, deepLink) {
 }
 async function notifTick(id) {
   const wasOpen = document.getElementById('notif-drawer')?.classList.contains('open');
-  await markRead(id);
-  await renderNotificationBell();   // re-render to dim it + drop the badge count
-  if (wasOpen) {
-    document.getElementById('notif-drawer')?.classList.add('open');
-    document.getElementById('notif-overlay')?.classList.add('open');
-  }
+  const restoreDrawer = () => {
+    if (wasOpen) {
+      document.getElementById('notif-drawer')?.classList.add('open');
+      document.getElementById('notif-overlay')?.classList.add('open');
+    }
+  };
+  await optimisticWrite({
+    apply: () => {
+      const item = document.querySelector(`.notif-item[data-id="${id}"]`);
+      item?.classList.add('is-read');
+      item?.querySelector('.notif-item-tick')?.remove();
+      const badge = document.querySelector('.notif-bell .notif-badge');
+      if (badge) {
+        const n = parseInt(badge.textContent, 10) - 1;
+        if (n > 0) { badge.textContent = String(n); }
+        else { badge.remove(); document.querySelector('.notif-markall')?.remove(); }
+      }
+      restoreDrawer();
+    },
+    revert: async () => {
+      // The write never landed server-side, so a fresh render (cache still
+      // holds the pre-write IsRead value) is the correct rollback -- avoids
+      // re-implementing paintBell's row/badge markup a second time here.
+      await renderNotificationBell();
+      restoreDrawer();
+    },
+    commit: () => markRead(id),
+    errorMessage: "Couldn't mark that as read — change reverted."
+  });
 }
 async function notifMarkAll() {
   const wasOpen = document.getElementById('notif-drawer')?.classList.contains('open');

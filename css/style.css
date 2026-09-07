@@ -663,9 +663,12 @@ body {
 .form-hint { display: block; font-size: var(--fs-12); color: var(--text-muted); margin-top: var(--sp-2); line-height: 1.4; }
 .admin-tab-intro { font-size: var(--fs-13); color: var(--text-label); margin-bottom: var(--sp-7); }
 .cell-notes { max-width: 320px; white-space: normal; word-break: break-word; vertical-align: top; }
-.notes-cell .notes-full  { display: none; }
+.notes-cell .notes-full  {
+  display: block; max-height: 0; opacity: 0; overflow: hidden;
+  transition: max-height var(--dur-base) ease, opacity var(--dur-fast) ease;
+}
 .notes-cell.is-expanded .notes-short { display: none; }
-.notes-cell.is-expanded .notes-full  { display: block; }
+.notes-cell.is-expanded .notes-full  { max-height: 400px; opacity: 1; }
 .notes-preview {
   display: inline-block; max-width: 240px; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;
@@ -807,7 +810,9 @@ body {
   font-variant-numeric: tabular-nums;
 }
 .data-table tr:last-child td { border-bottom: none; }
+.data-table tbody tr { transition: transform var(--dur-fast) ease; }
 .data-table tbody tr:hover td { background: var(--surface-alt); }
+.data-table tbody tr:hover { transform: translateY(-1px); }
 .data-table a {
   color: var(--text-link);
   text-decoration: none;
@@ -2318,6 +2323,17 @@ body {
 
 /* ── Count-up: digits don't jitter (kpi-value already tabular-nums) ─ */
 .kpi-value.counting { font-variant-numeric: tabular-nums; }
+
+/* ── Micro-transitions (N-193/X-6): page cross-fade + chart draw-in.
+   transform/opacity only — covered by the reduced-motion block below. ── */
+::view-transition-old(root), ::view-transition-new(root) {
+  animation-duration: var(--dur-slow);
+}
+.chart-in { animation: chart-fade-in var(--dur-slower) ease-out; }
+@keyframes chart-fade-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
 
 /* ── Respect reduced-motion: kill shimmer + count-up + transitions ── */
 @media (prefers-reduced-motion: reduce) {

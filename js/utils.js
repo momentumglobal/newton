@@ -1358,7 +1358,9 @@ function _rtTableControlsEl() {
     el.style.display = 'none';
     el.innerHTML =
         '<button type="button" onmousedown="event.preventDefault()" onclick="rtTableAddRow()">+ Row</button>'
+      + '<button type="button" onmousedown="event.preventDefault()" onclick="rtTableRemoveRow()">&minus; Row</button>'
       + '<button type="button" onmousedown="event.preventDefault()" onclick="rtTableAddCol()">+ Column</button>'
+      + '<button type="button" onmousedown="event.preventDefault()" onclick="rtTableRemoveCol()">&minus; Column</button>'
       + '<button type="button" onmousedown="event.preventDefault()" onclick="rtTableDeleteTable()">&times; Delete table</button>';
     document.body.appendChild(el);
   }
@@ -1375,11 +1377,12 @@ function _rtRepositionTableControls() {
     return;
   }
   const el = _rtTableControlsEl();
+  el.style.display = 'flex'; // show before measuring — offsetWidth/offsetHeight read 0 while display:none
   const rect = _rtCurrentTable.getBoundingClientRect();
-  const barH = el.offsetHeight || 32;
-  el.style.top = Math.max(4, rect.top - barH - 4) + 'px';
-  el.style.left = Math.max(4, rect.right - el.offsetWidth) + 'px';
-  el.style.display = 'flex';
+  el.style.top = Math.max(4, rect.top - el.offsetHeight - 4) + 'px';
+  const idealLeft = rect.right - el.offsetWidth;
+  const maxLeft = window.innerWidth - el.offsetWidth - 4;
+  el.style.left = Math.max(4, Math.min(idealLeft, maxLeft)) + 'px';
 }
 
 function _rtShowTableControls(table) {
@@ -1401,9 +1404,17 @@ function _rtHideTableControls() {
 function _rtHandleTableFocusEvent(e) {
   if (e.target.closest && e.target.closest('#rt-table-controls')) return;
 
-  const table = e.target.closest ? e.target.closest('table.rt-table') : null;
+  // Resolve the actual caret position via the selection, not e.target — for
+  // a keyup inside contenteditable, e.target is always the .rb-richtext
+  // host itself (the only focusable node), never the descendant the caret
+  // is actually in, so e.target.closest() can never find a nested table.
+  // Same technique rtInsertTable/rtWrapCallout already use above.
+  const sel = window.getSelection();
+  const node = sel && sel.rangeCount ? sel.getRangeAt(0).commonAncestorContainer : null;
+  const host = node && (node.nodeType === 1 ? node : node.parentElement);
+  const table = host && host.closest ? host.closest('table.rt-table') : null;
   const wellFormed = table
-    && table.closest('.rb-richtext')
+    && host.closest('.rb-richtext')
     && table.querySelector('thead')
     && table.querySelector('tbody');
 
@@ -1449,6 +1460,31 @@ function rtTableAddCol() {
   headRow.insertAdjacentHTML('beforeend', '<th>&nbsp;</th>');
   _rtCurrentTable.querySelectorAll('tbody tr').forEach(row => {
     row.insertAdjacentHTML('beforeend', '<td>&nbsp;</td>');
+  });
+  _rtCurrentEditor.dispatchEvent(new Event('input', { bubbles: true }));
+  _rtRepositionTableControls();
+}
+
+// Removes the last row, mirroring rtTableAddRow. A no-op if the table has
+// no body rows left to remove.
+function rtTableRemoveRow() {
+  if (!_rtCurrentTable || !_rtCurrentEditor) return;
+  const tbody = _rtCurrentTable.querySelector('tbody');
+  if (!tbody || !tbody.lastElementChild) return;
+  tbody.lastElementChild.remove();
+  _rtCurrentEditor.dispatchEvent(new Event('input', { bubbles: true }));
+  _rtRepositionTableControls();
+}
+
+// Removes the last column from every row, mirroring rtTableAddCol. Never
+// removes the last remaining column — a table needs at least one.
+function rtTableRemoveCol() {
+  if (!_rtCurrentTable || !_rtCurrentEditor) return;
+  const headRow = _rtCurrentTable.querySelector('thead tr');
+  if (!headRow || headRow.children.length <= 1) return;
+  headRow.lastElementChild.remove();
+  _rtCurrentTable.querySelectorAll('tbody tr').forEach(row => {
+    if (row.lastElementChild) row.lastElementChild.remove();
   });
   _rtCurrentEditor.dispatchEvent(new Event('input', { bubbles: true }));
   _rtRepositionTableControls();

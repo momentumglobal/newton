@@ -32,7 +32,7 @@ function navigateToMr(page) {
   if (!mrCanAccess(page, role)) return;
   _mrCurrentPage = page;
   updateNavActiveLink(page);
-  renderMrPage(page);
+  withViewTransition(() => renderMrPage(page));
 }
 
 async function renderMrPage(page) {

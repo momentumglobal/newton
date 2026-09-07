@@ -509,7 +509,7 @@ function bpRenderPackHtml() {
   // only: a flowing document cannot carry honest page numbers.
   if (contents.length) {
     const rows = contents.map(c => c.kind === 'divider'
-            ? `<li><span class="bp-contents-num">${escHtml(c.num)}</span>${escHtml(c.heading)}</li>`
+            ? `<li class="bp-contents-item--divider"><span class="bp-contents-num">${escHtml(c.num)}</span>${escHtml(c.heading)}</li>`
       : `<li class="bp-contents-item--section">${escHtml(c.heading)}</li>`).join('');
     const coverIdx = _bpPages.findIndex(p => p.type === 'title');
     pages.splice(coverIdx + 1, 0, { full: false, html: `<section class="bp-page-contents">

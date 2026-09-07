@@ -1414,10 +1414,16 @@ function _rtHandleTableFocusEvent(e) {
   }
 }
 
-document.addEventListener('click', _rtHandleTableFocusEvent);
-document.addEventListener('keyup', _rtHandleTableFocusEvent);
-window.addEventListener('scroll', () => { if (_rtCurrentTable) _rtRepositionTableControls(); }, true);
-window.addEventListener('resize', () => { if (_rtCurrentTable) _rtRepositionTableControls(); });
+// N-216 fix: utils.js is also loaded standalone into a bare Node `vm`
+// context with no DOM by tests/run.js (see that file's header comment) —
+// top-level document/window calls must not execute there. Same guard
+// pattern as api.js's _ssPurgeStaleBuilds() checking for sessionStorage.
+if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+  document.addEventListener('click', _rtHandleTableFocusEvent);
+  document.addEventListener('keyup', _rtHandleTableFocusEvent);
+  window.addEventListener('scroll', () => { if (_rtCurrentTable) _rtRepositionTableControls(); }, true);
+  window.addEventListener('resize', () => { if (_rtCurrentTable) _rtRepositionTableControls(); });
+}
 
 // Adds one row of empty cells, one per existing column. Column count is
 // always read from thead — the one row guaranteed to exist and to already

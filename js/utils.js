@@ -1122,6 +1122,25 @@ function promptModal({ title = '', message = '', defaultValue = '', placeholder 
   });
 }
 
+// Wraps a write with instant, reversible UI feedback: apply() mutates the
+// view synchronously, commit() performs the real write in the background,
+// and either resolves silently (view and server now agree) or the change
+// is rolled back and an error toast with a Retry action is shown. No
+// network calls of its own -- commit() supplies the write.
+async function optimisticWrite({ apply, revert, commit, errorMessage = "That didn't save — change reverted." } = {}) {
+  apply();
+  try {
+    return await commit();
+  } catch (err) {
+    await revert();
+    toast(errorMessage, {
+      type: 'error',
+      action: { label: 'Retry', onClick: () => optimisticWrite({ apply, revert, commit, errorMessage }) }
+    });
+    throw err;
+  }
+}
+
 // First non-empty line of a multi-line string. Returns '' for empty input.
 function firstLine(str) {
   const lines = String(str ?? '').split(/\r?\n/).map(l => l.trim());

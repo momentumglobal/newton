@@ -1337,3 +1337,124 @@ function rtWrapCallout() {
   editor.dispatchEvent(new Event('input', { bubbles: true }));
   return true;
 }
+
+// ── Table controls (add/remove rows & columns, delete table) — N-216 ──
+// Shared across the same four `.rb-richtext` editors as rtInsertTable/
+// rtWrapCallout above (Report Builder, Market Report, LCI Report, briefing
+// pack). One floating controls bar, positioned over whichever `.rt-table`
+// currently has focus/caret, rather than a per-editor toolbar — kept here
+// for the same "exactly one implementation" reason as the two functions
+// above.
+let _rtCurrentTable = null;
+let _rtCurrentEditor = null;
+
+// Lazily creates (once) and returns the shared floating controls bar.
+function _rtTableControlsEl() {
+  let el = document.getElementById('rt-table-controls');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'rt-table-controls';
+    el.className = 'rt-table-controls';
+    el.style.display = 'none';
+    el.innerHTML =
+        '<button type="button" onmousedown="event.preventDefault()" onclick="rtTableAddRow()">+ Row</button>'
+      + '<button type="button" onmousedown="event.preventDefault()" onclick="rtTableAddCol()">+ Column</button>'
+      + '<button type="button" onmousedown="event.preventDefault()" onclick="rtTableDeleteTable()">&times; Delete table</button>';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+// Repositions the controls bar over the currently tracked table. Self-heals
+// by hiding if the table has been removed from the document by something
+// other than rtTableDeleteTable — e.g. the owning page re-rendered the
+// editor out from under an open bar.
+function _rtRepositionTableControls() {
+  if (!_rtCurrentTable || !document.contains(_rtCurrentTable)) {
+    _rtHideTableControls();
+    return;
+  }
+  const el = _rtTableControlsEl();
+  const rect = _rtCurrentTable.getBoundingClientRect();
+  const barH = el.offsetHeight || 32;
+  el.style.top = Math.max(4, rect.top - barH - 4) + 'px';
+  el.style.left = Math.max(4, rect.right - el.offsetWidth) + 'px';
+  el.style.display = 'flex';
+}
+
+function _rtShowTableControls(table) {
+  _rtCurrentTable = table;
+  _rtCurrentEditor = table.closest('.rb-richtext');
+  _rtRepositionTableControls();
+}
+
+function _rtHideTableControls() {
+  _rtCurrentTable = null;
+  _rtCurrentEditor = null;
+  const el = document.getElementById('rt-table-controls');
+  if (el) el.style.display = 'none';
+}
+
+// Delegated click/keyup handler — same "one document-level listener, check
+// with closest()/contains()" pattern as the nav-dropdown outside-click
+// handlers in nav.js/mr-nav.js/people-nav.js/sales-nav.js.
+function _rtHandleTableFocusEvent(e) {
+  if (e.target.closest && e.target.closest('#rt-table-controls')) return;
+
+  const table = e.target.closest ? e.target.closest('table.rt-table') : null;
+  const wellFormed = table
+    && table.closest('.rb-richtext')
+    && table.querySelector('thead')
+    && table.querySelector('tbody');
+
+  if (wellFormed) {
+    _rtShowTableControls(table);
+  } else {
+    _rtHideTableControls();
+  }
+}
+
+document.addEventListener('click', _rtHandleTableFocusEvent);
+document.addEventListener('keyup', _rtHandleTableFocusEvent);
+window.addEventListener('scroll', () => { if (_rtCurrentTable) _rtRepositionTableControls(); }, true);
+window.addEventListener('resize', () => { if (_rtCurrentTable) _rtRepositionTableControls(); });
+
+// Adds one row of empty cells, one per existing column. Column count is
+// always read from thead — the one row guaranteed to exist and to already
+// be correct even right after rtTableAddCol runs.
+function rtTableAddRow() {
+  if (!_rtCurrentTable || !_rtCurrentEditor) return;
+  const headRow = _rtCurrentTable.querySelector('thead tr');
+  const tbody = _rtCurrentTable.querySelector('tbody');
+  if (!headRow || !tbody) return;
+  const cols = headRow.children.length;
+  const cells = Array.from({ length: cols }, () => '<td>&nbsp;</td>').join('');
+  tbody.insertAdjacentHTML('beforeend', '<tr>' + cells + '</tr>');
+  _rtCurrentEditor.dispatchEvent(new Event('input', { bubbles: true }));
+  _rtRepositionTableControls();
+}
+
+// Adds one empty cell to every existing row: a <th> on the header row, a
+// <td> on every body row.
+function rtTableAddCol() {
+  if (!_rtCurrentTable || !_rtCurrentEditor) return;
+  const headRow = _rtCurrentTable.querySelector('thead tr');
+  if (!headRow) return;
+  headRow.insertAdjacentHTML('beforeend', '<th>&nbsp;</th>');
+  _rtCurrentTable.querySelectorAll('tbody tr').forEach(row => {
+    row.insertAdjacentHTML('beforeend', '<td>&nbsp;</td>');
+  });
+  _rtCurrentEditor.dispatchEvent(new Event('input', { bubbles: true }));
+  _rtRepositionTableControls();
+}
+
+// Removes the table entirely. The trailing <p><br></p> rtInsertTable always
+// inserts after the table is left in place — contentEditable still has a
+// block to land the caret in, nothing further to clean up.
+function rtTableDeleteTable() {
+  if (!_rtCurrentTable || !_rtCurrentEditor) return;
+  const editor = _rtCurrentEditor;
+  _rtCurrentTable.remove();
+  _rtHideTableControls();
+  editor.dispatchEvent(new Event('input', { bubbles: true }));
+}

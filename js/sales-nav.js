@@ -32,7 +32,7 @@ function navigateToSales(page) {
   if (!salesCanAccess(page, role)) return;
   _salesCurrentPage = page;
   updateNavActiveLink(page);
-  renderSalesPage(page);
+  withViewTransition(() => renderSalesPage(page));
 }
 
 async function renderSalesPage(page) {

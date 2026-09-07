@@ -1560,3 +1560,14 @@ function rtTableDeleteTable() {
   _rtHideTableControls();
   editor.dispatchEvent(new Event('input', { bubbles: true }));
 }
+
+// N-193/X-6: wraps a page render in a View Transition cross-fade. Falls
+// back to a plain synchronous render when the API is unsupported or the
+// user has reduced-motion on — never a broken render either way.
+function withViewTransition(renderFn) {
+  if (!document.startViewTransition ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return renderFn();
+  }
+  return document.startViewTransition(renderFn);
+}

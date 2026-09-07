@@ -3156,6 +3156,29 @@ body {
 }
 .rt-table th { background: var(--surface-app); font-weight: var(--fw-semibold); }
 
+/* ── Table controls (add/remove rows & columns, delete table) — N-216 ──
+   Not scoped to @media print: body.bp-printing is added synchronously right
+   before printPage() in briefing-pack.js, so this rule also hides the bar
+   during the brief on-screen window before print, not only in the printed
+   output. */
+.rt-table-controls {
+  position: fixed;
+  display: none;
+  gap: var(--sp-2);
+  background: var(--surface-app);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: var(--sp-2) var(--sp-3);
+  box-shadow: 0 1px var(--sp-2) rgba(10,11,68,0.18);
+  z-index: 80;
+}
+.rt-table-controls button {
+  font-size: var(--fs-12);
+  padding: var(--sp-1) var(--sp-4);
+  cursor: pointer;
+}
+body.bp-printing .rt-table-controls { display: none !important; }
+
 /* ── Briefing pack builder (N-211) ───────────────────────────────── */
 .bp-block {
   display: flex;

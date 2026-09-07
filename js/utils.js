@@ -47,6 +47,18 @@ function stageSelectHtml(roleId, currentStage) {
   return `<select id="stage-select-${roleId}" data-prev-value="${escAttr(currentStage || '')}" onchange="updateRoleStage(${roleId}, this)">${options}</select>`;
 }
 
+// Pure HTML string builder for the Roles-list locked stage badge -- the
+// counterpart to stageSelectHtml() above. Single source of truth for this
+// markup: used both by renderRolesPage()'s initial render and by
+// updateRoleStage()'s optimistic apply() (pages.js), so the two never drift.
+function stageBadgeHtml(roleId, stage, canEdit) {
+  const locked = CONFIG.ROLE_STAGE_TERMINAL.includes(stage);
+  const badge = `<span class="badge">${escHtml(stage || "—")}</span>`;
+  return (canEdit && !locked)
+    ? `${badge}<button type="button" class="stage-unlock-btn" title="Change stage" onclick="unlockStageEdit(${roleId}, '${escAttr(stage || '')}')"><i data-lucide="lock"></i></button>`
+    : badge;
+}
+
 // ── Re-render without losing scroll position ──────────────────────────
 // Replace an element's outerHTML while preserving the scroll offsets of any
 // scroll containers inside it. Replacing outerHTML destroys and rebuilds those

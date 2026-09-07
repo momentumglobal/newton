@@ -2307,6 +2307,15 @@ body {
 .skel-panel .skel-line:nth-child(4) { width: 85%; }
 .skel-panel .skel-line:last-child   { width: 60%; margin-bottom: 0; }
 
+/* N-191: table/list skeleton variants — same shimmer base as above */
+.skel-table { display: flex; flex-direction: column; gap: var(--sp-5); }
+.skel-row   { display: flex; gap: var(--sp-6); align-items: center; }
+.skel-row .skel-cell { flex: 1; height: 14px; }
+.skel-list { display: flex; flex-direction: column; gap: var(--sp-6); }
+.skel-list-item { display: flex; align-items: center; gap: var(--sp-6); }
+.skel-list-icon { width: 32px; height: 32px; border-radius: var(--r-round); flex-shrink: 0; }
+.skel-list-line { flex: 1; height: 14px; }
+
 /* ── Count-up: digits don't jitter (kpi-value already tabular-nums) ─ */
 .kpi-value.counting { font-variant-numeric: tabular-nums; }
 

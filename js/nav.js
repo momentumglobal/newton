@@ -34,7 +34,7 @@ function navigateTo(page) {
   if (!canAccess(page, role)) return;
   currentPage = page;
   updateNavActiveLink(page);
-  renderPage(page);
+  withViewTransition(() => renderPage(page));
 }
 
 async function renderPage(page) {

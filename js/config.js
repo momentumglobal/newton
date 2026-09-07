@@ -451,7 +451,7 @@ const CONFIG = {
   // different build — that is the whole deploy-busts-the-cache mechanism.
   // Deliberately separate from sw.js's SW_VERSION: a service worker cannot
   // read config.js and the two have different lifecycles. Bump both.
-  APP_BUILD: '2026-09-07a',
+  APP_BUILD: '2026-09-07b',
 
   // Two-tier read cache (N-176 / F-3a). Tier 1 is the 30s in-memory Map in
   // api.js and is NOT configured here. This block configures tier 2, the

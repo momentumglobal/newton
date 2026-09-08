@@ -616,6 +616,23 @@ var ASSERTIONS = [
   // reasoning as the tier-2 _ssGet/_ssSet/_ssPurge exclusion above. Covered
   // by the live QA checks in the ticket's QA doc instead.
   {
+    name: 'N-188 CONFIG.BATCH — shape and defaults',
+    fn: function () {
+      _assertEqual(typeof CONFIG.BATCH.enabled, 'boolean', 'enabled flag present');
+      _assertEqual(CONFIG.BATCH.maxSubRequests, 20, "Graph's documented per-$batch sub-request limit");
+    },
+  },
+  {
+    name: 'N-188 _batchEnabled — follows CONFIG.BATCH.enabled, false when the block is missing entirely',
+    fn: function () {
+      _assertEqual(_batchEnabled(), CONFIG.BATCH.enabled, 'tracks the live config value');
+      const saved = CONFIG.BATCH;
+      CONFIG.BATCH = undefined;
+      _assertEqual(_batchEnabled(), false, 'defensive false, not a throw, if BATCH is ever absent');
+      CONFIG.BATCH = saved;
+    },
+  },
+  {
     name: 'N-186/N-187 CONFIG.DELTA — configured with exactly two enrolled lists',
     fn: function () {
       _assertEqual(Array.isArray(CONFIG.DELTA.enrolledLists), true, 'enrolledLists is an array');

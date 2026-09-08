@@ -338,6 +338,25 @@
     .m-empty--error { color: #c0392b; }
     .m-empty-retry { display: block; margin: 16px auto 0; max-width: 200px; }
 
+    /* ── Skeleton loading shimmer (N-192) ── */
+    @keyframes m-skel-sweep {
+      0%   { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skel {
+      background: linear-gradient(90deg, #eceae5 25%, #e0ddd6 37%, #eceae5 63%);
+      background-size: 200% 100%;
+      animation: m-skel-sweep 1.4s ease-in-out infinite;
+      border-radius: 6px;
+    }
+    .skel-list { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
+    .skel-list-item { display: flex; align-items: center; gap: 14px; }
+    .skel-list-icon { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; }
+    .skel-list-line { flex: 1; height: 14px; }
+    @media (prefers-reduced-motion: reduce) {
+      .skel { animation: none; background: #e0ddd6; }
+    }
+
     /* ── Toast ── */
     .m-toast {
       position: fixed;

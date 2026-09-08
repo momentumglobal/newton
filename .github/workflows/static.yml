@@ -29,8 +29,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -51,66 +49,14 @@ jobs:
         run: NEWTON_TZ=UTC node tests/run.js
       - name: Test — America/New_York (behind UTC — the N-130 class)
         run: NEWTON_TZ=America/New_York node tests/run.js
-      # N-210: catches the silent-stale-cache failure mode — js/ changes
-      # deployed without a CONFIG.APP_BUILD bump give users up to 10 minutes
-      # of stale reference data with no visible error. Compares the
-      # APP_BUILD value (not just its presence) between the base commit and
-      # HEAD, so a no-op reformat of the line still fails. Skips cleanly on
-      # a brand-new branch or an unresolvable force-push base rather than
-      # false-failing an unrelated push.
-      - name: Guard — APP_BUILD bump when js/ changes
-        run: |
-          git fetch origin 'refs/tags/*:refs/tags/*' --force >/dev/null 2>&1 || true
-          ZERO="0000000000000000000000000000000000000000"
-
-          DEPLOYED=$(git rev-parse -q --verify refs/tags/last-deploy^{commit} 2>/dev/null || true)
-          if [ -n "$DEPLOYED" ]; then
-            BASE="$DEPLOYED"
-            echo "Using last-deploy tag as base: $BASE"
-          else
-            BASE="${{ github.event.before }}"
-            if [ -z "$BASE" ] || [ "$BASE" = "$ZERO" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
-              echo "No base commit to compare against (no last-deploy tag yet, and new branch or unresolvable force-push) — skipping guard."
-              exit 0
-            fi
-            echo "No last-deploy tag yet — falling back to previous-push base: $BASE"
-          fi
-
-          CHANGED=$(git diff --name-only "$BASE" "${{ github.sha }}" -- js/)
-          if [ -z "$CHANGED" ]; then
-            echo "No js/ changes in this push — skipping guard."
-            exit 0
-          fi
-
-          NEW=$(grep -oP "APP_BUILD:\s*'\K[^']+" js/config.js || echo "__MISSING__")
-          if [ "$NEW" = "__MISSING__" ]; then
-            echo "::error file=js/config.js::APP_BUILD stamp not found in js/config.js — it must always be present."
-            exit 1
-          fi
-
-          OLD=$(git show "$BASE:js/config.js" 2>/dev/null | grep -oP "APP_BUILD:\s*'\K[^']+" || echo "__MISSING__")
-          if [ "$OLD" = "__MISSING__" ]; then
-            echo "js/config.js is new in this push (or had no APP_BUILD line before) — nothing to compare, skipping guard."
-            exit 0
-          fi
-
-          if [ "$OLD" = "$NEW" ]; then
-            echo "::error file=js/config.js::js/ changed but CONFIG.APP_BUILD in js/config.js was not bumped (still '$NEW'). Bump the APP_BUILD stamp (e.g. to today's date) before merging — see js/config.js line ~432."
-            echo "Changed js/ files:"
-            echo "$CHANGED"
-            exit 1
-          fi
-
-          echo "APP_BUILD bumped ($OLD -> $NEW) for this js/ change — guard passed."
-
-  # Single deploy job since we're just deploying
+      # Single deploy job since we're just deploying
   deploy:
     needs: test
     # Job-level permissions REPLACE the top-level block for this job (they
-    # don't merge) — pages/id-token must be repeated alongside the new
-    # contents: write, or Pages deploy itself would lose permission.
+    # don't merge) — pages/id-token must be repeated even though this job
+    # no longer needs contents: write (N-220 removed the last-deploy tag
+    # push, its only user).
     permissions:
-      contents: write
       pages: write
       id-token: write
     environment:
@@ -122,6 +68,20 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v5
+      # N-220: replaces the old test-job guard (N-210/N-212) that failed CI
+      # when js/ changed but CONFIG.APP_BUILD wasn't hand-bumped. Instead of
+      # asking anyone to remember a bump, every deploy now stamps its own
+      # unique value here, in this runner's checkout only — never committed
+      # back to the repo. js/config.js in git history never changes again.
+      - name: Stamp APP_BUILD for this deploy
+        run: |
+          STAMP="${GITHUB_SHA::8}"
+          if ! grep -qP "APP_BUILD:\s*'[^']+'" js/config.js; then
+            echo "::error file=js/config.js::APP_BUILD line not found — cannot stamp this deploy. Check js/config.js hasn't been restructured."
+            exit 1
+          fi
+          sed -i -E "s/(APP_BUILD:\s*')[^']+(')/\1${STAMP}\2/" js/config.js
+          echo "Stamped APP_BUILD -> $STAMP for this deploy (not committed)."
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -130,12 +90,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
-      # N-212: moves the "last known good" pointer the test job's APP_BUILD
-      # guard diffs against. Only runs after a real deploy succeeds, so a
-      # broken push can never move the baseline. Lightweight tag — no git
-      # identity/commit needed — pushed with the checkout's default token.
-      - name: Record last deployed commit
-        if: success()
-        run: |
-          git tag -f last-deploy
-          git push origin last-deploy --force

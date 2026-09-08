@@ -45,7 +45,7 @@ function _ocTypeColour(t){
 // ── page entry ─────────────────────────────────────────────────────────
 async function renderOrgChart() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading org chart…</p>';
+  main.innerHTML = skeletonList(6);
 
   const [people, leadership, projectsByCSD, currentAssign] = await Promise.all([
     getPeople(true, true),                 // active only, sorted by Level; incl. placeholders

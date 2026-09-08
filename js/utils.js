@@ -1305,18 +1305,47 @@ function _calcUtilisation(rows) {
 function _barChart(data, valueFormatter) {
   const max = Math.max(...data.map(d => d.value), 0.001);
   return `<div style='margin-top:12px'>
-    ${data.map(d => `
-      <div style='display:flex;align-items:center;gap:8px;margin-bottom:6px'>
-        <div style='width:80px;font-size:12px;color:var(--text-label);text-align:right;
-                    flex-shrink:0'>${d.label}</div>
-        <div style='flex:1;background:var(--surface-hover);border-radius:3px;height:18px'>
-          <div style='width:${Math.round((d.value/max)*100)}%;background:var(--surface-accent);
-                      height:18px;border-radius:3px;min-width:2px'></div>
+    ${data.map(d => {
+      const val = valueFormatter ? valueFormatter(d.value) : d.value;
+      return `
+      <div class='nt-chart-bar-row' title='${d.label}: ${val}'>
+        <div class='nt-chart-bar-label'>${d.label}</div>
+        <div class='nt-chart-bar-wrap'>
+          <div class='nt-chart-bar' style='width:${Math.round((d.value/max)*100)}%'></div>
         </div>
-        <div style='width:50px;font-size:12px;color:var(--text-secondary);flex-shrink:0'>
-          ${valueFormatter ? valueFormatter(d.value) : d.value}</div>
-      </div>`).join('')}
+        <div class='nt-chart-bar-val'>${val}</div>
+      </div>`;
+    }).join('')}
   </div>`;
+}
+
+// ── Shared SVG chart primitives (N-197) ────────────────────
+// Used by every inline-SVG chart (Revenue, Team Utilisation, LCI Spend,
+// LCI Compare) so gridlines/ticks/legends look and theme identically.
+// Pure markup generation — no network I/O, belongs here per file rules.
+
+// `lines`: [{ y, label, minor }] — caller has already resolved the axis
+// value to chart-space y and formatted the label text; this only emits the
+// <line>/<text> pair with the shared classes.
+function _chartGridSvg(padL, W, padR, lines) {
+  return lines.map(l => {
+    const cls = 'nt-chart-grid' + (l.minor ? ' nt-chart-grid--minor' : '');
+    const label = l.label != null
+      ? `<text x='${padL - 6}' y='${l.y + 4}' text-anchor='end' class='nt-chart-tick'>${l.label}</text>`
+      : '';
+    return `<line x1='${padL}' y1='${l.y}' x2='${W - padR}' y2='${l.y}' class='${cls}'/>${label}`;
+  }).join('');
+}
+
+// `items`: [{ color, label, dashed?, box?, border? }]. `box` renders a
+// small square swatch (RAG bands) instead of a line swatch.
+function _chartLegendHtml(items) {
+  return `<div class='nt-chart-legend'>${items.map(it => {
+    const style = `--nt-chart-color:${it.color}` + (it.border ? `;--nt-chart-border:${it.border}` : '');
+    const cls = it.box ? 'nt-chart-legend-swatch--box' : (it.dashed ? 'nt-chart-legend-swatch--dashed' : '');
+    return `<div class='nt-chart-legend-item'>
+      <span class='nt-chart-legend-swatch ${cls}' style='${style}'></span>${it.label}</div>`;
+  }).join('')}</div>`;
 }
 
 // ── Sales Forecast Utilisation helper ────────────

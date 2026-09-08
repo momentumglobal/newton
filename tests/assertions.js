@@ -616,19 +616,20 @@ var ASSERTIONS = [
   // reasoning as the tier-2 _ssGet/_ssSet/_ssPurge exclusion above. Covered
   // by the live QA checks in the ticket's QA doc instead.
   {
-    name: 'N-186 CONFIG.DELTA — configured with exactly one enrolled list',
+    name: 'N-186/N-187 CONFIG.DELTA — configured with exactly two enrolled lists',
     fn: function () {
       _assertEqual(Array.isArray(CONFIG.DELTA.enrolledLists), true, 'enrolledLists is an array');
-      _assertEqual(CONFIG.DELTA.enrolledLists, ['WeeklyActivity'], 'N-186 enrols exactly WeeklyActivity — N-187 adds Placements');
+      _assertEqual([...CONFIG.DELTA.enrolledLists].sort(), ['Placements', 'WeeklyActivity'], 'N-186 + N-187 enrol exactly these two');
       _assertEqual(typeof CONFIG.DELTA.enabled, 'boolean', 'enabled flag present');
     },
   },
   {
-    name: 'N-186 _deltaEnabled — true only for the enrolled list, with sessionStorage available',
+    name: 'N-186/N-187 _deltaEnabled — true only for the two enrolled lists, with sessionStorage available',
     fn: function () {
       if (typeof sessionStorage === 'undefined') _skip('no sessionStorage under Node — run tests/index.html for this one');
-      _assertEqual(_deltaEnabled('WeeklyActivity'), true, 'enrolled list');
-      _assertEqual(_deltaEnabled('Placements'), false, 'not yet enrolled — N-187');
+      _assertEqual(_deltaEnabled('WeeklyActivity'), true, 'enrolled since N-186');
+      _assertEqual(_deltaEnabled('Placements'), true, 'enrolled since N-187');
+      _assertEqual(_deltaEnabled('RejectedOffers'), false, 'shares getRejectedOffers()\'s identical filter shape but is deliberately NOT enrolled — not named in F-13\'s scope');
       _assertEqual(_deltaEnabled('Projects'), false, 'a tier-2 list is not delta-enrolled');
     },
   },

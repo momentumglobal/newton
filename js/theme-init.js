@@ -25,3 +25,15 @@
     }
   } catch (e) {}
 })();
+
+// Density (N-194) — same pre-paint approach as theme above, kept as a
+// separate IIFE so a throw in one doesn't skip the other.
+// Reads the SAME localStorage key as utils.js's DENSITY_KEY ('newton_density') —
+// if that constant name ever changes, update the literal string here too.
+(function () {
+  try {
+    if (localStorage.getItem('newton_density') === 'compact') {
+      document.documentElement.setAttribute('data-density', 'compact');
+    }
+  } catch (e) {}
+})();

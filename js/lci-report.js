@@ -283,7 +283,7 @@ function _lciCompareTableHtml(entries, ccy) {
 function _lciReportCompareChartSvg(entries, ccy) {
   const horizon = Math.max(...entries.map(e => e.comp.cumulativeSpend.length));
   const labels = entries.find(e => e.comp.cumulativeSpend.length === horizon).comp.labels;
-  const W = 900, H = 260, padL = 70, padR = 20, padT = 16, padB = 50;
+  const W = 900, H = 248, padL = 70, padR = 20, padT = 16, padB = 38;
   const MAJOR = 500000, MINOR = 250000;
   const maxData = Math.max(...entries.flatMap(e => e.comp.cumulativeSpend), 1);
   const maxY = Math.max(Math.ceil(maxData / MAJOR) * MAJOR, MAJOR);
@@ -294,41 +294,34 @@ function _lciReportCompareChartSvg(entries, ccy) {
     style: 'currency', currency: ccy || 'EUR', notation: 'compact', maximumFractionDigits: 1,
   }).format(v);
 
-  let gridLines = '';
-  for (let v = MINOR; v <= maxY; v += MINOR) {
-    const gy = y(v);
-    const isMajor = v % MAJOR === 0;
-    gridLines += `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" class="lci-chart-grid${isMajor ? '' : ' lci-chart-grid--minor'}"/>`;
-    if (isMajor) gridLines += `<text x="${padL - 6}" y="${gy + 3}" font-size="8" fill="var(--text-faint)" text-anchor="end">${fmtCompact(v)}</text>`;
-  }
+  const gridLines = _chartGridSvg(padL, W, padR, (() => {
+    const out = [];
+    for (let v = MINOR; v <= maxY; v += MINOR) {
+      const isMajor = v % MAJOR === 0;
+      out.push({ y: y(v), minor: !isMajor, label: isMajor ? fmtCompact(v) : null });
+    }
+    return out;
+  })());
 
   const lines = entries.map((e, n) => {
     const col = LCI_REPORT_COLOURS[n % LCI_REPORT_COLOURS.length];
     const pts = e.comp.cumulativeSpend.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
     const dots = e.comp.cumulativeSpend.map((v, i) =>
-      `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" fill="${col}"><title>${labels[i]}: ${_lciFmt(v, ccy)}</title></circle>`).join('');
-    return `<polyline points="${pts}" stroke="${col}" stroke-width="2.5" fill="none"/>${dots}`;
+      `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="nt-chart-dot" style="--nt-chart-color:${col}"><title>${labels[i]}: ${_lciFmt(v, ccy)}</title></circle>`).join('');
+    return `<polyline points="${pts}" class="nt-chart-line" style="--nt-chart-color:${col}"/>${dots}`;
   }).join('');
 
   const ticks = labels.map((l, i) => {
     if (!(horizon <= 12 || i % 2 === 0)) return '';
     const sub = (l.match(/\((.+)\)/) || [])[1] || '';
-    return `<text x="${x(i).toFixed(1)}" y="${H - 30}" font-size="8" fill="var(--text-muted)" text-anchor="middle">M${i + 1}</text>
-            <text x="${x(i).toFixed(1)}" y="${H - 20}" font-size="7" fill="var(--text-faint)" text-anchor="middle">(${sub})</text>`;
+    return `<text x="${x(i).toFixed(1)}" y="${H - 18}" class="nt-chart-tick" text-anchor="middle">M${i + 1}</text>
+            <text x="${x(i).toFixed(1)}" y="${H - 6}" class="nt-chart-tick--sub" text-anchor="middle">(${sub})</text>`;
   }).join('');
 
-  // Centred legend: items spaced evenly around W/2
-  const itemW = 170;
-  const startX = W / 2 - (entries.length * itemW) / 2;
-  const legend = `
-    <g font-size="9">
-      ${entries.map((e, n) => {
-        const col = LCI_REPORT_COLOURS[n % LCI_REPORT_COLOURS.length];
-        const lx = startX + n * itemW;
-        return `<line x1="${lx}" y1="${H - 6}" x2="${lx + 24}" y2="${H - 6}" stroke="${col}" stroke-width="2.5"/>
-                <text x="${lx + 30}" y="${H - 3}" fill="var(--text-label)">${escHtml(e.name)}</text>`;
-      }).join('')}
-    </g>`;
+  const legend = _chartLegendHtml(entries.map((e, n) => ({
+    color: LCI_REPORT_COLOURS[n % LCI_REPORT_COLOURS.length],
+    label: escHtml(e.name),
+  })));
 
   return `
     <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Cumulative Spend <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(${ccy})</span></h3>
@@ -336,6 +329,6 @@ function _lciReportCompareChartSvg(entries, ccy) {
       ${gridLines}
       ${lines}
       ${ticks}
-      ${legend}
-    </svg>`;
+    </svg>
+    ${legend}`;
 }

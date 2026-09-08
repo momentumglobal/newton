@@ -54,7 +54,7 @@ async function renderOrgChart() {
     getCurrentAssignmentsByEmployee(),     // { EmployeeName: [assignmentRow,…] }
   ]);
 
-  const roots = buildOrgTree({ people, leadership, projectsByCSD, currentAssign });
+  const { roots, unassignedProjects } = buildOrgTree({ people, leadership, projectsByCSD, currentAssign });
   const bench = buildBenchPool(people, currentAssign);
   const monthYear = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
@@ -73,6 +73,7 @@ async function renderOrgChart() {
       <div id='org-chart-canvas'>
         <div id='org-chart-inner'>
           ${renderTreeHtml(roots)}
+          ${renderUnassignedProjectsHtml(unassignedProjects)}
           ${renderBenchHtml(bench)}
         </div>
       </div>
@@ -81,7 +82,7 @@ async function renderOrgChart() {
 }
 
 // ── tree builder ───────────────────────────────────────────────────────
-// Returns an array of root nodes. Node = { kind, label, sub, children:[] }.
+// Returns { roots, unassignedProjects }. Node = { kind, label, sub, children:[] }.
 function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
   const csds = people.filter(p => p.Level === 'CSD');
 
@@ -122,9 +123,10 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
         if (pp && pp === _ocNorm(proj.CustomerName)) members.push(p);
         return;
       }
-      (currentAssign[p.EmployeeName] || []).forEach(a => {
-        if (_ocNorm(a.Customer) === _ocNorm(proj.CustomerName)) members.push(p);
-      });
+      if ((currentAssign[p.EmployeeName] || [])
+            .some(a => _ocNorm(a.Customer) === _ocNorm(proj.CustomerName))) {
+        members.push(p);
+      }
     });
     return { kind: 'project', label: proj.CustomerName,
              sub: proj.ProjectType || 'Project',
@@ -136,6 +138,27 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
   const realProjects = new Set();
   Object.values(projectsByCSD).forEach(list =>
     list.forEach(pr => realProjects.add(_ocNorm(pr.CustomerName))));
+
+  // N-219: LCI has no Projects-list row at all (work is tracked in the Sales
+  // module), so build its bubble straight from Assignments when no real
+  // project already covers that customer. Scoped to ProjectType 'LCI' only —
+  // 'Transformation'/'Internal' assignment types are out of scope (Internal
+  // is already reserved for the placeholder-only synthetic bubbles below).
+  const assignmentOnlyProjects = (() => {
+    const groups = {}; // normCustomer -> display label
+    people.forEach(p => (currentAssign[p.EmployeeName] || []).forEach(a => {
+      if (a.ProjectType !== 'LCI') return;
+      const key = _ocNorm(a.Customer);
+      if (!key || realProjects.has(key)) return;   // a real Projects row wins
+      groups[key] = groups[key] || a.Customer;
+    }));
+    return Object.keys(groups).sort().map(key => {
+      const members = people.filter(p => !p.IsPlaceholder &&
+        (currentAssign[p.EmployeeName] || []).some(a => _ocNorm(a.Customer) === key));
+      return { kind: 'project', label: groups[key], sub: 'LCI',
+               _colour: _ocTypeColour('LCI'), children: teamChildren(members) };
+    });
+  })();
 
   // Synthetic bubbles: placeholder-only teams with NO Projects row at all. Keeps
   // fictional/vacant teams out of the Projects list, and therefore out of Reporting.
@@ -187,7 +210,16 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
   csds.filter(c => !_ocEmail(c.ReportsTo) ||
         !leadership.some(l => _ocEmail(l.UserEmail) === _ocEmail(c.ReportsTo)))
     .forEach(c => roots.push(csdNode(c)));
-  return roots;
+
+  // N-219: unassigned pool = real projects with no CSD owner (the
+  // `__unassigned__` bucket `getProjectsByCSD()` already produces) plus the
+  // LCI-only bubbles built above. `projectNode` is already deduped (see the
+  // fix above), so these inherit correct membership/colour for free.
+  const unassignedProjects = [
+    ...(projectsByCSD['__unassigned__'] || []).map(projectNode),
+    ...assignmentOnlyProjects,
+  ];
+  return { roots, unassignedProjects };
 }
 
 function buildBenchPool(people, currentAssign) {
@@ -242,6 +274,15 @@ function renderBenchHtml(bench) {
               p.Location ? ' · ' + _ocEsc(p.Location) : ''}</div>
           </div>`).join('')}
       </div>
+    </div>`;
+}
+
+function renderUnassignedProjectsHtml(list) {
+  if (!list.length) return '';
+  return `
+    <div class='org-unassigned'>
+      <div class='org-unassigned__title'>Unassigned projects (${list.length})</div>
+      ${renderTreeHtml(list)}
     </div>`;
 }
 

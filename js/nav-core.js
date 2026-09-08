@@ -69,6 +69,10 @@ function renderModuleNav({
         <i data-lucide="${getTheme() === 'dark' ? 'sun' : 'moon'}" class="nav-theme-toggle-icon"></i>
         ${getTheme() === 'dark' ? 'Light mode' : 'Dark mode'}
       </button>
+      <button class='nav-theme-toggle' id='density-toggle-btn' onclick='toggleDensity()' title='Toggle table density'>
+        <i data-lucide="${getDensity() === 'compact' ? 'maximize-2' : 'minimize-2'}" class="nav-theme-toggle-icon"></i>
+        ${getDensity() === 'compact' ? 'Comfortable tables' : 'Compact tables'}
+      </button>
       <a class='nav-link signout' onclick='signOut()'>Sign out</a>
     </div>
   `;
@@ -104,6 +108,18 @@ function updateThemeToggleIcon() {
   if (!btn) return;
   const dark = getTheme() === 'dark';
   btn.innerHTML = `<i data-lucide="${dark ? 'sun' : 'moon'}" class="nav-theme-toggle-icon"></i>${dark ? 'Light mode' : 'Dark mode'}`;
+  lucide.createIcons();
+}
+
+/**
+ * Refreshes the sidebar density toggle's icon/label to match the current
+ * density. Called after toggleDensity(); mirrors updateThemeToggleIcon().
+ */
+function updateDensityToggleIcon() {
+  const btn = document.getElementById('density-toggle-btn');
+  if (!btn) return;
+  const compact = getDensity() === 'compact';
+  btn.innerHTML = `<i data-lucide="${compact ? 'maximize-2' : 'minimize-2'}" class="nav-theme-toggle-icon"></i>${compact ? 'Comfortable tables' : 'Compact tables'}`;
   lucide.createIcons();
 }
 

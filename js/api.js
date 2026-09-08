@@ -225,6 +225,13 @@ const FIELD_ALIASES = {
   // CONFIG.CACHE.maxEntryBytes (262144), and base64 logos on that row would
   // push it past the cap and silently disable tier-2 caching app-wide.
   ClientLogos: {},
+  // ── LCI project → CSD owner, one row per claimed LCI customer (N-219) ──
+  // LCI has no Projects-list row at all (Projects.ProjectType deliberately
+  // excludes it — see the PROJECT_TYPES comment above), so an LCI-only
+  // customer's CSD ownership can't live on a Projects row like every other
+  // project's. This is the same shape as that: CSDName is a plain text
+  // column (a People.EmployeeName value), never a Lookup.
+  LCIProjectOwners: { Title: 'CustomerName' },
 };
  
 function normaliseFields(listName, fields) {
@@ -832,6 +839,12 @@ async function getUserAssignments(projectId) {
  
 async function getLeadershipAccess() {
   return getItems("LeadershipAccess");
+}
+
+// N-219 addendum: which CSD a claimed LCI-only customer belongs to (Org
+// Chart). One row per claimed customer — an unclaimed one simply has no row.
+async function getLCIProjectOwners() {
+  return getItems("LCIProjectOwners");
 }
  
 // ── Sales Forecasts ────────────────────────────────────────

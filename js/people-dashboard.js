@@ -67,18 +67,12 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
   const xOf = (i) => PAD.left + (i / 11) * chartW;
   const yOf = (v) => PAD.top + chartH - (v * chartH);
 
-  const gridLines = [0, 0.25, 0.5, 0.75, 1.0].map(v => {
-    const y = yOf(v);
-    return `
-      <line x1='${PAD.left}' y1='${y}' x2='${W - PAD.right}' y2='${y}'
-            stroke='var(--border-subtle)' stroke-width='1'/>
-      <text x='${PAD.left - 6}' y='${y + 4}' text-anchor='end'
-            font-size='10' fill='var(--text-faint)'>${(v * 100).toFixed(0)}%</text>`;
-  }).join('');
+  const gridLines = _chartGridSvg(PAD.left, W, PAD.right,
+    [0, 0.25, 0.5, 0.75, 1.0].map(v => ({ y: yOf(v), label: `${(v * 100).toFixed(0)}%` })));
 
   const xLabels = MONTH_LABELS.map((lbl, i) =>
     `<text x='${xOf(i)}' y='${PAD.top + chartH + 18}' text-anchor='middle'
-           font-size='10' fill='var(--text-muted)'>${lbl}</text>`
+           class='nt-chart-tick'>${lbl}</text>`
   ).join('');
 
   const toPolyPoints = (pts) =>
@@ -88,26 +82,26 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
 
   const actualPts  = toPolyPoints(actualPoints);
   const actualLine = actualPts
-    ? `<polyline points='${actualPts}' fill='none' stroke='var(--surface-accent)' stroke-width='2.5' stroke-linejoin='round'/>`
+    ? `<polyline points='${actualPts}' class='nt-chart-line' style='--nt-chart-color:var(--surface-accent)'/>`
     : '';
 
   const forecastPts  = toPolyPoints(forecastPoints);
   const forecastLine = forecastPts && forecastPts.includes(' ')
-    ? `<polyline points='${forecastPts}' fill='none' stroke='var(--surface-accent)' stroke-width='2'
-                stroke-dasharray='5,4' stroke-linejoin='round' opacity='0.65'/>`
+    ? `<polyline points='${forecastPts}' class='nt-chart-line nt-chart-line--dashed'
+                style='--nt-chart-color:var(--surface-accent)' opacity='0.65'/>`
     : '';
 
   const salesForecastPts  = toPolyPoints(salesPoints);
   const salesForecastLine = salesForecastPts && salesForecastPts.includes(' ')
-    ? `<polyline points='${salesForecastPts}' fill='none' stroke='var(--accent)' stroke-width='2'
-                stroke-dasharray='5,4' stroke-linejoin='round' opacity='0.85'/>`
+    ? `<polyline points='${salesForecastPts}' class='nt-chart-line nt-chart-line--dashed'
+                style='--nt-chart-color:var(--accent)' opacity='0.85'/>`
     : '';
   
   const actualDots = actualPoints
     .filter(p => p.util !== null)
     .map(p => `
       <circle cx='${xOf(p.monthIdx).toFixed(1)}' cy='${yOf(p.util).toFixed(1)}'
-              r='3.5' fill='var(--surface-accent)' stroke='var(--c-white)' stroke-width='1.5'>
+              r='3.5' class='nt-chart-dot--ring' style='--nt-chart-color:var(--surface-accent)'>
         <title>${p.label}: ${(p.util * 100).toFixed(1)}%</title>
       </circle>`).join('');
 
@@ -115,7 +109,7 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
     .filter(p => p.util !== null && p.monthIdx > curMonth)
     .map(p => `
       <circle cx='${xOf(p.monthIdx).toFixed(1)}' cy='${yOf(p.util).toFixed(1)}'
-              r='3' fill='var(--c-white)' stroke='var(--surface-accent)' stroke-width='2' opacity='0.7'>
+              r='3' class='nt-chart-dot--hollow' style='--nt-chart-color:var(--surface-accent)' opacity='0.7'>
         <title>${p.label}: ${(p.util * 100).toFixed(1)}% (forecast)</title>
       </circle>`).join('');
 
@@ -123,7 +117,7 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
     .filter(p => p.util !== null && p.monthIdx >= curMonth)
     .map(p => `
       <circle cx='${xOf(p.monthIdx).toFixed(1)}' cy='${yOf(p.util).toFixed(1)}'
-              r='3' fill='var(--c-white)' stroke='var(--accent)' stroke-width='2' opacity='0.85'>
+              r='3' class='nt-chart-dot--hollow' style='--nt-chart-color:var(--accent)' opacity='0.85'>
         <title>${p.label}: ${(p.util * 100).toFixed(1)}% (sales forecast)</title>
       </circle>`).join('');
   
@@ -152,28 +146,11 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
         ${salesForecastLine}
         ${salesForecastDots}
       </svg>
-      <div style='display:flex;justify-content:center;gap:24px;margin-top:8px;font-size:11px;color:var(--text-label)'>
-        <div style='display:flex;align-items:center;gap:6px'>
-          <svg width='24' height='2' style='overflow:visible'>
-            <line x1='0' y1='1' x2='24' y2='1' stroke='var(--surface-accent)' stroke-width='2.5'/>
-          </svg>
-          Actual
-        </div>
-        <div style='display:flex;align-items:center;gap:6px'>
-          <svg width='24' height='2' style='overflow:visible'>
-            <line x1='0' y1='1' x2='24' y2='1' stroke='var(--surface-accent)' stroke-width='2'
-                  stroke-dasharray='5,4' opacity='0.65'/>
-          </svg>
-          Forecast
-        </div>
-        <div style='display:flex;align-items:center;gap:6px'>
-          <svg width='24' height='2' style='overflow:visible'>
-            <line x1='0' y1='1' x2='24' y2='1' stroke='var(--accent)' stroke-width='2'
-                  stroke-dasharray='5,4' opacity='0.85'/>
-          </svg>
-          Sales Forecast
-        </div>
-      </div>
+      ${_chartLegendHtml([
+        { color: 'var(--surface-accent)', label: 'Actual' },
+        { color: 'var(--surface-accent)', dashed: true, label: 'Forecast' },
+        { color: 'var(--accent)', dashed: true, label: 'Sales Forecast' },
+      ])}
     </div>`;
 }
 

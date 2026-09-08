@@ -205,25 +205,42 @@
   --z-command: 1150; /* N-144 — command bar overlay, above confirm dialogs */
   --z-banner: 9999;
   --z-toast: 10000;
-  /* Type scale */
-  --fs-10: 10px;
-  --fs-11: 11px;
-  --fs-12: 12px;
-  --fs-13: 13px;
-  --fs-14: 14px;
-  --fs-15: 15px;
-  --fs-16: 16px;
-  --fs-18: 18px;
-  --fs-20: 20px;
-  --fs-22: 22px;
-  --fs-26: 26px;
-  --fs-32: 32px;
-  --fs-40: 40px;
+  /* Type scale — role-named (N-195). --fs-NN aliases below keep every
+     existing var(--fs-NN) call site resolving to the same pixel value. */
+  --fs-micro:      10px;
+  --fs-caption:     11px;
+  --fs-label:       12px;
+  --fs-body-sm:     13px;
+  --fs-body:        14px;
+  --fs-body-lg:     15px;
+  --fs-subheading:  16px;
+  --fs-h4:          18px;
+  --fs-h3:          20px;
+  --fs-h2:          22px;
+  --fs-h1:          26px;
+  --fs-display-sm:  32px;
+  --fs-display:     40px;
+  --fs-10: var(--fs-micro);
+  --fs-11: var(--fs-caption);
+  --fs-12: var(--fs-label);
+  --fs-13: var(--fs-body-sm);
+  --fs-14: var(--fs-body);
+  --fs-15: var(--fs-body-lg);
+  --fs-16: var(--fs-subheading);
+  --fs-18: var(--fs-h4);
+  --fs-20: var(--fs-h3);
+  --fs-22: var(--fs-h2);
+  --fs-26: var(--fs-h1);
+  --fs-32: var(--fs-display-sm);
+  --fs-40: var(--fs-display);
   /* Font weights */
   --fw-regular: 400;
   --fw-medium: 500;
   --fw-semibold: 600;
   --fw-bold: 700;
+  /* Heading tracking (N-195) */
+  --ls-heading:    -0.01em;  /* fs-h4/h3/h2 tier, 18–22px */
+  --ls-heading-lg: -0.02em;  /* fs-h1/display tier, 26px+ */
   /* Shadows */
   --sh-1: 0 1px 4px rgba(10,11,68,0.06);
   --sh-2: 0 2px 8px rgba(10,11,68,0.18);
@@ -560,7 +577,7 @@ body {
   text-align: center;
   width: 360px;
 }
-.login-card h1 { font-size: var(--fs-22); color: var(--text-heading); margin-bottom: var(--sp-4); font-weight: 600; }
+.login-card h1 { font-size: var(--fs-22); color: var(--text-heading); margin-bottom: var(--sp-4); font-weight: 600; letter-spacing: var(--ls-heading); }
 .login-card p  { color: var(--text-label); margin-bottom: var(--sp-10); font-size: var(--fs-14); }
 .btn-signin {
   background: var(--brand);
@@ -656,7 +673,7 @@ body {
 .page-placeholder p  { color: var(--text-label); }
 /* ── Forms ──────────────────────────────────────────────────────────── */
 .form-container { max-width: 720px; padding: var(--sp-9); }
-.form-container h2 { margin-bottom: var(--sp-8); color: var(--text-heading); font-weight: 600; }
+.form-container h2 { margin-bottom: var(--sp-8); color: var(--text-heading); font-weight: 600; letter-spacing: var(--ls-heading); }
 .form-group { display: flex; flex-direction: column; margin-bottom: 14px; }
 .form-group label { font-size: var(--fs-13); font-weight: 600; margin-bottom: var(--sp-2); color: var(--text-secondary); }
 .form-group input, .form-group select, .form-group textarea {
@@ -767,7 +784,7 @@ body {
   border-bottom: 1px solid var(--border);
   margin-bottom: var(--sp-7);
 }
-.page-header h2 { margin: 0; color: var(--text-heading); font-weight: 600; }
+.page-header h2 { margin: 0; color: var(--text-heading); font-weight: 600; letter-spacing: var(--ls-heading); }
 .page-header-actions {
   display: flex; align-items: center; gap: var(--sp-6); flex-wrap: wrap;
 }
@@ -923,7 +940,7 @@ body {
   box-shadow: 0 var(--sp-2) var(--sp-7) rgba(10,11,68,0.10);
   transform: translateY(-1px);
 }
-.kpi-value { font-size: var(--fs-26); font-weight: 600; color: var(--brand); font-variant-numeric: tabular-nums; }
+.kpi-value { font-size: var(--fs-26); font-weight: 600; color: var(--brand); font-variant-numeric: tabular-nums; letter-spacing: var(--ls-heading-lg); }
 .kpi-label { font-size: var(--fs-11); color: var(--text-label); margin-top: var(--sp-2); text-transform: uppercase; letter-spacing: 0.5px; }
 .kpi-sub   { font-size: var(--fs-11); color: var(--text-muted); margin-top: var(--sp-1); }
 .dash-grid { display: flex; flex-direction: column; gap: var(--sp-8); }
@@ -953,7 +970,7 @@ body {
 .totals-row td { background: var(--surface-alt) !important; font-weight: 600; }
 .spend-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-7); margin-top: var(--sp-4); }
 .spend-label { font-size: var(--fs-11); color: var(--text-label); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--sp-2); }
-.spend-val { font-size: var(--fs-22); font-weight: 600; color: var(--brand); font-variant-numeric: tabular-nums; }
+.spend-val { font-size: var(--fs-22); font-weight: 600; color: var(--brand); font-variant-numeric: tabular-nums; letter-spacing: var(--ls-heading); }
 .dash-project-selector { max-width: 320px; margin-bottom: var(--sp-8); }
 .detail-period-selector { max-width: 220px; margin-bottom: var(--sp-7); }
 .dash-detail-header { margin-bottom: var(--sp-4); }
@@ -1354,7 +1371,7 @@ body {
   width: 600px; max-width: 96vw;
   padding: 28px; max-height: 70vh; overflow-y: auto;
 }
-.rb-modal-inner h3 { margin: 0 0 var(--sp-7); font-size: var(--fs-18); color: var(--text-heading); }
+.rb-modal-inner h3 { margin: 0 0 var(--sp-7); font-size: var(--fs-18); color: var(--text-heading); letter-spacing: var(--ls-heading); }
 .rb-saved-row {
   display: flex; align-items: center; gap: var(--sp-6);
   padding: var(--sp-5) 0; border-bottom: 1px solid var(--border-subtle); font-size: var(--fs-14);
@@ -1543,7 +1560,7 @@ body {
 .cc-banner__sub   { font-size: var(--fs-11); color: var(--inverse-text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
 .cc-banner__kpis  { display: flex; gap: var(--sp-8); flex: 1; justify-content: center; }
 .cc-banner__kpi   { font-size: var(--fs-13); color: var(--inverse-text-subtitle); }
-.cc-banner__kpi strong { font-size: var(--fs-20); color: var(--inverse-text); display: block; line-height: 1; }
+.cc-banner__kpi strong { font-size: var(--fs-20); color: var(--inverse-text); display: block; line-height: 1; letter-spacing: var(--ls-heading); }
 .cc-banner__cta   { font-size: var(--fs-13); color: var(--inverse-text-muted); }
 
 /* ── Command Centre module shell ── */
@@ -1865,7 +1882,7 @@ body {
 }
 
 /* ── Shared utilities (used across engagement + survey) ────────────── */
-.page-title { font-size: var(--fs-22); font-weight: 700; color: var(--text-heading); margin: 0; }
+.page-title { font-size: var(--fs-22); font-weight: 700; color: var(--text-heading); margin: 0; letter-spacing: var(--ls-heading); }
 .page-loading { padding: var(--sp-11); text-align: center; color: var(--text-muted); font-size: var(--fs-14); }
 .btn--sm { padding: var(--sp-2) var(--sp-6) !important; font-size: var(--fs-12) !important; }
 .btn-icon {
@@ -2128,7 +2145,7 @@ body {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: var(--sp-8);
 }
-.eng-modal-header h2 { margin: 0; font-size: var(--fs-18); color: var(--text-heading); }
+.eng-modal-header h2 { margin: 0; font-size: var(--fs-18); color: var(--text-heading); letter-spacing: var(--ls-heading); }
 .eng-modal-close {
   background: none; border: none; cursor: pointer; color: var(--text-muted);
   padding: var(--sp-2); display: flex; align-items: center; justify-content: center;
@@ -2421,7 +2438,7 @@ body {
   width: 100%;
   max-width: 420px;
 }
-.confirm-modal-title { margin: 0 0 var(--sp-5); font-size: var(--fs-18); color: var(--text-heading); }
+.confirm-modal-title { margin: 0 0 var(--sp-5); font-size: var(--fs-18); color: var(--text-heading); letter-spacing: var(--ls-heading); }
 .confirm-modal-message { margin: 0 0 var(--sp-9); font-size: var(--fs-14); color: var(--text-secondary); }
 .confirm-modal-actions { display: flex; justify-content: flex-end; gap: var(--sp-6); }
 .confirm-modal-confirm--danger { background: var(--status-danger); }
@@ -2778,7 +2795,7 @@ body {
   border-radius: var(--r-md);
   margin-bottom: var(--sp-7);
 }
-.lci-report-navy h1 { margin: 0; font-size: var(--fs-32); color: var(--inverse-text); }
+.lci-report-navy h1 { margin: 0; font-size: var(--fs-32); color: var(--inverse-text); letter-spacing: var(--ls-heading-lg); }
 .lci-report-sub { font-size: var(--fs-15); color: var(--inverse-text-emphasis); margin-top: var(--sp-4); }
 .lci-report-cover   { min-height: 400px; }
 .lci-report-divider { min-height: 300px; }
@@ -3307,7 +3324,7 @@ body.bp-printing .rt-table-controls { display: none !important; }
 /* Cover and closing share one composition: lockup, spacer, lower-third block. */
 .bp-cover-spacer   { flex: 1 1 auto; }
 .bp-cover-block    { position: relative; z-index: 1; }
-.bp-cover-title    { font-size: var(--fs-32); line-height: 1.15; margin: 0; }
+.bp-cover-title    { font-size: var(--fs-32); line-height: 1.15; margin: 0; letter-spacing: var(--ls-heading-lg); }
 .bp-cover-rule     { display: block; width: 64px; height: 3px; background: var(--text-on-brand); margin: var(--sp-6) 0; }
 .bp-cover-subtitle { font-size: var(--fs-18); color: var(--inverse-text-subtitle); margin: var(--sp-3) 0 0; }
 .bp-cover-role     { font-size: var(--fs-16); margin: var(--sp-2) 0; }
@@ -3335,11 +3352,11 @@ body.bp-printing .rt-table-controls { display: none !important; }
   color: var(--inverse-text-subtitle);
   margin-bottom: var(--sp-4);
 }
-.bp-divider-heading { font-size: var(--fs-32); margin: 0; }
+.bp-divider-heading { font-size: var(--fs-32); margin: 0; letter-spacing: var(--ls-heading-lg); }
 
 /* Closing page — mirrors the cover rather than centring everything. */
-.bp-closing-heading { font-size: var(--fs-22); margin: 0; }
-.bp-contact-name    { font-size: var(--fs-26); font-weight: var(--fw-semibold); margin: 0 0 var(--sp-2); }
+.bp-closing-heading { font-size: var(--fs-22); margin: 0; letter-spacing: var(--ls-heading); }
+.bp-contact-name    { font-size: var(--fs-26); font-weight: var(--fw-semibold); margin: 0 0 var(--sp-2); letter-spacing: var(--ls-heading-lg); }
 .bp-contact-title,
 .bp-contact-email   { color: var(--inverse-text-subtitle); margin: var(--sp-1) 0; }
 .bp-closing-partner { color: var(--inverse-text-subtitle); font-size: var(--fs-13); margin-top: var(--sp-5); }

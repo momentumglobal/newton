@@ -10,7 +10,7 @@ const STAGES = [
 
 async function mobileRenderRoles(main) {
   mobileSetTitle('Newton', 'My Roles');
-  main.innerHTML = '<div class="m-empty">Loading roles…</div>';
+  main.innerHTML = skeletonList(5);
 
   try {
     const roles = await mobileGetRoles();

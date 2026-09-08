@@ -421,7 +421,27 @@ function resolveRowTalentPartner(roleTalentPartnerValue, currentUserEmail) {
 }
 
 // ── Generic helpers ─────────────────────────────────────────────────
+// N-188 (F-14): graphRequest() is a thin router. A GET call, when
+// CONFIG.BATCH is enabled and the call isn't elevated, is queued and
+// flushed as one shared Graph $batch POST alongside any other GET calls
+// that land in the same macrotask window (see _flushBatchQueue below for
+// why a macrotask boundary, not a microtask, is what makes this safe).
+// Every other call — POST/PATCH/DELETE, or any elevated:true call — goes
+// straight through to _graphRequestSolo, unchanged from before N-188.
 async function graphRequest(method, path, body = null, elevated = false) {
+  if (method !== 'GET' || elevated || !_batchEnabled()) {
+    return _graphRequestSolo(method, path, body, elevated);
+  }
+  return new Promise((resolve, reject) => {
+    _batchQueue.push({ path, resolve, reject });
+    if (_batchQueue.length === 1) setTimeout(_flushBatchQueue, 0);
+  });
+}
+
+// The original single-request implementation, unchanged in behaviour —
+// every direct caller before N-188 (POST/PATCH/DELETE, elevated calls, and
+// now also a solo-fallback GET) still goes through exactly this.
+async function _graphRequestSolo(method, path, body = null, elevated = false) {
   const token = elevated ? await getElevatedToken() : await getToken();
   if (!token) throw new Error("Not authenticated");
   const opts = {
@@ -453,6 +473,103 @@ async function graphRequest(method, path, body = null, elevated = false) {
   }
   if (res.status === 204) return null;
   return res.json();
+}
+
+// ── $batch queueing (N-188 / F-14) ──────────────────────────────────
+// GET-only, non-elevated only. Concurrent Promise.all-driven reads (Company
+// Dashboard, Report Builder) reach this point at different await depths —
+// each wrapper function (getProjects, getWeeklyActivity, ...) crosses a
+// different number of internal cache-check awaits first — so a microtask
+// flush would fire too early and miss most of the cohort. A macrotask
+// boundary (setTimeout 0) waits for the whole microtask queue to drain —
+// every pending cache-check across every concurrent wrapper call — before
+// flushing, and costs nothing: getToken() only runs AFTER the window
+// closes, once per chunk, so this delay is pure JS-side cache-check time,
+// never MSAL/network latency (confirmed by reading js/auth.js in full).
+function _batchEnabled() {
+  return !!(CONFIG.BATCH && CONFIG.BATCH.enabled);
+}
+let _batchQueue = [];
+function _flushBatchQueue() {
+  // Synchronous snapshot-and-clear: anything pushed after this line starts
+  // its own next window rather than being dropped or folded into this one.
+  const chunk = _batchQueue;
+  _batchQueue = [];
+  const maxSub = (CONFIG.BATCH && CONFIG.BATCH.maxSubRequests) || 20;
+  for (let i = 0; i < chunk.length; i += maxSub) {
+    _dispatchBatchGroup(chunk.slice(i, i + maxSub));
+  }
+}
+async function _dispatchBatchGroup(group) {
+  // A lone item never pays for a $batch envelope.
+  if (group.length === 1) {
+    const item = group[0];
+    _graphRequestSolo('GET', item.path, null, false).then(item.resolve, item.reject);
+    return;
+  }
+  try {
+    const results = await _dispatchBatchChunk(group);
+    for (const { status, body, item } of results) {
+      if (status >= 200 && status < 300) {
+        item.resolve(body);
+      } else if (status === 429 || status === 503) {
+        // Don't retry inside the batch — fall back to a solo, retryable
+        // call for just this item, reusing the unmodified GRAPH_RETRY loop
+        // rather than reimplementing per-sub-request backoff bookkeeping.
+        _graphRequestSolo('GET', item.path, null, false).then(item.resolve, item.reject);
+      } else {
+        item.reject(new Error(body?.error?.message || `HTTP ${status}`));
+      }
+    }
+  } catch (e) {
+    // The outer envelope itself failed (after retry) — every item in this
+    // group fails together, same as if each had made its own failed call.
+    for (const item of group) item.reject(e);
+  }
+}
+async function _dispatchBatchChunk(group) {
+  // One shared token for the whole chunk — the actual auth-overhead saving
+  // this ticket exists for. Never call getToken() per sub-request.
+  const token = await getToken();
+  if (!token) throw new Error("Not authenticated");
+  const requests = group.map((item, i) => ({
+    id: String(i),
+    method: 'GET',
+    url: item.path,
+    headers: { "Prefer": "HonorNonIndexedQueriesWarningMayFailRandomly" },
+  }));
+  const opts = {
+    method: 'POST',
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ requests }),
+  };
+  const { maxAttempts, baseDelayMs } = CONFIG.GRAPH_RETRY;
+  let res;
+  for (let attempt = 1; ; attempt++) {
+    res = await fetch(`${GRAPH}/$batch`, opts);
+    if ((res.status === 429 || res.status === 503) && attempt < maxAttempts) {
+      const ra = Number(res.headers.get('Retry-After'));
+      const waitMs = ra > 0 ? ra * 1000 : baseDelayMs * Math.pow(2, attempt - 1);
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+      continue;
+    }
+    break;
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  const byId = new Map((data.responses || []).map(r => [String(r.id), r]));
+  // Match by id, not array position — Graph does not guarantee responses[]
+  // preserves requests[] order.
+  return group.map((item, i) => {
+    const r = byId.get(String(i)) || { status: 502, body: { error: { message: 'No matching batch response' } } };
+    return { id: String(i), status: r.status, body: r.body, item };
+  });
 }
  
 function listPath(listName) {

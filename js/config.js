@@ -488,6 +488,24 @@ const CONFIG = {
     ],
   },
 
+  // Delta queries (N-186 / F-13a). Replaces a full re-fetch-and-recache on a
+  // tier-1/tier-2 miss with an incremental sync: only rows Graph says
+  // changed since the stored deltaLink come back over the wire. ENGINE +
+  // ONE PILOT LIST ONLY — N-187 (F-13b) adds Placements and handles
+  // composition with server-side filters; do not add a second list here for
+  // that ticket.
+  //
+  // A delta-enrolled list's unfiltered read (filter === "") is the only case
+  // this engine touches — SharePoint list-item delta queries do not support
+  // $filter. Any filtered read against an enrolled list is unaffected: it
+  // falls through to the existing tier-1/tier-2/paginated-fetch path exactly
+  // as it does today. N-187 documents any list where that gap can't close.
+  DELTA: {
+    enabled:       true,   // live kill switch — a miss falls back to the
+                            // existing full paginated fetch when false
+    enrolledLists: ['WeeklyActivity'],
+  },
+
   // Client-side error telemetry (N-172 / F-7a). js/diagnostics.js reads
   // these on EVERY captured error, so `enabled: false` is a live kill
   // switch — it takes effect with no reload.

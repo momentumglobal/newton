@@ -488,22 +488,57 @@ const CONFIG = {
     ],
   },
 
-  // Delta queries (N-186 / F-13a). Replaces a full re-fetch-and-recache on a
-  // tier-1/tier-2 miss with an incremental sync: only rows Graph says
-  // changed since the stored deltaLink come back over the wire. ENGINE +
-  // ONE PILOT LIST ONLY — N-187 (F-13b) adds Placements and handles
-  // composition with server-side filters; do not add a second list here for
-  // that ticket.
+  // Delta queries (N-186 / F-13a, N-187 / F-13b). Replaces a full
+  // re-fetch-and-recache on a tier-1/tier-2 miss with an incremental sync:
+  // only rows Graph says changed since the stored deltaLink come back over
+  // the wire.
   //
   // A delta-enrolled list's unfiltered read (filter === "") is the only case
   // this engine touches — SharePoint list-item delta queries do not support
   // $filter. Any filtered read against an enrolled list is unaffected: it
   // falls through to the existing tier-1/tier-2/paginated-fetch path exactly
-  // as it does today. N-187 documents any list where that gap can't close.
+  // as it does today. This is a CLOSED design question, not a gap to revisit
+  // — there is no partial $delta + $filter composition to build. A filtered
+  // read either gets restructured to read unfiltered and filter client-side
+  // (a page-level redesign, not this engine's job) or stays on the paged
+  // path permanently.
+  //
+  // N-187 call-site catalogue — config.js is the single source of truth for
+  // which lists are enrolled, so this is where a future reader should look
+  // rather than re-deriving it from pages.js/api.js. Full reasoning +
+  // measured row counts: newton-pipeline/specs/N-187.md.
+  //
+  // WeeklyActivity — delta-eligible (unfiltered): admin.js:170 (Config Panel
+  //   delete-records list), admin.js:326 (Data Health/Snapshots sweep),
+  //   dashboard-company.js:160 (Company Dashboard), pages.js:390 (Activity
+  //   page — eligible only while DATE_WINDOW_DEFAULT_WEEKS stays 0; a user
+  //   narrowing the window re-introduces a filter for that one read),
+  //   report-builder.js:411 (unscoped comparison pull).
+  // WeeklyActivity — permanent paged fallback (always filtered):
+  //   dashboard-core.js:93 and report-builder.js:388 (ProjectID-scoped),
+  //   market-report.js:128 (RoleID-scoped), getWeeklyActivityNullProjectCount
+  //   / getWeeklyActivityNullWeekEndingCount (integrity probes — need the
+  //   null filter), getWeeklyActivityForWeek (exact-week lookup), every
+  //   getActivityForAnalytics() caller (analytics-pages.js, cc-pages.js x2,
+  //   dashboard-project.js, mobile-analytics.js, mobile-scorecards.js,
+  //   placement-analytics.js — all pass a real weeksBack, never 0).
+  //
+  // Placements — delta-eligible (unfiltered): admin.js:196 (Config Panel
+  //   delete-records list), admin.js:326 (Data Health/Snapshots sweep),
+  //   pages.js:565 (Placements page — eligible only while
+  //   PLACEMENTS_DEFAULT_WEEKS stays 0 AND no month/quarter/year chip is
+  //   picked), placement-analytics.js:22, report-builder.js:389 and :412.
+  // Placements — permanent paged fallback (always filtered): coe-plan.js:139
+  //   (RoleID-scoped), dashboard-core.js:98 (RoleID-set-scoped via
+  //   _odataIn — Project Dashboard).
+  //
+  // NEVER add RejectedOffers (or any other list) here without a ticket that
+  // names it — it shares getRejectedOffers()'s identical filter shape and is
+  // tempting to add "while we're here," but it isn't in F-13's scope.
   DELTA: {
     enabled:       true,   // live kill switch — a miss falls back to the
                             // existing full paginated fetch when false
-    enrolledLists: ['WeeklyActivity'],
+    enrolledLists: ['WeeklyActivity', 'Placements'],
   },
 
   // Client-side error telemetry (N-172 / F-7a). js/diagnostics.js reads

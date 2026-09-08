@@ -610,4 +610,74 @@ var ASSERTIONS = [
       _assertEqual(_roleEntryUsable({ ts: Date.now(), build: CONFIG.APP_BUILD }, true), false, 'no value');
     },
   },
+  // ── N-186 (F-13a): delta sync engine — pure helpers only ────────────
+  // _deltaSync/_deltaEntryGet/_deltaEntrySet touch sessionStorage and Graph,
+  // which don't exist (or can't be faked cheaply) in the Node harness — same
+  // reasoning as the tier-2 _ssGet/_ssSet/_ssPurge exclusion above. Covered
+  // by the live QA checks in the ticket's QA doc instead.
+  {
+    name: 'N-186 CONFIG.DELTA — configured with exactly one enrolled list',
+    fn: function () {
+      _assertEqual(Array.isArray(CONFIG.DELTA.enrolledLists), true, 'enrolledLists is an array');
+      _assertEqual(CONFIG.DELTA.enrolledLists, ['WeeklyActivity'], 'N-186 enrols exactly WeeklyActivity — N-187 adds Placements');
+      _assertEqual(typeof CONFIG.DELTA.enabled, 'boolean', 'enabled flag present');
+    },
+  },
+  {
+    name: 'N-186 _deltaEnabled — true only for the enrolled list, with sessionStorage available',
+    fn: function () {
+      if (typeof sessionStorage === 'undefined') _skip('no sessionStorage under Node — run tests/index.html for this one');
+      _assertEqual(_deltaEnabled('WeeklyActivity'), true, 'enrolled list');
+      _assertEqual(_deltaEnabled('Placements'), false, 'not yet enrolled — N-187');
+      _assertEqual(_deltaEnabled('Projects'), false, 'a tier-2 list is not delta-enrolled');
+    },
+  },
+  {
+    name: 'N-186 _deltaKey — stable, list-scoped, no filter/select component',
+    fn: function () {
+      _assertEqual(_deltaKey('WeeklyActivity'), 'newton_delta_WeeklyActivity', 'key shape');
+      _assertEqual(_deltaKey('WeeklyActivity') === _deltaKey('WeeklyActivity'), true, 'deterministic — same list, same key, no filter/select inputs');
+    },
+  },
+  {
+    name: 'N-186 _deltaEntryUsable — a well-formed current-build entry is usable',
+    fn: function () {
+      const entry = { ts: Date.now(), build: CONFIG.APP_BUILD, deltaLink: '/sites/x/lists/y/items/delta?token=abc', items: [] };
+      _assertEqual(_deltaEntryUsable(entry), true, 'well-formed');
+    },
+  },
+  {
+    name: 'N-186 _deltaEntryUsable — rejects a foreign build, a missing/empty deltaLink, and non-array items',
+    fn: function () {
+      const base = { ts: Date.now(), build: CONFIG.APP_BUILD, deltaLink: '/x', items: [] };
+      _assertEqual(_deltaEntryUsable({ ...base, build: 'SOME-OTHER-BUILD' }), false, 'foreign build');
+      _assertEqual(_deltaEntryUsable({ ...base, deltaLink: '' }), false, 'empty deltaLink');
+      _assertEqual(_deltaEntryUsable({ ...base, deltaLink: undefined }), false, 'missing deltaLink');
+      _assertEqual(_deltaEntryUsable({ ...base, items: 'not-an-array' }), false, 'items not an array');
+      _assertEqual(_deltaEntryUsable(null), false, 'null');
+      _assertEqual(_deltaEntryUsable(undefined), false, 'undefined');
+      _assertEqual(_deltaEntryUsable([]), false, 'array itself is not a valid entry shape');
+      _assertEqual(_deltaEntryUsable({ ts: Date.now(), build: CONFIG.APP_BUILD, deltaLink: '/x' }), false, 'missing items entirely');
+    },
+  },
+  {
+    name: 'N-186 _deltaMerge — upsert of a new id, replace of an existing id, removal via @removed',
+    fn: function () {
+      const baseline = [
+        { id: '1', ProjectID: 100 },
+        { id: '2', ProjectID: 200 },
+      ];
+      const page = [
+        { id: '2', fields: { ProjectID: 201 } },
+        { id: '3', fields: { ProjectID: 300 } },
+        { id: '1', '@removed': { reason: 'deleted' } },
+      ];
+      const merged = _deltaMerge(baseline, page, 'WeeklyActivity');
+      _assertEqual(merged === baseline, true, '_deltaMerge mutates and returns the same array it was given');
+      _assertEqual(merged.length, 2, 'one removed, one replaced, one added = 2 remaining');
+      _assertEqual(merged.find(function (i) { return i.id === '1'; }), undefined, 'id 1 removed');
+      _assertEqual(merged.find(function (i) { return i.id === '2'; }).ProjectID, 201, 'id 2 replaced in place');
+      _assertEqual(merged.find(function (i) { return i.id === '3'; }).ProjectID, 300, 'id 3 upserted');
+    },
+  },
 ];

@@ -5,7 +5,7 @@
 
 async function renderScorecardsPage() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading scorecards...</p>';
+  main.innerHTML = skeletonList(4);
 
   const [activityRaw, historical, tpMap, allRoles] = await Promise.all([
     getActivityForAnalytics(13),

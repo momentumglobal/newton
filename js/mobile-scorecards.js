@@ -38,7 +38,7 @@ let _mScIndex = 0;
 
 async function mobileRenderScorecards(main) {
   mobileSetTitle('People', 'Scorecards');
-  main.innerHTML = '<div class="m-empty">Loading scorecards...</div>';
+  main.innerHTML = skeletonList(4);
 
   try {
     const [activityRaw, historical, tpMap, allRoles] = await Promise.all([

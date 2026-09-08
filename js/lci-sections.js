@@ -383,29 +383,30 @@ function _lciSpendChartSvg(c, ccy, horizon) {
 
   const points = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   const dots = data.map((v, i) =>
-    `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="lci-chart-dot"><title>${c.labels[i]}: ${_lciFmt(v, ccy)}</title></circle>`).join('');
+    `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="nt-chart-dot" style="--nt-chart-color:var(--brand-tertiary)"><title>${c.labels[i]}: ${_lciFmt(v, ccy)}</title></circle>`).join('');
   // Two-line x labels: M# with (Mon YY) beneath, matching the roadmap headers
   const ticks = c.labels.map((l, i) => {
     if (!(horizon <= 12 || i % 2 === 0)) return '';
     const sub = (l.match(/\((.+)\)/) || [])[1] || '';
-    return `<text x="${x(i).toFixed(1)}" y="${H - 18}" font-size="10" fill="var(--text-muted)" text-anchor="middle">M${i + 1}</text>
-            <text x="${x(i).toFixed(1)}" y="${H - 6}" font-size="8" fill="var(--text-faint)" text-anchor="middle">(${sub})</text>`;
+    return `<text x="${x(i).toFixed(1)}" y="${H - 18}" class="nt-chart-tick" text-anchor="middle">M${i + 1}</text>
+            <text x="${x(i).toFixed(1)}" y="${H - 6}" class="nt-chart-tick--sub" text-anchor="middle">(${sub})</text>`;
   }).join('');
 
-  let gridLines = '';
-  for (let v = MINOR; v <= maxY; v += MINOR) {
-    const gy = y(v);
-    const isMajor = v % MAJOR === 0;
-    gridLines += `<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" class="lci-chart-grid${isMajor ? '' : ' lci-chart-grid--minor'}"/>`;
-    if (isMajor) gridLines += `<text x="${padL - 6}" y="${gy + 3}" font-size="10" fill="var(--text-faint)" text-anchor="end">${fmtCompact(v)}</text>`;
-  }
+  const gridLines = _chartGridSvg(padL, W, padR, (() => {
+    const out = [];
+    for (let v = MINOR; v <= maxY; v += MINOR) {
+      const isMajor = v % MAJOR === 0;
+      out.push({ y: y(v), minor: !isMajor, label: isMajor ? fmtCompact(v) : null });
+    }
+    return out;
+  })());
 
   return `
     <div style="margin-top:16px">
       <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Cumulative Spend <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(${ccy})</span></h3>
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
         ${gridLines}
-        <polyline points="${points}" class="lci-chart-line" fill="none"/>
+        <polyline points="${points}" class="nt-chart-line" style="--nt-chart-color:var(--brand-tertiary)"/>
         ${dots}
         ${ticks}
       </svg>

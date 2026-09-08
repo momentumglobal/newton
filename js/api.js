@@ -35,6 +35,12 @@ function _cacheInvalidate(listName) {
   // bypasses this too; that is why N-176 converted the three raw
   // graphRequest('DELETE', ...) sites in admin.js/os-admin.js.
   _ssPurge(listName);
+  // N-186 (F-13a): the delta baseline + token as well, for any delta-
+  // enrolled list. Simplest correct behaviour — a Newton-side write forces a
+  // full bootstrap on the next read rather than trying to merge a local
+  // optimistic change into the tracked baseline. Safe to call unconditionally
+  // even for a non-enrolled list: the key is simply absent.
+  try { sessionStorage.removeItem(_deltaKey(listName)); } catch (e) { /* ignore */ }
 }
 
 // ── Session-persistent read cache — tier 2 (N-176 / F-3a) ─────────────
@@ -156,6 +162,147 @@ function _ssSet(listName, filter, selectStr, data) {
 // load order is config.js -> auth.js -> utils.js -> api.js in every shell).
 // No-op under the Node test harness and no-op while persistentLists is empty.
 _ssPurgeStaleBuilds();
+
+// ── Delta sync — engine + token store (N-186 / F-13a) ─────────────────
+// Replaces a full re-fetch-and-recache on a tier-1/tier-2 miss with an
+// incremental sync: only rows Graph says changed since the stored deltaLink
+// come back over the wire, merged into a persisted baseline array. ENGINE +
+// ONE PILOT LIST ONLY (CONFIG.DELTA.enrolledLists = ['WeeklyActivity']) —
+// N-187 (F-13b) adds Placements and handles composition with server-side
+// filters; do not enrol a second list here for that ticket.
+//
+// A delta-enrolled list's UNFILTERED read (filter === "") is the only case
+// this engine touches — SharePoint list-item delta queries do not support
+// $filter. Every filtered read against an enrolled list is completely
+// unaffected: it falls through to the existing tier-1/tier-2/paginated-fetch
+// path in getItems(), exactly as it does today.
+//
+// One sessionStorage entry per enrolled list, key `newton_delta_<listName>`
+// (no filter/select component — there is only ever one unfiltered read to
+// track). Entry shape: { ts, build, deltaLink, items } — the baseline array
+// and the token that advances it are written together in one setItem call,
+// so a partial write can never leave a token pointing at a merge state the
+// entry doesn't actually hold.
+//
+// Follows the ROLE-CACHE pattern (_roleEntryUsable/_roleCacheGet/
+// _roleCacheSet, below), not the tier-2 cache pattern. A delta token doesn't
+// go stale on a client clock; it stays valid until Graph says otherwise (a
+// 410 on use) or until we invalidate it ourselves (a build bump, or a
+// Newton-side write via _cacheInvalidate). So the build stamp is still
+// checked — a deploy busts it, same as every other cache tier — but
+// CONFIG.CACHE.ttlMs is never consulted for this entry.
+
+// PURE — mirrors _roleEntryUsable. No storage access, no side effects.
+function _deltaEntryUsable(entry) {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false;
+  if (typeof entry.ts !== 'number') return false;
+  if (entry.build !== CONFIG.APP_BUILD) return false;
+  if (typeof entry.deltaLink !== 'string' || !entry.deltaLink) return false;
+  if (!Array.isArray(entry.items)) return false;
+  return true;
+}
+
+// PURE.
+function _deltaKey(listName) {
+  return 'newton_delta_' + listName;
+}
+
+// Storage-touching, hence guarded. False whenever sessionStorage is absent
+// (Node test harness), the live kill switch is off, or the list isn't the
+// (currently singular) enrolled pilot.
+function _deltaEnabled(listName) {
+  try {
+    if (typeof sessionStorage === 'undefined') return false;
+    if (!CONFIG.DELTA || !CONFIG.DELTA.enabled) return false;
+    return (CONFIG.DELTA.enrolledLists || []).includes(listName);
+  } catch (e) {
+    return false;
+  }
+}
+
+function _deltaEntryGet(listName) {
+  try {
+    const raw = sessionStorage.getItem(_deltaKey(listName));
+    if (!raw) return null;
+    let entry = null;
+    try { entry = JSON.parse(raw); } catch (e) { entry = null; }
+    if (!_deltaEntryUsable(entry)) {
+      sessionStorage.removeItem(_deltaKey(listName));
+      return null;
+    }
+    return entry;
+  } catch (e) {
+    try { sessionStorage.removeItem(_deltaKey(listName)); } catch (e2) { /* ignore */ }
+    return null;
+  }
+}
+
+function _deltaEntrySet(listName, deltaLink, items) {
+  try {
+    sessionStorage.setItem(_deltaKey(listName), JSON.stringify({
+      ts: Date.now(), build: CONFIG.APP_BUILD, deltaLink, items
+    }));
+  } catch (e) {
+    /* quota exceeded or private mode — next miss just bootstraps again */
+  }
+}
+
+// PURE. `page` is the raw Graph `value[]` from a delta response (fields NOT
+// yet normalised). Mutates and returns `baseline` (an array of already-
+// normalised items — same shape getItems() has always returned).
+function _deltaMerge(baseline, page, listName) {
+  for (const raw of page) {
+    const idx = baseline.findIndex(it => it.id === raw.id);
+    if (raw['@removed']) {
+      if (idx !== -1) baseline.splice(idx, 1);
+      continue;
+    }
+    const item = { id: raw.id, ...normaliseFields(listName, raw.fields) };
+    if (idx !== -1) baseline[idx] = item; else baseline.push(item);
+  }
+  return baseline;
+}
+
+// Bootstrap (no usable stored entry) or incremental (stored entry present).
+// Either way returns the current merged array and leaves a fresh entry
+// stored. On any failure of an INCREMENTAL sync — including Graph's 410 on a
+// stale deltaLink, which graphRequest() surfaces as a normal thrown error —
+// drops the stored entry and retries ONCE as a bootstrap; never loops. A
+// bootstrap failure propagates exactly like a normal getItems() network
+// failure does today.
+async function _deltaSync(listName, selectStr) {
+  const entry = _deltaEntryGet(listName);
+  let url, baseline;
+  if (entry) {
+    url = entry.deltaLink;
+    baseline = entry.items;
+  } else {
+    url = `${listPath(listName)}/delta?$expand=fields($select=${selectStr})`;
+    baseline = [];
+  }
+  try {
+    let deltaLink = null;
+    while (url) {
+      const data = await graphRequest("GET", url);
+      _deltaMerge(baseline, data.value, listName);
+      if (data['@odata.deltaLink']) {
+        deltaLink = data['@odata.deltaLink'].replace(GRAPH, '');
+        url = null;
+      } else {
+        url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH, '') : null;
+      }
+    }
+    _deltaEntrySet(listName, deltaLink, baseline);
+    return baseline;
+  } catch (e) {
+    if (entry) {
+      console.warn(`Delta sync failed for ${listName}, falling back to a full resync:`, e);
+      try { sessionStorage.removeItem(_deltaKey(listName)); } catch (e2) { /* ignore */ }
+      return _deltaSync(listName, selectStr);
+    }
+    throw e; // bootstrap itself failed — behave like today's network error
+  }
+}
  
 // ── Field normalisers ───────────────────────────────────────────────
 const FIELD_ALIASES = {
@@ -343,6 +490,19 @@ async function getItems(listName, filter = "", select = null) {
   if (persisted) {
     _cacheSet(listName, filter, selectStr, persisted);
     return persisted;
+  }
+
+  // N-186 (F-13a): a miss on an unfiltered, delta-enrolled list is an
+  // incremental sync, not a full re-fetch. SharePoint list-item delta
+  // queries don't support $filter, so any filtered call — including every
+  // existing WeeklyActivity call site except admin.js's unfiltered dashboard
+  // pull — is untouched and falls straight through to the paginated fetch
+  // below, exactly as it does today.
+  if (!filter && _deltaEnabled(listName)) {
+    const items = await _deltaSync(listName, selectStr);
+    _cacheSet(listName, filter, selectStr, items);
+    _ssSet(listName, filter, selectStr, items);
+    return items;
   }
  
   const qs = filter ? `?$expand=fields($select=${selectStr})&$filter=${encodeURIComponent(filter)}` : `?$expand=fields($select=${selectStr})`;

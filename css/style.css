@@ -178,6 +178,11 @@
   --sp-10: 32px;
   --sp-11: 40px;
   --sp-12: 48px;
+  /* Table density (N-194) — comfortable by default, overridden below */
+  --table-cell-py: var(--sp-5);
+  --table-cell-px: var(--sp-6);
+  --table-font: var(--fs-14);
+  --table-header-font: var(--fs-13);
   /* Radius scale */
   --r-xs: 2px;
   --r-sm: 4px;
@@ -459,6 +464,15 @@
   --status-danger-bg:     var(--c-dark-danger-bg);
   --status-danger-bg-soft: var(--c-dark-danger-bg-soft);
   --status-neutral-bg:    var(--c-dark-neutral-bg);
+}
+[data-density="compact"] {
+  /* Compact density (N-194) — tighter table cell padding/font. Bare
+     attribute selector, same as [data-theme="dark"] above, so specificity
+     ties with the :root print re-pin instead of overriding it in print. */
+  --table-cell-py: var(--sp-3);
+  --table-cell-px: var(--sp-4);
+  --table-font: var(--fs-13);
+  --table-header-font: var(--fs-12);
 }
 @media print {
   :root {
@@ -784,15 +798,15 @@ body {
   width: calc(100% - var(--sp-12));
   margin: 0 var(--sp-9);
   border-collapse: collapse;
-  font-size: var(--fs-14);
+  font-size: var(--table-font);
 }
 .data-table th {
   background: var(--brand);
   color: var(--text-on-brand);
   text-align: left;
-  padding: var(--sp-5) var(--sp-6);
+  padding: var(--table-cell-py) var(--table-cell-px);
   font-weight: 600;
-  font-size: var(--fs-13);
+  font-size: var(--table-header-font);
   letter-spacing: 0.01em;
 }
 
@@ -803,7 +817,7 @@ body {
 .data-table th:first-child { border-radius: var(--r-md) 0 0 0; }
 .data-table th:last-child  { border-radius: 0 var(--r-md) 0 0; }
 .data-table td {
-  padding: var(--sp-5) var(--sp-6);
+  padding: var(--table-cell-py) var(--table-cell-px);
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface);
   transition: background 150ms ease;

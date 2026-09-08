@@ -39,18 +39,12 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
   // Gridlines every £50k
   const gridVals = [];
   for (let v = 0; v <= yMax; v += 50000) gridVals.push(v);
-  const gridLines = gridVals.map(v => {
-    const y = yOf(v);
-    return `
-      <line x1='${PAD.left}' y1='${y}' x2='${W - PAD.right}' y2='${y}'
-            stroke='var(--border)' stroke-width='1'/>
-      <text x='${PAD.left - 6}' y='${y + 4}' text-anchor='end'
-            font-size='10' fill='var(--text-faint)'>£${(v / 1000).toFixed(0)}k</text>`;
-  }).join('');
+  const gridLines = _chartGridSvg(PAD.left, W, PAD.right,
+    gridVals.map(v => ({ y: yOf(v), label: `£${(v / 1000).toFixed(0)}k` })));
 
   const xLabels = MONTH_LABELS.map((lbl, i) =>
     `<text x='${xOf(i)}' y='${PAD.top + chartH + 18}' text-anchor='middle'
-           font-size='10' fill='var(--text-muted)'>${lbl}</text>`
+           class='nt-chart-tick'>${lbl}</text>`
   ).join('');
 
   // Threshold bands: green from green→top, orange amber→green, red 0→amber
@@ -65,8 +59,8 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
   const linePts = revenue
     .map((v, i) => `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`)
     .join(' ');
-  const line = `<polyline points='${linePts}' fill='none' stroke='var(--surface-accent)'
-                  stroke-width='2.5' stroke-linejoin='round'/>`;
+  const line = `<polyline points='${linePts}' class='nt-chart-line'
+                  style='--nt-chart-color:var(--surface-accent)'/>`;
 
   // Dashed forecast line: forks at forkIdx (shares that point with the solid
   // line), runs to Dec. Only drawn if any forecast revenue exists from the
@@ -78,14 +72,13 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
     .map(p => `${xOf(p.i).toFixed(1)},${yOf(p.v).toFixed(1)}`)
     .join(' ');
   const forecastLine = hasForecast && forecastPts.includes(' ')
-    ? `<polyline points='${forecastPts}' fill='none' stroke='var(--accent)'
-                stroke-width='2' stroke-dasharray='5,4'
-                stroke-linejoin='round' opacity='0.85'/>`
+    ? `<polyline points='${forecastPts}' class='nt-chart-line nt-chart-line--dashed'
+                style='--nt-chart-color:var(--accent)'/>`
     : '';
 
   const dots = revenue.map((v, i) => `
     <circle cx='${xOf(i).toFixed(1)}' cy='${yOf(v).toFixed(1)}'
-            r='3.5' fill='var(--surface-accent)' stroke='var(--c-white)' stroke-width='1.5'>
+            r='3.5' class='nt-chart-dot--ring' style='--nt-chart-color:var(--surface-accent)'>
       <title>${MONTH_LABELS[i]} ${year}: ${_fmtGBPk(v)}</title>
     </circle>`).join('');
 
@@ -94,7 +87,7 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
         .filter(p => p.i > forkIdx && forecastRev[p.i] > 0)
         .map(p => `
           <circle cx='${xOf(p.i).toFixed(1)}' cy='${yOf(p.v).toFixed(1)}'
-                  r='3' fill='var(--c-white)' stroke='var(--accent)' stroke-width='2' opacity='0.85'>
+                  r='3' class='nt-chart-dot--hollow' style='--nt-chart-color:var(--accent)' opacity='0.85'>
             <title>${MONTH_LABELS[p.i]} ${year}: ${_fmtGBPk(p.v)} (est. + forecast)</title>
           </circle>`).join('')
     : '';
@@ -114,36 +107,12 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
         ${dots}
         ${forecastDots}
       </svg>
-      <div style='display:flex;justify-content:center;gap:24px;margin-top:4px;
-                  font-size:11px;color:var(--text-label)'>
-        <div style='display:flex;align-items:center;gap:6px'>
-          <svg width='24' height='2' style='overflow:visible'>
-            <line x1='0' y1='1' x2='24' y2='1' stroke='var(--surface-accent)' stroke-width='2.5'/>
-          </svg>
-          Estimated (booked)
-        </div>
-        <div style='display:flex;align-items:center;gap:6px'>
-          <svg width='24' height='2' style='overflow:visible'>
-            <line x1='0' y1='1' x2='24' y2='1' stroke='var(--accent)' stroke-width='2'
-                  stroke-dasharray='5,4' opacity='0.85'/>
-          </svg>
-          Estimated + Forecast
-        </div>
-        <div style='display:flex;align-items:center;gap:6px'>
-          <span style='width:12px;height:12px;background:var(--status-success-bg);border:1px solid var(--c-green-border-pale);
-                       display:inline-block;border-radius:2px'></span>
-          ≥ ${_fmtGBPk(green)}
-        </div>
-        <div style='display:flex;align-items:center;gap:6px'>
-          <span style='width:12px;height:12px;background:var(--status-warn-bg-soft);border:1px solid var(--c-warn-border-pale);
-                       display:inline-block;border-radius:2px'></span>
-          ${_fmtGBPk(amber)} – ${_fmtGBPk(green)}
-        </div>
-        <div style='display:flex;align-items:center;gap:6px'>
-          <span style='width:12px;height:12px;background:var(--status-danger-bg);border:1px solid var(--c-red-border-pale);
-                       display:inline-block;border-radius:2px'></span>
-          < ${_fmtGBPk(amber)}
-        </div>
-      </div>
+      ${_chartLegendHtml([
+        { color: 'var(--surface-accent)', label: 'Estimated (booked)' },
+        { color: 'var(--accent)', dashed: true, label: 'Estimated + Forecast' },
+        { color: 'var(--status-success-bg)', border: 'var(--status-success)', box: true, label: `≥ ${_fmtGBPk(green)}` },
+        { color: 'var(--status-warn-bg-soft)', border: 'var(--status-warn)', box: true, label: `${_fmtGBPk(amber)} – ${_fmtGBPk(green)}` },
+        { color: 'var(--status-danger-bg)', border: 'var(--status-danger)', box: true, label: `< ${_fmtGBPk(amber)}` },
+      ])}
     </div>`;
 }

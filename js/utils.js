@@ -748,6 +748,29 @@ function toggleTheme() {
   if (typeof updateThemeToggleIcon === 'function') updateThemeToggleIcon();
 }
 
+// ── Density (comfortable / compact) ─────────────────────────────────
+// Same pattern as Theme above. theme-init.js sets the initial data-density
+// attribute before first paint using the same localStorage key — keep
+// DENSITY_KEY's value in sync with the literal string in theme-init.js if
+// it ever changes.
+const DENSITY_KEY = 'newton_density';
+
+function getDensity() {
+  return document.documentElement.getAttribute('data-density') === 'compact' ? 'compact' : 'comfortable';
+}
+function setDensity(density) {
+  if (density === 'compact') {
+    document.documentElement.setAttribute('data-density', 'compact');
+  } else {
+    document.documentElement.removeAttribute('data-density');
+  }
+  try { localStorage.setItem(DENSITY_KEY, density); } catch (e) {}
+}
+function toggleDensity() {
+  setDensity(getDensity() === 'compact' ? 'comfortable' : 'compact');
+  if (typeof updateDensityToggleIcon === 'function') updateDensityToggleIcon();
+}
+
 // ── Dashboard skeleton placeholder ───────────────────────────────
 // N-191: dashboardSkeleton() is now a thin wrapper over the primitives
 // below (kept for byte-identical output on its two existing callers,

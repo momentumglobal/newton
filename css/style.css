@@ -957,15 +957,25 @@ body {
   margin: 0 0 var(--sp-7) 0; padding-bottom: var(--sp-4);
   border-bottom: 1px solid var(--border-subtle);
 }
-.bar-chart { display: flex; flex-direction: column; gap: var(--sp-4); }
-.chart-row { display: flex; align-items: center; gap: var(--sp-4); }
-.chart-label { width: 140px; font-size: var(--fs-12); color: var(--text-label); flex-shrink: 0; text-align: right; }
-.chart-bar-wrap {
-  flex: 1; display: flex; align-items: center; gap: var(--sp-3);
-  background: var(--surface-hover); border-radius: var(--r-sm); overflow: hidden;
-}
-.chart-bar { height: 22px; border-radius: var(--r-sm); min-width: var(--sp-1); transition: width 0.4s ease; }
-.chart-val { font-size: var(--fs-12); color: var(--text-label); white-space: nowrap; padding-right: var(--sp-4); font-variant-numeric: tabular-nums; }
+.nt-chart-grid          { stroke: var(--border-subtle); stroke-width: 1; }
+.nt-chart-grid--minor   { stroke: var(--surface-sunken); }
+.nt-chart-tick          { fill: var(--text-muted); font-size: var(--fs-10); }
+.nt-chart-tick--sub     { fill: var(--text-faint); font-size: 8px; }
+.nt-chart-line          { fill: none; stroke: var(--nt-chart-color, var(--brand-tertiary)); stroke-width: 2.5; stroke-linejoin: round; }
+.nt-chart-line--dashed  { stroke-width: 2; stroke-dasharray: 5 4; opacity: 0.85; }
+.nt-chart-dot           { fill: var(--nt-chart-color, var(--brand-tertiary)); }
+.nt-chart-dot--ring     { fill: var(--nt-chart-color, var(--brand-tertiary)); stroke: var(--c-white); stroke-width: 1.5; }
+.nt-chart-dot--hollow   { fill: var(--c-white); stroke: var(--nt-chart-color, var(--brand-tertiary)); stroke-width: 2; }
+.nt-chart-legend        { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-3); font-size: var(--fs-11); color: var(--text-label); }
+.nt-chart-legend-item   { display: flex; align-items: center; gap: var(--sp-2); }
+.nt-chart-legend-swatch          { width: 24px; height: 2px; flex-shrink: 0; display: inline-block; background: var(--nt-chart-color, var(--brand-tertiary)); }
+.nt-chart-legend-swatch--dashed  { background: none; border-top: 2px dashed var(--nt-chart-color, var(--brand-tertiary)); height: 0; }
+.nt-chart-legend-swatch--box     { width: 12px; height: 12px; border-radius: var(--r-sm); background: var(--nt-chart-color); border: 1px solid var(--nt-chart-border, transparent); }
+.nt-chart-bar-row       { display: flex; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-3); }
+.nt-chart-bar-label     { width: 80px; font-size: var(--fs-12); color: var(--text-label); text-align: right; flex-shrink: 0; }
+.nt-chart-bar-wrap      { flex: 1; background: var(--surface-hover); border-radius: var(--r-sm); height: 18px; overflow: hidden; }
+.nt-chart-bar           { height: 18px; border-radius: var(--r-sm); min-width: 2px; background: var(--surface-accent); }
+.nt-chart-bar-val       { width: 50px; font-size: var(--fs-12); color: var(--text-secondary); flex-shrink: 0; }
 .no-data { color: var(--text-muted); font-size: var(--fs-13); font-style: italic; }
 .totals-row td { background: var(--surface-alt) !important; font-weight: 600; }
 .spend-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-7); margin-top: var(--sp-4); }
@@ -2757,13 +2767,6 @@ body {
 .lci-grid--amounts .lci-mcol { min-width: 78px; }
 .lci-grid--amounts .lci-mcol .lci-cell { width: 70px; text-align: right; }
 
-/* LCI cumulative spend chart */
-.lci-chart-line { stroke: var(--brand-tertiary); stroke-width: 2.5; }
-.lci-chart-dot  { fill: var(--brand-tertiary); }
-.lci-chart-grid { stroke: var(--border-subtle); stroke-width: 1; }
-.lci-chart-tick { fill: var(--text-muted); font-size: var(--fs-10); }
-.lci-chart-grid--minor { stroke: var(--surface-sunken); }
-
 /* LCI milestone bars (rows inside the roadmap grid; navy matches .data-table th) */
 .lci-ms-bar { height: var(--sp-6); background: var(--brand); border-radius: var(--r-md); margin: 0 -3px; }
 
@@ -2781,9 +2784,6 @@ body {
 .lci-compare td:first-child { text-align: left; }
 .lci-compare th { text-align: center; }
 .lci-compare th:first-child { text-align: left; }
-.lci-chart-line--b { stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 5 4; }
-.lci-chart-line--b-dot { fill: var(--accent); }
-.lci-chart-line-dot { fill: var(--brand-tertiary); }
 
 /* LCI report — navy cover & divider pages (brand slide layout) */
 /* Background #0A0545 matches the baked-in bg of mg-visual-swirl-report.png */

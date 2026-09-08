@@ -3051,6 +3051,8 @@ body {
 
 .org-bench { margin-top: var(--sp-10); border-top: 1px dashed var(--border-connector); padding-top: var(--sp-7); }
 .org-bench__title { font-weight: 600; font-size: var(--fs-13); color: var(--status-neutral); margin-bottom: var(--sp-5); }
+.org-unassigned { margin-top: var(--sp-10); border-top: 1px dashed var(--border-connector); padding-top: var(--sp-7); }
+.org-unassigned__title { font-weight: 600; font-size: var(--fs-13); color: var(--status-neutral); margin-bottom: var(--sp-5); }
 /* .org-avatar sits at top:-20px, so each card overhangs upward by 20px — the
    tree absorbs this via .org-tree li's padding-top. The bench grid needs its
    own headroom (heading clearance) and a row-gap larger than the overhang. */

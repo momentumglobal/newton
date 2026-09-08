@@ -7,7 +7,7 @@ let _projectsFilter = "Active";
 async function renderProjectsPage(filter) {
   if (filter !== undefined) _projectsFilter = filter;
   const main = document.getElementById("main-content");
-  main.innerHTML = "<p>Loading projects...</p>";
+  main.innerHTML = skeletonTable(6, 5);
   const role = _resolvedRole;
   const user = getCurrentUser();
   let [projects, dmMap] = await Promise.all([
@@ -81,7 +81,7 @@ let _rolesPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
 async function renderRolesPage(filter) {
   if (filter !== undefined) _rolesFilter = filter;
   const main = document.getElementById("main-content");
-  main.innerHTML = "<p>Loading roles...</p>";
+  main.innerHTML = skeletonTable(6, 9);
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
   const [allRoles, allProjects, { projects: scopedProjects, canFilter }, tpMap, historyRoleIds] = await Promise.all([
@@ -383,7 +383,7 @@ let _activityWeeks     = CONFIG.DATE_WINDOW_DEFAULT_WEEKS;
 let _activityPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
 async function renderActivityPage() {
   const main = document.getElementById("main-content");
-  main.innerHTML = "<p>Loading activity...</p>";
+  main.innerHTML = skeletonTable(6, 13);
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
   const [activity, allRoles, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
@@ -554,7 +554,7 @@ function setPlacementFilter(type, value) {
 }
 async function renderPlacementsPage() {
   const main = document.getElementById("main-content");
-  main.innerHTML = "<p>Loading placements...</p>";
+  main.innerHTML = skeletonTable(6, 6);
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
   const [allPlacements, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
@@ -698,7 +698,7 @@ let _rejectionsWeeks     = CONFIG.REJECTIONS_DEFAULT_WEEKS;
 let _rejectionsPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
 async function renderRejectionsPage() {
   const main = document.getElementById("main-content");
-  main.innerHTML = "<p>Loading rejections...</p>";
+  main.innerHTML = skeletonTable(6, 6);
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
   const [rejections, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([

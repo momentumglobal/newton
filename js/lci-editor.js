@@ -12,7 +12,7 @@ let _lciEd = null; // { model, rows, deletedRowIds, origRows, dirtySettings, dir
 async function renderLCIEditorPage(modelId) {
   document.body.classList.remove('lci-summary-mode');
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading...</p>';
+  main.innerHTML = skeletonPanel(10);
   try {
     const [model, rows, milestones] = await Promise.all([
       getLCIModelById(modelId),

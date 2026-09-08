@@ -541,6 +541,20 @@ const CONFIG = {
     enrolledLists: ['WeeklyActivity', 'Placements'],
   },
 
+  // $batch request coalescing (N-188 / F-14). GET-only, never elevated —
+  // concurrent reads that land in the same macrotask window (e.g. Company
+  // Dashboard's and Report Builder's Promise.all cohorts) are bundled into
+  // one POST /$batch call instead of N separate round trips, each with its
+  // own token acquisition. maxSubRequests is Graph's own documented
+  // per-$batch limit, not a tuning knob — don't raise it chasing "more
+  // savings". Full design: newton-pipeline/specs/N-188.md.
+  BATCH: {
+    enabled:        true,   // live kill switch — false makes every call go
+                             // straight through _graphRequestSolo, exactly
+                             // as before N-188, no $batch call ever made
+    maxSubRequests: 20,
+  },
+
   // Client-side error telemetry (N-172 / F-7a). js/diagnostics.js reads
   // these on EVERY captured error, so `enabled: false` is a live kill
   // switch — it takes effect with no reload.

@@ -9,8 +9,6 @@
 // login, Graph API) and non-GET requests are passed straight through and are
 // never touched by the service worker.
 
-const SW_VERSION = 'newton-pwa-v1';
-
 self.addEventListener('install', (event) => {
   // Activate immediately on first install / update.
   self.skipWaiting();

@@ -614,13 +614,20 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* Single canonical @page declaration (N-201 AC2) — every portrait export
-     that doesn't set its own named page (@page coe-gantt is the existing
-     pattern) falls through to this. No margin is set: none was set before
-     this move either, so adding one now would be a real visual change this
-     task can't verify from here — flagged in Reference, not guessed at. */
-  @page { size: A4 portrait; }
 }
+/* Single canonical @page declaration (N-201 AC2, revised).
+   MUST stay outside @media print — nesting it in there (this task's first
+   attempt) broke print pagination in testing: several landscape exports
+   fell back to portrait, and pages lost their margin override and fell
+   back to the browser's own default print margin, which cropped content
+   and left a blank band of body background at the foot of the page.
+   @page is only ever active during pagination anyway, so it never needed
+   the @media print wrapper. Margin per Chris (Sep 2026): previous exports
+   ran with no explicit margin (browser default — too wide, crops/squeezes
+   tile content that already carries its own padding); 10mm is a first pass
+   at "close to the edge" — adjust this one value if it's still too loose
+   or too tight, nothing else needs to change. */
+@page { size: A4 portrait; margin: 10mm; }
 /* Utility — toggled from JS for conditionally-shown form fields (N-116) */
 .is-hidden { display: none !important; }
 body {

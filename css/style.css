@@ -2221,7 +2221,7 @@ body {
 
 /* Print / PDF export */
 @media print {
-  #sidebar, .eng-controls, .eng-tab-strip, .eng-rate-banner .btn-secondary,
+  .eng-controls, .eng-tab-strip, .eng-rate-banner .btn-secondary,
   .eng-modal-overlay, .home-bottom-bar { display: none !important; }
   .eng-card { break-inside: avoid; }
 }
@@ -2869,7 +2869,7 @@ body {
 .lci-team-btn--danger:hover { color: var(--status-danger-text); }
 
 @media print {
-  .lci-noprint, #sidebar { display: none !important; }
+  .lci-noprint { display: none !important; }
   /* Client-facing summary: no 'Confidential — Internal' banner */
   body.lci-summary-mode::before { display: none !important; content: none !important; }
   /* Banner sits flush on the first section; sections match banner width */
@@ -3517,20 +3517,23 @@ body.bp-printing .rt-table-controls { display: none !important; }
 .bp-confidential { text-align: center; font-size: var(--fs-11); color: var(--text-secondary); padding: var(--sp-4) 0; }
 
 /* Print — scoped entirely to body.bp-printing so nothing here can reach
-   another feature's export. Two page contexts: the default margined page for
-   flowing content, and a named zero-margin page for the full-bleed pages.
-   Named pages are Chromium-only, the same documented limitation as the CoE
-   Gantt's @page coe-gantt above. Still the only portrait export in Newton
-   (see N-202). */
+   another feature's export. Two named page contexts: @page bp-flow (margined,
+   for flowing content) and @page bp-full (zero-margin, full-bleed pages) —
+   named because @page cannot be scoped by an ancestor selector; before N-202
+   the flowing-content page was a bare, unscoped @page that silently
+   overrode the foundation's sitewide default for every portrait export, not
+   just this one (fixed here). Named pages are Chromium-only, the same
+   documented limitation as the CoE Gantt's @page coe-gantt above. One of two
+   portrait exports in Newton — the LCI Lead Magnet is the other. */
 @media print {
-  @page { size: A4 portrait; margin: 20mm 18mm 16mm; }
+  @page bp-flow { size: A4 portrait; margin: 20mm 18mm 16mm; }
   @page bp-full { size: A4 portrait; margin: 0; }
 
   body.bp-printing #print-header { display: none !important; }
   /* The shared print rule insets #main-content; full bleed cannot survive it. */
   body.bp-printing #main-content { padding: 0 !important; }
   
-  body.bp-printing .bp-page { break-after: page; page-break-after: always; }
+  body.bp-printing .bp-page { page: bp-flow; break-after: page; page-break-after: always; }
   body.bp-printing .bp-page:last-of-type { break-after: auto; page-break-after: auto; }
   /* A full-bleed page following a flow table must start its own page. */
   body.bp-printing .bp-page-full { break-before: page; page-break-before: always; }

@@ -313,7 +313,7 @@ async function engCloseRun(runId) {
 }
 
 function engExportPDF() {
-  printPage('Engagement Results', false, 'People — Engagement');
+  printPage('Engagement Results', true, 'People — Engagement');
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────

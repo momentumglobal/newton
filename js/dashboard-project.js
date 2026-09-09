@@ -58,7 +58,7 @@ async function renderProjectDashboard() {
   main.innerHTML = `
     <div class='page-header'>
       <h2>Project Dashboard${isDMAdmin ? ' — ' + escHtml(projectName) : ''}</h2>
-    <button class='print-btn' onclick="printPage('Project Dashboard${isDMAdmin ? ' — ' + escJsAttr(projectName) : ''}', false, 'Reporting')">⎙ Export PDF</button>
+    <button class='print-btn' onclick="printPage('Project Dashboard${isDMAdmin ? ' — ' + escJsAttr(projectName) : ''}', true, 'Reporting')">⎙ Export PDF</button>
     </div>
     ${selectorHtml}
     <div class='form-group dash-project-selector'>

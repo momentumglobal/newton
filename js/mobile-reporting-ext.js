@@ -95,7 +95,7 @@ function mobileDrawRolesList(main) {
 
   const controls = `
     <div class="m-action-row" style="margin-bottom:10px">
-      <button class="m-btn-primary" onclick="mobileNav('add-role')">+ Add Role</button>
+      <button class="m-btn-primary" onclick="mobileOpenAddRoleSheet()">+ Add Role</button>
     </div>
     <div class="m-detail-panel" style="margin-bottom:12px">
       <input class="m-input" type="text" id="mrl-search" placeholder="Search role or TP..."
@@ -205,6 +205,19 @@ function mobileRedrawRolesListOnly() {
 // Call this after Add Role / Stage changes so the cache refreshes next view.
 function mobileInvalidateRolesCache() { _mRolesCache = null; }
 
+// N-199: after a successful Add Role save (sheet closed), refresh the Roles
+// list in place — re-fetch so the new role appears, redraw only the list
+// (not the whole view), and restore the page's scroll position around the
+// redraw so the sheet closing doesn't jump the list back to the top.
+async function mobileRefreshRolesListInPlace() {
+  mobileInvalidateRolesCache();
+  if (_mobileView !== 'roles') return;
+  const scrollY = document.scrollingElement.scrollTop;
+  _mRolesCache = await mobileGetRoles();
+  mobileDrawRolesList(document.getElementById('m-main'));
+  document.scrollingElement.scrollTop = scrollY;
+}
+
 // ── #3 Log Rejection form ─────────────────────────────────────────────
 const M_REJECT_REASONS = ['Salary','Motivations','Counter-offer','Took another opportunity','Other'];
 
@@ -276,7 +289,7 @@ async function mobileRenderRejectionForm(main, rolePreselected) {
       </div>
     `;
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderRejectionForm(document.getElementById('m-main'), ${rolePreselected})`);
+    main.innerHTML = mobilePageError(e.message, `mobileRenderRejectionForm(document.getElementById('m-sheet-body'), ${rolePreselected})`);
   }
 }
 
@@ -315,8 +328,7 @@ async function mobileSubmitRejection(rolePreselected) {
   try {
     await createItem('RejectedOffers', fields);
     mobileToast('Rejection logged ✓');
-    if (rolePreselected) mobileNav('role-detail', false);
-    else mobileNav('summary', false);
+    mobileCloseSheet();
   } catch (e) {
     btn.disabled = false; btn.textContent = 'Log Rejection';
     fail('Error: ' + e.message);

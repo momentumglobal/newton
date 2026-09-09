@@ -52,6 +52,17 @@ async function mobileRenderSalesForecast(main) {
   }
 }
 
+// N-200: pull-to-refresh entry point. Clears both SharePoint read-cache
+// tiers for SalesForecasts (_cacheInvalidate, N-176/N-186) so a manual pull
+// always gets fresh data inside the 30s tier-1 TTL, then re-renders the
+// list. A full re-render (rather than a list-only redraw like Roles') is
+// safe here: this only ever runs while already scrolled to the top, and
+// there is no search/filter input on this view to lose focus on.
+async function mobilePullRefreshSalesForecast() {
+  _cacheInvalidate('SalesForecasts');
+  await mobileRenderSalesForecast(document.getElementById('m-main'));
+}
+
 // --- Add / Edit forecast form ---
 async function mobileSalesForecastForm(editId) {
   mobileSetTitle(editId ? 'Edit Forecast' : 'Add Forecast', 'Sales');

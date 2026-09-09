@@ -113,6 +113,10 @@ async function mobileOnSignedIn() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-shell').style.display    = 'flex';
 
+  // N-200: arm the pull-to-refresh gesture once per sign-in, before landing
+  // on any view.
+  mobileSetupPullToRefresh();
+
   // Land on the Home launcher
   mobileOpenHome();
 }
@@ -351,6 +355,100 @@ function mobilePageError(message, retryOnClick) {
     <div>${escHtml(message)}</div>
     <button class="m-btn-secondary m-empty-retry" onclick="${escAttr(retryOnClick)}">Retry</button>
   </div>`;
+}
+
+// === Pull-to-refresh (N-200) ===
+// Views that support a downward pull to refresh their data, mapped to the
+// NAME of the async function that clears the read cache and re-fetches.
+// Function names, not references - mirrors the existing MOBILE_NAV `sheet`
+// pattern: mobile-reporting-ext.js and mobile-sales.js load after this
+// file, so a direct function reference here would throw ReferenceError
+// before those functions exist. A view not listed shows no indicator and
+// the gesture is a no-op - extending coverage later is a one-line addition.
+const MOBILE_PULL_REFRESH = {
+  roles: 'mobilePullRefreshRoles',                    // mobile-reporting-ext.js
+  'sales-forecast': 'mobilePullRefreshSalesForecast', // mobile-sales.js
+};
+
+const MOBILE_PTR_THRESHOLD = 60; // px pulled before release triggers a refresh
+const MOBILE_PTR_MAX       = 90; // px the indicator travels before resisting further pull
+
+let _mPtrListenersAttached = false;
+let _mPtrStartY     = 0;
+let _mPtrPulling    = false;
+let _mPtrRefreshing = false;
+
+// Attach once, from mobileOnSignedIn(). Attaching from mobileRenderView()
+// (called on every navigation) would stack a new listener per view change
+// and fire one refresh per stacked listener on a single pull - the exact
+// double-fetch this ticket exists to prevent. The _mPtrListenersAttached
+// guard makes a second call harmless too.
+function mobileSetupPullToRefresh() {
+  if (_mPtrListenersAttached) return;
+  _mPtrListenersAttached = true;
+
+  document.addEventListener('touchstart', (e) => {
+    if (_mPtrRefreshing || _mobileSheetOpen) return;
+    if (!MOBILE_PULL_REFRESH[_mobileView]) return;
+    if (document.scrollingElement.scrollTop > 0) return;
+    _mPtrStartY = e.touches[0].clientY;
+    _mPtrPulling = true;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!_mPtrPulling) return;
+    if (document.scrollingElement.scrollTop > 0) { _mobilePtrReset(); return; }
+    const dy = e.touches[0].clientY - _mPtrStartY;
+    if (dy <= 0) { _mobilePtrReset(); return; }
+    _mobilePtrShow(Math.min(dy, MOBILE_PTR_MAX));
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (!_mPtrPulling) return;
+    const el = document.getElementById('m-ptr');
+    const pulled = el ? parseFloat(el.dataset.pull || '0') : 0;
+    _mPtrPulling = false;
+    if (pulled >= MOBILE_PTR_THRESHOLD) _mobilePtrRun();
+    else _mobilePtrReset();
+  }, { passive: true });
+}
+
+function _mobilePtrShow(pull) {
+  const el = document.getElementById('m-ptr');
+  if (!el) return;
+  el.dataset.pull = pull;
+  el.style.maxHeight = pull + 'px';
+  el.classList.add('visible');
+  el.classList.toggle('ready', pull >= MOBILE_PTR_THRESHOLD);
+}
+
+function _mobilePtrReset() {
+  _mPtrPulling = false;
+  const el = document.getElementById('m-ptr');
+  if (!el) return;
+  el.style.maxHeight = '';
+  el.classList.remove('visible', 'ready', 'spinning');
+  delete el.dataset.pull;
+}
+
+async function _mobilePtrRun() {
+  const fnName = MOBILE_PULL_REFRESH[_mobileView];
+  const el = document.getElementById('m-ptr');
+  if (!fnName || typeof window[fnName] !== 'function') { _mobilePtrReset(); return; }
+
+  _mPtrRefreshing = true;
+  if (el) { el.style.maxHeight = MOBILE_PTR_THRESHOLD + 'px'; el.classList.add('spinning'); }
+
+  // Minimum visible time so a fast response doesn't just flash the spinner.
+  const minShow = new Promise(resolve => setTimeout(resolve, 400));
+  try {
+    await Promise.all([window[fnName](), minShow]);
+  } catch (e) {
+    console.warn('Pull-to-refresh failed:', e && e.message);
+  } finally {
+    _mPtrRefreshing = false;
+    _mobilePtrReset();
+  }
 }
 
 // === Boot ===

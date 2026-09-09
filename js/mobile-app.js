@@ -444,7 +444,15 @@ async function _mobilePtrRun() {
   try {
     await Promise.all([window[fnName](), minShow]);
   } catch (e) {
+    // N-200 QA fix: the finally block below already resets the indicator so
+    // it never sticks, but that alone left a failed pull looking identical
+    // to a successful one - console.warn is invisible on a phone. mobileToast
+    // is this file's existing transient-feedback helper (see === Toast ===),
+    // and this is the one call site both mobilePullRefreshRoles() and
+    // mobilePullRefreshSalesForecast() are awaited from, so one line here
+    // covers both paths.
     console.warn('Pull-to-refresh failed:', e && e.message);
+    mobileToast('Refresh failed — check your connection');
   } finally {
     _mPtrRefreshing = false;
     _mobilePtrReset();

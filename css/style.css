@@ -614,6 +614,12 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  /* Single canonical @page declaration (N-201 AC2) — every portrait export
+     that doesn't set its own named page (@page coe-gantt is the existing
+     pattern) falls through to this. No margin is set: none was set before
+     this move either, so adding one now would be a real visual change this
+     task can't verify from here — flagged in Reference, not guessed at. */
+  @page { size: A4 portrait; }
 }
 /* Utility — toggled from JS for conditionally-shown form fields (N-116) */
 .is-hidden { display: none !important; }
@@ -1227,7 +1233,6 @@ body {
      screen rule (.rb-report-title, line ~726) sits later in the file. */
   .rb-report-title { display: block !important; margin-bottom: var(--sp-6) !important; }
 }
-@page { size: A4 portrait; }
 /* ── Report Builder ─────────────────────────────────────────────── */
 .rb-shell {
   display: flex;

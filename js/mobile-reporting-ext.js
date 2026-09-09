@@ -218,6 +218,18 @@ async function mobileRefreshRolesListInPlace() {
   document.scrollingElement.scrollTop = scrollY;
 }
 
+// N-200: pull-to-refresh entry point. mobileRefreshRolesListInPlace() above
+// does NOT clear _apiCache - it only ever runs right after a write, and
+// every write path already invalidates the cache itself. A manual pull has
+// no write behind it, so this clears both cache tiers first (via the
+// existing _cacheInvalidate contract, N-176/N-186) to guarantee fresh data
+// even inside the 30s tier-1 TTL, then delegates to the existing in-place
+// redraw so scroll position and the search/filter inputs are preserved.
+async function mobilePullRefreshRoles() {
+  _cacheInvalidate('Roles');
+  await mobileRefreshRolesListInPlace();
+}
+
 // ── #3 Log Rejection form ─────────────────────────────────────────────
 const M_REJECT_REASONS = ['Salary','Motivations','Counter-offer','Took another opportunity','Other'];
 

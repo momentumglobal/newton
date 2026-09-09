@@ -595,6 +595,8 @@
   .data-table { table-layout: fixed; width: 100% !important; margin: 0 !important; }
   .data-table th, .data-table td { word-wrap: break-word; overflow-wrap: break-word; padding: var(--sp-3) var(--sp-3) !important; font-size: var(--fs-11) !important; }
   .data-table th:first-child, .data-table td:first-child { width: 16%; }
+  .dash-rev-table th:first-child, .dash-rev-table td:first-child { width: 58%; }
+  .dash-seg-table th:first-child, .dash-seg-table td:first-child { width: 46%; }
   .dash-panel { overflow: visible; padding: var(--sp-3) var(--sp-2) !important; }
   .data-table th { position: static; }
   .data-table tr    { page-break-inside: avoid; }

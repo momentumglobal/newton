@@ -541,6 +541,79 @@
     --status-danger-bg-soft: var(--c-danger-bg-soft);
     --status-neutral-bg: var(--c-bluegrey-bg);
   }
+
+  /* ── Global print chrome (N-201) ──────────────────────────────
+     Shared by every printed page — Report Builder, Company/Project/People
+     Dashboard, LCI report, Deployment Timeline and more all rely on these.
+     Relocated from the Report Builder print block further down this file
+     (previously style.css:1083), where it was mixed in with genuinely
+     Report-Builder-only rules. Rule text is unchanged — only its location
+     and this comment are new (N-201). Colour handling: -webkit-print-
+     color-adjust / print-color-adjust: exact is required on any rule whose
+     background/colour must survive Chrome's default print colour-stripping
+     (see #print-header and the sticky header fix below). Page furniture:
+     anything that must repeat on every printed page goes in a `thead`,
+     never `position: fixed` or `tfoot` (Readme.html print notes). */
+  #sidebar,
+  .print-btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-filter,
+  .filter-group,
+  .project-filter-bar,
+  .placement-filter-rows,
+  .table-toolbar,
+  .page-header-actions,
+  .nav-footer,
+  .dash-project-selector,
+  .dash-detail-header,
+  .form-group select,
+  .data-table a,
+  .nav-module-dropdown { display: none !important; }
+  body { background: var(--surface); overflow: visible; height: auto; }
+  #app-shell { display: block !important; height: auto; }
+  #main-content {
+    padding: 0 var(--sp-4) !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    background: var(--surface) !important;
+  }
+  #main-content div[style*="max-height"] { max-height: none !important; overflow: visible !important; }
+  #print-header {
+    display: flex !important;
+    align-items: center; justify-content: space-between;
+    background: var(--brand) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color: var(--text-on-brand); padding: var(--sp-5) var(--sp-4); margin-bottom: 14px;
+  }
+  #print-header img { height: 28px; }
+  .print-header-title { font-size: var(--fs-16); font-weight: 600; color: var(--text-on-brand); }
+  .print-header-sub   { font-size: var(--fs-12); color: var(--inverse-text-subtitle); margin-top: var(--sp-1); }
+  .page-header { padding: 0 0 var(--sp-6) !important; }
+  .data-table { table-layout: fixed; width: 100% !important; margin: 0 !important; }
+  .data-table th, .data-table td { word-wrap: break-word; overflow-wrap: break-word; padding: var(--sp-3) var(--sp-3) !important; font-size: var(--fs-11) !important; }
+  .data-table th:first-child, .data-table td:first-child { width: 16%; }
+  .dash-panel { overflow: visible; padding: var(--sp-3) var(--sp-2) !important; }
+  .data-table th { position: static; }
+  .data-table tr    { page-break-inside: avoid; }
+  .dash-panel       { page-break-inside: avoid; }
+  .print-avoid-break                                { page-break-inside: avoid; }
+  div[style*="grid-template-columns"]    { page-break-inside: avoid; }
+  /* Prevent mid-panel breaks */
+  .dash-panel {
+    break-inside: avoid;
+    margin-bottom: var(--sp-9);
+  }
+  /* Sticky header fix */
+  .data-table thead th {
+    position: static !important;
+    background: var(--brand) !important;
+    color: var(--text-on-brand) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }
 /* Utility — toggled from JS for conditionally-shown form fields (N-116) */
 .is-hidden { display: none !important; }
@@ -1081,51 +1154,13 @@ body {
 .print-btn:hover { background: var(--surface-app); }
 #print-header { display: none; }
 @media print {
-  #sidebar,
-  .print-btn,
-  .btn-primary,
-  .btn-secondary,
-  .btn-filter,
-  .filter-group,
-  .project-filter-bar,
-  .placement-filter-rows,
-  .table-toolbar,
-  .page-header-actions,
-  .nav-footer,
-  .dash-project-selector,
-  .dash-detail-header,
-  .form-group select,
-  .data-table a,
-  .nav-module-dropdown { display: none !important; }
-  body { background: var(--surface); overflow: visible; height: auto; }
-  #app-shell { display: block !important; height: auto; }
-  #main-content {
-    padding: 0 var(--sp-4) !important;
-    overflow: visible !important;
-    max-height: none !important;
-    height: auto !important;
-    background: var(--surface) !important;
-  }
-  #main-content div[style*="max-height"] { max-height: none !important; overflow: visible !important; }
-  #print-header {
-    display: flex !important;
-    align-items: center; justify-content: space-between;
-    background: var(--brand) !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    color: var(--text-on-brand); padding: var(--sp-5) var(--sp-4); margin-bottom: 14px;
-  }
-  #print-header img { height: 28px; }
-  .print-header-title { font-size: var(--fs-16); font-weight: 600; color: var(--text-on-brand); }
-  .print-header-sub   { font-size: var(--fs-12); color: var(--inverse-text-subtitle); margin-top: var(--sp-1); }
-  .page-header { padding: 0 0 var(--sp-6) !important; }
-  .data-table { table-layout: fixed; width: 100% !important; margin: 0 !important; }
-  .data-table th, .data-table td { word-wrap: break-word; overflow-wrap: break-word; padding: var(--sp-3) var(--sp-3) !important; font-size: var(--fs-11) !important; }
-  .data-table th:first-child, .data-table td:first-child { width: 16%; }
-  .dash-panel { overflow: visible; padding: var(--sp-3) var(--sp-2) !important; }
-  .data-table th { position: static; }
-  .data-table tr    { page-break-inside: avoid; }
-  .dash-panel       { page-break-inside: avoid; }
+  /* Report Builder — print (RB-specific only).
+     Everything that used to live in this block and applies to more than
+     Report Builder — chrome hiding, #app-shell/#main-content reset,
+     #print-header, base .data-table treatment, .dash-panel, the print
+     utility classes, and the .data-table thead th sticky-header fix —
+     moved to the shared print foundation (style.css:494, N-201). Only
+     rules genuinely specific to a Report Builder export remain here. */
   /* N-028 — print density. The KPI strip is the tallest fixed-height block in a
      Report Builder export; trimming it is what lets the next tile share page 1.
      Print-only: the screen rules (.kpi-strip / .kpi-card / .kpi-value, above)
@@ -1134,8 +1169,6 @@ body {
   .kpi-strip-period { margin-bottom: 14px; }
   .kpi-card         { padding: var(--sp-3) 14px; }
   .kpi-value        { font-size: var(--fs-22); }
-  .print-avoid-break                                { page-break-inside: avoid; }
-  div[style*="grid-template-columns"]    { page-break-inside: avoid; }
   /* Report Builder — hide builder chrome in print */
   .rb-shell,
   .rb-sidebar,
@@ -1189,19 +1222,6 @@ body {
   .rb-text-block div:has(> strong:only-child) {
     break-after: avoid;
     page-break-after: avoid;
-  }
-  /* Prevent mid-panel breaks */
-  .dash-panel {
-    break-inside: avoid;
-    margin-bottom: var(--sp-9);
-  }
-  /* Sticky header fix */
-  .data-table thead th {
-    position: static !important;
-    background: var(--brand) !important;
-    color: var(--text-on-brand) !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
   }
   /* Allow report title to render. !important on margin-bottom because the
      screen rule (.rb-report-title, line ~726) sits later in the file. */
@@ -2836,7 +2856,7 @@ body {
 .lci-team-btn:hover { text-decoration: underline; color: var(--brand-tertiary); }
 .lci-team-btn--danger:hover { color: var(--status-danger-text); }
 
-@media print {
+
   .lci-noprint, #sidebar { display: none !important; }
   /* Client-facing summary: no 'Confidential — Internal' banner */
   body.lci-summary-mode::before { display: none !important; content: none !important; }

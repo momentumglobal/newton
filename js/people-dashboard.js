@@ -315,7 +315,7 @@ function _renderRevenuePanel(rows) {
       <div>
         <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
           By Customer</div>
-        <table class='data-table'>
+        <table class='data-table dash-rev-table'>
           <thead><tr><th>Customer</th><th>Estimated Revenue</th></tr></thead>
           <tbody>
             ${customerRows}
@@ -327,7 +327,7 @@ function _renderRevenuePanel(rows) {
       <div>
         <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
           By Project Type</div>
-        <table class='data-table'>
+        <table class='data-table dash-rev-table'>
           <thead><tr><th>Project Type</th><th>Estimated Revenue</th></tr></thead>
           <tbody>
             ${typeRows}
@@ -370,7 +370,7 @@ function _renderSegmentationPanel(people) {
       <div>
         <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
           By Location</div>
-        <table class='data-table'>
+        <table class='data-table dash-seg-table'>
           <thead><tr><th>Location</th><th>#</th><th>%</th></tr></thead>
           <tbody>${tableHTML(groupBy('Location'))}</tbody>
         </table>
@@ -378,7 +378,7 @@ function _renderSegmentationPanel(people) {
       <div>
         <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
           By Contract Type</div>
-        <table class='data-table'>
+        <table class='data-table dash-seg-table'>
           <thead><tr><th>Contract</th><th>#</th><th>%</th></tr></thead>
           <tbody>${tableHTML(groupBy('ContractType'))}</tbody>
         </table>
@@ -386,7 +386,7 @@ function _renderSegmentationPanel(people) {
       <div>
         <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
           By Role Band</div>
-        <table class='data-table'>
+        <table class='data-table dash-seg-table'>
           <thead><tr><th>Level</th><th>#</th><th>%</th></tr></thead>
           <tbody>${tableHTML(byLevel)}</tbody>
         </table>

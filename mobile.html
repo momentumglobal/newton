@@ -87,6 +87,7 @@
       width: 100%;
       cursor: pointer;
     }
+    .btn-signin:active { background: rgba(255,255,255,0.25); }
 
     /* ── App shell ── */
     #app-shell { display: none; min-height: 100dvh; flex-direction: column; }
@@ -112,9 +113,15 @@
       color: white;
       font-size: 22px;
       cursor: pointer;
-      padding: 0 8px 0 0;
+      padding: 0;
       line-height: 1;
+      min-width: 44px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
+    .m-back-btn:active { background: rgba(255,255,255,0.15); border-radius: 8px; }
 
     /* ── Main content ── */
     #m-main {
@@ -193,7 +200,12 @@
       color: #333;
       cursor: pointer;
       text-align: center;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       transition: border-color 0.15s, background 0.15s;
+    }
     }
     .m-stage-btn.active {
       border-color: #0A0B44;
@@ -251,6 +263,7 @@
       width: 100%;
       text-align: center;
     }
+    .m-btn-danger:active { background: rgba(192,57,43,0.08); }
 
     /* ── Forms ── */
     .m-form-group { margin-bottom: 16px; }
@@ -315,18 +328,28 @@
       gap: 3px;
     }
     .m-nav-item.active { color: #0A0B44; }
+    .m-nav-item:active { background: #dde8f5; border-radius: 8px; }
     .m-nav-item svg { width: 22px; height: 22px; stroke-width: 2; }
 
     /* ── Desktop override banner ── */
     .m-desktop-link {
       text-align: center;
-      padding: 10px;
+      padding: 0;
       font-size: 12px;
       color: #888;
       background: #f0f0ee;
       border-top: 1px solid #e0e0de;
     }
-    .m-desktop-link a { color: #0A0B44; text-decoration: underline; cursor: pointer; }
+    .m-desktop-link a {
+      display: block;
+      padding: 14px 10px;
+      min-height: 44px;
+      box-sizing: border-box;
+      line-height: 16px;
+      color: #0A0B44;
+      text-decoration: underline;
+      cursor: pointer;
+    }
 
     /* ── Empty state ── */
     .m-empty {
@@ -391,7 +414,9 @@
       padding: 7px 12px;
       border-radius: 8px;
       cursor: pointer;
+      min-height: 44px;
     }
+    .m-switcher-btn:active { background: rgba(255,255,255,0.15); }
     .m-switcher-menu {
       position: absolute;
       top: calc(100% + 8px);
@@ -405,7 +430,8 @@
       z-index: 300;
     }
     .m-switcher-item {
-      display: block;
+      display: flex;
+      align-items: center;
       width: 100%;
       text-align: left;
       background: none;
@@ -416,6 +442,8 @@
       padding: 13px 16px;
       cursor: pointer;
       border-bottom: 1px solid #f0f0ee;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .m-switcher-item:last-child { border-bottom: none; }
     .m-switcher-item.active { background: #EBF2FA; font-weight: 600; }
@@ -510,6 +538,7 @@
       flex: 0 0 auto;
     }
     .m-sc-arrow:disabled { opacity: 0.3; cursor: default; }
+    .m-sc-arrow:active { background: #EBF2FA; }
     .m-sc-counter {
       flex: 1;
       text-align: center;
@@ -530,8 +559,17 @@
       background: #cfcfda;
       cursor: pointer;
       padding: 0;
+      position: relative;
+    }
+    .m-sc-dot::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 44px; height: 44px;
     }
     .m-sc-dot.active { background: #0A0B44; }
+    .m-sc-dot:active { background: #8f8fb0; }
   
 /* ── Placement Analytics tiles (mobile) ── */
     .m-an-grid {

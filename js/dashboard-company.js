@@ -174,7 +174,7 @@ async function renderCompanyDashboard() {
   main.innerHTML = `
     <div class='page-header'>
       <h2>Company Dashboard</h2>
-     <button class='print-btn' onclick='printPage("Company Dashboard", false, "Reporting")'>⎙ Export PDF</button>
+     <button class='print-btn' onclick='printPage("Company Dashboard", true, "Reporting")'>⎙ Export PDF</button>
 </div>
     <div class='form-group dash-project-selector'>
       <label>KPI Period</label>

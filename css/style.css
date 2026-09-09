@@ -570,7 +570,7 @@
   .form-group select,
   .data-table a,
   .nav-module-dropdown { display: none !important; }
-  body { background: var(--surface); overflow: visible !important; height: auto !important; }
+  body { background: var(--surface) !important; overflow: visible !important; height: auto !important; }
   #app-shell { display: block !important; height: auto !important; }
   #main-content {
     padding: 0 var(--sp-4) !important;

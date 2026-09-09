@@ -2869,6 +2869,8 @@ body {
 .lci-team-btn--danger:hover { color: var(--status-danger-text); }
 
 @media print {
+  @page lci-full { size: A4 landscape; margin: 0; }
+
   .lci-noprint { display: none !important; }
   /* Client-facing summary: no 'Confidential — Internal' banner */
   body.lci-summary-mode::before { display: none !important; content: none !important; }
@@ -2894,8 +2896,11 @@ body {
   /* Report: every section/divider on its own page; navy pages fill the sheet */
   .lci-report-break { break-before: page; page-break-before: always; }
   .lci-report-navy {
+    page: lci-full;
+    width: 297mm;
+    height: 210mm;
+    box-sizing: border-box;
     border-radius: 0;
-    min-height: 180mm;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   .lci-report-navy h1 { font-size: var(--fs-40); }

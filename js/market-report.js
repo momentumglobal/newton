@@ -444,7 +444,7 @@ async function mrExportPdf() {
 
   main.innerHTML = mrRenderPrintCanvas();
 
-  printPage(title, false, "Market Report");
+  printPage(title, true, "Market Report");
   setTimeout(() => {
     const canvas = document.getElementById("mr-canvas");
     if (canvas) {

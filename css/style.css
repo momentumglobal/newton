@@ -2856,7 +2856,7 @@ body {
 .lci-team-btn:hover { text-decoration: underline; color: var(--brand-tertiary); }
 .lci-team-btn--danger:hover { color: var(--status-danger-text); }
 
-
+@media print {
   .lci-noprint, #sidebar { display: none !important; }
   /* Client-facing summary: no 'Confidential — Internal' banner */
   body.lci-summary-mode::before { display: none !important; content: none !important; }

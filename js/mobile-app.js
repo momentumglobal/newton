@@ -6,6 +6,7 @@ let _mobileModule  = 'home';// Active module key ('home' | 'reporting' | ...)
 let _mobileView    = 'home';// Current view within the active module
 let _mobileRoleId  = null;  // Selected role ID for detail/action views
 let _mobileHistory = [];    // Simple back-stack (stores {module, view})
+let _mobileSheetOpen = false; // N-199: true while the bottom sheet is open
 
 // === Mobile module registry ===
 // Single source of truth for WHICH modules have a built mobile experience.
@@ -37,11 +38,11 @@ const MOBILE_NAV = {
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
     { view: 'roles',     label: 'Roles',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>' },
-    { view: 'activity',  label: 'Activity',
+    { view: 'activity',  label: 'Activity', sheet: 'mobileOpenActivitySheet',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>' },
-    { view: 'placement', label: 'Placement',
+    { view: 'placement', label: 'Placement', sheet: 'mobileOpenPlacementSheet',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' },
-    { view: 'rejection', label: 'Rejected',
+    { view: 'rejection', label: 'Rejected', sheet: 'mobileOpenRejectionSheet',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' },
   ],
 };
@@ -129,6 +130,7 @@ function signOut() {
 
 // Open the Home launcher (no active module).
 function mobileOpenHome(pushHistory = true) {
+  if (_mobileSheetOpen) mobileCloseSheet();
   if (pushHistory) _mobileHistory.push({ module: _mobileModule, view: _mobileView });
   _mobileModule = 'home';
   _mobileView   = 'home';
@@ -139,6 +141,7 @@ function mobileOpenHome(pushHistory = true) {
 // Open a module at its default view.
 function mobileOpenModule(moduleKey, pushHistory = true) {
   if (!MOBILE_MODULES.has(moduleKey)) return;
+  if (_mobileSheetOpen) mobileCloseSheet();
   if (pushHistory) _mobileHistory.push({ module: _mobileModule, view: _mobileView });
   _mobileModule = moduleKey;
   _mobileView   = MOBILE_MODULE_HOME[moduleKey] || 'home';
@@ -148,6 +151,7 @@ function mobileOpenModule(moduleKey, pushHistory = true) {
 
 // Navigate to a view within the current module.
 function mobileNav(view, pushHistory = true) {
+  if (_mobileSheetOpen) mobileCloseSheet();
   if (pushHistory && _mobileView !== view) {
     _mobileHistory.push({ module: _mobileModule, view: _mobileView });
   }
@@ -157,6 +161,7 @@ function mobileNav(view, pushHistory = true) {
 }
 
 function mobileBack() {
+  if (_mobileSheetOpen) mobileCloseSheet();
   if (_mobileHistory.length) {
     const prev = _mobileHistory.pop();
     // Back-compat: mobile-pages.js may push a bare string (just a view).
@@ -173,6 +178,45 @@ function mobileBack() {
   }
 }
 
+// === Bottom sheet (N-199) ===
+// A single-level modal overlay for short data-entry forms (Add Role, Log
+// Activity, Record Placement, Log Rejection) launched from a list or detail
+// view. Opening a sheet never touches _mobileView/_mobileHistory and never
+// calls mobileSyncChrome() — #m-main is left completely untouched, so
+// whatever is showing behind the sheet (its scroll position and any
+// already-loaded data) survives the sheet opening and closing unchanged.
+// Dismiss is via the sheet's own close (X) button only — the scrim behind
+// it does not dismiss on tap, so a stray tap outside a partially-filled
+// form can't lose typed input.
+function mobileOpenSheet(title, renderFn, ...args) {
+  _mobileSheetOpen = true;
+  document.getElementById('m-sheet-title').textContent = title;
+  document.getElementById('m-sheet-body').innerHTML = '';
+  document.getElementById('m-sheet-scrim').classList.add('open');
+  document.getElementById('m-sheet').classList.add('open');
+  renderFn(document.getElementById('m-sheet-body'), ...args);
+}
+
+function mobileCloseSheet() {
+  _mobileSheetOpen = false;
+  document.getElementById('m-sheet-scrim').classList.remove('open');
+  document.getElementById('m-sheet').classList.remove('open');
+  document.getElementById('m-sheet-body').innerHTML = '';
+}
+
+function mobileOpenAddRoleSheet() {
+  mobileOpenSheet('Add Role', mobileRenderAddRole);
+}
+function mobileOpenActivitySheet(rolePreselected) {
+  mobileOpenSheet('Log Activity', mobileRenderActivityForm, rolePreselected);
+}
+function mobileOpenPlacementSheet(rolePreselected) {
+  mobileOpenSheet('Record Placement', mobileRenderPlacementForm, rolePreselected);
+}
+function mobileOpenRejectionSheet(rolePreselected) {
+  mobileOpenSheet('Log Rejection', mobileRenderRejectionForm, rolePreselected);
+}
+
 // Render the current module/view.
 function mobileRenderView() {
   const main = document.getElementById('m-main');
@@ -182,15 +226,8 @@ function mobileRenderView() {
     // Reporting
     case 'summary':      mobileRenderReportingSummary(main);    break;
     case 'roles':        mobileRenderRolesFiltered(main);       break;
-    case 'rejection':    mobileRenderRejectionForm(main, false);break;
-    case 'rejection-role':mobileRenderRejectionForm(main, true);break;
     case 'role-detail':  mobileRenderRoleDetail(main);          break;
     case 'stage-update': mobileRenderStageUpdate(main);         break;
-    case 'activity':     mobileRenderActivityForm(main, false); break;
-    case 'activity-role':mobileRenderActivityForm(main, true);  break;
-    case 'placement':    mobileRenderPlacementForm(main, false);break;
-    case 'placement-role':mobileRenderPlacementForm(main, true);break;
-    case 'add-role':     mobileRenderAddRole(main);             break;
     // People
     case 'people-dashboard': mobileRenderPeopleDashboard(main); break;
     case 'scorecards':       mobileRenderScorecards(main);      break;
@@ -234,8 +271,8 @@ function mobileRenderBottomNav() {
   }
   nav.style.display = 'flex';
   nav.innerHTML = items.map(it => `
-    <button class="m-nav-item ${_mobileView === it.view ? 'active' : ''}"
-      onclick="mobileNav('${it.view}')">
+    <button class="m-nav-item ${!it.sheet && _mobileView === it.view ? 'active' : ''}"
+      onclick="${it.sheet ? `${it.sheet}(false)` : `mobileNav('${it.view}')`}">
       ${it.icon}
       ${it.label}
     </button>`).join('');
@@ -277,6 +314,11 @@ document.addEventListener('click', (e) => {
 });
 
 function mobileSetTitle(title, sub = 'Momentum Global') {
+  // N-199: render functions invoked into an open sheet (Add Role, Log
+  // Activity, Record Placement, Log Rejection) still call this internally —
+  // while a sheet is open it must not touch the topbar behind it, which
+  // belongs to the view the sheet is overlaying.
+  if (_mobileSheetOpen) return;
   document.getElementById('m-topbar-title').textContent = title;
   document.getElementById('m-topbar-sub').textContent   = sub;
 }

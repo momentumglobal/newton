@@ -120,13 +120,13 @@ async function mobileRenderRoleDetail(main) {
         <button class="m-btn-primary" onclick="mobileNav('stage-update')">
           Update Stage
         </button>
-        <button class="m-btn-secondary" onclick="mobileNav('activity-role')">
+        <button class="m-btn-secondary" onclick="mobileOpenActivitySheet(true)">
           Log Weekly Activity
         </button>
-        <button class="m-btn-secondary" onclick="mobileNav('placement-role')">
+        <button class="m-btn-secondary" onclick="mobileOpenPlacementSheet(true)">
           Record Placement
         </button>
-        <button class="m-btn-secondary" onclick="mobileNav('rejection-role')">
+        <button class="m-btn-secondary" onclick="mobileOpenRejectionSheet(true)">
           Log Rejection
         </button>
       </div>
@@ -307,7 +307,7 @@ async function mobileRenderActivityForm(main, rolePreselected) {
       </div>
     `;
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderActivityForm(document.getElementById('m-main'), ${rolePreselected})`);
+    main.innerHTML = mobilePageError(e.message, `mobileRenderActivityForm(document.getElementById('m-sheet-body'), ${rolePreselected})`);
   }
 }
 
@@ -366,11 +366,7 @@ async function mobileSubmitActivity(rolePreselected) {
       SubmittedAt:      new Date().toISOString(),
     });
     mobileToast('Activity saved ✓');
-    if (rolePreselected) {
-      mobileNav('role-detail', false);
-    } else {
-      mobileNav('roles');
-    }
+    mobileCloseSheet();
   } catch (e) {
     btn.disabled    = false;
     btn.textContent = 'Save Activity';
@@ -465,7 +461,7 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
       </div>
     `;
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderPlacementForm(document.getElementById('m-main'), ${rolePreselected})`);
+    main.innerHTML = mobilePageError(e.message, `mobileRenderPlacementForm(document.getElementById('m-sheet-body'), ${rolePreselected})`);
   }
 }
 
@@ -536,11 +532,7 @@ async function mobileSubmitPlacement(rolePreselected) {
     if (offerDate) await updateRoleWithHistory(roleId, { ActualHireDate: offerDate });
 
     mobileToast('Placement recorded ✓');
-    if (rolePreselected) {
-      mobileNav('role-detail', false);
-    } else {
-      mobileNav('roles');
-    }
+    mobileCloseSheet();
   } catch (e) {
     btn.disabled    = false;
     btn.textContent = 'Record Placement';

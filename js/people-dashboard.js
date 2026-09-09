@@ -490,7 +490,7 @@ const { start, end } = _dashDateRange(_dashFilter);
   main.innerHTML = `
 <div class='page-header'>
       <h2>People Dashboard</h2>
-      <button class='print-btn' onclick='printPage("People Dashboard", false, "People")'>⎙ Export PDF</button>
+      <button class='print-btn' onclick='printPage("People Dashboard", true, "People")'>⎙ Export PDF</button>
     </div>
 
     ${kpiStrip}

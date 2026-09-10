@@ -257,6 +257,13 @@ function _deltaMerge(baseline, page, listName) {
       if (idx !== -1) baseline.splice(idx, 1);
       continue;
     }
+    // N-230: a delta page item with no usable `fields` must never be
+    // merged as an all-undefined row — throw so _deltaSync's existing
+    // catch (today only exercised by a stale-token 410) drops the stored
+    // entry and retries once as a full bootstrap instead.
+    if (!raw.fields || typeof raw.fields !== 'object') {
+      throw new Error(`Delta sync for ${listName}: item ${raw.id} has no usable fields`);
+    }
     const item = { id: raw.id, ...normaliseFields(listName, raw.fields) };
     if (idx !== -1) baseline[idx] = item; else baseline.push(item);
   }

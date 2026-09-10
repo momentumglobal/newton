@@ -95,7 +95,7 @@ function renderPipelineActivityTable(acts, roles, period) {
   const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${totals.map(v => `<td style="text-align:center"><strong>${v}</strong></td>`).join('')}</tr>`;
   return `<div class='dash-panel'>
     <h3 class='panel-title'>${panelTitle}</h3>
-    <table class='data-table'><thead>${hdr}</thead><tbody>${rows}${totRow}</tbody></table>
+    <div class="table-scroll"><table class='data-table'><thead>${hdr}</thead><tbody>${rows}${totRow}</tbody></table></div>
   </div>`;
 }
 
@@ -185,7 +185,7 @@ function renderPipelineSummaryPanel(activity) {
 
   return `<div class='dash-panel'>
     <h3 class='panel-title'>Pipeline Summary (last 4 weeks)</h3>
-    <table class='data-table'><thead>${hdr}</thead><tbody>${bodyRows}${totRow}</tbody></table>
+    <div class="table-scroll"><table class='data-table'><thead>${hdr}</thead><tbody>${bodyRows}${totRow}</tbody></table></div>
   </div>`;
 }
 
@@ -204,10 +204,12 @@ function renderActivityByTPPanel(acts, period, tpMap = {}) {
     `<tr><td>${escHtml(tpMap[tp.toLowerCase()] || tp)}</td><td style="text-align:center">${map[tp].Outreach}</td><td style="text-align:center">${map[tp].Submitted}</td><td style="text-align:center">${map[tp].Interview1}</td><td style="text-align:center">${map[tp].Offers}</td><td style="text-align:center">${map[tp].Hires}</td></tr>`
   ).join('');
   return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3>
+    <div class="table-scroll">
     <table class='data-table'>
       <thead><tr><th>Talent Partner</th><th style="text-align:center">Outreach</th><th style="text-align:center">Submitted</th><th style="text-align:center">Interview 1</th><th style="text-align:center">Offers</th><th style="text-align:center">Hires</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
+    </div>
   </div>`;
 }
 // ── Offer Rejection Reasons ───────────────────────────────────────────
@@ -237,10 +239,12 @@ function renderRejectionPanel(rejections, period) {
     `<tr><td>${r}</td><td>${counts[i]}</td><td>${Math.round((counts[i]/total)*100)}%</td></tr>` : ''
   ).join('');
   return `<div class='dash-panel'><h3 class='panel-title'>Offer Rejection Reasons</h3>
+    <div class="table-scroll">
     <table class='data-table'>
       <thead><tr><th>Reason</th><th>Count</th><th>%</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
+    </div>
   </div>`;
 }
 // ── Upcoming Starters ─────────────────────────────────────────────────
@@ -255,10 +259,12 @@ function renderUpcomingStartersPanel(placements, roles) {
     `<tr><td>${escHtml(p.CandidateName)}</td><td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '—'}</td><td>${spDateIn(p.ProvisionalStartDate) || '—'}</td></tr>`
   ).join('');
   return `<div class='dash-panel'><h3 class='panel-title'>Upcoming Starters</h3>
+    <div class="table-scroll">
     <table class='data-table'>
       <thead><tr><th>Candidate</th><th>Role</th><th>Start Date</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
+    </div>
   </div>`;
 }
 // ── Actual Spend vs Budget ────────────────────────────────────────────
@@ -309,10 +315,12 @@ function renderSpendPanel(roles, placements) {
       <div class='spend-label'>Overall Variance</div>
       <div class='spend-val' style='color:${overallColor}'>${overallLabel}</div>
     </div>
+    <div class="table-scroll">
     <table class='data-table'>
       <thead><tr><th>Location</th><th>Budget</th><th>Actual Spend</th><th>Variance</th></tr></thead>
       <tbody>${breakdownRows}</tbody>
     </table>
+    </div>
   </div>`;
 }
 // ── Detail period dropdown (project) ──────────────────────────────────
@@ -352,10 +360,12 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
   }).join('');
   return `<div class='dash-panel'>
     <h3 class='panel-title'>Roles Open 30+ Days</h3>
+    <div class="table-scroll">
     <table class='data-table'>
       <thead><tr><th>Role</th><th>Talent Partner</th><th>Stage</th><th>Days Open</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
+    </div>
   </div>`;
 }
 // ── Role Tracker panel ────────────────────────────────────────────────
@@ -380,10 +390,12 @@ function renderRoleTrackerPanel(roles) {
   }).join('');
   return `<div class='dash-panel'>
     <h3 class='panel-title'>Role Tracker</h3>
+    <div class="table-scroll">
     <table class='data-table'>
       <thead><tr><th>Role</th><th>Hiring Manager</th><th>Stage</th><th>Open Date</th><th>Days Open</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
+    </div>
   </div>`;
 }
 // ── Placements panel (project-scoped, period-filtered) ────────────────
@@ -409,10 +421,12 @@ function renderPlacementsPanel(placements, roles, period) {
     </tr>`).join('');
   return `<div class='dash-panel'>
     <h3 class='panel-title'>Placements</h3>
+    <div class="table-scroll">
     <table class='data-table'>
       <thead><tr><th>Candidate</th><th>Role</th><th>Offer Accepted</th><th>Currency</th><th>Salary</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
+    </div>
   </div>`;
 }
 
@@ -489,6 +503,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
 
   return `<div class='dash-panel'>
     <h3 class='panel-title'>Role Analytics</h3>
+    <div class="table-scroll">
     <table class='data-table ra-table'>
       <thead><tr>
         <th>Role</th>
@@ -500,6 +515,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
       </tr></thead>
       <tbody>${tableRows}</tbody>
     </table>
+    </div>
   </div>`;
 }
 

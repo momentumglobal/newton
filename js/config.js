@@ -536,8 +536,12 @@ const CONFIG = {
   // names it — it shares getRejectedOffers()'s identical filter shape and is
   // tempting to add "while we're here," but it isn't in F-13's scope.
   DELTA: {
-    enabled:       true,   // live kill switch — a miss falls back to the
-                            // existing full paginated fetch when false
+    enabled:       false,  // HOTFIX (temporary): delta responses for these
+                            // two lists are coming back with no `fields`
+                            // object, so every column but id was rendering
+                            // as undefined. Flipped off to force the full
+                            // paginated fetch until the delta engine's
+                            // Graph $expand shape is fixed properly.
     enrolledLists: ['WeeklyActivity', 'Placements'],
   },
 

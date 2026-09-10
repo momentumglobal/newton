@@ -56,8 +56,7 @@ const totalActiveHeadcount = people.filter(
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const monthHeaders = MONTHS.map(m =>
     `<th class='print-avoid-break' style='text-align:center;font-size:11px;font-weight:600;
-                color:var(--text-label);padding:6px 2px;min-width:52px;
-                position:sticky;top:0;background:var(--surface)'>${m}</th>`
+                color:var(--text-label);padding:6px 2px;min-width:52px'>${m}</th>`
   ).join('');
 
   // Build a bar cell for a month given a list of assignments
@@ -271,13 +270,13 @@ const totalActiveHeadcount = people.filter(
     </div>
     ${deployableTile}
     <div style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px'>${legend}</div>
-<div style='overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 200px);margin:0 -40px;padding:0 4px'>
+<div class='table-scroll' style='max-height:calc(100vh - 200px);margin:0 -40px;padding:0 4px'>
     <table class='data-table' style='min-width:800px;table-layout:fixed'>
-                <thead class='print-avoid-break' style='position:sticky;top:0;z-index:10;background:var(--surface)'><tr>
+                <thead class='print-avoid-break'><tr>
 <th class='print-avoid-break' style='width:180px;min-width:180px;text-align:left;padding:6px 8px;font-size:11px;
-                     font-weight:600;color:var(--text-label);position:sticky;top:0;background:var(--surface)'>Employee</th>
+                     font-weight:600;color:var(--text-label)'>Employee</th>
           <th class='print-avoid-break' style='width:50px;min-width:50px;text-align:left;padding:6px 8px;font-size:11px;
-                     font-weight:600;color:var(--text-label);position:sticky;top:0;background:var(--surface)'>Level</th>
+                     font-weight:600;color:var(--text-label)'>Level</th>
           ${monthHeaders}
         </tr></thead>
         <tbody>${rowsHtml}</tbody>

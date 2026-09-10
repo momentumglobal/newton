@@ -183,6 +183,7 @@
   --table-cell-px: var(--sp-6);
   --table-font: var(--fs-14);
   --table-header-font: var(--fs-13);
+  --table-scroll-max-h: 65vh;
   /* Radius scale */
   --r-xs: 2px;
   --r-sm: 4px;
@@ -973,6 +974,25 @@ body {
 .stage-unlock-btn svg { width: 13px; height: 13px; }
 .data-table tbody tr:hover .stage-unlock-btn { opacity: 1; }
 .stage-unlock-btn:hover { color: var(--text-muted); }
+/* ── Shared scrolling table wrapper (N-203) ───────────────────────────
+   One container for every table that needs a capped-height, sticky-header
+   scroll area inside its tile. Wires up --z-sticky (N-159) for the first
+   time — every ad-hoc sticky header this replaces used a bare z-index
+   (2/3/10), all comfortably below it. Tables that also scroll
+   horizontally keep their own frozen-column classes (e.g. .coe-sticky) —
+   those aren't scoped to the wrapper's class name, so nothing generic is
+   needed here for that part. */
+.table-scroll { overflow: auto; max-height: var(--table-scroll-max-h); }
+.table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: var(--surface);
+}
+@media print {
+  .table-scroll { overflow: visible !important; max-height: none !important; }
+  .table-scroll thead th { position: static !important; }
+}
 /* ── Badges ─────────────────────────────────────────────────────────── */
 .badge {
   display: inline-block;
@@ -2637,7 +2657,7 @@ body {
 
 /* ── CoE Hiring Plan ─────────────────────────────────────────────── */
 .coe-toolbar { display:flex; gap:var(--sp-6); align-items:center; margin-bottom:var(--sp-7); flex-wrap:wrap; }
-.coe-gantt-wrap { overflow:auto; max-height:65vh; border:1px solid var(--border); border-radius:var(--r-md); }
+.coe-gantt-wrap { border:1px solid var(--border); border-radius:var(--r-md); }
 .coe-gantt { border-collapse:collapse; font-size:var(--fs-12); }
 .coe-gantt th, .coe-gantt td { border:1px solid var(--border-muted); padding:var(--sp-1) var(--sp-3); text-align:center; white-space:nowrap; font-variant-numeric: tabular-nums; }
 .coe-gantt th.coe-month { background:var(--surface-sunken); font-weight:600; }
@@ -2646,8 +2666,10 @@ body {
 .coe-gantt .coe-sticky--2 { left:160px; min-width:80px; }
 .coe-gantt .coe-sticky--3 { left:240px; min-width:90px; }
 .coe-gantt .coe-sticky--4 { left:330px; min-width:90px; box-shadow:var(--sp-1) 0 var(--sp-1) rgba(0,0,0,0.06); }
-.coe-gantt thead { position:sticky; top:0; z-index:3; }
-.coe-gantt thead th, .coe-gantt thead td { background:var(--surface); }
+/* Header sticky/background now comes from .table-scroll thead th (N-203);
+   this rule only needed for the rare <td> in a thead row, which
+   .table-scroll's th-only selector doesn't cover. */
+.coe-gantt thead td { background:var(--surface); }
 .coe-cell { min-width:26px; height:22px; }
 .coe-cell--R { background:var(--coe-cell-r); }
 .coe-cell--N { background:var(--coe-cell-n); }
@@ -2673,7 +2695,7 @@ body {
 /* ── CoE Hiring Plan — print/PDF ───────────────────────────────────── */
 @media print {
   .coe-toolbar, .coe-col-actions, #coe-modal-host { display: none !important; }
-  .coe-gantt-wrap { overflow: visible !important; max-height: none !important; border: none; }
+  .coe-gantt-wrap { border: none; }
   .coe-gantt thead { position: static !important; }
   /* Page 1 = Gantt, page 2 = forecast table */
   .coe-fvp-header { break-before: page; page-break-before: always; margin-top: 0 !important; }
@@ -2848,14 +2870,11 @@ body {
 .lci-bench-hint { font-size: var(--fs-11); color: var(--text-muted); margin-top: var(--sp-1); line-height: 1.3; }
 .lci-bench-hint a { color: var(--brand-tertiary); font-weight: 600; cursor: pointer; text-decoration: underline; }
 
-/* Freeze the Hiring Roadmap header row on scroll */
-.lci-grid-scroll:has(#lci-roadmap-table) { max-height: 65vh; overflow: auto; }
-#lci-roadmap-table thead th { position: sticky; top: 0; z-index: 3; }
-/* Same treatment for the Legacy Team table — it can grow to a large number of
-   rows. Sticky headers rely on .data-table th's opaque background (var(--brand));
-   don't make that transparent. */
-.lci-grid-scroll:has(#lci-legacy-table) { max-height: 65vh; overflow: auto; }
-#lci-legacy-table thead th { position: sticky; top: 0; z-index: 3; }
+/* Sticky header + capped-height scroll for the Hiring Roadmap and Legacy
+   Team tables now comes from .table-scroll (N-203), added alongside
+   .lci-grid-scroll in the markup — .lci-grid-scroll itself still owns the
+   horizontal overflow-x rule below. Sticky headers rely on .data-table
+   th's opaque background (var(--brand)); don't make that transparent. */
 /* Per-team add-role row */
 .lci-add-role-row td { padding: var(--sp-2) var(--sp-4); background: var(--surface-tint); }
 .lci-add-role-btn { background: none; border: none; color: var(--brand-tertiary); font-weight: 600; cursor: pointer; font-size: var(--fs-13); }
@@ -2891,7 +2910,8 @@ body {
   .lci-team-row { break-after: avoid; }
   .lci-grid { font-size: var(--fs-10); }
   .lci-grid th, .lci-grid td { padding: var(--sp-1) var(--sp-1); }
-  .lci-grid-scroll { overflow: visible !important; }
+  /* .lci-grid-scroll's overflow reset for print now comes from the shared
+     .table-scroll rule (N-203) — both classes are on the same div. */
   .lci-out-total td, .lci-out-subtotal td, .lci-team-row td, .lci-ms-bar {
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }

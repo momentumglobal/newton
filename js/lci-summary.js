@@ -327,7 +327,7 @@ function _lciSummaryRoadmapHtml(slice) {
   const cumCells = cut(cumAll).map(v => `<td class="lci-mcol lci-derived">${v}</td>`).join('');
 
   return `
-    <div class="lci-grid-scroll" style="margin-top:16px">
+    <div class="lci-grid-scroll table-scroll" style="margin-top:16px">
       <table class="data-table lci-grid lci-grid--roadmap">
         <thead><tr><th style="min-width:180px">Hiring Roadmap${sl.label ? ` — ${sl.label}` : ''}</th>${monthHead}<th>Hires</th></tr></thead>
         <tbody>

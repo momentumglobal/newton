@@ -58,7 +58,7 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 **N-226** updated `sales-user-guide.html` to match: the report export section, the saved-report FAQ, the Excel section's references to "the client PDF", and a new *Working with the deck* subsection covering editability, the snapshot rule and the Polymath caveat.
 
-### September 2026 — Delta sync + $batch request coalescing
+### September 2026 — Delta sync + $batch request coalescing (F-13a/F-13b/F-14, N-186/N-187/N-188)
 
 **Two independent optimisations to the same request layer, delivered together because the second builds directly on the first.** N-186/N-187 cut *what* has to come back over the wire on a repeat read; N-188 cuts *how many separate round trips* it takes to fetch it. Neither changes what any page shows.
 

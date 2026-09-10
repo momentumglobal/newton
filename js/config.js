@@ -821,9 +821,13 @@ const CONFIG = {
         body: 13, obsHeading: 16,
         chartLabel: 10, footer: 9,
       },
-      // Slide geometry, inches.
+      // Slide geometry, inches. `margin` is the content slides' side margin —
+      // halved from 0.6 so the month grids get the full width they need (see
+      // the note on TABLE below). `navyMargin` is deliberately NOT halved: the
+      // cover and divider pages have no table to widen, and their logo/title
+      // composition mirrors the Momentum brand slide.
       GEO: {
-        margin: 0.6, gap: 0.12, rule: 0.03,
+        margin: 0.3, navyMargin: 0.6, gap: 0.12, rule: 0.03,
         logoW: 2.2, logoH: 0.5,
         swirlW: 4.6, swirlH: 4.6,
         titleBlockH: 1.9, titleH: 1.2, subH: 0.5,
@@ -834,8 +838,18 @@ const CONFIG = {
       // .lci-grid--roadmap td:first-child at 180px ≈ 1.9in). The two Frac
       // values are the narrow tables' proportional first column, as
       // .lci-assump (45%) and .lci-compare (26%) already use.
+      // rowH is the height of EVERY row — header, body, subtotal and total
+      // alike; the hierarchy is shading and weight, never height. 0.21in is a
+      // 9pt line (0.15in) plus cellMargin's 2pt top and bottom. PowerPoint
+      // treats rowH as a minimum and grows any row that needs more, so the
+      // insets have to come down with it or the rows drift apart again —
+      // cellMargin is [top, right, bottom, left] in POINTS and replaces
+      // pptxgenjs's default 0.05in/0.1in, which is also what was eating the
+      // width the widest figures needed. rowsPerSlide follows from the height:
+      // (6.93 - 1.22) / 0.21 = 27 rows, minus the header.
       TABLE: {
-        labelColW: 1.9, rowH: 0.3, rowsPerSlide: 14, borderPt: 0.5,
+        labelColW: 1.9, rowH: 0.21, rowsPerSlide: 26, borderPt: 0.5,
+        cellMargin: [2, 3, 2, 3],
         assumpLabelFrac: 0.45, compareLabelFrac: 0.26,
       },
       KPI:   { perRow: 4, gap: 0.2, tileH: 1.35, radius: 0.06, valuePad: 0.2, valueH: 0.55, labelH: 0.35 },

@@ -11,6 +11,40 @@ const LCI_REPORT_COLOURS = ['var(--c-navy-steel)', 'var(--c-accent)', 'var(--c-t
 // Currently-open report: {id, title, ids}. id null = unsaved (new export).
 let _lciReport = { id: null, title: '', ids: [] };
 
+// The models behind the report currently on screen, kept so the PowerPoint
+// export (lci-pptx.js) can build from the same data the page rendered rather
+// than re-fetching it — the same pattern lci-excel.js relies on with _lciEd.
+// Emptied at the start of every render, so a failed assembly can never leave a
+// previous report exportable.
+let _lciReportBundles = [];
+
+// Compare-table KPI rows (N-224). Shared by _lciCompareTableHtml below and the
+// PowerPoint Key Metrics slide, so the two cannot list different metrics.
+// `kind` selects the formatter; `lowerIsBetter` drives the Δ colour.
+const LCI_COMPARE_KPIS = [
+  { label: 'Total spend (horizon)',     key: 'totalSpend',         kind: 'money', lowerIsBetter: true },
+  { label: 'Steady-state monthly cost', key: 'steadyMonthly',      kind: 'money', lowerIsBetter: true },
+  { label: 'Steady-state annual cost',  key: 'steadyAnnual',       kind: 'money', lowerIsBetter: true },
+  { label: 'Cost per head (steady)',    key: 'costPerHead',        kind: 'money', lowerIsBetter: true },
+  { label: 'Total hires',               key: 'totalHires',         kind: 'count', lowerIsBetter: false },
+  { label: 'Time to full ramp',         key: 'lastHireMonth',      kind: 'month', lowerIsBetter: true },
+  { label: 'Peak crossover spend',      key: 'peakCrossoverSpend', kind: 'money', lowerIsBetter: true },
+];
+
+function _lciKpiValueText(v, kind, ccy) {
+  if (kind === 'money') return _lciFmt(v, ccy);
+  if (kind === 'month') return v ? `M${v}` : '—';
+  return v ?? '—';
+}
+
+// Δ column text. Takes an ALREADY-ABSOLUTE value — the sign and colour are the
+// caller's business.
+function _lciKpiDeltaText(v, kind, ccy) {
+  if (kind === 'money') return _lciFmt(v, ccy);
+  if (kind === 'month') return `${v}mo`;
+  return v;
+}
+
 // ── Entry ────────────────────────────────────────────────────────────
 // Called two ways:
 //   renderLCIReportPage(ids)                    — new export (prompts title)
@@ -18,6 +52,7 @@ let _lciReport = { id: null, title: '', ids: [] };
 async function renderLCIReportPage(ids, opts = {}) {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Assembling report...</p>';
+  _lciReportBundles = [];   // any failure below leaves nothing exportable
   try {
     const bundles = [];
     const missing = [];
@@ -38,6 +73,7 @@ async function renderLCIReportPage(ids, opts = {}) {
       return;
     }
 
+    _lciReportBundles = bundles;
     const clients = [...new Set(bundles.map(b => b.model.ClientName).filter(Boolean))];
     let title = opts.title;
     if (title == null) {
@@ -146,7 +182,7 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
         <button class="btn-secondary" onclick="lciEditSelectionFromReport()">Edit selection</button>
         <button class="btn-secondary" onclick="lciReportRename()">Rename</button>
         <button class="btn-secondary" id="lci-report-save-btn" onclick="saveLCIReport()">Save Report</button>
-        <button class="btn-primary" onclick="printPage(document.querySelector('.lci-report-title').textContent.replace(/'/g,''), true, 'LCI')">Print / PDF</button>
+        <button class="btn-primary" onclick="lciExportReportPptx(this)">Export to PowerPoint</button>
       </div>
     </div>
     ${missingCount ? `<p class="lci-noprint" style="color:var(--accent);font-size:13px;margin:0 0 12px">${missingCount} model(s) in this saved report no longer exist and were skipped.</p>` : ''}
@@ -242,32 +278,20 @@ function _lciReportComparisonHtml(bundles) {
 // N-model KPI table (Δ column only when exactly 2 models).
 // Shared by the report and the on-screen compare view.
 function _lciCompareTableHtml(entries, ccy) {
-  const money = v => _lciFmt(v, ccy);
-  const month = v => v ? `M${v}` : '—';
   const twoModels = entries.length === 2;
-  const delta = (a, b, fmt, goodWhenLower = true) => {
+  const delta = (a, b, kind, goodWhenLower) => {
     const d = b - a;
     if (!isFinite(d) || d === 0) return '<span style="color:var(--text-muted)">—</span>';
     const good = goodWhenLower ? d < 0 : d > 0;
-    return `<span style="color:${good ? 'var(--status-success)' : 'var(--status-danger)'}">${d > 0 ? '+' : '−'}${fmt(Math.abs(d))}</span>`;
+    return `<span style="color:${good ? 'var(--status-success)' : 'var(--status-danger)'}">${d > 0 ? '+' : '−'}${_lciKpiDeltaText(Math.abs(d), kind, ccy)}</span>`;
   };
 
-  const K = [
-    ['Total spend (horizon)',     k => money(k.totalSpend),         'totalSpend',        money, true],
-    ['Steady-state monthly cost', k => money(k.steadyMonthly),      'steadyMonthly',     money, true],
-    ['Steady-state annual cost',  k => money(k.steadyAnnual),       'steadyAnnual',      money, true],
-    ['Cost per head (steady)',    k => money(k.costPerHead),        'costPerHead',       money, true],
-    ['Total hires',               k => k.totalHires ?? '—',         'totalHires',        v => v, false],
-    ['Time to full ramp',         k => month(k.lastHireMonth),      'lastHireMonth',     v => `${v}mo`, true],
-    ['Peak crossover spend',      k => money(k.peakCrossoverSpend), 'peakCrossoverSpend', money, true],
-  ];
-
   const head = `<tr><th style="width:26%"></th>${entries.map(e => `<th>${escHtml(e.name)}</th>`).join('')}${twoModels ? '<th>Δ (B − A)</th>' : ''}</tr>`;
-  const rows = K.map(([label, fmt, key, dfmt, lower]) => `
+  const rows = LCI_COMPARE_KPIS.map(k => `
     <tr>
-      <td>${label}</td>
-      ${entries.map(e => `<td>${fmt(e.kpis)}</td>`).join('')}
-      ${twoModels ? `<td>${delta(entries[0].kpis[key], entries[1].kpis[key], dfmt, lower)}</td>` : ''}
+      <td>${k.label}</td>
+      ${entries.map(e => `<td>${_lciKpiValueText(e.kpis[k.key], k.kind, ccy)}</td>`).join('')}
+      ${twoModels ? `<td>${delta(entries[0].kpis[k.key], entries[1].kpis[k.key], k.kind, k.lowerIsBetter)}</td>` : ''}
     </tr>`).join('');
 
   return `

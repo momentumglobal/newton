@@ -159,7 +159,7 @@ async function renderBulkActivityPage(weekEnding = null) {
       </div>
       <div class="bulk-grid-hint">Week ${getISOWeek(_bulkWeekEnding)} · ${n} role${n === 1 ? '' : 's'} · only edited rows are saved</div>
     </div>
-    <div class="bulk-grid-scroll">${_bulkGridHtml()}</div>
+    <div class="bulk-grid-scroll table-scroll">${_bulkGridHtml()}</div>
   `;
   lucide.createIcons();
 }

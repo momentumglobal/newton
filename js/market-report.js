@@ -260,26 +260,7 @@ function mrFormatBlock(tag) {
 
 function mrUpdateToolbarState() {
   const toolbar = document.getElementById("mr-obs-toolbar");
-  if (!toolbar) return;
-  ["bold","italic","underline"].forEach(cmd => {
-    const btn = toolbar.querySelector(
-      `button[onclick="mrFormat('${cmd}')"]`
-    );
-    if (btn) btn.classList.toggle("active",
-      document.queryCommandState(cmd));
-  });
-  const ulBtn = toolbar.querySelector(`button[onclick="mrFormat('insertUnorderedList')"]`);
-  const olBtn = toolbar.querySelector(`button[onclick="mrFormat('insertOrderedList')"]`);
-  if (ulBtn) ulBtn.classList.toggle("active",
-    document.queryCommandState("insertUnorderedList"));
-  if (olBtn) olBtn.classList.toggle("active",
-    document.queryCommandState("insertOrderedList"));
-  const blockTag = document.queryCommandValue("formatBlock").toUpperCase();
-  const hBtn = toolbar.querySelector(`button[onclick="mrFormatBlock('H3')"]`);
-  const pBtn = toolbar.querySelector(`button[onclick="mrFormatBlock('P')"]`);
-  if (hBtn) hBtn.classList.toggle("active", blockTag === "H3");
-  if (pBtn) pBtn.classList.toggle("active",
-    blockTag === "P" || blockTag === "DIV" || blockTag === "");
+  rtUpdateToolbarState(toolbar, "mrFormat", "mrFormatBlock");
 }
 
 function mrInitEditor() {

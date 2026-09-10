@@ -333,6 +333,7 @@
         <tr><td>Icons</td><td>Lucide (CDN)</td><td>Icon library</td></tr>
         <tr><td>Drag &amp; drop</td><td>SortableJS (CDN)</td><td>Report Builder block ordering</td></tr>
         <tr><td>Spreadsheets</td><td>ExcelJS (CDN, lazy-loaded)</td><td>LCI Cost Model Excel export — loaded on first click only, never on page render</td></tr>
+        <tr><td>Presentations</td><td>pptxgenjs (CDN, lazy-loaded)</td><td>LCI Report PowerPoint export — loaded on first click only, never on page render</td></tr>
         <tr><td>Fonts</td><td>Polymath (self-hosted)</td><td>Brand typography</td></tr>
       </table>
 
@@ -619,7 +620,8 @@
         <tr><td><span class="file-tag">js/lci-sections.js</span></td><td>Legacy Team / one-off / fee / travel grids, plus the live cost-model output table and cumulative-spend SVG. Owns the output row-visibility rules.</td></tr>
         <tr><td><span class="file-tag">js/lci-summary.js</span></td><td>Project milestones (rows inside the roadmap grid), the single-model summary / print view, and the compare view.</td></tr>
         <tr><td><span class="file-tag">js/lci-excel.js</span></td><td>Excel export — lazy ExcelJS loader, seven sheet builders, download. Writes every formula as <code>{ formula, result }</code>: the formula makes the workbook live, the cached result makes it correct on open. Never recalculates — all numbers come from lci-model.js.</td></tr>
-        <tr><td><span class="file-tag">js/lci-report.js</span></td><td>Multi-model report export — navy cover, per-model sections, Location Comparison, rich-text Observations &amp; Recommendations.</td></tr>
+        <tr><td><span class="file-tag">js/lci-report.js</span></td><td>Multi-model report export — navy cover, per-model sections, Location Comparison, rich-text Observations &amp; Recommendations. Caches the assembled models on <code>_lciReportBundles</code> for the PowerPoint export, and owns <code>LCI_COMPARE_KPIS</code>, the compare-table metric list shared with it.</td></tr>
+        <tr><td><span class="file-tag">js/lci-pptx.js</span></td><td>PowerPoint export (N-224) — lazy pptxgenjs loader, navy/content masters, and one builder per slide type. <strong>Replaces Print / PDF on the report page</strong> (the Summary page keeps its PDF). Everything on a slide is a native table, chart or text run so the deck is editable after export. Never recalculates — all numbers come from lci-model.js, and every row-visibility rule is the one lci-sections.js applies.</td></tr>
         <tr><td><span class="file-tag">js/lci-link.js</span></td><td>Hiring Plan bridge — links a Won model to a CoE project (admins can also unlink) and generates one <code>CoEPlanRows</code> row per hire. Generated rows anchor the hire (end of Recruitment) on the Monday of the <strong>last week of the LCI target hire month</strong>, working the Open Date backwards, and carry the model's notice (per-role override or model default, × <code>CONFIG.COE_PHASE_DEFAULTS.weeksPerNoticeMonth</code>) plus an explicit RecruitmentWeeks. Manual plan rows still build forward from Planned Open Date.</td></tr>
         <tr><td><span class="file-tag">js/lci-leadmagnet.js</span></td><td>LCI Lead Magnet — self-contained location cost comparator + one-page Country Comparison PDF. <strong>Its FX convention is the opposite of the Cost Model's</strong> (local per GBP, divides) — do not conflate the two.</td></tr>
       </table>
@@ -1395,6 +1397,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <tr><td>Lucide</td><td>Latest (CDN)</td><td>Currently unpinned — consider pinning to a specific version.</td></tr>
         <tr><td>SortableJS</td><td>1.15.2</td><td>Pinned — safe.</td></tr>
         <tr><td>ExcelJS</td><td>4.4.0</td><td>Pinned in <code>CONFIG.LCI.EXCEL.CDN</code>. Lazy-loaded on first Export to Excel click only. Keep pinned — the workbook relies on <code>{ formula, result }</code> cell values and defined names.</td></tr>
+        <tr><td>pptxgenjs</td><td>4.0.1</td><td>Pinned in <code>CONFIG.LCI.PPTX.CDN</code>. Lazy-loaded on first Export to PowerPoint click only. Must be the <code>pptxgen.bundle.js</code> build — <code>pptxgen.min.js</code> expects a separate JSZip global this app does not load. Colours are plain hex in <code>CONFIG.LCI.PPTX.COLOURS</code>, not the ARGB form ExcelJS uses. The deck is set in Polymath; because the three weights are separate font families, bold text switches face to <code>FONT.faceBold</code> rather than setting a bold flag.</td></tr>
         <tr><td>Graph API</td><td>v1.0</td><td>Microsoft's stable channel. Breaking changes announced with deprecation periods.</td></tr>
       </table>
     </div>

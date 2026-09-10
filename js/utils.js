@@ -1383,6 +1383,31 @@ function rtFormatBlock(tag) {
   document.execCommand('formatBlock', false, tag);
 }
 
+// Toggles a rich-text toolbar's button .active states to match the current
+// selection. Shared by every `.rb-richtext` editor (Report Builder, Market
+// Report, LCI Report, Briefing Pack) so the four can't drift out of sync
+// again (N-228) — each caller passes its own toolbar element (found however
+// that module scopes it: closest() for multi-instance editors, a fixed id
+// for single-instance ones) and its own Format/FormatBlock function names,
+// since the lookup below matches those names literally against each
+// button's onclick text.
+function rtUpdateToolbarState(toolbarEl, formatFn, formatBlockFn) {
+  if (!toolbarEl) return;
+  ['bold', 'italic', 'underline'].forEach(cmd => {
+    const btn = toolbarEl.querySelector(`button[onclick="${formatFn}('${cmd}')"]`);
+    if (btn) btn.classList.toggle('active', document.queryCommandState(cmd));
+  });
+  const ulBtn = toolbarEl.querySelector(`button[onclick="${formatFn}('insertUnorderedList')"]`);
+  const olBtn = toolbarEl.querySelector(`button[onclick="${formatFn}('insertOrderedList')"]`);
+  if (ulBtn) ulBtn.classList.toggle('active', document.queryCommandState('insertUnorderedList'));
+  if (olBtn) olBtn.classList.toggle('active', document.queryCommandState('insertOrderedList'));
+  const blockTag = document.queryCommandValue('formatBlock').toUpperCase();
+  const hBtn = toolbarEl.querySelector(`button[onclick="${formatBlockFn}('H3')"]`);
+  const pBtn = toolbarEl.querySelector(`button[onclick="${formatBlockFn}('P')"]`);
+  if (hBtn) hBtn.classList.toggle('active', blockTag === 'H3');
+  if (pBtn) pBtn.classList.toggle('active', blockTag === 'P' || blockTag === 'DIV' || blockTag === '');
+}
+
 // Returns the canonical toolbar button markup. The onmousedown preventDefault
 // is load-bearing: a plain button steals focus on mousedown and collapses the
 // selection, and insertHTML — unlike bold/italic — cannot recover from that.

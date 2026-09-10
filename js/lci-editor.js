@@ -267,7 +267,7 @@ function _lciRoadmapHtml() {
           <button class="btn-primary" id="lci-roadmap-save" onclick="saveLCIRoadmap()" disabled>Save Roadmap</button>
         </div>
       </div>
-      <div class="lci-grid-scroll">
+      <div class="lci-grid-scroll table-scroll">
         <table class="data-table lci-grid" id="lci-roadmap-table">
           <thead>
             <tr>

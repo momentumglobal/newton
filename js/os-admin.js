@@ -588,10 +588,12 @@ async function buildDataHealthTab() {
       An em-dash means the count failed, not that the list is empty — the
       browser console names which.
     </p>
+    <div class="table-scroll">
     <table class="data-table dh-table">
       <thead><tr><th>List</th><th>Row count</th><th></th></tr></thead>
       <tbody>${countRows || emptyStateRow({ colspan: 3, icon: 'database', message: 'No lists configured.' })}</tbody>
     </table>
+    </div>
     <h3>Data Integrity</h3>
     <p class="dh-note">
       WeeklyActivity.ProjectID is written by the activity form but read by no
@@ -601,6 +603,7 @@ async function buildDataHealthTab() {
       zero. A "Query error" badge means the check itself failed — unknown,
       not zero — see the browser console for the underlying error.
     </p>
+    <div class="table-scroll">
     <table class="data-table dh-table">
       <thead><tr><th>Check</th><th>Rows</th><th></th></tr></thead>
       <tbody>
@@ -616,15 +619,18 @@ async function buildDataHealthTab() {
         </tr>
       </tbody>
     </table>
+    </div>
     <h3>Index Status</h3>
     <p class="dh-note">
       Columns Newton filters on server-side (N-093). Indexing is a one-time
       SharePoint schema change — confirm before applying.
     </p>
+    <div class="table-scroll">
     <table class="data-table dh-table-tight">
       <thead><tr><th>List</th><th>Column</th><th>Status</th><th></th></tr></thead>
       <tbody>${indexRows || emptyStateRow({ colspan: 4, icon: 'database', message: 'No index targets configured.' })}</tbody>
     </table>
+    </div>
     <h3>Schema Check</h3>
     <p class="dh-note">
       Every list registered in FIELD_ALIASES, diffed against what Newton
@@ -635,20 +641,24 @@ async function buildDataHealthTab() {
       with nothing registered to check show "No columns registered" rather
       than a false pass.
     </p>
+    <div class="table-scroll">
     <table class="data-table dh-table">
       <thead><tr><th>List</th><th>Checked columns</th><th>Detail</th><th>Status</th></tr></thead>
       <tbody>${schemaRows || emptyStateRow({ colspan: 4, icon: 'database', message: 'No lists registered.' })}</tbody>
     </table>
+    </div>
     <h3>Error Telemetry</h3>
     <p class="dh-note">
       Uncaught errors and unhandled promise rejections from any Newton screen
       (N-172), grouped by message. Acknowledging a group clears it from this
       view — the underlying Diagnostics rows are never deleted.
     </p>
+    <div class="table-scroll">
     <table class="data-table dh-table">
       <thead><tr><th>Message</th><th>Module</th><th>Occurrences</th><th>Users</th><th>Last seen</th><th></th></tr></thead>
       <tbody>${diagTableRows || emptyStateRow({ colspan: 6, icon: 'bug', message: 'No unacknowledged errors.' })}</tbody>
     </table>
+    </div>
   `;
 }
 async function acknowledgeDiagnosticsGroup(idsCsv) {

@@ -3545,15 +3545,16 @@ body.bp-printing .rt-table-controls { display: none !important; }
   /* A full-bleed page following a flow table must start its own page. */
   body.bp-printing .bp-page-full { break-before: page; page-break-before: always; }
   body.bp-printing .bp-pack > .bp-page-full:first-child { break-before: auto; page-break-before: auto; }
-  /* The last page must not be an exact 297mm block: a sub-pixel overflow at the
-     printer's scale spills into a trailing blank sheet. Letting it size to its
-          content, with a min-height that still fills the sheet visually, removes the
-     boundary the overflow needs. */
+  /* The last page must not be a fixed, clipped 297mm block: a sub-pixel
+     overflow at the printer's scale then has nowhere to go but a new, blank
+     sheet (N-225 — the previous height:297mm + margin-bottom:-2mm fudge on
+     this rule didn't actually match this comment's own description of the
+     fix, and the blank page recurred). min-height still fills the sheet
+     visually when content is shorter; overflow:visible means any variance
+     lands as content on a genuine next page instead of a blank one. */
   body.bp-printing .bp-pack > .bp-page-full:last-child {
-    /* Full sheet, no white band — but pulled 2mm short of the page box so a
-       sub-pixel overflow has nothing to spill onto. */
-    height: 297mm;
-    margin-bottom: -2mm;
+    min-height: 297mm;
+    overflow: visible;
     break-after: avoid;
     page-break-after: avoid;
   }

@@ -138,6 +138,7 @@ async function renderRolesPage(filter) {
       <div class="filter-group">${filterBtns}</div>
     </div>
     ${listResultCount(pagedRoles.length, roles.length, rolesTotal, null, 'role')}
+        <div class="table-scroll">
         <table class="data-table">
       <thead><tr>
         <th>Project</th><th>Role</th><th>Location</th><th>Stage</th><th>Talent Partner</th>
@@ -178,6 +179,7 @@ async function renderRolesPage(filter) {
         })}
       </tbody>
     </table>
+        </div>
   `;
   lucide.createIcons();
 }

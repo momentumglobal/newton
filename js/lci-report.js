@@ -201,7 +201,7 @@ function _lciReportObsHtml() {
     <div class="lci-summary-card lci-report-break">
       <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Observations and Recommendations</h3>
       <div class="rb-rt-wrapper">
-        <div class="rb-rt-toolbar lci-noprint">
+        <div class="rb-rt-toolbar lci-noprint" id="lci-report-obs-toolbar">
           <button type="button" onclick="lciReportFormat('bold')"><b>B</b></button>
           <button type="button" onclick="lciReportFormat('italic')"><i>I</i></button>
           <button type="button" onclick="lciReportFormat('underline')"><u>U</u></button>
@@ -214,7 +214,9 @@ function _lciReportObsHtml() {
         <div id="lci-report-obs" class="rb-richtext" contenteditable="true"
              style="min-height:200px;caret-color:var(--brand);cursor:text;padding:8px 10px"
              data-placeholder="Add observations &amp; recommendations here..."
-             oninput="window._lciReportObs = this.innerHTML">${window._lciReportObs || ''}</div>
+             oninput="window._lciReportObs = this.innerHTML"
+             onkeyup="lciReportUpdateToolbarState()"
+             onmouseup="lciReportUpdateToolbarState()">${window._lciReportObs || ''}</div>
       </div>
     </div>`;
 }
@@ -222,10 +224,16 @@ function _lciReportObsHtml() {
 function lciReportFormat(cmd) {
   document.execCommand(cmd, false, null);
   document.getElementById('lci-report-obs')?.focus();
+  lciReportUpdateToolbarState();
 }
 function lciReportFormatBlock(tag) {
   document.execCommand('formatBlock', false, tag);
   document.getElementById('lci-report-obs')?.focus();
+  lciReportUpdateToolbarState();
+}
+
+function lciReportUpdateToolbarState() {
+  rtUpdateToolbarState(document.getElementById('lci-report-obs-toolbar'), 'lciReportFormat', 'lciReportFormatBlock');
 }
 
 // ── Navy cover + dividers ────────────────────────────────────────────

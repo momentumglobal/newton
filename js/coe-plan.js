@@ -266,7 +266,7 @@ function coeGanttHtml(rows, opts = {}) {
       ${cells.join('')}${actions}</tr>`;
   }).join('');
 
-  return `<div class="coe-gantt-wrap"><table class="coe-gantt">
+  return `<div class="coe-gantt-wrap table-scroll"><table class="coe-gantt">
     <thead>
       <tr><th class="coe-sticky coe-sticky--1" rowspan="2">Role</th>
           <th class="coe-sticky coe-sticky--2" rowspan="2">TP</th>

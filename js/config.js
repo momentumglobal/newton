@@ -536,12 +536,13 @@ const CONFIG = {
   // names it — it shares getRejectedOffers()'s identical filter shape and is
   // tempting to add "while we're here," but it isn't in F-13's scope.
   DELTA: {
-    enabled:       false,  // HOTFIX (temporary): delta responses for these
-                            // two lists are coming back with no `fields`
-                            // object, so every column but id was rendering
-                            // as undefined. Flipped off to force the full
-                            // paginated fetch until the delta engine's
-                            // Graph $expand shape is fixed properly.
+    enabled:       true,   // N-230 (10 Sep 2026): re-enabled. Live diagnosis found
+                            // no reproducible defect in the request shape, $batch
+                            // routing, or pagination/deltaLink carry-forward — see
+                            // newton-pipeline/specs/N-230.md. _deltaMerge (api.js)
+                            // now throws on any fields-less item instead of
+                            // silently merging it, so a recurrence degrades to a
+                            // full resync rather than blank rows.
     enrolledLists: ['WeeklyActivity', 'Placements'],
   },
 

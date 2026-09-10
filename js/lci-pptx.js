@@ -94,7 +94,7 @@ function _lciPptxDefineMasters(pptx, assets) {
 
   const navyObjects = [];
   if (assets.logo) {
-    navyObjects.push({ image: { data: assets.logo, x: G.margin, y: G.margin, w: G.logoW, h: G.logoH } });
+    navyObjects.push({ image: { data: assets.logo, x: G.navyMargin, y: G.navyMargin, w: G.logoW, h: G.logoH } });
   }
   pptx.defineSlideMaster({
     title: P.MASTERS.navy,
@@ -124,18 +124,18 @@ function _lciPptxNavySlide(ctx, title, subtitle, withSwirl) {
   if (withSwirl && ctx.assets.swirl) {
     slide.addImage({
       data: ctx.assets.swirl,
-      x: P.LAYOUT.width - G.margin - G.swirlW, y: (P.LAYOUT.height - G.swirlH) / 2,
+      x: P.LAYOUT.width - G.navyMargin - G.swirlW, y: (P.LAYOUT.height - G.swirlH) / 2,
       w: G.swirlW, h: G.swirlH,
     });
   }
-  const blockY = P.LAYOUT.height - G.margin - G.titleBlockH;
+  const blockY = P.LAYOUT.height - G.navyMargin - G.titleBlockH;
   slide.addText(String(title || ''), {
-    x: G.margin, y: blockY, w: P.LAYOUT.width - G.margin * 2 - (withSwirl ? G.swirlW : 0), h: G.titleH,
+    x: G.navyMargin, y: blockY, w: P.LAYOUT.width - G.navyMargin * 2 - (withSwirl ? G.swirlW : 0), h: G.titleH,
     fontFace: _lciPptxFace(true), fontSize: withSwirl ? F.coverTitle : F.dividerTitle,
     color: C.navyText, valign: 'bottom',
   });
   slide.addText(String(subtitle || ''), {
-    x: G.margin, y: blockY + G.titleH, w: P.LAYOUT.width - G.margin * 2, h: G.subH,
+    x: G.navyMargin, y: blockY + G.titleH, w: P.LAYOUT.width - G.navyMargin * 2, h: G.subH,
     fontFace: F.face, fontSize: withSwirl ? F.coverSub : F.dividerSub,
     color: C.navyMuted, valign: 'top',
   });
@@ -216,6 +216,7 @@ function _lciPptxTableSlides(ctx, title, header, bodyRows, opts = {}) {
       fill: { color: C.navy }, color: C.navyText,
       fontFace: _lciPptxFace(true), fontSize: headSize,
       align: i === 0 ? 'left' : 'center', valign: 'middle',
+      margin: P.TABLE.cellMargin,
     },
   }));
 
@@ -233,10 +234,16 @@ function _lciPptxTableSlides(ctx, title, header, bodyRows, opts = {}) {
             color: C.textBody,
             fontFace: _lciPptxFace(st.bold), fontSize: cellSize,
             align: i === 0 ? 'left' : 'center', valign: 'middle',
+            margin: P.TABLE.cellMargin,
           },
         };
       });
     }));
+    // One rowH for the whole table — header, body, subtotal and total rows are
+    // all the same height, and the hierarchy is carried by shading and weight
+    // alone. PowerPoint treats rowH as a MINIMUM and grows any row whose text
+    // needs more space, so keeping rows uniform is a matter of keeping the
+    // content box small: TABLE.cellMargin trims the insets to match.
     slide.addTable(rows, {
       x: G.margin, y: _lciPptxBodyTop(!!opts.note), w: totalW,
       colW, rowH: P.TABLE.rowH, autoPage: false,

@@ -327,6 +327,7 @@ function _renderRevenuePanel(rows) {
           </tbody>
         </table>
         </div>
+      </div>
       <div>
         <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
           By Project Type</div>
@@ -381,6 +382,7 @@ function _renderSegmentationPanel(people) {
           <tbody>${tableHTML(groupBy('Location'))}</tbody>
         </table>
         </div>
+      </div>
       <div>
         <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
           By Contract Type</div>

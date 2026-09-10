@@ -335,18 +335,20 @@ function bpRenderCanvas() {
             oninput="bpUpdatePage('${p.id}', 'heading', this.value)">
           <div class="rb-rt-wrapper">
             <div class="rb-rt-toolbar">
-              <button type="button" onclick="rtFormat('bold')"><b>B</b></button>
-              <button type="button" onclick="rtFormat('italic')"><i>I</i></button>
-              <button type="button" onclick="rtFormat('underline')"><u>U</u></button>
-              <button type="button" onclick="rtFormat('insertUnorderedList')">&#8226; List</button>
-              <button type="button" onclick="rtFormat('insertOrderedList')">1. List</button>
-              <button type="button" onclick="rtFormatBlock('H3')">Heading</button>
-              <button type="button" onclick="rtFormatBlock('P')">Body Text</button>
+              <button type="button" onclick="bpFormat('bold')"><b>B</b></button>
+              <button type="button" onclick="bpFormat('italic')"><i>I</i></button>
+              <button type="button" onclick="bpFormat('underline')"><u>U</u></button>
+              <button type="button" onclick="bpFormat('insertUnorderedList')">&#8226; List</button>
+              <button type="button" onclick="bpFormat('insertOrderedList')">1. List</button>
+              <button type="button" onclick="bpFormatBlock('H3')">Heading</button>
+              <button type="button" onclick="bpFormatBlock('P')">Body Text</button>
               ${rtTableToolbarButtonHtml()}
               ${rtCalloutToolbarButtonHtml()}
             </div>
             <div class="rb-richtext" contenteditable="true" data-id="${p.id}"
-              oninput="bpUpdatePage('${p.id}', 'content', this.innerHTML)">${p.content || ''}</div>
+              oninput="bpUpdatePage('${p.id}', 'content', this.innerHTML)"
+              onkeyup="bpUpdateToolbarState()"
+              onmouseup="bpUpdateToolbarState()">${p.content || ''}</div>
           </div>
         </div>
         <button class="rb-remove-btn" onclick="bpRemovePage('${p.id}')">&#x2715;</button>
@@ -386,6 +388,25 @@ function bpInitSortable() {
 function bpUpdatePage(id, key, value) {
   const page = _bpPages.find(p => p.id === id);
   if (page) page[key] = value;
+}
+
+// Rich-text toolbar wrappers (N-228) — mirrors Report Builder's rbFormat/
+// rbFormatBlock/rbUpdateToolbarState. Multi-instance like Report Builder
+// (several content sections can be open on the canvas at once), so state
+// is scoped to whichever section currently has focus, never globally.
+function bpFormat(cmd) {
+  rtFormat(cmd);
+  bpUpdateToolbarState();
+}
+
+function bpFormatBlock(tag) {
+  rtFormatBlock(tag);
+  bpUpdateToolbarState();
+}
+
+function bpUpdateToolbarState() {
+  const toolbar = document.activeElement?.closest('.bp-block-section')?.querySelector('.rb-rt-toolbar');
+  rtUpdateToolbarState(toolbar, 'bpFormat', 'bpFormatBlock');
 }
 
 function bpAddPage(type) {

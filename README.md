@@ -42,7 +42,23 @@ Full system directory including architecture, data flows, SharePoint data model,
 
 ## Changelog
 
-### September 2026 — Delta sync + $batch request coalescing (F-13a/F-13b/F-14, N-186/N-187/N-188)
+### September 2026 — LCI report exports as PowerPoint, replacing PDF (N-224, N-226)
+
+**The assembled multi-model LCI report is now an editable PowerPoint deck instead of a PDF.** The report page's primary button is **Export to PowerPoint**; Print / PDF is gone from that page only. The single-model **Summary** page and the **LCI Lead Magnet** are untouched and still export PDF through the browser print dialog, so `printPage()` and every `@media print` rule stay as they were, and the Summary page's Export to Excel is unaffected. No SharePoint change — no new list, no new field, no `FIELD_ALIASES` entry.
+
+**Why a deck.** The LCI report takes heavy per-client customisation before it goes out, and a PDF cannot take an edit. Everything on a slide is a native PowerPoint object — real tables, real charts, real text runs, never a rasterised picture — so the team re-words, re-orders and re-brands slides after export, then produces the client PDF from PowerPoint itself.
+
+**New file `js/lci-pptx.js`**, loaded by `sales.html` **after `lci-report.js`** — it reads that file's state, so loading it earlier fails at click time rather than on load. Every geometry value, colour, font size and per-slide cap lives in `CONFIG.LCI.PPTX`; there is no hex or magic number in the file. **pptxgenjs 4.0.1, pinned, lazy-loaded on the first Export click** (~450KB, never on page render) — the same shape as the ExcelJS dependency. It must be the `pptxgen.bundle.js` build: `pptxgen.min.js` expects a separate JSZip global Newton does not load, and swapping the URL for the "min" one silently produces a broken export.
+
+**Two traps worth knowing before touching this file.** `CONFIG.LCI.PPTX.COLOURS` are plain 6-digit hex (`0A0B44`), deliberately *not* the 8-character ARGB values `CONFIG.LCI.EXCEL.COLOURS` uses (`FF0A0B44`) — pptxgenjs rejects the ARGB form, so the two palettes are separate on purpose and neither derives from the other. And Polymath ships as three separate font *families* (`Polymath`, `Polymath Medium`, `Polymath Semibold`), each with subfamily "Regular": the browser stitches them into one weighted family via `@font-face`, PowerPoint cannot. The deck therefore never sets `bold: true`, which would give PowerPoint's synthetic faux-bold; every weight change is a face switch to `FONT.faceBold` through `_lciPptxFace()`. The font is not embedded in the file, so a machine without Polymath installed substitutes silently.
+
+**Shared state, not duplicated logic.** `lci-report.js` caches the assembled models on `_lciReportBundles` and the deck builds from that rather than re-fetching — the same pattern `lci-excel.js` uses with `_lciEd`. The compare-table metric list moved into a shared `LCI_COMPARE_KPIS` const so the on-screen Compare view and the deck's Key Metrics slide cannot drift apart. The deck never recalculates: every figure comes from `lci-model.js`, and every row-visibility rule (N-008 / N-010 / N-018) is the one `lci-sections.js` applies.
+
+**Table sizing is measured, not chosen.** PowerPoint table cells always wrap — pptxgenjs's `wrap` option is text-box only and emits nothing on a cell — so the deck keeps figures on one line the way the print stylesheet does: it shrinks the type. `FONT.gridCell` is 9pt because that is the largest size at which the widest realistic figure still fits a column of the densest table (a 24-month model's sliced Cost Model, 14 columns), measured against the real Polymath advance widths rather than picked by eye. Long horizons split one slide per 12-month year slice, reusing `lciYearSlices()` — the same splitting the printed Summary has used since N-022.
+
+**N-226** updated `sales-user-guide.html` to match: the report export section, the saved-report FAQ, the Excel section's references to "the client PDF", and a new *Working with the deck* subsection covering editability, the snapshot rule and the Polymath caveat.
+
+### September 2026 — Delta sync + $batch request coalescing
 
 **Two independent optimisations to the same request layer, delivered together because the second builds directly on the first.** N-186/N-187 cut *what* has to come back over the wire on a repeat read; N-188 cuts *how many separate round trips* it takes to fetch it. Neither changes what any page shows.
 

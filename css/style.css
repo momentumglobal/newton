@@ -987,7 +987,6 @@ body {
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
-  background: var(--surface);
 }
 @media print {
   .table-scroll { overflow: visible !important; max-height: none !important; }

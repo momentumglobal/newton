@@ -760,6 +760,88 @@ const CONFIG = {
         rate:    '#,##0.0000',
       },
     },
+
+    // ── PowerPoint export (N-224) ─────────────────────────────────
+    // pptxgenjs, lazy-loaded on first click only (~450KB — never on page
+    // render). PIN THE VERSION: an unpinned CDN has bitten this codebase
+    // before (see the Dependencies table in Readme.html). Use the *bundle*
+    // build — it carries JSZip inside it, where pptxgen.min.js expects a
+    // separate JSZip global that this app does not load.
+    PPTX: {
+      CDN: 'https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js',
+      // Inches. 13.333 x 7.5 is 16:9 widescreen — PowerPoint's own default.
+      LAYOUT:  { name: 'LCI16x9', width: 13.333, height: 7.5 },
+      MASTERS: { navy: 'LCI_NAVY', content: 'LCI_CONTENT' },
+      ASSETS: {
+        logoWhite: 'momentum-symbol-and-name-global-white.png',
+        swirl:     'mg-visual-swirl-report.png',
+      },
+      // Plain 6-digit hex, NO alpha prefix. Deliberately NOT the ARGB form
+      // CONFIG.LCI.EXCEL.COLOURS uses — pptxgenjs rejects 8-character values.
+      // Same documented exception to "no hex in JS" the Excel export carries:
+      // a deck cannot read style.css. `navy` must stay in step with
+      // .data-table th (#0A0B44); `series` mirrors LCI_REPORT_COLOURS.
+      COLOURS: {
+        navy:         '0A0B44',
+        navySteel:    '1B3A5C',
+        navyText:     'FFFFFF',
+        navyMuted:    'C7CBDE',
+        paper:        'FFFFFF',
+        accent:       'E8703A',
+        subtotalFill: 'E4E8F2',
+        totalFill:    'D6DCEC',
+        bandFill:     'EFEFEF',
+        tableBorder:  'E0E0E0',
+        textBody:     '1A1A2E',
+        textMuted:    '888888',
+        series: ['1B3A5C', 'E8703A', '2E8B8B', '7B5EA7', 'B0578D'],
+      },
+      // Polymath, matching the app. It ships as three SEPARATE families —
+      // 'Polymath' (regular), 'Polymath Medium', 'Polymath Semibold', each
+      // with subfamily 'Regular'. The browser stitches them into one weighted
+      // family via @font-face; PowerPoint cannot, so `bold: true` on
+      // 'Polymath' would give synthetic faux-bold. Bold text switches FACE to
+      // faceBold instead — see _lciPptxFace() in lci-pptx.js.
+      //
+      // gridHeader / gridCell are the month-grid sizes and mirror the print
+      // stylesheet's `.lci-grid { font-size: var(--fs-10) }` step; the wider
+      // tableHeader / tableCell serve the narrow tables (Assumptions, Key
+      // Metrics), which @media print leaves at their normal size. 9pt is the
+      // largest size at which the widest realistic figure still fits a column
+      // of the densest table — measured, not guessed.
+      FONT: {
+        face:     'Polymath',
+        faceBold: 'Polymath Semibold',
+        coverTitle: 36, coverSub: 15,
+        dividerTitle: 28, dividerSub: 14,
+        slideTitle: 20, note: 11,
+        gridHeader: 9,  gridCell: 9,
+        tableHeader: 11, tableCell: 11,
+        kpiValue: 20, kpiLabel: 10,
+        body: 13, obsHeading: 16,
+        chartLabel: 10, footer: 9,
+      },
+      // Slide geometry, inches.
+      GEO: {
+        margin: 0.6, gap: 0.12, rule: 0.03,
+        logoW: 2.2, logoH: 0.5,
+        swirlW: 4.6, swirlH: 4.6,
+        titleBlockH: 1.9, titleH: 1.2, subH: 0.5,
+        headingH: 0.5, noteH: 0.3,
+        footerH: 0.45, footerPad: 0.06, footerTextH: 0.3, slideNumW: 0.6,
+      },
+      // labelColW is the month grids' fixed first column (the print rule caps
+      // .lci-grid--roadmap td:first-child at 180px ≈ 1.9in). The two Frac
+      // values are the narrow tables' proportional first column, as
+      // .lci-assump (45%) and .lci-compare (26%) already use.
+      TABLE: {
+        labelColW: 1.9, rowH: 0.3, rowsPerSlide: 14, borderPt: 0.5,
+        assumpLabelFrac: 0.45, compareLabelFrac: 0.26,
+      },
+      KPI:   { perRow: 4, gap: 0.2, tileH: 1.35, radius: 0.06, valuePad: 0.2, valueH: 0.55, labelH: 0.35 },
+      OBS:   { blocksPerSlide: 12, bulletIndent: 18 },
+      CHART: { lineSize: 2, gridSize: 1 },
+    },
   },
 
 // ── LCI Lead Magnet ───────────────────────────────────────────────

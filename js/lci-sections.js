@@ -79,7 +79,7 @@ function _lciLegacyHtml() {
   return _lciSectionShell('lci-legacy-section', 'Legacy Team',
     `(fully loaded salaries in ${m.DisplayCurrency}; Exiting rows run M1 → exit month, Retained run to the horizon)`,
     'addLCILegacyRow', `
-    <div class="lci-grid-scroll">
+    <div class="lci-grid-scroll table-scroll">
       <table class="data-table" id="lci-legacy-table">
         <thead><tr>
           <th style="width:16%">Role</th><th style="width:16%">Team</th><th>Category</th><th>Qty</th><th>Annual salary</th><th>Bonus %</th>
@@ -134,7 +134,7 @@ function _lciMonthGridHtml(sectionId, type, title, subtitle, addFn) {
     : emptyStateRow({ colspan: horizon + 3, icon: 'inbox', message: 'No rows yet.' });
 
   return _lciSectionShell(sectionId, title, subtitle, addFn, `
-    <div class="lci-grid-scroll">
+    <div class="lci-grid-scroll table-scroll">
       <table class="data-table lci-grid lci-grid--amounts">
         <thead><tr><th style="min-width:130px">Item</th>${monthHead}<th>Total</th><th></th></tr></thead>
         <tbody>${body}</tbody>
@@ -336,7 +336,7 @@ function _lciOutputInnerHtml(includeChart = true, plain = false, slice = null) {
   return `
     <div class="${plain ? '' : 'print-avoid-break'}" style="${plain ? '' : 'background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px'}">
       <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Cost Model${sl.label ? ` — ${sl.label}` : ''} <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(all values in ${ccy})</span></h3>
-      <div class="lci-grid-scroll">
+      <div class="lci-grid-scroll table-scroll">
         <table class="data-table lci-grid lci-output">
           <thead><tr><th style="min-width:220px"></th>${monthHead}</tr></thead>
           <tbody>

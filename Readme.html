@@ -1124,6 +1124,19 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 
       <div class="changelog-entry">
         <div class="changelog-date">September 2026</div>
+        <div class="changelog-title">Legacy Team Excel import (N-231)</div>
+        <ul>
+          <li><strong>What changed:</strong> the Legacy Team section of the LCI Cost Model editor gets an <strong>Import from Excel</strong> button next to <strong>+ Add Row</strong>. Upload a customer-supplied workbook, map its columns to Title / Team / Annual Salary (Bonus %, Legacy Category and Career Level optional), preview the rows with per-row include/exclude and inline edit, then add them to the section. <strong>No SharePoint change</strong> — no new list, no new field, no <code>FIELD_ALIASES</code> entry; imported rows are ordinary <code>LCIModelRows</code> items, <code>RowType: 'legacy'</code>.</li>
+          <li><strong>Why:</strong> customers almost always hand over their existing legacy team as a spreadsheet already. Re-typing title/team/salary for every row was pure manual entry this removes.</li>
+          <li><strong>New file <code>js/lci-import.js</code></strong>, loaded by <code>sales.html</code> after <code>js/lci-excel.js</code> (it reuses that file's lazy ExcelJS loader — <strong>no second xlsx dependency</strong>) and before <code>js/lci-report.js</code>.</li>
+          <li><strong>Manual column mapping only, no header auto-detection.</strong> Customer files have no shared convention worth guessing at, so every import maps columns by hand; a simple heuristic only decides whether row 1 is a header at all.</li>
+          <li><strong>Does not write to SharePoint itself.</strong> Imported rows are pushed into the same in-memory list a hand-typed row uses and the section is marked dirty — the existing <strong>Save Changes</strong> button does the actual <code>createLCIRow</code> calls, with the retry (N-082) and re-entrancy guard that path already has. Reviewing/adjusting a row after import happens in the normal grid, not inside the import flow.</li>
+          <li><strong>Shared modal component.</strong> Uses the existing <code>.lci-modal-overlay</code> / <code>.lci-modal-card</code> component (<code>lci-link.js</code>'s pattern) at a wider inline width for the mapping/preview tables — no new CSS.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">September 2026</div>
         <div class="changelog-title">LCI report exports as PowerPoint, replacing PDF (N-224, N-226)</div>
         <ul>
           <li><strong>What changed:</strong> the assembled multi-model LCI report's primary button is now <strong>Export to PowerPoint</strong>; <strong>Print / PDF</strong> is gone from that page. The single-model <strong>Summary</strong> page and the <strong>LCI Lead Magnet</strong> are untouched and still export PDF through the browser print dialog, so <code>printPage()</code> and every <code>@media print</code> rule stay exactly as they were. The Summary page's Export to Excel is unaffected. <strong>No SharePoint change</strong> — no new list, no new field, no <code>FIELD_ALIASES</code> entry.</li>

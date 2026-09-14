@@ -2681,9 +2681,19 @@ body {
    own stacked `top` offset so they sit below one another instead of all
    sticking to the same spot. The override selectors need an extra class
    over the shared rule's `.table-scroll thead th` (specificity 0-1-2) to
-   win — `.coe-gantt-wrap .coe-gantt-date-row th` etc. are 0-2-1. The four
-   rowspan="2" label cells (Role/TP/Open/Target Hire) are left at the
-   shared rule's `top: 0` — their own box already spans rows 1+2. */
+   win — `.coe-gantt-wrap .coe-gantt-date-row th` etc. are 0-2-1.
+   N-232 round 2: the four frozen label columns (Role/TP/Open/Target
+   Hire) used to be `rowspan="2"` cells relying on the shared rule's
+   `top: 0`. `position: sticky` does not reliably resolve on a cell
+   spanning more than one row, so they never stuck at all — round 1 only
+   fixed the OTHER rows' overlap. Fixed by no longer using `rowspan` for
+   these: coe-plan.js now renders two ordinary single-row cells (one in
+   the month row, one duplicate — empty — in the date row) per column,
+   with the border between them removed so they still read as one
+   merged two-row header cell. `.coe-th-split-top`/`-bottom` below are
+   those two halves; the bottom half inherits its `top` from the
+   `.coe-gantt-date-row th` rule two blocks down like any other date-row
+   cell, so no extra offset rule is needed for it. */
 .coe-gantt th.coe-month,
 .coe-gantt-date-row th,
 .coe-capacity th,
@@ -2691,6 +2701,8 @@ body {
   height: var(--coe-gantt-row-h);
   box-sizing: border-box;
 }
+.coe-th-split-top { border-bottom: none; }
+.coe-th-split-bottom { border-top: none; }
 .coe-gantt-wrap .coe-gantt-date-row th {
   top: var(--coe-gantt-row-h);
   background: var(--surface);

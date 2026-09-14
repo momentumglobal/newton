@@ -2657,7 +2657,12 @@ body {
 /* ── CoE Hiring Plan ─────────────────────────────────────────────── */
 .coe-toolbar { display:flex; gap:var(--sp-6); align-items:center; margin-bottom:var(--sp-7); flex-wrap:wrap; }
 .coe-gantt-wrap { border:1px solid var(--border); border-radius:var(--r-md); }
-.coe-gantt { border-collapse:collapse; font-size:var(--fs-12); }
+.coe-gantt {
+  border-collapse:collapse; font-size:var(--fs-12);
+  /* N-232: uniform header/capacity-row height so the sticky top offsets
+     below stack exactly, regardless of the browser's font metrics. */
+  --coe-gantt-row-h: 25px;
+}
 .coe-gantt th, .coe-gantt td { border:1px solid var(--border-muted); padding:var(--sp-1) var(--sp-3); text-align:center; white-space:nowrap; font-variant-numeric: tabular-nums; }
 .coe-gantt th.coe-month { background:var(--surface-sunken); font-weight:600; }
 .coe-gantt .coe-sticky { position:sticky; background:var(--surface); z-index:2; text-align:left; }
@@ -2669,6 +2674,30 @@ body {
    this rule only needed for the rare <td> in a thead row, which
    .table-scroll's th-only selector doesn't cover. */
 .coe-gantt thead td { background:var(--surface); }
+/* N-232: coe-gantt's thead holds FIVE stacked rows (month row, date row,
+   three capacity-summary rows), not the single row the shared
+   `.table-scroll thead th { top: 0 }` rule (N-203, above) assumes.
+   Force every row after the first to a uniform height and give each its
+   own stacked `top` offset so they sit below one another instead of all
+   sticking to the same spot. The override selectors need an extra class
+   over the shared rule's `.table-scroll thead th` (specificity 0-1-2) to
+   win — `.coe-gantt-wrap .coe-gantt-date-row th` etc. are 0-2-1. The four
+   rowspan="2" label cells (Role/TP/Open/Target Hire) are left at the
+   shared rule's `top: 0` — their own box already spans rows 1+2. */
+.coe-gantt th.coe-month,
+.coe-gantt-date-row th,
+.coe-capacity th,
+.coe-capacity td {
+  height: var(--coe-gantt-row-h);
+  box-sizing: border-box;
+}
+.coe-gantt-wrap .coe-gantt-date-row th {
+  top: var(--coe-gantt-row-h);
+  background: var(--surface);
+}
+.coe-gantt-wrap .coe-capacity--0 th { top: calc(var(--coe-gantt-row-h) * 2); }
+.coe-gantt-wrap .coe-capacity--1 th { top: calc(var(--coe-gantt-row-h) * 3); }
+.coe-gantt-wrap .coe-capacity--2 th { top: calc(var(--coe-gantt-row-h) * 4); }
 .coe-cell { min-width:26px; height:22px; }
 .coe-cell--R { background:var(--coe-cell-r); }
 .coe-cell--N { background:var(--coe-cell-n); }

@@ -268,13 +268,13 @@ function coeGanttHtml(rows, opts = {}) {
 
   return `<div class="coe-gantt-wrap table-scroll"><table class="coe-gantt">
     <thead>
-      <tr class="coe-gantt-month-row"><th class="coe-sticky coe-sticky--1" rowspan="2">Role</th>
-          <th class="coe-sticky coe-sticky--2" rowspan="2">TP</th>
-          <th class="coe-sticky coe-sticky--3" rowspan="2">Open</th>
-          <th class="coe-sticky coe-sticky--4" rowspan="2">Target Hire</th>
+      <tr class="coe-gantt-month-row"><th class="coe-sticky coe-sticky--1 coe-th-split-top">Role</th>
+          <th class="coe-sticky coe-sticky--2 coe-th-split-top">TP</th>
+          <th class="coe-sticky coe-sticky--3 coe-th-split-top">Open</th>
+          <th class="coe-sticky coe-sticky--4 coe-th-split-top">Target Hire</th>
           ${monthCells.map(m => `<th class="coe-month" colspan="${m.span}">${m.label}</th>`).join('')}
-          ${canEdit ? '<th rowspan="2" class="coe-col-actions"></th>' : ''}</tr>
-      <tr class="coe-gantt-date-row">${Array.from({ length: nWeeks }, (_, w) => `<th>${coeAddWeeks(tStart, w).getDate()}</th>`).join('')}</tr>
+          ${canEdit ? '<th class="coe-col-actions coe-th-split-top"></th>' : ''}</tr>
+      <tr class="coe-gantt-date-row"><th class="coe-sticky coe-sticky--1 coe-th-split-bottom"></th><th class="coe-sticky coe-sticky--2 coe-th-split-bottom"></th><th class="coe-sticky coe-sticky--3 coe-th-split-bottom"></th><th class="coe-sticky coe-sticky--4 coe-th-split-bottom"></th>${Array.from({ length: nWeeks }, (_, w) => `<th>${coeAddWeeks(tStart, w).getDate()}</th>`).join('')}${canEdit ? '<th class="coe-col-actions coe-th-split-bottom"></th>' : ''}</tr>
       ${capHtml}
     </thead>
     <tbody>${bodyHtml}</tbody>

@@ -18,13 +18,14 @@ function _lciRowsOfType(type) {
 // Section wrapper with header, add + save buttons.
 // All save buttons share the same diff-only saver (saveLCIRows); only
 // changed rows are written, so saves are effectively per-section anyway.
-function _lciSectionShell(id, title, subtitle, addFn, bodyHtml) {
+function _lciSectionShell(id, title, subtitle, addFn, bodyHtml, extraButtonsHtml = '') {
   return `
     <div id="${id}" class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;margin-top:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 style="margin:0;color:var(--brand-tertiary)">${title} <span style="font-weight:400;font-size:13px;color:var(--text-muted)">${subtitle}</span></h3>
         <div style="display:flex;gap:8px">
           <button class="btn-secondary" onclick="${addFn}()">+ Add Row</button>
+          ${extraButtonsHtml}
           <button class="btn-primary lci-rows-save" onclick="saveLCIRows()" disabled>Save Changes</button>
         </div>
       </div>
@@ -87,7 +88,8 @@ function _lciLegacyHtml() {
         </tr></thead>
         <tbody>${body}</tbody>
       </table>
-    </div>`);
+    </div>`,
+    '<button class="btn-secondary" onclick="openLCIImportModal()">Import from Excel</button>');
 }
 
 function addLCILegacyRow() {

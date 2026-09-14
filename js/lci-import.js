@@ -78,7 +78,10 @@ function _lciImportPickerHtml() {
 // targets; anything stranger falls through to String(v) rather than throwing.
 function _lciImportCellValue(v) {
   if (v === null || v === undefined) return v;
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  // N-088/N-129 guard (F-12 CI check): never toISOString().slice() a Date —
+  // that re-expresses a local instant in UTC and truncates to the wrong day
+  // under BST. localDayISO() (utils.js) uses local getters instead.
+  if (v instanceof Date) return localDayISO(v);
   if (typeof v === 'object') {
     if ('result' in v) return v.result;
     if (typeof v.text === 'string') return v.text;

@@ -231,9 +231,9 @@ function coeGanttHtml(rows, opts = {}) {
     }
   });
 
-  const capHtml = ['R', 'N', 'O'].map(ph => {
+  const capHtml = ['R', 'N', 'O'].map((ph, i) => {
     const names = { R: '# in Recruitment', N: '# in Notice', O: '# in Onboarding' };
-    return `<tr class="coe-capacity"><th class="coe-sticky coe-sticky--1 coe-cap-label" colspan="1">${names[ph]}</th>
+    return `<tr class="coe-capacity coe-capacity--${i}"><th class="coe-sticky coe-sticky--1 coe-cap-label" colspan="1">${names[ph]}</th>
       <th class="coe-sticky coe-sticky--2"></th><th class="coe-sticky coe-sticky--3"></th><th class="coe-sticky coe-sticky--4"></th>
       ${cap[ph].map(c => `<td>${c || '–'}</td>`).join('')}${canEdit ? '<td class="coe-col-actions"></td>' : ''}</tr>`;
   }).join('');
@@ -268,13 +268,13 @@ function coeGanttHtml(rows, opts = {}) {
 
   return `<div class="coe-gantt-wrap table-scroll"><table class="coe-gantt">
     <thead>
-      <tr><th class="coe-sticky coe-sticky--1" rowspan="2">Role</th>
+      <tr class="coe-gantt-month-row"><th class="coe-sticky coe-sticky--1" rowspan="2">Role</th>
           <th class="coe-sticky coe-sticky--2" rowspan="2">TP</th>
           <th class="coe-sticky coe-sticky--3" rowspan="2">Open</th>
           <th class="coe-sticky coe-sticky--4" rowspan="2">Target Hire</th>
           ${monthCells.map(m => `<th class="coe-month" colspan="${m.span}">${m.label}</th>`).join('')}
           ${canEdit ? '<th rowspan="2" class="coe-col-actions"></th>' : ''}</tr>
-      <tr>${Array.from({ length: nWeeks }, (_, w) => `<th>${coeAddWeeks(tStart, w).getDate()}</th>`).join('')}</tr>
+      <tr class="coe-gantt-date-row">${Array.from({ length: nWeeks }, (_, w) => `<th>${coeAddWeeks(tStart, w).getDate()}</th>`).join('')}</tr>
       ${capHtml}
     </thead>
     <tbody>${bodyHtml}</tbody>

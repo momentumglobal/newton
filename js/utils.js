@@ -59,6 +59,115 @@ function stageBadgeHtml(roleId, stage, canEdit) {
     : badge;
 }
 
+// ── Optimistic-insert row helpers (N-218a) ──────────────────────────────
+// Temp client-side id for an item that has been submitted but not yet
+// confirmed created -- same shape as the existing bpUid()/rbUid() convention
+// (briefing-pack.js/report-builder.js), centralised here because it's
+// shared across all 5 optimistic-insert submit paths in forms.js, unlike
+// those two single-file ids.
+function pendingRowId() {
+  return 'pend_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+}
+
+// Pure HTML string builders for one list row, one per optimistic-insert
+// list. Each is the single source of truth for that list's row markup --
+// used by the list's normal render AND by the pending-row insert, so the
+// two never drift. opts.pending renders the row with a row-pending class,
+// a data-pending-id marker, and no row-actions cell (a pending item has no
+// real id yet, so nothing on it is clickable). Deliberately called
+// "pending", not "ghost" -- this codebase's "ghost" prefix already means
+// Ghost Mode (view-as-user), an unrelated feature (see GHOST_USER_KEY
+// above).
+function projectRowHtml(p, { dmDisplay, canEdit, pending = false } = {}) {
+  return `
+          <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ""}>
+            <td>${escHtml(p.CustomerName)}</td>
+            <td>${escHtml(dmDisplay)}</td>
+            <td><span class="badge badge-${escAttr(p.Status?.toLowerCase())}">${escHtml(p.Status)}</span></td>
+            <td>${spDateIn(p.StartDate) || "—"}</td>
+            <td>${spDateIn(p.EndDate) || "—"}</td>
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditProjectForm(${p.id})">Edit</a></div></td>`) : ""}
+          </tr>
+        `;
+}
+
+function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilter, pending = false } = {}) {
+  const isHired    = rolesFilter === "Hired";
+  const daysHidden = rolesFilter === "Backlog" || rolesFilter === "Cancelled";
+  const days       = (!daysHidden && (!isHired || r.ActualHireDate))
+    ? daysOpen(r.OpenDate, r.ActualHireDate) : null;
+  const rowClass   = (isHired || rolesFilter === "Active") && days !== null && days > 45
+    ? "row-age-critical" : "";
+  const dateCell   = isHired
+    ? (spDateIn(r.ActualHireDate) || "—")
+    : (spDateIn(r.TargetHireDate) || "—");
+  // A pending role has no real id yet, so it never gets the interactive
+  // unlock button -- canEdit is forced false for the stage badge only.
+  const stageCell  = stageBadgeHtml(r.id, r.Stage, pending ? false : canEdit);
+  return `
+          <tr class="${pending ? "row-pending" : rowClass}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ""}>
+            <td>${escHtml(projectName)}</td>
+            <td>${escHtml(r.RoleTitle)}</td>
+            <td>${escHtml(r.Location || '—')}</td>
+            <td${pending ? "" : ` id="stage-cell-${r.id}"`}>${stageCell}</td>
+            <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
+            <td>${escHtml(formatSalary(r.Budget))}</td>
+            <td>${spDateIn(r.OpenDate) || "—"}</td>
+            <td>${dateCell}</td>
+            <td>${days !== null ? days + " days" : "—"}</td>
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a><a href="#" onclick="showDuplicateRoleForm(${r.id})">Duplicate</a>${historyRoleIds.has(String(r.id)) ? `<a href="#" onclick="showRoleTimeline(${r.id})">Timeline</a>` : ""}</div></td>`) : ""}
+          </tr>`;
+}
+
+function activityRowHtml(a, { roleMap, tpMap, canEdit, pending = false } = {}) {
+  return `
+          <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(a.id)}"` : ""}>
+            <td>${a.Year}</td>
+            <td>Wk ${a.WeekNumber}</td>
+            <td>${roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || "—"}</td>
+            <td>${escHtml(tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || "—")}</td>
+            <td style="text-align:center">${a.Outreach || 0}</td>
+            <td style="text-align:center">${a.Responses || 0}</td>
+            <td style="text-align:center">${a.Screened || 0}</td>
+            <td style="text-align:center">${a.Submitted || 0}</td>
+            <td style="text-align:center">${a.Interview1 || 0}</td>
+            <td style="text-align:center">${a.Interview2Plus || 0}</td>
+            <td style="text-align:center">${a.FinalInterview || 0}</td>
+            <td style="text-align:center">${a.Offers || 0}</td>
+            <td style="text-align:center">${a.Hires || 0}</td>
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditActivityForm(${a.id})">Edit</a></div></td>`) : ""}
+          </tr>
+        `;
+}
+
+function placementRowHtml(p, { roleMap, canEdit, pending = false } = {}) {
+  return `
+          <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ""}>
+            <td>${escHtml(p.CandidateName)}</td>
+            <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || "—"}</td>
+            <td>${escHtml(formatSalary(p.SalaryAgreed))}</td>
+            <td>${spDateIn(p.OfferAcceptedDate) || "—"}</td>
+            <td>${spDateIn(p.ProvisionalStartDate) || "—"}</td>
+            <td>${p.TimeToHire != null ? p.TimeToHire + " days" : "—"}</td>
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditPlacementForm(${p.id})">Edit</a></div></td>`) : ""}
+          </tr>
+        `;
+}
+
+function rejectionRowHtml(r, { roleMap, canEdit, pending = false } = {}) {
+  return `
+          <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ""}>
+            <td>${escHtml(r.CandidateName)}</td>
+            <td>${roleMap[String(r.RoleIDLookupId)] || roleMap[String(r.RoleID)] || "—"}</td>
+            <td>${escHtml(spDateIn(r.RejectionDate) || "—")}</td>
+            <td>${escHtml(formatSalary(r.SalaryOffered))}</td>
+            <td>${escHtml(r.RejectionReason || "—")}</td>
+            <td>${escHtml(r.Notes || "—")}</td>
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditRejectionForm(${r.id})">Edit</a></div></td>`) : ""}
+          </tr>
+        `;
+}
+
 // ── Re-render without losing scroll position ──────────────────────────
 // Replace an element's outerHTML while preserving the scroll offsets of any
 // scroll containers inside it. Replacing outerHTML destroys and rebuilds those

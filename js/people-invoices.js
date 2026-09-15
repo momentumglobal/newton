@@ -1,5 +1,5 @@
 // js/people-invoices.js — GP Invoices
-async function renderGPInvoices() {
+async function renderGPInvoices(pendingItem = null) {
   const main    = document.getElementById('main-content');
   const canEdit = _resolvedRole === 'admin';
   main.innerHTML = '<p>Loading invoices...</p>';
@@ -13,6 +13,24 @@ async function renderGPInvoices() {
     const isOverdue = inv.Status === 'Sent' && due && due < today;
     return { ...inv, isOverdue };
   });
+
+  // N-218b: a pending invoice folds into the same isOverdue computation as
+  // real rows, then the summary-bar figures below (Total Outstanding /
+  // Overdue count / Oldest Overdue) naturally include it too -- consistent
+  // with "this write has already applied" rather than showing it in the
+  // table but excluding it from totals it obviously affects.
+  if (pendingItem) {
+    const due = pendingItem.DueDate ? new Date(pendingItem.DueDate) : null;
+    withStatus.push({
+      ...pendingItem,
+      isOverdue: pendingItem.Status === 'Sent' && due && due < today,
+    });
+    // getGPInvoices() (api.js) returns invoices sorted by InvoiceDate desc --
+    // keep the pending row in that same order rather than always trailing it.
+    withStatus.sort((x, y) =>
+      (y.InvoiceDate ? new Date(y.InvoiceDate) : new Date(0)) -
+      (x.InvoiceDate ? new Date(x.InvoiceDate) : new Date(0)));
+  }
 
   // Summary bar calculations
   const outstanding = withStatus
@@ -50,35 +68,10 @@ async function renderGPInvoices() {
       </div>` : ''}
     </div>`;
 
-  const rows = withStatus.map(inv => {
-    const statusBadge = inv.isOverdue
-      ? `<span class='badge' style='background:var(--status-danger-bg-soft);color:var(--status-danger)'>Overdue</span>`
-      : inv.Status === 'Paid'
-        ? `<span class='badge badge-active'>Paid</span>`
-        : `<span class='badge' style='background:var(--status-warn-bg);color:var(--status-warn-text)'>Sent</span>`;
-
-    const markPaidBtn = canEdit && inv.Status !== 'Paid'
-      ? `<a href='#' onclick='markInvoicePaid(${inv.id})' style='white-space:nowrap'>
-           Mark Paid</a>`
-      : '';
-
-    return `<tr>
-      <td>${escHtml(inv.InvoiceNumber || '—')}</td>
-      <td>${spDateIn(inv.InvoiceDate) || '—'}</td>
-      <td>${spDateIn(inv.DueDate) || '—'}</td>
-      <td>£${inv.Amount ? Number(inv.Amount).toLocaleString('en-GB',
-              {minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
-      <td class='cell-notes'>${renderInvoiceNotesCell(inv)}</td>
-      <td>${statusBadge}</td>
-${canEdit ? `<td style='white-space:nowrap'>
-  <div class='row-actions' style='gap:12px'>
-    <a href='#' onclick='showEditInvoiceForm(${inv.id})'>Edit</a>
-    ${markPaidBtn ? ' · ' + markPaidBtn : ''}
-    · <button class='btn-danger' onclick='deleteInvoice(${inv.id})'>Delete</button>
-  </div>
-</td>` : ''}
-    </tr>`;
-  }).join('');
+  const rows = withStatus.map(inv => invoiceRowHtml(inv, {
+    canEdit,
+    pending: pendingItem ? inv.id === pendingItem.id : false,
+  })).join('');
 
   main.innerHTML = `
     <div class='page-header'>
@@ -97,13 +90,19 @@ ${canEdit ? `<td style='white-space:nowrap'>
 }
 
 // Notes cell: first line only, with a "See more" toggle when there is more to show.
-function renderInvoiceNotesCell(inv) {
+// N-218b: `pending` suppresses the toggle -- its onclick embeds `inv.id`
+// unquoted (`toggleInvoiceNotes(event, ${inv.id})`), which is a real numeric
+// SharePoint id on every existing call site but would emit invalid JS for a
+// pending row's string id from pendingRowId(). A pending row has nothing
+// clickable anywhere else in the table for the same reason; this keeps that
+// true for the notes cell too, and reads as a one-line preview instead.
+function renderInvoiceNotesCell(inv, pending = false) {
   const notes = inv.Notes || '';
   if (!notes.trim()) return '—';
 
   const head     = firstLine(notes);
-  const hasMore  = /\r?\n/.test(notes.trim())
-                   || head.length > CONFIG.NOTES_PREVIEW_CHARS;
+  const hasMore  = !pending && (/\r?\n/.test(notes.trim())
+                   || head.length > CONFIG.NOTES_PREVIEW_CHARS);
 
   if (!hasMore) return `<span class='notes-body'>${escHtml(head)}</span>`;
 

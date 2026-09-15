@@ -9,7 +9,7 @@ let _assignmentFilter = {
   projectType: '',
 };
 
-async function renderEmployeeTracker() {
+async function renderEmployeeTracker(pendingItem = null) {
   const main = document.getElementById('main-content');
   const role = _resolvedRole;
   if (!['admin','leadership'].includes(role)) {
@@ -17,9 +17,9 @@ async function renderEmployeeTracker() {
     return;
   }
   if (_peopleTab === 'employees') {
-    await renderEmployeesTab();
+    await renderEmployeesTab(pendingItem);
   } else {
-    await renderAssignmentsTab();
+    await renderAssignmentsTab(pendingItem);
   }
 }
 
@@ -37,44 +37,21 @@ async function _switchPeopleTab(tab) {
   await renderEmployeeTracker();
 }
 
-async function renderEmployeesTab() {
+async function renderEmployeesTab(pendingItem = null) {
   const main     = document.getElementById('main-content');
   const canEdit  = _resolvedRole === 'admin';
   const canPayroll = ['admin','leadership'].includes(_resolvedRole);
   const people   = await getPeople(!_showInactive);
+  // N-218b: an Employee has no filter that could exclude it (a new
+  // employee's IsActive is always true), so it's always appended.
+  if (pendingItem) people.push(pendingItem);
 
-  const rows = people.map(p => {
-    const isUK      = p.Location === 'UK';
-    const salaryVal = (isUK && p.Salary) ? `£${Number(p.Salary).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-    const salaryCell = canPayroll && isUK ? `
-      <td class='salary-cell'>
-        <span class='salary-masked' id='sal-masked-${p.id}' style='display:${_salariesRevealed ? "none" : "inline"}'>
-          ••••••
-          <button class='btn-padlock' title='Reveal salary' onclick='_revealSalary(${p.id})'
-            style='background:none;border:none;cursor:pointer;padding:0 4px;color:var(--text-muted)'>🔒</button>
-        </span>
-        <span class='salary-revealed' id='sal-revealed-${p.id}' style='display:${_salariesRevealed ? "inline" : "none"}'>
-          ${salaryVal}
-          <button class='btn-padlock' title='Hide salary' onclick='_hideSalary(${p.id})'
-            style='background:none;border:none;cursor:pointer;padding:0 4px;color:var(--text-muted)'>🔓</button>
-        </span>
-      </td>` : (canPayroll ? `<td>—</td>` : '');
-    return `
-    <tr>
-      <td>${p.PhotoUrl
-            ? `<img src="${escAttr(p.PhotoUrl)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
-            : '<span style="color:var(--text-faint);font-size:12px">—</span>'}</td>
-      <td>${escHtml(p.EmployeeName)}</td>
-      <td>${escHtml(p.Level || '—')}</td>
-      <td>${escHtml(p.ContractType || '—')}</td>
-      <td>${escHtml(p.Location || '—')}</td>
-      <td>${spDateIn(p.StartDate) || '—'}</td>
-      <td>${spDateIn(p.EndDate) || '—'}</td>
-      <td><span class='badge badge-${p.IsActive ? 'active' : 'inactive'}'>${p.IsActive ? 'Active' : 'Inactive'}</span></td>
-      ${salaryCell}
-      ${canEdit ? `<td><div class='row-actions'><a href='#' onclick='showEditPersonForm(${p.id})'>Edit</a></div></td>` : ''}
-    </tr>`;
-  }).join('');
+  const rows = people.map(p => personRowHtml(p, {
+    canEdit,
+    canPayroll,
+    salariesRevealed: _salariesRevealed,
+    pending: pendingItem ? p.id === pendingItem.id : false,
+  })).join('');
 
   const salaryToggle = canPayroll ? `
     <button class='btn-secondary' style='font-size:12px;padding:4px 10px'
@@ -141,7 +118,7 @@ function _toggleAllSalaries() {
   renderEmployeesTab();
 }
 
-async function renderAssignmentsTab() {
+async function renderAssignmentsTab(pendingItem = null) {
   const main    = document.getElementById('main-content');
   const canEdit = _resolvedRole === 'admin';
 
@@ -157,23 +134,29 @@ async function renderAssignmentsTab() {
   const today = utcDateOnly(localDayISO());
   const statusFilter = _assignmentFilter.status || 'current';
 
-const filtered = assignments.filter(a => {
-  // utcDateOnly() returns null for a missing/unparseable value, which is what
-  // the old `a.StartDate ? ... : null` ternary produced — so the null-guards
-  // and comparisons below are unchanged.
-  const start = utcDateOnly(a.StartDate);
-  const end   = utcDateOnly(a.EndDate);
-  const isPlanned = start && start > today;
-  const isCurrent = !isPlanned && (!end || end >= today);
-  if (statusFilter === 'current') return isCurrent;
-  if (statusFilter === 'former')  return !isPlanned && end && end < today;
-  if (statusFilter === 'planned') return isPlanned;
-  return true;
-}).filter(a => {
+  // N-218b: factored out of the .filter() chain (unchanged logic) so a
+  // pending assignment's scope membership can be tested with the exact same
+  // predicates instead of a second copy of them.
+  const matchesStatus = a => {
+    const start = utcDateOnly(a.StartDate);
+    const end   = utcDateOnly(a.EndDate);
+    const isPlanned = start && start > today;
+    const isCurrent = !isPlanned && (!end || end >= today);
+    if (statusFilter === 'current') return isCurrent;
+    if (statusFilter === 'former')  return !isPlanned && end && end < today;
+    if (statusFilter === 'planned') return isPlanned;
+    return true;
+  };
+  const matchesOtherFilters = a => {
     if (_assignmentFilter.customer    && a.Customer    !== _assignmentFilter.customer)    return false;
     if (_assignmentFilter.projectType && a.ProjectType !== _assignmentFilter.projectType) return false;
     return true;
-  });
+  };
+
+const filtered = assignments.filter(matchesStatus).filter(matchesOtherFilters);
+  if (pendingItem && matchesStatus(pendingItem) && matchesOtherFilters(pendingItem)) {
+    filtered.push(pendingItem);
+  }
 
   const customers    = [...new Set(assignments.map(a => a.Customer).filter(Boolean))].sort();
   const projectTypes = [...new Set(assignments.map(a => a.ProjectType).filter(Boolean))].sort();
@@ -214,24 +197,10 @@ const filtered = assignments.filter(a => {
   if (l !== 0) return l;
   return (a.EmployeeName || '').localeCompare(b.EmployeeName || '');
 });
-  const rows = filtered.map(a => `
-    <tr>
-      <td>${escHtml(a.AssignmentID || '—')}</td>
-      <td>${escHtml(a.EmployeeName || '—')}</td>
-      <td>${escHtml(a.Level || '—')}</td>
-      <td>${escHtml(a.Customer || '—')}</td>
-      <td>${escHtml(a.ProjectType || '—')}</td>
-      <td>${spDateIn(a.StartDate) || '—'}</td>
-      <td>${spDateIn(a.EndDate) || '—'}</td>
-      <td>${assignmentRateLabel(a)}</td>
-      <td><span class='badge badge-${a.Billed==="Yes"?"active":"inactive"}'>${escHtml(a.Billed)}</span>${
-        isForecastAssignment(a) ? ` <span class='badge' style='background:var(--status-warn-bg-soft);color:var(--status-warn-text)'>Forecast</span>` : ''}</td>
-      ${canEdit ? `<td><div class='row-actions'>
-        <a href='#' onclick='showEditAssignmentForm(${a.id})'>Edit</a>${
-        (a.AutoGenerated === true || a.AutoGenerated === 1 || a.AutoGenerated === 'Yes') ? '' :
-        ` · <a href='#' style='color:var(--status-danger)' onclick='_deleteAssignment(${a.id})'>Delete</a>`}
-      </div></td>` : ''}
-    </tr>`).join('');
+  const rows = filtered.map(a => assignmentRowHtml(a, {
+    canEdit,
+    pending: pendingItem ? a.id === pendingItem.id : false,
+  })).join('');
 
   _updateBenchSyncTimestamp();
   main.innerHTML = `

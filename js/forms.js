@@ -94,16 +94,31 @@ async function submitProjectForm(event, editId = null) {
     EndDate:         isoDate(data.EndDate) || undefined,
     Notes:           data.Notes || undefined,
   };
-  try {
-    if (editId) {
+  if (editId) {
+    // N-218a: optimistic insert is a create-only concept -- editing an
+    // existing project is unaffected, unchanged from before this task.
+    try {
       await updateItem('Projects', editId, fields);
-    } else {
-      await createItem('Projects', fields);
+      navigateTo('projects');
+    } catch (e) {
+      clearButtonLoading(btn);
+      showFormError('project-form', `Error saving project: ${e.message}`);
     }
-    navigateTo('projects');
+    return;
+  }
+  try {
+    await optimisticWrite({
+      apply: () => {
+        const pendingItem = { id: pendingRowId(), ...normaliseFields('Projects', fields) };
+        navigateTo('projects', pendingItem);
+      },
+      revert: async () => { await renderProjectsPage(_projectsFilter); },
+      commit: () => createItem('Projects', fields),
+      errorMessage: 'Error saving project — change reverted.',
+    });
+    await renderProjectsPage(_projectsFilter);
   } catch (e) {
-    clearButtonLoading(btn);
-    showFormError('project-form', `Error saving project: ${e.message}`);
+    // optimisticWrite() already reverted the view and showed a Retry toast.
   }
 }
 // ── Role Form ────────────────────────────────────────────────────────
@@ -343,16 +358,31 @@ async function submitRoleForm(event, editId = null) {
     Department:     data.Department || undefined,
     Notes:          data.Notes || undefined,
   };
-  try {
-    if (editId) {
+  if (editId) {
+    // N-218a: optimistic insert is a create-only concept -- editing an
+    // existing role is unaffected, unchanged from before this task.
+    try {
       await updateRoleWithHistory(editId, fields);
-    } else {
-      await createRoleWithHistory(fields);
+      navigateTo('roles');
+    } catch (e) {
+      clearButtonLoading(btn);
+      showFormError('role-form', `Error saving role: ${e.message}`);
     }
-    navigateTo('roles');
+    return;
+  }
+  try {
+    await optimisticWrite({
+      apply: () => {
+        const pendingItem = { id: pendingRowId(), ...normaliseFields('Roles', fields) };
+        navigateTo('roles', pendingItem);
+      },
+      revert: async () => { await renderRolesPage(_rolesFilter); },
+      commit: () => createRoleWithHistory(fields),
+      errorMessage: 'Error saving role — change reverted.',
+    });
+    await renderRolesPage(_rolesFilter);
   } catch (e) {
-    clearButtonLoading(btn);
-    showFormError('role-form', `Error saving role: ${e.message}`);
+    // optimisticWrite() already reverted the view and showed a Retry toast.
   }
 }
 // ── Weekly Activity Form ────────────────────────────────────────────
@@ -569,13 +599,33 @@ async function submitWeeklyForm(event, editId = null) {
     Hires:             parseInt(data.Hires) || 0,
     SubmittedAt:       new Date().toISOString(),
   };
-  try {
-    if (editId) {
+  if (editId) {
+    // N-218a: optimistic insert is a create-only concept -- editing an
+    // existing activity row is unaffected, unchanged from before this task.
+    try {
       await updateItem('WeeklyActivity', editId, fields);
-    } else {
-      await createItem('WeeklyActivity', fields);
+      navigateTo('activity');
+    } catch (e) {
+      clearButtonLoading(btn);
+      showFormError('weekly-form', `Error saving activity: ${e.message}`);
     }
-    // Hire logged → offer to record a placement, prefilled with this role/project
+    return;
+  }
+  try {
+    await optimisticWrite({
+      apply: () => {
+        const pendingItem = { id: pendingRowId(), ...normaliseFields('WeeklyActivity', fields) };
+        navigateTo('activity', pendingItem);
+      },
+      revert: async () => { await renderActivityPage(); },
+      commit: () => createItem('WeeklyActivity', fields),
+      errorMessage: 'Error saving activity — change reverted.',
+    });
+    // Hire logged → offer to record a placement, prefilled with this
+    // role/project. Same decision as before this task, just moved after
+    // the optimistic write resolves instead of after a plain await
+    // createItem() -- unchanged in effect, since it only ever ran after a
+    // successful write either way.
     if (fields.Hires > 0 &&
         await confirmModal({
           message: 'You logged a hire. Would you like to record a placement now?',
@@ -585,10 +635,9 @@ async function submitWeeklyForm(event, editId = null) {
         await renderPlacementForm(null, fields.RoleIDLookupId, fields.ProjectIDLookupId);
       return;
     }
-    navigateTo('activity');
+    await renderActivityPage();
   } catch (e) {
-    clearButtonLoading(btn);
-    showFormError('weekly-form', `Error saving activity: ${e.message}`);
+    // optimisticWrite() already reverted the view and showed a Retry toast.
   }
 }
 // ── Placement Form ───────────────────────────────────────────────────
@@ -784,84 +833,105 @@ async function submitPlacementForm(event, editId = null) {
     TimeToHire:           timeToHire,
     Notes:                data.Notes || undefined,
   };
-  
-  try {
-    let created = null;
-    if (editId) {
-      await updateItem('Placements', editId, fields);
-    } else {
-      created = await createItem('Placements', fields);
-    }
-    if (startDate && data.RoleID) {
-      await updateRoleWithHistory(data.RoleID, { CurrentStartDate: startDate });
-    }
-    if (offerDate && data.RoleID) {
-      await updateRoleWithHistory(data.RoleID, { ActualHireDate: offerDate });
-    }
-    if (created) {                       // new placement only
-      // N-093: was getAllRoles() + a lookup map to find one role by id.
-      const role  = await getItem('Roles', parseInt(data.RoleID));
-      const projId = String(role.ProjectIDLookupId || role.ProjectID);
-      const projects = await getItems('Projects');
-      const proj = projects.find(pr => String(pr.id) === projId) || {};
-      // 6.4 placement landed (TP + DM)
-      await fireNotification({ triggerType:'placement',
-        triggerKey:`placement:${created.id}`, tone:'celebrate',
-        deepLink:'reporting.html#placements',
-        body:`Placement: ${data.CandidateName} placed`,
-        recipients:[data.TalentPartnerName, proj.DeliveryManager] });
-      // 6.5 project first placement (leadership)
-      const allPlac = await getItems('Placements');
-      // N-183: rolesById was removed by N-093; scope the lookup to this
-      // project's roles via getRolesForProject instead of refetching everything.
-      const projectRoles = await getRolesForProject(projId);
-      const projectRoleIds = new Set(projectRoles.map(r => String(r.id)));
-      const prior = allPlac.filter(pl => String(pl.id) !== String(created.id) &&
-        projectRoleIds.has(String(pl.RoleIDLookupId))).length;
-      if (prior === 0) {
-        const roleTitle = role.Location
-          ? `${role.RoleTitle} (${role.Location})` : role.RoleTitle;
- 
-        // resolve emails -> names. TP = who MADE the placement;
-        // DM = who owns the project. May be the same person
-        // (a DM can log their own placement).
-        const nameMap = await getTalentPartnerDisplayMap(); // email -> UserName
-        const tpEmail = (data.TalentPartnerName || '').toLowerCase();
-        const dmEmail = (proj.DeliveryManager  || '').toLowerCase();
-        const tpName  = nameMap[tpEmail] || data.TalentPartnerName || '';
-        const dmName  = nameMap[dmEmail] || proj.DeliveryManager  || '';
-        const samePerson = tpEmail && dmEmail && tpEmail === dmEmail;
- 
-        const enrich = {
-          RoleTitle: roleTitle,
-          CustomerName: proj.CustomerName,
-          TalentPartnerName: tpName,       // the placer
-          DeliveryManagerName: dmName,     // project DM
-          SamePerson: samePerson ? 'yes' : 'no',
-        };
- 
-        // in-app rows for Leadership (enriched)
-        await fireNotification({ triggerType:'firstPlacement',
-          triggerKey:`firstplacement:${projId}`, tone:'milestone',
-          deepLink:'reporting.html#placements',
-          body:`${proj.CustomerName} has its first placement!`,
-          recipients: await getLeadershipRecipients(),
-          extraFields: enrich });
- 
-        // sentinel row — drives the Power Automate email (one per placement)
-        await fireNotification({ triggerType:'firstPlacement',
-          triggerKey:`firstplacement-email:${projId}`, tone:'milestone',
-          deepLink:'reporting.html#placements',
-          body:`${proj.CustomerName} has its first placement!`,
-          recipients: ['system@newton'],
-          extraFields: enrich });
-      }
-    }
-    navigateTo('placements');
 
+  if (editId) {
+    // N-218a: optimistic insert is a create-only concept -- editing an
+    // existing placement is unaffected, unchanged from before this task.
+    try {
+      await updateItem('Placements', editId, fields);
+      if (startDate && data.RoleID) {
+        await updateRoleWithHistory(data.RoleID, { CurrentStartDate: startDate });
+      }
+      if (offerDate && data.RoleID) {
+        await updateRoleWithHistory(data.RoleID, { ActualHireDate: offerDate });
+      }
+      navigateTo('placements');
+    } catch (e) {
+      clearButtonLoading(btn);
+      showFormError('placement-form', `Error saving placement: ${e.message}`);
+    }
+    return;
+  }
+
+  try {
+    await optimisticWrite({
+      apply: () => {
+        const pendingItem = { id: pendingRowId(), ...normaliseFields('Placements', fields) };
+        navigateTo('placements', pendingItem);
+      },
+      revert: async () => { await renderPlacementsPage(); },
+      commit: async () => {
+        const created = await createItem('Placements', fields);
+        if (startDate && data.RoleID) {
+          await updateRoleWithHistory(data.RoleID, { CurrentStartDate: startDate });
+        }
+        if (offerDate && data.RoleID) {
+          await updateRoleWithHistory(data.RoleID, { ActualHireDate: offerDate });
+        }
+        // N-093: was getAllRoles() + a lookup map to find one role by id.
+        const role  = await getItem('Roles', parseInt(data.RoleID));
+        const projId = String(role.ProjectIDLookupId || role.ProjectID);
+        const projects = await getItems('Projects');
+        const proj = projects.find(pr => String(pr.id) === projId) || {};
+        // 6.4 placement landed (TP + DM)
+        await fireNotification({ triggerType:'placement',
+          triggerKey:`placement:${created.id}`, tone:'celebrate',
+          deepLink:'reporting.html#placements',
+          body:`Placement: ${data.CandidateName} placed`,
+          recipients:[data.TalentPartnerName, proj.DeliveryManager] });
+        // 6.5 project first placement (leadership)
+        const allPlac = await getItems('Placements');
+        // N-183: rolesById was removed by N-093; scope the lookup to this
+        // project's roles via getRolesForProject instead of refetching everything.
+        const projectRoles = await getRolesForProject(projId);
+        const projectRoleIds = new Set(projectRoles.map(r => String(r.id)));
+        const prior = allPlac.filter(pl => String(pl.id) !== String(created.id) &&
+          projectRoleIds.has(String(pl.RoleIDLookupId))).length;
+        if (prior === 0) {
+          const roleTitle = role.Location
+            ? `${role.RoleTitle} (${role.Location})` : role.RoleTitle;
+
+          // resolve emails -> names. TP = who MADE the placement;
+          // DM = who owns the project. May be the same person
+          // (a DM can log their own placement).
+          const nameMap = await getTalentPartnerDisplayMap(); // email -> UserName
+          const tpEmail = (data.TalentPartnerName || '').toLowerCase();
+          const dmEmail = (proj.DeliveryManager  || '').toLowerCase();
+          const tpName  = nameMap[tpEmail] || data.TalentPartnerName || '';
+          const dmName  = nameMap[dmEmail] || proj.DeliveryManager  || '';
+          const samePerson = tpEmail && dmEmail && tpEmail === dmEmail;
+
+          const enrich = {
+            RoleTitle: roleTitle,
+            CustomerName: proj.CustomerName,
+            TalentPartnerName: tpName,       // the placer
+            DeliveryManagerName: dmName,     // project DM
+            SamePerson: samePerson ? 'yes' : 'no',
+          };
+
+          // in-app rows for Leadership (enriched)
+          await fireNotification({ triggerType:'firstPlacement',
+            triggerKey:`firstplacement:${projId}`, tone:'milestone',
+            deepLink:'reporting.html#placements',
+            body:`${proj.CustomerName} has its first placement!`,
+            recipients: await getLeadershipRecipients(),
+            extraFields: enrich });
+
+          // sentinel row — drives the Power Automate email (one per placement)
+          await fireNotification({ triggerType:'firstPlacement',
+            triggerKey:`firstplacement-email:${projId}`, tone:'milestone',
+            deepLink:'reporting.html#placements',
+            body:`${proj.CustomerName} has its first placement!`,
+            recipients: ['system@newton'],
+            extraFields: enrich });
+        }
+        return created;
+      },
+      errorMessage: 'Error saving placement — change reverted.',
+    });
+    await renderPlacementsPage();
   } catch (e) {
-    clearButtonLoading(btn);
-    showFormError('placement-form', `Error saving placement: ${e.message}`);
+    // optimisticWrite() already reverted the view and showed a Retry toast.
   }
 }
 // ── Rejected Offer Form ──────────────────────────────────────────────
@@ -951,15 +1021,30 @@ async function submitRejectedForm(event, editId = null) {
     RejectionDate:   isoDate(data.RejectionDate) || undefined,
     Notes:           data.Notes || undefined,
   };
-  try {
-    if (editId) {
+  if (editId) {
+    // N-218a: optimistic insert is a create-only concept -- editing an
+    // existing rejection is unaffected, unchanged from before this task.
+    try {
       await updateItem('RejectedOffers', editId, fields);
-    } else {
-      await createItem('RejectedOffers', fields);
+      navigateTo('rejections');
+    } catch (e) {
+      clearButtonLoading(btn);
+      showFormError('rejected-form', `Error saving rejection: ${e.message}`);
     }
-    navigateTo('rejections');
+    return;
+  }
+  try {
+    await optimisticWrite({
+      apply: () => {
+        const pendingItem = { id: pendingRowId(), ...normaliseFields('RejectedOffers', fields) };
+        navigateTo('rejections', pendingItem);
+      },
+      revert: async () => { await renderRejectionsPage(); },
+      commit: () => createItem('RejectedOffers', fields),
+      errorMessage: 'Error saving rejection — change reverted.',
+    });
+    await renderRejectionsPage();
   } catch (e) {
-    clearButtonLoading(btn);
-    showFormError('rejected-form', `Error saving rejection: ${e.message}`);
+    // optimisticWrite() already reverted the view and showed a Retry toast.
   }
 }

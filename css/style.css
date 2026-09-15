@@ -1491,6 +1491,13 @@ body {
   color: var(--text-primary);
 }
 
+/* ── Optimistic-insert pending row (N-218a) ─────────────────────────── */
+/* An item just submitted but not yet confirmed created server-side.      */
+/* Named "pending", not "ghost" -- ghost already means Ghost Mode below.  */
+.data-table tbody tr.row-pending td { opacity: 0.6; }
+.data-table tbody tr.row-pending:hover td { background: none; }
+.data-table tbody tr.row-pending:hover { transform: none; }
+
 /* ── Ghost mode banner ───────────────────────────────────────────────── */
 #ghost-banner {
   position: fixed;

@@ -99,18 +99,44 @@ async function submitPersonForm(event, editId = null) {
     Salary:       data.Salary ? parseFloat(data.Salary) : undefined,
   };
   const file = form.querySelector('[name=PhotoFile]')?.files?.[0] || null;
-  try {
-    let id = editId;
-    if (editId) { await updatePerson(editId, fields); }
-    else        { const saved = await createPerson(fields); id = saved.id; }
-    if (file && id) {
-      const url = await uploadPeoplePhoto('person', id, file);
-      if (url) await updatePerson(id, { PhotoUrl: url });
+
+  if (editId) {
+    // N-218b: optimistic insert is a create-only concept -- editing an
+    // existing employee is unaffected, unchanged from before this task.
+    try {
+      await updatePerson(editId, fields);
+      if (file) {
+        const url = await uploadPeoplePhoto('person', editId, file);
+        if (url) await updatePerson(editId, { PhotoUrl: url });
+      }
+      navigateToPeople('peopleTracker');
+    } catch (e) {
+      clearButtonLoading(btn);
+      showPersonFormError(`Error saving employee: ${e.message}`);
     }
-    navigateToPeople('peopleTracker');
+    return;
+  }
+
+  try {
+    await optimisticWrite({
+      apply: () => {
+        const pendingItem = { id: pendingRowId(), ...fields };
+        navigateToPeople('peopleTracker', pendingItem);
+      },
+      revert: async () => { await renderEmployeesTab(); },
+      commit: async () => {
+        const saved = await createPerson(fields);
+        if (file && saved.id) {
+          const url = await uploadPeoplePhoto('person', saved.id, file);
+          if (url) await updatePerson(saved.id, { PhotoUrl: url });
+        }
+        return saved;
+      },
+      errorMessage: 'Error saving employee — change reverted.',
+    });
+    await renderEmployeesTab();
   } catch (e) {
-    clearButtonLoading(btn);
-    showPersonFormError(`Error saving employee: ${e.message}`);
+    // optimisticWrite() already reverted the view and showed a Retry toast.
   }
 }
 
@@ -344,13 +370,33 @@ async function submitAssignmentForm(event, editId = null) {
     const existing = await getAssignments({});
     fields.AssignmentID = 'A-' + String(existing.length + 1).padStart(3, '0');
   }
+
+  if (editId) {
+    // N-218b: optimistic insert is a create-only concept -- editing an
+    // existing assignment is unaffected, unchanged from before this task.
+    try {
+      await updateAssignment(editId, fields);
+      navigateToPeople('peopleTracker');
+    } catch (e) {
+      clearButtonLoading(btn);
+      showAssignmentFormError(`Error saving assignment: ${e.message}`);
+    }
+    return;
+  }
+
   try {
-    if (editId) { await updateAssignment(editId, fields); }
-    else        { await createAssignment(fields); }
-    navigateToPeople('peopleTracker');
+    await optimisticWrite({
+      apply: () => {
+        const pendingItem = { id: pendingRowId(), ...fields };
+        navigateToPeople('peopleTracker', pendingItem);
+      },
+      revert: async () => { await renderAssignmentsTab(); },
+      commit: () => createAssignment(fields),
+      errorMessage: 'Error saving assignment — change reverted.',
+    });
+    await renderAssignmentsTab();
   } catch (e) {
-    clearButtonLoading(btn);
-    showAssignmentFormError(`Error saving assignment: ${e.message}`);
+    // optimisticWrite() already reverted the view and showed a Retry toast.
   }
 }
 
@@ -454,24 +500,43 @@ async function submitInvoiceForm(event, editId = null) {
     Notes:         data.Notes || undefined,
     Status:        data.Status,
   };
-  try {
-    if (editId) {
+  if (editId) {
+    // N-218b: optimistic insert is a create-only concept -- editing an
+    // existing invoice is unaffected, unchanged from before this task.
+    try {
       await updateInvoice(editId, fields);
       if (file) {
         const fileUrl = await uploadInvoiceAttachment(editId, file);
         if (fileUrl) { await addInvoiceFileURL(editId, fileUrl); }
       }
-    } else {
-      const result = await createInvoice(fields);
-      const newId  = result?.id;
-      if (!newId) throw new Error('Failed to retrieve new invoice ID.');
-      const fileUrl = await uploadInvoiceAttachment(newId, file);
-      if (fileUrl) { await addInvoiceFileURL(newId, fileUrl); }
+      navigateToPeople('gpInvoices');
+    } catch (e) {
+      clearButtonLoading(btn);
+      if (errEl) { errEl.textContent = 'Error saving invoice: ' + e.message; errEl.style.display = 'block'; }
     }
-    navigateToPeople('gpInvoices');
+    return;
+  }
+
+  try {
+    await optimisticWrite({
+      apply: () => {
+        const pendingItem = { id: pendingRowId(), ...fields };
+        navigateToPeople('gpInvoices', pendingItem);
+      },
+      revert: async () => { await renderGPInvoices(); },
+      commit: async () => {
+        const result = await createInvoice(fields);
+        const newId  = result?.id;
+        if (!newId) throw new Error('Failed to retrieve new invoice ID.');
+        const fileUrl = await uploadInvoiceAttachment(newId, file);
+        if (fileUrl) { await addInvoiceFileURL(newId, fileUrl); }
+        return result;
+      },
+      errorMessage: 'Error saving invoice — change reverted.',
+    });
+    await renderGPInvoices();
   } catch (e) {
-    clearButtonLoading(btn);
-    if (errEl) { errEl.textContent = 'Error saving invoice: ' + e.message; errEl.style.display = 'block'; }
+    // optimisticWrite() already reverted the view and showed a Retry toast.
   }
 }
 

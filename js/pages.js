@@ -4,7 +4,7 @@
 // dropdowns and getProjectFilterOptions moved to js/list-controls.js.
 // ── Projects ─────────────────────────────────────────────────────────
 let _projectsFilter = "Active";
-async function renderProjectsPage(filter) {
+async function renderProjectsPage(filter, pendingItem = null) {
   if (filter !== undefined) _projectsFilter = filter;
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 5);
@@ -16,6 +16,10 @@ async function renderProjectsPage(filter) {
   ]);
   const canEdit = ["admin","delivery_manager"].includes(role) || hasDMGrant();
   const dmName = email => email ? (dmMap[email.toLowerCase()] || email) : "—";
+  // N-218a: splice the not-yet-created row in before sort/filter, exactly
+  // like a real fetched row -- it only shows up below if it actually
+  // belongs on the active tab.
+  if (pendingItem) projects = [...projects, pendingItem];
   projects = sortProjectsByName(projects);
   projects = projects.filter(_projectsFilter === "Active" ? isProjectActive : p => !isProjectActive(p));
   const filterBtns = ["Active", "Archive"].map(f =>
@@ -38,16 +42,11 @@ async function renderProjectsPage(filter) {
         <th>Start</th><th>End</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${projects.length ? projects.map(p => `
-          <tr>
-            <td>${escHtml(p.CustomerName)}</td>
-            <td>${escHtml(dmName(p.DeliveryManager))}</td>
-            <td><span class="badge badge-${escAttr(p.Status?.toLowerCase())}">${escHtml(p.Status)}</span></td>
-            <td>${spDateIn(p.StartDate) || "—"}</td>
-            <td>${spDateIn(p.EndDate) || "—"}</td>
-            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditProjectForm(${p.id})">Edit</a></div></td>` : ""}
-          </tr>
-        `).join("") : emptyStateRow({
+        ${projects.length ? projects.map(p => projectRowHtml(p, {
+          dmDisplay: dmName(p.DeliveryManager),
+          canEdit,
+          pending: pendingItem ? p.id === pendingItem.id : false,
+        })).join("") : emptyStateRow({
           colspan: canEdit ? 6 : 5,
           icon: "building-2",
           message: projectsEmptyMsg,
@@ -78,7 +77,7 @@ const ROLE_FILTERS = {
 let _rolesFilter    = "Active";
 let _rolesProjectId = null;
 let _rolesPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
-async function renderRolesPage(filter) {
+async function renderRolesPage(filter, pendingItem = null) {
   if (filter !== undefined) _rolesFilter = filter;
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 9);
@@ -96,6 +95,10 @@ async function renderRolesPage(filter) {
   let roles = userProjectIds
     ? allRoles.filter(r => userProjectIds.includes(String(r.ProjectIDLookupId || r.ProjectID)))
     : allRoles;
+  // N-218a: splice the not-yet-created row in before the remaining filters,
+  // exactly like a real fetched row -- it only shows up below if it
+  // actually belongs on the active project/stage filter.
+  if (pendingItem) roles = [...roles, pendingItem];
   const rolesTotal = roles.length;  // N-152: pre-filter denominator for the count
   // Apply project dropdown filter
   if (canFilter && _rolesProjectId) {
@@ -145,32 +148,14 @@ async function renderRolesPage(filter) {
         <th>Budget</th><th>Open Date</th><th>${_rolesFilter === "Hired" ? "Actual Hire Date" : "Target Hire Date"}</th><th>Days Open</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${pagedRoles.length ? pagedRoles.map(r => {
-          const isHired    = _rolesFilter === "Hired";
-          const daysHidden = _rolesFilter === "Backlog" || _rolesFilter === "Cancelled";
-          const days       = (!daysHidden && (!isHired || r.ActualHireDate))
-            ? daysOpen(r.OpenDate, r.ActualHireDate) : null;
-          const rowClass   = (isHired || _rolesFilter === "Active") && days !== null && days > 45
-            ? 'row-age-critical' : '';
-          const dateCell   = isHired
-            ? (spDateIn(r.ActualHireDate) || "—")
-            : (spDateIn(r.TargetHireDate) || "—");
-          const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || "—";
-          const stageCell   = stageBadgeHtml(r.id, r.Stage, canEdit);
-          return `
-          <tr class="${rowClass}">
-            <td>${escHtml(projectName)}</td>
-            <td>${escHtml(r.RoleTitle)}</td>
-            <td>${escHtml(r.Location || '—')}</td>
-            <td id="stage-cell-${r.id}">${stageCell}</td>
-            <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
-            <td>${escHtml(formatSalary(r.Budget))}</td>
-            <td>${spDateIn(r.OpenDate) || "—"}</td>
-            <td>${dateCell}</td>
-            <td>${days !== null ? days + " days" : "—"}</td>
-            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a><a href="#" onclick="showDuplicateRoleForm(${r.id})">Duplicate</a>${historyRoleIds.has(String(r.id)) ? `<a href="#" onclick="showRoleTimeline(${r.id})">Timeline</a>` : ""}</div></td>` : ""}
-          </tr>`;
-        }).join("") : emptyStateRow({
+        ${pagedRoles.length ? pagedRoles.map(r => roleRowHtml(r, {
+          projectName: projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || "—",
+          tpMap,
+          canEdit,
+          historyRoleIds,
+          rolesFilter: _rolesFilter,
+          pending: pendingItem ? r.id === pendingItem.id : false,
+        })).join("") : emptyStateRow({
           colspan: canEdit ? 10 : 9,
           icon: "briefcase",
           message: rolesEmptyMsg,
@@ -383,7 +368,7 @@ let _activityRoleId    = null;
 // N-093: weeks of history fetched from SharePoint. 0 = All time (no clause).
 let _activityWeeks     = CONFIG.DATE_WINDOW_DEFAULT_WEEKS;
 let _activityPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
-async function renderActivityPage() {
+async function renderActivityPage(pendingItem = null) {
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 13);
   const user = getCurrentUser();
@@ -398,6 +383,10 @@ async function renderActivityPage() {
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
   const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
+  // N-218a: splice the not-yet-created row in before sort/scope, exactly
+  // like a real fetched row -- it only shows up below if it actually
+  // belongs to the active project/role filter.
+  if (pendingItem) activity.push(pendingItem);
   activity.sort((a, b) => {
     const yr = Number(b.Year) - Number(a.Year);
     if (yr !== 0) return yr;
@@ -478,24 +467,12 @@ async function renderActivityPage() {
         ${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${pagedActivity.length ? pagedActivity.map(a => `
-          <tr>
-            <td>${a.Year}</td>
-            <td>Wk ${a.WeekNumber}</td>
-            <td>${roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || "—"}</td>
-            <td>${escHtml(tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || "—")}</td>
-            <td style="text-align:center">${a.Outreach || 0}</td>
-            <td style="text-align:center">${a.Responses || 0}</td>
-            <td style="text-align:center">${a.Screened || 0}</td>
-            <td style="text-align:center">${a.Submitted || 0}</td>
-            <td style="text-align:center">${a.Interview1 || 0}</td>
-            <td style="text-align:center">${a.Interview2Plus || 0}</td>
-            <td style="text-align:center">${a.FinalInterview || 0}</td>
-            <td style="text-align:center">${a.Offers || 0}</td>
-            <td style="text-align:center">${a.Hires || 0}</td>
-            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditActivityForm(${a.id})">Edit</a></div></td>` : ""}
-          </tr>
-        `).join("") : emptyStateRow({
+        ${pagedActivity.length ? pagedActivity.map(a => activityRowHtml(a, {
+          roleMap,
+          tpMap,
+          canEdit,
+          pending: pendingItem ? a.id === pendingItem.id : false,
+        })).join("") : emptyStateRow({
           colspan: canEdit ? 14 : 13,
           icon: "activity",
           message: activityEmptyMsg,
@@ -554,7 +531,7 @@ function setPlacementFilter(type, value) {
   }
   renderPlacementsPage();
 }
-async function renderPlacementsPage() {
+async function renderPlacementsPage(pendingItem = null) {
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 6);
   const user = getCurrentUser();
@@ -578,6 +555,12 @@ async function renderPlacementsPage() {
   // must use the Role's, so both pages use the same source for consistency.
   const roleTpMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.TalentPartner]));
   const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
+  // N-218a: splice the not-yet-created row in before sort/scope, exactly
+  // like a real fetched row -- it only shows up below if it actually
+  // belongs to the active period/project filter. This read started before
+  // the create write (apply() and commit() run in parallel), so it cannot
+  // already contain the real row in the normal case.
+  if (pendingItem) allPlacements.push(pendingItem);
   allPlacements.sort((a, b) =>
     new Date(b.OfferAcceptedDate || 0) - new Date(a.OfferAcceptedDate || 0)
   );
@@ -659,17 +642,12 @@ async function renderPlacementsPage() {
         ${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${pagedPlacements.length ? pagedPlacements.map(p => `
-          <tr>
-            <td>${escHtml(p.CandidateName)}</td>
-            <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || "—"}</td>
-            <td>${escHtml(formatSalary(p.SalaryAgreed))}</td>
-            <td>${spDateIn(p.OfferAcceptedDate) || "—"}</td>
-            <td>${spDateIn(p.ProvisionalStartDate) || "—"}</td>
-            <td>${p.TimeToHire != null ? p.TimeToHire + " days" : "—"}</td>
-            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditPlacementForm(${p.id})">Edit</a></div></td>` : ""}
-          </tr>
-        `).join("") : emptyStateRow({
+        <tbody>
+        ${pagedPlacements.length ? pagedPlacements.map(p => placementRowHtml(p, {
+          roleMap,
+          canEdit,
+          pending: pendingItem ? p.id === pendingItem.id : false,
+        })).join("") : emptyStateRow({
           colspan: canEdit ? 7 : 6,
           icon: "user-check",
           message: placementsEmptyMsg,
@@ -698,7 +676,7 @@ async function showEditPlacementForm(id) {
 let _rejectionsProjectId = null;
 let _rejectionsWeeks     = CONFIG.REJECTIONS_DEFAULT_WEEKS;
 let _rejectionsPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
-async function renderRejectionsPage() {
+async function renderRejectionsPage(pendingItem = null) {
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 6);
   const user = getCurrentUser();
@@ -720,6 +698,10 @@ async function renderRejectionsPage() {
   // uses too, for consistency between the two pages.
   const roleTpMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.TalentPartner]));
   const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
+  // N-218a: splice the not-yet-created row in before sort/scope, exactly
+  // like a real fetched row -- it only shows up below if it actually
+  // belongs to the active project filter.
+  if (pendingItem) rejections.push(pendingItem);
   rejections.sort((a, b) => {
     const rA = roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || '';
     const rB = roleMap[String(b.RoleIDLookupId)] || roleMap[String(b.RoleID)] || '';
@@ -772,17 +754,11 @@ async function renderRejectionsPage() {
         <th>Candidate</th><th>Role</th><th>Rejected</th><th>Salary Offered</th><th>Reason</th><th>Notes</th>${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        ${pagedRejections.length ? pagedRejections.map(r => `
-          <tr>
-            <td>${escHtml(r.CandidateName)}</td>
-            <td>${roleMap[String(r.RoleIDLookupId)] || roleMap[String(r.RoleID)] || "—"}</td>
-            <td>${escHtml(spDateIn(r.RejectionDate) || "—")}</td>
-            <td>${escHtml(formatSalary(r.SalaryOffered))}</td>
-            <td>${escHtml(r.RejectionReason || "—")}</td>
-            <td>${escHtml(r.Notes || "—")}</td>
-            ${canEdit ? `<td><div class="row-actions"><a href="#" onclick="showEditRejectionForm(${r.id})">Edit</a></div></td>` : ""}
-          </tr>
-        `).join("") : emptyStateRow({
+        ${pagedRejections.length ? pagedRejections.map(r => rejectionRowHtml(r, {
+          roleMap,
+          canEdit,
+          pending: pendingItem ? r.id === pendingItem.id : false,
+        })).join("") : emptyStateRow({
           colspan: canEdit ? 7 : 6,
           icon: "user-x",
           message: rejectionsEmptyMsg,

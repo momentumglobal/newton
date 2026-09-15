@@ -179,12 +179,12 @@ function personRowHtml(p, { canEdit, canPayroll, salariesRevealed, pending = fal
       <td class='salary-cell'>
         <span class='salary-masked' id='sal-masked-${p.id}' style='display:${salariesRevealed ? "none" : "inline"}'>
           ••••••
-          <button class='btn-padlock' title='Reveal salary' onclick='_revealSalary(${p.id})'
+          <button class='btn-padlock' title='Reveal salary' onclick='_revealSalary("${p.id}")'
             style='background:none;border:none;cursor:pointer;padding:0 4px;color:var(--text-muted)'>🔒</button>
         </span>
         <span class='salary-revealed' id='sal-revealed-${p.id}' style='display:${salariesRevealed ? "inline" : "none"}'>
           ${salaryVal}
-          <button class='btn-padlock' title='Hide salary' onclick='_hideSalary(${p.id})'
+          <button class='btn-padlock' title='Hide salary' onclick='_hideSalary("${p.id}")'
             style='background:none;border:none;cursor:pointer;padding:0 4px;color:var(--text-muted)'>🔓</button>
         </span>
       </td>` : (canPayroll ? `<td>—</td>` : '');

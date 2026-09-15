@@ -27,22 +27,28 @@ document.addEventListener('click', function(e) {
   if (dd && header && !header.contains(e.target)) dd.classList.remove('open');
 });
 
-function navigateToPeople(page) {
+function navigateToPeople(page, pendingItem = null) {
   const role = _resolvedRole || 'viewer';
   if (!peopleCanAccess(page, role)) return;
   _peopleCurrentPage = page;
   updateNavActiveLink(page);
-  withViewTransition(() => renderPeoplePage(page));
+  withViewTransition(() => renderPeoplePage(page, pendingItem));
 }
 
-async function renderPeoplePage(page) {
+// N-218b: pendingItem threaded through, mirroring the fix N-218a made to
+// nav.js's navigateTo()/renderPage() -- so the one navigation path used by
+// an optimistic-insert apply() (Add form -> list, before the write
+// resolves) still gets the normal sidebar-highlight and view-transition
+// treatment every other People-module navigation gets, instead of a bare
+// render call bypassing navigateToPeople() entirely.
+async function renderPeoplePage(page, pendingItem = null) {
   const main = document.getElementById('main-content');
   switch (page) {
-    case 'peopleTracker':   await renderEmployeeTracker();    break;
+    case 'peopleTracker':   await renderEmployeeTracker(pendingItem); break;
     case 'peopleDashboard': await renderPeopleDashboard();    break;
     case 'orgChart':        await renderOrgChart();           break;
     case 'peopleGantt':     await renderDeploymentTimeline(); break;
-    case 'gpInvoices':      await renderGPInvoices();         break;
+    case 'gpInvoices':      await renderGPInvoices(pendingItem); break;
     case 'scorecards':      await renderScorecardsPage();     break;
     case 'engagement':      await renderEngagementPage();     break;
     default:

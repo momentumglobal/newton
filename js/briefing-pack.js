@@ -138,7 +138,7 @@ function _bpRenderLibrary() {
           const canDelete = isAdmin || owner.toLowerCase() === me;
           return `
         <tr>
-          <td><strong>${escHtml(p.Title || '—')}</strong></td>
+          <td>${escHtml(p.Title || '—')}</td>
           <td>${escHtml(p.RoleTitle || '—')}</td>
           <td>${escHtml(p.RoleLocation || '—')}</td>
           <td>${escHtml(_bpTpMap[owner.toLowerCase()] || owner || '—')}</td>
@@ -170,16 +170,20 @@ function _bpRenderLibrary() {
       <h2>Briefing Pack Library</h2>
       <div class="page-header-actions">
         <button class="btn-secondary" onclick="navigateTo('roles')">&larr; Back to Roles</button>
-        <select class="form-control" style="width:auto" onchange="bpLibraryFilterChanged(this.value)">
-          ${_bpLibraryClientOptions()}
-        </select>
         <button class="btn-primary" onclick="bpStartNewPack()">+ Briefing Pack</button>
       </div>
+    </div>
+    <div class="table-toolbar">
+      ${listControlsBar([`
+        <div class="form-group project-filter-select">
+          <label>Client</label>
+          <select onchange="bpLibraryFilterChanged(this.value)">${_bpLibraryClientOptions()}</select>
+        </div>`])}
     </div>
     <div class="table-scroll">
       <table class="data-table">
         <thead><tr>
-          <th>Pack</th><th>Role</th><th>Location</th><th>Owner</th><th></th>
+          <th>Pack Name</th><th>Role</th><th>Location</th><th>Owner</th><th></th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -360,7 +364,6 @@ function bpRender() {
       <h2>Briefing Pack</h2>
       <div class="page-header-actions">
         <button class="btn-secondary" onclick="showBriefingPackLibrary()">&larr; Back to Library</button>
-        <button class="btn-secondary" onclick="navigateTo('roles')">&larr; Back to Roles</button>
         <button class="btn-secondary" id="bp-save-btn" onclick="bpSavePack()">Save</button>
         <button class="btn-secondary" onclick="bpPreview()">Preview</button>
         <button class="print-btn"     onclick="bpExportPdf()">&#8856; Export PDF</button>

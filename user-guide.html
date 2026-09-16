@@ -212,7 +212,7 @@
       <p>Use the <strong>Duplicate</strong> action next to Edit to open the Add Role form pre-filled with the source role's Project, Title, Hiring Manager, Talent Partner(s), Budget, Location, Priority, Backfill, Department and Notes. Stage resets to Backlog, Open Date resets to today, and Target Hire Date is left blank for you to set. The original role is untouched — useful for a project backfilling several near-identical roles.</p>
       <div class="tip">The "Roles Open 30+ Days" panel on both dashboards is driven by the <strong>Open Date</strong> field — make sure this is set accurately when a role is created or duplicated.</div>
       <h3>Creating a briefing pack</h3>
-      <p>Use the <strong>+ Briefing Pack</strong> button in the page header to build a candidate briefing pack for a role. See <a href="#briefing-packs">Briefing Packs</a> below.</p>
+      <p>Use the <strong>Briefing Packs</strong> button in the page header to open the Briefing Pack Library, where you can open, copy or delete a saved pack — or start a new one. See <a href="#briefing-packs">Briefing Packs</a> below.</p>
       <h3>Viewing a role's history</h3>
       <p>Use the <strong>Timeline</strong> action next to Edit to see a role's full stage journey — every stage change, in order, with the date it happened and how long the role spent in that stage before moving on. A move that takes the role forward through the pipeline is shown in green; a move backward (for example, Interview 2+ back to Interview 1) is shown in red; a move onto or off <strong>On-hold</strong> or <strong>Cancelled</strong> is shown in amber, since neither is a step forward or back. The <strong>Timeline</strong> action only appears on roles that have recorded history — roles created before this feature shipped (August 2026) have nothing to show, so the action is hidden on those.</p>
       <div class="tip">If a role's <strong>Open Date</strong> is earlier than when it was entered into Newton — or earlier than when it was actually moved into Sourcing — the timeline shows the Open Date as the true start of that stage instead of the later system date, labelled "Role opened." This keeps stage durations honest for a role that's logged into Newton, or moved into Sourcing, after the fact.</div>
@@ -308,8 +308,12 @@
         <span class="role-badge tp">Talent Partner</span>
       </div>
       <p>A briefing pack is a Momentum-branded document you send to a candidate about a specific role — the client, the opportunity, the process, and who to talk to. You write the content yourself, save it to a library so it can be picked up and amended later, and export it as a PDF.</p>
+      <h3>The Briefing Pack Library</h3>
+      <p>Go to <strong>Roles</strong> and click <strong>Briefing Packs</strong> in the page header. The library lists every pack you can see, grouped by client, with the pack name, the role, its location and who owns it. Use the <strong>Client</strong> filter above the table to narrow it to one customer.</p>
+      <p>What you see depends on your role: a <strong>Talent Partner</strong> sees the packs they created; a <strong>Delivery Manager</strong> sees their own plus every pack on a project assigned to them; <strong>Admin</strong> and <strong>Leadership</strong> see all of them. The client a pack sits under comes from the project it was built against, so packs for the same customer stay together even where the client name was typed differently on each one.</p>
+      <p>Each row has three actions. <strong>Open</strong> loads the pack into the builder. <strong>Copy</strong> duplicates it as "&lt;pack name&gt; (copy)", makes you the owner and opens the copy straight away — the original is untouched, which is how you reuse someone else's pack. <strong>Delete</strong> appears only on packs you own (admins see it on every pack) and cannot be undone.</p>
       <h3>Starting a pack</h3>
-      <p>Go to <strong>Roles</strong> and click <strong>+ Briefing Pack</strong> in the page header. The builder opens with a title page and a closing page already in place — these two always exist and always sit first and last.</p>
+      <p>Click <strong>+ Briefing Pack</strong> in the library header. The builder opens with a title page and a closing page already in place — these two always exist and always sit first and last.</p>
       <h3>Setting up the pack</h3>
       <p>In the left-hand panel, choose the <strong>Project</strong> and <strong>Role</strong>. The client name, role title, location and your name and email fill in automatically from the role record. Every one of those fields stays editable, so change anything that should read differently on the pack. Set the <strong>Pack Title</strong> and the <strong>Cover Date</strong>, and check the closing-page contact details at the bottom of the panel.</p>
       <h3>The client logo</h3>
@@ -322,8 +326,8 @@
         <li><strong>Divider</strong> — a full-page branded break carrying a heading. Dividers are numbered automatically in the order they appear, so moving one renumbers the rest for you.</li>
       </ul>
       <p>Drag pages by the handle on the left to reorder them. The title and closing pages cannot be moved or removed.</p>
-      <h3>Saving and the library</h3>
-      <p>Click <strong>Save</strong> to store the pack, and <strong>Pack Library</strong> to reopen anything saved earlier. Everyone with Reporting access can open any pack — useful for reusing a good one — but only the person who created it, or an admin, can edit or delete it.</p>
+      <h3>Saving and going back</h3>
+      <p>Click <strong>Save</strong> to store the pack, then <strong>← Back to Library</strong> to return to the list. Saved packs stay in the library for you to reopen, copy or delete later; only the person who created a pack, or an admin, can delete it.</p>
       <h3>Exporting to PDF</h3>
       <p>Click <strong>Preview</strong> to check the pack on screen, then <strong>Export PDF</strong>. Set Destination to <strong>Save as PDF</strong>, tick <strong>Background graphics</strong> and untick <strong>Headers and footers</strong>. A contents page is generated automatically after the cover, and a Confidential line appears on every page.</p>
       <div class="tip">Briefing packs are the only <strong>portrait</strong> export in Newton — every other export is landscape. You do not need to change anything in the print dialog for this; it is handled for you.</div>

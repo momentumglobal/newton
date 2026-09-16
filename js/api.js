@@ -1945,6 +1945,23 @@ async function updateBriefingPack(id, fields) {
   return updateItem("BriefingPacks", id, fields);
 }
 
+// N-235: Title and PackOwner are set by the caller, never copied. Everything
+// else is whitelisted — never round-trip a fetched Graph item into a create
+// (LinkTitle and friends are read-only → 403). A pack has no child rows, so
+// this is a single create with no rollback sequence, unlike copyLCIModel.
+const _BRIEFING_PACK_COPY_FIELDS = [
+  "ProjectID", "RoleID", "ClientName", "RoleTitle", "RoleLocation",
+  "ContactName", "ContactTitle", "ContactEmail", "CoverDate", "Pages",
+];
+async function copyBriefingPack(id, owner) {
+  const src = await getItem("BriefingPacks", id);
+  return createItem("BriefingPacks", {
+    ..._pickFields(src, _BRIEFING_PACK_COPY_FIELDS),
+    Title:     `${src.Title} (copy)`,
+    PackOwner: (owner || "").toLowerCase(),
+  });
+}
+
 // ── Market Report ─────────────────────────────────────────────
 async function getMarketReports() {
   return getItems("MarketReports");

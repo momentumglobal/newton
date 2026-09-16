@@ -256,6 +256,42 @@ ${canEdit ? (pending ? `<td></td>` : `<td style='white-space:nowrap'>
     </tr>`;
 }
 
+// ── Optimistic-insert row helper — Engagement Questions (N-218c) ───────
+// Same contract as the N-218a/N-218b helpers above. opts.pending renders a
+// row-pending class + data-pending-id and drops the move/edit/delete
+// actions (none of them valid against a client-side-only id). The root
+// element is a <div>, not a <tr> -- this list isn't a <table>. Text
+// content still goes through _escEngHtml() (engagement-pages.js), not the
+// global escHtml() -- kept for byte-identical extraction from the
+// original _questionRow(); _escEngHtml() doesn't escape apostrophes,
+// escHtml() does, so swapping it would change existing output.
+function questionRowHtml(q, index, total, { pending = false } = {}) {
+  return `
+    <div class="eng-q-row${pending ? ' row-pending' : ''}"${pending ? ` data-pending-id="${escAttr(q.id)}"` : ` id="eng-q-row-${q.id}"`}>
+      <div class="eng-q-row-main">
+        <span class="eng-q-type-badge">${q.QuestionType}</span>
+        <span class="eng-q-text">${_escEngHtml(q.QuestionText)}</span>
+        ${q.IsRequired ? '<span class="eng-q-required">Required</span>' : ''}
+      </div>
+      ${pending ? '' : `<div class="eng-q-row-actions">
+        <button class="btn-icon" title="Move up" onclick="moveQuestion('${q.id}', 'up', window._engQuestions)"
+          ${index === 0 ? 'disabled' : ''}>
+          <i data-lucide="chevron-up"></i>
+        </button>
+        <button class="btn-icon" title="Move down" onclick="moveQuestion('${q.id}', 'down', window._engQuestions)"
+          ${index === total - 1 ? 'disabled' : ''}>
+          <i data-lucide="chevron-down"></i>
+        </button>
+        <button class="btn-icon" title="Edit" onclick="openAddQuestionModal(${q.templateId}, ${JSON.stringify(q).replace(/"/g, '&quot;')})">
+          <i data-lucide="edit-2"></i>
+        </button>
+        <button class="btn-icon btn-icon--danger" title="Delete" onclick="deleteQuestion('${q.id}')">
+          <i data-lucide="trash-2"></i>
+        </button>
+      </div>`}
+    </div>`;
+}
+
 // ── Re-render without losing scroll position ──────────────────────────
 // Replace an element's outerHTML while preserving the scroll offsets of any
 // scroll containers inside it. Replacing outerHTML destroys and rebuilds those

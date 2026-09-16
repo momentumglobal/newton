@@ -184,6 +184,7 @@
       transition: box-shadow 0.15s;
     }
     .m-role-card:active { box-shadow: 0 2px 8px var(--shadow-card-active); }
+    .m-role-card.row-pending { opacity: 0.6; cursor: default; }
     .m-role-title  { font-size: 15px; font-weight: 600; color: var(--c-brand); margin-bottom: 4px; }
     .m-role-meta   { font-size: 13px; color: var(--c-gray-600); margin-bottom: 10px; }
     .m-role-footer { display: flex; align-items: center; justify-content: space-between; }
@@ -428,6 +429,10 @@
       bottom: 80px;
       left: 50%;
       transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      max-width: calc(100vw - 32px);
       background: var(--c-brand);
       color: var(--c-surface);
       padding: 10px 20px;
@@ -438,9 +443,22 @@
       opacity: 0;
       transition: opacity 0.2s;
       pointer-events: none;
-      white-space: nowrap;
     }
     .m-toast.show { opacity: 1; }
+    .m-toast--error { background: var(--c-danger); }
+    .m-toast-message { white-space: normal; }
+    .m-toast-action {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: inherit;
+      font: inherit;
+      font-weight: 700;
+      text-decoration: underline;
+      padding: 0;
+      cursor: pointer;
+      pointer-events: auto;
+    }
 
     /* ── Pull-to-refresh (N-200) ── */
     .m-ptr {

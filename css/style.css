@@ -2247,6 +2247,11 @@ body {
 .eng-q-row-actions { display: flex; gap: var(--sp-2); flex-shrink: 0; }
 .eng-hint { font-size: var(--fs-12); color: var(--text-faint); margin: 0; font-style: italic; }
 
+/* Optimistic-insert pending row — Engagement Questions (N-218c) */
+/* .eng-q-row is a <div>, not a <table> row -- the .data-table tbody      */
+/* tr.row-pending rules above don't reach it, hence a new selector.       */
+.eng-q-row.row-pending { opacity: 0.6; }
+
 /* Print / PDF export */
 @media print {
   .eng-controls, .eng-tab-strip, .eng-rate-banner .btn-secondary,

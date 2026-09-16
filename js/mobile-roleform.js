@@ -212,8 +212,6 @@ async function mobileSubmitAddRole() {
   const priVal    = document.getElementById('mr-priority').value;
   const hmVal     = document.getElementById('mr-hm').value.trim();
 
-  btn.disabled = true; btn.textContent = 'Saving...';
-
   // IDENTICAL payload shape to desktop submitRoleForm.
   const fields = {
     ProjectIDLookupId: parseInt(projectId),
@@ -229,13 +227,46 @@ async function mobileSubmitAddRole() {
     Department:     dept || undefined,
   };
 
-  try {
-    await createItem('Roles', fields);
-    mobileToast('Role added ✓');
+  // N-218d: ghost-card variant -- the Roles list is the screen this sheet
+  // was opened from, so a pending card can render into it immediately,
+  // reconciled on success or removed with an error/Retry toast on failure.
+  // CustomerName isn't in `fields` (Roles stores ProjectIDLookupId, not a
+  // name) -- read it from the already-rendered form instead of a new fetch:
+  // a <select>'s chosen option text, or (TP-locked case) the readonly
+  // display <input> that sits immediately before the hidden #mr-project.
+  const projectEl = document.getElementById('mr-project');
+  const projectName = projectEl.tagName === 'SELECT'
+    ? (projectEl.selectedOptions[0]?.textContent || '')
+    : (projectEl.previousElementSibling?.value || '');
+  const pendingItem = {
+    id:            pendingRowId(),
+    _pending:      true,
+    RoleTitle:     title,
+    CustomerName:  projectName,
+    TalentPartner: tp,
+    Stage:         stage,
+    OpenDate:      fields.OpenDate,
+  };
+  const apply = () => {
     mobileCloseSheet();
+    mobileToast('Role added ✓');
+    if (_mobileView === 'roles') mobileDrawRolesList(document.getElementById('m-main'), pendingItem);
+  };
+  const revert = () => {
+    if (_mobileView === 'roles') mobileDrawRolesList(document.getElementById('m-main'));
+  };
+
+  try {
+    await optimisticWrite({
+      apply,
+      revert,
+      commit: () => createItem('Roles', fields),
+      errorMessage: 'Error saving role — change reverted.',
+      toastFn: mobileToast,
+    });
     await mobileRefreshRolesListInPlace();
   } catch (e) {
-    btn.disabled = false; btn.textContent = 'Add Role';
-    fail('Error: ' + e.message);
+    // optimisticWrite() already showed the error/Retry toast and reverted
+    // the pending card.
   }
 }

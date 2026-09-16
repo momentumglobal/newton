@@ -3348,6 +3348,20 @@ body {
 }
 body.bp-printing .rt-table-controls { display: none !important; }
 
+/* ── Briefing pack library (N-235) ───────────────────────────────── */
+/* Client band row — same treatment as .lci-team-row, so grouped tables read
+   the same way in both modules. */
+.bp-lib-client-row td {
+  background: var(--surface-alt);
+  padding: var(--sp-3) var(--sp-4);
+}
+.bp-lib-client-row:hover td { background: var(--surface-alt); }
+.bp-lib-count {
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  margin-left: var(--sp-2);
+}
+
 /* ── Briefing pack builder (N-211) ───────────────────────────────── */
 .bp-block {
   display: flex;

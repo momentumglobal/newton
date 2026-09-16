@@ -7,6 +7,10 @@ let _mobileView    = 'home';// Current view within the active module
 let _mobileRoleId  = null;  // Selected role ID for detail/action views
 let _mobileHistory = [];    // Simple back-stack (stores {module, view})
 let _mobileSheetOpen = false; // N-199: true while the bottom sheet is open
+let _mToastTimer = null; // N-218d: tracks the active auto-dismiss timer so a
+                          // second toast (e.g. an error/Retry toast right
+                          // after a success toast) doesn't get hidden early
+                          // by the first one's timeout
 
 // === Mobile module registry ===
 // Single source of truth for WHICH modules have a built mobile experience.
@@ -335,11 +339,37 @@ function mobileForceDesktop() {
 
 // === Toast ===
 
-function mobileToast(msg) {
+// N-218d: msg-only calls behave exactly as before. An optional
+// { type: 'error', action: { label, onClick } } shows a longer-lived toast
+// with a tappable action button -- the mobile equivalent of desktop
+// toast()'s Retry affordance, used as optimisticWrite()'s toastFn on
+// mobile (utils.js/style.css's own toast isn't usable here: mobile.html
+// doesn't link css/style.css).
+function mobileToast(msg, { type = 'info', action = null } = {}) {
   const toast = document.getElementById('m-toast');
-  toast.textContent = msg;
+  toast.className = 'm-toast' + (type === 'error' ? ' m-toast--error' : '');
+  toast.innerHTML = '';
+
+  const msgEl = document.createElement('span');
+  msgEl.className = 'm-toast-message';
+  msgEl.textContent = msg;
+  toast.appendChild(msgEl);
+
+  if (action) {
+    const actionBtn = document.createElement('button');
+    actionBtn.type = 'button';
+    actionBtn.className = 'm-toast-action';
+    actionBtn.textContent = action.label;
+    actionBtn.addEventListener('click', () => {
+      toast.classList.remove('show');
+      action.onClick();
+    });
+    toast.appendChild(actionBtn);
+  }
+
   toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 2500);
+  clearTimeout(_mToastTimer);
+  _mToastTimer = setTimeout(() => toast.classList.remove('show'), action ? 6000 : 2500);
 }
 
 // === Page error (N-171 / F-9b) ===

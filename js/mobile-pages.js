@@ -6,62 +6,6 @@ const STAGES = [
   'Offered','Hired','On-hold','Cancelled'
 ];
 
-// ── Roles List ────────────────────────────────────────────────────────
-
-async function mobileRenderRoles(main) {
-  mobileSetTitle('Newton', 'My Roles');
-  main.innerHTML = skeletonList(5);
-
-  try {
-    const roles = await mobileGetRoles();
-
-    if (!roles.length) {
-      main.innerHTML = `
-        <div class="m-action-row" style="margin-bottom:14px">
-          <button class="m-btn-primary" onclick="mobileNav('add-role')">+ Add Role</button>
-        </div>
-        <div class="m-empty">No active roles assigned to you.</div>`;
-      return;
-    }
-
-    // Group by project
-    const byProject = {};
-    roles.forEach(r => {
-      const key = r.CustomerName || r.ProjectID || 'Unknown Project';
-      if (!byProject[key]) byProject[key] = [];
-      byProject[key].push(r);
-    });
-
-    let html = `
-      <div class="m-action-row" style="margin-bottom:14px">
-        <button class="m-btn-primary" onclick="mobileNav('add-role')">+ Add Role</button>
-      </div>`;
-    for (const [project, projectRoles] of Object.entries(byProject)) {
-      html += `<div class="m-section-header">${escHtml(project)}</div>`;
-      html += projectRoles.map(r => {
-        const days = r.OpenDate
-          ? Math.floor((Date.now() - new Date(r.OpenDate)) / 86400000)
-          : null;
-        const daysClass = days === null ? '' : days >= 45 ? 'alert' : days >= 30 ? 'warn' : '';
-        const daysLabel = days !== null ? `${days}d open` : '';
-        return `
-          <div class="m-role-card" onclick="mobileSelectRole(${r.id})">
-            <div class="m-role-title">${escHtml(r.RoleTitle)}</div>
-            <div class="m-role-meta">${escHtml(tpList(r.TalentPartner).join(', '))}</div>
-            <div class="m-role-footer">
-              <span class="m-stage-badge">${r.Stage || '—'}</span>
-              ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}
-            </div>
-          </div>`;
-      }).join('');
-    }
-
-    main.innerHTML = html;
-  } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderRoles(document.getElementById('m-main'))`);
-  }
-}
-
 async function mobileGetRoles() {
   const user = getCurrentUser();
   // DM and admin see all roles across their projects; TP sees their own

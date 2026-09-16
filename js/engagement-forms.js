@@ -326,10 +326,7 @@ async function openActivateRunModal() {
   })();
 
   // Count eligible respondents
-  const allAssignments = await getItems('UserAssignments');
-  const eligible = allAssignments.filter(a =>
-    a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager'
-  ).length;
+  const eligible = await getEligibleRespondentCount();
 
   const quarter = _currentQuarterLabel();
 
@@ -396,10 +393,7 @@ async function submitActivateRun(event) {
     return;
   }
 
-  const allAssignments = await getItems('UserAssignments');
-  const eligible = allAssignments.filter(a =>
-    a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager'
-  ).length;
+  const eligible = await getEligibleRespondentCount();
 
   const payload = {
     RunLabel:      data.RunLabel,

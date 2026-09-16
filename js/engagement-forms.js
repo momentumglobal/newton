@@ -6,8 +6,22 @@ async function openManageTemplateModal() {
   const templates = await getSurveyTemplates();
   const template  = templates.length ? templates[0] : null;
   const questions = template ? await getSurveyQuestions(template.id) : [];
+  window._engTemplate  = template;
+  window._engQuestions = questions;
 
-  const overlay = _engFormOverlay(`
+  const overlay = _engFormOverlay(_manageTemplateModalHtml(template, questions));
+
+  document.body.appendChild(overlay);
+  lucide.createIcons();
+}
+
+// Pure HTML builder for the Manage Template modal (N-218c) -- no fetch, no
+// globals mutation. Called both after a fetch (openManageTemplateModal, the
+// async path above) and synchronously from submitQuestionForm's apply()
+// with data already sitting in window._engTemplate/window._engQuestions,
+// so the pending-question insert has zero latency.
+function _manageTemplateModalHtml(template, questions) {
+  return `
     <div class="eng-modal">
       <div class="eng-modal-header">
         <h2>${template ? 'Manage Survey Template' : 'Create Survey Template'}</h2>
@@ -61,14 +75,11 @@ async function openManageTemplateModal() {
           </button>` : '<p class="eng-hint">Save the template first, then add questions.</p>'}
         </div>
         <div id="eng-questions-list">
-          ${questions.length ? questions.map((q, i) => _questionRow(q, i, questions.length)).join('') : '<p class="eng-hint">No questions yet.</p>'}
+          ${questions.length ? questions.map((q, i) => questionRowHtml(q, i, questions.length)).join('') : '<p class="eng-hint">No questions yet.</p>'}
         </div>
       </div>
     </div>
-  `);
-
-  document.body.appendChild(overlay);
-  lucide.createIcons();
+  `;
 }
 
 async function submitTemplateForm(event, editId = null) {
@@ -76,32 +87,30 @@ async function submitTemplateForm(event, editId = null) {
   const form = document.getElementById('eng-template-form');
   const btn  = form.querySelector('[type=submit]');
   setButtonLoading(btn);
-  
+
   const data = Object.fromEntries(new FormData(form));
-  const errEl = document.getElementById('eng-template-form-error');
-  errEl.textContent = '';
+
+  const payload = {
+    Title:          data.Title,
+    Description:    data.Description || '',
+    TargetAudience: data.TargetAudience,
+    TargetDate:     data.TargetDate   || undefined,
+    CreatedByEmail: getCurrentUser().email,
+  };
 
   try {
-    const payload = {
-      Title:          data.Title,
-      Description:    data.Description || '',
-      TargetAudience: data.TargetAudience,
-      TargetDate:     data.TargetDate   || undefined,
-      CreatedByEmail: getCurrentUser().email,
-    };
-
-    if (editId) {
-      await updateSurveyTemplate(editId, payload);
-    } else {
-      await createSurveyTemplate({ ...payload, Status: 'Draft' });
-    }
-
-    _closeEngModal();
+    await optimisticWrite({
+      apply: () => { _closeEngModal(); },
+      revert: async () => { await openManageTemplateModal(); },
+      commit: () => editId
+        ? updateSurveyTemplate(editId, payload)
+        : createSurveyTemplate({ ...payload, Status: 'Draft' }),
+      errorMessage: 'Error saving template — change reverted.',
+    });
     await renderEngagementPage();
-
   } catch (err) {
-    errEl.textContent = `Error saving template: ${err.message}`;
-    setButtonLoading(btn, false);
+    // optimisticWrite() already reverted the view (reopened the modal)
+    // and showed a Retry toast.
   }
 }
 
@@ -217,40 +226,58 @@ async function submitQuestionForm(event, templateId, editId = null) {
     }
   }
 
-  try {
-    const payload = {
-      TemplateID:   templateId,
-      QuestionText: data.QuestionText,
-      QuestionType: data.QuestionType,
-      ScaleMin:     data.QuestionType === 'Rating' ? parseInt(data.ScaleMin) : undefined,
-      ScaleMax:     data.QuestionType === 'Rating' ? parseInt(data.ScaleMax) : undefined,
-      ScaleMinLabel: data.QuestionType === 'Rating' ? data.ScaleMinLabel : undefined,
-      ScaleMaxLabel: data.QuestionType === 'Rating' ? data.ScaleMaxLabel : undefined,
-      Options:      ['SingleChoice','MultiChoice'].includes(data.QuestionType)
-                      ? JSON.stringify(_textToOptions(data.OptionsRaw))
-                      : '',
-      IsRequired:   isRequired,
-      SortOrder:    editId ? undefined : 999, // new questions go to end; re-sort via up/down
-    };
+  const payload = {
+    TemplateID:   templateId,
+    QuestionText: data.QuestionText,
+    QuestionType: data.QuestionType,
+    ScaleMin:     data.QuestionType === 'Rating' ? parseInt(data.ScaleMin) : undefined,
+    ScaleMax:     data.QuestionType === 'Rating' ? parseInt(data.ScaleMax) : undefined,
+    ScaleMinLabel: data.QuestionType === 'Rating' ? data.ScaleMinLabel : undefined,
+    ScaleMaxLabel: data.QuestionType === 'Rating' ? data.ScaleMaxLabel : undefined,
+    Options:      ['SingleChoice','MultiChoice'].includes(data.QuestionType)
+                    ? JSON.stringify(_textToOptions(data.OptionsRaw))
+                    : '',
+    IsRequired:   isRequired,
+    SortOrder:    editId ? undefined : 999, // new questions go to end; re-sort via up/down
+  };
 
-    if (editId) {
+  if (editId) {
+    // N-218c: optimistic insert is a create-only concept -- editing an
+    // existing question is unaffected, unchanged from before this task.
+    try {
       console.log('Question payload:', JSON.stringify(payload));
       await updateSurveyQuestion(editId, payload);
-    } else {
-      await createSurveyQuestion(payload);
+      clearTimeout(_saveTimeout);
+      _closeEngModal();
+      await openManageTemplateModal();
+    } catch (err) {
+      clearTimeout(_saveTimeout);
+      errEl.textContent = `Error saving question: ${err.message}`;
+      setButtonLoading(btn, false);
     }
+    return;
+  }
 
-    clearTimeout(_saveTimeout);
-    _closeEngModal();
-    await openManageTemplateModal();
-
+  clearTimeout(_saveTimeout);
+  try {
+    await optimisticWrite({
+      apply: () => {
+        const pendingQ = { id: pendingRowId(), ...payload };
+        window._engQuestions = [...(window._engQuestions || []), pendingQ];
+        _closeEngModal();
+        const overlay = _engFormOverlay(_manageTemplateModalHtml(window._engTemplate, window._engQuestions));
+        document.body.appendChild(overlay);
+        lucide.createIcons();
+      },
+      revert: async () => { await _refreshQuestionList(templateId); },
+      commit: () => createSurveyQuestion(payload),
+      errorMessage: 'Error saving question — change reverted.',
+    });
+    await _refreshQuestionList(templateId);
   } catch (err) {
-    clearTimeout(_saveTimeout);
-    errEl.textContent = `Error saving question: ${err.message}`;
-    setButtonLoading(btn, false);
+    // optimisticWrite() already reverted the view and showed a Retry toast.
   }
 }
-
 async function deleteQuestion(questionId) {
   if (!(await confirmModal({
     message: 'Delete this question? This cannot be undone.',
@@ -369,26 +396,30 @@ async function submitActivateRun(event) {
     return;
   }
 
+  const allAssignments = await getItems('UserAssignments');
+  const eligible = allAssignments.filter(a =>
+    a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager'
+  ).length;
+
+  const payload = {
+    RunLabel:      data.RunLabel,
+    TemplateID:    data.TemplateID,
+    OpenDate:      data.OpenDate,
+    CloseDate:     data.CloseDate,
+    EligibleCount: eligible,
+  };
+
   try {
-    const allAssignments = await getItems('UserAssignments');
-    const eligible = allAssignments.filter(a =>
-      a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager'
-    ).length;
-
-    await createSurveyRun({
-      RunLabel:      data.RunLabel,
-      TemplateID:    data.TemplateID,
-      OpenDate:      data.OpenDate,
-      CloseDate:     data.CloseDate,
-      EligibleCount: eligible,
+    await optimisticWrite({
+      apply: () => { _closeEngModal(); },
+      revert: async () => { await openActivateRunModal(); },
+      commit: () => createSurveyRun(payload),
+      errorMessage: 'Error activating run — change reverted.',
     });
-
-    _closeEngModal();
     await renderEngagementPage();
-
   } catch (err) {
-    errEl.textContent = `Error activating run: ${err.message}`;
-    setButtonLoading(btn, false);
+    // optimisticWrite() already reverted the view (reopened the modal)
+    // and showed a Retry toast.
   }
 }
 
@@ -400,7 +431,7 @@ async function _refreshQuestionList(templateId) {
   const countEl = document.querySelector('.eng-q-count');
   if (listEl) {
     listEl.innerHTML = questions.length
-      ? questions.map((q, i) => _questionRow(q, i, questions.length)).join('')
+      ? questions.map((q, i) => questionRowHtml(q, i, questions.length)).join('')
       : '<p class="eng-hint">No questions yet.</p>';
     lucide.createIcons();
   }

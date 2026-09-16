@@ -86,7 +86,7 @@ async function mobileRenderRolesFiltered(main) {
   }
 }
 
-function mobileDrawRolesList(main) {
+function mobileDrawRolesList(main, pendingItem = null) {
   const roles = _mRolesCache || [];
 
   const stageOpts = '<option value="">All stages</option>' +
@@ -116,6 +116,18 @@ function mobileDrawRolesList(main) {
     (r.TalentPartner || '').toLowerCase().includes(q));
   if (_mRoleStage) filtered = filtered.filter(r => r.Stage === _mRoleStage);
 
+  // N-218d: if a just-submitted role is still awaiting its create write,
+  // splice it into the candidate list -- but only when it matches the same
+  // search/stage filters real roles are already being checked against
+  // above. Appended at the end of its project's group (see N-218a's own
+  // "simplest correct option" precedent); no separate sort to re-run here.
+  if (pendingItem) {
+    const matchesQ     = !q || (pendingItem.RoleTitle || '').toLowerCase().includes(q) ||
+      (pendingItem.TalentPartner || '').toLowerCase().includes(q);
+    const matchesStage = !_mRoleStage || pendingItem.Stage === _mRoleStage;
+    if (matchesQ && matchesStage) filtered = [...filtered, pendingItem];
+  }
+
   let listHtml;
   if (!filtered.length) {
     listHtml = '<div class="m-empty">No roles match your filters.</div>';
@@ -128,21 +140,7 @@ function mobileDrawRolesList(main) {
     listHtml = '';
     for (const [project, projectRoles] of Object.entries(byProject)) {
       listHtml += `<div class="m-section-header">${escHtml(project)}</div>`;
-      listHtml += projectRoles.map(r => {
-        const days = r.OpenDate
-          ? Math.floor((Date.now() - new Date(r.OpenDate)) / 86400000) : null;
-        const daysClass = days === null ? '' : days >= 45 ? 'alert' : days >= 30 ? 'warn' : '';
-        const daysLabel = days !== null ? `${days}d open` : '';
-        return `
-          <div class="m-role-card" onclick="mobileSelectRole(${r.id})">
-            <div class="m-role-title">${escHtml(r.RoleTitle)}</div>
-            <div class="m-role-meta">${escHtml(tpList(r.TalentPartner).join(', ')) || '—'}</div>
-            <div class="m-role-footer">
-              <span class="m-stage-badge">${r.Stage || '-'}</span>
-              ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}
-            </div>
-          </div>`;
-      }).join('');
+      listHtml += projectRoles.map(r => mobileRoleCardHtml(r, { pending: !!r._pending })).join('');
     }
   }
 
@@ -183,21 +181,7 @@ function mobileRedrawRolesListOnly() {
   let html = '';
   for (const [project, projectRoles] of Object.entries(byProject)) {
     html += `<div class="m-section-header">${escHtml(project)}</div>`;
-    html += projectRoles.map(r => {
-      const days = r.OpenDate
-        ? Math.floor((Date.now() - new Date(r.OpenDate)) / 86400000) : null;
-      const daysClass = days === null ? '' : days >= 45 ? 'alert' : days >= 30 ? 'warn' : '';
-      const daysLabel = days !== null ? `${days}d open` : '';
-      return `
-        <div class="m-role-card" onclick="mobileSelectRole(${r.id})">
-          <div class="m-role-title">${escHtml(r.RoleTitle)}</div>
-          <div class="m-role-meta">${escHtml(tpList(r.TalentPartner).join(', ')) || '—'}</div>
-          <div class="m-role-footer">
-            <span class="m-stage-badge">${r.Stage || '-'}</span>
-            ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}
-          </div>
-        </div>`;
-    }).join('');
+    html += projectRoles.map(r => mobileRoleCardHtml(r)).join('');
   }
   listEl.innerHTML = html;
 }
@@ -325,8 +309,6 @@ async function mobileSubmitRejection(rolePreselected) {
   if (!reason)    return fail('Please select a rejection reason.');
   if (!rejDate)   return fail('Please enter a rejection date.');
 
-  btn.disabled = true; btn.textContent = 'Saving...';
-
   // IDENTICAL payload to desktop submitRejectedForm.
   const fields = {
     RoleIDLookupId:  roleId,
@@ -337,12 +319,19 @@ async function mobileSubmitRejection(rolePreselected) {
     Notes:           notes || undefined,
   };
 
+  // N-218d: close-immediately variant -- no list is on screen behind this
+  // sheet to hold a pending row, so apply() only closes the sheet and
+  // shows the success toast; revert() has nothing to undo.
   try {
-    await createItem('RejectedOffers', fields);
-    mobileToast('Rejection logged ✓');
-    mobileCloseSheet();
+    await optimisticWrite({
+      apply:  () => { mobileCloseSheet(); mobileToast('Rejection logged ✓'); },
+      revert: () => {},
+      commit: () => createItem('RejectedOffers', fields),
+      errorMessage: 'Error saving rejection — change reverted.',
+      toastFn: mobileToast,
+    });
   } catch (e) {
-    btn.disabled = false; btn.textContent = 'Log Rejection';
-    fail('Error: ' + e.message);
+    // optimisticWrite() already showed the error/Retry toast; the sheet is
+    // already closed, so there's no form left to re-enable the button on.
   }
 }

@@ -168,6 +168,28 @@ function rejectionRowHtml(r, { roleMap, canEdit, pending = false } = {}) {
         `;
 }
 
+// ── Mobile Roles-list optimistic-insert row helper (N-218d) ────────────
+// Single source of truth for the "+ Add Role" list's card markup, shared by
+// mobileDrawRolesList() and mobileRedrawRolesListOnly() (previously two
+// separate inline copies) and by the pending-card insert on submit. A
+// pending card has no real id yet, so it drops the onclick navigation
+// entirely and gets a row-pending class instead of a click affordance.
+function mobileRoleCardHtml(r, { pending = false } = {}) {
+  const days = r.OpenDate
+    ? Math.floor((Date.now() - new Date(r.OpenDate)) / 86400000) : null;
+  const daysClass = days === null ? '' : days >= 45 ? 'alert' : days >= 30 ? 'warn' : '';
+  const daysLabel = days !== null ? `${days}d open` : '';
+  return `
+          <div class="m-role-card${pending ? " row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ` onclick="mobileSelectRole(${r.id})"`}>
+            <div class="m-role-title">${escHtml(r.RoleTitle)}</div>
+            <div class="m-role-meta">${escHtml(tpList(r.TalentPartner).join(', ')) || '—'}</div>
+            <div class="m-role-footer">
+              <span class="m-stage-badge">${r.Stage || '-'}</span>
+              ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}
+            </div>
+          </div>`;
+}
+
 // ── People-module optimistic-insert row helpers (N-218b) ───────────────
 // Same contract as the three N-218a helpers above -- opts.pending renders
 // a row-pending class + data-pending-id and drops anything that depends on
@@ -1424,15 +1446,15 @@ function promptModal({ title = '', message = '', defaultValue = '', placeholder 
 // and either resolves silently (view and server now agree) or the change
 // is rolled back and an error toast with a Retry action is shown. No
 // network calls of its own -- commit() supplies the write.
-async function optimisticWrite({ apply, revert, commit, errorMessage = "That didn't save — change reverted." } = {}) {
+async function optimisticWrite({ apply, revert, commit, errorMessage = "That didn't save — change reverted.", toastFn = toast } = {}) {
   apply();
   try {
     return await commit();
   } catch (err) {
     await revert();
-    toast(errorMessage, {
+    toastFn(errorMessage, {
       type: 'error',
-      action: { label: 'Retry', onClick: () => optimisticWrite({ apply, revert, commit, errorMessage }) }
+      action: { label: 'Retry', onClick: () => optimisticWrite({ apply, revert, commit, errorMessage, toastFn }) }
     });
     throw err;
   }

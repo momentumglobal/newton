@@ -132,7 +132,7 @@ async function renderRolesPage(filter, pendingItem = null) {
     <div class="page-header">
       <h2>Roles</h2>
       <div class="page-header-actions">
-        <button class="btn-secondary" onclick="showBriefingPackPage()">+ Briefing Pack</button>
+        <button class="btn-secondary" onclick="showBriefingPackLibrary()">+ Briefing Pack</button>
         ${canEdit ? '<button class="btn-primary" onclick="showAddRoleForm()">+ Add Role</button>' : ""}
       </div>
     </div>

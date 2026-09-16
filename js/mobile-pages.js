@@ -344,34 +344,38 @@ async function mobileSubmitActivity(rolePreselected) {
     return;
   }
 
-  btn.disabled    = true;
-  btn.textContent = 'Saving…';
+  const fields = {
+    RoleIDLookupId:   roleId,
+    TalentPartner:    user.email,
+    Yeare:            new Date(weekEndingRaw).getFullYear(),
+    WeekNumber:       getISOWeek(weekEndingRaw),
+    WeekEndingDate:   isoDate(weekEndingRaw),
+    Outreach:         parseInt(document.getElementById('ma-outreach').value)  || 0,
+    Responses:        parseInt(document.getElementById('ma-responses').value) || 0,
+    Screened:         parseInt(document.getElementById('ma-screened').value)  || 0,
+    Submitted:        parseInt(document.getElementById('ma-submitted').value) || 0,
+    Interview1:       parseInt(document.getElementById('ma-iv1').value)       || 0,
+    InterviewTwoPlus: parseInt(document.getElementById('ma-iv2').value)       || 0,
+    FinalInterview:   parseInt(document.getElementById('ma-final').value)     || 0,
+    Offers:           parseInt(document.getElementById('ma-offers').value)    || 0,
+    Hires:            parseInt(document.getElementById('ma-hires').value)     || 0,
+    SubmittedAt:      new Date().toISOString(),
+  };
 
+  // N-218d: close-immediately variant -- no list is on screen behind this
+  // sheet to hold a pending row, so apply() only closes the sheet and
+  // shows the success toast; revert() has nothing to undo.
   try {
-    await createItem('WeeklyActivity', {
-      RoleIDLookupId:   roleId,
-      TalentPartner:    user.email,
-      Yeare:            new Date(weekEndingRaw).getFullYear(),
-      WeekNumber:       getISOWeek(weekEndingRaw),
-      WeekEndingDate:   isoDate(weekEndingRaw),
-      Outreach:         parseInt(document.getElementById('ma-outreach').value)  || 0,
-      Responses:        parseInt(document.getElementById('ma-responses').value) || 0,
-      Screened:         parseInt(document.getElementById('ma-screened').value)  || 0,
-      Submitted:        parseInt(document.getElementById('ma-submitted').value) || 0,
-      Interview1:       parseInt(document.getElementById('ma-iv1').value)       || 0,
-      InterviewTwoPlus: parseInt(document.getElementById('ma-iv2').value)       || 0,
-      FinalInterview:   parseInt(document.getElementById('ma-final').value)     || 0,
-      Offers:           parseInt(document.getElementById('ma-offers').value)    || 0,
-      Hires:            parseInt(document.getElementById('ma-hires').value)     || 0,
-      SubmittedAt:      new Date().toISOString(),
+    await optimisticWrite({
+      apply:  () => { mobileCloseSheet(); mobileToast('Activity saved ✓'); },
+      revert: () => {},
+      commit: () => createItem('WeeklyActivity', fields),
+      errorMessage: 'Error saving activity — change reverted.',
+      toastFn: mobileToast,
     });
-    mobileToast('Activity saved ✓');
-    mobileCloseSheet();
   } catch (e) {
-    btn.disabled    = false;
-    btn.textContent = 'Save Activity';
-    errEl.textContent   = 'Error: ' + e.message;
-    errEl.style.display = 'block';
+    // optimisticWrite() already showed the error/Retry toast; the sheet is
+    // already closed, so there's no form left to re-enable the button on.
   }
 }
 
@@ -500,9 +504,6 @@ async function mobileSubmitPlacement(rolePreselected) {
   if (!roleId)    { errEl.textContent = 'Please select a role.';           errEl.style.display = 'block'; return; }
   if (!candidate) { errEl.textContent = 'Please enter a candidate name.';  errEl.style.display = 'block'; return; }
 
-  btn.disabled    = true;
-  btn.textContent = 'Saving…';
-
   const offerDate = isoDate(document.getElementById('mp-offer-date').value);
   const startDate = isoDate(document.getElementById('mp-start-date').value);
 
@@ -516,27 +517,37 @@ async function mobileSubmitPlacement(rolePreselected) {
     }
   } catch (e) { /* non-critical */ }
 
+  const fields = {
+    RoleIDLookupId:       roleId,
+    Title:                candidate,
+    TalentPartner:        user.email,
+    SalaryAgreed:         document.getElementById('mp-salary').value || undefined,
+    Currency:             document.getElementById('mp-currency').value || undefined,
+    OfferAcceptedDate:    offerDate || undefined,
+    ProvisionalStartDate: startDate || undefined,
+    TimeToHire:           timeToHire,
+  };
+
+  // N-218d: close-immediately variant -- no list is on screen behind this
+  // sheet to hold a pending row, so apply() only closes the sheet and
+  // shows the success toast; revert() has nothing to undo. The role-history
+  // side effects stay inside commit(), after the create, in their existing
+  // order (same precedent as N-218a's desktop Placements Gotcha).
   try {
-    await createItem('Placements', {
-      RoleIDLookupId:       roleId,
-      Title:                candidate,
-      TalentPartner:        user.email,
-      SalaryAgreed:         document.getElementById('mp-salary').value || undefined,
-      Currency:             document.getElementById('mp-currency').value || undefined,
-      OfferAcceptedDate:    offerDate || undefined,
-      ProvisionalStartDate: startDate || undefined,
-      TimeToHire:           timeToHire,
+    await optimisticWrite({
+      apply:  () => { mobileCloseSheet(); mobileToast('Placement recorded ✓'); },
+      revert: () => {},
+      commit: async () => {
+        const created = await createItem('Placements', fields);
+        if (startDate) await updateRoleWithHistory(roleId, { CurrentStartDate: startDate });
+        if (offerDate) await updateRoleWithHistory(roleId, { ActualHireDate: offerDate });
+        return created;
+      },
+      errorMessage: 'Error saving placement — change reverted.',
+      toastFn: mobileToast,
     });
-
-    if (startDate) await updateRoleWithHistory(roleId, { CurrentStartDate: startDate });
-    if (offerDate) await updateRoleWithHistory(roleId, { ActualHireDate: offerDate });
-
-    mobileToast('Placement recorded ✓');
-    mobileCloseSheet();
   } catch (e) {
-    btn.disabled    = false;
-    btn.textContent = 'Record Placement';
-    errEl.textContent   = 'Error: ' + e.message;
-    errEl.style.display = 'block';
+    // optimisticWrite() already showed the error/Retry toast; the sheet is
+    // already closed, so there's no form left to re-enable the button on.
   }
 }

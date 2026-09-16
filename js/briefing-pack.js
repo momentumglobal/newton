@@ -1,10 +1,14 @@
 // js/briefing-pack.js
 // Candidate role briefing packs — N-211, phase 1.
 //
-// Reached from the "+ Briefing Pack" button in the Roles page header. It is
-// deliberately NOT a router page: no PAGES entry, no sidebar link, no nav.js
-// case — the same direct-render pattern as showBulkActivityPage(). Access is
-// inherited from the Roles page (Admin, Delivery Manager, Talent Partner).
+// Reached from the "+ Briefing Pack" button in the Roles page header, which
+// since N-235 lands on the LIBRARY (showBriefingPackLibrary) — the builder is
+// only opened from a library row or the library's own "+ Briefing Pack"
+// button. Both are deliberately NOT router pages: no PAGES entry, no sidebar
+// link, no nav.js case — the same direct-render pattern as
+// showBulkActivityPage(). Access is inherited from the Roles page (Admin,
+// Delivery Manager, Talent Partner); the library then scopes rows by owner /
+// DM project assignment / Admin-sees-all.
 //
 // Phase 1 is PDF-only. The export is the ONLY portrait export in Newton —
 // printPage(title, false, ...) requests no @page override, so the global
@@ -28,6 +32,11 @@ let _bpCoverDate    = '';    // YYYY-MM text — never a Date (BST shift)
 let _bpClientLogo     = '';  // data: URI, held against the PROJECT not the pack
 let _bpClientLogoName = '';
 
+// Library state (N-235)
+let _bpLibraryCache  = [];   // packs visible to this user, from the last load
+let _bpLibraryFilter = '';   // '' = all clients
+let _bpProjectMap    = {};   // projectId (string) -> CustomerName, for banding
+
 function bpUid() { return 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6); }
 
 function bpCurrentMonth() {
@@ -50,8 +59,149 @@ function bpDefaultPages() {
   ];
 }
 
-// ── Entry point ───────────────────────────────────────────────────────
-async function showBriefingPackPage() {
+// ── Entry point — the library (N-235) ─────────────────────────────────
+async function showBriefingPackLibrary() {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<div class="page-header"><h2>Briefing Pack Library</h2></div><p>Loading...</p>';
+
+  try {
+    const user = getCurrentUser();
+    // getProjects(false) deliberately — a Leadership user sees packs for
+    // projects they hold no UserAssignments row for, and a scoped project list
+    // would leave those bands unnamed.
+    const [packs, projects, projectIds, tpMap] = await Promise.all([
+      getBriefingPacks(),
+      getProjects(false),
+      getUserProjectIds(user.email),
+      getTalentPartnerDisplayMap(),
+    ]);
+    _bpProjectMap = {};
+    projects.forEach(p => { _bpProjectMap[String(p.id)] = p.CustomerName || ''; });
+    _bpTpMap = tpMap;
+    _bpLibraryCache = _bpVisiblePacks(packs, projectIds, user.email);
+    _bpRenderLibrary();
+  } catch (e) {
+    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'showBriefingPackLibrary()' });
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+// Admin/Leadership see everything; a DM sees their own packs plus any pack on a
+// project assigned to them; everyone else sees only their own.
+// getUserProjectIds() returns null for an admin ("all") and is ghost-aware.
+function _bpVisiblePacks(packs, projectIds, email) {
+  const me = (email || '').toLowerCase();
+  if (_resolvedRole === 'admin' || _resolvedRole === 'leadership') return packs;
+  const ids = projectIds || [];
+  const mine = p => (p.PackOwner || '').toLowerCase() === me;
+  if (_resolvedRole === 'delivery_manager') {
+    return packs.filter(p => mine(p) || ids.includes(String(p.ProjectID)));
+  }
+  return packs.filter(mine);
+}
+
+// One resolver for grouping, filter options and filter matching, so all three
+// agree. The linked project's customer name wins over the pack's free-text
+// ClientName, so "Diamant" and "Diamant Software" band together.
+function _bpPackClient(pack) {
+  return _bpProjectMap[String(pack.ProjectID)] || pack.ClientName || 'Unassigned';
+}
+
+function bpLibraryFilterChanged(value) {
+  _bpLibraryFilter = value;
+  _bpRenderLibrary();   // re-render from cache, no refetch
+}
+
+function _bpLibraryClientOptions() {
+  const values = [...new Set(_bpLibraryCache.map(_bpPackClient))].sort((a, b) => a.localeCompare(b));
+  return ['<option value="">All</option>'].concat(values.map(v =>
+    `<option value="${escAttr(v)}"${v === _bpLibraryFilter ? ' selected' : ''}>${escHtml(v)}</option>`
+  )).join('');
+}
+
+function _bpRenderLibrary() {
+  const me      = (getCurrentUser().email || '').toLowerCase();
+  const isAdmin = _resolvedRole === 'admin';
+  const packs   = _bpLibraryCache.filter(p => !_bpLibraryFilter || _bpPackClient(p) === _bpLibraryFilter);
+
+  const groups = {};
+  packs.forEach(p => {
+    const client = _bpPackClient(p);
+    (groups[client] = groups[client] || []).push(p);
+  });
+
+  const rows = packs.length
+    ? Object.keys(groups).sort((a, b) => a.localeCompare(b)).map(client => {
+        const list = groups[client].slice().sort((a, b) => (a.Title || '').localeCompare(b.Title || ''));
+        const packRows = list.map(p => {
+          const owner = p.PackOwner || '';
+          const canDelete = isAdmin || owner.toLowerCase() === me;
+          return `
+        <tr>
+          <td><strong>${escHtml(p.Title || '—')}</strong></td>
+          <td>${escHtml(p.RoleTitle || '—')}</td>
+          <td>${escHtml(p.RoleLocation || '—')}</td>
+          <td>${escHtml(_bpTpMap[owner.toLowerCase()] || owner || '—')}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-secondary" onclick="bpLoadPack(${p.id})">Open</button>
+              <button class="btn-secondary" onclick="bpCopyPackAction(${p.id}, this)">Copy</button>
+              ${canDelete ? `<button class="btn-secondary" onclick="bpDeletePack(${p.id}, '${escJsAttr(p.Title || '')}')">Delete</button>` : ''}
+            </div>
+          </td>
+        </tr>`;
+        }).join('');
+        return `
+        <tr class="bp-lib-client-row">
+          <td colspan="5"><strong>${escHtml(client)}</strong> <span class="bp-lib-count">${list.length}</span></td>
+        </tr>${packRows}`;
+      }).join('')
+    : emptyStateRow({
+        colspan: 5,
+        icon: 'folder',
+        message: _bpLibraryCache.length
+          ? 'No packs match the current filter.'
+          : 'No briefing packs saved yet.',
+      });
+
+  const main = document.getElementById('main-content');
+  main.innerHTML = `
+    <div class="page-header">
+      <h2>Briefing Pack Library</h2>
+      <div class="page-header-actions">
+        <button class="btn-secondary" onclick="navigateTo('roles')">&larr; Back to Roles</button>
+        <select class="form-control" style="width:auto" onchange="bpLibraryFilterChanged(this.value)">
+          ${_bpLibraryClientOptions()}
+        </select>
+        <button class="btn-primary" onclick="bpStartNewPack()">+ Briefing Pack</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr>
+          <th>Pack</th><th>Role</th><th>Location</th><th>Owner</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons();
+}
+
+async function bpCopyPackAction(id, btn) {
+  setButtonLoading(btn);
+  try {
+    const copy = await copyBriefingPack(id, getCurrentUser().email);
+    await bpLoadPack(copy.id);
+  } catch (e) {
+    toast('Could not copy that pack: ' + e.message, { type: 'error' });
+  } finally {
+    clearButtonLoading(btn);
+  }
+}
+
+// ── Builder ───────────────────────────────────────────────────────────
+async function bpStartNewPack() {
   const main = document.getElementById('main-content');
   main.innerHTML = '<div class="page-header"><h2>Briefing Pack</h2></div><p>Loading...</p>';
 
@@ -209,8 +359,8 @@ function bpRender() {
     <div class="page-header">
       <h2>Briefing Pack</h2>
       <div class="page-header-actions">
+        <button class="btn-secondary" onclick="showBriefingPackLibrary()">&larr; Back to Library</button>
         <button class="btn-secondary" onclick="navigateTo('roles')">&larr; Back to Roles</button>
-        <button class="btn-secondary" onclick="bpOpenLibraryModal()">Pack Library</button>
         <button class="btn-secondary" id="bp-save-btn" onclick="bpSavePack()">Save</button>
         <button class="btn-secondary" onclick="bpPreview()">Preview</button>
         <button class="print-btn"     onclick="bpExportPdf()">&#8856; Export PDF</button>
@@ -221,7 +371,6 @@ function bpRender() {
       <div class="rb-canvas"  id="bp-canvas">${bpRenderCanvas()}</div>
     </div>
     <div id="bp-preview-modal" class="rb-modal" style="display:none"></div>
-    <div id="bp-library-modal" class="rb-modal" style="display:none"></div>
   `;
   bpInitSortable();
 }
@@ -655,41 +804,6 @@ async function bpSavePack() {
   if (btn) { btn.textContent = 'Saved ✓'; setTimeout(() => { btn.textContent = 'Save'; }, 2000); }
 }
 
-async function bpOpenLibraryModal() {
-  const modal = document.getElementById('bp-library-modal');
-  modal.style.display = 'flex';
-  modal.innerHTML = `<div class="rb-modal-inner"><h3>Briefing Pack Library</h3><p>Loading...</p>
-    <button class="btn-secondary"
-      onclick="document.getElementById('bp-library-modal').style.display='none'">Close</button></div>`;
-
-  const [packs, tpMap] = await Promise.all([getBriefingPacks(), getTalentPartnerDisplayMap()]);
-  const currentUser = getCurrentUser();
-  const isAdmin = _resolvedRole === 'admin';
-
-  const rows = packs.length
-    ? packs.map(p => {
-        const owner = p.PackOwner || '';
-        const ownerDisplay = tpMap[owner.toLowerCase()] || owner;
-        const canEdit = isAdmin || owner.toLowerCase() === currentUser.email.toLowerCase();
-        return `<div class="rb-saved-row">
-          <span>${escHtml(p.Title)}</span>
-          <span class="rb-saved-meta">${escHtml(ownerDisplay)}</span>
-          <div style="display:flex;gap:6px;flex-shrink:0">
-            <button class="btn-secondary btn-sm" onclick="bpLoadPack(${p.id})">Open</button>
-            ${canEdit ? `<button class="btn-danger btn-sm"
-              onclick="bpDeletePack(${p.id}, '${escJsAttr(p.Title)}')">Delete</button>` : ''}
-          </div>
-        </div>`;
-      }).join('')
-    : '<p class="no-data">No briefing packs saved yet.</p>';
-
-  modal.innerHTML = `<div class="rb-modal-inner">
-    <h3>Briefing Pack Library</h3>${rows}
-    <button class="btn-secondary" style="margin-top:16px"
-      onclick="document.getElementById('bp-library-modal').style.display='none'">Close</button>
-  </div>`;
-}
-
 async function bpLoadPack(id) {
   const pack = await getBriefingPackById(id);
   _bpPackId       = id;
@@ -710,7 +824,6 @@ async function bpLoadPack(id) {
   if (!pages.some(p => p.type === 'closing')) pages.push({ id: bpUid(), type: 'closing' });
   _bpPages = pages;
 
-  document.getElementById('bp-library-modal').style.display = 'none';
   await bpLoadRoles();
   await bpLoadClientLogo();
   bpRender();
@@ -721,7 +834,12 @@ async function bpDeletePack(id, title) {
     message: `Delete "${title}"? This cannot be undone.`,
     confirmLabel: 'Delete', danger: true,
   }))) return;
-  await deleteItem('BriefingPacks', id);
+  try {
+    await deleteItem('BriefingPacks', id);
+  } catch (e) {
+    toast('Could not delete that pack: ' + e.message, { type: 'error' });
+    return;
+  }
   if (String(_bpPackId) === String(id)) _bpPackId = null;
-  bpOpenLibraryModal();
+  await showBriefingPackLibrary();
 }

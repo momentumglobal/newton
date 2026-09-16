@@ -1525,6 +1525,25 @@ async function filterToActiveTpEmails(tpEmails, tpMap) {
   const activeNames = new Set(activePeople.map(p => norm(p.EmployeeName)));
   return tpEmails.filter(e => activeNames.has(norm(tpMap[e.toLowerCase()])));
 }
+
+// Eligible respondents for an Engagement survey run = active employees
+// (People.IsActive) holding a talent_partner or delivery_manager role in
+// UserAssignments. Deliberately does NOT filter on UserAssignments.Active —
+// a bench/unassigned TP or DM with no current project is still an eligible
+// active employee (Chris, 16 Sep 2026 — see N-233). Dedupes by email first,
+// since one user can hold multiple UserAssignments rows (N-165).
+async function getEligibleRespondentCount() {
+  const assignments = await getItems('UserAssignments');
+  const tpDmEmails = new Set();
+  assignments.forEach(a => {
+    if (a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager') {
+      if (a.UserEmail) tpDmEmails.add(a.UserEmail.toLowerCase());
+    }
+  });
+  const tpMap = await getTalentPartnerDisplayMap();
+  const activeEmails = await filterToActiveTpEmails([...tpDmEmails], tpMap);
+  return activeEmails.length;
+}
  
 // Role precedence: admin > leadership > talent_partner > delivery_manager > viewer
 const ROLE_PRECEDENCE = ['admin','leadership','talent_partner','delivery_manager','viewer'];

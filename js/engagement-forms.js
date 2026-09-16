@@ -435,34 +435,7 @@ async function _refreshQuestionList(templateId) {
       : '<p class="eng-hint">No questions yet.</p>';
     lucide.createIcons();
   }
-  if (countEl) countEl.textContent = `(${questions.length})`;
-}
-
-function _questionRow(q, index, total) {
-  return `
-    <div class="eng-q-row" id="eng-q-row-${q.id}">
-      <div class="eng-q-row-main">
-        <span class="eng-q-type-badge">${q.QuestionType}</span>
-        <span class="eng-q-text">${_escEngHtml(q.QuestionText)}</span>
-        ${q.IsRequired ? '<span class="eng-q-required">Required</span>' : ''}
-      </div>
-      <div class="eng-q-row-actions">
-        <button class="btn-icon" title="Move up" onclick="moveQuestion('${q.id}', 'up', window._engQuestions)"
-          ${index === 0 ? 'disabled' : ''}>
-          <i data-lucide="chevron-up"></i>
-        </button>
-        <button class="btn-icon" title="Move down" onclick="moveQuestion('${q.id}', 'down', window._engQuestions)"
-          ${index === total - 1 ? 'disabled' : ''}>
-          <i data-lucide="chevron-down"></i>
-        </button>
-        <button class="btn-icon" title="Edit" onclick="openAddQuestionModal(${q.templateId}, ${JSON.stringify(q).replace(/"/g, '&quot;')})">
-          <i data-lucide="edit-2"></i>
-        </button>
-        <button class="btn-icon btn-icon--danger" title="Delete" onclick="deleteQuestion('${q.id}')">
-          <i data-lucide="trash-2"></i>
-        </button>
-      </div>
-    </div>`;
+ if (countEl) countEl.textContent = `(${questions.length})`;
 }
 
 function _currentQuarterLabel() {

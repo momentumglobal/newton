@@ -552,6 +552,32 @@ function autoFillWeekYear(dateStr) {
   document.getElementById('weekly-year').value = new Date(dateStr).getFullYear();
   document.getElementById('weekly-weeknum').value = getISOWeek(dateStr);
 }
+
+// Moved from utils.js (N-237d) — single consumer, this file only.
+// N-204: inverse of getISOWeek/getWeekEnding — given an ISO week number and a
+// calendar year, returns that week's Sunday as 'YYYY-MM-DD'. Same Sunday-
+// boundary convention as getWeekEnding, same local-getter approach (no
+// toISOString — see the N-129 comment inside utils.js's getWeekEnding()).
+// Week 1/52/53 can resolve into an adjacent calendar year; the returned
+// string reflects the RESOLVED year, which callers must reconcile against
+// any displayed Year field themselves. Returns null for out-of-range input
+// rather than a garbage date.
+function weekEndingFromWeekNumber(year, weekNum) {
+  if (!Number.isFinite(year) || !Number.isFinite(weekNum) || weekNum < 1 || weekNum > 53) {
+    return null;
+  }
+  const jan4 = new Date(year, 0, 4);
+  const jan4IsoDay = jan4.getDay() || 7; // Mon=1..Sun=7
+  const week1Monday = new Date(jan4);
+  week1Monday.setDate(jan4.getDate() - (jan4IsoDay - 1));
+  const targetSunday = new Date(week1Monday);
+  targetSunday.setDate(week1Monday.getDate() + (weekNum - 1) * 7 + 6);
+  const y  = targetSunday.getFullYear();
+  const m  = String(targetSunday.getMonth() + 1).padStart(2, '0');
+  const dd = String(targetSunday.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
 // N-204: inverse of autoFillWeekYear. Week Number → Week Ending Date, using
 // the currently-displayed Year. If the resolved week's Sunday lands in a
 // different calendar year (week 1/52/53 edge cases), corrects the Year field

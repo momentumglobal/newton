@@ -1948,6 +1948,15 @@ async function getSurveyQuestions(templateId) {
   return questions.sort((a, b) => (a.SortOrder ?? 0) - (b.SortOrder ?? 0));
 }
 
+async function hasCompletedSurvey(runId, email) {
+  const completions = await getItems(
+    "SurveyCompletions",
+    `fields/RunID eq '${runId}' and fields/RespondentEmail eq '${email.toLowerCase()}'`
+  );
+  return completions.length > 0;
+}
+
+// ── Write ─────────────────────────────────────────────────────────────
 async function createSurveyRun(fields) {
   // N-131: canonical midday-UTC, like every other SharePoint date write. The
   // bare shape was kept until now (see N-088) because index.html does

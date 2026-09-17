@@ -19,20 +19,6 @@ function clearButtonLoading(btn) {
   btn.style.cursor  = '';
 }
 
-// ── Select pending state (N-149) ──────────────────────────────────────
-// Same disabled/opacity/cursor treatment as setButtonLoading above, for a
-// <select> instead of a button — a <select> has no text label to swap for
-// "Saving…", so this never touches textContent. Shared by the Roles-list
-// inline stage dropdown (pages.js:updateRoleStage) and, per its spec, meant
-// for N-146 (Command Bar) to reuse for its own inline stage update rather
-// than reimplementing this.
-function setSelectPending(selectEl, isPending) {
-  if (!selectEl) return;
-  selectEl.disabled = isPending;
-  selectEl.style.opacity = isPending ? '0.7' : '';
-  selectEl.style.cursor  = isPending ? 'not-allowed' : '';
-}
-
 // ── Role stage <select> markup (N-149 addendum) ─────────────────────────
 // Pure HTML string builder for the Roles-list inline stage dropdown.
 // Called once, when a row is unlocked (pages.js:unlockStageEdit) — not at

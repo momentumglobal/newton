@@ -1298,9 +1298,6 @@ async function copyLCIModel(modelId, newTitle, onProgress = null) {
 async function getLCIReports() {
   return getItems("LCIReports");
 }
-async function getLCIReportById(id) {
-  return getItem("LCIReports", id);
-}
 async function createLCIReport(fields) {
   return createItem("LCIReports", fields);
 }
@@ -1436,12 +1433,6 @@ async function getEffectiveRole(email) {
  
 // getUserProjectIds — defined above with admin null handling
  
-// Check if email is in LeadershipAccess list
-async function isLeadershipUser(email) {
-  const list = await getLeadershipAccess();
-  return list.some(l => l.UserEmail?.toLowerCase() === email.toLowerCase());
-}
-
 // True if the resolved user (the ghosted user if Ghost Mode is active, else
 // the signed-in user) holds an explicit DM grant.
 // Pass a projectId to scope the check; omit for "any DM grant?"
@@ -1543,14 +1534,6 @@ async function getEligibleRespondentCount() {
   const tpMap = await getTalentPartnerDisplayMap();
   const activeEmails = await filterToActiveTpEmails([...tpDmEmails], tpMap);
   return activeEmails.length;
-}
- 
-// Role precedence: admin > leadership > talent_partner > delivery_manager > viewer
-const ROLE_PRECEDENCE = ['admin','leadership','talent_partner','delivery_manager','viewer'];
-function higherRole(a, b) {
-  const ai = ROLE_PRECEDENCE.indexOf(a);
-  const bi = ROLE_PRECEDENCE.indexOf(b);
-  return ai <= bi ? a : b;
 }
  
 // Return all project IDs this user is assigned to (null = admin, sees all).
@@ -2029,10 +2012,6 @@ async function getSurveyTemplates() {
 async function getActiveSurveyRun() {
   const runs = await getItems("SurveyRuns", "fields/Status eq 'Active'");
   return runs.length > 0 ? runs[0] : null;
-}
-
-async function getSurveyRunById(runId) {
-  return getItem("SurveyRuns", runId);
 }
 
 async function getSurveyRuns() {

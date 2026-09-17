@@ -6,6 +6,86 @@ let _dashFilter = {
   quarter: null,                     // 1–4; null = no quarter filter
 };
 
+// ── People Dashboard calc/format helpers (moved from utils.js, N-237d) ─
+function _dashDateRange(filter) {
+  const { year, month, quarter } = filter;
+  if (month !== null) {
+    return { start: new Date(year, month, 1), end: new Date(year, month + 1, 0) };
+  }
+  if (quarter !== null) {
+    return { start: new Date(year, (quarter - 1) * 3, 1), end: new Date(year, quarter * 3, 0) };
+  }
+  return { start: new Date(year, 0, 1), end: new Date(year, 11, 31) };
+}
+
+// Filter monthly rows to a date range
+function _rowsInRange(rows, start, end) {
+  return rows.filter(r => {
+    const ms = new Date(r.Year, r.Month - 1, 1);
+    return ms >= start && ms <= end;
+  });
+}
+
+// Filter monthly rows to a full calendar year
+function _rowsInYear(rows, year) {
+  return rows.filter(r => r.Year === year);
+}
+
+function _fmtGBP(n) {
+  return '£' + (n || 0).toLocaleString('en-GB', {
+    minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function _fmtPct(n) {
+  return ((n || 0) * 100).toFixed(1) + '%';
+}
+
+// Calculates utilisation % from an array of monthly rows.
+function _calcUtilisation(rows) {
+  const filtered  = rows.filter(r => isBillableLevel(r.Level));
+  const billedCap = filtered.reduce((s, r) => s + r.BilledCapacity, 0);
+  const totalCap  = filtered.reduce((s, r) => s + r.Capacity, 0);
+  return totalCap > 0 ? billedCap / totalCap : 0;
+}
+function _barChart(data, valueFormatter) {
+  const max = Math.max(...data.map(d => d.value), 0.001);
+  return `<div style='margin-top:12px'>
+    ${data.map(d => {
+      const val = valueFormatter ? valueFormatter(d.value) : d.value;
+      return `
+      <div class='nt-chart-bar-row' title='${d.label}: ${val}'>
+        <div class='nt-chart-bar-label'>${d.label}</div>
+        <div class='nt-chart-bar-wrap'>
+          <div class='nt-chart-bar' style='width:${Math.round((d.value/max)*100)}%'></div>
+        </div>
+        <div class='nt-chart-bar-val'>${val}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ── Sales Forecast Utilisation helper ────────────
+function _salesForecastUtil(monthIdx, salesForecasts, totalActiveHeadcount, assignmentForecastUtil) {
+  const now      = new Date();
+  const thisYear = now.getFullYear();
+  const mStart   = new Date(thisYear, monthIdx, 1);
+  const mEnd     = new Date(thisYear, monthIdx + 1, 0);
+
+  // Additional headcount from sales forecasts overlapping this month
+  const forecastedBilled = salesForecasts.reduce((sum, f) => {
+    const s = new Date(f.ForecastStartDate);
+    const e = new Date(f.ForecastEndDate);
+    return (s <= mEnd && e >= mStart) ? sum + (f.ForecastedHeadcount || 0) : sum;
+  }, 0);
+
+  // Base is the existing assignment forecast util (already a 0-1 ratio)
+  // Add sales headcount on top, expressed as a fraction of total headcount
+  const base = assignmentForecastUtil || 0;
+  const added = totalActiveHeadcount > 0 ? forecastedBilled / totalActiveHeadcount : 0;
+  const combined = Math.min(base + added, 1.0);
+  return combined > 0 ? combined : null;
+}
+
 // ── Team Utilisation Line Graph ───────────────────
 function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, totalActiveHeadcount) {
   const now       = new Date();

@@ -2,6 +2,137 @@
 // N-151: formatSalary/daysOpen deleted — they were duplicates of the
 // utils.js definitions and silently shadowed them. The project/period
 // dropdowns and getProjectFilterOptions moved to js/list-controls.js.
+
+// ── Row/table template builders (moved from utils.js, N-237c) ─────────
+
+// Pure HTML string builders for one list row, one per optimistic-insert
+// list. Each is the single source of truth for that list's row markup --
+// used by the list's normal render AND by the pending-row insert, so the
+// two never drift. opts.pending renders the row with a row-pending class,
+// a data-pending-id marker, and no row-actions cell (a pending item has no
+// real id yet, so nothing on it is clickable). Deliberately called
+// "pending", not "ghost" -- this codebase's "ghost" prefix already means
+// Ghost Mode (view-as-user), an unrelated feature (see GHOST_USER_KEY in
+// utils.js). Uses pendingRowId() from utils.js; not redefined here.
+function projectRowHtml(p, { dmDisplay, canEdit, pending = false } = {}) {
+  return `
+          <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ""}>
+            <td>${escHtml(p.CustomerName)}</td>
+            <td>${escHtml(dmDisplay)}</td>
+            <td><span class="badge badge-${escAttr(p.Status?.toLowerCase())}">${escHtml(p.Status)}</span></td>
+            <td>${spDateIn(p.StartDate) || "—"}</td>
+            <td>${spDateIn(p.EndDate) || "—"}</td>
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditProjectForm(${p.id})">Edit</a></div></td>`) : ""}
+          </tr>
+        `;
+}
+
+function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilter, pending = false } = {}) {
+  const isHired    = rolesFilter === "Hired";
+  const daysHidden = rolesFilter === "Backlog" || rolesFilter === "Cancelled";
+  const days       = (!daysHidden && (!isHired || r.ActualHireDate))
+    ? daysOpen(r.OpenDate, r.ActualHireDate) : null;
+  const rowClass   = (isHired || rolesFilter === "Active") && days !== null && days > 45
+    ? "row-age-critical" : "";
+  const dateCell   = isHired
+    ? (spDateIn(r.ActualHireDate) || "—")
+    : (spDateIn(r.TargetHireDate) || "—");
+  // A pending role has no real id yet, so it never gets the interactive
+  // unlock button -- canEdit is forced false for the stage badge only.
+  const stageCell  = stageBadgeHtml(r.id, r.Stage, pending ? false : canEdit);
+  return `
+          <tr class="${pending ? "row-pending" : rowClass}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ""}>
+            <td>${escHtml(projectName)}</td>
+            <td>${escHtml(r.RoleTitle)}</td>
+            <td>${escHtml(r.Location || '—')}</td>
+            <td${pending ? "" : ` id="stage-cell-${r.id}"`}>${stageCell}</td>
+            <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
+            <td>${escHtml(formatSalary(r.Budget))}</td>
+            <td>${spDateIn(r.OpenDate) || "—"}</td>
+            <td>${dateCell}</td>
+            <td>${days !== null ? days + " days" : "—"}</td>
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a><a href="#" onclick="showDuplicateRoleForm(${r.id})">Duplicate</a>${historyRoleIds.has(String(r.id)) ? `<a href="#" onclick="showRoleTimeline(${r.id})">Timeline</a>` : ""}</div></td>`) : ""}
+          </tr>`;
+}
+
+function activityRowHtml(a, { roleMap, tpMap, canEdit, pending = false } = {}) {
+  return `
+          <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(a.id)}"` : ""}>
+            <td>${a.Year}</td>
+            <td>Wk ${a.WeekNumber}</td>
+            <td>${roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || "—"}</td>
+            <td>${escHtml(tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || "—")}</td>
+            <td style="text-align:center">${a.Outreach || 0}</td>
+            <td style="text-align:center">${a.Responses || 0}</td>
+            <td style="text-align:center">${a.Screened || 0}</td>
+            <td style="text-align:center">${a.Submitted || 0}</td>
+            <td style="text-align:center">${a.Interview1 || 0}</td>
+            <td style="text-align:center">${a.Interview2Plus || 0}</td>
+            <td style="text-align:center">${a.FinalInterview || 0}</td>
+            <td style="text-align:center">${a.Offers || 0}</td>
+            <td style="text-align:center">${a.Hires || 0}</td>
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditActivityForm(${a.id})">Edit</a></div></td>`) : ""}
+          </tr>
+        `;
+}
+
+function placementRowHtml(p, { roleMap, canEdit, pending = false } = {}) {
+  return `
+          <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ""}>
+            <td>${escHtml(p.CandidateName)}</td>
+            <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || "—"}</td>
+            <td>${escHtml(formatSalary(p.SalaryAgreed))}</td>
+            <td>${spDateIn(p.OfferAcceptedDate) || "—"}</td>
+            <td>${spDateIn(p.ProvisionalStartDate) || "—"}</td>
+            <td>${p.TimeToHire != null ? p.TimeToHire + " days" : "—"}</td>
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditPlacementForm(${p.id})">Edit</a></div></td>`) : ""}
+          </tr>
+        `;
+}
+
+function rejectionRowHtml(r, { roleMap, canEdit, pending = false } = {}) {
+  return `
+          <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ""}>
+            <td>${escHtml(r.CandidateName)}</td>
+            <td>${roleMap[String(r.RoleIDLookupId)] || roleMap[String(r.RoleID)] || "—"}</td>
+            <td>${escHtml(spDateIn(r.RejectionDate) || "—")}</td>
+            <td>${escHtml(formatSalary(r.SalaryOffered))}</td>
+            <td>${escHtml(r.RejectionReason || "—")}</td>
+            <td>${escHtml(r.Notes || "—")}</td>
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditRejectionForm(${r.id})">Edit</a></div></td>`) : ""}
+          </tr>
+        `;
+}
+
+// N-100: turns a plain integer day count into a short human label for the
+// Role History timeline ("time in stage"). Takes a number only — never a
+// date string — so it carries none of the SharePoint UTC/BST date-shift
+// risk the date helpers above exist to guard against.
+function formatDurationDays(days) {
+  if (days == null || isNaN(days)) return '—';
+  if (days < 1) return '<1 day';
+  if (days === 1) return '1 day';
+  if (days < 14) return `${days} days`;
+  const weeks = Math.round(days / 7);
+  return weeks === 1 ? '1 week' : `${weeks} weeks`;
+}
+
+function placementFilterCutoff(filter, today = new Date()) {
+  if (!filter || !filter.type) return null;
+  const year = filter.type === 'year' ? filter.value : today.getFullYear();
+  if (!Number.isFinite(year)) return null;
+  return `${year}-01-01`;
+}
+
+// skeletonPanel()/skeletonList() stay in utils.js (other consumers);
+// skeletonTable() moves here — pages.js is its only caller.
+function skeletonTable(rowCount = 5, colCount = 4) {
+  const row = `<div class="skel-row">${
+    Array.from({length: colCount}, () => `<div class="skel skel-cell"></div>`).join('')
+  }</div>`;
+  return `<div class="skel-table">${row.repeat(rowCount)}</div>`;
+}
+
 // ── Projects ─────────────────────────────────────────────────────────
 let _projectsFilter = "Active";
 async function renderProjectsPage(filter, pendingItem = null) {

@@ -43,6 +43,18 @@ function _cacheInvalidate(listName) {
   try { sessionStorage.removeItem(_deltaKey(listName)); } catch (e) { /* ignore */ }
 }
 
+// Moved from utils.js (N-237d) — single consumer (api-admin.js's schema
+// check), this file only.
+// CONFIG.LIST_FIELDS lists Graph READ-time property names, and lookup
+// columns need both the base name and a 'LookupId' shadow name (see the
+// comment on LIST_FIELDS in config.js). The columns endpoint only ever
+// returns the base column — 'ProjectID', never 'ProjectIDLookupId' — so a
+// literal name diff would report every lookup field as permanently
+// missing. Strip the suffix before comparing.
+function schemaBaseColumnName(fieldName) {
+  return fieldName.endsWith('LookupId') ? fieldName.slice(0, -'LookupId'.length) : fieldName;
+}
+
 // ── Session-persistent read cache — tier 2 (N-176 / F-3a) ─────────────
 // Tier 1 (_apiCache, above) is per-page and dies on every navigation.
 // Tier 2 keeps a list across navigations within one browser-tab session.

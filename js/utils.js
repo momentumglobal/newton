@@ -55,251 +55,6 @@ function pendingRowId() {
   return 'pend_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
 }
 
-// Pure HTML string builders for one list row, one per optimistic-insert
-// list. Each is the single source of truth for that list's row markup --
-// used by the list's normal render AND by the pending-row insert, so the
-// two never drift. opts.pending renders the row with a row-pending class,
-// a data-pending-id marker, and no row-actions cell (a pending item has no
-// real id yet, so nothing on it is clickable). Deliberately called
-// "pending", not "ghost" -- this codebase's "ghost" prefix already means
-// Ghost Mode (view-as-user), an unrelated feature (see GHOST_USER_KEY
-// above).
-function projectRowHtml(p, { dmDisplay, canEdit, pending = false } = {}) {
-  return `
-          <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ""}>
-            <td>${escHtml(p.CustomerName)}</td>
-            <td>${escHtml(dmDisplay)}</td>
-            <td><span class="badge badge-${escAttr(p.Status?.toLowerCase())}">${escHtml(p.Status)}</span></td>
-            <td>${spDateIn(p.StartDate) || "—"}</td>
-            <td>${spDateIn(p.EndDate) || "—"}</td>
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditProjectForm(${p.id})">Edit</a></div></td>`) : ""}
-          </tr>
-        `;
-}
-
-function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilter, pending = false } = {}) {
-  const isHired    = rolesFilter === "Hired";
-  const daysHidden = rolesFilter === "Backlog" || rolesFilter === "Cancelled";
-  const days       = (!daysHidden && (!isHired || r.ActualHireDate))
-    ? daysOpen(r.OpenDate, r.ActualHireDate) : null;
-  const rowClass   = (isHired || rolesFilter === "Active") && days !== null && days > 45
-    ? "row-age-critical" : "";
-  const dateCell   = isHired
-    ? (spDateIn(r.ActualHireDate) || "—")
-    : (spDateIn(r.TargetHireDate) || "—");
-  // A pending role has no real id yet, so it never gets the interactive
-  // unlock button -- canEdit is forced false for the stage badge only.
-  const stageCell  = stageBadgeHtml(r.id, r.Stage, pending ? false : canEdit);
-  return `
-          <tr class="${pending ? "row-pending" : rowClass}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ""}>
-            <td>${escHtml(projectName)}</td>
-            <td>${escHtml(r.RoleTitle)}</td>
-            <td>${escHtml(r.Location || '—')}</td>
-            <td${pending ? "" : ` id="stage-cell-${r.id}"`}>${stageCell}</td>
-            <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
-            <td>${escHtml(formatSalary(r.Budget))}</td>
-            <td>${spDateIn(r.OpenDate) || "—"}</td>
-            <td>${dateCell}</td>
-            <td>${days !== null ? days + " days" : "—"}</td>
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a><a href="#" onclick="showDuplicateRoleForm(${r.id})">Duplicate</a>${historyRoleIds.has(String(r.id)) ? `<a href="#" onclick="showRoleTimeline(${r.id})">Timeline</a>` : ""}</div></td>`) : ""}
-          </tr>`;
-}
-
-function activityRowHtml(a, { roleMap, tpMap, canEdit, pending = false } = {}) {
-  return `
-          <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(a.id)}"` : ""}>
-            <td>${a.Year}</td>
-            <td>Wk ${a.WeekNumber}</td>
-            <td>${roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || "—"}</td>
-            <td>${escHtml(tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || "—")}</td>
-            <td style="text-align:center">${a.Outreach || 0}</td>
-            <td style="text-align:center">${a.Responses || 0}</td>
-            <td style="text-align:center">${a.Screened || 0}</td>
-            <td style="text-align:center">${a.Submitted || 0}</td>
-            <td style="text-align:center">${a.Interview1 || 0}</td>
-            <td style="text-align:center">${a.Interview2Plus || 0}</td>
-            <td style="text-align:center">${a.FinalInterview || 0}</td>
-            <td style="text-align:center">${a.Offers || 0}</td>
-            <td style="text-align:center">${a.Hires || 0}</td>
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditActivityForm(${a.id})">Edit</a></div></td>`) : ""}
-          </tr>
-        `;
-}
-
-function placementRowHtml(p, { roleMap, canEdit, pending = false } = {}) {
-  return `
-          <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ""}>
-            <td>${escHtml(p.CandidateName)}</td>
-            <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || "—"}</td>
-            <td>${escHtml(formatSalary(p.SalaryAgreed))}</td>
-            <td>${spDateIn(p.OfferAcceptedDate) || "—"}</td>
-            <td>${spDateIn(p.ProvisionalStartDate) || "—"}</td>
-            <td>${p.TimeToHire != null ? p.TimeToHire + " days" : "—"}</td>
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditPlacementForm(${p.id})">Edit</a></div></td>`) : ""}
-          </tr>
-        `;
-}
-
-function rejectionRowHtml(r, { roleMap, canEdit, pending = false } = {}) {
-  return `
-          <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ""}>
-            <td>${escHtml(r.CandidateName)}</td>
-            <td>${roleMap[String(r.RoleIDLookupId)] || roleMap[String(r.RoleID)] || "—"}</td>
-            <td>${escHtml(spDateIn(r.RejectionDate) || "—")}</td>
-            <td>${escHtml(formatSalary(r.SalaryOffered))}</td>
-            <td>${escHtml(r.RejectionReason || "—")}</td>
-            <td>${escHtml(r.Notes || "—")}</td>
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditRejectionForm(${r.id})">Edit</a></div></td>`) : ""}
-          </tr>
-        `;
-}
-
-// ── Mobile Roles-list optimistic-insert row helper (N-218d) ────────────
-// Single source of truth for the "+ Add Role" list's card markup, shared by
-// mobileDrawRolesList() and mobileRedrawRolesListOnly() (previously two
-// separate inline copies) and by the pending-card insert on submit. A
-// pending card has no real id yet, so it drops the onclick navigation
-// entirely and gets a row-pending class instead of a click affordance.
-function mobileRoleCardHtml(r, { pending = false } = {}) {
-  const days = r.OpenDate
-    ? Math.floor((Date.now() - new Date(r.OpenDate)) / 86400000) : null;
-  const daysClass = days === null ? '' : days >= 45 ? 'alert' : days >= 30 ? 'warn' : '';
-  const daysLabel = days !== null ? `${days}d open` : '';
-  return `
-          <div class="m-role-card${pending ? " row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ` onclick="mobileSelectRole(${r.id})"`}>
-            <div class="m-role-title">${escHtml(r.RoleTitle)}</div>
-            <div class="m-role-meta">${escHtml(tpList(r.TalentPartner).join(', ')) || '—'}</div>
-            <div class="m-role-footer">
-              <span class="m-stage-badge">${r.Stage || '-'}</span>
-              ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}
-            </div>
-          </div>`;
-}
-
-// ── People-module optimistic-insert row helpers (N-218b) ───────────────
-// Same contract as the three N-218a helpers above -- opts.pending renders
-// a row-pending class + data-pending-id and drops anything that depends on
-// a real id. Reuses pendingRowId() from that block; no second one needed.
-function personRowHtml(p, { canEdit, canPayroll, salariesRevealed, pending = false } = {}) {
-  const isUK      = p.Location === 'UK';
-  const salaryVal = (isUK && p.Salary) ? `£${Number(p.Salary).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-  const salaryCell = canPayroll && isUK ? `
-      <td class='salary-cell'>
-        <span class='salary-masked' id='sal-masked-${p.id}' style='display:${salariesRevealed ? "none" : "inline"}'>
-          ••••••
-          <button class='btn-padlock' title='Reveal salary' onclick='_revealSalary("${p.id}")'
-            style='background:none;border:none;cursor:pointer;padding:0 4px;color:var(--text-muted)'>🔒</button>
-        </span>
-        <span class='salary-revealed' id='sal-revealed-${p.id}' style='display:${salariesRevealed ? "inline" : "none"}'>
-          ${salaryVal}
-          <button class='btn-padlock' title='Hide salary' onclick='_hideSalary("${p.id}")'
-            style='background:none;border:none;cursor:pointer;padding:0 4px;color:var(--text-muted)'>🔓</button>
-        </span>
-      </td>` : (canPayroll ? `<td>—</td>` : '');
-  return `
-    <tr class="${pending ? 'row-pending' : ''}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ''}>
-      <td>${p.PhotoUrl
-            ? `<img src="${escAttr(p.PhotoUrl)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
-            : '<span style="color:var(--text-faint);font-size:12px">—</span>'}</td>
-      <td>${escHtml(p.EmployeeName)}</td>
-      <td>${escHtml(p.Level || '—')}</td>
-      <td>${escHtml(p.ContractType || '—')}</td>
-      <td>${escHtml(p.Location || '—')}</td>
-      <td>${spDateIn(p.StartDate) || '—'}</td>
-      <td>${spDateIn(p.EndDate) || '—'}</td>
-      <td><span class='badge badge-${p.IsActive ? 'active' : 'inactive'}'>${p.IsActive ? 'Active' : 'Inactive'}</span></td>
-      ${salaryCell}
-      ${canEdit ? (pending ? "<td></td>" : `<td><div class='row-actions'><a href='#' onclick='showEditPersonForm(${p.id})'>Edit</a></div></td>`) : ''}
-    </tr>`;
-}
-
-function assignmentRowHtml(a, { canEdit, pending = false } = {}) {
-  return `
-    <tr class="${pending ? 'row-pending' : ''}"${pending ? ` data-pending-id="${escAttr(a.id)}"` : ''}>
-      <td>${escHtml(a.AssignmentID || '—')}</td>
-      <td>${escHtml(a.EmployeeName || '—')}</td>
-      <td>${escHtml(a.Level || '—')}</td>
-      <td>${escHtml(a.Customer || '—')}</td>
-      <td>${escHtml(a.ProjectType || '—')}</td>
-      <td>${spDateIn(a.StartDate) || '—'}</td>
-      <td>${spDateIn(a.EndDate) || '—'}</td>
-      <td>${assignmentRateLabel(a)}</td>
-      <td><span class='badge badge-${a.Billed==="Yes"?"active":"inactive"}'>${escHtml(a.Billed)}</span>${
-        isForecastAssignment(a) ? ` <span class='badge' style='background:var(--status-warn-bg-soft);color:var(--status-warn-text)'>Forecast</span>` : ''}</td>
-      ${canEdit ? (pending ? '<td></td>' : `<td><div class='row-actions'>
-        <a href='#' onclick='showEditAssignmentForm(${a.id})'>Edit</a>${
-        (a.AutoGenerated === true || a.AutoGenerated === 1 || a.AutoGenerated === 'Yes') ? '' :
-        ` · <a href='#' style='color:var(--status-danger)' onclick='_deleteAssignment(${a.id})'>Delete</a>`}
-      </div></td>`) : ''}
-    </tr>`;
-}
-
-function invoiceRowHtml(inv, { canEdit, pending = false } = {}) {
-  const statusBadge = inv.isOverdue
-    ? `<span class='badge' style='background:var(--status-danger-bg-soft);color:var(--status-danger)'>Overdue</span>`
-    : inv.Status === 'Paid'
-      ? `<span class='badge badge-active'>Paid</span>`
-      : `<span class='badge' style='background:var(--status-warn-bg);color:var(--status-warn-text)'>Sent</span>`;
-
-  const markPaidBtn = canEdit && !pending && inv.Status !== 'Paid'
-    ? `<a href='#' onclick='markInvoicePaid(${inv.id})' style='white-space:nowrap'>
-         Mark Paid</a>`
-    : '';
-
-  return `<tr class="${pending ? 'row-pending' : ''}"${pending ? ` data-pending-id="${escAttr(inv.id)}"` : ''}>
-      <td>${escHtml(inv.InvoiceNumber || '—')}</td>
-      <td>${spDateIn(inv.InvoiceDate) || '—'}</td>
-      <td>${spDateIn(inv.DueDate) || '—'}</td>
-      <td>£${inv.Amount ? Number(inv.Amount).toLocaleString('en-GB',
-              {minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
-      <td class='cell-notes'>${renderInvoiceNotesCell(inv, pending)}</td>
-      <td>${statusBadge}</td>
-${canEdit ? (pending ? `<td></td>` : `<td style='white-space:nowrap'>
-  <div class='row-actions' style='gap:12px'>
-    <a href='#' onclick='showEditInvoiceForm(${inv.id})'>Edit</a>
-    ${markPaidBtn ? ' · ' + markPaidBtn : ''}
-    · <button class='btn-danger' onclick='deleteInvoice(${inv.id})'>Delete</button>
-  </div>
-</td>`) : ''}
-    </tr>`;
-}
-
-// ── Optimistic-insert row helper — Engagement Questions (N-218c) ───────
-// Same contract as the N-218a/N-218b helpers above. opts.pending renders a
-// row-pending class + data-pending-id and drops the move/edit/delete
-// actions (none of them valid against a client-side-only id). The root
-// element is a <div>, not a <tr> -- this list isn't a <table>. Text
-// content still goes through _escEngHtml() (engagement-pages.js), not the
-// global escHtml() -- kept for byte-identical extraction from the
-// original _questionRow(); _escEngHtml() doesn't escape apostrophes,
-// escHtml() does, so swapping it would change existing output.
-function questionRowHtml(q, index, total, { pending = false } = {}) {
-  return `
-    <div class="eng-q-row${pending ? ' row-pending' : ''}"${pending ? ` data-pending-id="${escAttr(q.id)}"` : ` id="eng-q-row-${q.id}"`}>
-      <div class="eng-q-row-main">
-        <span class="eng-q-type-badge">${q.QuestionType}</span>
-        <span class="eng-q-text">${_escEngHtml(q.QuestionText)}</span>
-        ${q.IsRequired ? '<span class="eng-q-required">Required</span>' : ''}
-      </div>
-      ${pending ? '' : `<div class="eng-q-row-actions">
-        <button class="btn-icon" title="Move up" onclick="moveQuestion('${q.id}', 'up', window._engQuestions)"
-          ${index === 0 ? 'disabled' : ''}>
-          <i data-lucide="chevron-up"></i>
-        </button>
-        <button class="btn-icon" title="Move down" onclick="moveQuestion('${q.id}', 'down', window._engQuestions)"
-          ${index === total - 1 ? 'disabled' : ''}>
-          <i data-lucide="chevron-down"></i>
-        </button>
-        <button class="btn-icon" title="Edit" onclick="openAddQuestionModal(${q.templateId}, ${JSON.stringify(q).replace(/"/g, '&quot;')})">
-          <i data-lucide="edit-2"></i>
-        </button>
-        <button class="btn-icon btn-icon--danger" title="Delete" onclick="deleteQuestion('${q.id}')">
-          <i data-lucide="trash-2"></i>
-        </button>
-      </div>`}
-    </div>`;
-}
-
 // ── Re-render without losing scroll position ──────────────────────────
 // Replace an element's outerHTML while preserving the scroll offsets of any
 // scroll containers inside it. Replacing outerHTML destroys and rebuilds those
@@ -655,19 +410,6 @@ function daysOpen(openDate, hireDate) {
   return Math.floor((end - start) / (1000 * 60 * 60 * 24));
 }
 
-// N-100: turns a plain integer day count into a short human label for the
-// Role History timeline ("time in stage"). Takes a number only — never a
-// date string — so it carries none of the SharePoint UTC/BST date-shift
-// risk the date helpers above exist to guard against.
-function formatDurationDays(days) {
-  if (days == null || isNaN(days)) return '—';
-  if (days < 1) return '<1 day';
-  if (days === 1) return '1 day';
-  if (days < 14) return `${days} days`;
-  const weeks = Math.round(days / 7);
-  return weeks === 1 ? '1 week' : `${weeks} weeks`;
-}
-
 // ── Date helpers (N-054: consolidated from forms.js + five duplicate/
 // shim copies previously scattered across people-forms.js, mobile-app.js,
 // lci-link.js, mobile-pages.js and mobile-roleform.js) ─────────────────
@@ -814,13 +556,6 @@ function listQueryFromDay(windowDay, selectionDay) {
   if (!windowDay) return null;
   if (!selectionDay) return windowDay;
   return selectionDay < windowDay ? selectionDay : windowDay;
-}
-
-function placementFilterCutoff(filter, today = new Date()) {
-  if (!filter || !filter.type) return null;
-  const year = filter.type === 'year' ? filter.value : today.getFullYear();
-  if (!Number.isFinite(year)) return null;
-  return `${year}-01-01`;
 }
 
 function getISOWeek(date) {
@@ -1031,13 +766,6 @@ function skeletonPanel(lineCount = 5) {
   const panelLines = Array.from({length: lineCount},
     () => `<div class="skel skel-line"></div>`).join('');
   return `<div class="skel-panel">${panelLines}</div>`;
-}
-
-function skeletonTable(rowCount = 5, colCount = 4) {
-  const row = `<div class="skel-row">${
-    Array.from({length: colCount}, () => `<div class="skel skel-cell"></div>`).join('')
-  }</div>`;
-  return `<div class="skel-table">${row.repeat(rowCount)}</div>`;
 }
 
 function skeletonList(itemCount = 5) {
@@ -1444,12 +1172,6 @@ async function optimisticWrite({ apply, revert, commit, errorMessage = "That did
     });
     throw err;
   }
-}
-
-// First non-empty line of a multi-line string. Returns '' for empty input.
-function firstLine(str) {
-  const lines = String(str ?? '').split(/\r?\n/).map(l => l.trim());
-  return lines.find(l => l !== '') || '';
 }
 
 // Strip characters Windows/macOS reject in filenames, collapse whitespace.

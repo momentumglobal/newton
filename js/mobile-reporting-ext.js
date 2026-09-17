@@ -12,6 +12,28 @@ let _mRolesCache = null;
 let _mRoleSearch = '';
 let _mRoleStage  = '';
 
+// ── Mobile Roles-list optimistic-insert row helper (N-218d) ────────────
+// Single source of truth for the "+ Add Role" list's card markup, shared by
+// mobileDrawRolesList() and mobileRedrawRolesListOnly() (previously two
+// separate inline copies) and by the pending-card insert on submit. A
+// pending card has no real id yet, so it drops the onclick navigation
+// entirely and gets a row-pending class instead of a click affordance.
+function mobileRoleCardHtml(r, { pending = false } = {}) {
+  const days = r.OpenDate
+    ? Math.floor((Date.now() - new Date(r.OpenDate)) / 86400000) : null;
+  const daysClass = days === null ? '' : days >= 45 ? 'alert' : days >= 30 ? 'warn' : '';
+  const daysLabel = days !== null ? `${days}d open` : '';
+  return `
+          <div class="m-role-card${pending ? " row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ` onclick="mobileSelectRole(${r.id})"`}>
+            <div class="m-role-title">${escHtml(r.RoleTitle)}</div>
+            <div class="m-role-meta">${escHtml(tpList(r.TalentPartner).join(', ')) || '—'}</div>
+            <div class="m-role-footer">
+              <span class="m-stage-badge">${r.Stage || '-'}</span>
+              ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}
+            </div>
+          </div>`;
+}
+
 // ── #4 Summary view ───────────────────────────────────────────────────
 async function mobileRenderReportingSummary(main) {
   mobileSetTitle('Reporting', 'Summary');

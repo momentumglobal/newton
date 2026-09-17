@@ -7,6 +7,22 @@
 // Page-level cache. Rows are edited in memory; Save writes diffs only.
 let _lciEd = null; // { model, rows, deletedRowIds, origRows, dirtySettings, dirtyRows }
 
+// Moved from utils.js (N-237d) — single consumer, this file only.
+// innerHTML variant: the element itself survives the assignment, so there is
+// no re-look-up and no same-id requirement on the replacement markup — only
+// the scroll containers inside it are destroyed and rebuilt.
+// Depends on _scrollOffsets/_restoreScrollOffsets, which stay in utils.js
+// (shared with replaceHtmlKeepingScroll, the outerHTML variant used by
+// lci-sections.js).
+function replaceInnerHtmlKeepingScroll(elementId, html, scrollSelector) {
+  const el = document.getElementById(elementId);
+  if (!el) return null;
+  const offsets = _scrollOffsets(el, scrollSelector);
+  el.innerHTML = html;
+  _restoreScrollOffsets(el, scrollSelector, offsets);
+  return el;
+}
+
 // ── Entry point ──────────────────────────────────────────────────────
 
 async function renderLCIEditorPage(modelId) {

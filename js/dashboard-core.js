@@ -3,26 +3,7 @@
 let _dashPeriod       = 'quarter'; // KPI ribbon: 'month' | 'quarter' | 'year'
 let _dashDetailPeriod = 'this_month'; // Detail panels filter
 let _dashProjectId    = null;
-// ── Fade refresh helper ───────────────────────────────────────────────
-function fadeRefresh(selector, updateFn) {
-  const el = document.querySelector(selector);
-  if (!el) { updateFn(null); return; }
-  el.style.transition = 'opacity 120ms ease';
-  el.style.opacity    = '0';
-  setTimeout(() => {
-    updateFn(el);
-    requestAnimationFrame(() => {
-      el.style.opacity = '1';
-    });
-  }, 120);
-}
 // ── KPI period helpers ────────────────────────────────────────────────
-function isoWeek(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const y = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - y) / 86400000) + 1) / 7);
-}
 function activityInKpiPeriod(a, period) {
   const now = new Date();
   const year = Number(a.Year), week = Number(a.WeekNumber);

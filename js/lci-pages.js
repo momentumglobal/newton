@@ -47,12 +47,6 @@ function _lciStatusPill(status) {
   return `<span class="lci-status lci-status--${s.toLowerCase()}">${s}</span>`;
 }
 
-function _lciTotalHires(model) {
-  // Header-only list view: hires shown after rows load in the editor.
-  // Kept as a placeholder column for now (populated in step 5+).
-  return '—';
-}
-
 function lciListFilterChanged(which, value) {
   _lciListFilters[which] = value;
   document.getElementById('main-content').innerHTML =

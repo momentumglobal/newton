@@ -329,22 +329,3 @@ function lciModelsComparable(modelA, modelB) {
   return !!modelA.DisplayCurrency &&
          modelA.DisplayCurrency === modelB.DisplayCurrency;
 }
-
-function lciCompareModels(modelA, rowsA, modelB, rowsB) {
-  const build = (model, rows) => {
-    const comp = lciComputeModel(model, rows);
-    return {
-      name:     model.Title || model.ModelName,
-      currency: model.DisplayCurrency,
-      kpis:     lciComputeKPIs(model, rows),
-      cumulativeSpend: comp.cumulativeSpend,
-      labels:   comp.labels,
-    };
-  };
-  return {
-    comparable: lciModelsComparable(modelA, modelB),
-    currency:   modelA.DisplayCurrency,
-    a: build(modelA, rowsA),
-    b: build(modelB, rowsB),
-  };
-}

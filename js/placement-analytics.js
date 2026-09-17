@@ -295,12 +295,6 @@ function _paAvgTTH(placements) {
   return total / valid.length / (1000 * 60 * 60 * 24); // days
 }
 
-function _paWorstRag(stages) {
-  const rank = { red: 0, amber: 1, green: 2, grey: 3 };
-  return stages.reduce((worst, s) =>
-    (rank[s.rag] < rank[worst]) ? s.rag : worst, "grey");
-}
-
 function _paEsc(str) {
   return String(str)
     .replace(/&/g, "&amp;")

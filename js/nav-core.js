@@ -111,6 +111,13 @@ function updateThemeToggleIcon() {
   lucide.createIcons();
 }
 
+// Moved from utils.js (N-237d) — single consumer, this file only.
+// getTheme/setTheme stay in utils.js.
+function toggleTheme() {
+  setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+  if (typeof updateThemeToggleIcon === 'function') updateThemeToggleIcon();
+}
+
 /**
  * Refreshes the sidebar density toggle's icon/label to match the current
  * density. Called after toggleDensity(); mirrors updateThemeToggleIcon().
@@ -121,6 +128,13 @@ function updateDensityToggleIcon() {
   const compact = getDensity() === 'compact';
   btn.innerHTML = `<i data-lucide="${compact ? 'maximize-2' : 'minimize-2'}" class="nav-theme-toggle-icon"></i>${compact ? 'Comfortable tables' : 'Compact tables'}`;
   lucide.createIcons();
+}
+
+// Moved from utils.js (N-237d) — single consumer, this file only.
+// getDensity/setDensity stay in utils.js.
+function toggleDensity() {
+  setDensity(getDensity() === 'compact' ? 'comfortable' : 'compact');
+  if (typeof updateDensityToggleIcon === 'function') updateDensityToggleIcon();
 }
 
 /**

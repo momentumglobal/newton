@@ -542,6 +542,46 @@ function bpUpdatePage(id, key, value) {
   if (page) page[key] = value;
 }
 
+// ── Rich-text primitives (moved from utils.js, N-237d) — single consumer,
+// this toolbar only ─────────────────────────────────────────────────
+function rtFormat(cmd) {
+  document.execCommand(cmd, false, null);
+}
+
+function rtFormatBlock(tag) {
+  document.execCommand('formatBlock', false, tag);
+}
+
+// Callout block (N-213). Briefing-pack toolbar only — .bp-callout is a
+// briefing-pack visual, and offering it in the shared toolbar would leak an
+// unstyled class into the Report Builder, Market Report and LCI exports.
+function rtCalloutToolbarButtonHtml() {
+  return '<button type="button" title="Insert callout block"'
+       + ' onmousedown="event.preventDefault()"'
+       + ' onclick="rtWrapCallout()">&#9776; Callout</button>';
+}
+
+// Wrap the selection (or insert a placeholder) as a callout. Same caret
+// requirement, same input-event dispatch as Report Builder's rtInsertTable
+// (still shared, stays in utils.js).
+function rtWrapCallout() {
+  const sel = window.getSelection();
+  const node = sel && sel.rangeCount ? sel.getRangeAt(0).commonAncestorContainer : null;
+  const host = node && (node.nodeType === 1 ? node : node.parentElement);
+  const editor = host && host.closest ? host.closest('.rb-richtext') : null;
+  if (!editor) {
+    toast('Click inside the text area first, then add a callout.', { type: 'error' });
+    return false;
+  }
+
+  const selected = sel.toString();
+  const inner = selected ? escHtml(selected) : 'Key facts&hellip;';
+  document.execCommand('insertHTML', false,
+    '<div class="bp-callout"><p>' + inner + '</p></div><p><br></p>');
+  editor.dispatchEvent(new Event('input', { bubbles: true }));
+  return true;
+}
+
 // Rich-text toolbar wrappers (N-228) — mirrors Report Builder's rbFormat/
 // rbFormatBlock/rbUpdateToolbarState. Multi-instance like Report Builder
 // (several content sections can be open on the canvas at once), so state

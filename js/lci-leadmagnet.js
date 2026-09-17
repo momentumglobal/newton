@@ -69,10 +69,6 @@ function lciLeadMagnetCompute(currentLoc, scopedLocs, disciplines) {
 if (typeof module !== 'undefined') module.exports = { lciLeadMagnetCompute, _lmCostGBP }; // node unit-check
 
 // ── Formatting helpers ───────────────────────────────────────────────
-function _lmGBP(v) {
-  if (v == null || isNaN(v)) return '—';
-  return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }).format(v);
-}
 // Format a value already in the display currency, with that currency's symbol.
 // Falls back to "12,345 CODE" for currency codes Intl doesn't recognise.
 function _lmMoney(v, ccy) {

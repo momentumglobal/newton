@@ -95,18 +95,6 @@ function replaceHtmlKeepingScroll(elementId, html, scrollSelector) {
   return next;
 }
 
-// innerHTML variant: the element itself survives the assignment, so there is
-// no re-look-up and no same-id requirement on the replacement markup — only
-// the scroll containers inside it are destroyed and rebuilt.
-function replaceInnerHtmlKeepingScroll(elementId, html, scrollSelector) {
-  const el = document.getElementById(elementId);
-  if (!el) return null;
-  const offsets = _scrollOffsets(el, scrollSelector);
-  el.innerHTML = html;
-  _restoreScrollOffsets(el, scrollSelector, offsets);
-  return el;
-}
-
 // ── Monthly calculation ───────────────────────────────────────────────
 // True when an assignment is a forecast (SP Yes/No may come back as true/1/'Yes')
 function isForecastAssignment(a) {
@@ -586,43 +574,9 @@ function getWeekEnding(date = new Date()) {
   return `${y}-${m}-${dd}`;
 }
 
-// N-204: inverse of getISOWeek/getWeekEnding — given an ISO week number and a
-// calendar year, returns that week's Sunday as 'YYYY-MM-DD'. Same Sunday-
-// boundary convention as getWeekEnding, same local-getter approach (no
-// toISOString — see N-129 comment above). Week 1/52/53 can resolve into an
-// adjacent calendar year; the returned string reflects the RESOLVED year,
-// which callers must reconcile against any displayed Year field themselves.
-// Returns null for out-of-range input rather than a garbage date.
-function weekEndingFromWeekNumber(year, weekNum) {
-  if (!Number.isFinite(year) || !Number.isFinite(weekNum) || weekNum < 1 || weekNum > 53) {
-    return null;
-  }
-  const jan4 = new Date(year, 0, 4);
-  const jan4IsoDay = jan4.getDay() || 7; // Mon=1..Sun=7
-  const week1Monday = new Date(jan4);
-  week1Monday.setDate(jan4.getDate() - (jan4IsoDay - 1));
-  const targetSunday = new Date(week1Monday);
-  targetSunday.setDate(week1Monday.getDate() + (weekNum - 1) * 7 + 6);
-  const y  = targetSunday.getFullYear();
-  const m  = String(targetSunday.getMonth() + 1).padStart(2, '0');
-  const dd = String(targetSunday.getDate()).padStart(2, '0');
-  return `${y}-${m}-${dd}`;
-}
-
 // ── Activity field summation ─────────────────────────────────────────
 function sumField(acts, field) {
   return acts.reduce((s, a) => s + (Number(a[field]) || 0), 0);
-}
-
-// ── Schema check (N-174 / F-11a) ────────────────────────────────────
-// CONFIG.LIST_FIELDS lists Graph READ-time property names, and lookup
-// columns need both the base name and a 'LookupId' shadow name (see the
-// comment on LIST_FIELDS in config.js). The columns endpoint only ever
-// returns the base column — 'ProjectID', never 'ProjectIDLookupId' — so a
-// literal name diff would report every lookup field as permanently
-// missing. Strip the suffix before comparing.
-function schemaBaseColumnName(fieldName) {
-  return fieldName.endsWith('LookupId') ? fieldName.slice(0, -'LookupId'.length) : fieldName;
 }
 
 // ── Ghost / impersonation mode ────────────────────────────────────────
@@ -719,10 +673,6 @@ function setTheme(theme) {
   }
   try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
 }
-function toggleTheme() {
-  setTheme(getTheme() === 'dark' ? 'light' : 'dark');
-  if (typeof updateThemeToggleIcon === 'function') updateThemeToggleIcon();
-}
 
 // ── Density (comfortable / compact) ─────────────────────────────────
 // Same pattern as Theme above. theme-init.js sets the initial data-density
@@ -742,11 +692,6 @@ function setDensity(density) {
   }
   try { localStorage.setItem(DENSITY_KEY, density); } catch (e) {}
 }
-function toggleDensity() {
-  setDensity(getDensity() === 'compact' ? 'comfortable' : 'compact');
-  if (typeof updateDensityToggleIcon === 'function') updateDensityToggleIcon();
-}
-
 // ── Dashboard skeleton placeholder ───────────────────────────────
 // N-191: dashboardSkeleton() is now a thin wrapper over the primitives
 // below (kept for byte-identical output on its two existing callers,
@@ -1208,40 +1153,6 @@ function lciYearSlices(horizon, chunk = 12) {
   return out;
 }
 
-// ── People Dashboard calc/format helpers ─────────────────────
-function _dashDateRange(filter) {
-  const { year, month, quarter } = filter;
-  if (month !== null) {
-    return { start: new Date(year, month, 1), end: new Date(year, month + 1, 0) };
-  }
-  if (quarter !== null) {
-    return { start: new Date(year, (quarter - 1) * 3, 1), end: new Date(year, quarter * 3, 0) };
-  }
-  return { start: new Date(year, 0, 1), end: new Date(year, 11, 31) };
-}
-
-// Filter monthly rows to a date range
-function _rowsInRange(rows, start, end) {
-  return rows.filter(r => {
-    const ms = new Date(r.Year, r.Month - 1, 1);
-    return ms >= start && ms <= end;
-  });
-}
-
-// Filter monthly rows to a full calendar year
-function _rowsInYear(rows, year) {
-  return rows.filter(r => r.Year === year);
-}
-
-function _fmtGBP(n) {
-  return '£' + (n || 0).toLocaleString('en-GB', {
-    minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-function _fmtPct(n) {
-  return ((n || 0) * 100).toFixed(1) + '%';
-}
-
 // ── People.Level helpers (N-117) ────────────────────────────────
 // Sort rank for a Level value, per CONFIG.PEOPLE_LEVELS order. Unknown/blank
 // levels sort last (99), matching every levelOrder map's prior fallback.
@@ -1256,30 +1167,6 @@ function levelSortIndex(level) {
 // for this to keep working, no call site needs to change.
 function isBillableLevel(level) {
   return level !== 'CSD';
-}
-
-// Calculates utilisation % from an array of monthly rows.
-function _calcUtilisation(rows) {
-  const filtered  = rows.filter(r => isBillableLevel(r.Level));
-  const billedCap = filtered.reduce((s, r) => s + r.BilledCapacity, 0);
-  const totalCap  = filtered.reduce((s, r) => s + r.Capacity, 0);
-  return totalCap > 0 ? billedCap / totalCap : 0;
-}
-function _barChart(data, valueFormatter) {
-  const max = Math.max(...data.map(d => d.value), 0.001);
-  return `<div style='margin-top:12px'>
-    ${data.map(d => {
-      const val = valueFormatter ? valueFormatter(d.value) : d.value;
-      return `
-      <div class='nt-chart-bar-row' title='${d.label}: ${val}'>
-        <div class='nt-chart-bar-label'>${d.label}</div>
-        <div class='nt-chart-bar-wrap'>
-          <div class='nt-chart-bar' style='width:${Math.round((d.value/max)*100)}%'></div>
-        </div>
-        <div class='nt-chart-bar-val'>${val}</div>
-      </div>`;
-    }).join('')}
-  </div>`;
 }
 
 // ── Shared SVG chart primitives (N-197) ────────────────────
@@ -1311,40 +1198,10 @@ function _chartLegendHtml(items) {
   }).join('')}</div>`;
 }
 
-// ── Sales Forecast Utilisation helper ────────────
-function _salesForecastUtil(monthIdx, salesForecasts, totalActiveHeadcount, assignmentForecastUtil) {
-  const now      = new Date();
-  const thisYear = now.getFullYear();
-  const mStart   = new Date(thisYear, monthIdx, 1);
-  const mEnd     = new Date(thisYear, monthIdx + 1, 0);
-
-  // Additional headcount from sales forecasts overlapping this month
-  const forecastedBilled = salesForecasts.reduce((sum, f) => {
-    const s = new Date(f.ForecastStartDate);
-    const e = new Date(f.ForecastEndDate);
-    return (s <= mEnd && e >= mStart) ? sum + (f.ForecastedHeadcount || 0) : sum;
-  }, 0);
-
-  // Base is the existing assignment forecast util (already a 0-1 ratio)
-  // Add sales headcount on top, expressed as a fraction of total headcount
-  const base = assignmentForecastUtil || 0;
-  const added = totalActiveHeadcount > 0 ? forecastedBilled / totalActiveHeadcount : 0;
-  const combined = Math.min(base + added, 1.0);
-  return combined > 0 ? combined : null;
-}
-
 // ── Shared rich-text editor helpers (N-211) ──────────────────────────
 // Used by every `.rb-richtext` editor in Newton: Report Builder text blocks,
 // Market Report observations, LCI Report observations, briefing pack sections.
 // Kept here so there is exactly one table implementation to fix.
-
-function rtFormat(cmd) {
-  document.execCommand(cmd, false, null);
-}
-
-function rtFormatBlock(tag) {
-  document.execCommand('formatBlock', false, tag);
-}
 
 // Toggles a rich-text toolbar's button .active states to match the current
 // selection. Shared by every `.rb-richtext` editor (Report Builder, Market
@@ -1409,42 +1266,12 @@ function rtInsertTable(rows, cols) {
   return true;
 }
 
-// Callout block (N-213). Briefing-pack toolbar only — .bp-callout is a
-// briefing-pack visual, and offering it in the shared toolbar would leak an
-// unstyled class into the Report Builder, Market Report and LCI exports.
-function rtCalloutToolbarButtonHtml() {
-  return '<button type="button" title="Insert callout block"'
-       + ' onmousedown="event.preventDefault()"'
-       + ' onclick="rtWrapCallout()">&#9776; Callout</button>';
-}
-
-// Wrap the selection (or insert a placeholder) as a callout. Same caret
-// requirement, same input-event dispatch as rtInsertTable.
-function rtWrapCallout() {
-  const sel = window.getSelection();
-  const node = sel && sel.rangeCount ? sel.getRangeAt(0).commonAncestorContainer : null;
-  const host = node && (node.nodeType === 1 ? node : node.parentElement);
-  const editor = host && host.closest ? host.closest('.rb-richtext') : null;
-  if (!editor) {
-    toast('Click inside the text area first, then add a callout.', { type: 'error' });
-    return false;
-  }
-
-  const selected = sel.toString();
-  const inner = selected ? escHtml(selected) : 'Key facts&hellip;';
-  document.execCommand('insertHTML', false,
-    '<div class="bp-callout"><p>' + inner + '</p></div><p><br></p>');
-  editor.dispatchEvent(new Event('input', { bubbles: true }));
-  return true;
-}
-
 // ── Table controls (add/remove rows & columns, delete table) — N-216 ──
-// Shared across the same four `.rb-richtext` editors as rtInsertTable/
-// rtWrapCallout above (Report Builder, Market Report, LCI Report, briefing
-// pack). One floating controls bar, positioned over whichever `.rt-table`
-// currently has focus/caret, rather than a per-editor toolbar — kept here
-// for the same "exactly one implementation" reason as the two functions
-// above.
+// Shared across the same four `.rb-richtext` editors as rtInsertTable above
+// (Report Builder, Market Report, LCI Report, briefing pack). One floating
+// controls bar, positioned over whichever `.rt-table` currently has
+// focus/caret, rather than a per-editor toolbar — kept here for the same
+// "exactly one implementation" reason as rtInsertTable above.
 let _rtCurrentTable = null;
 let _rtCurrentEditor = null;
 

@@ -1,4 +1,42 @@
 // js/people-invoices.js — GP Invoices
+
+// ── Row template builders (moved from utils.js, N-237c) ────────────────
+function invoiceRowHtml(inv, { canEdit, pending = false } = {}) {
+  const statusBadge = inv.isOverdue
+    ? `<span class='badge' style='background:var(--status-danger-bg-soft);color:var(--status-danger)'>Overdue</span>`
+    : inv.Status === 'Paid'
+      ? `<span class='badge badge-active'>Paid</span>`
+      : `<span class='badge' style='background:var(--status-warn-bg);color:var(--status-warn-text)'>Sent</span>`;
+
+  const markPaidBtn = canEdit && !pending && inv.Status !== 'Paid'
+    ? `<a href='#' onclick='markInvoicePaid(${inv.id})' style='white-space:nowrap'>
+         Mark Paid</a>`
+    : '';
+
+  return `<tr class="${pending ? 'row-pending' : ''}"${pending ? ` data-pending-id="${escAttr(inv.id)}"` : ''}>
+      <td>${escHtml(inv.InvoiceNumber || '—')}</td>
+      <td>${spDateIn(inv.InvoiceDate) || '—'}</td>
+      <td>${spDateIn(inv.DueDate) || '—'}</td>
+      <td>£${inv.Amount ? Number(inv.Amount).toLocaleString('en-GB',
+              {minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
+      <td class='cell-notes'>${renderInvoiceNotesCell(inv, pending)}</td>
+      <td>${statusBadge}</td>
+${canEdit ? (pending ? `<td></td>` : `<td style='white-space:nowrap'>
+  <div class='row-actions' style='gap:12px'>
+    <a href='#' onclick='showEditInvoiceForm(${inv.id})'>Edit</a>
+    ${markPaidBtn ? ' · ' + markPaidBtn : ''}
+    · <button class='btn-danger' onclick='deleteInvoice(${inv.id})'>Delete</button>
+  </div>
+</td>`) : ''}
+    </tr>`;
+}
+
+// First non-empty line of a multi-line string. Returns '' for empty input.
+function firstLine(str) {
+  const lines = String(str ?? '').split(/\r?\n/).map(l => l.trim());
+  return lines.find(l => l !== '') || '';
+}
+
 async function renderGPInvoices(pendingItem = null) {
   const main    = document.getElementById('main-content');
   const canEdit = _resolvedRole === 'admin';

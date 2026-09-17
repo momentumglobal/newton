@@ -812,14 +812,14 @@
   <div class="m-toast" id="m-toast"></div>
 
   <!-- MSAL -->
-  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js" defer></script>
   <!-- Newton core -->
-  <script src="js/config.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/diagnostics.js"></script>
-  <script src="js/analytics.js"></script>
+  <script src="js/config.js" defer></script>
+  <script src="js/auth.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/diagnostics.js" defer></script>
+  <script src="js/analytics.js" defer></script>
   <!-- Mark this session as running the mobile app, so desktop pages
        (index.html etc.) redirect back here after the MSAL login round-trip,
        even when the WebView reports a non-mobile width. -->
@@ -827,15 +827,15 @@
     try { localStorage.setItem('newton_mobile', '1'); } catch (e) {}
   </script>
   <!-- Mobile app -->
-  <script src="js/mobile-app.js"></script>
-  <script src="js/mobile-pages.js"></script>
-  <script src="js/mobile-home.js"></script>
-  <script src="js/mobile-people.js"></script>
-  <script src="js/mobile-roleform.js"></script>
-  <script src="js/mobile-scorecards.js"></script>
-  <script src="js/mobile-sales.js"></script>
-  <script src="js/mobile-analytics.js"></script>
-  <script src="js/mobile-reporting-ext.js"></script>
+  <script src="js/mobile-app.js" defer></script>
+  <script src="js/mobile-pages.js" defer></script>
+  <script src="js/mobile-home.js" defer></script>
+  <script src="js/mobile-people.js" defer></script>
+  <script src="js/mobile-roleform.js" defer></script>
+  <script src="js/mobile-scorecards.js" defer></script>
+  <script src="js/mobile-sales.js" defer></script>
+  <script src="js/mobile-analytics.js" defer></script>
+  <script src="js/mobile-reporting-ext.js" defer></script>
 
   <!-- PWA: register the service worker (makes the site installable) -->
   <script>

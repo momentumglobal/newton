@@ -61,6 +61,21 @@ function bulkEntryAvailable() {
   return !isApp && window.innerWidth >= 768;
 }
 
+// N-147 (T-2a), moved here from api.js by N-237b (it's a pure function using
+// the shared tpList() helper, not a Graph call — never belonged in api.js).
+// Which Talent Partner a bulk-activity grid row is written against. Prefers
+// the signed-in user when they are one of the role's owners, so a TP logging
+// their own week is always attributed to them; otherwise the first listed
+// owner. Returns null when the role has NO owner — the caller must render
+// that row disabled and exclude it from the save rather than attributing
+// someone else's week to whoever happened to open the grid.
+function resolveRowTalentPartner(roleTalentPartnerValue, currentUserEmail) {
+  const list = tpList(roleTalentPartnerValue);
+  if (!list.length) return null;
+  const me = String(currentUserEmail || '').trim().toLowerCase();
+  return (me && list.includes(me)) ? me : list[0];
+}
+
 async function renderBulkActivityPage(weekEnding = null) {
   // Belt and braces. pages.js hides the entry button when this is false, but
   // a deep link, a bookmark or a console call still lands here directly.

@@ -413,20 +413,6 @@ function tpDisplay(val, nameMap = {}) {
   return names.length ? names.join(', ') : '—';
 }
 
-// N-147 (T-2a), moved here from utils.js by N-166: which Talent Partner a
-// bulk-activity grid row is written against. Prefers the signed-in user when
-// they are one of the role's owners, so a TP logging their own week is
-// always attributed to them; otherwise the first listed owner. Returns null
-// when the role has NO owner — the caller must render that row disabled and
-// exclude it from the save rather than attributing someone else's week to
-// whoever happened to open the grid.
-function resolveRowTalentPartner(roleTalentPartnerValue, currentUserEmail) {
-  const list = tpList(roleTalentPartnerValue);
-  if (!list.length) return null;
-  const me = String(currentUserEmail || '').trim().toLowerCase();
-  return (me && list.includes(me)) ? me : list[0];
-}
-
 // ── Generic helpers ─────────────────────────────────────────────────
 // N-188 (F-14): graphRequest() is a thin router. A GET call, when
 // CONFIG.BATCH is enabled and the call isn't elevated, is queued and
@@ -715,68 +701,10 @@ async function getListColumns(listName) {
   return data.value || [];
 }
 
-// { name, id, indexed }[] for just the requested internal column names.
-async function getColumnIndexStatus(listName, columnNames) {
-  const columns = await getListColumns(listName);
-  return columns
-    .filter(c => columnNames.includes(c.name))
-    .map(c => ({ name: c.name, id: c.id, indexed: !!c.indexed }));
-}
-
 // Schema mutation, not a data write — no _cacheInvalidate (doesn't touch
 // item cache). Caller must confirm with the user before calling this.
 async function setColumnIndexed(listName, columnId) {
   return graphRequest("PATCH", `${listColumnsPath(listName)}/${columnId}`, { indexed: true }, true);
-}
-
-// N-174 (F-11a): per-list schema diff for the Data Health "Schema Check"
-// panel. Iterates Object.keys(FIELD_ALIASES) DIRECTLY — not
-// getMonitoredLists() — because DATA_HEALTH_EXCLUDED_LISTS is scoped to the
-// row-count guard; a list opted out of row-count watching is not a reason
-// to skip its schema check. FIELD_ALIASES stays un-exported (same reason as
-// getMonitoredLists()); this is the one function besides that one allowed
-// to read it directly.
-//
-// Expected set: CONFIG.LIST_FIELDS[list] where a projection entry exists
-// (16 lists, "projected"); otherwise Object.keys(FIELD_ALIASES[list]) (the
-// other 15). When that array is empty (9 lists registered as {} with no
-// projection), no Graph call is made at all — nothing to check.
-//
-// "Unexpected" is only computed for projected lists: the 15 non-projected
-// lists are read with fields($select=*), so there is no closed expected set
-// to diff an extra column against.
-//
-// Failures are per-list and non-fatal — one broken list returns
-// { list, error: true } and must not take out the panel, same discipline
-// as getListItemCount()'s callers.
-async function getSchemaDiffs() {
-  const lists = Object.keys(FIELD_ALIASES).sort();
-  return Promise.all(lists.map(async (list) => {
-    const projected = Object.prototype.hasOwnProperty.call(CONFIG.LIST_FIELDS, list);
-    const expectedRaw = projected ? CONFIG.LIST_FIELDS[list] : Object.keys(FIELD_ALIASES[list]);
-
-    if (expectedRaw.length === 0) {
-      return { list, projected, checked: false, expectedCount: 0, missing: [], unexpected: [] };
-    }
-
-    const expected = expectedRaw.map(schemaBaseColumnName);
-    const ignore = CONFIG.SCHEMA_CHECK_IGNORE_COLUMNS || [];
-
-    try {
-      const columns = await getListColumns(list);
-      const actual = columns.filter(c => !c.hidden).map(c => c.name);
-
-      const missing = expected.filter(n => !actual.includes(n));
-      const unexpected = projected
-        ? actual.filter(n => !expected.includes(n) && !ignore.includes(n))
-        : [];
-
-      return { list, projected, checked: true, expectedCount: expected.length, missing, unexpected };
-    } catch (e) {
-      console.warn('Schema Check: column read failed for list "' + list + '"', e);
-      return { list, projected, checked: true, error: true, expectedCount: expected.length, missing: [], unexpected: [] };
-    }
-  }));
 }
  
 // ── Write ─────────────────────────────────────────────────────────────
@@ -1116,19 +1044,8 @@ async function getRejectedOffers(roleId, opts = {}) {
 }
  
 // ── Admin list helpers ───────────────────────────────────────────────
-async function getUserAssignments(projectId) {
-  return getItems("UserAssignments",
-    projectId ? `fields/ProjectID eq ${projectId}` : "");
-}
- 
 async function getLeadershipAccess() {
   return getItems("LeadershipAccess");
-}
-
-// N-219 addendum: which CSD a claimed LCI-only customer belongs to (Org
-// Chart). One row per claimed customer — an unclaimed one simply has no row.
-async function getLCIProjectOwners() {
-  return getItems("LCIProjectOwners");
 }
  
 // ── Sales Forecasts ────────────────────────────────────────
@@ -1144,10 +1061,6 @@ async function updateSalesForecast(id, payload) {
   return updateItem("SalesForecasts", id, payload);
 }
  
-async function deleteSalesForecast(id) {
-  return deleteItem("SalesForecasts", id);
-}
- 
 // ── CoE Hiring Plan ─────────────────────────────────────────────────
 async function getCoEPlanRows(projectId) {
   return getItems("CoEPlanRows", `fields/ProjectID eq ${projectId}`);
@@ -1155,24 +1068,8 @@ async function getCoEPlanRows(projectId) {
 async function createCoEPlanRow(payload) {
   return createItem("CoEPlanRows", payload);
 }
-async function updateCoEPlanRow(id, payload) {
-  return updateItem("CoEPlanRows", id, payload);
-}
-async function deleteCoEPlanRow(id) {
-  return deleteItem("CoEPlanRows", id);
-}
-async function getCoEPlanForecast(projectId) {
-  return getItems("CoEPlanForecast", `fields/ProjectID eq ${projectId}`);
-}
-async function saveCoEForecastMonth(projectId, monthISO, hires, existingId = null) {
-  if (existingId) return updateItem("CoEPlanForecast", existingId, { ForecastedHires: hires });
-  // N-130: isoDate() puts ForecastMonth on the same midday-UTC convention as
-  // every other CoE date. Existing rows keep their legacy shape — nothing is
-  // migrated — and spMonthIn() on the read side handles both.
-  return createItem("CoEPlanForecast", { ProjectID: projectId, ForecastMonth: isoDate(monthISO), ForecastedHires: hires });
-}
 
-// ── LCI Cost Model ──────────────────────────────────────────────────
+// ── LCI Cost Model ─────────────────────────────────────────
 async function getLCIModels() {
   return getItems("LCIModels");
 }
@@ -1199,9 +1096,6 @@ async function getLCIRows(modelId) {
 async function createLCIRow(fields) {
   return createItem("LCIModelRows", fields);
 }
-async function updateLCIRow(id, fields) {
-  return updateItem("LCIModelRows", id, fields);
-}
 async function deleteLCIRow(id) {
   return deleteItem("LCIModelRows", id);
 }
@@ -1211,9 +1105,6 @@ async function getLCIMilestones(modelId) {
 }
 async function createLCIMilestone(fields) {
   return createItem("LCIMilestones", fields);
-}
-async function updateLCIMilestone(id, fields) {
-  return updateItem("LCIMilestones", id, fields);
 }
 async function deleteLCIMilestone(id) {
   return deleteItem("LCIMilestones", id);
@@ -1294,36 +1185,8 @@ async function copyLCIModel(modelId, newTitle, onProgress = null) {
   return created;
 }
 
-// ── LCI Reports (saved report definitions) ──────────────────────────
-async function getLCIReports() {
-  return getItems("LCIReports");
-}
-async function createLCIReport(fields) {
-  return createItem("LCIReports", fields);
-}
-async function updateLCIReport(id, fields) {
-  return updateItem("LCIReports", id, fields);
-}
-async function deleteLCIReport(id) {
-  return deleteItem("LCIReports", id);
-}
-
 async function getDepartments() {
   return getItems("Departments", "");
-}
-
-// ── LCI Lead Magnet locations ───────────────────────────────────────
-async function getLCILocations() {
-  return getItems("LCILocations");
-}
-async function createLCILocation(fields) {
-  return createItem("LCILocations", fields);
-}
-async function updateLCILocation(id, fields) {
-  return updateItem("LCILocations", id, fields);
-}
-async function deleteLCILocation(id) {
-  return deleteItem("LCILocations", id);
 }
 
 // Resolve the effective role for `email` — or, if Ghost Mode is active, for
@@ -1530,27 +1393,6 @@ async function getUserProjectIds(email) {
   return [...new Set(assignments.map(a => String(a.ProjectID)))];
 }
 
-// N-206: picks the ONE project to default a Talent Partner's Project Dashboard
-// to, when they have no project selector to correct a wrong guess (unlike a
-// DM/admin — see renderProjectDashboard()). Prefers an Active UserAssignments
-// row over an inactive one, so a TP who has just been reassigned lands on
-// their current project, not an old one they still hold a historical
-// (inactive) assignment row for. Falls back to the first assignment if none
-// are Active (fully rolled off with no live assignment) — there is no
-// "correct" project to prefer in that edge case.
-// Deliberately re-queries UserAssignments rather than extending
-// getUserProjectIds() with an activeOnly flag: that function's 13 other
-// callers all correctly want the union of a user's projects, old and new, and
-// must not change. The read is cached, so this doesn't add a real extra
-// network round-trip alongside a getUserProjectIds() call for the same user.
-async function getDefaultUserProjectId(email) {
-  const lower = (getGhostUser() || email).toLowerCase();
-  const assignments = await getItems("UserAssignments", `fields/Title eq '${lower}'`);
-  if (!assignments.length) return null;
-  const active = assignments.find(a => a.Active !== false);
-  return String((active || assignments[0]).ProjectID);
-}
- 
 async function getScopedProjects(email, activeOnly = false) {
   const projectIds = await getUserProjectIds(email);
   const allProjects = await getProjects(activeOnly);
@@ -1573,34 +1415,6 @@ async function _getAppSettingsRow() {
   }
 }
  
-async function getAnnouncementMessage() {
-  const row = await _getAppSettingsRow();
-  return row ? (row.AnnouncementMessage || '') : '';
-}
- 
-async function setAnnouncementMessage(message) {
-  const row = await _getAppSettingsRow();
-  if (row) {
-    await updateItem("AppSettings", row.id, { AnnouncementMessage: message });
-  } else {
-    await createItem("AppSettings", { Title: "config", AnnouncementMessage: message });
-  }
-}
- 
-async function getSeasonalEffect() {
-  const row = await _getAppSettingsRow();
-  return row ? (row.SeasonalEffect || 'none') : 'none';
-}
- 
-async function setSeasonalEffect(effect) {
-  const row = await _getAppSettingsRow();
-  if (row) {
-    await updateItem("AppSettings", row.id, { SeasonalEffect: effect });
-  } else {
-    await createItem("AppSettings", { Title: "config", SeasonalEffect: effect });
-  }
-}
- 
 // ── People module: People list ────────────────────────────────────────
 // Placeholder rows (vacancies / fictional roles) are EXCLUDED unless the caller
 // opts in — only the Org Chart does. Filtered client-side, not in the OData
@@ -1615,36 +1429,6 @@ async function getPeople(activeOnly = true, includePlaceholders = false) {
     if (lDiff !== 0) return lDiff;
     return (a.EmployeeName || "").localeCompare(b.EmployeeName || "");
   });
-}
-
-// ── Org Chart data ────────────────────────────────────────────────────
-// Active projects keyed by overseeing CSD display name (normalised).
-async function getProjectsByCSD() {
-  const projects = await getProjects(true); // active only
-  const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
-  const map = {};
-  projects.forEach(p => {
-    const key = norm(p.CSDName) || '__unassigned__';
-    (map[key] = map[key] || []).push(p);
-  });
-  return map;
-}
-
-// Current (non-forecast) assignments per employee → { EmployeeName: [row,…] }.
-// Keeps ALL current rows so a split person can be duplicated under each project.
-async function getCurrentAssignmentsByEmployee() {
-  const all = await getAssignments();       // no year filter = current list
-  const today = new Date(); today.setHours(0,0,0,0);
-  const map = {};
-  all.filter(a => !a.IsForecast).forEach(a => {
-    const s = a.StartDate ? new Date(a.StartDate) : null;
-    const e = a.EndDate   ? new Date(a.EndDate)   : null;
-    if (s) s.setHours(0,0,0,0);
-    if (e) e.setHours(0,0,0,0);
-    const current = (!s || s <= today) && (!e || e >= today);
-    if (current) (map[a.EmployeeName] = map[a.EmployeeName] || []).push(a);
-  });
-  return map;
 }
 
 async function createPerson(fields) {
@@ -1720,43 +1504,8 @@ async function createAssignment(fields) {
     AutoGenerated:   fields.AutoGenerated || false,
   });
 }
-async function updateAssignment(id, fields) {
-  const payload = {};
-  if (fields.AssignmentID    !== undefined) payload.Title           = fields.AssignmentID;
-  if (fields.EmployeeName    !== undefined) payload.EmployeeName    = fields.EmployeeName;
-  if (fields.Level           !== undefined) payload.Level           = fields.Level;
-  if (fields.Customer        !== undefined) payload.Customer        = fields.Customer;
-  if (fields.ProjectType     !== undefined) payload.ProjectType     = fields.ProjectType;
-  if (fields.StartDate       !== undefined) payload.StartDate       = fields.StartDate;
-  if (fields.EndDate         !== undefined) payload.EndDate         = fields.EndDate;
-  if (fields.MonthlyBillRate !== undefined) payload.MonthlyBillRate = fields.MonthlyBillRate;
-  if (fields.RetainerFee     !== undefined) payload.RetainerFee     = fields.RetainerFee;
-  if (fields.PlacementFee    !== undefined) payload.PlacementFee    = fields.PlacementFee;
-  if (fields.Billed          !== undefined) payload.Billed          = fields.Billed;
-  if (fields.Country         !== undefined) payload.Country         = fields.Country;
-  if (fields.IsForecast      !== undefined) payload.IsForecast      = fields.IsForecast;
-  return updateItem("Assignments", id, payload);
-}
  
 // ── People module: GPInvoices list ────────────────────────────────────
-async function getGPInvoices() {
-  const invoices = await getItems("GPInvoices");
-  return invoices.sort((a, b) => {
-    const da = a.InvoiceDate ? new Date(a.InvoiceDate) : new Date(0);
-    const db = b.InvoiceDate ? new Date(b.InvoiceDate) : new Date(0);
-    return db - da;
-  });
-}
-async function createInvoice(fields) {
-  return createItem("GPInvoices", {
-    Title:       fields.InvoiceNumber,
-    InvoiceDate: fields.InvoiceDate,
-    DueDate:     fields.DueDate,
-    Amount:      fields.Amount,
-    Notes:       fields.Notes  || undefined,
-    Status:      fields.Status || "Sent",
-  });
-}
 async function updateInvoice(id, fields) {
   const payload = {};
   if (fields.InvoiceNumber !== undefined) payload.Title       = fields.InvoiceNumber;
@@ -1768,35 +1517,7 @@ async function updateInvoice(id, fields) {
   return updateItem("GPInvoices", id, payload);
 }
 
-async function uploadInvoiceAttachment(itemId, file) {
- // Upload PDF to GPInvoiceFiles document library via Graph Drive API.
- // filename includes itemId to avoid collisions.
- const filename = `invoice-${itemId}-${file.name}`;
- const token = await getToken();
- if (!token) throw new Error('Not authenticated');
- const url = `${GRAPH}/sites/${CONFIG.SP_SITE_ID}/drives/${CONFIG.GP_INVOICE_DRIVE_ID}/items/root:/${encodeURIComponent(filename)}:/content`;
- const res = await fetch(url, {
- method: 'PUT',
- headers: {
- 'Authorization': `Bearer ${token}`,
- 'Content-Type': 'application/pdf',
- },
- body: file,
- });
- if (!res.ok) {
- const err = await res.json().catch(() => ({}));
- throw new Error(err?.error?.message || `Upload failed: HTTP ${res.status}`);
- }
- const result = await res.json();
- // Return the web URL so it can be stored on the list item
- return result?.webUrl || null;
-}
-async function addInvoiceFileURL(itemId, fileUrl) {
- // Write the uploaded file's URL back to the GPInvoices list item.
- return updateItem('GPInvoices', itemId, { FileURL: fileUrl });
-}
-
-// ── People photos: upload into the PeoplePhotos document library ───────
+// ── People photos: upload into the PeoplePhotos document library ──────
 let _peoplePhotosDriveId = null;
 async function getPeoplePhotosDriveId() {
   if (_peoplePhotosDriveId) return _peoplePhotosDriveId;
@@ -1828,26 +1549,6 @@ async function uploadPeoplePhoto(prefix, id, file) {
   const result = await res.json();
   const web = result?.webUrl;
   return web ? web + (web.includes('?') ? '&' : '?') + 'v=' + Date.now() : null;
-}
-
-// ── Payroll summary ───────────────────────────────────────────────────
-async function createPayrollNotification({ month, year, joiners, leavers, bonus }) {
-  const extraFields = {
-    Month:      ['January','February','March','April','May','June','July','August','September','October','November','December'][month - 1],
-    Year:       String(year),
-    Joiners:    JSON.stringify(joiners),
-    Leavers:    JSON.stringify(leavers),
-    BonusData:  bonus ? JSON.stringify(bonus) : null,
-  };
-  return fireNotification({
-    triggerType: 'payrollSummary',
-    recipients:  ['system@newton'],
-    triggerKey:  `payrollsummary-${year}-${month}`,
-    tone:        'info',
-    deepLink:    '',
-    body:        `Payroll summary for ${month}/${year}`,
-    extraFields,
-  });
 }
 
 // ── Shared utilities ──────────────────────────────────────────────────

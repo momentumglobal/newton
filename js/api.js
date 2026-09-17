@@ -1516,25 +1516,6 @@ async function filterToActiveTpEmails(tpEmails, tpMap) {
   const activeNames = new Set(activePeople.map(p => norm(p.EmployeeName)));
   return tpEmails.filter(e => activeNames.has(norm(tpMap[e.toLowerCase()])));
 }
-
-// Eligible respondents for an Engagement survey run = active employees
-// (People.IsActive) holding a talent_partner or delivery_manager role in
-// UserAssignments. Deliberately does NOT filter on UserAssignments.Active —
-// a bench/unassigned TP or DM with no current project is still an eligible
-// active employee (Chris, 16 Sep 2026 — see N-233). Dedupes by email first,
-// since one user can hold multiple UserAssignments rows (N-165).
-async function getEligibleRespondentCount() {
-  const assignments = await getItems('UserAssignments');
-  const tpDmEmails = new Set();
-  assignments.forEach(a => {
-    if (a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager') {
-      if (a.UserEmail) tpDmEmails.add(a.UserEmail.toLowerCase());
-    }
-  });
-  const tpMap = await getTalentPartnerDisplayMap();
-  const activeEmails = await filterToActiveTpEmails([...tpDmEmails], tpMap);
-  return activeEmails.length;
-}
  
 // Return all project IDs this user is assigned to (null = admin, sees all).
 // N-162: resolves against the ghosted user's real assignments when Ghost
@@ -1890,44 +1871,6 @@ function printPage(title, landscape = false, module = 'Newton') {
   setTimeout(() => { document.title = prevDocTitle; }, 1000);
 }
 
-// ── Client logos (N-214) ──────────────────────────────────────
-// Keyed by project id held as text in Title, so one filtered read serves the
-// briefing pack builder without touching the Projects payload.
-async function getClientLogo(projectId) {
-  const rows = await getItems("ClientLogos", `fields/Title eq '${String(projectId)}'`);
-  return rows.length ? rows[0] : null;
-}
-async function upsertClientLogo(projectId, logoData, logoName) {
-  const existing = await getClientLogo(projectId);
-  const fields = {
-    Title:     String(projectId),
-    ProjectID: parseInt(projectId),
-    LogoData:  logoData,
-    LogoName:  logoName || "",
-  };
-  return existing
-    ? updateItem("ClientLogos", existing.id, fields)
-    : createItem("ClientLogos", fields);
-}
-async function deleteClientLogo(projectId) {
-  const existing = await getClientLogo(projectId);
-  if (existing) await deleteItem("ClientLogos", existing.id);
-}
-
-// ── Candidate briefing packs (N-211) ──────────────────────────
-async function getBriefingPacks() {
-  return getItems("BriefingPacks");
-}
-async function getBriefingPackById(id) {
-  return getItem("BriefingPacks", id);
-}
-async function createBriefingPack(fields) {
-  return createItem("BriefingPacks", fields);
-}
-async function updateBriefingPack(id, fields) {
-  return updateItem("BriefingPacks", id, fields);
-}
-
 // N-235: Title and PackOwner are set by the caller, never copied. Everything
 // else is whitelisted — never round-trip a fetched Graph item into a create
 // (LinkTitle and friends are read-only → 403). A pack has no child rows, so
@@ -1943,20 +1886,6 @@ async function copyBriefingPack(id, owner) {
     Title:     `${src.Title} (copy)`,
     PackOwner: (owner || "").toLowerCase(),
   });
-}
-
-// ── Market Report ─────────────────────────────────────────────
-async function getMarketReports() {
-  return getItems("MarketReports");
-}
-async function getMarketReportById(id) {
-  return getItem("MarketReports", id);
-}
-async function createMarketReport(fields) {
-  return createItem("MarketReports", fields);
-}
-async function updateMarketReport(id, fields) {
-  return updateItem("MarketReports", id, fields);
 }
 
 // Generic role-visibility resolver, despite the old name — used by both the
@@ -2014,98 +1943,9 @@ async function getActiveSurveyRun() {
   return runs.length > 0 ? runs[0] : null;
 }
 
-async function getSurveyRuns() {
-  return getItems("SurveyRuns");
-}
-
 async function getSurveyQuestions(templateId) {
   const questions = await getItems("SurveyQuestions", `fields/TemplateID eq '${templateId}'`);
   return questions.sort((a, b) => (a.SortOrder ?? 0) - (b.SortOrder ?? 0));
-}
-
-async function getSurveyResponses(runId) {
-  return getItems("SurveyResponses", `fields/RunID eq '${runId}'`);
-}
-
-async function hasCompletedSurvey(runId, email) {
-  const completions = await getItems(
-    "SurveyCompletions",
-    `fields/RunID eq '${runId}' and fields/RespondentEmail eq '${email.toLowerCase()}'`
-  );
-  return completions.length > 0;
-}
-
-async function getSurveyCompletionCount(runId) {
-  const completions = await getItems("SurveyCompletions", `fields/RunID eq '${runId}'`);
-  return completions.length;
-}
-
-// ── Write ─────────────────────────────────────────────────────────────
-
-async function createSurveyTemplate(fields) {
-  return createItem("SurveyTemplates", {
-    Title:          fields.Title,
-    Description:    fields.Description   || "",
-    TargetAudience: fields.TargetAudience || "All",
-    Status:         fields.Status         || "Draft",
-    // N-133: isoDate() pins these to T12:00:00Z. Written bare, SharePoint
-    // resolved them in the SITE's timezone, so a BST-season date stored 23:00Z
-    // on the PREVIOUS day — and because the edit form redisplays the stored day
-    // and re-saves it, the value walked back one day on every edit. CloseDate
-    // is currently supplied by no caller, but it is the same shape one line
-    // over and would ratchet identically the moment one does.
-    TargetDate:     isoDate(fields.TargetDate) || undefined,
-    CloseDate:      isoDate(fields.CloseDate)  || undefined,
-    CreatedByEmail: fields.CreatedByEmail || "",
-  });
-}
-
-async function updateSurveyTemplate(id, fields) {
-  const payload = {};
-  if (fields.Title          !== undefined) payload.Title          = fields.Title;
-  if (fields.Description    !== undefined) payload.Description    = fields.Description;
-  if (fields.TargetAudience !== undefined) payload.TargetAudience = fields.TargetAudience;
-  if (fields.Status         !== undefined) payload.Status         = fields.Status;
-  // N-133: the UPDATE path is what actually drove the ratchet — each edit
-  // re-stored the (already shifted) day the form was showing. isoDate() returns
-  // null for an empty value, which is the correct way to clear a SharePoint
-  // date field, so deliberately emptying the field still clears it.
-  if (fields.TargetDate     !== undefined) payload.TargetDate     = isoDate(fields.TargetDate);
-  if (fields.CloseDate      !== undefined) payload.CloseDate      = isoDate(fields.CloseDate);
-  return updateItem("SurveyTemplates", id, payload);
-}
-
-async function createSurveyQuestion(fields) {
-  return createItem("SurveyQuestions", {
-    TemplateID:         String(fields.TemplateID),
-    QuestionText:       fields.QuestionText,
-    QuestionType:       fields.QuestionType,
-    ScaleMin:           fields.ScaleMin       ?? 1,
-    ScaleMax:           fields.ScaleMax       ?? 5,
-    ScaleMinLabel:      fields.ScaleMinLabel  || "",
-    ScaleMaxLabel:      fields.ScaleMaxLabel  || "",
-    Options:            fields.Options        || "",
-    IsRequired:         fields.IsRequired  ?? false,
-    SortOrder:          fields.SortOrder   ?? 0,
-  });
-}
-
-async function updateSurveyQuestion(id, fields) {
-  const payload = {};
-  if (fields.QuestionText !== undefined) payload.QuestionText = fields.QuestionText;
-  if (fields.QuestionType !== undefined) payload.QuestionType = fields.QuestionType;
-  if (fields.ScaleMin      !== undefined) payload.ScaleMin      = fields.ScaleMin;
-  if (fields.ScaleMax      !== undefined) payload.ScaleMax      = fields.ScaleMax;
-  if (fields.ScaleMinLabel !== undefined) payload.ScaleMinLabel = fields.ScaleMinLabel;
-  if (fields.ScaleMaxLabel !== undefined) payload.ScaleMaxLabel = fields.ScaleMaxLabel;
-  if (fields.Options       !== undefined) payload.Options       = fields.Options;
-  if (fields.IsRequired   !== undefined) payload.IsRequired   = fields.IsRequired;
-  if (fields.SortOrder    !== undefined) payload.SortOrder    = fields.SortOrder;
-  return updateItem("SurveyQuestions", id, payload);
-}
-
-async function deleteSurveyQuestion(id) {
-  return deleteItem("SurveyQuestions", id);
 }
 
 async function createSurveyRun(fields) {
@@ -2132,35 +1972,5 @@ async function createSurveyRun(fields) {
     CloseDate:          isoDate(closeDate),
     Status:             "Active",
     EligibleCount:      fields.EligibleCount || 0,
-  });
-}
-
-async function updateSurveyRun(id, fields) {
-  const payload = {};
-  if (fields.Status        !== undefined) payload.Status    = fields.Status;
-  // N-131: the edit path needs it too — fixing only createSurveyRun would
-  // leave a close date changed after activation writing the bare shape.
-  if (fields.CloseDate     !== undefined) payload.CloseDate = isoDate(fields.CloseDate);
-  if (fields.EligibleCount !== undefined) payload.EligibleCount = fields.EligibleCount;
-  return updateItem("SurveyRuns", id, payload);
-}
-
-// Called once per question answer on survey submission.
-// UUID only — no email, no user identifier.
-async function createSurveyResponse(fields) {
-  return createItem("SurveyResponses", {
-    RunID:              String(fields.RunID),
-    QuestionID:         String(fields.QuestionID),
-    RespondentUUID:     fields.RespondentUUID,
-    AnswerValue:        String(fields.AnswerValue),
-    SubmittedAt:        new Date().toISOString(),
-  });
-}
-
-// Called once on submit — email only, no answers.
-async function createSurveyCompletion(runId, email) {
-  return createItem("SurveyCompletions", {
-    RunID:           String(runId),
-    RespondentEmail: email.toLowerCase(),
   });
 }

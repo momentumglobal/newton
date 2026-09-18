@@ -21,32 +21,9 @@ const totalActiveHeadcount = people.filter(
   const peopleMap = {};
   people.forEach(p => { peopleMap[p.EmployeeName] = p; });
 
-  // Filter assignments overlapping the selected year
-  const yearStart = new Date(year, 0, 1);
-  const yearEnd   = new Date(year, 11, 31);
-
-  const relevant = assignments.filter(a => {
-    if (!a.StartDate || !a.EndDate) return false;
-    const s = new Date(a.StartDate);
-    const e = new Date(a.EndDate);
-    return s <= yearEnd && e >= yearStart;
-  });
-
-  // Group by customer, then employee
-  const BENCH_KEY = '__bench__';
-  const customerMap = {};
-  relevant.forEach(a => {
-    const customer = (isForecastAssignment(a) || !a.Customer || a.Customer === 'Unassigned') ? BENCH_KEY : a.Customer;
-    if (!customerMap[customer]) customerMap[customer] = {};
-    if (!customerMap[customer][a.EmployeeName]) customerMap[customer][a.EmployeeName] = [];
-    customerMap[customer][a.EmployeeName].push(a);
-  });
-
-  // Sort customers A-Z, bench last
-  const customers = Object.keys(customerMap)
-    .filter(c => c !== BENCH_KEY)
-    .sort();
-  if (customerMap[BENCH_KEY]) customers.push(BENCH_KEY);
+  // Filter assignments overlapping the selected year, then group into lanes
+  const { yearStart, yearEnd, relevant } = _ganttComputeWindow(assignments, year);
+  const lanes = _ganttBuildLanes(relevant);
 
   // Colour by project type — values are CSS tokens from style.css (N-116)
   const TYPE_COLOURS = CONFIG.PROJECT_TYPE_COLOUR_VARS;
@@ -70,30 +47,7 @@ const totalActiveHeadcount = people.filter(
     });
     if (!overlapping.length) return `<td style='padding:2px'></td>`;
 
-    const bars = overlapping.map(a => {
-      const s      = new Date(a.StartDate);
-      const e      = new Date(a.EndDate);
-      const segStart = s > mStart ? s : mStart;
-      const segEnd   = e < mEnd   ? e : mEnd;
-      const daysInMonth = mEnd.getDate();
-      const startDay    = segStart.getDate();
-      const endDay      = segEnd.getDate();
-      const leftPct  = ((startDay - 1) / daysInMonth * 100).toFixed(1);
-      const widthPct = ((endDay - startDay + 1) / daysInMonth * 100).toFixed(1);
-      const colour   = typeColour(a.ProjectType);
-      const isFc     = isForecastAssignment(a);
-      const startStr = new Date(a.StartDate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
-      const endStr   = new Date(a.EndDate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
-      const rate     = assignmentRateLabel(a);
-      const tooltip  = `${escHtml(a.Customer || 'Unassigned')}${isFc ? ' (Forecast)' : ''} · ${rate} · ${startStr} – ${endStr}`;
-      const bg = isFc
-        ? 'repeating-linear-gradient(45deg,var(--c-stripe-amber-dark),var(--c-stripe-amber-dark) 5px,var(--c-stripe-amber-light) 5px,var(--c-stripe-amber-light) 10px)'
-        : colour;
-      return `<div title='${tooltip}' style='position:absolute;top:3px;bottom:3px;
-        left:${leftPct}%;width:${widthPct}%;background:${bg};
-        ${isFc ? 'border:1px solid var(--accent);' : ''}
-        border-radius:3px;cursor:default'></div>`;
-    }).join('');
+    const bars = overlapping.map(a => _ganttRenderBar(a, mStart, mEnd, typeColour)).join('');
 
     return `<td style='padding:2px;position:relative'>
       <div style='position:relative;height:22px'>${bars}</div>
@@ -102,8 +56,8 @@ const totalActiveHeadcount = people.filter(
 
   // Build rows
   let rowsHtml = '';
-  customers.forEach((customer, ci) => {
-    const isBench = customer === BENCH_KEY;
+  lanes.forEach((lane, ci) => {
+    const { customer, isBench, employees } = lane;
 
     // Bench divider
     if (isBench && ci > 0) {
@@ -121,16 +75,7 @@ const totalActiveHeadcount = people.filter(
     </tr>`;
 
     // Employee rows
-    const employees = Object.keys(customerMap[customer]).sort((a, b) => {
-      const aLevel = customerMap[customer][a][0]?.Level;
-      const bLevel = customerMap[customer][b][0]?.Level;
-      const l = levelSortIndex(aLevel) - levelSortIndex(bLevel);
-      if (l !== 0) return l;
-      return a.localeCompare(b);
-    });
-      employees.forEach(emp => {
-      const empAssignments = customerMap[customer][emp];
-      const level = empAssignments[0]?.Level || '—';
+    employees.forEach(({ name: emp, level, assignments: empAssignments }) => {
       const cells = MONTHS.map((_, i) => monthCell(empAssignments, i)).join('');
       rowsHtml += `<tr>
         <td style='padding:4px 8px;font-size:12px;width:180px;min-width:180px;overflow:hidden;
@@ -282,6 +227,86 @@ const totalActiveHeadcount = people.filter(
         <tbody>${rowsHtml}</tbody>
       </table>
     </div>`;
+}
+
+// Pure date-window computation for the Deployment Timeline (N-239a)
+function _ganttComputeWindow(assignments, year) {
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd   = new Date(year, 11, 31);
+
+  const relevant = assignments.filter(a => {
+    if (!a.StartDate || !a.EndDate) return false;
+    const s = new Date(a.StartDate);
+    const e = new Date(a.EndDate);
+    return s <= yearEnd && e >= yearStart;
+  });
+
+  return { yearStart, yearEnd, relevant };
+}
+
+// Pure lane grouping/sorting for the Deployment Timeline (N-239a)
+function _ganttBuildLanes(relevant) {
+  const BENCH_KEY = '__bench__';
+  const customerMap = {};
+  relevant.forEach(a => {
+    const customer = (isForecastAssignment(a) || !a.Customer || a.Customer === 'Unassigned') ? BENCH_KEY : a.Customer;
+    if (!customerMap[customer]) customerMap[customer] = {};
+    if (!customerMap[customer][a.EmployeeName]) customerMap[customer][a.EmployeeName] = [];
+    customerMap[customer][a.EmployeeName].push(a);
+  });
+
+  // Sort customers A-Z, bench last
+  const customerNames = Object.keys(customerMap)
+    .filter(c => c !== BENCH_KEY)
+    .sort();
+  if (customerMap[BENCH_KEY]) customerNames.push(BENCH_KEY);
+
+  return customerNames.map(customer => {
+    const employeeNames = Object.keys(customerMap[customer]).sort((a, b) => {
+      const aLevel = customerMap[customer][a][0]?.Level;
+      const bLevel = customerMap[customer][b][0]?.Level;
+      const l = levelSortIndex(aLevel) - levelSortIndex(bLevel);
+      if (l !== 0) return l;
+      return a.localeCompare(b);
+    });
+
+    const employees = employeeNames.map(name => {
+      const empAssignments = customerMap[customer][name];
+      return {
+        name,
+        level: empAssignments[0]?.Level || '—',
+        assignments: empAssignments,
+      };
+    });
+
+    return { customer, isBench: customer === BENCH_KEY, employees };
+  });
+}
+
+// Pure per-assignment bar geometry/markup for one month cell (N-239a)
+function _ganttRenderBar(a, mStart, mEnd, typeColour) {
+  const s      = new Date(a.StartDate);
+  const e      = new Date(a.EndDate);
+  const segStart = s > mStart ? s : mStart;
+  const segEnd   = e < mEnd   ? e : mEnd;
+  const daysInMonth = mEnd.getDate();
+  const startDay    = segStart.getDate();
+  const endDay      = segEnd.getDate();
+  const leftPct  = ((startDay - 1) / daysInMonth * 100).toFixed(1);
+  const widthPct = ((endDay - startDay + 1) / daysInMonth * 100).toFixed(1);
+  const colour   = typeColour(a.ProjectType);
+  const isFc     = isForecastAssignment(a);
+  const startStr = new Date(a.StartDate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+  const endStr   = new Date(a.EndDate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+  const rate     = assignmentRateLabel(a);
+  const tooltip  = `${escHtml(a.Customer || 'Unassigned')}${isFc ? ' (Forecast)' : ''} · ${rate} · ${startStr} – ${endStr}`;
+  const bg = isFc
+    ? 'repeating-linear-gradient(45deg,var(--c-stripe-amber-dark),var(--c-stripe-amber-dark) 5px,var(--c-stripe-amber-light) 5px,var(--c-stripe-amber-light) 10px)'
+    : colour;
+  return `<div title='${tooltip}' style='position:absolute;top:3px;bottom:3px;
+    left:${leftPct}%;width:${widthPct}%;background:${bg};
+    ${isFc ? 'border:1px solid var(--accent);' : ''}
+    border-radius:3px;cursor:default'></div>`;
 }
 
 let _ganttYear = new Date().getFullYear();

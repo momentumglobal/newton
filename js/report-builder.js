@@ -519,7 +519,7 @@ async function rbSaveReport() {
 
 async function showReportBuilderLibrary() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<div class="page-header"><h2>Report Builder Library</h2></div><p>Loading...</p>';
+  main.innerHTML = '<div class="page-header"><h2>Report Library</h2></div><p>Loading...</p>';
 
   try {
     const user = getCurrentUser();

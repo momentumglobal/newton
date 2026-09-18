@@ -171,28 +171,12 @@ async function mobileSaveForecast(editId) {
   const isSplit   = CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(fcType);
   const notes = document.getElementById('msf-notes').value.trim();
 
-  if (!title) return fail('Customer / Project name is required.');
-  if (!start) return fail('Start date is required.');
-  if (!end)   return fail('End date is required.');
-  if (new Date(end) <= new Date(start)) return fail('End date must be after start date.');
-  if (Number.isNaN(hc) || hc < 0) return fail('Headcount must be 0 or more.');
-  if (!isSplit && hc < 1)         return fail('Headcount must be at least 1.');
+  const validationError = validateForecastForm({ title, start, end, hc, isSplit });
+  if (validationError) return fail(validationError);
 
   btn.disabled = true; btn.textContent = 'Saving...';
 
-  // IDENTICAL payload to desktop saveForecast.
-  const payload = {
-    Title: title,
-    ForecastStartDate: isoDate(start),   // N-116 QA1 — see sales-pages.js
-    ForecastEndDate: isoDate(end),
-    ForecastedHeadcount: hc,
-    ProjectType: fcType,
-    ForecastMonthlyRevenuePerHead:
-      isSplit || rev === '' ? null : parseFloat(rev),
-    RetainerFee:  isSplit && retainer  !== '' ? parseFloat(retainer)  : null,
-    PlacementFee: isSplit && placement !== '' ? parseFloat(placement) : null,
-    Notes: notes,
-  };
+  const payload = buildForecastPayload({ title, start, end, hc, fcType, revPerHead: rev, retainer, placement, notes, isSplit });
 
   try {
     if (editId) await updateSalesForecast(editId, payload);

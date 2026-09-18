@@ -79,35 +79,46 @@ function paRenderResults() {
   const container = document.getElementById("pa-results");
   if (!container || !_paData) return;
 
-  const { historical, activityRaw, benchmarks, allPlacements } = _paData;
+  const results = _paComputeResults(_paData, _paLocation, _paFunctionArea);
 
-  // Filter historical placements by selected dimensions
-  let filtered = historical;
-  if (_paLocation)     filtered = filtered.filter(r => r.country      === _paLocation);
-  if (_paFunctionArea) filtered = filtered.filter(r => r.functionArea === _paFunctionArea);
-
-  if (filtered.length === 0) {
+  if (results.empty) {
     container.innerHTML = `<p class="no-data" style="padding:32px">
       No placement data found for the selected filters.</p>`;
     return;
   }
 
+  container.innerHTML = _paRenderResultsHtml(results, _paLocation, _paFunctionArea);
+}
+
+// ── Results aggregation (pure — no DOM) ─────────────────────────────────
+function _paComputeResults(data, location, functionArea) {
+  const { historical, activityRaw, benchmarks, allPlacements } = data;
+
+  // Filter historical placements by selected dimensions
+  let filtered = historical;
+  if (location)     filtered = filtered.filter(r => r.country      === location);
+  if (functionArea) filtered = filtered.filter(r => r.functionArea === functionArea);
+
+  if (filtered.length === 0) {
+    return { empty: true };
+  }
+
   // ── Summary metrics ───────────────────────────────────────────────
-const ttfDays = filtered
-  .filter(r => r.openDate && r.placementDate)
-  .map(r => Math.round((new Date(r.placementDate) - new Date(r.openDate)) / (1000 * 60 * 60 * 24)));
-const ttfAvgDays = ttfDays.length >= 3
-  ? Math.round(ttfDays.reduce((s, v) => s + v, 0) / ttfDays.length)
-  : null;
-const ttfStdDev = ttfDays.length >= 3
-  ? Math.round(Math.sqrt(ttfDays.reduce((s, d) => s + Math.pow(d - ttfDays.reduce((a, b) => a + b, 0) / ttfDays.length, 2), 0) / ttfDays.length))
-  : null;
-const ttfResult = {
-  weeks: ttfAvgDays,
-  stdDevWeeks: ttfStdDev,
-  label: ttfAvgDays !== null ? `~${ttfAvgDays}d ±${ttfStdDev}d` : 'Insufficient data',
-  sampleSize: ttfDays.length
-};
+  const ttfDays = filtered
+    .filter(r => r.openDate && r.placementDate)
+    .map(r => Math.round((new Date(r.placementDate) - new Date(r.openDate)) / (1000 * 60 * 60 * 24)));
+  const ttfAvgDays = ttfDays.length >= 3
+    ? Math.round(ttfDays.reduce((s, v) => s + v, 0) / ttfDays.length)
+    : null;
+  const ttfStdDev = ttfDays.length >= 3
+    ? Math.round(Math.sqrt(ttfDays.reduce((s, d) => s + Math.pow(d - ttfDays.reduce((a, b) => a + b, 0) / ttfDays.length, 2), 0) / ttfDays.length))
+    : null;
+  const ttfResult = {
+    weeks: ttfAvgDays,
+    stdDevWeeks: ttfStdDev,
+    label: ttfAvgDays !== null ? `~${ttfAvgDays}d ±${ttfStdDev}d` : 'Insufficient data',
+    sampleSize: ttfDays.length
+  };
   const avgTTHDays = _paAvgTTH(filtered);
   const sampleSize = filtered.length;
 
@@ -129,68 +140,7 @@ const ttfResult = {
   };
   const funnelStages = computeRoleFunnel(totals, benchmarks);
 
-  // ── Summary cards ─────────────────────────────────────────────────
-  const summaryHtml = `
-      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-      <div style="font-size:15px;font-weight:600;color:var(--brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--border-subtle)">
-        Summary
-        ${_paLocation || _paFunctionArea
-          ? `<span style="font-size:12px;font-weight:400;color:var(--text-muted);margin-left:8px">
-              ${[_paFunctionArea, _paLocation].filter(Boolean).join(" · ")}</span>`
-          : ""}
-      </div>
-      <div class="kpi-strip">
-        <div class="kpi-card">
-          <div class="kpi-value">${ttfResult.weeks !== null ? `~${ttfResult.weeks}d` : "—"}</div>
-          <div class="kpi-label">Predicted Time to Hire</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
-            ${ttfResult.stdDevWeeks !== null ? `±${ttfResult.stdDevWeeks}d` : ttfResult.label}
-          </div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-value">${avgTTHDays !== null ? `${Math.round(avgTTHDays)}d` : "—"}</div>
-          <div class="kpi-label">Avg. Actual Time to Hire</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${sampleSize} placement${sampleSize !== 1 ? "s" : ""}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-value">${totals.Hires > 0 ? Math.round(totals.Outreach / totals.Hires) : "—"}</div>
-          <div class="kpi-label">Outreach per Hire</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">avg. across filtered roles</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-value">${totals.Offers > 0 ? Math.round((totals.Hires / totals.Offers) * 100) + "%" : "—"}</div>
-          <div class="kpi-label">Offer Success Rate</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${totals.Offers} offer${totals.Offers !== 1 ? "s" : ""} made</div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  // ── Funnel drop-off ───────────────────────────────────────────────
-  const ragDot = rag => {
-    const colours = { green: "var(--status-success-text)", amber: "var(--c-amber-mid)", red: "var(--c-red-mid)", grey: "var(--c-gray-300)" };
-    return `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${colours[rag] || colours.grey};margin-right:6px"></span>`;
-  };
-
-  const funnelHtml = `
-      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-      <div style="font-size:15px;font-weight:600;color:var(--brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--border-subtle)">Funnel Drop-off</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap">
-        ${funnelStages.map(s => `
-          <div style="flex:1;min-width:130px;background:var(--surface-tint);border:1px solid var(--border);border-radius:6px;padding:14px 16px">
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">${s.stage}</div>
-            <div style="font-size:22px;font-weight:700;color:var(--brand)">
-              ${s.conv !== null ? s.conv + "%" : "—"}
-            </div>
-            <div style="font-size:12px;margin-top:6px">
-              ${ragDot(s.rag)}${s.rag === "grey" ? "No data" : s.rag.charAt(0).toUpperCase() + s.rag.slice(1)}
-            </div>
-          </div>`).join("")}
-      </div>
-    </div>
-  `;
-
- // ── Role-by-role breakdown (grouped by RoleTitle + Location) ─────────
+  // ── Role-by-role breakdown (grouped by RoleTitle + Location) ─────────
   const groupMap = {};
   filtered.forEach(role => {
     const key = role.title && role.country
@@ -202,7 +152,7 @@ const ttfResult = {
     groupMap[key].roles.push(role);
   });
 
-  const rows = Object.values(groupMap)
+  const groups = Object.values(groupMap)
     .sort((a, b) => a.key.localeCompare(b.key))
     .map(group => {
       const groupIds = new Set(group.roles.map(r => String(r.id)));
@@ -235,7 +185,81 @@ const ttfResult = {
       const sym = SYMBOLS[currency] || currency;
 
       const roleFunnel = computeRoleFunnel(roleTotals, benchmarks);
-      const funnelSummary = roleFunnel
+
+      return { key: group.key, functionArea: group.functionArea, roleTotals, avgTth, avgSalary, sym, roleFunnel };
+    });
+
+  return { empty: false, ttfResult, avgTTHDays, sampleSize, totals, funnelStages, groups, groupCount: Object.keys(groupMap).length };
+}
+
+// ── Results HTML (pure — no fetching) ────────────────────────────────
+function _paRenderResultsHtml(results, location, functionArea) {
+  const { ttfResult, avgTTHDays, sampleSize, totals, funnelStages, groups, groupCount } = results;
+
+  const ragDot = rag => {
+    const colours = { green: "var(--status-success-text)", amber: "var(--c-amber-mid)", red: "var(--c-red-mid)", grey: "var(--c-gray-300)" };
+    return `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${colours[rag] || colours.grey};margin-right:6px"></span>`;
+  };
+
+  // ── Summary cards ─────────────────────────────────────────────────
+  const summaryHtml = `
+      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:var(--brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--border-subtle)">
+        Summary
+        ${location || functionArea
+          ? `<span style="font-size:12px;font-weight:400;color:var(--text-muted);margin-left:8px">
+              ${[functionArea, location].filter(Boolean).join(" · ")}</span>`
+          : ""}
+      </div>
+      <div class="kpi-strip">
+        <div class="kpi-card">
+          <div class="kpi-value">${ttfResult.weeks !== null ? `~${ttfResult.weeks}d` : "—"}</div>
+          <div class="kpi-label">Predicted Time to Hire</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
+            ${ttfResult.stdDevWeeks !== null ? `±${ttfResult.stdDevWeeks}d` : ttfResult.label}
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value">${avgTTHDays !== null ? `${Math.round(avgTTHDays)}d` : "—"}</div>
+          <div class="kpi-label">Avg. Actual Time to Hire</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${sampleSize} placement${sampleSize !== 1 ? "s" : ""}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value">${totals.Hires > 0 ? Math.round(totals.Outreach / totals.Hires) : "—"}</div>
+          <div class="kpi-label">Outreach per Hire</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">avg. across filtered roles</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value">${totals.Offers > 0 ? Math.round((totals.Hires / totals.Offers) * 100) + "%" : "—"}</div>
+          <div class="kpi-label">Offer Success Rate</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${totals.Offers} offer${totals.Offers !== 1 ? "s" : ""} made</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // ── Funnel drop-off ───────────────────────────────────────────────
+  const funnelHtml = `
+      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="font-size:15px;font-weight:600;color:var(--brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--border-subtle)">Funnel Drop-off</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        ${funnelStages.map(s => `
+          <div style="flex:1;min-width:130px;background:var(--surface-tint);border:1px solid var(--border);border-radius:6px;padding:14px 16px">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">${s.stage}</div>
+            <div style="font-size:22px;font-weight:700;color:var(--brand)">
+              ${s.conv !== null ? s.conv + "%" : "—"}
+            </div>
+            <div style="font-size:12px;margin-top:6px">
+              ${ragDot(s.rag)}${s.rag === "grey" ? "No data" : s.rag.charAt(0).toUpperCase() + s.rag.slice(1)}
+            </div>
+          </div>`).join("")}
+      </div>
+    </div>
+  `;
+
+ // ── Role-by-role breakdown ────────────────────────────────────────
+  const rows = groups.map(group => {
+      const funnelSummary = group.roleFunnel
         .map(s => `<span title="${s.stage}: ${s.conv !== null ? s.conv + "%" : "—"}">${ragDot(s.rag)}</span>`)
         .join("");
 
@@ -243,12 +267,12 @@ const ttfResult = {
         <tr>
           <td>${_paEsc(group.key)}</td>
           <td>${_paEsc(group.functionArea || "—")}</td>
-          <td style="text-align:center">${avgSalary !== null ? sym + avgSalary.toLocaleString('en-GB') : "—"}</td>
-          <td style="text-align:center">${avgTth !== null ? avgTth + "d" : "—"}</td>
-          <td style="text-align:center">${roleTotals.Outreach > 0 ? Math.round((roleTotals.Responses / roleTotals.Outreach) * 100) + "%" : "—"}</td>
+          <td style="text-align:center">${group.avgSalary !== null ? group.sym + group.avgSalary.toLocaleString('en-GB') : "—"}</td>
+          <td style="text-align:center">${group.avgTth !== null ? group.avgTth + "d" : "—"}</td>
+          <td style="text-align:center">${group.roleTotals.Outreach > 0 ? Math.round((group.roleTotals.Responses / group.roleTotals.Outreach) * 100) + "%" : "—"}</td>
           <td style="text-align:center">${funnelSummary}</td>
-          <td style="text-align:center">${roleTotals.Offers > 0
-            ? Math.round((roleTotals.Hires / roleTotals.Offers) * 100) + "%"
+          <td style="text-align:center">${group.roleTotals.Offers > 0
+            ? Math.round((group.roleTotals.Hires / group.roleTotals.Offers) * 100) + "%"
             : "—"}</td>
         </tr>`;
     })
@@ -257,7 +281,7 @@ const ttfResult = {
   const breakdownHtml = `
       <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:var(--brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--border-subtle)">
-        Role Breakdown <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(${Object.keys(groupMap).length} role type${Object.keys(groupMap).length !== 1 ? "s" : ""})</span>
+        Role Breakdown <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(${groupCount} role type${groupCount !== 1 ? "s" : ""})</span>
       </div>
       <table class="data-table" style="width:100%;margin:0">
         <thead>
@@ -279,7 +303,7 @@ const ttfResult = {
     </div>
   `;
 
-  container.innerHTML = summaryHtml + funnelHtml + breakdownHtml;
+  return summaryHtml + funnelHtml + breakdownHtml;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────

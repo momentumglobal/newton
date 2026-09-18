@@ -19,6 +19,12 @@ function clearButtonLoading(btn) {
   btn.style.cursor  = '';
 }
 
+// N-241 follow-up: the one-line lookup shared by getCurrencyForRole (api.js)
+// and mobileRenderPlacementForm's role-preselected prefill (mobile-pages.js).
+function currencyForRole(role) {
+  return CONFIG.COUNTRY_CURRENCY[role.Location] || '';
+}
+
 // ── Sales forecast form logic (N-241) ───────────────────────────────────
 // Shared by saveForecast (sales-pages.js) and mobileSaveForecast
 // (mobile-sales.js) — desktop and mobile forms read fields with different

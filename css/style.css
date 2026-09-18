@@ -3030,7 +3030,7 @@ body {
   /* Scoped to the Lead Magnet only — #main-content must actually contain
      #lm-preview. Without :has(), these rules also fired on the full LCI
      report (which shares body.lci-summary-mode) and blanked the whole print. */
-  body.lci-summary-mode #main-content:has(#lm-preview) #print-header { display: none !important; }
+  body.lci-summary-mode:has(#lm-preview) #print-header { display: none !important; }
   body.lci-summary-mode:has(#lm-preview) #sidebar,
   body.lci-summary-mode:has(#lm-preview) .page-header,
   body.lci-summary-mode:has(#lm-preview) #lm-modal { display: none !important; }

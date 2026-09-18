@@ -456,6 +456,16 @@ function deactivateGhost() {
 }
 // ── Data Health Tab (F-10 / N-092) ───────────────────────────────────
 async function buildDataHealthTab() {
+  const data = await _dhFetchSectionData();
+  return _dhRenderRowCountsHtml(data)
+    + _dhRenderDataIntegrityHtml(data)
+    + _dhRenderIndexStatusHtml(data)
+    + _dhRenderSchemaCheckHtml(data)
+    + _dhRenderErrorTelemetryHtml(data);
+}
+
+// ── Data Health Tab — data fetch (no DOM) ────────────────────────────
+async function _dhFetchSectionData() {
   // N-154 (F-10b): every registered list, not just the ones with a
   // LIST_FIELDS projection entry. See getMonitoredLists().
   const lists = getMonitoredLists();
@@ -464,6 +474,57 @@ async function buildDataHealthTab() {
     return null;  // one broken list must not take out the whole tab
   })));
   const excludedLists = CONFIG.DATA_HEALTH_EXCLUDED_LISTS || [];
+
+  const { ok: nullProjectOk, count: nullProjectCount } = await getWeeklyActivityNullProjectCount();
+  const { ok: nullWeekEndingOk, count: nullWeekEndingCount } = await getWeeklyActivityNullWeekEndingCount();
+
+  const targetLists = [...new Set(CONFIG.INDEX_TARGETS.map(t => t.list))];
+  const statusByList = {};
+  await Promise.all(targetLists.map(async l => {
+    const names = CONFIG.INDEX_TARGETS.filter(t => t.list === l).map(t => t.column);
+    statusByList[l] = await getColumnIndexStatus(l, names).catch(() => []);
+  }));
+
+  // N-174 (F-11a): schema contract check. One row per list registered in
+  // FIELD_ALIASES; getSchemaDiffs() already tolerates a single list's
+  // failure, so no extra .catch() batching is needed here.
+  const schemaResults = await getSchemaDiffs();
+
+  // N-173: client-side read + group. Graph has no GROUP BY; this mirrors
+  // the dedupe key diagnostics.js:reportError() uses (errorType|message|
+  // first real stack line) via the SAME diagStackHead() helper — reused,
+  // not duplicated, since diagnostics.js loads before this file in every
+  // shell that has this tab.
+  const diagRows = await getDiagnostics().catch(e => {
+    console.warn('Data Health: diagnostics fetch failed', e);
+    return [];
+  });
+  const diagGroups = {};
+  diagRows.forEach(r => {
+    const key = r.ErrorType + '|' + r.Message + '|' + diagStackHead(r.Stack);
+    if (!diagGroups[key]) {
+      diagGroups[key] = { message: r.Message, module: r.Module, users: new Set(), ids: [], lastSeen: r.OccurredAt, count: 0 };
+    }
+    const g = diagGroups[key];
+    g.count++;
+    g.ids.push(r.id);
+    if (r.UserEmail) g.users.add(r.UserEmail);
+    if (r.OccurredAt > g.lastSeen) { g.lastSeen = r.OccurredAt; g.module = r.Module; }
+  });
+  const diagList = Object.values(diagGroups).sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
+
+  return {
+    lists, counts, excludedLists,
+    nullProjectOk, nullProjectCount, nullWeekEndingOk, nullWeekEndingCount,
+    statusByList,
+    schemaResults,
+    diagList,
+  };
+}
+
+// ── Data Health Tab — render: List Row Counts ────────────────────────
+function _dhRenderRowCountsHtml(data) {
+  const { lists, counts, excludedLists } = data;
   const countRows = lists.map((l, i) => {
     const count = counts[i];
     const warn = count !== null && count >= CONFIG.LIST_ROW_COUNT_WARNING_THRESHOLD;
@@ -475,15 +536,63 @@ async function buildDataHealthTab() {
     </tr>`;
   }).join('');
 
-  const { ok: nullProjectOk, count: nullProjectCount } = await getWeeklyActivityNullProjectCount();
-  const { ok: nullWeekEndingOk, count: nullWeekEndingCount } = await getWeeklyActivityNullWeekEndingCount();
+  return `
+    <h3>List Row Counts</h3>
+    <p class="dh-note">
+      SharePoint scans the whole list to evaluate a filter on an unindexed
+      column, and throws once a result set passes 5,000 rows. Amber below
+      flags a list approaching that — index the columns below before it does.
+      Every list Newton is registered against is watched.
+      ${excludedLists.length
+        ? 'Deliberately excluded: ' + escHtml(excludedLists.join(', ')) + '.'
+        : 'No lists are excluded.'}
+      An em-dash means the count failed, not that the list is empty — the
+      browser console names which.
+    </p>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>List</th><th>Row count</th><th></th></tr></thead>
+      <tbody>${countRows || emptyStateRow({ colspan: 3, icon: 'database', message: 'No lists configured.' })}</tbody>
+    </table>
+    </div>
+`;
+}
 
-  const targetLists = [...new Set(CONFIG.INDEX_TARGETS.map(t => t.list))];
-  const statusByList = {};
-  await Promise.all(targetLists.map(async l => {
-    const names = CONFIG.INDEX_TARGETS.filter(t => t.list === l).map(t => t.column);
-    statusByList[l] = await getColumnIndexStatus(l, names).catch(() => []);
-  }));
+// ── Data Health Tab — render: Data Integrity ─────────────────────────
+function _dhRenderDataIntegrityHtml(data) {
+  const { nullProjectOk, nullProjectCount, nullWeekEndingOk, nullWeekEndingCount } = data;
+  return `    <h3>Data Integrity</h3>
+    <p class="dh-note">
+      WeeklyActivity.ProjectID is written by the activity form but read by no
+      page — every view maps activity to its project through the role instead.
+      The Project Dashboard nonetheless filters on it server-side, so any row
+      missing a value is being dropped from that view silently. This must read
+      zero. A "Query error" badge means the check itself failed — unknown,
+      not zero — see the browser console for the underlying error.
+    </p>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Check</th><th>Rows</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td>WeeklyActivity rows missing ProjectID</td>
+          <td>${nullProjectOk ? nullProjectCount.toLocaleString('en-GB') : '<span class="dh-badge dh-badge-danger">Query error</span>'}</td>
+          <td>${nullProjectOk && nullProjectCount ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
+        </tr>
+        <tr>
+          <td>WeeklyActivity rows missing WeekEndingDate</td>
+          <td>${nullWeekEndingOk ? nullWeekEndingCount.toLocaleString('en-GB') : '<span class="dh-badge dh-badge-danger">Query error</span>'}</td>
+          <td>${nullWeekEndingOk && nullWeekEndingCount ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+`;
+}
+
+// ── Data Health Tab — render: Index Status ───────────────────────────
+function _dhRenderIndexStatusHtml(data) {
+  const { statusByList } = data;
   const indexRows = CONFIG.INDEX_TARGETS.map(t => {
     const status = (statusByList[t.list] || []).find(s => s.name === t.column);
     const indexed = status?.indexed;
@@ -500,10 +609,23 @@ async function buildDataHealthTab() {
     </tr>`;
   }).join('');
 
-  // N-174 (F-11a): schema contract check. One row per list registered in
-  // FIELD_ALIASES; getSchemaDiffs() already tolerates a single list's
-  // failure, so no extra .catch() batching is needed here.
-  const schemaResults = await getSchemaDiffs();
+  return `    <h3>Index Status</h3>
+    <p class="dh-note">
+      Columns Newton filters on server-side (N-093). Indexing is a one-time
+      SharePoint schema change — confirm before applying.
+    </p>
+    <div class="table-scroll">
+    <table class="data-table dh-table-tight">
+      <thead><tr><th>List</th><th>Column</th><th>Status</th><th></th></tr></thead>
+      <tbody>${indexRows || emptyStateRow({ colspan: 4, icon: 'database', message: 'No index targets configured.' })}</tbody>
+    </table>
+    </div>
+`;
+}
+
+// ── Data Health Tab — render: Schema Check ───────────────────────────
+function _dhRenderSchemaCheckHtml(data) {
+  const { schemaResults } = data;
   const schemaRows = schemaResults.map(r => {
     let statusCell;
     let detailCell;
@@ -535,28 +657,28 @@ async function buildDataHealthTab() {
     </tr>`;
   }).join('');
 
-  // N-173: client-side read + group. Graph has no GROUP BY; this mirrors
-  // the dedupe key diagnostics.js:reportError() uses (errorType|message|
-  // first real stack line) via the SAME diagStackHead() helper — reused,
-  // not duplicated, since diagnostics.js loads before this file in every
-  // shell that has this tab.
-  const diagRows = await getDiagnostics().catch(e => {
-    console.warn('Data Health: diagnostics fetch failed', e);
-    return [];
-  });
-  const diagGroups = {};
-  diagRows.forEach(r => {
-    const key = r.ErrorType + '|' + r.Message + '|' + diagStackHead(r.Stack);
-    if (!diagGroups[key]) {
-      diagGroups[key] = { message: r.Message, module: r.Module, users: new Set(), ids: [], lastSeen: r.OccurredAt, count: 0 };
-    }
-    const g = diagGroups[key];
-    g.count++;
-    g.ids.push(r.id);
-    if (r.UserEmail) g.users.add(r.UserEmail);
-    if (r.OccurredAt > g.lastSeen) { g.lastSeen = r.OccurredAt; g.module = r.Module; }
-  });
-  const diagList = Object.values(diagGroups).sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
+  return `    <h3>Schema Check</h3>
+    <p class="dh-note">
+      Every list registered in FIELD_ALIASES, diffed against what Newton
+      expects to read (CONFIG.LIST_FIELDS for a projected list, otherwise
+      just its aliased columns). Missing means an expected column is gone;
+      Unexpected means a real column exists that no projection knows about
+      — a rename usually shows up as both at once, on the same list. Lists
+      with nothing registered to check show "No columns registered" rather
+      than a false pass.
+    </p>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>List</th><th>Checked columns</th><th>Detail</th><th>Status</th></tr></thead>
+      <tbody>${schemaRows || emptyStateRow({ colspan: 4, icon: 'database', message: 'No lists registered.' })}</tbody>
+    </table>
+    </div>
+`;
+}
+
+// ── Data Health Tab — render: Error Telemetry ────────────────────────
+function _dhRenderErrorTelemetryHtml(data) {
+  const { diagList } = data;
   const diagTableRows = diagList.map(g => {
     const users = [...g.users];
     // Display-only truncation, not a business threshold — no CONFIG entry.
@@ -575,79 +697,7 @@ async function buildDataHealthTab() {
     </tr>`;
   }).join('');
 
-  return `
-    <h3>List Row Counts</h3>
-    <p class="dh-note">
-      SharePoint scans the whole list to evaluate a filter on an unindexed
-      column, and throws once a result set passes 5,000 rows. Amber below
-      flags a list approaching that — index the columns below before it does.
-      Every list Newton is registered against is watched.
-      ${excludedLists.length
-        ? 'Deliberately excluded: ' + escHtml(excludedLists.join(', ')) + '.'
-        : 'No lists are excluded.'}
-      An em-dash means the count failed, not that the list is empty — the
-      browser console names which.
-    </p>
-    <div class="table-scroll">
-    <table class="data-table dh-table">
-      <thead><tr><th>List</th><th>Row count</th><th></th></tr></thead>
-      <tbody>${countRows || emptyStateRow({ colspan: 3, icon: 'database', message: 'No lists configured.' })}</tbody>
-    </table>
-    </div>
-    <h3>Data Integrity</h3>
-    <p class="dh-note">
-      WeeklyActivity.ProjectID is written by the activity form but read by no
-      page — every view maps activity to its project through the role instead.
-      The Project Dashboard nonetheless filters on it server-side, so any row
-      missing a value is being dropped from that view silently. This must read
-      zero. A "Query error" badge means the check itself failed — unknown,
-      not zero — see the browser console for the underlying error.
-    </p>
-    <div class="table-scroll">
-    <table class="data-table dh-table">
-      <thead><tr><th>Check</th><th>Rows</th><th></th></tr></thead>
-      <tbody>
-        <tr>
-          <td>WeeklyActivity rows missing ProjectID</td>
-          <td>${nullProjectOk ? nullProjectCount.toLocaleString('en-GB') : '<span class="dh-badge dh-badge-danger">Query error</span>'}</td>
-          <td>${nullProjectOk && nullProjectCount ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
-        </tr>
-        <tr>
-          <td>WeeklyActivity rows missing WeekEndingDate</td>
-          <td>${nullWeekEndingOk ? nullWeekEndingCount.toLocaleString('en-GB') : '<span class="dh-badge dh-badge-danger">Query error</span>'}</td>
-          <td>${nullWeekEndingOk && nullWeekEndingCount ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
-        </tr>
-      </tbody>
-    </table>
-    </div>
-    <h3>Index Status</h3>
-    <p class="dh-note">
-      Columns Newton filters on server-side (N-093). Indexing is a one-time
-      SharePoint schema change — confirm before applying.
-    </p>
-    <div class="table-scroll">
-    <table class="data-table dh-table-tight">
-      <thead><tr><th>List</th><th>Column</th><th>Status</th><th></th></tr></thead>
-      <tbody>${indexRows || emptyStateRow({ colspan: 4, icon: 'database', message: 'No index targets configured.' })}</tbody>
-    </table>
-    </div>
-    <h3>Schema Check</h3>
-    <p class="dh-note">
-      Every list registered in FIELD_ALIASES, diffed against what Newton
-      expects to read (CONFIG.LIST_FIELDS for a projected list, otherwise
-      just its aliased columns). Missing means an expected column is gone;
-      Unexpected means a real column exists that no projection knows about
-      — a rename usually shows up as both at once, on the same list. Lists
-      with nothing registered to check show "No columns registered" rather
-      than a false pass.
-    </p>
-    <div class="table-scroll">
-    <table class="data-table dh-table">
-      <thead><tr><th>List</th><th>Checked columns</th><th>Detail</th><th>Status</th></tr></thead>
-      <tbody>${schemaRows || emptyStateRow({ colspan: 4, icon: 'database', message: 'No lists registered.' })}</tbody>
-    </table>
-    </div>
-    <h3>Error Telemetry</h3>
+  return `    <h3>Error Telemetry</h3>
     <p class="dh-note">
       Uncaught errors and unhandled promise rejections from any Newton screen
       (N-172), grouped by message. Acknowledging a group clears it from this

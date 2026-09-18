@@ -413,57 +413,50 @@ function _lciXlOneoffs(ctx) {
 // columns B..(B+h-1); a key column sits to the right of the grid and is used by
 // the SUMPRODUCT subtotals (SUMPRODUCT, not SUMIF — a team name containing *
 // or ? would be treated as a wildcard by SUMIF and silently over-match).
-function _lciXlCalc(ctx) {
-  const { wb, model: m, horizon: h, comp: c } = ctx;
-  const E = CONFIG.LCI.EXCEL, C = E.COLOURS;
-  const ws = wb.addWorksheet(E.SHEETS.calc);
-  const keyCol = 3 + h, keyL = _lciXlCol(keyCol);
-  ws.columns = [{ width: 40 }, ...Array.from({ length: h }, () => ({ width: 14 })), { width: 4 }, { width: 22 }];
-  ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 2 }];
-
-  const dispMoney = _lciXlMoneyFmt(m.DisplayCurrency);
-  const ML  = i => _lciXlCol(2 + i);                       // month column letter, this sheet
-  const RML = i => _lciXlCol(ctx.roadmap.firstMonthCol + i); // month column letter, roadmap sheet
-  const SR  = _lciXlSheet(E.SHEETS.roadmap);
-  const SL  = _lciXlSheet(E.SHEETS.legacy);
-  const SO  = _lciXlSheet(E.SHEETS.oneoffs);
-
-  _lciXlSet(ws, 1, 1, 'Monthly Calc — every line, every month, including sections switched off in Newton.',
-    { bold: true, color: C.navyText });
-  _lciXlBand(ws, 1, keyCol, C.navy);
-  _lciXlMonthHeader(ws, 2, 2, ctx.labels, ['Line']);
-  _lciXlSet(ws, 2, keyCol, 'Key', { bold: true, color: C.navyText, fill: C.navy });
-
-  let r = 3;
-  const K = {}; // logical name → excel row
-
+// Bundles the mutable row cursor with the four cell-writing helpers so the
+// section functions below (_lciXlCalcCoe/_lciXlCalcLegacy/_lciXlCalcOneoffs/
+// _lciXlCalcTotals) can share state without recreating it. `rw = { r }` is
+// the only mutable cursor — sections read/advance it via `rw.r`, never a
+// local `let r`.
+function _lciXlRowWriter(ws, ML, keyCol, dispMoney, h, C, rw) {
   const heading = text => {
-    _lciXlSet(ws, r, 1, text, { bold: true });
-    _lciXlBand(ws, r, keyCol, C.subtotalFill);
-    r++;
+    _lciXlSet(ws, rw.r, 1, text, { bold: true });
+    _lciXlBand(ws, rw.r, keyCol, C.subtotalFill);
+    rw.r++;
   };
   // Write one line of month cells from a per-month formula builder + result series.
   const line = (label, fn, series, o = {}) => {
-    _lciXlSet(ws, r, 1, label, o.labelOpts || {});
+    _lciXlSet(ws, rw.r, 1, label, o.labelOpts || {});
     for (let i = 0; i < h; i++) {
-      _lciXlSet(ws, r, 2 + i, { formula: fn(i), result: series[i] },
+      _lciXlSet(ws, rw.r, 2 + i, { formula: fn(i), result: series[i] },
         { fmt: o.fmt || dispMoney, fill: o.fill });
     }
-    if (o.key !== undefined) _lciXlSet(ws, r, keyCol, o.key);
-    return r++;
+    if (o.key !== undefined) _lciXlSet(ws, rw.r, keyCol, o.key);
+    return rw.r++;
   };
   // SUM down a contiguous block of rows in this sheet; 0 when the block is empty.
   const sumBlock = (first, last, i) => (last >= first ? `SUM(${ML(i)}${first}:${ML(i)}${last})` : '0');
-  // Apply a section switch to a subtotal formula. A already-constant '0' is left
+  // Apply a section switch to a subtotal formula. An already-constant '0' is left
   // alone rather than becoming '0*LegacyOn' — same answer, less noise in the
   // formula bar for models with no rows of that type.
   const gate = (f, flag) => (f === '0' ? '0' : `${f}*${flag}`);
+  return { heading, line, sumBlock, gate };
+}
+
+// ── CoE section: payroll headcount by role → employee cost by role → CoE
+// totals → CoE operating costs. Populates K.coeHeadcount, K.coeEmployeeCost,
+// K.hires, K.eor, K.office, K.travel, K.coeOperating — read by the Totals
+// section below.
+function _lciXlCalcCoe(ctx, sheet, rw, K, helpers) {
+  const { model: m, comp: c } = ctx;
+  const { E, C, ML, RML, SR, SO, keyL } = sheet;
+  const { heading, line, sumBlock, gate } = helpers;
 
   // ── CoE payroll headcount by role ──
   // A hire in month N is on payroll in month N + notice. INDEX's argument is
   // guarded by the IF so it can never be < 1 (which would be a #VALUE!).
   heading('CoE payroll headcount by role');
-  const hcFirst = r;
+  const hcFirst = rw.r;
   ctx.coeMeta.forEach(meta => {
     const er = meta.excelRow;
     K[`hc:${er}`] = line(
@@ -471,11 +464,11 @@ function _lciXlCalc(ctx) {
       i => `IF(${i + 1}-${SR}!$F$${er}<1,0,SUM(${SR}!$${RML(0)}$${er}:INDEX(${SR}!$${RML(0)}$${er}:$${ctx.roadmap.lastMonthL}$${er},${i + 1}-${SR}!$F$${er})))`,
       meta.cum, { fmt: E.FORMATS.integer });
   });
-  const hcLast = r - 1;
+  const hcLast = rw.r - 1;
 
   // ── CoE employee cost by role ──
   heading('CoE employee cost by role (display currency)');
-  const ecFirst = r;
+  const ecFirst = rw.r;
   ctx.coeMeta.forEach(meta => {
     const er = meta.excelRow, hcRow = K[`hc:${er}`];
     line(`${meta.team} — ${meta.row.Title || 'Role'}`,
@@ -483,7 +476,7 @@ function _lciXlCalc(ctx) {
       meta.cum.map(v => v * meta.monthlyLocal * lciFxRate(m)),
       { key: meta.team });
   });
-  const ecLast = r - 1;
+  const ecLast = rw.r - 1;
 
   heading('CoE totals');
   K.coeHeadcount = line('CoE headcount (on payroll)', i => sumBlock(hcFirst, hcLast, i),
@@ -510,10 +503,19 @@ function _lciXlCalc(ctx) {
   K.coeOperating = line('Total CoE operating costs',
     i => `${ML(i)}${K.coeEmployeeCost}+${ML(i)}${K.eor}+${ML(i)}${K.office}+${ML(i)}${K.travel}`,
     c.coeOperating, { fill: C.subtotalFill, labelOpts: { bold: true } });
+}
+
+// ── Legacy section: legacy team by row → legacy totals. Populates
+// K.legacyHeadcount, K.legacyCost (and K['legacy:<cat>'] per category) —
+// K.legacyCost is read by the Totals section below.
+function _lciXlCalcLegacy(ctx, sheet, rw, K, helpers) {
+  const { comp: c } = ctx;
+  const { E, C, ML, SL, keyL, h } = sheet;
+  const { heading, line, sumBlock, gate } = helpers;
 
   // ── Legacy ──
   heading('Legacy team by row');
-  const lhFirst = r;
+  const lhFirst = rw.r;
   ctx.legacyMeta.forEach(meta => {
     const lr = meta.excelRow;
     line(`Headcount — ${meta.row.Title || 'Role'}`,
@@ -521,8 +523,8 @@ function _lciXlCalc(ctx) {
       Array.from({ length: h }, (_, i) => (i < meta.effExit ? meta.qty : 0)),
       { fmt: E.FORMATS.integer });
   });
-  const lhLast = r - 1;
-  const lcFirst = r;
+  const lhLast = rw.r - 1;
+  const lcFirst = rw.r;
   ctx.legacyMeta.forEach(meta => {
     const lr = meta.excelRow;
     line(`Cost — ${meta.row.Title || 'Role'}`,
@@ -530,7 +532,7 @@ function _lciXlCalc(ctx) {
       Array.from({ length: h }, (_, i) => (i < meta.effExit ? meta.cost : 0)),
       { key: meta.cat });
   });
-  const lcLast = r - 1;
+  const lcLast = rw.r - 1;
 
   heading('Legacy totals');
   K.legacyHeadcount = line('Legacy headcount', i => gate(sumBlock(lhFirst, lhLast, i), 'LegacyOn'),
@@ -544,6 +546,14 @@ function _lciXlCalc(ctx) {
   });
   K.legacyCost = line('Legacy team costs', i => gate(sumBlock(lcFirst, lcLast, i), 'LegacyOn'),
     c.legacyCost, { fill: C.subtotalFill, labelOpts: { bold: true } });
+}
+
+// ── One-offs & fees section. Populates K.oneoffs, K.fee (per-row map),
+// K.fees — K.oneoffs/K.fees are read by the Totals section below.
+function _lciXlCalcOneoffs(ctx, sheet, rw, K, helpers) {
+  const { comp: c } = ctx;
+  const { C, ML, SO, h } = sheet;
+  const { heading, line, gate } = helpers;
 
   // ── One-offs & fees ──
   heading('One-offs & project fees');
@@ -558,6 +568,14 @@ function _lciXlCalc(ctx) {
   K.fees = line('Total project fees',
     i => gate(fb.last >= fb.first ? `SUM(${SO}!${ML(i)}${fb.first}:${ML(i)}${fb.last})` : '0', 'FeesOn'),
     c.fees, { fill: C.subtotalFill, labelOpts: { bold: true } });
+}
+
+// ── Totals section. Reads K.coeOperating/K.legacyCost/K.oneoffs/K.fees from
+// the earlier sections; populates K.totalMonthly, K.cumulative, K.crossover.
+function _lciXlCalcTotals(ctx, sheet, rw, K, helpers) {
+  const { comp: c } = ctx;
+  const { C, ML } = sheet;
+  const { heading, line } = helpers;
 
   // ── Totals ──
   // CoE operating counted ONCE. Do not "fix" this to match the Barcelona sheet.
@@ -565,15 +583,49 @@ function _lciXlCalc(ctx) {
   K.totalMonthly = line('Total monthly spend',
     i => `${ML(i)}${K.coeOperating}+${ML(i)}${K.legacyCost}+${ML(i)}${K.oneoffs}+${ML(i)}${K.fees}`,
     c.totalMonthly, { fill: C.totalFill, labelOpts: { bold: true } });
-  // `r` inside this builder is still the cumulative row itself — `line` reads
-  // the formula before incrementing — so ${r} is the self-reference to the
-  // previous month's cumulative cell on the SAME row. Do not hoist `r`.
+  // `rw.r` here is still the cumulative row itself — `line` reads the formula
+  // before incrementing — so ${rw.r} is the self-reference to the previous
+  // month's cumulative cell on the SAME row. Do not read `rw.r` into a local
+  // before calling `line`, and do not hoist this call above where `line`
+  // leaves the cursor.
   K.cumulative = line('Cumulative spend',
-    i => (i === 0 ? `${ML(0)}${K.totalMonthly}` : `${ML(i - 1)}${r}+${ML(i)}${K.totalMonthly}`),
+    i => (i === 0 ? `${ML(0)}${K.totalMonthly}` : `${ML(i - 1)}${rw.r}+${ML(i)}${K.totalMonthly}`),
     c.cumulativeSpend, { fill: C.totalFill, labelOpts: { bold: true } });
   K.crossover = line('CoE operating + legacy (peak crossover series)',
     i => `${ML(i)}${K.coeOperating}+${ML(i)}${K.legacyCost}`,
     c.coeOperating.map((v, i) => v + c.legacyCost[i]), { fill: C.derivedFill });
+}
+
+function _lciXlCalc(ctx) {
+  const { wb, model: m, horizon: h } = ctx;
+  const E = CONFIG.LCI.EXCEL, C = E.COLOURS;
+  const ws = wb.addWorksheet(E.SHEETS.calc);
+  const keyCol = 3 + h, keyL = _lciXlCol(keyCol);
+  ws.columns = [{ width: 40 }, ...Array.from({ length: h }, () => ({ width: 14 })), { width: 4 }, { width: 22 }];
+  ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 2 }];
+
+  const dispMoney = _lciXlMoneyFmt(m.DisplayCurrency);
+  const ML  = i => _lciXlCol(2 + i);                       // month column letter, this sheet
+  const RML = i => _lciXlCol(ctx.roadmap.firstMonthCol + i); // month column letter, roadmap sheet
+  const SR  = _lciXlSheet(E.SHEETS.roadmap);
+  const SL  = _lciXlSheet(E.SHEETS.legacy);
+  const SO  = _lciXlSheet(E.SHEETS.oneoffs);
+
+  _lciXlSet(ws, 1, 1, 'Monthly Calc — every line, every month, including sections switched off in Newton.',
+    { bold: true, color: C.navyText });
+  _lciXlBand(ws, 1, keyCol, C.navy);
+  _lciXlMonthHeader(ws, 2, 2, ctx.labels, ['Line']);
+  _lciXlSet(ws, 2, keyCol, 'Key', { bold: true, color: C.navyText, fill: C.navy });
+
+  const rw = { r: 3 };
+  const K = {}; // logical name → excel row
+  const helpers = _lciXlRowWriter(ws, ML, keyCol, dispMoney, h, C, rw);
+  const sheet = { E, C, ML, RML, SR, SL, SO, keyCol, keyL, dispMoney, h };
+
+  _lciXlCalcCoe(ctx, sheet, rw, K, helpers);
+  _lciXlCalcLegacy(ctx, sheet, rw, K, helpers);
+  _lciXlCalcOneoffs(ctx, sheet, rw, K, helpers);
+  _lciXlCalcTotals(ctx, sheet, rw, K, helpers);
 
   ctx.calc = K;
   ctx.calcML = ML;

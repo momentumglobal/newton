@@ -428,10 +428,7 @@ async function mobileLoadRolesForPlacement(projectId) {
 async function mobileLoadCurrencyForPlacement(roleId) {
   const cur = document.getElementById('mp-currency');
   if (!cur || !roleId) return;
-  try {
-    const role = await getItem('Roles', roleId);
-    cur.value  = CONFIG.COUNTRY_CURRENCY[role.Location] || '';
-  } catch (e) { cur.value = ''; }
+  cur.value = await getCurrencyForRole(roleId);
 }
 
 async function mobileSubmitPlacement(rolePreselected) {

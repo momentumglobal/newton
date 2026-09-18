@@ -561,7 +561,9 @@ function _rbVisibleReports(reports, projectIds, email) {
   if (_resolvedRole === 'delivery_manager') {
     return reports.filter(r => r.Scope === 'company' || mine(r) || onProj(r));
   }
-  return reports.filter(r => mine(r) || onProj(r));  // talent_partner
+  // talent_partner — project-scope only, own or assigned; Scope:'company'
+  // is excluded outright, never surfaced by ownership alone (N-244 QA finding 1).
+  return reports.filter(r => r.Scope === 'project' && (mine(r) || onProj(r)));
 }
 
 // One resolver for grouping, filter options and filter matching, so all
@@ -712,7 +714,12 @@ async function rbDeleteReport(id, title) {
     message: `Delete "${title}"? This cannot be undone.`,
     confirmLabel: 'Delete', danger: true,
   }))) return;
-  await deleteItem('SavedReports', id);
+  try {
+    await deleteItem('SavedReports', id);
+  } catch (e) {
+    toast('Could not delete that report: ' + e.message, { type: 'error' });
+    return;
+  }
   showReportBuilderLibrary();
 }
 

@@ -759,8 +759,6 @@ body {
   padding: var(--sp-11);
   background: var(--surface-app);
 }
-.page-placeholder h1 { color: var(--text-heading); margin-bottom: var(--sp-6); }
-.page-placeholder p  { color: var(--text-label); }
 /* ── Forms ──────────────────────────────────────────────────────────── */
 .form-container { max-width: 720px; padding: var(--sp-9); }
 .form-container h2 { margin-bottom: var(--sp-8); color: var(--text-heading); font-weight: 600; letter-spacing: var(--ls-heading); }
@@ -1005,8 +1003,6 @@ body {
   color: var(--brand);
 }
 .badge-active     { background: var(--status-success-bg); color: var(--status-success); }
-.badge-transition { background: var(--status-warn-bg); color: var(--status-warn); }
-.badge-completed  { background: var(--badge-completed-bg); color: var(--c-ptype-lci); }
 /* ── Data Health tab (F-10 / N-092, tidied N-139) ─────────────────────
    Badge/muted-cell/table-spacing styles for Admin → Data Health, moved
    out of inline style="…" attributes. */
@@ -1085,8 +1081,7 @@ body {
 .nt-chart-bar           { height: 18px; border-radius: var(--r-sm); min-width: 2px; background: var(--surface-accent); }
 .nt-chart-bar-val       { width: 50px; font-size: var(--fs-12); color: var(--text-secondary); flex-shrink: 0; }
 .no-data { color: var(--text-muted); font-size: var(--fs-13); font-style: italic; }
-.totals-row td { background: var(--surface-alt) !important; font-weight: 600; }
-.spend-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-7); margin-top: var(--sp-4); }
+.totals-row td { background: var(--surface-alt); font-weight: 600; }
 .spend-label { font-size: var(--fs-11); color: var(--text-label); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--sp-2); }
 .spend-val { font-size: var(--fs-22); font-weight: 600; color: var(--brand); font-variant-numeric: tabular-nums; letter-spacing: var(--ls-heading); }
 .dash-project-selector { max-width: 320px; margin-bottom: var(--sp-8); }
@@ -1559,10 +1554,6 @@ body {
 .ra-tp   { color: var(--text-label); font-size: var(--fs-12); }
 .ra-ttf  { white-space: nowrap; }
 .ra-cell { text-align: center; font-size: var(--fs-12); line-height: 1.3; }
-.ra-green { background: var(--status-success-bg); color: var(--status-success); }
-.ra-amber { background: var(--status-warn-bg); color: var(--status-warn); }
-.ra-red   { background: var(--status-danger-bg); color: var(--status-danger); }
-.ra-grey  { background: var(--surface-sunken); color: var(--text-muted); }
 
 /* ── People Scorecards ── */
 .scorecard-grid {
@@ -1615,24 +1606,6 @@ body {
 /* ═══════════════════════════════════════════════ */
 /* Command Centre                                  */
 /* ═══════════════════════════════════════════════ */
-
-/* ── Homepage banner ── */
-.cc-banner {
-  display: flex; align-items: center; gap: var(--sp-9);
-  padding: 18px 28px; border-radius: var(--r-3xl);
-  margin-bottom: var(--sp-8); text-decoration: none;
-  transition: opacity 0.15s;
-}
-.cc-banner:hover { opacity: 0.88; }
-.cc-banner--green { background: rgba(46,125,50,0.45); border: 1px solid rgba(46,125,50,0.65); }
-.cc-banner--amber { background: rgba(245,127,23,0.45); border: 1px solid rgba(245,127,23,0.65); }
-.cc-banner--red   { background: rgba(198,40,40,0.45);  border: 1px solid rgba(198,40,40,0.65); }
-.cc-banner__title { font-size: var(--fs-15); font-weight: 600; color: var(--inverse-text); }
-.cc-banner__sub   { font-size: var(--fs-11); color: var(--inverse-text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
-.cc-banner__kpis  { display: flex; gap: var(--sp-8); flex: 1; justify-content: center; }
-.cc-banner__kpi   { font-size: var(--fs-13); color: var(--inverse-text-subtitle); }
-.cc-banner__kpi strong { font-size: var(--fs-20); color: var(--inverse-text); display: block; line-height: 1; letter-spacing: var(--ls-heading); font-variant-numeric: tabular-nums; }
-.cc-banner__cta   { font-size: var(--fs-13); color: var(--inverse-text-muted); }
 
 /* ── Command Centre module shell ── */
 .cc-grid {
@@ -2249,7 +2222,7 @@ body {
 /* Print / PDF export */
 @media print {
   .eng-controls, .eng-tab-strip, .eng-rate-banner .btn-secondary,
-  .eng-modal-overlay, .home-bottom-bar { display: none !important; }
+  .eng-modal-overlay, .home-bottom-bar { display: none; }
   .eng-card { break-inside: avoid; }
 }
 
@@ -2739,11 +2712,11 @@ body {
 
 /* ── CoE Hiring Plan — print/PDF ───────────────────────────────────── */
 @media print {
-  .coe-toolbar, .coe-col-actions, #coe-modal-host { display: none !important; }
+  .coe-toolbar, .coe-col-actions, #coe-modal-host { display: none; }
   .coe-gantt-wrap { border: none; }
   .coe-gantt thead { position: static !important; }
   /* Page 1 = Gantt, page 2 = forecast table */
-  .coe-fvp-header { break-before: page; page-break-before: always; margin-top: 0 !important; }
+  .coe-fvp-header { break-before: page; page-break-before: always; margin-top: 0; }
   /* Grid can breathe now it has the page to itself */
   .coe-gantt { font-size: var(--fs-10); }
   .coe-capacity td, .coe-capacity th { font-size: inherit; }
@@ -2776,7 +2749,7 @@ body {
 .rb-hiring-plan-page { display: none; } /* print-only content */
 
 @media print {
-  .rb-gantt-placeholder { display: none !important; }
+  .rb-gantt-placeholder { display: none; }
   /* Named page: this block prints landscape while the rest stays portrait.
      Chromium (Chrome/Edge) only — Firefox ignores named pages. */
   @page coe-gantt { size: A4 landscape; }
@@ -2937,9 +2910,9 @@ body {
 @media print {
   @page lci-full { size: A4 landscape; margin: 0; }
 
-  .lci-noprint { display: none !important; }
+  .lci-noprint { display: none; }
   /* Client-facing summary: no 'Confidential — Internal' banner */
-  body.lci-summary-mode::before { display: none !important; content: none !important; }
+  body.lci-summary-mode::before { display: none; content: none; }
   /* Banner sits flush on the first section; sections match banner width */
   body.lci-summary-mode #print-header { margin-bottom: 0 !important; }
   body.lci-summary-mode #main-content { padding: 0 !important; margin: 0 !important; }
@@ -2947,7 +2920,7 @@ body {
   /* Tighter title block */
   .lci-summary-card { padding: 14px var(--sp-8); }
   #lci-print-p1 .lci-summary-head h2 { margin: 0; font-size: var(--fs-20); }
-  #lci-print-p1 .lci-grid-scroll { margin-top: var(--sp-4) !important; }
+  #lci-print-p1 .lci-grid-scroll { margin-top: var(--sp-4); }
   /* Page breaks: p1 plan, p2 cost model, p3 chart, p4 assumptions */
   #lci-print-p2, #lci-print-p3, #lci-print-p4 { break-before: page; page-break-before: always; }
   /* Multi-page sections: don't split rows; keep team headers with their rows */
@@ -2978,7 +2951,7 @@ body {
      inside an existing .lci-summary-card, so the card's own border/padding is
      neutralised and the tile treatment moves onto each slice — otherwise one
      card's border would be sliced in half by the page break. */
-  .lci-screenonly { display: none !important; }
+  .lci-screenonly { display: none; }
   .lci-printonly { display: block; }
   /* Break BEFORE every slice that follows another slice — never the first.
      Do not use :first-of-type here: it means "first div among siblings", and
@@ -3190,14 +3163,14 @@ body {
      was the main reason the title and chart split across two pages. Padding and
      title margin trimmed for the same reason — on screen both stay as they were. */
   body.org-printing #org-chart-page {
-    overflow: visible !important; min-height: 0; padding: var(--sp-4); }
+    overflow: visible; min-height: 0; padding: var(--sp-4); }
   body.org-printing .org-print-title {
     display: block; text-align: center; font-size: var(--fs-15); font-weight: 600;
     color: var(--brand); margin: 0 0 var(--sp-3); }
   body.org-printing .org-tree { padding-top: var(--sp-2); }
   /* 24px below the header is tuned for multi-page reports; the org chart is a
      single page and needs the pixels more than the breathing room. */
-  body.org-printing #print-header { margin-bottom: var(--sp-6) !important; }
+  body.org-printing #print-header { margin-bottom: var(--sp-6); }
   body.org-printing #org-chart-canvas { text-align: center; min-width: 0; }
   body.org-printing #org-chart-inner { zoom: var(--org-print-scale, 1); }
 }

@@ -103,58 +103,108 @@ async function renderOrgChart() {
   if (window.lucide) lucide.createIcons();
 }
 
+// ── org tree node builders (module scope — N-239c; previously closures
+// nested inside buildOrgTree) ───────────────────────────────────────────
+
+// Project node for a given CSD (by display name), with its team hung beneath.
+// A placeholder drops its level band colour (the dashed treatment reads better on
+// white) and shows "To be hired" in place of a location it doesn't have yet.
+function _ocPersonNode(p) {
+  const ph = !!p.IsPlaceholder;
+  return { kind: 'person', label: p.EmployeeName,
+    // Placeholders carry no sub-label — the vacancy is stated in the name itself.
+    sub: ph ? '' : `${p.Level || ''}${p.Location ? ' · ' + p.Location : ''}`,
+    // STP and PTP both render in the TP band colour (.org-node--tp) — no
+    // separate CSS needed for either.
+    _band: ph ? '' : ((p.Level === 'STP' || p.Level === 'PTP') ? 'TP' : p.Level),
+    _placeholder: ph, _photo: p.PhotoUrl, children: [] };
+}
+
+// Shared by real and synthetic bubbles so the two can't drift apart: the SDM sits
+// directly under the bubble and everyone else reports into the first SDM; with no
+// SDM the team hangs straight off the bubble.
+function _ocTeamChildren(members) {
+  const byName = (a, b) => a.EmployeeName.localeCompare(b.EmployeeName);
+  const sdms    = members.filter(p => p.Level === 'SDM').sort(byName);
+  const reports = members.filter(p => p.Level !== 'SDM').sort(byName);
+  if (!sdms.length) return reports.map(_ocPersonNode); // no SDM → team reports into the bubble
+  const sdmNodes = sdms.map(_ocPersonNode);
+  sdmNodes[0].children = reports.map(_ocPersonNode);   // TPs/STPs report into the SDM
+  return sdmNodes;                                      // (extra SDMs sit as siblings)
+}
+
+function _ocProjectNode(proj, people, currentAssign) {
+  const members = [];
+  people.forEach(p => {
+    // Placeholders anchor via People.PlaceholderProject, never via Assignments —
+    // fake assignment rows would leak into utilisation, bench sync and the timeline.
+    if (p.IsPlaceholder) {
+      const pp = _ocNorm(p.PlaceholderProject);
+      if (pp && pp === _ocNorm(proj.CustomerName)) members.push(p);
+      return;
+    }
+    if ((currentAssign[p.EmployeeName] || [])
+          .some(a => _ocNorm(a.Customer) === _ocNorm(proj.CustomerName))) {
+      members.push(p);
+    }
+  });
+  return { kind: 'project', label: proj.CustomerName,
+           sub: proj.ProjectType || 'Project',
+           _colour: _ocTypeColour(proj.ProjectType),
+           children: _ocTeamChildren(members) };
+}
+
+// Synthetic bubbles: placeholder-only teams with NO Projects row at all. Keeps
+// fictional/vacant teams out of the Projects list, and therefore out of Reporting.
+function _ocSyntheticNodes(csd, people, realProjects) {
+  const groups = {};
+  people.forEach(p => {
+    if (!p.IsPlaceholder) return;
+    const name = String(p.PlaceholderProject || '').trim();
+    if (!name || realProjects.has(_ocNorm(name))) return;   // real bubble wins
+    if (_ocNorm(p.PlaceholderCSD) !== _ocNorm(csd.EmployeeName)) return;
+    (groups[name] = groups[name] || []).push(p);
+  });
+  return Object.keys(groups).sort().map(name => ({
+    kind: 'project', label: name,
+    sub: CONFIG.ORG_PLACEHOLDER_PROJECT_TYPE,
+    _colour: _ocTypeColour(CONFIG.ORG_PLACEHOLDER_PROJECT_TYPE),
+    children: _ocTeamChildren(groups[name]),
+  }));
+}
+
+// CSD node: children are the projects that CSD owns, plus any synthetic bubbles.
+function _ocCsdNode(csd, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD) {
+  const projs = projectsByCSD[_ocNorm(csd.EmployeeName)] || [];
+  return { kind: 'csd', label: csd.EmployeeName,
+           sub: `CSD${csd.Location ? ' · ' + csd.Location : ''}`,
+           _email: _ocEmail(csd.ReportsTo), _photo: csd.PhotoUrl,
+           children: [...projs.map(p => _ocProjectNode(p, people, currentAssign)),
+                      ..._ocSyntheticNodes(csd, people, realProjects),
+                      ...(lciOwnedByCSD[_ocNorm(csd.EmployeeName)] || [])] };
+}
+
+// Leadership node: children are leaders + CSDs whose ReportsTo == this email.
+function _ocBuildLeader(leader, seen, leadership, csds, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD) {
+  const email = _ocEmail(leader.UserEmail);
+  if (seen.has(email)) return null;      // loop guard
+  seen.add(email);
+  const kids = [];
+  leadership.filter(l => _ocEmail(l.ReportsTo) === email)
+    .forEach(l => {
+      const n = _ocBuildLeader(l, seen, leadership, csds, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD);
+      if (n) kids.push(n);
+    });
+  csds.filter(c => _ocEmail(c.ReportsTo) === email)
+    .forEach(c => kids.push(_ocCsdNode(c, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD)));
+  return { kind: 'leader', label: leader.UserName || leader.UserEmail,
+           sub: leader.JobTitle || 'Leadership', _photo: leader.PhotoUrl, children: kids };
+}
+
 // ── tree builder ───────────────────────────────────────────────────────
 // Returns { roots, unassignedProjects }. Node = { kind, label, sub, children:[] }.
 function buildOrgTree({ people, leadership, projectsByCSD, currentAssign, lciProjectOwners }) {
   const csds = people.filter(p => p.Level === 'CSD');
-
-  // Project node for a given CSD (by display name), with its team hung beneath.
-  // A placeholder drops its level band colour (the dashed treatment reads better on
-  // white) and shows "To be hired" in place of a location it doesn't have yet.
-  const personNode = (p) => {
-    const ph = !!p.IsPlaceholder;
-    return { kind: 'person', label: p.EmployeeName,
-      // Placeholders carry no sub-label — the vacancy is stated in the name itself.
-      sub: ph ? '' : `${p.Level || ''}${p.Location ? ' · ' + p.Location : ''}`,
-      // STP and PTP both render in the TP band colour (.org-node--tp) — no
-      // separate CSS needed for either.
-      _band: ph ? '' : ((p.Level === 'STP' || p.Level === 'PTP') ? 'TP' : p.Level),
-      _placeholder: ph, _photo: p.PhotoUrl, children: [] };
-  };
-
-  // Shared by real and synthetic bubbles so the two can't drift apart: the SDM sits
-  // directly under the bubble and everyone else reports into the first SDM; with no
-  // SDM the team hangs straight off the bubble.
-  const teamChildren = (members) => {
-    const byName = (a, b) => a.EmployeeName.localeCompare(b.EmployeeName);
-    const sdms    = members.filter(p => p.Level === 'SDM').sort(byName);
-    const reports = members.filter(p => p.Level !== 'SDM').sort(byName);
-    if (!sdms.length) return reports.map(personNode); // no SDM → team reports into the bubble
-    const sdmNodes = sdms.map(personNode);
-    sdmNodes[0].children = reports.map(personNode);   // TPs/STPs report into the SDM
-    return sdmNodes;                                  // (extra SDMs sit as siblings)
-  };
-
-  const projectNode = (proj) => {
-    const members = [];
-    people.forEach(p => {
-      // Placeholders anchor via People.PlaceholderProject, never via Assignments —
-      // fake assignment rows would leak into utilisation, bench sync and the timeline.
-      if (p.IsPlaceholder) {
-        const pp = _ocNorm(p.PlaceholderProject);
-        if (pp && pp === _ocNorm(proj.CustomerName)) members.push(p);
-        return;
-      }
-      if ((currentAssign[p.EmployeeName] || [])
-            .some(a => _ocNorm(a.Customer) === _ocNorm(proj.CustomerName))) {
-        members.push(p);
-      }
-    });
-    return { kind: 'project', label: proj.CustomerName,
-             sub: proj.ProjectType || 'Project',
-             _colour: _ocTypeColour(proj.ProjectType),
-             children: teamChildren(members) };
-  };
 
   // Every real (Projects-list) customer name, so a synthetic bubble never duplicates one.
   const realProjects = new Set();
@@ -177,7 +227,7 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign, lciPro
     lciOwnerByCustomer[_ocNorm(row.CustomerName)] = csdName;
   });
 
-  const lciOwnedByCSD = {};  // normCSD -> [node,…], hung off csdNode() below
+  const lciOwnedByCSD = {};  // normCSD -> [node,…], hung off _ocCsdNode() below
   const lciUnowned = [];     // -> unassigned pool
   (() => {
     const groups = _ocLciOnlyCustomers(people, currentAssign, realProjects);
@@ -185,7 +235,7 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign, lciPro
       const members = people.filter(p => !p.IsPlaceholder &&
         (currentAssign[p.EmployeeName] || []).some(a => _ocNorm(a.Customer) === key));
       const node = { kind: 'project', label: groups[key], sub: 'LCI',
-                     _colour: _ocTypeColour('LCI'), children: teamChildren(members) };
+                     _colour: _ocTypeColour('LCI'), children: _ocTeamChildren(members) };
       const ownerCSD = lciOwnerByCustomer[key];
       if (ownerCSD) {
         const csdKey = _ocNorm(ownerCSD);
@@ -196,64 +246,25 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign, lciPro
     });
   })();
 
-  // Synthetic bubbles: placeholder-only teams with NO Projects row at all. Keeps
-  // fictional/vacant teams out of the Projects list, and therefore out of Reporting.
-  const syntheticNodes = (csd) => {
-    const groups = {};
-    people.forEach(p => {
-      if (!p.IsPlaceholder) return;
-      const name = String(p.PlaceholderProject || '').trim();
-      if (!name || realProjects.has(_ocNorm(name))) return;   // real bubble wins
-      if (_ocNorm(p.PlaceholderCSD) !== _ocNorm(csd.EmployeeName)) return;
-      (groups[name] = groups[name] || []).push(p);
-    });
-    return Object.keys(groups).sort().map(name => ({
-      kind: 'project', label: name,
-      sub: CONFIG.ORG_PLACEHOLDER_PROJECT_TYPE,
-      _colour: _ocTypeColour(CONFIG.ORG_PLACEHOLDER_PROJECT_TYPE),
-      children: teamChildren(groups[name]),
-    }));
-  };
-
-  // CSD node: children are the projects that CSD owns, plus any synthetic bubbles.
-  const csdNode = (csd) => {
-    const projs = projectsByCSD[_ocNorm(csd.EmployeeName)] || [];
-    return { kind: 'csd', label: csd.EmployeeName,
-             sub: `CSD${csd.Location ? ' · ' + csd.Location : ''}`,
-             _email: _ocEmail(csd.ReportsTo), _photo: csd.PhotoUrl,
-             children: [...projs.map(projectNode), ...syntheticNodes(csd),
-                        ...(lciOwnedByCSD[_ocNorm(csd.EmployeeName)] || [])] };
-  };
-
-  // Leadership node: children are leaders + CSDs whose ReportsTo == this email.
-  const buildLeader = (leader, seen) => {
-    const email = _ocEmail(leader.UserEmail);
-    if (seen.has(email)) return null;      // loop guard
-    seen.add(email);
-    const kids = [];
-    leadership.filter(l => _ocEmail(l.ReportsTo) === email)
-      .forEach(l => { const n = buildLeader(l, seen); if (n) kids.push(n); });
-    csds.filter(c => _ocEmail(c.ReportsTo) === email).forEach(c => kids.push(csdNode(c)));
-    return { kind: 'leader', label: leader.UserName || leader.UserEmail,
-             sub: leader.JobTitle || 'Leadership', _photo: leader.PhotoUrl, children: kids };
-  };
-
   const seen = new Set();
   const roots = [];
   // Top of tree = leaders with blank ReportsTo.
   leadership.filter(l => !_ocEmail(l.ReportsTo))
-    .forEach(l => { const n = buildLeader(l, seen); if (n) roots.push(n); });
+    .forEach(l => {
+      const n = _ocBuildLeader(l, seen, leadership, csds, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD);
+      if (n) roots.push(n);
+    });
   // Orphan CSDs (blank ReportsTo, or leader not found) become their own roots.
   csds.filter(c => !_ocEmail(c.ReportsTo) ||
         !leadership.some(l => _ocEmail(l.UserEmail) === _ocEmail(c.ReportsTo)))
-    .forEach(c => roots.push(csdNode(c)));
+    .forEach(c => roots.push(_ocCsdNode(c, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD)));
 
   // N-219: unassigned pool = real projects with no CSD owner (the
   // `__unassigned__` bucket `getProjectsByCSD()` already produces) plus the
-  // LCI-only bubbles built above. `projectNode` is already deduped (see the
-  // fix above), so these inherit correct membership/colour for free.
+  // LCI-only bubbles built above. `_ocProjectNode` is already deduped (see
+  // the fix above), so these inherit correct membership/colour for free.
   const unassignedProjects = [
-    ...(projectsByCSD['__unassigned__'] || []).map(projectNode),
+    ...(projectsByCSD['__unassigned__'] || []).map(p => _ocProjectNode(p, people, currentAssign)),
     ...lciUnowned,
   ];
   return { roots, unassignedProjects };

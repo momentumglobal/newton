@@ -336,7 +336,7 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
     if (rolePreselected && _mobileRoleId) {
       const role = await getItem('Roles', _mobileRoleId);
       roleName   = role.RoleTitle;
-      currency   = CONFIG.COUNTRY_CURRENCY[role.Location] || '';
+      currency   = currencyForRole(role);
       mobileSetTitle('Record Placement', roleName);
     } else {
       _mobileRoleId = null;

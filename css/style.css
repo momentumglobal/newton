@@ -598,17 +598,18 @@
   .data-table th:first-child, .data-table td:first-child { width: 16%; }
   .dash-rev-table th:first-child, .dash-rev-table td:first-child { width: 58%; }
   .dash-seg-table th:first-child, .dash-seg-table td:first-child { width: 46%; }
-  .dash-panel { overflow: visible; padding: var(--sp-3) var(--sp-2) !important; }
-  .data-table th { position: static; }
-  .data-table tr    { page-break-inside: avoid; }
-  .dash-panel       { page-break-inside: avoid; }
-  .print-avoid-break                                { page-break-inside: avoid; }
-  div[style*="grid-template-columns"]    { page-break-inside: avoid; }
-  /* Prevent mid-panel breaks */
   .dash-panel {
+    overflow: visible;
+    padding: var(--sp-3) var(--sp-2) !important;
+    page-break-inside: avoid;
     break-inside: avoid;
     margin-bottom: var(--sp-9);
   }
+  /* position: static here covers tbody th; .data-table thead th below does not. */
+  .data-table th { position: static; }
+  .data-table tr    { page-break-inside: avoid; }
+  .print-avoid-break                                { page-break-inside: avoid; }
+  div[style*="grid-template-columns"]    { page-break-inside: avoid; }
   /* Sticky header fix */
   .data-table thead th {
     position: static !important;
@@ -703,7 +704,7 @@ body {
 .nav-header { padding: var(--sp-9) var(--sp-8) var(--sp-6); border-bottom: 1px solid var(--inverse-divider); }
 .nav-logo    { font-size: var(--fs-16); font-weight: 600; }
 .nav-subtitle{ font-size: var(--fs-12); color: var(--inverse-text-subtitle); margin-top: var(--sp-1); }
-.nav-user    { padding: 14px var(--sp-8); border-bottom: 1px solid var(--inverse-divider); }
+.nav-user    { padding: 14px var(--sp-8); border-bottom: 1px solid var(--inverse-divider); position: relative; }   /* position: anchor for the notification bell */
 .nav-user-name { font-size: var(--fs-13); font-weight: 600; }
 .nav-user-role { font-size: var(--fs-11); color: var(--inverse-text-strong); margin-top: var(--sp-1); text-transform: capitalize; }
 .nav-links { flex: 1; padding: var(--sp-6) 0; }
@@ -1647,6 +1648,7 @@ body {
   min-height: 50vh;
   transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
   overflow: hidden;
+  background: var(--surface-sunken); border-left: var(--sp-2) solid var(--border-neutral);
 }
 
 .cc-tile:hover { transform: translateY(-2px); }
@@ -1659,8 +1661,7 @@ body {
 .cc-grid--expanded .cc-tile--active .cc-tile__detail { flex: 1; width: 100%; display: flex; margin-top: var(--sp-8); }
 .cc-grid--expanded .cc-tile--active .cc-tile__detail > div { flex: 1; display: flex; flex-direction: column; margin-bottom: 0; }
 .cc-grid--expanded .cc-tile--active .cc-tile__detail svg { flex: 1; min-height: 0; height: auto; }
-/* RAG tile colours */
-.cc-tile { background: var(--surface-sunken); border-left: var(--sp-2) solid var(--border-neutral); }
+/* RAG tile colours — the .cc-tile default now lives in the .cc-tile block above. */
 .cc-tile--green { background: var(--status-success-bg); border-left: var(--sp-2) solid var(--status-success); }
 .cc-tile--amber { background: var(--status-warn-bg); border-left: var(--sp-2) solid var(--status-warn); }
 .cc-tile--red   { background: var(--status-danger-bg); border-left: var(--sp-2) solid var(--status-danger); }
@@ -1943,13 +1944,6 @@ body {
   color: var(--inverse-text-label);
 }
 .ql-link:hover .ql-link-icon { color: var(--inverse-text-vivid); }
-
-.ql-link-icon {
-  width: var(--sp-7); height: var(--sp-7);
-  stroke-width: 1.8;
-  flex-shrink: 0;
-  color: var(--inverse-text-label);
-}
 
 /* ── Shared utilities (used across engagement + survey) ────────────── */
 .page-title { font-size: var(--fs-22); font-weight: 700; color: var(--text-heading); margin: 0; letter-spacing: var(--ls-heading); }
@@ -2351,7 +2345,6 @@ body {
 .notif-item-tick:hover { color: var(--notif-tone-celebrate); }
 .notif-item-tick i { width: var(--sp-7); height: var(--sp-7); }
 
-.nav-user { position: relative; }   /* anchor for the bell */
 .nav-notif-slot {
   position: absolute;
   top: 0;
@@ -3628,8 +3621,6 @@ body.bp-printing .rt-table-controls { display: none !important; }
   
   body.bp-printing .bp-page { page: bp-flow; break-after: page; page-break-after: always; }
   body.bp-printing .bp-page:last-of-type { break-after: auto; page-break-after: auto; }
-  /* A full-bleed page following a flow table must start its own page. */
-  body.bp-printing .bp-page-full { break-before: page; page-break-before: always; }
   body.bp-printing .bp-pack > .bp-page-full:first-child { break-before: auto; page-break-before: auto; }
   /* The last page must not be a fixed, clipped 297mm block: a sub-pixel
      overflow at the printer's scale then has nowhere to go but a new, blank
@@ -3648,6 +3639,9 @@ body.bp-printing .rt-table-controls { display: none !important; }
      own padding in N-211 and pushed headings off the panel edge. */
 
   body.bp-printing .bp-page-full {
+    /* A full-bleed page following a flow table must start its own page. */
+    break-before: page;
+    page-break-before: always;
     page: bp-full;
     width: 210mm;
     height: 297mm;

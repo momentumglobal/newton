@@ -655,7 +655,7 @@ async function getItem(listName, itemId) {
 async function getCurrencyForRole(roleId) {
   try {
     const role = await getItem('Roles', roleId);
-    return CONFIG.COUNTRY_CURRENCY[role.Location] || '';
+    return currencyForRole(role);
   } catch (e) {
     return '';
   }

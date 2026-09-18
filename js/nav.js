@@ -56,7 +56,7 @@ async function renderPage(page, pendingItem = null) {
     case 'hiringPlan':        await renderHiringPlanPage();   break;
     case 'projectDashboard':  await renderProjectDashboard(); break;
     case 'companyDashboard':  await renderCompanyDashboard(); break;
-    case 'reportBuilder':     await renderReportBuilder();    break;
+    case 'reportBuilder':     await showReportBuilderLibrary(); break;
     case 'adminPanel':        renderAdminPage();              break;
     default:
       main.innerHTML = `<p>Page not found.</p>`;

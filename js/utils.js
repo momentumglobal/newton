@@ -19,6 +19,52 @@ function clearButtonLoading(btn) {
   btn.style.cursor  = '';
 }
 
+// ── Sales forecast form logic (N-241) ───────────────────────────────────
+// Shared by saveForecast (sales-pages.js) and mobileSaveForecast
+// (mobile-sales.js) — desktop and mobile forms read fields with different
+// element IDs and show errors differently, so each caller still does its
+// own form-reading and error display; only the pure validation/shape logic
+// below was identical between them.
+
+// Returns an error message string, or null if the form is valid.
+function validateForecastForm({ title, start, end, hc, isSplit }) {
+  if (!title) return 'Customer / Project name is required.';
+  if (!start) return 'Start date is required.';
+  if (!end)   return 'End date is required.';
+  if (new Date(end) <= new Date(start)) return 'End date must be after start date.';
+  // N-116 QA1: split-fee lines may forecast 0 headcount — a double-up on an
+  // already-deployed employee, which adds revenue but no capacity.
+  if (Number.isNaN(hc) || hc < 0) {
+    return 'Headcount must be 0 or more.';
+  }
+  if (!isSplit && hc < 1) {
+    return 'Headcount must be at least 1.';
+  }
+  return null;
+}
+
+function buildForecastPayload({ title, start, end, hc, fcType, revPerHead, retainer, placement, notes, isSplit }) {
+  return {
+    Title: title,
+    // N-116 QA1: isoDate() pins to T12:00:00Z. Without it SharePoint stores a
+    // BST midnight as the previous day in UTC and 1 Sept reloads as 31 Aug —
+    // which moves a whole split-fee lump sum into the wrong month. Every other
+    // write path in Newton already does this; this form was the only omission.
+    ForecastStartDate: isoDate(start),
+    ForecastEndDate: isoDate(end),
+    ForecastedHeadcount: hc,
+    // N-116: a row is either monthly-rate OR split-fee, never both — the
+    // unused side is written null so a type change leaves nothing stale
+    // behind that would double-count in the revenue chart.
+    ProjectType: fcType,
+    ForecastMonthlyRevenuePerHead:
+      isSplit || revPerHead === '' ? null : parseFloat(revPerHead),
+    RetainerFee:  isSplit && retainer  !== '' ? parseFloat(retainer)  : null,
+    PlacementFee: isSplit && placement !== '' ? parseFloat(placement) : null,
+    Notes: notes,
+  };
+}
+
 // ── Role stage <select> markup (N-149 addendum) ─────────────────────────
 // Pure HTML string builder for the Roles-list inline stage dropdown.
 // Called once, when a row is unlocked (pages.js:unlockStageEdit) — not at

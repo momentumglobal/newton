@@ -658,7 +658,8 @@
       <h3>Admin</h3>
       <table>
         <tr><th>File</th><th>Responsibility</th></tr>
-        <tr><td><span class="file-tag">js/api-admin.js</span></td><td>SharePoint API calls for OS Admin (N-237b) — <code>getSchemaDiffs()</code>, <code>getColumnIndexStatus()</code>, <code>getUserAssignments()</code>, <code>setAnnouncementMessage()</code>, <code>setSeasonalEffect()</code>. Consumed only by os-admin.js.</td></tr>
+        <tr><td><span class="file-tag">js/api-admin.js</span></td><td>SharePoint API calls for OS Admin (N-237b) — <code>getSchemaDiffs()</code>, <code>getColumnIndexStatus()</code>, <code>getUserAssignments()</code>. Consumed only by os-admin.js.</td></tr>
+        <tr><td><span class="file-tag">js/api-home.js</span></td><td>AppSettings reads/writes — announcement banner and seasonal home-screen effect (N-238b, split out of api-admin.js) — <code>getAnnouncementMessage()</code>, <code>setAnnouncementMessage()</code>, <code>getSeasonalEffect()</code>, <code>setSeasonalEffect()</code>. Consumed by os-admin.js (full read+write, admin.html) and directly by index.html's inline home-screen script (getters only — the homepage banner and seasonal-effect autoload). Loaded on admin.html and index.html; not on any other shell.</td></tr>
         <tr><td><span class="file-tag">js/os-admin.js</span></td><td>Newton OS Admin — User Assignments, Leadership Access, Homepage, Ghost Mode, and <strong>Data Health</strong> (F-10): per-list row counts with an amber badge at <code>CONFIG.LIST_ROW_COUNT_WARNING_THRESHOLD</code>, the WeeklyActivity null-ProjectID integrity probe, and index status with an "Index now" action. Since N-154 the row-count table watches <strong>every list registered in <code>FIELD_ALIASES</code></strong> via <code>getMonitoredLists()</code>, minus <code>CONFIG.DATA_HEALTH_EXCLUDED_LISTS</code> — so a new list is watched from the day it is registered, and not watching one is a deliberate act named on the tab.</td></tr>
       </table>
 
@@ -679,11 +680,13 @@
 
       <div class="callout"><strong>Critical:</strong> utils.js must always load before api.js. api.js calls functions defined in utils.js (ghost mode helpers, button loading state). This applies to every HTML file including admin.html and index.html.</div>
 
+      <div class="callout"><strong>defer (N-238a, Sep 2026):</strong> every <code>&lt;script src&gt;</code> tag below loads with <code>defer</code>, except <code>js/diag-buffer.js</code> and <code>js/theme-init.js</code> — both must run synchronously and are deliberately not shown in the load-order lists below; see the Dark Mode changelog entry for <code>theme-init.js</code>'s reason, and N-179 for <code>diag-buffer.js</code>'s (it must be first, unmarked, to catch a top-level throw during parse of everything after it). Because <code>defer</code> preserves document order, the sequences below are unchanged by it — but any inline (non-<code>src</code>) <code>&lt;script&gt;</code> block that calls a function from one of these files must wait for <code>DOMContentLoaded</code> rather than calling it directly (N-238a fixed two such cases, in admin.html and index.html).</div>
+
       <h3>Standard module pages</h3>
       <div class="code-block">
 <span class="code-comment">&lt;!-- External --&gt;</span>
 msal-browser.min.js
-lucide (CDN)
+lucide (CDN, pinned — N-238b; was floating on @latest)
 
 <span class="code-comment">&lt;!-- Shared platform --&gt;</span>
 <span class="code-key">config.js</span>          <span class="code-comment">← CONFIG object, OS_MODULES, role helpers</span>
@@ -734,6 +737,8 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">analytics.js</span> <span class="code-comment">← index.html only — required for refreshCCBanner()</span>
 <span class="code-comment">// index.html uses computeMonthlyRevenueForYear() + computeMonthlyForecastRevenueForYear()</span>
 <span class="code-comment">// from utils.js for the Revenue banner pill — no revenue-chart.js needed (data only, no chart)</span>
+<span class="code-key">api-admin.js</span> <span class="code-comment">← admin.html only (N-238b) — getSchemaDiffs()/getColumnIndexStatus()/getUserAssignments(), consumed by os-admin.js</span>
+<span class="code-key">api-home.js</span>  <span class="code-comment">← both pages (N-238b) — AppSettings reads/writes; index.html uses only the getters (home banner + seasonal effect), admin.html's os-admin.js needs both getters and setters</span>
 <span class="code-key">os-admin.js</span>  <span class="code-comment">← admin.html only</span>
       </div>
     </div>

@@ -492,6 +492,7 @@
   --table-font: var(--fs-13);
   --table-header-font: var(--fs-12);
 }
+/* ── Print foundation — print/PDF ───────────────────────────────────── */
 @media print {
   :root {
     /* Forces every N-102-themed token back to its light value regardless of
@@ -987,6 +988,7 @@ body {
   top: 0;
   z-index: var(--z-sticky);
 }
+/* ── Table scroll — print un-sticky ─────────────────────────────────── */
 @media print {
   .table-scroll { overflow: visible !important; max-height: none !important; }
   .table-scroll thead th { position: static !important; }
@@ -2907,6 +2909,7 @@ body {
 .lci-team-btn:hover { text-decoration: underline; color: var(--brand-tertiary); }
 .lci-team-btn--danger:hover { color: var(--status-danger-text); }
 
+/* ── LCI summary & report — print/PDF ───────────────────────────────── */
 @media print {
   @page lci-full { size: A4 landscape; margin: 0; }
 
@@ -3030,12 +3033,12 @@ body {
   /* Scoped to the Lead Magnet only — #main-content must actually contain
      #lm-preview. Without :has(), these rules also fired on the full LCI
      report (which shares body.lci-summary-mode) and blanked the whole print. */
-  body.lci-summary-mode:has(#lm-preview) #print-header { display: none !important; }
+  body.lci-summary-mode:has(#lm-preview) #print-header { display: none; }
   body.lci-summary-mode:has(#lm-preview) #sidebar,
   body.lci-summary-mode:has(#lm-preview) .page-header,
   body.lci-summary-mode:has(#lm-preview) #lm-modal { display: none !important; }
   /* Print only the report block: hide the library + builder cards */
-  body.lci-summary-mode #main-content:has(#lm-preview) > div:not(#lm-preview) { display: none !important; }
+  body.lci-summary-mode #main-content:has(#lm-preview) > div:not(#lm-preview) { display: none; }
   body.lci-summary-mode #main-content > #lm-preview { margin: 0 !important; }
   .lm-report { border: none; border-radius: 0; }
   .lm-report-band, .lm-loc-head .lm-overall, .lm-report-table td, .lm-report-table th {
@@ -3154,10 +3157,11 @@ body {
   padding: 1px var(--sp-3); border-radius: var(--r-lg); margin-left: var(--sp-3); }
 
 .org-print-title { display: none; }
+/* ── Org Chart — print/PDF ──────────────────────────────────────────── */
 @media print {
   body.org-printing #main-content > *:not(#org-chart-page),
   body.org-printing .page-header .btn-secondary,
-  body.org-printing .page-header .print-btn { display: none !important; }
+  body.org-printing .page-header .print-btn { display: none; }
   /* No min-height in print: it forced ~640px of tile regardless of chart size and
      was the main reason the title and chart split across two pages. Padding and
      title margin trimmed for the same reason — on screen both stay as they were. */
@@ -3294,7 +3298,10 @@ body {
    Not scoped to @media print: body.bp-printing is added synchronously right
    before printPage() in briefing-pack.js, so this rule also hides the bar
    during the brief on-screen window before print, not only in the printed
-   output. */
+   output. `!important` here is load-bearing, not decorative: `js/utils.js`
+   (`_rtRepositionTableControls`) sets this element's `style.display = 'flex'`
+   inline to show it, and only `!important` beats an inline style — kept
+   as part of N-240d's audit (confirmed, not just left as before). */
 .rt-table-controls {
   position: fixed;
   display: none;
@@ -3587,9 +3594,9 @@ body.bp-printing .rt-table-controls { display: none !important; }
   @page bp-flow { size: A4 portrait; margin: 20mm 18mm 16mm; }
   @page bp-full { size: A4 portrait; margin: 0; }
 
-  body.bp-printing #print-header { display: none !important; }
+  body.bp-printing #print-header { display: none; }
   /* The shared print rule insets #main-content; full bleed cannot survive it. */
-  body.bp-printing #main-content { padding: 0 !important; }
+  body.bp-printing #main-content { padding: 0; }
   
   body.bp-printing .bp-page { page: bp-flow; break-after: page; page-break-after: always; }
   body.bp-printing .bp-page:last-of-type { break-after: auto; page-break-after: auto; }
@@ -3620,8 +3627,8 @@ body.bp-printing .rt-table-controls { display: none !important; }
     box-sizing: border-box;
     padding: 24mm 22mm 18mm;
     border-radius: 0;
-    background: var(--brand) !important;
-    color: var(--text-on-brand) !important;
+    background: var(--brand);
+    color: var(--text-on-brand);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
         position: relative;
@@ -3681,7 +3688,7 @@ body.bp-printing .rt-table-controls { display: none !important; }
   body.bp-printing .rt-table thead { display: table-header-group; }
   body.bp-printing .rt-table tr { break-inside: avoid; page-break-inside: avoid; }
   body.bp-printing .rt-table th {
-    background: var(--surface-app) !important;
+    background: var(--surface-app);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

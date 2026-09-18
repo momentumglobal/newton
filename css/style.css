@@ -3033,7 +3033,7 @@ body {
   /* Scoped to the Lead Magnet only — #main-content must actually contain
      #lm-preview. Without :has(), these rules also fired on the full LCI
      report (which shares body.lci-summary-mode) and blanked the whole print. */
-  body.lci-summary-mode:has(#lm-preview) #print-header { display: none; }
+  body.lci-summary-mode:has(#lm-preview) #print-header { display: none !important; }
   body.lci-summary-mode:has(#lm-preview) #sidebar,
   body.lci-summary-mode:has(#lm-preview) .page-header,
   body.lci-summary-mode:has(#lm-preview) #lm-modal { display: none !important; }
@@ -3298,10 +3298,11 @@ body {
    Not scoped to @media print: body.bp-printing is added synchronously right
    before printPage() in briefing-pack.js, so this rule also hides the bar
    during the brief on-screen window before print, not only in the printed
-   output. `!important` here is load-bearing, not decorative: `js/utils.js`
-   (`_rtRepositionTableControls`) sets this element's `style.display = 'flex'`
-   inline to show it, and only `!important` beats an inline style — kept
-   as part of N-240d's audit (confirmed, not just left as before). */
+   output. This rule's forced priority is load-bearing, not decorative:
+   `js/utils.js` (`_rtRepositionTableControls`) sets this element's
+   `style.display = 'flex'` inline to show it, and only a forced-priority
+   rule beats an inline style — kept as part of N-240d's audit (confirmed,
+   not just left as before). */
 .rt-table-controls {
   position: fixed;
   display: none;
@@ -3594,9 +3595,9 @@ body.bp-printing .rt-table-controls { display: none !important; }
   @page bp-flow { size: A4 portrait; margin: 20mm 18mm 16mm; }
   @page bp-full { size: A4 portrait; margin: 0; }
 
-  body.bp-printing #print-header { display: none; }
+  body.bp-printing #print-header { display: none !important; }
   /* The shared print rule insets #main-content; full bleed cannot survive it. */
-  body.bp-printing #main-content { padding: 0; }
+  body.bp-printing #main-content { padding: 0 !important; }
   
   body.bp-printing .bp-page { page: bp-flow; break-after: page; page-break-after: always; }
   body.bp-printing .bp-page:last-of-type { break-after: auto; page-break-after: auto; }

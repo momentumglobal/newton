@@ -2944,7 +2944,6 @@ body {
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   .lci-report-navy h1 { font-size: var(--fs-40); }
-  body.lci-summary-mode #print-header { display: none !important; }
 
   /* N-022: print the year slices, hide the full-horizon screen table.
      Each slice after the first takes its own page. The slices are siblings

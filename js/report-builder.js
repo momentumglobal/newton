@@ -12,6 +12,13 @@ let _rbTitle      = '';
 let _rbIncludeGantt = false;  // append Hiring Plan as landscape final page (CoE projects)
 let _rbProjectRoles = [];  // Roles for the selected project (drives Role dropdown)
 let _rbLiveRoles = [];  // Live roles for the current project/role filter — drives the Snapshot editor
+
+// Library state (N-244)
+let _rbLibraryCache  = [];  // reports visible to this user, from the last load
+let _rbLibraryFilter = '';  // '' = all clients
+let _rbProjectMap    = {};  // projectId (string) -> CustomerName, for banding
+let _rbTpMap         = {};  // email (lower) -> display name, for the Owner column
+
 const SNAP_FIELDS = [   // Candidate Pipeline Snapshot columns: [valueKey, header]
   ['screening', 'Screening'],
   ['hmReview', 'HM Review'],
@@ -68,9 +75,6 @@ async function renderReportBuilder() {
     .filter(r => _rbRoleId === 'all' || String(r.id) === String(_rbRoleId))
     .map(r => ({ id: r.id, label: escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle) }));
 
-  // Load saved reports from SharePoint
-  const saved = await getSavedReports();
-
   main.innerHTML = `
     <div class="page-header">
       <h2>Report Builder</h2>
@@ -81,7 +85,7 @@ async function renderReportBuilder() {
             onchange="_rbIncludeGantt = this.checked">
           Hiring Plan final page
         </label>` : ''}
-        <button class="btn-secondary" onclick="rbOpenSavedModal()">Saved Reports</button>
+        <button class="btn-secondary" onclick="showReportBuilderLibrary()">&larr; Back to Library</button>
         <button class="btn-secondary" id="rb-save-btn" onclick="rbSaveReport()">Save</button>
         <button class="btn-secondary" onclick="rbPreview()">Preview</button>
         <button class="print-btn"     onclick="rbExportPdf()">&#8856; Export PDF</button>
@@ -92,7 +96,6 @@ async function renderReportBuilder() {
       <div class="rb-canvas"  id="rb-canvas">${rbRenderCanvas()}</div>
     </div>
     <div id="rb-preview-modal" class="rb-modal" style="display:none"></div>
-    <div id="rb-saved-modal"   class="rb-modal" style="display:none"></div>
   `;
 
   rbInitSortable();
@@ -509,41 +512,184 @@ async function rbSaveReport() {
  if (btn) { btn.textContent = 'Saved ✓'; setTimeout(() => { btn.textContent = 'Save'; }, 2000); }
 }
 
-async function rbOpenSavedModal() {
-  const modal = document.getElementById('rb-saved-modal');
-  modal.style.display = 'flex';
-  modal.innerHTML = `<div class="rb-modal-inner">
-    <h3>Saved Reports</h3>
-    <p>Loading...</p>
-    <button class="btn-secondary" onclick="document.getElementById('rb-saved-modal').style.display='none'">
-      Close</button>
-  </div>`;
+// ── Report Builder Library (N-244) ─────────────────────────────────────
+// Reached from nav.js's `reportBuilder` route. The builder itself is only
+// opened from a Library row (Open/Copy) or the Library's own "+ New Report"
+// button — never directly.
 
-  const [reports, tpMap] = await Promise.all([getSavedReports(), getTalentPartnerDisplayMap()]);
-  const currentUser = getCurrentUser();
+async function showReportBuilderLibrary() {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<div class="page-header"><h2>Report Builder Library</h2></div><p>Loading...</p>';
+
+  try {
+    const user = getCurrentUser();
+    // getProjects(false) deliberately, not getScopedProjects — an Admin's
+    // Company-wide band still needs every client name resolvable, including
+    // a project the viewer holds no assignment on (same reasoning N-235
+    // uses for showBriefingPackLibrary's getProjects(false) call).
+    const [reports, projects, projectIds, tpMap] = await Promise.all([
+      getSavedReports(),
+      getProjects(false),
+      getUserProjectIds(user.email),
+      getTalentPartnerDisplayMap(),
+    ]);
+    _rbProjectMap = {};
+    projects.forEach(p => { _rbProjectMap[String(p.id)] = p.CustomerName || ''; });
+    _rbTpMap = tpMap;
+    _rbLibraryCache = _rbVisibleReports(reports, projectIds, user.email);
+    _rbRenderLibrary();
+  } catch (e) {
+    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'showReportBuilderLibrary()' });
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+// Admin sees everything. A Delivery Manager sees every company-scope report
+// (a DM-level view — company reports have no project to assign) plus any
+// project-scope report for a project assigned to them; a Talent Partner sees
+// only project-scope reports for their assigned projects. Either role also
+// keeps seeing a report they own even if no longer assigned to its project —
+// mirrors _bpVisiblePacks' mine(p) || ids.includes(...) fallback.
+// getUserProjectIds() returns null for an admin ("all"), but admin is
+// short-circuited above, so `ids` here is only ever a real array.
+function _rbVisibleReports(reports, projectIds, email) {
+  if (_resolvedRole === 'admin') return reports;
+  const me     = (email || '').toLowerCase();
+  const ids    = projectIds || [];
+  const mine   = r => (r.ReportOwner || '').toLowerCase() === me;
+  const onProj = r => r.Scope === 'project' && ids.includes(String(r.ProjectID));
+  if (_resolvedRole === 'delivery_manager') {
+    return reports.filter(r => r.Scope === 'company' || mine(r) || onProj(r));
+  }
+  return reports.filter(r => mine(r) || onProj(r));  // talent_partner
+}
+
+// One resolver for grouping, filter options and filter matching, so all
+// three agree. A company-scope report has no project to band under.
+function _rbReportClient(report) {
+  if (report.Scope === 'company') return 'Company-wide';
+  return _rbProjectMap[String(report.ProjectID)] || 'Unassigned';
+}
+
+// Company-wide first, Unassigned last, real clients A-Z between them.
+function _rbClientSortKey(c) {
+  if (c === 'Company-wide') return [0, c];
+  if (c === 'Unassigned')   return [2, c];
+  return [1, c];
+}
+function _rbSortClients(clients) {
+  return clients.slice().sort((a, b) => {
+    const ka = _rbClientSortKey(a), kb = _rbClientSortKey(b);
+    return ka[0] - kb[0] || ka[1].localeCompare(kb[1]);
+  });
+}
+
+function rbLibraryFilterChanged(value) {
+  _rbLibraryFilter = value;
+  _rbRenderLibrary();   // re-render from cache, no refetch
+}
+
+function _rbLibraryClientOptions() {
+  const values = _rbSortClients([...new Set(_rbLibraryCache.map(_rbReportClient))]);
+  return ['<option value="">All</option>'].concat(values.map(v =>
+    `<option value="${escAttr(v)}"${v === _rbLibraryFilter ? ' selected' : ''}>${escHtml(v)}</option>`
+  )).join('');
+}
+
+function _rbRenderLibrary() {
+  const me      = (getCurrentUser().email || '').toLowerCase();
   const isAdmin = _resolvedRole === 'admin';
+  const reports = _rbLibraryCache.filter(r => !_rbLibraryFilter || _rbReportClient(r) === _rbLibraryFilter);
+
+  const groups = {};
+  reports.forEach(r => {
+    const client = _rbReportClient(r);
+    (groups[client] = groups[client] || []).push(r);
+  });
 
   const rows = reports.length
-    ? reports.map(r => {
-        const owner = r.ReportOwner || '';
-        const ownerDisplay = tpMap[owner.toLowerCase()] || owner;
-        const canEdit = isAdmin || owner.toLowerCase() === currentUser.email.toLowerCase();
-        return `<div class="rb-saved-row">
-          <span>${escHtml(r.Title)}</span>
-          <span class="rb-saved-meta">${escHtml(ownerDisplay)}</span>
-          <div style="display:flex;gap:6px;flex-shrink:0">
-            <button class="btn-secondary btn-sm" onclick="rbLoadReport(${r.id})">Open</button>
-            ${canEdit ? `<button class="btn-danger btn-sm" onclick="rbDeleteReport(${r.id}, '${escJsAttr(r.Title)}')">Delete</button>` : ''}
-          </div>
-        </div>`;
+    ? _rbSortClients(Object.keys(groups)).map(client => {
+        const list = groups[client].slice().sort((a, b) => (a.Title || '').localeCompare(b.Title || ''));
+        const reportRows = list.map(r => {
+          const owner = r.ReportOwner || '';
+          const canDelete = isAdmin || owner.toLowerCase() === me;
+          const periodLabel = (DETAIL_PERIOD_OPTIONS.find(([k]) => k === r.Period) || [])[1] || r.Period || '—';
+          return `
+        <tr>
+          <td>${escHtml(r.Title || '—')}</td>
+          <td>${escHtml(periodLabel)}</td>
+          <td>${escHtml(_rbTpMap[owner.toLowerCase()] || owner || '—')}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-secondary" onclick="rbLoadReport(${r.id})">Open</button>
+              <button class="btn-secondary" onclick="rbCopyReportAction(${r.id}, this)">Copy</button>
+              ${canDelete ? `<button class="btn-secondary" onclick="rbDeleteReport(${r.id}, '${escJsAttr(r.Title || '')}')">Delete</button>` : ''}
+            </div>
+          </td>
+        </tr>`;
+        }).join('');
+        return `
+        <tr class="bp-lib-client-row">
+          <td colspan="4"><strong>${escHtml(client)}</strong> <span class="bp-lib-count">${list.length}</span></td>
+        </tr>${reportRows}`;
       }).join('')
-    : '<p class="no-data">No saved reports yet.</p>';
+    : emptyStateRow({
+        colspan: 4,
+        icon: 'folder',
+        message: _rbLibraryCache.length
+          ? 'No reports match the current filter.'
+          : 'No saved reports yet.',
+      });
 
-  modal.innerHTML = `<div class="rb-modal-inner">
-    <h3>Saved Reports</h3>${rows}
-    <button class="btn-secondary" style="margin-top:16px"
-      onclick="document.getElementById('rb-saved-modal').style.display='none'">Close</button>
-  </div>`;
+  const main = document.getElementById('main-content');
+  main.innerHTML = `
+    <div class="page-header">
+      <h2>Report Builder Library</h2>
+      <div class="page-header-actions">
+        <button class="btn-primary" onclick="rbStartNewReport()">+ New Report</button>
+      </div>
+    </div>
+    <div class="table-toolbar">
+      ${listControlsBar([`
+        <div class="form-group project-filter-select">
+          <label>Client</label>
+          <select onchange="rbLibraryFilterChanged(this.value)">${_rbLibraryClientOptions()}</select>
+        </div>`])}
+    </div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr>
+          <th>Title</th><th>Period</th><th>Owner</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons();
+}
+
+// ── Builder entry points ────────────────────────────────────────────────
+function rbStartNewReport() {
+  _rbReportId     = null;
+  _rbBlocks       = [];
+  _rbTitle        = '';
+  _rbIncludeGantt = false;
+  _rbScope        = 'project';
+  _rbProjectId    = null;
+  _rbRoleId       = 'all';
+  renderReportBuilder();
+}
+
+async function rbCopyReportAction(id, btn) {
+  setButtonLoading(btn);
+  try {
+    const copy = await copySavedReport(id, getCurrentUser().email);
+    await rbLoadReport(copy.id);
+  } catch (e) {
+    toast('Could not copy that report: ' + e.message, { type: 'error' });
+  } finally {
+    clearButtonLoading(btn);
+  }
 }
 
 async function rbLoadReport(id) {
@@ -558,7 +704,6 @@ async function rbLoadReport(id) {
   _rbIncludeGantt = _loadedBlocks.some(b => b.type === 'hiringPlan');
   _rbBlocks     = _loadedBlocks.filter(b => b.type !== 'hiringPlan');
   _rbTitle      = report.Title;
-  document.getElementById('rb-saved-modal').style.display = 'none';
   renderReportBuilder();
 }
 
@@ -568,7 +713,7 @@ async function rbDeleteReport(id, title) {
     confirmLabel: 'Delete', danger: true,
   }))) return;
   await deleteItem('SavedReports', id);
-  rbOpenSavedModal();
+  showReportBuilderLibrary();
 }
 
 // SharePoint API functions
@@ -584,4 +729,19 @@ async function createSavedReport(fields) {
 }
 async function updateSavedReport(id, fields) {
   return updateItem('SavedReports', id, fields);
+}
+
+// N-244: Title and ReportOwner are set by the caller, never copied.
+// Everything else is whitelisted — never round-trip a fetched Graph item
+// into a create (LinkTitle and friends are read-only → 403). A report has
+// no child rows, so this is a single create with no rollback sequence, same
+// as copyBriefingPack.
+const _SAVED_REPORT_COPY_FIELDS = ['Scope', 'ProjectID', 'RoleID', 'Period', 'KpiPeriod', 'ModuleOrder'];
+async function copySavedReport(id, owner) {
+  const src = await getSavedReportById(id);
+  return createSavedReport({
+    ..._pickFields(src, _SAVED_REPORT_COPY_FIELDS),
+    Title:       `${src.Title} (copy)`,
+    ReportOwner: (owner || '').toLowerCase(),
+  });
 }

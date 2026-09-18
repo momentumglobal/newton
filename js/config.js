@@ -609,7 +609,7 @@ const CONFIG = {
     // router.js — Reporting (10)
     { key: 'companyDashboard', label: 'Company Dashboard', module: 'reporting', href: 'reporting.html#companyDashboard', roles: ['admin', 'leadership'] },
     { key: 'projectDashboard', label: 'Project Dashboard',  module: 'reporting', href: 'reporting.html#projectDashboard',  roles: ['admin', 'delivery_manager', 'talent_partner'] },
-    { key: 'reportBuilder',    label: 'Report Builder',     module: 'reporting', href: 'reporting.html#reportBuilder',     roles: ['admin', 'delivery_manager', 'talent_partner'] },
+    { key: 'reportBuilder',    label: 'Report Library',     module: 'reporting', href: 'reporting.html#reportBuilder',     roles: ['admin', 'delivery_manager', 'talent_partner'] },
     { key: 'projects',         label: 'Projects',           module: 'reporting', href: 'reporting.html#projects',          roles: ['admin', 'delivery_manager', 'talent_partner'] },
     { key: 'roles',            label: 'Roles',              module: 'reporting', href: 'reporting.html#roles',             roles: ['admin', 'delivery_manager', 'talent_partner'] },
     { key: 'activity',         label: 'Weekly Activity',    module: 'reporting', href: 'reporting.html#activity',          roles: ['admin', 'delivery_manager', 'talent_partner'] },

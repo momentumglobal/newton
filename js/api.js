@@ -649,6 +649,18 @@ async function getItem(listName, itemId) {
   return { id: data.id, ...normaliseFields(listName, data.fields) };
 }
 
+// N-241: shared by loadCurrencyForPlacement (forms.js) and
+// mobileLoadCurrencyForPlacement (mobile-pages.js) — identical fetch/shape
+// logic, only the target DOM element differs, which stays with each caller.
+async function getCurrencyForRole(roleId) {
+  try {
+    const role = await getItem('Roles', roleId);
+    return CONFIG.COUNTRY_CURRENCY[role.Location] || '';
+  } catch (e) {
+    return '';
+  }
+}
+
 // ── Data Health (F-10 / N-092) ──────────────────────────────────────
 // Row count only — id-only $select, same nextLink pagination as getItems.
 // Deliberately NOT $count/ConsistencyLevel:eventual: that combination is

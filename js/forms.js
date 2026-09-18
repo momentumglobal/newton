@@ -807,12 +807,7 @@ async function loadRolesForPlacement(projectId) {
 async function loadCurrencyForPlacement(roleId) {
   const currencyEl = document.getElementById('placement-currency');
   if (!currencyEl || !roleId) return;
-  try {
-    const role = await getItem('Roles', roleId);
-    currencyEl.value = CONFIG.COUNTRY_CURRENCY[role.Location] || '';
-  } catch(e) {
-    currencyEl.value = '';
-  }
+  currencyEl.value = await getCurrencyForRole(roleId);
 }
 async function loadTalentPartnersForPlacement(projectId) {
   const select = document.getElementById('placement-tp-select');

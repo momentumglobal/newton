@@ -646,7 +646,7 @@ function _rbRenderLibrary() {
   const main = document.getElementById('main-content');
   main.innerHTML = `
     <div class="page-header">
-      <h2>Report Builder Library</h2>
+      <h2>Report Library</h2>
       <div class="page-header-actions">
         <button class="btn-primary" onclick="rbStartNewReport()">+ New Report</button>
       </div>

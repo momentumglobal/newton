@@ -636,8 +636,8 @@ const CONFIG = {
     // N-144 after Chris asked to expand scope; fits the same page/role
     // shape as the four router files above (mrCanAccess(page, role)),
     // unlike survey-router.js which stays excluded (role-only, no pages).
-        { key: 'placementAnalytics', label: 'Placement Analytics',   module: 'marketing', href: 'market-reporting.html#placementAnalytics', roles: ['admin', 'delivery_manager', 'talent_partner'] },
-    { key: 'marketReport',       label: 'Market Report Builder', module: 'marketing', href: 'market-reporting.html#marketReport',       roles: ['admin', 'delivery_manager', 'talent_partner'] },
+    { key: 'placementAnalytics', label: 'Placement Analytics',   module: 'marketing', href: 'market-reporting.html#placementAnalytics', roles: ['admin', 'delivery_manager', 'talent_partner'] },
+    { key: 'marketReport',       label: 'Market Report Library', module: 'marketing', href: 'market-reporting.html#marketReport',       roles: ['admin', 'delivery_manager', 'talent_partner'] },
   ],
   // Command Bar entity search (N-145) — maps an entity type to the
   // COMMAND_BAR_PAGES entry that owns it. Deliberately does NOT restate

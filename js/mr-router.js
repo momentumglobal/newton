@@ -12,7 +12,7 @@ const MR_PAGES = {
     roles: [MR_ROLES.ADMIN, MR_ROLES.DM, MR_ROLES.TP],
   },
   marketReport: {
-    label: "Market Report Builder",
+    label: "Market Report Library",
     roles: [MR_ROLES.ADMIN, MR_ROLES.DM, MR_ROLES.TP],
   },
 };

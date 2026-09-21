@@ -8,6 +8,12 @@ let _mrTitle     = "";     // Report title
 let _mrObs       = "";     // Observations HTML from rich text editor
 let _mrData      = null;   // Cached { activity, role, rejections }
 
+// Library state (N-245)
+let _mrLibraryCache  = [];  // all saved reports, from the last load — unscoped,
+                             // every user with module access sees every report
+let _mrLibraryFilter = '';  // '' = all clients
+let _mrTpMap         = {};  // CreatedByEmail (lower-case) -> display name
+
 async function renderMarketReport() {
   const main = document.getElementById("main-content");
   const user = getCurrentUser();
@@ -22,8 +28,8 @@ async function renderMarketReport() {
     <div class="page-header">
       <h2>Market Report Builder</h2>
       <div class="page-header-actions">
-        <button class="btn-secondary" onclick="mrOpenSavedModal()">
-          Saved Reports</button>
+        <button class="btn-secondary" onclick="showMarketReportLibrary()">
+          &larr; Back to Library</button>
         <button class="btn-secondary" id="mr-save-btn" onclick="mrSave()">
           Save</button>
         <button class="btn-secondary" onclick="mrPreview()">Preview</button>
@@ -300,79 +306,167 @@ async function mrSave() {
   }
 }
 
-async function mrOpenSavedModal() {
-  const modal = document.getElementById("mr-saved-modal");
-  modal.style.display = "flex";
-  modal.innerHTML = `<div class="rb-modal-inner">
-    <h3>Saved Market Reports</h3><p>Loading...</p>
-    <button class="btn-secondary"
-      onclick="document.getElementById('mr-saved-modal')
-        .style.display='none'">Close</button>
-  </div>`;
+// ── Entry point — the library (N-245) ──────────────────────────────
+// Unscoped by design (decided with Chris, 18 Sep 2026): every user with
+// Market Analytics module access sees every saved report, so there is no
+// visibility filter here, unlike showReportBuilderLibrary/showBriefingPackLibrary.
+async function showMarketReportLibrary() {
+  const main = document.getElementById("main-content");
+  main.innerHTML = '<div class="page-header"><h2>Market Report Library</h2></div><p>Loading...</p>';
 
-  const [reports, displayMap] = await Promise.all([
-    getMarketReports(),
-    getTalentPartnerDisplayMap(),
-  ]);
-  const user = getCurrentUser();
-  // Non-admins see only their own saved reports
-  const visible = _mrResolvedRole === "admin"
-    ? reports
-    : reports.filter(r =>
-        r.CreatedByEmail?.toLowerCase() === user.email.toLowerCase()
-      );
+  try {
+    const [reports, displayMap] = await Promise.all([
+      getMarketReports(),
+      getTalentPartnerDisplayMap(),
+    ]);
+    _mrLibraryCache = reports;
+    _mrTpMap        = displayMap;
+    _mrRenderLibrary();
+  } catch (e) {
+    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'showMarketReportLibrary()' });
+    if (window.lucide) lucide.createIcons();
+  }
+}
 
-  const userEmail = user.email.toLowerCase();
-  const rows = visible.length
-    ? visible.map(r => {
-        const canEdit = _mrResolvedRole === "admin" ||
-          r.CreatedByEmail?.toLowerCase() === userEmail;
+// Single resolver for grouping, filter options and filter matching, so all
+// three agree. CustomerName is denormalised onto the report at save time
+// (mrSave()) — used instead of resolving ProjectID via getProjects() because
+// a Talent Partner report frequently has no ProjectID at all (the project
+// filter only renders for admin/delivery_manager — see showPF in
+// renderMarketReport/mrRenderSidebar).
+function _mrReportClient(report) {
+  return report.CustomerName || 'Unassigned';
+}
+
+function mrLibraryFilterChanged(value) {
+  _mrLibraryFilter = value;
+  _mrRenderLibrary();   // re-render from cache, no refetch
+}
+
+function _mrLibraryClientOptions() {
+  const values = [...new Set(_mrLibraryCache.map(_mrReportClient))]
+    .sort((a, b) => a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b));
+  return ['<option value="">All</option>'].concat(values.map(v =>
+    `<option value="${escAttr(v)}"${v === _mrLibraryFilter ? ' selected' : ''}>${escHtml(v)}</option>`
+  )).join('');
+}
+
+function _mrRenderLibrary() {
+  const me      = (getCurrentUser().email || '').toLowerCase();
+  const isAdmin = _mrResolvedRole === 'admin';
+  const reports = _mrLibraryCache.filter(r => !_mrLibraryFilter || _mrReportClient(r) === _mrLibraryFilter);
+
+  const groups = {};
+  reports.forEach(r => {
+    const client = _mrReportClient(r);
+    (groups[client] = groups[client] || []).push(r);
+  });
+
+  const clientOrder = Object.keys(groups)
+    .sort((a, b) => a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b));
+
+  const rows = reports.length
+    ? clientOrder.map(client => {
+        const list = groups[client].slice()
+          .sort((a, b) => (a.ReportTitle || '').localeCompare(b.ReportTitle || ''));
+        const reportRows = list.map(r => {
+          const owner     = r.CreatedByEmail || '';
+          const canDelete = isAdmin || owner.toLowerCase() === me;
+          return `
+        <tr>
+          <td>${escHtml(r.ReportTitle || '—')}</td>
+          <td>${escHtml(r.RoleName || '—')}</td>
+          <td>${escHtml(_mrTpMap[owner.toLowerCase()] || owner || '—')}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-secondary" onclick="mrLoadReport(${r.id})">Open</button>
+              <button class="btn-secondary" onclick="mrCopyReportAction(${r.id}, this)">Copy</button>
+              ${canDelete ? `<button class="btn-secondary" onclick="mrDeleteReport(${r.id}, '${escJsAttr(r.ReportTitle || '')}')">Delete</button>` : ''}
+            </div>
+          </td>
+        </tr>`;
+        }).join('');
         return `
-        <div class="rb-saved-row">
-          <span>${r.ReportTitle}</span>
-          <span class="rb-saved-meta">
-            ${r.RoleName} &middot; ${displayMap[r.CreatedByEmail?.toLowerCase()] || r.CreatedByEmail}
-          </span>
-          <button class="btn-secondary btn-sm"
-            onclick="mrLoadReport(${r.id})">Open</button>
-          ${canEdit ? `
-          <button class="btn-secondary btn-sm"
-            onclick="mrEditReport(${r.id})">Edit</button>
-          <button class="btn-secondary btn-sm" style="color:var(--status-danger-text);border-color:var(--status-danger-text)"
-            onclick="mrDeleteReport(${r.id}, this)">Delete</button>` : ""}
-        </div>`;
-      }).join("")
-    : '<p class="no-data">No saved reports yet.</p>';
+        <tr class="bp-lib-client-row">
+          <td colspan="4"><strong>${escHtml(client)}</strong> <span class="bp-lib-count">${list.length}</span></td>
+        </tr>${reportRows}`;
+      }).join('')
+    : emptyStateRow({
+        colspan: 4,
+        icon: 'folder',
+        message: _mrLibraryCache.length
+          ? 'No reports match the current filter.'
+          : 'No market reports saved yet.',
+      });
 
-  modal.innerHTML = `<div class="rb-modal-inner">
-    <h3>Saved Market Reports</h3>${rows}
-    <button class="btn-secondary" style="margin-top:16px"
-      onclick="document.getElementById('mr-saved-modal')
-        .style.display='none'">Close</button>
-  </div>`;
+  const main = document.getElementById('main-content');
+  main.innerHTML = `
+    <div class="page-header">
+      <h2>Market Report Library</h2>
+      <div class="page-header-actions">
+        <button class="btn-primary" onclick="mrStartNewReport()">+ New Report</button>
+      </div>
+    </div>
+    <div class="table-toolbar">
+      ${listControlsBar([`
+        <div class="form-group project-filter-select">
+          <label>Client</label>
+          <select onchange="mrLibraryFilterChanged(this.value)">${_mrLibraryClientOptions()}</select>
+        </div>`])}
+    </div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr>
+          <th>Title</th><th>Role</th><th>Owner</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons();
 }
 
-async function mrEditReport(id) {
-  document.getElementById("mr-saved-modal").style.display = "none";
-  await mrLoadReport(id);
+// Real gotcha, not boilerplate: _mrReportId/_mrRoleId/etc. are module-level
+// and persist across SPA navigations — renderMarketReport() never clears
+// them. This must be the ONLY way the Library's "+ New Report" reaches the
+// builder; never wire it to call renderMarketReport() directly, or a blank
+// report silently inherits whatever was last open (same class of bug as
+// N-244's rbStartNewReport()).
+function mrStartNewReport() {
+  _mrReportId  = null;
+  _mrRoleId    = null;
+  _mrProjectId = null;
+  _mrTam       = null;
+  _mrTitle     = "";
+  _mrObs       = "";
+  _mrData      = null;
+  renderMarketReport();
 }
 
-async function mrDeleteReport(id, btn) {
+async function mrCopyReportAction(id, btn) {
+  setButtonLoading(btn);
+  try {
+    const created = await copyMarketReport(id, getCurrentUser().email);
+    await mrLoadReport(created.id);
+  } catch (e) {
+    toast('Could not copy that report: ' + e.message, { type: 'error' });
+  } finally {
+    clearButtonLoading(btn);
+  }
+}
+
+async function mrDeleteReport(id, title) {
   if (!(await confirmModal({
-    message: "Delete this report? This cannot be undone.",
+    message: `Delete "${title}"? This cannot be undone.`,
     confirmLabel: 'Delete', danger: true,
   }))) return;
-  btn.textContent = "Deleting…";
-  btn.disabled = true;
   try {
     await deleteItem("MarketReports", id);
-    // Refresh the modal
-    mrOpenSavedModal();
   } catch (e) {
-    toast("Delete failed: " + e.message, { type: 'error' });
-    btn.textContent = "Delete";
-    btn.disabled = false;
+    toast("Could not delete that report: " + e.message, { type: 'error' });
+    return;
   }
+  showMarketReportLibrary();
 }
 
 async function mrLoadReport(id) {
@@ -383,7 +477,6 @@ async function mrLoadReport(id) {
   _mrTam       = report.TAM       ? parseFloat(report.TAM)   : null;
   _mrTitle     = report.ReportTitle || "";
   _mrObs       = report.Observations || "";
-  document.getElementById("mr-saved-modal").style.display = "none";
   await renderMarketReport();
   await mrGenerate();
 }

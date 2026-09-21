@@ -37,7 +37,7 @@ function navigateToMr(page) {
 
 async function renderMrPage(page) {
   switch (page) {
-    case 'marketReport':      await renderMarketReport();      break;
+    case 'marketReport':      await showMarketReportLibrary();  break;
     case 'placementAnalytics': await renderPlacementAnalytics(); break;
     default: document.getElementById('main-content').innerHTML
       = '<p>Page not found.</p>';

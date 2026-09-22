@@ -14,7 +14,9 @@ let _mrLibraryCache  = [];  // all saved reports, from the last load — unscope
 let _mrLibraryFilter = '';  // '' = all clients
 let _mrTpMap         = {};  // CreatedByEmail (lower-case) -> display name
 let _mrProjectMap    = {};  // projectId (string) -> CustomerName, for banding
-let _mrRoleProjectMap = {}; // roleId (string) -> projectId (string)
+let _mrRolesCache = [];     // roles last fetched for the builder's Role
+                             // dropdown — so mrRoleSelected() can look one
+                             // up by id without a fresh Graph call
 
 async function renderMarketReport() {
   const main = document.getElementById("main-content");
@@ -22,6 +24,7 @@ async function renderMarketReport() {
   _mrData = null;
 
   const roles  = await getScopedRolesVisibleTo(user.email, _mrResolvedRole);
+  _mrRolesCache = roles;
   const saved  = await getMarketReports();
   const showPF = ["admin","delivery_manager"].includes(_mrResolvedRole);
   const projects = showPF ? await getScopedProjects(user.email, false) : [];
@@ -86,7 +89,7 @@ function mrRenderSidebar(roles, projects, showProjectFilter) {
 
       <div class="rb-section-label">Role</div>
       <select class="rb-select" id="mr-role-select"
-        onchange="_mrRoleId = this.value; mrSuggestTitle(this)">
+        onchange="mrRoleSelected(this.value, this)">
         <option value="">— select role —</option>
         ${roleOpts}
       </select>
@@ -108,12 +111,29 @@ async function mrSetProject(projectId) {
   _mrProjectId = projectId;
   _mrRoleId    = null;
   const roles  = projectId ? await getRolesForProject(projectId) : [];
+  _mrRolesCache = roles;
   const sel    = document.getElementById("mr-role-select");
   if (!sel) return;
   sel.innerHTML = '<option value="">— select role —</option>' +
     roles.map(r =>
       `<option value="${r.id}">${r.RoleTitle}</option>`
     ).join("");
+}
+
+// N-245: auto-assigns the report's Project from the selected Role, so a
+// Talent Partner (who never sees the Project dropdown — showPF in
+// renderMarketReport() is admin/delivery_manager only) still saves a
+// report with a real ProjectID, and an admin/DM who picks a Role before a
+// Project gets the same benefit. Roles fetched via getItems() are
+// field-projected (CONFIG.LIST_FIELDS.Roles) to ProjectIDLookupId, not
+// ProjectID — same lookup-shadow-name handling as bulk-activity.js /
+// command-bar.js.
+function mrRoleSelected(roleId, select) {
+  _mrRoleId = roleId;
+  const role = _mrRolesCache.find(r => String(r.id) === String(roleId));
+  const projectId = role && (role.ProjectIDLookupId || role.ProjectID);
+  _mrProjectId = projectId ? String(projectId) : null;
+  mrSuggestTitle(select);
 }
 
 async function mrGenerate() {

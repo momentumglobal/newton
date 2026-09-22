@@ -638,6 +638,25 @@ const CONFIG = {
     // unlike survey-router.js which stays excluded (role-only, no pages).
     { key: 'placementAnalytics', label: 'Placement Analytics',   module: 'marketing', href: 'market-reporting.html#placementAnalytics', roles: ['admin', 'delivery_manager', 'talent_partner'] },
     { key: 'marketReport',       label: 'Market Report Library', module: 'marketing', href: 'market-reporting.html#marketReport',       roles: ['admin', 'delivery_manager', 'talent_partner'] },
+    // os-admin.js — Admin (4). Ghost Mode is deliberately NOT listed here
+    // (N-246, Sep 2026) — Chris scoped it out of the searchable bar because
+    // it's a sensitive impersonation action, not something that should be
+    // one keystroke away by accident. The tab itself is unaffected and still
+    // reachable via the sidebar and via a direct admin.html#ghost hash.
+    { key: 'assignments', label: 'User Assignments',  module: 'admin', href: 'admin.html#assignments', roles: ['admin'] },
+    { key: 'leadership',  label: 'Leadership Access', module: 'admin', href: 'admin.html#leadership',  roles: ['admin'] },
+    { key: 'homepage',    label: 'Homepage',          module: 'admin', href: 'admin.html#homepage',    roles: ['admin'] },
+    { key: 'datahealth',  label: 'Data Health',       module: 'admin', href: 'admin.html#datahealth',  roles: ['admin'] },
+  ],
+  // Command Bar cross-module badge labels for a module that has Command Bar
+  // entries but is NOT in OS_MODULES (N-246). Admin deliberately stays out
+  // of OS_MODULES — that array is the single source of truth for the
+  // desktop module switcher AND the mobile launcher/switcher, and
+  // admin.html has no mobile view and isn't meant to appear in either
+  // switcher. This gives _cmdBarModuleName() a real label ("Admin") instead
+  // of falling back to the raw key.
+  COMMAND_BAR_EXTRA_MODULES: [
+    { key: 'admin', name: 'Admin' },
   ],
   // Command Bar entity search (N-145) — maps an entity type to the
   // COMMAND_BAR_PAGES entry that owns it. Deliberately does NOT restate

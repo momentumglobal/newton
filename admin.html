@@ -75,6 +75,7 @@
   <script src="js/api-admin.js" defer></script>
   <script src="js/api-home.js" defer></script>
   <script src="js/os-admin.js" defer></script>
+  <script src="js/command-bar.js" defer></script>
   <script>
     let _currentTab = 'assignments';
 
@@ -91,7 +92,24 @@
       const user = getCurrentUser();
       const role = await getUserRoleAsync(user.email);
       if (role !== 'admin') { window.location.href = 'index.html'; return; }
-      switchTab('assignments');
+      // N-246 — role is always the literal 'admin' here; anyone else was
+      // already redirected away two lines up, so there's no
+      // getEffectiveRole() call to make like the other *-app.js files do.
+      initCommandBar({ currentModule: 'admin', role: 'admin', navigateFn: 'switchTab' });
+      if (!handleAdminDeepLink()) switchTab('assignments');
+    }
+
+    // N-246 — Command Bar deep-link handler. Hash format: #<tab>, e.g.
+    // admin.html#datahealth. Mirrors handleSalesDeepLink() in sales-app.js.
+    // ADMIN_TABS (js/os-admin.js) still includes 'ghost' even though Ghost
+    // Mode has no Command Bar entry — that exclusion is scoped to the
+    // searchable directory only, not to hash routing.
+    function handleAdminDeepLink() {
+      const tab = window.location.hash.slice(1).trim();
+      if (!tab || !ADMIN_TABS.includes(tab)) return false;
+      switchTab(tab);
+      history.replaceState(null, '', window.location.pathname);
+      return true;
     }
 
     function switchTab(tab) {

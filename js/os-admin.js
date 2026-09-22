@@ -1,10 +1,14 @@
 // js/os-admin.js — Newton OS Admin (User Assignments + Leadership Access)
+// N-246 — hoisted out of renderOsAdminPage() to module scope so admin.html's
+// deep-link handler can validate a hash against the same list instead of
+// keeping a second copy (single source of truth).
+const ADMIN_TABS = ['assignments', 'leadership', 'homepage', 'ghost', 'datahealth'];
 let _osAdminTab = 'assignments';
 let _showInactiveAssignments = false;
 async function renderOsAdminPage(tab = 'assignments') {
   _osAdminTab = tab;
   const main = document.getElementById('main-content');
-const tabs = ['assignments', 'leadership', 'homepage', 'ghost', 'datahealth'];
+const tabs = ADMIN_TABS;
 const labels = { assignments: 'User Assignments', leadership: 'Leadership Access', homepage: 'Homepage', ghost: 'Ghost Mode', datahealth: 'Data Health' };
 const tooltips = {
   assignments: 'Manage user roles and project access. Users are auto-registered on first login — assign their role and projects here.',

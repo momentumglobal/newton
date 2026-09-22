@@ -941,20 +941,23 @@ body {
   transition: color 150ms ease;
 }
 .data-table a:hover { color: var(--text-link-hover); text-decoration: underline; }
-/* Inline row actions — visible only on row hover */
+/* Inline row actions — permanently visible, low-contrast until hover/focus (N-248) */
 .row-actions {
   display: flex;
   gap: var(--sp-4);
   align-items: center;
 }
-.data-table .row-actions {
-  opacity: 0;
-  transition: opacity 150ms ease;
+.data-table .row-actions a {
+  color: var(--text-faint);
+  transition: color 150ms ease;
 }
-.data-table tbody tr:hover .row-actions { opacity: 1; }
-/* Stage inline-edit unlock icon (N-149 addendum) — same hover-reveal
-   pattern as .row-actions above, so the Stage column reads as a plain
-   badge until the row is hovered. */
+.data-table .row-actions a:hover,
+.data-table .row-actions a:focus-visible {
+  color: var(--text-link);
+  text-decoration: underline;
+}
+/* Stage inline-edit unlock icon (N-149 addendum) — permanently visible,
+   low-contrast until hover/focus (N-248) */
 .stage-unlock-btn {
   display: inline-flex;
   align-items: center;
@@ -968,12 +971,13 @@ body {
   border-radius: var(--r-sm);
   color: var(--text-faint);
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 150ms ease, color 150ms ease;
+  transition: color 150ms ease;
 }
 .stage-unlock-btn svg { width: 13px; height: 13px; }
-.data-table tbody tr:hover .stage-unlock-btn { opacity: 1; }
-.stage-unlock-btn:hover { color: var(--text-muted); }
+.stage-unlock-btn:hover,
+.stage-unlock-btn:focus-visible {
+  color: var(--text-muted);
+}
 /* ── Shared scrolling table wrapper (N-203) ───────────────────────────
    One container for every table that needs a capped-height, sticky-header
    scroll area inside its tile. Wires up --z-sticky (N-159) for the first

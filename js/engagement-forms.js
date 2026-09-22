@@ -107,7 +107,7 @@ function _manageTemplateModalHtml(template, questions) {
       <div class="eng-questions-section">
         <div class="eng-questions-header">
           <h3>Questions <span class="eng-q-count">(${questions.length})</span></h3>
-          ${template ? `<button class="btn-primary btn--sm" onclick="openAddQuestionModal(${template.id})">
+          ${template ? `<button class="btn-secondary btn--sm" onclick="openAddQuestionModal(${template.id})">
             <i data-lucide="plus"></i> Add Question
           </button>` : '<p class="eng-hint">Save the template first, then add questions.</p>'}
         </div>

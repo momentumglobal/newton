@@ -319,7 +319,7 @@ async function buildHomepageTab() {
         <div style="font-size:14px;font-weight:600;color:var(--brand)">${e.label}</div>
         <div style="font-size:13px;color:var(--text-label);margin-top:2px">${e.desc}</div>
       </div>
-      <button class="btn-${active === e.key ? 'primary' : 'secondary'}"
+      <button class="btn-secondary"
         onclick="setFx('${active === e.key ? 'none' : e.key}')" style="min-width:80px">
         ${active === e.key ? 'On' : 'Off'}
       </button>

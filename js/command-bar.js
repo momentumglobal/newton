@@ -27,7 +27,9 @@ let _cmdBarEntityCache         = null;
 let _cmdBarEntityFetchInFlight = null;
 
 // Call once per module, right after that module's nav render.
-//   currentModule — matches a CONFIG.OS_MODULES key ('reporting' | 'people' | 'sales' | 'command')
+//   currentModule — matches a CONFIG.OS_MODULES key ('reporting' | 'people' | 'sales' | 'command'),
+//                   or a CONFIG.COMMAND_BAR_EXTRA_MODULES key ('admin') for a
+//                   module that isn't part of the OS_MODULES switcher (N-246)
 //   role          — the signed-in user's resolved role
 //   navigateFn    — the NAME (string) of that module's navigate function,
 //                   e.g. 'navigateTo' — same convention nav-core.js uses
@@ -60,7 +62,8 @@ function _cmdBarAccessiblePages(role) {
 }
 
 function _cmdBarModuleName(moduleKey) {
-  const m = CONFIG.OS_MODULES.find(m => m.key === moduleKey);
+  const m = CONFIG.OS_MODULES.find(m => m.key === moduleKey)
+    || (CONFIG.COMMAND_BAR_EXTRA_MODULES || []).find(m => m.key === moduleKey);
   return m ? m.name : moduleKey;
 }
 

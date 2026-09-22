@@ -337,23 +337,14 @@ async function showMarketReportLibrary() {
   main.innerHTML = '<div class="page-header"><h2>Market Report Library</h2></div><p>Loading...</p>';
 
   try {
-    const [reports, roles, projects, displayMap] = await Promise.all([
+    const [reports, projects, displayMap] = await Promise.all([
       getMarketReports(),
-      getAllRoles(),
       getProjects(false),
       getTalentPartnerDisplayMap(),
     ]);
 
-    // report.CustomerName is unreliable (mrSave() has always saved it blank
-    // — see N-245 fix 2 notes) and report.ProjectID is only ever set when
-    // the admin/DM project filter was used, so resolve the client through
-    // the report's RoleID instead — required on every report, and every
-    // Roles item carries a real ProjectID.
-    const roleProjectMap = {};
-    roles.forEach(r => { roleProjectMap[String(r.id)] = String(r.ProjectID || ''); });
     _mrProjectMap = {};
     projects.forEach(p => { _mrProjectMap[String(p.id)] = p.CustomerName || ''; });
-    _mrRoleProjectMap = roleProjectMap;
 
     _mrLibraryCache = reports;
     _mrTpMap        = displayMap;
@@ -365,12 +356,13 @@ async function showMarketReportLibrary() {
 }
 
 // Single resolver for grouping, filter options and filter matching, so all
-// three agree. Resolved via RoleID -> Roles.ProjectID -> Projects.CustomerName
-// (see showMarketReportLibrary) rather than the report's own CustomerName/
-// ProjectID fields, neither of which is reliably populated.
+// three agree. Groups strictly by the report's own ProjectID — set at save
+// time by mrSave() from _mrProjectId, which mrSetProject() (admin/DM) or
+// mrRoleSelected() (auto-assigned from the chosen Role, N-245 fix 4) both
+// keep current. A report saved with neither ever set has no ProjectID and
+// lands in Unassigned.
 function _mrReportClient(report) {
-  const projectId = _mrRoleProjectMap[String(report.RoleID)];
-  return (projectId && _mrProjectMap[projectId]) || 'Unassigned';
+  return _mrProjectMap[String(report.ProjectID)] || 'Unassigned';
 }
 
 function mrLibraryFilterChanged(value) {

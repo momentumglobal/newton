@@ -573,6 +573,7 @@
   .data-table a,
   .nav-module-dropdown { display: none !important; }
   body { background: var(--surface) !important; overflow: visible !important; height: auto !important; }
+  :focus-visible { outline: none !important; }
   #app-shell { display: block !important; height: auto !important; }
   #main-content {
     padding: 0 var(--sp-4) !important;
@@ -759,6 +760,28 @@ body {
   overflow-y: auto;
   padding: var(--sp-11);
   background: var(--surface-app);
+}
+/* ── Focus (N-249) ──────────────────────────────────────────────────── */
+/* Global keyboard-focus ring. :focus-visible already restricts this to
+   keyboard/programmatic focus (not mouse/touch clicks) in every supported
+   browser, so no extra JS gating is needed. More specific existing rules
+   below (.form-group input:focus, .data-table .row-actions a:focus-visible,
+   .stage-unlock-btn:focus-visible, etc.) keep winning via normal cascade —
+   this is deliberately left as the catch-all, not a replacement for them. */
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+/* On-brand override: #sidebar and the two dropdown/drawer surfaces sit
+   directly on --inverse-surface/--inverse-surface-2, where --border-focus
+   (brand-blue) doesn't read against itself. Reuse --inverse-text, the same
+   token already used for readable text/icons on these surfaces, rather than
+   inventing a new one. */
+#sidebar :focus-visible,
+.nav-module-dropdown :focus-visible,
+.ql-drawer :focus-visible,
+.notif-drawer :focus-visible {
+  outline-color: var(--inverse-text);
 }
 /* ── Forms ──────────────────────────────────────────────────────────── */
 .form-container { max-width: 720px; padding: var(--sp-9); }

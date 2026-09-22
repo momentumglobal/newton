@@ -103,7 +103,7 @@ function _lciEditorHtml() {
       <h2>${escHtml(m.Title)} <span style="font-weight:400;color:var(--text-muted);font-size:15px">— ${escHtml(m.ClientName)}</span></h2>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="lciEditorBack()">← Back to models</button>
-        <button class="btn-primary" onclick="lciOpenSummary()">Summary / Print</button>
+        <button class="btn-secondary" onclick="lciOpenSummary()">Summary / Print</button>
       </div>
     </div>
     ${_lciSettingsHtml()}

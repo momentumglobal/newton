@@ -858,6 +858,10 @@ body {
   font-weight: 600;
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
   transition: background 150ms ease, transform 100ms ease, box-shadow 150ms ease;
+  min-height: var(--sp-11);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .btn-primary:hover  { background: var(--brand-hover); box-shadow: 0 var(--sp-1) var(--sp-4) rgba(10,11,68,0.18); }
 .btn-primary:active { transform: scale(0.97); }
@@ -871,6 +875,10 @@ body {
   font-size: var(--fs-14);
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
   transition: background 150ms ease, transform 100ms ease;
+  min-height: var(--sp-11);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .btn-secondary:hover  { background: var(--surface-app); }
 .btn-secondary:active { transform: scale(0.97); }
@@ -985,8 +993,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  min-width: var(--sp-10);
+  min-height: var(--sp-10);
   margin-left: var(--sp-3);
   padding: 0;
   background: none;
@@ -1950,11 +1958,12 @@ body {
 /* ── Shared utilities (used across engagement + survey) ────────────── */
 .page-title { font-size: var(--fs-22); font-weight: 700; color: var(--text-heading); margin: 0; letter-spacing: var(--ls-heading); }
 .page-loading { padding: var(--sp-11); text-align: center; color: var(--text-muted); font-size: var(--fs-14); }
-.btn--sm { padding: var(--sp-2) var(--sp-6) !important; font-size: var(--fs-12) !important; }
+.btn--sm { padding: var(--sp-2) var(--sp-6) !important; font-size: var(--fs-12) !important; min-height: var(--sp-10) !important; }
 .btn-icon {
   background: none; border: 1px solid var(--border-mid); border-radius: var(--r-md);
   padding: var(--sp-2) var(--sp-3); cursor: pointer; color: var(--text-label);
   display: inline-flex; align-items: center; justify-content: center;
+  min-width: var(--sp-10); min-height: var(--sp-10);
   transition: background 0.12s, color 0.12s;
 }
 .btn-icon:hover { background: var(--surface-hover); color: var(--brand); }

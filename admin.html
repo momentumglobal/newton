@@ -92,7 +92,7 @@
       const user = getCurrentUser();
       const role = await getUserRoleAsync(user.email);
       if (role !== 'admin') { window.location.href = 'index.html'; return; }
-      // N-246 — role is always the literal 'admin' here; anyone else was
+      // N-246 — role is always the literal 'admin' here; anyone else will have
       // already redirected away two lines up, so there's no
       // getEffectiveRole() call to make like the other *-app.js files do.
       initCommandBar({ currentModule: 'admin', role: 'admin', navigateFn: 'switchTab' });

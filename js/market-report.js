@@ -13,6 +13,8 @@ let _mrLibraryCache  = [];  // all saved reports, from the last load — unscope
                              // every user with module access sees every report
 let _mrLibraryFilter = '';  // '' = all clients
 let _mrTpMap         = {};  // CreatedByEmail (lower-case) -> display name
+let _mrProjectMap    = {};  // projectId (string) -> CustomerName, for banding
+let _mrRoleProjectMap = {}; // roleId (string) -> projectId (string)
 
 async function renderMarketReport() {
   const main = document.getElementById("main-content");
@@ -315,10 +317,24 @@ async function showMarketReportLibrary() {
   main.innerHTML = '<div class="page-header"><h2>Market Report Library</h2></div><p>Loading...</p>';
 
   try {
-    const [reports, displayMap] = await Promise.all([
+    const [reports, roles, projects, displayMap] = await Promise.all([
       getMarketReports(),
+      getAllRoles(),
+      getProjects(false),
       getTalentPartnerDisplayMap(),
     ]);
+
+    // report.CustomerName is unreliable (mrSave() has always saved it blank
+    // — see N-245 fix 2 notes) and report.ProjectID is only ever set when
+    // the admin/DM project filter was used, so resolve the client through
+    // the report's RoleID instead — required on every report, and every
+    // Roles item carries a real ProjectID.
+    const roleProjectMap = {};
+    roles.forEach(r => { roleProjectMap[String(r.id)] = String(r.ProjectID || ''); });
+    _mrProjectMap = {};
+    projects.forEach(p => { _mrProjectMap[String(p.id)] = p.CustomerName || ''; });
+    _mrRoleProjectMap = roleProjectMap;
+
     _mrLibraryCache = reports;
     _mrTpMap        = displayMap;
     _mrRenderLibrary();
@@ -329,13 +345,12 @@ async function showMarketReportLibrary() {
 }
 
 // Single resolver for grouping, filter options and filter matching, so all
-// three agree. CustomerName is denormalised onto the report at save time
-// (mrSave()) — used instead of resolving ProjectID via getProjects() because
-// a Talent Partner report frequently has no ProjectID at all (the project
-// filter only renders for admin/delivery_manager — see showPF in
-// renderMarketReport/mrRenderSidebar).
+// three agree. Resolved via RoleID -> Roles.ProjectID -> Projects.CustomerName
+// (see showMarketReportLibrary) rather than the report's own CustomerName/
+// ProjectID fields, neither of which is reliably populated.
 function _mrReportClient(report) {
-  return report.CustomerName || 'Unassigned';
+  const projectId = _mrRoleProjectMap[String(report.RoleID)];
+  return (projectId && _mrProjectMap[projectId]) || 'Unassigned';
 }
 
 function mrLibraryFilterChanged(value) {

@@ -53,12 +53,17 @@ function _renderRevenueTrackingPage(assignments, years) {
 
 // ── Sales Forecast Page ───────────────────────────────────────────
 
+let _forecastSort   = null; // N-247c: { key, dir } — null = default order
+let _forecastSearch = '';   // N-247c: shared list search box (list-controls.js)
+
 async function renderSalesForecastPage() {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading...</p>';
 
   try {
     const forecasts = await getSalesForecasts();
+    // N-247c: pre-existing default order, kept as-is — sortRows layers the
+    // user's column sort on top of it inside _renderForecastPage.
     forecasts.sort((a, b) => new Date(a.ForecastStartDate) - new Date(b.ForecastStartDate));
     main.innerHTML = _renderForecastPage(forecasts);
     if (window.lucide) lucide.createIcons();
@@ -75,8 +80,20 @@ function _fmtForecastDate(iso) {
 }
 
 function _renderForecastPage(forecasts) {
-  const rows = forecasts.length
-    ? forecasts.map(f => `
+  // N-247c: search + sort, applied after the caller's default order
+  // (renderSalesForecastPage's forecasts.sort by start date, kept as-is).
+  const filtered = filterRowsByText(forecasts, _forecastSearch, f => [f.Title, f.Notes]);
+  const FORECAST_SORT_COLUMNS = {
+    title:     { type: 'text',   get: f => f.Title },
+    // N-247c: spDateIn via sortRows, not _fmtForecastDate's month/year-only
+    // display — that's not a real day-level sort key.
+    start:     { type: 'date',   get: f => f.ForecastStartDate },
+    end:       { type: 'date',   get: f => f.ForecastEndDate },
+    headcount: { type: 'number', get: f => f.ForecastedHeadcount },
+  };
+  const sorted = sortRows(filtered, _forecastSort, FORECAST_SORT_COLUMNS);
+  const rows = sorted.length
+    ? sorted.map(f => `
         <tr>
           <td>${f.Title || '—'}</td>
           <td>${_fmtForecastDate(f.ForecastStartDate)}</td>
@@ -98,13 +115,15 @@ function _renderForecastPage(forecasts) {
       <button class="btn-primary" onclick="openForecastModal()">+ Add Forecast</button>
     </div>
       <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px">
+      <div class="table-toolbar">${listControlsBar([listSearchBox(_forecastSearch, 'setForecastSearch')])}</div>
+      ${listResultCount(sorted.length, sorted.length, forecasts.length, null, 'forecast')}
       <table class="data-table">
         <thead>
           <tr>
-            <th>Customer / Project</th>
-            <th>Start</th>
-            <th>End</th>
-            <th>Headcount</th>
+            ${sortableHeader('Customer / Project', 'title', _forecastSort, 'setForecastSort')}
+            ${sortableHeader('Start', 'start', _forecastSort, 'setForecastSort')}
+            ${sortableHeader('End', 'end', _forecastSort, 'setForecastSort')}
+            ${sortableHeader('Headcount', 'headcount', _forecastSort, 'setForecastSort')}
             <th>Notes</th>
             <th></th>
           </tr>
@@ -114,6 +133,13 @@ function _renderForecastPage(forecasts) {
     </div>
     ${_forecastModal()}`;
 }
+
+// N-247c: re-renders through renderSalesForecastPage() — no separate
+// fetch-vs-render split exists on this page today, so re-running the whole
+// page is the floor here; not worth adding a cache for this ticket.
+const _debouncedRenderSalesForecastPage = debounce(async () => { await renderSalesForecastPage(); focusListSearchBox(); }, 250);
+function setForecastSearch(val) { _forecastSearch = val || ''; _debouncedRenderSalesForecastPage(); }
+async function setForecastSort(key) { _forecastSort = nextSortState(_forecastSort, key); await renderSalesForecastPage(); focusSortHeader(key); }
 
 function _forecastModal() {
   return `

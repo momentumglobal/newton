@@ -218,7 +218,7 @@ let _rolesProjectId = null;
 let _rolesPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
 let _rolesSort      = null;  // N-247a: { key, dir } — null = default order
 let _rolesSearch    = '';    // N-251a: shared list search box (list-controls.js)
-async function renderRolesPage
+async function renderRolesPage(filter, pendingItem = null) {
   if (filter !== undefined) _rolesFilter = filter;
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 9);

@@ -1,6 +1,19 @@
 // js/utils.js — pure helpers with no network I/O
 // Loaded before api.js in all HTML files.
 
+// ── Platform detection ──────────────────────────────────────────────
+// Used for the ⌘K/Ctrl+K sidebar hint (N-256) — never assume a platform,
+// derive it. Defaults to false (Windows/Linux label) if navigator access
+// throws for any reason; must never block sidebar render.
+function isMacPlatform() {
+  try {
+    const uaPlatform = navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || '';
+    return /Mac/i.test(uaPlatform);
+  } catch (e) {
+    return false;
+  }
+}
+
 // ── Button loading state ──────────────────────────────────────────────
 function setButtonLoading(btn, loadingText) {
   if (!btn) return;

@@ -755,6 +755,10 @@ body {
 .nav-footer-btn:hover { background: var(--inverse-hover-bg); color: var(--inverse-text); }
 .nav-theme-toggle-icon,
 .nav-footer-btn-icon { width: 15px; height: 15px; }
+.nav-cmdbar-hint {
+  border-bottom: 1px solid var(--inverse-divider);
+  color: var(--inverse-text-subtitle);
+}
 /* ── Main content ───────────────────────────────────────────────────── */
 #main-content {
   flex: 1;

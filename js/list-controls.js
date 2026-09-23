@@ -14,6 +14,12 @@
 // restore (focusSortHeader). The sort LOGIC is not here — it is pure and
 // lives in utils.js (sortRows, nextSortState, compareSortValues).
 //
+// N-251a adds the shared list search box (listSearchBox, its focus restore
+// focusListSearchBox), the page-agnostic substring filter
+// (filterRowsByText), and a generic debounce() helper. Reference
+// implementation is the Roles page (pages.js); other list pages wire in
+// under N-251b without changes here.
+//
 // LOAD ORDER: after utils.js (isProjectActive, sortProjectsByName,
 // buildProjectOptionsHtml, escHtml, escAttr, escJsAttr) and api.js
 // (getProjects, getUserProjectIds), and BEFORE pages.js, which calls
@@ -86,6 +92,54 @@ function pageSizeDropdown(selectedSize, callbackFn) {
     '<label>Show</label>' +
     '<select onchange="' + callbackFn + '(this.value)">' + options + '</select>' +
     '</div>';
+}
+
+// N-251a: generic debounce — delays invoking fn until `delay` ms after the
+// last call. Page-agnostic; keeps list re-renders off the fast path of
+// every keystroke in a search box.
+function debounce(fn, delay) {
+  let timer = null;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
+// N-251a: pure substring filter. `getSearchableFields(row)` returns an array
+// of strings for that row — the page decides which columns count, so this
+// stays page-agnostic and N-251b can call it from other list pages
+// unchanged.
+function filterRowsByText(rows, query, getSearchableFields) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return rows;
+  return rows.filter(row =>
+    getSearchableFields(row).some(field => String(field || '').toLowerCase().includes(q))
+  );
+}
+
+// N-251a: shared list search box. Page owns the value and passes its
+// setter's name as callbackFn — same shape as pageSizeDropdown() /
+// periodFilterDropdown(). `.form-group` gives it the standard input look;
+// `.list-search-box` is the toolbar-alignment hook (see style.css).
+function listSearchBox(value, callbackFn) {
+  return '<div class="form-group list-search-box">' +
+    '<label>Search</label>' +
+    '<input type="search" value="' + escAttr(value || '') + '"' +
+    ' placeholder="Filter this list…"' +
+    ' oninput="' + callbackFn + '(this.value)">' +
+    '</div>';
+}
+
+// N-251a: restores focus + caret position after a re-render replaces the
+// search box's DOM node — mirrors focusSortHeader's fix for the same
+// innerHTML-replacement problem. No-op when the box isn't on the page.
+function focusListSearchBox() {
+  const input = document.querySelector('#main-content .list-search-box input');
+  if (input) {
+    input.focus();
+    const end = input.value.length;
+    input.setSelectionRange(end, end);
+  }
 }
 
 // N-152: RENDER-ONLY row cap. This must never influence a query — it runs

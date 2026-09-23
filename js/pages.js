@@ -27,11 +27,19 @@ function projectRowHtml(p, { dmDisplay, canEdit, pending = false } = {}) {
         `;
 }
 
-function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilter, pending = false } = {}) {
+// N-247a: the Days Open value a Roles row shows — null where the cell is
+// blank for this filter. Shared by roleRowHtml and the Days Open sort
+// accessor so the sort can never disagree with what's displayed.
+function roleDaysOpenValue(r, rolesFilter) {
   const isHired    = rolesFilter === "Hired";
   const daysHidden = rolesFilter === "Backlog" || rolesFilter === "Cancelled";
-  const days       = (!daysHidden && (!isHired || r.ActualHireDate))
+  return (!daysHidden && (!isHired || r.ActualHireDate))
     ? daysOpen(r.OpenDate, r.ActualHireDate) : null;
+}
+
+function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilter, pending = false } = {}) {
+  const isHired    = rolesFilter === "Hired";
+  const days       = roleDaysOpenValue(r, rolesFilter);
   const rowClass   = (isHired || rolesFilter === "Active") && days !== null && days > 45
     ? "row-age-critical" : "";
   const dateCell   = isHired
@@ -208,6 +216,7 @@ const ROLE_FILTERS = {
 let _rolesFilter    = "Active";
 let _rolesProjectId = null;
 let _rolesPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
+let _rolesSort      = null;  // N-247a: { key, dir } — null = default order
 async function renderRolesPage(filter, pendingItem = null) {
   if (filter !== undefined) _rolesFilter = filter;
   const main = document.getElementById("main-content");
@@ -239,13 +248,29 @@ async function renderRolesPage(filter, pendingItem = null) {
     );
   }
   roles = roles.filter(ROLE_FILTERS[_rolesFilter] || (() => true));
+  // N-247a: one project-name lookup for the default sort, the sort column and the row.
+  const projectNameOf = r => projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || '';
   roles.sort((a, b) => {
-    const pA = projectMap[String(a.ProjectIDLookupId)] || projectMap[String(a.ProjectID)] || '';
-    const pB = projectMap[String(b.ProjectIDLookupId)] || projectMap[String(b.ProjectID)] || '';
-    const proj = pA.localeCompare(pB);
+    const proj = projectNameOf(a).localeCompare(projectNameOf(b));
     if (proj !== 0) return proj;
     return new Date(a.OpenDate || 0) - new Date(b.OpenDate || 0);
   });
+  // N-247a: the user's column sort goes ON TOP of the default order above.
+  // sortRows is stable, so ties keep project → open-date order. Accessors
+  // return what the cell shows, raw (no "—"), so blanks sort last.
+  // Must stay BEFORE paginate().
+  const ROLE_SORT_COLUMNS = {
+    project:  { type: 'text',   get: r => projectNameOf(r) },
+    role:     { type: 'text',   get: r => r.RoleTitle },
+    location: { type: 'text',   get: r => r.Location },
+    stage:    { type: 'enum',   get: r => r.Stage, order: CONFIG.ROLE_STAGES },
+    tp:       { type: 'text',   get: r => tpList(r.TalentPartner).length ? tpDisplay(r.TalentPartner, tpMap) : '' },
+    budget:   { type: 'number', get: r => r.Budget },
+    openDate: { type: 'date',   get: r => r.OpenDate },
+    hireDate: { type: 'date',   get: r => _rolesFilter === "Hired" ? r.ActualHireDate : r.TargetHireDate },
+    daysOpen: { type: 'number', get: r => roleDaysOpenValue(r, _rolesFilter) },
+  };
+  roles = sortRows(roles, _rolesSort, ROLE_SORT_COLUMNS);
   const userRole = _resolvedRole;
   const canEdit  = ["admin","delivery_manager","talent_partner"].includes(userRole);
   const filterBtns = Object.keys(ROLE_FILTERS).map(f =>
@@ -275,12 +300,19 @@ async function renderRolesPage(filter, pendingItem = null) {
         <div class="table-scroll">
         <table class="data-table">
       <thead><tr>
-        <th>Project</th><th>Role</th><th>Location</th><th>Stage</th><th>Talent Partner</th>
-        <th>Budget</th><th>Open Date</th><th>${_rolesFilter === "Hired" ? "Actual Hire Date" : "Target Hire Date"}</th><th>Days Open</th>${canEdit ? "<th></th>" : ""}
+        ${sortableHeader('Project', 'project', _rolesSort, 'setRolesSort')}
+        ${sortableHeader('Role', 'role', _rolesSort, 'setRolesSort')}
+        ${sortableHeader('Location', 'location', _rolesSort, 'setRolesSort')}
+        ${sortableHeader('Stage', 'stage', _rolesSort, 'setRolesSort')}
+        ${sortableHeader('Talent Partner', 'tp', _rolesSort, 'setRolesSort')}
+        ${sortableHeader('Budget', 'budget', _rolesSort, 'setRolesSort')}
+        ${sortableHeader('Open Date', 'openDate', _rolesSort, 'setRolesSort')}
+        ${sortableHeader(_rolesFilter === "Hired" ? "Actual Hire Date" : "Target Hire Date", 'hireDate', _rolesSort, 'setRolesSort')}
+        ${sortableHeader('Days Open', 'daysOpen', _rolesSort, 'setRolesSort')}${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
         ${pagedRoles.length ? pagedRoles.map(r => roleRowHtml(r, {
-          projectName: projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || "—",
+          projectName: projectNameOf(r) || "—",
           tpMap,
           canEdit,
           historyRoleIds,
@@ -301,6 +333,11 @@ async function renderRolesPage(filter, pendingItem = null) {
 }
 function setRolesProject(val) { _rolesProjectId = val || null; renderRolesPage(); }
 function setRolesPageSize(val) { _rolesPageSize = Number(val); renderRolesPage(); }
+// N-247a: re-renders through renderRolesPage like the setters above (cached
+// fetches, same skeleton flash as a page-size change). N-247b owns sorting
+// WITHOUT the re-fetch — don't copy this onto the fetch-heavy pages as-is.
+// Focus goes back to the clicked header once the new table is in place.
+async function setRolesSort(key) { _rolesSort = nextSortState(_rolesSort, key); await renderRolesPage(); focusSortHeader(key); }
 function unlockStageEdit(roleId, currentStage) {
   const cell = document.getElementById(`stage-cell-${roleId}`);
   if (!cell) return;

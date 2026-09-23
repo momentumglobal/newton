@@ -1009,6 +1009,20 @@ body {
 .activity-table .th-sortable:nth-child(n+5) .th-sort-btn {
   justify-content: center;
 }
+/* N-247c: Placement Analytics' Role Breakdown table has the same
+   sortableHeader()-has-no-alignment-param constraint as N-247b's Activity
+   table, but its centered columns aren't a contiguous trailing range —
+   Avg. Salary (3), Avg. Actual TTH (4), Outreach Response (5) and Offer
+   Success (7) are centered; Funnel (RAG) (6) is centered too but isn't a
+   sortable header, so its plain inline text-align:center is untouched. No
+   other table in N-247a/b/c has centered numeric headers — don't add this
+   rule anywhere else. */
+.pa-breakdown-table .th-sortable:nth-child(3) .th-sort-btn,
+.pa-breakdown-table .th-sortable:nth-child(4) .th-sort-btn,
+.pa-breakdown-table .th-sortable:nth-child(5) .th-sort-btn,
+.pa-breakdown-table .th-sortable:nth-child(7) .th-sort-btn {
+  justify-content: center;
+}
 .data-table td {
   padding: var(--table-cell-py) var(--table-cell-px);
   border-bottom: 1px solid var(--border-subtle);

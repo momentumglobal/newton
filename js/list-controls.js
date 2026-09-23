@@ -17,8 +17,8 @@
 // N-251a adds the shared list search box (listSearchBox, its focus restore
 // focusListSearchBox), the page-agnostic substring filter
 // (filterRowsByText), and a generic debounce() helper. Reference
-// implementation is the Roles page (pages.js); other list pages wire in
-// under N-251b without changes here.
+// implementation is the Roles page (pages.js); N-247b/N-247c wire the
+// remaining list pages in without changes here.
 //
 // LOAD ORDER: after utils.js (isProjectActive, sortProjectsByName,
 // buildProjectOptionsHtml, escHtml, escAttr, escJsAttr) and api.js
@@ -107,8 +107,8 @@ function debounce(fn, delay) {
 
 // N-251a: pure substring filter. `getSearchableFields(row)` returns an array
 // of strings for that row — the page decides which columns count, so this
-// stays page-agnostic and N-251b can call it from other list pages
-// unchanged.
+// stays page-agnostic and N-247b/N-247c call it from the remaining list
+// pages unchanged.
 function filterRowsByText(rows, query, getSearchableFields) {
   const q = String(query || '').trim().toLowerCase();
   if (!q) return rows;

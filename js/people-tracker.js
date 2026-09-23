@@ -278,7 +278,6 @@ let filtered = assignments.filter(matchesStatus).filter(matchesOtherFilters);
         </select>
       </div>
       <div class='form-group' style='min-width:140px'>
-        <label>Project Type</label><div class='form-group' style='min-width:140px'>
         <label>Project Type</label>
         <select onchange="_setAssignmentFilter('projectType',this.value)">
           ${opts(projectTypes, _assignmentFilter.projectType, 'All')}
@@ -313,19 +312,6 @@ let filtered = assignments.filter(matchesStatus).filter(matchesOtherFilters);
     billed:      { type: 'text', get: a => a.Billed },
   };
   filtered = sortRows(filtered, _assignmentsSort, ASSIGNMENT_SORT_COLUMNS);
-  const rows = filtered.map(a => assignmentRowHtml(a, {s.value)">
-          ${opts(projectTypes, _assignmentFilter.projectType, 'All')}
-        </select>
-      </div>
-    </div>`;
-
-  filtered.sort((a, b) => {
-  const c = (a.Customer || '').localeCompare(b.Customer || '');
-  if (c !== 0) return c;
-  const l = levelSortIndex(a.Level) - levelSortIndex(b.Level);
-  if (l !== 0) return l;
-  return (a.EmployeeName || '').localeCompare(b.EmployeeName || '');
-});
   const rows = filtered.map(a => assignmentRowHtml(a, {
     canEdit,
     pending: pendingItem ? a.id === pendingItem.id : false,

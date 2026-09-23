@@ -463,6 +463,87 @@ function daysOpen(openDate, hireDate) {
   return Math.floor((end - start) / (1000 * 60 * 60 * 24));
 }
 
+// ── List sorting (N-247a) ─────────────────────────────────────────────
+// Pure data side of the click-to-sort column headers. The header renderer
+// (sortableHeader) and focus restore (focusSortHeader) live in
+// list-controls.js; nothing here touches the DOM, so it is covered by
+// tests/run.js.
+//
+// CONTRACT for every list page:
+//   filters → page default sort → sortRows(user sort) → paginate → render
+// Sorting BEFORE paginate() is what makes a sort reach every matched row,
+// not just the rows currently on screen.
+
+// Comparable key for `v` under `type`, or null when the value counts as
+// EMPTY for that type (null/undefined, blank or whitespace-only string,
+// unparseable number, unparseable date). Numbers strip thousands commas the
+// same way formatSalary() does. Dates become spDateIn() 'YYYY-MM-DD' strings
+// — never a Date built from a SharePoint string (Timezone discipline) — which
+// also keeps the order identical to the date the cell displays.
+function _sortKey(v, type) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'string' && v.trim() === '') return null;
+  if (type === 'number') {
+    const n = parseFloat(String(v).replace(/,/g, ''));
+    return isNaN(n) ? null : n;
+  }
+  if (type === 'date') return spDateIn(v);
+  return v;
+}
+
+// ASCENDING comparison of two NON-EMPTY values. Empties are handled by
+// sortRows (always last), so call this through sortRows rather than directly.
+//   text   — case-insensitive, numeric-aware ('Role 2' < 'Role 10')
+//   number — numeric, commas stripped
+//   date   — calendar day as displayed (spDateIn string compare)
+//   enum   — position in `order` (e.g. CONFIG.ROLE_STAGES); values not in
+//            `order` sort after every known value, then by text
+function compareSortValues(a, b, type, order) {
+  const ka = _sortKey(a, type);
+  const kb = _sortKey(b, type);
+  if (type === 'number') return ka - kb;
+  if (type === 'date') return ka < kb ? -1 : ka > kb ? 1 : 0;
+  if (type === 'enum' && Array.isArray(order)) {
+    const ia = order.indexOf(ka);
+    const ib = order.indexOf(kb);
+    const ra = ia === -1 ? order.length : ia;
+    const rb = ib === -1 ? order.length : ib;
+    if (ra !== rb) return ra - rb;
+  }
+  return String(ka).localeCompare(String(kb), undefined, { sensitivity: 'base', numeric: true });
+}
+
+// Returns rows sorted by sortState = { key, dir: 'asc'|'desc' } using
+// columns = { [key]: { type, get: row => rawValue, order? } }.
+// A null state, or a key that isn't a column (stale state), returns `rows`
+// itself, untouched — the page's default order stands. Otherwise returns a
+// NEW array; the input is never mutated. Empties sort last in BOTH
+// directions (Excel behaviour). Stable: ties keep their incoming order, so
+// the page's default sort acts as the tie-breaker — load-bearing, don't
+// swap in an unstable sort.
+function sortRows(rows, sortState, columns) {
+  if (!sortState || !columns || !Object.prototype.hasOwnProperty.call(columns, sortState.key)) return rows;
+  const col  = columns[sortState.key];
+  const sign = sortState.dir === 'desc' ? -1 : 1;
+  const keyed = rows.map(function (row) {
+    const v = col.get(row);
+    return { row: row, v: v, empty: _sortKey(v, col.type) === null };
+  });
+  keyed.sort(function (x, y) {
+    if (x.empty || y.empty) return x.empty === y.empty ? 0 : (x.empty ? 1 : -1);
+    return sign * compareSortValues(x.v, y.v, col.type, col.order);
+  });
+  return keyed.map(function (k) { return k.row; });
+}
+
+// Header click cycle: a new column starts at asc; asc → desc → null
+// (null = back to the page's default order).
+function nextSortState(current, key) {
+  if (!current || current.key !== key) return { key: key, dir: 'asc' };
+  if (current.dir === 'asc') return { key: key, dir: 'desc' };
+  return null;
+}
+
 // ── Date helpers (N-054: consolidated from forms.js + five duplicate/
 // shim copies previously scattered across people-forms.js, mobile-app.js,
 // lci-link.js, mobile-pages.js and mobile-roleform.js) ─────────────────

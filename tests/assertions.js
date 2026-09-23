@@ -698,4 +698,65 @@ var ASSERTIONS = [
       _assertEqual(merged.find(function (i) { return i.id === '3'; }).ProjectID, 300, 'id 3 upserted');
     },
   },
+  {
+    name: 'N-247a compareSortValues — text case-insensitive + numeric-aware, numbers strip commas, dates by calendar day, enums by order',
+    fn: function () {
+      const sign = function (n) { return n < 0 ? -1 : n > 0 ? 1 : 0; };
+      _assertEqual(sign(compareSortValues('apple', 'Banana', 'text')), -1, 'apple < Banana (case-insensitive)');
+      _assertEqual(sign(compareSortValues('APPLE', 'apple', 'text')), 0, 'APPLE == apple');
+      _assertEqual(sign(compareSortValues('Role 2', 'Role 10', 'text')), -1, 'Role 2 < Role 10 (numeric-aware)');
+      _assertEqual(sign(compareSortValues('9,000', '65,000', 'number')), -1, '9,000 < 65,000 (not string order)');
+      _assertEqual(sign(compareSortValues(120, '65,000', 'number')), -1, 'number vs comma string');
+      _assertEqual(sign(compareSortValues('2026-07-01T12:00:00Z', '2026-06-30T23:00:00Z', 'date')), 1, 'later calendar day sorts after (spDateIn string compare)');
+      _assertEqual(sign(compareSortValues('2026-07-01T00:00:00Z', '2026-07-01T23:59:00Z', 'date')), 0, 'same calendar day, different time = equal');
+      _assertEqual(sign(compareSortValues('Sourcing', 'Offered', 'enum', CONFIG.ROLE_STAGES)), -1, 'Sourcing before Offered (pipeline order, not alphabetical)');
+      _assertEqual(sign(compareSortValues('Hired', 'Backlog', 'enum', CONFIG.ROLE_STAGES)), 1, 'Hired after Backlog');
+      _assertEqual(sign(compareSortValues('Mystery', 'Cancelled', 'enum', CONFIG.ROLE_STAGES)), 1, 'unknown enum value sorts after every known value');
+      _assertEqual(sign(compareSortValues('Alpha', 'Zeta', 'enum', CONFIG.ROLE_STAGES)), -1, 'two unknowns fall back to text compare');
+    },
+  },
+  {
+    name: 'N-247a sortRows — empties last both ways, null/unknown state is a no-op, input not mutated, ties keep input order',
+    fn: function () {
+      const rows = [
+        { id: 'a', n: '65,000', t: 'beta',  g: 'x', d: '2026-03-01T12:00:00Z' },
+        { id: 'b', n: null,     t: '',      g: 'y', d: null },
+        { id: 'c', n: '9,000',  t: 'Alpha', g: 'x', d: '2026-01-15T00:00:00Z' },
+        { id: 'd', n: 'n/a',    t: '   ',   g: 'y', d: 'not a date' },
+        { id: 'e', n: 120,      t: 'gamma', g: 'x', d: '2025-12-31T23:00:00Z' },
+      ];
+      const cols = {
+        n: { type: 'number', get: function (r) { return r.n; } },
+        t: { type: 'text',   get: function (r) { return r.t; } },
+        g: { type: 'text',   get: function (r) { return r.g; } },
+        d: { type: 'date',   get: function (r) { return r.d; } },
+      };
+      const ids = function (rs) { return rs.map(function (r) { return r.id; }).join(''); };
+      const before = ids(rows);
+      _assertEqual(ids(sortRows(rows, { key: 'n', dir: 'asc' },  cols)), 'ecabd', 'number asc, empties (null, unparseable) last');
+      _assertEqual(ids(sortRows(rows, { key: 'n', dir: 'desc' }, cols)), 'acebd', 'number desc, empties STILL last');
+      _assertEqual(ids(sortRows(rows, { key: 't', dir: 'asc' },  cols)), 'caebd', 'text asc, blank/whitespace last');
+      _assertEqual(ids(sortRows(rows, { key: 't', dir: 'desc' }, cols)), 'eacbd', 'text desc, blank/whitespace still last');
+      _assertEqual(ids(sortRows(rows, { key: 'd', dir: 'asc' },  cols)), 'ecabd', 'date asc, null/unparseable last');
+      _assertEqual(ids(sortRows(rows, { key: 'd', dir: 'desc' }, cols)), 'acebd', 'date desc, null/unparseable still last');
+      _assertEqual(ids(sortRows(rows, { key: 'g', dir: 'asc' },  cols)), 'acebd', 'ties keep input order (stable)');
+      _assertEqual(ids(sortRows(rows, { key: 'g', dir: 'desc' }, cols)), 'bdace', 'desc ties also keep input order');
+      _assertEqual(sortRows(rows, null, cols) === rows, true, 'null state returns the input untouched');
+      _assertEqual(sortRows(rows, { key: 'gone', dir: 'asc' }, cols) === rows, true, 'unknown/stale key returns the input untouched');
+      _assertEqual(sortRows(rows, { key: 'toString', dir: 'asc' }, cols) === rows, true, 'inherited property name is not a column');
+      _assertEqual(ids(rows), before, 'input array not mutated by any sort above');
+    },
+  },
+  {
+    name: 'N-247a nextSortState — asc → desc → default, and a different column starts at asc',
+    fn: function () {
+      const s1 = nextSortState(null, 'budget');
+      _assertEqual(s1, { key: 'budget', dir: 'asc' }, '1st click asc');
+      const s2 = nextSortState(s1, 'budget');
+      _assertEqual(s2, { key: 'budget', dir: 'desc' }, '2nd click desc');
+      _assertEqual(nextSortState(s2, 'budget'), null, '3rd click back to default');
+      _assertEqual(nextSortState(s2, 'stage'), { key: 'stage', dir: 'asc' }, 'different column (from desc) starts at asc');
+      _assertEqual(nextSortState(s1, 'stage'), { key: 'stage', dir: 'asc' }, 'different column (from asc) starts at asc');
+    },
+  },
 ];

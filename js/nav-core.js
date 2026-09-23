@@ -16,6 +16,7 @@ function renderModuleNav({
 }) {
   _navNavigateFn = navigateFn;
   const user = getCurrentUser();
+  const kbdLabel = isMacPlatform() ? '⌘K' : 'Ctrl+K';
   const visibleModules = CONFIG.OS_MODULES.filter(m => m.roles.includes(role));
 
   const moduleItems = visibleModules.map(m => {
@@ -55,6 +56,12 @@ function renderModuleNav({
       <div class='nav-user-role'>${role.replace(/_/g, ' ')}</div>
       <div class='nav-notif-slot' id='notif-slot'></div>
     </div>
+    <button class='nav-footer-btn nav-cmdbar-hint' id='cmdbar-hint-btn'
+            onclick='_cmdBarOpen({ currentModule: "${currentModuleKey}", role: role, navigateFn: "${navigateFn}" })'
+            title='Open Command Bar'>
+      <i data-lucide="search" class="nav-footer-btn-icon"></i>
+      ${kbdLabel} to search
+    </button>
     <nav class='nav-links' id='nav-links'>
       ${navLinks}
     </nav>

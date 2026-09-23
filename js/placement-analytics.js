@@ -4,6 +4,8 @@
 let _paLocation      = "";   // selected Currency/Location filter value
 let _paFunctionArea  = "";   // selected Department filter value
 let _paData          = null; // { historical, activity, benchmarks }
+let _paBreakdownSort   = null; // N-247c: { key, dir } — Role Breakdown table
+let _paBreakdownSearch = "";   // N-247c: shared list search box (list-controls.js)
 
 // ── Entry point ───────────────────────────────────────────────────────
 async function renderPlacementAnalytics() {
@@ -59,6 +61,7 @@ async function renderPlacementAnalytics() {
           ).join("")}
         </select>
       </div>
+      ${listSearchBox(_paBreakdownSearch, 'paSetBreakdownSearch')}
     </div>
 
     <div id="pa-results"></div>
@@ -73,6 +76,15 @@ function paApplyFilters(location, functionArea) {
   _paFunctionArea = functionArea;
   paRenderResults();
 }
+
+// N-247c: debounced search — narrows the Role Breakdown table only; the two
+// dropdowns above still re-run _paComputeResults (a pure recompute off
+// already-loaded _paData, not a fetch), search doesn't need to either.
+const _debouncedPaRenderResults = debounce(() => { paRenderResults(); focusListSearchBox(); }, 250);
+function paSetBreakdownSearch(val) { _paBreakdownSearch = val || ''; _debouncedPaRenderResults(); }
+// N-247c: paRenderResults/_paComputeResults are NOT async — no await here,
+// unlike every other sort setter in this ticket.
+function paSetBreakdownSort(key) { _paBreakdownSort = nextSortState(_paBreakdownSort, key); paRenderResults(); focusSortHeader(key); }
 
 // ── Results renderer ──────────────────────────────────────────────────
 function paRenderResults() {
@@ -258,7 +270,23 @@ function _paRenderResultsHtml(results, location, functionArea) {
   `;
 
  // ── Role-by-role breakdown ────────────────────────────────────────
-  const rows = groups.map(group => {
+  // N-247c: search narrows `groups` (Role/Location + Functional Area);
+  // sortRows layers on top of the existing key-alphabetical default order
+  // computed in _paComputeResults (kept as-is, not touched here).
+  const searchedGroups = filterRowsByText(groups, _paBreakdownSearch, g => [g.key, g.functionArea]);
+  const PA_BREAKDOWN_SORT_COLUMNS = {
+    role:             { type: 'text',   get: g => g.key },
+    functionArea:     { type: 'text',   get: g => g.functionArea },
+    avgSalary:        { type: 'number', get: g => g.avgSalary },
+    avgTth:           { type: 'number', get: g => g.avgTth },
+    // N-247c: raw ratios, not the rounded/%-formatted display values below.
+    outreachResponse: { type: 'number', get: g => g.roleTotals.Outreach > 0 ? g.roleTotals.Responses / g.roleTotals.Outreach : null },
+    offerSuccess:     { type: 'number', get: g => g.roleTotals.Offers > 0 ? g.roleTotals.Hires / g.roleTotals.Offers : null },
+    // Funnel (RAG) is not sortable — a multi-stage dot summary has no
+    // single scalar, same reasoning as leaving other computed badges alone.
+  };
+  const sortedGroups = sortRows(searchedGroups, _paBreakdownSort, PA_BREAKDOWN_SORT_COLUMNS);
+  const rows = sortedGroups.map(group => {
       const funnelSummary = group.roleFunnel
         .map(s => `<span title="${s.stage}: ${s.conv !== null ? s.conv + "%" : "—"}">${ragDot(s.rag)}</span>`)
         .join("");
@@ -281,18 +309,18 @@ function _paRenderResultsHtml(results, location, functionArea) {
   const breakdownHtml = `
       <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:var(--brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--border-subtle)">
-        Role Breakdown <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(${groupCount} role type${groupCount !== 1 ? "s" : ""})</span>
+        Role Breakdown <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(${sortedGroups.length} of ${groupCount} role type${groupCount !== 1 ? "s" : ""})</span>
       </div>
-      <table class="data-table" style="width:100%;margin:0">
+      <table class="data-table pa-breakdown-table" style="width:100%;margin:0">
         <thead>
           <tr>
-            <th>Role</th>
-            <th>Functional Area</th>
-            <th style="text-align:center">Avg. Salary</th>
-            <th style="text-align:center">Avg. Actual TTH</th>
-            <th style="text-align:center">Outreach Response</th>
+            ${sortableHeader('Role', 'role', _paBreakdownSort, 'paSetBreakdownSort')}
+            ${sortableHeader('Functional Area', 'functionArea', _paBreakdownSort, 'paSetBreakdownSort')}
+            ${sortableHeader('Avg. Salary', 'avgSalary', _paBreakdownSort, 'paSetBreakdownSort')}
+            ${sortableHeader('Avg. Actual TTH', 'avgTth', _paBreakdownSort, 'paSetBreakdownSort')}
+            ${sortableHeader('Outreach Response', 'outreachResponse', _paBreakdownSort, 'paSetBreakdownSort')}
             <th style="text-align:center">Funnel (RAG)</th>
-            <th style="text-align:center">Offer Success</th>
+            ${sortableHeader('Offer Success', 'offerSuccess', _paBreakdownSort, 'paSetBreakdownSort')}
           </tr>
         </thead>
         <tbody>${rows}</tbody>

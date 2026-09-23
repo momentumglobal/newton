@@ -1000,6 +1000,15 @@ body {
 .th-sortable.is-sorted .th-sort-ind {
   opacity: 1;
 }
+/* N-247b: sortableHeader() has no alignment param (kept stable for N-247c).
+   The Activity metric columns were centered via inline style="text-align:
+   center" on a plain <th>; that inline style is gone now the header is a
+   full-width <button> (justify-content, not text-align, controls a flex
+   row's content position). Scoped to .activity-table so no other list page
+   is affected. */
+.activity-table .th-sortable:nth-child(n+5) .th-sort-btn {
+  justify-content: center;
+}
 .data-table td {
   padding: var(--table-cell-py) var(--table-cell-px);
   border-bottom: 1px solid var(--border-subtle);

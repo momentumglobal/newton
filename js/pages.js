@@ -553,6 +553,8 @@ let _activityRoleId    = null;
 // N-093: weeks of history fetched from SharePoint. 0 = All time (no clause).
 let _activityWeeks     = CONFIG.DATE_WINDOW_DEFAULT_WEEKS;
 let _activityPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
+let _activitySort      = null;  // N-247b: { key, dir } — null = default order
+let _activitySearch    = '';    // N-247b: shared list search box (list-controls.js)
 async function renderActivityPage(pendingItem = null) {
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 13);
@@ -605,6 +607,35 @@ async function renderActivityPage(pendingItem = null) {
       String(a.RoleIDLookupId || a.RoleID || '') === String(_activityRoleId)
     );
   }
+  // N-247b: shared list search (list-controls.js) — narrows further, after
+  // every existing scope/filter and before any sort, same position N-251a
+  // established on Roles. Accessors mirror the cell exactly: roleMap/tpMap
+  // are already the display strings the row renders.
+  filteredActivity = filterRowsByText(filteredActivity, _activitySearch, a => [
+    roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || '',
+    tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || '',
+  ]);
+  // N-247b: the user's column sort goes ON TOP of the default Year/Week
+  // order above. sortRows is stable, so ties keep that order. Accessors
+  // return the raw value (not the cell's `|| 0` display fallback), so a
+  // genuinely blank metric sorts last, same rule as Roles' `budget`.
+  // Must stay BEFORE paginate().
+  const ACTIVITY_SORT_COLUMNS = {
+    year:      { type: 'number', get: a => a.Year },
+    week:      { type: 'number', get: a => a.WeekNumber },
+    role:      { type: 'text',   get: a => roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || '' },
+    tp:        { type: 'text',   get: a => tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || '' },
+    outreach:  { type: 'number', get: a => a.Outreach },
+    responses: { type: 'number', get: a => a.Responses },
+    screened:  { type: 'number', get: a => a.Screened },
+    submitted: { type: 'number', get: a => a.Submitted },
+    iv1:       { type: 'number', get: a => a.Interview1 },
+    iv2plus:   { type: 'number', get: a => a.Interview2Plus },
+    finalIv:   { type: 'number', get: a => a.FinalInterview },
+    offers:    { type: 'number', get: a => a.Offers },
+    hires:     { type: 'number', get: a => a.Hires },
+  };
+  filteredActivity = sortRows(filteredActivity, _activitySort, ACTIVITY_SORT_COLUMNS);
   // Build scoped role options for dropdown (respects existing project + role scoping)
   const scopedRoleIds = new Set(filteredActivity.map(a => String(a.RoleIDLookupId || a.RoleID || '')));
   const roleOptions = [
@@ -634,21 +665,24 @@ async function renderActivityPage(pendingItem = null) {
       ${canEdit ? '<div class="page-header-actions">' + (typeof bulkEntryAvailable === 'function' && bulkEntryAvailable() ? '<button class="btn-secondary" onclick="showBulkActivityPage()">Bulk log week</button>' : '') + '<button class="btn-primary" onclick="showAddActivityForm()">+ Log Activity</button></div>' : ""}
     </div>
     <div class="table-toolbar">
-      ${listControlsBar([projDropdown, roleDropdown, periodDropdown, pageSizeDropdown(_activityPageSize, 'setActivityPageSize')])}
+      ${listControlsBar([projDropdown, roleDropdown, periodDropdown, listSearchBox(_activitySearch, 'setActivitySearch'), pageSizeDropdown(_activityPageSize, 'setActivityPageSize')])}
     </div>
     ${listResultCount(pagedActivity.length, filteredActivity.length, activityTotal, _activityWeeks, 'activity row')}
-    <table class="data-table">
+    <table class="data-table activity-table">
       <thead><tr>
-        <th>Year</th><th>Week</th><th>Role</th><th>Talent Partner</th>
-        <th style="text-align:center">Outreach</th>
-        <th style="text-align:center">Responses</th>
-        <th style="text-align:center">Screened</th>
-        <th style="text-align:center">Submitted</th>
-        <th style="text-align:center">IV1</th>
-        <th style="text-align:center">IV2+</th>
-        <th style="text-align:center">Final IV</th>
-        <th style="text-align:center">Offers</th>
-        <th style="text-align:center">Hires</th>
+        ${sortableHeader('Year', 'year', _activitySort, 'setActivitySort')}
+        ${sortableHeader('Week', 'week', _activitySort, 'setActivitySort')}
+        ${sortableHeader('Role', 'role', _activitySort, 'setActivitySort')}
+        ${sortableHeader('Talent Partner', 'tp', _activitySort, 'setActivitySort')}
+        ${sortableHeader('Outreach', 'outreach', _activitySort, 'setActivitySort')}
+        ${sortableHeader('Responses', 'responses', _activitySort, 'setActivitySort')}
+        ${sortableHeader('Screened', 'screened', _activitySort, 'setActivitySort')}
+        ${sortableHeader('Submitted', 'submitted', _activitySort, 'setActivitySort')}
+        ${sortableHeader('IV1', 'iv1', _activitySort, 'setActivitySort')}
+        ${sortableHeader('IV2+', 'iv2plus', _activitySort, 'setActivitySort')}
+        ${sortableHeader('Final IV', 'finalIv', _activitySort, 'setActivitySort')}
+        ${sortableHeader('Offers', 'offers', _activitySort, 'setActivitySort')}
+        ${sortableHeader('Hires', 'hires', _activitySort, 'setActivitySort')}
         ${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
@@ -673,6 +707,13 @@ function setActivityWeeks(val) { _activityWeeks = Number(val); renderActivityPag
 function setActivityPageSize(val) { _activityPageSize = Number(val); renderActivityPage(); }
 function setActivityProject(val) { _activityProjectId = val || null; _activityRoleId = null; renderActivityPage(); }
 function setActivityRole(val) { _activityRoleId = val || null; renderActivityPage(); }
+// N-247b: debounced re-render, same shape as Roles' _debouncedRenderRolesPage.
+const _debouncedRenderActivityPage = debounce(async () => { await renderActivityPage(); focusListSearchBox(); }, 250);
+function setActivitySearch(val) { _activitySearch = val || ''; _debouncedRenderActivityPage(); }
+// N-247b: re-renders through renderActivityPage like the setters above
+// (cached fetch, same skeleton flash). Focus goes back to the clicked
+// header once the new table is in place.
+async function setActivitySort(key) { _activitySort = nextSortState(_activitySort, key); await renderActivityPage(); focusSortHeader(key); }
 // N-146 — preselectedRoleId/preselectedProjectId let the Command Bar's
 // Log activity row action pre-scope the form to a role, same shape as
 // showAddPlacementForm below.
@@ -696,6 +737,8 @@ let _placementFilter    = { type: null, value: null };
 let _placementProjectId = null;
 let _placementWeeks     = CONFIG.PLACEMENTS_DEFAULT_WEEKS;
 let _placementPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
+let _placementSort      = null;  // N-247b: { key, dir } — null = default order
+let _placementSearch    = '';    // N-247b: shared list search box (list-controls.js)
 function placementInFilter(p, filter) {
   if (!filter.type) return true;
   const dateStr = p.OfferAcceptedDate;
@@ -773,6 +816,24 @@ async function renderPlacementsPage(pendingItem = null) {
       return roleProjectMap[rid] === String(_placementProjectId);
     });
   }
+  // N-247b: shared list search (list-controls.js) — after every existing
+  // filter, before any sort, same position N-251a established on Roles.
+  placements = filterRowsByText(placements, _placementSearch, p => [
+    p.CandidateName,
+    roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '',
+  ]);
+  // N-247b: the user's column sort goes ON TOP of the default
+  // OfferAcceptedDate-desc order above. sortRows is stable, so ties keep
+  // that order. Must stay BEFORE paginate().
+  const PLACEMENT_SORT_COLUMNS = {
+    candidate:     { type: 'text',   get: p => p.CandidateName },
+    role:          { type: 'text',   get: p => roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '' },
+    salary:        { type: 'number', get: p => p.SalaryAgreed },
+    offerAccepted: { type: 'date',   get: p => p.OfferAcceptedDate },
+    startDate:     { type: 'date',   get: p => p.ProvisionalStartDate },
+    timeToHire:    { type: 'number', get: p => p.TimeToHire },
+  };
+  placements = sortRows(placements, _placementSort, PLACEMENT_SORT_COLUMNS);
   const role    = _resolvedRole;
   const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
   const monthBtns = PLACEMENT_MONTHS.map((m, i) =>
@@ -808,7 +869,7 @@ async function renderPlacementsPage(pendingItem = null) {
       </div>
     </div>
     <div class="table-toolbar">
-      ${listControlsBar([projDropdown, periodDropdown, pageSizeDropdown(_placementPageSize, 'setPlacementPageSize')])}
+      ${listControlsBar([projDropdown, periodDropdown, listSearchBox(_placementSearch, 'setPlacementSearch'), pageSizeDropdown(_placementPageSize, 'setPlacementPageSize')])}
       <div class="placement-filter-rows">
         <div class="placement-filter-row">
           <div class="filter-labeled-group"><span class="filter-label">Month</span><div class="filter-group">${monthBtns}</div></div>
@@ -822,8 +883,12 @@ async function renderPlacementsPage(pendingItem = null) {
     ${resultCount}
     <table class="data-table">
       <thead><tr>
-        <th>Candidate</th><th>Role</th><th>Salary</th>
-        <th>Offer Accepted</th><th>Start Date</th><th>Time to Hire</th>
+        ${sortableHeader('Candidate', 'candidate', _placementSort, 'setPlacementSort')}
+        ${sortableHeader('Role', 'role', _placementSort, 'setPlacementSort')}
+        ${sortableHeader('Salary', 'salary', _placementSort, 'setPlacementSort')}
+        ${sortableHeader('Offer Accepted', 'offerAccepted', _placementSort, 'setPlacementSort')}
+        ${sortableHeader('Start Date', 'startDate', _placementSort, 'setPlacementSort')}
+        ${sortableHeader('Time to Hire', 'timeToHire', _placementSort, 'setPlacementSort')}
         ${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
@@ -847,6 +912,10 @@ async function renderPlacementsPage(pendingItem = null) {
 function setPlacementProject(val) { _placementProjectId = val || null; renderPlacementsPage(); }
 function setPlacementWeeks(val) { _placementWeeks = Number(val); renderPlacementsPage(); }
 function setPlacementPageSize(val) { _placementPageSize = Number(val); renderPlacementsPage(); }
+// N-247b: debounced re-render, same shape as Roles' _debouncedRenderRolesPage.
+const _debouncedRenderPlacementsPage = debounce(async () => { await renderPlacementsPage(); focusListSearchBox(); }, 250);
+function setPlacementSearch(val) { _placementSearch = val || ''; _debouncedRenderPlacementsPage(); }
+async function setPlacementSort(key) { _placementSort = nextSortState(_placementSort, key); await renderPlacementsPage(); focusSortHeader(key); }
 // N-146 — preselectedRoleId/preselectedProjectId let the Command Bar's
 // Add placement row action pre-scope the form to a role; renderPlacementForm
 // already accepts them (N-145's logged-hire flow uses the same params).
@@ -861,6 +930,8 @@ async function showEditPlacementForm(id) {
 let _rejectionsProjectId = null;
 let _rejectionsWeeks     = CONFIG.REJECTIONS_DEFAULT_WEEKS;
 let _rejectionsPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
+let _rejectionsSort      = null;  // N-247b: { key, dir } — null = default order
+let _rejectionsSearch    = '';    // N-247b: shared list search box (list-controls.js)
 async function renderRejectionsPage(pendingItem = null) {
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 6);
@@ -916,6 +987,26 @@ async function renderRejectionsPage(pendingItem = null) {
       return roleProjectMap[rid] === String(_rejectionsProjectId);
     });
   }
+  // N-247b: shared list search (list-controls.js) — after every existing
+  // filter, before any sort, same position N-251a established on Roles.
+  filteredRejections = filterRowsByText(filteredRejections, _rejectionsSearch, r => [
+    r.CandidateName,
+    roleMap[String(r.RoleIDLookupId)] || roleMap[String(r.RoleID)] || '',
+    r.RejectionReason,
+    r.Notes,
+  ]);
+  // N-247b: the user's column sort goes ON TOP of the default
+  // role-name-A→Z order above. sortRows is stable, so ties keep that
+  // order. Must stay BEFORE paginate().
+  const REJECTION_SORT_COLUMNS = {
+    candidate:     { type: 'text',   get: r => r.CandidateName },
+    role:          { type: 'text',   get: r => roleMap[String(r.RoleIDLookupId)] || roleMap[String(r.RoleID)] || '' },
+    rejected:      { type: 'date',   get: r => r.RejectionDate },
+    salaryOffered: { type: 'number', get: r => r.SalaryOffered },
+    reason:        { type: 'text',   get: r => r.RejectionReason },
+    notes:         { type: 'text',   get: r => r.Notes },
+  };
+  filteredRejections = sortRows(filteredRejections, _rejectionsSort, REJECTION_SORT_COLUMNS);
   const role    = _resolvedRole;
   const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
   const projDropdown = canFilter
@@ -931,12 +1022,17 @@ async function renderRejectionsPage(pendingItem = null) {
       ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddRejectionForm()">+ Log Rejection</button></div>' : ""}
     </div>
     <div class="table-toolbar">
-      ${listControlsBar([projDropdown, periodFilterDropdown(_rejectionsWeeks, 'setRejectionsWeeks'), pageSizeDropdown(_rejectionsPageSize, 'setRejectionsPageSize')])}
+      ${listControlsBar([projDropdown, periodFilterDropdown(_rejectionsWeeks, 'setRejectionsWeeks'), listSearchBox(_rejectionsSearch, 'setRejectionsSearch'), pageSizeDropdown(_rejectionsPageSize, 'setRejectionsPageSize')])}
     </div>
     ${listResultCount(pagedRejections.length, filteredRejections.length, rejectionsTotal, _rejectionsWeeks, 'rejection')}
     <table class="data-table">
       <thead><tr>
-        <th>Candidate</th><th>Role</th><th>Rejected</th><th>Salary Offered</th><th>Reason</th><th>Notes</th>${canEdit ? "<th></th>" : ""}
+        ${sortableHeader('Candidate', 'candidate', _rejectionsSort, 'setRejectionsSort')}
+        ${sortableHeader('Role', 'role', _rejectionsSort, 'setRejectionsSort')}
+        ${sortableHeader('Rejected', 'rejected', _rejectionsSort, 'setRejectionsSort')}
+        ${sortableHeader('Salary Offered', 'salaryOffered', _rejectionsSort, 'setRejectionsSort')}
+        ${sortableHeader('Reason', 'reason', _rejectionsSort, 'setRejectionsSort')}
+        ${sortableHeader('Notes', 'notes', _rejectionsSort, 'setRejectionsSort')}${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
         ${pagedRejections.length ? pagedRejections.map(r => rejectionRowHtml(r, {
@@ -958,6 +1054,10 @@ async function renderRejectionsPage(pendingItem = null) {
 function setRejectionsProject(val) { _rejectionsProjectId = val || null; renderRejectionsPage(); }
 function setRejectionsWeeks(val) { _rejectionsWeeks = Number(val); renderRejectionsPage(); }
 function setRejectionsPageSize(val) { _rejectionsPageSize = Number(val); renderRejectionsPage(); }
+// N-247b: debounced re-render, same shape as Roles' _debouncedRenderRolesPage.
+const _debouncedRenderRejectionsPage = debounce(async () => { await renderRejectionsPage(); focusListSearchBox(); }, 250);
+function setRejectionsSearch(val) { _rejectionsSearch = val || ''; _debouncedRenderRejectionsPage(); }
+async function setRejectionsSort(key) { _rejectionsSort = nextSortState(_rejectionsSort, key); await renderRejectionsPage(); focusSortHeader(key); }
 async function showAddRejectionForm() {
   document.getElementById("main-content").innerHTML = await renderRejectedOfferForm();
 }

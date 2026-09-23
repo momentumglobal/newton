@@ -608,8 +608,10 @@
     break-inside: avoid;
     margin-bottom: var(--sp-9);
   }
-  /* position: static here covers tbody th; .data-table thead th below does not. */
+   /* position: static here covers tbody th; .data-table thead th below does not. */
   .data-table th { position: static; }
+  /* N-247a: sort indicators are screen-only; the header label still prints. */
+  .th-sort-ind { display: none; }
   .data-table tr    { page-break-inside: avoid; }
   .print-avoid-break                                { page-break-inside: avoid; }
   div[style*="grid-template-columns"]    { page-break-inside: avoid; }
@@ -788,6 +790,13 @@ body {
 .notif-drawer :focus-visible {
   outline-color: var(--inverse-text);
 }
+/* N-247a: sortable column-header buttons sit on --brand, and --border-focus
+   resolves to the SAME token as --brand in both light (--c-brand) and dark
+   (--c-blue), so the default ring is invisible there. Use the header's own
+   text colour instead. */
+.data-table th :focus-visible {
+  outline-color: var(--text-on-brand);
+}
 /* ── Forms ──────────────────────────────────────────────────────────── */
 .form-container { max-width: 720px; padding: var(--sp-9); }
 .form-container h2 { margin-bottom: var(--sp-8); color: var(--text-heading); font-weight: 600; letter-spacing: var(--ls-heading); }
@@ -958,6 +967,39 @@ body {
 
 .data-table th:first-child { border-radius: var(--r-md) 0 0 0; }
 .data-table th:last-child  { border-radius: 0 var(--r-md) 0 0; }
+/* ── Sortable column headers (N-247a) ───────────────────────────────── */
+/* A native <button> inside the <th> (rendered by sortableHeader() in
+   list-controls.js). Explicit reset — NOT `all: unset`, which would also
+   strip the N-249 :focus-visible ring. */
+.th-sort-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  background: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+}
+.th-sort-ind {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.5;
+  transition: opacity var(--dur-fast) ease;
+}
+.th-sort-btn:hover .th-sort-ind,
+.th-sort-btn:focus-visible .th-sort-ind,
+.th-sortable.is-sorted .th-sort-ind {
+  opacity: 1;
+}
 .data-table td {
   padding: var(--table-cell-py) var(--table-cell-px);
   border-bottom: 1px solid var(--border-subtle);

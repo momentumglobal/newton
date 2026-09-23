@@ -217,7 +217,8 @@ let _rolesFilter    = "Active";
 let _rolesProjectId = null;
 let _rolesPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
 let _rolesSort      = null;  // N-247a: { key, dir } — null = default order
-async function renderRolesPage(filter, pendingItem = null) {
+let _rolesSearch    = '';    // N-251a: shared list search box (list-controls.js)
+async function renderRolesPage
   if (filter !== undefined) _rolesFilter = filter;
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 9);
@@ -250,6 +251,16 @@ async function renderRolesPage(filter, pendingItem = null) {
   roles = roles.filter(ROLE_FILTERS[_rolesFilter] || (() => true));
   // N-247a: one project-name lookup for the default sort, the sort column and the row.
   const projectNameOf = r => projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || '';
+  // N-251a: shared list search (list-controls.js) — narrows further, after
+  // the project/stage filters and before any sort, same position N-140's
+  // other filters sit in. `roles.length` below (default sort, ROLE_SORT_COLUMNS,
+  // listResultCount's `matched`) already reflects this filter once applied.
+  roles = filterRowsByText(roles, _rolesSearch, r => [
+    r.RoleTitle,
+    r.Location,
+    projectNameOf(r),
+    tpList(r.TalentPartner).length ? tpDisplay(r.TalentPartner, tpMap) : '',
+  ]);
   roles.sort((a, b) => {
     const proj = projectNameOf(a).localeCompare(projectNameOf(b));
     if (proj !== 0) return proj;
@@ -293,7 +304,7 @@ async function renderRolesPage(filter, pendingItem = null) {
       </div>
     </div>
     <div class="table-toolbar">
-      ${listControlsBar([projDropdown, pageSizeDropdown(_rolesPageSize, 'setRolesPageSize')])}
+      ${listControlsBar([projDropdown, listSearchBox(_rolesSearch, 'setRolesSearch'), pageSizeDropdown(_rolesPageSize, 'setRolesPageSize')])}
       <div class="filter-group">${filterBtns}</div>
     </div>
     ${listResultCount(pagedRoles.length, roles.length, rolesTotal, null, 'role')}
@@ -333,6 +344,12 @@ async function renderRolesPage(filter, pendingItem = null) {
 }
 function setRolesProject(val) { _rolesProjectId = val || null; renderRolesPage(); }
 function setRolesPageSize(val) { _rolesPageSize = Number(val); renderRolesPage(); }
+// N-251a: debounced re-render so a fast typist doesn't trigger a full
+// re-render (and skeleton flash) on every keystroke. _rolesSearch updates
+// immediately here so the box always reflects what was typed; only the
+// render lags. Precedent for N-251b's rollout to other list pages.
+const _debouncedRenderRolesPage = debounce(async () => { await renderRolesPage(); focusListSearchBox(); }, 250);
+function setRolesSearch(val) { _rolesSearch = val || ''; _debouncedRenderRolesPage(); }
 // N-247a: re-renders through renderRolesPage like the setters above (cached
 // fetches, same skeleton flash as a page-size change). N-247b owns sorting
 // WITHOUT the re-fetch — don't copy this onto the fetch-heavy pages as-is.

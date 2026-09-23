@@ -67,6 +67,10 @@ let _assignmentFilter = {
   customer:    '',
   projectType: '',
 };
+let _employeesSort     = null;  // N-247c: { key, dir } — null = default order
+let _employeesSearch   = '';    // N-247c: shared list search box (list-controls.js)
+let _assignmentsSort   = null;
+let _assignmentsSearch = '';
 
 async function renderEmployeeTracker(pendingItem = null) {
   const main = document.getElementById('main-content');
@@ -100,10 +104,29 @@ async function renderEmployeesTab(pendingItem = null) {
   const main     = document.getElementById('main-content');
   const canEdit  = _resolvedRole === 'admin';
   const canPayroll = ['admin','leadership'].includes(_resolvedRole);
-  const people   = await getPeople(!_showInactive);
+  let people   = await getPeople(!_showInactive);
   // N-218b: an Employee has no filter that could exclude it (a new
   // employee's IsActive is always true), so it's always appended.
   if (pendingItem) people.push(pendingItem);
+
+  // N-247c: shared list search (list-controls.js) + sort, after every
+  // existing filter, before render. No pre-existing default sort to
+  // preserve here (people renders in getPeople()'s own return order).
+  const totalEmployees = people.length;
+  people = filterRowsByText(people, _employeesSearch, p => [p.EmployeeName, p.Level, p.ContractType, p.Location]);
+  const EMPLOYEE_SORT_COLUMNS = {
+    name:     { type: 'text', get: p => p.EmployeeName },
+    level:    { type: 'enum', order: CONFIG.PEOPLE_LEVELS, get: p => p.Level },
+    contract: { type: 'text', get: p => p.ContractType },
+    location: { type: 'text', get: p => p.Location },
+    start:    { type: 'date', get: p => p.StartDate },
+    end:      { type: 'date', get: p => p.EndDate },
+    // Salary is deliberately NOT sortable (see thead below) — payroll-gated
+    // and masked by default; a sort control would let sort order leak
+    // relative salaries to a non-payroll viewer.
+    status:   { type: 'text', get: p => p.IsActive ? 'Active' : 'Inactive' },
+  };
+  people = sortRows(people, _employeesSort, EMPLOYEE_SORT_COLUMNS);
 
   const rows = people.map(p => personRowHtml(p, {
     canEdit,
@@ -130,7 +153,7 @@ async function renderEmployeesTab(pendingItem = null) {
         ${canEdit ? "<button class='btn-primary' onclick='showAddPersonForm()'>+ Add Employee</button>" : ''}
       </div>
     </div>
-    ${_peopleTabBar()}
+     ${_peopleTabBar()}
     <div style='margin-bottom:12px;display:flex;align-items:center;gap:16px'>
       <label style='font-size:13px;cursor:pointer'>
         <input type='checkbox' ${_showInactive ? 'checked' : ''}
@@ -139,11 +162,19 @@ async function renderEmployeesTab(pendingItem = null) {
         Show inactive employees
       </label>
       ${salaryToggle}
+      ${listSearchBox(_employeesSearch, 'setEmployeesSearch')}
     </div>
+    ${listResultCount(people.length, people.length, totalEmployees, null, 'employee')}
     <table class='data-table'>
       <thead><tr>
-        <th>Photo</th><th>Name</th><th>Level</th><th>Contract</th><th>Location</th>
-        <th>Start</th><th>End</th><th>Status</th>
+        <th>Photo</th>
+        ${sortableHeader('Name', 'name', _employeesSort, 'setEmployeesSort')}
+        ${sortableHeader('Level', 'level', _employeesSort, 'setEmployeesSort')}
+        ${sortableHeader('Contract', 'contract', _employeesSort, 'setEmployeesSort')}
+        ${sortableHeader('Location', 'location', _employeesSort, 'setEmployeesSort')}
+        ${sortableHeader('Start', 'start', _employeesSort, 'setEmployeesSort')}
+        ${sortableHeader('End', 'end', _employeesSort, 'setEmployeesSort')}
+        ${sortableHeader('Status', 'status', _employeesSort, 'setEmployeesSort')}
         ${canPayroll ? '<th>Salary</th>' : ''}
         ${canEdit ? '<th></th>' : ''}
       </tr></thead>
@@ -176,6 +207,11 @@ function _toggleAllSalaries() {
   _salariesRevealed = !_salariesRevealed;
   renderEmployeesTab();
 }
+
+// N-247c: debounced re-render, same shape as Roles' _debouncedRenderRolesPage.
+const _debouncedRenderEmployeesTab = debounce(async () => { await renderEmployeesTab(); focusListSearchBox(); }, 250);
+function setEmployeesSearch(val) { _employeesSearch = val || ''; _debouncedRenderEmployeesTab(); }
+async function setEmployeesSort(key) { _employeesSort = nextSortState(_employeesSort, key); await renderEmployeesTab(); focusSortHeader(key); }
 
 async function renderAssignmentsTab(pendingItem = null) {
   const main    = document.getElementById('main-content');
@@ -212,7 +248,7 @@ async function renderAssignmentsTab(pendingItem = null) {
     return true;
   };
 
-const filtered = assignments.filter(matchesStatus).filter(matchesOtherFilters);
+let filtered = assignments.filter(matchesStatus).filter(matchesOtherFilters);
   if (pendingItem && matchesStatus(pendingItem) && matchesOtherFilters(pendingItem)) {
     filtered.push(pendingItem);
   }
@@ -242,8 +278,42 @@ const filtered = assignments.filter(matchesStatus).filter(matchesOtherFilters);
         </select>
       </div>
       <div class='form-group' style='min-width:140px'>
+        <label>Project Type</label><div class='form-group' style='min-width:140px'>
         <label>Project Type</label>
         <select onchange="_setAssignmentFilter('projectType',this.value)">
+          ${opts(projectTypes, _assignmentFilter.projectType, 'All')}
+        </select>
+      </div>
+      ${listSearchBox(_assignmentsSearch, 'setAssignmentsSearch')}
+    </div>`;
+
+  // N-247c: search after every existing filter, before the pre-existing
+  // default order (kept as-is below); sortRows layers on top of it.
+  filtered = filterRowsByText(filtered, _assignmentsSearch, a => [a.EmployeeName, a.Customer, a.ProjectType, a.Level]);
+
+  filtered.sort((a, b) => {
+  const c = (a.Customer || '').localeCompare(b.Customer || '');
+  if (c !== 0) return c;
+  const l = levelSortIndex(a.Level) - levelSortIndex(b.Level);
+  if (l !== 0) return l;
+  return (a.EmployeeName || '').localeCompare(b.EmployeeName || '');
+});
+  const ASSIGNMENT_SORT_COLUMNS = {
+    employee:    { type: 'text', get: a => a.EmployeeName },
+    level:       { type: 'enum', order: CONFIG.PEOPLE_LEVELS, get: a => a.Level },
+    customer:    { type: 'text', get: a => a.Customer },
+    projectType: { type: 'enum', order: CONFIG.ASSIGNMENT_PROJECT_TYPES, get: a => a.ProjectType },
+    start:       { type: 'date', get: a => a.StartDate },
+    end:         { type: 'date', get: a => a.EndDate },
+    // N-247c: does NOT mirror the cell 1:1 — assignmentRateLabel() renders a
+    // composite split-fee string for some rows, with no single scalar to
+    // sort by. Split-fee assignments sort as empty (last); every other row
+    // sorts on its raw MonthlyBillRate.
+    billRate:    { type: 'number', get: a => isSplitFeeAssignment(a) ? null : (parseFloat(a.MonthlyBillRate) || null) },
+    billed:      { type: 'text', get: a => a.Billed },
+  };
+  filtered = sortRows(filtered, _assignmentsSort, ASSIGNMENT_SORT_COLUMNS);
+  const rows = filtered.map(a => assignmentRowHtml(a, {s.value)">
           ${opts(projectTypes, _assignmentFilter.projectType, 'All')}
         </select>
       </div>
@@ -273,10 +343,18 @@ const filtered = assignments.filter(matchesStatus).filter(matchesOtherFilters);
     </div>
     ${_peopleTabBar()}
     ${filterBar}
+    ${listResultCount(filtered.length, filtered.length, assignments.length, null, 'assignment')}
     <table class='data-table'>
       <thead><tr>
-        <th>ID</th><th>Employee</th><th>Level</th><th>Customer</th><th>Project Type</th>
-        <th>Start</th><th>End</th><th>Bill Rate</th><th>Billed</th>
+        <th>ID</th>
+        ${sortableHeader('Employee', 'employee', _assignmentsSort, 'setAssignmentsSort')}
+        ${sortableHeader('Level', 'level', _assignmentsSort, 'setAssignmentsSort')}
+        ${sortableHeader('Customer', 'customer', _assignmentsSort, 'setAssignmentsSort')}
+        ${sortableHeader('Project Type', 'projectType', _assignmentsSort, 'setAssignmentsSort')}
+        ${sortableHeader('Start', 'start', _assignmentsSort, 'setAssignmentsSort')}
+        ${sortableHeader('End', 'end', _assignmentsSort, 'setAssignmentsSort')}
+        ${sortableHeader('Bill Rate', 'billRate', _assignmentsSort, 'setAssignmentsSort')}
+        ${sortableHeader('Billed', 'billed', _assignmentsSort, 'setAssignmentsSort')}
         ${canEdit ? '<th></th>' : ''}
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -287,6 +365,11 @@ async function _setAssignmentFilter(key, value) {
   _assignmentFilter[key] = value;
   await renderAssignmentsTab();
 }
+
+// N-247c: debounced re-render, same shape as _debouncedRenderEmployeesTab.
+const _debouncedRenderAssignmentsTab = debounce(async () => { await renderAssignmentsTab(); focusListSearchBox(); }, 250);
+function setAssignmentsSearch(val) { _assignmentsSearch = val || ''; _debouncedRenderAssignmentsTab(); }
+async function setAssignmentsSort(key) { _assignmentsSort = nextSortState(_assignmentsSort, key); await renderAssignmentsTab(); focusSortHeader(key); }
 
 async function _deleteAssignment(id) {
   if (!(await confirmModal({

@@ -100,6 +100,7 @@ function paRenderResults() {
   }
 
   container.innerHTML = _paRenderResultsHtml(results, _paLocation, _paFunctionArea);
+  if (window.lucide) lucide.createIcons();
 }
 
 // ── Results aggregation (pure — no DOM) ─────────────────────────────────

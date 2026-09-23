@@ -178,6 +178,7 @@
   --sp-10: 32px;
   --sp-11: 40px;
   --sp-12: 48px;
+  --sp-13: 56px;
   /* Table density (N-194) — comfortable by default, overridden below */
   --table-cell-py: var(--sp-5);
   --table-cell-px: var(--sp-6);
@@ -786,7 +787,7 @@ body {
 /* ── Forms ──────────────────────────────────────────────────────────── */
 .form-container { max-width: 720px; padding: var(--sp-9); }
 .form-container h2 { margin-bottom: var(--sp-8); color: var(--text-heading); font-weight: 600; letter-spacing: var(--ls-heading); }
-.form-group { display: flex; flex-direction: column; margin-bottom: 14px; }
+.form-group { display: flex; flex-direction: column; margin-bottom: var(--sp-7); }
 .form-group label { font-size: var(--fs-13); font-weight: 600; margin-bottom: var(--sp-2); color: var(--text-secondary); }
 .form-group input, .form-group select, .form-group textarea {
   padding: var(--sp-4) var(--sp-5);
@@ -1233,7 +1234,7 @@ body {
      Print-only: the screen rules (.kpi-strip / .kpi-card / .kpi-value, above)
      are unchanged. These win on source order at equal specificity. */
   .kpi-strip        { page-break-inside: avoid; margin-bottom: var(--sp-4); }
-  .kpi-strip-period { margin-bottom: 14px; }
+  .kpi-strip-period { margin-bottom: var(--sp-7); }
   .kpi-card         { padding: var(--sp-3) 14px; }
   .kpi-value        { font-size: var(--fs-22); }
   /* Report Builder — hide builder chrome in print */
@@ -1448,7 +1449,7 @@ body {
   background: rgba(0,0,0,0.45);
   z-index: 200;
   display: flex; align-items: flex-start; justify-content: center;
-  padding-top: 60px;
+  padding-top: var(--sp-13);
   overflow-y: auto;
 }
 .rb-preview-inner {
@@ -1465,7 +1466,7 @@ body {
 .rb-modal-inner {
   background: var(--surface-raised); border-radius: var(--r-xl);
   width: 600px; max-width: 96vw;
-  padding: 28px; max-height: 70vh; overflow-y: auto;
+  padding: var(--sp-10); max-height: 70vh; overflow-y: auto;
 }
 .rb-modal-inner h3 { margin: 0 0 var(--sp-7); font-size: var(--fs-18); color: var(--text-heading); letter-spacing: var(--ls-heading); }
 .rb-saved-row {
@@ -1852,7 +1853,7 @@ body {
 /* Note: distinct from .cc-banner used in command-centre.html module shell */
 .cc-home-banner {
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-5);
-  padding: 18px 28px; border-radius: var(--r-3xl);
+  padding: var(--sp-8) var(--sp-10); border-radius: var(--r-3xl);
   margin-bottom: var(--sp-8); text-decoration: none;
   transition: background 0.15s, border-color 0.15s; width: 440px;
   background: var(--inverse-panel-bg); border: 1px solid var(--inverse-border-soft);
@@ -2104,7 +2105,7 @@ body {
   margin-bottom: var(--sp-8);
 }
 .eng-tab {
-  background: none; border: none; padding: var(--sp-4) 18px;
+  background: none; border: none; padding: var(--sp-4) var(--sp-8);
   font-size: var(--fs-13); font-weight: 600; color: var(--text-muted);
   cursor: pointer; border-bottom: var(--sp-1) solid transparent;
   margin-bottom: -2px; transition: color 0.12s, border-color 0.12s;
@@ -2371,7 +2372,7 @@ body {
   transform: none;
   display: flex;
   align-items: center;
-  margin-right: 14px;   /* gap before Quick Links */
+  margin-right: var(--sp-7);   /* gap before Quick Links */
 }
 
 .notif-head-actions { display: flex; align-items: center; gap: var(--sp-5); }
@@ -2872,7 +2873,7 @@ body {
 .lci-out-subtotal td { font-weight: 600; border-top: 1px solid var(--border-mid); }
 .lci-out-total td { font-weight: 700; color: var(--brand-tertiary); background: var(--surface-alt); }
 .lci-warn { color: var(--accent); margin-left: var(--sp-2); cursor: help; }
-.lci-out-indent td:first-child { padding-left: 18px; }
+.lci-out-indent td:first-child { padding-left: var(--sp-8); }
 .lci-out-section td { border-top: 1px solid var(--border); }
 .lci-out-heavy td { border-top: var(--sp-1) double var(--brand-tertiary); }
 .lci-cell--grow { width: 95%; min-width: 130px; }
@@ -3028,7 +3029,7 @@ body {
   z-index: var(--z-modal); display: flex; align-items: center; justify-content: center;
 }
 .lci-modal-card {
-  background: var(--surface); border-radius: var(--r-lg); padding: 28px;
+  background: var(--surface); border-radius: var(--r-lg); padding: var(--sp-10);
   width: 460px; max-width: 95vw; box-shadow: 0 var(--sp-4) var(--sp-10) rgba(0,0,0,0.18);
 }
 
@@ -3049,15 +3050,15 @@ body {
 .lm-report-title { font-size: var(--fs-18); font-weight: 600; }
 .lm-report-sub { font-size: var(--fs-12); color: var(--inverse-text-soft); margin-top: var(--sp-2); }
 .lm-report-logo { height: 30px; }
-.lm-report-body { padding: var(--sp-9) 28px; }
-.lm-loc-block { margin-bottom: 22px; }
+.lm-report-body { padding: var(--sp-9) var(--sp-10); }
+.lm-loc-block { margin-bottom: var(--sp-9); }
 .lm-loc-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: var(--sp-3); }
 .lm-loc-name { font-size: var(--fs-15); font-weight: 600; color: var(--brand-tertiary); }
 .lm-overall { font-size: var(--fs-16); font-weight: 700; }
 .lm-report-table td, .lm-report-table th { text-align: right; font-variant-numeric: tabular-nums; }
 .lm-report-table td:first-child, .lm-report-table th:first-child { text-align: left; }
 .lm-missing { font-size: var(--fs-12); color: var(--text-muted); margin-top: var(--sp-2); }
-.lm-watchouts { margin-top: 18px; }
+.lm-watchouts { margin-top: var(--sp-8); }
 .lm-watchouts h4 { color: var(--brand-tertiary); margin-bottom: var(--sp-3); }
 .lm-watchouts p { white-space: pre-wrap; font-size: var(--fs-13); }
 .lm-method { margin-top: var(--sp-8); border-top: 1px solid var(--border-subtle); padding-top: var(--sp-6); }
@@ -3303,8 +3304,8 @@ body {
 }
 .role-timeline-content { padding-bottom: var(--sp-6); flex: 1; }
 .role-timeline-label { color: var(--text-primary); font-weight: var(--fw-semibold); }
-.role-timeline-meta { color: var(--text-muted); font-size: var(--fs-13); margin-top: 2px; }
-.role-timeline-duration { color: var(--text-secondary); font-size: var(--fs-13); margin-top: 4px; }
+.role-timeline-meta { color: var(--text-muted); font-size: var(--fs-13); margin-top: var(--sp-1); }
+.role-timeline-duration { color: var(--text-secondary); font-size: var(--fs-13); margin-top: var(--sp-2); }
 .role-timeline-duration--ongoing { font-style: italic; }
 
 .role-timeline-node--forward  .role-timeline-dot        { border-color: var(--status-success); }

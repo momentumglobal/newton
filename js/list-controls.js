@@ -10,9 +10,14 @@
 // pagination on the argument that a narrowed view stays legible as narrowed,
 // so never render a window without the count.
 //
+// N-247a adds the sortable column header (sortableHeader) and its focus
+// restore (focusSortHeader). The sort LOGIC is not here — it is pure and
+// lives in utils.js (sortRows, nextSortState, compareSortValues).
+//
 // LOAD ORDER: after utils.js (isProjectActive, sortProjectsByName,
-// buildProjectOptionsHtml, escHtml) and api.js (getProjects,
-// getUserProjectIds), and BEFORE pages.js, which calls everything here.
+// buildProjectOptionsHtml, escHtml, escAttr, escJsAttr) and api.js
+// (getProjects, getUserProjectIds), and BEFORE pages.js, which calls
+// everything here.
 // ── Project filter helper ─────────────────────────────────────────────
 async function getProjectFilterOptions() {
   const role = _resolvedRole;
@@ -121,4 +126,30 @@ function listResultCount(shown, matched, total, weeks, noun) {
     body = matched + ' ' + noun + (matched === 1 ? '' : 's');
   }
   return '<div class="list-result-count">' + escHtml(label ? body + ' \u00b7 ' + label : body) + '</div>';
+}
+
+// N-247a: one sortable column header, returned as a complete <th>.
+// A native <button> inside the <th> — Enter/Space and tab order come free,
+// and the <th> keeps its header semantics. aria-sort goes on the ACTIVE
+// column only (ARIA APG). The page owns the { key, dir } state and passes
+// its setter's name as callbackFn — same shape as pageSizeDropdown().
+// String concatenation, no nested template literals (N-093 fix-1).
+function sortableHeader(label, key, sortState, callbackFn) {
+  const dir  = sortState && sortState.key === key ? sortState.dir : null;
+  const icon = dir === 'asc' ? 'chevron-up' : dir === 'desc' ? 'chevron-down' : 'chevrons-up-down';
+  const aria = dir ? ' aria-sort="' + (dir === 'asc' ? 'ascending' : 'descending') + '"' : '';
+  return '<th class="th-sortable' + (dir ? ' is-sorted' : '') + '"' + aria + '>' +
+    '<button type="button" class="th-sort-btn" data-sort-key="' + escAttr(key) + '"' +
+    ' onclick="' + callbackFn + '(\'' + escJsAttr(key) + '\')">' +
+    escHtml(label) +
+    '<i data-lucide="' + icon + '" class="th-sort-ind" aria-hidden="true"></i>' +
+    '</button></th>';
+}
+
+// N-247a: a sort re-renders the page through innerHTML, which destroys the
+// focused header button — without this a keyboard user is dropped back on
+// <body> after every sort. No-op when the header isn't on the page.
+function focusSortHeader(key) {
+  const btn = document.querySelector('#main-content .th-sort-btn[data-sort-key="' + CSS.escape(key) + '"]');
+  if (btn) btn.focus();
 }

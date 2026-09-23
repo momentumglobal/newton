@@ -5,6 +5,8 @@
 const ADMIN_TABS = ['assignments', 'leadership', 'homepage', 'ghost', 'datahealth'];
 let _osAdminTab = 'assignments';
 let _showInactiveAssignments = false;
+let _osaSort   = null; // N-247c: { key, dir } — User Assignments table
+let _osaSearch = '';   // N-247c: shared list search box (list-controls.js)
 async function renderOsAdminPage(tab = 'assignments') {
   _osAdminTab = tab;
   const main = document.getElementById('main-content');
@@ -52,7 +54,20 @@ async function buildAssignmentsTab(editId = null) {
     ).join('');
   let editRecord = null;
   if (editId) editRecord = assignments.find(a => String(a.id) === String(editId));
-const rows = [...visibleAssignments].sort((a, b) => (a.UserName || '').localeCompare(b.UserName || '')).map(a => {
+  // N-247c: search after the existing show-inactive filter, before the
+  // pre-existing default order (kept as-is below); sortRows layers on top.
+  const roleLabel = a => a.AssignedRole === 'talent_partner' ? 'Talent Partner' : a.AssignedRole === 'delivery_manager' ? 'Delivery Manager' : a.AssignedRole || '';
+  const searched = filterRowsByText(visibleAssignments, _osaSearch, a => [a.UserName, a.UserEmail, a.CustomerName, roleLabel(a)]);
+  const OSA_SORT_COLUMNS = {
+    name:     { type: 'text', get: a => a.UserName },
+    email:    { type: 'text', get: a => a.UserEmail },
+    customer: { type: 'text', get: a => a.CustomerName },
+    role:     { type: 'text', get: roleLabel },
+    // N-247c: LastLogin is a timestamp, not a SharePoint date field — sort
+    // by exact epoch millis, not the usual spDateIn day-string compare.
+    lastLogin: { type: 'number', get: a => a.LastLogin ? new Date(a.LastLogin).getTime() : null },
+  };
+  const rows = sortRows([...searched].sort((a, b) => (a.UserName || '').localeCompare(b.UserName || '')), _osaSort, OSA_SORT_COLUMNS).map(a => {
     const isActive = a.Active !== false;
     return `
     <tr id="assign-row-${a.id}" style="${isActive ? '' : 'opacity:0.55'}">
@@ -145,16 +160,25 @@ const rows = [...visibleAssignments].sort((a, b) => (a.UserName || '').localeCom
     </div>
   `;
   return `
-    <div style="margin-bottom:12px">
+    <div style="margin-bottom:12px;display:flex;align-items:center;gap:16px">
       <label style="font-size:13px;cursor:pointer">
         <input type="checkbox" ${_showInactiveAssignments ? 'checked' : ''}
           onchange="_toggleShowInactiveAssignments(this.checked)"
           style="margin-right:6px">
         Show inactive assignments
       </label>
+      ${listSearchBox(_osaSearch, 'setOsaSearch')}
     </div>
+    ${listResultCount(searched.length, searched.length, assignments.length, null, 'assignment')}
     <table class="data-table" style="margin:0 0 24px">
-      <thead><tr><th>Name</th><th>Email</th><th>Customer</th><th>Role</th><th>Last Login</th><th></th></tr></thead>
+      <thead><tr>
+        ${sortableHeader('Name', 'name', _osaSort, 'setOsaSort')}
+        ${sortableHeader('Email', 'email', _osaSort, 'setOsaSort')}
+        ${sortableHeader('Customer', 'customer', _osaSort, 'setOsaSort')}
+        ${sortableHeader('Role', 'role', _osaSort, 'setOsaSort')}
+        ${sortableHeader('Last Login', 'lastLogin', _osaSort, 'setOsaSort')}
+        <th></th>
+      </tr></thead>
       <tbody>${rows || emptyStateRow({ colspan: 6, icon: 'users', message: 'No assignments yet.' })}</tbody>
     </table>
     ${editForm}
@@ -206,6 +230,13 @@ async function _toggleShowInactiveAssignments(checked) {
   _showInactiveAssignments = checked;
   renderOsAdminPage('assignments');
 }
+
+// N-247c: debounced search — re-renders through renderOsAdminPage('assignments'),
+// not a direct buildAssignmentsTab() splice (that pattern is reserved for
+// entering edit mode without losing the tab shell — see showEditAssignment).
+const _debouncedRenderOsAssignments = debounce(async () => { await renderOsAdminPage('assignments'); focusListSearchBox(); }, 250);
+function setOsaSearch(val) { _osaSearch = val || ''; _debouncedRenderOsAssignments(); }
+async function setOsaSort(key) { _osaSort = nextSortState(_osaSort, key); await renderOsAdminPage('assignments'); focusSortHeader(key); }
 
 // ── Leadership Tab ───────────────────────────────────────────────────
 async function buildLeadershipTab() {

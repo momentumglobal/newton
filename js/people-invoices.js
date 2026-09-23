@@ -1,5 +1,9 @@
 // js/people-invoices.js — GP Invoices
 
+// N-247c: { key, dir } — null = default order; shared list search box state.
+let _invoicesSort   = null;
+let _invoicesSearch = '';
+
 // ── Row template builders (moved from utils.js, N-237c) ────────────────
 function invoiceRowHtml(inv, { canEdit, pending = false } = {}) {
   const statusBadge = inv.isOverdue
@@ -46,7 +50,7 @@ async function renderGPInvoices(pendingItem = null) {
   const today    = new Date(); today.setHours(0,0,0,0);
 
   // Derive overdue status in the UI — not stored in SharePoint
-  const withStatus = invoices.map(inv => {
+  let withStatus = invoices.map(inv => {
     const due      = inv.DueDate ? new Date(inv.DueDate) : null;
     const isOverdue = inv.Status === 'Sent' && due && due < today;
     return { ...inv, isOverdue };
@@ -69,6 +73,22 @@ async function renderGPInvoices(pendingItem = null) {
       (y.InvoiceDate ? new Date(y.InvoiceDate) : new Date(0)) -
       (x.InvoiceDate ? new Date(x.InvoiceDate) : new Date(0)));
   }
+
+  // N-247c: search narrows `withStatus` before the summary bar below is
+  // computed, so Total Outstanding / Overdue Invoices / Oldest Overdue all
+  // reflect the search-narrowed list — a deliberate deviation from
+  // Activity/Placements, where search only affects the table + result count.
+  const totalInvoices = withStatus.length;
+  withStatus = filterRowsByText(withStatus, _invoicesSearch, inv => [inv.InvoiceNumber, inv.Notes]);
+  const INVOICE_SORT_COLUMNS = {
+    number:      { type: 'text',   get: inv => inv.InvoiceNumber },
+    invoiceDate: { type: 'date',   get: inv => inv.InvoiceDate },
+    dueDate:     { type: 'date',   get: inv => inv.DueDate },
+    amount:      { type: 'number', get: inv => inv.Amount },
+    // No CONFIG order exists for this three-state label — don't invent one.
+    status:      { type: 'text',   get: inv => inv.isOverdue ? 'Overdue' : inv.Status },
+  };
+  withStatus = sortRows(withStatus, _invoicesSort, INVOICE_SORT_COLUMNS);
 
   // Summary bar calculations
   const outstanding = withStatus
@@ -117,10 +137,16 @@ async function renderGPInvoices(pendingItem = null) {
       ${canEdit ? "<button class='btn-primary' onclick='showAddInvoiceForm()'>+ Add Invoice</button>" : ''}
     </div>
     ${summaryBar}
+    <div class="table-toolbar">${listControlsBar([listSearchBox(_invoicesSearch, 'setInvoicesSearch')])}</div>
+    ${listResultCount(withStatus.length, withStatus.length, totalInvoices, null, 'invoice')}
     <table class='data-table'>
       <thead><tr>
-        <th>Invoice #</th><th>Invoice Date</th><th>Due Date</th>
-        <th>Amount</th><th>Notes</th><th>Status</th>
+        ${sortableHeader('Invoice #', 'number', _invoicesSort, 'setInvoicesSort')}
+        ${sortableHeader('Invoice Date', 'invoiceDate', _invoicesSort, 'setInvoicesSort')}
+        ${sortableHeader('Due Date', 'dueDate', _invoicesSort, 'setInvoicesSort')}
+        ${sortableHeader('Amount', 'amount', _invoicesSort, 'setInvoicesSort')}
+        <th>Notes</th>
+        ${sortableHeader('Status', 'status', _invoicesSort, 'setInvoicesSort')}
         ${canEdit ? '<th></th>' : ''}
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -183,3 +209,8 @@ async function deleteInvoice(id) {
     toast('Error deleting invoice: ' + e.message, { type: 'error' });
   }
 }
+
+// N-247c: debounced re-render, same shape as every other list page's setter.
+const _debouncedRenderGPInvoices = debounce(async () => { await renderGPInvoices(); focusListSearchBox(); }, 250);
+function setInvoicesSearch(val) { _invoicesSearch = val || ''; _debouncedRenderGPInvoices(); }
+async function setInvoicesSort(key) { _invoicesSort = nextSortState(_invoicesSort, key); await renderGPInvoices(); focusSortHeader(key); }

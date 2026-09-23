@@ -57,7 +57,7 @@ function renderModuleNav({
       <div class='nav-notif-slot' id='notif-slot'></div>
     </div>
     <button class='nav-footer-btn nav-cmdbar-hint' id='cmdbar-hint-btn'
-            onclick='_cmdBarOpen({ currentModule: "${currentModuleKey}", role: role, navigateFn: "${navigateFn}" })'
+            onclick='_cmdBarOpen({ currentModule: "${currentModuleKey}", role: "${role}", navigateFn: "${navigateFn}" })'
             title='Open Command Bar'>
       <i data-lucide="search" class="nav-footer-btn-icon"></i>
       ${kbdLabel} to search

@@ -151,6 +151,7 @@ async function renderGPInvoices(pendingItem = null) {
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+  if (window.lucide) lucide.createIcons();
 }
 
 // Notes cell: first line only, with a "See more" toggle when there is more to show.

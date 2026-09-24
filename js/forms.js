@@ -153,45 +153,76 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
         `<option value="${escAttr(d.DepartmentName)}" ${existingData?.Department === d.DepartmentName ? 'selected' : ''}>${escHtml(d.DepartmentName)}</option>`
       ).join('');
   } catch (e) { /* fall back to empty */ }
+  // N-250a: open 'Additional details' on Edit/Duplicate when any of its
+  // fields already holds a value, so existing data is never hidden.
+  // Backfill is a SharePoint Yes/No column (boolean) — false is its default
+  // "unset" state on every role, so it doesn't count as a value here.
+  const showAdditional = ['Priority', 'Backfill', 'Notes']
+    .some(k => existingData?.[k] != null && existingData[k] !== '' && existingData[k] !== false);
 
   return `
     <div class="form-container">
       <h2>${isEdit ? 'Edit Role' : 'Add Role'}</h2>
       <div id="role-form-error" class="form-error"></div>
       <form id="role-form" onsubmit="submitRoleForm(event, ${existingData?.id || 'null'})">
-        <div class="form-group">
-          <label>Project *</label>
-          ${lockProject ? `
-          <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--surface-sunken);color:var(--text-label);">
-          <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
-          <select name="ProjectID" required onchange="${canAssign ? 'loadTalentPartnersForRole(this.value)' : ''}">
-            <option value="">-- Select project --</option>
-            ${projectOptions}
-          </select>`}
-        </div>
-       ${canAssign ? `
-        <div class="form-group">
-          <label>Assign to * <span style="font-weight:normal;color:var(--text-muted);">(tick one or more)</span></label>
-          <div id="role-tp-select" class="print-avoid-break" style="border:1px solid var(--border-strong);border-radius:4px;padding:8px;max-height:170px;overflow-y:auto;background:var(--surface);">
-            <span style="color:var(--text-muted);">-- Select project first --</span>
-          </div>
-        </div>` : `<input type="hidden" name="TalentPartnerName" value="${escAttr(currentUser.email)}">`}
-        <div class="form-group">
-          <label>Role Title *</label>
-          <input type="text" name="RoleTitle" required
-            value="${escAttr(existingData?.RoleTitle || '')}">
-        </div>
-        <div class="form-group">
-          <label>Hiring Manager</label>
-          <input type="text" name="HiringManager"
-            value="${escAttr(existingData?.HiringManager || '')}">
-        </div>
-        <div class="form-row">
+        <fieldset class="form-section">
+          <legend class="form-section-title">Basics</legend>
           <div class="form-group">
-            <label>Budget</label>
-            <input type="text" name="Budget"
-              value="${escAttr(existingData?.Budget || '')}">
+            <label>Project *</label>
+            ${lockProject ? `
+            <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--surface-sunken);color:var(--text-label);">
+            <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
+            <select name="ProjectID" required onchange="${canAssign ? 'loadTalentPartnersForRole(this.value)' : ''}">
+              <option value="">-- Select project --</option>
+              ${projectOptions}
+            </select>`}
           </div>
+          <div class="form-group">
+            <label>Role Title *</label>
+            <input type="text" name="RoleTitle" required
+              value="${escAttr(existingData?.RoleTitle || '')}">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Functional Area *</label>
+              <select name="Department" id="role-department-select" required>
+                ${departmentOptions}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Stage *</label>
+              <select name="Stage" required>
+                ${CONFIG.ROLE_STAGES
+                  .map(s => {
+                    // New roles start at Backlog by design (Role Backlog KPI, Roles page
+                    // Backlog tab). State it explicitly — don't rely on the browser
+                    // selecting the first option, which a reorder would silently change.
+                    // Matches mobile-roleform.js:59.
+                    const sel = isEdit ? existingData.Stage === s : s === 'Backlog';
+                    return `<option value="${s}" ${sel ? 'selected' : ''}>${s}</option>`;
+                  })
+                  .join('')}
+              </select>
+            </div>
+          </div>
+        </fieldset>
+        <fieldset class="form-section">
+          <legend class="form-section-title">Ownership</legend>
+          ${canAssign ? `
+          <div class="form-group">
+            <label>Assign to * <span style="font-weight:normal;color:var(--text-muted);">(tick one or more)</span></label>
+            <div id="role-tp-select" class="print-avoid-break" style="border:1px solid var(--border-strong);border-radius:4px;padding:8px;max-height:170px;overflow-y:auto;background:var(--surface);">
+              <span style="color:var(--text-muted);">-- Select project first --</span>
+            </div>
+          </div>` : `<input type="hidden" name="TalentPartnerName" value="${escAttr(currentUser.email)}">`}
+          <div class="form-group">
+            <label>Hiring Manager</label>
+            <input type="text" name="HiringManager"
+              value="${escAttr(existingData?.HiringManager || '')}">
+          </div>
+        </fieldset>
+        <fieldset class="form-section">
+          <legend class="form-section-title">Commercial</legend>
           <div class="form-group">
             <label>Location *</label>
             <select name="Location" id="role-location-select" onchange="updateCurrencyFromLocation(this.value)" required>
@@ -201,73 +232,63 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
               ).join('')}
             </select>
           </div>
-          <div class="form-group">
-            <label>Currency</label>
-            <input type="text" id="role-currency-display" name="Currency" readonly
-              style="background:var(--surface-sunken);color:var(--text-label);"
-              value="${escAttr(existingData?.Location ? (CONFIG.COUNTRY_CURRENCY[existingData.Location] || '') : '')}"
-              placeholder="Auto-filled from location">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Budget</label>
+              <input type="text" name="Budget"
+                value="${escAttr(existingData?.Budget || '')}">
+            </div>
+            <div class="form-group">
+              <label>Currency</label>
+              <input type="text" id="role-currency-display" name="Currency" readonly
+                style="background:var(--surface-sunken);color:var(--text-label);"
+                value="${escAttr(existingData?.Location ? (CONFIG.COUNTRY_CURRENCY[existingData.Location] || '') : '')}"
+                placeholder="Auto-filled from location">
+            </div>
           </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Priority</label>
-            <select name="Priority">
-              <option value="">--</option>
-              <option value="1" ${existingData?.Priority == 1 ? 'selected' : ''}>1 — High</option>
-              <option value="2" ${existingData?.Priority == 2 ? 'selected' : ''}>2 — Medium</option>
-              <option value="3" ${existingData?.Priority == 3 ? 'selected' : ''}>3 — Low</option>
-            </select>
+        </fieldset>
+        <fieldset class="form-section">
+          <legend class="form-section-title">Dates</legend>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Open Date</label>
+              <input type="date" name="OpenDate" id="role-open-date"
+                onchange="autoFillTargetDate()"
+                value="${escAttr(spDateIn(existingData?.OpenDate) || '')}">
+            </div>
+            <div class="form-group">
+              <label>Target Hire Date (auto: Open + 45d)</label>
+              <input type="date" name="TargetHireDate" id="role-target-date"
+                value="${escAttr(spDateIn(existingData?.TargetHireDate) || '')}">
+            </div>
           </div>
-          <div class="form-group">
-            <label>Backfill?</label>
-            <select name="Backfill">
-              <option value="">--</option>
-              <option value="Yes" ${existingData?.Backfill === 'Yes' ? 'selected' : ''}>Yes</option>
-              <option value="No" ${existingData?.Backfill === 'No' ? 'selected' : ''}>No</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Stage *</label>
-            <select name="Stage" required>
-              ${CONFIG.ROLE_STAGES
-                .map(s => {
-                  // New roles start at Backlog by design (Role Backlog KPI, Roles page
-                  // Backlog tab). State it explicitly — don't rely on the browser
-                  // selecting the first option, which a reorder would silently change.
-                  // Matches mobile-roleform.js:59.
-                  const sel = isEdit ? existingData.Stage === s : s === 'Backlog';
-                  return `<option value="${s}" ${sel ? 'selected' : ''}>${s}</option>`;
-                })
-                .join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Functional Area *</label>
-            <select name="Department" id="role-department-select" required>
-              ${departmentOptions}
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Open Date</label>
-            <input type="date" name="OpenDate" id="role-open-date"
-              onchange="autoFillTargetDate()"
-              value="${escAttr(spDateIn(existingData?.OpenDate) || '')}">
+        </fieldset>
+        <details class="form-section form-section--collapsible" ${showAdditional ? 'open' : ''}>
+          <summary class="form-section-title">Additional details <span class="form-section-hint">optional</span></summary>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Priority</label>
+              <select name="Priority">
+                <option value="">--</option>
+                <option value="1" ${existingData?.Priority == 1 ? 'selected' : ''}>1 — High</option>
+                <option value="2" ${existingData?.Priority == 2 ? 'selected' : ''}>2 — Medium</option>
+                <option value="3" ${existingData?.Priority == 3 ? 'selected' : ''}>3 — Low</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Backfill?</label>
+              <select name="Backfill">
+                <option value="">--</option>
+                <option value="Yes" ${existingData?.Backfill === true || existingData?.Backfill === 'Yes' ? 'selected' : ''}>Yes</option>
+                <option value="No" ${existingData?.Backfill === false || existingData?.Backfill === 'No' ? 'selected' : ''}>No</option>
+              </select>
+            </div>
           </div>
           <div class="form-group">
-            <label>Target Hire Date (auto: Open + 45d)</label>
-            <input type="date" name="TargetHireDate" id="role-target-date"
-              value="${escAttr(spDateIn(existingData?.TargetHireDate) || '')}">
+            <label>Notes</label>
+            <textarea name="Notes" rows="3">${escHtml(existingData?.Notes || '')}</textarea>
           </div>
-        </div>
-        <div class="form-group">
-          <label>Notes</label>
-          <textarea name="Notes" rows="3">${escHtml(existingData?.Notes || '')}</textarea>
-        </div>
+        </details>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${isEdit ? 'Save Changes' : 'Add Role'}</button>
           <button type="button" class="btn-secondary" onclick="navigateTo('roles')">Cancel</button>

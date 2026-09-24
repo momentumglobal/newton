@@ -494,7 +494,6 @@ async function renderWeeklyActivityForm(existingData = null, preselectedRoleId =
         <fieldset class="form-section">
         <legend class="form-section-title">Period</legend>
         <div class="form-group">
-          <div class="form-group">
           <label>Week Ending Date *</label>
           <input type="date" name="WeekEndingDate" required
             onchange="autoFillWeekYear(this.value)"

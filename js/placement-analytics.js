@@ -211,6 +211,9 @@ function _paRenderResultsHtml(results, location, functionArea) {
 
   const ragDot = rag => {
     const colours = { green: "var(--status-success-text)", amber: "var(--c-amber-mid)", red: "var(--c-red-mid)", grey: "var(--c-gray-300)" };
+    // N-254: red/amber render a shape (marker glyph) in the dot's colour, not just a hue.
+    const marker = ragMarkerHTML(rag);
+    if (marker) return `<span class="pa-rag-glyph" style="color:${colours[rag]}">${marker}</span>`;
     return `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${colours[rag] || colours.grey};margin-right:6px"></span>`;
   };
 
@@ -327,7 +330,7 @@ function _paRenderResultsHtml(results, location, functionArea) {
         <tbody>${rows}</tbody>
       </table>
       <div style="font-size:11px;color:var(--text-faint);margin-top:12px">
-        Funnel RAG dots: Response rate · IV1 Conversion · IV→Offer · Offer Success. Hover for values.
+        Funnel RAG: Response rate · IV1 Conversion · IV→Offer · Offer Success. ● ok · ${ragMarkerHTML('amber')}watch · ${ragMarkerHTML('red')}at risk. Hover for values.
       </div>
     </div>
   `;

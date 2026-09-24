@@ -1731,6 +1731,11 @@ body {
 .sc-amber { background: var(--status-warn-bg); color: var(--status-warn); }
 .sc-red   { background: var(--status-danger-bg); color: var(--status-danger); }
 .sc-grey  { background: var(--surface-sunken); color: var(--text-muted); }
+/* N-254: red cells are structurally heavier, not just a different hue.
+   The amber glyph uses warn-strong (3.57:1 on warn-bg) — --status-warn is
+   only 2.49:1 there, below the 3:1 non-text minimum. */
+.sc-value.sc-red { font-weight: var(--fw-bold); box-shadow: inset 0 0 0 1px var(--status-danger); }
+.sc-amber .rag-marker { color: var(--status-warn-strong); }
 
 /* People Scorecards — overall RAG pill */
 .sc-rag-pill { font-size:var(--fs-10); font-weight:600; letter-spacing:0.06em; text-transform:uppercase; padding:var(--sp-1) var(--sp-5); border-radius:var(--r-xl); }
@@ -1738,6 +1743,15 @@ body {
 .sc-rag-pill--green { background:var(--status-success-bg); color:var(--status-success); }
 .sc-rag-pill--amber { background:var(--status-warn-bg-soft); color:var(--status-warn-strong); }
 .sc-rag-pill--red   { background:var(--status-danger-bg-soft); color:var(--status-danger); }
+
+/* ── RAG markers (N-254) ──
+   Shared non-colour cue for red/amber (glyph + optional label), emitted by
+   ragMarkerHTML() in utils.js. Used by CC tiles + People detail, the home
+   banner pills, People Scorecards and Placement Analytics. Colour is
+   inherited from the host. mobile.html mirrors .rag-marker in its own
+   <style> block (it does not load this stylesheet). */
+.rag-marker        { display: inline-flex; align-items: center; gap: var(--sp-2); font-weight: var(--fw-bold); line-height: 1; color: inherit; margin-right: var(--sp-2); }
+.rag-marker__label { text-transform: uppercase; letter-spacing: 0.05em; font-size: var(--fs-11); }
 
 /* ═══════════════════════════════════════════════ */
 /* Command Centre                                  */
@@ -1773,7 +1787,21 @@ body {
 /* RAG tile colours — the .cc-tile default now lives in the .cc-tile block above. */
 .cc-tile--green { background: var(--status-success-bg); border-left: var(--sp-2) solid var(--status-success); }
 .cc-tile--amber { background: var(--status-warn-bg); border-left: var(--sp-2) solid var(--status-warn); }
-.cc-tile--red   { background: var(--status-danger-bg); border-left: var(--sp-2) solid var(--status-danger); }
+/* N-254: red gets a heavier rail (6px vs 4px) + full inset outline and bold
+   stats, so it differs in weight as well as hue. */
+.cc-tile--red   { background: var(--status-danger-bg); border-left: var(--sp-3) solid var(--status-danger); box-shadow: inset 0 0 0 2px var(--status-danger); }
+
+/* Tile text (N-254: moved out of ccTileHTML's inline styles so the red
+   variant below can override them). */
+.cc-tile__title  { font-size: var(--fs-20); font-weight: var(--fw-semibold); margin-bottom: var(--sp-4); color: var(--text-primary); }
+.cc-tile__stats  { font-size: var(--fs-14); color: var(--text-secondary); }
+.cc-tile--red .cc-tile__stats { font-weight: var(--fw-bold); color: var(--text-primary); }
+
+/* Status chip (red/amber only). Label in --text-primary for text contrast in
+   both themes; only the glyph carries the status colour (non-text, >=3:1). */
+.cc-tile__status { margin-bottom: var(--sp-4); color: var(--text-primary); }
+.cc-tile--red   .cc-tile__status .rag-marker__glyph { color: var(--status-danger); }
+.cc-tile--amber .cc-tile__status .rag-marker__glyph { color: var(--status-warn-strong); }
 
 /* RAG pill */
 .cc-rag-pill { display: inline-block; padding: var(--sp-1) var(--sp-5); border-radius: var(--r-xl); font-size: var(--fs-11); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -1797,6 +1825,11 @@ body {
 .cc-detail-table th { text-align: left; font-size: var(--fs-11); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 1px solid var(--border-mid); padding: var(--sp-3) var(--sp-4); }
 .cc-detail-table td { padding: var(--sp-4); border-bottom: 1px solid var(--border-faint); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .cc-detail-table tbody tr:last-child td { border-bottom: none; }
+
+/* Placement Analytics funnel marker (N-254): red/amber glyph sits in the same
+   fixed box as the 10px dot so the Funnel column width doesn't shift. */
+.pa-rag-glyph             { display: inline-block; width: var(--sp-6); margin-right: var(--sp-3); text-align: center; }
+.pa-rag-glyph .rag-marker { margin-right: 0; }
 
 /* ── Homepage (index.html) ───────────────────────────────────────────── */
 #watermark {
@@ -1964,7 +1997,8 @@ body {
 .cc-badge               { font-size: var(--fs-10); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: var(--sp-1) var(--sp-4); border-radius: var(--r-xl); }
 .cc-badge--green        { background: rgba(46,125,50,0.35);  color: var(--badge-cc-green); border: 1px solid rgba(46,125,50,0.5); }
 .cc-badge--amber        { background: rgba(245,127,23,0.35); color: var(--badge-cc-amber); border: 1px solid rgba(245,127,23,0.5); }
-.cc-badge--red          { background: rgba(198,40,40,0.35);  color: var(--badge-cc-red); border: 1px solid rgba(198,40,40,0.5); }
+.cc-badge--red          { background: rgba(198,40,40,0.35);  color: var(--badge-cc-red); border: 2px solid rgba(198,40,40,0.5); font-weight: var(--fw-bold); } /* N-254: 2px + bold */
+.cc-badge .rag-marker   { font-size: 1.15em; }
 .cc-badge--neutral      { background: var(--inverse-hover-bg); color: var(--inverse-text-faint); border: 1px solid var(--inverse-border); }
 .cc-refresh             { position: absolute; right: 0; background: none; border: none; cursor: pointer; color: var(--inverse-text-dim); font-size: var(--fs-14); padding: var(--sp-1); line-height: 1; transition: color 0.15s; }
 .cc-refresh:hover       { color: var(--inverse-text-soft); }

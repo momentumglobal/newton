@@ -102,6 +102,17 @@ const CONFIG = {
     grey:  'var(--text-muted)',
   },
 
+  // RAG markers (N-254) — the non-colour cue for exception states, rendered by
+  // ragMarkerHTML() in utils.js. Glyphs inherit currentColor from their host
+  // element, so no colour lives here. Green / grey / neutral deliberately have
+  // no entry (no marker). \uFE0E (VS15) forces text presentation of the
+  // warning sign — without it Windows/iOS draw a colour emoji that ignores
+  // currentColor and breaks dark mode and the CC banner's dark chrome.
+  RAG_MARKERS: {
+    red:   { glyph: '\u26A0\uFE0E', label: 'At risk' },
+    amber: { glyph: '!',            label: 'Watch'   },
+  },
+
   // Candidate briefing packs (N-211). CONFIDENTIAL_TEXT is fixed and prints on
   // every page of every pack — it is deliberately not editable per pack.
   BRIEFING_PACK: {

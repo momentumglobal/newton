@@ -837,6 +837,32 @@ body {
   color: var(--text-heading); margin: var(--sp-7) 0 var(--sp-4);
   border-bottom: 1px solid var(--border); padding-bottom: var(--sp-2);
 }
+/* ── Form sections (N-250a) ──────────────────────────────────────────
+   Reusable grouping pattern for multi-field forms (Role form first; Weekly
+   Activity in N-250b). Always-open groups: <fieldset class="form-section">
+   + <legend class="form-section-title">. Collapsible group:
+   <details class="form-section form-section--collapsible"> +
+   <summary class="form-section-title">. Never put a `required` control
+   inside a collapsed <details> — the browser blocks submit silently.
+   The base .form-section-title rule above is left untouched (the Weekly
+   Activity form still uses it as a plain <div>). */
+.form-section { border: 0; padding: 0; margin: 0 0 var(--sp-9); min-inline-size: 0; }
+/* Legend: float + full width makes it lay out like a normal block (a
+   rendered legend otherwise sits in the fieldset border and ignores width). */
+.form-section > legend.form-section-title { float: left; width: 100%; margin-top: 0; padding: 0 0 var(--sp-2); }
+.form-section > legend.form-section-title + * { clear: both; }
+.form-section--collapsible > summary.form-section-title {
+  display: flex; align-items: center; gap: var(--sp-3);
+  margin-top: 0; cursor: pointer; list-style: none;
+}
+.form-section--collapsible > summary.form-section-title::-webkit-details-marker { display: none; }
+.form-section--collapsible > summary.form-section-title::before {
+  content: '\203A'; display: inline-block; font-size: var(--fs-16); line-height: 1;
+  transition: transform var(--dur-base) ease;
+}
+.form-section--collapsible[open] > summary.form-section-title::before { transform: rotate(90deg); }
+.form-section--collapsible:not([open]) > summary.form-section-title { margin-bottom: 0; }
+.form-section-hint { font-size: var(--fs-12); font-weight: var(--fw-regular); text-transform: none; color: var(--text-muted); }
 .form-actions { display: flex; gap: var(--sp-6); margin-top: var(--sp-9); }
 .form-error {
   display: none;

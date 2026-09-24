@@ -759,4 +759,30 @@ var ASSERTIONS = [
       _assertEqual(nextSortState(s1, 'stage'), { key: 'stage', dir: 'asc' }, 'different column (from asc) starts at asc');
     },
   },
+  {
+    name: 'N-254 ragMarkerHTML — red is an accessible ⚠ glyph with text presentation (VS15)',
+    fn: function () {
+      _assertEqual(CONFIG.RAG_MARKERS.red.glyph, '\u26A0\uFE0E', 'config glyph is ⚠ + VS15');
+      const h = ragMarkerHTML('red');
+      _assertEqual(h, '<span class="rag-marker rag-marker--red" role="img" aria-label="At risk" title="At risk">\u26A0\uFE0E</span>', 'red markup');
+      _assertEqual(ragMarkerHTML('RED'), h, 'case-insensitive');
+    },
+  },
+  {
+    name: 'N-254 ragMarkerHTML — amber with label: glyph aria-hidden, visible "Watch"',
+    fn: function () {
+      _assertEqual(ragMarkerHTML('amber', { label: true }),
+        '<span class="rag-marker rag-marker--amber"><span class="rag-marker__glyph" aria-hidden="true">!</span><span class="rag-marker__label">Watch</span></span>',
+        'amber labelled markup');
+    },
+  },
+  {
+    name: 'N-254 ragMarkerHTML — no marker for green / grey / neutral / missing / unknown',
+    fn: function () {
+      ['green', 'grey', 'neutral', undefined, null, '', 'purple', 'constructor', 'toString'].forEach(function (r) {
+        _assertEqual(ragMarkerHTML(r), '', 'rag=' + String(r));
+        _assertEqual(ragMarkerHTML(r, { label: true }), '', 'rag=' + String(r) + ' (label)');
+      });
+    },
+  },
 ];

@@ -41,11 +41,15 @@ async function renderCCOverview(container) {
 
 // ── Tile HTML ──────────────────────────────────────────────────────
 function ccTileHTML(id, title, rag, statsHTML, trendHTML = '') {
+  // N-254: red/amber tiles get a glyph + label chip (non-colour cue).
+  const marker = ragMarkerHTML(rag, { label: true });
+  const statusHTML = marker ? `<div class="cc-tile__status">${marker}</div>` : '';
   return `
     <div class="cc-tile cc-tile--${rag}" data-tile="${id}">
       <button class="cc-close" onclick="event.stopPropagation(); collapseTile(this.closest('.cc-grid'))">✕</button>
-            <div class="cc-tile__title" style="font-size:20px;font-weight:600;margin-bottom:8px;color:var(--text-primary)">${title}${trendHTML}</div>
-      <div class="cc-tile__stats" style="font-size:14px;color:var(--text-secondary)">${statsHTML}</div>
+      ${statusHTML}
+      <div class="cc-tile__title">${title}${trendHTML}</div>
+      <div class="cc-tile__stats">${statsHTML}</div>
       <div class="cc-tile__detail" style="display:none"></div>
     </div>`;
 }
@@ -355,7 +359,7 @@ function renderPeopleDetail(data) {
     return { rag, html: `<tr>
       <td>${name}</td>
       <td style="text-align:center">${flagged}/${tpRoles.length}</td>
-      <td style="text-align:center"><span style="font-weight:600;color:${ragColours[rag]}">${rag.toUpperCase()}</span></td>
+      <td style="text-align:center"><span style="font-weight:600;color:${ragColours[rag]}">${ragMarkerHTML(rag)}${rag.toUpperCase()}</span></td>
     </tr>` };
   }).sort((a, b) => weight[b.rag] - weight[a.rag]).map(r => r.html).join('');
 

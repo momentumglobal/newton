@@ -97,7 +97,7 @@ function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null) {
     const display = roleHealth.total > 0 ? `${roleHealth.flagged}/${roleHealth.total}` : '—';
     return `<tr>
       <td class='sc-label'>Flagged roles</td>
-      <td class='sc-value sc-${roleHealth.rag}' style="text-align:center">${display}</td>
+      <td class='sc-value sc-${roleHealth.rag}' style="text-align:center">${ragMarkerHTML(roleHealth.rag)}${display}</td>
     </tr>`;
   })() : '';
 
@@ -106,14 +106,14 @@ function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null) {
     const ragClass = m.informational ? 'sc-grey' : `sc-${m.rag}`;
     return `<tr>
       <td class='sc-label'>${m.label}</td>
-      <td class='sc-value ${ragClass}' style="text-align:center">${display}</td>
+      <td class='sc-value ${ragClass}' style="text-align:center">${m.informational ? '' : ragMarkerHTML(m.rag)}${display}</td>
     </tr>`;
   }).join('');
 
   return `<div class='dash-panel sc-card'>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
       <h3 class='panel-title sc-tp-name' style="margin-bottom:0">${displayName}</h3>
-      <span class="sc-rag-pill sc-rag-pill--${overallRag}">${overallRag.toUpperCase()}</span>
+      <span class="sc-rag-pill sc-rag-pill--${overallRag}">${ragMarkerHTML(overallRag)}${overallRag.toUpperCase()}</span>
     </div>
     <p class='sc-window'>Rolling Quarterly View</p>
     <table class='sc-table'><tbody>${healthRow}${rows}</tbody></table>

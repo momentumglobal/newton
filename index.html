@@ -82,7 +82,11 @@
     ];
 
 function ccBadgeHTML(rag, label) {
-  return `<span class="cc-badge cc-badge--${rag}">${label}</span>`;
+  // N-254: same marker glyph as the CC tile for the same state, plus a
+  // title naming the status so the pill is readable without colour.
+  const marker = CONFIG.RAG_MARKERS[rag];
+  const status = marker ? marker.label : rag === 'green' ? 'On track' : 'No data';
+  return `<span class="cc-badge cc-badge--${rag}" title="${label}: ${status}">${ragMarkerHTML(rag)}${label}</span>`;
 }
 
 async function refreshCCBanner() {

@@ -460,6 +460,8 @@ async function renderWeeklyActivityForm(existingData = null, preselectedRoleId =
       <h2>${isEdit ? 'Edit Weekly Activity' : 'Log Weekly Activity'}</h2>
       <div id="weekly-form-error" class="form-error"></div>
       <form id="weekly-form" onsubmit="submitWeeklyForm(event, ${existingData?.id || 'null'})">
+        <fieldset class="form-section">
+        <legend class="form-section-title">Basics</legend>
         <div class="form-row">
           <div class="form-group">
             <label>Project *</label>
@@ -488,7 +490,11 @@ async function renderWeeklyActivityForm(existingData = null, preselectedRoleId =
             <option value="">-- Select project first --</option>
           </select>
         </div>` : `<input type="hidden" name="TalentPartnerName" value="${escAttr(currentUser.email)}">`}
+        </fieldset>
+        <fieldset class="form-section">
+        <legend class="form-section-title">Period</legend>
         <div class="form-group">
+          <div class="form-group">
           <label>Week Ending Date *</label>
           <input type="date" name="WeekEndingDate" required
             onchange="autoFillWeekYear(this.value)"
@@ -506,7 +512,9 @@ async function renderWeeklyActivityForm(existingData = null, preselectedRoleId =
               value="${defaultWeek}" onchange="autoFillWeekEndingFromWeekNum(this.value)">
           </div>
         </div>
-        <div class="form-section-title">Activity Counts</div>
+        </fieldset>
+        <fieldset class="form-section">
+        <legend class="form-section-title">Activity Counts</legend>
         <div class="form-row">
           <div class="form-group"><label>Outreach</label>
             <input type="number" name="Outreach" min="0" value="${existingData?.Outreach || 0}"></div>
@@ -531,6 +539,7 @@ async function renderWeeklyActivityForm(existingData = null, preselectedRoleId =
           <div class="form-group"><label>Hires</label>
             <input type="number" name="Hires" min="0" value="${existingData?.Hires || 0}"></div>
         </div>
+        </fieldset>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${isEdit ? 'Save Changes' : 'Log Activity'}</button>
           <button type="button" class="btn-secondary" onclick="navigateTo('activity')">Cancel</button>

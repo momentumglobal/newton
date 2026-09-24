@@ -932,6 +932,25 @@ function escHtmlLines(str) {
   return escHtml(str).replace(/\r?\n/g, '<br>');
 }
 
+// ── RAG markers (N-254) ───────────────────────────────────────
+// Non-colour differentiator for red / amber states: a glyph from
+// CONFIG.RAG_MARKERS, optionally with its visible label. Colour is inherited
+// (currentColor) from the host element. Green / grey / neutral / unknown
+// return '' — only exceptions get a marker.
+//   ragMarkerHTML('red')                  → ⚠ glyph, accessible name "At risk"
+//   ragMarkerHTML('amber', { label: true }) → ! glyph (aria-hidden) + "Watch"
+function ragMarkerHTML(rag, { label = false } = {}) {
+  const key = String(rag ?? '').toLowerCase();
+  const markers = CONFIG.RAG_MARKERS;
+  if (!Object.prototype.hasOwnProperty.call(markers, key)) return '';
+  const m = markers[key];
+  const text = escHtml(m.label);
+  if (label) {
+    return `<span class="rag-marker rag-marker--${key}"><span class="rag-marker__glyph" aria-hidden="true">${m.glyph}</span><span class="rag-marker__label">${text}</span></span>`;
+  }
+  return `<span class="rag-marker rag-marker--${key}" role="img" aria-label="${text}" title="${text}">${m.glyph}</span>`;
+}
+
 // Escape for safe interpolation into a double-quoted HTML attribute.
 // Example: value="${escAttr(title)}" where title may contain "
 function escAttr(str) {

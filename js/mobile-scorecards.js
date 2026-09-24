@@ -137,7 +137,7 @@ function mScCardHtml(scorecard, displayName, roleHealth) {
     const display = roleHealth.total > 0 ? `${roleHealth.flagged}/${roleHealth.total}` : '-';
     return `<tr>
       <td class="m-sc-metric">Flagged roles</td>
-      <td class="m-sc-val" style="color:${ragColour(roleHealth.rag)}">${display}</td>
+      <td class="m-sc-val" style="color:${ragColour(roleHealth.rag)}">${ragMarkerHTML(roleHealth.rag)}${display}</td>
     </tr>`;
   })() : '';
 
@@ -146,7 +146,7 @@ function mScCardHtml(scorecard, displayName, roleHealth) {
     const colour  = m.informational ? 'var(--c-gray-500)' : ragColour(m.rag);
     return `<tr>
       <td class="m-sc-metric">${m.label}</td>
-      <td class="m-sc-val" style="color:${colour}">${display}</td>
+      <td class="m-sc-val" style="color:${colour}">${m.informational ? '' : ragMarkerHTML(m.rag)}${display}</td>
     </tr>`;
   }).join('');
 
@@ -154,7 +154,7 @@ function mScCardHtml(scorecard, displayName, roleHealth) {
     <div class="m-detail-panel" style="margin-bottom:0">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
         <div class="m-detail-value" style="margin-bottom:0">${escHtml(displayName)}</div>
-        <span class="m-sc-pill" style="background:${ragColour(overallRag)}">${overallRag.toUpperCase()}</span>
+        <span class="m-sc-pill" style="background:${ragColour(overallRag)}">${ragMarkerHTML(overallRag)}${overallRag.toUpperCase()}</span>
       </div>
       <div class="m-detail-label">Rolling Quarterly View</div>
       <table class="m-sc-table"><tbody>${healthRow}${rows}</tbody></table>

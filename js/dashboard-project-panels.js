@@ -285,7 +285,8 @@ function renderSpendPanel(roles, placements) {
   const overallPct  = totalBudget > 0 ? Math.round(((totalBudget - totalSpend) / totalBudget) * 100) : null;
   const overallLabel = overallPct === null ? '—'
     : overallPct >= 0 ? `${overallPct}% under budget` : `${Math.abs(overallPct)}% over budget`;
-  const overallColor = overallPct === null ? 'var(--text-label)' : overallPct >= 0 ? 'var(--status-success)' : 'var(--status-danger)';
+  // N-257b: on/under budget is neutral, not success-tinted.
+  const overallColor = overallPct === null ? 'var(--text-label)' : overallPct >= 0 ? 'var(--text-secondary)' : 'var(--status-danger)';
   const SYMBOLS = { GBP: '£', EUR: '€', USD: '$', CAD: 'CA$', AUD: 'A$', SGD: 'S$', AED: 'AED', ZAR: 'R', LKR: 'LKR' };
   const fmt = (n, ccy) => {
     const sym = SYMBOLS[ccy] || ccy;
@@ -300,7 +301,7 @@ function renderSpendPanel(roles, placements) {
     const budget = ccyRoles.reduce((s, r) => s + (parseFloat(r.Budget) || 0), 0);
     const spend  = ccyPlacements.reduce((s, p) => s + (parseFloat(p.SalaryAgreed) || 0), 0);
     const diff   = budget - spend;
-    const diffColor = diff >= 0 ? 'var(--status-success)' : 'var(--status-danger)';
+    const diffColor = diff >= 0 ? 'var(--text-secondary)' : 'var(--status-danger)';
     const diffLabel = diff >= 0 ? `${fmt(diff, ccy)} under` : `${fmt(Math.abs(diff), ccy)} over`;
     return `<tr>
       <td><strong>${ccy}</strong></td>
@@ -350,12 +351,12 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
   </div>`;
   const rows = longOpen.map(r => {
     const days = daysOpen(r.OpenDate);
-    const rowClass = days >= 45 ? 'row-age-critical' : 'row-age-warning';
-    return `<tr class="${rowClass}">
+    // N-257b: no whole-row tint — the Days Open cell carries the flag instead.
+    return `<tr>
      <td>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</td>
      <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
      <td><span class='badge'>${escHtml(r.Stage)}</span></td>
-     <td>${days} days</td>
+     <td>${ragTextHTML(days >= 45 ? 'red' : 'amber', days + ' days')}</td>
     </tr>`;
   }).join('');
   return `<div class='dash-panel'>

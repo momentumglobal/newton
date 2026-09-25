@@ -142,7 +142,7 @@
       <h3>KPI Strip</h3>
       <p>Four tiles showing company-wide metrics as of today:</p>
       <p><strong>Estimated Revenue</strong> — total billed revenue for the current year to date.</p>
-      <p><strong>Utilisation</strong> — billed capacity as a percentage of total capacity, YTD. Colour coded: green = 85%+, orange = 75–85%, red = below 75%.</p>
+      <p><strong>Utilisation</strong> — billed capacity as a percentage of total capacity, YTD. Flagged below 85%: amber 75–85%, red below 75%.</p>
       <p><strong>Active Customers</strong> — number of distinct customers with a current active assignment today. The delta indicator (green/red) shows the change vs the last day of the previous quarter.</p>
       <p><strong>Billed Headcount</strong> — number of employees on a billed assignment today. The delta indicator shows the change vs the last day of the previous quarter.</p>
       <h3>Team Utilisation Line Graph</h3>
@@ -157,10 +157,7 @@
       <p>Three headcount breakdowns of currently active employees (not period-filtered): by location, by contract type, and by role band. Each shows count and percentage of total.</p>
       <h3>Upcoming End Dates</h3>
       <p>Lists any active employees with an end date in the next 60 days, sorted by nearest first.</p>
-      <div class="colour-key">
-        <div class="colour-key-item"><div class="colour-swatch" style="background:#fce8e8"></div>End date within 30 days</div>
-        <div class="colour-key-item"><div class="colour-swatch" style="background:#fff3e0"></div>End date within 31–60 days</div>
-      </div>
+      <p>The Days Remaining cell is flagged: <strong>⚠</strong> within 30 days, <strong>!</strong> within 31–60 days.</p>
     </div>
     <div class="guide-section" id="employee-tracker">
       <h2>Employee Tracker</h2>

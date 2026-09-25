@@ -1370,12 +1370,24 @@ function _chartGridSvg(padL, W, padR, lines) {
 }
 
 // N-257: neutral dashed threshold lines — replace coloured RAG bands behind
-// charts. `lines`: [{ y, label }] — y already in chart space; label is plain
-// text (escaped here), drawn right-aligned just above the line.
+// charts. `lines`: [{ y, label, value?, place? }] — y already in chart space.
+// The line stays inside the plot; its label sits in a right-hand gutter
+// OUTSIDE it (x = W - padR + 6) so it never collides with late-year data —
+// callers must reserve ~70 units in padR. label + value stack as two rows;
+// place 'above' (default) stacks them over the line, 'below' under it. Give
+// the upper threshold 'above' and the lower 'below' so a close pair can never
+// overlap (N-257a Addendum A). label / value are plain text, escaped here.
 function _chartThresholdSvg(padL, W, padR, lines) {
+  const x = W - padR + 6;
   return lines.map(l => {
-    const label = l.label != null
-      ? `<text x='${W - padR}' y='${l.y - 4}' text-anchor='end' class='nt-chart-threshold-label'>${escHtml(l.label)}</text>`
+    const rows = [l.label, l.value].filter(t => t != null);
+    // Baselines 11 apart: above → last row 3 over the line; below → first row 11 under it.
+    const ys = l.place === 'below'
+      ? rows.map((_, i) => l.y + 11 + i * 11)
+      : rows.map((_, i) => l.y - 3 - (rows.length - 1 - i) * 11);
+    const label = rows.length
+      ? `<text text-anchor='start' class='nt-chart-threshold-label'>${rows.map((t, i) =>
+          `<tspan x='${x}' y='${ys[i]}'>${escHtml(t)}</tspan>`).join('')}</text>`
       : '';
     return `<line x1='${padL}' y1='${l.y}' x2='${W - padR}' y2='${l.y}' class='nt-chart-threshold'/>${label}`;
   }).join('');

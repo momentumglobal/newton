@@ -814,11 +814,21 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-257 _chartThresholdSvg — neutral line + right-aligned escaped label',
+    name: 'N-257 _chartThresholdSvg — line in the plot, label rows in the right gutter, stacked outward',
     fn: function () {
-      _assertEqual(_chartThresholdSvg(10, 100, 10, [{ y: 20, label: 'At risk < £1' }]),
-        "<line x1='10' y1='20' x2='90' y2='20' class='nt-chart-threshold'/><text x='90' y='16' text-anchor='end' class='nt-chart-threshold-label'>At risk &lt; £1</text>",
-        'line + label');
+      const line = "<line x1='10' y1='50' x2='90' y2='50' class='nt-chart-threshold'/>";
+      _assertEqual(_chartThresholdSvg(10, 100, 10, [{ y: 50, label: 'On track ≥', value: '£2' }]),
+        line + "<text text-anchor='start' class='nt-chart-threshold-label'><tspan x='96' y='36'>On track ≥</tspan><tspan x='96' y='47'>£2</tspan></text>",
+        'above (default): two rows over the line, in the gutter');
+      _assertEqual(_chartThresholdSvg(10, 100, 10, [{ y: 50, label: 'At risk <', value: '<£1', place: 'below' }]),
+        line + "<text text-anchor='start' class='nt-chart-threshold-label'><tspan x='96' y='61'>At risk &lt;</tspan><tspan x='96' y='72'>&lt;£1</tspan></text>",
+        'below: two rows under the line, label + value escaped');
+      _assertEqual(_chartThresholdSvg(10, 100, 10, [{ y: 50, label: 'A&B' }]),
+        line + "<text text-anchor='start' class='nt-chart-threshold-label'><tspan x='96' y='47'>A&amp;B</tspan></text>",
+        'single row above');
+      _assertEqual(_chartThresholdSvg(10, 100, 10, [{ y: 50, label: 'A', place: 'below' }]),
+        line + "<text text-anchor='start' class='nt-chart-threshold-label'><tspan x='96' y='61'>A</tspan></text>",
+        'single row below');
       _assertEqual(_chartThresholdSvg(0, 50, 0, [{ y: 5 }]),
         "<line x1='0' y1='5' x2='50' y2='5' class='nt-chart-threshold'/>", 'no label');
     },

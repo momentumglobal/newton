@@ -814,6 +814,35 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'N-255a breadcrumbHTML — ancestors are links, last segment is aria-current text, no separator in DOM',
+    fn: function () {
+      _assertEqual(
+        breadcrumbHTML([{ label: 'Home', href: 'index.html' }, { label: 'People', href: 'people.html' }, { label: 'Org Chart' }]),
+        '<nav aria-label="Breadcrumb" class="breadcrumb"><ol class="breadcrumb__list">' +
+        '<li class="breadcrumb__item"><a class="breadcrumb__link" href="index.html">Home</a></li>' +
+        '<li class="breadcrumb__item"><a class="breadcrumb__link" href="people.html">People</a></li>' +
+        '<li class="breadcrumb__item"><span class="breadcrumb__current" aria-current="page">Org Chart</span></li>' +
+        '</ol></nav>', 'three-level trail');
+      const h = breadcrumbHTML([{ label: 'Home', href: 'index.html' }, { label: 'Roles', href: 'reporting.html#roles' }]);
+      _assertEqual(h.indexOf('reporting.html#roles') === -1, true, 'last segment never a link, even with href');
+      _assertEqual(h.indexOf('›') === -1, true, 'no separator characters in markup');
+    },
+  },
+  {
+    name: 'N-255a breadcrumbHTML — escapes labels/hrefs; empty/invalid input → empty string',
+    fn: function () {
+      _assertEqual(
+        breadcrumbHTML([{ label: 'A&B', href: 'x.html?a="1"' }, { label: '<i>' }]),
+        '<nav aria-label="Breadcrumb" class="breadcrumb"><ol class="breadcrumb__list">' +
+        '<li class="breadcrumb__item"><a class="breadcrumb__link" href="x.html?a=&quot;1&quot;">A&amp;B</a></li>' +
+        '<li class="breadcrumb__item"><span class="breadcrumb__current" aria-current="page">&lt;i&gt;</span></li>' +
+        '</ol></nav>', 'escaped');
+      [[], null, undefined, 'Home', {}, [{ label: '' }, null]].forEach(v =>
+        _assertEqual(breadcrumbHTML(v), '', 'input=' + JSON.stringify(v)));
+      _assertEqual(breadcrumbHTML([{ label: 'Only' }]).indexOf('aria-current="page">Only<') > -1, true, 'single segment is current');
+    },
+  },
+  {
     name: 'N-257 _chartThresholdSvg — line in the plot, label rows in the right gutter, stacked outward',
     fn: function () {
       const line = "<line x1='10' y1='50' x2='90' y2='50' class='nt-chart-threshold'/>";

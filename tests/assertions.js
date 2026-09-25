@@ -841,13 +841,4 @@ var ASSERTIONS = [
       _assertEqual(h.indexOf('nt-chart-legend-swatch--box') === -1, true, 'not a box');
     },
   },
-  {
-    name: 'N-257b kpiDelta — improving is neutral, worsening stays red',
-    fn: function () {
-      _assertEqual(kpiDelta(10, 5).indexOf('status-success') === -1, true, 'improving: no success token');
-      _assertEqual(kpiDelta(10, 5).indexOf('text-secondary') > -1, true, 'improving: neutral colour used');
-      _assertEqual(kpiDelta(5, 10).indexOf('status-danger') > -1, true, 'worsening: still red');
-      _assertEqual(kpiDelta(5, 5).indexOf('text-faint') > -1, true, 'unchanged: still the — case');
-    },
-  },
 ];

@@ -557,6 +557,7 @@
      anything that must repeat on every printed page goes in a `thead`,
      never `position: fixed` or `tfoot` (Readme.html print notes). */
   #sidebar,
+  #breadcrumb-bar,
   .print-btn,
   .btn-primary,
   .btn-secondary,
@@ -575,6 +576,7 @@
   body { background: var(--surface) !important; overflow: visible !important; height: auto !important; }
   :focus-visible { outline: none !important; }
   #app-shell { display: block !important; height: auto !important; }
+  #main-column { display: block !important; min-width: 0 !important; } /* N-255a wrapper */
   #main-content {
     padding: 0 var(--sp-4) !important;
     overflow: visible !important;
@@ -761,12 +763,52 @@ body {
   color: var(--inverse-text-subtitle);
 }
 /* ── Main content ───────────────────────────────────────────────────── */
+/* N-255a: #main-column wraps the breadcrumb bar + #main-content. The bar sits
+   outside the scroller so it stays visible; #main-content is still the
+   scroll container (sticky headers etc. unchanged). min-width: 0 stops a
+   wide table pushing the sidebar. */
+#main-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
 #main-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: var(--sp-11);
   background: var(--surface-app);
 }
+/* ── Breadcrumb (N-255a) ────────────────────────────────────────────── */
+#breadcrumb-bar {
+  padding: var(--sp-7) var(--sp-11) 0;
+  background: var(--surface-app);
+}
+#breadcrumb-bar:empty { display: none; }
+/* Trail sits close to the page title it labels (Proximity). */
+#breadcrumb-bar:not(:empty) + #main-content { padding-top: var(--sp-4); }
+.breadcrumb__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--fs-13);
+}
+.breadcrumb__item + .breadcrumb__item::before {
+  content: '›';
+  margin: 0 var(--sp-3);
+  color: var(--text-muted);
+}
+/* Links use --text-secondary, not --text-link: dark-mode --text-link
+   (--c-blue on --surface-app) is 2.89:1 and fails AA for body text. */
+.breadcrumb__link,
+.breadcrumb__text { color: var(--text-secondary); text-decoration: none; }
+.breadcrumb__link:hover,
+.breadcrumb__link:focus-visible { color: var(--text-heading); text-decoration: underline; }
+.breadcrumb__current { color: var(--text-primary); font-weight: var(--fw-semibold); }
 /* ── Focus (N-249) ──────────────────────────────────────────────────── */
 /* Global keyboard-focus ring. :focus-visible already restricts this to
    keyboard/programmatic focus (not mouse/touch clicks) in every supported

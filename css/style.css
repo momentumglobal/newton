@@ -387,7 +387,6 @@
   /* Badges & tones (N-122) — CC homepage banner + Notifications drawer are
      permanently-dark chrome (see note above); N-102 must NOT redefine this
      group. */
-  --badge-cc-green:       var(--c-green-soft);
   --badge-cc-amber:       var(--c-amber-soft);
   --badge-cc-red:         var(--c-red-soft);
   --notif-badge-bg:       var(--c-red-bright);
@@ -1196,6 +1195,9 @@ body {
 }
 .nt-chart-grid          { stroke: var(--border-subtle); stroke-width: 1; }
 .nt-chart-grid--minor   { stroke: var(--surface-sunken); }
+/* N-257: neutral threshold lines (replace coloured RAG bands) */
+.nt-chart-threshold       { stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 6 4; fill: none; }
+.nt-chart-threshold-label { fill: var(--text-label); font-size: var(--fs-10); }
 .nt-chart-tick          { fill: var(--text-muted); font-size: var(--fs-10); }
 .nt-chart-tick--sub     { fill: var(--text-faint); font-size: 8px; }
 .nt-chart-line          { fill: none; stroke: var(--nt-chart-color, var(--brand-tertiary)); stroke-width: 2.5; stroke-linejoin: round; }
@@ -1210,6 +1212,7 @@ body {
 .nt-chart-legend-swatch          { width: 24px; height: 2px; flex-shrink: 0; display: inline-block; background: var(--nt-chart-color, var(--brand-tertiary)); }
 .nt-chart-legend-swatch--dashed  { background: none; border-top: 2px dashed var(--nt-chart-color, var(--brand-tertiary)); height: 0; }
 .nt-chart-legend-swatch--box     { width: 12px; height: 12px; border-radius: var(--r-sm); background: var(--nt-chart-color); border: 1px solid var(--nt-chart-border, transparent); }
+.nt-chart-legend-swatch--dot     { width: var(--sp-4); height: var(--sp-4); border-radius: 50%; background: var(--nt-chart-color); }
 .nt-chart-bar-row       { display: flex; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-3); }
 .nt-chart-bar-label     { width: 80px; font-size: var(--fs-12); color: var(--text-label); text-align: right; flex-shrink: 0; }
 .nt-chart-bar-wrap      { flex: 1; background: var(--surface-hover); border-radius: var(--r-sm); height: 18px; overflow: hidden; }
@@ -1754,6 +1757,13 @@ body {
    <style> block (it does not load this stylesheet). */
 .rag-marker        { display: inline-flex; align-items: center; gap: var(--sp-2); font-weight: var(--fw-bold); line-height: 1; color: inherit; margin-right: var(--sp-2); }
 .rag-marker__label { text-transform: uppercase; letter-spacing: 0.05em; font-size: var(--fs-11); }
+/* Status text, neutral by default (N-257) — built by ragTextHTML(). Green has
+   no rule (inherits). Amber: only the glyph carries the hue (warn-strong text
+   is <4.5:1 on white). Red: danger text + bold. */
+.rag-text--grey              { color: var(--text-muted); }
+.rag-text--amber             { color: var(--text-primary); }
+.rag-text--amber .rag-marker { color: var(--status-warn-strong); }
+.rag-text--red               { color: var(--status-danger); font-weight: var(--fw-bold); }
 
 /* ═══════════════════════════════════════════════ */
 /* Command Centre                                  */
@@ -1786,9 +1796,12 @@ body {
 .cc-grid--expanded .cc-tile--active .cc-tile__detail { flex: 1; width: 100%; display: flex; margin-top: var(--sp-8); }
 .cc-grid--expanded .cc-tile--active .cc-tile__detail > div { flex: 1; display: flex; flex-direction: column; margin-bottom: 0; }
 .cc-grid--expanded .cc-tile--active .cc-tile__detail svg { flex: 1; min-height: 0; height: auto; }
-/* RAG tile colours — the .cc-tile default now lives in the .cc-tile block above. */
-.cc-tile--green { background: var(--status-success-bg); border-left: var(--sp-2) solid var(--status-success); }
-.cc-tile--amber { background: var(--status-warn-bg); border-left: var(--sp-2) solid var(--status-warn); }
+/* RAG tile colours — the .cc-tile default (grey / no data, sunken) lives in
+   the .cc-tile block above. N-257 neutral by default: green is a plain raised
+   card with a neutral rail; amber gets a coloured rail but no fill (warn-strong:
+   3.79:1 on --surface vs --status-warn's 2.65:1); only red (N-254) is filled. */
+.cc-tile--green { background: var(--surface); border: 1px solid var(--border); border-left: var(--sp-2) solid var(--border-neutral); }
+.cc-tile--amber { background: var(--surface); border: 1px solid var(--border); border-left: var(--sp-2) solid var(--status-warn-strong); }
 /* N-254: red gets a heavier rail (6px vs 4px) + full inset outline and bold
    stats, so it differs in weight as well as hue. */
 .cc-tile--red   { background: var(--status-danger-bg); border-left: var(--sp-3) solid var(--status-danger); box-shadow: inset 0 0 0 2px var(--status-danger); }
@@ -1813,7 +1826,7 @@ body {
 
 /* Health tile trend arrow + explainer tooltip (N-108) */
 .cc-trend-arrow { font-size: var(--fs-14); vertical-align: middle; }
-.cc-trend-arrow--down { color: var(--status-success); }
+.cc-trend-arrow--down { color: var(--text-secondary); } /* N-257: improving = neutral */
 .cc-trend-arrow--up   { color: var(--status-danger); }
 .cc-trend-arrow--flat { color: var(--text-muted); }
 .cc-tile .help-tip { background: var(--text-muted); color: var(--text-on-brand); }
@@ -1997,8 +2010,11 @@ body {
 .cc-home-banner__sub    { font-size: var(--fs-11); color: var(--inverse-text-muted); text-transform: uppercase; letter-spacing: 0.08em; text-align: center; }
 .cc-home-banner__badges { display: flex; flex-wrap: wrap; gap: var(--sp-4); justify-content: center; align-items: center; }
 .cc-badge               { font-size: var(--fs-10); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: var(--sp-1) var(--sp-4); border-radius: var(--r-xl); }
-.cc-badge--green        { background: rgba(46,125,50,0.35);  color: var(--badge-cc-green); border: 1px solid rgba(46,125,50,0.5); }
-.cc-badge--amber        { background: rgba(245,127,23,0.35); color: var(--badge-cc-amber); border: 1px solid rgba(245,127,23,0.5); }
+/* N-257: green = neutral chrome at full text strength (vs --neutral's faint "No
+   data"); amber = amber border + glyph, no fill; red (below) keeps its fill. */
+.cc-badge--green        { background: var(--inverse-hover-bg); color: var(--inverse-text-vivid); border: 1px solid var(--inverse-border-strong); }
+.cc-badge--amber        { background: var(--inverse-hover-bg); color: var(--inverse-text-vivid); border: 1px solid var(--badge-cc-amber); }
+.cc-badge--amber .rag-marker { color: var(--badge-cc-amber); }
 .cc-badge--red          { background: rgba(198,40,40,0.35);  color: var(--badge-cc-red); border: 2px solid rgba(198,40,40,0.5); font-weight: var(--fw-bold); } /* N-254: 2px + bold */
 .cc-badge .rag-marker   { font-size: 1.15em; }
 .cc-badge--neutral      { background: var(--inverse-hover-bg); color: var(--inverse-text-faint); border: 1px solid var(--inverse-border); }

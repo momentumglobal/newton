@@ -92,15 +92,13 @@ function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}) {
   const rows = longOpen.map(r => {
     const proj = projectMap[String(r.ProjectIDLookupId || r.ProjectID)] || '—';
     const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
-    const rowClass = days >= 45 ? 'row-age-critical'
-     : days >= 30 ? 'row-age-warning'
-     : '';
-    return `<tr class="${rowClass}">
+    // N-257b: no whole-row tint — the Days Open cell carries the flag instead.
+    return `<tr>
      <td>${proj}</td>
      <td>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</td>
      <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
      <td><span class='badge'>${escHtml(r.Stage)}</span></td>
-     <td>${days} days</td>
+     <td>${ragTextHTML(days >= 45 ? 'red' : 'amber', days + ' days')}</td>
     </tr>`;
   }).join('');
   return `<div class='dash-panel'>

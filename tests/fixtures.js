@@ -42,6 +42,13 @@ var FIXTURES = {
     noticeMonths: 2,
   },
 
+  // N-261 — lciCostCompositionSeries takes an lciComputeModel() result;
+  // only the three fields it reads are needed.
+  lciComposition: {
+    withLegacy: { coeOperating: [100, 200, 300], legacyCost: [50, 40, 0], oneoffs: [5, 0, 0] },
+    noLegacy:   { coeOperating: [100, 200, 300], legacyCost: [0, 0, 0],   oneoffs: [0, 0, 0] },
+  },
+
   // Date/week layer (N-096) — getWeekEnding, getISOWeek, isoDate,
   // spDateIn/spDateOut, and the coeWeekIndex GMT/BST Gantt regression
   // (N-077/N-081 class). Plain {y,m,d} objects, not Date instances — Date

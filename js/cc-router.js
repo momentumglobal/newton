@@ -1,6 +1,6 @@
 // js/cc-router.js
 const CC_PAGES = [
-  { id: 'overview', label: 'Overview', roles: ['admin', 'leadership'] },
+  { key: 'overview', label: 'Overview', roles: ['admin', 'leadership'] },
 ];
 
 function ccCanAccess(role) {

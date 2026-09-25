@@ -951,6 +951,23 @@ function ragMarkerHTML(rag, { label = false } = {}) {
   return `<span class="rag-marker rag-marker--${key}" role="img" aria-label="${text}" title="${text}">${m.glyph}</span>`;
 }
 
+// ── Status text, neutral by default (N-257) ───────────────────
+// The single place that decides green renders neutral: green / grey text
+// gets no marker and no status colour (grey is muted via CSS); amber / red
+// get their N-254 marker and style.css colours them (amber: glyph only, text
+// stays --text-primary for contrast; red: --status-danger + bold).
+//   ragTextHTML('green', '85%') → <span class="rag-text rag-text--green">85%</span>
+//   ragTextHTML('red', '62%')   → <span class="rag-text rag-text--red">⚠62%</span>
+// `text` is escaped here — pass plain strings.
+function ragTextHTML(rag, text) {
+  const key = String(rag ?? '').toLowerCase();
+  const body = escHtml(text);
+  const marker = ragMarkerHTML(key);
+  if (marker) return `<span class="rag-text rag-text--${key}">${marker}${body}</span>`;
+  if (key === 'green' || key === 'grey') return `<span class="rag-text rag-text--${key}">${body}</span>`;
+  return `<span class="rag-text">${body}</span>`;
+}
+
 // Escape for safe interpolation into a double-quoted HTML attribute.
 // Example: value="${escAttr(title)}" where title may contain "
 function escAttr(str) {
@@ -1352,12 +1369,25 @@ function _chartGridSvg(padL, W, padR, lines) {
   }).join('');
 }
 
-// `items`: [{ color, label, dashed?, box?, border? }]. `box` renders a
-// small square swatch (RAG bands) instead of a line swatch.
+// N-257: neutral dashed threshold lines — replace coloured RAG bands behind
+// charts. `lines`: [{ y, label }] — y already in chart space; label is plain
+// text (escaped here), drawn right-aligned just above the line.
+function _chartThresholdSvg(padL, W, padR, lines) {
+  return lines.map(l => {
+    const label = l.label != null
+      ? `<text x='${W - padR}' y='${l.y - 4}' text-anchor='end' class='nt-chart-threshold-label'>${escHtml(l.label)}</text>`
+      : '';
+    return `<line x1='${padL}' y1='${l.y}' x2='${W - padR}' y2='${l.y}' class='nt-chart-threshold'/>${label}`;
+  }).join('');
+}
+
+// `items`: [{ color, label, dashed?, box?, dot?, border? }]. `box` renders a
+// small square swatch, `dot` a small circle (a flagged chart point, N-257),
+// otherwise a line swatch.
 function _chartLegendHtml(items) {
   return `<div class='nt-chart-legend'>${items.map(it => {
     const style = `--nt-chart-color:${it.color}` + (it.border ? `;--nt-chart-border:${it.border}` : '');
-    const cls = it.box ? 'nt-chart-legend-swatch--box' : (it.dashed ? 'nt-chart-legend-swatch--dashed' : '');
+    const cls = it.box ? 'nt-chart-legend-swatch--box' : it.dot ? 'nt-chart-legend-swatch--dot' : (it.dashed ? 'nt-chart-legend-swatch--dashed' : '');
     return `<div class='nt-chart-legend-item'>
       <span class='nt-chart-legend-swatch ${cls}' style='${style}'></span>${it.label}</div>`;
   }).join('')}</div>`;

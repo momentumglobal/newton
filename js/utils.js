@@ -932,6 +932,33 @@ function escHtmlLines(str) {
   return escHtml(str).replace(/\r?\n/g, '<br>');
 }
 
+// ── Breadcrumb (N-255a) ───────────────────────────────────────
+// Pure markup builder for the "Home › Module › Page" trail. No DOM, no
+// CONFIG — nav-core.js's renderBreadcrumb() supplies the segments from
+// router state; N-255b (record-level segments, mobile) reuses this.
+// segments: [{ label, href? }, …] — the LAST segment is the current page and
+// always renders as aria-current text, never a link. Ancestors without an
+// href render as plain text. Separators are CSS ::before (not in the DOM).
+//   breadcrumbHTML([{label:'Home',href:'index.html'},{label:'Org Chart'}])
+function breadcrumbHTML(segments) {
+  if (!Array.isArray(segments)) return '';
+  const segs = segments.filter(s => s && s.label);
+  if (!segs.length) return '';
+  const items = segs.map((s, i) => {
+    const label = escHtml(s.label);
+    let inner;
+    if (i === segs.length - 1) {
+      inner = `<span class="breadcrumb__current" aria-current="page">${label}</span>`;
+    } else if (s.href) {
+      inner = `<a class="breadcrumb__link" href="${escAttr(s.href)}">${label}</a>`;
+    } else {
+      inner = `<span class="breadcrumb__text">${label}</span>`;
+    }
+    return `<li class="breadcrumb__item">${inner}</li>`;
+  }).join('');
+  return `<nav aria-label="Breadcrumb" class="breadcrumb"><ol class="breadcrumb__list">${items}</ol></nav>`;
+}
+
 // ── RAG markers (N-254) ───────────────────────────────────────
 // Non-colour differentiator for red / amber states: a glyph from
 // CONFIG.RAG_MARKERS, optionally with its visible label. Colour is inherited

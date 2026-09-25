@@ -252,6 +252,19 @@ function lciComputeModel(model, rows) {
   };
 }
 
+// ── Monthly cost composition (N-261) ────────────────────────────────
+// Series for the stacked Legacy + CoE-operating column chart. Takes the
+// lciComputeModel() result — section gating has already happened there, so
+// this must NOT call lciSections() or re-sum rows. "Legacy" is the Cost
+// Model's "Total Legacy Costs" line (team + Retention & Relocation); it
+// intentionally differs from the Peak Crossover KPI, which is team-only.
+// Fees are excluded.
+function lciCostCompositionSeries(c) {
+  const coe    = c.coeOperating.slice();
+  const legacy = c.legacyCost.map((v, i) => v + (c.oneoffs[i] || 0));
+  return { coe, legacy, hasLegacy: legacy.some(v => v) };
+}
+
 // ── Hires per month (roadmap header rows) ────────────────────────────
 function lciHiresPerMonth(rows, model) {
   const horizon = Number(model.HorizonMonths);

@@ -119,7 +119,8 @@ function kpiDelta(curr, prev, lowerIsBetter = false, isPercent = false) {
   const diff = curr - prev;
   if (diff === 0) return `<span style='color:var(--text-faint);font-size:13px;margin-left:6px'>—</span>`;
   const positive = lowerIsBetter ? diff < 0 : diff > 0;
-  const colour   = positive ? 'var(--status-success)' : 'var(--status-danger)';
+  // N-257b: green is neutral. Only the worsening case gets a status colour.
+  const colour   = positive ? 'var(--text-secondary)' : 'var(--status-danger)';
   const sign     = diff > 0 ? '+' : '';
   const label    = isPercent ? `${sign}${diff}%` : `${sign}${diff}`;
   return `<span style='color:${colour};font-size:13px;font-weight:500;margin-left:6px'>${label}</span>`;

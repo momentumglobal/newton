@@ -446,6 +446,31 @@ function _lciPptxSpendChart(ctx, slide, series, labels, ccy) {
   });
 }
 
+// Native stacked column chart (N-261). Series come from
+// lciCostCompositionSeries() — never recalculated here. Legacy dropped when
+// the model has none; legend always shown so the single series is named.
+function _lciPptxCostCompositionChart(ctx, slide, c, labels, ccy) {
+  const P = CONFIG.LCI.PPTX, C = P.COLOURS, F = P.FONT, G = P.GEO;
+  const s = lciCostCompositionSeries(c);
+  const L = CONFIG.LCI.COMPOSITION_LABELS;
+  const data = [{ name: L.coe, labels, values: s.coe }];
+  if (s.hasLegacy) data.push({ name: L.legacy, labels, values: s.legacy });
+  slide.addChart(ctx.pptx.ChartType.bar, data, {
+    x: G.margin, y: _lciPptxBodyTop(true),
+    w: P.LAYOUT.width - G.margin * 2,
+    h: P.LAYOUT.height - _lciPptxBodyTop(true) - G.footerH - G.gap,
+    barDir: 'col', barGrouping: 'stacked', barGapWidthPct: 50,
+    chartColors: C.series.slice(0, data.length),
+    showLegend: true, legendPos: 'b',
+    legendFontFace: F.face, legendFontSize: F.chartLabel,
+    catAxisLabelFontFace: F.face, catAxisLabelFontSize: F.chartLabel, catAxisLabelColor: C.textMuted,
+    valAxisLabelFontFace: F.face, valAxisLabelFontSize: F.chartLabel, valAxisLabelColor: C.textMuted,
+    valAxisLabelFormatCode: `#,##0,\\k "${ccy || ''}"`,
+    valGridLine: { color: C.tableBorder, style: 'solid', size: P.CHART.gridSize },
+    catGridLine: { style: 'none' },
+  });
+}
+
 // ── Observations & Recommendations ───────────────────────────────────
 // window._lciReportObs is contenteditable HTML. Parsed into ordered blocks of
 // text runs — never injected as markup, and never rendered as one flat string.
@@ -615,6 +640,13 @@ function _lciPptxModelSlides(ctx, bundle, single) {
       _lciPptxCostRows(m, bundle.rows, c, sl),
       { grid: true, note: `All values in ${ccy || ''}.` });
   });
+
+  // Monthly Cost Composition (N-261) — every model, single or multi deck.
+  {
+    const labels = c.labels.map((_l, i) => `M${i + 1}`);
+    const slide = _lciPptxContentSlide(ctx, `Monthly Cost Composition — ${m.Title}`, `All values in ${ccy || ''}.`);
+    _lciPptxCostCompositionChart(ctx, slide, c, labels, ccy);
+  }
 
   // Per-model chart in single-model decks only — the comparison chart covers
   // them otherwise, matching the HTML report's rule.

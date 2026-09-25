@@ -364,7 +364,76 @@ function _lciOutputInnerHtml(includeChart = true, plain = false, slice = null) {
           </tbody>
         </table>
       </div>
-      ${includeChart ? _lciSpendChartSvg(c, ccy, horizon) : ''}
+      ${includeChart ? _lciSpendChartSvg(c, ccy, horizon) + _lciCostCompositionChartSvg(c, ccy, horizon) : ''}
+    </div>`;
+}
+
+// Monthly Cost Composition (N-261) — stacked columns, CoE operating at the
+// bottom, Legacy (Total Legacy Costs) on top. Same frame/ticks as the
+// cumulative chart below, but a BAND x-scale (columns centred in equal
+// slots), not the line chart's edge-to-edge scale. Full horizon, never
+// year-sliced. Legacy series/legend item dropped when the model has none.
+function _lciCostCompositionChartSvg(c, ccy, horizon) {
+  const W = 900, H = 248, padL = 70, padR = 20, padT = 16, padB = 38;
+  const s = lciCostCompositionSeries(c);
+  const L = CONFIG.LCI.COMPOSITION_LABELS;
+  const series = [{ key: 'coe', label: L.coe, color: 'var(--c-navy-steel)', data: s.coe }];
+  if (s.hasLegacy) series.push({ key: 'legacy', label: L.legacy, color: 'var(--c-accent)', data: s.legacy });
+  const totals = c.labels.map((_l, i) => series.reduce((a, sr) => a + Math.max(0, sr.data[i] || 0), 0));
+
+  const steps = CONFIG.LCI.CHART_STEPS;
+  const peak = Math.max(...totals, 0);
+  const step = steps.find(st => Math.ceil(peak / st) <= CONFIG.LCI.CHART_MAX_MAJOR_LINES) || steps[steps.length - 1];
+  const maxY = Math.max(Math.ceil(peak / step) * step, step);
+  const plotH = H - padT - padB;
+  const band = (W - padL - padR) / Math.max(horizon, 1);
+  const barW = band * 0.7;
+  const cx = i => padL + band * (i + 0.5);
+  const y = v => padT + (1 - v / maxY) * plotH;
+
+  const fmtCompact = v => new Intl.NumberFormat('en-GB', {
+    style: 'currency', currency: ccy || 'EUR', notation: 'compact', maximumFractionDigits: 1,
+  }).format(v);
+
+  const cols = c.labels.map((l, i) => {
+    let base = 0;
+    return series.map(sr => {
+      const v = Math.max(0, sr.data[i] || 0);
+      if (!v) return '';
+      const h = (v / maxY) * plotH;
+      const top = y(base + v);
+      base += v;
+      return `<rect x="${(cx(i) - barW / 2).toFixed(1)}" y="${top.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" class="nt-chart-col" style="--nt-chart-color:${sr.color}"><title>${l} · ${sr.label}: ${_lciFmt(v, ccy)} (Total ${_lciFmt(totals[i], ccy)})</title></rect>`;
+    }).join('');
+  }).join('');
+
+  const ticks = c.labels.map((l, i) => {
+    if (!(horizon <= 12 || i % 2 === 0)) return '';
+    const sub = (l.match(/\((.+)\)/) || [])[1] || '';
+    return `<text x="${cx(i).toFixed(1)}" y="${H - 18}" class="nt-chart-tick" text-anchor="middle">M${i + 1}</text>
+            <text x="${cx(i).toFixed(1)}" y="${H - 6}" class="nt-chart-tick--sub" text-anchor="middle">(${sub})</text>`;
+  }).join('');
+
+  const gridLines = _chartGridSvg(padL, W, padR, (() => {
+    const out = [];
+    for (let v = step / 2; v <= maxY; v += step / 2) {
+      const isMajor = v % step === 0;
+      out.push({ y: y(v), minor: !isMajor, label: isMajor ? fmtCompact(v) : null });
+    }
+    return out;
+  })());
+
+  const legend = _chartLegendHtml(series.map(sr => ({ color: sr.color, label: sr.label, box: true })));
+
+  return `
+    <div style="margin-top:16px">
+      <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Monthly Cost Composition <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(${ccy})</span></h3>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
+        ${gridLines}
+        ${cols}
+        ${ticks}
+      </svg>
+      ${legend}
     </div>`;
 }
 

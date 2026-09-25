@@ -802,4 +802,33 @@ var ASSERTIONS = [
       });
     },
   },
+  {
+    name: 'N-257 ragTextHTML — green/grey neutral (no marker), amber/red carry the N-254 marker',
+    fn: function () {
+      _assertEqual(ragTextHTML('green', '85%'), '<span class="rag-text rag-text--green">85%</span>', 'green plain');
+      _assertEqual(ragTextHTML('grey', 'GREY'), '<span class="rag-text rag-text--grey">GREY</span>', 'grey plain');
+      _assertEqual(ragTextHTML('RED', '62%'), '<span class="rag-text rag-text--red">' + ragMarkerHTML('red') + '62%</span>', 'red + marker, case-insensitive');
+      _assertEqual(ragTextHTML('amber', '<b>'), '<span class="rag-text rag-text--amber">' + ragMarkerHTML('amber') + '&lt;b&gt;</span>', 'amber + marker, text escaped');
+      _assertEqual(ragTextHTML('purple', 'x'), '<span class="rag-text">x</span>', 'unknown → plain');
+      _assertEqual(ragTextHTML(undefined, 'x'), '<span class="rag-text">x</span>', 'missing → plain');
+    },
+  },
+  {
+    name: 'N-257 _chartThresholdSvg — neutral line + right-aligned escaped label',
+    fn: function () {
+      _assertEqual(_chartThresholdSvg(10, 100, 10, [{ y: 20, label: 'At risk < £1' }]),
+        "<line x1='10' y1='20' x2='90' y2='20' class='nt-chart-threshold'/><text x='90' y='16' text-anchor='end' class='nt-chart-threshold-label'>At risk &lt; £1</text>",
+        'line + label');
+      _assertEqual(_chartThresholdSvg(0, 50, 0, [{ y: 5 }]),
+        "<line x1='0' y1='5' x2='50' y2='5' class='nt-chart-threshold'/>", 'no label');
+    },
+  },
+  {
+    name: 'N-257 _chartLegendHtml — dot swatch variant',
+    fn: function () {
+      const h = _chartLegendHtml([{ color: 'var(--status-danger)', dot: true, label: 'Below' }]);
+      _assertEqual(h.indexOf('nt-chart-legend-swatch--dot') > -1, true, 'dot class present');
+      _assertEqual(h.indexOf('nt-chart-legend-swatch--box') === -1, true, 'not a box');
+    },
+  },
 ];

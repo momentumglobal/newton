@@ -346,7 +346,6 @@ function renderPeopleDetail(data) {
   )];
     if (!tps.length) return '<p class="no-data">No active Talent Partners found.</p>';
   const weight = { green: 0, amber: 1, red: 2, grey: 0 };
-  const ragColours = CONFIG.RAG_COLOUR_VARS;
   const rows = tps.map(tp => {
   const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
   const flagged = tpRoles.filter(r => {
@@ -359,7 +358,7 @@ function renderPeopleDetail(data) {
     return { rag, html: `<tr>
       <td>${name}</td>
       <td style="text-align:center">${flagged}/${tpRoles.length}</td>
-      <td style="text-align:center"><span style="font-weight:600;color:${ragColours[rag]}">${ragMarkerHTML(rag)}${rag.toUpperCase()}</span></td>
+      <td style="text-align:center">${ragTextHTML(rag, rag.toUpperCase())}</td>
     </tr>` };
   }).sort((a, b) => weight[b.rag] - weight[a.rag]).map(r => r.html).join('');
 
@@ -404,12 +403,13 @@ function renderUtilDetail(data) {
   });
 
   const t = CONFIG.UTILISATION_THRESHOLDS;
-  const ragCol = v => v >= t.green ? 'var(--status-success)' : v >= t.amber ? 'var(--status-warn-strong)' : 'var(--status-danger)';
+  // N-257: neutral by default — only amber/red cells carry status styling.
+  const ragOf  = v => v >= t.green ? 'green' : v >= t.amber ? 'amber' : 'red';
   const fmtPct = v => `${(v * 100).toFixed(0)}%`;
 
   const headers      = months.map(m => `<th style="text-align:center">${m.label}</th>`).join('');
-  const plannedCells = months.map(m => `<td style="text-align:center;color:${ragCol(m.planned)};font-weight:600">${fmtPct(m.planned)}</td>`).join('');
-  const forecastCells = months.map(m => `<td style="text-align:center;color:${ragCol(m.forecast)};font-weight:600">${fmtPct(m.forecast)}</td>`).join('');
+  const plannedCells = months.map(m => `<td style="text-align:center">${ragTextHTML(ragOf(m.planned), fmtPct(m.planned))}</td>`).join('');
+  const forecastCells = months.map(m => `<td style="text-align:center">${ragTextHTML(ragOf(m.forecast), fmtPct(m.forecast))}</td>`).join('');
 
     return `
     <table class="cc-detail-table" style="margin-top:0">

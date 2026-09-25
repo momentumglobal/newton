@@ -31,7 +31,7 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
   const yMax    = Math.ceil((dataMax * 1.1) / 25000) * 25000; // round to £25k
 
   const W = 900, H = 240;
-  const PAD = { top: 10, right: 24, bottom: 32, left: 64 };
+  const PAD = { top: 10, right: 72, bottom: 32, left: 64 }; // right: threshold-label gutter (N-257a)
   const chartW = W - PAD.left - PAD.right;
   const chartH = H - PAD.top  - PAD.bottom;
 
@@ -51,8 +51,8 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
 
   // N-257: neutral threshold lines replace the green/amber/red bands.
   const thresholds = _chartThresholdSvg(PAD.left, W, PAD.right, [
-    { y: yOf(green), label: `On track ≥ ${_fmtGBPk(green)}` },
-    { y: yOf(amber), label: `${CONFIG.RAG_MARKERS.red.label} < ${_fmtGBPk(amber)}` },
+    { y: yOf(green), label: 'On track ≥', value: _fmtGBPk(green), place: 'above' },
+    { y: yOf(amber), label: `${CONFIG.RAG_MARKERS.red.label} <`, value: _fmtGBPk(amber), place: 'below' },
   ]);
 
   const linePts = revenue

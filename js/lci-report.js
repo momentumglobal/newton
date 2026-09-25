@@ -163,6 +163,9 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
       <div class="lci-summary-card lci-report-break">
         ${_lciCostModelBlocksHtml(false, true)}
       </div>
+      <div class="lci-summary-card lci-report-break">
+        ${_lciCostCompositionChartSvg(c, m.DisplayCurrency, Number(m.HorizonMonths))}
+      </div>
       ${bundles.length === 1 ? `
       <div class="lci-summary-card lci-report-break">
         ${_lciSpendChartSvg(c, m.DisplayCurrency, Number(m.HorizonMonths))}
@@ -173,6 +176,8 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
   }).join('');
   // Note: per-model cumulative spend charts are omitted in multi-model
   // reports — the combined chart in the comparison section covers them.
+  // The Monthly Cost Composition chart (N-261) is per-model in every report:
+  // stacked columns don't combine across models.
 
   return `
     <div class="page-header lci-noprint">

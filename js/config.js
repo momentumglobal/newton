@@ -754,6 +754,18 @@ const CONFIG = {
       retained: { label: 'Retained', costLine: 'Retained Team Costs' },
     },
 
+    // Monthly Cost Composition chart (N-261) — shared by the on-screen SVG
+    // and the PowerPoint chart so the two can never label differently.
+    //   CHART_STEPS           — Y-axis major-step ladder; the smallest step
+    //                           giving <= CHART_MAX_MAJOR_LINES lines wins.
+    //   COMPOSITION_LABELS    — series names, bottom-of-stack first.
+    CHART_STEPS:           [5000, 10000, 25000, 50000, 100000, 250000, 500000, 1000000, 2500000],
+    CHART_MAX_MAJOR_LINES: 6,
+    COMPOSITION_LABELS: {
+      coe:    'CoE Operating Costs',
+      legacy: 'Legacy Costs',
+    },
+
     // ── Excel export (N-030) ──────────────────────────────────────
     // ExcelJS, lazy-loaded on first click only (~950KB — never on page
     // render). PIN THE VERSION: an unpinned CDN has bitten this codebase

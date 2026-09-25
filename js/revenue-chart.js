@@ -4,6 +4,8 @@
 // computeMonthlyForecastRevenueForYear() (both in utils.js).
 // Loaded by sales.html (Revenue Tracking page) and command-centre.html
 // (Revenue tile expanded detail).
+// N-257: thresholds are neutral dashed lines (_chartThresholdSvg), not RAG
+// bands; only booked months to date below amber are drawn in the danger colour.
 
 function _fmtGBPk(v) {
   return '£' + Math.round(v).toLocaleString('en-GB');
@@ -47,14 +49,11 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
            class='nt-chart-tick'>${lbl}</text>`
   ).join('');
 
-  // Threshold bands: green from green→top, orange amber→green, red 0→amber
-  const bands = `
-    <rect x='${PAD.left}' y='${yOf(yMax)}' width='${chartW}'
-          height='${yOf(green) - yOf(yMax)}' fill='var(--status-success-bg)' opacity='0.6'/>
-    <rect x='${PAD.left}' y='${yOf(green)}' width='${chartW}'
-          height='${yOf(amber) - yOf(green)}' fill='var(--status-warn-bg-soft)' opacity='0.6'/>
-    <rect x='${PAD.left}' y='${yOf(amber)}' width='${chartW}'
-          height='${yOf(0) - yOf(amber)}' fill='var(--status-danger-bg)' opacity='0.6'/>`;
+  // N-257: neutral threshold lines replace the green/amber/red bands.
+  const thresholds = _chartThresholdSvg(PAD.left, W, PAD.right, [
+    { y: yOf(green), label: `On track ≥ ${_fmtGBPk(green)}` },
+    { y: yOf(amber), label: `At risk < ${_fmtGBPk(amber)}` },
+  ]);
 
   const linePts = revenue
     .map((v, i) => `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`)
@@ -76,11 +75,17 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
                 style='--nt-chart-color:var(--accent)'/>`
     : '';
 
-  const dots = revenue.map((v, i) => `
+  // N-257: a booked month to date below amber is the exception worth flagging
+  // — larger dot (size is the non-colour cue) in the danger colour. Future
+  // months are expected to be under-booked; the forecast line covers them.
+  const dots = revenue.map((v, i) => {
+    const below = i <= forkIdx && v < amber;
+    return `
     <circle cx='${xOf(i).toFixed(1)}' cy='${yOf(v).toFixed(1)}'
-            r='3.5' class='nt-chart-dot--ring' style='--nt-chart-color:var(--surface-accent)'>
-      <title>${MONTH_LABELS[i]} ${year}: ${_fmtGBPk(v)}</title>
-    </circle>`).join('');
+            r='${below ? 4.5 : 3.5}' class='nt-chart-dot--ring' style='--nt-chart-color:${below ? 'var(--status-danger)' : 'var(--surface-accent)'}'>
+      <title>${MONTH_LABELS[i]} ${year}: ${_fmtGBPk(v)}${below ? ` · below ${_fmtGBPk(amber)}` : ''}</title>
+    </circle>`;
+  }).join('');
 
   const forecastDots = hasForecast
     ? combined.map((v, i) => ({ v, i }))
@@ -99,8 +104,8 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
         Estimated Monthly Revenue ${year}</div>
       <svg viewBox='0 0 ${W} ${H}' class='chart-in' style='width:100%;height:auto;display:block'
            xmlns='http://www.w3.org/2000/svg'>
-        ${bands}
         ${gridLines}
+        ${thresholds}
         ${xLabels}
         ${line}
         ${forecastLine}
@@ -110,9 +115,8 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
       ${_chartLegendHtml([
         { color: 'var(--surface-accent)', label: 'Estimated (booked)' },
         { color: 'var(--accent)', dashed: true, label: 'Estimated + Forecast' },
-        { color: 'var(--status-success-bg)', border: 'var(--status-success)', box: true, label: `≥ ${_fmtGBPk(green)}` },
-        { color: 'var(--status-warn-bg-soft)', border: 'var(--status-warn)', box: true, label: `${_fmtGBPk(amber)} – ${_fmtGBPk(green)}` },
-        { color: 'var(--status-danger-bg)', border: 'var(--status-danger)', box: true, label: `< ${_fmtGBPk(amber)}` },
+        { color: 'var(--text-muted)', dashed: true, label: 'Thresholds' },
+        { color: 'var(--status-danger)', dot: true, label: `Booked month below ${_fmtGBPk(amber)}` },
       ])}
     </div>`;
 }

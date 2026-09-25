@@ -9,12 +9,22 @@
 // calls updateNavActiveLink(), not renderModuleNav().
 let _navNavigateFn = null;
 
+// N-255a: module key + router-derived page list from the last
+// renderModuleNav() call — the breadcrumb reads the same state the sidebar
+// is drawn from, so the two can't disagree. NAV_HOME is shared by the
+// module-dropdown Home link and the trail's first segment.
+let _navModuleKey = null;
+let _navPages     = [];
+const NAV_HOME = { label: 'Home', href: 'index.html' };
+
 function renderModuleNav({
   subtitle, currentModuleKey, toggleFn,
   pages, currentPage, role,
   navigateFn, userGuideHref,
 }) {
   _navNavigateFn = navigateFn;
+  _navModuleKey  = currentModuleKey;
+  _navPages      = pages || [];
   const user = getCurrentUser();
   const kbdLabel = isMacPlatform() ? '⌘K' : 'Ctrl+K';
   const visibleModules = CONFIG.OS_MODULES.filter(m => m.roles.includes(role));
@@ -46,7 +56,7 @@ function renderModuleNav({
       <div class='nav-logo'>Newton <span class='nav-header-arrow'>▾</span></div>
       <div class='nav-subtitle'>${subtitle}</div>
       <div class='nav-module-dropdown' id='nav-module-dropdown'>
-        <a class='nav-module-home' href='index.html'>← Home</a>
+        <a class='nav-module-home' href='${NAV_HOME.href}'>← ${NAV_HOME.label}</a>
         <div class='nav-module-divider'></div>
         ${moduleItems}
       </div>
@@ -89,6 +99,25 @@ function renderModuleNav({
 
   lucide.createIcons();
   if (typeof renderNotificationBell === 'function') renderNotificationBell();
+  if (currentPage) renderBreadcrumb(currentPage);
+}
+
+/**
+ * Renders the "Home › Module › Page" trail into #breadcrumb-bar (N-255a).
+ * Called from renderModuleNav() and updateNavActiveLink() only — every
+ * module's navigate function already goes through the latter, so sidebar
+ * clicks, deep links, Command Bar jumps and Refresh data all update it.
+ * No-op on a shell without #breadcrumb-bar.
+ */
+function renderBreadcrumb(page) {
+  const bar = document.getElementById('breadcrumb-bar');
+  if (!bar) return;
+  const mod = CONFIG.OS_MODULES.find(m => m.key === _navModuleKey);
+  const segments = [NAV_HOME];
+  if (mod) segments.push({ label: mod.name, href: mod.href });
+  const p = _navPages.find(x => x.key === page);
+  if (p) segments.push({ label: p.label });
+  bar.innerHTML = breadcrumbHTML(segments);
 }
 
 /**
@@ -104,6 +133,7 @@ function updateNavActiveLink(page) {
       a.classList.remove('active');
     }
   });
+  renderBreadcrumb(page);
 }
 
 /**

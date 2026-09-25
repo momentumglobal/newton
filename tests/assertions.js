@@ -69,6 +69,23 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'N-261 lciCostCompositionSeries — legacy = team + one-offs, coe = coeOperating',
+    fn: function () {
+      const s = lciCostCompositionSeries(FIXTURES.lciComposition.withLegacy);
+      _assertEqual(s.coe, [100, 200, 300], 'coe');
+      _assertEqual(s.legacy, [55, 40, 0], 'legacy');
+      _assertEqual(s.hasLegacy, true, 'hasLegacy');
+    },
+  },
+  {
+    name: 'N-261 lciCostCompositionSeries — hasLegacy false when team + one-offs all zero',
+    fn: function () {
+      const s = lciCostCompositionSeries(FIXTURES.lciComposition.noLegacy);
+      _assertEqual(s.legacy, [0, 0, 0], 'legacy');
+      _assertEqual(s.hasLegacy, false, 'hasLegacy');
+    },
+  },
+  {
     name: 'lciYearSlices — splits an 18-month horizon into Year 1 / Year 2',
     fn: function () {
       const slices = lciYearSlices(18, 12);

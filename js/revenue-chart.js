@@ -52,7 +52,7 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
   // N-257: neutral threshold lines replace the green/amber/red bands.
   const thresholds = _chartThresholdSvg(PAD.left, W, PAD.right, [
     { y: yOf(green), label: `On track ≥ ${_fmtGBPk(green)}` },
-    { y: yOf(amber), label: `At risk < ${_fmtGBPk(amber)}` },
+    { y: yOf(amber), label: `${CONFIG.RAG_MARKERS.red.label} < ${_fmtGBPk(amber)}` },
   ]);
 
   const linePts = revenue

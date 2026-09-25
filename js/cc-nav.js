@@ -18,5 +18,6 @@ function toggleCCModuleDropdown() {
 
 function navigateToCC(page) {
   const container = document.getElementById('page-content');
-  withViewTransition(() => renderCCOverview(container));
+  updateNavActiveLink(page);
+  withViewTransition
 }

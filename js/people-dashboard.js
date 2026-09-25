@@ -87,6 +87,7 @@ function _salesForecastUtil(monthIdx, salesForecasts, totalActiveHeadcount, assi
 }
 
 // ── Team Utilisation Line Graph ───────────────────
+// N-257b: RAG bands replaced by neutral threshold lines (_chartThresholdSvg), reusing N-257a's helper.
 function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, totalActiveHeadcount) {
   const now       = new Date();
   const thisYear  = now.getFullYear();
@@ -140,7 +141,8 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
   });
   
   const W = 900, H = 200;
-  const PAD = { top: 10, right: 24, bottom: 32, left: 52 };
+  // N-257b: right padding widened for the threshold-label gutter (Addendum A geometry, reused from Revenue).
+  const PAD = { top: 10, right: 72, bottom: 32, left: 52 };
   const chartW = W - PAD.left - PAD.right;
   const chartH = H - PAD.top  - PAD.bottom;
 
@@ -200,7 +202,13 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
               r='3' class='nt-chart-dot--hollow' style='--nt-chart-color:var(--accent)' opacity='0.85'>
         <title>${p.label}: ${(p.util * 100).toFixed(1)}% (sales forecast)</title>
       </circle>`).join('');
-  
+
+  // N-257b: neutral dashed threshold lines replace the RAG bands, matching Revenue (N-257a).
+  const thresholds = _chartThresholdSvg(PAD.left, W, PAD.right, [
+    { y: yOf(CONFIG.UTILISATION_THRESHOLDS.green), label: 'On track ≥', value: _fmtPct(CONFIG.UTILISATION_THRESHOLDS.green), place: 'above' },
+    { y: yOf(CONFIG.UTILISATION_THRESHOLDS.amber), label: `${CONFIG.RAG_MARKERS.red.label} <`, value: _fmtPct(CONFIG.UTILISATION_THRESHOLDS.amber), place: 'below' },
+  ]);
+
     return `
     <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--border);border-radius:6px;
                 padding:20px 20px 12px;margin-bottom:24px'>
@@ -208,15 +216,7 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
         Team Utilisation ${thisYear}</div>
       <svg viewBox='0 0 ${W} ${H}' style='width:100%;height:auto;display:block'
            xmlns='http://www.w3.org/2000/svg'>
-        <rect x='${PAD.left}' y='${yOf(1.0)}' width='${chartW}'
-           height='${yOf(CONFIG.UTILISATION_THRESHOLDS.green) - yOf(1.0)}'
-           fill='var(--status-success-bg)' opacity='0.6'/>
-      <rect x='${PAD.left}' y='${yOf(CONFIG.UTILISATION_THRESHOLDS.green)}' width='${chartW}'
-           height='${yOf(CONFIG.UTILISATION_THRESHOLDS.amber) - yOf(CONFIG.UTILISATION_THRESHOLDS.green)}'
-           fill='var(--status-warn-bg-soft)' opacity='0.6'/>
-      <rect x='${PAD.left}' y='${yOf(CONFIG.UTILISATION_THRESHOLDS.amber)}' width='${chartW}'
-           height='${yOf(0) - yOf(CONFIG.UTILISATION_THRESHOLDS.amber)}'
-           fill='var(--status-danger-bg)' opacity='0.6'/>
+        ${thresholds}
         ${gridLines}
         ${xLabels}
         ${actualLine}
@@ -230,6 +230,7 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
         { color: 'var(--surface-accent)', label: 'Actual' },
         { color: 'var(--surface-accent)', dashed: true, label: 'Forecast' },
         { color: 'var(--accent)', dashed: true, label: 'Sales Forecast' },
+        { color: 'var(--text-muted)', dashed: true, label: 'Thresholds' },
       ])}
     </div>`;
 }
@@ -296,14 +297,16 @@ async function _renderKPIStrip(allRows, people, assignments) {
   const _delta = (curr, prev) => {
     const d = curr - prev;
     if (d === 0) return `<span style='color:var(--text-faint);font-size:14px;margin-left:8px'>—</span>`;
-    const colour = d > 0 ? 'var(--status-success)' : 'var(--status-danger)';
+    // N-257b: improving is neutral, matching kpiDelta (dashboard-core.js).
+    const colour = d > 0 ? 'var(--text-secondary)' : 'var(--status-danger)';
     return `<span style='color:${colour};font-size:14px;margin-left:8px'>${d > 0 ? '+' : ''}${d}</span>`;
   };
   
   return `<div style='display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px'>
     ${_kpiCard('Estimated Revenue ' + thisY,   _fmtGBP(revYTD),   'Current year YTD')}
     ${_kpiCard('Utilisation ' + thisY,      _fmtPct(utilYTD),  'Current year YTD',
-        utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? 'var(--status-success-bg)' : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? 'var(--status-warn-bg-soft)' : 'var(--status-danger-bg)')}
+        // N-257b: green is neutral — no bg passed, `_kpiCard` falls back to `var(--surface)`.
+        utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? undefined : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? 'var(--status-warn-bg-soft)' : 'var(--status-danger-bg)')}
     ${_kpiCard('Active Customers',  activeCustomers  + _delta(activeCustomers, prevQCustomers),  'As of today · vs last quarter')}
     ${_kpiCard('Billed Headcount',  billedHeadcount  + _delta(billedHeadcount, prevQHeadcount),  'As of today · vs last quarter')}
   </div>`;
@@ -508,13 +511,13 @@ function _renderEndDatesPanel(people) {
   const rows = upcoming.map(p => {
     const end     = p._end; end.setHours(0, 0, 0, 0);
     const days    = Math.round((end - today) / 86400000);
-    const bg      = days <= 30 ? 'var(--status-danger-bg)' : 'var(--status-warn-bg-soft)';
     const dateStr = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    // N-257b: no whole-row tint — the Days Remaining cell carries the flag instead.
     return `<tr>
-      <td style='background:${bg}'>${escHtml(p.EmployeeName)}</td>
-      <td style='background:${bg}'>${escHtml(p.Level || '—')}</td>
-      <td style='background:${bg}'>${dateStr}</td>
-      <td style='background:${bg}'>${days} days</td>
+      <td>${escHtml(p.EmployeeName)}</td>
+      <td>${escHtml(p.Level || '—')}</td>
+      <td>${dateStr}</td>
+      <td>${ragTextHTML(days <= 30 ? 'red' : 'amber', days + ' days')}</td>
     </tr>`;
   }).join('');
 

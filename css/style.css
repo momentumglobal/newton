@@ -1203,6 +1203,8 @@ body {
 .nt-chart-dot           { fill: var(--nt-chart-color, var(--brand-tertiary)); }
 .nt-chart-dot--ring     { fill: var(--nt-chart-color, var(--brand-tertiary)); stroke: var(--c-white); stroke-width: 1.5; }
 .nt-chart-dot--hollow   { fill: var(--c-white); stroke: var(--nt-chart-color, var(--brand-tertiary)); stroke-width: 2; }
+/* N-261: stacked column segment (LCI Monthly Cost Composition) */
+.nt-chart-col           { fill: var(--nt-chart-color, var(--brand-tertiary)); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .nt-chart-legend        { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-3); font-size: var(--fs-11); color: var(--text-label); }
 .nt-chart-legend-item   { display: flex; align-items: center; gap: var(--sp-2); }
 .nt-chart-legend-swatch          { width: 24px; height: 2px; flex-shrink: 0; display: inline-block; background: var(--nt-chart-color, var(--brand-tertiary)); }

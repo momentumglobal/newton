@@ -174,6 +174,8 @@ function coeRenderBody() {
   `;
   coeRenderGantt();
   coeRenderForecastTable();
+  const proj = projects.find(p => p.id == projectId);
+  renderBreadcrumb('hiringPlan', proj ? proj.CustomerName : undefined);
 }
 
 // ── Gantt + capacity strip ──────────────────────────────────────────

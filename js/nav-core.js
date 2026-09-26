@@ -103,13 +103,17 @@ function renderModuleNav({
 }
 
 /**
- * Renders the "Home › Module › Page" trail into #breadcrumb-bar (N-255a).
- * Called from renderModuleNav() and updateNavActiveLink() only — every
- * module's navigate function already goes through the latter, so sidebar
- * clicks, deep links, Command Bar jumps and Refresh data all update it.
+ * Renders the "Home › Module › Page[ › Record]" trail into #breadcrumb-bar
+ * (N-255a; record segment added N-255b).
+ * Called from renderModuleNav() and updateNavActiveLink() with one argument
+ * — every module's navigate function already goes through the latter, so
+ * sidebar clicks, deep links, Command Bar jumps and Refresh data all update
+ * it and correctly drop any record segment. A page showing a specific record
+ * (Project Dashboard, Hiring Plan, LCI Editor/Summary) calls this directly
+ * with a second argument after it re-renders that record.
  * No-op on a shell without #breadcrumb-bar.
  */
-function renderBreadcrumb(page) {
+function renderBreadcrumb(page, record) {
   const bar = document.getElementById('breadcrumb-bar');
   if (!bar) return;
   const mod = CONFIG.OS_MODULES.find(m => m.key === _navModuleKey);
@@ -117,6 +121,7 @@ function renderBreadcrumb(page) {
   if (mod) segments.push({ label: mod.name, href: mod.href });
   const p = _navPages.find(x => x.key === page);
   if (p) segments.push({ label: p.label });
+  if (record) segments.push({ label: record });
   bar.innerHTML = breadcrumbHTML(segments);
 }
 

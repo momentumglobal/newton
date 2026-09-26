@@ -1586,6 +1586,72 @@ function _rtHandleTableFocusEvent(e) {
   }
 }
 
+// N-262: shared paste sanitizer for every .rb-richtext editor (Report
+// Builder, Market Report, LCI Report, briefing pack). Browser default
+// paste carries the source's inline font-family/size/colour straight into
+// the DOM — the toolbar's execCommand buttons can't undo styling they
+// never set, and it round-trips into the PDF/PPTX exports. Strip all
+// styling on the way in; keep only the structure the toolbar itself can
+// already produce.
+const RT_PASTE_ALLOWED_TAGS = new Set(['P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI']);
+// Block-level wrappers normalised rather than unwrapped, so separate
+// Word/Google-Docs paragraphs (often <div>-wrapped) and pasted headings
+// (any level) survive as a break instead of merging into one run of text.
+const RT_PASTE_BLOCK_NORMALIZE = { DIV: 'P', H1: 'H3', H2: 'H3', H3: 'H3', H4: 'H3', H5: 'H3', H6: 'H3' };
+
+// Recursively cleans a parsed clipboard fragment in place. Children are
+// resolved before their parent so nested disallowed wrappers (e.g. Google
+// Docs' <span style=...><span style=...>text</span></span>) fully
+// collapse instead of leaving one level behind.
+function _rtCleanPasteNode(node) {
+  Array.from(node.childNodes).forEach(child => {
+    if (child.nodeType === 1) {
+      const tag = child.tagName;
+      if (tag === 'SCRIPT' || tag === 'STYLE') {
+        child.remove();
+        return;
+      }
+      _rtCleanPasteNode(child);
+      const normalizeTo = RT_PASTE_BLOCK_NORMALIZE[tag];
+      if (normalizeTo) {
+        const el = document.createElement(normalizeTo);
+        el.append(...child.childNodes);
+        child.replaceWith(el);
+      } else if (RT_PASTE_ALLOWED_TAGS.has(tag)) {
+        Array.from(child.attributes).forEach(attr => child.removeAttribute(attr.name));
+      } else {
+        child.replaceWith(...child.childNodes);
+      }
+    } else if (child.nodeType === 8) {
+      child.remove();
+    }
+  });
+}
+
+function _rtPlainTextToHtml(text) {
+  const esc = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return esc.split(/\r\n|\r|\n/).map(line => `<p>${line || '<br>'}</p>`).join('');
+}
+
+// Delegated paste handler — same document-level pattern as
+// _rtHandleTableFocusEvent above.
+function _rtHandlePaste(e) {
+  if (!e.target.closest || !e.target.closest('.rb-richtext')) return;
+  e.preventDefault();
+
+  const cd = e.clipboardData || window.clipboardData;
+  const html = cd && cd.getData('text/html');
+  let cleanHtml;
+  if (html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    _rtCleanPasteNode(doc.body);
+    cleanHtml = doc.body.innerHTML;
+  } else {
+    cleanHtml = _rtPlainTextToHtml((cd && cd.getData('text/plain')) || '');
+  }
+  document.execCommand('insertHTML', false, cleanHtml);
+}
+
 // N-216 fix: utils.js is also loaded standalone into a bare Node `vm`
 // context with no DOM by tests/run.js (see that file's header comment) —
 // top-level document/window calls must not execute there. Same guard
@@ -1593,6 +1659,7 @@ function _rtHandleTableFocusEvent(e) {
 if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   document.addEventListener('click', _rtHandleTableFocusEvent);
   document.addEventListener('keyup', _rtHandleTableFocusEvent);
+  document.addEventListener('paste', _rtHandlePaste);
   window.addEventListener('scroll', () => { if (_rtCurrentTable) _rtRepositionTableControls(); }, true);
   window.addEventListener('resize', () => { if (_rtCurrentTable) _rtRepositionTableControls(); });
 }

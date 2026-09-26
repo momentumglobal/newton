@@ -68,6 +68,7 @@ async function renderLCIEditorPage(modelId) {
     };
     main.innerHTML = _lciEditorHtml();
     if (window.lucide) lucide.createIcons();
+    renderBreadcrumb('lciModels', model.Title);
   } catch (e) {
     main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: `renderLCIEditorPage(${modelId})` });
     if (window.lucide) lucide.createIcons();

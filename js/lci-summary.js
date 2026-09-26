@@ -148,6 +148,7 @@ async function renderLCISummaryPage(modelId) {
     document.body.classList.add('lci-summary-mode');
     main.innerHTML = _lciSummaryHtml();
     if (window.lucide) lucide.createIcons();
+    renderBreadcrumb('lciModels', model.Title);
   } catch (e) {
     main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: `renderLCISummaryPage(${modelId})` });
     if (window.lucide) lucide.createIcons();

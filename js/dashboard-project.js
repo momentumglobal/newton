@@ -84,6 +84,9 @@ async function renderProjectDashboard() {
     </div>`;
   lucide.createIcons();
   runKpiCountUps(main);
+  // N-255b: TP branch never resolves projectName (matches the <h2>, which
+  // also only shows it for isDMAdmin) — no new fetch added for this.
+  renderBreadcrumb('projectDashboard', isDMAdmin ? projectName : undefined);
 }
 function changeDashProject(id) { _dashProjectId = String(id); renderProjectDashboard(); }
 // N-145 addendum (18 Aug 2026) — Command Bar Project entity jump. Sets the

@@ -980,7 +980,7 @@ const CONFIG = {
         { group: 'investment', tiles: ['totalSpend', 'peakSpend', 'peakMonth', 'avgFee'] },
         { group: 'steady',     tiles: ['runMonthly', 'runAnnual', 'saving', 'costPerHead'] },
         { group: 'delivery',   tiles: ['totalHires', 'finalHeadcount', 'ramp', 'payback'] },
-      ],KPI:   { perRow: 4, gap: 0.2, tileH: 1.35, radius: 0.06, valuePad: 0.2, valueH: 0.55, labelH: 0.35 },
+      ],
       OBS:   { blocksPerSlide: 12, bulletIndent: 18 },
       CHART: { lineSize: 2, gridSize: 1 },
     },

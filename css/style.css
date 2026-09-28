@@ -840,6 +840,8 @@ body {
 }
 /* ── Forms ──────────────────────────────────────────────────────────── */
 .form-container { max-width: 720px; padding: var(--sp-9); }
+/* Modal card variant — for .form-container reused inside a fixed overlay (N-265). Base class stays transparent for page-level forms. */
+.form-container--modal { background: var(--surface-raised); border-radius: var(--r-xl); box-shadow: var(--sh-modal); }
 .form-container h2 { margin-bottom: var(--sp-8); color: var(--text-heading); font-weight: 600; letter-spacing: var(--ls-heading); }
 .form-group { display: flex; flex-direction: column; margin-bottom: var(--sp-7); }
 .form-group label { font-size: var(--fs-13); font-weight: 600; margin-bottom: var(--sp-2); color: var(--text-secondary); }

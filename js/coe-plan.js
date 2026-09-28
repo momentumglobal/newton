@@ -363,7 +363,7 @@ async function coeOpenRowModal(rowId = null) {
 
   document.getElementById('coe-modal-host').innerHTML = `
     <div style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
-    <div class="form-container" id="coe-row-modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
+    <div class="form-container form-container--modal" id="coe-row-modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
       <h2>${row ? 'Edit' : 'Add'} Planned Role</h2>
       <div id="coe-row-form-error" class="form-error"></div>
       <form id="coe-row-form" onsubmit="coeSubmitRow(event, ${rowId || 'null'})">
@@ -462,7 +462,7 @@ function coeOpenLinkPicker(rowId) {
 
   document.getElementById('coe-modal-host').innerHTML = `
     <div style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
-    <div class="form-container" id="coe-link-modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
+    <div class="form-container form-container--modal" id="coe-link-modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
       <h2>Link to Live Role</h2>
       <div class="form-group"><label>Role</label>
         <select id="coe-link-select"><option value="">-- Select role --</option>${opts}</select></div>

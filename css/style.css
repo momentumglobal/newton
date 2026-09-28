@@ -3511,6 +3511,120 @@ body {
 .role-timeline-node--start    .role-timeline-dot        { border-color: var(--status-neutral); }
 .role-timeline-node--start    .role-timeline-connector  { background: var(--status-neutral); }
 
+/* ── Project & Role checklists (N-266a) ────────────────────────────────
+   Neutral by design (N-257): "done" is carried by the tick, the "Ticked by"
+   line and the summary count — never a green fill. Text stays on the
+   --text-* scale. */
+.data-table a.cell-link { font-size: inherit; }
+.data-table td.checklist-cell { color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.checklist-page { max-width: 760px; }
+.checklist-heading { display: flex; flex-direction: column; gap: var(--sp-1); }
+.checklist-subtitle { margin: 0; color: var(--text-muted); font-size: var(--fs-13); }
+.checklist-meta { margin: 0 0 var(--sp-7); color: var(--text-secondary); }
+.checklist-unavailable { color: var(--text-muted); }
+
+.checklist-preview-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin: 0 0 var(--sp-7);
+  padding: var(--sp-5) var(--sp-7);
+  background: var(--surface-alt);
+  border: 1px solid var(--surface-alt-border);
+  border-radius: var(--r-lg);
+  color: var(--text-secondary);
+  font-size: var(--fs-13);
+}
+.checklist-preview-banner svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.checklist-progress { margin: 0 0 var(--sp-9); }
+.checklist-progress-text { margin-bottom: var(--sp-3); color: var(--text-primary); }
+.checklist-progress-bar {
+  display: block;
+  width: 100%;
+  height: 8px;
+  border: none;
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  background: var(--surface-sunken);
+  -webkit-appearance: none;
+  appearance: none;
+}
+.checklist-progress-bar::-webkit-progress-bar   { background: var(--surface-sunken); border-radius: var(--r-pill); }
+.checklist-progress-bar::-webkit-progress-value { background: var(--status-neutral); border-radius: var(--r-pill); }
+.checklist-progress-bar::-moz-progress-bar      { background: var(--status-neutral); border-radius: var(--r-pill); }
+
+.checklist-section { margin: 0 0 var(--sp-9); }
+.checklist-section-title {
+  margin: 0 0 var(--sp-4);
+  color: var(--text-heading);
+  font-size: var(--fs-subheading);
+  font-weight: var(--fw-semibold);
+}
+.checklist-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-7);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.checklist-item:last-child { border-bottom: none; }
+.checklist-item-check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+.checklist-item-check:disabled { cursor: not-allowed; }
+.checklist-item-body { flex: 1; min-width: 0; }
+.checklist-item-label { color: var(--text-primary); font-weight: var(--fw-medium); cursor: pointer; }
+.checklist-item-check:disabled + .checklist-item-body .checklist-item-label { cursor: default; }
+.checklist-item--done .checklist-item-label { color: var(--text-secondary); }
+.checklist-tag {
+  display: inline-block;
+  margin-left: var(--sp-3);
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  color: var(--text-label);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-semibold);
+  vertical-align: middle;
+}
+.checklist-item-help { margin-top: var(--sp-2); color: var(--text-secondary); font-size: var(--fs-13); }
+.checklist-item-meta { margin-top: var(--sp-2); color: var(--text-muted); font-size: var(--fs-12); }
+.checklist-item-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+}
+.checklist-item-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-link);
+  font-size: var(--fs-13);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+}
+.checklist-item-link:hover { color: var(--text-link-hover); text-decoration: underline; }
+.checklist-item-link svg { width: 14px; height: 14px; }
+.checklist-item-note { display: block; margin-top: var(--sp-2); color: var(--text-muted); font-size: var(--fs-12); }
+.checklist-item-actions .checklist-item-note { display: inline; margin-top: 0; }
+
 /* ── Shared rich-text tables (N-211) ─────────────────────────────── */
 .rt-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: var(--sp-4) 0; }
 .rt-table th,

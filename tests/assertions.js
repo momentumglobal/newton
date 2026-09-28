@@ -640,12 +640,13 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-176/N-177 CONFIG.CACHE — fully configured, six lists enrolled',
+    name: 'N-176/N-177 CONFIG.CACHE — fully configured, seven lists enrolled',
     fn: function () {
       _assertEqual(Array.isArray(CONFIG.CACHE.persistentLists), true, 'persistentLists is an array');
       // N-176 asserted this was 0 (engine inert). N-177 enrols the six
       // reference lists, so the guard becomes "the expected six", not "none".
-      _assertEqual(CONFIG.CACHE.persistentLists.length, 6, 'N-177 enrols exactly six lists');
+      // N-266a adds a seventh reference list, ChecklistTemplates.
+      _assertEqual(CONFIG.CACHE.persistentLists.length, 7, 'N-177 six + N-266a ChecklistTemplates');
       _assertEqual(typeof CONFIG.APP_BUILD === 'string' && CONFIG.APP_BUILD.length > 0, true, 'APP_BUILD set');
       _assertEqual(typeof CONFIG.CACHE.ttlMs, 'number', 'ttlMs');
       _assertEqual(typeof CONFIG.CACHE.maxEntryBytes, 'number', 'maxEntryBytes');
@@ -656,32 +657,32 @@ var ASSERTIONS = [
   },
   // ── N-177 (F-3b): enrolment set + role-cache stamping ───────────────
   {
-    name: 'N-177 persistentLists — exactly the six reference lists',
+    name: 'N-177 persistentLists — exactly the seven reference lists',
     fn: function () {
       _assertEqual([...CONFIG.CACHE.persistentLists].sort(),
-        ['Departments', 'LCILocations', 'LeadershipAccess', 'People', 'Projects', 'UserAssignments'],
+        ['ChecklistTemplates', 'Departments', 'LCILocations', 'LeadershipAccess', 'People', 'Projects', 'UserAssignments'],
         'enrolment set');
     },
   },
   {
     name: 'N-177 persistentLists — no transactional list is enrolled',
     fn: function () {
-      ['Roles', 'WeeklyActivity', 'Placements', 'Assignments', 'RoleHistory'].forEach(function (l) {
+      ['Roles', 'WeeklyActivity', 'Placements', 'Assignments', 'RoleHistory', 'ChecklistProgress'].forEach(function (l) {
         _assertEqual(CONFIG.CACHE.persistentLists.includes(l), false, l + ' must never be enrolled');
       });
     },
   },
   {
-    name: 'N-177 _ssEnabled — true for the six, false for the transactional five',
+    name: 'N-177 _ssEnabled — true for the seven, false for the transactional six',
     fn: function () {
       // _ssEnabled() returns false whenever sessionStorage is absent, which it
       // is under Node (tests/run.js). Skipping is honest; asserting here would
       // report a meaningless PASS on the storage guard rather than on
       // enrolment. Runs for real in tests/index.html.
       if (typeof sessionStorage === 'undefined') _skip('no sessionStorage under Node — run tests/index.html for this one');
-      ['Projects', 'People', 'Departments', 'LCILocations', 'UserAssignments', 'LeadershipAccess']
+      ['Projects', 'People', 'Departments', 'LCILocations', 'UserAssignments', 'LeadershipAccess', 'ChecklistTemplates']
         .forEach(function (l) { _assertEqual(_ssEnabled(l), true, l + ' enrolled'); });
-      ['Roles', 'WeeklyActivity', 'Placements', 'Assignments', 'RoleHistory']
+      ['Roles', 'WeeklyActivity', 'Placements', 'Assignments', 'RoleHistory', 'ChecklistProgress']
         .forEach(function (l) { _assertEqual(_ssEnabled(l), false, l + ' not enrolled'); });
     },
   },
@@ -960,6 +961,139 @@ var ASSERTIONS = [
       const h = _chartLegendHtml([{ color: 'var(--status-danger)', dot: true, label: 'Below' }]);
       _assertEqual(h.indexOf('nt-chart-legend-swatch--dot') > -1, true, 'dot class present');
       _assertEqual(h.indexOf('nt-chart-legend-swatch--box') === -1, true, 'not a box');
+    },
+  },
+  // ── N-266a — Project & Role checklists (utils.js) ───────────────────
+  {
+    name: 'N-266a spYesNo — every Graph Yes/No shape, and the fallback for a missing value',
+    fn: function () {
+      [true, 1, 'Yes', 'yes', ' YES ', 'true', '1'].forEach(v => _assertEqual(spYesNo(v, false), true, 'true for ' + JSON.stringify(v)));
+      [false, 0, 'No', 'no', 'false', '0'].forEach(v => _assertEqual(spYesNo(v, true), false, 'false for ' + JSON.stringify(v)));
+      [undefined, null, '', 'maybe', {}].forEach(v => {
+        _assertEqual(spYesNo(v, true), true, 'fallback true for ' + JSON.stringify(v));
+        _assertEqual(spYesNo(v, false), false, 'fallback false for ' + JSON.stringify(v));
+      });
+    },
+  },
+  {
+    name: 'N-266a checklistVariants — Default first, then CONFIG.PROJECT_TYPES (derived)',
+    fn: function () {
+      _assertEqual(checklistVariants(), ['Default'].concat(CONFIG.PROJECT_TYPES), 'variants');
+    },
+  },
+  {
+    name: 'N-266a activeChecklistItems / resolveChecklistVariant — blank Active is active; retired-only variant falls back to Default',
+    fn: function () {
+      const T = [
+        { id: '1', RecordType: 'project', Variant: 'Default', ItemKey: 'a' },                 // Active never set
+        { id: '2', RecordType: 'Project ', Variant: 'default', ItemKey: 'b', Active: 'Yes' }, // hand-entered casing
+        { id: '3', RecordType: 'project', Variant: 'CoE', ItemKey: 'c', Active: false },      // retired only
+        { id: '4', RecordType: 'project', Variant: 'Exec Search', ItemKey: 'd', Active: 1 },
+        { id: '5', RecordType: 'role', Variant: 'CoE', ItemKey: 'e' },
+      ];
+      _assertEqual(activeChecklistItems(T, 'project', 'Default').map(t => t.id), ['1', '2'], 'default project items incl. blank Active');
+      _assertEqual(activeChecklistItems(T, 'project', 'CoE').length, 0, 'retired item excluded');
+      _assertEqual(resolveChecklistVariant(T, 'project', 'CoE'), 'Default', 'CoE has only retired items → Default');
+      _assertEqual(resolveChecklistVariant(T, 'project', 'Exec Search'), 'Exec Search', 'type variant with active items');
+      _assertEqual(resolveChecklistVariant(T, 'project', ''), 'Default', 'no project type → Default');
+      _assertEqual(resolveChecklistVariant(T, 'project', undefined), 'Default', 'undefined project type → Default');
+      _assertEqual(resolveChecklistVariant(T, 'role', 'CoE'), 'CoE', 'role inherits project type');
+      _assertEqual(resolveChecklistVariant(T, 'role', 'MG AI'), 'Default', 'role type with no items → Default');
+      _assertEqual(activeChecklistItems(null, 'project', 'Default'), [], 'null templates');
+    },
+  },
+  {
+    name: 'N-266a groupChecklistItems — section then item order, blanks last, blank section → General',
+    fn: function () {
+      const g = groupChecklistItems([
+        { id: '9', Section: 'Sourcing', SectionOrder: 2, ItemOrder: 2 },
+        { id: '3', Section: 'Kick-off', SectionOrder: 1, ItemOrder: 2 },
+        { id: '4', Section: 'Kick-off', SectionOrder: 1, ItemOrder: 1 },
+        { id: '8', Section: 'Sourcing', SectionOrder: 2, ItemOrder: 1 },
+        { id: '6', Section: 'Sourcing', SectionOrder: 2 },          // no ItemOrder → last
+        { id: '5', Section: 'Sourcing', SectionOrder: 2 },          // tie → id order
+        { id: '7', Section: '',         SectionOrder: '' },         // → General, no order → last section
+      ]);
+      _assertEqual(g.map(s => s.section), ['Kick-off', 'Sourcing', 'General'], 'section order');
+      _assertEqual(g[0].items.map(i => i.id), ['4', '3'], 'kick-off items');
+      _assertEqual(g[1].items.map(i => i.id), ['8', '9', '5', '6'], 'sourcing items, blanks last by id');
+      _assertEqual(groupChecklistItems([]), [], 'empty');
+    },
+  },
+  {
+    name: 'N-266a checklistMode — full truth table',
+    fn: function () {
+      const never = { enabled: false, fromId: null };
+      const on    = { enabled: true,  fromId: 100 };
+      const off   = { enabled: false, fromId: 100 };
+      const m = (settings, isAdmin, recordId, hasItems = true) => checklistMode({ settings, isAdmin, recordId, hasItems });
+      _assertEqual(m(never, true, '5'), 'preview', 'never switched on: admin previews any record');
+      _assertEqual(m(never, false, '5'), 'none', 'never switched on: non-admin sees nothing');
+      _assertEqual(m(on, false, '99'), 'none', 'below watermark');
+      _assertEqual(m(on, true, '99'), 'none', 'below watermark, admin too');
+      _assertEqual(m(on, false, '100'), 'live', 'at watermark');
+      _assertEqual(m(on, false, 250), 'live', 'numeric id above watermark');
+      _assertEqual(m(off, false, '150'), 'none', 'switched off: non-admin');
+      _assertEqual(m(off, true, '150'), 'preview', 'switched off: admin preview, in scope');
+      _assertEqual(m(off, true, '50'), 'none', 'switched off: admin, below watermark');
+      _assertEqual(m(on, true, 'pend_1727_ab12'), 'none', 'pending optimistic row');
+      _assertEqual(m(on, true, null), 'none', 'no id');
+      _assertEqual(m(on, true, '150', false), 'none', 'no items');
+      _assertEqual(m({ enabled: 'Yes', fromId: 100 }, false, '150'), 'none', 'enabled must already be normalised to a boolean');
+      _assertEqual(m({ enabled: true, fromId: '' }, true, '5'), 'preview', 'blank fromId = never switched on');
+      _assertEqual(m(null, true, '5'), 'preview', 'missing settings');
+    },
+  },
+  {
+    name: 'N-266a checklistColumnVisible',
+    fn: function () {
+      _assertEqual(checklistColumnVisible({ settings: { enabled: false, fromId: null }, isAdmin: true, hasItems: true }), true, 'admin preview');
+      _assertEqual(checklistColumnVisible({ settings: { enabled: false, fromId: null }, isAdmin: false, hasItems: true }), false, 'non-admin, never on');
+      _assertEqual(checklistColumnVisible({ settings: { enabled: true, fromId: 10 }, isAdmin: false, hasItems: true }), true, 'non-admin, on');
+      _assertEqual(checklistColumnVisible({ settings: { enabled: false, fromId: 10 }, isAdmin: false, hasItems: true }), false, 'non-admin, switched off');
+      _assertEqual(checklistColumnVisible({ settings: { enabled: true, fromId: 10 }, isAdmin: true, hasItems: false }), false, 'no items');
+    },
+  },
+  {
+    name: 'N-266a resolveChecklistProgress / summariseChecklist — latest row wins; retired and unknown keys ignored',
+    fn: function () {
+      const p = resolveChecklistProgress([
+        { id: '1', ItemKey: 'a', Done: true,  DoneByEmail: 'x@m.co', DoneDate: '2026-10-01T09:00:00Z' },
+        { id: '2', ItemKey: 'a', Done: false, DoneByEmail: 'y@m.co', DoneDate: '2026-10-02T09:00:00Z' }, // later untick
+        { id: '3', ItemKey: 'b', Done: 1,     DoneDate: '2026-10-01T09:00:00Z' },
+        { id: '4', ItemKey: 'b', Done: 0,     DoneDate: '2026-10-01T09:00:00Z' },                        // tie → higher id
+        { id: '5', ItemKey: 'c', Done: 'Yes', DoneDate: '2026-10-01T09:00:00Z' },
+        { id: '6', ItemKey: 'd' },                                                                        // Done never set
+        { id: '7', ItemKey: '', Done: true },
+      ]);
+      _assertEqual(p.get('a'), { done: false, by: 'y@m.co', at: '2026-10-02T09:00:00Z', rowId: '2' }, 'latest DoneDate wins');
+      _assertEqual(p.get('b').done, false, 'equal dates → higher id');
+      _assertEqual(p.get('c').done, true, "'Yes' reads as done");
+      _assertEqual(p.get('d').done, false, 'blank Done is not done');
+      _assertEqual(p.has(''), false, 'blank key ignored');
+      const items = [
+        { ItemKey: 'a', Required: true }, { ItemKey: 'c', Required: 'Yes' },
+        { ItemKey: 'd' }, { ItemKey: 'z' },   // z has no progress row
+      ];
+      _assertEqual(summariseChecklist(items, p), { done: 1, total: 4, reqDone: 1, reqTotal: 2 }, 'summary');
+      _assertEqual(summariseChecklist([], p), { done: 0, total: 0, reqDone: 0, reqTotal: 0 }, 'empty');
+      _assertEqual(summariseChecklist(items, null), { done: 0, total: 4, reqDone: 0, reqTotal: 2 }, 'no progress map');
+    },
+  },
+  {
+    name: 'N-266a isSafeChecklistUrl — https and Newton pages only',
+    fn: function () {
+      [
+        'https://momentumglobal.sharepoint.com/sites/x/Shared%20Documents/Playbook.docx',
+        'HTTPS://example.com', 'https://example.com/a?b=1#c', 'https://example.com',
+        'people.html', 'reporting.html#roles', 'reporting.html#roles?action=add', '  user-guide.html  ',
+      ].forEach(u => _assertEqual(isSafeChecklistUrl(u), true, 'accept ' + u));
+      [
+        'javascript:alert(1)', 'JaVaScRiPt:alert(1)', ' javascript:alert(1)', 'data:text/html,<b>x</b>',
+        'http://example.com', '//evil.com', 'https://', 'https:///x', 'https://x.com/a b', 'https://x.com/"onmouseover=',
+        'https://x.com/<script>', 'ftp://x.com', 'people.html"><script>', '../people.html', 'People.HTML',
+        '', null, undefined,
+      ].forEach(u => _assertEqual(isSafeChecklistUrl(u), false, 'reject ' + JSON.stringify(u)));
     },
   },
 ];

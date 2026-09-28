@@ -73,6 +73,19 @@ const CONFIG = {
   // forms, and the revenue-recognition branch in utils.js.
   SPLIT_FEE_PROJECT_TYPES: ['Exec Search', 'MG AI'],
 
+  // ── Project & Role checklists (N-266a) ────────────────────────────
+  // Content lives in the ChecklistTemplates SharePoint list; switch-on state
+  // in AppSettings. Variants are DERIVED — [DEFAULT_VARIANT, ...PROJECT_TYPES]
+  // via checklistVariants() in utils.js — never a second hard-coded list.
+  CHECKLISTS: {
+    RECORD_TYPES:    ['project', 'role'],
+    ITEM_TYPES:      ['tick', 'link', 'action'],
+    DEFAULT_VARIANT: 'Default',
+    DEFAULT_SECTION: 'General',   // heading for items with a blank Section
+    LABEL_MAX:       255,
+    HELP_MAX:        2000,
+  },
+
   // Types excluded from revenue reporting (People Dashboard "By project type").
   NON_REVENUE_PROJECT_TYPES: ['Internal'],
 
@@ -496,6 +509,11 @@ const CONFIG = {
       'LCILocations',
       'UserAssignments',
       'LeadershipAccess',
+      // N-266a: checklist content — admin-edited from one place (Config
+      // Panel, N-266b), every write via createItem/updateItem, read on every
+      // Projects/Roles render. ChecklistProgress is transactional and must
+      // NOT be added here.
+      'ChecklistTemplates',
     ],
   },
 

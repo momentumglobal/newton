@@ -398,6 +398,13 @@ const FIELD_ALIASES = {
   // project's. This is the same shape as that: CSDName is a plain text
   // column (a People.EmployeeName value), never a Lookup.
   LCIProjectOwners: { Title: 'CustomerName' },
+  // ── Project & Role checklists (N-266a) ──────────────────────
+  // ChecklistTemplates: one row per checklist item; Title is the item label.
+  // ChecklistProgress: one row per (record, item) tick; Title holds the
+  // record type ('project' | 'role'). Writes use the internal 'Title';
+  // OData filters use fields/Title. Calls live in api-checklists.js.
+  ChecklistTemplates: { Title: 'ItemLabel' },
+  ChecklistProgress:  { Title: 'RecordType' },
 };
  
 function normaliseFields(listName, fields) {

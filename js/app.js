@@ -29,6 +29,14 @@ function handleDeepLink() {
     // the filter has to be in place before that render fires, not after.
     setDashProjectFilter(params.get('projectId'));
   }
+  if (action === 'checklist' && (page === 'projects' || page === 'roles')) {
+    // N-266a — checklist deep link (#projects?action=checklist&id=N). Opens
+    // the checklist directly rather than navigateTo() + setTimeout like the
+    // branches below: the list render is async and could land AFTER the
+    // checklist render and overwrite it.
+    openChecklist(page === 'projects' ? 'project' : 'role', Number(params.get('id')));
+    return true;
+  }
   navigateTo(page);
   if (action === 'add') {
     setTimeout(() => {

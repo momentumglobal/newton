@@ -14,14 +14,40 @@
 // "pending", not "ghost" -- this codebase's "ghost" prefix already means
 // Ghost Mode (view-as-user), an unrelated feature (see GHOST_USER_KEY in
 // utils.js). Uses pendingRowId() from utils.js; not redefined here.
-function projectRowHtml(p, { dmDisplay, canEdit, pending = false } = {}) {
+// N-266a: who may edit rows on the Projects / Roles lists. One definition
+// each — the list renderers below AND the checklist page (checklists.js,
+// "who can tick") use these, so the two can never drift apart.
+function canEditProjectRows(role) {
+  return ["admin","delivery_manager"].includes(role) || hasDMGrant();
+}
+function canEditRoleRows(role) {
+  return ["admin","delivery_manager","talent_partner"].includes(role);
+}
+// N-266a: the Checklist column cell — "done/total" of the record's active
+// items, "—" when the record has no checklist for this user, and an empty
+// cell on a pending row (it has no real id yet). Rendered only when the
+// list shows the column at all (showChecklistCol).
+function checklistCellHtml(checklist, pending) {
+  if (pending) return "<td></td>";
+  if (!checklist || checklist.mode === "none" || !checklist.summary) return `<td class="checklist-cell">—</td>`;
+  const s = checklist.summary;
+  const title = s.reqTotal ? ` title="${s.reqDone} of ${s.reqTotal} required"` : "";
+  return `<td class="checklist-cell"${title}>${s.done}/${s.total}</td>`;
+}
+// N-266a: a list-row name that opens the record's checklist when it has one.
+function checklistNameHtml(text, recordType, id, checklist, pending) {
+  if (pending || !checklist || checklist.mode === "none") return escHtml(text);
+  return `<a href="#" class="cell-link" onclick="openChecklist('${recordType}', ${Number(id)}); return false;">${escHtml(text)}</a>`;
+}
+function projectRowHtml(p, { dmDisplay, canEdit, pending = false, checklist = null, showChecklistCol = false } = {}) {
   return `
           <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ""}>
-            <td>${escHtml(p.CustomerName)}</td>
+            <td>${checklistNameHtml(p.CustomerName, "project", p.id, checklist, pending)}</td>
             <td>${escHtml(dmDisplay)}</td>
             <td><span class="badge badge-${escAttr(p.Status?.toLowerCase())}">${escHtml(p.Status)}</span></td>
             <td>${spDateIn(p.StartDate) || "—"}</td>
             <td>${spDateIn(p.EndDate) || "—"}</td>
+            ${showChecklistCol ? checklistCellHtml(checklist, pending) : ""}
             ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditProjectForm(${p.id})">Edit</a></div></td>`) : ""}
           </tr>
         `;
@@ -37,7 +63,7 @@ function roleDaysOpenValue(r, rolesFilter) {
     ? daysOpen(r.OpenDate, r.ActualHireDate) : null;
 }
 
-function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilter, pending = false } = {}) {
+function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilter, pending = false, checklist = null, showChecklistCol = false } = {}) {
   const isHired    = rolesFilter === "Hired";
   const days       = roleDaysOpenValue(r, rolesFilter);
   const rowClass   = (isHired || rolesFilter === "Active") && days !== null && days > 45
@@ -51,7 +77,7 @@ function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilt
   return `
           <tr class="${pending ? "row-pending" : rowClass}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ""}>
             <td>${escHtml(projectName)}</td>
-            <td>${escHtml(r.RoleTitle)}</td>
+            <td>${checklistNameHtml(r.RoleTitle, "role", r.id, checklist, pending)}</td>
             <td>${escHtml(r.Location || '—')}</td>
             <td${pending ? "" : ` id="stage-cell-${r.id}"`}>${stageCell}</td>
             <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
@@ -59,6 +85,7 @@ function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilt
             <td>${spDateIn(r.OpenDate) || "—"}</td>
             <td>${dateCell}</td>
             <td>${days !== null ? days + " days" : "—"}</td>
+            ${showChecklistCol ? checklistCellHtml(checklist, pending) : ""}
             ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a><a href="#" onclick="showDuplicateRoleForm(${r.id})">Duplicate</a>${historyRoleIds.has(String(r.id)) ? `<a href="#" onclick="showRoleTimeline(${r.id})">Timeline</a>` : ""}</div></td>`) : ""}
           </tr>`;
 }
@@ -149,11 +176,13 @@ async function renderProjectsPage(filter, pendingItem = null) {
   main.innerHTML = skeletonTable(6, 5);
   const role = _resolvedRole;
   const user = getCurrentUser();
-  let [projects, dmMap] = await Promise.all([
+  let [projects, dmMap, ckCtx] = await Promise.all([
     getScopedProjects(user.email, false),
     getTalentPartnerDisplayMap(),
+    getChecklistListContext("project"),   // N-266a — null = render as before
   ]);
-  const canEdit = ["admin","delivery_manager"].includes(role) || hasDMGrant();
+  const canEdit = canEditProjectRows(role);
+  const showChecklistCol = !!(ckCtx && ckCtx.showColumn);
   const dmName = email => email ? (dmMap[email.toLowerCase()] || email) : "—";
   // N-218a: splice the not-yet-created row in before sort/filter, exactly
   // like a real fetched row -- it only shows up below if it actually
@@ -178,15 +207,17 @@ async function renderProjectsPage(filter, pendingItem = null) {
     <table class="data-table">
       <thead><tr>
         <th>Customer</th><th>Delivery Manager</th><th>Status</th>
-        <th>Start</th><th>End</th>${canEdit ? "<th></th>" : ""}
+        <th>Start</th><th>End</th>${showChecklistCol ? "<th>Checklist</th>" : ""}${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
         ${projects.length ? projects.map(p => projectRowHtml(p, {
           dmDisplay: dmName(p.DeliveryManager),
           canEdit,
           pending: pendingItem ? p.id === pendingItem.id : false,
+          checklist: checklistCellData(ckCtx, p, p.ProjectType),
+          showChecklistCol,
         })).join("") : emptyStateRow({
-          colspan: canEdit ? 6 : 5,
+          colspan: 5 + (showChecklistCol ? 1 : 0) + (canEdit ? 1 : 0),
           icon: "building-2",
           message: projectsEmptyMsg,
           actionLabel: (canEdit && _projectsFilter !== "Archive") ? "+ Add Project" : "",
@@ -224,14 +255,27 @@ async function renderRolesPage(filter, pendingItem = null) {
   main.innerHTML = skeletonTable(6, 9);
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
-  const [allRoles, allProjects, { projects: scopedProjects, canFilter }, tpMap, historyRoleIds] = await Promise.all([
+  const [allRoles, allProjects, { projects: scopedProjects, canFilter }, tpMap, historyRoleIds, ckCtx] = await Promise.all([
   getRolesForUser(user.email),
   getProjects(false),
   getProjectFilterOptions(),
   getTalentPartnerDisplayMap(),
   getRoleHistoryRoleIds(),
+  getChecklistListContext("role"),   // N-266a — null = render as before
 ]);
   const projectMap = Object.fromEntries(allProjects.map(p => [String(p.id), p.CustomerName]));
+  // N-266a: a role's checklist variant comes from its parent project's type.
+  // Memoised per role — the sort accessor and the row both read it.
+  const projectTypeMap   = Object.fromEntries(allProjects.map(p => [String(p.id), p.ProjectType]));
+  const showChecklistCol = !!(ckCtx && ckCtx.showColumn);
+  const checklistByRole  = new Map();
+  const checklistOf = r => {
+    const k = String(r.id);
+    if (!checklistByRole.has(k)) {
+      checklistByRole.set(k, checklistCellData(ckCtx, r, projectTypeMap[String(r.ProjectIDLookupId || r.ProjectID)]));
+    }
+    return checklistByRole.get(k);
+  };
   // Scope to user's assigned projects
   let roles = userProjectIds
     ? allRoles.filter(r => userProjectIds.includes(String(r.ProjectIDLookupId || r.ProjectID)))
@@ -280,10 +324,15 @@ async function renderRolesPage(filter, pendingItem = null) {
     openDate: { type: 'date',   get: r => r.OpenDate },
     hireDate: { type: 'date',   get: r => _rolesFilter === "Hired" ? r.ActualHireDate : r.TargetHireDate },
     daysOpen: { type: 'number', get: r => roleDaysOpenValue(r, _rolesFilter) },
+    // N-266a: fraction complete; no checklist → null, which sorts last.
+    checklist: { type: 'number', get: r => {
+      const s = showChecklistCol ? checklistOf(r).summary : null;
+      return s && s.total ? s.done / s.total : null;
+    } },
   };
   roles = sortRows(roles, _rolesSort, ROLE_SORT_COLUMNS);
   const userRole = _resolvedRole;
-  const canEdit  = ["admin","delivery_manager","talent_partner"].includes(userRole);
+  const canEdit  = canEditRoleRows(userRole);
   const filterBtns = Object.keys(ROLE_FILTERS).map(f =>
     `<button class="btn-filter${_rolesFilter === f ? " active" : ""}" onclick="renderRolesPage('${f}')">${f}</button>`
   ).join("");
@@ -319,7 +368,7 @@ async function renderRolesPage(filter, pendingItem = null) {
         ${sortableHeader('Budget', 'budget', _rolesSort, 'setRolesSort')}
         ${sortableHeader('Open Date', 'openDate', _rolesSort, 'setRolesSort')}
         ${sortableHeader(_rolesFilter === "Hired" ? "Actual Hire Date" : "Target Hire Date", 'hireDate', _rolesSort, 'setRolesSort')}
-        ${sortableHeader('Days Open', 'daysOpen', _rolesSort, 'setRolesSort')}${canEdit ? "<th></th>" : ""}
+        ${sortableHeader('Days Open', 'daysOpen', _rolesSort, 'setRolesSort')}${showChecklistCol ? sortableHeader('Checklist', 'checklist', _rolesSort, 'setRolesSort') : ""}${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
         ${pagedRoles.length ? pagedRoles.map(r => roleRowHtml(r, {
@@ -329,8 +378,10 @@ async function renderRolesPage(filter, pendingItem = null) {
           historyRoleIds,
           rolesFilter: _rolesFilter,
           pending: pendingItem ? r.id === pendingItem.id : false,
+          checklist: checklistOf(r),
+          showChecklistCol,
         })).join("") : emptyStateRow({
-          colspan: canEdit ? 10 : 9,
+          colspan: 9 + (showChecklistCol ? 1 : 0) + (canEdit ? 1 : 0),
           icon: "briefcase",
           message: rolesEmptyMsg,
           actionLabel: canEdit ? "+ Add Role" : "",

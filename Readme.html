@@ -1145,6 +1145,15 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 
       <div class="changelog-entry">
         <div class="changelog-date">September 2026</div>
+        <div class="changelog-title">LCI Key Figures label wording (N-264)</div>
+        <ul>
+          <li>Slide 3 tiles: <em>Total spend ({n}-month horizon)</em> (tile labels may now carry <code>{n}</code> = horizon, filled in <code>_lciPptxKpiSlide</code>); <em>Average cost per hire</em>; payback renamed <em>Projected breakeven (investment recovered)</em>, with the "beyond M{h}" sub-line removed (<code>KPI_TEXT.beyondHorizon</code> deleted). Breakeven is when cumulative spend is recovered, not the month monthly savings start.</li>
+          <li><em>Peak monthly spend (excl. project fees)</em> everywhere: tile, compare table, Excel Key figures and peak-series row. The compare table and Excel "total spend" labels are unchanged, because a comparison can mix horizons. <code>PPTX.KPI.labelH</code> 0.3 → 0.4 so a two-line label stays inside its tile. No calculation changes.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">September 2026</div>
         <div class="changelog-title">LCI Key Figures — true steady state, six new KPIs, role-based notice (N-263)</div>
         <ul>
           <li><strong>Steady state redefined</strong> in the shared <code>lciComputeKPIs()</code>: final-month CoE operating cost + <em>retained</em> legacy team cost. Exiting legacy and project fees are excluded. Before, it was the final month's CoE + <em>all</em> legacy, so a model whose legacy exits ran to the last month overstated its run rate (Sympa: €242,472 → €219,219). Cost per head divides by CoE + retained heads. It flows into every consumer: the compare table, the PowerPoint Key Figures and Key Metrics slides, and the Excel <em>Key figures</em> block (formulas and cached results).</li>

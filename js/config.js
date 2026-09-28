@@ -779,11 +779,12 @@ const CONFIG = {
         steady:     'Steady state',
         delivery:   'Delivery',
       },
+      // tiles.* may use {n} = model horizon in months (filled in lci-pptx.js).
       tiles: {
-        totalSpend:     'Total spend (horizon)',
-        peakSpend:      'Peak monthly spend (excl. fees)',
+        totalSpend:     'Total spend ({n}-month horizon)',
+        peakSpend:      'Peak monthly spend (excl. project fees)',
         peakMonth:      'Peak exposure month',
-        avgFee:         'Avg recruitment fee per hire',
+        avgFee:         'Average cost per hire',
         runMonthly:     'Run rate / month — CoE vs Legacy',
         runAnnual:      'Run rate / year — CoE vs Legacy',
         saving:         'Annual saving at steady state',
@@ -791,7 +792,7 @@ const CONFIG = {
         totalHires:     'Total hires',
         finalHeadcount: 'Final CoE headcount',
         ramp:           'Time to full ramp',
-        payback:        'Payback',
+        payback:        'Projected breakeven (investment recovered)',
       },
       compare: {
         totalSpend:     'Total spend (horizon)',
@@ -801,7 +802,7 @@ const CONFIG = {
         totalHires:     'Total hires',
         rampHired:      'Time to full ramp — hired',
         rampPayroll:    'Time to full ramp — on payroll',
-        peakSpend:      'Peak monthly spend (excl. fees)',
+        peakSpend:      'Peak monthly spend (excl. project fees)',
       },
       excel: {
         totalSpend:     'Total spend over horizon',
@@ -813,8 +814,8 @@ const CONFIG = {
         finalHeadcount: 'Final CoE headcount',
         costPerHead:    'Cost per head (steady state, CoE + retained heads)',
         peakMonth:      'Peak exposure month',
-        peakSpend:      'Peak monthly spend (excl. fees)',
-        peakSeries:     'Monthly spend excl. fees (peak series)',
+        peakSpend:      'Peak monthly spend (excl. project fees)',
+        peakSeries:     'Monthly spend excl. project fees (peak series)',
       },
       rampHired:     'Hired: {m}',
       rampPayroll:   'On payroll: {m}',
@@ -823,7 +824,6 @@ const CONFIG = {
       pctHigher:     '{p}% higher',
       savingPct:     '{p}% of legacy',
       noPayback:     'No payback',
-      beyondHorizon: 'Projected beyond M{h}',
       noLegacy:      'No legacy baseline',
       notReached:    'Steady state not reached within the horizon. Run-rate figures use the final month.',
       // Decimal places: saving % reads 33.1%, cost-per-head % reads 35%.
@@ -973,8 +973,9 @@ const CONFIG = {
       // Key Figures (N-263): 3 groups x (groupH + tileH) + 2 x gap = 5.32in,
       // inside the 5.71in between _lciPptxBodyTop(true) (1.22) and the footer
       // band (7.5 - footerH - GEO.gap = 6.93). Tile interior: valuePad +
-      // valueH + subH + labelH = 1.25 <= tileH.
-      KPI:   { perRow: 4, gap: 0.14, tileH: 1.4, radius: 0.06, valuePad: 0.15, valueH: 0.5, subH: 0.3, labelH: 0.3, groupH: 0.28 },
+      // valueH + subH + labelH = 1.35 <= tileH. labelH holds two 10pt lines
+      // (N-264: the breakeven label can wrap).
+      KPI:   { perRow: 4, gap: 0.14, tileH: 1.4, radius: 0.06, valuePad: 0.15, valueH: 0.5, subH: 0.3, labelH: 0.4, groupH: 0.28 },
       // Row groups → tile keys, in slide order. Labels: CONFIG.LCI.KPI_TEXT.
       KEY_FIGURES: [
         { group: 'investment', tiles: ['totalSpend', 'peakSpend', 'peakMonth', 'avgFee'] },

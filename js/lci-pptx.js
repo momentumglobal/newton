@@ -278,7 +278,6 @@ function _lciPptxKpiTiles(m, kpis) {
   let pbValue = '—', pbSub = '';
   if (pb.status === 'ok') {
     pbValue = monthLabel(pb.month);
-    if (pb.month > kpis.horizon) pbSub = fillTemplate(T.beyondHorizon, { h: kpis.horizon });
   } else if (pb.status === 'none') {
     pbValue = T.noPayback;
   } else {
@@ -348,7 +347,7 @@ function _lciPptxKpiSlide(ctx, m, kpis) {
           align: 'center', valign: 'middle',
         });
       }
-      slide.addText(T.tiles[key] || '', {
+      slide.addText(fillTemplate(T.tiles[key] || '', { n: kpis.horizon }), {
         x, y: y + K.valuePad + K.valueH + K.subH, w: tileW, h: K.labelH,
         fontFace: F.face, fontSize: F.kpiLabel, color: C.textMuted,
         align: 'center', valign: 'top',

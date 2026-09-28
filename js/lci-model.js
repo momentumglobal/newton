@@ -13,15 +13,19 @@ function lciParseStartMonth(startMonth) {
 
 const LCI_MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+// One month label, n >= 1 → "M9 (Jul 27)". Arithmetic, not an index into the
+// horizon, so it also labels months PAST the horizon (N-263 payback).
+function lciMonthLabel(startMonth, n) {
+  const { y, m } = lciParseStartMonth(startMonth);
+  const total = (m - 1) + (n - 1);
+  const name  = LCI_MONTH_NAMES[total % 12];
+  const yr    = String((y + Math.floor(total / 12)) % 100).padStart(2, '0');
+  return `M${n} (${name} ${yr})`;
+}
+
 // → ["M1 (Jun 26)", "M2 (Jul 26)", ...]
 function lciMonthLabels(startMonth, horizon) {
-  const { y, m } = lciParseStartMonth(startMonth);
-  return Array.from({ length: horizon }, (_, i) => {
-    const total = (m - 1) + i;
-    const name  = LCI_MONTH_NAMES[total % 12];
-    const yr    = String((y + Math.floor(total / 12)) % 100).padStart(2, '0');
-    return `M${i + 1} (${name} ${yr})`;
-  });
+  return Array.from({ length: horizon }, (_, i) => lciMonthLabel(startMonth, i + 1));
 }
 
 // Parse a row's MonthValues JSON safely → array padded/trimmed to horizon
@@ -170,6 +174,10 @@ function lciLegacyCosts(rows, model) {
     exiting:  new Array(horizon).fill(0),
     retained: new Array(horizon).fill(0),
   };
+  const headcountByCategory = {
+    exiting:  new Array(horizon).fill(0),
+    retained: new Array(horizon).fill(0),
+  };
 
   for (const row of legacyRows) {
     const qty  = Number(row.Quantity) || 1;
@@ -182,9 +190,10 @@ function lciLegacyCosts(rows, model) {
       total[i]           += cost;
       headcount[i]       += qty;
       byCategory[cat][i] += cost;
+      headcountByCategory[cat][i] += qty;
     }
   }
-  return { total, headcount, byCategory };
+  return { total, headcount, byCategory, headcountByCategory };
 }
 
 // ── One-offs & fees ──────────────────────────────────────────────────
@@ -215,7 +224,11 @@ function lciComputeModel(model, rows) {
   const zero = () => new Array(horizon).fill(0);
 
   const coe     = sections.coe     ? lciCoeCosts(rows, model)    : { total: zero(), headcount: zero(), byTeam: {} };
-  const legacy  = sections.legacy  ? lciLegacyCosts(rows, model) : { total: zero(), headcount: zero(), byCategory: { exiting: zero(), retained: zero() } };
+  const legacy  = sections.legacy  ? lciLegacyCosts(rows, model) : {
+    total: zero(), headcount: zero(),
+    byCategory:          { exiting: zero(), retained: zero() },
+    headcountByCategory: { exiting: zero(), retained: zero() },
+  };
   const oneoffs = sections.oneoffs ? lciSumByType(rows, model, 'oneoff') : zero();
   const fees    = sections.fees    ? lciSumByType(rows, model, 'fee')    : zero();
 
@@ -246,6 +259,7 @@ function lciComputeModel(model, rows) {
     legacyCost:        legacy.total,
     legacyHeadcount:   legacy.headcount,
     legacyByCategory:  legacy.byCategory,
+    legacyHeadcountByCategory: legacy.headcountByCategory,
     totalHeadcount:  coe.headcount.map((h, i) => h + legacy.headcount[i]),
     oneoffs, fees,
     teamCosts, totalMonthly, cumulativeSpend,
@@ -276,10 +290,41 @@ function lciHiresPerMonth(rows, model) {
   return out;
 }
 
+// ── Payback (N-263) ──────────────────────────────────────────────────
+// First month N where cumulative programme spend <= legacy baseline x N.
+// Inside the horizon it reads cumulativeSpend. Past the horizon every further
+// month adds steadyMonthly to programme spend and `baseline` to the legacy
+// line, so the gap closes by (baseline - steadyMonthly) a month.
+//   status 'ok'   — month found (may be > horizon)
+//   status 'none' — never pays back (saving <= 0)
+//   status 'na'   — no legacy baseline to compare against
+function lciPaybackMonth({ cumulativeSpend, baseline, steadyMonthly }) {
+  if (!(baseline > 0)) return { month: null, status: 'na' };
+  const H = cumulativeSpend.length;
+  for (let i = 0; i < H; i++) {
+    if (cumulativeSpend[i] <= baseline * (i + 1)) return { month: i + 1, status: 'ok' };
+  }
+  const saving = baseline - steadyMonthly;
+  if (!(saving > 0)) return { month: null, status: 'none' };
+  const excess = (H ? cumulativeSpend[H - 1] : 0) - baseline * H;
+  return { month: H + Math.ceil(excess / saving), status: 'ok' };
+}
+
 // ── KPIs (all monetary values in DisplayCurrency) ────────────────────
+// N-263 definitions. Section gating already happened in lciComputeModel — do
+// not re-gate here.
+//   Steady state = the final modelled month's CoE operating cost + RETAINED
+//     legacy team cost. Exiting legacy and project fees are excluded by
+//     definition (Chris, 28 Sep 2026); retained staff are part of the future
+//     run rate. steadyReached is false only when some hire is not yet on
+//     payroll by the final month — exiting legacy still present does not
+//     block it (they are excluded anyway).
+//   Legacy baseline = M1 legacy TEAM cost (legacyCost[0]). Retention &
+//     Relocation one-offs are transition costs, never baseline.
+//   Peak = max(totalMonthly - fees): CoE operating + legacy team + one-offs.
 function lciComputeKPIs(model, rows) {
   const c = lciComputeModel(model, rows);
-  const horizon = Number(model.HorizonMonths);
+  const horizon = Number(model.HorizonMonths) || 0;
   const hires = lciHiresPerMonth(rows, model);
 
   let lastHireMonth = 0;
@@ -287,27 +332,89 @@ function lciComputeKPIs(model, rows) {
   hires.forEach((h, i) => { totalHires += h; if (h > 0) lastHireMonth = i + 1; });
 
   const last = horizon - 1;
-  const steadyMonthly = c.coeOperating[last] + c.legacyCost[last]; // fees/one-offs excluded from run-rate
-  const finalHeadcount = c.coeHeadcount[last];
+  const at = arr => (last >= 0 ? (arr[last] || 0) : 0);
 
-  // Peak crossover: max combined legacy + CoE monthly spend
-  let peakCrossoverMonth = 0, peak = -1;
-  for (let i = 0; i < horizon; i++) {
-    const combined = c.coeOperating[i] + c.legacyCost[i];
-    if (combined > peak) { peak = combined; peakCrossoverMonth = i + 1; }
+  let payrollMonth = null;
+  if (totalHires > 0) {
+    const idx = c.coeHeadcount.findIndex(h => h >= totalHires);
+    if (idx > -1) payrollMonth = idx + 1;
   }
 
+  const steadyMonthly   = at(c.coeOperating) + at(c.legacyByCategory.retained);
+  const steadyHeadcount = at(c.coeHeadcount) + at(c.legacyHeadcountByCategory.retained);
+  const finalHeadcount  = at(c.coeHeadcount);
+  const costPerHead     = steadyHeadcount ? steadyMonthly / steadyHeadcount : 0;
+
+  let peakMonth = 0, peakSpend = -1;
+  for (let i = 0; i < horizon; i++) {
+    const v = c.totalMonthly[i] - c.fees[i];
+    if (v > peakSpend) { peakSpend = v; peakMonth = i + 1; }
+  }
+  if (peakSpend < 0) peakSpend = 0;
+
+  const legacyBaseline          = horizon ? (c.legacyCost[0] || 0) : 0;
+  const legacyBaselineHeadcount = horizon ? (c.legacyHeadcount[0] || 0) : 0;
+  const legacyCostPerHead = legacyBaselineHeadcount ? legacyBaseline / legacyBaselineHeadcount : null;
+  const legacyAnnual      = legacyBaseline * 12;
+  const hasBaseline       = legacyBaseline > 0;
+  const annualSaving      = hasBaseline ? (legacyBaseline - steadyMonthly) * 12 : null;
+  const totalFees         = c.fees.reduce((a, v) => a + v, 0);
+
   return {
-    totalSpend:        c.cumulativeSpend[last],
+    horizon,
+    totalSpend:        at(c.cumulativeSpend),
     steadyMonthly,
     steadyAnnual:      steadyMonthly * 12,
+    steadyHeadcount,
+    steadyReached:     payrollMonth !== null,
     totalHires,
-    lastHireMonth,                       // "time to full ramp"
-    costPerHead:       finalHeadcount ? steadyMonthly / finalHeadcount : 0,
+    lastHireMonth,                       // time to full ramp — hired
+    payrollMonth,                        // time to full ramp — on payroll
+    costPerHead,
     finalHeadcount,
-    peakCrossoverMonth,
-    peakCrossoverSpend: peak,
+    peakMonth,
+    peakSpend,
+    legacyBaseline,
+    legacyBaselineHeadcount,
+    legacyCostPerHead,
+    legacyAnnual,
+    annualSaving,
+    annualSavingPct:     hasBaseline ? annualSaving / legacyAnnual : null,
+    costPerHeadDeltaPct: (legacyCostPerHead && costPerHead) ? 1 - costPerHead / legacyCostPerHead : null,
+    totalFees,
+    avgFeePerHire:       totalHires ? totalFees / totalHires : null,
+    payback: lciPaybackMonth({ cumulativeSpend: c.cumulativeSpend, baseline: legacyBaseline, steadyMonthly }),
   };
+}
+
+// ── Notice-period groups (N-263) ─────────────────────────────────────
+// There is no seniority field: tiers are whatever distinct notice values
+// lciRowNotice() resolves across the CoE rows. Default group always first
+// (even when no role uses it), then each other value ascending. Titles are
+// de-duplicated within a group, first-seen (roadmap) order.
+function lciNoticeGroups(rows, model) {
+  const def = Math.max(0, Number(model.NoticeMonths) || 0);
+  const map = new Map([[def, []]]);
+  for (const row of (rows || []).filter(r => r.RowType === 'coe')) {
+    const n = lciRowNotice(row, model);
+    if (!map.has(n)) map.set(n, []);
+    const title = String(row.Title || '').trim() || 'Role';
+    if (!map.get(n).includes(title)) map.get(n).push(title);
+  }
+  const others = [...map.keys()].filter(k => k !== def).sort((a, b) => a - b);
+  return [def, ...others].map(k => ({ months: k, isDefault: k === def, roles: map.get(k) }));
+}
+
+// Notice groups → [[label, value]] assumption rows. T = CONFIG.LCI.KPI_TEXT,
+// passed in so this file stays free of config reads (lciCurrencyOptions
+// pattern). Shared by the PowerPoint Assumptions slide and the HTML
+// Summary/report assumptions table, so the two cannot drift.
+function lciNoticeRowsText(groups, T) {
+  const months = n => (n === 1 ? T.monthOne : fillTemplate(T.monthMany, { n }));
+  const hasOthers = groups.length > 1;
+  return groups.map(g => g.isDefault
+    ? [T.noticeDefault, months(g.months) + (hasOthers ? ` (${T.noticeDefaultNote})` : '')]
+    : [fillTemplate(T.noticeGroup, { n: months(g.months) }), g.roles.join(', ')]);
 }
 
 // ── Compare ──────────────────────────────────────────────────────────

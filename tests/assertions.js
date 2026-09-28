@@ -86,6 +86,98 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'N-263 lciMonthLabel — labels past the horizon; lciMonthLabels built on it',
+    fn: function () {
+      _assertEqual(lciMonthLabel('2026-11', 28), 'M28 (Feb 29)', 'M28');
+      _assertEqual(lciMonthLabel('2026-11', 9), 'M9 (Jul 27)', 'M9');
+      _assertEqual(lciMonthLabels('2026-11', 3), ['M1 (Nov 26)', 'M2 (Dec 26)', 'M3 (Jan 27)'], 'labels');
+    },
+  },
+  {
+    name: 'N-263 fillTemplate — fills known keys, leaves unknown ones visible',
+    fn: function () {
+      _assertEqual(fillTemplate('Hired: {m} · {x}', { m: 'M12' }), 'Hired: M12 · {x}', 'fill');
+      _assertEqual(fillTemplate('{n} months', { n: 0 }), '0 months', 'zero is a value');
+    },
+  },
+  {
+    name: 'N-263 lciComputeKPIs — steady state = CoE + retained; payroll month; peak excl. fees',
+    fn: function () {
+      const { model, rows } = FIXTURES.lciKpis;
+      const k = lciComputeKPIs(model, rows);
+      _assertEqual(k.totalSpend, 20000, 'totalSpend');
+      _assertEqual(k.steadyMonthly, 4000, 'steadyMonthly (3000 CoE + 1000 retained; 500 exiting still paid in M4 excluded)');
+      _assertEqual(k.steadyAnnual, 48000, 'steadyAnnual');
+      _assertEqual(k.steadyHeadcount, 3, 'steadyHeadcount (2 CoE + 1 retained)');
+      _assertEqual(Math.round(k.costPerHead * 100) / 100, 1333.33, 'costPerHead');
+      _assertEqual(k.finalHeadcount, 2, 'finalHeadcount (CoE only)');
+      _assertEqual(k.totalHires, 2, 'totalHires');
+      _assertEqual(k.lastHireMonth, 2, 'lastHireMonth');
+      _assertEqual(k.payrollMonth, 4, 'payrollMonth (per-role notice)');
+      _assertEqual(k.steadyReached, true, 'steadyReached');
+      _assertEqual(k.peakSpend, 7000, 'peakSpend (totalMonthly − fees: includes the 500 one-off)');
+      _assertEqual(k.peakMonth, 2, 'peakMonth');
+      _assertEqual(k.legacyBaseline, 5500, 'legacyBaseline (M1 team cost — the 300 one-off excluded)');
+      _assertEqual(k.legacyBaselineHeadcount, 3, 'legacyBaselineHeadcount');
+      _assertEqual(Math.round(k.legacyCostPerHead * 100) / 100, 1833.33, 'legacyCostPerHead');
+      _assertEqual(k.legacyAnnual, 66000, 'legacyAnnual');
+      _assertEqual(k.annualSaving, 18000, 'annualSaving');
+      _assertEqual(Math.round(k.annualSavingPct * 10000) / 10000, 0.2727, 'annualSavingPct');
+      _assertEqual(Math.round(k.costPerHeadDeltaPct * 10000) / 10000, 0.2727, 'costPerHeadDeltaPct');
+      _assertEqual(k.totalFees, 200, 'totalFees');
+      _assertEqual(k.avgFeePerHire, 100, 'avgFeePerHire');
+      _assertEqual(k.payback, { month: 3, status: 'ok' }, 'payback inside the horizon');
+      _assertEqual('peakCrossoverSpend' in k, false, 'old peakCrossover* keys removed');
+    },
+  },
+  {
+    name: 'N-263 lciComputeKPIs — no hires, no legacy: null / n/a branches',
+    fn: function () {
+      const k = lciComputeKPIs(FIXTURES.lciKpis.model, FIXTURES.lciKpis.rowsNoHires);
+      _assertEqual(k.payrollMonth, null, 'payrollMonth');
+      _assertEqual(k.steadyReached, false, 'steadyReached');
+      _assertEqual(k.avgFeePerHire, null, 'avgFeePerHire');
+      _assertEqual(k.legacyCostPerHead, null, 'legacyCostPerHead');
+      _assertEqual(k.annualSaving, null, 'annualSaving');
+      _assertEqual(k.annualSavingPct, null, 'annualSavingPct');
+      _assertEqual(k.costPerHeadDeltaPct, null, 'costPerHeadDeltaPct');
+      _assertEqual(k.payback, { month: null, status: 'na' }, 'payback');
+    },
+  },
+  {
+    name: 'N-263 lciPaybackMonth — Sympa reference, inside horizon, never, no legacy',
+    fn: function () {
+      const P = FIXTURES.lciPayback;
+      _assertEqual(lciPaybackMonth(P.sympa), { month: 28, status: 'ok' }, 'sympa → M28');
+      _assertEqual(lciPaybackMonth(P.inside), { month: 2, status: 'ok' }, 'inside');
+      _assertEqual(lciPaybackMonth(P.never), { month: null, status: 'none' }, 'never');
+      _assertEqual(lciPaybackMonth(P.noLegacy), { month: null, status: 'na' }, 'noLegacy');
+    },
+  },
+  {
+    name: 'N-263 lciNoticeGroups + lciNoticeRowsText — default first, ascending, merged, de-duplicated',
+    fn: function () {
+      const { model, rows, rowsAllOverride } = FIXTURES.lciNotice;
+      const g = lciNoticeGroups(rows, model);
+      _assertEqual(g, [
+        { months: 1, isDefault: true,  roles: ['Eng', 'QA'] },
+        { months: 2, isDefault: false, roles: ['Lead SE'] },
+        { months: 3, isDefault: false, roles: ['Head'] },
+      ], 'groups');
+      _assertEqual(lciNoticeRowsText(g, CONFIG.LCI.KPI_TEXT), [
+        ['Notice period — default', '1 month (all other roles)'],
+        ['Notice period — 2 months', 'Lead SE'],
+        ['Notice period — 3 months', 'Head'],
+      ], 'rows');
+      _assertEqual(lciNoticeGroups(rowsAllOverride, model), [
+        { months: 1, isDefault: true,  roles: [] },
+        { months: 2, isDefault: false, roles: ['Lead'] },
+      ], 'default listed even when unused');
+      _assertEqual(lciNoticeRowsText(lciNoticeGroups([], model), CONFIG.LCI.KPI_TEXT),
+        [['Notice period — default', '1 month']], 'no overrides → default only, no note');
+    },
+  },
+  {
     name: 'lciYearSlices — splits an 18-month horizon into Year 1 / Year 2',
     fn: function () {
       const slices = lciYearSlices(18, 12);

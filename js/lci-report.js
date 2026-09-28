@@ -21,15 +21,17 @@ let _lciReportBundles = [];
 // Compare-table KPI rows (N-224). Shared by _lciCompareTableHtml below and the
 // PowerPoint Key Metrics slide, so the two cannot list different metrics.
 // `kind` selects the formatter; `lowerIsBetter` drives the Δ colour.
-const LCI_COMPARE_KPIS = [
-  { label: 'Total spend (horizon)',     key: 'totalSpend',         kind: 'money', lowerIsBetter: true },
-  { label: 'Steady-state monthly cost', key: 'steadyMonthly',      kind: 'money', lowerIsBetter: true },
-  { label: 'Steady-state annual cost',  key: 'steadyAnnual',       kind: 'money', lowerIsBetter: true },
-  { label: 'Cost per head (steady)',    key: 'costPerHead',        kind: 'money', lowerIsBetter: true },
-  { label: 'Total hires',               key: 'totalHires',         kind: 'count', lowerIsBetter: false },
-  { label: 'Time to full ramp',         key: 'lastHireMonth',      kind: 'month', lowerIsBetter: true },
-  { label: 'Peak crossover spend',      key: 'peakCrossoverSpend', kind: 'money', lowerIsBetter: true },
-];
+// Labels: CONFIG.LCI.KPI_TEXT.compare (N-263) — config.js always loads first.
+const LCI_COMPARE_KPIS = (L => [
+  { label: L.totalSpend,    key: 'totalSpend',    kind: 'money', lowerIsBetter: true },
+  { label: L.steadyMonthly, key: 'steadyMonthly', kind: 'money', lowerIsBetter: true },
+  { label: L.steadyAnnual,  key: 'steadyAnnual',  kind: 'money', lowerIsBetter: true },
+  { label: L.costPerHead,   key: 'costPerHead',   kind: 'money', lowerIsBetter: true },
+  { label: L.totalHires,    key: 'totalHires',    kind: 'count', lowerIsBetter: false },
+  { label: L.rampHired,     key: 'lastHireMonth', kind: 'month', lowerIsBetter: true },
+  { label: L.rampPayroll,   key: 'payrollMonth',  kind: 'month', lowerIsBetter: true },
+  { label: L.peakSpend,     key: 'peakSpend',     kind: 'money', lowerIsBetter: true },
+])(CONFIG.LCI.KPI_TEXT.compare);
 
 function _lciKpiValueText(v, kind, ccy) {
   if (kind === 'money') return _lciFmt(v, ccy);
@@ -171,7 +173,7 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
         ${_lciSpendChartSvg(c, m.DisplayCurrency, Number(m.HorizonMonths))}
       </div>` : ''}
       <div class="lci-summary-card lci-report-break">
-        ${_lciAssumptionsHtml(m)}
+        ${_lciAssumptionsHtml(m, b.rows)}
       </div>`;
   }).join('');
   // Note: per-model cumulative spend charts are omitted in multi-model
@@ -293,7 +295,7 @@ function _lciReportComparisonHtml(bundles) {
 function _lciCompareTableHtml(entries, ccy) {
   const twoModels = entries.length === 2;
   const delta = (a, b, kind, goodWhenLower) => {
-    const d = b - a;
+    const d = (a === null || a === undefined || b === null || b === undefined) ? NaN : b - a;
     if (!isFinite(d) || d === 0) return '<span style="color:var(--text-muted)">—</span>';
     const good = goodWhenLower ? d < 0 : d > 0;
     return `<span style="color:${good ? 'var(--status-success)' : 'var(--status-danger)'}">${d > 0 ? '+' : '−'}${_lciKpiDeltaText(Math.abs(d), kind, ccy)}</span>`;

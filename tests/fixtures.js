@@ -49,6 +49,67 @@ var FIXTURES = {
     noLegacy:   { coeOperating: [100, 200, 300], legacyCost: [0, 0, 0],   oneoffs: [0, 0, 0] },
   },
 
+  // N-263 — lciComputeKPIs end to end. 4-month model, no burden/office/EoR so
+  // every figure is hand-checkable:
+  //   CoE: Engineer 1000/mo hired M1 (default notice 1 → paid M2);
+  //        Lead 2000/mo hired M2, notice override 2 → paid M4.
+  //   Legacy: exiting 4000/mo to M2; exiting 500/mo with no exit month (runs
+  //   to the horizon — still on the books in the final month, and must NOT
+  //   count as steady state); retained 1000/mo throughout.
+  //   One-offs 300 in M1 and 500 in M2 (so they sit in both the baseline month
+  //   and the peak month, and a baseline/peak that wrongly included or dropped
+  //   them would fail); fees 100 in M1–M2.
+  //   totalMonthly [5900, 7100, 2500, 4500]; cumulative [5900, 13000, 15500, 20000].
+  lciKpis: {
+    model: {
+      HorizonMonths: 4, StartMonth: '2026-11', NoticeMonths: 1,
+      EmployerBurdenPct: 0, SalaryMonths: 12, OfficeCostPerHead: 0, EoRFeePerHead: 0,
+      LocalCurrency: 'EUR', DisplayCurrency: 'EUR',
+    },
+    rows: [
+      { RowType: 'coe',    Title: 'Engineer', AnnualSalary: 12000, MonthValues: '[1,0,0,0]', NoticeMonthsOverride: '' },
+      { RowType: 'coe',    Title: 'Lead',     AnnualSalary: 24000, MonthValues: '[0,1,0,0]', NoticeMonthsOverride: 2 },
+      { RowType: 'legacy', Title: 'Old A',    AnnualSalary: 48000, Quantity: 1, ExitMonth: 2, LegacyCategory: 'exiting' },
+      { RowType: 'legacy', Title: 'Old B',    AnnualSalary: 12000, Quantity: 1, LegacyCategory: 'retained' },
+      { RowType: 'legacy', Title: 'Old C',    AnnualSalary: 6000,  Quantity: 1, ExitMonth: '', LegacyCategory: 'exiting' },
+      { RowType: 'oneoff', Title: 'Retention', MonthValues: '[300,500,0,0]' },
+      { RowType: 'fee',    Title: 'Fee',       MonthValues: '[100,100,0,0]' },
+    ],
+    // Same model, no hires and no legacy — the null / 'na' branches.
+    rowsNoHires: [
+      { RowType: 'fee', Title: 'Fee', MonthValues: '[100,100,0,0]' },
+    ],
+  },
+
+  // N-263 — lciPaybackMonth. `sympa` reproduces the reference deck:
+  // baseline 327,619, steady 219,219, 18-month horizon, final cumulative
+  // 6,965,856 → excess 1,068,714 / saving 108,400 = 9.86 → 18 + 10 = M28.
+  lciPayback: {
+    sympa:    { cumulativeSpend: new Array(18).fill(6965856), baseline: 327619, steadyMonthly: 219219 },
+    inside:   { cumulativeSpend: [10, 12, 30], baseline: 7, steadyMonthly: 1 },   // M2 <= 14; the post-horizon formula alone would say M5
+    never:    { cumulativeSpend: [100, 200], baseline: 10, steadyMonthly: 12 },
+    noLegacy: { cumulativeSpend: [100, 200], baseline: 0,  steadyMonthly: 5 },
+  },
+
+  // N-263 — lciNoticeGroups. 'QA' overrides to the default value (merges into
+  // the default group); 'Lead SE' appears twice (de-duplicated); the legacy
+  // row is ignored.
+  lciNotice: {
+    model: { NoticeMonths: 1 },
+    rows: [
+      { RowType: 'coe',    Title: 'Eng',     NoticeMonthsOverride: '' },
+      { RowType: 'coe',    Title: 'Head',    NoticeMonthsOverride: 3 },
+      { RowType: 'coe',    Title: 'Lead SE', NoticeMonthsOverride: 2 },
+      { RowType: 'coe',    Title: 'Lead SE', NoticeMonthsOverride: 2 },
+      { RowType: 'coe',    Title: 'QA',      NoticeMonthsOverride: 1 },
+      { RowType: 'legacy', Title: 'Old',     NoticeMonthsOverride: 6 },
+    ],
+    // Every role overrides — the default group is still listed, empty.
+    rowsAllOverride: [
+      { RowType: 'coe', Title: 'Lead', NoticeMonthsOverride: 2 },
+    ],
+  },
+
   // Date/week layer (N-096) — getWeekEnding, getISOWeek, isoDate,
   // spDateIn/spDateOut, and the coeWeekIndex GMT/BST Gantt regression
   // (N-077/N-081 class). Plain {y,m,d} objects, not Date instances — Date

@@ -521,7 +521,7 @@ function _lciXlCalcLegacy(ctx, sheet, rw, K, helpers) {
     line(`Headcount — ${meta.row.Title || 'Role'}`,
       i => `IF(${i + 1}<=${SL}!$H$${lr},${SL}!$D$${lr},0)`,
       Array.from({ length: h }, (_, i) => (i < meta.effExit ? meta.qty : 0)),
-      { fmt: E.FORMATS.integer });
+      { fmt: E.FORMATS.integer, key: meta.cat });
   });
   const lhLast = rw.r - 1;
   const lcFirst = rw.r;
@@ -537,6 +537,13 @@ function _lciXlCalcLegacy(ctx, sheet, rw, K, helpers) {
   heading('Legacy totals');
   K.legacyHeadcount = line('Legacy headcount', i => gate(sumBlock(lhFirst, lhLast, i), 'LegacyOn'),
     c.legacyHeadcount, { fmt: E.FORMATS.integer, fill: C.derivedFill });
+  Object.keys(CONFIG.LCI.LEGACY_CATEGORIES).forEach(cat => {
+    K[`legacyHc:${cat}`] = line(CONFIG.LCI.LEGACY_CATEGORIES[cat].hcLine,
+      i => gate(lhLast >= lhFirst
+        ? `SUMPRODUCT(($${keyL}$${lhFirst}:$${keyL}$${lhLast}=${_lciXlLit(cat)})*${ML(i)}${lhFirst}:${ML(i)}${lhLast})`
+        : '0', 'LegacyOn'),
+      c.legacyHeadcountByCategory[cat], { fmt: E.FORMATS.integer, fill: C.derivedFill });
+  });
   Object.keys(CONFIG.LCI.LEGACY_CATEGORIES).forEach(cat => {
     K[`legacy:${cat}`] = line(CONFIG.LCI.LEGACY_CATEGORIES[cat].costLine,
       i => gate(lcLast >= lcFirst
@@ -571,7 +578,7 @@ function _lciXlCalcOneoffs(ctx, sheet, rw, K, helpers) {
 }
 
 // ── Totals section. Reads K.coeOperating/K.legacyCost/K.oneoffs/K.fees from
-// the earlier sections; populates K.totalMonthly, K.cumulative, K.crossover.
+// the earlier sections; populates K.totalMonthly, K.cumulative, K.peakSeries.
 function _lciXlCalcTotals(ctx, sheet, rw, K, helpers) {
   const { comp: c } = ctx;
   const { C, ML } = sheet;
@@ -591,9 +598,9 @@ function _lciXlCalcTotals(ctx, sheet, rw, K, helpers) {
   K.cumulative = line('Cumulative spend',
     i => (i === 0 ? `${ML(0)}${K.totalMonthly}` : `${ML(i - 1)}${rw.r}+${ML(i)}${K.totalMonthly}`),
     c.cumulativeSpend, { fill: C.totalFill, labelOpts: { bold: true } });
-  K.crossover = line('CoE operating + legacy (peak crossover series)',
-    i => `${ML(i)}${K.coeOperating}+${ML(i)}${K.legacyCost}`,
-    c.coeOperating.map((v, i) => v + c.legacyCost[i]), { fill: C.derivedFill });
+  K.peakSeries = line(CONFIG.LCI.KPI_TEXT.excel.peakSeries,
+    i => `${ML(i)}${K.totalMonthly}-${ML(i)}${K.fees}`,
+    c.totalMonthly.map((v, i) => v - c.fees[i]), { fill: C.derivedFill });
 }
 
 function _lciXlCalc(ctx) {
@@ -717,7 +724,9 @@ function _lciXlOutput(ctx) {
   r++;
   const lastML  = ML(h - 1);
   const hiresR  = `${SC}!$B$${K.hires}:$${_lciXlCol(1 + h)}$${K.hires}`;
-  const crossR  = `${SC}!$B$${K.crossover}:$${_lciXlCol(1 + h)}$${K.crossover}`;
+  const peakR   = `${SC}!$B$${K.peakSeries}:$${_lciXlCol(1 + h)}$${K.peakSeries}`;
+  const coeHcR  = `${SC}!$B$${K.coeHeadcount}:$${_lciXlCol(1 + h)}$${K.coeHeadcount}`;
+  const XT = CONFIG.LCI.KPI_TEXT.excel;
   const kpiRows = [];
   const kpi = (label, formula, result, fmt) => {
     _lciXlSet(ws, r, 1, label, { bold: true });
@@ -725,18 +734,26 @@ function _lciXlOutput(ctx) {
     kpiRows.push(r);
     return r++;
   };
-  kpi('Total spend over horizon', `${SC}!${lastML}${K.cumulative}`, kpis.totalSpend, dispMoney);
-  const steadyRow = kpi('Steady-state monthly run-rate',
-    `${SC}!${lastML}${K.coeOperating}+${SC}!${lastML}${K.legacyCost}`, kpis.steadyMonthly, dispMoney);
-  kpi('Steady-state annual run-rate', `B${steadyRow}*12`, kpis.steadyAnnual, dispMoney);
-  kpi('Total hires', `SUM(${hiresR})`, kpis.totalHires, E.FORMATS.integer);
-  kpi('Time to full ramp (last hire month)',
+  // Steady state = final-month CoE operating + RETAINED legacy (exiting legacy
+  // and fees excluded) — lciComputeKPIs() is the definition this mirrors.
+  const retainedHc = `${SC}!${lastML}${K['legacyHc:retained']}`;
+  kpi(XT.totalSpend, `${SC}!${lastML}${K.cumulative}`, kpis.totalSpend, dispMoney);
+  const steadyRow = kpi(XT.steadyMonthly,
+    `${SC}!${lastML}${K.coeOperating}+${SC}!${lastML}${K['legacy:retained']}`, kpis.steadyMonthly, dispMoney);
+  kpi(XT.steadyAnnual, `B${steadyRow}*12`, kpis.steadyAnnual, dispMoney);
+  const hiresRow = kpi(XT.totalHires, `SUM(${hiresR})`, kpis.totalHires, E.FORMATS.integer);
+  kpi(XT.rampHired,
     `IF(SUM(${hiresR})=0,0,SUMPRODUCT(MAX((${hiresR}>0)*(COLUMN(${hiresR})-COLUMN(${SC}!$B$${K.hires})+1))))`,
     kpis.lastHireMonth, E.FORMATS.integer);
-  const fhRow = kpi('Final CoE headcount', `${SC}!${lastML}${K.coeHeadcount}`, kpis.finalHeadcount, E.FORMATS.integer);
-  kpi('Cost per head (steady state)', `IF(B${fhRow}=0,0,B${steadyRow}/B${fhRow})`, kpis.costPerHead, dispMoney);
-  kpi('Peak crossover month', `MATCH(MAX(${crossR}),${crossR},0)`, kpis.peakCrossoverMonth, E.FORMATS.integer);
-  kpi('Peak crossover spend', `MAX(${crossR})`, kpis.peakCrossoverSpend, dispMoney);
+  // First month payroll headcount reaches total hires; 0 = not within the horizon.
+  kpi(XT.rampPayroll,
+    `IF(B${hiresRow}=0,0,IFERROR(MATCH(1,INDEX(--(${coeHcR}>=B${hiresRow}),0),0),0))`,
+    kpis.payrollMonth || 0, E.FORMATS.integer);
+  const fhRow = kpi(XT.finalHeadcount, `${SC}!${lastML}${K.coeHeadcount}`, kpis.finalHeadcount, E.FORMATS.integer);
+  kpi(XT.costPerHead, `IF(B${fhRow}+${retainedHc}=0,0,B${steadyRow}/(B${fhRow}+${retainedHc}))`,
+    kpis.costPerHead, dispMoney);
+  kpi(XT.peakMonth, `MATCH(MAX(${peakR}),${peakR},0)`, kpis.peakMonth, E.FORMATS.integer);
+  kpi(XT.peakSpend, `MAX(${peakR})`, kpis.peakSpend, dispMoney);
 }
 
 // ── Sheet 7: Milestones ──────────────────────────────────────────────

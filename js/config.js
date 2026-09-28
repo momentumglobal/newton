@@ -749,9 +749,10 @@ const CONFIG = {
     // before N-010 keep exactly the behaviour they had.
     //   label    — editor dropdown
     //   costLine — client-facing Cost Model row
+    //   hcLine   — Excel Monthly Calc headcount-by-category row (N-263)
     LEGACY_CATEGORIES: {
-      exiting:  { label: 'Exiting',  costLine: 'Exiting Team Costs'  },
-      retained: { label: 'Retained', costLine: 'Retained Team Costs' },
+      exiting:  { label: 'Exiting',  costLine: 'Exiting Team Costs',  hcLine: 'Exiting headcount'  },
+      retained: { label: 'Retained', costLine: 'Retained Team Costs', hcLine: 'Retained headcount' },
     },
 
     // Monthly Cost Composition chart (N-261) — shared by the on-screen SVG
@@ -764,6 +765,75 @@ const CONFIG = {
     COMPOSITION_LABELS: {
       coe:    'CoE Operating Costs',
       legacy: 'Legacy Costs',
+    },
+
+    // ── KPI text (N-263) ──────────────────────────────────────────
+    // Every KPI label and display string, for the PowerPoint Key Figures
+    // slide (tiles), the on-screen/PPTX compare table (compare) and the Excel
+    // Key figures block (excel). Templates use {placeholders} — fillTemplate().
+    // Steady state = CoE operating + retained legacy in the final month;
+    // exiting legacy and project fees excluded.
+    KPI_TEXT: {
+      groups: {
+        investment: 'Investment',
+        steady:     'Steady state',
+        delivery:   'Delivery',
+      },
+      tiles: {
+        totalSpend:     'Total spend (horizon)',
+        peakSpend:      'Peak monthly spend (excl. fees)',
+        peakMonth:      'Peak exposure month',
+        avgFee:         'Avg recruitment fee per hire',
+        runMonthly:     'Run rate / month — CoE vs Legacy',
+        runAnnual:      'Run rate / year — CoE vs Legacy',
+        saving:         'Annual saving at steady state',
+        costPerHead:    'Cost per head / month — CoE vs Legacy',
+        totalHires:     'Total hires',
+        finalHeadcount: 'Final CoE headcount',
+        ramp:           'Time to full ramp',
+        payback:        'Payback',
+      },
+      compare: {
+        totalSpend:     'Total spend (horizon)',
+        steadyMonthly:  'Steady-state monthly cost',
+        steadyAnnual:   'Steady-state annual cost',
+        costPerHead:    'Cost per head (steady)',
+        totalHires:     'Total hires',
+        rampHired:      'Time to full ramp — hired',
+        rampPayroll:    'Time to full ramp — on payroll',
+        peakSpend:      'Peak monthly spend (excl. fees)',
+      },
+      excel: {
+        totalSpend:     'Total spend over horizon',
+        steadyMonthly:  'Steady-state monthly run-rate (CoE + retained)',
+        steadyAnnual:   'Steady-state annual run-rate',
+        totalHires:     'Total hires',
+        rampHired:      'Time to full ramp — hired (last hire month)',
+        rampPayroll:    'Time to full ramp — on payroll (first month all hires paid)',
+        finalHeadcount: 'Final CoE headcount',
+        costPerHead:    'Cost per head (steady state, CoE + retained heads)',
+        peakMonth:      'Peak exposure month',
+        peakSpend:      'Peak monthly spend (excl. fees)',
+        peakSeries:     'Monthly spend excl. fees (peak series)',
+      },
+      rampHired:     'Hired: {m}',
+      rampPayroll:   'On payroll: {m}',
+      vsLegacy:      'vs Legacy {v}',
+      pctLower:      '{p}% lower',
+      pctHigher:     '{p}% higher',
+      savingPct:     '{p}% of legacy',
+      noPayback:     'No payback',
+      beyondHorizon: 'Projected beyond M{h}',
+      noLegacy:      'No legacy baseline',
+      notReached:    'Steady state not reached within the horizon. Run-rate figures use the final month.',
+      // Decimal places: saving % reads 33.1%, cost-per-head % reads 35%.
+      pctDp: { saving: 1, costPerHead: 0 },
+      // Assumptions notice rows — lciNoticeRowsText().
+      noticeDefault:     'Notice period — default',
+      noticeGroup:       'Notice period — {n}',
+      noticeDefaultNote: 'all other roles',
+      monthOne:          '1 month',
+      monthMany:         '{n} months',
     },
 
     // ── Excel export (N-030) ──────────────────────────────────────
@@ -865,6 +935,7 @@ const CONFIG = {
         gridHeader: 9,  gridCell: 9,
         tableHeader: 11, tableCell: 11,
         kpiValue: 20, kpiLabel: 10,
+        kpiValueSm: 14, kpiSub: 10, kpiGroup: 11,
         body: 13, obsHeading: 16,
         chartLabel: 10, footer: 9,
       },
@@ -899,7 +970,17 @@ const CONFIG = {
         cellMargin: [2, 3, 2, 3],
         assumpLabelFrac: 0.45, compareLabelFrac: 0.26,
       },
-      KPI:   { perRow: 4, gap: 0.2, tileH: 1.35, radius: 0.06, valuePad: 0.2, valueH: 0.55, labelH: 0.35 },
+      // Key Figures (N-263): 3 groups x (groupH + tileH) + 2 x gap = 5.32in,
+      // inside the 5.71in between _lciPptxBodyTop(true) (1.22) and the footer
+      // band (7.5 - footerH - GEO.gap = 6.93). Tile interior: valuePad +
+      // valueH + subH + labelH = 1.25 <= tileH.
+      KPI:   { perRow: 4, gap: 0.14, tileH: 1.4, radius: 0.06, valuePad: 0.15, valueH: 0.5, subH: 0.3, labelH: 0.3, groupH: 0.28 },
+      // Row groups → tile keys, in slide order. Labels: CONFIG.LCI.KPI_TEXT.
+      KEY_FIGURES: [
+        { group: 'investment', tiles: ['totalSpend', 'peakSpend', 'peakMonth', 'avgFee'] },
+        { group: 'steady',     tiles: ['runMonthly', 'runAnnual', 'saving', 'costPerHead'] },
+        { group: 'delivery',   tiles: ['totalHires', 'finalHeadcount', 'ramp', 'payback'] },
+      ],KPI:   { perRow: 4, gap: 0.2, tileH: 1.35, radius: 0.06, valuePad: 0.2, valueH: 0.55, labelH: 0.35 },
       OBS:   { blocksPerSlide: 12, bulletIndent: 18 },
       CHART: { lineSize: 2, gridSize: 1 },
     },

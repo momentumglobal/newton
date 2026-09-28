@@ -932,6 +932,14 @@ function escHtmlLines(str) {
   return escHtml(str).replace(/\r?\n/g, '<br>');
 }
 
+// Fill "{key}" placeholders from an object — fillTemplate('M{n}', { n: 9 })
+// → 'M9'. An unknown key is left as-is so a typo shows up on screen rather
+// than silently vanishing. Plain text out: escape at the HTML call site.
+function fillTemplate(tpl, vals) {
+  return String(tpl ?? '').replace(/\{(\w+)\}/g, (m, k) =>
+    (vals && vals[k] !== undefined && vals[k] !== null ? String(vals[k]) : m));
+}
+
 // ── Breadcrumb (N-255a) ───────────────────────────────────────
 // Pure markup builder for the "Home › Module › Page" trail. No DOM, no
 // CONFIG — nav-core.js's renderBreadcrumb() supplies the segments from

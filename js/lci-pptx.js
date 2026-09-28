@@ -253,48 +253,106 @@ function _lciPptxTableSlides(ctx, title, header, bodyRows, opts = {}) {
 }
 
 // ── Slide 3: Key figures ─────────────────────────────────────────────
-// The one page with no equivalent in the HTML report. A single-model report
-// has no KPI summary anywhere today — the figures only surface inside the
-// two-model comparison table. Values come straight from lciComputeKPIs().
-function _lciPptxKpiSlide(ctx, m, kpis) {
-  const P = CONFIG.LCI.PPTX, C = P.COLOURS, F = P.FONT, G = P.GEO;
+// The one page with no equivalent in the HTML report. Values come straight
+// from lciComputeKPIs() (N-263 definitions); this function only formats.
+// Layout and labels: CONFIG.LCI.PPTX.KEY_FIGURES / CONFIG.LCI.KPI_TEXT.
+
+// Tile key → { value, sub?, small? }. Formatting only — no arithmetic.
+function _lciPptxKpiTiles(m, kpis) {
+  const T = CONFIG.LCI.KPI_TEXT;
   const ccy = m.DisplayCurrency;
-  const tiles = [
-    ['Total spend (horizon)',  _lciFmt(kpis.totalSpend, ccy)],
-    ['Steady-state / month',   _lciFmt(kpis.steadyMonthly, ccy)],
-    ['Steady-state / year',    _lciFmt(kpis.steadyAnnual, ccy)],
-    ['Cost per head (steady)', _lciFmt(kpis.costPerHead, ccy)],
-    ['Total hires',            String(kpis.totalHires ?? 0)],
-    ['Time to full ramp',      kpis.lastHireMonth ? `M${kpis.lastHireMonth}` : '—'],
-    ['Final CoE headcount',    String(kpis.finalHeadcount ?? 0)],
-    ['Peak crossover spend',   _lciFmt(kpis.peakCrossoverSpend, ccy)],
-  ];
+  const money = v => (v === null || v === undefined ? '—' : _lciFmt(v, ccy));
+  const pct = (v, dp) => (Math.abs(v) * 100).toFixed(dp);
+  const hasLegacy = kpis.legacyBaseline > 0;
+  const vs = v => (hasLegacy ? fillTemplate(T.vsLegacy, { v: money(v) }) : '');
+  const monthLabel = n => (n ? lciMonthLabel(m.StartMonth, n) : '—');
 
-  const slide = _lciPptxContentSlide(ctx, `Key Figures — ${m.Title || 'Model'}`,
-    `All values in ${ccy || ''}.`);
+  let cphSub = '';
+  if (kpis.legacyCostPerHead !== null && kpis.costPerHeadDeltaPct !== null) {
+    const d = kpis.costPerHeadDeltaPct;
+    cphSub = `${vs(kpis.legacyCostPerHead)} · ${fillTemplate(d >= 0 ? T.pctLower : T.pctHigher,
+      { p: pct(d, T.pctDp.costPerHead) })}`;
+  }
+
+  const pb = kpis.payback || { month: null, status: 'na' };
+  let pbValue = '—', pbSub = '';
+  if (pb.status === 'ok') {
+    pbValue = monthLabel(pb.month);
+    if (pb.month > kpis.horizon) pbSub = fillTemplate(T.beyondHorizon, { h: kpis.horizon });
+  } else if (pb.status === 'none') {
+    pbValue = T.noPayback;
+  } else {
+    pbSub = T.noLegacy;
+  }
+
+  return {
+    totalSpend:     { value: money(kpis.totalSpend) },
+    peakSpend:      { value: money(kpis.peakSpend) },
+    peakMonth:      { value: monthLabel(kpis.peakMonth) },
+    avgFee:         { value: money(kpis.avgFeePerHire) },
+    runMonthly:     { value: money(kpis.steadyMonthly), sub: vs(kpis.legacyBaseline) },
+    runAnnual:      { value: money(kpis.steadyAnnual),  sub: vs(kpis.legacyAnnual) },
+    saving:         { value: money(kpis.annualSaving),
+                      sub: kpis.annualSavingPct === null ? T.noLegacy
+                        : fillTemplate(T.savingPct, { p: (kpis.annualSavingPct * 100).toFixed(T.pctDp.saving) }) },
+    costPerHead:    { value: money(kpis.costPerHead), sub: cphSub },
+    totalHires:     { value: String(kpis.totalHires ?? 0) },
+    finalHeadcount: { value: String(kpis.finalHeadcount ?? 0) },
+    ramp:           { small: true, value: [
+                      fillTemplate(T.rampHired,   { m: kpis.lastHireMonth ? `M${kpis.lastHireMonth}` : '—' }),
+                      fillTemplate(T.rampPayroll, { m: kpis.payrollMonth  ? `M${kpis.payrollMonth}`  : '—' }),
+                    ].join('\n') },
+    payback:        { value: pbValue, sub: pbSub },
+  };
+}
+
+function _lciPptxKpiSlide(ctx, m, kpis) {
+  const P = CONFIG.LCI.PPTX, C = P.COLOURS, F = P.FONT, G = P.GEO, K = P.KPI;
+  const T = CONFIG.LCI.KPI_TEXT;
+  const ccy = m.DisplayCurrency;
+  const tiles = _lciPptxKpiTiles(m, kpis);
+
+  const note = `All values in ${ccy || ''}.` + (kpis.steadyReached ? '' : ` ${T.notReached}`);
+  const slide = _lciPptxContentSlide(ctx, `Key Figures — ${m.Title || 'Model'}`, note);
   const top     = _lciPptxBodyTop(true);
-  const perRow  = P.KPI.perRow;
+  const perRow  = K.perRow;
   const totalW  = P.LAYOUT.width - G.margin * 2;
-  const tileW   = (totalW - P.KPI.gap * (perRow - 1)) / perRow;
+  const tileW   = (totalW - K.gap * (perRow - 1)) / perRow;
 
-  tiles.forEach(([label, value], i) => {
-    const col = i % perRow, row = Math.floor(i / perRow);
-    const x = G.margin + col * (tileW + P.KPI.gap);
-    const y = top + row * (P.KPI.tileH + P.KPI.gap);
-    slide.addShape(ctx.pptx.ShapeType.roundRect, {
-      x, y, w: tileW, h: P.KPI.tileH,
-      fill: { color: C.subtotalFill }, line: { color: C.tableBorder, width: P.TABLE.borderPt },
-      rectRadius: P.KPI.radius,
+  P.KEY_FIGURES.forEach((grp, gi) => {
+    const gy = top + gi * (K.groupH + K.tileH + K.gap);
+    slide.addText(T.groups[grp.group] || '', {
+      x: G.margin, y: gy, w: totalW, h: K.groupH,
+      fontFace: _lciPptxFace(true), fontSize: F.kpiGroup, color: C.textMuted,
+      align: 'left', valign: 'middle',
     });
-    slide.addText(value, {
-      x, y: y + P.KPI.valuePad, w: tileW, h: P.KPI.valueH,
-      fontFace: _lciPptxFace(true), fontSize: F.kpiValue, color: C.navySteel,
-      align: 'center', valign: 'middle',
-    });
-    slide.addText(label, {
-      x, y: y + P.KPI.valuePad + P.KPI.valueH, w: tileW, h: P.KPI.labelH,
-      fontFace: F.face, fontSize: F.kpiLabel, color: C.textMuted,
-      align: 'center', valign: 'top',
+    const y = gy + K.groupH;
+    grp.tiles.forEach((key, col) => {
+      const t = tiles[key] || { value: '—' };
+      const x = G.margin + col * (tileW + K.gap);
+      slide.addShape(ctx.pptx.ShapeType.roundRect, {
+        x, y, w: tileW, h: K.tileH,
+        fill: { color: C.subtotalFill }, line: { color: C.tableBorder, width: P.TABLE.borderPt },
+        rectRadius: K.radius,
+      });
+      // A two-line text value (time to full ramp) takes the sub-line's band too.
+      slide.addText(t.value, {
+        x, y: y + K.valuePad, w: tileW, h: K.valueH + (t.small ? K.subH : 0),
+        fontFace: _lciPptxFace(true), fontSize: t.small ? F.kpiValueSm : F.kpiValue, color: C.navySteel,
+        align: 'center', valign: 'middle',
+      });
+      if (!t.small && t.sub) {
+        slide.addText(t.sub, {
+          x, y: y + K.valuePad + K.valueH, w: tileW, h: K.subH,
+          fontFace: F.face, fontSize: F.kpiSub, color: C.textMuted,
+          align: 'center', valign: 'middle',
+        });
+      }
+      slide.addText(T.tiles[key] || '', {
+        x, y: y + K.valuePad + K.valueH + K.subH, w: tileW, h: K.labelH,
+        fontFace: F.face, fontSize: F.kpiLabel, color: C.textMuted,
+        align: 'center', valign: 'top',
+      });
     });
   });
 }
@@ -660,7 +718,7 @@ function _lciPptxModelSlides(ctx, bundle, single) {
   const assumpRows = [
     ['Employer burden',            `${Math.round((m.EmployerBurdenPct || 0) * 1000) / 10}%`],
     ['Salary payments / year',     String(m.SalaryMonths || 12)],
-    ['Notice period (months)',     String(m.NoticeMonths ?? 0)],
+    ...lciNoticeRowsText(lciNoticeGroups(bundle.rows, m), CONFIG.LCI.KPI_TEXT),
     ['Office cost / head / month', `${m.OfficeCostPerHead ?? 0} ${m.LocalCurrency || ''}`],
     ['EoR fee / head / month',     `${m.EoRFeePerHead ?? 0} ${m.DisplayCurrency || ''}`],
   ];

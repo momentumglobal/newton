@@ -202,12 +202,16 @@ function _lciSummaryHtml() {
 
     <!-- Section 4: assumptions -->
     <div id="lci-print-p4" class="lci-summary-card">
-      ${_lciAssumptionsHtml(m)}
+      ${_lciAssumptionsHtml(m, _lciEd.rows)}
     </div>`;
 }
 
-// Shared by the summary view and the full report export (lci-report.js)
-function _lciAssumptionsHtml(m) {
+// Shared by the summary view and the full report export (lci-report.js).
+// `rows` = the model's LCIModelRows — needed for the per-role notice groups
+// (N-263). Omitted → the default notice row only.
+function _lciAssumptionsHtml(m, rows) {
+  const noticeRows = lciNoticeRowsText(lciNoticeGroups(rows || [], m), CONFIG.LCI.KPI_TEXT)
+    .map(([k, v]) => `<tr><td>${escHtml(k)}</td><td>${escHtml(v)}</td></tr>`).join('');
   return `
       <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Model Guide and Assumptions</h3>
       ${m.Assumptions ? `<div style="white-space:pre-wrap;font-size:13px;line-height:1.6">${escHtml(m.Assumptions)}</div>` : ''}
@@ -215,7 +219,7 @@ function _lciAssumptionsHtml(m) {
         <tbody>
           <tr><td>Employer burden</td><td>${Math.round((m.EmployerBurdenPct || 0) * 1000) / 10}%</td></tr>
           <tr><td>Salary payments / year</td><td>${m.SalaryMonths || 12}</td></tr>
-          <tr><td>Notice period (months)</td><td>${m.NoticeMonths ?? 0}</td></tr>
+          ${noticeRows}
           <tr><td>Office cost / head / month</td><td>${m.OfficeCostPerHead ?? 0} ${m.LocalCurrency}</td></tr>
           <tr><td>EoR fee / head / month</td><td>${m.EoRFeePerHead ?? 0} ${m.DisplayCurrency}</td></tr>
           ${m.LocalCurrency !== m.DisplayCurrency ? `<tr><td>FX rate (${m.LocalCurrency}→${m.DisplayCurrency})</td><td>${m.FXRateLocalToDisplay ?? '—'}</td></tr>` : ''}

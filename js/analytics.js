@@ -1,40 +1,114 @@
 // js/analytics.js — pure analytics functions, no network I/O
 // Loaded after api.js, before module app scripts.
 
-// ── Phase A — Time-to-Fill Prediction ────────────────────────────────
+// ── Phase A — Time-to-Fill Prediction (N-269: survival-based) ────────
+// Kaplan–Meier estimate of time from OpenDate to hire. Completed hires are
+// events; roles still open (TTF_CENSORED_STAGES) are right-censored at their
+// current age. Averaging completed hires alone ignores the slow roles that
+// haven't filled yet and so under-states time to fill (survivorship bias) —
+// counting open roles as "at least this long so far" removes that.
+// Pool ladder: the filters as given (function × location), then — only when
+// a country was given and it has < CONFIG.TTF_SURVIVAL.minEvents hires —
+// the same function across all locations. Falsy functionArea/country means
+// "no filter on that dimension" (Placement Analytics' "All" options).
 
-function computeTTFPrediction(functionArea, country, historical) {
-  const ttfDays = r => Math.round(
-    (new Date(r.placementDate) - new Date(r.openDate)) / (1000 * 60 * 60 * 24)
-  );
-  const valid = historical.filter(r => r.openDate && r.placementDate);
+// Stages whose roles are still open and so count as censored observations.
+// Derived, not a second list. Backlog/Planning never started the clock;
+// On-hold/Cancelled are excluded until N-272's cancellation audit; Hired
+// roles are events (via `historical`), not censored.
+// NOT ACTIVE_STAGES (which lists the closed/dormant stages) or STAGE_ORDER
+// (a 4-stage subset built only for isRoleFlagged).
+const TTF_CENSORED_STAGES = CONFIG.ROLE_STAGES.filter(s =>
+  !CONFIG.ROLE_STAGES_ACTIVITY_EXCLUDED.includes(s) && s !== 'Planning'
+);
 
-  let pool = valid.filter(r =>
-    r.functionArea === functionArea && r.country === country
-  );
-  
-  if (pool.length < 3) {
-    return { label: 'Insufficient data', weeks: null, stdDevWeeks: null, sampleSize: pool.length };
+// observations: [{ t: <int days >= 0>, event: <bool> }]
+// → one step per distinct EVENT time, ascending: [{ t, atRisk, events, survival }].
+// At-risk uses >=, so a censored observation sharing a time with an event is
+// still at risk for that event (standard convention).
+function kaplanMeier(observations) {
+  const obs = (observations || []).filter(o => o && Number.isFinite(o.t) && o.t >= 0);
+  const eventTimes = [...new Set(obs.filter(o => o.event).map(o => o.t))].sort((a, b) => a - b);
+  let survival = 1;
+  return eventTimes.map(t => {
+    const atRisk = obs.filter(o => o.t >= t).length;
+    const events = obs.filter(o => o.event && o.t === t).length;
+    survival *= (1 - events / atRisk);
+    return { t, atRisk, events, survival };
+  });
+}
+
+// Smallest step t where survival <= 1 − p; null if the curve never gets there.
+function kmQuantile(curve, p) {
+  const step = (curve || []).find(s => s.survival <= 1 - p + 1e-12);
+  return step ? step.t : null;
+}
+
+function computeTTFPrediction(functionArea, country, historical, openRoles = []) {
+  const cfg = CONFIG.TTF_SURVIVAL;
+
+  const poolFor = (fn, loc) => {
+    const events = (historical || [])
+      .filter(r => (!fn || r.functionArea === fn) && (!loc || r.country === loc))
+      .map(r => daysOpen(r.openDate, r.placementDate))
+      .filter(t => t !== null && t >= 0)
+      .map(t => ({ t, event: true }));
+    const censored = (openRoles || [])
+      .filter(r => TTF_CENSORED_STAGES.includes(r.Stage))
+      .filter(r => (!fn || r.Department === fn) && (!loc || r.Location === loc))
+      .map(r => daysOpen(r.OpenDate))
+      .filter(t => t !== null && t >= 0)
+      .map(t => ({ t, event: false }));
+    const basis = fn && loc ? 'function+location' : fn ? 'function' : loc ? 'location' : 'all';
+    return { obs: events.concat(censored), events: events.length, censored: censored.length, basis };
+  };
+
+  const level1 = poolFor(functionArea, country);
+  let pool = null, pooled = false;
+  if (level1.events >= cfg.minEvents) {
+    pool = level1;
+  } else if (country) {
+    const level2 = poolFor(functionArea, null);
+    if (level2.events >= cfg.minEvents) { pool = level2; pooled = true; }
   }
 
-  const sample = pool
-    .slice()
-    .sort((a, b) => new Date(b.placementDate) - new Date(a.placementDate))
-    .slice(0, 12);
+  if (!pool) {
+    return {
+      label: 'Insufficient data', weeks: null, stdDevWeeks: null, sampleSize: level1.events,
+      medianDays: null, bandDays: null, events: level1.events, censored: level1.censored,
+      basis: null, pooled: false, medianReached: false, maxObservedDays: null,
+    };
+  }
 
-  const days     = sample.map(ttfDays);
-  const mean     = days.reduce((s, d) => s + d, 0) / days.length;
-  const variance = days.reduce((s, d) => s + Math.pow(d - mean, 2), 0) / days.length;
-  const stdDev   = Math.sqrt(variance);
-  const weeks     = Math.round(mean / 7);
-  const bandDays  = Math.max(stdDev, 7);
-  const bandWeeks = Math.round(bandDays / 7);
+  const curve           = kaplanMeier(pool.obs);
+  const medianDays      = kmQuantile(curve, 0.5);
+  const maxObservedDays = Math.max(...pool.obs.map(o => o.t));
+  const base = {
+    sampleSize: pool.events, events: pool.events, censored: pool.censored,
+    basis: pool.basis, pooled, maxObservedDays,
+  };
+
+  if (medianDays === null) {
+    // Fewer than half the pool has filled so far — a real result, not an error.
+    return {
+      label: `>${Math.round(maxObservedDays / 7)}w`, weeks: null, stdDevWeeks: null,
+      medianDays: null, bandDays: null, medianReached: false, ...base,
+    };
+  }
+
+  const q25 = kmQuantile(curve, 0.25);
+  const q75 = kmQuantile(curve, 0.75);
+  const bandDays = Math.max(
+    q75 !== null ? (q75 - q25) / 2 : (medianDays - q25),
+    cfg.minBandDays
+  );
+  const weeks       = Math.round(medianDays / 7);
+  // Key name kept for return-shape compatibility — now a half-IQR band, not an SD.
+  const stdDevWeeks = Math.round(bandDays / 7);
 
   return {
-    label:       `~${weeks}w ±${bandWeeks}w`,
-    weeks,
-    stdDevWeeks: bandWeeks,
-    sampleSize:  sample.length,
+    label: `~${weeks}w ±${stdDevWeeks}w`, weeks, stdDevWeeks,
+    medianDays, bandDays, medianReached: true, ...base,
   };
 }
 

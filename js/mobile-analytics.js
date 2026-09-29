@@ -9,7 +9,7 @@
 // State
 let _maLocation     = '';
 let _maFunctionArea = '';
-let _maData         = null;  // { historical, activityRaw, benchmarks }
+let _maData         = null;  // { historical, activityRaw, benchmarks, openRoles }
 
 function maEsc(str) {
   return String(str)
@@ -25,11 +25,14 @@ async function mobileRenderPlacementAnalytics(main) {
   main.innerHTML = '<div class="m-empty">Loading analytics...</div>';
 
   try {
-    const [historical, activityRaw] = await Promise.all([
+    // N-269: getAllRoles() supplies the open roles computeTTFPrediction
+    // counts as censored observations.
+    const [historical, activityRaw, openRoles] = await Promise.all([
       getHistoricalPlacements(),
       getActivityForAnalytics(52),
+      getAllRoles(),
     ]);
-    _maData = { historical, activityRaw, benchmarks: CONFIG.ANALYTICS_BENCHMARKS };
+    _maData = { historical, activityRaw, benchmarks: CONFIG.ANALYTICS_BENCHMARKS, openRoles };
 
     const locations     = maUnique(historical, 'country').sort();
     const functionAreas = maUnique(historical, 'functionArea').sort();
@@ -73,7 +76,7 @@ function maRenderResults() {
   const container = document.getElementById('ma-results');
   if (!container || !_maData) return;
 
-  const { historical, activityRaw, benchmarks } = _maData;
+  const { historical, activityRaw, benchmarks, openRoles } = _maData;
 
   let filtered = historical;
   if (_maLocation)     filtered = filtered.filter(r => r.country      === _maLocation);
@@ -85,11 +88,11 @@ function maRenderResults() {
   }
 
   // Summary metrics (mirrors desktop)
-  const ttfDays = filtered
-    .filter(r => r.openDate && r.placementDate)
-    .map(r => Math.round((new Date(r.placementDate) - new Date(r.openDate)) / 86400000));
-  const ttfAvg = ttfDays.length >= 3
-    ? Math.round(ttfDays.reduce((s, v) => s + v, 0) / ttfDays.length) : null;
+  // N-269: shared Kaplan–Meier estimate (analytics.js), same as desktop.
+  const ttf = computeTTFPrediction(_maFunctionArea || null, _maLocation || null, historical, openRoles);
+  const ttfValue = ttf.medianDays !== null ? `~${ttf.medianDays}d`
+    : (!ttf.medianReached && ttf.basis) ? `>${ttf.maxObservedDays}d` : '-';
+  const ttfSub = ttf.basis ? `${ttf.events} hires · ${ttf.censored} open` : undefined;
 
   const validTth = filtered.filter(r => r.openDate && r.placementDate);
   const avgTTH = validTth.length
@@ -116,7 +119,7 @@ function maRenderResults() {
   const summaryTiles = `
     <div class="m-section-header" style="margin-top:0">Summary${filterLabel ? ` · ${maEsc(filterLabel)}` : ''}</div>
     <div class="m-an-grid">
-      ${maTile(ttfAvg !== null ? `~${ttfAvg}d` : '-', 'Predicted Time to Hire')}
+      ${maTile(ttfValue, 'Predicted Time to Hire', ttfSub)}
       ${maTile(avgTTH !== null ? `${avgTTH}d` : '-', 'Avg Actual TTH', `${sampleSize} placement${sampleSize !== 1 ? 's' : ''}`)}
       ${maTile(totals.Hires > 0 ? Math.round(totals.Outreach / totals.Hires) : '-', 'Outreach per Hire')}
       ${maTile(totals.Offers > 0 ? Math.round((totals.Hires / totals.Offers) * 100) + '%' : '-', 'Offer Success', `${totals.Offers} offer${totals.Offers !== 1 ? 's' : ''}`)}

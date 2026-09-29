@@ -1229,4 +1229,60 @@ var ASSERTIONS = [
       _assertEqual(reconstructStageTransitions([], '2026-07-01T00:00:00Z'), { rows: [], truncated: false, skippedNullStage: 0 }, 'empty history');
     },
   },
+  {
+    name: 'N-269 kaplanMeier / kmQuantile — uncensored, censored (bias fix), ties, empty',
+    fn: function () {
+      const ev = t => ({ t, event: true }), ce = t => ({ t, event: false });
+      const r2 = x => Math.round(x * 10000) / 10000;
+      const a = kaplanMeier([ev(10), ev(20), ev(30), ev(40)]);
+      _assertEqual(a.map(s => [s.t, s.survival]), [[10, 0.75], [20, 0.5], [30, 0.25], [40, 0]], 'AC1 curve');
+      _assertEqual(kmQuantile(a, 0.5), 20, 'AC1 median');
+      const b = kaplanMeier([ev(10), ce(15), ev(20), ce(25), ev(30)]);
+      _assertEqual(b.map(s => [s.t, s.atRisk, r2(s.survival)]), [[10, 5, 0.8], [20, 3, 0.5333], [30, 1, 0]], 'AC2 curve');
+      _assertEqual([kmQuantile(b, 0.25), kmQuantile(b, 0.5), kmQuantile(b, 0.75)], [20, 30, 30], 'AC2 q25/median/q75');
+      const c = kaplanMeier([ev(10), ce(10), ev(20)]);
+      _assertEqual(c[0].atRisk, 3, 'AC3 censored tie still at risk');
+      _assertEqual(kaplanMeier([]), [], 'AC4 empty');
+      _assertEqual(kaplanMeier([ce(5), ce(9)]), [], 'AC4 all censored');
+      _assertEqual(kmQuantile([], 0.5), null, 'AC4 quantile of empty');
+    },
+  },
+  {
+    name: 'N-269 computeTTFPrediction — shape, pool ladder, censored stages, median not reached',
+    fn: function () {
+      const KEYS = ['label', 'weeks', 'stdDevWeeks', 'sampleSize', 'medianDays', 'bandDays', 'events',
+        'censored', 'basis', 'pooled', 'medianReached', 'maxObservedDays'].sort();
+      const H = (fn, loc, days) => ({ functionArea: fn, country: loc,
+        openDate: '2026-01-01T12:00:00Z',
+        placementDate: new Date(Date.UTC(2026, 0, 1 + days, 12)).toISOString() });
+      // UTC day, matching daysOpen()'s UTC 'today' — a local day would be off by one near midnight in BST.
+      const ago = d => new Date(Date.now() - d * 86400000).toISOString().slice(0, 10) + 'T12:00:00Z';
+      const O = (fn, loc, stage, d) => ({ Department: fn, Location: loc, Stage: stage, OpenDate: ago(d) });
+      const hist = [H('Eng', 'UK', 14), H('Eng', 'UK', 28), H('Eng', 'UK', 42), H('Eng', 'PT', 70)];
+
+      const exact = computeTTFPrediction('Eng', 'UK', hist);
+      _assertEqual(Object.keys(exact).sort(), KEYS, 'AC5 keys (estimate)');
+      _assertEqual([exact.basis, exact.pooled, exact.sampleSize, exact.medianDays], ['function+location', false, 3, 28], 'AC6/7 exact, 3-arg call');
+      _assertEqual([exact.label, exact.weeks, exact.stdDevWeeks, exact.bandDays], ['~4w ±2w', 4, 2, 14], 'AC5 label/weeks/band');
+
+      const fb = computeTTFPrediction('Eng', 'PT', hist);
+      _assertEqual([fb.basis, fb.pooled, fb.sampleSize], ['function', true, 4], 'AC8 fallback to function');
+
+      const none = computeTTFPrediction('Sales', 'UK', hist);
+      _assertEqual(Object.keys(none).sort(), KEYS, 'AC5 keys (insufficient)');
+      _assertEqual([none.label, none.weeks, none.basis, none.sampleSize], ['Insufficient data', null, null, 0], 'AC9 insufficient');
+
+      const stages = ['Backlog', 'Planning', 'On-hold', 'Cancelled', 'Hired',
+        'Sourcing', 'Submitted', 'Interview 1', 'Interview 2+', 'Final Interview', 'Offered'];
+      const withOpen = computeTTFPrediction('Eng', 'UK', hist, stages.map(s => O('Eng', 'UK', s, 5)));
+      _assertEqual(withOpen.censored, 6, 'AC10 only Sourcing..Offered censored');
+
+      const many = [1, 2, 3, 4, 5].map(() => O('Eng', 'UK', 'Sourcing', 200));
+      const nr = computeTTFPrediction('Eng', 'UK', hist, many);
+      _assertEqual([nr.medianReached, nr.weeks, nr.label.charAt(0), nr.maxObservedDays], [false, null, '>', 200], 'AC11 median not reached');
+
+      const all = computeTTFPrediction('', null, hist, [O('Sales', 'DE', 'Sourcing', 3)]);
+      _assertEqual([all.basis, all.events, all.censored], ['all', 4, 1], 'AC12 no filters');
+    },
+  },
 ];

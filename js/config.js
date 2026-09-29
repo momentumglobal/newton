@@ -481,6 +481,12 @@ const CONFIG = {
   flagThreshold:        0.80,  // flag at 80% of benchmark
 },
 
+  // N-269: Kaplan–Meier time-to-hire (analytics.js computeTTFPrediction).
+  TTF_SURVIVAL: {
+    minEvents:   3,  // min completed hires before a pool is used (else fall back / 'Insufficient data')
+    minBandDays: 7,  // floor for the ± band
+  },
+
   UTILISATION_THRESHOLDS: {
   green: 0.85,  // >= 85% billed = healthy
   amber: 0.75,  // >= 75% billed = watch

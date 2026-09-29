@@ -3,7 +3,7 @@
 // ── State ─────────────────────────────────────────────────────────────
 let _paLocation      = "";   // selected Currency/Location filter value
 let _paFunctionArea  = "";   // selected Department filter value
-let _paData          = null; // { historical, activity, benchmarks }
+let _paData          = null; // { historical, activityRaw, benchmarks, allPlacements, openRoles }
 let _paBreakdownSort   = null; // N-247c: { key, dir } — Role Breakdown table
 let _paBreakdownSearch = "";   // N-247c: shared list search box (list-controls.js)
 
@@ -18,14 +18,17 @@ async function renderPlacementAnalytics() {
   `;
 
   // Load all data in parallel
-  const [historical, activityRaw, allPlacements] = await Promise.all([
+  // N-269: getAllRoles() supplies the open roles computeTTFPrediction
+  // counts as censored observations.
+  const [historical, activityRaw, allPlacements, openRoles] = await Promise.all([
     getHistoricalPlacements(),
     getActivityForAnalytics(52),
     getPlacements(null),
+    getAllRoles(),
   ]);
   const benchmarks = CONFIG.ANALYTICS_BENCHMARKS;
 
-  _paData = { historical, activityRaw, benchmarks, allPlacements };
+  _paData = { historical, activityRaw, benchmarks, allPlacements, openRoles };
 
   // Build unique filter options from historical placements
   const locations     = _paUnique(historical, "country").sort();
@@ -105,7 +108,7 @@ function paRenderResults() {
 
 // ── Results aggregation (pure — no DOM) ─────────────────────────────────
 function _paComputeResults(data, location, functionArea) {
-  const { historical, activityRaw, benchmarks, allPlacements } = data;
+  const { historical, activityRaw, benchmarks, allPlacements, openRoles } = data;
 
   // Filter historical placements by selected dimensions
   let filtered = historical;
@@ -117,21 +120,9 @@ function _paComputeResults(data, location, functionArea) {
   }
 
   // ── Summary metrics ───────────────────────────────────────────────
-  const ttfDays = filtered
-    .filter(r => r.openDate && r.placementDate)
-    .map(r => Math.round((new Date(r.placementDate) - new Date(r.openDate)) / (1000 * 60 * 60 * 24)));
-  const ttfAvgDays = ttfDays.length >= 3
-    ? Math.round(ttfDays.reduce((s, v) => s + v, 0) / ttfDays.length)
-    : null;
-  const ttfStdDev = ttfDays.length >= 3
-    ? Math.round(Math.sqrt(ttfDays.reduce((s, d) => s + Math.pow(d - ttfDays.reduce((a, b) => a + b, 0) / ttfDays.length, 2), 0) / ttfDays.length))
-    : null;
-  const ttfResult = {
-    weeks: ttfAvgDays,
-    stdDevWeeks: ttfStdDev,
-    label: ttfAvgDays !== null ? `~${ttfAvgDays}d ±${ttfStdDev}d` : 'Insufficient data',
-    sampleSize: ttfDays.length
-  };
+  // N-269: shared Kaplan–Meier estimate (analytics.js) — replaces the local
+  // mean-of-hires copy, which ignored still-open roles (survivorship bias).
+  const ttfResult = computeTTFPrediction(functionArea || null, location || null, historical, openRoles);
   const avgTTHDays = _paAvgTTH(filtered);
   const sampleSize = filtered.length;
 
@@ -229,10 +220,13 @@ function _paRenderResultsHtml(results, location, functionArea) {
       </div>
       <div class="kpi-strip">
         <div class="kpi-card">
-          <div class="kpi-value">${ttfResult.weeks !== null ? `~${ttfResult.weeks}d` : "—"}</div>
+          <div class="kpi-value">${ttfResult.medianDays !== null ? `~${ttfResult.medianDays}d`
+            : (!ttfResult.medianReached && ttfResult.basis) ? `>${ttfResult.maxObservedDays}d` : "—"}</div>
           <div class="kpi-label">Predicted Time to Hire</div>
           <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
-            ${ttfResult.stdDevWeeks !== null ? `±${ttfResult.stdDevWeeks}d` : ttfResult.label}
+            ${ttfResult.bandDays !== null
+              ? `±${Math.round(ttfResult.bandDays)}d · ${ttfResult.events} hires, ${ttfResult.censored} open${ttfResult.pooled ? " · all locations" : ""}`
+              : ttfResult.label}
           </div>
         </div>
         <div class="kpi-card">

@@ -476,20 +476,25 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     });
 
     const funnel = computeRoleFunnel(totals, b);
-    const ttf    = computeTTFPrediction(meta.department, meta.location, historical);
+    const ttf    = computeTTFPrediction(meta.department, meta.location, historical, allRoles);
 
     const flags = funnel.filter(s => s.benchmarked).map(s => s.rag);
     const worst = flags.includes('red') ? 'red'
       : flags.includes('amber') ? 'amber' : 'green';
 
-    return { key, funnel, ttf, worst };
+    return { key, meta, funnel, ttf, worst };
   });
 
   rows.sort((a, b) => a.key.localeCompare(b.key));
 
-  const tableRows = rows.map(({ key, funnel, ttf }) => {
-    const ttfClass = ttf.sampleSize >= 3 ? 'ttf-badge' : 'ttf-badge ttf-badge--low-data';
-    const ttfCell  = `<td class='ra-ttf' style="text-align:center"><span class='${ttfClass}'>${ttf.label}</span></td>`;
+  const tableRows = rows.map(({ key, meta, funnel, ttf }) => {
+    // N-269: faded when pooled to function level or when there is no median.
+    const ttfClass = (ttf.weeks === null || ttf.pooled) ? 'ttf-badge ttf-badge--low-data' : 'ttf-badge';
+    const ttfTip   = ttf.basis
+      ? `Median time to hire (Kaplan–Meier): ${ttf.events} hire${ttf.events !== 1 ? 's' : ''}, ${ttf.censored} open role${ttf.censored !== 1 ? 's' : ''} counted`
+        + (ttf.pooled ? ` — pooled across all locations for ${meta.department || 'this function'}` : '')
+      : `Fewer than ${CONFIG.TTF_SURVIVAL.minEvents} hires in the last 12 months for this function`;
+    const ttfCell  = `<td class='ra-ttf' style="text-align:center"><span class='${ttfClass}' title="${escHtml(ttfTip)}">${ttf.label}</span></td>`;
 
     const flagCells = funnel.filter(s => s.benchmarked).map(s => {
       const label = s.conv !== null ? `${s.conv}%` : '—';

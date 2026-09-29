@@ -3625,6 +3625,108 @@ body {
 .checklist-item-note { display: block; margin-top: var(--sp-2); color: var(--text-muted); font-size: var(--fs-12); }
 .checklist-item-actions .checklist-item-note { display: inline; margin-top: 0; }
 
+/* ── Checklists — Config Panel editor (N-266b) ─────────────────────────
+   Neutral, like the checklist page (N-257). Muted text uses --text-label,
+   not --text-muted: --text-muted on --surface is under 4.5:1 in light mode.
+   .form-group sets display:flex, which beats the UA [hidden] rule — hence
+   the explicit [hidden] rule for the form's conditional fields. */
+.ck-admin { max-width: 1040px; }
+.ck-admin-setup {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-5) var(--sp-7);
+  background: var(--surface-alt);
+  border: 1px solid var(--surface-alt-border);
+  border-radius: var(--r-lg);
+  color: var(--text-secondary);
+  font-size: var(--fs-13);
+}
+.ck-admin-setup svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.ck-admin-switches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--sp-7);
+  margin: 0 0 var(--sp-9);
+}
+.ck-admin-switch {
+  padding: var(--sp-7);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.ck-admin-switch-title { color: var(--text-heading); font-weight: var(--fw-semibold); }
+.ck-admin-switch-status { margin: var(--sp-2) 0 var(--sp-6); color: var(--text-secondary); font-size: var(--fs-13); }
+.ck-admin-hint { margin: var(--sp-3) 0 0; color: var(--text-label); font-size: var(--fs-12); }
+
+.ck-admin-picker { display: flex; flex-direction: column; gap: var(--sp-5); margin: 0 0 var(--sp-7); }
+.ck-admin-picker-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-5); }
+.ck-admin-picker-label { min-width: 96px; color: var(--text-label); font-size: var(--fs-13); font-weight: var(--fw-semibold); }
+.ck-admin-picker .filter-group { flex-wrap: wrap; }
+.ck-admin-status { margin: 0 0 var(--sp-4); color: var(--text-secondary); font-size: var(--fs-13); }
+.ck-admin-toolbar { margin: 0 0 var(--sp-5); }
+
+.ck-admin-table { margin: 0 0 var(--sp-9); }
+.ck-admin-section-row td { background: var(--surface-sunken); }
+.ck-admin-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-5);
+}
+.ck-admin-section-name { color: var(--text-heading); font-weight: var(--fw-semibold); }
+.ck-admin-item--retired td { color: var(--text-label); }
+
+.ck-admin-form {
+  max-width: 720px;
+  padding: var(--sp-7);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.ck-admin-form .form-group[hidden] { display: none; }
+.ck-admin-form .form-actions { margin-top: var(--sp-7); }
+.ck-admin-form [aria-invalid="true"],
+.ck-admin-rename input[aria-invalid="true"] { border-color: var(--status-danger); }
+.ck-admin-field-error { margin-top: var(--sp-2); color: var(--status-danger); font-size: var(--fs-12); }
+.ck-admin-field-error:empty { display: none; }
+.ck-admin-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  color: var(--text-secondary);
+  font-size: var(--fs-13);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.ck-admin-check input { width: 16px; height: 16px; margin: 0; accent-color: var(--brand); }
+
+.ck-admin-empty {
+  padding: var(--sp-9) var(--sp-7);
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-lg);
+  color: var(--text-secondary);
+}
+.ck-admin-empty p { margin: 0 0 var(--sp-6); }
+.ck-admin-empty-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-7); }
+.ck-admin-copy { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-4); }
+.ck-admin-copy label { color: var(--text-label); font-size: var(--fs-13); font-weight: var(--fw-semibold); }
+.ck-admin-copy select,
+.ck-admin-rename input {
+  padding: var(--sp-3) var(--sp-5);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--fs-14);
+}
+.ck-admin-rename { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-4); }
+.ck-admin-rename input { flex: 1 1 240px; min-width: 0; }
+
 /* ── Shared rich-text tables (N-211) ─────────────────────────────── */
 .rt-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: var(--sp-4) 0; }
 .rt-table th,

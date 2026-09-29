@@ -1905,3 +1905,32 @@ function isSafeChecklistUrl(url) {
   if (/^[a-z0-9-]+\.html(#[^\s"'<>\\]*)?$/.test(s)) return true;
   return /^https:\/\/[^\s"'<>\\/?#]+(?:[/?#][^\s"'<>\\]*)?$/i.test(s);
 }
+
+// Config Panel editor (N-266b): validates one checklist item before it is
+// written. Returns { ok, errors: { field: message } } — the fields are
+// label, section, type, linkUrl, actionKey, help. Pure: the registry keys
+// (Object.keys(CHECKLIST_ACTIONS)) are passed in, never read from a global.
+// linkUrl is only checked for a link and actionKey only for an action — the
+// editor writes the unused one as null. Lengths are counted after trimming;
+// LABEL_MAX is SharePoint's single-line text limit, so it also caps LinkUrl.
+function validateChecklistItem({ label, section, type, linkUrl, actionKey, help } = {}, actionKeys = []) {
+  const C      = CONFIG.CHECKLISTS;
+  const errors = {};
+  const text   = v => String(v ?? '').trim();
+  const lab = text(label), sec = text(section), url = text(linkUrl);
+  if (!lab) errors.label = 'Enter an item label.';
+  else if (lab.length > C.LABEL_MAX) errors.label = `Keep the label to ${C.LABEL_MAX} characters or fewer.`;
+  if (!sec) errors.section = 'Enter a section.';
+  else if (sec.length > C.LABEL_MAX) errors.section = `Keep the section to ${C.LABEL_MAX} characters or fewer.`;
+  const t = normChecklistKey(type);
+  if (!C.ITEM_TYPES.includes(t)) {
+    errors.type = 'Choose a type.';
+  } else if (t === 'link') {
+    if (!isSafeChecklistUrl(url)) errors.linkUrl = 'Enter an https:// address or a Newton page such as people.html.';
+    else if (url.length > C.LABEL_MAX) errors.linkUrl = `Keep the link to ${C.LABEL_MAX} characters or fewer.`;
+  } else if (t === 'action' && !(actionKeys || []).includes(text(actionKey))) {
+    errors.actionKey = 'Choose an action from the list.';
+  }
+  if (text(help).length > C.HELP_MAX) errors.help = `Keep the help text to ${C.HELP_MAX} characters or fewer.`;
+  return { ok: Object.keys(errors).length === 0, errors };
+}

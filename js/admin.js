@@ -16,12 +16,13 @@ async function renderAdminPage() {
 async function renderAdminTab(tab) {
   _adminTab = tab;
   const main = document.getElementById('main-content');
-  const tabs = ['departments', 'delete', 'snapshots'];
-  const labels = { departments: 'Functional Areas', delete: 'Delete Records', snapshots: 'Snapshots' };
+  const tabs = ['departments', 'delete', 'snapshots', 'checklists'];
+  const labels = { departments: 'Functional Areas', delete: 'Delete Records', snapshots: 'Snapshots', checklists: 'Checklists' };
   const tooltips = {
     departments: 'Manage the list of functional areas used when categorising roles across the system.',
     delete:      'Permanently delete records from the system. Use with caution — this action cannot be undone.',
     snapshots:   'Write a weekly time-series snapshot (open roles, roles by stage, avg days open, placements, activity totals) for every active project.',
+    checklists:  'Build the Project and Role workflow checklists and switch them on.',
   };
   const tabBar = tabs.map(t =>
     `<button class="btn-filter${_adminTab === t ? ' active' : ''}"
@@ -32,6 +33,7 @@ async function renderAdminTab(tab) {
   if (tab === 'departments') content = await buildDepartmentsTab();
   if (tab === 'delete')      content = await buildDeleteTab();
   if (tab === 'snapshots')   content = await buildSnapshotsTab();
+  if (tab === 'checklists')  content = await buildChecklistsTab();   // checklist-admin.js (N-266b)
 
   main.innerHTML = `
     <div class="page-header">

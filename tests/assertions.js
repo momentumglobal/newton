@@ -1096,4 +1096,52 @@ var ASSERTIONS = [
       ].forEach(u => _assertEqual(isSafeChecklistUrl(u), false, 'reject ' + JSON.stringify(u)));
     },
   },
+
+  // ── N-266b — Config Panel checklist editor (utils.js) ───────────────
+  {
+    name: 'N-266b validateChecklistItem — valid tick / link / action; every error path; registry keys passed in',
+    fn: function () {
+      const C    = CONFIG.CHECKLISTS;
+      const keys = ['newton.test'];
+      const v    = (over, k = keys) => validateChecklistItem(Object.assign({
+        label: 'Kick-off call booked', section: 'Setup', type: 'tick', linkUrl: '', actionKey: '', help: '',
+      }, over), k);
+      const errs = (over, k) => Object.keys(v(over, k).errors).sort();
+
+      _assertEqual(v({}), { ok: true, errors: {} }, 'valid tick');
+      _assertEqual(v({ type: 'link', linkUrl: 'https://momentumglobal.sharepoint.com/sites/x/Playbook.docx' }).ok, true, 'valid https link');
+      _assertEqual(v({ type: 'link', linkUrl: 'people.html#tracker' }).ok, true, 'valid Newton page link');
+      _assertEqual(v({ type: 'action', actionKey: 'newton.test' }).ok, true, 'valid action');
+      _assertEqual(v({ type: ' Link ', linkUrl: 'people.html' }).ok, true, 'type is case/space-insensitive');
+      _assertEqual(v({ linkUrl: 'javascript:alert(1)', actionKey: 'nope' }).ok, true, 'a tick ignores the unused link/action fields');
+      _assertEqual(v({ label: '<script>"x"</script>\'' }).ok, true, 'markup in a label is text, not an error');
+
+      _assertEqual(errs({ label: '' }), ['label'], 'empty label');
+      _assertEqual(errs({ label: '   ' }), ['label'], 'whitespace-only label');
+      _assertEqual(errs({ label: 'x'.repeat(C.LABEL_MAX + 1) }), ['label'], 'label over LABEL_MAX');
+      _assertEqual(v({ label: 'x'.repeat(C.LABEL_MAX) }).ok, true, 'label at LABEL_MAX');
+      _assertEqual(v({ label: '  ' + 'x'.repeat(C.LABEL_MAX) + '  ' }).ok, true, 'length counted after trimming');
+      _assertEqual(errs({ section: '' }), ['section'], 'empty section');
+      _assertEqual(errs({ section: '\t ' }), ['section'], 'whitespace-only section');
+      _assertEqual(errs({ section: 's'.repeat(C.LABEL_MAX + 1) }), ['section'], 'section over LABEL_MAX');
+      _assertEqual(errs({ type: 'checkbox' }), ['type'], 'unknown type');
+      _assertEqual(errs({ type: '' }), ['type'], 'no type');
+      _assertEqual(errs({ type: 'link', linkUrl: '' }), ['linkUrl'], 'link with no URL');
+      _assertEqual(errs({ type: 'link', linkUrl: 'javascript:alert(1)' }), ['linkUrl'], 'javascript: URL');
+      _assertEqual(errs({ type: 'link', linkUrl: 'JaVaScRiPt:alert(1)' }), ['linkUrl'], 'mixed-case javascript: URL');
+      _assertEqual(errs({ type: 'link', linkUrl: 'http://example.com' }), ['linkUrl'], 'http: URL');
+      _assertEqual(errs({ type: 'link', linkUrl: 'https://example.com/' + 'a'.repeat(C.LABEL_MAX) }), ['linkUrl'], 'URL over the single-line column limit');
+      _assertEqual(errs({ type: 'action', actionKey: 'newton.nope' }), ['actionKey'], 'unknown action key');
+      _assertEqual(errs({ type: 'action', actionKey: '' }), ['actionKey'], 'no action key');
+      _assertEqual(errs({ type: 'action', actionKey: 'newton.test' }, []), ['actionKey'], 'keys come from the argument, not a global');
+      _assertEqual(Object.keys(validateChecklistItem({ label: 'a', section: 'b', type: 'action', actionKey: 'newton.test' }).errors),
+        ['actionKey'], 'no keys argument → no action is valid');
+      _assertEqual(errs({ help: 'h'.repeat(C.HELP_MAX + 1) }), ['help'], 'help over HELP_MAX');
+      _assertEqual(v({ help: 'h'.repeat(C.HELP_MAX) }).ok, true, 'help at HELP_MAX');
+      _assertEqual(errs({ label: ' ', section: '', type: 'link', linkUrl: 'data:text/html,x', help: 'h'.repeat(C.HELP_MAX + 1) }),
+        ['help', 'label', 'linkUrl', 'section'], 'every error reported at once');
+      _assertEqual(typeof v({ label: '' }).errors.label, 'string', 'errors carry a message');
+      _assertEqual(validateChecklistItem().ok, false, 'no argument → invalid, no throw');
+    },
+  },
 ];

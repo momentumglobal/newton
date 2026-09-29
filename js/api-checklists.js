@@ -77,6 +77,10 @@ async function setChecklistItemDone(recordType, recordId, itemKey, done, existin
   return { rowId: result && result.id ? String(result.id) : null };
 }
 
+// AppSettings column prefix per record type — shared by the reader and
+// setChecklistSettings() below.
+const _CK_SETTINGS_PREFIX = { project: 'ChecklistProject', role: 'ChecklistRole' };
+
 // Switch-on state per record type from the AppSettings 'config' row.
 // OnAt is a date-only column (display only; N-266b writes it).
 // Missing row/columns → off, never switched on. fromId is a Number or null.
@@ -91,5 +95,68 @@ async function getChecklistSettings() {
       onAt:    (row && row[`${prefix}OnAt`]) || null,
     };
   };
-  return { project: read('ChecklistProject'), role: read('ChecklistRole') };
+  return { project: read(_CK_SETTINGS_PREFIX.project), role: read(_CK_SETTINGS_PREFIX.role) };
+}
+
+// ── Config Panel editor writes (N-266b) ─────────────────────────────
+// Template writes always go through createItem/updateItem: they invalidate
+// both cache tiers, and ChecklistTemplates is tier-2 enrolled — a raw
+// graphRequest would leave the old content cached for 10 minutes. Fields use
+// internal names (Title for the label). A create omits null/undefined
+// fields; an update sends null to clear a column (e.g. LinkUrl when an item
+// stops being a link).
+async function createChecklistItem(fields) {
+  const clean = {};
+  Object.entries(fields || {}).forEach(([k, v]) => {
+    if (v !== null && v !== undefined) clean[k] = v;
+  });
+  return createItem('ChecklistTemplates', clean);
+}
+
+async function updateChecklistItem(id, fields) {
+  return updateItem('ChecklistTemplates', _ckInt(id), fields);
+}
+
+// Drops the cached template rows so the next read is fresh. The editor calls
+// it after a failed write, when it can't be sure what SharePoint holds.
+function refreshChecklistTemplates() {
+  _cacheInvalidate('ChecklistTemplates');
+}
+
+// PATCHes the switch-on columns for one record type on the AppSettings
+// 'config' row (created if missing — same shape as setAnnouncementMessage).
+// Writes only the fields passed. FromId is the one-shot watermark: once set
+// it is never moved, so a write that passes fromId while one is already
+// stored is refused rather than silently re-cutting.
+async function setChecklistSettings(recordType, { enabled, fromId, onAt } = {}) {
+  const prefix = _CK_SETTINGS_PREFIX[_ckRecordType(recordType)];
+  const fields = {};
+  if (enabled !== undefined) fields[`${prefix}Enabled`] = enabled === true;
+  if (fromId  !== undefined) fields[`${prefix}FromId`]  = _ckInt(fromId);
+  if (onAt    !== undefined) fields[`${prefix}OnAt`]    = onAt;
+  if (!Object.keys(fields).length) return;
+  const row = await _getAppSettingsRow();
+  if (fromId !== undefined && row) {
+    const stored = row[`${prefix}FromId`];
+    if (stored !== null && stored !== undefined && stored !== '') {
+      throw new Error('The checklist cut-off is already set and can\'t be moved.');
+    }
+  }
+  if (row) await updateItem('AppSettings', row.id, fields);
+  else     await createItem('AppSettings', { Title: 'config', ...fields });
+}
+
+// Highest item id in Projects or Roles (0 when empty) — the switch-on
+// watermark is this + 1. SharePoint ids are monotonic and never reused, so
+// every record created afterwards has a higher id. Id-only read of the whole
+// list (like getListItemCount), never a scoped read. The cache is dropped
+// first: Projects is tier-2 cached for 10 minutes, and a stale max would put
+// records created in that window — before switch-on — inside the cut-off.
+async function getMaxItemId(listName) {
+  if (listName !== 'Projects' && listName !== 'Roles') {
+    throw new Error(`getMaxItemId: unsupported list ${listName}`);
+  }
+  _cacheInvalidate(listName);
+  const rows = await getItems(listName, '', 'Id');
+  return rows.reduce((max, r) => Math.max(max, Number(r.id) || 0), 0);
 }

@@ -3678,6 +3678,11 @@ body {
 }
 .ck-admin-section-name { color: var(--text-heading); font-weight: var(--fw-semibold); }
 .ck-admin-item--retired td { color: var(--text-label); }
+/* N-267: the site-wide .btn-danger rests at --text-muted (under 4.5:1) and
+   only turns red on hover; in the editor the Delete button reads as
+   destructive at rest. Disabled = never-ticked rule not met. */
+.ck-admin .btn-danger { color: var(--status-danger); }
+.ck-admin .btn-danger:disabled { color: var(--text-label); background: none; cursor: not-allowed; }
 
 .ck-admin-form {
   max-width: 720px;

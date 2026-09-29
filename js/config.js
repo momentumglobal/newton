@@ -75,12 +75,24 @@ const CONFIG = {
 
   // ── Project & Role checklists (N-266a) ────────────────────────────
   // Content lives in the ChecklistTemplates SharePoint list; switch-on state
-  // in AppSettings. Variants are DERIVED — [DEFAULT_VARIANT, ...PROJECT_TYPES]
-  // via checklistVariants() in utils.js — never a second hard-coded list.
+  // in AppSettings. Variants come from VARIANTS below (N-267), read through
+  // checklistVariants() / checklistVariantForProjectType() in utils.js.
   CHECKLISTS: {
     RECORD_TYPES:    ['project', 'role'],
     ITEM_TYPES:      ['tick', 'link', 'action'],
     DEFAULT_VARIANT: 'Default',
+    // Checklist variants (N-267). `key` is what ChecklistTemplates.Variant
+    // stores — never rename a key once items use it. `label` is display only.
+    // `projectTypes` are the Projects.ProjectType values that use the
+    // variant; a type listed nowhere (or blank) uses DEFAULT_VARIANT, and an
+    // empty variant falls back to DEFAULT_VARIANT too. The first entry must be
+    // DEFAULT_VARIANT. Deliberately NOT derived from SPLIT_FEE_PROJECT_TYPES —
+    // that is a revenue rule; this grouping is a separate decision.
+    VARIANTS: [
+      { key: 'Default',        label: 'Embedded (default)',  projectTypes: ['Embedded'] },
+      { key: 'CoE',            label: 'CoE',                 projectTypes: ['CoE'] },
+      { key: 'ExecSearchMGAI', label: 'Exec Search & MG AI', projectTypes: ['Exec Search', 'MG AI'] },
+    ],
     DEFAULT_SECTION: 'General',   // heading for items with a blank Section
     LABEL_MAX:       255,
     HELP_MAX:        2000,

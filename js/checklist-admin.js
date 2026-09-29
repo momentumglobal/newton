@@ -28,6 +28,7 @@ let _ckaBusy        = false; // a write is running — every control in the tab 
 let _ckaVariantRows = {};    // variant → rows of the selected type (retired included)
 let _ckaSections    = [];    // groupChecklistItems() of the selected type + variant
 let _ckaItems       = [];    // _ckaSections flattened — display order, retired included
+let _ckaTicked      = null;  // Set of ItemKeys with tick history (N-267); null = couldn't check
 
 const _CKA_TEXT = {
   project: { one: 'Project', many: 'projects', list: 'Projects', spList: 'Projects' },
@@ -100,6 +101,15 @@ async function buildChecklistsTab() {
       <i data-lucide="info" aria-hidden="true"></i>
       <span>Checklist lists not found — create ChecklistTemplates / ChecklistProgress and the AppSettings Checklist* columns (see Readme).</span>
     </div>`;
+  }
+
+  // Delete is only offered for never-ticked items (N-267). A failed read
+  // disables every Delete button rather than guessing.
+  try {
+    _ckaTicked = await getTickedChecklistKeys(_ckType);
+  } catch (e) {
+    console.warn('Checklists tab: could not read tick history', e);
+    _ckaTicked = null;
   }
 
   const variants = checklistVariants();
@@ -253,11 +263,11 @@ function _ckaPickerHtml() {
     const n = activeChecklistItems(_ckaRows(v), _ckType, v).length;
     return `
           <button type="button" class="btn-filter${_ckVariant === v ? ' active' : ''}" id="ck-variant-${i}" aria-pressed="${_ckVariant === v}"
-            onclick="ckaSelectVariant(${i})">${escHtml(v)} (${n})</button>`;
+            onclick="ckaSelectVariant(${i})">${escHtml(checklistVariantLabel(v))} (${n})</button>`;
   }).join('');
   const activeHere = activeChecklistItems(_ckaRows(_ckVariant), _ckType, _ckVariant).length;
   const hint = (_ckVariant !== CONFIG.CHECKLISTS.DEFAULT_VARIANT && activeHere === 0)
-    ? '<p class="ck-admin-hint">Uses Default until items are added.</p>'
+    ? `<p class="ck-admin-hint">Uses ${escHtml(checklistVariantLabel(CONFIG.CHECKLISTS.DEFAULT_VARIANT))} until items are added.</p>`
     : '';
   return `
       <div class="ck-admin-picker">
@@ -325,6 +335,12 @@ function _ckaItemRowHtml(it, first, last) {
   const active   = spYesNo(it.Active, true);
   const required = spYesNo(it.Required, false);
   const label    = String(it.ItemLabel ?? '');
+  const key      = String(it.ItemKey ?? '').trim();
+  // N-267: hard delete only for never-ticked items. delLock is a fixed
+  // string (no user content), so it's safe in the title attribute.
+  const delLock  = _ckaTicked === null
+    ? "Couldn't check whether this item has been ticked"
+    : (key && _ckaTicked.has(key) ? 'This item has been ticked on a checklist — retire it instead.' : '');
   return `
         <tr class="ck-admin-item${active ? '' : ' ck-admin-item--retired'}">
           <td>${escHtml(label || '(no label)')}${active ? '' : ' <span class="checklist-tag">Retired</span>'}</td>
@@ -337,6 +353,7 @@ function _ckaItemRowHtml(it, first, last) {
               <button type="button" class="btn-secondary btn-sm" id="ck-up-${id}" onclick="ckaMoveItem(${id}, -1)" aria-label="Move ${escAttr(label)} up"${first ? ' disabled' : ''}>↑</button>
               <button type="button" class="btn-secondary btn-sm" id="ck-down-${id}" onclick="ckaMoveItem(${id}, 1)" aria-label="Move ${escAttr(label)} down"${last ? ' disabled' : ''}>↓</button>
               <button type="button" class="btn-secondary btn-sm" id="ck-retire-${id}" onclick="ckaSetActive(${id}, ${active ? 'false' : 'true'})" aria-label="${active ? 'Retire' : 'Restore'} ${escAttr(label)}">${active ? 'Retire' : 'Restore'}</button>
+              <button type="button" class="btn-danger btn-sm" id="ck-delete-${id}" onclick="ckaDeleteItem(${id})" aria-label="Delete ${escAttr(label)}"${delLock ? ` disabled title="${delLock}"` : ''}>Delete</button>
             </div>
           </td>
         </tr>`;
@@ -347,12 +364,12 @@ function _ckaEmptyHtml() {
   const copy = sources.length ? `
           <div class="ck-admin-copy">
             <label for="ck-copy-src">Copy items from…</label>
-            <select id="ck-copy-src">${sources.map(v => `<option value="${escAttr(v)}">${escHtml(v)} (${_ckaRows(v).length})</option>`).join('')}</select>
+            <select id="ck-copy-src">${sources.map(v => `<option value="${escAttr(v)}">${escHtml(checklistVariantLabel(v))} (${_ckaRows(v).length})</option>`).join('')}</select>
             <button type="button" class="btn-secondary" id="ck-copy-btn" onclick="ckaCopyVariant()">Copy items</button>
           </div>` : '';
   return `
       <div class="ck-admin-empty">
-        <p>No ${_CKA_TEXT[_ckType].one.toLowerCase()} items in ${escHtml(_ckVariant)} yet.</p>
+        <p>No ${_CKA_TEXT[_ckType].one.toLowerCase()} items in ${escHtml(checklistVariantLabel(_ckVariant))} yet.</p>
         <div class="ck-admin-empty-actions">
           ${_ckaForm ? '' : '<button type="button" class="btn-primary" id="ck-add-btn" onclick="ckaOpenForm(null)">+ Add item</button>'}
           ${copy}
@@ -371,7 +388,7 @@ function _ckaFormHtml() {
   const err = f => `<div class="ck-admin-field-error" id="ck-err-${f}"></div>`;
   return `
       <fieldset class="form-section ck-admin-form" id="ck-form" data-ck-form="${it ? Number(it.id) : 'new'}">
-        <legend class="form-section-title">${it ? 'Edit item' : 'Add item'} — ${_CKA_TEXT[_ckType].list} · ${escHtml(_ckVariant)}</legend>
+        <legend class="form-section-title">${it ? 'Edit item' : 'Add item'} — ${_CKA_TEXT[_ckType].list} · ${escHtml(checklistVariantLabel(_ckVariant))}</legend>
         <div class="form-row">
           <div class="form-group">
             <label for="ck-f-section">Section *</label>
@@ -692,6 +709,48 @@ async function ckaSetActive(id, active) {
   });
 }
 
+// Hard delete (N-267) — only for items with no ChecklistProgress rows, so
+// tick history is never lost. Re-checks with a fresh read after the confirm:
+// someone (an Admin previewing) may have ticked it since the tab rendered.
+// Progress rows are never deleted. SharePoint's recycle bin is the only undo.
+async function ckaDeleteItem(id) {
+  if (_ckaBusy) return;
+  const idx = _ckaItems.findIndex(r => String(r.id) === String(id));
+  const it  = _ckaItems[idx];
+  if (!it) return;
+  const type  = _ckType;
+  const key   = String(it.ItemKey ?? '').trim();
+  const label = String(it.ItemLabel ?? '') || '(no label)';
+  const neighbour = _ckaItems[idx + 1] || _ckaItems[idx - 1] || null;
+  if (!(await confirmModal({
+    message: `Delete “${label}”? This removes it from the ${_CKA_TEXT[type].one.toLowerCase()} checklist for good.`,
+    confirmLabel: 'Delete',
+    danger: true,
+  }))) return;
+
+  _ckaLock('Deleting…');
+  try {
+    const ticked = await getTickedChecklistKeys(type, { fresh: true });
+    if (key && ticked.has(key)) {
+      toast('Someone has ticked this item — retire it instead.', { type: 'error' });
+      _ckaBusy = false;
+      await _ckaRender([`ck-retire-${Number(id)}`]);
+      return;
+    }
+    await deleteChecklistItem(it.id);
+    toast('Item deleted', { type: 'success' });
+  } catch (e) {
+    console.error('Checklist item delete failed:', e);
+    refreshChecklistTemplates();
+    toast(`Couldn't delete the item — ${e.message}`, { type: 'error' });
+    _ckaBusy = false;
+    await _ckaRender([`ck-delete-${Number(id)}`, `ck-edit-${Number(id)}`]);
+    return;
+  }
+  _ckaBusy = false;
+  await _ckaRender(neighbour ? [`ck-edit-${Number(neighbour.id)}`, 'ck-add-btn'] : ['ck-add-btn']);
+}
+
 // ── Copy items from another variant ──────────────────────────────────
 // Only into an EMPTY variant. Copies every source item (active and retired)
 // with a new ItemKey, one write at a time.
@@ -706,7 +765,7 @@ async function ckaCopyVariant() {
   try {
     const rows = await getChecklistTemplates(type);
     if (rows.some(r => _ckaSameVariant(r, target))) {
-      toast(`${target} already has items — copying only goes into an empty variant.`, { type: 'error' });
+      toast(`${checklistVariantLabel(target)} already has items — copying only goes into an empty variant.`, { type: 'error' });
       await _ckaRender();
       return;
     }
@@ -740,7 +799,7 @@ async function ckaCopyVariant() {
       });
       copied++;
     }
-    toast(`Copied ${copied} item${copied === 1 ? '' : 's'} from ${src}.`, { type: 'success' });
+    toast(`Copied ${copied} item${copied === 1 ? '' : 's'} from ${checklistVariantLabel(src)}.`, { type: 'success' });
   } catch (e) {
     console.error('Checklist copy failed:', e);
     refreshChecklistTemplates();

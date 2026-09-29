@@ -976,9 +976,12 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-266a checklistVariants — Default first, then CONFIG.PROJECT_TYPES (derived)',
+    name: 'N-266a checklistVariants — keys from CONFIG.CHECKLISTS.VARIANTS, Default first (N-267 grouping)',
     fn: function () {
-      _assertEqual(checklistVariants(), ['Default'].concat(CONFIG.PROJECT_TYPES), 'variants');
+      // N-267: was Default + one per PROJECT_TYPES value. Now the grouping
+      // table: Embedded = Default, CoE, Exec Search & MG AI shared.
+      _assertEqual(checklistVariants(), ['Default', 'CoE', 'ExecSearchMGAI'], 'variant keys');
+      _assertEqual(checklistVariants()[0], CONFIG.CHECKLISTS.DEFAULT_VARIANT, 'Default first');
     },
   },
   {
@@ -988,13 +991,15 @@ var ASSERTIONS = [
         { id: '1', RecordType: 'project', Variant: 'Default', ItemKey: 'a' },                 // Active never set
         { id: '2', RecordType: 'Project ', Variant: 'default', ItemKey: 'b', Active: 'Yes' }, // hand-entered casing
         { id: '3', RecordType: 'project', Variant: 'CoE', ItemKey: 'c', Active: false },      // retired only
-        { id: '4', RecordType: 'project', Variant: 'Exec Search', ItemKey: 'd', Active: 1 },
+        { id: '4', RecordType: 'project', Variant: 'ExecSearchMGAI', ItemKey: 'd', Active: 1 },  // N-267 grouped key
         { id: '5', RecordType: 'role', Variant: 'CoE', ItemKey: 'e' },
       ];
       _assertEqual(activeChecklistItems(T, 'project', 'Default').map(t => t.id), ['1', '2'], 'default project items incl. blank Active');
       _assertEqual(activeChecklistItems(T, 'project', 'CoE').length, 0, 'retired item excluded');
       _assertEqual(resolveChecklistVariant(T, 'project', 'CoE'), 'Default', 'CoE has only retired items → Default');
-      _assertEqual(resolveChecklistVariant(T, 'project', 'Exec Search'), 'Exec Search', 'type variant with active items');
+      _assertEqual(resolveChecklistVariant(T, 'project', 'Exec Search'), 'ExecSearchMGAI', 'Exec Search → grouped variant with active items');
+      _assertEqual(resolveChecklistVariant(T, 'project', 'MG AI'), 'ExecSearchMGAI', 'MG AI → same grouped variant');
+      _assertEqual(resolveChecklistVariant(T, 'project', 'Embedded'), 'Default', 'Embedded → Default');
       _assertEqual(resolveChecklistVariant(T, 'project', ''), 'Default', 'no project type → Default');
       _assertEqual(resolveChecklistVariant(T, 'project', undefined), 'Default', 'undefined project type → Default');
       _assertEqual(resolveChecklistVariant(T, 'role', 'CoE'), 'CoE', 'role inherits project type');
@@ -1142,6 +1147,61 @@ var ASSERTIONS = [
         ['help', 'label', 'linkUrl', 'section'], 'every error reported at once');
       _assertEqual(typeof v({ label: '' }).errors.label, 'string', 'errors carry a message');
       _assertEqual(validateChecklistItem().ok, false, 'no argument → invalid, no throw');
+    },
+  },
+
+  // ── N-267 — checklist variant grouping (config.js + utils.js) ───────
+  {
+    name: 'N-267 CONFIG.CHECKLISTS.VARIANTS — well-formed grouping table',
+    fn: function () {
+      const V = CONFIG.CHECKLISTS.VARIANTS;
+      _assertEqual(V[0].key, CONFIG.CHECKLISTS.DEFAULT_VARIANT, 'first entry is DEFAULT_VARIANT');
+      _assertEqual(new Set(V.map(v => v.key)).size, V.length, 'keys unique');
+      const mapped = [].concat(...V.map(v => v.projectTypes || []));
+      _assertEqual(mapped.filter(t => !CONFIG.PROJECT_TYPES.includes(t)), [], 'every mapped type is a real PROJECT_TYPES value');
+      _assertEqual(new Set(mapped).size, mapped.length, 'no project type in two variants');
+      V.forEach(v => _assertEqual(typeof v.label === 'string' && v.label.length > 0, true, 'label for ' + v.key));
+    },
+  },
+  {
+    name: 'N-267 checklistVariantForProjectType / checklistVariantLabel — Embedded = Default, Exec Search + MG AI grouped',
+    fn: function () {
+      const f = checklistVariantForProjectType;
+      _assertEqual(f('Embedded'), 'Default', 'Embedded');
+      _assertEqual(f('CoE'), 'CoE', 'CoE');
+      _assertEqual(f('Exec Search'), 'ExecSearchMGAI', 'Exec Search');
+      _assertEqual(f('MG AI'), 'ExecSearchMGAI', 'MG AI');
+      _assertEqual(f(' mg ai '), 'ExecSearchMGAI', 'case/space-insensitive');
+      _assertEqual(f(''), 'Default', 'blank');
+      _assertEqual(f(undefined), 'Default', 'undefined');
+      _assertEqual(f(null), 'Default', 'null');
+      _assertEqual(f('Internal'), 'Default', 'unlisted type');
+      _assertEqual(f('Something New'), 'Default', 'unknown type');
+      _assertEqual(checklistVariantLabel('Default'), 'Embedded (default)', 'Default label');
+      _assertEqual(checklistVariantLabel('CoE'), 'CoE', 'CoE label');
+      _assertEqual(checklistVariantLabel('ExecSearchMGAI'), 'Exec Search & MG AI', 'grouped label');
+      _assertEqual(checklistVariantLabel(' default '), 'Embedded (default)', 'hand-typed key casing');
+      _assertEqual(checklistVariantLabel('Legacy'), 'Legacy', 'unknown key shown as-is');
+      _assertEqual(checklistVariantLabel(undefined), '', 'undefined key');
+    },
+  },
+  {
+    name: 'N-267 resolveChecklistVariant — grouped variant, CoE and Default fallback; legacy per-type rows never used',
+    fn: function () {
+      const T = [
+        { id: '1', RecordType: 'project', Variant: 'Default', ItemKey: 'a' },
+        { id: '2', RecordType: 'project', Variant: 'Exec Search', ItemKey: 'legacy1' },  // pre-N-267 key
+        { id: '3', RecordType: 'project', Variant: 'MG AI', ItemKey: 'legacy2' },        // pre-N-267 key
+        { id: '4', RecordType: 'role', Variant: 'ExecSearchMGAI', ItemKey: 'r' },
+        { id: '5', RecordType: 'project', Variant: 'CoE', ItemKey: 'c' },
+      ];
+      _assertEqual(resolveChecklistVariant(T, 'project', 'Exec Search'), 'Default', 'legacy "Exec Search" rows ignored → Default');
+      _assertEqual(resolveChecklistVariant(T, 'project', 'MG AI'), 'Default', 'legacy "MG AI" rows ignored → Default');
+      _assertEqual(resolveChecklistVariant(T, 'role', 'MG AI'), 'ExecSearchMGAI', 'MG AI role uses grouped role items');
+      _assertEqual(resolveChecklistVariant(T, 'role', 'Exec Search'), 'ExecSearchMGAI', 'Exec Search role uses the same');
+      _assertEqual(resolveChecklistVariant(T, 'role', 'CoE'), 'Default', 'CoE role with no role items → Default');
+      _assertEqual(resolveChecklistVariant(T, 'project', 'CoE'), 'CoE', 'CoE project');
+      _assertEqual(resolveChecklistVariant(T, 'project', 'Embedded'), 'Default', 'Embedded project');
     },
   },
 ];

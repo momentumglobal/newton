@@ -1778,10 +1778,29 @@ function normChecklistKey(val) {
   return String(val ?? '').trim().toLowerCase();
 }
 
-// Every variant a checklist can have: Default + each Projects.ProjectType.
-// Derived, never a second hard-coded list.
+// Every variant key a checklist can have, in display order — from
+// CONFIG.CHECKLISTS.VARIANTS (N-267; was Default + each ProjectType).
 function checklistVariants() {
-  return [CONFIG.CHECKLISTS.DEFAULT_VARIANT, ...CONFIG.PROJECT_TYPES];
+  return CONFIG.CHECKLISTS.VARIANTS.map(v => v.key);
+}
+
+// Display label for a variant key ('Default' → 'Embedded (default)'). Keys
+// are what SharePoint stores; labels are never written or compared.
+function checklistVariantLabel(key) {
+  const k = normChecklistKey(key);
+  const hit = CONFIG.CHECKLISTS.VARIANTS.find(v => normChecklistKey(v.key) === k);
+  return hit ? hit.label : String(key ?? '');
+}
+
+// The variant key a Projects.ProjectType maps to (Exec Search and MG AI share
+// one). Blank or unlisted types → DEFAULT_VARIANT.
+function checklistVariantForProjectType(projectType) {
+  const t = normChecklistKey(projectType);
+  if (t) {
+    const hit = CONFIG.CHECKLISTS.VARIANTS.find(v => (v.projectTypes || []).some(p => normChecklistKey(p) === t));
+    if (hit) return hit.key;
+  }
+  return CONFIG.CHECKLISTS.DEFAULT_VARIANT;
 }
 
 // Active template items for one record type + variant (unordered — see
@@ -1795,12 +1814,14 @@ function activeChecklistItems(templates, recordType, variant) {
     spYesNo(t.Active, true));
 }
 
-// Which variant a record uses: its project's type when that variant has at
-// least one ACTIVE item for this record type, else Default. Roles pass their
-// parent project's ProjectType.
+// Which variant a record uses: the variant its project's type maps to
+// (checklistVariantForProjectType) when that variant has at least one ACTIVE
+// item for this record type, else Default. Roles pass their parent project's
+// ProjectType.
 function resolveChecklistVariant(templates, recordType, projectType) {
-  if (projectType && activeChecklistItems(templates, recordType, projectType).length) {
-    return projectType;
+  const v = checklistVariantForProjectType(projectType);
+  if (v !== CONFIG.CHECKLISTS.DEFAULT_VARIANT && activeChecklistItems(templates, recordType, v).length) {
+    return v;
   }
   return CONFIG.CHECKLISTS.DEFAULT_VARIANT;
 }

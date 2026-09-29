@@ -195,7 +195,7 @@ function _ckHeaderHtml(recordType, title, subtitle, recordId = 0) {
 }
 
 function _checklistPageHtml(v) {
-  const variantLabel = v.variant === CONFIG.CHECKLISTS.DEFAULT_VARIANT ? 'Default checklist' : `${v.variant} checklist`;
+  const variantLabel = checklistVariantLabel(v.variant);
   const person = e => (e ? (v.tpMap[String(e).toLowerCase()] || e) : '—');
   const meta = v.recordType === 'project'
     ? `Delivery Manager: ${person(v.record.DeliveryManager)}`

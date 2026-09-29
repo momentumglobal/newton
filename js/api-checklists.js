@@ -123,6 +123,25 @@ function refreshChecklistTemplates() {
   _cacheInvalidate('ChecklistTemplates');
 }
 
+// Hard delete of one template item (N-267). The editor only offers it for
+// items with no ChecklistProgress rows — see getTickedChecklistKeys().
+// deleteItem invalidates both cache tiers. ChecklistProgress is never
+// touched from here.
+async function deleteChecklistItem(id) {
+  return deleteItem('ChecklistTemplates', _ckInt(id));
+}
+
+// ItemKeys with ANY ChecklistProgress row for a record type (N-267). A row is
+// only ever created by a tick, and unticking keeps it, so "any row" means
+// "has tick history". Uses the indexed Title filter only — ItemKey isn't
+// indexed, so it's matched client-side. fresh drops the 30s cache first (the
+// editor re-checks this way immediately before deleting).
+async function getTickedChecklistKeys(recordType, { fresh = false } = {}) {
+  if (fresh) _cacheInvalidate('ChecklistProgress');
+  const rows = await getChecklistProgress(recordType);
+  return new Set(rows.map(r => String(r.ItemKey ?? '').trim()).filter(Boolean));
+}
+
 // PATCHes the switch-on columns for one record type on the AppSettings
 // 'config' row (created if missing — same shape as setAnnouncementMessage).
 // Writes only the fields passed. FromId is the one-shot watermark: once set

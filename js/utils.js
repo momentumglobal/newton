@@ -1955,3 +1955,62 @@ function validateChecklistItem({ label, section, type, linkUrl, actionKey, help 
   if (text(help).length > C.HELP_MAX) errors.help = `Keep the help text to ${C.HELP_MAX} characters or fewer.`;
   return { ok: Object.keys(errors).length === 0, errors };
 }
+
+// ── N-268 (DS-0): RoleHistory backfill — pure reconstruction ─────────
+// `versions`: [{ versionId, modifiedAt, modifiedBy, stage }] as returned by
+// getRoleVersions() (api-admin.js), any order — sorted here (by time, then
+// version number). Returns the Stage transitions the history implies,
+// strictly BEFORE cutoffISO. Instant comparison: modifiedAt and cutoffISO
+// are both genuine instants, so no utcDateOnly — never mix OpenDate in.
+//   truncated        — oldest surviving version isn't '1.0' (SharePoint's
+//                      version cap trimmed it), so creation is unknown and
+//                      no creation row is emitted.
+//   skippedNullStage — versions carrying no Stage value; never a change.
+// Row shape: { oldValue, newValue, changedAt, changedBy }. The creation row
+// has oldValue '' — SharePoint reads it back as null, and the timeline's
+// falsy check (N-100 diff-4) treats both as "Role created".
+// Lives here, not in os-admin.js, so N-269 (survival TTF) can reuse it.
+function reconstructStageTransitions(versions, cutoffISO) {
+  const vnum = v => parseFloat(v.versionId) || 0;
+  const sorted = (versions || []).slice().sort((a, b) =>
+    (new Date(a.modifiedAt) - new Date(b.modifiedAt)) || (vnum(a) - vnum(b)));
+  const truncated = sorted.length > 0 && String(sorted[0].versionId) !== '1.0';
+  const cutoff = new Date(cutoffISO).getTime();
+  const rows = [];
+  let skippedNullStage = 0;
+  let last = null;
+  sorted.forEach((v, i) => {
+    if (!v.stage) { skippedNullStage++; return; }
+    if (last === null) {
+      if (i === 0 && !truncated) {
+        rows.push({ oldValue: '', newValue: v.stage, changedAt: v.modifiedAt, changedBy: v.modifiedBy || null });
+      }
+    } else if (v.stage !== last) {
+      rows.push({ oldValue: last, newValue: v.stage, changedAt: v.modifiedAt, changedBy: v.modifiedBy || null });
+    }
+    last = v.stage;
+  });
+  return {
+    rows: rows.filter(r => new Date(r.changedAt).getTime() < cutoff),
+    truncated,
+    skippedNullStage,
+  };
+}
+
+// Runs worker(item, index) over items with at most `limit` in flight and
+// resolves to the results in input order. No network I/O of its own. A
+// rejected worker rejects the whole call — callers that need per-item
+// failure isolation catch inside the worker (as N-268's callers do).
+async function runWithConcurrency(items, limit, worker) {
+  const results = new Array(items.length);
+  let next = 0;
+  const lane = async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await worker(items[i], i);
+    }
+  };
+  const lanes = Math.max(1, Math.min(limit || 1, items.length));
+  await Promise.all(Array.from({ length: lanes }, lane));
+  return results;
+}

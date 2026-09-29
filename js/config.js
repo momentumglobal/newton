@@ -297,6 +297,33 @@ const CONFIG = {
   // watching, and expect it to be named on the Data Health tab.
   DATA_HEALTH_EXCLUDED_LISTS: [],
 
+  // N-268 (DS-0). RoleHistory backfill from the Roles list's SharePoint
+  // version history — Admin > Data Health. One-off tool; these are its only
+  // tunables.
+  //   source            — written to RoleHistory.Source on every backfilled
+  //                       row. Blank Source = app-logged (every N-099 row).
+  //   readConcurrency   — roles whose version history is read at once. Each
+  //                       role's GETs still batch via N-188; this caps how
+  //                       many $batch envelopes are in flight together.
+  //   writeConcurrency  — roles written at once. Each role's rows are written
+  //                       in order and stop at the first failure, so a
+  //                       partial run leaves at most one half-written role
+  //                       per lane — and a re-run fills in only what's missing.
+  //   cutoffToleranceMs — a Roles edit made after N-099 creates a SharePoint
+  //                       version a moment BEFORE its app-logged RoleHistory
+  //                       row (ChangedAt is stamped client-side after
+  //                       updateItem resolves). Without a margin that edit
+  //                       would be recovered a second time. 5 minutes absorbs
+  //                       client/server clock skew.
+  //   previewRows       — rows shown in the dry-run preview table.
+  ROLE_HISTORY_BACKFILL: {
+    source:            'backfill',
+    readConcurrency:   5,
+    writeConcurrency:  4,
+    cutoffToleranceMs: 300000,
+    previewRows:       50,
+  },
+
   // N-174 (F-11a). Columns the Schema Check panel never reports as
   // "Unexpected", regardless of whether a list's FIELD_ALIASES/LIST_FIELDS
   // entry mentions them. 'Title' physically exists on every SharePoint

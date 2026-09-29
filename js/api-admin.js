@@ -70,3 +70,60 @@ async function getUserAssignments(projectId) {
   return getItems("UserAssignments",
     projectId ? `fields/ProjectID eq ${projectId}` : "");
 }
+
+// ── N-268 (DS-0): RoleHistory backfill ───────────────────────────────
+// One role's SharePoint version history, oldest first, normalised to
+// { versionId, modifiedAt, modifiedBy, stage }. The Step 0 probe (29 Sep
+// 2026, role 12: 16 versions, oldest '1.0', Stage 'Planning') confirmed a
+// per-version `?$expand=fields` GET returns Stage; it did not confirm the
+// collection GET carries fields. So: use the collection's fields where
+// present, and fall back to a per-version GET only for a version without
+// Stage. Every call is a GET through graphRequest, so N-188 batches them.
+// Stage is read under its internal name — Roles doesn't alias it.
+async function getRoleVersions(roleId) {
+  const base = `${listPath('Roles')}/${parseInt(roleId)}/versions`;
+  const raw = [];
+  let url = base;
+  while (url) {
+    const data = await graphRequest('GET', url);
+    raw.push(...(data.value || []));
+    url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH, '') : null;
+  }
+  const full = await Promise.all(raw.map(v =>
+    (v.fields && v.fields.Stage !== undefined)
+      ? v
+      : graphRequest('GET', `${base}/${encodeURIComponent(v.id)}?$expand=fields`).catch(e => {
+          console.warn('RoleHistory backfill: version read failed', roleId, v.id, e);
+          return v;
+        })
+  ));
+  return full
+    .map(v => ({
+      versionId:  String(v.id),
+      modifiedAt: v.lastModifiedDateTime,
+      modifiedBy: (v.lastModifiedBy && v.lastModifiedBy.user && v.lastModifiedBy.user.email) || null,
+      stage:      (v.fields && v.fields.Stage) || null,
+    }))
+    .sort((a, b) => new Date(a.modifiedAt) - new Date(b.modifiedAt));
+}
+
+// Whole RoleHistory list, every column — the backfill's skip rules need
+// ChangedAt, OldValue, NewValue and Source per role.
+async function getAllRoleHistory() {
+  return getItems('RoleHistory');
+}
+
+// One backfilled row. createItem, never graphRequest('POST') — only the
+// three write helpers invalidate the cache (Readme hard rule, N-176).
+async function createRoleHistoryBackfillRow(roleId, row) {
+  const src = CONFIG.ROLE_HISTORY_BACKFILL.source;
+  return createItem('RoleHistory', {
+    RoleIDLookupId: parseInt(roleId),
+    Field:          'Stage',
+    OldValue:       row.oldValue || '',
+    NewValue:       row.newValue || '',
+    ChangedBy:      row.changedBy || src,
+    ChangedAt:      row.changedAt,
+    Source:         src,
+  });
+}

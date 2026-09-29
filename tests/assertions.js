@@ -1204,4 +1204,29 @@ var ASSERTIONS = [
       _assertEqual(resolveChecklistVariant(T, 'project', 'Embedded'), 'Default', 'Embedded project');
     },
   },
+  {
+    name: 'N-268 reconstructStageTransitions — creation row, repeat/null skip, truncation, cutoff exclusive',
+    fn: function () {
+      const V = (id, t, stage) => ({ versionId: id, modifiedAt: t, modifiedBy: 'tp@example.com', stage });
+      const full = [
+        V('3.0', '2026-06-03T10:00:00Z', 'Sourcing'),   // deliberately out of order
+        V('1.0', '2026-06-01T10:00:00Z', 'Backlog'),
+        V('2.0', '2026-06-02T10:00:00Z', 'Backlog'),
+        V('4.0', '2026-06-04T10:00:00Z', null),
+        V('5.0', '2026-06-05T10:00:00Z', 'Cancelled'),
+      ];
+      const r = reconstructStageTransitions(full, '2026-07-01T00:00:00Z');
+      _assertEqual(r.rows.map(x => [x.oldValue, x.newValue]),
+        [['', 'Backlog'], ['Backlog', 'Sourcing'], ['Sourcing', 'Cancelled']], 'AC2 rows');
+      _assertEqual(r.skippedNullStage, 1, 'AC2 null-stage version skipped');
+      _assertEqual(r.truncated, false, 'AC2 not truncated');
+      _assertEqual([r.rows[2].changedAt, r.rows[2].changedBy], ['2026-06-05T10:00:00Z', 'tp@example.com'], 'instant + author from version');
+      const t = reconstructStageTransitions(full.filter(v => v.versionId !== '1.0' && v.versionId !== '2.0'), '2026-07-01T00:00:00Z');
+      _assertEqual(t.truncated, true, 'AC3 truncated');
+      _assertEqual(t.rows.map(x => [x.oldValue, x.newValue]), [['Sourcing', 'Cancelled']], 'AC3 no creation row');
+      const c = reconstructStageTransitions(full, '2026-06-05T10:00:00Z');
+      _assertEqual(c.rows.map(x => x.newValue), ['Backlog', 'Sourcing'], 'AC4 row exactly AT cutoff excluded');
+      _assertEqual(reconstructStageTransitions([], '2026-07-01T00:00:00Z'), { rows: [], truncated: false, skippedNullStage: 0 }, 'empty history');
+    },
+  },
 ];

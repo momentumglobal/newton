@@ -496,7 +496,8 @@ async function buildDataHealthTab() {
     + _dhRenderDataIntegrityHtml(data)
     + _dhRenderIndexStatusHtml(data)
     + _dhRenderSchemaCheckHtml(data)
-    + _dhRenderErrorTelemetryHtml(data);
+    + _dhRenderErrorTelemetryHtml(data)
+    + _dhRenderRoleHistoryBackfillHtml();
 }
 
 // ── Data Health Tab — data fetch (no DOM) ────────────────────────────
@@ -763,6 +764,228 @@ async function acknowledgeDiagnosticsGroup(idsCsv) {
     clearButtonLoading(btn);
     toast('Error acknowledging group: ' + e.message, { type: 'error' });
   }
+}
+
+// ── Data Health Tab — RoleHistory Backfill (N-268 / DS-0) ────────────
+// On demand, never on tab load: a dry run fans out one version-history read
+// per role. Two steps — Dry run (reads only) then Write (confirmed).
+let _rhBackfillPlan = null;  // last dry-run result; cleared once written
+
+function _dhRenderRoleHistoryBackfillHtml() {
+  const src = escHtml(CONFIG.ROLE_HISTORY_BACKFILL.source);
+  return `    <h3>RoleHistory Backfill</h3>
+    <p class="dh-note">
+      Rebuilds the Stage history of roles that pre-date the audit trail
+      (N-099, 19 Aug 2026) from the Roles list's SharePoint version history,
+      so their Timeline and the time-to-fill analytics see the full journey.
+      Dry run only reads. Write adds the recovered transitions to RoleHistory
+      tagged Source = ${src}. Safe to re-run: roles created after N-100 are
+      skipped, and rows already backfilled are never written twice. There is
+      no undo here — to roll back, filter RoleHistory by Source = ${src} in
+      SharePoint and delete those rows.
+    </p>
+    <button class="btn-secondary" onclick="runRoleHistoryBackfillDryRun()">Dry run</button>
+    <div id="dh-rh-backfill"></div>
+`;
+}
+
+// Data only, no DOM. Skip rules per role (spec N-268 Approach 4, amended —
+// see diff Reference):
+//   - an app-logged creation row (Field Stage, falsy OldValue, falsy Source)
+//     → created after N-100, history already complete, skip;
+//   - cutoff = earliest APP-logged row's ChangedAt minus cutoffToleranceMs
+//     (no app rows → now); backfill rows never move the cutoff;
+//   - candidates already written by an earlier backfill (same NewValue and
+//     ChangedAt to the second) are dropped, so a re-run after a partial
+//     write fills in only what's missing.
+async function _dhFetchRoleHistoryBackfillPlan() {
+  const C = CONFIG.ROLE_HISTORY_BACKFILL;
+  const [roles, history] = await Promise.all([getAllRoles(), getAllRoleHistory()]);
+  const byRole = {};
+  history.forEach(h => {
+    const k = String(h.RoleIDLookupId);
+    (byRole[k] = byRole[k] || []).push(h);
+  });
+  const secKey = (stage, iso) => stage + '|' + Math.floor(new Date(iso).getTime() / 1000);
+  const nowMs = Date.now();
+  const counts = { skippedComplete: 0, skippedBackfilled: 0, noTransitions: 0, truncated: 0, skippedNullStage: 0 };
+  const plan = [];
+  const failures = [];
+
+  await runWithConcurrency(roles, C.readConcurrency, async role => {
+    const existing = byRole[String(role.id)] || [];
+    const appRows = existing.filter(h => h.Source !== C.source);
+    const doneRows = existing.filter(h => h.Source === C.source);
+    if (appRows.some(h => h.Field === 'Stage' && !h.OldValue)) { counts.skippedComplete++; return; }
+    const earliestMs = appRows.reduce((m, h) => {
+      const t = new Date(h.ChangedAt).getTime();
+      return isNaN(t) ? m : Math.min(m, t);
+    }, nowMs);
+    const cutoffISO = new Date(earliestMs - C.cutoffToleranceMs).toISOString();
+    let versions;
+    try {
+      versions = await getRoleVersions(role.id);
+    } catch (e) {
+      console.warn('RoleHistory backfill: versions read failed for role ' + role.id, e);
+      failures.push(role);
+      return;
+    }
+    const r = reconstructStageTransitions(versions, cutoffISO);
+    if (r.truncated) counts.truncated++;
+    counts.skippedNullStage += r.skippedNullStage;
+    const written = new Set(doneRows.map(h => secKey(h.NewValue, h.ChangedAt)));
+    const rows = r.rows.filter(x => !written.has(secKey(x.newValue, x.changedAt)));
+    if (!rows.length) {
+      if (doneRows.length) counts.skippedBackfilled++; else counts.noTransitions++;
+      return;
+    }
+    plan.push({ role, rows });
+  });
+
+  plan.sort((a, b) => Number(a.role.id) - Number(b.role.id));
+  const rowsTotal = plan.reduce((n, p) => n + p.rows.length, 0);
+  const allRows = plan.flatMap(p => p.rows);
+  const earliestISO = allRows.reduce((m, x) => (!m || new Date(x.changedAt) < new Date(m)) ? x.changedAt : m, null);
+
+  // Headline: roles currently at `stage` with a known date for reaching it,
+  // before and after this backfill.
+  const stageCoverage = stage => {
+    const at = roles.filter(r => r.Stage === stage);
+    const planned = new Set(plan.filter(p => p.rows.some(x => x.newValue === stage)).map(p => String(p.role.id)));
+    const before = at.filter(r => (byRole[String(r.id)] || []).some(h => h.Field === 'Stage' && h.NewValue === stage));
+    const beforeIds = new Set(before.map(r => String(r.id)));
+    const recovered = at.filter(r => !beforeIds.has(String(r.id)) && planned.has(String(r.id))).length;
+    return { stage, total: at.length, before: before.length, recovered, after: before.length + recovered };
+  };
+
+  return {
+    scanned: roles.length, counts, failures, plan, rowsTotal, earliestISO,
+    coverage: [stageCoverage('Cancelled'), stageCoverage('Hired')],
+  };
+}
+
+function _dhRoleLabel(role) {
+  return escHtml(role.Location ? `${role.RoleTitle} (${role.Location})` : (role.RoleTitle || ('Role ' + role.id)));
+}
+
+function _dhFmtInstant(iso) {
+  return iso ? new Date(iso).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+}
+
+function _dhRenderRoleHistoryBackfillPlanHtml(p) {
+  const C = CONFIG.ROLE_HISTORY_BACKFILL;
+  const c = p.counts;
+  const summary = [
+    ['Roles scanned', p.scanned],
+    ['Skipped — created after N-100 (history already complete)', c.skippedComplete],
+    ['Skipped — already backfilled, nothing missing', c.skippedBackfilled],
+    ['No recoverable transitions', c.noTransitions],
+    ['Version history truncated (no creation row recovered)', c.truncated],
+    ['Versions with no Stage value (ignored)', c.skippedNullStage],
+    ['Version reads failed', p.failures.length],
+    ['Roles with transitions to write', p.plan.length],
+    ['Transitions recoverable', p.rowsTotal],
+    ['Earliest recovered date', _dhFmtInstant(p.earliestISO)],
+  ].map(([k, v]) => `
+      <tr><td>${k}</td><td>${typeof v === 'number' ? v.toLocaleString('en-GB') : v}</td></tr>`).join('');
+
+  const headline = p.coverage.map(s =>
+    `<strong>${escHtml(s.stage)} roles with a known ${escHtml(s.stage.toLowerCase())} date: ${s.after} of ${s.total}</strong>
+      (${s.before} already, ${s.recovered} recovered by this run)`).join('<br>');
+
+  const preview = p.plan.flatMap(item => item.rows.map(row => ({ role: item.role, row }))).slice(0, C.previewRows);
+  const previewRows = preview.map(({ role, row }) => `
+      <tr>
+        <td>${_dhRoleLabel(role)}</td>
+        <td>${row.oldValue ? escHtml(row.oldValue) : '<span class="dh-muted">created</span>'} → ${escHtml(row.newValue)}</td>
+        <td>${_dhFmtInstant(row.changedAt)}</td>
+        <td>${escHtml(row.changedBy || '—')}</td>
+      </tr>`).join('');
+
+  const failed = p.failures.length
+    ? `<p class="dh-note">Version reads failed for: ${p.failures.map(_dhRoleLabel).join(', ')} — the browser console has the errors. Those roles are not in this plan; re-run the dry run to retry them.</p>`
+    : '';
+
+  const action = p.rowsTotal
+    ? `<button class="btn-primary" onclick="writeRoleHistoryBackfill()">Write ${p.rowsTotal.toLocaleString('en-GB')} rows to RoleHistory</button>
+    <p class="dh-note" id="dh-rh-backfill-progress"></p>`
+    : '<p class="dh-note">Nothing to write.</p>';
+
+  return `
+    <p class="dh-note">${headline}</p>
+    <div class="table-scroll">
+    <table class="data-table dh-table-tight">
+      <thead><tr><th>Dry run</th><th>Count</th></tr></thead>
+      <tbody>${summary}</tbody>
+    </table>
+    </div>
+    ${failed}
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Role</th><th>Stage change</th><th>Changed at</th><th>Changed by</th></tr></thead>
+      <tbody>${previewRows || emptyStateRow({ colspan: 4, icon: 'history', message: 'No transitions to recover.' })}</tbody>
+    </table>
+    </div>
+    ${preview.length < p.rowsTotal ? `<p class="dh-note">Showing the first ${preview.length} of ${p.rowsTotal.toLocaleString('en-GB')} rows.</p>` : ''}
+    ${action}
+`;
+}
+
+async function runRoleHistoryBackfillDryRun() {
+  // N-106 pattern: capture the button synchronously, before any await.
+  const btn = event?.target;
+  const out = document.getElementById('dh-rh-backfill');
+  setButtonLoading(btn, 'Reading version history…');
+  try {
+    _rhBackfillPlan = await _dhFetchRoleHistoryBackfillPlan();
+    out.innerHTML = _dhRenderRoleHistoryBackfillPlanHtml(_rhBackfillPlan);
+    lucide.createIcons();
+  } catch (e) {
+    toast('Dry run failed: ' + e.message, { type: 'error' });
+  } finally {
+    clearButtonLoading(btn);
+  }
+}
+
+async function writeRoleHistoryBackfill() {
+  const btn = event?.target;
+  const p = _rhBackfillPlan;
+  if (!p || !p.rowsTotal) return;
+  const src = CONFIG.ROLE_HISTORY_BACKFILL.source;
+  if (!(await confirmModal({
+    message: `Write ${p.rowsTotal} recovered Stage rows for ${p.plan.length} roles to RoleHistory? There is no undo here — rollback is filtering RoleHistory by Source = ${src} in SharePoint.`,
+    confirmLabel: 'Write rows',
+  }))) return;
+  setButtonLoading(btn, 'Writing…');
+  const progress = document.getElementById('dh-rh-backfill-progress');
+  let written = 0;
+  const failed = [];
+  // Per role, in order; a role stops at its first failed row so it is never
+  // left with a gap in the middle. A re-run writes only what's missing.
+  await runWithConcurrency(p.plan, CONFIG.ROLE_HISTORY_BACKFILL.writeConcurrency, async item => {
+    for (const row of item.rows) {
+      try {
+        await createRoleHistoryBackfillRow(item.role.id, row);
+        written++;
+        if (progress) progress.textContent = `Written ${written} of ${p.rowsTotal}…`;
+      } catch (e) {
+        console.warn('RoleHistory backfill: write failed for role ' + item.role.id, e);
+        failed.push(item.role);
+        return;
+      }
+    }
+  });
+  _rhBackfillPlan = null;
+  clearButtonLoading(btn);
+  const out = document.getElementById('dh-rh-backfill');
+  out.innerHTML = `
+    <p class="dh-note"><strong>Written ${written} of ${p.rowsTotal} rows.</strong>
+      ${failed.length
+        ? 'Failed for: ' + failed.map(_dhRoleLabel).join(', ') + ' — the browser console has the errors. Run the dry run again to pick up the rest.'
+        : 'Run the dry run again — it should now report 0 transitions recoverable.'}
+    </p>`;
+  toast(failed.length ? `Backfill finished with ${failed.length} role(s) failed` : `Backfill written: ${written} rows`,
+    { type: failed.length ? 'error' : 'success' });
 }
 
 async function indexColumnNow(listName, columnId) {

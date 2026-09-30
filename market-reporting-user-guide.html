@@ -282,7 +282,7 @@
       <p><strong>IV&#8594;Offer</strong> — Offers &#247; Interview 1s. Captures the attrition between interview stage and offer.</p>
       <p><strong>Offer Success</strong> — Hires &#247; Offers. The final conversion from offer to accepted hire.</p>
       <h3>RAG status</h3>
-      <p>Each tile is rated green, amber, or red based on Newton's benchmark thresholds (configured in <code>CONFIG.ANALYTICS_BENCHMARKS</code>). Grey indicates insufficient data to calculate the rate. These are the same benchmarks used across the Predictive Analytics scorecards in the People module.</p>
+      <p>Each tile is rated green, amber, or red against a <strong>learned benchmark</strong>: what other hired roles in the same function and location actually achieved, learned from Weekly Activity. The roles you are looking at are left out, so a selection is never benchmarked against itself. Where there is little data the benchmark leans toward Newton's company targets (<code>CONFIG.ANALYTICS_BENCHMARKS</code>), and it never drops below 80% of the target. A benchmark can sit above target in a strong market, so hitting the target may still show amber. With no filters selected there are no peers to compare against, so the company targets apply. Hover over a tile (or a breakdown dot) to see the benchmark used. Grey indicates insufficient data to calculate the rate. The People module scorecards use the same model, weighted to each Talent Partner's mix.</p>
     </div>
 
     <div class="guide-section" id="pa-breakdown">

@@ -41,12 +41,15 @@ async function mobileRenderScorecards(main) {
   main.innerHTML = skeletonList(4);
 
   try {
-    const [activityRaw, historical, tpMap, allRoles] = await Promise.all([
-      getActivityForAnalytics(13),
+    // N-270: 52 weeks fetched once — the full window feeds the learned
+    // benchmarks; everything on the cards stays on the 13-week slice.
+    const [activity52, historical, tpMap, allRoles] = await Promise.all([
+      getActivityForAnalytics(52),
       getHistoricalPlacements(),
       getTalentPartnerDisplayMap(),
       getAllRoles(),
     ]);
+    const activityRaw = activitySinceWeeks(activity52, 13);
 
     let tpEmails = [...new Set(activityRaw.map(a => a.TalentPartner).filter(Boolean))];
     tpEmails = await filterToActiveTpEmails(tpEmails, tpMap);
@@ -67,7 +70,9 @@ async function mobileRenderScorecards(main) {
       return;
     }
 
-    const benchmarks = CONFIG.ANALYTICS_BENCHMARKS;
+    // N-270: mix-weighted learned benchmark per TP (as desktop Scorecards).
+    const roleIndex = funnelRoleIndex(allRoles, 'Department', 'Location');
+    const benchObs  = buildFunnelObservations(activity52, roleIndex);
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 91);
     const recentPlacements = historical.filter(r =>
@@ -77,7 +82,8 @@ async function mobileRenderScorecards(main) {
     _mScCards = tpEmails.map(tpEmail => {
       const tpActivity   = activityRaw.filter(a => a.TalentPartner === tpEmail);
       const tpPlacements = recentPlacements.filter(r => tpMatches(r.tpEmail, tpEmail));
-      const scorecard    = computeVelocityScore(tpEmail, tpActivity, tpPlacements, benchmarks);
+      const bench        = learnFunnelBenchmarksMix(benchObs, buildFunnelObservations(tpActivity, roleIndex), { exclude: o => o.tp === tpEmail });
+      const scorecard    = computeVelocityScore(tpEmail, tpActivity, tpPlacements, bench);
       const tpRoles = allRoles.filter(r => !ACTIVE_STAGES.includes(r.Stage) &&
         tpMatches(r.TalentPartner, tpEmail));
       const flaggedRoles = tpRoles.filter(r => {

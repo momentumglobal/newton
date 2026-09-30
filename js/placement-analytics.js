@@ -3,7 +3,7 @@
 // ── State ─────────────────────────────────────────────────────────────
 let _paLocation      = "";   // selected Currency/Location filter value
 let _paFunctionArea  = "";   // selected Department filter value
-let _paData          = null; // { historical, activityRaw, benchmarks, allPlacements, openRoles }
+let _paData          = null; // { historical, activityRaw, allPlacements, openRoles }
 let _paBreakdownSort   = null; // N-247c: { key, dir } — Role Breakdown table
 let _paBreakdownSearch = "";   // N-247c: shared list search box (list-controls.js)
 
@@ -26,9 +26,7 @@ async function renderPlacementAnalytics() {
     getPlacements(null),
     getAllRoles(),
   ]);
-  const benchmarks = CONFIG.ANALYTICS_BENCHMARKS;
-
-  _paData = { historical, activityRaw, benchmarks, allPlacements, openRoles };
+  _paData = { historical, activityRaw, allPlacements, openRoles };
 
   // Build unique filter options from historical placements
   const locations     = _paUnique(historical, "country").sort();
@@ -108,7 +106,7 @@ function paRenderResults() {
 
 // ── Results aggregation (pure — no DOM) ─────────────────────────────────
 function _paComputeResults(data, location, functionArea) {
-  const { historical, activityRaw, benchmarks, allPlacements, openRoles } = data;
+  const { historical, activityRaw, allPlacements, openRoles } = data;
 
   // Filter historical placements by selected dimensions
   let filtered = historical;
@@ -142,7 +140,13 @@ function _paComputeResults(data, location, functionArea) {
     Offers:        sumField(filtAct, "Offers"),
     Hires:         sumField(filtAct, "Hires"),
   };
-  const funnelStages = computeRoleFunnel(totals, benchmarks);
+  // N-270: learned benchmarks. Learning population is HIRED roles only —
+  // this page's funnels are hired-role funnels, and learning from all roles
+  // (incl. cancelled) would bias them green. Leave-self-out: the roles being
+  // judged never count toward their own benchmark.
+  const benchObs     = buildFunnelObservations(activityRaw, funnelRoleIndex(historical, 'functionArea', 'country'));
+  const summaryBench = learnFunnelBenchmarks(benchObs, functionArea || null, location || null, { exclude: o => filteredIds.has(o.roleId) });
+  const funnelStages = computeRoleFunnel(totals, summaryBench);
 
   // ── Role-by-role breakdown (grouped by RoleTitle + Location) ─────────
   const groupMap = {};
@@ -188,17 +192,18 @@ function _paComputeResults(data, location, functionArea) {
       const SYMBOLS = { GBP: '£', EUR: '€', USD: '$', CAD: 'CA$', AUD: 'A$', SGD: 'S$', AED: 'AED', ZAR: 'R', LKR: 'LKR' };
       const sym = SYMBOLS[currency] || currency;
 
-      const roleFunnel = computeRoleFunnel(roleTotals, benchmarks);
+      const bench      = learnFunnelBenchmarks(benchObs, group.functionArea || null, group.country || null, { exclude: o => groupIds.has(o.roleId) });
+      const roleFunnel = computeRoleFunnel(roleTotals, bench);
 
-      return { key: group.key, functionArea: group.functionArea, roleTotals, avgTth, avgSalary, sym, roleFunnel };
+      return { key: group.key, functionArea: group.functionArea, roleTotals, avgTth, avgSalary, sym, roleFunnel, bench };
     });
 
-  return { empty: false, ttfResult, avgTTHDays, sampleSize, totals, funnelStages, groups, groupCount: Object.keys(groupMap).length };
+  return { empty: false, ttfResult, avgTTHDays, sampleSize, totals, funnelStages, summaryBench, groups, groupCount: Object.keys(groupMap).length };
 }
 
 // ── Results HTML (pure — no fetching) ────────────────────────────────
 function _paRenderResultsHtml(results, location, functionArea) {
-  const { ttfResult, avgTTHDays, sampleSize, totals, funnelStages, groups, groupCount } = results;
+  const { ttfResult, avgTTHDays, sampleSize, totals, funnelStages, summaryBench, groups, groupCount } = results;
 
   const ragDot = rag => {
     const colours = { green: "var(--status-success-text)", amber: "var(--c-amber-mid)", red: "var(--c-red-mid)", grey: "var(--c-gray-300)" };
@@ -253,8 +258,8 @@ function _paRenderResultsHtml(results, location, functionArea) {
       <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
       <div style="font-size:15px;font-weight:600;color:var(--brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--border-subtle)">Funnel Drop-off</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
-        ${funnelStages.map(s => `
-          <div style="flex:1;min-width:130px;background:var(--surface-tint);border:1px solid var(--border);border-radius:6px;padding:14px 16px">
+        ${funnelStages.map((s, i) => `
+          <div title="${_paEsc(learnedBenchmarkTip(summaryBench, LEARNED_RATES[i].key))}" style="flex:1;min-width:130px;background:var(--surface-tint);border:1px solid var(--border);border-radius:6px;padding:14px 16px">
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">${s.stage}</div>
             <div style="font-size:22px;font-weight:700;color:var(--brand)">
               ${s.conv !== null ? s.conv + "%" : "—"}
@@ -286,7 +291,7 @@ function _paRenderResultsHtml(results, location, functionArea) {
   const sortedGroups = sortRows(searchedGroups, _paBreakdownSort, PA_BREAKDOWN_SORT_COLUMNS);
   const rows = sortedGroups.map(group => {
       const funnelSummary = group.roleFunnel
-        .map(s => `<span title="${s.stage}: ${s.conv !== null ? s.conv + "%" : "—"}">${ragDot(s.rag)}</span>`)
+        .map((s, i) => `<span title="${s.stage}: ${s.conv !== null ? s.conv + "%" : "—"} — ${_paEsc(learnedBenchmarkTip(group.bench, LEARNED_RATES[i].key))}">${ragDot(s.rag)}</span>`)
         .join("");
 
       return `

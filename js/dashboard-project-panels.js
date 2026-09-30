@@ -434,7 +434,6 @@ function renderPlacementsPanel(placements, roles, period) {
 // ── Role Analytics panel (Phase A + B) ───────────────────────────────
 
 async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {}) {
-  const b = CONFIG.ANALYTICS_BENCHMARKS;
   const EXCLUDED = ['Backlog', 'Cancelled', 'On-hold', 'Hired'];
   const activeRoles = roles.filter(r => !EXCLUDED.includes(r.Stage));
 
@@ -450,6 +449,9 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
   const allRoleMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), r])
   );
+  // N-270: learned benchmarks — learning population is every role (this
+  // panel judges live roles). Built once, not per row.
+  const benchObs = buildFunnelObservations(activity, funnelRoleIndex(allRoles, 'Department', 'Location'));
 
     // Derive unique groups from live roles: key = "RoleTitle (Location)" or "RoleTitle"
   // (LinkTitle fallback removed in N-052 — computed system column, excluded by
@@ -475,19 +477,23 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
       totals[f] = sumField(acts, f);
     });
 
-    const funnel = computeRoleFunnel(totals, b);
+    // N-270: leave-group-out — the group's own roles never count toward the
+    // benchmark it is judged against.
+    const groupIds = new Set(allRoles.filter(r => groupKey(r) === key).map(r => String(r.id)));
+    const bench  = learnFunnelBenchmarks(benchObs, meta.department, meta.location, { exclude: o => groupIds.has(o.roleId) });
+    const funnel = computeRoleFunnel(totals, bench);
     const ttf    = computeTTFPrediction(meta.department, meta.location, historical, allRoles);
 
     const flags = funnel.filter(s => s.benchmarked).map(s => s.rag);
     const worst = flags.includes('red') ? 'red'
       : flags.includes('amber') ? 'amber' : 'green';
 
-    return { key, meta, funnel, ttf, worst };
+    return { key, meta, funnel, ttf, worst, bench };
   });
 
   rows.sort((a, b) => a.key.localeCompare(b.key));
 
-  const tableRows = rows.map(({ key, meta, funnel, ttf }) => {
+  const tableRows = rows.map(({ key, meta, funnel, ttf, bench }) => {
     // N-269: faded when pooled to function level or when there is no median.
     const ttfClass = (ttf.weeks === null || ttf.pooled) ? 'ttf-badge ttf-badge--low-data' : 'ttf-badge';
     const ttfTip   = ttf.basis
@@ -496,9 +502,10 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
       : `Fewer than ${CONFIG.TTF_SURVIVAL.minEvents} hires in the last 12 months for this function`;
     const ttfCell  = `<td class='ra-ttf' style="text-align:center"><span class='${ttfClass}' title="${escHtml(ttfTip)}">${ttf.label}</span></td>`;
 
-    const flagCells = funnel.filter(s => s.benchmarked).map(s => {
+    const flagCells = funnel.filter(s => s.benchmarked).map((s, i) => {
       const label = s.conv !== null ? `${s.conv}%` : '—';
-      return `<td class='ra-cell'><strong>${label}</strong></td>`;
+      const tip   = escHtml(learnedBenchmarkTip(bench, LEARNED_RATES[i].key));
+      return `<td class='ra-cell' title="${tip}"><strong>${label}</strong></td>`;
     }).join('');
 
     return `<tr>

@@ -487,6 +487,20 @@ const CONFIG = {
     minBandDays: 7,  // floor for the ± band
   },
 
+  // N-270: learned funnel benchmarks (analytics.js learnFunnelBenchmarks).
+  // Beta-binomial: each level's rate is shrunk toward its parent's with
+  // priorStrength pseudo-trials; the top level shrinks toward
+  // ANALYTICS_BENCHMARKS. Tunable — larger = trust the target more.
+  LEARNED_BENCHMARKS: {
+    priorStrength: {             // pseudo-trials, per rate (denominator scales differ ~100x)
+      outreachConversion:   200,
+      submissionConversion: 20,
+      interviewToOffer:     20,
+      offerSuccess:         10,
+    },
+    floorFraction: 0.80,         // learned rate never below 80% of the ANALYTICS_BENCHMARKS target
+  },
+
   UTILISATION_THRESHOLDS: {
   green: 0.85,  // >= 85% billed = healthy
   amber: 0.75,  // >= 75% billed = watch

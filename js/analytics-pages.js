@@ -7,12 +7,15 @@ async function renderScorecardsPage() {
   const main = document.getElementById('main-content');
   main.innerHTML = skeletonList(4);
 
-  const [activityRaw, historical, tpMap, allRoles] = await Promise.all([
-    getActivityForAnalytics(13),
+  // N-270: 52 weeks fetched once — the full window feeds the learned
+  // benchmarks; everything on the cards stays on the 13-week slice.
+  const [activity52, historical, tpMap, allRoles] = await Promise.all([
+    getActivityForAnalytics(52),
     getHistoricalPlacements(),
     getTalentPartnerDisplayMap(),
     getAllRoles(),
   ]);
+  const activityRaw = activitySinceWeeks(activity52, 13);
 
   // Get unique TP emails from activity, then drop inactive employees
   let tpEmails = [...new Set(activityRaw.map(a => a.TalentPartner).filter(Boolean))];
@@ -39,7 +42,11 @@ async function renderScorecardsPage() {
     return;
   }
 
-  const benchmarks = CONFIG.ANALYTICS_BENCHMARKS;
+  // N-270: learning population = every role; each TP is benchmarked
+  // against a mix weighted by their own 13-week volume per
+  // function × location, with their own activity left out.
+  const roleIndex = funnelRoleIndex(allRoles, 'Department', 'Location');
+  const benchObs  = buildFunnelObservations(activity52, roleIndex);
 
   // Filter historical to last 13 weeks
   const cutoff = new Date();
@@ -51,7 +58,8 @@ async function renderScorecardsPage() {
   const cards = tpEmails.map(tpEmail => {
     const tpActivity   = activityRaw.filter(a => a.TalentPartner === tpEmail);
     const tpPlacements = recentPlacements.filter(r => tpMatches(r.tpEmail, tpEmail));
-    const scorecard    = computeVelocityScore(tpEmail, tpActivity, tpPlacements, benchmarks);
+    const bench        = learnFunnelBenchmarksMix(benchObs, buildFunnelObservations(tpActivity, roleIndex), { exclude: o => o.tp === tpEmail });
+    const scorecard    = computeVelocityScore(tpEmail, tpActivity, tpPlacements, bench);
     const tpRoles      = allRoles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tpEmail));
     const flaggedRoles = tpRoles.filter(r => {
     const acts = activityRaw.filter(a => String(a.RoleIDLookupId) === String(r.id));
@@ -61,7 +69,7 @@ async function renderScorecardsPage() {
     const flaggedRag = flaggedPct === null ? 'grey'
       : flaggedPct < 0.25 ? 'green'
       : flaggedPct <= 0.50 ? 'amber' : 'red';
-    return renderScorecardPanel(scorecard, tpMap, { total: tpRoles.length, flagged: flaggedRoles, rag: flaggedRag });
+    return renderScorecardPanel(scorecard, tpMap, { total: tpRoles.length, flagged: flaggedRoles, rag: flaggedRag }, bench);
   }).join('');
 
   main.innerHTML = `
@@ -89,7 +97,7 @@ async function getScopedTpEmails(userEmail) {
   return allowed;
 }
 
-function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null) {
+function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null, bench = null) {
   const displayName = tpMap[scorecard.tpEmail.toLowerCase()] || scorecard.tpEmail;
   const overallRag  = roleHealth ? roleHealth.rag : 'grey';
 
@@ -104,9 +112,11 @@ function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null) {
   const rows = scorecard.metrics.map(m => {
     const display = m.value !== null ? `${m.value}${m.unit === '%' ? '%' : ' ' + m.unit}` : '—';
     const ragClass = m.informational ? 'sc-grey' : `sc-${m.rag}`;
+    const benchKey = bench && SCORECARD_BENCHMARK_KEYS[m.label];
+    const tipAttr  = benchKey ? ` title="${escHtml(learnedBenchmarkTip(bench, benchKey))}"` : '';
     return `<tr>
       <td class='sc-label'>${m.label}</td>
-      <td class='sc-value ${ragClass}' style="text-align:center">${m.informational ? '' : ragMarkerHTML(m.rag)}${display}</td>
+      <td class='sc-value ${ragClass}'${tipAttr} style="text-align:center">${m.informational ? '' : ragMarkerHTML(m.rag)}${display}</td>
     </tr>`;
   }).join('');
 

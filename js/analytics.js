@@ -177,6 +177,178 @@ function computeVelocityScore(tpEmail, activity, placements, benchmarks) {
   };
 }
 
+// ── Phase D — Learned funnel benchmarks (N-270) ───────────────────────
+// Beta-binomial conversion rates learned from WeeklyActivity. Each level's
+// rate is shrunk toward its parent's with
+// CONFIG.LEARNED_BENCHMARKS.priorStrength pseudo-trials:
+//   company → function → function × location (or location alone)
+// and the company level shrinks toward CONFIG.ANALYTICS_BENCHMARKS (the
+// prior). The result never drops below target × floorFraction, so a market
+// that is weak everywhere still reads red. `opts.exclude` removes whatever
+// is being judged from EVERY level (leave-self-out) — a role group is never
+// benchmarked against itself. Returns an ANALYTICS_BENCHMARKS-shaped object
+// plus `meta`, so it drops into computeRoleFunnel / computeVelocityScore
+// unchanged. Weekly counts are not cohorts, so each observation's numerator
+// is clamped to its denominator (N-271 flags those rows; here they're only
+// kept from pushing a rate past 1).
+
+// ORDER MUST MATCH computeRoleFunnel's stages — it keeps its own inline
+// mapping (its tests deep-equal the full return). Asserted in tests.
+const LEARNED_RATES = [
+  { key: 'outreachConversion',   num: 'Responses',  den: 'Outreach'   },
+  { key: 'submissionConversion', num: 'Interview1', den: 'Submitted'  },
+  { key: 'interviewToOffer',     num: 'Offers',     den: 'Interview1' },
+  { key: 'offerSuccess',         num: 'Hires',      den: 'Offers'     },
+];
+// Scorecard metric label → benchmark key. Only the rows computeVelocityScore
+// judges against a benchmark; Interview-to-offer uses its own fixed ratio.
+const SCORECARD_BENCHMARK_KEYS = {
+  'Outreach conversion':   'outreachConversion',
+  'Submission conversion': 'submissionConversion',
+  'Offer success':         'offerSuccess',
+};
+const _FUNNEL_COUNT_FIELDS = ['Outreach', 'Responses', 'Submitted', 'Interview1', 'Offers', 'Hires'];
+
+// Map String(id) → { fn, loc }. Adapts the two role shapes:
+// getAllRoles() ('Department', 'Location') and getHistoricalPlacements()
+// ('functionArea', 'country'). The roles passed ARE the learning population.
+function funnelRoleIndex(roles, fnKey, locKey) {
+  const index = new Map();
+  (roles || []).forEach(r => {
+    if (r && r.id != null) index.set(String(r.id), { fn: r[fnKey] || '', loc: r[locKey] || '' });
+  });
+  return index;
+}
+
+// WeeklyActivity rows → one observation per (role, TP), counts summed.
+// Rows whose role isn't in roleIndex are dropped.
+function buildFunnelObservations(activity, roleIndex) {
+  const byKey = new Map();
+  (activity || []).forEach(a => {
+    const roleId = String(a.RoleIDLookupId || a.RoleID || '');
+    const role   = roleIndex.get(roleId);
+    if (!role) return;
+    const tp  = a.TalentPartner || '';
+    const key = roleId + '|' + tp;
+    let o = byKey.get(key);
+    if (!o) {
+      o = { roleId, tp, fn: role.fn, loc: role.loc, c: {} };
+      _FUNNEL_COUNT_FIELDS.forEach(f => { o.c[f] = 0; });
+      byKey.set(key, o);
+    }
+    _FUNNEL_COUNT_FIELDS.forEach(f => { o.c[f] += Math.max(Number(a[f]) || 0, 0); });
+  });
+  return [...byKey.values()];
+}
+
+// Falsy fn / loc = no filter on that dimension (as computeTTFPrediction).
+function learnFunnelBenchmarks(obs, fn, loc, opts = {}) {
+  const prior   = opts.prior   || CONFIG.ANALYTICS_BENCHMARKS;
+  const cfg     = opts.cfg     || CONFIG.LEARNED_BENCHMARKS;
+  const exclude = opts.exclude || (() => false);
+  const pool    = (obs || []).filter(o => !exclude(o));
+
+  const levels = [{ basis: 'all', match: () => true }];
+  if (fn)  levels.push({ basis: 'function', match: o => o.fn === fn });
+  if (loc) levels.push(fn
+    ? { basis: 'function+location', match: o => o.fn === fn && o.loc === loc }
+    : { basis: 'location',          match: o => o.loc === loc });
+
+  const out = { ...prior, meta: {} };
+  LEARNED_RATES.forEach(({ key, num, den }) => {
+    const mu0   = prior[key];
+    const kappa = cfg.priorStrength[key];
+    let mu = mu0, n = 0;
+    levels.forEach(level => {
+      let k = 0;
+      n = 0;
+      pool.forEach(o => {
+        if (!level.match(o)) return;
+        k += Math.min(o.c[num], o.c[den]);
+        n += o.c[den];
+      });
+      mu = (k + kappa * mu) / (n + kappa);  // empty level → parent's rate
+    });
+    const floor   = mu0 * cfg.floorFraction;
+    const floored = mu < floor;
+    const value   = floored ? floor : mu;
+    out[key] = value;
+    out.meta[key] = {
+      value, prior: mu0, n, basis: levels[levels.length - 1].basis,
+      floored, fn: fn || null, loc: loc || null,
+    };
+  });
+  return out;
+}
+
+// Scorecards: a TP works across several function × location cells. Each
+// rate's benchmark is the average of the cells' learned rates, weighted by
+// the TP's own denominator for that rate in each cell (weightObs = the TP's
+// observations). No volume on a rate → the company-level learned rate.
+function learnFunnelBenchmarksMix(obs, weightObs, opts = {}) {
+  const prior = opts.prior || CONFIG.ANALYTICS_BENCHMARKS;
+  const cells = new Map();
+  (weightObs || []).forEach(w => {
+    const key = w.fn + '|' + w.loc;
+    let cell = cells.get(key);
+    if (!cell) {
+      cell = { fn: w.fn, loc: w.loc, w: {} };
+      LEARNED_RATES.forEach(r => { cell.w[r.key] = 0; });
+      cells.set(key, cell);
+    }
+    LEARNED_RATES.forEach(r => { cell.w[r.key] += w.c[r.den]; });
+  });
+  const learned = [...cells.values()].map(cell => ({
+    ...cell, b: learnFunnelBenchmarks(obs, cell.fn || null, cell.loc || null, opts),
+  }));
+
+  let company = null;
+  const out = { ...prior, meta: {} };
+  LEARNED_RATES.forEach(({ key }) => {
+    const used   = learned.filter(c => c.w[key] > 0);
+    const totalW = used.reduce((s, c) => s + c.w[key], 0);
+    if (!totalW) {
+      company = company || learnFunnelBenchmarks(obs, null, null, opts);
+      out[key] = company[key];
+      out.meta[key] = { ...company.meta[key] };
+      return;
+    }
+    const value = used.reduce((s, c) => s + c.w[key] * c.b[key], 0) / totalW;
+    out[key] = value;
+    out.meta[key] = {
+      value, prior: prior[key], n: used.reduce((s, c) => s + c.b.meta[key].n, 0),
+      basis: 'mix', cells: used.length, floored: used.every(c => c.b.meta[key].floored),
+      fn: null, loc: null,
+    };
+  });
+  return out;
+}
+
+// Plain-text tooltip — callers escape it for title="". A benchmarks object
+// without `meta` (plain CONFIG) reads as the company target.
+function learnedBenchmarkTip(benchmarks, key) {
+  const pctText = x => `${Math.round(x * 100)}%`;
+  const b = benchmarks || {};
+  const m = b.meta && b.meta[key];
+  if (!m) return `Benchmark ${pctText(b[key])} · company target`;
+  const nText  = Number(m.n).toLocaleString('en-GB');
+  const target = `${pctText(m.prior)} target`;
+  let tip;
+  if (m.basis === 'mix') {
+    tip = `Benchmark ${pctText(m.value)} · weighted across ${m.cells} function × location mix${m.cells !== 1 ? 'es' : ''} this TP works in (${m.n > 0 ? `n=${nText}` : 'no direct peers yet'})`;
+  } else {
+    const where = m.basis === 'function+location' ? `${m.fn} × ${m.loc}`
+      : m.basis === 'function' ? m.fn
+      : m.basis === 'location' ? m.loc
+      : 'company-wide';
+    tip = m.n > 0
+      ? `Benchmark ${pctText(m.value)} · learned from ${where} peers (n=${nText}), shrunk toward ${target}`
+      : `Benchmark ${pctText(m.value)} · no ${where} peers yet, so taken from the wider pool, shrunk toward ${target}`;
+  }
+  if (m.floored) tip += ` · floored at ${pctText(m.value)} (${pctText(m.value / m.prior)} of ${target})`;
+  return tip;
+}
+
 // ── Role flag helpers (shared by cc-pages.js and analytics-pages.js) ──
 const ACTIVE_STAGES = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled', 'On-hold'];
 const STAGE_ORDER   = ['Sourcing', 'Interview 1', 'Interview 2+', 'Final Interview'];

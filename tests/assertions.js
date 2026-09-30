@@ -1285,4 +1285,148 @@ var ASSERTIONS = [
       _assertEqual([all.basis, all.events, all.censored], ['all', 4, 1], 'AC12 no filters');
     },
   },
+  {
+    name: 'N-270 learnFunnelBenchmarks — worked example, floor, no data, clamp, leave-self-out, pass-through',
+    fn: function () {
+      const ok = (cond, label) => _assertEqual(!!cond, true, label);
+      const r6 = x => Math.round(x * 1e6) / 1e6;
+      const prior = { outreachConversion: 0.25, submissionConversion: 0.8, interviewToOffer: 0.2, offerSuccess: 0.8, timeToHireDays: 45, flagThreshold: 0.8 };
+      const cfg = { priorStrength: { outreachConversion: 200, submissionConversion: 20, interviewToOffer: 20, offerSuccess: 10 }, floorFraction: 0.8 };
+      const O = (roleId, fn, loc, c) => ({ roleId, tp: 'tp@x.com', fn, loc,
+        c: Object.assign({ Outreach: 0, Responses: 0, Submitted: 0, Interview1: 0, Offers: 0, Hires: 0 }, c) });
+      // Spec worked example: G k=300 n=1000, F (Eng) k=100 n=500, C (Eng × PT) k=10 n=100.
+      const obs = [
+        O('1', 'Eng', 'PT', { Outreach: 100, Responses: 10 }),
+        O('2', 'Eng', 'UK', { Outreach: 400, Responses: 90 }),
+        O('3', 'Sales', 'UK', { Outreach: 500, Responses: 200 }),
+      ];
+      const opts = { prior, cfg };
+      const c = learnFunnelBenchmarks(obs, 'Eng', 'PT', opts);
+      const cm = c.meta.outreachConversion;
+      _assertEqual([r6(c.outreachConversion), cm.floored, cm.basis, cm.n], [0.2, true, 'function+location', 100], 'AC1 C floored to 0.20');
+      const cLow = learnFunnelBenchmarks(obs, 'Eng', 'PT', { prior, cfg: { ...cfg, floorFraction: 0.5 } });
+      _assertEqual(r6(cLow.outreachConversion), 0.184127, 'AC1 C unfloored value');
+      const f = learnFunnelBenchmarks(obs, 'Eng', null, opts);
+      _assertEqual([r6(f.outreachConversion), f.meta.outreachConversion.floored, f.meta.outreachConversion.basis], [0.22619, false, 'function'], 'AC1 F level');
+      const g = learnFunnelBenchmarks(obs, null, null, opts);
+      _assertEqual([r6(g.outreachConversion), g.meta.outreachConversion.basis, g.meta.outreachConversion.n], [0.291667, 'all', 1000], 'AC1 G level');
+      const loc = learnFunnelBenchmarks(obs, null, 'UK', opts);
+      _assertEqual(loc.meta.outreachConversion.basis, 'location', 'location-only basis');
+
+      const none = learnFunnelBenchmarks([], 'Eng', 'PT', opts);
+      LEARNED_RATES.forEach(({ key }) => {
+        _assertEqual([none[key], none.meta[key].floored, none.meta[key].n], [prior[key], false, 0], 'AC2 no data ' + key);
+      });
+
+      const clamp = learnFunnelBenchmarks([O('7', 'Eng', 'UK', { Submitted: 10, Interview1: 12, Offers: 5, Hires: 50 })], null, null, opts);
+      _assertEqual([r6(clamp.submissionConversion), clamp.meta.submissionConversion.n], [0.866667, 10], 'AC3 clamp k=min(num,den)');
+      LEARNED_RATES.forEach(({ key }) => { ok(clamp[key] <= 1, 'AC3 ' + key + ' <= 1'); });
+
+      // AC4: single group in its cell at 60% vs a 25% target.
+      const solo = [O('9', 'Ops', 'DE', { Outreach: 100, Responses: 60 }), O('3', 'Sales', 'UK', { Outreach: 500, Responses: 100 })];
+      const lso = learnFunnelBenchmarks(solo, 'Ops', 'DE', { ...opts, exclude: o => o.roleId === '9' });
+      ok(Math.abs(lso.outreachConversion - 0.6) > 0.01, 'AC4 not benchmarked against itself');
+      const peersOnly = learnFunnelBenchmarks(solo.filter(o => o.roleId !== '9'), 'Ops', null, opts);
+      _assertEqual(r6(lso.outreachConversion), r6(peersOnly.outreachConversion), 'AC4 equals peers-only function level');
+      const withSelf = learnFunnelBenchmarks(solo, 'Ops', 'DE', opts);
+      ok(r6(withSelf.outreachConversion) !== r6(lso.outreachConversion), 'AC4 positive control — exclusion changes the result');
+
+      const whole = learnFunnelBenchmarks(obs, null, null, { ...opts, exclude: () => true });
+      LEARNED_RATES.forEach(({ key }) => { _assertEqual(whole[key], prior[key], 'AC5 whole book ' + key); });
+
+      _assertEqual([c.timeToHireDays, c.flagThreshold], [45, 0.8], 'AC6 pass-through');
+      const before = JSON.stringify(CONFIG.ANALYTICS_BENCHMARKS);
+      const live = learnFunnelBenchmarks(obs, 'Eng', 'PT');
+      _assertEqual(JSON.stringify(CONFIG.ANALYTICS_BENCHMARKS), before, 'AC6 CONFIG not mutated');
+      _assertEqual([live.timeToHireDays, live.flagThreshold], [CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays, CONFIG.ANALYTICS_BENCHMARKS.flagThreshold], 'AC6 CONFIG pass-through');
+    },
+  },
+  {
+    name: 'N-270 buildFunnelObservations / funnelRoleIndex / learnFunnelBenchmarksMix',
+    fn: function () {
+      const idx = funnelRoleIndex([{ id: 1, Department: 'Eng', Location: 'UK' }, { id: 2, Department: 'Ops', Location: 'DE' }], 'Department', 'Location');
+      const acts = [
+        { RoleIDLookupId: 1, TalentPartner: 'a@x.com', Outreach: 10, Responses: 2 },
+        { RoleIDLookupId: 1, TalentPartner: 'a@x.com', Outreach: 5, Responses: 1 },
+        { RoleID: 2, TalentPartner: 'b@x.com', Outreach: 3 },
+        { RoleIDLookupId: 99, TalentPartner: 'a@x.com', Outreach: 100 },
+      ];
+      const obs = buildFunnelObservations(acts, idx);
+      _assertEqual(obs.map(o => [o.roleId, o.tp, o.fn, o.loc, o.c.Outreach, o.c.Responses]),
+        [['1', 'a@x.com', 'Eng', 'UK', 15, 3], ['2', 'b@x.com', 'Ops', 'DE', 3, 0]], 'AC7 aggregate, RoleID fallback, unknown role dropped');
+      const hIdx = funnelRoleIndex([{ id: 5, functionArea: 'X', country: 'Y' }], 'functionArea', 'country');
+      _assertEqual(hIdx.get('5'), { fn: 'X', loc: 'Y' }, 'AC7 historical shape');
+
+      const O = (roleId, tp, fn, loc, c) => ({ roleId, tp, fn, loc,
+        c: Object.assign({ Outreach: 0, Responses: 0, Submitted: 0, Interview1: 0, Offers: 0, Hires: 0 }, c) });
+      const peers = [
+        O('1', 'p@x.com', 'Eng', 'UK', { Outreach: 1000, Responses: 300, Offers: 10, Hires: 9 }),
+        O('2', 'p@x.com', 'Ops', 'DE', { Outreach: 1000, Responses: 200, Offers: 10, Hires: 7 }),
+      ];
+      const tpObs = [
+        O('3', 't@x.com', 'Eng', 'UK', { Outreach: 100, Responses: 10 }),
+        O('4', 't@x.com', 'Ops', 'DE', { Outreach: 300, Responses: 30 }),
+      ];
+      const all = peers.concat(tpObs);
+      const opts = { exclude: o => o.tp === 't@x.com' };
+      const mix = learnFunnelBenchmarksMix(all, tpObs, opts);
+      const a = learnFunnelBenchmarks(all, 'Eng', 'UK', opts).outreachConversion;
+      const b = learnFunnelBenchmarks(all, 'Ops', 'DE', opts).outreachConversion;
+      const r6 = x => Math.round(x * 1e6) / 1e6;
+      _assertEqual(r6(mix.outreachConversion), r6((100 * a + 300 * b) / 400), 'AC8 weighted by TP denominator');
+      _assertEqual([mix.meta.outreachConversion.basis, mix.meta.outreachConversion.cells], ['mix', 2], 'AC8 mix meta');
+      const company = learnFunnelBenchmarks(all, null, null, opts);
+      _assertEqual([mix.offerSuccess, mix.meta.offerSuccess.basis], [company.offerSuccess, 'all'], 'AC8 no TP offers → company rate');
+    },
+  },
+  {
+    name: 'N-270 learnedBenchmarkTip, LEARNED_RATES order, activitySinceWeeks',
+    fn: function () {
+      const ok = (cond, label) => _assertEqual(!!cond, true, label);
+      const prior = { outreachConversion: 0.25, submissionConversion: 0.8, interviewToOffer: 0.2, offerSuccess: 0.8, timeToHireDays: 45, flagThreshold: 0.8 };
+      const cfg = { priorStrength: { outreachConversion: 200, submissionConversion: 20, interviewToOffer: 20, offerSuccess: 10 }, floorFraction: 0.8 };
+      const O = (roleId, fn, loc, c) => ({ roleId, tp: '', fn, loc,
+        c: Object.assign({ Outreach: 0, Responses: 0, Submitted: 0, Interview1: 0, Offers: 0, Hires: 0 }, c) });
+      const obs = [
+        O('1', 'Eng', 'PT', { Outreach: 100, Responses: 10 }),
+        O('2', 'Eng', 'UK', { Outreach: 400, Responses: 90 }),
+        O('3', 'Sales', 'UK', { Outreach: 500, Responses: 200 }),
+      ];
+      const tips = [
+        learnedBenchmarkTip(learnFunnelBenchmarks(obs, 'Eng', 'PT', { prior, cfg }), 'outreachConversion'),
+        learnedBenchmarkTip(learnFunnelBenchmarks(obs, 'Eng', null, { prior, cfg }), 'outreachConversion'),
+        learnedBenchmarkTip(learnFunnelBenchmarks(obs, null, null, { prior, cfg }), 'outreachConversion'),
+        learnedBenchmarkTip({ outreachConversion: 0.25 }, 'outreachConversion'),
+        learnedBenchmarkTip(learnFunnelBenchmarksMix(obs, obs.slice(0, 2), { prior, cfg }), 'outreachConversion'),
+        learnedBenchmarkTip(learnFunnelBenchmarks(obs, 'Ops', 'DE', { prior, cfg }), 'outreachConversion'),
+      ];
+      _assertEqual(tips[0], 'Benchmark 20% · learned from Eng × PT peers (n=100), shrunk toward 25% target · floored at 20% (80% of 25% target)', 'AC9 floored');
+      _assertEqual(tips[1], 'Benchmark 23% · learned from Eng peers (n=500), shrunk toward 25% target', 'AC9 unfloored');
+      _assertEqual(tips[2], 'Benchmark 29% · learned from company-wide peers (n=1,000), shrunk toward 25% target', 'AC9 n formatting');
+      _assertEqual(tips[3], 'Benchmark 25% · company target', 'AC9 plain CONFIG');
+      ok(tips[4].indexOf('weighted across 2 function × location mixes this TP works in') > 0, 'AC9 mix');
+      _assertEqual(tips[5], 'Benchmark 29% · no Ops × DE peers yet, so taken from the wider pool, shrunk toward 25% target', 'AC9 empty cell wording');
+      tips.forEach((t, i) => ok(!/[<>]/.test(t), 'AC9 no HTML ' + i));
+
+      // AC10: LEARNED_RATES order matches computeRoleFunnel — raising only key i
+      // must turn only stage i non-green.
+      const totals = { Outreach: 100, Responses: 50, Submitted: 100, Interview1: 50, Offers: 25, Hires: 12 };
+      LEARNED_RATES.forEach(({ key }, i) => {
+        const bm = { outreachConversion: 0.1, submissionConversion: 0.1, interviewToOffer: 0.1, offerSuccess: 0.1, flagThreshold: 0.8 };
+        bm[key] = 0.99;
+        const rags = computeRoleFunnel(totals, bm).map(s => s.rag);
+        _assertEqual(rags.map((r, j) => j === i ? r !== 'green' : r === 'green'), [true, true, true, true], 'AC10 order ' + key);
+      });
+
+      const today = new Date(2026, 8, 29, 12);  // local; weeksAgoDay(13) → 2026-06-30
+      const rows = [
+        { WeekEndingDate: '2026-06-28T23:00:00Z' },
+        { WeekEndingDate: '2026-06-30T12:00:00Z' },
+        { WeekEndingDate: '2026-07-05T00:00:00Z' },
+        { Outreach: 1 },
+      ];
+      _assertEqual(activitySinceWeeks(rows, 13, today).map(r => r.WeekEndingDate), ['2026-06-30T12:00:00Z', '2026-07-05T00:00:00Z'], 'activitySinceWeeks 13w');
+      _assertEqual(activitySinceWeeks(rows, 0, today).length, 4, 'activitySinceWeeks 0 = all');
+    },
+  },
 ];

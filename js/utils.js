@@ -679,6 +679,20 @@ function weeksAgoDay(weeks, today = new Date()) {
   return localDayISO(cutoff);
 }
 
+// N-270: the WeeklyActivity rows whose WeekEndingDate falls on/after the day
+// `weeks` weeks ago — the client-side equivalent of
+// getActivityForAnalytics(weeks), for a page that fetches a longer window
+// once and needs a shorter slice of it too. spDateIn, never a raw
+// truncation (F-12). 0/falsy `weeks` = no window, every row returned.
+function activitySinceWeeks(acts, weeks, today = new Date()) {
+  const from = weeksAgoDay(weeks, today);
+  if (!from) return acts || [];
+  return (acts || []).filter(a => {
+    const day = a && a.WeekEndingDate ? spDateIn(a.WeekEndingDate) : null;
+    return !!day && day >= from;
+  });
+}
+
 // N-151: the lower bound for a list query that has BOTH a background date
 // window and an optional explicit period selection. The query must be a
 // superset of whatever either control needs, so an explicit selection WIDENS

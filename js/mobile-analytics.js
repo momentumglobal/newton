@@ -9,7 +9,7 @@
 // State
 let _maLocation     = '';
 let _maFunctionArea = '';
-let _maData         = null;  // { historical, activityRaw, benchmarks, openRoles }
+let _maData         = null;  // { historical, activityRaw, openRoles }
 
 function maEsc(str) {
   return String(str)
@@ -32,7 +32,7 @@ async function mobileRenderPlacementAnalytics(main) {
       getActivityForAnalytics(52),
       getAllRoles(),
     ]);
-    _maData = { historical, activityRaw, benchmarks: CONFIG.ANALYTICS_BENCHMARKS, openRoles };
+    _maData = { historical, activityRaw, openRoles };
 
     const locations     = maUnique(historical, 'country').sort();
     const functionAreas = maUnique(historical, 'functionArea').sort();
@@ -76,7 +76,7 @@ function maRenderResults() {
   const container = document.getElementById('ma-results');
   if (!container || !_maData) return;
 
-  const { historical, activityRaw, benchmarks, openRoles } = _maData;
+  const { historical, activityRaw, openRoles } = _maData;
 
   let filtered = historical;
   if (_maLocation)     filtered = filtered.filter(r => r.country      === _maLocation);
@@ -111,7 +111,11 @@ function maRenderResults() {
     Offers:     sumField(filtAct, 'Offers'),
     Hires:      sumField(filtAct, 'Hires'),
   };
-  const funnelStages = computeRoleFunnel(totals, benchmarks);
+  // N-270: learned benchmarks — hired-role population, leave-self-out
+  // (mirrors desktop Placement Analytics).
+  const benchObs     = buildFunnelObservations(activityRaw, funnelRoleIndex(historical, 'functionArea', 'country'));
+  const summaryBench = learnFunnelBenchmarks(benchObs, _maFunctionArea || null, _maLocation || null, { exclude: o => filteredIds.has(o.roleId) });
+  const funnelStages = computeRoleFunnel(totals, summaryBench);
 
   const filterLabel = [_maFunctionArea, _maLocation].filter(Boolean).join(' · ');
 

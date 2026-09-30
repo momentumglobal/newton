@@ -494,6 +494,7 @@ async function buildDataHealthTab() {
   const data = await _dhFetchSectionData();
   return _dhRenderRowCountsHtml(data)
     + _dhRenderDataIntegrityHtml(data)
+    + _dhRenderWeeklyAnomaliesHtml(data)
     + _dhRenderIndexStatusHtml(data)
     + _dhRenderSchemaCheckHtml(data)
     + _dhRenderErrorTelemetryHtml(data)
@@ -549,14 +550,38 @@ async function _dhFetchSectionData() {
   });
   const diagList = Object.values(diagGroups).sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
 
+  // N-271: WeeklyActivity anomaly flags. Never throws — a failure is
+  // { ok: false } and renders as a Query error, not as zeros.
+  const anomalies = await _dhFetchAnomalies();
+
   return {
     lists, counts, excludedLists,
     nullProjectOk, nullProjectCount, nullWeekEndingOk, nullWeekEndingCount,
     statusByList,
     schemaResults,
     diagList,
+    anomalies,
   };
 }
+
+// ── Data Health Tab — data fetch: WeeklyActivity anomalies (N-271) ────
+// No DOM. The detection is pure (detectWeeklyActivityAnomalies, analytics.js);
+// this only fetches. A rejected query is { ok: false }, never zeros — a check
+// that did not run must not read as a clean bill of health (N-138).
+async function _dhFetchAnomalies() {
+  try {
+    const [roles, activity, nameMap] = await Promise.all([
+      getAllRoles(),
+      getWeeklyActivity(null, null),
+      getTalentPartnerDisplayMap().catch(() => ({})),
+    ]);
+    return { ok: true, result: detectWeeklyActivityAnomalies(roles, activity), nameMap };
+  } catch (e) {
+    console.error('Data Health: WeeklyActivity anomaly check failed', e);
+    return { ok: false };
+  }
+}
+
 
 // ── Data Health Tab — render: List Row Counts ────────────────────────
 function _dhRenderRowCountsHtml(data) {
@@ -625,6 +650,114 @@ function _dhRenderDataIntegrityHtml(data) {
     </div>
 `;
 }
+
+// ── Data Health Tab — render: WeeklyActivity Anomalies (N-271) ───────
+// '2026-09-27' → '27 Sep'. utcDateOnly + timeZone 'UTC': no local getter.
+function _dhDay(iso) {
+  const d = utcDateOnly(iso);
+  return d ? d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }) : escHtml(iso);
+}
+
+// One anomaly table: a label line with the count + badge, then the rows,
+// capped at CONFIG.WEEKLY_ANOMALIES.displayRows.
+function _dhAnomalyBlockHtml({ title, ok, items, head, rowFn, emptyMessage, icon }) {
+  const cap = CONFIG.WEEKLY_ANOMALIES.displayRows;
+  const badge = !ok
+    ? '<span class="dh-badge dh-badge-danger">Query error</span>'
+    : (items.length ? '<span class="dh-badge dh-badge-warn">Amber</span>' : '');
+  let body;
+  if (!ok) {
+    body = emptyStateRow({ colspan: head.length, icon: 'alert-triangle', message: 'This check did not run — see the browser console.' });
+  } else if (!items.length) {
+    body = emptyStateRow({ colspan: head.length, icon, message: emptyMessage });
+  } else {
+    body = items.slice(0, cap).map(rowFn).join('')
+      + (items.length > cap
+        ? `<tr><td colspan="${head.length}" class="dh-muted">+${items.length - cap} more</td></tr>`
+        : '');
+  }
+  return `
+    <p class="dh-note"><strong>${escHtml(title)}</strong>${ok ? ' · ' + items.length.toLocaleString('en-GB') : ''} ${badge}</p>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr>${head.map(h => `<th>${escHtml(h)}</th>`).join('')}</tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    </div>
+`;
+}
+
+function _dhRenderWeeklyAnomaliesHtml(data) {
+  const { ok, result, nameMap } = data.anomalies;
+  const C = CONFIG.WEEKLY_ANOMALIES;
+  const tp = v => escHtml(tpDisplay(v, nameMap || {}));
+  const r = ok ? result : { impossibleFunnels: [], missingWeeks: [], spikes: [], meta: {} };
+
+  const funnels = _dhAnomalyBlockHtml({
+    title: 'Impossible funnels', ok, items: r.impossibleFunnels, icon: 'check-circle',
+    emptyMessage: 'No role has a stage larger than the stage it depends on.',
+    head: ['Role', 'Talent Partner', 'Stage', 'Breach'],
+    rowFn: f => `
+        <tr>
+          <td>${escHtml(f.roleTitle)}</td>
+          <td>${tp(f.tp)}</td>
+          <td>${escHtml(f.stage)}</td>
+          <td>${f.breaches.map(b => `${escHtml(b.later)} ${b.laterTotal.toLocaleString('en-GB')} &gt; ${escHtml(b.earlier)} ${b.earlierTotal.toLocaleString('en-GB')}`).join('<br>')}</td>
+        </tr>`,
+  });
+  const missing = _dhAnomalyBlockHtml({
+    title: 'Missing weeks on open roles', ok, items: r.missingWeeks, icon: 'check-circle',
+    emptyMessage: 'No open role has an unlogged run.',
+    head: ['Role', 'Talent Partner', 'Stage', 'Longest run', 'Weeks with no row (week ending)'],
+    rowFn: m => `
+        <tr>
+          <td>${escHtml(m.roleTitle)}</td>
+          <td>${tp(m.tp)}</td>
+          <td>${escHtml(m.stage)}</td>
+          <td>${m.longestRun} of ${m.expectedWeeks} wks</td>
+          <td>${m.missing.map(_dhDay).join(', ')}</td>
+        </tr>`,
+  });
+  const spikes = _dhAnomalyBlockHtml({
+    title: 'Spikes against the Talent Partner\'s own median', ok, items: r.spikes, icon: 'check-circle',
+    emptyMessage: 'No week stands out from its Talent Partner\'s norm.',
+    head: ['Talent Partner', 'Week ending', 'Field', 'Value', 'Their median (prior weeks)'],
+    rowFn: s => `
+        <tr>
+          <td>${tp(s.tp)}</td>
+          <td>${_dhDay(s.weekEnding)}</td>
+          <td>${escHtml(s.field)}</td>
+          <td>${s.value.toLocaleString('en-GB')}</td>
+          <td>${s.median.toLocaleString('en-GB')} (${s.baselineWeeks} wks)</td>
+        </tr>`,
+  });
+
+  const m = r.meta;
+  const notes = [
+    m.orphanRows    ? `${m.orphanRows} row(s) for roles that no longer exist were skipped` : '',
+    m.offSundayRows ? `${m.offSundayRows} row(s) not dated on a Sunday were counted in the following week` : '',
+    m.undatedRows   ? `${m.undatedRows} row(s) with no WeekEndingDate count toward funnel totals only` : '',
+    m.noTpRows      ? `${m.noTpRows} row(s) with no Talent Partner were left out of the spike check` : '',
+  ].filter(Boolean);
+
+  return `    <h3>WeeklyActivity Anomalies</h3>
+    <p class="dh-note">
+      Read-only checks on the numbers Talent Partners log. Impossible funnel:
+      a role's all-time total for a stage is larger than the stage it depends
+      on. Missing weeks: an open role with ${C.missingWeeks.minConsecutive}+
+      consecutive weeks with no row in the last ${C.missingWeeks.lookbackWeeks}
+      completed weeks (the week after it opens is skipped). Spike: a Talent
+      Partner's weekly total is over ${C.spikes.multiplier}&times; their own
+      median for the previous ${C.spikes.baselineWeeks} weeks (needs
+      ${C.spikes.minBaselineWeeks}+ weeks of history and a value of at least
+      ${C.spikes.minValue}), checked over the last ${C.spikes.reportWeeks}
+      weeks. Nothing is corrected automatically — fix the row in Activity,
+      then reload this tab. A "Query error" badge means the check did not run.
+    </p>${funnels}${missing}${spikes}${notes.length ? `
+    <p class="dh-note dh-muted">${escHtml(notes.join(' · '))}.</p>
+` : ''}`;
+}
+
 
 // ── Data Health Tab — render: Index Status ───────────────────────────
 function _dhRenderIndexStatusHtml(data) {

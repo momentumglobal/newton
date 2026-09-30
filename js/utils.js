@@ -734,6 +734,34 @@ function getWeekEnding(date = new Date()) {
   return `${y}-${m}-${dd}`;
 }
 
+// ── Day-string arithmetic (N-271) ────────────────────────────────────
+// Pure 'YYYY-MM-DD' maths for the WeeklyActivity anomaly checks. UTC getters
+// only, via utcDateOnly() — no local getter ever sees these dates, so BST/GMT
+// cannot shift a day (F-12). Null for anything unparseable.
+function addDaysISO(dayISO, n) {
+  const d = utcDateOnly(dayISO);
+  if (!d) return null;
+  d.setUTCDate(d.getUTCDate() + n);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+// The Sunday on/after a day — the same bucket getWeekEnding() gives a Date,
+// for a day string.
+function sundayOnOrAfterISO(dayISO) {
+  const d = utcDateOnly(dayISO);
+  return d ? addDaysISO(dayISO, (7 - d.getUTCDay()) % 7) : null;
+}
+
+// Median of the finite numbers in `nums`; null when there are none. The input
+// is not mutated.
+function medianOf(nums) {
+  const a = (nums || []).filter(Number.isFinite).sort((x, y) => x - y);
+  if (!a.length) return null;
+  const m = a.length >> 1;
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+
+
 // ── Activity field summation ─────────────────────────────────────────
 function sumField(acts, field) {
   return acts.reduce((s, a) => s + (Number(a[field]) || 0), 0);

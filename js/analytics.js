@@ -349,6 +349,168 @@ function learnedBenchmarkTip(benchmarks, key) {
   return tip;
 }
 
+// ── WeeklyActivity anomalies (N-271 / DS-3) ──────────────────────────
+// Pure detection for Admin > Data Health. Three checks over WeeklyActivity —
+// impossible funnels, missing weeks on open roles, and spikes against a TP's
+// own median. Read-only: nothing here writes or corrects a row. Thresholds
+// are all CONFIG.WEEKLY_ANOMALIES, injectable as the trailing `cfg` for tests.
+
+// WeekEndingDate → { week, offSunday }. `week` is the Sunday on/after the
+// stored day (a non-Sunday row is bucketed forward, as getWeekEnding() does);
+// null when the row has no usable date. spDateIn, never a Date (F-12).
+function _anomalyWeekKey(a) {
+  const day = a && a.WeekEndingDate ? spDateIn(a.WeekEndingDate) : null;
+  const week = day ? sundayOnOrAfterISO(day) : null;
+  return week ? { week, offSunday: week !== day } : null;
+}
+
+// Same role-key resolution as buildFunnelObservations.
+function _anomalyRoleKey(a) {
+  return String((a && (a.RoleIDLookupId || a.RoleID)) || '');
+}
+
+// The most recent week-ending Sunday that is fully in the past. The current
+// week is never judged: Wed 30 Sep 2026 → 27 Sep; Sun 4 Oct 2026 → 27 Sep.
+function _anomalyLastComplete(today) {
+  return addDaysISO(getWeekEnding(today), -7);
+}
+
+// Cumulative per role, any stage: later total > earlier total (strict) for a
+// configured pair. → [{ roleId, roleTitle, stage, tp, breaches:
+// [{ later, earlier, laterTotal, earlierTotal }] }], biggest excess first.
+function findImpossibleFunnels(roles, activity, cfg = CONFIG.WEEKLY_ANOMALIES) {
+  const byRole = new Map((roles || []).map(r => [String(r.id), r]));
+  const fields = [...new Set(cfg.funnelPairs.flatMap(p => [p.later, p.earlier]))];
+  const totals = {};
+  (activity || []).forEach(a => {
+    const k = _anomalyRoleKey(a);
+    if (!byRole.has(k)) return;
+    const t = totals[k] || (totals[k] = {});
+    fields.forEach(f => { t[f] = (t[f] || 0) + (Number(a[f]) || 0); });
+  });
+  const out = [];
+  Object.keys(totals).forEach(k => {
+    const t = totals[k];
+    const breaches = cfg.funnelPairs
+      .filter(p => t[p.later] > t[p.earlier])
+      .map(p => ({ later: p.later, earlier: p.earlier, laterTotal: t[p.later], earlierTotal: t[p.earlier] }));
+    if (!breaches.length) return;
+    const r = byRole.get(k);
+    out.push({ roleId: k, roleTitle: r.RoleTitle || '', stage: r.Stage || '', tp: r.TalentPartner || '', breaches });
+  });
+  const excess = e => Math.max(...e.breaches.map(b => b.laterTotal - b.earlierTotal));
+  return out.sort((a, b) => excess(b) - excess(a) || a.roleTitle.localeCompare(b.roleTitle));
+}
+
+// Open roles (TTF_CENSORED_STAGES — open and expected to log activity) with a
+// run of cfg.missingWeeks.minConsecutive+ expected weeks that have no row for
+// the role. Expected weeks: the last lookbackWeeks completed weeks, but not
+// before the first full week after OpenDate. Any row counts as present, TP and
+// zeros irrelevant. → [{ roleId, roleTitle, stage, tp, missing: [weekISO…],
+// longestRun, expectedWeeks }], longest run first.
+function findMissingWeeks(roles, activity, today = new Date(), cfg = CONFIG.WEEKLY_ANOMALIES) {
+  const C = cfg.missingWeeks;
+  const lastComplete = _anomalyLastComplete(today);
+  const windowStart = addDaysISO(lastComplete, -7 * (C.lookbackWeeks - 1));
+  const present = {};
+  (activity || []).forEach(a => {
+    const w = _anomalyWeekKey(a);
+    if (!w) return;
+    const k = _anomalyRoleKey(a);
+    (present[k] || (present[k] = new Set())).add(w.week);
+  });
+  const out = [];
+  (roles || []).forEach(r => {
+    if (!TTF_CENSORED_STAGES.includes(r.Stage)) return;
+    const openSunday = r.OpenDate ? sundayOnOrAfterISO(spDateIn(r.OpenDate) || '') : null;
+    if (!openSunday) return;
+    const firstFull = addDaysISO(openSunday, 7);
+    const have = present[String(r.id)] || new Set();
+    const missing = [];
+    let run = 0, longestRun = 0, expectedWeeks = 0;
+    for (let w = firstFull > windowStart ? firstFull : windowStart; w <= lastComplete; w = addDaysISO(w, 7)) {
+      expectedWeeks++;
+      if (have.has(w)) { run = 0; continue; }
+      missing.push(w);
+      run++;
+      if (run > longestRun) longestRun = run;
+    }
+    if (longestRun >= C.minConsecutive) {
+      out.push({ roleId: String(r.id), roleTitle: r.RoleTitle || '', stage: r.Stage || '', tp: r.TalentPartner || '', missing, longestRun, expectedWeeks });
+    }
+  });
+  return out.sort((a, b) => b.longestRun - a.longestRun || a.roleTitle.localeCompare(b.roleTitle));
+}
+
+// Per TP per week, summed across all their roles: a field whose value is
+// > multiplier x the median of the TP's previous baselineWeeks calendar weeks
+// that have rows (at least minBaselineWeeks of them) and >= minValue. Only the
+// last reportWeeks completed weeks are reported. → [{ tp, weekEnding, field,
+// value, median, baselineWeeks }], newest week first.
+function findActivitySpikes(activity, today = new Date(), cfg = CONFIG.WEEKLY_ANOMALIES) {
+  const S = cfg.spikes;
+  const lastComplete = _anomalyLastComplete(today);
+  const reportFrom = addDaysISO(lastComplete, -7 * (S.reportWeeks - 1));
+  const tpWeek = {};
+  (activity || []).forEach(a => {
+    const w = _anomalyWeekKey(a);
+    const tp = tpList(a && a.TalentPartner).join(';');
+    if (!w || !tp) return;
+    const wk = (tpWeek[tp] || (tpWeek[tp] = {}))[w.week] || (tpWeek[tp][w.week] = {});
+    S.fields.forEach(f => { wk[f] = (wk[f] || 0) + (Number(a[f]) || 0); });
+  });
+  const out = [];
+  Object.keys(tpWeek).forEach(tp => {
+    const weeks = tpWeek[tp];
+    Object.keys(weeks).forEach(w => {
+      if (w < reportFrom || w > lastComplete) return;
+      S.fields.forEach(f => {
+        const base = [];
+        for (let i = 1; i <= S.baselineWeeks; i++) {
+          const bw = weeks[addDaysISO(w, -7 * i)];
+          if (bw) base.push(bw[f] || 0);
+        }
+        if (base.length < S.minBaselineWeeks) return;
+        const median = medianOf(base);
+        const value = weeks[w][f] || 0;
+        if (value > S.multiplier * median && value >= S.minValue) {
+          out.push({ tp, weekEnding: w, field: f, value, median, baselineWeeks: base.length });
+        }
+      });
+    });
+  });
+  const ratio = e => (e.median > 0 ? e.value / e.median : Infinity);
+  return out.sort((a, b) =>
+    b.weekEnding.localeCompare(a.weekEnding)
+    || (ratio(b) === ratio(a) ? 0 : ratio(b) > ratio(a) ? 1 : -1)
+    || a.tp.localeCompare(b.tp) || a.field.localeCompare(b.field));
+}
+
+// The one entry point os-admin.js calls. `meta` counts what the checks had to
+// set aside: orphanRows (role no longer in `roles` — skipped everywhere);
+// then, for rows with a known role: offSundayRows (bucketed to the next
+// Sunday), undatedRows (in funnel totals, out of the week checks), noTpRows
+// (out of spikes).
+function detectWeeklyActivityAnomalies(roles, activity, today = new Date(), cfg = CONFIG.WEEKLY_ANOMALIES) {
+  const known = new Set((roles || []).map(r => String(r.id)));
+  const meta = { lastComplete: _anomalyLastComplete(today), rowsScanned: (activity || []).length,
+    orphanRows: 0, offSundayRows: 0, undatedRows: 0, noTpRows: 0 };
+  (activity || []).forEach(a => {
+    if (!known.has(_anomalyRoleKey(a))) { meta.orphanRows++; return; }
+    const w = _anomalyWeekKey(a);
+    if (!w) meta.undatedRows++;
+    else if (w.offSunday) meta.offSundayRows++;
+    if (!tpList(a && a.TalentPartner).length) meta.noTpRows++;
+  });
+  return {
+    impossibleFunnels: findImpossibleFunnels(roles, activity, cfg),
+    missingWeeks:      findMissingWeeks(roles, activity, today, cfg),
+    spikes:            findActivitySpikes(activity, today, cfg),
+    meta,
+  };
+}
+
+
 // ── Role flag helpers (shared by cc-pages.js and analytics-pages.js) ──
 const ACTIVE_STAGES = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled', 'On-hold'];
 const STAGE_ORDER   = ['Sourcing', 'Interview 1', 'Interview 2+', 'Final Interview'];

@@ -1429,4 +1429,163 @@ var ASSERTIONS = [
       _assertEqual(activitySinceWeeks(rows, 0, today).length, 4, 'activitySinceWeeks 0 = all');
     },
   },
+  {
+    name: 'N-271 medianOf / addDaysISO / sundayOnOrAfterISO — odd/even/empty, month end, leap day, BST',
+    fn: function () {
+      _assertEqual(medianOf([3, 1, 2]), 2, 'median odd');
+      _assertEqual(medianOf([4, 1, 3, 2]), 2.5, 'median even');
+      _assertEqual(medianOf([7]), 7, 'median single');
+      _assertEqual(medianOf([]), null, 'median empty');
+      _assertEqual(medianOf(null), null, 'median null');
+      const src = [3, 1, 2]; medianOf(src);
+      _assertEqual(src, [3, 1, 2], 'median does not mutate');
+      _assertEqual(addDaysISO('2026-01-31', 1), '2026-02-01', 'month end');
+      _assertEqual(addDaysISO('2028-02-28', 1), '2028-02-29', 'leap day');
+      _assertEqual(addDaysISO('2026-03-28', 2), '2026-03-30', 'BST start');
+      _assertEqual(addDaysISO('2026-10-24', 2), '2026-10-26', 'BST end');
+      _assertEqual(addDaysISO('2026-09-27', -49), '2026-08-09', 'negative');
+      _assertEqual(addDaysISO('nope', 1), null, 'addDaysISO unparseable');
+      _assertEqual(sundayOnOrAfterISO('2026-09-27'), '2026-09-27', 'Sunday is itself');
+      _assertEqual(sundayOnOrAfterISO('2026-09-23'), '2026-09-27', 'Wednesday → Sunday');
+      _assertEqual(sundayOnOrAfterISO('2026-09-28'), '2026-10-04', 'Monday → next Sunday');
+      _assertEqual(sundayOnOrAfterISO(''), null, 'sundayOnOrAfterISO unparseable');
+    },
+  },
+  {
+    name: 'N-271 CONFIG.WEEKLY_ANOMALIES — shape',
+    fn: function () {
+      const c = CONFIG.WEEKLY_ANOMALIES;
+      _assertEqual(c.funnelPairs, [
+        { later: 'Responses', earlier: 'Outreach' }, { later: 'Interview1', earlier: 'Submitted' },
+        { later: 'Offers', earlier: 'Interview1' }, { later: 'Hires', earlier: 'Offers' },
+      ], 'AC1 pairs');
+      _assertEqual(c.missingWeeks, { lookbackWeeks: 8, minConsecutive: 2 }, 'AC1 missingWeeks');
+      _assertEqual(c.spikes, { fields: ['Outreach', 'Responses', 'Screened', 'Submitted'], baselineWeeks: 8,
+        minBaselineWeeks: 4, multiplier: 3, minValue: 10, reportWeeks: 13 }, 'AC1 spikes');
+      _assertEqual(c.displayRows, 50, 'AC1 displayRows');
+    },
+  },
+  {
+    name: 'N-271 findImpossibleFunnels — cumulative, strict, pairs, any stage',
+    fn: function () {
+      const role = (id, stage) => ({ id, RoleTitle: 'Role ' + id, Stage: stage, TalentPartner: 'a@x.com' });
+      const row = (id, c) => Object.assign({ RoleIDLookupId: id, WeekEndingDate: '2026-09-20T12:00:00Z', TalentPartner: 'a@x.com',
+        Outreach: 0, Responses: 0, Submitted: 0, Interview1: 0, Offers: 0, Hires: 0 }, c);
+      const roles = [role('A', 'Sourcing'), role('B', 'Sourcing'), role('C', 'Cancelled'), role('D', 'Sourcing'), role('E', 'Placed')];
+      const act = [
+        row('A', { Submitted: 6, Interview1: 5 }), row('A', { Submitted: 4, Interview1: 7 }),  // cumulative 10 vs 12
+        row('B', { Submitted: 10, Interview1: 10 }),                                            // equal: fine
+        row('C', { Responses: 5 }),                                                             // Responses > Outreach 0
+        row('D', {}),                                                                           // all zeros
+        row('E', { Interview2Plus: 9, Screened: 9, Submitted: 2, Interview1: 2, Offers: 2, Hires: 3 }),                      // Hires > Offers only
+        row('ZZ', { Hires: 9 }),                                                                // orphan: skipped
+      ];
+      const r = findImpossibleFunnels(roles, act);
+      _assertEqual(r.length, 3, 'AC3 three roles flagged');
+      const byId = Object.fromEntries(r.map(x => [x.roleId, x]));
+      _assertEqual(byId.A.breaches, [{ later: 'Interview1', earlier: 'Submitted', laterTotal: 12, earlierTotal: 10 }], 'AC3 worked example');
+      _assertEqual(byId.C.breaches, [{ later: 'Responses', earlier: 'Outreach', laterTotal: 5, earlierTotal: 0 }], 'AC3 zero earlier');
+      _assertEqual(byId.E.breaches, [{ later: 'Hires', earlier: 'Offers', laterTotal: 3, earlierTotal: 2 }], 'AC3 any stage, skippable stages ignored');
+      _assertEqual(byId.A.stage + '|' + byId.A.roleTitle + '|' + byId.A.tp, 'Sourcing|Role A|a@x.com', 'AC3 role fields');
+      _assertEqual(r.map(x => x.roleId), ['C', 'A', 'E'], 'sorted by excess desc (5, 2, 1)');
+      _assertEqual(findImpossibleFunnels([], []), [], 'empty');
+    },
+  },
+  {
+    name: 'N-271 findMissingWeeks — runs, grace week, stages, zero rows, Sunday today',
+    fn: function () {
+      const today = new Date(2026, 8, 30, 12);          // Wed → lastComplete 2026-09-27
+      const weeks = ['2026-08-09', '2026-08-16', '2026-08-23', '2026-08-30', '2026-09-06', '2026-09-13', '2026-09-20', '2026-09-27'];
+      const role = (id, stage, open) => ({ id, RoleTitle: 'Role ' + id, Stage: stage, OpenDate: open, TalentPartner: 'a@x.com' });
+      const rows = (id, have, c) => have.map(w => Object.assign({ RoleIDLookupId: id, WeekEndingDate: w + 'T12:00:00Z', TalentPartner: 'a@x.com' }, c || { Outreach: 1 }));
+      const roles = [
+        role('R1', 'Sourcing', '2026-06-01T12:00:00Z'), role('R2', 'Sourcing', '2026-06-01T12:00:00Z'),
+        role('R3', 'Sourcing', '2026-09-14T12:00:00Z'), role('R4', 'Cancelled', '2026-06-01T12:00:00Z'),
+        role('R5', 'Sourcing', '2026-06-01T12:00:00Z'), role('R6', 'Sourcing', '2026-06-01T12:00:00Z'),
+        role('R7', 'Sourcing', ''),                     role('R8', 'Planning', '2026-06-01T12:00:00Z'),
+      ];
+      const act = [].concat(
+        rows('R1', [weeks[0], weeks[1], weeks[2], weeks[6], weeks[7]]),        // missing 30 Aug, 6 Sep, 13 Sep
+        rows('R2', weeks.filter(w => w !== '2026-09-06')),                     // one gap only
+        rows('R5', weeks.filter(w => w !== '2026-08-30' && w !== '2026-09-13')), // two gaps, not consecutive
+        rows('R6', weeks.filter(w => w !== '2026-09-06'), { Outreach: 0 }),    // all-zero rows are still rows…
+        rows('R6', ['2026-09-06'], { Outreach: 0, Responses: 0 })                // …including the one that fills the gap
+      );
+      const r = findMissingWeeks(roles, act, today);
+      _assertEqual(r.length, 1, 'AC4 only R1 flagged');
+      _assertEqual([r[0].roleId, r[0].missing, r[0].longestRun, r[0].expectedWeeks],
+        ['R1', ['2026-08-30', '2026-09-06', '2026-09-13'], 3, 8], 'AC4 worked example');
+      _assertEqual(findMissingWeeks(roles, act, new Date(2026, 9, 4, 12)).map(x => x.missing),   // Sunday 4 Oct: current week not judged
+        [['2026-08-30', '2026-09-06', '2026-09-13']], 'AC5 Sunday today');
+      // Monday 5 Oct: 4 Oct is now complete and R1 has no row for it; window slides to 16 Aug
+      _assertEqual(findMissingWeeks(roles, act, new Date(2026, 9, 5, 12))[0].missing.slice(-1), ['2026-10-04'], 'window slides');
+      // R3 opened Mon 14 Sep: first expected week is 27 Sep only → cannot have a run of 2
+      _assertEqual(findMissingWeeks([roles[2]], [], today), [], 'grace week');
+      // Injected cfg: minConsecutive 1 catches the single-gap role too, and shorter lookback trims the window
+      const cfg1 = { missingWeeks: { lookbackWeeks: 8, minConsecutive: 1 } };
+      _assertEqual(findMissingWeeks(roles, act, today, cfg1).map(x => x.roleId), ['R1', 'R2', 'R3', 'R5'], 'cfg minConsecutive=1 (R1 run 3, then single gaps by title; R3 has one expected week)');
+    },
+  },
+  {
+    name: 'N-271 findActivitySpikes — 3x median and floor, baseline needs history, TPs isolated, sums across roles',
+    fn: function () {
+      const today = new Date(2026, 8, 30, 12);          // lastComplete 2026-09-27
+      const base = ['2026-08-02', '2026-08-09', '2026-08-16', '2026-08-23', '2026-08-30', '2026-09-06', '2026-09-13', '2026-09-20'];
+      const vals = [10, 12, 8, 11, 9, 10, 12, 10];      // median 10
+      const R = (tp, w, o, role) => ({ RoleIDLookupId: role || '1', WeekEndingDate: w + 'T12:00:00Z', TalentPartner: tp,
+        Outreach: o, Responses: 0, Screened: 0, Submitted: 0 });
+      const baseline = tp => base.map((w, i) => R(tp, w, vals[i]));
+      const spikes = (target, extra) => findActivitySpikes(baseline('a@x.com').concat(target, extra || []), today);
+      const s31 = spikes([R('a@x.com', '2026-09-27', 31)]);
+      _assertEqual(s31, [{ tp: 'a@x.com', weekEnding: '2026-09-27', field: 'Outreach', value: 31, median: 10, baselineWeeks: 8 }], 'AC6 31 > 30 flagged');
+      _assertEqual(spikes([R('a@x.com', '2026-09-27', 30)]), [], 'AC6 30 is not > 30');
+      _assertEqual(spikes([R('a@x.com', '2026-09-27', 9)]), [], 'AC6 9 below');
+      // summed across two roles of one TP
+      _assertEqual(spikes([R('a@x.com', '2026-09-27', 16, '1'), R('a@x.com', '2026-09-27', 15, '2')]).map(x => x.value), [31], 'AC6 summed across roles');
+      // another TP with a huge week and no history is never flagged and never pollutes A's baseline
+      _assertEqual(spikes([R('a@x.com', '2026-09-27', 30)], [R('b@x.com', '2026-09-27', 500)]), [], 'AC13 TPs isolated');
+      // < minBaselineWeeks of history
+      const thin = [R('a@x.com', '2026-09-06', 10), R('a@x.com', '2026-09-13', 10), R('a@x.com', '2026-09-20', 10), R('a@x.com', '2026-09-27', 90)];
+      _assertEqual(findActivitySpikes(thin, today), [], 'AC6 3 baseline weeks → nothing');
+      // zero median: value must still clear the floor
+      const zero = w => [0, 1, 2, 3].map(i => R('a@x.com', addDaysISO(w, -7 * (i + 1)), 0));
+      _assertEqual(findActivitySpikes(zero('2026-09-27').concat(R('a@x.com', '2026-09-27', 12)), today).map(x => [x.value, x.median]), [[12, 0]], 'zero median flagged');
+      _assertEqual(findActivitySpikes(zero('2026-09-27').concat(R('a@x.com', '2026-09-27', 9)), today), [], 'zero median below floor');
+      // outside the 13-week report window
+      const oldW = '2026-06-21';                          // before 2026-07-05
+      const old = [0, 1, 2, 3].map(i => R('a@x.com', addDaysISO(oldW, -7 * (i + 1)), 10)).concat(R('a@x.com', oldW, 90));
+      _assertEqual(findActivitySpikes(old, today), [], 'outside reportWeeks');
+      // current (incomplete) week is never a spike week
+      _assertEqual(spikes([R('a@x.com', '2026-10-04', 90)]), [], 'AC5 current week not judged');
+      // fields are checked independently; a field outside cfg.spikes.fields is ignored
+      const iv = baseline('a@x.com').concat([Object.assign(R('a@x.com', '2026-09-27', 10), { Responses: 40, Interview1: 99 })]);
+      _assertEqual(findActivitySpikes(iv, today).map(x => x.field), ['Responses'], 'Responses (zero median, 40 ≥ 10) flagged; Outreach 10 and Interview1 not');
+    },
+  },
+  {
+    name: 'N-271 detectWeeklyActivityAnomalies — shape, meta, off-Sunday bucketing, no mutation',
+    fn: function () {
+      const today = new Date(2026, 8, 30, 12);
+      const empty = detectWeeklyActivityAnomalies([], [], today);
+      _assertEqual([empty.impossibleFunnels, empty.missingWeeks, empty.spikes], [[], [], []], 'AC15 empty');
+      _assertEqual(empty.meta, { lastComplete: '2026-09-27', rowsScanned: 0, orphanRows: 0, offSundayRows: 0, undatedRows: 0, noTpRows: 0 }, 'AC15 meta shape');
+      const roles = [{ id: '1', RoleTitle: 'R', Stage: 'Sourcing', OpenDate: '2026-06-01T12:00:00Z', TalentPartner: 'a@x.com' }];
+      const mk = (w, extra) => Object.assign({ RoleIDLookupId: '1', WeekEndingDate: w, TalentPartner: 'a@x.com', Submitted: 1, Interview1: 0 }, extra);
+      const act = [
+        mk('2026-08-09T12:00:00Z'), mk('2026-08-16T12:00:00Z'), mk('2026-08-23T12:00:00Z'),
+        mk('2026-09-23T12:00:00Z'),                   // Wednesday → counts for 27 Sep
+        mk('2026-09-20T12:00:00Z'),
+        mk('', { Submitted: 0, Interview1: 5 }),      // undated: funnel totals only (5 > 6? no) — see below
+        mk('2026-09-20T12:00:00Z', { TalentPartner: '' }),
+        { RoleIDLookupId: '999', WeekEndingDate: '2026-09-20T12:00:00Z', TalentPartner: 'a@x.com', Hires: 4 },
+      ];
+      const snapRoles = JSON.stringify(roles), snapAct = JSON.stringify(act);
+      const r = detectWeeklyActivityAnomalies(roles, act, today);
+      _assertEqual(r.meta, { lastComplete: '2026-09-27', rowsScanned: 8, orphanRows: 1, offSundayRows: 1, undatedRows: 1, noTpRows: 1 }, 'AC14 meta counts');
+      _assertEqual(r.missingWeeks.length, 1, 'gap 30 Aug–13 Sep still flagged');
+      _assertEqual(r.missingWeeks[0].missing, ['2026-08-30', '2026-09-06', '2026-09-13'], 'AC14 Wednesday row filled 27 Sep');
+      _assertEqual(r.impossibleFunnels.length, 0, 'AC14 undated row counted in funnel totals (Submitted 6 ≥ Interview1 5), orphan Hires ignored');
+      _assertEqual(JSON.stringify(roles) + JSON.stringify(act), snapRoles + snapAct, 'AC15 inputs not mutated');
+    },
+  },
 ];

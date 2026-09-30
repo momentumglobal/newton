@@ -324,6 +324,40 @@ const CONFIG = {
     previewRows:       50,
   },
 
+  // N-271 (DS-3): WeeklyActivity anomaly flags — Admin > Data Health.
+  // Read-only; every number below is a tunable, none is a SharePoint limit.
+  //   funnelPairs   — cumulative per role: flag when the LATER stage's total
+  //                   over all the role's rows exceeds the EARLIER stage's
+  //                   (strict >). Hard-dependency pairs only; stages a role
+  //                   can legitimately skip (Screened, Interview2Plus,
+  //                   FinalInterview) are deliberately absent.
+  //   missingWeeks  — open roles (TTF_CENSORED_STAGES): flag a run of
+  //                   minConsecutive+ weeks with no row for the role, inside
+  //                   the last lookbackWeeks completed weeks. The week after
+  //                   a role opens is a grace week.
+  //   spikes        — per TP per week, summed across their roles: flag a
+  //                   field whose value is > multiplier x the median of the
+  //                   TP's previous baselineWeeks weeks that have rows (needs
+  //                   minBaselineWeeks of them) AND >= minValue. Only the
+  //                   last reportWeeks completed weeks are reported.
+  //   displayRows   — rows shown per table; the rest collapse to "+N more".
+  WEEKLY_ANOMALIES: {
+    funnelPairs: [
+      { later: 'Responses',  earlier: 'Outreach'   },
+      { later: 'Interview1', earlier: 'Submitted'  },
+      { later: 'Offers',     earlier: 'Interview1' },
+      { later: 'Hires',      earlier: 'Offers'     },
+    ],
+    missingWeeks: { lookbackWeeks: 8, minConsecutive: 2 },
+    spikes: {
+      fields: ['Outreach', 'Responses', 'Screened', 'Submitted'],
+      baselineWeeks: 8, minBaselineWeeks: 4,
+      multiplier: 3, minValue: 10,
+      reportWeeks: 13,
+    },
+    displayRows: 50,
+  },
+
   // N-174 (F-11a). Columns the Schema Check panel never reports as
   // "Unexpected", regardless of whether a list's FIELD_ALIASES/LIST_FIELDS
   // entry mentions them. 'Title' physically exists on every SharePoint

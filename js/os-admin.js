@@ -575,6 +575,12 @@ async function _dhFetchAnomalies() {
       getWeeklyActivity(null, null),
       getTalentPartnerDisplayMap().catch(() => ({})),
     ]);
+    // A projected fetch (rows with no role key — e.g. an id-only delta baseline)
+    // would come out as "no anomalies". Fail loudly instead.
+    if (!weeklyActivityRowsUsable(activity)) {
+      console.error('Data Health: WeeklyActivity rows carry no role key — the fetch was projected, not full');
+      return { ok: false };
+    }
     return { ok: true, result: detectWeeklyActivityAnomalies(roles, activity), nameMap };
   } catch (e) {
     console.error('Data Health: WeeklyActivity anomaly check failed', e);
@@ -691,6 +697,7 @@ function _dhRenderWeeklyAnomaliesHtml(data) {
   const { ok, result, nameMap } = data.anomalies;
   const C = CONFIG.WEEKLY_ANOMALIES;
   const N = C.noActivity.recentWeeks;
+  const windowText = N === 1 ? 'this week' : N === 2 ? 'this week or last week' : `this week or in the previous ${N - 1} weeks`;
   const tp = v => escHtml(tpDisplay(v, nameMap || {}));
   const r = ok ? result : { impossibleFunnels: [], noActivity: [], spikes: [], meta: {} };
 
@@ -707,15 +714,14 @@ function _dhRenderWeeklyAnomaliesHtml(data) {
         </tr>`,
   });
   const noActivity = _dhAnomalyBlockHtml({
-    title: 'Roles with no activity entries', ok, items: r.noActivity, icon: 'check-circle',
-    emptyMessage: 'Every open role has logged recently.',
-    head: ['Role', 'Talent Partner', 'Stage', 'Flag', 'Last entry (week ending)'],
+    title: 'Open roles with no recent activity', ok, items: r.noActivity, icon: 'check-circle',
+    emptyMessage: `Every open role has an entry for ${windowText}.`,
+    head: ['Role', 'Talent Partner', 'Stage', 'Last entry (week ending)'],
     rowFn: n => `
         <tr>
           <td>${escHtml(n.roleTitle)}</td>
           <td>${tp(n.tp)}</td>
           <td>${escHtml(n.stage)}</td>
-          <td>${n.kind === 'never' ? 'No entries yet' : `No entry in last ${N} week${N === 1 ? '' : 's'}`}</td>
           <td>${n.lastEntryWeek ? _dhDay(n.lastEntryWeek) : '<span class="dh-muted">—</span>'}</td>
         </tr>`,
   });
@@ -745,16 +751,15 @@ function _dhRenderWeeklyAnomaliesHtml(data) {
     <p class="dh-note">
       Read-only checks on the numbers Talent Partners log. Impossible funnel:
       a role's all-time total for a stage is larger than the stage it depends
-      on. No activity entries: an open role that has never had a WeeklyActivity
-      row, or has had none in the last ${N} completed week${N === 1 ? '' : 's'}
-      (this week counts); a role is skipped until it has been open a full
-      week. Spike: a Talent Partner's weekly total is over
-      ${C.spikes.multiplier}&times; their own median for the previous
-      ${C.spikes.baselineWeeks} weeks (needs ${C.spikes.minBaselineWeeks}+
-      weeks of history and a value of at least ${C.spikes.minValue}), checked
-      over the last ${C.spikes.reportWeeks} weeks. Nothing is corrected
-      automatically — fix the row in Activity, then reload this tab. A "Query
-      error" badge means the check did not run.
+      on. No recent activity: a role that is still open (Sourcing to Offered)
+      with no WeeklyActivity row dated ${windowText}; a role is skipped until
+      it has been open long enough to be judged. Spike: a Talent Partner's
+      weekly total is over ${C.spikes.multiplier}&times; their own median for
+      the previous ${C.spikes.baselineWeeks} weeks (needs
+      ${C.spikes.minBaselineWeeks}+ weeks of history and a value of at least
+      ${C.spikes.minValue}), checked over the last ${C.spikes.reportWeeks}
+      weeks. Nothing is corrected automatically — fix the row in Activity,
+      then reload this tab. A "Query error" badge means the check did not run.
     </p>${funnels}${noActivity}${spikes}${notes.length ? `
     <p class="dh-note dh-muted">${escHtml(notes.join(' · '))}.</p>
 ` : ''}`;

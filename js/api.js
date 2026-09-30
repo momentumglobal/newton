@@ -219,6 +219,15 @@ function _deltaKey(listName) {
   return 'newton_delta_' + listName;
 }
 
+// PURE. The delta store is keyed by list name ONLY (_deltaKey), not by $select,
+// so it may only ever hold — and serve — the default projection. A call with an
+// explicit `select` (Data Health's id-only row counts) must never bootstrap or
+// read it: an id-only baseline would be handed back later to every default-
+// projection read of the same list (N-271). Filtered calls never use it either.
+function _deltaEligibleCall(filter, select) {
+  return !filter && !select;
+}
+
 // Storage-touching, hence guarded. False whenever sessionStorage is absent
 // (Node test harness), the live kill switch is off, or the list isn't the
 // (currently singular) enrolled pilot.
@@ -627,7 +636,11 @@ async function getItems(listName, filter = "", select = null) {
   // existing WeeklyActivity call site except admin.js's unfiltered dashboard
   // pull — is untouched and falls straight through to the paginated fetch
   // below, exactly as it does today.
-  if (!filter && _deltaEnabled(listName)) {
+  //
+  // N-271: nor may a call with an explicit `select`. The stored baseline is
+  // keyed by list name alone, so an id-only row count would leave an id-only
+  // baseline behind for every later default-projection read (_deltaEligibleCall).
+  if (_deltaEligibleCall(filter, select) && _deltaEnabled(listName)) {
     const items = await _deltaSync(listName, selectStr);
     _cacheSet(listName, filter, selectStr, items);
     _ssSet(listName, filter, selectStr, items);

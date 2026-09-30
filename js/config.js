@@ -331,11 +331,11 @@ const CONFIG = {
   //                   (strict >). Hard-dependency pairs only; stages a role
   //                   can legitimately skip (Screened, Interview2Plus,
   //                   FinalInterview) are deliberately absent.
-  //   noActivity    — open roles (TTF_CENSORED_STAGES) that have logged
-  //                   nothing: no row at all, or none in the last
-  //                   recentWeeks completed weeks (the in-progress week
-  //                   counts). A role is judged only once a full week has
-  //                   passed since it opened.
+  //   noActivity    — open roles (TTF_CENSORED_STAGES) with no dated row in
+  //                   the current in-progress week or the previous
+  //                   recentWeeks - 1 weeks: recentWeeks COUNTS THE CURRENT
+  //                   WEEK, so 2 = this week + last week. A role is judged
+  //                   only once it has been open for the whole window.
   //   spikes        — per TP per week, summed across their roles: flag a
   //                   field whose value is > multiplier x the median of the
   //                   TP's previous baselineWeeks weeks that have rows (needs

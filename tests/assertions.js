@@ -1492,38 +1492,41 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-271 findRolesWithNoActivity — never/stopped, grace, in-progress week, zeros, undated, order, cfg',
+    name: 'N-271 findRolesWithNoActivity — this week + last week, grace, stages, zeros, undated, order, cfg',
     fn: function () {
-      const today = new Date(2026, 8, 30, 12);          // Wed → lastComplete 2026-09-27; recent window (2 weeks) ≥ 2026-09-20
+      const today = new Date(2026, 8, 30, 12);          // Wed → lastComplete 2026-09-27, in-progress week 2026-10-04; window (2 weeks) ≥ 2026-09-27
       const J1 = '2026-06-01T12:00:00Z';
       const role = (id, stage, open) => ({ id, RoleTitle: 'Role ' + id, Stage: stage, OpenDate: open, TalentPartner: 'a@x.com' });
       const row = (id, w, c) => Object.assign({ RoleIDLookupId: id, WeekEndingDate: w ? w + 'T12:00:00Z' : '', TalentPartner: 'a@x.com', Outreach: 1 }, c);
       const roles = [
-        role('R1', 'Sourcing', J1), role('R2', 'Sourcing', J1), role('R3a', 'Sourcing', J1), role('R3b', 'Sourcing', J1),
+        role('R1', 'Sourcing', J1), role('R2', 'Sourcing', J1), role('R3a', 'Sourcing', J1), role('R3b', 'Sourcing', J1), role('R3c', 'Sourcing', J1),
         role('R4', 'Sourcing', '2026-09-14T12:00:00Z'), role('R5', 'Sourcing', '2026-09-23T12:00:00Z'), role('R6', 'Sourcing', '2026-09-14T12:00:00Z'),
         role('R7', 'Sourcing', J1), role('R8', 'Sourcing', J1), role('R9', 'Sourcing', J1),
-        role('R10', 'Cancelled', J1), role('R11', 'Sourcing', ''), role('R12', 'Planning', J1),
-        role('R13', 'Sourcing', '2026-09-14T12:00:00Z'),
+        role('R10', 'Cancelled', J1), role('R11', 'Sourcing', ''), role('R12', 'Planning', J1), role('R13', 'On-hold', J1),
+        role('R14', 'Hired', J1), role('R15', 'Backlog', J1), role('R16', 'Offered', J1),
       ];
       const act = [].concat(
-        ['2026-08-09', '2026-08-16', '2026-08-23', '2026-08-30', '2026-09-06', '2026-09-13'].map(w => row('R2', w)),   // stopped after 13 Sep
-        [row('R3a', '2026-09-20'), row('R3b', '2026-09-27'), row('R6', '2026-09-20'),
-         row('R7', '2026-09-27', { Outreach: 0 }),                                                                        // all-zero row is an entry
-         row('R8', '2026-08-09'), row('R8', '2026-10-04'),                                                                // in-progress week counts
-         row('R9', ''), row('R13', '')]                                                                                   // undated only; R13 is also too new for 'stopped'
+        ['2026-08-09', '2026-08-16', '2026-08-23', '2026-08-30', '2026-09-06', '2026-09-13'].map(w => row('R2', w)),   // last entry 13 Sep
+        [row('R3a', '2026-09-20'), row('R3b', '2026-09-27'), row('R3c', '2026-10-04'), row('R6', '2026-09-20'),
+         row('R7', '2026-09-27', { Outreach: 0 }),                                                                        // an all-zero row is an entry
+         row('R8', '2026-08-09'), row('R8', '2026-10-04'),
+         row('R9', '')]                                                                                                   // undated: cannot be placed in a week
       );
       const snap = JSON.stringify(roles) + JSON.stringify(act);
-      const key = x => [x.roleId, x.kind, x.lastEntryWeek];
+      const key = x => [x.roleId, x.lastEntryWeek];
       const r = findRolesWithNoActivity(roles, act, today);
-      _assertEqual(r.map(key), [['R1', 'never', null], ['R4', 'never', null], ['R9', 'stopped', null], ['R2', 'stopped', '2026-09-13']],
-        'AC4/AC12 worked examples and order (R5 in grace; R3a/R3b/R6/R7/R8/R13 fine; R10/R11/R12 not evaluated)');
-      _assertEqual(r[0], { roleId: 'R1', roleTitle: 'Role R1', stage: 'Sourcing', tp: 'a@x.com', kind: 'never', lastEntryWeek: null }, 'AC12 shape');
-      _assertEqual(findRolesWithNoActivity(roles, act, new Date(2026, 9, 4, 12)), r, 'AC5 Sunday today: current week not judged');
+      // nulls first (by title string: R1 < R16 < R4 < R9), then oldest last entry
+      _assertEqual(r.map(key), [['R1', null], ['R16', null], ['R4', null], ['R9', null], ['R2', '2026-09-13'], ['R3a', '2026-09-20'], ['R6', '2026-09-20']],
+        'AC4/AC12 worked examples and order (R5 in grace; R3b/R3c/R7/R8 fine; R10–R15 not evaluated)');
+      _assertEqual(r[0], { roleId: 'R1', roleTitle: 'Role R1', stage: 'Sourcing', tp: 'a@x.com', lastEntryWeek: null }, 'AC12 shape (no kind)');
+      _assertEqual(findRolesWithNoActivity(roles, act, new Date(2026, 9, 4, 12)), r, 'Sunday today: same week, same result');
+      // Monday 5 Oct: lastComplete 4 Oct, window ≥ 4 Oct. R5 is now old enough; R3b/R7 (27 Sep) drop out of the window.
+      _assertEqual(findRolesWithNoActivity(roles, act, new Date(2026, 9, 5, 12)).map(key),
+        [['R1', null], ['R16', null], ['R4', null], ['R5', null], ['R9', null], ['R2', '2026-09-13'],
+         ['R3a', '2026-09-20'], ['R6', '2026-09-20'], ['R3b', '2026-09-27'], ['R7', '2026-09-27']], 'Monday: window moves on');
+      // recentWeeks 3: window ≥ 20 Sep. R4/R5/R6 not yet open long enough; R3a (20 Sep) is inside the window.
       _assertEqual(findRolesWithNoActivity(roles, act, today, { noActivity: { recentWeeks: 3 } }).map(key),
-        [['R1', 'never', null], ['R4', 'never', null], ['R9', 'stopped', null]], 'recentWeeks 3: window ≥ 13 Sep clears R2; R6 too new');
-      _assertEqual(findRolesWithNoActivity(roles, act, today, { noActivity: { recentWeeks: 1 } }).map(key),
-        [['R1', 'never', null], ['R4', 'never', null], ['R13', 'stopped', null], ['R9', 'stopped', null], ['R2', 'stopped', '2026-09-13'],
-         ['R3a', 'stopped', '2026-09-20'], ['R6', 'stopped', '2026-09-20']], 'recentWeeks 1: only 27 Sep+ counts; R13 now old enough');
+        [['R1', null], ['R16', null], ['R9', null], ['R2', '2026-09-13']], 'recentWeeks 3');
       _assertEqual(findRolesWithNoActivity([], [], today), [], 'empty');
       _assertEqual(JSON.stringify(roles) + JSON.stringify(act), snap, 'inputs not mutated');
     },
@@ -1587,9 +1590,30 @@ var ASSERTIONS = [
       const snapRoles = JSON.stringify(roles), snapAct = JSON.stringify(act);
       const r = detectWeeklyActivityAnomalies(roles, act, today);
       _assertEqual(r.meta, { lastComplete: '2026-09-27', rowsScanned: 9, orphanRows: 1, offSundayRows: 2, undatedRows: 1, noTpRows: 1 }, 'AC14 meta counts');
-      _assertEqual(r.noActivity.map(x => [x.roleId, x.kind, x.lastEntryWeek]), [['2', 'stopped', '2026-09-13']], 'AC14 Saturday row bucketed to 13 Sep; role 1 fine (Wednesday row landed on 27 Sep)');
+      _assertEqual(r.noActivity.map(x => [x.roleId, x.lastEntryWeek]), [['2', '2026-09-13']], 'AC14 Saturday row bucketed to 13 Sep (outside this week + last); role 1 fine (Wednesday row landed on 27 Sep)');
       _assertEqual(r.impossibleFunnels.length, 0, 'AC14 undated row counted in funnel totals, orphan Hires ignored');
       _assertEqual(JSON.stringify(roles) + JSON.stringify(act), snapRoles + snapAct, 'AC15 inputs not mutated');
+    },
+  },
+  {
+    name: 'N-271 _deltaEligibleCall — only the default projection may use the delta store',
+    fn: function () {
+      _assertEqual(_deltaEligibleCall('', null), true, 'AC22 default read');
+      _assertEqual(_deltaEligibleCall('', undefined), true, 'AC22 select omitted');
+      _assertEqual(_deltaEligibleCall('', 'Id'), false, 'AC22 id-only row count must not touch the store');
+      _assertEqual(_deltaEligibleCall('', 'Id,Title'), false, 'AC22 any explicit select');
+      _assertEqual(_deltaEligibleCall('fields/RoleID eq 1', null), false, 'AC22 filtered');
+      _assertEqual(_deltaEligibleCall('fields/RoleID eq 1', 'Id'), false, 'AC22 filtered and explicit select');
+    },
+  },
+  {
+    name: 'N-271 weeklyActivityRowsUsable — an id-only (projected) result is not usable',
+    fn: function () {
+      _assertEqual(weeklyActivityRowsUsable([]), true, 'AC23 empty');
+      _assertEqual(weeklyActivityRowsUsable(null), true, 'AC23 null');
+      _assertEqual(weeklyActivityRowsUsable([{ id: '1' }, { id: '2' }]), false, 'AC23 id-only');
+      _assertEqual(weeklyActivityRowsUsable([{ id: '1' }, { id: '2', RoleIDLookupId: '5' }]), true, 'AC23 one row with a role key');
+      _assertEqual(weeklyActivityRowsUsable([{ id: '1', RoleID: '7' }]), true, 'AC23 RoleID fallback');
     },
   },
 ];

@@ -351,8 +351,8 @@ function learnedBenchmarkTip(benchmarks, key) {
 
 // ── WeeklyActivity anomalies (N-271 / DS-3) ──────────────────────────
 // Pure detection for Admin > Data Health. Three checks over WeeklyActivity —
-// impossible funnels, open roles with no activity entries, and spikes against
-// a TP's own median. Read-only: nothing here writes or corrects a row. Thresholds
+// impossible funnels, open roles with no recent activity, and spikes against a
+// TP's own median. Read-only: nothing here writes or corrects a row. Thresholds
 // are all CONFIG.WEEKLY_ANOMALIES, injectable as the trailing `cfg` for tests.
 
 // WeekEndingDate → { week, offSunday }. `week` is the Sunday on/after the
@@ -402,47 +402,46 @@ function findImpossibleFunnels(roles, activity, cfg = CONFIG.WEEKLY_ANOMALIES) {
   return out.sort((a, b) => excess(b) - excess(a) || a.roleTitle.localeCompare(b.roleTitle));
 }
 
-// Open roles (TTF_CENSORED_STAGES — open and expected to log activity) that
-// have logged nothing. kind 'never': no row at all. kind 'stopped': rows, but
-// none in the last cfg.noActivity.recentWeeks completed weeks — the
-// in-progress week counts, so a TP who has already logged this week is not
-// flagged. A role is only judged once a full week has passed since it opened
-// (firstFull <= lastComplete), and 'stopped' also needs the role to be old
-// enough for the whole recent window. Any row is an entry: TP, stage and
-// values are irrelevant, an all-zero row counts, and an undated row counts
-// for 'never' only. → [{ roleId, roleTitle, stage, tp, kind, lastEntryWeek }],
-// 'never' first, then 'stopped' oldest last entry first (null = oldest).
+// Open roles (TTF_CENSORED_STAGES — open and expected to log activity) with no
+// dated WeeklyActivity row in the current (in-progress) week or the previous
+// cfg.noActivity.recentWeeks - 1 weeks: 2 = this week + last week. A role is
+// judged only once it has been open for the whole window (firstFull <=
+// recentFrom; with 2 weeks that is one full week after it opened). Any row is
+// an entry — TP, stage and values are irrelevant, an all-zero row counts — but
+// an undated row cannot be placed in a week, so it does not.
+// → [{ roleId, roleTitle, stage, tp, lastEntryWeek }] (null = no dated row at
+// all), oldest last entry first, null first.
 function findRolesWithNoActivity(roles, activity, today = new Date(), cfg = CONFIG.WEEKLY_ANOMALIES) {
-  const lastComplete = _anomalyLastComplete(today);
-  const recentFrom = addDaysISO(lastComplete, -7 * (cfg.noActivity.recentWeeks - 1));
-  const byRole = {};
+  const currentWeek = addDaysISO(_anomalyLastComplete(today), 7);
+  const recentFrom = addDaysISO(currentWeek, -7 * (cfg.noActivity.recentWeeks - 1));
+  const lastEntry = {};
   (activity || []).forEach(a => {
-    const k = _anomalyRoleKey(a);
-    const e = byRole[k] || (byRole[k] = { rows: 0, last: null });
-    e.rows++;
     const w = _anomalyWeekKey(a);
-    if (w && (!e.last || w.week > e.last)) e.last = w.week;
+    if (!w) return;
+    const k = _anomalyRoleKey(a);
+    if (!lastEntry[k] || w.week > lastEntry[k]) lastEntry[k] = w.week;
   });
   const out = [];
   (roles || []).forEach(r => {
     if (!TTF_CENSORED_STAGES.includes(r.Stage)) return;
     const openSunday = r.OpenDate ? sundayOnOrAfterISO(spDateIn(r.OpenDate) || '') : null;
-    if (!openSunday) return;
-    const firstFull = addDaysISO(openSunday, 7);
-    if (firstFull > lastComplete) return;
-    const e = byRole[String(r.id)] || { rows: 0, last: null };
-    let kind = null;
-    if (!e.rows) kind = 'never';
-    else if (firstFull <= recentFrom && !(e.last && e.last >= recentFrom)) kind = 'stopped';
-    if (kind) {
-      out.push({ roleId: String(r.id), roleTitle: r.RoleTitle || '', stage: r.Stage || '', tp: r.TalentPartner || '',
-        kind, lastEntryWeek: e.last });
-    }
+    if (!openSunday || addDaysISO(openSunday, 7) > recentFrom) return;
+    const last = lastEntry[String(r.id)] || null;
+    if (last && last >= recentFrom) return;
+    out.push({ roleId: String(r.id), roleTitle: r.RoleTitle || '', stage: r.Stage || '', tp: r.TalentPartner || '', lastEntryWeek: last });
   });
-  const rank = x => (x.kind === 'never' ? 0 : 1);
-  return out.sort((a, b) => rank(a) - rank(b)
-    || String(a.lastEntryWeek || '').localeCompare(String(b.lastEntryWeek || ''))
+  return out.sort((a, b) =>
+    String(a.lastEntryWeek || '').localeCompare(String(b.lastEntryWeek || ''))
     || a.roleTitle.localeCompare(b.roleTitle));
+}
+
+// False when there are rows but none carries a role key — the signature of a
+// projected (e.g. id-only) fetch. Such a result must fail the check loudly and
+// not be read as "no anomalies" (N-271: the delta store once handed back
+// id-only rows and every table came out empty).
+function weeklyActivityRowsUsable(activity) {
+  const rows = activity || [];
+  return !rows.length || rows.some(a => _anomalyRoleKey(a) !== '');
 }
 
 // Per TP per week, summed across all their roles: a field whose value is

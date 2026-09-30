@@ -351,8 +351,8 @@ function learnedBenchmarkTip(benchmarks, key) {
 
 // ── WeeklyActivity anomalies (N-271 / DS-3) ──────────────────────────
 // Pure detection for Admin > Data Health. Three checks over WeeklyActivity —
-// impossible funnels, missing weeks on open roles, and spikes against a TP's
-// own median. Read-only: nothing here writes or corrects a row. Thresholds
+// impossible funnels, open roles with no activity entries, and spikes against
+// a TP's own median. Read-only: nothing here writes or corrects a row. Thresholds
 // are all CONFIG.WEEKLY_ANOMALIES, injectable as the trailing `cfg` for tests.
 
 // WeekEndingDate → { week, offSunday }. `week` is the Sunday on/after the
@@ -402,22 +402,26 @@ function findImpossibleFunnels(roles, activity, cfg = CONFIG.WEEKLY_ANOMALIES) {
   return out.sort((a, b) => excess(b) - excess(a) || a.roleTitle.localeCompare(b.roleTitle));
 }
 
-// Open roles (TTF_CENSORED_STAGES — open and expected to log activity) with a
-// run of cfg.missingWeeks.minConsecutive+ expected weeks that have no row for
-// the role. Expected weeks: the last lookbackWeeks completed weeks, but not
-// before the first full week after OpenDate. Any row counts as present, TP and
-// zeros irrelevant. → [{ roleId, roleTitle, stage, tp, missing: [weekISO…],
-// longestRun, expectedWeeks }], longest run first.
-function findMissingWeeks(roles, activity, today = new Date(), cfg = CONFIG.WEEKLY_ANOMALIES) {
-  const C = cfg.missingWeeks;
+// Open roles (TTF_CENSORED_STAGES — open and expected to log activity) that
+// have logged nothing. kind 'never': no row at all. kind 'stopped': rows, but
+// none in the last cfg.noActivity.recentWeeks completed weeks — the
+// in-progress week counts, so a TP who has already logged this week is not
+// flagged. A role is only judged once a full week has passed since it opened
+// (firstFull <= lastComplete), and 'stopped' also needs the role to be old
+// enough for the whole recent window. Any row is an entry: TP, stage and
+// values are irrelevant, an all-zero row counts, and an undated row counts
+// for 'never' only. → [{ roleId, roleTitle, stage, tp, kind, lastEntryWeek }],
+// 'never' first, then 'stopped' oldest last entry first (null = oldest).
+function findRolesWithNoActivity(roles, activity, today = new Date(), cfg = CONFIG.WEEKLY_ANOMALIES) {
   const lastComplete = _anomalyLastComplete(today);
-  const windowStart = addDaysISO(lastComplete, -7 * (C.lookbackWeeks - 1));
-  const present = {};
+  const recentFrom = addDaysISO(lastComplete, -7 * (cfg.noActivity.recentWeeks - 1));
+  const byRole = {};
   (activity || []).forEach(a => {
-    const w = _anomalyWeekKey(a);
-    if (!w) return;
     const k = _anomalyRoleKey(a);
-    (present[k] || (present[k] = new Set())).add(w.week);
+    const e = byRole[k] || (byRole[k] = { rows: 0, last: null });
+    e.rows++;
+    const w = _anomalyWeekKey(a);
+    if (w && (!e.last || w.week > e.last)) e.last = w.week;
   });
   const out = [];
   (roles || []).forEach(r => {
@@ -425,21 +429,20 @@ function findMissingWeeks(roles, activity, today = new Date(), cfg = CONFIG.WEEK
     const openSunday = r.OpenDate ? sundayOnOrAfterISO(spDateIn(r.OpenDate) || '') : null;
     if (!openSunday) return;
     const firstFull = addDaysISO(openSunday, 7);
-    const have = present[String(r.id)] || new Set();
-    const missing = [];
-    let run = 0, longestRun = 0, expectedWeeks = 0;
-    for (let w = firstFull > windowStart ? firstFull : windowStart; w <= lastComplete; w = addDaysISO(w, 7)) {
-      expectedWeeks++;
-      if (have.has(w)) { run = 0; continue; }
-      missing.push(w);
-      run++;
-      if (run > longestRun) longestRun = run;
-    }
-    if (longestRun >= C.minConsecutive) {
-      out.push({ roleId: String(r.id), roleTitle: r.RoleTitle || '', stage: r.Stage || '', tp: r.TalentPartner || '', missing, longestRun, expectedWeeks });
+    if (firstFull > lastComplete) return;
+    const e = byRole[String(r.id)] || { rows: 0, last: null };
+    let kind = null;
+    if (!e.rows) kind = 'never';
+    else if (firstFull <= recentFrom && !(e.last && e.last >= recentFrom)) kind = 'stopped';
+    if (kind) {
+      out.push({ roleId: String(r.id), roleTitle: r.RoleTitle || '', stage: r.Stage || '', tp: r.TalentPartner || '',
+        kind, lastEntryWeek: e.last });
     }
   });
-  return out.sort((a, b) => b.longestRun - a.longestRun || a.roleTitle.localeCompare(b.roleTitle));
+  const rank = x => (x.kind === 'never' ? 0 : 1);
+  return out.sort((a, b) => rank(a) - rank(b)
+    || String(a.lastEntryWeek || '').localeCompare(String(b.lastEntryWeek || ''))
+    || a.roleTitle.localeCompare(b.roleTitle));
 }
 
 // Per TP per week, summed across all their roles: a field whose value is
@@ -504,7 +507,7 @@ function detectWeeklyActivityAnomalies(roles, activity, today = new Date(), cfg 
   });
   return {
     impossibleFunnels: findImpossibleFunnels(roles, activity, cfg),
-    missingWeeks:      findMissingWeeks(roles, activity, today, cfg),
+    noActivity:        findRolesWithNoActivity(roles, activity, today, cfg),
     spikes:            findActivitySpikes(activity, today, cfg),
     meta,
   };

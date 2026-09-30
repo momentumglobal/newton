@@ -1459,7 +1459,7 @@ var ASSERTIONS = [
         { later: 'Responses', earlier: 'Outreach' }, { later: 'Interview1', earlier: 'Submitted' },
         { later: 'Offers', earlier: 'Interview1' }, { later: 'Hires', earlier: 'Offers' },
       ], 'AC1 pairs');
-      _assertEqual(c.missingWeeks, { lookbackWeeks: 8, minConsecutive: 2 }, 'AC1 missingWeeks');
+      _assertEqual(c.noActivity, { recentWeeks: 2 }, 'AC1 noActivity');
       _assertEqual(c.spikes, { fields: ['Outreach', 'Responses', 'Screened', 'Submitted'], baselineWeeks: 8,
         minBaselineWeeks: 4, multiplier: 3, minValue: 10, reportWeeks: 13 }, 'AC1 spikes');
       _assertEqual(c.displayRows, 50, 'AC1 displayRows');
@@ -1492,38 +1492,40 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-271 findMissingWeeks — runs, grace week, stages, zero rows, Sunday today',
+    name: 'N-271 findRolesWithNoActivity — never/stopped, grace, in-progress week, zeros, undated, order, cfg',
     fn: function () {
-      const today = new Date(2026, 8, 30, 12);          // Wed → lastComplete 2026-09-27
-      const weeks = ['2026-08-09', '2026-08-16', '2026-08-23', '2026-08-30', '2026-09-06', '2026-09-13', '2026-09-20', '2026-09-27'];
+      const today = new Date(2026, 8, 30, 12);          // Wed → lastComplete 2026-09-27; recent window (2 weeks) ≥ 2026-09-20
+      const J1 = '2026-06-01T12:00:00Z';
       const role = (id, stage, open) => ({ id, RoleTitle: 'Role ' + id, Stage: stage, OpenDate: open, TalentPartner: 'a@x.com' });
-      const rows = (id, have, c) => have.map(w => Object.assign({ RoleIDLookupId: id, WeekEndingDate: w + 'T12:00:00Z', TalentPartner: 'a@x.com' }, c || { Outreach: 1 }));
+      const row = (id, w, c) => Object.assign({ RoleIDLookupId: id, WeekEndingDate: w ? w + 'T12:00:00Z' : '', TalentPartner: 'a@x.com', Outreach: 1 }, c);
       const roles = [
-        role('R1', 'Sourcing', '2026-06-01T12:00:00Z'), role('R2', 'Sourcing', '2026-06-01T12:00:00Z'),
-        role('R3', 'Sourcing', '2026-09-14T12:00:00Z'), role('R4', 'Cancelled', '2026-06-01T12:00:00Z'),
-        role('R5', 'Sourcing', '2026-06-01T12:00:00Z'), role('R6', 'Sourcing', '2026-06-01T12:00:00Z'),
-        role('R7', 'Sourcing', ''),                     role('R8', 'Planning', '2026-06-01T12:00:00Z'),
+        role('R1', 'Sourcing', J1), role('R2', 'Sourcing', J1), role('R3a', 'Sourcing', J1), role('R3b', 'Sourcing', J1),
+        role('R4', 'Sourcing', '2026-09-14T12:00:00Z'), role('R5', 'Sourcing', '2026-09-23T12:00:00Z'), role('R6', 'Sourcing', '2026-09-14T12:00:00Z'),
+        role('R7', 'Sourcing', J1), role('R8', 'Sourcing', J1), role('R9', 'Sourcing', J1),
+        role('R10', 'Cancelled', J1), role('R11', 'Sourcing', ''), role('R12', 'Planning', J1),
+        role('R13', 'Sourcing', '2026-09-14T12:00:00Z'),
       ];
       const act = [].concat(
-        rows('R1', [weeks[0], weeks[1], weeks[2], weeks[6], weeks[7]]),        // missing 30 Aug, 6 Sep, 13 Sep
-        rows('R2', weeks.filter(w => w !== '2026-09-06')),                     // one gap only
-        rows('R5', weeks.filter(w => w !== '2026-08-30' && w !== '2026-09-13')), // two gaps, not consecutive
-        rows('R6', weeks.filter(w => w !== '2026-09-06'), { Outreach: 0 }),    // all-zero rows are still rows…
-        rows('R6', ['2026-09-06'], { Outreach: 0, Responses: 0 })                // …including the one that fills the gap
+        ['2026-08-09', '2026-08-16', '2026-08-23', '2026-08-30', '2026-09-06', '2026-09-13'].map(w => row('R2', w)),   // stopped after 13 Sep
+        [row('R3a', '2026-09-20'), row('R3b', '2026-09-27'), row('R6', '2026-09-20'),
+         row('R7', '2026-09-27', { Outreach: 0 }),                                                                        // all-zero row is an entry
+         row('R8', '2026-08-09'), row('R8', '2026-10-04'),                                                                // in-progress week counts
+         row('R9', ''), row('R13', '')]                                                                                   // undated only; R13 is also too new for 'stopped'
       );
-      const r = findMissingWeeks(roles, act, today);
-      _assertEqual(r.length, 1, 'AC4 only R1 flagged');
-      _assertEqual([r[0].roleId, r[0].missing, r[0].longestRun, r[0].expectedWeeks],
-        ['R1', ['2026-08-30', '2026-09-06', '2026-09-13'], 3, 8], 'AC4 worked example');
-      _assertEqual(findMissingWeeks(roles, act, new Date(2026, 9, 4, 12)).map(x => x.missing),   // Sunday 4 Oct: current week not judged
-        [['2026-08-30', '2026-09-06', '2026-09-13']], 'AC5 Sunday today');
-      // Monday 5 Oct: 4 Oct is now complete and R1 has no row for it; window slides to 16 Aug
-      _assertEqual(findMissingWeeks(roles, act, new Date(2026, 9, 5, 12))[0].missing.slice(-1), ['2026-10-04'], 'window slides');
-      // R3 opened Mon 14 Sep: first expected week is 27 Sep only → cannot have a run of 2
-      _assertEqual(findMissingWeeks([roles[2]], [], today), [], 'grace week');
-      // Injected cfg: minConsecutive 1 catches the single-gap role too, and shorter lookback trims the window
-      const cfg1 = { missingWeeks: { lookbackWeeks: 8, minConsecutive: 1 } };
-      _assertEqual(findMissingWeeks(roles, act, today, cfg1).map(x => x.roleId), ['R1', 'R2', 'R3', 'R5'], 'cfg minConsecutive=1 (R1 run 3, then single gaps by title; R3 has one expected week)');
+      const snap = JSON.stringify(roles) + JSON.stringify(act);
+      const key = x => [x.roleId, x.kind, x.lastEntryWeek];
+      const r = findRolesWithNoActivity(roles, act, today);
+      _assertEqual(r.map(key), [['R1', 'never', null], ['R4', 'never', null], ['R9', 'stopped', null], ['R2', 'stopped', '2026-09-13']],
+        'AC4/AC12 worked examples and order (R5 in grace; R3a/R3b/R6/R7/R8/R13 fine; R10/R11/R12 not evaluated)');
+      _assertEqual(r[0], { roleId: 'R1', roleTitle: 'Role R1', stage: 'Sourcing', tp: 'a@x.com', kind: 'never', lastEntryWeek: null }, 'AC12 shape');
+      _assertEqual(findRolesWithNoActivity(roles, act, new Date(2026, 9, 4, 12)), r, 'AC5 Sunday today: current week not judged');
+      _assertEqual(findRolesWithNoActivity(roles, act, today, { noActivity: { recentWeeks: 3 } }).map(key),
+        [['R1', 'never', null], ['R4', 'never', null], ['R9', 'stopped', null]], 'recentWeeks 3: window ≥ 13 Sep clears R2; R6 too new');
+      _assertEqual(findRolesWithNoActivity(roles, act, today, { noActivity: { recentWeeks: 1 } }).map(key),
+        [['R1', 'never', null], ['R4', 'never', null], ['R13', 'stopped', null], ['R9', 'stopped', null], ['R2', 'stopped', '2026-09-13'],
+         ['R3a', 'stopped', '2026-09-20'], ['R6', 'stopped', '2026-09-20']], 'recentWeeks 1: only 27 Sep+ counts; R13 now old enough');
+      _assertEqual(findRolesWithNoActivity([], [], today), [], 'empty');
+      _assertEqual(JSON.stringify(roles) + JSON.stringify(act), snap, 'inputs not mutated');
     },
   },
   {
@@ -1567,24 +1569,26 @@ var ASSERTIONS = [
     fn: function () {
       const today = new Date(2026, 8, 30, 12);
       const empty = detectWeeklyActivityAnomalies([], [], today);
-      _assertEqual([empty.impossibleFunnels, empty.missingWeeks, empty.spikes], [[], [], []], 'AC15 empty');
+      _assertEqual([empty.impossibleFunnels, empty.noActivity, empty.spikes], [[], [], []], 'AC15 empty');
+      _assertEqual(Object.keys(empty).sort(), ['impossibleFunnels', 'meta', 'noActivity', 'spikes'], 'AC15 keys');
       _assertEqual(empty.meta, { lastComplete: '2026-09-27', rowsScanned: 0, orphanRows: 0, offSundayRows: 0, undatedRows: 0, noTpRows: 0 }, 'AC15 meta shape');
-      const roles = [{ id: '1', RoleTitle: 'R', Stage: 'Sourcing', OpenDate: '2026-06-01T12:00:00Z', TalentPartner: 'a@x.com' }];
+      const role = id => ({ id, RoleTitle: 'R' + id, Stage: 'Sourcing', OpenDate: '2026-06-01T12:00:00Z', TalentPartner: 'a@x.com' });
+      const roles = [role('1'), role('2')];
       const mk = (w, extra) => Object.assign({ RoleIDLookupId: '1', WeekEndingDate: w, TalentPartner: 'a@x.com', Submitted: 1, Interview1: 0 }, extra);
       const act = [
         mk('2026-08-09T12:00:00Z'), mk('2026-08-16T12:00:00Z'), mk('2026-08-23T12:00:00Z'),
-        mk('2026-09-23T12:00:00Z'),                   // Wednesday → counts for 27 Sep
+        mk('2026-09-23T12:00:00Z'),                   // Wednesday → bucketed to 27 Sep, inside the recent window
         mk('2026-09-20T12:00:00Z'),
-        mk('', { Submitted: 0, Interview1: 5 }),      // undated: funnel totals only (5 > 6? no) — see below
+        mk('', { Submitted: 0, Interview1: 5 }),      // undated: counts as an entry and in funnel totals (Submitted 6 ≥ Interview1 5)
         mk('2026-09-20T12:00:00Z', { TalentPartner: '' }),
+        mk('2026-09-12T12:00:00Z', { RoleIDLookupId: '2' }),   // Saturday → bucketed to 13 Sep, outside the recent window
         { RoleIDLookupId: '999', WeekEndingDate: '2026-09-20T12:00:00Z', TalentPartner: 'a@x.com', Hires: 4 },
       ];
       const snapRoles = JSON.stringify(roles), snapAct = JSON.stringify(act);
       const r = detectWeeklyActivityAnomalies(roles, act, today);
-      _assertEqual(r.meta, { lastComplete: '2026-09-27', rowsScanned: 8, orphanRows: 1, offSundayRows: 1, undatedRows: 1, noTpRows: 1 }, 'AC14 meta counts');
-      _assertEqual(r.missingWeeks.length, 1, 'gap 30 Aug–13 Sep still flagged');
-      _assertEqual(r.missingWeeks[0].missing, ['2026-08-30', '2026-09-06', '2026-09-13'], 'AC14 Wednesday row filled 27 Sep');
-      _assertEqual(r.impossibleFunnels.length, 0, 'AC14 undated row counted in funnel totals (Submitted 6 ≥ Interview1 5), orphan Hires ignored');
+      _assertEqual(r.meta, { lastComplete: '2026-09-27', rowsScanned: 9, orphanRows: 1, offSundayRows: 2, undatedRows: 1, noTpRows: 1 }, 'AC14 meta counts');
+      _assertEqual(r.noActivity.map(x => [x.roleId, x.kind, x.lastEntryWeek]), [['2', 'stopped', '2026-09-13']], 'AC14 Saturday row bucketed to 13 Sep; role 1 fine (Wednesday row landed on 27 Sep)');
+      _assertEqual(r.impossibleFunnels.length, 0, 'AC14 undated row counted in funnel totals, orphan Hires ignored');
       _assertEqual(JSON.stringify(roles) + JSON.stringify(act), snapRoles + snapAct, 'AC15 inputs not mutated');
     },
   },

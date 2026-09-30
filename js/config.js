@@ -331,10 +331,11 @@ const CONFIG = {
   //                   (strict >). Hard-dependency pairs only; stages a role
   //                   can legitimately skip (Screened, Interview2Plus,
   //                   FinalInterview) are deliberately absent.
-  //   missingWeeks  — open roles (TTF_CENSORED_STAGES): flag a run of
-  //                   minConsecutive+ weeks with no row for the role, inside
-  //                   the last lookbackWeeks completed weeks. The week after
-  //                   a role opens is a grace week.
+  //   noActivity    — open roles (TTF_CENSORED_STAGES) that have logged
+  //                   nothing: no row at all, or none in the last
+  //                   recentWeeks completed weeks (the in-progress week
+  //                   counts). A role is judged only once a full week has
+  //                   passed since it opened.
   //   spikes        — per TP per week, summed across their roles: flag a
   //                   field whose value is > multiplier x the median of the
   //                   TP's previous baselineWeeks weeks that have rows (needs
@@ -348,7 +349,7 @@ const CONFIG = {
       { later: 'Offers',     earlier: 'Interview1' },
       { later: 'Hires',      earlier: 'Offers'     },
     ],
-    missingWeeks: { lookbackWeeks: 8, minConsecutive: 2 },
+    noActivity: { recentWeeks: 2 },
     spikes: {
       fields: ['Outreach', 'Responses', 'Screened', 'Submitted'],
       baselineWeeks: 8, minBaselineWeeks: 4,

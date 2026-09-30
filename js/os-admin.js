@@ -568,12 +568,26 @@ async function _dhFetchSectionData() {
 // No DOM. The detection is pure (detectWeeklyActivityAnomalies, analytics.js);
 // this only fetches. A rejected query is { ok: false }, never zeros — a check
 // that did not run must not read as a clean bill of health (N-138).
+// N-273: what the Acknowledge / Restore handlers act on. Set by
+// _dhFetchAnomalies from the FETCHED flags — the handlers never read a role's
+// breach or an ack id back out of the DOM.
+//   flags  — roleId → funnel flag (open or acknowledged)
+//   ackIds — roleId → ids of the active ack rows matching that role's flag
+let _dhAnomalyState = { flags: new Map(), ackIds: new Map() };
+
 async function _dhFetchAnomalies() {
+  _dhAnomalyState = { flags: new Map(), ackIds: new Map() };
   try {
-    const [roles, activity, nameMap] = await Promise.all([
+    const [roles, activity, nameMap, acksRes] = await Promise.all([
       getAllRoles(),
       getWeeklyActivity(null, null),
       getTalentPartnerDisplayMap().catch(() => ({})),
+      // N-273: an unreadable AnomalyAcks list must never hide a flag or fail the
+      // check — every flag is simply shown, with a note.
+      getAnomalyAcks().then(rows => ({ ok: true, rows }), e => {
+        console.warn('Data Health: could not read AnomalyAcks', e);
+        return { ok: false, rows: [] };
+      }),
     ]);
     // A projected fetch (rows with no role key — e.g. an id-only delta baseline)
     // would come out as "no anomalies". Fail loudly instead.
@@ -581,7 +595,13 @@ async function _dhFetchAnomalies() {
       console.error('Data Health: WeeklyActivity rows carry no role key — the fetch was projected, not full');
       return { ok: false };
     }
-    return { ok: true, result: detectWeeklyActivityAnomalies(roles, activity), nameMap };
+    const result = detectWeeklyActivityAnomalies(roles, activity);
+    const partition = partitionAcknowledgedFunnels(result.impossibleFunnels, acksRes.rows);
+    _dhAnomalyState = {
+      flags: new Map(result.impossibleFunnels.map(f => [String(f.roleId), f])),
+      ackIds: new Map(partition.acknowledged.map(e => [String(e.flag.roleId), e.acks.map(a => a.id)])),
+    };
+    return { ok: true, result, nameMap, acksOk: acksRes.ok, partition };
   } catch (e) {
     console.error('Data Health: WeeklyActivity anomaly check failed', e);
     return { ok: false };
@@ -693,26 +713,77 @@ function _dhAnomalyBlockHtml({ title, ok, items, head, rowFn, emptyMessage, icon
 `;
 }
 
+// '12 Sep 2026' from an ISO instant, in the viewer's own zone: an instant (an
+// acknowledgement's timestamp), not a stored date-only value, so the local
+// rendering is the right one — a 00:30 BST acknowledgement reads as that day.
+function _dhInstant(iso) {
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// One funnel flag's breaches as plain-text lines: 'Responses 12 > Outreach 10'.
+function _dhBreachLines(flag) {
+  return flag.breaches.map(b => `${b.later} ${b.laterTotal.toLocaleString('en-GB')} > ${b.earlier} ${b.earlierTotal.toLocaleString('en-GB')}`);
+}
+
+// The collapsed "Acknowledged (n)" block under the funnels table, plus the
+// note shown when the acknowledgements could not be read.
+function _dhAckedFunnelsHtml(partition, acksOk, tp) {
+  const unreadable = acksOk ? '' : `
+    <p class="dh-note dh-muted">Acknowledgements could not be read — showing every flag.</p>`;
+  if (!partition.acknowledged.length) return unreadable;
+  const rows = partition.acknowledged.map(({ flag: f, acks }) => {
+    const latest = acks.slice().sort((a, b) => String(b.AcknowledgedAt).localeCompare(String(a.AcknowledgedAt)))[0];
+    return `
+        <tr>
+          <td>${escHtml(f.roleTitle)}</td>
+          <td>${tp(f.tp)}</td>
+          <td>${escHtml(f.stage)}</td>
+          <td>${_dhBreachLines(f).map(escHtml).join('<br>')}</td>
+          <td>${escHtml(latest.AcknowledgedBy || '')}</td>
+          <td>${escHtml(_dhInstant(latest.AcknowledgedAt))}</td>
+          <td>${latest.Note ? escHtml(latest.Note) : '<span class="dh-muted">—</span>'}</td>
+          <td><button class="btn-secondary" onclick="restoreFunnelFlag('${escJsAttr(String(f.roleId))}')">Restore</button></td>
+        </tr>`;
+  }).join('');
+  return `
+    <details class="dh-ack">
+      <summary>Acknowledged (${partition.acknowledged.length})</summary>
+      <div class="table-scroll">
+      <table class="data-table dh-table">
+        <thead><tr><th>Role</th><th>Talent Partner</th><th>Stage</th><th>Breach</th><th>Acknowledged by</th><th>On</th><th>Note</th><th>Action</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      </div>
+    </details>${unreadable}`;
+}
+
 function _dhRenderWeeklyAnomaliesHtml(data) {
-  const { ok, result, nameMap } = data.anomalies;
+  const { ok, result, nameMap, acksOk, partition } = data.anomalies;
   const C = CONFIG.WEEKLY_ANOMALIES;
   const N = C.noActivity.recentWeeks;
   const windowText = N === 1 ? 'this week' : N === 2 ? 'this week or last week' : `this week or in the previous ${N - 1} weeks`;
   const tp = v => escHtml(tpDisplay(v, nameMap || {}));
   const r = ok ? result : { impossibleFunnels: [], noActivity: [], spikes: [], meta: {} };
+  // N-273: the funnels table shows OPEN flags only; acknowledged ones are in the
+  // collapsed block below it.
+  const part = ok ? partition : { open: [], acknowledged: [], reappeared: [] };
+  const reappeared = new Set(part.reappeared);
 
   const funnels = _dhAnomalyBlockHtml({
-    title: 'Impossible funnels', ok, items: r.impossibleFunnels, icon: 'check-circle',
+    title: 'Impossible funnels', ok, items: part.open, icon: 'check-circle',
     emptyMessage: 'No role has a stage larger than the stage it depends on.',
-    head: ['Role', 'Talent Partner', 'Stage', 'Breach'],
+    head: ['Role', 'Talent Partner', 'Stage', 'Breach', 'Action'],
     rowFn: f => `
         <tr>
           <td>${escHtml(f.roleTitle)}</td>
           <td>${tp(f.tp)}</td>
           <td>${escHtml(f.stage)}</td>
-          <td>${f.breaches.map(b => `${escHtml(b.later)} ${b.laterTotal.toLocaleString('en-GB')} &gt; ${escHtml(b.earlier)} ${b.earlierTotal.toLocaleString('en-GB')}`).join('<br>')}</td>
+          <td>${_dhBreachLines(f).map(escHtml).join('<br>')}${reappeared.has(String(f.roleId)) ? '<br><span class="dh-muted">Acknowledged earlier at different totals</span>' : ''}</td>
+          <td><button class="btn-secondary" onclick="acknowledgeFunnelFlag('${escJsAttr(String(f.roleId))}')">Acknowledge</button></td>
         </tr>`,
   });
+  const ackedFunnels = ok ? _dhAckedFunnelsHtml(part, acksOk, tp) : '';
   const noActivity = _dhAnomalyBlockHtml({
     title: 'Open roles with no recent activity', ok, items: r.noActivity, icon: 'check-circle',
     emptyMessage: `Every open role has an entry for ${windowText}.`,
@@ -759,10 +830,56 @@ function _dhRenderWeeklyAnomaliesHtml(data) {
       ${C.spikes.minBaselineWeeks}+ weeks of history and a value of at least
       ${C.spikes.minValue}), checked over the last ${C.spikes.reportWeeks}
       weeks. Nothing is corrected automatically — fix the row in Activity,
-      then reload this tab. A "Query error" badge means the check did not run.
-    </p>${funnels}${noActivity}${spikes}${notes.length ? `
+      then reload this tab. A justified impossible funnel can be acknowledged;
+      it stays out of the table until that role's totals change. A "Query
+      error" badge means the check did not run.
+    </p>${funnels}${ackedFunnels}${noActivity}${spikes}${notes.length ? `
     <p class="dh-note dh-muted">${escHtml(notes.join(' · '))}.</p>
 ` : ''}`;
+}
+
+// ── Data Health Tab — Acknowledge / Restore an impossible funnel (N-273) ──
+// Both act on the flag held in _dhAnomalyState (set by the fetch), never on
+// anything read back from the DOM.
+async function acknowledgeFunnelFlag(roleId) {
+  // N-106 pattern: capture the button synchronously — the implicit global
+  // `event` is only populated during the synchronous dispatch.
+  const btn = event?.target;
+  const flag = _dhAnomalyState.flags.get(String(roleId));
+  if (!flag) { toast('That flag is no longer shown — reload the tab.', { type: 'error' }); return; }
+  const note = await promptModal({
+    title: 'Acknowledge impossible funnel',
+    message: `${flag.roleTitle}: ${_dhBreachLines(flag).join('; ')}. It stays out of the table until this role's totals change. Reason (optional):`,
+    placeholder: 'e.g. Historic data, confirmed with the Talent Partner',
+    confirmLabel: 'Acknowledge',
+  });
+  if (note === null) return;
+  setButtonLoading(btn);
+  try {
+    await acknowledgeAnomaly({ checkType: 'funnel', subjectKey: flag.roleId, signature: anomalyFunnelSignature(flag), note });
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error acknowledging: ' + e.message, { type: 'error' });
+  }
+}
+
+async function restoreFunnelFlag(roleId) {
+  const btn = event?.target;
+  const ids = _dhAnomalyState.ackIds.get(String(roleId));
+  if (!ids || !ids.length) { toast('That acknowledgement is no longer shown — reload the tab.', { type: 'error' }); return; }
+  if (!(await confirmModal({
+    message: 'Restore this flag? It will return to the Impossible funnels table.',
+    confirmLabel: 'Restore',
+  }))) return;
+  setButtonLoading(btn);
+  try {
+    await restoreAnomalyAcks(ids);
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error restoring: ' + e.message, { type: 'error' });
+  }
 }
 
 

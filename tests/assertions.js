@@ -1616,4 +1616,142 @@ var ASSERTIONS = [
       _assertEqual(weeklyActivityRowsUsable([{ id: '1', RoleID: '7' }]), true, 'AC23 RoleID fallback');
     },
   },
+  {
+    name: 'N-273 anomalyFunnelSignature — format, pair order, changes with totals',
+    fn: function () {
+      const f = { roleId: '5', breaches: [
+        { later: 'Responses', earlier: 'Outreach',   laterTotal: 12, earlierTotal: 10 },
+        { later: 'Offers',    earlier: 'Interview1', laterTotal: 3,  earlierTotal: 2 } ] };
+      _assertEqual(anomalyFunnelSignature(f), 'Responses:12>Outreach:10;Offers:3>Interview1:2', 'AC1 format');
+      _assertEqual(anomalyFunnelSignature(f), anomalyFunnelSignature(JSON.parse(JSON.stringify(f))), 'AC1 deterministic');
+      const g = JSON.parse(JSON.stringify(f)); g.breaches[0].laterTotal = 13;
+      _assertEqual(anomalyFunnelSignature(g) !== anomalyFunnelSignature(f), true, 'AC1 different totals, different signature');
+      const h = JSON.parse(JSON.stringify(f)); h.breaches.pop();
+      _assertEqual(anomalyFunnelSignature(h), 'Responses:12>Outreach:10', 'AC1 a breach fixed changes the signature');
+      _assertEqual(anomalyFunnelSignature({ roleId: '5', breaches: [] }), '', 'AC1 no breaches');
+      _assertEqual(anomalyFunnelSignature(null), '', 'AC1 null');
+      // From the real detector: breaches come out in CONFIG.WEEKLY_ANOMALIES.funnelPairs order
+      const roles = [{ id: 'A', RoleTitle: 'A', Stage: 'Sourcing', TalentPartner: 'a@x.com' }];
+      const act = [{ RoleIDLookupId: 'A', WeekEndingDate: '2026-09-20T12:00:00Z', TalentPartner: 'a@x.com',
+        Outreach: 1, Responses: 2, Submitted: 0, Interview1: 0, Offers: 0, Hires: 1 }];
+      _assertEqual(anomalyFunnelSignature(findImpossibleFunnels(roles, act)[0]), 'Responses:2>Outreach:1;Hires:1>Offers:0', 'AC1 detector order');
+    },
+  },
+  {
+    name: 'N-273 partitionAcknowledgedFunnels — match on role + signature, re-appear, ignore, duplicates',
+    fn: function () {
+      const flag = (roleId, later, earlier, lt, et) => ({ roleId, roleTitle: 'R' + roleId, stage: 'Sourcing', tp: '',
+        breaches: [{ later, earlier, laterTotal: lt, earlierTotal: et }] });
+      const F1 = flag('1', 'Responses', 'Outreach', 12, 10);
+      const F2 = flag('2', 'Offers', 'Interview1', 3, 2);
+      const F3 = flag('3', 'Hires', 'Offers', 1, 0);
+      const ack = (id, role, sig, extra) => Object.assign({ id, CheckType: 'funnel', SubjectKey: role, Signature: sig, Status: 'active' }, extra);
+      const flags = [F1, F2, F3];
+
+      let p = partitionAcknowledgedFunnels(flags, null);
+      _assertEqual(p.open.map(f => f.roleId), ['1', '2', '3'], 'AC2 null acks: all open');
+      _assertEqual([p.acknowledged.length, p.reappeared.length], [0, 0], 'AC2 null acks: nothing acknowledged');
+      p = partitionAcknowledgedFunnels(flags, []);
+      _assertEqual(p.open.length, 3, 'AC2 empty acks');
+
+      p = partitionAcknowledgedFunnels(flags, [ack('a1', '2', anomalyFunnelSignature(F2))]);
+      _assertEqual(p.open.map(f => f.roleId), ['1', '3'], 'AC3 matched flag leaves open, order kept');
+      _assertEqual(p.acknowledged.map(e => e.flag.roleId), ['2'], 'AC3 acknowledged');
+      _assertEqual(p.acknowledged[0].signature, 'Offers:3>Interview1:2', 'AC3 signature carried');
+      _assertEqual(p.acknowledged[0].acks.map(a => a.id), ['a1'], 'AC3 ack rows carried');
+
+      // AC4: same role, different signature -> open again + reappeared
+      p = partitionAcknowledgedFunnels(flags, [ack('a1', '1', 'Responses:11>Outreach:10')]);
+      _assertEqual(p.open.map(f => f.roleId), ['1', '2', '3'], 'AC4 changed totals: still open');
+      _assertEqual(p.reappeared, ['1'], 'AC4 reappeared roleId');
+      _assertEqual(p.acknowledged.length, 0, 'AC4 not acknowledged');
+
+      // AC5: restored / other CheckType / role with no flag are ignored
+      p = partitionAcknowledgedFunnels(flags, [
+        ack('r1', '1', anomalyFunnelSignature(F1), { Status: 'restored' }),
+        ack('c1', '2', anomalyFunnelSignature(F2), { CheckType: 'spike' }),
+        ack('z1', '99', 'Responses:1>Outreach:0'),
+        null,
+      ]);
+      _assertEqual(p.open.length, 3, 'AC5 nothing hidden by ignored rows');
+      _assertEqual(p.reappeared, [], 'AC5 ignored rows do not mark reappeared');
+      _assertEqual(p.acknowledged.length, 0, 'AC5 nothing acknowledged');
+
+      // AC6: two active rows for one role + signature = one acknowledgement
+      p = partitionAcknowledgedFunnels(flags, [ack('d1', '3', anomalyFunnelSignature(F3)), ack('d2', '3', anomalyFunnelSignature(F3))]);
+      _assertEqual(p.acknowledged.length, 1, 'AC6 one entry');
+      _assertEqual(p.acknowledged[0].acks.map(a => a.id), ['d1', 'd2'], 'AC6 both rows');
+      _assertEqual(p.open.map(f => f.roleId), ['1', '2'], 'AC6 the rest stay open');
+
+      // SubjectKey compares as text (SharePoint returns it as a string, roleId may be a number)
+      p = partitionAcknowledgedFunnels([flag(7, 'Hires', 'Offers', 1, 0)], [ack('n1', '7', 'Hires:1>Offers:0')]);
+      _assertEqual(p.acknowledged.length, 1, 'numeric roleId vs text SubjectKey');
+      _assertEqual(partitionAcknowledgedFunnels(null, null), { open: [], acknowledged: [], reappeared: [] }, 'null flags');
+      const snap = JSON.stringify(flags);
+      partitionAcknowledgedFunnels(flags, [ack('a1', '2', anomalyFunnelSignature(F2))]);
+      _assertEqual(JSON.stringify(flags), snap, 'inputs not mutated');
+    },
+  },
+  {
+    name: 'N-273 buildAnomalyAckFields — the eight columns, trimmed and capped note, lower-cased email',
+    fn: function () {
+      const a = { checkType: 'funnel', subjectKey: 42, signature: 'Responses:12>Outreach:10', note: '  historic data  ' };
+      const r = buildAnomalyAckFields(a, 'Chris.Friend@Momentum.com', '2026-09-30T09:15:00.000Z');
+      _assertEqual(r, {
+        Title: 'funnel · 42', CheckType: 'funnel', SubjectKey: '42', Signature: 'Responses:12>Outreach:10',
+        Note: 'historic data', AcknowledgedBy: 'chris.friend@momentum.com', AcknowledgedAt: '2026-09-30T09:15:00.000Z', Status: 'active',
+      }, 'AC7 exactly the eight columns');
+      _assertEqual(Object.keys(r).sort(), CONFIG.LIST_FIELDS.AnomalyAcks.slice().sort(), 'AC7 columns = LIST_FIELDS.AnomalyAcks');
+      _assertEqual(buildAnomalyAckFields(Object.assign({}, a, { note: undefined }), 'x@y.z', 'T').Note, '', 'AC13 no note');
+      _assertEqual(buildAnomalyAckFields(Object.assign({}, a, { note: '   ' }), 'x@y.z', 'T').Note, '', 'AC13 blank note');
+      const cap = CONFIG.WEEKLY_ANOMALIES.acknowledge.noteMaxChars;
+      _assertEqual(buildAnomalyAckFields(Object.assign({}, a, { note: 'x'.repeat(cap + 100) }), 'x@y.z', 'T').Note.length, cap, 'AC13 capped at noteMaxChars');
+      _assertEqual(buildAnomalyAckFields(Object.assign({}, a, { note: 'abcdefgh' }), 'x@y.z', 'T', { acknowledge: { noteMaxChars: 5 } }).Note, 'abcde', 'AC13 cap comes from cfg');
+    },
+  },
+  {
+    name: 'N-273 AnomalyAcks wrappers — filter, write shape, Status-only restore (no delete, no raw graphRequest)',
+    fn: function () {
+      // The wrappers reach their helper synchronously (before any await), so the
+      // recorded calls can be asserted here without awaiting.
+      // getCurrentUser lives in auth.js, which the Node harness does not load.
+      const hadUser = typeof getCurrentUser === 'function';
+      const saved = { getItems, createItem, updateItem, getCurrentUser: hadUser ? getCurrentUser : undefined };
+      const calls = [];
+      getItems = function (list, filter) { calls.push(['get', list, filter]); return Promise.resolve([]); };
+      createItem = function (list, fields) { calls.push(['create', list, fields]); return Promise.resolve({}); };
+      updateItem = function (list, id, fields) { calls.push(['update', list, id, fields]); return Promise.resolve({}); };
+      globalThis.getCurrentUser = function () { return { email: 'Chris@Momentum.com' }; };
+      try {
+        getAnomalyAcks();
+        _assertEqual(calls[0], ['get', 'AnomalyAcks', "fields/Status eq 'active'"], 'AC7 read is server-side filtered to active');
+        acknowledgeAnomaly({ checkType: 'funnel', subjectKey: '9', signature: 'Hires:1>Offers:0', note: 'ok' });
+        const c = calls[1];
+        _assertEqual([c[0], c[1]], ['create', 'AnomalyAcks'], 'AC7 write goes through createItem');
+        _assertEqual(Object.keys(c[2]).sort(), CONFIG.LIST_FIELDS.AnomalyAcks.slice().sort(), 'AC7 the eight columns');
+        _assertEqual([c[2].Title, c[2].Status, c[2].AcknowledgedBy, c[2].Note], ['funnel · 9', 'active', 'chris@momentum.com', 'ok'], 'AC7 values');
+        _assertEqual(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(c[2].AcknowledgedAt), true, 'AC7 AcknowledgedAt is an ISO instant');
+        restoreAnomalyAcks(['11', '12']);
+        _assertEqual(calls.slice(2), [['update', 'AnomalyAcks', '11', { Status: 'restored' }], ['update', 'AnomalyAcks', '12', { Status: 'restored' }]], 'AC7 restore patches Status only');
+        _assertEqual(calls.some(x => x[0] === 'delete'), false, 'AC7 nothing deleted');
+      } finally {
+        getItems = saved.getItems; createItem = saved.createItem; updateItem = saved.updateItem;
+        if (hadUser) globalThis.getCurrentUser = saved.getCurrentUser; else delete globalThis.getCurrentUser;
+      }
+    },
+  },
+  {
+    name: 'N-273 config and registration — AnomalyAcks alias {}, LIST_FIELDS, row-count watch, existing entries unchanged',
+    fn: function () {
+      _assertEqual(FIELD_ALIASES.AnomalyAcks, {}, 'AC8 alias is {}');
+      _assertEqual(CONFIG.LIST_FIELDS.AnomalyAcks,
+        ['Title', 'CheckType', 'SubjectKey', 'Signature', 'Note', 'AcknowledgedBy', 'AcknowledgedAt', 'Status'], 'AC8 the eight names');
+      _assertEqual(Object.keys(FIELD_ALIASES).includes('AnomalyAcks'), true, 'AC8 registered, so watched by N-154');
+      _assertEqual((CONFIG.DATA_HEALTH_EXCLUDED_LISTS || []).includes('AnomalyAcks'), false, 'AC8 not opted out of the row-count watch');
+      _assertEqual(FIELD_ALIASES.Diagnostics, {}, 'AC8 Diagnostics unchanged');
+      _assertEqual(CONFIG.LIST_FIELDS.Diagnostics.length, 10, 'AC8 Diagnostics projection unchanged');
+      const n = CONFIG.WEEKLY_ANOMALIES.acknowledge.noteMaxChars;
+      _assertEqual(Number.isInteger(n) && n > 0, true, 'AC13 noteMaxChars is a positive integer');
+    },
+  },
 ];

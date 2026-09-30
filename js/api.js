@@ -371,6 +371,12 @@ const FIELD_ALIASES = {
   Diagnostics: {},
   // ── Time-series snapshots (N-085 / L-1a) ────────────────────
   Snapshots: {},
+  // ── WeeklyActivity anomaly acknowledgements (N-273) ─────────
+  // {} is deliberate — every AnomalyAcks column is already the display name
+  // Newton wants; a self-mapping alias would DELETE the field (see the
+  // RoleHistory entry below). Registering here also enrols the list in
+  // N-154's Data Health row-count watch, which is wanted.
+  AnomalyAcks: {},
   // ── CoE Hiring Plan ───────────────────────────────────────
   CoEPlanRows:     {},
   CoEPlanForecast: {},
@@ -777,6 +783,23 @@ async function getDiagnostics() {
 // fresh with no manual cache handling here.
 async function acknowledgeDiagnosticGroup(ids) {
   await Promise.all(ids.map(id => updateItem('Diagnostics', id, { Status: 'acknowledged' })));
+}
+// ── WeeklyActivity anomaly acknowledgements (N-273) ────────────────
+// Server-side filtered to Status = 'active', like getDiagnostics(): restored
+// rows are history and are never fetched.
+async function getAnomalyAcks() {
+  return getItems('AnomalyAcks', "fields/Status eq 'active'");
+}
+// The row itself is built by the pure buildAnomalyAckFields (analytics.js);
+// this only stamps who and when, and writes. createItem already calls
+// _cacheInvalidate('AnomalyAcks').
+async function acknowledgeAnomaly(ack) {
+  const email = ((getCurrentUser() || {}).email || '').toLowerCase();
+  return createItem('AnomalyAcks', buildAnomalyAckFields(ack, email, new Date().toISOString()));
+}
+// Restore = PATCH Status only. No delete: the row stays as history.
+async function restoreAnomalyAcks(ids) {
+  await Promise.all(ids.map(id => updateItem('AnomalyAcks', id, { Status: 'restored' })));
 }
 // ── Role creation history (N-100) ─────────────────────────────────
 // Companion to N-099's updateRoleWithHistory: createItem('Roles', fields)

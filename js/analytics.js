@@ -512,6 +512,59 @@ function detectWeeklyActivityAnomalies(roles, activity, today = new Date(), cfg 
   };
 }
 
+// ── Impossible-funnel acknowledgements (N-273) ───────────────────────
+// PURE. A stable text signature of a flag's breaches, in the order
+// findImpossibleFunnels emits them (CONFIG.WEEKLY_ANOMALIES.funnelPairs
+// order): 'Responses:12>Outreach:10;Offers:3>Interview1:2'. An acknowledgement
+// matches a flag only when the role AND this signature both match, so any
+// change in the totals — or in which pairs are breached — brings the flag back.
+function anomalyFunnelSignature(flag) {
+  return ((flag && flag.breaches) || [])
+    .map(b => `${b.later}:${b.laterTotal}>${b.earlier}:${b.earlierTotal}`)
+    .join(';');
+}
+
+// PURE. Split funnel flags by the active acknowledgements read from AnomalyAcks.
+//   open         — flags with no matching acknowledgement (input order kept)
+//   acknowledged — [{ flag, signature, acks: [row…] }] — role + signature match
+//   reappeared   — roleIds of OPEN flags whose role has an active ack at a
+//                  different signature (acknowledged earlier, totals changed)
+// Rows that are not active, not CheckType 'funnel', or belong to a role with no
+// current flag are ignored. Two active rows for the same role + signature (a
+// double-click, two admins) are one acknowledgement holding both rows.
+function partitionAcknowledgedFunnels(flags, acks) {
+  const active = (acks || []).filter(a => a && a.CheckType === 'funnel' && a.Status === 'active');
+  const open = [], acknowledged = [], reappeared = [];
+  (flags || []).forEach(f => {
+    const mine = active.filter(a => String(a.SubjectKey) === String(f.roleId));
+    const signature = anomalyFunnelSignature(f);
+    const matching = mine.filter(a => a.Signature === signature);
+    if (matching.length) {
+      acknowledged.push({ flag: f, signature, acks: matching });
+    } else {
+      open.push(f);
+      if (mine.length) reappeared.push(String(f.roleId));
+    }
+  });
+  return { open, acknowledged, reappeared };
+}
+
+// PURE. The eight AnomalyAcks columns for one acknowledgement. The note is
+// trimmed and capped at cfg.acknowledge.noteMaxChars; the email is lower-cased;
+// nowIso is an instant (ISO 8601 text — the column is text, not a Date).
+function buildAnomalyAckFields({ checkType, subjectKey, signature, note }, email, nowIso, cfg = CONFIG.WEEKLY_ANOMALIES) {
+  return {
+    Title:          `${checkType} · ${subjectKey}`,
+    CheckType:      checkType,
+    SubjectKey:     String(subjectKey),
+    Signature:      signature,
+    Note:           String(note || '').trim().slice(0, cfg.acknowledge.noteMaxChars),
+    AcknowledgedBy: String(email || '').toLowerCase(),
+    AcknowledgedAt: nowIso,
+    Status:         'active',
+  };
+}
+
 
 // ── Role flag helpers (shared by cc-pages.js and analytics-pages.js) ──
 const ACTIVE_STAGES = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled', 'On-hold'];

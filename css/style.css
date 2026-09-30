@@ -1186,6 +1186,8 @@ body {
 .dh-table       { margin: 0 0 var(--sp-10); }
 .dh-table-tight { margin: 0 0 var(--sp-10); }
 .dh-muted       { color: var(--text-faint); }
+.dh-ack         { margin: 0 0 var(--sp-10); }
+.dh-ack > summary { cursor: pointer; font-size: var(--fs-13); color: var(--text-label); margin-bottom: var(--sp-7); }
 .dh-badge {
   display: inline-block;
   font-size: var(--fs-11);

@@ -276,6 +276,15 @@ const CONFIG = {
       'Title', 'UserEmail', 'Module', 'Page', 'Message', 'Stack',
       'UserAgent', 'OccurredAt', 'ErrorType', 'Status',
     ],
+    // ── WeeklyActivity anomaly acknowledgements (N-273) ─────────
+    // 'AcknowledgedAt' is a TEXT column holding an ISO 8601 instant, not a
+    // SharePoint Date and Time column (same reasoning as Diagnostics.OccurredAt).
+    // 'SubjectKey' is the role id as text — deliberately not a Lookup, so an
+    // acknowledgement survives the role being deleted.
+    AnomalyAcks: [
+      'Title', 'CheckType', 'SubjectKey', 'Signature', 'Note',
+      'AcknowledgedBy', 'AcknowledgedAt', 'Status',
+    ],
   },
 
   // ── SharePoint list-view threshold guard (F-10 / N-092) ────────────
@@ -342,6 +351,12 @@ const CONFIG = {
   //                   minBaselineWeeks of them) AND >= minValue. Only the
   //                   last reportWeeks completed weeks are reported.
   //   displayRows   — rows shown per table; the rest collapse to "+N more".
+  //   acknowledge   — (N-273) Impossible-funnel acknowledgements, stored in the
+  //                   AnomalyAcks list. noteMaxChars caps the optional reason.
+  //                   An acknowledgement hides a flag only while the role AND
+  //                   its signature (the breaches, in funnelPairs order) both
+  //                   match, so editing funnelPairs makes existing
+  //                   acknowledgements stop matching and the flags return.
   WEEKLY_ANOMALIES: {
     funnelPairs: [
       { later: 'Responses',  earlier: 'Outreach'   },
@@ -357,6 +372,7 @@ const CONFIG = {
       reportWeeks: 13,
     },
     displayRows: 50,
+    acknowledge: { noteMaxChars: 500 },
   },
 
   // N-174 (F-11a). Columns the Schema Check panel never reports as

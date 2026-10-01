@@ -220,6 +220,25 @@ function funnelRoleIndex(roles, fnKey, locKey) {
   return index;
 }
 
+// N-277 (N-272 D4): learning population for Placement Analytics = the hired
+// roles (`historical`, shape functionArea/country) plus every role in
+// CONFIG.FUNNEL_LEARNING_EXTRA_STAGES (Cancelled) from `allRoles` (shape
+// Department/Location). A cancelled role's completed stage progress is valid
+// learning — cancellation is the client's decision. Open/Backlog/On-hold roles
+// are NOT added (unfinished funnels would bias benchmarks green). The roles
+// being JUDGED on the page stay hired-only; only this index widens. A hired
+// entry wins on a duplicate id.
+function funnelLearningIndex(historical, allRoles) {
+  const index = funnelRoleIndex(historical, 'functionArea', 'country');
+  (allRoles || []).forEach(r => {
+    if (!r || r.id == null) return;
+    if (!CONFIG.FUNNEL_LEARNING_EXTRA_STAGES.includes(r.Stage)) return;
+    const id = String(r.id);
+    if (!index.has(id)) index.set(id, { fn: r.Department || '', loc: r.Location || '' });
+  });
+  return index;
+}
+
 // WeeklyActivity rows → one observation per (role, TP), counts summed.
 // Rows whose role isn't in roleIndex are dropped.
 function buildFunnelObservations(activity, roleIndex) {

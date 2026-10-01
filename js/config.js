@@ -552,6 +552,13 @@ const CONFIG = {
     floorFraction: 0.80,         // learned rate never below 80% of the ANALYTICS_BENCHMARKS target
   },
 
+  // N-277 (N-272 D4): stages, besides Hired, whose WeeklyActivity feeds the
+  // funnel benchmarks on Placement Analytics (analytics.js funnelLearningIndex).
+  // Cancellation is always the client's call, so the stage progress a cancelled
+  // role completed is valid learning. Open / Backlog / On-hold stay out:
+  // their funnels are unfinished, which would bias the benchmarks green.
+  FUNNEL_LEARNING_EXTRA_STAGES: ['Cancelled'],
+
   UTILISATION_THRESHOLDS: {
   green: 0.85,  // >= 85% billed = healthy
   amber: 0.75,  // >= 75% billed = watch

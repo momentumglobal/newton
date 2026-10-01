@@ -140,11 +140,13 @@ function _paComputeResults(data, location, functionArea) {
     Offers:        sumField(filtAct, "Offers"),
     Hires:         sumField(filtAct, "Hires"),
   };
-  // N-270: learned benchmarks. Learning population is HIRED roles only —
-  // this page's funnels are hired-role funnels, and learning from all roles
-  // (incl. cancelled) would bias them green. Leave-self-out: the roles being
-  // judged never count toward their own benchmark.
-  const benchObs     = buildFunnelObservations(activityRaw, funnelRoleIndex(historical, 'functionArea', 'country'));
+  // N-270: learned benchmarks. N-277: learning population is HIRED roles plus
+  // CANCELLED roles (their completed stage progress is valid learning —
+  // cancellation is the client's call). Open/Backlog/On-hold stay out: their
+  // funnels are unfinished and would bias the benchmarks green. The roles
+  // being judged are still hired-only. Leave-self-out: the roles being judged
+  // never count toward their own benchmark.
+  const benchObs     = buildFunnelObservations(activityRaw, funnelLearningIndex(historical, openRoles));
   const summaryBench = learnFunnelBenchmarks(benchObs, functionArea || null, location || null, { exclude: o => filteredIds.has(o.roleId) });
   const funnelStages = computeRoleFunnel(totals, summaryBench);
 

@@ -1430,6 +1430,69 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'N-277 funnelLearningIndex — hired + cancelled only, hired wins, null-safe; cancelled activity feeds the benchmarks',
+    fn: function () {
+      const ok = (cond, label) => _assertEqual(!!cond, true, label);
+      const r6 = x => Math.round(x * 1e6) / 1e6;
+      const entries = m => Array.from(m.entries());
+      _assertEqual(CONFIG.FUNNEL_LEARNING_EXTRA_STAGES, ['Cancelled'], 'AC config list');
+
+      const hist = [{ id: 1, functionArea: 'Eng', country: 'UK' }, { id: 2, functionArea: 'Ops', country: 'DE' }];
+      const histBefore = JSON.stringify(hist);
+      const roles = [
+        { id: 2, Stage: 'Cancelled', Department: 'WRONG', Location: 'WRONG' },   // also hired: hired wins
+        { id: 3, Stage: 'Cancelled', Department: 'Eng', Location: 'UK' },
+        { id: 4, Stage: 'On-hold',   Department: 'Eng', Location: 'UK' },
+        { id: 5, Stage: 'Backlog',   Department: 'Eng', Location: 'UK' },
+        { id: 6, Stage: 'Sourcing',  Department: 'Eng', Location: 'UK' },
+        { id: 7, Stage: 'Hired',     Department: 'Eng', Location: 'UK' },          // hired but outside `historical`
+        { id: 8, Stage: 'Cancelled' },                                             // blank function/location
+        null,
+        { Stage: 'Cancelled' },                                                    // no id
+      ];
+      const idx = funnelLearningIndex(hist, roles);
+      _assertEqual(Array.from(idx.keys()).sort(), ['1', '2', '3', '8'], 'AC1/AC2 members: hired + cancelled only');
+      _assertEqual(idx.get('2'), { fn: 'Ops', loc: 'DE' }, 'AC3 hired entry wins on duplicate id');
+      _assertEqual(idx.get('3'), { fn: 'Eng', loc: 'UK' }, 'AC1 cancelled role uses Department/Location');
+      _assertEqual(idx.get('8'), { fn: '', loc: '' }, 'AC1 blank function/location tolerated');
+      _assertEqual(JSON.stringify(hist), histBefore, 'does not mutate inputs');
+
+      // AC4: null-safe; no extras → exactly funnelRoleIndex
+      _assertEqual(funnelLearningIndex(null, null).size, 0, 'AC4 null/null');
+      _assertEqual(funnelLearningIndex([], []).size, 0, 'AC4 empty');
+      _assertEqual(entries(funnelLearningIndex(hist, undefined)), entries(funnelRoleIndex(hist, 'functionArea', 'country')), 'AC4 no allRoles = hired-only index');
+
+      // AC5 regression: no cancelled roles → identical observations and benchmarks
+      const O = (roleId, fn, loc, c) => ({ roleId, tp: '', fn, loc,
+        c: Object.assign({ Outreach: 0, Responses: 0, Submitted: 0, Interview1: 0, Offers: 0, Hires: 0 }, c) });
+      const acts = [
+        { RoleIDLookupId: 1, TalentPartner: 'a@x.com', Outreach: 1000, Responses: 300, Offers: 10, Hires: 9 },
+        { RoleIDLookupId: 3, TalentPartner: 'a@x.com', Outreach: 1000, Responses: 100, Offers: 10, Hires: 0 },
+      ];
+      const hiredOnly = buildFunnelObservations(acts, funnelRoleIndex(hist, 'functionArea', 'country'));
+      const noCancelled = buildFunnelObservations(acts, funnelLearningIndex(hist, [{ id: 4, Stage: 'On-hold' }]));
+      _assertEqual(noCancelled, hiredOnly, 'AC5 no cancelled roles → identical observations');
+
+      // AC6/AC7: a cancelled role's completed progress feeds the benchmarks
+      const prior = { outreachConversion: 0.25, submissionConversion: 0.8, interviewToOffer: 0.2, offerSuccess: 0.8, timeToHireDays: 45, flagThreshold: 0.8 };
+      const cfg = { priorStrength: { outreachConversion: 200, submissionConversion: 20, interviewToOffer: 20, offerSuccess: 10 }, floorFraction: 0.8 };
+      const withCancelled = buildFunnelObservations(acts, funnelLearningIndex(hist, roles));
+      _assertEqual(withCancelled.map(o => o.roleId), ['1', '3'], 'AC6 cancelled role 3 now has an observation');
+      const bHired = learnFunnelBenchmarks(hiredOnly, 'Eng', 'UK', { prior, cfg });
+      const bAll   = learnFunnelBenchmarks(withCancelled, 'Eng', 'UK', { prior, cfg });
+      ok(bAll.outreachConversion < bHired.outreachConversion, 'AC6 cancelled outreach (10%) lowers the outreach benchmark');
+      ok(bAll.outreachConversion >= prior.outreachConversion * cfg.floorFraction, 'AC6 floor still respected');
+      ok(bAll.offerSuccess < bHired.offerSuccess, 'AC7 cancelled Offers with 0 Hires lower offerSuccess');
+      _assertEqual([r6(bAll.offerSuccess), bAll.meta.offerSuccess.floored], [r6(prior.offerSuccess * cfg.floorFraction), true], 'AC7 0.80 × target floor applies');
+
+      // AC10 leave-self-out unchanged: excluding role 1, its own counts cannot move the benchmark
+      const acts2 = [Object.assign({}, acts[0], { Outreach: 5, Responses: 5 }), acts[1]];
+      const o2 = buildFunnelObservations(acts2, funnelLearningIndex(hist, roles));
+      const ex = { prior, cfg, exclude: o => o.roleId === '1' };
+      _assertEqual(learnFunnelBenchmarks(withCancelled, 'Eng', 'UK', ex), learnFunnelBenchmarks(o2, 'Eng', 'UK', ex), 'AC10 leave-self-out');
+    },
+  },
+  {
     name: 'N-271 medianOf / addDaysISO / sundayOnOrAfterISO — odd/even/empty, month end, leap day, BST',
     fn: function () {
       _assertEqual(medianOf([3, 1, 2]), 2, 'median odd');

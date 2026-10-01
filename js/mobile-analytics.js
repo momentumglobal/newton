@@ -111,9 +111,9 @@ function maRenderResults() {
     Offers:     sumField(filtAct, 'Offers'),
     Hires:      sumField(filtAct, 'Hires'),
   };
-  // N-270: learned benchmarks — hired-role population, leave-self-out
-  // (mirrors desktop Placement Analytics).
-  const benchObs     = buildFunnelObservations(activityRaw, funnelRoleIndex(historical, 'functionArea', 'country'));
+  // N-270: learned benchmarks — hired + cancelled role population (N-277),
+  // leave-self-out (mirrors desktop Placement Analytics).
+  const benchObs     = buildFunnelObservations(activityRaw, funnelLearningIndex(historical, openRoles));
   const summaryBench = learnFunnelBenchmarks(benchObs, _maFunctionArea || null, _maLocation || null, { exclude: o => filteredIds.has(o.roleId) });
   const funnelStages = computeRoleFunnel(totals, summaryBench);
 

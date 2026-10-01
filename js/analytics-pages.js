@@ -62,14 +62,11 @@ async function renderScorecardsPage() {
     const scorecard    = computeVelocityScore(tpEmail, tpActivity, tpPlacements, bench);
     const tpRoles      = allRoles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tpEmail));
     const flaggedRoles = tpRoles.filter(r => {
-    const acts = activityRaw.filter(a => String(a.RoleIDLookupId) === String(r.id));
+      const acts = activityRaw.filter(a => String(a.RoleIDLookupId) === String(r.id));
       return isRoleFlagged(r, acts);
     }).length;
-    const flaggedPct = tpRoles.length ? flaggedRoles / tpRoles.length : null;
-    const flaggedRag = flaggedPct === null ? 'grey'
-      : flaggedPct < 0.25 ? 'green'
-      : flaggedPct <= 0.50 ? 'amber' : 'red';
-    return renderScorecardPanel(scorecard, tpMap, { total: tpRoles.length, flagged: flaggedRoles, rag: flaggedRag }, bench);
+    // N-275: counts only. No RAG is derived from flagged ÷ open until N-274.
+    return renderScorecardPanel(scorecard, tpMap, { total: tpRoles.length, flagged: flaggedRoles }, bench);
   }).join('');
 
   main.innerHTML = `
@@ -99,13 +96,11 @@ async function getScopedTpEmails(userEmail) {
 
 function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null, bench = null) {
   const displayName = tpMap[scorecard.tpEmail.toLowerCase()] || scorecard.tpEmail;
-  const overallRag  = roleHealth ? roleHealth.rag : 'grey';
-
   const healthRow = roleHealth ? (() => {
     const display = roleHealth.total > 0 ? `${roleHealth.flagged}/${roleHealth.total}` : '—';
     return `<tr>
       <td class='sc-label'>Flagged roles</td>
-      <td class='sc-value sc-${roleHealth.rag}' style="text-align:center">${ragMarkerHTML(roleHealth.rag)}${display}</td>
+      <td class='sc-value sc-grey' style="text-align:center">${display}</td>
     </tr>`;
   })() : '';
 
@@ -123,7 +118,7 @@ function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null, bench = 
   return `<div class='dash-panel sc-card'>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
       <h3 class='panel-title sc-tp-name' style="margin-bottom:0">${displayName}</h3>
-      <span class="sc-rag-pill sc-rag-pill--${overallRag}">${ragMarkerHTML(overallRag)}${overallRag.toUpperCase()}</span>
+      <span class="sc-rag-pill sc-rag-pill--grey">NOT RATED</span>
     </div>
     <p class='sc-window'>Rolling Quarterly View</p>
     <table class='sc-table'><tbody>${healthRow}${rows}</tbody></table>

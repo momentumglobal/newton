@@ -413,7 +413,7 @@
         <tr><th>Tile</th><th>Signal</th><th>Green</th><th>Amber</th><th>Red</th></tr>
         <tr><td><strong>Revenue</strong></td><td>3-month avg of estimated + forecast monthly revenue (current month + next 2). Estimated from Assignments (<code>computeMonthlyRevenueForYear()</code>); forecast from SalesForecasts (<code>computeMonthlyForecastRevenueForYear()</code>)</td><td>≥£225k</td><td>≥£200k</td><td>&lt;£200k</td></tr>
         <tr><td><strong>Project Health</strong></td><td>% of live roles flagged (days-open vs stage timeline + submission conversion &lt;50%)</td><td>&lt;25%</td><td>≤50%</td><td>&gt;50%</td></tr>
-        <tr><td><strong>People</strong></td><td>Weighted flagged-role score across TPs (green=0, amber=1, red=2) ÷ TP count</td><td>&lt;0.5</td><td>≤1.0</td><td>&gt;1.0</td></tr>
+        <tr><td><strong>People</strong></td><td>Unrated (grey) since N-275 — flagged ÷ open measured role age, not risk. Returns with N-274 (time-in-stage flags). Tile shows TP count and flagged-role count only.</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td><strong>Utilisation</strong></td><td>13-week forecast % (known assignments this month via <code>computeMonthlyRows()</code> + SalesForecasts headcount / total active headcount)</td><td>≥85%</td><td>≥75%</td><td>&lt;75%</td></tr>
       </table>
       <div class="callout">RAG thresholds are centralised in config.js: Utilisation in <code>CONFIG.UTILISATION_THRESHOLDS</code> (<code>green: 0.85, amber: 0.75</code>) and Revenue in <code>CONFIG.REVENUE_THRESHOLDS</code> (<code>green: 225000, amber: 200000</code> — monthly £). Never hardcode these values in page scripts.</div>
@@ -614,7 +614,7 @@
         <tr><td><span class="file-tag">js/api-people-forms.js</span></td><td>SharePoint API calls for People data-entry forms (N-237b) — <code>addInvoiceFileURL()</code>, <code>createInvoice()</code>, <code>updateAssignment()</code>, <code>uploadInvoiceAttachment()</code>. Consumed only by people-forms.js.</td></tr>
         <tr><td><span class="file-tag">js/people-forms.js</span></td><td>Form renderers for People data entry</td></tr>
         <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions. No network I/O or DOM access.</td></tr>
-        <tr><td><span class="file-tag">js/analytics-pages.js</span></td><td>People Scorecards page renderers — renderScorecardsPage(), renderScorecardPanel(). Card RAG driven by flagged-roles ratio.</td></tr>
+        <tr><td><span class="file-tag">js/analytics-pages.js</span></td><td>People Scorecards page renderers — renderScorecardsPage(), renderScorecardPanel(). Card pill is unrated (NOT RATED) and the Flagged roles row is a plain count until N-274 (N-275).</td></tr>
         <tr><td><span class="file-tag">js/api-engagement.js</span></td><td>SharePoint API calls for Engagement/Survey (N-237a) — <code>getEligibleRespondentCount()</code>, <code>createSurveyTemplate()</code>, <code>updateSurveyTemplate()</code>, <code>createSurveyQuestion()</code>, <code>updateSurveyQuestion()</code>, <code>deleteSurveyQuestion()</code>, <code>getSurveyRuns()</code>, <code>updateSurveyRun()</code>, <code>getSurveyResponses()</code>, <code>getSurveyCompletionCount()</code>, <code>createSurveyResponse()</code>, <code>createSurveyCompletion()</code>. Consumed by engagement-forms.js and engagement-pages.js here, and by survey-app.js on the standalone survey.html (see Survey respondent page, below).</td></tr>
         <tr><td><span class="file-tag">js/engagement-pages.js</span></td><td>Engagement dashboard renderers — renderEngagementPage(), summary cards, question result cards (Rating/Choice/FreeText), trends chart (Chart.js), run selector, close run, export PDF.</td></tr>
         <tr><td><span class="file-tag">js/engagement-forms.js</span></td><td>Survey builder modals — Manage Template, Add/Edit Question, Activate Run. Question reordering and deletion.</td></tr>
@@ -1159,6 +1159,15 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">September 2026</div>
+        <div class="changelog-title">People RAG paused — flagged ÷ open removed (N-275)</div>
+        <ul>
+          <li>The TP scorecard pill (desktop and mobile) now reads <strong>NOT RATED</strong> (grey), and the Command Centre People tile is grey. Flagged ÷ open roles measured role age rather than risk (N-272 D1a).</li>
+          <li>The Flagged roles row stays as a plain grey count; the People tile shows <em>N Talent Partners · X flagged roles</em>; <code>computePeopleRAG()</code> is removed. <code>isRoleFlagged()</code> is unchanged. Scorecard and People-tile RAG return with N-274.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">September 2026</div>

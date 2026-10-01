@@ -90,14 +90,11 @@ async function mobileRenderScorecards(main) {
         const acts = activityRaw.filter(a => String(a.RoleIDLookupId) === String(r.id));
         return isRoleFlagged(r, acts);
       }).length;
-      const flaggedPct = tpRoles.length ? flaggedRoles / tpRoles.length : null;
-      const flaggedRag = flaggedPct === null ? 'grey'
-        : flaggedPct < 0.25 ? 'green'
-        : flaggedPct <= 0.50 ? 'amber' : 'red';
+      // N-275: counts only. No RAG is derived from flagged ÷ open until N-274.
       const name = tpMap[tpEmail.toLowerCase()] || tpEmail;
       return {
         name,
-        html: mScCardHtml(scorecard, name, { total: tpRoles.length, flagged: flaggedRoles, rag: flaggedRag }),
+        html: mScCardHtml(scorecard, name, { total: tpRoles.length, flagged: flaggedRoles }),
       };
     });
 
@@ -133,8 +130,6 @@ async function mobileRenderScorecards(main) {
 
 // Compact scorecard card using the mobile look (mirrors desktop panel).
 function mScCardHtml(scorecard, displayName, roleHealth) {
-  const overallRag = roleHealth ? roleHealth.rag : 'grey';
-
   const ragColour = (rag) => ({
     green: 'var(--c-success)', amber: 'var(--c-warn-text)', red: 'var(--c-danger)', grey: 'var(--c-gray-500)',
   }[rag] || 'var(--c-gray-500)');
@@ -143,7 +138,7 @@ function mScCardHtml(scorecard, displayName, roleHealth) {
     const display = roleHealth.total > 0 ? `${roleHealth.flagged}/${roleHealth.total}` : '-';
     return `<tr>
       <td class="m-sc-metric">Flagged roles</td>
-      <td class="m-sc-val" style="color:${ragColour(roleHealth.rag)}">${ragMarkerHTML(roleHealth.rag)}${display}</td>
+      <td class="m-sc-val" style="color:${ragColour('grey')}">${display}</td>
     </tr>`;
   })() : '';
 
@@ -160,7 +155,7 @@ function mScCardHtml(scorecard, displayName, roleHealth) {
     <div class="m-detail-panel" style="margin-bottom:0">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
         <div class="m-detail-value" style="margin-bottom:0">${escHtml(displayName)}</div>
-        <span class="m-sc-pill" style="background:${ragColour(overallRag)}">${ragMarkerHTML(overallRag)}${overallRag.toUpperCase()}</span>
+        <span class="m-sc-pill" style="background:${ragColour('grey')}">NOT RATED</span>
       </div>
       <div class="m-detail-label">Rolling Quarterly View</div>
       <table class="m-sc-table"><tbody>${healthRow}${rows}</tbody></table>

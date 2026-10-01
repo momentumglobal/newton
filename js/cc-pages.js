@@ -15,7 +15,8 @@ async function renderCCOverview(container) {
   ]);
   const historical = await getHistoricalPlacements();
   const ragHealth = computeProjectHealthRAG(roles, acts4, historical);
-  const ragPeople = computePeopleRAG(roles, acts13, historical);
+  // N-275: People tile is unrated (grey) until N-274 replaces flagged ÷ open.
+  const ragPeople = 'grey';
   const ragUtil    = computeUtilisationRAG(forecasts, assigns, people);
   const ragRevenue = computeRevenueRAG(forecasts, assigns);
   // N-108: company-wide flagged-role trend, Health tile only — see the
@@ -30,7 +31,7 @@ async function renderCCOverview(container) {
     <div class="cc-grid" id="cc-grid">
       ${ccTileHTML('revenue', 'Revenue', ragRevenue, ccRevenueStats(forecasts, assigns))}
       ${ccTileHTML('health', 'Project Health', ragHealth, ccHealthStats(roles, acts4), healthTrendHTML)}
-      ${ccTileHTML('people', 'People', ragPeople, ccPeopleStats(roles, acts13, historical))}
+      ${ccTileHTML('people', 'People', ragPeople, ccPeopleStats(roles, acts13))}
       ${ccTileHTML('util',   'Utilisation',    ragUtil,   ccUtilStats(forecasts, assigns, people))}
     </div>`;
 
@@ -95,23 +96,14 @@ function ccHealthStats(roles, activity) {
   return `${open.length} open roles · ${flagged} flagged`;
 }
 
-function ccPeopleStats(roles, activity, historical) {
-  const tps = [...new Set(
-    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage))
-         .flatMap(r => tpList(r.TalentPartner))
-  )];
-  const counts = { green: 0, amber: 0, red: 0 };
-  tps.forEach(tp => {
-    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
-    const flagged = tpRoles.filter(r => {
-      const acts = activity.filter(a => String(a.RoleIDLookupId) === String(r.id));
-      return isRoleFlagged(r, acts);
-    }).length;
-    const pct = tpRoles.length ? flagged / tpRoles.length : null;
-    const rag = pct === null ? 'grey' : pct < 0.25 ? 'green' : pct <= 0.50 ? 'amber' : 'red';
-    if (rag !== 'grey') counts[rag]++;
-  });
-  return `${counts.green} green · ${counts.amber} amber · ${counts.red} red`;
+function ccPeopleStats(roles, activity) {
+  const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
+  const tps = [...new Set(open.flatMap(r => tpList(r.TalentPartner)))];
+  const flagged = open.filter(role => {
+    const acts = activity.filter(a => String(a.RoleIDLookupId) === String(role.id));
+    return isRoleFlagged(role, acts);
+  }).length;
+  return `${tps.length} Talent Partners · ${flagged} flagged roles`;
 }
 
 function ccUtilStats(forecasts, assigns, people) {
@@ -224,30 +216,6 @@ function _ccHealthTrendTooltipHTML() {
   return ` <span class="help-tip">?<span class="help-tip-text">Compares this week's flagged-role rate (across all active projects) to last week's, from the Snapshots list. Needs 3+ weeks of history -- someone must run Admin > Snapshots > Write Snapshot Now weekly for it to build up.</span></span>`;
 }
 
-function computePeopleRAG(roles, activity, historical) {
-  const b = CONFIG.ANALYTICS_BENCHMARKS;
-  const tps = [...new Set(
-    roles.filter(r => !ACTIVE_STAGES.includes(r.Stage))
-         .flatMap(r => tpList(r.TalentPartner))
-  )];
-  if (!tps.length) return 'green';
-  const weight = { green: 0, amber: 1, red: 2, grey: 0 };
-  const total = tps.reduce((sum, tp) => {
-    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
-    const flagged = tpRoles.filter(r => {
-      const acts = activity.filter(a => String(a.RoleIDLookupId) === String(r.id));
-      return isRoleFlagged(r, acts);
-    }).length;
-    const pct = tpRoles.length ? flagged / tpRoles.length : null;
-    const rag = pct === null ? 'grey' : pct < 0.25 ? 'green' : pct <= 0.50 ? 'amber' : 'red';
-    return sum + weight[rag];
-  }, 0);
-  const avg = total / tps.length;
-  if (avg < 0.5)  return 'green';
-  if (avg <= 1.0) return 'amber';
-  return 'red';
-}
-
 function _ccUtilCalc(forecasts, assigns, people) {
   const now     = new Date();
   const horizon = new Date(now.getTime() + 91 * 86400000); // 13 weeks
@@ -345,22 +313,20 @@ function renderPeopleDetail(data) {
          .flatMap(r => tpList(r.TalentPartner))
   )];
     if (!tps.length) return '<p class="no-data">No active Talent Partners found.</p>';
-  const weight = { green: 0, amber: 1, red: 2, grey: 0 };
   const rows = tps.map(tp => {
-  const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
-  const flagged = tpRoles.filter(r => {
-  const acts = acts13.filter(a => String(a.RoleIDLookupId) === String(r.id));
+    const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
+    const flagged = tpRoles.filter(r => {
+      const acts = acts13.filter(a => String(a.RoleIDLookupId) === String(r.id));
       return isRoleFlagged(r, acts);
     }).length;
-    const pct = tpRoles.length ? flagged / tpRoles.length : null;
-    const rag = pct === null ? 'grey' : pct < 0.25 ? 'green' : pct <= 0.50 ? 'amber' : 'red';
     const name = tp.split('@')[0].replace('.', ' ').replace(/\b\w/g, c => c.toUpperCase());
-    return { rag, html: `<tr>
+    // N-275: no RAG until N-274. Order by flagged count, then name.
+    return { flagged, name, html: `<tr>
       <td>${name}</td>
       <td style="text-align:center">${flagged}/${tpRoles.length}</td>
-      <td style="text-align:center">${ragTextHTML(rag, rag.toUpperCase())}</td>
+      <td style="text-align:center">${ragTextHTML('grey', '—')}</td>
     </tr>` };
-  }).sort((a, b) => weight[b.rag] - weight[a.rag]).map(r => r.html).join('');
+  }).sort((a, b) => b.flagged - a.flagged || a.name.localeCompare(b.name)).map(r => r.html).join('');
 
   return `<table class="cc-detail-table">
     <thead><tr>

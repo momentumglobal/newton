@@ -912,6 +912,16 @@ async function getRoleHistoryRoleIds() {
   const rows = await getItems('RoleHistory', '', 'RoleIDLookupId');
   return new Set(rows.map(r => String(r.RoleIDLookupId)));
 }
+// N-276: every Stage row across the whole list, for survival TTF's
+// Cancelled/On-hold censoring (analytics.js ttfClosedCensorTimes). One
+// $select-limited read. Deliberately NO $filter on Field: it isn't indexed
+// and getItems sends no HonorNonIndexedQueries header, so a filtered read
+// would start failing once the list passes the threshold — filtered here
+// instead. The explicit select also keeps this off the delta path (N-271).
+async function getRoleStageHistory() {
+  const rows = await getItems('RoleHistory', '', 'RoleIDLookupId,Field,OldValue,NewValue,ChangedAt');
+  return rows.filter(r => r.Field === 'Stage');
+}
 async function deleteItem(listName, itemId) {
   const result = await graphRequest("DELETE", `${listPath(listName)}/${itemId}`);
   _cacheInvalidate(listName);

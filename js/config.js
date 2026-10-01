@@ -536,6 +536,11 @@ const CONFIG = {
   TTF_SURVIVAL: {
     minEvents:   3,  // min completed hires before a pool is used (else fall back / 'Insufficient data')
     minBandDays: 7,  // floor for the ± band
+    // N-276 (N-272 D2): roles in these stages are censored at the day they
+    // left active work (RoleHistory), not excluded. Cancellation is always the
+    // client's call, so it says nothing about how the role was going.
+    closedStages:       ['On-hold', 'Cancelled'],
+    closedLookbackDays: 365,  // mirrors getHistoricalPlacements()' 1-year hire window
   },
 
   // N-270: learned funnel benchmarks (analytics.js learnFunnelBenchmarks).

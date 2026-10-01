@@ -444,8 +444,15 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     </div>`;
   }
 
-  // Build a cross-project role lookup for mapping activity records
-  const allRoles = await getAllRoles();
+  // Build a cross-project role lookup for mapping activity records.
+  // N-276: Stage history for survival TTF's Cancelled/On-hold censoring —
+  // fetched alongside allRoles and built once, not per row. A failed read
+  // falls back to N-269 behaviour rather than breaking the panel.
+  const [allRoles, stageRows] = await Promise.all([
+    getAllRoles(),
+    getRoleStageHistory().catch(e => { console.warn('N-276: stage history read failed', e); return []; }),
+  ]);
+  const closedCensored = ttfClosedCensorTimes(allRoles, stageRows);
   const allRoleMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), r])
   );
@@ -482,7 +489,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     const groupIds = new Set(allRoles.filter(r => groupKey(r) === key).map(r => String(r.id)));
     const bench  = learnFunnelBenchmarks(benchObs, meta.department, meta.location, { exclude: o => groupIds.has(o.roleId) });
     const funnel = computeRoleFunnel(totals, bench);
-    const ttf    = computeTTFPrediction(meta.department, meta.location, historical, allRoles);
+    const ttf    = computeTTFPrediction(meta.department, meta.location, historical, allRoles, closedCensored);
 
     const flags = funnel.filter(s => s.benchmarked).map(s => s.rag);
     const worst = flags.includes('red') ? 'red'
@@ -496,8 +503,10 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
   const tableRows = rows.map(({ key, meta, funnel, ttf, bench }) => {
     // N-269: faded when pooled to function level or when there is no median.
     const ttfClass = (ttf.weeks === null || ttf.pooled) ? 'ttf-badge ttf-badge--low-data' : 'ttf-badge';
+    const ttfOpen  = ttf.censored - ttf.closed;
     const ttfTip   = ttf.basis
-      ? `Median time to hire (Kaplan–Meier): ${ttf.events} hire${ttf.events !== 1 ? 's' : ''}, ${ttf.censored} open role${ttf.censored !== 1 ? 's' : ''} counted`
+      ? `Median time to hire (Kaplan–Meier): ${ttf.events} hire${ttf.events !== 1 ? 's' : ''}, ${ttfOpen} open role${ttfOpen !== 1 ? 's' : ''}`
+        + (ttf.closed ? `, ${ttf.closed} on hold/cancelled` : '') + ' counted'
         + (ttf.pooled ? ` — pooled across all locations for ${meta.department || 'this function'}` : '')
       : `Fewer than ${CONFIG.TTF_SURVIVAL.minEvents} hires in the last 12 months for this function`;
     const ttfCell  = `<td class='ra-ttf' style="text-align:center"><span class='${ttfClass}' title="${escHtml(ttfTip)}">${ttf.label}</span></td>`;

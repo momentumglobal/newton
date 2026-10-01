@@ -3,7 +3,7 @@
 // ── State ─────────────────────────────────────────────────────────────
 let _paLocation      = "";   // selected Currency/Location filter value
 let _paFunctionArea  = "";   // selected Department filter value
-let _paData          = null; // { historical, activityRaw, allPlacements, openRoles }
+let _paData          = null; // { historical, activityRaw, allPlacements, openRoles, closedCensored }
 let _paBreakdownSort   = null; // N-247c: { key, dir } — Role Breakdown table
 let _paBreakdownSearch = "";   // N-247c: shared list search box (list-controls.js)
 
@@ -19,14 +19,19 @@ async function renderPlacementAnalytics() {
 
   // Load all data in parallel
   // N-269: getAllRoles() supplies the open roles computeTTFPrediction
-  // counts as censored observations.
-  const [historical, activityRaw, allPlacements, openRoles] = await Promise.all([
+  // counts as censored observations. N-276: Stage history supplies the day
+  // each Cancelled/On-hold role left active work — built into closedCensored
+  // once here, not per filter change. A failed read falls back to N-269
+  // behaviour (those roles left out) rather than breaking the page.
+  const [historical, activityRaw, allPlacements, openRoles, stageRows] = await Promise.all([
     getHistoricalPlacements(),
     getActivityForAnalytics(52),
     getPlacements(null),
     getAllRoles(),
+    getRoleStageHistory().catch(e => { console.warn('N-276: stage history read failed', e); return []; }),
   ]);
-  _paData = { historical, activityRaw, allPlacements, openRoles };
+  const closedCensored = ttfClosedCensorTimes(openRoles, stageRows);
+  _paData = { historical, activityRaw, allPlacements, openRoles, closedCensored };
 
   // Build unique filter options from historical placements
   const locations     = _paUnique(historical, "country").sort();
@@ -106,7 +111,7 @@ function paRenderResults() {
 
 // ── Results aggregation (pure — no DOM) ─────────────────────────────────
 function _paComputeResults(data, location, functionArea) {
-  const { historical, activityRaw, allPlacements, openRoles } = data;
+  const { historical, activityRaw, allPlacements, openRoles, closedCensored } = data;
 
   // Filter historical placements by selected dimensions
   let filtered = historical;
@@ -120,7 +125,7 @@ function _paComputeResults(data, location, functionArea) {
   // ── Summary metrics ───────────────────────────────────────────────
   // N-269: shared Kaplan–Meier estimate (analytics.js) — replaces the local
   // mean-of-hires copy, which ignored still-open roles (survivorship bias).
-  const ttfResult = computeTTFPrediction(functionArea || null, location || null, historical, openRoles);
+  const ttfResult = computeTTFPrediction(functionArea || null, location || null, historical, openRoles, closedCensored);
   const avgTTHDays = _paAvgTTH(filtered);
   const sampleSize = filtered.length;
 
@@ -232,7 +237,7 @@ function _paRenderResultsHtml(results, location, functionArea) {
           <div class="kpi-label">Predicted Time to Hire</div>
           <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
             ${ttfResult.bandDays !== null
-              ? `±${Math.round(ttfResult.bandDays)}d · ${ttfResult.events} hires, ${ttfResult.censored} open${ttfResult.pooled ? " · all locations" : ""}`
+              ? `±${Math.round(ttfResult.bandDays)}d · ${ttfResult.events} hires, ${ttfResult.censored - ttfResult.closed} open${ttfResult.closed ? `, ${ttfResult.closed} on hold/cancelled` : ""}${ttfResult.pooled ? " · all locations" : ""}`
               : ttfResult.label}
           </div>
         </div>

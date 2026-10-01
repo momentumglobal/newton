@@ -9,7 +9,7 @@
 // State
 let _maLocation     = '';
 let _maFunctionArea = '';
-let _maData         = null;  // { historical, activityRaw, openRoles }
+let _maData         = null;  // { historical, activityRaw, openRoles, closedCensored }
 
 function maEsc(str) {
   return String(str)
@@ -26,13 +26,17 @@ async function mobileRenderPlacementAnalytics(main) {
 
   try {
     // N-269: getAllRoles() supplies the open roles computeTTFPrediction
-    // counts as censored observations.
-    const [historical, activityRaw, openRoles] = await Promise.all([
+    // counts as censored observations. N-276: Stage history for the
+    // Cancelled/On-hold censoring, built once here (as desktop). A failed
+    // read falls back to N-269 behaviour rather than breaking the page.
+    const [historical, activityRaw, openRoles, stageRows] = await Promise.all([
       getHistoricalPlacements(),
       getActivityForAnalytics(52),
       getAllRoles(),
+      getRoleStageHistory().catch(e => { console.warn('N-276: stage history read failed', e); return []; }),
     ]);
-    _maData = { historical, activityRaw, openRoles };
+    const closedCensored = ttfClosedCensorTimes(openRoles, stageRows);
+    _maData = { historical, activityRaw, openRoles, closedCensored };
 
     const locations     = maUnique(historical, 'country').sort();
     const functionAreas = maUnique(historical, 'functionArea').sort();
@@ -76,7 +80,7 @@ function maRenderResults() {
   const container = document.getElementById('ma-results');
   if (!container || !_maData) return;
 
-  const { historical, activityRaw, openRoles } = _maData;
+  const { historical, activityRaw, openRoles, closedCensored } = _maData;
 
   let filtered = historical;
   if (_maLocation)     filtered = filtered.filter(r => r.country      === _maLocation);
@@ -89,10 +93,12 @@ function maRenderResults() {
 
   // Summary metrics (mirrors desktop)
   // N-269: shared Kaplan–Meier estimate (analytics.js), same as desktop.
-  const ttf = computeTTFPrediction(_maFunctionArea || null, _maLocation || null, historical, openRoles);
+  const ttf = computeTTFPrediction(_maFunctionArea || null, _maLocation || null, historical, openRoles, closedCensored);
   const ttfValue = ttf.medianDays !== null ? `~${ttf.medianDays}d`
     : (!ttf.medianReached && ttf.basis) ? `>${ttf.maxObservedDays}d` : '-';
-  const ttfSub = ttf.basis ? `${ttf.events} hires · ${ttf.censored} open` : undefined;
+  const ttfSub = ttf.basis
+    ? `${ttf.events} hires · ${ttf.censored - ttf.closed} open` + (ttf.closed ? ` · ${ttf.closed} on hold/cancelled` : '')
+    : undefined;
 
   const validTth = filtered.filter(r => r.openDate && r.placementDate);
   const avgTTH = validTth.length

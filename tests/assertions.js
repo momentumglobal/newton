@@ -1251,7 +1251,7 @@ var ASSERTIONS = [
     name: 'N-269 computeTTFPrediction — shape, pool ladder, censored stages, median not reached',
     fn: function () {
       const KEYS = ['label', 'weeks', 'stdDevWeeks', 'sampleSize', 'medianDays', 'bandDays', 'events',
-        'censored', 'basis', 'pooled', 'medianReached', 'maxObservedDays'].sort();
+        'censored', 'closed', 'basis', 'pooled', 'medianReached', 'maxObservedDays'].sort();  // N-276 added 'closed'
       const H = (fn, loc, days) => ({ functionArea: fn, country: loc,
         openDate: '2026-01-01T12:00:00Z',
         placementDate: new Date(Date.UTC(2026, 0, 1 + days, 12)).toISOString() });
@@ -1283,6 +1283,73 @@ var ASSERTIONS = [
 
       const all = computeTTFPrediction('', null, hist, [O('Sales', 'DE', 'Sourcing', 3)]);
       _assertEqual([all.basis, all.events, all.censored], ['all', 4, 1], 'AC12 no filters');
+    },
+  },
+  {
+    name: 'N-276 ttfClosedCensorTimes — trailing closed run, skips, lookback, BST day',
+    fn: function () {
+      const today = new Date(2026, 9, 1, 12);  // 1 Oct 2026, local noon
+      const R = (id, stage, open) => ({ id, Stage: stage, Department: 'Eng', Location: 'UK', OpenDate: open + 'T12:00:00Z' });
+      const S = (id, oldV, newV, at) => ({ RoleIDLookupId: id, Field: 'Stage', OldValue: oldV, NewValue: newV, ChangedAt: at });
+      const roles = [
+        R(1, 'Cancelled', '2026-06-01'), R(2, 'Cancelled', '2026-06-01'), R(3, 'On-hold', '2026-06-01'),
+        R(4, 'Cancelled', '2026-06-01'), R(5, 'Cancelled', '2026-06-01'), R(6, 'On-hold', '2026-06-01'),
+        R(7, 'Cancelled', '2026-06-01'), R(8, 'Cancelled', '2026-06-01'), R(9, 'Cancelled', '2026-06-01'),
+        R(10, 'Cancelled', '2025-06-01'), R(11, 'Sourcing', '2026-06-01'), R(12, 'Cancelled', '2026-06-10'),
+      ];
+      const rows = [
+        S(1, null, 'Sourcing', '2026-06-01T09:00:00Z'), S(1, 'Sourcing', 'Cancelled', '2026-07-01T10:00:00Z'),
+        S(2, 'Interview 1', 'On-hold', '2026-06-21T10:00:00Z'), S(2, 'On-hold', 'Cancelled', '2026-07-31T10:00:00Z'),
+        S(3, 'Sourcing', 'On-hold', '2026-06-16T10:00:00Z'),
+        S(4, null, 'Cancelled', '2026-06-05T10:00:00Z'),
+        S(5, 'Backlog', 'Cancelled', '2026-06-05T10:00:00Z'),
+        S(6, 'Planning', 'On-hold', '2026-06-05T10:00:00Z'),
+        S(7, 'Sourcing', 'On-hold', '2026-06-05T10:00:00Z'),          // latest row disagrees with Stage
+        S(9, 'Sourcing', 'Cancelled', '2026-05-20T10:00:00Z'),        // t < 0
+        S(10, 'Sourcing', 'Cancelled', '2025-07-01T10:00:00Z'),       // outside lookback
+        S(11, 'Sourcing', 'Sourcing', '2026-06-05T10:00:00Z'),
+        S(12, 'Sourcing', 'Cancelled', '2026-07-09T23:30:00Z'),       // 00:30 BST on 10 Jul
+        { RoleIDLookupId: 1, Field: 'Priority', OldValue: 'Sourcing', NewValue: 'Cancelled', ChangedAt: '2026-08-01T10:00:00Z' },
+      ];
+      const out = ttfClosedCensorTimes(roles, rows, today);
+      const t = Object.fromEntries(out.map(o => [o.roleId, o.t]));
+      _assertEqual(t['1'], 30, 'AC4 Sourcing → Cancelled');
+      _assertEqual(t['2'], 20, 'AC5 On-hold → Cancelled censored at the On-hold date');
+      _assertEqual(t['3'], 15, 'AC6 currently On-hold');
+      _assertEqual(Object.keys(t).filter(k => ['4', '5', '6', '7', '8', '9', '10', '11'].includes(k)), [], 'AC7 skips');
+      _assertEqual(Object.keys(out[0]).sort(), ['Department', 'Location', 'Stage', 'roleId', 't'], 'shape');
+      if (localDayISO(new Date('2026-07-09T23:30:00Z')) !== '2026-07-10') {
+        _skip('AC8 needs a UK timezone (BST) — runs under node tests/run.js.');
+      }
+      _assertEqual(t['12'], 30, 'AC8 BST instant resolves to the next local day');
+    },
+  },
+  {
+    name: 'N-276 computeTTFPrediction closedCensored + config + getRoleStageHistory read',
+    fn: function () {
+      const H = (days) => ({ functionArea: 'Eng', country: 'UK', openDate: '2026-01-01T12:00:00Z',
+        placementDate: new Date(Date.UTC(2026, 0, 1 + days, 12)).toISOString() });
+      const hist = [H(10), H(20), H(30)];
+      const C = (fn, loc, t) => ({ roleId: 'x', Department: fn, Location: loc, Stage: 'Cancelled', t });
+      const base = computeTTFPrediction('Eng', 'UK', hist, []);
+      _assertEqual([base.closed, base.censored, base.medianDays], [0, 0, 20], 'AC10 no 5th arg → closed 0');
+      const r = computeTTFPrediction('Eng', 'UK', hist, [], [C('Eng', 'UK', 15), C('Sales', 'UK', 5), C('Eng', 'PT', 5)]);
+      _assertEqual([r.events, r.sampleSize, r.censored, r.closed, r.medianDays], [3, 3, 1, 1, 20], 'AC9/AC11 filtered by fn/loc, censored not events');
+      const none = computeTTFPrediction('Sales', 'UK', hist, [], [C('Sales', 'UK', 5)]);
+      _assertEqual([none.label, none.closed, none.censored], ['Insufficient data', 1, 1], 'AC10 closed on the insufficient path');
+      const nr = computeTTFPrediction('Eng', 'UK', hist, [], [1, 2, 3, 4, 5].map(() => C('Eng', 'UK', 300)));
+      _assertEqual([nr.medianReached, nr.closed, nr.maxObservedDays], [false, 5, 300], 'AC10 closed on the median-not-reached path');
+
+      _assertEqual(CONFIG.TTF_SURVIVAL.closedStages, ['On-hold', 'Cancelled'], 'AC1 closedStages');
+      _assertEqual(CONFIG.TTF_SURVIVAL.closedLookbackDays, 365, 'AC1 lookback');
+      _assertEqual(CONFIG.TTF_SURVIVAL.closedStages.every(s => CONFIG.ROLE_STAGES.includes(s)), true, 'AC1 stages exist');
+
+      const saved = getItems; const calls = [];
+      getItems = function (list, filter, select) { calls.push([list, filter, select]); return Promise.resolve([]); };
+      try {
+        getRoleStageHistory();
+        _assertEqual(calls, [['RoleHistory', '', 'RoleIDLookupId,Field,OldValue,NewValue,ChangedAt']], 'AC2 one unfiltered, select-limited read');
+      } finally { getItems = saved; }
     },
   },
   {

@@ -4,7 +4,9 @@
 // ── Phase A — Time-to-Fill Prediction (N-269: survival-based) ────────
 // Kaplan–Meier estimate of time from OpenDate to hire. Completed hires are
 // events; roles still open (TTF_CENSORED_STAGES) are right-censored at their
-// current age. Averaging completed hires alone ignores the slow roles that
+// current age; On-hold/Cancelled roles (CONFIG.TTF_SURVIVAL.closedStages) are
+// right-censored at the day they left active work (N-276, ttfClosedCensorTimes).
+// Averaging completed hires alone ignores the slow roles that
 // haven't filled yet and so under-states time to fill (survivorship bias) —
 // counting open roles as "at least this long so far" removes that.
 // Pool ladder: the filters as given (function × location), then — only when
@@ -14,8 +16,10 @@
 
 // Stages whose roles are still open and so count as censored observations.
 // Derived, not a second list. Backlog/Planning never started the clock;
-// On-hold/Cancelled are excluded until N-272's cancellation audit; Hired
-// roles are events (via `historical`), not censored.
+// On-hold/Cancelled are censored too, but at the day they stopped being
+// worked, not their current age — CONFIG.TTF_SURVIVAL.closedStages and
+// ttfClosedCensorTimes (N-276, from N-272 D2); Hired roles are events (via
+// `historical`), not censored.
 // NOT ACTIVE_STAGES (which lists the closed/dormant stages) or STAGE_ORDER
 // (a 4-stage subset built only for isRoleFlagged).
 const TTF_CENSORED_STAGES = CONFIG.ROLE_STAGES.filter(s =>
@@ -44,7 +48,52 @@ function kmQuantile(curve, p) {
   return step ? step.t : null;
 }
 
-function computeTTFPrediction(functionArea, country, historical, openRoles = []) {
+// N-276 (N-272 D2): Cancelled / On-hold roles as censored observations. The
+// role counts as open up to the day it left active work, then drops out
+// without a fill. That day is the start of the TRAILING run of closed-stage
+// rows in its Stage history, so On-hold → Cancelled stops the clock at the
+// On-hold date. A role is skipped — left out, exactly as under N-269 — when:
+// it has no Stage rows; its latest row disagrees with role.Stage; the run
+// began from a stage that never started the clock (creation row, Backlog,
+// Planning); t < 0; or the close day is older than closedLookbackDays.
+// stageRows: RoleHistory Stage rows (getRoleStageHistory). Build once per
+// page load; computeTTFPrediction takes the result as its 5th argument.
+// → [{ roleId, Department, Location, Stage, t }]
+function ttfClosedCensorTimes(roles, stageRows, today = new Date()) {
+  const cfg    = CONFIG.TTF_SURVIVAL;
+  const closed = cfg.closedStages;
+  const cutoff = new Date(today.getTime());
+  cutoff.setDate(cutoff.getDate() - cfg.closedLookbackDays);
+  const cutoffDay = localDayISO(cutoff);
+  const byRole = {};
+  (stageRows || []).forEach(h => {
+    if (h.Field && h.Field !== 'Stage') return;
+    const k = String(h.RoleIDLookupId);
+    (byRole[k] = byRole[k] || []).push(h);
+  });
+  const out = [];
+  (roles || []).forEach(role => {
+    if (!closed.includes(role.Stage)) return;
+    const rows = (byRole[String(role.id)] || []).slice()
+      .sort((a, b) => new Date(a.ChangedAt) - new Date(b.ChangedAt));
+    if (!rows.length || rows[rows.length - 1].NewValue !== role.Stage) return;
+    let start = rows.length - 1;
+    while (start > 0 && closed.includes(rows[start - 1].NewValue)) start--;
+    const first = rows[start];
+    // Falsy check, never === '' — a creation row's OldValue reads back null (N-100).
+    if (!first.OldValue || !TTF_CENSORED_STAGES.includes(first.OldValue)) return;
+    // ChangedAt is an instant, OpenDate a day marker: take the local day
+    // first, never raw milliseconds (N-100 diff-4).
+    const closeDay = localDayISO(new Date(first.ChangedAt));
+    if (!closeDay || closeDay < cutoffDay) return;
+    const t = daysOpen(role.OpenDate, closeDay);
+    if (t === null || t < 0) return;
+    out.push({ roleId: String(role.id), Department: role.Department, Location: role.Location, Stage: role.Stage, t });
+  });
+  return out;
+}
+
+function computeTTFPrediction(functionArea, country, historical, openRoles = [], closedCensored = []) {
   const cfg = CONFIG.TTF_SURVIVAL;
 
   const poolFor = (fn, loc) => {
@@ -59,8 +108,16 @@ function computeTTFPrediction(functionArea, country, historical, openRoles = [])
       .map(r => daysOpen(r.OpenDate))
       .filter(t => t !== null && t >= 0)
       .map(t => ({ t, event: false }));
+    // N-276: On-hold/Cancelled, censored at the day they left active work.
+    const closed = (closedCensored || [])
+      .filter(r => (!fn || r.Department === fn) && (!loc || r.Location === loc))
+      .filter(r => Number.isFinite(r.t) && r.t >= 0)
+      .map(r => ({ t: r.t, event: false }));
     const basis = fn && loc ? 'function+location' : fn ? 'function' : loc ? 'location' : 'all';
-    return { obs: events.concat(censored), events: events.length, censored: censored.length, basis };
+    return {
+      obs: events.concat(censored, closed), events: events.length,
+      censored: censored.length + closed.length, closed: closed.length, basis,
+    };
   };
 
   const level1 = poolFor(functionArea, country);
@@ -76,7 +133,7 @@ function computeTTFPrediction(functionArea, country, historical, openRoles = [])
     return {
       label: 'Insufficient data', weeks: null, stdDevWeeks: null, sampleSize: level1.events,
       medianDays: null, bandDays: null, events: level1.events, censored: level1.censored,
-      basis: null, pooled: false, medianReached: false, maxObservedDays: null,
+      closed: level1.closed, basis: null, pooled: false, medianReached: false, maxObservedDays: null,
     };
   }
 
@@ -85,7 +142,7 @@ function computeTTFPrediction(functionArea, country, historical, openRoles = [])
   const maxObservedDays = Math.max(...pool.obs.map(o => o.t));
   const base = {
     sampleSize: pool.events, events: pool.events, censored: pool.censored,
-    basis: pool.basis, pooled, maxObservedDays,
+    closed: pool.closed, basis: pool.basis, pooled, maxObservedDays,
   };
 
   if (medianDays === null) {

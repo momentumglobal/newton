@@ -2011,7 +2011,9 @@ function validateChecklistItem({ label, section, type, linkUrl, actionKey, help 
 // Row shape: { oldValue, newValue, changedAt, changedBy }. The creation row
 // has oldValue '' — SharePoint reads it back as null, and the timeline's
 // falsy check (N-100 diff-4) treats both as "Role created".
-// Lives here, not in os-admin.js, so N-269 (survival TTF) can reuse it.
+// Lives here, not in os-admin.js, as pure logic. Survival TTF does NOT use
+// it: N-276 reads the backfilled RoleHistory list (getRoleStageHistory),
+// which avoids a per-role version read on every page load.
 function reconstructStageTransitions(versions, cutoffISO) {
   const vnum = v => parseFloat(v.versionId) || 0;
   const sorted = (versions || []).slice().sort((a, b) =>

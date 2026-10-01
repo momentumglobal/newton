@@ -123,20 +123,11 @@ async function refreshCCBanner() {
   const healthPct = open.length ? flagged / open.length : 0;
   const ragHealth = healthPct < 0.25 ? 'green' : healthPct <= 0.50 ? 'amber' : 'red';
 
-  // People RAG — weighted score across TPs by flagged role ratio
-  const tps = [...new Set(open.filter(r => r.TalentPartner).map(r => r.TalentPartner))];
-  const weight = { green: 0, amber: 1, red: 2, grey: 0 };
-  const peopleScore = tps.length ? tps.reduce((sum, tp) => {
-    const tpRoles  = open.filter(r => r.TalentPartner && r.TalentPartner.toLowerCase() === tp.toLowerCase());
-    const flaggedTP = tpRoles.filter(r => {
-      const acts = acts13.filter(a => String(a.RoleIDLookupId) === String(r.id));
-      return isRoleFlagged(r, acts);
-    }).length;
-    const pct = tpRoles.length ? flaggedTP / tpRoles.length : null;
-    const rag = pct === null ? 'grey' : pct < 0.25 ? 'green' : pct <= 0.50 ? 'amber' : 'red';
-    return sum + weight[rag];
-  }, 0) / tps.length : 0;
-  const ragPeople = peopleScore < 0.5 ? 'green' : peopleScore <= 1.0 ? 'amber' : 'red';
+  // N-275: People badge is unrated until N-274 replaces flagged ÷ open.
+  // 'neutral' is the badge's no-data state and what CCStatus already stores for
+  // "no value" — and writing it below clears any stale 'red' (and its ccRed
+  // notification) via the existing prev === 'red' branch.
+  const ragPeople = 'neutral';
 
   // Utilisation RAG — forecast over next 13 weeks
   const t = CONFIG.UTILISATION_THRESHOLDS;

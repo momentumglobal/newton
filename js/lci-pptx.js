@@ -174,8 +174,10 @@ function _lciPptxBodyTop(hasNote) {
 // is a string or {text, fill}. Styles mirror the HTML row classes:
 //   band     → lci-team-row        subtotal → lci-out-subtotal
 //   total    → lci-out-total       plain    → an ordinary data row
+//   group    → bold, unfilled heading row (Key Figures — Comparison, N-278)
 function _lciPptxRowStyle(style) {
   const P = CONFIG.LCI.PPTX, C = P.COLOURS;
+  if (style === 'group')    return { fill: C.paper,        bold: true };
   if (style === 'band')     return { fill: C.bandFill,     bold: true };
   if (style === 'subtotal') return { fill: C.subtotalFill, bold: true };
   if (style === 'total')    return { fill: C.totalFill,    bold: true };
@@ -255,53 +257,40 @@ function _lciPptxTableSlides(ctx, title, header, bodyRows, opts = {}) {
 // ── Slide 3: Key figures ─────────────────────────────────────────────
 // The one page with no equivalent in the HTML report. Values come straight
 // from lciComputeKPIs() (N-263 definitions); this function only formats.
-// Layout and labels: CONFIG.LCI.PPTX.KEY_FIGURES / CONFIG.LCI.KPI_TEXT.
+// Layout and labels: CONFIG.LCI.KEY_FIGURES (N-278, shared with the compare table) / CONFIG.LCI.KPI_TEXT.
 
-// Tile key → { value, sub?, small? }. Formatting only — no arithmetic.
+// Tile key → { value, sub?, small? }. Formatting only — no arithmetic. The
+// figures themselves come from lciKeyFigureParts() (N-278), the same parts the
+// compare table reads; this function only words the tile sub-lines.
 function _lciPptxKpiTiles(m, kpis) {
   const T = CONFIG.LCI.KPI_TEXT;
   const ccy = m.DisplayCurrency;
-  const money = v => (v === null || v === undefined ? '—' : _lciFmt(v, ccy));
-  const pct = (v, dp) => (Math.abs(v) * 100).toFixed(dp);
-  const hasLegacy = kpis.legacyBaseline > 0;
-  const vs = v => (hasLegacy ? fillTemplate(T.vsLegacy, { v: money(v) }) : '');
-  const monthLabel = n => (n ? lciMonthLabel(m.StartMonth, n) : '—');
+  const p = lciKeyFigureParts(kpis, m.StartMonth, v => _lciFmt(v, ccy), T.pctDp);
+  const vs = leg => (leg ? fillTemplate(T.vsLegacy, { v: leg }) : '');
 
-  let cphSub = '';
-  if (kpis.legacyCostPerHead !== null && kpis.costPerHeadDeltaPct !== null) {
-    const d = kpis.costPerHeadDeltaPct;
-    cphSub = `${vs(kpis.legacyCostPerHead)} · ${fillTemplate(d >= 0 ? T.pctLower : T.pctHigher,
-      { p: pct(d, T.pctDp.costPerHead) })}`;
-  }
-
-  const pb = kpis.payback || { month: null, status: 'na' };
-  let pbValue = '—', pbSub = '';
-  if (pb.status === 'ok') {
-    pbValue = monthLabel(pb.month);
-  } else if (pb.status === 'none') {
-    pbValue = T.noPayback;
-  } else {
-    pbSub = T.noLegacy;
-  }
+  const cph = p.costPerHead;
+  const cphSub = cph.pct === null ? ''
+    : `${vs(cph.legacy)} · ${fillTemplate(cph.negative ? T.pctHigher : T.pctLower, { p: cph.pct })}`;
+  const savingPct = p.saving.pct === null ? null : `${p.saving.negative ? '-' : ''}${p.saving.pct}`;
 
   return {
-    totalSpend:     { value: money(kpis.totalSpend) },
-    peakSpend:      { value: money(kpis.peakSpend) },
-    peakMonth:      { value: monthLabel(kpis.peakMonth) },
-    avgFee:         { value: money(kpis.avgFeePerHire) },
-    runMonthly:     { value: money(kpis.steadyMonthly), sub: vs(kpis.legacyBaseline) },
-    runAnnual:      { value: money(kpis.steadyAnnual),  sub: vs(kpis.legacyAnnual) },
-    saving:         { value: money(kpis.annualSaving),
-                      sub: kpis.annualSavingPct === null ? T.noLegacy
-                        : fillTemplate(T.savingPct, { p: (kpis.annualSavingPct * 100).toFixed(T.pctDp.saving) }) },
-    costPerHead:    { value: money(kpis.costPerHead), sub: cphSub },
-    totalHires:     { value: String(kpis.totalHires ?? 0) },
-    finalHeadcount: { value: String(kpis.finalHeadcount ?? 0) },
+    totalSpend:     { value: p.totalSpend },
+    peakSpend:      { value: p.peakSpend },
+    peakMonth:      { value: p.peakMonth },
+    avgFee:         { value: p.avgFee },
+    runMonthly:     { value: p.runMonthly.value, sub: vs(p.runMonthly.legacy) },
+    runAnnual:      { value: p.runAnnual.value,  sub: vs(p.runAnnual.legacy) },
+    saving:         { value: p.saving.value,
+                      sub: savingPct === null ? T.noLegacy : fillTemplate(T.savingPct, { p: savingPct }) },
+    costPerHead:    { value: cph.value, sub: cphSub },
+    totalHires:     { value: p.totalHires },
+    finalHeadcount: { value: p.finalHeadcount },
     ramp:           { small: true, value: [
-                      fillTemplate(T.rampHired,   { m: kpis.lastHireMonth ? `M${kpis.lastHireMonth}` : '—' }),
-                      fillTemplate(T.rampPayroll, { m: kpis.payrollMonth  ? `M${kpis.payrollMonth}`  : '—' }),
+                      fillTemplate(T.rampHired,   { m: p.ramp.hired }),
+                      fillTemplate(T.rampPayroll, { m: p.ramp.payroll }),
                     ].join('\n') },
-    payback:        { value: pbValue, sub: pbSub },
+    payback:        { value: p.payback.status === 'none' ? T.noPayback : p.payback.value,
+                      sub: p.payback.status === 'na' ? T.noLegacy : '' },
   };
 }
 
@@ -318,7 +307,7 @@ function _lciPptxKpiSlide(ctx, m, kpis) {
   const totalW  = P.LAYOUT.width - G.margin * 2;
   const tileW   = (totalW - K.gap * (perRow - 1)) / perRow;
 
-  P.KEY_FIGURES.forEach((grp, gi) => {
+  CONFIG.LCI.KEY_FIGURES.forEach((grp, gi) => {
     const gy = top + gi * (K.groupH + K.tileH + K.gap);
     slide.addText(T.groups[grp.group] || '', {
       x: G.margin, y: gy, w: totalW, h: K.groupH,
@@ -632,28 +621,31 @@ function _lciPptxObsSlides(ctx, html) {
 
 // ── Comparison section ───────────────────────────────────────────────
 // Same gate as _lciReportComparisonHtml: 2+ models, all sharing a display
-// currency. KPI rows come from LCI_COMPARE_KPIS (lci-report.js) so the deck
-// and the on-screen compare table cannot drift apart.
+// currency. Rows come from lciCompareTable() over CONFIG.LCI.KEY_FIGURES
+// (N-278): the same layout and figure-building as each model's Key Figures
+// slide and the same table the on-screen compare view renders, so they cannot
+// drift apart.
 function _lciPptxComparisonSlides(ctx, bundles) {
   if (bundles.length < 2) return;
   const ccy = bundles[0].model.DisplayCurrency;
   if (!bundles.every(b => b.model.DisplayCurrency === ccy)) return;
 
-  const entries = bundles.map(b => ({
-    name: b.model.Title,
-    kpis: lciComputeKPIs(b.model, b.rows),
-    comp: lciComputeModel(b.model, b.rows),
-  }));
+  const T = CONFIG.LCI.KPI_TEXT;
+  const entries = _lciCompareEntries(bundles);
 
   _lciPptxNavySlide(ctx, 'Location Comparison', entries.map(e => e.name).join(' · '), false);
 
   const header = ['', ...entries.map(e => e.name)];
-  const rows = LCI_COMPARE_KPIS.map(k => ({
-    style: 'plain',
-    cells: [k.label, ...entries.map(e => _lciKpiValueText(e.kpis[k.key], k.kind, ccy))],
-  }));
-  _lciPptxTableSlides(ctx, 'Key Metrics', header, rows,
-    { labelFrac: CONFIG.LCI.PPTX.TABLE.compareLabelFrac, note: `All values in ${ccy || ''}.` });
+  const rows = [];
+  lciCompareTable(entries, CONFIG.LCI.KEY_FIGURES, T).forEach(g => {
+    rows.push({ style: 'group', cells: [g.heading, ...entries.map(() => '')] });
+    g.rows.forEach(r => rows.push({ style: 'plain', cells: [r.label, ...r.cells] }));
+  });
+  const unreached = lciNotReachedNote(entries, T);
+  _lciPptxTableSlides(ctx, T.compareTitle, header, rows, {
+    labelFrac: CONFIG.LCI.PPTX.TABLE.compareLabelFrac,
+    note: `All values in ${ccy || ''}.` + (unreached ? ` ${unreached}` : ''),
+  });
 
   const horizon = Math.max(...entries.map(e => e.comp.cumulativeSpend.length));
   const labels = Array.from({ length: horizon }, (_, i) => `M${i + 1}`);

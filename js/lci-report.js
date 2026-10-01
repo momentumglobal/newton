@@ -18,36 +18,26 @@ let _lciReport = { id: null, title: '', ids: [] };
 // previous report exportable.
 let _lciReportBundles = [];
 
-// Compare-table KPI rows (N-224). Shared by _lciCompareTableHtml below and the
-// PowerPoint Key Metrics slide, so the two cannot list different metrics.
-// `kind` selects the formatter; `lowerIsBetter` drives the Δ colour.
-// Labels: CONFIG.LCI.KPI_TEXT.compare (N-263) — config.js always loads first.
-const LCI_COMPARE_KPIS = (L => [
-  { label: L.totalSpend,    key: 'totalSpend',    kind: 'money', lowerIsBetter: true },
-  { label: L.steadyMonthly, key: 'steadyMonthly', kind: 'money', lowerIsBetter: true },
-  { label: L.steadyAnnual,  key: 'steadyAnnual',  kind: 'money', lowerIsBetter: true },
-  { label: L.costPerHead,   key: 'costPerHead',   kind: 'money', lowerIsBetter: true },
-  { label: L.totalHires,    key: 'totalHires',    kind: 'count', lowerIsBetter: false },
-  { label: L.rampHired,     key: 'lastHireMonth', kind: 'month', lowerIsBetter: true },
-  { label: L.rampPayroll,   key: 'payrollMonth',  kind: 'month', lowerIsBetter: true },
-  { label: L.peakSpend,     key: 'peakSpend',     kind: 'money', lowerIsBetter: true },
-])(CONFIG.LCI.KPI_TEXT.compare);
-
-function _lciKpiValueText(v, kind, ccy) {
-  if (kind === 'money') return _lciFmt(v, ccy);
-  if (kind === 'month') return v ? `M${v}` : '—';
-  return v ?? '—';
+// Compare entries (N-278): one per model, built the same way for the report,
+// the on-screen compare view and the PowerPoint slide. `parts` are the display
+// parts from lciKeyFigureParts(), in the model's own DisplayCurrency and
+// StartMonth; the compare table text is built from them (lciCompareTable).
+// Replaces LCI_COMPARE_KPIS (N-224), which listed 8 figures of its own.
+function _lciCompareEntries(bundles) {
+  const T = CONFIG.LCI.KPI_TEXT;
+  return bundles.map(b => {
+    const kpis = lciComputeKPIs(b.model, b.rows);
+    const ccy = b.model.DisplayCurrency;
+    return {
+      name: b.model.Title,
+      kpis,
+      comp: lciComputeModel(b.model, b.rows),
+      parts: lciKeyFigureParts(kpis, b.model.StartMonth, v => _lciFmt(v, ccy), T.pctDp),
+    };
+  });
 }
 
-// Δ column text. Takes an ALREADY-ABSOLUTE value — the sign and colour are the
-// caller's business.
-function _lciKpiDeltaText(v, kind, ccy) {
-  if (kind === 'money') return _lciFmt(v, ccy);
-  if (kind === 'month') return `${v}mo`;
-  return v;
-}
-
-// ── Entry ────────────────────────────────────────────────────────────
+// ── Entry ──
 // Called two ways:
 //   renderLCIReportPage(ids)                    — new export (prompts title)
 //   renderLCIReportPage(ids, {reportId, title, observations})  — open saved
@@ -274,11 +264,7 @@ function _lciReportComparisonHtml(bundles) {
   const ccy = bundles[0].model.DisplayCurrency;
   if (!bundles.every(b => b.model.DisplayCurrency === ccy)) return '';
 
-  const entries = bundles.map(b => ({
-    name: b.model.Title,
-    kpis: lciComputeKPIs(b.model, b.rows),
-    comp: lciComputeModel(b.model, b.rows),
-  }));
+  const entries = _lciCompareEntries(bundles);
 
   return `
     ${_lciReportNavyPage('Location Comparison', entries.map(e => e.name).join(' · '), 'lci-report-divider lci-report-break')}
@@ -290,32 +276,29 @@ function _lciReportComparisonHtml(bundles) {
     </div>`;
 }
 
-// N-model KPI table (Δ column only when exactly 2 models).
-// Shared by the report and the on-screen compare view.
+// N-model Key Figures — Comparison table (N-278): the 12 figures of each
+// model's Key Figures slide, grouped Investment / Steady state / Delivery, one
+// column per model. No Δ column. Shared by the report and the on-screen
+// compare view; the PowerPoint slide renders the same lciCompareTable() data.
 function _lciCompareTableHtml(entries, ccy) {
-  const twoModels = entries.length === 2;
-  const delta = (a, b, kind, goodWhenLower) => {
-    const d = (a === null || a === undefined || b === null || b === undefined) ? NaN : b - a;
-    if (!isFinite(d) || d === 0) return '<span style="color:var(--text-muted)">—</span>';
-    const good = goodWhenLower ? d < 0 : d > 0;
-    return `<span style="color:${good ? 'var(--status-success)' : 'var(--status-danger)'}">${d > 0 ? '+' : '−'}${_lciKpiDeltaText(Math.abs(d), kind, ccy)}</span>`;
-  };
-
-  const head = `<tr><th style="width:26%"></th>${entries.map(e => `<th>${escHtml(e.name)}</th>`).join('')}${twoModels ? '<th>Δ (B − A)</th>' : ''}</tr>`;
-  const rows = LCI_COMPARE_KPIS.map(k => `
+  const T = CONFIG.LCI.KPI_TEXT;
+  const head = `<tr><th style="width:26%"></th>${entries.map(e => `<th>${escHtml(e.name)}</th>`).join('')}</tr>`;
+  const body = lciCompareTable(entries, CONFIG.LCI.KEY_FIGURES, T).map(g => `
+    <tr><td><strong>${g.heading}</strong></td>${entries.map(() => '<td></td>').join('')}</tr>
+    ${g.rows.map(r => `
     <tr>
-      <td>${k.label}</td>
-      ${entries.map(e => `<td>${_lciKpiValueText(e.kpis[k.key], k.kind, ccy)}</td>`).join('')}
-      ${twoModels ? `<td>${delta(entries[0].kpis[k.key], entries[1].kpis[k.key], k.kind, k.lowerIsBetter)}</td>` : ''}
-    </tr>`).join('');
+      <td>${r.label}</td>
+      ${r.cells.map(c => `<td>${escHtml(c)}</td>`).join('')}
+    </tr>`).join('')}`).join('');
+  const note = lciNotReachedNote(entries, T);
 
   return `
-    <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Key Metrics <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(${ccy})</span></h3>
+    <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">${T.compareTitle} <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(${ccy})</span></h3>
     <table class="data-table lci-compare">
       <thead>${head}</thead>
-      <tbody>${rows}</tbody>
+      <tbody>${body}</tbody>
     </table>
-    ${twoModels ? `<p style="font-size:12px;color:var(--text-muted);margin:8px 0 0">Δ green = ${escHtml(entries[1].name)} favourable, red = unfavourable (cost down / hires up = good).</p>` : ''}`;
+    ${note ? `<p style="font-size:12px;color:var(--text-muted);margin:8px 0 0">${escHtml(note)}</p>` : ''}`;
 }
 
 // N-line cumulative spend chart, all solid, palette colours, centred legend.

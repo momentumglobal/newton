@@ -907,6 +907,19 @@ const CONFIG = {
       legacy: 'Legacy Costs',
     },
 
+    // ── Key Figures layout (N-278) ────────────────────────────────
+    // Row groups -> figure keys, in display order. ONE list for the
+    // PowerPoint Key Figures slide (tiles) and the compare table (on-screen,
+    // report and PowerPoint), so the two cannot list different figures or
+    // order them differently. Moved here from PPTX.KEY_FIGURES. Group
+    // headings: KPI_TEXT.groups. Labels: KPI_TEXT.tiles (single model) and
+    // KPI_TEXT.compare (compare table).
+    KEY_FIGURES: [
+      { group: 'investment', tiles: ['totalSpend', 'peakSpend', 'peakMonth', 'avgFee'] },
+      { group: 'steady',     tiles: ['runMonthly', 'runAnnual', 'saving', 'costPerHead'] },
+      { group: 'delivery',   tiles: ['totalHires', 'finalHeadcount', 'ramp', 'payback'] },
+    ],
+
     // ── KPI text (N-263) ──────────────────────────────────────────
     // Every KPI label and display string, for the PowerPoint Key Figures
     // slide (tiles), the on-screen/PPTX compare table (compare) and the Excel
@@ -934,16 +947,32 @@ const CONFIG = {
         ramp:           'Time to full ramp',
         payback:        'Projected breakeven (investment recovered)',
       },
+      // Compare-table row labels (N-278): the same 12 keys as `tiles`, worded
+      // for a column-per-model table. The legacy comparison sits inside the
+      // cell (compareCell below), not in the label.
       compare: {
-        totalSpend:     'Total spend (horizon)',
-        steadyMonthly:  'Steady-state monthly cost',
-        steadyAnnual:   'Steady-state annual cost',
-        costPerHead:    'Cost per head (steady)',
-        totalHires:     'Total hires',
-        rampHired:      'Time to full ramp — hired',
-        rampPayroll:    'Time to full ramp — on payroll',
+        totalSpend:     'Total spend',
         peakSpend:      'Peak monthly spend (excl. project fees)',
+        peakMonth:      'Peak exposure month',
+        avgFee:         'Average cost per hire',
+        runMonthly:     'Monthly run rate',
+        runAnnual:      'Annual run rate',
+        saving:         'Annual saving at steady state',
+        costPerHead:    'Monthly cost per head',
+        totalHires:     'Total hires',
+        finalHeadcount: 'Final CoE headcount',
+        ramp:           'Time to full ramp',
+        payback:        'Projected breakeven (investment recovered)',
       },
+      // Compare-table cell templates (N-278). The run-rate note reuses
+      // vsLegacy; ramp reuses rampHired / rampPayroll.
+      compareCell: {
+        withNote: '{v} ({note})',
+        saving:   '{p}% saving vs Legacy',
+        higher:   '{p}% higher than Legacy',
+        ramp:     '{hired}, {payroll}',
+      },
+      compareTitle: 'Key Figures — Comparison',
       excel: {
         totalSpend:     'Total spend over horizon',
         steadyMonthly:  'Steady-state monthly run-rate (CoE + retained)',
@@ -1116,12 +1145,6 @@ const CONFIG = {
       // valueH + subH + labelH = 1.35 <= tileH. labelH holds two 10pt lines
       // (N-264: the breakeven label can wrap).
       KPI:   { perRow: 4, gap: 0.14, tileH: 1.4, radius: 0.06, valuePad: 0.15, valueH: 0.5, subH: 0.3, labelH: 0.4, groupH: 0.28 },
-      // Row groups → tile keys, in slide order. Labels: CONFIG.LCI.KPI_TEXT.
-      KEY_FIGURES: [
-        { group: 'investment', tiles: ['totalSpend', 'peakSpend', 'peakMonth', 'avgFee'] },
-        { group: 'steady',     tiles: ['runMonthly', 'runAnnual', 'saving', 'costPerHead'] },
-        { group: 'delivery',   tiles: ['totalHires', 'finalHeadcount', 'ramp', 'payback'] },
-      ],
       OBS:   { blocksPerSlide: 12, bulletIndent: 18 },
       CHART: { lineSize: 2, gridSize: 1 },
     },

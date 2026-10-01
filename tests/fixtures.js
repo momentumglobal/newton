@@ -110,6 +110,42 @@ var FIXTURES = {
     ],
   },
 
+  // N-278 — compare cells. `zagreb38` is the 38-head column of Chris's amended
+  // Key Figures — Comparison slide (StartMonth 2027-01, so M10 = Oct 27 and
+  // M31 = Jul 29). `costlier` has a steady state ABOVE the legacy baseline and
+  // no payback; `noLegacy` has no baseline at all.
+  lciCompare: {
+    startMonth: '2027-01',
+    pctDp: { saving: 1, costPerHead: 0 },
+    zagreb38: {
+      totalSpend: 6497201, peakSpend: 487238, peakMonth: 10, avgFeePerHire: 7816,
+      steadyMonthly: 201152, steadyAnnual: 2413820,
+      legacyBaseline: 302739, legacyAnnual: 3632869,
+      annualSaving: 1219049, annualSavingPct: 1219049 / 3632869,
+      costPerHead: 5293, legacyCostPerHead: 8143, costPerHeadDeltaPct: 0.35,
+      totalHires: 38, finalHeadcount: 38, lastHireMonth: 11, payrollMonth: 12,
+      payback: { month: 31, status: 'ok' }, steadyReached: true,
+    },
+    costlier: {
+      totalSpend: 900000, peakSpend: 90000, peakMonth: 3, avgFeePerHire: 1000,
+      steadyMonthly: 55000, steadyAnnual: 660000,
+      legacyBaseline: 50000, legacyAnnual: 600000,
+      annualSaving: -60000, annualSavingPct: -0.1,
+      costPerHead: 5500, legacyCostPerHead: 5000, costPerHeadDeltaPct: -0.1,
+      totalHires: 10, finalHeadcount: 10, lastHireMonth: 4, payrollMonth: 5,
+      payback: { month: null, status: 'none' }, steadyReached: true,
+    },
+    noLegacy: {
+      totalSpend: 500000, peakSpend: 50000, peakMonth: 2, avgFeePerHire: null,
+      steadyMonthly: 40000, steadyAnnual: 480000,
+      legacyBaseline: 0, legacyAnnual: 0,
+      annualSaving: null, annualSavingPct: null,
+      costPerHead: 4000, legacyCostPerHead: null, costPerHeadDeltaPct: null,
+      totalHires: 0, finalHeadcount: 0, lastHireMonth: 0, payrollMonth: null,
+      payback: { month: null, status: 'na' }, steadyReached: false,
+    },
+  },
+
   // Date/week layer (N-096) — getWeekEnding, getISOWeek, isoDate,
   // spDateIn/spDateOut, and the coeWeekIndex GMT/BST Gantt regression
   // (N-077/N-081 class). Plain {y,m,d} objects, not Date instances — Date

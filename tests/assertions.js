@@ -178,6 +178,65 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'N-278 lciKeyFigureParts + lciCompareCellText — amended slide 21 (Zagreb 38 heads), cell for cell',
+    fn: function () {
+      const F = FIXTURES.lciCompare, T = CONFIG.LCI.KPI_TEXT;
+      const money = v => (v < 0 ? '-' : '') + '€' + Math.abs(Math.round(v)).toLocaleString('en-GB');
+      const parts = lciKeyFigureParts(F.zagreb38, F.startMonth, money, F.pctDp);
+      const cell = k => lciCompareCellText(k, parts, T);
+      _assertEqual(cell('totalSpend'),     '€6,497,201', 'totalSpend');
+      _assertEqual(cell('peakSpend'),      '€487,238', 'peakSpend');
+      _assertEqual(cell('peakMonth'),      'M10 (Oct 27)', 'peakMonth');
+      _assertEqual(cell('avgFee'),         '€7,816', 'avgFee');
+      _assertEqual(cell('runMonthly'),     '€201,152 (vs Legacy €302,739)', 'runMonthly');
+      _assertEqual(cell('runAnnual'),      '€2,413,820 (vs Legacy €3,632,869)', 'runAnnual');
+      _assertEqual(cell('saving'),         '€1,219,049 (33.6% saving vs Legacy)', 'saving — single closing paren');
+      _assertEqual(cell('costPerHead'),    '€5,293 (35% saving vs Legacy)', 'costPerHead');
+      _assertEqual(cell('totalHires'),     '38', 'totalHires');
+      _assertEqual(cell('finalHeadcount'), '38', 'finalHeadcount');
+      _assertEqual(cell('ramp'),           'Hired: M11, On payroll: M12', 'ramp');
+      _assertEqual(cell('payback'),        'M31 (Jul 29)', 'payback');
+    },
+  },
+  {
+    name: 'N-278 lciCompareCellText — higher than legacy, no payback, no legacy baseline, unreached ramp',
+    fn: function () {
+      const F = FIXTURES.lciCompare, T = CONFIG.LCI.KPI_TEXT;
+      const money = v => (v < 0 ? '-' : '') + '€' + Math.abs(Math.round(v)).toLocaleString('en-GB');
+      const hi = lciKeyFigureParts(F.costlier, F.startMonth, money, F.pctDp);
+      _assertEqual(lciCompareCellText('saving', hi, T),      '-€60,000 (10.0% higher than Legacy)', 'negative saving flips the suffix');
+      _assertEqual(lciCompareCellText('costPerHead', hi, T), '€5,500 (10% higher than Legacy)', 'cost per head above legacy');
+      _assertEqual(lciCompareCellText('payback', hi, T),     'No payback', 'status none');
+      const nl = lciKeyFigureParts(F.noLegacy, F.startMonth, money, F.pctDp);
+      _assertEqual(lciCompareCellText('runMonthly', nl, T),   '€40,000', 'no suffix without a baseline');
+      _assertEqual(lciCompareCellText('runAnnual', nl, T),    '€480,000', 'no suffix without a baseline (annual)');
+      _assertEqual(lciCompareCellText('saving', nl, T),       '—', 'saving — when no baseline');
+      _assertEqual(lciCompareCellText('costPerHead', nl, T),  '€4,000', 'cost per head, no suffix');
+      _assertEqual(lciCompareCellText('avgFee', nl, T),       '—', 'avgFee — when no hires');
+      _assertEqual(lciCompareCellText('payback', nl, T),      'No legacy baseline', 'status na');
+      _assertEqual(lciCompareCellText('ramp', nl, T),         'Hired: —, On payroll: —', 'ramp when nothing hired');
+      _assertEqual(lciCompareCellText('peakMonth', nl, T),    'M2 (Feb 27)', 'peakMonth uses the model StartMonth');
+    },
+  },
+  {
+    name: 'N-278 lciCompareTable + lciNotReachedNote — layout follows CONFIG.LCI.KEY_FIGURES; unreached model is named',
+    fn: function () {
+      const F = FIXTURES.lciCompare, T = CONFIG.LCI.KPI_TEXT;
+      const money = v => '€' + Math.round(v).toLocaleString('en-GB');
+      const mk = (name, k) => ({ name, kpis: k, parts: lciKeyFigureParts(k, F.startMonth, money, F.pctDp) });
+      const entries = [mk('A', F.zagreb38), mk('B', F.noLegacy)];
+      const t = lciCompareTable(entries, CONFIG.LCI.KEY_FIGURES, T);
+      _assertEqual(t.map(g => g.heading), ['Investment', 'Steady state', 'Delivery'], 'group headings');
+      _assertEqual(t.map(g => g.rows.length), [4, 4, 4], 'four rows per group');
+      _assertEqual(t[0].rows[0], { label: 'Total spend', cells: ['€6,497,201', '€500,000'] }, 'first row: one cell per model');
+      _assertEqual(t[2].rows[3].label, 'Projected breakeven (investment recovered)', 'last row label');
+      _assertEqual(t.every(g => g.rows.every(r => r.cells.length === 2)), true, 'every row has one cell per model');
+      _assertEqual(lciNotReachedNote(entries, T), 'B: ' + T.notReached, 'unreached model named');
+      _assertEqual(lciNotReachedNote([entries[0]], T), '', 'all reached → no note');
+      _assertEqual('LCI_COMPARE_KPIS' in globalThis, false, 'old flat KPI list is gone');
+    },
+  },
+  {
     name: 'lciYearSlices — splits an 18-month horizon into Year 1 / Year 2',
     fn: function () {
       const slices = lciYearSlices(18, 12);

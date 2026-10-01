@@ -417,6 +417,105 @@ function lciNoticeRowsText(groups, T) {
     : [fillTemplate(T.noticeGroup, { n: months(g.months) }), g.roles.join(', ')]);
 }
 
+// ── Key figure parts and compare table (N-278) ───────────────────────
+// ONE place that turns lciComputeKPIs() output into display parts. The
+// PowerPoint Key Figures tiles and the compare table (on-screen, report and
+// PowerPoint) both read these, so a KPI change reaches both. Pure: the money
+// formatter and the percentage decimal places are passed in, so this file
+// stays free of config reads and of _lciFmt (lciNoticeRowsText pattern).
+// `startMonth` is the MODEL'S OWN StartMonth, so two models starting in
+// different months label their months correctly.
+//   strings : totalSpend peakSpend peakMonth avgFee totalHires finalHeadcount
+//   objects : runMonthly/runAnnual { value, legacy|null }
+//             saving      { value, pct|null, negative }  pct = |%| string
+//             costPerHead { value, legacy|null, pct|null, negative }
+//             ramp        { hired, payroll }              'M12' or '—'
+//             payback     { status 'ok'|'none'|'na', value }
+function lciKeyFigureParts(kpis, startMonth, money, pctDp) {
+  const dash = '—';
+  const m = v => (v === null || v === undefined ? dash : money(v));
+  const hasLegacy = kpis.legacyBaseline > 0;
+  const legacy = v => (hasLegacy ? money(v) : null);
+  const monthLabel = n => (n ? lciMonthLabel(startMonth, n) : dash);
+  const pct = (v, dp) => (Math.abs(v) * 100).toFixed(dp);
+  const hasCph = kpis.legacyCostPerHead !== null && kpis.costPerHeadDeltaPct !== null;
+  const pb = kpis.payback || { month: null, status: 'na' };
+  return {
+    totalSpend:     m(kpis.totalSpend),
+    peakSpend:      m(kpis.peakSpend),
+    peakMonth:      monthLabel(kpis.peakMonth),
+    avgFee:         m(kpis.avgFeePerHire),
+    runMonthly:     { value: m(kpis.steadyMonthly), legacy: legacy(kpis.legacyBaseline) },
+    runAnnual:      { value: m(kpis.steadyAnnual),  legacy: legacy(kpis.legacyAnnual) },
+    saving: {
+      value:    m(kpis.annualSaving),
+      pct:      kpis.annualSavingPct === null ? null : pct(kpis.annualSavingPct, pctDp.saving),
+      negative: kpis.annualSavingPct < 0,
+    },
+    costPerHead: {
+      value:    m(kpis.costPerHead),
+      legacy:   hasCph ? legacy(kpis.legacyCostPerHead) : null,
+      pct:      hasCph ? pct(kpis.costPerHeadDeltaPct, pctDp.costPerHead) : null,
+      negative: hasCph && kpis.costPerHeadDeltaPct < 0,
+    },
+    totalHires:     String(kpis.totalHires ?? 0),
+    finalHeadcount: String(kpis.finalHeadcount ?? 0),
+    ramp: {
+      hired:   kpis.lastHireMonth ? `M${kpis.lastHireMonth}` : dash,
+      payroll: kpis.payrollMonth  ? `M${kpis.payrollMonth}`  : dash,
+    },
+    payback: { status: pb.status, value: pb.status === 'ok' ? monthLabel(pb.month) : dash },
+  };
+}
+
+// One compare-table cell: parts[key] -> display text. T = CONFIG.LCI.KPI_TEXT.
+// The legacy comparison sits inside the cell, e.g. '€201,152 (vs Legacy
+// €302,739)' or '€1,219,049 (33.6% saving vs Legacy)'. No legacy baseline ->
+// value only. A negative saving / higher cost per head flips to
+// '(x% higher than Legacy)'.
+function lciCompareCellText(key, parts, T) {
+  const p = parts[key];
+  const C = T.compareCell;
+  if (typeof p === 'string') return p;
+  if (key === 'ramp') {
+    return fillTemplate(C.ramp, {
+      hired:   fillTemplate(T.rampHired,   { m: p.hired }),
+      payroll: fillTemplate(T.rampPayroll, { m: p.payroll }),
+    });
+  }
+  if (key === 'payback') {
+    if (p.status === 'none') return T.noPayback;
+    if (p.status === 'na')   return T.noLegacy;
+    return p.value;
+  }
+  let note = '';
+  if ((key === 'runMonthly' || key === 'runAnnual') && p.legacy) {
+    note = fillTemplate(T.vsLegacy, { v: p.legacy });
+  } else if ((key === 'saving' || key === 'costPerHead') && p.pct !== null) {
+    note = fillTemplate(p.negative ? C.higher : C.saving, { p: p.pct });
+  }
+  return note ? fillTemplate(C.withNote, { v: p.value, note }) : p.value;
+}
+
+// The whole compare table as data: [{ heading, rows: [{ label, cells }] }].
+// `entries` carry `parts` (lciKeyFigureParts); `groups` = CONFIG.LCI.KEY_FIGURES.
+// The on-screen/report HTML and the PowerPoint slide only render this.
+function lciCompareTable(entries, groups, T) {
+  return groups.map(g => ({
+    heading: T.groups[g.group] || '',
+    rows: g.tiles.map(key => ({
+      label: T.compare[key] || '',
+      cells: entries.map(e => lciCompareCellText(key, e.parts, T)),
+    })),
+  }));
+}
+
+// '' when every model reached steady state; otherwise 'Name, Name: <sentence>'.
+function lciNotReachedNote(entries, T) {
+  const names = entries.filter(e => !e.kpis.steadyReached).map(e => e.name);
+  return names.length ? `${names.join(', ')}: ${T.notReached}` : '';
+}
+
 // ── Compare ──────────────────────────────────────────────────────────
 // Both models already render in their own DisplayCurrency, so comparison
 // is only offered when DisplayCurrency matches (UI disables Compare

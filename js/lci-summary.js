@@ -247,11 +247,7 @@ async function renderLCIComparePage(ids) {
       main.innerHTML = '<p style="color:red">Models must share the same display currency.</p>';
       return;
     }
-    const entries = bundles.map(b => ({
-      name: b.model.Title,
-      kpis: lciComputeKPIs(b.model, b.rows),
-      comp: lciComputeModel(b.model, b.rows),
-    }));
+    const entries = _lciCompareEntries(bundles);
     main.innerHTML = `
       <div class="page-header">
         <h2>Compare Models <span style="font-weight:400;color:var(--text-muted);font-size:15px">(${ccy})</span></h2>

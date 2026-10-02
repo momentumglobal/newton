@@ -155,7 +155,7 @@ function addLCITravelRow() {
 
 function _lciOneoffsHtml() {
   if (!lciSections(_lciEd.model).oneoffs) return '';
-  return _lciMonthGridHtml('lci-oneoffs-section', 'oneoff', 'Retention & Relocation',
+  return _lciMonthGridHtml('lci-oneoffs-section', 'oneoff', escHtml(CONFIG.LCI.SECTION_LABELS.oneoffs),
     `(one-off amounts in ${_lciEd.model.DisplayCurrency}, entered in the month(s) they land)`, 'addLCIOneoffRow');
 }
 function _lciFeesHtml() {
@@ -327,8 +327,8 @@ function _lciOutputInnerHtml(includeChart = true, plain = false, slice = null) {
   // N-018: "Legacy Team Costs" only earns a row when it is NOT derivable from
   // the rows around it. It equals Exiting + Retained (so it is redundant
   // whenever the split renders) and it equals Total Legacy Costs whenever
-  // Retention & Relocation contributes nothing. That leaves exactly one case:
-  // a single category WITH R&R amounts, where it is the only place the legacy
+  // Retention, Relocation & Severance contributes nothing. That leaves exactly one case:
+  // a single category WITH RR&S amounts, where it is the only place the legacy
   // team figure appears.
   // Test the computed series, not sections.oneoffs — the section can be on with
   // every row zero, which is the reported case. `legacyCatRows` is '' when the
@@ -354,7 +354,7 @@ function _lciOutputInnerHtml(includeChart = true, plain = false, slice = null) {
             ${sections.legacy ? `<tr class="lci-out-section"><td>Legacy Headcount</td>${tdInt(c.legacyHeadcount)}</tr>
             ${showLegacyTeamCosts ? `<tr class="lci-out-indent"><td>Legacy Team Costs</td>${td(c.legacyCost)}</tr>` : ''}
             ${legacyCatRows}` : ''}
-            ${sections.oneoffs ? `<tr class="lci-out-indent${sections.legacy ? '' : ' lci-out-section'}"><td>Retention & Relocation</td>${td(c.oneoffs)}</tr>` : ''}
+            ${sections.oneoffs ? `<tr class="lci-out-indent${sections.legacy ? '' : ' lci-out-section'}"><td>${escHtml(CONFIG.LCI.SECTION_LABELS.oneoffs)}</td>${td(c.oneoffs)}</tr>` : ''}
             <tr class="lci-out-subtotal"><td>Total Legacy Costs</td>${td(c.legacyCost.map((v, i) => v + c.oneoffs[i]))}</tr>` : ''}
             ${sections.fees ? `${_lciRowsOfType('fee').map((r, i) =>
               `<tr class="lci-out-indent${i === 0 ? ' lci-out-section' : ''}"><td>${escHtml(r.Title || 'Fee')}</td>${td(lciMonthValues(r, horizon))}</tr>`).join('')}

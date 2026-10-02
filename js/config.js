@@ -904,7 +904,7 @@ const CONFIG = {
     SECTION_LABELS: {
       travel:  'Travel',
       legacy:  'Legacy Team',
-      oneoffs: 'Retention & Relocation',
+      oneoffs: 'Retention, Relocation & Severance',
       fees:    'Project Fees',
     },
     // Legacy row categories (N-010). Keys are stored in
@@ -1160,6 +1160,9 @@ const CONFIG = {
       TABLE: {
         labelColW: 1.9, rowH: 0.21, rowsPerSlide: 26, borderPt: 0.5,
         cellMargin: [2, 3, 2, 3],
+        // N-295: Cost Model table only. Its longest label ("   Retention, Relocation &
+        // Severance", ~140pt at 9pt Polymath) wraps in labelColW's 1.9in; 2.1in clears it.
+        costLabelColW: 2.1,
         assumpLabelFrac: 0.45, compareLabelFrac: 0.26,
       },
       // Key Figures (N-263): 3 groups x (groupH + tileH) + 2 x gap = 5.32in,

@@ -270,7 +270,7 @@ function lciComputeModel(model, rows) {
 // Series for the stacked Legacy + CoE-operating column chart. Takes the
 // lciComputeModel() result — section gating has already happened there, so
 // this must NOT call lciSections() or re-sum rows. "Legacy" is the Cost
-// Model's "Total Legacy Costs" line (team + Retention & Relocation); it
+// Model's "Total Legacy Costs" line (team + Retention, Relocation & Severance); it
 // intentionally differs from the Peak Crossover KPI, which is team-only.
 // Fees are excluded.
 function lciCostCompositionSeries(c) {
@@ -319,8 +319,8 @@ function lciPaybackMonth({ cumulativeSpend, baseline, steadyMonthly }) {
 //     run rate. steadyReached is false only when some hire is not yet on
 //     payroll by the final month — exiting legacy still present does not
 //     block it (they are excluded anyway).
-//   Legacy baseline = M1 legacy TEAM cost (legacyCost[0]). Retention &
-//     Relocation one-offs are transition costs, never baseline.
+//   Legacy baseline = M1 legacy TEAM cost (legacyCost[0]). Retention,
+//     Relocation & Severance one-offs are transition costs, never baseline.
 //   Peak = max(totalMonthly - fees): CoE operating + legacy team + one-offs.
 function lciComputeKPIs(model, rows) {
   const c = lciComputeModel(model, rows);

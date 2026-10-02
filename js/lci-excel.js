@@ -110,7 +110,8 @@ function _lciXlAssumptions(ctx) {
   const { wb, model: m } = ctx;
   const E = CONFIG.LCI.EXCEL, C = E.COLOURS;
   const ws = wb.addWorksheet(E.SHEETS.assumptions);
-  ws.columns = [{ width: 38 }, { width: 24 }, { width: 78 }];
+  // N-295: col A holds '<section label> included?' (43 chars for the longest label).
+  ws.columns = [{ width: 46 }, { width: 24 }, { width: 78 }];
 
   _lciXlSet(ws, 1, 1, 'LCI Cost Model — internal working file',
     { bold: true, size: 14, color: C.navyText });
@@ -355,7 +356,7 @@ function _lciXlLegacy(ctx) {
 }
 
 // ── Sheet 4: One-offs & Fees ─────────────────────────────────────────
-// Three labelled blocks (Retention & Relocation / Project Fees / Travel), each
+// Three labelled blocks (Retention, Relocation & Severance / Project Fees / Travel), each
 // with the full month grid. Months start at column B here AND on Monthly Calc,
 // so the column letters line up between the two sheets.
 function _lciXlOneoffs(ctx) {
@@ -363,7 +364,8 @@ function _lciXlOneoffs(ctx) {
   const E = CONFIG.LCI.EXCEL, C = E.COLOURS;
   const ws = wb.addWorksheet(E.SHEETS.oneoffs);
   const totalCol = 2 + h;
-  ws.columns = [{ width: 34 }, ...Array.from({ length: h }, () => ({ width: 13 })), { width: 15 }];
+  // N-295: col A holds the 33-char bold block title 'Retention, Relocation & Severance'.
+  ws.columns = [{ width: 38 }, ...Array.from({ length: h }, () => ({ width: 13 })), { width: 15 }];
   ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 2 }];
 
   _lciXlSet(ws, 1, 1, `Month-by-month inputs — all values in ${m.DisplayCurrency || ''} (customer-side, no FX conversion).`,
@@ -565,7 +567,7 @@ function _lciXlCalcOneoffs(ctx, sheet, rw, K, helpers) {
   // ── One-offs & fees ──
   heading('One-offs & project fees');
   const ob = ctx.oneoffBlocks.oneoff, fb = ctx.oneoffBlocks.fee;
-  K.oneoffs = line('Retention & Relocation',
+  K.oneoffs = line(CONFIG.LCI.SECTION_LABELS.oneoffs,
     i => gate(ob.last >= ob.first ? `SUM(${SO}!${ML(i)}${ob.first}:${ML(i)}${ob.last})` : '0', 'OneoffsOn'),c.oneoffs);
   K.fee = {};
   fb.rows.forEach(({ row, excelRow }) => {
@@ -696,7 +698,7 @@ function _lciXlOutput(ctx) {
           mirror(`   ${v.costLine}`, K[`legacy:${k}`], lbc[k]));
       }
     }
-    if (sections.oneoffs) mirror('   Retention & Relocation', K.oneoffs, c.oneoffs);
+    if (sections.oneoffs) mirror(`   ${CONFIG.LCI.SECTION_LABELS.oneoffs}`, K.oneoffs, c.oneoffs);
     // Total Legacy Costs = legacy + one-offs (matches the app exactly).
     _lciXlSet(ws, r, 1, 'Total Legacy Costs', { bold: true, fill: C.subtotalFill });
     for (let i = 0; i < h; i++) {

@@ -1162,6 +1162,15 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">LCI section renamed: Retention, Relocation &amp; Severance (N-295)</div>
+        <ul>
+          <li>The LCI Cost Model's one-off section <em>Retention &amp; Relocation</em> is now <em>Retention, Relocation &amp; Severance</em> in the editor, the section toggle, the Cost Model output table, the Excel export and the PowerPoint export. Label only: the section key (<code>oneoffs</code>), the <code>OneoffsOn</code> switch and all stored data are unchanged.</li>
+          <li>The name now lives only in <code>CONFIG.LCI.SECTION_LABELS.oneoffs</code>; the editor header, output table, Excel Monthly Calc / Output Summary rows and PowerPoint row read it instead of hardcoding it. Excel Assumptions and One-offs &amp; Fees column A were widened, and the PowerPoint Cost Model label column was widened (<code>PPTX.TABLE.costLabelColW</code>, 2.1in) so the longer name neither clips nor wraps.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
         <div class="changelog-title">At-risk flag rebuilt on time in stage (N-274)</div>
         <ul>
           <li>A role is now flagged when it has been in its <strong>current stage</strong> longer than that stage's share of the 45-day open → hired target, measured from RoleHistory (Sourcing 15 · Submitted 7 · Interview 1 7 · Interview 2+ 7 days; Final Interview and Offered are never flagged for time), or when its last 6 weeks show ≥3 Submitted and Interview 1 ÷ Submitted under 50%. How long a role has been open no longer flags it — N-272 showed that rule flagged placed and cancelled roles alike. Settings live in <code>CONFIG.ROLE_FLAG</code>; the old <code>STAGE_ORDER</code> subset is gone.</li>

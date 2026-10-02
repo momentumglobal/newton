@@ -207,8 +207,9 @@ function _lciPptxTableSlides(ctx, title, header, bodyRows, opts = {}) {
   const totalW = P.LAYOUT.width - G.margin * 2;
   // Grid tables get a fixed label column (the print rule caps .lci-grid--roadmap
   // td:first-child at 180px); the narrow tables get a proportional one, as
-  // .lci-assump (45%) and .lci-compare (26%) do on screen and in print.
-  const labelW = opts.labelFrac ? totalW * opts.labelFrac : Math.min(P.TABLE.labelColW, totalW / 2);
+  // .lci-assump (45%) and .lci-compare (26%) do on screen and in print. opts.labelColW overrides the fixed width for one
+  // table (N-295: the Cost Model's longer label).
+  const labelW = opts.labelFrac ? totalW * opts.labelFrac : Math.min(opts.labelColW || P.TABLE.labelColW, totalW / 2);
   const restW  = cols > 1 ? (totalW - labelW) / (cols - 1) : 0;
   const colW   = [labelW, ...new Array(Math.max(cols - 1, 0)).fill(restW)];
 
@@ -446,7 +447,7 @@ function _lciPptxCostRows(m, rows, c, sl) {
     const lbc = c.legacyByCategory || { exiting: [], retained: [] };
     const showCatRows = lbc.exiting.some(v => v) && lbc.retained.some(v => v);
     // N-018: "Legacy Team Costs" only earns a row when it is not derivable
-    // from the rows around it — a single category WITH R&R amounts.
+    // from the rows around it — a single category WITH RR&S amounts.
     const showLegacyTeamCosts = !showCatRows && c.oneoffs.some(v => v);
     if (sections.legacy) {
       push('plain', 'Legacy Headcount', int(c.legacyHeadcount));
@@ -456,7 +457,7 @@ function _lciPptxCostRows(m, rows, c, sl) {
           push('plain', `   ${v.costLine}`, money(lbc[k])));
       }
     }
-    if (sections.oneoffs) push('plain', '   Retention & Relocation', money(c.oneoffs));
+    if (sections.oneoffs) push('plain', `   ${CONFIG.LCI.SECTION_LABELS.oneoffs}`, money(c.oneoffs));
     push('subtotal', 'Total Legacy Costs', money(c.legacyCost.map((v, i) => v + c.oneoffs[i])));
   }
 
@@ -687,7 +688,8 @@ function _lciPptxModelSlides(ctx, bundle, single) {
       `Cost Model — ${m.Title}${sl.label ? ` · ${sl.label}` : ''}`,
       ['', ...labels],
       _lciPptxCostRows(m, bundle.rows, c, sl),
-      { grid: true, note: `All values in ${ccy || ''}.` });
+      { grid: true, note: `All values in ${ccy || ''}.`,
+        labelColW: CONFIG.LCI.PPTX.TABLE.costLabelColW });
   });
 
   // Monthly Cost Composition (N-261) — every model, single or multi deck.

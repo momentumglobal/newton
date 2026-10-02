@@ -90,23 +90,28 @@ function ccBadgeHTML(rag, label) {
 }
 
 async function refreshCCBanner() {
- const [roles, acts4, acts13, forecasts, assigns, people, projects] = await Promise.all([
+ const [roles, acts13, forecasts, assigns, people, projects, stageRows] = await Promise.all([
   getAllRoles(),
-  getActivityForAnalytics(4),
   getActivityForAnalytics(13),
   getItems('SalesForecasts'),
   getItems('Assignments'),
   getPeople(false),
-  getItems('Projects')
+  getItems('Projects'),
+  getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; })
  ]);
+ // N-274: time-in-stage flag — same inputs as the Command Centre Health tile.
+ const stageHistory = groupStageHistoryByRole(stageRows);
  const projectsById = Object.fromEntries(projects.map(pr => [String(pr.id), pr]));
   
-  // Project Health RAG
+  // Project Health RAG — N-274: each open role is evaluated once; the same
+  // result drives its roleFlag notification and the flagged count.
   const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
+  let flagged = 0;
   for (const role of open) {
-    const acts = acts4.filter(a => String(a.RoleIDLookupId) === String(role.id));
+    const acts = acts13.filter(a => String(a.RoleIDLookupId) === String(role.id));
     const key = `flag:${role.id}`;
-    if (isRoleFlagged(role, acts)) {
+    if (isRoleFlagged(role, acts, stageHistory)) {
+      flagged++;
       const projId = String(role.ProjectIDLookupId || role.ProjectID);
       const proj = projectsById[projId];
       await fireNotification({ triggerType:'roleFlag', triggerKey:key,
@@ -115,15 +120,11 @@ async function refreshCCBanner() {
         recipients:[role.TalentPartner, proj && proj.DeliveryManager] });
     } else { await clearNotification(key); }
   }
-  const flagged = open.filter(role => {
-    const acts = acts4.filter(a => String(a.RoleIDLookupId) === String(role.id));
-    return isRoleFlagged(role, acts);
-  }).length;
+  // Thresholds: CONFIG.ROLE_FLAG.healthRag (shared with cc-pages.js).
+  const ragHealth = flaggedShareRAG(flagged, open.length);
 
-  const healthPct = open.length ? flagged / open.length : 0;
-  const ragHealth = healthPct < 0.25 ? 'green' : healthPct <= 0.50 ? 'amber' : 'red';
-
-  // N-275: People badge is unrated until N-274 replaces flagged ÷ open.
+  // N-275 / N-274 decision (2 Oct 2026): the People badge stays unrated for a
+  // quarter of time-in-stage data.
   // 'neutral' is the badge's no-data state and what CCStatus already stores for
   // "no value" — and writing it below clears any stale 'red' (and its ccRed
   // notification) via the existing prev === 'red' branch.

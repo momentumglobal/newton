@@ -9,13 +9,15 @@ async function renderScorecardsPage() {
 
   // N-270: 52 weeks fetched once — the full window feeds the learned
   // benchmarks; everything on the cards stays on the 13-week slice.
-  const [activity52, historical, tpMap, allRoles] = await Promise.all([
+  const [activity52, historical, tpMap, allRoles, stageRows] = await Promise.all([
     getActivityForAnalytics(52),
     getHistoricalPlacements(),
     getTalentPartnerDisplayMap(),
     getAllRoles(),
+    getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; }),
   ]);
   const activityRaw = activitySinceWeeks(activity52, 13);
+  const stageHistory = groupStageHistoryByRole(stageRows);  // N-274
 
   // Get unique TP emails from activity, then drop inactive employees
   let tpEmails = [...new Set(activityRaw.map(a => a.TalentPartner).filter(Boolean))];
@@ -61,12 +63,10 @@ async function renderScorecardsPage() {
     const bench        = learnFunnelBenchmarksMix(benchObs, buildFunnelObservations(tpActivity, roleIndex), { exclude: o => o.tp === tpEmail });
     const scorecard    = computeVelocityScore(tpEmail, tpActivity, tpPlacements, bench);
     const tpRoles      = allRoles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tpEmail));
-    const flaggedRoles = tpRoles.filter(r => {
-      const acts = activityRaw.filter(a => String(a.RoleIDLookupId) === String(r.id));
-      return isRoleFlagged(r, acts);
-    }).length;
-    // N-275: counts only. No RAG is derived from flagged ÷ open until N-274.
-    return renderScorecardPanel(scorecard, tpMap, { total: tpRoles.length, flagged: flaggedRoles }, bench);
+    // N-274: { total, flagged, stuck, conversion, behind }. Counts only — no RAG
+    // for a quarter of time-in-stage data (decision, 2 Oct 2026).
+    const roleHealth   = tallyRoleFlags(tpRoles, activityRaw, stageHistory);
+    return renderScorecardPanel(scorecard, tpMap, roleHealth, bench);
   }).join('');
 
   main.innerHTML = `
@@ -97,10 +97,17 @@ async function getScopedTpEmails(userEmail) {
 function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null, bench = null) {
   const displayName = tpMap[scorecard.tpEmail.toLowerCase()] || scorecard.tpEmail;
   const healthRow = roleHealth ? (() => {
-    const display = roleHealth.total > 0 ? `${roleHealth.flagged}/${roleHealth.total}` : '—';
+    const of  = n => roleHealth.total > 0 ? `${n || 0}/${roleHealth.total}` : '—';
+    // N-274: a role can be both stuck and low-conversion, so these can sum to
+    // more than the flagged count. Behind-pace is information only.
+    const tip = `Stuck in stage: ${roleHealth.stuck || 0} · Low conversion: ${roleHealth.conversion || 0}`;
     return `<tr>
       <td class='sc-label'>Flagged roles</td>
-      <td class='sc-value sc-grey' style="text-align:center">${display}</td>
+      <td class='sc-value sc-grey' title="${escHtml(tip)}" style="text-align:center">${of(roleHealth.flagged)}</td>
+    </tr>
+    <tr>
+      <td class='sc-label'>Behind ${CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays}-day pace</td>
+      <td class='sc-value sc-grey' style="text-align:center">${of(roleHealth.behind)}</td>
     </tr>`;
   })() : '';
 

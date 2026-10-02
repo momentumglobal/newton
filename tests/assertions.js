@@ -54,13 +54,6 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'isRoleFlagged — flags a role with a low interview conversion rate',
-    fn: function () {
-      const { role, activity } = FIXTURES.roleFlagged;
-      _assertEqual(isRoleFlagged(role, activity), true, 'isRoleFlagged');
-    },
-  },
-  {
     name: 'lciCumulativeHeadcount — respects a non-zero noticeMonths offset',
     fn: function () {
       const { row, horizon, noticeMonths } = FIXTURES.lciHeadcount;
@@ -574,30 +567,6 @@ var ASSERTIONS = [
     fn: function () {
       const { obj, keys } = FIXTURES.lci2.pickFields;
       _assertEqual(_pickFields(obj, keys), { A: 1, D: 5 }, '_pickFields');
-    },
-  },
-  {
-    name: 'isRoleFlagged — days-open threshold fires when the stage has no STAGE_ORDER entry',
-    fn: function () {
-      const { role, daysOpenOffset, activity } = FIXTURES.analytics2.flaggedNoStageMatch;
-      const openRole = { ...role, OpenDate: new Date(Date.now() - daysOpenOffset * 86400000).toISOString() };
-      _assertEqual(isRoleFlagged(openRole, activity), true, 'isRoleFlagged');
-    },
-  },
-  {
-    name: 'isRoleFlagged — days-open threshold fires for a mid-STAGE_ORDER stage',
-    fn: function () {
-      const { role, daysOpenOffset, activity } = FIXTURES.analytics2.flaggedMidStage;
-      const openRole = { ...role, OpenDate: new Date(Date.now() - daysOpenOffset * 86400000).toISOString() };
-      _assertEqual(isRoleFlagged(openRole, activity), true, 'isRoleFlagged');
-    },
-  },
-  {
-    name: 'isRoleFlagged — does not flag a fresh role with a healthy conversion rate',
-    fn: function () {
-      const { role, daysOpenOffset, activity } = FIXTURES.analytics2.notFlagged;
-      const openRole = { ...role, OpenDate: new Date(Date.now() - daysOpenOffset * 86400000).toISOString() };
-      _assertEqual(isRoleFlagged(openRole, activity), false, 'isRoleFlagged');
     },
   },
   {
@@ -1941,6 +1910,127 @@ var ASSERTIONS = [
       _assertEqual(CONFIG.LIST_FIELDS.Diagnostics.length, 10, 'AC8 Diagnostics projection unchanged');
       const n = CONFIG.WEEKLY_ANOMALIES.acknowledge.noteMaxChars;
       _assertEqual(Number.isInteger(n) && n > 0, true, 'AC13 noteMaxChars is a positive integer');
+    },
+  },
+  // ── N-274: isRoleFlagged on time-in-stage ──────────────────────────────
+  // Fixed `today` (Fri 2 Oct 2026, local noon) and fixed dates throughout, so
+  // nothing drifts as real time passes. ChangedAt values are morning UTC
+  // instants, so their local day is the same in any timezone NEWTON_TZ picks.
+  {
+    name: 'N-274 roleStageBudgets — weights scaled to timeToHireDays in ROLE_STAGES order; STAGE_ORDER retired',
+    fn: function () {
+      const b = roleStageBudgets();
+      _assertEqual(b.budget, { 'Sourcing': 15, 'Submitted': 7, 'Interview 1': 7, 'Interview 2+': 7, 'Final Interview': 5, 'Offered': 4 }, 'AC1 budgets');
+      _assertEqual(Object.keys(b.cumulative), ['Sourcing', 'Submitted', 'Interview 1', 'Interview 2+', 'Final Interview', 'Offered'], 'AC1 ROLE_STAGES order');
+      _assertEqual(b.cumulative['Interview 1'], 29, 'AC1 cumulative through Interview 1');
+      _assertEqual(b.cumulative.Offered, CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays, 'AC1 cumulative Offered = target');
+      _assertEqual(roleStageBudgets(CONFIG.ROLE_FLAG, 90).budget, { 'Sourcing': 30, 'Submitted': 14, 'Interview 1': 14, 'Interview 2+': 14, 'Final Interview': 10, 'Offered': 8 }, 'AC1 target 90 doubles every budget');
+      let threw = false;
+      try { roleStageBudgets({ stageWeights: { 'Sourcng': 1 } }); } catch (e) { threw = /unknown stage/.test(e.message); }
+      _assertEqual(threw, true, 'AC1 unknown weight key throws');
+      _assertEqual(typeof STAGE_ORDER, 'undefined', 'AC2 STAGE_ORDER retired');
+    },
+  },
+  {
+    name: 'N-274 roleFlagReasons — stuck past the stage budget; Final/Offered/Planning never stuck; unknown entry never stuck',
+    fn: function () {
+      const TODAY = new Date(2026, 9, 2, 12);
+      const hist = (id, rows) => groupStageHistoryByRole(rows.map(([o, n, at]) =>
+        ({ RoleIDLookupId: id, Field: 'Stage', OldValue: o, NewValue: n, ChangedAt: at })));
+      const why = (role, h) => roleFlagReasons(role, [], h, TODAY);
+
+      const s16 = why({ id: 1, Stage: 'Sourcing' }, hist(1, [[null, 'Planning', '2026-08-01T09:00:00Z'], ['Planning', 'Sourcing', '2026-09-16T09:00:00Z']]));
+      _assertEqual([s16.stuck, s16.flagged, s16.daysInStage, s16.stageBudget, s16.entryKnown], [true, true, 16, 15, true], 'AC3 Sourcing 16 days > 15 → stuck');
+      const s15 = why({ id: 1, Stage: 'Sourcing' }, hist(1, [[null, 'Planning', '2026-08-01T09:00:00Z'], ['Planning', 'Sourcing', '2026-09-17T09:00:00Z']]));
+      _assertEqual([s15.stuck, s15.flagged, s15.daysInStage], [false, false, 15], 'AC3 Sourcing 15 days → not stuck');
+      const sub = why({ id: 2, Stage: 'Submitted' }, hist(2, [['Sourcing', 'Submitted', '2026-09-24T09:00:00Z']]));
+      _assertEqual([sub.stuck, sub.daysInStage, sub.stageBudget], [true, 8, 7], 'AC3 Submitted 8 days > 7 → stuck');
+      const iv2 = why({ id: 3, Stage: 'Interview 2+' }, hist(3, [['Interview 1', 'Interview 2+', '2026-09-25T09:00:00Z']]));
+      _assertEqual([iv2.stuck, iv2.daysInStage], [false, 7], 'AC3 Interview 2+ 7 days → not stuck');
+
+      ['Final Interview', 'Offered'].forEach(st => {
+        const r = why({ id: 4, Stage: st }, hist(4, [['Interview 2+', st, '2026-08-03T09:00:00Z']]));
+        _assertEqual([r.stuck, r.daysInStage, r.entryKnown], [false, 60, true], `AC4 ${st} at 60 days never stuck`);
+      });
+      ['Planning', 'Backlog'].forEach(st => {
+        const r = why({ id: 5, Stage: st, OpenDate: '2026-03-16T12:00:00Z' }, hist(5, [[null, st, '2026-03-16T09:00:00Z']]));
+        _assertEqual([r.stuck, r.behindPace, r.stageBudget], [false, false, null], `AC4 ${st} never age-evaluated`);
+      });
+
+      const old = { id: 6, Stage: 'Sourcing', OpenDate: '2026-03-16T12:00:00Z' };
+      const none = why(old, {});
+      _assertEqual([none.entryKnown, none.stuck, none.flagged], [false, false, false], 'AC5 no stage rows → never stuck, even 200 days open');
+      const mismatch = why(old, hist(6, [['Sourcing', 'Interview 1', '2026-04-01T09:00:00Z']]));
+      _assertEqual([mismatch.entryKnown, mismatch.stuck], [false, false], 'AC5 latest row disagrees with Stage → unknown');
+    },
+  },
+  {
+    name: 'N-274 roleStageEntryDay — back-dates a creation row / first Sourcing entry to OpenDate, never a later transition',
+    fn: function () {
+      const rows = list => list.map(([o, n, at]) => ({ OldValue: o, NewValue: n, ChangedAt: at }));
+      _assertEqual(roleStageEntryDay({ Stage: 'Interview 1', OpenDate: '2026-08-01T12:00:00Z' },
+        rows([[null, 'Interview 1', '2026-09-20T09:00:00Z']])), '2026-08-01', 'AC6 creation row (null) → OpenDate');
+      _assertEqual(roleStageEntryDay({ Stage: 'Interview 1', OpenDate: '2026-08-01T12:00:00Z' },
+        rows([['', 'Interview 1', '2026-09-20T09:00:00Z']])), '2026-08-01', 'AC6 creation row (empty string) → OpenDate');
+      _assertEqual(roleStageEntryDay({ Stage: 'Sourcing', OpenDate: '2026-09-10T12:00:00Z' },
+        rows([[null, 'Planning', '2026-07-01T09:00:00Z'], ['Planning', 'Sourcing', '2026-09-25T09:00:00Z']])), '2026-09-10', 'AC6 first Sourcing entry → OpenDate');
+      _assertEqual(roleStageEntryDay({ Stage: 'Interview 1', OpenDate: '2026-08-01T12:00:00Z' },
+        rows([['Submitted', 'Interview 1', '2026-09-25T09:00:00Z']])), '2026-09-25', 'AC6 later transition is never back-dated');
+      _assertEqual(roleStageEntryDay({ Stage: 'Interview 1', OpenDate: '2026-09-30T12:00:00Z' },
+        rows([[null, 'Interview 1', '2026-09-20T09:00:00Z']])), '2026-09-20', 'AC6 OpenDate later than the row → row day kept');
+      _assertEqual(roleStageEntryDay({ Stage: 'Sourcing', OpenDate: '2026-09-02T12:00:00Z' },
+        rows([[null, 'Sourcing', '2026-09-02T09:00:00Z'], ['Sourcing', 'On-hold', '2026-09-10T09:00:00Z'], ['On-hold', 'Sourcing', '2026-09-29T09:00:00Z']])),
+        '2026-09-29', 'Return from On-hold counts from the return, not the first Sourcing entry');
+    },
+  },
+  {
+    name: 'N-274 roleFlagReasons — behind pace is information only; conversion is windowed with a minimum volume',
+    fn: function () {
+      const TODAY = new Date(2026, 9, 2, 12);
+      const h = groupStageHistoryByRole([
+        { RoleIDLookupId: 7, Field: 'Stage', OldValue: null,       NewValue: 'Sourcing', ChangedAt: '2026-09-02T09:00:00Z' },
+        { RoleIDLookupId: 7, Field: 'Stage', OldValue: 'Sourcing', NewValue: 'On-hold',  ChangedAt: '2026-09-10T09:00:00Z' },
+        { RoleIDLookupId: 7, Field: 'Stage', OldValue: 'On-hold',  NewValue: 'Sourcing', ChangedAt: '2026-09-29T09:00:00Z' },
+      ]);
+      const pace = roleFlagReasons({ id: 7, Stage: 'Sourcing', OpenDate: '2026-09-02T12:00:00Z' }, [], h, TODAY);
+      _assertEqual([pace.behindPace, pace.daysOpen, pace.paceBudget, pace.daysInStage, pace.stuck, pace.flagged], [true, 30, 15, 3, false, false], 'AC7 behind pace but not flagged');
+      _assertEqual(isRoleFlagged({ id: 7, Stage: 'Sourcing', OpenDate: '2026-09-02T12:00:00Z' }, [], h, TODAY), false, 'AC7 isRoleFlagged ignores pace');
+
+      const role = { id: 8, Stage: 'Interview 1' };
+      const wk = (day, Submitted, Interview1) => ({ RoleIDLookupId: 8, WeekEndingDate: `${day}T12:00:00Z`, Submitted, Interview1 });
+      const conv = acts => roleFlagReasons(role, acts, {}, TODAY).conversion;
+      _assertEqual(conv([wk('2026-09-27', 4, 1), wk('2026-09-20', 2, 1)]), true, 'AC8 6 Submitted / 2 IV1 in window → flagged');
+      _assertEqual(conv([wk('2026-09-27', 2, 0)]), false, 'AC8 2 Submitted is below the minimum');
+      _assertEqual(conv([wk('2026-08-02', 10, 1)]), false, 'AC8 activity 8+ weeks old is outside the window');
+      _assertEqual(conv([{ RoleIDLookupId: 8, Submitted: 10, Interview1: 1 }]), false, 'AC8 undated rows are ignored');
+      _assertEqual(conv([wk('2026-09-27', 6, 3)]), false, 'AC8 exactly 50% is not below the minimum rate');
+      _assertEqual(isRoleFlagged(role, [wk('2026-09-27', 4, 1), wk('2026-09-20', 2, 1)], undefined, TODAY), true, 'AC9 undefined stage history → conversion still evaluated');
+      _assertEqual(isRoleFlagged({ id: 1, Stage: 'Sourcing', OpenDate: '2026-03-16T12:00:00Z' }, []), false, 'AC9 2-argument call: no stage history, no stuck flag, no throw');
+      _assertEqual(roleFlagReasons({ id: 1, Stage: 'Sourcing' }, undefined).flagged, false, 'AC9 undefined activity is safe');
+    },
+  },
+  {
+    name: 'N-274 flaggedShareRAG, tallyRoleFlags and groupStageHistoryByRole',
+    fn: function () {
+      _assertEqual([[0, 0], [2, 10], [3, 10], [5, 10], [6, 10]].map(([f, o]) => flaggedShareRAG(f, o)),
+        ['green', 'green', 'amber', 'amber', 'red'], 'AC10 Health RAG thresholds');
+      const TODAY = new Date(2026, 9, 2, 12);
+      const rows = [
+        { RoleIDLookupId: 2, Field: 'Stage', OldValue: 'Sourcing', NewValue: 'Submitted', ChangedAt: '2026-09-24T09:00:00Z' },
+        { RoleIDLookupId: 2, Field: 'Notes', OldValue: 'a',        NewValue: 'b',         ChangedAt: '2026-09-30T09:00:00Z' },
+        { RoleIDLookupId: 1, Field: 'Stage', OldValue: 'Planning', NewValue: 'Sourcing',  ChangedAt: '2026-09-29T09:00:00Z' },
+        { RoleIDLookupId: 1, Field: 'Stage', OldValue: null,       NewValue: 'Planning',  ChangedAt: '2026-07-01T09:00:00Z' },
+      ];
+      const h = groupStageHistoryByRole(rows);
+      _assertEqual(h['1'].map(r => r.NewValue), ['Planning', 'Sourcing'], 'grouping sorts oldest first');
+      _assertEqual(h['2'].length, 1, 'grouping drops non-Stage rows');
+      const roles = [
+        { id: 1, Stage: 'Sourcing', OpenDate: '2026-09-29T12:00:00Z' },  // fresh: nothing
+        { id: 2, Stage: 'Submitted', OpenDate: '2026-08-01T12:00:00Z' }, // stuck 8 > 7, behind pace
+        { id: 3, Stage: 'Interview 1' },                                  // conversion only
+      ];
+      const acts = [{ RoleIDLookupId: 3, WeekEndingDate: '2026-09-27T12:00:00Z', Submitted: 5, Interview1: 1 }];
+      _assertEqual(tallyRoleFlags(roles, acts, h, TODAY), { total: 3, flagged: 2, stuck: 1, conversion: 1, behind: 1 }, 'tally counts each reason once per role');
     },
   },
 ];

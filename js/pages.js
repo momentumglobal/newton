@@ -584,8 +584,8 @@ async function showRoleTimeline(roleId) {
 // either end, or an unresolvable/equal comparison — deliberately neutral,
 // never green or red, since neither is a point on the linear pipeline.
 // Forward/backward is index comparison on CONFIG.ROLE_STAGES — the full
-// 11-stage canonical order — NEVER analytics.js's STAGE_ORDER, which is a
-// 4-stage subset built only for isRoleFlagged's velocity check.
+// 11-stage canonical order. (analytics.js's old 4-stage STAGE_ORDER subset
+// was retired by N-274; the flag now also orders by CONFIG.ROLE_STAGES.)
 function _roleTimelineNodeClass(oldStage, newStage) {
   // N-100 UAT fix (round 2): same SharePoint null-vs-empty-string quirk as
   // showRoleTimeline's isCreated check above — a falsy check catches the

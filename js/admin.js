@@ -324,9 +324,12 @@ async function writeSnapshotsNow() {
     weekStartDate.setUTCDate(weekStartDate.getUTCDate() - 6);
     const weekStart = spDateIn(spDateOut(weekStartDate));
 
-    const [projects, allRoles, allActivity, allPlacements, existing] = await Promise.all([
+    const [projects, allRoles, allActivity, allPlacements, existing, stageRows] = await Promise.all([
       getProjects(true), getAllRoles(), getWeeklyActivity(null, null), getPlacements(null), getItems('Snapshots'),
+      getRoleStageHistory(),
     ]);
+    // N-274: the flag's stuck rule needs each role's Stage history.
+    const stageHistory = groupStageHistoryByRole(stageRows);
 
     for (let i = 0; i < projects.length; i++) {
       const p = projects[i];
@@ -351,7 +354,7 @@ async function writeSnapshotsNow() {
         return d >= weekStart && d <= weekEnding;
       });
 
-      const metrics = computeSnapshotMetrics(roles, weekActivity, weekPlacements, roleActivityForFlagging);
+      const metrics = computeSnapshotMetrics(roles, weekActivity, weekPlacements, roleActivityForFlagging, stageHistory);
 
       const fields = {
         Title:              `${p.CustomerName || 'Project ' + p.id} — wk ending ${weekEnding}`,

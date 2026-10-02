@@ -543,6 +543,29 @@ const CONFIG = {
     closedLookbackDays: 365,  // mirrors getHistoricalPlacements()' 1-year hire window
   },
 
+  // N-274 (N-272 D1): the at-risk flag on time-in-stage (analytics.js
+  // roleFlagReasons / isRoleFlagged). The target is
+  // ANALYTICS_BENCHMARKS.timeToHireDays — not repeated here.
+  ROLE_FLAG: {
+    // Relative weight of each pipeline stage's share of the target.
+    // Budget (days) = weight / sum × target, so changing the target rescales
+    // every budget. Order comes from ROLE_STAGES; stages not listed (Backlog,
+    // Planning, Hired, On-hold, Cancelled) have no budget and are never
+    // age-evaluated. Every key must be a ROLE_STAGES value (checked at load).
+    stageWeights: {
+      'Sourcing': 15, 'Submitted': 7, 'Interview 1': 7,
+      'Interview 2+': 7, 'Final Interview': 5, 'Offered': 4,
+    },
+    // Count toward the pace signal, never flagged as stuck.
+    noStuckStages: ['Final Interview', 'Offered'],
+    // Flag when the last windowWeeks of activity hold >= minSubmitted
+    // Submitted and Interview1 ÷ Submitted < minRate.
+    conversion: { windowWeeks: 6, minSubmitted: 3, minRate: 0.50 },
+    // CC Health tile + homepage Health pill, on flagged ÷ open roles:
+    // < green → green; <= amber → amber; else red.
+    healthRag: { green: 0.25, amber: 0.50 },
+  },
+
   // N-270: learned funnel benchmarks (analytics.js learnFunnelBenchmarks).
   // Beta-binomial: each level's rate is shrunk toward its parent's with
   // priorStrength pseudo-trials; the top level shrinks toward

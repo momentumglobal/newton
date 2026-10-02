@@ -20,8 +20,8 @@
 // worked, not their current age — CONFIG.TTF_SURVIVAL.closedStages and
 // ttfClosedCensorTimes (N-276, from N-272 D2); Hired roles are events (via
 // `historical`), not censored.
-// NOT ACTIVE_STAGES (which lists the closed/dormant stages) or STAGE_ORDER
-// (a 4-stage subset built only for isRoleFlagged).
+// NOT ACTIVE_STAGES (which lists the closed/dormant stages). STAGE_ORDER, the
+// old 4-stage subset isRoleFlagged used, was retired by N-274.
 const TTF_CENSORED_STAGES = CONFIG.ROLE_STAGES.filter(s =>
   !CONFIG.ROLE_STAGES_ACTIVITY_EXCLUDED.includes(s) && s !== 'Planning'
 );
@@ -642,26 +642,154 @@ function buildAnomalyAckFields({ checkType, subjectKey, signature, note }, email
 }
 
 
-// ── Role flag helpers (shared by cc-pages.js and analytics-pages.js) ──
+// ── Role flag helpers (shared by cc-pages.js, analytics-pages.js,
+//    mobile-scorecards.js, index.html and computeSnapshotMetrics) ──
 const ACTIVE_STAGES = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled', 'On-hold'];
-const STAGE_ORDER   = ['Sourcing', 'Interview 1', 'Interview 2+', 'Final Interview'];
 // Stages that block linking a live role to a Hiring Plan row. Narrower than
 // ACTIVE_STAGES: a Backlog role is dormant for velocity metrics but is exactly
 // what a plan row tracks, so it stays linkable. Derived — not a second list.
 const PLAN_LINKABLE_EXCLUDED_STAGES = ACTIVE_STAGES.filter(s => s !== 'Backlog');
 
-function isRoleFlagged(role, activity) {
-  const today = new Date();
-  const days = role.OpenDate ? Math.floor((today - new Date(role.OpenDate)) / 86400000) : 0;
-  const idx  = STAGE_ORDER.indexOf(role.Stage);
-  if (days >= 15 && idx < 0) return true;
-  if (days >= 25 && idx < 1) return true;
-  if (days >= 35 && idx < 2) return true;
-  if (days >= 40 && idx < 3) return true;
-  const submitted = sumField(activity, 'Submitted');
-  const iv1       = sumField(activity, 'Interview1');
-  if (submitted > 0 && (iv1 / submitted) < 0.50) return true;
-  return false;
+// N-274 (N-272 D1): the at-risk flag measures time in the CURRENT stage, not
+// role age. Per-stage budgets (days) = CONFIG.ROLE_FLAG.stageWeights scaled to
+// ANALYTICS_BENCHMARKS.timeToHireDays, ordered by CONFIG.ROLE_STAGES (the old
+// 4-stage STAGE_ORDER subset is gone). cumulative[S] = the days open by which
+// a role on pace has left stage S. weight × target ÷ total keeps whole-number
+// budgets exact (no float drift at the > comparison).
+function roleStageBudgets(cfg = CONFIG.ROLE_FLAG, target = CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays) {
+  const weights = cfg.stageWeights;
+  Object.keys(weights).forEach(s => {
+    if (!CONFIG.ROLE_STAGES.includes(s)) throw new Error(`ROLE_FLAG.stageWeights: unknown stage "${s}"`);
+  });
+  const stages = CONFIG.ROLE_STAGES.filter(s => s in weights);
+  const total  = stages.reduce((n, s) => n + weights[s], 0);
+  const budget = {}, cumulative = {};
+  let run = 0;
+  stages.forEach(s => {
+    budget[s] = weights[s] * target / total;
+    run += budget[s];
+    cumulative[s] = run;
+  });
+  return { budget, cumulative };
+}
+const ROLE_STAGE_BUDGETS = roleStageBudgets();
+
+// RoleHistory Stage rows → { [roleId]: rows, oldest first }. Build once per
+// page load from getRoleStageHistory() and pass it to isRoleFlagged /
+// roleFlagReasons / tallyRoleFlags.
+function groupStageHistoryByRole(rows) {
+  const byRole = {};
+  (rows || []).forEach(h => {
+    if (!h || (h.Field && h.Field !== 'Stage')) return;
+    const k = String(h.RoleIDLookupId);
+    (byRole[k] = byRole[k] || []).push(h);
+  });
+  Object.values(byRole).forEach(a => a.sort((x, y) => new Date(x.ChangedAt) - new Date(y.ChangedAt)));
+  return byRole;
+}
+
+// The day ('YYYY-MM-DD') the role entered its CURRENT stage, or null when the
+// history can't say (no rows, or the latest row disagrees with role.Stage).
+// ChangedAt is an instant → local day; OpenDate is a day marker → spDateIn.
+// Never diff the two in raw ms (N-100 diff-4). Back-dated to OpenDate when
+// that is earlier AND the row is the role's creation row (it sat in this stage
+// before Newton logged it) or its first move into Sourcing (OpenDate is the
+// true go-live) — the same two cases showRoleTimeline (pages.js) back-dates.
+// Known overlap with that render code; the timeline is deliberately untouched.
+function roleStageEntryDay(role, roleRows) {
+  const rows = roleRows || [];
+  const last = rows[rows.length - 1];
+  if (!last || !role || last.NewValue !== role.Stage) return null;
+  let entry = localDayISO(new Date(last.ChangedAt));
+  if (!entry) return null;
+  const openDay = role.OpenDate ? spDateIn(role.OpenDate) : null;
+  // Falsy, never === '' — a creation row's OldValue reads back null (N-100).
+  const isCreation = !last.OldValue;
+  const firstSourcing = role.Stage === 'Sourcing' &&
+    rows.findIndex(h => h.NewValue === 'Sourcing') === rows.length - 1;
+  if (openDay && openDay < entry && (isCreation || firstSourcing)) entry = openDay;
+  return entry;
+}
+
+// Why a role is (or isn't) flagged. flagged = stuck || conversion.
+//   stuck      — in a budgeted stage (not ROLE_FLAG.noStuckStages) for longer
+//                than its budget. Unknown stage entry → false: never falls
+//                back to OpenDate, which is the age rule N-272 retired.
+//   conversion — the last conversion.windowWeeks of activity hold
+//                >= minSubmitted Submitted and Interview1 ÷ Submitted < minRate.
+//                Windowed here, so every caller agrees whatever it fetched
+//                (callers must pass at least windowWeeks of activity).
+//   behindPace — days open > the cumulative budget through the current stage.
+//                Information only (Chris, 2 Oct 2026): N-272 found a 130-day
+//                median open → hire, so this is never counted as flagged,
+//                never in a RAG, never notified.
+// stageHistory: groupStageHistoryByRole() output. `today` is injectable for
+// tests. Stages with no budget (Planning, Backlog, …) are never age-evaluated.
+function roleFlagReasons(role, activity, stageHistory = {}, today = new Date()) {
+  const cfg        = CONFIG.ROLE_FLAG;
+  const todayDay   = localDayISO(today);
+  const stage      = role && role.Stage;
+  const budget     = ROLE_STAGE_BUDGETS.budget[stage];
+  const paceBudget = ROLE_STAGE_BUDGETS.cumulative[stage];
+  const budgeted   = budget !== undefined;
+
+  const entry       = budgeted ? roleStageEntryDay(role, (stageHistory || {})[String(role.id)]) : null;
+  const daysInStage = entry ? Math.max(0, daysOpen(entry, todayDay)) : null;
+  const stuck       = daysInStage !== null && !cfg.noStuckStages.includes(stage) && daysInStage > budget;
+
+  const opened     = budgeted && role.OpenDate ? daysOpen(role.OpenDate, todayDay) : null;
+  const behindPace = opened !== null && opened > paceBudget;
+
+  const c          = cfg.conversion;
+  const recent     = activitySinceWeeks(activity || [], c.windowWeeks, today);
+  const submitted  = sumField(recent, 'Submitted');
+  const iv1        = sumField(recent, 'Interview1');
+  const conversion = submitted >= c.minSubmitted && (iv1 / submitted) < c.minRate;
+
+  return {
+    flagged: stuck || conversion,
+    stuck, conversion, behindPace,
+    daysInStage,
+    stageBudget: budgeted ? budget : null,
+    daysOpen:    opened,
+    paceBudget:  budgeted ? paceBudget : null,
+    entryKnown:  entry !== null,
+  };
+}
+
+// Flagged = stuck in stage OR low recent conversion (N-274). The first two
+// parameters are unchanged; a 2-argument call has no stage history, so only
+// the conversion rule can fire.
+function isRoleFlagged(role, activity, stageHistory = {}, today = new Date()) {
+  return roleFlagReasons(role, activity, stageHistory, today).flagged;
+}
+
+// Counts over a set of roles (callers pass open roles): total, flagged, and
+// each reason. `activity` = every row the caller has, filtered per role by
+// RoleIDLookupId here. One roleFlagReasons call per role.
+function tallyRoleFlags(roles, activity, stageHistory = {}, today = new Date()) {
+  const t = { total: 0, flagged: 0, stuck: 0, conversion: 0, behind: 0 };
+  (roles || []).forEach(role => {
+    const acts = (activity || []).filter(a => String(a.RoleIDLookupId) === String(role.id));
+    const r = roleFlagReasons(role, acts, stageHistory, today);
+    t.total++;
+    if (r.flagged)    t.flagged++;
+    if (r.stuck)      t.stuck++;
+    if (r.conversion) t.conversion++;
+    if (r.behindPace) t.behind++;
+  });
+  return t;
+}
+
+// Health RAG on flagged ÷ open roles — CC Health tile and homepage Health pill
+// (one copy; index.html used to carry its own). No open roles → green, as both
+// callers behaved before N-274. Thresholds: CONFIG.ROLE_FLAG.healthRag.
+function flaggedShareRAG(flagged, open, cfg = CONFIG.ROLE_FLAG.healthRag) {
+  if (!open) return 'green';
+  const pct = flagged / open;
+  if (pct < cfg.green)  return 'green';
+  if (pct <= cfg.amber) return 'amber';
+  return 'red';
 }
 
 // ── Time-series snapshots (N-085 / L-1a) ───────────────────────────────
@@ -692,7 +820,9 @@ function isRoleFlagged(role, activity) {
 // snapshot's single week. isRoleFlagged() needs a role's entire activity
 // history to evaluate correctly (same pattern as cc-pages.js:ccHealthStats()),
 // so flaggedCount would be silently wrong if passed the windowed set instead.
-function computeSnapshotMetrics(roles, weekActivity, weekPlacements, allActivityForRoles = []) {
+// `stageHistory` (N-274) = groupStageHistoryByRole(getRoleStageHistory()); the
+// flag's stuck rule needs it. Omitted → conversion-only flags.
+function computeSnapshotMetrics(roles, weekActivity, weekPlacements, allActivityForRoles = [], stageHistory = {}) {
   const openRoleSet = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
 
   const rolesByStage = roles.reduce((acc, r) => {
@@ -708,7 +838,7 @@ function computeSnapshotMetrics(roles, weekActivity, weekPlacements, allActivity
 
   const flaggedCount = openRoleSet.filter(r => {
     const acts = allActivityForRoles.filter(a => String(a.RoleIDLookupId) === String(r.id));
-    return isRoleFlagged(r, acts);
+    return isRoleFlagged(r, acts, stageHistory);
   }).length;
 
   const activityTotals = {

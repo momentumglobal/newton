@@ -43,13 +43,15 @@ async function mobileRenderScorecards(main) {
   try {
     // N-270: 52 weeks fetched once — the full window feeds the learned
     // benchmarks; everything on the cards stays on the 13-week slice.
-    const [activity52, historical, tpMap, allRoles] = await Promise.all([
+    const [activity52, historical, tpMap, allRoles, stageRows] = await Promise.all([
       getActivityForAnalytics(52),
       getHistoricalPlacements(),
       getTalentPartnerDisplayMap(),
       getAllRoles(),
+      getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; }),
     ]);
     const activityRaw = activitySinceWeeks(activity52, 13);
+    const stageHistory = groupStageHistoryByRole(stageRows);  // N-274
 
     let tpEmails = [...new Set(activityRaw.map(a => a.TalentPartner).filter(Boolean))];
     tpEmails = await filterToActiveTpEmails(tpEmails, tpMap);
@@ -86,15 +88,13 @@ async function mobileRenderScorecards(main) {
       const scorecard    = computeVelocityScore(tpEmail, tpActivity, tpPlacements, bench);
       const tpRoles = allRoles.filter(r => !ACTIVE_STAGES.includes(r.Stage) &&
         tpMatches(r.TalentPartner, tpEmail));
-      const flaggedRoles = tpRoles.filter(r => {
-        const acts = activityRaw.filter(a => String(a.RoleIDLookupId) === String(r.id));
-        return isRoleFlagged(r, acts);
-      }).length;
-      // N-275: counts only. No RAG is derived from flagged ÷ open until N-274.
+      // N-274: counts only — no RAG for a quarter of time-in-stage data
+      // (decision, 2 Oct 2026).
+      const roleHealth = tallyRoleFlags(tpRoles, activityRaw, stageHistory);
       const name = tpMap[tpEmail.toLowerCase()] || tpEmail;
       return {
         name,
-        html: mScCardHtml(scorecard, name, { total: tpRoles.length, flagged: flaggedRoles }),
+        html: mScCardHtml(scorecard, name, roleHealth),
       };
     });
 
@@ -135,10 +135,14 @@ function mScCardHtml(scorecard, displayName, roleHealth) {
   }[rag] || 'var(--c-gray-500)');
 
   const healthRow = roleHealth ? (() => {
-    const display = roleHealth.total > 0 ? `${roleHealth.flagged}/${roleHealth.total}` : '-';
+    const of = n => roleHealth.total > 0 ? `${n || 0}/${roleHealth.total}` : '-';
     return `<tr>
       <td class="m-sc-metric">Flagged roles</td>
-      <td class="m-sc-val" style="color:${ragColour('grey')}">${display}</td>
+      <td class="m-sc-val" style="color:${ragColour('grey')}">${of(roleHealth.flagged)}</td>
+    </tr>
+    <tr>
+      <td class="m-sc-metric">Behind ${CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays}-day pace</td>
+      <td class="m-sc-val" style="color:${ragColour('grey')}">${of(roleHealth.behind)}</td>
     </tr>`;
   })() : '';
 

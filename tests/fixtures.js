@@ -24,17 +24,6 @@ var FIXTURES = {
     ],
   },
 
-  // isRoleFlagged — no OpenDate, so the days-open branches are inert and
-  // only the submitted/interview1 ratio branch is exercised. Keeps the
-  // assertion stable regardless of when the suite runs.
-  roleFlagged: {
-    role: { RoleID: 'R-1', Stage: 'Sourcing' },
-    activity: [
-      { RoleID: 'R-1', Submitted: 6, Interview1: 1 },
-      { RoleID: 'R-1', Submitted: 4, Interview1: 1 },
-    ],
-  },
-
   // lciCumulativeHeadcount — 6-month horizon, 2-month notice offset.
   lciHeadcount: {
     row: { MonthValues: JSON.stringify([2, 0, 3, 0, 1, 0]) },
@@ -257,31 +246,11 @@ var FIXTURES = {
     },
   },
 
-  // Analytics layer, round 2 (N-098) — isRoleFlagged's days-open branches
-  // (previously only the ratio branch had coverage), computeVelocityScore,
+  // Analytics layer, round 2 (N-098) — computeVelocityScore,
   // computeRoleFunnel, and computeMonthlyRows' split-fee revenue path
-  // (N-116 — untested since it shipped).
+  // (N-116 — untested since it shipped). Its isRoleFlagged days-open
+  // fixtures were removed by N-274 (rule retired).
   analytics2: {
-    // isRoleFlagged — days-open threshold branches. OpenDate is NOT stored
-    // here as a fixed date: the function measures against `new Date()` at
-    // call time, so a fixed date would silently stop exercising the
-    // intended branch as real time passes. Only the offset is fixed; the
-    // Date itself is built from it in assertions.js, at assertion run time.
-    flaggedNoStageMatch: {
-      role: { RoleID: 'R-2', Stage: 'Backlog' },
-      daysOpenOffset: 20,
-      activity: [],
-    },
-    flaggedMidStage: {
-      role: { RoleID: 'R-3', Stage: 'Interview 2+' },
-      daysOpenOffset: 40,
-      activity: [],
-    },
-    notFlagged: {
-      role: { RoleID: 'R-4', Stage: 'Sourcing' },
-      daysOpenOffset: 10,
-      activity: [{ RoleID: 'R-4', Submitted: 10, Interview1: 6 }],
-    },
     // computeVelocityScore — one TP, one activity window, one placement.
     velocity: {
       tpEmail: 'tp@x.com',

@@ -3,19 +3,23 @@
 // ── Main renderer ──────────────────────────────────────────────────
 async function renderCCOverview(container) {
   container.innerHTML = '<div class="cc-loading">Loading...</div>';
-  const [roles, acts4, acts13, forecasts, assigns, people, projects, snapshots] = await Promise.all([
+  const [roles, acts13, forecasts, assigns, people, projects, snapshots, stageRows] = await Promise.all([
     getAllRoles(),
-    getActivityForAnalytics(4),
     getActivityForAnalytics(13),
     getItems('SalesForecasts'),
     getItems('Assignments'),
     getPeople(false),
     getItems('Projects'),
     getItems('Snapshots'),
+    getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; }),
   ]);
+  // N-274: time-in-stage flag. Health reads 13 weeks of activity —
+  // isRoleFlagged windows its conversion rule to ROLE_FLAG.conversion itself.
+  const stageHistory = groupStageHistoryByRole(stageRows);
   const historical = await getHistoricalPlacements();
-  const ragHealth = computeProjectHealthRAG(roles, acts4, historical);
-  // N-275: People tile is unrated (grey) until N-274 replaces flagged ÷ open.
+  const ragHealth = computeProjectHealthRAG(roles, acts13, stageHistory);
+  // N-274 decision (2 Oct 2026): the People tile stays unrated (grey) for a
+  // quarter of time-in-stage data; thresholds are then set on observed rates.
   const ragPeople = 'grey';
   const ragUtil    = computeUtilisationRAG(forecasts, assigns, people);
   const ragRevenue = computeRevenueRAG(forecasts, assigns);
@@ -30,13 +34,13 @@ async function renderCCOverview(container) {
     </div>
     <div class="cc-grid" id="cc-grid">
       ${ccTileHTML('revenue', 'Revenue', ragRevenue, ccRevenueStats(forecasts, assigns))}
-      ${ccTileHTML('health', 'Project Health', ragHealth, ccHealthStats(roles, acts4), healthTrendHTML)}
-      ${ccTileHTML('people', 'People', ragPeople, ccPeopleStats(roles, acts13))}
+      ${ccTileHTML('health', 'Project Health', ragHealth, ccHealthStats(roles, acts13, stageHistory), healthTrendHTML)}
+      ${ccTileHTML('people', 'People', ragPeople, ccPeopleStats(roles, acts13, stageHistory))}
       ${ccTileHTML('util',   'Utilisation',    ragUtil,   ccUtilStats(forecasts, assigns, people))}
     </div>`;
 
   const grid = document.getElementById('cc-grid');
-  grid._data = { roles, acts4, acts13, historical, forecasts, assigns, people, projects };
+  grid._data = { roles, acts13, stageHistory, historical, forecasts, assigns, people, projects };
   attachTileExpand(grid);
 }
 
@@ -87,22 +91,17 @@ function loadTileDetail(tile, data) {
 }
 
 // ── Headline stats (at-a-glance tile summary) ──────────────────────
-function ccHealthStats(roles, activity) {
+function ccHealthStats(roles, activity, stageHistory) {
   const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
-  const flagged = open.filter(role => {
-    const acts = activity.filter(a => String(a.RoleIDLookupId) === String(role.id));
-    return isRoleFlagged(role, acts);
-  }).length;
-  return `${open.length} open roles · ${flagged} flagged`;
+  // N-274: behind-pace is information only — never part of "flagged".
+  const t = tallyRoleFlags(open, activity, stageHistory);
+  return `${open.length} open roles · ${t.flagged} flagged · ${t.behind} behind ${CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays}-day pace`;
 }
 
-function ccPeopleStats(roles, activity) {
+function ccPeopleStats(roles, activity, stageHistory) {
   const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
   const tps = [...new Set(open.flatMap(r => tpList(r.TalentPartner)))];
-  const flagged = open.filter(role => {
-    const acts = activity.filter(a => String(a.RoleIDLookupId) === String(role.id));
-    return isRoleFlagged(role, acts);
-  }).length;
+  const flagged = tallyRoleFlags(open, activity, stageHistory).flagged;
   return `${tps.length} Talent Partners · ${flagged} flagged roles`;
 }
 
@@ -151,17 +150,10 @@ function renderRevenueDetail(data) {
 }
 
 // ── RAG logic ──────────────────────────────────────────────────────
-function computeProjectHealthRAG(roles, activity, historical) {
+function computeProjectHealthRAG(roles, activity, stageHistory) {
   const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
-  if (!open.length) return 'green';
-  const flagged = open.filter(role => {
-    const acts = activity.filter(a => String(a.RoleIDLookupId) === String(role.id));
-    return isRoleFlagged(role, acts);
-  }).length;
-  const pct = flagged / open.length;
-  if (pct < 0.25)  return 'green';
-  if (pct <= 0.50) return 'amber';
-  return 'red';
+  // N-274: thresholds in CONFIG.ROLE_FLAG.healthRag, shared with index.html.
+  return flaggedShareRAG(tallyRoleFlags(open, activity, stageHistory).flagged, open.length);
 }
 
 // ── Health tile trend (N-108) ─────────────────────────────────────
@@ -268,7 +260,7 @@ function computeUtilisationRAG(forecasts, assigns, people) {
 
 // ── Expanded detail renderers ─
 function renderHealthDetail(data) {
-  const { roles, acts4, assigns, projects } = data;
+  const { roles, acts13, stageHistory, assigns, projects } = data;
   const now = new Date();
   const projectMap = Object.fromEntries((projects || []).map(p => [String(p.id), p.CustomerName]));
 
@@ -286,28 +278,26 @@ function renderHealthDetail(data) {
       return pName === customer && !ACTIVE_STAGES.includes(r.Stage);
     });
     const liveRoles = custRoles.length;
-    const flagged   = custRoles.filter(r => {
-      const acts = acts4.filter(a => String(a.RoleIDLookupId) === String(r.id));
-      return isRoleFlagged(r, acts);
-    }).length;
+    const { flagged, behind } = tallyRoleFlags(custRoles, acts13, stageHistory);
     return `<tr>
       <td>${customer}</td>
       <td style="text-align:center">${headcount}</td>
       <td style="text-align:center">${liveRoles}</td>
       <td style="text-align:center">${flagged > 0 ? `<span style="color:var(--status-danger);font-weight:600">${flagged}</span>` : '—'}</td>
+      <td style="text-align:center">${behind > 0 ? behind : '—'}</td>
     </tr>`;
   }).join('');
 
   return `<table class="cc-detail-table">
     <thead><tr>
-      <th>Customer</th><th>Headcount</th><th>Live Roles</th><th>Flagged</th>
+      <th>Customer</th><th>Headcount</th><th>Live Roles</th><th>Flagged</th><th>Behind pace</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
 
 function renderPeopleDetail(data) {
-  const { roles, acts13 } = data;
+  const { roles, acts13, stageHistory } = data;
   const tps = [...new Set(
     roles.filter(r => !ACTIVE_STAGES.includes(r.Stage))
          .flatMap(r => tpList(r.TalentPartner))
@@ -315,22 +305,21 @@ function renderPeopleDetail(data) {
     if (!tps.length) return '<p class="no-data">No active Talent Partners found.</p>';
   const rows = tps.map(tp => {
     const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
-    const flagged = tpRoles.filter(r => {
-      const acts = acts13.filter(a => String(a.RoleIDLookupId) === String(r.id));
-      return isRoleFlagged(r, acts);
-    }).length;
+    const { flagged, behind } = tallyRoleFlags(tpRoles, acts13, stageHistory);
     const name = tp.split('@')[0].replace('.', ' ').replace(/\b\w/g, c => c.toUpperCase());
-    // N-275: no RAG until N-274. Order by flagged count, then name.
+    // N-274 decision (2 Oct 2026): no RAG for a quarter of data. Order by
+    // flagged count, then name.
     return { flagged, name, html: `<tr>
       <td>${name}</td>
       <td style="text-align:center">${flagged}/${tpRoles.length}</td>
+      <td style="text-align:center">${behind}</td>
       <td style="text-align:center">${ragTextHTML('grey', '—')}</td>
     </tr>` };
   }).sort((a, b) => b.flagged - a.flagged || a.name.localeCompare(b.name)).map(r => r.html).join('');
 
   return `<table class="cc-detail-table">
     <thead><tr>
-      <th>Talent Partner</th><th>Flagged / Open</th><th>RAG</th>
+      <th>Talent Partner</th><th>Flagged / Open</th><th>Behind pace</th><th>RAG</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;

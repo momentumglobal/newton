@@ -38,6 +38,23 @@
     .role-badge.leadership { background: #fff3e0; color: #e65100; }
     .tip { background: #EBF2FA; border-left: 3px solid #0A0B44; border-radius: 0 4px 4px 0; padding: 10px 14px; font-size: 13px; color: #333; margin: 12px 0; }
     .guide-footer { text-align: center; padding: 32px; font-size: 12px; color: #888; }
+    .agent-category-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin: 20px 0 8px; }
+    .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin: 8px 0 20px; }
+    .agent-card { display: flex; gap: 12px; align-items: flex-start; border: 1px solid #ddd; border-radius: 6px; padding: 12px; text-decoration: none; color: inherit; transition: background 0.15s; }
+    .agent-card:hover { background: #F5F4F1; }
+    .agent-card img { width: 56px; height: 56px; object-fit: cover; border-radius: 50%; flex-shrink: 0; background: #EBF2FA; }
+    .agent-card-name { font-size: 14px; font-weight: 600; color: #0A0B44; }
+    .agent-card-role { font-size: 12px; color: #888; }
+    .agent-card-desc { font-size: 13px; color: #444; margin-top: 4px; line-height: 1.5; }
+    .agent-eyebrow { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin: 0 0 4px; }
+    .agent-teams-link { display: inline-block; background: #0A0B44; color: white; font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 4px; text-decoration: none; margin-bottom: 12px; }
+    .agent-teams-link:hover { opacity: 0.9; }
+    .agent-hero { float: right; width: 240px; max-width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 6px; margin: 0 0 16px 24px; background: #EBF2FA; }
+    .agent-section::after { content: ''; display: block; clear: both; }
+    .agent-section ul, .agent-section ol { margin: 0 0 12px 20px; }
+    .agent-section li { font-size: 14px; color: #333; margin-bottom: 4px; }
+    .agent-section li ul { margin: 4px 0 0 20px; }
+    @media (max-width: 1000px) { .agent-hero { float: none; display: block; margin: 12px 0 16px; } }
   </style>
 </head>
 <body>
@@ -70,6 +87,23 @@
       <li><a href="#report-library">Report Library</a></li>
       <li><a href="#briefing-packs">Briefing Packs</a></li>
       <li><a href="#admin">Config Panel</a></li>
+      <li><div class="nav-section-label">AI Agents</div></li>
+      <li><a href="#ai-agents">Overview</a></li>
+      <li><a href="#ai-agents-guidelines">Using Agents Well</a></li>
+      <li><div class="nav-section-label">Intake &amp; Kick-off</div></li>
+      <li><a href="#agent-wellington">Wellington — Planner</a></li>
+      <li><a href="#agent-curie">Curie — Researcher</a></li>
+      <li><a href="#agent-lovelace">Lovelace — Statistician</a></li>
+      <li><div class="nav-section-label">Campaign Design</div></li>
+      <li><a href="#agent-nelson">Nelson — Strategist</a></li>
+      <li><a href="#agent-brunel">Brunel — Designer</a></li>
+      <li><a href="#agent-earhart">Earhart — Explorer</a></li>
+      <li><div class="nav-section-label">Candidate Screening</div></li>
+      <li><a href="#agent-holmes">Holmes — Scholar</a></li>
+      <li><a href="#agent-theroux">Theroux — Interviewer</a></li>
+      <li><div class="nav-section-label">Interview &amp; Decision</div></li>
+      <li><a href="#agent-darwin">Darwin — Messenger</a></li>
+      <li><a href="#agent-solomon">Solomon — Decision Maker</a></li>
     </ul>
   </nav>
   <div class="guide-content">
@@ -352,6 +386,543 @@
       <h3>Delete Records</h3>
       <p>Permanently delete records from any SharePoint list. Select the list and the specific record, then confirm the deletion. This cannot be undone from within Newton — use SharePoint's recycle bin if you need to recover a deleted item.</p>
       <div class="tip">User and access management has moved to the Newton OS Admin area, accessible via the <strong>Admin</strong> link on the Newton home screen.</div>
+    </div>
+    <div class="guide-section agent-section" id="ai-agents">
+      <h2>AI Agents</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <p>Momentum Global’s AI agents run in Microsoft 365 Copilot and support each stage of our recruitment workflow — from preparing a role intake through to the final hiring decision. Each agent has one defined job. Use the right agent at the right stage, review its output before moving on, and remember that you stay accountable for the work.</p>
+      <h3>Installing an agent</h3>
+      <p>Open the agent’s section below and select <strong>Add to Teams</strong>. The link opens Microsoft 365 Copilot Chat — sign in with your Momentum Global account if prompted, then confirm to add the agent to your profile. Add each agent once; it then stays available to you.</p>
+      <h3>Accessing your agents</h3>
+      <p>Once added, your agents appear in Microsoft 365 Copilot Chat and in Teams. Open the agent, then attach or paste the inputs listed in its <strong>Usage flow</strong> before asking it to produce anything.</p>
+      <div class="tip">Role checklists can link straight to an agent’s entry in this guide — each agent has its own link (for example <code>user-guide.html#agent-nelson</code>), so a checklist step like “Build the Campaign Brief” can point at Nelson.</div>
+      <h3>The agents</h3>
+      <div class="agent-category-label">Intake &amp; Kick-off</div>
+      <div class="agent-grid">
+        <a class="agent-card" href="#agent-wellington">
+          <img src="img/agents/wellington-thumb.webp" alt="" width="56" height="56" loading="lazy" decoding="async">
+          <div>
+            <div class="agent-card-name">Wellington</div>
+            <div class="agent-card-role">The Planner</div>
+            <div class="agent-card-desc">Prepares Talent Partners to run stronger role intake meetings by turning the JD, company context and market information into a structured scoping playbook. It highlights what to ask, what to challenge, what to capture and what must be agreed before the meeting ends.</div>
+          </div>
+        </a>
+        <a class="agent-card" href="#agent-curie">
+          <img src="img/agents/curie-thumb.webp" alt="" width="56" height="56" loading="lazy" decoding="async">
+          <div>
+            <div class="agent-card-name">Curie</div>
+            <div class="agent-card-role">The Researcher</div>
+            <div class="agent-card-desc">Produces concise company research and candidate-ready summaries to help Talent Partners understand and position a business before a project begins. It brings together the company’s product, history, growth, future direction and culture into clear, usable content.</div>
+          </div>
+        </a>
+        <a class="agent-card" href="#agent-lovelace">
+          <img src="img/agents/lovelace-thumb.webp" alt="" width="56" height="56" loading="lazy" decoding="async">
+          <div>
+            <div class="agent-card-name">Lovelace</div>
+            <div class="agent-card-role">The Statistician</div>
+            <div class="agent-card-desc">Provides role- and location-specific talent market intelligence to help inform hiring strategy and compensation decisions. It assesses talent availability, market competitiveness and salary benchmarks using credible, current market data.</div>
+          </div>
+        </a>
+      </div>
+      <div class="agent-category-label">Campaign Design</div>
+      <div class="agent-grid">
+        <a class="agent-card" href="#agent-nelson">
+          <img src="img/agents/nelson-thumb.webp" alt="" width="56" height="56" loading="lazy" decoding="async">
+          <div>
+            <div class="agent-card-name">Nelson</div>
+            <div class="agent-card-role">The Strategist</div>
+            <div class="agent-card-desc">Turns the agreed role intake into structured campaign content, including the Campaign Brief, screening questions, Ideal Candidate Persona and job adverts. It helps translate Hiring Manager requirements into clear, consistent recruitment materials.</div>
+          </div>
+        </a>
+        <a class="agent-card" href="#agent-brunel">
+          <img src="img/agents/brunel-thumb.webp" alt="" width="56" height="56" loading="lazy" decoding="async">
+          <div>
+            <div class="agent-card-name">Brunel</div>
+            <div class="agent-card-role">The Designer</div>
+            <div class="agent-card-desc">Builds structured, evidence-based interview processes from agreed role criteria and interview-process discussions. It gives each stage a clear purpose, defines what should be assessed where, and creates practical guidance for interviewers and final decision-making.</div>
+          </div>
+        </a>
+        <a class="agent-card" href="#agent-earhart">
+          <img src="img/agents/earhart-thumb.webp" alt="" width="56" height="56" loading="lazy" decoding="async">
+          <div>
+            <div class="agent-card-name">Earhart</div>
+            <div class="agent-card-role">The Explorer</div>
+            <div class="agent-card-desc">Builds structured sourcing strategies that translate the approved brief and ICP into practical search parameters, Boolean strings, market maps and outreach. It helps Talent Partners identify both ideal candidates and credible adjacent talent pools.</div>
+          </div>
+        </a>
+      </div>
+      <div class="agent-category-label">Candidate Screening</div>
+      <div class="agent-grid">
+        <a class="agent-card" href="#agent-holmes">
+          <img src="img/agents/holmes-thumb.webp" alt="" width="56" height="56" loading="lazy" decoding="async">
+          <div>
+            <div class="agent-card-name">Holmes</div>
+            <div class="agent-card-role">The Scholar</div>
+            <div class="agent-card-desc">Prepares Talent Partners for stronger, more personalised screening calls by identifying what is already evident from a candidate’s background and what still needs validating. It creates focused questions and probes while keeping assessment aligned to the agreed role criteria.</div>
+          </div>
+        </a>
+        <a class="agent-card" href="#agent-theroux">
+          <img src="img/agents/theroux-thumb.webp" alt="" width="56" height="56" loading="lazy" decoding="async">
+          <div>
+            <div class="agent-card-name">Theroux</div>
+            <div class="agent-card-role">The Interviewer</div>
+            <div class="agent-card-desc">Produces structured, evidence-based candidate screening summaries using the candidate’s CV, screening transcript and agreed assessment framework. It captures what was established during the call clearly and consistently, without adding unsupported interpretation.</div>
+          </div>
+        </a>
+      </div>
+      <div class="agent-category-label">Interview &amp; Decision</div>
+      <div class="agent-grid">
+        <a class="agent-card" href="#agent-darwin">
+          <img src="img/agents/darwin-thumb.webp" alt="" width="56" height="56" loading="lazy" decoding="async">
+          <div>
+            <div class="agent-card-name">Darwin</div>
+            <div class="agent-card-role">The Messenger</div>
+            <div class="agent-card-desc">Creates concise handoff briefs that show the next interviewer what has already been established and where further evidence is still needed. It helps each interview build on the last, reducing repetition and improving the quality of evidence gathered.</div>
+          </div>
+        </a>
+        <a class="agent-card" href="#agent-solomon">
+          <img src="img/agents/solomon-thumb.webp" alt="" width="56" height="56" loading="lazy" decoding="async">
+          <div>
+            <div class="agent-card-name">Solomon</div>
+            <div class="agent-card-role">The Decision Maker</div>
+            <div class="agent-card-desc">Turns candidate evidence into clear, structured outputs for either Hiring Manager submission or final-stage decision-making. It brings strengths, gaps, risks and unresolved evidence together against the agreed role criteria.</div>
+          </div>
+        </a>
+      </div>
+    </div>
+    <div class="guide-section agent-section" id="agent-wellington">
+      <div class="agent-eyebrow">Intake &amp; Kick-off</div>
+      <h2>Wellington — The Planner</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <a class="agent-teams-link" href="https://m365.cloud.microsoft/chat/?titleId=T_95f5db35-5bed-ebae-4100-e17badde5215" target="_blank" rel="noopener noreferrer">Add Wellington to Teams</a>
+      <img class="agent-hero" src="img/agents/wellington.webp" alt="Wellington — The Planner" width="240" height="240" loading="lazy" decoding="async">
+      <h3>Function</h3>
+      <p>Your AI-driven role kick-off companion.</p>
+      <h3>Key features</h3>
+      <ul>
+        <li>Analyses requirements from a job description against industry or market norms.</li>
+        <li>Generates actionable insights, strategic questions and market intelligence for high-quality intake discussions.</li>
+      </ul>
+      <h3>Usage flow</h3>
+      <ol>
+        <li>Provide an internal job description and company website URL.</li>
+        <li>Review the materials, discuss follow-up questions and finalise your kick-off meeting agenda.</li>
+      </ol>
+      <h3>Outcome</h3>
+      <p>Structured readiness to align stakeholders and build confidence in the kick-off meeting.</p>
+    </div>
+    <div class="guide-section agent-section" id="agent-curie">
+      <div class="agent-eyebrow">Intake &amp; Kick-off</div>
+      <h2>Curie — The Researcher</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <a class="agent-teams-link" href="https://m365.cloud.microsoft/chat/?titleId=T_ce30b3d4-68e0-4135-6671-41dfb2884fb3" target="_blank" rel="noopener noreferrer">Add Curie to Teams</a>
+      <img class="agent-hero" src="img/agents/curie.webp" alt="Curie — The Researcher" width="240" height="240" loading="lazy" decoding="async">
+      <h3>Function</h3>
+      <p>Automates company profiling deep dives.</p>
+      <h3>Key features</h3>
+      <ul>
+        <li>Aggregates public data on company history, culture and market position.</li>
+        <li>Summarises relevant financial backing, recent news and the competitive landscape.</li>
+      </ul>
+      <h3>Usage flow</h3>
+      <ol>
+        <li>Enter the target company name and website URL.</li>
+        <li>Review the structured research report (and the summary for use in the Campaign Brief).</li>
+        <li>Validate and amend following stakeholder alignment.</li>
+      </ol>
+      <h3>Outcome</h3>
+      <p>Rich, accurate insights to inform your campaign.</p>
+    </div>
+    <div class="guide-section agent-section" id="agent-lovelace">
+      <div class="agent-eyebrow">Intake &amp; Kick-off</div>
+      <h2>Lovelace — The Statistician</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <a class="agent-teams-link" href="https://m365.cloud.microsoft:443/chat/?titleId=T_377890d3-2d3c-96ff-80b7-78adda5d5b2e&amp;source=embedded-builder" target="_blank" rel="noopener noreferrer">Add Lovelace to Teams</a>
+      <img class="agent-hero" src="img/agents/lovelace.webp" alt="Lovelace — The Statistician" width="240" height="240" loading="lazy" decoding="async">
+      <h3>Function</h3>
+      <p>Market and salary insights reports.</p>
+      <h3>Key features</h3>
+      <ul>
+        <li>Gathers market and salary data from credible sources and analyses it against a job profile, company-specific context and location.</li>
+        <li>Produces a structured report with clear recommendations, supporting early alignment discussions.</li>
+      </ul>
+      <h3>Usage flow</h3>
+      <p>Provide Lovelace with:</p>
+      <ul>
+        <li>Job description with clear essential skills criteria.</li>
+        <li>Hiring location (be clear about hybrid working options).</li>
+        <li>Company-specific context, such as:
+          <ul>
+            <li><strong>Company size</strong> — number of employees and geographic distribution.</li>
+            <li><strong>Industry sector</strong> — primary industry and business model (e.g. B2B SaaS, manufacturing, financial services).</li>
+            <li><strong>Customer base</strong> — scale, geographic reach and complexity (e.g. “1,100+ enterprise clients across 100+ countries” or “regional SMB focus”).</li>
+            <li><strong>Operational context</strong> — any factors affecting role complexity (e.g. multi-region operations, product complexity, team structure).</li>
+          </ul>
+        </li>
+      </ul>
+      <h3>Outcome</h3>
+      <p>Comprehensive, data-driven insights on talent availability and compensation in a given market, tailored to the role and the specific company context.</p>
+    </div>
+    <div class="guide-section agent-section" id="agent-nelson">
+      <div class="agent-eyebrow">Campaign Design</div>
+      <h2>Nelson — The Strategist</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <a class="agent-teams-link" href="https://m365.cloud.microsoft/chat/?titleId=T_6a0c2b04-88f8-9551-4070-015701a68fb2" target="_blank" rel="noopener noreferrer">Add Nelson to Teams</a>
+      <img class="agent-hero" src="img/agents/nelson.webp" alt="Nelson — The Strategist" width="240" height="240" loading="lazy" decoding="async">
+      <h3>Function</h3>
+      <p>Crafts campaign content and a strategic framework for hiring projects.</p>
+      <h3>Key features</h3>
+      <ul>
+        <li>Analyses your kick-off discussion to produce Campaign Brief content, Screening Questions, an Ideal Candidate Persona (ICP) and a Job Advert.</li>
+        <li>Content is optimised to follow the Momentum Global way, ensuring continuity across products.</li>
+      </ul>
+      <h3>Usage flow</h3>
+      <ol>
+        <li>Attach the kick-off call transcript, internal job description and company website URL.</li>
+        <li>Refine the output at each stage before continuing.</li>
+        <li>Export to working documents for stakeholder sign-off.</li>
+      </ol>
+      <h3>Outcome</h3>
+      <p>Cohesive, on-brand messaging that resonates with target talent.</p>
+    </div>
+    <div class="guide-section agent-section" id="agent-brunel">
+      <div class="agent-eyebrow">Campaign Design</div>
+      <h2>Brunel — The Designer</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <a class="agent-teams-link" href="https://m365.cloud.microsoft/chat/?titleId=T_d8aea7fb-b3d4-ba6b-66a4-20ed8b9a6935&amp;source=embedded-builder" target="_blank" rel="noopener noreferrer">Add Brunel to Teams</a>
+      <img class="agent-hero" src="img/agents/brunel.webp" alt="Brunel — The Designer" width="240" height="240" loading="lazy" decoding="async">
+      <h3>Function</h3>
+      <p>Brunel helps Talent Partners turn an agreed interview-process discussion into a clear, structured Interview Process Guide for Hiring Managers and interview panels.</p>
+      <p>It defines what each stage is designed to assess, who owns it, what evidence should be gathered and how the stages work together.</p>
+      <p>The aim is to create a consistent, efficient and evidence-based process rather than a series of loosely connected interviews.</p>
+      <h3>Key features</h3>
+      <ul>
+        <li>Creates an end-to-end Interview Process Guide</li>
+        <li>Defines each interview stage, purpose, interviewer, format and duration</li>
+        <li>Maps role criteria to the appropriate assessment stage</li>
+        <li>Defines the expected level or behaviour for each criterion</li>
+        <li>Creates evidence-based interview questions and follow-up probes</li>
+        <li>Uses CEO questioning where appropriate — Context, Example, Outcome</li>
+        <li>Supports technical tests, case studies and practical assessments where agreed</li>
+        <li>Builds the Talent Partner screening framework from the wider process</li>
+        <li>Creates an assessment coverage matrix to identify gaps or duplication</li>
+        <li>Defines the final wrap-up and decision process</li>
+        <li>Flags unresolved information rather than inventing answers</li>
+      </ul>
+      <h3>Usage flow</h3>
+      <p><strong>Provide Brunel with</strong> the Interview Process Discussion transcript. This can come from:</p>
+      <ul>
+        <li>The role intake/kick-off meeting, where sufficient time was spent agreeing the interview process; or</li>
+        <li>A separate Interview Process Design meeting.</li>
+      </ul>
+      <p>Also provide, where available:</p>
+      <ol>
+        <li>Approved Campaign Brief</li>
+        <li>Screening Document / Assessment Guide</li>
+        <li>Job Description</li>
+      </ol>
+      <p>Brunel will then produce:</p>
+      <ol>
+        <li>Interview process purpose</li>
+        <li>Process-at-a-glance</li>
+        <li>Stage-by-stage interview guides</li>
+        <li>Competency expectations and interview questions</li>
+        <li>Technical/practical assessment guidance where required</li>
+        <li>Talent Partner screening guide</li>
+        <li>Assessment coverage check</li>
+        <li>Wrap-up and decision process</li>
+        <li>Decisions Required for anything still unresolved</li>
+      </ol>
+      <p>The Talent Partner reviews any unresolved decisions with the Hiring Manager before the process is finalised and shared.</p>
+      <h3>Outcome</h3>
+      <p>A credible, Hiring Manager-ready Interview Process Guide where every stage has a clear purpose and every essential criterion is intentionally assessed.</p>
+      <p>Interviewers know what they own, candidates experience less repetitive interviewing, and the final hiring decision is supported by consistent evidence gathered throughout the process.</p>
+    </div>
+    <div class="guide-section agent-section" id="agent-earhart">
+      <div class="agent-eyebrow">Campaign Design</div>
+      <h2>Earhart — The Explorer</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <a class="agent-teams-link" href="https://m365.cloud.microsoft/chat/?titleId=T_b29b7435-bd48-d46d-217d-2639c002fffc" target="_blank" rel="noopener noreferrer">Add Earhart to Teams</a>
+      <img class="agent-hero" src="img/agents/earhart.webp" alt="Earhart — The Explorer" width="240" height="240" loading="lazy" decoding="async">
+      <h3>Function</h3>
+      <p>Structured sourcing navigator.</p>
+      <h3>Key features</h3>
+      <ul>
+        <li>Creates a structured sourcing strategy containing multi-layered Boolean search parameters aligned to the ICP.</li>
+        <li>Suggests outreach messaging templates and follow-up sequences.</li>
+      </ul>
+      <h3>Usage flow</h3>
+      <ol>
+        <li>Provide the Campaign Brief, Job Description, website URL and Ideal Candidate Persona.</li>
+        <li>Review the sourcing strategy and market map.</li>
+        <li>Execute outreach, and iterate based on findings.</li>
+      </ol>
+      <h3>Outcome</h3>
+      <p>A repeatable approach to finding high-quality talent.</p>
+    </div>
+    <div class="guide-section agent-section" id="agent-holmes">
+      <div class="agent-eyebrow">Candidate Screening</div>
+      <h2>Holmes — The Scholar</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <a class="agent-teams-link" href="https://m365.cloud.microsoft/chat/?titleId=T_e0073998-118e-7d53-23db-6860c634cd3d&amp;source=embedded-builder" target="_blank" rel="noopener noreferrer">Add Holmes to Teams</a>
+      <img class="agent-hero" src="img/agents/holmes.webp" alt="Holmes — The Scholar" width="240" height="240" loading="lazy" decoding="async">
+      <h3>Function</h3>
+      <p>Holmes helps Talent Partners prepare for individual candidate screening calls by combining the agreed role criteria with the candidate’s background.</p>
+      <p>Rather than using the same generic screening questions for every candidate, Holmes identifies what is already evident from the CV, what needs validating and where the most important candidate-specific questions should focus.</p>
+      <p><strong>Current use:</strong> Holmes is currently designed for Momentum AI roles and is not yet part of the standard embedded delivery model.</p>
+      <h3>Key features</h3>
+      <ul>
+        <li>Reviews the candidate against the approved Campaign Brief and assessment criteria</li>
+        <li>Identifies likely strengths, evidence gaps and areas requiring validation</li>
+        <li>Keeps the agreed assessment framework consistent across candidates</li>
+        <li>Creates 6–8 personalised screening questions</li>
+        <li>Provides useful follow-up probes to help Talent Partners dig beneath surface-level answers</li>
+        <li>Separates core screening fundamentals from candidate-specific competency questions</li>
+        <li>Helps avoid generic or repetitive screening conversations</li>
+        <li>Uses only the evidence available — it does not invent candidate experience</li>
+      </ul>
+      <h3>Usage flow</h3>
+      <p>Provide Holmes with:</p>
+      <ol>
+        <li>Approved Campaign Brief</li>
+        <li>Screening Document / Assessment Guide</li>
+        <li>Candidate CV</li>
+      </ol>
+      <p>Holmes will then produce:</p>
+      <ol>
+        <li>A short pre-screen candidate assessment</li>
+        <li>Key areas to validate</li>
+        <li>Core screening fundamentals</li>
+        <li>Personalised competency questions</li>
+        <li>Suggested follow-up probes</li>
+        <li>The evidence the Talent Partner should establish before making a progression decision</li>
+      </ol>
+      <p>The Talent Partner uses this output as their preparation guide for the screening call.</p>
+      <h3>Outcome</h3>
+      <p>A more focused and personalised screening conversation that remains consistent with the agreed role criteria.</p>
+      <p>The Talent Partner enters the call knowing what is already evident, what still needs proving and which questions will generate the most useful evidence for a progression decision.</p>
+    </div>
+    <div class="guide-section agent-section" id="agent-theroux">
+      <div class="agent-eyebrow">Candidate Screening</div>
+      <h2>Theroux — The Interviewer</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <a class="agent-teams-link" href="https://m365.cloud.microsoft:443/chat/?titleId=T_39ab146e-6e27-4990-421a-b1842236aacd&amp;source=embedded-builder" target="_blank" rel="noopener noreferrer">Add Theroux to Teams</a>
+      <img class="agent-hero" src="img/agents/theroux.webp" alt="Theroux — The Interviewer" width="240" height="240" loading="lazy" decoding="async">
+      <h3>Function</h3>
+      <p>Candidate screening interview assistant.</p>
+      <h3>Key features</h3>
+      <ul>
+        <li>Produces structured, evidence-based candidate screening summaries.</li>
+        <li>Adheres to strict rewording and formatting rules, presenting information in clear sections.</li>
+      </ul>
+      <h3>Usage flow</h3>
+      <ol>
+        <li>Provide a screening interview transcript, CV snapshot and screening document.</li>
+        <li>Review the output for accuracy, correct context and detail.</li>
+      </ol>
+      <div class="tip"><strong>Important:</strong> remove contact details from the CV before uploading, or use a LinkedIn profile PDF instead.</div>
+      <h3>Outcome</h3>
+      <p>Candidate screening interview summaries aligned to the essential skills criteria for each role.</p>
+    </div>
+    <div class="guide-section agent-section" id="agent-darwin">
+      <div class="agent-eyebrow">Interview &amp; Decision</div>
+      <h2>Darwin — The Messenger</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <a class="agent-teams-link" href="https://m365.cloud.microsoft/chat/?titleId=T_b8d4cf3b-3b3d-1a4b-51b6-aef0c9b64d90&amp;source=embedded-builder" target="_blank" rel="noopener noreferrer">Add Darwin to Teams</a>
+      <img class="agent-hero" src="img/agents/darwin.webp" alt="Darwin — The Messenger" width="240" height="240" loading="lazy" decoding="async">
+      <h3>Function</h3>
+      <p>Darwin creates concise next-stage interview handoff briefs.</p>
+      <p>It combines the agreed role criteria with evidence already gathered on a candidate to show the next interviewer what has been established, what still needs validating and where their interview can add the most value.</p>
+      <p>The aim is to make each interview build progressively on the previous stage rather than repeating the same questions.</p>
+      <p><strong>Current use:</strong> Darwin is currently designed for Momentum AI roles and is not yet part of the standard embedded delivery model.</p>
+      <h3>Key features</h3>
+      <ul>
+        <li>Consolidates evidence already gathered during screening</li>
+        <li>Maps candidate evidence back to the agreed role criteria</li>
+        <li>Identifies remaining evidence gaps</li>
+        <li>Highlights material risks, concerns or contradictions</li>
+        <li>Distinguishes between what is established and what still requires validation</li>
+        <li>Generates 4–6 focused questions for the next interviewer</li>
+        <li>Personalises questions to the individual candidate</li>
+        <li>Reduces duplicated questioning between interview stages</li>
+        <li>Helps each stage contribute new evidence to the hiring decision</li>
+      </ul>
+      <h3>Usage flow</h3>
+      <p>Provide Darwin with:</p>
+      <ol>
+        <li>Approved Campaign Brief</li>
+        <li>Screening Document / Assessment Guide</li>
+        <li>Candidate CV</li>
+        <li>Candidate Screening Summary</li>
+        <li>Next interview stage or interviewer, if this is not already clear</li>
+      </ol>
+      <p>Darwin will then produce:</p>
+      <ol>
+        <li>Candidate context for the next interviewer</li>
+        <li>Evidence already established</li>
+        <li>Remaining evidence gaps</li>
+        <li>Risks or contradictions requiring further exploration</li>
+        <li>4–6 personalised next-stage questions</li>
+        <li>Guidance on what the interviewer should aim to establish</li>
+      </ol>
+      <p>The brief is then shared with the next interviewer before their meeting with the candidate.</p>
+      <h3>Outcome</h3>
+      <p>A progressive interview process where every interviewer understands what is already known and focuses their time on gathering new evidence.</p>
+      <p>This reduces repetition for the candidate, improves interviewer preparation and creates a stronger evidence trail across the hiring process.</p>
+    </div>
+    <div class="guide-section agent-section" id="agent-solomon">
+      <div class="agent-eyebrow">Interview &amp; Decision</div>
+      <h2>Solomon — The Decision Maker</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <a class="agent-teams-link" href="https://m365.cloud.microsoft/chat/?titleId=T_3b693ef6-1e4e-0274-272a-17efbeda81ce&amp;source=embedded-builder" target="_blank" rel="noopener noreferrer">Add Solomon to Teams</a>
+      <img class="agent-hero" src="img/agents/solomon.webp" alt="Solomon — The Decision Maker" width="240" height="240" loading="lazy" decoding="async">
+      <h3>Function</h3>
+      <p>Solomon converts candidate evidence into structured, decision-ready outputs.</p>
+      <p>It can produce either a concise <strong>Candidate Submission</strong> for a Hiring Manager or client, or a comprehensive <strong>Decision Pack</strong> that consolidates evidence gathered throughout the interview process.</p>
+      <p>The focus is on presenting evidence against the agreed role criteria rather than creating a subjective candidate narrative.</p>
+      <p><strong>Current use:</strong> Solomon is currently designed for Momentum AI roles and is not yet part of the standard embedded delivery model.</p>
+      <h3>Key features</h3>
+      <ul>
+        <li>Consolidates candidate evidence from multiple stages</li>
+        <li>Assesses evidence against the approved role criteria</li>
+        <li>Separates demonstrated strengths from evidence gaps</li>
+        <li>Highlights contradictions or areas where interview feedback differs</li>
+        <li>Maintains visibility of unresolved risks</li>
+        <li>Produces two distinct output types: Candidate Submission and Decision Pack</li>
+        <li>Helps distinguish evidence from assumption</li>
+        <li>Shows whether sufficient information exists to make an informed hiring decision</li>
+        <li>Creates concise outputs for senior Hiring Manager review</li>
+      </ul>
+      <h3>Usage flow</h3>
+      <p>Provide Solomon with:</p>
+      <ol>
+        <li>Approved Campaign Brief</li>
+        <li>Screening Document / Assessment Guide</li>
+        <li>Candidate CV</li>
+        <li>Theroux Screening Summary</li>
+        <li>Later-stage interview notes, scorecards or feedback where available</li>
+      </ol>
+      <p>Then tell Solomon which output is required.</p>
+      <h3>Candidate Submission</h3>
+      <p>Use this when presenting a candidate to a Hiring Manager or client. Solomon produces:</p>
+      <ol>
+        <li>Concise candidate overview</li>
+        <li>Evidence of relevant experience</li>
+        <li>Alignment to key role criteria</li>
+        <li>Motivation</li>
+        <li>Relevant practical information</li>
+        <li>Areas still requiring exploration</li>
+      </ol>
+      <h3>Decision Pack</h3>
+      <p>Use this when preparing for a final hiring discussion or wrap-up. Solomon produces:</p>
+      <ol>
+        <li>Consolidated evidence across interview stages</li>
+        <li>Strengths against agreed criteria</li>
+        <li>Remaining evidence gaps</li>
+        <li>Material risks</li>
+        <li>Contradictory evidence</li>
+        <li>Overall evidence completeness</li>
+        <li>Areas requiring further validation before a decision</li>
+      </ol>
+      <h3>Outcome</h3>
+      <p>A clear, evidence-based view of the candidate that makes it easier for Hiring Managers and Talent Partners to understand what has actually been demonstrated.</p>
+      <p>For submissions, this creates a concise and credible introduction to the candidate.</p>
+      <p>For decision packs, it provides the evidence needed to determine whether the interview process has gathered enough information to support an informed hiring decision.</p>
+    </div>
+    <div class="guide-section agent-section" id="ai-agents-guidelines">
+      <h2>Using Agents Well</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge tp">Talent Partner</span>
+      </div>
+      <div class="tip">The agents are here to improve the quality, consistency and efficiency of our work — not to replace Talent Partner judgement. The strongest results come when good process, strong inputs and human expertise work together.</div>
+      <h3>Augment, don’t replace</h3>
+      <ul>
+        <li><strong>Human judgement stays central:</strong> Agents can research, structure, challenge and draft, but the Talent Partner remains accountable for the quality of the work and the decisions made from it.</li>
+        <li><strong>Follow the process:</strong> The agents are designed to support our recruitment methodology, not create shortcuts around it.</li>
+        <li><strong>Relationships still matter:</strong> Hiring Manager alignment, candidate engagement, challenge and influence remain fundamentally human responsibilities.</li>
+        <li><strong>Treat outputs as a strong first draft:</strong> Review, challenge, and refine before sharing anything externally.</li>
+      </ul>
+      <h3>Input quality determines output quality</h3>
+      <ul>
+        <li><strong>Better inputs create better outputs:</strong> Agents can only work effectively with the information they are given.</li>
+        <li><strong>Use the right source material:</strong> Provide current JDs, transcripts, approved briefs, assessment guides and candidate information wherever required.</li>
+        <li><strong>Do the work upstream:</strong> A weak intake cannot be rescued by a strong prompt. Thorough scoping and clear Hiring Manager alignment remain essential.</li>
+        <li><strong>Correct mistakes early:</strong> Review outputs between stages rather than allowing an incorrect assumption to flow through the rest of the workflow.</li>
+      </ul>
+      <h3>Use the right agent for the right job</h3>
+      <ul>
+        <li>Each agent has a defined purpose and should stay within its area of expertise.</li>
+        <li>Avoid asking one agent to replicate work that another agent is specifically designed to perform.</li>
+        <li>Where agents hand work to one another, make sure the upstream output has been reviewed and agreed first.</li>
+        <li>Some agents are still being tested for specific use cases and may not yet be appropriate for every client or delivery model.</li>
+      </ul>
+      <h3>Challenge the output</h3>
+      <ul>
+        <li><strong>AI confidence is not evidence:</strong> A well-written answer can still be wrong, incomplete or based on a poor interpretation.</li>
+        <li>Check that requirements, candidate evidence, market information and recommendations reflect what was actually agreed or provided.</li>
+        <li>If something feels generic, over-engineered or unsupported, challenge it and ask the agent to refine the output.</li>
+        <li>Never allow an agent to manufacture missing information simply to complete a document.</li>
+      </ul>
+      <h3>Protect fairness &amp; candidate experience</h3>
+      <ul>
+        <li>Assessment criteria should remain relevant to success in the role and applied consistently.</li>
+        <li>Watch for assumptions, unnecessary requirements or language that could introduce bias.</li>
+        <li>Use agents to reduce repetitive interviewing and improve preparation — not to remove meaningful human interaction from the process.</li>
+        <li>Hiring decisions remain the responsibility of the interview team.</li>
+      </ul>
+      <h3>We’re still learning</h3>
+      <ul>
+        <li><strong>Expect iteration:</strong> These agents will continue to evolve as we learn what works in real recruitment campaigns.</li>
+        <li><strong>Feedback matters:</strong> Share examples of strong outputs, weak outputs and unexpected behaviour.</li>
+        <li><strong>Keep improving the prompts:</strong> If an agent repeatedly requires the same correction, we should improve the agent rather than rely on every TP remembering the workaround.</li>
+        <li><strong>Build collectively:</strong> The goal is a shared toolkit that makes every Talent Partner more effective while protecting the quality of our methodology.</li>
+      </ul>
     </div>
   </div>
 </div>

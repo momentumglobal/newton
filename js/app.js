@@ -84,9 +84,6 @@ window.APP = {
     // Resolve full role from SharePoint on login — stored in _resolvedRole for the session
   _resolvedRole = await getEffectiveRole(user.email);
     if (freshLogin) {
-      await ensureUserRegistered(user.email, user.name).catch(e =>
-        console.warn('Auto-registration failed:', e)
-      );
       // If this session is the mobile app, return to mobile.html after the
       // login round-trip instead of the desktop home.
       var isAppLogin = false;

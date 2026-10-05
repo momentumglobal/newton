@@ -116,7 +116,7 @@ async function renderHiringPlanPage(selectedProjectId = null) {
   main.innerHTML = `<div class="page-header"><h2>Hiring Plan</h2></div><p>Loading…</p>`;
 
   const email = getCurrentUser().email;
-  const role  = _resolvedRole || getUserRole(email);
+  const role  = _resolvedRole || 'viewer';
   const canEdit = role === 'admin' || role === 'delivery_manager';
   const isAdmin = role === 'admin';
 

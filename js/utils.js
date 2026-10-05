@@ -2058,3 +2058,34 @@ async function runWithConcurrency(items, limit, worker) {
   await Promise.all(Array.from({ length: lanes }, lane));
   return results;
 }
+
+// ── N-281: role resolution (pure) ────────────────────────────────────
+// An admin row = a UserAssignments row with AssignedRole 'admin' that is
+// not deactivated. A deactivated admin row grants nothing (Chris, 2 Oct
+// 2026). Active undefined counts as active, same as everywhere else.
+function isAdminAssignment(row) {
+  return !!row && row.AssignedRole === 'admin' && row.Active !== false;
+}
+
+// Effective role from a user's UserAssignments rows plus whether they are in
+// LeadershipAccess. Order-independent: precedence comes from
+// CONFIG.ROLE_PRECEDENCE, never from which row Graph returned first.
+//   admin row > leadership > highest DM/TP/viewer AssignedRole > 'viewer'.
+// 'admin' and 'leadership' are never taken from a plain AssignedRole string
+// (an inactive admin row, or a typed 'leadership', grants nothing), and any
+// value not in CONFIG.ROLE_PRECEDENCE is ignored. Lower roles ignore Active
+// (bench TPs/DMs keep their role — see getEligibleRespondentCount, N-233).
+function resolveRoleFromAssignments(rows, isLeadership) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (list.some(isAdminAssignment)) return 'admin';
+  if (isLeadership) return 'leadership';
+  const order = CONFIG.ROLE_PRECEDENCE;
+  let best = order.indexOf('viewer');
+  list.forEach(r => {
+    const role = r && r.AssignedRole;
+    if (role === 'admin' || role === 'leadership') return;
+    const i = order.indexOf(role);
+    if (i !== -1 && i < best) best = i;
+  });
+  return order[best];
+}

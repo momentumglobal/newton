@@ -13,7 +13,7 @@ async function renderOsAdminPage(tab = 'assignments') {
 const tabs = ADMIN_TABS;
 const labels = { assignments: 'User Assignments', leadership: 'Leadership Access', homepage: 'Homepage', ghost: 'Ghost Mode', datahealth: 'Data Health' };
 const tooltips = {
-  assignments: 'Manage user roles and project access. Users are auto-registered on first login — assign their role and projects here.',
+  assignments: 'Manage user roles and project access. New users have no access until you add them here. Admin rows apply across all projects.',
   leadership:  'Grant Leadership-level access to users who should see the Company Dashboard without full system access.',
   homepage:    'Manage homepage appearance and seasonal effects.',
   ghost:       'Temporarily view Newton as a specific real user for testing or investigating a bug. Only visible to admins.',
@@ -56,16 +56,13 @@ async function buildAssignmentsTab(editId = null) {
   if (editId) editRecord = assignments.find(a => String(a.id) === String(editId));
   // N-247c: search after the existing show-inactive filter, before the
   // pre-existing default order (kept as-is below); sortRows layers on top.
-  const roleLabel = a => a.AssignedRole === 'talent_partner' ? 'Talent Partner' : a.AssignedRole === 'delivery_manager' ? 'Delivery Manager' : a.AssignedRole || '';
+  const roleLabel = a => CONFIG.ROLE_LABELS[a.AssignedRole] || a.AssignedRole || ''; // N-281
   const searched = filterRowsByText(visibleAssignments, _osaSearch, a => [a.UserName, a.UserEmail, a.CustomerName, roleLabel(a)]);
   const OSA_SORT_COLUMNS = {
     name:     { type: 'text', get: a => a.UserName },
     email:    { type: 'text', get: a => a.UserEmail },
     customer: { type: 'text', get: a => a.CustomerName },
     role:     { type: 'text', get: roleLabel },
-    // N-247c: LastLogin is a timestamp, not a SharePoint date field — sort
-    // by exact epoch millis, not the usual spDateIn day-string compare.
-    lastLogin: { type: 'number', get: a => a.LastLogin ? new Date(a.LastLogin).getTime() : null },
   };
   const rows = sortRows([...searched].sort((a, b) => (a.UserName || '').localeCompare(b.UserName || '')), _osaSort, OSA_SORT_COLUMNS).map(a => {
     const isActive = a.Active !== false;
@@ -74,8 +71,7 @@ async function buildAssignmentsTab(editId = null) {
       <td>${escHtml(a.UserName || '—')}${isActive ? '' : ' <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--border-subtle);color:var(--text-label);">Inactive</span>'}</td>
       <td>${escHtml(a.UserEmail)}</td>
       <td>${escHtml(a.CustomerName || '—')}</td>
-      <td>${a.AssignedRole === 'talent_partner' ? 'Talent Partner' : a.AssignedRole === 'delivery_manager' ? 'Delivery Manager' : a.AssignedRole || '—'}</td>
-      <td>${a.LastLogin ? new Date(a.LastLogin).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'}</td>
+      <td>${escHtml(roleLabel(a) || '—')}</td>
       <td>
         <div class="row-actions" style="gap:12px;align-items:center">
           <a href="#" onclick="showEditAssignment(${a.id})">Edit</a>
@@ -116,6 +112,7 @@ async function buildAssignmentsTab(editId = null) {
             <option value="talent_partner" ${editRecord.AssignedRole === 'talent_partner' ? 'selected' : ''}>Talent Partner</option>
             <option value="delivery_manager" ${editRecord.AssignedRole === 'delivery_manager' ? 'selected' : ''}>Delivery Manager</option>
             <option value="viewer" ${editRecord.AssignedRole === 'viewer' ? 'selected' : ''}>Viewer</option>
+            <option value="admin" ${editRecord.AssignedRole === 'admin' ? 'selected' : ''}>Admin</option>
           </select>
         </div>
       </div>
@@ -152,6 +149,7 @@ async function buildAssignmentsTab(editId = null) {
             <option value="talent_partner">Talent Partner</option>
             <option value="delivery_manager">Delivery Manager</option>
             <option value="viewer">Viewer</option>
+            <option value="admin">Admin</option>
           </select>
         </div>
       </div>
@@ -176,10 +174,9 @@ async function buildAssignmentsTab(editId = null) {
         ${sortableHeader('Email', 'email', _osaSort, 'setOsaSort')}
         ${sortableHeader('Customer', 'customer', _osaSort, 'setOsaSort')}
         ${sortableHeader('Role', 'role', _osaSort, 'setOsaSort')}
-        ${sortableHeader('Last Login', 'lastLogin', _osaSort, 'setOsaSort')}
         <th></th>
       </tr></thead>
-      <tbody>${rows || emptyStateRow({ colspan: 6, icon: 'users', message: 'No assignments yet.' })}</tbody>
+      <tbody>${rows || emptyStateRow({ colspan: 5, icon: 'users', message: 'No assignments yet.' })}</tbody>
     </table>
     ${editForm}
   `;
@@ -187,6 +184,15 @@ async function buildAssignmentsTab(editId = null) {
 async function showEditAssignment(id) {
   const content = await buildAssignmentsTab(id);
   document.querySelector('#main-content > div[style]').innerHTML = content;
+}
+// N-281: self-guard. An admin can never demote, deactivate, re-point or
+// remove their OWN active admin row from here — that is the one edit that
+// can lock the last admin out. Compares against the signed-in account.
+const _OSA_SELF_GUARD_MSG = "You can't remove your own admin access. Ask another admin.";
+async function _osaOwnAdminRow(id) {
+  const me = (getCurrentUser()?.email || '').toLowerCase();
+  const row = (await getUserAssignments()).find(a => String(a.id) === String(id));
+  return row && isAdminAssignment(row) && (row.UserEmail || '').toLowerCase() === me ? row : null;
 }
 async function submitAssignment(editId = null) {
   const name    = document.getElementById('assign-name').value.trim();
@@ -196,10 +202,15 @@ async function submitAssignment(editId = null) {
   const errEl   = document.getElementById('assign-error');
   errEl.style.display = 'none';
   if (!email) { errEl.textContent = 'Email is required.'; errEl.style.display = 'block'; return; }
+  if (editId && await _osaOwnAdminRow(editId) &&
+      (role !== 'admin' || email.toLowerCase() !== (getCurrentUser()?.email || '').toLowerCase())) {
+    errEl.textContent = _OSA_SELF_GUARD_MSG; errEl.style.display = 'block'; return;
+  }
   const btn = document.querySelector('.btn-primary[onclick^="submitAssignment"]') ||
               document.querySelector('.form-container .btn-primary');
   setButtonLoading(btn);
-  const [projectId, customerName] = projVal ? projVal.split('|') : ['0', ''];
+  // N-281: an admin row applies across all projects — always ProjectID 0, no customer.
+  const [projectId, customerName] = role === 'admin' ? ['0', ''] : (projVal ? projVal.split('|') : ['0', '']);
   try {
     if (editId) {
       await updateItem('UserAssignments', editId, {
@@ -222,6 +233,7 @@ async function submitAssignment(editId = null) {
 }
 
 async function toggleAssignmentActive(id, makeActive) {
+  if (!makeActive && await _osaOwnAdminRow(id)) { toast(_OSA_SELF_GUARD_MSG, { type: 'error' }); return; } // N-281
   await updateItem('UserAssignments', id, { Active: makeActive });
   renderOsAdminPage('assignments');
 }
@@ -323,6 +335,7 @@ async function uploadLeadershipPhoto(id) {
   }
 }
 async function deleteOsAdminRecord(listName, id) {
+  if (listName === 'UserAssignments' && await _osaOwnAdminRow(id)) { toast(_OSA_SELF_GUARD_MSG, { type: 'error' }); return; } // N-281
   if (!(await confirmModal({ message: 'Remove this record?', confirmLabel: 'Remove', danger: true }))) return;
   // N-176: raw DELETE bypassed _cacheInvalidate(); deleteItem() is the same
   // request plus both-tier invalidation.

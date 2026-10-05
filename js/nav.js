@@ -30,7 +30,7 @@ document.addEventListener('click', function(e) {
 });
 
 function navigateTo(page, pendingItem = null) {
-  const role = _resolvedRole || getUserRole(getCurrentUser().email);
+  const role = _resolvedRole || 'viewer';
   if (!canAccess(page, role)) return;
   currentPage = page;
   updateNavActiveLink(page);

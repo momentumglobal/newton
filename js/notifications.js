@@ -5,7 +5,7 @@
 async function getCcRecipients() {            // admin + leadership
   const lead = await getLeadershipAccess();
   const emails = lead.map(l => (l.UserEmail||'').toLowerCase());
-  (CONFIG.ADMIN_USERS||[]).forEach(a => emails.push(a.toLowerCase()));
+  (await getAdminEmails()).forEach(a => emails.push(a));  // N-281: active admin rows
   return [...new Set(emails.filter(Boolean))];
 }
 const getLeadershipRecipients = getCcRecipients;  // same set for v1

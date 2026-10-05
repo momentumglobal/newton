@@ -2033,4 +2033,42 @@ var ASSERTIONS = [
       _assertEqual(tallyRoleFlags(roles, acts, h, TODAY), { total: 3, flagged: 2, stuck: 1, conversion: 1, behind: 1 }, 'tally counts each reason once per role');
     },
   },
+  {
+    name: 'N-281 resolveRoleFromAssignments — precedence, whitelist, order-independence',
+    fn: function () {
+      const A = { AssignedRole: 'admin' }, AX = { AssignedRole: 'admin', Active: false };
+      const DM = { AssignedRole: 'delivery_manager' }, TP = { AssignedRole: 'talent_partner' };
+      _assertEqual(resolveRoleFromAssignments([A], false), 'admin', 'AC3a admin row');
+      _assertEqual(resolveRoleFromAssignments([AX, DM], false), 'delivery_manager', 'AC3b inactive admin grants nothing');
+      _assertEqual(resolveRoleFromAssignments([AX], true), 'leadership', 'AC3c inactive admin + leadership');
+      _assertEqual(resolveRoleFromAssignments([DM, DM, A], false), 'admin', 'AC3d admin last');
+      _assertEqual(resolveRoleFromAssignments([A, DM, DM], false), 'admin', 'AC3d admin first');
+      _assertEqual(resolveRoleFromAssignments([TP, DM], false), 'delivery_manager', 'AC3d TP then DM');
+      _assertEqual(resolveRoleFromAssignments([DM, TP], false), 'delivery_manager', 'AC3d DM then TP');
+      _assertEqual(resolveRoleFromAssignments([A], true), 'admin', 'AC3e admin outranks leadership');
+      _assertEqual(resolveRoleFromAssignments([{ AssignedRole: 'superuser' }], false), 'viewer', 'AC3f unknown role ignored');
+      _assertEqual(resolveRoleFromAssignments([{ AssignedRole: 'leadership' }], false), 'viewer', 'AC3f leadership never from a row');
+      _assertEqual(resolveRoleFromAssignments([{ AssignedRole: 'Admin ' }], false), 'viewer', 'AC3f near-miss admin string ignored');
+      _assertEqual(resolveRoleFromAssignments([], false), 'viewer', 'AC3g no rows');
+      _assertEqual(resolveRoleFromAssignments([], true), 'leadership', 'AC3g leadership only');
+      _assertEqual(resolveRoleFromAssignments([{ AssignedRole: 'talent_partner', Active: false }], false), 'talent_partner', 'AC3h lower roles ignore Active');
+      _assertEqual(resolveRoleFromAssignments(undefined, false), 'viewer', 'non-array input is safe');
+      _assertEqual([A, AX, { AssignedRole: 'admin', Active: true }, TP, null].map(isAdminAssignment),
+        [true, false, true, false, false], 'isAdminAssignment');
+    },
+  },
+  {
+    name: 'N-281 no hardcoded admin list, auto-registration, LastLogin or sync role helper left in js/',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const banned = [/\bADMIN_USERS\b/, /\bensureUserRegistered\b/, /\bLastLogin\b/, /\bgetUserRole\s*\(/];
+      const hits = [];
+      Object.keys(ALL_SOURCES).forEach(f => banned.forEach(re => {
+        if (re.test(ALL_SOURCES[f])) hits.push(f + ' ' + re);
+      }));
+      _assertEqual(hits, [], 'banned identifiers in js/');
+    },
+  },
 ];

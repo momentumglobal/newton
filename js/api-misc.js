@@ -35,9 +35,11 @@ async function deleteSalesForecast(id) {
 async function getDefaultUserProjectId(email) {
   const lower = (getGhostUser() || email).toLowerCase();
   const assignments = await getItems("UserAssignments", `fields/Title eq '${lower}'`);
-  if (!assignments.length) return null;
-  const active = assignments.find(a => a.Active !== false);
-  return String((active || assignments[0]).ProjectID);
+  // N-281: admin rows (ProjectID 0) are not a project — skip them.
+  const projectRows = assignments.filter(a => a.AssignedRole !== 'admin');
+  if (!projectRows.length) return null;
+  const active = projectRows.find(a => a.Active !== false);
+  return String((active || projectRows[0]).ProjectID);
 }
 
 // ── Payroll summary ───────────────────────────────────────────────────

@@ -847,7 +847,7 @@ async function updateItem(listName, itemId, fields) {
 // performs the real update exactly as updateItem always did, then fires
 // the RoleHistory write in the background — never awaited, never allowed
 // to block or fail the caller's save (same non-blocking shape as
-// ensureUserRegistered(...).catch(...) elsewhere in this codebase).
+// a fire-and-forget promise.catch(...) call).
 async function updateRoleWithHistory(roleId, fields) {
   let oldRole = null;
   try {
@@ -1124,6 +1124,17 @@ async function getRejectedOffers(roleId, opts = {}) {
 async function getLeadershipAccess() {
   return getItems("LeadershipAccess");
 }
+
+// N-281: emails of every active admin row in UserAssignments (lower-cased,
+// de-duped). Replaces the old hardcoded admin list as the admin recipient
+// source for notifications. Cached list read, no filter.
+async function getAdminEmails() {
+  const rows = await getItems("UserAssignments");
+  return [...new Set(rows
+    .filter(isAdminAssignment)
+    .map(a => (a.UserEmail || '').toLowerCase())
+    .filter(Boolean))];
+}
  
 // ── Sales Forecasts ────────────────────────────────────────
 async function getSalesForecasts() {
@@ -1269,9 +1280,11 @@ async function getDepartments() {
 // Resolve the effective role for `email` — or, if Ghost Mode is active, for
 // the ghosted user instead (N-162: ghosting simulates a real user's actual
 // resolved role, not a synthetic label):
-// 1. Check ADMIN_USERS in config.js
-// 2. Check LeadershipAccess list
-// 3. Check UserAssignments list
+// N-281: resolved by resolveRoleFromAssignments() (utils.js), order-independent:
+// 1. Active admin row in UserAssignments (AssignedRole 'admin')
+// 2. LeadershipAccess list
+// 3. Highest DM / TP role in UserAssignments
+// 4. Fall back to 'viewer' (no row, or no recognised role)
 // ── Role / DM-grant cache (N-177 / F-3b) ─────────────────────────────
 // newton_role_<email> and newton_dm_grants_<email> are NOT part of the
 // tier-2 list cache. They hold a value DERIVED from UserAssignments and
@@ -1332,7 +1345,6 @@ function _roleCacheSet(key, value) {
   }
 }
 
-// 4. Fall back to 'viewer'
 async function getEffectiveRole(email) {
   const lower = (getGhostUser() || email).toLowerCase();
   const cacheKey = 'newton_role_' + lower;
@@ -1340,28 +1352,25 @@ async function getEffectiveRole(email) {
   // change now takes effect within the TTL instead of only on sign-out.
   const cached = _roleCacheGet(cacheKey);
   if (cached) return cached;
- 
-  let role;
-  if (CONFIG.ADMIN_USERS?.includes(lower)) {
-    role = 'admin';
-  } else {
-    const leadership = await getLeadershipAccess();
-    if (leadership.some(l => l.UserEmail?.toLowerCase() === lower)) {
-      role = 'leadership';
-      // Leadership user may ALSO hold explicit DM assignments — cache those project IDs
-      const assignments = await getItems("UserAssignments",
-        `fields/Title eq '${lower}'`);
-      const dmProjects = assignments
-        .filter(a => a.AssignedRole === 'delivery_manager' && a.ProjectID && a.ProjectID !== 0)
-        .map(a => String(a.ProjectID));
-      _roleCacheSet('newton_dm_grants_' + lower, dmProjects);
-    } else {
-      const assignments = await getItems("UserAssignments",
-        `fields/Title eq '${lower}'`);
-      role = assignments.length > 0 ? assignments[0].AssignedRole : 'viewer';
-    }
+
+  // N-281: admin comes from an active UserAssignments row, not from code.
+  // Both lists are read up front (both cached) so precedence is decided in
+  // one place and never depends on row order.
+  const [leadership, assignments] = await Promise.all([
+    getLeadershipAccess(),
+    getItems("UserAssignments", `fields/Title eq '${lower}'`),
+  ]);
+  const isLeadership = leadership.some(l => l.UserEmail?.toLowerCase() === lower);
+  const role = resolveRoleFromAssignments(assignments, isLeadership);
+
+  if (role === 'leadership') {
+    // Leadership user may ALSO hold explicit DM assignments — cache those project IDs
+    const dmProjects = assignments
+      .filter(a => a.AssignedRole === 'delivery_manager' && a.ProjectID && a.ProjectID !== 0)
+      .map(a => String(a.ProjectID));
+    _roleCacheSet('newton_dm_grants_' + lower, dmProjects);
   }
- 
+
   // N-177 (beyond spec): a user demoted OUT of leadership keeps their old
   // newton_dm_grants_ entry, because only the leadership branch above ever
   // writes that key. Write an empty grant set on every other path so the
@@ -1390,28 +1399,6 @@ function hasDMGrant(projectId = null) {
   return projectId ? grants.includes(String(projectId)) : grants.length > 0;
 }
 
-// Auto-register user on first login if not already in UserAssignments
-async function ensureUserRegistered(email, displayName) {
-  const lower = email.toLowerCase();
-  if (CONFIG.ADMIN_USERS?.includes(lower)) return;
-  const existing = await getItems("UserAssignments",
-    `fields/Title eq '${lower}'`);
-  if (existing.length === 0) {
-    await createItem("UserAssignments", {
-      Title: lower,
-      UserName: displayName || lower,
-      ProjectID: 0,
-      CustomerName: "",
-      AssignedRole: "talent_partner",
-      LastLogin: new Date().toISOString(),
-    });
-  } else {
-    await updateItem("UserAssignments", existing[0].id, {
-      LastLogin: new Date().toISOString(),
-    });
-  }
-}
- 
 async function getTalentPartnersForProject(projectId, includeEmail = null) {
   const assignments = await getItems("UserAssignments", `fields/ProjectID eq ${projectId}`);
   const keep = includeEmail ? includeEmail.toLowerCase() : null;
@@ -1427,6 +1414,7 @@ async function getAllAssignableUsers() {
   const seen = new Map();
   assignments.forEach(u => {
     if (u.Active === false) return;
+    if (u.AssignedRole === 'admin') return; // N-281: admin rows are not DM candidates
     const email = (u.UserEmail || '').toLowerCase();
     if (email && !seen.has(email)) {
       seen.set(email, { UserEmail: u.UserEmail, UserName: u.UserName || u.UserEmail });
@@ -1462,12 +1450,17 @@ async function filterToActiveTpEmails(tpEmails, tpMap) {
 // Mode is active, instead of a single manually-picked ghost project.
 async function getUserProjectIds(email) {
   const lower = (getGhostUser() || email).toLowerCase();
-  if (CONFIG.ADMIN_USERS?.includes(lower)) return null;
   const assignments = await getItems("UserAssignments", `fields/Title eq '${lower}'`);
+  // N-281: an active admin row sees all projects.
+  if (assignments.some(isAdminAssignment)) return null;
   // N-165: de-duped — a user with two UserAssignments rows for the same
   // project (e.g. TP + DM-granted) must not get that project ID twice, or
   // every downstream per-project role fan-out doubles that project's roles.
-  return [...new Set(assignments.map(a => String(a.ProjectID)))];
+  // N-281: admin rows (ProjectID 0) are never a project — an inactive one
+  // must not add "0" to the scope.
+  return [...new Set(assignments
+    .filter(a => a.AssignedRole !== 'admin')
+    .map(a => String(a.ProjectID)))];
 }
 
 async function getScopedProjects(email, activeOnly = false) {

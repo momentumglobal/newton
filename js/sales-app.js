@@ -30,8 +30,6 @@ window.SALES_APP = {
       return;
     }
 
-    await ensureUserRegistered(user.email, user.name);
-
     document.getElementById('app-shell').style.display = 'flex';
     document.getElementById('login-screen').style.display = 'none';
 

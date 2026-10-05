@@ -345,7 +345,7 @@
 <span class="code-key">REDIRECT_URI</span>: <span class="code-val">"https://momentumglobal.github.io/newton/"</span>
 <span class="code-key">SP_SITE_URL</span>:  <span class="code-val">"https://talentpoint.sharepoint.com/sites/SolutionsHubReporting"</span>
       </div>
-      <div class="callout">Admin users are hardcoded in <code>CONFIG.ADMIN_USERS</code> in config.js. These users always receive admin role regardless of SharePoint data.</div>
+      <div class="callout">Admin is a <code>UserAssignments</code> row with <code>AssignedRole = 'admin'</code> (ProjectID 0, Active) — managed in Newton Admin → User Assignments. There is no admin list in code (N-281). <strong>Break-glass:</strong> if every admin row is lost, a SharePoint site owner adds one directly in the <code>UserAssignments</code> list.</div>
     </div>
 
     <!-- MODULES -->
@@ -439,11 +439,11 @@
 
       <table>
         <tr><th>Role</th><th>Source</th><th>Description</th></tr>
-        <tr><td><span class="badge badge-admin">admin</span></td><td>Hardcoded in CONFIG.ADMIN_USERS</td><td>Full access to all modules, pages, and admin interfaces. Never overridden by SharePoint.</td></tr>
+        <tr><td><span class="badge badge-admin">admin</span></td><td>UserAssignments (AssignedRole='admin', active row)</td><td>Full access to all modules, pages, and admin interfaces. Outranks every other role. A deactivated admin row grants nothing.</td></tr>
         <tr><td><span class="badge badge-leadership">leadership</span></td><td>LeadershipAccess list</td><td>Read-only access to Company Dashboard (Reporting), People module, Sales module, and MG Command Centre.</td></tr>
         <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module and Market Analytics. Limited access to People module — Scorecards page only — and to the Sales module — LCI Cost Models only (scoped to models assigned to them).</td></tr>
         <tr><td><span class="badge badge-tp">talent_partner</span></td><td>UserAssignments list</td><td>Access to assigned project in Reporting module. Scoped to own activity and roles.</td></tr>
-        <tr><td><span class="badge badge-viewer">viewer</span></td><td>Fallback</td><td>Read-only, no meaningful access. Auto-registered on first login.</td></tr>
+        <tr><td><span class="badge badge-viewer">viewer</span></td><td>Fallback</td><td>No UserAssignments row (or no recognised role). No module access — the home page shows "No access yet". Nobody is registered automatically (N-281); an admin adds them.</td></tr>
       </table>
 
       <h3>Module access matrix</h3>
@@ -476,11 +476,11 @@
       <div class="flow">
         <div class="flow-step highlight">Sign in</div>
         <div class="flow-arrow">→</div>
-        <div class="flow-step">Check CONFIG.ADMIN_USERS</div>
+        <div class="flow-step">Active admin row in UserAssignments</div>
         <div class="flow-arrow">→</div>
         <div class="flow-step">Check LeadershipAccess list</div>
         <div class="flow-arrow">→</div>
-        <div class="flow-step">Check UserAssignments list</div>
+        <div class="flow-step">Highest DM / TP role in UserAssignments</div>
         <div class="flow-arrow">→</div>
         <div class="flow-step">Fall back to 'viewer'</div>
         <div class="flow-arrow">→</div>
@@ -562,7 +562,7 @@
       <h3>Shared JavaScript (all modules)</h3>
       <table>
         <tr><th>File</th><th>Responsibility</th><th>Key exports</th></tr>
-        <tr><td><span class="file-tag">js/config.js</span></td><td>Static app configuration</td><td>CONFIG, CONFIG.OS_MODULES, CONFIG.UTILISATION_THRESHOLDS, CONFIG.WEEKLY_ANOMALIES (N-271; <code>acknowledge.noteMaxChars</code>, N-273), CONFIG.PEOPLE_LEVELS, getUserRole(), getUserRoleAsync()</td></tr>
+        <tr><td><span class="file-tag">js/config.js</span></td><td>Static app configuration</td><td>CONFIG, CONFIG.OS_MODULES, CONFIG.UTILISATION_THRESHOLDS, CONFIG.WEEKLY_ANOMALIES (N-271; <code>acknowledge.noteMaxChars</code>, N-273), CONFIG.PEOPLE_LEVELS, CONFIG.ROLE_PRECEDENCE / CONFIG.ROLE_LABELS (N-281), getUserRoleAsync()</td></tr>
         <tr><td><span class="file-tag">js/auth.js</span></td><td>MSAL authentication only</td><td>signIn(), signOut(), getToken(), getCurrentUser(), isSignedIn()</td></tr>
         <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), computeMonthlyRevenueForYear(), computeMonthlyForecastRevenueForYear(), getAssignmentDataYears(), formatSalary(), daysOpen(), ghost mode helpers, isProjectActive(), sortProjectsByName(), buildProjectOptionsHtml(), levelSortIndex(), isBillableLevel(), weeksAgoDay(), listQueryFromDay(), activitySinceWeeks() (N-270: client-side WeeklyActivity window slice), addDaysISO() / sundayOnOrAfterISO() / medianOf() (N-271: UTC day-string arithmetic and a median, no local getters)</td></tr>
         <tr><td><span class="file-tag">js/api.js</span></td><td>Shared SharePoint/Graph read-write layer</td><td>getItems(), getItem(), createItem(), updateItem(), deleteItem(), getEffectiveRole(), FIELD_ALIASES, the two-tier read cache (_apiCache + session tier), schemaBaseColumnName(). Also still holds anything used by more than one consumer (tpList(), createDiagnostic(), getAnomalyAcks() / acknowledgeAnomaly() / restoreAnomalyAcks() (N-273: the <code>AnomalyAcks</code> list behind Data Health's Acknowledge / Restore; Restore is a Status PATCH, never a delete), getTalentPartnerDisplayMap(), filterToActiveTpEmails(), copyBriefingPack(), the survey-template reads). Module-specific API calls were split out (N-237a/b) into api-briefing.js, api-coe.js, api-engagement.js, api-orgchart.js, api-people-forms.js, api-lci.js, api-admin.js, api-market-report.js and api-misc.js — see each module's table below for what moved where.</td></tr>
@@ -786,7 +786,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <h3>Access control lists</h3>
       <table>
         <tr><th>List</th><th>Title alias</th><th>Key fields</th><th>Purpose</th></tr>
-        <tr><td><strong>UserAssignments</strong></td><td>UserEmail</td><td>UserName, ProjectID, CustomerName, AssignedRole, LastLogin</td><td>Maps users to projects and roles (DM / TP / viewer)</td></tr>
+        <tr><td><strong>UserAssignments</strong></td><td>UserEmail</td><td>UserName, ProjectID, CustomerName, AssignedRole, Active</td><td>Maps users to projects and roles (admin / DM / TP / viewer). An <code>admin</code> row has ProjectID 0 and applies to all projects (N-281). Role precedence is order-independent: admin &gt; leadership &gt; DM &gt; TP &gt; viewer; unknown AssignedRole values are ignored.</td></tr>
         <tr><td><strong>LeadershipAccess</strong></td><td>UserEmail</td><td>UserName</td><td>Grants Leadership role — Company Dashboard read access</td></tr>
       </table>
 
@@ -1098,7 +1098,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <li><strong>config.js</strong> — Add entry to <code>CONFIG.OS_MODULES</code> with key, name, icon, href, live, and roles array. This is the only place the module switcher is defined.</li>
         <li><strong>[module]-router.js</strong> — Create page registry. Define PAGES object, <code>canAccess()</code>, and <code>getAccessiblePages()</code>.</li>
         <li><strong>[module]-nav.js</strong> — Create nav wrapper. Call <code>renderModuleNav()</code> with subtitle, currentModuleKey, toggleFn, pages, currentPage, role, navigateFn, userGuideHref. Add toggle function and <code>navigateTo[Module]()</code>.</li>
-        <li><strong>[module]-app.js</strong> — Handle MSAL redirect, call <code>getEffectiveRole()</code>, redirect if role not permitted, call <code>ensureUserRegistered()</code>, render nav, navigate to first page. Set <code>document.getElementById('app-shell').style.display = 'flex'</code> after auth.</li>
+        <li><strong>[module]-app.js</strong> — Handle MSAL redirect, call <code>getEffectiveRole()</code>, redirect if role not permitted, render nav, navigate to first page. Set <code>document.getElementById('app-shell').style.display = 'flex'</code> after auth.</li>
         <li><strong>[module]-pages.js and [module]-forms.js</strong> — Create page renderers and form logic as needed.</li>
         <li><strong>[module].html</strong> — Follow script load order exactly: config → auth → utils → api → [module]-router → nav-core → [module]-nav → [module]-forms → [module]-pages → [module]-app. Load analytics.js before app.js if the module uses isRoleFlagged() or other shared analytics functions. Shell markup (N-255a): wrap the content area as <code>&lt;div id="main-column"&gt;&lt;div id="breadcrumb-bar"&gt;&lt;/div&gt;&lt;div id="main-content"&gt;&lt;/div&gt;&lt;/div&gt;</code> after <code>#sidebar</code> — nav-core.js renders the Home › Module › Page trail into <code>#breadcrumb-bar</code> automatically; never put it inside <code>#main-content</code> (page renderers replace its innerHTML).</li>
         <li><strong>admin.html sidebar</strong> — Add <code>&lt;a class="admin-nav-link"&gt;</code> entry if the module needs admin panel access.</li>
@@ -1137,7 +1137,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <div class="flow-arrow">→</div>
         <div class="flow-step cache">Banner rendered by nav-core.js</div>
       </div>
-      <div class="callout amber"><strong>Role keys are per-email.</strong> <code>getEffectiveRole()</code> caches under <code>newton_role_&lt;ghosted email&gt;</code>, so ghosting never overwrites the admin's own cached role and the two coexist. Note that an account in <code>CONFIG.ADMIN_USERS</code> resolves to <code>admin</code> before the LeadershipAccess branch runs — so ghosting an admin will never produce DM grants, by design.</div>
+      <div class="callout amber"><strong>Role keys are per-email.</strong> <code>getEffectiveRole()</code> caches under <code>newton_role_&lt;ghosted email&gt;</code>, so ghosting never overwrites the admin's own cached role and the two coexist. Note that an active admin row outranks LeadershipAccess (N-281), so an admin resolves to <code>admin</code>, not <code>leadership</code> — ghosting an admin will never produce DM grants, by design.</div>
 
       <h3>Storage keys (sessionStorage)</h3>
       <p>Corrected to match the code as of N-162 — the old <code>newton_ghost_role</code> / <code>newton_ghost_project</code> keys and the <code>setGhostRole()</code> / <code>clearGhostRole()</code> functions no longer exist anywhere in <code>js/</code>.</p>
@@ -1159,6 +1159,18 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Admin access moves into SharePoint data; no more auto-registration (N-281)</div>
+        <ul>
+          <li>Admin is now a <code>UserAssignments</code> row with <code>AssignedRole = 'admin'</code> (ProjectID 0), granted and revoked in Newton Admin → User Assignments. The hardcoded admin list was removed from <code>config.js</code>, which is public. A deactivated admin row grants nothing. An admin can't demote, deactivate or remove their own admin row.</li>
+          <li>Role resolution is order-independent (<code>resolveRoleFromAssignments()</code> in utils.js, precedence in <code>CONFIG.ROLE_PRECEDENCE</code>): admin &gt; leadership &gt; DM &gt; TP &gt; viewer. Unknown role strings are ignored.</li>
+          <li>Newton no longer writes to <code>UserAssignments</code> on sign-in: the last-login timestamp and the Last Login column are gone, and new users are not registered automatically. They resolve as viewer and see "No access yet" until an admin adds them.</li>
+          <li>Org Chart: the Leadership "Reports to" rows (which write <code>LeadershipAccess</code>) are admin-only. Leadership keep the Project, LCI and CSD rows and Placeholders.</li>
+          <li>Ships with N-287 (Tier 1 SharePoint lock) the same day.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>

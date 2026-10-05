@@ -1960,6 +1960,13 @@ body {
   cursor: default;
   pointer-events: none;
 }
+/* N-281: informational card (index.html "No access yet") — not a link */
+.module-card--static,
+.module-card--static:hover {
+  cursor: default;
+  background: var(--inverse-panel-bg);
+  border-color: var(--inverse-border-soft);
+}
 .module-icon {
   width: var(--sp-9); height: var(--sp-9);
   margin-bottom: var(--sp-6);

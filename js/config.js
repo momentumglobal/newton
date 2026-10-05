@@ -31,8 +31,19 @@ const CONFIG = {
     Location:     'Global',
     StartDate:    '2000-01-01T12:00:00Z',
   },
-  // Hardcoded admin users — full access, never overridden by SharePoint data
-  ADMIN_USERS:  ["admin@momentumglobal.co", "chris.friend@momentumglobal.co", "aliyah@momentumglobal.co", "jon.stanners@momentumglobal.co"],
+  // N-281: roles, highest first. Single source of truth for role precedence
+  // (resolveRoleFromAssignments, utils.js) and the known-role whitelist — an
+  // AssignedRole value not listed here grants nothing. Admin is a
+  // UserAssignments row (AssignedRole 'admin', ProjectID 0), never a list in
+  // code: this file is public on GitHub Pages.
+  ROLE_PRECEDENCE: ['admin', 'leadership', 'delivery_manager', 'talent_partner', 'viewer'],
+  ROLE_LABELS: {
+    admin:            'Admin',
+    leadership:       'Leadership',
+    delivery_manager: 'Delivery Manager',
+    talent_partner:   'Talent Partner',
+    viewer:           'Viewer',
+  },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
   // truth for the Add/Edit Employee dropdown and for level sort order —
@@ -1193,13 +1204,6 @@ const CONFIG = {
     { key: 'legal',               label: 'Legal',                col: 'Sal_Legal' },
   ],
 };
-
-// Synchronous role check — only resolves admin (from config) or viewer
-// Used for immediate UI gating (show/hide buttons)
-function getUserRole(email) {
-  if (CONFIG.ADMIN_USERS?.includes(email.toLowerCase())) return 'admin';
-  return 'viewer';
-}
 
 // Async role check — resolves full role from SharePoint lists at runtime
 // Use where accuracy matters (dashboard filtering, page access control)

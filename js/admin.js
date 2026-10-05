@@ -3,8 +3,7 @@ let _adminTab = 'departments';
 
 async function renderAdminPage() {
   const main = document.getElementById('main-content');
-  const user = getCurrentUser();
-  const role = getUserRole(user.email);
+  const role = _resolvedRole; // N-281: resolved by app.js before any page renders; null = denied
   if (role !== 'admin') {
     main.innerHTML = '<p>Access denied.</p>';
     return;

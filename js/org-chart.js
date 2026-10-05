@@ -591,7 +591,11 @@ async function showOrgChartEditForm() {
       _ocEmail(l.UserEmail) === _ocEmail(sel) ? 'selected' : ''
     }>${_ocEsc(l.UserName || l.UserEmail)}</option>`).join('');
 
-  const leaderRows = leadership.map(l => `
+  // N-281 (D-4): LeadershipAccess is admin-only edit, so the Leadership
+  // "Reports to" rows render for admins only. saveOrgChartEdits() needs no
+  // change: with no [data-lead] elements on the page it writes nothing to
+  // LeadershipAccess. Leadership users keep the Project, LCI and CSD rows.
+  const leaderRows = _resolvedRole !== 'admin' ? '' : leadership.map(l => `
     <tr>
       <td>${_ocEsc(l.UserName || l.UserEmail)} <span class='org-tag'>Leadership</span></td>
       <td><select data-lead='${l.id}'>${emailOpts(l.ReportsTo)}</select></td>

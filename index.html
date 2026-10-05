@@ -280,6 +280,16 @@ async function renderCommandCentreBanner(role) {
           <span class="module-badge ${m.live ? 'badge-live' : 'badge-soon'}">${m.live ? 'Live' : 'Coming soon'}</span>
         </${m.live ? 'a' : 'div'}>
       `).join('');
+      // N-281: no auto-registration any more — a user with no role sees why
+      // instead of an empty grid.
+      if (!visible.length) {
+        grid.classList.add('single');
+        grid.innerHTML = `<div class="module-card module-card--static">
+          <i data-lucide="lock" class="module-icon"></i>
+          <div class="module-name">No access yet</div>
+          <div class="module-desc">Your account isn't set up in Newton yet. Ask a Newton admin to add you.</div>
+        </div>`;
+      }
       lucide.createIcons();
       if (role === 'admin') {
         const adminLink = document.getElementById('admin-link');

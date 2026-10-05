@@ -231,7 +231,7 @@ function rbRenderSnapshotBlock(block, i) {
     const v = values[rid] || {};
     const cells = SNAP_FIELDS.map(([f]) =>
       `<td><input type="number" min="0" class="rb-snap-input" value="${escAttr(v[f] ?? '')}"
-        oninput="rbUpdateSnapshotValue('${block.id}','${rid}','${f}',this.value)"></td>`
+        oninput="rbUpdateSnapshotValue('${escJsAttr(block.id)}','${rid}','${f}',this.value)"></td>`
     ).join('');
     return `<tr><td>${r.label}</td>${cells}</tr>`;
   }).join('');

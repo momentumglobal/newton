@@ -1094,7 +1094,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <p class="section-intro">Follow this checklist in order. Steps 1 and 6 are the most commonly forgotten.</p>
 
       <ul class="checklist">
-        <li><strong>config.js</strong> — Add entry to <code>CONFIG.OS_MODULES</code> with key, name, icon, href, live, and roles array. This is the only place the module switcher is defined.</li>
+        <li><strong>config.js</strong> — Add entry to <code>CONFIG.OS_MODULES</code> with key, name, icon, href, live, and roles array (plus <code>desc</code> and <code>homeOrder</code> if it should have a home-screen tile). This is the only place the module switcher is defined.</li>
         <li><strong>[module]-router.js</strong> — Create page registry. Define PAGES object, <code>canAccess()</code>, and <code>getAccessiblePages()</code>.</li>
         <li><strong>[module]-nav.js</strong> — Create nav wrapper. Call <code>renderModuleNav()</code> with subtitle, currentModuleKey, toggleFn, pages, currentPage, role, navigateFn, userGuideHref. Add toggle function and <code>navigateTo[Module]()</code>.</li>
         <li><strong>[module]-app.js</strong> — Handle MSAL redirect, call <code>getEffectiveRole()</code>, redirect if role not permitted, render nav, navigate to first page. Set <code>document.getElementById('app-shell').style.display = 'flex'</code> after auth.</li>
@@ -1182,6 +1182,15 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
           <li>Newton no longer writes to <code>UserAssignments</code> on sign-in: the last-login timestamp and the Last Login column are gone, and new users are not registered automatically. They resolve as viewer and see "No access yet" until an admin adds them.</li>
           <li>Org Chart: the Leadership "Reports to" rows (which write <code>LeadershipAccess</code>) are admin-only. Leadership keep the Project, LCI and CSD rows and Placeholders.</li>
           <li>Ships with N-287 (Tier 1 SharePoint lock) the same day.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Home tiles match the module switcher (N-298)</div>
+        <ul>
+          <li>The home grid now builds its tiles from <code>CONFIG.OS_MODULES</code> instead of a second, local role list in <code>index.html</code>. Talent Partners now see the People tile (Scorecards and Org Chart only) and Delivery Managers now see the Sales tile (LCI Cost Models only), matching the switcher. Admin, leadership and viewer views are unchanged.</li>
+          <li>Each <code>OS_MODULES</code> entry that should have a home tile carries <code>desc</code> (tile text) and <code>homeOrder</code> (position). Command Centre has neither and stays a banner for admin/leadership.</li>
         </ul>
       </div>
 

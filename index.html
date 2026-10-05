@@ -42,44 +42,8 @@
   <script src="js/notifications.js" defer></script>
   <script src="js/command-bar.js" defer></script>
   <script>
-    const ALL_MODULES = [
-      {
-        key: 'reporting',
-        name: 'Reporting',
-        desc: 'Solutions Hub Reporting & Pipeline Analytics',
-        icon: 'bar-chart-2',
-        href: 'reporting.html',
-        live: true,
-        roles: ['admin', 'delivery_manager', 'talent_partner', 'leadership'],
-      },
-      {
-        key: 'people',
-        name: 'People',
-        desc: 'Headcount, Utilisation & Workforce Planning',
-        icon: 'users',
-        href: 'people.html',
-        live: true,
-        roles: ['admin', 'leadership', 'delivery_manager'],
-      },
-      {
-        key: 'sales',
-        name: 'Sales',
-        desc: 'LCI Modeling, Sales Pipeline & Revenue Tracking',
-        icon: 'trending-up',
-        href: 'sales.html',
-        live: true,
-        roles: ['admin', 'leadership'],
-      },
-      {
-        key: 'marketing',
-        name: 'Market Analytics',
-        desc: 'Customer Market Reports & Placement Analytics',
-        icon: 'brain',
-        href: 'market-reporting.html',
-        live: true,
-        roles: ['admin','delivery_manager','talent_partner'],
-      },
-    ];
+    // N-298: home tiles come from CONFIG.OS_MODULES (config.js) — one role list
+    // for the switcher and the home grid.
 
 function ccBadgeHTML(rag, label) {
   // N-254: same marker glyph as the CC tile for the same state, plus a
@@ -268,7 +232,9 @@ async function renderCommandCentreBanner(role) {
       document.getElementById('home-greeting').textContent = `Welcome back, ${firstName}`;
       const role = await getUserRoleAsync(user.email);
       initCommandBar({ currentModule: 'home', role, navigateFn: null });
-      const visible = ALL_MODULES.filter(m => m.roles.includes(role));
+      const visible = CONFIG.OS_MODULES
+        .filter(m => m.homeOrder != null && m.roles.includes(role))
+        .sort((a, b) => a.homeOrder - b.homeOrder);
       const grid = document.getElementById('module-grid');
       if (visible.length === 1) grid.classList.add('single');
       grid.innerHTML = visible.map(m => `

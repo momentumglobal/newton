@@ -767,17 +767,20 @@ const CONFIG = {
   
   // Single source of truth for the module switcher dropdown.
   // To add a new module, add it here only — all nav files reference this.
+  // Home grid (index.html): a module gets a home tile only if it has homeOrder
+  // (tile position) — its tile copy is `desc`. Command Centre has neither; the
+  // home page shows it as a banner instead of a tile.
   // NOTE: People is visible to DM + TP so they can reach People Scorecards.
   // The People module's own nav (people-router.js) restricts them to the
   // Scorecards page only; data scoping is applied in renderScorecardsPage.
   OS_MODULES: [
-    { key: 'reporting', name: 'Reporting',        icon: 'bar-chart-2',  href: 'reporting.html',        live: true, roles: ['admin','delivery_manager','talent_partner','leadership'] },
-    { key: 'marketing', name: 'Market Analytics', icon: 'brain',        href: 'market-reporting.html', live: true, roles: ['admin','delivery_manager','talent_partner'] },
-    { key: 'people',    name: 'People',           icon: 'users',        href: 'people.html',           live: true, roles: ['admin','leadership','delivery_manager','talent_partner'] },
+    { key: 'reporting', name: 'Reporting',        icon: 'bar-chart-2', desc: 'Solutions Hub Reporting & Pipeline Analytics', homeOrder: 1,  href: 'reporting.html',        live: true, roles: ['admin','delivery_manager','talent_partner','leadership'] },
+    { key: 'marketing', name: 'Market Analytics', icon: 'brain', desc: 'Customer Market Reports & Placement Analytics', homeOrder: 4,        href: 'market-reporting.html', live: true, roles: ['admin','delivery_manager','talent_partner'] },
+    { key: 'people',    name: 'People',           icon: 'users', desc: 'Headcount, Utilisation & Workforce Planning', homeOrder: 2,        href: 'people.html',           live: true, roles: ['admin','leadership','delivery_manager','talent_partner'] },
     // NOTE: Sales is visible to DMs for the LCI Cost Models page only.
     // sales-router.js restricts DMs to that page; model visibility is
     // scoped to AssignedDMEmail in lci-pages.js.
-    { key: 'sales',     name: 'Sales',            icon: 'trending-up',  href: 'sales.html',            live: true, roles: ['admin','leadership','delivery_manager'] },
+    { key: 'sales',     name: 'Sales',            icon: 'trending-up', desc: 'LCI Modeling, Sales Pipeline & Revenue Tracking', homeOrder: 3,  href: 'sales.html',            live: true, roles: ['admin','leadership','delivery_manager'] },
     { key: 'command',   name: 'Command Centre',   icon: 'monitor',      href: 'command-centre.html',   live: true, roles: ['admin','leadership'] },
   ],
 

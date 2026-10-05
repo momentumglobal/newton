@@ -220,9 +220,9 @@ function _lciAssumptionsHtml(m, rows) {
           <tr><td>Employer burden</td><td>${Math.round((m.EmployerBurdenPct || 0) * 1000) / 10}%</td></tr>
           <tr><td>Salary payments / year</td><td>${m.SalaryMonths || 12}</td></tr>
           ${noticeRows}
-          <tr><td>Office cost / head / month</td><td>${m.OfficeCostPerHead ?? 0} ${m.LocalCurrency}</td></tr>
-          <tr><td>EoR fee / head / month</td><td>${m.EoRFeePerHead ?? 0} ${m.DisplayCurrency}</td></tr>
-          ${m.LocalCurrency !== m.DisplayCurrency ? `<tr><td>FX rate (${m.LocalCurrency}→${m.DisplayCurrency})</td><td>${m.FXRateLocalToDisplay ?? '—'}</td></tr>` : ''}
+          <tr><td>Office cost / head / month</td><td>${m.OfficeCostPerHead ?? 0} ${escHtml(m.LocalCurrency)}</td></tr>
+          <tr><td>EoR fee / head / month</td><td>${m.EoRFeePerHead ?? 0} ${escHtml(m.DisplayCurrency)}</td></tr>
+          ${m.LocalCurrency !== m.DisplayCurrency ? `<tr><td>FX rate (${escHtml(m.LocalCurrency)}→${escHtml(m.DisplayCurrency)})</td><td>${m.FXRateLocalToDisplay ?? '—'}</td></tr>` : ''}
         </tbody>
       </table>
       <p style="font-size:12px;color:var(--text-muted);margin-top:12px">

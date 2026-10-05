@@ -51,7 +51,7 @@ async function mobileRenderRoleDetail(main) {
         <div class="m-detail-label">Project</div>
         <div class="m-detail-value">${escHtml(role.CustomerName || '—')}</div>
         <div class="m-detail-label">Stage</div>
-        <div class="m-detail-value">${role.Stage || '—'}</div>
+        <div class="m-detail-value">${escHtml(role.Stage || '—')}</div>
         <div class="m-detail-label">Talent Partner</div>
         <div class="m-detail-value">${escHtml(tpList(role.TalentPartner).join(', ')) || '—'}</div>
         <div class="m-detail-label">Open Date</div>
@@ -98,7 +98,7 @@ async function mobileRenderStageUpdate(main) {
     main.innerHTML = `
       <div class="m-detail-panel">
         <div class="m-detail-label">Current Stage</div>
-        <div class="m-detail-value" id="m-current-stage">${role.Stage || '—'}</div>
+        <div class="m-detail-value" id="m-current-stage">${escHtml(role.Stage || '—')}</div>
         <div class="m-stage-grid">${stageButtons}</div>
       </div>
       <div class="m-action-row">

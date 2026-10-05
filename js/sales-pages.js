@@ -95,11 +95,11 @@ function _renderForecastPage(forecasts) {
   const rows = sorted.length
     ? sorted.map(f => `
         <tr>
-          <td>${f.Title || '—'}</td>
+          <td>${escHtml(f.Title || '—')}</td>
           <td>${_fmtForecastDate(f.ForecastStartDate)}</td>
           <td>${_fmtForecastDate(f.ForecastEndDate)}</td>
           <td>${f.ForecastedHeadcount ?? '—'}</td>
-          <td>${f.Notes || ''}</td>
+          <td>${escHtml(f.Notes || '')}</td>
           <td>
             <div class="row-actions">
               <button class="btn-secondary" onclick="openForecastModal(${f.id})">Edit</button>

@@ -36,7 +36,7 @@ async function renderEngagementPage() {
         <select class="eng-run-selector" id="eng-run-select" onchange="engSwitchRun(this.value)">
           ${sorted.map(r => `
             <option value="${r.id}" ${r.id === defaultRun.id ? 'selected' : ''}>
-              ${_escEngHtml(r.Title || r.id)} — ${r.Status}
+              ${_escEngHtml(r.Title || r.id)} — ${_escEngHtml(r.Status)}
             </option>`).join('')}
         </select>
       </div>

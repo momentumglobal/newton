@@ -14,7 +14,7 @@ function questionRowHtml(q, index, total, { pending = false } = {}) {
   return `
     <div class="eng-q-row${pending ? ' row-pending' : ''}"${pending ? ` data-pending-id="${escAttr(q.id)}"` : ` id="eng-q-row-${q.id}"`}>
       <div class="eng-q-row-main">
-        <span class="eng-q-type-badge">${q.QuestionType}</span>
+        <span class="eng-q-type-badge">${_escEngHtml(q.QuestionType)}</span>
         <span class="eng-q-text">${_escEngHtml(q.QuestionText)}</span>
         ${q.IsRequired ? '<span class="eng-q-required">Required</span>' : ''}
       </div>

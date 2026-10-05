@@ -154,13 +154,13 @@ function _lciSettingsHtml() {
         ${field(`Local currency`, `<select class="form-control" data-setting="LocalCurrency" onchange="lciSettingChanged()">${ccyOpts(m.LocalCurrency)}</select>`)}
         ${field(`Display currency`, `<select class="form-control" data-setting="DisplayCurrency" onchange="lciSettingChanged()">${ccyOpts(m.DisplayCurrency)}</select>`)}
         <div id="lci-fx-setting" style="${fxDiffer ? '' : 'display:none'}">
-        ${field(`FX rate (1 ${m.LocalCurrency} = X ${m.DisplayCurrency})`, numInput('FXRateLocalToDisplay', m.FXRateLocalToDisplay, '0.0001'))}
+        ${field(`FX rate (1 ${escHtml(m.LocalCurrency)} = X ${escHtml(m.DisplayCurrency)})`, numInput('FXRateLocalToDisplay', m.FXRateLocalToDisplay, '0.0001'))}
         </div>
         ${field(`Employer burden %`, numInput('EmployerBurdenPct', m.EmployerBurdenPct != null ? Math.round(m.EmployerBurdenPct * 100 * 100) / 100 : '', '0.5'))}
         ${field('Salary months', `<select class="form-control" data-setting="SalaryMonths" onchange="lciSettingChanged()">${smOpts}</select>`)}
         ${field('Notice period (default, months)', numInput('NoticeMonths', m.NoticeMonths ?? 0, '1'))}
-        ${field(`Office / head / month (${m.LocalCurrency})`, numInput('OfficeCostPerHead', m.OfficeCostPerHead, '10'))}
-        ${field(`EoR / head / month (${m.DisplayCurrency})`, numInput('EoRFeePerHead', m.EoRFeePerHead, '10'))}
+        ${field(`Office / head / month (${escHtml(m.LocalCurrency)})`, numInput('OfficeCostPerHead', m.OfficeCostPerHead, '10'))}
+        ${field(`EoR / head / month (${escHtml(m.DisplayCurrency)})`, numInput('EoRFeePerHead', m.EoRFeePerHead, '10'))}
         ${canAssign ? field('Assigned DM (email)',
           `<input type="email" class="form-control" data-setting="AssignedDMEmail" value="${escHtml(m.AssignedDMEmail)}" onchange="lciSettingChanged()">`) : ''}
       </div>
@@ -277,7 +277,7 @@ function _lciRoadmapHtml() {
   return `
     <div id="lci-roadmap-section" class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;margin-top:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 style="margin:0;color:var(--brand-tertiary)">Hiring Roadmap <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(salaries in ${m.LocalCurrency})</span></h3>
+        <h3 style="margin:0;color:var(--brand-tertiary)">Hiring Roadmap <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(salaries in ${escHtml(m.LocalCurrency)})</span></h3>
         <div style="display:flex;gap:8px">
           <button class="btn-secondary" onclick="addLCIMilestone()">+ Add Milestone</button>
           <button class="btn-secondary" onclick="addLCITeam()">+ Add Team</button>

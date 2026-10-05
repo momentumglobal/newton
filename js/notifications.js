@@ -75,7 +75,7 @@ function paintBell(rows, unread) {
   const items = recent.length ? recent.map(n => `
     <div class="notif-item${n.IsRead ? ' is-read' : ''}" data-id="${n.id}"
       onclick="notifOpen('${n.id}', '${escJsAttr(n.DeepLink || '')}')">
-      <div class="notif-item-icon notif-tone--${n.Tone || 'attention'}">
+      <div class="notif-item-icon notif-tone--${n.Tone /* esc-lint-ok: Tone is set by code (notifications triggers), never user input */ || 'attention'}">
         <i data-lucide="${NOTIF_ICON[n.Tone] || 'bell'}"></i>
       </div>
       <div class="notif-item-body">

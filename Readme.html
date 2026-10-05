@@ -1038,6 +1038,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <h3>Output escaping</h3>
       <ul class="checklist">
         <li>Data interpolated into HTML uses the utils.js helpers by context: text → <code>escHtml</code> (multi-line: <code>escHtmlLines</code>), double-quoted attribute → <code>escAttr</code>, JS string inside an attribute handler → <code>escJsAttr</code>.</li>
+        <li>Every SharePoint text value rendered in an HTML template literal is wrapped in <code>escHtml</code>/<code>escAttr</code> — including option labels, table cells and Choice/currency fields. Enforced by <code>tests/lint-escaping.js</code>; opt out only with <code>/* esc-lint-ok: reason */</code> inside the <code>${}</code> (a trailing <code>//</code> comment would render as text).</li>
         <li>Escape inside the <code>.map()</code> that builds an option/row string, never again where the composed variable is interpolated — composed markup stays raw.</li>
         <li>Never escape inside comparison expressions (<code>selected</code>/<code>checked</code> ternaries compare raw values).</li>
       </ul>

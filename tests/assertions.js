@@ -2161,4 +2161,46 @@ var ASSERTIONS = [
       _assertEqual(hits, [], 'banned identifiers in js/');
     },
   },
+  {
+    name: 'No unescaped SharePoint text in HTML templates in js/ (N-283 — S-8 guard)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const found = lintEscaping(ALL_SOURCES);
+      _assertEqual(
+        found.map(v => `${v.file}:${v.line} \${${v.expr}}`),
+        [],
+        'naked ${x.Field} in an HTML template without an esc* wrapper (wrap it, or see tests/lint-escaping.js for the opt-out)'
+      );
+    },
+  },
+  {
+    name: 'lintEscaping flags what it should and passes what it should (N-283 — guard the guard)',
+    fn: function () {
+      const BT = String.fromCharCode(96);
+      const run = src => lintEscaping({ 'fixture.js': src });
+      // (a)–(c) must be flagged
+      _assertEqual(run('x = ' + BT + '<td>${r.Notes}</td>' + BT).length, 1, '(a) bare field in a td');
+      _assertEqual(run('x = ' + BT + '\n<tr>\n  <td>\n ${r.Notes}\n </td></tr>' + BT).length, 1, '(b) tag and interpolation on different lines');
+      _assertEqual(run('x = ' + BT + '<td>${x.Title || \'—\'}</td>' + BT).length, 1, '(c) literal-fallback form');
+      // (d)–(g) must pass
+      _assertEqual(run('x = ' + BT + '<td>${escHtml(r.Title)}</td>' + BT).length, 0, '(d) escHtml wrapper');
+      _assertEqual(
+        run('x = ' + BT + '<option>${escHtml(r.Location ? ' + BT + '${r.RoleTitle} (${r.Location})' + BT + ' : r.RoleTitle)}</option>' + BT).length,
+        0, '(e) template nested inside an esc call'
+      );
+      _assertEqual(run('x = ' + BT + '<td>${r.Hires}</td>' + BT).length, 0, '(f) allowlisted numeric field');
+      _assertEqual(run('x = ' + BT + '<td>${r.Notes /* esc-lint-ok: fixture */}</td>' + BT).length, 0, '(g) opt-out with a reason');
+      // (h) bare opt-out must still be flagged
+      _assertEqual(run('x = ' + BT + '<td>${r.Notes /* esc-lint-ok */}</td>' + BT).length, 1, '(h) opt-out without a reason');
+      // plain-text template (no tag) is not HTML
+      _assertEqual(run('x = ' + BT + 'Remove "${r.Title}"?' + BT).length, 0, 'non-HTML template ignored');
+      // an inner template inside an UNescaped interpolation of an HTML template is HTML context
+      _assertEqual(
+        run('x = ' + BT + '<option>${r.Location ? ' + BT + '${r.RoleTitle} (${r.Location})' + BT + ' : r.RoleTitle}</option>' + BT).length,
+        2, 'inner template inherits HTML context (the coe-plan.js:460 shape)'
+      );
+    },
+  },
 ];

@@ -147,7 +147,7 @@ function coeRenderBody() {
   const main = document.getElementById('main-content');
 
   const projOpts = projects.map(p =>
-    `<option value="${p.id}" ${p.id == projectId ? 'selected' : ''}>${p.CustomerName}</option>`).join('');
+    `<option value="${p.id}" ${p.id == projectId ? 'selected' : ''}>${escHtml(p.CustomerName)}</option>`).join('');
   const tps = [...new Set(planRows.map(r => r.TalentPartner).filter(Boolean))];
   const tpOpts = ['<option value="">All Talent Partners</option>']
     .concat(tps.map(t => `<option value="${t}" ${_coeTPFilter === t ? 'selected' : ''}>${t}</option>`)).join('');
@@ -261,8 +261,8 @@ function coeGanttHtml(rows, opts = {}) {
         <button class="btn-secondary" onclick="coeDeleteRow(${row.id})">✕</button>
       </div></td>` : '';
     return `<tr>
-      <td class="coe-sticky coe-sticky--1">${row.Title}${role ? ' 🔗' : ''}</td>
-      <td class="coe-sticky coe-sticky--2">${row.TalentPartner || '—'}</td>
+      <td class="coe-sticky coe-sticky--1">${escHtml(row.Title)}${role ? ' 🔗' : ''}</td>
+      <td class="coe-sticky coe-sticky--2">${escHtml(row.TalentPartner || '—')}</td>
       <td class="coe-sticky coe-sticky--3">${coeFmtShort(row.OpenDate)}</td>
       <td class="coe-sticky coe-sticky--4">${coeFmtShort(s.targetHireDate)}</td>
       ${cells.join('')}${actions}</tr>`;
@@ -368,7 +368,7 @@ async function coeOpenRowModal(rowId = null) {
       <div id="coe-row-form-error" class="form-error"></div>
       <form id="coe-row-form" onsubmit="coeSubmitRow(event, ${rowId || 'null'})">
         <div class="form-group"><label>Role Title *</label>
-          <input type="text" name="Title" required value="${row?.Title || ''}"></div>
+          <input type="text" name="Title" required value="${escAttr(row?.Title || '')}"></div>
         <div class="form-group"><label>Talent Partner</label>
           <select name="TalentPartner">${tpOpts}</select></div>
         <div class="form-group"><label>Planned Open Date *</label>
@@ -457,7 +457,7 @@ function coeOpenLinkPicker(rowId) {
   // Linkable = not already linked, not closed. Backlog is deliberately included.
   const opts = roles
     .filter(r => !linked.has(String(r.id)) && !PLAN_LINKABLE_EXCLUDED_STAGES.includes(r.Stage))
-    .map(r => `<option value="${r.id}">${r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle}</option>`).join('')
+    .map(r => `<option value="${r.id}">${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</option>`).join('')
     || '<option value="" disabled>-- No active roles available --</option>';
 
   document.getElementById('coe-modal-host').innerHTML = `

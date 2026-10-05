@@ -61,11 +61,11 @@ function mrRenderSidebar(roles, projects, showProjectFilter) {
   const sel = (id, cur) => id === cur ? " selected" : "";
   const projectOpts = projects.map(p =>
     `<option value="${p.id}"${sel(String(p.id), _mrProjectId)}>
-      ${p.CustomerName}</option>`
+      ${escHtml(p.CustomerName)}</option>`
   ).join("");
   const roleOpts = roles.map(r =>
     `<option value="${r.id}"${sel(String(r.id), _mrRoleId)}>
-      ${r.RoleTitle}</option>`
+      ${escHtml(r.RoleTitle)}</option>`
   ).join("");
 
   return `
@@ -116,7 +116,7 @@ async function mrSetProject(projectId) {
   if (!sel) return;
   sel.innerHTML = '<option value="">— select role —</option>' +
     roles.map(r =>
-      `<option value="${r.id}">${r.RoleTitle}</option>`
+      `<option value="${r.id}">${escHtml(r.RoleTitle)}</option>`
     ).join("");
 }
 
@@ -211,10 +211,10 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
       </tr></thead><tbody>
         ${rejections.map(r =>
           `<tr>
-            <td>${r.CandidateName || "—"}</td>
-            <td>${r.RoleTitle     || "—"}</td>
-            <td>${r.Reason        || "—"}</td>
-            <td>${r.Detail        || "" }</td>
+            <td>${escHtml(r.CandidateName || "—")}</td>
+            <td>${escHtml(r.RoleTitle     || "—")}</td>
+            <td>${escHtml(r.Reason        || "—")}</td>
+            <td>${escHtml(r.Detail        || "")}</td>
           </tr>`).join("")}
       </tbody></table>
     </div>` : "";
@@ -623,10 +623,10 @@ function mrRenderPrintCanvas() {
         </tr></thead><tbody>
           ${rejections.map(r =>
             `<tr>
-              <td>${r.CandidateName || "\u2014"}</td>
-              <td>${r.RoleTitle     || "\u2014"}</td>
-              <td>${r.Reason        || "\u2014"}</td>
-              <td>${r.Detail        || ""      }</td>
+              <td>${escHtml(r.CandidateName || "\u2014")}</td>
+              <td>${escHtml(r.RoleTitle     || "\u2014")}</td>
+              <td>${escHtml(r.Reason        || "\u2014")}</td>
+              <td>${escHtml(r.Detail        || "")}</td>
             </tr>`).join("")}
         </tbody></table>
       </div>

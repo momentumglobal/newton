@@ -28,7 +28,7 @@ function mobileRoleCardHtml(r, { pending = false } = {}) {
             <div class="m-role-title">${escHtml(r.RoleTitle)}</div>
             <div class="m-role-meta">${escHtml(tpList(r.TalentPartner).join(', ')) || '—'}</div>
             <div class="m-role-footer">
-              <span class="m-stage-badge">${r.Stage || '-'}</span>
+              <span class="m-stage-badge">${escHtml(r.Stage || '-')}</span>
               ${daysLabel ? `<span class="m-days-open ${daysClass}">${daysLabel}</span>` : ''}
             </div>
           </div>`;

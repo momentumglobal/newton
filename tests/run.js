@@ -49,6 +49,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),
   path.join(TESTS_DIR, 'lint-alias-consumers.js'),
+  path.join(TESTS_DIR, 'lint-escaping.js'),
   path.join(TESTS_DIR, 'fixtures.js'),
   path.join(TESTS_DIR, 'assertions.js'),
 ];

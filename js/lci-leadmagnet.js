@@ -135,7 +135,7 @@ function _lmLibraryHtml() {
           <td><strong>${escHtml(l.Title || '—')}</strong></td>
           <td>${l.EmployerBurdenPct != null ? (Math.round(l.EmployerBurdenPct * 100000) / 1000) + '%' : '—'}</td>
           <td>${l.FXRateToGBP ?? '—'}</td>
-          <td>${l.Currency || '—'}</td>
+          <td>${escHtml(l.Currency || '—')}</td>
           ${D.map(d => `<td class="lm-scol">${l[d.col] != null ? Number(l[d.col]).toLocaleString() : '—'}</td>`).join('')}
           <td>
             <div class="row-actions">

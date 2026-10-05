@@ -112,7 +112,6 @@ msalInstance.handleRedirectPromise().then(response => {
     // Coming back from Microsoft redirect — store user details
     const account = response.account || msalInstance.getAllAccounts()[0];
     if (account) {
-      localStorage.setItem('userEmail', account.username.toLowerCase());
       localStorage.setItem('userName',  account.name);
     }
   }

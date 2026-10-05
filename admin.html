@@ -86,7 +86,6 @@
       if (response) {
         const account = response.account || msalInstance.getAllAccounts()[0];
         if (account) {
-          localStorage.setItem('userEmail', account.username.toLowerCase());
           localStorage.setItem('userName', account.name);
         }
       }

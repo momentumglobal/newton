@@ -37,6 +37,11 @@ const CONFIG = {
   // UserAssignments row (AssignedRole 'admin', ProjectID 0), never a list in
   // code: this file is public on GitHub Pages.
   ROLE_PRECEDENCE: ['admin', 'leadership', 'delivery_manager', 'talent_partner', 'viewer'],
+  // N-282: roles that are NEVER served from a browser-writable cache
+  // (sessionStorage is editable by the user, and the build stamp is public).
+  // Always re-resolved from UserAssignments / LeadershipAccess. Must be a
+  // subset of ROLE_PRECEDENCE. Read through isPrivilegedRole() (utils.js).
+  PRIVILEGED_ROLES: ['admin', 'leadership'],
   ROLE_LABELS: {
     admin:            'Admin',
     leadership:       'Leadership',
@@ -659,12 +664,14 @@ const CONFIG = {
     ttlMs:           600000,   // 10 minutes
     maxEntryBytes:   262144,   // skip persisting anything larger
     persistentLists: [
+      // N-282: NEVER enrol an identity/access list (UserAssignments,
+      // LeadershipAccess). sessionStorage is writable by the user, so a forged
+      // tier-2 entry would be served as the real admin/leadership rows and
+      // defeat role resolution. They stay on tier 1 (30s, in memory) only.
       'Projects',
       'People',
       'Departments',
       'LCILocations',
-      'UserAssignments',
-      'LeadershipAccess',
       // N-266a: checklist content — admin-edited from one place (Config
       // Panel, N-266b), every write via createItem/updateItem, read on every
       // Projects/Roles render. ChecklistProgress is transactional and must

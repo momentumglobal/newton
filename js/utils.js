@@ -775,7 +775,24 @@ function sumField(acts, field) {
 const GHOST_USER_KEY  = 'newton_ghost_user';
 const GHOST_LABEL_KEY = 'newton_ghost_label';
 
+// N-282 / SEC-2: Ghost Mode is honoured ONLY while this flag is true. It is
+// set by api.js (_verifyGhost / getEffectiveRole) after the REAL signed-in
+// account — MSAL, via getCurrentUser() — has resolved as admin, and is never
+// read from storage. Default false = fail closed: until that check has run on
+// a page, getGhostUser() reports "no ghost" and every caller sees the real
+// identity. Strictly boolean true only.
+let _ghostRealAdmin = false;
+function _setGhostRealAdmin(isAdmin) { _ghostRealAdmin = isAdmin === true; }
+
+// True when a ghost key is stored. Raw — says nothing about whether ghost is
+// honoured (see getGhostUser()). Used only by api.js's ghost gate.
+function _hasStoredGhost() {
+  try { return !!sessionStorage.getItem(GHOST_USER_KEY); } catch (e) { return false; }
+}
+
+// Returns true when ghost mode was set, false when refused (not a real admin).
 function setGhostUser(email, displayName) {
+  if (!_ghostRealAdmin) return false;
   sessionStorage.setItem(GHOST_USER_KEY, email.toLowerCase());
   sessionStorage.setItem(GHOST_LABEL_KEY, displayName || email);
   // N-176/N-205: entering ghost mode changes which rows the UI derives from a
@@ -785,11 +802,14 @@ function setGhostUser(email, displayName) {
   // before api.js.
   if (typeof _apiCache !== 'undefined') _apiCache.clear();
   if (typeof _ssPurge === 'function') _ssPurge();
+  return true;
 }
 function getGhostUser() {
+  if (!_ghostRealAdmin) return null;
   return sessionStorage.getItem(GHOST_USER_KEY);
 }
 function getGhostLabel() {
+  if (!_ghostRealAdmin) return null;
   return sessionStorage.getItem(GHOST_LABEL_KEY);
 }
 function clearGhostUser() {
@@ -2088,4 +2108,10 @@ function resolveRoleFromAssignments(rows, isLeadership) {
     if (i !== -1 && i < best) best = i;
   });
   return order[best];
+}
+
+// N-282: pure. True for the roles that must never be served from a
+// browser-writable cache (CONFIG.PRIVILEGED_ROLES: admin, leadership).
+function isPrivilegedRole(role) {
+  return CONFIG.PRIVILEGED_ROLES.includes(role);
 }

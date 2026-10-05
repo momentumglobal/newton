@@ -33,6 +33,7 @@ async function deleteSalesForecast(id) {
 // must not change. The read is cached, so this doesn't add a real extra
 // network round-trip alongside a getUserProjectIds() call for the same user.
 async function getDefaultUserProjectId(email) {
+  await _ensureGhostGate();   // N-282: getGhostUser() is only valid after the gate
   const lower = (getGhostUser() || email).toLowerCase();
   const assignments = await getItems("UserAssignments", `fields/Title eq '${lower}'`);
   // N-281: admin rows (ProjectID 0) are not a project — skip them.

@@ -88,10 +88,11 @@ function _ssKey(listName, filter, selectStr) {
   return CONFIG.CACHE.prefix + '|' + CONFIG.APP_BUILD + '|' + _cacheKey(listName, filter, selectStr);
 }
 
-// Pure. True only for OUR keys. Six unrelated sessionStorage key families
-// already exist (newton_role_, newton_dm_grants_, newton_ghost_,
-// newton_diag_, newton_survey_, newton_force_desktop) and none of them may
-// ever be touched by a cache purge.
+// Pure. True only for OUR keys. Five unrelated sessionStorage key families
+// already exist (newton_role_, newton_ghost_, newton_diag_, newton_survey_,
+// newton_force_desktop) and none of them may ever be touched by a cache
+// purge. (newton_dm_grants_ is no longer written — N-282 moved DM grants to
+// memory.)
 function _ssIsCacheKey(key) {
   return typeof key === 'string' && key.indexOf(CONFIG.CACHE.prefix + '|') === 0;
 }
@@ -931,7 +932,7 @@ async function deleteItem(listName, itemId) {
 // ── Explicit refresh (N-176 / F-3a) ──────────────────────────────────
 // The user's escape hatch from a stale cache, behind the sidebar's
 // "Refresh data" button. Clears BOTH tiers and nothing else: newton_role_*,
-// newton_dm_grants_*, newton_ghost_*, newton_diag_*, newton_survey_* and
+// newton_ghost_*, newton_diag_*, newton_survey_* and
 // newton_force_desktop belong to other features, and a "Refresh data" that
 // silently re-resolved the user's role or dropped them out of Ghost Mode
 // would be a different and surprising action.
@@ -1285,19 +1286,25 @@ async function getDepartments() {
 // 2. LeadershipAccess list
 // 3. Highest DM / TP role in UserAssignments
 // 4. Fall back to 'viewer' (no row, or no recognised role)
-// ── Role / DM-grant cache (N-177 / F-3b) ─────────────────────────────
-// newton_role_<email> and newton_dm_grants_<email> are NOT part of the
-// tier-2 list cache. They hold a value DERIVED from UserAssignments and
-// LeadershipAccess, they are keyed by email rather than by list, and they
-// are not gated on CONFIG.CACHE.persistentLists. They borrow only the TTL
-// and the build stamp.
+// ── Role cache (N-177 / F-3b, amended by N-282) ──────────────────────
+// newton_role_<email> is NOT part of the tier-2 list cache. It holds a value
+// DERIVED from UserAssignments and LeadershipAccess, it is keyed by email
+// rather than by list, and it is not gated on CONFIG.CACHE.persistentLists.
+// It borrows only the TTL and the build stamp.
 //
-// Before N-177 both were bare, unstamped values that lived for the whole
-// browser-tab session, so an admin changing someone's access had no effect
-// on that person until they signed out. Enrolling UserAssignments and
+// N-282 / SEC-2: sessionStorage is writable by the user and the build stamp
+// is public (CONFIG.APP_BUILD), so a forged entry passes the stamp check.
+// Therefore admin and leadership are NEVER read from or written to this
+// cache — they are always re-resolved from the lists — and a cached value
+// that is not a known lower role is ignored (_roleCacheValueUsable). DM
+// grants no longer live in storage at all (_dmGrantsMem, below).
+//
+// Before N-177 the role entry was a bare, unstamped value that lived for the
+// whole browser-tab session, so an admin changing someone's access had no
+// effect on that person until they signed out. Enrolling UserAssignments and
 // LeadershipAccess on a 10-minute TTL made that incoherent — the cheaper
-// cache would have been the fresher one. Stamping these two makes access
-// data strictly fresher than it was.
+// cache would have been the fresher one. Stamping the entry makes access data
+// strictly fresher than it was. (N-282 later took both lists back off tier 2.)
 //
 // Entry shape: { ts, build, value }.
 
@@ -1313,10 +1320,12 @@ function _roleEntryUsable(entry, honourTtl) {
   return true;
 }
 
-// honourTtl: false is for hasDMGrant() ONLY — see the comment there. Anything
-// that is not a well-formed stamped entry, INCLUDING a legacy bare string or
-// bare array written before N-177, is treated as absent so the caller
-// re-resolves. Never migrated in place, never allowed to throw.
+// honourTtl: false has no production caller since N-282 (hasDMGrant() now
+// reads memory, not this cache); it stays because the _roleEntryUsable tests
+// cover both modes. Anything that is not a well-formed stamped entry,
+// INCLUDING a legacy bare string or bare array written before N-177, is
+// treated as absent so the caller re-resolves. Never migrated in place,
+// never allowed to throw.
 function _roleCacheGet(key, { honourTtl = true } = {}) {
   try {
     if (typeof sessionStorage === 'undefined') return null;
@@ -1345,38 +1354,102 @@ function _roleCacheSet(key, value) {
   }
 }
 
-async function getEffectiveRole(email) {
-  const lower = (getGhostUser() || email).toLowerCase();
-  const cacheKey = 'newton_role_' + lower;
-  // N-177: honours both the build stamp and CONFIG.CACHE.ttlMs, so an access
-  // change now takes effect within the TTL instead of only on sign-out.
-  const cached = _roleCacheGet(cacheKey);
-  if (cached) return cached;
+// N-282: DM grants are held in memory, never in storage. Keyed by
+// lower-cased email -> array of project-ID strings. Written by
+// getEffectiveRole() on EVERY path, read by hasDMGrant().
+const _dmGrantsMem = new Map();
 
+// Pure. A cached role may be served only if it is a known role below the
+// privileged tier. 'admin'/'leadership' (even a genuine one) and anything
+// unrecognised are re-resolved from the lists instead.
+function _roleCacheValueUsable(value) {
+  return typeof value === 'string'
+    && CONFIG.ROLE_PRECEDENCE.includes(value)
+    && !isPrivilegedRole(value);
+}
+
+// Role of `lower` plus the UserAssignments rows it came from, resolved from
+// the lists. Never touches the role cache. Shared by getEffectiveRole() and
+// the ghost gate so the two can never disagree about what "admin" means.
+async function _resolveRoleForEmail(lower) {
   // N-281: admin comes from an active UserAssignments row, not from code.
-  // Both lists are read up front (both cached) so precedence is decided in
-  // one place and never depends on row order.
+  // Both lists are read up front so precedence is decided in one place and
+  // never depends on row order.
   const [leadership, assignments] = await Promise.all([
     getLeadershipAccess(),
     getItems("UserAssignments", `fields/Title eq '${lower}'`),
   ]);
   const isLeadership = leadership.some(l => l.UserEmail?.toLowerCase() === lower);
-  const role = resolveRoleFromAssignments(assignments, isLeadership);
+  return { role: resolveRoleFromAssignments(assignments, isLeadership), assignments };
+}
 
-  if (role === 'leadership') {
-    // Leadership user may ALSO hold explicit DM assignments — cache those project IDs
-    const dmProjects = assignments
-      .filter(a => a.AssignedRole === 'delivery_manager' && a.ProjectID && a.ProjectID !== 0)
-      .map(a => String(a.ProjectID));
-    _roleCacheSet('newton_dm_grants_' + lower, dmProjects);
+// ── Ghost gate (N-282 / SEC-2) ───────────────────────────────────────
+// Ghost Mode is honoured only when the REAL signed-in account — MSAL, via
+// getCurrentUser(), never a storage value — resolves as admin. Otherwise the
+// stored ghost keys are cleared. Runs at most once per page load, and costs
+// nothing when no ghost key is stored. Awaited by getEffectiveRole(),
+// getUserProjectIds() and getDefaultUserProjectId() before they read
+// getGhostUser(); until it has run, getGhostUser() fails closed (null).
+let _ghostGatePromise = null;
+
+// Resolves true when settled, false when it could not verify (e.g. Graph
+// failed) — in that case ghost stays ignored for this page but is NOT
+// cleared, so a real admin's ghost session survives a network blip.
+async function _verifyGhost() {
+  if (!_hasStoredGhost()) return true;
+  try {
+    const realEmail = (getCurrentUser()?.email || '').toLowerCase();
+    const isAdmin = !!realEmail && (await _resolveRoleForEmail(realEmail)).role === 'admin';
+    _setGhostRealAdmin(isAdmin);
+    if (!isAdmin) clearGhostUser();
+    return true;
+  } catch (e) {
+    return false;
   }
+}
 
-  // N-177 (beyond spec): a user demoted OUT of leadership keeps their old
-  // newton_dm_grants_ entry, because only the leadership branch above ever
-  // writes that key. Write an empty grant set on every other path so the
-  // demotion actually lands within the TTL.
-  if (role !== 'leadership') _roleCacheSet('newton_dm_grants_' + lower, []);
-  _roleCacheSet(cacheKey, role);
+function _ensureGhostGate() {
+  if (!_ghostGatePromise) {
+    _ghostGatePromise = _verifyGhost().then(settled => { if (!settled) _ghostGatePromise = null; });
+  }
+  return _ghostGatePromise;
+}
+
+async function getEffectiveRole(email) {
+  await _ensureGhostGate();
+  const realEmail = (getCurrentUser()?.email || '').toLowerCase();
+  const ghost = getGhostUser();              // null unless the real account is admin
+  const lower = (ghost || email).toLowerCase();
+  // True when we are resolving the signed-in account itself (no ghost in play).
+  const subjectIsReal = !ghost && lower === realEmail;
+  const cacheKey = 'newton_role_' + lower;
+  try { sessionStorage.removeItem('newton_dm_grants_' + lower); } catch (e) { /* legacy key, N-282 */ }
+
+  // N-177: honours both the build stamp and CONFIG.CACHE.ttlMs, so an access
+  // change now takes effect within the TTL instead of only on sign-out.
+  // N-282: only a known lower role is ever served from here.
+  const cached = _roleCacheGet(cacheKey);
+  if (_roleCacheValueUsable(cached)) {
+    _dmGrantsMem.set(lower, []);             // a cached role is never leadership
+    if (subjectIsReal) _setGhostRealAdmin(false);
+    return cached;
+  }
+  if (cached) { try { sessionStorage.removeItem(cacheKey); } catch (e) { /* ignore */ } }
+
+  const { role, assignments } = await _resolveRoleForEmail(lower);
+  if (subjectIsReal) _setGhostRealAdmin(role === 'admin');
+
+  // A leadership user may ALSO hold explicit DM assignments — their project
+  // IDs feed hasDMGrant(). Every other role holds none: N-177 (beyond spec) —
+  // a user demoted OUT of leadership must not keep old grants, so the empty
+  // set is written on every non-leadership path.
+  _dmGrantsMem.set(lower, role === 'leadership'
+    ? assignments
+        .filter(a => a.AssignedRole === 'delivery_manager' && a.ProjectID && a.ProjectID !== 0)
+        .map(a => String(a.ProjectID))
+    : []);
+
+  if (!isPrivilegedRole(role)) _roleCacheSet(cacheKey, role);
   return role;
 }
  
@@ -1385,17 +1458,17 @@ async function getEffectiveRole(email) {
 // True if the resolved user (the ghosted user if Ghost Mode is active, else
 // the signed-in user) holds an explicit DM grant.
 // Pass a projectId to scope the check; omit for "any DM grant?"
-// N-177: reads the stamped entry, but deliberately does NOT honour the TTL.
-// This function is SYNCHRONOUS — it cannot re-resolve on a miss, so treating
-// an aged entry as absent would silently strip a leadership user's DM access
-// mid-page. A build change implies a page load and is therefore safe to
-// honour; a TTL expiry is not. The TTL still bounds these grants in practice
-// because getEffectiveRole() re-resolves and rewrites them on every module
-// init (app.js, cc-app.js, mr-app.js, people-app.js, mobile-app.js, forms.js).
-// Do not "tidy" this asymmetry away.
+// N-282: reads _dmGrantsMem, NOT storage — a forged sessionStorage entry can
+// no longer grant DM controls. This function is SYNCHRONOUS — it cannot
+// re-resolve on a miss, so it deliberately has NO TTL: an aged entry must not
+// silently strip a leadership user's DM access mid-page. The grants live for
+// the page and are re-resolved by getEffectiveRole(), which every module
+// awaits in its init (app.js, cc-app.js, mr-app.js, people-app.js,
+// mobile-app.js, forms.js) before anything calls this. No entry = false
+// (fail closed). Do not "tidy" this asymmetry away.
 function hasDMGrant(projectId = null) {
   const email = (getGhostUser() || getCurrentUser()?.email || '').toLowerCase();
-  const grants = _roleCacheGet('newton_dm_grants_' + email, { honourTtl: false }) || [];
+  const grants = _dmGrantsMem.get(email) || [];
   return projectId ? grants.includes(String(projectId)) : grants.length > 0;
 }
 
@@ -1449,6 +1522,7 @@ async function filterToActiveTpEmails(tpEmails, tpMap) {
 // N-162: resolves against the ghosted user's real assignments when Ghost
 // Mode is active, instead of a single manually-picked ghost project.
 async function getUserProjectIds(email) {
+  await _ensureGhostGate();   // N-282: getGhostUser() is only valid after the gate
   const lower = (getGhostUser() || email).toLowerCase();
   const assignments = await getItems("UserAssignments", `fields/Title eq '${lower}'`);
   // N-281: an active admin row sees all projects.

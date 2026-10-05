@@ -78,9 +78,8 @@ async function mobileInit() {
       return;
     }
 
-    // Persist user details straight from the MSAL account, so we never rely
-    // on another page having populated localStorage.
-    if (account.username) localStorage.setItem('userEmail', account.username.toLowerCase());
+    // Persist the display name straight from the MSAL account. Identity (the
+    // email) is read from MSAL by getCurrentUser() — never stored (N-282).
     if (account.name)     localStorage.setItem('userName',  account.name);
 
     // Warm the token cache (non-fatal if it needs interaction).

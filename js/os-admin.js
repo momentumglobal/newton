@@ -494,7 +494,11 @@ function activateGhostUser() {
     return;
   }
   const opt = sel.options[sel.selectedIndex];
-  setGhostUser(email, opt?.dataset.name || email);
+  // N-282: refused unless the signed-in account is a real admin.
+  if (!setGhostUser(email, opt?.dataset.name || email)) {
+    toast('Ghost Mode is only available to Newton admins.', { type: 'error' });
+    return;
+  }
   window.location.href = 'reporting.html';
 }
 

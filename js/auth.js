@@ -64,10 +64,15 @@ async function getElevatedToken() {
   }
 }
 
+// N-282: identity comes from the MSAL account, never from localStorage
+// (user-writable — a forged userEmail used to resolve as that user). Email is
+// null when nobody is signed in. Name is display-only, so it may fall back to
+// the localStorage value written at login.
 function getCurrentUser() {
+  const account = msalInstance.getAllAccounts()[0];
   return {
-    email: localStorage.getItem('userEmail'),
-    name:  localStorage.getItem('userName'),
+    email: account && account.username ? account.username.toLowerCase() : null,
+    name:  (account && account.name) || localStorage.getItem('userName'),
   };
 }
 

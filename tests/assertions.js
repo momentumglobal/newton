@@ -668,13 +668,14 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-176/N-177 CONFIG.CACHE — fully configured, seven lists enrolled',
+    name: 'N-176/N-177 CONFIG.CACHE — fully configured, five lists enrolled',
     fn: function () {
       _assertEqual(Array.isArray(CONFIG.CACHE.persistentLists), true, 'persistentLists is an array');
-      // N-176 asserted this was 0 (engine inert). N-177 enrols the six
-      // reference lists, so the guard becomes "the expected six", not "none".
-      // N-266a adds a seventh reference list, ChecklistTemplates.
-      _assertEqual(CONFIG.CACHE.persistentLists.length, 7, 'N-177 six + N-266a ChecklistTemplates');
+      // N-176 asserted this was 0 (engine inert). N-177 enrolled six reference
+      // lists; N-266a added ChecklistTemplates (seven). N-282 took the two
+      // identity/access lists (UserAssignments, LeadershipAccess) back off
+      // tier 2 — sessionStorage is user-writable — leaving five.
+      _assertEqual(CONFIG.CACHE.persistentLists.length, 5, 'N-177 four + N-266a ChecklistTemplates (N-282 removed two)');
       _assertEqual(typeof CONFIG.APP_BUILD === 'string' && CONFIG.APP_BUILD.length > 0, true, 'APP_BUILD set');
       _assertEqual(typeof CONFIG.CACHE.ttlMs, 'number', 'ttlMs');
       _assertEqual(typeof CONFIG.CACHE.maxEntryBytes, 'number', 'maxEntryBytes');
@@ -685,10 +686,10 @@ var ASSERTIONS = [
   },
   // ── N-177 (F-3b): enrolment set + role-cache stamping ───────────────
   {
-    name: 'N-177 persistentLists — exactly the seven reference lists',
+    name: 'N-177 persistentLists — exactly the five reference lists (N-282: no identity/access lists)',
     fn: function () {
       _assertEqual([...CONFIG.CACHE.persistentLists].sort(),
-        ['ChecklistTemplates', 'Departments', 'LCILocations', 'LeadershipAccess', 'People', 'Projects', 'UserAssignments'],
+        ['ChecklistTemplates', 'Departments', 'LCILocations', 'People', 'Projects'],
         'enrolment set');
     },
   },
@@ -701,17 +702,106 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-177 _ssEnabled — true for the seven, false for the transactional six',
+    name: 'N-177 _ssEnabled — true for the five, false for the transactional six and the identity lists (N-282)',
     fn: function () {
       // _ssEnabled() returns false whenever sessionStorage is absent, which it
       // is under Node (tests/run.js). Skipping is honest; asserting here would
       // report a meaningless PASS on the storage guard rather than on
       // enrolment. Runs for real in tests/index.html.
       if (typeof sessionStorage === 'undefined') _skip('no sessionStorage under Node — run tests/index.html for this one');
-      ['Projects', 'People', 'Departments', 'LCILocations', 'UserAssignments', 'LeadershipAccess', 'ChecklistTemplates']
+      ['Projects', 'People', 'Departments', 'LCILocations', 'ChecklistTemplates']
         .forEach(function (l) { _assertEqual(_ssEnabled(l), true, l + ' enrolled'); });
-      ['Roles', 'WeeklyActivity', 'Placements', 'Assignments', 'RoleHistory', 'ChecklistProgress']
+      ['Roles', 'WeeklyActivity', 'Placements', 'Assignments', 'RoleHistory', 'ChecklistProgress', 'UserAssignments', 'LeadershipAccess']
         .forEach(function (l) { _assertEqual(_ssEnabled(l), false, l + ' not enrolled'); });
+    },
+  },
+  // ── N-282 (SEC-2): no authorisation input is forgeable from storage ──
+  {
+    name: 'N-282 persistentLists — never contains an identity/access list (works under Node, unlike _ssEnabled)',
+    fn: function () {
+      ['UserAssignments', 'LeadershipAccess'].forEach(function (l) {
+        _assertEqual(CONFIG.CACHE.persistentLists.includes(l), false, l + ' must never be tier-2 cached');
+      });
+    },
+  },
+  {
+    name: 'N-282 CONFIG.PRIVILEGED_ROLES — exactly admin and leadership, both known roles',
+    fn: function () {
+      _assertEqual([...CONFIG.PRIVILEGED_ROLES].sort(), ['admin', 'leadership'], 'privileged set');
+      CONFIG.PRIVILEGED_ROLES.forEach(function (r) {
+        _assertEqual(CONFIG.ROLE_PRECEDENCE.includes(r), true, r + ' is in ROLE_PRECEDENCE');
+      });
+    },
+  },
+  {
+    name: 'N-282 isPrivilegedRole — true for admin and leadership only',
+    fn: function () {
+      _assertEqual(isPrivilegedRole('admin'), true, 'admin');
+      _assertEqual(isPrivilegedRole('leadership'), true, 'leadership');
+      ['delivery_manager', 'talent_partner', 'viewer', '', null, undefined, 'Admin', 'ADMIN', ['admin']].forEach(function (r) {
+        _assertEqual(isPrivilegedRole(r), false, String(r));
+      });
+    },
+  },
+  {
+    name: 'N-282 _roleCacheValueUsable — only known non-privileged role strings are served',
+    fn: function () {
+      ['delivery_manager', 'talent_partner', 'viewer'].forEach(function (r) {
+        _assertEqual(_roleCacheValueUsable(r), true, r + ' may be cached');
+      });
+      ['admin', 'leadership', 'Admin', 'superuser', '', null, undefined, 42, {}, ['admin'], ['viewer'], true].forEach(function (v) {
+        _assertEqual(_roleCacheValueUsable(v), false, JSON.stringify(v) + ' must be re-resolved');
+      });
+    },
+  },
+  {
+    name: 'N-282 ghost gate fails closed — no ghost and setGhostUser refuses until a real admin is verified',
+    fn: function () {
+      try {
+        _setGhostRealAdmin(false);
+        _assertEqual(getGhostUser(), null, 'no ghost while unverified');
+        _assertEqual(getGhostLabel(), null, 'no label while unverified');
+        _assertEqual(setGhostUser('x@y.com', 'X'), false, 'setGhostUser refuses');
+        // Only a strict boolean true opens the gate.
+        ['true', 1, {}, [], null, undefined].forEach(function (v) {
+          _setGhostRealAdmin(v);
+          _assertEqual(setGhostUser('x@y.com', 'X'), false, JSON.stringify(v) + ' must not open the gate');
+        });
+      } finally {
+        _setGhostRealAdmin(false);
+      }
+    },
+  },
+  {
+    name: 'N-282 hasDMGrant — reads the in-memory grants only, fails closed when absent',
+    fn: function () {
+      const prev = globalThis.getCurrentUser;
+      globalThis.getCurrentUser = function () { return { email: 'Leader@Example.com' }; };
+      try {
+        _setGhostRealAdmin(false);
+        _assertEqual(hasDMGrant(), false, 'no entry = false');
+        _dmGrantsMem.set('leader@example.com', ['12', '13']);
+        _assertEqual(hasDMGrant(), true, 'any grant');
+        _assertEqual(hasDMGrant(12), true, 'numeric id matches a string grant');
+        _assertEqual(hasDMGrant('13'), true, 'string id');
+        _assertEqual(hasDMGrant(99), false, 'other project');
+        _dmGrantsMem.set('leader@example.com', []);
+        _assertEqual(hasDMGrant(), false, 'empty grants = false');
+      } finally {
+        _dmGrantsMem.delete('leader@example.com');
+        if (prev === undefined) delete globalThis.getCurrentUser; else globalThis.getCurrentUser = prev;
+      }
+    },
+  },
+  {
+    name: 'N-282 no source reads identity from localStorage or keeps DM grants in storage',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('no source map in the browser harness — run tests/run.js');
+      _assertEqual(/getItem\(\s*['"]userEmail['"]/.test(ALL_SOURCES['auth.js']), false, 'auth.js must not read userEmail');
+      Object.keys(ALL_SOURCES).forEach(function (f) {
+        _assertEqual(/setItem\(\s*['"]userEmail['"]/.test(ALL_SOURCES[f]), false, f + ' must not write userEmail');
+        _assertEqual(/(?:get|set)Item\([^)]*newton_dm_grants_/.test(ALL_SOURCES[f]), false, f + ' must not keep DM grants in storage');
+      });
     },
   },
   {

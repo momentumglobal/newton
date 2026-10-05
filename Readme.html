@@ -885,7 +885,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-readflow" style="display:none">
       <div class="section-title">Read Flow</div>
       <p class="section-intro">All data reads go through <code>getItems(listName, filter)</code> in api.js, behind a <strong>two-tier cache</strong> (F-3, N-176/N-177). <strong>Tier 1</strong> is a 30-second in-memory <code>Map</code> that dies on every page navigation. <strong>Tier 2</strong> is a <code>sessionStorage</code> tier with a 10-minute TTL that survives navigation, so switching module no longer re-fetches data that has not changed.</p>
-      <p class="section-intro"><strong>Tier 2 is opt-in per list, and the enrolment list is the single source of truth.</strong> <code>CONFIG.CACHE.persistentLists</code> holds the six <em>reference</em> lists — Projects, People, Departments, LCILocations, UserAssignments, LeadershipAccess. The <em>transactional</em> lists a user edits and expects to see change immediately — Roles, WeeklyActivity, Placements, Assignments, RoleHistory — stay on tier 1 only and <strong>must never be added</strong>. N-084 (assignments edited, org chart still showing five people as Unassigned) is the failure this rule exists to prevent, and a 10-minute TTL would make that class worse, not better. No list name appears in api.js.</p>
+      <p class="section-intro"><strong>Tier 2 is opt-in per list, and the enrolment list is the single source of truth.</strong> <code>CONFIG.CACHE.persistentLists</code> holds the five <em>reference</em> lists — Projects, People, Departments, LCILocations, ChecklistTemplates. The identity/access lists — UserAssignments and LeadershipAccess — are deliberately <strong>not</strong> enrolled (N-282): sessionStorage is writable by the user, so a forged tier-2 entry would be served as real admin/leadership rows. The <em>transactional</em> lists a user edits and expects to see change immediately — Roles, WeeklyActivity, Placements, Assignments, RoleHistory — stay on tier 1 only and <strong>must never be added</strong>. N-084 (assignments edited, org chart still showing five people as Unassigned) is the failure this rule exists to prevent, and a 10-minute TTL would make that class worse, not better. No list name appears in api.js.</p>
       <p class="section-intro"><strong>Throttle retry:</strong> every Graph call (reads and writes) retries on HTTP 429/503, honouring SharePoint's <code>Retry-After</code> header or exponential backoff, up to <code>CONFIG.GRAPH_RETRY.maxAttempts</code>. Sequential write bursts (model copy, plan generation, bulk plan delete) rely on this — never add per-call retry loops in page scripts.</p>
 
       <h3>Read sequence</h3>
@@ -936,13 +936,12 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <p>The sidebar footer carries a <strong>Refresh data</strong> button (<code>nav-core.js</code>, present on the five module shells that load it). It clears both tiers via <code>refreshData()</code> in api.js and re-renders the current page. It deliberately does <em>not</em> clear the role or ghost keys — a refresh that silently re-resolved someone's role would change the nav under them and drop a ghosting admin's context.</p>
 
       <h3>sessionStorage key families</h3>
-      <p>Eight families now share <code>sessionStorage</code>, each owned by a different feature with a different lifetime. <strong>The cache purge helpers match on <code>CONFIG.CACHE.prefix + '|'</code> and nothing else — this is load-bearing.</strong> A greedy purge here would sign a user out of Ghost Mode and bin a half-finished survey draft. <code>newton_delta_&lt;list&gt;</code> (N-186/N-187) deliberately sits outside that prefix — it is removed individually, by exact key, from <code>_cacheInvalidate()</code> rather than swept by the tier-2 purge.</p>
+      <p>Seven families now share <code>sessionStorage</code>, each owned by a different feature with a different lifetime. <strong>The cache purge helpers match on <code>CONFIG.CACHE.prefix + '|'</code> and nothing else — this is load-bearing.</strong> A greedy purge here would sign a user out of Ghost Mode and bin a half-finished survey draft. <code>newton_delta_&lt;list&gt;</code> (N-186/N-187) deliberately sits outside that prefix — it is removed individually, by exact key, from <code>_cacheInvalidate()</code> rather than swept by the tier-2 purge.</p>
       <table>
         <tr><th>Key</th><th>Owner</th><th>Lifetime</th></tr>
         <tr><td><code>newton_cache|&lt;build&gt;|&lt;list&gt;|&lt;filter&gt;|&lt;select&gt;</code></td><td>api.js tier 2</td><td>10 min, or until the build stamp changes</td></tr>
         <tr><td><code>newton_delta_&lt;list&gt;</code></td><td>api.js delta sync (N-186/N-187)</td><td>no TTL — a sync token doesn't expire on a client clock; discarded on a write to that list, a foreign build stamp, or a bootstrap-retry after a corrupted/stale-token incremental failure</td></tr>
-        <tr><td><code>newton_role_&lt;email&gt;</code></td><td><code>getEffectiveRole()</code></td><td>10 min + build stamp (N-177)</td></tr>
-        <tr><td><code>newton_dm_grants_&lt;email&gt;</code></td><td><code>getEffectiveRole()</code>, read by <code>hasDMGrant()</code></td><td>build stamp only — see note below</td></tr>
+        <tr><td><code>newton_role_&lt;email&gt;</code></td><td><code>getEffectiveRole()</code></td><td>10 min + build stamp (N-177). Never holds admin or leadership (N-282)</td></tr>
         <tr><td><code>newton_ghost_user</code> / <code>newton_ghost_label</code></td><td><code>setGhostUser()</code> in utils.js</td><td>until exit or sign-out</td></tr>
         <tr><td><code>newton_diag_*</code></td><td>diagnostics.js (dedupe set, session cap)</td><td>session</td></tr>
         <tr><td><code>newton_survey_*</code></td><td>survey-app.js (draft, respondent UUID)</td><td>until submitted</td></tr>
@@ -1137,7 +1136,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <div class="flow-arrow">→</div>
         <div class="flow-step cache">Banner rendered by nav-core.js</div>
       </div>
-      <div class="callout amber"><strong>Role keys are per-email.</strong> <code>getEffectiveRole()</code> caches under <code>newton_role_&lt;ghosted email&gt;</code>, so ghosting never overwrites the admin's own cached role and the two coexist. Note that an active admin row outranks LeadershipAccess (N-281), so an admin resolves to <code>admin</code>, not <code>leadership</code> — ghosting an admin will never produce DM grants, by design.</div>
+      <div class="callout amber"><strong>Role keys are per-email.</strong> <code>getEffectiveRole()</code> caches a DM, TP or viewer role under <code>newton_role_&lt;ghosted email&gt;</code>, so ghosting never overwrites the admin's own cached role and the two coexist. Admin and leadership are never cached (N-282). Note that an active admin row outranks LeadershipAccess (N-281), so an admin resolves to <code>admin</code>, not <code>leadership</code> — ghosting an admin will never produce DM grants, by design.</div>
 
       <h3>Storage keys (sessionStorage)</h3>
       <p>Corrected to match the code as of N-162 — the old <code>newton_ghost_role</code> / <code>newton_ghost_project</code> keys and the <code>setGhostRole()</code> / <code>clearGhostRole()</code> functions no longer exist anywhere in <code>js/</code>.</p>
@@ -1150,6 +1149,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
 
       <h3>Exiting ghost mode</h3>
       <p>Exit from the banner button or the Ghost Mode tab. Both call <code>clearGhostUser()</code>, which removes both keys. Sign-out also clears ghost mode via <code>sessionStorage.clear()</code>.</p>
+      <p><strong>Admin-only is enforced (N-282).</strong> <code>getGhostUser()</code> returns a value only after api.js has resolved the <em>real</em> signed-in account — read from MSAL by <code>getCurrentUser()</code>, never from storage — as admin. For anyone else the stored ghost keys are ignored and cleared on the next page load, and <code>setGhostUser()</code> refuses. Until that check has run on a page, <code>getGhostUser()</code> returns <code>null</code> (fail closed), so <code>getEffectiveRole()</code>, <code>getUserProjectIds()</code> and <code>getDefaultUserProjectId()</code> await the gate (<code>_ensureGhostGate()</code>) first. This is friction, not a security boundary: anyone who can run JavaScript can still override functions in their own tab. The boundary is SharePoint permissions.</p>
       <p><strong>Both transitions also purge the tier-2 cache</strong> (<code>_ssPurge()</code>, N-176). Cached list payloads are not user-scoped — <code>getItems()</code> fetches whole lists and scoping is applied client-side — so this cannot leak data between identities; it is a guard against cross-identity confusion rather than a security boundary. Note it purges tier 2 only: tier 1 survives the call, which is harmless today because every ghost transition immediately navigates or reloads. Tracked as N-205.</p>
 
       <div class="callout amber">Ghost mode overrides role resolution but does not create a real session as that role. Actions taken while ghosting (form saves etc.) are attributed to your real admin account in SharePoint.</div>
@@ -1159,6 +1159,19 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Ghost Mode admin-only; no role state is forgeable from browser storage (N-282)</div>
+        <ul>
+          <li>Ghost Mode is honoured only when the real signed-in account resolves as admin. For anyone else the stored ghost keys are ignored and cleared. Before this, <code>sessionStorage.setItem('newton_ghost_user', '&lt;admin email&gt;')</code> and a reload gave any user the full admin UI.</li>
+          <li>Admin and leadership are never served from the role cache (<code>newton_role_&lt;email&gt;</code>) — always re-resolved from the lists. DM, TP and viewer roles keep the 10-minute N-177 cache.</li>
+          <li><code>getCurrentUser()</code> now reads the email from the MSAL account instead of <code>localStorage.userEmail</code>, which any user could edit. The four places that wrote <code>userEmail</code> were removed.</li>
+          <li><code>UserAssignments</code> and <code>LeadershipAccess</code> are no longer tier-2 cached (<code>CONFIG.CACHE.persistentLists</code> is now five lists): a forged sessionStorage entry for either would have been served as real data. Cost: roughly one extra small Graph read per page navigation.</li>
+          <li>DM grants moved from <code>newton_dm_grants_&lt;email&gt;</code> in sessionStorage to an in-memory map written by <code>getEffectiveRole()</code>. <code>hasDMGrant()</code> stays synchronous with no TTL.</li>
+          <li>This is a UI-level hardening, not a security boundary — the boundary is the SharePoint permission matrix (N-287 onwards).</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>

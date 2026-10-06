@@ -521,7 +521,8 @@ async function buildDataHealthTab() {
     + _dhRenderIndexStatusHtml(data)
     + _dhRenderSchemaCheckHtml(data)
     + _dhRenderErrorTelemetryHtml(data)
-    + _dhRenderRoleHistoryBackfillHtml();
+    + _dhRenderRoleHistoryBackfillHtml()
+    + _dhRenderPeoplePayMigrationHtml();
 }
 
 // ── Data Health Tab — data fetch (no DOM) ────────────────────────────
@@ -1272,6 +1273,109 @@ async function writeRoleHistoryBackfill() {
     </p>`;
   toast(failed.length ? `Backfill finished with ${failed.length} role(s) failed` : `Backfill written: ${written} rows`,
     { type: failed.length ? 'error' : 'success' });
+}
+
+// ── Data Health Tab — PeoplePay migration (N-286 / SEC-6) ────────────
+// One-off: copies People.Salary into the restricted PeoplePay list. Dry run
+// (reads only) then Write (confirmed). Only creates missing rows — never
+// overwrites PeoplePay (planPeoplePayMigration, utils.js).
+let _ppMigrationPlan = null;  // last dry-run result; cleared once written
+
+function _dhRenderPeoplePayMigrationHtml() {
+  return `    <h3>PeoplePay migration (N-286)</h3>
+    <p class="dh-note">
+      Copies People.Salary into the restricted PeoplePay list. Only creates
+      missing rows. Never overwrites PeoplePay. Safe to re-run.
+    </p>
+    <button class="btn-secondary" onclick="runPeoplePayMigrationDryRun()">Dry run</button>
+    <div id="dh-pp-migration"></div>
+`;
+}
+
+function _dhRenderPeoplePayPlanHtml(p) {
+  const c = p.counts;
+  const summary = [
+    ['People rows read', c.source],
+    ['Skipped — no salary on People', c.skippedNoSalary],
+    ['Already in PeoplePay (same value)', c.alreadyPresent],
+    ['Conflicts — PeoplePay differs (not overwritten)', c.conflicts],
+    ['PersonIDs with more than one PeoplePay row', c.duplicates],
+    ['To create', c.toCreate],
+  ].map(([k, v]) => `
+      <tr><td>${k}</td><td>${v.toLocaleString('en-GB')}</td></tr>`).join('');
+
+  const conflicts = p.conflicts.length
+    ? `<p class="dh-note">Conflicts (PeoplePay kept): ${p.conflicts.map(x => escHtml(x.name || ('#' + x.personId))).join(', ')}</p>`
+    : '';
+  const duplicates = p.duplicates.length
+    ? `<p class="dh-note">Duplicate PeoplePay rows for PersonID: ${p.duplicates.map(x => escHtml(x.personId)).join(', ')}. Delete the extras in SharePoint (the lowest item id is the one Newton uses).</p>`
+    : '';
+  const action = c.toCreate
+    ? `<button class="btn-primary" onclick="writePeoplePayMigrationNow()">Write ${c.toCreate.toLocaleString('en-GB')} rows to PeoplePay</button>
+    <p class="dh-note" id="dh-pp-migration-progress"></p>`
+    : '<p class="dh-note">Nothing to create.</p>';
+
+  return `
+    <div class="table-scroll">
+    <table class="data-table dh-table-tight">
+      <thead><tr><th>Dry run</th><th>Count</th></tr></thead>
+      <tbody>${summary}</tbody>
+    </table>
+    </div>
+    ${conflicts}
+    ${duplicates}
+    ${action}
+`;
+}
+
+async function runPeoplePayMigrationDryRun() {
+  // N-106 pattern: capture the button synchronously, before any await.
+  const btn = event?.target;
+  const out = document.getElementById('dh-pp-migration');
+  setButtonLoading(btn, 'Reading…');
+  try {
+    const [source, pay] = await Promise.all([getPeopleSalariesForMigration(), getPeoplePay()]);
+    _ppMigrationPlan = null;
+    if (wasListDenied('PeoplePay')) {
+      out.innerHTML = '<p class="dh-note">No access to PeoplePay.</p>';
+    } else if (source.columnGone) {
+      out.innerHTML = '<p class="dh-note">People.Salary no longer exists — nothing to migrate.</p>';
+    } else {
+      _ppMigrationPlan = planPeoplePayMigration(source.rows, pay);
+      out.innerHTML = _dhRenderPeoplePayPlanHtml(_ppMigrationPlan);
+    }
+  } catch (e) {
+    toast('Dry run failed: ' + e.message, { type: 'error' });
+  } finally {
+    clearButtonLoading(btn);
+  }
+}
+
+async function writePeoplePayMigrationNow() {
+  const btn = event?.target;
+  const p = _ppMigrationPlan;
+  if (!p || !p.toCreate.length) return;
+  if (!(await confirmModal({
+    message: `Create ${p.toCreate.length} PeoplePay rows from People.Salary? Existing PeoplePay rows are not changed.`,
+    confirmLabel: 'Write rows',
+  }))) return;
+  setButtonLoading(btn, 'Writing…');
+  const progress = document.getElementById('dh-pp-migration-progress');
+  const result = await writePeoplePayMigration(p, (n, total) => {
+    if (progress) progress.textContent = `Written ${n} of ${total}…`;
+  });
+  _ppMigrationPlan = null;
+  clearButtonLoading(btn);
+  const c = p.counts;
+  document.getElementById('dh-pp-migration').innerHTML = `
+    <p class="dh-note"><strong>Written ${result.written} of ${p.toCreate.length} rows.</strong>
+      Already present ${c.alreadyPresent}, conflicts ${c.conflicts}, skipped (no salary) ${c.skippedNoSalary}.
+      ${result.failed
+        ? 'Stopped at PersonID ' + escHtml(String(result.failed.row.PersonID)) + ': ' + escHtml(result.failed.message) + ' — run the dry run again to pick up the rest.'
+        : 'Run the dry run again to confirm 0 to create.'}
+    </p>`;
+  toast(result.failed ? 'PeoplePay migration stopped on an error' : `PeoplePay migration written: ${result.written} rows`,
+    { type: result.failed ? 'error' : 'success' });
 }
 
 async function indexColumnNow(listName, columnId) {

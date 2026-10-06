@@ -377,6 +377,11 @@ const FIELD_ALIASES = {
   MarketReports:   { Title: "ReportTitle" },
   // ── People module ─────────────────────────────────────────
   People:          { Title: "EmployeeName" },
+  // N-286: {} is deliberate — Title holds the People item id as text and
+  // PersonID (Number) is the join key; both are read under their own names.
+  // A self-mapping alias would DELETE the field (see RoleHistory below).
+  // Restricted list: admin + leadership only (CONFIG.RESTRICTED_LISTS).
+  PeoplePay:       {},
   Assignments:     { Title: "AssignmentID" },
   GPInvoices:      { Title: "InvoiceNumber" },
   // ── Sales module ──────────────────────────────────────────
@@ -1656,8 +1661,45 @@ async function getPeople(activeOnly = true, includePlaceholders = false) {
   });
 }
 
+// ── People module: PeoplePay list (N-286 / SEC-6) ────────────────────
+// Salary's only home. Restricted to admin + leadership: call these ONLY on
+// payroll paths (Employee Tracker salary column, Edit Employee, Payroll
+// Summary) — never from a TP/DM page. Unfiltered read: the list is one row
+// per employee, and a filter on the non-indexed PersonID would need the
+// HonorNonIndexedQueries header. A 403 returns [] (N-285, getItems).
+// Deliberately tier 1 only — not in CONFIG.CACHE.persistentLists — so
+// salaries never sit in sessionStorage.
+async function getPeoplePay() {
+  return getItems('PeoplePay');
+}
+
+// Upsert one person's salary. Blank (undefined/null/'') = no change, never a
+// clear (N-286 decision 2). Writes only through createItem/updateItem, so the
+// cache-invalidation contract holds.
+async function setPersonSalary(personId, salary) {
+  if (salary === undefined || salary === null || salary === '') return null;
+  const value = Number(salary);
+  const pid   = Number(personId);
+  const rows  = (await getPeoplePay())
+    .filter(r => Number(r.PersonID) === pid)
+    .sort((a, b) => Number(a.id) - Number(b.id));
+  if (!rows.length) {
+    return createItem('PeoplePay', { Title: String(pid), PersonID: pid, Salary: value });
+  }
+  if (rows.length > 1) {
+    console.warn(`Newton: ${rows.length} PeoplePay rows for PersonID ${pid} — updating the lowest id (N-286).`);
+  }
+  if (Number(rows[0].Salary) === value) return rows[0];
+  return updateItem('PeoplePay', rows[0].id, { Salary: value });
+}
+
+// N-286: Salary goes to PeoplePay, never People. A failed salary write must
+// not throw: the People row already exists, and rethrowing would make
+// optimisticWrite() revert and offer a Retry that creates a duplicate person.
+// Instead the result carries _salaryError (the message) and the caller —
+// people-forms.js — tells the user. api.js stays free of UI calls.
 async function createPerson(fields) {
-  return createItem("People", {
+  const saved = await createItem("People", {
     Title:        fields.EmployeeName,
     Level:        fields.Level,
     ContractType: fields.ContractType,
@@ -1665,13 +1707,22 @@ async function createPerson(fields) {
     StartDate:    fields.StartDate || undefined,
     EndDate:      fields.EndDate   || undefined,
     IsActive:     fields.IsActive !== false,
-    Salary:       fields.Salary   || undefined,
     PhotoUrl:     fields.PhotoUrl || undefined,
     IsPlaceholder:      fields.IsPlaceholder || undefined,
     PlaceholderProject: fields.PlaceholderProject || undefined,
     PlaceholderCSD:     fields.PlaceholderCSD     || undefined,
   });
+  if (fields.Salary !== undefined && saved && saved.id) {
+    try {
+      await setPersonSalary(saved.id, fields.Salary);
+    } catch (e) {
+      console.warn('Newton: PeoplePay write failed for new person ' + saved.id, e);
+      return { ...saved, _salaryError: e.message };
+    }
+  }
+  return saved;
 }
+// N-286: errors from the salary write propagate — the edit form shows them.
 async function updatePerson(id, fields) {
   const payload = {};
   if (fields.EmployeeName !== undefined) payload.Title        = fields.EmployeeName;
@@ -1681,12 +1732,13 @@ async function updatePerson(id, fields) {
   if (fields.StartDate    !== undefined) payload.StartDate    = fields.StartDate;
   if (fields.EndDate      !== undefined) payload.EndDate      = fields.EndDate;
   if (fields.IsActive     !== undefined) payload.IsActive     = fields.IsActive;
-  if (fields.Salary       !== undefined) payload.Salary       = fields.Salary;
   if (fields.PhotoUrl     !== undefined) payload.PhotoUrl     = fields.PhotoUrl;
   if (fields.IsPlaceholder      !== undefined) payload.IsPlaceholder      = fields.IsPlaceholder;
   if (fields.PlaceholderProject !== undefined) payload.PlaceholderProject = fields.PlaceholderProject;
   if (fields.PlaceholderCSD     !== undefined) payload.PlaceholderCSD     = fields.PlaceholderCSD;
-  return updateItem("People", id, payload);
+  const result = Object.keys(payload).length ? await updateItem("People", id, payload) : null;
+  if (fields.Salary !== undefined) await setPersonSalary(id, fields.Salary);
+  return result;
 }
  
 // ── People module: Assignments list ──────────────────────────────────

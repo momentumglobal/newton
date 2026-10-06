@@ -237,10 +237,20 @@ const CONFIG = {
       'Title', 'DeliveryManager', 'Status', 'ProjectType', 'StartDate',
       'EndDate', 'Notes', 'CSDName',
     ],
+    // N-286 (SEC-6): no Salary. People is read on TP/DM paths (Org Chart,
+    // Scorecards, Command Bar), so anything projected here reaches every
+    // user's browser. Salary lives only in PeoplePay (below) — never add it
+    // back here.
     People: [
       'Title', 'Level', 'ContractType', 'Location', 'StartDate', 'EndDate',
-      'IsActive', 'Salary', 'PhotoUrl', 'IsPlaceholder', 'PlaceholderProject',
+      'IsActive', 'PhotoUrl', 'IsPlaceholder', 'PlaceholderProject',
       'PlaceholderCSD', 'ReportsTo',
+    ],
+    // N-286: one row per person. Title = People item id as text; PersonID
+    // (Number) is the join key. Restricted list (admin + leadership) — read
+    // only on payroll paths, via getPeoplePay() in api.js.
+    PeoplePay: [
+      'Title', 'PersonID', 'Salary',
     ],
     LCIModels: [
       'Title', 'Status', 'ClientName', 'ProjectID', 'Location',
@@ -329,8 +339,7 @@ const CONFIG = {
   // denial so a caller that must not act on missing data can ask
   // wasListDenied(). A 403 on any list NOT named here, or any other error on
   // one that is, still throws. Keep in step with the N-288 runbook; adding a
-  // list here is the whole opt-in. PeoplePay does not exist until N-286 — the
-  // name is registered now so that task needs no second change here.
+  // list here is the whole opt-in. PeoplePay (N-286) is locked at creation.
   RESTRICTED_LISTS: [
     'GPInvoices',
     'SalesForecasts',
@@ -345,6 +354,11 @@ const CONFIG = {
   // signed-in account cannot read SalesForecasts (wasListDenied). Without it
   // an empty forecast list would read as a real, red result.
   CC_FORECAST_DENIED_TEXT: 'No access to forecast data',
+
+  // N-286. Shown above the Employee Tracker when an admin/leadership account
+  // cannot read PeoplePay (wasListDenied) — otherwise blank salaries would
+  // read as "no salary on record".
+  PEOPLE_PAY_DENIED_TEXT: 'Salary data unavailable — your account cannot read the PeoplePay list.',
 
   // N-268 (DS-0). RoleHistory backfill from the Roles list's SharePoint
   // version history — Admin > Data Health. One-off tool; these are its only

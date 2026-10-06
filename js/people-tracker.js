@@ -104,7 +104,15 @@ async function renderEmployeesTab(pendingItem = null) {
   const main     = document.getElementById('main-content');
   const canEdit  = _resolvedRole === 'admin';
   const canPayroll = ['admin','leadership'].includes(_resolvedRole);
-  let people   = await getPeople(!_showInactive);
+  // N-286: salary comes from the restricted PeoplePay list, fetched only for
+  // payroll roles. Joined before the pending item is appended, so an
+  // optimistic row keeps the Salary it was saved with.
+  const [peopleRows, payRows] = await Promise.all([
+    getPeople(!_showInactive),
+    canPayroll ? getPeoplePay() : Promise.resolve([]),
+  ]);
+  const payDenied = canPayroll && wasListDenied('PeoplePay');
+  let people   = canPayroll ? attachSalaries(peopleRows, payRows) : peopleRows;
   // N-218b: an Employee has no filter that could exclude it (a new
   // employee's IsActive is always true), so it's always appended.
   if (pendingItem) people.push(pendingItem);
@@ -165,6 +173,7 @@ async function renderEmployeesTab(pendingItem = null) {
       ${listSearchBox(_employeesSearch, 'setEmployeesSearch')}
     </div>
     ${listResultCount(people.length, people.length, totalEmployees, null, 'employee')}
+    ${payDenied ? `<p class='form-hint'>${escHtml(CONFIG.PEOPLE_PAY_DENIED_TEXT)}</p>` : ''}
     <table class='data-table'>
       <thead><tr>
         <th>Photo</th>
@@ -185,7 +194,7 @@ async function renderEmployeesTab(pendingItem = null) {
     <div id='payroll-modal-overlay' style='display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:var(--z-modal);overflow-y:auto'>
       <div class='print-avoid-break' style='background:var(--surface);border-radius:8px;max-width:640px;margin:60px auto;padding:32px;position:relative'>
         <button onclick='_closePayrollModal()' style='position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted)'>&times;</button>
-        div id='payroll-modal-body'></div>
+        <div id='payroll-modal-body'></div>
       </div>
     </div>`;
   if (window.lucide) lucide.createIcons();

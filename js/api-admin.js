@@ -127,3 +127,44 @@ async function createRoleHistoryBackfillRow(roleId, row) {
     Source:         src,
   });
 }
+
+// ── N-286 (SEC-6): People.Salary → PeoplePay migration ─────────────────
+// People.Salary for every row (active, inactive, placeholders). Raw paged
+// GET, deliberately NOT getItems(): a salary-bearing People projection must
+// never land in either cache tier (People is tier-2 enrolled). The column
+// list is checked first, so a deleted Salary column reports columnGone
+// instead of a 400.
+async function getPeopleSalariesForMigration() {
+  const columns = await getListColumns('People');
+  if (!columns.some(c => c.name === 'Salary')) return { columnGone: true, rows: [] };
+  const rows = [];
+  let url = `${listPath('People')}?$expand=fields($select=Title,Salary)`;
+  while (url) {
+    const data = await graphRequest('GET', url);
+    rows.push(...(data.value || []).map(i => ({
+      id: i.id,
+      EmployeeName: i.fields && i.fields.Title,
+      Salary: i.fields ? i.fields.Salary : undefined,
+    })));
+    url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH, '') : null;
+  }
+  return { columnGone: false, rows };
+}
+
+// Writes plan.toCreate (planPeoplePayMigration, utils.js) in order through
+// createItem (cache contract) and stops at the first failure. A re-run plans
+// only what is still missing.
+async function writePeoplePayMigration(plan, onProgress) {
+  let written = 0;
+  for (const row of plan.toCreate) {
+    try {
+      await createItem('PeoplePay', row);
+      written++;
+      if (typeof onProgress === 'function') onProgress(written, plan.toCreate.length);
+    } catch (e) {
+      console.warn('PeoplePay migration: write failed for PersonID ' + row.PersonID, e);
+      return { written, failed: { row, message: e.message } };
+    }
+  }
+  return { written, failed: null };
+}

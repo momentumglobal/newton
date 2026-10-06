@@ -2281,8 +2281,8 @@ var ASSERTIONS = [
       _assertEqual(new Set(CONFIG.RESTRICTED_LISTS).size, CONFIG.RESTRICTED_LISTS.length, 'AC1 no duplicates');
       _assertEqual(CONFIG.MOBILE_MODULE_ROLES.sales, ['admin', 'leadership'], 'AC12 mobile Sales roles');
       _assertEqual(typeof CONFIG.CC_FORECAST_DENIED_TEXT === 'string' && CONFIG.CC_FORECAST_DENIED_TEXT.length > 0, true, 'AC11 denied copy is config');
-      // Every restricted list that exists today is also a registered list (PeoplePay arrives with N-286).
-      CONFIG.RESTRICTED_LISTS.filter(l => l !== 'PeoplePay').forEach(l =>
+      // Every restricted list is also a registered list (PeoplePay since N-286).
+      CONFIG.RESTRICTED_LISTS.forEach(l =>
         _assertEqual(Object.keys(FIELD_ALIASES).includes(l), true, 'AC1 ' + l + ' is a registered list'));
     },
   },
@@ -2339,6 +2339,76 @@ var ASSERTIONS = [
       } finally {
         _deniedLists.clear();
       }
+    },
+  },
+  {
+    name: 'N-286 config — Salary only in PeoplePay; PeoplePay registered, restricted, tier 1 only',
+    fn: function () {
+      _assertEqual(CONFIG.LIST_FIELDS.People.includes('Salary'), false, 'AC1 People projection has no Salary');
+      _assertEqual(CONFIG.LIST_FIELDS.PeoplePay, ['Title', 'PersonID', 'Salary'], 'AC2 PeoplePay projection');
+      _assertEqual(Object.keys(FIELD_ALIASES).includes('PeoplePay'), true, 'AC2 PeoplePay registered');
+      _assertEqual(Object.keys(FIELD_ALIASES.PeoplePay), [], 'AC2 PeoplePay alias is {}');
+      _assertEqual(CONFIG.RESTRICTED_LISTS.includes('PeoplePay'), true, 'AC2 PeoplePay restricted');
+      _assertEqual(CONFIG.CACHE.persistentLists.includes('PeoplePay'), false, 'AC2 PeoplePay never tier-2 cached');
+      _assertEqual(CONFIG.DELTA.enrolledLists.includes('PeoplePay'), false, 'AC2 PeoplePay not delta-enrolled');
+      _assertEqual(typeof CONFIG.PEOPLE_PAY_DENIED_TEXT === 'string' && CONFIG.PEOPLE_PAY_DENIED_TEXT.length > 0, true, 'AC10 denied copy is config');
+    },
+  },
+  {
+    name: 'N-286 attachSalaries — joins PeoplePay by PersonID, never mutates, never trusts People.Salary',
+    fn: function () {
+      const people = [
+        { id: '1', EmployeeName: 'A', Location: 'UK', Salary: 99999 },   // stale People.Salary
+        { id: '2', EmployeeName: 'B', Location: 'UK' },
+        { id: '3', EmployeeName: 'C', Location: 'Spain' },
+      ];
+      const pay = [
+        { id: '20', PersonID: 1, Salary: 50000 },
+        { id: '11', PersonID: '2', Salary: 40000 },
+        { id: '30', PersonID: 2, Salary: 1 },                            // duplicate, higher id
+      ];
+      const snapshot = JSON.stringify(people);
+      const out = attachSalaries(people, pay);
+      _assertEqual(out.map(p => p.Salary), [50000, 40000, undefined], 'AC4 joined by id; lowest PeoplePay id wins; missing → undefined');
+      _assertEqual(out[0].EmployeeName, 'A', 'other fields pass through');
+      _assertEqual(out[0] === people[0], false, 'new objects');
+      _assertEqual(JSON.stringify(people), snapshot, 'inputs not mutated');
+      _assertEqual(attachSalaries([], pay), [], 'empty people');
+      _assertEqual(attachSalaries(people, []).every(p => p.Salary === undefined), true, 'denied PeoplePay ([]) → no salaries, People.Salary discarded');
+      _assertEqual(attachSalaries([{ id: '5' }], [{ id: '1', PersonID: 5, Salary: '' }])[0].Salary, undefined, 'blank PeoplePay value → undefined');
+    },
+  },
+  {
+    name: 'N-286 planPeoplePayMigration — creates only missing rows, never overwrites, idempotent',
+    fn: function () {
+      const people = [
+        { id: '1', EmployeeName: 'New',      Salary: 30000 },
+        { id: '2', EmployeeName: 'Same',     Salary: 40000 },
+        { id: '3', EmployeeName: 'Differs',  Salary: 45000 },
+        { id: '4', EmployeeName: 'None',     Salary: null },
+        { id: '5', EmployeeName: 'Zero',     Salary: 0 },
+        { id: '6', EmployeeName: 'Blank',    Salary: '' },
+        { id: '7', EmployeeName: 'Text',     Salary: 'n/a' },
+        { id: '8', EmployeeName: 'StrNum',   Salary: '25000.5' },
+      ];
+      const pay = [
+        { id: '10', PersonID: 2, Salary: 40000 },
+        { id: '11', PersonID: 3, Salary: 47000 },
+        { id: '12', PersonID: 9, Salary: 1 },
+        { id: '13', PersonID: 9, Salary: 2 },
+      ];
+      const p = planPeoplePayMigration(people, pay);
+      _assertEqual(p.counts, { source: 8, toCreate: 2, alreadyPresent: 1, conflicts: 1, duplicates: 1, skippedNoSalary: 4 }, 'AC11 counts');
+      _assertEqual(p.toCreate, [
+        { Title: '1', PersonID: 1, Salary: 30000 },
+        { Title: '8', PersonID: 8, Salary: 25000.5 },
+      ], 'AC11 only missing rows are created');
+      _assertEqual(p.toCreate.some(r => r.PersonID === 3), false, 'AC11 a conflict is never overwritten');
+      _assertEqual(p.conflicts[0].name, 'Differs', 'AC11 conflict named');
+      _assertEqual(p.duplicates, [{ personId: '9', rows: 2 }], 'duplicates reported');
+      const after = pay.concat(p.toCreate.map((r, i) => ({ id: String(100 + i), ...r })));
+      _assertEqual(planPeoplePayMigration(people, after).counts.toCreate, 0, 'AC11 idempotent — second plan creates nothing');
+      _assertEqual(planPeoplePayMigration([], []).counts.source, 0, 'empty source');
     },
   },
 ];

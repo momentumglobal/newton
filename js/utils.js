@@ -2188,3 +2188,67 @@ function isListAccessDenied(listName, err, cfg = CONFIG) {
 function isDenialFresh(ts, now, ttlMs) {
   return typeof ts === 'number' && now - ts <= ttlMs;
 }
+
+// ── PeoplePay (N-286 / SEC-6) ─────────────────────────────────────────
+// Pure. PersonID → the PeoplePay row for it; with duplicates the lowest
+// item id wins (the row setPersonSalary() updates).
+function _peoplePayByPerson(payRows) {
+  const byPerson = new Map();
+  [...(payRows || [])]
+    .sort((a, b) => Number(a.id) - Number(b.id))
+    .forEach(r => {
+      const key = String(r.PersonID);
+      if (!byPerson.has(key)) byPerson.set(key, r);
+    });
+  return byPerson;
+}
+
+// Pure. Returns NEW person objects with Salary taken from PeoplePay
+// (undefined when there is no row). Never mutates its inputs — getPeople()
+// rows are shared through the tier-1 cache. Any Salary already on a person
+// (e.g. People.Salary from a $select=* getItem before the column is deleted)
+// is overwritten, never trusted.
+function attachSalaries(people, payRows) {
+  const byPerson = _peoplePayByPerson(payRows);
+  return (people || []).map(p => {
+    const row = byPerson.get(String(p.id));
+    const salary = row && row.Salary !== null && row.Salary !== undefined && row.Salary !== ''
+      ? Number(row.Salary) : undefined;
+    return { ...p, Salary: salary };
+  });
+}
+
+// Pure. The one-off People.Salary → PeoplePay migration plan. Only ever
+// CREATES missing rows: an existing PeoplePay row is never overwritten,
+// because after the N-286 deploy PeoplePay is the source of truth and
+// People.Salary is stale. Idempotent — re-planning after a successful write
+// gives toCreate = []. peopleRows: [{ id, EmployeeName, Salary }].
+function planPeoplePayMigration(peopleRows, payRows) {
+  const counts = { source: 0, toCreate: 0, alreadyPresent: 0, conflicts: 0, duplicates: 0, skippedNoSalary: 0 };
+  const toCreate = [], conflicts = [], duplicates = [];
+  const perPerson = new Map();
+  (payRows || []).forEach(r => {
+    const key = String(r.PersonID);
+    perPerson.set(key, (perPerson.get(key) || 0) + 1);
+  });
+  for (const [personId, n] of perPerson) if (n > 1) duplicates.push({ personId, rows: n });
+  const byPerson = _peoplePayByPerson(payRows);
+  (peopleRows || []).forEach(p => {
+    counts.source++;
+    const raw = p.Salary;
+    const salary = (raw === null || raw === undefined || raw === '') ? NaN : Number(raw);
+    if (!isFinite(salary) || salary <= 0) { counts.skippedNoSalary++; return; }
+    const existing = byPerson.get(String(p.id));
+    if (!existing) {
+      toCreate.push({ Title: String(p.id), PersonID: Number(p.id), Salary: salary });
+    } else if (Number(existing.Salary) === salary) {
+      counts.alreadyPresent++;
+    } else {
+      conflicts.push({ personId: String(p.id), name: p.EmployeeName || '', peopleSalary: salary, payrollSalary: existing.Salary });
+    }
+  });
+  counts.toCreate   = toCreate.length;
+  counts.conflicts  = conflicts.length;
+  counts.duplicates = duplicates.length;
+  return { toCreate, counts, conflicts, duplicates };
+}

@@ -68,7 +68,9 @@ async function _generatePayrollPreview() {
 
   document.getElementById('payroll-modal-body').innerHTML = `<p style='text-align:center;color:var(--text-muted);padding:40px 0'>Generating...</p>`;
 
-  const all     = await getPeople(false);
+  // N-286: salary is joined from the restricted PeoplePay list.
+  const [people, payRows] = await Promise.all([getPeople(false), getPeoplePay()]);
+  const all     = attachSalaries(people, payRows);
   const ukStaff = all.filter(p => p.Location === 'UK');
 
   const joinerStart = new Date(year, month - 2, 18); // 18th of previous month
@@ -152,7 +154,9 @@ async function _sendPayrollSummary(month, year, includeBonus) {
   const btn = document.querySelector('#payroll-modal-body .btn-primary');
   if (btn) setButtonLoading(btn);
 
-  const all     = await getPeople(false);
+  // N-286: salary is joined from the restricted PeoplePay list.
+  const [people, payRows] = await Promise.all([getPeople(false), getPeoplePay()]);
+  const all     = attachSalaries(people, payRows);
   const ukStaff = all.filter(p => p.Location === 'UK');
 
   const joinerStart = new Date(year, month - 2, 18); // 18th of previous month

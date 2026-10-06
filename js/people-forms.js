@@ -70,7 +70,7 @@ function renderPersonForm(existingData = null) {
               ${existingData?.IsActive !== false ? 'checked' : ''}>
             Active employee
           </label>
-        <\div>` : ''}
+        </div>` : ''}
         <div class='form-actions'>
           <button type='submit' class='btn-primary'>
             ${isEdit ? 'Save Changes' : 'Add Employee'}</button>
@@ -130,6 +130,10 @@ async function submitPersonForm(event, editId = null) {
       revert: async () => { await renderEmployeesTab(); },
       commit: async () => {
         const saved = await createPerson(fields);
+        // N-286: the person was saved; only the PeoplePay write failed.
+        if (saved._salaryError) {
+          toast('Employee added, but the salary could not be saved — edit the employee to retry: ' + saved._salaryError, { type: 'error' });
+        }
         if (file && saved.id) {
           const url = await uploadPeoplePhoto('person', saved.id, file);
           if (url) await updatePerson(saved.id, { PhotoUrl: url });
@@ -157,7 +161,11 @@ function showAddPersonForm() {
   document.getElementById('main-content').innerHTML = renderPersonForm();
 }
 async function showEditPersonForm(id) {
-  const data = await getItem('People', id);
+  // N-286: getItem() is $select=*, so until the People.Salary column is
+  // deleted it still returns the old, stale value. attachSalaries()
+  // overwrites it with the PeoplePay value (or undefined).
+  const [person, payRows] = await Promise.all([getItem('People', id), getPeoplePay()]);
+  const data = attachSalaries([person], payRows)[0];
   document.getElementById('main-content').innerHTML = renderPersonForm(data);
 }
 

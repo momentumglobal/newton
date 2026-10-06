@@ -63,6 +63,9 @@ async function refreshCCBanner() {
   getItems('Projects'),
   getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; })
  ]);
+ // N-285: read straight after the Promise.all — see wasListDenied(). With no
+ // forecast access, util/revenue must not be computed from an empty list.
+ const forecastsDenied = wasListDenied('SalesForecasts');
  // N-274: time-in-stage flag — same inputs as the Command Centre Health tile.
  const stageHistory = groupStageHistoryByRole(stageRows);
  const projectsById = Object.fromEntries(projects.map(pr => [String(pr.id), pr]));
@@ -127,15 +130,19 @@ async function refreshCCBanner() {
   // Write to CCStatus SP list
 
   // Write to CCStatus SP list
+  // N-285: util and revenue both depend on SalesForecasts. When this account
+  // cannot read it, leave their CCStatus rows and any ccRed notification
+  // exactly as they were — missing data must not raise (or clear) an alert.
   const statuses = [
     { title: 'health',  rag: ragHealth  },
     { title: 'people',  rag: ragPeople  },
-    { title: 'util',    rag: ragUtil    },
-    { title: 'revenue', rag: ragRevenue },
+    { title: 'util',    rag: ragUtil,    skip: forecastsDenied },
+    { title: 'revenue', rag: ragRevenue, skip: forecastsDenied },
   ];
   const existing = await getItems('CCStatus');
   const ccRecipients = await getCcRecipients();
   for (const s of statuses) {
+    if (s.skip) continue;
     const match = existing.find(e => e.Title === s.title);
     const prev  = match ? match.RAG : 'neutral';
     const key   = `ccred:${s.title}`;
@@ -152,7 +159,7 @@ async function refreshCCBanner() {
   }
 
 
-  renderCCBadges(ragHealth, ragPeople, ragUtil, ragRevenue);
+  renderCCBadges(ragHealth, ragPeople, forecastsDenied ? 'neutral' : ragUtil, forecastsDenied ? 'neutral' : ragRevenue);
 }
 
 function renderCCBadges(health, people, util, revenue) {

@@ -15,14 +15,17 @@ async function renderCCOverview(container) {
   ]);
   // N-274: time-in-stage flag. Health reads 13 weeks of activity —
   // isRoleFlagged windows its conversion rule to ROLE_FLAG.conversion itself.
+  // N-285: read straight after the Promise.all — see wasListDenied().
+  const forecastsDenied = wasListDenied('SalesForecasts');
   const stageHistory = groupStageHistoryByRole(stageRows);
   const historical = await getHistoricalPlacements();
   const ragHealth = computeProjectHealthRAG(roles, acts13, stageHistory);
   // N-274 decision (2 Oct 2026): the People tile stays unrated (grey) for a
   // quarter of time-in-stage data; thresholds are then set on observed rates.
   const ragPeople = 'grey';
-  const ragUtil    = computeUtilisationRAG(forecasts, assigns, people);
-  const ragRevenue = computeRevenueRAG(forecasts, assigns);
+  // N-285: no forecast access = no data, not a red result.
+  const ragUtil    = forecastsDenied ? 'grey' : computeUtilisationRAG(forecasts, assigns, people);
+  const ragRevenue = forecastsDenied ? 'grey' : computeRevenueRAG(forecasts, assigns);
   // N-108: company-wide flagged-role trend, Health tile only — see the
   // Scope note in specs/N-108.md for why Revenue/People/Utilisation don't
   // get one.
@@ -33,10 +36,10 @@ async function renderCCOverview(container) {
       <h2>MG Command Centre</h2>
     </div>
     <div class="cc-grid" id="cc-grid">
-      ${ccTileHTML('revenue', 'Revenue', ragRevenue, ccRevenueStats(forecasts, assigns))}
+      ${ccTileHTML('revenue', 'Revenue', ragRevenue, forecastsDenied ? CONFIG.CC_FORECAST_DENIED_TEXT : ccRevenueStats(forecasts, assigns))}
       ${ccTileHTML('health', 'Project Health', ragHealth, ccHealthStats(roles, acts13, stageHistory), healthTrendHTML)}
       ${ccTileHTML('people', 'People', ragPeople, ccPeopleStats(roles, acts13, stageHistory))}
-      ${ccTileHTML('util',   'Utilisation',    ragUtil,   ccUtilStats(forecasts, assigns, people))}
+      ${ccTileHTML('util',   'Utilisation',    ragUtil,   forecastsDenied ? CONFIG.CC_FORECAST_DENIED_TEXT : ccUtilStats(forecasts, assigns, people))}
     </div>`;
 
   const grid = document.getElementById('cc-grid');

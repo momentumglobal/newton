@@ -533,6 +533,10 @@ async function _dhFetchSectionData() {
     console.warn('Data Health: row count failed for list "' + l + '"', e);
     return null;  // one broken list must not take out the whole tab
   })));
+  // N-285: getListItemCount() returns null for a list this account cannot
+  // read. Capture which, now — the denial memo has a short window and the
+  // rest of this function takes a while.
+  const deniedLists = lists.map(l => wasListDenied(l));
   const excludedLists = CONFIG.DATA_HEALTH_EXCLUDED_LISTS || [];
 
   const { ok: nullProjectOk, count: nullProjectCount } = await getWeeklyActivityNullProjectCount();
@@ -578,7 +582,7 @@ async function _dhFetchSectionData() {
   const anomalies = await _dhFetchAnomalies();
 
   return {
-    lists, counts, excludedLists,
+    lists, counts, deniedLists, excludedLists,
     nullProjectOk, nullProjectCount, nullWeekEndingOk, nullWeekEndingCount,
     statusByList,
     schemaResults,
@@ -634,14 +638,15 @@ async function _dhFetchAnomalies() {
 
 // ── Data Health Tab — render: List Row Counts ────────────────────────
 function _dhRenderRowCountsHtml(data) {
-  const { lists, counts, excludedLists } = data;
+  const { lists, counts, deniedLists, excludedLists } = data;
   const countRows = lists.map((l, i) => {
     const count = counts[i];
     const warn = count !== null && count >= CONFIG.LIST_ROW_COUNT_WARNING_THRESHOLD;
+    const noCount = (deniedLists && deniedLists[i]) ? 'No access' : '—';
     return `
     <tr>
       <td>${escHtml(l)}</td>
-      <td>${count === null ? '<span class="dh-muted">—</span>' : count.toLocaleString('en-GB')}</td>
+      <td>${count === null ? '<span class="dh-muted">' + noCount + '</span>' : count.toLocaleString('en-GB')}</td>
       <td>${warn ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
     </tr>`;
   }).join('');
@@ -657,7 +662,8 @@ function _dhRenderRowCountsHtml(data) {
         ? 'Deliberately excluded: ' + escHtml(excludedLists.join(', ')) + '.'
         : 'No lists are excluded.'}
       An em-dash means the count failed, not that the list is empty — the
-      browser console names which.
+      browser console names which. "No access" means this account cannot read
+      the list (CONFIG.RESTRICTED_LISTS), so no count is available.
     </p>
     <div class="table-scroll">
     <table class="data-table dh-table">

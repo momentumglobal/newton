@@ -148,6 +148,9 @@ function mobileOpenHome(pushHistory = true) {
 // Open a module at its default view.
 function mobileOpenModule(moduleKey, pushHistory = true) {
   if (!MOBILE_MODULES.has(moduleKey)) return;
+  // N-285: the launcher and switcher already filter by role; this stops a
+  // stale handler or history entry opening a module the role may not use.
+  if (!mobileGetAccessibleModules().some(m => m.key === moduleKey)) return;
   if (_mobileSheetOpen) mobileCloseSheet();
   if (pushHistory) _mobileHistory.push({ module: _mobileModule, view: _mobileView });
   _mobileModule = moduleKey;

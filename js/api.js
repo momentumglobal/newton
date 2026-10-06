@@ -23,11 +23,41 @@ function _cacheGet(listName, filter, selectStr) {
 function _cacheSet(listName, filter, selectStr, data) {
   _apiCache.set(_cacheKey(listName, filter, selectStr), { ts: Date.now(), data });
 }
+// ── Restricted-list denial memo (N-285) ────────────────────────────────
+// A user without read on a CONFIG.RESTRICTED_LISTS list gets a 403 from
+// Graph. getItems() turns that into an empty array and records the time
+// here, so (a) the same list is not re-requested on every render for the
+// next _CACHE_TTL_MS, and (b) a caller that must not act on missing data can
+// ask wasListDenied(). This is deliberately NOT _apiCache / sessionStorage:
+// a denial is never a cache entry (nothing to go stale or be forged), and a
+// permission change is picked up on the next page load. Cleared by any write
+// to the list (_cacheInvalidate) and by refreshData().
+const _deniedLists = new Map();
+
+function _denialMemoSet(listName) {
+  if (!wasListDenied(listName)) {
+    console.warn(`Newton: no read access to "${listName}" — treated as an empty list (N-285).`);
+  }
+  _deniedLists.set(listName, Date.now());
+}
+
+// True while a fresh denial is on record for the list. Call it straight
+// after the read it qualifies — the window is _CACHE_TTL_MS.
+function wasListDenied(listName) {
+  const ts = _deniedLists.get(listName);
+  if (ts === undefined) return false;
+  if (isDenialFresh(ts, Date.now(), _CACHE_TTL_MS)) return true;
+  _deniedLists.delete(listName);
+  return false;
+}
+
 function _cacheInvalidate(listName) {
   // Remove all cached entries for this list (any filter)
   for (const key of _apiCache.keys()) {
     if (key.startsWith(listName + '|')) _apiCache.delete(key);
   }
+  // N-285: a write to the list means its access may have changed.
+  _deniedLists.delete(listName);
   // N-176 (F-3a): tier 2 as well. This one line IS the invalidation
   // contract — createItem/updateItem/deleteItem already call this function,
   // so every compliant write path invalidates both tiers with no change at
@@ -466,6 +496,18 @@ async function graphRequest(method, path, body = null, elevated = false) {
   });
 }
 
+// N-285: every Graph failure is built here so the HTTP status survives on the
+// Error (err.status) — before this, status was discarded and nothing could
+// tell a 403 from a 500. The message is exactly what it was before (Graph's
+// own message, else "HTTP <status>"), so no existing caller changes.
+function _graphError(status, body) {
+  const detail = body && body.error;
+  const e = new Error((detail && detail.message) || `HTTP ${status}`);
+  e.status = status;
+  e.graphCode = (detail && detail.code) || '';
+  return e;
+}
+
 // The original single-request implementation, unchanged in behaviour —
 // every direct caller before N-188 (POST/PATCH/DELETE, elevated calls, and
 // now also a solo-fallback GET) still goes through exactly this.
@@ -497,7 +539,7 @@ async function _graphRequestSolo(method, path, body = null, elevated = false) {
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `HTTP ${res.status}`);
+    throw _graphError(res.status, err);
   }
   if (res.status === 204) return null;
   return res.json();
@@ -546,7 +588,7 @@ async function _dispatchBatchGroup(group) {
         // rather than reimplementing per-sub-request backoff bookkeeping.
         _graphRequestSolo('GET', item.path, null, false).then(item.resolve, item.reject);
       } else {
-        item.reject(new Error(body?.error?.message || `HTTP ${status}`));
+        item.reject(_graphError(status, body));
       }
     }
   } catch (e) {
@@ -588,7 +630,7 @@ async function _dispatchBatchChunk(group) {
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `HTTP ${res.status}`);
+    throw _graphError(res.status, err);
   }
   const data = await res.json();
   const byId = new Map((data.responses || []).map(r => [String(r.id), r]));
@@ -616,7 +658,29 @@ function listColumnsPath(listName) {
 // call sites below, pending the full field audit in N-052/N-053).
 // If select is omitted, resolves from CONFIG.LIST_FIELDS[listName] when
 // present and non-empty; otherwise falls back to '*' (today's behaviour).
+//
+// N-285: for a list in CONFIG.RESTRICTED_LISTS a 403 is "no rows" — a fresh
+// empty array (callers sort/mutate it), nothing written to either cache tier,
+// and the denial memoised (see _deniedLists) so it is not re-requested every
+// render. Everything else rethrows unchanged. The memo is checked BEFORE the
+// cache tiers: a list that just 403'd must not be answered from an older
+// cached copy of itself.
 async function getItems(listName, filter = "", select = null) {
+  const restricted = isRestrictedList(listName);
+  if (restricted && wasListDenied(listName)) return [];
+  try {
+    return await _getItemsRaw(listName, filter, select);
+  } catch (e) {
+    if (restricted && isListAccessDenied(listName, e)) {
+      _denialMemoSet(listName);
+      return [];
+    }
+    throw e;
+  }
+}
+
+// The pre-N-285 getItems body, unchanged.
+async function _getItemsRaw(listName, filter = "", select = null) {
   let selectStr = select;
   if (!selectStr) {
     const manifestFields = CONFIG.LIST_FIELDS && CONFIG.LIST_FIELDS[listName];
@@ -698,6 +762,9 @@ async function getCurrencyForRole(roleId) {
 // indefinitely — so failures are logged by name here.
 async function getListItemCount(listName) {
   const items = await getItems(listName, "", "Id");
+  // N-285: a denied restricted list comes back as [] — that is "no access",
+  // not "zero rows". null is the caller's existing "count unavailable" value.
+  if (wasListDenied(listName)) return null;
   return items.length;
 }
 
@@ -767,10 +834,23 @@ async function createItem(listName, fields) {
 // ── Error telemetry write (N-172 / F-7a) ──────────────────────────
 // A named wrapper rather than a raw createItem call in diagnostics.js, so
 // the telemetry write is greppable and so N-173's Diagnostics reads land
-// next to it. Deliberately does NOT swallow: the caller owns the swallow,
+// next to it. Does NOT swallow general failures: the caller owns the swallow,
 // which keeps the reporter's failure path in exactly one place.
+// N-285: the one exception is a 403. Under the Tier 2 lock (N-288) ordinary
+// users can add to Diagnostics but not read it, and Graph's POST reads the new
+// item back — so a 403 here is expected, not a fault. It resolves null (the
+// write is best-effort) rather than rejecting into diagnostics.js's .catch,
+// and the Diagnostics cache is invalidated as createItem would have.
 async function createDiagnostic(fields) {
-  return createItem('Diagnostics', fields);
+  try {
+    return await createItem('Diagnostics', fields);
+  } catch (e) {
+    if (isListAccessDenied('Diagnostics', e)) {
+      _cacheInvalidate('Diagnostics');
+      return null;
+    }
+    throw e;
+  }
 }
 // ── Error telemetry reads/acks (N-173 / F-7b) ──────────────────────
 // Server-side filtered to Status = 'new' so acknowledged groups are never
@@ -941,6 +1021,7 @@ async function deleteItem(listName, itemId) {
 // reload, which is correct but loses the toast.
 function refreshData(onDone = null) {
   _apiCache.clear();
+  _deniedLists.clear(); // N-285: re-check restricted lists on the next read
   _ssPurge();
   if (typeof onDone === 'function') {
     if (typeof toast === 'function') toast('Data refreshed', { type: 'success' });

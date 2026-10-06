@@ -322,6 +322,30 @@ const CONFIG = {
   // watching, and expect it to be named on the Data Health tab.
   DATA_HEALTH_EXCLUDED_LISTS: [],
 
+  // N-285 (SEC-5). Lists whose SharePoint read permission is withdrawn from
+  // ordinary users by the Tier 2 lock (N-288; matrix C-2). For a name here,
+  // getItems() (api.js) treats an HTTP 403 as "no rows": it returns a fresh
+  // empty array — no toast, no cache entry in either tier — and records the
+  // denial so a caller that must not act on missing data can ask
+  // wasListDenied(). A 403 on any list NOT named here, or any other error on
+  // one that is, still throws. Keep in step with the N-288 runbook; adding a
+  // list here is the whole opt-in. PeoplePay does not exist until N-286 — the
+  // name is registered now so that task needs no second change here.
+  RESTRICTED_LISTS: [
+    'GPInvoices',
+    'SalesForecasts',
+    'LCILocations',
+    'PeoplePay',
+    'SurveyResponses',
+    'AnomalyAcks',
+    'Diagnostics',
+  ],
+
+  // N-285. Shown on the Command Centre Utilisation / Revenue tiles when the
+  // signed-in account cannot read SalesForecasts (wasListDenied). Without it
+  // an empty forecast list would read as a real, red result.
+  CC_FORECAST_DENIED_TEXT: 'No access to forecast data',
+
   // N-268 (DS-0). RoleHistory backfill from the Roles list's SharePoint
   // version history — Admin > Data Health. One-off tool; these are its only
   // tunables.
@@ -783,6 +807,15 @@ const CONFIG = {
     { key: 'sales',     name: 'Sales',            icon: 'trending-up', desc: 'LCI Modeling, Sales Pipeline & Revenue Tracking', homeOrder: 3,  href: 'sales.html',            live: true, roles: ['admin','leadership','delivery_manager'] },
     { key: 'command',   name: 'Command Centre',   icon: 'monitor',      href: 'command-centre.html',   live: true, roles: ['admin','leadership'] },
   ],
+
+  // N-285. Mobile-only narrowing of a module's OS_MODULES roles, applied by
+  // mobileGetAccessibleModules() (mobile-home.js). Sales lists delivery
+  // managers in OS_MODULES for the desktop LCI Cost Models page, but mobile's
+  // only Sales view is Sales Forecast, which DMs may not read on desktop
+  // (sales-router.js) and cannot read in SharePoint after the Tier 2 lock.
+  MOBILE_MODULE_ROLES: {
+    sales: ['admin', 'leadership'],
+  },
 
   // Quick Links — declarative config for the homepage drawer.
   // To add a new link: add one entry here only. No other files need changing.

@@ -23,7 +23,9 @@ function mobileGetAccessibleModules() {
   return (CONFIG.OS_MODULES || []).filter(m =>
     MOBILE_MODULES.has(m.key) &&            // has a built mobile view
     Array.isArray(m.roles) &&
-    m.roles.includes(role)                  // role is allowed
+    m.roles.includes(role) &&               // role is allowed
+    // N-285: mobile-only narrowing (config.js MOBILE_MODULE_ROLES).
+    (!(CONFIG.MOBILE_MODULE_ROLES || {})[m.key] || CONFIG.MOBILE_MODULE_ROLES[m.key].includes(role))
   );
 }
 

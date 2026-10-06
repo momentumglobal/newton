@@ -5,7 +5,9 @@
 // updateSalesForecast. (Delete is desktop-only for now - mobile keeps it to
 // add + edit to avoid accidental taps on a phone.)
 //
-// Sales module is admin/leadership-only (matches CONFIG.OS_MODULES roles).
+// Sales on mobile is admin/leadership-only (CONFIG.MOBILE_MODULE_ROLES, N-285).
+// OS_MODULES also lists delivery managers, but only for the desktop LCI Cost
+// Models page, which has no mobile view.
 
 function msFmtForecastDate(iso) {
   if (!iso) return '-';

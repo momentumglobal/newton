@@ -2170,3 +2170,21 @@ function resolveRoleFromAssignments(rows, isLeadership) {
 function isPrivilegedRole(role) {
   return CONFIG.PRIVILEGED_ROLES.includes(role);
 }
+
+// N-285: pure. Is this list named in CONFIG.RESTRICTED_LISTS?
+function isRestrictedList(listName, cfg = CONFIG) {
+  return Array.isArray(cfg.RESTRICTED_LISTS) && cfg.RESTRICTED_LISTS.includes(listName);
+}
+
+// N-285: pure. True only for a Graph 403 (err.status, set by _graphError in
+// api.js) on a restricted list. A 403 on any other list, or any other status
+// on a restricted one (401, 429, 500, a network failure with no status),
+// is a real error and stays one.
+function isListAccessDenied(listName, err, cfg = CONFIG) {
+  return isRestrictedList(listName, cfg) && !!err && err.status === 403;
+}
+
+// N-285: pure. Is a denial-memo timestamp still inside its window?
+function isDenialFresh(ts, now, ttlMs) {
+  return typeof ts === 'number' && now - ts <= ttlMs;
+}

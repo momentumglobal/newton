@@ -2273,4 +2273,72 @@ var ASSERTIONS = [
       );
     },
   },
+  {
+    name: 'N-285 config — RESTRICTED_LISTS is exactly the seven Tier 2 lists; mobile Sales is admin + leadership only',
+    fn: function () {
+      _assertEqual(CONFIG.RESTRICTED_LISTS.slice().sort(),
+        ['AnomalyAcks', 'Diagnostics', 'GPInvoices', 'LCILocations', 'PeoplePay', 'SalesForecasts', 'SurveyResponses'], 'AC1 the seven names');
+      _assertEqual(new Set(CONFIG.RESTRICTED_LISTS).size, CONFIG.RESTRICTED_LISTS.length, 'AC1 no duplicates');
+      _assertEqual(CONFIG.MOBILE_MODULE_ROLES.sales, ['admin', 'leadership'], 'AC12 mobile Sales roles');
+      _assertEqual(typeof CONFIG.CC_FORECAST_DENIED_TEXT === 'string' && CONFIG.CC_FORECAST_DENIED_TEXT.length > 0, true, 'AC11 denied copy is config');
+      // Every restricted list that exists today is also a registered list (PeoplePay arrives with N-286).
+      CONFIG.RESTRICTED_LISTS.filter(l => l !== 'PeoplePay').forEach(l =>
+        _assertEqual(Object.keys(FIELD_ALIASES).includes(l), true, 'AC1 ' + l + ' is a registered list'));
+    },
+  },
+  {
+    name: 'N-285 isRestrictedList / isListAccessDenied — 403 on a restricted list only',
+    fn: function () {
+      _assertEqual(isListAccessDenied('SalesForecasts', { status: 403 }), true, 'AC2 restricted + 403');
+      _assertEqual(isListAccessDenied('SalesForecasts', { status: 500 }), false, 'AC2 restricted + 500 stays an error');
+      _assertEqual(isListAccessDenied('SalesForecasts', { status: 401 }), false, 'AC2 restricted + 401 stays an error');
+      _assertEqual(isListAccessDenied('Roles', { status: 403 }), false, 'AC2/AC7 unrestricted + 403 stays an error');
+      _assertEqual(isListAccessDenied('SalesForecasts', new Error('network down')), false, 'AC2 no status');
+      _assertEqual(isListAccessDenied('SalesForecasts', null), false, 'AC2 null error');
+      _assertEqual(isListAccessDenied('SalesForecasts', undefined), false, 'AC2 undefined error');
+      const cfg = { RESTRICTED_LISTS: ['Roles'] };
+      _assertEqual(isRestrictedList('Roles', cfg), true, 'AC2 injected config: in');
+      _assertEqual(isRestrictedList('SalesForecasts', cfg), false, 'AC2 injected config: out');
+      _assertEqual(isListAccessDenied('Roles', { status: 403 }, cfg), true, 'AC2 injected config drives the verdict');
+      _assertEqual(isRestrictedList('Roles', {}), false, 'AC2 missing array is not restricted');
+    },
+  },
+  {
+    name: 'N-285 _graphError — status and code survive; message text unchanged from the pre-N-285 builds',
+    fn: function () {
+      const e = _graphError(403, { error: { code: 'accessDenied', message: 'Access denied' } });
+      _assertEqual([e instanceof Error, e.status, e.graphCode, e.message], [true, 403, 'accessDenied', 'Access denied'], 'AC3 full body');
+      _assertEqual(_graphError(500, {}).message, 'HTTP 500', 'AC3 empty body falls back to HTTP <status>');
+      _assertEqual(_graphError(502, undefined).message, 'HTTP 502', 'AC3 undefined body');
+      _assertEqual(_graphError(404, { error: {} }).message, 'HTTP 404', 'AC3 error without a message');
+      _assertEqual(_graphError(429, null).status, 429, 'AC3 status kept on a bodiless error');
+      _assertEqual(isListAccessDenied('GPInvoices', _graphError(403, {})), true, 'AC3 a built 403 is recognised as a denial');
+    },
+  },
+  {
+    name: 'N-285 denial memo — fresh, expiry, cleared by a write (_cacheInvalidate), never a cache entry',
+    fn: function () {
+      _deniedLists.clear();
+      try {
+        _assertEqual(wasListDenied('SalesForecasts'), false, 'AC5 nothing recorded');
+        _deniedLists.set('SalesForecasts', Date.now());
+        _assertEqual(wasListDenied('SalesForecasts'), true, 'AC5 fresh entry');
+        _assertEqual(wasListDenied('GPInvoices'), false, 'AC5 per list, not global');
+        _deniedLists.set('SalesForecasts', Date.now() - _CACHE_TTL_MS - 1);
+        _assertEqual(wasListDenied('SalesForecasts'), false, 'AC5 expired entry is not a denial');
+        _assertEqual(_deniedLists.has('SalesForecasts'), false, 'AC5 expired entry is dropped');
+        _deniedLists.set('SalesForecasts', Date.now());
+        _cacheInvalidate('SalesForecasts');
+        _assertEqual(wasListDenied('SalesForecasts'), false, 'AC5 a write to the list clears the memo');
+        _assertEqual(isDenialFresh(1000, 1000 + 30000, 30000), true, 'isDenialFresh boundary is inclusive');
+        _assertEqual(isDenialFresh(1000, 1000 + 30001, 30000), false, 'isDenialFresh past the window');
+        _assertEqual(isDenialFresh(undefined, 5, 30000), false, 'isDenialFresh needs a number');
+        // The memo is its own store: it never touches the read cache (AC6).
+        _deniedLists.set('SalesForecasts', Date.now());
+        _assertEqual([..._apiCache.keys()].some(k => k.indexOf('SalesForecasts|') === 0), false, 'AC6 no _apiCache entry for a denied list');
+      } finally {
+        _deniedLists.clear();
+      }
+    },
+  },
 ];

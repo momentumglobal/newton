@@ -330,10 +330,10 @@
         <tr><td>Authentication</td><td>Microsoft Azure AD + MSAL.js v2</td><td>SSO via Microsoft identity</td></tr>
         <tr><td>Data</td><td>SharePoint Online (Graph API)</td><td>All application data storage</td></tr>
         <tr><td>UI</td><td>Vanilla HTML, CSS, JavaScript</td><td>No framework dependencies</td></tr>
-        <tr><td>Icons</td><td>Lucide (CDN)</td><td>Icon library</td></tr>
-        <tr><td>Drag &amp; drop</td><td>SortableJS (CDN)</td><td>Report Builder block ordering</td></tr>
-        <tr><td>Spreadsheets</td><td>ExcelJS (CDN, lazy-loaded)</td><td>LCI Cost Model Excel export — loaded on first click only, never on page render</td></tr>
-        <tr><td>Presentations</td><td>pptxgenjs (CDN, lazy-loaded)</td><td>LCI Report PowerPoint export — loaded on first click only, never on page render</td></tr>
+        <tr><td>Icons</td><td>Lucide (self-hosted)</td><td>Icon library</td></tr>
+        <tr><td>Drag &amp; drop</td><td>SortableJS (self-hosted)</td><td>Report Builder block ordering</td></tr>
+        <tr><td>Spreadsheets</td><td>ExcelJS (self-hosted, lazy-loaded)</td><td>LCI Cost Model Excel export — loaded on first click only, never on page render</td></tr>
+        <tr><td>Presentations</td><td>pptxgenjs (self-hosted, lazy-loaded)</td><td>LCI Report PowerPoint export — loaded on first click only, never on page render</td></tr>
         <tr><td>Fonts</td><td>Polymath (self-hosted)</td><td>Brand typography</td></tr>
       </table>
 
@@ -563,6 +563,8 @@
       <table>
         <tr><th>File</th><th>Responsibility</th><th>Key exports</th></tr>
         <tr><td><span class="file-tag">js/config.js</span></td><td>Static app configuration</td><td>CONFIG, CONFIG.OS_MODULES, CONFIG.UTILISATION_THRESHOLDS, CONFIG.WEEKLY_ANOMALIES (N-271; <code>acknowledge.noteMaxChars</code>, N-273), CONFIG.PEOPLE_LEVELS, CONFIG.ROLE_PRECEDENCE / CONFIG.ROLE_LABELS (N-281), getUserRoleAsync()</td></tr>
+        <tr><td><span class="file-tag">js/vendor/</span></td><td>Self-hosted third-party libraries (N-289)</td><td>lucide, msal-browser, sortablejs, exceljs, pptxgenjs, chart.js — unmodified upstream files with the version in the filename; <code>VERSIONS.md</code> (source URL replaced, licence, bytes, sha384, upgrade steps) and <code>LICENSES.md</code>. No CDN fallback by design.</td></tr>
+        <tr><td><span class="file-tag">package.json</span></td><td>Dependabot manifest only</td><td>Exact pins for the six vendored libraries so GitHub can raise security advisories. Not used by the build, CI or the deployed site.</td></tr>
         <tr><td><span class="file-tag">js/auth.js</span></td><td>MSAL authentication only</td><td>signIn(), signOut(), getToken(), getCurrentUser(), isSignedIn()</td></tr>
         <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), computeMonthlyRevenueForYear(), computeMonthlyForecastRevenueForYear(), getAssignmentDataYears(), formatSalary(), daysOpen(), ghost mode helpers, isProjectActive(), sortProjectsByName(), buildProjectOptionsHtml(), levelSortIndex(), isBillableLevel(), weeksAgoDay(), listQueryFromDay(), activitySinceWeeks() (N-270: client-side WeeklyActivity window slice), addDaysISO() / sundayOnOrAfterISO() / medianOf() (N-271: UTC day-string arithmetic and a median, no local getters)</td></tr>
         <tr><td><span class="file-tag">js/api.js</span></td><td>Shared SharePoint/Graph read-write layer</td><td>getItems(), getItem(), createItem(), updateItem(), deleteItem(), getEffectiveRole(), FIELD_ALIASES, the two-tier read cache (_apiCache + session tier), schemaBaseColumnName(). Also still holds anything used by more than one consumer (tpList(), createDiagnostic(), getAnomalyAcks() / acknowledgeAnomaly() / restoreAnomalyAcks() (N-273: the <code>AnomalyAcks</code> list behind Data Health's Acknowledge / Restore; Restore is a Status PATCH, never a delete), getTalentPartnerDisplayMap(), filterToActiveTpEmails(), copyBriefingPack(), the survey-template reads). Module-specific API calls were split out (N-237a/b) into api-briefing.js, api-coe.js, api-engagement.js, api-orgchart.js, api-people-forms.js, api-lci.js, api-admin.js, api-market-report.js and api-misc.js — see each module's table below for what moved where.</td></tr>
@@ -684,6 +686,7 @@
         <tr><td><span class="file-tag">tests/fixtures.js</span></td><td>Fixture data for the assertions. Data only — no functions. Extended by N-096, N-097, and N-098 (all live).</td></tr>
         <tr><td><span class="file-tag">tests/assertions.js</span></td><td>The assertion list (<code>ASSERTIONS</code>). Shared unmodified by index.html and run.js. Also defines <code>_skip()</code> — a plain <code>__skip</code> marker property, not an Error subclass, to stay safe across the vm/browser realm boundary.</td></tr>
         <tr><td><span class="file-tag">tests/run.js</span></td><td>Node CLI runner (no dependencies) — forces <code>TZ=Europe/London</code> (N-096, so the GMT/BST Gantt regression assertion actually observes a DST transition), loads the source files (including api.js, N-097) into a shared <code>vm</code> context in production script order, runs <code>ASSERTIONS</code>, exits non-zero on any failure (skips don't count as failures). Run by the <code>test</code> job in <code>.github/workflows/static.yml</code>, which the <code>deploy</code> job now depends on.</td></tr>
+        <tr><td><span class="file-tag">tests/lint-vendor.js</span></td><td>SEC-9 guard (N-289). Pure functions over data <code>run.js</code> supplies (<code>ALL_HTML</code>, <code>VENDOR_FILES</code>, <code>VENDOR_MANIFEST</code>, <code>VENDOR_PACKAGE_JSON</code>): fails on an external script URL (allow-list empty), a <code>js/vendor/</code> file with no <code>VERSIONS.md</code> row or a different sha384, a filename/version mismatch, or a <code>package.json</code> pin that disagrees. Skips in <code>tests/index.html</code> (no filesystem).</td></tr>
       </table>
     </div>
 
@@ -699,8 +702,8 @@
       <h3>Standard module pages</h3>
       <div class="code-block">
 <span class="code-comment">&lt;!-- External --&gt;</span>
-msal-browser.min.js
-lucide (CDN, pinned — N-238b; was floating on @latest)
+js/vendor/msal-browser-2.38.3.min.js   (self-hosted, N-289)
+js/vendor/lucide-1.47.0.min.js         (self-hosted, N-289; was a pinned CDN tag)
 
 <span class="code-comment">&lt;!-- Shared platform --&gt;</span>
 <span class="code-key">config.js</span>          <span class="code-comment">← CONFIG object, OS_MODULES, role helpers</span>
@@ -718,7 +721,7 @@ dashboard-core.js  <span class="code-comment">← (Reporting only)</span>
 dashboard-project-panels.js <span class="code-comment">← (Reporting only)</span>
 dashboard-project.js <span class="code-comment">← (Reporting only)</span>
 dashboard-company.js <span class="code-comment">← (Reporting only)</span>
-sortablejs          <span class="code-comment">← (Reporting only)</span>
+js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting only; self-hosted, N-289)</span>
 <span class="code-key">report-builder.js</span>  <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">admin.js</span>           <span class="code-comment">← (Reporting only)</span>
 <span class="code-key">analytics.js</span>       <span class="code-comment">← (Reporting + People + Market Analytics + Command Centre) — pure functions, load before app.js</span>
@@ -1026,6 +1029,13 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <li><strong>Salary (N-286):</strong> salary is read only from <code>PeoplePay</code>, only on admin/leadership paths (<code>getPeoplePay()</code> + <code>attachSalaries()</code>). Never add <code>Salary</code> to the People list projection, or to any list non-privileged users read — SharePoint cannot hide a single column.</li>
       </ul>
 
+      <h3>Third-party libraries (N-289)</h3>
+      <ul class="checklist">
+        <li>No third-party script is ever loaded from a CDN. A library is vendored into <code>js/vendor/</code> as unmodified upstream bytes with the version in the filename, has a row in <code>js/vendor/VERSIONS.md</code> (source, licence, bytes, sha384) and a licence in <code>LICENSES.md</code>, and is pinned in the root <code>package.json</code>.</li>
+        <li>Runtime-loaded libraries take their path from <code>CONFIG</code> (<code>LCI.EXCEL.SRC</code>, <code>LCI.PPTX.SRC</code>, <code>SURVEY.CHARTJS_SRC</code>) — never a URL literal in a loader.</li>
+        <li><code>tests/lint-vendor.js</code> fails the build on an external script URL, an unlisted or modified vendor file, or a <code>package.json</code> pin that disagrees with <code>VERSIONS.md</code>. To upgrade a library, follow the steps at the bottom of <code>VERSIONS.md</code>.</li>
+      </ul>
+
       <h3>CSS over inline styles</h3>
       <ul class="checklist">
         <li>Conditional styling uses CSS classes, not inline style="" attributes.</li>
@@ -1165,6 +1175,17 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Third-party libraries self-hosted (N-289, SEC-9)</div>
+        <ul>
+          <li>Lucide, MSAL, SortableJS, ExcelJS, pptxgenjs and Chart.js are now served from <code>js/vendor/</code> instead of unpkg, jsDelivr and cdnjs, so a compromised CDN can no longer run code in a signed-in user's session. Versions are unchanged; each file is the unmodified upstream build with its version in the filename.</li>
+          <li><code>js/vendor/VERSIONS.md</code> lists every file's source, licence, size and sha384 plus the upgrade steps; <code>LICENSES.md</code> carries the licence texts. A root <code>package.json</code> pins the same versions so GitHub Dependabot can raise advisories (it is not used by the build).</li>
+          <li><code>CONFIG.LCI.EXCEL.CDN</code> / <code>PPTX.CDN</code> became <code>SRC</code>, and the Chart.js path moved into <code>CONFIG.SURVEY.CHARTJS_SRC</code>. <code>tests/lint-vendor.js</code> now fails CI on any external script URL or a vendored file that no longer matches its manifest row.</li>
+          <li>Unblocks N-290 (MSAL upgrade) and N-292 (CSP with <code>script-src 'self'</code>). The Readme's old "Lucide: unpinned" note was already stale and is corrected.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
@@ -1350,7 +1371,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
           <li><strong>What changed:</strong> the assembled multi-model LCI report's primary button is now <strong>Export to PowerPoint</strong>; <strong>Print / PDF</strong> is gone from that page. The single-model <strong>Summary</strong> page and the <strong>LCI Lead Magnet</strong> are untouched and still export PDF through the browser print dialog, so <code>printPage()</code> and every <code>@media print</code> rule stay exactly as they were. The Summary page's Export to Excel is unaffected. <strong>No SharePoint change</strong> — no new list, no new field, no <code>FIELD_ALIASES</code> entry.</li>
           <li><strong>Why:</strong> the LCI report needs heavy per-client customisation before it goes out, and a PDF cannot take an edit. A deck can: the team re-words, re-orders and re-brands slides after export, then produces the client PDF from PowerPoint itself.</li>
           <li><strong>New file <code>js/lci-pptx.js</code></strong>, loaded by <code>sales.html</code> <strong>after <code>lci-report.js</code></strong> — it reads that file's state, so loading it earlier fails only at click time, not on load. Every geometry, colour, font size and per-slide cap lives in <code>CONFIG.LCI.PPTX</code>; there is no hex or magic number in the file.</li>
-          <li><strong>pptxgenjs 4.0.1, pinned, lazy-loaded on the first Export click</strong> (~450KB, never on page render) — the same shape as the ExcelJS dependency. <strong>It must be the <code>pptxgen.bundle.js</code> build:</strong> <code>pptxgen.min.js</code> expects a separate JSZip global that Newton does not load, and swapping the URL for the "min" one silently produces a broken export.</li>
+          <strong>pptxgenjs 4.0.1, vendored in <code>js/vendor/</code> (N-289), lazy-loaded on the first Export click</strong> (~450KB, never on page render) — the same shape as the ExcelJS dependency. <strong>It must be the <code>pptxgen.bundle.js</code> build:</strong> <code>pptxgen.min.js</code> expects a separate JSZip global that Newton does not load, and swapping the file for the "min" one silently produces a broken export.</li>
           <li><strong>Colour format trap.</strong> <code>CONFIG.LCI.PPTX.COLOURS</code> are plain 6-digit hex (<code>0A0B44</code>) and are deliberately <em>not</em> the 8-character ARGB values <code>CONFIG.LCI.EXCEL.COLOURS</code> uses (<code>FF0A0B44</code>) — pptxgenjs rejects the ARGB form. Two separate palettes on purpose; never derive one from the other. Both are the same documented exception to "no hex in JS": neither a workbook nor a deck can read <code>style.css</code>.</li>
           <li><strong>Polymath trap.</strong> Polymath ships as three separate font <em>families</em> (<code>Polymath</code>, <code>Polymath Medium</code>, <code>Polymath Semibold</code>), each with subfamily "Regular" — the browser stitches them into one weighted family via <code>@font-face</code>, PowerPoint cannot. So the deck never sets <code>bold: true</code> (which yields PowerPoint's synthetic faux-bold); every weight change is a <strong>face switch</strong> to <code>FONT.faceBold</code> via <code>_lciPptxFace()</code>. The font is <strong>not embedded</strong> in the file — a machine without Polymath installed substitutes silently.</li>
           <li><strong>Shared state, not duplicated logic.</strong> <code>lci-report.js</code> caches the assembled models on <code>_lciReportBundles</code> and the deck builds from that rather than re-fetching — the same pattern <code>lci-excel.js</code> uses with <code>_lciEd</code>. The compare table is built once (N-278): <code>CONFIG.LCI.KEY_FIGURES</code> is the layout and <code>lciCompareTable()</code> in <code>lci-model.js</code> builds the cells, so the on-screen Compare view, the report and the deck's Key Figures — Comparison slide cannot list different figures. The deck <strong>never recalculates</strong>: every figure comes from <code>lci-model.js</code> and every row-visibility rule (N-008 / N-010 / N-018) is the one <code>lci-sections.js</code> applies.</li>
@@ -1522,7 +1543,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
           <li><strong>Section switches</strong> — <code>TravelOn</code>, <code>LegacyOn</code>, <code>OneoffsOn</code>, <code>FeesOn</code> as 1/0 cells mirroring the Newton toggles. They exist because Monthly Calc keeps every per-row line populated even when its section is off, so the subtotals need something to switch them off with; without them the cached values and the live formulas disagree.</li>
           <li><strong>Sheets:</strong> Assumptions · CoE Roadmap · Legacy Team · One-offs &amp; Fees · Monthly Calc (audit sheet — every line, every month, regardless of toggles) · Output Summary (mirrors the client PDF line for line, incl. the conditional legacy rows) · Milestones.</li>
           <li><strong>Every formula carries its computed value</strong> (<code>{ formula, result }</code>), so the file is right the moment it opens rather than after a recalculation — and a disagreement between formula and value becomes visible instead of silent.</li>
-          <li><strong>ExcelJS 4.4.0</strong>, pinned, lazy-loaded from CDN on first click only (~950KB, never on page render). Chosen over SheetJS, whose free build cannot style cells. <strong>Colours for this export live in <code>CONFIG.LCI.EXCEL.COLOURS</code> as ARGB</strong> — a documented exception to "no hex in JS", because a workbook cannot read <code>style.css</code>.</li>
+          <li><strong>ExcelJS 4.4.0</strong>, vendored in <code>js/vendor/</code> (N-289), lazy-loaded on first click only (~950KB, never on page render). Chosen over SheetJS, whose free build cannot style cells. <strong>Colours for this export live in <code>CONFIG.LCI.EXCEL.COLOURS</code> as ARGB</strong> — a documented exception to "no hex in JS", because a workbook cannot read <code>style.css</code>.</li>
           <li>The <strong>LCI Lead Magnet is unaffected</strong> — it remains PDF-only.</li>
         </ul>
       </div>
@@ -1684,11 +1705,13 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <h3>Dependencies to monitor</h3>
       <table>
         <tr><th>Dependency</th><th>Version</th><th>Notes</th></tr>
-        <tr><td>MSAL.js</td><td>2.38.3</td><td>Pin the version in the CDN URL. Breaking changes between major versions.</td></tr>
-        <tr><td>Lucide</td><td>Latest (CDN)</td><td>Currently unpinned — consider pinning to a specific version.</td></tr>
-        <tr><td>SortableJS</td><td>1.15.2</td><td>Pinned — safe.</td></tr>
-        <tr><td>ExcelJS</td><td>4.4.0</td><td>Pinned in <code>CONFIG.LCI.EXCEL.CDN</code>. Lazy-loaded on first Export to Excel click only. Keep pinned — the workbook relies on <code>{ formula, result }</code> cell values and defined names.</td></tr>
-        <tr><td>pptxgenjs</td><td>4.0.1</td><td>Pinned in <code>CONFIG.LCI.PPTX.CDN</code>. Lazy-loaded on first Export to PowerPoint click only. Must be the <code>pptxgen.bundle.js</code> build — <code>pptxgen.min.js</code> expects a separate JSZip global this app does not load. Colours are plain hex in <code>CONFIG.LCI.PPTX.COLOURS</code>, not the ARGB form ExcelJS uses. The deck is set in Polymath; because the three weights are separate font families, bold text switches face to <code>FONT.faceBold</code> rather than setting a bold flag.</td></tr>
+        <tr><td>MSAL.js</td><td>2.38.3</td><td>Vendored (<code>js/vendor/msal-browser-2.38.3.min.js</code>). Old major — N-290 upgrades it. Breaking changes between major versions.</td></tr>
+        <tr><td>Lucide</td><td>1.47.0</td><td>Vendored (<code>js/vendor/lucide-1.47.0.min.js</code>).</td></tr>
+        <tr><td>SortableJS</td><td>1.15.2</td><td>Vendored (<code>js/vendor/sortablejs-1.15.2.min.js</code>). Report Builder and Briefing Pack drag-and-drop.</td></tr>
+        <tr><td>ExcelJS</td><td>4.4.0</td><td>Vendored (<code>js/vendor/exceljs-4.4.0.min.js</code>, path in <code>CONFIG.LCI.EXCEL.SRC</code>). Lazy-loaded on first Export to Excel click only. Keep pinned — the workbook relies on <code>{ formula, result }</code> cell values and defined names.</td></tr>
+        <tr><td>pptxgenjs</td><td>4.0.1</td><td>Vendored (<code>js/vendor/pptxgenjs-4.0.1.bundle.js</code>, path in <code>CONFIG.LCI.PPTX.SRC</code>). Lazy-loaded on first Export to PowerPoint click only. Must be the <code>pptxgen.bundle.js</code> build — <code>pptxgen.min.js</code> expects a separate JSZip global this app does not load. Colours are plain hex in <code>CONFIG.LCI.PPTX.COLOURS</code>, not the ARGB form ExcelJS uses. The deck is set in Polymath; because the three weights are separate font families, bold text switches face to <code>FONT.faceBold</code> rather than setting a bold flag.</td></tr>
+        <tr><td>Chart.js</td><td>4.4.1</td><td>Vendored (<code>js/vendor/chart.js-4.4.1.umd.js</code>, path in <code>CONFIG.SURVEY.CHARTJS_SRC</code>). Lazy-loaded by the Engagement trends chart only. Not byte-identical to the cdnjs file it replaced — see <code>js/vendor/VERSIONS.md</code>.</td></tr>
+        <tr><td>Security advisories</td><td>—</td><td>The root <code>package.json</code> pins the same six versions so GitHub Dependabot alerts can flag advisories. It is not used by the build or CI; <code>node tests/run.js</code> fails if it drifts from <code>js/vendor/VERSIONS.md</code>.</td></tr>
         <tr><td>Graph API</td><td>v1.0</td><td>Microsoft's stable channel. Breaking changes announced with deprecation periods.</td></tr>
       </table>
     </div>

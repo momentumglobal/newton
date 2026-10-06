@@ -32,6 +32,7 @@ process.env.TZ = process.env.NEWTON_TZ || 'Europe/London';
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const crypto = require('crypto');
 
 const TESTS_DIR = __dirname;
 const JS_DIR = path.join(TESTS_DIR, '..', 'js');
@@ -50,6 +51,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),
   path.join(TESTS_DIR, 'lint-alias-consumers.js'),
   path.join(TESTS_DIR, 'lint-escaping.js'),
+  path.join(TESTS_DIR, 'lint-vendor.js'),
   path.join(TESTS_DIR, 'fixtures.js'),
   path.join(TESTS_DIR, 'assertions.js'),
 ];
@@ -68,6 +70,31 @@ sandbox.ALL_SOURCES = fs.readdirSync(JS_DIR)
     acc[f] = fs.readFileSync(path.join(JS_DIR, f), 'utf8');
     return acc;
   }, {});
+
+// N-289 (SEC-9): lint-vendor.js guards "no third-party script from a CDN" and
+// "every js/vendor/ file matches its VERSIONS.md row". Like ALL_SOURCES these
+// are read here because fs is unavailable inside the vm. If js/vendor/ is
+// missing, VENDOR_FILES is {} and the lint FAILS ("contains no .js files") —
+// it must never pass vacuously.
+const ROOT_DIR = path.join(TESTS_DIR, '..');
+const VENDOR_DIR = path.join(JS_DIR, 'vendor');
+const _readIfExists = p => (fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '');
+sandbox.ALL_HTML = fs.readdirSync(ROOT_DIR)
+  .filter(f => f.endsWith('.html'))
+  .sort()
+  .reduce((acc, f) => {
+    acc[f] = fs.readFileSync(path.join(ROOT_DIR, f), 'utf8');
+    return acc;
+  }, {});
+sandbox.VENDOR_FILES = (fs.existsSync(VENDOR_DIR) ? fs.readdirSync(VENDOR_DIR) : [])
+  .filter(f => f.endsWith('.js'))
+  .sort()
+  .reduce((acc, f) => {
+    acc[f] = 'sha384-' + crypto.createHash('sha384').update(fs.readFileSync(path.join(VENDOR_DIR, f))).digest('base64');
+    return acc;
+  }, {});
+sandbox.VENDOR_MANIFEST = _readIfExists(path.join(VENDOR_DIR, 'VERSIONS.md'));
+sandbox.VENDOR_PACKAGE_JSON = _readIfExists(path.join(ROOT_DIR, 'package.json'));
 
 vm.createContext(sandbox);
 

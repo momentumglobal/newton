@@ -411,6 +411,38 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'no third-party script loads from a CDN (N-289 — SEC-9 guard)',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const found = lintExternalScripts(ALL_HTML, ALL_SOURCES);
+      _assertEqual(
+        found.map(v => `${v.file}:${v.line}  ${v.src}`),
+        [],
+        'external script URLs (vendor the library into js/vendor/ instead)'
+      );
+    },
+  },
+  {
+    name: 'js/vendor/ files match their VERSIONS.md rows (N-289 — SEC-9 guard)',
+    fn: function () {
+      if (typeof VENDOR_FILES === 'undefined') {
+        _skip('Vendor hashing needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintVendorManifest(VENDOR_FILES, VENDOR_MANIFEST), [], 'js/vendor/ vs VERSIONS.md');
+    },
+  },
+  {
+    name: 'package.json pins exactly the versions in VERSIONS.md (N-289 — Dependabot manifest)',
+    fn: function () {
+      if (typeof VENDOR_PACKAGE_JSON === 'undefined') {
+        _skip('Needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintPackagePins(VENDOR_MANIFEST, VENDOR_PACKAGE_JSON), [], 'package.json vs VERSIONS.md');
+    },
+  },
+  {
     name: "_ROLE_COPY_FIELDS stays in sync with submitRoleForm's write set (N-150)",
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') {

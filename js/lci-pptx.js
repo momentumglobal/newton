@@ -47,7 +47,7 @@ function _lciLoadPptxGen() {
   if (_lciPptxPromise) return _lciPptxPromise;
   _lciPptxPromise = new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = CONFIG.LCI.PPTX.CDN;
+    s.src = CONFIG.LCI.PPTX.SRC;
     s.onload = () => window.PptxGenJS
       ? resolve(window.PptxGenJS)
       : reject(new Error('PowerPoint library loaded but did not register.'));

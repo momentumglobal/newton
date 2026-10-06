@@ -272,11 +272,11 @@ async function engRenderTrends() {
     };
   });
 
-  // Load Chart.js from CDN if not already present
+  // Load Chart.js (vendored, N-289) if not already present
   if (!window.Chart) {
     await new Promise((res, rej) => {
       const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+      s.src = CONFIG.SURVEY.CHARTJS_SRC;
       s.onload = res; s.onerror = rej;
       document.head.appendChild(s);
     });

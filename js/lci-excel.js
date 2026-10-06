@@ -32,7 +32,7 @@ function _lciLoadExcelJS() {
   if (_lciExcelJsPromise) return _lciExcelJsPromise;
   _lciExcelJsPromise = new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = CONFIG.LCI.EXCEL.CDN;
+    s.src = CONFIG.LCI.EXCEL.SRC;
     s.onload = () => window.ExcelJS
       ? resolve(window.ExcelJS)
       : reject(new Error('Excel library loaded but did not register.'));

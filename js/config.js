@@ -932,6 +932,9 @@ const CONFIG = {
   // Single source of truth for all survey constants.
   // No hardcoded values in engagement-pages.js, engagement-forms.js, or survey-app.js.
   SURVEY: {
+    // N-289 (SEC-9): Chart.js for the engagement trends chart, lazy-loaded by
+    // engagement-pages.js. Vendored in js/vendor/ — never a CDN.
+    CHARTJS_SRC:          'js/vendor/chart.js-4.4.1.umd.js',
     QUESTION_TYPES:       ['Rating', 'SingleChoice', 'MultiChoice', 'FreeText'],
     STATUSES:             ['Draft', 'Active', 'Closed'],
     AUDIENCES:            ['All', 'TalentPartners', 'DeliveryManagers'],
@@ -1125,10 +1128,10 @@ const CONFIG = {
 
     // ── Excel export (N-030) ──────────────────────────────────────
     // ExcelJS, lazy-loaded on first click only (~950KB — never on page
-    // render). PIN THE VERSION: an unpinned CDN has bitten this codebase
-    // before (see the Dependencies table in Readme.html).
+    // render). Vendored in js/vendor/ (N-289) — never a CDN. To upgrade, change
+    // the file, js/vendor/VERSIONS.md and package.json together.
     EXCEL: {
-      CDN: 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
+      SRC: 'js/vendor/exceljs-4.4.0.min.js',
       // Tab order is the order the builders run in — see lci-excel.js.
       SHEETS: {
         assumptions: 'Assumptions',
@@ -1167,12 +1170,12 @@ const CONFIG = {
 
     // ── PowerPoint export (N-224) ─────────────────────────────────
     // pptxgenjs, lazy-loaded on first click only (~450KB — never on page
-    // render). PIN THE VERSION: an unpinned CDN has bitten this codebase
-    // before (see the Dependencies table in Readme.html). Use the *bundle*
+    // render). Vendored in js/vendor/ (N-289) — never a CDN. To upgrade, change
+    // the file, js/vendor/VERSIONS.md and package.json together. Use the *bundle*
     // build — it carries JSZip inside it, where pptxgen.min.js expects a
     // separate JSZip global that this app does not load.
     PPTX: {
-      CDN: 'https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js',
+      SRC: 'js/vendor/pptxgenjs-4.0.1.bundle.js',
       // Inches. 13.333 x 7.5 is 16:9 widescreen — PowerPoint's own default.
       LAYOUT:  { name: 'LCI16x9', width: 13.333, height: 7.5 },
       MASTERS: { navy: 'LCI_NAVY', content: 'LCI_CONTENT' },

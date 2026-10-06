@@ -1,0 +1,13 @@
+{
+  "name": "newton-vendor-manifest",
+  "private": true,
+  "description": "Exists only so GitHub Dependabot can flag security advisories on the libraries vendored in js/vendor/. Not used by the build, CI or the deployed site. Keep in step with js/vendor/VERSIONS.md.",
+  "dependencies": {
+    "@azure/msal-browser": "2.38.3",
+    "chart.js": "4.4.1",
+    "exceljs": "4.4.0",
+    "lucide": "1.47.0",
+    "pptxgenjs": "4.0.1",
+    "sortablejs": "1.15.2"
+  }
+}

@@ -65,7 +65,7 @@ function _lciImportPickerHtml() {
       the source file uses a different currency; this import does not do FX
       conversion.
     </p>
-    <input type="file" id="lci-import-file" accept=".xlsx,.xls" onchange="lciImportFileSelected(this)">
+    <input type="file" id="lci-import-file" accept="${uploadAcceptAttr('LCI_IMPORT')}" onchange="lciImportFileSelected(this)">
     <div id="lci-import-status" style="margin-top:12px;font-size:13px;color:var(--text-muted)"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:20px">
       <button class="btn-secondary" onclick="closeLCIImport()">Cancel</button>
@@ -93,6 +93,8 @@ function _lciImportCellValue(v) {
 async function lciImportFileSelected(input) {
   const file = input.files && input.files[0];
   if (!file) return;
+  const importCheck = validateUpload(file, 'LCI_IMPORT');          // N-284
+  if (!importCheck.ok) { toast(importCheck.reason, { type: 'error' }); input.value = ''; return; }
   const statusEl = document.getElementById('lci-import-status');
   if (statusEl) statusEl.textContent = 'Reading file…';
   try {

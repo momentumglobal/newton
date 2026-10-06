@@ -997,7 +997,7 @@ function _odataDateFrom(field, weeksBack) {
   if (!weeksBack) return '';
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - (weeksBack * 7));
-  return `fields/${field} ge '${localDayISO(cutoff)}'`;
+  return `fields/${field} ge '${odataStr(localDayISO(cutoff))}'`;
 }
 
 // N-093 (F-2a): joins non-empty OData clauses with `and`.
@@ -1037,7 +1037,7 @@ async function getHistoricalPlacements() {
   // support went live; see N-050 QA). Stays on '*' until N-052 audits and
   // re-adds a correct list.
   const roles = await getItems('Roles',
-    `fields/Stage eq 'Hired' and fields/ActualHireDate ge '${localDayISO(cutoff)}'`
+    `fields/Stage eq 'Hired' and fields/ActualHireDate ge '${odataStr(localDayISO(cutoff))}'`
   );
   return roles.map(r => ({
     id:            r.id,
@@ -1061,7 +1061,7 @@ async function getActivityForAnalytics(weeksBack) {
   // support went live; see N-050 QA). Stays on '*' until N-052 audits and
   // re-adds a correct list.
   const activity = await getItems('WeeklyActivity',
-    `fields/WeekEndingDate ge '${cutoffDay}'`
+    `fields/WeekEndingDate ge '${odataStr(cutoffDay)}'`
   );
   return activity;
 }
@@ -1088,7 +1088,7 @@ async function getWeeklyActivity(projectId, roleId, opts = {}) {
 // until N-052's field audit.
 async function getWeeklyActivityForWeek(weekEndingISO) {
   if (!weekEndingISO) return [];
-  return getItems("WeeklyActivity", `fields/WeekEndingDate eq '${weekEndingISO}'`);
+  return getItems("WeeklyActivity", `fields/WeekEndingDate eq '${odataStr(weekEndingISO)}'`);
 }
  
 // N-093 (F-2a): `opts.fromDay` ('YYYY-MM-DD') adds an OfferAcceptedDate lower
@@ -1099,7 +1099,7 @@ async function getPlacements(roleId, opts = {}) {
   const filter = _odataAnd(
     roleId ? `fields/RoleID eq ${roleId}` : '',
     _odataIn('RoleID', opts.roleIds),
-    opts.fromDay ? `fields/OfferAcceptedDate ge '${opts.fromDay}'` : ''
+    opts.fromDay ? `fields/OfferAcceptedDate ge '${odataStr(opts.fromDay)}'` : ''
   );
   return getItems("Placements", filter);
 }
@@ -1116,7 +1116,7 @@ async function getRejectedOffers(roleId, opts = {}) {
   const filter = _odataAnd(
     roleId ? `fields/RoleID eq ${roleId}` : '',
     _odataIn('RoleID', opts.roleIds),
-    opts.fromDay ? `fields/RejectionDate ge '${opts.fromDay}'` : ''
+    opts.fromDay ? `fields/RejectionDate ge '${odataStr(opts.fromDay)}'` : ''
   );
   return getItems("RejectedOffers", filter);
 }
@@ -1377,7 +1377,7 @@ async function _resolveRoleForEmail(lower) {
   // never depends on row order.
   const [leadership, assignments] = await Promise.all([
     getLeadershipAccess(),
-    getItems("UserAssignments", `fields/Title eq '${lower}'`),
+    getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`),
   ]);
   const isLeadership = leadership.some(l => l.UserEmail?.toLowerCase() === lower);
   return { role: resolveRoleFromAssignments(assignments, isLeadership), assignments };
@@ -1524,7 +1524,7 @@ async function filterToActiveTpEmails(tpEmails, tpMap) {
 async function getUserProjectIds(email) {
   await _ensureGhostGate();   // N-282: getGhostUser() is only valid after the gate
   const lower = (getGhostUser() || email).toLowerCase();
-  const assignments = await getItems("UserAssignments", `fields/Title eq '${lower}'`);
+  const assignments = await getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`);
   // N-281: an active admin row sees all projects.
   if (assignments.some(isAdminAssignment)) return null;
   // N-165: de-duped — a user with two UserAssignments rows for the same
@@ -1611,10 +1611,10 @@ async function updatePerson(id, fields) {
 // ── People module: Assignments list ──────────────────────────────────
 async function getAssignments(filters = {}) {
   const parts = [];
-  if (filters.employeeName) parts.push(`fields/EmployeeName eq '${filters.employeeName}'`);
-  if (filters.customer)     parts.push(`fields/Customer eq '${filters.customer}'`);
+  if (filters.employeeName) parts.push(`fields/EmployeeName eq '${odataStr(filters.employeeName)}'`);
+  if (filters.customer)     parts.push(`fields/Customer eq '${odataStr(filters.customer)}'`);
   if (filters.billed !== undefined && filters.billed !== '')
-    parts.push(`fields/Billed eq '${filters.billed}'`);
+    parts.push(`fields/Billed eq '${odataStr(filters.billed)}'`);
   const filterStr = parts.join(" and ");
   const assignments = await getItems("Assignments", filterStr);
   if (filters.year) {
@@ -1675,15 +1675,17 @@ async function getPeoplePhotosDriveId() {
 // Upload an image; returns its web URL. prefix = 'person' | 'leader'.
 // Stable filename (prefix-id.ext) so re-uploads overwrite the previous photo.
 async function uploadPeoplePhoto(prefix, id, file) {
+  // N-284: validate first, at the API boundary, so no caller can skip it.
+  const check = validateUpload(file, 'PHOTO');
+  if (!check.ok) throw new Error(check.reason);
   const token = await getToken();
   if (!token) throw new Error('Not authenticated');
   const driveId = await getPeoplePhotosDriveId();
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const filename = `${prefix}-${id}.${ext}`;
+  const filename = `${prefix}-${id}.${check.ext}`;
   const url = `${GRAPH}/sites/${CONFIG.SP_SITE_ID}/drives/${driveId}/items/root:/${encodeURIComponent(filename)}:/content`;
   const res = await fetch(url, {
     method: 'PUT',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': file.type || 'image/jpeg' },
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': check.mime },
     body: file,
   });
   if (!res.ok) {
@@ -1756,7 +1758,7 @@ async function getScopedRolesVisibleTo(email, effectiveRole) {
   // doesn't call) so the per-project role fan-out below can't double up.
   const assignments = await getItems(
     "UserAssignments",
-    `fields/Title eq '${lower}'`
+    `fields/Title eq '${odataStr(lower)}'`
   );
   if (!assignments.length) return [];
   const projectIds = [...new Set(assignments.map(a => String(a.ProjectID)))];
@@ -1789,14 +1791,14 @@ async function getActiveSurveyRun() {
 }
 
 async function getSurveyQuestions(templateId) {
-  const questions = await getItems("SurveyQuestions", `fields/TemplateID eq '${templateId}'`);
+  const questions = await getItems("SurveyQuestions", `fields/TemplateID eq '${odataStr(templateId)}'`);
   return questions.sort((a, b) => (a.SortOrder ?? 0) - (b.SortOrder ?? 0));
 }
 
 async function hasCompletedSurvey(runId, email) {
   const completions = await getItems(
     "SurveyCompletions",
-    `fields/RunID eq '${runId}' and fields/RespondentEmail eq '${email.toLowerCase()}'`
+    `fields/RunID eq '${odataStr(runId)}' and fields/RespondentEmail eq '${odataStr(email.toLowerCase())}'`
   );
   return completions.length > 0;
 }

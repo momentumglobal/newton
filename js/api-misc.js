@@ -35,7 +35,7 @@ async function deleteSalesForecast(id) {
 async function getDefaultUserProjectId(email) {
   await _ensureGhostGate();   // N-282: getGhostUser() is only valid after the gate
   const lower = (getGhostUser() || email).toLowerCase();
-  const assignments = await getItems("UserAssignments", `fields/Title eq '${lower}'`);
+  const assignments = await getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`);
   // N-281: admin rows (ProjectID 0) are not a project — skip them.
   const projectRows = assignments.filter(a => a.AssignedRole !== 'admin');
   if (!projectRows.length) return null;

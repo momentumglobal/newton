@@ -892,6 +892,33 @@ const CONFIG = {
     REMINDER_DAY:          7,
     RATING_SCALE_MIN:      1,
     RATING_SCALE_MAX:      5,
+    // N-284 (S-5): the survey is CONFIDENTIAL, not anonymous — SharePoint
+    // stamps Created By on every SurveyResponses item. One source for the
+    // wording shown to respondents. Do not add a claim about who can read
+    // responses until N-288 restricts the list.
+    CONFIRMATION_NOTE:     'Your response has been submitted. Your answers are confidential and reported in aggregate.',
+    WIDGET_DESC:           'Your quarterly pulse survey is open \u2014 your answers are confidential and it takes ~3 minutes to complete.',
+    WIDGET_DESC_REMINDER:  'Still time to complete \u2014 your answers are confidential and it takes ~3 minutes.',
+  },
+
+  // ── Upload checks (N-284 / audit S-16) ────────────────────────────
+  // Checked in JS by validateUpload() (utils.js) BEFORE any bytes leave the
+  // browser. This is a guard against mistakes and casual misuse, not a
+  // security boundary — SharePoint will still store whatever a hand-built API
+  // call sends. LOGO's size cap is CONFIG.BRIEFING_PACK.CLIENT_LOGO_MAX_BYTES
+  // (logos are stored as base64 in a list column); do not duplicate it here.
+  UPLOADS: {
+    PHOTO:      { MAX_BYTES: 2 * 1024 * 1024,  EXTS: ['jpg', 'jpeg', 'png', 'webp'], NAME: 'Photos',       ALLOWED: 'JPG, PNG or WebP' },
+    INVOICE:    { MAX_BYTES: 10 * 1024 * 1024, EXTS: ['pdf'],                        NAME: 'Invoices',     ALLOWED: 'PDF' },
+    LOGO:       { MAX_BYTES: null,             EXTS: ['png', 'jpg', 'jpeg'],         NAME: 'Logos',        ALLOWED: 'PNG or JPG' },
+    LCI_IMPORT: { MAX_BYTES: 10 * 1024 * 1024, EXTS: ['xlsx'],                       NAME: 'Import files', ALLOWED: '.xlsx (save older .xls files as .xlsx first)' },
+    // The ONLY place an extension maps to a MIME type. validateUpload returns
+    // these, never the browser-supplied file.type.
+    MIME_BY_EXT: {
+      jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
+      pdf: 'application/pdf',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    },
   },
 
   // ── LCI Cost Model ────────────────────────────────────────────────

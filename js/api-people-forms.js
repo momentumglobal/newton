@@ -37,7 +37,10 @@ async function createInvoice(fields) {
 async function uploadInvoiceAttachment(itemId, file) {
  // Upload PDF to GPInvoiceFiles document library via Graph Drive API.
  // filename includes itemId to avoid collisions.
- const filename = `invoice-${itemId}-${file.name}`;
+ // N-284: validate first; the stored name is sanitised, never the raw file name.
+ const check = validateUpload(file, 'INVOICE');
+ if (!check.ok) throw new Error(check.reason);
+ const filename = `invoice-${itemId}-${safeUploadName(file.name, check.ext)}`;
  const token = await getToken();
  if (!token) throw new Error('Not authenticated');
  const url = `${GRAPH}/sites/${CONFIG.SP_SITE_ID}/drives/${CONFIG.GP_INVOICE_DRIVE_ID}/items/root:/${encodeURIComponent(filename)}:/content`;
@@ -45,7 +48,7 @@ async function uploadInvoiceAttachment(itemId, file) {
  method: 'PUT',
  headers: {
  'Authorization': `Bearer ${token}`,
- 'Content-Type': 'application/pdf',
+ 'Content-Type': check.mime,
  },
  body: file,
  });

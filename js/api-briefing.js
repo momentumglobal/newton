@@ -7,7 +7,7 @@
 // Keyed by project id held as text in Title, so one filtered read serves the
 // briefing pack builder without touching the Projects payload.
 async function getClientLogo(projectId) {
-  const rows = await getItems("ClientLogos", `fields/Title eq '${String(projectId)}'`);
+  const rows = await getItems("ClientLogos", `fields/Title eq '${odataStr(String(projectId))}'`);
   return rows.length ? rows[0] : null;
 }
 async function upsertClientLogo(projectId, logoData, logoName) {

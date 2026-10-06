@@ -262,7 +262,7 @@ async function buildLeadershipTab() {
       <td>${escHtml(l.UserEmail)}</td>
       <td>
         <div class="row-actions" style="gap:6px">
-          <input type="file" id="lead-photofile-${l.id}" accept="image/*">
+          <input type="file" id="lead-photofile-${l.id}" accept="${uploadAcceptAttr('PHOTO')}">
           <button class="btn-secondary" onclick="uploadLeadershipPhoto(${l.id})">Upload photo</button>
           <button class="btn-danger" onclick="deleteOsAdminRecord('LeadershipAccess',${l.id})">Remove</button>
         </div>
@@ -291,7 +291,7 @@ async function buildLeadershipTab() {
       </div>
       <div class="form-group">
         <label>Photo <span style="font-size:11px;color:var(--text-muted);font-weight:normal">optional</span></label>
-        <input type="file" id="lead-photofile" accept="image/*">
+        <input type="file" id="lead-photofile" accept="${uploadAcceptAttr('PHOTO')}">
       </div>
       <div id="lead-error" class="form-error"></div>
       <button class="btn-primary" onclick="submitLeadershipUser()">Add User</button>
@@ -305,6 +305,10 @@ async function submitLeadershipUser() {
   const errEl = document.getElementById('lead-error');
   errEl.style.display = 'none';
   if (!email) { errEl.textContent = 'Email is required.'; errEl.style.display = 'block'; return; }
+  if (file) {                                   // N-284: fail before anything is saved
+    const photoCheck = validateUpload(file, 'PHOTO');
+    if (!photoCheck.ok) { errEl.textContent = photoCheck.reason; errEl.style.display = 'block'; return; }
+  }
   const btn = document.querySelector('.btn-primary[onclick="submitLeadershipUser()"]');
   setButtonLoading(btn);
   try {
@@ -323,6 +327,8 @@ async function uploadLeadershipPhoto(id) {
   const input = document.getElementById('lead-photofile-' + id);
   const file = input?.files?.[0];
   if (!file) { toast('Choose an image first.', { type: 'error' }); return; }
+  const photoCheck = validateUpload(file, 'PHOTO');                 // N-284
+  if (!photoCheck.ok) { toast(photoCheck.reason, { type: 'error' }); input.value = ''; return; }
   const btn = input.nextElementSibling;
   setButtonLoading(btn);
   try {

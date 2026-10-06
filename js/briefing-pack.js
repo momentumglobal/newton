@@ -260,10 +260,10 @@ async function bpUploadClientLogo(input) {
     input.value = '';
     return;
   }
-  const max = CONFIG.BRIEFING_PACK.CLIENT_LOGO_MAX_BYTES;
-  if (file.size > max) {
-    toast(`Logo must be under ${Math.round(max / 1024)} KB — that file is ${Math.round(file.size / 1024)} KB.`,
-          { type: 'error' });
+  // N-284: extension + MIME + size (cap = CONFIG.BRIEFING_PACK.CLIENT_LOGO_MAX_BYTES). No SVG.
+  const logoCheck = validateUpload(file, 'LOGO');
+  if (!logoCheck.ok) {
+    toast(logoCheck.reason, { type: 'error' });
     input.value = '';
     return;
   }
@@ -282,7 +282,7 @@ async function bpUploadClientLogo(input) {
     return;
   }
   // Only ever store an image data URI — nothing else reaches an <img src>.
-  if (!dataUri.startsWith('data:image/')) {
+  if (!/^data:image\/(png|jpeg);/.test(dataUri)) {
     toast('That file is not an image.', { type: 'error' });
     input.value = '';
         return;
@@ -408,7 +408,7 @@ function bpRenderSidebar() {
         ${_bpClientLogo
           ? `<img class="bp-logo-thumb" src="${escAttr(_bpClientLogo)}" alt="${escAttr(_bpClientLogoName || 'Client logo')}">`
           : '<span class="bp-logo-empty">No logo uploaded</span>'}
-        <input type="file" class="bp-logo-input" accept="image/png,image/jpeg,image/svg+xml"
+        <input type="file" class="bp-logo-input" accept="${uploadAcceptAttr('LOGO')}"
           onchange="bpUploadClientLogo(this)">
         ${_bpClientLogo ? '<button class="btn-secondary btn-sm" onclick="bpRemoveClientLogo()">Remove</button>' : ''}
       </div>

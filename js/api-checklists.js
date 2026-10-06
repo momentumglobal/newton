@@ -47,7 +47,7 @@ async function getChecklistProgress(recordType, { recordId = null, fromId = null
   let idClause = '';
   if (recordId !== null && recordId !== undefined) idClause = `fields/RecordId eq ${_ckInt(recordId)}`;
   else if (fromId !== null && fromId !== undefined) idClause = `fields/RecordId ge ${_ckInt(fromId)}`;
-  return getItems('ChecklistProgress', _odataAnd(`fields/Title eq '${type}'`, idClause));
+  return getItems('ChecklistProgress', _odataAnd(`fields/Title eq '${odataStr(type)}'`, idClause));
 }
 
 // Tick / untick one item. PATCHes the row this view already knows about,

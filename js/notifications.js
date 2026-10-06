@@ -16,7 +16,7 @@ async function fireNotification(opts) {
           extraFields = {} } = opts;          // NEW: optional extra columns
   if (!recipients || !recipients.length) return;
   const existing = await getItems('Notifications',
-    `fields/TriggerKey eq '${triggerKey}' and fields/Status eq 'active'`);
+    `fields/TriggerKey eq '${odataStr(triggerKey)}' and fields/Status eq 'active'`);
   const alreadyFor = new Set(existing.map(n => (n.RecipientEmail||'').toLowerCase()));
   for (const raw of recipients) {
     const email = (raw||'').toLowerCase();
@@ -35,7 +35,7 @@ async function fireNotification(opts) {
 // --- clear (re-arm transition triggers) ----------------------------
 async function clearNotification(triggerKey) {
   const active = await getItems('Notifications',
-    `fields/TriggerKey eq '${triggerKey}' and fields/Status eq 'active'`);
+    `fields/TriggerKey eq '${odataStr(triggerKey)}' and fields/Status eq 'active'`);
   for (const n of active) await updateItem('Notifications', n.id, { Status:'cleared' });
 }
 
@@ -44,7 +44,7 @@ async function renderNotificationBell() {
   if (getGhostUser()) return;
   const me = (getCurrentUser().email||'').toLowerCase();
   const rows = await getItems('Notifications',
-    `fields/RecipientEmail eq '${me}' and fields/Status eq 'active'`);
+    `fields/RecipientEmail eq '${odataStr(me)}' and fields/Status eq 'active'`);
   rows.sort((a,b) => new Date(b.CreatedAt) - new Date(a.CreatedAt));
   const unread = rows.filter(r => !r.IsRead).length;   // boolean test in JS
   paintBell(rows, unread);
@@ -157,7 +157,7 @@ async function notifMarkAll() {
   const wasOpen = document.getElementById('notif-drawer')?.classList.contains('open');
   const me = (getCurrentUser().email||'').toLowerCase();
   const rows = await getItems('Notifications',
-    `fields/RecipientEmail eq '${me}' and fields/Status eq 'active'`);
+    `fields/RecipientEmail eq '${odataStr(me)}' and fields/Status eq 'active'`);
   for (const n of rows.filter(r => !r.IsRead)) await markRead(n.id);
   await renderNotificationBell();
   if (wasOpen) {

@@ -33,11 +33,11 @@ async function getSurveyRuns() {
 }
 
 async function getSurveyResponses(runId) {
-  return getItems("SurveyResponses", `fields/RunID eq '${runId}'`);
+  return getItems("SurveyResponses", `fields/RunID eq '${odataStr(runId)}'`);
 }
 
 async function getSurveyCompletionCount(runId) {
-  const completions = await getItems("SurveyCompletions", `fields/RunID eq '${runId}'`);
+  const completions = await getItems("SurveyCompletions", `fields/RunID eq '${odataStr(runId)}'`);
   return completions.length;
 }
 

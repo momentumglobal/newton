@@ -293,7 +293,7 @@ const SurveyApp = (() => {
         <div class="survey-card survey-card--confirmation">
           <i data-lucide="check-circle" class="survey-confirm-icon"></i>
           <h2>Thank you!</h2>
-          <p>Your response has been submitted. All answers are anonymous.</p>
+          <p>${escHtml(CONFIG.SURVEY.CONFIRMATION_NOTE)}</p>
           <a href="index.html" class="btn-primary">Return to Newton OS</a>
         </div>
       </div>`;

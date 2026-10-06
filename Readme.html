@@ -625,7 +625,7 @@
         <tr><th>File</th><th>Responsibility</th></tr>
         <tr><td><span class="file-tag">survey.html</span></td><td>Standalone survey respondent page. No module chrome — full-screen survey flow only.</td></tr>
         <tr><td><span class="file-tag">js/survey-router.js</span></td><td>Access control for survey respondents. SURVEY_RESPONDENT_ROLES = ['talent_partner', 'delivery_manager']. surveyCanAccess(role).</td></tr>
-        <tr><td><span class="file-tag">js/survey-app.js</span></td><td>Full respondent flow — question renderer, draft save/restore (sessionStorage), rating/choice/free-text input handlers, anonymous submission. UUID stored in sessionStorage; responses written with UUID only; completion written with email only.</td></tr>
+        <tr><td><span class="file-tag">js/survey-app.js</span></td><td>Full respondent flow — question renderer, draft save/restore (sessionStorage), rating/choice/free-text input handlers, UUID-keyed submission. UUID stored in sessionStorage; responses written with UUID only; completion written with email only.</td></tr>
       </table>
 
       <h3>Sales module</h3>
@@ -821,7 +821,7 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
         <tr><td><strong>SurveyResponses</strong></td><td>RunID (text), QuestionID (text), RespondentUUID, AnswerValue, SubmittedAt</td><td>One row per question per respondent. UUID only — no email stored here.</td></tr>
         <tr><td><strong>SurveyCompletions</strong></td><td>RunID (text), RespondentEmail</td><td>One row per respondent per run. Email only — no answers stored here. Used to prevent re-submission and clear the homepage widget.</td></tr>
       </table>
-      <div class="callout amber"><strong>Anonymity model:</strong> SurveyResponses and SurveyCompletions share no common key — UUID and email are never stored together. Re-identification is architecturally impossible.</div>
+      <div class="callout amber"><strong>Confidentiality model (corrected N-284):</strong> SurveyResponses and SurveyCompletions share no common key written by the app — the UUID and the email are never stored together. <strong>The survey is confidential, not anonymous:</strong> SharePoint stamps <code>Created By</code> and <code>Created</code> on every SurveyResponses item, so anyone with read access to the list can see who wrote each answer. Respondent-facing copy comes from <code>CONFIG.SURVEY</code> and must not claim anonymity.</div>
 
       <h3>Sales module lists</h3>
       <table>
@@ -1039,6 +1039,8 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
       <ul class="checklist">
         <li>Data interpolated into HTML uses the utils.js helpers by context: text → <code>escHtml</code> (multi-line: <code>escHtmlLines</code>), double-quoted attribute → <code>escAttr</code>, JS string inside an attribute handler → <code>escJsAttr</code>.</li>
         <li>Every SharePoint text value rendered in an HTML template literal is wrapped in <code>escHtml</code>/<code>escAttr</code> — including option labels, table cells and Choice/currency fields. Enforced by <code>tests/lint-escaping.js</code>; opt out only with <code>/* esc-lint-ok: reason */</code> inside the <code>${}</code> (a trailing <code>//</code> comment would render as text).</li>
+        <li>Every string value interpolated into an OData <code>$filter</code> goes through <code>odataStr()</code> (doubles apostrophes; inner text only — never also <code>encodeURIComponent</code>). Guarded by an assertion in <code>tests/assertions.js</code>.</li>
+        <li>Every upload is checked with <code>validateUpload(file, kind)</code> (extension + MIME + size, limits in <code>CONFIG.UPLOADS</code>) before it is read or sent, and <code>accept=</code> comes from <code>uploadAcceptAttr(kind)</code>. This is a client-side guard against mistakes, not a security boundary — SharePoint accepts whatever a hand-built API call sends.</li>
         <li>Escape inside the <code>.map()</code> that builds an option/row string, never again where the composed variable is interpolated — composed markup stays raw.</li>
         <li>Never escape inside comparison expressions (<code>selected</code>/<code>checked</code> ternaries compare raw values).</li>
       </ul>
@@ -1607,8 +1609,8 @@ sortablejs          <span class="code-comment">← (Reporting only)</span>
           <li>Results dashboard — per-question breakdown, response distribution, completion rate banner, run selector for historical comparison, trends chart (Chart.js)</li>
           <li>PDF export of survey results via browser print</li>
           <li>Homepage survey widget for TPs and DMs — persists until submission, clears automatically on completion</li>
-          <li>Standalone respondent page (<code>survey.html</code>) with progress bar, draft save/restore, and full anonymous submission flow</li>
-          <li>Anonymity architecture: UUID-only in SurveyResponses, email-only in SurveyCompletions — no shared key between the two lists</li>
+          <li>Standalone respondent page (<code>survey.html</code>) with progress bar, draft save/restore, and full anonymous submission flow <em>(corrected N-284: confidential, not anonymous — SharePoint records Created By)</em></li>
+          <li>Anonymity architecture: UUID-only in SurveyResponses, email-only in SurveyCompletions — no shared key between the two lists <em>(corrected N-284: this does not make responses anonymous — SharePoint records Created By on each item)</em></li>
           <li>New files: <code>js/engagement-pages.js</code>, <code>js/engagement-forms.js</code>, <code>js/survey-router.js</code>, <code>js/survey-app.js</code>, <code>survey.html</code></li>
           <li>New SharePoint lists: SurveyTemplates, SurveyQuestions, SurveyRuns, SurveyResponses, SurveyCompletions (all ID fields as Single line of text)</li>
           <li>New config block: <code>CONFIG.SURVEY</code> — QUESTION_TYPES, STATUSES, AUDIENCES, DEFAULT_DURATION_DAYS, RATING_SCALE_MIN/MAX</li>

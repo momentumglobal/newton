@@ -60,7 +60,7 @@ function renderPersonForm(existingData = null) {
           ${existingData?.PhotoUrl
             ? `<img src='${escHtml(existingData.PhotoUrl)}' alt='' style='width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:6px'>`
             : ''}
-          <input type='file' name='PhotoFile' accept='image/*'>
+          <input type='file' name='PhotoFile' accept='${uploadAcceptAttr('PHOTO')}'>
           <span style='font-size:11px;color:var(--text-muted)'>Uploads to PeoplePhotos. Square images crop best.</span>
         </div>
         ${isEdit ? `
@@ -99,6 +99,10 @@ async function submitPersonForm(event, editId = null) {
     Salary:       data.Salary ? parseFloat(data.Salary) : undefined,
   };
   const file = form.querySelector('[name=PhotoFile]')?.files?.[0] || null;
+  if (file) {                                   // N-284: fail before anything is saved
+    const photoCheck = validateUpload(file, 'PHOTO');
+    if (!photoCheck.ok) { showPersonFormError(photoCheck.reason); clearButtonLoading(btn); return; }
+  }
 
   if (editId) {
     // N-218b: optimistic insert is a create-only concept -- editing an
@@ -468,7 +472,7 @@ function renderInvoiceForm(existingData = null) {
         </div>
         <div class='form-group'>
           <label>Invoice PDF ${isEdit ? '(leave blank to keep existing)' : '*'}</label>
-          <input type='file' name='InvoicePDF' accept='.pdf'
+          <input type='file' name='InvoicePDF' accept='${uploadAcceptAttr('INVOICE')}'
             ${isEdit ? '' : 'required'}>
           <small class='form-hint'>PDF only. One file per invoice.</small>
         </div>
@@ -492,6 +496,14 @@ async function submitInvoiceForm(event, editId = null) {
   const file      = fileInput?.files?.[0] || null;
   if (errEl) { errEl.style.display = 'none'; }
   setButtonLoading(btn);
+  if (file) {                                   // N-284: fail before anything is saved
+    const pdfCheck = validateUpload(file, 'INVOICE');
+    if (!pdfCheck.ok) {
+      if (errEl) { errEl.textContent = pdfCheck.reason; errEl.style.display = 'block'; }
+      clearButtonLoading(btn);
+      return;
+    }
+  }
   const fields = {
     InvoiceNumber: data.InvoiceNumber,
     InvoiceDate:   isoDate(data.InvoiceDate),

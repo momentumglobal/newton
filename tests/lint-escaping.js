@@ -176,3 +176,26 @@ function _escLintFile(file, s, flagged) {
   }
   roots.forEach(function (r) { visit(r, false); });
 }
+// ── N-284 (S-14): OData filter guard ─────────────────────────────────────
+// Flags `eq|ne|ge|le|gt|lt '${expr}'` in js/ where expr does not start with
+// odataStr( — i.e. a string value interpolated into a $filter unescaped.
+// Single-line text scan (filters here are single-line template fragments);
+// comments are ignored; a line may opt out with `// odata-lint-ok: <reason>`
+// (reason mandatory). Numeric clauses (`eq ${id}`, no quotes) are out of scope.
+// Lives in this file because it is the same kind of source-text guard.
+function lintOdataFilters(sources) {
+  if (!sources) throw new Error('sources not provided');
+  var re = /\b(?:eq|ne|ge|le|gt|lt) '\$\{(?!\s*odataStr\()/;
+  var optout = /\/\/\s*odata-lint-ok\s*:\s*\S+/;
+  var flagged = [];
+  Object.keys(sources).sort().forEach(function (file) {
+    var raw = String(sources[file]).split('\n');
+    var code = _stripComments(sources[file]);          // from lint-dates.js
+    for (var i = 0; i < code.length; i++) {
+      if (re.test(code[i]) && !optout.test(raw[i] || '')) {
+        flagged.push({ file: file, line: i + 1 });
+      }
+    }
+  });
+  return flagged;
+}

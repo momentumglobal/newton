@@ -1086,6 +1086,61 @@ function escJsAttr(str) {
     .replace(/>/g, '&gt;');      // greater-than (defensive)
 }
 
+// ── OData + upload guards (N-284) ───────────────────────────────
+// Escape a string value for use INSIDE the single quotes of an OData $filter:
+//   `fields/Title eq '${odataStr(email)}'`
+// Doubles every apostrophe (o'brien → o''brien). Returns the inner text only —
+// the caller keeps the quotes. Do NOT also encodeURIComponent it: getItems()
+// already encodes the whole filter once (api.js).
+function odataStr(v) {
+  return String(v ?? '').replace(/'/g, "''");
+}
+
+// Check a File against CONFIG.UPLOADS[kind] before uploading/reading it.
+// Reads only .name, .size and .type, so tests can pass plain objects.
+// Returns { ok: true, ext, mime } — both taken from the allowlist, never echoed
+// from the file — or { ok: false, reason } with a user-facing reason.
+// An EMPTY file.type is accepted (some browsers leave it blank for Office/PDF
+// files) provided the extension passes; a non-blank type that does not match
+// the extension's allowlisted MIME is rejected.
+function validateUpload(file, kind) {
+  const cfg = CONFIG.UPLOADS[kind];
+  if (!cfg) throw new Error('Unknown upload kind: ' + kind);
+  if (!file) return { ok: false, reason: 'No file selected.' };
+  const max = kind === 'LOGO' ? CONFIG.BRIEFING_PACK.CLIENT_LOGO_MAX_BYTES : cfg.MAX_BYTES;
+  const fmt = n => n >= 1024 * 1024 ? (n / (1024 * 1024)).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
+  const name = String(file.name || '');
+  const dot = name.lastIndexOf('.');
+  const ext = dot >= 0 ? name.slice(dot + 1).toLowerCase() : '';
+  if (!cfg.EXTS.includes(ext)) {
+    return { ok: false, reason: cfg.NAME + ' must be ' + cfg.ALLOWED + '.' };
+  }
+  const mime = CONFIG.UPLOADS.MIME_BY_EXT[ext];
+  const type = String(file.type || '').toLowerCase();
+  if (type && type !== mime) {
+    // jpg/jpeg may arrive as either spelling of the same type; everything else must match exactly.
+    return { ok: false, reason: cfg.NAME + ' must be ' + cfg.ALLOWED + '.' };
+  }
+  const size = Number(file.size);
+  if (!(size > 0)) return { ok: false, reason: 'That file is empty.' };
+  if (size > max) {
+    return { ok: false, reason: 'That file is ' + fmt(size) + ' \u2014 the limit for ' + cfg.NAME.toLowerCase() + ' is ' + fmt(max) + '.' };
+  }
+  return { ok: true, ext: ext === 'jpeg' ? 'jpg' : ext, mime: mime };
+}
+
+// accept="" value for <input type=file>, generated from the same allowlist.
+function uploadAcceptAttr(kind) {
+  return CONFIG.UPLOADS[kind].EXTS.map(e => '.' + e).join(',');
+}
+
+// Safe stored filename: basename only, [A-Za-z0-9._-], capped, forced extension.
+function safeUploadName(name, ext, maxLen = 60) {
+  const base = String(name || '').split(/[\\/]/).pop().replace(/\.[^.]*$/, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^[._]+|[._]+$/g, '').slice(0, maxLen);
+  return (base || 'file') + '.' + ext;
+}
+
 // ── Fuzzy search (N-144) ─────────────────────────────────────────
 // Case-insensitive subsequence match: every character of `query` must
 // appear in `text`, in order (not necessarily contiguous). Returns a

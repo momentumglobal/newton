@@ -2176,6 +2176,76 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'odataStr doubles apostrophes and nothing else (N-284 — S-14)',
+    fn: function () {
+      _assertEqual(odataStr("o'brien@x.com"), "o''brien@x.com", 'apostrophe doubled');
+      _assertEqual(odataStr("D'Arcy O'Neil"), "D''Arcy O''Neil", 'every apostrophe');
+      _assertEqual(odataStr('plain'), 'plain', 'unchanged');
+      _assertEqual(odataStr(null), '', 'null');
+      _assertEqual(odataStr(undefined), '', 'undefined');
+      _assertEqual(odataStr(5), '5', 'number');
+      _assertEqual(odataStr('a&b+c%d'), 'a&b+c%d', 'URL characters are left to getItems() encoding');
+    },
+  },
+  {
+    name: 'validateUpload — extension, MIME, size (N-284 — S-16)',
+    fn: function () {
+      const MB = 1024 * 1024;
+      const f = (name, size, type) => ({ name, size, type });
+      const ok  = (file, kind) => validateUpload(file, kind);
+      _assertEqual(ok(f('a.png', 1000, 'image/png'), 'PHOTO').ok, true, 'png photo');
+      _assertEqual(ok(f('A.JPG', 1000, 'image/jpeg'), 'PHOTO').ext, 'jpg', 'mixed-case ext, allowlist-derived');
+      _assertEqual(ok(f('a.jpeg', 1000, 'image/jpeg'), 'PHOTO').ext, 'jpg', 'jpeg normalised to jpg');
+      _assertEqual(ok(f('a.png', 2 * MB + 1, 'image/png'), 'PHOTO').ok, false, 'photo 1 byte over 2 MB');
+      _assertEqual(ok(f('a.png', 2 * MB, 'image/png'), 'PHOTO').ok, true, 'photo exactly 2 MB');
+      _assertEqual(ok(f('a.svg', 100, 'image/svg+xml'), 'PHOTO').ok, false, 'svg photo');
+      _assertEqual(ok(f('a.svg', 100, 'image/svg+xml'), 'LOGO').ok, false, 'svg logo');
+      _assertEqual(ok(f('a.png', 100, 'image/svg+xml'), 'LOGO').ok, false, 'svg renamed .png (non-blank wrong MIME)');
+      _assertEqual(ok(f('x.pdf', 100, 'application/x-msdownload'), 'INVOICE').ok, false, 'exe renamed .pdf');
+      _assertEqual(ok(f('x.pdf', 100, ''), 'INVOICE').ok, true, 'blank MIME accepted when extension passes');
+      _assertEqual(ok(f('x.pdf', 100, 'image/png'), 'INVOICE').ok, false, 'pdf with a png MIME');
+      _assertEqual(ok(f('x.PDF', 100, 'application/pdf'), 'INVOICE').ok, true, 'upper-case .PDF');
+      _assertEqual(ok(f('x.pdf', 10 * MB + 1, 'application/pdf'), 'INVOICE').ok, false, 'invoice over 10 MB');
+      _assertEqual(ok(f('x.pdf', 0, 'application/pdf'), 'INVOICE').ok, false, '0-byte file');
+      _assertEqual(ok(f('noext', 100, ''), 'INVOICE').ok, false, 'no extension');
+      _assertEqual(ok(f('m.xls', 100, 'application/vnd.ms-excel'), 'LCI_IMPORT').ok, false, 'legacy .xls');
+      _assertEqual(ok(f('m.xlsx', 100, ''), 'LCI_IMPORT').ok, true, 'xlsx, blank MIME');
+      _assertEqual(ok(f('l.png', CONFIG.BRIEFING_PACK.CLIENT_LOGO_MAX_BYTES + 1, 'image/png'), 'LOGO').ok, false, 'logo over the existing 150 KB cap');
+      _assertEqual(ok(f('l.png', CONFIG.BRIEFING_PACK.CLIENT_LOGO_MAX_BYTES, 'image/png'), 'LOGO').ok, true, 'logo exactly at the cap');
+      _assertEqual(ok(null, 'PHOTO').ok, false, 'no file');
+      _assertEqual(uploadAcceptAttr('LOGO').includes('svg'), false, 'accept attr has no svg');
+      const safe = safeUploadName("../..\\Invoice #12 (final) \u00e9.pdf", 'pdf');
+      _assertEqual(/^[A-Za-z0-9._-]+$/.test(safe), true, 'stored name charset: ' + safe);
+      _assertEqual(safe.endsWith('.pdf'), true, 'forced extension');
+      _assertEqual(safeUploadName('x'.repeat(300) + '.pdf', 'pdf').length <= 64, true, 'length capped');
+    },
+  },
+  {
+    name: 'Every string $filter interpolation in js/ goes through odataStr (N-284 — S-14 guard)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      // Single-line scan: filters in this codebase are single-line template fragments.
+      // Comment text is ignored; a line can opt out with `// odata-lint-ok: <reason>` (reason mandatory).
+      const found = lintOdataFilters(ALL_SOURCES);
+      _assertEqual(found.map(v => v.file + ':' + v.line), [], "eq/ge/… '${x}' without odataStr()");
+    },
+  },
+  {
+    name: 'lintOdataFilters flags what it should (N-284 — guard the guard)',
+    fn: function () {
+      const run = src => lintOdataFilters({ 'fixture.js': src });
+      _assertEqual(run("x = `fields/Title eq '${x}'`;").length, 1, 'unwrapped eq');
+      _assertEqual(run("x = `fields/D ge '${a.b}' and fields/T eq '${odataStr(y)}'`;").length, 1, 'one of two wrapped');
+      _assertEqual(run("x = `fields/Title eq '${odataStr(x)}'`;").length, 0, 'wrapped');
+      _assertEqual(run("x = `fields/Id eq ${n}`;").length, 0, 'numeric clause is out of scope');
+      _assertEqual(run("// fields/Title eq '${x}'").length, 0, 'comment ignored');
+      _assertEqual(run("x = `fields/Title eq '${x}'`; // odata-lint-ok: generated value").length, 0, 'opt-out with a reason');
+      _assertEqual(run("x = `fields/Title eq '${x}'`; // odata-lint-ok").length, 1, 'bare opt-out still flagged');
+    },
+  },
+  {
     name: 'lintEscaping flags what it should and passes what it should (N-283 — guard the guard)',
     fn: function () {
       const BT = String.fromCharCode(96);

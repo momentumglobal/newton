@@ -437,7 +437,7 @@
     <!-- ROLES -->
     <div class="section" id="sec-roles" style="display:none">
       <div class="section-title">Roles &amp; Access</div>
-      <p class="section-intro">Newton has five roles. Role is resolved asynchronously on sign-in from SharePoint and cached in sessionStorage. <strong>That cache is bounded (N-177):</strong> the entry carries a timestamp and the current <code>CONFIG.APP_BUILD</code>, and is discarded after <code>CONFIG.CACHE.ttlMs</code> (10 minutes) or on a build change, so an access change now takes effect within the TTL rather than only on sign-out. <code>getEffectiveRole()</code> re-resolves on every module init, so an expired entry is refreshed on the next module switch.</p>
+      <p class="section-intro">Newton has five roles. Role is resolved asynchronously on sign-in from SharePoint and <strong>not cached</strong> (N-296): sessionStorage is user-writable, so a stored role could be forged. <code>getEffectiveRole()</code> re-resolves from <code>UserAssignments</code> and <code>LeadershipAccess</code> on every call (30 s in-memory tier 1 only), so an access change takes effect on the next page load.</p>
 
       <table>
         <tr><th>Role</th><th>Source</th><th>Description</th></tr>
@@ -875,7 +875,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <div class="flow-arrow">→</div>
         <div class="flow-step highlight">getEffectiveRole(email)</div>
         <div class="flow-arrow">→</div>
-        <div class="flow-step cache">Cache role in sessionStorage</div>
+        <div class="flow-step cache">Role held in memory only (N-296)</div>
         <div class="flow-arrow">→</div>
         <div class="flow-step">renderNav() + navigateTo(firstPage)</div>
       </div>
@@ -907,7 +907,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <div class="flow-arrow">→</div>
         <div class="flow-step highlight">msalInstance.logoutRedirect()</div>
       </div>
-      <div class="callout"><code>sessionStorage.clear()</code> is critical — it clears both the role cache and any active ghost mode session.</div>
+      <div class="callout"><code>sessionStorage.clear()</code> is critical — it clears any active ghost mode session.</div>
     </div>
 
     <!-- READ FLOW -->
@@ -971,7 +971,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <tr><th>Key</th><th>Owner</th><th>Lifetime</th></tr>
         <tr><td><code>newton_cache|&lt;build&gt;|&lt;list&gt;|&lt;filter&gt;|&lt;select&gt;</code></td><td>api.js tier 2</td><td>10 min, or until the build stamp changes</td></tr>
         <tr><td><code>newton_delta_&lt;list&gt;</code></td><td>api.js delta sync (N-186/N-187)</td><td>no TTL — a sync token doesn't expire on a client clock; discarded on a write to that list, a foreign build stamp, or a bootstrap-retry after a corrupted/stale-token incremental failure</td></tr>
-        <tr><td><code>newton_role_&lt;email&gt;</code></td><td><code>getEffectiveRole()</code></td><td>10 min + build stamp (N-177). Never holds admin or leadership (N-282)</td></tr>
+        <tr><td><code>newton_role_&lt;email&gt;</code></td><td><em>none — legacy</em></td><td>No longer written or read (N-296). <code>getEffectiveRole()</code> deletes any leftover entry.</td></tr>
         <tr><td><code>newton_ghost_user</code> / <code>newton_ghost_label</code></td><td><code>setGhostUser()</code> in utils.js</td><td>until exit or sign-out</td></tr>
         <tr><td><code>newton_diag_*</code></td><td>diagnostics.js (dedupe set, session cap)</td><td>session</td></tr>
         <tr><td><code>newton_survey_*</code></td><td>survey-app.js (draft, respondent UUID)</td><td>until submitted</td></tr>
@@ -1191,7 +1191,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <div class="flow-arrow">→</div>
         <div class="flow-step cache">Banner rendered by nav-core.js</div>
       </div>
-      <div class="callout amber"><strong>Role keys are per-email.</strong> <code>getEffectiveRole()</code> caches a DM, TP or viewer role under <code>newton_role_&lt;ghosted email&gt;</code>, so ghosting never overwrites the admin's own cached role and the two coexist. Admin and leadership are never cached (N-282). Note that an active admin row outranks LeadershipAccess (N-281), so an admin resolves to <code>admin</code>, not <code>leadership</code> — ghosting an admin will never produce DM grants, by design.</div>
+      <div class="callout amber"><strong>Nothing is stored per email (N-296).</strong> <code>getEffectiveRole()</code> resolves the ghosted user's role from the lists on every call, so ghosting never touches the admin's own role and there is no stored role to forge. Note that an active admin row outranks LeadershipAccess (N-281), so an admin resolves to <code>admin</code>, not <code>leadership</code> — ghosting an admin will never produce DM grants, by design.</div>
 
       <h3>Storage keys (sessionStorage)</h3>
       <p>Corrected to match the code as of N-162 — the old <code>newton_ghost_role</code> / <code>newton_ghost_project</code> keys and the <code>setGhostRole()</code> / <code>clearGhostRole()</code> functions no longer exist anywhere in <code>js/</code>.</p>
@@ -1295,10 +1295,19 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Role cache removed (N-296)</div>
+        <ul>
+          <li>A Talent Partner could set <code>sessionStorage.newton_role_&lt;own email&gt;</code> to <code>delivery_manager</code> (the build stamp is public) and get DM-level UI. N-282 stopped admin/leadership being served from that key; N-296 removes the cache entirely.</li>
+          <li><code>getEffectiveRole()</code> now re-resolves from <code>UserAssignments</code> and <code>LeadershipAccess</code> on every call (30 s in-memory tier 1 only) and deletes any legacy <code>newton_role_&lt;email&gt;</code> entry. Cost: up to two small Graph reads per page navigation for every role. An access change takes effect on the next page load instead of within 10 minutes.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
         <div class="changelog-title">Ghost Mode admin-only; no role state is forgeable from browser storage (N-282)</div>
         <ul>
           <li>Ghost Mode is honoured only when the real signed-in account resolves as admin. For anyone else the stored ghost keys are ignored and cleared. Before this, <code>sessionStorage.setItem('newton_ghost_user', '&lt;admin email&gt;')</code> and a reload gave any user the full admin UI.</li>
-          <li>Admin and leadership are never served from the role cache (<code>newton_role_&lt;email&gt;</code>) — always re-resolved from the lists. DM, TP and viewer roles keep the 10-minute N-177 cache.</li>
+          <li>Superseded by N-296: no role is cached at all — see the N-296 entry above.</li>
           <li><code>getCurrentUser()</code> now reads the email from the MSAL account instead of <code>localStorage.userEmail</code>, which any user could edit. The four places that wrote <code>userEmail</code> were removed.</li>
           <li><code>UserAssignments</code> and <code>LeadershipAccess</code> are no longer tier-2 cached (<code>CONFIG.CACHE.persistentLists</code> is now five lists): a forged sessionStorage entry for either would have been served as real data. Cost: roughly one extra small Graph read per page navigation.</li>
           <li>DM grants moved from <code>newton_dm_grants_&lt;email&gt;</code> in sessionStorage to an in-memory map written by <code>getEffectiveRole()</code>. <code>hasDMGrant()</code> stays synchronous with no TTL.</li>
@@ -1513,7 +1522,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
           <li><strong>Three write paths were bypassing invalidation entirely</strong> — <code>admin.js:confirmDelete</code>, <code>admin.js:deleteAdminRecord</code> and <code>os-admin.js:deleteOsAdminRecord</code> called <code>graphRequest('DELETE', …)</code> directly. Harmless while the TTL was 30 seconds and died on navigation; a live bug the moment it became 10 minutes. All three now route through <code>deleteItem()</code>. <strong>Never call <code>graphRequest</code> with POST/PATCH/DELETE directly</strong> — see Read Flow and Write Flow above.</li>
           <li><strong><code>CONFIG.APP_BUILD</code> is stamped automatically on deploy (N-220).</strong> The <code>deploy</code> job writes a value derived from the commit SHA into <code>js/config.js</code> at deploy time, in the runner's checkout only — never committed, no manual step. The dead <code>SW_VERSION</code> constant in <code>sw.js</code> (declared, never read) was removed in the same change.</li>
           <li><strong>Why the stamp matters:</strong> every cache key embeds it and <code>api.js</code> discards entries from any other build on load. The case that genuinely matters is a <strong>shape</strong> change — above all a <code>FIELD_ALIASES</code> edit, since aliases are not part of the cache key and normalisation happens before caching, so old-shape rows read back under the wrong field names (the N-073 class: a silently blanked field, no error). A <code>LIST_FIELDS</code> change is self-correcting because the <code>$select</code> string is part of the key.</li>
-          <li><strong>Role cache bounded.</strong> <code>newton_role_&lt;email&gt;</code> and <code>newton_dm_grants_&lt;email&gt;</code> were bare, unstamped values living for the whole browser session, so an admin changing someone's access had no effect on that person until they signed out. Both now carry a timestamp and the build stamp and expire on the same 10-minute TTL. <code>hasDMGrant()</code> honours the build stamp but <strong>not</strong> the TTL: it is synchronous and cannot re-resolve, so treating an aged entry as absent would silently strip a leadership user's DM access mid-page.</li>
+          <li><strong>Role cache bounded (removed by N-296).</strong> <code>newton_role_&lt;email&gt;</code> and <code>newton_dm_grants_&lt;email&gt;</code> were bare, unstamped values living for the whole browser session, so an admin changing someone's access had no effect on that person until they signed out. Both now carry a timestamp and the build stamp and expire on the same 10-minute TTL. <code>hasDMGrant()</code> honours the build stamp but <strong>not</strong> the TTL: it is synchronous and cannot re-resolve, so treating an aged entry as absent would silently strip a leadership user's DM access mid-page. N-296 later removed the role cache entirely.</li>
           <li><strong>Config:</strong> <code>CONFIG.APP_BUILD</code> and <code>CONFIG.CACHE</code> (<code>enabled</code> as a live kill switch, <code>prefix</code>, <code>ttlMs</code>, <code>maxEntryBytes</code>, <code>persistentLists</code>). Enrolment lives only in <code>persistentLists</code> — no list name appears in <code>api.js</code>. No SharePoint change, no new dependency.</li>
         </ul>
       </div>

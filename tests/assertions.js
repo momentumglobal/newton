@@ -838,17 +838,6 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-282 _roleCacheValueUsable — only known non-privileged role strings are served',
-    fn: function () {
-      ['delivery_manager', 'talent_partner', 'viewer'].forEach(function (r) {
-        _assertEqual(_roleCacheValueUsable(r), true, r + ' may be cached');
-      });
-      ['admin', 'leadership', 'Admin', 'superuser', '', null, undefined, 42, {}, ['admin'], ['viewer'], true].forEach(function (v) {
-        _assertEqual(_roleCacheValueUsable(v), false, JSON.stringify(v) + ' must be re-resolved');
-      });
-    },
-  },
-  {
     name: 'N-282 ghost gate fails closed — no ghost and setGhostUser refuses until a real admin is verified',
     fn: function () {
       try {
@@ -888,48 +877,15 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-282 no source reads identity from localStorage or keeps DM grants in storage',
+    name: 'N-282 / N-296 no source reads identity from localStorage or keeps DM grants or a role in storage',
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') _skip('no source map in the browser harness — run tests/run.js');
       _assertEqual(/getItem\(\s*['"]userEmail['"]/.test(ALL_SOURCES['auth.js']), false, 'auth.js must not read userEmail');
       Object.keys(ALL_SOURCES).forEach(function (f) {
         _assertEqual(/setItem\(\s*['"]userEmail['"]/.test(ALL_SOURCES[f]), false, f + ' must not write userEmail');
         _assertEqual(/(?:get|set)Item\([^)]*newton_dm_grants_/.test(ALL_SOURCES[f]), false, f + ' must not keep DM grants in storage');
+        _assertEqual(/(?:get|set)Item\([^)]*newton_role_/.test(ALL_SOURCES[f]), false, f + ' must not read or write a stored role (N-296)');
       });
-    },
-  },
-  {
-    name: 'N-177 _roleEntryUsable — a well-formed current-build entry is usable',
-    fn: function () {
-      _assertEqual(_roleEntryUsable({ ts: Date.now(), build: CONFIG.APP_BUILD, value: 'admin' }, true), true, 'fresh');
-      _assertEqual(_roleEntryUsable({ ts: Date.now(), build: CONFIG.APP_BUILD, value: [] }, true), true, 'empty array value is a value');
-    },
-  },
-  {
-    name: 'N-177 _roleEntryUsable — a foreign build stamp is rejected under both TTL modes',
-    fn: function () {
-      const e = { ts: Date.now(), build: 'SOME-OTHER-BUILD', value: 'admin' };
-      _assertEqual(_roleEntryUsable(e, true), false, 'honourTtl true');
-      _assertEqual(_roleEntryUsable(e, false), false, 'honourTtl false — hasDMGrant still rejects a foreign build');
-    },
-  },
-  {
-    name: 'N-177 _roleEntryUsable — an aged entry is rejected when honourTtl, ACCEPTED when not',
-    fn: function () {
-      const aged = { ts: Date.now() - (CONFIG.CACHE.ttlMs + 60000), build: CONFIG.APP_BUILD, value: ['12'] };
-      _assertEqual(_roleEntryUsable(aged, true), false, 'getEffectiveRole re-resolves');
-      _assertEqual(_roleEntryUsable(aged, false), true, 'hasDMGrant must NOT lose a live grant to age');
-    },
-  },
-  {
-    name: 'N-177 _roleEntryUsable — legacy bare values are treated as absent, never thrown on',
-    fn: function () {
-      _assertEqual(_roleEntryUsable('admin', true), false, 'legacy bare string');
-      _assertEqual(_roleEntryUsable(['12', '13'], true), false, 'legacy bare array');
-      _assertEqual(_roleEntryUsable(null, true), false, 'null');
-      _assertEqual(_roleEntryUsable(undefined, true), false, 'undefined');
-      _assertEqual(_roleEntryUsable({ build: CONFIG.APP_BUILD, value: 'admin' }, true), false, 'no ts');
-      _assertEqual(_roleEntryUsable({ ts: Date.now(), build: CONFIG.APP_BUILD }, true), false, 'no value');
     },
   },
   // ── N-186 (F-13a): delta sync engine — pure helpers only ────────────

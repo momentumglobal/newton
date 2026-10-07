@@ -118,11 +118,12 @@ function _ssKey(listName, filter, selectStr) {
   return CONFIG.CACHE.prefix + '|' + CONFIG.APP_BUILD + '|' + _cacheKey(listName, filter, selectStr);
 }
 
-// Pure. True only for OUR keys. Five unrelated sessionStorage key families
-// already exist (newton_role_, newton_ghost_, newton_diag_, newton_survey_,
+// Pure. True only for OUR keys. Four unrelated sessionStorage key families
+// already exist (newton_ghost_, newton_diag_, newton_survey_,
 // newton_force_desktop) and none of them may ever be touched by a cache
-// purge. (newton_dm_grants_ is no longer written — N-282 moved DM grants to
-// memory.)
+// purge. (newton_role_ and newton_dm_grants_ are legacy keys that are no
+// longer written — N-296 removed the role cache, N-282 moved DM grants to
+// memory — and must still be spared by a purge, hence the test.)
 function _ssIsCacheKey(key) {
   return typeof key === 'string' && key.indexOf(CONFIG.CACHE.prefix + '|') === 0;
 }
@@ -227,15 +228,16 @@ _ssPurgeStaleBuilds();
 // so a partial write can never leave a token pointing at a merge state the
 // entry doesn't actually hold.
 //
-// Follows the ROLE-CACHE pattern (_roleEntryUsable/_roleCacheGet/
-// _roleCacheSet, below), not the tier-2 cache pattern. A delta token doesn't
+// Follows the stamped-entry pattern ({ ts, build, … }, build-stamp checked on
+// read — the shape the retired N-177 role cache used, N-296), not the tier-2
+// cache pattern. A delta token doesn't
 // go stale on a client clock; it stays valid until Graph says otherwise (a
 // 410 on use) or until we invalidate it ourselves (a build bump, or a
 // Newton-side write via _cacheInvalidate). So the build stamp is still
 // checked — a deploy busts it, same as every other cache tier — but
 // CONFIG.CACHE.ttlMs is never consulted for this entry.
 
-// PURE — mirrors _roleEntryUsable. No storage access, no side effects.
+// PURE — same shape rules as the other stamped entries. No storage access, no side effects.
 function _deltaEntryUsable(entry) {
   if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false;
   if (typeof entry.ts !== 'number') return false;
@@ -1013,7 +1015,7 @@ async function deleteItem(listName, itemId) {
 
 // ── Explicit refresh (N-176 / F-3a) ──────────────────────────────────
 // The user's escape hatch from a stale cache, behind the sidebar's
-// "Refresh data" button. Clears BOTH tiers and nothing else: newton_role_*,
+// "Refresh data" button. Clears BOTH tiers and nothing else:
 // newton_ghost_*, newton_diag_*, newton_survey_* and
 // newton_force_desktop belong to other features, and a "Refresh data" that
 // silently re-resolved the user's role or dropped them out of Ghost Mode
@@ -1369,90 +1371,24 @@ async function getDepartments() {
 // 2. LeadershipAccess list
 // 3. Highest DM / TP role in UserAssignments
 // 4. Fall back to 'viewer' (no row, or no recognised role)
-// ── Role cache (N-177 / F-3b, amended by N-282) ──────────────────────
-// newton_role_<email> is NOT part of the tier-2 list cache. It holds a value
-// DERIVED from UserAssignments and LeadershipAccess, it is keyed by email
-// rather than by list, and it is not gated on CONFIG.CACHE.persistentLists.
-// It borrows only the TTL and the build stamp.
-//
-// N-282 / SEC-2: sessionStorage is writable by the user and the build stamp
-// is public (CONFIG.APP_BUILD), so a forged entry passes the stamp check.
-// Therefore admin and leadership are NEVER read from or written to this
-// cache — they are always re-resolved from the lists — and a cached value
-// that is not a known lower role is ignored (_roleCacheValueUsable). DM
-// grants no longer live in storage at all (_dmGrantsMem, below).
-//
-// Before N-177 the role entry was a bare, unstamped value that lived for the
-// whole browser-tab session, so an admin changing someone's access had no
-// effect on that person until they signed out. Enrolling UserAssignments and
-// LeadershipAccess on a 10-minute TTL made that incoherent — the cheaper
-// cache would have been the fresher one. Stamping the entry makes access data
-// strictly fresher than it was. (N-282 later took both lists back off tier 2.)
-//
-// Entry shape: { ts, build, value }.
-
-// PURE — no storage access, no side effects. Split out so the shape, stamp
-// and TTL rules are testable in the Node harness, where sessionStorage does
-// not exist. Exposed for tests/assertions.js.
-function _roleEntryUsable(entry, honourTtl) {
-  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false;
-  if (typeof entry.ts !== 'number') return false;
-  if (entry.build !== CONFIG.APP_BUILD) return false;
-  if (!('value' in entry)) return false;
-  if (honourTtl && Date.now() - entry.ts > CONFIG.CACHE.ttlMs) return false;
-  return true;
-}
-
-// honourTtl: false has no production caller since N-282 (hasDMGrant() now
-// reads memory, not this cache); it stays because the _roleEntryUsable tests
-// cover both modes. Anything that is not a well-formed stamped entry,
-// INCLUDING a legacy bare string or bare array written before N-177, is
-// treated as absent so the caller re-resolves. Never migrated in place,
-// never allowed to throw.
-function _roleCacheGet(key, { honourTtl = true } = {}) {
-  try {
-    if (typeof sessionStorage === 'undefined') return null;
-    const raw = sessionStorage.getItem(key);
-    if (!raw) return null;
-    let entry = null;
-    try { entry = JSON.parse(raw); } catch (e) { entry = null; }
-    if (!_roleEntryUsable(entry, honourTtl)) {
-      sessionStorage.removeItem(key);
-      return null;
-    }
-    return entry.value;
-  } catch (e) {
-    try { sessionStorage.removeItem(key); } catch (e2) { /* ignore */ }
-    return null;
-  }
-}
-
-// A failed write must degrade to "resolve every time", never to an error.
-function _roleCacheSet(key, value) {
-  try {
-    if (typeof sessionStorage === 'undefined') return;
-    sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), build: CONFIG.APP_BUILD, value }));
-  } catch (e) {
-    /* quota exceeded or private mode — the role is simply re-resolved */
-  }
-}
+// ── No role cache (N-296 / SEC-2b) ───────────────────────────────────
+// Roles are NOT cached. sessionStorage is writable by the user and the build
+// stamp is public (CONFIG.APP_BUILD), so a forged newton_role_<email> entry
+// passed every check — N-282 stopped admin/leadership being served from it,
+// but a TP could still forge delivery_manager. getEffectiveRole() therefore
+// re-resolves from UserAssignments + LeadershipAccess on every call; the only
+// caching is the 30 s in-memory tier 1 (neither list is tier-2 enrolled, N-282).
+// A legacy newton_role_<email> entry is deleted on sight, never read.
+// Cost: up to two small filtered Graph reads per page navigation for every
+// role; an access change now takes effect on the next page load (was 10 min).
 
 // N-282: DM grants are held in memory, never in storage. Keyed by
 // lower-cased email -> array of project-ID strings. Written by
 // getEffectiveRole() on EVERY path, read by hasDMGrant().
 const _dmGrantsMem = new Map();
 
-// Pure. A cached role may be served only if it is a known role below the
-// privileged tier. 'admin'/'leadership' (even a genuine one) and anything
-// unrecognised are re-resolved from the lists instead.
-function _roleCacheValueUsable(value) {
-  return typeof value === 'string'
-    && CONFIG.ROLE_PRECEDENCE.includes(value)
-    && !isPrivilegedRole(value);
-}
-
 // Role of `lower` plus the UserAssignments rows it came from, resolved from
-// the lists. Never touches the role cache. Shared by getEffectiveRole() and
+// the lists. Shared by getEffectiveRole() and
 // the ghost gate so the two can never disagree about what "admin" means.
 async function _resolveRoleForEmail(lower) {
   // N-281: admin comes from an active UserAssignments row, not from code.
@@ -1505,19 +1441,9 @@ async function getEffectiveRole(email) {
   const lower = (ghost || email).toLowerCase();
   // True when we are resolving the signed-in account itself (no ghost in play).
   const subjectIsReal = !ghost && lower === realEmail;
-  const cacheKey = 'newton_role_' + lower;
   try { sessionStorage.removeItem('newton_dm_grants_' + lower); } catch (e) { /* legacy key, N-282 */ }
-
-  // N-177: honours both the build stamp and CONFIG.CACHE.ttlMs, so an access
-  // change now takes effect within the TTL instead of only on sign-out.
-  // N-282: only a known lower role is ever served from here.
-  const cached = _roleCacheGet(cacheKey);
-  if (_roleCacheValueUsable(cached)) {
-    _dmGrantsMem.set(lower, []);             // a cached role is never leadership
-    if (subjectIsReal) _setGhostRealAdmin(false);
-    return cached;
-  }
-  if (cached) { try { sessionStorage.removeItem(cacheKey); } catch (e) { /* ignore */ } }
+  // N-296: no role cache — a stored role is never read. Purge any legacy entry.
+  try { sessionStorage.removeItem('newton_role_' + lower); } catch (e) { /* legacy key, N-296 */ }
 
   const { role, assignments } = await _resolveRoleForEmail(lower);
   if (subjectIsReal) _setGhostRealAdmin(role === 'admin');
@@ -1532,7 +1458,6 @@ async function getEffectiveRole(email) {
         .map(a => String(a.ProjectID))
     : []);
 
-  if (!isPrivilegedRole(role)) _roleCacheSet(cacheKey, role);
   return role;
 }
  

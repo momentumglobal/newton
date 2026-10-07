@@ -31,7 +31,7 @@
     <div id="survey-widget-slot"></div>
     <div class="module-grid" id="module-grid"></div>
   </div>
-  <script src="js/vendor/msal-browser-2.38.3.min.js" defer></script>
+  <script src="js/vendor/msal-browser-5.24.0.min.js" defer></script>
   <script src="js/config.js" defer></script>
   <script src="js/auth.js" defer></script>
   <script src="js/utils.js" defer></script>
@@ -226,7 +226,7 @@ async function renderCommandCentreBanner(role) {
     }
 
     async function initHome() {
-      const response = await msalInstance.handleRedirectPromise();
+      const response = await authReady();
       if (response) {
         const account = response.account || msalInstance.getAllAccounts()[0];
         if (account) {

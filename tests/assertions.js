@@ -443,6 +443,68 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'MSAL is only called through auth.js authReady() (N-290 — SEC-10 guard)',
+    fn: function () {
+      if (typeof lintMsalCalls === 'undefined' || typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      // Positive control: the lint must catch a direct call, or the clean
+      // result below proves nothing.
+      _assertEqual(
+        lintMsalCalls(
+          { 'x.html': '<script>\n  msalInstance.handleRedirectPromise().then(go);\n</script>' },
+          { 'x-app.js': 'a();\nawait msalInstance.acquireTokenSilent(req);\n// msalInstance.loginRedirect(x) in a comment\nmsalInstance.logoutRedirect();\nmsalInstance.getAllAccounts();' }
+        ).map(v => `${v.file}:${v.line} ${v.call}`),
+        ['js/x-app.js:2 acquireTokenSilent', 'x.html:2 handleRedirectPromise'],
+        'positive control: direct calls flagged; comments, logoutRedirect and getAllAccounts are not'
+      );
+      _assertEqual(
+        lintMsalCalls(ALL_HTML, ALL_SOURCES).map(v => `${v.file}:${v.line}  msalInstance.${v.call}(`),
+        [],
+        'direct MSAL calls outside js/auth.js (await authReady() instead)'
+      );
+    },
+  },
+  {
+    name: 'N-290 isLegacyMsalStorageKey — finds MSAL v2 localStorage entries, never a Newton key',
+    fn: function () {
+      const cid = 'bf71f2b2-de80-4728-9189-af8659fbd2b6';
+      const tid = 'b73023b1-298a-42a2-bed9-985e0a762054';
+      const home = '0f1e2d3c-0000-4000-8000-000000000001.' + tid;
+      const legacy = [
+        home + '-login.windows.net-accesstoken-' + cid + '-' + tid + '-user.read sites.readwrite.all',
+        home + '-login.windows.net-refreshtoken-' + cid + '--',
+        home + '-login.windows.net-idtoken-' + cid + '-' + tid + '-',
+        home + '-login.windows.net-' + tid,                       // account entry: no client ID
+        'msal.account.keys',
+        'msal.token.keys.' + cid,
+        'msal.' + cid + '.active-account',
+        'server-telemetry-' + cid,
+        'MSAL.' + cid.toUpperCase() + '.ACTIVE-ACCOUNT',         // case-insensitive
+      ];
+      const newton = ['newton_theme', 'newton_density', 'newton_mobile', 'userName', 'benchSyncLast', 'newton_force_desktop', ''];
+      _assertEqual(legacy.map(k => isLegacyMsalStorageKey(k, cid, tid)), legacy.map(() => true), 'v2 token, account and index keys');
+      _assertEqual(newton.map(k => isLegacyMsalStorageKey(k, cid, tid)), newton.map(() => false), 'Newton keys survive');
+      _assertEqual(isLegacyMsalStorageKey(null, cid, tid), false, 'null key');
+      _assertEqual(isLegacyMsalStorageKey('anything', '', ''), false, 'blank ids never match everything');
+    },
+  },
+  {
+    name: 'N-290 shouldAutoSignIn — true only with no account, not tried, not signed out, no response in URL',
+    fn: function () {
+      const flags = ['hasAccount', 'triedThisTab', 'signedOut', 'authResponseInUrl'];
+      const trues = [];
+      for (let n = 0; n < 16; n++) {
+        const args = {};
+        flags.forEach((f, i) => { args[f] = !!(n & (1 << i)); });
+        if (shouldAutoSignIn(args)) trues.push(n);
+      }
+      _assertEqual(trues, [0], 'all 16 combinations: only the all-false one redirects');
+      _assertEqual(shouldAutoSignIn({}), true, 'missing flags read as false');
+      _assertEqual(shouldAutoSignIn(), true, 'no argument');
+    },
+  },
+  {
     name: "_ROLE_COPY_FIELDS stays in sync with submitRoleForm's write set (N-150)",
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') {

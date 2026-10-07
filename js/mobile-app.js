@@ -64,9 +64,10 @@ async function mobileInit() {
   document.getElementById('app-shell').style.display    = 'none';
 
   try {
-    // Always process a pending redirect response FIRST. After a fresh login
-    // this returns the auth result; on a normal load it returns null.
-    const redirectResponse = await msalInstance.handleRedirectPromise();
+    // Always process a pending redirect response FIRST (auth.js authReady(),
+    // N-290). After a fresh login this returns the auth result; on a normal
+    // load it returns null.
+    const redirectResponse = await authReady();
 
     // Resolve the active account (from the redirect response, or the cache).
     const account =
@@ -82,13 +83,8 @@ async function mobileInit() {
     // email) is read from MSAL by getCurrentUser() — never stored (N-282).
     if (account.name)     localStorage.setItem('userName',  account.name);
 
-    // Warm the token cache (non-fatal if it needs interaction).
-    try {
-      await msalInstance.acquireTokenSilent({ scopes: loginRequest.scopes, account });
-    } catch (silentErr) {
-      console.warn('Silent token acquisition deferred:', silentErr && silentErr.message);
-    }
-
+    // N-290: no separate token warm-up. The first Graph call gets its token
+    // through getToken() in auth.js.
     await mobileOnSignedIn();
   } catch (e) {
     console.warn('Mobile auth:', e && e.message);
@@ -124,12 +120,12 @@ async function mobileOnSignedIn() {
   mobileOpenHome();
 }
 
-function signIn() {
-  msalInstance.loginRedirect(loginRequest);
-}
-
+// signIn() comes from auth.js (N-290: the duplicate here was removed).
+// signOut() stays mobile-specific: it keeps localStorage, so the
+// newton_mobile flag and theme survive a sign-out.
 function signOut() {
   sessionStorage.clear();
+  markSignedOut();
   msalInstance.logoutRedirect();
 }
 

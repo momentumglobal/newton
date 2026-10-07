@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Newton - Signing in</title>
+</head>
+<body>
+  <!-- N-290 (SEC-10): MSAL v5 redirect bridge. CONFIG.SILENT_REDIRECT_URI
+       points here, so Microsoft's response to a silent (hidden-iframe) token
+       request lands on this page, which hands it back to the Newton tab and
+       closes. No Newton UI, config or auth code loads here. Must be
+       registered in Entra as a Single-page application redirect URI. -->
+  <p>Signing in&hellip;</p>
+  <script src="js/vendor/msal-redirect-bridge-5.24.0.min.js"></script>
+  <script src="js/redirect-bridge.js"></script>
+</body>
+</html>

@@ -5,6 +5,10 @@ const CONFIG = {
   CLIENT_ID:    "bf71f2b2-de80-4728-9189-af8659fbd2b6",
   AUTHORITY:    "https://login.microsoftonline.com/b73023b1-298a-42a2-bed9-985e0a762054",
   REDIRECT_URI: "https://momentumglobal.github.io/newton/",
+  // N-290: v5 redirect bridge, used only as the redirectUri of SILENT token
+  // requests (hidden-iframe renewal). Must be registered in Entra as a
+  // Single-page application redirect URI alongside REDIRECT_URI.
+  SILENT_REDIRECT_URI: "https://momentumglobal.github.io/newton/redirect.html",
   SP_SITE_URL:  "https://talentpoint.sharepoint.com/sites/SolutionsHubReporting",
   SP_SITE_ID:   "talentpoint.sharepoint.com,330e562f-0ba1-4fd8-ae06-ffe3a9287271,b864c9c9-6fe0-4837-9713-5aaa4530de0d",
   GP_INVOICE_DRIVE_ID: 'b!L1YOM6EL2E-uBv_jqShyccnJZLjgbzdIlxNaqkUw3g1MjqGliBUrRY2BqPmtPnw5',

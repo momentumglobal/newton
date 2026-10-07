@@ -1141,6 +1141,30 @@ function safeUploadName(name, ext, maxLen = 60) {
   return (base || 'file') + '.' + ext;
 }
 
+// ── Sign-in helpers (N-290 / SEC-10) ─────────────────────────────
+// Pure. auth.js calls both from authReady(). No MSAL, no storage access.
+
+// True for a localStorage key MSAL v2 wrote: the msal.* index and
+// active-account keys, token entries (they contain the app's client ID) and
+// account entries (they contain the tenant ID). v5 keeps tokens in
+// sessionStorage and leaves these behind, so authReady() deletes them.
+// Never matches a Newton key (newton_*, userName, benchSyncLast).
+function isLegacyMsalStorageKey(key, clientId, tenantId) {
+  const k = String(key || '').toLowerCase();
+  if (!k) return false;
+  if (k.startsWith('msal.')) return true;
+  const c = String(clientId || '').toLowerCase();
+  const t = String(tenantId || '').toLowerCase();
+  return (c !== '' && k.includes(c)) || (t !== '' && k.includes(t));
+}
+
+// The one automatic sign-in redirect per tab: only when nobody is signed in,
+// it hasn't already been tried in this tab, the user didn't just sign out,
+// and the URL isn't carrying a Microsoft response.
+function shouldAutoSignIn({ hasAccount, triedThisTab, signedOut, authResponseInUrl } = {}) {
+  return !hasAccount && !triedThisTab && !signedOut && !authResponseInUrl;
+}
+
 // ── Fuzzy search (N-144) ─────────────────────────────────────────
 // Case-insensitive subsequence match: every character of `query` must
 // appear in `text`, in order (not necessarily contiguous). Returns a

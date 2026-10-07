@@ -49,7 +49,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## @azure/msal-browser 2.38.3 (MIT)
+## @azure/msal-browser 5.24.0 (MIT)
+
+Covers `msal-browser-5.24.0.min.js` and `msal-redirect-bridge-5.24.0.min.js` (same package).
 
 ```text
 MIT License

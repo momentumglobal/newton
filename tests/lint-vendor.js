@@ -137,6 +137,32 @@ function lintVendorManifest(files, manifestText) {
   return problems;
 }
 
+// N-290 (SEC-10): MSAL v5 throws on any call made before initialize(), and
+// auth.js's authReady() is the one place that initialises it. A page or
+// module calling these methods directly would skip that, so it is flagged.
+// logoutRedirect is allowed (mobile-app.js keeps its own signOut()), as are
+// getAllAccounts and the other synchronous account reads. Root HTML is
+// scanned too, because index.html and admin.html bootstrap inline.
+// returns: [ { file, line, call }, ... ] — empty array when clean.
+var _MSAL_DIRECT_CALL = /\bmsalInstance\s*\.\s*(handleRedirectPromise|initialize|acquireToken\w*|loginRedirect|loginPopup|ssoSilent)\s*\(/;
+function lintMsalCalls(htmlSources, jsSources) {
+  var violations = [];
+  function scan(file, codeLines) {
+    for (var i = 0; i < codeLines.length; i++) {
+      var m = _MSAL_DIRECT_CALL.exec(codeLines[i]);
+      if (m) violations.push({ file: file, line: i + 1, call: m[1] });
+    }
+  }
+  Object.keys(jsSources).sort().forEach(function (file) {
+    if (file === 'auth.js') return;
+    scan('js/' + file, _vendorStripJsComments(jsSources[file]));
+  });
+  Object.keys(htmlSources).sort().forEach(function (file) {
+    scan(file, _vendorStripJsComments(_vendorStripHtmlComments(htmlSources[file])));
+  });
+  return violations;
+}
+
 // returns: [ 'message', ... ] — package.json must pin exactly the manifest's versions.
 function lintPackagePins(manifestText, packageJsonText) {
   var problems = [];

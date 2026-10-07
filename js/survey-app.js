@@ -310,7 +310,7 @@ const SurveyApp = (() => {
   // ── Boot
 
   window.addEventListener('DOMContentLoaded', () => {
-    msalInstance.handleRedirectPromise().then(() => {
+    authReady().then(() => {
       init();
     }).catch(e => {
       console.error('MSAL redirect error:', e);

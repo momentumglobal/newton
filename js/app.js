@@ -106,8 +106,9 @@ window.APP = {
     document.title = 'Newton – Sign in';
   },
 };
-// Handle redirect response from Microsoft login, then initialise app
-msalInstance.handleRedirectPromise().then(response => {
+// Handle redirect response from Microsoft login (auth.js authReady(), N-290),
+// then initialise app
+authReady().then(response => {
   if (response) {
     // Coming back from Microsoft redirect — store user details
     const account = response.account || msalInstance.getAllAccounts()[0];

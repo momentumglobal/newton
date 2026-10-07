@@ -327,7 +327,7 @@
       <table>
         <tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr>
         <tr><td>Hosting</td><td>GitHub Pages</td><td>Static file serving — no backend required</td></tr>
-        <tr><td>Authentication</td><td>Microsoft Azure AD + MSAL.js v2</td><td>SSO via Microsoft identity</td></tr>
+        <tr><td>Authentication</td><td>Microsoft Azure AD + MSAL.js v5 (5.24.0, N-290)</td><td>SSO via Microsoft identity</td></tr>
         <tr><td>Data</td><td>SharePoint Online (Graph API)</td><td>All application data storage</td></tr>
         <tr><td>UI</td><td>Vanilla HTML, CSS, JavaScript</td><td>No framework dependencies</td></tr>
         <tr><td>Icons</td><td>Lucide (self-hosted)</td><td>Icon library</td></tr>
@@ -563,10 +563,12 @@
       <table>
         <tr><th>File</th><th>Responsibility</th><th>Key exports</th></tr>
         <tr><td><span class="file-tag">js/config.js</span></td><td>Static app configuration</td><td>CONFIG, CONFIG.OS_MODULES, CONFIG.UTILISATION_THRESHOLDS, CONFIG.WEEKLY_ANOMALIES (N-271; <code>acknowledge.noteMaxChars</code>, N-273), CONFIG.PEOPLE_LEVELS, CONFIG.ROLE_PRECEDENCE / CONFIG.ROLE_LABELS (N-281), getUserRoleAsync()</td></tr>
-        <tr><td><span class="file-tag">js/vendor/</span></td><td>Self-hosted third-party libraries (N-289)</td><td>lucide, msal-browser, sortablejs, exceljs, pptxgenjs, chart.js — unmodified upstream files with the version in the filename; <code>VERSIONS.md</code> (source URL replaced, licence, bytes, sha384, upgrade steps) and <code>LICENSES.md</code>. No CDN fallback by design.</td></tr>
+        <tr><td><span class="file-tag">js/vendor/</span></td><td>Self-hosted third-party libraries (N-289)</td><td>lucide, msal-browser (plus its v5 redirect bridge), sortablejs, exceljs, pptxgenjs, chart.js — unmodified upstream files with the version in the filename; <code>VERSIONS.md</code> (source URL replaced, licence, bytes, sha384, upgrade steps) and <code>LICENSES.md</code>. No CDN fallback by design.</td></tr>
         <tr><td><span class="file-tag">package.json</span></td><td>Dependabot manifest only</td><td>Exact pins for the six vendored libraries so GitHub can raise security advisories. Not used by the build, CI or the deployed site.</td></tr>
-        <tr><td><span class="file-tag">js/auth.js</span></td><td>MSAL authentication only</td><td>signIn(), signOut(), getToken(), getCurrentUser(), isSignedIn()</td></tr>
-        <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), computeMonthlyRevenueForYear(), computeMonthlyForecastRevenueForYear(), getAssignmentDataYears(), formatSalary(), daysOpen(), ghost mode helpers, isProjectActive(), sortProjectsByName(), buildProjectOptionsHtml(), levelSortIndex(), isBillableLevel(), weeksAgoDay(), listQueryFromDay(), activitySinceWeeks() (N-270: client-side WeeklyActivity window slice), addDaysISO() / sundayOnOrAfterISO() / medianOf() (N-271: UTC day-string arithmetic and a median, no local getters)</td></tr>
+        <tr><td><span class="file-tag">redirect.html</span></td><td>MSAL v5 redirect bridge (N-290)</td><td>Redirect URI for silent (hidden-iframe) token renewal only — <code>CONFIG.SILENT_REDIRECT_URI</code>. Loads the vendored bridge and <code>js/redirect-bridge.js</code>, nothing else. Registered in Entra.</td></tr>
+        <tr><td><span class="file-tag">js/redirect-bridge.js</span></td><td>Bridge page script (N-290)</td><td>One call: <code>msalRedirectBridge.broadcastResponseToMainFrame()</code>. Kept out of redirect.html so there is no inline script.</td></tr>
+        <tr><td><span class="file-tag">js/auth.js</span></td><td>MSAL authentication only</td><td>authReady() (the one page bootstrap, N-290), signIn(), signOut(), markSignedOut(), getToken(), getElevatedToken(), getCurrentUser(), isSignedIn()</td></tr>
+        <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), computeMonthlyRevenueForYear(), computeMonthlyForecastRevenueForYear(), getAssignmentDataYears(), formatSalary(), daysOpen(), ghost mode helpers, isProjectActive(), sortProjectsByName(), buildProjectOptionsHtml(), levelSortIndex(), isBillableLevel(), weeksAgoDay(), listQueryFromDay(), activitySinceWeeks() (N-270: client-side WeeklyActivity window slice), addDaysISO() / sundayOnOrAfterISO() / medianOf() (N-271: UTC day-string arithmetic and a median, no local getters), isLegacyMsalStorageKey() / shouldAutoSignIn() (N-290: sign-in decisions)</td></tr>
         <tr><td><span class="file-tag">js/api.js</span></td><td>Shared SharePoint/Graph read-write layer</td><td>getItems(), getItem(), createItem(), updateItem(), deleteItem(), getEffectiveRole(), FIELD_ALIASES, the two-tier read cache (_apiCache + session tier), schemaBaseColumnName(). Also still holds anything used by more than one consumer (tpList(), createDiagnostic(), getAnomalyAcks() / acknowledgeAnomaly() / restoreAnomalyAcks() (N-273: the <code>AnomalyAcks</code> list behind Data Health's Acknowledge / Restore; Restore is a Status PATCH, never a delete), getTalentPartnerDisplayMap(), filterToActiveTpEmails(), copyBriefingPack(), the survey-template reads). Module-specific API calls were split out (N-237a/b) into api-briefing.js, api-coe.js, api-engagement.js, api-orgchart.js, api-people-forms.js, api-lci.js, api-admin.js, api-market-report.js and api-misc.js — see each module's table below for what moved where.</td></tr>
         <tr><td><span class="file-tag">js/api-misc.js</span></td><td>Small single-consumer API calls that didn't warrant their own file (N-237b)</td><td>getGPInvoices() (people-invoices.js), deleteSalesForecast() (sales-pages.js), getDefaultUserProjectId() (dashboard-project.js), createPayrollNotification() (people-payroll.js). Loaded on reporting.html, people.html, sales.html and market-reporting.html only — not admin.html or command-centre.html.</td></tr>
         <tr><td><span class="file-tag">js/nav-core.js</span></td><td>Shared sidebar renderer</td><td>renderModuleNav(), updateNavActiveLink(), exitGhostMode()</td></tr>
@@ -702,12 +704,12 @@
       <h3>Standard module pages</h3>
       <div class="code-block">
 <span class="code-comment">&lt;!-- External --&gt;</span>
-js/vendor/msal-browser-2.38.3.min.js   (self-hosted, N-289)
+js/vendor/msal-browser-5.24.0.min.js   (self-hosted, N-289; v5 since N-290)
 js/vendor/lucide-1.47.0.min.js         (self-hosted, N-289; was a pinned CDN tag)
 
 <span class="code-comment">&lt;!-- Shared platform --&gt;</span>
 <span class="code-key">config.js</span>          <span class="code-comment">← CONFIG object, OS_MODULES, role helpers</span>
-<span class="code-key">auth.js</span>            <span class="code-comment">← MSAL instance, signIn/signOut/getToken</span>
+<span class="code-key">auth.js</span>            <span class="code-comment">← MSAL instance, authReady/signIn/signOut/getToken</span>
 <span class="code-key">utils.js</span>           <span class="code-comment">← Pure helpers, ghost mode helpers</span>
 <span class="code-key">api.js</span>             <span class="code-comment">← Graph API layer, cache, role resolution</span>
 
@@ -847,13 +849,13 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
     <!-- AUTH FLOW -->
     <div class="section" id="sec-authflow" style="display:none">
       <div class="section-title">Auth Flow</div>
-      <p class="section-intro">Authentication uses MSAL.js with Microsoft's redirect flow. There is no session server — token and user info are stored in localStorage by MSAL.</p>
+      <p class="section-intro">Authentication uses MSAL.js v5 with Microsoft's redirect flow. There is no session server. Since N-290, MSAL keeps tokens in <strong>sessionStorage</strong>, so they are gone when the tab closes; a new tab or a PWA relaunch signs in again. The old v2 tokens in localStorage are deleted on page load.</p>
 
       <h3>Sign-in sequence</h3>
       <div class="flow">
         <div class="flow-step">User visits page</div>
         <div class="flow-arrow">→</div>
-        <div class="flow-step highlight">handleRedirectPromise()</div>
+        <div class="flow-step highlight">authReady()</div>
         <div class="flow-arrow">→</div>
         <div class="flow-step">Store email + name in localStorage</div>
         <div class="flow-arrow">→</div>
@@ -869,8 +871,19 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <div class="flow-step">renderNav() + navigateTo(firstPage)</div>
       </div>
 
+      <h3>authReady() — the one bootstrap (N-290)</h3>
+      <p>MSAL v5 throws on any call made before <code>initialize()</code>, so no page calls MSAL directly. Every page (index.html and admin.html inline, and every <code>*-app.js</code>) awaits <code>authReady()</code> in auth.js. It runs once per page: delete leftover v2 tokens from localStorage, <code>initialize()</code>, <code>handleRedirectPromise()</code>, then:</p>
+      <ul>
+        <li><strong>Signed in</strong> → resolves with the redirect response (or null).</li>
+        <li><strong>MSAL is taking the response back to the page that started sign-in</strong> → never resolves, so the page doesn't redirect somewhere else first.</li>
+        <li><strong>Nobody signed in</strong> → redirects to Microsoft sign-in automatically, <em>once per tab</em> (sessionStorage <code>newton_autosignin_tried</code>). If that sign-in fails or is cancelled, the page shows its Sign-in button instead of looping. After a sign-out (<code>newton_signed_out</code>) it shows the button too. The decision is <code>shouldAutoSignIn()</code> in utils.js.</li>
+      </ul>
+      <p><code>tests/lint-vendor.js</code> (<code>lintMsalCalls</code>) fails CI if any file other than auth.js calls <code>handleRedirectPromise</code>, <code>initialize</code>, <code>acquireToken*</code> or <code>loginRedirect</code>.</p>
+
       <h3>Token acquisition</h3>
       <p>Every Graph API call goes through <code>getToken()</code> in auth.js. It attempts a silent refresh first (<code>acquireTokenSilent</code>). If expired or missing, it falls back to <code>acquireTokenRedirect</code>, triggering a full Microsoft login redirect.</p>
+      <p>Silent requests use <code>CONFIG.SILENT_REDIRECT_URI</code> (<code>redirect.html</code>, the v5 redirect bridge). MSAL needs it only when the refresh token has expired (about 24 hours) and it renews in a hidden iframe; without the bridge, v5 falls back to a full redirect.</p>
+      <div class="callout amber"><strong>Entra app registration.</strong> Authentication → Single-page application must list both <code>https://momentumglobal.github.io/newton/</code> (<code>REDIRECT_URI</code>) and <code>https://momentumglobal.github.io/newton/redirect.html</code> (<code>SILENT_REDIRECT_URI</code>). Don't prune the second one.</div>
 
       <h3>Sign-out</h3>
       <div class="flow">
@@ -879,6 +892,8 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <div class="flow-step">localStorage.clear()</div>
         <div class="flow-arrow">→</div>
         <div class="flow-step">sessionStorage.clear()</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">markSignedOut()</div>
         <div class="flow-arrow">→</div>
         <div class="flow-step highlight">msalInstance.logoutRedirect()</div>
       </div>
@@ -1024,7 +1039,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <li>api.js owns all Graph API calls. If it touches the network, it lives here.</li>
         <li>utils.js owns pure functions with no network I/O — formatting, calculations, button state, ghost helpers.</li>
         <li>nav-core.js owns the sidebar renderer. Do not write sidebar HTML in module nav files.</li>
-        <li>*-app.js files handle init only — MSAL redirect, role resolution, first navigation.</li>
+        <li>*-app.js files handle init only — <code>await authReady()</code>, role resolution, first navigation.</li>
         <li>analytics.js owns shared analytics logic — isRoleFlagged(), roleFlagReasons(), tallyRoleFlags(), flaggedShareRAG(), ACTIVE_STAGES, computeVelocityScore(). Never duplicate these in page scripts.</li>
         <li><strong>Salary (N-286):</strong> salary is read only from <code>PeoplePay</code>, only on admin/leadership paths (<code>getPeoplePay()</code> + <code>attachSalaries()</code>). Never add <code>Salary</code> to the People list projection, or to any list non-privileged users read — SharePoint cannot hide a single column.</li>
       </ul>
@@ -1113,7 +1128,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <li><strong>config.js</strong> — Add entry to <code>CONFIG.OS_MODULES</code> with key, name, icon, href, live, and roles array (plus <code>desc</code> and <code>homeOrder</code> if it should have a home-screen tile). This is the only place the module switcher is defined.</li>
         <li><strong>[module]-router.js</strong> — Create page registry. Define PAGES object, <code>canAccess()</code>, and <code>getAccessiblePages()</code>.</li>
         <li><strong>[module]-nav.js</strong> — Create nav wrapper. Call <code>renderModuleNav()</code> with subtitle, currentModuleKey, toggleFn, pages, currentPage, role, navigateFn, userGuideHref. Add toggle function and <code>navigateTo[Module]()</code>.</li>
-        <li><strong>[module]-app.js</strong> — Handle MSAL redirect, call <code>getEffectiveRole()</code>, redirect if role not permitted, render nav, navigate to first page. Set <code>document.getElementById('app-shell').style.display = 'flex'</code> after auth.</li>
+        <li><strong>[module]-app.js</strong> — <code>await authReady()</code> (never call MSAL directly, N-290), call <code>getEffectiveRole()</code>, redirect if role not permitted, render nav, navigate to first page. Set <code>document.getElementById('app-shell').style.display = 'flex'</code> after auth.</li>
         <li><strong>[module]-pages.js and [module]-forms.js</strong> — Create page renderers and form logic as needed.</li>
         <li><strong>[module].html</strong> — Follow script load order exactly: config → auth → utils → api → [module]-router → nav-core → [module]-nav → [module]-forms → [module]-pages → [module]-app. Load analytics.js before app.js if the module uses isRoleFlagged() or other shared analytics functions. Shell markup (N-255a): wrap the content area as <code>&lt;div id="main-column"&gt;&lt;div id="breadcrumb-bar"&gt;&lt;/div&gt;&lt;div id="main-content"&gt;&lt;/div&gt;&lt;/div&gt;</code> after <code>#sidebar</code> — nav-core.js renders the Home › Module › Page trail into <code>#breadcrumb-bar</code> automatically; never put it inside <code>#main-content</code> (page renderers replace its innerHTML).</li>
         <li><strong>admin.html sidebar</strong> — Add <code>&lt;a class="admin-nav-link"&gt;</code> entry if the module needs admin panel access.</li>
@@ -1175,6 +1190,18 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">MSAL v5 and per-tab sign-in (N-290, SEC-10)</div>
+        <ul>
+          <li>MSAL upgraded from 2.38.3 to 5.24.0 (vendored). Tokens now live in sessionStorage, not localStorage, so they are gone when the tab closes. Leftover v2 tokens are deleted from localStorage on page load.</li>
+          <li>Every page now starts with <code>authReady()</code> in auth.js instead of calling <code>handleRedirectPromise()</code> itself. v5 requires <code>initialize()</code> first, and this keeps it in one place. A new lint fails CI on any direct MSAL call outside auth.js.</li>
+          <li>Opening Newton in a new tab or relaunching the PWA redirects to Microsoft sign-in automatically, once per tab; with a live Microsoft session there is nothing to click. A failed or cancelled sign-in, or a sign-out, shows the Sign-in button instead.</li>
+          <li>New <code>redirect.html</code> (v5 redirect bridge) for silent token renewal after the refresh token expires. It is registered in Entra and set in <code>CONFIG.SILENT_REDIRECT_URI</code>. The elevated <code>Sites.Manage.All</code> flow is unchanged.</li>
+          <li>Mobile: the duplicate <code>signIn()</code> and the token warm-up call in mobile-app.js were removed.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
@@ -1705,7 +1732,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
       <h3>Dependencies to monitor</h3>
       <table>
         <tr><th>Dependency</th><th>Version</th><th>Notes</th></tr>
-        <tr><td>MSAL.js</td><td>2.38.3</td><td>Vendored (<code>js/vendor/msal-browser-2.38.3.min.js</code>). Old major — N-290 upgrades it. Breaking changes between major versions.</td></tr>
+        <tr><td>MSAL.js</td><td>5.24.0</td><td>Vendored (<code>js/vendor/msal-browser-5.24.0.min.js</code> + <code>msal-redirect-bridge-5.24.0.min.js</code>, N-290). Current major. Upgrade both files together. v5 error messages are codes plus doc links — branch on <code>e.errorCode</code>, never the message.</td></tr>
         <tr><td>Lucide</td><td>1.47.0</td><td>Vendored (<code>js/vendor/lucide-1.47.0.min.js</code>).</td></tr>
         <tr><td>SortableJS</td><td>1.15.2</td><td>Vendored (<code>js/vendor/sortablejs-1.15.2.min.js</code>). Report Builder and Briefing Pack drag-and-drop.</td></tr>
         <tr><td>ExcelJS</td><td>4.4.0</td><td>Vendored (<code>js/vendor/exceljs-4.4.0.min.js</code>, path in <code>CONFIG.LCI.EXCEL.SRC</code>). Lazy-loaded on first Export to Excel click only. Keep pinned — the workbook relies on <code>{ formula, result }</code> cell values and defined names.</td></tr>

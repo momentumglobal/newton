@@ -45,7 +45,7 @@ window.SALES_APP = {
 };
 
 window.addEventListener('DOMContentLoaded', () => {
-  msalInstance.handleRedirectPromise().then(() => {
+  authReady().then(() => {
     window.SALES_APP.init();
   }).catch(e => {
     console.error('MSAL redirect error:', e);

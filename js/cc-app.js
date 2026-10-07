@@ -1,6 +1,6 @@
 // js/cc-app.js
 async function initCC() {
-  await msalInstance.handleRedirectPromise();
+  await authReady();
   if (!isSignedIn()) { window.location.href = 'reporting.html'; return; }
   const user = getCurrentUser();
   const role = await getEffectiveRole(user.email);

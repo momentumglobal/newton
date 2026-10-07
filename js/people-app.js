@@ -56,7 +56,7 @@ window.PEOPLE_APP = {
 };
 
 window.addEventListener('DOMContentLoaded', () => {
-  msalInstance.handleRedirectPromise().then(() => {
+  authReady().then(() => {
     window.PEOPLE_APP.init();
   }).catch(e => {
     console.error('MSAL redirect error:', e);

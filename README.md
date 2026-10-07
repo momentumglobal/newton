@@ -29,6 +29,13 @@ Newton is a static web application hosted on GitHub Pages, with Microsoft Azure 
 - **Icons** — Lucide
 - **Fonts** — Polymath (self-hosted)
 
+## Repository and publishing
+
+- **Everything published is public.** The repo is public and GitHub Pages serves every file in it, including `js/config.js` and `Readme.html`, to anyone on the internet. Making the repo private would not change that (Pages stays public below GitHub Enterprise), so it is not the control.
+- **Never commit anything secret or access-granting** to this repo: no passwords, API keys, client secrets, signed Power Automate URLs, tokens or user lists. Tenant and client IDs are not secrets and are public by design. Access is enforced by Entra and SharePoint, not by hiding code.
+- **Guards:** GitHub secret scanning and push protection are on; `.github/workflows/gitleaks.yml` scans the full history on every push and on demand. If it fails, treat the finding as exposed: rotate the credential first, then clean up.
+- **`/v2/` staging was retired on 7 October 2026** (branch `v2` deleted, `static-v2.yml` removed). Changes go straight to `main`. The live site is the only deployment.
+
 ## Developer Reference
 
 Full system directory including architecture, data flows, SharePoint data model, role/access matrix, coding conventions, mobile app, and module build guide:

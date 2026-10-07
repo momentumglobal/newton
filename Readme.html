@@ -567,6 +567,7 @@
         <tr><td><span class="file-tag">js/config.js</span></td><td>Static app configuration</td><td>CONFIG, CONFIG.OS_MODULES, CONFIG.UTILISATION_THRESHOLDS, CONFIG.WEEKLY_ANOMALIES (N-271; <code>acknowledge.noteMaxChars</code>, N-273), CONFIG.PEOPLE_LEVELS, CONFIG.ROLE_PRECEDENCE / CONFIG.ROLE_LABELS (N-281), getUserRoleAsync()</td></tr>
         <tr><td><span class="file-tag">js/vendor/</span></td><td>Self-hosted third-party libraries (N-289)</td><td>lucide, msal-browser (plus its v5 redirect bridge), sortablejs, exceljs, pptxgenjs, chart.js — unmodified upstream files with the version in the filename; <code>VERSIONS.md</code> (source URL replaced, licence, bytes, sha384, upgrade steps) and <code>LICENSES.md</code>. No CDN fallback by design.</td></tr>
         <tr><td><span class="file-tag">package.json</span></td><td>Dependabot manifest only</td><td>Exact pins for the six vendored libraries so GitHub can raise security advisories. Not used by the build, CI or the deployed site.</td></tr>
+        <tr><td><span class="file-tag">.github/workflows/gitleaks.yml</span></td><td>Secret scan (N-293)</td><td>Full-history gitleaks scan on every push and on demand. Pinned, checksum-verified binary; output redacted because the Actions log is public. Separate from <code>static.yml</code>, so it never blocks a deploy.</td></tr>
         <tr><td><span class="file-tag">redirect.html</span></td><td>MSAL v5 redirect bridge (N-290)</td><td>Redirect URI for silent (hidden-iframe) token renewal only — <code>CONFIG.SILENT_REDIRECT_URI</code>. Loads the vendored bridge and <code>js/redirect-bridge.js</code>, nothing else. Registered in Entra.</td></tr>
         <tr><td><span class="file-tag">js/redirect-bridge.js</span></td><td>Bridge page script (N-290)</td><td>One call: <code>msalRedirectBridge.broadcastResponseToMainFrame()</code>. Kept out of redirect.html so there is no inline script.</td></tr>
         <tr><td><span class="file-tag">js/frame-guard.js</span></td><td>Clickjacking guard (N-292)</td><td>Head-level script, no exports and no CONFIG. Loaded straight after diag-buffer.js on the nine app pages; if the page is framed by a cross-origin window it hides itself and tries to break out. See Security headers.</td></tr>
@@ -1060,6 +1061,9 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <li><code>tests/lint-vendor.js</code> fails the build on an external script URL, an unlisted or modified vendor file, or a <code>package.json</code> pin that disagrees with <code>VERSIONS.md</code>. To upgrade a library, follow the steps at the bottom of <code>VERSIONS.md</code>.</li>
       </ul>
 
+      <h3>Public by design &mdash; secret scanning (N-293)</h3>
+      <div class="callout amber"><strong>Everything in this repo is public.</strong> GitHub Pages serves every committed file, so nothing secret or access-granting (passwords, keys, client secrets, signed flow URLs, user lists) may ever be committed. Tenant and client IDs are public by design. Guards: GitHub secret scanning and push protection, plus <code>.github/workflows/gitleaks.yml</code>, which scans the full history on every push and on demand. If it fails, rotate the credential first. The repo stays public on Free: private would not hide the published site. <code>/v2/</code> was retired on 7 October 2026.</div>
+
       <h3>Security headers &mdash; CSP, referrer, frame guard (N-292)</h3>
       <ul class="checklist">
         <li>GitHub Pages cannot send response headers, so every root <code>*.html</code> carries the same <code>&lt;meta http-equiv="Content-Security-Policy"&gt;</code> and <code>&lt;meta name="referrer" content="no-referrer"&gt;</code>, straight after <code>&lt;meta charset&gt;</code> and before any <code>&lt;script&gt;</code>, <code>&lt;link&gt;</code>, <code>&lt;style&gt;</code> or <code>&lt;img&gt;</code> (a CSP only governs what is parsed after it). App pages then load <code>js/diag-buffer.js</code> and <code>js/frame-guard.js</code>, in that order.</li>
@@ -1210,6 +1214,16 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Repository exposure controls (N-293, SEC-13)</div>
+        <ul>
+          <li>GitHub secret scanning and push protection are on for the repo. A new <code>.github/workflows/gitleaks.yml</code> scans the full git history on every push and on demand, using a pinned, checksum-verified gitleaks binary (no licence key). Output is redacted because the Actions log is public.</li>
+          <li>The repo stays public on GitHub Free. Every published file, including <code>config.js</code> and this page, is public by design, and making the repo private would not hide the site. Nothing secret or access-granting may ever be committed; the README now says so.</li>
+          <li>The <code>/v2/</code> staging site was retired on 7 October 2026 (branch deleted, workflow removed), which closes the same-origin risk (S-11). Changes go straight to <code>main</code>.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>

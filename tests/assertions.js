@@ -2671,4 +2671,30 @@ var ASSERTIONS = [
       );
     },
   },
+  {
+    name: 'Secret-scan workflow is full-history, redacted, licence-free; /v2/ stays retired (N-293 — SEC-13)',
+    fn: function () {
+      if (typeof REPO_FILES === 'undefined') {
+        _skip('Repo file scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      // Returns the list of problems with a workflow's text. [] = fine.
+      const problems = (y) => {
+        const p = [];
+        ['fetch-depth: 0', '--redact', 'sha256sum -c', 'gitleaks git', '--exit-code 1', 'GITLEAKS_VERSION:']
+          .forEach(t => { if (y.indexOf(t) === -1) p.push('missing ' + t); });
+        if (!/permissions:\s*\n\s*contents:\s*read/.test(y)) p.push('permissions must be contents: read');
+        if (!/^\s*push:/m.test(y) || !/^\s*workflow_dispatch:/m.test(y)) p.push('triggers must be push + workflow_dispatch');
+        ['gitleaks-action', 'upload-artifact', 'GITLEAKS_LICENSE'].forEach(t => { if (y.indexOf(t) !== -1) p.push('must not contain ' + t); });
+        if (/^\s*schedule\s*:/m.test(y)) p.push('must not have a schedule');
+        return p;
+      };
+      // Control: the check really detects each class of defect.
+      _assertEqual(problems('').length > 0, true, 'control: empty workflow is flagged');
+      _assertEqual(problems('uses: gitleaks/gitleaks-action@v2\nfetch-depth: 0').some(m => /gitleaks-action/.test(m)), true,
+        'control: the licensed action is flagged');
+      _assertEqual(problems(REPO_FILES.gitleaksWorkflow), [], '.github/workflows/gitleaks.yml');
+      _assertEqual(REPO_FILES.staticV2Exists, false, '.github/workflows/static-v2.yml must stay deleted (/v2/ retired 7 Oct 2026)');
+      _assertEqual(/Repository and publishing/.test(REPO_FILES.readme), true, 'README.md has the "Repository and publishing" section');
+    },
+  },
 ];

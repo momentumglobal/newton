@@ -96,6 +96,14 @@ sandbox.VENDOR_FILES = (fs.existsSync(VENDOR_DIR) ? fs.readdirSync(VENDOR_DIR) :
   }, {});
 sandbox.VENDOR_MANIFEST = _readIfExists(path.join(VENDOR_DIR, 'VERSIONS.md'));
 sandbox.VENDOR_PACKAGE_JSON = _readIfExists(path.join(ROOT_DIR, 'package.json'));
+// N-293 (SEC-13): the repo-exposure guard reads the secret-scan workflow and the
+// README as text, and checks the retired /v2/ workflow stays gone. Missing files
+// read as '' / false so the assertion FAILS rather than passing vacuously.
+sandbox.REPO_FILES = {
+  gitleaksWorkflow: _readIfExists(path.join(ROOT_DIR, '.github', 'workflows', 'gitleaks.yml')),
+  staticV2Exists: fs.existsSync(path.join(ROOT_DIR, '.github', 'workflows', 'static-v2.yml')),
+  readme: _readIfExists(path.join(ROOT_DIR, 'README.md')),
+};
 
 vm.createContext(sandbox);
 

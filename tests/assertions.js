@@ -2505,4 +2505,139 @@ var ASSERTIONS = [
       _assertEqual(planPeoplePayMigration([], []).counts.source, 0, 'empty source');
     },
   },
+  // ---- N-292 (SEC-12): in-page security headers --------------------------
+  {
+    name: 'every page carries the canonical CSP + referrer meta ahead of any resource (N-292 — SEC-12 guard)',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const good = '<head>\n<meta charset="UTF-8">\n<meta http-equiv="Content-Security-Policy" content="' + CSP_CANONICAL + '">\n<meta name="referrer" content="no-referrer">\n<script src="js/a.js"></script>\n</head>';
+      // Positive controls: the lint must catch each failure shape, or the clean result below proves nothing.
+      _assertEqual(lintCspMeta({ 'g.html': good }, CSP_CANONICAL, CSP_REFERRER), [], 'control: a correct page is clean');
+      _assertEqual(lintCspMeta({ 'x.html': good.replace(CSP_CANONICAL, "default-src *") }, CSP_CANONICAL, CSP_REFERRER).length, 1, 'control: different policy flagged');
+      _assertEqual(lintCspMeta({ 'x.html': good.replace(/<meta http-equiv[^>]*>\n/, '') }, CSP_CANONICAL, CSP_REFERRER).length, 1, 'control: missing CSP flagged');
+      _assertEqual(lintCspMeta({ 'x.html': good.replace(/<meta name="referrer"[^>]*>\n/, '') }, CSP_CANONICAL, CSP_REFERRER).length, 1, 'control: missing referrer flagged');
+      _assertEqual(lintCspMeta({ 'x.html': good.replace('<meta charset="UTF-8">\n', '<script src="js/early.js"></script>\n<meta charset="UTF-8">\n') }, CSP_CANONICAL, CSP_REFERRER).length >= 1, true, 'control: a script before the CSP flagged');
+      _assertEqual(lintCspMeta({ 'x.html': good + good }, CSP_CANONICAL, CSP_REFERRER).length >= 2, true, 'control: duplicate metas flagged');
+      _assertEqual(lintCspMeta({ 'x.html': good.replace('<meta charset="UTF-8">\n', '').replace('<script', '<meta charset="UTF-8">\n<script') }, CSP_CANONICAL, CSP_REFERRER).length >= 1, true, 'control: charset after the CSP flagged');
+      _assertEqual(lintCspMeta(ALL_HTML, CSP_CANONICAL, CSP_REFERRER), [], 'root *.html CSP + referrer metas');
+    },
+  },
+  {
+    name: 'canonical CSP: required directives, exact script/connect sources, no eval / wildcard / http (N-292 — SEC-12 guard)',
+    fn: function () {
+      _assertEqual(lintCspPolicy(CSP_CANONICAL), [], 'CSP_CANONICAL shape');
+      // Positive controls.
+      _assertEqual(lintCspPolicy(CSP_CANONICAL + " 'unsafe-eval'").length >= 1, true, "control: 'unsafe-eval' flagged");
+      _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("script-src 'self'", "script-src 'self' https://cdn.example.com")).length, 1, 'control: extra script host flagged');
+      _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("img-src 'self'", "img-src *")).length >= 1, true, 'control: wildcard flagged');
+      _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("connect-src 'self' https://graph.microsoft.com", "connect-src 'self' http://graph.microsoft.com")).length >= 1, true, 'control: plain http flagged');
+      _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("object-src 'none'; ", '')).length, 1, 'control: missing directive flagged');
+      _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("frame-src 'self' https://login.microsoftonline.com", "frame-src https:")).length >= 1, true, 'control: bare https: flagged');
+    },
+  },
+  {
+    name: 'CSP origins match CONFIG.SP_SITE_URL, GRAPH and CONFIG.AUTHORITY (N-292 — single source of truth)',
+    fn: function () {
+      const cfg = { spSiteUrl: CONFIG.SP_SITE_URL, graph: GRAPH, authority: CONFIG.AUTHORITY };
+      _assertEqual(lintCspOrigins(CSP_CANONICAL, cfg), [], 'CSP origins vs config');
+      // Positive control: a changed host in config must be caught.
+      _assertEqual(lintCspOrigins(CSP_CANONICAL, { spSiteUrl: 'https://other.sharepoint.com/sites/x', graph: GRAPH, authority: CONFIG.AUTHORITY }).length, 1, 'control: SharePoint host change flagged');
+      _assertEqual(lintCspOrigins(CSP_CANONICAL, { spSiteUrl: CONFIG.SP_SITE_URL, graph: 'https://graph.microsoft.us/v1.0', authority: CONFIG.AUTHORITY }).length, 1, 'control: Graph host change flagged');
+    },
+  },
+  {
+    name: 'frame-guard.js is the 2nd script on exactly the app pages (N-292 — SEC-12 guard)',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const app = '<script src="js/diag-buffer.js"></script><script src="js/frame-guard.js"></script>';
+      _assertEqual(lintFrameGuardWiring({ 'a.html': app }, ['a.html'], []), [], 'control: correct app page clean');
+      _assertEqual(lintFrameGuardWiring({ 'a.html': '<script src="js/diag-buffer.js"></script>' }, ['a.html'], []).length, 1, 'control: missing guard flagged');
+      _assertEqual(lintFrameGuardWiring({ 'a.html': '<script src="js/frame-guard.js"></script><script src="js/diag-buffer.js"></script>' }, ['a.html'], []).length, 2, 'control: wrong order flagged');
+      _assertEqual(lintFrameGuardWiring({ 's.html': app }, [], ['s.html']).length, 1, 'control: guard on a static page flagged');
+      _assertEqual(lintFrameGuardWiring({ 'new.html': '' }, [], []).length, 1, 'control: unclassified new page flagged');
+      _assertEqual(lintFrameGuardWiring(ALL_HTML, CSP_APP_PAGES, CSP_STATIC_PAGES), [], 'frame-guard wiring');
+    },
+  },
+  {
+    name: 'frame-guard.js behaviour — hides and breaks out only when framed cross-origin (N-292 — SEC-12)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined' || !ALL_SOURCES['frame-guard.js']) {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const src = ALL_SOURCES['frame-guard.js'];
+      function stub(topObj) {
+        const win = { location: { origin: 'https://a.example', href: 'https://a.example/newton/reporting.html' } };
+        win.self = win;
+        win.top = topObj === undefined ? win : topObj;
+        const doc = { documentElement: { style: {} } };
+        return { win: win, doc: doc };
+      }
+      function hostile(readable, throwOnAssign) {
+        const t = { _nav: null };
+        Object.defineProperty(t, 'location', {
+          get: function () { if (!readable) throw new Error('SecurityError'); return { origin: readable }; },
+          set: function (v) { if (throwOnAssign) throw new Error('SecurityError'); t._nav = v; },
+        });
+        return t;
+      }
+      // not framed
+      let s = stub(); runFrameGuard(src, s.win, s.doc);
+      _assertEqual(s.doc.documentElement.style.display, undefined, 'not framed: page untouched');
+      // framed by a same-origin top (MSAL hidden iframe inside a Newton page)
+      let top = { location: { origin: 'https://a.example' } };
+      s = stub(top); runFrameGuard(src, s.win, s.doc);
+      _assertEqual(s.doc.documentElement.style.display, undefined, 'same-origin top: page untouched');
+      _assertEqual(top.location.origin, 'https://a.example', 'same-origin top: not navigated');
+      // framed by a cross-origin top whose location cannot be read (the normal hostile case)
+      top = hostile(null, false);
+      s = stub(top); runFrameGuard(src, s.win, s.doc);
+      _assertEqual(s.doc.documentElement.style.display, 'none', 'cross-origin top: page hidden');
+      _assertEqual(top._nav, 'https://a.example/newton/reporting.html', 'cross-origin top: top navigated to Newton');
+      // framed by a readable but different origin (control: detection is by origin, not by throwing)
+      top = hostile('https://evil.example', false);
+      s = stub(top); runFrameGuard(src, s.win, s.doc);
+      _assertEqual(s.doc.documentElement.style.display, 'none', 'different readable origin: page hidden');
+      _assertEqual(top._nav, 'https://a.example/newton/reporting.html', 'different readable origin: top navigated');
+      // sandboxed frame: break-out throws - the page must STAY hidden and nothing may escape
+      top = hostile(null, true);
+      s = stub(top); runFrameGuard(src, s.win, s.doc);
+      _assertEqual(s.doc.documentElement.style.display, 'none', 'break-out blocked: page stays hidden');
+    },
+  },
+  {
+    name: 'no eval / new Function / string timers in first-party js/ (N-292 — the CSP has no unsafe-eval)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(
+        lintCodeExecution({ 'x.js': 'a();\neval("1");\n// eval("2")\nb = new Function("return 1");\nsetTimeout("go()", 5);\nsetTimeout(go, 5);\nx.isFunction(y);' }).map(v => v.line),
+        [2, 4, 5],
+        'control: eval / new Function / string timer flagged; comments, function timers and isFunction( are not'
+      );
+      _assertEqual(lintCodeExecution(ALL_SOURCES).map(v => `${v.file}:${v.line}  ${v.text}`), [], 'dynamic code execution in js/');
+    },
+  },
+  {
+    name: 'no new external https:// host in first-party js/ without a CSP decision (N-292 — SEC-12 guard)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(
+        lintJsHosts({ 'x.js': "a = 'https://cdn.example.com/lib.js';\n// https://commented.example.com\nb = 'https://graph.microsoft.com/v1.0';" }, CSP_JS_HOST_ALLOW).map(v => v.host),
+        ['cdn.example.com'],
+        'control: unknown host flagged; allow-listed host and comments are not'
+      );
+      _assertEqual(
+        lintJsHosts(ALL_SOURCES, CSP_JS_HOST_ALLOW).map(v => `${v.file}:${v.line}  ${v.host}`),
+        [],
+        'external hosts in js/ (decide whether the CSP needs the origin, then add it to the policy AND CSP_JS_HOST_ALLOW)'
+      );
+    },
+  },
 ];

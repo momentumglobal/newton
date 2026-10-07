@@ -256,6 +256,13 @@ const CONFIG = {
     PeoplePay: [
       'Title', 'PersonID', 'Salary',
     ],
+    // N-300 (SEC-6b): one row per payroll summary sent. Title = dedupe key
+    // 'payrollsummary-<year>-<month>'. Joiners / Leavers / BonusData are JSON
+    // text (plain-text multi-line columns). Restricted list (admin +
+    // leadership); it is the trigger list for the payroll Power Automate flow.
+    PayrollSummaries: [
+      'Title', 'Month', 'Year', 'Joiners', 'Leavers', 'BonusData',
+    ],
     LCIModels: [
       'Title', 'Status', 'ClientName', 'ProjectID', 'Location',
       'LocalCurrency', 'DisplayCurrency', 'FXRateLocalToDisplay', 'StartMonth',
@@ -343,12 +350,14 @@ const CONFIG = {
   // denial so a caller that must not act on missing data can ask
   // wasListDenied(). A 403 on any list NOT named here, or any other error on
   // one that is, still throws. Keep in step with the N-288 runbook; adding a
-  // list here is the whole opt-in. PeoplePay (N-286) is locked at creation.
+  // list here is the whole opt-in. PeoplePay (N-286) and PayrollSummaries
+  // (N-300) are locked at creation.
   RESTRICTED_LISTS: [
     'GPInvoices',
     'SalesForecasts',
     'LCILocations',
     'PeoplePay',
+    'PayrollSummaries',
     'SurveyResponses',
     'AnomalyAcks',
     'Diagnostics',
@@ -363,6 +372,12 @@ const CONFIG = {
   // cannot read PeoplePay (wasListDenied) — otherwise blank salaries would
   // read as "no salary on record".
   PEOPLE_PAY_DENIED_TEXT: 'Salary data unavailable — your account cannot read the PeoplePay list.',
+
+  // N-300. Payroll Summary send. PAY_DENIED blocks a send that would email
+  // blank salaries; ALREADY_SENT replaces the old silent no-op when a month
+  // already has a PayrollSummaries row. {period} → e.g. "October 2026".
+  PAYROLL_PAY_DENIED_TEXT: 'Payroll summary not sent — your account cannot read the PeoplePay list, so starters\' salaries would be blank.',
+  PAYROLL_ALREADY_SENT_TEXT: 'A payroll summary for {period} was already sent. Nothing new was sent. To resend, ask an admin to delete that month\'s row in the PayrollSummaries list.',
 
   // N-268 (DS-0). RoleHistory backfill from the Roles list's SharePoint
   // version history — Admin > Data Health. One-off tool; these are its only

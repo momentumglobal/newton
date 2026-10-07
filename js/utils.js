@@ -2276,3 +2276,20 @@ function planPeoplePayMigration(peopleRows, payRows) {
   counts.duplicates = duplicates.length;
   return { toCreate, counts, conflicts, duplicates };
 }
+
+// N-300 (SEC-6b). Pure. The PayrollSummaries row for one payroll send.
+// Column names and JSON shapes are exactly what the Notifications row carried
+// before N-300 — the payroll Power Automate flow's body expressions read them
+// unchanged. Do not rename keys or add fields without updating the flow.
+// month is 1–12.
+const _PAYROLL_MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function buildPayrollSummaryFields({ month, year, joiners, leavers, bonus }) {
+  return {
+    Title:     `payrollsummary-${year}-${month}`,
+    Month:     _PAYROLL_MONTH_NAMES[month - 1],
+    Year:      String(year),
+    Joiners:   JSON.stringify(joiners),
+    Leavers:   JSON.stringify(leavers),
+    BonusData: bonus ? JSON.stringify(bonus) : null,
+  };
+}

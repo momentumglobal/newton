@@ -2368,10 +2368,10 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-285 config — RESTRICTED_LISTS is exactly the seven Tier 2 lists; mobile Sales is admin + leadership only',
+    name: 'N-285 config — RESTRICTED_LISTS is exactly the Tier 2 lists (+ PeoplePay N-286, PayrollSummaries N-300); mobile Sales is admin + leadership only',
     fn: function () {
       _assertEqual(CONFIG.RESTRICTED_LISTS.slice().sort(),
-        ['AnomalyAcks', 'Diagnostics', 'GPInvoices', 'LCILocations', 'PeoplePay', 'SalesForecasts', 'SurveyResponses'], 'AC1 the seven names');
+        ['AnomalyAcks', 'Diagnostics', 'GPInvoices', 'LCILocations', 'PayrollSummaries', 'PeoplePay', 'SalesForecasts', 'SurveyResponses'], 'AC1 the eight names');
       _assertEqual(new Set(CONFIG.RESTRICTED_LISTS).size, CONFIG.RESTRICTED_LISTS.length, 'AC1 no duplicates');
       _assertEqual(CONFIG.MOBILE_MODULE_ROLES.sales, ['admin', 'leadership'], 'AC12 mobile Sales roles');
       _assertEqual(typeof CONFIG.CC_FORECAST_DENIED_TEXT === 'string' && CONFIG.CC_FORECAST_DENIED_TEXT.length > 0, true, 'AC11 denied copy is config');
@@ -2446,6 +2446,37 @@ var ASSERTIONS = [
       _assertEqual(CONFIG.CACHE.persistentLists.includes('PeoplePay'), false, 'AC2 PeoplePay never tier-2 cached');
       _assertEqual(CONFIG.DELTA.enrolledLists.includes('PeoplePay'), false, 'AC2 PeoplePay not delta-enrolled');
       _assertEqual(typeof CONFIG.PEOPLE_PAY_DENIED_TEXT === 'string' && CONFIG.PEOPLE_PAY_DENIED_TEXT.length > 0, true, 'AC10 denied copy is config');
+    },
+  },
+  {
+    name: 'N-300 config — PayrollSummaries registered, restricted, tier 1 only; payroll copy is config',
+    fn: function () {
+      _assertEqual(CONFIG.LIST_FIELDS.PayrollSummaries, ['Title', 'Month', 'Year', 'Joiners', 'Leavers', 'BonusData'], 'AC2 PayrollSummaries projection');
+      _assertEqual(Object.keys(FIELD_ALIASES).includes('PayrollSummaries'), true, 'AC2 PayrollSummaries registered');
+      _assertEqual(Object.keys(FIELD_ALIASES.PayrollSummaries), [], 'AC2 PayrollSummaries alias is {}');
+      _assertEqual(CONFIG.RESTRICTED_LISTS.includes('PayrollSummaries'), true, 'AC2 PayrollSummaries restricted');
+      _assertEqual(CONFIG.CACHE.persistentLists.includes('PayrollSummaries'), false, 'AC2 never tier-2 cached');
+      _assertEqual(CONFIG.DELTA.enrolledLists.includes('PayrollSummaries'), false, 'AC2 not delta-enrolled');
+      _assertEqual(typeof CONFIG.PAYROLL_PAY_DENIED_TEXT === 'string' && CONFIG.PAYROLL_PAY_DENIED_TEXT.length > 0, true, 'AC9 denied copy is config');
+      _assertEqual(CONFIG.PAYROLL_ALREADY_SENT_TEXT.includes('{period}'), true, 'AC6 already-sent copy has {period}');
+    },
+  },
+  {
+    name: 'N-300 buildPayrollSummaryFields — same key, columns and JSON shapes the flow already reads',
+    fn: function () {
+      const joiners = [{ name: 'A', startDate: '2026-10-01', salary: 42000 }];
+      const leavers = [{ name: 'B', endDate: '2026-10-31' }];
+      const f = buildPayrollSummaryFields({ month: 10, year: 2026, joiners, leavers, bonus: null });
+      _assertEqual(Object.keys(f), ['Title', 'Month', 'Year', 'Joiners', 'Leavers', 'BonusData'], 'columns');
+      _assertEqual(f.Title, 'payrollsummary-2026-10', 'dedupe key (same string as the old TriggerKey)');
+      _assertEqual(f.Month, 'October', 'month name');
+      _assertEqual(f.Year, '2026', 'year is text');
+      _assertEqual(JSON.parse(f.Joiners), joiners, 'joiners round-trip, salary intact');
+      _assertEqual(JSON.parse(f.Leavers), leavers, 'leavers round-trip');
+      _assertEqual(f.BonusData, null, 'no bonus → null');
+      const bonus = [{ name: 'A', amount: 500 }];
+      _assertEqual(JSON.parse(buildPayrollSummaryFields({ month: 1, year: 2027, joiners: [], leavers: [], bonus }).BonusData), bonus, 'bonus round-trips');
+      _assertEqual(buildPayrollSummaryFields({ month: 1, year: 2027, joiners: [], leavers: [], bonus }).Month, 'January', 'January boundary');
     },
   },
   {

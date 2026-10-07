@@ -382,6 +382,8 @@ const FIELD_ALIASES = {
   // A self-mapping alias would DELETE the field (see RoleHistory below).
   // Restricted list: admin + leadership only (CONFIG.RESTRICTED_LISTS).
   PeoplePay:       {},
+  // N-300: {} — every column is read/written under its own name. Restricted.
+  PayrollSummaries: {},
   Assignments:     { Title: "AssignmentID" },
   GPInvoices:      { Title: "InvoiceNumber" },
   // ── Sales module ──────────────────────────────────────────

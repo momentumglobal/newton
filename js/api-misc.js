@@ -2,8 +2,9 @@
 // Extracted from api.js by N-237b — one function each for people-invoices.js
 // (people.html), sales-pages.js (sales.html), dashboard-project.js
 // (reporting.html / market-reporting.html) and people-payroll.js
-// (people.html). Depends on getItems/updateItem/deleteItem/getGhostUser/
-// fireNotification, all defined in api.js (loads first, see script order).
+// (people.html). Depends on getItems/createItem/deleteItem/getGhostUser,
+// defined in api.js (loads first, see script order), and
+// buildPayrollSummaryFields (utils.js).
 
 // ── People module: GPInvoices list ──────────────────────────
 async function getGPInvoices() {
@@ -44,21 +45,20 @@ async function getDefaultUserProjectId(email) {
 }
 
 // ── Payroll summary ───────────────────────────────────────────────────
-async function createPayrollNotification({ month, year, joiners, leavers, bonus }) {
-  const extraFields = {
-    Month:      ['January','February','March','April','May','June','July','August','September','October','November','December'][month - 1],
-    Year:       String(year),
-    Joiners:    JSON.stringify(joiners),
-    Leavers:    JSON.stringify(leavers),
-    BonusData:  bonus ? JSON.stringify(bonus) : null,
-  };
-  return fireNotification({
-    triggerType: 'payrollSummary',
-    recipients:  ['system@newton'],
-    triggerKey:  `payrollsummary-${year}-${month}`,
-    tone:        'info',
-    deepLink:    '',
-    body:        `Payroll summary for ${month}/${year}`,
-    extraFields,
-  });
+// N-300 (SEC-6b): the summary is written to the restricted PayrollSummaries
+// list (admin + leadership), never to Notifications (everyone can read
+// that). The payroll Power Automate flow triggers on PayrollSummaries.
+async function getPayrollSummaryFor(year, month) {
+  const key  = buildPayrollSummaryFields({ month, year, joiners: [], leavers: [], bonus: null }).Title;
+  const rows = await getItems('PayrollSummaries', `fields/Title eq '${odataStr(key)}'`);
+  return rows.length ? rows[0] : null;
+}
+
+// One summary per month: an existing row for the month means nothing is
+// written (and so no second email). Errors propagate to the caller.
+async function createPayrollSummary(args) {
+  const fields = buildPayrollSummaryFields(args);
+  if (await getPayrollSummaryFor(args.year, args.month)) return { alreadySent: true, fields };
+  await createItem('PayrollSummaries', fields);
+  return { alreadySent: false, fields };
 }

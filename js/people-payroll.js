@@ -156,6 +156,13 @@ async function _sendPayrollSummary(month, year, includeBonus) {
 
   // N-286: salary is joined from the restricted PeoplePay list.
   const [people, payRows] = await Promise.all([getPeople(false), getPeoplePay()]);
+  // N-300: a denied PeoplePay read returns [] — sending would email blank
+  // salaries, so stop here and write nothing.
+  if (wasListDenied('PeoplePay')) {
+    if (btn) clearButtonLoading(btn);
+    toast(CONFIG.PAYROLL_PAY_DENIED_TEXT, { type: 'error' });
+    return;
+  }
   const all     = attachSalaries(people, payRows);
   const ukStaff = all.filter(p => p.Location === 'UK');
 
@@ -190,7 +197,18 @@ async function _sendPayrollSummary(month, year, includeBonus) {
   }
 
   try {
-    await createPayrollNotification({ month, year, joiners, leavers, bonus });
+    const res = await createPayrollSummary({ month, year, joiners, leavers, bonus });
+    if (res.alreadySent) {
+      const msg = CONFIG.PAYROLL_ALREADY_SENT_TEXT.replace('{period}', `${res.fields.Month} ${res.fields.Year}`);
+      document.getElementById('payroll-modal-body').innerHTML = `
+      <div style='text-align:center;padding:40px 0'>
+        <div style='font-size:40px;margin-bottom:16px'>&#9432;</div>
+        <h3 style='color:var(--brand);margin:0 0 8px'>Already sent</h3>
+        <p style='color:var(--text-muted);font-size:14px'>${escHtml(msg)}</p>
+        <button class='btn-secondary' style='margin-top:20px' onclick='_closePayrollModal()'>Close</button>
+      </div>`;
+      return;
+    }
     document.getElementById('payroll-modal-body').innerHTML = `
       <div style='text-align:center;padding:40px 0'>
         <div style='font-size:40px;margin-bottom:16px'>&#10003;</div>

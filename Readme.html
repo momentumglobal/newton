@@ -573,7 +573,7 @@
         <tr><td><span class="file-tag">js/auth.js</span></td><td>MSAL authentication only</td><td>authReady() (the one page bootstrap, N-290), signIn(), signOut(), markSignedOut(), getToken(), getElevatedToken(), getCurrentUser(), isSignedIn()</td></tr>
         <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), computeMonthlyRevenueForYear(), computeMonthlyForecastRevenueForYear(), getAssignmentDataYears(), formatSalary(), daysOpen(), ghost mode helpers, isProjectActive(), sortProjectsByName(), buildProjectOptionsHtml(), levelSortIndex(), isBillableLevel(), weeksAgoDay(), listQueryFromDay(), activitySinceWeeks() (N-270: client-side WeeklyActivity window slice), addDaysISO() / sundayOnOrAfterISO() / medianOf() (N-271: UTC day-string arithmetic and a median, no local getters), isLegacyMsalStorageKey() / shouldAutoSignIn() (N-290: sign-in decisions)</td></tr>
         <tr><td><span class="file-tag">js/api.js</span></td><td>Shared SharePoint/Graph read-write layer</td><td>getItems(), getItem(), createItem(), updateItem(), deleteItem(), getEffectiveRole(), FIELD_ALIASES, the two-tier read cache (_apiCache + session tier), schemaBaseColumnName(). Also still holds anything used by more than one consumer (tpList(), createDiagnostic(), getAnomalyAcks() / acknowledgeAnomaly() / restoreAnomalyAcks() (N-273: the <code>AnomalyAcks</code> list behind Data Health's Acknowledge / Restore; Restore is a Status PATCH, never a delete), getTalentPartnerDisplayMap(), filterToActiveTpEmails(), copyBriefingPack(), the survey-template reads). Module-specific API calls were split out (N-237a/b) into api-briefing.js, api-coe.js, api-engagement.js, api-orgchart.js, api-people-forms.js, api-lci.js, api-admin.js, api-market-report.js and api-misc.js — see each module's table below for what moved where.</td></tr>
-        <tr><td><span class="file-tag">js/api-misc.js</span></td><td>Small single-consumer API calls that didn't warrant their own file (N-237b)</td><td>getGPInvoices() (people-invoices.js), deleteSalesForecast() (sales-pages.js), getDefaultUserProjectId() (dashboard-project.js), createPayrollNotification() (people-payroll.js). Loaded on reporting.html, people.html, sales.html and market-reporting.html only — not admin.html or command-centre.html.</td></tr>
+        <tr><td><span class="file-tag">js/api-misc.js</span></td><td>Small single-consumer API calls that didn't warrant their own file (N-237b)</td><td>getGPInvoices() (people-invoices.js), deleteSalesForecast() (sales-pages.js), getDefaultUserProjectId() (dashboard-project.js), getPayrollSummaryFor() / createPayrollSummary() (people-payroll.js; N-300). Loaded on reporting.html, people.html, sales.html and market-reporting.html only — not admin.html or command-centre.html.</td></tr>
         <tr><td><span class="file-tag">js/nav-core.js</span></td><td>Shared sidebar renderer</td><td>renderModuleNav(), updateNavActiveLink(), exitGhostMode()</td></tr>
         <tr><td><span class="file-tag">js/notifications.js</span></td><td>In-app notification engine — bell, drawer, triggers</td><td>fireNotification(), clearNotification(), renderNotificationBell(), markRead(), paintBell(), notifEsc(). Suppressed in ghost mode. Loaded after nav-core.js on every sidebar page + on index.html.</td></tr>
         <tr><td><span class="file-tag">js/command-bar.js</span></td><td>Shared ⌘K/Ctrl+K overlay (N-144/N-145/N-146) — cross-module page directory, entity search (Roles/Projects/People), inline Role actions. Mirrors nav-core.js's role as a module-agnostic renderer wired in by each module. Driven by CONFIG.COMMAND_BAR_PAGES / COMMAND_BAR_ENTITY_TYPES.</td><td>fuzzyMatch() (utils.js) is the matching primitive; no exported entry points beyond the keydown listener/init this file installs</td></tr>
@@ -820,6 +820,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <tr><th>List</th><th>Title alias</th><th>Key fields</th></tr>
         <tr><td><strong>People</strong></td><td>EmployeeName</td><td>Level (CSD/SDM/STP/TP/PTP — canonical order in <code>CONFIG.PEOPLE_LEVELS</code>), ContractType, Location, StartDate, EndDate, IsActive. <strong>No salary</strong> — moved to PeoplePay (N-286).</td></tr>
         <tr><td><strong>PeoplePay</strong></td><td>(People item id as text)</td><td>PersonID (plain <strong>Number</strong> column — the People item id, the join key), Salary (Number, GBP). One row per person. <strong>Restricted: Admin + Leadership only (N-286)</strong> — the only home of salary. Read only on payroll paths (Employee Tracker salary column, Edit Employee, Payroll Summary) via <code>getPeoplePay()</code>; written via <code>setPersonSalary()</code>. Tier 1 cache only, never sessionStorage.</td></tr>
+        <tr><td><strong>PayrollSummaries</strong></td><td>(dedupe key <code>payrollsummary-&lt;year&gt;-&lt;month&gt;</code>)</td><td>Month, Year (text), Joiners, Leavers, BonusData (multi-line <strong>plain</strong> text, JSON). One row per payroll summary sent; an existing row for the month blocks a resend. <strong>Restricted: Admin + Leadership only (N-300)</strong>. Trigger list for the payroll Power Automate flow — column names and JSON shapes are what the flow reads, don't rename. Written via <code>createPayrollSummary()</code>. Tier 1 cache only.</td></tr>
         <tr><td><strong>Assignments</strong></td><td>AssignmentID</td><td>EmployeeName, Level, Customer, ProjectType, StartDate, EndDate, MonthlyBillRate, RetainerFee, PlacementFee, Billed, Country, AutoGenerated</td></tr>
         <tr><td><strong>GPInvoices</strong></td><td>InvoiceNumber</td><td>InvoiceDate, DueDate, Amount, Status, Notes</td></tr>
       </table>
@@ -1245,13 +1246,24 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Payroll summaries move off Notifications (N-300, SEC-6b)</div>
+        <ul>
+          <li>Generate Payroll Summary wrote starters' salaries and bonus amounts into the Notifications list, which every user can read. It now writes one row to the new restricted <code>PayrollSummaries</code> list (Admin + Leadership), and the payroll Power Automate flow triggers on that list. Columns and JSON are unchanged, so the email is the same.</li>
+          <li>Sending a month that was already sent now says <strong>Already sent</strong> (it used to show "Sent" and silently do nothing).</li>
+          <li>Send is blocked with an error if the account can't read PeoplePay, instead of emailing blank salaries.</li>
+          <li>Historic payroll rows were exported and deleted from Notifications.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
         <div class="changelog-title">Salaries move to a restricted PeoplePay list (N-286)</div>
         <ul>
           <li><code>People.Salary</code> was in the People field projection, so every Org Chart / Scorecards / Command Bar read sent salaries to TP and DM browsers. Salary now lives only in the new <code>PeoplePay</code> list (PersonID, Salary), readable by Admin + Leadership only.</li>
           <li>Employee Tracker, Edit Employee and Payroll Summary join salary from PeoplePay (<code>getPeoplePay()</code>, <code>attachSalaries()</code>). Add/Edit Employee write it with <code>setPersonSalary()</code>; a blank Salary still means "no change".</li>
           <li>Admin → Data Health has a one-off <strong>PeoplePay migration</strong> (Dry run, then Write): it creates missing rows from People.Salary and never overwrites PeoplePay. Once verified, the People.Salary column is deleted in SharePoint.</li>
           <li>Fixed: Generate Payroll Summary's modal body element was missing its opening <code>&lt;</code>, and the Edit Employee form had a stray <code>&lt;\div&gt;</code>.</li>
-          <li>Still open: the payroll summary notification stores starters' salaries on the Notifications list (N-300).</li>
+          <li>The payroll summary notification storing starters' salaries on the Notifications list was fixed by N-300.</li>
         </ul>
       </div>
 

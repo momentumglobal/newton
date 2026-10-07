@@ -21,7 +21,8 @@ Newton is a static web application hosted on GitHub Pages, with Microsoft Azure 
 ## Stack
 
 - **Hosting** — GitHub Pages
-- **Auth** — Microsoft Azure AD + MSAL.js v2
+- **Auth** — Microsoft Azure AD + MSAL.js v5
+- **Security** — in-page Content-Security-Policy, no-referrer policy and a frame guard on every page (N-292); third-party libraries self-hosted in `js/vendor/` (N-289)
 - **Data** — SharePoint Online via Microsoft Graph API v1.0
 - **UI** — Vanilla HTML, CSS, JavaScript (no framework)
 - **Mobile** — Installable PWA (`manifest.webmanifest` + `sw.js`) over the same codebase

@@ -569,6 +569,7 @@
         <tr><td><span class="file-tag">package.json</span></td><td>Dependabot manifest only</td><td>Exact pins for the six vendored libraries so GitHub can raise security advisories. Not used by the build, CI or the deployed site.</td></tr>
         <tr><td><span class="file-tag">redirect.html</span></td><td>MSAL v5 redirect bridge (N-290)</td><td>Redirect URI for silent (hidden-iframe) token renewal only — <code>CONFIG.SILENT_REDIRECT_URI</code>. Loads the vendored bridge and <code>js/redirect-bridge.js</code>, nothing else. Registered in Entra.</td></tr>
         <tr><td><span class="file-tag">js/redirect-bridge.js</span></td><td>Bridge page script (N-290)</td><td>One call: <code>msalRedirectBridge.broadcastResponseToMainFrame()</code>. Kept out of redirect.html so there is no inline script.</td></tr>
+        <tr><td><span class="file-tag">js/frame-guard.js</span></td><td>Clickjacking guard (N-292)</td><td>Head-level script, no exports and no CONFIG. Loaded straight after diag-buffer.js on the nine app pages; if the page is framed by a cross-origin window it hides itself and tries to break out. See Security headers.</td></tr>
         <tr><td><span class="file-tag">js/auth.js</span></td><td>MSAL authentication only</td><td>authReady() (the one page bootstrap, N-290), signIn(), signOut(), markSignedOut(), getToken(), getElevatedToken(), getCurrentUser(), isSignedIn()</td></tr>
         <tr><td><span class="file-tag">js/utils.js</span></td><td>Pure helpers — no network I/O</td><td>setButtonLoading(), clearButtonLoading(), computeMonthlyRows(), computeMonthlyRevenueForYear(), computeMonthlyForecastRevenueForYear(), getAssignmentDataYears(), formatSalary(), daysOpen(), ghost mode helpers, isProjectActive(), sortProjectsByName(), buildProjectOptionsHtml(), levelSortIndex(), isBillableLevel(), weeksAgoDay(), listQueryFromDay(), activitySinceWeeks() (N-270: client-side WeeklyActivity window slice), addDaysISO() / sundayOnOrAfterISO() / medianOf() (N-271: UTC day-string arithmetic and a median, no local getters), isLegacyMsalStorageKey() / shouldAutoSignIn() (N-290: sign-in decisions)</td></tr>
         <tr><td><span class="file-tag">js/api.js</span></td><td>Shared SharePoint/Graph read-write layer</td><td>getItems(), getItem(), createItem(), updateItem(), deleteItem(), getEffectiveRole(), FIELD_ALIASES, the two-tier read cache (_apiCache + session tier), schemaBaseColumnName(). Also still holds anything used by more than one consumer (tpList(), createDiagnostic(), getAnomalyAcks() / acknowledgeAnomaly() / restoreAnomalyAcks() (N-273: the <code>AnomalyAcks</code> list behind Data Health's Acknowledge / Restore; Restore is a Status PATCH, never a delete), getTalentPartnerDisplayMap(), filterToActiveTpEmails(), copyBriefingPack(), the survey-template reads). Module-specific API calls were split out (N-237a/b) into api-briefing.js, api-coe.js, api-engagement.js, api-orgchart.js, api-people-forms.js, api-lci.js, api-admin.js, api-market-report.js and api-misc.js — see each module's table below for what moved where.</td></tr>
@@ -691,6 +692,7 @@
         <tr><td><span class="file-tag">tests/assertions.js</span></td><td>The assertion list (<code>ASSERTIONS</code>). Shared unmodified by index.html and run.js. Also defines <code>_skip()</code> — a plain <code>__skip</code> marker property, not an Error subclass, to stay safe across the vm/browser realm boundary.</td></tr>
         <tr><td><span class="file-tag">tests/run.js</span></td><td>Node CLI runner (no dependencies) — forces <code>TZ=Europe/London</code> (N-096, so the GMT/BST Gantt regression assertion actually observes a DST transition), loads the source files (including api.js, N-097) into a shared <code>vm</code> context in production script order, runs <code>ASSERTIONS</code>, exits non-zero on any failure (skips don't count as failures). Run by the <code>test</code> job in <code>.github/workflows/static.yml</code>, which the <code>deploy</code> job now depends on.</td></tr>
         <tr><td><span class="file-tag">tests/lint-vendor.js</span></td><td>SEC-9 guard (N-289). Pure functions over data <code>run.js</code> supplies (<code>ALL_HTML</code>, <code>VENDOR_FILES</code>, <code>VENDOR_MANIFEST</code>, <code>VENDOR_PACKAGE_JSON</code>): fails on an external script URL (allow-list empty), a <code>js/vendor/</code> file with no <code>VERSIONS.md</code> row or a different sha384, a filename/version mismatch, or a <code>package.json</code> pin that disagrees. Skips in <code>tests/index.html</code> (no filesystem).</td></tr>
+        <tr><td><span class="file-tag">tests/lint-csp.js</span></td><td>SEC-12 guard (N-292). Holds <code>CSP_CANONICAL</code>. Fails on: a page whose CSP or referrer meta is missing, duplicated, different or after the first resource tag; a policy with <code>'unsafe-eval'</code>, a wildcard, plain http or an extra script host; policy origins that disagree with <code>CONFIG</code>/<code>GRAPH</code>; <code>frame-guard.js</code> missing, misplaced or on a static page; a new unclassified HTML page; <code>eval</code>/<code>new Function</code>/string timers or an unlisted <code>https://</code> host in first-party js/. Also unit-tests frame-guard.js against stub windows. Skips in <code>tests/index.html</code> (no filesystem).</td></tr>
       </table>
     </div>
 
@@ -705,6 +707,9 @@
 
       <h3>Standard module pages</h3>
       <div class="code-block">
+<span class="code-comment">&lt;!-- Head, in this order (N-292) --&gt;</span>
+meta charset &rarr; CSP meta &rarr; referrer meta &rarr; js/diag-buffer.js &rarr; js/frame-guard.js   (app pages)
+
 <span class="code-comment">&lt;!-- External --&gt;</span>
 js/vendor/msal-browser-5.24.0.min.js   (self-hosted, N-289; v5 since N-290)
 js/vendor/lucide-1.47.0.min.js         (self-hosted, N-289; was a pinned CDN tag)
@@ -1053,6 +1058,17 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <li><code>tests/lint-vendor.js</code> fails the build on an external script URL, an unlisted or modified vendor file, or a <code>package.json</code> pin that disagrees with <code>VERSIONS.md</code>. To upgrade a library, follow the steps at the bottom of <code>VERSIONS.md</code>.</li>
       </ul>
 
+      <h3>Security headers &mdash; CSP, referrer, frame guard (N-292)</h3>
+      <ul class="checklist">
+        <li>GitHub Pages cannot send response headers, so every root <code>*.html</code> carries the same <code>&lt;meta http-equiv="Content-Security-Policy"&gt;</code> and <code>&lt;meta name="referrer" content="no-referrer"&gt;</code>, straight after <code>&lt;meta charset&gt;</code> and before any <code>&lt;script&gt;</code>, <code>&lt;link&gt;</code>, <code>&lt;style&gt;</code> or <code>&lt;img&gt;</code> (a CSP only governs what is parsed after it). App pages then load <code>js/diag-buffer.js</code> and <code>js/frame-guard.js</code>, in that order.</li>
+        <li>The policy: <code>default-src 'self'</code>; scripts <code>'self' 'unsafe-inline'</code>; connections <code>'self'</code>, <code>graph.microsoft.com</code> and <code>login.microsoftonline.com</code>; images <code>'self'</code>, the SharePoint host (People photos), <code>data:</code> and <code>blob:</code>; frames <code>'self'</code> and <code>login.microsoftonline.com</code> (MSAL's hidden iframe is redirected back to <code>redirect.html</code>); <code>object-src 'none'</code>; <code>base-uri 'self'</code>. The single source of truth is <code>CSP_CANONICAL</code> in <code>tests/lint-csp.js</code>: the build fails if any page differs, and the origins are checked against <code>CONFIG.SP_SITE_URL</code>, <code>GRAPH</code> and <code>CONFIG.AUTHORITY</code>.</li>
+        <li><strong>Adding an origin</strong> (a new API host, image host or iframe): decide it belongs, then change <code>CSP_CANONICAL</code>, <code>CSP_JS_HOST_ALLOW</code> (if it appears as a literal in js/), all 15 HTML metas and this section in the same change. Never widen the policy just to silence a console error without knowing what it was.</li>
+        <li><strong>Never add <code>'unsafe-eval'</code>.</strong> <code>tests/lint-csp.js</code> also bans <code>eval</code>, <code>new Function</code> and string timers in first-party code. <code>'unsafe-inline'</code> stays in <code>script-src</code> and <code>style-src</code> for now: about 530 inline <code>on*=</code> handlers and 6 inline <code>&lt;script&gt;</code> blocks depend on it (backlog N-301 to N-303 remove it from <code>script-src</code>).</li>
+        <li>A meta CSP cannot set <code>frame-ancestors</code>, <code>report-uri</code> or <code>sandbox</code>, and has no report-only mode. After deploying a policy change, open each module with the console open and look for &ldquo;Refused to&hellip;&rdquo; messages. Because the build fails if any page differs from <code>CSP_CANONICAL</code>, to roll back a bad policy <strong>revert the <code>tests/lint-csp.js</code> commit first</strong>, then revert or fix the pages.</li>
+        <li><code>js/frame-guard.js</code> is the only framing defence: framed by a cross-origin top window, the page hides itself first and then tries to take over the top window. A same-origin top (MSAL's hidden iframe) is allowed. It is not loaded on <code>redirect.html</code> (legitimately framed) or the static guides.</li>
+        <li>A new root HTML page must be classified in <code>CSP_APP_PAGES</code> or <code>CSP_STATIC_PAGES</code> in <code>tests/lint-csp.js</code>, or the build fails.</li>
+      </ul>
+
       <h3>CSS over inline styles</h3>
       <ul class="checklist">
         <li>Conditional styling uses CSS classes, not inline style="" attributes.</li>
@@ -1132,7 +1148,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <li><strong>[module]-nav.js</strong> — Create nav wrapper. Call <code>renderModuleNav()</code> with subtitle, currentModuleKey, toggleFn, pages, currentPage, role, navigateFn, userGuideHref. Add toggle function and <code>navigateTo[Module]()</code>.</li>
         <li><strong>[module]-app.js</strong> — <code>await authReady()</code> (never call MSAL directly, N-290), call <code>getEffectiveRole()</code>, redirect if role not permitted, render nav, navigate to first page. Set <code>document.getElementById('app-shell').style.display = 'flex'</code> after auth.</li>
         <li><strong>[module]-pages.js and [module]-forms.js</strong> — Create page renderers and form logic as needed.</li>
-        <li><strong>[module].html</strong> — Follow script load order exactly: config → auth → utils → api → [module]-router → nav-core → [module]-nav → [module]-forms → [module]-pages → [module]-app. Load analytics.js before app.js if the module uses isRoleFlagged() or other shared analytics functions. Shell markup (N-255a): wrap the content area as <code>&lt;div id="main-column"&gt;&lt;div id="breadcrumb-bar"&gt;&lt;/div&gt;&lt;div id="main-content"&gt;&lt;/div&gt;&lt;/div&gt;</code> after <code>#sidebar</code> — nav-core.js renders the Home › Module › Page trail into <code>#breadcrumb-bar</code> automatically; never put it inside <code>#main-content</code> (page renderers replace its innerHTML).</li>
+        <li><strong>[module].html</strong> — Follow script load order exactly: config → auth → utils → api → [module]-router → nav-core → [module]-nav → [module]-forms → [module]-pages → [module]-app. Load analytics.js before app.js if the module uses isRoleFlagged() or other shared analytics functions. Shell markup (N-255a): wrap the content area as <code>&lt;div id="main-column"&gt;&lt;div id="breadcrumb-bar"&gt;&lt;/div&gt;&lt;div id="main-content"&gt;&lt;/div&gt;&lt;/div&gt;</code> after <code>#sidebar</code> — nav-core.js renders the Home › Module › Page trail into <code>#breadcrumb-bar</code> automatically; never put it inside <code>#main-content</code> (page renderers replace its innerHTML). Head (N-292): start <code>&lt;head&gt;</code> with the same block as an existing module page (charset, CSP meta, referrer meta, diag-buffer.js, frame-guard.js) and add the page to <code>CSP_APP_PAGES</code> in <code>tests/lint-csp.js</code>.</li>
         <li><strong>admin.html sidebar</strong> — Add <code>&lt;a class="admin-nav-link"&gt;</code> entry if the module needs admin panel access.</li>
         <li><strong>os-admin.js</strong> — Update role/access lists if the new module has different access requirements.</li>
       </ul>
@@ -1192,6 +1208,17 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">In-page security headers (N-292, SEC-12)</div>
+        <ul>
+          <li>Every page now carries a Content-Security-Policy and a no-referrer policy as meta tags (GitHub Pages cannot send response headers). Scripts, connections, images, fonts and frames are limited to Newton itself, Microsoft Graph, Microsoft sign-in and the SharePoint photo host.</li>
+          <li>New <code>js/frame-guard.js</code> stops other sites framing Newton's app pages.</li>
+          <li><code>'unsafe-inline'</code> remains for scripts until the inline handlers are replaced (N-301 to N-303).</li>
+          <li>New <code>tests/lint-csp.js</code> fails the build if a page's policy drifts, a new external host or <code>eval</code> appears in the code, or an app page is missing the guard.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>

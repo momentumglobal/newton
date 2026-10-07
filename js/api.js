@@ -487,15 +487,16 @@ function tpDisplay(val, nameMap = {}) {
 
 // ── Generic helpers ─────────────────────────────────────────────────
 // N-188 (F-14): graphRequest() is a thin router. A GET call, when
-// CONFIG.BATCH is enabled and the call isn't elevated, is queued and
+// CONFIG.BATCH is enabled, is queued and
 // flushed as one shared Graph $batch POST alongside any other GET calls
 // that land in the same macrotask window (see _flushBatchQueue below for
 // why a macrotask boundary, not a microtask, is what makes this safe).
-// Every other call — POST/PATCH/DELETE, or any elevated:true call — goes
+// Every other call — POST/PATCH/DELETE — goes
 // straight through to _graphRequestSolo, unchanged from before N-188.
-async function graphRequest(method, path, body = null, elevated = false) {
-  if (method !== 'GET' || elevated || !_batchEnabled()) {
-    return _graphRequestSolo(method, path, body, elevated);
+// N-291: one token for every call (the Sites.Manage.All path is gone).
+async function graphRequest(method, path, body = null) {
+  if (method !== 'GET' || !_batchEnabled()) {
+    return _graphRequestSolo(method, path, body);
   }
   return new Promise((resolve, reject) => {
     _batchQueue.push({ path, resolve, reject });
@@ -516,10 +517,10 @@ function _graphError(status, body) {
 }
 
 // The original single-request implementation, unchanged in behaviour —
-// every direct caller before N-188 (POST/PATCH/DELETE, elevated calls, and
+// every direct caller before N-188 (POST/PATCH/DELETE, and
 // now also a solo-fallback GET) still goes through exactly this.
-async function _graphRequestSolo(method, path, body = null, elevated = false) {
-  const token = elevated ? await getElevatedToken() : await getToken();
+async function _graphRequestSolo(method, path, body = null) {
+  const token = await getToken();
   if (!token) throw new Error("Not authenticated");
   const opts = {
     method,
@@ -553,7 +554,7 @@ async function _graphRequestSolo(method, path, body = null, elevated = false) {
 }
 
 // ── $batch queueing (N-188 / F-14) ──────────────────────────────────
-// GET-only, non-elevated only. Concurrent Promise.all-driven reads (Company
+// GET-only. Concurrent Promise.all-driven reads (Company
 // Dashboard, Report Builder) reach this point at different await depths —
 // each wrapper function (getProjects, getWeeklyActivity, ...) crosses a
 // different number of internal cache-check awaits first — so a microtask
@@ -824,12 +825,6 @@ async function getWeeklyActivityNullWeekEndingCount() {
 async function getListColumns(listName) {
   const data = await graphRequest("GET", listColumnsPath(listName));
   return data.value || [];
-}
-
-// Schema mutation, not a data write — no _cacheInvalidate (doesn't touch
-// item cache). Caller must confirm with the user before calling this.
-async function setColumnIndexed(listName, columnId) {
-  return graphRequest("PATCH", `${listColumnsPath(listName)}/${columnId}`, { indexed: true }, true);
 }
  
 // ── Write ─────────────────────────────────────────────────────────────

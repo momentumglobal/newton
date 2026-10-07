@@ -795,7 +795,7 @@ const CONFIG = {
     enrolledLists: ['WeeklyActivity', 'Placements'],
   },
 
-  // $batch request coalescing (N-188 / F-14). GET-only, never elevated —
+  // $batch request coalescing (N-188 / F-14). GET-only —
   // concurrent reads that land in the same macrotask window (e.g. Company
   // Dashboard's and Report Builder's Promise.all cohorts) are bundled into
   // one POST /$batch call instead of N separate round trips, each with its

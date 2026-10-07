@@ -926,21 +926,18 @@ function _dhRenderIndexStatusHtml(data) {
       <td>${indexed
             ? '<span class="dh-badge dh-badge-success">Indexed</span>'
             : '<span class="dh-badge dh-badge-warn">Not indexed</span>'}</td>
-      <td>${(indexed || !status)
-            ? ''
-            : `<button class="btn-secondary" onclick="indexColumnNow('${t.list}','${escJsAttr(status.id)}')">Index now</button>`}</td>
     </tr>`;
   }).join('');
 
   return `    <h3>Index Status</h3>
     <p class="dh-note">
-      Columns Newton filters on server-side (N-093). Indexing is a one-time
-      SharePoint schema change — confirm before applying.
+      Columns Newton filters on server-side (N-093). Read-only since N-291: to
+      index a column, a site owner uses SharePoint List settings → Indexed columns.
     </p>
     <div class="table-scroll">
     <table class="data-table dh-table-tight">
-      <thead><tr><th>List</th><th>Column</th><th>Status</th><th></th></tr></thead>
-      <tbody>${indexRows || emptyStateRow({ colspan: 4, icon: 'database', message: 'No index targets configured.' })}</tbody>
+      <thead><tr><th>List</th><th>Column</th><th>Status</th></tr></thead>
+      <tbody>${indexRows || emptyStateRow({ colspan: 3, icon: 'database', message: 'No index targets configured.' })}</tbody>
     </table>
     </div>
 `;
@@ -1376,23 +1373,4 @@ async function writePeoplePayMigrationNow() {
     </p>`;
   toast(result.failed ? 'PeoplePay migration stopped on an error' : `PeoplePay migration written: ${result.written} rows`,
     { type: result.failed ? 'error' : 'success' });
-}
-
-async function indexColumnNow(listName, columnId) {
-  // N-106: capture the button BEFORE awaiting the modal. The implicit global
-  // `event` is only populated during synchronous dispatch, so reading it after
-  // an await would yield undefined and silently break the loading state.
-  const btn = event?.target;
-  if (!(await confirmModal({
-    message: `Index this column on ${listName}? This changes the SharePoint schema and cannot be undone from here.`,
-    confirmLabel: 'Index column',
-  }))) return;
-  setButtonLoading(btn);
-  try {
-    await setColumnIndexed(listName, columnId);
-    await renderOsAdminPage('datahealth');
-  } catch (e) {
-    clearButtonLoading(btn);
-    toast('Error indexing column: ' + e.message, { type: 'error' });
-  }
 }

@@ -348,6 +348,7 @@
 <span class="code-key">SP_SITE_URL</span>:  <span class="code-val">"https://talentpoint.sharepoint.com/sites/SolutionsHubReporting"</span>
       </div>
       <div class="callout">Admin is a <code>UserAssignments</code> row with <code>AssignedRole = 'admin'</code> (ProjectID 0, Active) — managed in Newton Admin → User Assignments. There is no admin list in code (N-281). <strong>Break-glass:</strong> if every admin row is lost, a SharePoint site owner adds one directly in the <code>UserAssignments</code> list.</div>
+      <div class="callout amber"><strong>Group upkeep (N-288):</strong> the SharePoint list locks use the groups <em>Newton Admins</em>, <em>Newton Leadership</em> and <em>Newton Users</em>, which are separate from Newton's own role records. When someone joins or leaves Leadership or Admin, update <strong>both</strong>: the matching SharePoint group <em>and</em> the Newton record (<code>LeadershipAccess</code> for Leadership; the admin row in <code>UserAssignments</code> for Admins). Updating only Newton's side changes their role in the app but not what SharePoint lets them read, so a new Leadership member sees empty Invoices, Payroll and Engagement pages, and a leaver keeps direct read access to the locked lists. Someone returning from leave who was removed from a group needs the group and the admin row restored together.</div>
     </div>
 
     <!-- MODULES -->

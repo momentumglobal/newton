@@ -19,7 +19,9 @@
       <code>analytics.js</code>, <code>lci-model.js</code> and <code>coe-plan.js</code>. Same
       assertion list runs in CI via <code>node tests/run.js</code>. One assertion (the GMT/BST
       Gantt regression) is timezone-dependent and may show SKIP here depending on your browser's
-      local timezone — CI always runs it under Europe/London.
+      local timezone — CI always runs it under Europe/London. The source-scan lints (escaping,
+      dates, CSP, vendor pins) read repo files, so they SKIP here and run only under
+      <code>node tests/run.js</code>; their guard-the-guard fixture checks do run here.
     </p>
 
     <table class="data-table" style="margin: 24px 0 0;">
@@ -39,6 +41,14 @@
   <script src="../js/analytics.js"></script>
   <script src="../js/lci-model.js"></script>
   <script src="../js/coe-plan.js"></script>
+
+  <!-- Lint functions (same order as tests/run.js SOURCE_FILES) -->
+  <script src="lint-dates.js"></script>
+  <script src="lint-role-copy-fields.js"></script>
+  <script src="lint-alias-consumers.js"></script>
+  <script src="lint-escaping.js"></script>
+  <script src="lint-vendor.js"></script>
+  <script src="lint-csp.js"></script>
 
   <!-- Test harness -->
   <script src="fixtures.js"></script>

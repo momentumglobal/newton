@@ -2285,6 +2285,7 @@ var ASSERTIONS = [
   {
     name: 'lintOdataFilters flags what it should (N-284 — guard the guard)',
     fn: function () {
+      if (typeof lintOdataFilters === 'undefined') _skip('lint-escaping.js not loaded — runs under node tests/run.js.');
       const run = src => lintOdataFilters({ 'fixture.js': src });
       _assertEqual(run("x = `fields/Title eq '${x}'`;").length, 1, 'unwrapped eq');
       _assertEqual(run("x = `fields/D ge '${a.b}' and fields/T eq '${odataStr(y)}'`;").length, 1, 'one of two wrapped');
@@ -2298,6 +2299,7 @@ var ASSERTIONS = [
   {
     name: 'lintEscaping flags what it should and passes what it should (N-283 — guard the guard)',
     fn: function () {
+      if (typeof lintEscaping === 'undefined') _skip('lint-escaping.js not loaded — runs under node tests/run.js.');
       const BT = String.fromCharCode(96);
       const run = src => lintEscaping({ 'fixture.js': src });
       // (a)–(c) must be flagged
@@ -2514,6 +2516,7 @@ var ASSERTIONS = [
   {
     name: 'canonical CSP: required directives, exact script/connect sources, no eval / wildcard / http (N-292 — SEC-12 guard)',
     fn: function () {
+      if (typeof lintCspPolicy === 'undefined') _skip('lint-csp.js not loaded — runs under node tests/run.js.');
       _assertEqual(lintCspPolicy(CSP_CANONICAL), [], 'CSP_CANONICAL shape');
       // Positive controls.
       _assertEqual(lintCspPolicy(CSP_CANONICAL + " 'unsafe-eval'").length >= 1, true, "control: 'unsafe-eval' flagged");
@@ -2527,6 +2530,7 @@ var ASSERTIONS = [
   {
     name: 'CSP origins match CONFIG.SP_SITE_URL, GRAPH and CONFIG.AUTHORITY (N-292 — single source of truth)',
     fn: function () {
+      if (typeof lintCspOrigins === 'undefined') _skip('lint-csp.js not loaded — runs under node tests/run.js.');
       const cfg = { spSiteUrl: CONFIG.SP_SITE_URL, graph: GRAPH, authority: CONFIG.AUTHORITY };
       _assertEqual(lintCspOrigins(CSP_CANONICAL, cfg), [], 'CSP origins vs config');
       // Positive control: a changed host in config must be caught.

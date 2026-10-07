@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script src="js/diag-buffer.js"></script>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; img-src 'self' https://talentpoint.sharepoint.com data: blob:; font-src 'self' data:; frame-src 'self' https://login.microsoftonline.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'">
+  <meta name="referrer" content="no-referrer">
+  <script src="js/diag-buffer.js"></script>
+  <script src="js/frame-guard.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Newton Mobile</title>
   <link rel="icon" type="image/png" href="momentum-symbol.png">

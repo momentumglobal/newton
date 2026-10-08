@@ -1178,7 +1178,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.02em;
   background: var(--surface-alt);
-  color: var(--brand);
+  color: var(--text-heading);   /* N-307 diff-2: --brand is 2.46:1 on --surface-alt in dark mode */
 }
 .badge-active     { background: var(--status-success-bg); color: var(--status-success); }
 /* ── Data Health tab (F-10 / N-092, tidied N-139) ─────────────────────
@@ -3639,8 +3639,9 @@ body {
 /* ── Role page + Headcount section (N-307) ─────────────────────────────
    role-page.js. Neutral like the checklist page: muted text uses
    --text-label (--text-muted on --surface is under 4.5:1 in light mode).
-   Status chips: Open = the .badge default pair, Filled = the success pair,
-   Cancelled = sunken surface + label text. */
+   Status chips: Open = the .badge default pair (--surface-alt +
+   --text-heading), Filled = the success pair, Cancelled = sunken surface +
+   label text. All three pass 4.5:1 in light and dark. */
 .role-page { max-width: 1040px; }
 .role-page-section { margin: 0 0 var(--sp-10); }
 .role-page-section-title {
@@ -3686,7 +3687,7 @@ body {
   font-weight: 600;
   white-space: nowrap;
 }
-.hc-status--open      { background: var(--surface-alt);       color: var(--brand); }
+.hc-status--open      { background: var(--surface-alt);       color: var(--text-heading); }
 .hc-status--filled    { background: var(--status-success-bg); color: var(--status-success); }
 .hc-status--cancelled { background: var(--surface-sunken);    color: var(--text-label); }
 

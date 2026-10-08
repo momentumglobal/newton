@@ -1021,7 +1021,8 @@ async function getRoleStageHistory() {
 // ── Role headcount (N-306 / HC-1) ────────────────────────────────────
 // A Role is the pipeline; each RoleHeadcount row is one hire slot. EVERY
 // headcount write goes through createHeadcount / updateHeadcount /
-// cancelHeadcount, and each of them ends in syncRoleOpenDate() — the one
+// cancelHeadcount (N-307: + createHeadcountRows / cancelOpenHeadcount /
+// restoreHeadcount), and each of them ends in syncRoleOpenDate() — the one
 // place Roles.OpenDate is maintained (model rule 3: earliest headcount
 // OpenDate). Nothing outside this file may createItem/updateItem/deleteItem
 // 'RoleHeadcount' — tests/lint-headcount-writes.js fails the build.
@@ -1101,24 +1102,98 @@ async function syncHeadcountProject(roleId, projectId) {
     .map(hc => updateItem('RoleHeadcount', hc.id, { ProjectID: pid })));
 }
 
-// Transitional (N-306) — removed by N-307 when the role form stops carrying
-// dates. Mirrors the role form's OpenDate / TargetHireDate / Backfill onto
-// headcount #1 (lowest Sequence), creating it when the role has none, then
-// keeps every headcount on the role's project. `values` keys left undefined
-// are not written.
-async function upsertPrimaryHeadcount(roleId, projectId, values) {
+// N-307: a role's headcount, the placements on it, and the D-5 counts.
+async function getRoleHeadcountState(roleId) {
   const id = parseInt(roleId);
+  const [rows, placements] = await Promise.all([getHeadcountForRole(id), getPlacements(id)]);
+  const fillMap = headcountFillMap(placements);
+  return { rows, placements, fillMap, counts: headcountCounts(rows, fillMap) };
+}
+
+// N-307: every placement's HeadcountID, $select-limited (same pattern as
+// getRoleHistoryRoleIds) — the Roles page only needs which headcount are
+// filled, never the placement detail.
+async function getPlacementHeadcountIds() {
+  return getItems('Placements', '', 'HeadcountID');
+}
+
+// N-307: `count` new headcount on one role (Add Role, + Add headcount).
+// Sequential, numbered from nextHeadcountSequence() read once, then ONE
+// syncRoleOpenDate(). `values` = { OpenDate, TargetHireDate, Backfill, Notes };
+// undefined keys are not written. A failure part-way still syncs, then
+// rethrows with err.created = how many rows landed.
+async function createHeadcountRows(roleId, projectId, count, values = {}) {
+  const id  = parseInt(roleId);
   const pid = parseInt(projectId);
   const fields = {};
   Object.keys(values || {}).forEach(k => { if (values[k] !== undefined) fields[k] = values[k]; });
-  const rows = await getHeadcountForRole(id);
-  if (!rows.length) {
-    await createHeadcount({ ...fields, RoleID: id, ProjectID: pid, Sequence: 1 });
-  } else {
-    const first = rows.slice().sort((a, b) => (Number(a.Sequence) || 0) - (Number(b.Sequence) || 0))[0];
-    if (Object.keys(fields).length) await updateHeadcount(first.id, id, fields);
+  const n = clampHeadcountCount(count);
+  const first = nextHeadcountSequence(await getHeadcountForRole(id));
+  const created = [];
+  try {
+    for (let i = 0; i < n; i++) {
+      const seq = first + i;
+      created.push(await createItem('RoleHeadcount', {
+        ...fields,
+        Title:     headcountLabel(seq),
+        Status:    CONFIG.HEADCOUNT.STATUS_OPEN,
+        RoleID:    id,
+        ProjectID: pid,
+        Sequence:  seq,
+      }));
+    }
+  } catch (e) {
+    await syncRoleOpenDate(id);
+    e.created = created.length;
+    throw e;
   }
-  await syncHeadcountProject(id, pid);
+  await syncRoleOpenDate(id);
+  return created;
+}
+
+// D-1 cascade: cancelling a pipeline cancels every OPEN headcount on it
+// (filled ones are untouched). dayISO is 'YYYY-MM-DD'. One sync at the end,
+// also when a write failed (the error is then rethrown).
+async function cancelOpenHeadcount(roleId, dayISO) {
+  const id = parseInt(roleId);
+  const { rows, fillMap } = await getRoleHeadcountState(id);
+  const open = rows.filter(hc => classifyHeadcount(hc, fillMap) === 'open');
+  let failure = null;
+  await runWithConcurrency(open, 4, async hc => {
+    try {
+      await updateItem('RoleHeadcount', hc.id, {
+        Status:        CONFIG.HEADCOUNT.STATUS_CANCELLED,
+        CancelledDate: isoDate(dayISO),
+      });
+    } catch (e) {
+      failure = failure || e;
+    }
+  });
+  await syncRoleOpenDate(id);
+  if (failure) throw failure;
+  return { cancelled: open.length };
+}
+
+// N-307 S-4: undo a cancel. Only offered for an unfilled headcount on a
+// non-terminal pipeline (role-page.js).
+async function restoreHeadcount(id, roleId) {
+  return updateHeadcount(id, roleId, {
+    Status:        CONFIG.HEADCOUNT.STATUS_OPEN,
+    CancelledDate: null,
+  });
+}
+
+// N-307: run before EVERY Roles.Stage write (inline dropdown, Command Bar,
+// role form, mobile stage update). Reads the role and its headcount and
+// applies roleStageChangeRule() (utils.js). Read errors propagate — callers
+// fail closed and write nothing.
+async function checkRoleStageChange(roleId, toStage) {
+  const [role, state] = await Promise.all([getItem('Roles', roleId), getRoleHeadcountState(roleId)]);
+  return {
+    ...roleStageChangeRule({ fromStage: role.Stage, toStage, counts: state.counts }),
+    counts:    state.counts,
+    fromStage: role.Stage,
+  };
 }
 
 async function deleteItem(listName, itemId) {
@@ -1427,14 +1502,17 @@ const _LCI_MILESTONE_COPY_FIELDS = ['Title', 'StartMonth', 'EndMonth', 'SortOrde
 // submitRoleForm's actual write set (forms.js) by
 // tests/lint-role-copy-fields.js — update that test's expectations, don't
 // just edit this list, if the write set changes.
+// N-307: Backfill, OpenDate and TargetHireDate are headcount fields now
+// (RoleHeadcount, D-4) — the role form no longer writes them to Roles.
 const _ROLE_COPY_FIELDS = [
   'ProjectIDLookupId', 'RoleTitle', 'HiringManager', 'TalentPartner', 'Budget',
-  'Location', 'Priority', 'Backfill', 'Department', 'Notes',
+  'Location', 'Priority', 'Department', 'Notes',
 ];
 // Fields submitRoleForm writes that duplication deliberately does NOT carry
-// over — Stage always resets to Backlog, OpenDate resets to today, and
-// TargetHireDate is cleared. Used only by the sync test above.
-const _ROLE_RESET_FIELDS = ['Stage', 'OpenDate', 'TargetHireDate'];
+// over — Stage always resets to Backlog. (The Headcount fieldset's Open Date
+// defaults to today on Duplicate — showDuplicateRoleForm, pages.js.) Used
+// only by the sync test above.
+const _ROLE_RESET_FIELDS = ['Stage'];
 
 function _pickFields(obj, keys) {
   const out = {};

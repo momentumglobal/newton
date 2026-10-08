@@ -35,6 +35,8 @@ function checklistCellHtml(checklist, pending) {
   return `<td class="checklist-cell"${title}>${s.done}/${s.total}</td>`;
 }
 // N-266a: a list-row name that opens the record's checklist when it has one.
+// Projects only since N-307 — role names always open the role page
+// (roleNameLinkHtml below), checklist or not.
 function checklistNameHtml(text, recordType, id, checklist, pending) {
   if (pending || !checklist || checklist.mode === "none") return escHtml(text);
   return `<a href="#" class="cell-link" onclick="openChecklist('${recordType}', ${Number(id)}); return false;">${escHtml(text)}</a>`;
@@ -56,34 +58,42 @@ function projectRowHtml(p, { dmDisplay, canEdit, pending = false, checklist = nu
 // N-247a: the Days Open value a Roles row shows — null where the cell is
 // blank for this filter. Shared by roleRowHtml and the Days Open sort
 // accessor so the sort can never disagree with what's displayed.
-function roleDaysOpenValue(r, rolesFilter) {
-  const isHired    = rolesFilter === "Closed";   // N-306: the Hired filter is now Closed
-  const daysHidden = rolesFilter === "Backlog" || rolesFilter === "Cancelled";
-  return (!daysHidden && (!isHired || r.ActualHireDate))
-    ? daysOpen(r.OpenDate, r.ActualHireDate) : null;
+// N-307: days since the OLDEST OPEN headcount with an Open Date
+// (headcountSummary, utils.js). Blank on the Closed filter too — a closed
+// pipeline is done (one still holding open headcount is a Data Health item).
+function roleDaysOpenValue(r, rolesFilter, summary) {
+  const daysHidden = rolesFilter === "Backlog" || rolesFilter === "Cancelled" || rolesFilter === "Closed";
+  return (!daysHidden && summary && summary.oldestOpenDay)
+    ? daysOpen(summary.oldestOpenDay) : null;
 }
 
-function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilter, pending = false, checklist = null, showChecklistCol = false } = {}) {
-  const isHired    = rolesFilter === "Closed";   // N-306: the Hired filter is now Closed
-  const days       = roleDaysOpenValue(r, rolesFilter);
-  const rowClass   = (isHired || rolesFilter === "Active") && days !== null && days > 45
+// N-307: every role name opens the role page (role-page.js), checklist or
+// not. A pending row has no real id yet, so it renders as plain text.
+function roleNameLinkHtml(r, pending) {
+  if (pending) return escHtml(r.RoleTitle);
+  return `<a href="#" class="cell-link" onclick="openRolePage(${Number(r.id)}); return false;">${escHtml(r.RoleTitle)}</a>`;
+}
+
+function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilter, pending = false, checklist = null, showChecklistCol = false, hcSummary = null } = {}) {
+  const summary    = pending ? null : hcSummary;
+  const days       = roleDaysOpenValue(r, rolesFilter, summary);
+  const rowClass   = rolesFilter === "Active" && days !== null && days > CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays
     ? "row-age-critical" : "";
-  const dateCell   = isHired
-    ? (spDateIn(r.ActualHireDate) || "—")
-    : (spDateIn(r.TargetHireDate) || "—");
+  const hcCell     = summary
+    ? `<td title="${escAttr(headcountXYTitle(summary.counts))}">${escHtml(headcountXY(summary.counts))}</td>`
+    : "<td>—</td>";
   // A pending role has no real id yet, so it never gets the interactive
   // unlock button -- canEdit is forced false for the stage badge only.
   const stageCell  = stageBadgeHtml(r.id, r.Stage, pending ? false : canEdit);
   return `
           <tr class="${pending ? "row-pending" : rowClass}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ""}>
             <td>${escHtml(projectName)}</td>
-            <td>${checklistNameHtml(r.RoleTitle, "role", r.id, checklist, pending)}</td>
+            <td>${roleNameLinkHtml(r, pending)}</td>
             <td>${escHtml(r.Location || '—')}</td>
             <td${pending ? "" : ` id="stage-cell-${r.id}"`}>${stageCell}</td>
             <td>${escHtml(tpDisplay(r.TalentPartner, tpMap))}</td>
             <td>${escHtml(formatSalary(r.Budget))}</td>
-            <td>${spDateIn(r.OpenDate) || "—"}</td>
-            <td>${dateCell}</td>
+            ${hcCell}
             <td>${days !== null ? days + " days" : "—"}</td>
             ${showChecklistCol ? checklistCellHtml(checklist, pending) : ""}
             ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a><a href="#" onclick="showDuplicateRoleForm(${r.id})">Duplicate</a>${historyRoleIds.has(String(r.id)) ? `<a href="#" onclick="showRoleTimeline(${r.id})">Timeline</a>` : ""}</div></td>`) : ""}
@@ -252,17 +262,29 @@ let _rolesSearch    = '';    // N-251a: shared list search box (list-controls.js
 async function renderRolesPage(filter, pendingItem = null) {
   if (filter !== undefined) _rolesFilter = filter;
   const main = document.getElementById("main-content");
-  main.innerHTML = skeletonTable(6, 9);
+  main.innerHTML = skeletonTable(6, 8);
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
-  const [allRoles, allProjects, { projects: scopedProjects, canFilter }, tpMap, historyRoleIds, ckCtx] = await Promise.all([
+  const [allRoles, allProjects, { projects: scopedProjects, canFilter }, tpMap, historyRoleIds, ckCtx, allHeadcount, placementLinks] = await Promise.all([
   getRolesForUser(user.email),
   getProjects(false),
   getProjectFilterOptions(),
   getTalentPartnerDisplayMap(),
   getRoleHistoryRoleIds(),
   getChecklistListContext("role"),   // N-266a — null = render as before
+  getAllHeadcount(),                 // N-307 — Headcount x/y + Days Open
+  getPlacementHeadcountIds(),        // N-307 — which headcount are filled
 ]);
+  // N-307: one headcount summary per role, memoised — the sort accessors and
+  // the row both read it.
+  const hcByRole  = groupHeadcountByRole(allHeadcount);
+  const hcFill    = headcountFillMap(placementLinks);
+  const hcSummaryByRole = new Map();
+  const hcSummaryOf = r => {
+    const k = String(r.id);
+    if (!hcSummaryByRole.has(k)) hcSummaryByRole.set(k, headcountSummary(hcByRole.get(k) || [], hcFill));
+    return hcSummaryByRole.get(k);
+  };
   const projectMap = Object.fromEntries(allProjects.map(p => [String(p.id), p.CustomerName]));
   // N-266a: a role's checklist variant comes from its parent project's type.
   // Memoised per role — the sort accessor and the row both read it.
@@ -321,9 +343,9 @@ async function renderRolesPage(filter, pendingItem = null) {
     stage:    { type: 'enum',   get: r => r.Stage, order: CONFIG.ROLE_STAGES },
     tp:       { type: 'text',   get: r => tpList(r.TalentPartner).length ? tpDisplay(r.TalentPartner, tpMap) : '' },
     budget:   { type: 'number', get: r => r.Budget },
-    openDate: { type: 'date',   get: r => r.OpenDate },
-    hireDate: { type: 'date',   get: r => _rolesFilter === "Closed" ? r.ActualHireDate : r.TargetHireDate },
-    daysOpen: { type: 'number', get: r => roleDaysOpenValue(r, _rolesFilter) },
+    // N-307: open headcount count; a role with no headcount sorts last.
+    headcount: { type: 'number', get: r => { const c = hcSummaryOf(r).counts; return c.total ? c.open : null; } },
+    daysOpen: { type: 'number', get: r => roleDaysOpenValue(r, _rolesFilter, hcSummaryOf(r)) },
     // N-266a: fraction complete; no checklist → null, which sorts last.
     checklist: { type: 'number', get: r => {
       const s = showChecklistCol ? checklistOf(r).summary : null;
@@ -366,8 +388,7 @@ async function renderRolesPage(filter, pendingItem = null) {
         ${sortableHeader('Stage', 'stage', _rolesSort, 'setRolesSort')}
         ${sortableHeader('Talent Partner', 'tp', _rolesSort, 'setRolesSort')}
         ${sortableHeader('Budget', 'budget', _rolesSort, 'setRolesSort')}
-        ${sortableHeader('Open Date', 'openDate', _rolesSort, 'setRolesSort')}
-        ${sortableHeader(_rolesFilter === "Closed" ? "Actual Hire Date" : "Target Hire Date", 'hireDate', _rolesSort, 'setRolesSort')}
+        ${sortableHeader('Headcount', 'headcount', _rolesSort, 'setRolesSort')}
         ${sortableHeader('Days Open', 'daysOpen', _rolesSort, 'setRolesSort')}${showChecklistCol ? sortableHeader('Checklist', 'checklist', _rolesSort, 'setRolesSort') : ""}${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
@@ -380,8 +401,9 @@ async function renderRolesPage(filter, pendingItem = null) {
           pending: pendingItem ? r.id === pendingItem.id : false,
           checklist: checklistOf(r),
           showChecklistCol,
+          hcSummary: pendingItem && r.id === pendingItem.id ? null : hcSummaryOf(r),
         })).join("") : emptyStateRow({
-          colspan: 9 + (showChecklistCol ? 1 : 0) + (canEdit ? 1 : 0),
+          colspan: 8 + (showChecklistCol ? 1 : 0) + (canEdit ? 1 : 0),
           icon: "briefcase",
           message: rolesEmptyMsg,
           actionLabel: canEdit ? "+ Add Role" : "",
@@ -430,6 +452,28 @@ async function updateRoleStage(roleId, selectEl) {
   const prevStage = selectEl.dataset.prevValue;
   const newStage  = selectEl.value;
   const row = selectEl.closest('tr');
+  // N-307: the Stage rule (D-2 / S-2) is checked BEFORE the optimistic apply,
+  // and fails closed. The select never offers terminal stages, so a Cancel
+  // cascade can't arise here.
+  const restoreBadge = () => {
+    const cell = document.getElementById(`stage-cell-${roleId}`);
+    if (cell) {
+      cell.innerHTML = stageBadgeHtml(roleId, prevStage, true);
+      lucide.createIcons();
+    }
+  };
+  let check;
+  try {
+    check = await checkRoleStageChange(roleId, newStage);
+  } catch (e) {
+    console.warn('N-307: stage check failed for role ' + roleId, e);
+    check = { ok: false, reason: "Couldn't check this role's headcount — stage not changed." };
+  }
+  if (!check.ok) {
+    toast(check.reason, { type: 'error' });
+    restoreBadge();
+    return;
+  }
   await optimisticWrite({
     apply: () => {
       if (!(ROLE_FILTERS[_rolesFilter] || (() => true))({ Stage: newStage })) {
@@ -464,10 +508,11 @@ async function showEditRoleForm(id) {
 // N-150 — "Duplicate" row action: opens the Add Role form pre-filled from an
 // existing role. Always re-fetches via getItem rather than reusing the row's
 // cached list data, same reasoning showEditRoleForm follows above. Stage
-// resets to Backlog and TargetHireDate is left blank purely because
-// _ROLE_COPY_FIELDS excludes them — renderRoleForm's own isEdit-gated Stage
-// default (forms.js) does the rest. OpenDate is the one field explicitly
-// overridden here, via localDayISO() (today, local) rather than carried.
+// resets to Backlog purely because _ROLE_COPY_FIELDS excludes it —
+// renderRoleForm's own isEdit-gated Stage default (forms.js) does the rest.
+// N-307: OpenDate is set to today (localDayISO(), local) only to seed the
+// form's Headcount fieldset — dates and Backfill live on headcount now and
+// are never carried from the source role.
 async function showDuplicateRoleForm(id) {
   const data = await getItem("Roles", id);
   const prefill = _pickFields(data, _ROLE_COPY_FIELDS);

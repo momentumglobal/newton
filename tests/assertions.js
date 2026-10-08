@@ -2960,4 +2960,78 @@ var ASSERTIONS = [
       ['Hired', 'Closed', 'Placed'].forEach(s => _assertEqual(v.includes(s), true, s + ' in the vocabulary'));
     },
   },
+  {
+    name: 'N-307 headcountSummary / headcountXY / headcountXYTitle',
+    fn: function () {
+      const hc = [
+        { id: '1', RoleID: 7, Sequence: 1, Status: 'Open', OpenDate: '2026-05-10T12:00:00Z' },
+        { id: '2', RoleID: 7, Sequence: 2, Status: 'Open' },                                   // open, undated
+        { id: '3', RoleID: 7, Sequence: 3, Status: 'Open', OpenDate: '2026-01-01T12:00:00Z' }, // filled
+        { id: '4', RoleID: 7, Sequence: 4, Status: 'Cancelled', OpenDate: '2025-12-01T12:00:00Z' },
+        { id: '5', RoleID: 7, Sequence: 5, Status: 'Open', OpenDate: '2026-04-02T12:00:00Z' },
+      ];
+      const fill = headcountFillMap([{ id: 'p1', HeadcountID: '3' }]);
+      const sm = headcountSummary(hc, fill);
+      _assertEqual(sm.counts, { open: 3, filled: 1, cancelled: 1, total: 4 }, 'counts');
+      _assertEqual(sm.oldestOpenDay, '2026-04-02', 'oldest OPEN dated headcount — filled / cancelled / undated ignored');
+      _assertEqual(headcountSummary([{ id: '9', Status: 'Open' }], new Map()).oldestOpenDay, null, 'all undated → null');
+      _assertEqual(headcountXY(sm.counts), '3/4', 'x/y = open / (open + filled)');
+      _assertEqual(headcountXY(headcountCounts([], new Map())), '—', 'nothing to count → dash');
+      _assertEqual(headcountXYTitle(sm.counts), '3 open of 4 · 1 filled · 1 cancelled', 'title breakdown');
+      _assertEqual([...groupHeadcountByRole(hc).keys()], ['7'], 'grouped by String(RoleID)');
+    },
+  },
+  {
+    name: 'N-307 roleStageChangeRule (D-1, D-2, S-2)',
+    fn: function () {
+      const c = open => ({ open, filled: 0, cancelled: 0, total: open });
+      const r = (from, to, open) => roleStageChangeRule({ fromStage: from, toStage: to, counts: c(open) });
+      _assertEqual(r('Offered', 'Closed', 1).ok, false, 'Closed blocked while headcount open');
+      _assertEqual(/1 headcount still open/.test(r('Offered', 'Closed', 1).reason), true, 'reason names the count');
+      _assertEqual(r('Offered', 'Closed', 0).ok, true, 'Closed allowed with none open');
+      _assertEqual(r('Sourcing', 'Cancelled', 2), { ok: true, reason: '', cascadeCancel: true }, 'Cancelled cascades open headcount');
+      _assertEqual(r('Sourcing', 'Cancelled', 0).cascadeCancel, false, 'nothing to cascade');
+      _assertEqual(r('Closed', 'Sourcing', 0).ok, false, 'open stage refused with 0 open');
+      _assertEqual(r('Closed', 'Sourcing', 1).ok, true, 'open stage allowed with 1 open');
+      _assertEqual(r('Sourcing', 'Backlog', 0).ok, true, 'parked stage allowed with 0 open');
+      _assertEqual(r('Interview 1', 'Interview 1', 0).ok, true, 'same stage always ok');
+      _assertEqual(r('Hired', 'Closed', 3).ok, true, "legacy 'Hired' normalises to Closed → same stage");
+    },
+  },
+  {
+    name: 'N-307 pipelineAfterLastOpen (S-5)',
+    fn: function () {
+      _assertEqual(pipelineAfterLastOpen({ open: 0, filled: 1, cancelled: 0, total: 1 }), 'close', 'a fill → offer Close');
+      _assertEqual(pipelineAfterLastOpen({ open: 0, filled: 0, cancelled: 2, total: 0 }), 'cancel', 'no fill → offer Cancel');
+      _assertEqual(pipelineAfterLastOpen({ open: 1, filled: 1, cancelled: 0, total: 2 }), null, 'still open → nothing');
+      _assertEqual(pipelineAfterLastOpen({ open: 0, filled: 0, cancelled: 0, total: 0 }), null, 'no headcount at all → nothing');
+    },
+  },
+  {
+    name: 'N-307 defaultTargetHireDate follows ANALYTICS_BENCHMARKS.timeToHireDays',
+    fn: function () {
+      const n = CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays;
+      _assertEqual(defaultTargetHireDate('2026-10-08'), addDaysISO('2026-10-08', n), 'Open + configured days');
+      _assertEqual(addDaysISO('2026-10-08', 45), '2026-11-22', 'arithmetic control: 8 Oct + 45d = 22 Nov');
+      _assertEqual(defaultTargetHireDate('2026-12-20'), addDaysISO('2026-12-20', n), 'year rollover');
+      _assertEqual(addDaysISO('2026-12-20', 45), '2027-02-03', 'rollover arithmetic control');
+      _assertEqual(defaultTargetHireDate(''), null, 'blank → null');
+      _assertEqual(defaultTargetHireDate(null), null, 'null → null');
+    },
+  },
+  {
+    name: 'N-307 reopenStageOptions / HEADCOUNT.reopenStage / clampHeadcountCount',
+    fn: function () {
+      const opts = reopenStageOptions();
+      CONFIG.ROLE_STAGE_TERMINAL.forEach(s => _assertEqual(opts.includes(s), false, s + ' excluded'));
+      _assertEqual(opts, CONFIG.ROLE_STAGES.filter(s => opts.includes(s)), 'ROLE_STAGES order kept');
+      _assertEqual(opts.length, CONFIG.ROLE_STAGES.length - CONFIG.ROLE_STAGE_TERMINAL.length, 'only terminal stages dropped');
+      _assertEqual(CONFIG.ROLE_STAGES.includes(CONFIG.HEADCOUNT.reopenStage), true, 'reopenStage is a stage');
+      _assertEqual(isOpenPipelineStage(CONFIG.HEADCOUNT.reopenStage), true, 'reopenStage is an open-pipeline stage');
+      const max = CONFIG.HEADCOUNT.maxPerAdd;
+      _assertEqual([clampHeadcountCount(''), clampHeadcountCount('0'), clampHeadcountCount('3'),
+        clampHeadcountCount('999'), clampHeadcountCount('2.7'), clampHeadcountCount(undefined)],
+        [1, 1, 3, max, 2, 1], 'clamped to 1..maxPerAdd');
+    },
+  },
 ];

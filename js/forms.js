@@ -8,15 +8,6 @@ function clearFormError(formId) {
   const el = document.getElementById(`${formId}-error`);
   if (el) { el.textContent = ''; el.style.display = 'none'; }
 }
-function addDays(dateStr, days) {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const date = new Date(y, m - 1, d + days);
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-');
-}
 // ── Project Form ────────────────────────────────────────────────────
 function renderProjectForm(existingData = null) {
   const isEdit = !!existingData;
@@ -155,10 +146,21 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
   } catch (e) { /* fall back to empty */ }
   // N-250a: open 'Additional details' on Edit/Duplicate when any of its
   // fields already holds a value, so existing data is never hidden.
-  // Backfill is a SharePoint Yes/No column (boolean) — false is its default
-  // "unset" state on every role, so it doesn't count as a value here.
-  const showAdditional = ['Priority', 'Backfill', 'Notes']
-    .some(k => existingData?.[k] != null && existingData[k] !== '' && existingData[k] !== false);
+  // N-307: Backfill moved to the Headcount fieldset (it's per headcount, D-4).
+  const showAdditional = ['Priority', 'Notes']
+    .some(k => existingData?.[k] != null && existingData[k] !== '');
+  // N-307: Edit shows the role's headcount (managed on the role page) and
+  // disables Closed while any is open (D-2 — a hint only; submitRoleForm
+  // re-checks through checkRoleStageChange). A failed read just shows '—'.
+  let hcCounts = null;
+  if (isEdit) {
+    try {
+      hcCounts = (await getRoleHeadcountState(existingData.id)).counts;
+    } catch (e) {
+      console.warn('N-307: headcount read failed for role ' + existingData.id, e);
+    }
+  }
+  const targetDays = CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays;
 
   return `
     <div class="form-container">
@@ -192,14 +194,16 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
             <div class="form-group">
               <label>Stage *</label>
               <select name="Stage" required>
-                ${CONFIG.ROLE_STAGES
+                ${(isEdit ? CONFIG.ROLE_STAGES : reopenStageOptions())   // N-307 S-6: no terminal stage on Add/Duplicate
                   .map(s => {
                     // New roles start at Backlog by design (Role Backlog KPI, Roles page
                     // Backlog tab). State it explicitly — don't rely on the browser
                     // selecting the first option, which a reorder would silently change.
                     // Matches mobile-roleform.js:59.
                     const sel = isEdit ? existingData.Stage === s : s === 'Backlog';
-                    return `<option value="${s}" ${sel ? 'selected' : ''}>${s}</option>`;
+                    const closeBlocked = isEdit && s === CONFIG.ROLE_STAGE_CLOSED &&
+                      existingData.Stage !== s && hcCounts && hcCounts.open > 0;
+                    return `<option value="${s}" ${sel ? 'selected' : ''}${closeBlocked ? ' disabled' : ''}>${closeBlocked ? `${s} (${hcCounts.open} open headcount)` : s}</option>`;
                   })
                   .join('')}
               </select>
@@ -234,7 +238,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Budget</label>
+              <label>Budget (per head)</label>
               <input type="text" name="Budget"
                 value="${escAttr(existingData?.Budget || '')}">
             </div>
@@ -247,22 +251,45 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
             </div>
           </div>
         </fieldset>
+        ${isEdit ? `
         <fieldset class="form-section">
-          <legend class="form-section-title">Dates</legend>
+          <legend class="form-section-title">Headcount</legend>
+          <p class="form-section-note">
+            Headcount: ${escHtml(hcCounts ? headcountXYTitle(hcCounts) : '—')} ·
+            <a href="#" onclick="openRolePage(${Number(existingData.id)}); return false;">Manage on the role page</a>
+          </p>
+        </fieldset>` : `
+        <fieldset class="form-section">
+          <legend class="form-section-title">Headcount</legend>
+          <p class="form-section-note">Applied to each new headcount. Edit them one by one on the role page.</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label># of Headcount *</label>
+              <input type="number" name="HeadcountCount" min="1" max="${CONFIG.HEADCOUNT.maxPerAdd}" step="1" value="1" required>
+            </div>
+            <div class="form-group">
+              <label>Backfill?</label>
+              <select name="HcBackfill">
+                <option value="">--</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+          </div>
           <div class="form-row">
             <div class="form-group">
               <label>Open Date</label>
-              <input type="date" name="OpenDate" id="role-open-date"
+              <input type="date" name="HcOpenDate" id="role-open-date"
                 onchange="autoFillTargetDate()"
-                value="${escAttr(spDateIn(existingData?.OpenDate) || '')}">
+                value="${escAttr(isDuplicate ? (spDateIn(existingData?.OpenDate) || '') : '')}">
             </div>
             <div class="form-group">
-              <label>Target Hire Date (auto: Open + 45d)</label>
-              <input type="date" name="TargetHireDate" id="role-target-date"
-                value="${escAttr(spDateIn(existingData?.TargetHireDate) || '')}">
+              <label>Target Hire Date (auto: Open + ${targetDays}d)</label>
+              <input type="date" name="HcTargetHireDate" id="role-target-date"
+                value="${escAttr(isDuplicate ? (defaultTargetHireDate(spDateIn(existingData?.OpenDate)) || '') : '')}">
             </div>
           </div>
-        </fieldset>
+        </fieldset>`}
         <details class="form-section form-section--collapsible" ${showAdditional ? 'open' : ''}>
           <summary class="form-section-title">Additional details <span class="form-section-hint">optional</span></summary>
           <div class="form-row">
@@ -273,14 +300,6 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
                 <option value="1" ${existingData?.Priority == 1 ? 'selected' : ''}>1 — High</option>
                 <option value="2" ${existingData?.Priority == 2 ? 'selected' : ''}>2 — Medium</option>
                 <option value="3" ${existingData?.Priority == 3 ? 'selected' : ''}>3 — Low</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Backfill?</label>
-              <select name="Backfill">
-                <option value="">--</option>
-                <option value="Yes" ${existingData?.Backfill === true || existingData?.Backfill === 'Yes' ? 'selected' : ''}>Yes</option>
-                <option value="No" ${existingData?.Backfill === false || existingData?.Backfill === 'No' ? 'selected' : ''}>No</option>
               </select>
             </div>
           </div>
@@ -302,7 +321,7 @@ function autoFillTargetDate() {
   const open = document.getElementById('role-open-date').value;
   const target = document.getElementById('role-target-date');
   if (open && !target.value) {
-    target.value = addDays(open, 45);
+    target.value = defaultTargetHireDate(open) || '';   // N-307: Open + timeToHireDays
   }
 }
 
@@ -372,38 +391,70 @@ async function submitRoleForm(event, editId = null) {
     Budget:         data.Budget ? parseFloat(data.Budget) : undefined,
     Currency:       data.Location || undefined,
     Priority:       data.Priority ? parseInt(data.Priority) : undefined,
-    Backfill:       data.Backfill === 'Yes' ? true : data.Backfill === 'No' ? false : undefined,
     Stage:          data.Stage,
-    OpenDate:       isoDate(data.OpenDate) || undefined,
-    TargetHireDate: isoDate(data.TargetHireDate) || undefined,
     Department:     data.Department || undefined,
     Notes:          data.Notes || undefined,
   };
-  // N-306 (transitional, until N-307): the form's dates + Backfill are
-  // mirrored onto headcount #1. Deliberately a separate object, built after
-  // `fields` — tests/lint-role-copy-fields.js parses `const fields = {`.
+  // N-307: dates + Backfill are headcount fields (D-4) — the Add/Duplicate
+  // form's Headcount fieldset applies them to each of the n new headcount.
+  // Deliberately separate objects, built after `fields` —
+  // tests/lint-role-copy-fields.js parses `const fields = {`.
+  const headcountCount  = clampHeadcountCount(data.HeadcountCount);
   const headcountValues = {
-    OpenDate:       fields.OpenDate,
-    TargetHireDate: fields.TargetHireDate,
-    Backfill:       fields.Backfill,
+    OpenDate:       isoDate(data.HcOpenDate) || undefined,
+    TargetHireDate: isoDate(data.HcTargetHireDate) || undefined,
+    Backfill:       data.HcBackfill === 'Yes' ? true : data.HcBackfill === 'No' ? false : undefined,
   };
-  const HEADCOUNT_FAIL_MSG = 'Role saved, but its headcount row did not update — see Admin → Data Health.';
   if (editId) {
     // N-218a: optimistic insert is a create-only concept -- editing an
     // existing role is unaffected, unchanged from before this task.
+    // N-307: the Stage rule (D-1 / D-2 / S-2) runs first and fails closed.
+    let check;
+    try {
+      check = await checkRoleStageChange(editId, fields.Stage);
+    } catch (e) {
+      clearButtonLoading(btn);
+      showFormError('role-form', "Couldn't check this role's headcount — nothing saved. Please try again.");
+      return;
+    }
+    if (!check.ok) {
+      clearButtonLoading(btn);
+      showFormError('role-form', check.reason);
+      return;
+    }
+    if (check.cascadeCancel) {
+      const ok = await confirmModal({
+        title:        'Cancel pipeline',
+        message:      `This also cancels ${check.counts.open} open headcount.`,
+        confirmLabel: 'Cancel pipeline',
+        cancelLabel:  'Keep',
+        danger:       true,
+      });
+      if (!ok) { clearButtonLoading(btn); return; }
+    }
     try {
       await updateRoleWithHistory(editId, fields);
-      try {
-        await upsertPrimaryHeadcount(editId, fields.ProjectIDLookupId, headcountValues);
-      } catch (e) {
-        console.warn('N-306: headcount mirror failed for role ' + editId, e);
-        toast(HEADCOUNT_FAIL_MSG, { type: 'error' });
-      }
-      navigateTo('roles');
     } catch (e) {
       clearButtonLoading(btn);
       showFormError('role-form', `Error saving role: ${e.message}`);
+      return;
     }
+    // The role is saved — headcount follow-ups only toast on failure.
+    try {
+      await syncHeadcountProject(editId, fields.ProjectIDLookupId);
+    } catch (e) {
+      console.warn('N-307: headcount project sync failed for role ' + editId, e);
+      toast('Role saved, but its headcount project did not update — see Admin → Data Health.', { type: 'error' });
+    }
+    if (check.cascadeCancel) {
+      try {
+        await cancelOpenHeadcount(editId, localDayISO());   // D-1 cascade, after the stage write
+      } catch (e) {
+        console.warn('N-307: headcount cascade cancel failed for role ' + editId, e);
+        toast("Pipeline cancelled, but its open headcount wasn't — cancel it on the role page.", { type: 'error' });
+      }
+    }
+    navigateTo('roles');
     return;
   }
   try {
@@ -413,16 +464,16 @@ async function submitRoleForm(event, editId = null) {
         navigateTo('roles', pendingItem);
       },
       revert: async () => { await renderRolesPage(_rolesFilter); },
-      // N-306: a headcount failure must NOT reject commit — that would revert
-      // the view and offer a Retry that creates a duplicate role. The Data
-      // Health migration (re-runnable) creates any missing headcount.
+      // N-306/N-307: a headcount failure must NOT reject commit — that would
+      // revert the view and offer a Retry that creates a duplicate role. The
+      // missing headcount are added on the role page.
       commit: async () => {
         const created = await createRoleWithHistory(fields);
         try {
-          await upsertPrimaryHeadcount(created.id, fields.ProjectIDLookupId, headcountValues);
+          await createHeadcountRows(created.id, fields.ProjectIDLookupId, headcountCount, headcountValues);
         } catch (e) {
-          console.warn('N-306: headcount create failed for role ' + created.id, e);
-          toast(HEADCOUNT_FAIL_MSG, { type: 'error' });
+          console.warn('N-307: headcount create failed for role ' + created.id, e);
+          toast(`Role saved, but only ${(e && e.created) || 0} of ${headcountCount} headcount saved — add the rest on the role page.`, { type: 'error' });
         }
         return created;
       },

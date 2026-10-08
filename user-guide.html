@@ -234,20 +234,41 @@
       <div class="role-badges">
         <span class="role-badge admin">Admin</span>
         <span class="role-badge dm">Delivery Manager</span>
+        
         <span class="role-badge tp">Talent Partner</span>
       </div>
-      <p>A list of all roles across your accessible projects. Each row shows the role title, project, stage, assigned Talent Partner, open date, and target hire date.</p>
+      <p>A list of all roles across your accessible projects. A role is a <strong>pipeline</strong> for one role profile; each hire you are asked to make on it is a <strong>headcount</strong>. Each row shows the project, role title, location, stage, assigned Talent Partner, budget, <strong>Headcount</strong> and <strong>Days Open</strong>.</p>
+      <ul>
+        <li><strong>Headcount x/y</strong> — <em>x</em> open headcount out of <em>y</em> (open + filled). Cancelled headcount don't count. Hover the cell for the full breakdown, e.g. "2 open of 3 · 1 filled · 1 cancelled".</li>
+        <li><strong>Days Open</strong> — days since the oldest open headcount's Open Date. Blank when no open headcount has an Open Date yet, and on the Backlog, Closed and Cancelled filters.</li>
+      </ul>
       <h3>Filtering</h3>
       <p>Use the <strong>Project</strong> dropdown to filter by project — grouped into <strong>Active</strong> and <strong>Archive</strong> sections (A–Z within each). Use the stage filter buttons (Backlog / Active / Closed / Cancelled) to narrow by stage — <strong>Backlog</strong> covers both Backlog and On-hold roles, and <strong>Active</strong> means everything that is not Backlog, On-hold, Closed or Cancelled. <strong>Closed</strong> is the stage formerly called Hired: the pipeline has been filled and shut down.</p>
       <p>The <strong>Show</strong> dropdown sets how many rows are drawn (25 / 50 / 100 / All, default 50). It only affects the display — nothing is re-fetched — and the line under the toolbar tells you what you are looking at. Roles has <strong>no</strong> date window on purpose: a role that has been open a long time is the one you most need to see, so the list is never bounded by date.</p>
       <h3>Adding and editing roles</h3>
       <p>Admins, Delivery Managers and Talent Partners can add new roles using the <strong>+ Add Role</strong> button. Any role can be edited using the action links in the table. When creating a role, select the <strong>Functional Area</strong> and hire <strong>Location</strong> — currency is auto-populated from the location and does not need to be entered manually. The Project dropdown on this form lists Active projects only; an existing role already linked to a project that has since moved to Archive still shows it when you edit that role.</p>
-      <p>The form is split into headed sections: <strong>Basics</strong> (Project, Role Title, Functional Area, Stage), <strong>Ownership</strong> (Assign to — shown to Admins and Delivery Managers; a Talent Partner's role is assigned to them automatically — and Hiring Manager), <strong>Commercial</strong> (Location, Budget, Currency) and <strong>Dates</strong> (Open Date, Target Hire Date). Every required field (marked *) is in these four sections. Priority, Backfill and Notes sit in <strong>Additional details</strong> at the bottom, which is collapsed when you add a new role — click it to expand. When you edit a role that already has a Priority, Notes or Backfill set to Yes, it opens automatically so nothing is hidden.</p>
+      <p>The form is split into headed sections: <strong>Basics</strong> (Project, Role Title, Functional Area, Stage), <strong>Ownership</strong> (Assign to — shown to Admins and Delivery Managers; a Talent Partner's role is assigned to them automatically — and Hiring Manager), <strong>Commercial</strong> (Location, Budget per head, Currency) and <strong>Headcount</strong>. Every required field (marked *) is in these four sections. Priority and Notes sit in <strong>Additional details</strong> at the bottom, which is collapsed when you add a new role — click it to expand. When you edit a role that already has a Priority or Notes set, it opens automatically so nothing is hidden.</p>
+      <p>When you <strong>add</strong> a role, the Headcount section asks for the <strong># of Headcount</strong> (how many hires the client wants on this pipeline) plus an Open Date, Target Hire Date (auto-filled as Open + 45 days) and Backfill. Newton creates that many headcount, each with those values — change them one by one afterwards on the role page. A new role starts at any stage except Closed or Cancelled. When you <strong>edit</strong> a role, the Headcount section just shows its current headcount, with a link to manage them on the role page.</p>
+      <h3>The role page and its headcount</h3>
+      <p>Click any role name to open its role page. It shows the project, stage and Talent Partner, the role's <strong>Headcount</strong>, and its checklist when it has one. <strong>Copy link</strong> gives you a link straight to the page.</p>
+      <ul>
+        <li><strong>+ Add headcount</strong> — add one or more headcount, with their own Open / Target dates, Backfill and Notes. Adding headcount to a <strong>Closed</strong> or <strong>Cancelled</strong> pipeline reopens it: pick the stage it should go back to (Sourcing by default). That's how to handle a client asking for another hire on a role you have already filled — no need to create a new role.</li>
+        <li><strong>Edit</strong> — change a headcount's dates, Backfill or Notes. Clearing a date removes it.</li>
+        <li><strong>Cancel</strong> — the client no longer wants that hire. It stays on the page as Cancelled and stops counting toward x/y. If it was the last open headcount, Newton offers to close the pipeline (if something was filled) or cancel it (if nothing was).</li>
+        <li><strong>Restore</strong> — undo a cancel, while the pipeline is still open.</li>
+      </ul>
+      <p>A headcount is <strong>Filled</strong> when a placement is linked to it; the page shows who and when. Headcount are never deleted.</p>
       <h3>Updating a stage without opening the form</h3>
       <p>Each row has its own stage dropdown — pick a new stage and it saves immediately, no need to open Edit. This covers every stage except <strong>Closed</strong> and <strong>Cancelled</strong>, which still go through the full Edit form since they trigger other changes elsewhere in Newton.</p>
+      <p>Wherever you change a stage (the dropdown, the Edit form or the mobile app), Newton checks the role's headcount first:</p>
+      <ul>
+        <li><strong>Closed</strong> is blocked while any headcount is still open — fill or cancel it first.</li>
+        <li>An active stage needs at least one open headcount — add one on the role page.</li>
+        <li><strong>Cancelled</strong> also cancels every open headcount on the pipeline. Newton asks you to confirm first. Filled headcount are kept.</li>
+      </ul>
       <h3>Duplicating a role</h3>
-      <p>Use the <strong>Duplicate</strong> action next to Edit to open the Add Role form pre-filled with the source role's Project, Title, Hiring Manager, Talent Partner(s), Budget, Location, Priority, Backfill, Functional Area and Notes. If any of Priority, Notes or Backfill (Yes) was carried over, the Additional details section opens so you can check them. Stage resets to Backlog, Open Date resets to today, and Target Hire Date is left blank for you to set. The original role is untouched — useful for a project backfilling several near-identical roles.</p>
-      <div class="tip">The "Roles Open 30+ Days" panel on both dashboards is driven by the <strong>Open Date</strong> field — make sure this is set accurately when a role is created or duplicated.</div>
+      <p>Use the <strong>Duplicate</strong> action next to Edit to open the Add Role form pre-filled with the source role's Project, Title, Hiring Manager, Talent Partner(s), Budget, Location, Priority, Functional Area and Notes. If Priority or Notes was carried over, the Additional details section opens so you can check them. Stage resets to Backlog; the Headcount section starts at one headcount opening today (Target Hire Date = today + 45 days). The original role is untouched. Use it for a <em>different</em> pipeline with the same profile (for example another location) — for more hires on the same pipeline, add headcount on its role page instead.</p>
+      <div class="tip">Days Open and the "Roles Open 30+ Days" panel on both dashboards are driven by headcount <strong>Open Dates</strong> — set them accurately when you add a role or headcount.</div>
       <h3>Creating a briefing pack</h3>
       <p>Use the <strong>Briefing Packs</strong> button in the page header to open the Briefing Pack Library, where you can open, copy or delete a saved pack — or start a new one. See <a href="#briefing-packs">Briefing Packs</a> below.</p>
       <h3>Viewing a role's history</h3>

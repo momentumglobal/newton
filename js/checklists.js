@@ -8,6 +8,10 @@
 //   - openChecklist(), the checklist page — a detail view of the Projects /
 //     Roles page (same pattern as lci-editor.js under lciModels), not a
 //     router page, so the sidebar keeps Projects/Roles highlighted.
+//     N-307: a ROLE checklist renders inside the role page (role-page.js) —
+//     openChecklist('role', id) redirects there; the role page embeds
+//     checklistBodyHtml() and calls mountChecklistView(). Project checklists
+//     are unchanged.
 // Graph calls live in api-checklists.js; the visibility / variant / progress
 // rules are pure functions in utils.js (shared with N-266b's editor).
 // Deep link: reporting.html#projects?action=checklist&id=N (or #roles…),
@@ -92,6 +96,9 @@ let _ckSeq     = 0;             // render token — drops a stale async render
 const _ckBusy  = new Set();     // item keys with a write in flight
 
 async function openChecklist(recordType, id) {
+  // N-307: role checklists live on the role page (deep link, Copy link and
+  // every other caller land there).
+  if (recordType === 'role') return openRolePage(id);
   const parent = _CK_PARENT[recordType];
   if (!parent || !canAccess(parent, _resolvedRole)) return;
   currentPage = parent;
@@ -121,8 +128,7 @@ async function openChecklist(recordType, id) {
     lucide.createIcons();
     return;
   }
-  _ckView = view;
-  _ckBusy.clear();
+  mountChecklistView(view);
   renderBreadcrumb(parent, view.title);
   main.innerHTML = _checklistPageHtml(view);
   lucide.createIcons();
@@ -180,6 +186,25 @@ async function _loadChecklistView(recordType, id) {
   };
 }
 
+// N-307: makes `v` the checklist on screen — the one place _ckView/_ckBusy
+// are set, so role-page.js never writes this file's state directly.
+function mountChecklistView(v) {
+  _ckView = v;
+  _ckBusy.clear();
+}
+
+// N-307: the role page's checklist. Resolves to the view, null when the role
+// has no checklist for this user, or { error: true } on a load failure —
+// never throws, so the role page always renders.
+async function loadRoleChecklistView(id) {
+  try {
+    return await _loadChecklistView('role', id);
+  } catch (e) {
+    console.warn('Role checklist load failed:', e);
+    return { error: true };
+  }
+}
+
 function _ckHeaderHtml(recordType, title, subtitle, recordId = 0) {
   return `
     <div class="page-header">
@@ -200,6 +225,18 @@ function _checklistPageHtml(v) {
   const meta = v.recordType === 'project'
     ? `Delivery Manager: ${person(v.record.DeliveryManager)}`
     : `${v.project ? v.project.CustomerName : '—'} · Talent Partner: ${tpDisplay(v.record.TalentPartner, v.tpMap)}`;
+  return `
+    <div class="checklist-page">
+      ${_ckHeaderHtml(v.recordType, v.title, `Checklist · ${variantLabel}`, v.recordId)}
+      <p class="checklist-meta">${escHtml(meta)}</p>
+      ${checklistBodyHtml(v)}
+    </div>`;
+}
+
+// N-307: everything below the header — preview banner, progress summary and
+// item sections. Shared by the project checklist page and the role page. The
+// data-checklist-record wrapper is load-bearing: _ckOnScreen() looks for it.
+function checklistBodyHtml(v) {
   const sections = [];
   let current = null;
   v.items.forEach((it, idx) => {
@@ -208,9 +245,7 @@ function _checklistPageHtml(v) {
     current.rows.push(_checklistItemHtml(v, it, idx));
   });
   return `
-    <div class="checklist-page" data-checklist-record="${escAttr(v.recordType)}-${v.recordId}">
-      ${_ckHeaderHtml(v.recordType, v.title, `Checklist · ${variantLabel}`, v.recordId)}
-      <p class="checklist-meta">${escHtml(meta)}</p>
+    <div class="checklist-page-body" data-checklist-record="${escAttr(v.recordType)}-${v.recordId}">
       ${v.mode === 'preview' ? `
       <div class="checklist-preview-banner" role="note">
         <i data-lucide="eye" aria-hidden="true"></i>

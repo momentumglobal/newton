@@ -906,6 +906,8 @@ body {
 .form-section--collapsible[open] > summary.form-section-title::before { transform: rotate(90deg); }
 .form-section--collapsible:not([open]) > summary.form-section-title { margin-bottom: 0; }
 .form-section-hint { font-size: var(--fs-12); font-weight: var(--fw-regular); text-transform: none; color: var(--text-muted); }
+/* N-307: one-line explanatory note inside a role-form fieldset (Headcount). */
+.form-section-note { margin: 0 0 var(--sp-5); font-size: var(--fs-13); color: var(--text-label); }
 .form-actions { display: flex; gap: var(--sp-6); margin-top: var(--sp-9); }
 .form-error {
   display: none;
@@ -3633,6 +3635,60 @@ body {
 .checklist-item-link svg { width: 14px; height: 14px; }
 .checklist-item-note { display: block; margin-top: var(--sp-2); color: var(--text-muted); font-size: var(--fs-12); }
 .checklist-item-actions .checklist-item-note { display: inline; margin-top: 0; }
+
+/* ── Role page + Headcount section (N-307) ─────────────────────────────
+   role-page.js. Neutral like the checklist page: muted text uses
+   --text-label (--text-muted on --surface is under 4.5:1 in light mode).
+   Status chips: Open = the .badge default pair, Filled = the success pair,
+   Cancelled = sunken surface + label text. */
+.role-page { max-width: 1040px; }
+.role-page-section { margin: 0 0 var(--sp-10); }
+.role-page-section-title {
+  margin: 0 0 var(--sp-4);
+  color: var(--text-heading);
+  font-size: var(--fs-15);
+  font-weight: var(--fw-semibold);
+}
+.role-hc-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-5); }
+.role-hc-head .role-page-section-title { margin: 0; }
+.role-hc-summary { margin: var(--sp-3) 0 var(--sp-6); color: var(--text-label); font-size: var(--fs-13); }
+.role-hc-table td { vertical-align: middle; }
+.role-hc-detail { color: var(--text-label); white-space: nowrap; }
+.role-hc-empty { color: var(--text-label); text-align: center; }
+.role-hc-input {
+  width: 100%;
+  min-width: 120px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--fs-13);
+}
+.role-hc-input:focus { outline: none; border-color: var(--border-focus); box-shadow: var(--sh-focus); }
+.role-hc-check { display: inline-flex; align-items: center; gap: var(--sp-3); font-weight: var(--fw-regular); white-space: nowrap; cursor: pointer; }
+.role-hc-actions { display: flex; gap: var(--sp-3); }
+.role-hc-add {
+  margin: 0 0 var(--sp-7);
+  padding: var(--sp-7);
+  background: var(--surface-alt);
+  border: 1px solid var(--surface-alt-border);
+  border-radius: var(--r-lg);
+}
+.role-hc-add-row { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.role-hc-reopen-note { margin: 0 0 var(--sp-5); color: var(--text-secondary); font-size: var(--fs-13); }
+.hc-status {
+  display: inline-block;
+  padding: var(--sp-1) var(--sp-5);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-11);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.hc-status--open      { background: var(--surface-alt);       color: var(--brand); }
+.hc-status--filled    { background: var(--status-success-bg); color: var(--status-success); }
+.hc-status--cancelled { background: var(--surface-sunken);    color: var(--text-label); }
 
 /* ── Checklists — Config Panel editor (N-266b) ─────────────────────────
    Neutral, like the checklist page (N-257). Muted text uses --text-label,

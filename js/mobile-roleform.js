@@ -3,24 +3,15 @@
 // Phase B, Reporting expansion #1: add a new role from the mobile roles list.
 // Mirrors the desktop renderRoleForm/submitRoleForm field set and writes the
 // IDENTICAL createItem('Roles', fields) payload, so mobile-created roles match
-// desktop-created ones exactly.
+// desktop-created ones exactly. N-307: dates are headcount fields — both forms
+// send # of Headcount + Open / Target to createHeadcountRows() (api.js).
 //
 // Role-aware, same as desktop:
 //   - admin / delivery_manager: choose project, then assign to a Talent Partner.
 //   - talent_partner: project auto-scoped; role assigned to themselves.
 //
 // Stage options come from CONFIG.ROLE_STAGES (N-305) — never redeclare here.
-
-// Add 45 days to a yyyy-mm-dd string -> yyyy-mm-dd.
-function mRoleAddDays(dateStr, days) {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const date = new Date(y, m - 1, d + days);
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-');
-}
+// N-307 S-6: reopenStageOptions() — a new role never starts Closed/Cancelled.
 
 async function mobileRenderAddRole(main) {
   mobileSetTitle('Add Role', 'New Role');
@@ -51,7 +42,7 @@ async function mobileRenderAddRole(main) {
       Object.keys(CONFIG.COUNTRY_CURRENCY).sort().map(c =>
         `<option value="${c}">${c}</option>`).join('');
 
-    const stageOpts = CONFIG.ROLE_STAGES.map(s =>
+    const stageOpts = reopenStageOptions().map(s =>
       `<option value="${s}" ${s === 'Backlog' ? 'selected' : ''}>${s}</option>`).join('');
 
     main.innerHTML = `
@@ -125,13 +116,18 @@ async function mobileRenderAddRole(main) {
           </div>
         </div>
 
+        <div class="m-form-group">
+          <label class="m-label"># of Headcount *</label>
+          <input class="m-input" type="number" id="mr-hc-count" min="1" max="${CONFIG.HEADCOUNT.maxPerAdd}" step="1" value="1">
+        </div>
+
         <div class="m-input-row">
           <div class="m-form-group">
             <label class="m-label">Open Date</label>
             <input class="m-input" type="date" id="mr-open" onchange="mobileRoleAutoTarget()">
           </div>
           <div class="m-form-group">
-            <label class="m-label">Target Hire (auto +45d)</label>
+            <label class="m-label">Target Hire (auto +${CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays}d)</label>
             <input class="m-input" type="date" id="mr-target">
           </div>
         </div>
@@ -177,7 +173,7 @@ function mobileRoleCurrency(country) {
 function mobileRoleAutoTarget() {
   const open = document.getElementById('mr-open').value;
   const target = document.getElementById('mr-target');
-  if (open && !target.value) target.value = mRoleAddDays(open, 45);
+  if (open && !target.value) target.value = defaultTargetHireDate(open) || '';
 }
 
 async function mobileSubmitAddRole() {
@@ -208,6 +204,7 @@ async function mobileSubmitAddRole() {
   const budgetVal = document.getElementById('mr-budget').value;
   const priVal    = document.getElementById('mr-priority').value;
   const hmVal     = document.getElementById('mr-hm').value.trim();
+  const hcCount   = clampHeadcountCount(document.getElementById('mr-hc-count').value);
 
   // IDENTICAL payload shape to desktop submitRoleForm.
   const fields = {
@@ -219,9 +216,12 @@ async function mobileSubmitAddRole() {
     Currency:       location || undefined,   // desktop stores Location in Currency field
     Priority:       priVal ? parseInt(priVal) : undefined,
     Stage:          stage,
+    Department:     dept || undefined,
+  };
+  // N-307: headcount fields, applied to each of the hcCount new headcount.
+  const headcountValues = {
     OpenDate:       isoDate(openVal) || undefined,
     TargetHireDate: isoDate(targetVal) || undefined,
-    Department:     dept || undefined,
   };
 
   // N-218d: ghost-card variant -- the Roles list is the screen this sheet
@@ -242,7 +242,6 @@ async function mobileSubmitAddRole() {
     CustomerName:  projectName,
     TalentPartner: tp,
     Stage:         stage,
-    OpenDate:      fields.OpenDate,
   };
   const apply = () => {
     mobileCloseSheet();
@@ -257,20 +256,17 @@ async function mobileSubmitAddRole() {
     await optimisticWrite({
       apply,
       revert,
-      // N-306 (transitional, until N-307): headcount #1 carries the form's
-      // dates (no Backfill on the mobile form). A headcount failure must NOT
-      // reject commit — a Retry would create a duplicate role; the Data
-      // Health migration (re-runnable) creates any missing headcount.
+      // N-307: n headcount carry the form's dates (no Backfill on the mobile
+      // form). A headcount failure must NOT reject commit — a Retry would
+      // create a duplicate role; the missing headcount are added on the
+      // desktop role page.
       commit: async () => {
         const created = await createItem('Roles', fields);
         try {
-          await upsertPrimaryHeadcount(created.id, fields.ProjectIDLookupId, {
-            OpenDate:       fields.OpenDate,
-            TargetHireDate: fields.TargetHireDate,
-          });
+          await createHeadcountRows(created.id, fields.ProjectIDLookupId, hcCount, headcountValues);
         } catch (e) {
-          console.warn('N-306: headcount create failed for role ' + created.id, e);
-          mobileToast('Role saved, but its headcount row did not save — tell a Newton admin.', { type: 'error' });
+          console.warn('N-307: headcount create failed for role ' + created.id, e);
+          mobileToast(`Role saved, but only ${(e && e.created) || 0} of ${hcCount} headcount saved — add the rest on desktop.`, { type: 'error' });
         }
         return created;
       },

@@ -109,6 +109,12 @@ const CONFIG = {
     STATUS_OPEN:      'Open',
     STATUS_CANCELLED: 'Cancelled',
     labelTemplate:    'Headcount {n}',
+    // N-307: upper bound on how many headcount one Add Role / + Add
+    // headcount submit creates.
+    maxPerAdd:        20,
+    // N-307 (D-3): default stage when adding headcount reopens a Closed or
+    // Cancelled pipeline. Must be an open-pipeline stage (pinned by assertion).
+    reopenStage:      'Sourcing',
   },
 
   // ── Project types (N-116) ─────────────────────────────────────────

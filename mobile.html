@@ -259,6 +259,11 @@
       color: var(--c-brand);
     }
     .m-stage-btn:active { background: var(--c-brand-tint-pressed); }
+    /* N-307: Closed is disabled while headcount is open (D-2). */
+    .m-stage-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    /* N-307: stage-update hints — the D-2 Close block and D-1 cascade warning. */
+    .m-form-hint { font-size: 13px; color: var(--c-gray-750); margin-top: 8px; }
+    .m-form-hint[hidden] { display: none; }
 
     /* ── Action buttons ── */
     .m-action-row {

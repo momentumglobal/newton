@@ -82,10 +82,21 @@ async function mobileRenderStageUpdate(main) {
   try {
     const role = await getItem('Roles', _mobileRoleId);
     mobileSetTitle('Update Stage', role.RoleTitle);
+    // N-307: the role's headcount counts — a UI hint for the D-2 Close block
+    // and the D-1 cascade warning. A failed read leaves null; mobileSaveStage
+    // re-checks authoritatively through checkRoleStageChange either way.
+    let hcCounts = null;
+    try {
+      hcCounts = (await getRoleHeadcountState(_mobileRoleId)).counts;
+    } catch (e) {
+      console.warn('N-307: headcount read failed for role ' + _mobileRoleId, e);
+    }
+    const closeBlocked = !!(hcCounts && hcCounts.open > 0) && role.Stage !== CONFIG.ROLE_STAGE_CLOSED;
 
     const stageButtons = CONFIG.ROLE_STAGES.map(s => `
       <button class="m-stage-btn ${role.Stage === s ? 'active' : ''}"
         id="stage-btn-${s.replace(/\s+/g,'_').replace(/\+/g,'plus')}"
+        ${closeBlocked && s === CONFIG.ROLE_STAGE_CLOSED ? 'disabled' : ''}
         onclick="mobileSelectStage(this, '${s}')">
         ${s}
       </button>`).join('');
@@ -95,6 +106,8 @@ async function mobileRenderStageUpdate(main) {
         <div class="m-detail-label">Current Stage</div>
         <div class="m-detail-value" id="m-current-stage">${escHtml(role.Stage || '—')}</div>
         <div class="m-stage-grid">${stageButtons}</div>
+        ${closeBlocked ? `<div class="m-form-hint">Close is blocked while ${hcCounts.open} headcount ${hcCounts.open === 1 ? 'is' : 'are'} open.</div>` : ''}
+        <div class="m-form-hint" id="m-stage-cascade" hidden></div>
       </div>
       <div class="m-action-row">
         <button class="m-btn-primary" id="m-save-stage-btn"
@@ -104,6 +117,7 @@ async function mobileRenderStageUpdate(main) {
       </div>
     `;
     main._selectedStage = role.Stage;
+    main._hcCounts = hcCounts;
   } catch (e) {
     main.innerHTML = mobilePageError(e.message, `mobileRenderStageUpdate(document.getElementById('m-main'))`);
   }
@@ -112,18 +126,52 @@ async function mobileRenderStageUpdate(main) {
 function mobileSelectStage(btn, stage) {
   document.querySelectorAll('.m-stage-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('m-main')._selectedStage = stage;
-  document.getElementById('m-save-stage-btn').disabled = false;
+  const main = document.getElementById('m-main');
+  main._selectedStage = stage;
+  const saveBtn = document.getElementById('m-save-stage-btn');
+  saveBtn.disabled = false;
+  // N-307 (D-1): cancelling a pipeline also cancels its open headcount — say
+  // so before Save, and relabel Save so the tap is the confirmation.
+  const open = main._hcCounts ? main._hcCounts.open : 0;
+  const cascade = stage === 'Cancelled' && open > 0;
+  const note = document.getElementById('m-stage-cascade');
+  if (note) {
+    note.textContent = cascade ? `Cancelling also cancels ${open} open headcount.` : '';
+    note.hidden = !cascade;
+  }
+  saveBtn.textContent = cascade ? 'Cancel pipeline' : 'Save Stage';
 }
 
 async function mobileSaveStage() {
   const stage = document.getElementById('m-main')._selectedStage;
   const btn   = document.getElementById('m-save-stage-btn');
   if (!stage) return;
+  const label = btn.textContent;
   btn.disabled    = true;
   btn.textContent = 'Saving…';
+  // N-307: the Stage rule (D-1 / D-2 / S-2) — fails closed.
+  let check;
+  try {
+    check = await checkRoleStageChange(_mobileRoleId, stage);
+  } catch (e) {
+    check = { ok: false, reason: "Couldn't check this role's headcount — stage not changed." };
+  }
+  if (!check.ok) {
+    btn.disabled    = false;
+    btn.textContent = label;
+    mobileToast(check.reason, { type: 'error' });
+    return;
+  }
   try {
     await updateRoleWithHistory(_mobileRoleId, { Stage: stage });
+    if (check.cascadeCancel) {
+      try {
+        await cancelOpenHeadcount(_mobileRoleId, localDayISO());   // D-1, after the stage write
+      } catch (e) {
+        console.warn('N-307: headcount cascade cancel failed for role ' + _mobileRoleId, e);
+        mobileToast("Pipeline cancelled, but its open headcount wasn't — cancel it on desktop.", { type: 'error' });
+      }
+    }
     if (typeof mobileInvalidateRolesCache === 'function') mobileInvalidateRolesCache();
     mobileToast('Stage updated ✓');
     mobileNav('role-detail', false);

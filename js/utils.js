@@ -2591,3 +2591,85 @@ function checkHeadcountIntegrity({ roles = [], headcount = [], placements = [] }
   ];
   return checks.map(([key, label, sample]) => ({ key, label, count: sample.length, sample }));
 }
+
+// ── Headcount UI (N-307 / HC-2) ───────────────────────────────────────
+// Pure helpers behind the Roles table Headcount / Days Open columns, the
+// role page's Headcount section, the role forms and every Stage write.
+
+// Map<String(RoleID), headcount[]>.
+function groupHeadcountByRole(rows) {
+  return _groupByKey(rows, hc => String(hc.RoleID));
+}
+
+// { counts, oldestOpenDay } for one role. counts = headcountCounts().
+// oldestOpenDay = earliest OpenDate ('YYYY-MM-DD') among OPEN headcount that
+// have one — filled, cancelled and undated rows never drive days open (D-5).
+function headcountSummary(rows, fillMap) {
+  const counts = headcountCounts(rows, fillMap);
+  let oldestOpenDay = null;
+  (rows || []).forEach(hc => {
+    if (!hc || classifyHeadcount(hc, fillMap) !== 'open' || !hc.OpenDate) return;
+    const day = spDateIn(hc.OpenDate);
+    if (day && (oldestOpenDay === null || day < oldestOpenDay)) oldestOpenDay = day;
+  });
+  return { counts, oldestOpenDay };
+}
+
+// D-5 'x/y' (open / open + filled); '—' when there is nothing to count.
+function headcountXY(counts) {
+  return counts && counts.total > 0 ? `${counts.open}/${counts.total}` : '—';
+}
+
+// Title text for the x/y cell and the role page summary line.
+function headcountXYTitle(counts) {
+  const c = counts || { open: 0, filled: 0, cancelled: 0, total: 0 };
+  return `${c.open} open of ${c.total} · ${c.filled} filled · ${c.cancelled} cancelled`;
+}
+
+// The one Stage-change rule (D-1, D-2, N-307 S-2). Every Stage write path
+// checks it first, through checkRoleStageChange() (api.js). Returns
+// { ok, reason, cascadeCancel }.
+function roleStageChangeRule({ fromStage, toStage, counts } = {}) {
+  const from = normaliseRoleStage(fromStage);
+  const to   = normaliseRoleStage(toStage);
+  const open = (counts && counts.open) || 0;
+  if (to === from) return { ok: true, reason: '', cascadeCancel: false };
+  if (to === CONFIG.ROLE_STAGE_CLOSED && open > 0) {
+    return { ok: false, cascadeCancel: false,
+      reason: `Can't close — ${open} headcount still open. Fill or cancel ${open === 1 ? 'it' : 'them'} first.` };
+  }
+  if (to === 'Cancelled') return { ok: true, reason: '', cascadeCancel: open > 0 };
+  if (isOpenPipelineStage(to) && open === 0) {
+    return { ok: false, cascadeCancel: false,
+      reason: 'This pipeline has no open headcount — add one on the role page first.' };
+  }
+  return { ok: true, reason: '', cascadeCancel: false };
+}
+
+// N-307 S-5 (reused by N-308 after a fill): what to offer once a pipeline has
+// no open headcount left — 'close' when something was filled, 'cancel' when
+// nothing was, null while headcount is still open (or there is none at all).
+function pipelineAfterLastOpen(counts) {
+  if (!counts || counts.open > 0) return null;
+  if (counts.filled > 0) return 'close';
+  return (counts.total + counts.cancelled) > 0 ? 'cancel' : null;
+}
+
+// Open + ANALYTICS_BENCHMARKS.timeToHireDays, as 'YYYY-MM-DD'; null for blank.
+function defaultTargetHireDate(openDayISO) {
+  if (!openDayISO) return null;
+  return addDaysISO(openDayISO, CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays);
+}
+
+// Every non-terminal stage, in ROLE_STAGES order — the Add/Duplicate Stage
+// select (S-6) and the reopen-at-stage select (D-3). Derived, never a literal.
+function reopenStageOptions() {
+  return CONFIG.ROLE_STAGES.filter(s => !CONFIG.ROLE_STAGE_TERMINAL.includes(s));
+}
+
+// '# of Headcount' input → integer in 1..CONFIG.HEADCOUNT.maxPerAdd.
+function clampHeadcountCount(v) {
+  const n = Math.floor(Number(v));
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, CONFIG.HEADCOUNT.maxPerAdd);
+}

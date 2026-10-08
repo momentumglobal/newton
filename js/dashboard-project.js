@@ -36,18 +36,18 @@ async function renderProjectDashboard() {
     main.innerHTML = `<div class='page-header'><h2>Project Dashboard</h2></div><p>No project assigned. Contact your Admin.</p>`;
     return;
   }
-  const { roles, activity, placements, rejections, tpMap } = await fetchDashboardData(projectId, role);
+  const { roles, activity, placements, rejections, tpMap, hc } = await fetchDashboardData(projectId, role);
   const historical     = await getHistoricalPlacements();
   const analyticsActs  = await getActivityForAnalytics(52);
 
   // Cache for period filter updates (avoids full re-fetch on filter change)
-  window._dashCache = { roles, activity, placements, rejections, tpMap, analyticsActs, historical };
+  window._dashCache = { roles, activity, placements, rejections, tpMap, analyticsActs, historical, hc };
   const hideEmpty = html => html.includes('empty-state') ? '' : html;
   const roleAnalytics   = hideEmpty(await renderRoleAnalyticsPanel(roles, analyticsActs, historical, tpMap));
   const kpiPeriods      = [['month','Month'],['quarter','Quarter'],['year','Year']];
   const kpiBtns         = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
-  const kpis            = renderKPIStrip(roles, activity, _dashPeriod);
-  const longOpenProj    = hideEmpty(renderProjectLongOpenRolesPanel(roles, tpMap));
+  const kpis            = renderKPIStrip(roles, activity, _dashPeriod, placements, hc);
+  const longOpenProj    = hideEmpty(renderProjectLongOpenRolesPanel(roles, tpMap, hc.openSince));
   const roleTracker     = hideEmpty(renderRoleTrackerPanel(roles));
   const placementsPanel = hideEmpty(renderPlacementsPanel(placements, roles, _dashDetailPeriod));
   const pipelineAct     = hideEmpty(renderPipelineActivityTable(activity, roles, _dashDetailPeriod));
@@ -99,7 +99,7 @@ function setDashPeriod(period) {
   _dashPeriod = period;
   const el = document.getElementById('proj-kpi-area');
   if (el && window._dashCache) {
-  el.innerHTML = renderKPIStrip(window._dashCache.roles, window._dashCache.activity, _dashPeriod);
+  el.innerHTML = renderKPIStrip(window._dashCache.roles, window._dashCache.activity, _dashPeriod, window._dashCache.placements, window._dashCache.hc);
   runKpiCountUps(el);
   const btnsEl = document.getElementById('proj-kpi-btns');
   if (btnsEl) btnsEl.innerHTML = periodButtons([['month','Month'],['quarter','Quarter'],['year','Year']], _dashPeriod, 'setDashPeriod');

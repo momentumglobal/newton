@@ -9,6 +9,10 @@
 
 // --- Shared cache of the current scoped roles (for filtering without refetch) ---
 let _mRolesCache = null;
+// N-310 (S-10): oldestOpenHeadcountIndex() for the cached roles — always
+// loaded/cleared together with _mRolesCache (mobileLoadRolesCache). null =
+// headcount unavailable → pipelineOpenDay() falls back to Roles.OpenDate.
+let _mOpenSince = null;
 let _mRoleSearch = '';
 let _mRoleStage  = '';
 
@@ -19,8 +23,8 @@ let _mRoleStage  = '';
 // pending card has no real id yet, so it drops the onclick navigation
 // entirely and gets a row-pending class instead of a click affordance.
 function mobileRoleCardHtml(r, { pending = false } = {}) {
-  const days = r.OpenDate
-    ? Math.floor((Date.now() - new Date(r.OpenDate)) / 86400000) : null;
+  const openDay = pipelineOpenDay(r, _mOpenSince);
+  const days = openDay ? daysOpen(openDay) : null;
   const daysClass = days === null ? '' : days >= 45 ? 'alert' : days >= 30 ? 'warn' : '';
   const daysLabel = days !== null ? `${days}d open` : '';
   return `
@@ -40,16 +44,16 @@ async function mobileRenderReportingSummary(main) {
   main.innerHTML = '<div class="m-empty">Loading summary...</div>';
 
   try {
-    const roles = await mobileGetRoles();   // scoped, excludes Closed/Cancelled
-    _mRolesCache = roles;                    // warm the cache for the Roles tab
+    await mobileLoadRolesCache();            // scoped, excludes Closed/Cancelled; warms the Roles tab
+    const roles = _mRolesCache;
 
     const total = roles.length;
 
     // Open >= 45 days (alert) and >= 30 (watch)
-    const withDays = roles.map(r => ({
-      r,
-      days: r.OpenDate ? Math.floor((Date.now() - new Date(r.OpenDate)) / 86400000) : null,
-    }));
+    const withDays = roles.map(r => {
+      const openDay = pipelineOpenDay(r, _mOpenSince);   // N-310: oldest open headcount
+      return { r, days: openDay ? daysOpen(openDay) : null };
+    });
     const over45 = withDays.filter(x => x.days !== null && x.days >= 45).length;
     const over30 = withDays.filter(x => x.days !== null && x.days >= 30).length;
 
@@ -101,7 +105,7 @@ async function mobileRenderRolesFiltered(main) {
   main.innerHTML = '<div class="m-empty">Loading roles...</div>';
 
   try {
-    if (!_mRolesCache) _mRolesCache = await mobileGetRoles();
+    if (!_mRolesCache) await mobileLoadRolesCache();
     mobileDrawRolesList(main);
   } catch (e) {
     main.innerHTML = mobilePageError(e.message, `mobileRenderRolesFiltered(document.getElementById('m-main'))`);
@@ -209,7 +213,20 @@ function mobileRedrawRolesListOnly() {
 }
 
 // Call this after Add Role / Stage changes so the cache refreshes next view.
-function mobileInvalidateRolesCache() { _mRolesCache = null; }
+function mobileInvalidateRolesCache() { _mRolesCache = null; _mOpenSince = null; }
+
+// N-310 (S-10): load the scoped roles and their oldest-open-headcount index
+// together. A failed headcount read leaves _mOpenSince null (fallback).
+async function mobileLoadRolesCache() {
+  const [roles, openSince] = await Promise.all([
+    mobileGetRoles(),
+    Promise.all([getAllHeadcount(), getPlacementHeadcountIds()])
+      .then(([headcount, placementLinks]) => oldestOpenHeadcountIndex(headcount, placementLinks))
+      .catch(e => { console.warn('N-310: headcount read failed', e); return null; }),
+  ]);
+  _mRolesCache = roles;
+  _mOpenSince  = openSince;
+}
 
 // N-199: after a successful Add Role save (sheet closed), refresh the Roles
 // list in place — re-fetch so the new role appears, redraw only the list
@@ -219,7 +236,7 @@ async function mobileRefreshRolesListInPlace() {
   mobileInvalidateRolesCache();
   if (_mobileView !== 'roles') return;
   const scrollY = document.scrollingElement.scrollTop;
-  _mRolesCache = await mobileGetRoles();
+  await mobileLoadRolesCache();
   mobileDrawRolesList(document.getElementById('m-main'));
   document.scrollingElement.scrollTop = scrollY;
 }
@@ -233,6 +250,8 @@ async function mobileRefreshRolesListInPlace() {
 // redraw so scroll position and the search/filter inputs are preserved.
 async function mobilePullRefreshRoles() {
   _cacheInvalidate('Roles');
+  _cacheInvalidate('RoleHeadcount');   // N-310: days open follow headcount edits
+  _cacheInvalidate('Placements');
   await mobileRefreshRolesListInPlace();
 }
 

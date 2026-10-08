@@ -13,14 +13,6 @@ function activityInKpiPeriod(a, period) {
   if (period === 'year')    return year === cy;
   return true;
 }
-function roleHiredInKpiPeriod(r, period) {
-  if (!r.ActualHireDate) return false;
-  const d = new Date(r.ActualHireDate), now = new Date();
-  if (period === 'month')   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-  if (period === 'quarter') return d.getFullYear() === now.getFullYear() && Math.floor(d.getMonth()/3) === Math.floor(now.getMonth()/3);
-  if (period === 'year')    return d.getFullYear() === now.getFullYear();
-  return true;
-}
 // ── Detail period helpers ─────────────────────────────────────────────
 function getDetailPeriodRange(period) {
   const now = new Date();
@@ -75,9 +67,11 @@ async function fetchDashboardData(projectId, role) {
     getTalentPartnerDisplayMap(),
   ]);
   const roleIds = allRoles.map(r => r.id);
-  const [placements, rejections] = await Promise.all([
+  const [placements, rejections, headcount] = await Promise.all([
     getPlacements(null, { roleIds }),
     getRejectedOffers(null, { roleIds }),
+    // N-310 (S-11): a failed read degrades to the Roles.OpenDate fallback.
+    getAllHeadcount().catch(e => { console.warn('N-310: headcount read failed', e); return null; }),
   ]);
   let roles = allRoles, acts = activity;
   if (isTP) {
@@ -86,33 +80,27 @@ async function fetchDashboardData(projectId, role) {
     acts  = activity.filter(a => tpMatches(a.TalentPartner, userEmail));
   }
   const ids = new Set(roles.map(r => String(r.id)));
+  const scopedPlacements = placements.filter(p => ids.has(String(p.RoleIDLookupId)) || ids.has(String(p.RoleID)));
   return {
     roles,
     activity: acts,
-    placements: placements.filter(p => ids.has(String(p.RoleIDLookupId)) || ids.has(String(p.RoleID))),
+    placements: scopedPlacements,
     rejections: rejections.filter(r => ids.has(String(r.RoleIDLookupId)) || ids.has(String(r.RoleID))),
     tpMap,
+    // N-310 (S-1): built from the TP-narrowed roles + their all-time placements.
+    hc: dashboardHeadcountContext(roles, scopedPlacements, headcount),
   };
 }
+// N-310 (S-5): hire KPIs (analytics.js hireKpis) for a getDetailPeriodRange()
+// key — 'this_quarter', or getPreviousPeriod()'s result. null key → null.
+function hireKpisForPeriod(hires, periodKey) {
+  if (!periodKey) return null;
+  const { start, end } = getDetailPeriodRange(periodKey);
+  return hireKpis(hires, localDayISO(start), localDayISO(end));
+}
 // ── Calculation helpers ───────────────────────────────────────────────
-function avgDaysToHire(roles) {
-  const hired = roles.filter(r => r.ActualHireDate && r.OpenDate);
-  if (!hired.length) return null;
-  return Math.round(hired.reduce((s, r) =>
-    s + Math.floor((new Date(r.ActualHireDate) - new Date(r.OpenDate)) / 86400000), 0) / hired.length);
-}
-function avgDaysOpen(roles) {
-  const active = roles.filter(r =>
-    isOpenPipelineStage(r.Stage) && r.OpenDate);
-  if (!active.length) return null;
-  return Math.round(active.reduce((s, r) => s + daysOpen(r.OpenDate), 0) / active.length);
-}
-function hiredOnTimePct(roles) {
-  const hired = roles.filter(r => r.ActualHireDate && r.TargetHireDate);
-  if (!hired.length) return null;
-  return Math.round(hired.filter(r =>
-    new Date(r.ActualHireDate) <= new Date(r.TargetHireDate)).length / hired.length * 100);
-}
+// N-310: hire / days-open KPIs live in analytics.js (hireKpis,
+// hiredOnTimePct, avgOpenHeadcountDays) — per placement / headcount.
 // ── Delta helper ──────────────────────────────────────────────────────
 function kpiDelta(curr, prev, lowerIsBetter = false, isPercent = false) {
   if (curr === null || prev === null || prev === 0) return '';

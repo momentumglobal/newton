@@ -1,9 +1,16 @@
 // js/dashboard-project-panels.js — Project Dashboard panel renderers + Report Builder registry
-function renderKPIStrip(roles, activity, period) {
-  const openRoles    = roles.filter(r => isOpenPipelineStage(r.Stage)).length;
-  const totalHires   = sumField(activity, 'Hires');
+// N-310: `placements` = the dashboard's all-time placements, `hc` =
+// dashboardHeadcountContext() (built here with a null headcount when absent).
+function renderKPIStrip(roles, activity, period, placements = [], hc = null) {
+  hc = hc || dashboardHeadcountContext(roles, placements, null);
+  const openPipelines = roles.filter(r => isOpenPipelineStage(r.Stage));
+  const openRoles    = openPipelines.length;
+  // S-4: one placement = one filled headcount. Counted against `roles` so a
+  // caller passing an unscoped placements list (RB company scope) can't inflate it.
+  const roleIdSet    = new Set(roles.map(r => String(r.id)));
+  const totalHires   = placements.filter(p => roleIdSet.has(String(p.RoleIDLookupId)) || roleIdSet.has(String(p.RoleID))).length;
   const backlogRoles = roles.filter(r => r.Stage === 'Backlog').length;
-  const avgOpenDays  = avgDaysOpen(roles);
+  const avgOpenDays  = avgOpenHeadcountDays(openPipelines, hc.headcount, hc.fillMap);
   const acts      = activity.filter(a => activityInKpiPeriod(a, period));
   const submitted = sumField(acts, 'Submitted');
   const int1      = sumField(acts, 'Interview1');
@@ -12,13 +19,15 @@ function renderKPIStrip(roles, activity, period) {
   const convPct  = submitted > 0 ? Math.round((int1 / submitted) * 100) : null;
   const ivOfferR = offers > 0    ? Math.round(int1 / offers)            : null;
   const offerPct = offers > 0    ? Math.round((hires / offers) * 100)   : null;
-  const periodRoles = roles.filter(r => roleHiredInKpiPeriod(r, period));
-  const avgDays     = avgDaysToHire(periodRoles);
-  const onTimePct   = hiredOnTimePct(periodRoles);
+  const cur         = hireKpisForPeriod(hc.hires, 'this_' + period);
+  const avgDays     = cur ? cur.avgDays : null;
+  const onTimePct   = cur ? cur.onTimePct : null;
   const prevPeriod = getPreviousPeriod(period);
   const prevRange  = prevPeriod ? getDetailPeriodRange(prevPeriod) : null;
+  const prevHireKpis = hireKpisForPeriod(hc.hires, prevPeriod);
   let prevConvPct = null, prevIvOfferR = null, prevOfferPct = null;
-  let prevAvgDays = null, prevOnTimePct = null;
+  const prevAvgDays   = prevHireKpis ? prevHireKpis.avgDays : null;
+  const prevOnTimePct = prevHireKpis ? prevHireKpis.onTimePct : null;
   if (prevRange) {
     const prevActs = activity.filter(a => {
       const date = a.WeekEndingDate
@@ -33,19 +42,12 @@ function renderKPIStrip(roles, activity, period) {
     prevConvPct  = pSubmitted > 0 ? Math.round((pInt1 / pSubmitted) * 100) : null;
     prevIvOfferR = pOffers > 0    ? Math.round(pInt1 / pOffers)            : null;
     prevOfferPct = pOffers > 0    ? Math.round((pHires / pOffers) * 100)   : null;
-    const prevPeriodRoles = roles.filter(r => {
-      if (!r.ActualHireDate) return false;
-      const d = new Date(r.ActualHireDate);
-      return d >= prevRange.start && d <= prevRange.end;
-    });
-    prevAvgDays   = avgDaysToHire(prevPeriodRoles);
-    prevOnTimePct = hiredOnTimePct(prevPeriodRoles);
   }
   const periodLabel  = period === 'month' ? 'this month' : period === 'quarter' ? 'this quarter' : 'this year';
   const convDisplay  = convPct  !== null ? convPct + '%'   : '—';
   const ivDisplay    = ivOfferR !== null ? ivOfferR + ':1' : '—';
   const offerDisplay = offerPct !== null ? offerPct + '%'  : '—';
-    const daysDisplay  = avgDays  !== null ? avgDays         : '—';
+  const daysDisplay  = avgDays  !== null ? avgDays         : '—';
   const otDisplay    = onTimePct !== null ? onTimePct + '%' : '—';
   const avgOpenDaysDisplay = avgOpenDays !== null ? avgOpenDays : '—';
   const convDelta  = kpiDelta(convPct,  prevConvPct,  false, true);
@@ -59,13 +61,13 @@ function renderKPIStrip(roles, activity, period) {
       ${kpiCard('Role Backlog', backlogRoles, 'current')}
       ${kpiCard('Avg Days Open', avgOpenDaysDisplay, 'current')}
       ${kpiCard('Hires to Date', totalHires, 'all time')}
-      ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,  `hired roles · ${periodLabel}`)}
+      ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,  `per hire · ${periodLabel}`)}
     </div>
     <div class='kpi-strip kpi-strip-period'>
       ${kpiCard('Submission Conversion', convDisplay + convDelta,   periodLabel)}
       ${kpiCard('IV to Offer Ratio',     ivDisplay   + ivDelta,     periodLabel)}
       ${kpiCard('Offer Success',         offerDisplay + offerDelta, periodLabel)}
-      ${kpiCard('Hired On Time',         otDisplay    + otDelta,    `within 45-day target · ${periodLabel}`)}
+      ${kpiCard('Hired On Time',         otDisplay    + otDelta,    `by target hire date · ${periodLabel}`)}
     </div>`;
 }
 // ── Pipeline Activity table ───────────────────────────────────────────
@@ -268,20 +270,16 @@ function renderUpcomingStartersPanel(placements, roles) {
   </div>`;
 }
 // ── Actual Spend vs Budget ────────────────────────────────────────────
+// N-310 (S-8): paired per placement — per-head budget × hires with a salary
+// (budgetVsSpendByCurrency, analytics.js). Unpaired placements are counted
+// in a footnote, never in one column only.
 function renderSpendPanel(roles, placements) {
-  // Only consider roles that have at least one placement
-  const placedRoleIds = new Set(placements.map(p => String(p.RoleIDLookupId || p.RoleID || '')));
-  const placedRoles = roles.filter(r => placedRoleIds.has(String(r.id)));
-
-  const roleCurrencyMap = Object.fromEntries(
-    roles.map(r => [String(r.id), CONFIG.COUNTRY_CURRENCY[r.Location] || 'GBP'])
-  );
-  const currencies = [...new Set(placedRoles.filter(r => r.Budget).map(r => CONFIG.COUNTRY_CURRENCY[r.Location] || 'GBP'))];
-  if (!currencies.length) {
+  const { rows: ccyRows, excluded } = budgetVsSpendByCurrency(roles, placements);
+  if (!ccyRows.length) {
     return `<div class='dash-panel'><h3 class='panel-title'>Actual Spend vs Budget</h3>${emptyStateBlock({ icon: 'wallet', message: 'No budget data available.' })}</div>`;
   }
-  const totalBudget = placedRoles.filter(r => r.Budget).reduce((s, r) => s + (parseFloat(r.Budget) || 0), 0);
-  const totalSpend  = placements.filter(p => p.SalaryAgreed).reduce((s, p) => s + (parseFloat(p.SalaryAgreed) || 0), 0);
+  const totalBudget = ccyRows.reduce((s, r) => s + r.budget, 0);
+  const totalSpend  = ccyRows.reduce((s, r) => s + r.spend, 0);
   const overallPct  = totalBudget > 0 ? Math.round(((totalBudget - totalSpend) / totalBudget) * 100) : null;
   const overallLabel = overallPct === null ? '—'
     : overallPct >= 0 ? `${overallPct}% under budget` : `${Math.abs(overallPct)}% over budget`;
@@ -292,14 +290,7 @@ function renderSpendPanel(roles, placements) {
     const sym = SYMBOLS[ccy] || ccy;
     return Math.round(n).toLocaleString('en-GB') + ' ' + sym;
   };
-  const breakdownRows = currencies.map(ccy => {
-    const ccyRoles = placedRoles.filter(r => (CONFIG.COUNTRY_CURRENCY[r.Location] || 'GBP') === ccy && r.Budget);
-    const ccyPlacements = placements.filter(p => {
-      const rid = String(p.RoleIDLookupId || p.RoleID || '');
-      return (roleCurrencyMap[rid] || 'GBP') === ccy && p.SalaryAgreed;
-    });
-    const budget = ccyRoles.reduce((s, r) => s + (parseFloat(r.Budget) || 0), 0);
-    const spend  = ccyPlacements.reduce((s, p) => s + (parseFloat(p.SalaryAgreed) || 0), 0);
+  const breakdownRows = ccyRows.map(({ ccy, budget, spend }) => {
     const diff   = budget - spend;
     const diffColor = diff >= 0 ? 'var(--text-secondary)' : 'var(--status-danger)';
     const diffLabel = diff >= 0 ? `${fmt(diff, ccy)} under` : `${fmt(Math.abs(diff), ccy)} over`;
@@ -322,6 +313,7 @@ function renderSpendPanel(roles, placements) {
       <tbody>${breakdownRows}</tbody>
     </table>
     </div>
+    ${excluded > 0 ? `<p class='rb-footnote'>${excluded} ${excluded === 1 ? 'hire' : 'hires'} without salary or budget not counted</p>` : ''}
   </div>`;
 }
 // ── Detail period dropdown (project) ──────────────────────────────────
@@ -335,21 +327,19 @@ function detailPeriodDropdown() {
   </div>`;
 }
 // ── Roles open 30+ days panel (project-scoped) ────────────────────────
-function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
+// N-310 (S-7): days since each pipeline's OLDEST OPEN headcount opened
+// (pipelineOpenDay; openSince null → Roles.OpenDate fallback).
+function renderProjectLongOpenRolesPanel(roles, tpMap = {}, openSince = null) {
   const longOpen = roles
-    .filter(r => {
-      if (!isOpenPipelineStage(r.Stage)) return false;
-      if (!r.OpenDate) return false;
-      const days = daysOpen(r.OpenDate);
-      return days >= 30;
-    })
-    .sort((a, b) => new Date(a.OpenDate) - new Date(b.OpenDate));
+    .map(r => ({ r, day: pipelineOpenDay(r, openSince) }))
+    .filter(({ r, day }) => isOpenPipelineStage(r.Stage) && day && daysOpen(day) >= 30)
+    .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
   if (!longOpen.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Roles Open 30+ Days</h3>
     ${emptyStateBlock({ icon: 'briefcase', message: 'No roles open 30+ days.' })}
   </div>`;
-  const rows = longOpen.map(r => {
-    const days = daysOpen(r.OpenDate);
+  const rows = longOpen.map(({ r, day }) => {
+    const days = daysOpen(day);
     // N-257b: no whole-row tint — the Days Open cell carries the flag instead.
     return `<tr>
      <td>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</td>
@@ -544,7 +534,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
 // ── Report Builder Panel Registry ──────────────────────────────────
 const REPORT_PANELS = {
   kpiStrip: (data, period, kpiPeriod) =>
-    renderKPIStrip(data.roles, data.activity, kpiPeriod || 'quarter'),
+    renderKPIStrip(data.roles, data.activity, kpiPeriod || 'quarter', data.placements || [], data.hc || null),
 
   pipelineActivity: (data, period) =>
     renderPipelineActivityTable(data.activity, data.roles, period),
@@ -565,7 +555,7 @@ const REPORT_PANELS = {
     renderSpendPanel(data.roles, data.placements),
 
   rolesOpen30: (data) =>
-    renderProjectLongOpenRolesPanel(data.roles, data.tpMap || {}),
+    renderProjectLongOpenRolesPanel(data.roles, data.tpMap || {}, data.hc ? data.hc.openSince : null),
 
   roleTracker: (data) =>
     renderRoleTrackerPanel(data.roles),

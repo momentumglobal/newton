@@ -3324,4 +3324,105 @@ var ASSERTIONS = [
       _assertEqual(computeSnapshotMetrics(roles, [], [], [], {}, { headcount: [], fillMap: new Map() }).avgDaysOpen, null, 'no open headcount → null');
     },
   },
+  {
+    name: 'N-310 hireRowsWithTargets — N-309 rows + targetDate (headcount, role fallback)',
+    fn: function () {
+      const roles = [{ id: 1, RoleTitle: 'Eng', Department: 'Eng', Location: 'UK', OpenDate: '2026-01-01T12:00:00Z', TargetHireDate: '2026-02-15T12:00:00Z' },
+                     { id: 2, RoleTitle: 'PM', OpenDate: '2026-01-01T12:00:00Z' }];
+      const headcount = [{ id: 11, RoleID: 1, OpenDate: '2026-02-01T12:00:00Z', TargetHireDate: '2026-03-18T12:00:00Z' },
+                         { id: 12, RoleID: 1, OpenDate: null }];
+      const P = (id, roleId, hcId) => ({ id, RoleIDLookupId: roleId, HeadcountID: hcId, OfferAcceptedDate: '2026-03-01T12:00:00Z', TalentPartner: 'a@x.com' });
+      const placements = [P(101, 1, 11), P(102, 1, 12), P(103, 1, null), P(104, 1, 999), P(105, 2, null)];
+      const before = JSON.stringify([roles, headcount, placements]);
+      const out  = hireRowsWithTargets(placements, roles, headcount);
+      const base = historicalHiresFromPlacements(placements, roles, headcount);
+      _assertEqual(out.map(r => r.targetDate), ['2026-03-18T12:00:00Z', null, '2026-02-15T12:00:00Z', '2026-02-15T12:00:00Z', null],
+        'headcount target; headcount without target → null; blank/unknown HeadcountID → role target; neither → null');
+      _assertEqual(out.map(r => { const { targetDate, ...rest } = r; return rest; }), base, 'every other key identical to historicalHiresFromPlacements');
+      _assertEqual(JSON.stringify([roles, headcount, placements]), before, 'inputs not mutated');
+    },
+  },
+  {
+    name: 'N-310 dashboardHeadcountContext + pipelineOpenDay + nextOpenTargetDay',
+    fn: function () {
+      const roles = [{ id: 1, OpenDate: '2026-09-01T12:00:00Z' }, { id: 2, OpenDate: '2026-01-01T12:00:00Z' }];
+      const headcount = [
+        { id: 11, RoleID: 1, OpenDate: '2026-09-01T12:00:00Z', TargetHireDate: '2026-10-16T12:00:00Z' },
+        { id: 12, RoleID: 1, OpenDate: '2026-09-15T12:00:00Z', TargetHireDate: '2026-10-30T12:00:00Z' },
+        { id: 13, RoleID: 1, OpenDate: '2026-09-20T12:00:00Z', TargetHireDate: '2026-11-04T12:00:00Z' },
+        { id: 14, RoleID: 1, OpenDate: '2026-08-01T12:00:00Z', TargetHireDate: '2026-09-01T12:00:00Z', Status: CONFIG.HEADCOUNT.STATUS_CANCELLED },
+        { id: 91, RoleID: 9, OpenDate: '2026-01-01T12:00:00Z' },   // another project's role
+      ];
+      const placements = [{ id: 1, RoleIDLookupId: 1, HeadcountID: 11, OfferAcceptedDate: '2026-10-01T12:00:00Z' }];
+      const ctx = dashboardHeadcountContext(roles, placements, headcount);
+      _assertEqual(ctx.headcount.map(h => h.id), [11, 12, 13, 14], 'headcount limited to the given roles');
+      _assertEqual(Array.from(ctx.openSince.entries()), Array.from(oldestOpenHeadcountIndex(ctx.headcount, placements).entries()), 'openSince = oldestOpenHeadcountIndex');
+      _assertEqual(ctx.openSince.get('1'), '2026-09-15', 'filled + cancelled headcount ignored');
+      _assertEqual(ctx.hires.length, 1, 'hires built');
+      const nul = dashboardHeadcountContext(roles, placements, null);
+      _assertEqual([nul.headcount, nul.openSince], [null, null], 'null headcount → null headcount / openSince');
+      _assertEqual(nul.hires.map(r => r.openDate), ['2026-09-01T12:00:00Z'], 'null headcount → hires still built from the role-date fallback');
+      _assertEqual(pipelineOpenDay(roles[0], ctx.openSince), '2026-09-15', 'Map hit');
+      _assertEqual(pipelineOpenDay(roles[1], ctx.openSince), null, 'Map miss → null (no Roles.OpenDate fallback)');
+      _assertEqual(pipelineOpenDay(roles[0], null), '2026-09-01', 'null Map → spDateIn(Roles.OpenDate)');
+      _assertEqual(nextOpenTargetDay(ctx.headcount, ctx.fillMap), '2026-10-30', 'earliest target among OPEN headcount (filled 16 Oct, cancelled 1 Sep ignored)');
+      _assertEqual(nextOpenTargetDay([headcount[0]], ctx.fillMap), null, 'none open → null');
+    },
+  },
+  {
+    name: 'N-310 hiredOnTimePct + hireKpis — local-day ranges, D-5 exclusions',
+    fn: function () {
+      const R = (open, offer, target) => ({ openDate: open, placementDate: offer, targetDate: target });
+      const rows = [
+        R('2026-09-01T12:00:00Z', '2026-10-01T12:00:00Z', '2026-10-01T12:00:00Z'),   // 30 days, on target day → on time
+        R('2026-09-15T12:00:00Z', '2026-10-07T12:00:00Z', '2026-10-06T12:00:00Z'),   // 22 days, one day late
+        R(null,                   '2026-10-05T12:00:00Z', null),                     // not opened, no target
+        R('2026-08-01T12:00:00Z', '2026-10-01T00:00:00Z', '2026-12-01T12:00:00Z'),   // midnight-UTC shape: still 1 Oct (spDateIn, no local getter)
+        R('2026-06-01T12:00:00Z', '2026-09-29T12:00:00Z', '2026-12-01T12:00:00Z'),   // previous quarter
+      ];
+      _assertEqual(hiredOnTimePct(rows.slice(0, 3)), 50, 'inclusive day compare; no-target row excluded');
+      _assertEqual(hiredOnTimePct([R(null, '2026-10-01', null)]), null, 'nothing with a target → null');
+      _assertEqual(hiredOnTimePct([]), null, 'empty → null');
+      const q4 = hireKpis(rows, '2026-10-01', '2026-12-31');
+      _assertEqual(q4.count, 4, 'count includes the not-opened hire and the T00:00Z 1 Oct offer; excludes 29 Sep');
+      _assertEqual(q4.avgDays, Math.round((30 + 22 + 61) / 3), 'avgDays rounded, not-opened excluded');
+      _assertEqual(q4.onTimePct, 67, '2 of 3 targeted hires on time');
+      _assertEqual(hireKpis(rows, '2026-10-07', '2026-10-07').count, 1, 'range inclusive at both ends');
+      _assertEqual(hireKpis([R(null, '2026-10-05T12:00:00Z', null)], '2026-10-01', '2026-12-31'), { count: 1, avgDays: null, onTimePct: null }, 'no dated rows → avgDays null');
+    },
+  },
+  {
+    name: 'N-310 avgOpenHeadcountDays — the Snapshots S-8 rule, shared with the KPI tile',
+    fn: function () {
+      const now = new Date();
+      const ago = n => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - n, 12)).toISOString();
+      const open = [{ id: 1, OpenDate: ago(100) }, { id: 4, OpenDate: ago(30) }];
+      const H = (id, roleId, o, status) => ({ id, RoleID: roleId, OpenDate: o, Status: status || 'Open' });
+      const headcount = [H(11, 1, ago(10)), H(12, 1, ago(20)), H(13, 1, ago(100)), H(14, 1, ago(200), 'Cancelled'), H(15, 1, null), H(21, 2, ago(300)), H(41, 4, ago(30))];
+      const fillMap = headcountFillMap([{ HeadcountID: 13 }]);
+      _assertEqual(avgOpenHeadcountDays(open, headcount, fillMap), 20, '10, 20, 30 — filled / cancelled / undated / other-pipeline excluded');
+      _assertEqual(avgOpenHeadcountDays(open, null, null), 65, 'null headcount → legacy Roles.OpenDate mean');
+      _assertEqual(avgOpenHeadcountDays(open, [], new Map()), null, '[] → null (not the legacy path)');
+    },
+  },
+  {
+    name: 'N-310 budgetVsSpendByCurrency — paired per placement (S-8)',
+    fn: function () {
+      const roles = [
+        { id: 1, Location: 'UK', Budget: 50000 },
+        { id: 2, Location: 'Ireland', Budget: '40000' },
+        { id: 3, Location: 'UK' },                 // unbudgeted
+      ];
+      const P = (roleId, salary) => ({ RoleIDLookupId: roleId, SalaryAgreed: salary });
+      const placements = [P(1, 50000), P(1, '52000'), P(1, 48000), P(1, null), P(2, 41000), P(3, 60000), P(99, 10000)];
+      const out = budgetVsSpendByCurrency(roles, placements);
+      const ukCcy = CONFIG.COUNTRY_CURRENCY['UK'] || 'GBP';
+      const ptCcy = CONFIG.COUNTRY_CURRENCY['Ireland'] || 'GBP';
+      const uk = out.rows.find(r => r.ccy === ukCcy);
+      _assertEqual([uk.budget, uk.spend, uk.hires], ukCcy === ptCcy ? [190000, 191000, 4] : [150000, 150000, 3], 'per-head budget × hires with a salary');
+      if (ukCcy !== ptCcy) _assertEqual(out.rows.map(r => r.ccy), [ukCcy, ptCcy], 'split by role Location currency, first-appearance order');
+      _assertEqual(out.excluded, 3, 'no salary, unbudgeted role and unknown role are excluded from both sides');
+      _assertEqual(budgetVsSpendByCurrency([], []), { rows: [], excluded: 0 }, 'empty');
+    },
+  },
 ];

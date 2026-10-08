@@ -2,24 +2,32 @@
 let _companyPeriod       = 'quarter';
 let _companyDetailPeriod = 'this_month';
 // ── Company KPI strip ─────────────────────────────────────────────────
-function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period) {
+// N-310: `hc` = dashboardHeadcountContext() over all roles + all placements.
+function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period, hc = null) {
+  hc = hc || dashboardHeadcountContext(allRoles, [], null);
   const openRoles      = allRoles.filter(r => isOpenPipelineStage(r.Stage)).length;
   const activeProjects = allProjects.filter(p => p.Status === 'Active').length;
   const acts      = allActivity.filter(a => activityInKpiPeriod(a, period));
   const submitted = sumField(acts, 'Submitted');
   const int1      = sumField(acts, 'Interview1');
   const offers    = sumField(acts, 'Offers');
-  const hires     = sumField(acts, 'Hires');
+  // S-4: Offer Success stays on WeeklyActivity (offers only exist there);
+  // the Hires tile counts placements.
+  const actHires  = sumField(acts, 'Hires');
   const convPct  = submitted > 0 ? Math.round((int1 / submitted) * 100) : null;
   const ivOfferR = offers > 0    ? Math.round(int1 / offers)            : null;
-  const offerPct = offers > 0    ? Math.round((hires / offers) * 100)   : null;
-  const periodRoles = allRoles.filter(r => roleHiredInKpiPeriod(r, period));
-  const avgDays     = avgDaysToHire(periodRoles);
-  const onTimePct   = hiredOnTimePct(periodRoles);
+  const offerPct = offers > 0    ? Math.round((actHires / offers) * 100) : null;
+  const cur       = hireKpisForPeriod(hc.hires, 'this_' + period);
+  const hires     = cur ? cur.count : 0;
+  const avgDays   = cur ? cur.avgDays : null;
+  const onTimePct = cur ? cur.onTimePct : null;
   const prevPeriod = getPreviousPeriod(period);
   const prevRange  = prevPeriod ? getDetailPeriodRange(prevPeriod) : null;
-  let prevHires = null, prevConvPct = null, prevIvOfferR = null;
-  let prevOfferPct = null, prevAvgDays = null, prevOnTimePct = null;
+  const prevHireKpis = hireKpisForPeriod(hc.hires, prevPeriod);
+  const prevHires     = prevHireKpis ? prevHireKpis.count : null;
+  const prevAvgDays   = prevHireKpis ? prevHireKpis.avgDays : null;
+  const prevOnTimePct = prevHireKpis ? prevHireKpis.onTimePct : null;
+  let prevConvPct = null, prevIvOfferR = null, prevOfferPct = null;
   if (prevRange) {
     const prevActs = allActivity.filter(a => {
       const date = a.WeekEndingDate
@@ -30,17 +38,10 @@ function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period) {
     const pSubmitted = sumField(prevActs, 'Submitted');
     const pInt1      = sumField(prevActs, 'Interview1');
     const pOffers    = sumField(prevActs, 'Offers');
-    prevHires    = sumField(prevActs, 'Hires');
+    const pActHires  = sumField(prevActs, 'Hires');
     prevConvPct  = pSubmitted > 0 ? Math.round((pInt1 / pSubmitted) * 100) : null;
     prevIvOfferR = pOffers > 0    ? Math.round(pInt1 / pOffers)            : null;
-    prevOfferPct = pOffers > 0    ? Math.round((prevHires / pOffers) * 100): null;
-    const prevPeriodRoles = allRoles.filter(r => {
-      if (!r.ActualHireDate) return false;
-      const d = new Date(r.ActualHireDate);
-      return d >= prevRange.start && d <= prevRange.end;
-    });
-    prevAvgDays   = avgDaysToHire(prevPeriodRoles);
-    prevOnTimePct = hiredOnTimePct(prevPeriodRoles);
+    prevOfferPct = pOffers > 0    ? Math.round((pActHires / pOffers) * 100): null;
   }
   const hiresDelta  = kpiDelta(hires,    prevHires,    false, false);
   const convDelta   = kpiDelta(convPct,  prevConvPct,  false, true);
@@ -64,19 +65,20 @@ function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period) {
       ${kpiCard('Submission Conversion', convDisplay  + convDelta,    periodLabel)}
       ${kpiCard('IV to Offer Ratio',     ivDisplay    + ivDelta,      periodLabel)}
       ${kpiCard('Offer Success',         offerDisplay + offerDelta,   periodLabel)}
-      ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,    `hired roles · ${periodLabel}`)}
-      ${kpiCard('Hired On Time',         otDisplay    + otDelta,      `within 45-day target · ${periodLabel}`)}
+      ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,    `per hire · ${periodLabel}`)}
+      ${kpiCard('Hired On Time',         otDisplay    + otDelta,      `by target hire date · ${periodLabel}`)}
     </div>`;
 }
 // ── Roles open 30+ days panel (company) ──────────────────────────────
-function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}) {
-  const today    = new Date(); today.setHours(0,0,0,0);
+// N-310 (S-7): days since each pipeline's OLDEST OPEN headcount opened
+// (pipelineOpenDay; openSince null → Roles.OpenDate fallback).
+function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}, openSince = null) {
+  const openDayOf = r => pipelineOpenDay(r, openSince);
   const longOpen = allRoles
     .filter(r => {
       if (!isOpenPipelineStage(r.Stage)) return false;
-      if (!r.OpenDate) return false;
-      const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
-      return days >= 30;
+      const day = openDayOf(r);
+      return !!day && daysOpen(day) >= 30;
     })
     .sort((a, b) => {
       const pA = projectMap[String(a.ProjectIDLookupId || a.ProjectID)] || '';
@@ -89,7 +91,7 @@ function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}) {
   </div>`;
   const rows = longOpen.map(r => {
     const proj = projectMap[String(r.ProjectIDLookupId || r.ProjectID)] || '—';
-    const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
+    const days = daysOpen(openDayOf(r));
     // N-257b: no whole-row tint — the Days Open cell carries the flag instead.
     return `<tr>
      <td>${proj}</td>
@@ -150,22 +152,26 @@ function companyDetailPeriodDropdown() {
 async function renderCompanyDashboard() {
   const main = document.getElementById('main-content');
   main.innerHTML = dashboardSkeleton(8);
-  const [allProjects, allRoles, allActivity, tpMap] = await Promise.all([
+  const [allProjects, allRoles, allActivity, tpMap, allPlacements, allHeadcount] = await Promise.all([
     getProjects(false),
     getAllRoles(),
     getWeeklyActivity(null, null),
     getTalentPartnerDisplayMap(),
+    // N-310 (S-11): hire KPIs + days open; failures degrade, never break.
+    getPlacements(null).catch(e => { console.warn('N-310: placements read failed', e); return []; }),
+    getAllHeadcount().catch(e => { console.warn('N-310: headcount read failed', e); return null; }),
   ]);
+  const hc = dashboardHeadcountContext(allRoles, allPlacements, allHeadcount);
   const projectMap     = Object.fromEntries(allProjects.map(p => [String(p.id), escHtml(p.CustomerName)]));
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
   // Cache for period filter updates
-  window._coCache = { projects: allProjects, roles: allRoles, activity: allActivity, projectMap, roleProjectMap, tpMap };
+  window._coCache = { projects: allProjects, roles: allRoles, activity: allActivity, projectMap, roleProjectMap, tpMap, hc };
   const kpiPeriods = [['month','Month'],['quarter','Quarter'],['year','Year']];
   const kpiBtns    = periodButtons(kpiPeriods, _companyPeriod, 'setCompanyPeriod');
-  const kpis     = renderCompanyKPIStrip(allRoles, allActivity, allProjects, _companyPeriod);
-  const longOpen = renderLongOpenRolesPanel(allRoles, projectMap, tpMap);
+  const kpis     = renderCompanyKPIStrip(allRoles, allActivity, allProjects, _companyPeriod, hc);
+  const longOpen = renderLongOpenRolesPanel(allRoles, projectMap, tpMap, hc.openSince);
   const tpPanel  = renderCompanyTPPanel(allActivity, projectMap, roleProjectMap, _companyDetailPeriod, tpMap);
   main.innerHTML = `
     <div class='page-header'>
@@ -192,7 +198,7 @@ function setCompanyPeriod(period) {
   const el = document.getElementById('co-kpi-area');
   if (el && window._coCache) {
   const c = window._coCache;
-  el.innerHTML = renderCompanyKPIStrip(c.roles, c.activity, c.projects, _companyPeriod);
+  el.innerHTML = renderCompanyKPIStrip(c.roles, c.activity, c.projects, _companyPeriod, c.hc);
   runKpiCountUps(el);
   const btnsEl = document.getElementById('co-kpi-btns');
   if (btnsEl) btnsEl.innerHTML = periodButtons([['month','Month'],['quarter','Quarter'],['year','Year']], _companyPeriod, 'setCompanyPeriod');

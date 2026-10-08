@@ -595,7 +595,7 @@
         <tr><td><span class="file-tag">js/list-controls.js</span></td><td>Shared list-page controls (N-151/N-152) — <code>getProjectFilterOptions()</code>, <code>projectFilterDropdown()</code>, <code>periodFilterDropdown()</code>, <code>pageSizeDropdown()</code>, <code>listControlsBar()</code>, <code>listResultCount()</code>, <code>dateWindowLabel()</code>, <code>paginate()</code>, <code>sortableHeader()</code>, <code>focusSortHeader()</code> (N-247a — sortable column headers; the sort logic itself is in utils.js). <strong>Must load after utils.js/api.js and before pages.js</strong>, which calls all of it. The date window bounds the QUERY; the page size is render-only and never reaches a <code>$filter</code>.</td></tr>
         <tr><td><span class="file-tag">js/forms.js</span></td><td>Form renderers and submission logic for Reporting data entry</td></tr>
         <tr><td><span class="file-tag">js/bulk-activity.js</span></td><td>Bulk weekly activity grid (N-147) — <code>renderBulkActivityPage()</code>, <code>saveBulkActivity()</code>. A sub-view of the Weekly Activity page, not a <code>PAGES</code> entry. <strong>Must load after pages.js</strong>. Reads via <code>getWeeklyActivityForWeek()</code>, writes via <code>createItem()</code>/<code>updateItem()</code> — no Graph calls of its own. Only rows the user edited are written.</td></tr>
-        <tr><td><span class="file-tag">js/dashboard-core.js</span></td><td>Shared Dashboard state, helpers, KPI maths</td></tr>
+        <tr><td><span class="file-tag">js/dashboard-core.js</span></td><td>Shared Dashboard state, period helpers, <code>fetchDashboardData()</code> (incl. the <code>hc</code> headcount context), <code>hireKpisForPeriod()</code>. Hire / days-open maths live in analytics.js (N-310)</td></tr>
         <tr><td><span class="file-tag">js/dashboard-project-panels.js</span></td><td>Project Dashboard panel renderers (incl. Role Analytics panel), REPORT_PANELS registry</td></tr>
         <tr><td><span class="file-tag">js/dashboard-project.js</span></td><td>Project Dashboard entry/orchestration</td></tr>
         <tr><td><span class="file-tag">js/dashboard-company.js</span></td><td>Company Dashboard</td></tr>
@@ -1119,6 +1119,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <li>Integrity probes live on Admin → Data Health (<code>checkHeadcountIntegrity()</code>); every count must read 0.</li>
         <li><strong>Every Roles.Stage write runs <code>checkRoleStageChange()</code> first</strong> (api.js → <code>roleStageChangeRule()</code>, utils.js) and fails closed on a read error: Closed is refused while any headcount is open (D-2); an open-pipeline stage is refused with no open headcount; Cancelled cascades to every open headcount via <code>cancelOpenHeadcount()</code> — stage first, then headcount (D-1). Call sites: Roles inline dropdown / Command Bar, the role form, the mobile stage update, the role page (N-307).</li>
         <li><strong>Hire analytics are per filled headcount</strong> (N-309): <code>getHistoricalPlacements()</code> returns one row per placement with an Offer Accepted Date in the last year (<code>id</code> = pipeline id, <code>openDate</code> = the headcount's Open Date, <code>tpEmail</code> = the placer — <code>historicalHiresFromPlacements()</code>, utils.js). Never re-derive hires from <code>Roles.Stage</code> / <code>ActualHireDate</code>. Anything that decides whether a headcount is filled uses ALL placements, never a date window.</li>
+        <li><strong>Dashboard KPIs are per placement / per headcount too</strong> (N-310): build one <code>dashboardHeadcountContext()</code> (utils.js) per data load and read <code>hc.hires</code>, <code>hc.openSince</code>, <code>hc.headcount</code>; the maths are <code>hireKpis()</code>, <code>hiredOnTimePct()</code>, <code>avgOpenHeadcountDays()</code>, <code>budgetVsSpendByCurrency()</code> (analytics.js). Never read <code>Roles.ActualHireDate</code> / <code>TargetHireDate</code> / <code>OpenDate</code> for a hire or days-open metric — <code>pipelineOpenDay()</code> is the only <code>Roles.OpenDate</code> fallback (headcount read failed).</li>
         <li><strong>A placement is always recorded against an open headcount</strong> (N-308): the picker is <code>placementHeadcountGroups()</code>; submit re-reads the headcount with <code>getPlacementTarget()</code> and checks it with <code>validatePlacementHeadcount()</code> before any write, and fails closed. The role comes from the headcount row, never from the form. Placement forms never write to <code>Roles</code>.</li>
         <li>Reopening a Closed / Cancelled pipeline = adding headcount on the role page (D-3): headcount first, then the stage. The +45-day target default is <code>defaultTargetHireDate()</code> (<code>ANALYTICS_BENCHMARKS.timeToHireDays</code>) — never a literal.</li>
       </ul>
@@ -1240,6 +1241,17 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Dashboard hire metrics re-based on headcount (N-310, HC-4b)</div>
+        <ul>
+          <li>Project + Company KPI strips (and the Report Builder KPI Strip): Avg Days to Hire is per hire (headcount Open Date → Offer Accepted); Hired On Time compares each hire with its headcount's Target Hire Date; Avg Days Open averages open headcount (same rule as Snapshots). Period bounds compare local days.</li>
+          <li>Project "Hires to Date" and Company "Hires" count placements, not Weekly Activity hires. Offer Success is unchanged (activity offers and hires).</li>
+          <li>Roles Open 30+ Days (both dashboards, Report Builder), Market Report Days Open and mobile role cards / Summary use each pipeline's oldest open headcount. Mobile role detail shows Headcount x/y, Oldest open and Next target hire.</li>
+          <li>Actual Spend vs Budget pairs each placement's salary with its role's per-head budget; unpaired placements are noted, not counted on one side only.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>

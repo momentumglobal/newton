@@ -34,12 +34,22 @@ async function mobileSelectRole(roleId) {
 async function mobileRenderRoleDetail(main) {
   main.innerHTML = '<div class="m-empty">Loading…</div>';
   try {
-    const role = await getItem('Roles', _mobileRoleId);
+    // N-310 (S-10): read-only headcount summary (the Headcount section itself
+    // stays desktop-only, D-6). A failed headcount read falls back to
+    // Roles.OpenDate for "Oldest open" and "—" for the rest.
+    const [role, hcState] = await Promise.all([
+      getItem('Roles', _mobileRoleId),
+      getRoleHeadcountState(_mobileRoleId).catch(e => { console.warn('N-310: headcount read failed', e); return null; }),
+    ]);
     mobileSetTitle(role.RoleTitle, role.CustomerName || 'Role Detail');
 
-    const days = role.OpenDate
-      ? Math.floor((Date.now() - new Date(role.OpenDate)) / 86400000)
-      : null;
+    const openDay = hcState
+      ? headcountSummary(hcState.rows, hcState.fillMap).oldestOpenDay
+      : pipelineOpenDay(role, null);
+    const days       = openDay ? daysOpen(openDay) : null;
+    const nextTarget = hcState ? nextOpenTargetDay(hcState.rows, hcState.fillMap) : null;
+    const hcXY       = hcState ? headcountXY(hcState.counts) : '—';
+    const hcTitle    = hcState ? headcountXYTitle(hcState.counts) : '';
 
     main.innerHTML = `
       <div class="m-detail-panel">
@@ -49,10 +59,12 @@ async function mobileRenderRoleDetail(main) {
         <div class="m-detail-value">${escHtml(role.Stage || '—')}</div>
         <div class="m-detail-label">Talent Partner</div>
         <div class="m-detail-value">${escHtml(tpList(role.TalentPartner).join(', ')) || '—'}</div>
-        <div class="m-detail-label">Open Date</div>
-        <div class="m-detail-value">${spDateIn(role.OpenDate) || '—'}${days !== null ? ` (${days} days)` : ''}</div>
-        <div class="m-detail-label">Target Hire Date</div>
-        <div class="m-detail-value">${spDateIn(role.TargetHireDate) || '—'}</div>
+        <div class="m-detail-label">Headcount</div>
+        <div class="m-detail-value"${hcTitle ? ` title="${escAttr(hcTitle)}"` : ''}>${escHtml(hcXY)}</div>
+        <div class="m-detail-label">Oldest open</div>
+        <div class="m-detail-value">${openDay || '—'}${days !== null ? ` (${days} days)` : ''}</div>
+        <div class="m-detail-label">Next target hire</div>
+        <div class="m-detail-value">${nextTarget || '—'}</div>
       </div>
 
       <div class="m-action-row">

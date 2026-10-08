@@ -7,7 +7,7 @@ let _rbRoleId     = 'all';  // 'all' | role id — Project-scope role filter
 let _rbPeriod     = 'this_quarter';
 let _rbKpiPeriod  = 'quarter';
 let _rbReportId   = null;  // SharePoint item ID if editing a saved report
-let _rbReportData = null;  // Cached fetch result { roles, activity, placements, rejections }
+let _rbReportData = null;  // Cached fetch result { roles, activity, placements, rejections, tpMap, hc }
 let _rbTitle      = '';
 let _rbIncludeGantt = false;  // append Hiring Plan as landscape final page (CoE projects)
 let _rbProjectRoles = [];  // Roles for the selected project (drives Role dropdown)
@@ -372,12 +372,14 @@ async function rbFetchData() {
     if (!_rbProjectId) return null;
     // Talent Partners are scoped to their own assigned roles within the project.
     const tpEmail = _resolvedRole === 'talent_partner' ? getScopedUserEmail() : null;
-    const [allRoles, activity, placements, rejections, tpMap] = await Promise.all([
+    const [allRoles, activity, placements, rejections, tpMap, headcount] = await Promise.all([
       getRolesForProject(_rbProjectId, tpEmail),
       getWeeklyActivity(_rbProjectId, null),
       getPlacements(null),
       getRejectedOffers(null),
       getTalentPartnerDisplayMap(),
+      // N-310 (S-11): KPI Strip / Roles Open 30+ headcount context.
+      getAllHeadcount().catch(e => { console.warn('N-310: headcount read failed', e); return null; }),
     ]);
     // Apply the Role filter — narrow to a single role if one is selected.
     const roles = _rbRoleId === 'all'
@@ -386,23 +388,26 @@ async function rbFetchData() {
     const ids = new Set(roles.map(r => String(r.id)));
     // Always constrain to the roles id-set. For Admin/DM with "All Roles" this is
     // every project role (no-op); for a TP it narrows to their assigned roles.
+    const scopedPlacements = placements.filter(p => ids.has(String(p.RoleIDLookupId)) || ids.has(String(p.RoleID)));
     return {
       roles,
       activity:   activity.filter(a => ids.has(String(a.RoleIDLookupId)) || ids.has(String(a.RoleID))),
-      placements: placements.filter(p => ids.has(String(p.RoleIDLookupId)) || ids.has(String(p.RoleID))),
+      placements: scopedPlacements,
       rejections: rejections.filter(r => ids.has(String(r.RoleIDLookupId)) || ids.has(String(r.RoleID))),
       tpMap,
+      hc: dashboardHeadcountContext(roles, scopedPlacements, headcount),
     };
   } else {
     // Company scope — single call for all roles, matching Company Dashboard approach
-    const [roles, activity, placements, rejections, tpMap] = await Promise.all([
+    const [roles, activity, placements, rejections, tpMap, headcount] = await Promise.all([
       getRolesForUser(getCurrentUser().email),
       getWeeklyActivity(null, null),
       getPlacements(null),
       getRejectedOffers(null),
       getTalentPartnerDisplayMap(),
+      getAllHeadcount().catch(e => { console.warn('N-310: headcount read failed', e); return null; }),
     ]);
-    return { roles, activity, placements, rejections, tpMap };
+    return { roles, activity, placements, rejections, tpMap, hc: dashboardHeadcountContext(roles, placements, headcount) };
   }
 }
 

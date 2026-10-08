@@ -6,7 +6,7 @@ let _mrProjectId = null;   // Selected project ID (string)
 let _mrTam       = null;   // TAM value (number)
 let _mrTitle     = "";     // Report title
 let _mrObs       = "";     // Observations HTML from rich text editor
-let _mrData      = null;   // Cached { activity, role, rejections }
+let _mrData      = null;   // Cached { activity, role, rejections, openDay } — openDay = oldest open headcount day (N-310)
 
 // Library state (N-245)
 let _mrLibraryCache  = [];  // all saved reports, from the last load — unscoped,
@@ -152,20 +152,24 @@ async function mrGenerate() {
     '<p class="no-data" style="padding:32px">Loading...</p>';
 
   const roleId = parseInt(_mrRoleId);
-  const [activity, role, rejections] = await Promise.all([
+  const [activity, role, rejections, hcState] = await Promise.all([
     getWeeklyActivity(null, roleId),
     getItem("Roles", roleId),
     getRejectedOffers(roleId),
+    // N-310 (S-9): Days Open = oldest open headcount; a failed read falls
+    // back to Roles.OpenDate (pipeline opened).
+    getRoleHeadcountState(roleId).catch(e => { console.warn("N-310: headcount read failed", e); return null; }),
   ]);
-  _mrData = { activity, role, rejections };
+  const openDay = hcState
+    ? headcountSummary(hcState.rows, hcState.fillMap).oldestOpenDay
+    : (role.OpenDate ? spDateIn(role.OpenDate) || null : null);
+  _mrData = { activity, role, rejections, openDay };
 
   const totalOutreach  = sumField(activity, "Outreach");
   const totalResponses = sumField(activity, "Responses");
   const pctContacted   = Math.round((totalOutreach  / _mrTam) * 100);
   const pctResponded   = Math.round((totalResponses / _mrTam) * 100);
-  const daysOpen = role.OpenDate
-    ? Math.floor((Date.now() - new Date(role.OpenDate)) / 86400000)
-    : null;
+  const daysOpen = mrDaysOpen();
 
   const pipeline = {
     Screened:    sumField(activity, "Screened"),
@@ -183,6 +187,12 @@ async function mrGenerate() {
     pipeline, rejections, obsHtml: _mrObs,
   });
   mrInitEditor();
+}
+
+// N-310 (S-9): the one Days Open value for canvas, preview and PDF — days
+// since the role's oldest open headcount; null ("—") when none is dated.
+function mrDaysOpen() {
+  return _mrData && _mrData.openDay ? daysOpen(_mrData.openDay) : null;
 }
 
 function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
@@ -554,9 +564,7 @@ async function mrExportPdf() {
         title: _mrTitle, tam: _mrTam,
         pctContacted: Math.round((sumField(act, "Outreach")  / _mrTam) * 100),
         pctResponded: Math.round((sumField(act, "Responses") / _mrTam) * 100),
-        daysOpen: _mrData.role.OpenDate
-          ? Math.floor((Date.now() - new Date(_mrData.role.OpenDate)) / 86400000)
-          : null,
+        daysOpen: mrDaysOpen(),
         pipeline: {
           Screened:   sumField(act, "Screened"),
           Submitted:  sumField(act, "Submitted"),
@@ -584,9 +592,7 @@ function mrRenderPrintCanvas() {
   const totalResponses = sumField(activity, "Responses");
   const pctContacted   = Math.round((totalOutreach  / _mrTam) * 100);
   const pctResponded   = Math.round((totalResponses / _mrTam) * 100);
-  const daysOpen = role.OpenDate
-    ? Math.floor((Date.now() - new Date(role.OpenDate)) / 86400000)
-    : null;
+  const daysOpen = mrDaysOpen();
 
   const pipeline = {
     Screened:   sumField(activity, "Screened"),

@@ -2728,6 +2728,62 @@ function historicalHiresFromPlacements(placements, roles, headcount) {
   return out;
 }
 
+// N-310 (S-3): historicalHiresFromPlacements() rows + `targetDate` — the
+// headcount's TargetHireDate, or Roles.TargetHireDate when the placement has
+// no (known) headcount (same fallback as openDate). A separate function
+// because N-309's row shape is pinned. New objects; inputs never mutated.
+function hireRowsWithTargets(placements, roles, headcount) {
+  const roleById = new Map((roles || []).filter(Boolean).map(r => [String(r.id), r]));
+  const hcById   = new Map((headcount || []).filter(Boolean).map(hc => [String(hc.id), hc]));
+  return historicalHiresFromPlacements(placements, roles, headcount).map(row => {
+    const hc   = _isBlankId(row.headcountId) ? null : hcById.get(String(row.headcountId));
+    const role = roleById.get(String(row.id));
+    const targetDate = hc ? (hc.TargetHireDate || null) : ((role && role.TargetHireDate) || null);
+    return { ...row, targetDate };
+  });
+}
+
+// N-310 (S-1): one headcount context per dashboard data load — every KPI /
+// panel reads it. `placements` must be ALL-TIME placements for `roles` (the
+// fill map must never come from a date window). headcount === null (read
+// failed) → headcount/openSince null, and consumers fall back to
+// Roles.OpenDate (pipeline opened, model rule 3) via pipelineOpenDay().
+function dashboardHeadcountContext(roles, placements, headcount) {
+  const fillMap = headcountFillMap(placements);
+  if (headcount === null || headcount === undefined) {
+    return { headcount: null, fillMap, openSince: null, hires: hireRowsWithTargets(placements, roles, null) };
+  }
+  const roleIds = new Set((roles || []).filter(Boolean).map(r => String(r.id)));
+  const scoped  = headcount.filter(hc => hc && roleIds.has(String(hc.RoleID)));
+  return {
+    headcount: scoped,
+    fillMap,
+    openSince: oldestOpenHeadcountIndex(scoped, placements),
+    hires:     hireRowsWithTargets(placements, roles, scoped),
+  };
+}
+
+// N-310 (S-7): the one "days open since" day for a pipeline —
+// oldestOpenHeadcountIndex() value ('YYYY-MM-DD' | null); openSince null
+// (headcount unavailable) → legacy Roles.OpenDate.
+function pipelineOpenDay(role, openSince) {
+  if (!role) return null;
+  if (openSince instanceof Map) return openSince.get(String(role.id)) || null;
+  return role.OpenDate ? (spDateIn(role.OpenDate) || null) : null;
+}
+
+// N-310 (S-10): earliest TargetHireDate ('YYYY-MM-DD') among a role's OPEN
+// headcount; filled / cancelled ignored; null when none has one.
+function nextOpenTargetDay(rows, fillMap) {
+  let min = null;
+  (rows || []).forEach(hc => {
+    if (!hc || !hc.TargetHireDate || classifyHeadcount(hc, fillMap) !== 'open') return;
+    const day = spDateIn(hc.TargetHireDate);
+    if (day && (min === null || day < min)) min = day;
+  });
+  return min;
+}
+
 // D-5 'x/y' (open / open + filled); '—' when there is nothing to count.
 function headcountXY(counts) {
   return counts && counts.total > 0 ? `${counts.open}/${counts.total}` : '—';

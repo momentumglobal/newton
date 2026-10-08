@@ -270,6 +270,78 @@ function avgTimeToHireDays(rows) {
   return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
 }
 
+// ── Dashboard hire KPIs (N-310 / HC-4b) ──────────────────────────────
+// Rows are hireRowsWithTargets() (utils.js): one per placement, i.e. per
+// filled headcount. All maths on local days (spDateIn), never ms.
+
+// S-3: % of hires whose Offer Accepted day is on or before their headcount
+// TargetHireDate. Hires with no target are excluded; null when none count.
+function hiredOnTimePct(rows) {
+  const dated = (rows || []).filter(r => r && r.targetDate && r.placementDate &&
+    spDateIn(r.targetDate) && spDateIn(r.placementDate));
+  if (!dated.length) return null;
+  const onTime = dated.filter(r => spDateIn(r.placementDate) <= spDateIn(r.targetDate)).length;
+  return Math.round(onTime / dated.length * 100);
+}
+
+// S-4 / S-5: hire KPIs for the hires whose Offer Accepted day falls in
+// [fromDay, toDay] ('YYYY-MM-DD', inclusive). count includes not-opened
+// headcount (a hire is a hire); avgDays excludes them (D-5).
+function hireKpis(rows, fromDay, toDay) {
+  const inRange = (rows || []).filter(r => {
+    const d = r && r.placementDate ? spDateIn(r.placementDate) : null;
+    return !!d && d >= fromDay && d <= toDay;
+  });
+  const avg = avgTimeToHireDays(inRange);
+  return {
+    count:     inRange.length,
+    avgDays:   avg === null ? null : Math.round(avg),
+    onTimePct: hiredOnTimePct(inRange),
+  };
+}
+
+// S-6 / N-309 S-8: mean days open over OPEN, dated headcount on the given
+// (already open) pipelines — the one rule for the Project KPI "Avg Days Open"
+// and Snapshots AvgDaysOpen. headcount null → legacy mean over Roles.OpenDate.
+function avgOpenHeadcountDays(openRoles, headcount, fillMap) {
+  let openDates;
+  if (headcount) {
+    const openIds = new Set((openRoles || []).map(r => String(r.id)));
+    openDates = headcount
+      .filter(hc => hc && hc.OpenDate && openIds.has(String(hc.RoleID)) &&
+        classifyHeadcount(hc, fillMap) === 'open')
+      .map(hc => hc.OpenDate);
+  } else {
+    openDates = (openRoles || []).filter(r => r.OpenDate).map(r => r.OpenDate);
+  }
+  return openDates.length
+    ? Math.round(openDates.reduce((s, d) => s + daysOpen(d), 0) / openDates.length)
+    : null;
+}
+
+// S-8: Actual Spend vs Budget, paired per placement. Each placement whose
+// role has Budget > 0 AND whose SalaryAgreed > 0 adds the per-head budget
+// (D-4) and its salary, in the role's currency; anything else is left out of
+// BOTH sides and counted in `excluded`. rows in first-appearance order.
+function budgetVsSpendByCurrency(roles, placements) {
+  const roleById = new Map((roles || []).filter(Boolean).map(r => [String(r.id), r]));
+  const byCcy = new Map();
+  let excluded = 0;
+  (placements || []).forEach(p => {
+    if (!p) return;
+    const rid    = (p.RoleIDLookupId === null || p.RoleIDLookupId === undefined || p.RoleIDLookupId === '') ? p.RoleID : p.RoleIDLookupId;
+    const role   = roleById.get(String(rid));
+    const budget = role ? parseFloat(role.Budget) || 0 : 0;
+    const salary = parseFloat(p.SalaryAgreed) || 0;
+    if (!(budget > 0) || !(salary > 0)) { excluded++; return; }
+    const ccy = CONFIG.COUNTRY_CURRENCY[role.Location] || 'GBP';
+    if (!byCcy.has(ccy)) byCcy.set(ccy, { ccy, budget: 0, spend: 0, hires: 0 });
+    const row = byCcy.get(ccy);
+    row.budget += budget; row.spend += salary; row.hires++;
+  });
+  return { rows: Array.from(byCcy.values()), excluded };
+}
+
 function computeVelocityScore(tpEmail, activity, placements, benchmarks) {
   const pct = (n, d) => d > 0 ? Math.round((n / d) * 100) : null;
   const rag = (actual, bench, invert = false) => {
@@ -938,19 +1010,10 @@ function computeSnapshotMetrics(roles, weekActivity, weekPlacements, allActivity
     return acc;
   }, {});
 
-  let openDates;
-  if (headcountState) {
-    const openIds = new Set(openRoleSet.map(r => String(r.id)));
-    openDates = (headcountState.headcount || [])
-      .filter(hc => hc && hc.OpenDate && openIds.has(String(hc.RoleID)) &&
-        classifyHeadcount(hc, headcountState.fillMap) === 'open')
-      .map(hc => hc.OpenDate);
-  } else {
-    openDates = openRoleSet.filter(r => r.OpenDate).map(r => r.OpenDate);
-  }
-  const avgDaysOpen = openDates.length
-    ? Math.round(openDates.reduce((s, d) => s + daysOpen(d), 0) / openDates.length)
-    : null;
+  // N-310: one rule with the Project KPI tile (avgOpenHeadcountDays).
+  const avgDaysOpen = headcountState
+    ? avgOpenHeadcountDays(openRoleSet, headcountState.headcount || [], headcountState.fillMap)
+    : avgOpenHeadcountDays(openRoleSet, null, null);
 
   const flaggedCount = openRoleSet.filter(r => {
     const acts = allActivityForRoles.filter(a => String(a.RoleIDLookupId) === String(r.id));

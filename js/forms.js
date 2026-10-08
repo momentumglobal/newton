@@ -842,8 +842,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
             <label>Headcount *</label>
             <select name="HeadcountID" id="placement-hc-select" required
               onchange="loadCurrencyForPlacement(this.selectedOptions[0] ? this.selectedOptions[0].dataset.roleId : '')"
-              ${isTalentPartner ? `data-tp-email="${escAttr(email)}"` : ''}
-              ${isEdit ? `data-placement-id="${Number(existingData.id)}"` : ''}>
+              ${isTalentPartner ? `data-tp-email="${escAttr(email)}"` : ''}>
               ${headcountOptions}
             </select>
             <span class="form-hint">Open headcount on this project, earliest opened first. Not listed? Add headcount on the role page.</span>

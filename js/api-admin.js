@@ -213,3 +213,29 @@ async function writeHeadcountMigration(plan, onProgress) {
   });
   return { written, failed };
 }
+
+// N-312 (HC-6): re-point Hiring Plan rows from LinkedRoleID onto a headcount
+// (plan from planCoELinkMigration, utils.js). Same write shape as
+// linkCoEPlanRow (api-coe.js — not loaded on admin.html). A failed row is
+// reported; a re-run (dry run again) picks up only rows still unlinked.
+async function writeCoELinkMigration(plan, onProgress) {
+  let written = 0;
+  const failed = [];
+  const total = plan.items.length;
+  let done = 0;
+  await runWithConcurrency(plan.items, CONFIG.COE_LINK_MIGRATION.writeConcurrency, async item => {
+    try {
+      await updateItem('CoEPlanRows', item.row.id, {
+        LinkedHeadcountID: item.headcountId,
+        LinkedRoleID:      item.roleId,
+      });
+      written++;
+    } catch (e) {
+      console.warn('Hiring Plan link migration: write failed for row ' + item.row.id, e);
+      failed.push({ row: item.row, message: e.message });
+    }
+    done++;
+    if (typeof onProgress === 'function') onProgress(done, total);
+  });
+  return { written, failed };
+}

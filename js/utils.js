@@ -2963,3 +2963,126 @@ function placementFollowUp({ stage, counts } = {}) {
   if (pipelineAfterLastOpen(counts) === 'close') return 'close';
   return counts && counts.open > 0 ? 'stage' : null;
 }
+
+// ── Hiring Plan → headcount (N-312 / HC-6) ─────────────────────────────
+// A CoEPlanRows row tracks ONE hire slot: LinkedHeadcountID. LinkedRoleID is
+// kept in sync (= that headcount's RoleID) but nothing displays from it.
+
+// Link picker groups: [{ roleId, roleLabel, options:[{ id, roleId, current,
+// filled, label }] }]. Spec S-1 — linkable = not linked to another plan row,
+// not Cancelled, on a pipeline whose stage is not in excludedStages (the
+// caller passes PLAN_LINKABLE_EXCLUDED_STAGES from analytics.js, so this stays
+// pure). Filled headcount on a still-open pipeline ARE linkable. Per pipeline:
+// open headcount in D-5 order (orderOpenHeadcount), then filled by Sequence.
+// currentHeadcountId (the row's own link) is always listed, first in its
+// group, whatever its state. Groups alphabetical.
+function coeLinkableHeadcount({ roles = [], headcount = [], placements = [], planRows = [], currentHeadcountId = null, excludedStages = [] } = {}) {
+  const cur   = _isBlankId(currentHeadcountId) ? null : String(currentHeadcountId);
+  const fill  = headcountFillMap(placements);
+  const taken = new Set((planRows || [])
+    .map(r => r && r.LinkedHeadcountID).filter(v => !_isBlankId(v)).map(String));
+  const seq = hc => { const n = Number(hc.Sequence); return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER; };
+  const byRole = groupHeadcountByRole((headcount || []).filter(Boolean));
+  const groups = [];
+  (roles || []).forEach(role => {
+    if (!role) return;
+    const rows = byRole.get(String(role.id)) || [];
+    const free = rows.filter(hc => !taken.has(String(hc.id)));
+    let list = (excludedStages || []).includes(normaliseRoleStage(role.Stage)) ? [] : [
+      ...orderOpenHeadcount(free, fill),
+      ...free.filter(hc => classifyHeadcount(hc, fill) === 'filled').sort((a, b) => seq(a) - seq(b)),
+    ];
+    const curRow = cur === null ? null : rows.find(hc => String(hc.id) === cur);
+    if (curRow) list = [curRow, ...list.filter(hc => String(hc.id) !== cur)];
+    if (!list.length) return;
+    groups.push({
+      roleId:    Number(role.id),
+      roleLabel: placementRoleLabel(role),
+      options:   list.map(hc => {
+        const current = cur !== null && String(hc.id) === cur;
+        const filled  = classifyHeadcount(hc, fill) === 'filled';
+        return { id: Number(hc.id), roleId: Number(role.id), current, filled,
+                 label: coeLinkOptionLabel(hc, { filled, current }) };
+      }),
+    });
+  });
+  return groups.sort((a, b) => a.roleLabel.localeCompare(b.roleLabel));
+}
+
+// 'Headcount 2 · opened 2026-09-03 · filled · current' — the +Placement
+// picker's label (placementHeadcountOptionLabel) plus the two plan flags.
+function coeLinkOptionLabel(hc, { filled = false, current = false } = {}) {
+  let label = placementHeadcountOptionLabel(hc);
+  if (filled)  label += ' · filled';
+  if (current) label += ' · current';
+  return label;
+}
+
+// The actual bar for one linked headcount. placements = the placements
+// filling it (headcountFillMap entry; normally one). Values are the STORED
+// SharePoint strings — or `today` exactly as passed — because coe-plan.js
+// feeds them to its local-model week maths unchanged, as the role-based
+// overlay did (N-089). spDateIn days are used only to order placements.
+//   R = OpenDate → OfferAcceptedDate (cancelled: CancelledDate; open: today)
+//   N = OfferAcceptedDate → ProvisionalStartDate (or today)
+//   O starts at ProvisionalStartDate (length = the plan row's onboarding)
+// No OpenDate → no bar. 2+ placements (a Data Health error) → the earliest
+// offer, and that placement's start date.
+function coeHeadcountActualSpans(hc, placements, today) {
+  const out = { rStart: null, rEnd: null, nStart: null, nEnd: null, oStart: null };
+  if (!hc || !hc.OpenDate) return out;
+  out.rStart = hc.OpenDate;
+  const day = p => (p && p.OfferAcceptedDate ? spDateIn(p.OfferAcceptedDate) : null);
+  const plc = (placements || []).filter(Boolean).sort((a, b) => {
+    const da = day(a), db = day(b);
+    if (da === db) return 0;
+    if (da === null) return 1;
+    if (db === null) return -1;
+    return da < db ? -1 : 1;
+  })[0] || null;
+  if (plc && plc.OfferAcceptedDate) {
+    out.rEnd   = plc.OfferAcceptedDate;
+    out.nStart = plc.OfferAcceptedDate;
+    out.nEnd   = plc.ProvisionalStartDate || today;
+    out.oStart = plc.ProvisionalStartDate || null;
+  } else if (!plc && hc.Status === CONFIG.HEADCOUNT.STATUS_CANCELLED) {
+    out.rEnd = hc.CancelledDate || hc.OpenDate;
+  } else {
+    out.rEnd = today;
+  }
+  return out;
+}
+
+// Hiring Plan link migration — pure, idempotent. Each row with a LinkedRoleID
+// and no LinkedHeadcountID is linked to that role's LOWEST-Sequence headcount
+// (the one N-306's 1:1 migration created — spec S-3). Reported, never
+// written: noHeadcount (role has none), missingRole (role not in `roles`),
+// conflict (that headcount is already on another row, or claimed earlier in
+// this plan). Rows already holding a LinkedHeadcountID are never touched.
+function planCoELinkMigration({ coeRows = [], headcount = [], roles = [] } = {}) {
+  const roleIds = new Set((roles || []).filter(Boolean).map(r => String(r.id)));
+  const byRole  = groupHeadcountByRole((headcount || []).filter(Boolean));
+  const seq = hc => { const n = Number(hc.Sequence); return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER; };
+  const claimed = new Set((coeRows || [])
+    .map(r => r && r.LinkedHeadcountID).filter(v => !_isBlankId(v)).map(String));
+  const items = [], noHeadcount = [], missingRole = [], conflict = [];
+  const counts = { rows: 0, alreadyLinked: 0, toLink: 0, noHeadcount: 0, missingRole: 0, conflict: 0 };
+  (coeRows || []).forEach(row => {
+    if (!row) return;
+    counts.rows++;
+    if (!_isBlankId(row.LinkedHeadcountID)) { counts.alreadyLinked++; return; }
+    if (_isBlankId(row.LinkedRoleID)) return;
+    const rid = String(row.LinkedRoleID);
+    if (!roleIds.has(rid)) { missingRole.push(row); return; }
+    const hc = (byRole.get(rid) || []).slice().sort((a, b) => seq(a) - seq(b))[0];
+    if (!hc) { noHeadcount.push(row); return; }
+    if (claimed.has(String(hc.id))) { conflict.push({ row, headcountId: Number(hc.id) }); return; }
+    claimed.add(String(hc.id));
+    items.push({ row, headcountId: Number(hc.id), roleId: Number(hc.RoleID) });
+  });
+  counts.toLink      = items.length;
+  counts.noHeadcount = noHeadcount.length;
+  counts.missingRole = missingRole.length;
+  counts.conflict    = conflict.length;
+  return { items, counts, noHeadcount, missingRole, conflict };
+}

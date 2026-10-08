@@ -336,6 +336,7 @@ const CONFIG = {
     CoEPlanRows: [
       'Title', 'ProjectID', 'TalentPartner', 'OpenDate', 'RecruitmentWeeks',
       'NoticeWeeks', 'OnboardingWeeks', 'LinkedRoleID', 'SortOrder',
+      'LinkedHeadcountID',   // N-312: plain Number — the RoleHeadcount row the plan row tracks
     ],
     CoEPlanForecast: [
       'ProjectID', 'ForecastMonth', 'ForecastedHires',
@@ -455,6 +456,13 @@ const CONFIG = {
   // N-306 (HC-1). Headcount migration — Admin > Data Health. One-off tool,
   // same tunables as ROLE_HISTORY_BACKFILL above.
   HEADCOUNT_MIGRATION: {
+    writeConcurrency: 4,
+    previewRows:      50,
+  },
+
+  // N-312 (HC-6). Hiring Plan link migration — Admin > Data Health. Re-points
+  // CoEPlanRows.LinkedRoleID onto the role's first headcount. Same tunables.
+  COE_LINK_MIGRATION: {
     writeConcurrency: 4,
     previewRows:      50,
   },

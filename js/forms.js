@@ -262,6 +262,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
         <fieldset class="form-section">
           <legend class="form-section-title">Headcount</legend>
           <p class="form-section-note">Applied to each new headcount. Edit them one by one on the role page.</p>
+          <input type="hidden" name="LinkPlanRowID" value="">
           <div class="form-row">
             <div class="form-group">
               <label># of Headcount *</label>
@@ -400,6 +401,10 @@ async function submitRoleForm(event, editId = null) {
   // Deliberately separate objects, built after `fields` —
   // tests/lint-role-copy-fields.js parses `const fields = {`.
   const headcountCount  = clampHeadcountCount(data.HeadcountCount);
+  // N-312: set only when the form was opened by Hiring Plan "Create Headcount"
+  // (coe-plan.js) — the new pipeline's first headcount is linked to that row.
+  const planRowIdNum    = parseInt(data.LinkPlanRowID, 10);
+  const planRowId       = Number.isInteger(planRowIdNum) && planRowIdNum > 0 ? planRowIdNum : null;
   const headcountValues = {
     OpenDate:       isoDate(data.HcOpenDate) || undefined,
     TargetHireDate: isoDate(data.HcTargetHireDate) || undefined,
@@ -469,11 +474,23 @@ async function submitRoleForm(event, editId = null) {
       // missing headcount are added on the role page.
       commit: async () => {
         const created = await createRoleWithHistory(fields);
+        let headcountRows = [];
         try {
-          await createHeadcountRows(created.id, fields.ProjectIDLookupId, headcountCount, headcountValues);
+          headcountRows = await createHeadcountRows(created.id, fields.ProjectIDLookupId, headcountCount, headcountValues);
         } catch (e) {
           console.warn('N-307: headcount create failed for role ' + created.id, e);
           toast(`Role saved, but only ${(e && e.created) || 0} of ${headcountCount} headcount saved — add the rest on the role page.`, { type: 'error' });
+        }
+        // N-312: same rule as above — a link failure only toasts.
+        if (planRowId) {
+          try {
+            if (!headcountRows.length) throw new Error('no headcount to link');
+            await linkCoEPlanRow(planRowId, { id: headcountRows[0].id, RoleID: created.id });
+            toast('Linked to the Hiring Plan row', { type: 'success' });
+          } catch (e) {
+            console.warn('N-312: Hiring Plan link failed for role ' + created.id, e);
+            toast('Role saved, but not linked to the Hiring Plan row — use Link on the Hiring Plan.', { type: 'error' });
+          }
         }
         return created;
       },

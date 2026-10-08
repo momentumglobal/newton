@@ -523,6 +523,7 @@ async function buildDataHealthTab() {
     + _dhRenderSchemaCheckHtml(data)
     + _dhRenderErrorTelemetryHtml(data)
     + _dhRenderHeadcountMigrationHtml()
+    + _dhRenderCoELinkMigrationHtml()
     + _dhRenderRoleHistoryBackfillHtml()
     + _dhRenderPeoplePayMigrationHtml();
 }
@@ -1352,7 +1353,7 @@ function _dhRenderHeadcountPlanHtml(p) {
     ['Not linked — role has 2+ headcount', c.ambiguous],
     ['Placements on a role that no longer exists', c.orphanPlacements],
     ['Closed roles with no placement (headcount stays open)', c.closedNoPlacement],
-    ['Hiring Plan rows linked to a role (re-pointed by N-312)', c.coeLinkedRows],
+    ['Hiring Plan rows linked to a role (see Hiring Plan link migration below)', c.coeLinkedRows],
   ].map(([k, v]) => `
       <tr><td>${k}</td><td>${v.toLocaleString('en-GB')}</td></tr>`).join('');
 
@@ -1455,6 +1456,138 @@ async function writeHeadcountMigrationNow() {
         : 'Run the dry run again — it should report nothing to write. Then refresh this tab: Headcount integrity should read zero.'}
     </p>`;
   toast(result.failed.length ? `Headcount migration finished with ${result.failed.length} role(s) failed` : 'Headcount migration written',
+    { type: result.failed.length ? 'error' : 'success' });
+}
+
+// ── Data Health Tab — Hiring Plan link migration (N-312 / HC-6) ───────
+// One-off, re-runnable: each Hiring Plan row linked to a role (LinkedRoleID)
+// is linked to that role's first headcount (lowest Sequence — the one the
+// N-306 migration created). Plan is pure (planCoELinkMigration, utils.js);
+// writes are writeCoELinkMigration (api-admin.js). Rows that already have a
+// LinkedHeadcountID are never touched.
+let _coeLinkMigration = null;  // { plan, roleById, hcById } from the last dry run
+
+function _dhRenderCoELinkMigrationHtml() {
+  return `    <h3>Hiring Plan link migration (N-312)</h3>
+    <p class="dh-note">
+      Re-points each Hiring Plan row that is linked to a role onto that role's
+      first headcount. Run it after the headcount migration above. Safe to
+      re-run — a second dry run should report nothing to link.
+    </p>
+    <button class="btn-secondary" onclick="runCoELinkMigrationDryRun()">Dry run</button>
+    <div id="dh-coe-link-migration"></div>
+`;
+}
+
+function _dhRenderCoELinkPlanHtml(m) {
+  const C = CONFIG.COE_LINK_MIGRATION;
+  const p = m.plan;
+  const c = p.counts;
+  const summary = [
+    ['Hiring Plan rows read', c.rows],
+    ['Already linked to a headcount', c.alreadyLinked],
+    ['Rows to link', c.toLink],
+    ['Not linked — role has no headcount', c.noHeadcount],
+    ['Not linked — role no longer exists', c.missingRole],
+    ['Not linked — headcount already on another row', c.conflict],
+  ].map(([k, v]) => `
+      <tr><td>${k}</td><td>${v.toLocaleString('en-GB')}</td></tr>`).join('');
+
+  const rowLabel  = r => escHtml(r.Title || ('Row ' + r.id));
+  const roleLabel = id => {
+    const role = m.roleById[String(id)];
+    return role ? _dhRoleLabel(role) : escHtml('Role ' + id);
+  };
+  const hcLabel = id => {
+    const hc = m.hcById[String(id)];
+    return escHtml(hc ? (hc.Title || headcountLabel(hc.Sequence)) : ('Headcount ' + id));
+  };
+  const preview = p.items.slice(0, C.previewRows).map(it => `
+      <tr><td>${rowLabel(it.row)}</td><td>${roleLabel(it.roleId)} · ${hcLabel(it.headcountId)}</td></tr>`).join('');
+
+  const list = (title, rows) => rows.length
+    ? `<p class="dh-note">${title}: ${rows.join(', ')}</p>` : '';
+  const reported =
+      list('Role has no headcount — add one on the role page, then Link on the Hiring Plan', p.noHeadcount.map(r => rowLabel(r) + ' → ' + roleLabel(r.LinkedRoleID)))
+    + list('Role no longer exists — re-link on the Hiring Plan', p.missingRole.map(r => rowLabel(r) + ' → ' + roleLabel(r.LinkedRoleID)))
+    + list('Headcount already on another row — re-link on the Hiring Plan', p.conflict.map(x => rowLabel(x.row) + ' → ' + roleLabel(x.row.LinkedRoleID)));
+
+  const action = p.items.length
+    ? `<button class="btn-primary" onclick="writeCoELinkMigrationNow()">Link ${p.items.length.toLocaleString('en-GB')} rows</button>
+    <p class="dh-note" id="dh-coe-link-progress"></p>`
+    : '<p class="dh-note">Nothing to write.</p>';
+
+  return `
+    <div class="table-scroll">
+    <table class="data-table dh-table-tight">
+      <thead><tr><th>Dry run</th><th>Count</th></tr></thead>
+      <tbody>${summary}</tbody>
+    </table>
+    </div>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Hiring Plan row</th><th>Links to</th></tr></thead>
+      <tbody>${preview || emptyStateRow({ colspan: 2, icon: 'check', message: 'Every linked row is already on a headcount.' })}</tbody>
+    </table>
+    </div>
+    ${p.items.length > C.previewRows ? `<p class="dh-note">Showing the first ${C.previewRows} of ${p.items.length.toLocaleString('en-GB')} rows.</p>` : ''}
+    ${reported}
+    ${action}
+`;
+}
+
+async function runCoELinkMigrationDryRun() {
+  // N-106 pattern: capture the button synchronously, before any await.
+  const btn = event?.target;
+  const out = document.getElementById('dh-coe-link-migration');
+  setButtonLoading(btn, 'Reading…');
+  try {
+    const [coeRows, headcount, roles] = await Promise.all([
+      getAllCoEPlanRows(), getAllHeadcount(), getAllRoles(),
+    ]);
+    _coeLinkMigration = {
+      plan:     planCoELinkMigration({ coeRows, headcount, roles }),
+      roleById: Object.fromEntries(roles.map(r => [String(r.id), r])),
+      hcById:   Object.fromEntries(headcount.map(h => [String(h.id), h])),
+    };
+    out.innerHTML = _dhRenderCoELinkPlanHtml(_coeLinkMigration);
+    lucide.createIcons();
+  } catch (e) {
+    toast('Dry run failed: ' + e.message, { type: 'error' });
+  } finally {
+    clearButtonLoading(btn);
+  }
+}
+
+async function writeCoELinkMigrationNow() {
+  const btn = event?.target;
+  const m = _coeLinkMigration;
+  if (!m || !m.plan.items.length) return;
+  if (!(await confirmModal({
+    message: `Link ${m.plan.items.length} Hiring Plan row(s) to headcount? Safe to re-run.`,
+    confirmLabel: 'Write changes',
+  }))) return;
+  setButtonLoading(btn, 'Writing…');
+  const progress = document.getElementById('dh-coe-link-progress');
+  let result;
+  try {
+    result = await writeCoELinkMigration(m.plan, (n, total) => {
+      if (progress) progress.textContent = `Rows done ${n} of ${total}…`;
+    });
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Hiring Plan link migration failed: ' + e.message, { type: 'error' });
+    return;
+  }
+  _coeLinkMigration = null;
+  clearButtonLoading(btn);
+  document.getElementById('dh-coe-link-migration').innerHTML = `
+    <p class="dh-note"><strong>Linked ${result.written} Hiring Plan row(s).</strong>
+      ${result.failed.length
+        ? 'Failed for: ' + result.failed.map(f => escHtml(f.row.Title || ('Row ' + f.row.id))).join(', ') + ' — the browser console has the errors. Run the dry run again to pick up the rest.'
+        : 'Run the dry run again — it should report nothing to link.'}
+    </p>`;
+  toast(result.failed.length ? `Hiring Plan link migration finished with ${result.failed.length} row(s) failed` : 'Hiring Plan link migration written',
     { type: result.failed.length ? 'error' : 'success' });
 }
 

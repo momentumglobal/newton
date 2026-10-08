@@ -1,11 +1,13 @@
 // js/coe-plan.js — CoE Hiring Plan page (Reporting module)
 // Entry point: renderHiringPlanPage() — wired in nav.js
-// Data: CoEPlanRows + CoEPlanForecast lists via api.js getters.
+// Data: CoEPlanRows + CoEPlanForecast lists via api.js getters. N-312: a plan
+// row links to ONE hire slot — CoEPlanRows.LinkedHeadcountID → RoleHeadcount —
+// with LinkedRoleID kept in sync (linkCoEPlanRow / unlinkCoEPlanRow, api-coe.js).
 // Phase defaults: CONFIG.COE_PHASE_DEFAULTS. Handover excluded from v1.
 // coeGanttHtml() is a pure renderer shared with the Report Builder
 // (landscape final-page export) — no DOM access, no cache reads.
 
-let _coeCache = null;   // { projectId, planRows, roles, placements, forecast }
+let _coeCache = null;   // { projectId, planRows, roles, headcount, placements, forecast } — headcount null = read failed
 let _coeTPFilter = '';  // '' = all TPs
 
 // ── Date helpers ────────────────────────────────────────────────────
@@ -86,26 +88,27 @@ function coePhaseAt(row, timelineStart, weekIdx) {
   return '';
 }
 
-// ── Actuals overlay ─────────────────────────────────────────────────
-// R = Role.OpenDate → Role.ActualHireDate (or today if not yet hired)
-// N = Role.ActualHireDate → Placement.ProvisionalStartDate (or today)
-// O = Placement.ProvisionalStartDate + onboarding weeks (plan value)
+// ── Actuals overlay (N-312: per headcount) ──────────────────────────
+// spans = coeHeadcountActualSpans() (utils.js) for the row's linked headcount:
+// R = headcount OpenDate → placement OfferAcceptedDate (cancelled: its
+//     CancelledDate; still open: today)
+// N = OfferAcceptedDate → Placement.ProvisionalStartDate (or today)
+// O = Placement.ProvisionalStartDate + onboarding weeks (plan value, oWeeks)
+// Span values are stored SharePoint strings fed straight to coeWeekIndex —
+// the local date model above is unchanged (N-089).
 
-function coeActualPhaseAt(row, role, placement, timelineStart, weekIdx) {
-  if (!role || !role.OpenDate) return '';
-  const today = new Date();
-  const s = computePlanSpans(row);
-  const rStart = coeWeekIndex(timelineStart, role.OpenDate);
-  const hireIdx  = role.ActualHireDate ? coeWeekIndex(timelineStart, role.ActualHireDate) : null;
-  const startIdx = placement?.ProvisionalStartDate ? coeWeekIndex(timelineStart, placement.ProvisionalStartDate) : null;
-  const todayIdx = coeWeekIndex(timelineStart, today);
-  const rEnd = hireIdx !== null ? hireIdx : Math.min(todayIdx, rStart + 200);
+function coeActualPhaseAt(spans, oWeeks, timelineStart, weekIdx) {
+  if (!spans || !spans.rStart) return '';
+  const idx = d => coeWeekIndex(timelineStart, d);
+  const rStart = idx(spans.rStart);
+  // An open-ended R (no offer yet) is capped, as before N-312.
+  const rEnd = spans.nStart ? idx(spans.rEnd) : Math.min(idx(spans.rEnd), rStart + 200);
   if (weekIdx >= rStart && weekIdx < rEnd) return 'R';
-  if (hireIdx !== null) {
-    const nEnd = startIdx !== null ? startIdx : todayIdx;
-    if (weekIdx >= hireIdx && weekIdx < nEnd) return 'N';
+  if (spans.nStart && weekIdx >= idx(spans.nStart) && weekIdx < idx(spans.nEnd)) return 'N';
+  if (spans.oStart) {
+    const oStart = idx(spans.oStart);
+    if (weekIdx >= oStart && weekIdx < oStart + oWeeks) return 'O';
   }
-  if (startIdx !== null && weekIdx >= startIdx && weekIdx < startIdx + s.oWeeks) return 'O';
   return '';
 }
 
@@ -128,17 +131,24 @@ async function renderHiringPlanPage(selectedProjectId = null) {
   }
   const pid = selectedProjectId || projects[0].id;
 
-  const [planRows, roles, forecast] = await Promise.all([
+  const [planRows, roles, forecast, headcount] = await Promise.all([
     getCoEPlanRows(pid),
     getRolesForProject(pid),
     getCoEPlanForecast(pid),
+    // N-312: degrade, don't blank the page — a failed headcount read means no
+    // actual bars, and Link / Create Headcount say so when used.
+    getHeadcountForProject(pid).catch(e => { console.warn('Hiring Plan: headcount read failed', e); return null; }),
   ]);
-  // Placements only needed for linked rows
-  const linkedRoleIds = planRows.map(r => r.LinkedRoleID).filter(Boolean);
-  const placements = [];
-  for (const rid of linkedRoleIds) placements.push(...await getPlacements(rid));
+  // N-312: one placements read for the project's roles — the overlay and the
+  // link picker's "filled" label both need it. _odataIn drops the clause above
+  // CONFIG.ROLE_ID_FILTER_MAX and returns every placement, so always filter.
+  const roleIdSet = new Set(roles.map(r => String(r.id)));
+  const placements = roles.length
+    ? (await getPlacements(null, { roleIds: roles.map(r => r.id) }))
+        .filter(p => roleIdSet.has(String(p.RoleIDLookupId)))
+    : [];
 
-  _coeCache = { projectId: pid, projects, planRows, roles, placements, forecast, canEdit, isAdmin };
+  _coeCache = { projectId: pid, projects, planRows, roles, headcount, placements, forecast, canEdit, isAdmin };
   coeRenderBody();
 }
 
@@ -165,7 +175,7 @@ function coeRenderBody() {
       <span><span class="coe-swatch" style="background:var(--c-blue-pale)"></span> Recruitment</span>
       <span><span class="coe-swatch" style="background:var(--c-pink-pale)"></span> Notice</span>
       <span><span class="coe-swatch" style="background:var(--c-green-pale-border)"></span> Onboarding</span>
-      <span>Thin bar = actual (linked roles)</span>
+      <span>Thin bar = actual (linked headcount)</span>
     </div>
     <div id="coe-gantt"></div>
     <div class="page-header coe-fvp-header" style="margin-top:28px"><h3>Forecast vs Planned Hires</h3></div>
@@ -188,18 +198,19 @@ function coeSortRows(planRows) {
 
 // Thin DOM wrapper for the Hiring Plan page
 function coeRenderGantt() {
-  const { planRows, roles, placements, canEdit } = _coeCache;
+  const { planRows, headcount, placements, canEdit } = _coeCache;
   const host = document.getElementById('coe-gantt');
   const rows = coeSortRows(planRows.filter(r => !_coeTPFilter || r.TalentPartner === _coeTPFilter));
   if (!rows.length) { host.innerHTML = '<p>No planned roles yet.</p>'; return; }
-  host.innerHTML = coeGanttHtml(rows, { roles, placements, canEdit, showActuals: true });
+  host.innerHTML = coeGanttHtml(rows, { headcount, placements, canEdit, showActuals: true });
 }
 
 // Pure renderer — no DOM access, no cache reads. Returns the Gantt table HTML.
-// opts: roles, placements (for actuals overlay), canEdit (actions column),
-//       showActuals (thin actual bars on linked rows)
+// opts: headcount, placements (actuals overlay + 🔗 — N-312: per headcount),
+//       canEdit (actions column), showActuals (thin actual bars on linked rows).
+//       The Report Builder passes neither headcount nor placements: plan only.
 function coeGanttHtml(rows, opts = {}) {
-  const { roles = [], placements = [], canEdit = false, showActuals = true } = opts;
+  const { headcount = [], placements = [], canEdit = false, showActuals = true } = opts;
 
   // Timeline: earliest plan/actual start → latest plan end, +2wk buffer each side
   const spans = rows.map(computePlanSpans);
@@ -220,9 +231,11 @@ function coeGanttHtml(rows, opts = {}) {
   }
   monthCells.push({ label: curLabel, span });
 
-  const roleById = Object.fromEntries(roles.map(r => [String(r.id), r]));
-  const placementByRole = {};
-  placements.forEach(p => { placementByRole[String(p.RoleIDLookupId)] = p; });
+  // N-312: keyed on String — SP item ids arrive as strings, the Number
+  // columns (LinkedHeadcountID, HeadcountID) as numbers.
+  const hcById  = Object.fromEntries((headcount || []).map(h => [String(h.id), h]));
+  const fillMap = headcountFillMap(placements);
+  const now     = new Date();
 
   // Capacity counts
   const cap = { R: Array(nWeeks).fill(0), N: Array(nWeeks).fill(0), O: Array(nWeeks).fill(0) };
@@ -242,12 +255,13 @@ function coeGanttHtml(rows, opts = {}) {
 
   const bodyHtml = rows.map(row => {
     const s = computePlanSpans(row);
-    const role = row.LinkedRoleID ? roleById[String(row.LinkedRoleID)] : null;
-    const plc  = role ? placementByRole[String(role.id)] : null;
+    const linked = !_isBlankId(row.LinkedHeadcountID);
+    const hc = linked ? (hcById[String(row.LinkedHeadcountID)] || null) : null;
+    const actual = showActuals && hc ? coeHeadcountActualSpans(hc, fillMap.get(String(hc.id)), now) : null;
     const cells = [];
     for (let w = 0; w < nWeeks; w++) {
       const ph  = coePhaseAt(row, tStart, w);
-      const aph = showActuals ? coeActualPhaseAt(row, role, plc, tStart, w) : '';
+      const aph = coeActualPhaseAt(actual, s.oWeeks, tStart, w);
       const cls = ['coe-cell',
         ph  ? `coe-cell--${ph}`  : '',
         aph ? `coe-cell--a${aph}` : '',
@@ -256,12 +270,12 @@ function coeGanttHtml(rows, opts = {}) {
     }
     const actions = canEdit ? `<td class="coe-col-actions"><div class="coe-row-actions">
         <button class="btn-secondary" onclick="coeOpenRowModal(${row.id})">Edit</button>
-        <button class="btn-secondary" onclick="coeOpenLinkPicker(${row.id})">${row.LinkedRoleID ? 'Re-link' : 'Link'}</button>
-        ${!row.LinkedRoleID ? `<button class="btn-secondary" onclick="coeCreateRoleFromRow(${row.id})">Create Role</button>` : ''}
+        <button class="btn-secondary" onclick="coeOpenLinkPicker(${row.id})">${linked ? 'Re-link' : 'Link'}</button>
+        ${!linked ? `<button class="btn-secondary" onclick="coeCreateHeadcountFromRow(${row.id})">Create Headcount</button>` : ''}
         <button class="btn-secondary" onclick="coeDeleteRow(${row.id})">✕</button>
       </div></td>` : '';
     return `<tr>
-      <td class="coe-sticky coe-sticky--1">${escHtml(row.Title)}${role ? ' 🔗' : ''}</td>
+      <td class="coe-sticky coe-sticky--1">${escHtml(row.Title)}${hc ? ' 🔗' : ''}</td>
       <td class="coe-sticky coe-sticky--2">${escHtml(row.TalentPartner || '—')}</td>
       <td class="coe-sticky coe-sticky--3">${coeFmtShort(row.OpenDate)}</td>
       <td class="coe-sticky coe-sticky--4">${coeFmtShort(s.targetHireDate)}</td>
@@ -448,27 +462,49 @@ async function coeDeletePlan() {
   }
 }
 
-// ── Roles linkage ───────────────────────────────────────────────────
+// ── Headcount linkage (N-312 / HC-6) ────────────────────────────────
+// A plan row links to ONE headcount. The picker population is spec S-1
+// (coeLinkableHeadcount, utils.js): not linked elsewhere, not cancelled, on a
+// pipeline outside PLAN_LINKABLE_EXCLUDED_STAGES (Backlog stays linkable);
+// filled headcount on an open pipeline are offered, labelled "filled".
+
+let _coeBusy = false;   // one link / create write at a time (N-106)
+
+function _coeRowById(rowId) {
+  // SP item ids arrive as strings, onclick emits numbers — compare as strings.
+  return (_coeCache.planRows || []).find(r => String(r.id) === String(rowId)) || null;
+}
+
+function _coeHeadcountUnavailable() {
+  if (_coeCache.headcount) return false;
+  toast("Couldn't load this project's headcount — refresh and try again.", { type: 'error' });
+  return true;
+}
 
 function coeOpenLinkPicker(rowId) {
-  const { roles, planRows } = _coeCache;
-  // LinkedRoleID is stored as a number, r.id arrives as a string — key on String.
-  const linked = new Set(planRows.map(r => r.LinkedRoleID).filter(Boolean).map(String));
-  // Linkable = not already linked, not closed. Backlog is deliberately included.
-  const opts = roles
-    .filter(r => !linked.has(String(r.id)) && !PLAN_LINKABLE_EXCLUDED_STAGES.includes(r.Stage))
-    .map(r => `<option value="${r.id}">${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</option>`).join('')
-    || '<option value="" disabled>-- No active roles available --</option>';
+  if (_coeHeadcountUnavailable()) return;
+  const { roles, headcount, placements, planRows } = _coeCache;
+  const row = _coeRowById(rowId);
+  const linked = !!row && !_isBlankId(row.LinkedHeadcountID);
+  const groups = coeLinkableHeadcount({
+    roles, headcount, placements, planRows,
+    currentHeadcountId: linked ? row.LinkedHeadcountID : null,
+    excludedStages: PLAN_LINKABLE_EXCLUDED_STAGES,
+  });
+  const opts = groups.length
+    ? groups.map(g => `<optgroup label="${escAttr(g.roleLabel)}">` + g.options.map(o =>
+        `<option value="${Number(o.id)}"${o.current ? ' selected' : ''}>${escHtml(o.label)}</option>`).join('') + '</optgroup>').join('')
+    : '<option value="" disabled>-- No linkable headcount — add headcount on the role page --</option>';
 
   document.getElementById('coe-modal-host').innerHTML = `
     <div style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
     <div class="form-container form-container--modal" id="coe-link-modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
-      <h2>Link to Live Role</h2>
-      <div class="form-group"><label>Role</label>
-        <select id="coe-link-select"><option value="">-- Select role --</option>${opts}</select></div>
+      <h2>Link to Headcount</h2>
+      <div class="form-group"><label>Headcount</label>
+        <select id="coe-link-select"><option value="">-- Select headcount --</option>${opts}</select></div>
       <div class="form-actions">
-        <button class="btn-primary" onclick="coeSaveLink(${rowId})">Link</button>
-        <button class="btn-secondary" onclick="coeSaveLink(${rowId}, true)">Unlink</button>
+        <button class="btn-primary" onclick="coeSaveLink(${Number(rowId)})">Link</button>
+        ${linked ? `<button class="btn-secondary" onclick="coeSaveLink(${Number(rowId)}, true)">Unlink</button>` : ''}
         <button class="btn-secondary" onclick="document.getElementById('coe-modal-host').innerHTML=''">Cancel</button>
       </div>
     </div>
@@ -477,22 +513,165 @@ function coeOpenLinkPicker(rowId) {
 }
 
 async function coeSaveLink(rowId, unlink = false) {
-  const val = unlink ? null : parseInt(document.getElementById('coe-link-select').value) || null;
-  await updateCoEPlanRow(rowId, { LinkedRoleID: val });
+  // N-106 pattern: capture the button synchronously, before any await.
+  const btn = event?.target;
+  if (_coeBusy) return;
+  let hc = null;
+  if (!unlink) {
+    const val = document.getElementById('coe-link-select').value;
+    hc = (_coeCache.headcount || []).find(h => String(h.id) === String(val)) || null;
+    if (!hc) { toast('Choose a headcount to link.', { type: 'error' }); return; }
+  }
+  _coeBusy = true;
+  setButtonLoading(btn);
+  try {
+    if (unlink) await unlinkCoEPlanRow(rowId);
+    else await linkCoEPlanRow(rowId, hc);
+  } catch (e) {
+    _coeBusy = false;
+    clearButtonLoading(btn);
+    toast(`Couldn't save the link: ${e.message}`, { type: 'error' });
+    return;
+  }
+  _coeBusy = false;
   await renderHiringPlanPage(_coeCache.projectId);
 }
 
-// "Create Role from row" — opens the existing Add Role form pre-filled.
-// After the role is saved (form navigates to Roles page), return to the
-// Hiring Plan and use Link to connect the new role to the plan row.
-async function coeCreateRoleFromRow(rowId) {
-  const row = _coeCache.planRows.find(r => String(r.id) === String(rowId));
+// "Create Headcount" — one new headcount for the row, linked straight back:
+//   existing pipeline (S-4): a pipeline in this project outside
+//     PLAN_LINKABLE_EXCLUDED_STAGES — Closed is not offered; reopening a
+//     Closed pipeline (D-3) stays on the role page;
+//   new pipeline (S-6): the Add Role form, pre-filled; submitRoleForm links
+//     its first headcount to the row via the hidden LinkPlanRowID field.
+// Dates (S-5) pre-fill from the row — Planned Open Date and the derived Target
+// Hire (Open + Recruitment weeks) — and are editable; a cleared Open Date gives
+// a "planned, not active" headcount.
+function coeCreateHeadcountFromRow(rowId) {
+  const { roles, headcount } = _coeCache;
+  const row = _coeRowById(rowId);
+  if (!row) return;
+  const pipelines = (roles || [])
+    .filter(r => !PLAN_LINKABLE_EXCLUDED_STAGES.includes(normaliseRoleStage(r.Stage)))
+    .sort((a, b) => placementRoleLabel(a).localeCompare(placementRoleLabel(b)));
+  const canExisting = !!headcount && pipelines.length > 0;
+  const openDay   = row.OpenDate ? (spDateIn(row.OpenDate) || '') : '';
+  // targetHireDate is a local-midnight Date (coe model) — localDayISO, not UTC.
+  const targetDay = row.OpenDate ? (localDayISO(computePlanSpans(row).targetHireDate) || '') : '';
+  const roleOpts = pipelines.map(r =>
+    `<option value="${Number(r.id)}">${escHtml(placementRoleLabel(r))}</option>`).join('');
+  const why = !headcount ? "Couldn't load headcount — only a new pipeline can be created."
+    : 'No open pipelines on this project — create a new one.';
+
+  document.getElementById('coe-modal-host').innerHTML = `
+    <div style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
+    <div class="form-container form-container--modal" id="coe-create-modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
+      <h2>Create Headcount</h2>
+      <p class="form-section-note">For plan row: ${escHtml(row.Title || '')}</p>
+      <div class="form-group">
+        <label class="role-hc-check"><input type="radio" name="coe-create-mode" value="existing" onchange="coeCreateModeChange()"${canExisting ? ' checked' : ' disabled'}> Add to an existing pipeline</label>
+        <label class="role-hc-check"><input type="radio" name="coe-create-mode" value="new" onchange="coeCreateModeChange()"${canExisting ? '' : ' checked'}> Create a new pipeline (opens Add Role)</label>
+        ${canExisting ? '' : `<p class="form-section-note">${escHtml(why)}</p>`}
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="coe-create-open">Open Date</label>
+          <input type="date" id="coe-create-open" value="${escAttr(openDay)}" onchange="rpAutoTarget('coe-create-open', 'coe-create-target')">
+        </div>
+        <div class="form-group">
+          <label for="coe-create-target">Target Hire Date</label>
+          <input type="date" id="coe-create-target" value="${escAttr(targetDay)}">
+        </div>
+      </div>
+      <p class="form-section-note">From the plan row. Clear Open Date for a headcount that is planned, not yet active.</p>
+      <div id="coe-create-existing"${canExisting ? '' : ' hidden'}>
+        <div class="form-group"><label for="coe-create-role">Pipeline *</label>
+          <select id="coe-create-role"><option value="">-- Select pipeline --</option>${roleOpts}</select></div>
+        <div class="form-group">
+          <label class="role-hc-check"><input type="checkbox" id="coe-create-backfill"> Backfill</label>
+        </div>
+        <div class="form-group">
+          <label for="coe-create-notes">Notes</label>
+          <textarea id="coe-create-notes" rows="2"></textarea>
+        </div>
+      </div>
+      <p class="form-section-note" id="coe-create-new"${canExisting ? ' hidden' : ''}>The Add Role form opens pre-filled with this row's title and dates. Its Headcount 1 is linked to this row when you save.</p>
+      <div class="form-actions">
+        <button class="btn-primary" id="coe-create-save" onclick="coeSubmitCreateFromRow(${Number(rowId)})">Continue</button>
+        <button class="btn-secondary" onclick="document.getElementById('coe-modal-host').innerHTML=''">Cancel</button>
+      </div>
+    </div>
+    </div>`;
+  document.getElementById('coe-create-modal').scrollIntoView({ behavior: 'smooth' });
+}
+
+function _coeCreateMode() {
+  const el = document.querySelector('input[name="coe-create-mode"]:checked');
+  return el ? el.value : 'new';
+}
+
+function coeCreateModeChange() {
+  const mode = _coeCreateMode();
+  const existing = document.getElementById('coe-create-existing');
+  const fresh    = document.getElementById('coe-create-new');
+  if (existing) existing.hidden = mode !== 'existing';
+  if (fresh)    fresh.hidden    = mode !== 'new';
+}
+
+async function coeSubmitCreateFromRow(rowId) {
+  const row = _coeRowById(rowId);
+  if (!row || _coeBusy) return;
+  const val = id => { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+  const openDay   = val('coe-create-open');
+  const targetDay = val('coe-create-target');
+  if (_coeCreateMode() === 'new') { await coeOpenRoleFormForRow(row, openDay, targetDay); return; }
+
+  const role = (_coeCache.roles || []).find(r => String(r.id) === val('coe-create-role'));
+  if (!role) { toast('Choose a pipeline.', { type: 'error' }); return; }
+  const backfill = document.getElementById('coe-create-backfill');
+  const fields = { RoleID: Number(role.id), ProjectID: Number(_coeCache.projectId), Backfill: !!(backfill && backfill.checked) };
+  if (openDay)                     fields.OpenDate       = isoDate(openDay);
+  if (targetDay)                   fields.TargetHireDate = isoDate(targetDay);
+  if (val('coe-create-notes'))     fields.Notes          = val('coe-create-notes');
+  const label = placementRoleLabel(role);
+  const btn = document.getElementById('coe-create-save');
+  _coeBusy = true;
+  setButtonLoading(btn, 'Creating…');
+  let created;
+  try {
+    created = await createHeadcount(fields);   // syncs Roles.OpenDate (rule 3)
+  } catch (e) {
+    _coeBusy = false;
+    clearButtonLoading(btn);
+    toast(`Couldn't create the headcount: ${e.message}`, { type: 'error' });
+    return;
+  }
+  // The headcount exists now — a failed link must never re-run the create.
+  try {
+    await linkCoEPlanRow(rowId, { id: created.id, RoleID: role.id });
+    toast(`Headcount added to ${label} and linked`, { type: 'success' });
+  } catch (e) {
+    console.warn('N-312: plan row link failed after headcount create', e);
+    toast(`Headcount created on ${label} but not linked — use Link.`, { type: 'error' });
+  }
+  _coeBusy = false;
+  await renderHiringPlanPage(_coeCache.projectId);
+}
+
+// New pipeline (S-6): the existing Add Role form, pre-filled. N-307 renamed
+// the date inputs to HcOpenDate / HcTargetHireDate — writing [name="OpenDate"]
+// (as before N-312) silently pre-filled nothing.
+async function coeOpenRoleFormForRow(row, openDay, targetDay) {
   const main = document.getElementById('main-content');
   main.innerHTML = await renderRoleForm(null, _coeCache.projectId);
-  const titleInput = document.querySelector('#role-form [name="RoleTitle"]');
-  if (titleInput && row) titleInput.value = row.Title;
-  const openInput = document.querySelector('#role-form [name="OpenDate"]');
-  if (openInput && row?.OpenDate) openInput.value = spDateIn(row.OpenDate) || '';
+  const set = (name, v) => {
+    const el = document.querySelector(`#role-form [name="${name}"]`);
+    if (el && v) el.value = v;
+  };
+  set('RoleTitle', row.Title);
+  set('HcOpenDate', openDay);
+  set('HcTargetHireDate', targetDay);
+  set('HeadcountCount', '1');
+  set('LinkPlanRowID', String(row.id));
   // The project is pre-selected in markup, so the select's onchange never fires.
   // Load the Assign-to list explicitly (no-ops when the user can't assign).
   loadTalentPartnersForRole(_coeCache.projectId);

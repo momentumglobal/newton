@@ -3456,4 +3456,114 @@ var ASSERTIONS = [
       _assertEqual(budgetVsSpendByCurrency([], []), { rows: [], excluded: 0 }, 'empty');
     },
   },
+  {
+    name: 'N-312 coeLinkableHeadcount — S-1 population, D-5 order, filled + current labels',
+    fn: function () {
+      const roles = [
+        { id: '1', RoleTitle: 'Eng', Location: 'Lisbon', Stage: 'Sourcing' },
+        { id: '2', RoleTitle: 'PM', Stage: 'Backlog' },
+        { id: '3', RoleTitle: 'QA', Stage: 'Closed' },
+        { id: '4', RoleTitle: 'Ops', Stage: 'Hired' },        // legacy → Closed
+        { id: '5', RoleTitle: 'Fin', Stage: 'On-hold' },
+        { id: '6', RoleTitle: 'HR', Stage: 'Cancelled' },
+      ];
+      const H = (id, roleId, seq, open, status) =>
+        ({ id: String(id), RoleID: roleId, Sequence: seq, OpenDate: open, Status: status || 'Open', Title: 'Headcount ' + seq });
+      const headcount = [
+        H(11, 1, 1, '2026-05-01T12:00:00Z'),               // filled
+        H(12, 1, 2, null),                                 // open, undated
+        H(13, 1, 3, '2026-06-01T12:00:00Z'),               // open, dated
+        H(14, 1, 4, '2026-04-01T12:00:00Z', 'Cancelled'),  // cancelled
+        H(15, 1, 5, '2026-03-01T12:00:00Z'),               // open, linked to row r1
+        H(21, 2, 1, null),                                 // Backlog pipeline → linkable
+        H(31, 3, 1, '2026-01-01T12:00:00Z'),               // Closed pipeline, filled, row r2
+        H(41, 4, 1, '2026-01-01T12:00:00Z'),               // legacy Hired
+        H(51, 5, 1, '2026-01-01T12:00:00Z'),               // On-hold
+        H(61, 6, 1, '2026-01-01T12:00:00Z'),               // Cancelled pipeline
+      ];
+      const placements = [{ id: 'p1', HeadcountID: 11 }, { id: 'p3', HeadcountID: 31 }];
+      const planRows = [{ id: 'r1', LinkedHeadcountID: 15 }, { id: 'r2', LinkedHeadcountID: 31 }, { id: 'r3' }];
+      const ex = PLAN_LINKABLE_EXCLUDED_STAGES;
+      const g = coeLinkableHeadcount({ roles, headcount, placements, planRows, excludedStages: ex });
+      _assertEqual(g.map(x => x.roleLabel), ['Eng (Lisbon)', 'PM'], 'Closed / legacy Hired / On-hold / Cancelled pipelines out; Backlog in; alphabetical');
+      _assertEqual(g[0].options.map(o => o.id), [13, 12, 11], 'open dated, open undated, then filled; cancelled + linked elsewhere excluded');
+      _assertEqual(g[0].options.map(o => o.label),
+        ['Headcount 3 · opened 2026-06-01', 'Headcount 2 · not opened', 'Headcount 1 · opened 2026-05-01 · filled'], 'labels');
+      _assertEqual(g[0].options.map(o => o.roleId), [1, 1, 1], 'roleId carried');
+      const g2 = coeLinkableHeadcount({ roles, headcount, placements, planRows, currentHeadcountId: 31, excludedStages: ex });
+      const qa = g2.find(x => x.roleId === 3);
+      _assertEqual(qa && qa.options.map(o => [o.id, o.current, o.label]),
+        [[31, true, 'Headcount 1 · opened 2026-01-01 · filled · current']], "the row's own link is kept on a Closed pipeline");
+      const g3 = coeLinkableHeadcount({ roles, headcount, placements, planRows, currentHeadcountId: '15', excludedStages: ex });
+      _assertEqual(g3[0].options.map(o => o.id), [15, 13, 12, 11], 'current first, then the usual order');
+      _assertEqual(coeLinkableHeadcount({}), [], 'empty input');
+    },
+  },
+  {
+    name: 'N-312 coeHeadcountActualSpans — R / N / O per headcount',
+    fn: function () {
+      const T = 'TODAY';
+      const hc = extra => Object.assign({ id: '1', OpenDate: '2026-02-02T12:00:00Z', Status: 'Open' }, extra || {});
+      const none = { rStart: null, rEnd: null, nStart: null, nEnd: null, oStart: null };
+      _assertEqual(coeHeadcountActualSpans(hc({ OpenDate: null }), [], T), none, 'no OpenDate → no bar');
+      _assertEqual(coeHeadcountActualSpans(null, [], T), none, 'no headcount → no bar');
+      _assertEqual(coeHeadcountActualSpans(hc(), undefined, T),
+        { rStart: '2026-02-02T12:00:00Z', rEnd: T, nStart: null, nEnd: null, oStart: null }, 'open → R to today');
+      _assertEqual(coeHeadcountActualSpans(hc(), [{ OfferAcceptedDate: '2026-03-16T12:00:00Z', ProvisionalStartDate: '2026-04-13T12:00:00Z' }], T),
+        { rStart: '2026-02-02T12:00:00Z', rEnd: '2026-03-16T12:00:00Z', nStart: '2026-03-16T12:00:00Z', nEnd: '2026-04-13T12:00:00Z', oStart: '2026-04-13T12:00:00Z' },
+        'filled → R, N, O');
+      _assertEqual(coeHeadcountActualSpans(hc(), [{ OfferAcceptedDate: '2026-03-16T12:00:00Z' }], T),
+        { rStart: '2026-02-02T12:00:00Z', rEnd: '2026-03-16T12:00:00Z', nStart: '2026-03-16T12:00:00Z', nEnd: T, oStart: null },
+        'filled, no start date → N to today, no O');
+      _assertEqual(coeHeadcountActualSpans(hc({ Status: 'Cancelled', CancelledDate: '2026-03-02T12:00:00Z' }), [], T),
+        { rStart: '2026-02-02T12:00:00Z', rEnd: '2026-03-02T12:00:00Z', nStart: null, nEnd: null, oStart: null },
+        'cancelled → R ends at CancelledDate, no N / O');
+      const two = coeHeadcountActualSpans(hc(), [
+        { OfferAcceptedDate: '2026-04-01T12:00:00Z', ProvisionalStartDate: '2026-05-01T12:00:00Z' },
+        { OfferAcceptedDate: '2026-03-01T12:00:00Z', ProvisionalStartDate: '2026-03-30T12:00:00Z' },
+      ], T);
+      _assertEqual([two.rEnd, two.oStart], ['2026-03-01T12:00:00Z', '2026-03-30T12:00:00Z'], 'two placements → the earliest offer and its start');
+    },
+  },
+  {
+    name: 'N-312 coeActualPhaseAt — spans → week letters on the unchanged local model',
+    fn: function () {
+      const t0 = coeMonday('2026-01-05T12:00:00Z');
+      const spans = { rStart: '2026-01-05T12:00:00Z', rEnd: '2026-01-26T12:00:00Z', nStart: '2026-01-26T12:00:00Z', nEnd: '2026-02-09T12:00:00Z', oStart: '2026-02-09T12:00:00Z' };
+      const letters = Array.from({ length: 9 }, (_, w) => coeActualPhaseAt(spans, 2, t0, w) || '.').join('');
+      _assertEqual(letters, 'RRRNNOO..', '3 wks R, 2 wks N, 2 wks O (plan onboarding)');
+      _assertEqual(coeActualPhaseAt(null, 2, t0, 0), '', 'no spans → no bar');
+    },
+  },
+  {
+    name: 'N-312 planCoELinkMigration — lowest Sequence, reports, idempotent',
+    fn: function () {
+      const roles = [{ id: '1' }, { id: '2' }, { id: '3' }];
+      const headcount = [
+        { id: '12', RoleID: 1, Sequence: 2 }, { id: '11', RoleID: '1', Sequence: 1 },
+        { id: '21', RoleID: 2, Sequence: 1 },
+      ];
+      const coeRows = [
+        { id: 'a', Title: 'A', LinkedRoleID: 1 },                          // → 11 (lowest Sequence)
+        { id: 'b', Title: 'B', LinkedRoleID: '1' },                        // same headcount → conflict
+        { id: 'c', Title: 'C', LinkedRoleID: 3 },                          // role with no headcount
+        { id: 'd', Title: 'D', LinkedRoleID: 99 },                         // role gone
+        { id: 'e', Title: 'E', LinkedRoleID: 2, LinkedHeadcountID: 21 },   // already linked
+        { id: 'f', Title: 'F', LinkedRoleID: null },                       // never linked
+      ];
+      const p = planCoELinkMigration({ coeRows, headcount, roles });
+      _assertEqual(p.items.map(i => [i.row.id, i.headcountId, i.roleId]), [['a', 11, 1]], 'a → Headcount 1 of role 1');
+      _assertEqual(p.conflict.map(x => [x.row.id, x.headcountId]), [['b', 11]], 'second row on the same headcount → conflict');
+      _assertEqual(p.noHeadcount.map(r => r.id), ['c'], 'no headcount reported');
+      _assertEqual(p.missingRole.map(r => r.id), ['d'], 'missing role reported');
+      _assertEqual(p.counts, { rows: 6, alreadyLinked: 1, toLink: 1, noHeadcount: 1, missingRole: 1, conflict: 1 }, 'counts');
+      const p2 = planCoELinkMigration({ coeRows: [{ id: 'g', LinkedRoleID: 2 }, coeRows[4]], headcount, roles });
+      _assertEqual(p2.conflict.map(x => x.row.id), ['g'], 'headcount already held by an existing row → conflict');
+      const written = coeRows.map(r => {
+        const it = p.items.find(i => i.row.id === r.id);
+        return it ? { ...r, LinkedHeadcountID: it.headcountId, LinkedRoleID: it.roleId } : r;
+      });
+      _assertEqual(planCoELinkMigration({ coeRows: written, headcount, roles }).items, [], 'second run: items = []');
+    },
+  },
 ];

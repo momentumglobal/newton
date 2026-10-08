@@ -3595,4 +3595,78 @@ var ASSERTIONS = [
       _assertEqual(planCoELinkMigration({ coeRows: written, headcount, roles }).items, [], 'second run: items = []');
     },
   },
+  // ── N-313 (HC-7): Role History timeline for multi-headcount pipelines ──
+  {
+    name: 'N-313 roleTimelineNodeClass — N-100 classes unchanged; backward after a placement and Closed reopen → reset',
+    fn: function () {
+      _assertEqual(roleTimelineNodeClass(null, 'Sourcing'), 'start', 'creation row (null)');
+      _assertEqual(roleTimelineNodeClass('', 'Planning'), 'start', 'creation row (empty string)');
+      _assertEqual(roleTimelineNodeClass('Sourcing', 'On-hold'), 'branch', 'into On-hold');
+      _assertEqual(roleTimelineNodeClass('Cancelled', 'Sourcing'), 'branch', 'out of Cancelled');
+      _assertEqual(roleTimelineNodeClass('Sourcing', 'Sourcing'), 'branch', 'equal');
+      _assertEqual(roleTimelineNodeClass('Sourcing', 'Bogus'), 'branch', 'unresolvable');
+      _assertEqual(roleTimelineNodeClass('Sourcing', 'Submitted'), 'forward', 'forward');
+      _assertEqual(roleTimelineNodeClass('Offered', 'Closed'), 'forward', 'Offered → Closed');
+      _assertEqual(roleTimelineNodeClass('Offered', 'Sourcing'), 'backward', 'backward, no placement');
+      _assertEqual(roleTimelineNodeClass('Offered', 'Sourcing', { placementSincePrev: true }), 'reset', 'backward after a placement');
+      _assertEqual(roleTimelineNodeClass('Sourcing', 'Submitted', { placementSincePrev: true }), 'forward', 'forward stays forward');
+      _assertEqual(roleTimelineNodeClass('Sourcing', 'On-hold', { placementSincePrev: true }), 'branch', 'branch stays branch');
+      _assertEqual(roleTimelineNodeClass('Closed', CONFIG.HEADCOUNT.reopenStage), 'reset', 'D-3 reopen, no placement in window');
+      _assertEqual(roleTimelineNodeClass('Closed', 'Interview 1'), 'reset', 'reopen into any open stage');
+    },
+  },
+  {
+    name: 'N-313 roleTimelineSequence — marker slots, same-day tie, inclusive placementSincePrev, undated count, no mutation',
+    fn: function () {
+      const tag = o => o.map(e => (e.kind === 'stage' ? 'S' + e.index : 'P' + e.placement.id));
+      const P = (id, d) => ({ id, OfferAcceptedDate: d });
+      const days = ['2026-05-01', '2026-06-01', '2026-07-10', '2026-08-01'];
+      const placements = [
+        P(5, '2026-09-01T12:00:00Z'),  // after every node → last
+        P(2, '2026-07-10T12:00:00Z'),  // same day as node 2 → above node 2
+        P(1, '2026-04-20T12:00:00Z'),  // before node 0 → first
+        P(3, null),                    // undated
+        P(4, '2026-07-10T23:00:00Z'),  // same slot as 2, higher id
+      ];
+      const snapshot = JSON.stringify([days, placements]);
+      const s = roleTimelineSequence(days, placements);
+      _assertEqual(tag(s.order), ['P1', 'S0', 'S1', 'P2', 'P4', 'S2', 'S3', 'P5'], 'display order');
+      _assertEqual(s.placementSincePrev, [false, false, true, true], 'inclusive window (07-10 counts for nodes 2 and 3)');
+      _assertEqual(s.undated, 1, 'undated counted, not ordered');
+      _assertEqual(JSON.stringify([days, placements]), snapshot, 'inputs not mutated');
+      const edge = roleTimelineSequence(['2026-05-01', '2026-06-01'], [P(9, '2026-05-01T12:00:00Z')]);
+      _assertEqual(tag(edge.order), ['S0', 'P9', 'S1'], 'on node 0 day → after node 0');
+      _assertEqual(edge.placementSincePrev, [false, true], 'lower bound inclusive');
+      _assertEqual(roleTimelineSequence(['2026-05-01'], []).order, [{ kind: 'stage', index: 0 }], 'no placements → stage nodes only');
+      _assertEqual(roleTimelineSequence([], []).order, [], 'empty');
+      _assertEqual(roleTimelinePlacementDay({ OfferAcceptedDate: '2026-06-30T23:00:00Z' }), '2026-06-30', 'stored date portion (spDateIn)');
+      _assertEqual(roleTimelinePlacementDay({}), null, 'no date');
+    },
+  },
+  {
+    name: 'N-313 legacy Hired reaches the timeline and roleStageEntryDay as Closed (N-306 read alias, no second alias)',
+    fn: function () {
+      const rows = normaliseRoleHistoryRows([
+        { RoleIDLookupId: 7, Field: 'Stage', OldValue: null,      NewValue: 'Offered',  ChangedAt: '2026-03-02T10:00:00Z' },
+        { RoleIDLookupId: 7, Field: 'Stage', OldValue: 'Offered', NewValue: 'Hired',    ChangedAt: '2026-04-01T10:00:00Z' },
+        { RoleIDLookupId: 7, Field: 'Stage', OldValue: 'Hired',   NewValue: 'Sourcing', ChangedAt: '2026-05-01T10:00:00Z' },
+      ]);
+      _assertEqual(roleTimelineNodeClass(rows[1].OldValue, rows[1].NewValue), 'forward', 'Offered → Hired reads Offered → Closed');
+      _assertEqual(roleTimelineNodeClass(rows[2].OldValue, rows[2].NewValue), 'reset', 'Hired → Sourcing reads as a Closed reopen');
+      _assertEqual(roleStageEntryDay({ Stage: 'Closed', OpenDate: '2026-03-01T12:00:00Z' }, rows.slice(0, 2)), '2026-04-01', 'entered Closed on the Hired row day');
+    },
+  },
+  {
+    name: 'N-313 earliestHeadcountOpenDate — filled / cancelled headcount keep anchoring Roles.OpenDate (back-dating stable)',
+    fn: function () {
+      _assertEqual(earliestHeadcountOpenDate([
+        { id: 1, OpenDate: '2026-02-01T12:00:00Z', Status: 'Open' },   // filled (a placement carries HeadcountID 1)
+        { id: 2, OpenDate: '2026-06-01T12:00:00Z', Status: 'Open' },
+      ]), '2026-02-01', 'filled earlier headcount still anchors');
+      _assertEqual(earliestHeadcountOpenDate([
+        { id: 3, OpenDate: '2026-01-15T12:00:00Z', Status: 'Cancelled', CancelledDate: '2026-03-01T12:00:00Z' },
+        { id: 4, OpenDate: '2026-05-01T12:00:00Z', Status: 'Open' },
+      ]), '2026-01-15', 'cancelled earlier headcount still anchors');
+    },
+  },
 ];

@@ -91,7 +91,7 @@ const CONFIG = {
   // a page file — tests/lint-stage-arrays.js fails the build.
   ROLE_STAGES_PARKED: ['Backlog', 'On-hold'],
   // Stages a role leaves the linear pipeline for (Role History timeline
-  // 'branch' node — pages.js:_roleTimelineNodeClass, N-305).
+  // 'branch' node — utils.js:roleTimelineNodeClass, N-305 / N-313).
   ROLE_STAGES_BRANCH: ['On-hold', 'Cancelled'],
   // N-306: the "pipeline closed" stage (was 'Hired'). Read through this,
   // never a literal.

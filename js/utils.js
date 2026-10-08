@@ -2412,6 +2412,88 @@ function normaliseRoleHistoryRows(rows) {
   });
 }
 
+// ── Role History timeline (N-100, N-313) ────────────────────────────────
+// Pure helpers behind pages.js:showRoleTimeline — here, not in pages.js, so
+// tests/run.js can reach them.
+//
+// Classifies one Stage RoleHistory row for the timeline's colour coding.
+// 'start' = the creation row; 'branch' = On-hold/Cancelled on either end, or
+// an unresolvable/equal comparison — deliberately neutral, never green or
+// red, since neither is a point on the linear pipeline. Forward/backward is
+// index comparison on CONFIG.ROLE_STAGES — the full canonical order (never
+// analytics.js's ACTIVE_STAGES).
+// N-313 'reset' (neutral, not a regression):
+//   - Closed → an open-pipeline stage: the D-3 reopen. Always reset — the
+//     placement that closed the pipeline normally predates the Closed node.
+//   - a backward move with a placement since the previous node
+//     (opts.placementSincePrev, from roleTimelineSequence): the pipeline
+//     restarted for its next headcount.
+// Legacy 'Hired' never reaches here — every RoleHistory read path runs
+// normaliseRoleHistoryRows (N-306). Don't add a second alias.
+function roleTimelineNodeClass(oldStage, newStage, opts = {}) {
+  // N-100 UAT fix (round 2): falsy, never === '' — SharePoint hands a text
+  // column written as '' back as null, so the creation row's OldValue may
+  // be either.
+  if (!oldStage) return 'start';
+  const branchStages = CONFIG.ROLE_STAGES_BRANCH;
+  if (branchStages.includes(newStage) || branchStages.includes(oldStage)) return 'branch';
+  if (oldStage === CONFIG.ROLE_STAGE_CLOSED && isOpenPipelineStage(newStage)) return 'reset';
+  const oldIdx = CONFIG.ROLE_STAGES.indexOf(oldStage);
+  const newIdx = CONFIG.ROLE_STAGES.indexOf(newStage);
+  if (oldIdx === -1 || newIdx === -1 || newIdx === oldIdx) return 'branch';
+  if (newIdx > oldIdx) return 'forward';
+  return opts.placementSincePrev ? 'reset' : 'backward';
+}
+
+// A placement's timeline day: OfferAcceptedDate's stored date portion
+// ('YYYY-MM-DD'), or null. Day marker — never a Date + local getter.
+function roleTimelinePlacementDay(p) {
+  return p && p.OfferAcceptedDate ? spDateIn(p.OfferAcceptedDate) : null;
+}
+
+// N-313: interleaves read-only placement markers with the timeline's stage
+// nodes. stageDays[i] = 'YYYY-MM-DD' of stage node i's EFFECTIVE date (after
+// OpenDate back-dating), through the same spDateIn the node prints, so the
+// marker order always agrees with the dates on screen. Markers never split a
+// stage's duration — the caller still measures stage node i to node i+1.
+//   order — { kind: 'stage', index } and { kind: 'placement', placement, day }
+//           in display order. Before node 0's day → first; otherwise
+//           immediately before the first node i >= 1 on or after its day (so
+//           on a shared day the marker sits ABOVE the stage move); after
+//           every node → last. Within one slot: day, then id ascending.
+//   placementSincePrev[i] — a dated placement falls on
+//           stageDays[i-1] <= day <= stageDays[i] (inclusive); [0] is false.
+//   undated — placements with no OfferAcceptedDate (left out of order).
+// Never mutates its inputs.
+function roleTimelineSequence(stageDays, placements) {
+  const days = stageDays || [];
+  const dated = [];
+  let undated = 0;
+  (placements || []).forEach(p => {
+    if (!p) return;
+    const day = roleTimelinePlacementDay(p);
+    if (day) dated.push({ placement: p, day });
+    else undated++;
+  });
+  dated.sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1
+    : (Number(a.placement.id) || 0) - (Number(b.placement.id) || 0)));
+  const slotOf = day => {
+    if (!days.length || day < days[0]) return 0;
+    for (let i = 1; i < days.length; i++) if (days[i] && days[i] >= day) return i;
+    return days.length;
+  };
+  const slots = Array.from({ length: days.length + 1 }, () => []);
+  dated.forEach(d => slots[slotOf(d.day)].push({ kind: 'placement', placement: d.placement, day: d.day }));
+  const order = [];
+  slots.forEach((markers, i) => {
+    order.push(...markers);
+    if (i < days.length) order.push({ kind: 'stage', index: i });
+  });
+  const placementSincePrev = days.map((day, i) =>
+    i > 0 && !!days[i - 1] && !!day && dated.some(d => d.day >= days[i - 1] && d.day <= day));
+  return { order, placementSincePrev, undated };
+}
+
 function _isBlankId(v) {
   return v === null || v === undefined || v === '';
 }

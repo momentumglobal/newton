@@ -3521,6 +3521,14 @@ body {
 .role-timeline-node--branch   .role-timeline-connector  { background: var(--status-warn); }
 .role-timeline-node--start    .role-timeline-dot        { border-color: var(--status-neutral); }
 .role-timeline-node--start    .role-timeline-connector  { background: var(--status-neutral); }
+/* N-313: 'reset' — a backward move after a placement, or a Closed pipeline
+   reopened — is neutral like 'start'. A placement marker is a smaller
+   FILLED success dot (read-only, no duration line). Text stays on --text-*. */
+.role-timeline-node--reset     .role-timeline-dot        { border-color: var(--status-neutral); }
+.role-timeline-node--reset     .role-timeline-connector  { background: var(--status-neutral); }
+.role-timeline-node--placement .role-timeline-dot        { border-color: var(--status-success); background: var(--status-success); transform: scale(0.75); }
+.role-timeline-node--placement .role-timeline-connector  { background: var(--status-neutral); }
+.role-timeline-note { color: var(--text-muted); font-size: var(--fs-13); margin: var(--sp-2) 0 0 0; }
 
 /* ── Project & Role checklists (N-266a) ────────────────────────────────
    Neutral by design (N-257): "done" is carried by the tick, the "Ticked by"

@@ -530,11 +530,12 @@ async function showDuplicateRoleForm(id) {
 async function showRoleTimeline(roleId) {
   const main = document.getElementById("main-content");
   main.innerHTML = "<p>Loading role history...</p>";
-  const [role, allProjects, history, tpMap] = await Promise.all([
+  const [role, allProjects, history, tpMap, hcState] = await Promise.all([
     getItem('Roles', roleId),
     getProjects(false),
     getRoleHistory(roleId),
     getTalentPartnerDisplayMap(),
+    getRoleHeadcountState(roleId),  // N-313: placements + headcount labels
   ]);
   const projectName = allProjects.find(p => String(p.id) === String(role.ProjectIDLookupId || role.ProjectID))?.CustomerName || '—';
   const stageChanges = history
@@ -578,13 +579,20 @@ async function showRoleTimeline(roleId) {
       : utcDateOnly(endStrOrNow);
     return Math.floor((end - start) / 86400000);
   };
-  const nodesHtml = stageChanges.map((h, i) => {
-    const cls = _roleTimelineNodeClass(h.OldValue, h.NewValue);
+  // N-313: placement markers merged in by OfferAcceptedDate (read-only —
+  // they never split a stage's duration; every gap below still runs stage
+  // node to stage node). stageDays go through spDateIn, the same function
+  // each node's printed date uses.
+  const hcLabelById = new Map((hcState.rows || []).map(hc =>
+    [String(hc.id), hc.Title || headcountLabel(hc.Sequence)]));
+  const seq = roleTimelineSequence(effectiveDates.map(d => spDateIn(d)), hcState.placements);
+  const stageNodeHtml = (h, i) => {
+    const cls = roleTimelineNodeClass(h.OldValue, h.NewValue, { placementSincePrev: seq.placementSincePrev[i] });
     // N-100 UAT fix (round 2): loosened from `h.OldValue === ''` — Graph/
     // SharePoint normalises a text column written as '' back to null on
     // read, so the strict empty-string check silently never matched the
     // real creation row (wrong "— → Sourcing" label, wrong 'branch'/orange
-    // dot in _roleTimelineNodeClass below, and skipped the OpenDate
+    // dot in roleTimelineNodeClass (utils.js), and skipped the OpenDate
     // back-date since useOpenDate required isCreated). Falsy catches '',
     // null, and undefined alike; a real Stage name is never falsy, so this
     // can't misfire on an actual transition.
@@ -594,6 +602,9 @@ async function showRoleTimeline(roleId) {
     const label = isCreated
       ? `${useOpenDate ? 'Role opened' : 'Role created'} — entered ${escHtml(h.NewValue || '—')}`
       : `${escHtml(h.OldValue || '—')} → ${escHtml(h.NewValue || '—')}${useOpenDate ? ' — role opened' : ''}`;
+    // N-313: say why a backward-looking move is neutral.
+    const resetNote = cls !== 'reset' ? ''
+      : (h.OldValue === CONFIG.ROLE_STAGE_CLOSED ? ' — reopened' : ' — reset after placement');
     const next = stageChanges[i + 1];
     const gapDays = dayGap(effectiveChangedAt, next ? effectiveDates[i + 1] : new Date());
     const gapLabel = next
@@ -606,12 +617,33 @@ async function showRoleTimeline(roleId) {
           <div class="role-timeline-dot"></div>
         </div>
         <div class="role-timeline-content">
-          <div class="role-timeline-label">${label}</div>
+          <div class="role-timeline-label">${label}${resetNote}</div>
           <div class="role-timeline-meta">${spDateIn(effectiveChangedAt) || "—"} · ${escHtml(tpDisplay(h.ChangedBy, tpMap))}</div>
           <div class="role-timeline-duration${!next ? ' role-timeline-duration--ongoing' : ''}">${gapLabel}</div>
         </div>
       </div>`;
-  }).join("");
+  };
+  // N-313: one placement marker — no duration line.
+  const placementNodeHtml = ({ placement: p, day }) => {
+    const hcLabel = hcLabelById.get(String(p.HeadcountID));
+    return `
+      <div class="role-timeline-node role-timeline-node--placement">
+        <div class="role-timeline-track">
+          <div class="role-timeline-connector"></div>
+          <div class="role-timeline-dot"></div>
+        </div>
+        <div class="role-timeline-content">
+          <div class="role-timeline-label">Placement — ${escHtml(p.Title || '—')}${hcLabel ? ` · ${escHtml(hcLabel)}` : ''}</div>
+          <div class="role-timeline-meta">${escHtml(day)} · ${escHtml(tpDisplay(p.TalentPartner, tpMap))}</div>
+        </div>
+      </div>`;
+  };
+  const nodesHtml = seq.order.map(e => e.kind === 'stage'
+    ? stageNodeHtml(stageChanges[e.index], e.index)
+    : placementNodeHtml(e)).join("");
+  const undatedNote = seq.undated
+    ? `<p class="role-timeline-note">${seq.undated} placement${seq.undated === 1 ? '' : 's'} without an Offer Accepted date not shown.</p>`
+    : '';
   main.innerHTML = `
     <div class="page-header">
       <h2>Role History — ${escHtml(role.RoleTitle)}</h2>
@@ -621,29 +653,12 @@ async function showRoleTimeline(roleId) {
     <div class="role-timeline">
       ${nodesHtml || '<p style="color:var(--text-muted);">No stage history recorded.</p>'}
     </div>
+    ${undatedNote}
   `;
   lucide.createIcons();
 }
-// Classifies a Stage RoleHistory row for the timeline's colour coding.
-// 'start' = the creation row (OldValue ''); 'branch' = On-hold/Cancelled on
-// either end, or an unresolvable/equal comparison — deliberately neutral,
-// never green or red, since neither is a point on the linear pipeline.
-// Forward/backward is index comparison on CONFIG.ROLE_STAGES — the full
-// 11-stage canonical order. (analytics.js's old 4-stage STAGE_ORDER subset
-// was retired by N-274; the flag now also orders by CONFIG.ROLE_STAGES.)
-function _roleTimelineNodeClass(oldStage, newStage) {
-  // N-100 UAT fix (round 2): same SharePoint null-vs-empty-string quirk as
-  // showRoleTimeline's isCreated check above — a falsy check catches the
-  // real creation row whether SharePoint hands it back as '' or null.
-  if (!oldStage) return 'start';
-  const branchStages = CONFIG.ROLE_STAGES_BRANCH;
-  if (branchStages.includes(newStage) || branchStages.includes(oldStage)) return 'branch';
-  const oldIdx = CONFIG.ROLE_STAGES.indexOf(oldStage);
-  const newIdx = CONFIG.ROLE_STAGES.indexOf(newStage);
-  if (oldIdx === -1 || newIdx === -1 || newIdx === oldIdx) return 'branch';
-  return newIdx > oldIdx ? 'forward' : 'backward';
-}
-// ── Weekly Activity ───────────────────────────────────────────────────
+// (N-313: the stage classifier moved to utils.js:roleTimelineNodeClass.)
+// ── Weekly Activity ───
 let _activityProjectId = null;
 let _activityRoleId    = null;
 // N-093: weeks of history fetched from SharePoint. 0 = All time (no clause).

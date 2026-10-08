@@ -13,6 +13,11 @@ let _mRolesCache = null;
 // loaded/cleared together with _mRolesCache (mobileLoadRolesCache). null =
 // headcount unavailable → pipelineOpenDay() falls back to Roles.OpenDate.
 let _mOpenSince = null;
+// N-314 (S-3): the scoped headcount rows + headcountFillMap() behind the
+// Summary's Open Headcount tile — loaded/cleared with _mOpenSince. null =
+// headcount read failed → the tile shows "—".
+let _mHeadcount = null;
+let _mHcFillMap = null;
 let _mRoleSearch = '';
 let _mRoleStage  = '';
 
@@ -47,17 +52,23 @@ async function mobileRenderReportingSummary(main) {
     await mobileLoadRolesCache();            // scoped, excludes Closed/Cancelled; warms the Roles tab
     const roles = _mRolesCache;
 
-    const total = roles.length;
+    // N-314 (S-3): same rule as the desktop Active Pipelines / Open Headcount
+    // tiles — Backlog + On-hold excluded. Local filter; never mutate the
+    // shared _mRolesCache.
+    const activePipelines = roles.filter(r => isOpenPipelineStage(r.Stage));
+    const openHc          = openHeadcountCount(activePipelines, _mHeadcount, _mHcFillMap);
 
-    // Open >= 45 days (alert) and >= 30 (watch)
-    const withDays = roles.map(r => {
+    // Open >= 45 days (alert) and >= 30 (watch) — N-314 (S-4): over active
+    // pipelines only, matching the desktop Roles Open 30+ Days panels.
+    const withDays = activePipelines.map(r => {
       const openDay = pipelineOpenDay(r, _mOpenSince);   // N-310: oldest open headcount
       return { r, days: openDay ? daysOpen(openDay) : null };
     });
     const over45 = withDays.filter(x => x.days !== null && x.days >= 45).length;
     const over30 = withDays.filter(x => x.days !== null && x.days >= 30).length;
 
-    // Count by stage
+    // Count by stage — N-314 (S-4a): every non-terminal pipeline, Backlog +
+    // On-hold included (matches Snapshots RolesByStage).
     const byStage = {};
     roles.forEach(r => {
       const s = r.Stage || 'Unknown';
@@ -73,14 +84,14 @@ async function mobileRenderReportingSummary(main) {
 
     main.innerHTML = `
       <div class="m-an-grid">
-        ${mobileSumTile(total, 'Open Roles')}
+        ${mobileSumTile(activePipelines.length, 'Active Pipelines')}
+        ${mobileSumTile(openHc !== null ? openHc : '—', 'Open Headcount')}
         ${mobileSumTile(over30, 'Open 30d+', over30 ? '' : '')}
         ${mobileSumTile(over45, 'Open 45d+ (alert)')}
-        ${mobileSumTile(Object.keys(byStage).length, 'Active Stages')}
       </div>
       <div class="m-detail-panel" style="margin-top:4px">
-        <div class="m-section-header" style="margin-top:0">Roles by Stage</div>
-        <table class="m-sc-table"><tbody>${stageRows || '<tr><td class="m-sc-metric">No open roles</td><td></td></tr>'}</tbody></table>
+        <div class="m-section-header" style="margin-top:0">Pipelines by Stage</div>
+        <table class="m-sc-table"><tbody>${stageRows || '<tr><td class="m-sc-metric">No open pipelines</td><td></td></tr>'}</tbody></table>
       </div>
     `;
     if (typeof runKpiCountUps === 'function') runKpiCountUps(main);
@@ -213,19 +224,27 @@ function mobileRedrawRolesListOnly() {
 }
 
 // Call this after Add Role / Stage changes so the cache refreshes next view.
-function mobileInvalidateRolesCache() { _mRolesCache = null; _mOpenSince = null; }
+function mobileInvalidateRolesCache() { _mRolesCache = null; _mOpenSince = null; _mHeadcount = null; _mHcFillMap = null; }
 
 // N-310 (S-10): load the scoped roles and their oldest-open-headcount index
 // together. A failed headcount read leaves _mOpenSince null (fallback).
+// N-314: the same read also keeps the headcount rows + fill map for the
+// Summary's Open Headcount tile — no extra requests. Failure → all three null.
 async function mobileLoadRolesCache() {
-  const [roles, openSince] = await Promise.all([
+  const [roles, hc] = await Promise.all([
     mobileGetRoles(),
     Promise.all([getAllHeadcount(), getPlacementHeadcountIds()])
-      .then(([headcount, placementLinks]) => oldestOpenHeadcountIndex(headcount, placementLinks))
+      .then(([headcount, placementLinks]) => ({
+        headcount,
+        fillMap:   headcountFillMap(placementLinks),
+        openSince: oldestOpenHeadcountIndex(headcount, placementLinks),
+      }))
       .catch(e => { console.warn('N-310: headcount read failed', e); return null; }),
   ]);
   _mRolesCache = roles;
-  _mOpenSince  = openSince;
+  _mOpenSince  = hc ? hc.openSince : null;
+  _mHeadcount  = hc ? hc.headcount : null;
+  _mHcFillMap  = hc ? hc.fillMap   : null;
 }
 
 // N-199: after a successful Add Role save (sheet closed), refresh the Roles

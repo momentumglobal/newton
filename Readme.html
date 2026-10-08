@@ -517,7 +517,7 @@
         <tr><td><span class="file-tag">mobile-home.js</span></td><td>Home launcher — role-aware module grid. <code>CONFIG.MOBILE_MODULE_ROLES</code> narrows a module's roles on mobile only (Sales is admin + leadership; N-285).</td></tr>
         <tr><td><span class="file-tag">mobile-pages.js</span></td><td>Reporting views: roles list, role detail, stage update, weekly activity, placement forms.</td></tr>
         <tr><td><span class="file-tag">mobile-roleform.js</span></td><td>Reporting "Add Role" form (role-aware; identical write payload to the desktop role form).</td></tr>
-        <tr><td><span class="file-tag">mobile-reporting-ext.js</span></td><td>Reporting expansion: Summary view (KPIs + roles-by-stage), client-side search/stage filter on the roles list, Log Rejection form.</td></tr>
+        <tr><td><span class="file-tag">mobile-reporting-ext.js</span></td><td>Reporting expansion: Summary view (KPIs + pipelines-by-stage), client-side search/stage filter on the roles list, Log Rejection form.</td></tr>
         <tr><td><span class="file-tag">mobile-people.js</span></td><td>People dashboard — 4 KPI tiles (read-only), reusing the desktop calculations.</td></tr>
         <tr><td><span class="file-tag">mobile-scorecards.js</span></td><td>People Scorecards — reuses <code>computeVelocityScore</code> from analytics.js. TP sees their own card; DM/Admin get a swipe carousel (dots + counter).</td></tr>
         <tr><td><span class="file-tag">mobile-sales.js</span></td><td>Sales Forecast list with add/edit (write-enabled; identical payload to desktop). Admin/Leadership only.</td></tr>
@@ -1244,6 +1244,15 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Pipeline naming follow-up + mobile Open Headcount (N-314, HC-8)</div>
+        <ul>
+          <li>Mobile Reporting Summary: tiles are now <strong>Active Pipelines</strong> (was Open Roles) · <strong>Open Headcount</strong> (new; replaces Active Stages) · Open 30d+ · Open 45d+. Active Pipelines, Open Headcount and the 30d+/45d+ counts use the desktop rules — Backlog and On-hold pipelines are excluded. The stage table is now <strong>Pipelines by Stage</strong> and still lists Backlog and On-hold.</li>
+          <li>Admin → Snapshots: column <strong>Open Roles → Active Pipelines</strong> (label only — the <code>OpenRoles</code> field and its values are unchanged).</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
         <div class="changelog-title">Hiring Plan links to headcount (N-312, HC-6)</div>
         <ul>
           <li>A Hiring Plan row now tracks one <strong>headcount</strong>: new <code>CoEPlanRows.LinkedHeadcountID</code> (Number). <code>LinkedRoleID</code> is kept in sync with the headcount's role.</li>
@@ -1805,7 +1814,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <ul>
           <li><strong>Installable PWA</strong> — <code>manifest.webmanifest</code> + <code>sw.js</code> (network-first, caches no app code, ignores auth/cross-origin) make <code>mobile.html</code> installable to the home screen with a standalone launch. Replaced an earlier Flutter WebView prototype, which was retired because embedded WebViews block Microsoft login; the PWA runs in the device browser engine where login works.</li>
           <li><strong>Mobile shell</strong> — Home launcher + top-bar module switcher, both driven by <code>CONFIG.OS_MODULES</code> filtered through a new <code>MOBILE_MODULES</code> registry; per-module bottom-nav via <code>MOBILE_NAV</code>. Files: <code>mobile-app.js</code>, <code>mobile-home.js</code>.</li>
-          <li><strong>Reporting (full):</strong> Summary KPIs + roles-by-stage, roles list with client-side search/stage filter, role detail, stage update, weekly activity, placement, Add Role and Log Rejection forms (<code>mobile-pages.js</code>, <code>mobile-roleform.js</code>, <code>mobile-reporting-ext.js</code>).</li>
+          <li><strong>Reporting (full):</strong> Summary KPIs + pipelines-by-stage, roles list with client-side search/stage filter, role detail, stage update, weekly activity, placement, Add Role and Log Rejection forms (<code>mobile-pages.js</code>, <code>mobile-roleform.js</code>, <code>mobile-reporting-ext.js</code>).</li>
           <li><strong>People (read-only):</strong> dashboard KPI tiles (<code>mobile-people.js</code>) + Scorecards with a swipe carousel for DM/Admin (<code>mobile-scorecards.js</code>, reuses <code>computeVelocityScore</code>).</li>
           <li><strong>Sales (write):</strong> Sales Forecast list + add/edit (<code>mobile-sales.js</code>). <strong>Market Analytics (read-only):</strong> condensed Placement Analytics — Summary + Funnel Drop-off tiles, filterable by location / functional area (<code>mobile-analytics.js</code>, reuses <code>computeRoleFunnel</code> and <code>computeTTFPrediction</code>).</li>
           <li><strong>Single source of truth preserved</strong> — every mobile view reuses the existing data-layer and calculation functions; no business logic duplicated. Command Centre excluded from mobile. Mobile access limited to TP / DM / Admin, with per-module roles inherited from <code>CONFIG.OS_MODULES</code>.</li>

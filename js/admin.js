@@ -20,7 +20,7 @@ async function renderAdminTab(tab) {
   const tooltips = {
     departments: 'Manage the list of functional areas used when categorising roles across the system.',
     delete:      'Permanently delete records from the system. Use with caution — this action cannot be undone.',
-    snapshots:   'Write a weekly time-series snapshot (open roles, roles by stage, avg days open, placements, activity totals) for every active project.',
+    snapshots:   'Write a weekly time-series snapshot (active pipelines, pipelines by stage, avg days open, placements, activity totals) for every active project.',
     checklists:  'Build the Project and Role workflow checklists and switch them on.',
   };
   const tabBar = tabs.map(t =>
@@ -291,14 +291,14 @@ async function buildSnapshotsTab() {
     <h3>Time-Series Snapshots</h3>
     <p class="admin-tab-intro">
       Writes one row per active project into the <code>Snapshots</code> list for the current week —
-      open roles, roles by stage, avg days open, placements, activity totals and flagged count.
+      active pipelines, pipelines by stage, avg days open, placements, activity totals and flagged count.
       Running it again in the same week updates the existing rows rather than duplicating them.
       Utilisation is not tracked per project — see N-115.
     </p>
     <button class="btn-primary" id="snapshot-btn" onclick="writeSnapshotsNow()">Write Snapshot Now</button>
     <div id="snapshot-status" style="display:none;font-size:13px;margin:12px 0"></div>
     <table class="data-table" style="margin-top:20px">
-      <thead><tr><th>Project</th><th>Week Ending</th><th>Open Roles</th><th>Avg Days Open</th><th>Placements</th><th>Flagged</th></tr></thead>
+      <thead><tr><th>Project</th><th>Week Ending</th><th>Active Pipelines</th><th>Avg Days Open</th><th>Placements</th><th>Flagged</th></tr></thead>
       <tbody>${rows || emptyStateRow({ colspan: 6, icon: 'camera', message: 'No snapshots written yet.' })}</tbody>
     </table>
   `;

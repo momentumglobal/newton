@@ -196,7 +196,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
               <select name="Stage" required>
                 ${(isEdit ? CONFIG.ROLE_STAGES : reopenStageOptions())   // N-307 S-6: no terminal stage on Add/Duplicate
                   .map(s => {
-                    // New roles start at Backlog by design (Role Backlog KPI, Roles page
+                    // New roles start at Backlog by design (Pipeline Backlog KPI, Roles page
                     // Backlog tab). State it explicitly — don't rely on the browser
                     // selecting the first option, which a reorder would silently change.
                     // Matches mobile-roleform.js:59.

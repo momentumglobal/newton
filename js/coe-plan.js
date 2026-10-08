@@ -9,7 +9,6 @@
 // (landscape final-page export) — no DOM access, no cache reads.
 
 let _coeCache = null;   // { projectId, planRows, roles, headcount, placements } — headcount null = read failed
-let _coeTPFilter = '';  // '' = all TPs
 
 // ── Date helpers ────────────────────────────────────────────────────
 // N-089: this file's date model is deliberately LOCAL midnight throughout.

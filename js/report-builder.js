@@ -31,7 +31,7 @@ const SNAP_FIELDS = [   // Candidate Pipeline Snapshot columns: [valueKey, heade
 const RB_PALETTE = [
   // Overview — no subheading; tiles sit directly under "Add Modules"
   { key: 'kpiStrip',         label: 'KPI Strip',                  scope: 'both',    group: 'Overview', filtered: true },
-  { key: 'roleTracker',      label: 'Role Tracker',               scope: 'project', group: 'Overview' },
+  { key: 'roleTracker',      label: 'Pipeline Tracker',           scope: 'project', group: 'Overview' },
   { key: 'rolesOpen30',      label: 'Roles Open 30+ Days',        scope: 'both',    group: 'Overview' },
   // Pipeline
   { key: 'pipelineActivity', label: 'Pipeline Activity',          scope: 'project', group: 'Pipeline', filtered: true },

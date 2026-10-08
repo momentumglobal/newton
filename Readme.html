@@ -1244,6 +1244,16 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Dashboard renames + Open Headcount tile (N-311, HC-5)</div>
+        <ul>
+          <li>Project + Company KPI strips (and the Report Builder KPI Strip): <strong>Open Roles → Active Pipelines</strong>, <strong>Role Backlog → Pipeline Backlog</strong>, and a new <strong>Open Headcount</strong> tile (2nd on the Project Dashboard, next to Active Pipelines on the Company Dashboard) — open, dated headcount on active pipelines; headcount without an Open Date is planned, not active, so it is left out (<code>openHeadcountCount()</code>, analytics.js). Definitions of the existing tiles are unchanged.</li>
+          <li>Project Dashboard: Avg Days to Hire moves from the top strip to the period strip (4th).</li>
+          <li><strong>Role Tracker → Pipeline Tracker</strong> (Project Dashboard + Report Builder; the module key stays <code>roleTracker</code>, so saved reports keep working). The Open Date column is replaced by Headcount <code>x/y</code>, and Days Open now counts from each pipeline's oldest open headcount.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
         <div class="changelog-title">Dashboard hire metrics re-based on headcount (N-310, HC-4b)</div>
         <ul>
           <li>Project + Company KPI strips (and the Report Builder KPI Strip): Avg Days to Hire is per hire (headcount Open Date → Offer Accepted); Hired On Time compares each hire with its headcount's Target Hire Date; Avg Days Open averages open headcount (same rule as Snapshots). Period bounds compare local days.</li>

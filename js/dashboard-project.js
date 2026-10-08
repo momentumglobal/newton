@@ -48,7 +48,7 @@ async function renderProjectDashboard() {
   const kpiBtns         = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
   const kpis            = renderKPIStrip(roles, activity, _dashPeriod, placements, hc);
   const longOpenProj    = hideEmpty(renderProjectLongOpenRolesPanel(roles, tpMap, hc.openSince));
-  const roleTracker     = hideEmpty(renderRoleTrackerPanel(roles));
+  const roleTracker     = hideEmpty(renderRoleTrackerPanel(roles, hc));
   const placementsPanel = hideEmpty(renderPlacementsPanel(placements, roles, _dashDetailPeriod));
   const pipelineAct     = hideEmpty(renderPipelineActivityTable(activity, roles, _dashDetailPeriod));
   const tpTable         = isDMAdmin ? hideEmpty(renderActivityByTPPanel(activity, _dashDetailPeriod, tpMap)) : '';

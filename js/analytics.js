@@ -306,17 +306,32 @@ function hireKpis(rows, fromDay, toDay) {
 function avgOpenHeadcountDays(openRoles, headcount, fillMap) {
   let openDates;
   if (headcount) {
-    const openIds = new Set((openRoles || []).map(r => String(r.id)));
-    openDates = headcount
-      .filter(hc => hc && hc.OpenDate && openIds.has(String(hc.RoleID)) &&
-        classifyHeadcount(hc, fillMap) === 'open')
-      .map(hc => hc.OpenDate);
+        openDates = openDatedHeadcount(openRoles, headcount, fillMap).map(hc => hc.OpenDate);
   } else {
     openDates = (openRoles || []).filter(r => r.OpenDate).map(r => r.OpenDate);
   }
   return openDates.length
     ? Math.round(openDates.reduce((s, d) => s + daysOpen(d), 0) / openDates.length)
     : null;
+}
+
+// N-311 (S-2): the open, DATED headcount rows on the given (already open)
+// pipelines — unfilled, not cancelled, with an Open Date. A headcount with no
+// Open Date is planned, not active. The one row set behind both the Avg Days
+// Open tile (avgOpenHeadcountDays) and the Open Headcount tile
+// (openHeadcountCount), so the two cannot drift. Not the "x" of x/y (D-5),
+// which counts undated headcount as open.
+function openDatedHeadcount(openRoles, headcount, fillMap) {
+  const openIds = new Set((openRoles || []).map(r => String(r.id)));
+  return (headcount || []).filter(hc => hc && hc.OpenDate && openIds.has(String(hc.RoleID)) &&
+    classifyHeadcount(hc, fillMap) === 'open');
+}
+
+// N-311 (S-2): "Open Headcount" KPI. null (headcount read failed) → the tile
+// shows "—"; [] → 0.
+function openHeadcountCount(openRoles, headcount, fillMap) {
+  if (headcount === null || headcount === undefined) return null;
+  return openDatedHeadcount(openRoles, headcount, fillMap).length;
 }
 
 // S-8: Actual Spend vs Budget, paired per placement. Each placement whose

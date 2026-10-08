@@ -5,8 +5,12 @@ let _companyDetailPeriod = 'this_month';
 // N-310: `hc` = dashboardHeadcountContext() over all roles + all placements.
 function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period, hc = null) {
   hc = hc || dashboardHeadcountContext(allRoles, [], null);
-  const openRoles      = allRoles.filter(r => isOpenPipelineStage(r.Stage)).length;
+  const openPipelines  = allRoles.filter(r => isOpenPipelineStage(r.Stage));
   const activeProjects = allProjects.filter(p => p.Status === 'Active').length;
+  // N-311 (S-2): open, dated headcount on the active pipelines; "—" when the
+  // headcount read failed.
+  const openHeadcount        = openHeadcountCount(openPipelines, hc.headcount, hc.fillMap);
+  const openHeadcountDisplay = openHeadcount !== null ? openHeadcount : '—';
   const acts      = allActivity.filter(a => activityInKpiPeriod(a, period));
   const submitted = sumField(acts, 'Submitted');
   const int1      = sumField(acts, 'Interview1');
@@ -58,7 +62,8 @@ function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period, hc = 
   return `
     <div class='kpi-strip'>
       ${kpiCard('Active Projects', activeProjects, 'current')}
-      ${kpiCard('Open Roles', openRoles, 'current')}
+      ${kpiCard('Active Pipelines', openPipelines.length, 'current')}
+      ${kpiCard('Open Headcount', openHeadcountDisplay, 'current')}
     </div>
     <div class='kpi-strip kpi-strip-period'>
       ${kpiCard('Hires',                 hires + hiresDelta,          periodLabel)}

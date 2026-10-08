@@ -4,13 +4,17 @@
 function renderKPIStrip(roles, activity, period, placements = [], hc = null) {
   hc = hc || dashboardHeadcountContext(roles, placements, null);
   const openPipelines = roles.filter(r => isOpenPipelineStage(r.Stage));
-  const openRoles    = openPipelines.length;
+  const activePipelines  = openPipelines.length;
   // S-4: one placement = one filled headcount. Counted against `roles` so a
   // caller passing an unscoped placements list (RB company scope) can't inflate it.
   const roleIdSet    = new Set(roles.map(r => String(r.id)));
   const totalHires   = placements.filter(p => roleIdSet.has(String(p.RoleIDLookupId)) || roleIdSet.has(String(p.RoleID))).length;
-  const backlogRoles = roles.filter(r => r.Stage === 'Backlog').length;
+  const backlogPipelines = roles.filter(r => r.Stage === 'Backlog').length;
   const avgOpenDays  = avgOpenHeadcountDays(openPipelines, hc.headcount, hc.fillMap);
+  // N-311 (S-2): open, dated headcount on the active pipelines; "—" when the
+  // headcount read failed.
+  const openHeadcount        = openHeadcountCount(openPipelines, hc.headcount, hc.fillMap);
+  const openHeadcountDisplay = openHeadcount !== null ? openHeadcount : '—';
   const acts      = activity.filter(a => activityInKpiPeriod(a, period));
   const submitted = sumField(acts, 'Submitted');
   const int1      = sumField(acts, 'Interview1');
@@ -57,16 +61,17 @@ function renderKPIStrip(roles, activity, period, placements = [], hc = null) {
   const otDelta    = kpiDelta(onTimePct,prevOnTimePct,false, true);
   return `
     <div class='kpi-strip'>
-      ${kpiCard('Open Roles', openRoles, 'current')}
-      ${kpiCard('Role Backlog', backlogRoles, 'current')}
+      ${kpiCard('Active Pipelines', activePipelines, 'current')}
+      ${kpiCard('Open Headcount', openHeadcountDisplay, 'current')}
+      ${kpiCard('Pipeline Backlog', backlogPipelines, 'current')}
       ${kpiCard('Avg Days Open', avgOpenDaysDisplay, 'current')}
       ${kpiCard('Hires to Date', totalHires, 'all time')}
-      ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,  `per hire · ${periodLabel}`)}
     </div>
     <div class='kpi-strip kpi-strip-period'>
       ${kpiCard('Submission Conversion', convDisplay + convDelta,   periodLabel)}
       ${kpiCard('IV to Offer Ratio',     ivDisplay   + ivDelta,     periodLabel)}
       ${kpiCard('Offer Success',         offerDisplay + offerDelta, periodLabel)}
+      ${kpiCard('Avg Days to Hire',      daysDisplay  + daysDelta,  `per hire · ${periodLabel}`)}
       ${kpiCard('Hired On Time',         otDisplay    + otDelta,    `by target hire date · ${periodLabel}`)}
     </div>`;
 }
@@ -358,30 +363,43 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}, openSince = null) {
     </div>
   </div>`;
 }
-// ── Role Tracker panel ────────────────────────────────────────────────
-function renderRoleTrackerPanel(roles) {
+// ── Pipeline Tracker panel ────────────────────────────────────────────
+// N-311: Headcount x/y (D-5) replaces Open Date. Days Open = days since the
+// pipeline's oldest OPEN headcount (pipelineOpenDay — the value Roles Open
+// 30+ Days shows); no open dated headcount sorts last. `hc` = the dashboard's
+// dashboardHeadcountContext(); absent / headcount unavailable → Headcount "—"
+// and Days Open falls back to Roles.OpenDate. The function keeps its name:
+// the Report Builder key stays `roleTracker` (saved ModuleOrder JSON).
+function renderRoleTrackerPanel(roles, hc = null) {
+  hc = hc || dashboardHeadcountContext(roles, [], null);
+  const byRole = hc.headcount ? groupHeadcountByRole(hc.headcount) : null;
   const active = roles
     .filter(r => isOpenPipelineStage(r.Stage))
-    .sort((a, b) => new Date(a.OpenDate || 0) - new Date(b.OpenDate || 0));
+    .map(r => ({ r, day: pipelineOpenDay(r, hc.openSince) }))
+    .sort((a, b) => (a.day === null) - (b.day === null) || (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
   if (!active.length) return `<div class='dash-panel'>
-    <h3 class='panel-title'>Role Tracker</h3>
-    ${emptyStateBlock({ icon: 'briefcase', message: 'No active roles for this project.' })}
+    <h3 class='panel-title'>Pipeline Tracker</h3>
+    ${emptyStateBlock({ icon: 'briefcase', message: 'No active pipelines for this project.' })}
   </div>`;
-  const rows = active.map(r => {
-    const days = r.OpenDate ? daysOpen(r.OpenDate) : null;
+  const rows = active.map(({ r, day }) => {
+    const hcRows = byRole ? byRole.get(String(r.id)) : null;
+    const counts = hcRows ? headcountCounts(hcRows, hc.fillMap) : null;
+    const hcCell = counts
+      ? `<td title="${escAttr(headcountXYTitle(counts))}">${headcountXY(counts)}</td>`
+      : `<td>—</td>`;
     return `<tr>
       <td>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</td>
       <td>${escHtml(r.HiringManager || '—')}</td>
       <td><span class='badge'>${escHtml(r.Stage || '—')}</span></td>
-      <td>${spDateIn(r.OpenDate) || '—'}</td>
-      <td>${days !== null ? days + ' days' : '—'}</td>
+      ${hcCell}
+      <td>${day ? daysOpen(day) + ' days' : '—'}</td>
     </tr>`;
   }).join('');
   return `<div class='dash-panel'>
-    <h3 class='panel-title'>Role Tracker</h3>
+    <h3 class='panel-title'>Pipeline Tracker</h3>
     <div class="table-scroll">
     <table class='data-table'>
-      <thead><tr><th>Role</th><th>Hiring Manager</th><th>Stage</th><th>Open Date</th><th>Days Open</th></tr></thead>
+      <thead><tr><th>Role</th><th>Hiring Manager</th><th>Stage</th><th>Headcount</th><th>Days Open</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     </div>
@@ -558,7 +576,7 @@ const REPORT_PANELS = {
     renderProjectLongOpenRolesPanel(data.roles, data.tpMap || {}, data.hc ? data.hc.openSince : null),
 
   roleTracker: (data) =>
-    renderRoleTrackerPanel(data.roles),
+    renderRoleTrackerPanel(data.roles, data.hc || null),
 
   placements: (data, period) =>
     renderPlacementsPanel(data.placements, data.roles, period),

@@ -3406,6 +3406,37 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'N-311 openHeadcountCount — open DATED headcount on open pipelines (S-2); same rows as avgOpenHeadcountDays',
+    fn: function () {
+      const now = new Date();
+      const ago = n => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - n, 12)).toISOString();
+      const roles = [
+        { id: 1, Stage: 'Interview' }, { id: 2, Stage: 'On-hold' }, { id: 3, Stage: 'Backlog' },
+        { id: 4, Stage: 'Closed' }, { id: 5, Stage: 'Offered' },
+      ];
+      const openRoles = roles.filter(r => isOpenPipelineStage(r.Stage));
+      const H = (id, roleId, o, status) => ({ id, RoleID: roleId, OpenDate: o, Status: status || 'Open' });
+      const headcount = [
+        H(11, 1, ago(10)),                 // open, dated → counts
+        H(12, 1, ago(50)),                 // filled
+        H(13, 1, ago(5), 'Cancelled'),     // cancelled
+        H(14, 1, null),                    // open but undated → planned, not active
+        H(21, 2, ago(5)),                  // On-hold pipeline
+        H(31, 3, ago(5)),                  // Backlog pipeline
+        H(41, 4, ago(90)),                 // Closed pipeline, filled
+        H(51, 5, ago(3)), H(52, 5, ago(8)),// Offered pipeline, two open dated
+      ];
+      const fillMap = headcountFillMap([{ HeadcountID: 12 }, { HeadcountID: 41 }]);
+      _assertEqual(openHeadcountCount(openRoles, headcount, fillMap), 3, 'ids 11, 51, 52 only — undated / filled / cancelled / parked / closed excluded');
+      _assertEqual(openDatedHeadcount(openRoles, headcount, fillMap).map(h => h.id).sort(), [11, 51, 52], 'selector rows');
+      _assertEqual(headcountCounts(headcount.filter(h => h.RoleID === 1), fillMap).open, 2, 'x of x/y still counts the undated head (D-5)');
+      _assertEqual(openHeadcountCount(openRoles, [], new Map()), 0, '[] → 0');
+      _assertEqual(openHeadcountCount(openRoles, null, null), null, 'null (read failed) → null');
+      _assertEqual(openHeadcountCount([], headcount, fillMap), 0, 'no open pipelines → 0');
+      _assertEqual(avgOpenHeadcountDays(openRoles, headcount, fillMap), 7, 'same three rows: (10 + 3 + 8) / 3');
+    },
+  },
+  {
     name: 'N-310 budgetVsSpendByCurrency — paired per placement (S-8)',
     fn: function () {
       const roles = [

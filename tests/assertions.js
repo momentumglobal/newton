@@ -2790,7 +2790,7 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-306 orderOpenHeadcount (D-5) and defaultHeadcountForPlacement',
+    name: 'N-306 orderOpenHeadcount (D-5)',
     fn: function () {
       const hc = [
         { id: '10', Sequence: 1, Status: 'Open', OpenDate: '2026-03-01T12:00:00Z' },

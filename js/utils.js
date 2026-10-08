@@ -1472,6 +1472,79 @@ function promptModal({ title = '', message = '', defaultValue = '', placeholder 
   });
 }
 
+// N-308: Promise-returning single-choice picker — promptModal's shape with a
+// <select> instead of a text input. options = [{ value, label }]. Resolves the
+// selected value on Confirm, null on Cancel click, backdrop click or Escape.
+// Shares _confirmModalOpen with confirmModal / promptModal (one dialog from
+// this family at a time). Option values/labels are set through DOM
+// properties, never interpolated into markup.
+function selectModal({ title = '', message = '', options = [], defaultValue = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
+  if (_confirmModalOpen) {
+    console.warn('selectModal: a confirm/prompt dialog is already open');
+    return Promise.resolve(null);
+  }
+  _confirmModalOpen = true;
+
+  return new Promise(resolve => {
+    const previouslyFocused = document.activeElement;
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-modal-overlay';
+    const titleHtml = title ? `<h3 class="confirm-modal-title">${escHtml(title)}</h3>` : '';
+    const messageHtml = message ? `<p class="confirm-modal-message">${escHtml(message)}</p>` : '';
+    overlay.innerHTML = `
+      <div class="confirm-modal" role="alertdialog" aria-modal="true">
+        ${titleHtml}
+        ${messageHtml}
+        <select class="confirm-modal-input"></select>
+        <div class="confirm-modal-actions">
+          <button type="button" class="btn-secondary confirm-modal-cancel">${escHtml(cancelLabel)}</button>
+          <button type="button" class="btn-primary confirm-modal-confirm">${escHtml(confirmLabel)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const select = overlay.querySelector('.confirm-modal-input');
+    (options || []).forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = String(o.value);
+      opt.textContent = String(o.label ?? o.value);
+      select.appendChild(opt);
+    });
+    if (defaultValue !== '' && defaultValue !== null && defaultValue !== undefined) select.value = String(defaultValue);
+
+    const cancelBtn  = overlay.querySelector('.confirm-modal-cancel');
+    const confirmBtn = overlay.querySelector('.confirm-modal-confirm');
+
+    const close = result => {
+      _confirmModalOpen = false;
+      document.removeEventListener('keydown', onKeydown);
+      overlay.remove();
+      if (previouslyFocused && previouslyFocused.focus) previouslyFocused.focus();
+      resolve(result);
+    };
+
+    // Same 3-element focus order as promptModal: select → Cancel → Confirm.
+    const onKeydown = e => {
+      if (e.key === 'Escape') { close(null); return; }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const order = [select, cancelBtn, confirmBtn];
+        const i = order.indexOf(document.activeElement);
+        const next = order[(i + (e.shiftKey ? -1 : 1) + order.length) % order.length];
+        next.focus();
+      }
+    };
+
+    cancelBtn.addEventListener('click', () => close(null));
+    confirmBtn.addEventListener('click', () => close(select.value));
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(null); });
+    document.addEventListener('keydown', onKeydown);
+
+    select.focus();
+  });
+}
+
 // Wraps a write with instant, reversible UI feedback: apply() mutates the
 // view synchronously, commit() performs the real write in the background,
 // and either resolves silently (view and server now agree) or the change
@@ -2401,7 +2474,8 @@ function headcountLabel(n) {
 
 // D-5 order for a role's OPEN headcount: OpenDate earliest first, no OpenDate
 // last ("not opened"), ties by Sequence. Filled and cancelled rows are
-// excluded. Returns a new array. N-308's placement picker reuses this order.
+// excluded. Returns a new array. The placement picker uses this order
+// (placementHeadcountGroups, N-308).
 function orderOpenHeadcount(rows, fillMap) {
   const day = hc => (hc.OpenDate ? spDateIn(hc.OpenDate) : null);
   const seq = hc => { const n = Number(hc.Sequence); return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER; };
@@ -2416,19 +2490,6 @@ function orderOpenHeadcount(rows, fillMap) {
       }
       return seq(a) - seq(b);
     });
-}
-
-// Transitional (N-306, until N-308's picker): the headcount a new placement
-// on a role is linked to — the first open one in D-5 order; when none is
-// open, the lowest-Sequence non-cancelled one (a migrated role can carry
-// several placements on its one headcount); otherwise null. Number id.
-function defaultHeadcountForPlacement(rows, fillMap) {
-  const open = orderOpenHeadcount(rows, fillMap);
-  if (open.length) return Number(open[0].id);
-  const live = (rows || [])
-    .filter(hc => hc && hc.Status !== CONFIG.HEADCOUNT.STATUS_CANCELLED)
-    .sort((a, b) => (Number(a.Sequence) || 0) - (Number(b.Sequence) || 0));
-  return live.length ? Number(live[0].id) : null;
 }
 
 function _groupByKey(rows, keyFn) {
@@ -2672,4 +2733,125 @@ function clampHeadcountCount(v) {
   const n = Math.floor(Number(v));
   if (!Number.isFinite(n) || n < 1) return 1;
   return Math.min(n, CONFIG.HEADCOUNT.maxPerAdd);
+}
+
+// ── Placement against headcount (N-308 / HC-3) ─────────────────────────
+// A placement is recorded against one OPEN headcount (D-5), never just a
+// role. The picker (desktop forms.js, mobile mobile-pages.js) is built from
+// these pure helpers; submit re-reads the headcount and validates it
+// (getPlacementTarget in api.js + validatePlacementHeadcount) before any
+// write. "Filled" stays derived from Placements.HeadcountID (rule 4), so a
+// headcount a placement moves away from is open again with no write.
+
+// 'Role (Location)' — the same text the Role select showed before N-308.
+function placementRoleLabel(role) {
+  return role.Location ? `${role.RoleTitle} (${role.Location})` : (role.RoleTitle || '');
+}
+
+// Picker groups for one project: [{ roleId, roleLabel, options:[{ id, roleId,
+// label, current }] }]. A role qualifies when it is at an open-pipeline stage
+// (N-308 S-2), or when it owns currentHeadcountId (an edit — S-4). Options are
+// the role's open headcount in D-5 order (orderOpenHeadcount); the current
+// headcount is listed first when it isn't open (it is filled by the placement
+// being edited, or its pipeline is closed). excludePlacementId drops the edited
+// placement from the fill map. Groups with no options are dropped; groups are
+// alphabetical (S-1). Headcount whose role isn't in `roles` are ignored — the
+// caller's role list carries the Talent Partner scoping.
+function placementHeadcountGroups({ roles = [], headcount = [], placements = [], currentHeadcountId = null, excludePlacementId = null } = {}) {
+  const excl = excludePlacementId === null || excludePlacementId === undefined ? null : String(excludePlacementId);
+  const fill = headcountFillMap((placements || []).filter(p => p && (excl === null || String(p.id) !== excl)));
+  const cur = _isBlankId(currentHeadcountId) ? null : String(currentHeadcountId);
+  const byRole = groupHeadcountByRole((headcount || []).filter(Boolean));
+  const groups = [];
+  (roles || []).forEach(role => {
+    if (!role) return;
+    const rows = byRole.get(String(role.id)) || [];
+    const openStage   = isOpenPipelineStage(normaliseRoleStage(role.Stage));
+    const ownsCurrent = cur !== null && rows.some(hc => String(hc.id) === cur);
+    if (!openStage && !ownsCurrent) return;
+    // A role that qualifies only through the current headcount lists just it.
+    let list = openStage ? orderOpenHeadcount(rows, fill) : [];
+    if (ownsCurrent && !list.some(hc => String(hc.id) === cur)) {
+      list = [rows.find(hc => String(hc.id) === cur), ...list];
+    }
+    if (!list.length) return;
+    groups.push({
+      roleId:    Number(role.id),
+      roleLabel: placementRoleLabel(role),
+      options:   list.map(hc => {
+        const current = cur !== null && String(hc.id) === cur;
+        return { id: Number(hc.id), roleId: Number(role.id), current,
+                 label: placementHeadcountOptionLabel(hc, { current }) };
+      }),
+    });
+  });
+  return groups.sort((a, b) => a.roleLabel.localeCompare(b.roleLabel));
+}
+
+// 'Headcount 2 · opened 2026-09-03' / 'Headcount 3 · not opened', plus
+// ' · Backfill' and ' · current'. Day via spDateIn — the Roles page's rule.
+function placementHeadcountOptionLabel(hc, { current = false } = {}) {
+  const name = hc.Title || headcountLabel(hc.Sequence);
+  const day = hc.OpenDate ? spDateIn(hc.OpenDate) : null;
+  let label = `${name} · ${day ? 'opened ' + day : 'not opened'}`;
+  if (hc.Backfill === true) label += ' · Backfill';
+  if (current) label += ' · current';
+  return label;
+}
+
+// <option>/<optgroup> markup for the Headcount select, shared by desktop and
+// mobile (precedent: stageSelectHtml). selectedId marks one option.
+function placementHeadcountOptionsHtml(groups, selectedId = null) {
+  if (!groups || !groups.length) {
+    return '<option value="">-- No open headcount — add headcount on the role page --</option>';
+  }
+  const sel = _isBlankId(selectedId) ? null : String(selectedId);
+  return '<option value="">-- Select headcount --</option>' + groups.map(g =>
+    `<optgroup label="${escAttr(g.roleLabel)}">` +
+    g.options.map(o =>
+      `<option value="${Number(o.id)}" data-role-id="${Number(o.roleId)}"${sel !== null && String(o.id) === sel ? ' selected' : ''}>${escHtml(o.label)}</option>`
+    ).join('') +
+    '</optgroup>'
+  ).join('');
+}
+
+// The id to pre-select when the form arrives for a role (logged-hire prompt,
+// Command Bar): the first option of that role's group, else null.
+function placementPreselectHeadcountId(groups, roleId) {
+  if (_isBlankId(roleId)) return null;
+  const g = (groups || []).find(x => String(x.roleId) === String(roleId));
+  return g && g.options.length ? g.options[0].id : null;
+}
+
+// Submit-time check (N-308 S-3). `state` = getRoleHeadcountState() output for
+// the headcount's role. An edit keeping its own headcount is always ok.
+function validatePlacementHeadcount({ headcount, state, currentHeadcountId = null, excludePlacementId = null } = {}) {
+  if (!headcount) return { ok: false, reason: 'That headcount no longer exists — pick another.' };
+  if (!_isBlankId(currentHeadcountId) && String(headcount.id) === String(currentHeadcountId)) {
+    return { ok: true, reason: '' };
+  }
+  const excl = excludePlacementId === null || excludePlacementId === undefined ? null : String(excludePlacementId);
+  const pls = ((state && state.placements) || []).filter(p => p && (excl === null || String(p.id) !== excl));
+  const kind = classifyHeadcount(headcount, headcountFillMap(pls));
+  if (kind === 'filled')    return { ok: false, reason: 'That headcount has just been filled — pick another.' };
+  if (kind === 'cancelled') return { ok: false, reason: 'That headcount was cancelled — pick another.' };
+  return { ok: true, reason: '' };
+}
+
+// Placements.TimeToHire: days from the headcount's OpenDate to the offer
+// accepted day; null when either is blank ("not opened" → blank, D-5).
+function placementTimeToHire(hcOpenDate, offerDate) {
+  const open  = hcOpenDate ? spDateIn(hcOpenDate) : null;
+  const offer = offerDate ? spDateIn(offerDate) : null;
+  if (!open || !offer) return null;
+  return daysOpen(open, offer);
+}
+
+// What to ask after a placement lands on a pipeline: 'close' when it filled
+// the last open headcount (D-2), 'stage' while headcount stay open (avoids a
+// stale stage reading as stuck), null on a terminal pipeline or otherwise.
+function placementFollowUp({ stage, counts } = {}) {
+  if (CONFIG.ROLE_STAGE_TERMINAL.includes(normaliseRoleStage(stage))) return null;
+  if (pipelineAfterLastOpen(counts) === 'close') return 'close';
+  return counts && counts.open > 0 ? 'stage' : null;
 }

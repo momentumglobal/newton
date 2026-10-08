@@ -2802,12 +2802,8 @@ var ASSERTIONS = [
       ];
       const fill = headcountFillMap([{ id: 'p', HeadcountID: 15 }]);
       _assertEqual(orderOpenHeadcount(hc, fill).map(h => h.id), ['12', '13', '10', '11'], 'OpenDate asc, tie by Sequence, no OpenDate last');
-      _assertEqual(defaultHeadcountForPlacement(hc, fill), 12, 'earliest open');
-      const allFilled = [{ id: '20', Sequence: 2, Status: 'Open' }, { id: '21', Sequence: 1, Status: 'Open' }, { id: '22', Sequence: 0, Status: 'Cancelled' }];
-      const fill2 = headcountFillMap([{ HeadcountID: 20 }, { HeadcountID: 21 }]);
-      _assertEqual(defaultHeadcountForPlacement(allFilled, fill2), 21, 'none open → lowest-Sequence non-cancelled');
-      _assertEqual(defaultHeadcountForPlacement([{ id: '30', Sequence: 1, Status: 'Cancelled' }], new Map()), null, 'only cancelled → null');
-      _assertEqual(defaultHeadcountForPlacement([], new Map()), null, 'none → null');
+      // N-308: defaultHeadcountForPlacement (transitional) removed — the
+      // placement picker (placementHeadcountGroups) replaces it.
     },
   },
   {
@@ -3032,6 +3028,104 @@ var ASSERTIONS = [
       _assertEqual([clampHeadcountCount(''), clampHeadcountCount('0'), clampHeadcountCount('3'),
         clampHeadcountCount('999'), clampHeadcountCount('2.7'), clampHeadcountCount(undefined)],
         [1, 1, 3, max, 2, 1], 'clamped to 1..maxPerAdd');
+    },
+  },
+  {
+    name: 'N-308 placementHeadcountGroups (S-1, S-2, S-4)',
+    fn: function () {
+      const roles = [
+        { id: 1, RoleTitle: 'Zeta Engineer', Location: 'Lisbon', Stage: 'Sourcing' },
+        { id: 2, RoleTitle: 'Alpha Analyst', Stage: 'On-hold' },
+        { id: 3, RoleTitle: 'Mid Designer', Stage: 'Closed' },
+        { id: 4, RoleTitle: 'Beta PM', Stage: 'Interview 1' },
+      ];
+      const headcount = [
+        { id: 10, RoleID: 1, Sequence: 1, Status: 'Open' },                                  // undated → last
+        { id: 11, RoleID: 1, Sequence: 2, Status: 'Open', OpenDate: '2026-09-03T12:00:00Z' },
+        { id: 12, RoleID: 1, Sequence: 3, Status: 'Open', OpenDate: '2026-08-01T12:00:00Z' }, // filled
+        { id: 13, RoleID: 1, Sequence: 4, Status: 'Cancelled' },
+        { id: 20, RoleID: 2, Sequence: 1, Status: 'Open' },                                  // On-hold pipeline
+        { id: 30, RoleID: 3, Sequence: 1, Status: 'Open', OpenDate: '2026-07-01T12:00:00Z' }, // filled by the edited placement
+        { id: 40, RoleID: 4, Sequence: 1, Status: 'Open', OpenDate: '2026-06-01T12:00:00Z', Backfill: true },
+        { id: 99, RoleID: 77, Sequence: 1, Status: 'Open' },                                 // role not in scope
+      ];
+      const placements = [{ id: 'p1', HeadcountID: 12 }, { id: 'p2', HeadcountID: 30 }];
+      const g = placementHeadcountGroups({ roles, headcount, placements });
+      _assertEqual(g.map(x => x.roleLabel), ['Beta PM', 'Zeta Engineer (Lisbon)'], 'open-stage pipelines only, alphabetical; On-hold/Closed/out-of-scope absent');
+      _assertEqual(g[1].options.map(o => o.id), [11, 10], 'Zeta: dated open first, undated last; filled and cancelled excluded');
+      _assertEqual(g[1].options.every(o => o.roleId === 1 && o.current === false), true, 'option carries roleId, not current');
+      const e = placementHeadcountGroups({ roles, headcount, placements, currentHeadcountId: 30, excludePlacementId: 'p2' });
+      const mid = e.find(x => x.roleId === 3);
+      _assertEqual(mid && mid.options.map(o => [o.id, o.current]), [[30, true]], 'Closed pipeline listed only for the current headcount, marked current');
+      _assertEqual(e.map(x => x.roleLabel), ['Beta PM', 'Mid Designer', 'Zeta Engineer (Lisbon)'], 'still alphabetical');
+      const ex = placementHeadcountGroups({ roles, headcount, placements, excludePlacementId: 'p1' });
+      _assertEqual(ex.find(x => x.roleId === 1).options.map(o => o.id), [12, 11, 10], 'excluding the filling placement re-opens its headcount');
+      const cur = placementHeadcountGroups({ roles, headcount, placements, currentHeadcountId: 12 });
+      _assertEqual(cur.find(x => x.roleId === 1).options.map(o => [o.id, o.current]), [[12, true], [11, false], [10, false]], 'a filled current headcount is prepended');
+      _assertEqual(placementHeadcountGroups({ roles: [], headcount, placements }), [], 'no roles → no groups');
+      _assertEqual(placementPreselectHeadcountId(g, 1), 11, 'preselect = first option of the role');
+      _assertEqual(placementPreselectHeadcountId(g, 2), null, 'role with no group → null');
+      _assertEqual(placementPreselectHeadcountId(g, null), null, 'no role → null');
+    },
+  },
+  {
+    name: 'N-308 placementHeadcountOptionLabel / placementHeadcountOptionsHtml',
+    fn: function () {
+      _assertEqual(placementHeadcountOptionLabel({ Title: 'Headcount 2', OpenDate: '2026-09-03T12:00:00Z' }), 'Headcount 2 · opened 2026-09-03', 'dated');
+      _assertEqual(placementHeadcountOptionLabel({ Sequence: 3 }), 'Headcount 3 · not opened', 'undated; title falls back to the label template');
+      _assertEqual(placementHeadcountOptionLabel({ Title: 'Headcount 1', Backfill: true }, { current: true }), 'Headcount 1 · not opened · Backfill · current', 'suffixes');
+      _assertEqual(placementHeadcountOptionLabel({ Title: 'Headcount 1', OpenDate: '2026-08-31T23:00:00Z' }), 'Headcount 1 · opened 2026-08-31', 'spDateIn day rule (string slice)');
+      const groups = [
+        { roleId: 1, roleLabel: 'A <b>"&\'', options: [{ id: 5, roleId: 1, label: 'Headcount 1 · <x>', current: false }, { id: 6, roleId: 1, label: 'Headcount 2', current: false }] },
+        { roleId: 2, roleLabel: 'B', options: [{ id: 7, roleId: 2, label: 'Headcount 1', current: false }] },
+      ];
+      const html = placementHeadcountOptionsHtml(groups, 6);
+      _assertEqual((html.match(/ selected/g) || []).length, 1, 'exactly one selected');
+      _assertEqual(/<option value="6" data-role-id="1" selected>/.test(html), true, 'selected id marked, with its role id');
+      _assertEqual(html.indexOf('<b>'), -1, 'optgroup label escaped');
+      _assertEqual(html.indexOf('<x>'), -1, 'option text escaped');
+      _assertEqual((html.match(/<optgroup /g) || []).length, 2, 'one optgroup per pipeline');
+      _assertEqual(html.indexOf('<option value="">-- Select headcount --</option>'), 0, 'placeholder first');
+      _assertEqual((placementHeadcountOptionsHtml(groups, null).match(/ selected/g) || []).length, 0, 'no selection');
+      _assertEqual(placementHeadcountOptionsHtml([], null), '<option value="">-- No open headcount — add headcount on the role page --</option>', 'empty state');
+    },
+  },
+  {
+    name: 'N-308 validatePlacementHeadcount (S-3)',
+    fn: function () {
+      const open = { id: 1, Status: 'Open' }, cancelled = { id: 2, Status: 'Cancelled' }, filled = { id: 3, Status: 'Open' };
+      const state = { placements: [{ id: 'p9', HeadcountID: 3 }] };
+      _assertEqual(validatePlacementHeadcount({ headcount: null, state }).ok, false, 'missing → refused');
+      _assertEqual(validatePlacementHeadcount({ headcount: open, state }), { ok: true, reason: '' }, 'open → ok');
+      const f = validatePlacementHeadcount({ headcount: filled, state });
+      _assertEqual([f.ok, /filled/.test(f.reason)], [false, true], 'filled → refused with reason');
+      const c = validatePlacementHeadcount({ headcount: cancelled, state });
+      _assertEqual([c.ok, /cancelled/.test(c.reason)], [false, true], 'cancelled → refused with reason');
+      _assertEqual(validatePlacementHeadcount({ headcount: filled, state, excludePlacementId: 'p9' }).ok, true, 'filled only by the edited placement → ok');
+      _assertEqual(validatePlacementHeadcount({ headcount: filled, state, currentHeadcountId: '3' }).ok, true, 'edit keeping its own headcount → ok');
+      _assertEqual(validatePlacementHeadcount({ headcount: cancelled, state, currentHeadcountId: 2 }).ok, true, 'current headcount ok even if cancelled since');
+    },
+  },
+  {
+    name: 'N-308 placementTimeToHire (day maths, BST-safe)',
+    fn: function () {
+      _assertEqual(placementTimeToHire('2026-09-01T12:00:00Z', '2026-09-15T12:00:00Z'), 14, 'two weeks');
+      _assertEqual(placementTimeToHire('2026-08-31T23:00:00Z', '2026-09-15T12:00:00Z'), 15, 'BST-stored open reads as 31 Aug');
+      _assertEqual(placementTimeToHire('2026-12-20T12:00:00Z', '2027-01-03T12:00:00Z'), 14, 'year rollover');
+      _assertEqual(placementTimeToHire('2026-02-27T12:00:00Z', '2026-03-02T12:00:00Z'), 3, 'month rollover (non-leap Feb)');
+      _assertEqual(placementTimeToHire(null, '2026-09-15T12:00:00Z'), null, 'not opened → null');
+      _assertEqual(placementTimeToHire('2026-09-01T12:00:00Z', undefined), null, 'no offer date → null');
+    },
+  },
+  {
+    name: 'N-308 placementFollowUp (D-2 close / stage prompt)',
+    fn: function () {
+      _assertEqual(placementFollowUp({ stage: 'Offered', counts: { open: 0, filled: 2, cancelled: 0, total: 2 } }), 'close', 'last open filled → close');
+      _assertEqual(placementFollowUp({ stage: 'Offered', counts: { open: 1, filled: 1, cancelled: 0, total: 2 } }), 'stage', 'open remain → stage');
+      _assertEqual(placementFollowUp({ stage: CONFIG.ROLE_STAGE_CLOSED, counts: { open: 0, filled: 1, cancelled: 0, total: 1 } }), null, 'Closed → nothing');
+      _assertEqual(placementFollowUp({ stage: 'Hired', counts: { open: 0, filled: 1, cancelled: 0, total: 1 } }), null, "legacy 'Hired' normalises to Closed → nothing");
+      _assertEqual(placementFollowUp({ stage: 'Cancelled', counts: { open: 1, filled: 0, cancelled: 0, total: 1 } }), null, 'Cancelled → nothing');
+      _assertEqual(placementFollowUp({ stage: 'Sourcing', counts: { open: 0, filled: 0, cancelled: 1, total: 0 } }), null, 'nothing filled, nothing open → nothing');
     },
   },
 ];

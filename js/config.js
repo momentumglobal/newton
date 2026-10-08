@@ -67,9 +67,9 @@ const CONFIG = {
                 'Interview 2+', 'Final Interview', 'Offered', 'Closed',
                 'On-hold', 'Cancelled'],
   // Terminal stages — two intents, same set (N-305):
-  //   (a) stages that carry side effects (ActualHireDate, placement records)
-  //       and so must only ever be set via the full role form, never the
-  //       inline dropdown;
+  //   (a) stages that carry side effects (the D-2 close rule and the D-1
+  //       cancel cascade — N-307) and so must only ever be set via the full
+  //       role form, never the inline dropdown;
   //   (b) a "finished" pipeline — command bar, mobile role list and pickers,
   //       Snapshot RolesByStage.
   // Deliberately narrower than analytics.js's ACTIVE_STAGES, which mixes

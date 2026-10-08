@@ -1196,6 +1196,41 @@ async function checkRoleStageChange(roleId, toStage) {
   };
 }
 
+// N-308: everything the Headcount picker needs for one project — the
+// project's roles (Talent Partner-scoped when tpEmail is given), its headcount
+// (indexed ProjectID, rule 2) and every placement's HeadcountID ($select-
+// limited, as on the Roles page). Grouped by placementHeadcountGroups().
+async function getPlacementPickerData(projectId, tpEmail = null) {
+  const pid = parseInt(projectId);
+  const [roles, headcount, placements] = await Promise.all([
+    getRolesForProject(pid, tpEmail),
+    getHeadcountForProject(pid),
+    getPlacementHeadcountIds(),
+  ]);
+  return { roles, headcount, placements };
+}
+
+// N-308 S-3: the authoritative read before a placement is saved. The role is
+// taken from the headcount row, never from the form. Both lists are
+// invalidated first: this check exists to catch a fill or cancel made since
+// the form opened, so a cached read would defeat it (the write that follows
+// invalidates them anyway). A missing headcount resolves { headcount: null };
+// other errors propagate — callers fail closed and write nothing.
+async function getPlacementTarget(headcountId) {
+  _cacheInvalidate('RoleHeadcount');
+  _cacheInvalidate('Placements');
+  let headcount;
+  try {
+    headcount = await getItem('RoleHeadcount', parseInt(headcountId));
+  } catch (e) {
+    if (/not ?found|404/i.test(String(e && e.message))) return { headcount: null };
+    throw e;
+  }
+  const roleId = Number(headcount.RoleID);
+  const [role, state] = await Promise.all([getItem('Roles', roleId), getRoleHeadcountState(roleId)]);
+  return { headcount, roleId, role, state };
+}
+
 async function deleteItem(listName, itemId) {
   const result = await graphRequest("DELETE", `${listPath(listName)}/${itemId}`);
   _cacheInvalidate(listName);

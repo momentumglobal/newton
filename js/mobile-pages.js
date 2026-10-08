@@ -367,6 +367,9 @@ async function mobileSubmitActivity(rolePreselected) {
 }
 
 // ── Placement Form ────────────────────────────────────────────────────
+// N-308 (HC-3): recorded against one OPEN headcount, same picker helpers as
+// desktop (placementHeadcountGroups / placementHeadcountOptionsHtml). The
+// role is taken from the chosen headcount at submit (getPlacementTarget).
 
 async function mobileRenderPlacementForm(main, rolePreselected) {
   main.innerHTML = '<div class="m-empty">Loading…</div>';
@@ -375,12 +378,18 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
     const projects = await getScopedProjects(user.email, false);
     let   roleName = '';
     let   currency = '';
+    let   hcOptions = '';
+    let   hcEmpty   = false;
 
     if (rolePreselected && _mobileRoleId) {
       const role = await getItem('Roles', _mobileRoleId);
       roleName   = role.RoleTitle;
       currency   = currencyForRole(role);
       mobileSetTitle('Record Placement', roleName);
+      // This role's open headcount only (D-5 order), the first selected.
+      const r = await _mobilePlacementHeadcountOptions(role.ProjectIDLookupId ?? role.ProjectID, _mobileRoleId);
+      hcOptions = r.html;
+      hcEmpty   = !r.selectedId;
     } else {
       _mobileRoleId = null;
       mobileSetTitle('Record Placement', 'New Placement');
@@ -390,6 +399,7 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
     const projectOpts = buildProjectOptionsHtml(sortProjectsByName(projects.filter(isProjectActive)), '');
 
     const today = localDayISO();
+    const hint = '<div class="m-form-hint">Open headcount, earliest opened first. Not listed? Add headcount on the role page (desktop).</div>';
 
     main.innerHTML = `
       <div class="m-detail-panel">
@@ -397,22 +407,27 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
           <div class="m-form-group">
             <div class="m-label">Role</div>
             <input class="m-input" readonly value="${escAttr(roleName)}">
-            <input type="hidden" id="mp-role-id" value="${_mobileRoleId}">
+          </div>
+          <div class="m-form-group">
+            <label class="m-label">Headcount *</label>
+            <select class="m-select" id="mp-hc-select">${hcOptions}</select>
+            ${hint}
           </div>` : `
           <div class="m-form-group">
             <label class="m-label">Project *</label>
             <select class="m-select" id="mp-project-select"
-              onchange="mobileLoadRolesForPlacement(this.value)">
+              onchange="mobileLoadHeadcountForPlacement(this.value)">
               <option value="">— select project —</option>
               ${projectOpts}
             </select>
           </div>
           <div class="m-form-group">
-            <label class="m-label">Role *</label>
-            <select class="m-select" id="mp-role-select"
-              onchange="mobileLoadCurrencyForPlacement(this.value)">
+            <label class="m-label">Headcount *</label>
+            <select class="m-select" id="mp-hc-select"
+              onchange="mobileLoadCurrencyForPlacement(this.selectedOptions[0] ? this.selectedOptions[0].dataset.roleId : '')">
               <option value="">— select project first —</option>
             </select>
+            ${hint}
           </div>`}
 
         <div class="m-form-group">
@@ -446,7 +461,7 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
       </div>
 
       <div class="m-action-row">
-        <button class="m-btn-primary" id="mp-submit-btn" onclick="mobileSubmitPlacement(${rolePreselected})">
+        <button class="m-btn-primary" id="mp-submit-btn" onclick="mobileSubmitPlacement(${rolePreselected})"${hcEmpty ? ' disabled' : ''}>
           Record Placement
         </button>
       </div>
@@ -456,21 +471,35 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
   }
 }
 
-async function mobileLoadRolesForPlacement(projectId) {
-  const sel = document.getElementById('mp-role-select');
+// N-308: Headcount options for one project (no Talent Partner filter on
+// mobile, as before). onlyRoleId limits them to one pipeline and selects its
+// first open headcount. Returns { html, selectedId }.
+async function _mobilePlacementHeadcountOptions(projectId, onlyRoleId = null) {
+  try {
+    const data = await getPlacementPickerData(projectId);
+    let groups = placementHeadcountGroups(data);
+    if (onlyRoleId) groups = groups.filter(g => String(g.roleId) === String(onlyRoleId));
+    const selectedId = onlyRoleId ? placementPreselectHeadcountId(groups, onlyRoleId) : null;
+    return { html: placementHeadcountOptionsHtml(groups, selectedId), selectedId };
+  } catch (e) {
+    console.warn('N-308: headcount picker load failed for project ' + projectId, e);
+    return { html: "<option value=\"\">— couldn't load headcount —</option>", selectedId: null };
+  }
+}
+
+async function mobileLoadHeadcountForPlacement(projectId) {
+  const sel = document.getElementById('mp-hc-select');
   const cur = document.getElementById('mp-currency');
   if (!projectId) { sel.innerHTML = '<option value="">— select project first —</option>'; return; }
   sel.innerHTML = '<option value="">Loading…</option>';
   if (cur) cur.value = '';
-  const roles = await getRolesForProject(projectId);
-  sel.innerHTML = '<option value="">— select role —</option>' +
-    roles.filter(r => !CONFIG.ROLE_STAGE_TERMINAL.includes(r.Stage))
-         .map(r => `<option value="${r.id}">${escHtml(r.RoleTitle)}</option>`).join('');
+  sel.innerHTML = (await _mobilePlacementHeadcountOptions(projectId)).html;
 }
 
 async function mobileLoadCurrencyForPlacement(roleId) {
   const cur = document.getElementById('mp-currency');
-  if (!cur || !roleId) return;
+  if (!cur) return;
+  if (!roleId) { cur.value = ''; return; }
   cur.value = await getCurrencyForRole(roleId);
 }
 
@@ -479,35 +508,30 @@ async function mobileSubmitPlacement(rolePreselected) {
   const errEl  = document.getElementById('mp-error');
   const user   = getCurrentUser();
   errEl.style.display = 'none';
+  const fail = msg => { errEl.textContent = msg; errEl.style.display = 'block'; if (btn) btn.disabled = false; };
 
-  const roleId    = rolePreselected
-    ? parseInt(document.getElementById('mp-role-id').value)
-    : parseInt(document.getElementById('mp-role-select')?.value);
-  const candidate = document.getElementById('mp-candidate').value.trim();
+  const headcountId = document.getElementById('mp-hc-select')?.value;
+  const candidate   = document.getElementById('mp-candidate').value.trim();
 
-  if (!roleId)    { errEl.textContent = 'Please select a role.';           errEl.style.display = 'block'; return; }
-  if (!candidate) { errEl.textContent = 'Please enter a candidate name.';  errEl.style.display = 'block'; return; }
+  if (!headcountId) { fail('Please pick a headcount.');       return; }
+  if (!candidate)   { fail('Please enter a candidate name.'); return; }
+  if (btn) btn.disabled = true;
 
+  // N-308 S-3: fresh check before any write. Fail closed.
+  let target;
+  try {
+    target = await getPlacementTarget(headcountId);
+  } catch (e) {
+    console.warn('N-308: placement headcount check failed', e);
+    fail("Couldn't check the headcount — nothing saved.");
+    return;
+  }
+  const v = validatePlacementHeadcount({ headcount: target.headcount, state: target.state });
+  if (!v.ok) { fail(v.reason); return; }
+
+  const roleId    = target.roleId;
   const offerDate = isoDate(document.getElementById('mp-offer-date').value);
   const startDate = isoDate(document.getElementById('mp-start-date').value);
-
-  let timeToHire;
-  try {
-    const role = await getItem('Roles', roleId);
-    if (role.OpenDate && offerDate) {
-      timeToHire = Math.round(
-        (new Date(offerDate) - new Date(role.OpenDate)) / (1000 * 60 * 60 * 24)
-      );
-    }
-  } catch (e) { /* non-critical */ }
-
-  // N-306 (transitional, until N-308's picker): link to the role's earliest
-  // open headcount. Non-critical, like TimeToHire — Data Health reports a gap.
-  let headcountId;
-  try {
-    const [hcRows, rolePlacements] = await Promise.all([getHeadcountForRole(roleId), getPlacements(roleId)]);
-    headcountId = defaultHeadcountForPlacement(hcRows, headcountFillMap(rolePlacements)) ?? undefined;
-  } catch (e) { /* non-critical */ }
 
   const fields = {
     RoleIDLookupId:       roleId,
@@ -517,30 +541,45 @@ async function mobileSubmitPlacement(rolePreselected) {
     Currency:             document.getElementById('mp-currency').value || undefined,
     OfferAcceptedDate:    offerDate || undefined,
     ProvisionalStartDate: startDate || undefined,
-    TimeToHire:           timeToHire,
-    HeadcountID:          headcountId,
+    TimeToHire:           placementTimeToHire(target.headcount.OpenDate, offerDate) ?? undefined,
+    HeadcountID:          Number(target.headcount.id),
   };
 
   // N-218d: close-immediately variant -- no list is on screen behind this
   // sheet to hold a pending row, so apply() only closes the sheet and
-  // shows the success toast; revert() has nothing to undo. The role-history
-  // side effects stay inside commit(), after the create, in their existing
-  // order (same precedent as N-218a's desktop Placements Gotcha).
+  // shows the success toast; revert() has nothing to undo.
+  // N-308: no Roles writes (ActualHireDate / CurrentStartDate retired).
   try {
     await optimisticWrite({
       apply:  () => { mobileCloseSheet(); mobileToast('Placement recorded ✓'); },
       revert: () => {},
-      commit: async () => {
-        const created = await createItem('Placements', fields);
-        if (startDate) await updateRoleWithHistory(roleId, { CurrentStartDate: startDate });
-        if (offerDate) await updateRoleWithHistory(roleId, { ActualHireDate: offerDate });
-        return created;
-      },
+      commit: () => createItem('Placements', fields),
       errorMessage: 'Error saving placement — change reverted.',
       toastFn: mobileToast,
     });
   } catch (e) {
     // optimisticWrite() already showed the error/Retry toast; the sheet is
     // already closed, so there's no form left to re-enable the button on.
+    return;
   }
+  await _mobilePlacementFollowUp(roleId);
+}
+
+// N-308: mobile has no modal — the close / stage prompt is a toast whose
+// action opens the Update Stage page for the pipeline (which applies the
+// D-2 rule itself). A failed read asks nothing.
+async function _mobilePlacementFollowUp(roleId) {
+  let role, state;
+  try {
+    [role, state] = await Promise.all([getItem('Roles', roleId), getRoleHeadcountState(roleId)]);
+  } catch (e) {
+    console.warn('N-308: placement follow-up read failed for role ' + roleId, e);
+    return;
+  }
+  const kind = placementFollowUp({ stage: role.Stage, counts: state.counts });
+  if (!kind) return;
+  const msg = kind === 'close'
+    ? 'Last open headcount filled — close the pipeline?'
+    : `${state.counts.open} headcount still open — update the stage?`;
+  mobileToast(msg, { action: { label: 'Update stage', onClick: () => { _mobileRoleId = roleId; mobileNav('stage-update'); } } });
 }

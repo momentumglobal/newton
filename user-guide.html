@@ -298,12 +298,16 @@
         <span class="role-badge dm">Delivery Manager</span>
         <span class="role-badge tp">Talent Partner</span>
       </div>
-      <p>Records successful hires — candidate name, role, agreed salary, and provisional start date. Each placement is linked to a specific role.</p>
+      <p>Records successful hires — candidate name, role, agreed salary, and provisional start date. Each placement fills one <strong>headcount</strong> on a role.</p>
       <h3>Filtering</h3>
       <p>Filter by project — grouped into <strong>Active</strong> and <strong>Archive</strong> sections — and by Month, Quarter, or Year using the filter rows below the project dropdown.</p>
       <p>The <strong>Period</strong> dropdown controls how far back placements are <em>fetched</em>, and defaults to <strong>Last 52 weeks</strong>. Choose <strong>All time</strong> to load every placement ever recorded. The Month / Quarter / Year buttons still work regardless of the period — picking an earlier month widens the fetch automatically rather than returning nothing. The <strong>Show</strong> dropdown (25 / 50 / 100 / All, default 50) limits how many rows are drawn without re-fetching, and the line under the toolbar names the period so a narrowed list is never mistaken for the whole list.</p>
       <h3>Recording a placement</h3>
-      <p>Use <strong>+ Record Placement</strong> to log a hire. Select the role and the currency field will auto-populate from the role's location. The salary field feeds the Actual Spend vs Budget panel on the Project Dashboard, so accuracy here matters. The Project dropdown on this form lists Active projects only.</p>
+      <p>Use <strong>+ Record Placement</strong> to log a hire. Pick the <strong>Headcount</strong> the hire fills: the list shows the project's open headcount, grouped by role, earliest opened first — headcount with no Open Date come last, marked <em>not opened</em>. The currency field auto-populates from the role's location. The salary field feeds the Actual Spend vs Budget panel on the Project Dashboard, so accuracy here matters. The Project dropdown on this form lists Active projects only.</p>
+      <p>A role isn't listed when it has no open headcount, or is Backlog, On-hold, Closed or Cancelled. Add headcount on the role page first — that also reopens a Closed role. If someone fills or cancels the headcount while you're on the form, saving tells you to pick another.</p>
+      <p><strong>Time to Hire</strong> is counted from the headcount's Open Date to the Offer Accepted Date. It's blank for a headcount that was never opened.</p>
+      <p>After you save: if that placement filled the role's last open headcount, Newton offers to <strong>close the pipeline</strong>. If headcount are still open, it asks which stage the pipeline is at now, so a role left on Offered doesn't show as stuck. On mobile, a message offers <strong>Update stage</strong> instead.</p>
+      <p>Editing a placement can move it to a different headcount; the one it leaves becomes open again. If that one is on a Closed or Cancelled role, Newton offers to cancel it.</p>
       <div class="tip">A placement's provisional start date is what populates the <strong>Upcoming Starters</strong> panel on the Project Dashboard.</div>
     </div>
     <div class="guide-section" id="rejections">

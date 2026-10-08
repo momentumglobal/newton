@@ -3485,7 +3485,7 @@ var ASSERTIONS = [
       const planRows = [{ id: 'r1', LinkedHeadcountID: 15 }, { id: 'r2', LinkedHeadcountID: 31 }, { id: 'r3' }];
       const ex = PLAN_LINKABLE_EXCLUDED_STAGES;
       const g = coeLinkableHeadcount({ roles, headcount, placements, planRows, excludedStages: ex });
-      _assertEqual(g.map(x => x.roleLabel), ['Eng (Lisbon)', 'PM'], 'Closed / legacy Hired / On-hold / Cancelled pipelines out; Backlog in; alphabetical');
+      _assertEqual(g.map(x => x.roleLabel), ['Eng (Lisbon)', 'PM'], 'open headcount on Closed / legacy Hired / On-hold / Cancelled pipelines out (their only filled one is linked to r2); Backlog in; alphabetical');
       _assertEqual(g[0].options.map(o => o.id), [13, 12, 11], 'open dated, open undated, then filled; cancelled + linked elsewhere excluded');
       _assertEqual(g[0].options.map(o => o.label),
         ['Headcount 3 · opened 2026-06-01', 'Headcount 2 · not opened', 'Headcount 1 · opened 2026-05-01 · filled'], 'labels');
@@ -3497,6 +3497,35 @@ var ASSERTIONS = [
       const g3 = coeLinkableHeadcount({ roles, headcount, placements, planRows, currentHeadcountId: '15', excludedStages: ex });
       _assertEqual(g3[0].options.map(o => o.id), [15, 13, 12, 11], 'current first, then the usual order');
       _assertEqual(coeLinkableHeadcount({}), [], 'empty input');
+    },
+  },
+  {
+    name: 'N-312 diff-2 coeLinkableHeadcount — filled headcount linkable on any pipeline stage',
+    fn: function () {
+      // Live case (8 Oct 2026): a plan row for a hire on a Closed pipeline could
+      // not be linked, and freeing a filled headcount meant re-linking another
+      // row onto a Closed pipeline first.
+      const roles = [
+        { id: '37', RoleTitle: 'COM', Location: 'NL', Stage: 'Closed' },
+        { id: '56', RoleTitle: 'CSM', Location: 'NL', Stage: 'Hired' },     // legacy → Closed
+        { id: '46', RoleTitle: 'TL', Stage: 'Cancelled' },
+        { id: '38', RoleTitle: 'BDR', Stage: 'On-hold' },
+      ];
+      const headcount = [
+        { id: '26', RoleID: 37, Sequence: 1, Status: 'Open', OpenDate: '2026-06-18T12:00:00Z', Title: 'Headcount 1' },  // filled
+        { id: '27', RoleID: 37, Sequence: 2, Status: 'Open', OpenDate: null, Title: 'Headcount 2' },                  // open on Closed
+        { id: '41', RoleID: 56, Sequence: 1, Status: 'Open', OpenDate: '2026-08-12T12:00:00Z', Title: 'Headcount 1' },  // filled
+        { id: '34', RoleID: 46, Sequence: 1, Status: 'Cancelled', OpenDate: '2026-07-13T12:00:00Z', Title: 'Headcount 1' },
+        { id: '35', RoleID: 46, Sequence: 2, Status: 'Open', OpenDate: '2026-07-13T12:00:00Z', Title: 'Headcount 2' },  // filled on Cancelled
+        { id: '39', RoleID: 38, Sequence: 1, Status: 'Open', OpenDate: '2026-06-18T12:00:00Z', Title: 'Headcount 1' },  // open on On-hold
+      ];
+      const placements = [{ HeadcountID: 26 }, { HeadcountID: '41' }, { HeadcountID: 35 }];
+      const g = coeLinkableHeadcount({ roles, headcount, placements, planRows: [], excludedStages: PLAN_LINKABLE_EXCLUDED_STAGES });
+      _assertEqual(g.map(x => [x.roleId, x.options.map(o => [o.id, o.filled])]),
+        [[37, [[26, true]]], [56, [[41, true]]], [46, [[35, true]]]],
+        'filled offered on Closed / legacy Hired / Cancelled; open on Closed + On-hold and cancelled headcount still out');
+      const g2 = coeLinkableHeadcount({ roles, headcount, placements, planRows: [{ id: 'x', LinkedHeadcountID: 41 }], excludedStages: PLAN_LINKABLE_EXCLUDED_STAGES });
+      _assertEqual(g2.map(x => x.roleId), [37, 46], 'a filled headcount linked to another row stays hidden');
     },
   },
   {

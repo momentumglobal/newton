@@ -2969,13 +2969,15 @@ function placementFollowUp({ stage, counts } = {}) {
 // kept in sync (= that headcount's RoleID) but nothing displays from it.
 
 // Link picker groups: [{ roleId, roleLabel, options:[{ id, roleId, current,
-// filled, label }] }]. Spec S-1 — linkable = not linked to another plan row,
-// not Cancelled, on a pipeline whose stage is not in excludedStages (the
-// caller passes PLAN_LINKABLE_EXCLUDED_STAGES from analytics.js, so this stays
-// pure). Filled headcount on a still-open pipeline ARE linkable. Per pipeline:
-// open headcount in D-5 order (orderOpenHeadcount), then filled by Sequence.
-// currentHeadcountId (the row's own link) is always listed, first in its
-// group, whatever its state. Groups alphabetical.
+// filled, label }] }]. Spec S-1 (amended by diff-2) — never a headcount linked
+// to another plan row, never a cancelled one. OPEN headcount only on a
+// pipeline whose stage is not in excludedStages (the caller passes
+// PLAN_LINKABLE_EXCLUDED_STAGES from analytics.js, so this stays pure).
+// FILLED headcount on ANY pipeline — a completed hire is a fact whatever the
+// pipeline's stage now is; most filled headcount sit on Closed pipelines.
+// Per pipeline: open headcount in D-5 order (orderOpenHeadcount), then filled
+// by Sequence. currentHeadcountId (the row's own link) is always listed,
+// first in its group, whatever its state. Groups alphabetical.
 function coeLinkableHeadcount({ roles = [], headcount = [], placements = [], planRows = [], currentHeadcountId = null, excludedStages = [] } = {}) {
   const cur   = _isBlankId(currentHeadcountId) ? null : String(currentHeadcountId);
   const fill  = headcountFillMap(placements);
@@ -2988,8 +2990,9 @@ function coeLinkableHeadcount({ roles = [], headcount = [], placements = [], pla
     if (!role) return;
     const rows = byRole.get(String(role.id)) || [];
     const free = rows.filter(hc => !taken.has(String(hc.id)));
-    let list = (excludedStages || []).includes(normaliseRoleStage(role.Stage)) ? [] : [
-      ...orderOpenHeadcount(free, fill),
+    const openOk = !(excludedStages || []).includes(normaliseRoleStage(role.Stage));
+    let list = [
+      ...(openOk ? orderOpenHeadcount(free, fill) : []),
       ...free.filter(hc => classifyHeadcount(hc, fill) === 'filled').sort((a, b) => seq(a) - seq(b)),
     ];
     const curRow = cur === null ? null : rows.find(hc => String(hc.id) === cur);

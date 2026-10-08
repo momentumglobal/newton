@@ -1247,7 +1247,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <div class="changelog-title">Hiring Plan links to headcount (N-312, HC-6)</div>
         <ul>
           <li>A Hiring Plan row now tracks one <strong>headcount</strong>: new <code>CoEPlanRows.LinkedHeadcountID</code> (Number). <code>LinkedRoleID</code> is kept in sync with the headcount's role.</li>
-          <li>Link picker: unlinked, uncancelled headcount on pipelines that aren't Closed, Cancelled or On-hold (Backlog included), grouped by pipeline; filled headcount are offered and marked.</li>
+          <li>Link picker: unlinked, uncancelled headcount, grouped by pipeline. Open headcount only on pipelines that aren't Closed, Cancelled or On-hold (Backlog included); filled headcount on any pipeline, marked "filled".</li>
           <li><strong>Create Role → Create Headcount</strong>: add one to an existing pipeline, or open a pre-filled Add Role form whose Headcount 1 is linked to the row on save. Fixes the Open Date pre-fill N-307 broke.</li>
           <li>Actuals bar per headcount: open → offer accepted → provisional start (cancelled stops at its cancel date). One placements read per page load instead of one per linked role.</li>
           <li>Admin → Data Health: re-runnable <strong>Hiring Plan link migration</strong> moves existing role links onto each role's first headcount.</li>

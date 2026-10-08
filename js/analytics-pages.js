@@ -9,15 +9,19 @@ async function renderScorecardsPage() {
 
   // N-270: 52 weeks fetched once — the full window feeds the learned
   // benchmarks; everything on the cards stays on the 13-week slice.
-  const [activity52, historical, tpMap, allRoles, stageRows] = await Promise.all([
+  const [activity52, historical, tpMap, allRoles, stageRows, headcount, placementIds] = await Promise.all([
     getActivityForAnalytics(52),
     getHistoricalPlacements(),
     getTalentPartnerDisplayMap(),
     getAllRoles(),
     getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; }),
+    getAllHeadcount().catch(e => { console.warn('N-309: headcount read failed', e); return []; }),
+    getPlacementHeadcountIds().catch(e => { console.warn('N-309: placement headcount read failed', e); return []; }),
   ]);
   const activityRaw = activitySinceWeeks(activity52, 13);
   const stageHistory = groupStageHistoryByRole(stageRows);  // N-274
+  // N-309: behind-pace measured from each pipeline's oldest open headcount.
+  const openSince = oldestOpenHeadcountIndex(headcount, placementIds);
 
   // Get unique TP emails from activity, then drop inactive employees
   let tpEmails = [...new Set(activityRaw.map(a => a.TalentPartner).filter(Boolean))];
@@ -50,7 +54,8 @@ async function renderScorecardsPage() {
   const roleIndex = funnelRoleIndex(allRoles, 'Department', 'Location');
   const benchObs  = buildFunnelObservations(activity52, roleIndex);
 
-  // Filter historical to last 13 weeks
+  // Filter historical to last 13 weeks — one row per fill, credited to the
+  // TP who made the placement (N-309, D-7).
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 91);
   const recentPlacements = historical.filter(r =>
@@ -65,7 +70,7 @@ async function renderScorecardsPage() {
     const tpRoles      = allRoles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tpEmail));
     // N-274: { total, flagged, stuck, conversion, behind }. Counts only — no RAG
     // for a quarter of time-in-stage data (decision, 2 Oct 2026).
-    const roleHealth   = tallyRoleFlags(tpRoles, activityRaw, stageHistory);
+    const roleHealth   = tallyRoleFlags(tpRoles, activityRaw, stageHistory, undefined, { openSince });
     return renderScorecardPanel(scorecard, tpMap, roleHealth, bench);
   }).join('');
 

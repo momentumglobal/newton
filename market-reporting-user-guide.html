@@ -261,9 +261,9 @@
       </div>
       <p>Four headline figures displayed as tiles, reflecting all placements matching the current filter selection.</p>
       <h3>Predicted Time to Hire</h3>
-      <p>A forward-looking estimate of the <strong>median</strong> time from Open Date to hire, in days, with a ± band (e.g. <em>~56d ±14d</em>) and the number of hires and open roles it is based on. It counts roles that are <em>still open</em> as well as completed hires, so slow roles that haven't filled yet are not ignored — which is why it is usually longer than the Avg. Actual figure. It uses placements matching the selected functional area and location; if there are fewer than three matching hires, it falls back to the functional area across all locations (shown as <em>· all locations</em>). If fewer than half the matching roles have filled so far, it shows a minimum instead (e.g. <em>&gt;90d</em>).</p>
+      <p>A forward-looking estimate of the <strong>median</strong> time from a headcount's Open Date to hire, in days, with a ± band (e.g. <em>~56d ±14d</em>) and the number of hires and open headcount it is based on. Each hire counts separately, so a pipeline that has filled two of three headcount contributes two hires. Headcount that are <em>still open</em> count as "at least this long so far", so slow hires that haven't filled yet are not ignored — which is why it is usually longer than the Avg. Actual figure. Headcount on an on-hold or cancelled pipeline, and cancelled headcount, count up to the day they stopped. It uses placements matching the selected functional area and location; if there are fewer than three matching hires, it falls back to the functional area across all locations (shown as <em>· all locations</em>). If fewer than half the matching headcount have filled so far, it shows a minimum instead (e.g. <em>&gt;90d</em>).</p>
       <h3>Avg. Actual Time to Hire</h3>
-      <p>The mean number of days from Open Date to ActualHireDate across all filtered placed roles. This is a retrospective figure based on completed hires only.</p>
+      <p>The mean number of days from the headcount's Open Date to the Offer Accepted Date, across every filtered placement in the last 12 months — including placements on pipelines that are still open. A placement against a headcount that was never opened is counted as a placement but has no time to hire. This is a retrospective figure based on completed hires only.</p>
       <h3>Outreach per Hire</h3>
       <p>The average number of outreach contacts required to produce a hire across the filtered role set. Useful for resourcing conversations and capacity planning.</p>
       <h3>Offer Success Rate</h3>
@@ -284,7 +284,7 @@
       <p><strong>IV&#8594;Offer</strong> — Offers &#247; Interview 1s. Captures the attrition between interview stage and offer.</p>
       <p><strong>Offer Success</strong> — Hires &#247; Offers. The final conversion from offer to accepted hire.</p>
       <h3>RAG status</h3>
-      <p>Each tile is rated green, amber, or red against a <strong>learned benchmark</strong>: what other hired roles in the same function and location actually achieved, learned from Weekly Activity. The roles you are looking at are left out, so a selection is never benchmarked against itself. Where there is little data the benchmark leans toward Newton's company targets (<code>CONFIG.ANALYTICS_BENCHMARKS</code>), and it never drops below 80% of the target. A benchmark can sit above target in a strong market, so hitting the target may still show amber. With no filters selected there are no peers to compare against, so the company targets apply. Hover over a tile (or a breakdown dot) to see the benchmark used. Grey indicates insufficient data to calculate the rate. The People module scorecards use the same model, weighted to each Talent Partner's mix.</p>
+      <p>Each tile is rated green, amber, or red against a <strong>learned benchmark</strong>: what other pipelines with at least one hire (plus cancelled ones) in the same function and location actually achieved, learned from Weekly Activity. The roles you are looking at are left out, so a selection is never benchmarked against itself. Where there is little data the benchmark leans toward Newton's company targets (<code>CONFIG.ANALYTICS_BENCHMARKS</code>), and it never drops below 80% of the target. A benchmark can sit above target in a strong market, so hitting the target may still show amber. With no filters selected there are no peers to compare against, so the company targets apply. Hover over a tile (or a breakdown dot) to see the benchmark used. Grey indicates insufficient data to calculate the rate. The People module scorecards use the same model, weighted to each Talent Partner's mix.</p>
     </div>
 
     <div class="guide-section" id="pa-breakdown">
@@ -299,7 +299,7 @@
       <p><strong>Role</strong> — the role title.</p>
       <p><strong>Functional Area</strong> — the Department value from the Roles list.</p>
       <p><strong>Location</strong> — the Location value from the Roles list.</p>
-      <p><strong>Actual TTH</strong> — the actual time to hire for this role in weeks, calculated from Open Date to ActualHireDate.</p>
+      <p><strong>Actual TTH</strong> — the average time to hire across this role's placements, calculated per hire from the headcount's Open Date to the Offer Accepted Date.</p>
       <p><strong>Outreach</strong> — total outreach contacts logged against this role.</p>
       <p><strong>Funnel (RAG)</strong> — four coloured dots representing the RAG status of each funnel stage for this role individually. Hover over a dot to see the stage name and conversion percentage.</p>
       <p><strong>Offer Success</strong> — the offer-to-hire conversion rate for this role.</p>

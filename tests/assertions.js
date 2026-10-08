@@ -1454,7 +1454,7 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-276 ttfClosedCensorTimes — trailing closed run, skips, lookback, BST day',
+    name: 'N-276 ttfClosedCensorTimes — trailing closed run, skips, lookback, BST day (N-309: one open headcount per pipeline)',
     fn: function () {
       const today = new Date(2026, 9, 1, 12);  // 1 Oct 2026, local noon
       const R = (id, stage, open) => ({ id, Stage: stage, Department: 'Eng', Location: 'UK', OpenDate: open + 'T12:00:00Z' });
@@ -1479,13 +1479,16 @@ var ASSERTIONS = [
         S(12, 'Sourcing', 'Cancelled', '2026-07-09T23:30:00Z'),       // 00:30 BST on 10 Jul
         { RoleIDLookupId: 1, Field: 'Priority', OldValue: 'Sourcing', NewValue: 'Cancelled', ChangedAt: '2026-08-01T10:00:00Z' },
       ];
-      const out = ttfClosedCensorTimes(roles, rows, today);
+      // N-309: the unit is the headcount — each pipeline gets one open headcount
+      // opened on the role's OpenDate, so every N-276 t value carries over.
+      const hc = roles.map(r => ({ id: 100 + r.id, RoleID: r.id, OpenDate: r.OpenDate, Status: 'Open' }));
+      const out = ttfClosedCensorTimes(roles, rows, hc, new Map(), today);
       const t = Object.fromEntries(out.map(o => [o.roleId, o.t]));
       _assertEqual(t['1'], 30, 'AC4 Sourcing → Cancelled');
       _assertEqual(t['2'], 20, 'AC5 On-hold → Cancelled censored at the On-hold date');
       _assertEqual(t['3'], 15, 'AC6 currently On-hold');
       _assertEqual(Object.keys(t).filter(k => ['4', '5', '6', '7', '8', '9', '10', '11'].includes(k)), [], 'AC7 skips');
-      _assertEqual(Object.keys(out[0]).sort(), ['Department', 'Location', 'Stage', 'roleId', 't'], 'shape');
+      _assertEqual(Object.keys(out[0]).sort(), ['Department', 'Location', 'Stage', 'headcountId', 'roleId', 't'], 'shape (N-309 adds headcountId)');
       if (localDayISO(new Date('2026-07-09T23:30:00Z')) !== '2026-07-10') {
         _skip('AC8 needs a UK timezone (BST) — runs under node tests/run.js.');
       }
@@ -3126,6 +3129,181 @@ var ASSERTIONS = [
       _assertEqual(placementFollowUp({ stage: 'Hired', counts: { open: 0, filled: 1, cancelled: 0, total: 1 } }), null, "legacy 'Hired' normalises to Closed → nothing");
       _assertEqual(placementFollowUp({ stage: 'Cancelled', counts: { open: 1, filled: 0, cancelled: 0, total: 1 } }), null, 'Cancelled → nothing');
       _assertEqual(placementFollowUp({ stage: 'Sourcing', counts: { open: 0, filled: 0, cancelled: 1, total: 0 } }), null, 'nothing filled, nothing open → nothing');
+    },
+  },
+  {
+    name: 'N-309 historicalHiresFromPlacements — one row per fill, id = pipeline, D-5 / D-7, fallbacks',
+    fn: function () {
+      const roles = [{ id: 1, RoleTitle: 'Eng', Department: 'Eng', Location: 'UK', OpenDate: '2026-01-01T12:00:00Z', TalentPartner: 'a@x.com;b@x.com' }];
+      const headcount = [
+        { id: 11, RoleID: 1, OpenDate: '2026-02-01T12:00:00Z' },
+        { id: 12, RoleID: 1, OpenDate: null },
+      ];
+      const P = (id, roleId, hcId, offer, tp) => ({ id, RoleIDLookupId: roleId, HeadcountID: hcId, OfferAcceptedDate: offer, TalentPartner: tp });
+      const placements = [
+        P(101, 1, 11, '2026-03-01T12:00:00Z', 'a@x.com'),
+        P(102, 1, 12, '2026-04-01T12:00:00Z', 'b@x.com'),
+        P(103, 1, null, '2026-05-01T12:00:00Z', ''),
+        P(104, 99, 11, '2026-05-01T12:00:00Z', 'a@x.com'),     // role gone → dropped
+        P(105, 1, 11, null, 'a@x.com'),                        // no offer date → dropped
+        P(106, 1, 999, '2026-06-01T12:00:00Z', 'a@x.com'),     // unknown headcount → role OpenDate
+      ];
+      const before = JSON.stringify([roles, headcount, placements]);
+      const out = historicalHiresFromPlacements(placements, roles, headcount);
+      _assertEqual(out.map(r => r.placementId), [101, 102, 103, 106], 'one row per placement with an offer date on a known role');
+      _assertEqual(out.map(r => r.id), [1, 1, 1, 1], 'id is the pipeline id on every row');
+      _assertEqual(out.map(r => r.headcountId), [11, 12, null, null], 'headcountId');
+      _assertEqual(out.map(r => r.openDate), ['2026-02-01T12:00:00Z', null, '2026-01-01T12:00:00Z', '2026-01-01T12:00:00Z'],
+        'headcount OpenDate; not opened → null; blank/unknown HeadcountID → role OpenDate');
+      _assertEqual(out.map(r => r.tpEmail), ['a@x.com', 'b@x.com', null, 'a@x.com'], 'tpEmail = placer (D-7), never the role TP list');
+      _assertEqual(out[0], { id: 1, headcountId: 11, placementId: 101, title: 'Eng', functionArea: 'Eng', country: 'UK',
+        openDate: '2026-02-01T12:00:00Z', placementDate: '2026-03-01T12:00:00Z', tpEmail: 'a@x.com' }, 'row shape');
+      _assertEqual(JSON.stringify([roles, headcount, placements]), before, 'inputs not mutated');
+      _assertEqual(historicalHiresFromPlacements(null, null, null), [], 'null-safe');
+
+      // D-8: an OPEN pipeline with a fill joins the funnel learning population.
+      const idx = funnelLearningIndex(out, [{ id: 1, Stage: 'Sourcing', Department: 'Eng', Location: 'UK' }, { id: 2, Stage: 'Sourcing' }]);
+      _assertEqual(Array.from(idx.keys()), ['1'], 'D-8 open pipeline with ≥1 fill is learning; one with none is not');
+    },
+  },
+  {
+    name: 'N-309 getHistoricalPlacements reads placements, roles and headcount — no Stage / ActualHireDate filter',
+    fn: function () {
+      const saved = getItems; const calls = [];
+      getItems = function (list, filter, select) { calls.push([list, filter || '', select]); return Promise.resolve([]); };
+      try {
+        getHistoricalPlacements();
+        _assertEqual(calls.map(c => c[0]).sort(), ['Placements', 'RoleHeadcount', 'Roles'], 'three reads');
+        const pl = calls.find(c => c[0] === 'Placements');
+        _assertEqual(/^fields\/OfferAcceptedDate ge '\d{4}-\d{2}-\d{2}'$/.test(pl[1]), true, 'Placements bounded on OfferAcceptedDate only');
+        _assertEqual(calls.some(c => /Stage|ActualHireDate/.test(c[1])), false, 'no Stage / ActualHireDate filter anywhere');
+      } finally { getItems = saved; }
+    },
+  },
+  {
+    name: 'N-309 ttfClosedCensorTimes / ttfHeadcountInputs — per headcount, rules A/B/C, no double count',
+    fn: function () {
+      const today = new Date(2026, 9, 1, 12);  // 1 Oct 2026, local noon
+      const R = (id, stage) => ({ id, Stage: stage, Department: 'Eng', Location: 'UK' });
+      const S = (id, oldV, newV, at) => ({ RoleIDLookupId: id, Field: 'Stage', OldValue: oldV, NewValue: newV, ChangedAt: at });
+      const H = (id, roleId, open, extra) => Object.assign({ id, RoleID: roleId, OpenDate: open ? open + 'T12:00:00Z' : null, Status: 'Open' }, extra || {});
+      const X = (day) => ({ Status: 'Cancelled', CancelledDate: day + 'T12:00:00Z' });
+      const roles = [R(1, 'On-hold'), R(2, 'Cancelled'), R(3, 'Sourcing'), R(4, 'Hired')];
+      const rows = [
+        S(1, 'Sourcing', 'On-hold', '2026-08-01T10:00:00Z'),
+        S(2, 'Interview 1', 'On-hold', '2026-08-01T10:00:00Z'), S(2, 'On-hold', 'Cancelled', '2026-09-01T10:00:00Z'),
+      ];
+      const headcount = [
+        H(11, 1, '2026-07-01'), H(12, 1, '2026-07-11'), H(13, 1, '2026-07-01'), H(14, 1, null),
+        H(21, 2, '2026-07-01', X('2026-09-01')),        // cascade-cancelled after the On-hold run → On-hold day
+        H(22, 2, '2026-07-01', X('2026-07-22')),        // cancelled before the run → its own cancel day
+        H(31, 3, '2026-09-01', X('2026-09-11')),        // rule B
+        H(32, 3, '2025-05-01', X('2025-06-01')),        // outside lookback
+        H(33, 3, '2026-09-01'),                         // open on a censored stage → rule C only
+        H(34, 3, null, X('2026-09-11')),                // undated
+        H(35, 3, '2026-09-01', X('2026-09-11')),        // filled wins over Cancelled
+        H(41, 4, '2026-09-01'),                         // open on a legacy-Hired (Closed) pipeline
+        H(91, 99, '2026-09-01'),                        // role not in `roles`
+      ];
+      const placements = [{ HeadcountID: 13 }, { HeadcountID: 35 }];
+      const before = JSON.stringify([roles, rows, headcount]);
+      const { openHeadcount, closedCensored } = ttfHeadcountInputs({ roles, headcount, placements, stageRows: rows, today });
+      const t = Object.fromEntries(closedCensored.map(o => [o.headcountId, o.t]));
+      _assertEqual(t, { 11: 31, 12: 21, 21: 31, 22: 21, 31: 10 }, 'A: paused pipeline → close day (min with cancel day); B: cancelled → CancelledDate; filled / undated / out-of-window / open-on-active excluded');
+      _assertEqual(closedCensored.find(o => o.headcountId === '11').Stage, 'On-hold', 'Stage = pipeline stage');
+      _assertEqual(openHeadcount.map(o => o.id), [11, 12, 14, 33, 41], 'openHeadcount = open headcount on known roles');
+      _assertEqual(openHeadcount.find(o => o.id === 41).Stage, 'Closed', "legacy 'Hired' normalised");
+      _assertEqual(openHeadcount.find(o => o.id === 33), { id: 33, roleId: 3, Stage: 'Sourcing', Department: 'Eng', Location: 'UK', OpenDate: '2026-09-01T12:00:00Z' }, 'role-shaped row, OpenDate from the headcount');
+      _assertEqual(JSON.stringify([roles, rows, headcount]), before, 'inputs not mutated');
+
+      // No headcount is both censored-at-age (rule C) and closed-censored (A/B).
+      const ageIds = openHeadcount.filter(o => TTF_CENSORED_STAGES.includes(o.Stage) && o.OpenDate).map(o => String(o.id));
+      _assertEqual(ageIds.filter(id => id in t), [], 'no double count');
+      _assertEqual(CONFIG.TTF_SURVIVAL.closedStages.filter(s => TTF_CENSORED_STAGES.includes(s)), [], 'closedStages ∩ TTF_CENSORED_STAGES = ∅');
+
+      const hist = [10, 20, 30].map(d => ({ functionArea: 'Eng', country: 'UK', openDate: '2026-01-01T12:00:00Z',
+        placementDate: new Date(Date.UTC(2026, 0, 1 + d, 12)).toISOString() }));
+      const r = computeTTFPrediction('Eng', 'UK', hist, openHeadcount, closedCensored);
+      _assertEqual([r.events, r.censored - r.closed, r.closed], [3, 1, 5], 'KM pool: 3 fills, 1 open dated headcount on a censored stage, 5 stopped');
+
+      _assertEqual(ttfClosedCensorTimes(roles, rows, [H(23, 2, '2026-07-01', { Status: 'Cancelled', CancelledDate: '2026-07-21T23:00:00Z' })], new Map(), today)[0].t, 20,
+        'CancelledDate read as its stored day via spDateIn (23:00Z → that date)');
+      _assertEqual(ttfHeadcountInputs({}), { openHeadcount: [], closedCensored: [] }, 'null-safe');
+    },
+  },
+  {
+    name: 'N-309 avgTimeToHireDays — day maths, skips undated / negative',
+    fn: function () {
+      const r = (o, p) => ({ openDate: o, placementDate: p });
+      _assertEqual(avgTimeToHireDays([r('2026-09-01T12:00:00Z', '2026-09-15T12:00:00Z'), r('2026-09-01T12:00:00Z', '2026-09-02T12:00:00Z')]), 7.5, 'mean, unrounded');
+      _assertEqual(avgTimeToHireDays([r('2026-08-31T23:00:00Z', '2026-09-15T12:00:00Z')]), 15, 'BST-stored open reads as 31 Aug');
+      _assertEqual(avgTimeToHireDays([r(null, '2026-09-15T12:00:00Z'), r('2026-09-20T12:00:00Z', '2026-09-15T12:00:00Z'), r('2025-12-25T12:00:00Z', '2026-01-05T12:00:00Z')]), 11,
+        'undated and negative skipped; year rollover');
+      _assertEqual([avgTimeToHireDays([]), avgTimeToHireDays(null)], [null, null], 'empty → null');
+    },
+  },
+  {
+    name: 'N-309 oldestOpenHeadcountIndex + roleFlagReasons / tallyRoleFlags opts.openSince',
+    fn: function () {
+      const H = (id, roleId, open, status) => ({ id, RoleID: roleId, OpenDate: open ? open + 'T12:00:00Z' : null, Status: status || 'Open' });
+      const headcount = [
+        H(71, 7, '2026-09-02'), H(72, 7, '2026-09-25'), H(73, 7, null), H(74, 7, '2026-09-01', 'Cancelled'),
+        H(81, 8, '2026-08-01'),
+      ];
+      const idx = oldestOpenHeadcountIndex(headcount, [{ HeadcountID: 71 }, { HeadcountID: 81 }]);
+      _assertEqual(Array.from(idx.entries()), [['7', '2026-09-25'], ['8', null]], 'oldest OPEN dated headcount; filled / cancelled / undated ignored');
+
+      const TODAY = new Date(2026, 9, 2, 12);
+      const h = groupStageHistoryByRole([
+        { RoleIDLookupId: 7, Field: 'Stage', OldValue: null,       NewValue: 'Sourcing', ChangedAt: '2026-09-02T09:00:00Z' },
+        { RoleIDLookupId: 7, Field: 'Stage', OldValue: 'Sourcing', NewValue: 'On-hold',  ChangedAt: '2026-09-10T09:00:00Z' },
+        { RoleIDLookupId: 7, Field: 'Stage', OldValue: 'On-hold',  NewValue: 'Sourcing', ChangedAt: '2026-09-29T09:00:00Z' },
+      ]);
+      const role = { id: 7, Stage: 'Sourcing', OpenDate: '2026-09-02T12:00:00Z' };
+      const legacy = roleFlagReasons(role, [], h, TODAY);
+      const hc     = roleFlagReasons(role, [], h, TODAY, { openSince: idx });
+      _assertEqual([legacy.behindPace, legacy.daysOpen], [true, 30], 'no opts → legacy role.OpenDate (N-274 AC7 unchanged)');
+      _assertEqual([hc.behindPace, hc.daysOpen, hc.flagged, hc.daysInStage], [false, 7, false, 3], 'openSince → days since the oldest open headcount');
+      const none = roleFlagReasons(role, [], h, TODAY, { openSince: new Map() });
+      _assertEqual([none.behindPace, none.daysOpen], [false, null], 'no open dated headcount → null / not behind');
+      _assertEqual(isRoleFlagged(role, [], h, TODAY, { openSince: idx }), false, 'isRoleFlagged passes opts through');
+
+      const roles = [
+        { id: 2, Stage: 'Submitted', OpenDate: '2026-08-01T12:00:00Z' },
+        { id: 3, Stage: 'Interview 1' },
+      ];
+      const sh = groupStageHistoryByRole([{ RoleIDLookupId: 2, Field: 'Stage', OldValue: 'Sourcing', NewValue: 'Submitted', ChangedAt: '2026-09-24T09:00:00Z' }]);
+      const acts = [{ RoleIDLookupId: 3, WeekEndingDate: '2026-09-27T12:00:00Z', Submitted: 5, Interview1: 1 }];
+      _assertEqual(tallyRoleFlags(roles, acts, sh, TODAY), { total: 2, flagged: 2, stuck: 1, conversion: 1, behind: 1 }, 'tally without opts');
+      _assertEqual(tallyRoleFlags(roles, acts, sh, TODAY, { openSince: new Map([['2', '2026-09-29']]) }), { total: 2, flagged: 2, stuck: 1, conversion: 1, behind: 0 },
+        'tally passes opts: behind changes, flagged does not');
+    },
+  },
+  {
+    name: 'N-309 computeSnapshotMetrics — avgDaysOpen from open dated headcount on open pipelines (S-8)',
+    fn: function () {
+      const now = new Date();
+      const ago = n => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - n, 12)).toISOString();
+      const roles = [
+        { id: 1, Stage: 'Sourcing', OpenDate: ago(100) },
+        { id: 2, Stage: CONFIG.ROLE_STAGE_CLOSED, OpenDate: ago(300) },
+        { id: 3, Stage: 'Cancelled', OpenDate: ago(50) },
+        { id: 4, Stage: 'Interview 1', OpenDate: ago(30) },
+      ];
+      const H = (id, roleId, open, status) => ({ id, RoleID: roleId, OpenDate: open, Status: status || 'Open' });
+      const headcount = [
+        H(11, 1, ago(10)), H(12, 1, ago(20)), H(13, 1, ago(100)), H(14, 1, ago(200), 'Cancelled'), H(15, 1, null),
+        H(21, 2, ago(300)),                 // stray open headcount on a Closed pipeline
+        H(31, 3, ago(50)),
+        H(41, 4, ago(30)),
+      ];
+      const fillMap = headcountFillMap([{ HeadcountID: 13 }]);
+      const withHc = computeSnapshotMetrics(roles, [], [], [], {}, { headcount, fillMap });
+      _assertEqual(withHc.avgDaysOpen, 20, 'mean of 10, 20, 30 — filled, cancelled, undated and Closed-pipeline rows excluded');
+      _assertEqual(computeSnapshotMetrics(roles, [], [], [], {}).avgDaysOpen, 65, 'no headcountState → legacy role average');
+      _assertEqual(Object.keys(withHc.rolesByStage).sort(), ['Interview 1', 'Sourcing'], 'RolesByStage has no Closed / Cancelled key');
+      _assertEqual(withHc.openRoles, 2, 'openRoles unchanged (pipelines)');
+      _assertEqual(computeSnapshotMetrics(roles, [], [], [], {}, { headcount: [], fillMap: new Map() }).avgDaysOpen, null, 'no open headcount → null');
     },
   },
 ];

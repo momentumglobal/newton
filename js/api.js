@@ -1338,27 +1338,21 @@ function _odataIn(field, ids) {
   return '(' + clauses.join(' or ') + ')';
 }
  
+// N-309 (HC-4a): one row per FILLED HEADCOUNT — every placement with an
+// Offer Accepted Date in the last year, on any pipeline stage — not one per
+// Closed role. Partly-filled pipelines count. Row shape and the join live in
+// utils.js historicalHiresFromPlacements(); `id` is still the pipeline id.
+// Reads only (no select: '*' until N-052, as before). The bound is a local
+// "1 year ago" day, matching _odataDateFrom / getActivityForAnalytics.
 async function getHistoricalPlacements() {
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
-  // No select passed — the field list this used to carry was incomplete
-  // (missing TalentPartner, silently breaking tpEmail below once select
-  // support went live; see N-050 QA). Stays on '*' until N-052 audits and
-  // re-adds a correct list.
-  // N-306: the finished stage is CONFIG.ROLE_STAGE_CLOSED (was 'Hired').
-  // Shape unchanged — N-309 re-bases this on headcount.
-  const roles = await getItems('Roles',
-    `fields/Stage eq '${odataStr(CONFIG.ROLE_STAGE_CLOSED)}' and fields/ActualHireDate ge '${odataStr(localDayISO(cutoff))}'`
-  );
-  return roles.map(r => ({
-    id:            r.id,
-    title:         r.RoleTitle,
-    functionArea:  r.Department,
-    country:       r.Location,
-    openDate:      r.OpenDate,
-    placementDate: r.ActualHireDate,
-    tpEmail:       r.TalentPartner || null,
-  }));
+  const [placements, roles, headcount] = await Promise.all([
+    getPlacements(null, { fromDay: localDayISO(cutoff) }),
+    getAllRoles(),
+    getAllHeadcount(),
+  ]);
+  return historicalHiresFromPlacements(placements, roles, headcount);
 }
  
 async function getActivityForAnalytics(weeksBack) {

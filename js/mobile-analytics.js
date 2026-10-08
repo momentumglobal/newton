@@ -9,7 +9,7 @@
 // State
 let _maLocation     = '';
 let _maFunctionArea = '';
-let _maData         = null;  // { historical, activityRaw, openRoles, closedCensored }
+let _maData         = null;  // { historical, activityRaw, openRoles, openHeadcount, closedCensored }
 
 function maEsc(str) {
   return String(str)
@@ -25,18 +25,21 @@ async function mobileRenderPlacementAnalytics(main) {
   main.innerHTML = '<div class="m-empty">Loading analytics...</div>';
 
   try {
-    // N-269: getAllRoles() supplies the open roles computeTTFPrediction
-    // counts as censored observations. N-276: Stage history for the
-    // Cancelled/On-hold censoring, built once here (as desktop). A failed
-    // read falls back to N-269 behaviour rather than breaking the page.
-    const [historical, activityRaw, openRoles, stageRows] = await Promise.all([
+    // N-309: TTF counts headcount (ttfHeadcountInputs, as desktop) — built
+    // once here. The fill map needs every placement's HeadcountID, not the
+    // 12-month window. A failed stage-history or headcount read degrades to
+    // "no censoring" rather than breaking the page. openRoles = every role
+    // (funnelLearningIndex reads Cancelled pipelines from it).
+    const [historical, activityRaw, openRoles, stageRows, headcount, placementIds] = await Promise.all([
       getHistoricalPlacements(),
       getActivityForAnalytics(52),
       getAllRoles(),
       getRoleStageHistory().catch(e => { console.warn('N-276: stage history read failed', e); return []; }),
+      getAllHeadcount().catch(e => { console.warn('N-309: headcount read failed', e); return []; }),
+      getPlacementHeadcountIds().catch(e => { console.warn('N-309: placement headcount read failed', e); return []; }),
     ]);
-    const closedCensored = ttfClosedCensorTimes(openRoles, stageRows);
-    _maData = { historical, activityRaw, openRoles, closedCensored };
+    const { openHeadcount, closedCensored } = ttfHeadcountInputs({ roles: openRoles, headcount, placements: placementIds, stageRows });
+    _maData = { historical, activityRaw, openRoles, openHeadcount, closedCensored };
 
     const locations     = maUnique(historical, 'country').sort();
     const functionAreas = maUnique(historical, 'functionArea').sort();
@@ -80,7 +83,7 @@ function maRenderResults() {
   const container = document.getElementById('ma-results');
   if (!container || !_maData) return;
 
-  const { historical, activityRaw, openRoles, closedCensored } = _maData;
+  const { historical, activityRaw, openRoles, openHeadcount, closedCensored } = _maData;
 
   let filtered = historical;
   if (_maLocation)     filtered = filtered.filter(r => r.country      === _maLocation);
@@ -93,18 +96,15 @@ function maRenderResults() {
 
   // Summary metrics (mirrors desktop)
   // N-269: shared Kaplan–Meier estimate (analytics.js), same as desktop.
-  const ttf = computeTTFPrediction(_maFunctionArea || null, _maLocation || null, historical, openRoles, closedCensored);
+  const ttf = computeTTFPrediction(_maFunctionArea || null, _maLocation || null, historical, openHeadcount, closedCensored);
   const ttfValue = ttf.medianDays !== null ? `~${ttf.medianDays}d`
     : (!ttf.medianReached && ttf.basis) ? `>${ttf.maxObservedDays}d` : '-';
   const ttfSub = ttf.basis
     ? `${ttf.events} hires · ${ttf.censored - ttf.closed} open` + (ttf.closed ? ` · ${ttf.closed} on hold/cancelled` : '')
     : undefined;
 
-  const validTth = filtered.filter(r => r.openDate && r.placementDate);
-  const avgTTH = validTth.length
-    ? Math.round(validTth.reduce((s, r) =>
-        s + (new Date(r.placementDate) - new Date(r.openDate)), 0) / validTth.length / 86400000)
-    : null;
+  const avgTTHDays = avgTimeToHireDays(filtered);  // N-309: one copy (analytics.js)
+  const avgTTH = avgTTHDays === null ? null : Math.round(avgTTHDays);
   const sampleSize = filtered.length;
 
   const filteredIds = new Set(filtered.map(r => String(r.id)));
@@ -117,8 +117,9 @@ function maRenderResults() {
     Offers:     sumField(filtAct, 'Offers'),
     Hires:      sumField(filtAct, 'Hires'),
   };
-  // N-270: learned benchmarks — hired + cancelled role population (N-277),
-  // leave-self-out (mirrors desktop Placement Analytics).
+  // N-270: learned benchmarks — pipelines with ≥1 fill (N-309 D-8) +
+  // cancelled roles (N-277), leave-self-out (mirrors desktop Placement
+  // Analytics).
   const benchObs     = buildFunnelObservations(activityRaw, funnelLearningIndex(historical, openRoles));
   const summaryBench = learnFunnelBenchmarks(benchObs, _maFunctionArea || null, _maLocation || null, { exclude: o => filteredIds.has(o.roleId) });
   const funnelStages = computeRoleFunnel(totals, summaryBench);

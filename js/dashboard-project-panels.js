@@ -442,14 +442,17 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
   }
 
   // Build a cross-project role lookup for mapping activity records.
-  // N-276: Stage history for survival TTF's Cancelled/On-hold censoring —
-  // fetched alongside allRoles and built once, not per row. A failed read
-  // falls back to N-269 behaviour rather than breaking the panel.
-  const [allRoles, stageRows] = await Promise.all([
+  // N-309: survival TTF counts headcount (ttfHeadcountInputs) — stage history,
+  // headcount and every placement's HeadcountID fetched alongside allRoles
+  // and built once, not per row. A failed read degrades to "no censoring"
+  // rather than breaking the panel.
+  const [allRoles, stageRows, headcount, placementIds] = await Promise.all([
     getAllRoles(),
     getRoleStageHistory().catch(e => { console.warn('N-276: stage history read failed', e); return []; }),
+    getAllHeadcount().catch(e => { console.warn('N-309: headcount read failed', e); return []; }),
+    getPlacementHeadcountIds().catch(e => { console.warn('N-309: placement headcount read failed', e); return []; }),
   ]);
-  const closedCensored = ttfClosedCensorTimes(allRoles, stageRows);
+  const { openHeadcount, closedCensored } = ttfHeadcountInputs({ roles: allRoles, headcount, placements: placementIds, stageRows });
   const allRoleMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), r])
   );
@@ -486,7 +489,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     const groupIds = new Set(allRoles.filter(r => groupKey(r) === key).map(r => String(r.id)));
     const bench  = learnFunnelBenchmarks(benchObs, meta.department, meta.location, { exclude: o => groupIds.has(o.roleId) });
     const funnel = computeRoleFunnel(totals, bench);
-    const ttf    = computeTTFPrediction(meta.department, meta.location, historical, allRoles, closedCensored);
+    const ttf    = computeTTFPrediction(meta.department, meta.location, historical, openHeadcount, closedCensored);
 
     const flags = funnel.filter(s => s.benchmarked).map(s => s.rag);
     const worst = flags.includes('red') ? 'red'
@@ -502,7 +505,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     const ttfClass = (ttf.weeks === null || ttf.pooled) ? 'ttf-badge ttf-badge--low-data' : 'ttf-badge';
     const ttfOpen  = ttf.censored - ttf.closed;
     const ttfTip   = ttf.basis
-      ? `Median time to hire (Kaplan–Meier): ${ttf.events} hire${ttf.events !== 1 ? 's' : ''}, ${ttfOpen} open role${ttfOpen !== 1 ? 's' : ''}`
+      ? `Median time to hire (Kaplan–Meier): ${ttf.events} hire${ttf.events !== 1 ? 's' : ''}, ${ttfOpen} open headcount`
         + (ttf.closed ? `, ${ttf.closed} on hold/cancelled` : '') + ' counted'
         + (ttf.pooled ? ` — pooled across all locations for ${meta.department || 'this function'}` : '')
       : `Fewer than ${CONFIG.TTF_SURVIVAL.minEvents} hires in the last 12 months for this function`;

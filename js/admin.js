@@ -323,12 +323,16 @@ async function writeSnapshotsNow() {
     weekStartDate.setUTCDate(weekStartDate.getUTCDate() - 6);
     const weekStart = spDateIn(spDateOut(weekStartDate));
 
-    const [projects, allRoles, allActivity, allPlacements, existing, stageRows] = await Promise.all([
+    const [projects, allRoles, allActivity, allPlacements, existing, stageRows, allHeadcount] = await Promise.all([
       getProjects(true), getAllRoles(), getWeeklyActivity(null, null), getPlacements(null), getItems('Snapshots'),
-      getRoleStageHistory(),
+      getRoleStageHistory(), getAllHeadcount(),
     ]);
     // N-274: the flag's stuck rule needs each role's Stage history.
     const stageHistory = groupStageHistoryByRole(stageRows);
+    // N-309 (S-8): AvgDaysOpen is measured on open headcount. Filled is
+    // derived from ALL placements, never the snapshot week. No .catch on the
+    // headcount read: a stored metric must not silently fall back.
+    const fillMap = headcountFillMap(allPlacements);
 
     for (let i = 0; i < projects.length; i++) {
       const p = projects[i];
@@ -353,7 +357,9 @@ async function writeSnapshotsNow() {
         return d >= weekStart && d <= weekEnding;
       });
 
-      const metrics = computeSnapshotMetrics(roles, weekActivity, weekPlacements, roleActivityForFlagging, stageHistory);
+      // By RoleID, not ProjectID — immune to headcount/project drift.
+      const headcount = allHeadcount.filter(hc => roleIds.has(String(hc.RoleID)));
+      const metrics = computeSnapshotMetrics(roles, weekActivity, weekPlacements, roleActivityForFlagging, stageHistory, { headcount, fillMap });
 
       const fields = {
         Title:              `${p.CustomerName || 'Project ' + p.id} — wk ending ${weekEnding}`,

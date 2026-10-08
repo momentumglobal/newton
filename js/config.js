@@ -671,7 +671,7 @@ const CONFIG = {
     // left active work (RoleHistory), not excluded. Cancellation is always the
     // client's call, so it says nothing about how the role was going.
     closedStages:       ['On-hold', 'Cancelled'],
-    closedLookbackDays: 365,  // mirrors getHistoricalPlacements()' 1-year hire window
+    closedLookbackDays: 365,  // mirrors getHistoricalPlacements()' 1-year placement window
   },
 
   // N-274 (N-272 D1): the at-risk flag on time-in-stage (analytics.js
@@ -711,8 +711,9 @@ const CONFIG = {
     floorFraction: 0.80,         // learned rate never below 80% of the ANALYTICS_BENCHMARKS target
   },
 
-  // N-277 (N-272 D4): stages, besides Closed, whose WeeklyActivity feeds the
-  // funnel benchmarks on Placement Analytics (analytics.js funnelLearningIndex).
+  // N-277 (N-272 D4): stages whose WeeklyActivity feeds the funnel benchmarks
+  // on Placement Analytics (analytics.js funnelLearningIndex), besides
+  // pipelines with ≥1 fill in the window (N-309 D-8 — open ones included).
   // Cancellation is always the client's call, so the stage progress a cancelled
   // role completed is valid learning. Open / Backlog / On-hold stay out:
   // their funnels are unfinished, which would bias the benchmarks green.

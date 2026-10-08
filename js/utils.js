@@ -2676,6 +2676,58 @@ function headcountSummary(rows, fillMap) {
   return { counts, oldestOpenDay };
 }
 
+// N-309 (S-5): Map<String(RoleID), 'YYYY-MM-DD'|null> — each pipeline's
+// oldest OPEN headcount OpenDate (headcountSummary().oldestOpenDay, the value
+// the Roles page "Days open" shows). Behind-pace reads it through
+// roleFlagReasons' opts.openSince. `placements` must be ALL placements (or
+// getPlacementHeadcountIds() rows), never a date window — a headcount filled
+// outside the window would read as open.
+function oldestOpenHeadcountIndex(headcount, placements) {
+  const fill  = headcountFillMap(placements);
+  const index = new Map();
+  groupHeadcountByRole(headcount).forEach((rows, roleId) => {
+    index.set(roleId, headcountSummary(rows, fill).oldestOpenDay);
+  });
+  return index;
+}
+
+// N-309 (S-1, S-2): getHistoricalPlacements() rows — one per placement, i.e.
+// one per filled headcount. `id` is the PIPELINE (role) id, because every
+// consumer joins WeeklyActivity on it; a pipeline appears once per fill.
+//   openDate      — the placement's headcount OpenDate; null for a not-opened
+//                   headcount (no time to hire, D-5). A blank or unknown
+//                   HeadcountID falls back to Roles.OpenDate (model rule 3;
+//                   Data Health probe 1 reports those placements).
+//   placementDate — OfferAcceptedDate (rows without one are dropped).
+//   tpEmail       — Placement.TalentPartner, the placer (D-7) — never the
+//                   pipeline's TP list.
+// A placement whose role no longer exists is dropped. Inputs come from the
+// cache and are never mutated.
+function historicalHiresFromPlacements(placements, roles, headcount) {
+  const roleById = new Map((roles || []).filter(Boolean).map(r => [String(r.id), r]));
+  const hcById   = new Map((headcount || []).filter(Boolean).map(hc => [String(hc.id), hc]));
+  const out = [];
+  (placements || []).forEach(p => {
+    if (!p || !p.OfferAcceptedDate) return;
+    const rid  = _isBlankId(p.RoleIDLookupId) ? p.RoleID : p.RoleIDLookupId;
+    const role = _isBlankId(rid) ? null : roleById.get(String(rid));
+    if (!role) return;
+    const hc = _isBlankId(p.HeadcountID) ? null : (hcById.get(String(p.HeadcountID)) || null);
+    out.push({
+      id:            role.id,
+      headcountId:   hc ? hc.id : null,
+      placementId:   p.id,
+      title:         role.RoleTitle,
+      functionArea:  role.Department,
+      country:       role.Location,
+      openDate:      hc ? (hc.OpenDate || null) : (role.OpenDate || null),
+      placementDate: p.OfferAcceptedDate,
+      tpEmail:       p.TalentPartner || null,
+    });
+  });
+  return out;
+}
+
 // D-5 'x/y' (open / open + filled); '—' when there is nothing to count.
 function headcountXY(counts) {
   return counts && counts.total > 0 ? `${counts.open}/${counts.total}` : '—';

@@ -43,15 +43,19 @@ async function mobileRenderScorecards(main) {
   try {
     // N-270: 52 weeks fetched once — the full window feeds the learned
     // benchmarks; everything on the cards stays on the 13-week slice.
-    const [activity52, historical, tpMap, allRoles, stageRows] = await Promise.all([
+    const [activity52, historical, tpMap, allRoles, stageRows, headcount, placementIds] = await Promise.all([
       getActivityForAnalytics(52),
       getHistoricalPlacements(),
       getTalentPartnerDisplayMap(),
       getAllRoles(),
       getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; }),
+      getAllHeadcount().catch(e => { console.warn('N-309: headcount read failed', e); return []; }),
+      getPlacementHeadcountIds().catch(e => { console.warn('N-309: placement headcount read failed', e); return []; }),
     ]);
     const activityRaw = activitySinceWeeks(activity52, 13);
     const stageHistory = groupStageHistoryByRole(stageRows);  // N-274
+    // N-309: behind-pace measured from each pipeline's oldest open headcount.
+    const openSince = oldestOpenHeadcountIndex(headcount, placementIds);
 
     let tpEmails = [...new Set(activityRaw.map(a => a.TalentPartner).filter(Boolean))];
     tpEmails = await filterToActiveTpEmails(tpEmails, tpMap);
@@ -90,7 +94,7 @@ async function mobileRenderScorecards(main) {
         tpMatches(r.TalentPartner, tpEmail));
       // N-274: counts only — no RAG for a quarter of time-in-stage data
       // (decision, 2 Oct 2026).
-      const roleHealth = tallyRoleFlags(tpRoles, activityRaw, stageHistory);
+      const roleHealth = tallyRoleFlags(tpRoles, activityRaw, stageHistory, undefined, { openSince });
       const name = tpMap[tpEmail.toLowerCase()] || tpEmail;
       return {
         name,

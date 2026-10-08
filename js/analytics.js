@@ -2,10 +2,13 @@
 // Loaded after api.js, before module app scripts.
 
 // ── Phase A — Time-to-Fill Prediction (N-269: survival-based) ────────
-// Kaplan–Meier estimate of time from OpenDate to hire. Completed hires are
-// events; roles still open (TTF_CENSORED_STAGES) are right-censored at their
-// current age; On-hold/Cancelled roles (CONFIG.TTF_SURVIVAL.closedStages) are
-// right-censored at the day they left active work (N-276, ttfClosedCensorTimes).
+// Kaplan–Meier estimate of time from OpenDate to hire. N-309: the unit is the
+// HEADCOUNT, not the role — filled headcount are events (getHistoricalPlacements
+// rows); open headcount on pipelines in TTF_CENSORED_STAGES are right-censored
+// at their current age; headcount on On-hold/Cancelled pipelines
+// (CONFIG.TTF_SURVIVAL.closedStages) and cancelled headcount are right-censored
+// where they stopped (ttfClosedCensorTimes). ttfHeadcountInputs builds both
+// censored inputs; callers never assemble them by hand.
 // Averaging completed hires alone ignores the slow roles that
 // haven't filled yet and so under-states time to fill (survivorship bias) —
 // counting open roles as "at least this long so far" removes that.
@@ -48,18 +51,46 @@ function kmQuantile(curve, p) {
   return step ? step.t : null;
 }
 
-// N-276 (N-272 D2): Cancelled / On-hold roles as censored observations. The
-// role counts as open up to the day it left active work, then drops out
-// without a fill. That day is the start of the TRAILING run of closed-stage
-// rows in its Stage history, so On-hold → Cancelled stops the clock at the
-// On-hold date. A role is skipped — left out, exactly as under N-269 — when:
-// it has no Stage rows; its latest row disagrees with role.Stage; the run
-// began from a stage that never started the clock (creation row, Backlog,
-// Planning); t < 0; or the close day is older than closedLookbackDays.
-// stageRows: RoleHistory Stage rows (getRoleStageHistory). Build once per
-// page load; computeTTFPrediction takes the result as its 5th argument.
-// → [{ roleId, Department, Location, Stage, t }]
-function ttfClosedCensorTimes(roles, stageRows, today = new Date()) {
+// N-276 (N-272 D2), re-based on headcount by N-309 (S-4). The day a pipeline
+// left active work is the start of the TRAILING run of closed-stage rows in its
+// Stage history, so On-hold → Cancelled stops the clock at the On-hold date.
+// A pipeline is skipped — left out, exactly as under N-269 — when: it has no
+// Stage rows; its latest row disagrees with role.Stage; the run began from a
+// stage that never started the clock (creation row, Backlog, Planning); or the
+// close day is older than closedLookbackDays. → 'YYYY-MM-DD' or null.
+function _ttfPipelineCloseDay(role, rows, cutoffDay) {
+  const closed = CONFIG.TTF_SURVIVAL.closedStages;
+  const sorted = (rows || []).slice().sort((a, b) => new Date(a.ChangedAt) - new Date(b.ChangedAt));
+  if (!sorted.length || sorted[sorted.length - 1].NewValue !== normaliseRoleStage(role.Stage)) return null;
+  let start = sorted.length - 1;
+  while (start > 0 && closed.includes(sorted[start - 1].NewValue)) start--;
+  const first = sorted[start];
+  // Falsy check, never === '' — a creation row's OldValue reads back null (N-100).
+  if (!first.OldValue || !TTF_CENSORED_STAGES.includes(first.OldValue)) return null;
+  // ChangedAt is an instant, OpenDate a day marker: take the local day
+  // first, never raw milliseconds (N-100 diff-4).
+  const closeDay = localDayISO(new Date(first.ChangedAt));
+  if (!closeDay || closeDay < cutoffDay) return null;
+  return closeDay;
+}
+
+// Censored observations for headcount that stopped without a fill (N-309 S-4).
+// Filled headcount are never here (they are events, or outside the window).
+//   A — pipeline On-hold/Cancelled with a known close day: each open OR
+//       cancelled headcount with an OpenDate, censored at the close day — or
+//       at its CancelledDate when that is earlier (the D-1 cascade stamps the
+//       later cancel day; the clock stopped at the On-hold date). A skipped
+//       pipeline skips all its headcount.
+//   B — any other pipeline stage: each cancelled headcount with OpenDate +
+//       CancelledDate, censored at CancelledDate.
+// Open headcount on TTF_CENSORED_STAGES pipelines are NOT here — they are
+// censored at their current age through computeTTFPrediction's 4th argument.
+// End day older than closedLookbackDays, or t < 0 → left out.
+// stageRows: RoleHistory Stage rows (getRoleStageHistory). fillMap:
+// headcountFillMap(ALL placements). Build once per page load
+// (ttfHeadcountInputs).
+// → [{ roleId, headcountId, Department, Location, Stage, t }]
+function ttfClosedCensorTimes(roles, stageRows, headcount, fillMap, today = new Date()) {
   const cfg    = CONFIG.TTF_SURVIVAL;
   const closed = cfg.closedStages;
   const cutoff = new Date(today.getTime());
@@ -71,28 +102,64 @@ function ttfClosedCensorTimes(roles, stageRows, today = new Date()) {
     const k = String(h.RoleIDLookupId);
     (byRole[k] = byRole[k] || []).push(h);
   });
+  const hcByRole = groupHeadcountByRole(headcount);
   const out = [];
   (roles || []).forEach(role => {
-    if (!closed.includes(role.Stage)) return;
-    const rows = (byRole[String(role.id)] || []).slice()
-      .sort((a, b) => new Date(a.ChangedAt) - new Date(b.ChangedAt));
-    if (!rows.length || rows[rows.length - 1].NewValue !== role.Stage) return;
-    let start = rows.length - 1;
-    while (start > 0 && closed.includes(rows[start - 1].NewValue)) start--;
-    const first = rows[start];
-    // Falsy check, never === '' — a creation row's OldValue reads back null (N-100).
-    if (!first.OldValue || !TTF_CENSORED_STAGES.includes(first.OldValue)) return;
-    // ChangedAt is an instant, OpenDate a day marker: take the local day
-    // first, never raw milliseconds (N-100 diff-4).
-    const closeDay = localDayISO(new Date(first.ChangedAt));
-    if (!closeDay || closeDay < cutoffDay) return;
-    const t = daysOpen(role.OpenDate, closeDay);
-    if (t === null || t < 0) return;
-    out.push({ roleId: String(role.id), Department: role.Department, Location: role.Location, Stage: role.Stage, t });
+    if (!role) return;
+    const rows = hcByRole.get(String(role.id));
+    if (!rows || !rows.length) return;
+    const stage    = normaliseRoleStage(role.Stage);
+    const isClosed = closed.includes(stage);
+    const closeDay = isClosed ? _ttfPipelineCloseDay(role, byRole[String(role.id)], cutoffDay) : null;
+    if (isClosed && !closeDay) return;
+    rows.forEach(hc => {
+      const kind = classifyHeadcount(hc, fillMap);
+      if (kind === 'filled' || !hc.OpenDate) return;
+      const cancelledDay = kind === 'cancelled' && hc.CancelledDate ? spDateIn(hc.CancelledDate) : null;
+      let endDay;
+      if (isClosed) {
+        endDay = cancelledDay && cancelledDay < closeDay ? cancelledDay : closeDay;
+      } else {
+        if (!cancelledDay) return;
+        endDay = cancelledDay;
+      }
+      if (!endDay || endDay < cutoffDay) return;
+      const t = daysOpen(hc.OpenDate, endDay);
+      if (t === null || t < 0) return;
+      out.push({ roleId: String(role.id), headcountId: String(hc.id), Department: role.Department, Location: role.Location, Stage: stage, t });
+    });
   });
   return out;
 }
 
+// N-309 (S-3): both censored inputs for computeTTFPrediction, from one place.
+//   openHeadcount  — every OPEN headcount whose role is in `roles`, role-shaped
+//                    for computeTTFPrediction's 4th argument: Stage = the
+//                    pipeline's stage, OpenDate = the headcount's. That
+//                    function keeps only TTF_CENSORED_STAGES and drops undated
+//                    rows (clock never started).
+//   closedCensored — ttfClosedCensorTimes(), its 5th argument.
+// `placements` = ALL placements (getPlacements(null) or
+// getPlacementHeadcountIds()), never the 12-month window — a headcount filled
+// 13 months ago must not read as open.
+function ttfHeadcountInputs({ roles, headcount, placements, stageRows, today = new Date() } = {}) {
+  const fill     = headcountFillMap(placements);
+  const roleById = new Map((roles || []).filter(Boolean).map(r => [String(r.id), r]));
+  const openHeadcount = [];
+  (headcount || []).forEach(hc => {
+    if (!hc || classifyHeadcount(hc, fill) !== 'open') return;
+    const role = roleById.get(String(hc.RoleID));
+    if (!role) return;
+    openHeadcount.push({
+      id: hc.id, roleId: role.id, Stage: normaliseRoleStage(role.Stage),
+      Department: role.Department, Location: role.Location, OpenDate: hc.OpenDate || null,
+    });
+  });
+  return { openHeadcount, closedCensored: ttfClosedCensorTimes(roles, stageRows, headcount, fill, today) };
+}
+
+// openRoles: open HEADCOUNT rows, role-shaped (ttfHeadcountInputs().openHeadcount,
+// N-309). closedCensored: ttfHeadcountInputs().closedCensored.
 function computeTTFPrediction(functionArea, country, historical, openRoles = [], closedCensored = []) {
   const cfg = CONFIG.TTF_SURVIVAL;
 
@@ -189,6 +256,20 @@ function computeRoleFunnel(totals, benchmarks) {
 
 // ── Phase C — People Scorecards ───────────────────────────────────────
 
+// N-309 (S-6): mean time to hire in days over getHistoricalPlacements() rows —
+// daysOpen(openDate, placementDate), the same day count TTF uses (BST-safe,
+// no raw ms). Rows missing either date (a not-opened headcount) are skipped;
+// negative values dropped, as TTF does. Unrounded; null when nothing counts.
+// The one copy — Scorecards, Placement Analytics (summary + breakdown) and
+// mobile analytics all call it.
+function avgTimeToHireDays(rows) {
+  const vals = (rows || [])
+    .filter(r => r && r.openDate && r.placementDate)
+    .map(r => daysOpen(r.openDate, r.placementDate))
+    .filter(t => t !== null && t >= 0);
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+}
+
 function computeVelocityScore(tpEmail, activity, placements, benchmarks) {
   const pct = (n, d) => d > 0 ? Math.round((n / d) * 100) : null;
   const rag = (actual, bench, invert = false) => {
@@ -211,14 +292,9 @@ function computeVelocityScore(tpEmail, activity, placements, benchmarks) {
   const off  = sumField(activity, 'Offers');
   const hir  = sumField(activity, 'Hires');
 
-  const ttfValues = placements
-    .filter(r => r.openDate && r.placementDate)
-    .map(r => Math.round(
-      (new Date(r.placementDate) - new Date(r.openDate)) / (1000 * 60 * 60 * 24)
-    ));
-  const avgTTF = ttfValues.length
-    ? Math.round(ttfValues.reduce((a, b) => a + b, 0) / ttfValues.length)
-    : null;
+  // N-309: placements = this TP's own fills (D-7), one row per headcount.
+  const avgDays = avgTimeToHireDays(placements);
+  const avgTTF  = avgDays === null ? null : Math.round(avgDays);
 
   return {
     tpEmail,
@@ -268,7 +344,9 @@ const _FUNNEL_COUNT_FIELDS = ['Outreach', 'Responses', 'Submitted', 'Interview1'
 
 // Map String(id) → { fn, loc }. Adapts the two role shapes:
 // getAllRoles() ('Department', 'Location') and getHistoricalPlacements()
-// ('functionArea', 'country'). The roles passed ARE the learning population.
+// ('functionArea', 'country' — one row per fill, keyed by PIPELINE id, so a
+// pipeline with several fills is one entry; N-309). The roles passed ARE the
+// learning population.
 function funnelRoleIndex(roles, fnKey, locKey) {
   const index = new Map();
   (roles || []).forEach(r => {
@@ -277,14 +355,17 @@ function funnelRoleIndex(roles, fnKey, locKey) {
   return index;
 }
 
-// N-277 (N-272 D4): learning population for Placement Analytics = the hired
-// roles (`historical`, shape functionArea/country) plus every role in
-// CONFIG.FUNNEL_LEARNING_EXTRA_STAGES (Cancelled) from `allRoles` (shape
-// Department/Location). A cancelled role's completed stage progress is valid
-// learning — cancellation is the client's decision. Open/Backlog/On-hold roles
-// are NOT added (unfinished funnels would bias benchmarks green). The roles
-// being JUDGED on the page stay hired-only; only this index widens. A hired
-// entry wins on a duplicate id.
+// N-277 (N-272 D4): learning population for Placement Analytics =
+// `historical` (getHistoricalPlacements(), shape functionArea/country) plus
+// every role in CONFIG.FUNNEL_LEARNING_EXTRA_STAGES (Cancelled) from
+// `allRoles` (shape Department/Location). N-309 (D-8): `historical` is now
+// every pipeline with ≥1 fill in the window, still-open ones included — so a
+// partly-filled pipeline's activity is learning too. A cancelled role's
+// completed stage progress is valid learning — cancellation is the client's
+// decision. Pipelines with no fill that are open/Backlog/On-hold are NOT
+// added (unfinished funnels would bias benchmarks green). The roles being
+// JUDGED on the page are the `historical` ones; only this index widens. A
+// historical entry wins on a duplicate id.
 function funnelLearningIndex(historical, allRoles) {
   const index = funnelRoleIndex(historical, 'functionArea', 'country');
   (allRoles || []).forEach(r => {
@@ -731,9 +812,15 @@ function roleStageEntryDay(role, roleRows) {
 //                Information only (Chris, 2 Oct 2026): N-272 found a 130-day
 //                median open → hire, so this is never counted as flagged,
 //                never in a RAG, never notified.
+//                N-309: "days open" = since the pipeline's OLDEST OPEN
+//                HEADCOUNT opened, when opts.openSince is given
+//                (oldestOpenHeadcountIndex(), utils.js) — no open dated
+//                headcount → null / false. Omitted → legacy role.OpenDate.
+//                Every caller that SHOWS behind-pace passes it; `flagged`
+//                never depends on it.
 // stageHistory: groupStageHistoryByRole() output. `today` is injectable for
 // tests. Stages with no budget (Planning, Backlog, …) are never age-evaluated.
-function roleFlagReasons(role, activity, stageHistory = {}, today = new Date()) {
+function roleFlagReasons(role, activity, stageHistory = {}, today = new Date(), opts = {}) {
   const cfg        = CONFIG.ROLE_FLAG;
   const todayDay   = localDayISO(today);
   const stage      = role && role.Stage;
@@ -745,7 +832,10 @@ function roleFlagReasons(role, activity, stageHistory = {}, today = new Date()) 
   const daysInStage = entry ? Math.max(0, daysOpen(entry, todayDay)) : null;
   const stuck       = daysInStage !== null && !cfg.noStuckStages.includes(stage) && daysInStage > budget;
 
-  const opened     = budgeted && role.OpenDate ? daysOpen(role.OpenDate, todayDay) : null;
+  const openSince  = opts && opts.openSince instanceof Map
+    ? (opts.openSince.get(String(role.id)) || null)
+    : role.OpenDate;
+  const opened     = budgeted && openSince ? daysOpen(openSince, todayDay) : null;
   const behindPace = opened !== null && opened > paceBudget;
 
   const c          = cfg.conversion;
@@ -768,18 +858,19 @@ function roleFlagReasons(role, activity, stageHistory = {}, today = new Date()) 
 // Flagged = stuck in stage OR low recent conversion (N-274). The first two
 // parameters are unchanged; a 2-argument call has no stage history, so only
 // the conversion rule can fire.
-function isRoleFlagged(role, activity, stageHistory = {}, today = new Date()) {
-  return roleFlagReasons(role, activity, stageHistory, today).flagged;
+function isRoleFlagged(role, activity, stageHistory = {}, today = new Date(), opts = {}) {
+  return roleFlagReasons(role, activity, stageHistory, today, opts).flagged;
 }
 
 // Counts over a set of roles (callers pass open roles): total, flagged, and
 // each reason. `activity` = every row the caller has, filtered per role by
-// RoleIDLookupId here. One roleFlagReasons call per role.
-function tallyRoleFlags(roles, activity, stageHistory = {}, today = new Date()) {
+// RoleIDLookupId here. One roleFlagReasons call per role. `opts` is passed
+// through — callers that show `behind` pass { openSince } (N-309).
+function tallyRoleFlags(roles, activity, stageHistory = {}, today = new Date(), opts = {}) {
   const t = { total: 0, flagged: 0, stuck: 0, conversion: 0, behind: 0 };
   (roles || []).forEach(role => {
     const acts = (activity || []).filter(a => String(a.RoleIDLookupId) === String(role.id));
-    const r = roleFlagReasons(role, acts, stageHistory, today);
+    const r = roleFlagReasons(role, acts, stageHistory, today, opts);
     t.total++;
     if (r.flagged)    t.flagged++;
     if (r.stuck)      t.stuck++;
@@ -832,7 +923,13 @@ function flaggedShareRAG(flagged, open, cfg = CONFIG.ROLE_FLAG.healthRag) {
 // so flaggedCount would be silently wrong if passed the windowed set instead.
 // `stageHistory` (N-274) = groupStageHistoryByRole(getRoleStageHistory()); the
 // flag's stuck rule needs it. Omitted → conversion-only flags.
-function computeSnapshotMetrics(roles, weekActivity, weekPlacements, allActivityForRoles = [], stageHistory = {}) {
+// `headcountState` (N-309 S-8) = { headcount: the project's RoleHeadcount
+// rows, fillMap: headcountFillMap(ALL placements) }. Given → avgDaysOpen is
+// the mean days open of OPEN, DATED headcount on the open pipelines in
+// openRoleSet (filled, cancelled and undated excluded; per headcount, not per
+// pipeline — migrated 1:1 data gives the same number). Omitted → the legacy
+// role.OpenDate average.
+function computeSnapshotMetrics(roles, weekActivity, weekPlacements, allActivityForRoles = [], stageHistory = {}, headcountState = null) {
   const openRoleSet = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
 
   const rolesByStage = roles.reduce((acc, r) => {
@@ -841,9 +938,18 @@ function computeSnapshotMetrics(roles, weekActivity, weekPlacements, allActivity
     return acc;
   }, {});
 
-  const openWithDate = openRoleSet.filter(r => r.OpenDate);
-  const avgDaysOpen = openWithDate.length
-    ? Math.round(openWithDate.reduce((s, r) => s + daysOpen(r.OpenDate), 0) / openWithDate.length)
+  let openDates;
+  if (headcountState) {
+    const openIds = new Set(openRoleSet.map(r => String(r.id)));
+    openDates = (headcountState.headcount || [])
+      .filter(hc => hc && hc.OpenDate && openIds.has(String(hc.RoleID)) &&
+        classifyHeadcount(hc, headcountState.fillMap) === 'open')
+      .map(hc => hc.OpenDate);
+  } else {
+    openDates = openRoleSet.filter(r => r.OpenDate).map(r => r.OpenDate);
+  }
+  const avgDaysOpen = openDates.length
+    ? Math.round(openDates.reduce((s, d) => s + daysOpen(d), 0) / openDates.length)
     : null;
 
   const flaggedCount = openRoleSet.filter(r => {

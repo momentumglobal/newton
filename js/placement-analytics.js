@@ -3,7 +3,7 @@
 // ── State ─────────────────────────────────────────────────────────────
 let _paLocation      = "";   // selected Currency/Location filter value
 let _paFunctionArea  = "";   // selected Department filter value
-let _paData          = null; // { historical, activityRaw, allPlacements, openRoles, closedCensored }
+let _paData          = null; // { historical, activityRaw, allPlacements, allRoles, openHeadcount, closedCensored }
 let _paBreakdownSort   = null; // N-247c: { key, dir } — Role Breakdown table
 let _paBreakdownSearch = "";   // N-247c: shared list search box (list-controls.js)
 
@@ -18,20 +18,21 @@ async function renderPlacementAnalytics() {
   `;
 
   // Load all data in parallel
-  // N-269: getAllRoles() supplies the open roles computeTTFPrediction
-  // counts as censored observations. N-276: Stage history supplies the day
-  // each Cancelled/On-hold role left active work — built into closedCensored
-  // once here, not per filter change. A failed read falls back to N-269
-  // behaviour (those roles left out) rather than breaking the page.
-  const [historical, activityRaw, allPlacements, openRoles, stageRows] = await Promise.all([
+  // N-309: TTF counts headcount — open headcount censored at age, paused /
+  // cancelled headcount where they stopped (ttfHeadcountInputs), built once
+  // here, not per filter change. The fill map comes from allPlacements (every
+  // placement, not the 12-month window). A failed stage-history or headcount
+  // read degrades to "no censoring" rather than breaking the page.
+  const [historical, activityRaw, allPlacements, allRoles, stageRows, headcount] = await Promise.all([
     getHistoricalPlacements(),
     getActivityForAnalytics(52),
     getPlacements(null),
     getAllRoles(),
     getRoleStageHistory().catch(e => { console.warn('N-276: stage history read failed', e); return []; }),
+    getAllHeadcount().catch(e => { console.warn('N-309: headcount read failed', e); return []; }),
   ]);
-  const closedCensored = ttfClosedCensorTimes(openRoles, stageRows);
-  _paData = { historical, activityRaw, allPlacements, openRoles, closedCensored };
+  const { openHeadcount, closedCensored } = ttfHeadcountInputs({ roles: allRoles, headcount, placements: allPlacements, stageRows });
+  _paData = { historical, activityRaw, allPlacements, allRoles, openHeadcount, closedCensored };
 
   // Build unique filter options from historical placements
   const locations     = _paUnique(historical, "country").sort();
@@ -111,7 +112,7 @@ function paRenderResults() {
 
 // ── Results aggregation (pure — no DOM) ─────────────────────────────────
 function _paComputeResults(data, location, functionArea) {
-  const { historical, activityRaw, allPlacements, openRoles, closedCensored } = data;
+  const { historical, activityRaw, allPlacements, allRoles, openHeadcount, closedCensored } = data;
 
   // Filter historical placements by selected dimensions
   let filtered = historical;
@@ -125,8 +126,8 @@ function _paComputeResults(data, location, functionArea) {
   // ── Summary metrics ───────────────────────────────────────────────
   // N-269: shared Kaplan–Meier estimate (analytics.js) — replaces the local
   // mean-of-hires copy, which ignored still-open roles (survivorship bias).
-  const ttfResult = computeTTFPrediction(functionArea || null, location || null, historical, openRoles, closedCensored);
-  const avgTTHDays = _paAvgTTH(filtered);
+  const ttfResult = computeTTFPrediction(functionArea || null, location || null, historical, openHeadcount, closedCensored);
+  const avgTTHDays = avgTimeToHireDays(filtered);
   const sampleSize = filtered.length;
 
   // Aggregate activity for funnel — match by role IDs in the filtered set
@@ -145,13 +146,14 @@ function _paComputeResults(data, location, functionArea) {
     Offers:        sumField(filtAct, "Offers"),
     Hires:         sumField(filtAct, "Hires"),
   };
-  // N-270: learned benchmarks. N-277: learning population is HIRED roles plus
-  // CANCELLED roles (their completed stage progress is valid learning —
-  // cancellation is the client's call). Open/Backlog/On-hold stay out: their
-  // funnels are unfinished and would bias the benchmarks green. The roles
-  // being judged are still hired-only. Leave-self-out: the roles being judged
-  // never count toward their own benchmark.
-  const benchObs     = buildFunnelObservations(activityRaw, funnelLearningIndex(historical, openRoles));
+  // N-270: learned benchmarks. N-277: learning population is pipelines with
+  // ≥1 fill (N-309 D-8 — still-open ones included) plus CANCELLED roles (their
+  // completed stage progress is valid learning — cancellation is the client's
+  // call). Pipelines with no fill that are Open/Backlog/On-hold stay out:
+  // their funnels are unfinished and would bias the benchmarks green. The
+  // roles being judged are the ones with fills. Leave-self-out: the roles
+  // being judged never count toward their own benchmark.
+  const benchObs     = buildFunnelObservations(activityRaw, funnelLearningIndex(historical, allRoles));
   const summaryBench = learnFunnelBenchmarks(benchObs, functionArea || null, location || null, { exclude: o => filteredIds.has(o.roleId) });
   const funnelStages = computeRoleFunnel(totals, summaryBench);
 
@@ -184,13 +186,9 @@ function _paComputeResults(data, location, functionArea) {
         Hires:         sumField(roleAct, "Hires"),
       };
 
-      // Avg TTH across all roles in the group that have both dates
-      const tthValues = group.roles
-        .filter(r => r.openDate && r.placementDate)
-        .map(r => Math.round((new Date(r.placementDate) - new Date(r.openDate)) / (1000 * 60 * 60 * 24)));
-      const avgTth = tthValues.length
-        ? Math.round(tthValues.reduce((s, v) => s + v, 0) / tthValues.length)
-        : null;
+      // Avg TTH across every fill in the group (one row per headcount, N-309)
+      const groupTth = avgTimeToHireDays(group.roles);
+      const avgTth   = groupTth === null ? null : Math.round(groupTth);
 
       const groupPlacements = allPlacements.filter(p => groupIds.has(String(p.RoleIDLookupId || p.RoleID || '')));
       const salaries = groupPlacements.map(p => parseFloat(p.SalaryAgreed)).filter(v => !isNaN(v) && v > 0);
@@ -347,14 +345,6 @@ function _paRenderResultsHtml(results, location, functionArea) {
 // ── Helpers ───────────────────────────────────────────────────────────
 function _paUnique(arr, key) {
   return [...new Set(arr.map(r => r[key]).filter(Boolean))];
-}
-
-function _paAvgTTH(placements) {
-  const valid = placements.filter(r => r.openDate && r.placementDate);
-  if (!valid.length) return null;
-  const total = valid.reduce((s, r) =>
-    s + (new Date(r.placementDate) - new Date(r.openDate)), 0);
-  return total / valid.length / (1000 * 60 * 60 * 24); // days
 }
 
 function _paEsc(str) {

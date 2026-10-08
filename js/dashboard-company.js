@@ -3,8 +3,7 @@ let _companyPeriod       = 'quarter';
 let _companyDetailPeriod = 'this_month';
 // ── Company KPI strip ─────────────────────────────────────────────────
 function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period) {
-  const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
-  const openRoles      = allRoles.filter(r => !EXCLUDED.includes(r.Stage)).length;
+  const openRoles      = allRoles.filter(r => isOpenPipelineStage(r.Stage)).length;
   const activeProjects = allProjects.filter(p => p.Status === 'Active').length;
   const acts      = allActivity.filter(a => activityInKpiPeriod(a, period));
   const submitted = sumField(acts, 'Submitted');
@@ -71,11 +70,10 @@ function renderCompanyKPIStrip(allRoles, allActivity, allProjects, period) {
 }
 // ── Roles open 30+ days panel (company) ──────────────────────────────
 function renderLongOpenRolesPanel(allRoles, projectMap, tpMap = {}) {
-  const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
   const today    = new Date(); today.setHours(0,0,0,0);
   const longOpen = allRoles
     .filter(r => {
-      if (EXCLUDED.includes(r.Stage)) return false;
+      if (!isOpenPipelineStage(r.Stage)) return false;
       if (!r.OpenDate) return false;
       const days = Math.floor((today - new Date(r.OpenDate)) / 86400000);
       return days >= 30;

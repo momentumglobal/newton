@@ -2657,4 +2657,66 @@ var ASSERTIONS = [
       _assertEqual(/Repository and publishing/.test(REPO_FILES.readme), true, 'README.md has the "Repository and publishing" section');
     },
   },
+  // ── N-305 (HC-0): centralised role-stage sets ──────────────────────────
+  {
+    name: 'isOpenPipelineStage: open stages true; parked, terminal false; blank true (N-305)',
+    fn: function () {
+      ['Planning', 'Sourcing', 'Submitted', 'Interview 1', 'Interview 2+', 'Final Interview', 'Offered']
+        .forEach(s => _assertEqual(isOpenPipelineStage(s), true, s + ' is open'));
+      ['Backlog', 'Hired', 'On-hold', 'Cancelled']
+        .forEach(s => _assertEqual(isOpenPipelineStage(s), false, s + ' is not open'));
+      // Old `!EXCLUDED.includes(r.Stage)` was true for a missing stage — preserved.
+      [undefined, null, ''].forEach(s => _assertEqual(isOpenPipelineStage(s), true, JSON.stringify(s) + ' (blank) counts as open'));
+    },
+  },
+  {
+    name: 'Dashboards and Snapshots agree on "open": ACTIVE_STAGES ≡ not isOpenPipelineStage over ROLE_STAGES (N-305)',
+    fn: function () {
+      const notOpen = CONFIG.ROLE_STAGES.filter(s => !isOpenPipelineStage(s)).slice().sort();
+      const snapshotClosed = ACTIVE_STAGES.filter(s => CONFIG.ROLE_STAGES.includes(s)).slice().sort();
+      _assertEqual(notOpen, snapshotClosed, 'not-open stages vs ACTIVE_STAGES ∩ ROLE_STAGES');
+    },
+  },
+  {
+    name: 'Role-stage CONFIG sets: activity-excluded = parked ∪ terminal; every set ⊂ ROLE_STAGES (N-305)',
+    fn: function () {
+      const sorted = a => a.slice().sort();
+      _assertEqual(sorted(CONFIG.ROLE_STAGES_ACTIVITY_EXCLUDED),
+        sorted(CONFIG.ROLE_STAGES_PARKED.concat(CONFIG.ROLE_STAGE_TERMINAL)),
+        'ROLE_STAGES_ACTIVITY_EXCLUDED vs PARKED ∪ TERMINAL');
+      ['ROLE_STAGE_TERMINAL', 'ROLE_STAGES_PARKED', 'ROLE_STAGES_BRANCH', 'ROLE_STAGES_ACTIVITY_EXCLUDED'].forEach(k => {
+        _assertEqual(CONFIG[k].filter(s => !CONFIG.ROLE_STAGES.includes(s)), [], k + ' values not in ROLE_STAGES');
+      });
+    },
+  },
+  {
+    name: 'no page file redeclares a role-stage array (N-305 — lint-stage-arrays guard)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined' || typeof ALL_HTML === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const found = lintStageArrays(ALL_SOURCES, ALL_HTML, stageArrayVocab(CONFIG), STAGE_ARRAY_ALLOW);
+      _assertEqual(
+        found.map(v => `${v.file}:${v.line}  ${v.text}`),
+        [],
+        'role-stage arrays outside config.js (use CONFIG.ROLE_STAGE* sets or isOpenPipelineStage())'
+      );
+    },
+  },
+  {
+    name: 'lint-stage-arrays control: flags stage arrays, ignores mixed/single, catches a stale allow entry (N-305)',
+    fn: function () {
+      const vocab = stageArrayVocab(CONFIG);
+      const lint = (src, html, allow) => lintStageArrays(src, html || {}, vocab, allow || [])
+        .map(v => `${v.file}:${v.line}`);
+      _assertEqual(lint({ 'a.js': "x();\nconst X = ['Backlog','Hired'];\n" }), ['a.js:2'], 'single-line, single-quoted');
+      _assertEqual(lint({ 'b.js': 'const Y = [\n  "Backlog", "Planning",\n  // note\n  "Hired"\n];\n' }), ['b.js:1'], 'multi-line, double-quoted, with comment');
+      _assertEqual(lint({ 'c.js': "f(['Closed', 'Cancelled']);\n" }), ['c.js:1'], "'Closed' is in the vocabulary before N-306");
+      _assertEqual(lint({ 'd.js': "const L = ['Outreach','Submitted','Hired'];\nconst s = ['Hired'];\n" }), [], 'mixed array and single stage are not stage sets');
+      _assertEqual(lint({ 'config.js': "const CONFIG = { S: ['Backlog','Hired'] };\n" }), [], 'config.js is the home of stage sets');
+      _assertEqual(lint({}, { 'p.html': '<script src="x.js"></script>\n<script>\nconst Z = ["Hired","Cancelled"];\n</script>\n' }), ['p.html:3'], 'inline <script> in HTML');
+      _assertEqual(lint({ 'analytics.js': "const ACTIVE_STAGES = ['Hired','Backlog'];\n" }, {}, [{ file: 'analytics.js', name: 'ACTIVE_STAGES' }]), [], 'allow-listed declaration');
+      _assertEqual(lint({ 'e.js': 'x();\n' }, {}, [{ file: 'e.js', name: 'GONE' }]), ['e.js:0'], 'stale allow entry is reported');
+    },
+  },
 ];

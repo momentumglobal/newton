@@ -8,11 +8,8 @@
 // Role-aware, same as desktop:
 //   - admin / delivery_manager: choose project, then assign to a Talent Partner.
 //   - talent_partner: project auto-scoped; role assigned to themselves.
-
-const M_ROLE_STAGES = [
-  'Backlog','Planning','Sourcing','Submitted','Interview 1','Interview 2+',
-  'Final Interview','Offered','Hired','On-hold','Cancelled'
-];
+//
+// Stage options come from CONFIG.ROLE_STAGES (N-305) — never redeclare here.
 
 // Add 45 days to a yyyy-mm-dd string -> yyyy-mm-dd.
 function mRoleAddDays(dateStr, days) {
@@ -54,7 +51,7 @@ async function mobileRenderAddRole(main) {
       Object.keys(CONFIG.COUNTRY_CURRENCY).sort().map(c =>
         `<option value="${c}">${c}</option>`).join('');
 
-    const stageOpts = M_ROLE_STAGES.map(s =>
+    const stageOpts = CONFIG.ROLE_STAGES.map(s =>
       `<option value="${s}" ${s === 'Backlog' ? 'selected' : ''}>${s}</option>`).join('');
 
     main.innerHTML = `

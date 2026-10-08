@@ -67,11 +67,10 @@ async function renderReportBuilder() {
     _rbProjectRoles = [];
   }
 
-  // Live roles for the Candidate Pipeline Snapshot editor — excluded stages
-  // removed, respecting the single-role filter. Mirrors what the output uses.
-  const RB_EXCLUDED_STAGES = ['Backlog','Hired','Cancelled','On-hold'];
+  // Live roles for the Candidate Pipeline Snapshot editor — open pipelines
+  // only, respecting the single-role filter. Mirrors what the output uses.
   _rbLiveRoles = _rbProjectRoles
-    .filter(r => !RB_EXCLUDED_STAGES.includes(r.Stage))
+    .filter(r => isOpenPipelineStage(r.Stage))
     .filter(r => _rbRoleId === 'all' || String(r.id) === String(_rbRoleId))
     .map(r => ({ id: r.id, label: escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle) }));
 
@@ -438,9 +437,8 @@ function rbRenderReportHtml(title, data, ganttOpts = null) {
   const blocks = _rbBlocks.map(block => {
     if (block.type === 'panel') {
       if (block.key === 'candidateSnapshot') {
-        const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
         const liveRoles = data.roles
-          .filter(r => !EXCLUDED.includes(r.Stage))
+          .filter(r => isOpenPipelineStage(r.Stage))
           .map(r => ({ id: r.id, label: escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle) }));
         return rbRenderSnapshotOutput(block, liveRoles);
       }

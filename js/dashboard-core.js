@@ -103,7 +103,7 @@ function avgDaysToHire(roles) {
 }
 function avgDaysOpen(roles) {
   const active = roles.filter(r =>
-    !['Backlog','Hired','Cancelled','On-hold'].includes(r.Stage) && r.OpenDate);
+    isOpenPipelineStage(r.Stage) && r.OpenDate);
   if (!active.length) return null;
   return Math.round(active.reduce((s, r) => s + daysOpen(r.OpenDate), 0) / active.length);
 }

@@ -120,8 +120,8 @@ async function _cmdBarLoadEntities(role) {
     // here, matching the exclusion every other role-picker in the app
     // already applies (forms.js's role dropdowns, pages.js's Roles-list
     // "Active" filter) — cuts noise from roles nobody needs to act on via
-    // the Command Bar.
-    roles.filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage)).forEach(r => {
+    // the Command Bar. N-305: all of them read utils.js:isOpenPipelineStage().
+    roles.filter(r => isOpenPipelineStage(r.Stage)).forEach(r => {
       const projectName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || '';
       records.push({
         entityType:   'role',

@@ -239,8 +239,8 @@ async function showEditProjectForm(id) {
 }
 // ── Roles ─────────────────────────────────────────────────────────────
 const ROLE_FILTERS = {
-  Backlog:   r => ["Backlog","On-hold"].includes(r.Stage),
-  Active:    r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage),
+  Backlog:   r => CONFIG.ROLE_STAGES_PARKED.includes(r.Stage),
+  Active:    r => isOpenPipelineStage(r.Stage),
   Hired:     r => r.Stage === "Hired",
   Cancelled: r => r.Stage === "Cancelled",
 };
@@ -591,7 +591,7 @@ function _roleTimelineNodeClass(oldStage, newStage) {
   // showRoleTimeline's isCreated check above — a falsy check catches the
   // real creation row whether SharePoint hands it back as '' or null.
   if (!oldStage) return 'start';
-  const branchStages = ['On-hold', 'Cancelled'];
+  const branchStages = CONFIG.ROLE_STAGES_BRANCH;
   if (branchStages.includes(newStage) || branchStages.includes(oldStage)) return 'branch';
   const oldIdx = CONFIG.ROLE_STAGES.indexOf(oldStage);
   const newIdx = CONFIG.ROLE_STAGES.indexOf(newStage);

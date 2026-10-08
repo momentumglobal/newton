@@ -439,7 +439,7 @@ async function renderWeeklyActivityForm(existingData = null, preselectedRoleId =
   if (lockProject) {
     try {
       const roles = (await getRolesForProject(projects[0].id, email))
-        .filter(r => !CONFIG.ROLE_STAGES_ACTIVITY_EXCLUDED.includes(r.Stage))
+    .filter(r => isOpenPipelineStage(r.Stage))
         .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
        preloadedRoleOptions = roles.map(r =>
         `<option value="${r.id}" ${existingRoleId == r.id ? 'selected' : ''}>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</option>`
@@ -553,7 +553,7 @@ async function loadRolesForWeekly(projectId, selectedRoleId = null) {
   select.innerHTML = '<option value="">Loading...</option>';
   const tpEmail = select.dataset.tpEmail || null;
   const roles = (await getRolesForProject(projectId, tpEmail))
-    .filter(r => !CONFIG.ROLE_STAGES_ACTIVITY_EXCLUDED.includes(r.Stage))
+    .filter(r => isOpenPipelineStage(r.Stage))
     .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
   select.innerHTML = roles.length
     ? '<option value="">-- Select role --</option>' + roles.map(r => `<option value="${r.id}" ${selectedRoleId == r.id ? 'selected' : ''}>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</option>`).join('')
@@ -993,10 +993,10 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
   const projectIds = await getUserProjectIds(email);
   let roles = [];
   if (projectIds === null) {
-    roles = (await getAllRoles()).filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage));
+    roles = (await getAllRoles()).filter(r => isOpenPipelineStage(r.Stage));
   } else {
     const roleArrays = await Promise.all(
-      projectIds.map(async pid => (await getRolesForProject(pid, isTalentPartner ? email : null)).filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage)))
+      projectIds.map(async pid => (await getRolesForProject(pid, isTalentPartner ? email : null)).filter(r => isOpenPipelineStage(r.Stage)))
     );
     roles = roleArrays.flat();
   }

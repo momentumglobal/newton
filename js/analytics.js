@@ -644,6 +644,12 @@ function buildAnomalyAckFields({ checkType, subjectKey, signature, note }, email
 
 // ── Role flag helpers (shared by cc-pages.js, analytics-pages.js,
 //    mobile-scorecards.js, index.html and computeSnapshotMetrics) ──
+// Snapshots contract list (N-086's flow mirrors it) — values deliberately
+// left as-is (N-305): 'Placed' is legacy/dead, 'Closed' becomes live in
+// N-306. Over real stage values (CONFIG.ROLE_STAGES) it equals the
+// complement of utils.js:isOpenPipelineStage() — pinned by assertion — so
+// dashboards and Snapshots agree on "open". The one documented exception in
+// tests/lint-stage-arrays.js (STAGE_ARRAY_ALLOW).
 const ACTIVE_STAGES = ['Placed', 'Closed', 'Hired', 'Backlog', 'Cancelled', 'On-hold'];
 // Stages that block linking a live role to a Hiring Plan row. Narrower than
 // ACTIVE_STAGES: a Backlog role is dormant for velocity metrics but is exactly
@@ -800,14 +806,15 @@ function flaggedShareRAG(flagged, open, cfg = CONFIG.ROLE_FLAG.healthRag) {
 // Placements by OfferAcceptedDate range).
 //
 // CONTRACT: openRoles / avgDaysOpen MUST derive from ACTIVE_STAGES, not
-// any other "active stage" list in the codebase (dashboard-core.js's
-// avgDaysOpen() and the KPI-strip openRoles count use a different,
-// narrower, undocumented local array — do not copy that here). N-086's
+// any other "active stage" list in the codebase (dashboards use
+// utils.js:isOpenPipelineStage(), which is pinned set-equal to this list
+// over CONFIG.ROLE_STAGES (N-305) — do not swap it in here). N-086's
 // flow reimplements this same "open role" definition and cannot read this
 // file, so this function is the one place the contract is authoritative
 // from — keep it that way.
 //
-// RolesByStage deliberately excludes 'Hired' and 'Cancelled' (N-111).
+// RolesByStage deliberately excludes 'Hired' and 'Cancelled' (N-111) —
+// CONFIG.ROLE_STAGE_TERMINAL (N-305).
 // Both are terminal — a role never leaves them once it lands there — so
 // their counts only ever grow, unlike every other stage here, which
 // reflects roles genuinely still in flight and can rise or fall week to
@@ -826,7 +833,7 @@ function computeSnapshotMetrics(roles, weekActivity, weekPlacements, allActivity
   const openRoleSet = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
 
   const rolesByStage = roles.reduce((acc, r) => {
-    if (r.Stage === 'Hired' || r.Stage === 'Cancelled') return acc;
+    if (CONFIG.ROLE_STAGE_TERMINAL.includes(r.Stage)) return acc;
     acc[r.Stage] = (acc[r.Stage] || 0) + 1;
     return acc;
   }, {});

@@ -84,6 +84,20 @@ function buildForecastPayload({ title, start, end, hc, fcType, revPerHead, retai
   };
 }
 
+// ── Open pipeline predicate (N-305) ─────────────────────────────────────
+// Open, actively-worked pipeline — the reporting / role-picker definition of
+// an "open role" (dashboards KPI + panels, Report Builder, placement and
+// rejected-offer pickers, Command Bar search, Roles page "Active" filter).
+// Derived from CONFIG.ROLE_STAGES_PARKED + CONFIG.ROLE_STAGE_TERMINAL, never
+// a third list. Unknown/blank stages return true — preserves the old
+// `!EXCLUDED.includes(r.Stage)` behaviour. Set-equivalent to analytics.js's
+// ACTIVE_STAGES over real stage values (pinned by assertion), so dashboards
+// and Snapshots agree on "open".
+function isOpenPipelineStage(stage) {
+  return !CONFIG.ROLE_STAGES_PARKED.includes(stage) &&
+         !CONFIG.ROLE_STAGE_TERMINAL.includes(stage);
+}
+
 // ── Role stage <select> markup (N-149 addendum) ─────────────────────────
 // Pure HTML string builder for the Roles-list inline stage dropdown.
 // Called once, when a row is unlocked (pages.js:unlockStageEdit) — not at

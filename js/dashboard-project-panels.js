@@ -1,6 +1,6 @@
 // js/dashboard-project-panels.js — Project Dashboard panel renderers + Report Builder registry
 function renderKPIStrip(roles, activity, period) {
-  const openRoles    = roles.filter(r => !['Backlog','Hired','Cancelled','On-hold'].includes(r.Stage)).length;
+  const openRoles    = roles.filter(r => isOpenPipelineStage(r.Stage)).length;
   const totalHires   = sumField(activity, 'Hires');
   const backlogRoles = roles.filter(r => r.Stage === 'Backlog').length;
   const avgOpenDays  = avgDaysOpen(roles);
@@ -336,10 +336,9 @@ function detailPeriodDropdown() {
 }
 // ── Roles open 30+ days panel (project-scoped) ────────────────────────
 function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
-  const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
   const longOpen = roles
     .filter(r => {
-      if (EXCLUDED.includes(r.Stage)) return false;
+      if (!isOpenPipelineStage(r.Stage)) return false;
       if (!r.OpenDate) return false;
       const days = daysOpen(r.OpenDate);
       return days >= 30;
@@ -371,9 +370,8 @@ function renderProjectLongOpenRolesPanel(roles, tpMap = {}) {
 }
 // ── Role Tracker panel ────────────────────────────────────────────────
 function renderRoleTrackerPanel(roles) {
-  const EXCLUDED = ['Backlog','Hired','Cancelled','On-hold'];
   const active = roles
-    .filter(r => !EXCLUDED.includes(r.Stage))
+    .filter(r => isOpenPipelineStage(r.Stage))
     .sort((a, b) => new Date(a.OpenDate || 0) - new Date(b.OpenDate || 0));
   if (!active.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>Role Tracker</h3>
@@ -434,8 +432,7 @@ function renderPlacementsPanel(placements, roles, period) {
 // ── Role Analytics panel (Phase A + B) ───────────────────────────────
 
 async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {}) {
-  const EXCLUDED = ['Backlog', 'Cancelled', 'On-hold', 'Hired'];
-  const activeRoles = roles.filter(r => !EXCLUDED.includes(r.Stage));
+  const activeRoles = roles.filter(r => isOpenPipelineStage(r.Stage));
 
   if (!activeRoles.length) {
     return `<div class='dash-panel'>

@@ -59,7 +59,7 @@ async function mobileRenderReportingSummary(main) {
       const s = r.Stage || 'Unknown';
       byStage[s] = (byStage[s] || 0) + 1;
     });
-    const stageRows = STAGES
+    const stageRows = CONFIG.ROLE_STAGES
       .filter(s => byStage[s])
       .map(s => `
         <tr>
@@ -112,7 +112,7 @@ function mobileDrawRolesList(main, pendingItem = null) {
   const roles = _mRolesCache || [];
 
   const stageOpts = '<option value="">All stages</option>' +
-    STAGES.filter(s => roles.some(r => r.Stage === s))
+    CONFIG.ROLE_STAGES.filter(s => roles.some(r => r.Stage === s))
       .map(s => `<option value="${s}" ${s === _mRoleStage ? 'selected' : ''}>${s}</option>`).join('');
 
   const controls = `

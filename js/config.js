@@ -66,18 +66,33 @@ const CONFIG = {
   ROLE_STAGES: ['Backlog', 'Planning', 'Sourcing', 'Submitted', 'Interview 1',
                 'Interview 2+', 'Final Interview', 'Offered', 'Hired',
                 'On-hold', 'Cancelled'],
-  // Stages that carry side effects (ActualHireDate, placement records) and so
-  // must only ever be set via the full role form, never the inline dropdown.
+  // Terminal stages — two intents, same set (N-305):
+  //   (a) stages that carry side effects (ActualHireDate, placement records)
+  //       and so must only ever be set via the full role form, never the
+  //       inline dropdown;
+  //   (b) a "finished" pipeline — command bar, mobile role list and pickers,
+  //       Snapshot RolesByStage.
   // Deliberately narrower than analytics.js's ACTIVE_STAGES, which mixes
-  // KPI/velocity scoping with two stage values ('Placed', 'Closed') that
-  // don't exist in this build — do not reuse it here.
+  // KPI/velocity scoping with a legacy 'Placed' and a pre-declared 'Closed'
+  // (live from N-306) — still don't reuse it here.
   ROLE_STAGE_TERMINAL: ['Hired', 'Cancelled'],
 
   // Stages hidden from the weekly-activity role picker (single form and bulk
   // grid both read this — N-164). Deliberately distinct from ACTIVE_STAGES in
-  // analytics.js, which references 'Placed'/'Closed', stage values that don't
-  // exist in this build — do not reuse it here.
+  // analytics.js, which carries a legacy 'Placed' and a pre-declared 'Closed'
+  // (live from N-306) — do not reuse it here. Currently equals
+  // ROLE_STAGES_PARKED ∪ ROLE_STAGE_TERMINAL (pinned by assertion); kept as
+  // its own key because the activity-picker intent may diverge.
   ROLE_STAGES_ACTIVITY_EXCLUDED: ['Backlog', 'Hired', 'On-hold', 'Cancelled'],
+
+  // Parked — not yet started or paused; still a live pipeline (Roles page
+  // "Backlog" filter). With ROLE_STAGE_TERMINAL it defines an open pipeline:
+  // utils.js:isOpenPipelineStage() (N-305). Never redeclare a stage array in
+  // a page file — tests/lint-stage-arrays.js fails the build.
+  ROLE_STAGES_PARKED: ['Backlog', 'On-hold'],
+  // Stages a role leaves the linear pipeline for (Role History timeline
+  // 'branch' node — pages.js:_roleTimelineNodeClass, N-305).
+  ROLE_STAGES_BRANCH: ['On-hold', 'Cancelled'],
 
   // ── Project types (N-116) ─────────────────────────────────────────
   // TWO enums, deliberately. Projects.ProjectType gates the Hiring Plan page,

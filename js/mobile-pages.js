@@ -1,10 +1,5 @@
 // js/mobile-pages.js — Mobile view renderers
-
-const STAGES = [
-  'Backlog','Planning','Sourcing','Submitted',
-  'Interview 1','Interview 2+','Final Interview',
-  'Offered','Hired','On-hold','Cancelled'
-];
+// Stage lists come from CONFIG (N-305) — never redeclare one here.
 
 async function mobileGetRoles() {
   const user = getCurrentUser();
@@ -26,7 +21,7 @@ async function mobileGetRoles() {
   }
 
   // Exclude terminal stages
-  return allRoles.filter(r => !['Hired','Cancelled'].includes(r.Stage));
+  return allRoles.filter(r => !CONFIG.ROLE_STAGE_TERMINAL.includes(r.Stage));
 }
 
 // ── Role Detail ───────────────────────────────────────────────────────
@@ -88,7 +83,7 @@ async function mobileRenderStageUpdate(main) {
     const role = await getItem('Roles', _mobileRoleId);
     mobileSetTitle('Update Stage', role.RoleTitle);
 
-    const stageButtons = STAGES.map(s => `
+    const stageButtons = CONFIG.ROLE_STAGES.map(s => `
       <button class="m-stage-btn ${role.Stage === s ? 'active' : ''}"
         id="stage-btn-${s.replace(/\s+/g,'_').replace(/\+/g,'plus')}"
         onclick="mobileSelectStage(this, '${s}')">
@@ -261,7 +256,7 @@ async function mobileLoadRolesForActivity(projectId) {
   sel.innerHTML = '<option value="">Loading…</option>';
   const roles = await getRolesForProject(projectId);
   sel.innerHTML = '<option value="">— select role —</option>' +
-    roles.filter(r => !['Hired','Cancelled'].includes(r.Stage))
+    roles.filter(r => !CONFIG.ROLE_STAGE_TERMINAL.includes(r.Stage))
          .map(r => `<option value="${r.id}">${escHtml(r.RoleTitle)}</option>`).join('');
 }
 
@@ -421,7 +416,7 @@ async function mobileLoadRolesForPlacement(projectId) {
   if (cur) cur.value = '';
   const roles = await getRolesForProject(projectId);
   sel.innerHTML = '<option value="">— select role —</option>' +
-    roles.filter(r => !['Hired','Cancelled'].includes(r.Stage))
+    roles.filter(r => !CONFIG.ROLE_STAGE_TERMINAL.includes(r.Stage))
          .map(r => `<option value="${r.id}">${escHtml(r.RoleTitle)}</option>`).join('');
 }
 

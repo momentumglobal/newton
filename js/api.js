@@ -1344,13 +1344,20 @@ function _odataIn(field, ids) {
 // utils.js historicalHiresFromPlacements(); `id` is still the pipeline id.
 // Reads only (no select: '*' until N-052, as before). The bound is a local
 // "1 year ago" day, matching _odataDateFrom / getActivityForAnalytics.
+// A failed RoleHeadcount read degrades instead of breaking every analytics
+// page (N-309 QA, AC 11): with no headcount, each placement takes the S-2
+// fallback — its pipeline's Open Date (= the headcount date for migrated
+// 1:1 data).
 async function getHistoricalPlacements() {
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
   const [placements, roles, headcount] = await Promise.all([
     getPlacements(null, { fromDay: localDayISO(cutoff) }),
     getAllRoles(),
-    getAllHeadcount(),
+    getAllHeadcount().catch(e => {
+      console.warn('N-309: headcount read failed — time to hire falls back to the pipeline Open Date', e);
+      return [];
+    }),
   ]);
   return historicalHiresFromPlacements(placements, roles, headcount);
 }

@@ -3178,6 +3178,24 @@ var ASSERTIONS = [
         _assertEqual(/^fields\/OfferAcceptedDate ge '\d{4}-\d{2}-\d{2}'$/.test(pl[1]), true, 'Placements bounded on OfferAcceptedDate only');
         _assertEqual(calls.some(c => /Stage|ActualHireDate/.test(c[1])), false, 'no Stage / ActualHireDate filter anywhere');
       } finally { getItems = saved; }
+
+      // AC 11 (QA fix): a failed RoleHeadcount read degrades to [] instead of
+      // rejecting the whole call. Tests run synchronously, so capture the
+      // .catch handler getHistoricalPlacements attaches and invoke it directly.
+      const savedItems = getItems, savedHc = getAllHeadcount, savedWarn = console.warn;
+      let handler = null;
+      getItems = function () { return Promise.resolve([]); };
+      getAllHeadcount = function () { return { catch: function (fn) { handler = fn; return Promise.resolve([]); } }; };
+      console.warn = function () {};
+      try {
+        getHistoricalPlacements();
+        _assertEqual(typeof handler, 'function', 'AC11 headcount read has a .catch fallback');
+        _assertEqual(handler(new Error('403 RoleHeadcount')), [], 'AC11 fallback resolves to no headcount');
+      } finally { getItems = savedItems; getAllHeadcount = savedHc; console.warn = savedWarn; }
+      const fb = historicalHiresFromPlacements(
+        [{ id: 1, RoleIDLookupId: 5, HeadcountID: 50, OfferAcceptedDate: '2026-03-01T12:00:00Z', TalentPartner: 'a@x.com' }],
+        [{ id: 5, OpenDate: '2026-02-01T12:00:00Z' }], []);
+      _assertEqual(fb.map(r => r.openDate), ['2026-02-01T12:00:00Z'], 'AC11 with no headcount the hire keeps the pipeline Open Date');
     },
   },
   {

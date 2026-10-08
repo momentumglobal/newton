@@ -751,6 +751,7 @@ function _dhRenderHeadcountIntegrityHtml(data) {
     </table>
     </div>
 `;
+}
 
 // ── Data Health Tab — render: WeeklyActivity Anomalies (N-271) ───────
 // '2026-09-27' → '27 Sep'. utcDateOnly + timeZone 'UTC': no local getter.

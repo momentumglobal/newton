@@ -439,7 +439,7 @@ async function renderWeeklyActivityForm(existingData = null, preselectedRoleId =
   if (lockProject) {
     try {
       const roles = (await getRolesForProject(projects[0].id, email))
-    .filter(r => isOpenPipelineStage(r.Stage))
+        .filter(r => !CONFIG.ROLE_STAGES_ACTIVITY_EXCLUDED.includes(r.Stage))
         .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
        preloadedRoleOptions = roles.map(r =>
         `<option value="${r.id}" ${existingRoleId == r.id ? 'selected' : ''}>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</option>`
@@ -553,7 +553,7 @@ async function loadRolesForWeekly(projectId, selectedRoleId = null) {
   select.innerHTML = '<option value="">Loading...</option>';
   const tpEmail = select.dataset.tpEmail || null;
   const roles = (await getRolesForProject(projectId, tpEmail))
-    .filter(r => isOpenPipelineStage(r.Stage))
+    .filter(r => !CONFIG.ROLE_STAGES_ACTIVITY_EXCLUDED.includes(r.Stage))
     .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
   select.innerHTML = roles.length
     ? '<option value="">-- Select role --</option>' + roles.map(r => `<option value="${r.id}" ${selectedRoleId == r.id ? 'selected' : ''}>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</option>`).join('')
@@ -719,7 +719,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   if (lockProject) {
     try {
   const roles = (await getRolesForProject(projects[0].id, email))
-    .filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage))
+    .filter(r => isOpenPipelineStage(r.Stage))
     .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
   preloadedPlacementRoleOptions = roles.map(r =>
     `<option value="${r.id}" ${(existingData?.RoleID == r.id || preselectedRoleId == r.id) ? 'selected' : ''}>${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</option>`
@@ -823,7 +823,7 @@ async function loadRolesForPlacement(projectId) {
   select.innerHTML = '<option value="">Loading...</option>';
   const tpEmail = select.dataset.tpEmail || null;
   const roles = (await getRolesForProject(projectId, tpEmail))
-    .filter(r => !["Backlog","Hired","On-hold","Cancelled"].includes(r.Stage))
+    .filter(r => isOpenPipelineStage(r.Stage))
     .sort((a, b) => (a.Location ? `${a.RoleTitle} (${a.Location})` : a.RoleTitle).localeCompare(b.Location ? `${b.RoleTitle} (${b.Location})` : b.RoleTitle));
   select.innerHTML = roles.length
     ? '<option value="">-- Select role --</option>' + roles.map(r => `<option value="${r.id}">${escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)}</option>`).join('')

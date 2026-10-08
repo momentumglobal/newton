@@ -1,13 +1,14 @@
 // js/coe-plan.js — CoE Hiring Plan page (Reporting module)
 // Entry point: renderHiringPlanPage() — wired in nav.js
-// Data: CoEPlanRows + CoEPlanForecast lists via api.js getters. N-312: a plan
+// Data: CoEPlanRows via api.js getters (N-317: CoEPlanForecast is no longer
+// read — the forecast table became Planned vs Actual Role Opens). N-312: a plan
 // row links to ONE hire slot — CoEPlanRows.LinkedHeadcountID → RoleHeadcount —
 // with LinkedRoleID kept in sync (linkCoEPlanRow / unlinkCoEPlanRow, api-coe.js).
 // Phase defaults: CONFIG.COE_PHASE_DEFAULTS. Handover excluded from v1.
 // coeGanttHtml() is a pure renderer shared with the Report Builder
 // (landscape final-page export) — no DOM access, no cache reads.
 
-let _coeCache = null;   // { projectId, planRows, roles, headcount, placements, forecast } — headcount null = read failed
+let _coeCache = null;   // { projectId, planRows, roles, headcount, placements } — headcount null = read failed
 let _coeTPFilter = '';  // '' = all TPs
 
 // ── Date helpers ────────────────────────────────────────────────────
@@ -60,6 +61,31 @@ function coeFmtShort(d) {
   return d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }) : '—';
 }
 
+// ── Week variance (N-317) ───────────────────────────────────────────
+// Monday-week gap between a row's Planned Open Date and its linked
+// headcount's actual OpenDate, actual − planned: negative = opened early
+// (good), positive = late. Built on coeWeekIndex (Math.round, N-081) and this
+// file's local-midnight model — never floor, never the UTC helpers (N-089).
+// Not opened yet: once the planned week has passed, a RUNNING gap to today's
+// week ({ final: false }); before that, null. Only call this when headcount
+// was actually read (coeGanttHtml's hasActuals) — an unread headcount would
+// otherwise read as "not open".
+function coeWeekVariance(row, hc, today) {
+  if (!row || !row.OpenDate) return null;
+  const planned = coeMonday(row.OpenDate);
+  if (hc && hc.OpenDate) return { weeks: coeWeekIndex(planned, hc.OpenDate), final: true };
+  const late = coeWeekIndex(planned, today || new Date());
+  return late > 0 ? { weeks: late, final: false } : null;
+}
+
+function coeWeekVarianceHtml(v) {
+  if (!v) return '—';
+  if (!v.final) return `<span class="coe-var--late coe-var--running">+${v.weeks} (not open)</span>`;
+  if (v.weeks < 0) return `<span class="coe-var--early">${v.weeks}</span>`;
+  if (v.weeks > 0) return `<span class="coe-var--late">+${v.weeks}</span>`;
+  return '0';
+}
+
 // ── Plan span computation ───────────────────────────────────────────
 // Returns { rWeeks, nWeeks, oWeeks, start, targetHireDate, endDate }
 // Target Hire Date is DERIVED: OpenDate + rWeeks (end of Recruitment).
@@ -88,28 +114,21 @@ function coePhaseAt(row, timelineStart, weekIdx) {
   return '';
 }
 
-// ── Actuals overlay (N-312: per headcount) ──────────────────────────
-// spans = coeHeadcountActualSpans() (utils.js) for the row's linked headcount:
-// R = headcount OpenDate → placement OfferAcceptedDate (cancelled: its
-//     CancelledDate; still open: today)
-// N = OfferAcceptedDate → Placement.ProvisionalStartDate (or today)
-// O = Placement.ProvisionalStartDate + onboarding weeks (plan value, oWeeks)
-// Span values are stored SharePoint strings fed straight to coeWeekIndex —
-// the local date model above is unchanged (N-089).
-
-function coeActualPhaseAt(spans, oWeeks, timelineStart, weekIdx) {
-  if (!spans || !spans.rStart) return '';
-  const idx = d => coeWeekIndex(timelineStart, d);
-  const rStart = idx(spans.rStart);
-  // An open-ended R (no offer yet) is capped, as before N-312.
-  const rEnd = spans.nStart ? idx(spans.rEnd) : Math.min(idx(spans.rEnd), rStart + 200);
-  if (weekIdx >= rStart && weekIdx < rEnd) return 'R';
-  if (spans.nStart && weekIdx >= idx(spans.nStart) && weekIdx < idx(spans.nEnd)) return 'N';
-  if (spans.oStart) {
-    const oStart = idx(spans.oStart);
-    if (weekIdx >= oStart && weekIdx < oStart + oWeeks) return 'O';
-  }
-  return '';
+// ── Actual markers (N-317: replace N-312's thin R/N/O bar) ──────────
+// spans = coeHeadcountActualSpans() (utils.js) for the row's linked headcount
+// — it already picks the earliest-offer placement. Returns the plan-timeline
+// week index of the hire-confirmed week (placement OfferAcceptedDate → ✓) and
+// the start week (Placement.ProvisionalStartDate → ▶), or null. nStart is set
+// only from a real offer and oStart only from a real start date (never
+// "today"), so no marker is drawn from a placeholder. Span values are stored
+// SharePoint strings fed straight to coeWeekIndex — the local date model
+// above is unchanged (N-089).
+function coeActualMarkerWeeks(spans, timelineStart) {
+  const out = { hire: null, start: null };
+  if (!spans) return out;
+  if (spans.nStart) out.hire  = coeWeekIndex(timelineStart, spans.nStart);
+  if (spans.oStart) out.start = coeWeekIndex(timelineStart, spans.oStart);
+  return out;
 }
 
 // ── Page ────────────────────────────────────────────────────────────
@@ -131,10 +150,9 @@ async function renderHiringPlanPage(selectedProjectId = null) {
   }
   const pid = selectedProjectId || projects[0].id;
 
-  const [planRows, roles, forecast, headcount] = await Promise.all([
+  const [planRows, roles, headcount] = await Promise.all([
     getCoEPlanRows(pid),
     getRolesForProject(pid),
-    getCoEPlanForecast(pid),
     // N-312: degrade, don't blank the page — a failed headcount read means no
     // actual bars, and Link / Create Headcount say so when used.
     getHeadcountForProject(pid).catch(e => { console.warn('Hiring Plan: headcount read failed', e); return null; }),
@@ -148,7 +166,7 @@ async function renderHiringPlanPage(selectedProjectId = null) {
         .filter(p => roleIdSet.has(String(p.RoleIDLookupId)))
     : [];
 
-  _coeCache = { projectId: pid, projects, planRows, roles, headcount, placements, forecast, canEdit, isAdmin };
+  _coeCache = { projectId: pid, projects, planRows, roles, headcount, placements, canEdit, isAdmin };
   coeRenderBody();
 }
 
@@ -158,16 +176,12 @@ function coeRenderBody() {
 
   const projOpts = projects.map(p =>
     `<option value="${p.id}" ${p.id == projectId ? 'selected' : ''}>${escHtml(p.CustomerName)}</option>`).join('');
-  const tps = [...new Set(planRows.map(r => r.TalentPartner).filter(Boolean))];
-  const tpOpts = ['<option value="">All Talent Partners</option>']
-    .concat(tps.map(t => `<option value="${t}" ${_coeTPFilter === t ? 'selected' : ''}>${t}</option>`)).join('');
 
   main.innerHTML = `
     <div class="page-header"><h2>Hiring Plan</h2></div>
     <div class="coe-toolbar">
       <select onchange="renderHiringPlanPage(parseInt(this.value))">${projOpts}</select>
-      <select onchange="_coeTPFilter=this.value; coeRenderBody()">${tpOpts}</select>
-      ${canEdit ? `<button class="btn-primary" onclick="coeOpenRowModal()">+ Add Planned Role</button>` : ''}
+      ${canEdit ? `<button class="btn-primary" onclick="coeOpenRowModal()">+ Planned Headcount</button>` : ''}
       <button class="print-btn" onclick="coeExportPDF()">⎙ Export PDF</button>
       ${isAdmin && planRows.length ? `<button class="btn-danger" id="coe-delete-plan-btn" onclick="coeDeletePlan()">Delete Plan</button>` : ''}
     </div>
@@ -175,15 +189,16 @@ function coeRenderBody() {
       <span><span class="coe-swatch" style="background:var(--c-blue-pale)"></span> Recruitment</span>
       <span><span class="coe-swatch" style="background:var(--c-pink-pale)"></span> Notice</span>
       <span><span class="coe-swatch" style="background:var(--c-green-pale-border)"></span> Onboarding</span>
-      <span>Thin bar = actual (linked headcount)</span>
+      <span><span class="coe-mark coe-mark--hire">✓&#xFE0E;</span> Hire confirmed</span>
+      <span><span class="coe-mark coe-mark--start">▶&#xFE0E;</span> Started</span>
     </div>
     <div id="coe-gantt"></div>
-    <div class="page-header coe-fvp-header" style="margin-top:28px"><h3>Forecast vs Planned Hires</h3></div>
-    <div id="coe-fvp"></div>
+    <div class="page-header coe-fvp-header" style="margin-top:28px"><h3>Planned vs Actual Role Opens</h3></div>
+    <div id="coe-opens"></div>
     <div id="coe-modal-host"></div>
   `;
   coeRenderGantt();
-  coeRenderForecastTable();
+  coeRenderOpensSection();
   const proj = projects.find(p => p.id == projectId);
   renderBreadcrumb('hiringPlan', proj ? proj.CustomerName : undefined);
 }
@@ -200,25 +215,46 @@ function coeSortRows(planRows) {
 function coeRenderGantt() {
   const { planRows, headcount, placements, canEdit } = _coeCache;
   const host = document.getElementById('coe-gantt');
-  const rows = coeSortRows(planRows.filter(r => !_coeTPFilter || r.TalentPartner === _coeTPFilter));
-  if (!rows.length) { host.innerHTML = '<p>No planned roles yet.</p>'; return; }
+  const rows = coeSortRows(planRows);
+  if (!rows.length) { host.innerHTML = '<p>No planned headcount yet.</p>'; return; }
   host.innerHTML = coeGanttHtml(rows, { headcount, placements, canEdit, showActuals: true });
 }
 
 // Pure renderer — no DOM access, no cache reads. Returns the Gantt table HTML.
-// opts: headcount, placements (actuals overlay + 🔗 — N-312: per headcount),
-//       canEdit (actions column), showActuals (thin actual bars on linked rows).
-//       The Report Builder passes neither headcount nor placements: plan only.
+// opts: headcount, placements — N-317: Actual Open, Week Variance and the
+//       ✓ hire-confirmed / ▶ started markers, per linked headcount (N-312);
+//       canEdit (actions column); showActuals.
+//       Actuals render only when showActuals is on AND a headcount ARRAY is
+//       passed (hasActuals). The Report Builder passes none (plan only; N-318
+//       adds them) and the page passes null when the headcount read failed —
+//       without headcount an unopened row can't be told from an unread one,
+//       so Actual Open / Week Variance show '—' and never "(not open)".
 function coeGanttHtml(rows, opts = {}) {
-  const { headcount = [], placements = [], canEdit = false, showActuals = true } = opts;
+  const { headcount = null, placements = [], canEdit = false, showActuals = true } = opts;
+  const hasActuals = showActuals && Array.isArray(headcount);
+  const now = new Date();
 
-  // Timeline: earliest plan/actual start → latest plan end, +2wk buffer each side
+  // N-312: keyed on String — SP item ids arrive as strings, the Number
+  // columns (LinkedHeadcountID, HeadcountID) as numbers.
+  const hcById  = Object.fromEntries((hasActuals ? headcount : []).map(h => [String(h.id), h]));
+  const fillMap = headcountFillMap(hasActuals ? placements : []);
+  const actuals = rows.map(row => {
+    const hc = hasActuals && !_isBlankId(row.LinkedHeadcountID)
+      ? (hcById[String(row.LinkedHeadcountID)] || null) : null;
+    return { hc, spans: hc ? coeHeadcountActualSpans(hc, fillMap.get(String(hc.id)), now) : null };
+  });
+
+  // Timeline: earliest plan start → latest plan end, −1wk / +2wk buffer.
+  // N-317: actual hire/start markers widen it too, so a late hire or start
+  // isn't clipped off the edge (still capped at 90 weeks).
   const spans = rows.map(computePlanSpans);
-  let tStart = coeMonday(new Date(Math.min(...spans.map(s => s.start))));
-  let tEnd   = new Date(Math.max(...spans.map(s => s.endDate)));
+  const markerMondays = actuals.flatMap(a => a.spans ? [a.spans.nStart, a.spans.oStart] : [])
+    .filter(Boolean).map(d => coeMonday(d));
+  let tStart = coeMonday(new Date(Math.min(...spans.map(s => s.start), ...markerMondays)));
+  let tEnd   = new Date(Math.max(...spans.map(s => s.endDate), ...markerMondays));
   tStart = coeAddWeeks(tStart, -1);
   const nWeeks = Math.min(coeWeekIndex(tStart, tEnd) + 3, 90);
-  const todayIdx = coeWeekIndex(tStart, new Date());
+  const todayIdx = coeWeekIndex(tStart, now);
 
   // Month header spans
   const monthCells = [];
@@ -230,12 +266,6 @@ function coeGanttHtml(rows, opts = {}) {
     else span++;
   }
   monthCells.push({ label: curLabel, span });
-
-  // N-312: keyed on String — SP item ids arrive as strings, the Number
-  // columns (LinkedHeadcountID, HeadcountID) as numbers.
-  const hcById  = Object.fromEntries((headcount || []).map(h => [String(h.id), h]));
-  const fillMap = headcountFillMap(placements);
-  const now     = new Date();
 
   // Capacity counts
   const cap = { R: Array(nWeeks).fill(0), N: Array(nWeeks).fill(0), O: Array(nWeeks).fill(0) };
@@ -253,20 +283,23 @@ function coeGanttHtml(rows, opts = {}) {
       ${cap[ph].map(c => `<td>${c || '–'}</td>`).join('')}${canEdit ? '<td class="coe-col-actions"></td>' : ''}</tr>`;
   }).join('');
 
-  const bodyHtml = rows.map(row => {
-    const s = computePlanSpans(row);
+  const bodyHtml = rows.map((row, i) => {
+    const { hc, spans: act } = actuals[i];
     const linked = !_isBlankId(row.LinkedHeadcountID);
-    const hc = linked ? (hcById[String(row.LinkedHeadcountID)] || null) : null;
-    const actual = showActuals && hc ? coeHeadcountActualSpans(hc, fillMap.get(String(hc.id)), now) : null;
+    const mk = coeActualMarkerWeeks(act, tStart);
     const cells = [];
     for (let w = 0; w < nWeeks; w++) {
-      const ph  = coePhaseAt(row, tStart, w);
-      const aph = coeActualPhaseAt(actual, s.oWeeks, tStart, w);
+      const ph = coePhaseAt(row, tStart, w);
+      const isHire = w === mk.hire, isStart = w === mk.start;
       const cls = ['coe-cell',
-        ph  ? `coe-cell--${ph}`  : '',
-        aph ? `coe-cell--a${aph}` : '',
+        ph ? `coe-cell--${ph}` : '',
         w === todayIdx ? 'coe-cell--today' : ''].filter(Boolean).join(' ');
-      cells.push(`<td class="${cls}">${ph}</td>`);
+      const tip = [isHire ? `Hire confirmed ${coeFmtShort(act.nStart)}` : '',
+                   isStart ? `Started ${coeFmtShort(act.oStart)}` : ''].filter(Boolean).join(' · ');
+      const marks = (isHire ? '<span class="coe-mark coe-mark--hire">✓&#xFE0E;</span>' : '')
+                  + (isStart ? '<span class="coe-mark coe-mark--start">▶&#xFE0E;</span>' : '');
+      // &#xFE0E; forces text presentation — Windows Chrome otherwise draws ▶ as a colour emoji.
+      cells.push(`<td class="${cls}"${tip ? ` title="${escAttr(tip)}"` : ''}>${marks || ph}</td>`);
     }
     const actions = canEdit ? `<td class="coe-col-actions"><div class="coe-row-actions">
         <button class="btn-secondary" onclick="coeOpenRowModal(${row.id})">Edit</button>
@@ -274,20 +307,27 @@ function coeGanttHtml(rows, opts = {}) {
         ${!linked ? `<button class="btn-secondary" onclick="coeCreateHeadcountFromRow(${row.id})">Create Headcount</button>` : ''}
         <button class="btn-secondary" onclick="coeDeleteRow(${row.id})">✕</button>
       </div></td>` : '';
+    // A cancelled linked headcount keeps its open date — it was opened — and
+    // is tagged so the DM re-links the row to its replacement.
+    const cancelled = !!hc && hc.Status === CONFIG.HEADCOUNT.STATUS_CANCELLED;
+    const actualOpen = hc && hc.OpenDate
+      ? coeFmtShort(hc.OpenDate) + (cancelled ? '<span class="coe-hc-cancelled">cancelled</span>' : '')
+      : '—';
+    const variance = hasActuals ? coeWeekVarianceHtml(coeWeekVariance(row, hc, now)) : '—';
     return `<tr>
       <td class="coe-sticky coe-sticky--1">${escHtml(row.Title)}${hc ? ' 🔗' : ''}</td>
-      <td class="coe-sticky coe-sticky--2">${escHtml(row.TalentPartner || '—')}</td>
-      <td class="coe-sticky coe-sticky--3">${coeFmtShort(row.OpenDate)}</td>
-      <td class="coe-sticky coe-sticky--4">${coeFmtShort(s.targetHireDate)}</td>
+      <td class="coe-sticky coe-sticky--2">${coeFmtShort(row.OpenDate)}</td>
+      <td class="coe-sticky coe-sticky--3">${actualOpen}</td>
+      <td class="coe-sticky coe-sticky--4">${variance}</td>
       ${cells.join('')}${actions}</tr>`;
   }).join('');
 
   return `<div class="coe-gantt-wrap table-scroll"><table class="coe-gantt">
     <thead>
       <tr class="coe-gantt-month-row"><th class="coe-sticky coe-sticky--1 coe-th-split-top">Role</th>
-          <th class="coe-sticky coe-sticky--2 coe-th-split-top">TP</th>
-          <th class="coe-sticky coe-sticky--3 coe-th-split-top">Open</th>
-          <th class="coe-sticky coe-sticky--4 coe-th-split-top">Target Hire</th>
+          <th class="coe-sticky coe-sticky--2 coe-th-split-top">Planned Open</th>
+          <th class="coe-sticky coe-sticky--3 coe-th-split-top">Actual Open</th>
+          <th class="coe-sticky coe-sticky--4 coe-th-split-top" title="Weeks between planned and actual open: − opened early, + opened late">Week Variance</th>
           ${monthCells.map(m => `<th class="coe-month" colspan="${m.span}">${m.label}</th>`).join('')}
           ${canEdit ? '<th class="coe-col-actions coe-th-split-top"></th>' : ''}</tr>
       <tr class="coe-gantt-date-row"><th class="coe-sticky coe-sticky--1 coe-th-split-bottom"></th><th class="coe-sticky coe-sticky--2 coe-th-split-bottom"></th><th class="coe-sticky coe-sticky--3 coe-th-split-bottom"></th><th class="coe-sticky coe-sticky--4 coe-th-split-bottom"></th>${Array.from({ length: nWeeks }, (_, w) => `<th>${coeAddWeeks(tStart, w).getDate()}</th>`).join('')}${canEdit ? '<th class="coe-col-actions coe-th-split-bottom"></th>' : ''}</tr>
@@ -297,94 +337,172 @@ function coeGanttHtml(rows, opts = {}) {
   </table></div>`;
 }
 
-// ── Forecast vs Planned table ───────────────────────────────────────
+// ── Planned vs Actual Role Opens (N-317) ────────────────────────────
+// Replaces the Forecast vs Planned Hires table (CoEPlanForecast is no longer
+// read; its data is kept). A plan row has OPENED when its linked headcount has
+// an OpenDate — unlinked headcount is ignored — and the target is the plan row
+// count. Aggregation and run rate are pure, in coeOpensByMonth() (utils.js);
+// this file only derives the day-string inputs and renders.
 
-function coeRenderForecastTable() {
-  const { projectId, planRows, forecast, canEdit } = _coeCache;
-  const host = document.getElementById('coe-fvp');
-  const rows = planRows.filter(r => !_coeTPFilter || r.TalentPartner === _coeTPFilter);
-  if (!rows.length) { host.innerHTML = ''; return; }
-
-  // Month range = plan target-hire range
-  const targets = rows.map(r => computePlanSpans(r).targetHireDate);
-  const min = new Date(Math.min(...targets)), max = new Date(Math.max(...targets));
-  const months = [];
-  const cur = new Date(min.getFullYear(), min.getMonth(), 1);
-  while (cur <= max) { months.push(new Date(cur)); cur.setMonth(cur.getMonth() + 1); }
-
-  // N-130: spMonthIn() reads UTC only and tolerates all three stored shapes,
-  // so the key no longer depends on the browser's offset. Both sides of this
-  // lookup use 'YYYY-MM' — if only one is changed, every forecast cell silently
-  // renders empty because the keys stop matching.
-  const fByMonth = {};
-  forecast.forEach(f => {
-    const key = spMonthIn(f.ForecastMonth);
-    if (key) fByMonth[key] = f;
+function coeOpensModel(planRows, headcount, now = new Date()) {
+  const hcById = Object.fromEntries((headcount || []).map(h => [String(h.id), h]));
+  const plannedDays = planRows.map(r => spDateIn(r.OpenDate)).filter(Boolean);
+  const actualDays = planRows.map(r => {
+    if (_isBlankId(r.LinkedHeadcountID)) return null;
+    const hc = hcById[String(r.LinkedHeadcountID)];
+    return hc && hc.OpenDate ? spDateIn(hc.OpenDate) : null;
+  }).filter(Boolean);
+  // targetHireDate is a LOCAL-midnight Date (this file's model, N-089) —
+  // localDayISO, never toISOString (a BST Monday would read as Sunday).
+  const latestHire = new Date(Math.max(...planRows.map(r => computePlanSpans(r).targetHireDate)));
+  return coeOpensByMonth({
+    plannedDays, actualDays,
+    target:           planRows.length,
+    latestHireDay:    localDayISO(latestHire),
+    todayDay:         localDayISO(now),
+    finalNoOpenWeeks: CONFIG.COE_PHASE_DEFAULTS.finalNoOpenWeeks,
   });
-
-  let totP = 0, totF = 0;
-  const body = months.map(m => {
-    const key = monthKeyFromISO(localDayISO(m));
-    const planned = targets.filter(t => t.getFullYear() === m.getFullYear() && t.getMonth() === m.getMonth()).length;
-    const fRow = fByMonth[key];
-    const fVal = fRow ? fRow.ForecastedHires : '';
-    totP += planned; totF += Number(fVal) || 0;
-    const varc = fVal === '' ? '' : planned - Number(fVal);
-    const varCls = varc === '' ? '' : varc < 0 ? 'coe-fvp-var-neg' : varc > 0 ? 'coe-fvp-var-pos' : '';
-    // N-089: localDayISO() is the canonical form of the manual build this
-    // replaced — m is already local-midnight on the 1st, so the string is
-    // byte-identical, and toISOString() is still the thing being avoided.
-    const monthISO = localDayISO(m);
-    const fCell = canEdit
-      ? `<input type="number" min="0" class="coe-fvp-input" value="${fVal}"
-           onchange="coeSaveForecast('${escJsAttr(monthISO)}', this.value, ${fRow ? fRow.id : 'null'})">`
-      : (fVal === '' ? '—' : fVal);
-    return `<tr><td>${m.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</td>
-      <td>${fCell}</td><td>${planned}</td>
-      <td class="${varCls}">${varc === '' ? '—' : (varc > 0 ? '+' : '') + varc}</td></tr>`;
-  }).join('');
-
-  host.innerHTML = `<table class="coe-fvp-table">
-    <thead><tr><th>Month</th><th>Planned Hires</th><th>Forecasted Hires</th><th>Variance</th></tr></thead>
-    <tbody>${body}
-      <tr><th>Total</th><th>${totF}</th><th>${totP}</th><th></th></tr>
-    </tbody></table>`;
 }
 
-async function coeSaveForecast(monthISO, value, existingId) {
-  const hires = parseInt(value);
-  if (isNaN(hires) || hires < 0) return;
-  await saveCoEForecastMonth(_coeCache.projectId, monthISO, hires, existingId);
-  _coeCache.forecast = await getCoEPlanForecast(_coeCache.projectId);
-  coeRenderForecastTable();
+// 'YYYY-MM' → 'Oct 26' / 'Oct 2026'. Built from integers (local midnight on
+// the 1st), never from a parsed ISO string.
+function coeMonthLabel(key, long = false) {
+  const d = new Date(monthKeyYear(key), monthKeyMonth(key) - 1, 1);
+  return d.toLocaleDateString('en-GB', { month: 'short', year: long ? 'numeric' : '2-digit' });
+}
+
+// 'YYYY-MM-DD' → '03 Feb' through coeFmtShort (UTC-pinned, so the day is exact).
+function coeDayLabel(day) {
+  return day ? coeFmtShort(`${day}T12:00:00Z`) : '—';
+}
+
+function coeRenderOpensSection() {
+  const { planRows, headcount } = _coeCache;
+  const host = document.getElementById('coe-opens');
+  if (!host) return;
+  if (!planRows.length) { host.innerHTML = ''; return; }
+  // N-312 degrade: without headcount the actual opens are unknown — showing
+  // them as 0 would report the whole plan as behind.
+  if (!headcount) {
+    host.innerHTML = `<p class="no-data">Couldn't load this project's headcount — actual opens and the run rate are unavailable. Refresh to try again.</p>`;
+    return;
+  }
+  const m = coeOpensModel(planRows, headcount);
+  host.innerHTML = coeOpensSummaryHtml(m) + coeOpensChartSvg(m) + coeOpensTableHtml(m);
+}
+
+function coeOpensSummaryHtml(m) {
+  const note = `<p class="coe-opens-note">The run rate assumes no roles open in the final ${m.finalNoOpenWeeks} weeks before the last planned hire (${coeDayLabel(m.latestHireDay)}) — too late to make the hire.</p>`;
+  if (m.status === 'complete') {
+    return `<p class="coe-opens-summary">All ${m.target} planned headcount opened.</p>`;
+  }
+  if (m.status === 'past-cutoff') {
+    return `<p class="coe-opens-summary coe-opens-summary--late">Past the final opening date (${coeDayLabel(m.cutoffDay)}) — ${m.remaining} of ${m.target} still to open.</p>${note}`;
+  }
+  const n = m.monthsLeft;
+  return `<p class="coe-opens-summary">Target <strong>${m.target}</strong> · Opened <strong>${m.openedToDate}</strong> · Remaining <strong>${m.remaining}</strong> — need <strong>${m.requiredPerMonth.toFixed(1)}</strong> per month over ${n} month${n === 1 ? '' : 's'} (last opening month: ${coeMonthLabel(m.cutoffMonth, true)}).</p>${note}`;
+}
+
+// Pure renderer: planned vs actual opens as paired columns per month, plus
+// the required run rate as a dashed reference line over the in-window months.
+// Shared chart primitives (utils.js) and token classes only — no hex here.
+function coeOpensChartSvg(m) {
+  const months = m.months;
+  if (!months.length) return '';
+  const W = 900, H = 220;
+  const PAD = { top: 18, right: 16, bottom: 30, left: 36 };
+  const chartW = W - PAD.left - PAD.right;
+  const chartH = H - PAD.top - PAD.bottom;
+  const rate = m.status === 'in-window' ? m.requiredPerMonth : null;
+
+  const dataMax = Math.max(1, rate || 0, ...months.map(x => Math.max(x.planned, x.actual || 0)));
+  const step = dataMax <= 5 ? 1 : dataMax <= 10 ? 2 : dataMax <= 25 ? 5 : 10;
+  const yMax = Math.ceil(dataMax / step) * step;
+  const yOf = v => PAD.top + chartH - (v / yMax) * chartH;
+  const slot = chartW / months.length;
+  const barW = Math.max(3, Math.min(18, (slot - 10) / 2));
+  const mid = i => PAD.left + (i + 0.5) * slot;
+
+  const grid = [];
+  for (let v = 0; v <= yMax; v += step) grid.push({ y: yOf(v), label: String(v) });
+
+  // One <rect> per non-zero value, 2px apart within the pair.
+  const col = (x, v, cls, tip) => {
+    if (!v) return '';
+    const h = (v / yMax) * chartH;
+    return `<rect x='${x.toFixed(1)}' y='${(PAD.top + chartH - h).toFixed(1)}' width='${barW.toFixed(1)}' height='${h.toFixed(1)}' rx='2' class='coe-opens-col ${cls}'><title>${escHtml(tip)}</title></rect>`;
+  };
+  const labelEvery = Math.ceil(months.length / 18);
+  const bars = months.map((x, i) => {
+    const lbl = coeMonthLabel(x.key);
+    return col(mid(i) - barW - 1, x.planned, 'coe-opens-col--planned', `${lbl} · Planned opens: ${x.planned}`)
+      + (x.isFuture ? '' : col(mid(i) + 1, x.actual, 'coe-opens-col--actual',
+          `${lbl} · Actual opens: ${x.actual}${x.isCurrent ? ' (to date)' : ''}`))
+      + (i % labelEvery === 0
+          ? `<text x='${mid(i).toFixed(1)}' y='${PAD.top + chartH + 18}' text-anchor='middle' class='nt-chart-tick'>${lbl}</text>`
+          : '');
+  }).join('');
+
+  let rateSvg = '';
+  const win = months.map((x, i) => (x.inWindow ? i : -1)).filter(i => i >= 0);
+  if (rate != null && win.length) {
+    const xa = PAD.left + win[0] * slot + 2;
+    const xb = PAD.left + (win[win.length - 1] + 1) * slot - 2;
+    const y = yOf(rate);
+    rateSvg = `<line x1='${xa.toFixed(1)}' y1='${y.toFixed(1)}' x2='${xb.toFixed(1)}' y2='${y.toFixed(1)}' class='nt-chart-threshold'><title>Required run rate: ${rate.toFixed(1)} per month</title></line>`
+      + `<text x='${xb.toFixed(1)}' y='${(y - 5).toFixed(1)}' text-anchor='end' class='nt-chart-threshold-label'>Required ${rate.toFixed(1)}/mo</text>`;
+  }
+
+  const legend = _chartLegendHtml([
+    { color: 'var(--coe-opens-planned)', label: 'Planned opens', box: true },
+    { color: 'var(--coe-opens-actual)',  label: 'Actual opens',  box: true },
+    ...(rateSvg ? [{ color: 'var(--text-muted)', label: 'Required run rate', dashed: true }] : []),
+  ]);
+  return `<div class='coe-opens-chart'><svg viewBox='0 0 ${W} ${H}' class='coe-opens-svg' role='img' aria-label='Planned vs actual role opens by month'>`
+    + _chartGridSvg(PAD.left, W, PAD.right, grid) + bars + rateSvg + `</svg>${legend}</div>`;
+}
+
+function coeOpensTableHtml(m) {
+  const varCell = v => {
+    if (v == null) return '—';
+    const cls = v > 0 ? 'coe-fvp-var-pos' : v < 0 ? 'coe-fvp-var-neg' : '';
+    return `<span class="${cls}">${v > 0 ? '+' : ''}${v}</span>`;
+  };
+  let planned = 0, plannedToDate = 0, actual = 0;
+  const body = m.months.map(x => {
+    planned += x.planned;
+    if (!x.isFuture) { plannedToDate += x.planned; actual += x.actual; }
+    return `<tr${x.isCurrent ? ' class="coe-opens-current"' : ''}>
+      <td>${coeMonthLabel(x.key, true)}${x.isCurrent ? ' (to date)' : ''}</td>
+      <td>${x.planned}</td><td>${x.isFuture ? '—' : x.actual}</td><td>${varCell(x.variance)}</td>
+      <td>${x.inWindow ? m.requiredPerMonth.toFixed(1) : '—'}</td></tr>`;
+  }).join('');
+  return `<table class="coe-fvp-table coe-opens-table">
+    <thead><tr><th>Month</th><th>Planned Opens</th><th>Actual Opens</th>
+      <th title="Actual − planned: + ahead of plan, − behind">Variance</th><th>Required</th></tr></thead>
+    <tbody>${body}
+      <tr><th>Total</th><th>${planned}</th><th>${actual}</th><th>${varCell(actual - plannedToDate)}</th><th></th></tr>
+    </tbody></table>`;
 }
 
 // ── Row CRUD modal ──────────────────────────────────────────────────
 
 async function coeOpenRowModal(rowId = null) {
-  const { projectId, planRows } = _coeCache;
+  const { planRows } = _coeCache;
   // SharePoint item ids come back from getItems() as strings, but the Gantt's
   // onclick emits a number literal — compare as strings (cf. roleById below).
   const row = rowId ? planRows.find(r => String(r.id) === String(rowId)) : null;
   const dflt = CONFIG.COE_PHASE_DEFAULTS;
-  const tps = await getTalentPartnersForProject(projectId);
-  // getTalentPartnersForProject returns UserAssignments rows (UserName / UserEmail)
-  const tpOpts = ['<option value="">-- Unassigned --</option>']
-    .concat(tps.map(t => {
-      const label = t.UserName || t.UserEmail;
-      return `<option value="${label}" ${row?.TalentPartner === label ? 'selected' : ''}>${label}</option>`;
-    })).join('');
+  // N-317: no Talent Partner field — stored TalentPartner values are left as-is.
 
   document.getElementById('coe-modal-host').innerHTML = `
     <div style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
     <div class="form-container form-container--modal" id="coe-row-modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
-      <h2>${row ? 'Edit' : 'Add'} Planned Role</h2>
+      <h2>${row ? 'Edit' : 'Add'} Planned Headcount</h2>
       <div id="coe-row-form-error" class="form-error"></div>
       <form id="coe-row-form" onsubmit="coeSubmitRow(event, ${rowId || 'null'})">
         <div class="form-group"><label>Role Title *</label>
           <input type="text" name="Title" required value="${escAttr(row?.Title || '')}"></div>
-        <div class="form-group"><label>Talent Partner</label>
-          <select name="TalentPartner">${tpOpts}</select></div>
         <div class="form-group"><label>Planned Open Date *</label>
           <input type="date" name="OpenDate" required value="${escAttr(spDateIn(row?.OpenDate) || '')}"></div>
         <div class="form-row">
@@ -395,7 +513,7 @@ async function coeOpenRowModal(rowId = null) {
           <div class="form-group"><label>Onboarding (wks)</label>
             <input type="number" min="0" name="OnboardingWeeks" placeholder="${dflt.onboardingWeeks}" value="${row?.OnboardingWeeks ?? ''}"></div>
         </div>
-        <p style="font-size:12px;color:var(--text-muted)">Leave phase fields blank to use defaults. Target Hire Date = Open Date + Recruitment weeks.</p>
+        <p style="font-size:12px;color:var(--text-muted)">Leave phase fields blank to use defaults. Planned hire = Planned Open Date + Recruitment weeks.</p>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${row ? 'Save Changes' : 'Add to Plan'}</button>
           <button type="button" class="btn-secondary" onclick="document.getElementById('coe-modal-host').innerHTML=''">Cancel</button>
@@ -412,7 +530,7 @@ async function coeSubmitRow(event, rowId) {
   const payload = {
     Title:            data.Title,
     ProjectID:        _coeCache.projectId,
-    TalentPartner:    data.TalentPartner || undefined,
+    // N-317: TalentPartner deliberately not sent — stored values stay untouched.
     OpenDate:         isoDate(data.OpenDate),
     RecruitmentWeeks: data.RecruitmentWeeks ? parseInt(data.RecruitmentWeeks) : null,
     NoticeWeeks:      data.NoticeWeeks !== '' ? parseInt(data.NoticeWeeks) : null,
@@ -429,21 +547,21 @@ async function coeSubmitRow(event, rowId) {
 
 async function coeDeleteRow(rowId) {
   if (!(await confirmModal({
-    message: 'Remove this planned role from the hiring plan?',
+    message: 'Remove this planned headcount from the hiring plan?',
     confirmLabel: 'Remove', danger: true,
   }))) return;
   await deleteCoEPlanRow(rowId);
   await renderHiringPlanPage(_coeCache.projectId);
 }
 
-// N-080: admin-only — delete the project's ENTIRE hiring plan (all rows,
-// ignoring the TP filter). Linked live Roles, Placements and Forecast
-// values are untouched. Sequential deletes match the v1 write pattern.
+// N-080: admin-only — delete the project's ENTIRE hiring plan (all rows).
+// Linked live Roles, headcount and Placements are untouched. Sequential
+// deletes match the v1 write pattern.
 async function coeDeletePlan() {
   const { planRows, projectId } = _coeCache;
   if (!planRows.length) return;
   if (!(await confirmModal({
-    message: `Delete the entire hiring plan — all ${planRows.length} planned role(s) on this project? (Applies to the whole plan regardless of the TP filter. Linked live Roles and Forecast values are kept.)`,
+    message: `Delete the entire hiring plan — all ${planRows.length} planned headcount on this project? (Linked live Roles and headcount are kept.)`,
     confirmLabel: 'Delete plan', danger: true,
   }))) return;
   const btn = document.getElementById('coe-delete-plan-btn');

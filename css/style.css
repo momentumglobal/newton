@@ -398,9 +398,13 @@
   /* CoE Hiring Plan cells (N-122) */
   --coe-cell-r:         var(--c-blue-pale);
   --coe-cell-n:         var(--c-pink-pale);
-  --coe-cell-actual-r:  var(--c-blue-accent);
-  --coe-cell-actual-n:  var(--c-danger-alt);
-  --coe-cell-actual-o:  var(--c-green-deep);
+  /* N-317: ✓ hire-confirmed / ▶ started markers (replace the actual bar)
+     and the Planned vs Actual Role Opens chart columns */
+  --coe-mark-hire:      var(--c-blue-deep);
+  --coe-mark-start:     var(--c-green-deep);
+  --coe-mark-bg:        var(--c-white);
+  --coe-opens-planned:  var(--c-blue-soft);
+  --coe-opens-actual:   var(--c-blue-deep);
   --coe-var-pos:        var(--c-green-deep);
   /* LCI status pills (N-122) */
   --lci-status-draft-bg:       var(--c-neutral-pale);
@@ -2889,9 +2893,10 @@ body {
 .coe-gantt th.coe-month { background:var(--surface-sunken); font-weight:600; }
 .coe-gantt .coe-sticky { position:sticky; background:var(--surface); z-index:2; text-align:left; }
 .coe-gantt .coe-sticky--1 { left:0; min-width:160px; }
-.coe-gantt .coe-sticky--2 { left:160px; min-width:80px; }
-.coe-gantt .coe-sticky--3 { left:240px; min-width:90px; }
-.coe-gantt .coe-sticky--4 { left:330px; min-width:90px; box-shadow:var(--sp-1) 0 var(--sp-1) rgba(0,0,0,0.06); }
+/* N-317: Planned Open / Actual Open / Week Variance (was TP / Open / Target Hire) */
+.coe-gantt .coe-sticky--2 { left:160px; min-width:96px; }
+.coe-gantt .coe-sticky--3 { left:256px; min-width:110px; }
+.coe-gantt .coe-sticky--4 { left:366px; min-width:110px; box-shadow:var(--sp-1) 0 var(--sp-1) rgba(0,0,0,0.06); }
 /* Header sticky/background now comes from .table-scroll thead th (N-203);
    this rule only needed for the rare <td> in a thead row, which
    .table-scroll's th-only selector doesn't cover. */
@@ -2937,10 +2942,24 @@ body {
 .coe-cell--N { background:var(--coe-cell-n); }
 .coe-cell--O { background:var(--status-success-bg); }
 .coe-cell--today { outline:var(--sp-1) solid var(--accent); outline-offset:-2px; }
-/* actuals overlay — thin bar along the bottom of the cell */
-.coe-cell--aR { box-shadow: inset 0 -5px 0 var(--coe-cell-actual-r); }
-.coe-cell--aN { box-shadow: inset 0 -5px 0 var(--coe-cell-actual-n); }
-.coe-cell--aO { box-shadow: inset 0 -5px 0 var(--coe-cell-actual-o); }
+/* N-317: actual markers — ✓ hire confirmed / ▶ started (placement dates).
+   A fixed light chip, so the glyph reads on every phase tint, on the themed
+   Onboarding cell and on an empty dark-mode cell alike (--coe-* is
+   permanently-light chrome, N-102). Also used in the legend. */
+.coe-mark {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:16px; height:16px; padding:0 var(--sp-1); box-sizing:border-box;
+  border:1px solid currentColor; border-radius:var(--r-sm);
+  background:var(--coe-mark-bg); font-size:var(--fs-10); font-weight:700; line-height:1;
+}
+.coe-mark + .coe-mark { margin-left:var(--sp-1); }
+.coe-mark--hire  { color:var(--coe-mark-hire); }
+.coe-mark--start { color:var(--coe-mark-start); }
+/* Week Variance: − opened early (good), + late / overdue (bad) */
+.coe-var--early   { color:var(--coe-var-pos); font-weight:600; }
+.coe-var--late    { color:var(--status-danger-text); font-weight:600; }
+.coe-var--running { font-style:italic; }
+.coe-hc-cancelled { margin-left:var(--sp-2); font-size:var(--fs-10); color:var(--text-muted); }
 .coe-legend { display:flex; gap:var(--sp-7); margin:var(--sp-5) 0; font-size:var(--fs-12); align-items:center; flex-wrap:wrap; }
 .coe-legend span { display:inline-flex; align-items:center; gap:var(--sp-2); }
 .coe-swatch { width:14px; height:14px; border-radius:var(--r-sm); display:inline-block; }
@@ -2948,9 +2967,17 @@ body {
 .coe-capacity .coe-cap-label { text-align:left; font-weight:600; }
 .coe-fvp-table { border-collapse:collapse; margin-top:var(--sp-5); font-size:var(--fs-13); }
 .coe-fvp-table th, .coe-fvp-table td { border:1px solid var(--border); padding:var(--sp-3) var(--sp-6); text-align:center; font-variant-numeric: tabular-nums; }
-.coe-fvp-input { width:60px; text-align:center; }
 .coe-fvp-var-neg { color:var(--status-danger-text); font-weight:600; }
 .coe-fvp-var-pos { color:var(--coe-var-pos); font-weight:600; }
+/* N-317: Planned vs Actual Role Opens */
+.coe-opens-summary { margin:var(--sp-5) 0 var(--sp-2); font-size:var(--fs-13); color:var(--text-secondary); }
+.coe-opens-summary--late { color:var(--status-danger-text); font-weight:600; }
+.coe-opens-note { margin:0 0 var(--sp-5); font-size:var(--fs-12); color:var(--text-muted); }
+.coe-opens-chart { max-width:900px; margin-bottom:var(--sp-5); }
+.coe-opens-svg { display:block; width:100%; height:auto; }
+.coe-opens-col--planned { fill:var(--coe-opens-planned); }
+.coe-opens-col--actual  { fill:var(--coe-opens-actual); }
+.coe-opens-current td { font-style:italic; }
 .coe-row-actions { display:flex; gap:var(--sp-3); justify-content:flex-start; }
 .coe-row-actions button { font-size:var(--fs-11); padding:var(--sp-1) var(--sp-4); }
 
@@ -2959,7 +2986,7 @@ body {
   .coe-toolbar, .coe-col-actions, #coe-modal-host { display: none; }
   .coe-gantt-wrap { border: none; }
   .coe-gantt thead { position: static !important; }
-  /* Page 1 = Gantt, page 2 = forecast table */
+  /* Page 1 = Gantt, page 2 = Planned vs Actual Role Opens (N-317) */
   .coe-fvp-header { break-before: page; page-break-before: always; margin-top: 0; }
   /* Grid can breathe now it has the page to itself */
   .coe-gantt { font-size: var(--fs-10); }
@@ -2971,13 +2998,12 @@ body {
   .coe-gantt .coe-sticky--2, .coe-gantt .coe-sticky--3, .coe-gantt .coe-sticky--4 { min-width: 0; }
   /* Force phase colours to print */
   .coe-cell--R, .coe-cell--N, .coe-cell--O, .coe-swatch,
-  .coe-cell--aR, .coe-cell--aN, .coe-cell--aO {
+  .coe-mark, .coe-opens-col {
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   .coe-legend { font-size: var(--fs-10); }
-  /* Forecast table: inputs print as plain values */
-  .coe-fvp-input { border: none; background: transparent; }
   .coe-fvp-table { break-inside: avoid; font-size: var(--fs-11); }
+  .coe-opens-chart { break-inside: avoid; }
 }
 
 /* ── Report Builder — Hiring Plan landscape final page ─────────────── */

@@ -3554,14 +3554,83 @@ var ASSERTIONS = [
       _assertEqual([two.rEnd, two.oStart], ['2026-03-01T12:00:00Z', '2026-03-30T12:00:00Z'], 'two placements → the earliest offer and its start');
     },
   },
+  // ── N-317 (HP-1): Hiring Plan v2 — track against plan ──
   {
-    name: 'N-312 coeActualPhaseAt — spans → week letters on the unchanged local model',
+    name: 'N-317 coeActualMarkerWeeks — ✓ hire-confirmed / ▶ start week on the plan timeline (replaces coeActualPhaseAt)',
     fn: function () {
       const t0 = coeMonday('2026-01-05T12:00:00Z');
-      const spans = { rStart: '2026-01-05T12:00:00Z', rEnd: '2026-01-26T12:00:00Z', nStart: '2026-01-26T12:00:00Z', nEnd: '2026-02-09T12:00:00Z', oStart: '2026-02-09T12:00:00Z' };
-      const letters = Array.from({ length: 9 }, (_, w) => coeActualPhaseAt(spans, 2, t0, w) || '.').join('');
-      _assertEqual(letters, 'RRRNNOO..', '3 wks R, 2 wks N, 2 wks O (plan onboarding)');
-      _assertEqual(coeActualPhaseAt(null, 2, t0, 0), '', 'no spans → no bar');
+      const none = { hire: null, start: null };
+      _assertEqual(coeActualMarkerWeeks({ rStart: '2026-01-05T12:00:00Z', rEnd: '2026-01-28T12:00:00Z', nStart: '2026-01-28T12:00:00Z', nEnd: '2026-02-09T12:00:00Z', oStart: '2026-02-09T12:00:00Z' }, t0),
+        { hire: 3, start: 5 }, 'offer Wed of week 3, start Mon of week 5');
+      _assertEqual(coeActualMarkerWeeks({ rStart: '2026-01-05T12:00:00Z', rEnd: 'TODAY', nStart: '2026-01-28T12:00:00Z', nEnd: 'TODAY', oStart: null }, t0),
+        { hire: 3, start: null }, 'offer, no start date → ✓ only (never a marker at "today")');
+      _assertEqual(coeActualMarkerWeeks({ rStart: '2026-01-05T12:00:00Z', rEnd: 'TODAY', nStart: null, nEnd: null, oStart: null }, t0), none, 'still recruiting → no markers');
+      _assertEqual(coeActualMarkerWeeks(null, t0), none, 'unlinked → no markers');
+      _assertEqual(coeActualMarkerWeeks({ nStart: '2026-04-15T12:00:00Z', oStart: null }, t0).hire, 14,
+        'GMT timeline start, BST offer → Monday 13 Apr is week 14 (Math.round, N-081)');
+    },
+  },
+  {
+    name: 'N-317 coeWeekVariance — Monday-week gap, actual − planned; running only once overdue',
+    fn: function () {
+      const row = { OpenDate: '2026-03-16T12:00:00Z' };          // Monday of ISO week 12
+      const hc = d => ({ OpenDate: d });
+      const later = new Date(2026, 5, 1);
+      _assertEqual(coeWeekVariance(row, hc('2026-03-12T12:00:00Z'), later), { weeks: -1, final: true }, 'opened Thu of week 11 → -1 (early)');
+      _assertEqual(coeWeekVariance(row, hc('2026-03-20T12:00:00Z'), later), { weeks: 0, final: true }, 'opened Fri of the planned week → 0');
+      _assertEqual(coeWeekVariance(row, hc('2026-03-31T12:00:00Z'), later), { weeks: 2, final: true }, 'opened Tue of week 14 → +2 (late)');
+      _assertEqual(coeWeekVariance(row, null, new Date(2026, 3, 8)), { weeks: 3, final: false }, 'not open, today Wed of week 15 → running +3');
+      _assertEqual(coeWeekVariance(row, { OpenDate: null }, new Date(2026, 2, 18)), null, 'not open, still the planned week → null');
+      _assertEqual(coeWeekVariance(row, null, new Date(2026, 2, 10)), null, 'not open, before the planned week → null');
+      _assertEqual(coeWeekVariance({ OpenDate: '2026-03-23T12:00:00Z' }, hc('2026-04-06T12:00:00Z'), later).weeks, 2, 'GMT planned → BST actual: +2, no dropped week');
+      _assertEqual(coeWeekVariance({ OpenDate: '2026-10-19T12:00:00Z' }, hc('2026-11-02T12:00:00Z'), later).weeks, 2, 'BST planned → GMT actual: +2, no extra week');
+      _assertEqual(coeWeekVarianceHtml({ weeks: -1, final: true }), '<span class="coe-var--early">-1</span>', 'early renders green');
+      _assertEqual(/\+3 \(not open\)/.test(coeWeekVarianceHtml({ weeks: 3, final: false })), true, 'running renders "+3 (not open)"');
+      _assertEqual(coeWeekVarianceHtml(null), '—', 'null renders a dash');
+    },
+  },
+  {
+    name: 'N-317 coeOpensByMonth — planned / actual / variance per month and the required run rate',
+    fn: function () {
+      const r = coeOpensByMonth({
+        plannedDays: ['2026-08-03', '2026-08-24', '2026-09-07', '2026-11-02', '2026-12-01', '2027-01-04'],
+        actualDays:  ['2026-07-30', '2026-09-10', '2026-10-05', '2026-10-20'],   // 20 Oct is after today → not yet opened
+        target: 6, latestHireDay: '2027-03-03', todayDay: '2026-10-08', finalNoOpenWeeks: 4,
+      });
+      _assertEqual(r.months.map(m => m.key), ['2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12', '2027-01', '2027-02'], 'contiguous range, through the cutoff month');
+      _assertEqual(r.months.map(m => m.planned), [0, 2, 1, 0, 1, 1, 1, 0], 'planned per month');
+      _assertEqual(r.months.map(m => m.actual), [1, 0, 1, 1, null, null, null, null], 'actual per month; future null; future-dated open excluded');
+      _assertEqual(r.months.map(m => m.variance), [1, -2, 0, 1, null, null, null, null], 'variance = actual − planned');
+      _assertEqual(r.months.map(m => m.isCurrent), [false, false, false, true, false, false, false, false], 'current month flagged');
+      _assertEqual(r.months.map(m => m.inWindow), [false, false, false, true, true, true, true, true], 'window = current → cutoff month');
+      _assertEqual([r.cutoffDay, r.cutoffMonth, r.openedToDate, r.remaining, r.monthsLeft, r.status],
+        ['2027-02-03', '2027-02', 3, 3, 5, 'in-window'], 'cutoff = latest hire − 4 weeks; 3 of 6 to open over Oct–Feb');
+      _assertEqual(r.requiredPerMonth, 0.6, 'required run rate 3 / 5');
+
+      const edge = (today, weeks) => coeOpensByMonth({ plannedDays: ['2026-01-05', '2026-02-02'], actualDays: [],
+        target: 2, latestHireDay: '2026-03-03', todayDay: today, finalNoOpenWeeks: weeks });
+      _assertEqual([edge('2026-01-15', 4).cutoffMonth, edge('2026-01-15', 4).monthsLeft], ['2026-02', 2], '3 Mar − 4 wks = 3 Feb: window Jan–Feb');
+      _assertEqual([edge('2026-01-15', 0).cutoffMonth, edge('2026-01-15', 0).monthsLeft], ['2026-03', 3], 'finalNoOpenWeeks read from the argument');
+      const past = edge('2026-04-01', 4);
+      _assertEqual([past.status, past.requiredPerMonth, past.monthsLeft, past.months[past.months.length - 1].key], ['past-cutoff', null, 0, '2026-04'],
+        'after the cutoff with roles left: past-cutoff, no rate, range runs to the current month');
+      _assertEqual(past.months.some(m => m.inWindow), false, 'past-cutoff: no in-window months');
+      const done = coeOpensByMonth({ plannedDays: ['2026-01-05'], actualDays: ['2026-01-09'], target: 1,
+        latestHireDay: '2026-03-03', todayDay: '2026-02-10', finalNoOpenWeeks: 4 });
+      _assertEqual([done.status, done.remaining, done.requiredPerMonth], ['complete', 0, null], 'all opened → complete');
+    },
+  },
+  {
+    name: 'N-317 coeGanttHtml — four frozen columns; no running variance without a headcount read (hasActuals)',
+    fn: function () {
+      const rows = [{ id: '1', Title: 'Past row', OpenDate: '2025-01-06T12:00:00Z' }];
+      const planOnly = coeGanttHtml(rows, { canEdit: false, showActuals: false });
+      const heads = [...planOnly.matchAll(/coe-th-split-top"[^>]*>([^<]*)</g)].map(m => m[1]);
+      _assertEqual(heads, ['Role', 'Planned Open', 'Actual Open', 'Week Variance'], 'frozen header labels');
+      _assertEqual(/Talent Partner|Target Hire|>TP</.test(planOnly), false, 'no TP / Target Hire column');
+      _assertEqual(/\(not open\)/.test(planOnly), false, 'Report Builder (plan only) never shows "(not open)"');
+      _assertEqual(/\(not open\)/.test(coeGanttHtml(rows, { headcount: null, showActuals: true })), false, 'failed headcount read never shows "(not open)"');
+      _assertEqual(/\(not open\)/.test(coeGanttHtml(rows, { headcount: [], placements: [], showActuals: true })), true, 'headcount read, overdue unlinked row → running variance');
     },
   },
   {

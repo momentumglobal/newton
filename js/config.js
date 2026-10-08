@@ -338,6 +338,9 @@ const CONFIG = {
       'NoticeWeeks', 'OnboardingWeeks', 'LinkedRoleID', 'SortOrder',
       'LinkedHeadcountID',   // N-312: plain Number — the RoleHeadcount row the plan row tracks
     ],
+    // N-317: no longer read — the Hiring Plan's Planned vs Actual Role Opens
+    // view replaced the forecast table. Kept registered: data retained, and
+    // Data Health still watches the list.
     CoEPlanForecast: [
       'ProjectID', 'ForecastMonth', 'ForecastedHires',
     ],
@@ -747,7 +750,8 @@ const CONFIG = {
     recruitmentWeeks: 7,   // R — Open Date → offer accepted
     noticeWeeks:      4,   // N — offer accepted → start
     onboardingWeeks:  6,   // O — start → fully onboarded
-    weeksPerNoticeMonth: 4, // months→weeks for LCI notice carried into the plan (N-077)
+    weeksPerNoticeMonth: 4, // months→weeks for LCI notice carried into the plan (N-077)weeksPerNoticeMonth: 4, // months→weeks for LCI notice carried into the plan (N-077)
+    finalNoOpenWeeks: 4,    // N-317: run rate expects no openings in the final N weeks before the latest planned hire
   },
 
   // Graph 429/503 retry (N-082): total attempts incl. the first; backoff

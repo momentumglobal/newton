@@ -3138,6 +3138,65 @@ function coeHeadcountActualSpans(hc, placements, today) {
   return out;
 }
 
+// ── Hiring Plan: planned vs actual role opens + required run rate (N-317) ──
+// Pure and string-only ('YYYY-MM-DD' in, 'YYYY-MM' keys out), so it is
+// browser-timezone-independent: coe-plan.js derives the day strings
+// (spDateIn on stored SharePoint values, localDayISO on its local Dates).
+//   plannedDays    one per plan row — its Planned Open Date
+//   actualDays     one per plan row whose LINKED headcount has an OpenDate
+//   target         plan row count
+//   latestHireDay  latest planned hire across the plan (project end)
+//   todayDay, finalNoOpenWeeks (CONFIG.COE_PHASE_DEFAULTS)
+// An actual open counts only once its day is <= today. Required run rate =
+// remaining / months from the current month to the cutoff month INCLUSIVE,
+// cutoff = latestHireDay - finalNoOpenWeeks weeks. Variance per month =
+// actual - planned (+ = ahead of plan); future months carry null actual and
+// variance. The range runs from the first planned/actual month to the cutoff
+// month, and always includes the current month while roles remain to open.
+function coeOpensByMonth({ plannedDays = [], actualDays = [], target = 0,
+                           latestHireDay = null, todayDay = null, finalNoOpenWeeks = 0 } = {}) {
+  const curKey = monthKeyFromISO(todayDay);
+  const planned = (plannedDays || []).map(monthKeyFromISO).filter(Boolean);
+  const actualToDate = (actualDays || []).filter(d => d && todayDay && d <= todayDay);
+  const actual = actualToDate.map(monthKeyFromISO).filter(Boolean);
+
+  let cutoffDay = null;
+  if (latestHireDay) {
+    const [y, m, d] = String(latestHireDay).split('-').map(Number);
+    const c = new Date(Date.UTC(y, m - 1, d - 7 * finalNoOpenWeeks));
+    cutoffDay = `${c.getUTCFullYear()}-${String(c.getUTCMonth() + 1).padStart(2, '0')}-${String(c.getUTCDate()).padStart(2, '0')}`;
+  }
+  const cutoffMonth = monthKeyFromISO(cutoffDay);
+  const openedToDate = actualToDate.length;
+  const remaining = Math.max(0, target - openedToDate);
+  const keyIdx = k => monthKeyYear(k) * 12 + monthKeyMonth(k);
+  const monthsLeft = (cutoffMonth && curKey && cutoffMonth >= curKey)
+    ? keyIdx(cutoffMonth) - keyIdx(curKey) + 1 : 0;
+  const status = remaining === 0 ? 'complete' : monthsLeft === 0 ? 'past-cutoff' : 'in-window';
+  const requiredPerMonth = status === 'in-window' ? remaining / monthsLeft : null;
+
+  const keys = [...planned, ...actual];
+  if (cutoffMonth) keys.push(cutoffMonth);
+  if (remaining > 0 && curKey) keys.push(curKey);
+  keys.sort();
+  const months = [];
+  if (keys.length) {
+    const count = (arr, k) => arr.filter(x => x === k).length;
+    for (let k = keys[0]; k <= keys[keys.length - 1]; k = addMonthsToKey(k, 1)) {
+      const isFuture = !!curKey && k > curKey;
+      const p = count(planned, k);
+      const a = isFuture ? null : count(actual, k);
+      months.push({
+        key: k, planned: p, actual: a, variance: isFuture ? null : a - p,
+        isCurrent: k === curKey, isFuture,
+        inWindow: status === 'in-window' && k >= curKey && k <= cutoffMonth,
+      });
+    }
+  }
+  return { months, target, openedToDate, remaining, cutoffDay, cutoffMonth, monthsLeft,
+           requiredPerMonth, status, latestHireDay, finalNoOpenWeeks };
+}
+
 // Hiring Plan link migration — pure, idempotent. Each row with a LinkedRoleID
 // and no LinkedHeadcountID is linked to that role's LOWEST-Sequence headcount
 // (the one N-306's 1:1 migration created — spec S-3). Reported, never

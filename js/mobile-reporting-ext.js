@@ -40,7 +40,7 @@ async function mobileRenderReportingSummary(main) {
   main.innerHTML = '<div class="m-empty">Loading summary...</div>';
 
   try {
-    const roles = await mobileGetRoles();   // scoped, excludes Hired/Cancelled
+    const roles = await mobileGetRoles();   // scoped, excludes Closed/Cancelled
     _mRolesCache = roles;                    // warm the cache for the Roles tab
 
     const total = roles.length;

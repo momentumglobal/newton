@@ -80,6 +80,9 @@ async function getUserAssignments(projectId) {
 // present, and fall back to a per-version GET only for a version without
 // Stage. Every call is a GET through graphRequest, so N-188 batches them.
 // Stage is read under its internal name — Roles doesn't alias it.
+// N-306: stage goes through normaliseRoleStage (utils.js), so the migration's
+// own Hired → Closed rename is a non-change here and never becomes a
+// spurious backfilled transition.
 async function getRoleVersions(roleId) {
   const base = `${listPath('Roles')}/${parseInt(roleId)}/versions`;
   const raw = [];
@@ -102,15 +105,17 @@ async function getRoleVersions(roleId) {
       versionId:  String(v.id),
       modifiedAt: v.lastModifiedDateTime,
       modifiedBy: (v.lastModifiedBy && v.lastModifiedBy.user && v.lastModifiedBy.user.email) || null,
-      stage:      (v.fields && v.fields.Stage) || null,
+      stage:      normaliseRoleStage((v.fields && v.fields.Stage) || null),
     }))
     .sort((a, b) => new Date(a.modifiedAt) - new Date(b.modifiedAt));
 }
 
 // Whole RoleHistory list, every column — the backfill's skip rules need
 // ChangedAt, OldValue, NewValue and Source per role.
+// N-306: Stage rows read through normaliseRoleHistoryRows, so the backfill's
+// "already written" check compares 'Closed' with 'Closed', never 'Hired'.
 async function getAllRoleHistory() {
-  return getItems('RoleHistory');
+  return normaliseRoleHistoryRows(await getItems('RoleHistory'));
 }
 
 // One backfilled row. createItem, never graphRequest('POST') — only the
@@ -167,4 +172,44 @@ async function writePeoplePayMigration(plan, onProgress) {
     }
   }
   return { written, failed: null };
+}
+
+// ── N-306 (HC-1): Roles → RoleHeadcount migration ─────────────────────
+// Writes planHeadcountMigration()'s items (utils.js). Per role, in order:
+// create its headcount (createHeadcount — syncs Roles.OpenDate, normally a
+// no-op since the dates are the role's own), link its placements, rename a
+// retired stage. A role stops at its first failure; a re-run (dry run again)
+// picks up only what is still missing. The stage rename is a plain
+// updateItem, NEVER updateRoleWithHistory: RoleHistory is not rewritten and
+// gains no row for it (model rule 5) — a logged Hired → Closed would render
+// as Closed → Closed once read through the legacy alias.
+async function writeHeadcountMigration(plan, onProgress) {
+  const written = { headcount: 0, links: 0, renames: 0 };
+  const failed = [];
+  const total = plan.items.length;
+  let done = 0;
+  await runWithConcurrency(plan.items, CONFIG.HEADCOUNT_MIGRATION.writeConcurrency, async item => {
+    try {
+      let hcId = item.headcountId;
+      if (item.create) {
+        const created = await createHeadcount(item.create);
+        hcId = Number(created.id);
+        written.headcount++;
+      }
+      for (const pid of item.linkPlacementIds) {
+        await updateItem('Placements', pid, { HeadcountID: hcId });
+        written.links++;
+      }
+      if (item.renameStage) {
+        await updateItem('Roles', item.role.id, { Stage: normaliseRoleStage(item.role.Stage) });
+        written.renames++;
+      }
+    } catch (e) {
+      console.warn('Headcount migration: write failed for role ' + item.role.id, e);
+      failed.push({ role: item.role, message: e.message });
+    }
+    done++;
+    if (typeof onProgress === 'function') onProgress(done, total);
+  });
+  return { written, failed };
 }

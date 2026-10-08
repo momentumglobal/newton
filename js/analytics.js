@@ -18,8 +18,8 @@
 // Derived, not a second list. Backlog/Planning never started the clock;
 // On-hold/Cancelled are censored too, but at the day they stopped being
 // worked, not their current age — CONFIG.TTF_SURVIVAL.closedStages and
-// ttfClosedCensorTimes (N-276, from N-272 D2); Hired roles are events (via
-// `historical`), not censored.
+// ttfClosedCensorTimes (N-276, from N-272 D2); Closed (pre-N-306: Hired)
+// roles are events (via `historical`), not censored.
 // NOT ACTIVE_STAGES (which lists the closed/dormant stages). STAGE_ORDER, the
 // old 4-stage subset isRoleFlagged used, was retired by N-274.
 const TTF_CENSORED_STAGES = CONFIG.ROLE_STAGES.filter(s =>
@@ -645,8 +645,10 @@ function buildAnomalyAckFields({ checkType, subjectKey, signature, note }, email
 // ── Role flag helpers (shared by cc-pages.js, analytics-pages.js,
 //    mobile-scorecards.js, index.html and computeSnapshotMetrics) ──
 // Snapshots contract list (N-086's flow mirrors it) — values deliberately
-// left as-is (N-305): 'Placed' is legacy/dead, 'Closed' becomes live in
-// N-306. Over real stage values (CONFIG.ROLE_STAGES) it equals the
+// left as-is (N-305): 'Placed' is legacy/dead; 'Closed' is live since N-306
+// and 'Hired' is kept as its pre-migration value — harmless, because the
+// pinned assertion intersects with ROLE_STAGES. Over real stage values
+// (CONFIG.ROLE_STAGES) it equals the
 // complement of utils.js:isOpenPipelineStage() — pinned by assertion — so
 // dashboards and Snapshots agree on "open". The one documented exception in
 // tests/lint-stage-arrays.js (STAGE_ARRAY_ALLOW).
@@ -813,7 +815,8 @@ function flaggedShareRAG(flagged, open, cfg = CONFIG.ROLE_FLAG.healthRag) {
 // file, so this function is the one place the contract is authoritative
 // from — keep it that way.
 //
-// RolesByStage deliberately excludes 'Hired' and 'Cancelled' (N-111) —
+// RolesByStage deliberately excludes 'Closed' (pre-N-306: 'Hired') and
+// 'Cancelled' (N-111) —
 // CONFIG.ROLE_STAGE_TERMINAL (N-305).
 // Both are terminal — a role never leaves them once it lands there — so
 // their counts only ever grow, unlike every other stage here, which

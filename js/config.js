@@ -64,7 +64,7 @@ const CONFIG = {
   // the full role Stage <select> (forms.js) and the Roles-list inline stage
   // dropdown (pages.js) — never redeclare this list in a page file.
   ROLE_STAGES: ['Backlog', 'Planning', 'Sourcing', 'Submitted', 'Interview 1',
-                'Interview 2+', 'Final Interview', 'Offered', 'Hired',
+                'Interview 2+', 'Final Interview', 'Offered', 'Closed',
                 'On-hold', 'Cancelled'],
   // Terminal stages — two intents, same set (N-305):
   //   (a) stages that carry side effects (ActualHireDate, placement records)
@@ -73,17 +73,17 @@ const CONFIG = {
   //   (b) a "finished" pipeline — command bar, mobile role list and pickers,
   //       Snapshot RolesByStage.
   // Deliberately narrower than analytics.js's ACTIVE_STAGES, which mixes
-  // KPI/velocity scoping with a legacy 'Placed' and a pre-declared 'Closed'
-  // (live from N-306) — still don't reuse it here.
-  ROLE_STAGE_TERMINAL: ['Hired', 'Cancelled'],
+  // KPI/velocity scoping with a legacy 'Placed' and the pre-N-306 'Hired' —
+  // still don't reuse it here.
+  ROLE_STAGE_TERMINAL: ['Closed', 'Cancelled'],
 
   // Stages hidden from the weekly-activity role picker (single form and bulk
   // grid both read this — N-164). Deliberately distinct from ACTIVE_STAGES in
-  // analytics.js, which carries a legacy 'Placed' and a pre-declared 'Closed'
-  // (live from N-306) — do not reuse it here. Currently equals
+  // analytics.js, which carries a legacy 'Placed' and the pre-N-306 'Hired'
+  // ('Closed' is live since N-306) — do not reuse it here. Currently equals
   // ROLE_STAGES_PARKED ∪ ROLE_STAGE_TERMINAL (pinned by assertion); kept as
   // its own key because the activity-picker intent may diverge.
-  ROLE_STAGES_ACTIVITY_EXCLUDED: ['Backlog', 'Hired', 'On-hold', 'Cancelled'],
+  ROLE_STAGES_ACTIVITY_EXCLUDED: ['Backlog', 'Closed', 'On-hold', 'Cancelled'],
 
   // Parked — not yet started or paused; still a live pipeline (Roles page
   // "Backlog" filter). With ROLE_STAGE_TERMINAL it defines an open pipeline:
@@ -93,6 +93,23 @@ const CONFIG = {
   // Stages a role leaves the linear pipeline for (Role History timeline
   // 'branch' node — pages.js:_roleTimelineNodeClass, N-305).
   ROLE_STAGES_BRANCH: ['On-hold', 'Cancelled'],
+  // N-306: the "pipeline closed" stage (was 'Hired'). Read through this,
+  // never a literal.
+  ROLE_STAGE_CLOSED: 'Closed',
+  // N-306: retired stage values still present in RoleHistory and in the
+  // Roles list's SharePoint version history. Mapped on READ by
+  // normaliseRoleStage() (utils.js) — RoleHistory is never rewritten
+  // (headcount model rule 5).
+  ROLE_STAGE_LEGACY_ALIASES: { Hired: 'Closed' },
+
+  // N-306 (HC-1): per-hire headcount (RoleHeadcount list). Status is stored;
+  // "filled" is derived from Placements.HeadcountID and never stored (model
+  // rule 4). The +45d target default is ANALYTICS_BENCHMARKS.timeToHireDays.
+  HEADCOUNT: {
+    STATUS_OPEN:      'Open',
+    STATUS_CANCELLED: 'Cancelled',
+    labelTemplate:    'Headcount {n}',
+  },
 
   // ── Project types (N-116) ─────────────────────────────────────────
   // TWO enums, deliberately. Projects.ProjectType gates the Hiring Plan page,
@@ -240,6 +257,14 @@ const CONFIG = {
       'Title', 'RoleIDLookupId', 'TalentPartner', 'SalaryAgreed',
       'Currency', 'OfferAcceptedDate', 'ProvisionalStartDate', 'TimeToHire',
       'Notes',
+      // N-306: plain Number column (not a Lookup) — read/written as HeadcountID.
+      'HeadcountID',
+    ],
+    // N-306 (HC-1): one row per hire slot. RoleID / ProjectID are plain
+    // Number columns (Readme: no Lookups for ids Newton reads or writes).
+    RoleHeadcount: [
+      'Title', 'RoleID', 'ProjectID', 'Sequence', 'OpenDate',
+      'TargetHireDate', 'Backfill', 'Notes', 'Status', 'CancelledDate',
     ],
     // N-094 (F-2b): this list had no entry at all, so it stayed on
     // fields($select=*). These are the complete read set across js/ —
@@ -421,6 +446,13 @@ const CONFIG = {
     previewRows:       50,
   },
 
+  // N-306 (HC-1). Headcount migration — Admin > Data Health. One-off tool,
+  // same tunables as ROLE_HISTORY_BACKFILL above.
+  HEADCOUNT_MIGRATION: {
+    writeConcurrency: 4,
+    previewRows:      50,
+  },
+
   // N-271 (DS-3): WeeklyActivity anomaly flags — Admin > Data Health.
   // Read-only; every number below is a tunable, none is a SharePoint limit.
   //   funnelPairs   — cumulative per role: flag when the LATER stage's total
@@ -514,6 +546,11 @@ const CONFIG = {
     { list: 'RejectedOffers',  column: 'RoleID' },
     // N-153: the list's first date column, so N-152 can window on it.
     { list: 'RejectedOffers',  column: 'RejectionDate' },
+    // N-306: headcount is scoped by role and by project; placements by
+    // headcount (N-309 analytics). All three are plain Number columns.
+    { list: 'RoleHeadcount',   column: 'RoleID' },
+    { list: 'RoleHeadcount',   column: 'ProjectID' },
+    { list: 'Placements',      column: 'HeadcountID' },
   ],
 
   // N-093 (F-2a). Above this many assigned projects, getRolesForUser stops
@@ -638,7 +675,7 @@ const CONFIG = {
     // Relative weight of each pipeline stage's share of the target.
     // Budget (days) = weight / sum × target, so changing the target rescales
     // every budget. Order comes from ROLE_STAGES; stages not listed (Backlog,
-    // Planning, Hired, On-hold, Cancelled) have no budget and are never
+    // Planning, Closed, On-hold, Cancelled) have no budget and are never
     // age-evaluated. Every key must be a ROLE_STAGES value (checked at load).
     stageWeights: {
       'Sourcing': 15, 'Submitted': 7, 'Interview 1': 7,
@@ -668,7 +705,7 @@ const CONFIG = {
     floorFraction: 0.80,         // learned rate never below 80% of the ANALYTICS_BENCHMARKS target
   },
 
-  // N-277 (N-272 D4): stages, besides Hired, whose WeeklyActivity feeds the
+  // N-277 (N-272 D4): stages, besides Closed, whose WeeklyActivity feeds the
   // funnel benchmarks on Placement Analytics (analytics.js funnelLearningIndex).
   // Cancellation is always the client's call, so the stage progress a cancelled
   // role completed is valid learning. Open / Backlog / On-hold stay out:

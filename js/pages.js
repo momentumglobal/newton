@@ -57,14 +57,14 @@ function projectRowHtml(p, { dmDisplay, canEdit, pending = false, checklist = nu
 // blank for this filter. Shared by roleRowHtml and the Days Open sort
 // accessor so the sort can never disagree with what's displayed.
 function roleDaysOpenValue(r, rolesFilter) {
-  const isHired    = rolesFilter === "Hired";
+  const isHired    = rolesFilter === "Closed";   // N-306: the Hired filter is now Closed
   const daysHidden = rolesFilter === "Backlog" || rolesFilter === "Cancelled";
   return (!daysHidden && (!isHired || r.ActualHireDate))
     ? daysOpen(r.OpenDate, r.ActualHireDate) : null;
 }
 
 function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilter, pending = false, checklist = null, showChecklistCol = false } = {}) {
-  const isHired    = rolesFilter === "Hired";
+  const isHired    = rolesFilter === "Closed";   // N-306: the Hired filter is now Closed
   const days       = roleDaysOpenValue(r, rolesFilter);
   const rowClass   = (isHired || rolesFilter === "Active") && days !== null && days > 45
     ? "row-age-critical" : "";
@@ -241,7 +241,7 @@ async function showEditProjectForm(id) {
 const ROLE_FILTERS = {
   Backlog:   r => CONFIG.ROLE_STAGES_PARKED.includes(r.Stage),
   Active:    r => isOpenPipelineStage(r.Stage),
-  Hired:     r => r.Stage === "Hired",
+  Closed:    r => r.Stage === CONFIG.ROLE_STAGE_CLOSED,   // N-306: was Hired
   Cancelled: r => r.Stage === "Cancelled",
 };
 let _rolesFilter    = "Active";
@@ -322,7 +322,7 @@ async function renderRolesPage(filter, pendingItem = null) {
     tp:       { type: 'text',   get: r => tpList(r.TalentPartner).length ? tpDisplay(r.TalentPartner, tpMap) : '' },
     budget:   { type: 'number', get: r => r.Budget },
     openDate: { type: 'date',   get: r => r.OpenDate },
-    hireDate: { type: 'date',   get: r => _rolesFilter === "Hired" ? r.ActualHireDate : r.TargetHireDate },
+    hireDate: { type: 'date',   get: r => _rolesFilter === "Closed" ? r.ActualHireDate : r.TargetHireDate },
     daysOpen: { type: 'number', get: r => roleDaysOpenValue(r, _rolesFilter) },
     // N-266a: fraction complete; no checklist → null, which sorts last.
     checklist: { type: 'number', get: r => {
@@ -340,7 +340,7 @@ async function renderRolesPage(filter, pendingItem = null) {
     ? projectFilterDropdown(scopedProjects, _rolesProjectId, 'setRolesProject')
     : '';
   const pagedRoles = paginate(roles, _rolesPageSize);
-  const ROLE_FILTER_LABELS = { Backlog: 'backlog', Active: 'active', Hired: 'hired', Cancelled: 'cancelled' };
+  const ROLE_FILTER_LABELS = { Backlog: 'backlog', Active: 'active', Closed: 'closed', Cancelled: 'cancelled' };
   const rolesEmptyMsg = _rolesProjectId
     ? `No ${ROLE_FILTER_LABELS[_rolesFilter] || 'matching'} roles for the selected project.`
     : `No ${ROLE_FILTER_LABELS[_rolesFilter] || 'matching'} roles.`;
@@ -367,7 +367,7 @@ async function renderRolesPage(filter, pendingItem = null) {
         ${sortableHeader('Talent Partner', 'tp', _rolesSort, 'setRolesSort')}
         ${sortableHeader('Budget', 'budget', _rolesSort, 'setRolesSort')}
         ${sortableHeader('Open Date', 'openDate', _rolesSort, 'setRolesSort')}
-        ${sortableHeader(_rolesFilter === "Hired" ? "Actual Hire Date" : "Target Hire Date", 'hireDate', _rolesSort, 'setRolesSort')}
+        ${sortableHeader(_rolesFilter === "Closed" ? "Actual Hire Date" : "Target Hire Date", 'hireDate', _rolesSort, 'setRolesSort')}
         ${sortableHeader('Days Open', 'daysOpen', _rolesSort, 'setRolesSort')}${showChecklistCol ? sortableHeader('Checklist', 'checklist', _rolesSort, 'setRolesSort') : ""}${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>

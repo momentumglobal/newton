@@ -434,6 +434,13 @@ const FIELD_ALIASES = {
   // it to display, so display === internal nets to nothing. Same trap
   // documented on the CCStatus entry above.
   RoleHistory: {},
+  // ── Role headcount (N-306 / HC-1) ────────────────────────────────
+  // {} is deliberate — every RoleHeadcount column, Title included (the
+  // 'Headcount <n>' label), is read and written under its own name; a
+  // self-mapping alias would DELETE the field (see RoleHistory above).
+  // RoleID / ProjectID are plain Number columns, not Lookups. Writes go only
+  // through the headcount helpers below (tests/lint-headcount-writes.js).
+  RoleHeadcount: {},
   // ── Candidate briefing packs (N-211) ─────────────────────────
   // {} is deliberate — every BriefingPacks column is already the display
   // name Newton wants, including Title (the pack title). Deliberately NOT
@@ -985,8 +992,12 @@ async function _logRoleHistory(oldRole, newFields) {
 // Full-row read for one role's timeline. RoleIDLookupId is the Graph
 // filter name for the RoleID lookup column, same convention as every
 // other RoleIDLookupId filter in this file.
+// N-306: Stage values are read through normaliseRoleHistoryRows (utils.js) —
+// pre-N-306 rows say 'Hired', which reads back as 'Closed'. RoleHistory
+// itself is never rewritten (headcount model rule 5).
 async function getRoleHistory(roleId) {
-  return getItems('RoleHistory', `fields/RoleIDLookupId eq ${parseInt(roleId)}`);
+  const rows = await getItems('RoleHistory', `fields/RoleIDLookupId eq ${parseInt(roleId)}`);
+  return normaliseRoleHistoryRows(rows);
 }
 // Existence check across the WHOLE list, used only to decide which
 // Roles-list rows get a "Timeline" action. $select-limited to the lookup
@@ -1005,8 +1016,111 @@ async function getRoleHistoryRoleIds() {
 // instead. The explicit select also keeps this off the delta path (N-271).
 async function getRoleStageHistory() {
   const rows = await getItems('RoleHistory', '', 'RoleIDLookupId,Field,OldValue,NewValue,ChangedAt');
-  return rows.filter(r => r.Field === 'Stage');
+  return normaliseRoleHistoryRows(rows.filter(r => r.Field === 'Stage')); // N-306 legacy alias
 }
+// ── Role headcount (N-306 / HC-1) ────────────────────────────────────
+// A Role is the pipeline; each RoleHeadcount row is one hire slot. EVERY
+// headcount write goes through createHeadcount / updateHeadcount /
+// cancelHeadcount, and each of them ends in syncRoleOpenDate() — the one
+// place Roles.OpenDate is maintained (model rule 3: earliest headcount
+// OpenDate). Nothing outside this file may createItem/updateItem/deleteItem
+// 'RoleHeadcount' — tests/lint-headcount-writes.js fails the build.
+// RoleID / ProjectID are plain Number columns: filter as fields/RoleID.
+async function getHeadcountForRole(roleId) {
+  return getItems('RoleHeadcount', `fields/RoleID eq ${parseInt(roleId)}`);
+}
+async function getHeadcountForProject(projectId) {
+  return getItems('RoleHeadcount', `fields/ProjectID eq ${parseInt(projectId)}`);
+}
+async function getAllHeadcount() {
+  return getItems('RoleHeadcount');
+}
+
+// fields must carry RoleID and ProjectID. Sequence (and the Title label
+// derived from it) is assigned when absent; Status defaults to Open.
+async function createHeadcount(fields) {
+  const roleId = parseInt(fields.RoleID);
+  let sequence = fields.Sequence;
+  if (sequence === undefined || sequence === null) {
+    sequence = nextHeadcountSequence(await getHeadcountForRole(roleId));
+  }
+  const created = await createItem('RoleHeadcount', {
+    Title:  headcountLabel(sequence),
+    Status: CONFIG.HEADCOUNT.STATUS_OPEN,
+    ...fields,
+    RoleID:   roleId,
+    Sequence: sequence,
+  });
+  await syncRoleOpenDate(roleId);
+  return created;
+}
+
+async function updateHeadcount(id, roleId, fields) {
+  const result = await updateItem('RoleHeadcount', id, fields);
+  await syncRoleOpenDate(roleId);
+  return result;
+}
+
+// D-1: a single headcount can be cancelled. dayISO is 'YYYY-MM-DD'.
+// Used from N-307; shipped with the rest of the CRUD set.
+async function cancelHeadcount(id, roleId, dayISO) {
+  return updateHeadcount(id, roleId, {
+    Status:        CONFIG.HEADCOUNT.STATUS_CANCELLED,
+    CancelledDate: isoDate(dayISO),
+  });
+}
+
+// Model rule 3. Roles.OpenDate = earliest headcount OpenDate (cancelled
+// included), as a day. Written only when it differs, through
+// updateRoleWithHistory so a real change is audited. null clears the date.
+// Never throws: the headcount write it follows has already succeeded, and
+// any drift shows on Admin > Data Health (openDateDrift).
+async function syncRoleOpenDate(roleId) {
+  try {
+    const [role, rows] = await Promise.all([getItem('Roles', roleId), getHeadcountForRole(roleId)]);
+    const want = earliestHeadcountOpenDate(rows);
+    const have = role.OpenDate ? spDateIn(role.OpenDate) : null;
+    if (want === have) return { changed: false, openDate: want };
+    await updateRoleWithHistory(roleId, { OpenDate: want ? isoDate(want) : null });
+    return { changed: true, openDate: want };
+  } catch (e) {
+    console.warn('syncRoleOpenDate failed for role ' + roleId, e);
+    return { changed: false, error: e };
+  }
+}
+
+// Keeps every headcount's ProjectID on its role's project (rule 2) — the
+// role form can move a role between projects. No OpenDate effect, so no
+// sync call.
+async function syncHeadcountProject(roleId, projectId) {
+  const pid = parseInt(projectId);
+  if (!Number.isInteger(pid)) return;
+  const rows = await getHeadcountForRole(roleId);
+  await Promise.all(rows
+    .filter(hc => String(hc.ProjectID) !== String(pid))
+    .map(hc => updateItem('RoleHeadcount', hc.id, { ProjectID: pid })));
+}
+
+// Transitional (N-306) — removed by N-307 when the role form stops carrying
+// dates. Mirrors the role form's OpenDate / TargetHireDate / Backfill onto
+// headcount #1 (lowest Sequence), creating it when the role has none, then
+// keeps every headcount on the role's project. `values` keys left undefined
+// are not written.
+async function upsertPrimaryHeadcount(roleId, projectId, values) {
+  const id = parseInt(roleId);
+  const pid = parseInt(projectId);
+  const fields = {};
+  Object.keys(values || {}).forEach(k => { if (values[k] !== undefined) fields[k] = values[k]; });
+  const rows = await getHeadcountForRole(id);
+  if (!rows.length) {
+    await createHeadcount({ ...fields, RoleID: id, ProjectID: pid, Sequence: 1 });
+  } else {
+    const first = rows.slice().sort((a, b) => (Number(a.Sequence) || 0) - (Number(b.Sequence) || 0))[0];
+    if (Object.keys(fields).length) await updateHeadcount(first.id, id, fields);
+  }
+  await syncHeadcountProject(id, pid);
+}
+
 async function deleteItem(listName, itemId) {
   const result = await graphRequest("DELETE", `${listPath(listName)}/${itemId}`);
   _cacheInvalidate(listName);
@@ -1121,8 +1235,10 @@ async function getHistoricalPlacements() {
   // (missing TalentPartner, silently breaking tpEmail below once select
   // support went live; see N-050 QA). Stays on '*' until N-052 audits and
   // re-adds a correct list.
+  // N-306: the finished stage is CONFIG.ROLE_STAGE_CLOSED (was 'Hired').
+  // Shape unchanged — N-309 re-bases this on headcount.
   const roles = await getItems('Roles',
-    `fields/Stage eq 'Hired' and fields/ActualHireDate ge '${odataStr(localDayISO(cutoff))}'`
+    `fields/Stage eq '${odataStr(CONFIG.ROLE_STAGE_CLOSED)}' and fields/ActualHireDate ge '${odataStr(localDayISO(cutoff))}'`
   );
   return roles.map(r => ({
     id:            r.id,
@@ -1238,6 +1354,11 @@ async function updateSalesForecast(id, payload) {
 // ── CoE Hiring Plan ─────────────────────────────────────────────────
 async function getCoEPlanRows(projectId) {
   return getItems("CoEPlanRows", `fields/ProjectID eq ${projectId}`);
+}
+// N-306: every plan row — read-only, for the headcount migration dry run's
+// "linked CoE rows" report (N-312 re-points LinkedRoleID).
+async function getAllCoEPlanRows() {
+  return getItems("CoEPlanRows");
 }
 async function createCoEPlanRow(payload) {
   return createItem("CoEPlanRows", payload);

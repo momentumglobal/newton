@@ -78,7 +78,7 @@ function _cmdBarEntityPageInfo(pageKey) {
 
 // N-146 — action buttons for a Role entity row (Log activity / Update
 // stage / Add placement), pre-scoped to that role. Update stage is left
-// out for a terminal-stage role (Hired/Cancelled) — same rule N-149
+// out for a terminal-stage role (Closed/Cancelled) — same rule N-149
 // already applies to the Roles-list lock icon; there is nothing to
 // unlock for those rows.
 function _cmdBarRoleActions(rec) {

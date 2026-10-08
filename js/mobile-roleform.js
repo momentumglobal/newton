@@ -257,7 +257,23 @@ async function mobileSubmitAddRole() {
     await optimisticWrite({
       apply,
       revert,
-      commit: () => createItem('Roles', fields),
+      // N-306 (transitional, until N-307): headcount #1 carries the form's
+      // dates (no Backfill on the mobile form). A headcount failure must NOT
+      // reject commit — a Retry would create a duplicate role; the Data
+      // Health migration (re-runnable) creates any missing headcount.
+      commit: async () => {
+        const created = await createItem('Roles', fields);
+        try {
+          await upsertPrimaryHeadcount(created.id, fields.ProjectIDLookupId, {
+            OpenDate:       fields.OpenDate,
+            TargetHireDate: fields.TargetHireDate,
+          });
+        } catch (e) {
+          console.warn('N-306: headcount create failed for role ' + created.id, e);
+          mobileToast('Role saved, but its headcount row did not save — tell a Newton admin.', { type: 'error' });
+        }
+        return created;
+      },
       errorMessage: 'Error saving role — change reverted.',
       toastFn: mobileToast,
     });

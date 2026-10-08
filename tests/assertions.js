@@ -988,7 +988,7 @@ var ASSERTIONS = [
       _assertEqual(sign(compareSortValues('2026-07-01T12:00:00Z', '2026-06-30T23:00:00Z', 'date')), 1, 'later calendar day sorts after (spDateIn string compare)');
       _assertEqual(sign(compareSortValues('2026-07-01T00:00:00Z', '2026-07-01T23:59:00Z', 'date')), 0, 'same calendar day, different time = equal');
       _assertEqual(sign(compareSortValues('Sourcing', 'Offered', 'enum', CONFIG.ROLE_STAGES)), -1, 'Sourcing before Offered (pipeline order, not alphabetical)');
-      _assertEqual(sign(compareSortValues('Hired', 'Backlog', 'enum', CONFIG.ROLE_STAGES)), 1, 'Hired after Backlog');
+      _assertEqual(sign(compareSortValues('Closed', 'Backlog', 'enum', CONFIG.ROLE_STAGES)), 1, 'Closed after Backlog');
       _assertEqual(sign(compareSortValues('Mystery', 'Cancelled', 'enum', CONFIG.ROLE_STAGES)), 1, 'unknown enum value sorts after every known value');
       _assertEqual(sign(compareSortValues('Alpha', 'Zeta', 'enum', CONFIG.ROLE_STAGES)), -1, 'two unknowns fall back to text compare');
     },
@@ -1440,7 +1440,7 @@ var ASSERTIONS = [
       _assertEqual(Object.keys(none).sort(), KEYS, 'AC5 keys (insufficient)');
       _assertEqual([none.label, none.weeks, none.basis, none.sampleSize], ['Insufficient data', null, null, 0], 'AC9 insufficient');
 
-      const stages = ['Backlog', 'Planning', 'On-hold', 'Cancelled', 'Hired',
+      const stages = ['Backlog', 'Planning', 'On-hold', 'Cancelled', 'Closed',
         'Sourcing', 'Submitted', 'Interview 1', 'Interview 2+', 'Final Interview', 'Offered'];
       const withOpen = computeTTFPrediction('Eng', 'UK', hist, stages.map(s => O('Eng', 'UK', s, 5)));
       _assertEqual(withOpen.censored, 6, 'AC10 only Sourcing..Offered censored');
@@ -1680,7 +1680,7 @@ var ASSERTIONS = [
         { id: 4, Stage: 'On-hold',   Department: 'Eng', Location: 'UK' },
         { id: 5, Stage: 'Backlog',   Department: 'Eng', Location: 'UK' },
         { id: 6, Stage: 'Sourcing',  Department: 'Eng', Location: 'UK' },
-        { id: 7, Stage: 'Hired',     Department: 'Eng', Location: 'UK' },          // hired but outside `historical`
+        { id: 7, Stage: 'Closed',    Department: 'Eng', Location: 'UK' },          // closed but outside `historical`
         { id: 8, Stage: 'Cancelled' },                                             // blank function/location
         null,
         { Stage: 'Cancelled' },                                                    // no id
@@ -1801,7 +1801,7 @@ var ASSERTIONS = [
         role('R4', 'Sourcing', '2026-09-14T12:00:00Z'), role('R5', 'Sourcing', '2026-09-23T12:00:00Z'), role('R6', 'Sourcing', '2026-09-14T12:00:00Z'),
         role('R7', 'Sourcing', J1), role('R8', 'Sourcing', J1), role('R9', 'Sourcing', J1),
         role('R10', 'Cancelled', J1), role('R11', 'Sourcing', ''), role('R12', 'Planning', J1), role('R13', 'On-hold', J1),
-        role('R14', 'Hired', J1), role('R15', 'Backlog', J1), role('R16', 'Offered', J1),
+        role('R14', 'Closed', J1), role('R15', 'Backlog', J1), role('R16', 'Offered', J1),
       ];
       const act = [].concat(
         ['2026-08-09', '2026-08-16', '2026-08-23', '2026-08-30', '2026-09-06', '2026-09-13'].map(w => row('R2', w)),   // last entry 13 Sep
@@ -2663,7 +2663,7 @@ var ASSERTIONS = [
     fn: function () {
       ['Planning', 'Sourcing', 'Submitted', 'Interview 1', 'Interview 2+', 'Final Interview', 'Offered']
         .forEach(s => _assertEqual(isOpenPipelineStage(s), true, s + ' is open'));
-      ['Backlog', 'Hired', 'On-hold', 'Cancelled']
+      ['Backlog', 'Closed', 'On-hold', 'Cancelled']
         .forEach(s => _assertEqual(isOpenPipelineStage(s), false, s + ' is not open'));
       // Old `!EXCLUDED.includes(r.Stage)` was true for a missing stage — preserved.
       [undefined, null, ''].forEach(s => _assertEqual(isOpenPipelineStage(s), true, JSON.stringify(s) + ' (blank) counts as open'));
@@ -2711,12 +2711,253 @@ var ASSERTIONS = [
         .map(v => `${v.file}:${v.line}`);
       _assertEqual(lint({ 'a.js': "x();\nconst X = ['Backlog','Hired'];\n" }), ['a.js:2'], 'single-line, single-quoted');
       _assertEqual(lint({ 'b.js': 'const Y = [\n  "Backlog", "Planning",\n  // note\n  "Hired"\n];\n' }), ['b.js:1'], 'multi-line, double-quoted, with comment');
-      _assertEqual(lint({ 'c.js': "f(['Closed', 'Cancelled']);\n" }), ['c.js:1'], "'Closed' is in the vocabulary before N-306");
+      _assertEqual(lint({ 'c.js': "f(['Closed', 'Cancelled']);\n" }), ['c.js:1'], "'Closed' is a live stage (N-306)");
       _assertEqual(lint({ 'd.js': "const L = ['Outreach','Submitted','Hired'];\nconst s = ['Hired'];\n" }), [], 'mixed array and single stage are not stage sets');
       _assertEqual(lint({ 'config.js': "const CONFIG = { S: ['Backlog','Hired'] };\n" }), [], 'config.js is the home of stage sets');
       _assertEqual(lint({}, { 'p.html': '<script src="x.js"></script>\n<script>\nconst Z = ["Hired","Cancelled"];\n</script>\n' }), ['p.html:3'], 'inline <script> in HTML');
       _assertEqual(lint({ 'analytics.js': "const ACTIVE_STAGES = ['Hired','Backlog'];\n" }, {}, [{ file: 'analytics.js', name: 'ACTIVE_STAGES' }]), [], 'allow-listed declaration');
       _assertEqual(lint({ 'e.js': 'x();\n' }, {}, [{ file: 'e.js', name: 'GONE' }]), ['e.js:0'], 'stale allow entry is reported');
+    },
+  },
+  // ── N-306 (HC-1): headcount model + Hired → Closed ────────────────────
+  {
+    name: 'N-306 CONFIG: Closed replaces Hired; legacy alias, headcount + migration config; projections and index targets',
+    fn: function () {
+      _assertEqual(CONFIG.ROLE_STAGES.includes('Hired'), false, 'Hired is no longer a live stage');
+      _assertEqual(CONFIG.ROLE_STAGES.indexOf('Closed'), CONFIG.ROLE_STAGES.indexOf('Offered') + 1, 'Closed sits right after Offered');
+      _assertEqual(CONFIG.ROLE_STAGE_CLOSED, 'Closed', 'ROLE_STAGE_CLOSED');
+      _assertEqual(CONFIG.ROLE_STAGE_TERMINAL, ['Closed', 'Cancelled'], 'ROLE_STAGE_TERMINAL');
+      _assertEqual(CONFIG.ROLE_STAGE_LEGACY_ALIASES, { Hired: 'Closed' }, 'ROLE_STAGE_LEGACY_ALIASES');
+      Object.keys(CONFIG.ROLE_STAGE_LEGACY_ALIASES).forEach(k => {
+        _assertEqual(CONFIG.ROLE_STAGES.includes(k), false, k + ' (legacy) is not a live stage');
+        _assertEqual(CONFIG.ROLE_STAGES.includes(CONFIG.ROLE_STAGE_LEGACY_ALIASES[k]), true, k + ' maps to a live stage');
+      });
+      _assertEqual([CONFIG.HEADCOUNT.STATUS_OPEN, CONFIG.HEADCOUNT.STATUS_CANCELLED], ['Open', 'Cancelled'], 'headcount statuses');
+      _assertEqual(Number.isInteger(CONFIG.HEADCOUNT_MIGRATION.writeConcurrency) && CONFIG.HEADCOUNT_MIGRATION.writeConcurrency > 0, true, 'migration writeConcurrency');
+      _assertEqual(CONFIG.LIST_FIELDS.Placements.includes('HeadcountID'), true, 'Placements projects HeadcountID');
+      _assertEqual(CONFIG.LIST_FIELDS.RoleHeadcount,
+        ['Title', 'RoleID', 'ProjectID', 'Sequence', 'OpenDate', 'TargetHireDate', 'Backfill', 'Notes', 'Status', 'CancelledDate'],
+        'RoleHeadcount projection');
+      _assertEqual(FIELD_ALIASES.RoleHeadcount, {}, 'RoleHeadcount registers as {} (no alias)');
+      const idx = CONFIG.INDEX_TARGETS.map(t => t.list + '.' + t.column);
+      ['RoleHeadcount.RoleID', 'RoleHeadcount.ProjectID', 'Placements.HeadcountID']
+        .forEach(k => _assertEqual(idx.includes(k), true, k + ' in INDEX_TARGETS'));
+      _assertEqual(CONFIG.CACHE.persistentLists.includes('RoleHeadcount'), false, 'RoleHeadcount is transactional — never tier 2');
+      _assertEqual(CONFIG.DELTA.enrolledLists.includes('RoleHeadcount'), false, 'RoleHeadcount not delta-enrolled');
+      _assertEqual(CONFIG.RESTRICTED_LISTS.includes('RoleHeadcount'), false, 'RoleHeadcount is not restricted (Tier 4)');
+    },
+  },
+  {
+    name: 'N-306 normaliseRoleStage / normaliseRoleHistoryRows — Hired reads as Closed; Stage rows only; input never mutated',
+    fn: function () {
+      _assertEqual(normaliseRoleStage('Hired'), 'Closed', 'Hired → Closed');
+      _assertEqual(normaliseRoleStage('Closed'), 'Closed', 'Closed unchanged');
+      _assertEqual(normaliseRoleStage('Sourcing'), 'Sourcing', 'Sourcing unchanged');
+      _assertEqual(normaliseRoleStage(undefined), undefined, 'undefined unchanged');
+      _assertEqual(normaliseRoleStage(null), null, 'null unchanged');
+      _assertEqual(normaliseRoleStage('toString'), 'toString', 'prototype keys are not aliases');
+      const rows = [
+        { id: 1, Field: 'Stage', OldValue: 'Offered', NewValue: 'Hired' },
+        { id: 2, Field: 'Stage', OldValue: 'Hired', NewValue: 'Sourcing' },
+        { id: 3, Field: 'Stage', OldValue: null, NewValue: 'Planning' },
+        { id: 4, Field: 'Notes', OldValue: 'Hired', NewValue: 'Hired' },
+      ];
+      const before = JSON.stringify(rows);
+      const out = normaliseRoleHistoryRows(rows);
+      _assertEqual(JSON.stringify(rows), before, 'input not mutated');
+      _assertEqual(out.map(r => [r.OldValue, r.NewValue]),
+        [['Offered', 'Closed'], ['Closed', 'Sourcing'], [null, 'Planning'], ['Hired', 'Hired']], 'mapped values');
+      _assertEqual(out[2] === rows[2] && out[3] === rows[3], true, 'unchanged rows are passed through as-is');
+      _assertEqual(normaliseRoleHistoryRows(null), [], 'null → []');
+    },
+  },
+  {
+    name: 'N-306 headcount classification: filled is derived from placements; counts are D-5 x/y',
+    fn: function () {
+      const hc = [
+        { id: '1', Status: 'Open' },                                     // open (no placement)
+        { id: '2', Status: 'Open', OpenDate: '2026-01-05T12:00:00Z' },   // filled
+        { id: '3', Status: 'Cancelled' },                                // cancelled
+        { id: '4', Status: 'Cancelled' },                                // cancelled, but a placement links it → filled
+      ];
+      const fill = headcountFillMap([
+        { id: 'p1', HeadcountID: 2 }, { id: 'p2', HeadcountID: '4' }, { id: 'p3', HeadcountID: '' }, { id: 'p4' }, null,
+      ]);
+      _assertEqual([...fill.keys()].sort(), ['2', '4'], 'fill map skips blank ids; number and string ids both key as strings');
+      _assertEqual(hc.map(h => classifyHeadcount(h, fill)), ['open', 'filled', 'cancelled', 'filled'], 'classification');
+      _assertEqual(headcountCounts(hc, fill), { open: 1, filled: 2, cancelled: 1, total: 3 }, 'counts (total = open + filled)');
+      _assertEqual(headcountCounts([], fill), { open: 0, filled: 0, cancelled: 0, total: 0 }, 'empty');
+    },
+  },
+  {
+    name: 'N-306 orderOpenHeadcount (D-5) and defaultHeadcountForPlacement',
+    fn: function () {
+      const hc = [
+        { id: '10', Sequence: 1, Status: 'Open', OpenDate: '2026-03-01T12:00:00Z' },
+        { id: '11', Sequence: 2, Status: 'Open' },                                     // not opened → last
+        { id: '12', Sequence: 3, Status: 'Open', OpenDate: '2026-02-01T12:00:00Z' },
+        { id: '13', Sequence: 4, Status: 'Open', OpenDate: '2026-02-01T12:00:00Z' },   // tie → Sequence
+        { id: '14', Sequence: 5, Status: 'Cancelled', OpenDate: '2026-01-01T12:00:00Z' },
+        { id: '15', Sequence: 6, Status: 'Open', OpenDate: '2026-01-01T12:00:00Z' },   // filled → excluded
+      ];
+      const fill = headcountFillMap([{ id: 'p', HeadcountID: 15 }]);
+      _assertEqual(orderOpenHeadcount(hc, fill).map(h => h.id), ['12', '13', '10', '11'], 'OpenDate asc, tie by Sequence, no OpenDate last');
+      _assertEqual(defaultHeadcountForPlacement(hc, fill), 12, 'earliest open');
+      const allFilled = [{ id: '20', Sequence: 2, Status: 'Open' }, { id: '21', Sequence: 1, Status: 'Open' }, { id: '22', Sequence: 0, Status: 'Cancelled' }];
+      const fill2 = headcountFillMap([{ HeadcountID: 20 }, { HeadcountID: 21 }]);
+      _assertEqual(defaultHeadcountForPlacement(allFilled, fill2), 21, 'none open → lowest-Sequence non-cancelled');
+      _assertEqual(defaultHeadcountForPlacement([{ id: '30', Sequence: 1, Status: 'Cancelled' }], new Map()), null, 'only cancelled → null');
+      _assertEqual(defaultHeadcountForPlacement([], new Map()), null, 'none → null');
+    },
+  },
+  {
+    name: 'N-306 earliestHeadcountOpenDate / nextHeadcountSequence / headcountLabel',
+    fn: function () {
+      _assertEqual(earliestHeadcountOpenDate([
+        { OpenDate: '2026-05-01T12:00:00Z' }, { OpenDate: '2026-04-02T12:00:00Z', Status: 'Cancelled' }, { OpenDate: '' }, {},
+      ]), '2026-04-02', 'min day, cancelled included, blanks ignored');
+      _assertEqual(earliestHeadcountOpenDate([{}, { OpenDate: null }]), null, 'all blank → null');
+      _assertEqual(earliestHeadcountOpenDate([]), null, 'none → null');
+      // Day = spDateIn() string slice — the same day rule every Roles.OpenDate
+      // reader uses (roleStageEntryDay, the timeline); no Date, no local getter.
+      _assertEqual(earliestHeadcountOpenDate([{ OpenDate: '2026-06-30T23:00:00Z' }]), '2026-06-30', 'spDateIn day');
+      _assertEqual(nextHeadcountSequence([]), 1, 'first');
+      _assertEqual(nextHeadcountSequence([{ Sequence: 1 }, { Sequence: '3' }, { Sequence: null }]), 4, 'max + 1, never reused');
+      _assertEqual(headcountLabel(2), 'Headcount 2', 'label');
+    },
+  },
+  {
+    name: 'N-306 planHeadcountMigration — 1:1 create, cancelled, links, rename, reports; idempotent',
+    fn: function () {
+      const roles = [
+        { id: '1', RoleTitle: 'A', Stage: 'Sourcing', ProjectIDLookupId: 5, OpenDate: '2026-02-01T12:00:00Z', TargetHireDate: '2026-03-18T12:00:00Z', Backfill: true },
+        { id: '2', RoleTitle: 'B', Stage: 'Cancelled', ProjectIDLookupId: 5 },   // cancelled, no placement, known day
+        { id: '3', RoleTitle: 'C', Stage: 'Cancelled', ProjectIDLookupId: 5 },   // cancelled, no placement, unknown day
+        { id: '4', RoleTitle: 'D', Stage: 'Cancelled', ProjectIDLookupId: 5 },   // cancelled WITH a placement → Open
+        { id: '5', RoleTitle: 'E', Stage: 'Hired', ProjectIDLookupId: 6, OpenDate: '2026-01-10T12:00:00Z' },  // create + link + rename
+        { id: '6', RoleTitle: 'F', Stage: 'Offered', ProjectIDLookupId: 6 },     // 1 existing headcount, 2 unlinked
+        { id: '7', RoleTitle: 'G', Stage: 'Offered', ProjectIDLookupId: 6 },     // 2 headcount → ambiguous
+        { id: '8', RoleTitle: 'H', Stage: 'Hired', ProjectIDLookupId: 6 },       // closed, no placement
+      ];
+      const headcount = [
+        { id: '60', RoleID: 6, ProjectID: 6, Sequence: 1, Status: 'Open' },
+        { id: '70', RoleID: '7', ProjectID: 6, Sequence: 1, Status: 'Open' },
+        { id: '71', RoleID: 7, ProjectID: 6, Sequence: 2, Status: 'Open' },
+      ];
+      const placements = [
+        { id: '400', RoleIDLookupId: 4 },
+        { id: '500', RoleIDLookupId: '5' },
+        { id: '600', RoleIDLookupId: 6 }, { id: '601', RoleIDLookupId: 6 },
+        { id: '700', RoleIDLookupId: 7 },
+        { id: '900', RoleIDLookupId: 99, CandidateName: 'Orphan' },
+      ];
+      const coeRows = [{ id: 'c1', Title: 'Plan row', LinkedRoleID: 5 }, { id: 'c2', LinkedRoleID: null }];
+      const days = { '2': '2026-04-03' };
+      const p = planHeadcountMigration({ roles, headcount, placements, cancelledDayByRole: days, coeRows });
+      const item = id => p.items.find(i => String(i.role.id) === id);
+      const c1 = item('1').create;
+      _assertEqual([c1.Title, c1.RoleID, c1.ProjectID, c1.Sequence, c1.OpenDate, c1.TargetHireDate, c1.Backfill, c1.Status, c1.CancelledDate],
+        ['Headcount 1', 1, 5, 1, '2026-02-01T12:00:00Z', '2026-03-18T12:00:00Z', true, 'Open', undefined], "role 1: create with the role's own dates");
+      _assertEqual([item('2').create.Status, item('2').create.CancelledDate], ['Cancelled', '2026-04-03T12:00:00Z'], 'role 2: cancelled with known day');
+      _assertEqual([item('3').create.Status, item('3').create.CancelledDate], ['Cancelled', undefined], 'role 3: cancelled, day unknown');
+      _assertEqual([item('4').create.Status, item('4').linkPlacementIds], ['Open', [400]], 'role 4: has a placement → Open, linked');
+      _assertEqual([!!item('5').create, item('5').linkPlacementIds, item('5').renameStage], [true, [500], true], 'role 5: create + link + rename');
+      _assertEqual([item('6').create, item('6').headcountId, item('6').linkPlacementIds], [null, 60, [600, 601]], 'role 6: link to its single existing headcount');
+      _assertEqual(item('7'), undefined, 'role 7: nothing written (ambiguous)');
+      _assertEqual(p.ambiguous.map(a => [String(a.role.id), a.placementIds]), [['7', [700]]], 'ambiguous reported');
+      _assertEqual(p.orphanPlacements.map(o => o.id), ['900'], 'orphan reported');
+      _assertEqual(p.closedNoPlacement.map(r => r.id), ['8'], 'closed with no placement reported');
+      _assertEqual(p.coeLinkedRows, [{ id: 'c1', title: 'Plan row', roleId: '5' }], 'CoE linked rows reported');
+      _assertEqual(p.counts, {
+        roles: 8, alreadyHaveHeadcount: 2, toCreate: 6, toCreateCancelled: 2, toLink: 4, toRename: 2,
+        ambiguous: 1, orphanPlacements: 1, closedNoPlacement: 1, coeLinkedRows: 1,
+      }, 'counts');
+
+      // Simulate the write, then re-plan: nothing left to do.
+      let next = 1000;
+      const hc2 = headcount.slice(), pl2 = placements.map(x => ({ ...x })), roles2 = roles.map(r => ({ ...r }));
+      p.items.forEach(it => {
+        let id = it.headcountId;
+        if (it.create) { id = next++; hc2.push({ ...it.create, id: String(id) }); }
+        it.linkPlacementIds.forEach(pid => { pl2.find(x => Number(x.id) === pid).HeadcountID = id; });
+        if (it.renameStage) roles2.find(r => r.id === it.role.id).Stage = normaliseRoleStage(it.role.Stage);
+      });
+      const again = planHeadcountMigration({ roles: roles2, headcount: hc2, placements: pl2, cancelledDayByRole: days, coeRows });
+      _assertEqual(again.items, [], 'second run: items = []');
+      _assertEqual([again.counts.toCreate, again.counts.toLink, again.counts.toRename], [0, 0, 0], 'second run: nothing to write');
+    },
+  },
+  {
+    name: 'N-306 checkHeadcountIntegrity — each probe fires on its own fixture; a clean set reads all zero',
+    fn: function () {
+      const KEYS = ['placementNoHeadcount', 'placementHeadcountMismatch', 'roleNoHeadcount', 'closedWithOpen',
+        'openPipelineNoOpen', 'openDateDrift', 'headcountProjectMismatch', 'legacyStage'];
+      const counts = d => checkHeadcountIntegrity(d).map(c => c.count);
+      const only = key => KEYS.map(k => (k === key ? 1 : 0));
+      // Clean: an open pipeline with one open headcount; a closed pipeline whose one headcount is filled.
+      const clean = () => ({
+        roles: [
+          { id: '1', Stage: 'Sourcing', ProjectIDLookupId: 5, OpenDate: '2026-02-01T12:00:00Z' },
+          { id: '2', Stage: 'Closed', ProjectIDLookupId: 5 },
+        ],
+        headcount: [
+          { id: '10', RoleID: 1, ProjectID: 5, Sequence: 1, Status: 'Open', OpenDate: '2026-02-01T12:00:00Z' },
+          { id: '20', RoleID: 2, ProjectID: '5', Sequence: 1, Status: 'Open' },
+        ],
+        placements: [{ id: 'p', RoleIDLookupId: 2, HeadcountID: 20 }],
+      });
+      _assertEqual(checkHeadcountIntegrity(clean()).map(c => c.key), KEYS, 'check order');
+      _assertEqual(counts(clean()), KEYS.map(() => 0), 'clean → all zero');
+      let d;
+      d = clean(); d.placements.push({ id: 'q', RoleIDLookupId: 2, HeadcountID: '' });
+      _assertEqual(counts(d), only('placementNoHeadcount'), 'placement with no HeadcountID');
+      d = clean(); d.placements.push({ id: 'r', RoleIDLookupId: 2, HeadcountID: 999 });
+      _assertEqual(counts(d), only('placementHeadcountMismatch'), 'placement linked to a headcount that does not exist');
+      d = clean(); d.roles.push({ id: '3', Stage: 'Backlog', ProjectIDLookupId: 5 });
+      _assertEqual(counts(d), only('roleNoHeadcount'), 'role with no headcount');
+      d = clean(); d.headcount.push({ id: '22', RoleID: 2, ProjectID: 5, Sequence: 2, Status: 'Open' });
+      _assertEqual(counts(d), only('closedWithOpen'), 'closed pipeline with an open headcount');
+      d = clean(); d.headcount[0].Status = 'Cancelled';
+      _assertEqual(counts(d), only('openPipelineNoOpen'), 'open pipeline with no open headcount');
+      d = clean(); d.roles[0].OpenDate = '2026-01-15T12:00:00Z';
+      _assertEqual(counts(d), only('openDateDrift'), 'Roles.OpenDate ≠ earliest headcount OpenDate');
+      d = clean(); d.headcount[0].ProjectID = 9;
+      _assertEqual(counts(d), only('headcountProjectMismatch'), 'headcount on another project');
+      d = clean(); d.roles[0].Stage = 'Hired';
+      _assertEqual(counts(d), only('legacyStage'), 'role still at Hired');
+      // Another role's headcount also counts as a mismatch.
+      d = clean(); d.headcount.push({ id: '11', RoleID: 1, ProjectID: 5, Sequence: 2, Status: 'Open', OpenDate: '2026-03-01T12:00:00Z' });
+      d.placements.push({ id: 's', RoleIDLookupId: 2, HeadcountID: 11 });
+      _assertEqual(counts(d), only('placementHeadcountMismatch'), "placement linked to another role's headcount");
+      _assertEqual(checkHeadcountIntegrity({}).map(c => c.count), KEYS.map(() => 0), 'no data → all zero');
+    },
+  },
+  {
+    name: 'N-306 headcount writes only via api.js helpers (lint-headcount-writes guard)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintHeadcountWrites(ALL_SOURCES).map(v => `${v.file}:${v.line}  ${v.text}`), [],
+        'raw RoleHeadcount writes outside api.js (use createHeadcount / updateHeadcount / cancelHeadcount)');
+    },
+  },
+  {
+    name: 'lint-headcount-writes control: flags raw writes outside api.js, ignores reads and api.js (N-306)',
+    fn: function () {
+      const lint = src => lintHeadcountWrites(src).map(v => `${v.file}:${v.line}`);
+      _assertEqual(lint({ 'pages.js': "x();\nawait createItem('RoleHeadcount', f);\nupdateItem( \"RoleHeadcount\", 1, f);\n" }),
+        ['pages.js:2', 'pages.js:3'], 'create + update flagged');
+      _assertEqual(lint({ 'forms.js': 'deleteItem(`RoleHeadcount`, 3);\n' }), ['forms.js:1'], 'delete, backtick');
+      _assertEqual(lint({ 'api.js': "createItem('RoleHeadcount', f);\n" }), [], 'api.js is the home of headcount writes');
+      _assertEqual(lint({ 'pages.js': "getItems('RoleHeadcount');\ncreateItem('RoleHistory', f);\n" }), [], 'reads and other lists not flagged');
+    },
+  },
+  {
+    name: 'N-306 stageArrayVocab keeps the retired Hired, plus Closed and Placed',
+    fn: function () {
+      const v = stageArrayVocab(CONFIG);
+      ['Hired', 'Closed', 'Placed'].forEach(s => _assertEqual(v.includes(s), true, s + ' in the vocabulary'));
     },
   },
 ];

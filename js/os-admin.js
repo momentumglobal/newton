@@ -517,10 +517,12 @@ async function buildDataHealthTab() {
   const data = await _dhFetchSectionData();
   return _dhRenderRowCountsHtml(data)
     + _dhRenderDataIntegrityHtml(data)
+    + _dhRenderHeadcountIntegrityHtml(data)
     + _dhRenderWeeklyAnomaliesHtml(data)
     + _dhRenderIndexStatusHtml(data)
     + _dhRenderSchemaCheckHtml(data)
     + _dhRenderErrorTelemetryHtml(data)
+    + _dhRenderHeadcountMigrationHtml()
     + _dhRenderRoleHistoryBackfillHtml()
     + _dhRenderPeoplePayMigrationHtml();
 }
@@ -582,6 +584,17 @@ async function _dhFetchSectionData() {
   // { ok: false } and renders as a Query error, not as zeros.
   const anomalies = await _dhFetchAnomalies();
 
+  // N-306: headcount integrity. Pure check (checkHeadcountIntegrity, utils.js);
+  // a failed read is { ok: false } and renders as Query error, never zeros.
+  let headcountIntegrity;
+  try {
+    const [hRoles, hRows, hPlacements] = await Promise.all([getAllRoles(), getAllHeadcount(), getPlacements()]);
+    headcountIntegrity = { ok: true, checks: checkHeadcountIntegrity({ roles: hRoles, headcount: hRows, placements: hPlacements }) };
+  } catch (e) {
+    console.warn('Data Health: headcount integrity read failed', e);
+    headcountIntegrity = { ok: false, checks: [] };
+  }
+
   return {
     lists, counts, deniedLists, excludedLists,
     nullProjectOk, nullProjectCount, nullWeekEndingOk, nullWeekEndingCount,
@@ -589,6 +602,7 @@ async function _dhFetchSectionData() {
     schemaResults,
     diagList,
     anomalies,
+    headcountIntegrity,
   };
 }
 
@@ -706,6 +720,37 @@ function _dhRenderDataIntegrityHtml(data) {
     </div>
 `;
 }
+
+// ── Data Health Tab — render: Headcount integrity (N-306) ────────────
+function _dhRenderHeadcountIntegrityHtml(data) {
+  const h = data.headcountIntegrity || { ok: false, checks: [] };
+  const cap = CONFIG.WEEKLY_ANOMALIES.displayRows;
+  const body = !h.ok
+    ? `<tr><td>Headcount checks</td><td><span class="dh-badge dh-badge-danger">Query error</span></td><td></td></tr>`
+    : h.checks.map(c => `
+        <tr>
+          <td>${escHtml(c.label)}${c.count ? `
+            <details><summary class="dh-muted">Show</summary>
+              <span class="dh-muted">${c.sample.slice(0, cap).map(escHtml).join(', ')}${c.count > cap ? ` +${c.count - cap} more` : ''}</span>
+            </details>` : ''}</td>
+          <td>${c.count.toLocaleString('en-GB')}</td>
+          <td>${c.count ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
+        </tr>`).join('');
+  return `    <h3>Headcount integrity (N-306)</h3>
+    <p class="dh-note">
+      Roles are pipelines; each RoleHeadcount row is one hire. Every check must
+      read zero once the headcount migration below has run — except "Closed
+      pipelines with open headcount", which also lists closed roles that never
+      had a placement recorded: add the placement, or cancel the headcount.
+      A "Query error" badge means the check itself failed — unknown, not zero.
+    </p>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Check</th><th>Rows</th><th></th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    </div>
+`;
 
 // ── Data Health Tab — render: WeeklyActivity Anomalies (N-271) ───────
 // '2026-09-27' → '27 Sep'. utcDateOnly + timeZone 'UTC': no local getter.
@@ -1144,7 +1189,7 @@ async function _dhFetchRoleHistoryBackfillPlan() {
 
   return {
     scanned: roles.length, counts, failures, plan, rowsTotal, earliestISO,
-    coverage: [stageCoverage('Cancelled'), stageCoverage('Hired')],
+    coverage: [stageCoverage('Cancelled'), stageCoverage(CONFIG.ROLE_STAGE_CLOSED)],
   };
 }
 
@@ -1270,6 +1315,146 @@ async function writeRoleHistoryBackfill() {
     </p>`;
   toast(failed.length ? `Backfill finished with ${failed.length} role(s) failed` : `Backfill written: ${written} rows`,
     { type: failed.length ? 'error' : 'success' });
+}
+
+// ── Data Health Tab — Headcount migration (N-306 / HC-1) ─────────────
+// One-off, re-runnable: every role gets one RoleHeadcount row with its own
+// dates, every placement is linked to its role's headcount, and Stage Hired
+// becomes Closed. Dry run (reads only) then Write (confirmed). Plan is pure
+// (planHeadcountMigration, utils.js); writes are writeHeadcountMigration
+// (api-admin.js). No RoleHistory rows are written.
+let _hcMigrationPlan = null;  // last dry-run result; cleared once written
+
+function _dhRenderHeadcountMigrationHtml() {
+  return `    <h3>Headcount migration (N-306)</h3>
+    <p class="dh-note">
+      Creates one headcount per role (its Open / Target dates and Backfill),
+      links each placement to it, and renames Stage Hired → Closed. Never
+      merges roles and never rewrites RoleHistory. Safe to re-run — a second
+      dry run should report nothing to write.
+    </p>
+    <button class="btn-secondary" onclick="runHeadcountMigrationDryRun()">Dry run</button>
+    <div id="dh-hc-migration"></div>
+`;
+}
+
+function _dhRenderHeadcountPlanHtml(p) {
+  const C = CONFIG.HEADCOUNT_MIGRATION;
+  const c = p.counts;
+  const summary = [
+    ['Roles read', c.roles],
+    ['Already have headcount', c.alreadyHaveHeadcount],
+    ['Headcount to create', c.toCreate],
+    ['… of which Cancelled (cancelled role, no placement)', c.toCreateCancelled],
+    ['Placements to link', c.toLink],
+    ['Roles to rename Hired → Closed', c.toRename],
+    ['Not linked — role has 2+ headcount', c.ambiguous],
+    ['Placements on a role that no longer exists', c.orphanPlacements],
+    ['Closed roles with no placement (headcount stays open)', c.closedNoPlacement],
+    ['Hiring Plan rows linked to a role (re-pointed by N-312)', c.coeLinkedRows],
+  ].map(([k, v]) => `
+      <tr><td>${k}</td><td>${v.toLocaleString('en-GB')}</td></tr>`).join('');
+
+  const what = item => [
+    item.create ? 'create ' + escHtml(item.create.Status.toLowerCase()) + ' headcount' : '',
+    item.linkPlacementIds.length ? 'link ' + item.linkPlacementIds.length + ' placement(s)' : '',
+    item.renameStage ? 'Stage ' + escHtml(item.role.Stage) + ' → ' + escHtml(normaliseRoleStage(item.role.Stage)) : '',
+  ].filter(Boolean).join(' · ');
+  const preview = p.items.slice(0, C.previewRows).map(item => `
+      <tr><td>${_dhRoleLabel(item.role)}</td><td>${what(item)}</td></tr>`).join('');
+
+  const list = (title, rows) => rows.length
+    ? `<p class="dh-note">${title}: ${rows.join(', ')}</p>` : '';
+  const reported =
+      list('Not linked (2+ headcount)', p.ambiguous.map(a => _dhRoleLabel(a.role)))
+    + list('Placements on a missing role', p.orphanPlacements.map(pl => escHtml(pl.CandidateName || ('Placement ' + pl.id))))
+    + list('Closed with no placement — add the placement or cancel the headcount', p.closedNoPlacement.map(_dhRoleLabel))
+    + list('Hiring Plan rows linked to roles', p.coeLinkedRows.map(r => escHtml(r.title || ('Row ' + r.id)) + ' → role ' + escHtml(r.roleId)));
+
+  const action = p.items.length
+    ? `<button class="btn-primary" onclick="writeHeadcountMigrationNow()">Write changes for ${p.items.length.toLocaleString('en-GB')} roles</button>
+    <p class="dh-note" id="dh-hc-migration-progress"></p>`
+    : '<p class="dh-note">Nothing to write.</p>';
+
+  return `
+    <div class="table-scroll">
+    <table class="data-table dh-table-tight">
+      <thead><tr><th>Dry run</th><th>Count</th></tr></thead>
+      <tbody>${summary}</tbody>
+    </table>
+    </div>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Role</th><th>Change</th></tr></thead>
+      <tbody>${preview || emptyStateRow({ colspan: 2, icon: 'check', message: 'Every role is already migrated.' })}</tbody>
+    </table>
+    </div>
+    ${p.items.length > C.previewRows ? `<p class="dh-note">Showing the first ${C.previewRows} of ${p.items.length.toLocaleString('en-GB')} roles.</p>` : ''}
+    ${reported}
+    ${action}
+`;
+}
+
+async function runHeadcountMigrationDryRun() {
+  // N-106 pattern: capture the button synchronously, before any await.
+  const btn = event?.target;
+  const out = document.getElementById('dh-hc-migration');
+  setButtonLoading(btn, 'Reading…');
+  try {
+    const [roles, headcount, placements, stageRows, coeRows] = await Promise.all([
+      getAllRoles(), getAllHeadcount(), getPlacements(), getRoleStageHistory(), getAllCoEPlanRows(),
+    ]);
+    // D-1 retroactively: the day each Cancelled role entered Cancelled.
+    // getRoleStageHistory() already reads through the legacy alias.
+    const byRole = groupStageHistoryByRole(stageRows);
+    const cancelledDayByRole = {};
+    roles.forEach(r => {
+      if (r.Stage !== 'Cancelled') return;
+      const day = roleStageEntryDay(r, byRole[String(r.id)]);
+      if (day) cancelledDayByRole[String(r.id)] = day;
+    });
+    _hcMigrationPlan = planHeadcountMigration({ roles, headcount, placements, cancelledDayByRole, coeRows });
+    out.innerHTML = _dhRenderHeadcountPlanHtml(_hcMigrationPlan);
+    lucide.createIcons();
+  } catch (e) {
+    toast('Dry run failed: ' + e.message, { type: 'error' });
+  } finally {
+    clearButtonLoading(btn);
+  }
+}
+
+async function writeHeadcountMigrationNow() {
+  const btn = event?.target;
+  const p = _hcMigrationPlan;
+  if (!p || !p.items.length) return;
+  const c = p.counts;
+  if (!(await confirmModal({
+    message: `Create ${c.toCreate} headcount rows, link ${c.toLink} placements and rename ${c.toRename} roles Hired → Closed? No RoleHistory rows are written. Safe to re-run.`,
+    confirmLabel: 'Write changes',
+  }))) return;
+  setButtonLoading(btn, 'Writing…');
+  const progress = document.getElementById('dh-hc-migration-progress');
+  let result;
+  try {
+    result = await writeHeadcountMigration(p, (n, total) => {
+      if (progress) progress.textContent = `Roles done ${n} of ${total}…`;
+    });
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Headcount migration failed: ' + e.message, { type: 'error' });
+    return;
+  }
+  _hcMigrationPlan = null;
+  clearButtonLoading(btn);
+  const w = result.written;
+  document.getElementById('dh-hc-migration').innerHTML = `
+    <p class="dh-note"><strong>Created ${w.headcount} headcount, linked ${w.links} placements, renamed ${w.renames} roles.</strong>
+      ${result.failed.length
+        ? 'Failed for: ' + result.failed.map(f => _dhRoleLabel(f.role)).join(', ') + ' — the browser console has the errors. Run the dry run again to pick up the rest.'
+        : 'Run the dry run again — it should report nothing to write. Then refresh this tab: Headcount integrity should read zero.'}
+    </p>`;
+  toast(result.failed.length ? `Headcount migration finished with ${result.failed.length} role(s) failed` : 'Headcount migration written',
+    { type: result.failed.length ? 'error' : 'success' });
 }
 
 // ── Data Health Tab — PeoplePay migration (N-286 / SEC-6) ────────────

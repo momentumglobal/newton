@@ -2307,3 +2307,287 @@ function buildPayrollSummaryFields({ month, year, joiners, leavers, bonus }) {
     BonusData: bonus ? JSON.stringify(bonus) : null,
   };
 }
+
+// ── Headcount (N-306 / HC-1) ───────────────────────────────────────────
+// Pure helpers for the RoleHeadcount list. A Role is the pipeline; each
+// RoleHeadcount row is one hire slot. Status ('Open' | 'Cancelled') is
+// stored; "filled" is DERIVED from Placements.HeadcountID and never stored
+// (headcount model rule 4). RoleID / ProjectID / HeadcountID are plain
+// Number columns that can arrive as numbers or numeric strings, so every id
+// comparison here goes through String(). Day values go through spDateIn() —
+// never a Date and a local getter (BST shift).
+
+// Retired stage → current stage (CONFIG.ROLE_STAGE_LEGACY_ALIASES): 'Hired'
+// → 'Closed'. Anything else, blank included, comes back unchanged.
+function normaliseRoleStage(stage) {
+  const aliases = CONFIG.ROLE_STAGE_LEGACY_ALIASES || {};
+  return Object.prototype.hasOwnProperty.call(aliases, stage) ? aliases[stage] : stage;
+}
+
+// RoleHistory rows with their Stage values read through normaliseRoleStage().
+// Applied on EVERY RoleHistory read path (api.js, api-admin.js) — RoleHistory
+// itself is never rewritten (model rule 5). Only Field 'Stage' rows change.
+// Returns a new array and new objects for changed rows; never mutates its
+// input, which may be an array shared through the tier-1 cache.
+function normaliseRoleHistoryRows(rows) {
+  return (rows || []).map(r => {
+    if (!r || r.Field !== 'Stage') return r;
+    const oldValue = normaliseRoleStage(r.OldValue);
+    const newValue = normaliseRoleStage(r.NewValue);
+    return (oldValue === r.OldValue && newValue === r.NewValue)
+      ? r : { ...r, OldValue: oldValue, NewValue: newValue };
+  });
+}
+
+function _isBlankId(v) {
+  return v === null || v === undefined || v === '';
+}
+
+// Map<String(headcountId), placement[]> — the placements filling each
+// headcount. Placements with no HeadcountID are skipped.
+function headcountFillMap(placements) {
+  const map = new Map();
+  (placements || []).forEach(p => {
+    if (!p || _isBlankId(p.HeadcountID)) return;
+    const k = String(p.HeadcountID);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(p);
+  });
+  return map;
+}
+
+// 'filled' | 'cancelled' | 'open'. A linked placement wins over a Cancelled
+// status: the placement is a fact, the status a stored flag.
+function classifyHeadcount(hc, fillMap) {
+  if (hc && fillMap && fillMap.has(String(hc.id))) return 'filled';
+  if (hc && hc.Status === CONFIG.HEADCOUNT.STATUS_CANCELLED) return 'cancelled';
+  return 'open';
+}
+
+// D-5: "x/y" = open / total, where total = open + filled (cancelled is
+// excluded from y). A headcount with no OpenDate still counts as open.
+function headcountCounts(rows, fillMap) {
+  const out = { open: 0, filled: 0, cancelled: 0, total: 0 };
+  (rows || []).forEach(hc => { if (hc) out[classifyHeadcount(hc, fillMap)]++; });
+  out.total = out.open + out.filled;
+  return out;
+}
+
+// "Pipeline opened" (model rule 3): the earliest OpenDate across ALL of a
+// role's headcount, cancelled included, as 'YYYY-MM-DD' — null when none has
+// one. syncRoleOpenDate() (api.js) keeps Roles.OpenDate equal to this.
+function earliestHeadcountOpenDate(rows) {
+  let min = null;
+  (rows || []).forEach(hc => {
+    const day = hc && hc.OpenDate ? spDateIn(hc.OpenDate) : null;
+    if (day && (min === null || day < min)) min = day;
+  });
+  return min;
+}
+
+// 1-based per role, never reused: one past the highest Sequence present.
+function nextHeadcountSequence(rows) {
+  const max = (rows || []).reduce((m, hc) => {
+    const n = Number(hc && hc.Sequence);
+    return Number.isFinite(n) && n > m ? n : m;
+  }, 0);
+  return max + 1;
+}
+
+// RoleHeadcount.Title — 'Headcount 2'.
+function headcountLabel(n) {
+  return fillTemplate(CONFIG.HEADCOUNT.labelTemplate, { n });
+}
+
+// D-5 order for a role's OPEN headcount: OpenDate earliest first, no OpenDate
+// last ("not opened"), ties by Sequence. Filled and cancelled rows are
+// excluded. Returns a new array. N-308's placement picker reuses this order.
+function orderOpenHeadcount(rows, fillMap) {
+  const day = hc => (hc.OpenDate ? spDateIn(hc.OpenDate) : null);
+  const seq = hc => { const n = Number(hc.Sequence); return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER; };
+  return (rows || [])
+    .filter(hc => hc && classifyHeadcount(hc, fillMap) === 'open')
+    .sort((a, b) => {
+      const da = day(a), db = day(b);
+      if (da !== db) {
+        if (da === null) return 1;
+        if (db === null) return -1;
+        return da < db ? -1 : 1;
+      }
+      return seq(a) - seq(b);
+    });
+}
+
+// Transitional (N-306, until N-308's picker): the headcount a new placement
+// on a role is linked to — the first open one in D-5 order; when none is
+// open, the lowest-Sequence non-cancelled one (a migrated role can carry
+// several placements on its one headcount); otherwise null. Number id.
+function defaultHeadcountForPlacement(rows, fillMap) {
+  const open = orderOpenHeadcount(rows, fillMap);
+  if (open.length) return Number(open[0].id);
+  const live = (rows || [])
+    .filter(hc => hc && hc.Status !== CONFIG.HEADCOUNT.STATUS_CANCELLED)
+    .sort((a, b) => (Number(a.Sequence) || 0) - (Number(b.Sequence) || 0));
+  return live.length ? Number(live[0].id) : null;
+}
+
+function _groupByKey(rows, keyFn) {
+  const map = new Map();
+  (rows || []).forEach(r => {
+    if (!r) return;
+    const k = keyFn(r);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(r);
+  });
+  return map;
+}
+
+function _headcountRoleLabel(role) {
+  return role.Location ? `${role.RoleTitle} (${role.Location})` : (role.RoleTitle || ('Role ' + role.id));
+}
+
+// N-306. The one-off Roles → RoleHeadcount migration plan (model rule 5: 1:1,
+// no merging). Pure and idempotent — re-planning after a full write gives
+// items = []. Inputs are what the Data Health dry run reads:
+//   roles, headcount, placements — whole lists;
+//   cancelledDayByRole — { [roleId]: 'YYYY-MM-DD' }, the day each Cancelled
+//     role entered Cancelled (os-admin.js builds it with roleStageEntryDay);
+//   coeRows — CoEPlanRows, reported only (N-312 re-points LinkedRoleID).
+// Per role, writes planned:
+//   create  — one headcount when the role has none: the role's OpenDate,
+//             TargetHireDate and Backfill; Status Cancelled (+ CancelledDate
+//             when known) when the role is Cancelled with no placement —
+//             D-1 applied retroactively; otherwise Open.
+//   link    — the role's placements with no HeadcountID, only when the role
+//             ends up with exactly ONE headcount.
+//   rename  — a retired stage (Hired) → its alias (Closed).
+// Reported, never written: ambiguous (unlinked placements on a role with 2+
+// headcount), orphanPlacements (role id unknown), closedNoPlacement (Closed
+// pipelines with no placement — their headcount stays open, because "filled"
+// needs a placement), coeLinkedRows.
+function planHeadcountMigration({ roles = [], headcount = [], placements = [], cancelledDayByRole = {}, coeRows = [] } = {}) {
+  const H = CONFIG.HEADCOUNT;
+  const hcByRole = _groupByKey(headcount, hc => String(hc.RoleID));
+  const plByRole = _groupByKey(placements, p => String(p.RoleIDLookupId));
+  const roleIds = new Set((roles || []).filter(Boolean).map(r => String(r.id)));
+  const counts = {
+    roles: 0, alreadyHaveHeadcount: 0, toCreate: 0, toCreateCancelled: 0,
+    toLink: 0, toRename: 0, ambiguous: 0, orphanPlacements: 0,
+    closedNoPlacement: 0, coeLinkedRows: 0,
+  };
+  const items = [], ambiguous = [], closedNoPlacement = [];
+
+  (roles || []).forEach(role => {
+    if (!role) return;
+    counts.roles++;
+    const id = String(role.id);
+    const rows = hcByRole.get(id) || [];
+    const pls = plByRole.get(id) || [];
+    const stage = normaliseRoleStage(role.Stage);
+    const renameStage = stage !== role.Stage;
+
+    let create = null;
+    if (rows.length) {
+      counts.alreadyHaveHeadcount++;
+    } else {
+      const cancelled = stage === 'Cancelled' && !pls.length;
+      const projectId = role.ProjectIDLookupId ?? role.ProjectID;
+      const cancelledDay = cancelled ? (cancelledDayByRole || {})[id] : null;
+      create = {
+        Title:          headcountLabel(1),
+        RoleID:         Number(role.id),
+        ProjectID:      _isBlankId(projectId) ? undefined : Number(projectId),
+        Sequence:       1,
+        OpenDate:       role.OpenDate ? isoDate(spDateIn(role.OpenDate)) : undefined,
+        TargetHireDate: role.TargetHireDate ? isoDate(spDateIn(role.TargetHireDate)) : undefined,
+        Backfill:       role.Backfill === true,
+        Status:         cancelled ? H.STATUS_CANCELLED : H.STATUS_OPEN,
+        CancelledDate:  cancelledDay ? isoDate(cancelledDay) : undefined,
+      };
+      counts.toCreate++;
+      if (cancelled) counts.toCreateCancelled++;
+    }
+
+    const unlinked = pls.filter(p => _isBlankId(p.HeadcountID)).map(p => Number(p.id));
+    let linkPlacementIds = [];
+    if (unlinked.length) {
+      if ((rows.length || 1) === 1) linkPlacementIds = unlinked;
+      else ambiguous.push({ role, placementIds: unlinked });
+    }
+    counts.toLink += linkPlacementIds.length;
+    if (renameStage) counts.toRename++;
+    if (stage === CONFIG.ROLE_STAGE_CLOSED && !pls.length) closedNoPlacement.push(role);
+
+    if (create || linkPlacementIds.length || renameStage) {
+      items.push({
+        role,
+        create,
+        headcountId: rows.length === 1 ? Number(rows[0].id) : null,
+        linkPlacementIds,
+        renameStage,
+      });
+    }
+  });
+
+  const orphanPlacements = (placements || []).filter(p => p && !roleIds.has(String(p.RoleIDLookupId)));
+  const coeLinkedRows = (coeRows || []).filter(r => r && !_isBlankId(r.LinkedRoleID))
+    .map(r => ({ id: r.id, title: r.Title || '', roleId: String(r.LinkedRoleID) }));
+  counts.ambiguous         = ambiguous.length;
+  counts.orphanPlacements  = orphanPlacements.length;
+  counts.closedNoPlacement = closedNoPlacement.length;
+  counts.coeLinkedRows     = coeLinkedRows.length;
+  return { items, counts, ambiguous, orphanPlacements, closedNoPlacement, coeLinkedRows };
+}
+
+// N-306. Headcount integrity probes for Admin > Data Health. Pure. Returns
+// [{ key, label, count, sample }] in display order; `sample` is every
+// offending row's label (the renderer truncates). After the migration every
+// count must read 0, except closedWithOpen for Closed pipelines that never
+// had a placement recorded (the dry run lists them as closedNoPlacement).
+// Checks 4–6 only look at roles that HAVE headcount, so a role with none is
+// reported once (roleNoHeadcount), not three times.
+function checkHeadcountIntegrity({ roles = [], headcount = [], placements = [] } = {}) {
+  roles = (roles || []).filter(Boolean);
+  headcount = (headcount || []).filter(Boolean);
+  placements = (placements || []).filter(Boolean);
+  const roleById = new Map(roles.map(r => [String(r.id), r]));
+  const hcById = new Map(headcount.map(h => [String(h.id), h]));
+  const hcByRole = _groupByKey(headcount, h => String(h.RoleID));
+  const fill = headcountFillMap(placements);
+  const rowsOf = r => hcByRole.get(String(r.id)) || [];
+  const openOf = r => headcountCounts(rowsOf(r), fill).open;
+  const withHc = roles.filter(r => rowsOf(r).length);
+  const plLabel = p => p.CandidateName || ('Placement ' + p.id);
+  const hcLabel = h => {
+    const r = roleById.get(String(h.RoleID));
+    return (r ? _headcountRoleLabel(r) : 'Role ' + h.RoleID) + ' · ' + (h.Title || headcountLabel(h.Sequence));
+  };
+  const aliases = CONFIG.ROLE_STAGE_LEGACY_ALIASES || {};
+  const checks = [
+    ['placementNoHeadcount', 'Placements with no HeadcountID',
+      placements.filter(p => _isBlankId(p.HeadcountID)).map(plLabel)],
+    ['placementHeadcountMismatch', 'Placements whose headcount is missing or belongs to another role',
+      placements.filter(p => {
+        if (_isBlankId(p.HeadcountID)) return false;
+        const h = hcById.get(String(p.HeadcountID));
+        return !h || String(h.RoleID) !== String(p.RoleIDLookupId);
+      }).map(plLabel)],
+    ['roleNoHeadcount', 'Roles with no headcount',
+      roles.filter(r => !rowsOf(r).length).map(_headcountRoleLabel)],
+    ['closedWithOpen', 'Closed pipelines with open headcount',
+      withHc.filter(r => r.Stage === CONFIG.ROLE_STAGE_CLOSED && openOf(r) > 0).map(_headcountRoleLabel)],
+    ['openPipelineNoOpen', 'Open pipelines with no open headcount',
+      withHc.filter(r => isOpenPipelineStage(r.Stage) && openOf(r) === 0).map(_headcountRoleLabel)],
+    ['openDateDrift', 'Roles whose Open Date is not their earliest headcount Open Date',
+      withHc.filter(r => (r.OpenDate ? spDateIn(r.OpenDate) : null) !== earliestHeadcountOpenDate(rowsOf(r)))
+        .map(_headcountRoleLabel)],
+    ['headcountProjectMismatch', "Headcount whose project differs from its role's (or whose role is gone)",
+      headcount.filter(h => {
+        const r = roleById.get(String(h.RoleID));
+        return !r || String(h.ProjectID) !== String(r.ProjectIDLookupId ?? r.ProjectID);
+      }).map(hcLabel)],
+    ['legacyStage', 'Roles still at a retired stage (' + Object.keys(aliases).join(', ') + ')',
+      roles.filter(r => Object.prototype.hasOwnProperty.call(aliases, r.Stage)).map(_headcountRoleLabel)],
+  ];
+  return checks.map(([key, label, sample]) => ({ key, label, count: sample.length, sample }));
+}

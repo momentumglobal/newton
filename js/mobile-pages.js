@@ -453,6 +453,14 @@ async function mobileSubmitPlacement(rolePreselected) {
     }
   } catch (e) { /* non-critical */ }
 
+  // N-306 (transitional, until N-308's picker): link to the role's earliest
+  // open headcount. Non-critical, like TimeToHire — Data Health reports a gap.
+  let headcountId;
+  try {
+    const [hcRows, rolePlacements] = await Promise.all([getHeadcountForRole(roleId), getPlacements(roleId)]);
+    headcountId = defaultHeadcountForPlacement(hcRows, headcountFillMap(rolePlacements)) ?? undefined;
+  } catch (e) { /* non-critical */ }
+
   const fields = {
     RoleIDLookupId:       roleId,
     Title:                candidate,
@@ -462,6 +470,7 @@ async function mobileSubmitPlacement(rolePreselected) {
     OfferAcceptedDate:    offerDate || undefined,
     ProvisionalStartDate: startDate || undefined,
     TimeToHire:           timeToHire,
+    HeadcountID:          headcountId,
   };
 
   // N-218d: close-immediately variant -- no list is on screen behind this

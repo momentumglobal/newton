@@ -379,11 +379,26 @@ async function submitRoleForm(event, editId = null) {
     Department:     data.Department || undefined,
     Notes:          data.Notes || undefined,
   };
+  // N-306 (transitional, until N-307): the form's dates + Backfill are
+  // mirrored onto headcount #1. Deliberately a separate object, built after
+  // `fields` — tests/lint-role-copy-fields.js parses `const fields = {`.
+  const headcountValues = {
+    OpenDate:       fields.OpenDate,
+    TargetHireDate: fields.TargetHireDate,
+    Backfill:       fields.Backfill,
+  };
+  const HEADCOUNT_FAIL_MSG = 'Role saved, but its headcount row did not update — see Admin → Data Health.';
   if (editId) {
     // N-218a: optimistic insert is a create-only concept -- editing an
     // existing role is unaffected, unchanged from before this task.
     try {
       await updateRoleWithHistory(editId, fields);
+      try {
+        await upsertPrimaryHeadcount(editId, fields.ProjectIDLookupId, headcountValues);
+      } catch (e) {
+        console.warn('N-306: headcount mirror failed for role ' + editId, e);
+        toast(HEADCOUNT_FAIL_MSG, { type: 'error' });
+      }
       navigateTo('roles');
     } catch (e) {
       clearButtonLoading(btn);
@@ -398,7 +413,19 @@ async function submitRoleForm(event, editId = null) {
         navigateTo('roles', pendingItem);
       },
       revert: async () => { await renderRolesPage(_rolesFilter); },
-      commit: () => createRoleWithHistory(fields),
+      // N-306: a headcount failure must NOT reject commit — that would revert
+      // the view and offer a Retry that creates a duplicate role. The Data
+      // Health migration (re-runnable) creates any missing headcount.
+      commit: async () => {
+        const created = await createRoleWithHistory(fields);
+        try {
+          await upsertPrimaryHeadcount(created.id, fields.ProjectIDLookupId, headcountValues);
+        } catch (e) {
+          console.warn('N-306: headcount create failed for role ' + created.id, e);
+          toast(HEADCOUNT_FAIL_MSG, { type: 'error' });
+        }
+        return created;
+      },
       errorMessage: 'Error saving role — change reverted.',
     });
     await renderRolesPage(_rolesFilter);
@@ -872,6 +899,29 @@ async function submitPlacementForm(event, editId = null) {
       }
     } catch (e) { /* non-critical */ }
   }
+  // N-306 (transitional, until N-308's picker): link the placement to the
+  // role's earliest open headcount. An edit keeps its headcount while that
+  // headcount still belongs to the (possibly changed) role. Non-critical, like
+  // TimeToHire: on a read failure HeadcountID is left unwritten and Admin >
+  // Data Health reports it.
+  let headcountId = undefined;
+  if (data.RoleID) {
+    try {
+      const [hcRows, rolePlacements, stored] = await Promise.all([
+        getHeadcountForRole(data.RoleID),
+        getPlacements(data.RoleID),
+        editId ? getItem('Placements', editId) : Promise.resolve(null),
+      ]);
+      const keep = stored && stored.HeadcountID !== null && stored.HeadcountID !== undefined && stored.HeadcountID !== ''
+        && hcRows.some(hc => String(hc.id) === String(stored.HeadcountID));
+      if (keep) {
+        headcountId = Number(stored.HeadcountID);
+      } else {
+        const others = rolePlacements.filter(pl => String(pl.id) !== String(editId));
+        headcountId = defaultHeadcountForPlacement(hcRows, headcountFillMap(others)) ?? undefined;
+      }
+    } catch (e) { /* non-critical — see above */ }
+  }
   const fields = {
     RoleIDLookupId:       parseInt(data.RoleID),
     Title:                data.CandidateName,
@@ -882,6 +932,7 @@ async function submitPlacementForm(event, editId = null) {
     ProvisionalStartDate: startDate || undefined,
     TimeToHire:           timeToHire,
     Notes:                data.Notes || undefined,
+    HeadcountID:          headcountId,
   };
 
   if (editId) {

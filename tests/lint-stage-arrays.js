@@ -6,8 +6,8 @@
 // ROLE_STAGES_ACTIVITY_EXCLUDED) or is derived from them
 // (utils.js:isOpenPipelineStage). Before N-305 the same 4-stage set was
 // hand-copied ~20 times across 9 files, which would have made N-306's
-// Hired → Closed rename a hunt. This turns "use the CONFIG sets" into a build
-// failure instead of a convention.
+// Hired → Closed rename a hunt (N-306 was a config edit as a result). This
+// turns "use the CONFIG sets" into a build failure instead of a convention.
 //
 // Violation: an array literal (may span lines; whitespace, commas and
 // comments allowed) whose elements are ONLY string literals, at least 2 of
@@ -29,11 +29,15 @@ var STAGE_ARRAY_ALLOW = [
   { file: 'analytics.js', name: 'ACTIVE_STAGES' },
 ];
 
-// Stage names the lint recognises: the live enum plus 'Closed' (introduced
-// by N-306 — caught before it reaches ROLE_STAGES) and the legacy 'Placed'.
+// Stage names the lint recognises: the live enum, the retired stages still in
+// CONFIG.ROLE_STAGE_LEGACY_ALIASES ('Hired', N-306) and the legacy 'Placed'.
+// Without the aliases, 'Hired' would drop out of the vocabulary at N-306 and
+// a hand-copied pre-N-306 set would no longer be caught.
 function stageArrayVocab(cfg) {
   var out = [];
-  (cfg.ROLE_STAGES || []).concat(['Closed', 'Placed']).forEach(function (s) {
+  (cfg.ROLE_STAGES || [])
+    .concat(Object.keys(cfg.ROLE_STAGE_LEGACY_ALIASES || {}))
+    .concat(['Placed']).forEach(function (s) {
     if (out.indexOf(s) === -1) out.push(s);
   });
   return out;

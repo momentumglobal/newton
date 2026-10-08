@@ -20,8 +20,13 @@ async function mobileGetRoles() {
     );
   }
 
-  // Exclude terminal stages
-  return allRoles.filter(r => !CONFIG.ROLE_STAGE_TERMINAL.includes(r.Stage));
+  // Exclude terminal stages. Roles rows carry no customer name (only the
+  // project lookup), so attach it from the scoped projects already loaded —
+  // as COPIES: getItems() arrays are the shared cache.
+  const nameById = new Map(projects.map(p => [String(p.id), p.CustomerName]));
+  return allRoles
+    .filter(r => !CONFIG.ROLE_STAGE_TERMINAL.includes(r.Stage))
+    .map(r => ({ ...r, CustomerName: nameById.get(String(r.ProjectIDLookupId || r.ProjectID)) || '' }));
 }
 
 // ── Role Detail ───────────────────────────────────────────────────────
@@ -37,10 +42,14 @@ async function mobileRenderRoleDetail(main) {
     // N-310 (S-10): read-only headcount summary (the Headcount section itself
     // stays desktop-only, D-6). A failed headcount read falls back to
     // Roles.OpenDate for "Oldest open" and "—" for the rest.
-    const [role, hcState] = await Promise.all([
+    const [roleRow, hcState, projects] = await Promise.all([
       getItem('Roles', _mobileRoleId),
       getRoleHeadcountState(_mobileRoleId).catch(e => { console.warn('N-310: headcount read failed', e); return null; }),
+      getProjects(false),
     ]);
+    // Roles rows carry no customer name — resolve it from the project lookup.
+    const project = projects.find(p => String(p.id) === String(roleRow.ProjectIDLookupId || roleRow.ProjectID));
+    const role = { ...roleRow, CustomerName: project ? project.CustomerName : '' };
     mobileSetTitle(role.RoleTitle, role.CustomerName || 'Role Detail');
 
     const openDay = hcState

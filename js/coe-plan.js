@@ -392,14 +392,16 @@ function coeRenderOpensSection() {
 }
 
 // N-318: pure — summary + chart + table, shared by this page and the Report
-// Builder's final page (which passes { summary:false }). '' with no plan rows;
-// null when headcount isn't an array (unread ≠ zero opens — the caller words
-// the message, so the page and the PDF can each say the right thing).
-function coeOpensBlockHtml(planRows, headcount, { summary = true } = {}) {
+// Builder's final page (which passes { horizontal:true }: months across).
+// '' with no plan rows; null when headcount isn't an array (unread ≠ zero
+// opens — the caller words the message, so the page and the PDF can each say
+// the right thing).
+function coeOpensBlockHtml(planRows, headcount, { summary = true, horizontal = false } = {}) {
   if (!planRows || !planRows.length) return '';
   if (!Array.isArray(headcount)) return null;
   const m = coeOpensModel(planRows, headcount);
-  return (summary ? coeOpensSummaryHtml(m) : '') + coeOpensChartSvg(m) + coeOpensTableHtml(m);
+  return (summary ? coeOpensSummaryHtml(m) : '') + coeOpensChartSvg(m)
+    + (horizontal ? coeOpensHorizontalTableHtml(m) : coeOpensTableHtml(m));
 }
 
 function coeOpensSummaryHtml(m) {
@@ -473,27 +475,67 @@ function coeOpensChartSvg(m) {
     + _chartGridSvg(PAD.left, W, PAD.right, grid) + bars + rateSvg + `</svg>${legend}</div>`;
 }
 
-function coeOpensTableHtml(m) {
-  const varCell = v => {
-    if (v == null) return '—';
-    const cls = v > 0 ? 'coe-fvp-var-pos' : v < 0 ? 'coe-fvp-var-neg' : '';
-    return `<span class="${cls}">${v > 0 ? '+' : ''}${v}</span>`;
-  };
+// N-318: shared by the vertical (Hiring Plan page) and horizontal (Report
+// Builder) tables so the two can never disagree.
+function coeOpensVarHtml(v) {
+  if (v == null) return '—';
+  const cls = v > 0 ? 'coe-fvp-var-pos' : v < 0 ? 'coe-fvp-var-neg' : '';
+  return `<span class="${cls}">${v > 0 ? '+' : ''}${v}</span>`;
+}
+
+// Totals row: planned over the whole plan; actual and variance to date.
+function coeOpensTotals(m) {
   let planned = 0, plannedToDate = 0, actual = 0;
-  const body = m.months.map(x => {
+  m.months.forEach(x => {
     planned += x.planned;
     if (!x.isFuture) { plannedToDate += x.planned; actual += x.actual; }
+  });
+  return { planned, actual, variance: actual - plannedToDate };
+}
+
+function coeOpensTableHtml(m) {
+  const body = m.months.map(x => {
     return `<tr${x.isCurrent ? ' class="coe-opens-current"' : ''}>
       <td>${coeMonthLabel(x.key, true)}${x.isCurrent ? ' (to date)' : ''}</td>
-      <td>${x.planned}</td><td>${x.isFuture ? '—' : x.actual}</td><td>${varCell(x.variance)}</td>
+      <td>${x.planned}</td><td>${x.isFuture ? '—' : x.actual}</td><td>${coeOpensVarHtml(x.variance)}</td>
       <td>${x.inWindow ? m.requiredPerMonth.toFixed(1) : '—'}</td></tr>`;
   }).join('');
+  const t = coeOpensTotals(m);
   return `<table class="coe-fvp-table coe-opens-table">
     <thead><tr><th>Month</th><th>Planned Opens</th><th>Actual Opens</th>
       <th title="Actual − planned: + ahead of plan, − behind">Variance</th><th>Required</th></tr></thead>
     <tbody>${body}
-      <tr><th>Total</th><th>${planned}</th><th>${actual}</th><th>${varCell(actual - plannedToDate)}</th><th></th></tr>
+      <tr><th>Total</th><th>${t.planned}</th><th>${t.actual}</th><th>${coeOpensVarHtml(t.variance)}</th><th></th></tr>
     </tbody></table>`;
+}
+
+// N-318: the same figures with months across — rows Month · Planned · Actual ·
+// Variance · Required, and a Total column on the last strip. Plans longer than
+// CONFIG.COE_OPENS_STRIP_MONTHS wrap into evenly sized strips (19 → 10 + 9),
+// stacked vertically; each strip repeats the row labels. Used by the Report
+// Builder final page.
+function coeOpensHorizontalTableHtml(m) {
+  const months = m.months;
+  if (!months.length) return '';
+  const strips = Math.ceil(months.length / CONFIG.COE_OPENS_STRIP_MONTHS);
+  const size = Math.ceil(months.length / strips);
+  const t = coeOpensTotals(m);
+  const cur = x => (x.isCurrent ? ' class="coe-opens-current"' : '');
+  const tables = [];
+  for (let s = 0; s < strips; s++) {
+    const chunk = months.slice(s * size, (s + 1) * size);
+    const last = s === strips - 1;
+    const row = (label, cell, total) =>
+      `<tr><th scope="row">${label}</th>${chunk.map(cell).join('')}${last ? total : ''}</tr>`;
+    tables.push(`<table class="coe-fvp-table coe-opens-table coe-opens-table--h"><tbody>
+      ${row('Month', x => `<th${cur(x)}>${coeMonthLabel(x.key)}${x.isCurrent ? '<span class="coe-opens-todate">to date</span>' : ''}</th>`, '<th>Total</th>')}
+      ${row('Planned Opens', x => `<td${cur(x)}>${x.planned}</td>`, `<td>${t.planned}</td>`)}
+      ${row('Actual Opens', x => `<td${cur(x)}>${x.isFuture ? '—' : x.actual}</td>`, `<td>${t.actual}</td>`)}
+      ${row('<span title="Actual − planned: + ahead of plan, − behind">Variance</span>', x => `<td${cur(x)}>${coeOpensVarHtml(x.variance)}</td>`, `<td>${coeOpensVarHtml(t.variance)}</td>`)}
+      ${row('Required', x => `<td${cur(x)}>${x.inWindow ? m.requiredPerMonth.toFixed(1) : '—'}</td>`, '<td></td>')}
+    </tbody></table>`);
+  }
+  return tables.join('');
 }
 
 // ── Row CRUD modal ──────────────────────────────────────────────────

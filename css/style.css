@@ -3006,6 +3006,12 @@ body {
   .coe-opens-chart { break-inside: avoid; }
 }
 
+/* N-318: month-across Planned vs Actual Role Opens table (Report Builder final page) */
+.coe-opens-table--h { margin-top: var(--sp-5); }
+.coe-opens-table--h th:first-child { text-align: left; white-space: nowrap; }
+.coe-opens-table--h .coe-opens-current { font-style: italic; }
+.coe-opens-todate { display: block; font-size: var(--fs-10); font-weight: 400; color: var(--text-muted); }
+
 /* ── Report Builder — Hiring Plan landscape final page ─────────────── */
 .rb-gantt-toggle {
   display: inline-flex; align-items: center; gap: var(--sp-3);
@@ -3038,18 +3044,16 @@ body {
     margin-bottom: 0;
   }
   .rb-hiring-plan-panel .panel-title { margin-bottom: var(--sp-5); }
-  /* N-318: chart left, table right so a typical plan fits one landscape page.
-     These out-rank the page-print `.coe-fvp-table { break-inside: avoid }`, so a
-     long plan flows onto a second page between rows instead of overflowing. */
-  .rb-opens-layout {
-    display: grid;
-    grid-template-columns: 3fr 2fr;
-    gap: var(--sp-7);
-    align-items: start;
-  }
+  /* N-318: summary, then the chart at full page width, then the month-across
+     table, stacked. A long plan's table wraps into strips and may run onto a
+     second landscape page; rows and strips never split. */
+  .rb-opens-layout { display: flex; flex-direction: column; gap: var(--sp-5); }
+  .rb-opens-layout .coe-opens-summary, .rb-opens-layout .coe-opens-note { margin: 0; }
   .rb-opens-layout .coe-opens-chart { max-width: none; margin-bottom: 0; }
-  .rb-opens-layout .coe-fvp-table { margin-top: 0; width: 100%; break-inside: auto; }
-  .rb-opens-layout .coe-fvp-table tr { break-inside: avoid; }
+  .rb-opens-layout .coe-opens-table--h { margin-top: 0; }
+  .coe-opens-table--h { width: 100%; table-layout: fixed; break-inside: avoid; }
+  .coe-opens-table--h th, .coe-opens-table--h td { padding: var(--sp-1) var(--sp-2); font-size: var(--fs-10); }
+  .coe-opens-table--h th:first-child { width: 12%; text-align: left; }
 }
 
 /* ── LCI Cost Model ─────────────────────────────────────────────── */

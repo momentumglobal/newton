@@ -754,6 +754,11 @@ const CONFIG = {
     finalNoOpenWeeks: 4,    // N-317: run rate expects no openings in the final N weeks before the latest planned hire
   },
 
+  // N-318: most month columns in one strip of the Report Builder's Planned vs
+  // Actual Role Opens table (months across). Longer plans wrap into evenly
+  // sized strips stacked vertically, each repeating the row labels.
+  COE_OPENS_STRIP_MONTHS: 18,
+
   // Graph 429/503 retry (N-082): total attempts incl. the first; backoff
   // doubles from baseDelayMs unless SharePoint sends a Retry-After header.
   GRAPH_RETRY: { maxAttempts: 4, baseDelayMs: 1000 },

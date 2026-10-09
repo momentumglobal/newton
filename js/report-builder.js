@@ -460,10 +460,10 @@ function rbRenderReportHtml(title, data, ganttOpts = null) {
       ganttHtml = `<div class="rb-gantt-placeholder">
         Planned vs Actual Role Opens — renders as a landscape final page on PDF export</div>`;
     } else if (ganttOpts.coeRows?.length) {
-      // N-318: chart + table only — no Gantt, no summary line. An unread headcount
+      // N-318: summary + chart + month-across table — no Gantt. An unread headcount
       // (null) prints a message, never zero-filled actuals (N-312 degrade rule).
       const opensHtml = Array.isArray(ganttOpts.headcount)
-        ? `<div class="rb-opens-layout">${coeOpensBlockHtml(ganttOpts.coeRows, ganttOpts.headcount, { summary: false })}</div>`
+        ? `<div class="rb-opens-layout">${coeOpensBlockHtml(ganttOpts.coeRows, ganttOpts.headcount, { summary: true, horizontal: true })}</div>`
         : `<p class="no-data">Couldn't load this project's headcount — actual opens aren't available. Export again to retry.</p>`;
       ganttHtml = `<div class="rb-hiring-plan-page">
         <div class="dash-panel rb-hiring-plan-panel">

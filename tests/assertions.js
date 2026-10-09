@@ -3656,6 +3656,55 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'N-318 coeOpensHorizontalTableHtml — months across, strips for long plans, Total on the last strip, same figures as the vertical table',
+    fn: function () {
+      // n consecutive months from Jan 2026: planned 1 each; actual 1,0,1 for the first three (current = 3rd); the rest are future.
+      const mk = n => {
+        const months = [];
+        for (let i = 0; i < n; i++) {
+          const future = i > 2;
+          months.push({ key: `${2026 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`, planned: 1,
+            actual: future ? null : (i === 1 ? 0 : 1), variance: future ? null : (i === 1 ? -1 : 0),
+            isCurrent: i === 2, isFuture: future, inWindow: i >= 2 });
+        }
+        return { months, requiredPerMonth: 0.5 };
+      };
+      const tablesOf = html => html.split('</table>').filter(x => x.includes('<table'));
+      const rowsOf = tbl => [...tbl.matchAll(/<tr>(.*?)<\/tr>/gs)].map(r => [...r[1].matchAll(/<t[dh][^>]*>(.*?)<\/t[dh]>/gs)].map(c => c[1].replace(/<[^>]+>/g, '')));
+      const m6 = mk(6);
+      const first = rowsOf(tablesOf(coeOpensHorizontalTableHtml(m6))[0]);
+      _assertEqual(first.map(r => r[0]), ['Month', 'Planned Opens', 'Actual Opens', 'Variance', 'Required'], 'row labels, in order');
+      _assertEqual(first.map(r => r.length), [8, 8, 8, 8, 8], 'every row: label + 6 months + Total');
+      _assertEqual(first[1].slice(-1)[0] === '6' && first[2].slice(-1)[0] === '2' && first[3].slice(-1)[0] === '-1' && first[4].slice(-1)[0] === '', true, 'Total column: planned 6, actual to date 2, variance −1, Required blank');
+      _assertEqual(first[2].slice(1, 7), ['1', '0', '1', '—', '—', '—'], 'future months show — for actual');
+      _assertEqual(first[3].slice(4, 7), ['—', '—', '—'], 'future months show — for variance');
+      _assertEqual(first[4].slice(1, 7), ['—', '—', '0.5', '0.5', '0.5', '0.5'], 'Required only in the window');
+      _assertEqual(/to date/.test(first[0][3]) && !/to date/.test(first[0][2]), true, 'current month (3rd) marked "to date"');
+      const t = coeOpensTotals(m6);
+      _assertEqual([t.planned, t.actual, t.variance], [6, 2, -1], 'coeOpensTotals');
+      _assertEqual(coeOpensTableHtml(m6).includes(`<th>Total</th><th>${t.planned}</th><th>${t.actual}</th>`), true, 'vertical Total row uses the same totals');
+      const strips = n => tablesOf(coeOpensHorizontalTableHtml(mk(n)));
+      _assertEqual([18, 19, 36, 37].map(n => strips(n).length), [1, 2, 2, 3], 'strip count: ceil(months / 18)');
+      const s19 = strips(19).map(rowsOf);
+      _assertEqual(s19.map(t => t[0].length), [11, 11], '19 months → 10 + 9 (+ Total on the last): equal width, label + 10');
+      _assertEqual(s19[0][0].includes('Total'), false, 'Total only on the last strip');
+      _assertEqual(s19[1][0].includes('Total'), true, 'Total on the last strip');
+      _assertEqual(s19.every(tb => tb.map(r => r.length).every(len => len === tb[0].length)), true, 'all rows in a strip have equal cell counts');
+      const keep = CONFIG.COE_OPENS_STRIP_MONTHS;
+      try {
+        CONFIG.COE_OPENS_STRIP_MONTHS = 6;
+        _assertEqual(strips(13).length, 3, 'strip size is read from CONFIG.COE_OPENS_STRIP_MONTHS');
+      } finally { CONFIG.COE_OPENS_STRIP_MONTHS = keep; }
+      _assertEqual(coeOpensHorizontalTableHtml({ months: [] }), '', 'no months → empty');
+      const rows = [{ id: '1', Title: 'A', OpenDate: '2026-08-03T12:00:00Z', LinkedHeadcountID: '10' }, { id: '2', Title: 'B', OpenDate: '2026-11-02T12:00:00Z' }];
+      const hc = [{ id: '10', OpenDate: '2026-07-30T12:00:00Z' }];
+      const hz = coeOpensBlockHtml(rows, hc, { summary: true, horizontal: true });
+      _assertEqual(/coe-opens-table--h/.test(hz) && /coe-opens-summary/.test(hz) && !/<th>Planned Opens<\/th>/.test(hz), true, 'horizontal block: summary + chart + months-across table');
+      const vt = coeOpensBlockHtml(rows, hc);
+      _assertEqual(/coe-opens-table--h/.test(vt), false, 'default block keeps the vertical table');
+    },
+  },
+  {
     name: 'N-312 planCoELinkMigration — lowest Sequence, reports, idempotent',
     fn: function () {
       const roles = [{ id: '1' }, { id: '2' }, { id: '3' }];

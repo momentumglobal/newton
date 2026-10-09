@@ -768,7 +768,7 @@ async function submitWeeklyForm(event, editId = null) {
         navigateTo('activity', pendingItem);
       },
       revert: async () => { await renderActivityPage(); },
-      commit: () => createItem('WeeklyActivity', fields),
+      commit: () => createWeeklyActivity(fields),
       errorMessage: 'Error saving activity — change reverted.',
     });
     // Hire logged → offer to record a placement, prefilled with this

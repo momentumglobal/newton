@@ -377,7 +377,7 @@ async function mobileSubmitActivity(rolePreselected) {
     await optimisticWrite({
       apply:  () => { mobileCloseSheet(); mobileToast('Activity saved ✓'); },
       revert: () => {},
-      commit: () => createItem('WeeklyActivity', fields),
+      commit: () => createWeeklyActivity(fields),
       errorMessage: 'Error saving activity — change reverted.',
       toastFn: mobileToast,
     });

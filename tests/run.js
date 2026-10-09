@@ -55,6 +55,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'lint-csp.js'),
   path.join(TESTS_DIR, 'lint-stage-arrays.js'),
   path.join(TESTS_DIR, 'lint-headcount-writes.js'),
+  path.join(TESTS_DIR, 'lint-weeklyactivity-writes.js'),
   path.join(TESTS_DIR, 'fixtures.js'),
   path.join(TESTS_DIR, 'assertions.js'),
 ];

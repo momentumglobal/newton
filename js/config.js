@@ -840,7 +840,8 @@ const CONFIG = {
   //   narrowing the window re-introduces a filter for that one read),
   //   report-builder.js:411 (unscoped comparison pull).
   // WeeklyActivity — permanent paged fallback (always filtered):
-  //   dashboard-core.js:93 and report-builder.js:388 (ProjectID-scoped),
+  //   dashboard-core.js and report-builder.js project scope (RoleID-set-
+  //   scoped via _odataIn since N-315; unfiltered above ROLE_ID_FILTER_MAX),
   //   market-report.js:128 (RoleID-scoped), getWeeklyActivityNullProjectCount
   //   / getWeeklyActivityNullWeekEndingCount (integrity probes — need the
   //   null filter), getWeeklyActivityForWeek (exact-week lookup), every

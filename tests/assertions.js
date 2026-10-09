@@ -3809,4 +3809,162 @@ var ASSERTIONS = [
       ]), '2026-01-15', 'cancelled earlier headcount still anchors');
     },
   },
+  // ── N-315: WeeklyActivity.ProjectID can no longer drop a row ──────────
+  {
+    name: 'N-315 getWeeklyActivity opts.roleIds — RoleID OR-chain, unfiltered above ROLE_ID_FILTER_MAX, empty set reads nothing',
+    fn: function () {
+      // getWeeklyActivity reaches getItems synchronously (before any await).
+      const saved = getItems;
+      const calls = [];
+      getItems = function (list, filter) { calls.push([list, filter]); return Promise.resolve([]); };
+      try {
+        getWeeklyActivity(null, null, { roleIds: [3, '1', 3] });
+        _assertEqual(calls[0], ['WeeklyActivity', '(fields/RoleID eq 3 or fields/RoleID eq 1)'], 'AC3 OR-chain, de-duplicated');
+        getWeeklyActivity(null, null, { roleIds: [5], sinceWeeks: 13 });
+        _assertEqual(/^\(fields\/RoleID eq 5\) and fields\/WeekEndingDate ge '\d{4}-\d{2}-\d{2}'$/.test(calls[1][1]), true, 'AC3 and-joined with the date window: ' + calls[1][1]);
+        const many = [];
+        for (let i = 1; i <= CONFIG.ROLE_ID_FILTER_MAX + 1; i++) many.push(i);
+        getWeeklyActivity(null, null, { roleIds: many });
+        _assertEqual(calls[2], ['WeeklyActivity', ''], 'AC3 above the cap the clause is dropped (over-fetch)');
+        getWeeklyActivity(null, null, { roleIds: [7, null] });
+        _assertEqual(calls[3], ['WeeklyActivity', ''], 'AC3 an unusable id drops the clause, never filters role 0');
+        const before = calls.length;
+        getWeeklyActivity(null, null, { roleIds: [] });
+        _assertEqual(calls.length, before, 'empty role set → no read at all (not an unfiltered fetch)');
+        getWeeklyActivity(null, 9);
+        _assertEqual(calls[calls.length - 1], ['WeeklyActivity', 'fields/RoleID eq 9'], 'single-role branch unchanged');
+      } finally {
+        getItems = saved;
+      }
+      // Over-fetch + the callers' client-side role-id filter gives the same rows.
+      const rows = [{ id: 1, RoleIDLookupId: '3' }, { id: 2, RoleIDLookupId: '99' }, { id: 3, RoleID: 4 }];
+      const ids = new Set(['3', '4']);
+      _assertEqual(rows.filter(a => ids.has(String(a.RoleIDLookupId)) || ids.has(String(a.RoleID))).map(r => r.id), [1, 3], 'AC3 client filter keeps only project roles');
+    },
+  },
+  {
+    name: 'N-315 project-scoped callers pass roleIds, never a project id, and keep a client role filter (AC1)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const dc = ALL_SOURCES['dashboard-core.js'], rb = ALL_SOURCES['report-builder.js'];
+      _assertEqual(/getWeeklyActivity\(\s*projectId/.test(dc), false, 'dashboard-core: no project-id activity read');
+      _assertEqual(dc.includes('getWeeklyActivity(null, null, { roleIds })'), true, 'dashboard-core: role-id scoped read');
+      _assertEqual(dc.includes('activity.filter(a => projectRoleIds.has('), true, 'dashboard-core: client-side role backstop');
+      _assertEqual(/getWeeklyActivity\(\s*_rbProjectId/.test(rb), false, 'report-builder: no project-id activity read');
+      _assertEqual(rb.includes('getWeeklyActivity(null, null, { roleIds: allRoles.map(r => r.id) })'), true, 'report-builder: role-id scoped read');
+      _assertEqual(rb.includes('activity.filter(a => ids.has('), true, 'report-builder: client-side role filter kept');
+    },
+  },
+  {
+    name: 'N-315 positiveLookupId / projectIdForRole / weeklyActivityResponseProjectId',
+    fn: function () {
+      _assertEqual([12, '12', ' 7 ', 0, -1, 1.5, NaN, null, undefined, '', 'x'].map(positiveLookupId),
+        [12, 12, 7, null, null, null, null, null, null, null, null], 'positiveLookupId');
+      _assertEqual(projectIdForRole({ id: 1, ProjectIDLookupId: '4' }), 4, 'LookupId first');
+      _assertEqual(projectIdForRole({ id: 1, ProjectID: 6 }), 6, 'ProjectID fallback');
+      _assertEqual(projectIdForRole({ id: 1 }), null, 'role with no project');
+      _assertEqual(projectIdForRole(null), null, 'no role');
+      _assertEqual(weeklyActivityResponseProjectId({ id: '9', fields: { ProjectIDLookupId: '4' } }), 4, 'response carries it');
+      _assertEqual(weeklyActivityResponseProjectId({ id: '9', fields: { Title: '' } }), null, 'fields but no ProjectID → null (dropped)');
+      _assertEqual(weeklyActivityResponseProjectId({ id: '9' }), undefined, 'no fields object → undefined (unknown, re-read)');
+      _assertEqual(weeklyActivityResponseProjectId(null), undefined, 'no response');
+    },
+  },
+  {
+    name: 'N-315 createWeeklyActivity — copies fields, sends the form project id, derives from the role when missing',
+    fn: function () {
+      // Both paths reach their first Graph helper synchronously (before any await).
+      const saved = { getItem, createItem };
+      const calls = [];
+      getItem = function (list, id) { calls.push(['getItem', list, id]); return new Promise(function () {}); };
+      createItem = function (list, f) { calls.push(['create', list, f]); return new Promise(function () {}); };
+      try {
+        const desk = { ProjectIDLookupId: 7, RoleIDLookupId: 45, Hires: 1 };
+        createWeeklyActivity(desk);
+        _assertEqual(calls[0][0] + '|' + calls[0][1], 'create|WeeklyActivity', 'desktop: straight to create, no role read');
+        _assertEqual(calls[0][2].ProjectIDLookupId, 7, 'desktop: form project id sent');
+        _assertEqual(calls[0][2] !== desk, true, 'fields copied, not passed through');
+        _assertEqual(desk, { ProjectIDLookupId: 7, RoleIDLookupId: 45, Hires: 1 }, 'caller fields not mutated');
+        calls.length = 0;
+        const mobile = { RoleIDLookupId: 45 };
+        createWeeklyActivity(mobile);
+        _assertEqual(calls, [['getItem', 'Roles', 45]], 'mobile (no ProjectID): role read first, nothing written yet');
+        calls.length = 0;
+        createWeeklyActivity({ ProjectIDLookupId: NaN, RoleIDLookupId: '45' });
+        _assertEqual(calls, [['getItem', 'Roles', 45]], 'NaN project id is treated as missing');
+      } finally {
+        getItem = saved.getItem; createItem = saved.createItem;
+      }
+    },
+  },
+  {
+    name: 'N-315 verify path — one heal PATCH, one Diagnostics report, response checked before any re-read (AC6)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      // The orchestration is async and this runner is sync, so its shape is
+      // pinned from source; every decision it makes is a pure helper tested here.
+      const api = ALL_SOURCES['api.js'];
+      const start = api.indexOf('async function _verifyWeeklyActivityProjectId(');
+      _assertEqual(start > -1, true, '_verifyWeeklyActivityProjectId exists');
+      const body = api.slice(start, api.indexOf('\n}\n', start));
+      const count = re => (body.match(re) || []).length;
+      _assertEqual(count(/updateItem\('WeeklyActivity'/g), 1, 'exactly one heal PATCH, no loop');
+      _assertEqual(/\b(for|while)\s*\(/.test(body), false, 'no retry loop');
+      _assertEqual(count(/reportError\(/g), 1, 'exactly one Diagnostics report');
+      _assertEqual(body.indexOf('if (response === sentId) return;') < body.indexOf("getItem('WeeklyActivity'"), true, 'response checked before the re-read');
+      _assertEqual(body.indexOf('if (stored === sentId) return;') < body.indexOf("updateItem('WeeklyActivity'"), true, 'stored value confirmed blank before any PATCH');
+      const create = api.slice(api.indexOf('async function createWeeklyActivity('), api.indexOf('async function _verifyWeeklyActivityProjectId('));
+      _assertEqual(/try \{\s*await _verifyWeeklyActivityProjectId/.test(create), true, 'verify failure cannot fail the save');
+      _assertEqual(/catch[^}]*\}\s*return created;/.test(create), true, 'returns the createItem result');
+      const msg = weeklyActivityProjectDropMessage({ itemId: '801', roleId: 45, sent: 7, response: null, stored: null, heal: 'OK' });
+      ['item 801', 'role 45', 'sent 7', 'create OK', 'response blank', 'stored blank', 'heal OK'].forEach(t =>
+        _assertEqual(msg.includes(t), true, 'message carries "' + t + '": ' + msg));
+      _assertEqual(weeklyActivityProjectDropMessage({ itemId: 1, roleId: 2, sent: 3, response: undefined, stored: null, heal: 'x' }).includes('response no fields'), true, 'no-fields response is named');
+    },
+  },
+  {
+    name: 'N-315 weeklyActivityProjectRepairPlan — role → project, missing / project-less roles skipped (AC8)',
+    fn: function () {
+      const roles = [{ id: 10, ProjectIDLookupId: '3' }, { id: '11', ProjectID: 4 }, { id: 12 }];
+      const rows = [
+        { id: 'a', roleId: 10 }, { id: 'b', roleId: 11 }, { id: 'c', roleId: 99 },
+        { id: 'd', roleId: 12 }, { id: 'e', roleId: null }, null,
+      ];
+      _assertEqual(weeklyActivityProjectRepairPlan(rows, roles), {
+        patches: [{ id: 'a', projectId: 3 }, { id: 'b', projectId: 4 }],
+        skipped: ['c', 'd', 'e'],
+      }, 'plan');
+      _assertEqual(weeklyActivityProjectRepairPlan([], roles), { patches: [], skipped: [] }, 'nothing to repair');
+      _assertEqual(weeklyActivityProjectRepairPlan(rows.slice(0, 1), null), { patches: [], skipped: ['a'] }, 'no roles → all skipped, none written');
+    },
+  },
+  {
+    name: 'N-315 WeeklyActivity creates only via createWeeklyActivity (AC4)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintWeeklyActivityCreates(ALL_SOURCES).map(v => `${v.file}:${v.line}  ${v.text}`), [],
+        'raw WeeklyActivity creates outside api.js (use createWeeklyActivity)');
+      _assertEqual(countWeeklyActivityCreates(ALL_SOURCES['api.js']), 1, 'api.js: the one create inside createWeeklyActivity');
+      ['forms.js', 'bulk-activity.js', 'mobile-pages.js'].forEach(f =>
+        _assertEqual(ALL_SOURCES[f].includes('createWeeklyActivity(fields)'), true, f + ' writes through the wrapper'));
+    },
+  },
+  {
+    name: 'lint-weeklyactivity-writes control: flags raw creates outside api.js, ignores updates, reads and other lists (N-315)',
+    fn: function () {
+      const lint = src => lintWeeklyActivityCreates(src).map(v => `${v.file}:${v.line}`);
+      _assertEqual(lint({ 'pages.js': "x();\nawait createItem('WeeklyActivity', f);\ncreateItem( \"WeeklyActivity\", f);\n" }),
+        ['pages.js:2', 'pages.js:3'], 'single + double quotes flagged');
+      _assertEqual(lint({ 'forms.js': 'createItem(`WeeklyActivity`, f);\n' }), ['forms.js:1'], 'backtick');
+      _assertEqual(lint({ 'api.js': "createItem('WeeklyActivity', f);\n" }), [], 'api.js is counted separately');
+      _assertEqual(lint({ 'pages.js': "updateItem('WeeklyActivity', 1, f);\ngetItems('WeeklyActivity');\ncreateItem('WeeklyActivityX', f);\ncreateWeeklyActivity(f);\n" }), [], 'updates, reads, other lists, the wrapper');
+      _assertEqual(countWeeklyActivityCreates("a\ncreateItem('WeeklyActivity', f);\ncreateItem(\"WeeklyActivity\", g);\n"), 2, 'counter');
+    },
+  },
 ];

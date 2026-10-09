@@ -372,9 +372,12 @@ async function rbFetchData() {
     if (!_rbProjectId) return null;
     // Talent Partners are scoped to their own assigned roles within the project.
     const tpEmail = _resolvedRole === 'talent_partner' ? getScopedUserEmail() : null;
-    const [allRoles, activity, placements, rejections, tpMap, headcount] = await Promise.all([
-      getRolesForProject(_rbProjectId, tpEmail),
-      getWeeklyActivity(_rbProjectId, null),
+    // N-315: roles first — activity is scoped by their ids, not by the
+    // unvalidated WeeklyActivity.ProjectID column. The ids.has() filter below
+    // stays: above CONFIG.ROLE_ID_FILTER_MAX roles the read over-fetches.
+    const allRoles = await getRolesForProject(_rbProjectId, tpEmail);
+    const [activity, placements, rejections, tpMap, headcount] = await Promise.all([
+      getWeeklyActivity(null, null, { roleIds: allRoles.map(r => r.id) }),
       getPlacements(null),
       getRejectedOffers(null),
       getTalentPartnerDisplayMap(),

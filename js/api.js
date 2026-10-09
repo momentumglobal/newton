@@ -814,6 +814,22 @@ async function getWeeklyActivityNullProjectCount() {
     return { ok: false, count: null };
   }
 }
+// N-315: the rows behind that count, for the Data Health Repair. Same filter
+// as the probe (proven live by N-138); default projection, which carries
+// RoleIDLookupId. A rejected query is { ok: false }, never an empty list —
+// "could not check" must not read as "nothing to repair".
+async function getWeeklyActivityNullProjectRows() {
+  try {
+    const items = await getItems("WeeklyActivity", "fields/ProjectID eq null");
+    return {
+      ok: true,
+      rows: items.map(r => ({ id: r.id, roleId: positiveLookupId(r.RoleIDLookupId ?? r.RoleID) })),
+    };
+  } catch (e) {
+    console.error("WeeklyActivity null-ProjectID rows read rejected:", e);
+    return { ok: false, rows: [] };
+  }
+}
 // N-158: how many WeeklyActivity rows have no WeekEndingDate. This is the
 // row set DATE_WINDOW_DEFAULT_WEEKS: 26 was silently dropping from the
 // Activity list page — a server-side `ge` bound cannot match a null date.
@@ -932,6 +948,84 @@ async function updateItem(listName, itemId, fields) {
   const result = await graphRequest("PATCH", `${listPath(listName)}/${itemId}`, { fields });
   _cacheInvalidate(listName);
   return result;
+}
+// ── WeeklyActivity verified create (N-315) ────────────────────────────
+// The ONLY place a WeeklyActivity row is created (tests/lint-weeklyactivity-
+// writes.js enforces it). Every writer — Log Activity, the bulk grid, mobile
+// quick-log — goes through here, so:
+//   1. a missing ProjectIDLookupId is derived from the role (mobile quick-log
+//      never sends one). No resolvable project → throw, never write an orphan.
+//   2. after the create, the stored ProjectID is checked; a drop is healed
+//      with ONE PATCH and reported to Diagnostics with what was sent, what came
+//      back and what is stored — the evidence N-315 did not have.
+// A create failure propagates unchanged (optimisticWrite reverts + Retry).
+// Verify/heal/report are best-effort and never fail a save that succeeded.
+// `fields` is copied, never mutated: forms.js builds its pending row from it
+// and reads fields.ProjectIDLookupId again for the hires prompt.
+// Returns exactly what createItem returned (the bulk grid reads created.id).
+async function createWeeklyActivity(fields) {
+  const toSend = { ...fields };
+  let projectId = positiveLookupId(toSend.ProjectIDLookupId);
+  if (!projectId) {
+    const roleId = positiveLookupId(toSend.RoleIDLookupId);
+    const role = roleId ? await getItem('Roles', roleId) : null;
+    projectId = projectIdForRole(role);
+    if (!projectId) throw new Error('Could not find the project for this role — activity not saved.');
+    toSend.ProjectIDLookupId = projectId;
+  }
+  const created = await createItem('WeeklyActivity', toSend);
+  try {
+    await _verifyWeeklyActivityProjectId(created, projectId, toSend.RoleIDLookupId);
+  } catch (e) {
+    console.warn('N-315: WeeklyActivity ProjectID check failed', e);
+  }
+  return created;
+}
+// Cheapest path first: the create response. Only if that does not show the
+// id sent is the stored row re-read, so a response that simply omits lookup
+// ids costs one GET and is NOT reported or "healed". A genuine drop gets one
+// PATCH, one re-read, and one Diagnostics row.
+async function _verifyWeeklyActivityProjectId(created, sentId, roleId) {
+  if (!created || !created.id) return;
+  const response = weeklyActivityResponseProjectId(created);
+  if (response === sentId) return;
+  const stored = positiveLookupId((await getItem('WeeklyActivity', created.id)).ProjectIDLookupId);
+  if (stored === sentId) return;
+  let heal;
+  try {
+    await updateItem('WeeklyActivity', created.id, { ProjectIDLookupId: sentId });
+    const after = positiveLookupId((await getItem('WeeklyActivity', created.id)).ProjectIDLookupId);
+    heal = after === sentId ? 'OK' : 'did not stick (now ' + (after === null ? 'blank' : after) + ')';
+  } catch (e) {
+    heal = 'PATCH failed: ' + (e && e.message);
+  }
+  const message = weeklyActivityProjectDropMessage({
+    itemId: created.id, roleId: positiveLookupId(roleId), sent: sentId, response, stored, heal,
+  });
+  console.warn(message);
+  // diagnostics.js loads after api.js; absent in the test harness.
+  if (typeof reportError === 'function') reportError('integrity', message, '');
+}
+// Data Health "Repair" (N-315): set ProjectID on every blank row from its
+// role. Sequential PATCHes — SharePoint throttles concurrent writes (same
+// call as saveBulkActivity). Rows whose role is gone are skipped and listed.
+async function repairWeeklyActivityProjectIds() {
+  const res = await getWeeklyActivityNullProjectRows();
+  if (!res.ok) throw new Error('Could not read the rows to repair — see the console.');
+  const plan = weeklyActivityProjectRepairPlan(res.rows, await getAllRoles());
+  let fixed = 0;
+  const failed = [];
+  for (const p of plan.patches) {
+    try {
+      await updateItem('WeeklyActivity', p.id, { ProjectIDLookupId: p.projectId });
+      fixed++;
+    } catch (e) {
+      console.warn('N-315: repair PATCH failed for WeeklyActivity ' + p.id, e);
+      failed.push(p.id);
+    }
+  }
+  if (plan.skipped.length) console.warn('N-315: repair skipped (role missing or has no project):', plan.skipped);
+  return { fixed, skipped: plan.skipped, failed };
 }
 // ── Role history (N-099 / D-3a) ────────────────────────────────────────
 // Drop-in replacement for `updateItem('Roles', roleId, fields)` at the six
@@ -1379,15 +1473,26 @@ async function getActivityForAnalytics(weeksBack) {
 }
  
 // N-093 (F-2a): `opts.sinceWeeks` adds a WeekEndingDate lower bound.
-// The projectId/roleId branches are UNCHANGED — both were already
-// server-side before this task (Project Dashboard, Report Builder).
 // WeekEndingDate is stored as the SUNDAY, and the bound is a plain
 // 'YYYY-MM-DD' matching getActivityForAnalytics.
+// N-315: `opts.roleIds` scopes to a set of roles (same _odataIn as
+// getPlacements). Project-scoped callers MUST use it, not `projectId`:
+// WeeklyActivity.ProjectID is a denormalised copy of Roles → Project that
+// nothing validates, and a blank one silently dropped a row from the Project
+// Dashboard (N-315). `projectId` is kept only for legacy callers. Above
+// CONFIG.ROLE_ID_FILTER_MAX ids the clause is dropped and this over-fetches,
+// so every roleIds caller keeps its client-side role-id filter.
+// An empty roleIds array means "no roles" → no rows, not an unfiltered fetch.
 async function getWeeklyActivity(projectId, roleId, opts = {}) {
+  if (Array.isArray(opts.roleIds) && !opts.roleIds.length) return [];
   let scope = "";
   if (projectId) scope = `fields/ProjectID eq ${projectId}`;
   if (roleId)    scope = `fields/RoleID eq ${roleId}`;
-  const filter = _odataAnd(scope, _odataDateFrom('WeekEndingDate', opts.sinceWeeks));
+  const filter = _odataAnd(
+    scope,
+    _odataIn('RoleID', opts.roleIds),
+    _odataDateFrom('WeekEndingDate', opts.sinceWeeks)
+  );
   return getItems("WeeklyActivity", filter);
 }
 

@@ -61,23 +61,29 @@ async function fetchDashboardData(projectId, role) {
   // column, so the role-id set is the only lever there is. The ids come from
   // allRoles, BEFORE the isTP narrowing below, on purpose: the server filter
   // must stay a superset of what the client filter keeps, never narrower.
-  const [allRoles, activity, tpMap] = await Promise.all([
+  // N-315: WeeklyActivity is scoped the same way — by role id, not by its own
+  // ProjectID column, which a blank value silently dropped rows from.
+  const [allRoles, tpMap] = await Promise.all([
     getRolesForProject(projectId),
-    getWeeklyActivity(projectId, null),
     getTalentPartnerDisplayMap(),
   ]);
   const roleIds = allRoles.map(r => r.id);
-  const [placements, rejections, headcount] = await Promise.all([
+  const [activity, placements, rejections, headcount] = await Promise.all([
+    getWeeklyActivity(null, null, { roleIds }),
     getPlacements(null, { roleIds }),
     getRejectedOffers(null, { roleIds }),
     // N-310 (S-11): a failed read degrades to the Roles.OpenDate fallback.
     getAllHeadcount().catch(e => { console.warn('N-310: headcount read failed', e); return null; }),
   ]);
-  let roles = allRoles, acts = activity;
+  // N-315: client-side backstop — above CONFIG.ROLE_ID_FILTER_MAX roles the
+  // server clause is dropped and the read over-fetches every project's rows.
+  const projectRoleIds = new Set(roleIds.map(String));
+  let roles = allRoles;
+  let acts = activity.filter(a => projectRoleIds.has(String(a.RoleIDLookupId)) || projectRoleIds.has(String(a.RoleID)));
   if (isTP) {
     const userEmail = getScopedUserEmail();
     roles = allRoles.filter(r => tpMatches(r.TalentPartner, userEmail));
-    acts  = activity.filter(a => tpMatches(a.TalentPartner, userEmail));
+    acts  = acts.filter(a => tpMatches(a.TalentPartner, userEmail));
   }
   const ids = new Set(roles.map(r => String(r.id)));
   const scopedPlacements = placements.filter(p => ids.has(String(p.RoleIDLookupId)) || ids.has(String(p.RoleID)));

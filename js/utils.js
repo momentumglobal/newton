@@ -3230,3 +3230,61 @@ function planCoELinkMigration({ coeRows = [], headcount = [], roles = [] } = {})
   counts.conflict    = conflict.length;
   return { items, counts, noHeadcount, missingRole, conflict };
 }
+
+// ── WeeklyActivity.ProjectID integrity (N-315) ─────────────────────────
+// Pure halves of api.js createWeeklyActivity / repairWeeklyActivityProjectIds.
+// The async orchestration stays in api.js; the decisions live here so the
+// sync test runner can pin them.
+
+// A SharePoint lookup id as a positive integer, or null. Graph returns
+// lookup ids as strings ("12"); a form's parseInt('') is NaN, which
+// JSON.stringify writes as null — both must read as "no id", never as 0.
+function positiveLookupId(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+// A Roles row's project id (LookupId first, same order as every other
+// Roles → project read), or null.
+function projectIdForRole(role) {
+  if (!role) return null;
+  return positiveLookupId(role.ProjectIDLookupId ?? role.ProjectID);
+}
+
+// The ProjectID a WeeklyActivity create response carries: a number, null
+// when the response has fields but no usable ProjectID, or undefined when the
+// response has no fields object at all (unknown — the caller re-reads).
+function weeklyActivityResponseProjectId(created) {
+  if (!created || !created.fields || typeof created.fields !== 'object') return undefined;
+  return positiveLookupId(created.fields.ProjectIDLookupId);
+}
+
+// One Diagnostics message per dropped ProjectID. Carries the item id, so
+// each occurrence is its own row rather than deduping into the first.
+function weeklyActivityProjectDropMessage({ itemId, roleId, sent, response, stored, heal }) {
+  const v = x => (x === undefined ? 'no fields' : (x === null ? 'blank' : String(x)));
+  return 'N-315 WeeklyActivity ProjectID dropped on create — item ' + itemId
+    + ', role ' + v(roleId) + ', sent ' + v(sent)
+    + ', create OK, response ' + v(response) + ', stored ' + v(stored)
+    + ', heal ' + heal;
+}
+
+// Data Health repair plan. rows: [{ id, roleId }] (blank-ProjectID rows);
+// roles: Roles rows. A row whose role is missing, or whose role has no
+// project, is skipped and listed — never written.
+function weeklyActivityProjectRepairPlan(rows, roles) {
+  const projectByRole = new Map();
+  (roles || []).forEach(r => {
+    const pid = projectIdForRole(r);
+    if (r && pid) projectByRole.set(String(r.id), pid);
+  });
+  const patches = [], skipped = [];
+  (rows || []).forEach(row => {
+    if (!row) return;
+    const pid = row.roleId ? projectByRole.get(String(row.roleId)) : undefined;
+    if (pid) patches.push({ id: row.id, projectId: pid });
+    else skipped.push(row.id);
+  });
+  return { patches, skipped };
+}

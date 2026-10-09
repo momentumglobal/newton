@@ -347,7 +347,7 @@ async function saveBulkActivity() {
         if (row.existingId) {
           await updateItem('WeeklyActivity', row.existingId, fields);
         } else {
-          const created = await createItem('WeeklyActivity', fields);
+          const created = await createWeeklyActivity(fields);
           // Keep the new id so an immediate re-save updates this row rather
           // than creating a second record for the same role and week.
           if (created && created.id) row.existingId = created.id;

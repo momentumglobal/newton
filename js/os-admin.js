@@ -695,12 +695,14 @@ function _dhRenderDataIntegrityHtml(data) {
   const { nullProjectOk, nullProjectCount, nullWeekEndingOk, nullWeekEndingCount } = data;
   return `    <h3>Data Integrity</h3>
     <p class="dh-note">
-      WeeklyActivity.ProjectID is written by the activity form but read by no
-      page — every view maps activity to its project through the role instead.
-      The Project Dashboard nonetheless filters on it server-side, so any row
-      missing a value is being dropped from that view silently. This must read
-      zero. A "Query error" badge means the check itself failed — unknown,
-      not zero — see the browser console for the underlying error.
+      WeeklyActivity.ProjectID is a copy of the role's project. Since N-315 no
+      page filters on it — the Project Dashboard and Report Builder scope
+      activity by role — and every new row is checked on save, with any drop
+      repaired and reported under Error telemetry. This should read zero:
+      Repair sets a blank ProjectID from the row's role (rows whose role no
+      longer exists are skipped). A "Query error" badge means the check itself
+      failed — unknown, not zero — see the browser console for the underlying
+      error.
     </p>
     <div class="table-scroll">
     <table class="data-table dh-table">
@@ -709,7 +711,7 @@ function _dhRenderDataIntegrityHtml(data) {
         <tr>
           <td>WeeklyActivity rows missing ProjectID</td>
           <td>${nullProjectOk ? nullProjectCount.toLocaleString('en-GB') : '<span class="dh-badge dh-badge-danger">Query error</span>'}</td>
-          <td>${nullProjectOk && nullProjectCount ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
+          <td>${nullProjectOk && nullProjectCount ? '<span class="dh-badge dh-badge-warn">Amber</span> <button class="btn-secondary" onclick="repairNullProjectActivity()">Repair</button>' : ''}</td>
         </tr>
         <tr>
           <td>WeeklyActivity rows missing WeekEndingDate</td>
@@ -720,6 +722,30 @@ function _dhRenderDataIntegrityHtml(data) {
     </table>
     </div>
 `;
+}
+
+// N-315: Repair for the row above. Writes go through api.js; no Graph here.
+async function repairNullProjectActivity() {
+  // N-106 pattern: capture the button before the confirmModal await.
+  const btn = event?.target;
+  if (!(await confirmModal({
+    message: 'Set ProjectID on every WeeklyActivity row missing it, from the row\'s role? Rows whose role no longer exists are skipped.',
+    confirmLabel: 'Repair',
+  }))) return;
+  setButtonLoading(btn);
+  try {
+    const r = await repairWeeklyActivityProjectIds();
+    const parts = ['Repaired ' + r.fixed, 'skipped ' + r.skipped.length];
+    if (r.failed.length) parts.push('failed ' + r.failed.length);
+    const ids = r.skipped.concat(r.failed);
+    // First few ids only — the full list is in the console (api.js warns it).
+    const tail = ids.length ? ' (row ids: ' + ids.slice(0, 8).join(', ') + (ids.length > 8 ? ', …' : '') + ')' : '';
+    toast(parts.join(', ') + tail + '.', ids.length ? { type: 'error', duration: 0 } : { type: 'success' });
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error repairing: ' + e.message, { type: 'error' });
+  }
 }
 
 // ── Data Health Tab — render: Headcount integrity (N-306) ────────────

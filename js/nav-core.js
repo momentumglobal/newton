@@ -8,6 +8,8 @@
 // A page key baked into the button's onclick would go stale — navigation
 // calls updateNavActiveLink(), not renderModuleNav().
 let _navNavigateFn = null;
+// N-301: the module dropdown's toggle function NAME, same pattern.
+let _navToggleFn   = null;
 
 // N-255a: module key + router-derived page list from the last
 // renderModuleNav() call — the breadcrumb reads the same state the sidebar
@@ -23,6 +25,7 @@ function renderModuleNav({
   navigateFn, userGuideHref,
 }) {
   _navNavigateFn = navigateFn;
+  _navToggleFn   = toggleFn;
   _navModuleKey  = currentModuleKey;
   _navPages      = pages || [];
   const user = getCurrentUser();
@@ -42,8 +45,7 @@ function renderModuleNav({
 
   const navLinks = pages.map(p => `
     <a class='nav-link${p.key === currentPage ? ' active' : ''}'
-       data-page='${p.key}'
-       onclick='${navigateFn}("${p.key}")'>
+       data-page='${p.key}'${act('navGo', p.key)}>
       ${p.label}
     </a>`).join('');
 
@@ -52,7 +54,7 @@ function renderModuleNav({
     : '';
 
   document.getElementById('sidebar').innerHTML = `
-    <div class='nav-header nav-header-dropdown' onclick='${toggleFn}()'>
+    <div class='nav-header nav-header-dropdown'${act('navToggleModules')}>
       <div class='nav-logo'>Newton <span class='nav-header-arrow'>▾</span></div>
       <div class='nav-subtitle'>${subtitle}</div>
       <div class='nav-module-dropdown' id='nav-module-dropdown'>
@@ -67,7 +69,7 @@ function renderModuleNav({
       <div class='nav-notif-slot' id='notif-slot'></div>
     </div>
     <button class='nav-footer-btn nav-cmdbar-hint' id='cmdbar-hint-btn'
-            onclick='_cmdBarOpen({ currentModule: "${currentModuleKey}", role: "${role}", navigateFn: "${navigateFn}" })'
+           ${act('navOpenCmdBar', { currentModule: currentModuleKey, role: role, navigateFn: navigateFn })}
             title='Open Command Bar'>
       <i data-lucide="search" class="nav-footer-btn-icon"></i>
       ${kbdLabel} to search
@@ -78,19 +80,19 @@ function renderModuleNav({
     <img src='momentum-symbol-and-name-global-white.png' alt='Momentum Global' class='nav-logo-img'>
         <div class='nav-footer'>
       ${userGuideLink}
-      <button class='nav-footer-btn' id='refresh-data-btn' onclick='refreshModuleData()' title='Clear cached data and reload this page'>
+      <button class='nav-footer-btn' id='refresh-data-btn'${act('refreshModuleData')} title='Clear cached data and reload this page'>
         <i data-lucide="refresh-cw" class="nav-footer-btn-icon"></i>
         Refresh data
       </button>
-      <button class='nav-theme-toggle' id='theme-toggle-btn' onclick='toggleTheme()' title='Toggle dark mode'>
+      <button class='nav-theme-toggle' id='theme-toggle-btn'${act('toggleTheme')} title='Toggle dark mode'>
         <i data-lucide="${getTheme() === 'dark' ? 'sun' : 'moon'}" class="nav-theme-toggle-icon"></i>
         ${getTheme() === 'dark' ? 'Light mode' : 'Dark mode'}
       </button>
-      <button class='nav-theme-toggle' id='density-toggle-btn' onclick='toggleDensity()' title='Toggle table density'>
+      <button class='nav-theme-toggle' id='density-toggle-btn'${act('toggleDensity')} title='Toggle table density'>
         <i data-lucide="${getDensity() === 'compact' ? 'maximize-2' : 'minimize-2'}" class="nav-theme-toggle-icon"></i>
         ${getDensity() === 'compact' ? 'Comfortable tables' : 'Compact tables'}
       </button>
-      <a class='nav-link signout' onclick='signOut()'>Sign out</a>
+      <a class='nav-link signout'${act('navSignOut')}>Sign out</a>
     </div>
   `;
 
@@ -190,3 +192,24 @@ function refreshModuleData() {
   const fn = _navNavigateFn ? window[_navNavigateFn] : null;
   refreshData(page && typeof fn === 'function' ? () => fn(page) : null);
 }
+
+// N-301: the sidebar's delegated actions (js/actions.js) — no inline handlers.
+// navGo / navToggleModules resolve the module's function NAME at click time,
+// as refreshModuleData() does (N-176); the names come from each *-nav.js,
+// never from data. Wrappers into other files resolve their target at call
+// time, so load order and same-named globals can't bite.
+registerActions({
+  navGo: function (page) {
+    const fn = _navNavigateFn ? window[_navNavigateFn] : null;
+    if (typeof fn === 'function') fn(page);
+  },
+  navToggleModules: function () {
+    const fn = _navToggleFn ? window[_navToggleFn] : null;
+    if (typeof fn === 'function') fn();
+  },
+  navOpenCmdBar: function (opts) { _cmdBarOpen(opts); },
+  navSignOut: function () { signOut(); },
+  refreshModuleData,
+  toggleTheme,
+  toggleDensity,
+});

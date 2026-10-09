@@ -38,10 +38,11 @@ const TESTS_DIR = __dirname;
 const JS_DIR = path.join(TESTS_DIR, '..', 'js');
 
 // Production script order (index.html / reporting.html): config.js before
-// utils.js before api.js before analytics.js before lci-model.js before
+// actions.js (N-301) before utils.js before api.js before analytics.js before lci-model.js before
 // coe-plan.js. Fixtures/assertions load last.
 const SOURCE_FILES = [
   path.join(JS_DIR, 'config.js'),
+  path.join(JS_DIR, 'actions.js'),
   path.join(JS_DIR, 'utils.js'),
   path.join(JS_DIR, 'api.js'),
   path.join(JS_DIR, 'analytics.js'),
@@ -56,6 +57,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'lint-stage-arrays.js'),
   path.join(TESTS_DIR, 'lint-headcount-writes.js'),
   path.join(TESTS_DIR, 'lint-weeklyactivity-writes.js'),
+  path.join(TESTS_DIR, 'lint-inline-handlers.js'),
   path.join(TESTS_DIR, 'fixtures.js'),
   path.join(TESTS_DIR, 'assertions.js'),
 ];

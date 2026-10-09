@@ -3967,4 +3967,233 @@ var ASSERTIONS = [
       _assertEqual(countWeeklyActivityCreates("a\ncreateItem('WeeklyActivity', f);\ncreateItem(\"WeeklyActivity\", g);\n"), 2, 'counter');
     },
   },
+  // ---- N-301 (SEC-12b): delegated actions + inline-handler ratchet -------
+  {
+    name: 'N-301 act()/actOn() — attribute shape, escaping and JSON round trip (AC1-3)',
+    fn: function () {
+      _assertEqual(act('x'), ' data-act="x"', 'bare click');
+      _assertEqual(actOn('change', 'x'), ' data-act-change="x"', 'bare change');
+      _assertEqual(actOn('click', 'x.stop'), ' data-act="x.stop"', 'actOn click → data-act, modifiers kept');
+      _assertEqual(act('x', 1), ' data-act="' + escHtml(JSON.stringify(['x', 1])) + '"', 'value is escHtml(JSON)');
+      const nasty = ["it's", 'say "hi"', 'back\\slash', '<b>&amp;</b>', '</script><script>alert(1)</script>', 'line1\nline2', 'café — 😀'];
+      const args = nasty.concat([0, -1.5, null, true, false, { a: [1, 'b'], c: { d: null } }, ['x', 2]]);
+      const out = act('fn.prevent', ...args);
+      const m = /^ data-act="([^"]*)"$/.exec(out);
+      _assertEqual(!!m, true, 'one double-quoted attribute, no raw " inside');
+      _assertEqual(m[1].indexOf("'") < 0 && m[1].indexOf('<') < 0 && m[1].indexOf('>') < 0, true, "no raw ' < > in the value");
+      const decoded = _actParseValue(_actUnescapeForTest(m[1]));
+      _assertEqual(decoded.spec, 'fn.prevent', 'spec round trip');
+      _assertEqual(decoded.args, args, 'args round trip');
+      ['undefined', 'NaN', 'Infinity', 'nested undefined', 'function'].forEach(function (label, i) {
+        const bad = [undefined, NaN, Infinity, { a: undefined }, function () {}][i];
+        let threw = false;
+        try { act('x', bad); } catch (e) { threw = true; }
+        _assertEqual(threw, true, 'act rejects ' + label);
+      });
+      let threw = false;
+      try { actOn('hover', 'x'); } catch (e) { threw = /ACT_EVENTS/.test(e.message); }
+      _assertEqual(threw, true, 'actOn rejects an event type outside ACT_EVENTS');
+      threw = false;
+      try { act('x.bogus'); } catch (e) { threw = true; }
+      _assertEqual(threw, true, 'act rejects an unknown modifier');
+      threw = false;
+      try { act('not a name'); } catch (e) { threw = true; }
+      _assertEqual(threw, true, 'act rejects an invalid name');
+    },
+  },
+  {
+    name: 'N-301 dispatcher — placeholders, walk order, modifiers, error isolation, event routing (AC4-7, AC9)',
+    fn: function () {
+      const t = _actTestRig();
+      // AC4 placeholders
+      const input = t.el({ 'data-act-change': JSON.stringify(['rec', { $: 'el' }, { $: 'event' }, { $: 'value' }, { $: 'checked' }, { $: 'html' }, { $: 'el', other: 1 }]) }, null, { value: 'v', checked: true, innerHTML: '<i>h</i>' });
+      const ev = t.evt('change', input);
+      _actDispatch(ev, t.registry, t.report);
+      _assertEqual(t.calls.length, 1, 'placeholder action ran once');
+      const a = t.calls[0].args;
+      _assertEqual(a[0] === input && a[1] === ev, true, 'ACT_EL / ACT_EVENT');
+      _assertEqual([a[2], a[3], a[4]], ['v', true, '<i>h</i>'], 'ACT_VALUE / ACT_CHECKED / ACT_HTML');
+      _assertEqual(a[5], { $: 'el', other: 1 }, 'object with more than $ passes through as data');
+      _assertEqual([ACT_EL, ACT_EVENT, ACT_VALUE, ACT_CHECKED, ACT_HTML].map(p => p.$), ['el', 'event', 'value', 'checked', 'html'], 'exported placeholder constants');
+      t.reset();
+      _actDispatch(t.evt('click', t.el({ 'data-act': '["rec",{"$":"bogus"}]' })), t.registry, t.report);
+      _assertEqual([t.calls.length, t.errors.length], [0, 1], 'unknown placeholder reported, action not called');
+
+      // AC5 walk order, skipping un-marked elements, text-node target
+      t.reset();
+      const outer = t.el({ 'data-act': '["rec","outer"]' });
+      const mid = t.el({}, outer);
+      const inner = t.el({ 'data-act': '["rec","inner"]' }, mid);
+      const text = { nodeType: 3, parentElement: inner };
+      _actDispatch(t.evt('click', text), t.registry, t.report);
+      _assertEqual(t.calls.map(c => c.args[0]), ['inner', 'outer'], 'child first, then parent; text target walks from its parent');
+
+      // AC6 modifiers
+      t.reset();
+      const p1 = t.el({ 'data-act': '["rec","parent"]' });
+      const c1 = t.el({ 'data-act': '["rec.prevent.stop","child"]' }, p1);
+      const e1 = t.evt('click', c1);
+      _actDispatch(e1, t.registry, t.report);
+      _assertEqual(t.calls.map(c => c.args[0]), ['child'], '.stop ends the walk — parent not run');
+      _assertEqual(e1.log, ['preventDefault', 'rec', 'stopPropagation', 'stopImmediatePropagation'], '.prevent before the action, .stop after');
+      t.reset();
+      const p2 = t.el({ 'data-act': '["rec","parent"]' });
+      const overlay = t.el({ 'data-act': '["rec.self","overlay"]' }, p2);
+      const btn = t.el({}, overlay);
+      _actDispatch(t.evt('click', btn), t.registry, t.report);
+      _assertEqual(t.calls.map(c => c.args[0]), ['parent'], '.self skipped when target is a descendant, walk continues');
+      t.reset();
+      _actDispatch(t.evt('click', overlay), t.registry, t.report);
+      _assertEqual(t.calls.map(c => c.args[0]), ['overlay', 'parent'], '.self runs when the target is the element');
+      t.reset();
+      _actDispatch(t.evt('click', t.el({ 'data-act': 'rec.bogus' })), t.registry, t.report);
+      _assertEqual([t.calls.length, t.errors.length], [0, 1], 'unknown modifier reported');
+
+      // AC7 error isolation
+      t.reset();
+      const root = t.el({ 'data-act': '["rec","root"]' });
+      const l3 = t.el({ 'data-act': '[bad json' }, root);
+      const l2 = t.el({ 'data-act': 'boom' }, l3);
+      const l1 = t.el({ 'data-act': 'missingAction' }, l2);
+      _actDispatch(t.evt('click', l1), t.registry, t.report);
+      _assertEqual(t.calls.map(c => c.args[0]), ['root'], 'unknown action, throwing action and bad JSON each reported; the walk still reaches the root');
+      _assertEqual(t.errors.length, 3, 'three errors reported');
+      _assertEqual(/Unknown action "missingAction"/.test(t.errors[0].message), true, 'unknown action names itself');
+      _assertEqual(t.errors[1].message, 'kaboom', 'the action\'s own error is reported as-is');
+
+      // AC9 routing: change ignores data-act; a click ignores data-act-change
+      t.reset();
+      const both = t.el({ 'data-act': '["rec","click"]', 'data-act-change': '["rec","change"]' });
+      _actDispatch(t.evt('change', both), t.registry, t.report);
+      _actDispatch(t.evt('click', both), t.registry, t.report);
+      _assertEqual(t.calls.map(c => c.args[0]), ['change', 'click'], 'each event type reads its own attribute');
+      const added = [];
+      _actInstall({ addEventListener: (type, fn, capture) => added.push(type + ':' + capture) }, t.registry, t.report);
+      _assertEqual(added, ACT_EVENTS.map(ty => ty + ':' + (ty === 'error')), 'one listener per ACT_EVENTS type; error in capture phase only');
+      _assertEqual(ACT_EVENTS.slice().sort(), ['change', 'click', 'dblclick', 'error', 'input', 'keydown', 'keyup', 'mousedown', 'mouseup', 'submit'], 'ACT_EVENTS covers every event type in use (N-301 survey)');
+    },
+  },
+  {
+    name: 'N-301 registerActions — duplicates, bad values and bad keys rejected; no window fallback (AC8, AC10)',
+    fn: function () {
+      const reg = Object.create(null);
+      _actRegisterInto(reg, { a: function () {} });
+      const rejects = function (map, label, re) {
+        let msg = null;
+        try { _actRegisterInto(reg, map); } catch (e) { msg = e.message; }
+        _assertEqual(msg !== null && re.test(msg), true, label + ' (' + msg + ')');
+      };
+      rejects({ a: function () {} }, 'duplicate name', /"a" is already registered/);
+      rejects({ b: 'not a function' }, 'non-function value', /"b" is not a function/);
+      rejects({ 'bad-name': function () {} }, 'invalid key', /invalid action name/);
+      rejects(null, 'not an object', /expected an object/);
+      rejects({ c: function () {}, a: function () {} }, 'atomic: a batch with one duplicate', /already registered/);
+      _assertEqual('c' in reg, false, 'nothing from a rejected batch is registered');
+      // Registry-only lookup: a global with the action's name is never called.
+      const errors = [];
+      let called = false;
+      const g = (typeof globalThis !== 'undefined') ? globalThis : this;
+      g.__n301GlobalOnly = function () { called = true; };
+      const el = { nodeType: 1, parentElement: null, tagName: 'BUTTON', hasAttribute: n => n === 'data-act', getAttribute: () => '__n301GlobalOnly' };
+      _actDispatch({ type: 'click', target: el }, reg, e => errors.push(e));
+      delete g.__n301GlobalOnly;
+      _assertEqual([called, errors.length], [false, 1], 'a global function is not reachable by name');
+      // AC10: the real registry holds the built-in noop; loading in the vm installed nothing.
+      _assertEqual(typeof _ACT_REGISTRY.noop, 'function', 'built-in noop registered');
+      // In the Node vm there is no document, so loading actions.js must not have
+      // touched one (it would have thrown). The browser harness has a real one.
+      if (typeof window === 'undefined') _assertEqual(typeof document, 'undefined', 'vm has no document — install guard skipped');
+    },
+  },
+  {
+    name: 'N-301 inline handlers: per-file counts equal INLINE_HANDLER_BASELINE (SEC-12b ratchet)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined' || typeof ALL_HTML === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintInlineHandlers(ALL_SOURCES, ALL_HTML, INLINE_HANDLER_BASELINE), [], 'inline handler ratchet');
+      _assertEqual(countInlineHandlers(ALL_SOURCES['nav-core.js']), 0, 'nav-core.js pilot: no inline handlers');
+      _assertEqual('js/nav-core.js' in INLINE_HANDLER_BASELINE, false, 'nav-core.js has no baseline entry');
+      _assertEqual(lintJavascriptUrls(ALL_SOURCES, ALL_HTML), [], 'no javascript: URLs');
+      _assertEqual(lintActNames(ALL_SOURCES, ALL_HTML), [], 'every literal action name is registered once');
+      const regs = readActionRegistrations(ALL_SOURCES).registered;
+      ['navGo', 'navToggleModules', 'navOpenCmdBar', 'navSignOut', 'refreshModuleData', 'toggleTheme', 'toggleDensity'].forEach(n =>
+        _assertEqual(regs[n], ['js/nav-core.js'], 'nav-core registers ' + n));
+      _assertEqual(regs.noop, ['js/actions.js'], 'actions.js registers noop');
+    },
+  },
+  {
+    name: 'lint-inline-handlers controls: counter, ratchet both ways, stale/new files, javascript: URLs, action names (N-301)',
+    fn: function () {
+      // Counter: what counts and what doesn't.
+      _assertEqual(countInlineHandlers('<a onclick="x()">'), 1, 'double-quoted');
+      _assertEqual(countInlineHandlers("<a onclick='x()'>"), 1, 'single-quoted');
+      _assertEqual(countInlineHandlers('<a ONCLICK="x()">'), 1, 'HTML attribute names are case-insensitive');
+      _assertEqual(countInlineHandlers('h += "<a onclick=\\"x()\\">";'), 1, 'escaped quote inside a JS string');
+      _assertEqual(countInlineHandlers('<a onclick=${fn}>'), 1, '${ value');
+      _assertEqual(countInlineHandlers("el.setAttribute('onclick', 'x()');"), 1, "setAttribute('onclick'");
+      _assertEqual(countInlineHandlers('<select onchange="a()" oninput="b()" onkeydown="c()">'), 3, 'several on one element');
+      _assertEqual(countInlineHandlers('el.onclick = fn; const only = \'x\'; let onDone = "y"; if (on === "z") {}'), 0, 'DOM property, onDone, only, on === not counted');
+      _assertEqual(countInlineHandlers('<a data-act-click="x" data-act-change="y" data-onclick="z">'), 0, 'data-act-* / data-on* not counted');
+      _assertEqual(countInlineHandlers('<section class="x" button="y">'), 0, 'words containing "on" not counted');
+      // Ratchet.
+      const js = { 'a.js': '<a onclick="x()"><b onclick="y()">', 'clean.js': 'x' };
+      const html = { 'p.html': '<a onclick="z()">' };
+      const base = { 'js/a.js': 2, 'p.html': 1 };
+      _assertEqual(lintInlineHandlers(js, html, base), [], 'control: exact match is clean');
+      const raised = lintInlineHandlers({ 'a.js': js['a.js'] + '<c onclick="q()">', 'clean.js': 'x' }, html, base);
+      _assertEqual(raised.length === 1 && /raised from 2 to 3/.test(raised[0]), true, 'raised flagged: ' + raised);
+      const lowered = lintInlineHandlers({ 'a.js': '<a onclick="x()">', 'clean.js': 'x' }, html, base);
+      _assertEqual(lowered.length === 1 && /lower INLINE_HANDLER_BASELINE to 1/.test(lowered[0]), true, 'lowered flagged: ' + lowered);
+      const zero = lintInlineHandlers({ 'a.js': 'none', 'clean.js': 'x' }, html, base);
+      _assertEqual(zero.length === 1 && /delete the INLINE_HANDLER_BASELINE entry/.test(zero[0]), true, 'down to 0 → delete the entry: ' + zero);
+      const fresh = lintInlineHandlers({ 'a.js': js['a.js'], 'clean.js': '<a onclick="n()">' }, html, base);
+      _assertEqual(fresh.length === 1 && /js\/clean\.js: 1 inline .* no INLINE_HANDLER_BASELINE entry/.test(fresh[0]), true, 'new file with a handler flagged: ' + fresh);
+      const stale = lintInlineHandlers(js, html, Object.assign({ 'js/gone.js': 3 }, base));
+      _assertEqual(stale.length === 1 && /js\/gone\.js: .* no longer exists/.test(stale[0]), true, 'stale entry flagged: ' + stale);
+      _assertEqual(lintInlineHandlers(js, html, Object.assign({ 'js/clean.js': 0 }, base)).length, 1, 'a 0 entry flagged');
+      // javascript: URLs.
+      _assertEqual(lintJavascriptUrls({ 'x.js': 'a\n<a href="javascript:void(0)">' }, { 'p.html': "<a href='javascript:x()'>" }).map(v => v.file + ':' + v.line), ['js/x.js:2', 'p.html:1'], 'javascript: URLs flagged');
+      _assertEqual(lintJavascriptUrls({ 'x.js': '// Everything else — javascript:, data: — is refused' }, {}), [], 'a mention outside an attribute is fine');
+      // Action names.
+      const reg = "registerActions({\n  alpha,\n  beta: function (a) { return { x: 1 }; },\n  gamma(b) {},\n});\n";
+      _assertEqual(lintActNames({ 'r.js': reg, 'u.js': "x = `${act('alpha')}${act('beta.prevent.stop', 1)}${actOn('change', 'gamma', ACT_VALUE)}`;" }, { 'p.html': '<a data-act="alpha"><b data-act-change=\'["beta",1]\'>' }), [], 'control: registered names (shorthand, property, method; modifiers stripped; html bare + JSON) are clean');
+      const unreg = lintActNames({ 'r.js': reg, 'u.js': "x = act('delta') + actOn('input', 'epsilon');" }, { 'p.html': '<a data-act="zeta">' });
+      _assertEqual(unreg.length, 3, 'unregistered names flagged: ' + unreg);
+      const dup = lintActNames({ 'r.js': reg, 's.js': 'registerActions({ alpha: f });' }, {});
+      _assertEqual(dup.length === 1 && /"alpha" registered more than once/.test(dup[0]), true, 'duplicate registration flagged: ' + dup);
+      _assertEqual(lintActNames({ 'r.js': 'const m = {}; registerActions(m);' }, {}).length, 1, 'non-literal registration flagged');
+      _assertEqual(lintActNames({ 'a.js': 'function registerActions(map) {}\n// act(\'commentedOut\')' }, {}), [], 'the definition and commented examples are ignored');
+    },
+  },
 ];
+
+// N-301 test helpers — stub elements/events for js/actions.js (no DOM in the vm).
+function _actUnescapeForTest(s) {
+  return String(s).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+function _actTestRig() {
+  const t = { calls: [], errors: [], current: null };
+  t.registry = Object.create(null);
+  _actRegisterInto(t.registry, {
+    rec: function () { const a = Array.prototype.slice.call(arguments); t.calls.push({ args: a }); if (t.current) t.current.log.push('rec'); },
+    boom: function () { throw new Error('kaboom'); },
+  });
+  t.report = function (e) { t.errors.push(e); };
+  t.reset = function () { t.calls = []; t.errors = []; };
+  t.el = function (attrs, parent, props) {
+    const el = { nodeType: 1, tagName: 'DIV', parentElement: parent || null };
+    el.hasAttribute = n => Object.prototype.hasOwnProperty.call(attrs, n);
+    el.getAttribute = n => (Object.prototype.hasOwnProperty.call(attrs, n) ? attrs[n] : null);
+    return Object.assign(el, props || {});
+  };
+  t.evt = function (type, target) {
+    const e = { type: type, target: target, log: [] };
+    e.preventDefault = () => e.log.push('preventDefault');
+    e.stopPropagation = () => e.log.push('stopPropagation');
+    e.stopImmediatePropagation = () => e.log.push('stopImmediatePropagation');
+    t.current = e;
+    return e;
+  };
+  return t;
+}

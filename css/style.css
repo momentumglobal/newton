@@ -2666,9 +2666,9 @@ body {
 }
 
 /* ── Toast + confirm modal (N-104 / X-3a) — engine only, no call sites
-   migrated yet (N-105/106/107). Don't touch .eng-modal-*/.payroll-modal-*/
-   .lci-modal-* — this is a separate, shared component. Both this and the
-   modal overlays now share the --z-* scale defined in :root (N-159). ── */
+   migrated yet (N-105/106/107). Don't touch the .eng-modal-, .payroll-modal-
+   or .lci-modal- families — this is a separate, shared component. Both this
+   and the modal overlays now share the --z-* scale defined in :root (N-159). ── */
 .toast-container {
   position: fixed;
   right: var(--sp-9);
@@ -2897,6 +2897,8 @@ body {
 .coe-gantt .coe-sticky--2 { left:160px; min-width:96px; }
 .coe-gantt .coe-sticky--3 { left:256px; min-width:110px; }
 .coe-gantt .coe-sticky--4 { left:366px; min-width:110px; box-shadow:var(--sp-1) 0 var(--sp-1) rgba(0,0,0,0.06); }
+/* N-319: Planned Open / Actual Open / Week Variance centred (Role stays left) */
+.coe-gantt .coe-sticky--2, .coe-gantt .coe-sticky--3, .coe-gantt .coe-sticky--4 { text-align:center; }
 /* Header sticky/background now comes from .table-scroll thead th (N-203);
    this rule only needed for the rare <td> in a thead row, which
    .table-scroll's th-only selector doesn't cover. */

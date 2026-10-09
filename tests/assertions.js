@@ -3634,6 +3634,28 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'N-318 coeOpensBlockHtml — chart + table for the Report Builder final page; summary optional; unread headcount is not zero',
+    fn: function () {
+      const rows = [
+        { id: '1', Title: 'A', OpenDate: '2026-08-03T12:00:00Z', LinkedHeadcountID: '10' },
+        { id: '2', Title: 'B', OpenDate: '2026-11-02T12:00:00Z' },
+      ];
+      const hc = [{ id: '10', OpenDate: '2026-07-30T12:00:00Z' }];
+      const bare = coeOpensBlockHtml(rows, hc, { summary: false });
+      _assertEqual(/coe-opens-svg/.test(bare) && /coe-opens-table/.test(bare), true, 'chart + table present');
+      _assertEqual(/coe-opens-summary/.test(bare), false, 'summary:false leaves the summary line off');
+      const full = coeOpensBlockHtml(rows, hc);
+      _assertEqual(/coe-opens-summary/.test(full), true, 'default keeps the summary line (Hiring Plan page)');
+      _assertEqual(full.endsWith(bare), true, 'page output = summary + the same chart + table');
+      _assertEqual(coeOpensBlockHtml(rows, null), null, 'unread headcount (null) → null, not an empty chart');
+      _assertEqual(coeOpensBlockHtml(rows, undefined), null, 'undefined headcount → null');
+      _assertEqual(coeOpensBlockHtml([], hc), '', 'no plan rows → empty string');
+      _assertEqual(/coe-opens-table/.test(coeOpensBlockHtml(rows, [], { summary: false })), true, 'a successful read with no headcount ([]) still renders');
+      _assertEqual(coeOpensModel(rows, [], new Date(2026, 9, 8)).openedToDate, 0, '[] headcount → 0 opened (a real read, not the failure path)');
+      _assertEqual(coeOpensModel(rows, hc, new Date(2026, 9, 8)).openedToDate, 1, 'linked headcount with an OpenDate counts as opened');
+    },
+  },
+  {
     name: 'N-312 planCoELinkMigration — lowest Sequence, reports, idempotent',
     fn: function () {
       const roles = [{ id: '1' }, { id: '2' }, { id: '3' }];

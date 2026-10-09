@@ -82,7 +82,7 @@ async function renderReportBuilder() {
         <label class="rb-gantt-toggle">
           <input type="checkbox" ${_rbIncludeGantt ? 'checked' : ''}
             onchange="_rbIncludeGantt = this.checked">
-          Hiring Plan final page
+          Planned vs Actual Role Opens final page
         </label>` : ''}
         <button class="btn-secondary" onclick="showReportBuilderLibrary()">&larr; Back to Library</button>
         <button class="btn-secondary" id="rb-save-btn" onclick="rbSaveReport()">Save</button>
@@ -436,7 +436,7 @@ async function rbPreview() {
 }
 
 function rbRenderReportHtml(title, data, ganttOpts = null) {
-  // ganttOpts: { coeRows, forPrint } — appended Hiring Plan final page
+  // ganttOpts: { coeRows, headcount, forPrint } — appended final page (N-318: Planned vs Actual Role Opens chart + table)
   const titleHtml = `<div class="rb-report-title"><h2>${escHtml(title)}</h2></div>`;
 
   const blocks = _rbBlocks.map(block => {
@@ -458,12 +458,17 @@ function rbRenderReportHtml(title, data, ganttOpts = null) {
   if (_rbIncludeGantt && _rbScope === 'project' && ganttOpts) {
     if (!ganttOpts.forPrint) {
       ganttHtml = `<div class="rb-gantt-placeholder">
-        Hiring Plan — renders as a landscape final page on PDF export</div>`;
-        } else if (ganttOpts.coeRows?.length) {
+        Planned vs Actual Role Opens — renders as a landscape final page on PDF export</div>`;
+    } else if (ganttOpts.coeRows?.length) {
+      // N-318: chart + table only — no Gantt, no summary line. An unread headcount
+      // (null) prints a message, never zero-filled actuals (N-312 degrade rule).
+      const opensHtml = Array.isArray(ganttOpts.headcount)
+        ? `<div class="rb-opens-layout">${coeOpensBlockHtml(ganttOpts.coeRows, ganttOpts.headcount, { summary: false })}</div>`
+        : `<p class="no-data">Couldn't load this project's headcount — actual opens aren't available. Export again to retry.</p>`;
       ganttHtml = `<div class="rb-hiring-plan-page">
         <div class="dash-panel rb-hiring-plan-panel">
-          <h3 class="panel-title">Hiring Plan</h3>
-          ${coeGanttHtml(coeSortRows(ganttOpts.coeRows), { readOnly: true, canEdit: false, showActuals: false })}
+          <h3 class="panel-title">Planned vs Actual Role Opens</h3>
+          ${opensHtml}
         </div>
       </div>`;
     }
@@ -477,13 +482,19 @@ async function rbExportPdf() {
   if (!data) return;
   _rbReportData = data;
 
-  // Fetch plan rows only when the Hiring Plan page is enabled
-  const coeRows = (_rbIncludeGantt && _rbScope === 'project' && _rbProjectId)
-    ? await getCoEPlanRows(_rbProjectId) : [];
+  // Fetch plan rows + headcount only when the Hiring Plan page is enabled (N-318).
+  // A failed headcount read degrades to null: the page prints a message, not zero opens.
+  const wantPlan = _rbIncludeGantt && _rbScope === 'project' && _rbProjectId;
+  const [coeRows, headcount] = wantPlan
+    ? await Promise.all([
+        getCoEPlanRows(_rbProjectId),
+        getHeadcountForProject(_rbProjectId).catch(e => { console.warn('N-318: headcount read failed', e); return null; }),
+      ])
+    : [[], null];
 
     // Use existing printPage() — sets print-header title/sub and calls window.print()
   const main = document.getElementById('main-content');
-  main.innerHTML = rbRenderReportHtml(title, data, { forPrint: true, coeRows });
+  main.innerHTML = rbRenderReportHtml(title, data, { forPrint: true, coeRows, headcount });
   printPage(title, true, 'Reporting');
 
   // Restore builder after print dialog closes

@@ -224,10 +224,12 @@ function coeRenderGantt() {
 //       ✓ hire-confirmed / ▶ started markers, per linked headcount (N-312);
 //       canEdit (actions column); showActuals.
 //       Actuals render only when showActuals is on AND a headcount ARRAY is
-//       passed (hasActuals). The Report Builder passes none (plan only; N-318
-//       adds them) and the page passes null when the headcount read failed —
-//       without headcount an unopened row can't be told from an unread one,
-//       so Actual Open / Week Variance show '—' and never "(not open)".
+//       passed (hasActuals). The page passes null when the headcount read
+//       failed — without headcount an unopened row can't be told from an
+//       unread one, so Actual Open / Week Variance show '—' and never
+//       "(not open)". N-318: the Report Builder no longer renders the Gantt
+//       (its final page is the opens chart + table), so showActuals:false has
+//       no production caller; it stays for the plan-only guard test.
 function coeGanttHtml(rows, opts = {}) {
   const { headcount = null, placements = [], canEdit = false, showActuals = true } = opts;
   const hasActuals = showActuals && Array.isArray(headcount);
@@ -386,8 +388,18 @@ function coeRenderOpensSection() {
     host.innerHTML = `<p class="no-data">Couldn't load this project's headcount — actual opens and the run rate are unavailable. Refresh to try again.</p>`;
     return;
   }
+  host.innerHTML = coeOpensBlockHtml(planRows, headcount);
+}
+
+// N-318: pure — summary + chart + table, shared by this page and the Report
+// Builder's final page (which passes { summary:false }). '' with no plan rows;
+// null when headcount isn't an array (unread ≠ zero opens — the caller words
+// the message, so the page and the PDF can each say the right thing).
+function coeOpensBlockHtml(planRows, headcount, { summary = true } = {}) {
+  if (!planRows || !planRows.length) return '';
+  if (!Array.isArray(headcount)) return null;
   const m = coeOpensModel(planRows, headcount);
-  host.innerHTML = coeOpensSummaryHtml(m) + coeOpensChartSvg(m) + coeOpensTableHtml(m);
+  return (summary ? coeOpensSummaryHtml(m) : '') + coeOpensChartSvg(m) + coeOpensTableHtml(m);
 }
 
 function coeOpensSummaryHtml(m) {

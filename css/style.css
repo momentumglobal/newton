@@ -3038,6 +3038,18 @@ body {
     margin-bottom: 0;
   }
   .rb-hiring-plan-panel .panel-title { margin-bottom: var(--sp-5); }
+  /* N-318: chart left, table right so a typical plan fits one landscape page.
+     These out-rank the page-print `.coe-fvp-table { break-inside: avoid }`, so a
+     long plan flows onto a second page between rows instead of overflowing. */
+  .rb-opens-layout {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: var(--sp-7);
+    align-items: start;
+  }
+  .rb-opens-layout .coe-opens-chart { max-width: none; margin-bottom: 0; }
+  .rb-opens-layout .coe-fvp-table { margin-top: 0; width: 100%; break-inside: auto; }
+  .rb-opens-layout .coe-fvp-table tr { break-inside: avoid; }
 }
 
 /* ── LCI Cost Model ─────────────────────────────────────────────── */

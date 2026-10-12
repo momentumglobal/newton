@@ -751,7 +751,7 @@ const CONFIG = {
     noticeWeeks:      4,   // N — offer accepted → start
     onboardingWeeks:  6,   // O — start → fully onboarded
     weeksPerNoticeMonth: 4, // months→weeks for LCI notice carried into the plan (N-077)
-    finalNoOpenWeeks: 4,    // N-317: run rate expects no openings in the final N weeks before the latest planned hire
+    finalNoOpenWeeks: 6,    // N-317 / N-320: run rate expects no openings in the final N weeks before the latest planned hire
   },
 
   // N-318: most month columns in one strip of the Report Builder's Planned vs

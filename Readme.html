@@ -1263,6 +1263,14 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Hiring Plan run-rate cutoff: 6 weeks (N-320, HP-3)</div>
+        <ul>
+          <li>The required run rate on <strong>Planned vs Actual Role Opens</strong> now assumes no roles open in the final <strong>6</strong> weeks before the last planned hire (was 4): <code>CONFIG.COE_PHASE_DEFAULTS.finalNoOpenWeeks</code> 4 → 6. Config-only — the on-page note and <code>coeOpensByMonth()</code> read the value.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
         <div class="changelog-title">Delegated UI actions and an inline-handler ratchet (N-301, SEC-12b step 1)</div>
         <ul>
           <li>New <code>js/actions.js</code>: markup carries <code>data-act</code> attributes (built with <code>act()</code>/<code>actOn()</code>) and one listener per event type on the page runs the registered action. Arguments are data, escaped once, so handlers no longer need <code>escJsAttr</code>.</li>

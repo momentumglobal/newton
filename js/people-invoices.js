@@ -215,3 +215,10 @@ async function deleteInvoice(id) {
 const _debouncedRenderGPInvoices = debounce(async () => { await renderGPInvoices(); focusListSearchBox(); }, 250);
 function setInvoicesSearch(val) { _invoicesSearch = val || ''; _debouncedRenderGPInvoices(); }
 async function setInvoicesSort(key) { _invoicesSort = nextSortState(_invoicesSort, key); await renderGPInvoices(); focusSortHeader(key); }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  setInvoicesSearch,
+  setInvoicesSort,
+});

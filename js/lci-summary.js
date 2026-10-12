@@ -150,7 +150,7 @@ async function renderLCISummaryPage(modelId) {
     if (window.lucide) lucide.createIcons();
     renderBreadcrumb('lciModels', model.Title);
   } catch (e) {
-    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: `renderLCISummaryPage(${modelId})` });
+    main.innerHTML = pageErrorBlock({ message: e.message, retryAct: ['renderLCISummaryPage', modelId] });
     if (window.lucide) lucide.createIcons();
   }
 }
@@ -263,7 +263,7 @@ async function renderLCIComparePage(ids) {
   } catch (e) {
     main.innerHTML = pageErrorBlock({
       message: e.message,
-      retryOnClick: `renderLCIComparePage([${ids.map(id => `'${id}'`).join(',')}])`,
+      retryAct: ['renderLCIComparePage', ids.map(id => String(id))],
     });
     if (window.lucide) lucide.createIcons();
   }
@@ -342,3 +342,10 @@ function _lciSummaryRoadmapHtml(slice) {
       </table>
     </div>`;
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  renderLCISummaryPage,
+  renderLCIComparePage,
+});

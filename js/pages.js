@@ -231,7 +231,7 @@ async function renderProjectsPage(filter, pendingItem = null) {
           icon: "building-2",
           message: projectsEmptyMsg,
           actionLabel: (canEdit && _projectsFilter !== "Archive") ? "+ Add Project" : "",
-          actionOnClick: (canEdit && _projectsFilter !== "Archive") ? "showAddProjectForm()" : "",
+          actionAct: (canEdit && _projectsFilter !== "Archive") ? ['showAddProjectForm'] : null,
         })}
       </tbody>
     </table>
@@ -407,7 +407,7 @@ async function renderRolesPage(filter, pendingItem = null) {
           icon: "briefcase",
           message: rolesEmptyMsg,
           actionLabel: canEdit ? "+ Add Role" : "",
-          actionOnClick: canEdit ? "showAddRoleForm()" : "",
+          actionAct: canEdit ? ['showAddRoleForm'] : null,
         })}
       </tbody>
     </table>
@@ -807,7 +807,7 @@ async function renderActivityPage(pendingItem = null) {
           icon: "activity",
           message: activityEmptyMsg,
           actionLabel: canEdit ? "+ Log Activity" : "",
-          actionOnClick: canEdit ? "showAddActivityForm()" : "",
+          actionAct: canEdit ? ['showAddActivityForm'] : null,
         })}
       </tbody>
     </table>
@@ -1013,7 +1013,7 @@ async function renderPlacementsPage(pendingItem = null) {
           icon: "user-check",
           message: placementsEmptyMsg,
           actionLabel: canEdit ? "+ Record Placement" : "",
-          actionOnClick: canEdit ? "showAddPlacementForm()" : "",
+          actionAct: canEdit ? ['showAddPlacementForm'] : null,
         })}
       </tbody>
     </table>
@@ -1155,7 +1155,7 @@ async function renderRejectionsPage(pendingItem = null) {
           icon: "user-x",
           message: rejectionsEmptyMsg,
           actionLabel: canEdit ? "+ Log Rejection" : "",
-          actionOnClick: canEdit ? "showAddRejectionForm()" : "",
+          actionAct: canEdit ? ['showAddRejectionForm'] : null,
         })}
       </tbody>
     </table>
@@ -1176,3 +1176,34 @@ async function showEditRejectionForm(id) {
   const data = await getItem("RejectedOffers", id);
   document.getElementById("main-content").innerHTML = await renderRejectedOfferForm(data);
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  updateRoleStage,
+  unlockStageEdit,
+  showAddProjectForm,
+  showAddRoleForm,
+  showAddActivityForm,
+  showAddPlacementForm,
+  showAddRejectionForm,
+  setRolesProject,
+  setRolesSearch,
+  setRolesPageSize,
+  setRolesSort,
+  setActivityProject,
+  setActivityWeeks,
+  setActivitySearch,
+  setActivityPageSize,
+  setActivitySort,
+  setPlacementProject,
+  setPlacementWeeks,
+  setPlacementSearch,
+  setPlacementPageSize,
+  setPlacementSort,
+  setRejectionsProject,
+  setRejectionsWeeks,
+  setRejectionsSearch,
+  setRejectionsPageSize,
+  setRejectionsSort,
+});

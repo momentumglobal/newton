@@ -1719,3 +1719,10 @@ async function writePeoplePayMigrationNow() {
   toast(result.failed ? 'PeoplePay migration stopped on an error' : `PeoplePay migration written: ${result.written} rows`,
     { type: result.failed ? 'error' : 'success' });
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  setOsaSearch,
+  setOsaSort,
+});

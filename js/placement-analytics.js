@@ -354,3 +354,10 @@ function _paEsc(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  paSetBreakdownSearch,
+  paSetBreakdownSort,
+});

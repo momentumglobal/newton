@@ -196,13 +196,13 @@ function rbRenderCanvas() {
         <span class="rb-drag-handle">&#9776;</span>
         <div class="rb-rt-wrapper">
           <div class="rb-rt-toolbar">
-            <button type="button" onclick="rbFormat('bold')"><b>B</b></button>
-            <button type="button" onclick="rbFormat('italic')"><i>I</i></button>
-            <button type="button" onclick="rbFormat('underline')"><u>U</u></button>
-            <button type="button" onclick="rbFormat('insertUnorderedList')">&#8226; List</button>
-            <button type="button" onclick="rbFormat('insertOrderedList')">1. List</button>
-            <button type="button" onclick="rbFormatBlock('H3')">Heading</button>
-            <button type="button" onclick="rbFormatBlock('P')">Body Text</button>
+            <button type="button"${act('rbFormat', 'bold')} data-rt="bold"><b>B</b></button>
+            <button type="button"${act('rbFormat', 'italic')} data-rt="italic"><i>I</i></button>
+            <button type="button"${act('rbFormat', 'underline')} data-rt="underline"><u>U</u></button>
+            <button type="button"${act('rbFormat', 'insertUnorderedList')} data-rt="insertUnorderedList">&#8226; List</button>
+            <button type="button"${act('rbFormat', 'insertOrderedList')} data-rt="insertOrderedList">1. List</button>
+            <button type="button"${act('rbFormatBlock', 'H3')} data-rt-block="H3">Heading</button>
+            <button type="button"${act('rbFormatBlock', 'P')} data-rt-block="P">Body Text</button>
             ${rtTableToolbarButtonHtml()}
           </div>
           <div class="rb-richtext" contenteditable="true" data-id="${block.id}"
@@ -304,7 +304,7 @@ function rbFormatBlock(tag) {
 
 function rbUpdateToolbarState() {
   const toolbar = document.activeElement?.closest('.rb-block-text')?.querySelector('.rb-rt-toolbar');
-  rtUpdateToolbarState(toolbar, 'rbFormat', 'rbFormatBlock');
+  rtUpdateToolbarState(toolbar);
 }
 
 function rbInitSortable() {
@@ -556,7 +556,7 @@ async function showReportBuilderLibrary() {
     _rbLibraryCache = _rbVisibleReports(reports, projectIds, user.email);
     _rbRenderLibrary();
   } catch (e) {
-    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'showReportBuilderLibrary()' });
+    main.innerHTML = pageErrorBlock({ message: e.message, retryAct: ['showReportBuilderLibrary'] });
     if (window.lucide) lucide.createIcons();
   }
 }
@@ -769,3 +769,11 @@ async function copySavedReport(id, owner) {
     ReportOwner: (owner || '').toLowerCase(),
   });
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  rbFormat,
+  rbFormatBlock,
+  showReportBuilderLibrary,
+});

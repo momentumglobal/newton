@@ -4166,6 +4166,124 @@ var ASSERTIONS = [
       _assertEqual(lintActNames({ 'a.js': 'function registerActions(map) {}\n// act(\'commentedOut\')' }, {}), [], 'the definition and commented examples are ignored');
     },
   },
+  // ---- N-302a (SEC-12b step 2): shared layer ------------------------------
+  {
+    name: 'N-302a lints: legacy code-string params gone; list-control callbacks are registered actions',
+    fn: function () {
+      // Controls first (run in the browser harness too).
+      const legacy = lintLegacyActionParams({
+        'a.js': 'x({ retryOnClick: "f()" });',
+        'mobile-app.js': 'function mobilePageError(m, retryOnClick) {}',
+        'c.js': '// retryOnClick and actionOnClick are mentioned in a comment only\nvar y = 1;',
+      });
+      _assertEqual(legacy.length === 1 && /^js\/a\.js: "retryOnClick" is retired/.test(legacy[0]), true, 'legacy param flagged, mobile-app.js exempt, comments ignored: ' + legacy);
+      _assertEqual(lintLegacyActionParams({ 'b.js': 'emptyStateBlock({ actionOnClick: "f()" })' }).length, 1, 'actionOnClick flagged');
+      const reg = 'registerActions({ setA });';
+      const use = "const h = listSearchBox(v, 'setA') + sortableHeader('L', 'k', s, 'setB') + pageSizeDropdown(n, cb)\n"
+        + "  + `${periodFilterDropdown(w,\n      \"setC\")}` + projectFilterDropdown(p, id, 'setA');\n"
+        + "function listSearchBox(value, callbackFn) {}\n// listSearchBox(v, 'setIgnored')\n";
+      const cbs = lintListControlCallbacks({ 'r.js': reg, 'u.js': use });
+      _assertEqual(cbs.length, 2, 'two unregistered literal callbacks flagged (setB, setC), variable/definition/comment skipped: ' + cbs);
+      _assertEqual(cbs.some(m => /sortableHeader\(\) callback "setB"/.test(m)) && cbs.some(m => /periodFilterDropdown\(\) callback "setC"/.test(m)), true, 'messages name helper + callback: ' + cbs);
+      _assertEqual(lintListControlCallbacks({ 'r.js': 'registerActions({ setA, setB, setC });', 'u.js': use }), [], 'registered callbacks pass');
+      if (typeof ALL_SOURCES === 'undefined' || typeof ALL_HTML === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintLegacyActionParams(ALL_SOURCES), [], 'no actionOnClick / retryOnClick left in js/ (mobile-app.js exempt until N-302f)');
+      _assertEqual(lintListControlCallbacks(ALL_SOURCES), [], 'every list-controls callback is a registered action');
+      const regs = readActionRegistrations(ALL_SOURCES).registered;
+      _assertEqual(regs.signIn, ['js/auth.js'], 'auth.js registers signIn');
+      _assertEqual(regs.printPage, ['js/api.js'], 'api.js registers printPage');
+      _assertEqual(regs.updateRoleStage, ['js/pages.js'], 'pages.js registers updateRoleStage');
+      _assertEqual(regs.unlockStageEdit, ['js/pages.js'], 'pages.js registers unlockStageEdit');
+      _assertEqual(regs.setRolesSort, ['js/pages.js'], 'pages.js registers its list setters');
+      _assertEqual(regs.exitGhostMode, ['js/utils.js'], 'utils.js registers exitGhostMode');
+      _assertEqual(regs.notifToggle, ['js/notifications.js'], 'notifications.js registers notifToggle');
+      ['js/utils.js', 'js/list-controls.js', 'js/notifications.js'].forEach(f =>
+        _assertEqual(f in INLINE_HANDLER_BASELINE, false, f + ' has no baseline entry (0 inline handlers)'));
+    },
+  },
+  {
+    name: 'N-302a shared helpers emit data-act, not inline handlers (empty states, retry, list controls, stage cell, table toolbar)',
+    fn: function () {
+      // [{ attr, spec, args }] for every data-act / data-act-<type> attribute in an HTML string.
+      const acts = html => {
+        const out = []; const re = /\sdata-act(-[a-z]+)?="([^"]*)"/g; let m;
+        while ((m = re.exec(html)) !== null) {
+          const v = _actUnescapeForTest(m[2]);
+          const a = v.charAt(0) === '[' ? JSON.parse(v) : [v];
+          out.push({ attr: 'data-act' + (m[1] || ''), spec: a[0], args: a.slice(1) });
+        }
+        return out;
+      };
+      const noInline = (html, label) => _assertEqual(/\son[a-z]+\s*=/i.test(html), false, label + ': no inline handler attribute');
+      // emptyStateBlock
+      let h = emptyStateBlock({ message: 'None', actionLabel: 'Add role', actionAct: ['showAddRoleForm'] });
+      noInline(h, 'emptyStateBlock');
+      _assertEqual(acts(h), [{ attr: 'data-act', spec: 'showAddRoleForm', args: [] }], 'bare action, no args');
+      h = emptyStateBlock({ message: 'None', actionLabel: 'Open', actionAct: ['openThing', "O'Brien \"x\" <b>", 5, null] });
+      _assertEqual(acts(h)[0].args, ["O'Brien \"x\" <b>", 5, null], 'args are data: quotes, markup, number, null survive');
+      _assertEqual(h.indexOf("O'Brien") === -1 && h.indexOf('<b>') === -1, true, 'no raw quote/markup leaks out of the attribute');
+      _assertEqual(acts(emptyStateBlock({ message: 'None', actionLabel: 'Add', actionAct: null })), [], 'null actionAct → no button');
+      _assertEqual(acts(emptyStateBlock({ message: 'None', actionLabel: 'Add', actionAct: [] })), [], 'empty actionAct → no button');
+      _assertEqual(acts(emptyStateBlock({ message: 'None', actionAct: ['x'] })), [], 'no label → no button');
+      // emptyStateRow — was `…;return false;`, now .prevent
+      h = emptyStateRow({ colspan: 3, message: 'None', actionLabel: 'Add', actionAct: ['showAddRoleForm'] });
+      noInline(h, 'emptyStateRow');
+      _assertEqual(acts(h), [{ attr: 'data-act', spec: 'showAddRoleForm.prevent', args: [] }], 'row link prevents the # navigation');
+      _assertEqual(acts(emptyStateRow({ colspan: 3, actionLabel: 'Go', actionAct: ['go.prevent', 1] }))[0].spec, 'go.prevent', '.prevent is not doubled');
+      _assertEqual(acts(emptyStateRow({ colspan: 3, message: 'None' })), [], 'row without an action');
+      // pageErrorBlock
+      h = pageErrorBlock({ message: 'Boom', retryAct: ['openChecklist', 'role', 5] });
+      noInline(h, 'pageErrorBlock');
+      _assertEqual(acts(h), [{ attr: 'data-act', spec: 'openChecklist', args: ['role', 5] }], 'retry button carries the action and args');
+      _assertEqual(/>Retry</.test(h), true, 'Retry label shown');
+      _assertEqual(acts(pageErrorBlock({ message: 'Boom' })), [], 'no retryAct → no Retry button');
+      _assertEqual(/>Retry</.test(pageErrorBlock({ message: 'Boom' })), false, 'no Retry label without retryAct');
+      // list-controls
+      const VALUE = { $: 'value' };
+      h = projectFilterDropdown([], '', 'setRolesProject');
+      noInline(h, 'projectFilterDropdown');
+      _assertEqual(acts(h), [{ attr: 'data-act-change', spec: 'setRolesProject', args: [VALUE] }], 'project filter → change + ACT_VALUE');
+      h = periodFilterDropdown(4, 'setActivityWeeks'); noInline(h, 'periodFilterDropdown');
+      _assertEqual(acts(h), [{ attr: 'data-act-change', spec: 'setActivityWeeks', args: [VALUE] }], 'period filter');
+      h = pageSizeDropdown(10, 'setRolesPageSize'); noInline(h, 'pageSizeDropdown');
+      _assertEqual(acts(h), [{ attr: 'data-act-change', spec: 'setRolesPageSize', args: [VALUE] }], 'page size');
+      h = listSearchBox('a "b"', 'setRolesSearch'); noInline(h, 'listSearchBox');
+      _assertEqual(acts(h), [{ attr: 'data-act-input', spec: 'setRolesSearch', args: [VALUE] }], 'search box → input + ACT_VALUE');
+      h = sortableHeader('Name', "o'k", { key: "o'k", dir: 'asc' }, 'setRolesSort'); noInline(h, 'sortableHeader');
+      _assertEqual(acts(h), [{ attr: 'data-act', spec: 'setRolesSort', args: ["o'k"] }], 'sort header passes the key as data');
+      _assertEqual(/aria-sort="ascending"/.test(h) && /data-sort-key="o'k"/.test(h), true, 'sort header keeps aria-sort and data-sort-key');
+      // Roles stage cell
+      h = stageSelectHtml(7, 'Sourcing'); noInline(h, 'stageSelectHtml');
+      _assertEqual(acts(h), [{ attr: 'data-act-change', spec: 'updateRoleStage', args: [7, { $: 'el' }] }], 'stage select: numeric id + ACT_EL');
+      h = stageBadgeHtml(7, "St'age", true); noInline(h, 'stageBadgeHtml');
+      _assertEqual(acts(h), [{ attr: 'data-act', spec: 'unlockStageEdit', args: [7, "St'age"] }], 'unlock button: numeric id, string stage');
+      _assertEqual(acts(stageBadgeHtml(7, 'Sourcing', false)), [], 'no unlock button without edit rights');
+      // Rich-text table toolbar
+      h = rtTableToolbarButtonHtml(); noInline(h, 'rtTableToolbarButtonHtml');
+      _assertEqual(acts(h), [{ attr: 'data-act-mousedown', spec: 'noop.prevent', args: [] }, { attr: 'data-act', spec: 'rtInsertTable', args: [] }], 'table button keeps the editor selection (mousedown prevent) then inserts');
+      // rtUpdateToolbarState finds buttons by data-rt / data-rt-block, never by handler text.
+      const seen = []; const toggled = [];
+      const btn = sel => ({ classList: { toggle: (c, on) => toggled.push(sel + '=' + on) } });
+      const toolbar = { querySelector: sel => { seen.push(sel); return btn(sel); } };
+      const hadDoc = Object.prototype.hasOwnProperty.call(globalThis, 'document');
+      globalThis.document = { queryCommandState: () => true, queryCommandValue: () => 'H3' };
+      try { rtUpdateToolbarState(toolbar); } finally { if (!hadDoc) delete globalThis.document; }
+      _assertEqual(seen, ['button[data-rt="bold"]', 'button[data-rt="italic"]', 'button[data-rt="underline"]',
+        'button[data-rt="insertUnorderedList"]', 'button[data-rt="insertOrderedList"]', 'button[data-rt-block="H3"]', 'button[data-rt-block="P"]'], 'selectors use data-rt / data-rt-block');
+      _assertEqual(toggled.indexOf('button[data-rt-block="H3"]=true') !== -1 && toggled.indexOf('button[data-rt-block="P"]=false') !== -1, true, 'H3 active, P inactive when the block is H3');
+      // The four editors' toolbar buttons carry the hooks (source scan).
+      if (typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      [['briefing-pack.js', 'bp'], ['report-builder.js', 'rb'], ['market-report.js', 'mr'], ['lci-report.js', 'lciReport']].forEach(function (p) {
+        const src = ALL_SOURCES[p[0]];
+        ['bold', 'italic', 'underline', 'insertUnorderedList', 'insertOrderedList'].forEach(cmd =>
+          _assertEqual(src.indexOf("act('" + p[1] + "Format', '" + cmd + "')} data-rt=\"" + cmd + "\"") !== -1, true, p[0] + ': ' + cmd + ' button has data-rt'));
+        ['H3', 'P'].forEach(tag =>
+          _assertEqual(src.indexOf("act('" + p[1] + "FormatBlock', '" + tag + "')} data-rt-block=\"" + tag + "\"") !== -1, true, p[0] + ': ' + tag + ' button has data-rt-block'));
+      });
+    },
+  },
 ];
 
 // N-301 test helpers — stub elements/events for js/actions.js (no DOM in the vm).

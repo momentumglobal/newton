@@ -115,7 +115,7 @@ async function openChecklist(recordType, id) {
     if (!stillHere()) return;
     main.innerHTML = `<div class="checklist-page">${_ckHeaderHtml(recordType, 'Checklist', '')}${pageErrorBlock({
       message: "The checklist couldn't be loaded.",
-      retryOnClick: `openChecklist('${recordType}', ${Number(id) || 0})`,
+      retryAct: ['openChecklist', recordType, Number(id) || 0],
     })}</div>`;
     lucide.createIcons();
     return;
@@ -404,3 +404,9 @@ async function copyChecklistLink(recordType, id) {
     toast("Couldn't copy the link", { type: 'error' });
   }
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  openChecklist,
+});

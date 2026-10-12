@@ -17,6 +17,11 @@
 //                        data-act attribute is registered by some
 //                        registerActions({...}) call in js/, and no name is
 //                        registered twice.
+//   lintLegacyActionParams  (N-302a) the code-string parameters actionOnClick /
+//                        retryOnClick are gone from js/ (replaced by the
+//                        actionAct / retryAct argument arrays).
+//   lintListControlCallbacks (N-302a) the callbackFn passed to the five
+//                        list-controls helpers is a registered action name.
 //
 // What counts as an inline handler (raw text, comments included - a commented
 // example counts until it is rewritten): on<event> for an event in
@@ -49,7 +54,7 @@ var INLINE_HANDLER_BASELINE = {
   'admin.html':                      5,
   'index.html':                      5,
   'js/admin.js':                     9,
-  'js/briefing-pack.js':             43,
+  'js/briefing-pack.js':             36,
   'js/bulk-activity.js':             5,
   'js/cc-pages.js':                  1,
   'js/checklist-admin.js':           20,
@@ -67,11 +72,10 @@ var INLINE_HANDLER_BASELINE = {
   'js/lci-leadmagnet.js':            13,
   'js/lci-link.js':                  7,
   'js/lci-pages.js':                 17,
-  'js/lci-report.js':                15,
+  'js/lci-report.js':                8,
   'js/lci-sections.js':              14,
   'js/lci-summary.js':               8,
-  'js/list-controls.js':             5,
-  'js/market-report.js':             26,
+  'js/market-report.js':             19,
   'js/mobile-analytics.js':          2,
   'js/mobile-app.js':                5,
   'js/mobile-home.js':               1,
@@ -80,7 +84,6 @@ var INLINE_HANDLER_BASELINE = {
   'js/mobile-roleform.js':           4,
   'js/mobile-sales.js':              5,
   'js/mobile-scorecards.js':         3,
-  'js/notifications.js':             6,
   'js/org-chart.js':                 14,
   'js/os-admin.js':                  30,
   'js/pages.js':                     23,
@@ -91,11 +94,10 @@ var INLINE_HANDLER_BASELINE = {
   'js/people-payroll.js':            7,
   'js/people-tracker.js':            17,
   'js/placement-analytics.js':       2,
-  'js/report-builder.js':            36,
+  'js/report-builder.js':            29,
   'js/role-page.js':                 13,
   'js/sales-pages.js':               7,
   'js/survey-app.js':                4,
-  'js/utils.js':                     23,
   'market-reporting.html':           1,
   'mobile.html':                     5,
   'people.html':                     1,
@@ -272,6 +274,56 @@ function lintActNames(jsSources, htmlSources) {
   });
   readActionUses(jsSources, htmlSources).forEach(function (u) {
     if (!Object.prototype.hasOwnProperty.call(reg.registered, u.name)) problems.push(u.file + ': action "' + u.name + '" is not registered (registerActions in the file that owns it)');
+  });
+  return problems;
+}
+
+// N-302a: files still allowed to use the old code-string parameters. js/mobile-app.js
+// (mobilePageError's retryOnClick) until N-302f converts the mobile app.
+var LEGACY_PARAM_EXEMPT = ['js/mobile-app.js'];
+
+// returns: [ 'message', ... ]
+function lintLegacyActionParams(jsSources) {
+  var problems = [];
+  Object.keys(jsSources || {}).sort().forEach(function (f) {
+    if (LEGACY_PARAM_EXEMPT.indexOf('js/' + f) !== -1) return;
+    var code = _vendorStripJsComments(jsSources[f]).join('\n');
+    var m = /\b(actionOnClick|retryOnClick)\b/.exec(code);
+    if (m) problems.push('js/' + f + ': "' + m[1] + '" is retired - pass actionAct / retryAct, an act() argument list like [\'name\', arg]');
+  });
+  return problems;
+}
+
+// The five shared list helpers and the 0-based index of their callbackFn argument.
+var LIST_CONTROL_HELPERS = {
+  projectFilterDropdown: 2,
+  periodFilterDropdown: 1,
+  pageSizeDropdown: 1,
+  listSearchBox: 1,
+  sortableHeader: 3
+};
+
+// returns: [ 'message', ... ] - a callbackFn written as a string literal must
+// be a registered action; a variable / expression is skipped.
+function lintListControlCallbacks(jsSources) {
+  var problems = [];
+  var registered = readActionRegistrations(jsSources).registered;
+  Object.keys(jsSources || {}).sort().forEach(function (f) {
+    var code = _vendorStripJsComments(jsSources[f]).join('\n');
+    Object.keys(LIST_CONTROL_HELPERS).forEach(function (helper) {
+      var re = new RegExp('(^|[^\\w.$])' + helper + '\\s*\\(', 'g'), m;
+      while ((m = re.exec(code)) !== null) {
+        if (/function\s+$/.test(code.slice(Math.max(0, m.index - 20), m.index + m[1].length))) continue;
+        var open = code.indexOf('(', m.index + m[1].length);
+        var body = _ihBalanced(code, open);
+        if (body === null) continue;
+        var arg = _ihTopLevelEntries(body)[LIST_CONTROL_HELPERS[helper]];
+        var lit = arg ? /^(['"])([A-Za-z_$][\w$]*)\1$/.exec(arg) : null;
+        if (lit && !Object.prototype.hasOwnProperty.call(registered, lit[2])) {
+          problems.push('js/' + f + ': ' + helper + '() callback "' + lit[2] + '" is not a registered action (registerActions in the file that defines it)');
+        }
+      }
+    });
   });
   return problems;
 }

@@ -109,7 +109,7 @@ function stageSelectHtml(roleId, currentStage) {
     .filter(s => !CONFIG.ROLE_STAGE_TERMINAL.includes(s))
     .map(s => `<option value="${s}" ${currentStage === s ? 'selected' : ''}>${s}</option>`)
     .join('');
-  return `<select id="stage-select-${roleId}" data-prev-value="${escAttr(currentStage || '')}" onchange="updateRoleStage(${roleId}, this)">${options}</select>`;
+  return `<select id="stage-select-${roleId}" data-prev-value="${escAttr(currentStage || '')}"${actOn('change', 'updateRoleStage', roleId, ACT_EL)}>${options}</select>`;
 }
 
 // Pure HTML string builder for the Roles-list locked stage badge -- the
@@ -120,7 +120,7 @@ function stageBadgeHtml(roleId, stage, canEdit) {
   const locked = CONFIG.ROLE_STAGE_TERMINAL.includes(stage);
   const badge = `<span class="badge">${escHtml(stage || "—")}</span>`;
   return (canEdit && !locked)
-    ? `${badge}<button type="button" class="stage-unlock-btn" title="Change stage" onclick="unlockStageEdit(${roleId}, '${escAttr(stage || '')}')"><i data-lucide="lock"></i></button>`
+    ? `${badge}<button type="button" class="stage-unlock-btn" title="Change stage"${act('unlockStageEdit', roleId, stage || '')}><i data-lucide="lock"></i></button>`
     : badge;
 }
 
@@ -851,7 +851,7 @@ function renderGhostBanner() {
     }
     ghostBanner.innerHTML = `
       👻 Ghost mode — viewing as <strong>${escHtml(getGhostLabel() || ghostEmail)}</strong>
-      <button onclick="exitGhostMode()">Exit Ghost Mode</button>
+      <button${act('exitGhostMode')}>Exit Ghost Mode</button>
     `;
     if (appShell) appShell.classList.add('ghost-active');
   } else {
@@ -1088,7 +1088,9 @@ function escAttr(str) {
 }
 
 // Escape for safe interpolation into a JavaScript string inside an HTML attribute.
-// Example: onclick="func('${escJsAttr(title)}')" where title may contain ' or \
+// Legacy: only needed for the inline handler attributes N-302 is retiring; new
+// markup passes data through act()/actOn() (actions.js), which needs no escaping.
+// Handles a title containing ' or \
 // Escape backslash first, then apostrophe in JS-safe way, then HTML entities.
 function escJsAttr(str) {
   return String(str ?? '')
@@ -1216,12 +1218,21 @@ function fuzzyMatch(query, text) {
 // (the whole panel is this markup — nothing else to preserve). icon is a
 // lucide icon name; the caller's page must load lucide and call
 // lucide.createIcons() after setting innerHTML, same as every other
-// data-lucide site in the app. actionLabel/actionOnClick are optional —
+// data-lucide site in the app. actionLabel/actionAct are optional —
 // omit both for a message-only state (read-only panels, no add-flow).
-function emptyStateBlock({ icon = 'inbox', title = '', message = '', actionLabel = '', actionOnClick = '', variant = 'default' } = {}) {
+// actionAct is an act() argument list, [spec, ...args] (N-302a), e.g.
+// ['showAddRoleForm'] or ['openChecklist', 'role', 5]; the named action must
+// be registered (registerActions). An empty array / null renders no button.
+function _emptyStateActAttr(actionAct, prevent) {
+  if (!Array.isArray(actionAct) || !actionAct.length) return '';
+  const spec = (prevent && !/\.prevent(\.|$)/.test(actionAct[0])) ? actionAct[0] + '.prevent' : actionAct[0];
+  return act(spec, ...actionAct.slice(1));
+}
+function emptyStateBlock({ icon = 'inbox', title = '', message = '', actionLabel = '', actionAct = null, variant = 'default' } = {}) {
   const titleHtml  = title ? `<p class="empty-state-title">${escHtml(title)}</p>` : '';
-  const actionHtml = (actionLabel && actionOnClick)
-    ? `<button class="btn-primary empty-state-action" onclick="${escAttr(actionOnClick)}">${escHtml(actionLabel)}</button>`
+  const actAttr    = actionLabel ? _emptyStateActAttr(actionAct, false) : '';
+  const actionHtml = actAttr
+    ? `<button class="btn-primary empty-state-action"${actAttr}>${escHtml(actionLabel)}</button>`
     : '';
   const iconClass = variant === 'error' ? 'empty-state-icon empty-state-icon--error' : 'empty-state-icon';
   return `<div class="empty-state">
@@ -1236,9 +1247,10 @@ function emptyStateBlock({ icon = 'inbox', title = '', message = '', actionLabel
 // inside the table grid instead of replacing it. colspan MUST match the
 // table's real column count, including any conditional trailing action
 // column — get this wrong and the row breaks the grid.
-function emptyStateRow({ colspan, icon = 'inbox', message = '', actionLabel = '', actionOnClick = '' } = {}) {
-  const actionHtml = (actionLabel && actionOnClick)
-    ? `<a href="#" onclick="${escAttr(actionOnClick)};return false;">${escHtml(actionLabel)}</a>`
+function emptyStateRow({ colspan, icon = 'inbox', message = '', actionLabel = '', actionAct = null } = {}) {
+  const actAttr    = actionLabel ? _emptyStateActAttr(actionAct, true) : '';
+  const actionHtml = actAttr
+    ? `<a href="#"${actAttr}>${escHtml(actionLabel)}</a>`
     : '';
     return `<tr><td colspan="${colspan}" class="empty-state-row">
     <i data-lucide="${escAttr(icon)}" class="empty-state-row-icon"></i>
@@ -1249,18 +1261,19 @@ function emptyStateRow({ colspan, icon = 'inbox', message = '', actionLabel = ''
 // ── Page-level failure state (N-171 / F-9b) ─────────────────────
 // Shared renderer for a page-render catch block: replaces #main-content
 // (or a modal's content pane) with a Retry button, distinct from an
-// action failure mid-page (toast(), N-104). retryOnClick is a literal JS
-// call-expression string, e.g. "renderLCIModelsPage()" — the caller
-// re-invokes its own render function, so it must build that string with
-// whatever arguments its own render function needs.
-function pageErrorBlock({ message = '', retryOnClick = '' } = {}) {
+// action failure mid-page (toast(), N-104). retryAct is an act() argument
+// list, [spec, ...args] (N-302a), e.g. ['renderLCIModelsPage'] or
+// ['openChecklist', 'role', 5] — the caller re-invokes its own render
+// function, so it passes whatever arguments that function needs, and the
+// function must be registered (registerActions) in the file that owns it.
+function pageErrorBlock({ message = '', retryAct = null } = {}) {
   return emptyStateBlock({
     icon: 'alert-circle',
     variant: 'error',
     title: 'Something went wrong',
     message,
-    actionLabel: retryOnClick ? 'Retry' : '',
-    actionOnClick: retryOnClick,
+    actionLabel: retryAct ? 'Retry' : '',
+    actionAct: retryAct,
   });
 }
 
@@ -1678,33 +1691,35 @@ function _chartLegendHtml(items) {
 // Report, LCI Report, Briefing Pack) so the four can't drift out of sync
 // again (N-228) — each caller passes its own toolbar element (found however
 // that module scopes it: closest() for multi-instance editors, a fixed id
-// for single-instance ones) and its own Format/FormatBlock function names,
-// since the lookup below matches those names literally against each
-// button's onclick text.
-function rtUpdateToolbarState(toolbarEl, formatFn, formatBlockFn) {
+// for single-instance ones). Buttons are found by their data-rt="<command>"
+// (bold, italic, underline, insertUnorderedList, insertOrderedList) and
+// data-rt-block="H3"|"P" attributes (N-302a) — each editor's template puts
+// those beside its act() call, so nothing here depends on handler text.
+function rtUpdateToolbarState(toolbarEl) {
   if (!toolbarEl) return;
   ['bold', 'italic', 'underline'].forEach(cmd => {
-    const btn = toolbarEl.querySelector(`button[onclick="${formatFn}('${cmd}')"]`);
+    const btn = toolbarEl.querySelector(`button[data-rt="${cmd}"]`);
     if (btn) btn.classList.toggle('active', document.queryCommandState(cmd));
   });
-  const ulBtn = toolbarEl.querySelector(`button[onclick="${formatFn}('insertUnorderedList')"]`);
-  const olBtn = toolbarEl.querySelector(`button[onclick="${formatFn}('insertOrderedList')"]`);
+  const ulBtn = toolbarEl.querySelector('button[data-rt="insertUnorderedList"]');
+  const olBtn = toolbarEl.querySelector('button[data-rt="insertOrderedList"]');
   if (ulBtn) ulBtn.classList.toggle('active', document.queryCommandState('insertUnorderedList'));
   if (olBtn) olBtn.classList.toggle('active', document.queryCommandState('insertOrderedList'));
   const blockTag = document.queryCommandValue('formatBlock').toUpperCase();
-  const hBtn = toolbarEl.querySelector(`button[onclick="${formatBlockFn}('H3')"]`);
-  const pBtn = toolbarEl.querySelector(`button[onclick="${formatBlockFn}('P')"]`);
+  const hBtn = toolbarEl.querySelector('button[data-rt-block="H3"]');
+  const pBtn = toolbarEl.querySelector('button[data-rt-block="P"]');
   if (hBtn) hBtn.classList.toggle('active', blockTag === 'H3');
   if (pBtn) pBtn.classList.toggle('active', blockTag === 'P' || blockTag === 'DIV' || blockTag === '');
 }
 
-// Returns the canonical toolbar button markup. The onmousedown preventDefault
-// is load-bearing: a plain button steals focus on mousedown and collapses the
-// selection, and insertHTML — unlike bold/italic — cannot recover from that.
+// Returns the canonical toolbar button markup. The mousedown preventDefault
+// (noop.prevent) is load-bearing: a plain button steals focus on mousedown and
+// collapses the selection, and insertHTML — unlike bold/italic — cannot
+// recover from that.
 function rtTableToolbarButtonHtml() {
   return '<button type="button" title="Insert table"'
-       + ' onmousedown="event.preventDefault()"'
-       + ' onclick="rtInsertTable()">&#8862; Table</button>';
+       + actOn('mousedown', 'noop.prevent')
+       + act('rtInsertTable') + '>&#8862; Table</button>';
 }
 
 // Insert a bordered table at the caret. Returns false and toasts if the caret
@@ -1753,12 +1768,14 @@ function _rtTableControlsEl() {
     el.id = 'rt-table-controls';
     el.className = 'rt-table-controls';
     el.style.display = 'none';
+    const tableBtn = (action, label) =>
+      '<button type="button"' + actOn('mousedown', 'noop.prevent') + act(action) + '>' + label + '</button>';
     el.innerHTML =
-        '<button type="button" onmousedown="event.preventDefault()" onclick="rtTableAddRow()">+ Row</button>'
-      + '<button type="button" onmousedown="event.preventDefault()" onclick="rtTableRemoveRow()">&minus; Row</button>'
-      + '<button type="button" onmousedown="event.preventDefault()" onclick="rtTableAddCol()">+ Column</button>'
-      + '<button type="button" onmousedown="event.preventDefault()" onclick="rtTableRemoveCol()">&minus; Column</button>'
-      + '<button type="button" onmousedown="event.preventDefault()" onclick="rtTableDeleteTable()">&times; Delete table</button>';
+        tableBtn('rtTableAddRow', '+ Row')
+      + tableBtn('rtTableRemoveRow', '&minus; Row')
+      + tableBtn('rtTableAddCol', '+ Column')
+      + tableBtn('rtTableRemoveCol', '&minus; Column')
+      + tableBtn('rtTableDeleteTable', '&times; Delete table');
     document.body.appendChild(el);
   }
   return el;
@@ -3288,3 +3305,15 @@ function weeklyActivityProjectRepairPlan(rows, roles) {
   });
   return { patches, skipped };
 }
+
+// N-302a: delegated actions owned by this file (js/actions.js). The rich-text
+// table toolbar and the ghost-mode banner are rendered here.
+registerActions({
+  exitGhostMode,
+  rtInsertTable,
+  rtTableAddRow,
+  rtTableRemoveRow,
+  rtTableAddCol,
+  rtTableRemoveCol,
+  rtTableDeleteTable,
+});

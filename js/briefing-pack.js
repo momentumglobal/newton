@@ -81,7 +81,7 @@ async function showBriefingPackLibrary() {
     _bpLibraryCache = _bpVisiblePacks(packs, projectIds, user.email);
     _bpRenderLibrary();
   } catch (e) {
-    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'showBriefingPackLibrary()' });
+    main.innerHTML = pageErrorBlock({ message: e.message, retryAct: ['showBriefingPackLibrary'] });
     if (window.lucide) lucide.createIcons();
   }
 }
@@ -487,13 +487,13 @@ function bpRenderCanvas() {
             oninput="bpUpdatePage('${p.id}', 'heading', this.value)">
           <div class="rb-rt-wrapper">
             <div class="rb-rt-toolbar">
-              <button type="button" onclick="bpFormat('bold')"><b>B</b></button>
-              <button type="button" onclick="bpFormat('italic')"><i>I</i></button>
-              <button type="button" onclick="bpFormat('underline')"><u>U</u></button>
-              <button type="button" onclick="bpFormat('insertUnorderedList')">&#8226; List</button>
-              <button type="button" onclick="bpFormat('insertOrderedList')">1. List</button>
-              <button type="button" onclick="bpFormatBlock('H3')">Heading</button>
-              <button type="button" onclick="bpFormatBlock('P')">Body Text</button>
+              <button type="button"${act('bpFormat', 'bold')} data-rt="bold"><b>B</b></button>
+              <button type="button"${act('bpFormat', 'italic')} data-rt="italic"><i>I</i></button>
+              <button type="button"${act('bpFormat', 'underline')} data-rt="underline"><u>U</u></button>
+              <button type="button"${act('bpFormat', 'insertUnorderedList')} data-rt="insertUnorderedList">&#8226; List</button>
+              <button type="button"${act('bpFormat', 'insertOrderedList')} data-rt="insertOrderedList">1. List</button>
+              <button type="button"${act('bpFormatBlock', 'H3')} data-rt-block="H3">Heading</button>
+              <button type="button"${act('bpFormatBlock', 'P')} data-rt-block="P">Body Text</button>
               ${rtTableToolbarButtonHtml()}
               ${rtCalloutToolbarButtonHtml()}
             </div>
@@ -598,7 +598,7 @@ function bpFormatBlock(tag) {
 
 function bpUpdateToolbarState() {
   const toolbar = document.activeElement?.closest('.bp-block-section')?.querySelector('.rb-rt-toolbar');
-  rtUpdateToolbarState(toolbar, 'bpFormat', 'bpFormatBlock');
+  rtUpdateToolbarState(toolbar);
 }
 
 function bpAddPage(type) {
@@ -886,3 +886,11 @@ async function bpDeletePack(id, title) {
   if (String(_bpPackId) === String(id)) _bpPackId = null;
   await showBriefingPackLibrary();
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  bpFormat,
+  bpFormatBlock,
+  showBriefingPackLibrary,
+});

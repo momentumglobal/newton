@@ -129,7 +129,7 @@ async function openLCILinkModal(modelId) {
         </div>
       </div>`;
   } catch (e) {
-    host.innerHTML = `<div class="lci-modal-overlay" onclick="closeLCILink()"><div class="lci-modal-card">${pageErrorBlock({ message: e.message, retryOnClick: `openLCILinkModal(${modelId})` })}</div></div>`;
+    host.innerHTML = `<div class="lci-modal-overlay" onclick="closeLCILink()"><div class="lci-modal-card">${pageErrorBlock({ message: e.message, retryAct: ['openLCILinkModal', modelId] })}</div></div>`;
     if (window.lucide) lucide.createIcons();
   }
 }
@@ -239,3 +239,9 @@ async function generateLCIPlan(modelId) {
     toast('Error generating plan: ' + e.message, { type: 'error' });
   }
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  openLCILinkModal,
+});

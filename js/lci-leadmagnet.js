@@ -102,7 +102,7 @@ async function renderLCILeadMagnetPage() {
     _lmRenderPreview();
     if (window.lucide) lucide.createIcons();
   } catch (e) {
-    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'renderLCILeadMagnetPage()' });
+    main.innerHTML = pageErrorBlock({ message: e.message, retryAct: ['renderLCILeadMagnetPage'] });
     if (window.lucide) lucide.createIcons();
   }
 }
@@ -421,3 +421,9 @@ function _lmPrint() {
   document.body.classList.add('lci-summary-mode'); // suppress the Confidential print banner
   printPage(`LCI - Country Comparison - ${current.Title}`, false, 'LCI'); // portrait
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  renderLCILeadMagnetPage,
+});

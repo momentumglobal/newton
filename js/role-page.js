@@ -40,7 +40,7 @@ async function openRolePage(roleId) {
     if (!stillHere()) return;
     main.innerHTML = `<div class="role-page">${_rpHeaderHtml(null)}${pageErrorBlock({
       message: "This role couldn't be loaded.",
-      retryOnClick: `openRolePage(${Number.isInteger(id) ? id : 0})`,
+      retryAct: ['openRolePage', Number.isInteger(id) ? id : 0],
     })}</div>`;
     lucide.createIcons();
     return;
@@ -518,3 +518,9 @@ async function rpSaveAddHeadcount() {
     await _rpRefresh(v);
   });
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  openRolePage,
+});

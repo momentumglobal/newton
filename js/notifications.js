@@ -74,7 +74,7 @@ function paintBell(rows, unread) {
 
   const items = recent.length ? recent.map(n => `
     <div class="notif-item${n.IsRead ? ' is-read' : ''}" data-id="${n.id}"
-      onclick="notifOpen('${n.id}', '${escJsAttr(n.DeepLink || '')}')">
+      ${act('notifOpen', String(n.id), String(n.DeepLink || ''))}>
       <div class="notif-item-icon notif-tone--${n.Tone /* esc-lint-ok: Tone is set by code (notifications triggers), never user input */ || 'attention'}">
         <i data-lucide="${NOTIF_ICON[n.Tone] || 'bell'}"></i>
       </div>
@@ -82,23 +82,22 @@ function paintBell(rows, unread) {
         <div class="notif-item-text">${escHtml(n.Body)}</div>
         <div class="notif-item-time">${notifTimeAgo(n.CreatedAt)}</div>
       </div>
-      ${n.IsRead ? '' : `<button class="notif-item-tick" title="Mark read"
-        onclick="event.stopPropagation(); notifTick('${n.id}')">
+      ${n.IsRead ? '' : `<button class="notif-item-tick" title="Mark read"${act('notifTick.stop', String(n.id))}>
         <i data-lucide="check"></i></button>`}
     </div>`).join('') : `<div class="notif-empty">You're all caught up.</div>`;
 
   slot.innerHTML = `
-    <button class="notif-bell" onclick="event.stopPropagation(); notifToggle()">
+    <button class="notif-bell"${act('notifToggle.stop')}>
       <i data-lucide="bell"></i>
       ${unread ? `<span class="notif-badge">${unread}</span>` : ''}
     </button>
-    <div class="notif-overlay" id="notif-overlay" onclick="notifToggle()"></div>
+    <div class="notif-overlay" id="notif-overlay"${act('notifToggle')}></div>
     <div class="notif-drawer" id="notif-drawer">
       <div class="notif-drawer-head">
         <span class="notif-drawer-title">Notifications</span>
         <div class="notif-head-actions">
-          ${unread ? `<button class="notif-markall" onclick="notifMarkAll()">Mark all read</button>` : ''}
-          <button class="notif-close" onclick="notifToggle()" title="Close" aria-label="Close">
+          ${unread ? `<button class="notif-markall"${act('notifMarkAll')}>Mark all read</button>` : ''}
+          <button class="notif-close"${act('notifToggle')} title="Close" aria-label="Close">
             <i data-lucide="x"></i>
           </button>
         </div>
@@ -165,3 +164,11 @@ async function notifMarkAll() {
     document.getElementById('notif-overlay')?.classList.add('open');
   }
 }
+
+// N-302a: delegated actions owned by this file (js/actions.js).
+registerActions({
+  notifOpen,
+  notifTick,
+  notifToggle,
+  notifMarkAll,
+});

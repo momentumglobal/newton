@@ -257,20 +257,13 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
       <div class="rb-block rb-block-text">
         <div class="rb-rt-wrapper">
           <div class="rb-rt-toolbar" id="mr-obs-toolbar">
-            <button type="button"
-              onclick="mrFormat('bold')"><b>B</b></button>
-            <button type="button"
-              onclick="mrFormat('italic')"><i>I</i></button>
-            <button type="button"
-              onclick="mrFormat('underline')"><u>U</u></button>
-            <button type="button"
-              onclick="mrFormat('insertUnorderedList')">&#8226; List</button>
-            <button type="button"
-              onclick="mrFormat('insertOrderedList')">1. List</button>
-            <button type="button"
-              onclick="mrFormatBlock('H3')">Heading</button>
-            <button type="button"
-              onclick="mrFormatBlock('P')">Body Text</button>
+            <button type="button"${act('mrFormat', 'bold')} data-rt="bold"><b>B</b></button>
+            <button type="button"${act('mrFormat', 'italic')} data-rt="italic"><i>I</i></button>
+            <button type="button"${act('mrFormat', 'underline')} data-rt="underline"><u>U</u></button>
+            <button type="button"${act('mrFormat', 'insertUnorderedList')} data-rt="insertUnorderedList">&#8226; List</button>
+            <button type="button"${act('mrFormat', 'insertOrderedList')} data-rt="insertOrderedList">1. List</button>
+            <button type="button"${act('mrFormatBlock', 'H3')} data-rt-block="H3">Heading</button>
+            <button type="button"${act('mrFormatBlock', 'P')} data-rt-block="P">Body Text</button>
             ${rtTableToolbarButtonHtml()}
           </div>
           <div id="mr-obs-editor" class="rb-richtext"
@@ -298,7 +291,7 @@ function mrFormatBlock(tag) {
 
 function mrUpdateToolbarState() {
   const toolbar = document.getElementById("mr-obs-toolbar");
-  rtUpdateToolbarState(toolbar, "mrFormat", "mrFormatBlock");
+  rtUpdateToolbarState(toolbar);
 }
 
 function mrInitEditor() {
@@ -360,7 +353,7 @@ async function showMarketReportLibrary() {
     _mrTpMap        = displayMap;
     _mrRenderLibrary();
   } catch (e) {
-    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'showMarketReportLibrary()' });
+    main.innerHTML = pageErrorBlock({ message: e.message, retryAct: ['showMarketReportLibrary'] });
     if (window.lucide) lucide.createIcons();
   }
 }
@@ -689,3 +682,11 @@ function mrSuggestTitle(roleSelect) {
     _mrTitle               = suggested;
   }
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  mrFormat,
+  mrFormatBlock,
+  showMarketReportLibrary,
+});

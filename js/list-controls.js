@@ -20,8 +20,13 @@
 // implementation is the Roles page (pages.js); N-247b and N-247c wired the
 // rest of the list pages in without changes here.
 //
-// LOAD ORDER: after utils.js (isProjectActive, sortProjectsByName,
-// buildProjectOptionsHtml, escHtml, escAttr, escJsAttr) and api.js
+// callbackFn (N-302a) is the NAME OF A REGISTERED ACTION (registerActions in
+// the page's own file), not a function pasted into an inline handler: the
+// dropdowns/search box call it with the control's value, sortableHeader with
+// the column key. tests/lint-inline-handlers.js checks literal names.
+//
+// LOAD ORDER: after actions.js and utils.js (isProjectActive,
+// sortProjectsByName, buildProjectOptionsHtml, escHtml, escAttr) and api.js
 // (getProjects, getUserProjectIds), and BEFORE pages.js, which calls
 // everything here.
 // ── Project filter helper ─────────────────────────────────────────────
@@ -55,7 +60,7 @@ function projectFilterDropdown(projects, selectedId, callbackFn) {
   return `<div class="project-filter-bar">
     <div class="form-group project-filter-select">
       <label>Project</label>
-      <select onchange="${callbackFn}(this.value)">${options}</select>
+      <select${actOn('change', callbackFn, ACT_VALUE)}>${options}</select>
     </div>
   </div>`;
 }
@@ -70,7 +75,7 @@ function periodFilterDropdown(selectedWeeks, callbackFn) {
   }).join('');
   return '<div class="form-group project-filter-select">' +
     '<label>Period</label>' +
-    '<select onchange="' + callbackFn + '(this.value)">' + options + '</select>' +
+    '<select' + actOn('change', callbackFn, ACT_VALUE) + '>' + options + '</select>' +
     '</div>';
 }
 
@@ -90,7 +95,7 @@ function pageSizeDropdown(selectedSize, callbackFn) {
   }).join('');
   return '<div class="form-group project-filter-select">' +
     '<label>Show</label>' +
-    '<select onchange="' + callbackFn + '(this.value)">' + options + '</select>' +
+    '<select' + actOn('change', callbackFn, ACT_VALUE) + '>' + options + '</select>' +
     '</div>';
 }
 
@@ -126,7 +131,7 @@ function listSearchBox(value, callbackFn) {
     '<label>Search</label>' +
     '<input type="search" value="' + escAttr(value || '') + '"' +
     ' placeholder="Filter this list…"' +
-    ' oninput="' + callbackFn + '(this.value)">' +
+    actOn('input', callbackFn, ACT_VALUE) + '>' +
     '</div>';
 }
 
@@ -194,7 +199,7 @@ function sortableHeader(label, key, sortState, callbackFn) {
   const aria = dir ? ' aria-sort="' + (dir === 'asc' ? 'ascending' : 'descending') + '"' : '';
   return '<th class="th-sortable' + (dir ? ' is-sorted' : '') + '"' + aria + '>' +
     '<button type="button" class="th-sort-btn" data-sort-key="' + escAttr(key) + '"' +
-    ' onclick="' + callbackFn + '(\'' + escJsAttr(key) + '\')">' +
+    act(callbackFn, key) + '>' +
     escHtml(label) +
     '<i data-lucide="' + icon + '" class="th-sort-ind" aria-hidden="true"></i>' +
     '</button></th>';

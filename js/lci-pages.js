@@ -37,7 +37,7 @@ async function renderLCIModelsPage() {
     if (window.lucide) lucide.createIcons();
     if (_lciPreTick.length) { lciCompareSelectionChanged(); _lciPreTick = []; }
   } catch (e) {
-    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'renderLCIModelsPage()' });
+    main.innerHTML = pageErrorBlock({ message: e.message, retryAct: ['renderLCIModelsPage'] });
     if (window.lucide) lucide.createIcons();
   }
 }
@@ -450,3 +450,9 @@ async function deleteLCIModelAction(id) {
     toast('Error deleting model: ' + e.message, { type: 'error' });
   }
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  renderLCIModelsPage,
+});

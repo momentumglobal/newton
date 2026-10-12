@@ -70,7 +70,7 @@ async function renderLCIEditorPage(modelId) {
     if (window.lucide) lucide.createIcons();
     renderBreadcrumb('lciModels', model.Title);
   } catch (e) {
-    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: `renderLCIEditorPage(${modelId})` });
+    main.innerHTML = pageErrorBlock({ message: e.message, retryAct: ['renderLCIEditorPage', modelId] });
     if (window.lucide) lucide.createIcons();
   }
 }
@@ -608,3 +608,9 @@ async function saveLCIRoadmap() {
     _lciSyncSaveButtons();
   }
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  renderLCIEditorPage,
+});

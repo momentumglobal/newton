@@ -19,7 +19,7 @@ async function renderRevenueTrackingPage() {
     }
     main.innerHTML = _renderRevenueTrackingPage(assignments, years);
   } catch (e) {
-    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'renderRevenueTrackingPage()' });
+    main.innerHTML = pageErrorBlock({ message: e.message, retryAct: ['renderRevenueTrackingPage'] });
     if (window.lucide) lucide.createIcons();
   }
 }
@@ -68,7 +68,7 @@ async function renderSalesForecastPage() {
     main.innerHTML = _renderForecastPage(forecasts);
     if (window.lucide) lucide.createIcons();
   } catch (e) {
-    main.innerHTML = pageErrorBlock({ message: e.message, retryOnClick: 'renderSalesForecastPage()' });
+    main.innerHTML = pageErrorBlock({ message: e.message, retryAct: ['renderSalesForecastPage'] });
     if (window.lucide) lucide.createIcons();
   }
 }
@@ -339,3 +339,12 @@ async function deleteForecastRecord(id) {
     toast('Error deleting forecast: ' + e.message, { type: 'error' });
   }
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  setForecastSearch,
+  setForecastSort,
+  renderRevenueTrackingPage,
+  renderSalesForecastPage,
+});

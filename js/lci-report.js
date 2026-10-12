@@ -199,13 +199,13 @@ function _lciReportObsHtml() {
       <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Observations and Recommendations</h3>
       <div class="rb-rt-wrapper">
         <div class="rb-rt-toolbar lci-noprint" id="lci-report-obs-toolbar">
-          <button type="button" onclick="lciReportFormat('bold')"><b>B</b></button>
-          <button type="button" onclick="lciReportFormat('italic')"><i>I</i></button>
-          <button type="button" onclick="lciReportFormat('underline')"><u>U</u></button>
-          <button type="button" onclick="lciReportFormat('insertUnorderedList')">&#8226; List</button>
-          <button type="button" onclick="lciReportFormat('insertOrderedList')">1. List</button>
-          <button type="button" onclick="lciReportFormatBlock('H3')">Heading</button>
-          <button type="button" onclick="lciReportFormatBlock('P')">Body Text</button>
+          <button type="button"${act('lciReportFormat', 'bold')} data-rt="bold"><b>B</b></button>
+          <button type="button"${act('lciReportFormat', 'italic')} data-rt="italic"><i>I</i></button>
+          <button type="button"${act('lciReportFormat', 'underline')} data-rt="underline"><u>U</u></button>
+          <button type="button"${act('lciReportFormat', 'insertUnorderedList')} data-rt="insertUnorderedList">&#8226; List</button>
+          <button type="button"${act('lciReportFormat', 'insertOrderedList')} data-rt="insertOrderedList">1. List</button>
+          <button type="button"${act('lciReportFormatBlock', 'H3')} data-rt-block="H3">Heading</button>
+          <button type="button"${act('lciReportFormatBlock', 'P')} data-rt-block="P">Body Text</button>
           ${rtTableToolbarButtonHtml()}
         </div>
         <div id="lci-report-obs" class="rb-richtext" contenteditable="true"
@@ -230,7 +230,7 @@ function lciReportFormatBlock(tag) {
 }
 
 function lciReportUpdateToolbarState() {
-  rtUpdateToolbarState(document.getElementById('lci-report-obs-toolbar'), 'lciReportFormat', 'lciReportFormatBlock');
+  rtUpdateToolbarState(document.getElementById('lci-report-obs-toolbar'));
 }
 
 // ── Navy cover + dividers ────────────────────────────────────────────
@@ -354,3 +354,10 @@ function _lciReportCompareChartSvg(entries, ccy) {
     </svg>
     ${legend}`;
 }
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  lciReportFormat,
+  lciReportFormatBlock,
+});

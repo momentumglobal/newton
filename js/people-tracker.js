@@ -569,3 +569,12 @@ function _updateBenchSyncTimestamp() {
 }
 
 // ── People Dashboard state ────────────────────────────────────
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  setEmployeesSearch,
+  setEmployeesSort,
+  setAssignmentsSearch,
+  setAssignmentsSort,
+});

@@ -263,6 +263,41 @@ function lintActNames(jsSources, htmlSources) {
   return problems;
 }
 
+// N-302b hotfix: a local named act / actOn in a file that calls the builders
+// shadows them, so every act(...) in that scope throws "act is not a function"
+// at render time (js/coe-plan.js, found live in N-302b QA - no test renders it).
+// Flat file-level rule, deliberately conservative: a file that calls act( or
+// actOn( may not declare anything of that name (variable, destructuring alias,
+// function, parameter, catch binding). js/actions.js defines them and is exempt.
+// returns: [ 'message', ... ]
+function lintActShadowing(jsSources) {
+  var problems = [];
+  Object.keys(jsSources || {}).sort().forEach(function (f) {
+    if (f === 'actions.js') return;
+    var code = _vendorStripJsComments(jsSources[f]).join('\n');
+    ['act', 'actOn'].forEach(function (name) {
+      if (!new RegExp('(^|[^\\w.$])' + name + '\\s*\\(').test(code)) return;
+      var declared = [
+        new RegExp('\\b(?:const|let|var)\\s+' + name + '(?![\\w$])'),
+        new RegExp('\\b(?:const|let|var)\\s*[{\\[]\\s*(?:[^}\\]]*[\\s:,])?' + name + '\\s*[,}\\]=]'),
+        new RegExp('\\bfunction\\s+' + name + '(?![\\w$])'),
+        new RegExp('catch\\s*\\(\\s*' + name + '\\s*\\)'),
+        new RegExp('(^|[^\\w.$])' + name + '\\s*=>')
+      ].some(function (re) { return re.test(code); });
+      if (!declared) {
+        var paramLists = [], m;
+        var fnRe = /\bfunction\b[^(]*\(([^)]*)\)/g, arrowRe = /\(([^()]*)\)\s*=>/g;
+        while ((m = fnRe.exec(code)) !== null) paramLists.push(m[1]);
+        while ((m = arrowRe.exec(code)) !== null) paramLists.push(m[1]);
+        var inParams = new RegExp('(?:^|[\\s,({\\[:])' + name + '\\s*(?:[,)}\\]=]|$)');
+        declared = paramLists.some(function (p) { return inParams.test(p); });
+      }
+      if (declared) problems.push('js/' + f + ': a local "' + name + '" shadows the ' + name + '() action builder in a file that calls it - rename it (e.g. "actual"); every ' + name + '() call in that scope throws "' + name + ' is not a function"');
+    });
+  });
+  return problems;
+}
+
 // N-302a: files still allowed to use the old code-string parameters. js/mobile-app.js
 // (mobilePageError's retryOnClick) until N-302f converts the mobile app.
 var LEGACY_PARAM_EXEMPT = ['js/mobile-app.js'];

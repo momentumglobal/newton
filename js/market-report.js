@@ -552,20 +552,20 @@ async function mrExportPdf() {
   setTimeout(() => {
     const canvas = document.getElementById("mr-canvas");
     if (canvas) {
-      const act = _mrData.activity;
+      const actRows = _mrData.activity;
       canvas.innerHTML = mrRenderCanvas({
         title: _mrTitle, tam: _mrTam,
-        pctContacted: Math.round((sumField(act, "Outreach")  / _mrTam) * 100),
-        pctResponded: Math.round((sumField(act, "Responses") / _mrTam) * 100),
+        pctContacted: Math.round((sumField(actRows, "Outreach")  / _mrTam) * 100),
+        pctResponded: Math.round((sumField(actRows, "Responses") / _mrTam) * 100),
         daysOpen: mrDaysOpen(),
         pipeline: {
-          Screened:   sumField(act, "Screened"),
-          Submitted:  sumField(act, "Submitted"),
-          "IV1":      sumField(act, "Interview1"),
-          "IV2+":     sumField(act, "Interview2Plus"),
-          "Final IV": sumField(act, "FinalInterview"),
-          Offers:     sumField(act, "Offers"),
-          Hires:      sumField(act, "Hires"),
+          Screened:   sumField(actRows, "Screened"),
+          Submitted:  sumField(actRows, "Submitted"),
+          "IV1":      sumField(actRows, "Interview1"),
+          "IV2+":     sumField(actRows, "Interview2Plus"),
+          "Final IV": sumField(actRows, "FinalInterview"),
+          Offers:     sumField(actRows, "Offers"),
+          Hires:      sumField(actRows, "Hires"),
         },
         rejections: _mrData.rejections,
         obsHtml: _mrObs,

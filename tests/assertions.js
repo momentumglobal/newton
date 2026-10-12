@@ -4166,6 +4166,40 @@ var ASSERTIONS = [
       _assertEqual(lintActNames({ 'a.js': 'function registerActions(map) {}\n// act(\'commentedOut\')' }, {}), [], 'the definition and commented examples are ignored');
     },
   },
+  // ---- N-302b hotfix: act()/actOn() shadowing -----------------------------
+  {
+    name: 'N-302b hotfix lint: no local act / actOn shadows the action builders',
+    fn: function () {
+      const call = "x = `${act('go', 1)}`;\n";
+      const bad = {
+        'a.js': call + 'const act = rows[0];',
+        'b.js': call + 'const { hc, spans: act } = actuals[i];',
+        'c.js': call + 'rows.map(act => act.id);',
+        'd.js': call + 'rows.map((act, i) => i);',
+        'e.js': call + 'function render(row, act) {}',
+        'f.js': call + 'const f = function (a, { b: act }) {};',
+        'g.js': call + 'function act() {}',
+        'h.js': "y = actOn('click', 'go');\nlet [first, actOn] = list;",
+        'i.js': call + 'try { f(); } catch (act) {}',
+      };
+      const found = lintActShadowing(bad);
+      _assertEqual(found.length, 9, 'all nine shadowing shapes flagged: ' + found);
+      _assertEqual(/^js\/b\.js: a local "act" shadows the act\(\) action builder/.test(found[1]) && /"actOn"/.test(found[7]), true, 'message names file and builder: ' + found[1]);
+      const clean = {
+        'a.js': call + 'const { hc, spans: actual } = actuals[i]; const t = actual.nStart + row.act + obj.actOn;',
+        'b.js': 'const act = 1; // no act( call in this file, so nothing to shadow',
+        'c.js': call + 'const o = { act: 1, actOn: 2 }; const { act: renamed } = o; const action = 1; const react = 2;',
+        'd.js': call + "// const act = 1; and (act) => 1 in a comment only",
+        'e.js': call + "const f = (a, b = act('x')) => a;",
+        'actions.js': 'function act(spec) {}\nfunction actOn(t, s) {}\nconst z = act("a");',
+      };
+      _assertEqual(lintActShadowing(clean), [], 'near-misses pass (renamed alias, property, comment, default value, no call, actions.js exempt)');
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintActShadowing(ALL_SOURCES), [], 'no file that calls act() / actOn() declares a local of that name');
+    },
+  },
   // ---- N-302a (SEC-12b step 2): shared layer ------------------------------
   {
     name: 'N-302a lints: legacy code-string params gone; list-control callbacks are registered actions',

@@ -802,3 +802,8 @@ async function lciExportReportPptx(btn) {
     if (btn) clearButtonLoading(btn);
   }
 }
+
+// N-302d: delegated action for the report page's Export to PowerPoint button (js/actions.js).
+registerActions({
+  lciExportReportPptx,
+});

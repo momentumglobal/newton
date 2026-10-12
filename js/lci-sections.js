@@ -24,9 +24,9 @@ function _lciSectionShell(id, title, subtitle, addFn, bodyHtml, extraButtonsHtml
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 style="margin:0;color:var(--brand-tertiary)">${title} <span style="font-weight:400;font-size:13px;color:var(--text-muted)">${subtitle}</span></h3>
         <div style="display:flex;gap:8px">
-          <button class="btn-secondary" onclick="${addFn}()">+ Add Row</button>
+          <button class="btn-secondary"${act(addFn)}>+ Add Row</button>
           ${extraButtonsHtml}
-          <button class="btn-primary lci-rows-save" onclick="saveLCIRows()" disabled>Save Changes</button>
+          <button class="btn-primary lci-rows-save"${act('saveLCIRows')} disabled>Save Changes</button>
         </div>
       </div>
       ${bodyHtml}
@@ -58,21 +58,16 @@ function _lciLegacyHtml() {
       `<option value="${k}"${k === cat ? ' selected' : ''}>${v.label}</option>`).join('');
     return `
       <tr>
-        <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(r.Title)}"
-                   onchange="lciRowFieldChanged(${gidx}, 'Title', this.value)"></td>
-        <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(r.Team)}"
-                   onchange="lciRowFieldChanged(${gidx}, 'Team', this.value)"></td>
-        <td><select class="lci-cell" onchange="lciRowFieldChanged(${gidx}, 'LegacyCategory', this.value)">${catOpts}</select></td>
-        <td><input type="number" class="lci-cell lci-cell--sm" min="1" value="${r.Quantity ?? 1}"
-                   onchange="lciRowFieldChanged(${gidx}, 'Quantity', this.value)"></td>
-        <td><input type="number" class="lci-cell" min="0" value="${r.AnnualSalary ?? ''}"
-                   onchange="lciRowFieldChanged(${gidx}, 'AnnualSalary', this.value)"></td>
-        <td><input type="number" class="lci-cell lci-cell--sm" min="0" max="100" step="1" value="${r.BonusPct != null ? Math.round(r.BonusPct * 100 * 100) / 100 : ''}"
-                   onchange="lciRowFieldChanged(${gidx}, 'BonusPct', this.value)"></td>
-        <td><select class="lci-cell"${retained ? ' disabled title="Retained rows stay in post — cost runs to the full horizon"' : ''} onchange="lciRowFieldChanged(${gidx}, 'ExitMonth', this.value)">${exitOpts(r.ExitMonth)}</select>
+        <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(r.Title)}"${actOn('change', 'lciRowFieldChanged', gidx, 'Title', ACT_VALUE)}></td>
+        <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(r.Team)}"${actOn('change', 'lciRowFieldChanged', gidx, 'Team', ACT_VALUE)}></td>
+        <td><select class="lci-cell"${actOn('change', 'lciRowFieldChanged', gidx, 'LegacyCategory', ACT_VALUE)}>${catOpts}</select></td>
+        <td><input type="number" class="lci-cell lci-cell--sm" min="1" value="${r.Quantity ?? 1}"${actOn('change', 'lciRowFieldChanged', gidx, 'Quantity', ACT_VALUE)}></td>
+        <td><input type="number" class="lci-cell" min="0" value="${r.AnnualSalary ?? ''}"${actOn('change', 'lciRowFieldChanged', gidx, 'AnnualSalary', ACT_VALUE)}></td>
+        <td><input type="number" class="lci-cell lci-cell--sm" min="0" max="100" step="1" value="${r.BonusPct != null ? Math.round(r.BonusPct * 100 * 100) / 100 : ''}"${actOn('change', 'lciRowFieldChanged', gidx, 'BonusPct', ACT_VALUE)}></td>
+        <td><select class="lci-cell"${retained ? ' disabled title="Retained rows stay in post — cost runs to the full horizon"' : ''}${actOn('change', 'lciRowFieldChanged', gidx, 'ExitMonth', ACT_VALUE)}>${exitOpts(r.ExitMonth)}</select>
             ${noExit ? '<span class="lci-warn" title="No exit month — cost runs to horizon">⚠</span>' : ''}</td>
         <td class="lci-derived" id="lci-legacy-cost-${gidx}">${_lciFmt(monthly, m.DisplayCurrency)}</td>
-        <td><button class="btn-danger lci-row-del" onclick="removeLCIRowAction(${gidx}, '_lciLegacyHtml', 'lci-legacy-section')">×</button></td>
+        <td><button class="btn-danger lci-row-del"${act('removeLCIRowAction', gidx, '_lciLegacyHtml', 'lci-legacy-section')}>×</button></td>
       </tr>`;
   }).join('')
     : emptyStateRow({ colspan: 9, icon: 'users', message: 'No legacy roles yet.' });
@@ -89,7 +84,7 @@ function _lciLegacyHtml() {
         <tbody>${body}</tbody>
       </table>
     </div>`,
-    '<button class="btn-secondary" onclick="openLCIImportModal()">Import from Excel</button>');
+    `<button class="btn-secondary"${act('openLCIImportModal')}>Import from Excel</button>`);
 }
 
 function addLCILegacyRow() {
@@ -121,16 +116,14 @@ function _lciMonthGridHtml(sectionId, type, title, subtitle, addFn) {
     const vals = lciMonthValues(r, horizon);
     const cells = vals.map((v, i) => `
       <td class="lci-mcol">
-        <input type="number" class="lci-cell" min="0" value="${v || ''}"
-               onchange="lciRowMonthChanged(${gidx}, ${i}, this.value)">
+        <input type="number" class="lci-cell" min="0" value="${v || ''}"${actOn('change', 'lciRowMonthChanged', gidx, i, ACT_VALUE)}>
       </td>`).join('');
     return `
       <tr>
-        <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(r.Title)}"
-                   onchange="lciRowFieldChanged(${gidx}, 'Title', this.value)"></td>
+        <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(r.Title)}"${actOn('change', 'lciRowFieldChanged', gidx, 'Title', ACT_VALUE)}></td>
         ${cells}
         <td class="lci-derived" id="lci-mtotal-${gidx}">${_lciFmt(vals.reduce((a, b) => a + b, 0), m.DisplayCurrency)}</td>
-        <td><button class="btn-danger lci-row-del" onclick="removeLCIRowAction(${gidx}, '${_LCI_GRID_RENDERERS[type]}', '${sectionId}')">×</button></td>
+        <td><button class="btn-danger lci-row-del"${act('removeLCIRowAction', gidx, _LCI_GRID_RENDERERS[type], sectionId)}>×</button></td>
       </tr>`;
   }).join('')
     : emptyStateRow({ colspan: horizon + 3, icon: 'inbox', message: 'No rows yet.' });
@@ -483,3 +476,17 @@ function _lciSpendChartSvg(c, ccy, horizon) {
       </svg>
     </div>`;
 }
+
+// N-302d: delegated actions for the Legacy / one-off / fee / travel sections.
+// The four add-row names are passed to _lciSectionShell as `addFn` and emitted
+// with act(addFn), so each must be registered here.
+registerActions({
+  addLCILegacyRow,
+  addLCIOneoffRow,
+  addLCIFeeRow,
+  addLCITravelRow,
+  removeLCIRowAction,
+  lciRowFieldChanged,
+  lciRowMonthChanged,
+  saveLCIRows,
+});

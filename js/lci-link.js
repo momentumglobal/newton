@@ -106,7 +106,7 @@ async function openLCILinkModal(modelId) {
       : '';
 
     host.innerHTML = `
-      <div class="lci-modal-overlay" onclick="if(event.target===this)closeLCILink()">
+      <div class="lci-modal-overlay"${act('closeLCILink.self')}>
         <div class="lci-modal-card">
           <h3 style="margin:0 0 16px;color:var(--brand-tertiary)">Link "${escHtml(m.Title)}" to a CoE Project</h3>
           ${projects.length ? `
@@ -119,17 +119,17 @@ async function openLCILinkModal(modelId) {
               Generating creates one hiring-plan row per hire, with the hire landing in the last week of its target month. Recruitment &amp; onboarding use plan defaults; notice comes from the model (incl. per-role overrides).
             </p>
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">
-              ${m.ProjectID && _salesResolvedRole === 'admin' ? `<button class="btn-danger" id="lci-unlink-btn" onclick="unlinkLCIModel(${m.id})">Unlink Project</button>` : ''}
-              <button class="btn-secondary" onclick="closeLCILink()">Cancel</button>
-              <button class="btn-secondary" id="lci-link-save-btn" onclick="saveLCILink(${m.id})">Save Link</button>
-              <button class="btn-primary" id="lci-link-gen-btn" onclick="generateLCIPlan(${m.id})">Save & Generate Plan</button>
+              ${m.ProjectID && _salesResolvedRole === 'admin' ? `<button class="btn-danger" id="lci-unlink-btn"${act('unlinkLCIModel', Number(m.id))}>Unlink Project</button>` : ''}
+              <button class="btn-secondary"${act('closeLCILink')}>Cancel</button>
+              <button class="btn-secondary" id="lci-link-save-btn"${act('saveLCILink', Number(m.id))}>Save Link</button>
+              <button class="btn-primary" id="lci-link-gen-btn"${act('generateLCIPlan', Number(m.id))}>Save & Generate Plan</button>
             </div>`
           : `<p style="color:var(--text-muted)">No CoE-type projects found. Set a project's <em>ProjectType</em> to "CoE" first.</p>
-             <div style="display:flex;justify-content:flex-end;margin-top:20px"><button class="btn-secondary" onclick="closeLCILink()">Close</button></div>`}
+             <div style="display:flex;justify-content:flex-end;margin-top:20px"><button class="btn-secondary"${act('closeLCILink')}>Close</button></div>`}
         </div>
       </div>`;
   } catch (e) {
-    host.innerHTML = `<div class="lci-modal-overlay" onclick="closeLCILink()"><div class="lci-modal-card">${pageErrorBlock({ message: e.message, retryAct: ['openLCILinkModal', modelId] })}</div></div>`;
+    host.innerHTML = `<div class="lci-modal-overlay"${act('closeLCILink')}><div class="lci-modal-card">${pageErrorBlock({ message: e.message, retryAct: ['openLCILinkModal', modelId] })}</div></div>`;
     if (window.lucide) lucide.createIcons();
   }
 }
@@ -240,8 +240,13 @@ async function generateLCIPlan(modelId) {
   }
 }
 
-// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js);
+// N-302d adds the link modal's own buttons.
 // Later N-302 sub-tasks add their own names to this call; never register a name twice.
 registerActions({
   openLCILinkModal,
+  closeLCILink,
+  unlinkLCIModel,
+  saveLCILink,
+  generateLCIPlan,
 });

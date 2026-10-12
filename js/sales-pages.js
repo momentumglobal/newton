@@ -39,8 +39,7 @@ function _renderRevenueTrackingPage(assignments, years) {
       <h2>Revenue Tracking</h2>
       <div style="display:flex;align-items:center;gap:8px">
         <label style="font-size:13px;color:var(--text-label)">Year</label>
-        <select class="form-control" style="width:auto"
-                onchange="onRevTrackYearChange(this.value)">
+        <select class="form-control" style="width:auto"${actOn('change', 'onRevTrackYearChange', ACT_VALUE)}>
           ${yearOptions}
         </select>
       </div>
@@ -102,8 +101,8 @@ function _renderForecastPage(forecasts) {
           <td>${escHtml(f.Notes || '')}</td>
           <td>
             <div class="row-actions">
-              <button class="btn-secondary" onclick="openForecastModal(${f.id})">Edit</button>
-              <button class="btn-danger" onclick="deleteForecastRecord(${f.id})">Delete</button>
+              <button class="btn-secondary"${act('openForecastModal', Number(f.id))}>Edit</button>
+              <button class="btn-danger"${act('deleteForecastRecord', Number(f.id))}>Delete</button>
             </div>
           </td>
         </tr>`).join('')
@@ -112,7 +111,7 @@ function _renderForecastPage(forecasts) {
   return `
     <div class="page-header">
       <h2>Sales Forecast</h2>
-      <button class="btn-primary" onclick="openForecastModal()">+ Add Forecast</button>
+      <button class="btn-primary"${act('openForecastModal')}>+ Add Forecast</button>
     </div>
       <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px">
       <div class="table-toolbar">${listControlsBar([listSearchBox(_forecastSearch, 'setForecastSearch')])}</div>
@@ -165,8 +164,7 @@ function _forecastModal() {
         </div>
         <div class="form-group">
           <label>Project Type *</label>
-          <select id="forecast-type" class="form-control"
-            onchange="_onForecastTypeChange()">
+          <select id="forecast-type" class="form-control"${actOn('change', '_onForecastTypeChange')}>
             ${CONFIG.PROJECT_TYPES.map(t =>
               `<option value="${escAttr(t)}">${escHtml(t)}</option>`).join('')}
           </select>
@@ -195,8 +193,8 @@ function _forecastModal() {
         </div>
         <div id="forecast-error" class="form-error" style="display:none"></div>
         <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
-          <button class="btn-secondary" onclick="closeForecastModal()">Cancel</button>
-          <button class="btn-primary" id="forecast-save-btn" onclick="saveForecast()">Save</button>
+          <button class="btn-secondary"${act('closeForecastModal')}>Cancel</button>
+          <button class="btn-primary" id="forecast-save-btn"${act('saveForecast')}>Save</button>
         </div>
       </div>
     </div>`;
@@ -340,11 +338,18 @@ async function deleteForecastRecord(id) {
   }
 }
 
-// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js);
+// N-302d adds the Revenue Tracking year select and the Forecast list / modal controls.
 // Later N-302 sub-tasks add their own names to this call; never register a name twice.
 registerActions({
   setForecastSearch,
   setForecastSort,
   renderRevenueTrackingPage,
   renderSalesForecastPage,
+  onRevTrackYearChange,
+  openForecastModal,
+  deleteForecastRecord,
+  _onForecastTypeChange,
+  closeForecastModal,
+  saveForecast,
 });

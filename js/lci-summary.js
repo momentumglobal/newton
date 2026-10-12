@@ -24,18 +24,17 @@ function _lciRoadmapMilestoneRows(horizon) {
       `<td class="lci-mcol">${i + 1 >= start && i + 1 <= end ? '<div class="lci-ms-bar"></div>' : ''}</td>`).join('');
     return `
       <tr>
-        <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(s.Title)}"
-                   onchange="lciMilestoneChanged(${idx}, 'Title', this.value)"></td>
+        <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(s.Title)}"${actOn('change', 'lciMilestoneChanged', idx, 'Title', ACT_VALUE)}></td>
         <td colspan="4">
           <div style="display:flex;gap:4px;align-items:center;font-size:12px">
-            <select class="lci-cell" onchange="lciMilestoneChanged(${idx}, 'StartMonth', this.value)">${monthOpts(start)}</select>
+            <select class="lci-cell"${actOn('change', 'lciMilestoneChanged', idx, 'StartMonth', ACT_VALUE)}>${monthOpts(start)}</select>
             –
-            <select class="lci-cell" onchange="lciMilestoneChanged(${idx}, 'EndMonth', this.value)">${monthOpts(end)}</select>
+            <select class="lci-cell"${actOn('change', 'lciMilestoneChanged', idx, 'EndMonth', ACT_VALUE)}>${monthOpts(end)}</select>
           </div>
         </td>
         ${cells}
         <td></td><td></td>
-        <td><button class="btn-danger lci-row-del" onclick="removeLCIMilestone(${idx})">×</button></td>
+        <td><button class="btn-danger lci-row-del"${act('removeLCIMilestone', idx)}>×</button></td>
       </tr>`;
   }).join('');
 
@@ -173,9 +172,9 @@ function _lciSummaryHtml() {
     <div class="page-header lci-noprint">
       <h2>${escHtml(m.Title)} — Summary</h2>
       <div style="display:flex;gap:8px">
-        <button class="btn-secondary" onclick="openLCIModel(${m.id})">← Edit model</button>
-        <button class="btn-secondary" onclick="lciExportModelExcel(this)">Export to Excel</button>
-        <button class="btn-primary" onclick="lciPrintSummary()">Print / PDF</button>
+        <button class="btn-secondary"${act('openLCIModel', Number(m.id))}>← Edit model</button>
+        <button class="btn-secondary"${act('lciExportModelExcel', ACT_EL)}>Export to Excel</button>
+        <button class="btn-primary"${act('lciPrintSummary')}>Print / PDF</button>
       </div>
     </div>
 
@@ -251,7 +250,7 @@ async function renderLCIComparePage(ids) {
     main.innerHTML = `
       <div class="page-header">
         <h2>Compare Models <span style="font-weight:400;color:var(--text-muted);font-size:15px">(${ccy})</span></h2>
-        <button class="btn-secondary" onclick="renderLCIModelsPage()">← Back to models</button>
+        <button class="btn-secondary"${act('renderLCIModelsPage')}>← Back to models</button>
       </div>
       <div class="lci-summary-card">
         ${_lciCompareTableHtml(entries, ccy)}
@@ -343,9 +342,14 @@ function _lciSummaryRoadmapHtml(slice) {
     </div>`;
 }
 
-// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js);
+// N-302d adds the milestone controls (also rendered into the editor's roadmap) and Print.
 // Later N-302 sub-tasks add their own names to this call; never register a name twice.
 registerActions({
   renderLCISummaryPage,
   renderLCIComparePage,
+  lciMilestoneChanged,
+  addLCIMilestone,
+  removeLCIMilestone,
+  lciPrintSummary,
 });

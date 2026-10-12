@@ -139,8 +139,8 @@ function _lmLibraryHtml() {
           ${D.map(d => `<td class="lm-scol">${l[d.col] != null ? Number(l[d.col]).toLocaleString() : '—'}</td>`).join('')}
           <td>
             <div class="row-actions">
-              <button class="btn-secondary" onclick="openLMLocation(${l.id})">Edit</button>
-              <button class="btn-secondary lci-btn-muted" onclick="deleteLMLocation(${l.id})">Delete</button>
+              <button class="btn-secondary"${act('openLMLocation', Number(l.id))}>Edit</button>
+              <button class="btn-secondary lci-btn-muted"${act('deleteLMLocation', Number(l.id))}>Delete</button>
             </div>
           </td>
         </tr>`).join('')
@@ -150,7 +150,7 @@ function _lmLibraryHtml() {
     <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;margin-top:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 style="margin:0;color:var(--brand-tertiary)">Location Library <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(annual average salaries, local currency)</span></h3>
-        <button class="btn-primary" onclick="openLMLocation()">+ Add Location</button>
+        <button class="btn-primary"${act('openLMLocation')}>+ Add Location</button>
       </div>
       <div class="lm-scroll">
         <table class="data-table lm-grid">
@@ -174,7 +174,7 @@ function _lmLocationModal() {
     <div id="lm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
       <div class="print-avoid-break" style="background:var(--surface);border-radius:8px;padding:28px;width:880px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
         <h3 style="margin:0 0 16px;color:var(--brand-tertiary)" id="lm-modal-title">Add Location</h3>
-        <form id="lm-form" onsubmit="saveLMLocation(event)">
+        <form id="lm-form"${actOn('submit', 'saveLMLocation', ACT_EVENT)}>
           <div style="display:flex;gap:12px">
             <div class="form-group" style="flex:2"><label>Location (City, Country) *</label>
               <input type="text" class="form-control" name="Title" required placeholder="e.g. Bucharest, Romania"></div>
@@ -188,7 +188,7 @@ function _lmLocationModal() {
           <p style="font-size:12px;color:var(--text-muted);margin:4px 0 12px">Average annual salary per discipline, in local currency. Leave blank where unknown.</p>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 14px">${salFields}</div>
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">
-            <button type="button" class="btn-secondary" onclick="closeLMLocation()">Cancel</button>
+            <button type="button" class="btn-secondary"${act('closeLMLocation')}>Cancel</button>
             <button type="submit" class="btn-primary" id="lm-save-btn">Save Location</button>
           </div>
         </form>
@@ -263,9 +263,9 @@ function _lmBuilderHtml() {
   const locOpts = _lmLocations.map(l => `<option value="${l.id}">${escHtml(l.Title)}</option>`).join('');
   const ccyOpts = _lmCurrencies().map(c => `<option value="${c}"${c === (_lmSel.displayCcy || 'GBP') ? ' selected' : ''}>${c}</option>`).join('');
   const scopedBoxes = _lmLocations.map(l =>
-    `<label class="lm-chk"><input type="checkbox" class="lm-scoped" value="${l.id}" onchange="_lmSelChanged()"> ${escHtml(l.Title)}</label>`).join('');
+    `<label class="lm-chk"><input type="checkbox" class="lm-scoped" value="${l.id}"${actOn('change', '_lmSelChanged')}> ${escHtml(l.Title)}</label>`).join('');
   const discBoxes = CONFIG.LCI_DISCIPLINES.map(d =>
-    `<label class="lm-chk"><input type="checkbox" class="lm-disc" value="${d.key}" onchange="_lmSelChanged()"> ${d.label}</label>`).join('');
+    `<label class="lm-chk"><input type="checkbox" class="lm-disc" value="${d.key}"${actOn('change', '_lmSelChanged')}> ${d.label}</label>`).join('');
 
   return `
     <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;margin-top:16px">
@@ -273,13 +273,13 @@ function _lmBuilderHtml() {
       <div style="display:flex;gap:24px;flex-wrap:wrap">
         <div class="form-group" style="min-width:220px">
           <label>Current location</label>
-          <select class="form-control" id="lm-current" onchange="_lmCurrentChanged()">
+          <select class="form-control" id="lm-current"${actOn('change', '_lmCurrentChanged')}>
             <option value="">— Select —</option>${locOpts}
           </select>
         </div>
         <div class="form-group" style="min-width:150px">
           <label>Display currency</label>
-          <select class="form-control" id="lm-display-ccy" onchange="_lmDisplayCcyChanged()">${ccyOpts}</select>
+          <select class="form-control" id="lm-display-ccy"${actOn('change', '_lmDisplayCcyChanged')}>${ccyOpts}</select>
         </div>
         <div class="form-group" style="flex:1;min-width:220px">
           <label>Scoped locations</label>
@@ -293,19 +293,26 @@ function _lmBuilderHtml() {
       <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:8px">
         <div class="form-group" style="flex:1;min-width:220px">
           <label>Prepared for (optional)</label>
-          <input type="text" class="form-control" id="lm-prepared" placeholder="Prospect company name" oninput="_lmSel.preparedFor=this.value">
+          <input type="text" class="form-control" id="lm-prepared" placeholder="Prospect company name"${actOn('input', 'lmSetField', 'preparedFor', ACT_VALUE)}>
         </div>
         <div class="form-group" style="flex:2;min-width:280px">
           <label>Watchouts / comments</label>
-          <textarea class="form-control" id="lm-watchouts" rows="2" placeholder="Any caveats to note on the report..." oninput="_lmSel.watchouts=this.value"></textarea>
+          <textarea class="form-control" id="lm-watchouts" rows="2" placeholder="Any caveats to note on the report..."${actOn('input', 'lmSetField', 'watchouts', ACT_VALUE)}></textarea>
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
-        <button class="btn-secondary" onclick="_lmUpdatePreview()">Update preview</button>
-        <button class="btn-primary" onclick="_lmPrint()">Generate PDF</button>
+        <button class="btn-secondary"${act('_lmUpdatePreview')}>Update preview</button>
+        <button class="btn-primary"${act('_lmPrint')}>Generate PDF</button>
       </div>
     </div>
     <div id="lm-preview" style="margin-top:16px"></div>`;
+}
+
+// N-302d: the two free-text fields write straight to _lmSel. One action with a
+// fixed key list (no generic assigner), so markup can only ever reach these two.
+const _LM_TEXT_FIELDS = ['preparedFor', 'watchouts'];
+function lmSetField(key, value) {
+  if (_LM_TEXT_FIELDS.includes(key)) _lmSel[key] = value;
 }
 
 function _lmSelChanged() {
@@ -422,8 +429,19 @@ function _lmPrint() {
   printPage(`LCI - Country Comparison - ${current.Title}`, false, 'LCI'); // portrait
 }
 
-// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js);
+// N-302d adds the Location Library and report builder controls.
 // Later N-302 sub-tasks add their own names to this call; never register a name twice.
 registerActions({
   renderLCILeadMagnetPage,
+  openLMLocation,
+  closeLMLocation,
+  saveLMLocation,
+  deleteLMLocation,
+  lmSetField,
+  _lmSelChanged,
+  _lmCurrentChanged,
+  _lmDisplayCcyChanged,
+  _lmUpdatePreview,
+  _lmPrint,
 });

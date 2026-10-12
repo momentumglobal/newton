@@ -175,11 +175,11 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
     <div class="page-header lci-noprint">
       <h2 class="lci-report-title">${escHtml(title)}</h2>
       <div style="display:flex;gap:8px">
-        <button class="btn-secondary" onclick="renderLCIModelsPage()">← Back to models</button>
-        <button class="btn-secondary" onclick="lciEditSelectionFromReport()">Edit selection</button>
-        <button class="btn-secondary" onclick="lciReportRename()">Rename</button>
-        <button class="btn-secondary" id="lci-report-save-btn" onclick="saveLCIReport()">Save Report</button>
-        <button class="btn-primary" onclick="lciExportReportPptx(this)">Export to PowerPoint</button>
+        <button class="btn-secondary"${act('renderLCIModelsPage')}>← Back to models</button>
+        <button class="btn-secondary"${act('lciEditSelectionFromReport')}>Edit selection</button>
+        <button class="btn-secondary"${act('lciReportRename')}>Rename</button>
+        <button class="btn-secondary" id="lci-report-save-btn"${act('saveLCIReport')}>Save Report</button>
+        <button class="btn-primary"${act('lciExportReportPptx', ACT_EL)}>Export to PowerPoint</button>
       </div>
     </div>
     ${missingCount ? `<p class="lci-noprint" style="color:var(--accent);font-size:13px;margin:0 0 12px">${missingCount} model(s) in this saved report no longer exist and were skipped.</p>` : ''}
@@ -211,9 +211,9 @@ function _lciReportObsHtml() {
         <div id="lci-report-obs" class="rb-richtext" contenteditable="true"
              style="min-height:200px;caret-color:var(--brand);cursor:text;padding:8px 10px"
              data-placeholder="Add observations &amp; recommendations here..."
-             oninput="window._lciReportObs = this.innerHTML"
-             onkeyup="lciReportUpdateToolbarState()"
-             onmouseup="lciReportUpdateToolbarState()">${window._lciReportObs || ''}</div>
+             ${actOn('input', 'lciReportSetObs', ACT_HTML)}
+             ${actOn('keyup', 'lciReportUpdateToolbarState')}
+             ${actOn('mouseup', 'lciReportUpdateToolbarState')}>${window._lciReportObs || ''}</div>
       </div>
     </div>`;
 }
@@ -227,6 +227,12 @@ function lciReportFormatBlock(tag) {
   document.execCommand('formatBlock', false, tag);
   document.getElementById('lci-report-obs')?.focus();
   lciReportUpdateToolbarState();
+}
+
+// N-302d: the observations editor keeps its HTML in a window global that the
+// PowerPoint export (lci-pptx.js) reads.
+function lciReportSetObs(html) {
+  window._lciReportObs = html;
 }
 
 function lciReportUpdateToolbarState() {
@@ -360,4 +366,9 @@ function _lciReportCompareChartSvg(entries, ccy) {
 registerActions({
   lciReportFormat,
   lciReportFormatBlock,
+  lciReportSetObs,
+  lciReportUpdateToolbarState,
+  lciReportRename,
+  lciEditSelectionFromReport,
+  saveLCIReport,
 });

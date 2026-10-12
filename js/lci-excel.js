@@ -833,3 +833,8 @@ async function lciExportModelExcel(btn) {
     if (btn) clearButtonLoading(btn);
   }
 }
+
+// N-302d: delegated action for the Summary page's Export to Excel button (js/actions.js).
+registerActions({
+  lciExportModelExcel,
+});

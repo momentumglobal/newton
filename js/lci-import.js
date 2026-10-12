@@ -46,7 +46,7 @@ function closeLCIImport() {
 // wider-than-default card).
 function _lciImportModalShell(title, bodyHtml) {
   return `
-    <div class="lci-modal-overlay" onclick="if(event.target===this)closeLCIImport()">
+    <div class="lci-modal-overlay"${act('closeLCIImport.self')}>
       <div class="lci-modal-card" style="width:820px;max-width:95vw;max-height:90vh;overflow-y:auto">
         <h3 style="margin:0 0 16px;color:var(--brand-tertiary)">${escHtml(title)}</h3>
         ${bodyHtml}
@@ -65,10 +65,10 @@ function _lciImportPickerHtml() {
       the source file uses a different currency; this import does not do FX
       conversion.
     </p>
-    <input type="file" id="lci-import-file" accept="${uploadAcceptAttr('LCI_IMPORT')}" onchange="lciImportFileSelected(this)">
+    <input type="file" id="lci-import-file" accept="${uploadAcceptAttr('LCI_IMPORT')}"${actOn('change', 'lciImportFileSelected', ACT_EL)}>
     <div id="lci-import-status" style="margin-top:12px;font-size:13px;color:var(--text-muted)"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:20px">
-      <button class="btn-secondary" onclick="closeLCIImport()">Cancel</button>
+      <button class="btn-secondary"${act('closeLCIImport')}>Cancel</button>
     </div>`);
 }
 
@@ -179,7 +179,7 @@ function _lciImportMappingHtml() {
     return `
       <div class="form-group" style="display:flex;align-items:center;gap:12px">
         <label style="width:160px;margin:0">${escHtml(f.label)}${f.required ? ' *' : ''}</label>
-        <select class="form-control" style="flex:1" onchange="lciImportSetMapping('${f.key}', this.value)">
+        <select class="form-control" style="flex:1"${actOn('change', 'lciImportSetMapping', f.key, ACT_VALUE)}>
           ${optsFor(mapped)}
         </select>
         <span style="width:160px;font-size:12px;color:var(--text-muted)">${exampleVal !== null ? `e.g. ${escHtml(String(exampleVal))}` : ''}</span>
@@ -195,16 +195,16 @@ function _lciImportMappingHtml() {
       Map each Newton field to a column from the file. Fields marked * are required.
     </p>
     <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:12px">
-      <input type="checkbox" ${_lciImp.hasHeader ? 'checked' : ''} onchange="lciImportToggleHeader(this.checked)">
+      <input type="checkbox" ${_lciImp.hasHeader ? 'checked' : ''}${actOn('change', 'lciImportToggleHeader', ACT_CHECKED)}>
       First row is a header row, not data
     </label>
     ${rowsHtml}
     <p style="font-size:12px;color:var(--text-muted);margin-top:8px">${_lciImportDataRows().length} data row(s) found in the file.</p>
     <div style="display:flex;justify-content:space-between;margin-top:20px">
-      <button class="btn-secondary" onclick="openLCIImportModal()">Back</button>
+      <button class="btn-secondary"${act('openLCIImportModal')}>Back</button>
       <div style="display:flex;gap:8px">
-        <button class="btn-secondary" onclick="closeLCIImport()">Cancel</button>
-        <button class="btn-primary" id="lci-import-preview-btn" onclick="lciImportGoToPreview()" ${ready ? '' : 'disabled'}>Preview rows</button>
+        <button class="btn-secondary"${act('closeLCIImport')}>Cancel</button>
+        <button class="btn-primary" id="lci-import-preview-btn"${act('lciImportGoToPreview')} ${ready ? '' : 'disabled'}>Preview rows</button>
       </div>
     </div>`);
 }
@@ -269,13 +269,10 @@ function _lciImportWarnHtml(r) {
 function _lciImportPreviewHtml() {
   const rowsHtml = _lciImp.preview.map((r, i) => `
     <tr>
-      <td><input type="checkbox" ${r.include ? 'checked' : ''} onchange="lciImportToggleRow(${i}, this.checked)"></td>
-      <td><input type="text" class="lci-cell lci-cell--grow" value="${escAttr(r.Title)}"
-                 onchange="lciImportEditRow(${i}, 'Title', this.value)"></td>
-      <td><input type="text" class="lci-cell lci-cell--grow" value="${escAttr(r.Team)}"
-                 onchange="lciImportEditRow(${i}, 'Team', this.value)"></td>
-      <td><input type="number" class="lci-cell" min="0" value="${r.AnnualSalary ?? ''}"
-                 onchange="lciImportEditRow(${i}, 'AnnualSalary', this.value)"></td>
+      <td><input type="checkbox" ${r.include ? 'checked' : ''}${actOn('change', 'lciImportToggleRow', i, ACT_CHECKED)}></td>
+      <td><input type="text" class="lci-cell lci-cell--grow" value="${escAttr(r.Title)}"${actOn('change', 'lciImportEditRow', i, 'Title', ACT_VALUE)}></td>
+      <td><input type="text" class="lci-cell lci-cell--grow" value="${escAttr(r.Team)}"${actOn('change', 'lciImportEditRow', i, 'Team', ACT_VALUE)}></td>
+      <td><input type="number" class="lci-cell" min="0" value="${r.AnnualSalary ?? ''}"${actOn('change', 'lciImportEditRow', i, 'AnnualSalary', ACT_VALUE)}></td>
       <td id="lci-import-warn-${i}">${_lciImportWarnHtml(r)}</td>
     </tr>`).join('');
 
@@ -288,10 +285,10 @@ function _lciImportPreviewHtml() {
     </div>
     <p id="lci-import-count" style="font-size:12px;color:var(--text-muted);margin-top:8px">${_lciImportCountText()}</p>
     <div style="display:flex;justify-content:space-between;margin-top:16px">
-      <button class="btn-secondary" onclick="lciImportBackToMapping()">Back</button>
+      <button class="btn-secondary"${act('lciImportBackToMapping')}>Back</button>
       <div style="display:flex;gap:8px">
-        <button class="btn-secondary" onclick="closeLCIImport()">Cancel</button>
-        <button class="btn-primary" onclick="lciImportCommit()">Add to Legacy Team</button>
+        <button class="btn-secondary"${act('closeLCIImport')}>Cancel</button>
+        <button class="btn-primary"${act('lciImportCommit')}>Add to Legacy Team</button>
       </div>
     </div>`);
 }
@@ -349,3 +346,18 @@ function lciImportCommit() {
   closeLCIImport();
   toast(`Added ${included.length} row(s) to Legacy Team — click Save Changes to write them to SharePoint.`, { type: 'success' });
 }
+
+// N-302d: delegated actions for the Excel import modal (js/actions.js).
+// openLCIImportModal is also called from the Legacy Team section in lci-sections.js.
+registerActions({
+  openLCIImportModal,
+  closeLCIImport,
+  lciImportFileSelected,
+  lciImportSetMapping,
+  lciImportToggleHeader,
+  lciImportGoToPreview,
+  lciImportToggleRow,
+  lciImportEditRow,
+  lciImportBackToMapping,
+  lciImportCommit,
+});

@@ -103,8 +103,8 @@ function _lciEditorHtml() {
     <div class="page-header">
       <h2>${escHtml(m.Title)} <span style="font-weight:400;color:var(--text-muted);font-size:15px">— ${escHtml(m.ClientName)}</span></h2>
       <div style="display:flex;gap:8px">
-        <button class="btn-secondary" onclick="lciEditorBack()">← Back to models</button>
-        <button class="btn-secondary" onclick="lciOpenSummary()">Summary / Print</button>
+        <button class="btn-secondary"${act('lciEditorBack')}>← Back to models</button>
+        <button class="btn-secondary"${act('lciOpenSummary')}>Summary / Print</button>
       </div>
     </div>
     ${_lciSettingsHtml()}
@@ -145,32 +145,32 @@ function _lciSettingsHtml() {
     </div>`;
   const numInput = (name, val, step, min) =>
     `<input type="number" class="form-control" data-setting="${name}" value="${val ?? ''}"
-            step="${step}" min="${min ?? 0}" onchange="lciSettingChanged()">`;
+            step="${step}" min="${min ?? 0}"${actOn('change', 'lciSettingChanged')}>`;
 
   return `
     <div class="lci-settings" id="lci-settings">
       <div class="lci-settings__grid">
-        ${field('Status', `<select class="form-control" data-setting="Status" onchange="lciSettingChanged()">${statusOpts}</select>`)}
-        ${field(`Local currency`, `<select class="form-control" data-setting="LocalCurrency" onchange="lciSettingChanged()">${ccyOpts(m.LocalCurrency)}</select>`)}
-        ${field(`Display currency`, `<select class="form-control" data-setting="DisplayCurrency" onchange="lciSettingChanged()">${ccyOpts(m.DisplayCurrency)}</select>`)}
+        ${field('Status', `<select class="form-control" data-setting="Status"${actOn('change', 'lciSettingChanged')}>${statusOpts}</select>`)}
+        ${field(`Local currency`, `<select class="form-control" data-setting="LocalCurrency"${actOn('change', 'lciSettingChanged')}>${ccyOpts(m.LocalCurrency)}</select>`)}
+        ${field(`Display currency`, `<select class="form-control" data-setting="DisplayCurrency"${actOn('change', 'lciSettingChanged')}>${ccyOpts(m.DisplayCurrency)}</select>`)}
         <div id="lci-fx-setting" style="${fxDiffer ? '' : 'display:none'}">
         ${field(`FX rate (1 ${escHtml(m.LocalCurrency)} = X ${escHtml(m.DisplayCurrency)})`, numInput('FXRateLocalToDisplay', m.FXRateLocalToDisplay, '0.0001'))}
         </div>
         ${field(`Employer burden %`, numInput('EmployerBurdenPct', m.EmployerBurdenPct != null ? Math.round(m.EmployerBurdenPct * 100 * 100) / 100 : '', '0.5'))}
-        ${field('Salary months', `<select class="form-control" data-setting="SalaryMonths" onchange="lciSettingChanged()">${smOpts}</select>`)}
+        ${field('Salary months', `<select class="form-control" data-setting="SalaryMonths"${actOn('change', 'lciSettingChanged')}>${smOpts}</select>`)}
         ${field('Notice period (default, months)', numInput('NoticeMonths', m.NoticeMonths ?? 0, '1'))}
         ${field(`Office / head / month (${escHtml(m.LocalCurrency)})`, numInput('OfficeCostPerHead', m.OfficeCostPerHead, '10'))}
         ${field(`EoR / head / month (${escHtml(m.DisplayCurrency)})`, numInput('EoRFeePerHead', m.EoRFeePerHead, '10'))}
         ${canAssign ? field('Assigned DM (email)',
-          `<input type="email" class="form-control" data-setting="AssignedDMEmail" value="${escHtml(m.AssignedDMEmail)}" onchange="lciSettingChanged()">`) : ''}
+          `<input type="email" class="form-control" data-setting="AssignedDMEmail" value="${escHtml(m.AssignedDMEmail)}"${actOn('change', 'lciSettingChanged')}>`) : ''}
       </div>
       <div class="lci-settings__toggles">
         ${Object.entries(CONFIG.LCI.SECTION_LABELS).map(([key, label]) => `
           <label class="lci-toggle">
-            <input type="checkbox" data-section="${key}" ${sections[key] ? 'checked' : ''} onchange="lciSettingChanged()">
+            <input type="checkbox" data-section="${key}" ${sections[key] ? 'checked' : ''}${actOn('change', 'lciSettingChanged')}>
             ${label}
           </label>`).join('')}
-        <button class="btn-primary" id="lci-settings-save" onclick="saveLCISettings()" disabled>Save Settings</button>
+        <button class="btn-primary" id="lci-settings-save"${act('saveLCISettings')} disabled>Save Settings</button>
       </div>
     </div>`;
 }
@@ -269,9 +269,9 @@ function _lciRoadmapHtml() {
       .filter(({ r }) => (r.Team || 'Other') === team);
     const teamHtml = teamRows.map(({ r, globalIdx }) => _lciRoadmapRowHtml(r, globalIdx, horizon)).join('');
     return `
-      <tr class="lci-team-row"><td colspan="${horizon + 7}"><strong>${escHtml(team)}</strong><button class="lci-team-btn" onclick="renameLCITeam(${ti})">Rename</button><button class="lci-team-btn lci-team-btn--danger" onclick="deleteLCITeam(${ti})">Delete</button></td></tr>
+      <tr class="lci-team-row"><td colspan="${horizon + 7}"><strong>${escHtml(team)}</strong><button class="lci-team-btn"${act('renameLCITeam', ti)}>Rename</button><button class="lci-team-btn lci-team-btn--danger"${act('deleteLCITeam', ti)}>Delete</button></td></tr>
       ${teamHtml}
-      <tr class="lci-add-role-row"><td colspan="${horizon + 8}"><button class="lci-add-role-btn" onclick="addLCIRoleToTeam(${ti})">+ Add role to ${escHtml(team)}</button></td></tr>`;
+      <tr class="lci-add-role-row"><td colspan="${horizon + 8}"><button class="lci-add-role-btn"${act('addLCIRoleToTeam', ti)}>+ Add role to ${escHtml(team)}</button></td></tr>`;
   }).join('');
 
   return `
@@ -279,9 +279,9 @@ function _lciRoadmapHtml() {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 style="margin:0;color:var(--brand-tertiary)">Hiring Roadmap <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(salaries in ${escHtml(m.LocalCurrency)})</span></h3>
         <div style="display:flex;gap:8px">
-          <button class="btn-secondary" onclick="addLCIMilestone()">+ Add Milestone</button>
-          <button class="btn-secondary" onclick="addLCITeam()">+ Add Team</button>
-          <button class="btn-primary" id="lci-roadmap-save" onclick="saveLCIRoadmap()" disabled>Save Roadmap</button>
+          <button class="btn-secondary"${act('addLCIMilestone')}>+ Add Milestone</button>
+          <button class="btn-secondary"${act('addLCITeam')}>+ Add Team</button>
+          <button class="btn-primary" id="lci-roadmap-save"${act('saveLCIRoadmap')} disabled>Save Roadmap</button>
         </div>
       </div>
       <div class="lci-grid-scroll table-scroll">
@@ -310,32 +310,26 @@ function _lciRoadmapRowHtml(r, idx, horizon) {
   const vals = lciMonthValues(r, horizon);
   const cells = vals.map((v, i) => `
     <td class="lci-mcol">
-      <input type="number" class="lci-cell" min="0" value="${v || ''}"
-             onchange="lciCoeCellChanged(${idx}, ${i}, this.value)">
+      <input type="number" class="lci-cell" min="0" value="${v || ''}"${actOn('change', 'lciCoeCellChanged', idx, i, ACT_VALUE)}>
     </td>`).join('');
   const cost = lciMonthlyCost(r, _lciEd.model);
   return `
     <tr data-row-idx="${idx}">
-      <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(r.Title)}"
-                 onchange="lciCoeFieldChanged(${idx}, 'Title', this.value)"></td>
-      <td><input type="text" class="lci-cell lci-cell--sm" value="${escHtml(r.CareerLevel)}"
-                 onchange="lciCoeFieldChanged(${idx}, 'CareerLevel', this.value)"></td>
-      <td><input type="number" class="lci-cell lci-cell--grow" min="0" value="${r.AnnualSalary ?? ''}"
-                 onchange="lciCoeFieldChanged(${idx}, 'AnnualSalary', this.value)">
+      <td><input type="text" class="lci-cell lci-cell--grow" value="${escHtml(r.Title)}"${actOn('change', 'lciCoeFieldChanged', idx, 'Title', ACT_VALUE)}></td>
+      <td><input type="text" class="lci-cell lci-cell--sm" value="${escHtml(r.CareerLevel)}"${actOn('change', 'lciCoeFieldChanged', idx, 'CareerLevel', ACT_VALUE)}></td>
+      <td><input type="number" class="lci-cell lci-cell--grow" min="0" value="${r.AnnualSalary ?? ''}"${actOn('change', 'lciCoeFieldChanged', idx, 'AnnualSalary', ACT_VALUE)}>
           <div class="lci-bench-hint" id="lci-bench-${idx}">${_lciBenchHintHtml(r, idx)}</div></td>
-      <td><input type="number" class="lci-cell lci-cell--sm" min="0" max="100" step="1" value="${r.BonusPct != null ? Math.round(r.BonusPct * 100 * 100) / 100 : ''}"
-                 onchange="lciCoeFieldChanged(${idx}, 'BonusPct', this.value)"></td>
+      <td><input type="number" class="lci-cell lci-cell--sm" min="0" max="100" step="1" value="${r.BonusPct != null ? Math.round(r.BonusPct * 100 * 100) / 100 : ''}"${actOn('change', 'lciCoeFieldChanged', idx, 'BonusPct', ACT_VALUE)}></td>
       <td><input type="number" class="lci-cell lci-cell--sm" min="0" step="1"
                  value="${r.NoticeMonthsOverride ?? ''}"
                  placeholder="${_lciEd.model.NoticeMonths ?? 0}"
-                 title="Notice period for this role. Blank inherits the model default."
-                 onchange="lciCoeFieldChanged(${idx}, 'NoticeMonthsOverride', this.value)">
+                 title="Notice period for this role. Blank inherits the model default."${actOn('change', 'lciCoeFieldChanged', idx, 'NoticeMonthsOverride', ACT_VALUE)}>
           ${Number(r.NoticeMonthsOverride) === 0 && r.NoticeMonthsOverride !== null && r.NoticeMonthsOverride !== undefined && r.NoticeMonthsOverride !== ''
             ? '<span class="lci-warn" title="No notice period — this role starts in the month it is hired">⚠</span>' : ''}</td>
       ${cells}
       <td class="lci-derived" id="lci-hires-${idx}">${vals.reduce((a, b) => a + b, 0)}</td>
       <td class="lci-derived" id="lci-cost-${idx}">${Math.round(cost).toLocaleString()}</td>
-      <td><button class="btn-danger lci-row-del" onclick="removeLCICoeRow(${idx})">×</button></td>
+      <td><button class="btn-danger lci-row-del"${act('removeLCICoeRow', idx)}>×</button></td>
     </tr>`;
 }
 
@@ -358,7 +352,7 @@ function _lciBenchHintHtml(r, idx) {
   if (!b) return '';
   const same = Number(r.AnnualSalary) === b.median;
   return `Benchmark: ${b.median.toLocaleString()} (n=${b.n})` +
-    (same ? '' : ` <a onclick="lciApplyBenchmark(${idx})">apply</a>`);
+    (same ? '' : ` <a${act('lciApplyBenchmark', idx)}>apply</a>`);
 }
 
 // Refresh just one row's hint (title/salary change) without touching inputs.
@@ -609,8 +603,22 @@ async function saveLCIRoadmap() {
   }
 }
 
-// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js);
+// N-302d adds the editor's own controls (settings, hiring roadmap, CoE rows).
 // Later N-302 sub-tasks add their own names to this call; never register a name twice.
 registerActions({
   renderLCIEditorPage,
+  lciEditorBack,
+  lciOpenSummary,
+  lciSettingChanged,
+  saveLCISettings,
+  renameLCITeam,
+  deleteLCITeam,
+  addLCIRoleToTeam,
+  addLCITeam,
+  saveLCIRoadmap,
+  lciCoeCellChanged,
+  lciCoeFieldChanged,
+  removeLCICoeRow,
+  lciApplyBenchmark,
 });

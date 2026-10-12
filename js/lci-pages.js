@@ -77,7 +77,7 @@ function _renderLCIModelList(allModels, role) {
         <tr>
           <td style="width:32px;text-align:center">
             <input type="checkbox" class="lci-compare-cb" value="${m.id}"${_lciPreTick.map(String).includes(String(m.id)) ? ' checked' : ''}
-                   data-ccy="${escAttr(m.DisplayCurrency || '')}" onchange="lciCompareSelectionChanged()">
+                   data-ccy="${escAttr(m.DisplayCurrency || '')}"${actOn('change', 'lciCompareSelectionChanged')}>
           </td>
           <td><strong>${escHtml(m.Title || '—')}</strong></td>
           <td>${escHtml(m.ClientName || '—')}</td>
@@ -88,12 +88,12 @@ function _renderLCIModelList(allModels, role) {
           <td>${m.HorizonMonths ? m.HorizonMonths + 'm' : '—'}</td>
           <td>
             <div class="row-actions">
-              <button class="btn-secondary" onclick="openLCIModel(${m.id})">Open</button>
-              <button class="btn-secondary" onclick="openLCIModelModal(${m.id})">Edit</button>
-              <button class="btn-secondary" onclick="copyLCIModelAction(${m.id}, this)">Copy</button>
+              <button class="btn-secondary"${act('openLCIModel', Number(m.id))}>Open</button>
+              <button class="btn-secondary"${act('openLCIModelModal', Number(m.id))}>Edit</button>
+              <button class="btn-secondary"${act('copyLCIModelAction', Number(m.id), ACT_EL)}>Copy</button>
               ${canManage && m.Status === 'Won'
-                ? `<button class="btn-secondary" onclick="openLCILinkModal(${m.id})">${m.ProjectID ? 'Plan ✓' : 'Link'}</button>` : ''}
-              ${isAdmin ? `<button class="btn-secondary lci-btn-muted" onclick="deleteLCIModelAction(${m.id})">Delete</button>` : ''}
+                ? `<button class="btn-secondary"${act('openLCILinkModal', Number(m.id))}>${m.ProjectID ? 'Plan ✓' : 'Link'}</button>` : ''}
+              ${isAdmin ? `<button class="btn-secondary lci-btn-muted"${act('deleteLCIModelAction', Number(m.id))}>Delete</button>` : ''}
             </div>
           </td>
         </tr>`).join('')
@@ -108,18 +108,18 @@ function _renderLCIModelList(allModels, role) {
       <h2>LCI Cost Models</h2>
       <div style="display:flex;gap:8px;align-items:center">
         <label style="font-size:13px;color:var(--text-label)">Client</label>
-        <select class="form-control" style="width:auto" onchange="lciListFilterChanged('client', this.value)">
+        <select class="form-control" style="width:auto"${actOn('change', 'lciListFilterChanged', 'client', ACT_VALUE)}>
           ${_lciFilterOptions(allModels, 'ClientName', f.client)}
         </select>
         <label style="font-size:13px;color:var(--text-label)">Location</label>
-        <select class="form-control" style="width:auto" onchange="lciListFilterChanged('location', this.value)">
+        <select class="form-control" style="width:auto"${actOn('change', 'lciListFilterChanged', 'location', ACT_VALUE)}>
           ${_lciFilterOptions(allModels, 'Location', f.location)}
         </select>
-        <button class="btn-secondary" id="lci-report-btn" onclick="lciExportReport()" disabled
+        <button class="btn-secondary" id="lci-report-btn"${act('lciExportReport')} disabled
                 title="Tick one or more models">Export Report</button>
-        <button class="btn-secondary" id="lci-compare-btn" onclick="lciCompareSelected()" disabled
+        <button class="btn-secondary" id="lci-compare-btn"${act('lciCompareSelected')} disabled
                 title="Tick two or more models with the same display currency">Compare</button>
-        ${canManage || role === 'delivery_manager' ? '<button class="btn-primary" onclick="openLCIModelModal()">+ New Model</button>' : ''}
+        ${canManage || role === 'delivery_manager' ? `<button class="btn-primary"${act('openLCIModelModal')}>+ New Model</button>` : ''}
       </div>
     </div>
     <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px">
@@ -153,7 +153,7 @@ function _lciModelModal(role) {
         <div class="print-avoid-break" style="background:var(--surface);border-radius:8px;padding:32px;width:520px;max-width:95vw;
                   max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
         <h3 style="margin:0 0 20px;color:var(--brand-tertiary)" id="lci-model-modal-title">New LCI Cost Model</h3>
-        <form id="lci-model-form" onsubmit="saveLCIModel(event)">
+        <form id="lci-model-form"${actOn('submit', 'saveLCIModel', ACT_EVENT)}>
           <div class="form-group">
             <label>Model name *</label>
             <input type="text" class="form-control" name="Title" required placeholder="e.g. Bucharest v1">
@@ -169,13 +169,13 @@ function _lciModelModal(role) {
           <div style="display:flex;gap:12px">
             <div class="form-group" style="flex:1">
               <label>Local currency *</label>
-              <select class="form-control" name="LocalCurrency" onchange="lciToggleFxInput()" id="lci-local-ccy">
+              <select class="form-control" name="LocalCurrency"${actOn('change', 'lciToggleFxInput')} id="lci-local-ccy">
                 ${ccyOptions('EUR')}
               </select>
             </div>
             <div class="form-group" style="flex:1">
               <label>Display currency *</label>
-              <select class="form-control" name="DisplayCurrency" onchange="lciToggleFxInput()" id="lci-display-ccy">
+              <select class="form-control" name="DisplayCurrency"${actOn('change', 'lciToggleFxInput')} id="lci-display-ccy">
                 ${ccyOptions('EUR')}
               </select>
             </div>
@@ -202,7 +202,7 @@ function _lciModelModal(role) {
             <input type="email" class="form-control" name="AssignedDMEmail" placeholder="Optional">
           </div>` : ''}
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:24px">
-            <button type="button" class="btn-secondary" onclick="closeLCIModelModal()">Cancel</button>
+            <button type="button" class="btn-secondary"${act('closeLCIModelModal')}>Cancel</button>
             <button type="submit" class="btn-primary" id="lci-model-save-btn">Create Model</button>
           </div>
         </form>
@@ -365,9 +365,9 @@ function _renderLCIReportsSection(reports, role) {
           <td>${escHtml(r.CreatedByEmail || '—')}</td>
           <td>
             <div class="row-actions">
-              <button class="btn-secondary" onclick="openLCIReport(${r.id})">Open</button>
+              <button class="btn-secondary"${act('openLCIReport', Number(r.id))}>Open</button>
               ${(isAdmin || (r.CreatedByEmail || '').toLowerCase() === (getCurrentUser().email || '').toLowerCase())
-                ? `<button class="btn-secondary lci-btn-muted" onclick="deleteLCIReportAction(${r.id})">Delete</button>` : ''}
+                ? `<button class="btn-secondary lci-btn-muted"${act('deleteLCIReportAction', Number(r.id))}>Delete</button>` : ''}
             </div>
           </td>
         </tr>`;
@@ -451,8 +451,22 @@ async function deleteLCIModelAction(id) {
   }
 }
 
-// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js);
+// N-302d adds the models list, model form and reports list controls.
 // Later N-302 sub-tasks add their own names to this call; never register a name twice.
 registerActions({
   renderLCIModelsPage,
+  openLCIModel,
+  openLCIModelModal,
+  closeLCIModelModal,
+  saveLCIModel,
+  lciToggleFxInput,
+  copyLCIModelAction,
+  deleteLCIModelAction,
+  lciListFilterChanged,
+  lciCompareSelectionChanged,
+  lciExportReport,
+  lciCompareSelected,
+  openLCIReport,
+  deleteLCIReportAction,
 });

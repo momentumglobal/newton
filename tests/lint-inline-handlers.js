@@ -55,14 +55,6 @@ var INLINE_HANDLER_BASELINE = {
   'index.html':                      5,
   'js/admin.js':                     9,
   'js/cc-pages.js':                  1,
-  'js/lci-editor.js':                24,
-  'js/lci-import.js':                15,
-  'js/lci-leadmagnet.js':            13,
-  'js/lci-link.js':                  7,
-  'js/lci-pages.js':                 17,
-  'js/lci-report.js':                8,
-  'js/lci-sections.js':              14,
-  'js/lci-summary.js':               8,
   'js/market-report.js':             19,
   'js/mobile-analytics.js':          2,
   'js/mobile-app.js':                5,
@@ -73,10 +65,8 @@ var INLINE_HANDLER_BASELINE = {
   'js/mobile-sales.js':              5,
   'js/mobile-scorecards.js':         3,
   'js/os-admin.js':                  30,
-  'js/sales-pages.js':               7,
   'market-reporting.html':           1,
   'mobile.html':                     5,
-  'sales.html':                      1
 };
 
 var _IH_ATTR_RE = new RegExp(

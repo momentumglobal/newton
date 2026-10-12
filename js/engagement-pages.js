@@ -25,7 +25,7 @@ async function renderEngagementPage() {
     <div class="page-header">
       <h1 class="page-title">Engagement</h1>
       ${_resolvedRole === 'admin' ? `
-        <button class="btn-primary" onclick="openActivateRunModal()">
+        <button class="btn-primary"${act('openActivateRunModal')}>
           <i data-lucide="play-circle"></i> Activate Run
         </button>` : ''}
     </div>
@@ -33,7 +33,7 @@ async function renderEngagementPage() {
     <div class="eng-controls">
       <div class="eng-run-selector-wrap">
         <label class="eng-label">Survey Run</label>
-        <select class="eng-run-selector" id="eng-run-select" onchange="engSwitchRun(this.value)">
+        <select class="eng-run-selector" id="eng-run-select"${actOn('change', 'engSwitchRun', ACT_VALUE)}>
           ${sorted.map(r => `
             <option value="${r.id}" ${r.id === defaultRun.id ? 'selected' : ''}>
               ${_escEngHtml(r.Title || r.id)} — ${_escEngHtml(r.Status)}
@@ -41,14 +41,14 @@ async function renderEngagementPage() {
         </select>
       </div>
       ${_resolvedRole === 'admin' ? `
-        <button class="btn-secondary" onclick="openManageTemplateModal()">
+        <button class="btn-secondary"${act('openManageTemplateModal')}>
           <i data-lucide="settings"></i> Manage Template
         </button>` : ''}
     </div>
 
     <div class="eng-tab-strip">
-      <button class="eng-tab eng-tab--active" id="tab-summary" onclick="engSwitchTab('summary')">Summary</button>
-      <button class="eng-tab" id="tab-trends" onclick="engSwitchTab('trends')">Trends</button>
+      <button class="eng-tab eng-tab--active" id="tab-summary"${act('engSwitchTab', 'summary')}>Summary</button>
+      <button class="eng-tab" id="tab-trends"${act('engSwitchTab', 'trends')}>Trends</button>
     </div>
 
     <div id="eng-content"></div>`;
@@ -112,10 +112,10 @@ function engRenderSummary() {
       ${run.Status === 'Active' ? '<span class="eng-status-badge eng-status-badge--active">Active</span>' : ''}
       ${run.Status === 'Closed' && _resolvedRole === 'admin' ? '' : ''}
       ${run.Status === 'Active' && _resolvedRole === 'admin'
-        ? `<button class="btn-secondary btn--sm" onclick="engCloseRun('${run.id}')">Close Run</button>`
+        ? `<button class="btn-secondary btn--sm"${act('engCloseRun', String(run.id))}>Close Run</button>`
         : ''}
       ${_resolvedRole === 'admin' || _resolvedRole === 'leadership'
-        ? `<button class="btn-secondary btn--sm" onclick="engExportPDF()">
+        ? `<button class="btn-secondary btn--sm"${act('engExportPDF')}>
             <i data-lucide="download"></i> Export Results
            </button>`
         : ''}
@@ -342,10 +342,10 @@ function _engEmptyState() {
       <h1 class="page-title">Engagement</h1>
       ${_resolvedRole === 'admin' ? `
         <div style="display:inline-flex; gap:8px; align-items:center;">
-          <button class="btn-secondary" onclick="openManageTemplateModal()">
+          <button class="btn-secondary"${act('openManageTemplateModal')}>
             <i data-lucide="settings"></i> Manage Template
           </button>
-          <button class="btn-primary" onclick="openActivateRunModal()">
+          <button class="btn-primary"${act('openActivateRunModal')}>
             <i data-lucide="play-circle"></i> Activate Run
           </button>
         </div>` : ''}
@@ -355,3 +355,12 @@ function _engEmptyState() {
       <p class="empty-state-message">No survey runs yet. Activate a run to begin collecting responses.</p>
     </div>`;
 }
+
+// N-302c: delegated actions for the Engagement page (js/actions.js). The
+// template and run modal openers are registered in engagement-forms.js.
+registerActions({
+  engSwitchTab,
+  engSwitchRun,
+  engCloseRun,
+  engExportPDF,
+});

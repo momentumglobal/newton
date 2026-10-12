@@ -186,7 +186,7 @@ const totalActiveHeadcount = people.filter(
           </div>
         </div>
         <div class='form-group' style='margin:0;min-width:140px'>
-          <select onchange='_setGanttDeployableMonth(this.value)'
+          <select${actOn('change', '_setGanttDeployableMonth', ACT_VALUE)}
                   style='font-size:12px'>
             ${deployMonthOpts}
           </select>
@@ -209,8 +209,8 @@ const totalActiveHeadcount = people.filter(
       <h2>Deployment Timeline</h2>
       <div style='display:flex;align-items:center;gap:12px'>
         <label style='font-size:13px;color:var(--text-label)'>Year</label>
-        <select onchange='_setGanttYear(+this.value)'>${yearOpts}</select>
-        <button class='print-btn' onclick='printPage("Deployment Timeline", true, "People")'>⎙ Export PDF</button>
+        <select${actOn('change', 'ganttYearChanged', ACT_VALUE)}>${yearOpts}</select>
+        <button class='print-btn'${act('printPage', 'Deployment Timeline', true, 'People')}>⎙ Export PDF</button>
       </div>
     </div>
     ${deployableTile}
@@ -321,3 +321,10 @@ async function _setGanttDeployableMonth(value) {
   _ganttDeployableMonth = value !== '' ? +value : null;
   await renderDeploymentTimeline();
 }
+
+// N-302c: delegated actions for the timeline selectors (js/actions.js). The year
+// select passed +this.value, so the wrapper keeps the numeric coercion.
+registerActions({
+  ganttYearChanged: (value) => _setGanttYear(+value),
+  _setGanttDeployableMonth,
+});

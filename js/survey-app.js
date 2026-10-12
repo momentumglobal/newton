@@ -128,8 +128,8 @@ const SurveyApp = (() => {
             ${_renderAnswerInput(q, saved)}
           </div>
           <div class="survey-actions">
-            ${_current > 0 ? '<button class="btn-secondary" onclick="SurveyApp.prev()">Back</button>' : ''}
-            <button class="btn-primary" id="btn-next" onclick="SurveyApp.next()" ${q.IsRequired && !saved ? 'disabled' : ''}>
+            ${_current > 0 ? `<button class="btn-secondary"${act('surveyPrev')}>Back</button>` : ''}
+            <button class="btn-primary" id="btn-next"${act('surveyNext')} ${q.IsRequired && !saved ? 'disabled' : ''}>
               ${_current === total - 1 ? 'Submit' : 'Next'}
             </button>
           </div>
@@ -146,7 +146,7 @@ const SurveyApp = (() => {
       const btns = [];
       for (let i = min; i <= max; i++) {
         const active = saved == i ? ' survey-rating-btn--active' : '';
-        btns.push(`<button class="survey-rating-btn${active}" data-value="${i}" onclick="SurveyApp.selectRating(this, '${q.id}')">${i}</button>`);
+        btns.push(`<button class="survey-rating-btn${active}" data-value="${i}"${act('surveySelectRating', ACT_EL, String(q.id))}>${i}</button>`);
       }
       return `
         <div class="survey-rating-row">${btns.join('')}</div>
@@ -176,8 +176,7 @@ const SurveyApp = (() => {
     }
 
     if (q.QuestionType === 'FreeText') {
-      return `<textarea class="survey-textarea" id="freetext_${q.id}" maxlength="1000" 
-                oninput="SurveyApp.onFreeText('${q.id}', this.value)"
+      return `<textarea class="survey-textarea" id="freetext_${q.id}" maxlength="1000"${actOn('input', 'surveyFreeText', String(q.id), ACT_VALUE)}
                 placeholder="Type your response here...">${escHtml(saved || '')}</textarea>
               <div class="survey-char-count" id="cc_${q.id}">${(saved || '').length} / 1000</div>`;
     }
@@ -322,3 +321,12 @@ const SurveyApp = (() => {
   return { next, prev, selectRating, onFreeText };
 
 })();
+
+// N-302c: delegated actions for the respondent flow (js/actions.js). SurveyApp
+// is a const IIFE, so these sit after it and resolve its methods at call time.
+registerActions({
+  surveyPrev:         () => SurveyApp.prev(),
+  surveyNext:         () => SurveyApp.next(),
+  surveySelectRating: (el, qid) => SurveyApp.selectRating(el, qid),
+  surveyFreeText:     (qid, value) => SurveyApp.onFreeText(qid, value),
+});

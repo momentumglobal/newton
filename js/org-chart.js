@@ -38,8 +38,7 @@ function _ocAvatar(name, photo) {
   const src = _ocPhotoSrc(photo);
   return `<span class='org-avatar-wrap'>`
     + `<span class='org-avatar org-avatar--initials'>${ini}</span>`
-    + (src ? `<img class='org-avatar org-avatar--img' src='${_ocEsc(src)}' alt=''
-               onerror="this.style.display='none'">` : '')
+    + (src ? `<img class='org-avatar org-avatar--img' src='${_ocEsc(src)}' alt=''${actOn('error', 'ocHideImg', ACT_EL)}>` : '')
     + `</span>`;
 }
 
@@ -85,9 +84,9 @@ async function renderOrgChart() {
       <h2>Org Chart</h2>
       <div style='display:flex;gap:8px'>
         ${['admin','leadership'].includes(_resolvedRole)
-          ? `<button class='btn-secondary' onclick='showPlaceholderManager()'>+ Placeholders</button>
-             <button class='btn-secondary' onclick='showOrgChartEditForm()'>Edit reporting lines</button>` : ''}
-        <button class='print-btn' onclick='exportOrgChartPdf()'>⎙ Export PDF</button>
+          ? `<button class='btn-secondary'${act('showPlaceholderManager')}>+ Placeholders</button>
+             <button class='btn-secondary'${act('showOrgChartEditForm')}>Edit reporting lines</button>` : ''}
+        <button class='print-btn'${act('exportOrgChartPdf')}>⎙ Export PDF</button>
       </div>
     </div>
     <div id='org-chart-page'>
@@ -393,8 +392,8 @@ async function showPlaceholderManager() {
       <td>${_ocEsc(p.PlaceholderProject || '—')}</td>
       <td>${_ocEsc(p.PlaceholderCSD || '—')}</td>
       <td style='white-space:nowrap'>
-        <button class='btn-secondary' onclick='showPlaceholderForm(${p.id})'>Edit</button>
-        <button class='btn-secondary' onclick='deletePlaceholder(${p.id})'>Remove</button>
+        <button class='btn-secondary'${act('showPlaceholderForm', Number(p.id))}>Edit</button>
+        <button class='btn-secondary'${act('deletePlaceholder', Number(p.id))}>Remove</button>
       </td>
     </tr>`).join('');
 
@@ -411,8 +410,8 @@ async function showPlaceholderManager() {
         <tbody>${rows}</tbody>
       </table>` : `<p class='org-empty'>No placeholders yet.</p>`}
       <div class='form-actions'>
-        <button type='button' class='btn-primary' onclick='showPlaceholderForm(null)'>Add placeholder</button>
-        <button type='button' class='btn-secondary' onclick='navigateToPeople("orgChart")'>Back to chart</button>
+        <button type='button' class='btn-primary'${act('showPlaceholderForm', null)}>Add placeholder</button>
+        <button type='button' class='btn-secondary'${act('navigateToPeople', 'orgChart')}>Back to chart</button>
       </div>
     </div>`;
 }
@@ -454,11 +453,11 @@ async function showPlaceholderForm(id = null) {
       </div>
       <div class='form-group'>
         <label>Team *</label>
-        <select id='ph-team' onchange='_ocTeamModeChanged()'>${teamOpts}</select>
+        <select id='ph-team'${actOn('change', '_ocTeamModeChanged')}>${teamOpts}</select>
       </div>
       <div class='form-group' id='ph-new-team-wrap'>
         <label>New team name *</label>
-        <input type='text' id='ph-team-new' oninput='_ocCheckTeamName()'
+        <input type='text' id='ph-team-new'${actOn('input', '_ocCheckTeamName')}
           value='${_ocEsc(matched ? '' : curTeam)}' placeholder='e.g. Newton Dev'>
         <small id='ph-team-warn' style='color:var(--status-warn-text);display:none'></small>
       </div>
@@ -468,9 +467,8 @@ async function showPlaceholderForm(id = null) {
         <small style='color:var(--text-muted)'>Only needed for a new team — an existing project uses its own CSD.</small>
       </div>
       <div class='form-actions'>
-        <button type='button' class='btn-primary'
-          onclick='savePlaceholder(this, ${existing ? existing.id : 'null'})'>Save</button>
-        <button type='button' class='btn-secondary' onclick='showPlaceholderManager()'>Cancel</button>
+        <button type='button' class='btn-primary'${act('savePlaceholder', ACT_EL, existing ? Number(existing.id) : null)}>Save</button>
+        <button type='button' class='btn-secondary'${act('showPlaceholderManager')}>Cancel</button>
       </div>
     </div>`;
   _ocTeamModeChanged();
@@ -621,8 +619,8 @@ async function showOrgChartEditForm() {
       <table class='data-table'><thead><tr><th>Person</th><th>Reports to</th></tr></thead>
         <tbody>${leaderRows}${csdRows}</tbody></table>
       <div class='form-actions'>
-        <button type='button' class='btn-primary' onclick='saveOrgChartEdits(this)'>Save changes</button>
-        <button type='button' class='btn-secondary' onclick='navigateToPeople("orgChart")'>Cancel</button>
+        <button type='button' class='btn-primary'${act('saveOrgChartEdits', ACT_EL)}>Save changes</button>
+        <button type='button' class='btn-secondary'${act('navigateToPeople', 'orgChart')}>Cancel</button>
       </div>
     </div>`;
 }
@@ -653,3 +651,25 @@ async function saveOrgChartEdits(btn) {
     if (err) { err.textContent = `Error saving: ${e.message}`; err.style.display = 'block'; }
   }
 }
+
+// N-302c: a broken avatar photo falls back to the initials badge underneath it.
+// Wired as a delegated 'error' listener (capture phase, js/actions.js) because
+// <img> load failures do not bubble.
+function ocHideImg(img) {
+  img.style.display = 'none';
+}
+
+// N-302c: delegated actions for the Org Chart page, the Placeholders manager and
+// the reporting-lines editor (js/actions.js).
+registerActions({
+  showPlaceholderManager,
+  showPlaceholderForm,
+  deletePlaceholder,
+  savePlaceholder,
+  showOrgChartEditForm,
+  saveOrgChartEdits,
+  exportOrgChartPdf,
+  ocHideImg,
+  _ocTeamModeChanged,
+  _ocCheckTeamName,
+});

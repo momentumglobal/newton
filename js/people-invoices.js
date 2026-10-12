@@ -13,7 +13,7 @@ function invoiceRowHtml(inv, { canEdit, pending = false } = {}) {
       : `<span class='badge' style='background:var(--status-warn-bg);color:var(--status-warn-text)'>Sent</span>`;
 
   const markPaidBtn = canEdit && !pending && inv.Status !== 'Paid'
-    ? `<a href='#' onclick='markInvoicePaid(${inv.id})' style='white-space:nowrap'>
+    ? `<a href='#'${act('markInvoicePaid', Number(inv.id))} style='white-space:nowrap'>
          Mark Paid</a>`
     : '';
 
@@ -27,9 +27,9 @@ function invoiceRowHtml(inv, { canEdit, pending = false } = {}) {
       <td>${statusBadge}</td>
 ${canEdit ? (pending ? `<td></td>` : `<td style='white-space:nowrap'>
   <div class='row-actions' style='gap:12px'>
-    <a href='#' onclick='showEditInvoiceForm(${inv.id})'>Edit</a>
+    <a href='#'${act('showEditInvoiceForm', Number(inv.id))}>Edit</a>
     ${markPaidBtn ? ' · ' + markPaidBtn : ''}
-    · <button class='btn-danger' onclick='deleteInvoice(${inv.id})'>Delete</button>
+    · <button class='btn-danger'${act('deleteInvoice', Number(inv.id))}>Delete</button>
   </div>
 </td>`) : ''}
     </tr>`;
@@ -134,7 +134,7 @@ async function renderGPInvoices(pendingItem = null) {
   main.innerHTML = `
     <div class='page-header'>
       <h2>Supplier Invoices</h2>
-      ${canEdit ? "<button class='btn-primary' onclick='showAddInvoiceForm()'>+ Add Invoice</button>" : ''}
+      ${canEdit ? `<button class='btn-primary'${act('showAddInvoiceForm')}>+ Add Invoice</button>` : ''}
     </div>
     ${summaryBar}
     <div class="table-toolbar">${listControlsBar([listSearchBox(_invoicesSearch, 'setInvoicesSearch')])}</div>
@@ -174,18 +174,17 @@ function renderInvoiceNotesCell(inv, pending = false) {
   return `
     <div class='notes-cell' id='notes-${inv.id}'>
       <div class='notes-short'>
-        <span class='notes-preview'>${escHtml(head)}</span><a href='#' class='notes-toggle'
-          onclick='toggleInvoiceNotes(event, ${inv.id})'>See more</a>
+        <span class='notes-preview'>${escHtml(head)}</span><a href='#' class='notes-toggle'${act('toggleInvoiceNotes.prevent', Number(inv.id))}>See more</a>
       </div>
       <div class='notes-full'>
-        <span class='notes-body'>${escHtmlLines(notes)}</span><a href='#' class='notes-toggle'
-          onclick='toggleInvoiceNotes(event, ${inv.id})'>See less</a>
+        <span class='notes-body'>${escHtmlLines(notes)}</span><a href='#' class='notes-toggle'${act('toggleInvoiceNotes.prevent', Number(inv.id))}>See less</a>
       </div>
     </div>`;
 }
 
-function toggleInvoiceNotes(event, id) {
-  event.preventDefault();
+// N-302c: the links use act('toggleInvoiceNotes.prevent', ...), so the default
+// (href="#" jump) is cancelled by the dispatcher, not by this function.
+function toggleInvoiceNotes(id) {
   document.getElementById(`notes-${id}`)?.classList.toggle('is-expanded');
 }
 
@@ -221,4 +220,7 @@ async function setInvoicesSort(key) { _invoicesSort = nextSortState(_invoicesSor
 registerActions({
   setInvoicesSearch,
   setInvoicesSort,
+  markInvoicePaid,
+  deleteInvoice,
+  toggleInvoiceNotes,
 });

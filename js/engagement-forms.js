@@ -19,18 +19,18 @@ function questionRowHtml(q, index, total, { pending = false } = {}) {
         ${q.IsRequired ? '<span class="eng-q-required">Required</span>' : ''}
       </div>
       ${pending ? '' : `<div class="eng-q-row-actions">
-        <button class="btn-icon" title="Move up" onclick="moveQuestion('${q.id}', 'up', window._engQuestions)"
+        <button class="btn-icon" title="Move up"${act('engMoveQuestion', String(q.id), 'up')}
           ${index === 0 ? 'disabled' : ''}>
           <i data-lucide="chevron-up"></i>
         </button>
-        <button class="btn-icon" title="Move down" onclick="moveQuestion('${q.id}', 'down', window._engQuestions)"
+        <button class="btn-icon" title="Move down"${act('engMoveQuestion', String(q.id), 'down')}
           ${index === total - 1 ? 'disabled' : ''}>
           <i data-lucide="chevron-down"></i>
         </button>
-        <button class="btn-icon" title="Edit" onclick="openAddQuestionModal(${q.templateId}, ${JSON.stringify(q).replace(/"/g, '&quot;')})">
+        <button class="btn-icon" title="Edit"${act('engEditQuestion', String(q.id))}>
           <i data-lucide="edit-2"></i>
         </button>
-        <button class="btn-icon btn-icon--danger" title="Delete" onclick="deleteQuestion('${q.id}')">
+        <button class="btn-icon btn-icon--danger" title="Delete"${act('deleteQuestion', String(q.id))}>
           <i data-lucide="trash-2"></i>
         </button>
       </div>`}
@@ -62,14 +62,14 @@ function _manageTemplateModalHtml(template, questions) {
     <div class="eng-modal">
       <div class="eng-modal-header">
         <h2>${template ? 'Manage Survey Template' : 'Create Survey Template'}</h2>
-        <button class="eng-modal-close" onclick="_closeEngModal()">
+        <button class="eng-modal-close"${act('_closeEngModal')}>
           <i data-lucide="x"></i>
         </button>
       </div>
 
       <div id="eng-template-form-error" class="form-error"></div>
 
-      <form id="eng-template-form" onsubmit="submitTemplateForm(event, ${template?.id || 'null'})">
+      <form id="eng-template-form"${actOn('submit', 'submitTemplateForm', ACT_EVENT, template?.id ? Number(template.id) : null)}>
         <div class="form-group">
           <label>Survey Title *</label>
           <input type="text" name="Title" required value="${_escEngHtml(template?.Title || '')}"
@@ -98,7 +98,7 @@ function _manageTemplateModalHtml(template, questions) {
         </div>
         <div class="form-actions">
           <button type="submit" class="btn-primary">Save Template</button>
-          <button type="button" class="btn-secondary" onclick="_closeEngModal()">Cancel</button>
+          <button type="button" class="btn-secondary"${act('_closeEngModal')}>Cancel</button>
         </div>
       </form>
 
@@ -107,7 +107,7 @@ function _manageTemplateModalHtml(template, questions) {
       <div class="eng-questions-section">
         <div class="eng-questions-header">
           <h3>Questions <span class="eng-q-count">(${questions.length})</span></h3>
-          ${template ? `<button class="btn-secondary btn--sm" onclick="openAddQuestionModal(${template.id})">
+          ${template ? `<button class="btn-secondary btn--sm"${act('openAddQuestionModal', Number(template.id))}>
             <i data-lucide="plus"></i> Add Question
           </button>` : '<p class="eng-hint">Save the template first, then add questions.</p>'}
         </div>
@@ -162,17 +162,17 @@ function openAddQuestionModal(templateId, existingQuestion = null) {
     <div class="eng-modal eng-modal--sm">
       <div class="eng-modal-header">
         <h2>${isEdit ? 'Edit Question' : 'Add Question'}</h2>
-        <button class="eng-modal-close" onclick="_closeEngModal()">
+        <button class="eng-modal-close"${act('_closeEngModal')}>
           <i data-lucide="x"></i>
         </button>
       </div>
 
       <div id="eng-q-form-error" class="form-error"></div>
 
-      <form id="eng-q-form" onsubmit="submitQuestionForm(event, ${templateId}, ${q.id || 'null'})">
+      <form id="eng-q-form"${actOn('submit', 'submitQuestionForm', ACT_EVENT, templateId ?? null, q.id ? Number(q.id) : null)}>
         <div class="form-group">
           <label>Question Type *</label>
-          <select name="QuestionType" required onchange="engToggleQTypeFields(this.value)">
+          <select name="QuestionType" required${actOn('change', 'engToggleQTypeFields', ACT_VALUE)}>
             ${CONFIG.SURVEY.QUESTION_TYPES.map(t =>
               `<option value="${t}" ${q.QuestionType === t ? 'selected' : ''}>${t}</option>`
             ).join('')}
@@ -226,7 +226,7 @@ function openAddQuestionModal(templateId, existingQuestion = null) {
 
         <div class="form-actions">
           <button type="submit" class="btn-primary">${isEdit ? 'Save Question' : 'Add Question'}</button>
-          <button type="button" class="btn-secondary" onclick="_closeEngModal()">Cancel</button>
+          <button type="button" class="btn-secondary"${act('_closeEngModal')}>Cancel</button>
         </div>
       </form>
     </div>
@@ -371,14 +371,14 @@ async function openActivateRunModal() {
     <div class="eng-modal eng-modal--sm">
       <div class="eng-modal-header">
         <h2>Activate Survey Run</h2>
-        <button class="eng-modal-close" onclick="_closeEngModal()">
+        <button class="eng-modal-close"${act('_closeEngModal')}>
           <i data-lucide="x"></i>
         </button>
       </div>
 
       <div id="eng-activate-error" class="form-error"></div>
 
-      <form id="eng-activate-form" onsubmit="submitActivateRun(event)">
+      <form id="eng-activate-form"${actOn('submit', 'submitActivateRun', ACT_EVENT)}>
         <div class="form-group">
           <label>Run Label *</label>
           <input type="text" name="RunLabel" required value="${_escEngHtml(quarter)}"
@@ -402,7 +402,7 @@ async function openActivateRunModal() {
         <p class="eng-hint">${eligible} eligible respondent${eligible !== 1 ? 's' : ''} (TPs and DMs)</p>
         <div class="form-actions">
           <button type="submit" class="btn-primary">Activate Now</button>
-          <button type="button" class="btn-secondary" onclick="_closeEngModal()">Cancel</button>
+          <button type="button" class="btn-secondary"${act('_closeEngModal')}>Cancel</button>
         </div>
       </form>
     </div>
@@ -498,3 +498,32 @@ function _engFormOverlay(html) {
 function _closeEngModal() {
   document.getElementById('eng-modal-overlay')?.remove();
 }
+
+// N-302c: the question-row buttons used to read window._engQuestions (move) and
+// a JSON copy of the row (edit) inside the inline handler. Both now look the
+// live array up at click time, so no object is serialised into the markup.
+function engMoveQuestion(questionId, direction) {
+  return moveQuestion(questionId, direction, window._engQuestions);
+}
+
+function engEditQuestion(questionId) {
+  const q = (window._engQuestions || []).find(x => String(x.id) === String(questionId));
+  if (q) openAddQuestionModal(q.templateId, q);
+}
+
+// N-302c: delegated actions for the Engagement template/question/run modals
+// (js/actions.js). openManageTemplateModal and openActivateRunModal are also
+// called from engagement-pages.js.
+registerActions({
+  openManageTemplateModal,
+  openActivateRunModal,
+  openAddQuestionModal,
+  deleteQuestion,
+  engMoveQuestion,
+  engEditQuestion,
+  engToggleQTypeFields,
+  submitTemplateForm,
+  submitQuestionForm,
+  submitActivateRun,
+  _closeEngModal,
+});

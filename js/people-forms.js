@@ -8,8 +8,7 @@ function renderPersonForm(existingData = null) {
     <div class='form-container'>
       <h2>${isEdit ? 'Edit Employee' : 'Add Employee'}</h2>
       <div id='person-form-error' class='form-error'></div>
-      <form id='person-form'
-        onsubmit='submitPersonForm(event, ${existingData?.id || 'null'})'>
+      <form id='person-form'${actOn('submit', 'submitPersonForm', ACT_EVENT, existingData?.id ? Number(existingData.id) : null)}>
         <div class='form-group'>
           <label>Full Name *</label>
           <input type='text' name='EmployeeName' required
@@ -74,8 +73,7 @@ function renderPersonForm(existingData = null) {
         <div class='form-actions'>
           <button type='submit' class='btn-primary'>
             ${isEdit ? 'Save Changes' : 'Add Employee'}</button>
-          <button type='button' class='btn-secondary'
-            onclick='navigateToPeople("peopleTracker")'>Cancel</button>
+          <button type='button' class='btn-secondary'${act('navigateToPeople', 'peopleTracker')}>Cancel</button>
         </div>
       </form>
     </div>`;
@@ -196,12 +194,11 @@ async function renderAssignmentForm(existingData = null) {
     <div class='form-container'>
       <h2>${isEdit ? 'Edit Assignment' : 'Add Assignment'}</h2>
       <div id='assignment-form-error' class='form-error'></div>
-      <form id='assignment-form'
-        onsubmit='submitAssignmentForm(event, ${existingData?.id || 'null'})'>
+      <form id='assignment-form'${actOn('submit', 'submitAssignmentForm', ACT_EVENT, existingData?.id ? Number(existingData.id) : null)}>
         <div class='form-row'>
           <div class='form-group'>
             <label>Employee *</label>
-            <select name='EmployeeName' required
+            <select name='EmployeeName' required${actOn('change', '_onAssignmentEmployeeChange', ACT_EL)}>
               onchange='_onAssignmentEmployeeChange(this)'>
               <option value=''>— Select employee —</option>
               ${employeeOptions}
@@ -222,8 +219,7 @@ async function renderAssignmentForm(existingData = null) {
           </div>
           <div class='form-group'>
             <label>Project Type *</label>
-            <select name='ProjectType' required
-              onchange='_onAssignmentTypeChange()'>
+            <select name='ProjectType' required${actOn('change', '_onAssignmentTypeChange')}>
               ${CONFIG.ASSIGNMENT_PROJECT_TYPES.map(t =>
                 `<option value='${escAttr(t)}' ${
                   existingData?.ProjectType===t?'selected':''
@@ -289,8 +285,7 @@ async function renderAssignmentForm(existingData = null) {
         <div class='form-actions'>
           <button type='submit' class='btn-primary'>
             ${isEdit ? 'Save Changes' : 'Add Assignment'}</button>
-          <button type='button' class='btn-secondary'
-            onclick='navigateToPeople("peopleTracker")'>Cancel</button>
+          <button type='button' class='btn-secondary'${act('navigateToPeople', 'peopleTracker')}>Cancel</button>
         </div>
       </form>
     </div>`;
@@ -440,8 +435,7 @@ function renderInvoiceForm(existingData = null) {
     <div class='form-container'>
       <h2>${isEdit ? 'Edit Invoice' : 'Add Invoice'}</h2>
       <div id='invoice-form-error' class='form-error'></div>
-      <form id='invoice-form'
-        onsubmit='submitInvoiceForm(event, ${existingData?.id || 'null'})'>
+      <form id='invoice-form'${actOn('submit', 'submitInvoiceForm', ACT_EVENT, existingData?.id ? Number(existingData.id) : null)}>
         <div class='form-group'>
           <label>Invoice Number *</label>
           <input type='text' name='InvoiceNumber' required
@@ -487,8 +481,7 @@ function renderInvoiceForm(existingData = null) {
         <div class='form-actions'>
           <button type='submit' class='btn-primary'>
             ${isEdit ? 'Save Changes' : 'Add Invoice'}</button>
-          <button type='button' class='btn-secondary'
-            onclick='navigateToPeople("gpInvoices")'>Cancel</button>
+          <button type='button' class='btn-secondary'${act('navigateToPeople', 'gpInvoices')}>Cancel</button>
         </div>
       </form>
     </div>`;
@@ -568,3 +561,19 @@ async function showEditInvoiceForm(id) {
   const data = await getItem('GPInvoices', id);
   document.getElementById('main-content').innerHTML = renderInvoiceForm(data);
 }
+
+// N-302c: delegated actions for the People record forms and the Add/Edit entry
+// points the tracker and invoice lists call (js/actions.js).
+registerActions({
+  showAddPersonForm,
+  showEditPersonForm,
+  showAddAssignmentForm,
+  showEditAssignmentForm,
+  showAddInvoiceForm,
+  showEditInvoiceForm,
+  submitPersonForm,
+  submitAssignmentForm,
+  submitInvoiceForm,
+  _onAssignmentEmployeeChange,
+  _onAssignmentTypeChange,
+});

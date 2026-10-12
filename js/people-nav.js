@@ -35,6 +35,11 @@ function navigateToPeople(page, pendingItem = null) {
   withViewTransition(() => renderPeoplePage(page, pendingItem));
 }
 
+// N-302c: the target of every Back/Cancel button on the People pages (js/actions.js).
+registerActions({
+  navigateToPeople,
+});
+
 // N-218b: pendingItem threaded through, mirroring the fix N-218a made to
 // nav.js's navigateTo()/renderPage() -- so the one navigation path used by
 // an optimistic-insert apply() (Add form -> list, before the write

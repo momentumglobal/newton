@@ -27,7 +27,7 @@ function _renderPayrollStep1() {
     <div style='display:flex;gap:12px;margin-bottom:20px'>
       <div class='form-group' style='margin:0;flex:1'>
         <label>Month</label>
-        <select id='payroll-month' onchange='_onPayrollMonthChange()' style='width:100%'>${monthOptions}</select>
+        <select id='payroll-month'${actOn('change', '_onPayrollMonthChange')} style='width:100%'>${monthOptions}</select>
       </div>
       <div class='form-group' style='margin:0;flex:1'>
         <label>Year</label>
@@ -42,8 +42,8 @@ function _renderPayrollStep1() {
       </label>
     </div>
     <div style='display:flex;gap:10px;justify-content:flex-end'>
-      <button class='btn-secondary' onclick='_closePayrollModal()'>Cancel</button>
-      <button class='btn-primary' onclick='_generatePayrollPreview()'>Generate Preview</button>
+      <button class='btn-secondary'${act('_closePayrollModal')}>Cancel</button>
+      <button class='btn-primary'${act('_generatePayrollPreview')}>Generate Preview</button>
     </div>`;
 }
 
@@ -145,8 +145,8 @@ async function _generatePayrollPreview() {
     ${bonusSection}
 
     <div style='display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:16px;border-top:1px solid var(--border-subtle)'>
-      <button class='btn-secondary' onclick='_renderPayrollStep1()'>&#8592; Back</button>
-      <button class='btn-primary' onclick='_sendPayrollSummary(${month}, ${year}, ${includeBonus})'>Send to Payroll</button>
+      <button class='btn-secondary'${act('_renderPayrollStep1')}>&#8592; Back</button>
+      <button class='btn-primary'${act('_sendPayrollSummary', month, year, includeBonus)}>Send to Payroll</button>
     </div>`;
 }
 
@@ -205,7 +205,7 @@ async function _sendPayrollSummary(month, year, includeBonus) {
         <div style='font-size:40px;margin-bottom:16px'>&#9432;</div>
         <h3 style='color:var(--brand);margin:0 0 8px'>Already sent</h3>
         <p style='color:var(--text-muted);font-size:14px'>${escHtml(msg)}</p>
-        <button class='btn-secondary' style='margin-top:20px' onclick='_closePayrollModal()'>Close</button>
+        <button class='btn-secondary' style='margin-top:20px'${act('_closePayrollModal')}>Close</button>
       </div>`;
       return;
     }
@@ -214,10 +214,20 @@ async function _sendPayrollSummary(month, year, includeBonus) {
         <div style='font-size:40px;margin-bottom:16px'>&#10003;</div>
         <h3 style='color:var(--brand);margin:0 0 8px'>Sent</h3>
         <p style='color:var(--text-muted);font-size:14px'>Payroll summary for ${['January','February','March','April','May','June','July','August','September','October','November','December'][month-1]} ${year} has been sent to the payroll team.</p>
-        <button class='btn-secondary' style='margin-top:20px' onclick='_closePayrollModal()'>Close</button>
+        <button class='btn-secondary' style='margin-top:20px'${act('_closePayrollModal')}>Close</button>
       </div>`;
   } catch (e) {
     if (btn) clearButtonLoading(btn);
     toast('Error sending payroll summary: ' + e.message, { type: 'error' });
   }
 }
+
+// N-302c: delegated actions for the Payroll Summary modal (js/actions.js).
+registerActions({
+  _openPayrollModal,
+  _closePayrollModal,
+  _renderPayrollStep1,
+  _onPayrollMonthChange,
+  _generatePayrollPreview,
+  _sendPayrollSummary,
+});

@@ -55,8 +55,6 @@ var INLINE_HANDLER_BASELINE = {
   'index.html':                      5,
   'js/admin.js':                     9,
   'js/cc-pages.js':                  1,
-  'js/engagement-forms.js':          15,
-  'js/engagement-pages.js':          9,
   'js/lci-editor.js':                24,
   'js/lci-import.js':                15,
   'js/lci-leadmagnet.js':            13,
@@ -74,21 +72,11 @@ var INLINE_HANDLER_BASELINE = {
   'js/mobile-roleform.js':           4,
   'js/mobile-sales.js':              5,
   'js/mobile-scorecards.js':         3,
-  'js/org-chart.js':                 14,
   'js/os-admin.js':                  30,
-  'js/people-dashboard.js':          4,
-  'js/people-forms.js':              8,
-  'js/people-gantt.js':              3,
-  'js/people-invoices.js':           6,
-  'js/people-payroll.js':            7,
-  'js/people-tracker.js':            17,
   'js/sales-pages.js':               7,
-  'js/survey-app.js':                4,
   'market-reporting.html':           1,
   'mobile.html':                     5,
-  'people.html':                     1,
-  'sales.html':                      1,
-  'survey.html':                     1
+  'sales.html':                      1
 };
 
 var _IH_ATTR_RE = new RegExp(

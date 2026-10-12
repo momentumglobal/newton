@@ -572,22 +572,22 @@ const { start, end } = _dashDateRange(_dashFilter);
     <div style='display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end'>
       <div class='form-group' style='min-width:100px'>
         <label>Year</label>
-        <select onchange='_setDashYear(+this.value)'>${yearOpts}</select>
+        <select${actOn('change', 'pdashYearChanged', ACT_VALUE)}>${yearOpts}</select>
       </div>
       <div class='form-group' style='min-width:100px'>
         <label>Month</label>
-        <select onchange='_setDashMonth(this.value)'>${monthOpts}</select>
+        <select${actOn('change', '_setDashMonth', ACT_VALUE)}>${monthOpts}</select>
       </div>
       <div class='form-group' style='min-width:100px'>
         <label>Quarter</label>
-        <select onchange='_setDashQuarter(this.value)'>${quarterOpts}</select>
+        <select${actOn('change', '_setDashQuarter', ACT_VALUE)}>${quarterOpts}</select>
       </div>
     </div>`;
 
   main.innerHTML = `
 <div class='page-header'>
       <h2>People Dashboard</h2>
-      <button class='print-btn' onclick='printPage("People Dashboard", true, "People")'>⎙ Export PDF</button>
+      <button class='print-btn'${act('printPage', 'People Dashboard', true, 'People')}>⎙ Export PDF</button>
     </div>
 
     ${kpiStrip}
@@ -641,3 +641,11 @@ async function _setDashQuarter(value) {
   _dashFilter.month   = null;  // clear month
   await renderPeopleDashboard();
 }
+
+// N-302c: delegated actions for the period selectors (js/actions.js). The year
+// select passed +this.value, so the wrapper keeps the numeric coercion.
+registerActions({
+  pdashYearChanged: (value) => _setDashYear(+value),
+  _setDashMonth,
+  _setDashQuarter,
+});

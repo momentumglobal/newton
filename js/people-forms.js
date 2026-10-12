@@ -199,7 +199,6 @@ async function renderAssignmentForm(existingData = null) {
           <div class='form-group'>
             <label>Employee *</label>
             <select name='EmployeeName' required${actOn('change', '_onAssignmentEmployeeChange', ACT_EL)}>
-              onchange='_onAssignmentEmployeeChange(this)'>
               <option value=''>— Select employee —</option>
               ${employeeOptions}
             </select>

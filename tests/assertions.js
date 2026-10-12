@@ -4213,6 +4213,24 @@ var ASSERTIONS = [
       });
     },
   },
+  // ---- N-322: mobile Sales forecast form ----------------------------------
+  {
+    name: 'N-322: mobile Sales form - Edit finds the forecast by string id, and .is-hidden is defined for mobile.html',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined' || typeof ALL_HTML === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const code = _vendorStripJsComments(ALL_SOURCES['mobile-sales.js']).join('\n');
+      _assertEqual(/\bx\.id\s*===\s*editId\b/.test(code), false, 'no strict x.id === editId (ids are strings, the card passes a Number)');
+      _assertEqual(code.indexOf('String(x.id) === String(editId)') !== -1, true, 'the forecast lookup compares String(x.id) === String(editId)');
+      // mobile.html does not load css/style.css, so it needs its own .is-hidden rule.
+      const styles = (ALL_HTML['mobile.html'].match(/<style\b[^>]*>[\s\S]*?<\/style>/gi) || []).join('\n');
+      const rules = styles.match(/\.is-hidden\s*\{[^}]*\}/g) || [];
+      _assertEqual(rules.length, 1, 'mobile.html defines .is-hidden exactly once');
+      _assertEqual(/display\s*:\s*none\s*!important/.test(rules[0] || ''), true, '.is-hidden is display: none !important');
+      _assertEqual(/rel=["']stylesheet["'][^>]*style\.css/.test(ALL_HTML['mobile.html']), false, 'mobile.html still does not load style.css (if it ever does, this rule is redundant)');
+    },
+  },
   // ---- N-302b hotfix: act()/actOn() shadowing -----------------------------
   {
     name: 'N-302b hotfix lint: no local act / actOn shadows the action builders',

@@ -75,7 +75,7 @@ async function mobileSalesForecastForm(editId) {
   if (editId) {
     try {
       const forecasts = await getSalesForecasts();
-      f = forecasts.find(x => x.id === editId) || {};
+      f = forecasts.find(x => String(x.id) === String(editId)) || {};   // N-322: ids are strings, the card passes Number(f.id)
     } catch (e) { /* fall back to empty */ }
   }
   

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; img-src 'self' https://talentpoint.sharepoint.com data: blob:; font-src 'self' data:; frame-src 'self' https://login.microsoftonline.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; img-src 'self' https://talentpoint.sharepoint.com data: blob:; font-src 'self' data:; frame-src 'self' https://login.microsoftonline.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'">
   <meta name="referrer" content="no-referrer">
   <script src="js/diag-buffer.js"></script>
   <script src="js/frame-guard.js"></script>
@@ -837,9 +837,7 @@
   <!-- Mark this session as running the mobile app, so desktop pages
        (index.html etc.) redirect back here after the MSAL login round-trip,
        even when the WebView reports a non-mobile width. -->
-  <script>
-    try { localStorage.setItem('newton_mobile', '1'); } catch (e) {}
-  </script>
+  <script src="js/mobile-flag.js"></script>
   <!-- Mobile app -->
   <script src="js/mobile-app.js" defer></script>
   <script src="js/mobile-pages.js" defer></script>
@@ -852,14 +850,6 @@
   <script src="js/mobile-reporting-ext.js" defer></script>
 
   <!-- PWA: register the service worker (makes the site installable) -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('sw.js').catch(function (e) {
-          console.warn('SW registration failed:', e);
-        });
-      });
-    }
-  </script>
+  <script src="js/sw-register.js" defer></script>
 </body>
 </html>

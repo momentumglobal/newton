@@ -20,6 +20,8 @@
 //                      js/ (the policy has no 'unsafe-eval').
 //   lintJsHosts        no https:// host literal in first-party js/ outside the
 //                      allow-list, so a new external origin forces a CSP decision.
+//   lintNoInlineScripts  (N-303) no root *.html has an inline <script> block: script-src is
+//                      'self' only, so page code lives in js/. Flat ban, no baseline.
 //
 // CSP_CANONICAL is THE source of truth for the policy string. Changing the
 // policy means editing this constant, all 15 HTML metas, and the Readme
@@ -32,7 +34,7 @@
 
 var CSP_CANONICAL =
   "default-src 'self'; " +
-  "script-src 'self' 'unsafe-inline'; " +
+  "script-src 'self'; " +
   "style-src 'self' 'unsafe-inline'; " +
   "connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; " +
   "img-src 'self' https://talentpoint.sharepoint.com data: blob:; " +
@@ -131,7 +133,7 @@ function lintCspPolicy(policy) {
     if (!(name in d)) return;
     if (d[name].join(' ') !== expected.join(' ')) problems.push(name + ' must be exactly: ' + expected.join(' ') + ' (got: ' + d[name].join(' ') + ')');
   }
-  exact('script-src', ["'self'", "'unsafe-inline'"]);
+  exact('script-src', ["'self'"]);
   exact('connect-src', ["'self'", 'https://graph.microsoft.com', 'https://login.microsoftonline.com']);
   exact('object-src', ["'none'"]);
   exact('base-uri', ["'self'"]);
@@ -183,6 +185,25 @@ function lintFrameGuardWiring(htmlSources, appPages, staticPages) {
       if (srcs[1] !== 'js/frame-guard.js') problems.push(file + ': second script must be js/frame-guard.js');
     } else if (guardAt >= 0) {
       problems.push(file + ': static page must not load js/frame-guard.js');
+    }
+  });
+  return problems;
+}
+
+// N-303 (SEC-12b step 3): script-src has no 'unsafe-inline', so an inline <script>
+// block would not run. Page code goes in a js/ file. HTML comments are blanked
+// (line numbers survive); a <script> with a src attribute is fine; an empty
+// inline <script></script> is still flagged.
+// returns: [ 'page.html:LINE: message', ... ]
+function lintNoInlineScripts(htmlSources) {
+  var problems = [];
+  Object.keys(htmlSources).sort().forEach(function (file) {
+    var text = _vendorStripHtmlComments(htmlSources[file]);
+    var re = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi, m;
+    while ((m = re.exec(text)) !== null) {
+      if (/(^|\s)src\s*=/i.test(m[1])) continue;
+      var line = text.slice(0, m.index).split('\n').length;
+      problems.push(file + ':' + line + ": inline <script> - move it to js/ (script-src has no 'unsafe-inline')");
     }
   });
   return problems;

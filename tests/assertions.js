@@ -2524,10 +2524,47 @@ var ASSERTIONS = [
       // Positive controls.
       _assertEqual(lintCspPolicy(CSP_CANONICAL + " 'unsafe-eval'").length >= 1, true, "control: 'unsafe-eval' flagged");
       _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("script-src 'self'", "script-src 'self' https://cdn.example.com")).length, 1, 'control: extra script host flagged');
+      _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("script-src 'self'", "script-src 'self' 'unsafe-inline'")).length, 1, "control (N-303): 'unsafe-inline' in script-src flagged");
+      _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("script-src 'self'", "script-src 'self' 'sha256-AAAA'")).length, 1, 'control (N-303): a script hash flagged');
+      _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("script-src 'self'", "script-src 'self' 'nonce-abc'")).length, 1, 'control (N-303): a script nonce flagged');
+      _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("script-src 'self'", "script-src 'self' 'strict-dynamic'")).length, 1, "control (N-303): 'strict-dynamic' flagged");
       _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("img-src 'self'", "img-src *")).length >= 1, true, 'control: wildcard flagged');
       _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("connect-src 'self' https://graph.microsoft.com", "connect-src 'self' http://graph.microsoft.com")).length >= 1, true, 'control: plain http flagged');
       _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("object-src 'none'; ", '')).length, 1, 'control: missing directive flagged');
       _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("frame-src 'self' https://login.microsoftonline.com", "frame-src https:")).length >= 1, true, 'control: bare https: flagged');
+    },
+  },
+  {
+    name: 'no root page has an inline <script>; the moved page scripts load after actions.js (N-303 — SEC-12b step 3)',
+    fn: function () {
+      if (typeof lintNoInlineScripts === 'undefined') _skip('lint-csp.js not loaded — runs under node tests/run.js.');
+      // Positive controls: each failure shape is caught, or the clean result below proves nothing.
+      _assertEqual(lintNoInlineScripts({ 'a.html': '<script src="js/x.js" defer></script>\n<script src=\'js/y.js\'></script>' }), [], 'control: script tags with src are clean');
+      _assertEqual(lintNoInlineScripts({ 'a.html': '<p>\n<script>\nx();\n</script>' }), ["a.html:2: inline <script> - move it to js/ (script-src has no 'unsafe-inline')"], 'control: an inline block is flagged with its line');
+      _assertEqual(lintNoInlineScripts({ 'a.html': '<script type="application/json">{}</script>' }).length, 1, 'control: a non-JS inline block is flagged too');
+      _assertEqual(lintNoInlineScripts({ 'a.html': '<script></script>' }).length, 1, 'control: an empty inline block is flagged');
+      _assertEqual(lintNoInlineScripts({ 'a.html': '<!-- <script>x()</script> -->\n<script src="js/x.js"></script>' }), [], 'control: a commented-out block is ignored');
+      _assertEqual(lintNoInlineScripts({ 'a.html': '<script data-src="x">y()</script>' }).length, 1, 'control: data-src is not src');
+      if (typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintNoInlineScripts(ALL_HTML), [], 'root *.html: no inline <script>');
+      // Mutation: put one block back into a real page and the lint must name it.
+      const mutated = Object.assign({}, ALL_HTML, { 'sales.html': ALL_HTML['sales.html'].replace('</body>', '<script>\nx();\n</script>\n</body>') });
+      const back = lintNoInlineScripts(mutated);
+      _assertEqual(back.length === 1 && /^sales\.html:\d+: inline <script>/.test(back[0]), true, 'mutation: an inline block added to sales.html is flagged: ' + back);
+      _assertEqual(Object.keys(INLINE_HANDLER_BASELINE), [], 'the inline-handler baseline stays empty');
+      // The moved scripts load after actions.js and are deferred, except the mobile flag.
+      const srcsOf = html => { const out = []; html.replace(/<script\b([^>]*)>/gi, (m, a) => { const s = /\bsrc\s*=\s*"([^"]*)"/i.exec(a); if (s) out.push({ src: s[1], defer: /\bdefer\b/.test(a) }); return m; }); return out; };
+      [['index.html', 'js/home.js'], ['index.html', 'js/seasonal-fx.js'], ['admin.html', 'js/admin-page.js'], ['Readme.html', 'js/readme-page.js'], ['mobile.html', 'js/sw-register.js']].forEach(function (pair) {
+        const list = srcsOf(ALL_HTML[pair[0]]);
+        const at = list.findIndex(s => s.src === pair[1]);
+        const act = list.findIndex(s => s.src === 'js/actions.js');
+        _assertEqual(act >= 0 && at > act, true, pair[0] + ': ' + pair[1] + ' loads after js/actions.js');
+        _assertEqual(at >= 0 && list[at].defer, true, pair[0] + ': ' + pair[1] + ' is deferred');
+      });
+      const flag = srcsOf(ALL_HTML['mobile.html']).find(s => s.src === 'js/mobile-flag.js');
+      _assertEqual(!!flag && !flag.defer, true, 'mobile.html: js/mobile-flag.js is present and NOT deferred (it must run before the deferred scripts)');
     },
   },
   {
@@ -4407,10 +4444,10 @@ var ASSERTIONS = [
         _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
       }
       const regs = readActionRegistrations(ALL_SOURCES, ALL_HTML).registered;
-      _assertEqual(regs.switchTab, ['admin.html'], 'admin.html registers switchTab');
+      _assertEqual(regs.switchTab, ['js/admin-page.js'], 'admin-page.js registers switchTab (N-303: moved out of admin.html)');
       ['openQuickLinks', 'closeQuickLinks', 'handleSignOut', 'refreshCCBanner'].forEach(n =>
-        _assertEqual(regs[n], ['index.html'], 'index.html registers ' + n));
-      _assertEqual(regs.show, ['Readme.html'], 'Readme.html registers show');
+        _assertEqual(regs[n], ['js/home.js'], 'home.js registers ' + n + ' (N-303: moved out of index.html)'));
+      _assertEqual(regs.show, ['js/readme-page.js'], 'readme-page.js registers show (N-303: moved out of Readme.html)');
       _assertEqual(regs.ccCollapseTile, ['js/cc-pages.js'], 'cc-pages.js registers ccCollapseTile');
       _assertEqual(regs.submitAssignment, ['js/os-admin.js'], 'os-admin.js registers submitAssignment');
       _assertEqual(regs.mrTitleInput, ['js/market-report.js'], 'market-report.js registers mrTitleInput');

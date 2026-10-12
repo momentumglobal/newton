@@ -81,13 +81,13 @@ async function renderReportBuilder() {
         ${(_rbScope === 'project' && projects.find(p => String(p.id) === _rbProjectId)?.ProjectType === 'CoE') ? `
         <label class="rb-gantt-toggle">
           <input type="checkbox" ${_rbIncludeGantt ? 'checked' : ''}
-            onchange="_rbIncludeGantt = this.checked">
+            ${actOn('change', 'rbSetOption', 'includeGantt', ACT_CHECKED).trim()}>
           Planned vs Actual Role Opens final page
         </label>` : ''}
-        <button class="btn-secondary" onclick="showReportBuilderLibrary()">&larr; Back to Library</button>
-        <button class="btn-secondary" id="rb-save-btn" onclick="rbSaveReport()">Save</button>
-        <button class="btn-secondary" onclick="rbPreview()">Preview</button>
-        <button class="print-btn"     onclick="rbExportPdf()">&#8856; Export PDF</button>
+        <button class="btn-secondary"${act('showReportBuilderLibrary')}>&larr; Back to Library</button>
+        <button class="btn-secondary" id="rb-save-btn"${act('rbSaveReport')}>Save</button>
+        <button class="btn-secondary"${act('rbPreview')}>Preview</button>
+        <button class="print-btn"    ${act('rbExportPdf')}>&#8856; Export PDF</button>
       </div>
     </div>
     <div class="rb-shell">
@@ -126,7 +126,7 @@ function rbRenderSidebar(projects) {
   // Palette tiles — scope-filtered, grouped under subheadings.
   // Group order follows first appearance in RB_PALETTE. Empty groups are skipped.
   const tileHtml = m => `<div class="rb-palette-tile" data-key="${m.key}" draggable="false"
-      ondblclick="rbAddPanelBlock('${m.key}')"><span>${m.label}${m.filtered ? '<span class="rb-filter-mark">*</span>' : ''}</span><button class="rb-add-btn" onclick="rbAddPanelBlock('${m.key}')">+</button>
+      ${actOn('dblclick', 'rbAddPanelBlock', m.key).trim()}><span>${m.label}${m.filtered ? '<span class="rb-filter-mark">*</span>' : ''}</span><button class="rb-add-btn"${act('rbAddPanelBlock', m.key)}>+</button>
     </div>`;
 
   const groupOrder = [...new Set(RB_PALETTE.map(m => m.group))];
@@ -143,25 +143,25 @@ function rbRenderSidebar(projects) {
     <div class="rb-config">
       <div class="rb-section-label">Report Title</div>
       <input id="rb-title" class="rb-input" type="text" placeholder="Untitled Report"
-        value="${escAttr(_rbTitle || '')}" oninput="_rbTitle = this.value">
+        value="${escAttr(_rbTitle || '')}"${actOn('input', 'rbSetOption', 'title', ACT_VALUE)}>
 
       <div class="rb-section-label">Scope</div>
       <div class="filter-group">
         <button class="btn-filter ${_rbScope==='project'?'active':''}"
-          onclick="rbSetScope('project')">Project</button>
+          ${act('rbSetScope', 'project').trim()}>Project</button>
         ${_resolvedRole === 'talent_partner' ? '' : `<button class="btn-filter ${_rbScope==='company'?'active':''}"
-          onclick="rbSetScope('company')">Company</button>`}
+          ${act('rbSetScope', 'company').trim()}>Company</button>`}
       </div>
 
-      ${_rbScope === 'project' ? '<div class="rb-section-label">Project</div><select class="rb-select" onchange="rbSetProject(this.value)">' + projectOpts + '</select>' : ''}
+      ${_rbScope === 'project' ? '<div class="rb-section-label">Project</div><select class="rb-select"' + actOn('change', 'rbSetProject', ACT_VALUE) + '>' + projectOpts + '</select>' : ''}
 
-      ${_rbScope === 'project' ? '<div class="rb-section-label">Role</div><select class="rb-select" onchange="rbSetRole(this.value)">' + roleOpts + '</select>' : ''}
+      ${_rbScope === 'project' ? '<div class="rb-section-label">Role</div><select class="rb-select"' + actOn('change', 'rbSetRole', ACT_VALUE) + '>' + roleOpts + '</select>' : ''}
 
       <div class="rb-section-label">Period</div>
-      <select class="rb-select" onchange="_rbPeriod = this.value">${periodOpts}</select>
+      <select class="rb-select"${actOn('change', 'rbSetOption', 'period', ACT_VALUE)}>${periodOpts}</select>
 
       <div class="rb-section-label">KPI Period</div>
-      <select class="rb-select" onchange="_rbKpiPeriod = this.value">${kpiOpts}</select>
+      <select class="rb-select"${actOn('change', 'rbSetOption', 'kpiPeriod', ACT_VALUE)}>${kpiOpts}</select>
     </div>
 
     <div class="rb-section-label" style="margin-top:16px">Add Modules</div>
@@ -170,7 +170,7 @@ function rbRenderSidebar(projects) {
 
     <div class="rb-sidebar-footer">
       <div class="rb-section-label">Add Text Block</div>
-      <button class="btn-secondary rb-full-btn" onclick="rbAddTextBlock()">+ Text Block</button>
+      <button class="btn-secondary rb-full-btn"${act('rbAddTextBlock')}>+ Text Block</button>
       <p class="rb-footnote"><span class="rb-filter-mark">*</span> Controlled by the Period / KPI Period filter above. Unmarked modules show all available data.</p>
     </div>
   `;
@@ -189,7 +189,7 @@ function rbRenderCanvas() {
       return `<div class="rb-block rb-block-panel" data-index="${i}" data-id="${block.id}">
         <span class="rb-drag-handle">&#9776;</span>
         <span class="rb-block-label">${escHtml(meta.label)}</span>
-        <button class="rb-remove-btn" onclick="rbRemoveBlock('${block.id}')">&#x2715;</button>
+        <button class="rb-remove-btn"${act('rbRemoveBlock', String(block.id))}>&#x2715;</button>
       </div>`;
     } else {
       return `<div class="rb-block rb-block-text" data-index="${i}" data-id="${block.id}">
@@ -206,11 +206,11 @@ function rbRenderCanvas() {
             ${rtTableToolbarButtonHtml()}
           </div>
           <div class="rb-richtext" contenteditable="true" data-id="${block.id}"
-            oninput="rbUpdateTextBlock('${block.id}', this.innerHTML)"
-            onkeyup="rbUpdateToolbarState()"
-            onmouseup="rbUpdateToolbarState()">${block.content || ''}</div>
+            ${actOn('input', 'rbUpdateTextBlock', String(block.id), ACT_HTML).trim()}
+            ${actOn('keyup', 'rbUpdateToolbarState').trim()}
+            ${actOn('mouseup', 'rbUpdateToolbarState').trim()}>${block.content || ''}</div>
         </div>
-        <button class="rb-remove-btn" onclick="rbRemoveBlock('${block.id}')">&#x2715;</button>
+        <button class="rb-remove-btn"${act('rbRemoveBlock', String(block.id))}>&#x2715;</button>
       </div>`;
     }
   }).join('');
@@ -230,7 +230,7 @@ function rbRenderSnapshotBlock(block, i) {
     const v = values[rid] || {};
     const cells = SNAP_FIELDS.map(([f]) =>
       `<td><input type="number" min="0" class="rb-snap-input" value="${escAttr(v[f] ?? '')}"
-        oninput="rbUpdateSnapshotValue('${escJsAttr(block.id)}','${rid}','${f}',this.value)"></td>`
+        ${actOn('input', 'rbUpdateSnapshotValue', String(block.id), rid, f, ACT_VALUE).trim()}></td>`
     ).join('');
     return `<tr><td>${r.label}</td>${cells}</tr>`;
   }).join('');
@@ -243,7 +243,7 @@ function rbRenderSnapshotBlock(block, i) {
       <div class="rb-snap-title">Candidate Pipeline Snapshot</div>
       ${table}
     </div>
-    <button class="rb-remove-btn" onclick="rbRemoveBlock('${block.id}')">&#x2715;</button>
+    <button class="rb-remove-btn"${act('rbRemoveBlock', String(block.id))}>&#x2715;</button>
   </div>`;
 }
 
@@ -414,13 +414,30 @@ async function rbFetchData() {
   }
 }
 
+// N-302b: the config inputs (title, periods, Gantt toggle) write straight to
+// module state. One action with a fixed key -> setter map, so markup can only
+// reach these four fields.
+const _RB_OPTION_SETTERS = {
+  includeGantt: v => { _rbIncludeGantt = v; },
+  title:        v => { _rbTitle = v; },
+  period:       v => { _rbPeriod = v; },
+  kpiPeriod:    v => { _rbKpiPeriod = v; },
+};
+function rbSetOption(key, value) {
+  if (Object.prototype.hasOwnProperty.call(_RB_OPTION_SETTERS, key)) _RB_OPTION_SETTERS[key](value);
+}
+
+function rbClosePreview() {
+  document.getElementById('rb-preview-modal').style.display = 'none';
+}
+
 async function rbPreview() {
   const modal = document.getElementById('rb-preview-modal');
   modal.style.display = 'flex';
   modal.innerHTML = `<div class="rb-preview-inner">
     <div class="rb-preview-toolbar">
-      <button class="print-btn" onclick="rbExportPdf()">&#8856; Export PDF</button>
-      <button class="btn-secondary" onclick="document.getElementById('rb-preview-modal').style.display='none'">
+      <button class="print-btn"${act('rbExportPdf')}>&#8856; Export PDF</button>
+      <button class="btn-secondary"${act('rbClosePreview')}>
         Close</button>
     </div>
     <div id="rb-preview-content"><p>Loading data...</p></div>
@@ -640,9 +657,9 @@ function _rbRenderLibrary() {
           <td>${escHtml(_rbTpMap[owner.toLowerCase()] || owner || '—')}</td>
           <td>
             <div class="row-actions">
-              <button class="btn-secondary" onclick="rbLoadReport(${r.id})">Open</button>
-              <button class="btn-secondary" onclick="rbCopyReportAction(${r.id}, this)">Copy</button>
-              ${canDelete ? `<button class="btn-secondary" onclick="rbDeleteReport(${r.id}, '${escJsAttr(r.Title || '')}')">Delete</button>` : ''}
+              <button class="btn-secondary"${act('rbLoadReport', Number(r.id))}>Open</button>
+              <button class="btn-secondary"${act('rbCopyReportAction', Number(r.id), ACT_EL)}>Copy</button>
+              ${canDelete ? `<button class="btn-secondary"${act('rbDeleteReport', Number(r.id), r.Title || '')}>Delete</button>` : ''}
             </div>
           </td>
         </tr>`;
@@ -665,14 +682,14 @@ function _rbRenderLibrary() {
     <div class="page-header">
       <h2>Report Library</h2>
       <div class="page-header-actions">
-        <button class="btn-primary" onclick="rbStartNewReport()">+ New Report</button>
+        <button class="btn-primary"${act('rbStartNewReport')}>+ New Report</button>
       </div>
     </div>
     <div class="table-toolbar">
       ${listControlsBar([`
         <div class="form-group project-filter-select">
           <label>Client</label>
-          <select onchange="rbLibraryFilterChanged(this.value)">${_rbLibraryClientOptions()}</select>
+          <select${actOn('change', 'rbLibraryFilterChanged', ACT_VALUE)}>${_rbLibraryClientOptions()}</select>
         </div>`])}
     </div>
     <div class="table-scroll">
@@ -776,4 +793,24 @@ registerActions({
   rbFormat,
   rbFormatBlock,
   showReportBuilderLibrary,
+  // N-302b: library, editor header, sidebar and canvas controls.
+  rbSaveReport,
+  rbPreview,
+  rbClosePreview,
+  rbExportPdf,
+  rbSetOption,
+  rbSetScope,
+  rbSetProject,
+  rbSetRole,
+  rbAddPanelBlock,
+  rbAddTextBlock,
+  rbRemoveBlock,
+  rbUpdateTextBlock,
+  rbUpdateSnapshotValue,
+  rbUpdateToolbarState,
+  rbLoadReport,
+  rbCopyReportAction,
+  rbDeleteReport,
+  rbStartNewReport,
+  rbLibraryFilterChanged,
 });

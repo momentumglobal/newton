@@ -62,3 +62,9 @@ async function renderPage(page, pendingItem = null) {
       main.innerHTML = `<p>Page not found.</p>`;
   }
 }
+
+// N-302b: navigateTo is the target of every Back/Cancel button on the Reporting
+// pages (js/actions.js).
+registerActions({
+  navigateTo,
+});

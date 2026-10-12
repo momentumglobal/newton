@@ -205,7 +205,7 @@ function _ckaSwitchCardHtml(type, s, rows) {
           <div class="ck-admin-switch-title">${t.one} checklists</div>
           <p class="ck-admin-switch-status">${escHtml(status)}</p>
           <button type="button" class="${on ? 'btn-secondary' : 'btn-primary'}" id="ck-switch-${type}"
-            onclick="ckaToggleSwitch('${type}', ${on ? 'false' : 'true'})"${blocked ? ` disabled title="Add Default items first" aria-describedby="ck-switch-hint-${type}"` : ''}>${on ? 'Switch off' : 'Switch on'}</button>
+            ${act('ckaToggleSwitch', type, !on).trim()}${blocked ? ` disabled title="Add Default items first" aria-describedby="ck-switch-hint-${type}"` : ''}>${on ? 'Switch off' : 'Switch on'}</button>
           ${blocked ? `<p class="ck-admin-hint" id="ck-switch-hint-${type}">Add Default items first.</p>` : ''}
         </div>`;
 }
@@ -258,12 +258,12 @@ async function ckaToggleSwitch(recordType, turnOn) {
 function _ckaPickerHtml() {
   const typeBtns = CONFIG.CHECKLISTS.RECORD_TYPES.map(t => `
           <button type="button" class="btn-filter${_ckType === t ? ' active' : ''}" id="ck-type-${t}" aria-pressed="${_ckType === t}"
-            onclick="ckaSelectType('${t}')">${_CKA_TEXT[t].list}</button>`).join('');
+            ${act('ckaSelectType', t).trim()}>${_CKA_TEXT[t].list}</button>`).join('');
   const variantBtns = checklistVariants().map((v, i) => {
     const n = activeChecklistItems(_ckaRows(v), _ckType, v).length;
     return `
           <button type="button" class="btn-filter${_ckVariant === v ? ' active' : ''}" id="ck-variant-${i}" aria-pressed="${_ckVariant === v}"
-            onclick="ckaSelectVariant(${i})">${escHtml(checklistVariantLabel(v))} (${n})</button>`;
+            ${act('ckaSelectVariant', i).trim()}>${escHtml(checklistVariantLabel(v))} (${n})</button>`;
   }).join('');
   const activeHere = activeChecklistItems(_ckaRows(_ckVariant), _ckType, _ckVariant).length;
   const hint = (_ckVariant !== CONFIG.CHECKLISTS.DEFAULT_VARIANT && activeHere === 0)
@@ -310,9 +310,9 @@ function _ckaTableHtml() {
             <div class="ck-admin-section-head">
               <span class="ck-admin-section-name">${escHtml(g.section)}</span>
               <div class="row-actions">
-                <button type="button" class="btn-secondary btn-sm" id="ck-sec-rename-${si}" onclick="ckaStartRename(${si})" aria-label="Rename section ${escAttr(g.section)}">Rename</button>
-                <button type="button" class="btn-secondary btn-sm" id="ck-sec-up-${si}" onclick="ckaMoveSection(${si}, -1)" aria-label="Move section ${escAttr(g.section)} up"${si === 0 ? ' disabled' : ''}>↑</button>
-                <button type="button" class="btn-secondary btn-sm" id="ck-sec-down-${si}" onclick="ckaMoveSection(${si}, 1)" aria-label="Move section ${escAttr(g.section)} down"${si === last ? ' disabled' : ''}>↓</button>
+                <button type="button" class="btn-secondary btn-sm" id="ck-sec-rename-${si}"${act('ckaStartRename', si)} aria-label="Rename section ${escAttr(g.section)}">Rename</button>
+                <button type="button" class="btn-secondary btn-sm" id="ck-sec-up-${si}"${act('ckaMoveSection', si, -1)} aria-label="Move section ${escAttr(g.section)} up"${si === 0 ? ' disabled' : ''}>↑</button>
+                <button type="button" class="btn-secondary btn-sm" id="ck-sec-down-${si}"${act('ckaMoveSection', si, 1)} aria-label="Move section ${escAttr(g.section)} down"${si === last ? ' disabled' : ''}>↓</button>
               </div>
             </div>
           </td>
@@ -322,7 +322,7 @@ function _ckaTableHtml() {
   return `
       ${_ckaForm ? '' : `
       <div class="ck-admin-toolbar">
-        <button type="button" class="btn-primary" id="ck-add-btn" onclick="ckaOpenForm(null)">+ Add item</button>
+        <button type="button" class="btn-primary" id="ck-add-btn"${act('ckaOpenForm', null)}>+ Add item</button>
       </div>`}
       <table class="data-table ck-admin-table">
         <thead><tr><th>Item</th><th>Type</th><th>Required</th><th>Status</th><th>Actions</th></tr></thead>
@@ -349,11 +349,11 @@ function _ckaItemRowHtml(it, first, last) {
           <td>${active ? 'Active' : 'Retired'}</td>
           <td>
             <div class="row-actions">
-              <button type="button" class="btn-secondary btn-sm" id="ck-edit-${id}" onclick="ckaOpenForm(${id})" aria-label="Edit ${escAttr(label)}">Edit</button>
-              <button type="button" class="btn-secondary btn-sm" id="ck-up-${id}" onclick="ckaMoveItem(${id}, -1)" aria-label="Move ${escAttr(label)} up"${first ? ' disabled' : ''}>↑</button>
-              <button type="button" class="btn-secondary btn-sm" id="ck-down-${id}" onclick="ckaMoveItem(${id}, 1)" aria-label="Move ${escAttr(label)} down"${last ? ' disabled' : ''}>↓</button>
-              <button type="button" class="btn-secondary btn-sm" id="ck-retire-${id}" onclick="ckaSetActive(${id}, ${active ? 'false' : 'true'})" aria-label="${active ? 'Retire' : 'Restore'} ${escAttr(label)}">${active ? 'Retire' : 'Restore'}</button>
-              <button type="button" class="btn-danger btn-sm" id="ck-delete-${id}" onclick="ckaDeleteItem(${id})" aria-label="Delete ${escAttr(label)}"${delLock ? ` disabled title="${delLock}"` : ''}>Delete</button>
+              <button type="button" class="btn-secondary btn-sm" id="ck-edit-${id}"${act('ckaOpenForm', id)} aria-label="Edit ${escAttr(label)}">Edit</button>
+              <button type="button" class="btn-secondary btn-sm" id="ck-up-${id}"${act('ckaMoveItem', id, -1)} aria-label="Move ${escAttr(label)} up"${first ? ' disabled' : ''}>↑</button>
+              <button type="button" class="btn-secondary btn-sm" id="ck-down-${id}"${act('ckaMoveItem', id, 1)} aria-label="Move ${escAttr(label)} down"${last ? ' disabled' : ''}>↓</button>
+              <button type="button" class="btn-secondary btn-sm" id="ck-retire-${id}"${act('ckaSetActive', id, !active)} aria-label="${active ? 'Retire' : 'Restore'} ${escAttr(label)}">${active ? 'Retire' : 'Restore'}</button>
+              <button type="button" class="btn-danger btn-sm" id="ck-delete-${id}"${act('ckaDeleteItem', id)} aria-label="Delete ${escAttr(label)}"${delLock ? ` disabled title="${delLock}"` : ''}>Delete</button>
             </div>
           </td>
         </tr>`;
@@ -365,13 +365,13 @@ function _ckaEmptyHtml() {
           <div class="ck-admin-copy">
             <label for="ck-copy-src">Copy items from…</label>
             <select id="ck-copy-src">${sources.map(v => `<option value="${escAttr(v)}">${escHtml(checklistVariantLabel(v))} (${_ckaRows(v).length})</option>`).join('')}</select>
-            <button type="button" class="btn-secondary" id="ck-copy-btn" onclick="ckaCopyVariant()">Copy items</button>
+            <button type="button" class="btn-secondary" id="ck-copy-btn"${act('ckaCopyVariant')}>Copy items</button>
           </div>` : '';
   return `
       <div class="ck-admin-empty">
         <p>No ${_CKA_TEXT[_ckType].one.toLowerCase()} items in ${escHtml(checklistVariantLabel(_ckVariant))} yet.</p>
         <div class="ck-admin-empty-actions">
-          ${_ckaForm ? '' : '<button type="button" class="btn-primary" id="ck-add-btn" onclick="ckaOpenForm(null)">+ Add item</button>'}
+          ${_ckaForm ? '' : `<button type="button" class="btn-primary" id="ck-add-btn"${act('ckaOpenForm', null)}>+ Add item</button>`}
           ${copy}
         </div>
       </div>`;
@@ -404,7 +404,7 @@ function _ckaFormHtml() {
         </div>
         <div class="form-group">
           <label for="ck-f-type">Type *</label>
-          <select id="ck-f-type" onchange="ckaFormTypeChanged()" aria-describedby="ck-err-type">
+          <select id="ck-f-type"${actOn('change', 'ckaFormTypeChanged')} aria-describedby="ck-err-type">
             ${type ? '' : '<option value="" selected>-- Choose a type --</option>'}
             ${C.ITEM_TYPES.map(k => `<option value="${k}"${k === type ? ' selected' : ''}>${_CKA_TYPE_LABEL[k]}</option>`).join('')}
           </select>
@@ -434,8 +434,8 @@ function _ckaFormHtml() {
         </div>
         <label class="ck-admin-check"><input type="checkbox" id="ck-f-required"${it && spYesNo(it.Required, false) ? ' checked' : ''}> Required</label>
         <div class="form-actions">
-          <button type="button" class="btn-primary" id="ck-f-save" onclick="ckaSaveItem()">${it ? 'Save changes' : 'Add item'}</button>
-          <button type="button" class="btn-secondary" onclick="ckaCloseForm()">Cancel</button>
+          <button type="button" class="btn-primary" id="ck-f-save"${act('ckaSaveItem')}>${it ? 'Save changes' : 'Add item'}</button>
+          <button type="button" class="btn-secondary"${act('ckaCloseForm')}>Cancel</button>
         </div>
       </fieldset>`;
 }
@@ -648,13 +648,20 @@ function _ckaRenameRowHtml(g) {
             <div class="ck-admin-rename">
               <label for="ck-rename-input" class="ck-admin-picker-label">Section name</label>
               <input type="text" id="ck-rename-input" value="${escAttr(g.section)}" aria-describedby="ck-rename-error"
-                onkeydown="if (event.key === 'Enter') { event.preventDefault(); ckaSaveRename(); } else if (event.key === 'Escape') { ckaCancelRename(); }">
-              <button type="button" class="btn-primary btn-sm" onclick="ckaSaveRename()">Save</button>
-              <button type="button" class="btn-secondary btn-sm" onclick="ckaCancelRename()">Cancel</button>
+                ${actOn('keydown', 'ckaRenameKey', ACT_EVENT).trim()}>
+              <button type="button" class="btn-primary btn-sm"${act('ckaSaveRename')}>Save</button>
+              <button type="button" class="btn-secondary btn-sm"${act('ckaCancelRename')}>Cancel</button>
               <span class="ck-admin-field-error" id="ck-rename-error"></span>
             </div>
           </td>
         </tr>`;
+}
+
+// N-302b: Enter saves the section rename, Escape cancels it (was an inline
+// onkeydown with an if/else). Bound with actOn('keydown', 'ckaRenameKey', ACT_EVENT).
+function ckaRenameKey(evt) {
+  if (evt.key === 'Enter') { evt.preventDefault(); ckaSaveRename(); }
+  else if (evt.key === 'Escape') { ckaCancelRename(); }
 }
 
 function ckaStartRename(si) {
@@ -808,3 +815,23 @@ async function ckaCopyVariant() {
   _ckaBusy = false;
   await _ckaRender(['ck-add-btn']);
 }
+
+// N-302b: delegated actions for the checklist admin page (js/actions.js).
+registerActions({
+  ckaToggleSwitch,
+  ckaSelectType,
+  ckaSelectVariant,
+  ckaStartRename,
+  ckaMoveSection,
+  ckaOpenForm,
+  ckaMoveItem,
+  ckaSetActive,
+  ckaDeleteItem,
+  ckaCopyVariant,
+  ckaFormTypeChanged,
+  ckaSaveItem,
+  ckaCloseForm,
+  ckaSaveRename,
+  ckaCancelRename,
+  ckaRenameKey,
+});

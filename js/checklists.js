@@ -213,8 +213,8 @@ function _ckHeaderHtml(recordType, title, subtitle, recordId = 0) {
         ${subtitle ? `<p class="checklist-subtitle">${escHtml(subtitle)}</p>` : ''}
       </div>
       <div class="page-header-actions">
-        ${subtitle ? `<button class="btn-secondary" onclick="copyChecklistLink('${recordType}', ${Number(recordId) || 0})"><i data-lucide="link" aria-hidden="true"></i> Copy link</button>` : ''}
-        <button class="btn-secondary" onclick="navigateTo('${_CK_PARENT[recordType]}')">← Back to ${_CK_PARENT_LABEL[recordType]}</button>
+        ${subtitle ? `<button class="btn-secondary"${act('copyChecklistLink', recordType, Number(recordId) || 0)}><i data-lucide="link" aria-hidden="true"></i> Copy link</button>` : ''}
+        <button class="btn-secondary"${act('navigateTo', String(_CK_PARENT[recordType]))}>← Back to ${_CK_PARENT_LABEL[recordType]}</button>
       </div>
     </div>`;
 }
@@ -294,7 +294,7 @@ function _checklistItemHtml(v, it, idx) {
         (v.isAdmin ? `<span class="checklist-item-note">Unknown action: ${escHtml(it.ActionKey || '(none set)')}</span>` : '');
     } else {
       const avail = typeof action.available === 'function' ? action.available(_ckActionCtx(v)) !== false : true;
-      extra = `<button type="button" class="btn-secondary btn-sm" id="ck-action-${idx}" onclick="runChecklistAction(${idx})"` +
+      extra = `<button type="button" class="btn-secondary btn-sm" id="ck-action-${idx}"${act('runChecklistAction', idx)}` +
         (avail && !busy ? '' : ` disabled${avail ? '' : ` title="You don't have access to this action"`}`) +
         `>${escHtml(action.label)}</button>`;
     }
@@ -304,7 +304,7 @@ function _checklistItemHtml(v, it, idx) {
     : '';
   return `
         <li class="checklist-item${done ? ' checklist-item--done' : ''}" id="ck-item-${idx}">
-          <input type="checkbox" class="checklist-item-check" id="ck-box-${idx}"${done ? ' checked' : ''}${disabled ? ' disabled' : ''} onchange="toggleChecklistItem(${idx}, this.checked)">
+          <input type="checkbox" class="checklist-item-check" id="ck-box-${idx}"${done ? ' checked' : ''}${disabled ? ' disabled' : ''}${actOn('change', 'toggleChecklistItem', idx, ACT_CHECKED)}>
           <div class="checklist-item-body">
             <label class="checklist-item-label" for="ck-box-${idx}">${escHtml(it.ItemLabel || '')}</label>${required ? ' <span class="checklist-tag">Required</span>' : ''}
             ${it.HelpText ? `<div class="checklist-item-help">${escHtmlLines(it.HelpText)}</div>` : ''}
@@ -409,4 +409,8 @@ async function copyChecklistLink(recordType, id) {
 // Later N-302 sub-tasks add their own names to this call; never register a name twice.
 registerActions({
   openChecklist,
+  // N-302b: checklist page header and item controls.
+  copyChecklistLink,
+  runChecklistAction,
+  toggleChecklistItem,
 });

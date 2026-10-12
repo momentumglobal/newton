@@ -134,9 +134,11 @@ function kpiCard(label, value, sub = '') {
   </div>`;
 }
 // ── Filter helpers (shared by Project + Company dashboards) ────────────
+// N-302b: fn is the NAME of a registered action (setCompanyPeriod, setDashPeriod),
+// called with the period key; it is never pasted into markup as code.
 function periodButtons(periods, active, fn) {
   return periods.map(([k, l]) =>
-    `<button class='btn-filter${active === k ? ' active' : ''}' onclick='${fn}("${k}")'>${l}</button>`
+    `<button class='btn-filter${active === k ? ' active' : ''}' ${act(fn, k).trim()}>${l}</button>`
   ).join('');
 }
 const DETAIL_PERIOD_OPTIONS = [

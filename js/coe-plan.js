@@ -179,10 +179,10 @@ function coeRenderBody() {
   main.innerHTML = `
     <div class="page-header"><h2>Hiring Plan</h2></div>
     <div class="coe-toolbar">
-      <select onchange="renderHiringPlanPage(parseInt(this.value))">${projOpts}</select>
-      ${canEdit ? `<button class="btn-primary" onclick="coeOpenRowModal()">+ Planned Headcount</button>` : ''}
-      <button class="print-btn" onclick="coeExportPDF()">⎙ Export PDF</button>
-      ${isAdmin && planRows.length ? `<button class="btn-danger" id="coe-delete-plan-btn" onclick="coeDeletePlan()">Delete Plan</button>` : ''}
+      <select${actOn('change', 'coeSetProject', ACT_VALUE)}>${projOpts}</select>
+      ${canEdit ? `<button class="btn-primary"${act('coeOpenRowModal')}>+ Planned Headcount</button>` : ''}
+      <button class="print-btn"${act('coeExportPDF')}>⎙ Export PDF</button>
+      ${isAdmin && planRows.length ? `<button class="btn-danger" id="coe-delete-plan-btn"${act('coeDeletePlan')}>Delete Plan</button>` : ''}
     </div>
     <div class="coe-legend">
       <span><span class="coe-swatch" style="background:var(--c-blue-pale)"></span> Recruitment</span>
@@ -303,10 +303,10 @@ function coeGanttHtml(rows, opts = {}) {
       cells.push(`<td class="${cls}"${tip ? ` title="${escAttr(tip)}"` : ''}>${marks || ph}</td>`);
     }
     const actions = canEdit ? `<td class="coe-col-actions"><div class="coe-row-actions">
-        <button class="btn-secondary" onclick="coeOpenRowModal(${row.id})">Edit</button>
-        <button class="btn-secondary" onclick="coeOpenLinkPicker(${row.id})">${linked ? 'Re-link' : 'Link'}</button>
-        ${!linked ? `<button class="btn-secondary" onclick="coeCreateHeadcountFromRow(${row.id})">Create Headcount</button>` : ''}
-        <button class="btn-secondary" onclick="coeDeleteRow(${row.id})">✕</button>
+        <button class="btn-secondary"${act('coeOpenRowModal', Number(row.id))}>Edit</button>
+        <button class="btn-secondary"${act('coeOpenLinkPicker', Number(row.id))}>${linked ? 'Re-link' : 'Link'}</button>
+        ${!linked ? `<button class="btn-secondary"${act('coeCreateHeadcountFromRow', Number(row.id))}>Create Headcount</button>` : ''}
+        <button class="btn-secondary"${act('coeDeleteRow', Number(row.id))}>✕</button>
       </div></td>` : '';
     // A cancelled linked headcount keeps its open date — it was opened — and
     // is tagged so the DM re-links the row to its replacement.
@@ -553,7 +553,7 @@ async function coeOpenRowModal(rowId = null) {
     <div class="form-container form-container--modal" id="coe-row-modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
       <h2>${row ? 'Edit' : 'Add'} Planned Headcount</h2>
       <div id="coe-row-form-error" class="form-error"></div>
-      <form id="coe-row-form" onsubmit="coeSubmitRow(event, ${rowId || 'null'})">
+      <form id="coe-row-form"${actOn('submit', 'coeSubmitRow', ACT_EVENT, rowId || null)}>
         <div class="form-group"><label>Role Title *</label>
           <input type="text" name="Title" required value="${escAttr(row?.Title || '')}"></div>
         <div class="form-group"><label>Planned Open Date *</label>
@@ -569,7 +569,7 @@ async function coeOpenRowModal(rowId = null) {
         <p style="font-size:12px;color:var(--text-muted)">Leave phase fields blank to use defaults. Planned hire = Planned Open Date + Recruitment weeks.</p>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${row ? 'Save Changes' : 'Add to Plan'}</button>
-          <button type="button" class="btn-secondary" onclick="document.getElementById('coe-modal-host').innerHTML=''">Cancel</button>
+          <button type="button" class="btn-secondary"${act('coeCloseModal')}>Cancel</button>
         </div>
       </form>
     </div>
@@ -674,9 +674,9 @@ function coeOpenLinkPicker(rowId) {
       <div class="form-group"><label>Headcount</label>
         <select id="coe-link-select"><option value="">-- Select headcount --</option>${opts}</select></div>
       <div class="form-actions">
-        <button class="btn-primary" onclick="coeSaveLink(${Number(rowId)})">Link</button>
-        ${linked ? `<button class="btn-secondary" onclick="coeSaveLink(${Number(rowId)}, true)">Unlink</button>` : ''}
-        <button class="btn-secondary" onclick="document.getElementById('coe-modal-host').innerHTML=''">Cancel</button>
+        <button class="btn-primary"${act('coeSaveLink', Number(rowId))}>Link</button>
+        ${linked ? `<button class="btn-secondary"${act('coeSaveLink', Number(rowId), true)}>Unlink</button>` : ''}
+        <button class="btn-secondary"${act('coeCloseModal')}>Cancel</button>
       </div>
     </div>
     </div>`;
@@ -739,14 +739,14 @@ function coeCreateHeadcountFromRow(rowId) {
       <h2>Create Headcount</h2>
       <p class="form-section-note">For plan row: ${escHtml(row.Title || '')}</p>
       <div class="form-group">
-        <label class="role-hc-check"><input type="radio" name="coe-create-mode" value="existing" onchange="coeCreateModeChange()"${canExisting ? ' checked' : ' disabled'}> Add to an existing pipeline</label>
-        <label class="role-hc-check"><input type="radio" name="coe-create-mode" value="new" onchange="coeCreateModeChange()"${canExisting ? '' : ' checked'}> Create a new pipeline (opens Add Role)</label>
+        <label class="role-hc-check"><input type="radio" name="coe-create-mode" value="existing"${actOn('change', 'coeCreateModeChange')}${canExisting ? ' checked' : ' disabled'}> Add to an existing pipeline</label>
+        <label class="role-hc-check"><input type="radio" name="coe-create-mode" value="new"${actOn('change', 'coeCreateModeChange')}${canExisting ? '' : ' checked'}> Create a new pipeline (opens Add Role)</label>
         ${canExisting ? '' : `<p class="form-section-note">${escHtml(why)}</p>`}
       </div>
       <div class="form-row">
         <div class="form-group">
           <label for="coe-create-open">Open Date</label>
-          <input type="date" id="coe-create-open" value="${escAttr(openDay)}" onchange="rpAutoTarget('coe-create-open', 'coe-create-target')">
+          <input type="date" id="coe-create-open" value="${escAttr(openDay)}"${actOn('change', 'rpAutoTarget', 'coe-create-open', 'coe-create-target')}>
         </div>
         <div class="form-group">
           <label for="coe-create-target">Target Hire Date</label>
@@ -767,8 +767,8 @@ function coeCreateHeadcountFromRow(rowId) {
       </div>
       <p class="form-section-note" id="coe-create-new"${canExisting ? ' hidden' : ''}>The Add Role form opens pre-filled with this row's title and dates. Its Headcount 1 is linked to this row when you save.</p>
       <div class="form-actions">
-        <button class="btn-primary" id="coe-create-save" onclick="coeSubmitCreateFromRow(${Number(rowId)})">Continue</button>
-        <button class="btn-secondary" onclick="document.getElementById('coe-modal-host').innerHTML=''">Cancel</button>
+        <button class="btn-primary" id="coe-create-save"${act('coeSubmitCreateFromRow', Number(rowId))}>Continue</button>
+        <button class="btn-secondary"${act('coeCloseModal')}>Cancel</button>
       </div>
     </div>
     </div>`;
@@ -853,3 +853,28 @@ function coeExportPDF() {
   const proj = _coeCache.projects.find(p => p.id == _coeCache.projectId);
   printPage(`Hiring Plan — ${proj ? proj.CustomerName : ''}`, true, 'Reporting');
 }
+
+// N-302b: delegated actions for the CoE Hiring Plan page and its three modals
+// (js/actions.js). coeCloseModal clears the shared modal host (was an inline
+// innerHTML='' on each Cancel button); coeSetProject is the project <select>.
+function coeCloseModal() {
+  document.getElementById('coe-modal-host').innerHTML = '';
+}
+function coeSetProject(value) {
+  renderHiringPlanPage(parseInt(value));
+}
+
+registerActions({
+  coeSetProject,
+  coeCloseModal,
+  coeOpenRowModal,
+  coeExportPDF,
+  coeDeletePlan,
+  coeOpenLinkPicker,
+  coeCreateHeadcountFromRow,
+  coeDeleteRow,
+  coeSubmitRow,
+  coeSaveLink,
+  coeCreateModeChange,
+  coeSubmitCreateFromRow,
+});

@@ -103,7 +103,7 @@ async function renderBulkActivityPage(weekEnding = null) {
   } catch (e) {
     main.innerHTML = `<div class="page-header"><h2>Bulk log week</h2>
       <div class="page-header-actions">
-        <button type="button" class="btn-secondary" onclick="navigateTo('activity')">Back to Weekly Activity</button>
+        <button type="button" class="btn-secondary"${act('navigateTo', 'activity')}>Back to Weekly Activity</button>
       </div></div>`;
     toast(`Could not load the bulk grid: ${e.message}`, { type: 'error', duration: 0 });
     return;
@@ -161,16 +161,16 @@ async function renderBulkActivityPage(weekEnding = null) {
       <h2>Bulk log week</h2>
       <div class="page-header-actions">
         <button type="button" class="btn-secondary" id="bulk-cancel"
-          onclick="navigateTo('activity')">Back to Weekly Activity</button>
+          ${act('navigateTo', 'activity').trim()}>Back to Weekly Activity</button>
         <button type="button" class="btn-primary" id="bulk-save"
-          onclick="saveBulkActivity()">Save all</button>
+          ${act('saveBulkActivity').trim()}>Save all</button>
       </div>
     </div>
     <div class="table-toolbar">
       <div class="form-group project-filter-select">
         <label>Week Ending Date</label>
         <input type="date" id="bulk-week-ending" value="${escAttr(_bulkWeekEnding)}"
-          onchange="onBulkWeekChange(this.value)">
+          ${actOn('change', 'onBulkWeekChange', ACT_VALUE).trim()}>
       </div>
       <div class="bulk-grid-hint">Week ${getISOWeek(_bulkWeekEnding)} · ${n} role${n === 1 ? '' : 's'} · only edited rows are saved</div>
     </div>
@@ -222,7 +222,7 @@ function _bulkRowHtml(row, i) {
   const inputs = BULK_COUNT_FIELDS.map(f => `
     <td class="bulk-grid-num"><input type="number" min="0" class="bulk-grid-input"
       value="${Number(row.counts[f.readKey]) || 0}"
-      oninput="onBulkInput(${i}, '${escAttr(f.readKey)}', this.value)" ${disabled}></td>`
+      ${actOn('input', 'onBulkInput', i, f.readKey, ACT_VALUE).trim()} ${disabled}></td>`
   ).join('');
   return `<tr id="bulk-row-${i}" class="${_bulkRowClass(row)}">
     <td>${escHtml(row.roleLabel)}</td>
@@ -388,3 +388,10 @@ async function saveBulkActivity() {
     toast('One or more hires logged — remember to record the placements.', { type: 'info', duration: 8000 });
   }
 }
+
+// N-302b: delegated actions for the bulk activity grid (js/actions.js).
+registerActions({
+  saveBulkActivity,
+  onBulkWeekChange,
+  onBulkInput,
+});

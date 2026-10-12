@@ -50,8 +50,8 @@ async function renderPlacementAnalytics() {
     <div style="display:flex;gap:16px;align-items:flex-end;padding:0 0 24px 0;flex-wrap:wrap">
       <div>
         <div class="rb-section-label" style="margin-bottom:6px">Location</div>
-        <select class="rb-select" style="min-width:200px"
-          onchange="paApplyFilters(this.value, document.getElementById('pa-fa-filter').value)">
+        <select class="rb-select" id="pa-loc-filter" style="min-width:200px"
+          ${actOn('change', 'paFiltersChanged')}>
           <option value="">All Locations</option>
           ${locations.map(l =>
             `<option value="${_paEsc(l)}"${l === _paLocation ? " selected" : ""}>${_paEsc(l)}</option>`
@@ -61,7 +61,7 @@ async function renderPlacementAnalytics() {
       <div>
         <div class="rb-section-label" style="margin-bottom:6px">Functional Area</div>
         <select class="rb-select" id="pa-fa-filter" style="min-width:200px"
-          onchange="paApplyFilters(document.querySelector('.rb-select').value, this.value)">
+          ${actOn('change', 'paFiltersChanged')}>
           <option value="">All Functional Areas</option>
           ${functionAreas.map(f =>
             `<option value="${_paEsc(f)}"${f === _paFunctionArea ? " selected" : ""}>${_paEsc(f)}</option>`
@@ -78,6 +78,12 @@ async function renderPlacementAnalytics() {
 }
 
 // ── Filter handler ────────────────────────────────────────────────────
+// N-302b: both dropdowns dispatch here; it reads the pair (the inline handlers
+// each read the other dropdown from the DOM).
+function paFiltersChanged() {
+  paApplyFilters(document.getElementById('pa-loc-filter').value, document.getElementById('pa-fa-filter').value);
+}
+
 function paApplyFilters(location, functionArea) {
   _paLocation     = location;
   _paFunctionArea = functionArea;
@@ -358,6 +364,7 @@ function _paEsc(str) {
 // N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
 // Later N-302 sub-tasks add their own names to this call; never register a name twice.
 registerActions({
+  paFiltersChanged,
   paSetBreakdownSearch,
   paSetBreakdownSort,
 });

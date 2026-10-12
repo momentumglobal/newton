@@ -150,7 +150,7 @@ function companyDetailPeriodDropdown() {
   ).join('');
   return `<div class='form-group detail-period-selector'>
     <label>Period</label>
-    <select onchange='setCompanyDetailPeriod(this.value)'>${options}</select>
+    <select ${actOn('change', 'setCompanyDetailPeriod', ACT_VALUE).trim()}>${options}</select>
   </div>`;
 }
 // ── Main renderer ─────────────────────────────────────────────────────
@@ -181,7 +181,7 @@ async function renderCompanyDashboard() {
   main.innerHTML = `
     <div class='page-header'>
       <h2>Company Dashboard</h2>
-     <button class='print-btn' onclick='printPage("Company Dashboard", true, "Reporting")'>⎙ Export PDF</button>
+     <button class='print-btn' ${act('printPage', 'Company Dashboard', true, 'Reporting').trim()}>⎙ Export PDF</button>
 </div>
     <div class='form-group dash-project-selector'>
       <label>KPI Period</label>
@@ -225,3 +225,9 @@ function setCompanyDetailPeriod(period) {
     renderCompanyDashboard();
   }
 }
+
+// N-302b: delegated actions for the company dashboard (js/actions.js).
+registerActions({
+  setCompanyPeriod,
+  setCompanyDetailPeriod,
+});

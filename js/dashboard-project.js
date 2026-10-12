@@ -30,7 +30,7 @@ async function renderProjectDashboard() {
       activeProjects.length  ? `<optgroup label="Active">${buildProjectOptionsHtml(activeProjects, projectId)}</optgroup>`   : '',
       archiveProjects.length ? `<optgroup label="Archive">${buildProjectOptionsHtml(archiveProjects, projectId)}</optgroup>` : '',
     ].join('');
-    selectorHtml = `<div class='form-group dash-project-selector'><label>Project</label><select onchange='changeDashProject(this.value)'>${opts}</select></div>`;
+    selectorHtml = `<div class='form-group dash-project-selector'><label>Project</label><select ${actOn('change', 'changeDashProject', ACT_VALUE).trim()}>${opts}</select></div>`;
   }
   if (!projectId) {
     main.innerHTML = `<div class='page-header'><h2>Project Dashboard</h2></div><p>No project assigned. Contact your Admin.</p>`;
@@ -58,7 +58,7 @@ async function renderProjectDashboard() {
   main.innerHTML = `
     <div class='page-header'>
       <h2>Project Dashboard${isDMAdmin ? ' — ' + escHtml(projectName) : ''}</h2>
-    <button class='print-btn' onclick="printPage('Project Dashboard${isDMAdmin ? ' — ' + escJsAttr(projectName) : ''}', true, 'Reporting')">⎙ Export PDF</button>
+    <button class='print-btn' ${act('printPage', `Project Dashboard${isDMAdmin ? ' — ' + projectName : ''}`, true, 'Reporting').trim()}>⎙ Export PDF</button>
     </div>
     ${selectorHtml}
     <div class='form-group dash-project-selector'>
@@ -135,3 +135,10 @@ function setDetailPeriod(period) {
     renderProjectDashboard();
   }
 }
+
+// N-302b: delegated actions for the project dashboard and its detail panels (js/actions.js).
+registerActions({
+  changeDashProject,
+  setDashPeriod,
+  setDetailPeriod,
+});

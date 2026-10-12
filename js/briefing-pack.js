@@ -144,9 +144,9 @@ function _bpRenderLibrary() {
           <td>${escHtml(_bpTpMap[owner.toLowerCase()] || owner || '—')}</td>
           <td>
             <div class="row-actions">
-              <button class="btn-secondary" onclick="bpLoadPack(${p.id})">Open</button>
-              <button class="btn-secondary" onclick="bpCopyPackAction(${p.id}, this)">Copy</button>
-              ${canDelete ? `<button class="btn-secondary" onclick="bpDeletePack(${p.id}, '${escJsAttr(p.Title || '')}')">Delete</button>` : ''}
+              <button class="btn-secondary"${act('bpLoadPack', Number(p.id))}>Open</button>
+              <button class="btn-secondary"${act('bpCopyPackAction', Number(p.id), ACT_EL)}>Copy</button>
+              ${canDelete ? `<button class="btn-secondary"${act('bpDeletePack', Number(p.id), p.Title || '')}>Delete</button>` : ''}
             </div>
           </td>
         </tr>`;
@@ -169,15 +169,15 @@ function _bpRenderLibrary() {
     <div class="page-header">
       <h2>Briefing Pack Library</h2>
       <div class="page-header-actions">
-        <button class="btn-secondary" onclick="navigateTo('roles')">&larr; Back to Roles</button>
-        <button class="btn-primary" onclick="bpStartNewPack()">+ Briefing Pack</button>
+        <button class="btn-secondary"${act('navigateTo', 'roles')}>&larr; Back to Roles</button>
+        <button class="btn-primary"${act('bpStartNewPack')}>+ Briefing Pack</button>
       </div>
     </div>
     <div class="table-toolbar">
       ${listControlsBar([`
         <div class="form-group project-filter-select">
           <label>Client</label>
-          <select onchange="bpLibraryFilterChanged(this.value)">${_bpLibraryClientOptions()}</select>
+          <select${actOn('change', 'bpLibraryFilterChanged', ACT_VALUE)}>${_bpLibraryClientOptions()}</select>
         </div>`])}
     </div>
     <div class="table-scroll">
@@ -363,10 +363,10 @@ function bpRender() {
     <div class="page-header">
       <h2>Briefing Pack</h2>
       <div class="page-header-actions">
-        <button class="btn-secondary" onclick="showBriefingPackLibrary()">&larr; Back to Library</button>
-        <button class="btn-secondary" id="bp-save-btn" onclick="bpSavePack()">Save</button>
-        <button class="btn-secondary" onclick="bpPreview()">Preview</button>
-        <button class="print-btn"     onclick="bpExportPdf()">&#8856; Export PDF</button>
+        <button class="btn-secondary"${act('showBriefingPackLibrary')}>&larr; Back to Library</button>
+        <button class="btn-secondary" id="bp-save-btn"${act('bpSavePack')}>Save</button>
+        <button class="btn-secondary"${act('bpPreview')}>Preview</button>
+        <button class="print-btn"    ${act('bpExportPdf')}>&#8856; Export PDF</button>
       </div>
     </div>
     <div class="rb-shell">
@@ -397,11 +397,11 @@ function bpRenderSidebar() {
     <div class="rb-sidebar-scroll">
     <div class="rb-config">
       <div class="rb-section-label">Project</div>
-      <select class="rb-select" onchange="bpSetProject(this.value)">${projectOpts}</select>
+      <select class="rb-select"${actOn('change', 'bpSetProject', ACT_VALUE)}>${projectOpts}</select>
 
       
       <div class="rb-section-label">Role</div>
-      <select class="rb-select" onchange="bpSetRole(this.value)">${roleOpts}</select>
+      <select class="rb-select"${actOn('change', 'bpSetRole', ACT_VALUE)}>${roleOpts}</select>
 
       <div class="rb-section-label">Client Logo</div>
       <div class="bp-logo-control">
@@ -409,45 +409,45 @@ function bpRenderSidebar() {
           ? `<img class="bp-logo-thumb" src="${escAttr(_bpClientLogo)}" alt="${escAttr(_bpClientLogoName || 'Client logo')}">`
           : '<span class="bp-logo-empty">No logo uploaded</span>'}
         <input type="file" class="bp-logo-input" accept="${uploadAcceptAttr('LOGO')}"
-          onchange="bpUploadClientLogo(this)">
-        ${_bpClientLogo ? '<button class="btn-secondary btn-sm" onclick="bpRemoveClientLogo()">Remove</button>' : ''}
+          ${actOn('change', 'bpUploadClientLogo', ACT_EL).trim()}>
+        ${_bpClientLogo ? `<button class="btn-secondary btn-sm"${act('bpRemoveClientLogo')}>Remove</button>` : ''}
       </div>
       <p class="rb-footnote">Saved against the project and reused by every pack for this client.</p>
 
       <div class="rb-section-label">Pack Title</div>
       <input id="bp-title" class="rb-input" type="text" placeholder="Untitled Briefing Pack"
-        value="${escAttr(_bpTitle)}" oninput="_bpTitle = this.value">
+        value="${escAttr(_bpTitle)}"${actOn('input', 'bpSetField', 'title', ACT_VALUE)}>
 
       <div class="rb-section-label">Client Name</div>
       <input class="rb-input" type="text" placeholder="Client"
-        value="${escAttr(_bpClientName)}" oninput="_bpClientName = this.value">
+        value="${escAttr(_bpClientName)}"${actOn('input', 'bpSetField', 'clientName', ACT_VALUE)}>
 
       <div class="rb-section-label">Role Title</div>
       <input class="rb-input" type="text"
-        value="${escAttr(_bpRoleTitle)}" oninput="_bpRoleTitle = this.value">
+        value="${escAttr(_bpRoleTitle)}"${actOn('input', 'bpSetField', 'roleTitle', ACT_VALUE)}>
 
       <div class="rb-section-label">Location</div>
       <input class="rb-input" type="text"
-        value="${escAttr(_bpLocation)}" oninput="_bpLocation = this.value">
+        value="${escAttr(_bpLocation)}"${actOn('input', 'bpSetField', 'location', ACT_VALUE)}>
 
       <div class="rb-section-label">Cover Date</div>
       <input class="rb-input" type="month"
-        value="${escAttr(_bpCoverDate)}" oninput="_bpCoverDate = this.value">
+        value="${escAttr(_bpCoverDate)}"${actOn('input', 'bpSetField', 'coverDate', ACT_VALUE)}>
 
       <div class="rb-section-label" style="margin-top:16px">Closing Page Contact</div>
       <input class="rb-input" type="text" placeholder="Name"
-        value="${escAttr(_bpContactName)}" oninput="_bpContactName = this.value">
+        value="${escAttr(_bpContactName)}"${actOn('input', 'bpSetField', 'contactName', ACT_VALUE)}>
       <input class="rb-input" type="text" placeholder="Title"
-        value="${escAttr(_bpContactTitle)}" oninput="_bpContactTitle = this.value">
+        value="${escAttr(_bpContactTitle)}"${actOn('input', 'bpSetField', 'contactTitle', ACT_VALUE)}>
       <input class="rb-input" type="email" placeholder="Email"
-        value="${escAttr(_bpContactEmail)}" oninput="_bpContactEmail = this.value">
+        value="${escAttr(_bpContactEmail)}"${actOn('input', 'bpSetField', 'contactEmail', ACT_VALUE)}>
     </div>
     </div>
 
     <div class="rb-sidebar-footer">
       <div class="rb-section-label">Add Page</div>
-      <button class="btn-secondary rb-full-btn" onclick="bpAddPage('section')">+ Content Section</button>
-      <button class="btn-secondary rb-full-btn" onclick="bpAddPage('divider')">+ Divider</button>
+      <button class="btn-secondary rb-full-btn"${act('bpAddPage', 'section')}>+ Content Section</button>
+      <button class="btn-secondary rb-full-btn"${act('bpAddPage', 'divider')}>+ Divider</button>
       <p class="rb-footnote">The title and closing pages are always present and always first and last.</p>
     </div>
   `;
@@ -463,7 +463,7 @@ function bpRenderCanvas() {
         <span class="bp-block-tag">Title page</span>
         <input class="rb-input" type="text" placeholder="Subtitle (optional)"
           value="${escAttr(title ? title.subtitle : '')}"
-          oninput="bpUpdatePage('${title ? title.id : ''}', 'subtitle', this.value)">
+          ${actOn('input', 'bpUpdatePage', String(title ? title.id : ''), 'subtitle', ACT_VALUE).trim()}>
       </div>
     </div>`;
 
@@ -474,9 +474,9 @@ function bpRenderCanvas() {
           <span class="bp-block-tag">Divider page</span>
           <input class="rb-input" type="text" placeholder="Section break heading"
             value="${escAttr(p.heading || '')}"
-            oninput="bpUpdatePage('${p.id}', 'heading', this.value)">
+            ${actOn('input', 'bpUpdatePage', String(p.id), 'heading', ACT_VALUE).trim()}>
         </div>
-        <button class="rb-remove-btn" onclick="bpRemovePage('${p.id}')">&#x2715;</button>
+        <button class="rb-remove-btn"${act('bpRemovePage', String(p.id))}>&#x2715;</button>
       </div>`
     : `<div class="bp-block bp-block-section" data-id="${p.id}">
         <span class="rb-drag-handle">&#9776;</span>
@@ -484,7 +484,7 @@ function bpRenderCanvas() {
           <span class="bp-block-tag">Content section</span>
           <input class="rb-input" type="text" placeholder="Section heading"
             value="${escAttr(p.heading || '')}"
-            oninput="bpUpdatePage('${p.id}', 'heading', this.value)">
+            ${actOn('input', 'bpUpdatePage', String(p.id), 'heading', ACT_VALUE).trim()}>
           <div class="rb-rt-wrapper">
             <div class="rb-rt-toolbar">
               <button type="button"${act('bpFormat', 'bold')} data-rt="bold"><b>B</b></button>
@@ -498,12 +498,12 @@ function bpRenderCanvas() {
               ${rtCalloutToolbarButtonHtml()}
             </div>
             <div class="rb-richtext" contenteditable="true" data-id="${p.id}"
-              oninput="bpUpdatePage('${p.id}', 'content', this.innerHTML)"
-              onkeyup="bpUpdateToolbarState()"
-              onmouseup="bpUpdateToolbarState()">${p.content || ''}</div>
+              ${actOn('input', 'bpUpdatePage', String(p.id), 'content', ACT_HTML).trim()}
+              ${actOn('keyup', 'bpUpdateToolbarState').trim()}
+              ${actOn('mouseup', 'bpUpdateToolbarState').trim()}>${p.content || ''}</div>
           </div>
         </div>
-        <button class="rb-remove-btn" onclick="bpRemovePage('${p.id}')">&#x2715;</button>
+        <button class="rb-remove-btn"${act('bpRemovePage', String(p.id))}>&#x2715;</button>
       </div>`).join('');
 
   const closingCard = `<div class="bp-block bp-block-fixed">
@@ -537,6 +537,23 @@ function bpInitSortable() {
 }
 
 // ── Page model ────────────────────────────────────────────────────────
+// N-302b: the eight text inputs in the pack sidebar write straight to module
+// state. One action with a fixed key -> setter map (no generic assigner), so
+// markup can only ever reach these fields.
+const _BP_FIELD_SETTERS = {
+  title:        v => { _bpTitle = v; },
+  clientName:   v => { _bpClientName = v; },
+  roleTitle:    v => { _bpRoleTitle = v; },
+  location:     v => { _bpLocation = v; },
+  coverDate:    v => { _bpCoverDate = v; },
+  contactName:  v => { _bpContactName = v; },
+  contactTitle: v => { _bpContactTitle = v; },
+  contactEmail: v => { _bpContactEmail = v; },
+};
+function bpSetField(key, value) {
+  if (Object.prototype.hasOwnProperty.call(_BP_FIELD_SETTERS, key)) _BP_FIELD_SETTERS[key](value);
+}
+
 function bpUpdatePage(id, key, value) {
   const page = _bpPages.find(p => p.id === id);
   if (page) page[key] = value;
@@ -557,8 +574,8 @@ function rtFormatBlock(tag) {
 // unstyled class into the Report Builder, Market Report and LCI exports.
 function rtCalloutToolbarButtonHtml() {
   return '<button type="button" title="Insert callout block"'
-       + ' onmousedown="event.preventDefault()"'
-       + ' onclick="rtWrapCallout()">&#9776; Callout</button>';
+       + actOn('mousedown', 'noop.prevent')
+       + act('rtWrapCallout') + '>&#9776; Callout</button>';
 }
 
 // Wrap the selection (or insert a placeholder) as a callout. Same caret
@@ -762,14 +779,18 @@ function bpRenderPackHtml() {
   return `<div class="bp-pack" style="--bp-measure:${cfg.MEASURE_CH}ch;--bp-swirl-opacity:${cfg.SWIRL_OPACITY}">${out.join('')}</div>`;
 }
 
+function bpClosePreview() {
+  document.getElementById('bp-preview-modal').style.display = 'none';
+}
+
 function bpPreview() {
   const modal = document.getElementById('bp-preview-modal');
   modal.style.display = 'flex';
   modal.innerHTML = `<div class="rb-preview-inner">
     <div class="rb-preview-toolbar">
-      <button class="print-btn" onclick="bpExportPdf()">&#8856; Export PDF</button>
+      <button class="print-btn"${act('bpExportPdf')}>&#8856; Export PDF</button>
       <button class="btn-secondary"
-        onclick="document.getElementById('bp-preview-modal').style.display='none'">Close</button>
+        ${act('bpClosePreview').trim()}>Close</button>
     </div>
     <div id="bp-preview-content">${bpRenderPackHtml()}</div>
   </div>`;
@@ -893,4 +914,24 @@ registerActions({
   bpFormat,
   bpFormatBlock,
   showBriefingPackLibrary,
+  // N-302b: library, editor header, sidebar and canvas controls.
+  bpLoadPack,
+  bpCopyPackAction,
+  bpDeletePack,
+  bpStartNewPack,
+  bpLibraryFilterChanged,
+  bpSavePack,
+  bpPreview,
+  bpClosePreview,
+  bpExportPdf,
+  bpSetProject,
+  bpSetRole,
+  bpUploadClientLogo,
+  bpRemoveClientLogo,
+  bpSetField,
+  bpAddPage,
+  bpRemovePage,
+  bpUpdatePage,
+  bpUpdateToolbarState,
+  rtWrapCallout,
 });

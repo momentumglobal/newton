@@ -39,7 +39,7 @@ function checklistCellHtml(checklist, pending) {
 // (roleNameLinkHtml below), checklist or not.
 function checklistNameHtml(text, recordType, id, checklist, pending) {
   if (pending || !checklist || checklist.mode === "none") return escHtml(text);
-  return `<a href="#" class="cell-link" onclick="openChecklist('${recordType}', ${Number(id)}); return false;">${escHtml(text)}</a>`;
+  return `<a href="#" class="cell-link"${act('openChecklist.prevent', recordType, Number(id))}>${escHtml(text)}</a>`;
 }
 function projectRowHtml(p, { dmDisplay, canEdit, pending = false, checklist = null, showChecklistCol = false } = {}) {
   return `
@@ -50,7 +50,7 @@ function projectRowHtml(p, { dmDisplay, canEdit, pending = false, checklist = nu
             <td>${spDateIn(p.StartDate) || "—"}</td>
             <td>${spDateIn(p.EndDate) || "—"}</td>
             ${showChecklistCol ? checklistCellHtml(checklist, pending) : ""}
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditProjectForm(${p.id})">Edit</a></div></td>`) : ""}
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditProjectForm', Number(p.id))}>Edit</a></div></td>`) : ""}
           </tr>
         `;
 }
@@ -71,7 +71,7 @@ function roleDaysOpenValue(r, rolesFilter, summary) {
 // not. A pending row has no real id yet, so it renders as plain text.
 function roleNameLinkHtml(r, pending) {
   if (pending) return escHtml(r.RoleTitle);
-  return `<a href="#" class="cell-link" onclick="openRolePage(${Number(r.id)}); return false;">${escHtml(r.RoleTitle)}</a>`;
+  return `<a href="#" class="cell-link"${act('openRolePage.prevent', Number(r.id))}>${escHtml(r.RoleTitle)}</a>`;
 }
 
 function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilter, pending = false, checklist = null, showChecklistCol = false, hcSummary = null } = {}) {
@@ -96,7 +96,7 @@ function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilt
             ${hcCell}
             <td>${days !== null ? days + " days" : "—"}</td>
             ${showChecklistCol ? checklistCellHtml(checklist, pending) : ""}
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditRoleForm(${r.id})">Edit</a><a href="#" onclick="showDuplicateRoleForm(${r.id})">Duplicate</a>${historyRoleIds.has(String(r.id)) ? `<a href="#" onclick="showRoleTimeline(${r.id})">Timeline</a>` : ""}</div></td>`) : ""}
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditRoleForm', Number(r.id))}>Edit</a><a href="#"${act('showDuplicateRoleForm', Number(r.id))}>Duplicate</a>${historyRoleIds.has(String(r.id)) ? `<a href="#"${act('showRoleTimeline', Number(r.id))}>Timeline</a>` : ""}</div></td>`) : ""}
           </tr>`;
 }
 
@@ -116,7 +116,7 @@ function activityRowHtml(a, { roleMap, tpMap, canEdit, pending = false } = {}) {
             <td style="text-align:center">${a.FinalInterview || 0}</td>
             <td style="text-align:center">${a.Offers || 0}</td>
             <td style="text-align:center">${a.Hires || 0}</td>
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditActivityForm(${a.id})">Edit</a></div></td>`) : ""}
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditActivityForm', Number(a.id))}>Edit</a></div></td>`) : ""}
           </tr>
         `;
 }
@@ -130,7 +130,7 @@ function placementRowHtml(p, { roleMap, canEdit, pending = false } = {}) {
             <td>${spDateIn(p.OfferAcceptedDate) || "—"}</td>
             <td>${spDateIn(p.ProvisionalStartDate) || "—"}</td>
             <td>${p.TimeToHire != null ? p.TimeToHire + " days" : "—"}</td>
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditPlacementForm(${p.id})">Edit</a></div></td>`) : ""}
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditPlacementForm', Number(p.id))}>Edit</a></div></td>`) : ""}
           </tr>
         `;
 }
@@ -144,7 +144,7 @@ function rejectionRowHtml(r, { roleMap, canEdit, pending = false } = {}) {
             <td>${escHtml(formatSalary(r.SalaryOffered))}</td>
             <td>${escHtml(r.RejectionReason || "—")}</td>
             <td>${escHtml(r.Notes || "—")}</td>
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#" onclick="showEditRejectionForm(${r.id})">Edit</a></div></td>`) : ""}
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditRejectionForm', Number(r.id))}>Edit</a></div></td>`) : ""}
           </tr>
         `;
 }
@@ -201,7 +201,7 @@ async function renderProjectsPage(filter, pendingItem = null) {
   projects = sortProjectsByName(projects);
   projects = projects.filter(_projectsFilter === "Active" ? isProjectActive : p => !isProjectActive(p));
   const filterBtns = ["Active", "Archive"].map(f =>
-    `<button class="btn-filter${_projectsFilter === f ? " active" : ""}" onclick="renderProjectsPage('${f}')">${f}</button>`
+    `<button class="btn-filter${_projectsFilter === f ? " active" : ""}"${act('renderProjectsPage', f)}>${f}</button>`
   ).join("");
   const projectsEmptyMsg = _projectsFilter === "Archive"
     ? "No archived projects."
@@ -209,7 +209,7 @@ async function renderProjectsPage(filter, pendingItem = null) {
   main.innerHTML = `
     <div class="page-header">
       <h2>Projects</h2>
-      ${canEdit ? '<button class="btn-primary" onclick="showAddProjectForm()">+ Add Project</button>' : ""}
+      ${canEdit ? `<button class="btn-primary"${act('showAddProjectForm')}>+ Add Project</button>` : ""}
     </div>
     <div class="table-toolbar">
       <div class="filter-group">${filterBtns}</div>
@@ -356,7 +356,7 @@ async function renderRolesPage(filter, pendingItem = null) {
   const userRole = _resolvedRole;
   const canEdit  = canEditRoleRows(userRole);
   const filterBtns = Object.keys(ROLE_FILTERS).map(f =>
-    `<button class="btn-filter${_rolesFilter === f ? " active" : ""}" onclick="renderRolesPage('${f}')">${f}</button>`
+    `<button class="btn-filter${_rolesFilter === f ? " active" : ""}"${act('renderRolesPage', f)}>${f}</button>`
   ).join("");
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _rolesProjectId, 'setRolesProject')
@@ -370,8 +370,8 @@ async function renderRolesPage(filter, pendingItem = null) {
     <div class="page-header">
       <h2>Roles</h2>
       <div class="page-header-actions">
-        <button class="btn-secondary" onclick="showBriefingPackLibrary()">Briefing Packs</button>
-        ${canEdit ? '<button class="btn-primary" onclick="showAddRoleForm()">+ Add Role</button>' : ""}
+        <button class="btn-secondary"${act('showBriefingPackLibrary')}>Briefing Packs</button>
+        ${canEdit ? `<button class="btn-primary"${act('showAddRoleForm')}>+ Add Role</button>` : ""}
       </div>
     </div>
     <div class="table-toolbar">
@@ -647,7 +647,7 @@ async function showRoleTimeline(roleId) {
   main.innerHTML = `
     <div class="page-header">
       <h2>Role History — ${escHtml(role.RoleTitle)}</h2>
-      <div class="page-header-actions"><button class="btn-secondary" onclick="navigateTo('roles')">← Back to Roles</button></div>
+      <div class="page-header-actions"><button class="btn-secondary"${act('navigateTo', 'roles')}>← Back to Roles</button></div>
     </div>
     <p class="role-timeline-subhead">${escHtml(projectName)} · Current stage: <span class="badge">${escHtml(role.Stage || "—")}</span></p>
     <div class="role-timeline">
@@ -761,7 +761,7 @@ async function renderActivityPage(pendingItem = null) {
     : '';
   const roleDropdown = `<div class="form-group project-filter-select">
     <label>Role</label>
-    <select onchange="setActivityRole(this.value)">${roleOptions}</select>
+    <select${actOn('change', 'setActivityRole', ACT_VALUE)}>${roleOptions}</select>
   </div>`;
   const role    = _resolvedRole;
   const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
@@ -773,7 +773,7 @@ async function renderActivityPage(pendingItem = null) {
   main.innerHTML = `
     <div class="page-header">
       <h2>Weekly Activity</h2>
-      ${canEdit ? '<div class="page-header-actions">' + (typeof bulkEntryAvailable === 'function' && bulkEntryAvailable() ? '<button class="btn-secondary" onclick="showBulkActivityPage()">Bulk log week</button>' : '') + '<button class="btn-primary" onclick="showAddActivityForm()">+ Log Activity</button></div>' : ""}
+      ${canEdit ? '<div class="page-header-actions">' + (typeof bulkEntryAvailable === 'function' && bulkEntryAvailable() ? '<button class="btn-secondary"' + act('showBulkActivityPage') + '>Bulk log week</button>' : '') + '<button class="btn-primary"' + act('showAddActivityForm') + '>+ Log Activity</button></div>' : ""}
     </div>
     <div class="table-toolbar">
       ${listControlsBar([projDropdown, roleDropdown, periodDropdown, listSearchBox(_activitySearch, 'setActivitySearch'), pageSizeDropdown(_activityPageSize, 'setActivityPageSize')])}
@@ -948,13 +948,13 @@ async function renderPlacementsPage(pendingItem = null) {
   const role    = _resolvedRole;
   const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
   const monthBtns = PLACEMENT_MONTHS.map((m, i) =>
-    `<button class="btn-filter${_placementFilter.type === "month" && _placementFilter.value === i ? " active" : ""}" onclick="setPlacementFilter('month',${i})">${m}</button>`
+    `<button class="btn-filter${_placementFilter.type === "month" && _placementFilter.value === i ? " active" : ""}"${act('setPlacementFilter', 'month', i)}>${m}</button>`
   ).join("");
   const quarterBtns = [1,2,3,4].map(q =>
-    `<button class="btn-filter${_placementFilter.type === "quarter" && _placementFilter.value === q ? " active" : ""}" onclick="setPlacementFilter('quarter',${q})">Q${q}</button>`
+    `<button class="btn-filter${_placementFilter.type === "quarter" && _placementFilter.value === q ? " active" : ""}"${act('setPlacementFilter', 'quarter', q)}>Q${q}</button>`
   ).join("");
   const yearBtns = PLACEMENT_YEARS.map(y =>
-    `<button class="btn-filter${_placementFilter.type === "year" && _placementFilter.value === y ? " active" : ""}" onclick="setPlacementFilter('year',${y})">${y}</button>`
+    `<button class="btn-filter${_placementFilter.type === "year" && _placementFilter.value === y ? " active" : ""}"${act('setPlacementFilter', 'year', y)}>${y}</button>`
   ).join("");
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _placementProjectId, 'setPlacementProject')
@@ -976,7 +976,7 @@ async function renderPlacementsPage(pendingItem = null) {
     <div class="page-header">
       <h2>Placements</h2>
       <div class="page-header-actions">
-        ${canEdit ? '<button class="btn-primary" onclick="showAddPlacementForm()">+ Record Placement</button>' : ""}
+        ${canEdit ? `<button class="btn-primary"${act('showAddPlacementForm')}>+ Record Placement</button>` : ""}
       </div>
     </div>
     <div class="table-toolbar">
@@ -1130,7 +1130,7 @@ async function renderRejectionsPage(pendingItem = null) {
   main.innerHTML = `
     <div class="page-header">
       <h2>Rejected Offers</h2>
-      ${canEdit ? '<div class="page-header-actions"><button class="btn-primary" onclick="showAddRejectionForm()">+ Log Rejection</button></div>' : ""}
+      ${canEdit ? `<div class="page-header-actions"><button class="btn-primary"${act('showAddRejectionForm')}>+ Log Rejection</button></div>` : ""}
     </div>
     <div class="table-toolbar">
       ${listControlsBar([projDropdown, periodFilterDropdown(_rejectionsWeeks, 'setRejectionsWeeks'), listSearchBox(_rejectionsSearch, 'setRejectionsSearch'), pageSizeDropdown(_rejectionsPageSize, 'setRejectionsPageSize')])}
@@ -1206,4 +1206,17 @@ registerActions({
   setRejectionsSearch,
   setRejectionsPageSize,
   setRejectionsSort,
+  // N-302b: row actions, filters and page headers on the Reporting lists.
+  showEditProjectForm,
+  showEditRoleForm,
+  showDuplicateRoleForm,
+  showRoleTimeline,
+  showEditActivityForm,
+  showEditPlacementForm,
+  showEditRejectionForm,
+  renderProjectsPage,
+  renderRolesPage,
+  setActivityRole,
+  setPlacementFilter,
+  showBulkActivityPage,
 });

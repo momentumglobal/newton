@@ -15,7 +15,7 @@ function renderProjectForm(existingData = null) {
     <div class="form-container">
       <h2>${isEdit ? 'Edit Project' : 'Add Project'}</h2>
       <div id="project-form-error" class="form-error"></div>
-      <form id="project-form" onsubmit="submitProjectForm(event, ${existingData?.id || 'null'})">
+      <form id="project-form"${actOn('submit', 'submitProjectForm', ACT_EVENT, existingData?.id ? Number(existingData.id) : null)}>
         <div class="form-group">
           <label>Customer Name *</label>
           <input type="text" name="CustomerName" required
@@ -63,7 +63,7 @@ function renderProjectForm(existingData = null) {
         </div>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${isEdit ? 'Save Changes' : 'Add Project'}</button>
-          <button type="button" class="btn-secondary" onclick="navigateTo('projects')">Cancel</button>
+          <button type="button" class="btn-secondary"${act('navigateTo', 'projects')}>Cancel</button>
         </div>
       </form>
     </div>
@@ -166,7 +166,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
     <div class="form-container">
       <h2>${isEdit ? 'Edit Role' : 'Add Role'}</h2>
       <div id="role-form-error" class="form-error"></div>
-      <form id="role-form" onsubmit="submitRoleForm(event, ${existingData?.id || 'null'})">
+      <form id="role-form"${actOn('submit', 'submitRoleForm', ACT_EVENT, existingData?.id ? Number(existingData.id) : null)}>
         <fieldset class="form-section">
           <legend class="form-section-title">Basics</legend>
           <div class="form-group">
@@ -174,7 +174,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
             ${lockProject ? `
             <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--surface-sunken);color:var(--text-label);">
             <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
-            <select name="ProjectID" required onchange="${canAssign ? 'loadTalentPartnersForRole(this.value)' : ''}">
+            <select name="ProjectID" required${canAssign ? actOn('change', 'loadTalentPartnersForRole', ACT_VALUE) : ''}>
               <option value="">-- Select project --</option>
               ${projectOptions}
             </select>`}
@@ -229,7 +229,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
           <legend class="form-section-title">Commercial</legend>
           <div class="form-group">
             <label>Location *</label>
-            <select name="Location" id="role-location-select" onchange="updateCurrencyFromLocation(this.value)" required>
+            <select name="Location" id="role-location-select"${actOn('change', 'updateCurrencyFromLocation', ACT_VALUE)} required>
               <option value="">-- Select location --</option>
               ${Object.keys(CONFIG.COUNTRY_CURRENCY).sort().map(country =>
                 `<option value="${escAttr(country)}" ${existingData?.Location === country ? 'selected' : ''}>${escHtml(country)}</option>`
@@ -256,7 +256,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
           <legend class="form-section-title">Headcount</legend>
           <p class="form-section-note">
             Headcount: ${escHtml(hcCounts ? headcountXYTitle(hcCounts) : '—')} ·
-            <a href="#" onclick="openRolePage(${Number(existingData.id)}); return false;">Manage on the role page</a>
+            <a href="#"${act('openRolePage.prevent', Number(existingData.id))}>Manage on the role page</a>
           </p>
         </fieldset>` : `
         <fieldset class="form-section">
@@ -281,7 +281,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
             <div class="form-group">
               <label>Open Date</label>
               <input type="date" name="HcOpenDate" id="role-open-date"
-                onchange="autoFillTargetDate()"
+                ${actOn('change', 'autoFillTargetDate')}
                 value="${escAttr(isDuplicate ? (spDateIn(existingData?.OpenDate) || '') : '')}">
             </div>
             <div class="form-group">
@@ -311,7 +311,7 @@ async function renderRoleForm(existingData = null, preselectedProjectId = null, 
         </details>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${isEdit ? 'Save Changes' : 'Add Role'}</button>
-          <button type="button" class="btn-secondary" onclick="navigateTo('roles')">Cancel</button>
+          <button type="button" class="btn-secondary"${act('navigateTo', 'roles')}>Cancel</button>
         </div>
       </form>
     </div>
@@ -554,7 +554,7 @@ async function renderWeeklyActivityForm(existingData = null, preselectedRoleId =
     <div class="form-container">
       <h2>${isEdit ? 'Edit Weekly Activity' : 'Log Weekly Activity'}</h2>
       <div id="weekly-form-error" class="form-error"></div>
-      <form id="weekly-form" onsubmit="submitWeeklyForm(event, ${existingData?.id || 'null'})">
+      <form id="weekly-form"${actOn('submit', 'submitWeeklyForm', ACT_EVENT, existingData?.id ? Number(existingData.id) : null)}>
         <fieldset class="form-section">
         <legend class="form-section-title">Basics</legend>
         <div class="form-row">
@@ -563,7 +563,7 @@ async function renderWeeklyActivityForm(existingData = null, preselectedRoleId =
             ${lockProject ? `
             <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--surface-sunken);color:var(--text-label);">
             <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
-            <select name="ProjectID" required onchange="loadRolesForWeekly(this.value)${canLogOnBehalf ? ';loadTalentPartnersForWeekly(this.value)' : ''}">
+            <select name="ProjectID" required${actOn('change', 'formsWeeklyProjectChanged', ACT_VALUE, !!canLogOnBehalf)}>
               <option value="">-- Select project --</option>
               ${projectOptions}
             </select>`}
@@ -591,7 +591,7 @@ async function renderWeeklyActivityForm(existingData = null, preselectedRoleId =
         <div class="form-group">
           <label>Week Ending Date *</label>
           <input type="date" name="WeekEndingDate" required
-            onchange="autoFillWeekYear(this.value)"
+            ${actOn('change', 'autoFillWeekYear', ACT_VALUE)}
             value="${existingData?.WeekEndingDate ? escAttr(spDateIn(existingData.WeekEndingDate) || '') : getWeekEnding(today)}">
         </div>
         <div class="form-row">
@@ -603,7 +603,7 @@ async function renderWeeklyActivityForm(existingData = null, preselectedRoleId =
           <div class="form-group">
             <label>Week Number</label>
             <input type="number" name="WeekNumber" id="weekly-weeknum" min="1" max="53"
-              value="${defaultWeek}" onchange="autoFillWeekEndingFromWeekNum(this.value)">
+              value="${defaultWeek}" ${actOn('change', 'autoFillWeekEndingFromWeekNum', ACT_VALUE)}>
           </div>
         </div>
         </fieldset>
@@ -636,7 +636,7 @@ async function renderWeeklyActivityForm(existingData = null, preselectedRoleId =
         </fieldset>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${isEdit ? 'Save Changes' : 'Log Activity'}</button>
-          <button type="button" class="btn-secondary" onclick="navigateTo('activity')">Cancel</button>
+          <button type="button" class="btn-secondary"${act('navigateTo', 'activity')}>Cancel</button>
         </div>
       </form>
     </div>
@@ -843,14 +843,14 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
     <div class="form-container">
       <h2>${isEdit ? 'Edit Placement' : 'Record Placement'}</h2>
       <div id="placement-form-error" class="form-error"></div>
-      <form id="placement-form" onsubmit="submitPlacementForm(event, ${existingData?.id || 'null'})">
+      <form id="placement-form"${actOn('submit', 'submitPlacementForm', ACT_EVENT, existingData?.id ? Number(existingData.id) : null)}>
         <div class="form-row">
           <div class="form-group">
             <label>Project *</label>
             ${lockProject ? `
             <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--surface-sunken);color:var(--text-label);">
             <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
-            <select name="ProjectID" required onchange="loadHeadcountForPlacement(this.value)${canLogOnBehalf ? ';loadTalentPartnersForPlacement(this.value)' : ''}">
+            <select name="ProjectID" required${actOn('change', 'formsPlacementProjectChanged', ACT_VALUE, !!canLogOnBehalf)}>
               <option value="">-- Select project --</option>
               ${projectOptions}
             </select>`}
@@ -858,7 +858,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
           <div class="form-group">
             <label>Headcount *</label>
             <select name="HeadcountID" id="placement-hc-select" required
-              onchange="loadCurrencyForPlacement(this.selectedOptions[0] ? this.selectedOptions[0].dataset.roleId : '')"
+              ${actOn('change', 'formsPlacementHeadcountChanged', ACT_EL)}
               ${isTalentPartner ? `data-tp-email="${escAttr(email)}"` : ''}>
               ${headcountOptions}
             </select>
@@ -909,7 +909,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
         </div>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${isEdit ? 'Save Changes' : 'Record Placement'}</button>
-          <button type="button" class="btn-secondary" onclick="navigateTo('placements')">Cancel</button>
+          <button type="button" class="btn-secondary"${act('navigateTo', 'placements')}>Cancel</button>
         </div>
       </form>
     </div>
@@ -1221,7 +1221,7 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
     <div class="form-container">
       <h2>${isEdit ? 'Edit Rejected Offer' : 'Log Rejected Offer'}</h2>
       <div id="rejected-form-error" class="form-error"></div>
-      <form id="rejected-form" onsubmit="submitRejectedForm(event, ${existingData?.id || 'null'})">
+      <form id="rejected-form"${actOn('submit', 'submitRejectedForm', ACT_EVENT, existingData?.id ? Number(existingData.id) : null)}>
         <div class="form-group">
           <label>Role *</label>
           <select name="RoleID" required>
@@ -1261,7 +1261,7 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
         </div>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${isEdit ? 'Save Changes' : 'Log Rejection'}</button>
-          <button type="button" class="btn-secondary" onclick="navigateTo('rejections')">Cancel</button>
+          <button type="button" class="btn-secondary"${act('navigateTo', 'rejections')}>Cancel</button>
         </div>
       </form>
     </div>
@@ -1309,3 +1309,36 @@ async function submitRejectedForm(event, editId = null) {
     // optimisticWrite() already reverted the view and showed a Retry toast.
   }
 }
+
+// N-302b: delegated actions for the five record forms (js/actions.js). The three
+// forms* actions replace inline handlers that held a second statement or a
+// template-time condition; the condition arrives as data (canLogOnBehalf).
+function formsWeeklyProjectChanged(projectId, canLogOnBehalf) {
+  loadRolesForWeekly(projectId);
+  if (canLogOnBehalf) loadTalentPartnersForWeekly(projectId);
+}
+function formsPlacementProjectChanged(projectId, canLogOnBehalf) {
+  loadHeadcountForPlacement(projectId);
+  if (canLogOnBehalf) loadTalentPartnersForPlacement(projectId);
+}
+// The headcount <select>: the role id rides on the chosen <option>'s data-role-id.
+function formsPlacementHeadcountChanged(selectEl) {
+  const opt = selectEl.selectedOptions[0];
+  loadCurrencyForPlacement(opt ? opt.dataset.roleId : '');
+}
+
+registerActions({
+  submitProjectForm,
+  submitRoleForm,
+  submitWeeklyForm,
+  submitPlacementForm,
+  submitRejectedForm,
+  loadTalentPartnersForRole,
+  updateCurrencyFromLocation,
+  autoFillTargetDate,
+  autoFillWeekYear,
+  autoFillWeekEndingFromWeekNum,
+  formsWeeklyProjectChanged,
+  formsPlacementProjectChanged,
+  formsPlacementHeadcountChanged,
+});

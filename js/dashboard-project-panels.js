@@ -328,7 +328,7 @@ function detailPeriodDropdown() {
   ).join('');
   return `<div class='form-group detail-period-selector'>
     <label>Period</label>
-    <select onchange='setDetailPeriod(this.value)'>${options}</select>
+    <select ${actOn('change', 'setDetailPeriod', ACT_VALUE).trim()}>${options}</select>
   </div>`;
 }
 // ── Roles open 30+ days panel (project-scoped) ────────────────────────

@@ -115,9 +115,9 @@ function _rpHeaderHtml(v) {
         ${v ? '<p class="checklist-subtitle">Role pipeline</p>' : ''}
       </div>
       <div class="page-header-actions">
-        ${v && v.canEdit ? `<button class="btn-secondary" onclick="showEditRoleForm(${id})"><i data-lucide="pencil" aria-hidden="true"></i> Edit role</button>` : ''}
-        ${v ? `<button class="btn-secondary" onclick="copyChecklistLink('role', ${id})"><i data-lucide="link" aria-hidden="true"></i> Copy link</button>` : ''}
-        <button class="btn-secondary" onclick="navigateTo('roles')">← Back to Roles</button>
+        ${v && v.canEdit ? `<button class="btn-secondary"${act('showEditRoleForm', id)}><i data-lucide="pencil" aria-hidden="true"></i> Edit role</button>` : ''}
+        ${v ? `<button class="btn-secondary"${act('copyChecklistLink', 'role', id)}><i data-lucide="link" aria-hidden="true"></i> Copy link</button>` : ''}
+        <button class="btn-secondary"${act('navigateTo', 'roles')}>← Back to Roles</button>
       </div>
     </div>`;
 }
@@ -164,7 +164,7 @@ function _rpHeadcountHtml(v) {
   return `
       <div class="role-hc-head">
         <h3 class="role-page-section-title">Headcount</h3>
-        ${v.canEdit && !v.adding ? '<button type="button" class="btn-secondary btn-sm" onclick="rpStartAddHeadcount()">+ Add headcount</button>' : ''}
+        ${v.canEdit && !v.adding ? `<button type="button" class="btn-secondary btn-sm"${act('rpStartAddHeadcount')}>+ Add headcount</button>` : ''}
       </div>
       <p class="role-hc-summary">${escHtml(headcountXYTitle(counts))}</p>
       ${v.canEdit && v.adding ? _rpAddFormHtml(v) : ''}
@@ -207,9 +207,9 @@ function _rpDetailText(v, hc, status) {
 function _rpRowHtml(v, hc) {
   const status = classifyHeadcount(hc, v.state.fillMap);
   const id = Number(hc.id);
-  const actions = [`<a href="#" onclick="rpEditHeadcount(${id}); return false;">Edit</a>`];
-  if (status === 'open') actions.push(`<a href="#" onclick="rpCancelHeadcount(${id}); return false;">Cancel</a>`);
-  if (status === 'cancelled' && !_rpIsTerminal(v)) actions.push(`<a href="#" onclick="rpRestoreHeadcount(${id}); return false;">Restore</a>`);
+  const actions = [`<a href="#"${act('rpEditHeadcount.prevent', id)}>Edit</a>`];
+  if (status === 'open') actions.push(`<a href="#"${act('rpCancelHeadcount.prevent', id)}>Cancel</a>`);
+  if (status === 'cancelled' && !_rpIsTerminal(v)) actions.push(`<a href="#"${act('rpRestoreHeadcount.prevent', id)}>Restore</a>`);
   return `
             <tr>
               <td>${_rpLabelHtml(hc)}</td>
@@ -230,14 +230,14 @@ function _rpEditRowHtml(v, hc) {
               <td>${_rpLabelHtml(hc)}</td>
               <td>${_rpStatusHtml(status)}</td>
               <td><input type="date" class="role-hc-input" id="rp-hc-open" aria-label="Open Date"
-                value="${escAttr(spDateIn(hc.OpenDate) || '')}" onchange="rpAutoTarget('rp-hc-open', 'rp-hc-target')"></td>
+                value="${escAttr(spDateIn(hc.OpenDate) || '')}"${actOn('change', 'rpAutoTarget', 'rp-hc-open', 'rp-hc-target')}></td>
               <td><input type="date" class="role-hc-input" id="rp-hc-target" aria-label="Target Hire Date"
                 value="${escAttr(spDateIn(hc.TargetHireDate) || '')}"></td>
               <td><label class="role-hc-check"><input type="checkbox" id="rp-hc-backfill"${spYesNo(hc.Backfill, false) ? ' checked' : ''}> Backfill</label></td>
               <td><textarea class="role-hc-input" id="rp-hc-notes" rows="2" aria-label="Notes">${escHtml(hc.Notes || '')}</textarea></td>
               <td><div class="role-hc-actions">
-                <button type="button" class="btn-primary btn-sm" onclick="rpSaveHeadcount(${id})">Save</button>
-                <button type="button" class="btn-secondary btn-sm" onclick="rpCancelEdit()">Cancel</button>
+                <button type="button" class="btn-primary btn-sm"${act('rpSaveHeadcount', id)}>Save</button>
+                <button type="button" class="btn-secondary btn-sm"${act('rpCancelEdit')}>Cancel</button>
               </div></td>
             </tr>`;
 }
@@ -258,7 +258,7 @@ function _rpAddFormHtml(v) {
           </div>
           <div class="form-group">
             <label for="rp-add-open">Open Date</label>
-            <input type="date" id="rp-add-open" onchange="rpAutoTarget('rp-add-open', 'rp-add-target')">
+            <input type="date" id="rp-add-open"${actOn('change', 'rpAutoTarget', 'rp-add-open', 'rp-add-target')}>
           </div>
           <div class="form-group">
             <label for="rp-add-target">Target Hire Date (auto: Open + ${CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays}d)</label>
@@ -278,8 +278,8 @@ function _rpAddFormHtml(v) {
           <textarea id="rp-add-notes" rows="2"></textarea>
         </div>
         <div class="form-actions">
-          <button type="button" class="btn-primary" id="rp-add-save" onclick="rpSaveAddHeadcount()">Add headcount</button>
-          <button type="button" class="btn-secondary" onclick="rpCancelAdd()">Cancel</button>
+          <button type="button" class="btn-primary" id="rp-add-save"${act('rpSaveAddHeadcount')}>Add headcount</button>
+          <button type="button" class="btn-secondary"${act('rpCancelAdd')}>Cancel</button>
         </div>
       </div>`;
 }
@@ -523,4 +523,14 @@ async function rpSaveAddHeadcount() {
 // Later N-302 sub-tasks add their own names to this call; never register a name twice.
 registerActions({
   openRolePage,
+  // N-302b: role page and its headcount table.
+  rpStartAddHeadcount,
+  rpEditHeadcount,
+  rpCancelHeadcount,
+  rpRestoreHeadcount,
+  rpSaveHeadcount,
+  rpCancelEdit,
+  rpSaveAddHeadcount,
+  rpCancelAdd,
+  rpAutoTarget,
 });

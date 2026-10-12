@@ -115,6 +115,11 @@ async function mobileRenderPeopleDashboard(main) {
     // KPI count-up animation if the helper is present (premium UI).
     if (typeof runKpiCountUps === 'function') runKpiCountUps(main);
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderPeopleDashboard(document.getElementById('m-main'))`);
+    main.innerHTML = mobilePageError(e.message, ['mobileRetryPeopleDashboard']);
   }
 }
+
+// === Delegated actions (N-302f, SEC-12b) ===
+registerActions({
+  mobileRetryPeopleDashboard: () => mobileRenderPeopleDashboard(document.getElementById('m-main')),
+});

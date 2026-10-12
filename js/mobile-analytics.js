@@ -55,11 +55,11 @@ async function mobileRenderPlacementAnalytics(main) {
       <div class="m-detail-panel" style="margin-bottom:12px">
         <div class="m-form-group">
           <label class="m-label">Location</label>
-          <select class="m-select" id="ma-loc" onchange="mobileApplyAnalyticsFilters()">${locOpts}</select>
+          <select class="m-select" id="ma-loc"${actOn('change', 'mobileApplyAnalyticsFilters')}>${locOpts}</select>
         </div>
         <div class="m-form-group" style="margin-bottom:0">
           <label class="m-label">Functional Area</label>
-          <select class="m-select" id="ma-fa" onchange="mobileApplyAnalyticsFilters()">${faOpts}</select>
+          <select class="m-select" id="ma-fa"${actOn('change', 'mobileApplyAnalyticsFilters')}>${faOpts}</select>
         </div>
       </div>
       <div id="ma-results"></div>
@@ -67,7 +67,7 @@ async function mobileRenderPlacementAnalytics(main) {
 
     maRenderResults();
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderPlacementAnalytics(document.getElementById('m-main'))`);
+    main.innerHTML = mobilePageError(e.message, ['mobileRetryPlacementAnalytics']);
   }
 }
 
@@ -78,6 +78,12 @@ function mobileApplyAnalyticsFilters() {
   _maFunctionArea = fa  ? fa.value  : '';
   maRenderResults();
 }
+
+// === Delegated actions (N-302f, SEC-12b) ===
+registerActions({
+  mobileApplyAnalyticsFilters,
+  mobileRetryPlacementAnalytics: () => mobileRenderPlacementAnalytics(document.getElementById('m-main')),
+});
 
 function maRenderResults() {
   const container = document.getElementById('ma-results');

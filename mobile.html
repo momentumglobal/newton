@@ -770,7 +770,7 @@
     <div class="m-login-card">
       <h1>Newton</h1>
       <p>Sign in with your Momentum Global account to continue.</p>
-      <button class="btn-signin" onclick="signIn()">Sign in with Microsoft</button>
+      <button class="btn-signin" data-act="signIn">Sign in with Microsoft</button>
     </div>
   </div>
 
@@ -778,14 +778,14 @@
   <div id="app-shell">
     <div class="m-topbar" id="m-topbar">
       <div style="display:flex;align-items:center;gap:4px">
-        <button class="m-back-btn" id="m-back-btn" onclick="mobileBack()" style="display:none">&#8592;</button>
+        <button class="m-back-btn" id="m-back-btn" data-act="mobileBack" style="display:none">&#8592;</button>
         <div>
           <div class="m-topbar-title" id="m-topbar-title">Newton</div>
           <div class="m-topbar-sub"   id="m-topbar-sub">Momentum Global</div>
         </div>
       </div>
       <div style="position:relative">
-        <button class="m-switcher-btn" id="m-switcher-btn" onclick="mobileToggleSwitcher()">
+        <button class="m-switcher-btn" id="m-switcher-btn" data-act="mobileToggleSwitcher">
           <span id="m-switcher-label">Newton</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
@@ -805,7 +805,7 @@
     <nav class="m-bottom-nav" id="m-bottom-nav" style="display:none"></nav>
 
     <div class="m-desktop-link">
-      <a onclick="mobileForceDesktop()">Switch to desktop view</a>
+      <a data-act="mobileForceDesktop">Switch to desktop view</a>
     </div>
   </div>
 
@@ -814,7 +814,7 @@
   <div class="m-sheet" id="m-sheet" role="dialog" aria-modal="true">
     <div class="m-sheet-header">
       <div class="m-sheet-title" id="m-sheet-title"></div>
-      <button class="m-sheet-close" id="m-sheet-close" onclick="mobileCloseSheet()" aria-label="Close">&#10005;</button>
+      <button class="m-sheet-close" id="m-sheet-close" data-act="mobileCloseSheet" aria-label="Close">&#10005;</button>
     </div>
     <div class="m-sheet-body" id="m-sheet-body"></div>
   </div>

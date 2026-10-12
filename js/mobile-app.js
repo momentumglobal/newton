@@ -104,7 +104,7 @@ async function mobileOnSignedIn() {
       <div class="m-login-card" style="position:relative;z-index:2">
         <h1 style="color:white">Access Restricted</h1>
         <p style="color:rgba(255,255,255,0.6)">The mobile view is available to Talent Partners and Delivery Managers only.</p>
-        <button class="btn-signin" onclick="signOut()">Sign out</button>
+         <button class="btn-signin"${act('mobileSignOut')}>Sign out</button>
       </div>`;
     return;
   }
@@ -277,11 +277,32 @@ function mobileRenderBottomNav() {
   }
   nav.style.display = 'flex';
   nav.innerHTML = items.map(it => `
-    <button class="m-nav-item ${!it.sheet && _mobileView === it.view ? 'active' : ''}"
-      onclick="${it.sheet ? `${it.sheet}(false)` : `mobileNav('${it.view}')`}">
+    <button class="m-nav-item ${!it.sheet && _mobileView === it.view ? 'active' : ''}"${act('mobileNavItem', it.view || null, it.sheet || null)}>
       ${it.icon}
       ${it.label}
     </button>`).join('');
+}
+
+// N-302f: what a bottom-nav item with a `sheet` key opens. The key is data
+// (MOBILE_NAV), so it is looked up here, never called by name: an unlisted
+// key is an error, not a call to whatever global has that name. The openers
+// are declared in this file, so the arrows resolve them at tap time.
+const MOBILE_NAV_SHEETS = {
+  mobileOpenActivitySheet:  () => mobileOpenActivitySheet(false),
+  mobileOpenPlacementSheet: () => mobileOpenPlacementSheet(false),
+  mobileOpenRejectionSheet: () => mobileOpenRejectionSheet(false),
+};
+
+// A bottom-nav tap: a sheet item opens its sheet, any other item navigates.
+function mobileNavItem(view, sheet) {
+  if (sheet) {
+    if (!Object.prototype.hasOwnProperty.call(MOBILE_NAV_SHEETS, sheet)) {
+      throw new Error('mobileNavItem: no opener for sheet "' + sheet + '" in MOBILE_NAV_SHEETS');
+    }
+    MOBILE_NAV_SHEETS[sheet]();
+    return;
+  }
+  mobileNav(view);
 }
 
 // === Module switcher dropdown ===
@@ -294,11 +315,9 @@ function mobileToggleSwitcher() {
 
   // Build menu items: Home + accessible modules
   const modules = mobileGetAccessibleModules();
-  let html = `<button class="m-switcher-item ${_mobileModule==='home'?'active':''}"
-                onclick="mobileSwitcherGo('home')">Home</button>`;
+  let html = `<button class="m-switcher-item ${_mobileModule==='home'?'active':''}"${act('mobileSwitcherGo', 'home')}>Home</button>`;
   html += modules.map(m => `
-    <button class="m-switcher-item ${_mobileModule===m.key?'active':''}"
-      onclick="mobileSwitcherGo('${m.key}')">${m.name}</button>`).join('');
+    <button class="m-switcher-item ${_mobileModule===m.key?'active':''}"${act('mobileSwitcherGo', m.key)}>${m.name}</button>`).join('');
   menu.innerHTML = html;
   menu.style.display = 'block';
 }
@@ -373,15 +392,17 @@ function mobileToast(msg, { type = 'info', action = null } = {}) {
 // === Page error (N-171 / F-9b) ===
 // Mobile's page-level failure state — mirrors utils.js's pageErrorBlock()
 // but built with mobile.html's own markup (no lucide icon library loaded
-// here). retryOnClick is a literal JS call-expression string; every mobile
-// render function takes its container as a parameter, so retry must
-// re-fetch it by id (`document.getElementById('m-main')`) rather than
-// reference the caller's local `main` variable, which an onclick
-// attribute can't see.
-function mobilePageError(message, retryOnClick) {
+// here). retryAct is an act() argument list, [spec, ...args] (N-302f), as in
+// pageErrorBlock(): ['mobileRetryRoleDetail'] or
+// ['mobileRetryActivityForm', rolePreselected]. Every mobile render function
+// takes its container as a parameter, so the caller names a small registered
+// mobileRetry* action in the file that owns the render function, and that
+// action re-fetches the container by id (`document.getElementById('m-main')`);
+// the caller's local `main` variable is gone by the time Retry is tapped.
+function mobilePageError(message, retryAct) {
   return `<div class="m-empty m-empty--error">
     <div>${escHtml(message)}</div>
-    <button class="m-btn-secondary m-empty-retry" onclick="${escAttr(retryOnClick)}">Retry</button>
+    <button class="m-btn-secondary m-empty-retry"${act(...retryAct)}>Retry</button>
   </div>`;
 }
 
@@ -486,6 +507,27 @@ async function _mobilePtrRun() {
     _mobilePtrReset();
   }
 }
+
+// === Delegated actions (N-302f, SEC-12b) ===
+// What mobile.html and the mobile templates call through act()/actOn() that
+// this file defines. mobileSignOut wraps signOut() because auth.js declares a
+// signOut() as well; this file's declaration is the later one, so it wins at
+// call time, exactly as it did when the button called it inline.
+registerActions({
+  mobileSignOut: () => signOut(),
+  mobileBack,
+  mobileToggleSwitcher,
+  mobileSwitcherGo,
+  mobileForceDesktop,
+  mobileCloseSheet,
+  mobileNav,
+  mobileNavItem,
+  mobileOpenModule,
+  mobileOpenAddRoleSheet,
+  mobileOpenActivitySheet,
+  mobileOpenPlacementSheet,
+  mobileOpenRejectionSheet,
+});
 
 // === Boot ===
 

@@ -4210,7 +4210,7 @@ var ASSERTIONS = [
         'mobile-app.js': 'function mobilePageError(m, retryOnClick) {}',
         'c.js': '// retryOnClick and actionOnClick are mentioned in a comment only\nvar y = 1;',
       });
-      _assertEqual(legacy.length === 1 && /^js\/a\.js: "retryOnClick" is retired/.test(legacy[0]), true, 'legacy param flagged, mobile-app.js exempt, comments ignored: ' + legacy);
+      _assertEqual(legacy.length === 2 && /^js\/a\.js: "retryOnClick" is retired/.test(legacy[0]) && /^js\/mobile-app\.js: "retryOnClick" is retired/.test(legacy[1]), true, 'legacy param flagged in every file (mobile-app.js is no longer exempt), comments ignored: ' + legacy);
       _assertEqual(lintLegacyActionParams({ 'b.js': 'emptyStateBlock({ actionOnClick: "f()" })' }).length, 1, 'actionOnClick flagged');
       const reg = 'registerActions({ setA });';
       const use = "const h = listSearchBox(v, 'setA') + sortableHeader('L', 'k', s, 'setB') + pageSizeDropdown(n, cb)\n"
@@ -4223,7 +4223,7 @@ var ASSERTIONS = [
       if (typeof ALL_SOURCES === 'undefined' || typeof ALL_HTML === 'undefined') {
         _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
       }
-      _assertEqual(lintLegacyActionParams(ALL_SOURCES), [], 'no actionOnClick / retryOnClick left in js/ (mobile-app.js exempt until N-302f)');
+      _assertEqual(lintLegacyActionParams(ALL_SOURCES), [], 'no actionOnClick / retryOnClick left in js/');
       _assertEqual(lintListControlCallbacks(ALL_SOURCES), [], 'every list-controls callback is a registered action');
       const regs = readActionRegistrations(ALL_SOURCES).registered;
       _assertEqual(regs.signIn, ['js/auth.js'], 'auth.js registers signIn');
@@ -4355,6 +4355,58 @@ var ASSERTIONS = [
       // Nothing selects an element by its handler text any more.
       Object.keys(ALL_SOURCES).forEach(f => _assertEqual(/\[onclick[\^$*]?=/.test(ALL_SOURCES[f]), false, f + ': no [onclick=…] selector'));
       Object.keys(ALL_HTML).forEach(f => _assertEqual(/\[onclick[\^$*]?=/.test(ALL_HTML[f]), false, f + ': no [onclick=…] selector'));
+    },
+  },
+  // ---- N-302f (SEC-12b step 2): mobile app --------------------------------
+  {
+    name: 'N-302f: the mobile app is fully converted (empty ratchet, registered actions, bottom-nav whitelist, Retry actions)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined' || typeof ALL_HTML === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      // Step 2 of SEC-12b is complete: no file has an inline handler, so the baseline is empty.
+      _assertEqual(INLINE_HANDLER_BASELINE, {}, 'INLINE_HANDLER_BASELINE is empty');
+      const counts = inlineHandlerCounts(ALL_SOURCES, ALL_HTML);
+      _assertEqual(Object.keys(counts).filter(f => counts[f] > 0), [], 'no file has an inline handler');
+      _assertEqual(lintInlineHandlers(ALL_SOURCES, ALL_HTML, INLINE_HANDLER_BASELINE), [], 'ratchet clean against the empty baseline');
+      // Each action is registered once, by the file that owns it.
+      const regs = readActionRegistrations(ALL_SOURCES, ALL_HTML).registered;
+      const owners = {
+        'js/auth.js': ['signIn'],
+        'js/mobile-app.js': ['mobileSignOut', 'mobileBack', 'mobileToggleSwitcher', 'mobileSwitcherGo', 'mobileForceDesktop',
+          'mobileCloseSheet', 'mobileNav', 'mobileNavItem', 'mobileOpenModule', 'mobileOpenAddRoleSheet',
+          'mobileOpenActivitySheet', 'mobileOpenPlacementSheet', 'mobileOpenRejectionSheet'],
+        'js/mobile-pages.js': ['mobileSelectRole', 'mobileSelectStage', 'mobileSaveStage', 'mobileLoadRolesForActivity',
+          'mobileSubmitActivity', 'mobileLoadHeadcountForPlacement', 'mobilePlacementHeadcountChanged', 'mobileSubmitPlacement',
+          'mobileRetryRoleDetail', 'mobileRetryStageUpdate', 'mobileRetryActivityForm', 'mobileRetryPlacementForm'],
+        'js/mobile-reporting-ext.js': ['mobileRoleSearch', 'mobileRoleStageFilter', 'mobileSubmitRejection',
+          'mobileRetryReportingSummary', 'mobileRetryRolesFiltered', 'mobileRetryRejectionForm'],
+        'js/mobile-roleform.js': ['mobileLoadTPsForRole', 'mobileRoleCurrency', 'mobileRoleAutoTarget', 'mobileSubmitAddRole'],
+        'js/mobile-sales.js': ['mobileSalesForecastForm', '_msfTypeChange', 'mobileSaveForecast', 'mobileRetrySalesForecast'],
+        'js/mobile-scorecards.js': ['mScGo', 'mScPrev', 'mScNext', 'mobileRetryScorecards'],
+        'js/mobile-analytics.js': ['mobileApplyAnalyticsFilters', 'mobileRetryPlacementAnalytics'],
+        'js/mobile-people.js': ['mobileRetryPeopleDashboard'],
+      };
+      Object.keys(owners).forEach(file => owners[file].forEach(n => _assertEqual(regs[n], [file], n + ' is registered by ' + file)));
+      // Bottom nav: a `sheet` key is looked up in a fixed map, never called by name.
+      const appCode = _vendorStripJsComments(ALL_SOURCES['mobile-app.js']).join('\n');
+      const navSheets = (appCode.match(/\bsheet:\s*'(\w+)'/g) || []).map(s => /'(\w+)'/.exec(s)[1]);
+      _assertEqual(navSheets, ['mobileOpenActivitySheet', 'mobileOpenPlacementSheet', 'mobileOpenRejectionSheet'], 'MOBILE_NAV has three sheet items');
+      const whitelist = /const MOBILE_NAV_SHEETS = \{([\s\S]*?)\n\};/.exec(appCode);
+      _assertEqual(!!whitelist, true, 'MOBILE_NAV_SHEETS is declared');
+      navSheets.forEach(s => _assertEqual(new RegExp('(^|\\s)' + s + '\\s*:').test(whitelist[1]), true, 'MOBILE_NAV_SHEETS has an opener for ' + s));
+      _assertEqual(/\$\{\s*it\.sheet\s*\}\s*\(/.test(appCode), false, 'the bottom nav no longer builds a call from the sheet name');
+      // Every mobilePageError() Retry is an act() argument list naming a registered action.
+      let retries = 0;
+      Object.keys(ALL_SOURCES).filter(f => /^mobile-/.test(f) && f !== 'mobile-app.js').forEach(f => {
+        const code = _vendorStripJsComments(ALL_SOURCES[f]).join('\n');
+        (code.match(/mobilePageError\([^;]*\);/g) || []).forEach(call => {
+          retries++;
+          const m = /,\s*\['(\w+)'/.exec(call);
+          _assertEqual(!!(m && regs[m[1]]), true, f + ': Retry names a registered action: ' + call);
+        });
+      });
+      _assertEqual(retries, 11, 'eleven mobilePageError() calls, each with a registered Retry action');
     },
   },
 ];

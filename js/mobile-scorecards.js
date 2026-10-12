@@ -118,9 +118,9 @@ async function mobileRenderScorecards(main) {
         </div>
       </div>
       <div class="m-sc-controls">
-        <button class="m-sc-arrow" id="m-sc-prev" onclick="mScGo(_mScIndex - 1)" aria-label="Previous">&#8249;</button>
+        <button class="m-sc-arrow" id="m-sc-prev"${act('mScPrev')} aria-label="Previous">&#8249;</button>
         <div class="m-sc-counter" id="m-sc-counter"></div>
-        <button class="m-sc-arrow" id="m-sc-next" onclick="mScGo(_mScIndex + 1)" aria-label="Next">&#8250;</button>
+        <button class="m-sc-arrow" id="m-sc-next"${act('mScNext')} aria-label="Next">&#8250;</button>
       </div>
       <div class="m-sc-dots" id="m-sc-dots"></div>
     `;
@@ -128,7 +128,7 @@ async function mobileRenderScorecards(main) {
     mScSetupSwipe();
     mScRender();
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderScorecards(document.getElementById('m-main'))`);
+    main.innerHTML = mobilePageError(e.message, ['mobileRetryScorecards']);
   }
 }
 
@@ -194,7 +194,7 @@ function mScRender() {
   const dots = document.getElementById('m-sc-dots');
   if (dots) {
     dots.innerHTML = _mScCards.map((_, i) =>
-      `<button class="m-sc-dot ${i === _mScIndex ? 'active' : ''}" onclick="mScGo(${i})" aria-label="Go to ${i + 1}"></button>`
+      `<button class="m-sc-dot ${i === _mScIndex ? 'active' : ''}"${act('mScGo', i)} aria-label="Go to ${i + 1}"></button>`
     ).join('');
   }
 }
@@ -223,3 +223,13 @@ function mScSetupSwipe() {
     }
   }, { passive: true });
 }
+
+// === Delegated actions (N-302f, SEC-12b) ===
+// mScPrev / mScNext read _mScIndex when the arrow is tapped (the old handler
+// text did the same); the dots pass their own index to mScGo.
+registerActions({
+  mScGo,
+  mScPrev: () => mScGo(_mScIndex - 1),
+  mScNext: () => mScGo(_mScIndex + 1),
+  mobileRetryScorecards: () => mobileRenderScorecards(document.getElementById('m-main')),
+});

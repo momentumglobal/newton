@@ -77,22 +77,22 @@ async function mobileRenderRoleDetail(main) {
       </div>
 
       <div class="m-action-row">
-        <button class="m-btn-primary" onclick="mobileNav('stage-update')">
+        <button class="m-btn-primary"${act('mobileNav', 'stage-update')}>
           Update Stage
         </button>
-        <button class="m-btn-secondary" onclick="mobileOpenActivitySheet(true)">
+        <button class="m-btn-secondary"${act('mobileOpenActivitySheet', true)}>
           Log Weekly Activity
         </button>
-        <button class="m-btn-secondary" onclick="mobileOpenPlacementSheet(true)">
+        <button class="m-btn-secondary"${act('mobileOpenPlacementSheet', true)}>
           Record Placement
         </button>
-        <button class="m-btn-secondary" onclick="mobileOpenRejectionSheet(true)">
+        <button class="m-btn-secondary"${act('mobileOpenRejectionSheet', true)}>
           Log Rejection
         </button>
       </div>
     `;
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderRoleDetail(document.getElementById('m-main'))`);
+    main.innerHTML = mobilePageError(e.message, ['mobileRetryRoleDetail']);
   }
 }
 
@@ -117,8 +117,7 @@ async function mobileRenderStageUpdate(main) {
     const stageButtons = CONFIG.ROLE_STAGES.map(s => `
       <button class="m-stage-btn ${role.Stage === s ? 'active' : ''}"
         id="stage-btn-${s.replace(/\s+/g,'_').replace(/\+/g,'plus')}"
-        ${closeBlocked && s === CONFIG.ROLE_STAGE_CLOSED ? 'disabled' : ''}
-        onclick="mobileSelectStage(this, '${s}')">
+        ${closeBlocked && s === CONFIG.ROLE_STAGE_CLOSED ? 'disabled' : ''}${act('mobileSelectStage', ACT_EL, s)}>
         ${s}
       </button>`).join('');
 
@@ -131,8 +130,7 @@ async function mobileRenderStageUpdate(main) {
         <div class="m-form-hint" id="m-stage-cascade" hidden></div>
       </div>
       <div class="m-action-row">
-        <button class="m-btn-primary" id="m-save-stage-btn"
-          onclick="mobileSaveStage()" disabled>
+        <button class="m-btn-primary" id="m-save-stage-btn"${act('mobileSaveStage')} disabled>
           Save Stage
         </button>
       </div>
@@ -140,7 +138,7 @@ async function mobileRenderStageUpdate(main) {
     main._selectedStage = role.Stage;
     main._hcCounts = hcCounts;
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderStageUpdate(document.getElementById('m-main'))`);
+    main.innerHTML = mobilePageError(e.message, ['mobileRetryStageUpdate']);
   }
 }
 
@@ -236,8 +234,7 @@ async function mobileRenderActivityForm(main, rolePreselected) {
           </div>` : `
           <div class="m-form-group">
             <label class="m-label">Project *</label>
-            <select class="m-select" id="ma-project-select"
-              onchange="mobileLoadRolesForActivity(this.value)">
+            <select class="m-select" id="ma-project-select"${actOn('change', 'mobileLoadRolesForActivity', ACT_VALUE)}>
               <option value="">— select project —</option>
               ${projectOpts}
             </select>
@@ -309,13 +306,13 @@ async function mobileRenderActivityForm(main, rolePreselected) {
       </div>
 
       <div class="m-action-row">
-        <button class="m-btn-primary" id="ma-submit-btn" onclick="mobileSubmitActivity(${rolePreselected})">
+        <button class="m-btn-primary" id="ma-submit-btn"${act('mobileSubmitActivity', !!rolePreselected)}>
           Save Activity
         </button>
       </div>
     `;
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderActivityForm(document.getElementById('m-sheet-body'), ${rolePreselected})`);
+    main.innerHTML = mobilePageError(e.message, ['mobileRetryActivityForm', !!rolePreselected]);
   }
 }
 
@@ -436,16 +433,14 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
           </div>` : `
           <div class="m-form-group">
             <label class="m-label">Project *</label>
-            <select class="m-select" id="mp-project-select"
-              onchange="mobileLoadHeadcountForPlacement(this.value)">
+            <select class="m-select" id="mp-project-select"${actOn('change', 'mobileLoadHeadcountForPlacement', ACT_VALUE)}>
               <option value="">— select project —</option>
               ${projectOpts}
             </select>
           </div>
           <div class="m-form-group">
             <label class="m-label">Headcount *</label>
-            <select class="m-select" id="mp-hc-select"
-              onchange="mobileLoadCurrencyForPlacement(this.selectedOptions[0] ? this.selectedOptions[0].dataset.roleId : '')">
+            <select class="m-select" id="mp-hc-select"${actOn('change', 'mobilePlacementHeadcountChanged', ACT_EL)}>
               <option value="">— select project first —</option>
             </select>
             ${hint}
@@ -482,13 +477,13 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
       </div>
 
       <div class="m-action-row">
-        <button class="m-btn-primary" id="mp-submit-btn" onclick="mobileSubmitPlacement(${rolePreselected})"${hcEmpty ? ' disabled' : ''}>
+        <button class="m-btn-primary" id="mp-submit-btn"${act('mobileSubmitPlacement', !!rolePreselected)}${hcEmpty ? ' disabled' : ''}>
           Record Placement
         </button>
       </div>
     `;
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderPlacementForm(document.getElementById('m-sheet-body'), ${rolePreselected})`);
+    main.innerHTML = mobilePageError(e.message, ['mobileRetryPlacementForm', !!rolePreselected]);
   }
 }
 
@@ -522,6 +517,13 @@ async function mobileLoadCurrencyForPlacement(roleId) {
   if (!cur) return;
   if (!roleId) { cur.value = ''; return; }
   cur.value = await getCurrencyForRole(roleId);
+}
+
+// N-302f: change handler of the headcount <select>. Each option carries its
+// pipeline's id in data-role-id; the currency follows the pipeline.
+function mobilePlacementHeadcountChanged(sel) {
+  const opt = sel.selectedOptions[0];
+  return mobileLoadCurrencyForPlacement(opt ? opt.dataset.roleId : '');
 }
 
 async function mobileSubmitPlacement(rolePreselected) {
@@ -604,3 +606,23 @@ async function _mobilePlacementFollowUp(roleId) {
     : `${state.counts.open} headcount still open — update the stage?`;
   mobileToast(msg, { action: { label: 'Update stage', onClick: () => { _mobileRoleId = roleId; mobileNav('stage-update'); } } });
 }
+
+// === Delegated actions (N-302f, SEC-12b) ===
+// This file's templates, plus mobileSelectRole, which the Roles list cards in
+// mobile-reporting-ext.js call. The mobileRetry* actions are the Retry buttons
+// of mobilePageError(): each re-fetches its container by id, because the
+// render call's own `main` is gone by the time Retry is tapped.
+registerActions({
+  mobileSelectRole,
+  mobileSelectStage,
+  mobileSaveStage,
+  mobileLoadRolesForActivity,
+  mobileSubmitActivity,
+  mobileLoadHeadcountForPlacement,
+  mobilePlacementHeadcountChanged,
+  mobileSubmitPlacement,
+  mobileRetryRoleDetail: () => mobileRenderRoleDetail(document.getElementById('m-main')),
+  mobileRetryStageUpdate: () => mobileRenderStageUpdate(document.getElementById('m-main')),
+  mobileRetryActivityForm: (rolePreselected) => mobileRenderActivityForm(document.getElementById('m-sheet-body'), rolePreselected),
+  mobileRetryPlacementForm: (rolePreselected) => mobileRenderPlacementForm(document.getElementById('m-sheet-body'), rolePreselected),
+});

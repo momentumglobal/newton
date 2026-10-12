@@ -52,7 +52,7 @@ async function mobileRenderAddRole(main) {
           ${lockProject ? `
             <input class="m-input" readonly value="${escAttr(projects[0].CustomerName)}">
             <input type="hidden" id="mr-project" value="${projects[0].id}">` : `
-            <select class="m-select" id="mr-project" ${canAssign ? 'onchange="mobileLoadTPsForRole(this.value)"' : ''}>
+            <select class="m-select" id="mr-project"${canAssign ? actOn('change', 'mobileLoadTPsForRole', ACT_VALUE) : ''}>
               <option value="">- Select project -</option>
               ${projectOpts}
             </select>`}
@@ -79,7 +79,7 @@ async function mobileRenderAddRole(main) {
         <div class="m-input-row">
           <div class="m-form-group">
             <label class="m-label">Location *</label>
-            <select class="m-select" id="mr-location" onchange="mobileRoleCurrency(this.value)">
+            <select class="m-select" id="mr-location"${actOn('change', 'mobileRoleCurrency', ACT_VALUE)}>
               ${locationOpts}
             </select>
           </div>
@@ -136,7 +136,7 @@ async function mobileRenderAddRole(main) {
       </div>
 
       <div class="m-action-row">
-        <button class="m-btn-primary" id="mr-submit" onclick="mobileSubmitAddRole()">
+        <button class="m-btn-primary" id="mr-submit"${act('mobileSubmitAddRole')}>
           Add Role
         </button>
       </div>
@@ -279,3 +279,11 @@ async function mobileSubmitAddRole() {
     // the pending card.
   }
 }
+
+// === Delegated actions (N-302f, SEC-12b) ===
+registerActions({
+  mobileLoadTPsForRole,
+  mobileRoleCurrency,
+  mobileRoleAutoTarget,
+  mobileSubmitAddRole,
+});

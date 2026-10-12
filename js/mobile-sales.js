@@ -27,7 +27,7 @@ async function mobileRenderSalesForecast(main) {
 
     const addBtn = `
       <div class="m-action-row" style="margin-bottom:14px">
-        <button class="m-btn-primary" onclick="mobileSalesForecastForm()">+ Add Forecast</button>
+        <button class="m-btn-primary"${act('mobileSalesForecastForm')}>+ Add Forecast</button>
       </div>`;
 
     if (!forecasts.length) {
@@ -37,7 +37,7 @@ async function mobileRenderSalesForecast(main) {
     }
 
     const cards = forecasts.map(f => `
-      <div class="m-role-card" onclick="mobileSalesForecastForm(${f.id})">
+      <div class="m-role-card"${act('mobileSalesForecastForm', Number(f.id))}>
         <div class="m-role-title">${escHtml(f.Title || '-')}</div>
         <div class="m-role-meta">${msFmtForecastDate(f.ForecastStartDate)} - ${msFmtForecastDate(f.ForecastEndDate)}</div>
         <div class="m-role-footer">
@@ -50,7 +50,7 @@ async function mobileRenderSalesForecast(main) {
 
     main.innerHTML = addBtn + cards;
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderSalesForecast(document.getElementById('m-main'))`);
+    main.innerHTML = mobilePageError(e.message, ['mobileRetrySalesForecast']);
   }
 }
 
@@ -97,7 +97,7 @@ async function mobileSalesForecastForm(editId) {
       </div>
       <div class="m-form-group">
         <label class="m-label">Project Type *</label>
-        <select class="m-input" id="msf-type" onchange="_msfTypeChange()">
+        <select class="m-input" id="msf-type"${actOn('change', '_msfTypeChange')}>
           ${CONFIG.PROJECT_TYPES.map(t =>
             `<option value="${escAttr(t)}" ${
               (CONFIG.PROJECT_TYPES.includes(f.ProjectType) ? f.ProjectType : CONFIG.PROJECT_TYPES[0]) === t
@@ -132,10 +132,10 @@ async function mobileSalesForecastForm(editId) {
       <div class="m-form-error" id="msf-error"></div>
     </div>
     <div class="m-action-row">
-      <button class="m-btn-primary" id="msf-submit" onclick="mobileSaveForecast(${editId || 'null'})">
+      <button class="m-btn-primary" id="msf-submit"${act('mobileSaveForecast', editId || null)}>
         ${editId ? 'Save Changes' : 'Add Forecast'}
       </button>
-      <button class="m-btn-secondary" onclick="mobileNav('sales-forecast', false)">Cancel</button>
+      <button class="m-btn-secondary"${act('mobileNav', 'sales-forecast', false)}>Cancel</button>
     </div>
   `;
   _msfTypeChange();   // N-116: match the fee fields to the saved/default type
@@ -191,3 +191,11 @@ async function mobileSaveForecast(editId) {
     fail('Error: ' + e.message);
   }
 }
+
+// === Delegated actions (N-302f, SEC-12b) ===
+registerActions({
+  mobileSalesForecastForm,
+  _msfTypeChange,
+  mobileSaveForecast,
+  mobileRetrySalesForecast: () => mobileRenderSalesForecast(document.getElementById('m-main')),
+});

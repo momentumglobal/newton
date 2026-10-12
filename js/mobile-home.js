@@ -42,7 +42,7 @@ function mobileRenderHome(main) {
   const cards = modules.map(m => {
     const icon = M_MODULE_ICONS[m.icon] || '';
     return `
-      <button class="m-module-card" onclick="mobileOpenModule('${m.key}')">
+      <button class="m-module-card"${act('mobileOpenModule', m.key)}>
         <div class="m-module-icon">${icon}</div>
         <div class="m-module-name">${m.name}</div>
       </button>`;

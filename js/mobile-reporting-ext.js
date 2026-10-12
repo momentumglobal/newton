@@ -33,7 +33,7 @@ function mobileRoleCardHtml(r, { pending = false } = {}) {
   const daysClass = days === null ? '' : days >= 45 ? 'alert' : days >= 30 ? 'warn' : '';
   const daysLabel = days !== null ? `${days}d open` : '';
   return `
-          <div class="m-role-card${pending ? " row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ` onclick="mobileSelectRole(${r.id})"`}>
+          <div class="m-role-card${pending ? " row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : act('mobileSelectRole', Number(r.id))}>
             <div class="m-role-title">${escHtml(r.RoleTitle)}</div>
             <div class="m-role-meta">${escHtml(tpList(r.TalentPartner).join(', ')) || '—'}</div>
             <div class="m-role-footer">
@@ -96,7 +96,7 @@ async function mobileRenderReportingSummary(main) {
     `;
     if (typeof runKpiCountUps === 'function') runKpiCountUps(main);
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderReportingSummary(document.getElementById('m-main'))`);
+    main.innerHTML = mobilePageError(e.message, ['mobileRetryReportingSummary']);
   }
 }
 
@@ -119,7 +119,7 @@ async function mobileRenderRolesFiltered(main) {
     if (!_mRolesCache) await mobileLoadRolesCache();
     mobileDrawRolesList(main);
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderRolesFiltered(document.getElementById('m-main'))`);
+    main.innerHTML = mobilePageError(e.message, ['mobileRetryRolesFiltered']);
   }
 }
 
@@ -132,14 +132,13 @@ function mobileDrawRolesList(main, pendingItem = null) {
 
   const controls = `
     <div class="m-action-row" style="margin-bottom:10px">
-      <button class="m-btn-primary" onclick="mobileOpenAddRoleSheet()">+ Add Role</button>
+      <button class="m-btn-primary"${act('mobileOpenAddRoleSheet')}>+ Add Role</button>
     </div>
     <div class="m-detail-panel" style="margin-bottom:12px">
       <input class="m-input" type="text" id="mrl-search" placeholder="Search role or TP..."
-        value="${escAttr(_mRoleSearch)}"
-        oninput="mobileRoleSearch(this.value)">
+        value="${escAttr(_mRoleSearch)}"${actOn('input', 'mobileRoleSearch', ACT_VALUE)}>
       <div class="m-form-group" style="margin:10px 0 0">
-        <select class="m-select" id="mrl-stage" onchange="mobileRoleStageFilter(this.value)">
+        <select class="m-select" id="mrl-stage"${actOn('change', 'mobileRoleStageFilter', ACT_VALUE)}>
           ${stageOpts}
         </select>
       </div>
@@ -339,13 +338,13 @@ async function mobileRenderRejectionForm(main, rolePreselected) {
         <div class="m-form-error" id="mrj-error"></div>
       </div>
       <div class="m-action-row">
-        <button class="m-btn-primary" id="mrj-submit" onclick="mobileSubmitRejection(${rolePreselected})">
+        <button class="m-btn-primary" id="mrj-submit"${act('mobileSubmitRejection', !!rolePreselected)}>
           Log Rejection
         </button>
       </div>
     `;
   } catch (e) {
-    main.innerHTML = mobilePageError(e.message, `mobileRenderRejectionForm(document.getElementById('m-sheet-body'), ${rolePreselected})`);
+        main.innerHTML = mobilePageError(e.message, ['mobileRetryRejectionForm', !!rolePreselected]);
   }
 }
 
@@ -395,3 +394,15 @@ async function mobileSubmitRejection(rolePreselected) {
     // already closed, so there's no form left to re-enable the button on.
   }
 }
+
+// === Delegated actions (N-302f, SEC-12b) ===
+// The Roles list controls, the Log Rejection submit and the Retry buttons of
+// the views in this file (see the note above mobilePageError in mobile-app.js).
+registerActions({
+  mobileRoleSearch,
+  mobileRoleStageFilter,
+  mobileSubmitRejection,
+  mobileRetryReportingSummary: () => mobileRenderReportingSummary(document.getElementById('m-main')),
+  mobileRetryRolesFiltered: () => mobileRenderRolesFiltered(document.getElementById('m-main')),
+  mobileRetryRejectionForm: (rolePreselected) => mobileRenderRejectionForm(document.getElementById('m-sheet-body'), rolePreselected),
+});

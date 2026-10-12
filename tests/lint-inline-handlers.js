@@ -50,18 +50,9 @@ var INLINE_HANDLER_EVENTS = [
 ];
 
 // Per-file inline handler counts. Lower an entry (or delete it at 0) in the
-// same change that removes handlers. N-303 empties this object.
-var INLINE_HANDLER_BASELINE = {
-  'js/mobile-analytics.js':          2,
-  'js/mobile-app.js':                5,
-  'js/mobile-home.js':               1,
-  'js/mobile-pages.js':              11,
-  'js/mobile-reporting-ext.js':      5,
-  'js/mobile-roleform.js':           4,
-  'js/mobile-sales.js':              5,
-  'js/mobile-scorecards.js':         3,
-  'mobile.html':                     5,
-};
+// same change that removes handlers. Empty since N-302f: every file is at 0,
+// so any new inline handler fails as "no INLINE_HANDLER_BASELINE entry".
+var INLINE_HANDLER_BASELINE = {};
 
 var _IH_ATTR_RE = new RegExp(
   '(^|[^\\w.$-])on(?:' + INLINE_HANDLER_EVENTS.join('|') + ')\\s*=\\s*(?:["\'`\\\\]|\\$\\{)', 'gi');
@@ -297,15 +288,12 @@ function lintActShadowing(jsSources) {
   return problems;
 }
 
-// N-302a: files still allowed to use the old code-string parameters. js/mobile-app.js
-// (mobilePageError's retryOnClick) until N-302f converts the mobile app.
-var LEGACY_PARAM_EXEMPT = ['js/mobile-app.js'];
-
+// N-302a: no file may use the old code-string parameters. (js/mobile-app.js
+// was exempt for mobilePageError's retryOnClick until N-302f.)
 // returns: [ 'message', ... ]
 function lintLegacyActionParams(jsSources) {
   var problems = [];
   Object.keys(jsSources || {}).sort().forEach(function (f) {
-    if (LEGACY_PARAM_EXEMPT.indexOf('js/' + f) !== -1) return;
     var code = _vendorStripJsComments(jsSources[f]).join('\n');
     var m = /\b(actionOnClick|retryOnClick)\b/.exec(code);
     if (m) problems.push('js/' + f + ': "' + m[1] + '" is retired - pass actionAct / retryAct, an act() argument list like [\'name\', arg]');

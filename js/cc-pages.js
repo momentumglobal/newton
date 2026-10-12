@@ -58,7 +58,7 @@ function ccTileHTML(id, title, rag, statsHTML, trendHTML = '') {
   const statusHTML = marker ? `<div class="cc-tile__status">${marker}</div>` : '';
   return `
     <div class="cc-tile cc-tile--${rag}" data-tile="${id}">
-      <button class="cc-close" onclick="event.stopPropagation(); collapseTile(this.closest('.cc-grid'))">✕</button>
+      <button class="cc-close"${act('ccCollapseTile.stop', ACT_EL)}>✕</button>
       ${statusHTML}
       <div class="cc-tile__title">${title}${trendHTML}</div>
       <div class="cc-tile__stats">${statsHTML}</div>
@@ -86,6 +86,15 @@ function collapseTile(grid) {
     t.querySelector('.cc-tile__detail').style.display = 'none';
   });
 }
+
+// N-302e: the tile's close button (js/actions.js). Registered with .stop in the markup.
+function ccCollapseTile(el) {
+  collapseTile(el.closest('.cc-grid'));
+}
+
+registerActions({
+  ccCollapseTile,
+});
 
 function loadTileDetail(tile, data) {
   const id = tile.dataset.tile;

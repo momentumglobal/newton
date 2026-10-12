@@ -52,11 +52,11 @@
         <div class="admin-sidebar-sub">Admin</div>
       </div>
       <nav class="admin-nav">
-        <a class="admin-nav-link" id="tab-assignments" onclick="switchTab('assignments')">User Assignments</a>
-        <a class="admin-nav-link" id="tab-leadership" onclick="switchTab('leadership')">Leadership Access</a>
-        <a class="admin-nav-link" id="tab-homepage" onclick="switchTab('homepage')">Homepage</a>
-        <a class="admin-nav-link" id="tab-ghost" onclick="switchTab('ghost')">Ghost Mode</a>
-        <a class="admin-nav-link" id="tab-datahealth" onclick="switchTab('datahealth')">Data Health</a>
+        <a class="admin-nav-link" id="tab-assignments" data-act='["switchTab","assignments"]'>User Assignments</a>
+        <a class="admin-nav-link" id="tab-leadership" data-act='["switchTab","leadership"]'>Leadership Access</a>
+        <a class="admin-nav-link" id="tab-homepage" data-act='["switchTab","homepage"]'>Homepage</a>
+        <a class="admin-nav-link" id="tab-ghost" data-act='["switchTab","ghost"]'>Ghost Mode</a>
+        <a class="admin-nav-link" id="tab-datahealth" data-act='["switchTab","datahealth"]'>Data Health</a>
       </nav>
       <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global" class="admin-nav-logo">
       <div class="admin-sidebar-footer">
@@ -125,6 +125,9 @@
       renderOsAdminPage(tab);
     }
 
+    // N-302e: switchTab is declared in this classic <script>, which runs before the
+    // deferred js/actions.js, so register on DOMContentLoaded. N-303 drops the wrapper.
+    document.addEventListener('DOMContentLoaded', () => registerActions({ switchTab }));
     document.addEventListener('DOMContentLoaded', init);
   </script>
 </body>

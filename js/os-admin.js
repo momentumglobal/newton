@@ -20,8 +20,7 @@ const tooltips = {
   datahealth:  'Row counts per list and index status on the columns N-093 is about to filter server-side.',
 };
   const tabBar = tabs.map(t =>
-    `<button class="btn-filter${_osAdminTab === t ? ' active' : ''}"
-      onclick="renderOsAdminPage('${t}')">${labels[t]}<span class="help-tip">?<span class="help-tip-text">${tooltips[t]}</span></span></button>`
+    `<button class="btn-filter${_osAdminTab === t ? ' active' : ''}"${act('renderOsAdminPage', t)}>${labels[t]}<span class="help-tip">?<span class="help-tip-text">${tooltips[t]}</span></span></button>`
   ).join('');
   let content = '';
   if (tab === 'assignments') content = await buildAssignmentsTab();
@@ -74,9 +73,9 @@ async function buildAssignmentsTab(editId = null) {
       <td>${escHtml(roleLabel(a) || '—')}</td>
       <td>
         <div class="row-actions" style="gap:12px;align-items:center">
-          <a href="#" onclick="showEditAssignment(${a.id})">Edit</a>
-          <button class="btn-secondary" onclick="toggleAssignmentActive(${a.id}, ${!isActive})">${isActive ? 'Deactivate' : 'Reactivate'}</button>
-          <button class="btn-danger" onclick="deleteOsAdminRecord('UserAssignments',${a.id})">Remove</button>
+          <a href="#"${act('showEditAssignment', Number(a.id))}>Edit</a>
+          <button class="btn-secondary"${act('toggleAssignmentActive', Number(a.id), !isActive)}>${isActive ? 'Deactivate' : 'Reactivate'}</button>
+          <button class="btn-danger"${act('deleteOsAdminRecord', 'UserAssignments', Number(a.id))}>Remove</button>
         </div>
       </td>
     </tr>`;
@@ -118,8 +117,8 @@ async function buildAssignmentsTab(editId = null) {
       </div>
       <div id="assign-error" class="form-error"></div>
       <div style="display:flex;gap:8px">
-        <button class="btn-primary" onclick="submitAssignment(${editRecord.id})">Save Changes</button>
-        <button class="btn-secondary" onclick="renderOsAdminPage('assignments')">Cancel</button>
+        <button class="btn-primary" id="osa-submit-assignment"${act('submitAssignment', Number(editRecord.id))}>Save Changes</button>
+        <button class="btn-secondary"${act('renderOsAdminPage', 'assignments')}>Cancel</button>
       </div>
     </div>
   ` : `
@@ -154,14 +153,13 @@ async function buildAssignmentsTab(editId = null) {
         </div>
       </div>
       <div id="assign-error" class="form-error"></div>
-      <button class="btn-primary" onclick="submitAssignment()">Add Assignment</button>
+      <button class="btn-primary" id="osa-submit-assignment"${act('submitAssignment')}>Add Assignment</button>
     </div>
   `;
   return `
     <div style="margin-bottom:12px;display:flex;align-items:center;gap:16px">
       <label style="font-size:13px;cursor:pointer">
-        <input type="checkbox" ${_showInactiveAssignments ? 'checked' : ''}
-          onchange="_toggleShowInactiveAssignments(this.checked)"
+        <input type="checkbox" ${_showInactiveAssignments ? 'checked' : ''}${actOn('change', '_toggleShowInactiveAssignments', ACT_CHECKED)}
           style="margin-right:6px">
         Show inactive assignments
       </label>
@@ -206,7 +204,7 @@ async function submitAssignment(editId = null) {
       (role !== 'admin' || email.toLowerCase() !== (getCurrentUser()?.email || '').toLowerCase())) {
     errEl.textContent = _OSA_SELF_GUARD_MSG; errEl.style.display = 'block'; return;
   }
-  const btn = document.querySelector('.btn-primary[onclick^="submitAssignment"]') ||
+  const btn = document.getElementById('osa-submit-assignment') ||
               document.querySelector('.form-container .btn-primary');
   setButtonLoading(btn);
   // N-281: an admin row applies across all projects — always ProjectID 0, no customer.
@@ -263,8 +261,8 @@ async function buildLeadershipTab() {
       <td>
         <div class="row-actions" style="gap:6px">
           <input type="file" id="lead-photofile-${l.id}" accept="${uploadAcceptAttr('PHOTO')}">
-          <button class="btn-secondary" onclick="uploadLeadershipPhoto(${l.id})">Upload photo</button>
-          <button class="btn-danger" onclick="deleteOsAdminRecord('LeadershipAccess',${l.id})">Remove</button>
+          <button class="btn-secondary"${act('uploadLeadershipPhoto', Number(l.id))}>Upload photo</button>
+          <button class="btn-danger"${act('deleteOsAdminRecord', 'LeadershipAccess', Number(l.id))}>Remove</button>
         </div>
       </td>
     </tr>`).join('');
@@ -294,7 +292,7 @@ async function buildLeadershipTab() {
         <input type="file" id="lead-photofile" accept="${uploadAcceptAttr('PHOTO')}">
       </div>
       <div id="lead-error" class="form-error"></div>
-      <button class="btn-primary" onclick="submitLeadershipUser()">Add User</button>
+      <button class="btn-primary" id="osa-submit-leadership"${act('submitLeadershipUser')}>Add User</button>
     </div>
   `;
 }
@@ -309,7 +307,7 @@ async function submitLeadershipUser() {
     const photoCheck = validateUpload(file, 'PHOTO');
     if (!photoCheck.ok) { errEl.textContent = photoCheck.reason; errEl.style.display = 'block'; return; }
   }
-  const btn = document.querySelector('.btn-primary[onclick="submitLeadershipUser()"]');
+  const btn = document.getElementById('osa-submit-leadership');
   setButtonLoading(btn);
   try {
     const saved = await createItem('LeadershipAccess', { Title: email, UserName: name });
@@ -370,7 +368,7 @@ async function buildHomepageTab() {
         <div style="font-size:13px;color:var(--text-label);margin-top:2px">${e.desc}</div>
       </div>
       <button class="btn-secondary"
-        onclick="setFx('${active === e.key ? 'none' : e.key}')" style="min-width:80px">
+        ${act('setFx', active === e.key ? 'none' : e.key)} style="min-width:80px">
         ${active === e.key ? 'On' : 'Off'}
       </button>
     </div>`).join('');
@@ -390,8 +388,8 @@ async function buildHomepageTab() {
       </div>
       <div id="announcement-status" style="display:none;font-size:13px;margin-bottom:12px"></div>
       <div style="display:flex;gap:10px;align-items:center">
-        <button class="btn-primary" onclick="submitAnnouncement()">Save</button>
-        <button class="btn-secondary" onclick="clearAnnouncement()">Clear Banner</button>
+        <button class="btn-primary" id="osa-submit-announcement"${act('submitAnnouncement')}>Save</button>
+        <button class="btn-secondary"${act('clearAnnouncement')}>Clear Banner</button>
       </div>
     </div>
     <h3>Seasonal Effects</h3>
@@ -412,7 +410,7 @@ async function setFx(key) {
 async function submitAnnouncement() {
   const msg    = document.getElementById('announcement-text').value.trim();
   const status = document.getElementById('announcement-status');
-  const btn    = document.querySelector('.btn-primary[onclick="submitAnnouncement()"]');
+  const btn    = document.getElementById('osa-submit-announcement');
   status.style.display = 'none';
   setButtonLoading(btn);
   try {
@@ -456,8 +454,7 @@ async function buildGhostTab() {
     </option>`).join('');
 
   const activateBtn = `
-    <button class="btn-primary" style="margin-top:16px"
-      onclick="activateGhostUser()">
+    <button class="btn-primary" style="margin-top:16px"${act('activateGhostUser')}>
       Activate Ghost Mode
     </button>`;
 
@@ -486,8 +483,7 @@ async function buildGhostTab() {
       </div>
       ${activateBtn}
       ${currentEmail ? `
-        <button class="btn-danger" style="margin-top:12px"
-          onclick="deactivateGhost()">Exit Ghost Mode</button>` : ''}
+        <button class="btn-danger" style="margin-top:12px"${act('deactivateGhost')}>Exit Ghost Mode</button>` : ''}
     </div>
   `;
 }
@@ -711,7 +707,7 @@ function _dhRenderDataIntegrityHtml(data) {
         <tr>
           <td>WeeklyActivity rows missing ProjectID</td>
           <td>${nullProjectOk ? nullProjectCount.toLocaleString('en-GB') : '<span class="dh-badge dh-badge-danger">Query error</span>'}</td>
-          <td>${nullProjectOk && nullProjectCount ? '<span class="dh-badge dh-badge-warn">Amber</span> <button class="btn-secondary" onclick="repairNullProjectActivity()">Repair</button>' : ''}</td>
+          <td>${nullProjectOk && nullProjectCount ? `<span class="dh-badge dh-badge-warn">Amber</span> <button class="btn-secondary"${act('repairNullProjectActivity')}>Repair</button>` : ''}</td>
         </tr>
         <tr>
           <td>WeeklyActivity rows missing WeekEndingDate</td>
@@ -846,7 +842,7 @@ function _dhAckedFunnelsHtml(partition, acksOk, tp) {
           <td>${escHtml(latest.AcknowledgedBy || '')}</td>
           <td>${escHtml(_dhInstant(latest.AcknowledgedAt))}</td>
           <td>${latest.Note ? escHtml(latest.Note) : '<span class="dh-muted">—</span>'}</td>
-          <td><button class="btn-secondary" onclick="restoreFunnelFlag('${escJsAttr(String(f.roleId))}')">Restore</button></td>
+          <td><button class="btn-secondary"${act('restoreFunnelFlag', String(f.roleId))}>Restore</button></td>
         </tr>`;
   }).join('');
   return `
@@ -883,7 +879,7 @@ function _dhRenderWeeklyAnomaliesHtml(data) {
           <td>${tp(f.tp)}</td>
           <td>${escHtml(f.stage)}</td>
           <td>${_dhBreachLines(f).map(escHtml).join('<br>')}${reappeared.has(String(f.roleId)) ? '<br><span class="dh-muted">Acknowledged earlier at different totals</span>' : ''}</td>
-          <td><button class="btn-secondary" onclick="acknowledgeFunnelFlag('${escJsAttr(String(f.roleId))}')">Acknowledge</button></td>
+          <td><button class="btn-secondary"${act('acknowledgeFunnelFlag', String(f.roleId))}>Acknowledge</button></td>
         </tr>`,
   });
   const ackedFunnels = ok ? _dhAckedFunnelsHtml(part, acksOk, tp) : '';
@@ -1086,7 +1082,7 @@ function _dhRenderErrorTelemetryHtml(data) {
       <td>${g.count}</td>
       <td>${usersDisplay}</td>
       <td>${lastSeenDisplay}</td>
-      <td><button class="btn-secondary" onclick="acknowledgeDiagnosticsGroup('${escJsAttr(g.ids.join(','))}')">Acknowledge</button></td>
+      <td><button class="btn-secondary"${act('acknowledgeDiagnosticsGroup', g.ids.join(','))}>Acknowledge</button></td>
     </tr>`;
   }).join('');
 
@@ -1141,7 +1137,7 @@ function _dhRenderRoleHistoryBackfillHtml() {
       no undo here — to roll back, filter RoleHistory by Source = ${src} in
       SharePoint and delete those rows.
     </p>
-    <button class="btn-secondary" onclick="runRoleHistoryBackfillDryRun()">Dry run</button>
+    <button class="btn-secondary"${act('runRoleHistoryBackfillDryRun')}>Dry run</button>
     <div id="dh-rh-backfill"></div>
 `;
 }
@@ -1264,7 +1260,7 @@ function _dhRenderRoleHistoryBackfillPlanHtml(p) {
     : '';
 
   const action = p.rowsTotal
-    ? `<button class="btn-primary" onclick="writeRoleHistoryBackfill()">Write ${p.rowsTotal.toLocaleString('en-GB')} rows to RoleHistory</button>
+    ? `<button class="btn-primary"${act('writeRoleHistoryBackfill')}>Write ${p.rowsTotal.toLocaleString('en-GB')} rows to RoleHistory</button>
     <p class="dh-note" id="dh-rh-backfill-progress"></p>`
     : '<p class="dh-note">Nothing to write.</p>';
 
@@ -1361,7 +1357,7 @@ function _dhRenderHeadcountMigrationHtml() {
       merges roles and never rewrites RoleHistory. Safe to re-run — a second
       dry run should report nothing to write.
     </p>
-    <button class="btn-secondary" onclick="runHeadcountMigrationDryRun()">Dry run</button>
+    <button class="btn-secondary"${act('runHeadcountMigrationDryRun')}>Dry run</button>
     <div id="dh-hc-migration"></div>
 `;
 }
@@ -1400,7 +1396,7 @@ function _dhRenderHeadcountPlanHtml(p) {
     + list('Hiring Plan rows linked to roles', p.coeLinkedRows.map(r => escHtml(r.title || ('Row ' + r.id)) + ' → role ' + escHtml(r.roleId)));
 
   const action = p.items.length
-    ? `<button class="btn-primary" onclick="writeHeadcountMigrationNow()">Write changes for ${p.items.length.toLocaleString('en-GB')} roles</button>
+    ? `<button class="btn-primary"${act('writeHeadcountMigrationNow')}>Write changes for ${p.items.length.toLocaleString('en-GB')} roles</button>
     <p class="dh-note" id="dh-hc-migration-progress"></p>`
     : '<p class="dh-note">Nothing to write.</p>';
 
@@ -1500,7 +1496,7 @@ function _dhRenderCoELinkMigrationHtml() {
       first headcount. Run it after the headcount migration above. Safe to
       re-run — a second dry run should report nothing to link.
     </p>
-    <button class="btn-secondary" onclick="runCoELinkMigrationDryRun()">Dry run</button>
+    <button class="btn-secondary"${act('runCoELinkMigrationDryRun')}>Dry run</button>
     <div id="dh-coe-link-migration"></div>
 `;
 }
@@ -1539,7 +1535,7 @@ function _dhRenderCoELinkPlanHtml(m) {
     + list('Headcount already on another row — re-link on the Hiring Plan', p.conflict.map(x => rowLabel(x.row) + ' → ' + roleLabel(x.row.LinkedRoleID)));
 
   const action = p.items.length
-    ? `<button class="btn-primary" onclick="writeCoELinkMigrationNow()">Link ${p.items.length.toLocaleString('en-GB')} rows</button>
+    ? `<button class="btn-primary"${act('writeCoELinkMigrationNow')}>Link ${p.items.length.toLocaleString('en-GB')} rows</button>
     <p class="dh-note" id="dh-coe-link-progress"></p>`
     : '<p class="dh-note">Nothing to write.</p>';
 
@@ -1629,7 +1625,7 @@ function _dhRenderPeoplePayMigrationHtml() {
       Copies People.Salary into the restricted PeoplePay list. Only creates
       missing rows. Never overwrites PeoplePay. Safe to re-run.
     </p>
-    <button class="btn-secondary" onclick="runPeoplePayMigrationDryRun()">Dry run</button>
+    <button class="btn-secondary"${act('runPeoplePayMigrationDryRun')}>Dry run</button>
     <div id="dh-pp-migration"></div>
 `;
 }
@@ -1653,7 +1649,7 @@ function _dhRenderPeoplePayPlanHtml(p) {
     ? `<p class="dh-note">Duplicate PeoplePay rows for PersonID: ${p.duplicates.map(x => escHtml(x.personId)).join(', ')}. Delete the extras in SharePoint (the lowest item id is the one Newton uses).</p>`
     : '';
   const action = c.toCreate
-    ? `<button class="btn-primary" onclick="writePeoplePayMigrationNow()">Write ${c.toCreate.toLocaleString('en-GB')} rows to PeoplePay</button>
+    ? `<button class="btn-primary"${act('writePeoplePayMigrationNow')}>Write ${c.toCreate.toLocaleString('en-GB')} rows to PeoplePay</button>
     <p class="dh-note" id="dh-pp-migration-progress"></p>`
     : '<p class="dh-note">Nothing to create.</p>';
 
@@ -1720,9 +1716,34 @@ async function writePeoplePayMigrationNow() {
     { type: result.failed ? 'error' : 'success' });
 }
 
-// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
-// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+// N-302a / N-302e: delegated actions this file owns (js/actions.js).
+// Never register a name twice.
 registerActions({
   setOsaSearch,
   setOsaSort,
+  renderOsAdminPage,
+  showEditAssignment,
+  toggleAssignmentActive,
+  deleteOsAdminRecord,
+  submitAssignment,
+  _toggleShowInactiveAssignments,
+  uploadLeadershipPhoto,
+  submitLeadershipUser,
+  setFx,
+  submitAnnouncement,
+  clearAnnouncement,
+  activateGhostUser,
+  deactivateGhost,
+  repairNullProjectActivity,
+  restoreFunnelFlag,
+  acknowledgeFunnelFlag,
+  acknowledgeDiagnosticsGroup,
+  runRoleHistoryBackfillDryRun,
+  writeRoleHistoryBackfill,
+  runHeadcountMigrationDryRun,
+  writeHeadcountMigrationNow,
+  runCoELinkMigrationDryRun,
+  writeCoELinkMigrationNow,
+  runPeoplePayMigrationDryRun,
+  writePeoplePayMigrationNow,
 });

@@ -24,8 +24,7 @@ async function renderAdminTab(tab) {
     checklists:  'Build the Project and Role workflow checklists and switch them on.',
   };
   const tabBar = tabs.map(t =>
-    `<button class="btn-filter${_adminTab === t ? ' active' : ''}"
-      onclick="renderAdminTab('${t}')">${labels[t]}<span class="help-tip">?<span class="help-tip-text">${tooltips[t]}</span></span></button>`
+    `<button class="btn-filter${_adminTab === t ? ' active' : ''}"${act('renderAdminTab', t)}>${labels[t]}<span class="help-tip">?<span class="help-tip-text">${tooltips[t]}</span></span></button>`
   ).join('');
 
   let content = '';
@@ -50,7 +49,7 @@ async function buildDepartmentsTab() {
   const rows = depts.map(d => `
     <tr>
       <td>${escHtml(d.DepartmentName)}</td>
-      <td><div class="row-actions"><button class="btn-danger" onclick="deleteAdminRecord('Departments',${d.id})">Remove</button></div></td>
+      <td><div class="row-actions"><button class="btn-danger"${act('deleteAdminRecord', 'Departments', Number(d.id))}>Remove</button></div></td>
     </tr>`).join('');
   return `
     <table class="data-table" style="margin:0 0 24px">
@@ -64,7 +63,7 @@ async function buildDepartmentsTab() {
         <input type="text" id="dept-name" placeholder="e.g. Software Engineering">
       </div>
       <div id="dept-error" class="form-error"></div>
-      <button class="btn-primary" onclick="submitDepartment()">Add Functional Area</button>
+      <button class="btn-primary" id="admin-submit-department"${act('submitDepartment')}>Add Functional Area</button>
     </div>
   `;
 }
@@ -77,7 +76,7 @@ async function submitDepartment() {
     errEl.textContent = 'Functional area name is required.';
     errEl.style.display = 'block'; return;
   }
-  const btn = document.querySelector('.btn-primary[onclick="submitDepartment()"]');
+  const btn = document.getElementById('admin-submit-department');
   setButtonLoading(btn);
   try {
     await createItem('Departments', { Title: name });
@@ -111,7 +110,7 @@ async function buildDeleteTab() {
     <div class="form-container" style="padding:0;max-width:500px">
       <div class="form-group">
         <label>List *</label>
-        <select id="del-list" onchange="loadDeleteItems(this.value)">
+        <select id="del-list"${actOn('change', 'loadDeleteItems', ACT_VALUE)}>
           <option value="">-- Select list --</option>
           ${listOptions}
         </select>
@@ -126,11 +125,11 @@ async function buildDeleteTab() {
       <div id="del-confirm" class="form-danger-box">
         Are you sure? This record will be permanently deleted.
         <div style="margin-top:10px;display:flex;gap:8px">
-          <button class="btn-primary btn-danger-confirm" onclick="confirmDelete()">Yes, Delete</button>
-          <button class="btn-secondary" onclick="cancelDelete()">Cancel</button>
+          <button class="btn-primary btn-danger-confirm"${act('confirmDelete')}>Yes, Delete</button>
+          <button class="btn-secondary"${act('cancelDelete')}>Cancel</button>
         </div>
       </div>
-      <button class="btn-primary" id="del-btn" onclick="initiateDelete()">Delete Record</button>
+      <button class="btn-primary" id="del-btn"${act('initiateDelete')}>Delete Record</button>
     </div>
   `;
 }
@@ -295,7 +294,7 @@ async function buildSnapshotsTab() {
       Running it again in the same week updates the existing rows rather than duplicating them.
       Utilisation is not tracked per project — see N-115.
     </p>
-    <button class="btn-primary" id="snapshot-btn" onclick="writeSnapshotsNow()">Write Snapshot Now</button>
+    <button class="btn-primary" id="snapshot-btn"${act('writeSnapshotsNow')}>Write Snapshot Now</button>
     <div id="snapshot-status" style="display:none;font-size:13px;margin:12px 0"></div>
     <table class="data-table" style="margin-top:20px">
       <thead><tr><th>Project</th><th>Week Ending</th><th>Active Pipelines</th><th>Avg Days Open</th><th>Placements</th><th>Flagged</th></tr></thead>
@@ -397,3 +396,15 @@ async function writeSnapshotsNow() {
     status.style.display = 'block';
   }
 }
+
+// N-302e: delegated actions this file owns (js/actions.js). Never register a name twice.
+registerActions({
+  renderAdminTab,
+  deleteAdminRecord,
+  submitDepartment,
+  loadDeleteItems,
+  confirmDelete,
+  cancelDelete,
+  initiateDelete,
+  writeSnapshotsNow,
+});

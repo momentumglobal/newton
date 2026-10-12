@@ -20,11 +20,11 @@
     <div id="announcement-ticker"><span id="announcement-ticker-inner"></span></div>
     <a id="admin-link" href="admin.html" style="display:none;font-family:'Polymath','Segoe UI',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.35);text-decoration:none;margin-right:16px;">Admin</a>
     <div class="nav-notif-slot home-notif-slot" id="notif-slot"></div>
-    <button id="ql-trigger" class="ql-trigger" onclick="openQuickLinks()" style="display:none;" title="Quick Links">
+    <button id="ql-trigger" class="ql-trigger" data-act="openQuickLinks" style="display:none;" title="Quick Links">
       <i data-lucide="zap" style="width:16px;height:16px;stroke-width:1.8;"></i>
       <span style="font-size:13px;margin-left:6px;">Quick Links</span>
     </button>
-    <button class="home-signout" onclick="handleSignOut()">Sign out</button>
+    <button class="home-signout" data-act="handleSignOut">Sign out</button>
   </div>
   <div class="home-center">
     <div class="home-greeting" id="home-greeting">Welcome back</div>
@@ -173,7 +173,7 @@ function renderCCBadges(health, people, util, revenue) {
     <a href="command-centre.html" class="cc-home-banner">
       <div class="cc-home-banner__top">
         <div class="cc-home-banner__title">Command Centre</div>
-        <button class="cc-refresh" title="Refresh" onclick="event.preventDefault(); refreshCCBanner()">↻</button>
+        <button class="cc-refresh" title="Refresh"${act('refreshCCBanner.prevent')}>↻</button>
       </div>
       <div class="cc-home-banner__sub">Executive Operations View</div>
       <div class="cc-home-banner__badges">
@@ -339,14 +339,24 @@ async function renderCommandCentreBanner(role) {
       `).join('');
       lucide.createIcons();
     }
+    // N-302e: these functions are declared in this classic <script>, which runs
+    // before the deferred js/actions.js, so registerActions() does not exist yet
+    // when it is parsed. Register on DOMContentLoaded, when every deferred script
+    // has run. N-303 moves this script into a file and drops the wrapper.
+    document.addEventListener('DOMContentLoaded', () => registerActions({
+      openQuickLinks,
+      closeQuickLinks,
+      handleSignOut,
+      refreshCCBanner,
+    }));
     document.addEventListener('DOMContentLoaded', initHome);
   </script>
 <!-- Quick Links Drawer -->
-<div id="ql-overlay" class="ql-overlay" onclick="closeQuickLinks()"></div>
+<div id="ql-overlay" class="ql-overlay" data-act="closeQuickLinks"></div>
 <div id="ql-drawer" class="ql-drawer">
   <div class="ql-header">
     <span class="ql-title">Quick Links</span>
-    <button class="ql-close" onclick="closeQuickLinks()">
+    <button class="ql-close" data-act="closeQuickLinks">
       <i data-lucide="x" style="width:16px;height:16px;stroke-width:2;"></i>
     </button>
   </div>

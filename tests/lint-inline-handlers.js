@@ -15,8 +15,10 @@
 //                        attribute (CSP blocks them as well). Flat ban.
 //   lintActNames         every literal action name used in act()/actOn() or a
 //                        data-act attribute is registered by some
-//                        registerActions({...}) call in js/, and no name is
-//                        registered twice.
+//                        registerActions({...}) call in js/ or in a root *.html
+//                        page's inline <script> (N-302e), and no name is
+//                        registered twice. act()/actOn() calls inside those
+//                        inline scripts are checked too.
 //   lintLegacyActionParams  (N-302a) the code-string parameters actionOnClick /
 //                        retryOnClick are gone from js/ (replaced by the
 //                        actionAct / retryAct argument arrays).
@@ -50,12 +52,6 @@ var INLINE_HANDLER_EVENTS = [
 // Per-file inline handler counts. Lower an entry (or delete it at 0) in the
 // same change that removes handlers. N-303 empties this object.
 var INLINE_HANDLER_BASELINE = {
-  'Readme.html':                     18,
-  'admin.html':                      5,
-  'index.html':                      5,
-  'js/admin.js':                     9,
-  'js/cc-pages.js':                  1,
-  'js/market-report.js':             19,
   'js/mobile-analytics.js':          2,
   'js/mobile-app.js':                5,
   'js/mobile-home.js':               1,
@@ -64,8 +60,6 @@ var INLINE_HANDLER_BASELINE = {
   'js/mobile-roleform.js':           4,
   'js/mobile-sales.js':              5,
   'js/mobile-scorecards.js':         3,
-  'js/os-admin.js':                  30,
-  'market-reporting.html':           1,
   'mobile.html':                     5,
 };
 
@@ -170,11 +164,24 @@ function _ihTopLevelEntries(body) {
   return entries.map(function (e) { return e.trim(); }).filter(Boolean);
 }
 
-// { registered: { name: ['js/file.js', ...] }, problems: [ 'message', ... ] }
-function readActionRegistrations(jsSources) {
+// Bodies of the inline <script> blocks of an HTML page (the ones without a src
+// attribute), HTML comments blanked. N-302e: index.html, admin.html and
+// Readme.html declare their functions in classic inline scripts.
+function _ihInlineScripts(html) {
+  var out = [], re = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi, m;
+  var text = _vendorStripHtmlComments(html);
+  while ((m = re.exec(text)) !== null) {
+    if (!/\bsrc\s*=/i.test(m[1])) out.push(m[2]);
+  }
+  return out;
+}
+
+// { registered: { name: ['js/file.js', 'page.html', ...] }, problems: [ 'message', ... ] }
+// htmlSources is optional (N-302e): a registerActions({...}) in a root page's
+// inline <script> counts too, labelled with the page name.
+function readActionRegistrations(jsSources, htmlSources) {
   var registered = {}, problems = [];
-  Object.keys(jsSources || {}).sort().forEach(function (f) {
-    var code = _vendorStripJsComments(jsSources[f]).join('\n');
+  function scan(label, code) {
     var re = /(^|[^\w.$])registerActions\s*\(/g, m;
     while ((m = re.exec(code)) !== null) {
       var before = code.slice(Math.max(0, m.index - 20), m.index + m[1].length);
@@ -182,15 +189,23 @@ function readActionRegistrations(jsSources) {
       var open = code.indexOf('(', m.index + m[1].length);
       var j = open + 1;
       while (j < code.length && /\s/.test(code[j])) j++;
-      if (code[j] !== '{') { problems.push('js/' + f + ': registerActions must be passed an object literal'); continue; }
+      if (code[j] !== '{') { problems.push(label + ': registerActions must be passed an object literal'); continue; }
       var body = _ihBalanced(code, j);
-      if (body === null) { problems.push('js/' + f + ': unbalanced registerActions({...})'); continue; }
+      if (body === null) { problems.push(label + ': unbalanced registerActions({...})'); continue; }
       _ihTopLevelEntries(body).forEach(function (entry) {
         var k = /^([A-Za-z_$][\w$]*)\s*(?::|\(|$)/.exec(entry);
-        if (!k) { problems.push('js/' + f + ': cannot read registerActions key: ' + entry.slice(0, 40)); return; }
-        (registered[k[1]] = registered[k[1]] || []).push('js/' + f);
+        if (!k) { problems.push(label + ': cannot read registerActions key: ' + entry.slice(0, 40)); return; }
+        (registered[k[1]] = registered[k[1]] || []).push(label);
       });
     }
+  }
+  Object.keys(jsSources || {}).sort().forEach(function (f) {
+    scan('js/' + f, _vendorStripJsComments(jsSources[f]).join('\n'));
+  });
+  Object.keys(htmlSources || {}).sort().forEach(function (f) {
+    _ihInlineScripts(htmlSources[f]).forEach(function (block) {
+      scan(f, _vendorStripJsComments(block).join('\n'));
+    });
   });
   return { registered: registered, problems: problems };
 }
@@ -214,23 +229,29 @@ function readActionUses(jsSources, htmlSources) {
       if (typeof v === 'string' && idRe.test(v)) uses.push({ file: file, name: v.split('.')[0] });
     }
   }
+  function callUses(file, code) {
+    var m, actRe = /(^|[^\w.$])act\s*\(\s*(['"`])([^'"`]+)\2/g;
+    while ((m = actRe.exec(code)) !== null) uses.push({ file: file, name: m[3].split('.')[0] });
+    var onRe = /(^|[^\w.$])actOn\s*\(\s*(['"`])[^'"`]*\2\s*,\s*(['"`])([^'"`]+)\3/g;
+    while ((m = onRe.exec(code)) !== null) uses.push({ file: file, name: m[4].split('.')[0] });
+  }
   Object.keys(jsSources || {}).sort().forEach(function (f) {
     var code = _vendorStripJsComments(jsSources[f]).join('\n');
-    var m, actRe = /(^|[^\w.$])act\s*\(\s*(['"`])([^'"`]+)\2/g;
-    while ((m = actRe.exec(code)) !== null) uses.push({ file: 'js/' + f, name: m[3].split('.')[0] });
-    var onRe = /(^|[^\w.$])actOn\s*\(\s*(['"`])[^'"`]*\2\s*,\s*(['"`])([^'"`]+)\3/g;
-    while ((m = onRe.exec(code)) !== null) uses.push({ file: 'js/' + f, name: m[4].split('.')[0] });
+    callUses('js/' + f, code);
     attrUses('js/' + f, code);
   });
   Object.keys(htmlSources || {}).sort().forEach(function (f) {
     attrUses(f, _vendorStripHtmlComments(htmlSources[f]));
+    _ihInlineScripts(htmlSources[f]).forEach(function (block) {
+      callUses(f, _vendorStripJsComments(block).join('\n'));
+    });
   });
   return uses;
 }
 
 // returns: [ 'message', ... ]
 function lintActNames(jsSources, htmlSources) {
-  var reg = readActionRegistrations(jsSources);
+  var reg = readActionRegistrations(jsSources, htmlSources);
   var problems = reg.problems.slice();
   Object.keys(reg.registered).sort().forEach(function (name) {
     if (reg.registered[name].length > 1) problems.push('action "' + name + '" registered more than once: ' + reg.registered[name].join(', '));

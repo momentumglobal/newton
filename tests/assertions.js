@@ -4318,6 +4318,45 @@ var ASSERTIONS = [
       });
     },
   },
+  // ---- N-302e (SEC-12b step 2): Market Analytics, Command Centre, Admin, shell pages ----
+  {
+    name: 'N-302e lints: registrations and act() calls in the inline scripts of root HTML pages are read; only the mobile app keeps inline handlers',
+    fn: function () {
+      // Controls first (run in the browser harness too).
+      const page = '<html><body><a data-act="alpha"></a>'
+        + '<script src="js/x.js" defer></script>'
+        + '<script>\n  // registerActions({ commentedOut });\n  document.addEventListener("DOMContentLoaded", () => registerActions({\n    alpha,\n    beta,\n  }));\n'
+        + '  const h = `<b${act("beta.prevent")}${actOn("change", "gamma", ACT_VALUE)}>`;\n</script></body></html>';
+      const reg0 = readActionRegistrations({}, { 'p.html': page });
+      _assertEqual(reg0.registered, { alpha: ['p.html'], beta: ['p.html'] }, 'inline-script registerActions read (commented example and src script ignored)');
+      _assertEqual(reg0.problems, [], 'no problems');
+      const uses = readActionUses({}, { 'p.html': page }).map(u => u.file + ':' + u.name).sort();
+      _assertEqual(uses, ['p.html:alpha', 'p.html:beta', 'p.html:gamma'], 'attribute and inline-script act()/actOn() uses read');
+      const un = lintActNames({}, { 'p.html': page });
+      _assertEqual(un.length === 1 && /p\.html: action "gamma" is not registered/.test(un[0]), true, 'an unregistered name used in an inline script is flagged: ' + un);
+      const dup = lintActNames({ 'r.js': 'registerActions({ alpha: f });' }, { 'p.html': page.replace('gamma', 'beta') });
+      _assertEqual(dup.length === 1 && /"alpha" registered more than once: js\/r\.js, p\.html/.test(dup[0]), true, 'a name registered in js/ and in a page is flagged: ' + dup);
+      _assertEqual(lintActNames({}, { 'p.html': '<script>registerActions(m);</script>' }).length, 1, 'non-literal registration in a page flagged');
+      _assertEqual(readActionRegistrations({ 'r.js': 'registerActions({ a });' }).registered, { a: ['js/r.js'] }, 'the html argument is optional');
+      if (typeof ALL_SOURCES === 'undefined' || typeof ALL_HTML === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const regs = readActionRegistrations(ALL_SOURCES, ALL_HTML).registered;
+      _assertEqual(regs.switchTab, ['admin.html'], 'admin.html registers switchTab');
+      ['openQuickLinks', 'closeQuickLinks', 'handleSignOut', 'refreshCCBanner'].forEach(n =>
+        _assertEqual(regs[n], ['index.html'], 'index.html registers ' + n));
+      _assertEqual(regs.show, ['Readme.html'], 'Readme.html registers show');
+      _assertEqual(regs.ccCollapseTile, ['js/cc-pages.js'], 'cc-pages.js registers ccCollapseTile');
+      _assertEqual(regs.submitAssignment, ['js/os-admin.js'], 'os-admin.js registers submitAssignment');
+      _assertEqual(regs.mrTitleInput, ['js/market-report.js'], 'market-report.js registers mrTitleInput');
+      _assertEqual(regs.renderAdminTab, ['js/admin.js'], 'admin.js registers renderAdminTab');
+      // Only the mobile app still has inline handlers.
+      _assertEqual(Object.keys(INLINE_HANDLER_BASELINE).filter(f => !/mobile/.test(f)), [], 'every non-mobile file is at 0 (no baseline entry)');
+      // Nothing selects an element by its handler text any more.
+      Object.keys(ALL_SOURCES).forEach(f => _assertEqual(/\[onclick[\^$*]?=/.test(ALL_SOURCES[f]), false, f + ': no [onclick=…] selector'));
+      Object.keys(ALL_HTML).forEach(f => _assertEqual(/\[onclick[\^$*]?=/.test(ALL_HTML[f]), false, f + ': no [onclick=…] selector'));
+    },
+  },
 ];
 
 // N-301 test helpers — stub elements/events for js/actions.js (no DOM in the vm).

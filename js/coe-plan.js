@@ -285,9 +285,9 @@ function coeGanttHtml(rows, opts = {}) {
   }).join('');
 
   const bodyHtml = rows.map((row, i) => {
-    const { hc, spans: act } = actuals[i];
+    const { hc, spans: actual } = actuals[i];
     const linked = !_isBlankId(row.LinkedHeadcountID);
-    const mk = coeActualMarkerWeeks(act, tStart);
+    const mk = coeActualMarkerWeeks(actual, tStart);
     const cells = [];
     for (let w = 0; w < nWeeks; w++) {
       const ph = coePhaseAt(row, tStart, w);
@@ -295,8 +295,8 @@ function coeGanttHtml(rows, opts = {}) {
       const cls = ['coe-cell',
         ph ? `coe-cell--${ph}` : '',
         w === todayIdx ? 'coe-cell--today' : ''].filter(Boolean).join(' ');
-      const tip = [isHire ? `Hire confirmed ${coeFmtShort(act.nStart)}` : '',
-                   isStart ? `Started ${coeFmtShort(act.oStart)}` : ''].filter(Boolean).join(' · ');
+      const tip = [isHire ? `Hire confirmed ${coeFmtShort(actual.nStart)}` : '',
+                   isStart ? `Started ${coeFmtShort(actual.oStart)}` : ''].filter(Boolean).join(' · ');
       const marks = (isHire ? '<span class="coe-mark coe-mark--hire">✓&#xFE0E;</span>' : '')
                   + (isStart ? '<span class="coe-mark coe-mark--start">▶&#xFE0E;</span>' : '');
       // &#xFE0E; forces text presentation — Windows Chrome otherwise draws ▶ as a colour emoji.

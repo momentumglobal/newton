@@ -205,7 +205,7 @@ function _lciXlAssumptions(ctx) {
     ['Currency', `The CoE side (salaries, office) is entered in ${m.LocalCurrency || '—'} and converted at FXRate. EoR fees, travel, legacy salaries, one-offs and fees are entered directly in ${m.DisplayCurrency || '—'}. Every output figure is in ${m.DisplayCurrency || '—'}.`],
     ['Monthly Calc', 'The audit sheet — every cost line for every month, including sections switched off in Newton.'],
     ['Output Summary', 'Mirrors the client PDF line for line. If it disagrees with the PDF, the export is wrong.'],
-    ['Total Monthly Spend', 'CoE operating + legacy + one-offs + fees, with CoE operating counted ONCE. The original Barcelona workbook double-counted it; that bug is deliberately not reproduced, so totals here are lower than that spreadsheet for the same inputs.'],
+    ['Total Monthly Spend', 'CoE operating + legacy + one-offs + fees, with CoE operating counted ONCE. The original workbook double-counted it during first iteration; that bug is deliberately not reproduced, so totals here are lower than that spreadsheet for the same inputs.'],
   ].forEach(([k, v]) => {
     _lciXlSet(ws, r, 1, k, { bold: true });
     _lciXlSet(ws, r, 3, v, { wrap: true });

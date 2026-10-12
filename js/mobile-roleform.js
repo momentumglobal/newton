@@ -124,7 +124,7 @@ async function mobileRenderAddRole(main) {
         <div class="m-input-row">
           <div class="m-form-group">
             <label class="m-label">Open Date</label>
-            <input class="m-input" type="date" id="mr-open" onchange="mobileRoleAutoTarget()">
+            <input class="m-input" type="date" id="mr-open"${actOn('change', 'mobileRoleAutoTarget')}>
           </div>
           <div class="m-form-group">
             <label class="m-label">Target Hire (auto +${CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays}d)</label>

@@ -18,7 +18,10 @@
 //                        registerActions({...}) call in js/ or in a root *.html
 //                        page's inline <script> (N-302e), and no name is
 //                        registered twice. act()/actOn() calls inside those
-//                        inline scripts are checked too.
+//                        inline scripts are checked too. N-321: the first
+//                        element of a retryAct / actionAct array (also as a
+//                        ternary arm) and of mobilePageError's second argument
+//                        is checked the same way (string literal only).
 //   lintLegacyActionParams  (N-302a) the code-string parameters actionOnClick /
 //                        retryOnClick are gone from js/ (replaced by the
 //                        actionAct / retryAct argument arrays).
@@ -206,6 +209,39 @@ function _ihDecodeEntities(s) {
     .replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 }
 
+// N-321: the value expression that starts at code[start] - up to the first
+// top-level "," or the closing bracket of the enclosing group. Strings and
+// templates are skipped. Multi-line values and ternaries are returned whole.
+function _ihPropValue(code, start) {
+  var depth = 0, quote = null;
+  for (var i = start; i < code.length; i++) {
+    var c = code[i];
+    if (quote) {
+      if (c === '\\') { i++; continue; }
+      if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === '`') { quote = c; continue; }
+    if (c === '(' || c === '{' || c === '[') { depth++; continue; }
+    if (c === ')' || c === '}' || c === ']') {
+      if (depth === 0) return code.slice(start, i);
+      depth--;
+      continue;
+    }
+    if (c === ',' && depth === 0) return code.slice(start, i);
+  }
+  return code.slice(start);
+}
+
+// N-321: action names (modifiers stripped) from the act() argument arrays in an
+// expression: the whole value, or a ternary arm, when its first element is a
+// plain string literal. [fn], null, a template with ${} are skipped.
+function _ihArrayActNames(expr) {
+  var out = [], re = /(^|[?:]\s*)\[\s*(['"])([^'"`$]+)\2/g, m;
+  while ((m = re.exec(expr)) !== null) out.push(m[3].split('.')[0]);
+  return out;
+}
+
 // Literal action names used in js/ and root html: [ { file, name }, ... ]
 function readActionUses(jsSources, htmlSources) {
   var uses = [];
@@ -225,6 +261,20 @@ function readActionUses(jsSources, htmlSources) {
     while ((m = actRe.exec(code)) !== null) uses.push({ file: file, name: m[3].split('.')[0] });
     var onRe = /(^|[^\w.$])actOn\s*\(\s*(['"`])[^'"`]*\2\s*,\s*(['"`])([^'"`]+)\3/g;
     while ((m = onRe.exec(code)) !== null) uses.push({ file: file, name: m[4].split('.')[0] });
+    // N-321: retryAct: [...] / actionAct: [...] property values (pageErrorBlock,
+    // emptyStateBlock, emptyStateRow) - literal first element, ternary arms too.
+    var propRe = /(^|[^\w.$])(?:retryAct|actionAct)\s*:\s*/g;
+    while ((m = propRe.exec(code)) !== null) {
+      _ihArrayActNames(_ihPropValue(code, propRe.lastIndex)).forEach(function (n) { uses.push({ file: file, name: n }); });
+    }
+    // N-321: mobilePageError(message, ['name', ...]) - argument index 1.
+    var mpeRe = /(^|[^\w.$])mobilePageError\s*\(/g;
+    while ((m = mpeRe.exec(code)) !== null) {
+      if (/function\s+$/.test(code.slice(Math.max(0, m.index - 20), m.index + m[1].length))) continue;   // the definition
+      var body = _ihBalanced(code, code.indexOf('(', m.index + m[1].length));
+      var retry = body === null ? null : _ihTopLevelEntries(body)[1];
+      if (retry) _ihArrayActNames(retry).forEach(function (n) { uses.push({ file: file, name: n }); });
+    }
   }
   Object.keys(jsSources || {}).sort().forEach(function (f) {
     var code = _vendorStripJsComments(jsSources[f]).join('\n');

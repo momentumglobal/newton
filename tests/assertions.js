@@ -4166,6 +4166,53 @@ var ASSERTIONS = [
       _assertEqual(lintActNames({ 'a.js': 'function registerActions(map) {}\n// act(\'commentedOut\')' }, {}), [], 'the definition and commented examples are ignored');
     },
   },
+  // ---- N-321: lintActNames reads retryAct / actionAct / mobilePageError -----
+  {
+    name: 'N-321: lintActNames reads retryAct / actionAct / mobilePageError arrays (controls + mutation proof)',
+    fn: function () {
+      const reg = 'registerActions({ goodOne, goodTwo, mobileRetryOk });';
+      const lint = src => lintActNames({ 'r.js': reg, 'u.js': src }, {});
+      const uses = src => readActionUses({ 'u.js': src }, {}).map(u => u.name);
+      const flagged = (src, name) => {
+        const p = lint(src);
+        _assertEqual(p.length === 1 && p[0].indexOf('action "' + name + '" is not registered') !== -1, true, 'flagged ' + name + ': ' + p);
+      };
+      // Unregistered / typo'd names are flagged.
+      flagged("x = pageErrorBlock({ message: e.message, retryAct: ['badRetry'] });", 'badRetry');
+      flagged("x = emptyStateBlock({ actionLabel: 'Add', actionAct: ['badAction'] });", 'badAction');
+      flagged("x = emptyStateRow({ colspan: 3, actionAct: canEdit ? ['badTernary'] : null });", 'badTernary');
+      flagged("x = pageErrorBlock({\n  message: e.message,\n  retryAct:\n    ['badMultiline', recordType, 1],\n});", 'badMultiline');
+      flagged("main.innerHTML = mobilePageError(e.message, ['mobileRetryBad']);", 'mobileRetryBad');
+      flagged("main.innerHTML = mobilePageError(fmt(a, 'b, c'), ['mobileRetryBad2', !!x]);", 'mobileRetryBad2');
+      // Registered names are clean; modifiers are stripped; a null ternary arm is ignored.
+      _assertEqual(lint("a = pageErrorBlock({ retryAct: ['goodOne'] }); b = emptyStateBlock({ actionAct: canEdit ? ['goodTwo'] : null });"), [], 'control: registered names are clean');
+      _assertEqual(uses("x = pageErrorBlock({ retryAct: ['goodOne.prevent', 1] });"), ['goodOne'], 'modifier stripped');
+      _assertEqual(lint("x = pageErrorBlock({\n  retryAct:\n    ['goodOne', recordType, 1],\n});"), [], 'control: multi-line value is read and clean');
+      _assertEqual(lint("main.innerHTML = mobilePageError(e.message, ['mobileRetryOk', !!x]);"), [], 'control: registered mobilePageError Retry is clean');
+      // Non-literals, defaults, shorthand, look-alikes, comments and the definition are skipped.
+      ["x = pageErrorBlock({ retryAct: [fn] });", "x = pageErrorBlock({ retryAct: retryAct });", "x = pageErrorBlock({ retryAct: null });",
+        "x = pageErrorBlock({ retryAct: [`bad${y}`] });", "function f({ retryAct = null } = {}) {}", "x = pageErrorBlock({ message, retryAct });",
+        "x = { myretryAct: ['ghost'], o.actionAct: ['ghost'] };", "// retryAct: ['ghost']\n/* actionAct: ['ghost'] */",
+        "function mobilePageError(message, retryAct) { return act(...retryAct); }", "x = mobilePageError(e.message, retryAct);", "x = mobilePageError(e.message);"
+      ].forEach(src => { _assertEqual(uses(src), [], 'skipped: ' + src); _assertEqual(lint(src), [], 'no problem: ' + src); });
+      // Mutation proof on the real sources: one typo per call form fails the lint.
+      if (typeof ALL_SOURCES === 'undefined' || typeof ALL_HTML === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintActNames(ALL_SOURCES, ALL_HTML), [], 'the live sources are clean');
+      [
+        ['mobile-sales.js', "mobilePageError(e.message, ['mobileRetrySalesForecast'])", "mobilePageError(e.message, ['mobileRetrySalesForcast'])", 'mobileRetrySalesForcast'],
+        ['lci-pages.js', "retryAct: ['renderLCIModelsPage']", "retryAct: ['renderLCIModelsPge']", 'renderLCIModelsPge'],
+        ['pages.js', "actionAct: canEdit ? ['showAddRoleForm'] : null", "actionAct: canEdit ? ['showAddRoleFrm'] : null", 'showAddRoleFrm'],
+      ].forEach(([file, from, to, bad]) => {
+        _assertEqual(ALL_SOURCES[file].split(from).length, 2, file + ': mutation target appears exactly once');
+        const mutated = Object.assign({}, ALL_SOURCES);
+        mutated[file] = mutated[file].replace(from, to);
+        const p = lintActNames(mutated, ALL_HTML);
+        _assertEqual(p.length === 1 && p[0].indexOf('js/' + file) === 0 && p[0].indexOf('"' + bad + '"') !== -1, true, file + ': typo fails the lint: ' + p);
+      });
+    },
+  },
   // ---- N-302b hotfix: act()/actOn() shadowing -----------------------------
   {
     name: 'N-302b hotfix lint: no local act / actOn shadows the action builders',
@@ -4396,17 +4443,13 @@ var ASSERTIONS = [
       _assertEqual(!!whitelist, true, 'MOBILE_NAV_SHEETS is declared');
       navSheets.forEach(s => _assertEqual(new RegExp('(^|\\s)' + s + '\\s*:').test(whitelist[1]), true, 'MOBILE_NAV_SHEETS has an opener for ' + s));
       _assertEqual(/\$\{\s*it\.sheet\s*\}\s*\(/.test(appCode), false, 'the bottom nav no longer builds a call from the sheet name');
-      // Every mobilePageError() Retry is an act() argument list naming a registered action.
+      // Every mobilePageError() Retry name is checked by lintActNames (N-321); this guard proves the scan still has eleven calls to read.
       let retries = 0;
       Object.keys(ALL_SOURCES).filter(f => /^mobile-/.test(f) && f !== 'mobile-app.js').forEach(f => {
         const code = _vendorStripJsComments(ALL_SOURCES[f]).join('\n');
-        (code.match(/mobilePageError\([^;]*\);/g) || []).forEach(call => {
-          retries++;
-          const m = /,\s*\['(\w+)'/.exec(call);
-          _assertEqual(!!(m && regs[m[1]]), true, f + ': Retry names a registered action: ' + call);
-        });
+        retries += (code.match(/(^|[^\w.$])mobilePageError\s*\(/g) || []).length;
       });
-      _assertEqual(retries, 11, 'eleven mobilePageError() calls, each with a registered Retry action');
+      _assertEqual(retries, 11, 'eleven mobilePageError() calls (each Retry name is checked by lintActNames, N-321)');
     },
   },
 ];

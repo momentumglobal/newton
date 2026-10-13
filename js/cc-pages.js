@@ -131,34 +131,12 @@ function ccUtilStats(forecasts, assigns, people) {
 // Reuses the Revenue Tracking helpers (utils.js) and chart (revenue-chart.js).
 // Current month = estimated only; 3-month forecast = avg of est. + forecast
 // over the current month + next 2.
-function _ccRevenueCalc(forecasts, assigns) {
-  const now   = new Date();
-  const year  = now.getFullYear();
-  const estByMonth      = computeMonthlyRevenueForYear(assigns, year);          // array[12]
-  const forecastByMonth = computeMonthlyForecastRevenueForYear(forecasts, year); // array[12]
-
-  const m = now.getMonth();
-  const thisMonth = estByMonth[m];
-
-  // Average combined (est + forecast) across current month + next 2 (clamp to Dec)
-  const idxs = [m, m + 1, m + 2].filter(i => i <= 11);
-  const combinedAvg = idxs.reduce((s, i) => s + estByMonth[i] + forecastByMonth[i], 0) / idxs.length;
-
-  return { thisMonth, forecast: combinedAvg };
-}
-
 function ccRevenueStats(forecasts, assigns) {
-  const { thisMonth, forecast } = _ccRevenueCalc(forecasts, assigns);
+  const { thisMonth, forecast } = revenueForecastCalc(forecasts, assigns);
   return `${_fmtGBPk(thisMonth)} this month · ${_fmtGBPk(forecast)} avg forecast (next 3 months)`;
 }
-
-function computeRevenueRAG(forecasts, assigns) {
-  const t = CONFIG.REVENUE_THRESHOLDS;
-  const { forecast } = _ccRevenueCalc(forecasts, assigns);
-  if (forecast >= t.green) return 'green';
-  if (forecast >= t.amber) return 'amber';
-  return 'red';
-}
+// N-323: revenueForecastCalc() and computeRevenueRAG() moved to analytics.js
+// (shared with the home Command Centre banner).
 
 function renderRevenueDetail(data) {
   const { assigns, forecasts } = data;

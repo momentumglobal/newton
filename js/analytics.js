@@ -1056,3 +1056,33 @@ function computeSnapshotMetrics(roles, weekActivity, weekPlacements, allActivity
     activityTotals,
   };
 }
+
+// ── Revenue RAG (N-323) ────────────────────────────────────────────────
+// Moved from cc-pages.js (_ccRevenueCalc -> revenueForecastCalc) so the home
+// Command Centre banner and the CC Revenue tile share one calculation.
+// Current month = estimated only; forecast = avg of estimated + forecast over
+// the current month + next 2 (clamped to December). Pure: uses the Revenue
+// Tracking helpers in utils.js and CONFIG.REVENUE_THRESHOLDS.
+function revenueForecastCalc(forecasts, assigns) {
+  const now   = new Date();
+  const year  = now.getFullYear();
+  const estByMonth      = computeMonthlyRevenueForYear(assigns, year);          // array[12]
+  const forecastByMonth = computeMonthlyForecastRevenueForYear(forecasts, year); // array[12]
+
+  const m = now.getMonth();
+  const thisMonth = estByMonth[m];
+
+  // Average combined (est + forecast) across current month + next 2 (clamp to Dec)
+  const idxs = [m, m + 1, m + 2].filter(i => i <= 11);
+  const combinedAvg = idxs.reduce((s, i) => s + estByMonth[i] + forecastByMonth[i], 0) / idxs.length;
+
+  return { thisMonth, forecast: combinedAvg };
+}
+
+function computeRevenueRAG(forecasts, assigns) {
+  const t = CONFIG.REVENUE_THRESHOLDS;
+  const { forecast } = revenueForecastCalc(forecasts, assigns);
+  if (forecast >= t.green) return 'green';
+  if (forecast >= t.amber) return 'amber';
+  return 'red';
+}

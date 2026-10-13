@@ -4268,6 +4268,76 @@ var ASSERTIONS = [
       _assertEqual(/rel=["']stylesheet["'][^>]*style\.css/.test(ALL_HTML['mobile.html']), false, 'mobile.html still does not load style.css (if it ever does, this rule is redundant)');
     },
   },
+  // ---- N-323: home.js split ------------------------------------------------
+  {
+    name: 'N-323: computeRevenueRAG (analytics.js) hits each threshold and equals the pre-refactor inline banner formula',
+    fn: function () {
+      const t = CONFIG.REVENUE_THRESHOLDS;
+      const y = new Date().getFullYear();
+      const flat = rate => [{ StartDate: y + '-01-01', EndDate: y + '-12-31', MonthlyBillRate: rate }];
+      const fc = perMonth => [{ ForecastStartDate: y + '-01-01', ForecastEndDate: y + '-12-31', ForecastedHeadcount: 1, ForecastMonthlyRevenuePerHead: perMonth }];
+      // Oracle: the inline block that refreshCCBanner used before N-323, kept verbatim.
+      const oracle = (forecasts, assigns) => {
+        const rt = CONFIG.REVENUE_THRESHOLDS;
+        const now = new Date();
+        const revYear = now.getFullYear();
+        const revEst = computeMonthlyRevenueForYear(assigns, revYear);
+        const revFcast = computeMonthlyForecastRevenueForYear(forecasts, revYear);
+        const revM = now.getMonth();
+        const revIdxs = [revM, revM + 1, revM + 2].filter(i => i <= 11);
+        const revForecast = revIdxs.reduce((s, i) => s + revEst[i] + revFcast[i], 0) / revIdxs.length;
+        return revForecast >= rt.green ? 'green' : revForecast >= rt.amber ? 'amber' : 'red';
+      };
+      [
+        ['at green',            [], flat(t.green),       'green'],
+        ['above green',         [], flat(t.green + 5000), 'green'],
+        ['just under green',    [], flat(t.green - 1),   'amber'],
+        ['at amber',            [], flat(t.amber),       'amber'],
+        ['just under amber',    [], flat(t.amber - 1),   'red'],
+        ['no data',             [], [],                   'red'],
+        ['forecast lifts red to amber', fc(1000), flat(t.amber - 1000), 'amber'],
+      ].forEach(([label, forecasts, assigns, want]) => {
+        _assertEqual(computeRevenueRAG(forecasts, assigns), want, label);
+        _assertEqual(computeRevenueRAG(forecasts, assigns), oracle(forecasts, assigns), label + ' = old inline formula');
+      });
+      const calc = revenueForecastCalc([], flat(1000));
+      _assertEqual(Object.keys(calc).sort(), ['forecast', 'thisMonth'], 'revenueForecastCalc returns { thisMonth, forecast }');
+      _assertEqual(calc.thisMonth, 1000, 'a flat full-year rate gives that rate for the current month');
+    },
+  },
+  {
+    name: 'N-323: home.js is init only - banner, survey widget and revenue maths live in their owning files, and load before home.js',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined' || typeof ALL_HTML === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const code = f => _vendorStripJsComments(ALL_SOURCES[f]).join('\n');
+      const defines = (f, n) => new RegExp('(^|\\n)\\s*(async\\s+)?function\\s+' + n + '\\s*\\(').test(code(f));
+      const owners = {
+        'home-banner.js': ['ccBadgeHTML', 'refreshCCBanner', 'renderCCBadges', 'renderCommandCentreBanner'],
+        'survey-widget.js': ['initSurveyWidget', 'notifySurveyClosing'],
+        'analytics.js': ['revenueForecastCalc', 'computeRevenueRAG'],
+        'home.js': ['initHome', 'handleSignOut', 'openQuickLinks', 'closeQuickLinks', 'initQuickLinks'],
+      };
+      Object.keys(owners).forEach(f => owners[f].forEach(n => {
+        Object.keys(ALL_SOURCES).forEach(g => _assertEqual(defines(g, n), g === f, n + (g === f ? ' is defined in ' : ' is not defined in ') + g));
+      }));
+      Object.keys(ALL_SOURCES).forEach(g => _assertEqual(defines(g, '_ccRevenueCalc'), false, '_ccRevenueCalc (retired, N-323) is not defined in ' + g));
+      _assertEqual(code('cc-pages.js').indexOf('_ccRevenueCalc'), -1, 'cc-pages.js no longer mentions _ccRevenueCalc');
+      // home.js still registers exactly the four actions, and the new files register none.
+      const reg = /registerActions\(\{([^}]*)\}\)/.exec(code('home.js'));
+      _assertEqual(!!reg && reg[1].split(',').map(s => s.trim()).filter(Boolean), ['openQuickLinks', 'closeQuickLinks', 'handleSignOut', 'refreshCCBanner'], 'home.js registerActions names');
+      ['home-banner.js', 'survey-widget.js'].forEach(f => _assertEqual(code(f).indexOf('registerActions('), -1, f + ' registers no actions'));
+      // Load order on index.html.
+      const list = []; ALL_HTML['index.html'].replace(/<script\b([^>]*)>/gi, (m, a) => { const s = /\bsrc\s*=\s*"([^"]*)"/i.exec(a); if (s) list.push({ src: s[1], defer: /\bdefer\b/.test(a) }); return m; });
+      const at = n => list.findIndex(s => s.src === 'js/' + n);
+      const order = ['actions.js', 'analytics.js', 'notifications.js', 'command-bar.js', 'home-banner.js', 'survey-widget.js', 'home.js'];
+      order.forEach((n, i) => {
+        _assertEqual(at(n) >= 0 && list[at(n)].defer, true, 'index.html: js/' + n + ' is present and deferred');
+        if (i) _assertEqual(at(n) > at(order[i - 1]), true, 'index.html: js/' + n + ' loads after js/' + order[i - 1]);
+      });
+    },
+  },
   // ---- N-302b hotfix: act()/actOn() shadowing -----------------------------
   {
     name: 'N-302b hotfix lint: no local act / actOn shadows the action builders',

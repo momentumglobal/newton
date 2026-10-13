@@ -4836,15 +4836,20 @@ var ASSERTIONS = [
     name: 'N-304: groupInternalByFunction / countInternalByFunction — config order, Unknown last, inactive / placeholder / deployable excluded',
     fn: function () {
       const I = CONFIG.STAFF_TYPE_INTERNAL;
+      // Read the functions from config, never a hardcoded copy — the list is
+      // Chris's to extend. Needs at least three; OFF_LIST is never one of them.
+      _assertEqual(CONFIG.INTERNAL_FUNCTIONS.length >= 3, true, 'at least three internal functions configured');
+      const [F1, F2, F3] = CONFIG.INTERNAL_FUNCTIONS;
+      const OFF_LIST = 'zz-not-a-configured-function';
+      _assertEqual(CONFIG.INTERNAL_FUNCTIONS.includes(OFF_LIST), false, 'OFF_LIST is not configured');
       const p = (name, fn, extra) => Object.assign({ EmployeeName: name, StaffType: I, StaffFunction: fn, IsActive: true }, extra);
       const people = [
-        p('Zed', 'Sales'), p('Amy', 'Sales'), p('Bo', 'Internal TA'), p('Cy', ''), p('Di', 'Marketing', { IsActive: false }),
-        p('Ed', 'Marketing', { IsPlaceholder: true }), { EmployeeName: 'Tp', Level: 'TP', IsActive: true }, p('Fi', 'Finance'),
+        p('Zed', F2), p('Amy', F2), p('Bo', F3), p('Cy', ''), p('Di', F1, { IsActive: false }),
+        p('Ed', F1, { IsPlaceholder: true }), { EmployeeName: 'Tp', Level: 'TP', IsActive: true }, p('Fi', OFF_LIST),
       ];
-      _assertEqual(CONFIG.INTERNAL_FUNCTIONS, ['Marketing', 'Sales', 'Internal TA'], 'config functions');
-      _assertEqual(countInternalByFunction(people), [['Sales', 2], ['Internal TA', 1], ['Finance', 1], ['Unknown', 1]], 'counts');
+      _assertEqual(countInternalByFunction(people), [[F2, 2], [F3, 1], [OFF_LIST, 1], ['Unknown', 1]], 'counts');
       const g = groupInternalByFunction(people);
-      _assertEqual(g.map(x => x[0]), ['Marketing', 'Sales', 'Internal TA', 'Finance', 'Unknown'], 'grouping keeps inactive (the caller filters)');
+      _assertEqual(g.map(x => x[0]), [F1, F2, F3, OFF_LIST, 'Unknown'], 'grouping keeps inactive (the caller filters)');
       _assertEqual(g[1][1].map(x => x.EmployeeName), ['Amy', 'Zed'], 'members by name');
       _assertEqual(countInternalByFunction([]), [], 'none');
       _assertEqual(countInternalByFunction(undefined), [], 'undefined');

@@ -1564,6 +1564,12 @@ body {
 .rb-text-block ul, .rb-text-block ol { padding-left: var(--sp-9); margin: var(--sp-2) 0; list-style-position: inside; }
 .rb-text-block ul { list-style-type: disc; }
 .rb-text-block ol { list-style-type: decimal; }
+/* Market Report observations editor placeholder - moved out of a <style>
+   block in market-report.js's template (N-324: no <style> elements). */
+#mr-obs-editor:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-faint); font-style: italic; pointer-events: none;
+}
 
 /* Canvas blocks */
 .rb-empty {

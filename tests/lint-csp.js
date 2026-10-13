@@ -22,6 +22,11 @@
 //                      allow-list, so a new external origin forces a CSP decision.
 //   lintNoInlineScripts  (N-303) no root *.html has an inline <script> block: script-src is
 //                      'self' only, so page code lives in js/. Flat ban, no baseline.
+//   lintNoStyleElements  (N-324) no <style> element in a root *.html or built by js/
+//                      (markup string or createElement): style-src-elem is 'self'
+//                      only, so CSS lives in css/. Flat ban, no baseline. Inline
+//                      style="" attributes are still allowed (style-src-attr) and
+//                      ratcheted by tests/lint-inline-styles.js.
 //
 // CSP_CANONICAL is THE source of truth for the policy string. Changing the
 // policy means editing this constant, all 15 HTML metas, and the Readme
@@ -36,6 +41,8 @@ var CSP_CANONICAL =
   "default-src 'self'; " +
   "script-src 'self'; " +
   "style-src 'self' 'unsafe-inline'; " +
+  "style-src-elem 'self'; " +
+  "style-src-attr 'unsafe-inline'; " +
   "connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; " +
   "img-src 'self' https://talentpoint.sharepoint.com data: blob:; " +
   "font-src 'self' data:; " +
@@ -64,8 +71,9 @@ var CSP_JS_HOST_ALLOW = [
 ];
 
 var _CSP_REQUIRED_DIRECTIVES = [
-  'default-src', 'script-src', 'style-src', 'connect-src', 'img-src', 'font-src',
-  'frame-src', 'manifest-src', 'worker-src', 'object-src', 'base-uri'
+  'default-src', 'script-src', 'style-src', 'style-src-elem', 'style-src-attr',
+  'connect-src', 'img-src', 'font-src', 'frame-src', 'manifest-src', 'worker-src',
+  'object-src', 'base-uri'
 ];
 
 function _cspParse(policy) {
@@ -134,6 +142,11 @@ function lintCspPolicy(policy) {
     if (d[name].join(' ') !== expected.join(' ')) problems.push(name + ' must be exactly: ' + expected.join(' ') + ' (got: ' + d[name].join(' ') + ')');
   }
   exact('script-src', ["'self'"]);
+  // N-324: <style> elements and stylesheets 'self' only; inline style="" still
+  // allowed; style-src is the fallback for browsers without CSP Level 3.
+  exact('style-src', ["'self'", "'unsafe-inline'"]);
+  exact('style-src-elem', ["'self'"]);
+  exact('style-src-attr', ["'unsafe-inline'"]);
   exact('connect-src', ["'self'", 'https://graph.microsoft.com', 'https://login.microsoftonline.com']);
   exact('object-src', ["'none'"]);
   exact('base-uri', ["'self'"]);
@@ -205,6 +218,29 @@ function lintNoInlineScripts(htmlSources) {
       var line = text.slice(0, m.index).split('\n').length;
       problems.push(file + ':' + line + ": inline <script> - move it to js/ (script-src has no 'unsafe-inline')");
     }
+  });
+  return problems;
+}
+
+// N-324 (SEC-12c): style-src-elem is 'self' only, so a <style> element - in a
+// page, or built by js/ as a markup string or with createElement - would not
+// apply. CSS goes in a css/ file; a print-time rule goes in through the CSSOM
+// (printPage in api.js). HTML and JS comments are blanked (line numbers survive).
+// returns: [ 'file:LINE: message', ... ]
+function lintNoStyleElements(jsSources, htmlSources) {
+  var problems = [];
+  var tagRe = /<style[\s>\/]/i;
+  var createRe = /createElement\s*\(\s*(["'`])style\1\s*\)/i;
+  var msg = ": <style> element - move the CSS to a css/ file (style-src-elem has no 'unsafe-inline')";
+  Object.keys(htmlSources || {}).sort().forEach(function (file) {
+    _vendorStripHtmlComments(htmlSources[file]).split('\n').forEach(function (line, i) {
+      if (tagRe.test(line)) problems.push(file + ':' + (i + 1) + msg);
+    });
+  });
+  Object.keys(jsSources || {}).sort().forEach(function (file) {
+    _vendorStripJsComments(jsSources[file]).forEach(function (line, i) {
+      if (tagRe.test(line) || createRe.test(line)) problems.push('js/' + file + ':' + (i + 1) + msg);
+    });
   });
   return problems;
 }

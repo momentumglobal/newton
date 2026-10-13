@@ -226,12 +226,6 @@ function mrRenderCanvas({ title, tam, pctContacted, pctResponded,
     </div>` : "";
 
   return `
-    <style>
-      #mr-obs-editor:empty:before {
-        content: attr(data-placeholder);
-        color: var(--text-faint); font-style: italic; pointer-events: none;
-      }
-    </style>
     ${title ? `<h2 class="rb-report-title">${title}</h2>` : ""}
 
     <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">

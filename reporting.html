@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; img-src 'self' https://talentpoint.sharepoint.com data: blob:; font-src 'self' data:; frame-src 'self' https://login.microsoftonline.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; img-src 'self' https://talentpoint.sharepoint.com data: blob:; font-src 'self' data:; frame-src 'self' https://login.microsoftonline.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'">
   <meta name="referrer" content="no-referrer">
   <script src="js/diag-buffer.js"></script>
   <script src="js/frame-guard.js"></script>
@@ -12,71 +12,7 @@
   <script src="js/theme-init.js"></script>
   <link rel="icon" type="image/png" href="momentum-symbol.png">
   <script src="js/vendor/lucide-1.47.0.min.js" defer></script>
-  <style>
-    /* ── Login screen override — dark branded style ── */
-    #login-screen {
-      background: #090546;
-      position: relative;
-      overflow: hidden;
-    }
-    #login-watermark {
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 120vmin; height: 120vmin;
-      opacity: 0.25;
-      pointer-events: none;
-      z-index: 0;
-    }
-    .login-logo-white {
-      position: fixed;
-      bottom: 32px;
-      left: 32px;
-      height: 36px;
-      width: auto;
-      opacity: 0.7;
-      z-index: 2;
-    }
-    .login-card {
-      position: relative;
-      z-index: 2;
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 12px;
-      padding: 40px 36px;
-      box-shadow: none;
-      text-align: center;
-      width: 360px;
-    }
-    .login-card h1 {
-      color: white;
-      font-size: 22px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .login-card p {
-      color: rgba(255,255,255,0.55);
-      margin-bottom: 32px;
-      font-size: 14px;
-    }
-    .btn-signin {
-      background: rgba(255,255,255,0.15);
-      color: white;
-      border: 1px solid rgba(255,255,255,0.3);
-      padding: 12px 28px;
-      border-radius: 6px;
-      font-size: 15px;
-      cursor: pointer;
-      width: 100%;
-      font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-      font-weight: 600;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .btn-signin:hover {
-      background: rgba(255,255,255,0.22);
-      border-color: rgba(255,255,255,0.5);
-    }
-  </style>
+  <link rel="stylesheet" href="css/reporting.css">
 </head>
 <body>
   <!-- Login screen -->

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; img-src 'self' https://talentpoint.sharepoint.com data: blob:; font-src 'self' data:; frame-src 'self' https://login.microsoftonline.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; img-src 'self' https://talentpoint.sharepoint.com data: blob:; font-src 'self' data:; frame-src 'self' https://login.microsoftonline.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'">
   <meta name="referrer" content="no-referrer">
   <script src="js/diag-buffer.js"></script>
   <script src="js/frame-guard.js"></script>
@@ -12,37 +12,7 @@
   <script src="js/theme-init.js"></script>
   <link rel="icon" type="image/png" href="momentum-symbol.png">
   <script src="js/vendor/lucide-1.47.0.min.js" defer></script>
-  <style>
-    @font-face { font-family: 'Polymath'; src: url('polymath-regular.ttf') format('truetype'); font-weight: 400; }
-    @font-face { font-family: 'Polymath'; src: url('polymath-medium.ttf') format('truetype'); font-weight: 500; }
-    @font-face { font-family: 'Polymath'; src: url('polymath-semibold.ttf') format('truetype'); font-weight: 600; }
-    body { font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; }
-    .admin-shell { display: flex; height: 100vh; }
-    /* Sidebar */
-    .admin-sidebar {
-      width: 220px; min-width: 220px;
-      background: #0A0B44; color: white;
-      display: flex; flex-direction: column;
-      height: 100vh; overflow-y: auto;
-    }
-    .admin-sidebar-header { padding: 24px 20px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-    .admin-sidebar-title { font-size: 17px; font-weight: 600; }
-    .admin-sidebar-sub { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
-    .admin-nav { flex: 1; padding: 12px 0; }
-    .admin-nav-link {
-      display: block; padding: 10px 20px;
-      color: rgba(255,255,255,0.8); text-decoration: none;
-      font-size: 14px; cursor: pointer; transition: background 0.15s;
-    }
-    .admin-nav-link:hover { background: rgba(255,255,255,0.08); color: white; }
-    .admin-nav-link.active { background: #2E5FA3; color: white; font-weight: 600; }
-    .admin-nav-link.back { color: rgba(255,255,255,0.5); font-size: 13px; }
-    .admin-nav-divider { border-top: 1px solid rgba(255,255,255,0.1); margin: 8px 0; }
-    .admin-nav-logo { display: block; width: 140px; height: auto; margin: 0 20px 12px; }
-    .admin-sidebar-footer { padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.1); }
-    /* Main */
-    .admin-main { flex: 1; overflow-y: auto; background: #F5F4F1; }
-  </style>
+  <link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
   <div class="admin-shell">

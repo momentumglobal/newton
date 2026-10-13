@@ -2,270 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; img-src 'self' https://talentpoint.sharepoint.com data: blob:; font-src 'self' data:; frame-src 'self' https://login.microsoftonline.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; img-src 'self' https://talentpoint.sharepoint.com data: blob:; font-src 'self' data:; frame-src 'self' https://login.microsoftonline.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'">
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Newton — System Directory</title>
-  <style>
-    @font-face {
-      font-family: 'Polymath';
-      src: url('../polymath-regular.ttf') format('truetype');
-      font-weight: 400;
-    }
-    @font-face {
-      font-family: 'Polymath';
-      src: url('../polymath-medium.ttf') format('truetype');
-      font-weight: 500;
-    }
-    @font-face {
-      font-family: 'Polymath';
-      src: url('../polymath-semibold.ttf') format('truetype');
-      font-weight: 600;
-    }
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-      background: #F5F4F1;
-      color: #1a1a2e;
-      line-height: 1.6;
-    }
-
-    /* ── Layout ── */
-    .shell { display: flex; min-height: 100vh; }
-
-    /* ── Sidebar ── */
-    .sidebar {
-      width: 240px;
-      min-width: 240px;
-      background: #0A0B44;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      position: fixed;
-      top: 0; left: 0; bottom: 0;
-      overflow-y: auto;
-    }
-    .sidebar-header { padding: 28px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-    .sidebar-logo { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
-    .sidebar-sub  { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 3px; }
-    .sidebar-nav  { padding: 12px 0; flex: 1; }
-    .sidebar-section {
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: rgba(255,255,255,0.35);
-      padding: 16px 20px 6px;
-    }
-    .sidebar-link {
-      display: block;
-      padding: 9px 20px;
-      color: rgba(255,255,255,0.75);
-      text-decoration: none;
-      font-size: 13px;
-      border-left: 3px solid transparent;
-      transition: background 120ms, color 120ms;
-      cursor: pointer;
-    }
-    .sidebar-link:hover { background: rgba(255,255,255,0.07); color: white; }
-    .sidebar-link.active {
-      background: rgba(46,95,163,0.3);
-      color: white;
-      font-weight: 600;
-      border-left-color: #2E5FA3;
-    }
-    .sidebar-footer {
-      padding: 16px 20px;
-      border-top: 1px solid rgba(255,255,255,0.1);
-      font-size: 11px;
-      color: rgba(255,255,255,0.3);
-    }
-
-    /* ── Main ── */
-    .main {
-      margin-left: 240px;
-      padding: 48px 56px;
-      max-width: 1100px;
-      flex: 1;
-    }
-
-    /* ── Sections ── */
-    .section { margin-bottom: 64px; }
-    .section-title {
-      font-size: 22px;
-      font-weight: 600;
-      color: #0A0B44;
-      margin-bottom: 6px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #0A0B44;
-    }
-    .section-intro {
-      font-size: 14px;
-      color: #555;
-      margin-bottom: 24px;
-      max-width: 700px;
-    }
-    h3 {
-      font-size: 15px;
-      font-weight: 600;
-      color: #0A0B44;
-      margin: 28px 0 10px;
-    }
-    p { font-size: 14px; color: #444; margin-bottom: 12px; }
-
-    /* ── Cover ── */
-    .cover {
-      background: #0A0B44;
-      color: white;
-      padding: 56px;
-      border-radius: 10px;
-      margin-bottom: 56px;
-    }
-    .cover-title { font-size: 36px; font-weight: 600; letter-spacing: -0.5px; }
-    .cover-sub   { font-size: 16px; color: rgba(255,255,255,0.6); margin-top: 8px; }
-    .cover-meta  { margin-top: 32px; display: flex; gap: 32px; }
-    .cover-meta-item label { font-size: 11px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.6px; display: block; margin-bottom: 4px; }
-    .cover-meta-item span  { font-size: 14px; color: rgba(255,255,255,0.85); }
-
-    /* ── Cards ── */
-    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    .card {
-      background: white;
-      border-radius: 8px;
-      padding: 20px;
-      border: 1px solid #e4e4e4;
-      border-top: 3px solid #0A0B44;
-    }
-    .card.accent-blue   { border-top-color: #2E5FA3; }
-    .card.accent-green  { border-top-color: #107C10; }
-    .card.accent-amber  { border-top-color: #b45309; }
-    .card.accent-teal   { border-top-color: #0e7490; }
-    .card.accent-purple { border-top-color: #6b21a8; }
-    .card-title  { font-size: 14px; font-weight: 600; color: #0A0B44; margin-bottom: 6px; }
-    .card-file   { font-size: 12px; color: #666; margin-bottom: 8px; font-family: 'Courier New', monospace; }
-    .card-desc   { font-size: 13px; color: #555; }
-
-    /* ── Tables ── */
-    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
-    th {
-      background: #0A0B44;
-      color: white;
-      padding: 10px 14px;
-      text-align: left;
-      font-weight: 600;
-      font-size: 12px;
-    }
-    td { padding: 10px 14px; border-bottom: 1px solid #eee; vertical-align: top; }
-    tr:last-child td { border-bottom: none; }
-    tr:nth-child(even) td { background: #fafafa; }
-
-    /* ── Role badges ── */
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 10px;
-      font-size: 11px;
-      font-weight: 600;
-      margin: 2px;
-    }
-    .badge-admin      { background: #1F3864; color: white; }
-    .badge-leadership { background: #2E5FA3; color: white; }
-    .badge-dm         { background: #107C10; color: white; }
-    .badge-tp         { background: #0e7490; color: white; }
-    .badge-viewer     { background: #888; color: white; }
-
-    /* ── Code blocks ── */
-    .code-block {
-      background: #1e1e2e;
-      color: #cdd6f4;
-      border-radius: 6px;
-      padding: 20px 24px;
-      font-family: 'Courier New', monospace;
-      font-size: 13px;
-      line-height: 1.7;
-      margin-bottom: 20px;
-      overflow-x: auto;
-    }
-    .code-comment { color: #6c7086; }
-    .code-key     { color: #89b4fa; }
-    .code-val     { color: #a6e3a1; }
-
-    /* ── Flow diagrams ── */
-    .flow {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      flex-wrap: wrap;
-      margin: 16px 0 24px;
-    }
-    .flow-step {
-      background: white;
-      border: 1px solid #d0d0d0;
-      border-radius: 6px;
-      padding: 10px 16px;
-      font-size: 13px;
-      color: #0A0B44;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-    .flow-step.highlight { background: #0A0B44; color: white; border-color: #0A0B44; }
-    .flow-step.cache     { background: #fff3e0; border-color: #ffb74d; color: #7c4a00; }
-    .flow-step.sp        { background: #e8f5e9; border-color: #81c784; color: #1b5e20; }
-    .flow-arrow { font-size: 18px; color: #999; padding: 0 8px; }
-
-    /* ── File tag ── */
-    .file-tag {
-      display: inline-block;
-      background: #F0F4FB;
-      color: #2E5FA3;
-      border-radius: 4px;
-      padding: 2px 7px;
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-    }
-
-    /* ── Checklist ── */
-    .checklist { list-style: none; padding: 0; }
-    .checklist li {
-      padding: 8px 0;
-      border-bottom: 1px solid #eee;
-      font-size: 13px;
-      color: #444;
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-    }
-    .checklist li:last-child { border-bottom: none; }
-    .checklist li::before { content: '→'; color: #2E5FA3; font-weight: 600; flex-shrink: 0; }
-
-    /* ── Callout ── */
-    .callout {
-      border-left: 4px solid #2E5FA3;
-      background: #F0F4FB;
-      padding: 14px 18px;
-      border-radius: 0 6px 6px 0;
-      font-size: 13px;
-      color: #333;
-      margin-bottom: 20px;
-    }
-    .callout.amber { border-left-color: #b45309; background: #fff8f0; }
-    .callout.green { border-left-color: #107C10; background: #f0faf0; }
-
-    /* ── Changelog ── */
-    .changelog-entry {
-      background: white;
-      border: 1px solid #e4e4e4;
-      border-left: 4px solid #2E5FA3;
-      border-radius: 0 8px 8px 0;
-      padding: 20px 24px;
-      margin-bottom: 20px;
-    }
-    .changelog-date { font-size: 12px; color: #888; margin-bottom: 6px; }
-    .changelog-title { font-size: 15px; font-weight: 600; color: #0A0B44; margin-bottom: 10px; }
-    .changelog-entry ul { padding-left: 18px; font-size: 13px; color: #444; line-height: 2; }
-  </style>
+  <link rel="stylesheet" href="css/readme.css">
 </head>
 <body>
 
@@ -1089,7 +830,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <li>GitHub Pages cannot send response headers, so every root <code>*.html</code> carries the same <code>&lt;meta http-equiv="Content-Security-Policy"&gt;</code> and <code>&lt;meta name="referrer" content="no-referrer"&gt;</code>, straight after <code>&lt;meta charset&gt;</code> and before any <code>&lt;script&gt;</code>, <code>&lt;link&gt;</code>, <code>&lt;style&gt;</code> or <code>&lt;img&gt;</code> (a CSP only governs what is parsed after it). App pages then load <code>js/diag-buffer.js</code> and <code>js/frame-guard.js</code>, in that order.</li>
         <li>The policy: <code>default-src 'self'</code>; scripts <code>'self'</code> only (no inline script, hash or nonce); connections <code>'self'</code>, <code>graph.microsoft.com</code> and <code>login.microsoftonline.com</code>; images <code>'self'</code>, the SharePoint host (People photos), <code>data:</code> and <code>blob:</code>; frames <code>'self'</code> and <code>login.microsoftonline.com</code> (MSAL's hidden iframe is redirected back to <code>redirect.html</code>); <code>object-src 'none'</code>; <code>base-uri 'self'</code>. The single source of truth is <code>CSP_CANONICAL</code> in <code>tests/lint-csp.js</code>: the build fails if any page differs, and the origins are checked against <code>CONFIG.SP_SITE_URL</code>, <code>GRAPH</code> and <code>CONFIG.AUTHORITY</code>.</li>
         <li><strong>Adding an origin</strong> (a new API host, image host or iframe): decide it belongs, then change <code>CSP_CANONICAL</code>, <code>CSP_JS_HOST_ALLOW</code> (if it appears as a literal in js/), all 15 HTML metas and this section in the same change. Never widen the policy just to silence a console error without knowing what it was.</li>
-        <li><strong>Never add <code>'unsafe-eval'</code>.</strong> <code>tests/lint-csp.js</code> also bans <code>eval</code>, <code>new Function</code> and string timers in first-party code. <code>script-src</code> is <code>'self'</code> only: no <code>'unsafe-inline'</code>, hash or nonce, so an injected <code>&lt;script&gt;</code> or <code>on*=</code> attribute is blocked by the browser. <code>'unsafe-inline'</code> stays in <code>style-src</code> only, because inline <code>style=""</code> attributes are still used (a separate, larger job). SEC-12b got here in three steps: N-301 added <code>js/actions.js</code> and a ratchet (<code>tests/lint-inline-handlers.js</code>, 570 handlers at the time), N-302 converted every module, and N-303 moved the 6 inline <code>&lt;script&gt;</code> blocks into files and dropped <code>'unsafe-inline'</code> from <code>script-src</code>; <code>lintNoInlineScripts</code> keeps it that way. <strong>To revert:</strong> revert the N-303 commit (the new <code>js/</code> files are harmless to leave in place).</li>
+        <li><strong>Never add <code>'unsafe-eval'</code>.</strong> <code>tests/lint-csp.js</code> also bans <code>eval</code>, <code>new Function</code> and string timers in first-party code. <code>script-src</code> is <code>'self'</code> only: no <code>'unsafe-inline'</code>, hash or nonce, so an injected <code>&lt;script&gt;</code> or <code>on*=</code> attribute is blocked by the browser. Styles are split (N-324): <code>style-src-elem 'self'</code> blocks any <code>&lt;style&gt;</code> element (in a page or built by JS), so CSS lives in <code>css/</code> files and <code>lintNoStyleElements</code> fails the build on a new one; <code>style-src-attr 'unsafe-inline'</code> keeps inline <code>style=&quot;&quot;</code> attributes working (635 remain, frozen per file by <code>tests/lint-inline-styles.js</code>); <code>style-src 'self' 'unsafe-inline'</code> is only the fallback for browsers without CSP Level 3. CSS-based data theft already has nowhere to send data (<code>img-src</code>, <code>font-src</code> and <code>connect-src</code> are locked down), so converting every attribute was judged not worth it (N-324 spec, option C). SEC-12b got here in three steps: N-301 added <code>js/actions.js</code> and a ratchet (<code>tests/lint-inline-handlers.js</code>, 570 handlers at the time), N-302 converted every module, and N-303 moved the 6 inline <code>&lt;script&gt;</code> blocks into files and dropped <code>'unsafe-inline'</code> from <code>script-src</code>; <code>lintNoInlineScripts</code> keeps it that way. <strong>To revert:</strong> revert the N-303 commit (the new <code>js/</code> files are harmless to leave in place).</li>
         <li>A meta CSP cannot set <code>frame-ancestors</code>, <code>report-uri</code> or <code>sandbox</code>, and has no report-only mode. After deploying a policy change, open each module with the console open and look for &ldquo;Refused to&hellip;&rdquo; messages. Because the build fails if any page differs from <code>CSP_CANONICAL</code>, to roll back a bad policy <strong>revert the <code>tests/lint-csp.js</code> commit first</strong>, then revert or fix the pages.</li>
         <li><code>js/frame-guard.js</code> is the only framing defence: framed by a cross-origin top window, the page hides itself first and then tries to take over the top window. A same-origin top (MSAL's hidden iframe) is allowed. It is not loaded on <code>redirect.html</code> (legitimately framed) or the static guides.</li>
         <li>A new root HTML page must be classified in <code>CSP_APP_PAGES</code> or <code>CSP_STATIC_PAGES</code> in <code>tests/lint-csp.js</code>, or the build fails.</li>
@@ -1098,6 +839,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
       <h3>CSS over inline styles</h3>
       <ul class="checklist">
         <li>Conditional styling uses CSS classes, not inline style="" attributes.</li>
+        <li><strong>No new inline styles (N-324, Oct 2026):</strong> <code>tests/lint-inline-styles.js</code> fails the build if a file's count of <code>style=</code> attributes differs from <code>INLINE_STYLE_BASELINE</code>. Use a class in style.css; for a data-driven value (a bar width, a chart colour) render a class and set a CSS custom property with <code>el.style.setProperty('--x', value)</code> after the markup is in the page. Removing inline styles is welcome: lower the file's baseline in the same change. No <code>&lt;style&gt;</code> elements and no <code>setAttribute('style', …)</code> either: page CSS goes in a <code>css/</code> file, and a print-only rule goes in through the CSSOM (see <code>printPage()</code> in api.js).</li>
         <li>Scope classes to their context: <code>.dash-panel .row-age-critical td</code> prevents bleed into unrelated tables.</li>
         <li><strong>Form sections (N-250a, Sep 2026):</strong> multi-field forms group their fields into headed sections. Always-open group: <code>&lt;fieldset class="form-section"&gt;</code> + <code>&lt;legend class="form-section-title"&gt;</code>. Optional/secondary fields go in one collapsible group: <code>&lt;details class="form-section form-section--collapsible"&gt;</code> + <code>&lt;summary class="form-section-title"&gt;Additional details &lt;span class="form-section-hint"&gt;optional&lt;/span&gt;&lt;/summary&gt;</code> — native toggle, no JS. Two rules: <strong>never put a <code>required</code> control inside a collapsed section</strong> (the browser blocks submit with no visible error), and render the <code>&lt;details&gt;</code> <code>open</code> on edit/duplicate when any field inside it already has a value. First use: Role form (<code>renderRoleForm</code> — Basics / Ownership / Commercial / Dates / Additional details). Second use: Weekly Activity form (<code>renderWeeklyActivityForm</code> — Basics / Period / Activity Counts, N-250b) — always-open groups only, no collapsible section, since every field on that form is either required or a core activity count.</li>
         <li>Colour values live in style.css only. JavaScript never hardcodes hex colours.</li>
@@ -1272,6 +1014,16 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Injected &lt;style&gt; blocked; inline styles frozen (N-324, SEC-12c)</div>
+        <ul>
+          <li>The CSP style policy is split in all 15 page metas and <code>CSP_CANONICAL</code>: <code>style-src-elem 'self'</code> (an injected <code>&lt;style&gt;</code> is blocked), <code>style-src-attr 'unsafe-inline'</code> (inline <code>style=&quot;&quot;</code> still works), <code>style-src 'self' 'unsafe-inline'</code> as the fallback for older browsers.</li>
+          <li>The eight page <code>&lt;style&gt;</code> blocks moved into files, rules unchanged: <code>css/mobile.css</code>, <code>css/readme.css</code>, <code>css/reporting.css</code>, <code>css/admin.css</code> and one file per User Guide. The guide search box CSS that <code>js/guide-search.js</code> injected is now <code>css/guide-search.css</code>; the Market Report placeholder rule moved into style.css; <code>printPage()</code> adds its landscape <code>@page</code> rule through the CSSOM. This page's fonts now load (its old <code>../polymath-*.ttf</code> paths pointed above the site root; from <code>css/</code> they are correct).</li>
+          <li>New guards: <code>lintNoStyleElements</code> (tests/lint-csp.js) fails the build on any <code>&lt;style&gt;</code> element; <code>tests/lint-inline-styles.js</code> freezes the 635 inline <code>style=</code> attributes per file and bans <code>setAttribute('style', …)</code>.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>

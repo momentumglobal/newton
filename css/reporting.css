@@ -1,0 +1,68 @@
+/* css/reporting.css - moved from reporting.html's inline <style> block (N-324, SEC-12c).
+   style-src-elem has no 'unsafe-inline', so page CSS lives in a file.
+   Rules unchanged; only the indent and the relative url() paths (now
+   resolved from css/) differ. */
+
+/* ── Login screen override — dark branded style ── */
+#login-screen {
+  background: #090546;
+  position: relative;
+  overflow: hidden;
+}
+#login-watermark {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120vmin; height: 120vmin;
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 0;
+}
+.login-logo-white {
+  position: fixed;
+  bottom: 32px;
+  left: 32px;
+  height: 36px;
+  width: auto;
+  opacity: 0.7;
+  z-index: 2;
+}
+.login-card {
+  position: relative;
+  z-index: 2;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 12px;
+  padding: 40px 36px;
+  box-shadow: none;
+  text-align: center;
+  width: 360px;
+}
+.login-card h1 {
+  color: white;
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.login-card p {
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 32px;
+  font-size: 14px;
+}
+.btn-signin {
+  background: rgba(255,255,255,0.15);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 12px 28px;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: pointer;
+  width: 100%;
+  font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
+  font-weight: 600;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-signin:hover {
+  background: rgba(255,255,255,0.22);
+  border-color: rgba(255,255,255,0.5);
+}

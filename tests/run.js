@@ -59,6 +59,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'lint-headcount-writes.js'),
   path.join(TESTS_DIR, 'lint-weeklyactivity-writes.js'),
   path.join(TESTS_DIR, 'lint-inline-handlers.js'),
+  path.join(TESTS_DIR, 'lint-inline-styles.js'),
   path.join(TESTS_DIR, 'fixtures.js'),
   path.join(TESTS_DIR, 'assertions.js'),
 ];
@@ -91,6 +92,16 @@ sandbox.ALL_HTML = fs.readdirSync(ROOT_DIR)
   .sort()
   .reduce((acc, f) => {
     acc[f] = fs.readFileSync(path.join(ROOT_DIR, f), 'utf8');
+    return acc;
+  }, {});
+// N-324: page CSS moved out of <style> blocks into css/ files, so assertions that
+// check a page's own rules (and that every linked stylesheet exists) read them here.
+const CSS_DIR = path.join(ROOT_DIR, 'css');
+sandbox.ALL_CSS = (fs.existsSync(CSS_DIR) ? fs.readdirSync(CSS_DIR) : [])
+  .filter(f => f.endsWith('.css'))
+  .sort()
+  .reduce((acc, f) => {
+    acc[f] = fs.readFileSync(path.join(CSS_DIR, f), 'utf8');
     return acc;
   }, {});
 sandbox.VENDOR_FILES = (fs.existsSync(VENDOR_DIR) ? fs.readdirSync(VENDOR_DIR) : [])

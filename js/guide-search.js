@@ -6,32 +6,13 @@
 // SharePoint data, no api.js/config.js/nav-core.js dependency, not part of
 // the app's script load order. This file works purely off the DOM shape
 // every guide already shares (.guide-nav, .guide-content, .guide-section,
-// .faq-item) — no per-page config or hand-listed section IDs.
+// .faq-item) — no per-page config or hand-listed section IDs. Its CSS is
+// css/guide-search.css, linked by each guide (N-324: no injected <style>).
 
 (() => {
   const HIT_CLASS = 'guide-search-hit';
   const HIDDEN_CLASS = 'guide-search-hidden';
-  const STYLE_ID = 'guide-search-style';
   const HIGHLIGHT_SELECTOR = 'h2, h3, p, .tip, .faq-q, .faq-a';
-
-  function injectStyle() {
-    if (document.getElementById(STYLE_ID)) return;
-    const style = document.createElement('style');
-    style.id = STYLE_ID;
-    style.textContent = `
-      .guide-search-box { margin-bottom: 14px; }
-      .guide-search-box input[type="search"] {
-        width: 100%; padding: 8px 10px; font-family: inherit; font-size: 13px;
-        border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #1a1a2e;
-      }
-      .guide-search-box input[type="search"]:focus { outline: 2px solid #0A0B44; outline-offset: 1px; }
-      .guide-search-count { font-size: 11px; color: #888; margin-top: 4px; padding: 0 2px; min-height: 14px; }
-      .${HIT_CLASS} { background: #fff3b0; color: inherit; border-radius: 2px; }
-      .guide-search-empty { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 28px 32px; color: #444; font-size: 14px; }
-      .${HIDDEN_CLASS} { display: none !important; }
-    `;
-    document.head.appendChild(style);
-  }
 
   function buildSearchBox(nav) {
     const wrap = document.createElement('div');
@@ -110,7 +91,6 @@
     const content = document.querySelector('.guide-content');
     if (!nav || !content) return;
 
-    injectStyle();
     const box = buildSearchBox(nav);
     const input = box.querySelector('input');
     const count = box.querySelector('.guide-search-count');

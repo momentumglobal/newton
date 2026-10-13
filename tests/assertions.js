@@ -4254,16 +4254,17 @@ var ASSERTIONS = [
   {
     name: 'N-322: mobile Sales form - Edit finds the forecast by string id, and .is-hidden is defined for mobile.html',
     fn: function () {
-      if (typeof ALL_SOURCES === 'undefined' || typeof ALL_HTML === 'undefined') {
+      if (typeof ALL_SOURCES === 'undefined' || typeof ALL_HTML === 'undefined' || typeof ALL_CSS === 'undefined') {
         _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
       }
       const code = _vendorStripJsComments(ALL_SOURCES['mobile-sales.js']).join('\n');
       _assertEqual(/\bx\.id\s*===\s*editId\b/.test(code), false, 'no strict x.id === editId (ids are strings, the card passes a Number)');
       _assertEqual(code.indexOf('String(x.id) === String(editId)') !== -1, true, 'the forecast lookup compares String(x.id) === String(editId)');
-      // mobile.html does not load css/style.css, so it needs its own .is-hidden rule.
-      const styles = (ALL_HTML['mobile.html'].match(/<style\b[^>]*>[\s\S]*?<\/style>/gi) || []).join('\n');
+      // mobile.html does not load css/style.css, so it needs its own .is-hidden rule
+      // (in css/mobile.css since N-324 moved its <style> block to a file).
+      const styles = ALL_CSS['mobile.css'] || '';
       const rules = styles.match(/\.is-hidden\s*\{[^}]*\}/g) || [];
-      _assertEqual(rules.length, 1, 'mobile.html defines .is-hidden exactly once');
+      _assertEqual(rules.length, 1, 'css/mobile.css defines .is-hidden exactly once');
       _assertEqual(/display\s*:\s*none\s*!important/.test(rules[0] || ''), true, '.is-hidden is display: none !important');
       _assertEqual(/rel=["']stylesheet["'][^>]*style\.css/.test(ALL_HTML['mobile.html']), false, 'mobile.html still does not load style.css (if it ever does, this rule is redundant)');
     },
@@ -4709,6 +4710,101 @@ var ASSERTIONS = [
         retries += (code.match(/(^|[^\w.$])mobilePageError\s*\(/g) || []).length;
       });
       _assertEqual(retries, 11, 'eleven mobilePageError() calls (each Retry name is checked by lintActNames, N-321)');
+    },
+  },  {
+    name: "N-324 CSP style split: style-src-elem 'self', style-src-attr 'unsafe-inline', style-src as the CSP2 fallback (SEC-12c)",
+    fn: function () {
+      if (typeof lintCspPolicy === 'undefined') _skip('lint-csp.js not loaded — runs under node tests/run.js.');
+      const d = _cspParse(CSP_CANONICAL);
+      _assertEqual(d['style-src-elem'], ["'self'"], 'style-src-elem');
+      _assertEqual(d['style-src-attr'], ["'unsafe-inline'"], 'style-src-attr');
+      _assertEqual(d['style-src'], ["'self'", "'unsafe-inline'"], 'style-src (fallback for browsers without CSP Level 3)');
+      // Positive controls: each drift is caught, or lintCspPolicy(CSP_CANONICAL) == [] proves nothing.
+      _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("style-src-elem 'self'", "style-src-elem 'self' 'unsafe-inline'")).length, 1, "control: 'unsafe-inline' in style-src-elem flagged");
+      _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("style-src-elem 'self'; ", '')).length, 1, 'control: missing style-src-elem flagged');
+      _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("style-src-attr 'unsafe-inline'; ", '')).length, 1, 'control: missing style-src-attr flagged');
+      _assertEqual(lintCspPolicy(CSP_CANONICAL.replace("style-src 'self' 'unsafe-inline'; ", "style-src 'self'; ")).length, 1, 'control: a changed style-src fallback flagged');
+    },
+  },
+  {
+    name: 'N-324 no <style> element in root pages or js/; the moved page CSS is linked (SEC-12c)',
+    fn: function () {
+      if (typeof lintNoStyleElements === 'undefined') _skip('lint-csp.js not loaded — runs under node tests/run.js.');
+      // Positive controls.
+      _assertEqual(lintNoStyleElements({}, { 'a.html': '<link rel="stylesheet" href="css/a.css">' }), [], 'control: a stylesheet link is clean');
+      _assertEqual(lintNoStyleElements({}, { 'a.html': '<p>\n<style>\nb{}\n</style>' }), ["a.html:2: <style> element - move the CSS to a css/ file (style-src-elem has no 'unsafe-inline')"], 'control: a <style> block is flagged with its line');
+      _assertEqual(lintNoStyleElements({}, { 'a.html': '<style media="print">b{}</style>' }).length, 1, 'control: a <style> with attributes is flagged');
+      _assertEqual(lintNoStyleElements({}, { 'a.html': '<!-- <style>b{}</style> -->\n<p>&lt;style&gt;</p>' }), [], 'control: commented-out or escaped <style> is ignored');
+      _assertEqual(lintNoStyleElements({ 'x.js': "a\nel.innerHTML = `<style>b{}</style>`;" }, {}), ["js/x.js:2: <style> element - move the CSS to a css/ file (style-src-elem has no 'unsafe-inline')"], 'control: a <style> in a JS template is flagged');
+      _assertEqual(lintNoStyleElements({ 'x.js': "const s = document.createElement('style');" }, {}).length, 1, 'control: createElement(style) is flagged');
+      _assertEqual(lintNoStyleElements({ 'x.js': "// document.createElement('style')\nconst t = '<styles>'; el.style.color = c;" }, {}), [], 'control: comments, <styles> and el.style are not flagged');
+      if (typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintNoStyleElements(ALL_SOURCES, ALL_HTML), [], 'root *.html and js/: no <style> element');
+      // Mutation: put a block back into a real page and the lint must name it.
+      const mutated = Object.assign({}, ALL_HTML, { 'mobile.html': ALL_HTML['mobile.html'].replace('</head>', '<style>\nb{}\n</style>\n</head>') });
+      const back = lintNoStyleElements(ALL_SOURCES, mutated);
+      _assertEqual(back.length === 1 && /^mobile\.html:\d+: <style> element/.test(back[0]), true, 'mutation: a <style> added to mobile.html is flagged: ' + back);
+      // The eight moved blocks are linked from their page; the four guides also link guide-search.css after their own file.
+      const linksOf = html => { const out = []; html.replace(/<link\b[^>]*\brel="stylesheet"[^>]*\bhref="([^"]*)"[^>]*>/gi, (m, h) => { out.push(h); return m; }); return out; };
+      const moved = {
+        'mobile.html': ['css/mobile.css'], 'Readme.html': ['css/readme.css'],
+        'reporting.html': ['css/style.css', 'css/reporting.css'], 'admin.html': ['css/style.css', 'css/admin.css'],
+        'user-guide.html': ['css/user-guide.css', 'css/guide-search.css'],
+        'sales-user-guide.html': ['css/sales-user-guide.css', 'css/guide-search.css'],
+        'people-user-guide.html': ['css/people-user-guide.css', 'css/guide-search.css'],
+        'market-reporting-user-guide.html': ['css/market-reporting-user-guide.css', 'css/guide-search.css'],
+      };
+      Object.keys(moved).forEach(p => _assertEqual(linksOf(ALL_HTML[p]), moved[p], p + ' stylesheet links, in order'));
+      // Every stylesheet any root page links exists in css/ (a missing file fails silently in the browser).
+      if (typeof ALL_CSS !== 'undefined') {
+        Object.keys(ALL_HTML).forEach(p => linksOf(ALL_HTML[p]).forEach(h => {
+          _assertEqual(/^css\/[\w-]+\.css$/.test(h) && Object.prototype.hasOwnProperty.call(ALL_CSS, h.slice(4)), true, p + ' links ' + h + ', which exists in css/');
+        }));
+      }
+      // printPage() adds landscape through the CSSOM, not a <style> element.
+      _assertEqual(/insertRule\('@page \{ size: A4 landscape; \}'/.test(ALL_SOURCES['api.js']), true, 'printPage inserts the landscape @page rule through the CSSOM');
+    },
+  },
+  {
+    name: 'N-324 inline styles: per-file counts equal INLINE_STYLE_BASELINE; no setAttribute(style) (SEC-12c ratchet)',
+    fn: function () {
+      if (typeof lintInlineStyles === 'undefined') _skip('lint-inline-styles.js not loaded — runs under node tests/run.js.');
+      // What counts.
+      _assertEqual(countInlineStyles('<div style="a">'), 1, 'control: double-quoted attribute');
+      _assertEqual(countInlineStyles("<p STYLE='a'>"), 1, 'control: any case, single quotes');
+      _assertEqual(countInlineStyles('x = "<b style=\\"a\\">";'), 1, 'control: escaped quote inside a JS string');
+      _assertEqual(countInlineStyles('`<i style=${s}>`'), 1, 'control: template value');
+      _assertEqual(countInlineStyles("el.style.color = 'red'; el.style = 'x'; <p data-style=\"y\"> newStyle = 'z'; font-style: italic"), 0, 'control: CSSOM, data-style, other names not counted');
+      // Ratchet behaviour (synthetic data).
+      const js = { 'a.js': '<a style="x"><b style="y">', 'clean.js': 'x' };
+      const html = { 'p.html': '<p>' };
+      const base = { 'js/a.js': 2 };
+      _assertEqual(lintInlineStyles(js, html, base), [], 'control: exact match is clean');
+      const raised = lintInlineStyles({ 'a.js': js['a.js'] + '<c style="z">', 'clean.js': 'x' }, html, base);
+      _assertEqual(raised.length === 1 && /raised from 2 to 3/.test(raised[0]), true, 'raised flagged: ' + raised);
+      const lowered = lintInlineStyles({ 'a.js': '<a style="x">', 'clean.js': 'x' }, html, base);
+      _assertEqual(lowered.length === 1 && /lower INLINE_STYLE_BASELINE to 1/.test(lowered[0]), true, 'lowered flagged: ' + lowered);
+      const zero = lintInlineStyles({ 'a.js': 'none', 'clean.js': 'x' }, html, base);
+      _assertEqual(zero.length === 1 && /delete the INLINE_STYLE_BASELINE entry/.test(zero[0]), true, 'down to 0 → delete the entry: ' + zero);
+      const fresh = lintInlineStyles({ 'a.js': js['a.js'], 'clean.js': '<a style="n">' }, html, base);
+      _assertEqual(fresh.length === 1 && /js\/clean\.js: 1 inline .* no INLINE_STYLE_BASELINE entry/.test(fresh[0]), true, 'new file with a style flagged: ' + fresh);
+      const page = lintInlineStyles(js, { 'p.html': '<p style="x">' }, base);
+      _assertEqual(page.length === 1 && /^p\.html: 1 inline/.test(page[0]), true, 'a root page is counted too: ' + page);
+      _assertEqual(lintInlineStyles(js, html, Object.assign({ 'js/gone.js': 3 }, base)).length, 1, 'stale entry flagged');
+      _assertEqual(lintInlineStyles(js, html, Object.assign({ 'js/clean.js': 0 }, base)).length, 1, 'a 0 entry flagged');
+      // setAttribute('style', ...) ban.
+      _assertEqual(lintStyleSetAttribute({ 'x.js': "a\nel.setAttribute('style', 'color:red');" }), [{ file: 'js/x.js', line: 2 }], 'control: setAttribute(style) flagged');
+      _assertEqual(lintStyleSetAttribute({ 'x.js': "// el.setAttribute('style', s)\nel.setAttribute('title', s);" }), [], 'control: comments and other attributes are fine');
+      if (typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintInlineStyles(ALL_SOURCES, ALL_HTML, INLINE_STYLE_BASELINE), [], 'inline style ratchet');
+      _assertEqual(lintStyleSetAttribute(ALL_SOURCES), [], 'no setAttribute(style) in js/');
+      // Mutation on real data: one more inline style in a real file must fail.
+      const bumped = Object.assign({}, ALL_SOURCES, { 'pages.js': ALL_SOURCES['pages.js'] + '\nconst _x = \'<p style="color:red">\';' });
+      _assertEqual(lintInlineStyles(bumped, ALL_HTML, INLINE_STYLE_BASELINE).length, 1, 'mutation: a new inline style in pages.js is flagged');
     },
   },
 ];

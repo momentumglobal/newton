@@ -2,44 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; img-src 'self' https://talentpoint.sharepoint.com data: blob:; font-src 'self' data:; frame-src 'self' https://login.microsoftonline.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; img-src 'self' https://talentpoint.sharepoint.com data: blob:; font-src 'self' data:; frame-src 'self' https://login.microsoftonline.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'">
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Market Analytics — User Guide</title>
   <link rel="icon" type="image/png" href="momentum-symbol.png">
-  <style>
-    @font-face { font-family: 'Polymath'; src: url('polymath-regular.ttf') format('truetype'); font-weight: 400; }
-    @font-face { font-family: 'Polymath'; src: url('polymath-semibold.ttf') format('truetype'); font-weight: 600; }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; background: #F5F4F1; color: #1a1a2e; font-size: 15px; line-height: 1.6; }
-    .guide-header { background: #0A0B44; color: white; padding: 28px 48px; display: flex; align-items: center; justify-content: space-between; }
-    .guide-header-left h1 { font-size: 22px; font-weight: 600; }
-    .guide-header-left p { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px; }
-    .guide-header img { height: 36px; width: auto; }
-    .guide-body { display: flex; max-width: 1100px; margin: 0 auto; padding: 40px 24px; gap: 40px; }
-    .guide-nav { width: 200px; min-width: 200px; position: sticky; top: 24px; align-self: flex-start; }
-    .guide-nav ul { list-style: none; padding: 0; }
-    .guide-nav li a { display: block; padding: 7px 12px; color: #0A0B44; text-decoration: none; font-size: 13px; border-radius: 4px; transition: background 0.15s; }
-    .guide-nav li a:hover { background: #e8e7e3; }
-    .guide-nav .nav-section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; padding: 12px 12px 4px; }
-    .guide-content { flex: 1; min-width: 0; }
-    .guide-section { background: white; border-radius: 6px; border: 1px solid #ddd; padding: 28px 32px; margin-bottom: 24px; scroll-margin-top: 24px; }
-    .guide-section h2 { font-size: 18px; font-weight: 600; color: #0A0B44; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #EBF2FA; }
-    .guide-section h3 { font-size: 14px; font-weight: 600; color: #0A0B44; margin: 20px 0 8px; }
-    .guide-section p { color: #333; margin-bottom: 12px; }
-    .guide-section p:last-child { margin-bottom: 0; }
-    .faq-item { border-bottom: 1px solid #eee; padding: 14px 0; }
-    .faq-item:last-child { border-bottom: none; padding-bottom: 0; }
-    .faq-q { font-weight: 600; color: #0A0B44; margin-bottom: 6px; font-size: 14px; }
-    .faq-a { color: #444; font-size: 14px; }
-    .role-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-    .role-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #EBF2FA; color: #0A0B44; }
-    .role-badge.admin { background: #0A0B44; color: white; }
-    .role-badge.dm    { background: #e8f4fd; color: #0A0B44; }
-    .role-badge.tp    { background: #e6f4ea; color: #2e7d32; }
-    .tip { background: #EBF2FA; border-left: 3px solid #0A0B44; border-radius: 0 4px 4px 0; padding: 10px 14px; font-size: 13px; color: #333; margin: 12px 0; }
-    .guide-footer { text-align: center; padding: 32px; font-size: 12px; color: #888; }
-  </style>
+  <link rel="stylesheet" href="css/market-reporting-user-guide.css">
+  <link rel="stylesheet" href="css/guide-search.css">
 </head>
 <body>
 

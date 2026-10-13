@@ -1,0 +1,14 @@
+/* css/guide-search.css - the search box on the 4 static User Guides (js/guide-search.js, N-163).
+   Was injected as a <style> element by guide-search.js; moved to a file in N-324
+   (SEC-12c: style-src-elem has no 'unsafe-inline'). Rules unchanged. */
+
+.guide-search-box { margin-bottom: 14px; }
+.guide-search-box input[type="search"] {
+  width: 100%; padding: 8px 10px; font-family: inherit; font-size: 13px;
+  border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #1a1a2e;
+}
+.guide-search-box input[type="search"]:focus { outline: 2px solid #0A0B44; outline-offset: 1px; }
+.guide-search-count { font-size: 11px; color: #888; margin-top: 4px; padding: 0 2px; min-height: 14px; }
+.guide-search-hit { background: #fff3b0; color: inherit; border-radius: 2px; }
+.guide-search-empty { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 28px 32px; color: #444; font-size: 14px; }
+.guide-search-hidden { display: none !important; }

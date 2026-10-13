@@ -2099,16 +2099,25 @@ function printPage(title, landscape = false, module = 'Newton') {
   // Set the document title so it becomes the default PDF filename, then restore.
   const prevDocTitle = document.title;
   if (title) document.title = title;
-  let styleEl = null;
+  // N-324: landscape goes in through the CSSOM, not an injected <style>
+  // (style-src-elem has no 'unsafe-inline'). Appended to the last stylesheet
+  // so it follows style.css's canonical @page, as the old <head> <style> did.
+  let pageRule = null;
   if (landscape) {
-    styleEl = document.createElement('style');
-    styleEl.id = '__print-orientation__';
-    styleEl.textContent = '@page { size: A4 landscape; }';
-    document.head.appendChild(styleEl);
+    const sheet = document.styleSheets[document.styleSheets.length - 1];
+    try {
+      if (sheet) pageRule = sheet.cssRules[sheet.insertRule('@page { size: A4 landscape; }', sheet.cssRules.length)];
+    } catch (e) {
+      console.warn('printPage: could not add the landscape @page rule', e);
+    }
   }
   window.print();
-  if (styleEl) {
-    setTimeout(() => styleEl.remove(), 1000);
+  if (pageRule) {
+    setTimeout(() => {
+      const sheet = pageRule.parentStyleSheet;
+      const i = sheet ? Array.prototype.indexOf.call(sheet.cssRules, pageRule) : -1;
+      if (i >= 0) sheet.deleteRule(i);
+    }, 1000);
   }
   setTimeout(() => { document.title = prevDocTitle; }, 1000);
 }

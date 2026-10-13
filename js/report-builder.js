@@ -12,6 +12,13 @@ let _rbTitle      = '';
 let _rbIncludeGantt = false;  // append Hiring Plan as landscape final page (CoE projects)
 let _rbProjectRoles = [];  // Roles for the selected project (drives Role dropdown)
 let _rbLiveRoles = [];  // Live roles for the current project/role filter — drives the Snapshot editor
+// N-330: optional branded title page (Project scope only). The logo is the
+// project's ClientLogos row — shared with Briefing Packs in both directions.
+let _rbIncludeTitlePage = false;
+let _rbClientName       = '';  // selected project's CustomerName
+let _rbClientLogo       = '';  // data: URI, held against the PROJECT not the report
+let _rbClientLogoName   = '';
+let _rbProjects         = [];  // last project list, so the sidebar can re-render alone
 
 // Library state (N-244)
 let _rbLibraryCache  = [];  // reports visible to this user, from the last load
@@ -37,9 +44,11 @@ const RB_PALETTE = [
   { key: 'pipelineActivity', label: 'Pipeline Activity',          scope: 'project', group: 'Pipeline', filtered: true },
   { key: 'activityByTP',     label: 'Activity by Talent Partner', scope: 'both',    group: 'Pipeline', filtered: true },
   { key: 'pipelineSummary',  label: 'Pipeline Summary (last 4 weeks)', scope: 'both', group: 'Pipeline' },
+  { key: 'pipelineSummaryPTD', label: 'Pipeline Summary (project to date)', scope: 'project', group: 'Pipeline' },
   { key: 'candidateSnapshot', label: 'Candidate Pipeline Snapshot',    scope: 'project', group: 'Pipeline' },
   // Placements & Rejections
   { key: 'placements',       label: 'Placements',                 scope: 'both',    group: 'Placements & Rejections', filtered: true },
+  { key: 'placementsPTD',    label: 'Placements (project to date)', scope: 'project', group: 'Placements & Rejections' },
   { key: 'spendVsBudget',    label: 'Actual Spend vs Budget',     scope: 'both',    group: 'Placements & Rejections' },
   { key: 'upcomingStarters', label: 'Upcoming Starters',          scope: 'both',    group: 'Placements & Rejections' },
   { key: 'rejections',       label: 'Offer Rejection Reasons',    scope: 'both',    group: 'Placements & Rejections', filtered: true },
@@ -53,6 +62,9 @@ async function renderReportBuilder() {
   // Load projects for the project selector
   const projects = await getScopedProjects(user.email, false);
   if (projects.length && !_rbProjectId) _rbProjectId = String(projects[0].id);
+  _rbProjects   = projects;
+  _rbClientName = (projects.find(p => String(p.id) === _rbProjectId) || {}).CustomerName || '';
+  if (_rbScope === 'project' && _rbIncludeTitlePage) await rbLoadClientLogo();
 
   // Load roles for the selected project (drives the Role filter dropdown).
   // Only needed in Project scope. Talent Partners are scoped to their own roles.
@@ -144,6 +156,7 @@ function rbRenderSidebar(projects) {
       <div class="rb-section-label">Report Title</div>
       <input id="rb-title" class="rb-input" type="text" placeholder="Untitled Report"
         value="${escAttr(_rbTitle || '')}"${actOn('input', 'rbSetOption', 'title', ACT_VALUE)}>
+      ${_rbScope === 'project' ? rbTitlePageControlsHtml() : ''}
 
       <div class="rb-section-label">Scope</div>
       <div class="filter-group">
@@ -174,6 +187,135 @@ function rbRenderSidebar(projects) {
       <p class="rb-footnote"><span class="rb-filter-mark">*</span> Controlled by the Period / KPI Period filter above. Unmarked modules show all available data.</p>
     </div>
   `;
+}
+
+// ── N-330: title page — sidebar controls, client logo, cover ──────────
+function rbTitlePageOn() {
+  return _rbIncludeTitlePage && _rbScope === 'project';
+}
+
+function rbTitlePageControlsHtml() {
+  const logo = !_rbIncludeTitlePage ? '' : `
+      <div class="rb-section-label">Client Logo</div>
+      <div class="bp-logo-control">
+        ${_rbClientLogo
+          ? `<img class="bp-logo-thumb" src="${escAttr(_rbClientLogo)}" alt="${escAttr(_rbClientLogoName || 'Client logo')}">`
+          : '<span class="bp-logo-empty">No logo uploaded</span>'}
+        <input type="file" class="bp-logo-input" accept="${uploadAcceptAttr('LOGO')}"
+          ${actOn('change', 'rbUploadClientLogo', ACT_EL).trim()}>
+        ${_rbClientLogo ? `<button class="btn-secondary btn-sm"${act('rbRemoveClientLogo')}>Remove</button>` : ''}
+      </div>
+      <p class="rb-footnote">Saved against the project — shared with Briefing Packs for this project.</p>`;
+  return `
+      <label class="rb-check-row">
+        <input type="checkbox" ${_rbIncludeTitlePage ? 'checked' : ''}
+          ${actOn('change', 'rbSetTitlePage', ACT_CHECKED).trim()}>
+        Include title page
+      </label>${logo}`;
+}
+
+function rbRefreshSidebar() {
+  const el = document.getElementById('rb-sidebar');
+  if (el) el.innerHTML = rbRenderSidebar(_rbProjects);
+}
+
+// A failed read degrades to "no logo" — the lockup then shows the client
+// name alone — never a broken builder or export.
+async function rbLoadClientLogo() {
+  _rbClientLogo = '';
+  _rbClientLogoName = '';
+  if (!_rbProjectId) return;
+  try {
+    const row = await getClientLogo(_rbProjectId);
+    if (row && String(row.LogoData || '').startsWith('data:image/')) {
+      _rbClientLogo     = row.LogoData;
+      _rbClientLogoName = row.LogoName || '';
+    }
+  } catch (e) {
+    console.warn('N-330: client logo read failed', e);
+  }
+}
+
+async function rbSetTitlePage(checked) {
+  _rbIncludeTitlePage = !!checked;
+  if (_rbIncludeTitlePage) await rbLoadClientLogo();
+  rbRefreshSidebar();
+}
+
+// Same validation and storage as the Briefing Pack control (readClientLogoFile,
+// briefing-pack.js) — one ClientLogos row per project, so a pack sees it too.
+async function rbUploadClientLogo(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!_rbProjectId) {
+    toast('Select a project before uploading a logo.', { type: 'error' });
+    input.value = '';
+    return;
+  }
+  const read = await readClientLogoFile(file);
+  if (!read.ok) {
+    toast(read.reason, { type: 'error' });
+    input.value = '';
+    return;
+  }
+  try {
+    await upsertClientLogo(_rbProjectId, read.dataUri, file.name);
+  } catch (e) {
+    toast(`Could not save the logo: ${e.message || e}`, { type: 'error' });
+    input.value = '';
+    return;
+  }
+  _rbClientLogo     = read.dataUri;
+  _rbClientLogoName = file.name;
+  rbRefreshSidebar();
+  toast('Client logo saved for this project.');
+}
+
+async function rbRemoveClientLogo() {
+  if (!_rbProjectId) return;
+  if (!(await confirmModal({
+    message: 'Remove the client logo for this project? Briefing Packs and reports for this project lose it.',
+    confirmLabel: 'Remove', danger: true,
+  }))) return;
+  try {
+    await deleteClientLogo(_rbProjectId);
+  } catch (e) {
+    toast(`Could not remove the logo: ${e.message || e}`, { type: 'error' });
+    return;
+  }
+  _rbClientLogo = '';
+  _rbClientLogoName = '';
+  rbRefreshSidebar();
+}
+
+// The Briefing Pack cover composition (lockup top, title block lower third),
+// landscape, with no Confidential line. Date = the day of export.
+function rbRenderTitlePageHtml(title) {
+  const client = (_rbClientName || '').trim();
+  return `<section class="bp-page-full bp-page-title rb-cover">
+    ${clientLockupHtml(_rbClientLogo, client)}
+    <div class="bp-cover-spacer"></div>
+    <div class="bp-cover-block">
+      <h1 class="bp-cover-title">${escHtml(title)}</h1>
+      <span class="bp-cover-rule"></span>
+      ${client ? `<p class="bp-cover-partner">Momentum Global in partnership with ${escHtml(client)}</p>` : ''}
+      <p class="bp-cover-date">${escHtml(formatLongDay(localDayISO()) || '')}</p>
+    </div>
+  </section>`;
+}
+
+// The Newton / Reporting bar for the top of the first data page. #print-header
+// is hidden under body.rb-printing (it would print on the cover); this copy
+// shares its print rules through the `#print-header, .rb-print-band` selector
+// list in style.css, and is hidden on screen.
+function rbPrintBandHtml() {
+  return `<div class="rb-print-band">
+    <div>
+      <div class="print-header-title">Newton</div>
+      <div class="print-header-sub">Reporting</div>
+    </div>
+    <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
+  </div>`;
 }
 
 function rbRenderCanvas() {
@@ -457,7 +599,10 @@ async function rbPreview() {
 
 function rbRenderReportHtml(title, data, ganttOpts = null) {
   // ganttOpts: { coeRows, headcount, forPrint } — appended final page (N-318: Planned vs Actual Role Opens chart + table)
-  const titleHtml = `<div class="rb-report-title"><h2>${escHtml(title)}</h2></div>`;
+  // N-330: with the title page on, the cover + Newton bar replace the <h2>.
+  const titleHtml = rbTitlePageOn()
+    ? rbRenderTitlePageHtml(title) + rbPrintBandHtml()
+    : `<div class="rb-report-title"><h2>${escHtml(title)}</h2></div>`;
 
   const blocks = _rbBlocks.map(block => {
     if (block.type === 'panel') {
@@ -514,11 +659,19 @@ async function rbExportPdf() {
 
     // Use existing printPage() — sets print-header title/sub and calls window.print()
   const main = document.getElementById('main-content');
+  const withCover = rbTitlePageOn();
+  if (withCover) document.body.classList.add('rb-printing');
   main.innerHTML = rbRenderReportHtml(title, data, { forPrint: true, coeRows, headcount });
+  // N-330: the cover's logo and swirl must have loaded before window.print()
+  // snapshots the page — the same cold-cache trap as the Briefing Pack cover.
+  if (withCover) await bpAwaitArtwork(main);
   printPage(title, true, 'Reporting');
 
   // Restore builder after print dialog closes
-  setTimeout(() => renderReportBuilder(), 500);
+  setTimeout(() => {
+    document.body.classList.remove('rb-printing');
+    renderReportBuilder();
+  }, 500);
 }
 
 async function rbSaveReport() {
@@ -531,7 +684,12 @@ async function rbSaveReport() {
     RoleID:      _rbScope === 'project' && _rbRoleId !== 'all' ? _rbRoleId : null,
     Period:      _rbPeriod,
     KpiPeriod:   _rbKpiPeriod,
-    ModuleOrder: JSON.stringify(_rbIncludeGantt ? [..._rbBlocks, { type: 'hiringPlan' }] : _rbBlocks),
+    // Markers, not blocks: hiringPlan (N-318) and titlePage (N-330).
+    ModuleOrder: JSON.stringify([
+      ..._rbBlocks,
+      ...(_rbIncludeGantt ? [{ type: 'hiringPlan' }] : []),
+      ...(rbTitlePageOn() ? [{ type: 'titlePage' }] : []),
+    ]),
   };
   if (_rbReportId) {
     await updateSavedReport(_rbReportId, payload);
@@ -710,6 +868,9 @@ function rbStartNewReport() {
   _rbBlocks       = [];
   _rbTitle        = '';
   _rbIncludeGantt = false;
+  _rbIncludeTitlePage = false;
+  _rbClientLogo       = '';
+  _rbClientLogoName   = '';
   _rbScope        = 'project';
   _rbProjectId    = null;
   _rbRoleId       = 'all';
@@ -738,7 +899,8 @@ async function rbLoadReport(id) {
   _rbKpiPeriod  = report.KpiPeriod || 'quarter';
   const _loadedBlocks = JSON.parse(report.ModuleOrder || '[]');
   _rbIncludeGantt = _loadedBlocks.some(b => b.type === 'hiringPlan');
-  _rbBlocks     = _loadedBlocks.filter(b => b.type !== 'hiringPlan');
+  _rbIncludeTitlePage = _loadedBlocks.some(b => b.type === 'titlePage');
+  _rbBlocks     = _loadedBlocks.filter(b => b.type !== 'hiringPlan' && b.type !== 'titlePage');
   _rbTitle      = report.Title;
   renderReportBuilder();
 }
@@ -813,4 +975,8 @@ registerActions({
   rbDeleteReport,
   rbStartNewReport,
   rbLibraryFilterChanged,
-});
+  // N-330: title page + shared client logo.
+  rbSetTitlePage,
+  rbUploadClientLogo,
+  rbRemoveClientLogo,
+  });

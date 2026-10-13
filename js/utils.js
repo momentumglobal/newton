@@ -688,6 +688,16 @@ function localDayISO(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
+// N-330: 'YYYY-MM-DD' -> '13 October 2026' (en-GB long form). Builds a LOCAL
+// date from the string's own parts, so no UTC shift either side of BST; null
+// on anything unparseable. Report Builder title page date.
+function formatLongDay(dayISO) {
+  const m = String(dayISO || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    .toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 // N-093 (F-2a): the earliest calendar day the Placements page's existing
 // month/quarter/year filter can possibly match, as 'YYYY-MM-DD', or null
 // when no filter is set. Used ONLY as a server-side `ge` lower bound — it is
@@ -3177,6 +3187,15 @@ function placementTimeToHire(hcOpenDate, offerDate) {
   const offer = offerDate ? spDateIn(offerDate) : null;
   if (!open || !offer) return null;
   return daysOpen(open, offer);
+}
+
+// N-330: Placements tile "Time to Hire" cell from the stored TimeToHire —
+// '32 days' / '1 day'; '—' when blank (a not-opened headcount, D-5).
+function placementTimeToHireLabel(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '—';
+  return `${n} ${n === 1 ? 'day' : 'days'}`;
 }
 
 // What to ask after a placement lands on a pipeline: 'close' when it filled

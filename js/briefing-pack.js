@@ -252,22 +252,13 @@ async function bpLoadClientLogo() {
   }
 }
 
-async function bpUploadClientLogo(input) {
-  const file = input.files && input.files[0];
-  if (!file) return;
-  if (!_bpProjectId) {
-    toast('Select a project before uploading a logo.', { type: 'error' });
-    input.value = '';
-    return;
-  }
-  // N-284: extension + MIME + size (cap = CONFIG.BRIEFING_PACK.CLIENT_LOGO_MAX_BYTES). No SVG.
+// N-330: validate + read a client logo file — shared by the Briefing Pack and
+// Report Builder logo controls. N-284: extension + MIME + size (cap =
+// CONFIG.BRIEFING_PACK.CLIENT_LOGO_MAX_BYTES), no SVG; only ever returns an
+// image data URI, so nothing else can reach an <img src>.
+async function readClientLogoFile(file) {
   const logoCheck = validateUpload(file, 'LOGO');
-  if (!logoCheck.ok) {
-    toast(logoCheck.reason, { type: 'error' });
-    input.value = '';
-    return;
-  }
-
+  if (!logoCheck.ok) return { ok: false, dataUri: '', reason: logoCheck.reason };
   let dataUri = '';
   try {
     dataUri = await new Promise((resolve, reject) => {
@@ -277,16 +268,29 @@ async function bpUploadClientLogo(input) {
       fr.readAsDataURL(file);
     });
   } catch (e) {
-    toast('Could not read that file.', { type: 'error' });
+    return { ok: false, dataUri: '', reason: 'Could not read that file.' };
+  }
+  if (!/^data:image\/(png|jpeg);/.test(dataUri)) {
+    return { ok: false, dataUri: '', reason: 'That file is not an image.' };
+  }
+  return { ok: true, dataUri, reason: '' };
+}
+
+async function bpUploadClientLogo(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!_bpProjectId) {
+    toast('Select a project before uploading a logo.', { type: 'error' });
     input.value = '';
     return;
   }
-  // Only ever store an image data URI — nothing else reaches an <img src>.
-  if (!/^data:image\/(png|jpeg);/.test(dataUri)) {
-    toast('That file is not an image.', { type: 'error' });
+  const read = await readClientLogoFile(file);
+  if (!read.ok) {
+    toast(read.reason, { type: 'error' });
     input.value = '';
-        return;
+    return;
   }
+  const dataUri = read.dataUri;
 
   // Never fail silently. The first version swallowed the Graph rejection
   // inside this async onchange handler, so a logo that never saved looked
@@ -307,10 +311,15 @@ async function bpUploadClientLogo(input) {
 async function bpRemoveClientLogo() {
   if (!_bpProjectId) return;
   if (!(await confirmModal({
-    message: 'Remove the client logo for this project? Every pack for this client loses it.',
+    message: 'Remove the client logo for this project? Every pack and report for this project loses it.',
     confirmLabel: 'Remove', danger: true,
   }))) return;
-  await deleteClientLogo(_bpProjectId);
+  try {
+    await deleteClientLogo(_bpProjectId);
+  } catch (e) {
+    toast(`Could not remove the logo: ${e.message || e}`, { type: 'error' });
+    return;
+  }
   _bpClientLogo = '';
   _bpClientLogoName = '';
   document.getElementById('bp-sidebar').innerHTML = bpRenderSidebar();
@@ -322,18 +331,23 @@ async function bpRemoveClientLogo() {
 // sides balance: [MG symbol + name]  x  [square logo tile + client name].
 // The tile is square by design; a roughly square client logo sits in it best.
 // With no logo the name stands alone and no empty tile is drawn.
-function bpLockupHtml() {
-  const tile = _bpClientLogo
+// N-330: parameterised so the Report Builder title page shares it.
+function clientLockupHtml(logoDataUri, clientName) {
+  const tile = logoDataUri
     ? `<span class="bp-lockup-chip"><img class="bp-lockup-logo"
-         src="${escAttr(_bpClientLogo)}" alt="${escAttr(_bpClientName || 'Client')}"></span>`
+         src="${escAttr(logoDataUri)}" alt="${escAttr(clientName || 'Client')}"></span>`
     : '';
   return `<div class="bp-lockup">
     <img class="bp-lockup-mg" src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
     <span class="bp-lockup-x">&times;</span>
     <span class="bp-lockup-client">
-      ${tile}<span class="bp-lockup-client-name">${escHtml(_bpClientName || 'Client')}</span>
+      ${tile}<span class="bp-lockup-client-name">${escHtml(clientName || 'Client')}</span>
     </span>
   </div>`;
+}
+
+function bpLockupHtml() {
+  return clientLockupHtml(_bpClientLogo, _bpClientName);
 }
 
 // Pre-populate the header fields from the selected project/role. Every value

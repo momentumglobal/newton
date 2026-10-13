@@ -589,7 +589,8 @@
     background: var(--surface) !important;
   }
   #main-content div[style*="max-height"] { max-height: none !important; overflow: visible !important; }
-  #print-header {
+  #print-header,
+  .rb-print-band {
     display: flex !important;
     align-items: center; justify-content: space-between;
     background: var(--brand) !important;
@@ -597,7 +598,8 @@
     print-color-adjust: exact;
     color: var(--text-on-brand); padding: var(--sp-5) var(--sp-4); margin-bottom: 14px;
   }
-  #print-header img { height: 28px; }
+  #print-header img,
+  .rb-print-band img { height: 28px; }
   .print-header-title { font-size: var(--fs-16); font-weight: 600; color: var(--text-on-brand); }
   .print-header-sub   { font-size: var(--fs-12); color: var(--inverse-text-subtitle); margin-top: var(--sp-1); }
   .page-header { padding: 0 0 var(--sp-6) !important; }
@@ -1381,6 +1383,7 @@ body {
 }
 .print-btn:hover { background: var(--surface-app); }
 #print-header { display: none; }
+.rb-print-band { display: none; } /* N-330: print-only copy of #print-header (RB title page) */
 @media print {
   /* Report Builder — print (RB-specific only).
      Everything that used to live in this block and applies to more than
@@ -4150,6 +4153,60 @@ body.bp-printing .rt-table-controls { display: none !important; }
 .bp-logo-thumb   { max-height: 40px; max-width: 100%; object-fit: contain; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: var(--sp-2); }
 .bp-logo-empty   { font-size: var(--fs-12); color: var(--text-muted); }
 .bp-logo-input   { font-size: var(--fs-12); max-width: 100%; }
+
+/* ── Report Builder title page (N-330) ──────────────────────────────
+   Reuses the Briefing Pack cover: .bp-page-full (brand fill, flex column),
+   .bp-page-title (swirl ::after), .bp-lockup and .bp-cover-*. Only the
+   landscape geometry is its own, so these rules must stay AFTER those. */
+.rb-cover {
+  aspect-ratio: 297 / 210;
+  margin-bottom: var(--sp-8);
+}
+/* Landscape: the swirl sits right of the left-aligned title block. */
+.rb-cover::after {
+  left: auto;
+  right: 4%;
+  top: 12%;
+  transform: none;
+  width: 48%;
+  height: 76%;
+}
+.rb-check-row {
+  display: flex; align-items: center; gap: var(--sp-3);
+  margin-top: var(--sp-5);
+  font-size: var(--fs-13); cursor: pointer; user-select: none;
+}
+
+@media print {
+  /* Named page — a zero-margin landscape sheet for the full-bleed cover.
+     Named because @page cannot be scoped (N-201); Chromium only, like
+     @page coe-gantt. */
+  @page rb-cover { size: A4 landscape; margin: 0; }
+  /* The cover takes page 1; .rb-print-band re-creates the Newton bar at the
+     top of page 2. */
+  body.rb-printing #print-header { display: none !important; }
+  body.rb-printing .rb-cover {
+    page: rb-cover;
+    width: 297mm;
+    height: 210mm;
+    aspect-ratio: auto;
+    box-sizing: border-box;
+    padding: 18mm 22mm 16mm;
+    /* Cancel #main-content's print inset so the cover is full bleed; the
+       data pages after it keep the inset. */
+    margin: 0 calc(var(--sp-4) * -1);
+    border-radius: 0;
+    break-after: page;
+    page-break-after: always;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.rb-printing .rb-cover::after,
+  body.rb-printing .rb-cover .bp-lockup-chip {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
 
 /* Flowing content is wrapped in a table so its thead repeats the running
    header on every page and its tfoot RESERVES space above the fixed

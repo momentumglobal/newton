@@ -5128,6 +5128,89 @@ var ASSERTIONS = [
       _assertEqual(old(people, base, today).toCreate.length, 0, 'control: pre-fix logic creates no bench row under a forecast');
     },
   },
+  {
+    name: 'N-330: formatLongDay / placementTimeToHireLabel',
+    fn: function () {
+      _assertEqual(formatLongDay('2026-10-13'), '13 October 2026', 'long day');
+      _assertEqual(formatLongDay('2026-03-29'), '29 March 2026', 'BST changeover day is not shifted');
+      _assertEqual(formatLongDay('2026-01-01'), '1 January 2026', 'first of the year');
+      _assertEqual([formatLongDay(''), formatLongDay(null), formatLongDay('2026-10-13T00:00:00Z')], [null, null, null], 'unparseable -> null');
+      _assertEqual(
+        [32, 1, 0, '45', null, undefined, '', 'x'].map(placementTimeToHireLabel),
+        ['32 days', '1 day', '0 days', '45 days', '—', '—', '—', '—'],
+        'Time to Hire labels');
+    },
+  },
+  {
+    // N-330: dashboard-project-panels.js / report-builder.js are DOM-bound and
+    // not loaded by run.js — the renderers are lifted out of the source text.
+    name: 'N-330: Placements 7 columns + project-to-date tiles (palette order, registry sync, all-time, conversion %)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined' || !ALL_SOURCES['dashboard-project-panels.js']) {
+        _skip('Source extraction needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const dp = ALL_SOURCES['dashboard-project-panels.js'];
+      const rb = ALL_SOURCES['report-builder.js'];
+      const fnSrc = (src, name) => {
+        const s = src.indexOf('function ' + name + '(');
+        _assertEqual(s > -1, true, name + ' located');
+        return src.slice(s, src.indexOf('\n}\n', s) + 2);
+      };
+
+      // Palette: order + registry sync + no filter mark on the PTD tiles.
+      const p0 = rb.indexOf('const RB_PALETTE = [');
+      const pal = rb.slice(p0, rb.indexOf('];', p0));
+      const keys = Array.from(pal.matchAll(/key:\s*'(\w+)'/g)).map(m => m[1]);
+      _assertEqual(keys.indexOf('placementsPTD'), keys.indexOf('placements') + 1, 'Placements (PTD) directly below Placements');
+      _assertEqual(keys.indexOf('pipelineSummaryPTD'), keys.indexOf('pipelineSummary') + 1, 'Pipeline Summary (PTD) directly below Pipeline Summary');
+      ['placementsPTD', 'pipelineSummaryPTD'].forEach(k => {
+        const line = pal.split('\n').find(l => l.indexOf("'" + k + "'") > -1);
+        _assertEqual(/scope:\s*'project'/.test(line) && !/filtered/.test(line), true, k + ' is project-scope and unfiltered');
+      });
+      const reg = dp.slice(dp.indexOf('const REPORT_PANELS = {'));
+      keys.filter(k => k !== 'candidateSnapshot').forEach(k =>
+        _assertEqual(new RegExp('\\n  ' + k + ':').test(reg), true, 'REPORT_PANELS has ' + k));
+
+      // Renderers, with the period helpers stubbed (they live in dashboard-core.js).
+      const stubs = 'const getDetailPeriodRange = () => ({ start: new Date(2026, 9, 1), end: new Date(2026, 9, 31) });\n' +
+        "const activityInDetailPeriod = a => a.WeekEndingDate >= '2026-10-01';\n" +
+        'const DETAIL_PERIOD_OPTIONS = [];\n' +
+        "const emptyStateBlock = o => '<empty>' + o.message + '</empty>';\n";
+      const lib = new Function(stubs + fnSrc(dp, 'pipelineTotalsCells') + fnSrc(dp, 'renderPipelineActivityTable') +
+        fnSrc(dp, 'renderPlacementsPanel') +
+        '\nreturn { pipelineTotalsCells, renderPipelineActivityTable, renderPlacementsPanel };')();
+      const roles = [{ id: 1, RoleTitle: 'Engineer', Location: 'Lisbon' }, { id: 2, RoleTitle: 'Analyst' }];
+      const pls = [
+        { CandidateName: 'Ann', RoleIDLookupId: 1, OfferAcceptedDate: '2026-10-05T12:00:00Z', ProvisionalStartDate: '2026-11-02T12:00:00Z', Currency: 'EUR', SalaryAgreed: 50000, TimeToHire: 32 },
+        { CandidateName: 'Bob', RoleIDLookupId: 2, OfferAcceptedDate: '2026-04-05T12:00:00Z', Currency: 'GBP', SalaryAgreed: 40000 },
+      ];
+      const ths = h => Array.from(h.matchAll(/<th>([^<]*)<\/th>/g)).map(m => m[1]);
+      const pPeriod = lib.renderPlacementsPanel(pls, roles, 'x');
+      _assertEqual(ths(pPeriod), ['Candidate', 'Role', 'Offer Accepted', 'Start Date', 'Currency', 'Salary', 'Time to Hire'], 'Placements header order');
+      _assertEqual((pPeriod.match(/<tr>\s*<td>/g) || []).length, 1, 'period tile: 1 row (Bob is outside the period)');
+      _assertEqual((pPeriod.match(/<td>/g) || []).length, 7, 'row has 7 cells');
+      _assertEqual(/<td>2026-11-02<\/td>/.test(pPeriod) && /<td>32 days<\/td>/.test(pPeriod), true, 'Start Date + Time to Hire cells');
+      const pAll = lib.renderPlacementsPanel(pls, roles, null, { allTime: true });
+      _assertEqual((pAll.match(/<tr>\s*<td>/g) || []).length, 2, 'project-to-date: both placements, period ignored');
+      _assertEqual(/Placements \(project to date\)/.test(pAll), true, 'PTD title');
+      _assertEqual((pAll.match(/<td>—<\/td>/g) || []).length, 2, 'blank Start Date + Time to Hire render as —');
+      _assertEqual(/on this project yet/.test(lib.renderPlacementsPanel([], roles, null, { allTime: true })), true, 'PTD empty state');
+
+      const acts = [
+        { RoleIDLookupId: 1, WeekEndingDate: '2026-10-11', Outreach: 10, Responses: 5 },
+        { RoleIDLookupId: 1, WeekEndingDate: '2026-03-01', Outreach: 30, Responses: 5 },
+        { RoleIDLookupId: 2, WeekEndingDate: '2026-02-01', Outreach: 20, Responses: 10 },
+      ];
+      const ptd = lib.renderPipelineActivityTable(acts, roles, null, { allTime: true, conversionPct: true, title: 'Pipeline Summary (project to date)' });
+      _assertEqual((ptd.match(/<tr>/g) || []).length, 3, 'PTD: header + one row per role');
+      _assertEqual(/<strong>60<\/strong>/.test(ptd) && /<strong>20<\/strong><br>\(33%\)/.test(ptd), true, 'PTD totals are all-time with conversion %');
+      const per = lib.renderPipelineActivityTable(acts, roles, 'x');
+      _assertEqual(/<strong>10<\/strong>/.test(per) && !/%\)/.test(per), true, 'control: Pipeline Activity stays period-filtered, no %');
+      _assertEqual(lib.pipelineTotalsCells([10, 0, 0], { conversionPct: true }),
+        '<td style="text-align:center"><strong>10</strong></td><td style="text-align:center"><strong>0</strong><br>(0%)</td><td style="text-align:center"><strong>0</strong></td>',
+        'no % where the previous total is 0');
+    },
+  },
 ];
 
 // N-301 test helpers — stub elements/events for js/actions.js (no DOM in the vm).

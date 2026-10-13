@@ -76,12 +76,26 @@ function renderKPIStrip(roles, activity, period, placements = [], hc = null) {
     </div>`;
 }
 // ── Pipeline Activity table ───────────────────────────────────────────
-function renderPipelineActivityTable(acts, roles, period) {
-  const filtered = acts.filter(a => activityInDetailPeriod(a, period));
+// N-330: one totals-row builder for Pipeline Activity, Pipeline Summary and
+// Pipeline Summary (project to date). conversionPct adds thisCol ÷ prevCol
+// under every column after the first (none where the previous total is 0).
+function pipelineTotalsCells(colTotals, { conversionPct = false } = {}) {
+  return colTotals.map((v, i) => {
+    const prev = i > 0 ? colTotals[i - 1] : 0;
+    const pct  = conversionPct && prev > 0 ? `<br>(${Math.round((v / prev) * 100)}%)` : '';
+    return `<td style="text-align:center"><strong>${v}</strong>${pct}</td>`;
+  }).join('');
+}
+
+// N-330: opts.allTime skips the period filter (Report Builder's Pipeline
+// Summary (project to date) tile); opts.title / opts.emptyMessage override the
+// panel copy; opts.conversionPct adds conversion % to the totals row.
+function renderPipelineActivityTable(acts, roles, period, opts = {}) {
+  const filtered = opts.allTime ? acts : acts.filter(a => activityInDetailPeriod(a, period));
   const FIELDS   = ['Outreach','Responses','Screened','Submitted','Interview1','Interview2Plus','FinalInterview','Offers','Hires'];
   const LABELS   = ['Outreach','Responses','Screened','Submitted','IV1','IV2+','Final IV','Offers','Hires'];
   const periodLabel = (DETAIL_PERIOD_OPTIONS.find(([k]) => k === period) || [])[1];
-  const panelTitle  = periodLabel ? `Pipeline Activity (${periodLabel})` : 'Pipeline Activity';
+  const panelTitle  = opts.title || (periodLabel ? `Pipeline Activity (${periodLabel})` : 'Pipeline Activity');
   const roleMap  = Object.fromEntries(roles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
   const byRole = {};
   filtered.forEach(a => {
@@ -92,14 +106,14 @@ function renderPipelineActivityTable(acts, roles, period) {
   const rids = Object.keys(byRole).sort((a, b) => (roleMap[a] || '').localeCompare(roleMap[b] || ''));
   if (!rids.length) return `<div class='dash-panel'>
     <h3 class='panel-title'>${panelTitle}</h3>
-    ${emptyStateBlock({ icon: 'activity', message: 'No activity recorded for this period.' })}
+    ${emptyStateBlock({ icon: 'activity', message: opts.emptyMessage || 'No activity recorded for this period.' })}
   </div>`;
   const totals = FIELDS.map((_, i) => rids.reduce((s, r) => s + byRole[r][i], 0));
   const hdr    = `<tr><th>Role</th>${LABELS.map(l => `<th style="text-align:center">${l}</th>`).join('')}</tr>`;
   const rows   = rids.map(rid =>
     `<tr><td>${roleMap[rid] || 'Unknown Role'}</td>${byRole[rid].map(v => `<td style="text-align:center">${v}</td>`).join('')}</tr>`
   ).join('');
-  const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${totals.map(v => `<td style="text-align:center"><strong>${v}</strong></td>`).join('')}</tr>`;
+  const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${pipelineTotalsCells(totals, { conversionPct: !!opts.conversionPct })}</tr>`;
   return `<div class='dash-panel'>
     <h3 class='panel-title'>${panelTitle}</h3>
     <div class="table-scroll"><table class='data-table'><thead>${hdr}</thead><tbody>${rows}${totRow}</tbody></table></div>
@@ -182,13 +196,7 @@ function renderPipelineSummaryPanel(activity) {
     return `<tr><td>${rangeLabel(r.monday, r.friday)}</td>${cells}</tr>`;
   }).join('');
 
-  const totalCells = colTotals.map((v, i) => {
-    if (i === 0) return `<td style="text-align:center"><strong>${v}</strong></td>`;
-    const prev = colTotals[i - 1];
-    const pct  = prev > 0 ? `<br>(${Math.round((v / prev) * 100)}%)` : '';
-    return `<td style="text-align:center"><strong>${v}</strong>${pct}</td>`;
-  }).join('');
-  const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${totalCells}</tr>`;
+  const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${pipelineTotalsCells(colTotals, { conversionPct: true })}</tr>`;
 
   return `<div class='dash-panel'>
     <h3 class='panel-title'>Pipeline Summary (last 4 weeks)</h3>
@@ -406,31 +414,40 @@ function renderRoleTrackerPanel(roles, hc = null) {
   </div>`;
 }
 // ── Placements panel (project-scoped, period-filtered) ────────────────
-function renderPlacementsPanel(placements, roles, period) {
+// N-330: Start Date (4th) and Time to Hire (7th) columns. Time to Hire is the
+// stored Placements.TimeToHire, never recomputed here. opts.allTime drops the
+// period filter — the Report Builder's "Placements (project to date)" tile.
+function renderPlacementsPanel(placements, roles, period, opts = {}) {
   const roleMap = Object.fromEntries(roles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
-  const { start, end } = getDetailPeriodRange(period);
+  const title = opts.allTime ? 'Placements (project to date)' : 'Placements';
+  let inScope = () => true;
+  if (!opts.allTime) {
+    const { start, end } = getDetailPeriodRange(period);
+    inScope = d => d >= start && d <= end;
+  }
   const filtered = placements.filter(p => {
     if (!p.OfferAcceptedDate) return false;
-    const d = new Date(p.OfferAcceptedDate);
-    return d >= start && d <= end;
+    return inScope(new Date(p.OfferAcceptedDate));
   }).sort((a, b) => new Date(b.OfferAcceptedDate) - new Date(a.OfferAcceptedDate));
   if (!filtered.length) return `<div class='dash-panel'>
-    <h3 class='panel-title'>Placements</h3>
-    ${emptyStateBlock({ icon: 'user-check', message: 'No placements recorded for this period.' })}
+    <h3 class='panel-title'>${title}</h3>
+    ${emptyStateBlock({ icon: 'user-check', message: opts.allTime ? 'No placements recorded on this project yet.' : 'No placements recorded for this period.' })}
   </div>`;
   const rows = filtered.map(p => `
     <tr>
       <td>${escHtml(p.CandidateName)}</td>
       <td>${roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '—'}</td>
       <td>${spDateIn(p.OfferAcceptedDate) || '—'}</td>
+      <td>${spDateIn(p.ProvisionalStartDate) || '—'}</td>
       <td>${escHtml(p.Currency || '—')}</td>
       <td>${p.SalaryAgreed ? Number(p.SalaryAgreed).toLocaleString('en-GB') : '—'}</td>
+      <td>${placementTimeToHireLabel(p.TimeToHire)}</td>
     </tr>`).join('');
   return `<div class='dash-panel'>
-    <h3 class='panel-title'>Placements</h3>
+    <h3 class='panel-title'>${title}</h3>
     <div class="table-scroll">
     <table class='data-table'>
-      <thead><tr><th>Candidate</th><th>Role</th><th>Offer Accepted</th><th>Currency</th><th>Salary</th></tr></thead>
+      <thead><tr><th>Candidate</th><th>Role</th><th>Offer Accepted</th><th>Start Date</th><th>Currency</th><th>Salary</th><th>Time to Hire</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     </div>
@@ -560,6 +577,15 @@ const REPORT_PANELS = {
   pipelineSummary: (data) =>
     renderPipelineSummaryPanel(data.activity),
 
+  // N-330: all-time, filter-independent — one row per role.
+  pipelineSummaryPTD: (data) =>
+    renderPipelineActivityTable(data.activity, data.roles, null, {
+      allTime: true,
+      conversionPct: true,
+      title: 'Pipeline Summary (project to date)',
+      emptyMessage: 'No pipeline activity recorded on this project yet.',
+    }),
+
   activityByTP: (data, period) =>
     renderActivityByTPPanel(data.activity, period, data.tpMap || {}),
 
@@ -580,4 +606,8 @@ const REPORT_PANELS = {
 
   placements: (data, period) =>
     renderPlacementsPanel(data.placements, data.roles, period),
+
+  // N-330: all-time, filter-independent.
+  placementsPTD: (data) =>
+    renderPlacementsPanel(data.placements, data.roles, null, { allTime: true }),
 };

@@ -43,7 +43,7 @@ var INLINE_STYLE_BASELINE = {
   'js/coe-plan.js': 11,
   'js/dashboard-company.js': 10,
   'js/dashboard-core.js': 2,
-  'js/dashboard-project-panels.js': 26,
+  'js/dashboard-project-panels.js': 24,
   'js/dashboard-project.js': 1,
   'js/engagement-forms.js': 3,
   'js/engagement-pages.js': 3,

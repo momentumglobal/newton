@@ -1026,6 +1026,17 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Report Builder — Placements columns, project-to-date tiles, title page (N-330)</div>
+        <ul>
+          <li><code>renderPlacementsPanel()</code> adds Start Date (<code>ProvisionalStartDate</code>) and Time to Hire (stored <code>TimeToHire</code>, via the pure <code>placementTimeToHireLabel()</code> in utils.js) — on the Project Dashboard too. <code>opts.allTime</code> drives the new <code>placementsPTD</code> tile.</li>
+          <li><code>renderPipelineActivityTable()</code> takes <code>opts</code> (allTime, title, emptyMessage, conversionPct); the new <code>pipelineSummaryPTD</code> tile is that table over all time with Pipeline Summary's conversion %. One totals-row builder, <code>pipelineTotalsCells()</code>, now serves all three pipeline tables.</li>
+          <li>Optional title page (Project scope): a <code>{ type: 'titlePage' }</code> marker in <code>ModuleOrder</code>, like <code>hiringPlan</code> — no new SharePoint fields. The cover reuses the Briefing Pack classes and <code>clientLockupHtml()</code> on a named <code>@page rb-cover</code> (landscape, zero margin) under <code>body.rb-printing</code>; <code>#print-header</code> is hidden there and <code>.rb-print-band</code> re-creates the Newton bar at the top of page 2. Date is <code>formatLongDay(localDayISO())</code>.</li>
+          <li>The Report Builder logo control writes the same per-project <code>ClientLogos</code> row as Briefing Packs, through the shared <code>readClientLogoFile()</code>. Logo remove failures now toast in both places.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
         <div class="changelog-title">Utilisation is person-based (N-328)</div>
         <ul>
           <li>Utilisation now counts each person once per day: per person per month, billed = days covered by at least one billed assignment, total = days covered by any assignment. An SDM on 1 billed + 2 unbilled customers scores 100%, not 33%. Anyone with one assignment at a time scores exactly what they did before.</li>

@@ -58,28 +58,8 @@ async function refreshCCBanner() {
   // notification) via the existing prev === 'red' branch.
   const ragPeople = 'neutral';
 
-  // N-323: NOT the same maths as cc-pages.js _ccUtilCalc() (level filter, forecast
-  // assignments, current-month base), so the banner can disagree with the CC tile.
-  // Moved as-is; N-325 makes the banner mirror the tile.
-  // Utilisation RAG — forecast over next 13 weeks
-  const t = CONFIG.UTILISATION_THRESHOLDS;
-  const now = new Date();
-  const horizon = new Date(now.getTime() + 91 * 86400000);
-  const totalActiveHeadcount = people.filter(p => p.IsActive !== false && ['SDM','STP','TP'].includes(p.Level)).length;
-  const known13 = assigns.filter(a => {
-    if (!a.StartDate || !a.EndDate) return false;
-    const s = new Date(a.StartDate); const e = new Date(a.EndDate);
-    return s <= horizon && e >= now && a.Level !== 'CSD';
-  });
-  const totalCap  = known13.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const billedCap = known13.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const knownUtil = totalCap > 0 ? billedCap / totalCap : 0;
-  const forecastedHC = forecasts.reduce((sum, f) => {
-    const s = new Date(f.ForecastStartDate); const e = new Date(f.ForecastEndDate);
-    return (s <= horizon && e >= now) ? sum + (f.ForecastedHeadcount || 0) : sum;
-  }, 0);
-  const forecastUtil = Math.min(knownUtil + (totalActiveHeadcount > 0 ? forecastedHC / totalActiveHeadcount : 0), 1.0);
-  const ragUtil = forecastUtil >= t.green ? 'green' : forecastUtil >= t.amber ? 'amber' : 'red';
+  // Utilisation RAG - shared with the CC Utilisation tile (analytics.js, N-325)
+  const ragUtil = computeUtilisationRAG(forecasts, assigns, people);
 
   // Revenue RAG - shared with the CC Revenue tile (analytics.js, N-323)
   const ragRevenue = computeRevenueRAG(forecasts, assigns);

@@ -4338,6 +4338,140 @@ var ASSERTIONS = [
       });
     },
   },
+  // ---- N-325: banner Utilisation RAG mirrors the CC tile ------------------
+  {
+    name: 'N-325: utilisationForecastCalc is the old CC tile calculation, unchanged (oracle = the old _ccUtilCalc, verbatim)',
+    fn: function () {
+      function oldCcUtilCalc(forecasts, assigns, people) {
+        const now     = new Date();
+        const horizon = new Date(now.getTime() + 91 * 86400000); // 13 weeks
+      
+        // Active headcount (billable levels only — consistent with People Dashboard)
+        const totalActiveHeadcount = (people || []).filter(p =>
+          p.IsActive !== false && isBillableLevel(p.Level)
+        ).length;
+      
+        // Current: use computeMonthlyRows for current month — consistent with People Dashboard
+        const allRows     = computeMonthlyRows(assigns);
+        const curMonth    = now.getMonth() + 1;
+        const curYear     = now.getFullYear();
+        const currentRows = allRows.filter(r => r.Year === curYear && r.Month === curMonth && r.Level !== 'CSD');
+        const totalCap    = currentRows.reduce((s, r) => s + r.Capacity, 0);
+        const billedCap   = currentRows.reduce((s, r) => s + r.BilledCapacity, 0);
+        const known       = totalCap > 0 ? billedCap / totalCap : 0;
+      
+        // Known 13 weeks: assignments active at any point in the next 13 weeks (for forecast base)
+        const known13 = assigns.filter(a => {
+          if (isForecastAssignment(a)) return false;
+          if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
+          const s = new Date(a.StartDate);
+          const e = new Date(a.EndDate);
+          return s <= horizon && e >= now;
+        });
+        const totalCap13  = known13.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+        const billedCap13 = known13.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+        const knownForecastBase = totalCap13 > 0 ? billedCap13 / totalCap13 : 0;
+      
+        // Forecast: known + sales forecasts overlapping next 13 weeks
+        const forecastedHeadcount = forecasts.reduce((sum, f) => {
+          const s = new Date(f.ForecastStartDate);
+          const e = new Date(f.ForecastEndDate);
+          return (s <= horizon && e >= now) ? sum + (f.ForecastedHeadcount || 0) : sum;
+        }, 0);
+        const added    = totalActiveHeadcount > 0 ? forecastedHeadcount / totalActiveHeadcount : 0;
+        const forecast = Math.min(knownForecastBase + added, 1.0);
+      
+        return { known, forecast };
+      }
+      const d = n => localDayISO(new Date(Date.now() + n * 86400000));
+      const asg = (n, over) => Array.from({ length: n }, (_, i) => Object.assign({ AssignmentID: 'a' + i + (over && over.IsForecast ? 'f' : ''), Level: 'TP', Billed: 'Yes', MonthlyCapacity: 1, StartDate: d(-10), EndDate: d(60) }, over));
+      const ppl = (n, level, extra) => Array.from({ length: n }, () => Object.assign({ Level: level, IsActive: true }, extra));
+      const cases = {
+        'all billable':               [[], [...asg(3), ...asg(1, { Billed: 'No' })], [...ppl(4, 'TP')]],
+        'a CSD assignment':           [[], [...asg(3), ...asg(1, { Level: 'CSD' })], [...ppl(4, 'TP')]],
+        'forecast assignment true':   [[], [...asg(3), ...asg(2, { IsForecast: true })], [...ppl(4, 'TP')]],
+        'forecast assignment 1':      [[], [...asg(3), ...asg(2, { IsForecast: 1 })], [...ppl(4, 'TP')]],
+        'forecast assignment Yes':    [[], [...asg(3), ...asg(2, { IsForecast: 'Yes' })], [...ppl(4, 'TP')]],
+        'inactive and CSD people':    [[], asg(3), [...ppl(4, 'TP'), ...ppl(2, 'TP', { IsActive: false }), ...ppl(2, 'CSD')]],
+        'a PTP in the headcount':     [[{ ForecastStartDate: d(-5), ForecastEndDate: d(30), ForecastedHeadcount: 1 }], [...asg(1), ...asg(3, { Billed: 'No' })], [...ppl(4, 'TP'), ...ppl(1, 'PTP')]],
+        'no assignments':             [[], [], ppl(3, 'TP')],
+        'no people':                  [[], asg(3), []],
+        'people undefined':           [[], asg(3), undefined],
+        'forecast rows lift amber':   [[{ ForecastStartDate: d(-5), ForecastEndDate: d(30), ForecastedHeadcount: 2 }], [...asg(3), ...asg(1, { Billed: 'No' })], ppl(10, 'TP')],
+      };
+      Object.keys(cases).forEach(k => {
+        const [f, a, p] = cases[k];
+        _assertEqual(utilisationForecastCalc(f, a, p), oldCcUtilCalc(f, a, p), k + ': { known, forecast } equal the old tile calculation');
+      });
+      _assertEqual(typeof computeUtilisationRAG, 'function', 'computeUtilisationRAG is global (analytics.js)');
+    },
+  },
+  {
+    name: 'N-325: computeUtilisationRAG thresholds, and the banner no longer disagrees with the tile (fixture where the old banner formula differed)',
+    fn: function () {
+      const t = CONFIG.UTILISATION_THRESHOLDS;
+      const d = n => localDayISO(new Date(Date.now() + n * 86400000));
+      const mk = (billed, unbilled, over) => [
+        ...Array.from({ length: billed }, (_, i) => Object.assign({ AssignmentID: 'b' + i, Level: 'TP', Billed: 'Yes', MonthlyCapacity: 1, StartDate: d(-10), EndDate: d(60) }, over)),
+        ...Array.from({ length: unbilled }, (_, i) => Object.assign({ AssignmentID: 'u' + i, Level: 'TP', Billed: 'No', MonthlyCapacity: 1, StartDate: d(-10), EndDate: d(60) }, over)),
+      ];
+      const people = Array.from({ length: 20 }, () => ({ Level: 'TP', IsActive: true }));
+      // 20 units of capacity: billed share = billed / 20.
+      [[17, 3, 'green', t.green], [16, 4, 'amber', 0.8], [15, 5, 'amber', t.amber], [14, 6, 'red', 0.7]].forEach(([b, u, want, share]) => {
+        _assertEqual(computeUtilisationRAG([], mk(b, u), people), want, 'billed share ' + share + ' -> ' + want);
+      });
+      _assertEqual(computeUtilisationRAG([], [], people), 'red', 'no assignments -> red');
+      // The old banner formula, verbatim, as a second oracle.
+      function oldBannerUtilRAG(forecasts, assigns, people) {
+      const t = CONFIG.UTILISATION_THRESHOLDS;
+      const now = new Date();
+      const horizon = new Date(now.getTime() + 91 * 86400000);
+      const totalActiveHeadcount = people.filter(p => p.IsActive !== false && ['SDM','STP','TP'].includes(p.Level)).length;
+      const known13 = assigns.filter(a => {
+        if (!a.StartDate || !a.EndDate) return false;
+        const s = new Date(a.StartDate); const e = new Date(a.EndDate);
+        return s <= horizon && e >= now && a.Level !== 'CSD';
+      });
+      const totalCap  = known13.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+      const billedCap = known13.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+      const knownUtil = totalCap > 0 ? billedCap / totalCap : 0;
+      const forecastedHC = forecasts.reduce((sum, f) => {
+        const s = new Date(f.ForecastStartDate); const e = new Date(f.ForecastEndDate);
+        return (s <= horizon && e >= now) ? sum + (f.ForecastedHeadcount || 0) : sum;
+      }, 0);
+      const forecastUtil = Math.min(knownUtil + (totalActiveHeadcount > 0 ? forecastedHC / totalActiveHeadcount : 0), 1.0);
+      const ragUtil = forecastUtil >= t.green ? 'green' : forecastUtil >= t.amber ? 'amber' : 'red';
+        return ragUtil;
+      }
+      // Fixture: 3 billed + 1 unbilled real assignments (75% -> amber on the tile) plus 3 billed FORECAST
+      // assignments, which the old banner counted (6 of 7 = 86% -> green) and the tile skips.
+      const assigns = [...mk(3, 1), ...mk(3, 0, { IsForecast: true }).map((a, i) => Object.assign(a, { AssignmentID: 'f' + i }))];
+      const ppl = [...Array.from({ length: 4 }, () => ({ Level: 'TP', IsActive: true })), { Level: 'PTP', IsActive: true }];
+      _assertEqual(oldBannerUtilRAG([], assigns, ppl), 'green', 'positive control: the old banner formula says green on this fixture');
+      _assertEqual(computeUtilisationRAG([], assigns, ppl), 'amber', 'the shared (tile) calculation says amber on the same fixture');
+      _assertEqual(oldBannerUtilRAG([], mk(14, 6), people), computeUtilisationRAG([], mk(14, 6), people), 'on plain data (no forecast assignments, TP-only) the old banner and the tile agree');
+    },
+  },
+  {
+    name: 'N-325: Utilisation maths lives in analytics.js only; the banner calls it and keeps its N-285 skip',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const code = f => _vendorStripJsComments(ALL_SOURCES[f]).join('\n');
+      const defines = (f, n) => new RegExp('(^|\\n)\\s*(async\\s+)?function\\s+' + n + '\\s*\\(').test(code(f));
+      ['utilisationForecastCalc', 'computeUtilisationRAG'].forEach(n => Object.keys(ALL_SOURCES).forEach(g =>
+        _assertEqual(defines(g, n), g === 'analytics.js', n + (g === 'analytics.js' ? ' is defined in ' : ' is not defined in ') + g)));
+      Object.keys(ALL_SOURCES).forEach(g => _assertEqual(code(g).indexOf('_ccUtilCalc'), -1, g + ': no _ccUtilCalc (retired, N-325)'));
+      const banner = code('home-banner.js');
+      _assertEqual(banner.indexOf('computeUtilisationRAG(forecasts, assigns, people)') !== -1, true, 'home-banner.js calls the shared function');
+      _assertEqual(banner.indexOf('UTILISATION_THRESHOLDS'), -1, 'home-banner.js holds no utilisation threshold maths');
+      _assertEqual(/\[\s*'SDM'\s*,\s*'STP'\s*,\s*'TP'\s*\]/.test(banner), false, "home-banner.js no longer hard-codes ['SDM','STP','TP']");
+      _assertEqual(ALL_SOURCES['home-banner.js'].indexOf('NOT the same maths'), -1, 'the N-323 caveat comment is gone');
+      _assertEqual(banner.split('skip: forecastsDenied').length - 1, 2, 'N-285: util and revenue still skip their CCStatus writes when SalesForecasts is denied');
+      _assertEqual(banner.indexOf('if (s.skip) continue;') !== -1, true, 'N-285: the skip is still honoured');
+    },
+  },
   // ---- N-302b hotfix: act()/actOn() shadowing -----------------------------
   {
     name: 'N-302b hotfix lint: no local act / actOn shadows the action builders',

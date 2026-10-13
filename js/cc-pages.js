@@ -123,7 +123,7 @@ function ccPeopleStats(roles, activity, stageHistory) {
 }
 
 function ccUtilStats(forecasts, assigns, people) {
-  const { known, forecast } = _ccUtilCalc(forecasts, assigns, people);
+  const { known, forecast } = utilisationForecastCalc(forecasts, assigns, people);
   return `${(known * 100).toFixed(0)}% now · ${(forecast * 100).toFixed(0)}% forecast (next 3 months)`;
 }
 
@@ -203,55 +203,8 @@ function _ccHealthTrendTooltipHTML() {
   return ` <span class="help-tip">?<span class="help-tip-text">Compares this week's flagged-role rate (across all active projects) to last week's, from the Snapshots list. Needs 3+ weeks of history -- someone must run Admin > Snapshots > Write Snapshot Now weekly for it to build up.</span></span>`;
 }
 
-function _ccUtilCalc(forecasts, assigns, people) {
-  const now     = new Date();
-  const horizon = new Date(now.getTime() + 91 * 86400000); // 13 weeks
-
-  // Active headcount (billable levels only — consistent with People Dashboard)
-  const totalActiveHeadcount = (people || []).filter(p =>
-    p.IsActive !== false && isBillableLevel(p.Level)
-  ).length;
-
-  // Current: use computeMonthlyRows for current month — consistent with People Dashboard
-  const allRows     = computeMonthlyRows(assigns);
-  const curMonth    = now.getMonth() + 1;
-  const curYear     = now.getFullYear();
-  const currentRows = allRows.filter(r => r.Year === curYear && r.Month === curMonth && r.Level !== 'CSD');
-  const totalCap    = currentRows.reduce((s, r) => s + r.Capacity, 0);
-  const billedCap   = currentRows.reduce((s, r) => s + r.BilledCapacity, 0);
-  const known       = totalCap > 0 ? billedCap / totalCap : 0;
-
-  // Known 13 weeks: assignments active at any point in the next 13 weeks (for forecast base)
-  const known13 = assigns.filter(a => {
-    if (isForecastAssignment(a)) return false;
-    if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
-    const s = new Date(a.StartDate);
-    const e = new Date(a.EndDate);
-    return s <= horizon && e >= now;
-  });
-  const totalCap13  = known13.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const billedCap13 = known13.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const knownForecastBase = totalCap13 > 0 ? billedCap13 / totalCap13 : 0;
-
-  // Forecast: known + sales forecasts overlapping next 13 weeks
-  const forecastedHeadcount = forecasts.reduce((sum, f) => {
-    const s = new Date(f.ForecastStartDate);
-    const e = new Date(f.ForecastEndDate);
-    return (s <= horizon && e >= now) ? sum + (f.ForecastedHeadcount || 0) : sum;
-  }, 0);
-  const added    = totalActiveHeadcount > 0 ? forecastedHeadcount / totalActiveHeadcount : 0;
-  const forecast = Math.min(knownForecastBase + added, 1.0);
-
-  return { known, forecast };
-}
-
-function computeUtilisationRAG(forecasts, assigns, people) {
-  const t = CONFIG.UTILISATION_THRESHOLDS;
-  const { forecast } = _ccUtilCalc(forecasts, assigns, people);
-  if (forecast >= t.green) return 'green';
-  if (forecast >= t.amber) return 'amber';
-  return 'red';
-}
+// N-325: utilisationForecastCalc() and computeUtilisationRAG() moved to analytics.js
+// (shared with the home Command Centre banner).
 
 // ── Expanded detail renderers ─
 function renderHealthDetail(data) {
@@ -323,7 +276,7 @@ function renderPeopleDetail(data) {
 function renderUtilDetail(data) {
   const { forecasts, assigns, people } = data;
   const now = new Date();
-  const { known } = _ccUtilCalc(forecasts, assigns, people);
+  const { known } = utilisationForecastCalc(forecasts, assigns, people);
   const totalActiveHeadcount = (people || []).filter(p =>
     p.IsActive !== false && isBillableLevel(p.Level)).length;
 

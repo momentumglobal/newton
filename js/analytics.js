@@ -1086,3 +1086,59 @@ function computeRevenueRAG(forecasts, assigns) {
   if (forecast >= t.amber) return 'amber';
   return 'red';
 }
+
+// ── Utilisation RAG (N-325) ────────────────────────────────────────────
+// Moved from cc-pages.js (_ccUtilCalc -> utilisationForecastCalc), bodies
+// unchanged, so the home Command Centre banner and the CC Utilisation tile
+// share one calculation. Headcount = billable levels (isBillableLevel);
+// forecast (bench-bar) assignments are skipped (isForecastAssignment);
+// thresholds in CONFIG.UTILISATION_THRESHOLDS. Pure.
+function utilisationForecastCalc(forecasts, assigns, people) {
+  const now     = new Date();
+  const horizon = new Date(now.getTime() + 91 * 86400000); // 13 weeks
+
+  // Active headcount (billable levels only — consistent with People Dashboard)
+  const totalActiveHeadcount = (people || []).filter(p =>
+    p.IsActive !== false && isBillableLevel(p.Level)
+  ).length;
+
+  // Current: use computeMonthlyRows for current month — consistent with People Dashboard
+  const allRows     = computeMonthlyRows(assigns);
+  const curMonth    = now.getMonth() + 1;
+  const curYear     = now.getFullYear();
+  const currentRows = allRows.filter(r => r.Year === curYear && r.Month === curMonth && r.Level !== 'CSD');
+  const totalCap    = currentRows.reduce((s, r) => s + r.Capacity, 0);
+  const billedCap   = currentRows.reduce((s, r) => s + r.BilledCapacity, 0);
+  const known       = totalCap > 0 ? billedCap / totalCap : 0;
+
+  // Known 13 weeks: assignments active at any point in the next 13 weeks (for forecast base)
+  const known13 = assigns.filter(a => {
+    if (isForecastAssignment(a)) return false;
+    if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
+    const s = new Date(a.StartDate);
+    const e = new Date(a.EndDate);
+    return s <= horizon && e >= now;
+  });
+  const totalCap13  = known13.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const billedCap13 = known13.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
+  const knownForecastBase = totalCap13 > 0 ? billedCap13 / totalCap13 : 0;
+
+  // Forecast: known + sales forecasts overlapping next 13 weeks
+  const forecastedHeadcount = forecasts.reduce((sum, f) => {
+    const s = new Date(f.ForecastStartDate);
+    const e = new Date(f.ForecastEndDate);
+    return (s <= horizon && e >= now) ? sum + (f.ForecastedHeadcount || 0) : sum;
+  }, 0);
+  const added    = totalActiveHeadcount > 0 ? forecastedHeadcount / totalActiveHeadcount : 0;
+  const forecast = Math.min(knownForecastBase + added, 1.0);
+
+  return { known, forecast };
+}
+
+function computeUtilisationRAG(forecasts, assigns, people) {
+  const t = CONFIG.UTILISATION_THRESHOLDS;
+  const { forecast } = utilisationForecastCalc(forecasts, assigns, people);
+  if (forecast >= t.green) return 'green';
+  if (forecast >= t.amber) return 'amber';
+  return 'red';
+}

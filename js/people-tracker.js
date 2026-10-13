@@ -26,7 +26,7 @@ function personRowHtml(p, { canEdit, canPayroll, salariesRevealed, pending = fal
             ? `<img src="${escAttr(p.PhotoUrl)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
             : '<span style="color:var(--text-faint);font-size:12px">—</span>'}</td>
       <td>${escHtml(p.EmployeeName)}</td>
-      <td>${escHtml(p.Level || '—')}</td>
+      <td>${escHtml(personRoleLabel(p) || '—')}</td>
       <td>${escHtml(p.ContractType || '—')}</td>
       <td>${escHtml(p.Location || '—')}</td>
       <td>${spDateIn(p.StartDate) || '—'}</td>
@@ -119,7 +119,7 @@ async function renderEmployeesTab(pendingItem = null) {
   // existing filter, before render. No pre-existing default sort to
   // preserve here (people renders in getPeople()'s own return order).
   const totalEmployees = people.length;
-  people = filterRowsByText(people, _employeesSearch, p => [p.EmployeeName, p.Level, p.ContractType, p.Location]);
+  people = filterRowsByText(people, _employeesSearch, p => [p.EmployeeName, p.Level, p.StaffFunction, p.ContractType, p.Location]);
   const EMPLOYEE_SORT_COLUMNS = {
     name:     { type: 'text', get: p => p.EmployeeName },
     level:    { type: 'enum', order: CONFIG.PEOPLE_LEVELS, get: p => p.Level },
@@ -395,9 +395,9 @@ function _sbaComputeChanges(people, assignments, today = new Date()) {
   const thisYear = today.getUTCFullYear();
   const yearEnd  = new Date(Date.UTC(thisYear, 11, 31));
 
-  // Only sync active employees at billable levels
+  // Only sync active employees at billable levels — never internal staff (N-304)
   const billable = people.filter(p =>
-    p.IsActive !== false && isBillableLevel(p.Level)
+    p.IsActive !== false && isDeployablePerson(p)
   );
 
   // Existing auto-generated bench records (so we can diff)
@@ -405,12 +405,13 @@ function _sbaComputeChanges(people, assignments, today = new Date()) {
   const toCreate = [];
   const toDelete = [];
 
-  // Clean up bench records for inactive employees — they're excluded from the main loop
-  // but their stale bench records still need removing
-  const inactiveBench = existingBench.filter(b =>
-    people.some(p => p.EmployeeName === b.EmployeeName && p.IsActive === false)
+  // Clean up bench records for inactive employees and internal staff (N-304 —
+  // e.g. someone switched Deployable → Internal) — they're excluded from the
+  // main loop but their stale bench records still need removing
+  const excludedBench = existingBench.filter(b =>
+    people.some(p => p.EmployeeName === b.EmployeeName && (p.IsActive === false || isInternalStaff(p)))
   );
-  inactiveBench.forEach(b => { if (!toDelete.includes(b.id)) toDelete.push(b.id); });
+  excludedBench.forEach(b => { if (!toDelete.includes(b.id)) toDelete.push(b.id); });
 
   for (const person of billable) {
     // Employment end: use person's EndDate if set, else Dec 31.

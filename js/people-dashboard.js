@@ -430,9 +430,11 @@ function _renderRevenuePanel(rows) {
 
 //Panel 3 - Workforce Segmentation
 function _renderSegmentationPanel(people) {
-  // Active employees only
-  const active = people.filter(p => p.IsActive !== false);
+  // Active deployable employees only — internal staff (N-304) are counted
+  // separately, by function, in the fourth table.
+  const active = people.filter(p => p.IsActive !== false && !isInternalStaff(p));
   const total  = active.length;
+  const internalByFn = countInternalByFunction(people);
 
   const groupBy = (key) => {
     const map = {};
@@ -455,9 +457,9 @@ function _renderSegmentationPanel(people) {
     .sort((a,b)=>levelSortIndex(a[0])-levelSortIndex(b[0]));
 
   return `
-    <div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:8px'>
+    <div class='dash-seg-grid${internalByFn.length ? ' dash-seg-grid--4' : ''}'>
       <div>
-        <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
+        <div class='dash-seg-title'>
           By Location</div>
         <div class="table-scroll">
         <table class='data-table dash-seg-table'>
@@ -467,7 +469,7 @@ function _renderSegmentationPanel(people) {
         </div>
       </div>
       <div>
-        <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
+        <div class='dash-seg-title'>
           By Contract Type</div>
         <div class="table-scroll">
         <table class='data-table dash-seg-table'>
@@ -477,7 +479,7 @@ function _renderSegmentationPanel(people) {
         </div>
       </div>
       <div>
-        <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
+        <div class='dash-seg-title'>
           By Role Band</div>
         <div class="table-scroll">
         <table class='data-table dash-seg-table'>
@@ -486,6 +488,18 @@ function _renderSegmentationPanel(people) {
         </table>
         </div>
       </div>
+      ${internalByFn.length ? `
+      <div>
+        <div class='dash-seg-title'>
+          Internal staff</div>
+        <div class="table-scroll">
+        <table class='data-table dash-seg-table'>
+          <thead><tr><th>Function</th><th>#</th></tr></thead>
+          <tbody>${internalByFn.map(([fn, n]) => `
+            <tr><td>${escHtml(fn)}</td><td>${n}</td></tr>`).join('')}</tbody>
+        </table>
+        </div>
+      </div>` : ''}
     </div>`;
 }
 
@@ -515,7 +529,7 @@ function _renderEndDatesPanel(people) {
     // N-257b: no whole-row tint — the Days Remaining cell carries the flag instead.
     return `<tr>
       <td>${escHtml(p.EmployeeName)}</td>
-      <td>${escHtml(p.Level || '—')}</td>
+      <td>${escHtml(personRoleLabel(p) || '—')}</td>
       <td>${dateStr}</td>
       <td>${ragTextHTML(days <= 30 ? 'red' : 'amber', days + ' days')}</td>
     </tr>`;
@@ -543,7 +557,7 @@ async function renderPeopleDashboard() {
   ]);
 
   const totalActiveHeadcount = people.filter(
-    p => p.IsActive !== false && isBillableLevel(p.Level)
+    p => p.IsActive !== false && isDeployablePerson(p)   // N-304
   ).length;
 
   const allRows = computeMonthlyRows(assignments);

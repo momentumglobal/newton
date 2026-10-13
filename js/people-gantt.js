@@ -11,7 +11,7 @@ const [assignments, people, salesForecasts] = await Promise.all([
 ]);
 
 const totalActiveHeadcount = people.filter(
-  p => p.IsActive !== false && isBillableLevel(p.Level)
+  p => p.IsActive !== false && isDeployablePerson(p)   // N-304
 ).length;
 
   _ganttYear = _ganttYear || new Date().getFullYear();

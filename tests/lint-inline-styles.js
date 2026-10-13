@@ -69,7 +69,7 @@ var INLINE_STYLE_BASELINE = {
   'js/org-chart.js': 12,
   'js/os-admin.js': 35,
   'js/pages.js': 10,
-  'js/people-dashboard.js': 49,
+  'js/people-dashboard.js': 45,
   'js/people-forms.js': 7,
   'js/people-gantt.js': 33,
   'js/people-invoices.js': 12,

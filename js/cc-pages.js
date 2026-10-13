@@ -278,7 +278,7 @@ function renderUtilDetail(data) {
   const now = new Date();
   const { known } = utilisationForecastCalc(forecasts, assigns, people);
   const totalActiveHeadcount = (people || []).filter(p =>
-    p.IsActive !== false && isBillableLevel(p.Level)).length;
+    p.IsActive !== false && isDeployablePerson(p)).length;   // N-304
 
   const months = [1, 2, 3].map(offset => {
     const d      = new Date(now.getFullYear(), now.getMonth() + offset, 1);

@@ -156,7 +156,7 @@ async function _cmdBarLoadEntities(role) {
         entityType:   'person',
         id:           p.id,
         title:        p.EmployeeName,
-        subtitleText: p.Level || '',
+        subtitleText: personRoleLabel(p),   // N-304: 'Internal · <Function>' for internal staff
         searchText:   p.EmployeeName || '',
       });
     });

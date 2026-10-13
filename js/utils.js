@@ -1627,6 +1627,61 @@ function isBillableLevel(level) {
   return level !== 'CSD';
 }
 
+// ── Internal (non-deployable) staff helpers (N-304) ─────────────
+// People.StaffType 'Internal' = payroll staff in an internal function
+// (CONFIG.INTERNAL_FUNCTIONS). They have no Level and never count towards
+// utilisation, bench or deployable headcount. Blank StaffType = Deployable.
+function isInternalStaff(p) {
+  return !!p && p.StaffType === CONFIG.STAFF_TYPE_INTERNAL;
+}
+
+// The People-row counterpart of isBillableLevel(): use this — never
+// isBillableLevel(p.Level) — for any People-row headcount or bench check.
+// isBillableLevel('') is true, so an internal person (blank Level) would
+// otherwise count. isBillableLevel() stays for Assignment / monthly rows.
+function isDeployablePerson(p) {
+  return !!p && !isInternalStaff(p) && isBillableLevel(p.Level);
+}
+
+// Display label for a person's band: the Level, or 'Internal · <Function>'.
+function personRoleLabel(p) {
+  if (isInternalStaff(p)) return `${CONFIG.STAFF_TYPE_INTERNAL} · ${p.StaffFunction || '—'}`;
+  return (p && p.Level) || '';
+}
+
+// Internal staff grouped by function: [[function, [person, …]], …] in
+// CONFIG.INTERNAL_FUNCTIONS order, then any unlisted function A–Z, then a
+// blank function as 'Unknown'; members by name. Placeholders and deployable
+// rows are ignored; active/inactive is the caller's choice. Shared by the
+// Org Chart function bubbles and countInternalByFunction().
+function groupInternalByFunction(people) {
+  const UNKNOWN = 'Unknown';
+  const order = CONFIG.INTERNAL_FUNCTIONS;
+  const rank = fn => {
+    if (fn === UNKNOWN) return order.length + 1;
+    const i = order.indexOf(fn);
+    return i === -1 ? order.length : i;
+  };
+  const groups = new Map();
+  (people || []).forEach(p => {
+    if (!p || p.IsPlaceholder || !isInternalStaff(p)) return;
+    const fn = p.StaffFunction || UNKNOWN;
+    if (!groups.has(fn)) groups.set(fn, []);
+    groups.get(fn).push(p);
+  });
+  return [...groups.entries()]
+    .sort((a, b) => rank(a[0]) - rank(b[0]) || a[0].localeCompare(b[0]))
+    .map(([fn, members]) => [fn, members.slice()
+      .sort((a, b) => (a.EmployeeName || '').localeCompare(b.EmployeeName || ''))]);
+}
+
+// Active internal staff counted per function (People Dashboard, N-304):
+// [[function, n], …] in groupInternalByFunction() order; empty functions omitted.
+function countInternalByFunction(people) {
+  return groupInternalByFunction((people || []).filter(p => p && p.IsActive !== false))
+    .map(([fn, members]) => [fn, members.length]);
+}
+
 // ── Shared SVG chart primitives (N-197) ────────────────────
 // Used by every inline-SVG chart (Revenue, Team Utilisation, LCI Spend,
 // LCI Compare) so gridlines/ticks/legends look and theme identically.

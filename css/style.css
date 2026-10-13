@@ -1277,6 +1277,11 @@ body {
 .dash-project-selector { max-width: 320px; margin-bottom: var(--sp-8); }
 .detail-period-selector { max-width: 220px; margin-bottom: var(--sp-7); }
 .dash-detail-header { margin-bottom: var(--sp-4); }
+/* N-304: People Dashboard segmentation panel (was inline styles). A fourth
+   column ("Internal staff") appears only when there are internal staff. */
+.dash-seg-grid    { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-9); margin-top: var(--sp-4); }
+.dash-seg-grid--4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.dash-seg-title   { font-size: var(--fs-13); font-weight: 700; color: var(--brand-tertiary); margin-bottom: var(--sp-4); }
 /* ── Table toolbar ──────────────────────────────────────────────────── */
 .table-toolbar {
   display: flex; align-items: flex-start; justify-content: space-between;

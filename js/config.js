@@ -60,6 +60,18 @@ const CONFIG = {
   // utils.js:levelSortIndex() rather than redeclaring its own copy.
     PEOPLE_LEVELS: ['CSD', 'SDM', 'PTP', 'STP', 'TP'],
 
+  // N-304: People.StaffType / StaffFunction (Single line of text columns —
+  // these arrays are the only list of valid values). Blank StaffType =
+  // Deployable (every row created before N-304). Internal staff have no Level
+  // and never count towards utilisation, bench or deployable headcount
+  // (isDeployablePerson, utils.js). STAFF_TYPE_INTERNAL doubles as the
+  // PROJECT_TYPE_COLOUR_VARS key for the Org Chart function bubbles — keep
+  // the two equal (an assertion pins it).
+  STAFF_TYPES:           ['Deployable', 'Internal'],
+  STAFF_TYPE_DEPLOYABLE: 'Deployable',
+  STAFF_TYPE_INTERNAL:   'Internal',
+  INTERNAL_FUNCTIONS:    ['Marketing', 'Sales', 'Internal TA', 'Operations', 'People'],
+
   // Roles.Stage enum, in pipeline order (N-149). Single source of truth for
   // the full role Stage <select> (forms.js) and the Roles-list inline stage
   // dropdown (pages.js) — never redeclare this list in a page file.
@@ -295,6 +307,7 @@ const CONFIG = {
       'Title', 'Level', 'ContractType', 'Location', 'StartDate', 'EndDate',
       'IsActive', 'PhotoUrl', 'IsPlaceholder', 'PlaceholderProject',
       'PlaceholderCSD', 'ReportsTo',
+      'StaffType', 'StaffFunction',   // N-304
     ],
     // N-286: one row per person. Title = People item id as text; PersonID
     // (Number) is the join key. Restricted list (admin + leadership) — read

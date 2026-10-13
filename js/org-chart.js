@@ -75,7 +75,7 @@ async function renderOrgChart() {
     getLCIProjectOwners(),                 // N-219: [{ CustomerName, CSDName },…]
   ]);
 
-  const { roots, unassignedProjects } = buildOrgTree({ people, leadership, projectsByCSD, currentAssign, lciProjectOwners });
+  const { roots, unassignedProjects, internalUnassigned } = buildOrgTree({ people, leadership, projectsByCSD, currentAssign, lciProjectOwners });
   const bench = buildBenchPool(people, currentAssign);
   const monthYear = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
@@ -95,6 +95,7 @@ async function renderOrgChart() {
         <div id='org-chart-inner'>
           ${renderTreeHtml(roots)}
           ${renderUnassignedProjectsHtml(unassignedProjects)}
+          ${renderInternalUnassignedHtml(internalUnassigned)}
           ${renderBenchHtml(bench)}
         </div>
       </div>
@@ -110,12 +111,16 @@ async function renderOrgChart() {
 // white) and shows "To be hired" in place of a location it doesn't have yet.
 function _ocPersonNode(p) {
   const ph = !!p.IsPlaceholder;
+  // N-304: internal staff have no Level — the function leads their sub-label
+  // and they take no level band colour.
+  const internal = isInternalStaff(p);
+  const lead = internal ? (p.StaffFunction || '') : (p.Level || '');
   return { kind: 'person', label: p.EmployeeName,
     // Placeholders carry no sub-label — the vacancy is stated in the name itself.
-    sub: ph ? '' : `${p.Level || ''}${p.Location ? ' · ' + p.Location : ''}`,
+    sub: ph ? '' : `${lead}${p.Location ? ' · ' + p.Location : ''}`,
     // STP and PTP both render in the TP band colour (.org-node--tp) — no
     // separate CSS needed for either.
-    _band: ph ? '' : ((p.Level === 'STP' || p.Level === 'PTP') ? 'TP' : p.Level),
+    _band: (ph || internal) ? '' : ((p.Level === 'STP' || p.Level === 'PTP') ? 'TP' : p.Level),
     _placeholder: ph, _photo: p.PhotoUrl, children: [] };
 }
 
@@ -183,7 +188,19 @@ function _ocCsdNode(csd, projectsByCSD, people, currentAssign, realProjects, lci
                       ...(lciOwnedByCSD[_ocNorm(csd.EmployeeName)] || [])] };
 }
 
-// Leadership node: children are leaders + CSDs whose ReportsTo == this email.
+// N-304: internal (non-deployable) staff -> one bubble per function, grouped and
+// ordered by groupInternalByFunction() (utils.js); deployable rows in `people`
+// are ignored. Coloured with the 'Internal' project-type token.
+function _ocFunctionNodes(people) {
+  return groupInternalByFunction(people).map(([fn, members]) => ({
+    kind: 'function', label: fn, sub: CONFIG.STAFF_TYPE_INTERNAL,
+    _colour: _ocTypeColour(CONFIG.STAFF_TYPE_INTERNAL),
+    children: members.map(_ocPersonNode),
+  }));
+}
+
+// Leadership node: children are leaders + CSDs whose ReportsTo == this email,
+// then internal staff reporting to it, in function bubbles (N-304).
 function _ocBuildLeader(leader, seen, leadership, csds, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD) {
   const email = _ocEmail(leader.UserEmail);
   if (seen.has(email)) return null;      // loop guard
@@ -196,6 +213,7 @@ function _ocBuildLeader(leader, seen, leadership, csds, projectsByCSD, people, c
     });
   csds.filter(c => _ocEmail(c.ReportsTo) === email)
     .forEach(c => kids.push(_ocCsdNode(c, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD)));
+  kids.push(..._ocFunctionNodes(people.filter(p => _ocEmail(p.ReportsTo) === email)));
   return { kind: 'leader', label: leader.UserName || leader.UserEmail,
            sub: leader.JobTitle || 'Leadership', _photo: leader.PhotoUrl, children: kids };
 }
@@ -266,12 +284,19 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign, lciPro
     ...(projectsByCSD['__unassigned__'] || []).map(p => _ocProjectNode(p, people, currentAssign)),
     ...lciUnowned,
   ];
-  return { roots, unassignedProjects };
+  // N-304 (DF-4): internal staff whose ReportsTo is blank or not a leader on
+  // the chart pool here, by function — never in the Bench. Same rule as an
+  // orphan CSD.
+  const leaderEmails = new Set(leadership.map(l => _ocEmail(l.UserEmail)));
+  const internalUnassigned = _ocFunctionNodes(people.filter(p =>
+    !leaderEmails.has(_ocEmail(p.ReportsTo))));
+  return { roots, unassignedProjects, internalUnassigned };
 }
 
 function buildBenchPool(people, currentAssign) {
   return people.filter(p => {
     if (p.IsPlaceholder) return false;              // a vacancy is not on the bench
+    if (isInternalStaff(p)) return false;           // N-304: internal staff sit in the tree
     if (p.Level === 'CSD') return false;            // CSDs sit in the tree
     const rows = currentAssign[p.EmployeeName] || [];
     return rows.length === 0 || rows.every(a => _ocIsBench(a.Customer));
@@ -284,7 +309,7 @@ function renderTreeHtml(roots) {
   const node = (n) => {
     const style = n._colour
       ? ` style='border-color:${n._colour};background:${n._colour}1A'` : '';
-    const avatar = n.kind === 'project' ? '' : _ocAvatar(n.label, n._photo);
+    const avatar = (n.kind === 'project' || n.kind === 'function') ? '' : _ocAvatar(n.label, n._photo);
     const avCls  = avatar ? ' org-node--has-avatar' : '';
     const phCls  = n._placeholder ? ' org-node--placeholder' : '';
     const kids   = n.children || [];
@@ -329,6 +354,17 @@ function renderUnassignedProjectsHtml(list) {
   return `
     <div class='org-unassigned'>
       <div class='org-unassigned__title'>Unassigned projects (${list.length})</div>
+      ${renderTreeHtml(list)}
+    </div>`;
+}
+
+// N-304 (DF-4): internal staff with no reporting line on the chart, by function.
+function renderInternalUnassignedHtml(list) {
+  if (!list.length) return '';
+  const n = list.reduce((s, f) => s + f.children.length, 0);
+  return `
+    <div class='org-unassigned'>
+      <div class='org-unassigned__title'>Internal — no reporting line (${n})</div>
       ${renderTreeHtml(list)}
     </div>`;
 }
@@ -598,11 +634,16 @@ async function showOrgChartEditForm() {
       <td>${_ocEsc(l.UserName || l.UserEmail)} <span class='org-tag'>Leadership</span></td>
       <td><select data-lead='${l.id}'>${emailOpts(l.ReportsTo)}</select></td>
     </tr>`).join('');
-  const csdRows = csds.map(c => `
+  // N-304: internal staff key upward by leader email exactly like CSDs, and
+  // save through the same People ReportsTo loop ([data-person]).
+  const personRow = (p, tag) => `
     <tr>
-      <td>${_ocEsc(c.EmployeeName)} <span class='org-tag'>CSD</span></td>
-      <td><select data-csd='${c.id}'>${emailOpts(c.ReportsTo)}</select></td>
-    </tr>`).join('');
+      <td>${_ocEsc(p.EmployeeName)} <span class='org-tag'>${_ocEsc(tag)}</span></td>
+      <td><select data-person='${p.id}'>${emailOpts(p.ReportsTo)}</select></td>
+    </tr>`;
+  const csdRows = csds.map(c => personRow(c, 'CSD')).join('');
+  const internalRows = people.filter(p => isInternalStaff(p))
+    .map(p => personRow(p, personRoleLabel(p))).join('');
 
   main.innerHTML = `
     <div class='form-container' style='max-width:760px'>
@@ -617,7 +658,7 @@ async function showOrgChartEditForm() {
         <tbody>${lciRows}</tbody></table>` : ''}
       <h3 style='margin-top:20px'>Reports to</h3>
       <table class='data-table'><thead><tr><th>Person</th><th>Reports to</th></tr></thead>
-        <tbody>${leaderRows}${csdRows}</tbody></table>
+        <tbody>${leaderRows}${csdRows}${internalRows}</tbody></table>
       <div class='form-actions'>
         <button type='button' class='btn-primary'${act('saveOrgChartEdits', ACT_EL)}>Save changes</button>
         <button type='button' class='btn-secondary'${act('navigateToPeople', 'orgChart')}>Cancel</button>
@@ -641,8 +682,8 @@ async function saveOrgChartEdits(btn) {
     });
     document.querySelectorAll('[data-lead]').forEach(el =>
       jobs.push(updateItem('LeadershipAccess', el.getAttribute('data-lead'), { ReportsTo: el.value })));
-    document.querySelectorAll('[data-csd]').forEach(el =>
-      jobs.push(updateItem('People', el.getAttribute('data-csd'), { ReportsTo: el.value })));
+    document.querySelectorAll('[data-person]').forEach(el =>     // CSDs + internal staff (N-304)
+      jobs.push(updateItem('People', el.getAttribute('data-person'), { ReportsTo: el.value })));
     await Promise.all(jobs);
     navigateToPeople('orgChart');
   } catch (e) {

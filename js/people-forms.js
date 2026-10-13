@@ -4,6 +4,9 @@
 
 function renderPersonForm(existingData = null) {
   const isEdit = !!existingData;
+  // N-304: a blank StaffType (every pre-N-304 row) opens as Deployable.
+  const internal  = isInternalStaff(existingData);
+  const staffType = internal ? CONFIG.STAFF_TYPE_INTERNAL : CONFIG.STAFF_TYPE_DEPLOYABLE;
   return `
     <div class='form-container'>
       <h2>${isEdit ? 'Edit Employee' : 'Add Employee'}</h2>
@@ -14,12 +17,29 @@ function renderPersonForm(existingData = null) {
           <input type='text' name='EmployeeName' required
             value='${escHtml(existingData?.EmployeeName || '')}'>
         </div>
+        <div class='form-group'>
+          <label>Staff type *</label>
+          <select name='StaffType' required${actOn('change', '_onStaffTypeChange', ACT_EL)}>
+            ${CONFIG.STAFF_TYPES.map(t =>
+              `<option value='${escHtml(t)}' ${staffType===t?'selected':''}>${escHtml(t)}</option>`
+            ).join('')}
+          </select>
+        </div>
         <div class='form-row'>
-          <div class='form-group'>
+          <div class='form-group${internal ? ' is-hidden' : ''}' id='person-level-group'>
             <label>Level *</label>
-            <select name='Level' required>
+            <select name='Level'${internal ? ' disabled' : ' required'}>
               ${CONFIG.PEOPLE_LEVELS.map(l =>
                 `<option value='${l}' ${existingData?.Level===l?'selected':''}>${l}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class='form-group${internal ? '' : ' is-hidden'}' id='person-function-group'>
+            <label>Function *</label>
+            <select name='StaffFunction'${internal ? ' required' : ' disabled'}>
+              <option value=''>— select —</option>
+              ${CONFIG.INTERNAL_FUNCTIONS.map(f =>
+                `<option value='${escHtml(f)}' ${existingData?.StaffFunction===f?'selected':''}>${escHtml(f)}</option>`
               ).join('')}
             </select>
           </div>
@@ -86,9 +106,19 @@ async function submitPersonForm(event, editId = null) {
   const btn  = form.querySelector('[type=submit]');
   setButtonLoading(btn);
   const data = Object.fromEntries(new FormData(form));
+  // N-304: the hidden Level / Function select is disabled, so FormData omits
+  // it. Internal clears Level; Deployable clears StaffFunction (null = clear).
+  const internal = data.StaffType === CONFIG.STAFF_TYPE_INTERNAL;
+  if (internal && !data.StaffFunction) {
+    showPersonFormError('Please select a function for an internal employee.');
+    clearButtonLoading(btn);
+    return;
+  }
   const fields = {
     EmployeeName: data.EmployeeName,
-    Level:        data.Level,
+    Level:        internal ? null : data.Level,
+    StaffType:    internal ? CONFIG.STAFF_TYPE_INTERNAL : CONFIG.STAFF_TYPE_DEPLOYABLE,
+    StaffFunction: internal ? data.StaffFunction : null,
     ContractType: data.ContractType,
     Location:     data.Location,
     StartDate:    isoDate(data.StartDate) || undefined,
@@ -171,7 +201,8 @@ async function showEditPersonForm(id) {
 
 async function renderAssignmentForm(existingData = null) {
   const isEdit = !!existingData;
-  const people = await getPeople(true);
+  // N-304: internal staff are never assigned (fresh array — getPeople's is cached).
+  const people = (await getPeople(true)).filter(p => !isInternalStaff(p));
 
   // N-126: if editing an assignment whose employee has since been deactivated,
   // re-inject them (labelled inactive) so the saved value isn't silently dropped.
@@ -288,6 +319,19 @@ async function renderAssignmentForm(existingData = null) {
         </div>
       </form>
     </div>`;
+}
+
+// N-304: Staff type toggles Level <-> Function. The hidden select is disabled
+// (neither validated nor submitted) and loses `required`.
+function _onStaffTypeChange(select) {
+  const internal = select.value === CONFIG.STAFF_TYPE_INTERNAL;
+  [['person-level-group', !internal], ['person-function-group', internal]].forEach(([id, on]) => {
+    const group = document.getElementById(id);
+    if (!group) return;
+    group.classList.toggle('is-hidden', !on);
+    const field = group.querySelector('select');
+    if (field) { field.disabled = !on; field.required = on; }
+  });
 }
 
 function _onAssignmentEmployeeChange(select) {
@@ -575,4 +619,5 @@ registerActions({
   submitInvoiceForm,
   _onAssignmentEmployeeChange,
   _onAssignmentTypeChange,
+  _onStaffTypeChange,
 });

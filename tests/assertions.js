@@ -4807,6 +4807,79 @@ var ASSERTIONS = [
       _assertEqual(lintInlineStyles(bumped, ALL_HTML, INLINE_STYLE_BASELINE).length, 1, 'mutation: a new inline style in pages.js is flagged');
     },
   },
+  // ---- N-304: internal (non-deployable) staff ---------------------------------
+  {
+    name: 'N-304: isInternalStaff / isDeployablePerson / personRoleLabel',
+    fn: function () {
+      const I = CONFIG.STAFF_TYPE_INTERNAL, D = CONFIG.STAFF_TYPE_DEPLOYABLE;
+      _assertEqual(isInternalStaff({ StaffType: I }), true, 'Internal');
+      _assertEqual(isInternalStaff({ StaffType: D }), false, 'Deployable');
+      _assertEqual(isInternalStaff({}), false, 'blank StaffType = Deployable');
+      _assertEqual(isInternalStaff(null), false, 'null');
+      _assertEqual(isBillableLevel(undefined), true, 'premise: a blank Level is billable, so the People-row check must not be isBillableLevel');
+      _assertEqual(isDeployablePerson({ StaffType: I, StaffFunction: 'Sales' }), false, 'internal, blank Level');
+      _assertEqual(isDeployablePerson({ StaffType: I, Level: 'TP' }), false, 'internal wins over a stray Level');
+      _assertEqual(isDeployablePerson({ StaffType: D, Level: 'CSD' }), false, 'Deployable CSD');
+      _assertEqual(isDeployablePerson({ StaffType: D, Level: 'TP' }), true, 'Deployable TP');
+      _assertEqual(isDeployablePerson({ Level: 'TP' }), true, 'blank StaffType + TP');
+      _assertEqual(isDeployablePerson(null), false, 'null');
+      _assertEqual(personRoleLabel({ StaffType: I, StaffFunction: 'Marketing' }), 'Internal · Marketing', 'internal label');
+      _assertEqual(personRoleLabel({ StaffType: I }), 'Internal · —', 'internal, missing function');
+      _assertEqual(personRoleLabel({ Level: 'STP' }), 'STP', 'deployable label = Level');
+      _assertEqual(personRoleLabel({}), '', 'no level');
+      _assertEqual(CONFIG.STAFF_TYPES.includes(I) && CONFIG.STAFF_TYPES.includes(D), true, 'STAFF_TYPES holds both values');
+      _assertEqual(typeof CONFIG.PROJECT_TYPE_COLOUR_VARS[I], 'string', 'STAFF_TYPE_INTERNAL is also a project-type colour key (Org Chart function bubbles)');
+      _assertEqual(CONFIG.LIST_FIELDS.People.includes('StaffType') && CONFIG.LIST_FIELDS.People.includes('StaffFunction'), true, 'People projection carries StaffType + StaffFunction');
+    },
+  },
+  {
+    name: 'N-304: groupInternalByFunction / countInternalByFunction — config order, Unknown last, inactive / placeholder / deployable excluded',
+    fn: function () {
+      const I = CONFIG.STAFF_TYPE_INTERNAL;
+      const p = (name, fn, extra) => Object.assign({ EmployeeName: name, StaffType: I, StaffFunction: fn, IsActive: true }, extra);
+      const people = [
+        p('Zed', 'Sales'), p('Amy', 'Sales'), p('Bo', 'Internal TA'), p('Cy', ''), p('Di', 'Marketing', { IsActive: false }),
+        p('Ed', 'Marketing', { IsPlaceholder: true }), { EmployeeName: 'Tp', Level: 'TP', IsActive: true }, p('Fi', 'Finance'),
+      ];
+      _assertEqual(CONFIG.INTERNAL_FUNCTIONS, ['Marketing', 'Sales', 'Internal TA'], 'config functions');
+      _assertEqual(countInternalByFunction(people), [['Sales', 2], ['Internal TA', 1], ['Finance', 1], ['Unknown', 1]], 'counts');
+      const g = groupInternalByFunction(people);
+      _assertEqual(g.map(x => x[0]), ['Marketing', 'Sales', 'Internal TA', 'Finance', 'Unknown'], 'grouping keeps inactive (the caller filters)');
+      _assertEqual(g[1][1].map(x => x.EmployeeName), ['Amy', 'Zed'], 'members by name');
+      _assertEqual(countInternalByFunction([]), [], 'none');
+      _assertEqual(countInternalByFunction(undefined), [], 'undefined');
+    },
+  },
+  {
+    name: 'N-304: utilisationForecastCalc headcount ignores internal staff (positive control: as many extra TPs do move it)',
+    fn: function () {
+      const d = n => localDayISO(new Date(Date.now() + n * 86400000));
+      const asg = Array.from({ length: 4 }, (_, i) => ({ AssignmentID: 'a' + i, Level: 'TP', Billed: i < 3 ? 'Yes' : 'No', MonthlyCapacity: 1, StartDate: d(-10), EndDate: d(60) }));
+      const fc = [{ ForecastStartDate: d(-5), ForecastEndDate: d(30), ForecastedHeadcount: 2 }];
+      const tps = n => Array.from({ length: n }, () => ({ Level: 'TP', IsActive: true }));
+      const internal = Array.from({ length: 5 }, () => ({ StaffType: CONFIG.STAFF_TYPE_INTERNAL, StaffFunction: 'Sales', IsActive: true }));
+      const base = utilisationForecastCalc(fc, asg, tps(10));
+      _assertEqual(utilisationForecastCalc(fc, asg, [...tps(10), ...internal]), base, 'internal staff leave { known, forecast } unchanged');
+      _assertEqual(_deepEqual(utilisationForecastCalc(fc, asg, tps(15)), base), false, 'positive control: 5 more TPs change the forecast');
+    },
+  },
+  {
+    name: 'N-304: no People-row check calls isBillableLevel(p.Level) directly — use isDeployablePerson',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const scan = src => {
+        const hits = [];
+        Object.keys(src).forEach(f => src[f].split('\n').forEach((line, i) => {
+          if (/^\s*\/\//.test(line)) return;   // comments may name the old pattern
+          if (/isBillableLevel\(\s*(p|person)\.Level\s*\)/.test(line) && !/!isInternalStaff\(p\)/.test(line)) hits.push(f + ':' + (i + 1));
+        }));
+        return hits;
+      };
+      _assertEqual(scan(ALL_SOURCES), [], 'People-row isBillableLevel calls');
+      const bumped = Object.assign({}, ALL_SOURCES, { 'pages.js': ALL_SOURCES['pages.js'] + '\nconst _n = people.filter(p => isBillableLevel(p.Level));' });
+      _assertEqual(scan(bumped).length, 1, 'mutation: a new People-row isBillableLevel call is flagged');
+    },
+  },
 ];
 
 // N-301 test helpers — stub elements/events for js/actions.js (no DOM in the vm).

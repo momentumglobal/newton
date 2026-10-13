@@ -1090,16 +1090,17 @@ function computeRevenueRAG(forecasts, assigns) {
 // ── Utilisation RAG (N-325) ────────────────────────────────────────────
 // Moved from cc-pages.js (_ccUtilCalc -> utilisationForecastCalc), bodies
 // unchanged, so the home Command Centre banner and the CC Utilisation tile
-// share one calculation. Headcount = billable levels (isBillableLevel);
+// share one calculation. Headcount = deployable billable people
+// (isDeployablePerson — N-304 excludes internal staff);
 // forecast (bench-bar) assignments are skipped (isForecastAssignment);
 // thresholds in CONFIG.UTILISATION_THRESHOLDS. Pure.
 function utilisationForecastCalc(forecasts, assigns, people) {
   const now     = new Date();
   const horizon = new Date(now.getTime() + 91 * 86400000); // 13 weeks
 
-  // Active headcount (billable levels only — consistent with People Dashboard)
+  // Active headcount (deployable billable people only — consistent with People Dashboard)
   const totalActiveHeadcount = (people || []).filter(p =>
-    p.IsActive !== false && isBillableLevel(p.Level)
+    p.IsActive !== false && isDeployablePerson(p)
   ).length;
 
   // Current: use computeMonthlyRows for current month — consistent with People Dashboard

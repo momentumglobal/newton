@@ -1963,7 +1963,9 @@ async function setPersonSalary(personId, salary) {
 async function createPerson(fields) {
   const saved = await createItem("People", {
     Title:        fields.EmployeeName,
-    Level:        fields.Level,
+    Level:        fields.Level || undefined,   // N-304: blank for internal staff
+    StaffType:    fields.StaffType || CONFIG.STAFF_TYPE_DEPLOYABLE,
+    StaffFunction: fields.StaffFunction || undefined,
     ContractType: fields.ContractType,
     Location:     fields.Location,
     StartDate:    fields.StartDate || undefined,
@@ -1989,6 +1991,8 @@ async function updatePerson(id, fields) {
   const payload = {};
   if (fields.EmployeeName !== undefined) payload.Title        = fields.EmployeeName;
   if (fields.Level        !== undefined) payload.Level        = fields.Level;
+  if (fields.StaffType    !== undefined) payload.StaffType    = fields.StaffType;     // N-304
+  if (fields.StaffFunction !== undefined) payload.StaffFunction = fields.StaffFunction;
   if (fields.ContractType !== undefined) payload.ContractType = fields.ContractType;
   if (fields.Location     !== undefined) payload.Location     = fields.Location;
   if (fields.StartDate    !== undefined) payload.StartDate    = fields.StartDate;

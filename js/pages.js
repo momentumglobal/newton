@@ -671,7 +671,7 @@ async function renderActivityPage(pendingItem = null) {
   main.innerHTML = skeletonTable(6, 13);
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
-  const [activity, allRoles, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
+  let [activity, allRoles, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
   getWeeklyActivity(null, null, { sinceWeeks: _activityWeeks }),
   getRolesForUser(user.email),
   getProjectFilterOptions(),
@@ -684,7 +684,7 @@ async function renderActivityPage(pendingItem = null) {
   // N-218a: splice the not-yet-created row in before sort/scope, exactly
   // like a real fetched row -- it only shows up below if it actually
   // belongs to the active project/role filter.
-  if (pendingItem) activity.push(pendingItem);
+  if (pendingItem) activity = [...activity, pendingItem];
   activity.sort((a, b) => {
     const yr = Number(b.Year) - Number(a.Year);
     if (yr !== 0) return yr;
@@ -875,7 +875,7 @@ async function renderPlacementsPage(pendingItem = null) {
   main.innerHTML = skeletonTable(6, 6);
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
-  const [allPlacements, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
+  let [allPlacements, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
     // N-093 / N-151: the query is bounded by the background date window and,
     // when one is active, by the month/quarter/year selection — whichever is
     // LOOSER (see listQueryFromDay). placementInFilter() below still applies
@@ -899,7 +899,7 @@ async function renderPlacementsPage(pendingItem = null) {
   // belongs to the active period/project filter. This read started before
   // the create write (apply() and commit() run in parallel), so it cannot
   // already contain the real row in the normal case.
-  if (pendingItem) allPlacements.push(pendingItem);
+  if (pendingItem) allPlacements = [...allPlacements, pendingItem];
   allPlacements.sort((a, b) =>
     new Date(b.OfferAcceptedDate || 0) - new Date(a.OfferAcceptedDate || 0)
   );
@@ -1048,7 +1048,7 @@ async function renderRejectionsPage(pendingItem = null) {
   main.innerHTML = skeletonTable(6, 6);
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
-  const [rejections, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
+  let [rejections, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
     // N-152: bounded ONLY when the user picks a window. The default is 0
     // (All time) and must stay that way — a `ge` bound cannot match a null
     // RejectionDate, so a bounded default would silently drop the rows that
@@ -1068,7 +1068,7 @@ async function renderRejectionsPage(pendingItem = null) {
   // N-218a: splice the not-yet-created row in before sort/scope, exactly
   // like a real fetched row -- it only shows up below if it actually
   // belongs to the active project filter.
-  if (pendingItem) rejections.push(pendingItem);
+  if (pendingItem) rejections = [...rejections, pendingItem];
   rejections.sort((a, b) => {
     const rA = roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || '';
     const rB = roleMap[String(b.RoleIDLookupId)] || roleMap[String(b.RoleID)] || '';

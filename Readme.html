@@ -215,7 +215,7 @@
         <tr><td>Newton OS Admin</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
       </table>
       <p style="font-size:13px;color:#555">* Delivery Managers see only LCI Cost Models assigned to them (matched on the model's Assigned DM email); Revenue Tracking and Sales Forecast stay Admin/Leadership.</p>
-      <p><strong>Internal (non-deployable) staff</strong> — Marketing, Sales and Internal TA people on the People list (N-304) — have no Newton access for now: no UserAssignments row, so they resolve as Viewer and see "No access yet".</p>
+      <p><strong>Internal (non-deployable) staff</strong> — Marketing, Sales, Internal TA, Operations and People staff on the People list (N-304; the list is <code>CONFIG.INTERNAL_FUNCTIONS</code>) — have no Newton access for now: no UserAssignments row, so they resolve as Viewer and see "No access yet".</p>
 
       <h3>Role resolution order</h3>
       <div class="flow">
@@ -1028,7 +1028,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <div class="changelog-date">October 2026</div>
         <div class="changelog-title">Internal (non-deployable) staff on the People list (N-304)</div>
         <ul>
-          <li>New People fields <code>StaffType</code> (Deployable / Internal) and <code>StaffFunction</code> (Marketing / Sales / Internal TA). Add / Edit Employee swaps Level for Function when the type is Internal.</li>
+          <li>New People fields <code>StaffType</code> (Deployable / Internal) and <code>StaffFunction</code> (Marketing / Sales / Internal TA / Operations / People). Add / Edit Employee swaps Level for Function when the type is Internal.</li>
           <li>Internal staff appear on the Employee Tracker, payroll, Command Bar search, People Dashboard End Dates, and the Org Chart under their ReportsTo leader (editable in Edit reporting lines). With no reporting line they pool in "Internal — no reporting line".</li>
           <li>They never count towards utilisation, headcount, segmentation, bench sync, the Org Chart Bench pool or the assignment picker. The People Dashboard shows a separate Internal staff count by function. No Newton access for now.</li>
         </ul>

@@ -16,13 +16,7 @@ function mpFmtPct(n) {
   return ((n || 0) * 100).toFixed(1) + '%';
 }
 
-// Utilisation % from monthly rows (excludes CSD level), as desktop.
-function mpCalcUtilisation(rows) {
-  const filtered  = rows.filter(r => isBillableLevel(r.Level));
-  const billedCap = filtered.reduce((s, r) => s + r.BilledCapacity, 0);
-  const totalCap  = filtered.reduce((s, r) => s + r.Capacity, 0);
-  return totalCap > 0 ? billedCap / totalCap : 0;
-}
+// Utilisation % comes from personUtilisation() (utils.js), as desktop (N-328).
 
 // Monthly rows whose MonthStart falls within [start, end].
 function mpRowsInRange(rows, start, end) {
@@ -72,7 +66,7 @@ async function mobileRenderPeopleDashboard(main) {
     const revYTD   = ytdRows.reduce((s, r) => s + r.BilledRevenue, 0);
 
     // Utilisation - YTD current year
-    const utilYTD  = mpCalcUtilisation(ytdRows);
+    const utilYTD  = personUtilisation(ytdRows).ratio;
 
     // Active customers + billed headcount, today vs end of previous quarter
     const cq       = Math.floor(now.getMonth() / 3);

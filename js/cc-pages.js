@@ -280,20 +280,16 @@ function renderUtilDetail(data) {
   const totalActiveHeadcount = (people || []).filter(p =>
     p.IsActive !== false && isDeployablePerson(p)).length;   // N-304
 
+  // N-328: person-day utilisation on rows extended to the last month shown.
+  const fwdRows = computeMonthlyRows(assigns, { through: new Date(now.getFullYear(), now.getMonth() + 3, 1) });
   const months = [1, 2, 3].map(offset => {
     const d      = new Date(now.getFullYear(), now.getMonth() + offset, 1);
     const mStart = d;
     const mEnd   = new Date(d.getFullYear(), d.getMonth() + 1, 0);
     const label  = d.toLocaleString('default', { month: 'short', year: '2-digit' });
 
-    const active    = assigns.filter(a => {
-      if (isForecastAssignment(a)) return false;
-      if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
-      return new Date(a.StartDate) <= mEnd && new Date(a.EndDate) >= mStart;
-    });
-    const totalCap  = active.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-    const billedCap = active.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-    const planned   = totalCap > 0 ? billedCap / totalCap : 0;
+    const planned = personUtilisation(fwdRows.filter(r =>
+      r.Year === d.getFullYear() && r.Month === d.getMonth() + 1)).ratio;
 
     const forecastedHC = forecasts.reduce((sum, f) => {
       const s = new Date(f.ForecastStartDate);

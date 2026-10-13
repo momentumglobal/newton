@@ -1087,13 +1087,16 @@ function computeRevenueRAG(forecasts, assigns) {
   return 'red';
 }
 
-// ── Utilisation RAG (N-325) ────────────────────────────────────────────
-// Moved from cc-pages.js (_ccUtilCalc -> utilisationForecastCalc), bodies
-// unchanged, so the home Command Centre banner and the CC Utilisation tile
-// share one calculation. Headcount = deployable billable people
-// (isDeployablePerson — N-304 excludes internal staff);
-// forecast (bench-bar) assignments are skipped (isForecastAssignment);
-// thresholds in CONFIG.UTILISATION_THRESHOLDS. Pure.
+// ── Utilisation RAG (N-325, N-328) ─────────────────────────────────────
+// Moved from cc-pages.js (_ccUtilCalc -> utilisationForecastCalc) by N-325, so
+// the home Command Centre banner and the CC Utilisation tile share one
+// calculation. N-328 made both figures person-based through
+// personUtilisation() (utils.js): each person counts once per day, and the
+// 13-week base is day-weighted over [today, horizon] instead of counting
+// overlapping assignments. Headcount = deployable billable people
+// (isDeployablePerson — N-304 excludes internal staff); forecast (bench-bar)
+// assignments are skipped (computeMonthlyRows); thresholds in
+// CONFIG.UTILISATION_THRESHOLDS. Pure.
 function utilisationForecastCalc(forecasts, assigns, people) {
   const now     = new Date();
   const horizon = new Date(now.getTime() + 91 * 86400000); // 13 weeks
@@ -1107,22 +1110,12 @@ function utilisationForecastCalc(forecasts, assigns, people) {
   const allRows     = computeMonthlyRows(assigns);
   const curMonth    = now.getMonth() + 1;
   const curYear     = now.getFullYear();
-  const currentRows = allRows.filter(r => r.Year === curYear && r.Month === curMonth && r.Level !== 'CSD');
-  const totalCap    = currentRows.reduce((s, r) => s + r.Capacity, 0);
-  const billedCap   = currentRows.reduce((s, r) => s + r.BilledCapacity, 0);
-  const known       = totalCap > 0 ? billedCap / totalCap : 0;
+  const currentRows = allRows.filter(r => r.Year === curYear && r.Month === curMonth);
+  const known       = personUtilisation(currentRows).ratio;   // N-328 (CSD excluded inside)
 
-  // Known 13 weeks: assignments active at any point in the next 13 weeks (for forecast base)
-  const known13 = assigns.filter(a => {
-    if (isForecastAssignment(a)) return false;
-    if (!a.StartDate || !a.EndDate || a.Level === 'CSD') return false;
-    const s = new Date(a.StartDate);
-    const e = new Date(a.EndDate);
-    return s <= horizon && e >= now;
-  });
-  const totalCap13  = known13.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const billedCap13 = known13.filter(a => a.Billed === 'Yes').reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-  const knownForecastBase = totalCap13 > 0 ? billedCap13 / totalCap13 : 0;
+  // Known 13 weeks (forecast base): person-days from today to the horizon, N-328
+  const fwdRows           = computeMonthlyRows(assigns, { through: horizon });
+  const knownForecastBase = personUtilisation(fwdRows, { from: now, to: horizon }).ratio;
 
   // Forecast: known + sales forecasts overlapping next 13 weeks
   const forecastedHeadcount = forecasts.reduce((sum, f) => {

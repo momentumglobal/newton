@@ -40,13 +40,7 @@ function _fmtPct(n) {
   return ((n || 0) * 100).toFixed(1) + '%';
 }
 
-// Calculates utilisation % from an array of monthly rows.
-function _calcUtilisation(rows) {
-  const filtered  = rows.filter(r => isBillableLevel(r.Level));
-  const billedCap = filtered.reduce((s, r) => s + r.BilledCapacity, 0);
-  const totalCap  = filtered.reduce((s, r) => s + r.Capacity, 0);
-  return totalCap > 0 ? billedCap / totalCap : 0;
-}
+// N-328: utilisation % comes from personUtilisation() (utils.js) — the only formula.
 function _barChart(data, valueFormatter) {
   const max = Math.max(...data.map(d => d.value), 0.001);
   return `<div style='margin-top:12px'>
@@ -95,24 +89,12 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
 
   const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  // For forecast months, compute utilisation from assignments overlapping that month
+  // N-328: forecast months use the same person-day calculation as actual
+  // months, on rows extended to December (scheduled assignments, no today cap).
+  const fwdRows = computeMonthlyRows(assignments, { through: new Date(thisYear, 11, 31) });
   function _forecastUtil(monthIdx) {
-    const mStart = new Date(thisYear, monthIdx, 1);
-    const mEnd   = new Date(thisYear, monthIdx + 1, 0);
-    // Find assignments active in this month
-    const active = assignments.filter(a => {
-      if (isForecastAssignment(a)) return false;
-      if (!a.StartDate || !a.EndDate) return false;
-      const s = new Date(a.StartDate);
-      const e = new Date(a.EndDate);
-      return s <= mEnd && e >= mStart && a.Level !== 'CSD';
-    });
-    if (!active.length) return null;
-    // Use capacity from existing rows if available, else estimate from assignment
-    const billedCap = active.filter(a => a.Billed === 'Yes')
-      .reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-    const totalCap  = active.reduce((s, a) => s + (a.MonthlyCapacity || 1), 0);
-    return totalCap > 0 ? billedCap / totalCap : null;
+    const u = personUtilisation(fwdRows.filter(r => r.Year === thisYear && r.Month === monthIdx + 1));
+    return u.total > 0 ? u.ratio : null;
   }
 
   const points = MONTH_LABELS.map((label, i) => {
@@ -120,7 +102,7 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
     let util;
     if (i <= curMonth) {
       // Actual: use computed monthly rows
-      util = monthRows.length ? _calcUtilisation(monthRows) : null;
+      util = monthRows.length ? personUtilisation(monthRows).ratio : null;
     } else {
       // Forecast: derive from assignment overlap
       util = _forecastUtil(i);
@@ -260,11 +242,11 @@ async function _renderKPIStrip(allRows, people, assignments) {
   const prevRows  = _rowsInYear(allRows, prevY);
   const revPrev   = prevRows.reduce((s,r) => s + r.BilledRevenue, 0);
 
-  // Utilisation — current year YTD
-  const utilYTD   = _calcUtilisation(ytdRows);
+  // Utilisation — current year YTD (person-based, N-328)
+  const utilYTD   = personUtilisation(ytdRows).ratio;
 
   // Utilisation — previous year
-  const utilPrev  = _calcUtilisation(prevRows);
+  const utilPrev  = personUtilisation(prevRows).ratio;
 
 // Last day of previous quarter
   const cq       = Math.floor(now.getMonth() / 3);
@@ -317,13 +299,13 @@ function _renderUtilisationPanel(rows, people) {
   const bands = CONFIG.PEOPLE_LEVELS.filter(l => l !== 'CSD');
   const bandRows = bands.map(band => {
     const r        = rows.filter(r => r.Level === band);
-    const u        = _calcUtilisation(r);
+    const u        = personUtilisation(r).ratio;
     // Headcount from assignment rows for the selected period (not today's people list)
     const total    = new Set(r.map(r => r.EmployeeName)).size;
     const utilised = new Set(r.filter(r => r.Billed === 'Yes').map(r => r.EmployeeName)).size;
     return { band, u, utilised, total };
   }).filter(b => b.total > 0);
-  const totalUtil     = _calcUtilisation(rows);
+  const totalUtil     = personUtilisation(rows).ratio;
   const totalActive   = new Set(rows.filter(r => isBillableLevel(r.Level)).map(r => r.EmployeeName)).size;
   const totalUtilised = new Set(rows.filter(r => r.Billed === 'Yes' && isBillableLevel(r.Level)).map(r => r.EmployeeName)).size;
   const bandTableRows = bandRows.map(b => `
@@ -343,7 +325,7 @@ function _renderUtilisationPanel(rows, people) {
   const monthKeys = Object.keys(monthMap).sort();
   const chartData = monthKeys.map(k => ({
     label: k,
-    value: _calcUtilisation(monthMap[k]),
+    value: personUtilisation(monthMap[k]).ratio,
   }));
 
   return `

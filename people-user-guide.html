@@ -47,11 +47,11 @@
       </div>
       <div class="faq-item">
         <div class="faq-q">How does utilisation get calculated?</div>
-        <div class="faq-a">Utilisation is calculated as total billed capacity divided by total available capacity across all active employees (excluding CSD level). Each monthly row is prorated based on how many calendar days of an assignment fall within that month.</div>
+        <div class="faq-a">Utilisation is person-based: for each person (excluding CSD level), it counts the days they were on at least one billed assignment, divided by the days they were on any assignment. Each person counts once per day, so someone on one billed and two unbilled customers at the same time is 100% utilised. Days are pro-rated within each month.</div>
       </div>
       <div class="faq-item">
         <div class="faq-q">Why do the dashboard figures only show up to today?</div>
-        <div class="faq-a">All utilisation and revenue calculations are capped at today's date. Even if an assignment runs into the future, only the days up to and including today are counted. This gives an accurate picture of what has actually been delivered.</div>
+        <div class="faq-a">Actual utilisation and revenue are counted up to the end of the current month. Even if an assignment runs further into the future, later months are not included in the actual figures. The dotted forecast line and the Command Centre forecast look ahead separately, using assignments already scheduled.</div>
       </div>
       <div class="faq-item">
         <div class="faq-q">Why does an employee appear in multiple customer groups on the Deployment Timeline?</div>
@@ -111,7 +111,7 @@
       <h3>KPI Strip</h3>
       <p>Four tiles showing company-wide metrics as of today:</p>
       <p><strong>Estimated Revenue</strong> — total billed revenue for the current year to date.</p>
-      <p><strong>Utilisation</strong> — billed capacity as a percentage of total capacity, YTD. Flagged below 85%: amber 75–85%, red below 75%.</p>
+      <p><strong>Utilisation</strong> — billed person-days as a percentage of assigned person-days, YTD, with each person counted once per day. Flagged below 85%: amber 75–85%, red below 75%.</p>
       <p><strong>Active Customers</strong> — number of distinct customers with a current active assignment today. The delta indicator (green/red) shows the change vs the last day of the previous quarter.</p>
       <p><strong>Billed Headcount</strong> — number of employees on a billed assignment today. The delta indicator shows the change vs the last day of the previous quarter.</p>
       <h3>Team Utilisation Line Graph</h3>
@@ -144,7 +144,7 @@
       <p>Lists assignment records showing employee name, level, customer, project type, start and end dates, monthly bill rate, and billed status. Defaults to current assignments.</p>
       <p>Use the <strong>Status</strong> filter to switch between Current, Former, Planned, or All assignments. Filter further by Customer or Project Type using the dropdowns.</p>
       <p>Admins can add new assignments using <strong>+ Add Assignment</strong> and edit existing records via the Edit link on each row.</p>
-      <div class="tip">The <strong>Billed</strong> field on an assignment determines whether it contributes to revenue and utilisation calculations. An assignment marked Billed = No counts toward capacity but not billed capacity.</div>
+      <div class="tip">The <strong>Billed</strong> field on an assignment determines whether it contributes to revenue and utilisation calculations. An assignment marked Billed = No only lowers utilisation on days when that person has no billed assignment — an unbilled assignment running alongside a billed one does not count against them.</div>
       <p><strong>Adding an SDM to an Exec Search or MG AI engagement:</strong> add an assignment for the SDM against the same customer, choose the Exec Search or MG AI project type and set <strong>Billed? = No</strong>. The retainer and placement fee fields are hidden and nothing is recorded against the SDM, so revenue is unaffected (the Rate column shows "Unbilled"). The SDM then appears under that project on the Org Chart, with the Talent Partner reporting into them, and as a bar on the Deployment Timeline.</p>
       <h3>Bench Sync</h3>
       <p>The <strong>↻ Sync Bench</strong> button (visible to Admins) automatically generates and maintains bench assignments for all active billable employees. When run, it identifies gaps between a person's customer assignments for the rest of the current year — from today up to their employment end date (or 31 December if no end date is set) — and creates an Unassigned / Internal assignment to fill each gap.</p>

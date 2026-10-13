@@ -270,21 +270,33 @@ function assignmentRateLabel(a) {
   return a.MonthlyBillRate ? gbp(a.MonthlyBillRate) : '—';
 }
 
-function computeMonthlyRows(assignments) {
+// N-328: opts.through (a Date, optional) moves the cap to the end of the month
+// containing it. Only the forward-looking utilisation paths pass it. With no
+// opts the cap is the end of the current month, exactly as before. Months
+// after the current one carry ZERO revenue, so `through` rows can never put
+// future revenue anywhere. DayFrom / DayTo (UTC day-of-month, inclusive) feed
+// personUtilisation()'s per-person day union.
+function computeMonthlyRows(assignments, opts = {}) {
   // N-120: anchor "today" to a UTC-midnight instant for the same calendar
   // day, so it composes safely with the UTC day-overlap arithmetic below —
   // mixing a local-midnight cap with UTC month boundaries could shift the
   // current-month cap by up to an hour across a BST/GMT transition.
   const todayLocal = new Date();
   const today = new Date(Date.UTC(todayLocal.getFullYear(), todayLocal.getMonth(), todayLocal.getDate()));
+  // N-328: `through` is normalised the same way as `today` (its local calendar
+  // day as a UTC midnight) before its month end is taken.
+  const capRef = opts.through
+    ? new Date(Date.UTC(opts.through.getFullYear(), opts.through.getMonth(), opts.through.getDate()))
+    : today;
+  const capEnd = new Date(Date.UTC(capRef.getUTCFullYear(), capRef.getUTCMonth() + 1, 0));
+  const curKey = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, '0')}`;
   const rows = [];
   for (const a of assignments) {
     if (!a.StartDate || !a.EndDate) continue;
     if (isForecastAssignment(a)) continue; // forecasts never feed utilisation/revenue
     const aStart = utcDateOnly(a.StartDate);
     const aEnd   = utcDateOnly(a.EndDate);
-    const thisMonthEnd = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
-    const effectiveEnd = aEnd < thisMonthEnd ? aEnd : thisMonthEnd;
+    const effectiveEnd = aEnd < capEnd ? aEnd : capEnd;
     // N-116: null for every non-split-fee assignment, so the branch below is
     // a no-op and existing revenue figures are byte-identical.
     const _splitEvents = isSplitFeeAssignment(a) ? splitFeeRevenueEvents(a) : null;
@@ -305,7 +317,10 @@ function computeMonthlyRows(assignments) {
       // N-116: split-fee lines carry no monthly rate. Revenue is the lump sum
       // due in THIS month (usually nothing); capacity below is unaffected.
       const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
-      const prorated = _splitEvents
+      // N-328: a month after the current one only exists for a `through`
+      // caller (utilisation) — never recognise revenue in it.
+      const prorated = monthKey > curKey ? 0
+        : _splitEvents
         ? _splitEvents.filter(ev => ev.monthKey === monthKey)
                       .reduce((sum, ev) => sum + ev.amount, 0)
         : rate * fraction;
@@ -325,6 +340,8 @@ function computeMonthlyRows(assignments) {
         BilledRevenue:    billed ? Math.round(prorated * 100) / 100 : 0,
         Capacity:         Math.round(fraction * 10000) / 10000,
         BilledCapacity:   billed ? Math.round(fraction * 10000) / 10000 : 0,
+        DayFrom:          overlapStart.getUTCDate(),   // N-328: day span within
+        DayTo:            overlapEnd.getUTCDate(),     // the month, inclusive
       });
       cur.setUTCMonth(cur.getUTCMonth() + 1);
     }
@@ -1625,6 +1642,59 @@ function levelSortIndex(level) {
 // for this to keep working, no call site needs to change.
 function isBillableLevel(level) {
   return level !== 'CSD';
+}
+
+// ── Person-based utilisation (N-328) ────────────────────────────
+// THE utilisation formula — nothing else may sum Capacity / BilledCapacity.
+// Per person per month: billed = days covered by at least one Billed = 'Yes'
+// row, total = days covered by any row (union of the rows' DayFrom..DayTo),
+// each as a fraction of the month rounded to 4dp exactly like Capacity. So a
+// person with one assignment at a time scores the old row-capacity figure,
+// and concurrent assignments (an SDM on 1 billed + 2 unbilled customers)
+// count the person once. Rows come from computeMonthlyRows(); CSD rows
+// (isBillableLevel) and zero-capacity placement rows (no DayFrom) are
+// skipped. Person key = EmployeeName, as the Headcount columns count; a blank
+// name never merges (keyed per AssignmentID). Optional clip = { from, to }
+// (Dates, inclusive, by local calendar day): days outside are ignored — the
+// 13-week CC base. Returns { ratio, billed, total }: billed / total in
+// person-months; ratio 0 when total is 0 (callers showing "no data" test
+// total). Sums run in whole 1/10000ths so the ratio has no float drift.
+function personUtilisation(rows, clip) {
+  const DAY    = 86400000;
+  const dayNum = d => Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY);
+  const lo = clip && clip.from ? dayNum(clip.from) : -Infinity;
+  const hi = clip && clip.to   ? dayNum(clip.to)   :  Infinity;
+  const groups = new Map();
+  for (const r of rows || []) {
+    if (!isBillableLevel(r.Level) || r.DayFrom == null || r.DayTo == null) continue;
+    const day0 = Math.round(Date.UTC(r.Year, r.Month - 1, 1) / DAY) - 1;
+    const from = Math.max(day0 + r.DayFrom, lo);
+    const to   = Math.min(day0 + r.DayTo, hi);
+    if (to < from) continue;
+    const key = (r.EmployeeName || '#' + r.AssignmentID) + '|' + r.Year + '-' + r.Month;
+    let g = groups.get(key);
+    if (!g) {
+      g = { dim: new Date(Date.UTC(r.Year, r.Month, 0)).getUTCDate(), all: [], billed: [] };
+      groups.set(key, g);
+    }
+    g.all.push([from, to]);
+    if (r.Billed === 'Yes') g.billed.push([from, to]);
+  }
+  const unionDays = spans => {
+    let n = 0, end = -Infinity;
+    spans.sort((x, y) => x[0] - y[0]).forEach(([s, e]) => {
+      if (e <= end) return;
+      n += e - Math.max(s, end + 1) + 1;
+      end = e;
+    });
+    return n;
+  };
+  let billedU = 0, totalU = 0;
+  for (const g of groups.values()) {
+    totalU  += Math.round(unionDays(g.all)    / g.dim * 10000);
+    billedU += Math.round(unionDays(g.billed) / g.dim * 10000);
+  }
+  return { ratio: totalU > 0 ? billedU / totalU : 0, billed: billedU / 10000, total: totalU / 10000 };
 }
 
 // ── Internal (non-deployable) staff helpers (N-304) ─────────────

@@ -4365,7 +4365,10 @@ var ASSERTIONS = [
   },
   // ---- N-325: banner Utilisation RAG mirrors the CC tile ------------------
   {
-    name: 'N-325: utilisationForecastCalc is the old CC tile calculation, unchanged (oracle = the old _ccUtilCalc, verbatim)',
+    // N-328 changed the body to person-based utilisation. The oracle stays
+    // verbatim; the property now pinned is "one assignment per person, same
+    // span => identical result", which is what N-328 promises to preserve.
+    name: 'N-325/N-328: utilisationForecastCalc equals the old CC tile calculation when every person has one assignment (oracle = the old _ccUtilCalc, verbatim)',
     fn: function () {
       function oldCcUtilCalc(forecasts, assigns, people) {
         const now     = new Date();
@@ -4409,7 +4412,8 @@ var ASSERTIONS = [
         return { known, forecast };
       }
       const d = n => localDayISO(new Date(Date.now() + n * 86400000));
-      const asg = (n, over) => Array.from({ length: n }, (_, i) => Object.assign({ AssignmentID: 'a' + i + (over && over.IsForecast ? 'f' : ''), Level: 'TP', Billed: 'Yes', MonthlyCapacity: 1, StartDate: d(-10), EndDate: d(60) }, over));
+      let _who = 0;   // N-328: one distinct person per assignment
+      const asg = (n, over) => Array.from({ length: n }, (_, i) => Object.assign({ AssignmentID: 'a' + i + (over && over.IsForecast ? 'f' : ''), EmployeeName: 'Person ' + (_who++), Level: 'TP', Billed: 'Yes', MonthlyCapacity: 1, StartDate: d(-10), EndDate: d(60) }, over));
       const ppl = (n, level, extra) => Array.from({ length: n }, () => Object.assign({ Level: level, IsActive: true }, extra));
       const cases = {
         'all billable':               [[], [...asg(3), ...asg(1, { Billed: 'No' })], [...ppl(4, 'TP')]],
@@ -4426,7 +4430,10 @@ var ASSERTIONS = [
       };
       Object.keys(cases).forEach(k => {
         const [f, a, p] = cases[k];
-        _assertEqual(utilisationForecastCalc(f, a, p), oldCcUtilCalc(f, a, p), k + ': { known, forecast } equal the old tile calculation');
+        const got = utilisationForecastCalc(f, a, p), want = oldCcUtilCalc(f, a, p);
+        // 1e-12: the old sums drift in the last bit (0.7499999999999999); the new ones don't.
+        _assertEqual(Math.abs(got.known - want.known) < 1e-12 && Math.abs(got.forecast - want.forecast) < 1e-12, true,
+          k + ': { known, forecast } equal the old tile calculation (got ' + JSON.stringify(got) + ', old ' + JSON.stringify(want) + ')');
       });
       _assertEqual(typeof computeUtilisationRAG, 'function', 'computeUtilisationRAG is global (analytics.js)');
     },
@@ -4437,8 +4444,8 @@ var ASSERTIONS = [
       const t = CONFIG.UTILISATION_THRESHOLDS;
       const d = n => localDayISO(new Date(Date.now() + n * 86400000));
       const mk = (billed, unbilled, over) => [
-        ...Array.from({ length: billed }, (_, i) => Object.assign({ AssignmentID: 'b' + i, Level: 'TP', Billed: 'Yes', MonthlyCapacity: 1, StartDate: d(-10), EndDate: d(60) }, over)),
-        ...Array.from({ length: unbilled }, (_, i) => Object.assign({ AssignmentID: 'u' + i, Level: 'TP', Billed: 'No', MonthlyCapacity: 1, StartDate: d(-10), EndDate: d(60) }, over)),
+        ...Array.from({ length: billed }, (_, i) => Object.assign({ AssignmentID: 'b' + i, EmployeeName: 'Billed ' + i, Level: 'TP', Billed: 'Yes', MonthlyCapacity: 1, StartDate: d(-10), EndDate: d(60) }, over)),
+        ...Array.from({ length: unbilled }, (_, i) => Object.assign({ AssignmentID: 'u' + i, EmployeeName: 'Unbilled ' + i, Level: 'TP', Billed: 'No', MonthlyCapacity: 1, StartDate: d(-10), EndDate: d(60) }, over)),
       ];
       const people = Array.from({ length: 20 }, () => ({ Level: 'TP', IsActive: true }));
       // 20 units of capacity: billed share = billed / 20.
@@ -4883,7 +4890,7 @@ var ASSERTIONS = [
     name: 'N-304: utilisationForecastCalc headcount ignores internal staff (positive control: as many extra TPs do move it)',
     fn: function () {
       const d = n => localDayISO(new Date(Date.now() + n * 86400000));
-      const asg = Array.from({ length: 4 }, (_, i) => ({ AssignmentID: 'a' + i, Level: 'TP', Billed: i < 3 ? 'Yes' : 'No', MonthlyCapacity: 1, StartDate: d(-10), EndDate: d(60) }));
+      const asg = Array.from({ length: 4 }, (_, i) => ({ AssignmentID: 'a' + i, EmployeeName: 'Person ' + i, Level: 'TP', Billed: i < 3 ? 'Yes' : 'No', MonthlyCapacity: 1, StartDate: d(-10), EndDate: d(60) }));
       const fc = [{ ForecastStartDate: d(-5), ForecastEndDate: d(30), ForecastedHeadcount: 2 }];
       const tps = n => Array.from({ length: n }, () => ({ Level: 'TP', IsActive: true }));
       const internal = Array.from({ length: 5 }, () => ({ StaffType: CONFIG.STAFF_TYPE_INTERNAL, StaffFunction: 'Sales', IsActive: true }));
@@ -4907,6 +4914,163 @@ var ASSERTIONS = [
       _assertEqual(scan(ALL_SOURCES), [], 'People-row isBillableLevel calls');
       const bumped = Object.assign({}, ALL_SOURCES, { 'pages.js': ALL_SOURCES['pages.js'] + '\nconst _n = people.filter(p => isBillableLevel(p.Level));' });
       _assertEqual(scan(bumped).length, 1, 'mutation: a new People-row isBillableLevel call is flagged');
+    },
+  },
+  // ---- N-328: person-based utilisation --------------------------------------
+  {
+    name: 'N-328: personUtilisation counts a person once — SDM on 1 billed + 2 unbilled concurrent customers = 100%',
+    fn: function () {
+      const A = (id, name, billed, s, e, level) => ({ AssignmentID: id, EmployeeName: name, Level: level || 'SDM', Billed: billed ? 'Yes' : 'No', StartDate: s, EndDate: e });
+      const rows = computeMonthlyRows([
+        A('s1', 'Sam', true, '2024-03-01', '2024-03-31'),
+        A('s2', 'Sam', false, '2024-03-01', '2024-03-31'),
+        A('s3', 'Sam', false, '2024-03-01', '2024-03-31'),
+      ]);
+      const oldWay = rows.reduce((s, r) => s + r.BilledCapacity, 0) / rows.reduce((s, r) => s + r.Capacity, 0);
+      _assertEqual(Math.round(oldWay * 1000) / 1000, 0.333, 'positive control: the old row-capacity formula says 1/3');
+      _assertEqual(personUtilisation(rows), { ratio: 1, billed: 1, total: 1 }, 'person-based: one person-month, fully billed');
+      // with a bench TP alongside, the SDM is one head of two
+      const two = computeMonthlyRows([
+        A('s1', 'Sam', true, '2024-03-01', '2024-03-31'), A('s2', 'Sam', false, '2024-03-01', '2024-03-31'),
+        A('b1', 'Ben', false, '2024-03-01', '2024-03-31', 'TP'),
+      ]);
+      _assertEqual(personUtilisation(two).ratio, 0.5, 'SDM + bench TP = 1 of 2 heads');
+    },
+  },
+  {
+    name: 'N-328: part-month concurrency is exact (joiner: billed + unbilled on the same 16 days = 100%; min(1, sum) would say ~52%)',
+    fn: function () {
+      const A = (id, billed, s, e) => ({ AssignmentID: id, EmployeeName: 'Joy', Level: 'TP', Billed: billed ? 'Yes' : 'No', StartDate: s, EndDate: e });
+      const rows = computeMonthlyRows([A('j1', true, '2024-03-16', '2024-03-31'), A('j2', false, '2024-03-16', '2024-03-31')]);
+      const u = personUtilisation(rows);
+      _assertEqual(u.ratio, 1, 'ratio 1');
+      _assertEqual(u.total, 0.5161, 'total = 16/31 person-months, not capped-sum 1');
+      const minWay = Math.min(1, rows.reduce((s, r) => s + r.BilledCapacity, 0)) / Math.min(1, rows.reduce((s, r) => s + r.Capacity, 0));
+      _assertEqual(minWay < 0.6, true, 'positive control: the min(1, sum) approach really does understate this case');
+      // billed first half, unbilled the whole month: half billed
+      const half = computeMonthlyRows([A('h1', true, '2024-04-01', '2024-04-15'), A('h2', false, '2024-04-01', '2024-04-30')]);
+      _assertEqual(personUtilisation(half), { ratio: 0.5, billed: 0.5, total: 1 }, 'billed days 1-15 of 30, assigned all month = 50%');
+    },
+  },
+  {
+    name: 'N-328: with one assignment per person-month, personUtilisation equals the old row-capacity formula (positive control: a concurrent row changes it)',
+    fn: function () {
+      const A = (id, name, level, billed, s, e) => ({ AssignmentID: id, EmployeeName: name, Level: level, Billed: billed ? 'Yes' : 'No', StartDate: s, EndDate: e });
+      const base = [
+        A('p1', 'Ann',  'TP',  true,  '2024-01-10', '2024-03-20'),
+        A('p2', 'Bob',  'STP', false, '2024-02-01', '2024-04-30'),
+        A('p3', 'Cat',  'SDM', true,  '2024-03-05', '2024-03-25'),
+        A('p4', 'Dan',  'PTP', true,  '2024-02-14', '2024-06-02'),
+        A('p5', 'Eve',  'CSD', true,  '2024-01-01', '2024-06-30'),
+      ];
+      const oldUtil = rows => {
+        const f = rows.filter(r => isBillableLevel(r.Level));
+        const t = f.reduce((s, r) => s + r.Capacity, 0);
+        return t > 0 ? f.reduce((s, r) => s + r.BilledCapacity, 0) / t : 0;
+      };
+      const rows = computeMonthlyRows(base);
+      _assertEqual(Math.abs(personUtilisation(rows).ratio - oldUtil(rows)) < 1e-12, true, 'whole set equals the old formula');
+      for (let m = 1; m <= 6; m++) {
+        const mr = rows.filter(r => r.Month === m);
+        _assertEqual(Math.abs(personUtilisation(mr).ratio - oldUtil(mr)) < 1e-12, true, 'month ' + m + ' equals the old formula');
+      }
+      const withSdm = computeMonthlyRows(base.concat([A('p6', 'Cat', 'SDM', false, '2024-03-05', '2024-03-25')]));
+      _assertEqual(Math.abs(personUtilisation(withSdm).ratio - oldUtil(withSdm)) > 1e-3, true, 'positive control: a concurrent unbilled row moves the old formula but not the person count');
+      _assertEqual(personUtilisation(withSdm).ratio, personUtilisation(rows).ratio, 'the concurrent row leaves the person-based figure unchanged');
+    },
+  },
+  {
+    name: 'N-328: blank names never merge; CSD and forecast assignments excluded; empty input is 0 / 0',
+    fn: function () {
+      const A = (id, name, level, billed, over) => Object.assign({ AssignmentID: id, EmployeeName: name, Level: level, Billed: billed ? 'Yes' : 'No', StartDate: '2024-03-01', EndDate: '2024-03-31' }, over);
+      _assertEqual(personUtilisation(computeMonthlyRows([A('x1', '', 'TP', true), A('x2', '', 'TP', false)])).ratio, 0.5, 'two blank-name rows are two people');
+      _assertEqual(personUtilisation(computeMonthlyRows([A('c1', 'Cara', 'CSD', true), A('t1', 'Tom', 'TP', false)])).ratio, 0, 'CSD billed row ignored');
+      _assertEqual(personUtilisation(computeMonthlyRows([A('f1', 'Fay', 'TP', true, { IsForecast: true }), A('t1', 'Tom', 'TP', false)])).ratio, 0, 'forecast billed row ignored');
+      _assertEqual(personUtilisation([]), { ratio: 0, billed: 0, total: 0 }, 'no rows');
+      _assertEqual(personUtilisation(undefined), { ratio: 0, billed: 0, total: 0 }, 'undefined rows');
+    },
+  },
+  {
+    name: 'N-328: clip window trims days outside [from, to]',
+    fn: function () {
+      const A = (id, name, billed) => ({ AssignmentID: id, EmployeeName: name, Level: 'TP', Billed: billed ? 'Yes' : 'No', StartDate: '2024-03-01', EndDate: '2024-04-30' });
+      const rows = computeMonthlyRows([A('c1', 'Ann', true), A('c2', 'Bob', false)]);
+      _assertEqual(personUtilisation(rows).total, 4, 'unclipped: 2 people x 2 months');
+      const u = personUtilisation(rows, { from: new Date(2024, 2, 16), to: new Date(2024, 3, 15) });
+      _assertEqual(u.billed, 1.0161, 'Ann: 16/31 + 15/30');
+      _assertEqual(u.total, 2.0322, 'Ann + Bob');
+      _assertEqual(u.ratio, 0.5, 'ratio');
+      _assertEqual(personUtilisation(rows, { from: new Date(2024, 4, 1), to: new Date(2024, 5, 1) }).total, 0, 'window after the assignments -> nothing');
+    },
+  },
+  {
+    name: 'N-328: computeMonthlyRows — DayFrom/DayTo are additive; placement rows carry none; same across BST->GMT',
+    fn: function () {
+      const rows = computeMonthlyRows(FIXTURES.monthlyRows.assignments);
+      _assertEqual(Object.keys(rows[0]).sort(), ['AssignmentID', 'Billed', 'BilledCapacity', 'BilledRevenue', 'Capacity', 'Country', 'Customer', 'DayFrom', 'DayTo',
+        'EmployeeName', 'Level', 'Month', 'MonthFraction', 'MonthStart', 'ProjectType', 'ProratedRevenue', 'Year'], 'row keys = the old set + DayFrom, DayTo');
+      const sf = computeMonthlyRows(FIXTURES.analytics2.splitFee.assignments);
+      _assertEqual([sf[0].DayFrom, sf[0].DayTo], [10, 31], 'first split-fee month: 10-31 Mar');
+      _assertEqual([sf[2].DayFrom, sf[2].DayTo], [1, 20], 'last month: 1-20 May');
+      _assertEqual(sf[3].DayFrom === undefined && sf[3].DayTo === undefined, true, 'placement-fee row has no day span');
+      const bst = computeMonthlyRows([{ AssignmentID: 'z', EmployeeName: 'Zoe', Level: 'TP', Billed: 'Yes', StartDate: '2024-10-20', EndDate: '2024-11-03' }]);
+      _assertEqual(bst.map(r => [r.Month, r.DayFrom, r.DayTo]), [[10, 20, 31], [11, 1, 3]], 'span across the 27 Oct clock change');
+      _assertEqual(personUtilisation(bst).total, 0.4871, '12/31 + 3/30 person-months (0.3871 + 0.1)');
+    },
+  },
+  {
+    name: 'N-328: computeMonthlyRows { through } extends rows for utilisation only — future months carry no revenue, placement fee stays capped at today',
+    fn: function () {
+      const DAY = 86400000;
+      const d = n => localDayISO(new Date(Date.now() + n * DAY));
+      const now = new Date();
+      const curKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      const rated = { AssignmentID: 'r', EmployeeName: 'Rae', Level: 'TP', Billed: 'Yes', MonthlyBillRate: 3000, StartDate: d(-5), EndDate: d(150) };
+      const def = computeMonthlyRows([rated]);
+      _assertEqual(def.every(r => r.MonthStart.slice(0, 7) <= curKey), true, 'default: nothing after the current month');
+      const fwd = computeMonthlyRows([rated], { through: new Date(Date.now() + 150 * DAY) });
+      const later = fwd.filter(r => r.MonthStart.slice(0, 7) > curKey);
+      _assertEqual(later.length >= 4, true, 'through: rows run on past the current month (' + later.length + ')');
+      _assertEqual(later.every(r => r.Capacity > 0 && r.ProratedRevenue === 0 && r.BilledRevenue === 0), true, 'future months: capacity yes, revenue no');
+      _assertEqual(fwd.filter(r => r.MonthStart.slice(0, 7) <= curKey).map(r => r.ProratedRevenue), def.map(r => r.ProratedRevenue), 'months to date: revenue identical to the default');
+      const split = { AssignmentID: 's', EmployeeName: 'Sid', Level: 'TP', Billed: 'Yes', ProjectType: CONFIG.SPLIT_FEE_PROJECT_TYPES[0],
+                      RetainerFee: '1000', PlacementFee: '5000', StartDate: d(-5), EndDate: d(70) };
+      const sfRows = computeMonthlyRows([split], { through: new Date(Date.now() + 150 * DAY) });
+      _assertEqual(sfRows.reduce((s, r) => s + r.ProratedRevenue, 0), 1000, 'retainer only — the future placement fee never appears');
+      _assertEqual(sfRows.every(r => r.Capacity > 0), true, 'no zero-capacity placement row in the future');
+    },
+  },
+  {
+    name: 'N-328: utilisationForecastCalc is person-based — an SDM with unbilled concurrent rows no longer drags it down',
+    fn: function () {
+      const d = n => localDayISO(new Date(Date.now() + n * 86400000));
+      const A = (id, name, billed) => ({ AssignmentID: id, EmployeeName: name, Level: 'SDM', Billed: billed ? 'Yes' : 'No', StartDate: d(-40), EndDate: d(120) });
+      const people = [{ Level: 'SDM', IsActive: true }];
+      _assertEqual(utilisationForecastCalc([], [A('1', 'Sam', true), A('2', 'Sam', false), A('3', 'Sam', false)], people), { known: 1, forecast: 1 }, 'one SDM, billed throughout');
+      // roll-off: billed for the first part of the 13 weeks, bench after -> day-weighted, not 1 of 2
+      const roll = [{ AssignmentID: 'a', EmployeeName: 'Tia', Level: 'TP', Billed: 'Yes', StartDate: d(-40), EndDate: d(13) },
+                    { AssignmentID: 'b', EmployeeName: 'Tia', Level: 'TP', Billed: 'No', StartDate: d(14), EndDate: d(200) }];
+      const base = utilisationForecastCalc([], roll, [{ Level: 'TP', IsActive: true }]).forecast;
+      _assertEqual(base > 0.1 && base < 0.25, true, 'roll-off after 2 of 13 weeks scores ~2/13, not 50% (got ' + base + ')');
+    },
+  },
+  {
+    name: 'N-328: only utils.js turns Capacity into utilisation — no BilledCapacity/Capacity sums, MonthlyCapacity or retired helpers elsewhere',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const BAD = /\.(Billed)?Capacity\b|MonthlyCapacity|\b_calcUtilisation\b|\bmpCalcUtilisation\b/;
+      const scan = src => {
+        const hits = [];
+        Object.keys(src).forEach(f => {
+          if (f === 'utils.js') return;
+          _vendorStripJsComments(src[f]).forEach((line, i) => { if (BAD.test(line)) hits.push(f + ':' + (i + 1)); });
+        });
+        return hits;
+      };
+      _assertEqual(scan(ALL_SOURCES), [], 'utilisation maths outside utils.js');
+      const bumped = Object.assign({}, ALL_SOURCES, { 'people-dashboard.js': ALL_SOURCES['people-dashboard.js'] + '\nconst _x = rows.reduce((s, r) => s + r.BilledCapacity, 0);' });
+      _assertEqual(scan(bumped).length, 1, 'mutation: a new BilledCapacity sum is flagged');
+      _assertEqual(/function\s+personUtilisation\s*\(/.test(ALL_SOURCES['utils.js']), true, 'personUtilisation is defined in utils.js');
     },
   },
 ];

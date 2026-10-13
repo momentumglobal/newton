@@ -1026,6 +1026,17 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Unbilled SDM on Exec Search / MG AI assignments (N-327)</div>
+        <ul>
+          <li>The Add / Edit Assignment form keeps <strong>Billed?</strong> visible for split-fee project types (it used to be hidden with the rate row, so every split-fee line was saved Billed = Yes). Only the Monthly Bill Rate field is hidden for them.</li>
+          <li>Billed = No on a split-fee line hides the Retainer / Placement fields, and <code>submitAssignmentForm</code> writes both as <code>null</code> (<code>_carriesSplitFees</code>) &mdash; hidden inputs are still submitted, and Estimated Revenue ignores <code>Billed</code>, so a stray fee would double-count. No new fields or lists.</li>
+          <li><code>assignmentRateLabel()</code> returns "Unbilled" for a fee-less Billed = No split-fee line (Assignments tab Rate column and Deployment Timeline tooltip). Org Chart and the Timeline needed no change: both place people by <code>Assignments.Customer</code>.</li>
+          <li>Utilisation maths untouched. An unbilled SDM adds capacity but no billed capacity until N-328 makes utilisation person-based.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
         <div class="changelog-title">Internal (non-deployable) staff on the People list (N-304)</div>
         <ul>
           <li>New People fields <code>StaffType</code> (Deployable / Internal) and <code>StaffFunction</code> (Marketing / Sales / Internal TA / Operations / People). Add / Edit Employee swaps Level for Function when the type is Internal.</li>

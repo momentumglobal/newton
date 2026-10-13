@@ -264,7 +264,7 @@ function assignmentRateLabel(a) {
   if (isSplitFeeAssignment(a)) {
     const r = parseFloat(a.RetainerFee)  || 0;
     const p = parseFloat(a.PlacementFee) || 0;
-    if (!r && !p) return '—';
+    if (!r && !p) return a.Billed === 'No' ? 'Unbilled' : '—';   // N-327
     return `${r ? gbp(r) : '—'} + ${p ? gbp(p) : '—'} (split)`;
   }
   return a.MonthlyBillRate ? gbp(a.MonthlyBillRate) : '—';

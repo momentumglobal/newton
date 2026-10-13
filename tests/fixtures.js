@@ -284,5 +284,23 @@ var FIXTURES = {
         },
       ],
     },
+    // N-327: unbilled SDM on a split-fee customer -- no fees, Billed 'No'.
+    splitFeeUnbilled: {
+      assignments: [
+        {
+          AssignmentID: 'SF-2',
+          EmployeeName: 'Unbilled Sdm',
+          Level: 'SDM',
+          Customer: 'Acme',
+          ProjectType: 'Exec Search',
+          Country: 'UK',
+          Billed: 'No',
+          StartDate: '2024-03-10',
+          EndDate: '2024-05-20',
+          RetainerFee: null,
+          PlacementFee: null,
+        },
+      ],
+    },
   },
 };

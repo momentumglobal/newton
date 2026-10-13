@@ -270,18 +270,19 @@ async function renderAssignmentForm(existingData = null) {
               value='${escHtml(spDateIn(existingData?.EndDate) || '')}'>
           </div>
         </div>
-        <div class='form-row' id='assignment-rate-row'>
-          <div class='form-group'>
+        <div class='form-row'>
+          <div class='form-group' id='assignment-rate-group'>
             <label>Monthly Bill Rate (£)</label>
             <input type='number' name='MonthlyBillRate' min='0' step='0.01'
               value='${escAttr(existingData?.MonthlyBillRate || '')}'>
           </div>
           <div class='form-group'>
             <label>Billed? *</label>
-            <select name='Billed' required>
+            <select name='Billed' required${actOn('change', '_onAssignmentTypeChange')}>
               <option value='Yes' ${!existingData||existingData?.Billed==='Yes'?'selected':''}>Yes</option>
               <option value='No'  ${existingData?.Billed==='No'?'selected':''}>No</option>
             </select>
+            <span class='form-hint is-hidden' id='assignment-billed-hint'>No = unbilled support role (e.g. SDM). No fees are recorded.</span>
           </div>
         </div>
         <div class='form-row' id='assignment-splitfee-row'>
@@ -347,12 +348,20 @@ function _onAssignmentTypeChange() {
   if (!form) return;
   const type    = form.querySelector('[name=ProjectType]')?.value;
   const isSplit = CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(type);
-  document.getElementById('assignment-rate-row')
+  // N-327: Billed = No on a split-fee line is an unbilled support role (e.g. an
+  // SDM) -- it carries no fees, so the fee row is hidden for it.
+  const unbilled = form.querySelector('[name=Billed]')?.value === 'No';
+  document.getElementById('assignment-rate-group')
     ?.classList.toggle('is-hidden', isSplit);
   document.getElementById('assignment-splitfee-row')
+    ?.classList.toggle('is-hidden', !isSplit || unbilled);
+  document.getElementById('assignment-billed-hint')
     ?.classList.toggle('is-hidden', !isSplit);
 }
 const _isSplitType = (t) => CONFIG.SPLIT_FEE_PROJECT_TYPES.includes(t);
+// N-327: fees belong to a BILLED split-fee line only. Hidden inputs are still
+// submitted, so submitAssignmentForm() must null them here, not rely on visibility.
+const _carriesSplitFees = (type, billed) => _isSplitType(type) && billed === 'Yes';
 async function submitAssignmentForm(event, editId = null) {
   event.preventDefault();
   clearAssignmentFormError();
@@ -376,9 +385,9 @@ async function submitAssignmentForm(event, editId = null) {
     // that would double-count in revenue.
     MonthlyBillRate: _isSplitType(data.ProjectType) || !data.MonthlyBillRate
                        ? null : parseFloat(data.MonthlyBillRate),
-    RetainerFee:     _isSplitType(data.ProjectType) && data.RetainerFee
+    RetainerFee:     _carriesSplitFees(data.ProjectType, data.Billed) && data.RetainerFee
                        ? parseFloat(data.RetainerFee)  : null,
-    PlacementFee:    _isSplitType(data.ProjectType) && data.PlacementFee
+    PlacementFee:    _carriesSplitFees(data.ProjectType, data.Billed) && data.PlacementFee
                        ? parseFloat(data.PlacementFee) : null,
     Billed:          data.Billed,
     Country:         data.Country,

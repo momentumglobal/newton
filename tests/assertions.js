@@ -708,6 +708,30 @@ var ASSERTIONS = [
       _assertEqual(feeRow.Capacity, 0, 'placement fee month Capacity');
     },
   },
+  {
+    name: 'computeMonthlyRows — unbilled split-fee line (SDM): capacity but no revenue, no placement-month row (N-327)',
+    fn: function () {
+      const a = FIXTURES.analytics2.splitFeeUnbilled.assignments;
+      _assertEqual(splitFeeRevenueEvents(a[0]).length, 0, 'no revenue events');
+      const rows = computeMonthlyRows(a);
+      _assertEqual(rows.length, 3, 'row count (Mar-May, no placement month)');
+      _assertEqual(rows.every(r => r.ProratedRevenue === 0), true, 'ProratedRevenue 0');
+      _assertEqual(rows.every(r => r.BilledRevenue === 0), true, 'BilledRevenue 0');
+      _assertEqual(rows.every(r => r.Capacity > 0), true, 'Capacity counted');
+      _assertEqual(rows.every(r => r.BilledCapacity === 0), true, 'BilledCapacity 0');
+    },
+  },
+  {
+    name: 'assignmentRateLabel — Unbilled only for a fee-less Billed=No split-fee line (N-327)',
+    fn: function () {
+      const a = FIXTURES.analytics2.splitFeeUnbilled.assignments[0];
+      _assertEqual(assignmentRateLabel(a), 'Unbilled', 'unbilled split-fee');
+      _assertEqual(assignmentRateLabel({ ...a, Billed: 'Yes' }), '—', 'billed split-fee, no fees yet');
+      _assertEqual(assignmentRateLabel({ ...a, ProjectType: 'Embedded' }), '—', 'non-split unbilled, no rate');
+      _assertEqual(assignmentRateLabel({ ...a, RetainerFee: '10000', PlacementFee: '20000' }),
+        '£10,000 + £20,000 (split)', 'fee-bearing row unchanged');
+    },
+  },
   // ── N-176 (F-3a): two-tier cache key/stamp helpers ──────────────────
   // These are the PURE helpers only. _ssGet/_ssSet/_ssPurge touch
   // sessionStorage, which does not exist in the Node harness, so they are

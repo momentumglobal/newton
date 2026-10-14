@@ -358,6 +358,18 @@ function budgetVsSpendByCurrency(roles, placements) {
 }
 
 function computeVelocityScore(tpEmail, activity, placements, benchmarks) {
+  return {
+    tpEmail,
+    window: '13 weeks',
+    metrics: computeFunnelScorecard(activity, placements, benchmarks),
+  };
+}
+
+// N-336: the scorecard metric rows for any owner — a TP (computeVelocityScore,
+// People Scorecards) or a project (buildProjectScorecards, Command Centre).
+// `activity` = WeeklyActivity rows already cut to the window; `placements` =
+// getHistoricalPlacements() rows already cut to the window.
+function computeFunnelScorecard(activity, placements, benchmarks) {
   const pct = (n, d) => d > 0 ? Math.round((n / d) * 100) : null;
   const rag = (actual, bench, invert = false) => {
     if (actual === null) return 'grey';
@@ -379,22 +391,19 @@ function computeVelocityScore(tpEmail, activity, placements, benchmarks) {
   const off  = sumField(activity, 'Offers');
   const hir  = sumField(activity, 'Hires');
 
-  // N-309: placements = this TP's own fills (D-7), one row per headcount.
+  // N-309: one row per filled headcount — a TP's own fills (D-7), or (N-336)
+  // the fills on a project's pipelines.
   const avgDays = avgTimeToHireDays(placements);
   const avgTTF  = avgDays === null ? null : Math.round(avgDays);
 
-  return {
-    tpEmail,
-    window: '13 weeks',
-    metrics: [
+  return [
       { label: 'Outreach conversion',   value: pct(resp, out), unit: '%',     rag: rag(pct(resp, out),  benchmarks.outreachConversion) },
       { label: 'Submission conversion', value: pct(iv1, sub),  unit: '%',     rag: rag(pct(iv1, sub),   benchmarks.submissionConversion) },
       { label: 'Interview-to-offer',    value: iv1 > 0 && off > 0 ? +(iv1 / off).toFixed(1) : null, unit: ':1', rag: iv1 > 0 && off > 0 ? (iv1 / off <= 7 ? 'green' : iv1 / off <= 10 ? 'amber' : 'red') : 'grey' },
       { label: 'Offer success',         value: pct(hir, off),  unit: '%',     rag: rag(pct(hir, off),   benchmarks.offerSuccess) },
       { label: 'Hires',                 value: hir,            unit: 'hires', rag: 'grey', informational: true },
       { label: 'Avg time to hire',      value: avgTTF,         unit: 'days',  rag: rag(avgTTF,          benchmarks.timeToHireDays, true) },
-    ],
-  };
+  ];
 }
 
 // ── Phase D — Learned funnel benchmarks (N-270) ───────────────────────
@@ -569,8 +578,9 @@ function learnFunnelBenchmarksMix(obs, weightObs, opts = {}) {
 }
 
 // Plain-text tooltip — callers escape it for title="". A benchmarks object
-// without `meta` (plain CONFIG) reads as the company target.
-function learnedBenchmarkTip(benchmarks, key) {
+// without `meta` (plain CONFIG) reads as the company target. `mixOwner`
+// (N-336) names whose mix a 'mix' benchmark is weighted by.
+function learnedBenchmarkTip(benchmarks, key, mixOwner = 'this TP works in') {
   const pctText = x => `${Math.round(x * 100)}%`;
   const b = benchmarks || {};
   const m = b.meta && b.meta[key];
@@ -579,7 +589,7 @@ function learnedBenchmarkTip(benchmarks, key) {
   const target = `${pctText(m.prior)} target`;
   let tip;
   if (m.basis === 'mix') {
-    tip = `Benchmark ${pctText(m.value)} · weighted across ${m.cells} function × location mix${m.cells !== 1 ? 'es' : ''} this TP works in (${m.n > 0 ? `n=${nText}` : 'no direct peers yet'})`;
+    tip = `Benchmark ${pctText(m.value)} · weighted across ${m.cells} function × location mix${m.cells !== 1 ? 'es' : ''} ${mixOwner} (${m.n > 0 ? `n=${nText}` : 'no direct peers yet'})`;
   } else {
     const where = m.basis === 'function+location' ? `${m.fn} × ${m.loc}`
       : m.basis === 'function' ? m.fn
@@ -591,6 +601,16 @@ function learnedBenchmarkTip(benchmarks, key) {
   }
   if (m.floored) tip += ` · floored at ${pctText(m.value)} (${pctText(m.value / m.prior)} of ${target})`;
   return tip;
+}
+
+// N-336: scorecard metric rows + `tip` (learned-benchmark tooltip, plain text)
+// on the rows judged against a learned benchmark. New objects; inputs never
+// mutated. No `bench` → rows copied without tips.
+function scorecardMetricTips(metrics, bench, mixOwner) {
+  return (metrics || []).map(m => {
+    const key = bench && SCORECARD_BENCHMARK_KEYS[m.label];
+    return key ? { ...m, tip: learnedBenchmarkTip(bench, key, mixOwner) } : { ...m };
+  });
 }
 
 // ── WeeklyActivity anomalies (N-271 / DS-3) ──────────────────────────
@@ -976,6 +996,51 @@ function flaggedShareRAG(flagged, open, cfg = CONFIG.ROLE_FLAG.healthRag) {
   if (pct < cfg.green)  return 'green';
   if (pct <= cfg.amber) return 'amber';
   return 'red';
+}
+
+// ── Project scorecards (N-336) ─────────────────────────────────────────
+// Command Centre > Project Health detail: one People-Scorecard-style card per
+// customer, from the same functions (computeFunnelScorecard, tallyRoleFlags,
+// learnFunnelBenchmarksMix) — no maths of its own.
+//   - A pipeline belongs to the customer its Project resolves to (projectMap,
+//     as the old detail table). ALL of a project's pipelines feed its funnel
+//     rows, closed ones included; only open ones count towards the x/y rows.
+//   - Funnel rows use the `weeks` window; flagged / behind-pace are the
+//     pipelines' current state and don't move with it.
+//   - Benchmarks: weighted by the project's own function × location mix,
+//     learned from every OTHER project's activity (leave-project-out).
+// Sorted worst-first: flagged, then behind pace, then customer A→Z.
+const PROJECT_SCORECARD_OMIT = ['Outreach conversion'];
+
+function buildProjectScorecards({ customers, roles, projectMap, activity52, placements,
+                                  stageHistory = {}, openSince, weeks, today = new Date() }) {
+  const allRoles   = (roles || []).filter(Boolean);
+  const map        = projectMap || {};
+  const customerOf = r => map[String(r.ProjectIDLookupId)] || map[String(r.ProjectID)] || '';
+  const roleIndex  = funnelRoleIndex(allRoles, 'Department', 'Location');
+  const obs        = buildFunnelObservations(activity52, roleIndex);
+  const windowActs = activitySinceWeeks(activity52, weeks, today);
+  const fromDay    = weeksAgoDay(weeks, today);
+
+  const cards = (customers || []).map(customer => {
+    const projRoles = allRoles.filter(r => customerOf(r) === customer);
+    const ids       = new Set(projRoles.map(r => String(r.id)));
+    const open      = projRoles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
+    const acts      = windowActs.filter(a => ids.has(String(a.RoleIDLookupId || a.RoleID || '')));
+    const hires     = (placements || []).filter(p => p && ids.has(String(p.id)) && p.placementDate &&
+      (!fromDay || spDateIn(p.placementDate) >= fromDay));
+    const bench     = learnFunnelBenchmarksMix(obs, buildFunnelObservations(acts, roleIndex),
+      { exclude: o => ids.has(o.roleId) });
+    const metrics   = scorecardMetricTips(computeFunnelScorecard(acts, hires, bench), bench, 'this project hires in')
+      .filter(m => !PROJECT_SCORECARD_OMIT.includes(m.label));
+    // isRoleFlagged windows its own conversion rule — pass the full 52 weeks.
+    const roleHealth = tallyRoleFlags(open, activity52, stageHistory, today, { openSince });
+    return { customer, roleHealth, metrics, bench };
+  });
+  return cards.sort((a, b) =>
+    b.roleHealth.flagged - a.roleHealth.flagged ||
+    b.roleHealth.behind  - a.roleHealth.behind  ||
+    a.customer.localeCompare(b.customer));
 }
 
 // ── Time-series snapshots (N-085 / L-1a) ───────────────────────────────

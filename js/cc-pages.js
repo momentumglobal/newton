@@ -100,7 +100,7 @@ function loadTileDetail(tile, data) {
   const id = tile.dataset.tile;
   const el = tile.querySelector('.cc-tile__detail');
   el.style.display = 'block';
-  if (id === 'health') el.innerHTML = renderHealthDetail(data);
+  if (id === 'health') renderHealthDetail(el, data);   // N-336: async, renders into el
   if (id === 'people') el.innerHTML = renderPeopleDetail(data);
   if (id === 'util')    el.innerHTML = renderUtilDetail(data);
   if (id === 'revenue') el.innerHTML = renderRevenueDetail(data);
@@ -207,8 +207,29 @@ function _ccHealthTrendTooltipHTML() {
 // (shared with the home Command Centre banner).
 
 // ── Expanded detail renderers ─
-function renderHealthDetail(data) {
-  const { roles, acts13, stageHistory, openSince, assigns, projects } = data;
+// N-336: one scorecard card per customer with a live Assignment, built by
+// buildProjectScorecards() (analytics.js). The 52 weeks of activity (learned
+// benchmarks) and placements (time to hire) aren't needed by the tiles, so
+// they load on first expand and are cached on grid._data.healthExtra — a
+// second expand or a window switch makes no further Graph calls.
+function renderHealthDetail(el, data) {
+  if (data.healthExtra) { el.innerHTML = _ccHealthCardsHTML(data); return; }
+  el.innerHTML = skeletonList(3);
+  Promise.all([getActivityForAnalytics(52), getHistoricalPlacements()])
+    .then(([activity52, placements]) => {
+      data.healthExtra = { activity52, placements };
+      el.innerHTML = _ccHealthCardsHTML(data);
+    })
+    .catch(e => {
+      console.warn('N-336: project scorecard read failed', e);
+      el.innerHTML = `<p class="no-data">Couldn't load project scorecards: ${escHtml(e && e.message ? e.message : String(e))}</p>`;
+    });
+}
+
+function _ccHealthCardsHTML(data) {
+  const { roles, stageHistory, openSince, assigns, projects, healthExtra } = data;
+  const windows = CONFIG.CC_HEALTH_WINDOWS;
+  const wi  = windows[data.healthWindow] ? data.healthWindow : 0;
   const now = new Date();
   const projectMap = Object.fromEntries((projects || []).map(p => [String(p.id), p.CustomerName]));
 
@@ -218,31 +239,38 @@ function renderHealthDetail(data) {
 
   if (!customers.length) return '<p class="no-data">No live projects found.</p>';
 
-  const rows = customers.map(customer => {
-    const custAssigns = liveAssigns.filter(a => a.Customer === customer);
-    const headcount   = custAssigns.length;
-    const custRoles   = roles.filter(r => {
-      const pName = projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || '';
-      return pName === customer && !ACTIVE_STAGES.includes(r.Stage);
-    });
-    const liveRoles = custRoles.length;
-    const { flagged, behind } = tallyRoleFlags(custRoles, acts13, stageHistory, undefined, { openSince });
-    return `<tr>
-      <td>${customer}</td>
-      <td style="text-align:center">${headcount}</td>
-      <td style="text-align:center">${liveRoles}</td>
-      <td style="text-align:center">${flagged > 0 ? `<span style="color:var(--status-danger);font-weight:600">${flagged}</span>` : '—'}</td>
-      <td style="text-align:center">${behind > 0 ? behind : '—'}</td>
-    </tr>`;
-  }).join('');
+  const cards = buildProjectScorecards({
+    customers, roles, projectMap, stageHistory, openSince,
+    activity52: healthExtra.activity52,
+    placements: healthExtra.placements,
+    weeks:      windows[wi].weeks,
+    today:      now,
+  }).map(c => scorecardCardHTML({
+    title:       c.customer,
+    windowLabel: `${windows[wi].label} View`,
+    healthRows:  scorecardHealthRows(c.roleHealth, 'Flagged pipelines'),
+    metrics:     c.metrics,
+  })).join('');
 
-  return `<table class="cc-detail-table">
-    <thead><tr>
-      <th>Customer</th><th>Headcount</th><th>Live Roles</th><th>Flagged</th><th>Behind pace</th>
-    </tr></thead>
-    <tbody>${rows}</tbody>
-  </table>`;
+  const buttons = windows.map((w, i) => `<button type="button" class="cc-window-toggle__btn${i === wi ? ' cc-window-toggle__btn--active' : ''}" aria-pressed="${i === wi}"${act('ccHealthWindow.stop', ACT_EL, i)}>${escHtml(w.label)}</button>`).join('');
+  const tip = `<span class="help-tip">?<span class="help-tip-text">Conversion, hires and time to hire cover the selected window, benchmarked against the same functions and locations on other projects. Flagged and behind-pace are each pipeline's current state, so they don't change with the window.</span></span>`;
+
+  return `<div class="cc-health-cards">
+    <div class="cc-window-toggle" role="group" aria-label="Scorecard window">${buttons}${tip}</div>
+    <div class="scorecard-grid">${cards}</div>
+  </div>`;
 }
+
+// N-336: window toggle (js/actions.js). Registered with .stop in the markup.
+function ccHealthWindow(el, i) {
+  const grid = el.closest('.cc-grid');
+  grid._data.healthWindow = i;
+  el.closest('.cc-tile__detail').innerHTML = _ccHealthCardsHTML(grid._data);
+}
+
+registerActions({
+  ccHealthWindow,
+});
 
 function renderPeopleDetail(data) {
   const { roles, acts13, stageHistory, openSince } = data;

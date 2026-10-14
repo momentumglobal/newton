@@ -5211,6 +5211,109 @@ var ASSERTIONS = [
         'no % where the previous total is 0');
     },
   },
+  {
+    name: 'N-336: computeFunnelScorecard = computeVelocityScore metrics (parity; positive control: different activity differs)',
+    fn: function () {
+      const { tpEmail, activity, placements, benchmarks } = FIXTURES.analytics2.velocity;
+      _assertEqual(computeFunnelScorecard(activity, placements, benchmarks),
+        computeVelocityScore(tpEmail, activity, placements, benchmarks).metrics, 'parity');
+      const other = [{ Outreach: 100, Responses: 10, Submitted: 20, Interview1: 2, Offers: 1, Hires: 0 }];
+      _assertEqual(JSON.stringify(computeFunnelScorecard(other, placements, benchmarks)) ===
+        JSON.stringify(computeFunnelScorecard(activity, placements, benchmarks)), false, 'control: activity changes the rows');
+    },
+  },
+  {
+    name: 'N-336: scorecardMetricTips — tips only on the three benchmarked rows; none without bench; inputs not mutated; mixOwner wording',
+    fn: function () {
+      const { tpEmail, activity, placements, benchmarks } = FIXTURES.analytics2.velocity;
+      const metrics = computeVelocityScore(tpEmail, activity, placements, benchmarks).metrics;
+      const before  = JSON.stringify(metrics);
+      const tipped  = scorecardMetricTips(metrics, benchmarks);
+      _assertEqual(tipped.filter(m => m.tip).map(m => m.label),
+        ['Outreach conversion', 'Submission conversion', 'Offer success'], 'tipped rows');
+      _assertEqual(tipped[1].tip, learnedBenchmarkTip(benchmarks, 'submissionConversion'), 'tip text');
+      _assertEqual(scorecardMetricTips(metrics, null).some(m => 'tip' in m), false, 'no bench, no tips');
+      _assertEqual(JSON.stringify(metrics), before, 'input not mutated');
+      const mix = { ...benchmarks, meta: { offerSuccess: { value: 0.3, prior: 0.3, n: 5, basis: 'mix', cells: 1, floored: false } } };
+      _assertEqual(/this project hires in/.test(learnedBenchmarkTip(mix, 'offerSuccess', 'this project hires in')), true, 'project wording');
+      _assertEqual(/this TP works in/.test(learnedBenchmarkTip(mix, 'offerSuccess')), true, 'TP default unchanged');
+    },
+  },
+  {
+    name: 'N-336: buildProjectScorecards — grouping, window cut, closed pipelines count, leave-project-out, x/y over open only, sort',
+    fn: function () {
+      const today  = new Date(2026, 9, 14);
+      const dayAgo = n => { const d = new Date(today); d.setDate(d.getDate() - n); return localDayISO(d); };
+      const stage  = Object.keys(ROLE_STAGE_BUDGETS.budget)[0];
+      const roles = [
+        { id: 1, ProjectIDLookupId: 10, Stage: stage,  Department: 'Eng', Location: 'UK' },
+        { id: 2, ProjectIDLookupId: 10, Stage: 'Hired', Department: 'Eng', Location: 'UK' },  // closed
+        { id: 3, ProjectIDLookupId: 20, Stage: stage,  Department: 'Eng', Location: 'UK' },
+        { id: 4, ProjectIDLookupId: 30, Stage: stage,  Department: 'Eng', Location: 'UK' },
+      ];
+      const projectMap = { 10: 'Acme', 20: 'Beta', 30: 'Cobalt' };
+      const row = (rid, daysAgo, c) => Object.assign({ RoleIDLookupId: rid, TalentPartner: 'tp@x.com', WeekEndingDate: dayAgo(daysAgo),
+        Outreach: 0, Responses: 0, Submitted: 0, Interview1: 0, Offers: 0, Hires: 0 }, c);
+      const activity52 = [
+        row(1, 7,  { Submitted: 10, Interview1: 5, Offers: 2, Hires: 1 }),
+        row(2, 14, { Submitted: 10, Interview1: 5, Offers: 2, Hires: 1 }),    // closed pipeline, in window
+        row(1, 60, { Submitted: 10, Interview1: 1, Offers: 1, Hires: 1 }),    // outside 4w, inside 13w
+        row(3, 7,  { Submitted: 20, Interview1: 0 }),                         // Beta: low conversion → flagged
+        row(4, 7,  { Submitted: 40, Interview1: 30, Offers: 10, Hires: 5 }),  // Cobalt
+      ];
+      const placements = [
+        { id: 2, openDate: dayAgo(40),  placementDate: dayAgo(10) },  // 30 days, in 4w
+        { id: 1, openDate: dayAgo(150), placementDate: dayAgo(60) },  // 90 days, 13w only
+        { id: 4, openDate: dayAgo(30),  placementDate: dayAgo(5) },
+      ];
+      const openSince = new Map([['4', dayAgo(200)]]);   // Cobalt behind pace
+      const args = { customers: ['Acme', 'Beta', 'Cobalt'], roles, projectMap, activity52, placements, stageHistory: {}, openSince, today };
+      const m4  = buildProjectScorecards({ ...args, weeks: 4 });
+      const m13 = buildProjectScorecards({ ...args, weeks: 13 });
+      const by  = (cards, c) => cards.find(x => x.customer === c);
+      const val = (card, label) => card.metrics.find(m => m.label === label).value;
+
+      _assertEqual(m4.map(c => c.customer), ['Beta', 'Cobalt', 'Acme'], 'sort: flagged, then behind, then name');
+      _assertEqual(by(m4, 'Acme').metrics.map(m => m.label),
+        ['Submission conversion', 'Interview-to-offer', 'Offer success', 'Hires', 'Avg time to hire'], 'no Outreach row');
+      _assertEqual(val(by(m4, 'Acme'), 'Hires'), 2, '4w hires include the closed pipeline');
+      _assertEqual(val(by(m13, 'Acme'), 'Hires'), 3, '13w adds the older row');
+      _assertEqual(val(by(m4, 'Acme'), 'Avg time to hire'), 30, '4w: only the in-window placement');
+      _assertEqual(val(by(m13, 'Acme'), 'Avg time to hire'), 60, '13w: both placements');
+      _assertEqual(by(m4, 'Acme').roleHealth.total, 1, 'x/y over open pipelines only');
+      _assertEqual(m4.map(c => [c.roleHealth.flagged, c.roleHealth.behind]),
+        m13.map(c => [c.roleHealth.flagged, c.roleHealth.behind]), 'flagged/behind do not move with the window');
+      _assertEqual(by(m4, 'Beta').roleHealth.flagged, 1, 'Beta flagged on conversion');
+      _assertEqual(by(m4, 'Cobalt').roleHealth.behind, 1, 'Cobalt behind pace');
+
+      // leave-project-out: Cobalt's own strong offer success must not be in its benchmark
+      const idx  = funnelRoleIndex(roles, 'Department', 'Location');
+      const acts = activitySinceWeeks(activity52, 4, today).filter(a => a.RoleIDLookupId === 4);
+      const self = learnFunnelBenchmarksMix(buildFunnelObservations(activity52, idx), buildFunnelObservations(acts, idx));
+      // (compare learned n, not the rate — both rates can sit on the floor)
+      _assertEqual(by(m4, 'Cobalt').bench.meta.submissionConversion.n, 50, 'benchmark excludes the project itself (Acme 30 + Beta 20)');
+      _assertEqual(self.meta.submissionConversion.n, 90, 'control: without exclude the project is in the pool');
+      _assertEqual(typeof by(m4, 'Cobalt').metrics[0].tip, 'string', 'benchmarked rows carry a tip');
+      _assertEqual(buildProjectScorecards({ ...args, customers: [], weeks: 4 }), [], 'no customers, no cards');
+    },
+  },
+  {
+    name: 'N-336: scorecardCardHTML / scorecardHealthRows — escaping, no inline styles, x/y and — rows',
+    fn: function () {
+      const html = scorecardCardHTML({
+        title: 'A<b>&co', windowLabel: 'Rolling Monthly View',
+        healthRows: scorecardHealthRows({ total: 3, flagged: 1, stuck: 1, conversion: 0, behind: 2 }, 'Flagged pipelines'),
+        metrics: [{ label: 'Hires', value: 2, unit: 'hires', rag: 'grey', informational: true },
+                  { label: 'Offer success', value: null, unit: '%', rag: 'grey', tip: 'x"y' }],
+      });
+      _assertEqual(html.includes('A&lt;b&gt;&amp;co') && !html.includes('<b>&co'), true, 'title escaped');
+      _assertEqual(/style=/.test(html), false, 'no inline styles');
+      _assertEqual(html.includes('>1/3<') && html.includes('>2/3<') && html.includes('>2 hires<') && html.includes('>—<'), true, 'values');
+      _assertEqual(html.includes('title="x&quot;y"'), true, 'tip escaped');
+      _assertEqual(scorecardHealthRows(null, 'x'), [], 'no roleHealth, no rows');
+      _assertEqual(scorecardHealthRows({ total: 0 }, 'x').map(r => r.value), ['—', '—'], 'no open pipelines → —');
+    },
+  },
 ];
 
 // N-301 test helpers — stub elements/events for js/actions.js (no DOM in the vm).

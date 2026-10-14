@@ -1089,6 +1089,49 @@ function ragMarkerHTML(rag, { label = false } = {}) {
   return `<span class="rag-marker rag-marker--${key}" role="img" aria-label="${text}" title="${text}">${m.glyph}</span>`;
 }
 
+// ── Scorecard card (N-336) ────────────────────────────────────
+// One card's markup, shared by People Scorecards (analytics-pages.js) and the
+// Command Centre Project Health detail (cc-pages.js). `healthRows` =
+// scorecardHealthRows(); `metrics` = computeFunnelScorecard() rows, with
+// `tip` from scorecardMetricTips() where wanted. Plain strings in — every
+// text value is escaped here. No inline styles (N-324): classes only.
+function scorecardCardHTML({ title, windowLabel, healthRows = [], metrics = [] }) {
+  const tipAttr = tip => tip ? ` title="${escHtml(tip)}"` : '';
+  const health = healthRows.map(h => `<tr>
+      <td class='sc-label'>${escHtml(h.label)}</td>
+      <td class='sc-value sc-value--center sc-grey'${tipAttr(h.tip)}>${escHtml(h.value)}</td>
+    </tr>`).join('');
+  const rows = metrics.map(m => {
+    const display  = m.value !== null ? `${m.value}${m.unit === '%' ? '%' : ' ' + m.unit}` : '—';
+    const ragClass = m.informational ? 'sc-grey' : `sc-${m.rag}`;
+    return `<tr>
+      <td class='sc-label'>${escHtml(m.label)}</td>
+      <td class='sc-value sc-value--center ${ragClass}'${tipAttr(m.tip)}>${m.informational ? '' : ragMarkerHTML(m.rag)}${escHtml(display)}</td>
+    </tr>`;
+  }).join('');
+  return `<div class='dash-panel sc-card'>
+    <div class='sc-card__head'>
+      <h3 class='panel-title sc-tp-name'>${escHtml(title)}</h3>
+      <span class="sc-rag-pill sc-rag-pill--grey">NOT RATED</span>
+    </div>
+    <p class='sc-window'>${escHtml(windowLabel)}</p>
+    <table class='sc-table'><tbody>${health}${rows}</tbody></table>
+  </div>`;
+}
+
+// The two pipeline-health rows on a scorecard card. `roleHealth` =
+// tallyRoleFlags() output; null → no rows. A pipeline can be both stuck and
+// low-conversion, so the tooltip's two numbers can sum past the flagged count.
+function scorecardHealthRows(roleHealth, flaggedLabel) {
+  if (!roleHealth) return [];
+  const of = n => roleHealth.total > 0 ? `${n || 0}/${roleHealth.total}` : '—';
+  return [
+    { label: flaggedLabel, value: of(roleHealth.flagged),
+      tip: `Stuck in stage: ${roleHealth.stuck || 0} · Low conversion: ${roleHealth.conversion || 0}` },
+    { label: `Behind ${CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays}-day pace`, value: of(roleHealth.behind) },
+  ];
+}
+
 // ── Status text, neutral by default (N-257) ───────────────────
 // The single place that decides green renders neutral: green / grey text
 // gets no marker and no status colour (grey is muted via CSS); amber / red

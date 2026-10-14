@@ -101,38 +101,11 @@ async function getScopedTpEmails(userEmail) {
 
 function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null, bench = null) {
   const displayName = tpMap[scorecard.tpEmail.toLowerCase()] || scorecard.tpEmail;
-  const healthRow = roleHealth ? (() => {
-    const of  = n => roleHealth.total > 0 ? `${n || 0}/${roleHealth.total}` : '—';
-    // N-274: a role can be both stuck and low-conversion, so these can sum to
-    // more than the flagged count. Behind-pace is information only.
-    const tip = `Stuck in stage: ${roleHealth.stuck || 0} · Low conversion: ${roleHealth.conversion || 0}`;
-    return `<tr>
-      <td class='sc-label'>Flagged roles</td>
-      <td class='sc-value sc-grey' title="${escHtml(tip)}" style="text-align:center">${of(roleHealth.flagged)}</td>
-    </tr>
-    <tr>
-      <td class='sc-label'>Behind ${CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays}-day pace</td>
-      <td class='sc-value sc-grey' style="text-align:center">${of(roleHealth.behind)}</td>
-    </tr>`;
-  })() : '';
-
-  const rows = scorecard.metrics.map(m => {
-    const display = m.value !== null ? `${m.value}${m.unit === '%' ? '%' : ' ' + m.unit}` : '—';
-    const ragClass = m.informational ? 'sc-grey' : `sc-${m.rag}`;
-    const benchKey = bench && SCORECARD_BENCHMARK_KEYS[m.label];
-    const tipAttr  = benchKey ? ` title="${escHtml(learnedBenchmarkTip(bench, benchKey))}"` : '';
-    return `<tr>
-      <td class='sc-label'>${m.label}</td>
-      <td class='sc-value ${ragClass}'${tipAttr} style="text-align:center">${m.informational ? '' : ragMarkerHTML(m.rag)}${display}</td>
-    </tr>`;
-  }).join('');
-
-  return `<div class='dash-panel sc-card'>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-      <h3 class='panel-title sc-tp-name' style="margin-bottom:0">${displayName}</h3>
-      <span class="sc-rag-pill sc-rag-pill--grey">NOT RATED</span>
-    </div>
-    <p class='sc-window'>Rolling Quarterly View</p>
-    <table class='sc-table'><tbody>${healthRow}${rows}</tbody></table>
-  </div>`;
+  // N-336: card markup shared with the Command Centre Project Health detail.
+  return scorecardCardHTML({
+    title:       displayName,
+    windowLabel: 'Rolling Quarterly View',
+    healthRows:  scorecardHealthRows(roleHealth, 'Flagged roles'),
+    metrics:     scorecardMetricTips(scorecard.metrics, bench),
+  });
 }

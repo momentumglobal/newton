@@ -431,6 +431,13 @@ const CONFIG = {
   // an empty forecast list would read as a real, red result.
   CC_FORECAST_DENIED_TEXT: 'No access to forecast data',
 
+  // N-336. Command Centre Project Health detail — scorecard window toggle.
+  // First entry is the default on every page load.
+  CC_HEALTH_WINDOWS: [
+    { weeks: 4,  label: 'Rolling Monthly'   },
+    { weeks: 13, label: 'Rolling Quarterly' },
+  ],
+
   // N-286. Shown above the Employee Tracker when an admin/leadership account
   // cannot read PeoplePay (wasListDenied) — otherwise blank salaries would
   // read as "no salary on record".

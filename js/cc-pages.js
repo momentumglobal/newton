@@ -3,7 +3,7 @@
 // ── Main renderer ──────────────────────────────────────────────────
 async function renderCCOverview(container) {
   container.innerHTML = '<div class="cc-loading">Loading...</div>';
-  const [roles, acts13, forecasts, assigns, people, projects, snapshots, stageRows, headcount, placementIds] = await Promise.all([
+  const [allRoles, allActs13, forecasts, assigns, people, allProjects, snapshots, allStageRows, allHeadcount, placementIds] = await Promise.all([
     getAllRoles(),
     getActivityForAnalytics(13),
     getItems('SalesForecasts'),
@@ -19,6 +19,12 @@ async function renderCCOverview(container) {
   // isRoleFlagged windows its conversion rule to ROLE_FLAG.conversion itself.
   // N-285: read straight after the Promise.all — see wasListDenied().
   const forecastsDenied = wasListDenied('SalesForecasts');
+  // N-333: every tile and the Project Health detail are client-only — the
+  // internal project is filtered out once, here. Revenue / Utilisation read
+  // forecasts + assignments + people, which are untouched.
+  const { roles, activity: acts13, projects, stageRows, headcount } = excludeInternalProjectData(
+    { roles: allRoles, activity: allActs13, projects: allProjects, stageRows: allStageRows, headcount: allHeadcount },
+    { projects: allProjects });
   const stageHistory = groupStageHistoryByRole(stageRows);
   // N-309: behind-pace measured from each pipeline's oldest open headcount.
   // (The unused historical-placements read that stood here was removed — S-7.)
@@ -47,7 +53,8 @@ async function renderCCOverview(container) {
     </div>`;
 
   const grid = document.getElementById('cc-grid');
-  grid._data = { roles, acts13, stageHistory, openSince, forecasts, assigns, people, projects };
+  // allRoles / allProjects (unfiltered) map the detail's later reads (N-333).
+  grid._data = { roles, acts13, stageHistory, openSince, forecasts, assigns, people, projects, allRoles, allProjects };
   attachTileExpand(grid);
 }
 
@@ -216,7 +223,12 @@ function renderHealthDetail(el, data) {
   if (data.healthExtra) { el.innerHTML = _ccHealthCardsHTML(data); return; }
   el.innerHTML = skeletonList(3);
   Promise.all([getActivityForAnalytics(52), getHistoricalPlacements()])
-    .then(([activity52, placements]) => {
+    .then(([rawActivity52, rawPlacements]) => {
+      // N-333: client-only, mapped through the FULL role list (data.roles is
+      // already filtered, so it can't identify internal rows).
+      const { activity: activity52, historical: placements } = excludeInternalProjectData(
+        { activity: rawActivity52, historical: rawPlacements },
+        { projects: data.allProjects, roles: data.allRoles });
       data.healthExtra = { activity52, placements };
       el.innerHTML = _ccHealthCardsHTML(data);
     })
@@ -235,7 +247,9 @@ function _ccHealthCardsHTML(data) {
 
   const liveAssigns = assigns.filter(a => a.StartDate && a.EndDate &&
     new Date(a.StartDate) <= now && new Date(a.EndDate) >= now);
-  const customers = [...new Set(liveAssigns.map(a => a.Customer).filter(Boolean))].sort();
+  // N-333: no card for the internal project, even if an Assignment names it.
+  const internalNames = new Set((data.allProjects || []).filter(p => isInternalProject(p)).map(p => p.CustomerName));
+  const customers = [...new Set(liveAssigns.map(a => a.Customer).filter(c => c && !internalNames.has(c)))].sort();
 
   if (!customers.length) return '<p class="no-data">No live projects found.</p>';
 

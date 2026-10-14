@@ -5435,6 +5435,107 @@ var ASSERTIONS = [
       _assertEqual(scorecardHealthRows({ total: 0 }, 'x').map(r => r.value), ['—', '—'], 'no open pipelines → —');
     },
   },
+  // ── N-333: internal project excluded from client KPIs ─────────────────
+  {
+    name: 'N-333 CONFIG.PROJECT_TYPE_INTERNAL pinned; PROJECT_TYPES unchanged; projectFormTypes adds Internal last',
+    fn: function () {
+      _assertEqual(CONFIG.PROJECT_TYPE_INTERNAL, 'Internal', 'value');
+      _assertEqual(CONFIG.ASSIGNMENT_PROJECT_TYPES.includes(CONFIG.PROJECT_TYPE_INTERNAL), true, 'in ASSIGNMENT_PROJECT_TYPES');
+      _assertEqual(CONFIG.NON_REVENUE_PROJECT_TYPES.includes(CONFIG.PROJECT_TYPE_INTERNAL), true, 'in NON_REVENUE_PROJECT_TYPES');
+      _assertEqual(CONFIG.PROJECT_TYPES, ['Embedded', 'CoE', 'Exec Search', 'MG AI'], 'PROJECT_TYPES (Sales Forecast dropdown) has no Internal');
+      _assertEqual(projectFormTypes(), ['Embedded', 'CoE', 'Exec Search', 'MG AI', 'Internal'], 'Project form options');
+      _assertEqual(projectFormTypes() === projectFormTypes(), false, 'a fresh array each call');
+    },
+  },
+  {
+    name: 'N-333 isInternalProject / internalProjectIdSet / internalRoleIdSet',
+    fn: function () {
+      _assertEqual([null, {}, { ProjectType: 'Embedded' }, { ProjectType: 'Internal' }].map(isInternalProject), [false, false, false, true], 'isInternalProject');
+      const projects = [{ id: 1, ProjectType: 'CoE' }, { id: 2, ProjectType: 'Internal', Status: 'Completed' }, { id: 3, ProjectType: 'Internal' }];
+      _assertEqual([...internalProjectIdSet(projects)], ['2', '3'], 'archived internal project included');
+      _assertEqual(internalProjectIdSet(undefined).size, 0, 'no projects');
+      const roles = [{ id: 10, ProjectIDLookupId: 1 }, { id: 20, ProjectIDLookupId: '2' }, { id: 30, ProjectID: 3 }, null];
+      _assertEqual([...internalRoleIdSet(roles, projects)], ['20', '30'], 'via ProjectIDLookupId or ProjectID');
+      _assertEqual(internalRoleIdSet(roles, [{ id: 1, ProjectType: 'CoE' }]).size, 0, 'no internal project → empty');
+    },
+  },
+  {
+    name: 'N-333 excludeInternalProjectData — every key, role-keyed (not WeeklyActivity.ProjectID), fast path, no mutation, null pass-through, throws',
+    fn: function () {
+      const projects = [{ id: 1, ProjectType: 'Embedded' }, { id: 2, ProjectType: 'Internal' }];
+      const roles = [{ id: 10, ProjectIDLookupId: 1 }, { id: 20, ProjectIDLookupId: 2 }, { id: 21, ProjectID: 2 }];
+      const data = {
+        projects,
+        roles,
+        // Row 1 is a CLIENT role with a wrong ProjectID copy; row 2 is internal
+        // with a blank one — keyed by role, both land correctly.
+        activity:   [{ id: 'a1', RoleIDLookupId: 10, ProjectIDLookupId: 2 }, { id: 'a2', RoleIDLookupId: 20, ProjectIDLookupId: null }, { id: 'a3', RoleID: 21 }],
+        placements: [{ id: 'p1', RoleIDLookupId: 10 }, { id: 'p2', RoleIDLookupId: 21 }],
+        rejections: [{ id: 'r1', RoleID: 10 }, { id: 'r2', RoleIDLookupId: 20 }],
+        stageRows:  [{ id: 's1', RoleIDLookupId: 10 }, { id: 's2', RoleIDLookupId: 20 }],
+        headcount:  [{ id: 'h1', RoleID: 10 }, { id: 'h2', RoleID: 21 }],
+        historical: [{ id: 10, placementId: 'x1' }, { id: 20, placementId: 'x2' }],
+      };
+      const before = JSON.stringify(data);
+      const out = excludeInternalProjectData(data, { projects });
+      _assertEqual(Object.keys(out), Object.keys(data), 'same keys');
+      _assertEqual(out.projects.map(p => p.id), [1], 'projects');
+      _assertEqual(out.roles.map(r => r.id), [10], 'roles');
+      _assertEqual(out.activity.map(r => r.id), ['a1'], 'activity by role, not ProjectID');
+      _assertEqual(out.placements.map(r => r.id), ['p1'], 'placements');
+      _assertEqual(out.rejections.map(r => r.id), ['r1'], 'rejections');
+      _assertEqual(out.stageRows.map(r => r.id), ['s1'], 'stageRows');
+      _assertEqual(out.headcount.map(r => r.id), ['h1'], 'headcount');
+      _assertEqual(out.historical.map(r => r.placementId), ['x1'], 'historical');
+      _assertEqual(JSON.stringify(data), before, 'inputs not mutated');
+      _assertEqual(out.activity === data.activity, false, 'slow path returns new arrays');
+
+      // Fast path: no internal project → the very same arrays.
+      const client = [{ id: 1, ProjectType: 'Embedded' }];
+      const fast = excludeInternalProjectData({ roles, activity: data.activity }, { projects: client });
+      _assertEqual(fast.roles === roles && fast.activity === data.activity, true, 'fast path returns inputs as-is');
+
+      // null / undefined pass through (degraded reads).
+      const deg = excludeInternalProjectData({ roles, headcount: null, placements: undefined }, { projects });
+      _assertEqual([deg.headcount, deg.placements, deg.roles.length], [null, undefined, 1], 'null passes through');
+
+      // ctx.roles wins over data.roles: a filtered subset can't identify row 21.
+      const sub = excludeInternalProjectData({ roles: [roles[0]], activity: data.activity }, { projects, roles });
+      _assertEqual(sub.activity.map(r => r.id), ['a1'], 'ctx.roles maps rows outside data.roles');
+
+      const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
+      _assertEqual(throws(() => excludeInternalProjectData({ activty: [] }, { projects, roles })), true, 'unknown key throws');
+      _assertEqual(throws(() => excludeInternalProjectData({ activity: [] }, { projects })), true, 'role-keyed rows with no roles throw');
+      _assertEqual(throws(() => excludeInternalProjectData({ roles }, {})), true, 'missing ctx.projects throws');
+      _assertEqual(throws(() => excludeInternalProjectData({ roles, activity: null }, { projects: client })), false, 'null role-keyed value needs no roles mapping');
+    },
+  },
+  {
+    name: 'N-333 every client-KPI consumer filters the internal project (lint-internal-kpi)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(
+        lintInternalKpiConsumers(ALL_SOURCES, INTERNAL_KPI_CONSUMERS).map(v => `${v.file} ${v.fn}: ${v.problem}`),
+        [],
+        'client-KPI consumers missing the internal-project filter (see Readme → Internal project)'
+      );
+    },
+  },
+  {
+    name: 'lint-internal-kpi control: flags a missing call, a renamed / duplicated function, a missing file; braces in strings and templates',
+    fn: function () {
+      const C = [{ file: 'a.js', fn: 'f', call: 'excludeInternalProjectData' }];
+      const lint = src => lintInternalKpiConsumers(src, C).map(v => v.problem);
+      _assertEqual(lint({ 'a.js': 'async function f(x = {}) {\n  const s = "}"; const t = `${ { a: 1 }.a }}`;\n  // }\n  return excludeInternalProjectData(x, {});\n}\n' }), [], 'call present, braces in string/template/comment ignored');
+      _assertEqual(lint({ 'a.js': 'function f() {\n  return 1;\n}\nfunction g() { excludeInternalProjectData(); }\n' }), ['does not call excludeInternalProjectData()'], 'call in a different function does not count');
+      _assertEqual(lint({ 'a.js': 'function g() { excludeInternalProjectData(); }\n' }), ['matched 0 function declarations (expected exactly 1)'], 'renamed');
+      _assertEqual(lint({ 'a.js': 'function f() { excludeInternalProjectData(); }\nfunction f() {}\n' }), ['matched 2 function declarations (expected exactly 1)'], 'duplicated');
+      _assertEqual(lint({ 'a.js': 'x.function f() {}\nconst y = 1;\n' }), ['matched 0 function declarations (expected exactly 1)'], 'member access is not a declaration');
+      _assertEqual(lint({}), ['file not found'], 'missing file');
+    },
+  },
 ];
 
 // N-301 test helpers — stub elements/events for js/actions.js (no DOM in the vm).

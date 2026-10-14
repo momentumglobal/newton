@@ -202,6 +202,16 @@ const CONFIG = {
   // Types excluded from revenue reporting (People Dashboard "By project type").
   NON_REVENUE_PROJECT_TYPES: ['Internal'],
 
+  // N-333: Projects.ProjectType of the Momentum-internal project (Internal TA
+  // log Momentum's own hiring there as talent_partner). Its rows show on its
+  // own project-scoped pages but never in a company figure, learned benchmark
+  // or RAG. Read only through isInternalProject() / excludeInternalProjectData()
+  // (utils.js) — never compared at a call site. Deliberately NOT in
+  // PROJECT_TYPES (that list also feeds the Sales Forecast dropdown); the
+  // Project form adds it through projectFormTypes(). Must stay in
+  // ASSIGNMENT_PROJECT_TYPES and NON_REVENUE_PROJECT_TYPES (assertion).
+  PROJECT_TYPE_INTERNAL: 'Internal',
+
   // Token NAMES, not hex — the values live in the :root block in style.css.
   // Consumed by the Deployment Timeline bars/legend and the Org Chart bubbles.
   PROJECT_TYPE_COLOUR_VARS: {

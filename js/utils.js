@@ -1022,6 +1022,89 @@ function buildProjectOptionsHtml(projects, selectedId) {
   ).join('');
 }
 
+// ── Internal project (N-333) ─────────────────────────────────────
+// The Momentum-internal Projects row (Internal TA hiring) has ProjectType
+// CONFIG.PROJECT_TYPE_INTERNAL. Its rows show on its own project-scoped pages
+// and on one TP's own scorecard, but never in a company aggregate, learned
+// benchmark or RAG. Every such consumer filters ONCE, at load, through
+// excludeInternalProjectData() — the list is tests/lint-internal-kpi.js.
+function isInternalProject(p) {
+  return !!p && p.ProjectType === CONFIG.PROJECT_TYPE_INTERNAL;
+}
+
+// Set of String(project id) for every internal project, archived included.
+function internalProjectIdSet(projects) {
+  return new Set((projects || []).filter(isInternalProject).map(p => String(p.id)));
+}
+
+// Set of String(role id) whose project is internal. Role → project is
+// ProjectIDLookupId || ProjectID, as dashboard-company.js and the Snapshots writer.
+function internalRoleIdSet(roles, projects) {
+  const pids = internalProjectIdSet(projects);
+  if (!pids.size) return new Set();
+  return new Set((roles || [])
+    .filter(r => r && pids.has(String(r.ProjectIDLookupId || r.ProjectID)))
+    .map(r => String(r.id)));
+}
+
+// Role id of a row, per data key. Activity is keyed by ROLE, never by
+// WeeklyActivity.ProjectID (an unvalidated copy — N-315); Placements and
+// RejectedOffers have no ProjectID at all. `historical` = getHistoricalPlacements()
+// rows, whose `id` is the pipeline (role) id.
+const _INTERNAL_ROW_ROLE_ID = {
+  activity:   r => r.RoleIDLookupId || r.RoleID,
+  placements: r => r.RoleIDLookupId || r.RoleID,
+  rejections: r => r.RoleIDLookupId || r.RoleID,
+  stageRows:  r => r.RoleIDLookupId || r.RoleID,
+  headcount:  r => r.RoleID,
+  historical: r => r.id,
+};
+
+// THE shared filter. `data` holds any subset of: projects, roles, activity,
+// placements, rejections, stageRows, headcount, historical. `ctx.projects` =
+// every Projects row (getProjects(false)) — required; `ctx.roles` = the FULL
+// role list used to map rows to projects (defaults to data.roles).
+// Returns a NEW object, same keys, internal-project rows removed; null /
+// undefined values pass through (degraded reads). With no internal project the
+// input arrays come back as-is (no copy). Never mutates its inputs. An unknown
+// key, a missing ctx.projects, or role-keyed rows with no roles to map them
+// THROW: a programming error must fail loudly, never let internal rows through.
+function excludeInternalProjectData(data, ctx = {}) {
+  const src  = data || {};
+  const keys = Object.keys(src);
+  keys.forEach(k => {
+    if (k !== 'projects' && k !== 'roles' && !_INTERNAL_ROW_ROLE_ID[k]) {
+      throw new Error(`excludeInternalProjectData: unknown key '${k}'`);
+    }
+  });
+  if (!Array.isArray(ctx.projects)) {
+    throw new Error('excludeInternalProjectData: ctx.projects (every Projects row) is required');
+  }
+  const roles = ctx.roles || src.roles;
+  if (!roles && keys.some(k => _INTERNAL_ROW_ROLE_ID[k] && src[k] != null)) {
+    throw new Error('excludeInternalProjectData: role-keyed rows need ctx.roles or data.roles');
+  }
+  const out  = {};
+  const pids = internalProjectIdSet(ctx.projects);
+  if (!pids.size) { keys.forEach(k => { out[k] = src[k]; }); return out; }
+  const rids = internalRoleIdSet(roles, ctx.projects);
+  keys.forEach(k => {
+    const rows = src[k];
+    if (rows == null) { out[k] = rows; return; }
+    if (k === 'projects')   out[k] = rows.filter(p => !isInternalProject(p));
+    else if (k === 'roles') out[k] = rows.filter(r => !(r && pids.has(String(r.ProjectIDLookupId || r.ProjectID))));
+    else                    out[k] = rows.filter(r => !(r && rids.has(String(_INTERNAL_ROW_ROLE_ID[k](r)))));
+  });
+  return out;
+}
+
+// Project form Project Type options (N-333): PROJECT_TYPES plus Internal.
+// PROJECT_TYPES itself stays narrow — it also feeds the Sales Forecast type
+// dropdown, which must never offer Internal.
+function projectFormTypes() {
+  return [...CONFIG.PROJECT_TYPES, CONFIG.PROJECT_TYPE_INTERNAL];
+}
+
 // ── Text escaping ─────────────────────────────────────────────
 // Escape a value for safe interpolation into an HTML template string.
 function escHtml(str) {

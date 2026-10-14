@@ -322,10 +322,13 @@ async function writeSnapshotsNow() {
     weekStartDate.setUTCDate(weekStartDate.getUTCDate() - 6);
     const weekStart = spDateIn(spDateOut(weekStartDate));
 
-    const [projects, allRoles, allActivity, allPlacements, existing, stageRows, allHeadcount] = await Promise.all([
+    const [activeProjects, allRoles, allActivity, allPlacements, existing, stageRows, allHeadcount] = await Promise.all([
       getProjects(true), getAllRoles(), getWeeklyActivity(null, null), getPlacements(null), getItems('Snapshots'),
       getRoleStageHistory(), getAllHeadcount(),
     ]);
+    // N-333: no row for the internal project — computeHealthTrend (cc-pages.js)
+    // sums every stored row, so skipping at write time keeps the trend client-only.
+    const projects = activeProjects.filter(p => !isInternalProject(p));
     // N-274: the flag's stuck rule needs each role's Stage history.
     const stageHistory = groupStageHistoryByRole(stageRows);
     // N-309 (S-8): AvgDaysOpen is measured on open headcount. Filled is

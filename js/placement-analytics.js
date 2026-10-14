@@ -23,14 +23,24 @@ async function renderPlacementAnalytics() {
   // here, not per filter change. The fill map comes from allPlacements (every
   // placement, not the 12-month window). A failed stage-history or headcount
   // read degrades to "no censoring" rather than breaking the page.
-  const [historical, activityRaw, allPlacements, allRoles, stageRows, headcount] = await Promise.all([
+  const [rawHistorical, rawActivity, rawPlacements, rawRoles, rawStageRows, rawHeadcount, allProjects] = await Promise.all([
     getHistoricalPlacements(),
     getActivityForAnalytics(52),
     getPlacements(null),
     getAllRoles(),
     getRoleStageHistory().catch(e => { console.warn('N-276: stage history read failed', e); return []; }),
     getAllHeadcount().catch(e => { console.warn('N-309: headcount read failed', e); return []; }),
+    getProjects(false),
   ]);
+  // N-333: client data only — filtered once, before the TTF inputs and the
+  // Location / Functional Area options are built.
+  const {
+    historical, activity: activityRaw, placements: allPlacements,
+    roles: allRoles, stageRows, headcount,
+  } = excludeInternalProjectData(
+    { historical: rawHistorical, activity: rawActivity, placements: rawPlacements,
+      roles: rawRoles, stageRows: rawStageRows, headcount: rawHeadcount },
+    { projects: allProjects, roles: rawRoles });
   const { openHeadcount, closedCensored } = ttfHeadcountInputs({ roles: allRoles, headcount, placements: allPlacements, stageRows });
   _paData = { historical, activityRaw, allPlacements, allRoles, openHeadcount, closedCensored };
 

@@ -37,8 +37,18 @@ async function renderProjectDashboard() {
     return;
   }
   const { roles, activity, placements, rejections, tpMap, hc } = await fetchDashboardData(projectId, role);
-  const historical     = await getHistoricalPlacements();
-  const analyticsActs  = await getActivityForAnalytics(52);
+  // N-333: benchmark inputs are client-only. This project's own data
+  // (fetchDashboardData, above) is never filtered — the internal project's
+  // dashboard still shows its own roles, activity and placements.
+  const [allHistorical, allAnalyticsActs, benchProjects, benchRoles] = await Promise.all([
+    getHistoricalPlacements(),
+    getActivityForAnalytics(52),
+    getProjects(false),
+    getAllRoles(),
+  ]);
+  const { historical, activity: analyticsActs } = excludeInternalProjectData(
+    { historical: allHistorical, activity: allAnalyticsActs },
+    { projects: benchProjects, roles: benchRoles });
 
   // Cache for period filter updates (avoids full re-fetch on filter change)
   window._dashCache = { roles, activity, placements, rejections, tpMap, analyticsActs, historical, hc };

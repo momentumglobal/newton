@@ -33,13 +33,18 @@ async function refreshCCBanner() {
   
   // Project Health RAG — N-274: each open role is evaluated once; the same
   // result drives its roleFlag notification and the flagged count.
+  // N-333 (D-3): every open role is still evaluated for its roleFlag
+  // notification — internal-project roles included — but only client roles
+  // count toward the Health RAG.
+  const clientRoleIds = new Set(excludeInternalProjectData({ roles }, { projects }).roles.map(r => String(r.id)));
   const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
+  const clientOpenCount = open.filter(r => clientRoleIds.has(String(r.id))).length;
   let flagged = 0;
   for (const role of open) {
     const acts = acts13.filter(a => String(a.RoleIDLookupId) === String(role.id));
     const key = `flag:${role.id}`;
     if (isRoleFlagged(role, acts, stageHistory)) {
-      flagged++;
+      if (clientRoleIds.has(String(role.id))) flagged++;
       const projId = String(role.ProjectIDLookupId || role.ProjectID);
       const proj = projectsById[projId];
       await fireNotification({ triggerType:'roleFlag', triggerKey:key,
@@ -49,7 +54,7 @@ async function refreshCCBanner() {
     } else { await clearNotification(key); }
   }
   // Thresholds: CONFIG.ROLE_FLAG.healthRag (shared with cc-pages.js).
-  const ragHealth = flaggedShareRAG(flagged, open.length);
+  const ragHealth = flaggedShareRAG(flagged, clientOpenCount);
 
   // N-275 / N-274 decision (2 Oct 2026): the People badge stays unrated for a
   // quarter of time-in-stage data.

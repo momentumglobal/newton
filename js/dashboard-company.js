@@ -157,7 +157,7 @@ function companyDetailPeriodDropdown() {
 async function renderCompanyDashboard() {
   const main = document.getElementById('main-content');
   main.innerHTML = dashboardSkeleton(8);
-  const [allProjects, allRoles, allActivity, tpMap, allPlacements, allHeadcount] = await Promise.all([
+  const [rawProjects, rawRoles, rawActivity, tpMap, rawPlacements, rawHeadcount] = await Promise.all([
     getProjects(false),
     getAllRoles(),
     getWeeklyActivity(null, null),
@@ -166,6 +166,14 @@ async function renderCompanyDashboard() {
     getPlacements(null).catch(e => { console.warn('N-310: placements read failed', e); return []; }),
     getAllHeadcount().catch(e => { console.warn('N-310: headcount read failed', e); return null; }),
   ]);
+  // N-333: client KPIs only — the internal project is filtered out once, here,
+  // so the period switches (which reuse window._coCache) stay filtered too.
+  const {
+    projects: allProjects, roles: allRoles, activity: allActivity,
+    placements: allPlacements, headcount: allHeadcount,
+  } = excludeInternalProjectData(
+    { projects: rawProjects, roles: rawRoles, activity: rawActivity, placements: rawPlacements, headcount: rawHeadcount },
+    { projects: rawProjects });
   const hc = dashboardHeadcountContext(allRoles, allPlacements, allHeadcount);
   const projectMap     = Object.fromEntries(allProjects.map(p => [String(p.id), escHtml(p.CustomerName)]));
   const roleProjectMap = Object.fromEntries(

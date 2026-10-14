@@ -60,6 +60,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'lint-weeklyactivity-writes.js'),
   path.join(TESTS_DIR, 'lint-inline-handlers.js'),
   path.join(TESTS_DIR, 'lint-inline-styles.js'),
+  path.join(TESTS_DIR, 'lint-internal-kpi.js'),
   path.join(TESTS_DIR, 'fixtures.js'),
   path.join(TESTS_DIR, 'assertions.js'),
 ];

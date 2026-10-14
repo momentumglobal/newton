@@ -544,14 +544,22 @@ async function rbFetchData() {
     };
   } else {
     // Company scope — single call for all roles, matching Company Dashboard approach
-    const [roles, activity, placements, rejections, tpMap, headcount] = await Promise.all([
+    // N-333: company scope is a client report — the internal project is
+    // excluded (a project-scope report on it, above, is not). The FULL role
+    // list maps rows to projects: getRolesForUser may be a DM's subset.
+    const [userRoles, allActivity, allPlacements, allRejections, tpMap, allHeadcount, projects, allRoles] = await Promise.all([
       getRolesForUser(getCurrentUser().email),
       getWeeklyActivity(null, null),
       getPlacements(null),
       getRejectedOffers(null),
       getTalentPartnerDisplayMap(),
       getAllHeadcount().catch(e => { console.warn('N-310: headcount read failed', e); return null; }),
+      getProjects(false),
+      getAllRoles(),
     ]);
+    const { roles, activity, placements, rejections, headcount } = excludeInternalProjectData(
+      { roles: userRoles, activity: allActivity, placements: allPlacements, rejections: allRejections, headcount: allHeadcount },
+      { projects, roles: allRoles });
     return { roles, activity, placements, rejections, tpMap, hc: dashboardHeadcountContext(roles, placements, headcount) };
   }
 }

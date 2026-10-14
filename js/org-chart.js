@@ -458,7 +458,8 @@ async function showPlaceholderForm(id = null) {
   const [people, projects] = await Promise.all([getPeople(true, true), getProjects(true)]);
   const existing = id ? people.find(p => String(p.id) === String(id)) : null;
   const csds = people.filter(p => p.Level === 'CSD' && !p.IsPlaceholder);
-  const projNames = projects.map(p => p.CustomerName).filter(Boolean)
+  // N-333: the internal project is not a client team (see getProjectsByCSD).
+  const projNames = projects.filter(p => !isInternalProject(p)).map(p => p.CustomerName).filter(Boolean)
     .sort((a, b) => a.localeCompare(b));
 
   const curTeam = existing ? String(existing.PlaceholderProject || '') : '';

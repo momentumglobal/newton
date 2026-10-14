@@ -30,14 +30,22 @@ async function mobileRenderPlacementAnalytics(main) {
     // 12-month window. A failed stage-history or headcount read degrades to
     // "no censoring" rather than breaking the page. openRoles = every role
     // (funnelLearningIndex reads Cancelled pipelines from it).
-    const [historical, activityRaw, openRoles, stageRows, headcount, placementIds] = await Promise.all([
+    const [rawHistorical, rawActivity, rawRoles, rawStageRows, rawHeadcount, placementIds, allProjects] = await Promise.all([
       getHistoricalPlacements(),
       getActivityForAnalytics(52),
       getAllRoles(),
       getRoleStageHistory().catch(e => { console.warn('N-276: stage history read failed', e); return []; }),
       getAllHeadcount().catch(e => { console.warn('N-309: headcount read failed', e); return []; }),
       getPlacementHeadcountIds().catch(e => { console.warn('N-309: placement headcount read failed', e); return []; }),
+      getProjects(false),
     ]);
+    // N-333: client data only, as desktop Placement Analytics.
+    const {
+      historical, activity: activityRaw, roles: openRoles, stageRows, headcount,
+    } = excludeInternalProjectData(
+      { historical: rawHistorical, activity: rawActivity, roles: rawRoles,
+        stageRows: rawStageRows, headcount: rawHeadcount },
+      { projects: allProjects, roles: rawRoles });
     const { openHeadcount, closedCensored } = ttfHeadcountInputs({ roles: openRoles, headcount, placements: placementIds, stageRows });
     _maData = { historical, activityRaw, openRoles, openHeadcount, closedCensored };
 

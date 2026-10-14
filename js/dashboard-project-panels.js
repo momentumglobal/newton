@@ -471,12 +471,18 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
   // headcount and every placement's HeadcountID fetched alongside allRoles
   // and built once, not per row. A failed read degrades to "no censoring"
   // rather than breaking the panel.
-  const [allRoles, stageRows, headcount, placementIds] = await Promise.all([
+  const [rawRoles, rawStageRows, rawHeadcount, placementIds, allProjects] = await Promise.all([
     getAllRoles(),
     getRoleStageHistory().catch(e => { console.warn('N-276: stage history read failed', e); return []; }),
     getAllHeadcount().catch(e => { console.warn('N-309: headcount read failed', e); return []; }),
     getPlacementHeadcountIds().catch(e => { console.warn('N-309: placement headcount read failed', e); return []; }),
+    getProjects(false),
   ]);
+  // N-333: the benchmark / TTF population is client-only. This project's own
+  // roles (`roles`, passed in) are not filtered.
+  const { roles: allRoles, stageRows, headcount } = excludeInternalProjectData(
+    { roles: rawRoles, stageRows: rawStageRows, headcount: rawHeadcount },
+    { projects: allProjects });
   const { openHeadcount, closedCensored } = ttfHeadcountInputs({ roles: allRoles, headcount, placements: placementIds, stageRows });
   const allRoleMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), r])

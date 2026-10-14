@@ -9,7 +9,7 @@ async function renderScorecardsPage() {
 
   // N-270: 52 weeks fetched once — the full window feeds the learned
   // benchmarks; everything on the cards stays on the 13-week slice.
-  const [activity52, historical, tpMap, allRoles, stageRows, headcount, placementIds] = await Promise.all([
+  const [activity52, historical, tpMap, allRoles, stageRows, headcount, placementIds, allProjects] = await Promise.all([
     getActivityForAnalytics(52),
     getHistoricalPlacements(),
     getTalentPartnerDisplayMap(),
@@ -17,6 +17,7 @@ async function renderScorecardsPage() {
     getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; }),
     getAllHeadcount().catch(e => { console.warn('N-309: headcount read failed', e); return []; }),
     getPlacementHeadcountIds().catch(e => { console.warn('N-309: placement headcount read failed', e); return []; }),
+    getProjects(false),
   ]);
   const activityRaw = activitySinceWeeks(activity52, 13);
   const stageHistory = groupStageHistoryByRole(stageRows);  // N-274
@@ -51,8 +52,13 @@ async function renderScorecardsPage() {
   // N-270: learning population = every role; each TP is benchmarked
   // against a mix weighted by their own 13-week volume per
   // function × location, with their own activity left out.
+  // N-333 (D-1): the learning pool is client-only. Each TP's own card below
+  // keeps all of their own data, so an Internal TA gets a card built from
+  // their internal work, judged against client benchmarks.
   const roleIndex = funnelRoleIndex(allRoles, 'Department', 'Location');
-  const benchObs  = buildFunnelObservations(activity52, roleIndex);
+  const { activity: clientActivity52 } = excludeInternalProjectData(
+    { activity: activity52 }, { projects: allProjects, roles: allRoles });
+  const benchObs  = buildFunnelObservations(clientActivity52, roleIndex);
 
   // Filter historical to last 13 weeks — one row per fill, credited to the
   // TP who made the placement (N-309, D-7).

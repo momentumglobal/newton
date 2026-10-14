@@ -10,7 +10,10 @@ async function getProjectsByCSD() {
   const projects = await getProjects(true); // active only
   const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
   const map = {};
-  projects.forEach(p => {
+  // N-333: the internal project is not a client team — internal staff already
+  // render in their function bubbles (N-304). Without this it would show as an
+  // empty "unassigned project" bubble.
+  projects.filter(p => !isInternalProject(p)).forEach(p => {
     const key = norm(p.CSDName) || '__unassigned__';
     (map[key] = map[key] || []).push(p);
   });

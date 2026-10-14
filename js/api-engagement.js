@@ -7,23 +7,16 @@
 // getSurveyQuestions, hasCompletedSurvey and createSurveyRun stay in api.js
 // — they have more than one consumer or are out of this task's scope.
 
-// Eligible respondents for an Engagement survey run = active employees
-// (People.IsActive) holding a talent_partner or delivery_manager role in
-// UserAssignments. Deliberately does NOT filter on UserAssignments.Active —
-// a bench/unassigned TP or DM with no current project is still an eligible
-// active employee (Chris, 16 Sep 2026 — see N-233). Dedupes by email first,
-// since one user can hold multiple UserAssignments rows (N-165).
+// Eligible respondents for an Engagement survey run = every active employee on
+// the Employee Tracker (People list, active, not a placeholder) except the
+// levels in CONFIG.SURVEY.EXCLUDED_LEVELS (CSD) — isSurveyEligibleEmployee,
+// utils.js (N-332, Chris 14 Oct 2026). Counts the workforce, not Newton
+// logins: UserAssignments is not read, so bench TPs/DMs (N-233) and internal
+// staff are counted whether or not they have a role. This is the denominator of
+// the response rate; who can actually answer is CONFIG.SURVEY_RESPONDENT_ROLES.
 async function getEligibleRespondentCount() {
-  const assignments = await getItems('UserAssignments');
-  const tpDmEmails = new Set();
-  assignments.forEach(a => {
-    if (a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager') {
-      if (a.UserEmail) tpDmEmails.add(a.UserEmail.toLowerCase());
-    }
-  });
-  const tpMap = await getTalentPartnerDisplayMap();
-  const activeEmails = await filterToActiveTpEmails([...tpDmEmails], tpMap);
-  return activeEmails.length;
+  const people = await getPeople(true);
+  return people.filter(p => isSurveyEligibleEmployee(p)).length;
 }
 
 // ── Read ──────────────────────────────────────────────────────────────

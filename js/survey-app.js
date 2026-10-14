@@ -22,7 +22,7 @@ const SurveyApp = (() => {
 
     const role = await getEffectiveRole(_user.email);
 
-    // Access control — TP and DM only
+    // Access control — survey respondent roles only (N-332)
     if (!surveyCanAccess(role)) {
       window.location.href = 'index.html';
       return;

@@ -399,7 +399,7 @@ async function openActivateRunModal() {
             <input type="date" name="CloseDate" value="${closeDate}">
           </div>
         </div>
-        <p class="eng-hint">${eligible} eligible respondent${eligible !== 1 ? 's' : ''} (TPs and DMs)</p>
+        <p class="eng-hint">${eligible} eligible respondent${eligible !== 1 ? 's' : ''} (all active employees except CSDs)</p>
         <div class="form-actions">
           <button type="submit" class="btn-primary">Activate Now</button>
           <button type="button" class="btn-secondary"${act('_closeEngModal')}>Cancel</button>

@@ -56,8 +56,8 @@
       setTimeout(() => initQuickLinks(role), 0);
       renderNotificationBell();
 
-      // Survey widget — TP and DM only
-      if (['talent_partner', 'delivery_manager'].includes(role)) {
+      // Survey widget — survey respondent roles (N-332, CONFIG.SURVEY_RESPONDENT_ROLES)
+      if (isSurveyRespondentRole(role)) {
         initSurveyWidget(user.email);
       }
 

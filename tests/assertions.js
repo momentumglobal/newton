@@ -2294,6 +2294,58 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'N-332 CONFIG.SURVEY_RESPONDENT_ROLES — respondent roles, helpers fail closed',
+    fn: function () {
+      _assertEqual(CONFIG.SURVEY_RESPONDENT_ROLES, ['talent_partner', 'delivery_manager', 'people_ops', 'sales', 'staff'], 'respondent roles');
+      CONFIG.SURVEY_RESPONDENT_ROLES.forEach(r =>
+        _assertEqual(CONFIG.ROLE_PRECEDENCE.includes(r), true, r + ' is in ROLE_PRECEDENCE'));
+      const yes = ['talent_partner', 'delivery_manager', 'people_ops', 'sales', 'staff'];
+      yes.forEach(r => {
+        _assertEqual(isSurveyRespondentRole(r), true, 'isSurveyRespondentRole(' + r + ')');
+      });
+      ['admin', 'leadership', 'viewer', undefined, null, 'superuser', 'constructor'].forEach(r =>
+        _assertEqual(isSurveyRespondentRole(r), false, 'isSurveyRespondentRole(' + String(r) + ')'));
+      _assertEqual(isSurveyRespondentRole('sales', {}), false, 'cfg without SURVEY_RESPONDENT_ROLES');
+    },
+  },
+  {
+    name: 'N-332 isSurveyEligibleEmployee — all active People except CSD, internal staff included',
+    fn: function () {
+      const P = (level, extra) => Object.assign({ EmployeeName: 'X', IsActive: true, Level: level }, extra || {});
+      const e = isSurveyEligibleEmployee;
+      _assertEqual(CONFIG.SURVEY.EXCLUDED_LEVELS, ['CSD'], 'excluded levels');
+      CONFIG.SURVEY.EXCLUDED_LEVELS.forEach(l =>
+        _assertEqual(CONFIG.PEOPLE_LEVELS.includes(l), true, l + ' is in PEOPLE_LEVELS'));
+      ['SDM', 'PTP', 'STP', 'TP'].forEach(l => _assertEqual(e(P(l)), true, l + ' counts'));
+      _assertEqual(e(P('CSD')), false, 'CSD excluded');
+      _assertEqual(e(P(undefined, { StaffType: 'Internal' })), true, 'internal staff (no Level) counts');
+      _assertEqual(e(P('')), true, 'blank Level counts');
+      _assertEqual(e(P('TP', { IsActive: false })), false, 'inactive excluded');
+      _assertEqual(e(P('TP', { IsActive: undefined })), true, 'IsActive undefined (getPeople already filtered)');
+      _assertEqual(e(P('TP', { IsPlaceholder: true })), false, 'placeholder excluded');
+      _assertEqual(e(null), false, 'null');
+      _assertEqual(e(undefined), false, 'undefined');
+      _assertEqual(e(P('CSD'), {}), true, 'cfg without SURVEY.EXCLUDED_LEVELS excludes nothing');
+    },
+  },
+  {
+    name: 'N-332 no respondent-role literal left in survey-router.js, api-engagement.js or home.js',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const files = ['survey-router.js', 'api-engagement.js', 'home.js'];
+      const hits = [];
+      files.forEach(f => {
+        _assertEqual(typeof ALL_SOURCES[f], 'string', f + ' is in ALL_SOURCES');
+        // code lines only — comments may still name the roles in words
+        const code = ALL_SOURCES[f].split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+        if (/['"]delivery_manager['"]/.test(code)) hits.push(f);
+      });
+      _assertEqual(hits, [], 'files still hard-coding a respondent role');
+    },
+  },
+  {
     name: 'N-281 no hardcoded admin list, auto-registration, LastLogin or sync role helper left in js/',
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') {

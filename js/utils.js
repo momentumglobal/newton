@@ -2496,6 +2496,26 @@ function roleCan(role, cap, cfg = CONFIG) {
   return Array.isArray(roles) && roles.includes(role);
 }
 
+// N-332: pure. Is `role` an Engagement survey respondent role
+// (CONFIG.SURVEY_RESPONDENT_ROLES)? Used for survey.html access and the home
+// survey widget. Missing / unknown role or config → false.
+function isSurveyRespondentRole(role, cfg = CONFIG) {
+  const roles = cfg && cfg.SURVEY_RESPONDENT_ROLES;
+  return Array.isArray(roles) && roles.includes(role);
+}
+
+// N-332: pure. Does this People row count towards a survey run's
+// EligibleCount? Every active employee on the Employee Tracker except the
+// levels in CONFIG.SURVEY.EXCLUDED_LEVELS (CSD) — Chris, 14 Oct 2026. Internal
+// (non-deployable) staff have no Level, so they count. Callers pass rows from
+// getPeople(true), which already drops inactive and placeholder rows; both are
+// re-checked here so the test is safe on any row.
+function isSurveyEligibleEmployee(person, cfg = CONFIG) {
+  if (!person || person.IsActive === false || person.IsPlaceholder) return false;
+  const excluded = cfg && cfg.SURVEY && cfg.SURVEY.EXCLUDED_LEVELS;
+  return !(Array.isArray(excluded) && excluded.includes(person.Level));
+}
+
 // N-285: pure. Is this list named in CONFIG.RESTRICTED_LISTS?
 function isRestrictedList(listName, cfg = CONFIG) {
   return Array.isArray(cfg.RESTRICTED_LISTS) && cfg.RESTRICTED_LISTS.includes(listName);

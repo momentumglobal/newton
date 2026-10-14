@@ -67,6 +67,13 @@ const CONFIG = {
   // first entry is the Add form's default. Leadership is never assignable
   // here (it comes from the LeadershipAccess list).
   ASSIGNABLE_ROLES: ['talent_partner', 'delivery_manager', 'people_ops', 'sales', 'staff', 'viewer', 'admin'],
+  // N-332: roles that can ANSWER the Engagement survey (survey.html access and
+  // the home widget) — every internal-staff role plus TP / DM. Read through
+  // isSurveyRespondentRole() (utils.js); never re-list these at a call site.
+  // admin and leadership are deliberately not respondents. Internal TA staff
+  // are talent_partner. Each entry must be in ROLE_PRECEDENCE. This is NOT the
+  // eligible-respondent COUNT, which comes from the People list (SURVEY.EXCLUDED_LEVELS).
+  SURVEY_RESPONDENT_ROLES: ['talent_partner', 'delivery_manager', 'people_ops', 'sales', 'staff'],
   // N-331: capability → roles. Every in-page "can this role do X" check reads
   // this through roleCan() (utils.js) — never a role literal at the call
   // site. Page access stays in the router files (*-router.js PAGES).
@@ -1081,6 +1088,10 @@ const CONFIG = {
     QUESTION_TYPES:       ['Rating', 'SingleChoice', 'MultiChoice', 'FreeText'],
     STATUSES:             ['Draft', 'Active', 'Closed'],
     AUDIENCES:            ['All', 'TalentPartners', 'DeliveryManagers'],
+    // N-332: People.Level values NOT counted as eligible respondents (the
+    // run's EligibleCount — see isSurveyEligibleEmployee, utils.js). Each must
+    // be in PEOPLE_LEVELS.
+    EXCLUDED_LEVELS:      ['CSD'],
     DEFAULT_DURATION_DAYS: 14,
     REMINDER_DAY:          7,
     RATING_SCALE_MIN:      1,

@@ -18,6 +18,10 @@ const SALES_PAGES = {
   lciLeadMagnet:   { label: 'LCI Lead Magnet',  roles: [SALES_ROLES.ADMIN, SALES_ROLES.LEADERSHIP, SALES_ROLES.SALES] },
 };
 
+function salesCanAccess(page, role) {
+  return SALES_PAGES[page] && SALES_PAGES[page].roles.includes(role);
+}
+
 function getSalesAccessiblePages(role) {
   return Object.entries(SALES_PAGES)
     .filter(([, cfg]) => cfg.roles.includes(role))

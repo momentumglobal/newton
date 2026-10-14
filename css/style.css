@@ -3966,6 +3966,9 @@ body.bp-printing .rt-table-controls { display: none !important; }
   height: 62%;
   background: url('../mg-visual-swirl-report.png') no-repeat center center / contain;
   opacity: var(--bp-swirl-opacity, 0.38);
+  /* N-335: the PNG's baked navy (#0A0545) is not the brand fill (#0A0B44); at
+     partial opacity it showed as a box. lighten keeps only the artwork. */
+  mix-blend-mode: lighten;
 }
 
 /* Momentum x Client partnership lockup. The client mark sits in a white chip

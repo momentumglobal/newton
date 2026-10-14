@@ -179,43 +179,49 @@
     <!-- ROLES -->
     <div class="section" id="sec-roles" style="display:none">
       <div class="section-title">Roles &amp; Access</div>
-      <p class="section-intro">Newton has five roles. Role is resolved asynchronously on sign-in from SharePoint and <strong>not cached</strong> (N-296): sessionStorage is user-writable, so a stored role could be forged. <code>getEffectiveRole()</code> re-resolves from <code>UserAssignments</code> and <code>LeadershipAccess</code> on every call (30 s in-memory tier 1 only), so an access change takes effect on the next page load.</p>
+      <p class="section-intro">Newton has eight roles. Role is resolved asynchronously on sign-in from SharePoint and <strong>not cached</strong> (N-296): sessionStorage is user-writable, so a stored role could be forged. <code>getEffectiveRole()</code> re-resolves from <code>UserAssignments</code> and <code>LeadershipAccess</code> on every call (30 s in-memory tier 1 only), so an access change takes effect on the next page load. Each person resolves to <strong>one</strong> role — the highest they hold (order below). A Talent Partner who is also given Sales resolves as <code>sales</code> and loses Reporting.</p>
 
       <table>
         <tr><th>Role</th><th>Source</th><th>Description</th></tr>
         <tr><td><span class="badge badge-admin">admin</span></td><td>UserAssignments (AssignedRole='admin', active row)</td><td>Full access to all modules, pages, and admin interfaces. Outranks every other role. A deactivated admin row grants nothing.</td></tr>
         <tr><td><span class="badge badge-leadership">leadership</span></td><td>LeadershipAccess list</td><td>Read-only access to Company Dashboard (Reporting), People module, Sales module, and MG Command Centre.</td></tr>
+        <tr><td><span class="badge badge-leadership">people_ops</span></td><td>UserAssignments (AssignedRole='people_ops', active row, ProjectID 0)</td><td>People-function staff (N-331). Full People module like Leadership plus admin People powers: add/edit employees, assignments and invoices; Engagement Activate Run, Manage Template, Close Run. Org Chart leader rows stay admin-only. No other module.</td></tr>
+        <tr><td><span class="badge badge-leadership">sales</span></td><td>UserAssignments (AssignedRole='sales', active row, ProjectID 0)</td><td>Sales and Marketing staff (N-331). Full Sales module like Leadership (all LCI models, edit; no delete) plus the People module's Org Chart (read-only).</td></tr>
         <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module and Market Analytics. Limited access to People module — Scorecards page only — and to the Sales module — LCI Cost Models only (scoped to models assigned to them).</td></tr>
         <tr><td><span class="badge badge-tp">talent_partner</span></td><td>UserAssignments list</td><td>Access to assigned project in Reporting module. Scoped to own activity and roles.</td></tr>
+        <tr><td><span class="badge badge-dm">staff</span></td><td>UserAssignments (AssignedRole='staff', active row, ProjectID 0)</td><td>Operations staff (N-331). People module Org Chart only (read-only).</td></tr>
         <tr><td><span class="badge badge-viewer">viewer</span></td><td>Fallback</td><td>No UserAssignments row (or no recognised role). No module access — the home page shows "No access yet". Nobody is registered automatically (N-281); an admin adds them. Guests can't sign in at all: only enabled member accounts are in the dynamic <strong>Newton Users</strong> Entra group (N-291).</td></tr>
       </table>
 
       <h3>Module access matrix</h3>
       <table>
-        <tr><th>Module / Page</th><th>Admin</th><th>Leadership</th><th>DM</th><th>TP</th><th>Viewer</th></tr>
-        <tr><td>Company Dashboard</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>Project Dashboard</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-        <tr><td>Report Library</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-        <tr><td>Projects</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-        <tr><td>Roles</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-        <tr><td>Weekly Activity</td><td>✓</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
-        <tr><td>Placements</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-        <tr><td>Rejected Offers</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-        <tr><td>Config Panel</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>Market Analytics — Market Report Builder</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-        <tr><td>Market Analytics — Placement Analytics</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-        <tr><td>People module (full)</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>People module (Scorecards only)</td><td>—</td><td>—</td><td>✓</td><td>—</td><td>—</td></tr>
-        <tr><td>Engagement (survey builder + results)</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>Engagement (survey respondent widget)</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-        <tr><td>Sales — Revenue Tracking &amp; Sales Forecast</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>Sales — LCI Cost Models</td><td>✓</td><td>✓</td><td>✓*</td><td>—</td><td>—</td></tr>
-        <tr><td>Sales — LCI Lead Magnet</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>MG Command Centre</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>Newton OS Admin</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><th>Module / Page</th><th>Admin</th><th>Leadership</th><th>People Ops</th><th>Sales</th><th>DM</th><th>TP</th><th>Staff</th><th>Viewer</th></tr>
+        <tr><td>Company Dashboard</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Project Dashboard</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Report Library</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Projects</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Roles</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Weekly Activity</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Placements</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Rejected Offers</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Config Panel</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Market Analytics — Market Report Builder</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Market Analytics — Placement Analytics</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>People module (full)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>People — add/edit employees, assignments, invoices</td><td>✓</td><td>—</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>People module (Scorecards only)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>People — Org Chart (read)</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+        <tr><td>Engagement (results + export)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Engagement (Activate Run, Manage Template, Close Run)</td><td>✓</td><td>—</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Engagement (survey respondent widget)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Sales — Revenue Tracking &amp; Sales Forecast</td><td>✓</td><td>✓</td><td>—</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Sales — LCI Cost Models</td><td>✓</td><td>✓</td><td>—</td><td>✓</td><td>✓*</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Sales — LCI Lead Magnet</td><td>✓</td><td>✓</td><td>—</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>MG Command Centre</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Newton OS Admin</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
       </table>
       <p style="font-size:13px;color:#555">* Delivery Managers see only LCI Cost Models assigned to them (matched on the model's Assigned DM email); Revenue Tracking and Sales Forecast stay Admin/Leadership.</p>
-      <p><strong>Internal (non-deployable) staff</strong> — Marketing, Sales, Internal TA, Operations and People staff on the People list (N-304; the list is <code>CONFIG.INTERNAL_FUNCTIONS</code>) — have no Newton access for now: no UserAssignments row, so they resolve as Viewer and see "No access yet".</p>
+      <p><strong>Internal (non-deployable) staff</strong> — Marketing, Sales, Internal TA, Operations and People staff on the People list (N-304; the list is <code>CONFIG.INTERNAL_FUNCTIONS</code>) — get access through a role per function (N-326 / N-331): People → <code>people_ops</code>, Sales and Marketing → <code>sales</code>, Operations → <code>staff</code>. An admin adds one UserAssignments row per person (Customer is ignored; saved with ProjectID 0). People Ops and Sales also need the matching SharePoint group (N-334) — without it their pages load empty, never more. The role is <strong>not</strong> derived from <code>People.StaffFunction</code>. Desktop only: the mobile view shows "Access Restricted".</p>
 
       <h3>Role resolution order</h3>
       <div class="flow">
@@ -225,11 +231,9 @@
         <div class="flow-arrow">→</div>
         <div class="flow-step">Check LeadershipAccess list</div>
         <div class="flow-arrow">→</div>
-        <div class="flow-step">Highest DM / TP role in UserAssignments</div>
+        <div class="flow-step">Highest other role in UserAssignments (people_ops / sales / staff rows must be active)</div>
         <div class="flow-arrow">→</div>
         <div class="flow-step">Fall back to 'viewer'</div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step cache">Cache in sessionStorage</div>
       </div>
     </div>
 
@@ -903,6 +907,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         <li>An internal person is <code>People.StaffType === CONFIG.STAFF_TYPE_INTERNAL</code> (<code>isInternalStaff()</code>); blank StaffType = Deployable. Valid functions are <code>CONFIG.INTERNAL_FUNCTIONS</code> only.</li>
         <li>Internal staff are on the Employee Tracker, payroll, Command Bar search, People Dashboard End Dates and the Org Chart (under their ReportsTo leader, in function bubbles). They are excluded from utilisation, headcount, segmentation (counted separately by function), bench sync, the Bench pool and the assignment picker.</li>
         <li>Display a person's band with <code>personRoleLabel(p)</code> — the Level, or <code>Internal · &lt;Function&gt;</code>.</li>
+        <li><strong>Role checks go through <code>roleCan(role, cap)</code></strong> (utils.js, N-331) against <code>CONFIG.ROLE_CAPABILITIES</code> — never a role literal like <code>['admin','leadership']</code> at the call site. Page access stays in the router <code>*_PAGES</code> registries. Org-wide roles (<code>CONFIG.ORG_WIDE_ROLES</code>, read via <code>isOrgWideRole()</code>) are saved with ProjectID 0, never add a project to scope, and an inactive row grants nothing.</li>
       </ul>
 
       <h3>Project types and split-fee revenue (N-116)</h3>
@@ -1023,6 +1028,16 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Newton access for internal staff — roles foundation (N-331)</div>
+        <ul>
+          <li>Three new roles, added in Admin → User Assignments (ProjectID 0): <strong>People Ops</strong> (full People module plus admin People edits and survey admin), <strong>Sales &amp; Marketing</strong> (full Sales module like Leadership, plus Org Chart) and <strong>Staff</strong> (Org Chart only). Precedence: admin &gt; leadership &gt; people_ops &gt; sales &gt; DM &gt; TP &gt; staff &gt; viewer.</li>
+          <li>Role checks inside pages now read <code>CONFIG.ROLE_CAPABILITIES</code> through <code>roleCan()</code>; People and Sales landing pages come from the router registries. An inactive People Ops / Sales / Staff row grants nothing.</li>
+          <li>Desktop only. SharePoint groups for People Ops and Sales follow in N-334.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>

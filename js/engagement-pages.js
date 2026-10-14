@@ -24,7 +24,7 @@ async function renderEngagementPage() {
   main.innerHTML = `
     <div class="page-header">
       <h1 class="page-title">Engagement</h1>
-      ${_resolvedRole === 'admin' ? `
+      ${roleCan(_resolvedRole, 'engagementAdmin') ? `
         <button class="btn-primary"${act('openActivateRunModal')}>
           <i data-lucide="play-circle"></i> Activate Run
         </button>` : ''}
@@ -40,7 +40,7 @@ async function renderEngagementPage() {
             </option>`).join('')}
         </select>
       </div>
-      ${_resolvedRole === 'admin' ? `
+      ${roleCan(_resolvedRole, 'engagementAdmin') ? `
         <button class="btn-secondary"${act('openManageTemplateModal')}>
           <i data-lucide="settings"></i> Manage Template
         </button>` : ''}
@@ -111,10 +111,10 @@ function engRenderSummary() {
       <span class="eng-rate-pct">${responsePct}%</span>
       ${run.Status === 'Active' ? '<span class="eng-status-badge eng-status-badge--active">Active</span>' : ''}
       ${run.Status === 'Closed' && _resolvedRole === 'admin' ? '' : ''}
-      ${run.Status === 'Active' && _resolvedRole === 'admin'
+      ${run.Status === 'Active' && roleCan(_resolvedRole, 'engagementAdmin')
         ? `<button class="btn-secondary btn--sm"${act('engCloseRun', String(run.id))}>Close Run</button>`
         : ''}
-      ${_resolvedRole === 'admin' || _resolvedRole === 'leadership'
+      ${roleCan(_resolvedRole, 'engagementResults')
         ? `<button class="btn-secondary btn--sm"${act('engExportPDF')}>
             <i data-lucide="download"></i> Export Results
            </button>`
@@ -340,7 +340,7 @@ function _engEmptyState() {
   return `
     <div class="page-header">
       <h1 class="page-title">Engagement</h1>
-      ${_resolvedRole === 'admin' ? `
+      ${roleCan(_resolvedRole, 'engagementAdmin') ? `
         <div style="display:inline-flex; gap:8px; align-items:center;">
           <button class="btn-secondary"${act('openManageTemplateModal')}>
             <i data-lucide="settings"></i> Manage Template

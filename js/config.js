@@ -40,7 +40,10 @@ const CONFIG = {
   // AssignedRole value not listed here grants nothing. Admin is a
   // UserAssignments row (AssignedRole 'admin', ProjectID 0), never a list in
   // code: this file is public on GitHub Pages.
-  ROLE_PRECEDENCE: ['admin', 'leadership', 'delivery_manager', 'talent_partner', 'viewer'],
+  // N-331: people_ops (People function), sales (Sales + Marketing) and staff
+  // (Operations) are internal-staff roles — one UserAssignments row each,
+  // ProjectID 0 (ORG_WIDE_ROLES below). Precedence decided in N-326 (D-7).
+  ROLE_PRECEDENCE: ['admin', 'leadership', 'people_ops', 'sales', 'delivery_manager', 'talent_partner', 'staff', 'viewer'],
   // N-282: roles that are NEVER served from a browser-writable cache
   // (sessionStorage is editable by the user, and the build stamp is public).
   // Always re-resolved from UserAssignments / LeadershipAccess. Must be a
@@ -49,9 +52,30 @@ const CONFIG = {
   ROLE_LABELS: {
     admin:            'Admin',
     leadership:       'Leadership',
+    people_ops:       'People Ops',
+    sales:            'Sales & Marketing',
     delivery_manager: 'Delivery Manager',
     talent_partner:   'Talent Partner',
+    staff:            'Staff',
     viewer:           'Viewer',
+  },
+  // N-331: roles whose UserAssignments row applies company-wide — always
+  // ProjectID 0, never a project scope, and an inactive row grants nothing.
+  // Read through isOrgWideRole() (utils.js).
+  ORG_WIDE_ROLES: ['admin', 'people_ops', 'sales', 'staff'],
+  // N-331: Admin → User Assignments role dropdown, in display order. The
+  // first entry is the Add form's default. Leadership is never assignable
+  // here (it comes from the LeadershipAccess list).
+  ASSIGNABLE_ROLES: ['talent_partner', 'delivery_manager', 'people_ops', 'sales', 'staff', 'viewer', 'admin'],
+  // N-331: capability → roles. Every in-page "can this role do X" check reads
+  // this through roleCan() (utils.js) — never a role literal at the call
+  // site. Page access stays in the router files (*-router.js PAGES).
+  ROLE_CAPABILITIES: {
+    peopleFull:        ['admin', 'leadership', 'people_ops'], // full People pages, payroll view, Org Chart placeholders + reporting lines
+    peopleEdit:        ['admin', 'people_ops'],               // Employee Tracker add/edit, Supplier Invoices edit
+    engagementResults: ['admin', 'leadership', 'people_ops'], // Export Results, survey-closing notice
+    engagementAdmin:   ['admin', 'people_ops'],               // Activate Run, Manage Template, Close Run
+    salesManage:       ['admin', 'leadership', 'sales'],      // all LCI models, + New Model, assign DM
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
@@ -927,14 +951,17 @@ const CONFIG = {
   // NOTE: People is visible to DM + TP so they can reach People Scorecards.
   // The People module's own nav (people-router.js) restricts them to the
   // Scorecards page only; data scoping is applied in renderScorecardsPage.
+  // N-331: People Ops get the whole People module; Sales and Staff reach
+  // the Org Chart only (people-router.js).
   OS_MODULES: [
     { key: 'reporting', name: 'Reporting',        icon: 'bar-chart-2', desc: 'Solutions Hub Reporting & Pipeline Analytics', homeOrder: 1,  href: 'reporting.html',        live: true, roles: ['admin','delivery_manager','talent_partner','leadership'] },
     { key: 'marketing', name: 'Market Analytics', icon: 'brain', desc: 'Customer Market Reports & Placement Analytics', homeOrder: 4,        href: 'market-reporting.html', live: true, roles: ['admin','delivery_manager','talent_partner'] },
-    { key: 'people',    name: 'People',           icon: 'users', desc: 'Headcount, Utilisation & Workforce Planning', homeOrder: 2,        href: 'people.html',           live: true, roles: ['admin','leadership','delivery_manager','talent_partner'] },
+    { key: 'people',    name: 'People',           icon: 'users', desc: 'Headcount, Utilisation & Workforce Planning', homeOrder: 2,        href: 'people.html',           live: true, roles: ['admin','leadership','people_ops','sales','delivery_manager','talent_partner','staff'] },
     // NOTE: Sales is visible to DMs for the LCI Cost Models page only.
     // sales-router.js restricts DMs to that page; model visibility is
-    // scoped to AssignedDMEmail in lci-pages.js.
-    { key: 'sales',     name: 'Sales',            icon: 'trending-up', desc: 'LCI Modeling, Sales Pipeline & Revenue Tracking', homeOrder: 3,  href: 'sales.html',            live: true, roles: ['admin','leadership','delivery_manager'] },
+    // scoped to AssignedDMEmail in lci-pages.js. N-331: the sales role gets
+    // the whole module, all models.
+    { key: 'sales',     name: 'Sales',            icon: 'trending-up', desc: 'LCI Modeling, Sales Pipeline & Revenue Tracking', homeOrder: 3,  href: 'sales.html',            live: true, roles: ['admin','leadership','sales','delivery_manager'] },
     { key: 'command',   name: 'Command Centre',   icon: 'monitor',      href: 'command-centre.html',   live: true, roles: ['admin','leadership'] },
   ],
 
@@ -976,18 +1003,18 @@ const CONFIG = {
     { key: 'hiringPlan',       label: 'Hiring Plan',        module: 'reporting', href: 'reporting.html#hiringPlan',        roles: ['admin', 'delivery_manager', 'talent_partner', 'leadership'] },
     { key: 'adminPanel',       label: 'Config Panel',       module: 'reporting', href: 'reporting.html#adminPanel',        roles: ['admin'] },
     // people-router.js — People (7)
-    { key: 'peopleDashboard', label: 'People Dashboard',    module: 'people', href: 'people.html#peopleDashboard', roles: ['admin', 'leadership'] },
-    { key: 'orgChart',        label: 'Org Chart',           module: 'people', href: 'people.html#orgChart',        roles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'] },
-    { key: 'peopleGantt',     label: 'Deployment Timeline', module: 'people', href: 'people.html#peopleGantt',     roles: ['admin', 'leadership'] },
-    { key: 'peopleTracker',   label: 'Employee Tracker',    module: 'people', href: 'people.html#peopleTracker',   roles: ['admin', 'leadership'] },
-    { key: 'gpInvoices',      label: 'Supplier Invoices',   module: 'people', href: 'people.html#gpInvoices',      roles: ['admin', 'leadership'] },
-    { key: 'scorecards',      label: 'People Scorecards',   module: 'people', href: 'people.html#scorecards',      roles: ['admin', 'leadership', 'delivery_manager', 'talent_partner'] },
-    { key: 'engagement',      label: 'Engagement',          module: 'people', href: 'people.html#engagement',      roles: ['admin', 'leadership'] },
+    { key: 'peopleDashboard', label: 'People Dashboard',    module: 'people', href: 'people.html#peopleDashboard', roles: ['admin', 'leadership', 'people_ops'] },
+    { key: 'orgChart',        label: 'Org Chart',           module: 'people', href: 'people.html#orgChart',        roles: ['admin', 'leadership', 'people_ops', 'sales', 'delivery_manager', 'talent_partner', 'staff'] },
+    { key: 'peopleGantt',     label: 'Deployment Timeline', module: 'people', href: 'people.html#peopleGantt',     roles: ['admin', 'leadership', 'people_ops'] },
+    { key: 'peopleTracker',   label: 'Employee Tracker',    module: 'people', href: 'people.html#peopleTracker',   roles: ['admin', 'leadership', 'people_ops'] },
+    { key: 'gpInvoices',      label: 'Supplier Invoices',   module: 'people', href: 'people.html#gpInvoices',      roles: ['admin', 'leadership', 'people_ops'] },
+    { key: 'scorecards',      label: 'People Scorecards',   module: 'people', href: 'people.html#scorecards',      roles: ['admin', 'leadership', 'people_ops', 'delivery_manager', 'talent_partner'] },
+    { key: 'engagement',      label: 'Engagement',          module: 'people', href: 'people.html#engagement',      roles: ['admin', 'leadership', 'people_ops'] },
     // sales-router.js — Sales (4)
-    { key: 'revenueTracking', label: 'Revenue Tracking', module: 'sales', href: 'sales.html#revenueTracking', roles: ['admin', 'leadership'] },
-    { key: 'salesForecast',   label: 'Sales Forecast',   module: 'sales', href: 'sales.html#salesForecast',   roles: ['admin', 'leadership'] },
-    { key: 'lciModels',       label: 'LCI Cost Models',  module: 'sales', href: 'sales.html#lciModels',       roles: ['admin', 'leadership', 'delivery_manager'] },
-    { key: 'lciLeadMagnet',   label: 'LCI Lead Magnet',  module: 'sales', href: 'sales.html#lciLeadMagnet',   roles: ['admin', 'leadership'] },
+    { key: 'revenueTracking', label: 'Revenue Tracking', module: 'sales', href: 'sales.html#revenueTracking', roles: ['admin', 'leadership', 'sales'] },
+    { key: 'salesForecast',   label: 'Sales Forecast',   module: 'sales', href: 'sales.html#salesForecast',   roles: ['admin', 'leadership', 'sales'] },
+    { key: 'lciModels',       label: 'LCI Cost Models',  module: 'sales', href: 'sales.html#lciModels',       roles: ['admin', 'leadership', 'sales', 'delivery_manager'] },
+    { key: 'lciLeadMagnet',   label: 'LCI Lead Magnet',  module: 'sales', href: 'sales.html#lciLeadMagnet',   roles: ['admin', 'leadership', 'sales'] },
     // cc-router.js — Command Centre (1)
     { key: 'overview', label: 'Overview', module: 'command', href: 'command-centre.html', roles: ['admin', 'leadership'] },
     // mr-router.js — Market Analytics (2) — added 18 Aug 2026, folded into

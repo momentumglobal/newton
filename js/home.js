@@ -61,8 +61,8 @@
         initSurveyWidget(user.email);
       }
 
-      // Survey closing notification — Admin and Leadership only (js/survey-widget.js)
-      if (['admin', 'leadership'].includes(role)) {
+      // Survey closing notification — engagementResults roles (js/survey-widget.js)
+      if (roleCan(role, 'engagementResults')) {
         await notifySurveyClosing();
       }
 

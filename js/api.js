@@ -1709,7 +1709,8 @@ async function getDepartments() {
 // N-281: resolved by resolveRoleFromAssignments() (utils.js), order-independent:
 // 1. Active admin row in UserAssignments (AssignedRole 'admin')
 // 2. LeadershipAccess list
-// 3. Highest DM / TP role in UserAssignments
+// 3. Highest other role in UserAssignments (N-331: an inactive people_ops /
+//    sales / staff row grants nothing)
 // 4. Fall back to 'viewer' (no row, or no recognised role)
 // ── No role cache (N-296 / SEC-2b) ───────────────────────────────────
 // Roles are NOT cached. sessionStorage is writable by the user and the build
@@ -1879,9 +1880,10 @@ async function getUserProjectIds(email) {
   // project (e.g. TP + DM-granted) must not get that project ID twice, or
   // every downstream per-project role fan-out doubles that project's roles.
   // N-281: admin rows (ProjectID 0) are never a project — an inactive one
-  // must not add "0" to the scope.
+  // must not add "0" to the scope. N-331: nor are people_ops / sales / staff
+  // rows (isOrgWideRole, utils.js).
   return [...new Set(assignments
-    .filter(a => a.AssignedRole !== 'admin')
+    .filter(a => !isOrgWideRole(a.AssignedRole))
     .map(a => String(a.ProjectID)))];
 }
 

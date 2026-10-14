@@ -43,7 +43,7 @@ function firstLine(str) {
 
 async function renderGPInvoices(pendingItem = null) {
   const main    = document.getElementById('main-content');
-  const canEdit = _resolvedRole === 'admin';
+  const canEdit = roleCan(_resolvedRole, 'peopleEdit');
   main.innerHTML = '<p>Loading invoices...</p>';
 
   const invoices = await getGPInvoices();

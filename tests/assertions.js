@@ -2225,6 +2225,75 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'N-331 internal-staff roles — precedence, labels, config cross-checks',
+    fn: function () {
+      _assertEqual(CONFIG.ROLE_PRECEDENCE,
+        ['admin', 'leadership', 'people_ops', 'sales', 'delivery_manager', 'talent_partner', 'staff', 'viewer'], 'AC1 precedence (N-326 D-7)');
+      const known = r => CONFIG.ROLE_PRECEDENCE.includes(r);
+      CONFIG.ROLE_PRECEDENCE.forEach(r => _assertEqual(typeof CONFIG.ROLE_LABELS[r], 'string', r + ' has a label'));
+      CONFIG.ASSIGNABLE_ROLES.forEach(r => _assertEqual(known(r), true, 'assignable ' + r + ' is a known role'));
+      CONFIG.ORG_WIDE_ROLES.forEach(r => _assertEqual(known(r), true, 'org-wide ' + r + ' is a known role'));
+      _assertEqual(CONFIG.ASSIGNABLE_ROLES.includes('leadership'), false, 'leadership is never assignable');
+      Object.keys(CONFIG.ROLE_CAPABILITIES).forEach(cap => {
+        CONFIG.ROLE_CAPABILITIES[cap].forEach(r => _assertEqual(known(r), true, cap + ' role ' + r + ' is known'));
+        _assertEqual(CONFIG.ROLE_CAPABILITIES[cap].includes('viewer'), false, cap + ' never grants viewer');
+        _assertEqual(CONFIG.ROLE_CAPABILITIES[cap].includes('staff'), false, cap + ' never grants staff');
+      });
+      CONFIG.OS_MODULES.concat(CONFIG.COMMAND_BAR_PAGES).forEach(m =>
+        m.roles.forEach(r => _assertEqual(known(r), true, m.key + ' role ' + r + ' is known')));
+      const mod = k => CONFIG.OS_MODULES.find(m => m.key === k).roles;
+      ['people_ops', 'sales', 'staff'].forEach(r => _assertEqual(mod('people').includes(r), true, 'People module has ' + r));
+      _assertEqual(mod('sales').includes('sales'), true, 'Sales module has sales');
+      ['people_ops', 'staff'].forEach(r => _assertEqual(mod('sales').includes(r), false, 'Sales module excludes ' + r));
+      ['reporting', 'marketing', 'command'].forEach(k => ['people_ops', 'sales', 'staff'].forEach(r =>
+        _assertEqual(mod(k).includes(r), false, k + ' excludes ' + r)));
+    },
+  },
+  {
+    name: 'N-331 roleCan / isOrgWideRole — capability table, fails closed',
+    fn: function () {
+      const roles = ['admin', 'leadership', 'people_ops', 'sales', 'delivery_manager', 'talent_partner', 'staff', 'viewer'];
+      const expect = {
+        peopleFull:        ['admin', 'leadership', 'people_ops'],
+        peopleEdit:        ['admin', 'people_ops'],
+        engagementResults: ['admin', 'leadership', 'people_ops'],
+        engagementAdmin:   ['admin', 'people_ops'],
+        salesManage:       ['admin', 'leadership', 'sales'],
+      };
+      _assertEqual(Object.keys(CONFIG.ROLE_CAPABILITIES).sort(), Object.keys(expect).sort(), 'capability set');
+      Object.keys(expect).forEach(cap => roles.forEach(r =>
+        _assertEqual(roleCan(r, cap), expect[cap].includes(r), 'roleCan(' + r + ', ' + cap + ')')));
+      _assertEqual(roleCan('admin', 'noSuchCap'), false, 'unknown cap');
+      _assertEqual(roleCan('superuser', 'peopleFull'), false, 'unknown role');
+      _assertEqual(roleCan(undefined, 'peopleFull'), false, 'undefined role');
+      _assertEqual(roleCan('admin', undefined), false, 'undefined cap');
+      _assertEqual(roleCan('admin', 'constructor'), false, 'prototype key is not a capability');
+      _assertEqual(roleCan('admin', 'peopleFull', {}), false, 'cfg without ROLE_CAPABILITIES');
+      _assertEqual(['admin', 'people_ops', 'sales', 'staff', 'leadership', 'delivery_manager', 'talent_partner', 'viewer', undefined].map(r => isOrgWideRole(r)),
+        [true, true, true, true, false, false, false, false, false], 'isOrgWideRole');
+    },
+  },
+  {
+    name: 'N-331 resolveRoleFromAssignments — internal-staff roles, inactive org-wide rows grant nothing',
+    fn: function () {
+      const R = (role, active) => (active === undefined ? { AssignedRole: role } : { AssignedRole: role, Active: active });
+      const res = resolveRoleFromAssignments;
+      _assertEqual(res([R('people_ops')], false), 'people_ops', 'people_ops alone');
+      _assertEqual(res([R('sales'), R('delivery_manager')], false), 'sales', 'sales outranks DM');
+      _assertEqual(res([R('talent_partner'), R('staff')], false), 'talent_partner', 'TP outranks staff');
+      _assertEqual(res([R('staff')], false), 'staff', 'staff alone');
+      _assertEqual(res([R('people_ops'), R('sales')], false), 'people_ops', 'people_ops then sales');
+      _assertEqual(res([R('sales'), R('people_ops')], false), 'people_ops', 'sales then people_ops');
+      _assertEqual(res([R('people_ops', false)], false), 'viewer', 'A-2 inactive people_ops grants nothing');
+      _assertEqual(res([R('sales', false), R('talent_partner')], false), 'talent_partner', 'A-2 inactive sales falls through to TP');
+      _assertEqual(res([R('staff', false)], false), 'viewer', 'A-2 inactive staff grants nothing');
+      _assertEqual(res([R('sales', true)], false), 'sales', 'Active true still grants');
+      _assertEqual(res([R('talent_partner', false)], false), 'talent_partner', 'N-233 TP still ignores Active');
+      _assertEqual(res([R('people_ops')], true), 'leadership', 'leadership outranks people_ops');
+      _assertEqual(res([R('sales'), R('admin')], false), 'admin', 'admin outranks sales');
+    },
+  },
+  {
     name: 'N-281 no hardcoded admin list, auto-registration, LastLogin or sync role helper left in js/',
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') {

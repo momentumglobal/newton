@@ -130,7 +130,7 @@ async function lciOpenSummary() {
 function _lciSettingsHtml() {
   const m = _lciEd.model;
   const role = _salesResolvedRole;
-  const canAssign = role === 'admin' || role === 'leadership';
+  const canAssign = roleCan(role, 'salesManage');
   const currencies = lciCurrencyOptions(CONFIG.COUNTRY_CURRENCY);
   const ccyOpts = sel => currencies.map(c => `<option value="${c}"${c === sel ? ' selected' : ''}>${c}</option>`).join('');
   const statusOpts = CONFIG.LCI.STATUSES.map(s => `<option value="${s}"${s === (m.Status || 'Draft') ? ' selected' : ''}>${s}</option>`).join('');

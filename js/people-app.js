@@ -32,10 +32,11 @@ window.PEOPLE_APP = {
     // Resolve full role (checks LeadershipAccess + UserAssignments)
     _resolvedRole = await getEffectiveRole(user.email);
 
-    // People module access: Admin, Leadership, Delivery Manager, and Talent
-    // Partner (TP sees only their own scorecard — scoped in renderScorecardsPage).
-    // Anyone else who lands here gets redirected to the Reporting module.
-    if (!['admin', 'leadership', 'delivery_manager', 'talent_partner'].includes(_resolvedRole)) {
+    // People module access comes from the page registry (people-router.js):
+    // a role that can open no People page is sent home. TP sees only their
+    // own scorecard — scoped in renderScorecardsPage. N-331: no role list here.
+    const landing = getPeopleLandingPage(_resolvedRole);
+    if (!landing) {
       window.location.href = 'index.html';
       return;
     }
@@ -45,7 +46,6 @@ window.PEOPLE_APP = {
 
         renderPeopleNav(_resolvedRole);
     initCommandBar({ currentModule: 'people', role: _resolvedRole, navigateFn: 'navigateToPeople' });
-    const landing = ['delivery_manager', 'talent_partner'].includes(_resolvedRole) ? 'scorecards' : 'peopleDashboard';
     if (!handlePeopleDeepLink()) navigateToPeople(landing);
   },
 

@@ -64,7 +64,7 @@ function _lciFilterOptions(models, field, selected) {
 
 function _renderLCIModelList(allModels, role) {
   const isAdmin = role === 'admin';
-  const canManage = role === 'admin' || role === 'leadership';
+  const canManage = roleCan(role, 'salesManage');
 
   // Apply filters (dropdown options always come from the full visible set)
   const f = _lciListFilters;
@@ -139,7 +139,7 @@ function _renderLCIModelList(allModels, role) {
 // ── New Model modal ──────────────────────────────────────────────────
 
 function _lciModelModal(role) {
-  const canAssign = role === 'admin' || role === 'leadership';
+  const canAssign = roleCan(role, 'salesManage');
   const currencies = lciCurrencyOptions(CONFIG.COUNTRY_CURRENCY);
   const ccyOptions = sel => currencies.map(c =>
     `<option value="${c}"${c === sel ? ' selected' : ''}>${c}</option>`).join('');

@@ -75,7 +75,7 @@ let _assignmentsSearch = '';
 async function renderEmployeeTracker(pendingItem = null) {
   const main = document.getElementById('main-content');
   const role = _resolvedRole;
-  if (!['admin','leadership'].includes(role)) {
+  if (!roleCan(role, 'peopleFull')) {
     main.innerHTML = '<p>Access denied.</p>';
     return;
   }
@@ -100,8 +100,8 @@ async function _switchPeopleTab(tab) {
 
 async function renderEmployeesTab(pendingItem = null) {
   const main     = document.getElementById('main-content');
-  const canEdit  = _resolvedRole === 'admin';
-  const canPayroll = ['admin','leadership'].includes(_resolvedRole);
+  const canEdit  = roleCan(_resolvedRole, 'peopleEdit');
+  const canPayroll = roleCan(_resolvedRole, 'peopleFull');
   // N-286: salary comes from the restricted PeoplePay list, fetched only for
   // payroll roles. Joined before the pending item is appended, so an
   // optimistic row keeps the Salary it was saved with.
@@ -221,7 +221,7 @@ async function setEmployeesSort(key) { _employeesSort = nextSortState(_employees
 
 async function renderAssignmentsTab(pendingItem = null) {
   const main    = document.getElementById('main-content');
-  const canEdit = _resolvedRole === 'admin';
+  const canEdit = roleCan(_resolvedRole, 'peopleEdit');
 
   const assignments = await getAssignments({});
 

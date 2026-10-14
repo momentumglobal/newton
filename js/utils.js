@@ -2451,11 +2451,13 @@ function isAdminAssignment(row) {
 // Effective role from a user's UserAssignments rows plus whether they are in
 // LeadershipAccess. Order-independent: precedence comes from
 // CONFIG.ROLE_PRECEDENCE, never from which row Graph returned first.
-//   admin row > leadership > highest DM/TP/viewer AssignedRole > 'viewer'.
+//   admin row > leadership > highest other AssignedRole > 'viewer'.
 // 'admin' and 'leadership' are never taken from a plain AssignedRole string
 // (an inactive admin row, or a typed 'leadership', grants nothing), and any
-// value not in CONFIG.ROLE_PRECEDENCE is ignored. Lower roles ignore Active
+// value not in CONFIG.ROLE_PRECEDENCE is ignored. DM/TP ignore Active
 // (bench TPs/DMs keep their role — see getEligibleRespondentCount, N-233).
+// N-331 (A-2): an inactive people_ops / sales / staff row grants nothing,
+// same as an inactive admin row — those roles carry Tier 2 access.
 function resolveRoleFromAssignments(rows, isLeadership) {
   const list = Array.isArray(rows) ? rows : [];
   if (list.some(isAdminAssignment)) return 'admin';
@@ -2465,6 +2467,7 @@ function resolveRoleFromAssignments(rows, isLeadership) {
   list.forEach(r => {
     const role = r && r.AssignedRole;
     if (role === 'admin' || role === 'leadership') return;
+    if (isOrgWideRole(role) && r.Active === false) return;   // N-331 (A-2)
     const i = order.indexOf(role);
     if (i !== -1 && i < best) best = i;
   });
@@ -2475,6 +2478,22 @@ function resolveRoleFromAssignments(rows, isLeadership) {
 // browser-writable cache (CONFIG.PRIVILEGED_ROLES: admin, leadership).
 function isPrivilegedRole(role) {
   return CONFIG.PRIVILEGED_ROLES.includes(role);
+}
+
+// N-331: pure. Roles whose UserAssignments row applies company-wide
+// (CONFIG.ORG_WIDE_ROLES): always ProjectID 0, never a project scope, and an
+// inactive row grants nothing.
+function isOrgWideRole(role, cfg = CONFIG) {
+  return Array.isArray(cfg.ORG_WIDE_ROLES) && cfg.ORG_WIDE_ROLES.includes(role);
+}
+
+// N-331: pure. Can `role` use capability `cap` (CONFIG.ROLE_CAPABILITIES)?
+// Every in-page "can this role do X" check goes through here, so a role's
+// reach is changed in config.js only. Unknown cap or role → false.
+function roleCan(role, cap, cfg = CONFIG) {
+  const caps = cfg && cfg.ROLE_CAPABILITIES;
+  const roles = caps && Object.prototype.hasOwnProperty.call(caps, cap) ? caps[cap] : null;
+  return Array.isArray(roles) && roles.includes(role);
 }
 
 // N-285: pure. Is this list named in CONFIG.RESTRICTED_LISTS?

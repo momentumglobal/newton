@@ -37,6 +37,15 @@ const tooltips = {
   `;
   lucide.createIcons();
 }
+// N-331: role <option>s from CONFIG.ASSIGNABLE_ROLES (order) and
+// CONFIG.ROLE_LABELS (text) — no role list in this file. With no `selected`
+// the browser shows the first entry (the Add form default).
+function _osaRoleOptions(selected) {
+  return CONFIG.ASSIGNABLE_ROLES.map(r =>
+    `<option value="${escAttr(r)}"${r === selected ? ' selected' : ''}>${escHtml(CONFIG.ROLE_LABELS[r] || r)}</option>`
+  ).join('');
+}
+
 // ── Assignments Tab ──────────────────────────────────────────────────
 async function buildAssignmentsTab(editId = null) {
   const [projects, assignments] = await Promise.all([
@@ -56,6 +65,8 @@ async function buildAssignmentsTab(editId = null) {
   // N-247c: search after the existing show-inactive filter, before the
   // pre-existing default order (kept as-is below); sortRows layers on top.
   const roleLabel = a => CONFIG.ROLE_LABELS[a.AssignedRole] || a.AssignedRole || ''; // N-281
+  // N-331: org-wide roles ignore Customer (saved with ProjectID 0).
+  const customerLabel = `Customer (not used for ${escHtml(CONFIG.ORG_WIDE_ROLES.map(r => CONFIG.ROLE_LABELS[r] || r).join(', '))})`;
   const searched = filterRowsByText(visibleAssignments, _osaSearch, a => [a.UserName, a.UserEmail, a.CustomerName, roleLabel(a)]);
   const OSA_SORT_COLUMNS = {
     name:     { type: 'text', get: a => a.UserName },
@@ -96,7 +107,7 @@ async function buildAssignmentsTab(editId = null) {
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Customer</label>
+          <label>${customerLabel}</label>
           <select id="assign-project">
             <option value="">-- Select customer --</option>
             ${projects.map(p => `
@@ -108,10 +119,7 @@ async function buildAssignmentsTab(editId = null) {
         <div class="form-group">
           <label>Role *</label>
           <select id="assign-role">
-            <option value="talent_partner" ${editRecord.AssignedRole === 'talent_partner' ? 'selected' : ''}>Talent Partner</option>
-            <option value="delivery_manager" ${editRecord.AssignedRole === 'delivery_manager' ? 'selected' : ''}>Delivery Manager</option>
-            <option value="viewer" ${editRecord.AssignedRole === 'viewer' ? 'selected' : ''}>Viewer</option>
-            <option value="admin" ${editRecord.AssignedRole === 'admin' ? 'selected' : ''}>Admin</option>
+            ${_osaRoleOptions(editRecord.AssignedRole)}
           </select>
         </div>
       </div>
@@ -136,7 +144,7 @@ async function buildAssignmentsTab(editId = null) {
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Customer</label>
+          <label>${customerLabel}</label>
           <select id="assign-project">
             <option value="">-- Select customer --</option>
             ${projectOptions}
@@ -145,10 +153,7 @@ async function buildAssignmentsTab(editId = null) {
         <div class="form-group">
           <label>Role *</label>
           <select id="assign-role">
-            <option value="talent_partner">Talent Partner</option>
-            <option value="delivery_manager">Delivery Manager</option>
-            <option value="viewer">Viewer</option>
-            <option value="admin">Admin</option>
+            ${_osaRoleOptions()}
           </select>
         </div>
       </div>
@@ -207,8 +212,9 @@ async function submitAssignment(editId = null) {
   const btn = document.getElementById('osa-submit-assignment') ||
               document.querySelector('.form-container .btn-primary');
   setButtonLoading(btn);
-  // N-281: an admin row applies across all projects — always ProjectID 0, no customer.
-  const [projectId, customerName] = role === 'admin' ? ['0', ''] : (projVal ? projVal.split('|') : ['0', '']);
+  // N-281: an admin row applies across all projects — always ProjectID 0, no
+  // customer. N-331: same for every org-wide role (people_ops / sales / staff).
+  const [projectId, customerName] = isOrgWideRole(role) ? ['0', ''] : (projVal ? projVal.split('|') : ['0', '']);
   try {
     if (editId) {
       await updateItem('UserAssignments', editId, {

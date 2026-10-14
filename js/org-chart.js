@@ -83,7 +83,7 @@ async function renderOrgChart() {
     <div class='page-header'>
       <h2>Org Chart</h2>
       <div style='display:flex;gap:8px'>
-        ${['admin','leadership'].includes(_resolvedRole)
+        ${roleCan(_resolvedRole, 'peopleFull')
           ? `<button class='btn-secondary'${act('showPlaceholderManager')}>+ Placeholders</button>
              <button class='btn-secondary'${act('showOrgChartEditForm')}>Edit reporting lines</button>` : ''}
         <button class='print-btn'${act('exportOrgChartPdf')}>⎙ Export PDF</button>

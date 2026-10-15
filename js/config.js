@@ -1110,9 +1110,10 @@ const CONFIG = {
     // stamps Created By on every SurveyResponses item. One source for the
     // wording shown to respondents. N-288 / N-299: any claim about who can
     // read responses must match the list permissions (Users see only their own
-    // rows; Leadership, Admins and site Owners read all). Re-check this copy
-    // and the people-user-guide.html FAQ if those permissions change.
-    CONFIRMATION_NOTE:     'Your response has been submitted. Your answers are confidential: only Leadership and Admins can read survey responses, and results are reported in aggregate.',
+    // rows; Leadership, People Ops (N-334), Admins and site Owners read all).
+    // Re-check this copy and the people-user-guide.html FAQ if those
+    // permissions change.
+    CONFIRMATION_NOTE:     'Your response has been submitted. Your answers are confidential: only Leadership, People Ops and Admins can read survey responses, and results are reported in aggregate.',
     WIDGET_DESC:           'Your quarterly pulse survey is open \u2014 your answers are confidential and it takes ~3 minutes to complete.',
     WIDGET_DESC_REMINDER:  'Still time to complete \u2014 your answers are confidential and it takes ~3 minutes.',
   },

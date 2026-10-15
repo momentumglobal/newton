@@ -83,7 +83,7 @@ var INLINE_STYLE_BASELINE = {
   'market-reporting-user-guide.html': 1,
   'mobile.html': 7,
   'people-user-guide.html': 6,
-  'sales-user-guide.html': 2,
+  'sales-user-guide.html': 1,
   'user-guide.html': 1
 };
 

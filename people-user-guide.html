@@ -29,6 +29,7 @@
       <li><a href="#export">Exporting to PDF</a></li>
       <li><div class="nav-section-label">Pages</div></li>
       <li><a href="#people-dashboard">People Dashboard</a></li>
+      <li><a href="#org-chart">Org Chart</a></li>
       <li><a href="#employee-tracker">Employee Tracker</a></li>
       <li><a href="#deployment-timeline">Deployment Timeline</a></li>
       <li><a href="#gp-invoices">Supplier Invoices</a></li>
@@ -43,7 +44,7 @@
       <h2>Frequently Asked Questions</h2>
       <div class="faq-item">
         <div class="faq-q">Who can access the People module?</div>
-        <div class="faq-a">Admin, Leadership and People Ops have full access to all pages. Sales &amp; Marketing and Staff see the Org Chart only (read-only) and land there. Delivery Managers can access the People module but are limited to the Scorecards page - they land there automatically on sign-in. Talent Partners do not have currently have access.</div>
+        <div class="faq-a">Admin, Leadership and People Ops have full access to all pages. Sales &amp; Marketing and Staff see the Org Chart only (read-only) and land there. Delivery Managers and Talent Partners can open Scorecards (a Delivery Manager sees the Talent Partners on their projects; a Talent Partner sees their own card only) and the Org Chart (read-only). They land on Scorecards when they open the module.</div>
       </div>
       <div class="faq-item">
         <div class="faq-q">How does utilisation get calculated?</div>
@@ -84,15 +85,17 @@
     </div>
     <div class="guide-section" id="roles">
       <h2>User Roles</h2>
-      <p>The People module is accessible to the roles below. Access level varies — Delivery Managers have limited access to the Scorecards page only, and Sales &amp; Marketing and Staff to the Org Chart only.</p>
+      <p>The People module is accessible to the roles below. Access level varies — Delivery Managers and Talent Partners have limited access (Scorecards and the Org Chart), and Sales &amp; Marketing and Staff the Org Chart only.</p>
       <h3><span class="role-badge admin">Admin</span></h3>
       <p>Full access to all People module pages. Can add, edit, and delete employees, assignments, and invoices. Sees all data across the entire workforce.</p>
       <h3><span class="role-badge leadership">Leadership</span></h3>
-      <p>Read-only access to all People module pages. Can view the dashboard, employee list, deployment timeline, and invoices but cannot add or edit any records.</p>
+      <p>Read-only access to all People module pages. Can view the dashboard, employee list, deployment timeline, and invoices. Cannot add or edit employees, assignments or invoices; can add Org Chart placeholders and edit non-leader reporting lines.</p>
       <h3><span class="role-badge leadership">People Ops</span></h3>
       <p>For the People function. Full access to all People module pages, like Leadership, and can also add and edit employees, assignments and invoices, and build, run and close Engagement surveys. Can't edit Leadership reporting lines on the Org Chart (Admin only).</p>
-      <h3><span class="role-badge" style="background:#e8f4fd;color:#0A0B44;">Delivery Manager</span></h3>
-      <p>Access to the Scorecards page only. Delivery Managers land directly on Scorecards when they open the People module — other pages are not visible to this role.</p>
+      <h3><span class="role-badge">Delivery Manager</span></h3>
+      <p>Scorecards (for the Talent Partners on their projects) and the Org Chart, read-only. Delivery Managers land directly on Scorecards when they open the People module — other pages are not visible to this role.</p>
+      <h3><span class="role-badge">Talent Partner</span></h3>
+      <p>Their own Scorecard and the Org Chart, read-only. Talent Partners land directly on Scorecards when they open the People module — other pages are not visible to this role.</p>
       <h3><span class="role-badge leadership">Sales &amp; Marketing · Staff</span></h3>
       <p>Org Chart only, read-only. They land on the Org Chart when they open the People module; other pages are not visible to these roles.</p>
     </div>
@@ -110,6 +113,7 @@
       <div class="role-badges">
         <span class="role-badge admin">Admin</span>
         <span class="role-badge leadership">Leadership</span>
+        <span class="role-badge leadership">People Ops</span>
       </div>
       <p>A real-time overview of workforce performance, utilisation, and revenue. The KPI strip is always fixed to current year YTD — the period filters below it control the three detail panels only.</p>
       <h3>KPI Strip</h3>
@@ -132,11 +136,44 @@
       <p>Lists any active employees with an end date in the next 60 days, sorted by nearest first.</p>
       <p>The Days Remaining cell is flagged: <strong>⚠</strong> within 30 days, <strong>!</strong> within 31–60 days.</p>
     </div>
+    <div class="guide-section" id="org-chart">
+      <h2>Org Chart</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">Leadership</span>
+        <span class="role-badge leadership">People Ops</span>
+        <span class="role-badge leadership">Sales &amp; Marketing</span>
+        <span class="role-badge">Delivery Manager</span>
+        <span class="role-badge">Talent Partner</span>
+        <span class="role-badge leadership">Staff</span>
+      </div>
+      <p>A line-and-box chart of how Momentum is organised, built from the People list, Assignments and Leadership access. Everyone who can open the People module can read it. It shows current assignments only, so it always reflects today.</p>
+      <h3>Reading the chart</h3>
+      <p>The chart runs top-down: <strong>Leadership</strong> &rarr; <strong>CSD</strong> &rarr; <strong>project</strong> &rarr; the people on that project. Project boxes are colour coded by project type, as on the Deployment Timeline. Internal staff (Marketing, Sales, Internal TA, Operations and People) sit under the leader they report to, grouped into a box per function, and show their function instead of a level.</p>
+      <p>Below the chart, up to three panels collect anyone or anything that does not fit the tree:</p>
+      <ul>
+        <li><strong>Unassigned projects</strong> &mdash; projects with no CSD owner yet.</li>
+        <li><strong>Internal &mdash; no reporting line</strong> &mdash; internal staff who have not been given a leader.</li>
+        <li><strong>Unassigned</strong> &mdash; the bench: deployable people with no current customer assignment (or only a bench one). CSDs, internal staff and placeholders never appear here.</li>
+      </ul>
+      <h3>To be hired</h3>
+      <p>A vacancy is shown as a dashed box labelled <strong>To be hired</strong> in place of a location. Placeholders appear on the chart only &mdash; they do not count towards utilisation, the bench or the Deployment Timeline.</p>
+      <h3>Exporting</h3>
+      <p>Use <strong>&#9114; Export PDF</strong> to print the chart. It is scaled to fit one landscape A4 page and titled with the current month and year.</p>
+      <h3>Placeholders and reporting lines</h3>
+      <p>Admin, Leadership and People Ops see two extra buttons. Delivery Managers, Talent Partners, Sales &amp; Marketing and Staff see the chart read-only.</p>
+      <ul>
+        <li><strong>+ Placeholders</strong> &mdash; add, edit or remove a "To be hired" box. Give it a name, a level (an SDM sits directly under the team box; STP and TP report into the SDM) and a team. Pick an existing project, or choose <em>new team</em>, give it a name and choose its CSD owner.</li>
+        <li><strong>Edit reporting lines</strong> &mdash; set the CSD owner of each project (including LCI-only projects), and who each CSD and internal person reports to. Changes save together with <strong>Save changes</strong>.</li>
+      </ul>
+      <div class="tip">Leadership &ldquo;Reports to&rdquo; rows in <strong>Edit reporting lines</strong> can only be changed by an Admin. Leadership and People Ops can still edit everything else on that screen.</div>
+    </div>
     <div class="guide-section" id="employee-tracker">
       <h2>Employee Tracker</h2>
       <div class="role-badges">
         <span class="role-badge admin">Admin</span>
         <span class="role-badge leadership">Leadership</span>
+        <span class="role-badge leadership">People Ops</span>
       </div>
       <p>A two-tab view of the workforce — employees and their assignments. Use the tab bar at the top to switch between the two views.</p>
       <h3>Employees tab</h3>
@@ -160,6 +197,7 @@
       <div class="role-badges">
         <span class="role-badge admin">Admin</span>
         <span class="role-badge leadership">Leadership</span>
+        <span class="role-badge leadership">People Ops</span>
       </div>
       <p>A read-only Gantt-style view of all employee assignments across a calendar year. Use the <strong>Year</strong> selector at the top right to switch between years.</p>
       <h3>Reading the timeline</h3>
@@ -181,6 +219,7 @@
       <div class="role-badges">
         <span class="role-badge admin">Admin</span>
         <span class="role-badge leadership">Leadership</span>
+        <span class="role-badge leadership">People Ops</span>
       </div>
       <p>Tracks invoices issued through different supplier arrangements. Each invoice is logged with its number, dates, amount, notes, and payment status.</p>
       <h3>Summary bar</h3>
@@ -196,9 +235,11 @@
       <div class="role-badges">
         <span class="role-badge admin">Admin</span>
         <span class="role-badge leadership">Leadership</span>
-        <span class="role-badge" style="background:#e8f4fd;color:#0A0B44;">Delivery Manager</span>
+        <span class="role-badge leadership">People Ops</span>
+        <span class="role-badge">Delivery Manager</span>
+        <span class="role-badge">Talent Partner</span>
       </div>
-      <p>The Scorecards page provides activity analytics and performance benchmarking for each Talent Partner. It is the only People module page accessible to Delivery Managers.</p>
+      <p>The Scorecards page provides activity analytics and performance benchmarking for each Talent Partner. Delivery Managers and Talent Partners can open it, plus the Org Chart, but no other People module page. Delivery Managers see the Talent Partners on their projects; a Talent Partner sees only their own card.</p>
       <h3>What the scorecards show</h3>
       <p>Each Talent Partner is shown as a card displaying a rolling quarterly view of their pipeline activity and funnel conversion metrics across all roles. This gives a consistent, comparable picture of performance — how much activity is being generated, and how effectively it is converting through the funnel.</p>
       <h3>Benchmarking</h3>
@@ -211,6 +252,7 @@
       <div class="role-badges">
         <span class="role-badge admin">Admin</span>
         <span class="role-badge leadership">Leadership</span>
+        <span class="role-badge leadership">People Ops</span>
       </div>
       <p>The Engagement page is where Admins and People Ops build and manage quarterly pulse surveys, and where Admins, Leadership and People Ops view the results. Survey responses are confidential — see the FAQ for details.</p>
       <h3>Survey Template</h3>

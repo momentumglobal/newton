@@ -187,8 +187,8 @@
         <tr><td><span class="badge badge-leadership">leadership</span></td><td>LeadershipAccess list</td><td>Read-only access to Company Dashboard (Reporting), People module, Sales module, and MG Command Centre.</td></tr>
         <tr><td><span class="badge badge-leadership">people_ops</span></td><td>UserAssignments (AssignedRole='people_ops', active row, ProjectID 0)</td><td>People-function staff (N-331). Full People module like Leadership plus admin People powers: add/edit employees, assignments and invoices; Engagement Activate Run, Manage Template, Close Run. Org Chart leader rows stay admin-only. No other module.</td></tr>
         <tr><td><span class="badge badge-leadership">sales</span></td><td>UserAssignments (AssignedRole='sales', active row, ProjectID 0)</td><td>Sales and Marketing staff (N-331). Full Sales module like Leadership (all LCI models, edit; no delete) plus the People module's Org Chart (read-only).</td></tr>
-        <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module and Market Analytics. Limited access to People module — Scorecards page only — and to the Sales module — LCI Cost Models only (scoped to models assigned to them).</td></tr>
-        <tr><td><span class="badge badge-tp">talent_partner</span></td><td>UserAssignments list</td><td>Access to assigned project in Reporting module. Scoped to own activity and roles.</td></tr>
+        <tr><td><span class="badge badge-dm">delivery_manager</span></td><td>UserAssignments list</td><td>Access to scoped projects in Reporting module and Market Analytics. Limited access to People module — Scorecards and the Org Chart (read-only) — and to the Sales module — LCI Cost Models only (scoped to models assigned to them).</td></tr>
+        <tr><td><span class="badge badge-tp">talent_partner</span></td><td>UserAssignments list</td><td>Access to assigned project in Reporting module and Market Analytics. In the People module: own Scorecard and the Org Chart (read-only). Scoped to own activity and roles.</td></tr>
         <tr><td><span class="badge badge-dm">staff</span></td><td>UserAssignments (AssignedRole='staff', active row, ProjectID 0)</td><td>Operations staff (N-331). People module Org Chart only (read-only).</td></tr>
         <tr><td><span class="badge badge-viewer">viewer</span></td><td>Fallback</td><td>No UserAssignments row (or no recognised role). No module access — the home page shows "No access yet". Nobody is registered automatically (N-281); an admin adds them. Guests can't sign in at all: only enabled member accounts are in the dynamic <strong>Newton Users</strong> Entra group (N-291).</td></tr>
       </table>
@@ -201,15 +201,16 @@
         <tr><td>Report Library</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
         <tr><td>Projects</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
         <tr><td>Roles</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
-        <tr><td>Weekly Activity</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Weekly Activity</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
         <tr><td>Placements</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
         <tr><td>Rejected Offers</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+        <tr><td>Hiring Plan†</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
         <tr><td>Config Panel</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Market Analytics — Market Report Builder</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
         <tr><td>Market Analytics — Placement Analytics</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
         <tr><td>People module (full)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>People — add/edit employees, assignments, invoices</td><td>✓</td><td>—</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-        <tr><td>People module (Scorecards only)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>People — Scorecards only (DM: their Talent Partners' cards · TP: own card)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
         <tr><td>People — Org Chart (read)</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
         <tr><td>Engagement (results + export)</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Engagement (Activate Run, Manage Template, Close Run)</td><td>✓</td><td>—</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
@@ -220,7 +221,7 @@
         <tr><td>MG Command Centre</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
         <tr><td>Newton OS Admin</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
       </table>
-      <p style="font-size:13px;color:#555">* Delivery Managers see only LCI Cost Models assigned to them (matched on the model's Assigned DM email); Revenue Tracking and Sales Forecast stay Admin/Leadership.</p>
+      <p style="font-size:13px;color:#555">* Delivery Managers see only LCI Cost Models assigned to them (matched on the model's Assigned DM email); Revenue Tracking and Sales Forecast stay Admin/Leadership. † Hiring Plan only appears for CoE projects (<code>ProjectType = CoE</code>).</p>
       <p><strong>Internal (non-deployable) staff</strong> — Marketing, Sales, Internal TA, Operations and People staff on the People list (N-304; the list is <code>CONFIG.INTERNAL_FUNCTIONS</code>) — get access through a role per function (N-326 / N-331): People → <code>people_ops</code>, Sales and Marketing → <code>sales</code>, Operations → <code>staff</code>. An admin adds one UserAssignments row per person (Customer is ignored; saved with ProjectID 0). People Ops also need the <em>Newton People</em> SharePoint group and Sales &amp; Marketing the <em>Newton Sales</em> group (N-334) — without it their pages load empty, never more. Newton People has <strong>read-only</strong> access to SalesForecasts, for the People Dashboard's sales-forecast utilisation line (N-334). Staff and Internal TA need only the row. Joiner steps: see "Internal staff joiner" below "Adding a Newton user". The role is <strong>not</strong> derived from <code>People.StaffFunction</code>. Desktop only: the mobile view shows "Access Restricted".</p>
       <p><strong>Internal TA</strong> staff are ordinary <code>talent_partner</code> rows on the <strong>Momentum Global (Internal)</strong> project (<code>Projects.ProjectType = 'Internal'</code>, N-333). They see that project like any TP sees theirs (including mobile and Market Analytics); its data is excluded from every client KPI.</p>
 

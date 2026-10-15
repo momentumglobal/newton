@@ -82,7 +82,7 @@ var INLINE_STYLE_BASELINE = {
   'js/utils.js': 2,
   'market-reporting-user-guide.html': 1,
   'mobile.html': 7,
-  'people-user-guide.html': 8,
+  'people-user-guide.html': 6,
   'sales-user-guide.html': 2,
   'user-guide.html': 1
 };

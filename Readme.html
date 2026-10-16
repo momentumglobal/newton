@@ -1051,6 +1051,15 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Placements — Talent Partners see only placements logged under their name (N-341)</div>
+        <ul>
+          <li>The Talent Partner view of Placements is now scoped by <code>Placements.TalentPartner</code> — the TP the placement is logged against (the <em>Record placement as</em> pick for Admin/DM, or the TP's own email) — instead of the linked Role's TP list. Before, a TP saw every placement on every pipeline they were listed on, including ones logged for another TP. Applies in ghost mode too (<code>getScopedUserEmail()</code>).</li>
+          <li>Supersedes N-207's Role-TP rule for Placements only. A placement with no Talent Partner recorded (older rows) is hidden from TPs and still shown to Admin and DM. Rejected Offers keeps the Role-TP rule — it has no Talent Partner column of its own. Project scoping is unchanged; the "Showing X of Y" count now counts only the TP's own placements.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
         <div class="changelog-title">Placements — Talent Partner column for Admin and Delivery Manager (N-340)</div>
         <ul>
           <li>The Placements table gains a sortable, searchable <strong>Talent Partner</strong> column as the last data column, before Edit. It shows <code>Placements.TalentPartner</code> — the TP the placement is logged against (the <em>Record placement as</em> pick for Admin/DM; a Talent Partner's own email otherwise) — not the Role's TP list that scopes the TP view (N-207), so an Admin or DM is never credited unless they place themselves.</li>

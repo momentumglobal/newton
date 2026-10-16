@@ -898,11 +898,11 @@ async function renderPlacementsPage(pendingItem = null) {
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
   );
-  // N-207: scope Placements by the linked Role's TalentPartner (not
-  // Placements' own TalentPartner column) — see spec N-207.md for why: the
-  // Rejected Offers page below has no TalentPartner column of its own and
-  // must use the Role's, so both pages use the same source for consistency.
-  const roleTpMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.TalentPartner]));
+  // N-341: a Talent Partner sees only placements logged under their name —
+  // Placements.TalentPartner, the "Record placement as" value (filter below).
+  // N-207 used the linked Role's TalentPartner so this page and Rejected
+  // Offers (no TalentPartner column of its own) shared one rule; Rejected
+  // Offers still does.
   const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
   // N-218a: splice the not-yet-created row in before sort/scope, exactly
   // like a real fetched row -- it only shows up below if it actually
@@ -920,15 +920,14 @@ async function renderPlacementsPage(pendingItem = null) {
         return userProjectIds.includes(roleProjectMap[rid]);
       })
     : allPlacements;
-  // N-207: also scope to the TP's own placements, via the linked Role's
-  // TalentPartner (tpMatches handles a multi-TP role) — folded into
-  // scopedPlacements itself, before it, so the N-151 "Showing X of Y"
-  // denominator below already reflects it.
+  // N-341: also scope to the placements logged under this TP's name
+  // (Placements.TalentPartner; tpMatches lower-cases both sides and a blank
+  // value never matches) — folded into scopedPlacements itself, so the N-151
+  // "Showing X of Y" denominator below already reflects it. getScopedUserEmail()
+  // keeps this correct under ghost mode.
   if (_resolvedRole === 'talent_partner') {
-    scopedPlacements = scopedPlacements.filter(p => {
-      const rid = String(p.RoleIDLookupId || p.RoleID || '');
-      return tpMatches(roleTpMap[rid], getScopedUserEmail());
-    });
+    scopedPlacements = scopedPlacements.filter(p =>
+      tpMatches(p.TalentPartner, getScopedUserEmail()));
   }
   let placements = scopedPlacements.filter(p => placementInFilter(p, _placementFilter));
   if (canFilter && _placementProjectId) {

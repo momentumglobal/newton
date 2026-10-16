@@ -121,7 +121,10 @@ function activityRowHtml(a, { roleMap, tpMap, canEdit, pending = false } = {}) {
         `;
 }
 
-function placementRowHtml(p, { roleMap, canEdit, pending = false } = {}) {
+// N-340: showTp (Admin / Delivery Manager only) adds the Talent Partner cell —
+// Placements.TalentPartner, the TP the placement is logged against — as the
+// last data cell, before the Edit cell. tpMap is email -> display name.
+function placementRowHtml(p, { roleMap, canEdit, showTp = false, tpMap = {}, pending = false } = {}) {
   return `
           <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ""}>
             <td>${escHtml(p.CandidateName)}</td>
@@ -130,6 +133,7 @@ function placementRowHtml(p, { roleMap, canEdit, pending = false } = {}) {
             <td>${spDateIn(p.OfferAcceptedDate) || "—"}</td>
             <td>${spDateIn(p.ProvisionalStartDate) || "—"}</td>
             <td>${p.TimeToHire != null ? p.TimeToHire + " days" : "—"}</td>
+            ${showTp ? `<td>${escHtml(tpDisplay(p.TalentPartner, tpMap))}</td>` : ""}
             ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditPlacementForm', Number(p.id))}>Edit</a></div></td>`) : ""}
           </tr>
         `;
@@ -875,7 +879,12 @@ async function renderPlacementsPage(pendingItem = null) {
   main.innerHTML = skeletonTable(6, 6);
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
-  let [allPlacements, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
+  // N-340: the Talent Partner column is for Admin and Delivery Manager only —
+  // a Talent Partner can only see their own placements. Allow-list on
+  // _resolvedRole (not `!== 'talent_partner'`) so Admin ghost-mode-as-a-TP
+  // sees exactly what that TP sees.
+  const showTp = _resolvedRole === 'admin' || _resolvedRole === 'delivery_manager';
+  let [allPlacements, allRoles, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
     // N-093 / N-151: the query is bounded by the background date window and,
     // when one is active, by the month/quarter/year selection — whichever is
     // LOOSER (see listQueryFromDay). placementInFilter() below still applies
@@ -884,6 +893,7 @@ async function renderPlacementsPage(pendingItem = null) {
       weeksAgoDay(_placementWeeks), placementFilterCutoff(_placementFilter)) }),
     getRolesForUser(user.email),
     getProjectFilterOptions(),
+    showTp ? getTalentPartnerDisplayMap() : Promise.resolve({}),
   ]);
   const roleProjectMap = Object.fromEntries(
     allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
@@ -932,6 +942,8 @@ async function renderPlacementsPage(pendingItem = null) {
   placements = filterRowsByText(placements, _placementSearch, p => [
     p.CandidateName,
     roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '',
+    // N-340: gated, so the TP view's search surface is unchanged.
+    showTp && tpList(p.TalentPartner).length ? tpDisplay(p.TalentPartner, tpMap) : '',
   ]);
   // N-247b: the user's column sort goes ON TOP of the default
   // OfferAcceptedDate-desc order above. sortRows is stable, so ties keep
@@ -943,6 +955,8 @@ async function renderPlacementsPage(pendingItem = null) {
     offerAccepted: { type: 'date',   get: p => p.OfferAcceptedDate },
     startDate:     { type: 'date',   get: p => p.ProvisionalStartDate },
     timeToHire:    { type: 'number', get: p => p.TimeToHire },
+    // N-340: only reachable from the header, which only Admin/DM are given.
+    talentPartner: { type: 'text',   get: p => tpList(p.TalentPartner).length ? tpDisplay(p.TalentPartner, tpMap) : '' },
   };
   placements = sortRows(placements, _placementSort, PLACEMENT_SORT_COLUMNS);
   const role    = _resolvedRole;
@@ -1000,16 +1014,18 @@ async function renderPlacementsPage(pendingItem = null) {
         ${sortableHeader('Offer Accepted', 'offerAccepted', _placementSort, 'setPlacementSort')}
         ${sortableHeader('Start Date', 'startDate', _placementSort, 'setPlacementSort')}
         ${sortableHeader('Time to Hire', 'timeToHire', _placementSort, 'setPlacementSort')}
+        ${showTp ? sortableHeader('Talent Partner', 'talentPartner', _placementSort, 'setPlacementSort') : ""}
         ${canEdit ? "<th></th>" : ""}
       </tr></thead>
       <tbody>
-        <tbody>
         ${pagedPlacements.length ? pagedPlacements.map(p => placementRowHtml(p, {
           roleMap,
           canEdit,
+          showTp,
+          tpMap,
           pending: pendingItem ? p.id === pendingItem.id : false,
         })).join("") : emptyStateRow({
-          colspan: canEdit ? 7 : 6,
+          colspan: 6 + (showTp ? 1 : 0) + (canEdit ? 1 : 0),
           icon: "user-check",
           message: placementsEmptyMsg,
           actionLabel: canEdit ? "+ Record Placement" : "",

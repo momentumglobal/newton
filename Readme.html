@@ -1051,6 +1051,15 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Placements — Talent Partner column for Admin and Delivery Manager (N-340)</div>
+        <ul>
+          <li>The Placements table gains a sortable, searchable <strong>Talent Partner</strong> column as the last data column, before Edit. It shows <code>Placements.TalentPartner</code> — the TP the placement is logged against (the <em>Record placement as</em> pick for Admin/DM; a Talent Partner's own email otherwise) — not the Role's TP list that scopes the TP view (N-207), so an Admin or DM is never credited unless they place themselves.</li>
+          <li>Shown only when <code>_resolvedRole</code> is <code>admin</code> or <code>delivery_manager</code> (<code>showTp</code>, pages.js), so ghost mode as a TP hides it. Table is 8 columns for Admin/DM, 7 for TP. Names resolve through <code>getTalentPartnerDisplayMap()</code> (email fallback, "—" when blank); the map is fetched only when the column is shown.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
         <div class="changelog-title">Internal staff access — SharePoint groups (N-334)</div>
         <ul>
           <li>Two new SharePoint groups, set up before the first internal joiner: <em>Newton People</em> (People Ops — People, Assignments, PeoplePhotos, PeoplePay, PayrollSummaries, GPInvoices + GP invoice library, survey admin lists, Manage Lists on survey responses, read-only SalesForecasts) and <em>Newton Sales</em> (Sales &amp; Marketing — SalesForecasts, LCILocations).</li>

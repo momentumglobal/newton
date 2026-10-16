@@ -389,10 +389,14 @@ function computeFunnelScorecard(activity, placements, benchmarks) {
   const sub  = sumField(activity, 'Submitted');
   const iv1  = sumField(activity, 'Interview1');
   const off  = sumField(activity, 'Offers');
+  // N-342: `hir` (Weekly Activity, self-reported) feeds Offer success ONLY —
+  // the same rule as the dashboards since N-310. The Hires row below counts
+  // placements, so it agrees with the Placements table.
   const hir  = sumField(activity, 'Hires');
 
   // N-309: one row per filled headcount — a TP's own fills (D-7), or (N-336)
-  // the fills on a project's pipelines.
+  // the fills on a project's pipelines. N-342: the Hires row is that row count.
+  const hires   = (placements || []).length;
   const avgDays = avgTimeToHireDays(placements);
   const avgTTF  = avgDays === null ? null : Math.round(avgDays);
 
@@ -401,7 +405,7 @@ function computeFunnelScorecard(activity, placements, benchmarks) {
       { label: 'Submission conversion', value: pct(iv1, sub),  unit: '%',     rag: rag(pct(iv1, sub),   benchmarks.submissionConversion) },
       { label: 'Interview-to-offer',    value: iv1 > 0 && off > 0 ? +(iv1 / off).toFixed(1) : null, unit: ':1', rag: iv1 > 0 && off > 0 ? (iv1 / off <= 7 ? 'green' : iv1 / off <= 10 ? 'amber' : 'red') : 'grey' },
       { label: 'Offer success',         value: pct(hir, off),  unit: '%',     rag: rag(pct(hir, off),   benchmarks.offerSuccess) },
-      { label: 'Hires',                 value: hir,            unit: 'hires', rag: 'grey', informational: true },
+      { label: 'Hires',                 value: hires,          unit: 'hires', rag: 'grey', informational: true },
       { label: 'Avg time to hire',      value: avgTTF,         unit: 'days',  rag: rag(avgTTF,          benchmarks.timeToHireDays, true) },
   ];
 }
@@ -1020,15 +1024,14 @@ function buildProjectScorecards({ customers, roles, projectMap, activity52, plac
   const roleIndex  = funnelRoleIndex(allRoles, 'Department', 'Location');
   const obs        = buildFunnelObservations(activity52, roleIndex);
   const windowActs = activitySinceWeeks(activity52, weeks, today);
-  const fromDay    = weeksAgoDay(weeks, today);
 
   const cards = (customers || []).map(customer => {
     const projRoles = allRoles.filter(r => customerOf(r) === customer);
     const ids       = new Set(projRoles.map(r => String(r.id)));
     const open      = projRoles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
     const acts      = windowActs.filter(a => ids.has(String(a.RoleIDLookupId || a.RoleID || '')));
-    const hires     = (placements || []).filter(p => p && ids.has(String(p.id)) && p.placementDate &&
-      (!fromDay || spDateIn(p.placementDate) >= fromDay));
+    const hires     = placementsSinceWeeks(placements, weeks, today)
+      .filter(p => p && p.placementDate && ids.has(String(p.id)));
     const bench     = learnFunnelBenchmarksMix(obs, buildFunnelObservations(acts, roleIndex),
       { exclude: o => ids.has(o.roleId) });
     const metrics   = scorecardMetricTips(computeFunnelScorecard(acts, hires, bench), bench, 'this project hires in')

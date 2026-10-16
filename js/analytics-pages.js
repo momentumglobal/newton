@@ -61,12 +61,9 @@ async function renderScorecardsPage() {
   const benchObs  = buildFunnelObservations(clientActivity52, roleIndex);
 
   // Filter historical to last 13 weeks — one row per fill, credited to the
-  // TP who made the placement (N-309, D-7).
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 91);
-  const recentPlacements = historical.filter(r =>
-    r.placementDate && new Date(r.placementDate) >= cutoff
-  );
+  // TP who made the placement (N-309, D-7). N-342: whole days, one shared
+  // rule (placementsSinceWeeks, utils.js); the Hires row counts these rows.
+  const recentPlacements = placementsSinceWeeks(historical, 13);
 
   const cards = tpEmails.map(tpEmail => {
     const tpActivity   = activityRaw.filter(a => a.TalentPartner === tpEmail);

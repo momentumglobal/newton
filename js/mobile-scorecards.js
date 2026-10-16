@@ -83,10 +83,8 @@ async function mobileRenderScorecards(main) {
     const { activity: clientActivity52 } = excludeInternalProjectData(
       { activity: activity52 }, { projects: allProjects, roles: allRoles });
     const benchObs  = buildFunnelObservations(clientActivity52, roleIndex);
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 91);
-    const recentPlacements = historical.filter(r =>
-      r.placementDate && new Date(r.placementDate) >= cutoff);
+    // N-342: same shared day-based rule as the desktop page.
+    const recentPlacements = placementsSinceWeeks(historical, 13);
 
     // Build one card per TP.
     _mScCards = tpEmails.map(tpEmail => {

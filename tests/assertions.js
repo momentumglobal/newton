@@ -676,7 +676,7 @@ var ASSERTIONS = [
           { label: 'Submission conversion', value: 50, unit: '%', rag: 'green' },
           { label: 'Interview-to-offer', value: 2, unit: ':1', rag: 'green' },
           { label: 'Offer success', value: 40, unit: '%', rag: 'green' },
-          { label: 'Hires', value: 2, unit: 'hires', rag: 'grey', informational: true },
+          { label: 'Hires', value: 1, unit: 'hires', rag: 'grey', informational: true },
           { label: 'Avg time to hire', value: 45, unit: 'days', rag: 'green' },
         ],
       }, 'computeVelocityScore');
@@ -5344,6 +5344,59 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'N-342: computeFunnelScorecard — Hires row counts placements, not Weekly Activity hires; Offer success still uses activity',
+    fn: function () {
+      const { activity, placements, benchmarks } = FIXTURES.analytics2.velocity;   // activity Hires 2, one placement
+      const get = (rows, label) => rows.find(m => m.label === label).value;
+      const rows = computeFunnelScorecard(activity, placements, benchmarks);
+      _assertEqual(get(rows, 'Hires'), 1, 'one placement, not the 2 typed into Weekly Activity');
+      _assertEqual(get(rows, 'Offer success'), 40, 'Offer success stays activity Hires / Offers (2 / 5)');
+      _assertEqual(get(computeFunnelScorecard(activity, [placements[0], placements[0], placements[0]], benchmarks), 'Hires'), 3, 'control: more placements, more hires');
+      _assertEqual(get(computeFunnelScorecard(activity, [], benchmarks), 'Hires'), 0, 'no placements, no hires');
+      _assertEqual(get(computeFunnelScorecard(activity, null, benchmarks), 'Hires'), 0, 'null placements, no hires');
+    },
+  },
+  {
+    name: 'N-342: placementsSinceWeeks — whole-day window, exact 13-week boundary included, blank date dropped, weeks 0 = all, input not mutated',
+    fn: function () {
+      const today  = new Date(2026, 9, 16, 17, 30);   // late in the day: the old time-of-day cut dropped the boundary row
+      const dayAgo = n => { const d = new Date(today); d.setDate(d.getDate() - n); return localDayISO(d); };
+      const rows = [
+        { id: 1, placementDate: dayAgo(91) + 'T00:00:00Z' },   // exactly 13 weeks ago
+        { id: 2, placementDate: dayAgo(92) + 'T00:00:00Z' },   // one day too old
+        { id: 3, placementDate: dayAgo(10) + 'T00:00:00Z' },
+        { id: 4, placementDate: null },
+      ];
+      const before = JSON.stringify(rows);
+      _assertEqual(placementsSinceWeeks(rows, 13, today).map(r => r.id), [1, 3], '13 weeks: boundary day in, 92 days out, blank date out');
+      _assertEqual(placementsSinceWeeks(rows, 4, today).map(r => r.id), [3], '4 weeks');
+      _assertEqual(placementsSinceWeeks(rows, 0, today).length, 4, 'weeks 0 = no window, every row');
+      _assertEqual(placementsSinceWeeks(null, 13, today), [], 'null input');
+      _assertEqual(JSON.stringify(rows), before, 'input not mutated');
+      const oldCutoff = new Date(today); oldCutoff.setDate(oldCutoff.getDate() - 91);
+      _assertEqual(new Date(rows[0].placementDate) >= oldCutoff, false, 'control: the old Date compare dropped the boundary row');
+    },
+  },
+  {
+    name: 'N-342: scorecard Hires for a TP = placement rows credited to them in the 13-week window (case-insensitive; other TPs and old rows excluded)',
+    fn: function () {
+      const today  = new Date(2026, 9, 16, 17, 30);
+      const dayAgo = n => { const d = new Date(today); d.setDate(d.getDate() - n); return localDayISO(d); };
+      const hist = [
+        { tpEmail: 'a@x.com', openDate: dayAgo(60),  placementDate: dayAgo(5)  + 'T00:00:00Z' },
+        { tpEmail: 'A@X.com', openDate: dayAgo(120), placementDate: dayAgo(91) + 'T00:00:00Z' },
+        { tpEmail: 'b@x.com', openDate: dayAgo(40),  placementDate: dayAgo(5)  + 'T00:00:00Z' },
+        { tpEmail: 'a@x.com', openDate: dayAgo(200), placementDate: dayAgo(100) + 'T00:00:00Z' },
+        { tpEmail: '',        openDate: dayAgo(40),  placementDate: dayAgo(5)  + 'T00:00:00Z' },
+      ];
+      const { benchmarks } = FIXTURES.analytics2.velocity;
+      const mine = placementsSinceWeeks(hist, 13, today).filter(r => tpMatches(r.tpEmail, 'a@x.com'));
+      const hires = rows => rows.find(m => m.label === 'Hires').value;
+      _assertEqual(hires(computeFunnelScorecard([{ Hires: 9 }], mine, benchmarks)), 2, 'a@x.com: two in window (case-insensitive), activity Hires 9 ignored');
+      _assertEqual(hires(computeFunnelScorecard([], placementsSinceWeeks(hist, 13, today).filter(r => tpMatches(r.tpEmail, 'b@x.com')), benchmarks)), 1, 'b@x.com: one');
+    },
+  },
+  {
     name: 'N-336: scorecardMetricTips — tips only on the three benchmarked rows; none without bench; inputs not mutated; mixOwner wording',
     fn: function () {
       const { tpEmail, activity, placements, benchmarks } = FIXTURES.analytics2.velocity;
@@ -5397,8 +5450,8 @@ var ASSERTIONS = [
       _assertEqual(m4.map(c => c.customer), ['Beta', 'Cobalt', 'Acme'], 'sort: flagged, then behind, then name');
       _assertEqual(by(m4, 'Acme').metrics.map(m => m.label),
         ['Submission conversion', 'Interview-to-offer', 'Offer success', 'Hires', 'Avg time to hire'], 'no Outreach row');
-      _assertEqual(val(by(m4, 'Acme'), 'Hires'), 2, '4w hires include the closed pipeline');
-      _assertEqual(val(by(m13, 'Acme'), 'Hires'), 3, '13w adds the older row');
+      _assertEqual(val(by(m4, 'Acme'), 'Hires'), 1, '4w hires = placements in the window (N-342), not Weekly Activity hires');
+      _assertEqual(val(by(m13, 'Acme'), 'Hires'), 2, '13w adds the older placement (activity hires would say 3)');
       _assertEqual(val(by(m4, 'Acme'), 'Avg time to hire'), 30, '4w: only the in-window placement');
       _assertEqual(val(by(m13, 'Acme'), 'Avg time to hire'), 60, '13w: both placements');
       _assertEqual(by(m4, 'Acme').roleHealth.total, 1, 'x/y over open pipelines only');

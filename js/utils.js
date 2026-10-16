@@ -734,6 +734,23 @@ function activitySinceWeeks(acts, weeks, today = new Date()) {
   });
 }
 
+// N-342: the getHistoricalPlacements() rows whose placementDate (Offer
+// Accepted) falls on/after the day `weeks` weeks ago — the placements twin of
+// activitySinceWeeks, so People Scorecards (desktop + mobile) and the Command
+// Centre project cards cut placements by ONE rule. Whole days via spDateIn,
+// never a Date compare: a `new Date(placementDate) >= now - 91d` cut is
+// time-of-day sensitive and dropped a placement exactly 13 weeks old.
+// 0/falsy `weeks` = no window, every row returned. A row with no usable
+// placementDate is dropped when a window applies.
+function placementsSinceWeeks(placements, weeks, today = new Date()) {
+  const from = weeksAgoDay(weeks, today);
+  if (!from) return placements || [];
+  return (placements || []).filter(p => {
+    const day = p && p.placementDate ? spDateIn(p.placementDate) : null;
+    return !!day && day >= from;
+  });
+}
+
 // N-151: the lower bound for a list query that has BOTH a background date
 // window and an optional explicit period selection. The query must be a
 // superset of whatever either control needs, so an explicit selection WIDENS

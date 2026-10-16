@@ -1051,6 +1051,17 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Scorecards — Hires counts placements (N-342)</div>
+        <ul>
+          <li>The <strong>Hires</strong> row on People Scorecards (desktop and mobile) and on the Command Centre Project Health cards is now the number of placements in the window (<code>computeFunnelScorecard()</code>, analytics.js), credited to the Talent Partner the placement is logged against — the figure the Placements table shows. It was the sum of the Hires typed into Weekly Activity, which could disagree; the Project and Company dashboards already counted placements (N-310) and the scorecards were missed. Project Health Hires will change for existing customers.</li>
+          <li><strong>Offer success is unchanged</strong> by decision: still Weekly Activity hires ÷ offers, so it still matches the learned benchmarks (also learned from Weekly Activity). On one card, Hires and Offer success can therefore differ.</li>
+          <li>One shared window rule, <code>placementsSinceWeeks()</code> (utils.js, whole days via <code>spDateIn</code>), replaces the desktop and mobile <code>new Date(placementDate) &gt;= now − 91 days</code> cut and the inline project-card cut. The old cut was time-of-day sensitive and dropped a placement exactly 13 weeks old.</li>
+          <li>Not changed: a Talent Partner with placements but no Weekly Activity in the last 13 weeks still has no scorecard (the card list is built from Weekly Activity).</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
         <div class="changelog-title">Placements — Talent Partners see only placements logged under their name (N-341)</div>
         <ul>
           <li>The Talent Partner view of Placements is now scoped by <code>Placements.TalentPartner</code> — the TP the placement is logged against (the <em>Record placement as</em> pick for Admin/DM, or the TP's own email) — instead of the linked Role's TP list. Before, a TP saw every placement on every pipeline they were listed on, including ones logged for another TP. Applies in ghost mode too (<code>getScopedUserEmail()</code>).</li>

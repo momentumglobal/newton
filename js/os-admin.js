@@ -54,14 +54,22 @@ async function buildAssignmentsTab(editId = null) {
   const visibleAssignments = _showInactiveAssignments
     ? assignments
     : assignments.filter(a => a.Active !== false);
-  const projectOptions = projects
-    .slice()
-    .sort((a, b) => a.CustomerName.localeCompare(b.CustomerName))
-    .map(p =>
-      `<option value="${p.id}|${escAttr(p.CustomerName)}">${escHtml(p.CustomerName)}</option>`
-    ).join('');
   let editRecord = null;
   if (editId) editRecord = assignments.find(a => String(a.id) === String(editId));
+  // N-356: Customer lists current (Active) projects only — a customer can have
+  // several projects over time. Editing a row keeps its saved project listed,
+  // even if no longer current, so Save Changes never silently changes it.
+  let selectableProjects = projects.filter(isProjectCurrent);
+  const savedProjectId = editRecord && Number(editRecord.ProjectID) ? String(editRecord.ProjectID) : '';
+  if (savedProjectId && !selectableProjects.some(p => String(p.id) === savedProjectId)) {
+    const savedProject = projects.find(p => String(p.id) === savedProjectId);
+    if (savedProject) selectableProjects = [...selectableProjects, savedProject];
+  }
+  selectableProjects = sortProjectsByName(selectableProjects);
+  const projectLabels = projectOptionLabels(selectableProjects);
+  const projectOptions = selectableProjects.map(p =>
+    `<option value="${p.id}|${escAttr(p.CustomerName)}"${String(p.id) === savedProjectId ? ' selected' : ''}>${escHtml(projectLabels.get(String(p.id)))}</option>`
+  ).join('');
   // N-247c: search after the existing show-inactive filter, before the
   // pre-existing default order (kept as-is below); sortRows layers on top.
   const roleLabel = a => CONFIG.ROLE_LABELS[a.AssignedRole] || a.AssignedRole || ''; // N-281
@@ -110,10 +118,7 @@ async function buildAssignmentsTab(editId = null) {
           <label>${customerLabel}</label>
           <select id="assign-project">
             <option value="">-- Select customer --</option>
-            ${projects.map(p => `
-              <option value="${p.id}|${escAttr(p.CustomerName)}" ${String(p.id) === String(editRecord.ProjectID) ? 'selected' : ''}>
-                ${escHtml(p.CustomerName)}
-              </option>`).join('')}
+            ${projectOptions}
           </select>
         </div>
         <div class="form-group">

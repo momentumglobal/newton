@@ -5589,6 +5589,51 @@ var ASSERTIONS = [
       _assertEqual(lint({}), ['file not found'], 'missing file');
     },
   },
+  {
+    name: 'N-356 isProjectCurrent — Active only; Transition, Completed, blank and null are not current',
+    fn: function () {
+      _assertEqual(isProjectCurrent({ Status: 'Active' }), true, 'Active');
+      _assertEqual(isProjectCurrent({ Status: 'Transition' }), false, 'Transition');
+      _assertEqual(isProjectCurrent({ Status: 'Completed' }), false, 'Completed');
+      _assertEqual(isProjectCurrent({ Status: '' }), false, 'blank Status');
+      _assertEqual(isProjectCurrent({}), false, 'no Status');
+      _assertEqual(isProjectCurrent(null), false, 'null project');
+      // Guard: isProjectActive (N-112) still counts Transition — the two must stay distinct.
+      _assertEqual(isProjectActive({ Status: 'Transition' }), true, 'isProjectActive unchanged for Transition');
+    },
+  },
+  {
+    name: 'N-356 projectOptionLabels — plain name when unique, type when shared, start month when type blank or still shared, no mutation',
+    fn: function () {
+      const projects = [
+        { id: 1, CustomerName: 'Acme', ProjectType: 'CoE', StartDate: '2025-01-15T12:00:00Z' },
+        { id: 2, CustomerName: 'Pirum', ProjectType: 'CoE', StartDate: '2026-03-02T12:00:00Z' },
+        { id: 3, CustomerName: ' pirum ', ProjectType: 'LCI', StartDate: '2026-05-01T12:00:00Z' },
+        { id: 4, CustomerName: 'Zeta', ProjectType: 'Embedded', StartDate: '2024-06-10T12:00:00Z' },
+        { id: 5, CustomerName: 'Zeta', ProjectType: 'Embedded', StartDate: '2026-09-01T12:00:00Z' },
+        { id: 6, CustomerName: 'Blank Co', ProjectType: '', StartDate: '2026-02-01T12:00:00Z' },
+        { id: 7, CustomerName: 'BLANK  co', ProjectType: 'MG AI', StartDate: '' },
+        { id: 8, CustomerName: 'Nodate', ProjectType: 'CoE', StartDate: '' },
+        { id: 9, CustomerName: 'Nodate', ProjectType: 'CoE' },
+      ];
+      const before = JSON.stringify(projects);
+      const labels = projectOptionLabels(projects);
+      _assertEqual(labels instanceof Map, true, 'returns a Map');
+      _assertEqual(labels.get('1'), 'Acme', 'unique customer → plain name');
+      _assertEqual(labels.get('2'), 'Pirum (CoE)', 'shared customer → type');
+      _assertEqual(labels.get('3'), ' pirum  (LCI)', 'case/space variant counts as the same customer; raw name kept');
+      _assertEqual(labels.get('4'), 'Zeta (Embedded, from 2024-06)', 'same customer + same type → start month');
+      _assertEqual(labels.get('5'), 'Zeta (Embedded, from 2026-09)', 'same customer + same type → start month (2)');
+      _assertEqual(labels.get('6'), 'Blank Co (from 2026-02)', 'shared customer, blank type → start month');
+      _assertEqual(labels.get('7'), 'BLANK  co (MG AI)', 'shared customer, typed, unique label → type only');
+      _assertEqual(labels.get('8'), 'Nodate (CoE)', 'still colliding with no StartDate → left as is');
+      _assertEqual(labels.get('9'), 'Nodate (CoE)', 'still colliding with no StartDate → left as is (2)');
+      _assertEqual(labels.size, 9, 'one label per project');
+      _assertEqual(JSON.stringify(projects), before, 'input not mutated');
+      _assertEqual(projectOptionLabels([]).size, 0, 'empty list');
+      _assertEqual(projectOptionLabels(null).size, 0, 'null list');
+    },
+  },
 ];
 
 // N-301 test helpers — stub elements/events for js/actions.js (no DOM in the vm).

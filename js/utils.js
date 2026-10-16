@@ -1026,6 +1026,53 @@ function isProjectActive(project) {
   return project?.Status !== 'Completed';
 }
 
+// N-356: 'current' for pickers that must exclude Transition as well as
+// Completed (User Assignments → Customer). Narrower than isProjectActive()
+// above — do not merge the two. 'Active' is the same literal getProjects(true)
+// filters on.
+function isProjectCurrent(project) {
+  return project?.Status === 'Active';
+}
+
+// N-356: display labels for a project <select> in which one customer can have
+// several projects. Returns a Map of String(id) → PLAIN-TEXT label (callers
+// escape). A customer listed once keeps its plain CustomerName. A customer
+// listed more than once (name compared trimmed, case- and space-insensitive)
+// reads 'Name (ProjectType)'; if the type is blank or the label still
+// collides, the StartDate month is added: 'Name (CoE, from 2026-03)' /
+// 'Name (from 2026-03)'. With no StartDate the label is left as it is. Labels
+// only — an option's value must keep the raw CustomerName. Pure; the input is
+// not mutated.
+function projectOptionLabels(projects) {
+  const list = projects || [];
+  const norm = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const tally = keyOf => list.reduce((acc, p) => {
+    const k = keyOf(p);
+    acc[k] = (acc[k] || 0) + 1;
+    return acc;
+  }, {});
+  const nameCounts = tally(p => norm(p.CustomerName));
+  const isShared = p => nameCounts[norm(p.CustomerName)] > 1;
+  const typed = p => (isShared(p) && p.ProjectType
+    ? `${p.CustomerName || ''} (${p.ProjectType})`
+    : (p.CustomerName || ''));
+  const typedCounts = tally(p => norm(typed(p)));
+  const labels = new Map();
+  list.forEach(p => {
+    let label = typed(p);
+    if (isShared(p) && (!p.ProjectType || typedCounts[norm(label)] > 1)) {
+      const month = monthKeyFromISO(p.StartDate);
+      if (month) {
+        label = p.ProjectType
+          ? `${p.CustomerName || ''} (${p.ProjectType}, from ${month})`
+          : `${p.CustomerName || ''} (from ${month})`;
+      }
+    }
+    labels.set(String(p.id), label);
+  });
+  return labels;
+}
+
 // Returns a NEW array sorted by CustomerName A-Z. Does not mutate the input.
 function sortProjectsByName(projects) {
   return [...projects].sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''));

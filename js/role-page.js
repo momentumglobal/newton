@@ -14,7 +14,7 @@
 //     mountChecklistView, checklists.js).
 // Deep link: reporting.html#roles?action=checklist&id=N (openChecklist('role')
 // redirects here). Graph calls are api.js helpers; the rules are pure
-// functions in utils.js (headcountSummary, roleStageChangeRule,
+// functions in headcount.js (headcountSummary, roleStageChangeRule,
 // pipelineAfterLastOpen …). Every Stage write runs checkRoleStageChange().
 
 let _rpSeq  = 0;      // render token — drops a stale async render

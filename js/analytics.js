@@ -271,7 +271,7 @@ function avgTimeToHireDays(rows) {
 }
 
 // ── Dashboard hire KPIs (N-310 / HC-4b) ──────────────────────────────
-// Rows are hireRowsWithTargets() (utils.js): one per placement, i.e. per
+// Rows are hireRowsWithTargets() (headcount.js): one per placement, i.e. per
 // filled headcount. All maths on local days (spDateIn), never ms.
 
 // S-3: % of hires whose Offer Accepted day is on or before their headcount
@@ -925,7 +925,7 @@ function roleStageEntryDay(role, roleRows) {
 //                never in a RAG, never notified.
 //                N-309: "days open" = since the pipeline's OLDEST OPEN
 //                HEADCOUNT opened, when opts.openSince is given
-//                (oldestOpenHeadcountIndex(), utils.js) — no open dated
+//                (oldestOpenHeadcountIndex(), headcount.js) — no open dated
 //                headcount → null / false. Omitted → legacy role.OpenDate.
 //                Every caller that SHOWS behind-pace passes it; `flagged`
 //                never depends on it.

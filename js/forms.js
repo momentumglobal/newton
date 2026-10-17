@@ -793,7 +793,7 @@ async function submitWeeklyForm(event, editId = null) {
 // ── Placement Form ───────────────────────────────────────────────────
 // N-308 (HC-3): a placement is recorded against one OPEN headcount. The
 // Headcount select lists the project's open headcount grouped by pipeline
-// (placementHeadcountGroups, utils.js); the role is taken from the chosen
+// (placementHeadcountGroups, headcount.js); the role is taken from the chosen
 // headcount row at submit (getPlacementTarget, api.js), never from the form.
 async function renderPlacementForm(existingData = null, preselectedRoleId = null, preselectedProjectId = null) {
   const isEdit = !!existingData;

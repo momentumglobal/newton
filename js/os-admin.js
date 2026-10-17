@@ -588,7 +588,7 @@ async function _dhFetchSectionData() {
   // { ok: false } and renders as a Query error, not as zeros.
   const anomalies = await _dhFetchAnomalies();
 
-  // N-306: headcount integrity. Pure check (checkHeadcountIntegrity, utils.js);
+  // N-306: headcount integrity. Pure check (checkHeadcountIntegrity, headcount.js);
   // a failed read is { ok: false } and renders as Query error, never zeros.
   let headcountIntegrity;
   try {

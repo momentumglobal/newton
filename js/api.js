@@ -1049,7 +1049,7 @@ async function _logRoleHistory(oldRole, newFields) {
 // Full-row read for one role's timeline. RoleIDLookupId is the Graph
 // filter name for the RoleID lookup column, same convention as every
 // other RoleIDLookupId filter in this file.
-// N-306: Stage values are read through normaliseRoleHistoryRows (utils.js) —
+// N-306: Stage values are read through normaliseRoleHistoryRows (headcount.js) —
 // pre-N-306 rows say 'Hired', which reads back as 'Closed'. RoleHistory
 // itself is never rewritten (headcount model rule 5).
 async function getRoleHistory(roleId) {
@@ -1242,7 +1242,7 @@ async function restoreHeadcount(id, roleId) {
 
 // N-307: run before EVERY Roles.Stage write (inline dropdown, Command Bar,
 // role form, mobile stage update). Reads the role and its headcount and
-// applies roleStageChangeRule() (utils.js). Read errors propagate — callers
+// applies roleStageChangeRule() (headcount.js). Read errors propagate — callers
 // fail closed and write nothing.
 async function checkRoleStageChange(roleId, toStage) {
   const [role, state] = await Promise.all([getItem('Roles', roleId), getRoleHeadcountState(roleId)]);
@@ -1398,7 +1398,7 @@ function _odataIn(field, ids) {
 // N-309 (HC-4a): one row per FILLED HEADCOUNT — every placement with an
 // Offer Accepted Date in the last year, on any pipeline stage — not one per
 // Closed role. Partly-filled pipelines count. Row shape and the join live in
-// utils.js historicalHiresFromPlacements(); `id` is still the pipeline id.
+// headcount.js historicalHiresFromPlacements(); `id` is still the pipeline id.
 // Reads only (no select: '*' until N-052, as before). The bound is a local
 // "1 year ago" day, matching _odataDateFrom / getActivityForAnalytics.
 // A failed RoleHeadcount read degrades instead of breaking every analytics

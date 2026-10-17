@@ -134,14 +134,14 @@ const CONFIG = {
   // a page file — tests/lint-stage-arrays.js fails the build.
   ROLE_STAGES_PARKED: ['Backlog', 'On-hold'],
   // Stages a role leaves the linear pipeline for (Role History timeline
-  // 'branch' node — utils.js:roleTimelineNodeClass, N-305 / N-313).
+  // 'branch' node — headcount.js:roleTimelineNodeClass, N-305 / N-313).
   ROLE_STAGES_BRANCH: ['On-hold', 'Cancelled'],
   // N-306: the "pipeline closed" stage (was 'Hired'). Read through this,
   // never a literal.
   ROLE_STAGE_CLOSED: 'Closed',
   // N-306: retired stage values still present in RoleHistory and in the
   // Roles list's SharePoint version history. Mapped on READ by
-  // normaliseRoleStage() (utils.js) — RoleHistory is never rewritten
+  // normaliseRoleStage() (headcount.js) — RoleHistory is never rewritten
   // (headcount model rule 5).
   ROLE_STAGE_LEGACY_ALIASES: { Hired: 'Closed' },
 

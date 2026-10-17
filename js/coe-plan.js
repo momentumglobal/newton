@@ -114,7 +114,7 @@ function coePhaseAt(row, timelineStart, weekIdx) {
 }
 
 // ── Actual markers (N-317: replace N-312's thin R/N/O bar) ──────────
-// spans = coeHeadcountActualSpans() (utils.js) for the row's linked headcount
+// spans = coeHeadcountActualSpans() (headcount.js) for the row's linked headcount
 // — it already picks the earliest-offer placement. Returns the plan-timeline
 // week index of the hire-confirmed week (placement OfferAcceptedDate → ✓) and
 // the start week (Placement.ProvisionalStartDate → ▶), or null. nStart is set
@@ -342,7 +342,7 @@ function coeGanttHtml(rows, opts = {}) {
 // Replaces the Forecast vs Planned Hires table (CoEPlanForecast is no longer
 // read; its data is kept). A plan row has OPENED when its linked headcount has
 // an OpenDate — unlinked headcount is ignored — and the target is the plan row
-// count. Aggregation and run rate are pure, in coeOpensByMonth() (utils.js);
+// count. Aggregation and run rate are pure, in coeOpensByMonth() (headcount.js);
 // this file only derives the day-string inputs and renders.
 
 function coeOpensModel(planRows, headcount, now = new Date()) {
@@ -635,7 +635,7 @@ async function coeDeletePlan() {
 
 // ── Headcount linkage (N-312 / HC-6) ────────────────────────────────
 // A plan row links to ONE headcount. The picker population is spec S-1
-// (coeLinkableHeadcount, utils.js): not linked elsewhere, not cancelled, on a
+// (coeLinkableHeadcount, headcount.js): not linked elsewhere, not cancelled, on a
 // pipeline outside PLAN_LINKABLE_EXCLUDED_STAGES (Backlog stays linkable);
 // filled headcount on an open pipeline are offered, labelled "filled".
 

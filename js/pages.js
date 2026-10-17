@@ -59,7 +59,7 @@ function projectRowHtml(p, { dmDisplay, canEdit, pending = false, checklist = nu
 // blank for this filter. Shared by roleRowHtml and the Days Open sort
 // accessor so the sort can never disagree with what's displayed.
 // N-307: days since the OLDEST OPEN headcount with an Open Date
-// (headcountSummary, utils.js). Blank on the Closed filter too — a closed
+// (headcountSummary, headcount.js). Blank on the Closed filter too — a closed
 // pipeline is done (one still holding open headcount is a Data Health item).
 function roleDaysOpenValue(r, rolesFilter, summary) {
   const daysHidden = rolesFilter === "Backlog" || rolesFilter === "Cancelled" || rolesFilter === "Closed";
@@ -596,7 +596,7 @@ async function showRoleTimeline(roleId) {
     // SharePoint normalises a text column written as '' back to null on
     // read, so the strict empty-string check silently never matched the
     // real creation row (wrong "— → Sourcing" label, wrong 'branch'/orange
-    // dot in roleTimelineNodeClass (utils.js), and skipped the OpenDate
+    // dot in roleTimelineNodeClass (headcount.js), and skipped the OpenDate
     // back-date since useOpenDate required isCreated). Falsy catches '',
     // null, and undefined alike; a real Stage name is never falsy, so this
     // can't misfire on an actual transition.
@@ -661,7 +661,7 @@ async function showRoleTimeline(roleId) {
   `;
   lucide.createIcons();
 }
-// (N-313: the stage classifier moved to utils.js:roleTimelineNodeClass.)
+// (N-313: the stage classifier moved to headcount.js:roleTimelineNodeClass.)
 // ── Weekly Activity ───
 let _activityProjectId = null;
 let _activityRoleId    = null;

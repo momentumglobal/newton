@@ -1397,31 +1397,6 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-268 reconstructStageTransitions — creation row, repeat/null skip, truncation, cutoff exclusive',
-    fn: function () {
-      const V = (id, t, stage) => ({ versionId: id, modifiedAt: t, modifiedBy: 'tp@example.com', stage });
-      const full = [
-        V('3.0', '2026-06-03T10:00:00Z', 'Sourcing'),   // deliberately out of order
-        V('1.0', '2026-06-01T10:00:00Z', 'Backlog'),
-        V('2.0', '2026-06-02T10:00:00Z', 'Backlog'),
-        V('4.0', '2026-06-04T10:00:00Z', null),
-        V('5.0', '2026-06-05T10:00:00Z', 'Cancelled'),
-      ];
-      const r = reconstructStageTransitions(full, '2026-07-01T00:00:00Z');
-      _assertEqual(r.rows.map(x => [x.oldValue, x.newValue]),
-        [['', 'Backlog'], ['Backlog', 'Sourcing'], ['Sourcing', 'Cancelled']], 'AC2 rows');
-      _assertEqual(r.skippedNullStage, 1, 'AC2 null-stage version skipped');
-      _assertEqual(r.truncated, false, 'AC2 not truncated');
-      _assertEqual([r.rows[2].changedAt, r.rows[2].changedBy], ['2026-06-05T10:00:00Z', 'tp@example.com'], 'instant + author from version');
-      const t = reconstructStageTransitions(full.filter(v => v.versionId !== '1.0' && v.versionId !== '2.0'), '2026-07-01T00:00:00Z');
-      _assertEqual(t.truncated, true, 'AC3 truncated');
-      _assertEqual(t.rows.map(x => [x.oldValue, x.newValue]), [['Sourcing', 'Cancelled']], 'AC3 no creation row');
-      const c = reconstructStageTransitions(full, '2026-06-05T10:00:00Z');
-      _assertEqual(c.rows.map(x => x.newValue), ['Backlog', 'Sourcing'], 'AC4 row exactly AT cutoff excluded');
-      _assertEqual(reconstructStageTransitions([], '2026-07-01T00:00:00Z'), { rows: [], truncated: false, skippedNullStage: 0 }, 'empty history');
-    },
-  },
-  {
     name: 'N-269 kaplanMeier / kmQuantile — uncensored, censored (bias fix), ties, empty',
     fn: function () {
       const ev = t => ({ t, event: true }), ce = t => ({ t, event: false });
@@ -2609,39 +2584,6 @@ var ASSERTIONS = [
       _assertEqual(attachSalaries([{ id: '5' }], [{ id: '1', PersonID: 5, Salary: '' }])[0].Salary, undefined, 'blank PeoplePay value → undefined');
     },
   },
-  {
-    name: 'N-286 planPeoplePayMigration — creates only missing rows, never overwrites, idempotent',
-    fn: function () {
-      const people = [
-        { id: '1', EmployeeName: 'New',      Salary: 30000 },
-        { id: '2', EmployeeName: 'Same',     Salary: 40000 },
-        { id: '3', EmployeeName: 'Differs',  Salary: 45000 },
-        { id: '4', EmployeeName: 'None',     Salary: null },
-        { id: '5', EmployeeName: 'Zero',     Salary: 0 },
-        { id: '6', EmployeeName: 'Blank',    Salary: '' },
-        { id: '7', EmployeeName: 'Text',     Salary: 'n/a' },
-        { id: '8', EmployeeName: 'StrNum',   Salary: '25000.5' },
-      ];
-      const pay = [
-        { id: '10', PersonID: 2, Salary: 40000 },
-        { id: '11', PersonID: 3, Salary: 47000 },
-        { id: '12', PersonID: 9, Salary: 1 },
-        { id: '13', PersonID: 9, Salary: 2 },
-      ];
-      const p = planPeoplePayMigration(people, pay);
-      _assertEqual(p.counts, { source: 8, toCreate: 2, alreadyPresent: 1, conflicts: 1, duplicates: 1, skippedNoSalary: 4 }, 'AC11 counts');
-      _assertEqual(p.toCreate, [
-        { Title: '1', PersonID: 1, Salary: 30000 },
-        { Title: '8', PersonID: 8, Salary: 25000.5 },
-      ], 'AC11 only missing rows are created');
-      _assertEqual(p.toCreate.some(r => r.PersonID === 3), false, 'AC11 a conflict is never overwritten');
-      _assertEqual(p.conflicts[0].name, 'Differs', 'AC11 conflict named');
-      _assertEqual(p.duplicates, [{ personId: '9', rows: 2 }], 'duplicates reported');
-      const after = pay.concat(p.toCreate.map((r, i) => ({ id: String(100 + i), ...r })));
-      _assertEqual(planPeoplePayMigration(people, after).counts.toCreate, 0, 'AC11 idempotent — second plan creates nothing');
-      _assertEqual(planPeoplePayMigration([], []).counts.source, 0, 'empty source');
-    },
-  },
   // ---- N-292 (SEC-12): in-page security headers --------------------------
   {
     name: 'every page carries the canonical CSP + referrer meta ahead of any resource (N-292 — SEC-12 guard)',
@@ -2918,7 +2860,6 @@ var ASSERTIONS = [
         _assertEqual(CONFIG.ROLE_STAGES.includes(CONFIG.ROLE_STAGE_LEGACY_ALIASES[k]), true, k + ' maps to a live stage');
       });
       _assertEqual([CONFIG.HEADCOUNT.STATUS_OPEN, CONFIG.HEADCOUNT.STATUS_CANCELLED], ['Open', 'Cancelled'], 'headcount statuses');
-      _assertEqual(Number.isInteger(CONFIG.HEADCOUNT_MIGRATION.writeConcurrency) && CONFIG.HEADCOUNT_MIGRATION.writeConcurrency > 0, true, 'migration writeConcurrency');
       _assertEqual(CONFIG.LIST_FIELDS.Placements.includes('HeadcountID'), true, 'Placements projects HeadcountID');
       _assertEqual(CONFIG.LIST_FIELDS.RoleHeadcount,
         ['Title', 'RoleID', 'ProjectID', 'Sequence', 'OpenDate', 'TargetHireDate', 'Backfill', 'Notes', 'Status', 'CancelledDate'],
@@ -3005,67 +2946,6 @@ var ASSERTIONS = [
       _assertEqual(nextHeadcountSequence([]), 1, 'first');
       _assertEqual(nextHeadcountSequence([{ Sequence: 1 }, { Sequence: '3' }, { Sequence: null }]), 4, 'max + 1, never reused');
       _assertEqual(headcountLabel(2), 'Headcount 2', 'label');
-    },
-  },
-  {
-    name: 'N-306 planHeadcountMigration — 1:1 create, cancelled, links, rename, reports; idempotent',
-    fn: function () {
-      const roles = [
-        { id: '1', RoleTitle: 'A', Stage: 'Sourcing', ProjectIDLookupId: 5, OpenDate: '2026-02-01T12:00:00Z', TargetHireDate: '2026-03-18T12:00:00Z', Backfill: true },
-        { id: '2', RoleTitle: 'B', Stage: 'Cancelled', ProjectIDLookupId: 5 },   // cancelled, no placement, known day
-        { id: '3', RoleTitle: 'C', Stage: 'Cancelled', ProjectIDLookupId: 5 },   // cancelled, no placement, unknown day
-        { id: '4', RoleTitle: 'D', Stage: 'Cancelled', ProjectIDLookupId: 5 },   // cancelled WITH a placement → Open
-        { id: '5', RoleTitle: 'E', Stage: 'Hired', ProjectIDLookupId: 6, OpenDate: '2026-01-10T12:00:00Z' },  // create + link + rename
-        { id: '6', RoleTitle: 'F', Stage: 'Offered', ProjectIDLookupId: 6 },     // 1 existing headcount, 2 unlinked
-        { id: '7', RoleTitle: 'G', Stage: 'Offered', ProjectIDLookupId: 6 },     // 2 headcount → ambiguous
-        { id: '8', RoleTitle: 'H', Stage: 'Hired', ProjectIDLookupId: 6 },       // closed, no placement
-      ];
-      const headcount = [
-        { id: '60', RoleID: 6, ProjectID: 6, Sequence: 1, Status: 'Open' },
-        { id: '70', RoleID: '7', ProjectID: 6, Sequence: 1, Status: 'Open' },
-        { id: '71', RoleID: 7, ProjectID: 6, Sequence: 2, Status: 'Open' },
-      ];
-      const placements = [
-        { id: '400', RoleIDLookupId: 4 },
-        { id: '500', RoleIDLookupId: '5' },
-        { id: '600', RoleIDLookupId: 6 }, { id: '601', RoleIDLookupId: 6 },
-        { id: '700', RoleIDLookupId: 7 },
-        { id: '900', RoleIDLookupId: 99, CandidateName: 'Orphan' },
-      ];
-      const coeRows = [{ id: 'c1', Title: 'Plan row', LinkedRoleID: 5 }, { id: 'c2', LinkedRoleID: null }];
-      const days = { '2': '2026-04-03' };
-      const p = planHeadcountMigration({ roles, headcount, placements, cancelledDayByRole: days, coeRows });
-      const item = id => p.items.find(i => String(i.role.id) === id);
-      const c1 = item('1').create;
-      _assertEqual([c1.Title, c1.RoleID, c1.ProjectID, c1.Sequence, c1.OpenDate, c1.TargetHireDate, c1.Backfill, c1.Status, c1.CancelledDate],
-        ['Headcount 1', 1, 5, 1, '2026-02-01T12:00:00Z', '2026-03-18T12:00:00Z', true, 'Open', undefined], "role 1: create with the role's own dates");
-      _assertEqual([item('2').create.Status, item('2').create.CancelledDate], ['Cancelled', '2026-04-03T12:00:00Z'], 'role 2: cancelled with known day');
-      _assertEqual([item('3').create.Status, item('3').create.CancelledDate], ['Cancelled', undefined], 'role 3: cancelled, day unknown');
-      _assertEqual([item('4').create.Status, item('4').linkPlacementIds], ['Open', [400]], 'role 4: has a placement → Open, linked');
-      _assertEqual([!!item('5').create, item('5').linkPlacementIds, item('5').renameStage], [true, [500], true], 'role 5: create + link + rename');
-      _assertEqual([item('6').create, item('6').headcountId, item('6').linkPlacementIds], [null, 60, [600, 601]], 'role 6: link to its single existing headcount');
-      _assertEqual(item('7'), undefined, 'role 7: nothing written (ambiguous)');
-      _assertEqual(p.ambiguous.map(a => [String(a.role.id), a.placementIds]), [['7', [700]]], 'ambiguous reported');
-      _assertEqual(p.orphanPlacements.map(o => o.id), ['900'], 'orphan reported');
-      _assertEqual(p.closedNoPlacement.map(r => r.id), ['8'], 'closed with no placement reported');
-      _assertEqual(p.coeLinkedRows, [{ id: 'c1', title: 'Plan row', roleId: '5' }], 'CoE linked rows reported');
-      _assertEqual(p.counts, {
-        roles: 8, alreadyHaveHeadcount: 2, toCreate: 6, toCreateCancelled: 2, toLink: 4, toRename: 2,
-        ambiguous: 1, orphanPlacements: 1, closedNoPlacement: 1, coeLinkedRows: 1,
-      }, 'counts');
-
-      // Simulate the write, then re-plan: nothing left to do.
-      let next = 1000;
-      const hc2 = headcount.slice(), pl2 = placements.map(x => ({ ...x })), roles2 = roles.map(r => ({ ...r }));
-      p.items.forEach(it => {
-        let id = it.headcountId;
-        if (it.create) { id = next++; hc2.push({ ...it.create, id: String(id) }); }
-        it.linkPlacementIds.forEach(pid => { pl2.find(x => Number(x.id) === pid).HeadcountID = id; });
-        if (it.renameStage) roles2.find(r => r.id === it.role.id).Stage = normaliseRoleStage(it.role.Stage);
-      });
-      const again = planHeadcountMigration({ roles: roles2, headcount: hc2, placements: pl2, cancelledDayByRole: days, coeRows });
-      _assertEqual(again.items, [], 'second run: items = []');
-      _assertEqual([again.counts.toCreate, again.counts.toLink, again.counts.toRename], [0, 0, 0], 'second run: nothing to write');
     },
   },
   {
@@ -3886,37 +3766,6 @@ var ASSERTIONS = [
       _assertEqual(/coe-opens-table--h/.test(vt), false, 'default block keeps the vertical table');
     },
   },
-  {
-    name: 'N-312 planCoELinkMigration — lowest Sequence, reports, idempotent',
-    fn: function () {
-      const roles = [{ id: '1' }, { id: '2' }, { id: '3' }];
-      const headcount = [
-        { id: '12', RoleID: 1, Sequence: 2 }, { id: '11', RoleID: '1', Sequence: 1 },
-        { id: '21', RoleID: 2, Sequence: 1 },
-      ];
-      const coeRows = [
-        { id: 'a', Title: 'A', LinkedRoleID: 1 },                          // → 11 (lowest Sequence)
-        { id: 'b', Title: 'B', LinkedRoleID: '1' },                        // same headcount → conflict
-        { id: 'c', Title: 'C', LinkedRoleID: 3 },                          // role with no headcount
-        { id: 'd', Title: 'D', LinkedRoleID: 99 },                         // role gone
-        { id: 'e', Title: 'E', LinkedRoleID: 2, LinkedHeadcountID: 21 },   // already linked
-        { id: 'f', Title: 'F', LinkedRoleID: null },                       // never linked
-      ];
-      const p = planCoELinkMigration({ coeRows, headcount, roles });
-      _assertEqual(p.items.map(i => [i.row.id, i.headcountId, i.roleId]), [['a', 11, 1]], 'a → Headcount 1 of role 1');
-      _assertEqual(p.conflict.map(x => [x.row.id, x.headcountId]), [['b', 11]], 'second row on the same headcount → conflict');
-      _assertEqual(p.noHeadcount.map(r => r.id), ['c'], 'no headcount reported');
-      _assertEqual(p.missingRole.map(r => r.id), ['d'], 'missing role reported');
-      _assertEqual(p.counts, { rows: 6, alreadyLinked: 1, toLink: 1, noHeadcount: 1, missingRole: 1, conflict: 1 }, 'counts');
-      const p2 = planCoELinkMigration({ coeRows: [{ id: 'g', LinkedRoleID: 2 }, coeRows[4]], headcount, roles });
-      _assertEqual(p2.conflict.map(x => x.row.id), ['g'], 'headcount already held by an existing row → conflict');
-      const written = coeRows.map(r => {
-        const it = p.items.find(i => i.row.id === r.id);
-        return it ? { ...r, LinkedHeadcountID: it.headcountId, LinkedRoleID: it.roleId } : r;
-      });
-      _assertEqual(planCoELinkMigration({ coeRows: written, headcount, roles }).items, [], 'second run: items = []');
-    },
-  },
   // ── N-313 (HC-7): Role History timeline for multi-headcount pipelines ──
   {
     name: 'N-313 roleTimelineNodeClass — N-100 classes unchanged; backward after a placement and Closed reopen → reset',
@@ -4106,22 +3955,6 @@ var ASSERTIONS = [
       ['item 801', 'role 45', 'sent 7', 'create OK', 'response blank', 'stored blank', 'heal OK'].forEach(t =>
         _assertEqual(msg.includes(t), true, 'message carries "' + t + '": ' + msg));
       _assertEqual(weeklyActivityProjectDropMessage({ itemId: 1, roleId: 2, sent: 3, response: undefined, stored: null, heal: 'x' }).includes('response no fields'), true, 'no-fields response is named');
-    },
-  },
-  {
-    name: 'N-315 weeklyActivityProjectRepairPlan — role → project, missing / project-less roles skipped (AC8)',
-    fn: function () {
-      const roles = [{ id: 10, ProjectIDLookupId: '3' }, { id: '11', ProjectID: 4 }, { id: 12 }];
-      const rows = [
-        { id: 'a', roleId: 10 }, { id: 'b', roleId: 11 }, { id: 'c', roleId: 99 },
-        { id: 'd', roleId: 12 }, { id: 'e', roleId: null }, null,
-      ];
-      _assertEqual(weeklyActivityProjectRepairPlan(rows, roles), {
-        patches: [{ id: 'a', projectId: 3 }, { id: 'b', projectId: 4 }],
-        skipped: ['c', 'd', 'e'],
-      }, 'plan');
-      _assertEqual(weeklyActivityProjectRepairPlan([], roles), { patches: [], skipped: [] }, 'nothing to repair');
-      _assertEqual(weeklyActivityProjectRepairPlan(rows.slice(0, 1), null), { patches: [], skipped: ['a'] }, 'no roles → all skipped, none written');
     },
   },
   {

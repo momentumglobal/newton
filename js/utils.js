@@ -2526,53 +2526,10 @@ function validateChecklistItem({ label, section, type, linkUrl, actionKey, help 
   return { ok: Object.keys(errors).length === 0, errors };
 }
 
-// ── N-268 (DS-0): RoleHistory backfill — pure reconstruction ─────────
-// `versions`: [{ versionId, modifiedAt, modifiedBy, stage }] as returned by
-// getRoleVersions() (api-admin.js), any order — sorted here (by time, then
-// version number). Returns the Stage transitions the history implies,
-// strictly BEFORE cutoffISO. Instant comparison: modifiedAt and cutoffISO
-// are both genuine instants, so no utcDateOnly — never mix OpenDate in.
-//   truncated        — oldest surviving version isn't '1.0' (SharePoint's
-//                      version cap trimmed it), so creation is unknown and
-//                      no creation row is emitted.
-//   skippedNullStage — versions carrying no Stage value; never a change.
-// Row shape: { oldValue, newValue, changedAt, changedBy }. The creation row
-// has oldValue '' — SharePoint reads it back as null, and the timeline's
-// falsy check (N-100 diff-4) treats both as "Role created".
-// Lives here, not in os-admin.js, as pure logic. Survival TTF does NOT use
-// it: N-276 reads the backfilled RoleHistory list (getRoleStageHistory),
-// which avoids a per-role version read on every page load.
-function reconstructStageTransitions(versions, cutoffISO) {
-  const vnum = v => parseFloat(v.versionId) || 0;
-  const sorted = (versions || []).slice().sort((a, b) =>
-    (new Date(a.modifiedAt) - new Date(b.modifiedAt)) || (vnum(a) - vnum(b)));
-  const truncated = sorted.length > 0 && String(sorted[0].versionId) !== '1.0';
-  const cutoff = new Date(cutoffISO).getTime();
-  const rows = [];
-  let skippedNullStage = 0;
-  let last = null;
-  sorted.forEach((v, i) => {
-    if (!v.stage) { skippedNullStage++; return; }
-    if (last === null) {
-      if (i === 0 && !truncated) {
-        rows.push({ oldValue: '', newValue: v.stage, changedAt: v.modifiedAt, changedBy: v.modifiedBy || null });
-      }
-    } else if (v.stage !== last) {
-      rows.push({ oldValue: last, newValue: v.stage, changedAt: v.modifiedAt, changedBy: v.modifiedBy || null });
-    }
-    last = v.stage;
-  });
-  return {
-    rows: rows.filter(r => new Date(r.changedAt).getTime() < cutoff),
-    truncated,
-    skippedNullStage,
-  };
-}
-
 // Runs worker(item, index) over items with at most `limit` in flight and
 // resolves to the results in input order. No network I/O of its own. A
 // rejected worker rejects the whole call — callers that need per-item
-// failure isolation catch inside the worker (as N-268's callers do).
+// failure isolation catch inside the worker.
 async function runWithConcurrency(items, limit, worker) {
   const results = new Array(items.length);
   let next = 0;
@@ -2708,41 +2665,6 @@ function attachSalaries(people, payRows) {
       ? Number(row.Salary) : undefined;
     return { ...p, Salary: salary };
   });
-}
-
-// Pure. The one-off People.Salary → PeoplePay migration plan. Only ever
-// CREATES missing rows: an existing PeoplePay row is never overwritten,
-// because after the N-286 deploy PeoplePay is the source of truth and
-// People.Salary is stale. Idempotent — re-planning after a successful write
-// gives toCreate = []. peopleRows: [{ id, EmployeeName, Salary }].
-function planPeoplePayMigration(peopleRows, payRows) {
-  const counts = { source: 0, toCreate: 0, alreadyPresent: 0, conflicts: 0, duplicates: 0, skippedNoSalary: 0 };
-  const toCreate = [], conflicts = [], duplicates = [];
-  const perPerson = new Map();
-  (payRows || []).forEach(r => {
-    const key = String(r.PersonID);
-    perPerson.set(key, (perPerson.get(key) || 0) + 1);
-  });
-  for (const [personId, n] of perPerson) if (n > 1) duplicates.push({ personId, rows: n });
-  const byPerson = _peoplePayByPerson(payRows);
-  (peopleRows || []).forEach(p => {
-    counts.source++;
-    const raw = p.Salary;
-    const salary = (raw === null || raw === undefined || raw === '') ? NaN : Number(raw);
-    if (!isFinite(salary) || salary <= 0) { counts.skippedNoSalary++; return; }
-    const existing = byPerson.get(String(p.id));
-    if (!existing) {
-      toCreate.push({ Title: String(p.id), PersonID: Number(p.id), Salary: salary });
-    } else if (Number(existing.Salary) === salary) {
-      counts.alreadyPresent++;
-    } else {
-      conflicts.push({ personId: String(p.id), name: p.EmployeeName || '', peopleSalary: salary, payrollSalary: existing.Salary });
-    }
-  });
-  counts.toCreate   = toCreate.length;
-  counts.conflicts  = conflicts.length;
-  counts.duplicates = duplicates.length;
-  return { toCreate, counts, conflicts, duplicates };
 }
 
 // N-300 (SEC-6b). Pure. The PayrollSummaries row for one payroll send.
@@ -2970,104 +2892,11 @@ function _headcountRoleLabel(role) {
   return role.Location ? `${role.RoleTitle} (${role.Location})` : (role.RoleTitle || ('Role ' + role.id));
 }
 
-// N-306. The one-off Roles → RoleHeadcount migration plan (model rule 5: 1:1,
-// no merging). Pure and idempotent — re-planning after a full write gives
-// items = []. Inputs are what the Data Health dry run reads:
-//   roles, headcount, placements — whole lists;
-//   cancelledDayByRole — { [roleId]: 'YYYY-MM-DD' }, the day each Cancelled
-//     role entered Cancelled (os-admin.js builds it with roleStageEntryDay);
-//   coeRows — CoEPlanRows, reported only (N-312 re-points LinkedRoleID).
-// Per role, writes planned:
-//   create  — one headcount when the role has none: the role's OpenDate,
-//             TargetHireDate and Backfill; Status Cancelled (+ CancelledDate
-//             when known) when the role is Cancelled with no placement —
-//             D-1 applied retroactively; otherwise Open.
-//   link    — the role's placements with no HeadcountID, only when the role
-//             ends up with exactly ONE headcount.
-//   rename  — a retired stage (Hired) → its alias (Closed).
-// Reported, never written: ambiguous (unlinked placements on a role with 2+
-// headcount), orphanPlacements (role id unknown), closedNoPlacement (Closed
-// pipelines with no placement — their headcount stays open, because "filled"
-// needs a placement), coeLinkedRows.
-function planHeadcountMigration({ roles = [], headcount = [], placements = [], cancelledDayByRole = {}, coeRows = [] } = {}) {
-  const H = CONFIG.HEADCOUNT;
-  const hcByRole = _groupByKey(headcount, hc => String(hc.RoleID));
-  const plByRole = _groupByKey(placements, p => String(p.RoleIDLookupId));
-  const roleIds = new Set((roles || []).filter(Boolean).map(r => String(r.id)));
-  const counts = {
-    roles: 0, alreadyHaveHeadcount: 0, toCreate: 0, toCreateCancelled: 0,
-    toLink: 0, toRename: 0, ambiguous: 0, orphanPlacements: 0,
-    closedNoPlacement: 0, coeLinkedRows: 0,
-  };
-  const items = [], ambiguous = [], closedNoPlacement = [];
-
-  (roles || []).forEach(role => {
-    if (!role) return;
-    counts.roles++;
-    const id = String(role.id);
-    const rows = hcByRole.get(id) || [];
-    const pls = plByRole.get(id) || [];
-    const stage = normaliseRoleStage(role.Stage);
-    const renameStage = stage !== role.Stage;
-
-    let create = null;
-    if (rows.length) {
-      counts.alreadyHaveHeadcount++;
-    } else {
-      const cancelled = stage === 'Cancelled' && !pls.length;
-      const projectId = role.ProjectIDLookupId ?? role.ProjectID;
-      const cancelledDay = cancelled ? (cancelledDayByRole || {})[id] : null;
-      create = {
-        Title:          headcountLabel(1),
-        RoleID:         Number(role.id),
-        ProjectID:      _isBlankId(projectId) ? undefined : Number(projectId),
-        Sequence:       1,
-        OpenDate:       role.OpenDate ? isoDate(spDateIn(role.OpenDate)) : undefined,
-        TargetHireDate: role.TargetHireDate ? isoDate(spDateIn(role.TargetHireDate)) : undefined,
-        Backfill:       role.Backfill === true,
-        Status:         cancelled ? H.STATUS_CANCELLED : H.STATUS_OPEN,
-        CancelledDate:  cancelledDay ? isoDate(cancelledDay) : undefined,
-      };
-      counts.toCreate++;
-      if (cancelled) counts.toCreateCancelled++;
-    }
-
-    const unlinked = pls.filter(p => _isBlankId(p.HeadcountID)).map(p => Number(p.id));
-    let linkPlacementIds = [];
-    if (unlinked.length) {
-      if ((rows.length || 1) === 1) linkPlacementIds = unlinked;
-      else ambiguous.push({ role, placementIds: unlinked });
-    }
-    counts.toLink += linkPlacementIds.length;
-    if (renameStage) counts.toRename++;
-    if (stage === CONFIG.ROLE_STAGE_CLOSED && !pls.length) closedNoPlacement.push(role);
-
-    if (create || linkPlacementIds.length || renameStage) {
-      items.push({
-        role,
-        create,
-        headcountId: rows.length === 1 ? Number(rows[0].id) : null,
-        linkPlacementIds,
-        renameStage,
-      });
-    }
-  });
-
-  const orphanPlacements = (placements || []).filter(p => p && !roleIds.has(String(p.RoleIDLookupId)));
-  const coeLinkedRows = (coeRows || []).filter(r => r && !_isBlankId(r.LinkedRoleID))
-    .map(r => ({ id: r.id, title: r.Title || '', roleId: String(r.LinkedRoleID) }));
-  counts.ambiguous         = ambiguous.length;
-  counts.orphanPlacements  = orphanPlacements.length;
-  counts.closedNoPlacement = closedNoPlacement.length;
-  counts.coeLinkedRows     = coeLinkedRows.length;
-  return { items, counts, ambiguous, orphanPlacements, closedNoPlacement, coeLinkedRows };
-}
-
 // N-306. Headcount integrity probes for Admin > Data Health. Pure. Returns
 // [{ key, label, count, sample }] in display order; `sample` is every
-// offending row's label (the renderer truncates). After the migration every
-// count must read 0, except closedWithOpen for Closed pipelines that never
-// had a placement recorded (the dry run lists them as closedNoPlacement).
+// offending row's label (the renderer truncates). Every count must read 0,
+// except closedWithOpen for Closed pipelines that never had a placement
+// recorded.
 // Checks 4–6 only look at roles that HAVE headcount, so a role with none is
 // reported once (roleNoHeadcount), not three times.
 function checkHeadcountIntegrity({ roles = [], headcount = [], placements = [] } = {}) {
@@ -3587,43 +3416,9 @@ function coeOpensByMonth({ plannedDays = [], actualDays = [], target = 0,
            requiredPerMonth, status, latestHireDay, finalNoOpenWeeks };
 }
 
-// Hiring Plan link migration — pure, idempotent. Each row with a LinkedRoleID
-// and no LinkedHeadcountID is linked to that role's LOWEST-Sequence headcount
-// (the one N-306's 1:1 migration created — spec S-3). Reported, never
-// written: noHeadcount (role has none), missingRole (role not in `roles`),
-// conflict (that headcount is already on another row, or claimed earlier in
-// this plan). Rows already holding a LinkedHeadcountID are never touched.
-function planCoELinkMigration({ coeRows = [], headcount = [], roles = [] } = {}) {
-  const roleIds = new Set((roles || []).filter(Boolean).map(r => String(r.id)));
-  const byRole  = groupHeadcountByRole((headcount || []).filter(Boolean));
-  const seq = hc => { const n = Number(hc.Sequence); return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER; };
-  const claimed = new Set((coeRows || [])
-    .map(r => r && r.LinkedHeadcountID).filter(v => !_isBlankId(v)).map(String));
-  const items = [], noHeadcount = [], missingRole = [], conflict = [];
-  const counts = { rows: 0, alreadyLinked: 0, toLink: 0, noHeadcount: 0, missingRole: 0, conflict: 0 };
-  (coeRows || []).forEach(row => {
-    if (!row) return;
-    counts.rows++;
-    if (!_isBlankId(row.LinkedHeadcountID)) { counts.alreadyLinked++; return; }
-    if (_isBlankId(row.LinkedRoleID)) return;
-    const rid = String(row.LinkedRoleID);
-    if (!roleIds.has(rid)) { missingRole.push(row); return; }
-    const hc = (byRole.get(rid) || []).slice().sort((a, b) => seq(a) - seq(b))[0];
-    if (!hc) { noHeadcount.push(row); return; }
-    if (claimed.has(String(hc.id))) { conflict.push({ row, headcountId: Number(hc.id) }); return; }
-    claimed.add(String(hc.id));
-    items.push({ row, headcountId: Number(hc.id), roleId: Number(hc.RoleID) });
-  });
-  counts.toLink      = items.length;
-  counts.noHeadcount = noHeadcount.length;
-  counts.missingRole = missingRole.length;
-  counts.conflict    = conflict.length;
-  return { items, counts, noHeadcount, missingRole, conflict };
-}
-
 // ── WeeklyActivity.ProjectID integrity (N-315) ─────────────────────────
-// Pure halves of api.js createWeeklyActivity / repairWeeklyActivityProjectIds.
-// The async orchestration stays in api.js; the decisions live here so the
+// Pure halves of api.js createWeeklyActivity. The async orchestration stays
+// in api.js; the decisions live here so the
 // sync test runner can pin them.
 
 // A SharePoint lookup id as a positive integer, or null. Graph returns
@@ -3658,25 +3453,6 @@ function weeklyActivityProjectDropMessage({ itemId, roleId, sent, response, stor
     + ', role ' + v(roleId) + ', sent ' + v(sent)
     + ', create OK, response ' + v(response) + ', stored ' + v(stored)
     + ', heal ' + heal;
-}
-
-// Data Health repair plan. rows: [{ id, roleId }] (blank-ProjectID rows);
-// roles: Roles rows. A row whose role is missing, or whose role has no
-// project, is skipped and listed — never written.
-function weeklyActivityProjectRepairPlan(rows, roles) {
-  const projectByRole = new Map();
-  (roles || []).forEach(r => {
-    const pid = projectIdForRole(r);
-    if (r && pid) projectByRole.set(String(r.id), pid);
-  });
-  const patches = [], skipped = [];
-  (rows || []).forEach(row => {
-    if (!row) return;
-    const pid = row.roleId ? projectByRole.get(String(row.roleId)) : undefined;
-    if (pid) patches.push({ id: row.id, projectId: pid });
-    else skipped.push(row.id);
-  });
-  return { patches, skipped };
 }
 
 // N-302a: delegated actions owned by this file (js/actions.js). The rich-text

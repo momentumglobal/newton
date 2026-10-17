@@ -490,47 +490,6 @@ const CONFIG = {
   PAYROLL_PAY_DENIED_TEXT: 'Payroll summary not sent — your account cannot read the PeoplePay list, so starters\' salaries would be blank.',
   PAYROLL_ALREADY_SENT_TEXT: 'A payroll summary for {period} was already sent. Nothing new was sent. To resend, ask an admin to delete that month\'s row in the PayrollSummaries list.',
 
-  // N-268 (DS-0). RoleHistory backfill from the Roles list's SharePoint
-  // version history — Admin > Data Health. One-off tool; these are its only
-  // tunables.
-  //   source            — written to RoleHistory.Source on every backfilled
-  //                       row. Blank Source = app-logged (every N-099 row).
-  //   readConcurrency   — roles whose version history is read at once. Each
-  //                       role's GETs still batch via N-188; this caps how
-  //                       many $batch envelopes are in flight together.
-  //   writeConcurrency  — roles written at once. Each role's rows are written
-  //                       in order and stop at the first failure, so a
-  //                       partial run leaves at most one half-written role
-  //                       per lane — and a re-run fills in only what's missing.
-  //   cutoffToleranceMs — a Roles edit made after N-099 creates a SharePoint
-  //                       version a moment BEFORE its app-logged RoleHistory
-  //                       row (ChangedAt is stamped client-side after
-  //                       updateItem resolves). Without a margin that edit
-  //                       would be recovered a second time. 5 minutes absorbs
-  //                       client/server clock skew.
-  //   previewRows       — rows shown in the dry-run preview table.
-  ROLE_HISTORY_BACKFILL: {
-    source:            'backfill',
-    readConcurrency:   5,
-    writeConcurrency:  4,
-    cutoffToleranceMs: 300000,
-    previewRows:       50,
-  },
-
-  // N-306 (HC-1). Headcount migration — Admin > Data Health. One-off tool,
-  // same tunables as ROLE_HISTORY_BACKFILL above.
-  HEADCOUNT_MIGRATION: {
-    writeConcurrency: 4,
-    previewRows:      50,
-  },
-
-  // N-312 (HC-6). Hiring Plan link migration — Admin > Data Health. Re-points
-  // CoEPlanRows.LinkedRoleID onto the role's first headcount. Same tunables.
-  COE_LINK_MIGRATION: {
-    writeConcurrency: 4,
-    previewRows:      50,
-  },
-
   // N-271 (DS-3): WeeklyActivity anomaly flags — Admin > Data Health.
   // Read-only; every number below is a tunable, none is a SharePoint limit.
   //   funnelPairs   — cumulative per role: flag when the LATER stage's total

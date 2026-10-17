@@ -814,22 +814,6 @@ async function getWeeklyActivityNullProjectCount() {
     return { ok: false, count: null };
   }
 }
-// N-315: the rows behind that count, for the Data Health Repair. Same filter
-// as the probe (proven live by N-138); default projection, which carries
-// RoleIDLookupId. A rejected query is { ok: false }, never an empty list —
-// "could not check" must not read as "nothing to repair".
-async function getWeeklyActivityNullProjectRows() {
-  try {
-    const items = await getItems("WeeklyActivity", "fields/ProjectID eq null");
-    return {
-      ok: true,
-      rows: items.map(r => ({ id: r.id, roleId: positiveLookupId(r.RoleIDLookupId ?? r.RoleID) })),
-    };
-  } catch (e) {
-    console.error("WeeklyActivity null-ProjectID rows read rejected:", e);
-    return { ok: false, rows: [] };
-  }
-}
 // N-158: how many WeeklyActivity rows have no WeekEndingDate. This is the
 // row set DATE_WINDOW_DEFAULT_WEEKS: 26 was silently dropping from the
 // Activity list page — a server-side `ge` bound cannot match a null date.
@@ -1005,27 +989,6 @@ async function _verifyWeeklyActivityProjectId(created, sentId, roleId) {
   console.warn(message);
   // diagnostics.js loads after api.js; absent in the test harness.
   if (typeof reportError === 'function') reportError('integrity', message, '');
-}
-// Data Health "Repair" (N-315): set ProjectID on every blank row from its
-// role. Sequential PATCHes — SharePoint throttles concurrent writes (same
-// call as saveBulkActivity). Rows whose role is gone are skipped and listed.
-async function repairWeeklyActivityProjectIds() {
-  const res = await getWeeklyActivityNullProjectRows();
-  if (!res.ok) throw new Error('Could not read the rows to repair — see the console.');
-  const plan = weeklyActivityProjectRepairPlan(res.rows, await getAllRoles());
-  let fixed = 0;
-  const failed = [];
-  for (const p of plan.patches) {
-    try {
-      await updateItem('WeeklyActivity', p.id, { ProjectIDLookupId: p.projectId });
-      fixed++;
-    } catch (e) {
-      console.warn('N-315: repair PATCH failed for WeeklyActivity ' + p.id, e);
-      failed.push(p.id);
-    }
-  }
-  if (plan.skipped.length) console.warn('N-315: repair skipped (role missing or has no project):', plan.skipped);
-  return { fixed, skipped: plan.skipped, failed };
 }
 // ── Role history (N-099 / D-3a) ────────────────────────────────────────
 // Drop-in replacement for `updateItem('Roles', roleId, fields)` at the six
@@ -1570,11 +1533,6 @@ async function updateSalesForecast(id, payload) {
 // ── CoE Hiring Plan ─────────────────────────────────────────────────
 async function getCoEPlanRows(projectId) {
   return getItems("CoEPlanRows", `fields/ProjectID eq ${projectId}`);
-}
-// N-306: every plan row — read-only, for the headcount migration dry run's
-// "linked CoE rows" report (N-312 re-points LinkedRoleID).
-async function getAllCoEPlanRows() {
-  return getItems("CoEPlanRows");
 }
 async function createCoEPlanRow(payload) {
   return createItem("CoEPlanRows", payload);

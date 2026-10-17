@@ -11,7 +11,7 @@ let _lciEd = null; // { model, rows, deletedRowIds, origRows, dirtySettings, dir
 // innerHTML variant: the element itself survives the assignment, so there is
 // no re-look-up and no same-id requirement on the replacement markup — only
 // the scroll containers inside it are destroyed and rebuilt.
-// Depends on _scrollOffsets/_restoreScrollOffsets, which stay in utils.js
+// Depends on _scrollOffsets/_restoreScrollOffsets, which live in ui-kit.js
 // (shared with replaceHtmlKeepingScroll, the outerHTML variant used by
 // lci-sections.js).
 function replaceInnerHtmlKeepingScroll(elementId, html, scrollSelector) {

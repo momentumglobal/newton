@@ -140,7 +140,7 @@ function lintVendorManifest(files, manifestText) {
 // N-290 (SEC-10): MSAL v5 throws on any call made before initialize(), and
 // auth.js's authReady() is the one place that initialises it. A page or
 // module calling these methods directly would skip that, so it is flagged.
-// logoutRedirect is allowed (mobile-app.js keeps its own signOut()), as are
+// logoutRedirect is allowed (mobile-app.js keeps its own mobileSignOut()), as are
 // getAllAccounts and the other synchronous account reads. Root HTML is
 // scanned too, because index.html and admin.html bootstrap inline.
 // returns: [ { file, line, call }, ... ] — empty array when clean.

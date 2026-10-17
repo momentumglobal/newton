@@ -543,8 +543,3 @@ function lciBenchmark(bench, title, location, ccy, excludeIds) {
   const median = vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
   return { median: Math.round(median), n: vals.length, min: vals[0], max: vals[vals.length - 1] };
 }
-
-function lciModelsComparable(modelA, modelB) {
-  return !!modelA.DisplayCurrency &&
-         modelA.DisplayCurrency === modelB.DisplayCurrency;
-}

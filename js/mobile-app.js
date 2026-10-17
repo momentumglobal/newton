@@ -121,9 +121,10 @@ async function mobileOnSignedIn() {
 }
 
 // signIn() comes from auth.js (N-290: the duplicate here was removed).
-// signOut() stays mobile-specific: it keeps localStorage, so the
-// newton_mobile flag and theme survive a sign-out.
-function signOut() {
+// Sign-out stays mobile-specific and is a separate function from auth.js's
+// signOut() (N-344): it keeps localStorage, so the newton_mobile flag and
+// theme survive a sign-out.
+function mobileSignOut() {
   sessionStorage.clear();
   markSignedOut();
   msalInstance.logoutRedirect();
@@ -510,11 +511,9 @@ async function _mobilePtrRun() {
 
 // === Delegated actions (N-302f, SEC-12b) ===
 // What mobile.html and the mobile templates call through act()/actOn() that
-// this file defines. mobileSignOut wraps signOut() because auth.js declares a
-// signOut() as well; this file's declaration is the later one, so it wins at
-// call time, exactly as it did when the button called it inline.
+// this file defines.
 registerActions({
-  mobileSignOut: () => signOut(),
+  mobileSignOut,
   mobileBack,
   mobileToggleSwitcher,
   mobileSwitcherGo,

@@ -4847,6 +4847,11 @@ var ASSERTIONS = [
         'js/mobile-people.js': ['mobileRetryPeopleDashboard'],
       };
       Object.keys(owners).forEach(file => owners[file].forEach(n => _assertEqual(regs[n], [file], n + ' is registered by ' + file)));
+      // N-344: signOut() is declared once, by auth.js. Mobile's keeps-localStorage variant is mobileSignOut().
+      const _declares = (f, n) => new RegExp('^\\s*function\\s+' + n + '\\s*\\(', 'm').test(_vendorStripJsComments(ALL_SOURCES[f]).join('\n'));
+      _assertEqual(Object.keys(ALL_SOURCES).filter(f => _declares(f, 'signOut')), ['auth.js'], 'signOut() is declared by auth.js only');
+      _assertEqual(_declares('mobile-app.js', 'mobileSignOut'), true, 'mobile-app.js declares mobileSignOut()');
+      _assertEqual(/^\s*function\s+signOut\s*\(/m.test('function signOut() {}\n'), true, 'control: the declaration pattern matches a real declaration');
       // Bottom nav: a `sheet` key is looked up in a fixed map, never called by name.
       const appCode = _vendorStripJsComments(ALL_SOURCES['mobile-app.js']).join('\n');
       const navSheets = (appCode.match(/\bsheet:\s*'(\w+)'/g) || []).map(s => /'(\w+)'/.exec(s)[1]);

@@ -4805,7 +4805,7 @@ var ASSERTIONS = [
       const linksOf = html => { const out = []; html.replace(/<link\b[^>]*\brel="stylesheet"[^>]*\bhref="([^"]*)"[^>]*>/gi, (m, h) => { out.push(h); return m; }); return out; };
       const moved = {
         'mobile.html': ['css/mobile.css'], 'Readme.html': ['css/readme.css'],
-        'reporting.html': ['css/style.css', 'css/reporting.css'], 'admin.html': ['css/style.css', 'css/admin.css'],
+        'reporting.html': CSS_SPLIT_LINKS['reporting.html'], 'admin.html': CSS_SPLIT_LINKS['admin.html'],
         'user-guide.html': ['css/user-guide.css', 'css/guide-search.css'],
         'sales-user-guide.html': ['css/sales-user-guide.css', 'css/guide-search.css'],
         'people-user-guide.html': ['css/people-user-guide.css', 'css/guide-search.css'],
@@ -4820,6 +4820,40 @@ var ASSERTIONS = [
       }
       // printPage() adds landscape through the CSSOM, not a <style> element.
       _assertEqual(/insertRule\('@page \{ size: A4 landscape; \}'/.test(ALL_SOURCES['ui-kit.js']), true, 'printPage inserts the landscape @page rule through the CSSOM');
+    },
+  },
+  {
+    name: 'css/ split: each shell links its module sheets, no rule is defined twice, sentinels sit in the right file, no shell can render a sheet it does not link (N-349b)',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined' || typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access - runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintCssSplit(ALL_CSS, ALL_HTML, ALL_SOURCES), [], 'css/ split (see tests/lint-css-split.js)');
+    },
+  },
+  {
+    name: 'lintCssSplit fails on a missing link, a copied rule, a sentinel back in style.css, an unlisted shell and a shell that can render an unlinked sheet (N-349b)',
+    fn: function () {
+      const cfg = { links: { 'a.html': ['css/style.css', 'css/m.css'], 'b.html': ['css/style.css'] }, sheets: { 'm.css': ['mod-x'] }, stays: ['shared'], allow: {} };
+      const page = (links, script) => links.map(h => '<link rel="stylesheet" href="' + h + '">').join('') + (script ? '<script src="js/' + script + '"></script>' : '');
+      const css = { 'style.css': '.shared { color: red; }', 'm.css': '.mod-x { color: blue; } .mod-x .shared { margin: 0; }' };
+      const html = { 'a.html': page(['css/style.css', 'css/m.css']), 'b.html': page(['css/style.css'], 'b.js') };
+      const src = { 'b.js': "el.className = 'plain';" };
+      _assertEqual(lintCssSplit(css, html, src, cfg), [], 'control: a consistent split is clean');
+      _assertEqual(lintCssSplit(css, html, { 'b.js': "// mod-x is only a comment here\nel.className = 'plain';" }, cfg), [], 'control: a class named in a comment does not count');
+      const noLink = lintCssSplit(css, Object.assign({}, html, { 'a.html': page(['css/style.css']) }), src, cfg);
+      _assertEqual(noLink.length === 1 && /^a\.html: stylesheet links are/.test(noLink[0]), true, 'mutation: a missing link is named: ' + noLink);
+      const dup = lintCssSplit(Object.assign({}, css, { 'style.css': css['style.css'] + ' .mod-x .shared { margin: 0; }' }), html, src, cfg);
+      _assertEqual(dup.some(p => /both define/.test(p)), true, 'mutation: a rule copied into style.css is flagged: ' + dup);
+      const back = lintCssSplit(Object.assign({}, css, { 'style.css': css['style.css'] + ' .mod-x { color: green; }' }), html, src, cfg);
+      _assertEqual(back.some(p => /still defines \.mod-x/.test(p)), true, 'mutation: a sentinel back in style.css is flagged: ' + back);
+      const gone = lintCssSplit({ 'style.css': '.mod-x { color: blue; }', 'm.css': css['m.css'] }, html, src, cfg);
+      _assertEqual(gone.some(p => /expected to keep \.shared/.test(p)), true, 'mutation: a shared class dropped from style.css is flagged: ' + gone);
+      const unlisted = lintCssSplit(css, Object.assign({}, html, { 'c.html': page(['css/style.css']) }), src, cfg);
+      _assertEqual(unlisted.length === 1 && /^c\.html: links css\/style\.css but is not in CSS_SPLIT_LINKS/.test(unlisted[0]), true, 'mutation: an unlisted shell is flagged: ' + unlisted);
+      const uses = lintCssSplit(css, html, { 'b.js': "el.className = 'mod-x shared';" }, cfg);
+      _assertEqual(uses.length === 1 && /^b\.html: can render css\/m\.css/.test(uses[0]), true, 'mutation: a shell that renders an unlinked sheet is flagged: ' + uses);
+      _assertEqual(lintCssSplit(css, html, { 'b.js': "el.className = 'mod-x';" }, Object.assign({}, cfg, { allow: { 'js/b.js': ['mod-x'] } })), [], 'control: an allowlisted mention is not flagged');
     },
   },
   {

@@ -68,6 +68,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'lint-alias-consumers.js'),
   path.join(TESTS_DIR, 'lint-escaping.js'),
   path.join(TESTS_DIR, 'lint-vendor.js'),
+  path.join(TESTS_DIR, 'lint-icons.js'),
   path.join(TESTS_DIR, 'lint-csp.js'),
   path.join(TESTS_DIR, 'lint-stage-arrays.js'),
   path.join(TESTS_DIR, 'lint-headcount-writes.js'),
@@ -128,6 +129,16 @@ sandbox.VENDOR_FILES = (fs.existsSync(VENDOR_DIR) ? fs.readdirSync(VENDOR_DIR) :
   }, {});
 sandbox.VENDOR_MANIFEST = _readIfExists(path.join(VENDOR_DIR, 'VERSIONS.md'));
 sandbox.VENDOR_PACKAGE_JSON = _readIfExists(path.join(ROOT_DIR, 'package.json'));
+// N-349a: lint-icons.js / lintLucideSubset. The icon list is the single source for the
+// subset build and the lint; its SHA-256 must equal the hash in the subset file's banner,
+// so the banner (first 300 chars of each vendor file) is read here too. A missing list
+// reads as '' and FAILS the lint rather than passing vacuously.
+sandbox.ICON_SUBSET_LIST = _readIfExists(path.join(VENDOR_DIR, 'lucide-subset-icons.txt'));
+sandbox.ICON_SUBSET_LIST_SHA256 = crypto.createHash('sha256').update(sandbox.ICON_SUBSET_LIST).digest('hex');
+sandbox.VENDOR_HEADS = Object.keys(sandbox.VENDOR_FILES).reduce((acc, f) => {
+  acc[f] = fs.readFileSync(path.join(VENDOR_DIR, f), 'utf8').slice(0, 300);
+  return acc;
+}, {});
 // N-293 (SEC-13): the repo-exposure guard reads the secret-scan workflow and the
 // README as text, and checks the retired /v2/ workflow stays gone. Missing files
 // read as '' / false so the assertion FAILS rather than passing vacuously.

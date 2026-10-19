@@ -182,3 +182,32 @@ function lintPackagePins(manifestText, packageJsonText) {
 
   return problems;
 }
+
+// N-349a: the Lucide file is a DERIVED subset (tools/build-lucide-subset.mjs), so
+// "unmodified upstream bytes" cannot be checked for it. This checks the chain instead:
+//   icon list --sha256--> banner in the subset file --sha384--> VERSIONS.md row
+// (lintVendorManifest already covers the sha384). Also fails if the full upstream
+// file comes back, which would put the 432 KB parse back on every page.
+//   files: VENDOR_FILES   heads: { file: first ~300 chars }   listSha256: hex
+// returns: [ 'message', ... ] — empty array when clean.
+function lintLucideSubset(files, heads, manifestText, listText, listSha256) {
+  var problems = [];
+  var names = Object.keys(files);
+  var subset = names.filter(function (f) { return /^lucide-.*\.subset\.min\.js$/.test(f); });
+  var full = names.filter(function (f) { return /^lucide-.*\.min\.js$/.test(f) && f.indexOf('.subset.') === -1; });
+
+  if (full.length) problems.push(full.join(', ') + ': the full Lucide file must not be in js/vendor/ (N-349a)');
+  if (subset.length !== 1) { problems.push('expected exactly one lucide-*.subset.min.js in js/vendor/, found ' + subset.length); return problems; }
+  var f = subset[0];
+
+  if (!String(listText).trim()) problems.push('js/vendor/lucide-subset-icons.txt is missing or empty');
+  var m = /^\/\*! lucide (\S+) subset \(N-349a\) icons-sha256:([0-9a-f]{64}) \*\//.exec((heads && heads[f]) || '');
+  if (!m) problems.push(f + ': banner missing or malformed (rebuild with tools/build-lucide-subset.mjs)');
+  else if (m[2] !== listSha256) problems.push(f + ': built from a different icon list than lucide-subset-icons.txt (rebuild the subset)');
+  if (m && f.indexOf('-' + m[1] + '.') === -1) problems.push(f + ': banner version ' + m[1] + ' does not match the filename');
+
+  var row = String(manifestText).split('\n').filter(function (l) { return l.indexOf('`' + f + '`') !== -1 && l.charAt(0) === '|'; })[0];
+  if (!row) problems.push(f + ': no row in VERSIONS.md');
+  else if (row.indexOf('DERIVED') === -1) problems.push(f + ': VERSIONS.md row is not marked DERIVED');
+  return problems;
+}

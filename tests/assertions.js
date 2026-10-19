@@ -1155,7 +1155,7 @@ var ASSERTIONS = [
       _assertEqual(h.indexOf('nt-chart-legend-swatch--box') === -1, true, 'not a box');
     },
   },
-  // ── N-266a — Project & Role checklists (utils.js) ───────────────────
+  // ── N-266a — Project & Role checklists (checklist-logic.js) ───────────────────
   {
     name: 'N-266a spYesNo — every Graph Yes/No shape, and the fallback for a missing value',
     fn: function () {
@@ -1294,7 +1294,7 @@ var ASSERTIONS = [
     },
   },
 
-  // ── N-266b — Config Panel checklist editor (utils.js) ───────────────
+  // ── N-266b — Config Panel checklist editor (checklist-logic.js) ───────────────
   {
     name: 'N-266b validateChecklistItem — valid tick / link / action; every error path; registry keys passed in',
     fn: function () {
@@ -1342,7 +1342,7 @@ var ASSERTIONS = [
     },
   },
 
-  // ── N-267 — checklist variant grouping (config.js + utils.js) ───────
+  // ── N-267 — checklist variant grouping (config.js + checklist-logic.js) ───────
   {
     name: 'N-267 CONFIG.CHECKLISTS.VARIANTS — well-formed grouping table',
     fn: function () {

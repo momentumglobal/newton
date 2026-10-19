@@ -9,7 +9,7 @@
 //   AppSettings        — Checklist{Project|Role}{Enabled|FromId|OnAt} on the
 //                        existing single 'config' row (switch-on state).
 //
-// Every Yes/No read goes through spYesNo() (utils.js): Graph returns these
+// Every Yes/No read goes through spYesNo() (checklist-logic.js): Graph returns these
 // as true/1/'Yes' and omits the field on rows where it was never set. Yes/No
 // columns are never filtered server-side here — Done/Active/Required are
 // filtered client-side after the read.

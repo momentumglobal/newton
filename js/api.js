@@ -1664,7 +1664,7 @@ async function getDepartments() {
 // Resolve the effective role for `email` — or, if Ghost Mode is active, for
 // the ghosted user instead (N-162: ghosting simulates a real user's actual
 // resolved role, not a synthetic label):
-// N-281: resolved by resolveRoleFromAssignments() (utils.js), order-independent:
+// N-281: resolved by resolveRoleFromAssignments() (permissions.js), order-independent:
 // 1. Active admin row in UserAssignments (AssignedRole 'admin')
 // 2. LeadershipAccess list
 // 3. Highest other role in UserAssignments (N-331: an inactive people_ops /
@@ -1839,7 +1839,7 @@ async function getUserProjectIds(email) {
   // every downstream per-project role fan-out doubles that project's roles.
   // N-281: admin rows (ProjectID 0) are never a project — an inactive one
   // must not add "0" to the scope. N-331: nor are people_ops / sales / staff
-  // rows (isOrgWideRole, utils.js).
+  // rows (isOrgWideRole, permissions.js).
   return [...new Set(assignments
     .filter(a => !isOrgWideRole(a.AssignedRole))
     .map(a => String(a.ProjectID)))];

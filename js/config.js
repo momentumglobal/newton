@@ -36,7 +36,7 @@ const CONFIG = {
     StartDate:    '2000-01-01T12:00:00Z',
   },
   // N-281: roles, highest first. Single source of truth for role precedence
-  // (resolveRoleFromAssignments, utils.js) and the known-role whitelist — an
+  // (resolveRoleFromAssignments, permissions.js) and the known-role whitelist — an
   // AssignedRole value not listed here grants nothing. Admin is a
   // UserAssignments row (AssignedRole 'admin', ProjectID 0), never a list in
   // code: this file is public on GitHub Pages.
@@ -47,7 +47,7 @@ const CONFIG = {
   // N-282: roles that are NEVER served from a browser-writable cache
   // (sessionStorage is editable by the user, and the build stamp is public).
   // Always re-resolved from UserAssignments / LeadershipAccess. Must be a
-  // subset of ROLE_PRECEDENCE. Read through isPrivilegedRole() (utils.js).
+  // subset of ROLE_PRECEDENCE. Read through isPrivilegedRole() (permissions.js).
   PRIVILEGED_ROLES: ['admin', 'leadership'],
   ROLE_LABELS: {
     admin:            'Admin',
@@ -61,7 +61,7 @@ const CONFIG = {
   },
   // N-331: roles whose UserAssignments row applies company-wide — always
   // ProjectID 0, never a project scope, and an inactive row grants nothing.
-  // Read through isOrgWideRole() (utils.js).
+  // Read through isOrgWideRole() (permissions.js).
   ORG_WIDE_ROLES: ['admin', 'people_ops', 'sales', 'staff'],
   // N-331: Admin → User Assignments role dropdown, in display order. The
   // first entry is the Add form's default. Leadership is never assignable
@@ -69,13 +69,13 @@ const CONFIG = {
   ASSIGNABLE_ROLES: ['talent_partner', 'delivery_manager', 'people_ops', 'sales', 'staff', 'viewer', 'admin'],
   // N-332: roles that can ANSWER the Engagement survey (survey.html access and
   // the home widget) — every internal-staff role plus TP / DM. Read through
-  // isSurveyRespondentRole() (utils.js); never re-list these at a call site.
+  // isSurveyRespondentRole() (permissions.js); never re-list these at a call site.
   // admin and leadership are deliberately not respondents. Internal TA staff
   // are talent_partner. Each entry must be in ROLE_PRECEDENCE. This is NOT the
   // eligible-respondent COUNT, which comes from the People list (SURVEY.EXCLUDED_LEVELS).
   SURVEY_RESPONDENT_ROLES: ['talent_partner', 'delivery_manager', 'people_ops', 'sales', 'staff'],
   // N-331: capability → roles. Every in-page "can this role do X" check reads
-  // this through roleCan() (utils.js) — never a role literal at the call
+  // this through roleCan() (permissions.js) — never a role literal at the call
   // site. Page access stays in the router files (*-router.js PAGES).
   ROLE_CAPABILITIES: {
     peopleFull:        ['admin', 'leadership', 'people_ops'], // full People pages, payroll view, Org Chart placeholders + reporting lines
@@ -177,7 +177,7 @@ const CONFIG = {
   // ── Project & Role checklists (N-266a) ────────────────────────────
   // Content lives in the ChecklistTemplates SharePoint list; switch-on state
   // in AppSettings. Variants come from VARIANTS below (N-267), read through
-  // checklistVariants() / checklistVariantForProjectType() in utils.js.
+  // checklistVariants() / checklistVariantForProjectType() in checklist-logic.js.
   CHECKLISTS: {
     RECORD_TYPES:    ['project', 'role'],
     ITEM_TYPES:      ['tick', 'link', 'action'],
@@ -1058,7 +1058,7 @@ const CONFIG = {
     STATUSES:             ['Draft', 'Active', 'Closed'],
     AUDIENCES:            ['All', 'TalentPartners', 'DeliveryManagers'],
     // N-332: People.Level values NOT counted as eligible respondents (the
-    // run's EligibleCount — see isSurveyEligibleEmployee, utils.js). Each must
+    // run's EligibleCount — see isSurveyEligibleEmployee, permissions.js). Each must
     // be in PEOPLE_LEVELS.
     EXCLUDED_LEVELS:      ['CSD'],
     DEFAULT_DURATION_DAYS: 14,

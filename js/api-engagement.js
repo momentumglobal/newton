@@ -1,9 +1,9 @@
 // Employee Engagement survey SharePoint API calls.
 // Extracted from api.js by N-237a — single-consumer functions used across
 // engagement-forms.js, engagement-pages.js (people.html) and survey-app.js
-// (survey.html). Depends on getItems/createItem/updateItem/deleteItem and
-// getTalentPartnerDisplayMap/filterToActiveTpEmails, all defined in api.js
-// (loads first, see script order). getSurveyTemplates, getActiveSurveyRun,
+// (survey.html). Depends on getItems/createItem/updateItem/deleteItem
+// (graph-client.js) and getTalentPartnerDisplayMap/filterToActiveTpEmails
+// (api.js), both loading first (see script order). getSurveyTemplates, getActiveSurveyRun,
 // getSurveyQuestions, hasCompletedSurvey and createSurveyRun stay in api.js
 // — they have more than one consumer or are out of this task's scope.
 

@@ -3,7 +3,7 @@
 // table — the list and its data are kept.
 // Extracted from api.js by N-237b — single-consumer functions used only by
 // coe-plan.js (reporting.html). Depends on getItems/createItem/updateItem/
-// deleteItem/isoDate, all defined in api.js (loads first, see script order).
+// deleteItem (graph-client.js) and isoDate, all loading first (see script order).
 // getCoEPlanRows/createCoEPlanRow stay in api.js — multi-consumer
 // (coe-plan.js, lci-link.js, report-builder.js).
 // N-312: linkCoEPlanRow is also called from forms.js (Add Role opened from a

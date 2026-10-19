@@ -278,7 +278,7 @@ const CONFIG = {
   // Any list absent from this map falls back to fields($select=*).
   //
   // Rules for adding a list (N-052/N-053):
-  //  • Names are INTERNAL. The alias table in api.js is the translation —
+  //  • Names are INTERNAL. The alias table in graph-client.js is the translation —
   //    e.g. Roles 'Title'→RoleTitle and 'Currency'→Location; WeeklyActivity
   //    'Yeare'→Year and 'InterviewTwoPlus'→Interview2Plus — the only list
   //    that still carries either alias (N-175 removed both from Roles and
@@ -449,7 +449,7 @@ const CONFIG = {
 
   // N-285 (SEC-5). Lists whose SharePoint read permission is withdrawn from
   // ordinary users by the Tier 2 lock (N-288; matrix C-2). For a name here,
-  // getItems() (api.js) treats an HTTP 403 as "no rows": it returns a fresh
+  // getItems() (graph-client.js) treats an HTTP 403 as "no rows": it returns a fresh
   // empty array — no toast, no cache entry in either tier — and records the
   // denial so a caller that must not act on missing data can ask
   // wasListDenied(). A 403 on any list NOT named here, or any other error on
@@ -785,21 +785,21 @@ const CONFIG = {
 
   // Build stamp (N-176 / F-3a). BUMP THIS BY HAND ON EVERY DEPLOY that
   // changes js/ or the shape of any list's data. Every sessionStorage cache
-  // key embeds it, and api.js discards on load any entry stamped with a
+  // key embeds it, and graph-client.js discards on load any entry stamped with a
   // different build — that is the whole deploy-busts-the-cache mechanism.
   // Deliberately separate from sw.js's SW_VERSION: a service worker cannot
   // read config.js and the two have different lifecycles. Bump both.
   APP_BUILD: '2026-09-08a',
 
   // Two-tier read cache (N-176 / F-3a). Tier 1 is the 30s in-memory Map in
-  // api.js and is NOT configured here. This block configures tier 2, the
+  // graph-client.js and is NOT configured here. This block configures tier 2, the
   // sessionStorage tier that survives navigation.
   // `enabled: false` is a live kill switch — it takes effect on the next
   // read, with no reload.
   // persistentLists (N-177 / F-3b): the REFERENCE lists — data that is read
   // on nearly every page and edited rarely, by an admin, from one place.
   // This array is the single source of truth for enrolment; no list name
-  // appears in api.js.
+  // appears in graph-client.js.
   //
   // NEVER ADD A TRANSACTIONAL LIST HERE. Roles, WeeklyActivity, Placements,
   // Assignments and RoleHistory are the lists a user edits and immediately
@@ -885,7 +885,7 @@ const CONFIG = {
     enabled:       true,   // N-230 (10 Sep 2026): re-enabled. Live diagnosis found
                             // no reproducible defect in the request shape, $batch
                             // routing, or pagination/deltaLink carry-forward — see
-                            // newton-pipeline/specs/N-230.md. _deltaMerge (api.js)
+                            // newton-pipeline/specs/N-230.md. _deltaMerge (graph-client.js)
                             // now throws on any fields-less item instead of
                             // silently merging it, so a recurrence degrades to a
                             // full resync rather than blank rows.

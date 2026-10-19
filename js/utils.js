@@ -804,7 +804,7 @@ function setGhostUser(email, displayName) {
   // cached list. Purging tier 1 (_apiCache) and tier 2 (sessionStorage) on
   // both transitions is cheaper and safer than reasoning about which lists
   // happen to be identity-independent. Guarded because utils.js parses
-  // before api.js.
+  // before graph-client.js.
   if (typeof _apiCache !== 'undefined') _apiCache.clear();
   if (typeof _ssPurge === 'function') _ssPurge();
   return true;
@@ -1186,7 +1186,7 @@ function escJsAttr(str) {
 //   `fields/Title eq '${odataStr(email)}'`
 // Doubles every apostrophe (o'brien → o''brien). Returns the inner text only —
 // the caller keeps the quotes. Do NOT also encodeURIComponent it: getItems()
-// already encodes the whole filter once (api.js).
+// already encodes the whole filter once (graph-client.js).
 function odataStr(v) {
   return String(v ?? '').replace(/'/g, "''");
 }

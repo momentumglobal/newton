@@ -1,7 +1,7 @@
 // Schema/admin-console SharePoint API calls.
 // Extracted from api.js by N-237b — single-consumer functions used only by
-// os-admin.js (admin.html). Depends on getListColumns/getItems, defined in
-// api.js (loads first, see script order).
+// os-admin.js (admin.html). Depends on getListColumns (api.js) and getItems
+// (graph-client.js), both loading first (see script order).
 // AppSettings (announcement/seasonal-effect) read+write moved out to
 // js/api-home.js by N-238b — index.html calls the getters directly (home
 // banner + seasonal-effect autoload) and does not need this file's other

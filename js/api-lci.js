@@ -2,7 +2,7 @@
 // calls. Extracted from api.js by N-237b — single-consumer functions used
 // across lci-leadmagnet.js, lci-pages.js, lci-report.js, lci-editor.js and
 // lci-summary.js (all sales.html). Depends on getItems/createItem/
-// updateItem/deleteItem, defined in api.js (loads first, see script order).
+// updateItem/deleteItem, defined in graph-client.js (loads first, see script order).
 // getLCIRows/createLCIRow/deleteLCIRow and getLCIMilestones/
 // createLCIMilestone/deleteLCIMilestone stay in api.js — copyLCIModel's
 // rollback logic calls them internally, so they are NOT single-consumer

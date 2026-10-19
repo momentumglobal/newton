@@ -11,7 +11,7 @@
 //                      script-src / connect-src, nothing wildcard / eval / plain
 //                      http.
 //   lintCspOrigins     the origins in the policy match CONFIG.SP_SITE_URL,
-//                      GRAPH (api.js) and CONFIG.AUTHORITY - the policy can't
+//                      GRAPH (graph-client.js) and CONFIG.AUTHORITY - the policy can't
 //                      read CONFIG at runtime, so this is its single-source-of-
 //                      truth check.
 //   lintFrameGuardWiring  js/frame-guard.js is the 2nd script (after
@@ -225,7 +225,7 @@ function lintNoInlineScripts(htmlSources) {
 // N-324 (SEC-12c): style-src-elem is 'self' only, so a <style> element - in a
 // page, or built by js/ as a markup string or with createElement - would not
 // apply. CSS goes in a css/ file; a print-time rule goes in through the CSSOM
-// (printPage in api.js). HTML and JS comments are blanked (line numbers survive).
+// (printPage in ui-kit.js). HTML and JS comments are blanked (line numbers survive).
 // returns: [ 'file:LINE: message', ... ]
 function lintNoStyleElements(jsSources, htmlSources) {
   var problems = [];

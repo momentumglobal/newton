@@ -4,8 +4,8 @@
 // index.html needs only the two getters, for the home banner and the
 // seasonal-effects autoload — it must not also load api-admin.js's other
 // three, admin-only functions (getColumnIndexStatus/getSchemaDiffs/
-// getUserAssignments). Depends on _getAppSettingsRow/updateItem/createItem,
-// all defined in api.js (loads first, see script order).
+// getUserAssignments). Depends on _getAppSettingsRow (api.js) and
+// updateItem/createItem (graph-client.js), both loading first (see script order).
 
 async function getAnnouncementMessage() {
   const row = await _getAppSettingsRow();

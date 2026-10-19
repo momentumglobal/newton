@@ -1,6 +1,7 @@
 // js/headcount.js — pure domain helpers shared by several modules: headcount, role history, placement
 // picker, Hiring Plan ↔ headcount link, WeeklyActivity.ProjectID integrity (N-346b). No network I/O, no DOM.
-// Loaded straight before api.js on every page (after utils.js and ui-kit.js, and richtext.js where present).
+// Loaded on every page after utils.js and ui-kit.js (and richtext.js where present), before permissions.js,
+// graph-client.js and api.js.
 // Needs from utils.js: addDaysISO, addMonthsToKey, daysOpen, escAttr, escHtml, fillTemplate, isOpenPipelineStage,
 // monthKeyFromISO, monthKeyMonth, monthKeyYear, spDateIn (and CONFIG). utils.js calls nothing in this file.
 
@@ -153,7 +154,7 @@ function headcountCounts(rows, fillMap) {
 
 // "Pipeline opened" (model rule 3): the earliest OpenDate across ALL of a
 // role's headcount, cancelled included, as 'YYYY-MM-DD' — null when none has
-// one. syncRoleOpenDate() (api.js) keeps Roles.OpenDate equal to this.
+// one. syncRoleOpenDate() (api-headcount.js) keeps Roles.OpenDate equal to this.
 function earliestHeadcountOpenDate(rows) {
   let min = null;
   (rows || []).forEach(hc => {
@@ -408,7 +409,7 @@ function headcountXYTitle(counts) {
 }
 
 // The one Stage-change rule (D-1, D-2, N-307 S-2). Every Stage write path
-// checks it first, through checkRoleStageChange() (api.js). Returns
+// checks it first, through checkRoleStageChange() (api-headcount.js). Returns
 // { ok, reason, cascadeCancel }.
 function roleStageChangeRule({ fromStage, toStage, counts } = {}) {
   const from = normaliseRoleStage(fromStage);
@@ -459,7 +460,7 @@ function clampHeadcountCount(v) {
 // A placement is recorded against one OPEN headcount (D-5), never just a
 // role. The picker (desktop forms.js, mobile mobile-pages.js) is built from
 // these pure helpers; submit re-reads the headcount and validates it
-// (getPlacementTarget in api.js + validatePlacementHeadcount) before any
+// (getPlacementTarget in api-headcount.js + validatePlacementHeadcount) before any
 // write. "Filled" stays derived from Placements.HeadcountID (rule 4), so a
 // headcount a placement moves away from is open again with no write.
 

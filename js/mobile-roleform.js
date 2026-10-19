@@ -4,7 +4,7 @@
 // Mirrors the desktop renderRoleForm/submitRoleForm field set and writes the
 // IDENTICAL createItem('Roles', fields) payload, so mobile-created roles match
 // desktop-created ones exactly. N-307: dates are headcount fields — both forms
-// send # of Headcount + Open / Target to createHeadcountRows() (api.js).
+// send # of Headcount + Open / Target to createHeadcountRows() (api-headcount.js).
 //
 // Role-aware, same as desktop:
 //   - admin / delivery_manager: choose project, then assign to a Talent Partner.

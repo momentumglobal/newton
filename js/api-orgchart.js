@@ -1,7 +1,7 @@
 // Org Chart data SharePoint API calls.
 // Extracted from api.js by N-237b — single-consumer functions used only by
-// org-chart.js (people.html). Depends on getProjects/getAssignments/
-// getItems, all defined in api.js (loads first, see script order).
+// org-chart.js (people.html). Depends on getProjects/getAssignments (api.js)
+// and getItems (graph-client.js), both loading first (see script order).
 // getLeadershipAccess stays in api.js — multi-consumer.
 
 // ── Org Chart data ────────────────────────────────────────────────────

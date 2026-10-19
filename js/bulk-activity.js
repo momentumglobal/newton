@@ -10,10 +10,10 @@
 // Rules this file follows — read before editing:
 //  * No graphRequest here. Reads go through getWeeklyActivityForWeek(),
 //    getScopedRolesVisibleTo() and getProjects(); writes through
-//    createItem()/updateItem(). All of those belong to api.js.
+//    createItem()/updateItem() (api.js / graph-client.js).
 //  * WeeklyActivity field names are ASYMMETRIC. Write `Yeare` and
 //    `InterviewTwoPlus`; the same values read back as `Year` and
-//    `Interview2Plus` (FIELD_ALIASES.WeeklyActivity, api.js). That is why
+//    `Interview2Plus` (FIELD_ALIASES.WeeklyActivity, graph-client.js). That is why
 //    BULK_COUNT_FIELDS carries readKey and writeKey separately — do not
 //    "tidy" them into one.
 //  * WeekEndingDate buckets on the SUNDAY, never the Friday. getWeekEnding()

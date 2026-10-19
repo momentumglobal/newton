@@ -1,7 +1,7 @@
 // Briefing-pack and client-logo SharePoint API calls.
 // Extracted from api.js by N-237a — single-consumer functions used only by
 // briefing-pack.js. Depends on getItems/getItem/createItem/updateItem/
-// deleteItem, defined in api.js (loads first, see script order).
+// deleteItem, defined in graph-client.js (loads first, see script order).
 
 // ── Client logos (N-214) ──────────────────────────────────────
 // Keyed by project id held as text in Title, so one filtered read serves the

@@ -182,7 +182,7 @@ function toggleDensity() {
 }
 
 /**
- * "Refresh data" (N-176 / F-3a). Busts both cache tiers via api.js, then
+ * "Refresh data" (N-176 / F-3a). Busts both cache tiers via graph-client.js, then
  * re-renders the page currently marked active in the sidebar. NO cache
  * logic lives here — this file only knows which page to redraw.
  */

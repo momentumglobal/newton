@@ -230,7 +230,7 @@ function _rtHandlePaste(e) {
 // N-216 fix: richtext.js is also loaded standalone into a bare Node `vm`
 // context with no DOM by tests/run.js (see that file's header comment) —
 // top-level document/window calls must not execute there. Same guard
-// pattern as api.js's _ssPurgeStaleBuilds() checking for sessionStorage.
+// pattern as graph-client.js's _ssPurgeStaleBuilds() checking for sessionStorage.
 if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   document.addEventListener('click', _rtHandleTableFocusEvent);
   document.addEventListener('keyup', _rtHandleTableFocusEvent);

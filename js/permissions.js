@@ -2,8 +2,8 @@
 // Moved out of utils.js. Owns role resolution (N-281), capability and org-wide role
 // checks (N-331), survey respondent / eligibility rules (N-332) and the restricted-list
 // and denial-memo helpers (N-285). Behaviour is unchanged from the utils.js originals.
-// Loaded on every page, after headcount.js and straight before api.js, which calls
-// these at runtime (config.js loads first, so the CONFIG defaults resolve).
+// Loaded on every page, after headcount.js and straight before graph-client.js; graph-client.js
+// and api.js call these at runtime (config.js loads first, so the CONFIG defaults resolve).
 
 // ── N-281: role resolution (pure) ────────────────────────────────────
 // An admin row = a UserAssignments row with AssignedRole 'admin' that is
@@ -87,7 +87,7 @@ function isRestrictedList(listName, cfg = CONFIG) {
 }
 
 // N-285: pure. True only for a Graph 403 (err.status, set by _graphError in
-// api.js) on a restricted list. A 403 on any other list, or any other status
+// graph-client.js) on a restricted list. A 403 on any other list, or any other status
 // on a restricted one (401, 429, 500, a network failure with no status),
 // is a real error and stays one.
 function isListAccessDenied(listName, err, cfg = CONFIG) {

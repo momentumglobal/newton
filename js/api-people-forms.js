@@ -1,7 +1,7 @@
 // Assignment-edit and GP-invoice-write SharePoint API calls.
 // Extracted from api.js by N-237b — single-consumer functions used only by
 // people-forms.js (people.html). Depends on createItem/updateItem, defined
-// in api.js (loads first, see script order). createAssignment/updateInvoice
+// in graph-client.js (loads first, see script order). createAssignment/updateInvoice
 // stay in api.js — multi-consumer (people-forms.js + people-tracker.js /
 // people-invoices.js).
 

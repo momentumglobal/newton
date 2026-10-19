@@ -2,8 +2,8 @@
 // Extracted from api.js by N-237b — one function each for people-invoices.js
 // (people.html), sales-pages.js (sales.html), dashboard-project.js
 // (reporting.html / market-reporting.html) and people-payroll.js
-// (people.html). Depends on getItems/createItem/deleteItem/getGhostUser,
-// defined in api.js (loads first, see script order), and
+// (people.html). Depends on getItems/createItem/deleteItem (graph-client.js)
+// and getGhostUser, loading first (see script order), and
 // buildPayrollSummaryFields (utils.js).
 
 // ── People module: GPInvoices list ──────────────────────────

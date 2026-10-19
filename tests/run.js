@@ -17,7 +17,7 @@ process.env.TZ = process.env.NEWTON_TZ || 'Europe/London';
 // report a pass that proves nothing. Any assertion claiming timezone
 // independence must be checked this way.
 //
-// utils.js / ui-kit.js / richtext.js / headcount.js / api.js / analytics.js / lci-model.js / coe-plan.js declare
+// utils.js / ui-kit.js / richtext.js / headcount.js / permissions.js / checklist-logic.js / api.js / analytics.js / lci-model.js / coe-plan.js declare
 // plain global functions (<script>-tag style, not CommonJS modules), so
 // they're loaded as scripts into one shared vm context in production
 // script order rather than `require()`d. Same approach as the Node-VM rig
@@ -38,8 +38,10 @@ const TESTS_DIR = __dirname;
 const JS_DIR = path.join(TESTS_DIR, '..', 'js');
 
 // Production script order (index.html / reporting.html): config.js before
-// actions.js (N-301) before utils.js before ui-kit.js before richtext.js before headcount.js before api.js before analytics.js before lci-model.js before
-// coe-plan.js. Fixtures/assertions load last.
+// actions.js (N-301) before utils.js before ui-kit.js before richtext.js before headcount.js before permissions.js before
+// checklist-logic.js before api.js before analytics.js before lci-model.js before coe-plan.js. Fixtures/assertions load last.
+// (checklist-logic.js loads only on reporting.html in production, before api-checklists.js; both new files are
+// declarations only, so loading it here ahead of api.js is harmless.)
 const SOURCE_FILES = [
   path.join(JS_DIR, 'config.js'),
   path.join(JS_DIR, 'actions.js'),
@@ -47,6 +49,8 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'ui-kit.js'),
   path.join(JS_DIR, 'richtext.js'),
   path.join(JS_DIR, 'headcount.js'),
+  path.join(JS_DIR, 'permissions.js'),
+  path.join(JS_DIR, 'checklist-logic.js'),
   path.join(JS_DIR, 'api.js'),
   path.join(JS_DIR, 'list-controls.js'),
   path.join(JS_DIR, 'analytics.js'),

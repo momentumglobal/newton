@@ -1,6 +1,7 @@
 // js/ui-kit.js — shared DOM/UI helpers (N-346a): toast and modals, skeletons,
 // KPI count-up, empty / error states, button loading state, scroll-preserving
-// re-render, ghost-mode banner, view transitions. No network I/O.
+// re-render, ghost-mode banner, view transitions, printPage (moved from
+// api.js, N-347). No network I/O.
 // Loads straight after utils.js on every shell that loads utils.js; calls
 // utils.js helpers (escHtml, act, getGhostUser …) at runtime only, never at load.
 
@@ -498,3 +499,39 @@ function withViewTransition(renderFn) {
   }
   return document.startViewTransition(renderFn);
 }
+
+// ── Print ─────────────────────────────────────────────────────────────
+function printPage(title, landscape = false, module = 'Newton') {
+  document.getElementById('print-header-title').textContent = 'Newton';
+  document.getElementById('print-header-sub').textContent = module;
+  // Set the document title so it becomes the default PDF filename, then restore.
+  const prevDocTitle = document.title;
+  if (title) document.title = title;
+  // N-324: landscape goes in through the CSSOM, not an injected <style>
+  // (style-src-elem has no 'unsafe-inline'). Appended to the last stylesheet
+  // so it follows style.css's canonical @page, as the old <head> <style> did.
+  let pageRule = null;
+  if (landscape) {
+    const sheet = document.styleSheets[document.styleSheets.length - 1];
+    try {
+      if (sheet) pageRule = sheet.cssRules[sheet.insertRule('@page { size: A4 landscape; }', sheet.cssRules.length)];
+    } catch (e) {
+      console.warn('printPage: could not add the landscape @page rule', e);
+    }
+  }
+  window.print();
+  if (pageRule) {
+    setTimeout(() => {
+      const sheet = pageRule.parentStyleSheet;
+      const i = sheet ? Array.prototype.indexOf.call(sheet.cssRules, pageRule) : -1;
+      if (i >= 0) sheet.deleteRule(i);
+    }, 1000);
+  }
+  setTimeout(() => { document.title = prevDocTitle; }, 1000);
+}
+
+// N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
+// Later N-302 sub-tasks add their own names to this call; never register a name twice.
+registerActions({
+  printPage,
+});

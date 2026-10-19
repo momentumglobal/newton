@@ -17,14 +17,16 @@ process.env.TZ = process.env.NEWTON_TZ || 'Europe/London';
 // report a pass that proves nothing. Any assertion claiming timezone
 // independence must be checked this way.
 //
-// utils.js / ui-kit.js / richtext.js / headcount.js / permissions.js / checklist-logic.js / api.js / analytics.js / lci-model.js / coe-plan.js declare
+// utils.js / ui-kit.js / richtext.js / headcount.js / permissions.js / checklist-logic.js / graph-client.js / api.js / api-headcount.js /
+// analytics.js / lci-model.js / coe-plan.js declare
 // plain global functions (<script>-tag style, not CommonJS modules), so
 // they're loaded as scripts into one shared vm context in production
 // script order rather than `require()`d. Same approach as the Node-VM rig
-// built for N-030's Excel export testing. api.js (N-097) is entirely
-// network-calling functions except a few pure helpers (_pickFields, and
-// N-176's _ssKey / _ssIsCacheKey / _ssKeyBuild / _ssKeyMatchesList).
-// N-176 also added the ONE thing api.js executes at load time: the
+// built for N-030's Excel export testing. graph-client.js, api.js (N-097) and
+// api-headcount.js are entirely network-calling functions except a few pure
+// helpers (_pickFields in api.js; N-176's _ssKey / _ssIsCacheKey / _ssKeyBuild /
+// _ssKeyMatchesList in graph-client.js). N-176 also added the ONE thing
+// graph-client.js (api.js until N-347) executes at load time: the
 // _ssPurgeStaleBuilds() cache sweep, which returns immediately when
 // sessionStorage is undefined — as it is here. Loading the whole file
 // still touches no network.
@@ -39,7 +41,9 @@ const JS_DIR = path.join(TESTS_DIR, '..', 'js');
 
 // Production script order (index.html / reporting.html): config.js before
 // actions.js (N-301) before utils.js before ui-kit.js before richtext.js before headcount.js before permissions.js before
-// checklist-logic.js before api.js before analytics.js before lci-model.js before coe-plan.js. Fixtures/assertions load last.
+// checklist-logic.js before graph-client.js before api.js before api-headcount.js before analytics.js before lci-model.js
+// before coe-plan.js. Fixtures/assertions load last. (In production api-headcount.js loads straight after
+// diagnostics.js, which this runner does not load.)
 // (checklist-logic.js loads only on reporting.html in production, before api-checklists.js; both new files are
 // declarations only, so loading it here ahead of api.js is harmless.)
 const SOURCE_FILES = [
@@ -51,7 +55,9 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'headcount.js'),
   path.join(JS_DIR, 'permissions.js'),
   path.join(JS_DIR, 'checklist-logic.js'),
+  path.join(JS_DIR, 'graph-client.js'),
   path.join(JS_DIR, 'api.js'),
+  path.join(JS_DIR, 'api-headcount.js'),
   path.join(JS_DIR, 'list-controls.js'),
   path.join(JS_DIR, 'analytics.js'),
   path.join(JS_DIR, 'lci-model.js'),

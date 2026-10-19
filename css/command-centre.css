@@ -1,0 +1,91 @@
+/* css/command-centre.css - Command Centre module shell.
+   Linked by command-centre.html, after css/style.css (N-349b). Rules moved verbatim
+   from style.css; tokens, shell, forms, tables, buttons and the print foundation stay there. */
+
+/* ═══════════════════════════════════════════════ */
+/* Command Centre                                  */
+/* ═══════════════════════════════════════════════ */
+
+/* ── Command Centre module shell ── */
+.cc-grid {
+  display: flex; gap: var(--sp-7); padding: var(--sp-9);
+  align-items: center; min-height: 50vh;
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+
+.cc-tile {
+  flex: 1; border-radius: var(--r-2xl); padding: var(--sp-10) 28px;
+  cursor: pointer; position: relative;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+  min-height: 50vh;
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  overflow: hidden;
+  background: var(--surface-sunken); border-left: var(--sp-2) solid var(--border-neutral);
+}
+
+.cc-tile:hover { transform: translateY(-2px); }
+
+/* Tile expand */
+.cc-grid--expanded .cc-tile { flex: 0 0 0; opacity: 0; padding: 0; pointer-events: none; }
+.cc-grid--expanded .cc-tile--active { flex: 1; opacity: 1; padding: var(--sp-10) 28px; pointer-events: all; min-height: calc(100vh - 160px); justify-content: flex-start; }
+
+/* Expanded Revenue tile: title + stats top-aligned, chart fills the rest */
+.cc-grid--expanded .cc-tile--active .cc-tile__detail { flex: 1; width: 100%; display: flex; margin-top: var(--sp-8); }
+.cc-grid--expanded .cc-tile--active .cc-tile__detail > div { flex: 1; display: flex; flex-direction: column; margin-bottom: 0; }
+.cc-grid--expanded .cc-tile--active .cc-tile__detail svg { flex: 1; min-height: 0; height: auto; }
+
+/* N-336: Project Health detail — window toggle + scorecard cards. The wrapper
+   is the detail's `> div` (column flex, above); the cards wrap in a row inside
+   .scorecard-grid. */
+.cc-window-toggle { display: flex; align-items: center; gap: var(--sp-4); }
+.cc-window-toggle__btn {
+  font: inherit; font-size: var(--fs-13); cursor: pointer;
+  padding: var(--sp-2) var(--sp-6); border-radius: var(--r-xl);
+  border: 1px solid var(--border-mid); background: var(--surface); color: var(--text-secondary);
+}
+.cc-window-toggle__btn--active { background: var(--brand); border-color: var(--brand); color: var(--text-on-brand); }
+.cc-health-cards .scorecard-grid { align-items: flex-start; }
+/* RAG tile colours — the .cc-tile default (grey / no data, sunken) lives in
+   the .cc-tile block above. N-257 neutral by default: green is a plain raised
+   card with a neutral rail; amber gets a coloured rail but no fill (warn-strong:
+   3.79:1 on --surface vs --status-warn's 2.65:1); only red (N-254) is filled. */
+.cc-tile--green { background: var(--surface); border: 1px solid var(--border); border-left: var(--sp-2) solid var(--border-neutral); }
+.cc-tile--amber { background: var(--surface); border: 1px solid var(--border); border-left: var(--sp-2) solid var(--status-warn-strong); }
+/* N-254: red gets a heavier rail (6px vs 4px) + full inset outline and bold
+   stats, so it differs in weight as well as hue. */
+.cc-tile--red   { background: var(--status-danger-bg); border-left: var(--sp-3) solid var(--status-danger); box-shadow: inset 0 0 0 2px var(--status-danger); }
+
+/* Tile text (N-254: moved out of ccTileHTML's inline styles so the red
+   variant below can override them). */
+.cc-tile__title  { font-size: var(--fs-20); font-weight: var(--fw-semibold); margin-bottom: var(--sp-4); color: var(--text-primary); }
+.cc-tile__stats  { font-size: var(--fs-14); color: var(--text-secondary); }
+.cc-tile--red .cc-tile__stats { font-weight: var(--fw-bold); color: var(--text-primary); }
+
+/* Status chip (red/amber only). Label in --text-primary for text contrast in
+   both themes; only the glyph carries the status colour (non-text, >=3:1). */
+.cc-tile__status { margin-bottom: var(--sp-4); color: var(--text-primary); }
+.cc-tile--red   .cc-tile__status .rag-marker__glyph { color: var(--status-danger); }
+.cc-tile--amber .cc-tile__status .rag-marker__glyph { color: var(--status-warn-strong); }
+
+/* RAG pill */
+.cc-rag-pill { display: inline-block; padding: var(--sp-1) var(--sp-5); border-radius: var(--r-xl); font-size: var(--fs-11); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.cc-rag-pill--green { background: var(--status-success-bg); color: var(--status-success); }
+.cc-rag-pill--amber { background: var(--status-warn-bg); color: var(--status-warn-strong); }
+.cc-rag-pill--red   { background: var(--status-danger-bg); color: var(--status-danger); }
+
+/* Health tile trend arrow + explainer tooltip (N-108) */
+.cc-trend-arrow { font-size: var(--fs-14); vertical-align: middle; }
+.cc-trend-arrow--down { color: var(--text-secondary); } /* N-257: improving = neutral */
+.cc-trend-arrow--up   { color: var(--status-danger); }
+.cc-trend-arrow--flat { color: var(--text-muted); }
+.cc-tile .help-tip { background: var(--text-muted); color: var(--text-on-brand); }
+.cc-tile .help-tip-text { left: 50%; right: auto; transform: translateX(-50%); }
+
+/* Close button */
+.cc-close { display: none; position: absolute; top: var(--sp-7); right: var(--sp-7); background: none; border: none; font-size: var(--fs-20); cursor: pointer; color: var(--text-label); }
+.cc-grid--expanded .cc-close { display: block; }
+
+.cc-detail-table { width: 100%; border-collapse: collapse; margin-top: var(--sp-7); font-size: var(--fs-14); }
+.cc-detail-table th { text-align: left; font-size: var(--fs-11); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 1px solid var(--border-mid); padding: var(--sp-3) var(--sp-4); }
+.cc-detail-table td { padding: var(--sp-4); border-bottom: 1px solid var(--border-faint); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.cc-detail-table tbody tr:last-child td { border-bottom: none; }

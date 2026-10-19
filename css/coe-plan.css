@@ -1,0 +1,182 @@
+/* css/coe-plan.css - CoE Hiring Plan and its Report Builder landscape page.
+   Linked by reporting.html, after css/style.css (N-349b). Rules moved verbatim
+   from style.css; tokens, shell, forms, tables, buttons and the print foundation stay there. */
+
+/* ── CoE Hiring Plan ─────────────────────────────────────────────── */
+.coe-toolbar { display:flex; gap:var(--sp-6); align-items:center; margin-bottom:var(--sp-7); flex-wrap:wrap; }
+.coe-gantt-wrap { border:1px solid var(--border); border-radius:var(--r-md); }
+.coe-gantt {
+  border-collapse:collapse; font-size:var(--fs-12);
+  /* N-232: uniform header/capacity-row height so the sticky top offsets
+     below stack exactly, regardless of the browser's font metrics. */
+  --coe-gantt-row-h: 25px;
+}
+.coe-gantt th, .coe-gantt td { border:1px solid var(--border-muted); padding:var(--sp-1) var(--sp-3); text-align:center; white-space:nowrap; font-variant-numeric: tabular-nums; }
+.coe-gantt th.coe-month { background:var(--surface-sunken); font-weight:600; }
+.coe-gantt .coe-sticky { position:sticky; background:var(--surface); z-index:2; text-align:left; }
+.coe-gantt .coe-sticky--1 { left:0; min-width:160px; }
+.coe-gantt .coe-sticky--2 { left:160px; min-width:96px; }
+.coe-gantt .coe-sticky--3 { left:256px; min-width:110px; }
+.coe-gantt .coe-sticky--4 { left:366px; min-width:110px; box-shadow:var(--sp-1) 0 var(--sp-1) rgba(0,0,0,0.06); }
+/* N-319: Planned Open / Actual Open / Week Variance centred (Role stays left) */
+.coe-gantt .coe-sticky--2, .coe-gantt .coe-sticky--3, .coe-gantt .coe-sticky--4 { text-align:center; }
+/* Header sticky/background now comes from .table-scroll thead th (N-203);
+   this rule only needed for the rare <td> in a thead row, which
+   .table-scroll's th-only selector doesn't cover. */
+.coe-gantt thead td { background:var(--surface); }
+/* N-232: coe-gantt's thead holds FIVE stacked rows (month row, date row,
+   three capacity-summary rows), not the single row the shared
+   `.table-scroll thead th { top: 0 }` rule (N-203, above) assumes.
+   Force every row after the first to a uniform height and give each its
+   own stacked `top` offset so they sit below one another instead of all
+   sticking to the same spot. The override selectors need an extra class
+   over the shared rule's `.table-scroll thead th` (specificity 0-1-2) to
+   win — `.coe-gantt-wrap .coe-gantt-date-row th` etc. are 0-2-1.
+   N-232 round 2: the four frozen label columns (Role/TP/Open/Target
+   Hire) used to be `rowspan="2"` cells relying on the shared rule's
+   `top: 0`. `position: sticky` does not reliably resolve on a cell
+   spanning more than one row, so they never stuck at all — round 1 only
+   fixed the OTHER rows' overlap. Fixed by no longer using `rowspan` for
+   these: coe-plan.js now renders two ordinary single-row cells (one in
+   the month row, one duplicate — empty — in the date row) per column,
+   with the border between them removed so they still read as one
+   merged two-row header cell. `.coe-th-split-top`/`-bottom` below are
+   those two halves; the bottom half inherits its `top` from the
+   `.coe-gantt-date-row th` rule two blocks down like any other date-row
+   cell, so no extra offset rule is needed for it. */
+.coe-gantt th.coe-month,
+.coe-gantt-date-row th,
+.coe-capacity th,
+.coe-capacity td {
+  height: var(--coe-gantt-row-h);
+  box-sizing: border-box;
+}
+.coe-th-split-top { border-bottom: none; }
+.coe-th-split-bottom { border-top: none; }
+.coe-gantt-wrap .coe-gantt-date-row th {
+  top: var(--coe-gantt-row-h);
+  background: var(--surface);
+}
+.coe-gantt-wrap .coe-capacity--0 th { top: calc(var(--coe-gantt-row-h) * 2); }
+.coe-gantt-wrap .coe-capacity--1 th { top: calc(var(--coe-gantt-row-h) * 3); }
+.coe-gantt-wrap .coe-capacity--2 th { top: calc(var(--coe-gantt-row-h) * 4); }
+.coe-cell { min-width:26px; height:22px; }
+.coe-cell--R { background:var(--coe-cell-r); }
+.coe-cell--N { background:var(--coe-cell-n); }
+.coe-cell--O { background:var(--status-success-bg); }
+.coe-cell--today { outline:var(--sp-1) solid var(--accent); outline-offset:-2px; }
+/* N-317: actual markers — ✓ hire confirmed / ▶ started (placement dates).
+   A fixed light chip, so the glyph reads on every phase tint, on the themed
+   Onboarding cell and on an empty dark-mode cell alike (--coe-* is
+   permanently-light chrome, N-102). Also used in the legend. */
+.coe-mark {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:16px; height:16px; padding:0 var(--sp-1); box-sizing:border-box;
+  border:1px solid currentColor; border-radius:var(--r-sm);
+  background:var(--coe-mark-bg); font-size:var(--fs-10); font-weight:700; line-height:1;
+}
+.coe-mark + .coe-mark { margin-left:var(--sp-1); }
+.coe-mark--hire  { color:var(--coe-mark-hire); }
+.coe-mark--start { color:var(--coe-mark-start); }
+/* Week Variance: − opened early (good), + late / overdue (bad) */
+.coe-var--early   { color:var(--coe-var-pos); font-weight:600; }
+.coe-var--late    { color:var(--status-danger-text); font-weight:600; }
+.coe-var--running { font-style:italic; }
+.coe-hc-cancelled { margin-left:var(--sp-2); font-size:var(--fs-10); color:var(--text-muted); }
+.coe-legend { display:flex; gap:var(--sp-7); margin:var(--sp-5) 0; font-size:var(--fs-12); align-items:center; flex-wrap:wrap; }
+.coe-legend span { display:inline-flex; align-items:center; gap:var(--sp-2); }
+.coe-swatch { width:14px; height:14px; border-radius:var(--r-sm); display:inline-block; }
+.coe-capacity td, .coe-capacity th { font-size:var(--fs-11); font-variant-numeric: tabular-nums; }
+.coe-capacity .coe-cap-label { text-align:left; font-weight:600; }
+.coe-fvp-table { border-collapse:collapse; margin-top:var(--sp-5); font-size:var(--fs-13); }
+.coe-fvp-table th, .coe-fvp-table td { border:1px solid var(--border); padding:var(--sp-3) var(--sp-6); text-align:center; font-variant-numeric: tabular-nums; }
+.coe-fvp-var-neg { color:var(--status-danger-text); font-weight:600; }
+.coe-fvp-var-pos { color:var(--coe-var-pos); font-weight:600; }
+/* N-317: Planned vs Actual Role Opens */
+.coe-opens-summary { margin:var(--sp-5) 0 var(--sp-2); font-size:var(--fs-13); color:var(--text-secondary); }
+.coe-opens-summary--late { color:var(--status-danger-text); font-weight:600; }
+.coe-opens-note { margin:0 0 var(--sp-5); font-size:var(--fs-12); color:var(--text-muted); }
+.coe-opens-chart { max-width:900px; margin-bottom:var(--sp-5); }
+.coe-opens-svg { display:block; width:100%; height:auto; }
+.coe-opens-col--planned { fill:var(--coe-opens-planned); }
+.coe-opens-col--actual  { fill:var(--coe-opens-actual); }
+.coe-opens-current td { font-style:italic; }
+.coe-row-actions { display:flex; gap:var(--sp-3); justify-content:flex-start; }
+.coe-row-actions button { font-size:var(--fs-11); padding:var(--sp-1) var(--sp-4); }
+
+/* ── CoE Hiring Plan — print/PDF ───────────────────────────────────── */
+@media print {
+  .coe-toolbar, .coe-col-actions, #coe-modal-host { display: none; }
+  .coe-gantt-wrap { border: none; }
+  .coe-gantt thead { position: static !important; }
+  /* Page 1 = Gantt, page 2 = Planned vs Actual Role Opens (N-317) */
+  .coe-fvp-header { break-before: page; page-break-before: always; margin-top: 0; }
+  /* Grid can breathe now it has the page to itself */
+  .coe-gantt { font-size: var(--fs-10); }
+  .coe-capacity td, .coe-capacity th { font-size: inherit; }
+  .coe-gantt th, .coe-gantt td { padding: var(--sp-1) var(--sp-1); }
+  .coe-cell { min-width: 0; height: var(--sp-7); }
+  .coe-gantt .coe-sticky { position: static; box-shadow: none; }
+  .coe-gantt .coe-sticky--1 { min-width: 0; }
+  .coe-gantt .coe-sticky--2, .coe-gantt .coe-sticky--3, .coe-gantt .coe-sticky--4 { min-width: 0; }
+  /* Force phase colours to print */
+  .coe-cell--R, .coe-cell--N, .coe-cell--O, .coe-swatch,
+  .coe-mark, .coe-opens-col {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .coe-legend { font-size: var(--fs-10); }
+  .coe-fvp-table { break-inside: avoid; font-size: var(--fs-11); }
+  .coe-opens-chart { break-inside: avoid; }
+}
+
+/* N-318: month-across Planned vs Actual Role Opens table (Report Builder final page) */
+.coe-opens-table--h { margin-top: var(--sp-5); }
+.coe-opens-table--h th:first-child { text-align: left; white-space: nowrap; }
+.coe-opens-table--h .coe-opens-current { font-style: italic; }
+.coe-opens-todate { display: block; font-size: var(--fs-10); font-weight: 400; color: var(--text-muted); }
+
+/* ── Report Builder — Hiring Plan landscape final page ─────────────── */
+.rb-gantt-toggle {
+  display: inline-flex; align-items: center; gap: var(--sp-3);
+  font-size: var(--fs-13); margin-right: var(--sp-4); cursor: pointer; user-select: none;
+}
+.rb-gantt-placeholder {
+  border: var(--sp-1) dashed var(--border-neutral); border-radius: var(--r-md);
+  padding: var(--sp-9); margin-top: var(--sp-9); text-align: center;
+  color: var(--text-muted); font-size: var(--fs-14);
+}
+.rb-hiring-plan-page { display: none; } /* print-only content */
+
+@media print {
+  .rb-gantt-placeholder { display: none; }
+  /* Named page: this block prints landscape while the rest stays portrait.
+     Chromium (Chrome/Edge) only — Firefox ignores named pages. */
+  @page coe-gantt { size: A4 landscape; }
+    .rb-hiring-plan-page {
+    display: block;
+    page: coe-gantt;
+    break-before: page;
+    page-break-before: always;
+  }
+  /* Tile border fills the whole landscape page even if the chart is shorter.
+     Fixed to the printable height (A4 landscape 210mm − 2×10mm @page margin = 190mm,
+     2mm spare) — 100vh overshoots it and spills the tile's bottom edge onto a blank page. */
+  .rb-hiring-plan-panel {
+    min-height: 188mm;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0;
+  }
+  .rb-hiring-plan-panel .panel-title { margin-bottom: var(--sp-5); }
+  /* N-318: summary, then the chart at full page width, then the month-across
+     table, stacked. A long plan's table wraps into strips and may run onto a
+     second landscape page; rows and strips never split. */
+  .rb-opens-layout { display: flex; flex-direction: column; gap: var(--sp-5); }
+  .rb-opens-layout .coe-opens-summary, .rb-opens-layout .coe-opens-note { margin: 0; }
+  .rb-opens-layout .coe-opens-chart { max-width: none; margin-bottom: 0; }
+  .rb-opens-layout .coe-opens-table--h { margin-top: 0; }
+  .coe-opens-table--h { width: 100%; table-layout: fixed; break-inside: avoid; }
+  .coe-opens-table--h th, .coe-opens-table--h td { padding: var(--sp-1) var(--sp-2); font-size: var(--fs-10); }
+  .coe-opens-table--h th:first-child { width: 12%; text-align: left; }
+}

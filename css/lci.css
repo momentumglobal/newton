@@ -1,0 +1,277 @@
+/* css/lci.css - LCI Cost Model, summary and report print, Lead Magnet.
+   Linked by sales.html, after css/style.css (N-349b). Rules moved verbatim
+   from style.css; tokens, shell, forms, tables, buttons and the print foundation stay there. */
+
+/* ── LCI Cost Model ─────────────────────────────────────────────── */
+.lci-status {
+  display: inline-block;
+  padding: var(--sp-1) var(--sp-5);
+  border-radius: var(--r-2xl);
+  font-size: var(--fs-12);
+  font-weight: 600;
+}
+.lci-status--draft     { background: var(--lci-status-draft-bg); color: var(--status-neutral); }
+.lci-status--presented { background: var(--lci-status-presented-bg); color: var(--lci-status-presented-text); }
+.lci-status--won       { background: var(--status-success-bg); color: var(--status-success); }
+.lci-status--lost      { background: var(--status-warn-bg-soft); color: var(--status-danger); }
+
+/* LCI editor — settings bar */
+.lci-settings {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-8);
+}
+.lci-settings__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--sp-6) var(--sp-7);
+}
+.lci-settings__toggles {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-top: var(--sp-7);
+  padding-top: var(--sp-7);
+  border-top: 1px solid var(--border-subtle);
+}
+.lci-settings__toggles .btn-primary { margin-left: auto; }
+.lci-toggle { font-size: var(--fs-13); display: flex; align-items: center; gap: var(--sp-3); }
+.lci-btn-muted { background: var(--surface-disabled) !important; color: var(--text-muted) !important; border-color: var(--border-mid) !important; }
+
+/* LCI editor — roadmap grid */
+.lci-grid-scroll { overflow-x: auto; }
+.lci-grid th, .lci-grid td { padding: var(--sp-2) var(--sp-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lci-mcol { min-width: 52px; text-align: center; }
+.lci-cell {
+  width: 70px;
+  border: 1px solid var(--border-mid);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-13);
+}
+.lci-cell--wide { width: 170px; }
+.lci-cell--sm   { width: 50px; }
+.lci-mcol .lci-cell { width: 44px; text-align: center; }
+.lci-derived { text-align: center; color: var(--brand-tertiary); font-weight: 600; }
+.lci-team-row td { background: var(--surface-alt); padding: var(--sp-3) var(--sp-4); }
+.lci-row-del { padding: var(--sp-1) var(--sp-4); line-height: 1; }
+/* Header cells centre-aligned to match data, col 1 stays left */
+.lci-grid th { text-align: center; }
+.lci-grid th:first-child { text-align: left; }
+
+/* LCI cost output */
+.lci-output td { text-align: center; font-variant-numeric: tabular-nums; }
+.lci-output td:first-child { text-align: left; }
+.lci-out-subtotal td { font-weight: 600; border-top: 1px solid var(--border-mid); }
+.lci-out-total td { font-weight: 700; color: var(--brand-tertiary); background: var(--surface-alt); }
+.lci-warn { color: var(--accent); margin-left: var(--sp-2); cursor: help; }
+.lci-out-indent td:first-child { padding-left: var(--sp-8); }
+.lci-out-section td { border-top: 1px solid var(--border); }
+.lci-out-heavy td { border-top: var(--sp-1) double var(--brand-tertiary); }
+.lci-cell--grow { width: 95%; min-width: 130px; }
+.lci-grid--amounts .lci-mcol { min-width: 78px; }
+.lci-grid--amounts .lci-mcol .lci-cell { width: 70px; text-align: right; }
+
+/* LCI milestone bars (rows inside the roadmap grid; navy matches .data-table th) */
+.lci-ms-bar { height: var(--sp-6); background: var(--brand); border-radius: var(--r-md); margin: 0 -3px; }
+
+/* LCI summary / print */
+.lci-summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+                    padding: var(--sp-8); margin-bottom: var(--sp-7); }
+
+/* N-022 print year-slices: both variants sit in the DOM, CSS picks one.
+   Screen shows the single full-horizon table exactly as before. */
+.lci-printonly { display: none; }
+.lci-assump td:first-child { width: 45%; padding-right: var(--sp-10); }
+
+/* LCI compare view */
+.lci-compare td { text-align: center; }
+.lci-compare td:first-child { text-align: left; }
+.lci-compare th { text-align: center; }
+.lci-compare th:first-child { text-align: left; }
+
+/* LCI report — navy cover & divider pages (brand slide layout) */
+/* Background #0A0545 matches the baked-in bg of mg-visual-swirl-report.png */
+.lci-report-navy {
+  position: relative;
+  overflow: hidden;
+  background: #050542;
+  color: var(--inverse-text);
+  border-radius: var(--r-md);
+  margin-bottom: var(--sp-7);
+}
+.lci-report-navy h1 { margin: 0; font-size: var(--fs-32); color: var(--inverse-text); letter-spacing: var(--ls-heading-lg); }
+.lci-report-sub { font-size: var(--fs-15); color: var(--inverse-text-emphasis); margin-top: var(--sp-4); }
+.lci-report-cover   { min-height: 400px; }
+.lci-report-divider { min-height: 300px; }
+.lci-report-logo { height: 36px; position: absolute; top: var(--sp-10); left: var(--sp-11); }
+.lci-report-swirl {
+  position: absolute;
+  right: 4%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36%;
+  mask-image: radial-gradient(ellipse at center, black 55%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 55%, transparent 78%);
+}
+.lci-report-titleblock { position: absolute; left: var(--sp-11); bottom: 18%; max-width: 55%; }
+
+.lci-bench-hint { font-size: var(--fs-11); color: var(--text-muted); margin-top: var(--sp-1); line-height: 1.3; }
+.lci-bench-hint a { color: var(--brand-tertiary); font-weight: 600; cursor: pointer; text-decoration: underline; }
+
+/* Sticky header + capped-height scroll for the Hiring Roadmap and Legacy
+   Team tables now comes from .table-scroll (N-203), added alongside
+   .lci-grid-scroll in the markup — .lci-grid-scroll itself still owns the
+   horizontal overflow-x rule below. Sticky headers rely on .data-table
+   th's opaque background (var(--brand)); don't make that transparent. */
+/* Per-team add-role row */
+.lci-add-role-row td { padding: var(--sp-2) var(--sp-4); background: var(--surface-tint); }
+.lci-add-role-btn { background: none; border: none; color: var(--brand-tertiary); font-weight: 600; cursor: pointer; font-size: var(--fs-13); }
+.lci-add-role-btn:hover { text-decoration: underline; }
+
+/* Team header row actions (rename / delete) */
+.lci-team-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--lci-muted-text); font-size: var(--fs-12); font-weight: 600;
+  padding: 0 var(--sp-2); margin-left: var(--sp-4);
+}
+.lci-team-btn:hover { text-decoration: underline; color: var(--brand-tertiary); }
+.lci-team-btn--danger:hover { color: var(--status-danger-text); }
+
+/* ── LCI summary & report — print/PDF ───────────────────────────────── */
+@media print {
+  @page lci-full { size: A4 landscape; margin: 0; }
+
+  .lci-noprint { display: none; }
+  /* Client-facing summary: no 'Confidential — Internal' banner */
+  body.lci-summary-mode::before { display: none; content: none; }
+  /* Banner sits flush on the first section; sections match banner width */
+  body.lci-summary-mode #print-header { margin-bottom: 0 !important; }
+  body.lci-summary-mode #main-content { padding: 0 !important; margin: 0 !important; }
+  #lci-print-p1 { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+  /* Tighter title block */
+  .lci-summary-card { padding: 14px var(--sp-8); }
+  #lci-print-p1 .lci-summary-head h2 { margin: 0; font-size: var(--fs-20); }
+  #lci-print-p1 .lci-grid-scroll { margin-top: var(--sp-4); }
+  /* Page breaks: p1 plan, p2 cost model, p3 chart, p4 assumptions */
+  #lci-print-p2, #lci-print-p3, #lci-print-p4 { break-before: page; page-break-before: always; }
+  /* Multi-page sections: don't split rows; keep team headers with their rows */
+  .lci-grid tr { break-inside: avoid; }
+  .lci-team-row { break-after: avoid; }
+  .lci-grid { font-size: var(--fs-10); }
+  .lci-grid th, .lci-grid td { padding: var(--sp-1) var(--sp-1); }
+  /* .lci-grid-scroll's overflow reset for print now comes from the shared
+     .table-scroll rule (N-203) — both classes are on the same div. */
+  .lci-out-total td, .lci-out-subtotal td, .lci-team-row td, .lci-ms-bar {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  /* Report: every section/divider on its own page; navy pages fill the sheet */
+  .lci-report-break { break-before: page; page-break-before: always; }
+  .lci-report-navy {
+    page: lci-full;
+    width: 297mm;
+    height: 210mm;
+    box-sizing: border-box;
+    border-radius: 0;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .lci-report-navy h1 { font-size: var(--fs-40); }
+
+  /* N-022: print the year slices, hide the full-horizon screen table.
+     Each slice after the first takes its own page. The slices are siblings
+     inside an existing .lci-summary-card, so the card's own border/padding is
+     neutralised and the tile treatment moves onto each slice — otherwise one
+     card's border would be sliced in half by the page break. */
+  .lci-screenonly { display: none; }
+  .lci-printonly { display: block; }
+  /* Break BEFORE every slice that follows another slice — never the first.
+     Do not use :first-of-type here: it means "first div among siblings", and
+     the first div inside #lci-print-p1 is .lci-summary-head (the title block),
+     so the reset matched nothing and Year 1 pushed the title onto a page of
+     its own. The sibling combinator keys on the slices themselves. */
+  .lci-printonly ~ .lci-printonly { break-before: page; page-break-before: always; }
+  .lci-summary-card:has(.lci-printonly) {
+    border: none; border-radius: 0; padding: 0; margin-bottom: 0;
+  }
+  .lci-summary-card:has(.lci-printonly) > .lci-summary-head { padding: 14px var(--sp-8) 0; }
+  .lci-summary-card > .lci-printonly { padding: 14px var(--sp-8); }
+
+  /* Roadmap column 1 wraps instead of overrunning into the M1 header.
+     .lci-grid sets white-space:nowrap for the month columns, which is right for
+     them but not for a long role title or the sliced "Hiring Roadmap — Year 2
+     (M13–M24)" label. Scoped to the roadmap: the Cost Model's first column is
+     short and fixed. break-word (not anywhere) so "Customer Solutions Director"
+     wraps at spaces rather than mid-word. */
+  .lci-grid--roadmap th:first-child,
+  .lci-grid--roadmap td:first-child {
+    white-space: normal;
+    overflow-wrap: break-word;
+    max-width: 180px;
+    vertical-align: top;
+  }
+
+  /* Sliced Cost Model carries a 13th column (Year N total); pull the type in a
+     step so the right-hand months don't collide. */
+  .lci-printonly .lci-output { font-size: var(--fs-10); }
+  .lci-printonly .lci-output th, .lci-printonly .lci-output td { padding: var(--sp-1); }
+}
+
+.lci-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  z-index: var(--z-modal); display: flex; align-items: center; justify-content: center;
+}
+.lci-modal-card {
+  background: var(--surface); border-radius: var(--r-lg); padding: var(--sp-10);
+  width: 460px; max-width: 95vw; box-shadow: 0 var(--sp-4) var(--sp-10) rgba(0,0,0,0.18);
+}
+
+/* ── LCI Lead Magnet ──────────────────────────────────────────────── */
+.lm-scroll { overflow-x: auto; }
+.lm-grid { font-size: var(--fs-13); }
+.lm-grid th, .lm-grid td { padding: var(--sp-3) var(--sp-3); text-align: center; font-variant-numeric: tabular-nums; }        /* centre all columns */
+.lm-grid th { white-space: normal; vertical-align: bottom; }              /* 2-word discipline headers wrap to 2 lines */
+.lm-grid td { white-space: nowrap; }
+.lm-grid th:first-child, .lm-grid td:first-child { text-align: left; white-space: nowrap; }  /* Location stays left */
+.lm-scol { min-width: 64px; }
+.lm-chk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--sp-2) var(--sp-6); }
+.lm-chk { font-size: var(--fs-13); display: flex; align-items: center; gap: var(--sp-3); }
+
+/* Report (preview + print) */
+.lm-report { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.lm-report-band { background: var(--brand); color: var(--text-on-brand); padding: var(--sp-8) 28px; display: flex; align-items: center; justify-content: space-between; }
+.lm-report-title { font-size: var(--fs-18); font-weight: 600; }
+.lm-report-sub { font-size: var(--fs-12); color: var(--inverse-text-soft); margin-top: var(--sp-2); }
+.lm-report-logo { height: 30px; }
+.lm-report-body { padding: var(--sp-9) var(--sp-10); }
+.lm-loc-block { margin-bottom: var(--sp-9); }
+.lm-loc-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: var(--sp-3); }
+.lm-loc-name { font-size: var(--fs-15); font-weight: 600; color: var(--brand-tertiary); }
+.lm-overall { font-size: var(--fs-16); font-weight: 700; }
+.lm-report-table td, .lm-report-table th { text-align: right; font-variant-numeric: tabular-nums; }
+.lm-report-table td:first-child, .lm-report-table th:first-child { text-align: left; }
+.lm-missing { font-size: var(--fs-12); color: var(--text-muted); margin-top: var(--sp-2); }
+.lm-watchouts { margin-top: var(--sp-8); }
+.lm-watchouts h4 { color: var(--brand-tertiary); margin-bottom: var(--sp-3); }
+.lm-watchouts p { white-space: pre-wrap; font-size: var(--fs-13); }
+.lm-method { margin-top: var(--sp-8); border-top: 1px solid var(--border-subtle); padding-top: var(--sp-6); }
+.lm-method h4 { color: var(--brand-tertiary); font-size: var(--fs-13); margin-bottom: var(--sp-3); }
+.lm-method p { font-size: var(--fs-11); color: var(--text-muted); line-height: 1.5; }
+.lm-caption { font-size: var(--fs-12); color: var(--text-muted); font-style: italic; margin-bottom: var(--sp-7); }
+
+@media print {
+  /* Scoped to the Lead Magnet only — #main-content must actually contain
+     #lm-preview. Without :has(), these rules also fired on the full LCI
+     report (which shares body.lci-summary-mode) and blanked the whole print. */
+  body.lci-summary-mode:has(#lm-preview) #print-header { display: none !important; }
+  body.lci-summary-mode:has(#lm-preview) #sidebar,
+  body.lci-summary-mode:has(#lm-preview) .page-header,
+  body.lci-summary-mode:has(#lm-preview) #lm-modal { display: none !important; }
+  /* Print only the report block: hide the library + builder cards */
+  body.lci-summary-mode #main-content:has(#lm-preview) > div:not(#lm-preview) { display: none; }
+  body.lci-summary-mode #main-content > #lm-preview { margin: 0 !important; }
+  .lm-report { border: none; border-radius: 0; }
+  .lm-report-band, .lm-loc-head .lm-overall, .lm-report-table td, .lm-report-table th {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+}

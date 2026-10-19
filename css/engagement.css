@@ -1,0 +1,293 @@
+/* css/engagement.css - Survey respondent page, homepage survey widget, Engagement results and modal.
+   Linked by people.html, survey.html and index.html, after css/style.css (N-349b). Rules moved verbatim
+   from style.css; tokens, shell, forms, tables, buttons and the print foundation stay there. */
+
+/* ── Shared utilities (used across engagement + survey) ────────────── */
+.page-title { font-size: var(--fs-22); font-weight: 700; color: var(--text-heading); margin: 0; letter-spacing: var(--ls-heading); }
+.page-loading { padding: var(--sp-11); text-align: center; color: var(--text-muted); font-size: var(--fs-14); }
+.btn--sm { padding: var(--sp-2) var(--sp-6) !important; font-size: var(--fs-12) !important; min-height: var(--sp-10) !important; }
+.btn-icon {
+  background: none; border: 1px solid var(--border-mid); border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-3); cursor: pointer; color: var(--text-label);
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: var(--sp-10); min-height: var(--sp-10);
+  transition: background 0.12s, color 0.12s;
+}
+.btn-icon:hover { background: var(--surface-hover); color: var(--brand); }
+.btn-icon:disabled { opacity: 0.35; cursor: default; }
+.btn-icon--danger:hover { background: var(--status-danger-bg-soft); color: var(--status-danger-text); border-color: var(--btn-icon-danger-hover-border); }
+
+/* ── Homepage survey widget ────────────────────────────────────────── */
+.survey-widget {
+  background: var(--inverse-hover-bg);
+  border: 1px solid var(--inverse-divider-strong);
+  border-radius: var(--r-2xl);
+  padding: var(--sp-8) var(--sp-9);
+  margin: 0 auto var(--sp-10);
+  max-width: 480px;
+  display: flex; flex-direction: column; gap: var(--sp-4);
+  align-items: center;
+  text-align: center;
+  backdrop-filter: blur(var(--sp-4));
+}
+.survey-widget--reminder {
+  border-color: rgba(230,126,34,0.5);
+}
+.survey-widget-badge {
+  display: inline-block;
+  background: var(--inverse-active-bg); color: var(--inverse-text-vivid);
+  font-size: var(--fs-11); font-weight: 700;
+  padding: var(--sp-1) var(--sp-4); border-radius: var(--r-pill);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.survey-widget-title {
+  font-size: var(--fs-15); font-weight: 700; color: var(--inverse-text);
+}
+.survey-widget-desc {
+  font-size: var(--fs-13); color: var(--inverse-text-soft); line-height: 1.5;
+}
+.survey-widget-cta {
+  display: inline-block; margin-top: var(--sp-2);
+  background: var(--brand-secondary); color: var(--inverse-text);
+  padding: var(--sp-4) var(--sp-8); border-radius: var(--r-md);
+  font-size: var(--fs-13); font-weight: 600;
+  text-decoration: none;
+  border: 1px solid var(--inverse-border-strong);
+  transition: background 0.15s;
+}
+.survey-widget-cta:hover { background: var(--brand-hover); }
+
+/* ── Survey respondent page ────────────────────────────────────────── */
+.survey-page {
+  min-height: 100vh;
+  background: var(--surface-alt);
+  display: flex; flex-direction: column; align-items: center;
+  padding: var(--sp-9) var(--sp-7) var(--sp-12);
+}
+.survey-header {
+  display: flex; align-items: center; gap: var(--sp-6);
+  margin-bottom: var(--sp-7); align-self: flex-start;
+  max-width: 640px; width: 100%;
+}
+.survey-logo { width: 28px; height: 28px; object-fit: contain; }
+.survey-title { font-size: var(--fs-15); font-weight: 600; color: var(--brand); }
+.survey-progress-bar {
+  width: 100%; max-width: 640px;
+  height: var(--sp-2); background: var(--surface-alt-border); border-radius: var(--r-xs);
+  margin-bottom: var(--sp-9); overflow: hidden;
+}
+.survey-progress-fill {
+  height: 100%; background: var(--brand-secondary);
+  border-radius: var(--r-xs); transition: width 0.3s ease;
+}
+.survey-card {
+  background: var(--surface); border-radius: var(--r-2xl);
+  box-shadow: 0 var(--sp-1) var(--sp-6) rgba(10,11,68,0.08);
+  padding: 28px var(--sp-10); width: 100%; max-width: 640px;
+  display: flex; flex-direction: column; gap: var(--sp-7);
+}
+.survey-card--confirmation { align-items: center; text-align: center; gap: var(--sp-6); }
+.survey-confirm-icon { width: var(--sp-12); height: var(--sp-12); color: var(--status-success-text); stroke-width: 1.5; }
+.survey-counter { font-size: var(--fs-12); color: var(--text-muted); margin: 0; text-transform: uppercase; letter-spacing: 0.06em; }
+.survey-question-text { font-size: var(--fs-16); font-weight: 600; color: var(--brand); margin: 0; line-height: 1.4; }
+.survey-required { color: var(--status-danger-text); }
+.survey-answer-area { display: flex; flex-direction: column; gap: var(--sp-5); }
+.survey-actions {
+  display: flex; gap: var(--sp-5); justify-content: flex-end;
+  padding-top: var(--sp-4); border-top: 1px solid var(--border-faint);
+}
+.survey-empty { color: var(--text-muted); font-size: var(--fs-14); }
+.survey-error { color: var(--status-danger-text); font-size: var(--fs-13); margin: 0; }
+
+/* Rating */
+.survey-rating-row { display: flex; gap: var(--sp-4); flex-wrap: wrap; }
+.survey-rating-btn {
+  width: 44px; height: 44px; border-radius: var(--r-lg);
+  border: var(--sp-1) solid var(--surface-alt-border); background: var(--surface);
+  font-size: var(--fs-15); font-weight: 600; color: var(--text-label);
+  cursor: pointer; transition: all 0.12s;
+}
+.survey-rating-btn:hover { border-color: var(--brand-secondary); color: var(--brand-secondary); }
+.survey-rating-btn--active { background: var(--brand-secondary); border-color: var(--brand-secondary); color: var(--text-on-brand); }
+.survey-rating-labels {
+  display: flex; justify-content: space-between;
+  font-size: var(--fs-11); color: var(--text-muted);
+}
+
+/* Choice */
+.survey-choice-label {
+  display: flex; align-items: center; gap: var(--sp-5);
+  padding: var(--sp-5) 14px; border: 1px solid var(--surface-alt-border); border-radius: var(--r-lg);
+  cursor: pointer; font-size: var(--fs-14); color: var(--text-secondary);
+  transition: border-color 0.12s, background 0.12s;
+}
+.survey-choice-label:hover { border-color: var(--brand-secondary); background: var(--surface-alt); }
+.survey-choice-label input { accent-color: var(--brand-secondary); }
+
+/* Free text */
+.survey-textarea {
+  width: 100%; min-height: 120px; resize: vertical;
+  border: 1px solid var(--surface-alt-border); border-radius: var(--r-lg);
+  padding: var(--sp-5) 14px; font-size: var(--fs-14); color: var(--text-secondary);
+  font-family: inherit; box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.survey-textarea:focus { outline: none; border-color: var(--brand-secondary); }
+.survey-char-count { font-size: var(--fs-11); color: var(--text-faint); text-align: right; }
+
+/* ── Engagement results dashboard ──────────────────────────────────── */
+.eng-controls {
+  display: flex; align-items: flex-end; gap: var(--sp-7);
+  margin-bottom: var(--sp-7); flex-wrap: wrap;
+}
+.eng-label { font-size: var(--fs-12); font-weight: 600; color: var(--text-label); margin-bottom: var(--sp-2); display: block; }
+.eng-run-selector-wrap { display: flex; flex-direction: column; }
+.eng-run-selector {
+  padding: var(--sp-3) var(--sp-6); border: 1px solid var(--surface-alt-border); border-radius: var(--r-md);
+  font-size: var(--fs-13); color: var(--text-secondary); min-width: 220px;
+}
+.eng-tab-strip {
+  display: flex; gap: var(--sp-2); border-bottom: var(--sp-1) solid var(--border-subtle);
+  margin-bottom: var(--sp-8);
+}
+.eng-tab {
+  background: none; border: none; padding: var(--sp-4) var(--sp-8);
+  font-size: var(--fs-13); font-weight: 600; color: var(--text-muted);
+  cursor: pointer; border-bottom: var(--sp-1) solid transparent;
+  margin-bottom: -2px; transition: color 0.12s, border-color 0.12s;
+}
+.eng-tab--active { color: var(--brand-secondary); border-bottom-color: var(--brand-secondary); }
+.eng-tab:hover { color: var(--brand-secondary); }
+
+/* Rate banner */
+.eng-rate-banner {
+  display: flex; align-items: center; gap: var(--sp-6);
+  background: var(--surface-alt); border-radius: var(--r-lg);
+  padding: var(--sp-6) var(--sp-7); margin-bottom: var(--sp-8); flex-wrap: wrap;
+}
+.eng-rate-number { font-size: var(--fs-22); font-weight: 700; color: var(--brand); font-variant-numeric: tabular-nums; }
+.eng-rate-label  { font-size: var(--fs-14); color: var(--text-label); }
+.eng-rate-pct    { font-size: var(--fs-14); font-weight: 700; color: var(--brand-secondary); margin-left: auto; font-variant-numeric: tabular-nums; }
+.eng-status-badge {
+  font-size: var(--fs-11); font-weight: 700; padding: var(--sp-1) var(--sp-4);
+  border-radius: var(--r-pill); text-transform: uppercase; letter-spacing: 0.05em;
+}
+.eng-status-badge--active { background: var(--status-success-bg); color: var(--eng-success-text-deep); }
+
+/* Question cards */
+.eng-cards { display: flex; flex-direction: column; gap: var(--sp-7); }
+.eng-card {
+  background: var(--surface); border: 1px solid var(--border-subtle); border-radius: var(--r-xl);
+  padding: var(--sp-8) var(--sp-9); display: flex; flex-direction: column; gap: var(--sp-5);
+}
+.eng-card-header { display: flex; align-items: center; gap: var(--sp-5); }
+.eng-card-type {
+  font-size: var(--fs-11); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-muted);
+  background: var(--surface-alt); padding: var(--sp-1) var(--sp-4); border-radius: var(--r-pill);
+}
+.eng-card-question { font-size: var(--fs-15); font-weight: 600; color: var(--brand); margin: 0; }
+.eng-card-score { font-size: var(--fs-32); font-weight: 700; color: var(--brand-secondary); line-height: 1; font-variant-numeric: tabular-nums; }
+.eng-card-scale { font-size: var(--fs-16); color: var(--text-faint); font-weight: 400; }
+.eng-card-n { font-size: var(--fs-12); color: var(--text-faint); margin: 0; }
+
+/* Delta badge */
+.eng-delta {
+  font-size: var(--fs-12); font-weight: 700; padding: var(--sp-1) var(--sp-4);
+  border-radius: var(--r-pill);
+}
+.eng-delta--up      { background: var(--status-success-bg); color: var(--eng-success-text-deep); }
+.eng-delta--down    { background: var(--status-danger-bg); color: var(--eng-danger-text-deep); }
+.eng-delta--neutral { background: var(--surface-alt); color: var(--text-label); }
+
+/* Distribution bar */
+.eng-dist-bar {
+  display: flex; height: var(--sp-6); border-radius: var(--r-md);
+  overflow: hidden; background: var(--surface-hover);
+}
+.eng-dist-seg { height: 100%; transition: width 0.3s; }
+.eng-dist-labels {
+  display: flex; justify-content: space-between;
+  font-size: var(--fs-11); color: var(--text-faint);
+}
+
+/* Choice bars */
+.eng-choice-bars { display: flex; flex-direction: column; gap: var(--sp-4); }
+.eng-choice-row { display: flex; align-items: center; gap: var(--sp-5); }
+.eng-choice-label { font-size: var(--fs-13); color: var(--text-secondary); min-width: 120px; flex-shrink: 0; }
+.eng-choice-bar-wrap { flex: 1; background: var(--surface-hover); border-radius: var(--r-sm); height: var(--sp-4); overflow: hidden; }
+.eng-choice-bar { height: 100%; background: var(--brand-secondary); border-radius: var(--r-sm); transition: width 0.3s; }
+.eng-choice-pct { font-size: var(--fs-12); color: var(--text-label); min-width: 36px; text-align: right; }
+
+/* Free text list */
+.eng-freetext-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.eng-freetext-item {
+  font-size: var(--fs-13); color: var(--text-secondary); background: var(--surface-faint);
+  border-left: var(--sp-1) solid var(--surface-alt-border); padding: var(--sp-4) var(--sp-6); border-radius: 0 var(--r-md) var(--r-md) 0;
+}
+.eng-freetext-empty { font-size: var(--fs-13); color: var(--text-faint); font-style: italic; }
+
+/* Trends */
+.eng-trends { background: var(--surface); border: 1px solid var(--border-subtle); border-radius: var(--r-xl); padding: var(--sp-8) var(--sp-9); }
+.eng-trends-empty { color: var(--text-muted); font-size: var(--fs-14); padding: var(--sp-9) 0; }
+
+/* Engagement modal */
+.eng-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: var(--z-modal); padding: var(--sp-8);
+}
+.eng-modal {
+  background: var(--surface-raised); border-radius: var(--r-2xl);
+  box-shadow: 0 var(--sp-4) var(--sp-10) rgba(0,0,0,0.18);
+  padding: 28px var(--sp-10); width: 100%; max-width: 680px;
+  max-height: 90vh; overflow-y: auto;
+}
+.eng-modal--sm { max-width: 480px; }
+.eng-modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: var(--sp-8);
+}
+.eng-modal-header h2 { margin: 0; font-size: var(--fs-18); color: var(--text-heading); letter-spacing: var(--ls-heading); }
+.eng-modal-close {
+  background: none; border: none; cursor: pointer; color: var(--text-muted);
+  padding: var(--sp-2); display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm); transition: color 0.12s, background 0.12s;
+}
+.eng-modal-close:hover { background: var(--surface-hover); color: var(--text-secondary); }
+.eng-modal-divider { border: none; border-top: 1px solid var(--border-subtle); margin: var(--sp-9) 0; }
+
+/* Questions section */
+.eng-questions-section { display: flex; flex-direction: column; gap: var(--sp-6); }
+.eng-questions-header {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.eng-questions-header h3 { margin: 0; font-size: var(--fs-15); color: var(--text-heading); }
+.eng-q-count { color: var(--text-muted); font-weight: 400; }
+.eng-q-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: var(--sp-5) var(--sp-6); border: 1px solid var(--border-subtle); border-radius: var(--r-lg);
+  gap: var(--sp-6);
+}
+.eng-q-row-main { display: flex; align-items: center; gap: var(--sp-5); flex: 1; min-width: 0; }
+.eng-q-type-badge {
+  font-size: var(--fs-10); font-weight: 700; text-transform: uppercase;
+  background: var(--surface-alt); color: var(--text-label); padding: var(--sp-1) var(--sp-3); border-radius: var(--r-pill);
+  flex-shrink: 0;
+}
+.eng-q-text { font-size: var(--fs-13); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eng-q-required { font-size: var(--fs-10); color: var(--status-danger-text); font-weight: 700; flex-shrink: 0; }
+.eng-q-row-actions { display: flex; gap: var(--sp-2); flex-shrink: 0; }
+.eng-hint { font-size: var(--fs-12); color: var(--text-faint); margin: 0; font-style: italic; }
+
+/* Optimistic-insert pending row — Engagement Questions (N-218c) */
+/* .eng-q-row is a <div>, not a <table> row -- the .data-table tbody      */
+/* tr.row-pending rules above don't reach it, hence a new selector.       */
+.eng-q-row.row-pending { opacity: 0.6; }
+
+/* Print / PDF export */
+@media print {
+  .eng-controls, .eng-tab-strip, .eng-rate-banner .btn-secondary,
+  .eng-modal-overlay, .home-bottom-bar { display: none; }
+  .eng-card { break-inside: avoid; }
+}

@@ -1,0 +1,155 @@
+/* css/people.css - Payroll Summary and Org Chart.
+   Linked by people.html, after css/style.css (N-349b). Rules moved verbatim
+   from style.css; tokens, shell, forms, tables, buttons and the print foundation stay there. */
+
+/* ── Payroll Summary ─────────────────────────────────────── */
+.salary-cell {
+  white-space: nowrap;
+}
+.btn-padlock {
+  font-size: var(--fs-13);
+  vertical-align: middle;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.btn-padlock:hover {
+  opacity: 1;
+}
+#payroll-modal-overlay {
+  animation: fadeIn 0.15s ease;
+}
+#payroll-modal-overlay > div {
+  box-shadow: 0 var(--sp-4) var(--sp-10) rgba(0,0,0,0.18);
+}
+
+/* ── Org Chart ─────────────────────────────────────────────────────── */
+#org-chart-page {
+  overflow: auto; padding: var(--sp-9); background: var(--surface); border-radius: var(--r-lg);
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+#org-chart-canvas { text-align: center; min-width: 100%; }
+#org-chart-inner { display: inline-block; text-align: left; }
+
+.org-tree, .org-tree ul { position: relative; padding-top: var(--sp-8); text-align: center;
+  white-space: nowrap; list-style: none; margin: 0; }
+.org-tree ul { display: flex; justify-content: center; }
+.org-tree li { position: relative; padding: var(--sp-9) var(--sp-2) 0; }
+/* connector elbows */
+.org-tree li::before, .org-tree li::after {
+  content: ''; position: absolute; top: 0; right: 50%;
+  border-top: 1px solid var(--border-connector); width: 50%; height: var(--sp-8); }
+.org-tree li::after { right: auto; left: 50%; border-left: 1px solid var(--border-connector); }
+.org-tree li:only-child { padding-top: var(--sp-9); }        /* same gap as multi-child rows */
+.org-tree li:only-child::before { display: none; }    /* no horizontal elbow for a single child */
+.org-tree li:only-child::after {                       /* straight vertical connector instead */
+  display: block; content: ''; top: 0; left: 50%; right: auto;
+  width: 0; height: var(--sp-9); border-left: 1px solid var(--border-connector); border-top: 0; border-radius: 0;
+}
+.org-tree li:first-child::before, .org-tree li:last-child::after { border: 0; }
+.org-tree li:last-child::before {
+  border-right: 1px solid var(--border-connector); border-radius: 0 5px 0 0; }
+.org-tree li:first-child::after { border-radius: 5px 0 0 0; }
+.org-tree ul::before { content: ''; position: absolute; top: 0; left: 50%;
+  border-left: 1px solid var(--border-connector); width: 0; height: var(--sp-8); }
+.org-tree > ul::before { display: none; }
+
+/* Stacked siblings: children run vertically off one spine dropped from the parent's
+   centre line, each reached by a short horizontal tick. Keeps subtree width to the
+   widest single child instead of the sum of all of them.
+   These rules are (0,2,2) and so beat the generic (0,2,1) :first-child / :last-child /
+   :only-child connector rules above — but they must therefore restate every border
+   property those rules set, rather than relying on the cascade. */
+/* inline-block => the list shrink-wraps its content, so the parent li's text-align
+   centres it under the parent node. Everything inside is fixed-pixel: the previous
+   percentage padding was resolved against a width the content itself determined,
+   which is what threw the alignment and overflowed the page edge. */
+/* block-level (so it sits BELOW the parent node, not beside it — .org-node is
+   inline-block and .org-tree sets white-space:nowrap) but shrink-to-fit via
+   fit-content, with auto margins to re-centre it under the parent. */
+.org-tree ul.org-stack { display: block; width: fit-content; margin-left: auto;
+  margin-right: auto; position: relative; text-align: left; padding-top: var(--sp-8); }
+/* elbow: parent's 20px stub (ul::before, at 50%) then across to the spine at left:0 */
+.org-tree ul.org-stack::after { content: ''; position: absolute; top: var(--sp-8); left: 0;
+  width: 50%; height: 0; border-top: 1px solid var(--border-connector); }
+/* 24px clears the 40px avatar that protrudes above each node (was overlapping) */
+.org-tree ul.org-stack > li { padding: var(--sp-9) 0 0 0; }
+/* text-align:left on the stacked list stops the li boxes centring, but it also
+   cascades into the node. Restore centring on the node itself — visible on short
+   labels like "QA", which sat hard against the left edge. */
+.org-tree ul.org-stack > li > .org-node { margin-left: 18px; text-align: center; }
+.org-tree ul.org-stack > li::before {          /* horizontal tick into the node */
+  top: 46px; left: 0; right: auto; width: 18px; height: 0;
+  border-top: 1px solid var(--border-connector); border-right: 0; border-radius: 0; }
+.org-tree ul.org-stack > li::after {           /* vertical spine segment */
+  top: 0; left: 0; right: auto; width: 0; height: 100%;
+  border-left: 1px solid var(--border-connector); border-top: 0; border-radius: 0; }
+.org-tree ul.org-stack > li:last-child::after { height: 46px; }
+.org-node { position: relative; display: inline-block; padding: var(--sp-4) 14px; border: 1px solid var(--border);
+  border-radius: var(--r-md); background: var(--surface); min-width: 120px; box-shadow: 0 1px var(--sp-1) rgba(0,0,0,.06); }
+.org-node__name { font-weight: 600; font-size: var(--fs-13); color: var(--text-primary); }
+.org-node__sub  { font-size: var(--fs-11); color: var(--org-sub-default); margin-top: var(--sp-1); }
+.org-node--leader  { background: var(--brand); border-color: var(--brand); }
+.org-node--leader  .org-node__name { color: var(--text-on-brand); }
+.org-node--leader  .org-node__sub  { color: var(--org-sub-leader); }
+.org-node--csd { background: var(--brand-secondary); border-color: var(--brand-secondary); }
+.org-node--csd .org-node__name { color: var(--text-on-brand); }
+.org-node--csd .org-node__sub  { color: var(--org-sub-csd); }
+.org-node--sdm { background: var(--surface-accent-2); border-color: var(--surface-accent-2); }
+.org-node--sdm .org-node__name { color: var(--text-on-brand); }
+.org-node--sdm .org-node__sub  { color: var(--org-sub-sdm); }
+.org-node--tp  { background: var(--org-tp-bg); border-color: var(--org-tp-border); }
+.org-node--tp  .org-node__name { color: var(--brand); }
+.org-node--tp  .org-node__sub  { color: var(--org-tp-sub); }
+.org-node--project { border-color: var(--status-success); background: var(--status-success-bg); }
+.org-node--bench   { border-style: dashed; background: var(--surface-faint); }
+/* placeholder (vacant / not-yet-hired): no level band colour, dashed outline */
+.org-node--placeholder { border: 1px dashed var(--org-placeholder-border); background: var(--surface); box-shadow: none; }
+.org-node--placeholder .org-node__name { color: var(--org-placeholder-name); font-style: italic; }
+.org-node--placeholder .org-node__sub  { color: var(--org-placeholder-sub); }
+.org-node--placeholder .org-avatar--initials { background: var(--org-placeholder-avatar-bg); }
+.org-node--person { padding: var(--sp-1) var(--sp-4); min-width: 84px; }
+.org-node--has-avatar { padding-top: var(--sp-9); }
+.org-avatar {
+  position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
+  width: var(--sp-11); height: var(--sp-11); border-radius: 50%; box-sizing: border-box;
+  border: var(--sp-1) solid var(--surface); box-shadow: 0 1px var(--sp-1) rgba(0,0,0,.25);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  z-index: 2;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.org-avatar--initials { background: var(--surface-accent-2); color: var(--text-on-brand); font-size: var(--fs-11); font-weight: 600; }
+.org-avatar--img { object-fit: cover; background: var(--surface); }
+.org-empty { color: var(--text-muted); padding: var(--sp-11); text-align: center; }
+
+.org-bench { margin-top: var(--sp-10); border-top: 1px dashed var(--border-connector); padding-top: var(--sp-7); }
+.org-bench__title { font-weight: 600; font-size: var(--fs-13); color: var(--status-neutral); margin-bottom: var(--sp-5); }
+.org-unassigned { margin-top: var(--sp-10); border-top: 1px dashed var(--border-connector); padding-top: var(--sp-7); }
+.org-unassigned__title { font-weight: 600; font-size: var(--fs-13); color: var(--status-neutral); margin-bottom: var(--sp-5); }
+/* .org-avatar sits at top:-20px, so each card overhangs upward by 20px — the
+   tree absorbs this via .org-tree li's padding-top. The bench grid needs its
+   own headroom (heading clearance) and a row-gap larger than the overhang. */
+.org-bench__grid { display: flex; flex-wrap: wrap; gap: 26px var(--sp-4); padding-top: 22px; }
+.org-tag { font-size: var(--fs-10); background: var(--org-tag-bg); color: var(--status-neutral);
+  padding: 1px var(--sp-3); border-radius: var(--r-lg); margin-left: var(--sp-3); }
+
+.org-print-title { display: none; }
+/* ── Org Chart — print/PDF ──────────────────────────────────────────── */
+@media print {
+  body.org-printing #main-content > *:not(#org-chart-page),
+  body.org-printing .page-header .btn-secondary,
+  body.org-printing .page-header .print-btn { display: none; }
+  /* No min-height in print: it forced ~640px of tile regardless of chart size and
+     was the main reason the title and chart split across two pages. Padding and
+     title margin trimmed for the same reason — on screen both stay as they were. */
+  body.org-printing #org-chart-page {
+    overflow: visible; min-height: 0; padding: var(--sp-4); }
+  body.org-printing .org-print-title {
+    display: block; text-align: center; font-size: var(--fs-15); font-weight: 600;
+    color: var(--brand); margin: 0 0 var(--sp-3); }
+  body.org-printing .org-tree { padding-top: var(--sp-2); }
+  /* 24px below the header is tuned for multi-page reports; the org chart is a
+     single page and needs the pixels more than the breathing room. */
+  body.org-printing #print-header { margin-bottom: var(--sp-6); }
+  body.org-printing #org-chart-canvas { text-align: center; min-width: 0; }
+  body.org-printing #org-chart-inner { zoom: var(--org-print-scale, 1); }
+}

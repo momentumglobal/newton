@@ -1,0 +1,693 @@
+/* css/report-builder.css - Report Builder, its print rules, Briefing Pack and the Report Builder title page.
+   Linked by reporting.html and market-reporting.html, after css/style.css (N-349b). Rules moved verbatim
+   from style.css; tokens, shell, forms, tables, buttons and the print foundation stay there. */
+
+.rb-print-band { display: none; } /* N-330: print-only copy of #print-header (RB title page) */
+
+@media print {
+  /* Report Builder - print (RB-specific only). Rules shared with other exports live in the print foundation in style.css (N-201). */
+  /* Report Builder — hide builder chrome in print */
+  .rb-shell,
+  .rb-sidebar,
+  .rb-canvas,
+  .rb-modal,
+  .rb-palette,
+  .rb-block { display: none !important; }
+  /* Text blocks — flow across pages rather than jump one.
+     A blanket break-inside:avoid stranded up to 290pt of a page whenever a
+     block missed the remaining space by a few lines (N-028). Orphans/widows
+     keep the split readable; the heading and bullet rules below stop the
+     break landing anywhere ugly. Chromium's default box-decoration-break:
+     slice draws border-top on the first fragment and border-bottom on the
+     last — do not set `clone`, it makes one block look like two tiles. */
+  .rb-text-block {
+    orphans: 3;
+    widows: 3;
+    margin-bottom: var(--sp-8);
+    padding: var(--sp-4) var(--sp-3) !important;
+  }
+  .rb-text-block h3 { break-after: avoid; page-break-after: avoid; }
+  .rb-text-block li { break-inside: avoid; page-break-inside: avoid; }
+ /* N-029 — bold-only lines are the sub-headings users actually write; the
+     toolbar's only heading command is H3 (report-builder.js:197) and that is
+     spent on the block title. Keep them with the content below now that
+     N-028 allows this block to split.
+
+     What :only-child actually does: it counts ELEMENT children and ignores
+     text nodes. So it excludes two-element shapes — a trailing <br>, or bold
+     followed by another element — but it does NOT exclude
+     <p><b>Lead</b> followed by plain text</p>, which still matches. That is a
+     known false positive and it is not fixable in CSS: no selector can test
+     whether a bold child accounts for all of its parent's text.
+
+     The bullets are safe because they are <li>, which these selectors never
+     target — NOT because of :only-child. Do not widen this rule to li on the
+     assumption that :only-child protects them; it does not, and every
+     "<b>First Hire Confirmed - </b>…" bullet would take break-after: avoid
+     and chain into one unbreakable run — the exact failure N-028 removed.
+
+     Consequence to live with: a body paragraph that merely opens in bold also
+     gets break-after: avoid. Harmless in isolation; several consecutive ones
+     would chain. If that ever shows up in a real report, the fix is a real
+     heading tag in the toolbar (the H4 option), not a cleverer selector.
+
+     :has() is Chromium 105+, consistent with the print rules below; Firefox
+     ignores it and falls back to N-028 behaviour. */
+  .rb-text-block p:has(> b:only-child),
+  .rb-text-block p:has(> strong:only-child),
+  .rb-text-block div:has(> b:only-child),
+  .rb-text-block div:has(> strong:only-child) {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  /* Allow report title to render. !important on margin-bottom because the
+     screen rule (.rb-report-title, line ~726) sits later in the file. */
+  .rb-report-title { display: block !important; margin-bottom: var(--sp-6) !important; }
+}
+
+/* ── Report Builder ─────────────────────────────────────────────── */
+.rb-shell {
+  display: flex;
+  gap: var(--sp-9);
+  height: calc(100vh - 120px);
+  overflow: hidden;
+}
+.rb-sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  overflow-y: hidden;
+  padding: 0 var(--sp-2) var(--sp-9);
+  display: flex;
+  flex-direction: column;
+}
+.rb-canvas {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 var(--sp-2) var(--sp-9);
+}
+.rb-section-label {
+  font-size: var(--fs-11);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-label);
+  margin: var(--sp-7) 0 var(--sp-3);
+  font-weight: 600;
+}
+.rb-input, .rb-select {
+  width: 100%;
+  padding: var(--sp-3) var(--sp-5);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  font-size: var(--fs-13);
+  font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
+  color: var(--text-primary);
+  background: var(--surface);
+  box-sizing: border-box;
+}
+.rb-palette { display: flex; flex-direction: column; gap: var(--sp-3); }
+.rb-subheading {
+  font-size: var(--fs-10);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin: var(--sp-5) 0 var(--sp-1);
+}
+.rb-palette-tile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--surface-app);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: var(--fs-13);
+  cursor: default;
+  user-select: none;
+}
+.rb-palette-tile:hover { background: var(--surface-muted); }
+.rb-add-btn {
+  background: var(--brand); color: var(--text-on-brand);
+  border: none; border-radius: var(--r-sm);
+  width: 22px; height: 22px;
+  font-size: var(--fs-16); line-height: 1; cursor: pointer;
+}
+.rb-full-btn { width: 100%; margin-top: var(--sp-2); }
+.rb-block-snap { align-items: flex-start; }
+.rb-snap { flex: 1; min-width: 0; }
+.rb-snap-title { font-weight: 600; font-size: var(--fs-14); margin-bottom: var(--sp-4); }
+.rb-snap-table { width: 100%; border-collapse: collapse; }
+.rb-snap-table th,
+.rb-snap-table td { padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--border-subtle); font-size: var(--fs-13); font-variant-numeric: tabular-nums; }
+.rb-snap-table th { text-align: center; color: var(--text-label); font-weight: 600; }
+.rb-snap-table th:first-child,
+.rb-snap-table td:first-child { text-align: left; }
+.rb-snap-input {
+  width: 52px; padding: var(--sp-2); text-align: center;
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  font-family: inherit; font-size: var(--fs-13);
+}
+.rb-sidebar-scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+.rb-sidebar-footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding-top: var(--sp-6);
+  margin-top: var(--sp-4);
+}
+.rb-filter-mark { color: var(--brand); font-weight: 700; margin-left: var(--sp-1); }
+.rb-footnote {
+  font-size: var(--fs-11);
+  color: var(--text-label);
+  line-height: 1.4;
+  margin: var(--sp-5) 0 0;
+}
+
+.rb-text-block h3 { font-size: var(--fs-15); font-weight: 600; color: var(--text-heading); margin: 0 0 var(--sp-6) 0; padding-bottom: var(--sp-4); border-bottom: 1px solid var(--border-subtle); }
+
+.rb-text-block ul, .rb-text-block ol { padding-left: var(--sp-9); margin: var(--sp-2) 0; list-style-position: inside; }
+.rb-text-block ul { list-style-type: disc; }
+.rb-text-block ol { list-style-type: decimal; }
+/* Market Report observations editor placeholder - moved out of a <style>
+   block in market-report.js's template (N-324: no <style> elements). */
+#mr-obs-editor:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-faint); font-style: italic; pointer-events: none;
+}
+
+/* Canvas blocks */
+.rb-empty {
+  display: flex; align-items: center; justify-content: center;
+  height: 200px;
+  border: var(--sp-1) dashed var(--border-strong);
+  border-radius: var(--r-lg);
+  color: var(--text-muted); font-size: var(--fs-14); text-align: center;
+}
+.rb-block {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-5);
+  padding: var(--sp-5) var(--sp-6);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  margin-bottom: var(--sp-4);
+}
+.rb-block-panel { background: var(--surface-tint); border-left: var(--sp-1) solid var(--brand); }
+.rb-block-text  { background: var(--surface-tint); border-left: var(--sp-1) solid var(--brand); }
+.rb-drag-handle {
+  cursor: grab; color: var(--text-muted); font-size: var(--fs-16);
+  padding-top: var(--sp-1); flex-shrink: 0;
+}
+.rb-drag-handle:active { cursor: grabbing; }
+.rb-block-label { flex: 1; font-size: var(--fs-14); font-weight: 500; padding-top: var(--sp-1); }
+.rb-remove-btn {
+  background: none; border: none;
+  color: var(--text-muted); font-size: var(--fs-16);
+  cursor: pointer; flex-shrink: 0; padding: 0 var(--sp-1);
+}
+.rb-remove-btn:hover { color: var(--status-danger); }
+
+/* Modals */
+.rb-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 200;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: var(--sp-13);
+  overflow-y: auto;
+}
+.rb-preview-inner {
+  background: var(--surface-raised);
+  border-radius: var(--r-xl);
+  width: 900px; max-width: 96vw;
+  padding: var(--sp-9);
+  max-height: 85vh; overflow-y: auto;
+}
+.rb-preview-toolbar {
+  display: flex; gap: var(--sp-5); justify-content: flex-end;
+  margin-bottom: var(--sp-8);
+}
+.rb-modal-inner {
+  background: var(--surface-raised); border-radius: var(--r-xl);
+  width: 600px; max-width: 96vw;
+  padding: var(--sp-10); max-height: 70vh; overflow-y: auto;
+}
+.rb-modal-inner h3 { margin: 0 0 var(--sp-7); font-size: var(--fs-18); color: var(--text-heading); letter-spacing: var(--ls-heading); }
+.rb-saved-row {
+  display: flex; align-items: center; gap: var(--sp-6);
+  padding: var(--sp-5) 0; border-bottom: 1px solid var(--border-subtle); font-size: var(--fs-14);
+}
+.rb-saved-row span:first-child { flex: 1; font-weight: 500; }
+.rb-saved-meta { color: var(--text-muted); font-size: var(--fs-12); }
+.btn-sm { padding: var(--sp-2) var(--sp-5) !important; font-size: var(--fs-12) !important; }
+
+/* Rendered report blocks */
+.rb-report-title { margin-bottom: var(--sp-8); }
+.rb-report-title h2 { margin: 0 0 var(--sp-2); }
+.rb-text-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-8) var(--sp-9);
+  margin-bottom: var(--sp-8);
+  box-shadow: 0 1px var(--sp-2) rgba(10,11,68,0.04);
+  font-size: var(--fs-14); line-height: 1.6; color: var(--text-secondary);
+}
+
+/* ── Briefing pack library (N-235) ───────────────────────────────── */
+/* Client band row — same treatment as .lci-team-row, so grouped tables read
+   the same way in both modules. */
+.bp-lib-client-row td {
+  background: var(--surface-alt);
+  padding: var(--sp-3) var(--sp-4);
+}
+.bp-lib-client-row:hover td { background: var(--surface-alt); }
+.bp-lib-count {
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  margin-left: var(--sp-2);
+}
+
+/* ── Briefing pack builder (N-211) ───────────────────────────────── */
+.bp-block {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.bp-block-fixed { border-style: dashed; }
+.bp-block-body  { flex: 1; display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.bp-block-tag   { font-size: var(--fs-12); font-weight: var(--fw-semibold); color: var(--text-secondary); }
+
+/* ── Briefing pack output (N-211, redesigned N-213/N-214) ────────── */
+.bp-pack { counter-reset: bp-divider; }
+
+/* Full-bleed pages — cover, dividers, closing. On screen they are rounded
+   brand cards; in print they are sized to the whole sheet (see @media print). */
+.bp-page-full {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--brand);
+  color: var(--text-on-brand);
+  border-radius: var(--r-md);
+  padding: var(--sp-9) var(--sp-6);
+}
+.bp-page-full h1,
+.bp-page-full h2 { color: var(--text-on-brand); }
+
+/* Momentum swirl — centred, on cover and closing only. Dividers stay clean:
+   they are quiet beats between sections and a third swirl page cheapens it.
+   Opacity comes from CONFIG.BRIEFING_PACK.SWIRL_OPACITY via .bp-pack. */
+.bp-page-title::after,
+.bp-page-closing::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 17%;
+  transform: translateX(-50%);
+  width: 62%;
+  height: 62%;
+  background: url('../mg-visual-swirl-report.png') no-repeat center center / contain;
+  opacity: var(--bp-swirl-opacity, 0.38);
+  /* N-335: the PNG's baked navy (#0A0545) is not the brand fill (#0A0B44); at
+     partial opacity it showed as a box. lighten keeps only the artwork. */
+  mix-blend-mode: lighten;
+}
+
+/* Momentum x Client partnership lockup. The client mark sits in a white chip
+   so a full-colour logo reads correctly on the brand fill; with no logo
+   uploaded the chip carries the client name instead, so it is never broken. */
+.bp-lockup {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-7);
+  align-self: flex-start;
+  position: relative;
+  z-index: 1;
+}
+.bp-lockup-mg   { height: 52px; flex-shrink: 0; }
+.bp-lockup-x    { font-size: var(--fs-26); color: var(--inverse-text-subtitle); flex-shrink: 0; }
+/* Client side mirrors the Momentum side: square mark, then the name set as a
+   wordmark. Square tile by design — a roughly square logo sits in it best. */
+.bp-lockup-client { display: inline-flex; align-items: center; gap: var(--sp-5); }
+.bp-lockup-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  padding: var(--sp-3);
+  background: var(--surface);
+  border-radius: var(--r-md);
+}
+.bp-lockup-logo { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+.bp-lockup-client-name {
+  color: var(--text-on-brand);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-26);
+  line-height: 1.1;
+}
+
+/* Cover and closing share one composition: lockup, spacer, lower-third block. */
+.bp-cover-spacer   { flex: 1 1 auto; }
+.bp-cover-block    { position: relative; z-index: 1; }
+.bp-cover-title    { font-size: var(--fs-32); line-height: 1.15; margin: 0; letter-spacing: var(--ls-heading-lg); }
+.bp-cover-rule     { display: block; width: 64px; height: 3px; background: var(--text-on-brand); margin: var(--sp-6) 0; }
+.bp-cover-subtitle { font-size: var(--fs-18); color: var(--inverse-text-subtitle); margin: var(--sp-3) 0 0; }
+.bp-cover-role     { font-size: var(--fs-16); margin: var(--sp-2) 0; }
+.bp-cover-partner,
+.bp-cover-date     { color: var(--inverse-text-subtitle); margin: var(--sp-2) 0; }
+
+/* Dividers — numeral from a CSS counter, so reordering renumbers with no
+   state to keep in sync. The inner block owns the free space and centres
+   inside it (N-213 F1: competing auto margins pushed it 38mm high). */
+.bp-divider-inner {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin: 0;
+}
+.bp-divider-inner::before {
+  counter-increment: bp-divider;
+  content: counter(bp-divider, decimal-leading-zero);
+  display: block;
+  font-size: var(--fs-40);
+  font-weight: var(--fw-bold);
+  color: var(--inverse-text-subtitle);
+  margin-bottom: var(--sp-4);
+}
+.bp-divider-heading { font-size: var(--fs-32); margin: 0; letter-spacing: var(--ls-heading-lg); }
+
+/* Closing page — mirrors the cover rather than centring everything. */
+.bp-closing-heading { font-size: var(--fs-22); margin: 0; letter-spacing: var(--ls-heading); }
+.bp-contact-name    { font-size: var(--fs-26); font-weight: var(--fw-semibold); margin: 0 0 var(--sp-2); letter-spacing: var(--ls-heading-lg); }
+.bp-contact-title,
+.bp-contact-email   { color: var(--inverse-text-subtitle); margin: var(--sp-1) 0; }
+.bp-closing-partner { color: var(--inverse-text-subtitle); font-size: var(--fs-13); margin-top: var(--sp-5); }
+
+/* Per-page confidential line on full-bleed pages. The fixed footer is
+   dark-on-white and would be invisible against the brand fill. margin is 0 so
+   it does not compete with the inner block for free space (N-213 F1). */
+.bp-page-conf {
+  margin: 0;
+  padding-top: var(--sp-6);
+  font-size: var(--fs-11);
+  color: var(--inverse-text-subtitle);
+  position: relative;
+    z-index: 1;
+}
+
+/* Content sections are tiles that share pages, not one page each (N-214).
+   break-inside: avoid moves a tile whole to the next page when it does not
+   fit; a tile taller than one page still splits, which nothing can prevent. */
+.bp-section-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-8) var(--sp-9);
+  margin-bottom: var(--sp-8);
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.bp-page-contents { padding: var(--sp-7) 0; }
+.bp-section-heading {
+  color: var(--brand-tertiary);
+  font-size: var(--fs-22);
+  margin: 0 0 var(--sp-5);
+  padding-bottom: var(--sp-3);
+  border-bottom: 2px solid var(--border);
+  break-after: avoid;
+  page-break-after: avoid;
+}
+.bp-section-body {
+  font-size: var(--fs-14);
+  line-height: 1.55;
+  /* Fills the tile: the tile's own padding sets the measure, so there is no
+     dead column on the right. Justified with hyphenation to keep the ragged
+     edge from turning into rivers at this width. */
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+.bp-section-body p { margin: 0 0 var(--sp-5); orphans: 3; widows: 3; }
+.bp-section-body p:last-child { margin-bottom: 0; }
+.bp-section-body h3 {
+  font-size: var(--fs-16);
+  font-weight: var(--fw-semibold);
+  color: var(--brand-tertiary);
+  text-decoration: none;
+  margin: var(--sp-7) 0 var(--sp-3);
+  break-after: avoid;
+  page-break-after: avoid;
+}
+.bp-section-body h4 {
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  margin: var(--sp-6) 0 var(--sp-2);
+  break-after: avoid;
+  page-break-after: avoid;
+}
+.bp-section-body ul,
+.bp-section-body ol { padding-left: var(--sp-9); margin: 0 0 var(--sp-5); }
+.bp-section-body li { margin-bottom: var(--sp-2); }
+
+/* Callout */
+.bp-callout {
+  border-left: 3px solid var(--brand);
+  background: var(--surface-app);
+  padding: var(--sp-5) var(--sp-6);
+  margin: var(--sp-6) 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.bp-callout p:last-child { margin-bottom: 0; }
+
+/* Contents */
+.bp-contents-list { list-style: none; padding: 0; margin: 0; max-width: var(--bp-measure, 58ch); }
+.bp-contents-list li {
+  display: flex;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-14);
+  break-inside: avoid;
+}
+.bp-contents-num { color: var(--brand-tertiary); font-weight: var(--fw-semibold); min-width: 28px; }
+.bp-contents-item--divider { font-weight: var(--fw-semibold); font-size: var(--fs-15); color: var(--text-heading); }
+.bp-contents-item--section {
+  /* 36px, not a spacing token: aligns under a divider row's own heading
+     text, which starts at bp-contents-num's min-width (28px) + the row's
+     gap (var(--sp-4), 8px) — not an arbitrary deeper indent. */
+  padding-left: 36px;
+  font-size: var(--fs-13);
+  color: var(--text-secondary);
+  border-bottom-color: var(--border-subtle);
+}
+.bp-contents-item--section::before {
+  content: '\2013';
+  margin-right: var(--sp-3);
+  color: var(--text-faint);
+}
+
+/* Client logo control in the builder sidebar */
+.bp-logo-control { display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start; }
+.bp-logo-thumb   { max-height: 40px; max-width: 100%; object-fit: contain; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: var(--sp-2); }
+.bp-logo-empty   { font-size: var(--fs-12); color: var(--text-muted); }
+.bp-logo-input   { font-size: var(--fs-12); max-width: 100%; }
+
+/* ── Report Builder title page (N-330) ──────────────────────────────
+   Reuses the Briefing Pack cover: .bp-page-full (brand fill, flex column),
+   .bp-page-title (swirl ::after), .bp-lockup and .bp-cover-*. Only the
+   landscape geometry is its own, so these rules must stay AFTER those. */
+.rb-cover {
+  aspect-ratio: 297 / 210;
+  margin-bottom: var(--sp-8);
+}
+/* Landscape: the swirl sits right of the left-aligned title block. */
+.rb-cover::after {
+  left: auto;
+  right: 4%;
+  top: 12%;
+  transform: none;
+  width: 48%;
+  height: 76%;
+}
+.rb-check-row {
+  display: flex; align-items: center; gap: var(--sp-3);
+  margin-top: var(--sp-5);
+  font-size: var(--fs-13); cursor: pointer; user-select: none;
+}
+
+@media print {
+  /* Named page — a zero-margin landscape sheet for the full-bleed cover.
+     Named because @page cannot be scoped (N-201); Chromium only, like
+     @page coe-gantt. */
+  @page rb-cover { size: A4 landscape; margin: 0; }
+  /* The cover takes page 1; .rb-print-band re-creates the Newton bar at the
+     top of page 2. */
+  body.rb-printing #print-header { display: none !important; }
+  body.rb-printing .rb-cover {
+    page: rb-cover;
+    width: 297mm;
+    height: 210mm;
+    aspect-ratio: auto;
+    box-sizing: border-box;
+    padding: 18mm 22mm 16mm;
+    /* Cancel #main-content's print inset so the cover is full bleed; the
+       data pages after it keep the inset. */
+    margin: 0 calc(var(--sp-4) * -1);
+    border-radius: 0;
+    break-after: page;
+    page-break-after: always;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.rb-printing .rb-cover::after,
+  body.rb-printing .rb-cover .bp-lockup-chip {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* Flowing content is wrapped in a table so its thead repeats the running
+   header on every page and its tfoot RESERVES space above the fixed
+   confidential footer. Chrome clips a fixed element positioned outside the
+   page content box and reserves no space for one inside it, so offsets alone
+   cannot do this (N-213 F2, re-tested 4 Sep). */
+.bp-flow { width: 100%; border-collapse: collapse; }
+.bp-flow > thead { display: table-header-group; }
+.bp-flow > tfoot { display: table-footer-group; }
+.bp-flow td { padding: 0; vertical-align: top; }
+.bp-runhead      { display: none; }
+.bp-confidential { text-align: center; font-size: var(--fs-11); color: var(--text-secondary); padding: var(--sp-4) 0; }
+
+/* Print — scoped entirely to body.bp-printing so nothing here can reach
+   another feature's export. Two named page contexts: @page bp-flow (margined,
+   for flowing content) and @page bp-full (zero-margin, full-bleed pages) —
+   named because @page cannot be scoped by an ancestor selector; before N-202
+   the flowing-content page was a bare, unscoped @page that silently
+   overrode the foundation's sitewide default for every portrait export, not
+   just this one (fixed here). Named pages are Chromium-only, the same
+   documented limitation as the CoE Gantt's @page coe-gantt above. One of two
+   portrait exports in Newton — the LCI Lead Magnet is the other. */
+@media print {
+  @page bp-flow { size: A4 portrait; margin: 20mm 18mm 16mm; }
+  @page bp-full { size: A4 portrait; margin: 0; }
+
+  body.bp-printing #print-header { display: none !important; }
+  /* The shared print rule insets #main-content; full bleed cannot survive it. */
+  body.bp-printing #main-content { padding: 0 !important; }
+  
+  body.bp-printing .bp-page { page: bp-flow; break-after: page; page-break-after: always; }
+  body.bp-printing .bp-page:last-of-type { break-after: auto; page-break-after: auto; }
+  body.bp-printing .bp-pack > .bp-page-full:first-child { break-before: auto; page-break-before: auto; }
+  /* The last page must not be a fixed, clipped 297mm block: a sub-pixel
+     overflow at the printer's scale then has nowhere to go but a new, blank
+     sheet (N-225 — the previous height:297mm + margin-bottom:-2mm fudge on
+     this rule didn't actually match this comment's own description of the
+     fix, and the blank page recurred). min-height still fills the sheet
+     visually when content is shorter; overflow:visible means any variance
+     lands as content on a genuine next page instead of a blank one. */
+  body.bp-printing .bp-pack > .bp-page-full:last-child {
+    min-height: 297mm;
+    overflow: visible;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  /* No padding on the shared .bp-page class — that rule outranked the cover's
+     own padding in N-211 and pushed headings off the panel edge. */
+
+  body.bp-printing .bp-page-full {
+    /* A full-bleed page following a flow table must start its own page. */
+    break-before: page;
+    page-break-before: always;
+    page: bp-full;
+    width: 210mm;
+    height: 297mm;
+    box-sizing: border-box;
+    padding: 24mm 22mm 18mm;
+    border-radius: 0;
+    background: var(--brand);
+    color: var(--text-on-brand);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+        position: relative;
+    z-index: 1;
+  }
+  body.bp-printing .bp-page-title::after,
+  body.bp-printing .bp-page-closing::after,
+  body.bp-printing .bp-lockup-chip {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.bp-printing .bp-page-contents { padding: 0; break-after: page; page-break-after: always; }
+  body.bp-printing .bp-section-tile {
+    box-shadow: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Fixed furniture sits in the reserved @page margin bands, and behind the
+     full-bleed pages (z-index 0 vs 1) so it never shows on cover, dividers or
+     closing — those carry their own .bp-page-conf line instead.
+     N-213 F2: Chrome anchors position:fixed to the page's CONTENT box, not
+     the page box, so these offsets are negative to reach the margin bands and
+     left/right are 0 to span exactly the text column. */
+  /* Swirl sits in the band between the lockup and the title block: the
+     artwork occupies roughly the middle 70% of this square box, so a 175mm
+     box at 30mm puts it clear of both. */
+  body.bp-printing .bp-page-title::after,
+  body.bp-printing .bp-page-closing::after {
+    top: 51mm;
+    height: 175mm;
+    width: 175mm;
+  }
+
+  /* Running header repeats via the flow table's thead, which also reserves
+     its own space — no overlap possible. It cannot appear on a full-bleed
+     page because those pages sit outside every table. */
+  body.bp-printing .bp-runhead {
+        display: flex;
+    justify-content: space-between;
+    padding-bottom: var(--sp-2);
+    font-size: var(--fs-11);
+    color: var(--text-secondary);
+  }
+  /* In the thead band, under the running header. Not fixed and not a tfoot:
+     both were tried on this document and neither places reliably. */
+  body.bp-printing .bp-confidential {
+    padding: 0 0 var(--sp-2);
+    margin-bottom: var(--sp-7);
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    font-size: var(--fs-11);
+    color: var(--text-muted);
+  }
+
+  body.bp-printing .rt-table { break-inside: auto; }   
+  body.bp-printing .rt-table thead { display: table-header-group; }
+  body.bp-printing .rt-table tr { break-inside: avoid; page-break-inside: avoid; }
+  body.bp-printing .rt-table th {
+    background: var(--surface-app);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.bp-printing .bp-callout {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.bp-printing .bp-section-body img { max-width: 100%; }
+}

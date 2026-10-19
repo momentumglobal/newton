@@ -18,7 +18,7 @@ process.env.TZ = process.env.NEWTON_TZ || 'Europe/London';
 // independence must be checked this way.
 //
 // utils.js / ui-kit.js / richtext.js / headcount.js / permissions.js / checklist-logic.js / graph-client.js / api.js / api-headcount.js /
-// analytics.js / lci-model.js / coe-plan.js declare
+// analytics.js / lci-config.js / lci-model.js / coe-plan.js declare
 // plain global functions (<script>-tag style, not CommonJS modules), so
 // they're loaded as scripts into one shared vm context in production
 // script order rather than `require()`d. Same approach as the Node-VM rig
@@ -41,7 +41,7 @@ const JS_DIR = path.join(TESTS_DIR, '..', 'js');
 
 // Production script order (index.html / reporting.html): config.js before
 // actions.js (N-301) before utils.js before ui-kit.js before richtext.js before headcount.js before permissions.js before
-// checklist-logic.js before graph-client.js before api.js before api-headcount.js before analytics.js before lci-model.js
+// checklist-logic.js before graph-client.js before api.js before api-headcount.js before analytics.js before lci-config.js before lci-model.js
 // before coe-plan.js. Fixtures/assertions load last. (In production api-headcount.js loads straight after
 // diagnostics.js, which this runner does not load.)
 // (checklist-logic.js loads only on reporting.html in production, before api-checklists.js; both new files are
@@ -60,6 +60,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'api-headcount.js'),
   path.join(JS_DIR, 'list-controls.js'),
   path.join(JS_DIR, 'analytics.js'),
+  path.join(JS_DIR, 'lci-config.js'),
   path.join(JS_DIR, 'lci-model.js'),
   path.join(JS_DIR, 'coe-plan.js'),
   path.join(TESTS_DIR, 'lint-dates.js'),

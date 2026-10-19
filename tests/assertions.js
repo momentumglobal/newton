@@ -443,6 +443,70 @@ var ASSERTIONS = [
     },
   },
   {
+    name: 'every Lucide icon a template names is in the vendored subset (N-349a)',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined' || typeof ICON_SUBSET_LIST === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(
+        lintIconSubset(ALL_HTML, ALL_SOURCES, ICON_SUBSET_LIST).map(v => `${v.file}:${v.line}  ${v.icon}  (${v.rule})`),
+        [],
+        'icons missing from js/vendor/lucide-subset-icons.txt (add the name, run tools/build-lucide-subset.mjs, update VERSIONS.md)'
+      );
+    },
+  },
+  {
+    name: 'Lucide subset: icon list, banner and VERSIONS.md row agree; full file absent (N-349a)',
+    fn: function () {
+      if (typeof VENDOR_FILES === 'undefined' || typeof VENDOR_HEADS === 'undefined' || typeof ICON_SUBSET_LIST_SHA256 === 'undefined') {
+        _skip('Vendor hashing needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(
+        lintLucideSubset(VENDOR_FILES, VENDOR_HEADS, VENDOR_MANIFEST, ICON_SUBSET_LIST, ICON_SUBSET_LIST_SHA256),
+        [], 'Lucide subset chain'
+      );
+    },
+  },
+  {
+    name: 'lintIconSubset flags a missing name under each rule, ignores comparisons and comments (N-349a)',
+    fn: function () {
+      const js = {
+        'a.js': [
+          "x = `<i data-lucide=\"nope-1\"></i>`;",
+          "y = `<i data-lucide=\"${dark ? 'sun' : 'nope-2'}\"></i>`;",
+          "z = { icon: 'nope-3' };",
+          "const FOO_ICON = { a: 'bell', b: 'nope-4' };",
+          "w = `<i data-lucide=\"${mode === 'dark' ? 'sun' : 'bell'}\"></i>`;",
+          "// icon: 'nope-5'",
+        ].join('\n'),
+      };
+      const html = { 'p.html': '<!-- <i data-lucide="nope-6"></i> -->\n<i data-lucide="bell"></i>' };
+      _assertEqual(
+        lintIconSubset(html, js, 'bell\nsun\n').map(v => `${v.file}:${v.line} ${v.icon} ${v.rule}`),
+        ['js/a.js:1 nope-1 R1', 'js/a.js:2 nope-2 R2', 'js/a.js:3 nope-3 R3', 'js/a.js:4 nope-4 R4'],
+        'one violation per rule; comparison operand "dark" and both comments ignored'
+      );
+    },
+  },
+  {
+    name: 'lintLucideSubset passes a consistent chain and fails each way it can drift (N-349a)',
+    fn: function () {
+      const sha = 'a'.repeat(64);
+      const f = 'lucide-1.47.0.subset.min.js';
+      const head = '/*! lucide 1.47.0 subset (N-349a) icons-sha256:' + sha + ' */(()=>{})();';
+      const row = '| lucide | 1.47.0 | `' + f + '` | **DERIVED** — bundled | u | ISC | 1 | `sha384-x` |';
+      const files = {}; files[f] = 'sha384-x';
+      const heads = {}; heads[f] = head;
+      _assertEqual(lintLucideSubset(files, heads, row, 'bell\n', sha), [], 'consistent chain');
+      _assertEqual(lintLucideSubset(files, heads, row, 'bell\n', 'b'.repeat(64)).length, 1, 'list edited without rebuilding');
+      const withFull = Object.assign({}, files, { 'lucide-1.47.0.min.js': 'sha384-y' });
+      _assertEqual(lintLucideSubset(withFull, heads, row, 'bell\n', sha).length, 1, 'full upstream file back in js/vendor/');
+      _assertEqual(lintLucideSubset(files, heads, row.replace('DERIVED', 'upstream'), 'bell\n', sha).length, 1, 'row not marked DERIVED');
+      const wrongHash = row.replace('`sha384-x`', '`sha384-z`');
+      _assertEqual(lintVendorManifest(files, wrongHash).length > 0, true, 'a wrong sha384 in the row is caught by lintVendorManifest');
+    },
+  },
+  {
     name: 'MSAL is only called through auth.js authReady() (N-290 — SEC-10 guard)',
     fn: function () {
       if (typeof lintMsalCalls === 'undefined' || typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined') {

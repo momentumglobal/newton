@@ -3072,9 +3072,11 @@ body {
     break-before: page;
     page-break-before: always;
   }
-  /* Tile border fills the whole landscape page even if the chart is shorter. */
+  /* Tile border fills the whole landscape page even if the chart is shorter.
+     Fixed to the printable height (A4 landscape 210mm − 2×10mm @page margin = 190mm,
+     2mm spare) — 100vh overshoots it and spills the tile's bottom edge onto a blank page. */
   .rb-hiring-plan-panel {
-    min-height: 100vh;
+    min-height: 188mm;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;

@@ -2994,23 +2994,24 @@ var ASSERTIONS = [
     },
   },
   {
-    name: 'N-306 headcount writes only via api.js helpers (lint-headcount-writes guard)',
+    name: 'N-306 headcount writes only via api-headcount.js helpers (lint-headcount-writes guard)',
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') {
         _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
       }
       _assertEqual(lintHeadcountWrites(ALL_SOURCES).map(v => `${v.file}:${v.line}  ${v.text}`), [],
-        'raw RoleHeadcount writes outside api.js (use createHeadcount / updateHeadcount / cancelHeadcount)');
+        'raw RoleHeadcount writes outside api-headcount.js (use createHeadcount / updateHeadcount / cancelHeadcount)');
     },
   },
   {
-    name: 'lint-headcount-writes control: flags raw writes outside api.js, ignores reads and api.js (N-306)',
+    name: 'lint-headcount-writes control: flags raw writes outside api-headcount.js, ignores reads and api-headcount.js (N-306)',
     fn: function () {
       const lint = src => lintHeadcountWrites(src).map(v => `${v.file}:${v.line}`);
       _assertEqual(lint({ 'pages.js': "x();\nawait createItem('RoleHeadcount', f);\nupdateItem( \"RoleHeadcount\", 1, f);\n" }),
         ['pages.js:2', 'pages.js:3'], 'create + update flagged');
       _assertEqual(lint({ 'forms.js': 'deleteItem(`RoleHeadcount`, 3);\n' }), ['forms.js:1'], 'delete, backtick');
-      _assertEqual(lint({ 'api.js': "createItem('RoleHeadcount', f);\n" }), [], 'api.js is the home of headcount writes');
+      _assertEqual(lint({ 'api-headcount.js': "createItem('RoleHeadcount', f);\n" }), [], 'api-headcount.js is the home of headcount writes');
+      _assertEqual(lint({ 'api.js': "createItem('RoleHeadcount', f);\n" }), ['api.js:1'], 'api.js is no longer exempt (N-347)');
       _assertEqual(lint({ 'pages.js': "getItems('RoleHeadcount');\ncreateItem('RoleHistory', f);\n" }), [], 'reads and other lists not flagged');
     },
   },
@@ -4519,7 +4520,7 @@ var ASSERTIONS = [
       _assertEqual(lintListControlCallbacks(ALL_SOURCES), [], 'every list-controls callback is a registered action');
       const regs = readActionRegistrations(ALL_SOURCES).registered;
       _assertEqual(regs.signIn, ['js/auth.js'], 'auth.js registers signIn');
-      _assertEqual(regs.printPage, ['js/api.js'], 'api.js registers printPage');
+      _assertEqual(regs.printPage, ['js/ui-kit.js'], 'ui-kit.js registers printPage');
       _assertEqual(regs.updateRoleStage, ['js/pages.js'], 'pages.js registers updateRoleStage');
       _assertEqual(regs.unlockStageEdit, ['js/pages.js'], 'pages.js registers unlockStageEdit');
       _assertEqual(regs.setRolesSort, ['js/pages.js'], 'pages.js registers its list setters');
@@ -4754,7 +4755,7 @@ var ASSERTIONS = [
         }));
       }
       // printPage() adds landscape through the CSSOM, not a <style> element.
-      _assertEqual(/insertRule\('@page \{ size: A4 landscape; \}'/.test(ALL_SOURCES['api.js']), true, 'printPage inserts the landscape @page rule through the CSSOM');
+      _assertEqual(/insertRule\('@page \{ size: A4 landscape; \}'/.test(ALL_SOURCES['ui-kit.js']), true, 'printPage inserts the landscape @page rule through the CSSOM');
     },
   },
   {

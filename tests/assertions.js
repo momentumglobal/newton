@@ -5571,6 +5571,64 @@ var ASSERTIONS = [
       _assertEqual(projectOptionLabels(null).size, 0, 'null list');
     },
   },
+  // ---- N-351: shared People KPI figures, Market Report metrics, library rows -
+  {
+    name: 'N-351: peopleKpiFigures — forecasts leave Active Customers and billed headcount; Unassigned ignored; previous-quarter counts as of its last day',
+    fn: function () {
+      const A = (id, name, cust, billed, forecast, s, e) => ({ AssignmentID: id, EmployeeName: name, Customer: cust, Level: 'TP', Billed: billed ? 'Yes' : 'No', IsForecast: forecast ? 'Yes' : 'No', StartDate: s, EndDate: e });
+      const assigns = [
+        A('a1', 'Ann', 'Acme', true, false, '2026-01-05', '2026-12-31'),
+        A('a2', 'Bob', 'Beta', true, true, '2026-01-05', '2026-12-31'),        // forecast
+        A('a3', 'Cat', 'Unassigned', false, false, '2026-01-05', '2026-12-31'),
+        A('a4', 'Dan', 'Acme', true, false, '2026-10-05', '2026-12-31'),        // starts after 30 Sep
+      ];
+      const f = peopleKpiFigures(computeMonthlyRows(assigns), assigns, new Date(2026, 9, 20));
+      _assertEqual(f.year, 2026, 'year from the pinned now');
+      _assertEqual(f.activeCustomers, 1, 'Acme only — Beta is a forecast, Unassigned is ignored');
+      _assertEqual(f.prevQCustomers, 1, 'as of 30 Sep: Acme');
+      _assertEqual(f.billedHeadcount, 2, 'Ann + Dan billed; Bob (forecast) excluded');
+      _assertEqual(f.prevQHeadcount, 1, 'as of 30 Sep: Ann only (Dan starts 5 Oct)');
+      const q1 = peopleKpiFigures([], assigns, new Date(2026, 1, 10));
+      _assertEqual(q1.prevQHeadcount, 0, 'Q1: previous quarter ends 31 Dec 2025, before any of these started');
+    },
+  },
+  {
+    name: 'N-351: monthlyRowsInRange is inclusive at both ends by local month start (1 Oct is in a range ending 1 Oct)',
+    fn: function () {
+      const rows = [1, 9, 10, 11].map(m => ({ Year: 2026, Month: m }));
+      _assertEqual(monthlyRowsInRange(rows, new Date(2026, 0, 1), new Date(2026, 9, 1)).map(r => r.Month), [1, 9, 10], 'Jan–1 Oct');
+      _assertEqual(monthlyRowsInRange(rows, new Date(2026, 9, 2), new Date(2026, 11, 31)).map(r => r.Month), [11], 'a start after the 1st excludes that month');
+    },
+  },
+  {
+    name: 'N-351: marketReportMetrics — rounded TAM percentages, pipeline sums, printed column order',
+    fn: function () {
+      const rows = [
+        { Outreach: 60, Responses: 10, Screened: 5, Submitted: 4, Interview1: 3, Interview2Plus: 2, FinalInterview: 1, Offers: 1, Hires: 0 },
+        { Outreach: 41, Responses: 5,  Screened: 5, Submitted: 2, Interview1: 1, Interview2Plus: 1, FinalInterview: 0, Offers: 0, Hires: 1 },
+      ];
+      const m = marketReportMetrics(rows, 300);
+      _assertEqual(m.pctContacted, 34, '101 / 300 = 33.7% → 34');
+      _assertEqual(m.pctResponded, 5, '15 / 300 = 5%');
+      _assertEqual(Object.keys(m.pipeline), ['Screened', 'Submitted', 'IV1', 'IV2+', 'Final IV', 'Offers', 'Hires'], 'column order');
+      _assertEqual(Object.values(m.pipeline), [10, 6, 4, 3, 1, 1, 1], 'sums');
+      _assertEqual(marketReportMetrics([], 300).pipeline.Hires, 0, 'no activity → zeros');
+    },
+  },
+  {
+    name: 'N-351: reportLibraryRowHtml escapes raw values and only renders Delete when canDelete',
+    fn: function () {
+      const acts = { open: act('rbLoadReport', 7), copy: act('rbCopyReportAction', 7, ACT_EL), del: act('rbDeleteReport', 7, 't') };
+      const row = reportLibraryRowHtml({ title: '<b>A&B</b>', detail: 'x"y', ownerLabel: "O'Neil", canDelete: false, acts });
+      _assertEqual(row.includes('<b>'), false, 'title is escaped');
+      _assertEqual(row.includes('&lt;b&gt;A&amp;B'), true, 'escaped title present');
+      _assertEqual(row.includes('>Open<') && row.includes('>Copy<'), true, 'Open and Copy always render');
+      _assertEqual(row.includes('>Delete<'), false, 'no Delete without canDelete');
+      _assertEqual(row.includes('rbLoadReport') && row.includes('rbCopyReportAction'), true, 'caller action names land in the row');
+      const withDel = reportLibraryRowHtml({ title: 't', detail: 'd', ownerLabel: 'o', canDelete: true, acts });
+      _assertEqual(withDel.includes('>Delete<') && withDel.includes('rbDeleteReport'), true, 'Delete renders with canDelete');
+    },
+  },
 ];
 
 // N-301 test helpers — stub elements/events for js/actions.js (no DOM in the vm).

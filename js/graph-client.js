@@ -593,7 +593,7 @@ async function _dispatchBatchGroup(group) {
   // A lone item never pays for a $batch envelope.
   if (group.length === 1) {
     const item = group[0];
-    _graphRequestSolo('GET', item.path, null, false).then(item.resolve, item.reject);
+    _graphRequestSolo('GET', item.path, null).then(item.resolve, item.reject);
     return;
   }
   try {
@@ -605,7 +605,7 @@ async function _dispatchBatchGroup(group) {
         // Don't retry inside the batch — fall back to a solo, retryable
         // call for just this item, reusing the unmodified GRAPH_RETRY loop
         // rather than reimplementing per-sub-request backoff bookkeeping.
-        _graphRequestSolo('GET', item.path, null, false).then(item.resolve, item.reject);
+        _graphRequestSolo('GET', item.path, null).then(item.resolve, item.reject);
       } else {
         item.reject(_graphError(status, body));
       }

@@ -3,8 +3,8 @@
 // (people.html), sales-pages.js (sales.html), dashboard-project.js
 // (reporting.html / market-reporting.html) and people-payroll.js
 // (people.html). Depends on getItems/createItem/deleteItem (graph-client.js)
-// and getGhostUser, loading first (see script order), and
-// buildPayrollSummaryFields (utils.js).
+// and getGhostUser and buildPayrollSummaryFields (utils.js), all loading first
+// (see script order).
 
 // ── People module: GPInvoices list ──────────────────────────
 async function getGPInvoices() {

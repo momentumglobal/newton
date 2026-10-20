@@ -104,7 +104,7 @@ const CONFIG = {
   INTERNAL_FUNCTIONS:    ['Marketing', 'Sales', 'Internal TA', 'Operations', 'People'],
 
   // Roles.Stage enum, in pipeline order (N-149). Single source of truth for
-  // the full role Stage <select> (forms.js) and the Roles-list inline stage
+  // the full role Stage <select> (forms-role.js) and the Roles-list inline stage
   // dropdown (pages.js) — never redeclare this list in a page file.
   ROLE_STAGES: ['Backlog', 'Planning', 'Sourcing', 'Submitted', 'Interview 1',
                 'Interview 2+', 'Final Interview', 'Offered', 'Closed',
@@ -567,7 +567,7 @@ const CONFIG = {
   // 'ProjectIDLookupId' in CONFIG.LIST_FIELDS.
   // Placements has no ProjectID column of its own (only RoleIDLookupId), so
   // it cannot be project-scoped server-side at all — N-093 confirmed this
-  // against forms.js:submitPlacementForm, which never persists the form's
+  // against forms-placement.js:submitPlacementForm, which never persists the form's
   // project dropdown. Placements is date-scoped instead, on
   // OfferAcceptedDate, which is why that column joins this list.
   INDEX_TARGETS: [

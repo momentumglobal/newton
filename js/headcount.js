@@ -458,7 +458,7 @@ function clampHeadcountCount(v) {
 
 // ── Placement against headcount (N-308 / HC-3) ─────────────────────────
 // A placement is recorded against one OPEN headcount (D-5), never just a
-// role. The picker (desktop forms.js, mobile mobile-pages.js) is built from
+// role. The picker (desktop forms-placement.js, mobile mobile-pages.js) is built from
 // these pure helpers; submit re-reads the headcount and validates it
 // (getPlacementTarget in api-headcount.js + validatePlacementHeadcount) before any
 // write. "Filled" stays derived from Placements.HeadcountID (rule 4), so a

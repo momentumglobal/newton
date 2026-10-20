@@ -27,7 +27,7 @@ function tpDisplay(val, nameMap = {}) {
   return names.length ? names.join(', ') : '—';
 }
 
-// N-241: shared by loadCurrencyForPlacement (forms.js) and
+// N-241: shared by loadCurrencyForPlacement (forms-placement.js) and
 // mobileLoadCurrencyForPlacement (mobile-pages.js) — identical fetch/shape
 // logic, only the target DOM element differs, which stays with each caller.
 async function getCurrencyForRole(roleId) {
@@ -56,7 +56,7 @@ async function getListItemCount(listName) {
 }
 
 // N-093 (F-2a): how many WeeklyActivity rows have no ProjectID. The column is
-// written by forms.js:submitWeeklyActivityForm but read by nothing in js/, so
+// written by forms-weekly.js:submitWeeklyForm but read by nothing in js/, so
 // a blank on historical rows has never had a way to surface — while the
 // Project Dashboard has been filtering on it server-side for some time. A
 // non-zero count here means that filter is already silently dropping rows.
@@ -189,7 +189,7 @@ async function createRoleWithHistory(fields) {
 //      back and what is stored — the evidence N-315 did not have.
 // A create failure propagates unchanged (optimisticWrite reverts + Retry).
 // Verify/heal/report are best-effort and never fail a save that succeeded.
-// `fields` is copied, never mutated: forms.js builds its pending row from it
+// `fields` is copied, never mutated: forms-weekly.js builds its pending row from it
 // and reads fields.ProjectIDLookupId again for the hires prompt.
 // Returns exactly what createItem returned (the bulk grid reads created.id).
 async function createWeeklyActivity(fields) {
@@ -603,7 +603,7 @@ const _LCI_MILESTONE_COPY_FIELDS = ['Title', 'StartMonth', 'EndMonth', 'SortOrde
 // N-150: Duplicate role — fields carried from the source role onto the new
 // one, in display-normalized names (the shape getItem('Roles', id) returns,
 // which is what renderRoleForm's pre-fill already reads). Kept in sync with
-// submitRoleForm's actual write set (forms.js) by
+// submitRoleForm's actual write set (forms-role.js) by
 // tests/lint-role-copy-fields.js — update that test's expectations, don't
 // just edit this list, if the write set changes.
 // N-307: Backfill, OpenDate and TargetHireDate are headcount fields now
@@ -776,7 +776,7 @@ async function getEffectiveRole(email) {
 // silently strip a leadership user's DM access mid-page. The grants live for
 // the page and are re-resolved by getEffectiveRole(), which every module
 // awaits in its init (app.js, cc-app.js, mr-app.js, people-app.js,
-// mobile-app.js, forms.js) before anything calls this. No entry = false
+// mobile-app.js, forms*.js) before anything calls this. No entry = false
 // (fail closed). Do not "tidy" this asymmetry away.
 function hasDMGrant(projectId = null) {
   const email = (getGhostUser() || getCurrentUser()?.email || '').toLowerCase();

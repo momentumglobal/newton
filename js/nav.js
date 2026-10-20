@@ -38,7 +38,7 @@ function navigateTo(page, pendingItem = null) {
 }
 
 // N-218a: pendingItem is only ever passed for the 5 optimistic-insert list
-// pages, from forms.js right after Save and before the create write
+// pages, from the forms*.js submit handlers right after Save and before the create write
 // resolves -- every other caller/case is unaffected and keeps calling with
 // no second argument.
 async function renderPage(page, pendingItem = null) {

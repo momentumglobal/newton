@@ -513,7 +513,7 @@ async function showEditRoleForm(id) {
 // existing role. Always re-fetches via getItem rather than reusing the row's
 // cached list data, same reasoning showEditRoleForm follows above. Stage
 // resets to Backlog purely because _ROLE_COPY_FIELDS excludes it —
-// renderRoleForm's own isEdit-gated Stage default (forms.js) does the rest.
+// renderRoleForm's own isEdit-gated Stage default (forms-role.js) does the rest.
 // N-307: OpenDate is set to today (localDayISO(), local) only to seed the
 // form's Headcount fieldset — dates and Backfill live on headcount now and
 // are never carried from the source role.

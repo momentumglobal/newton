@@ -115,7 +115,7 @@ function stageBadgeHtml(roleId, stage, canEdit) {
 // Temp client-side id for an item that has been submitted but not yet
 // confirmed created -- same shape as the existing bpUid()/rbUid() convention
 // (briefing-pack.js/report-builder.js), centralised here because it's
-// shared across all 5 optimistic-insert submit paths in forms.js, unlike
+// shared across all 5 optimistic-insert submit paths in forms*.js, unlike
 // those two single-file ids.
 function pendingRowId() {
   return 'pend_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);

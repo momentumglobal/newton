@@ -6,7 +6,7 @@
 // deleteItem (graph-client.js) and isoDate, all loading first (see script order).
 // getCoEPlanRows/createCoEPlanRow stay in api.js — multi-consumer
 // (coe-plan.js, lci-link.js, report-builder.js).
-// N-312: linkCoEPlanRow is also called from forms.js (Add Role opened from a
+// N-312: linkCoEPlanRow is also called from forms-role.js (Add Role opened from a
 // plan row) — both files load on reporting.html only.
 
 async function updateCoEPlanRow(id, payload) {

@@ -118,7 +118,7 @@ async function _cmdBarLoadEntities(role) {
   if (wantRoles) {
     // N-146 addendum (19 Aug 2026) — only active roles are searchable
     // here, matching the exclusion every other role-picker in the app
-    // already applies (forms.js's role dropdowns, pages.js's Roles-list
+    // already applies (forms*.js's role dropdowns, pages.js's Roles-list
     // "Active" filter) — cuts noise from roles nobody needs to act on via
     // the Command Bar. N-305: all of them read utils.js:isOpenPipelineStage().
     roles.filter(r => isOpenPipelineStage(r.Stage)).forEach(r => {

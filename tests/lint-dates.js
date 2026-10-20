@@ -15,7 +15,7 @@
 //
 // WHAT IS NOT BANNED — bare toISOString(). A full UTC timestamp is the correct
 // representation of a genuine INSTANT, and six such calls are legitimate:
-// SubmittedAt (api.js, forms.js, mobile-pages.js), CreatedAt (admin.js,
+// SubmittedAt (api.js, forms-weekly.js, mobile-pages.js), CreatedAt (admin.js,
 // notifications.js) and benchSyncLast (people-tracker.js). Banning the call
 // itself would need an allowlist; banning the suffix needs none.
 //

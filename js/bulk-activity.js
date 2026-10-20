@@ -21,7 +21,7 @@
 //  * Untouched rows are never written. Dirty tracking is the whole point of
 //    the feature (it is why N-148's carry-forward was dropped).
 
-// Nine counts, in the same order as the single-role form in forms.js.
+// Nine counts, in the same order as the single-role form in forms-weekly.js.
 const BULK_COUNT_FIELDS = [
   { readKey: 'Outreach',        writeKey: 'Outreach',         label: 'Outreach'  },
   { readKey: 'Responses',       writeKey: 'Responses',        label: 'Responses' },
@@ -36,7 +36,7 @@ const BULK_COUNT_FIELDS = [
 
 // Role stages that never appear in an activity picker. Sourced from
 // CONFIG.ROLE_STAGES_ACTIVITY_EXCLUDED (N-164) so the bulk grid and the
-// single form in forms.js agree on which roles exist.
+// single form in forms-weekly.js agree on which roles exist.
 // NOT analytics.js's ACTIVE_STAGES: config.js carries an explicit warning that
 // it references two stage values ('Placed', 'Closed') absent from this build.
 const BULK_EXCLUDED_STAGES = CONFIG.ROLE_STAGES_ACTIVITY_EXCLUDED;

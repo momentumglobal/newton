@@ -17,17 +17,19 @@
 // (bold, italic, underline, insertUnorderedList, insertOrderedList) and
 // data-rt-block="H3"|"P" attributes (N-302a) — each editor's template puts
 // those beside its act() call, so nothing here depends on handler text.
-function rtUpdateToolbarState(toolbarEl) {
+// N-359: `doc` is the document to read selection state from (default: the page's
+// own). Tests pass a stub — a browser ignores `globalThis.document = …`.
+function rtUpdateToolbarState(toolbarEl, doc = document) {
   if (!toolbarEl) return;
   ['bold', 'italic', 'underline'].forEach(cmd => {
     const btn = toolbarEl.querySelector(`button[data-rt="${cmd}"]`);
-    if (btn) btn.classList.toggle('active', document.queryCommandState(cmd));
+    if (btn) btn.classList.toggle('active', doc.queryCommandState(cmd));
   });
   const ulBtn = toolbarEl.querySelector('button[data-rt="insertUnorderedList"]');
   const olBtn = toolbarEl.querySelector('button[data-rt="insertOrderedList"]');
-  if (ulBtn) ulBtn.classList.toggle('active', document.queryCommandState('insertUnorderedList'));
-  if (olBtn) olBtn.classList.toggle('active', document.queryCommandState('insertOrderedList'));
-  const blockTag = document.queryCommandValue('formatBlock').toUpperCase();
+  if (ulBtn) ulBtn.classList.toggle('active', doc.queryCommandState('insertUnorderedList'));
+  if (olBtn) olBtn.classList.toggle('active', doc.queryCommandState('insertOrderedList'));
+  const blockTag = doc.queryCommandValue('formatBlock').toUpperCase();
   const hBtn = toolbarEl.querySelector('button[data-rt-block="H3"]');
   const pBtn = toolbarEl.querySelector('button[data-rt-block="P"]');
   if (hBtn) hBtn.classList.toggle('active', blockTag === 'H3');

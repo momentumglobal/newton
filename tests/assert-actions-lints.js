@@ -449,9 +449,8 @@ ASSERTIONS.push(
       const seen = []; const toggled = [];
       const btn = sel => ({ classList: { toggle: (c, on) => toggled.push(sel + '=' + on) } });
       const toolbar = { querySelector: sel => { seen.push(sel); return btn(sel); } };
-      const hadDoc = Object.prototype.hasOwnProperty.call(globalThis, 'document');
-      globalThis.document = { queryCommandState: () => true, queryCommandValue: () => 'H3' };
-      try { rtUpdateToolbarState(toolbar); } finally { if (!hadDoc) delete globalThis.document; }
+      // N-359: stub passed as an argument — a browser ignores `globalThis.document = …`.
+      rtUpdateToolbarState(toolbar, { queryCommandState: () => true, queryCommandValue: () => 'H3' });
       _assertEqual(seen, ['button[data-rt="bold"]', 'button[data-rt="italic"]', 'button[data-rt="underline"]',
         'button[data-rt="insertUnorderedList"]', 'button[data-rt="insertOrderedList"]', 'button[data-rt-block="H3"]', 'button[data-rt-block="P"]'], 'selectors use data-rt / data-rt-block');
       _assertEqual(toggled.indexOf('button[data-rt-block="H3"]=true') !== -1 && toggled.indexOf('button[data-rt-block="P"]=false') !== -1, true, 'H3 active, P inactive when the block is H3');

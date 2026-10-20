@@ -5629,6 +5629,150 @@ var ASSERTIONS = [
       _assertEqual(withDel.includes('>Delete<') && withDel.includes('rbDeleteReport'), true, 'Delete renders with canDelete');
     },
   },
+  // ── N-352 (R2-9): role constants single source ────────────────────────
+  {
+    name: 'N-352: CONFIG.ROLE_IDS values are exactly ROLE_PRECEDENCE, and every label key is a role id',
+    fn: function () {
+      const ids = Object.values(CONFIG.ROLE_IDS);
+      _assertEqual(ids.slice().sort(), CONFIG.ROLE_PRECEDENCE.slice().sort(), 'ROLE_IDS values == ROLE_PRECEDENCE');
+      _assertEqual(new Set(ids).size, ids.length, 'ROLE_IDS values are unique');
+      Object.keys(CONFIG.ROLE_LABELS).forEach(k => _assertEqual(ids.includes(k), true, k + ' is a role id'));
+    },
+  },
+  {
+    name: 'N-352: router / Command Bar access matrix is unchanged (plain-string pin, evaluated from source)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Router sources need filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      // Deliberately plain strings: this pins today's behaviour independently of CONFIG.ROLE_IDS.
+  const EXPECTED = {
+    reporting: {
+      companyDashboard: ['admin', 'leadership'],
+      projectDashboard: ['admin', 'delivery_manager', 'talent_partner'],
+      reportBuilder: ['admin', 'delivery_manager', 'talent_partner'],
+      projects: ['admin', 'delivery_manager', 'talent_partner'],
+      roles: ['admin', 'delivery_manager', 'talent_partner'],
+      activity: ['admin', 'delivery_manager', 'talent_partner'],
+      placements: ['admin', 'delivery_manager', 'talent_partner'],
+      rejections: ['admin', 'delivery_manager', 'talent_partner'],
+      hiringPlan: ['admin', 'delivery_manager', 'leadership', 'talent_partner'],
+      adminPanel: ['admin'],
+    },
+    marketing: {
+      placementAnalytics: ['admin', 'delivery_manager', 'talent_partner'],
+      marketReport: ['admin', 'delivery_manager', 'talent_partner'],
+    },
+    people: {
+      peopleDashboard: ['admin', 'leadership', 'people_ops'],
+      orgChart: ['admin', 'delivery_manager', 'leadership', 'people_ops', 'sales', 'staff', 'talent_partner'],
+      peopleGantt: ['admin', 'leadership', 'people_ops'],
+      peopleTracker: ['admin', 'leadership', 'people_ops'],
+      gpInvoices: ['admin', 'leadership', 'people_ops'],
+      scorecards: ['admin', 'delivery_manager', 'leadership', 'people_ops', 'talent_partner'],
+      engagement: ['admin', 'leadership', 'people_ops'],
+    },
+    sales: {
+      revenueTracking: ['admin', 'leadership', 'sales'],
+      salesForecast: ['admin', 'leadership', 'sales'],
+      lciModels: ['admin', 'delivery_manager', 'leadership', 'sales'],
+      lciLeadMagnet: ['admin', 'leadership', 'sales'],
+    },
+    command: {
+      overview: ['admin', 'leadership'],
+    },
+  };
+  const LANDING = {
+    people: {
+      admin: 'peopleDashboard',
+      leadership: 'peopleDashboard',
+      people_ops: 'peopleDashboard',
+      sales: 'orgChart',
+      delivery_manager: 'scorecards',
+      talent_partner: 'scorecards',
+      staff: 'orgChart',
+      viewer: null,
+    },
+    sales: {
+      admin: 'revenueTracking',
+      leadership: 'revenueTracking',
+      people_ops: null,
+      sales: 'revenueTracking',
+      delivery_manager: 'lciModels',
+      talent_partner: null,
+      staff: null,
+      viewer: null,
+    },
+  };
+      const load = (file, expr) => new Function('CONFIG', ALL_SOURCES[file] + '\nreturn ' + expr + ';')(CONFIG);
+      const matrix = pages => Object.keys(pages).reduce((m, k) => { m[k] = pages[k].roles.slice().sort(); return m; }, {});
+      const actual = {
+        reporting: matrix(load('router.js', 'PAGES')),
+        marketing: matrix(load('mr-router.js', 'MR_PAGES')),
+        people:    matrix(load('people-router.js', 'PEOPLE_PAGES')),
+        sales:     matrix(load('sales-router.js', 'SALES_PAGES')),
+        command:   matrix({ overview: load('cc-router.js', 'CC_PAGES')[0] }),
+      };
+      Object.keys(EXPECTED).forEach(mod => {
+        Object.keys(EXPECTED[mod]).forEach(k => EXPECTED[mod][k].sort());
+        _assertEqual(actual[mod], EXPECTED[mod], mod + ' page roles');
+      });
+      const ids = Object.values(CONFIG.ROLE_IDS);
+      const cc = load('cc-router.js', 'ccCanAccess');
+      _assertEqual(ids.filter(r => cc(r)).sort(), ['admin', 'leadership'], 'ccCanAccess');
+      ids.forEach(r => {
+        _assertEqual(load('people-router.js', 'getPeopleLandingPage')(r), LANDING.people[r], 'people landing for ' + r);
+        _assertEqual(load('sales-router.js', 'getSalesLandingPage')(r), LANDING.sales[r], 'sales landing for ' + r);
+      });
+    },
+  },
+  {
+    name: 'N-352: every router page has a Command Bar entry with the same roles (and vice versa)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Router sources need filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const load = (file, expr) => new Function('CONFIG', ALL_SOURCES[file] + '\nreturn ' + expr + ';')(CONFIG);
+      const byModule = {
+        reporting: load('router.js', 'PAGES'),
+        marketing: load('mr-router.js', 'MR_PAGES'),
+        people:    load('people-router.js', 'PEOPLE_PAGES'),
+        sales:     load('sales-router.js', 'SALES_PAGES'),
+        command:   { overview: load('cc-router.js', 'CC_PAGES')[0] },
+      };
+      Object.keys(byModule).forEach(mod => {
+        const bar = CONFIG.COMMAND_BAR_PAGES.filter(p => p.module === mod);
+        _assertEqual(bar.map(p => p.key).sort(), Object.keys(byModule[mod]).sort(), mod + ' page keys match the Command Bar');
+        bar.forEach(p => _assertEqual(p.roles.slice().sort(), byModule[mod][p.key].roles.slice().sort(), mod + '/' + p.key + ' roles match the Command Bar'));
+      });
+    },
+  },
+  {
+    name: 'no router or Command Bar page list types a role id (N-352 — lint-role-literals guard)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const found = lintRoleLiterals(ALL_SOURCES, Object.values(CONFIG.ROLE_IDS));
+      _assertEqual(
+        found.map(v => `${v.file}:${v.line}  ${v.text}`),
+        [],
+        'role id literals in router files / COMMAND_BAR_PAGES (use CONFIG.ROLE_IDS.*)'
+      );
+    },
+  },
+  {
+    name: 'lint-role-literals control: flags router and Command Bar literals, ignores comments, keys and CONFIG.ROLE_IDS (N-352)',
+    fn: function () {
+      const roles = ['admin', 'leadership', 'talent_partner'];
+      const lint = src => lintRoleLiterals(src, roles).map(v => `${v.file}:${v.line}`);
+      _assertEqual(lint({ 'router.js': "const P = { a: { roles: ['admin'] } };\n" }), ['router.js:1'], 'single-quoted literal in a router');
+      _assertEqual(lint({ 'cc-router.js': 'x();\nreturn role === "leadership";\n' }), ['cc-router.js:2'], 'double-quoted, correct line');
+      _assertEqual(lint({ 'router.js': "// 'admin' was here\n/* 'leadership' */\nconst P = { roles: [CONFIG.ROLE_IDS.ADMIN] };\n" }), [], 'comments and CONFIG.ROLE_IDS are fine');
+      const cfg = "x\n  COMMAND_BAR_PAGES: [\n    { key: 'leadership', module: 'admin', roles: ['admin', 'talent_partner'] },\n    { key: 'ok', roles: [_ROLE_IDS.ADMIN] },\n  ],\n  OTHER: ['admin'],\n";
+      _assertEqual(lint({ 'config.js': cfg }), ['config.js:3', 'config.js:3'], 'only roles: [...] inside COMMAND_BAR_PAGES; key/module/OTHER ignored');
+    },
+  },
 ];
 
 // N-301 test helpers — stub elements/events for js/actions.js (no DOM in the vm).

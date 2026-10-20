@@ -55,18 +55,6 @@ function projectRowHtml(p, { dmDisplay, canEdit, pending = false, checklist = nu
         `;
 }
 
-// N-247a: the Days Open value a Roles row shows — null where the cell is
-// blank for this filter. Shared by roleRowHtml and the Days Open sort
-// accessor so the sort can never disagree with what's displayed.
-// N-307: days since the OLDEST OPEN headcount with an Open Date
-// (headcountSummary, headcount.js). Blank on the Closed filter too — a closed
-// pipeline is done (one still holding open headcount is a Data Health item).
-function roleDaysOpenValue(r, rolesFilter, summary) {
-  const daysHidden = rolesFilter === "Backlog" || rolesFilter === "Cancelled" || rolesFilter === "Closed";
-  return (!daysHidden && summary && summary.oldestOpenDay)
-    ? daysOpen(summary.oldestOpenDay) : null;
-}
-
 // N-307: every role name opens the role page (role-page.js), checklist or
 // not. A pending row has no real id yet, so it renders as plain text.
 function roleNameLinkHtml(r, pending) {
@@ -153,26 +141,6 @@ function rejectionRowHtml(r, { roleMap, canEdit, pending = false } = {}) {
         `;
 }
 
-// N-100: turns a plain integer day count into a short human label for the
-// Role History timeline ("time in stage"). Takes a number only — never a
-// date string — so it carries none of the SharePoint UTC/BST date-shift
-// risk the date helpers above exist to guard against.
-function formatDurationDays(days) {
-  if (days == null || isNaN(days)) return '—';
-  if (days < 1) return '<1 day';
-  if (days === 1) return '1 day';
-  if (days < 14) return `${days} days`;
-  const weeks = Math.round(days / 7);
-  return weeks === 1 ? '1 week' : `${weeks} weeks`;
-}
-
-function placementFilterCutoff(filter, today = new Date()) {
-  if (!filter || !filter.type) return null;
-  const year = filter.type === 'year' ? filter.value : today.getFullYear();
-  if (!Number.isFinite(year)) return null;
-  return `${year}-01-01`;
-}
-
 // skeletonPanel()/skeletonList() stay in utils.js (other consumers);
 // skeletonTable() moves here — pages.js is its only caller.
 function skeletonTable(rowCount = 5, colCount = 4) {
@@ -252,12 +220,6 @@ async function showEditProjectForm(id) {
   loadDeliveryManagersForProject(data.DeliveryManager);
 }
 // ── Roles ─────────────────────────────────────────────────────────────
-const ROLE_FILTERS = {
-  Backlog:   r => CONFIG.ROLE_STAGES_PARKED.includes(r.Stage),
-  Active:    r => isOpenPipelineStage(r.Stage),
-  Closed:    r => r.Stage === CONFIG.ROLE_STAGE_CLOSED,   // N-306: was Hired
-  Cancelled: r => r.Stage === "Cancelled",
-};
 let _rolesFilter    = "Active";
 let _rolesProjectId = null;
 let _rolesPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
@@ -279,98 +241,23 @@ async function renderRolesPage(filter, pendingItem = null) {
   getAllHeadcount(),                 // N-307 — Headcount x/y + Days Open
   getPlacementHeadcountIds(),        // N-307 — which headcount are filled
 ]);
-  // N-307: one headcount summary per role, memoised — the sort accessors and
-  // the row both read it.
-  const hcByRole  = groupHeadcountByRole(allHeadcount);
-  const hcFill    = headcountFillMap(placementLinks);
-  const hcSummaryByRole = new Map();
-  const hcSummaryOf = r => {
-    const k = String(r.id);
-    if (!hcSummaryByRole.has(k)) hcSummaryByRole.set(k, headcountSummary(hcByRole.get(k) || [], hcFill));
-    return hcSummaryByRole.get(k);
-  };
-  const projectMap = Object.fromEntries(allProjects.map(p => [String(p.id), p.CustomerName]));
-  // N-266a: a role's checklist variant comes from its parent project's type.
-  // Memoised per role — the sort accessor and the row both read it.
-  const projectTypeMap   = Object.fromEntries(allProjects.map(p => [String(p.id), p.ProjectType]));
-  const showChecklistCol = !!(ckCtx && ckCtx.showColumn);
-  const checklistByRole  = new Map();
-  const checklistOf = r => {
-    const k = String(r.id);
-    if (!checklistByRole.has(k)) {
-      checklistByRole.set(k, checklistCellData(ckCtx, r, projectTypeMap[String(r.ProjectIDLookupId || r.ProjectID)]));
-    }
-    return checklistByRole.get(k);
-  };
-  // Scope to user's assigned projects
-  let roles = userProjectIds
-    ? allRoles.filter(r => userProjectIds.includes(String(r.ProjectIDLookupId || r.ProjectID)))
-    : allRoles;
-  // N-218a: splice the not-yet-created row in before the remaining filters,
-  // exactly like a real fetched row -- it only shows up below if it
-  // actually belongs on the active project/stage filter.
-  if (pendingItem) roles = [...roles, pendingItem];
-  const rolesTotal = roles.length;  // N-152: pre-filter denominator for the count
-  // Apply project dropdown filter
-  if (canFilter && _rolesProjectId) {
-    roles = roles.filter(r =>
-      String(r.ProjectIDLookupId) === String(_rolesProjectId) ||
-      String(r.ProjectID) === String(_rolesProjectId)
-    );
-  }
-  roles = roles.filter(ROLE_FILTERS[_rolesFilter] || (() => true));
-  // N-247a: one project-name lookup for the default sort, the sort column and the row.
-  const projectNameOf = r => projectMap[String(r.ProjectIDLookupId)] || projectMap[String(r.ProjectID)] || '';
-  // N-251a: shared list search (list-controls.js) — narrows further, after
-  // the project/stage filters and before any sort, same position N-140's
-  // other filters sit in. `roles.length` below (default sort, ROLE_SORT_COLUMNS,
-  // listResultCount's `matched`) already reflects this filter once applied.
-  roles = filterRowsByText(roles, _rolesSearch, r => [
-    r.RoleTitle,
-    r.Location,
-    projectNameOf(r),
-    tpList(r.TalentPartner).length ? tpDisplay(r.TalentPartner, tpMap) : '',
-  ]);
-  roles.sort((a, b) => {
-    const proj = projectNameOf(a).localeCompare(projectNameOf(b));
-    if (proj !== 0) return proj;
-    return new Date(a.OpenDate || 0) - new Date(b.OpenDate || 0);
+  const m = rolesPageModel({
+    allRoles, allProjects, userProjectIds, tpMap, allHeadcount, placementLinks, ckCtx, pendingItem, canFilter,
+    filter: _rolesFilter, projectId: _rolesProjectId, search: _rolesSearch, sort: _rolesSort, pageSize: _rolesPageSize,
   });
-  // N-247a: the user's column sort goes ON TOP of the default order above.
-  // sortRows is stable, so ties keep project → open-date order. Accessors
-  // return what the cell shows, raw (no "—"), so blanks sort last.
-  // Must stay BEFORE paginate().
-  const ROLE_SORT_COLUMNS = {
-    project:  { type: 'text',   get: r => projectNameOf(r) },
-    role:     { type: 'text',   get: r => r.RoleTitle },
-    location: { type: 'text',   get: r => r.Location },
-    stage:    { type: 'enum',   get: r => r.Stage, order: CONFIG.ROLE_STAGES },
-    tp:       { type: 'text',   get: r => tpList(r.TalentPartner).length ? tpDisplay(r.TalentPartner, tpMap) : '' },
-    budget:   { type: 'number', get: r => r.Budget },
-    // N-307: open headcount count; a role with no headcount sorts last.
-    headcount: { type: 'number', get: r => { const c = hcSummaryOf(r).counts; return c.total ? c.open : null; } },
-    daysOpen: { type: 'number', get: r => roleDaysOpenValue(r, _rolesFilter, hcSummaryOf(r)) },
-    // N-266a: fraction complete; no checklist → null, which sorts last.
-    checklist: { type: 'number', get: r => {
-      const s = showChecklistCol ? checklistOf(r).summary : null;
-      return s && s.total ? s.done / s.total : null;
-    } },
-  };
-  roles = sortRows(roles, _rolesSort, ROLE_SORT_COLUMNS);
-  const userRole = _resolvedRole;
-  const canEdit  = canEditRoleRows(userRole);
+  main.innerHTML = _rolesPageHtml(m, { canEdit: canEditRoleRows(_resolvedRole), canFilter, scopedProjects, tpMap, historyRoleIds, pendingItem });
+  lucide.createIcons();
+}
+function _rolesPageHtml(m, o) {
+  const { roles, rolesTotal, pagedRoles, projectNameOf, hcSummaryOf, checklistOf, showChecklistCol, emptyMsg: rolesEmptyMsg } = m;
+  const { canEdit, canFilter, scopedProjects, tpMap, historyRoleIds, pendingItem } = o;
   const filterBtns = Object.keys(ROLE_FILTERS).map(f =>
     `<button class="btn-filter${_rolesFilter === f ? " active" : ""}"${act('renderRolesPage', f)}>${f}</button>`
   ).join("");
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _rolesProjectId, 'setRolesProject')
     : '';
-  const pagedRoles = paginate(roles, _rolesPageSize);
-  const ROLE_FILTER_LABELS = { Backlog: 'backlog', Active: 'active', Closed: 'closed', Cancelled: 'cancelled' };
-  const rolesEmptyMsg = _rolesProjectId
-    ? `No ${ROLE_FILTER_LABELS[_rolesFilter] || 'matching'} roles for the selected project.`
-    : `No ${ROLE_FILTER_LABELS[_rolesFilter] || 'matching'} roles.`;
-  main.innerHTML = `
+  return `
     <div class="page-header">
       <h2>Roles</h2>
       <div class="page-header-actions">
@@ -417,7 +304,6 @@ async function renderRolesPage(filter, pendingItem = null) {
     </table>
         </div>
   `;
-  lucide.createIcons();
 }
 function setRolesProject(val) { _rolesProjectId = val || null; renderRolesPage(); }
 function setRolesPageSize(val) { _rolesPageSize = Number(val); renderRolesPage(); }
@@ -541,79 +427,39 @@ async function showRoleTimeline(roleId) {
     getTalentPartnerDisplayMap(),
     getRoleHeadcountState(roleId),  // N-313: placements + headcount labels
   ]);
-  const projectName = allProjects.find(p => String(p.id) === String(role.ProjectIDLookupId || role.ProjectID))?.CustomerName || '—';
-  const stageChanges = history
-    .filter(h => h.Field === 'Stage')
-    .sort((a, b) => new Date(a.ChangedAt) - new Date(b.ChangedAt));
-  // N-100 UAT fix (round 2): a role's real-world journey can start before
-  // Newton ever logged it. Two cases, both driven off role.OpenDate:
-  //  (a) the role was entered into Newton after it actually opened — the
-  //      creation row (node 0) is later than OpenDate — so node 0 shows
-  //      OpenDate and relabels "Role opened".
-  //  (b) the role sat in Planning/Backlog with no OpenDate, then was moved
-  //      to Sourcing later with OpenDate backfilled to when it truly went
-  //      live — the FIRST row whose NewValue is 'Sourcing' (which may not
-  //      be node 0) shows OpenDate instead of the system-logged transition
-  //      date. This also shrinks the *preceding* node's "time in stage" —
-  //      Planning is measured up to when the role actually opened, not up
-  //      to whenever the Sourcing transition happened to get logged.
-  // A role can only ever get ONE of these: node 0 is only also the
-  // Sourcing-entry node when the role was created directly into Sourcing,
-  // in which case case (a)'s condition already covers it identically.
-  //
-  // All day comparisons/diffs below use utcDateOnly (this codebase's
-  // canonical calendar-day helper — see daysOpen() in utils.js), not raw
-  // millisecond arithmetic on ChangedAt instants: OpenDate is a day marker
-  // with no real time-of-day (always written as T12:00:00Z via isoDate()),
-  // so comparing/diffing it against a genuine ChangedAt instant at
-  // millisecond precision would flip by ±1 day depending purely on what
-  // time of day the role happened to be created/moved, or what time of
-  // day someone views an ongoing "so far" count. Calendar-day diffing is
-  // stable regardless of time-of-day on either end.
-  const openDateDay = role.OpenDate ? utcDateOnly(role.OpenDate) : null;
-  const sourcingIdx = stageChanges.findIndex(h => h.NewValue === 'Sourcing');
-  const useOpenDateFlags = stageChanges.map((h, i) =>
-    (i === 0 || i === sourcingIdx) && openDateDay !== null && openDateDay < utcDateOnly(h.ChangedAt)
-  );
-  const effectiveDates = stageChanges.map((h, i) => useOpenDateFlags[i] ? role.OpenDate : h.ChangedAt);
-  const dayGap = (startStr, endStrOrNow) => {
-    const start = utcDateOnly(startStr);
-    const end = endStrOrNow instanceof Date
-      ? new Date(Date.UTC(endStrOrNow.getUTCFullYear(), endStrOrNow.getUTCMonth(), endStrOrNow.getUTCDate()))
-      : utcDateOnly(endStrOrNow);
-    return Math.floor((end - start) / 86400000);
-  };
-  // N-313: placement markers merged in by OfferAcceptedDate (read-only —
-  // they never split a stage's duration; every gap below still runs stage
-  // node to stage node). stageDays go through spDateIn, the same function
-  // each node's printed date uses.
-  const hcLabelById = new Map((hcState.rows || []).map(hc =>
-    [String(hc.id), hc.Title || headcountLabel(hc.Sequence)]));
-  const seq = roleTimelineSequence(effectiveDates.map(d => spDateIn(d)), hcState.placements);
-  const stageNodeHtml = (h, i) => {
-    const cls = roleTimelineNodeClass(h.OldValue, h.NewValue, { placementSincePrev: seq.placementSincePrev[i] });
-    // N-100 UAT fix (round 2): loosened from `h.OldValue === ''` — Graph/
-    // SharePoint normalises a text column written as '' back to null on
-    // read, so the strict empty-string check silently never matched the
-    // real creation row (wrong "— → Sourcing" label, wrong 'branch'/orange
-    // dot in roleTimelineNodeClass (headcount.js), and skipped the OpenDate
-    // back-date since useOpenDate required isCreated). Falsy catches '',
-    // null, and undefined alike; a real Stage name is never falsy, so this
-    // can't misfire on an actual transition.
-    const isCreated = !h.OldValue;
-    const useOpenDate = useOpenDateFlags[i];
-    const effectiveChangedAt = effectiveDates[i];
-    const label = isCreated
-      ? `${useOpenDate ? 'Role opened' : 'Role created'} — entered ${escHtml(h.NewValue || '—')}`
-      : `${escHtml(h.OldValue || '—')} → ${escHtml(h.NewValue || '—')}${useOpenDate ? ' — role opened' : ''}`;
-    // N-313: say why a backward-looking move is neutral.
-    const resetNote = cls !== 'reset' ? ''
-      : (h.OldValue === CONFIG.ROLE_STAGE_CLOSED ? ' — reopened' : ' — reset after placement');
-    const next = stageChanges[i + 1];
-    const gapDays = dayGap(effectiveChangedAt, next ? effectiveDates[i + 1] : new Date());
-    const gapLabel = next
-      ? `${formatDurationDays(gapDays)} in ${escHtml(h.NewValue || '—')}`
-      : `${formatDurationDays(gapDays)} in ${escHtml(h.NewValue || '—')} so far`;
+  const m = roleTimelineModel({ role, allProjects, history, hcState, now: new Date() });
+  main.innerHTML = _roleTimelineHtml(role, m, tpMap);
+  lucide.createIcons();
+}
+// Dot class plus the two label strings for one stage node.
+function _roleTimelineStageText(h, i, m) {
+  const { useOpenDateFlags, seq } = m;
+  const cls = roleTimelineNodeClass(h.OldValue, h.NewValue, { placementSincePrev: seq.placementSincePrev[i] });
+  // N-100 UAT fix (round 2): loosened from `h.OldValue === ''` — Graph/
+  // SharePoint normalises a text column written as '' back to null on
+  // read, so the strict empty-string check silently never matched the
+  // real creation row (wrong "— → Sourcing" label, wrong 'branch'/orange
+  // dot in roleTimelineNodeClass (headcount.js), and skipped the OpenDate
+  // back-date since useOpenDate required isCreated). Falsy catches '',
+  // null, and undefined alike; a real Stage name is never falsy, so this
+  // can't misfire on an actual transition.
+  const isCreated = !h.OldValue;
+  const useOpenDate = useOpenDateFlags[i];
+  const label = isCreated
+    ? `${useOpenDate ? 'Role opened' : 'Role created'} — entered ${escHtml(h.NewValue || '—')}`
+    : `${escHtml(h.OldValue || '—')} → ${escHtml(h.NewValue || '—')}${useOpenDate ? ' — role opened' : ''}`;
+  // N-313: say why a backward-looking move is neutral.
+  const resetNote = cls !== 'reset' ? ''
+    : (h.OldValue === CONFIG.ROLE_STAGE_CLOSED ? ' — reopened' : ' — reset after placement');
+  return { cls, label, resetNote };
+}
+function _roleTimelineStageNodeHtml(h, i, m, tpMap) {
+  const { cls, label, resetNote } = _roleTimelineStageText(h, i, m);
+  const effectiveChangedAt = m.effectiveDates[i];
+  const next = m.stageChanges[i + 1];
+  const gapLabel = next
+    ? `${formatDurationDays(m.gapDays[i])} in ${escHtml(h.NewValue || '—')}`
+    : `${formatDurationDays(m.gapDays[i])} in ${escHtml(h.NewValue || '—')} so far`;
     return `
       <div class="role-timeline-node role-timeline-node--${cls}">
         <div class="role-timeline-track">
@@ -626,10 +472,10 @@ async function showRoleTimeline(roleId) {
           <div class="role-timeline-duration${!next ? ' role-timeline-duration--ongoing' : ''}">${gapLabel}</div>
         </div>
       </div>`;
-  };
-  // N-313: one placement marker — no duration line.
-  const placementNodeHtml = ({ placement: p, day }) => {
-    const hcLabel = hcLabelById.get(String(p.HeadcountID));
+}
+// N-313: one placement marker — no duration line.
+function _roleTimelinePlacementNodeHtml({ placement: p, day }, m, tpMap) {
+  const hcLabel = m.hcLabelById.get(String(p.HeadcountID));
     return `
       <div class="role-timeline-node role-timeline-node--placement">
         <div class="role-timeline-track">
@@ -641,14 +487,16 @@ async function showRoleTimeline(roleId) {
           <div class="role-timeline-meta">${escHtml(day)} · ${escHtml(tpDisplay(p.TalentPartner, tpMap))}</div>
         </div>
       </div>`;
-  };
+}
+function _roleTimelineHtml(role, m, tpMap) {
+  const { projectName, stageChanges, seq } = m;
   const nodesHtml = seq.order.map(e => e.kind === 'stage'
-    ? stageNodeHtml(stageChanges[e.index], e.index)
-    : placementNodeHtml(e)).join("");
+    ? _roleTimelineStageNodeHtml(stageChanges[e.index], e.index, m, tpMap)
+    : _roleTimelinePlacementNodeHtml(e, m, tpMap)).join("");
   const undatedNote = seq.undated
     ? `<p class="role-timeline-note">${seq.undated} placement${seq.undated === 1 ? '' : 's'} without an Offer Accepted date not shown.</p>`
     : '';
-  main.innerHTML = `
+  return `
     <div class="page-header">
       <h2>Role History — ${escHtml(role.RoleTitle)}</h2>
       <div class="page-header-actions"><button class="btn-secondary"${act('navigateTo', 'roles')}>← Back to Roles</button></div>
@@ -659,9 +507,8 @@ async function showRoleTimeline(roleId) {
     </div>
     ${undatedNote}
   `;
-  lucide.createIcons();
 }
-// (N-313: the stage classifier moved to headcount.js:roleTimelineNodeClass.)
+// (N-313: the stage classifier moved to headcount.js:roleTimelineNodeClass; the timeline day maths is roleTimelineModel, pages-model.js.)
 // ── Weekly Activity ───
 let _activityProjectId = null;
 let _activityRoleId    = null;
@@ -675,90 +522,27 @@ async function renderActivityPage(pendingItem = null) {
   main.innerHTML = skeletonTable(6, 13);
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
-  let [activity, allRoles, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
+  const [activity, allRoles, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
   getWeeklyActivity(null, null, { sinceWeeks: _activityWeeks }),
   getRolesForUser(user.email),
   getProjectFilterOptions(),
   getTalentPartnerDisplayMap(),
 ]);
-  const roleProjectMap = Object.fromEntries(
-    allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
-  );
-  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
-  // N-218a: splice the not-yet-created row in before sort/scope, exactly
-  // like a real fetched row -- it only shows up below if it actually
-  // belongs to the active project/role filter.
-  if (pendingItem) activity = [...activity, pendingItem];
-  activity.sort((a, b) => {
-    const yr = Number(b.Year) - Number(a.Year);
-    if (yr !== 0) return yr;
-    return Number(b.WeekNumber) - Number(a.WeekNumber);
+  const isTalentPartner = _resolvedRole === 'talent_partner';
+  const m = activityPageModel({
+    activity, allRoles, userProjectIds, tpMap, isTalentPartner, canFilter, pendingItem,
+    scopedEmail: isTalentPartner ? getScopedUserEmail() : null,
+    projectId: _activityProjectId, roleId: _activityRoleId, search: _activitySearch, sort: _activitySort, pageSize: _activityPageSize,
   });
-  // Scope to user's assigned projects
-  let filteredActivity = userProjectIds
-    ? activity.filter(a => {
-        const rid = String(a.RoleIDLookupId || a.RoleID || '');
-        return userProjectIds.includes(roleProjectMap[rid]);
-      })
-    : activity;
-  // For Talent Partners, also scope to their own entries — the ghosted
-  // user's own entries when Ghost Mode is active (N-162 fix).
-  if (_resolvedRole === 'talent_partner') {
-    filteredActivity = filteredActivity.filter(a =>
-      (a.TalentPartner || '').toLowerCase() === getScopedUserEmail()
-    );
-  }
-  // N-152: denominator captured AFTER both permission scopes and BEFORE any
-  // user-chosen filter — a TP must not be told about rows they cannot see.
-  const activityTotal = filteredActivity.length;
-  if (canFilter && _activityProjectId) {
-    filteredActivity = filteredActivity.filter(a => {
-      const rid = String(a.RoleIDLookupId || a.RoleID || '');
-      return roleProjectMap[rid] === String(_activityProjectId);
-    });
-  }
-  if (_activityRoleId) {
-    filteredActivity = filteredActivity.filter(a =>
-      String(a.RoleIDLookupId || a.RoleID || '') === String(_activityRoleId)
-    );
-  }
-  // N-247b: shared list search (list-controls.js) — narrows further, after
-  // every existing scope/filter and before any sort, same position N-251a
-  // established on Roles. Accessors mirror the cell exactly: roleMap/tpMap
-  // are already the display strings the row renders.
-  filteredActivity = filterRowsByText(filteredActivity, _activitySearch, a => [
-    roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || '',
-    tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || '',
-  ]);
-  // N-247b: the user's column sort goes ON TOP of the default Year/Week
-  // order above. sortRows is stable, so ties keep that order. Accessors
-  // return the raw value (not the cell's `|| 0` display fallback), so a
-  // genuinely blank metric sorts last, same rule as Roles' `budget`.
-  // Must stay BEFORE paginate().
-  const ACTIVITY_SORT_COLUMNS = {
-    year:      { type: 'number', get: a => a.Year },
-    week:      { type: 'number', get: a => a.WeekNumber },
-    role:      { type: 'text',   get: a => roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || '' },
-    tp:        { type: 'text',   get: a => tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || '' },
-    outreach:  { type: 'number', get: a => a.Outreach },
-    responses: { type: 'number', get: a => a.Responses },
-    screened:  { type: 'number', get: a => a.Screened },
-    submitted: { type: 'number', get: a => a.Submitted },
-    iv1:       { type: 'number', get: a => a.Interview1 },
-    iv2plus:   { type: 'number', get: a => a.Interview2Plus },
-    finalIv:   { type: 'number', get: a => a.FinalInterview },
-    offers:    { type: 'number', get: a => a.Offers },
-    hires:     { type: 'number', get: a => a.Hires },
-  };
-  filteredActivity = sortRows(filteredActivity, _activitySort, ACTIVITY_SORT_COLUMNS);
-  // Build scoped role options for dropdown (respects existing project + role scoping)
-  const scopedRoleIds = new Set(filteredActivity.map(a => String(a.RoleIDLookupId || a.RoleID || '')));
+  main.innerHTML = _activityPageHtml(m, { canEdit: ["admin","delivery_manager","talent_partner"].includes(_resolvedRole), canFilter, scopedProjects, tpMap, pendingItem });
+  lucide.createIcons();
+}
+function _activityPageHtml(m, o) {
+  const { roleMap, filtered: filteredActivity, total: activityTotal, paged: pagedActivity, roleChoices, emptyMsg: activityEmptyMsg } = m;
+  const { canEdit, canFilter, scopedProjects, tpMap, pendingItem } = o;
   const roleOptions = [
     `<option value="" ${!_activityRoleId ? 'selected' : ''}>All Roles</option>`,
-    ...allRoles
-      .filter(r => scopedRoleIds.has(String(r.id)))
-      .sort((a, b) => (roleMap[String(a.id)] || '').localeCompare(roleMap[String(b.id)] || ''))
-      .map(r => `<option value="${r.id}" ${String(_activityRoleId) === String(r.id) ? 'selected' : ''}>${roleMap[String(r.id)]}</option>`)
+    ...roleChoices.map(c => `<option value="${c.id}" ${String(_activityRoleId) === String(c.id) ? 'selected' : ''}>${c.label}</option>`)
   ].join('');
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _activityProjectId, 'setActivityProject')
@@ -767,14 +551,8 @@ async function renderActivityPage(pendingItem = null) {
     <label>Role</label>
     <select${actOn('change', 'setActivityRole', ACT_VALUE)}>${roleOptions}</select>
   </div>`;
-  const role    = _resolvedRole;
-  const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
   const periodDropdown = periodFilterDropdown(_activityWeeks, 'setActivityWeeks');
-  const pagedActivity = paginate(filteredActivity, _activityPageSize);
-  const activityEmptyMsg = (_activityProjectId || _activityRoleId)
-    ? "No activity logged for the selected filters."
-    : "No activity logged yet.";
-  main.innerHTML = `
+  return `
     <div class="page-header">
       <h2>Weekly Activity</h2>
       ${canEdit ? '<div class="page-header-actions">' + (typeof bulkEntryAvailable === 'function' && bulkEntryAvailable() ? '<button class="btn-secondary"' + act('showBulkActivityPage') + '>Bulk log week</button>' : '') + '<button class="btn-primary"' + act('showAddActivityForm') + '>+ Log Activity</button></div>' : ""}
@@ -816,7 +594,6 @@ async function renderActivityPage(pendingItem = null) {
       </tbody>
     </table>
   `;
-  lucide.createIcons();
 }
 function setActivityWeeks(val) { _activityWeeks = Number(val); renderActivityPage(); }
 function setActivityPageSize(val) { _activityPageSize = Number(val); renderActivityPage(); }
@@ -854,18 +631,6 @@ let _placementWeeks     = CONFIG.PLACEMENTS_DEFAULT_WEEKS;
 let _placementPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
 let _placementSort      = null;  // N-247b: { key, dir } — null = default order
 let _placementSearch    = '';    // N-247b: shared list search box (list-controls.js)
-function placementInFilter(p, filter) {
-  if (!filter.type) return true;
-  const dateStr = p.OfferAcceptedDate;
-  if (!dateStr) return false;
-  const d = new Date(dateStr);
-  const year = d.getFullYear();
-  const month = d.getMonth();
-  if (filter.type === "year")    return year === filter.value;
-  if (filter.type === "quarter") return year === new Date().getFullYear() && Math.floor(month / 3) + 1 === filter.value;
-  if (filter.type === "month")   return year === new Date().getFullYear() && month === filter.value;
-  return true;
-}
 function setPlacementFilter(type, value) {
   if (_placementFilter.type === type && _placementFilter.value === value) {
     _placementFilter = { type: null, value: null };
@@ -884,82 +649,27 @@ async function renderPlacementsPage(pendingItem = null) {
   // _resolvedRole (not `!== 'talent_partner'`) so Admin ghost-mode-as-a-TP
   // sees exactly what that TP sees.
   const showTp = _resolvedRole === 'admin' || _resolvedRole === 'delivery_manager';
-  let [allPlacements, allRoles, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
+  const [allPlacements, allRoles, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
     // N-093 / N-151: the query is bounded by the background date window and,
     // when one is active, by the month/quarter/year selection — whichever is
-    // LOOSER (see listQueryFromDay). placementInFilter() below still applies
-    // the exact test, so this can only ever over-fetch.
+    // LOOSER (see listQueryFromDay). placementInFilter() applies the exact
+    // test in the model, so this can only ever over-fetch.
     getPlacements(null, { fromDay: listQueryFromDay(
       weeksAgoDay(_placementWeeks), placementFilterCutoff(_placementFilter)) }),
     getRolesForUser(user.email),
     getProjectFilterOptions(),
     showTp ? getTalentPartnerDisplayMap() : Promise.resolve({}),
   ]);
-  const roleProjectMap = Object.fromEntries(
-    allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
-  );
-  // N-341: a Talent Partner sees only placements logged under their name —
-  // Placements.TalentPartner, the "Record placement as" value (filter below).
-  // N-207 used the linked Role's TalentPartner so this page and Rejected
-  // Offers (no TalentPartner column of its own) shared one rule; Rejected
-  // Offers still does.
-  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
-  // N-218a: splice the not-yet-created row in before sort/scope, exactly
-  // like a real fetched row -- it only shows up below if it actually
-  // belongs to the active period/project filter. This read started before
-  // the create write (apply() and commit() run in parallel), so it cannot
-  // already contain the real row in the normal case.
-  if (pendingItem) allPlacements = [...allPlacements, pendingItem];
-  allPlacements.sort((a, b) =>
-    new Date(b.OfferAcceptedDate || 0) - new Date(a.OfferAcceptedDate || 0)
-  );
-  // Scope to user's assigned projects
-  let scopedPlacements = userProjectIds
-    ? allPlacements.filter(p => {
-        const rid = String(p.RoleIDLookupId || p.RoleID || '');
-        return userProjectIds.includes(roleProjectMap[rid]);
-      })
-    : allPlacements;
-  // N-341: also scope to the placements logged under this TP's name
-  // (Placements.TalentPartner; tpMatches lower-cases both sides and a blank
-  // value never matches) — folded into scopedPlacements itself, so the N-151
-  // "Showing X of Y" denominator below already reflects it. getScopedUserEmail()
-  // keeps this correct under ghost mode.
-  if (_resolvedRole === 'talent_partner') {
-    scopedPlacements = scopedPlacements.filter(p =>
-      tpMatches(p.TalentPartner, getScopedUserEmail()));
-  }
-  let placements = scopedPlacements.filter(p => placementInFilter(p, _placementFilter));
-  if (canFilter && _placementProjectId) {
-    placements = placements.filter(p => {
-      const rid = String(p.RoleIDLookupId || p.RoleID || '');
-      return roleProjectMap[rid] === String(_placementProjectId);
-    });
-  }
-  // N-247b: shared list search (list-controls.js) — after every existing
-  // filter, before any sort, same position N-251a established on Roles.
-  placements = filterRowsByText(placements, _placementSearch, p => [
-    p.CandidateName,
-    roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '',
-    // N-340: gated, so the TP view's search surface is unchanged.
-    showTp && tpList(p.TalentPartner).length ? tpDisplay(p.TalentPartner, tpMap) : '',
-  ]);
-  // N-247b: the user's column sort goes ON TOP of the default
-  // OfferAcceptedDate-desc order above. sortRows is stable, so ties keep
-  // that order. Must stay BEFORE paginate().
-  const PLACEMENT_SORT_COLUMNS = {
-    candidate:     { type: 'text',   get: p => p.CandidateName },
-    role:          { type: 'text',   get: p => roleMap[String(p.RoleIDLookupId)] || roleMap[String(p.RoleID)] || '' },
-    salary:        { type: 'number', get: p => p.SalaryAgreed },
-    offerAccepted: { type: 'date',   get: p => p.OfferAcceptedDate },
-    startDate:     { type: 'date',   get: p => p.ProvisionalStartDate },
-    timeToHire:    { type: 'number', get: p => p.TimeToHire },
-    // N-340: only reachable from the header, which only Admin/DM are given.
-    talentPartner: { type: 'text',   get: p => tpList(p.TalentPartner).length ? tpDisplay(p.TalentPartner, tpMap) : '' },
-  };
-  placements = sortRows(placements, _placementSort, PLACEMENT_SORT_COLUMNS);
-  const role    = _resolvedRole;
-  const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
+  const isTalentPartner = _resolvedRole === 'talent_partner';
+  const m = placementsPageModel({
+    allPlacements, allRoles, userProjectIds, tpMap, showTp, isTalentPartner, canFilter, pendingItem,
+    scopedEmail: isTalentPartner ? getScopedUserEmail() : null,
+    projectId: _placementProjectId, filter: _placementFilter, search: _placementSearch, sort: _placementSort, pageSize: _placementPageSize,
+  });
+  main.innerHTML = _placementsPageHtml(m, { canEdit: ["admin","delivery_manager","talent_partner"].includes(_resolvedRole), canFilter, scopedProjects, showTp, tpMap, pendingItem });
+  lucide.createIcons();
+}
+function _placementFilterRowsHtml() {
   const monthBtns = PLACEMENT_MONTHS.map((m, i) =>
     `<button class="btn-filter${_placementFilter.type === "month" && _placementFilter.value === i ? " active" : ""}"${act('setPlacementFilter', 'month', i)}>${m}</button>`
   ).join("");
@@ -969,11 +679,23 @@ async function renderPlacementsPage(pendingItem = null) {
   const yearBtns = PLACEMENT_YEARS.map(y =>
     `<button class="btn-filter${_placementFilter.type === "year" && _placementFilter.value === y ? " active" : ""}"${act('setPlacementFilter', 'year', y)}>${y}</button>`
   ).join("");
+  return `<div class="placement-filter-rows">
+        <div class="placement-filter-row">
+          <div class="filter-labeled-group"><span class="filter-label">Month</span><div class="filter-group">${monthBtns}</div></div>
+        </div>
+        <div class="placement-filter-row">
+          <div class="filter-labeled-group"><span class="filter-label">Quarter</span><div class="filter-group">${quarterBtns}</div></div>
+          <div class="filter-labeled-group"><span class="filter-label">Year</span><div class="filter-group">${yearBtns}</div></div>
+        </div>
+      </div>`;
+}
+function _placementsPageHtml(m, o) {
+  const { roleMap, scopedPlacements, placements, paged: pagedPlacements } = m;
+  const { canEdit, canFilter, scopedProjects, showTp, tpMap, pendingItem } = o;
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _placementProjectId, 'setPlacementProject')
     : '';
   const periodDropdown = periodFilterDropdown(_placementWeeks, 'setPlacementWeeks');
-  const pagedPlacements = paginate(placements, _placementPageSize);
   // N-151: the denominator is scopedPlacements, NOT allPlacements — a talent
   // partner would otherwise read "Showing 3 of 128" and think 125 rows were
   // hidden by their filters, when most are hidden by their permissions.
@@ -985,7 +707,7 @@ async function renderPlacementsPage(pendingItem = null) {
   const placementsEmptyMsg = placementFilterLabel
     ? `No placements recorded for ${placementFilterLabel}.`
     : "No placements recorded yet.";
-  main.innerHTML = `
+  return `
     <div class="page-header">
       <h2>Placements</h2>
       <div class="page-header-actions">
@@ -994,15 +716,7 @@ async function renderPlacementsPage(pendingItem = null) {
     </div>
     <div class="table-toolbar">
       ${listControlsBar([projDropdown, periodDropdown, listSearchBox(_placementSearch, 'setPlacementSearch'), pageSizeDropdown(_placementPageSize, 'setPlacementPageSize')])}
-      <div class="placement-filter-rows">
-        <div class="placement-filter-row">
-          <div class="filter-labeled-group"><span class="filter-label">Month</span><div class="filter-group">${monthBtns}</div></div>
-        </div>
-        <div class="placement-filter-row">
-          <div class="filter-labeled-group"><span class="filter-label">Quarter</span><div class="filter-group">${quarterBtns}</div></div>
-          <div class="filter-labeled-group"><span class="filter-label">Year</span><div class="filter-group">${yearBtns}</div></div>
-        </div>
-      </div>
+      ${_placementFilterRowsHtml()}
     </div>
     ${resultCount}
     <table class="data-table">
@@ -1033,7 +747,6 @@ async function renderPlacementsPage(pendingItem = null) {
       </tbody>
     </table>
   `;
-  lucide.createIcons();
 }
 function setPlacementProject(val) { _placementProjectId = val || null; renderPlacementsPage(); }
 function setPlacementWeeks(val) { _placementWeeks = Number(val); renderPlacementsPage(); }
@@ -1063,7 +776,7 @@ async function renderRejectionsPage(pendingItem = null) {
   main.innerHTML = skeletonTable(6, 6);
   const user = getCurrentUser();
   const userProjectIds = await getUserProjectIds(user.email);
-  let [rejections, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
+  const [rejections, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
     // N-152: bounded ONLY when the user picks a window. The default is 0
     // (All time) and must stay that way — a `ge` bound cannot match a null
     // RejectionDate, so a bounded default would silently drop the rows that
@@ -1072,77 +785,22 @@ async function renderRejectionsPage(pendingItem = null) {
     getRolesForUser(user.email),
     getProjectFilterOptions(),
   ]);
-  const roleProjectMap = Object.fromEntries(
-    allRoles.map(r => [String(r.id), String(r.ProjectIDLookupId || r.ProjectID || '')])
-  );
-  // N-207: RejectedOffers has no TalentPartner column of its own — the linked
-  // Role's TalentPartner is the only source, and it's what Placements above
-  // uses too, for consistency between the two pages.
-  const roleTpMap = Object.fromEntries(allRoles.map(r => [String(r.id), r.TalentPartner]));
-  const roleMap = Object.fromEntries(allRoles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
-  // N-218a: splice the not-yet-created row in before sort/scope, exactly
-  // like a real fetched row -- it only shows up below if it actually
-  // belongs to the active project filter.
-  if (pendingItem) rejections = [...rejections, pendingItem];
-  rejections.sort((a, b) => {
-    const rA = roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || '';
-    const rB = roleMap[String(b.RoleIDLookupId)] || roleMap[String(b.RoleID)] || '';
-    return rA.localeCompare(rB);
+  const isTalentPartner = _resolvedRole === 'talent_partner';
+  const m = rejectionsPageModel({
+    rejections, allRoles, userProjectIds, isTalentPartner, canFilter, pendingItem,
+    scopedEmail: isTalentPartner ? getScopedUserEmail() : null,
+    projectId: _rejectionsProjectId, search: _rejectionsSearch, sort: _rejectionsSort, pageSize: _rejectionsPageSize,
   });
-  // Scope to user's assigned projects
-  let filteredRejections = userProjectIds
-    ? rejections.filter(r => {
-        const rid = String(r.RoleIDLookupId || r.RoleID || '');
-        return userProjectIds.includes(roleProjectMap[rid]);
-      })
-    : rejections;
-  // N-207: also scope to the TP's own rejections, via the linked Role's
-  // TalentPartner (tpMatches handles a multi-TP role) — inserted BEFORE the
-  // N-152 pre-filter denominator capture below, so "Showing X of Y" never
-  // counts a row the TP cannot see.
-  if (_resolvedRole === 'talent_partner') {
-    filteredRejections = filteredRejections.filter(r => {
-      const rid = String(r.RoleIDLookupId || r.RoleID || '');
-      return tpMatches(roleTpMap[rid], getScopedUserEmail());
-    });
-  }
-  const rejectionsTotal = filteredRejections.length;  // N-152: pre-filter denominator
-  if (canFilter && _rejectionsProjectId) {
-    filteredRejections = filteredRejections.filter(r => {
-      const rid = String(r.RoleIDLookupId || r.RoleID || '');
-      return roleProjectMap[rid] === String(_rejectionsProjectId);
-    });
-  }
-  // N-247b: shared list search (list-controls.js) — after every existing
-  // filter, before any sort, same position N-251a established on Roles.
-  filteredRejections = filterRowsByText(filteredRejections, _rejectionsSearch, r => [
-    r.CandidateName,
-    roleMap[String(r.RoleIDLookupId)] || roleMap[String(r.RoleID)] || '',
-    r.RejectionReason,
-    r.Notes,
-  ]);
-  // N-247b: the user's column sort goes ON TOP of the default
-  // role-name-A→Z order above. sortRows is stable, so ties keep that
-  // order. Must stay BEFORE paginate().
-  const REJECTION_SORT_COLUMNS = {
-    candidate:     { type: 'text',   get: r => r.CandidateName },
-    role:          { type: 'text',   get: r => roleMap[String(r.RoleIDLookupId)] || roleMap[String(r.RoleID)] || '' },
-    rejected:      { type: 'date',   get: r => r.RejectionDate },
-    salaryOffered: { type: 'number', get: r => r.SalaryOffered },
-    reason:        { type: 'text',   get: r => r.RejectionReason },
-    notes:         { type: 'text',   get: r => r.Notes },
-  };
-  filteredRejections = sortRows(filteredRejections, _rejectionsSort, REJECTION_SORT_COLUMNS);
-  const role    = _resolvedRole;
-  const canEdit = ["admin","delivery_manager","talent_partner"].includes(role);
+  main.innerHTML = _rejectionsPageHtml(m, { canEdit: ["admin","delivery_manager","talent_partner"].includes(_resolvedRole), canFilter, scopedProjects, pendingItem });
+  lucide.createIcons();
+}
+function _rejectionsPageHtml(m, o) {
+  const { roleMap, filtered: filteredRejections, total: rejectionsTotal, paged: pagedRejections, emptyMsg: rejectionsEmptyMsg } = m;
+  const { canEdit, canFilter, scopedProjects, pendingItem } = o;
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _rejectionsProjectId, 'setRejectionsProject')
     : '';
-  const pagedRejections = paginate(filteredRejections, _rejectionsPageSize);
-  const rejectionsEmptyMsg = _rejectionsProjectId
-    ? "No rejected offers for this project."
-    : "No rejected offers logged yet.";
-  main.innerHTML = `
+  return `
     <div class="page-header">
       <h2>Rejected Offers</h2>
       ${canEdit ? `<div class="page-header-actions"><button class="btn-primary"${act('showAddRejectionForm')}>+ Log Rejection</button></div>` : ""}
@@ -1175,7 +833,6 @@ async function renderRejectionsPage(pendingItem = null) {
       </tbody>
     </table>
   `;
-  lucide.createIcons();
 }
 function setRejectionsProject(val) { _rejectionsProjectId = val || null; renderRejectionsPage(); }
 function setRejectionsWeeks(val) { _rejectionsWeeks = Number(val); renderRejectionsPage(); }

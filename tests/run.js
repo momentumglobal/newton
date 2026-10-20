@@ -59,6 +59,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'api.js'),
   path.join(JS_DIR, 'api-headcount.js'),
   path.join(JS_DIR, 'list-controls.js'),
+  path.join(JS_DIR, 'pages-model.js'),
   path.join(JS_DIR, 'analytics.js'),
   path.join(JS_DIR, 'lci-config.js'),
   path.join(JS_DIR, 'lci-model.js'),

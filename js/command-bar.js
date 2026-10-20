@@ -118,7 +118,7 @@ async function _cmdBarLoadEntities(role) {
   if (wantRoles) {
     // N-146 addendum (19 Aug 2026) — only active roles are searchable
     // here, matching the exclusion every other role-picker in the app
-    // already applies (forms*.js's role dropdowns, pages.js's Roles-list
+    // already applies (forms*.js's role dropdowns, pages-model.js's Roles-list
     // "Active" filter) — cuts noise from roles nobody needs to act on via
     // the Command Bar. N-305: all of them read utils.js:isOpenPipelineStage().
     roles.filter(r => isOpenPipelineStage(r.Stage)).forEach(r => {
@@ -165,10 +165,13 @@ async function _cmdBarLoadEntities(role) {
   return records;
 }
 
-function _cmdBarOpen({ currentModule, role, navigateFn }) {
-  const previouslyFocused = document.activeElement;
-  const allPages = _cmdBarAccessiblePages(role);
+// N-145 — page rows render as before; entity rows show a title, an
+// optional subtitle (project/stage for a Role, status for a Project,
+// level for a Person), and an always-on type badge (unlike the page
+// badge, which only shows when the result is in a different module).
+const _CMD_BAR_ENTITY_BADGE_LABEL = { role: 'Role', project: 'Project', person: 'Person' };
 
+function _cmdBarBuildOverlay() {
   const overlay = document.createElement('div');
   overlay.className = 'cmd-bar-overlay';
   overlay.innerHTML = `
@@ -178,42 +181,33 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
     </div>
   `;
   document.body.appendChild(overlay);
+  return {
+    overlay,
+    input:     overlay.querySelector('.cmd-bar-input'),
+    resultsEl: overlay.querySelector('.cmd-bar-results'),
+  };
+}
 
-  const input     = overlay.querySelector('.cmd-bar-input');
-  const resultsEl  = overlay.querySelector('.cmd-bar-results');
-
-    let visible      = allPages.map(page => ({ kind: 'page', page }));
-  let highlight    = 0;
-  let currentQuery = '';
-
-  // N-145 — page rows render as before; entity rows show a title, an
-  // optional subtitle (project/stage for a Role, status for a Project,
-  // level for a Person), and an always-on type badge (unlike the page
-  // badge, which only shows when the result is in a different module).
-  const ENTITY_BADGE_LABEL = { role: 'Role', project: 'Project', person: 'Person' };
-
-  function render() {
-    const rowsHtml = visible.map((row, i) => {
-      const activeClass = i === highlight ? ' active' : '';
-      if (row.kind === 'page') {
-        const p = row.page;
-        return `
+function _cmdBarRowHtml(row, i, activeClass, currentModule) {
+  if (row.kind === 'page') {
+    const p = row.page;
+    return `
       <div class="cmd-bar-result${activeClass}" data-index="${i}">
         <span class="cmd-bar-result-label">${escHtml(p.label)}</span>
         ${p.module !== currentModule
           ? `<span class="cmd-bar-result-badge">${escHtml(_cmdBarModuleName(p.module))}</span>`
           : ''}
       </div>`;
-      }
-      const rec = row.record;
-      // N-146 — inline action buttons, Role rows only (empty for Project/Person).
-      const roleActions = rec.entityType === 'role' ? _cmdBarRoleActions(rec) : [];
-      const actionsHtml = roleActions.length
-        ? `<div class="cmd-bar-result-actions">${roleActions.map(a =>
-            `<button type="button" class="cmd-bar-action-btn" title="${escHtml(a.label)}" data-action="${a.key}"><i data-lucide="${a.icon}"></i></button>`
-          ).join('')}</div>`
-        : '';
-      return `
+  }
+  const rec = row.record;
+  // N-146 — inline action buttons, Role rows only (empty for Project/Person).
+  const roleActions = rec.entityType === 'role' ? _cmdBarRoleActions(rec) : [];
+  const actionsHtml = roleActions.length
+    ? `<div class="cmd-bar-result-actions">${roleActions.map(a =>
+        `<button type="button" class="cmd-bar-action-btn" title="${escHtml(a.label)}" data-action="${a.key}"><i data-lucide="${a.icon}"></i></button>`
+      ).join('')}</div>`
+    : '';
+  return `
       <div class="cmd-bar-result cmd-bar-result-entity${activeClass}" data-index="${i}">
         <div class="cmd-bar-result-text">
           <span class="cmd-bar-result-label">${escHtml(rec.title)}</span>
@@ -221,18 +215,179 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
         </div>
         <div class="cmd-bar-result-meta">
           ${actionsHtml}
-          <span class="cmd-bar-result-badge">${escHtml(ENTITY_BADGE_LABEL[rec.entityType] || rec.entityType)}</span>
+          <span class="cmd-bar-result-badge">${escHtml(_CMD_BAR_ENTITY_BADGE_LABEL[rec.entityType] || rec.entityType)}</span>
         </div>
       </div>`;
-    }).join('');
+}
 
-    const showLoading = !!_cmdBarEntityFetchInFlight
-      && currentQuery.trim().length >= CONFIG.COMMAND_BAR_ENTITY_MIN_QUERY_LEN;
-    const loadingHtml = showLoading
-      ? `<div class="cmd-bar-loading">Loading roles, projects and people…</div>`
-      : '';
+function _cmdBarResultsHtml(visible, highlight, query, currentModule) {
+  const rowsHtml = visible.map((row, i) =>
+    _cmdBarRowHtml(row, i, i === highlight ? ' active' : '', currentModule)
+  ).join('');
+  const showLoading = !!_cmdBarEntityFetchInFlight
+    && query.trim().length >= CONFIG.COMMAND_BAR_ENTITY_MIN_QUERY_LEN;
+  const loadingHtml = showLoading
+    ? `<div class="cmd-bar-loading">Loading roles, projects and people…</div>`
+    : '';
+  return (visible.length ? rowsHtml : `<div class="cmd-bar-empty">No matches</div>`) + loadingHtml;
+}
 
-    resultsEl.innerHTML = (visible.length ? rowsHtml : `<div class="cmd-bar-empty">No matches</div>`) + loadingHtml;
+// Page matches + capped entity matches (+ browse mode), best score first.
+function _cmdBarFilterRows(query, allPages, entityCache) {
+  const q = query.trim();
+  const qLower = q.toLowerCase();
+
+  const pageMatches = allPages
+    .map(page => ({ kind: 'page', page, score: fuzzyMatch(q, page.label) }))
+    .filter(r => r.score !== null);
+
+  let entityMatches = [];
+  if (entityCache && q.length >= CONFIG.COMMAND_BAR_ENTITY_MIN_QUERY_LEN) {
+    const byType = {};
+    entityCache.forEach(record => {
+      const score = fuzzyMatch(q, record.searchText);
+      if (score === null) return;
+      (byType[record.entityType] = byType[record.entityType] || []).push({ kind: 'entity', record, score });
+    });
+    Object.values(byType).forEach(list => {
+      list.sort((a, b) => b.score - a.score);
+      entityMatches = entityMatches.concat(list.slice(0, CONFIG.COMMAND_BAR_ENTITY_RESULT_CAP));
+    });
+
+    // N-146 addendum (19 Aug 2026) — browse mode: typing a prefix of an
+    // entity-bearing page's own label (e.g. "Roles") lists every cached
+    // record of that entity type, uncapped. fuzzyMatch is a subsequence
+    // match over each record's title/project/TP text, so a role like
+    // "Recruiter" has no reason to contain the letters "roles" in order —
+    // typing the category name was never going to surface it. The CAP
+    // above exists to bound a free-text search's noise, not to truncate
+    // a deliberate "show me all of them" browse, so this skips it
+    // entirely (still excludes anything already included above from a
+    // genuine text match, and still respects the active-roles-only
+    // filter already applied when the cache was built).
+    const includedIds = new Set(entityMatches.map(m => `${m.record.entityType}:${m.record.id}`));
+    CONFIG.COMMAND_BAR_ENTITY_TYPES.forEach(typeInfo => {
+      const page = allPages.find(p => p.key === typeInfo.pageKey);
+      if (!page || !qLower || !page.label.toLowerCase().startsWith(qLower)) return;
+      entityCache
+        .filter(r => r.entityType === typeInfo.type && !includedIds.has(`${r.entityType}:${r.id}`))
+        .sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+        .forEach(record => entityMatches.push({ kind: 'entity', record, score: 0 }));
+    });
+  }
+
+  return pageMatches.concat(entityMatches).sort((a, b) => b.score - a.score);
+}
+
+// What activating a result row should do, as data (_cmdBarRunTarget does it).
+// A result in the current module is activated in place; one in another
+// module is a full navigation to its page.
+// N-145 — entity row. Two activation kinds:
+//  'edit'   (Role, Person) — navigate, then open the edit form once
+//           the page is up. Same-module timing deliberately matches
+//           handleDeepLink()'s existing action=add setTimeout(…, 50).
+//  'filter' (Project, addendum 18 Aug 2026) — set the destination
+//           page's filter state BEFORE navigating, so its very first
+//           render is already scoped — no setTimeout, no race,
+//           because the target render function reads that state
+//           synchronously at the top, before any await.
+function _cmdBarActivationTarget(row, currentModule) {
+  if (row.kind === 'page') {
+    const page = row.page;
+    return page.module === currentModule
+      ? { kind: 'nav', pageKey: page.key }
+      : { kind: 'href', url: page.href };
+  }
+  const rec      = row.record;
+  const typeInfo = CONFIG.COMMAND_BAR_ENTITY_TYPES.find(t => t.type === rec.entityType);
+  const pageInfo = _cmdBarEntityPageInfo(typeInfo.pageKey);
+  if (pageInfo.module === currentModule) {
+    return typeInfo.activationKind === 'filter'
+      ? { kind: 'filter', setterFn: typeInfo.setterFn, id: rec.id, pageKey: typeInfo.pageKey }
+      : { kind: 'edit', pageKey: typeInfo.pageKey, openerFn: typeInfo.openerFn, id: rec.id };
+  }
+  const actionQs = typeInfo.activationKind === 'filter'
+    ? `action=filter&projectId=${rec.id}`
+    : `action=edit&id=${rec.id}`;
+  return { kind: 'href', url: `${pageInfo.href}?${actionQs}` };
+}
+
+// N-146 — dispatch for an inline action button on a Role row (Log
+// activity / Update stage / Add placement), pre-scoped to that role.
+// Same-module/cross-module split as above, and the same
+// href?action=…&param=… convention app.js's handleDeepLink() already
+// parses for action=edit/action=add.
+function _cmdBarActionTarget(rec, actionKey, currentModule) {
+  if (actionKey === 'updateStage') {
+    const pageInfo = _cmdBarEntityPageInfo('roles');
+    return pageInfo.module === currentModule
+      ? { kind: 'scrollUnlock', pageKey: 'roles', id: rec.id }
+      : { kind: 'href', url: `${pageInfo.href}?action=updateStage&roleId=${rec.id}` };
+  }
+  const targetPageKey = actionKey === 'logActivity' ? 'activity' : 'placements';
+  const pageInfo = _cmdBarEntityPageInfo(targetPageKey);
+  if (pageInfo.module === currentModule) {
+    return {
+      kind: 'openForm', pageKey: targetPageKey,
+      fnName: actionKey === 'logActivity' ? 'showAddActivityForm' : 'showAddPlacementForm',
+      args: [rec.id, rec.projectId],
+    };
+  }
+  return { kind: 'href', url: `${pageInfo.href}?action=${actionKey}&roleId=${rec.id}&projectId=${rec.projectId}` };
+}
+
+function _cmdBarRunTarget(t, navigateFn) {
+  if (t.kind === 'href') { window.location.href = t.url; return; }
+  if (t.kind === 'filter') window[t.setterFn](t.id);
+  window[navigateFn](t.pageKey);
+  if (t.kind === 'edit')         setTimeout(() => window[t.openerFn](t.id), 50);
+  if (t.kind === 'scrollUnlock') setTimeout(() => window.scrollToAndUnlockStage(t.id), 50);
+  if (t.kind === 'openForm')     setTimeout(() => window[t.fnName](...t.args), 50);
+}
+
+function _cmdBarNextHighlight(key, highlight, count) {
+  if (!count) return highlight;
+  return key === 'ArrowDown' ? (highlight + 1) % count : (highlight - 1 + count) % count;
+}
+
+// Which result a click landed on. N-146 — action buttons are nested inside a
+// .cmd-bar-result row, so this more specific check must run first and return,
+// or the row's own click (activate — open the role) fires as well.
+function _cmdBarClickTarget(e, visible) {
+  const actionBtn = e.target.closest('.cmd-bar-action-btn');
+  if (actionBtn) {
+    const row = actionBtn.closest('.cmd-bar-result');
+    const rec = row && visible[Number(row.dataset.index)]?.record;
+    return rec ? { rec, actionKey: actionBtn.dataset.action } : null;
+  }
+  const row = e.target.closest('.cmd-bar-result');
+  return row ? { index: Number(row.dataset.index) } : null;
+}
+
+// N-145 — kick off the entity fetch once per page session, without
+// blocking the overlay's own open/render. onLoaded re-runs the current
+// filter if the overlay is still open when it resolves, so any matching
+// entities appear without the user retyping.
+function _cmdBarStartEntityFetch(role, onLoaded) {
+  if (_cmdBarEntityCache !== null || _cmdBarEntityFetchInFlight) return;
+  _cmdBarEntityFetchInFlight = _cmdBarLoadEntities(role).then(records => {
+    _cmdBarEntityCache = records;
+    _cmdBarEntityFetchInFlight = null;
+    onLoaded();
+  });
+}
+
+function _cmdBarOpen({ currentModule, role, navigateFn }) {
+  const previouslyFocused = document.activeElement;
+  const allPages = _cmdBarAccessiblePages(role);
+  const { overlay, input, resultsEl } = _cmdBarBuildOverlay();
+
+  let visible      = allPages.map(page => ({ kind: 'page', page }));
+  let highlight    = 0;
+  let currentQuery = '';
+
+  function render() {
+    resultsEl.innerHTML = _cmdBarResultsHtml(visible, highlight, currentQuery, currentModule);
     // N-146 — action buttons render lucide icon tags; paint them on every
     // re-render (first open and every filter keystroke), same as every
     // other page that calls lucide.createIcons() after building markup.
@@ -241,49 +396,7 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
 
   function filter(query) {
     currentQuery = query;
-    const q = query.trim();
-    const qLower = q.toLowerCase();
-
-    const pageMatches = allPages
-      .map(page => ({ kind: 'page', page, score: fuzzyMatch(q, page.label) }))
-      .filter(r => r.score !== null);
-
-    let entityMatches = [];
-    if (_cmdBarEntityCache && q.length >= CONFIG.COMMAND_BAR_ENTITY_MIN_QUERY_LEN) {
-      const byType = {};
-      _cmdBarEntityCache.forEach(record => {
-        const score = fuzzyMatch(q, record.searchText);
-        if (score === null) return;
-        (byType[record.entityType] = byType[record.entityType] || []).push({ kind: 'entity', record, score });
-      });
-      Object.values(byType).forEach(list => {
-        list.sort((a, b) => b.score - a.score);
-        entityMatches = entityMatches.concat(list.slice(0, CONFIG.COMMAND_BAR_ENTITY_RESULT_CAP));
-      });
-
-      // N-146 addendum (19 Aug 2026) — browse mode: typing a prefix of an
-      // entity-bearing page's own label (e.g. "Roles") lists every cached
-      // record of that entity type, uncapped. fuzzyMatch is a subsequence
-      // match over each record's title/project/TP text, so a role like
-      // "Recruiter" has no reason to contain the letters "roles" in order —
-      // typing the category name was never going to surface it. The CAP
-      // above exists to bound a free-text search's noise, not to truncate
-      // a deliberate "show me all of them" browse, so this skips it
-      // entirely (still excludes anything already included above from a
-      // genuine text match, and still respects the active-roles-only
-      // filter already applied when the cache was built).
-      const includedIds = new Set(entityMatches.map(m => `${m.record.entityType}:${m.record.id}`));
-      CONFIG.COMMAND_BAR_ENTITY_TYPES.forEach(typeInfo => {
-        const page = allPages.find(p => p.key === typeInfo.pageKey);
-        if (!page || !qLower || !page.label.toLowerCase().startsWith(qLower)) return;
-        _cmdBarEntityCache
-          .filter(r => r.entityType === typeInfo.type && !includedIds.has(`${r.entityType}:${r.id}`))
-          .sort((a, b) => (a.title || '').localeCompare(b.title || ''))
-          .forEach(record => entityMatches.push({ kind: 'entity', record, score: 0 }));
-      });
-    }
-
-    visible = pageMatches.concat(entityMatches).sort((a, b) => b.score - a.score);
+    visible = _cmdBarFilterRows(query, allPages, _cmdBarEntityCache);
     highlight = 0;
     render();
   }
@@ -292,75 +405,12 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
     const row = visible[index];
     if (!row) return;
     close();
-
-    if (row.kind === 'page') {
-      const page = row.page;
-      if (page.module === currentModule) {
-        window[navigateFn](page.key);
-      } else {
-        window.location.href = page.href;
-      }
-      return;
-    }
-
-    // N-145 — entity row. Two activation kinds:
-    //  'edit'   (Role, Person) — navigate, then open the edit form once
-    //           the page is up. Same-module timing deliberately matches
-    //           handleDeepLink()'s existing action=add setTimeout(…, 50).
-    //  'filter' (Project, addendum 18 Aug 2026) — set the destination
-    //           page's filter state BEFORE navigating, so its very first
-    //           render is already scoped — no setTimeout, no race,
-    //           because the target render function reads that state
-    //           synchronously at the top, before any await.
-    const rec      = row.record;
-    const typeInfo = CONFIG.COMMAND_BAR_ENTITY_TYPES.find(t => t.type === rec.entityType);
-    const pageInfo = _cmdBarEntityPageInfo(typeInfo.pageKey);
-    if (pageInfo.module === currentModule) {
-      if (typeInfo.activationKind === 'filter') {
-        window[typeInfo.setterFn](rec.id);
-        window[navigateFn](typeInfo.pageKey);
-      } else {
-        window[navigateFn](typeInfo.pageKey);
-        setTimeout(() => window[typeInfo.openerFn](rec.id), 50);
-      }
-    } else {
-      const actionQs = typeInfo.activationKind === 'filter'
-        ? `action=filter&projectId=${rec.id}`
-        : `action=edit&id=${rec.id}`;
-      window.location.href = `${pageInfo.href}?${actionQs}`;
-    }
+    _cmdBarRunTarget(_cmdBarActivationTarget(row, currentModule), navigateFn);
   }
 
-  // N-146 — dispatch for an inline action button on a Role row (Log
-  // activity / Update stage / Add placement), pre-scoped to that role.
-  // Same-module/cross-module split as activate() above, and the same
-  // href?action=…&param=… convention app.js's handleDeepLink() already
-  // parses for action=edit/action=add.
   function activateEntityAction(rec, actionKey) {
     close();
-
-    if (actionKey === 'updateStage') {
-      const pageInfo = _cmdBarEntityPageInfo('roles');
-      if (pageInfo.module === currentModule) {
-        window[navigateFn]('roles');
-        setTimeout(() => window.scrollToAndUnlockStage(rec.id), 50);
-      } else {
-        window.location.href = `${pageInfo.href}?action=updateStage&roleId=${rec.id}`;
-      }
-      return;
-    }
-
-    const targetPageKey = actionKey === 'logActivity' ? 'activity' : 'placements';
-    const pageInfo = _cmdBarEntityPageInfo(targetPageKey);
-    if (pageInfo.module === currentModule) {
-      window[navigateFn](targetPageKey);
-      setTimeout(() => {
-        if (actionKey === 'logActivity') window.showAddActivityForm(rec.id, rec.projectId);
-        else                              window.showAddPlacementForm(rec.id, rec.projectId);
-      }, 50);
-    } else {
-      window.location.href = `${pageInfo.href}?action=${actionKey}&roleId=${rec.id}&projectId=${rec.projectId}`;
-    }
+    _cmdBarRunTarget(_cmdBarActionTarget(rec, actionKey, currentModule), navigateFn);
   }
 
   function close() {
@@ -374,15 +424,9 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
   // keydown handler in utils.js.
   function onOverlayKeydown(e) {
     if (e.key === 'Escape') { close(); return; }
-    if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
-      if (visible.length) highlight = (highlight + 1) % visible.length;
-      render();
-      return;
-    }
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (visible.length) highlight = (highlight - 1 + visible.length) % visible.length;
+      highlight = _cmdBarNextHighlight(e.key, highlight, visible.length);
       render();
       return;
     }
@@ -393,36 +437,18 @@ function _cmdBarOpen({ currentModule, role, navigateFn }) {
   }
 
   resultsEl.addEventListener('click', e => {
-    // N-146 — action buttons are nested inside a .cmd-bar-result row, so
-    // this more specific check must run first and return, or the row's
-    // own click (activate — open the role) fires as well.
-    const actionBtn = e.target.closest('.cmd-bar-action-btn');
-    if (actionBtn) {
-      const row = actionBtn.closest('.cmd-bar-result');
-      const rec = row && visible[Number(row.dataset.index)]?.record;
-      if (rec) activateEntityAction(rec, actionBtn.dataset.action);
-      return;
-    }
-    const row = e.target.closest('.cmd-bar-result');
-    if (row) activate(Number(row.dataset.index));
+    const t = _cmdBarClickTarget(e, visible);
+    if (!t) return;
+    if (t.rec) activateEntityAction(t.rec, t.actionKey);
+    else activate(t.index);
   });
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
   input.addEventListener('input', () => filter(input.value));
   document.addEventListener('keydown', onOverlayKeydown);
 
-    _cmdBarState = { close };
+  _cmdBarState = { close };
   render();
   input.focus();
 
-  // N-145 — kick off the entity fetch once per page session, without
-  // blocking the overlay's own open/render above. If the overlay is
-  // still open when it resolves, re-run the current filter so any
-  // matching entities appear without the user retyping.
-  if (_cmdBarEntityCache === null && !_cmdBarEntityFetchInFlight) {
-    _cmdBarEntityFetchInFlight = _cmdBarLoadEntities(role).then(records => {
-      _cmdBarEntityCache = records;
-      _cmdBarEntityFetchInFlight = null;
-      if (_cmdBarState) filter(currentQuery);
-    });
-  }
+  _cmdBarStartEntityFetch(role, () => { if (_cmdBarState) filter(currentQuery); });
 }

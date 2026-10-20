@@ -894,7 +894,7 @@ function groupStageHistoryByRole(rows) {
 // Never diff the two in raw ms (N-100 diff-4). Back-dated to OpenDate when
 // that is earlier AND the row is the role's creation row (it sat in this stage
 // before Newton logged it) or its first move into Sourcing (OpenDate is the
-// true go-live) — the same two cases showRoleTimeline (pages.js) back-dates.
+// true go-live) — the same two cases roleTimelineModel (pages-model.js) back-dates.
 // Known overlap with that render code; the timeline is deliberately untouched.
 function roleStageEntryDay(role, roleRows) {
   const rows = roleRows || [];

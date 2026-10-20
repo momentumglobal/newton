@@ -649,7 +649,7 @@ function formatLongDay(dayISO) {
 // month/quarter/year filter can possibly match, as 'YYYY-MM-DD', or null
 // when no filter is set. Used ONLY as a server-side `ge` lower bound — it is
 // deliberately loose (a quarter/month filter returns that year's 1 January),
-// because placementInFilter() still applies the exact test client-side. A
+// because placementInFilter() (pages-model.js) still applies the exact test client-side. A
 // loose lower bound over-fetches and stays correct; a tight one that got the
 // boundary wrong would silently drop placements.
 // Local getters, matching localDayISO's reasoning: this answers "what does

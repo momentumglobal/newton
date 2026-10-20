@@ -4031,7 +4031,7 @@ var ASSERTIONS = [
       _assertEqual(lintWeeklyActivityCreates(ALL_SOURCES).map(v => `${v.file}:${v.line}  ${v.text}`), [],
         'raw WeeklyActivity creates outside api.js (use createWeeklyActivity)');
       _assertEqual(countWeeklyActivityCreates(ALL_SOURCES['api.js']), 1, 'api.js: the one create inside createWeeklyActivity');
-      ['forms.js', 'bulk-activity.js', 'mobile-pages.js'].forEach(f =>
+      ['forms-weekly.js', 'bulk-activity.js', 'mobile-pages.js'].forEach(f =>
         _assertEqual(ALL_SOURCES[f].includes('createWeeklyActivity(fields)'), true, f + ' writes through the wrapper'));
     },
   },

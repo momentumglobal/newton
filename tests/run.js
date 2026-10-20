@@ -42,7 +42,8 @@ const JS_DIR = path.join(TESTS_DIR, '..', 'js');
 // Production script order (index.html / reporting.html): config.js before
 // actions.js (N-301) before utils.js before ui-kit.js before richtext.js before headcount.js before permissions.js before
 // checklist-logic.js before graph-client.js before api.js before api-headcount.js before analytics.js before lci-config.js before lci-model.js
-// before coe-plan.js. Fixtures/assertions load last. (In production api-headcount.js loads straight after
+// before coe-plan.js. Fixtures load next, then assertions.js (ASSERTIONS + shared helpers), then the 12
+// assert-<domain>.js files (N-353), which push their entries into ASSERTIONS. Assertions load last. (In production api-headcount.js loads straight after
 // diagnostics.js, which this runner does not load.)
 // (checklist-logic.js loads only on reporting.html in production, before api-checklists.js; both new files are
 // declarations only, so loading it here ahead of api.js is harmless.)
@@ -81,6 +82,18 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'lint-internal-kpi.js'),
   path.join(TESTS_DIR, 'fixtures.js'),
   path.join(TESTS_DIR, 'assertions.js'),
+  path.join(TESTS_DIR, 'assert-dates.js'),
+  path.join(TESTS_DIR, 'assert-revenue.js'),
+  path.join(TESTS_DIR, 'assert-lci.js'),
+  path.join(TESTS_DIR, 'assert-api-cache.js'),
+  path.join(TESTS_DIR, 'assert-security.js'),
+  path.join(TESTS_DIR, 'assert-actions-lints.js'),
+  path.join(TESTS_DIR, 'assert-analytics.js'),
+  path.join(TESTS_DIR, 'assert-headcount.js'),
+  path.join(TESTS_DIR, 'assert-checklists.js'),
+  path.join(TESTS_DIR, 'assert-roles-people.js'),
+  path.join(TESTS_DIR, 'assert-list-ui.js'),
+  path.join(TESTS_DIR, 'assert-pages.js'),
 ];
 const sandbox = {};
 

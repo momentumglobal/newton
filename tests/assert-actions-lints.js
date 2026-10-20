@@ -648,6 +648,32 @@ ASSERTIONS.push(
     },
   },
   {
+    name: 'Readme.html names every js/ file in File Structure / Mobile JavaScript, and no file that no longer exists (N-354)',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access - runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintReadmeFiles(ALL_HTML['Readme.html'], ALL_SOURCES), [], 'Readme file listing (see tests/lint-readme-files.js)');
+    },
+  },
+  {
+    name: 'lintReadmeFiles fails on an unlisted file, a stale row, missing section markers and an empty scope, and honours the allowlist (N-354)',
+    fn: function () {
+      const readme = tags => '<div id="x" ' + 'id="sec-mobile">' + tags.map(t => '<span class="file-tag">' + t + '</span>').join('') + '<div id="sec-loadorder">';
+      const src = { 'a.js': '', 'b.js': '' };
+      _assertEqual(lintReadmeFiles(readme(['a.js', 'js/b.js']), src), [], 'control: both name forms (a.js, js/b.js) count as listed');
+      const unlisted = lintReadmeFiles(readme(['a.js']), src);
+      _assertEqual(unlisted.length === 1 && /^js\/b\.js is not listed/.test(unlisted[0]), true, 'mutation: an unlisted file is named: ' + unlisted);
+      const stale = lintReadmeFiles(readme(['a.js', 'js/b.js', 'js/ghost.js']), src);
+      _assertEqual(stale.length === 1 && /ghost\.js, which does not exist/.test(stale[0]), true, 'mutation: a stale row is named: ' + stale);
+      const noMarkers = lintReadmeFiles('<p>no sections here</p>', src);
+      _assertEqual(noMarkers.length === 1 && /markers/.test(noMarkers[0]), true, 'mutation: missing section markers fail rather than pass vacuously: ' + noMarkers);
+      const empty = lintReadmeFiles(readme([]), src);
+      _assertEqual(empty.length === 1 && /no \.js file-tag/.test(empty[0]), true, 'mutation: a scope with no file-tags fails rather than passes vacuously: ' + empty);
+      _assertEqual(lintReadmeFiles(readme(['a.js', 'tests/x.js', 'css/']), src, { allow: { 'b.js': 'reason' } }), [], 'control: an allowlisted file is not flagged, non-js tags are ignored');
+    },
+  },
+  {
     name: 'N-324 inline styles: per-file counts equal INLINE_STYLE_BASELINE; no setAttribute(style) (SEC-12c ratchet)',
     fn: function () {
       if (typeof lintInlineStyles === 'undefined') _skip('lint-inline-styles.js not loaded — runs under node tests/run.js.');

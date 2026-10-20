@@ -73,6 +73,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'lint-vendor.js'),
   path.join(TESTS_DIR, 'lint-icons.js'),
   path.join(TESTS_DIR, 'lint-css-split.js'),
+  path.join(TESTS_DIR, 'lint-readme-files.js'),
   path.join(TESTS_DIR, 'lint-csp.js'),
   path.join(TESTS_DIR, 'lint-stage-arrays.js'),
   path.join(TESTS_DIR, 'lint-role-literals.js'),

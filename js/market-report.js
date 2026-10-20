@@ -574,7 +574,6 @@ function mrRenderPrintCanvas() {
               <td>${escHtml(r.Detail        || "")}</td>
             </tr>`).join("")}
         </tbody></table>
-      </div>
     </div>` : "";
 
   return `

@@ -386,5 +386,45 @@ ASSERTIONS.push(
       const withDel = reportLibraryRowHtml({ title: 't', detail: 'd', ownerLabel: 'o', canDelete: true, acts });
       _assertEqual(withDel.includes('>Delete<') && withDel.includes('rbDeleteReport'), true, 'Delete renders with canDelete');
     },
+  },
+  // ---- N-358: Market Report print canvas must not close an extra </div> ----
+  {
+    name: 'N-358: mrRenderPrintCanvas - balanced <div> open/close with and without offer rejections (and mrRenderCanvas, as a control)',
+    fn: function () {
+      const divs = function (html) {
+        return { open: (html.match(/<div\b/g) || []).length, close: (html.match(/<\/div>/g) || []).length };
+      };
+      const balanced = function (html) { const d = divs(html); return d.open === d.close; };
+      const saved = { data: _mrData, tam: _mrTam, title: _mrTitle, obs: _mrObs };
+      try {
+        const rejections = [
+          { CandidateName: 'A & B <x>', RoleTitle: 'Engineer', Reason: 'Counter-offer', Detail: '"quoted" <b>bold</b>' },
+          { CandidateName: 'C', RoleTitle: 'Engineer', Reason: 'Salary', Detail: '' },
+        ];
+        _mrTam = 1000; _mrTitle = 'Test report'; _mrObs = '<p>Notes</p>';
+
+        _mrData = { activity: [], role: {}, rejections: rejections, openDay: null };
+        const withRej = mrRenderPrintCanvas();
+        _assertEqual(withRej.indexOf('Offer Rejection Reasons') !== -1, true, 'rejections card is rendered');
+        _assertEqual(withRej.indexOf('<b>bold</b>') === -1, true, 'free text in rejections stays escaped');
+        _assertEqual(balanced(withRej), true, 'print canvas is balanced with rejections: ' + JSON.stringify(divs(withRej)));
+
+        _mrData = { activity: [], role: {}, rejections: [], openDay: null };
+        const noRej = mrRenderPrintCanvas();
+        _assertEqual(noRej.indexOf('Offer Rejection Reasons') === -1, true, 'no rejections card when there are none');
+        _assertEqual(balanced(noRej), true, 'print canvas is balanced without rejections: ' + JSON.stringify(divs(noRej)));
+
+        // Control 1: the interactive canvas is balanced with the same rejections.
+        const interactive = mrRenderCanvas({
+          title: 'T', tam: 1000, pctContacted: 0, pctResponded: 0, daysOpen: null,
+          pipeline: { Screened: 0, Hires: 0 }, rejections: rejections, obsHtml: '',
+        });
+        _assertEqual(balanced(interactive), true, 'interactive canvas is balanced with rejections: ' + JSON.stringify(divs(interactive)));
+        // Control 2: the counter detects a stray </div> (guards against a check that cannot fail).
+        _assertEqual(balanced(withRej + '</div>'), false, 'the balance counter flags one extra </div>');
+      } finally {
+        _mrData = saved.data; _mrTam = saved.tam; _mrTitle = saved.title; _mrObs = saved.obs;
+      }
+    },
   }
 );

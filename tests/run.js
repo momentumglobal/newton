@@ -62,6 +62,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'list-controls.js'),
   path.join(JS_DIR, 'pages-model.js'),
   path.join(JS_DIR, 'analytics.js'),
+  path.join(JS_DIR, 'market-report.js'),
   path.join(JS_DIR, 'lci-config.js'),
   path.join(JS_DIR, 'lci-model.js'),
   path.join(JS_DIR, 'coe-plan.js'),

@@ -15,23 +15,6 @@
 //   DM   = TPs assigned to their projects
 //   admin/leadership = all
 
-// Local copy of the desktop getScopedTpEmails (which lives in
-// analytics-pages.js alongside DOM code we don't load on mobile). Only needs
-// getUserProjectIds + getTalentPartnersForProject, both already available.
-async function mobileScopedTpEmails(userEmail) {
-  const projectIds = await getUserProjectIds(userEmail);
-  if (projectIds === null) return null; // unrestricted (admin)
-  const allowed = new Set();
-  for (const pid of projectIds) {
-    const assignments = await getTalentPartnersForProject(pid);
-    assignments.forEach(a => {
-      const email = (a.UserEmail || a.Title || '').toLowerCase();
-      if (email) allowed.add(email);
-    });
-  }
-  return allowed;
-}
-
 // Carousel state for the current render.
 let _mScCards = [];   // array of { name, html }
 let _mScIndex = 0;
@@ -41,22 +24,9 @@ async function mobileRenderScorecards(main) {
   main.innerHTML = skeletonList(4);
 
   try {
-    // N-270: 52 weeks fetched once — the full window feeds the learned
-    // benchmarks; everything on the cards stays on the 13-week slice.
-    const [activity52, historical, tpMap, allRoles, stageRows, headcount, placementIds, allProjects] = await Promise.all([
-      getActivityForAnalytics(52),
-      getHistoricalPlacements(),
-      getTalentPartnerDisplayMap(),
-      getAllRoles(),
-      getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; }),
-      getAllHeadcount().catch(e => { console.warn('N-309: headcount read failed', e); return []; }),
-      getPlacementHeadcountIds().catch(e => { console.warn('N-309: placement headcount read failed', e); return []; }),
-      getProjects(false),
-    ]);
-    const activityRaw = activitySinceWeeks(activity52, 13);
-    const stageHistory = groupStageHistoryByRole(stageRows);  // N-274
-    // N-309: behind-pace measured from each pipeline's oldest open headcount.
-    const openSince = oldestOpenHeadcountIndex(headcount, placementIds);
+    // N-270 / N-309 / N-274: same shared load as the desktop page.
+    const { activity52, historical, tpMap, allRoles, allProjects, activityRaw, stageHistory, openSince } =
+      await loadScorecardData();
 
     let tpEmails = [...new Set(activityRaw.map(a => a.TalentPartner).filter(Boolean))];
     tpEmails = await filterToActiveTpEmails(tpEmails, tpMap);
@@ -66,7 +36,7 @@ async function mobileRenderScorecards(main) {
       const myEmail = (getCurrentUser().email || '').toLowerCase();
       tpEmails = tpEmails.filter(e => e.toLowerCase() === myEmail);
     } else if (_mobileRole === 'delivery_manager') {
-      const allowed = await mobileScopedTpEmails(getCurrentUser().email);
+      const allowed = await getScopedTpEmails(getCurrentUser().email);
       if (allowed !== null) {
         tpEmails = tpEmails.filter(e => allowed.has(e.toLowerCase()));
       }

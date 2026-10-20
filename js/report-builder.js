@@ -814,21 +814,17 @@ function _rbRenderLibrary() {
         const list = groups[client].slice().sort((a, b) => (a.Title || '').localeCompare(b.Title || ''));
         const reportRows = list.map(r => {
           const owner = r.ReportOwner || '';
-          const canDelete = isAdmin || owner.toLowerCase() === me;
           const periodLabel = (DETAIL_PERIOD_OPTIONS.find(([k]) => k === r.Period) || [])[1] || r.Period || '—';
-          return `
-        <tr>
-          <td>${escHtml(r.Title || '—')}</td>
-          <td>${escHtml(periodLabel)}</td>
-          <td>${escHtml(_rbTpMap[owner.toLowerCase()] || owner || '—')}</td>
-          <td>
-            <div class="row-actions">
-              <button class="btn-secondary"${act('rbLoadReport', Number(r.id))}>Open</button>
-              <button class="btn-secondary"${act('rbCopyReportAction', Number(r.id), ACT_EL)}>Copy</button>
-              ${canDelete ? `<button class="btn-secondary"${act('rbDeleteReport', Number(r.id), r.Title || '')}>Delete</button>` : ''}
-            </div>
-          </td>
-        </tr>`;
+          return reportLibraryRowHtml({
+            title: r.Title || '—', detail: periodLabel,
+            ownerLabel: _rbTpMap[owner.toLowerCase()] || owner || '—',
+            canDelete: isAdmin || owner.toLowerCase() === me,
+            acts: {
+              open: act('rbLoadReport', Number(r.id)),
+              copy: act('rbCopyReportAction', Number(r.id), ACT_EL),
+              del:  act('rbDeleteReport', Number(r.id), r.Title || ''),
+            },
+          });
         }).join('');
         return `
         <tr class="bp-lib-client-row">

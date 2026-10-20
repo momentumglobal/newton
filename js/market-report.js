@@ -161,21 +161,8 @@ async function mrGenerate() {
     : (role.OpenDate ? spDateIn(role.OpenDate) || null : null);
   _mrData = { activity, role, rejections, openDay };
 
-  const totalOutreach  = sumField(activity, "Outreach");
-  const totalResponses = sumField(activity, "Responses");
-  const pctContacted   = Math.round((totalOutreach  / _mrTam) * 100);
-  const pctResponded   = Math.round((totalResponses / _mrTam) * 100);
+  const { pctContacted, pctResponded, pipeline } = marketReportMetrics(activity, _mrTam);
   const daysOpen = mrDaysOpen();
-
-  const pipeline = {
-    Screened:    sumField(activity, "Screened"),
-    Submitted:   sumField(activity, "Submitted"),
-    "IV1":       sumField(activity, "Interview1"),
-    "IV2+":      sumField(activity, "Interview2Plus"),
-    "Final IV":  sumField(activity, "FinalInterview"),
-    Offers:      sumField(activity, "Offers"),
-    Hires:       sumField(activity, "Hires"),
-  };
 
   canvas.innerHTML = mrRenderCanvas({
     title: _mrTitle, tam: _mrTam,
@@ -387,21 +374,17 @@ function _mrRenderLibrary() {
         const list = groups[client].slice()
           .sort((a, b) => (a.ReportTitle || '').localeCompare(b.ReportTitle || ''));
         const reportRows = list.map(r => {
-          const owner     = r.CreatedByEmail || '';
-          const canDelete = isAdmin || owner.toLowerCase() === me;
-          return `
-        <tr>
-          <td>${escHtml(r.ReportTitle || '—')}</td>
-          <td>${escHtml(r.RoleName || '—')}</td>
-          <td>${escHtml(_mrTpMap[owner.toLowerCase()] || owner || '—')}</td>
-          <td>
-            <div class="row-actions">
-              <button class="btn-secondary"${act('mrLoadReport', Number(r.id))}>Open</button>
-              <button class="btn-secondary"${act('mrCopyReportAction', Number(r.id), ACT_EL)}>Copy</button>
-              ${canDelete ? `<button class="btn-secondary"${act('mrDeleteReport', Number(r.id), r.ReportTitle || '')}>Delete</button>` : ''}
-            </div>
-          </td>
-        </tr>`;
+          const owner = r.CreatedByEmail || '';
+          return reportLibraryRowHtml({
+            title: r.ReportTitle || '—', detail: r.RoleName || '—',
+            ownerLabel: _mrTpMap[owner.toLowerCase()] || owner || '—',
+            canDelete: isAdmin || owner.toLowerCase() === me,
+            acts: {
+              open: act('mrLoadReport', Number(r.id)),
+              copy: act('mrCopyReportAction', Number(r.id), ACT_EL),
+              del:  act('mrDeleteReport', Number(r.id), r.ReportTitle || ''),
+            },
+          });
         }).join('');
         return `
         <tr class="bp-lib-client-row">
@@ -541,18 +524,8 @@ async function mrExportPdf() {
       const actRows = _mrData.activity;
       canvas.innerHTML = mrRenderCanvas({
         title: _mrTitle, tam: _mrTam,
-        pctContacted: Math.round((sumField(actRows, "Outreach")  / _mrTam) * 100),
-        pctResponded: Math.round((sumField(actRows, "Responses") / _mrTam) * 100),
+        ...marketReportMetrics(actRows, _mrTam),
         daysOpen: mrDaysOpen(),
-        pipeline: {
-          Screened:   sumField(actRows, "Screened"),
-          Submitted:  sumField(actRows, "Submitted"),
-          "IV1":      sumField(actRows, "Interview1"),
-          "IV2+":     sumField(actRows, "Interview2Plus"),
-          "Final IV": sumField(actRows, "FinalInterview"),
-          Offers:     sumField(actRows, "Offers"),
-          Hires:      sumField(actRows, "Hires"),
-        },
         rejections: _mrData.rejections,
         obsHtml: _mrObs,
       });
@@ -567,21 +540,8 @@ function mrRenderPrintCanvas() {
   if (!_mrData) return "";
   const { activity, role, rejections } = _mrData;
 
-  const totalOutreach  = sumField(activity, "Outreach");
-  const totalResponses = sumField(activity, "Responses");
-  const pctContacted   = Math.round((totalOutreach  / _mrTam) * 100);
-  const pctResponded   = Math.round((totalResponses / _mrTam) * 100);
+  const { pctContacted, pctResponded, pipeline } = marketReportMetrics(activity, _mrTam);
   const daysOpen = mrDaysOpen();
-
-  const pipeline = {
-    Screened:   sumField(activity, "Screened"),
-    Submitted:  sumField(activity, "Submitted"),
-    "IV1":      sumField(activity, "Interview1"),
-    "IV2+":     sumField(activity, "Interview2Plus"),
-    "Final IV": sumField(activity, "FinalInterview"),
-    Offers:     sumField(activity, "Offers"),
-    Hires:      sumField(activity, "Hires"),
-  };
 
   const kpis = [
     { label: "Total Addressable Market", value: _mrTam.toLocaleString() },

@@ -18,14 +18,6 @@ function mpFmtPct(n) {
 
 // Utilisation % comes from personUtilisation() (utils.js), as desktop (N-328).
 
-// Monthly rows whose MonthStart falls within [start, end].
-function mpRowsInRange(rows, start, end) {
-  return rows.filter(r => {
-    const d = new Date(r.MonthStart);
-    return d >= start && d <= end;
-  });
-}
-
 // --- KPI card markup (reuses the mobile .m-* look) ---
 function mpKpiCard(label, value, sub, bg) {
   return `
@@ -55,45 +47,8 @@ async function mobileRenderPeopleDashboard(main) {
     ]);
 
     const allRows = computeMonthlyRows(assignments);
-
-    const now    = new Date();
-    const thisY  = now.getFullYear();
-    const today  = new Date(); today.setHours(0, 0, 0, 0);
-
-    // Revenue - YTD current year
-    const ytdStart = new Date(thisY, 0, 1);
-    const ytdRows  = mpRowsInRange(allRows, ytdStart, today);
-    const revYTD   = ytdRows.reduce((s, r) => s + r.BilledRevenue, 0);
-
-    // Utilisation - YTD current year
-    const utilYTD  = personUtilisation(ytdRows).ratio;
-
-    // Active customers + billed headcount, today vs end of previous quarter
-    const cq       = Math.floor(now.getMonth() / 3);
-    const prevQEnd = new Date(cq === 0 ? thisY - 1 : thisY, cq === 0 ? 12 : cq * 3, 0);
-    prevQEnd.setHours(0, 0, 0, 0);
-
-    const countCustomers = (asOf) => new Set(
-      assignments.filter(a => {
-        const s = a.StartDate ? new Date(a.StartDate) : null;
-        const e = a.EndDate   ? new Date(a.EndDate)   : null;
-        return s && s <= asOf && (!e || e >= asOf)
-          && a.Customer && a.Customer !== 'Unassigned';
-      }).map(a => a.Customer)
-    ).size;
-
-    const countBilledHC = (asOf) => new Set(
-      assignments.filter(a => {
-        const s = a.StartDate ? new Date(a.StartDate) : null;
-        const e = a.EndDate   ? new Date(a.EndDate)   : null;
-        return !isForecastAssignment(a) && a.Billed === 'Yes' && s && s <= asOf && (!e || e >= asOf);
-      }).map(a => a.EmployeeName)
-    ).size;
-
-    const activeCustomers = countCustomers(today);
-    const prevQCustomers  = countCustomers(prevQEnd);
-    const billedHeadcount = countBilledHC(today);
-    const prevQHeadcount  = countBilledHC(prevQEnd);
+    const { year: thisY, revYTD, utilYTD, activeCustomers, prevQCustomers, billedHeadcount, prevQHeadcount } =
+      peopleKpiFigures(allRows, assignments, new Date());
 
     const utilBg = utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? 'var(--c-success-bg-alt)'
                  : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? 'var(--c-warn-bg-soft)'

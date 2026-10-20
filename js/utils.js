@@ -1414,6 +1414,51 @@ function personUtilisation(rows, clip) {
   return { ratio: totalU > 0 ? billedU / totalU : 0, billed: billedU / 10000, total: totalU / 10000 };
 }
 
+// Monthly rows (computeMonthlyRows) whose month starts within [start, end] —
+// inclusive, local-midnight Dates. Year/Month, not MonthStart: MonthStart is a
+// UTC-midnight string, which sits an hour past local midnight in BST (N-351).
+function monthlyRowsInRange(rows, start, end) {
+  return rows.filter(r => {
+    const ms = new Date(r.Year, r.Month - 1, 1);
+    return ms >= start && ms <= end;
+  });
+}
+
+// People dashboard KPI figures — the shaping half shared by the desktop strip
+// (people-dashboard.js) and the mobile tiles (mobile-people.js); each keeps its
+// own markup (N-351). `now` is a parameter so tests can pin it. Forecast
+// assignments are excluded from both counts, as on desktop.
+function peopleKpiFigures(allRows, assignments, now) {
+  const year  = now.getFullYear();
+  const today = new Date(year, now.getMonth(), now.getDate());
+
+  // Revenue and utilisation — current year to date (person-based, N-328)
+  const ytdRows = monthlyRowsInRange(allRows, new Date(year, 0, 1), today);
+  const revYTD  = ytdRows.reduce((s, r) => s + r.BilledRevenue, 0);
+  const utilYTD = personUtilisation(ytdRows).ratio;
+
+  // Last day of the previous quarter
+  const cq       = Math.floor(now.getMonth() / 3);
+  const prevQEnd = new Date(cq === 0 ? year - 1 : year, cq === 0 ? 12 : cq * 3, 0);
+  prevQEnd.setHours(0, 0, 0, 0);
+
+  const activeOn = asOf => assignments.filter(a => {
+    const s = a.StartDate ? new Date(a.StartDate) : null;
+    const e = a.EndDate   ? new Date(a.EndDate)   : null;
+    return !isForecastAssignment(a) && s && s <= asOf && (!e || e >= asOf);
+  });
+  const countCustomers = asOf => new Set(
+    activeOn(asOf).filter(a => a.Customer && a.Customer !== 'Unassigned').map(a => a.Customer)).size;
+  const countBilledHC = asOf => new Set(
+    activeOn(asOf).filter(a => a.Billed === 'Yes').map(a => a.EmployeeName)).size;
+
+  return {
+    year, revYTD, utilYTD,
+    activeCustomers: countCustomers(today), prevQCustomers: countCustomers(prevQEnd),
+    billedHeadcount: countBilledHC(today),  prevQHeadcount: countBilledHC(prevQEnd),
+  };
+}
+
 // ── Internal (non-deployable) staff helpers (N-304) ─────────────
 // People.StaffType 'Internal' = payroll staff in an internal function
 // (CONFIG.INTERNAL_FUNCTIONS). They have no Level and never count towards

@@ -7,22 +7,9 @@ async function renderScorecardsPage() {
   const main = document.getElementById('main-content');
   main.innerHTML = skeletonList(4);
 
-  // N-270: 52 weeks fetched once — the full window feeds the learned
-  // benchmarks; everything on the cards stays on the 13-week slice.
-  const [activity52, historical, tpMap, allRoles, stageRows, headcount, placementIds, allProjects] = await Promise.all([
-    getActivityForAnalytics(52),
-    getHistoricalPlacements(),
-    getTalentPartnerDisplayMap(),
-    getAllRoles(),
-    getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; }),
-    getAllHeadcount().catch(e => { console.warn('N-309: headcount read failed', e); return []; }),
-    getPlacementHeadcountIds().catch(e => { console.warn('N-309: placement headcount read failed', e); return []; }),
-    getProjects(false),
-  ]);
-  const activityRaw = activitySinceWeeks(activity52, 13);
-  const stageHistory = groupStageHistoryByRole(stageRows);  // N-274
-  // N-309: behind-pace measured from each pipeline's oldest open headcount.
-  const openSince = oldestOpenHeadcountIndex(headcount, placementIds);
+  // N-270 / N-309 / N-274: shared with mobile — loadScorecardData (analytics.js).
+  const { activity52, historical, tpMap, allRoles, allProjects, activityRaw, stageHistory, openSince } =
+    await loadScorecardData();
 
   // Get unique TP emails from activity, then drop inactive employees
   let tpEmails = [...new Set(activityRaw.map(a => a.TalentPartner).filter(Boolean))];
@@ -83,23 +70,6 @@ async function renderScorecardsPage() {
       <p class='page-subtitle'>Rolling Quarterly Coaching View</p>
     </div>
     <div class='scorecard-grid'>${cards}</div>`;
-}
-
-// Returns a Set of lowercased TP emails assigned to the given user's projects.
-// Used to scope a Delivery Manager to the scorecards of TPs on their projects.
-async function getScopedTpEmails(userEmail) {
-  const projectIds = await getUserProjectIds(userEmail);
-  // Admins resolve to null (all projects) — treat as unrestricted.
-  if (projectIds === null) return null;
-  const allowed = new Set();
-  for (const pid of projectIds) {
-    const assignments = await getTalentPartnersForProject(pid);
-    assignments.forEach(a => {
-      const email = (a.UserEmail || a.Title || '').toLowerCase();
-      if (email) allowed.add(email);
-    });
-  }
-  return allowed;
 }
 
 function renderScorecardPanel(scorecard, tpMap = {}, roleHealth = null, bench = null) {

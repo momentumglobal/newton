@@ -888,6 +888,67 @@ function groupStageHistoryByRole(rows) {
   return byRole;
 }
 
+// Scorecards data load — shared by the desktop page (analytics-pages.js) and
+// the mobile carousel (mobile-scorecards.js) so the two can't drift (N-351).
+// N-270: 52 weeks fetched once — the full window feeds the learned
+// benchmarks; everything on the cards stays on the 13-week slice.
+async function loadScorecardData() {
+  const [activity52, historical, tpMap, allRoles, stageRows, headcount, placementIds, allProjects] = await Promise.all([
+    getActivityForAnalytics(52),
+    getHistoricalPlacements(),
+    getTalentPartnerDisplayMap(),
+    getAllRoles(),
+    getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; }),
+    getAllHeadcount().catch(e => { console.warn('N-309: headcount read failed', e); return []; }),
+    getPlacementHeadcountIds().catch(e => { console.warn('N-309: placement headcount read failed', e); return []; }),
+    getProjects(false),
+  ]);
+  return {
+    activity52, historical, tpMap, allRoles, allProjects,
+    activityRaw:  activitySinceWeeks(activity52, 13),
+    stageHistory: groupStageHistoryByRole(stageRows),                    // N-274
+    // N-309: behind-pace measured from each pipeline's oldest open headcount.
+    openSince:    oldestOpenHeadcountIndex(headcount, placementIds),
+  };
+}
+
+// Returns a Set of lowercased TP emails assigned to the given user's projects.
+// Used to scope a Delivery Manager to the scorecards of TPs on their projects
+// (desktop and mobile Scorecards).
+async function getScopedTpEmails(userEmail) {
+  const projectIds = await getUserProjectIds(userEmail);
+  // Admins resolve to null (all projects) — treat as unrestricted.
+  if (projectIds === null) return null;
+  const allowed = new Set();
+  for (const pid of projectIds) {
+    const assignments = await getTalentPartnersForProject(pid);
+    assignments.forEach(a => {
+      const email = (a.UserEmail || a.Title || '').toLowerCase();
+      if (email) allowed.add(email);
+    });
+  }
+  return allowed;
+}
+
+// Market Report metrics block (N-351): the interactive canvas, the live
+// preview and the print canvas all call this. Pipeline key order is the
+// printed column order.
+function marketReportMetrics(activity, tam) {
+  return {
+    pctContacted: Math.round((sumField(activity, "Outreach")  / tam) * 100),
+    pctResponded: Math.round((sumField(activity, "Responses") / tam) * 100),
+    pipeline: {
+      Screened:   sumField(activity, "Screened"),
+      Submitted:  sumField(activity, "Submitted"),
+      "IV1":      sumField(activity, "Interview1"),
+      "IV2+":     sumField(activity, "Interview2Plus"),
+      "Final IV": sumField(activity, "FinalInterview"),
+      Offers:     sumField(activity, "Offers"),
+      Hires:      sumField(activity, "Hires"),
+    },
+  };
+}
+
 // The day ('YYYY-MM-DD') the role entered its CURRENT stage, or null when the
 // history can't say (no rows, or the latest row disagrees with role.Stage).
 // ChangedAt is an instant → local day; OpenDate is a day marker → spDateIn.

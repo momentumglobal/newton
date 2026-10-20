@@ -18,19 +18,6 @@ function _dashDateRange(filter) {
   return { start: new Date(year, 0, 1), end: new Date(year, 11, 31) };
 }
 
-// Filter monthly rows to a date range
-function _rowsInRange(rows, start, end) {
-  return rows.filter(r => {
-    const ms = new Date(r.Year, r.Month - 1, 1);
-    return ms >= start && ms <= end;
-  });
-}
-
-// Filter monthly rows to a full calendar year
-function _rowsInYear(rows, year) {
-  return rows.filter(r => r.Year === year);
-}
-
 function _fmtGBP(n) {
   return '£' + (n || 0).toLocaleString('en-GB', {
     minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -228,53 +215,9 @@ function _kpiCard(label, value, sub, bg) {
   </div>`;
 }
 async function _renderKPIStrip(allRows, people, assignments) {
-  const now     = new Date();
-  const thisY   = now.getFullYear();
-  const prevY   = thisY - 1;
-  const today   = new Date(); today.setHours(0,0,0,0);
-
-  // Revenue — YTD current year (Jan 1 to today)
-  const ytdStart  = new Date(thisY, 0, 1);
-  const ytdRows   = _rowsInRange(allRows, ytdStart, today);
-  const revYTD    = ytdRows.reduce((s,r) => s + r.BilledRevenue, 0);
-
-  // Revenue — full previous year
-  const prevRows  = _rowsInYear(allRows, prevY);
-  const revPrev   = prevRows.reduce((s,r) => s + r.BilledRevenue, 0);
-
-  // Utilisation — current year YTD (person-based, N-328)
-  const utilYTD   = personUtilisation(ytdRows).ratio;
-
-  // Utilisation — previous year
-  const utilPrev  = personUtilisation(prevRows).ratio;
-
-// Last day of previous quarter
-  const cq       = Math.floor(now.getMonth() / 3);
-  const prevQEnd = new Date(cq === 0 ? thisY - 1 : thisY, cq === 0 ? 12 : cq * 3, 0);
-  prevQEnd.setHours(0, 0, 0, 0);
-
-  const countCustomers = (asOf) => new Set(
-    assignments.filter(a => {
-      const s = a.StartDate ? new Date(a.StartDate) : null;
-      const e = a.EndDate   ? new Date(a.EndDate)   : null;
-      return !isForecastAssignment(a)
-        && s && s <= asOf && (!e || e >= asOf)
-        && a.Customer && a.Customer !== 'Unassigned';
-    }).map(a => a.Customer)
-  ).size;
-
-  const countBilledHC = (asOf) => new Set(
-    assignments.filter(a => {
-      const s = a.StartDate ? new Date(a.StartDate) : null;
-      const e = a.EndDate   ? new Date(a.EndDate)   : null;
-      return !isForecastAssignment(a) && a.Billed === 'Yes' && s && s <= asOf && (!e || e >= asOf);
-    }).map(a => a.EmployeeName)
-  ).size;
-
-  const activeCustomers  = countCustomers(today);
-  const prevQCustomers   = countCustomers(prevQEnd);
-  const billedHeadcount  = countBilledHC(today);
-  const prevQHeadcount   = countBilledHC(prevQEnd);
+  const now = new Date();
+  const { year: thisY, revYTD, utilYTD, activeCustomers, prevQCustomers, billedHeadcount, prevQHeadcount } =
+    peopleKpiFigures(allRows, assignments, now);
 
   const _delta = (curr, prev) => {
     const d = curr - prev;
@@ -545,7 +488,7 @@ async function renderPeopleDashboard() {
   const allRows = computeMonthlyRows(assignments);
 
 const { start, end } = _dashDateRange(_dashFilter);
-  const periodRows = _rowsInRange(allRows, start, end);
+  const periodRows = monthlyRowsInRange(allRows, start, end);
   const kpiStrip     = await _renderKPIStrip(allRows, people, assignments);
   const utilLineGraph = _renderUtilisationLineGraph(allRows, assignments, salesForecasts, totalActiveHeadcount);
   const utilisPanel  = _renderUtilisationPanel(periodRows, people);

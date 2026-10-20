@@ -191,6 +191,27 @@ function emptyStateRow({ colspan, icon = 'inbox', message = '', actionLabel = ''
   </td></tr>`;
 }
 
+// ── Report-library rows (N-351) ─────────────────────────────────
+// 4-column rows shared by the Report Builder and Market Report libraries
+// (title, detail, owner, actions). Callers pass RAW values — escaping is done
+// here — and the three act() attribute strings, built at the call site so the
+// literal action names stay visible to lintActNames.
+function reportLibraryRowHtml({ title, detail, ownerLabel, canDelete, acts }) {
+  return `
+        <tr>
+          <td>${escHtml(title)}</td>
+          <td>${escHtml(detail)}</td>
+          <td>${escHtml(ownerLabel)}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-secondary"${acts.open}>Open</button>
+              <button class="btn-secondary"${acts.copy}>Copy</button>
+              ${canDelete ? `<button class="btn-secondary"${acts.del}>Delete</button>` : ''}
+            </div>
+          </td>
+        </tr>`;
+}
+
 // ── Page-level failure state (N-171 / F-9b) ─────────────────────
 // Shared renderer for a page-render catch block: replaces #main-content
 // (or a modal's content pane) with a Retry button, distinct from an

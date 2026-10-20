@@ -42,7 +42,7 @@
       <a class="sidebar-link" data-act='["show","changelog"]' data-show="changelog">Changelog</a>
       <a class="sidebar-link" data-act='["show","backlog"]' data-show="backlog">Backlog &amp; Future Work</a>
     </nav>
-    <div class="sidebar-footer">Newton v2 &middot; August 2026</div>
+    <div class="sidebar-footer">Newton v2 &middot; October 2026</div>
   </div>
 
   <!-- ── Main ── -->
@@ -54,7 +54,7 @@
       <div class="cover-sub">System Directory &amp; Developer Reference</div>
       <div class="cover-meta">
         <div class="cover-meta-item"><label>Version</label><span>v2 (notifications + premium UI)</span></div>
-        <div class="cover-meta-item"><label>Last updated</label><span>August 2026</span></div>
+        <div class="cover-meta-item"><label>Last updated</label><span>October 2026</span></div>
         <div class="cover-meta-item"><label>Organisation</label><span>Momentum Global</span></div>
         <div class="cover-meta-item"><label>Platform</label><span>GitHub Pages + SharePoint</span></div>
       </div>
@@ -322,6 +322,10 @@
         <tr><td><span class="file-tag">redirect.html</span></td><td>MSAL v5 redirect bridge (N-290)</td><td>Redirect URI for silent (hidden-iframe) token renewal only — <code>CONFIG.SILENT_REDIRECT_URI</code>. Loads the vendored bridge and <code>js/redirect-bridge.js</code>, nothing else. Registered in Entra.</td></tr>
         <tr><td><span class="file-tag">js/redirect-bridge.js</span></td><td>Bridge page script (N-290)</td><td>One call: <code>msalRedirectBridge.broadcastResponseToMainFrame()</code>. Kept out of redirect.html so there is no inline script.</td></tr>
         <tr><td><span class="file-tag">js/frame-guard.js</span></td><td>Clickjacking guard (N-292)</td><td>Head-level script, no exports and no CONFIG. Loaded straight after diag-buffer.js on the nine app pages; if the page is framed by a cross-origin window it hides itself and tries to break out. See Security headers.</td></tr>
+        <tr><td><span class="file-tag">js/diag-buffer.js</span></td><td>Early-load error buffer (N-179)</td><td>First script in <code>&lt;head&gt;</code> on every app shell, synchronous, ahead of <code>frame-guard.js</code>, <code>theme-init.js</code> and <code>config.js</code>. No CONFIG, no dedupe, no sessionStorage: it only keeps a throw or rejection raised while the later scripts parse, in <code>window.__diagBuffer</code> (capped at 50 &mdash; a local literal, because CONFIG has not parsed yet). <code>diagnostics.js</code> drains it through <code>reportError()</code>, which applies the real guards.</td></tr>
+        <tr><td><span class="file-tag">js/theme-init.js</span></td><td>Sets <code>data-theme</code> before first paint</td><td>Synchronous, in <code>&lt;head&gt;</code>, on every page that links <code>css/style.css</code> (not <code>mobile.html</code>). Reads the same <code>localStorage</code> key as <code>utils.js</code>'s <code>THEME_KEY</code> (<code>newton_theme</code>) &mdash; rename one and the literal here must follow &mdash; else follows <code>prefers-color-scheme</code>, and keeps following the OS only while no explicit choice is stored. It cannot wait for <code>utils.js</code>: that loads too late to avoid a flash of the wrong theme.</td></tr>
+        <tr><td><span class="file-tag">js/diagnostics.js</span></td><td>Client-side error telemetry engine (N-172)</td><td>Registers the only global <code>error</code> / <code>unhandledrejection</code> handlers in Newton and writes one Diagnostics row per distinct error (<code>reportError()</code>; session cap and dedupe in CONFIG.DIAGNOSTICS). No UI &mdash; the admin surface is in <code>os-admin.js</code> (N-173). Loads straight after <code>api.js</code> on every shell; DOM-free so it works unmodified on all nine, including <code>mobile.html</code> and <code>survey.html</code>. A throw while earlier scripts parse is caught by <code>diag-buffer.js</code>, not here.</td></tr>
+        <tr><td><span class="file-tag">js/guide-search.js</span></td><td>User Guide search (N-163)</td><td>Self-initialising search bar for the four static guides (<code>user-guide</code>, <code>people-user-guide</code>, <code>sales-user-guide</code>, <code>market-reporting-user-guide</code>). Not part of the app script order: no CONFIG, no api. Works from the DOM shape the guides share (<code>.guide-nav</code>, <code>.guide-section</code>, <code>.faq-item</code>); its CSS is <code>css/guide-search.css</code>.</td></tr>
         <tr><td><span class="file-tag">js/actions.js</span></td><td>Delegated UI actions (N-301, SEC-12b)</td><td>registerActions(), act(), actOn(), ACT_EL / ACT_EVENT / ACT_VALUE / ACT_CHECKED / ACT_HTML, ACT_EVENTS. Replaces inline <code>on*=</code> handler attributes: markup carries <code>data-act</code> data, one listener per event type on <code>document</code> runs the registered action. Loaded on every app page straight after config.js. Holds the encoder (<code>act</code>/<code>actOn</code>) as well as the dispatcher on purpose — they write and read the same format and must change together. See Coding Conventions &rarr; Event handlers.</td></tr>
         <tr><td><span class="file-tag">js/home.js</span></td><td>Home page init (N-303, split N-323)</td><td><code>initHome()</code>, Quick Links, sign-out and the <code>registerActions</code> call. Loaded last in the head of index.html, after <code>home-banner.js</code> and <code>survey-widget.js</code> (it registers <code>refreshCCBanner</code> at load time, so those must come first).</td></tr>
         <tr><td><span class="file-tag">js/home-banner.js</span></td><td>Home Command Centre banner (N-323)</td><td><code>ccBadgeHTML()</code>, <code>refreshCCBanner()</code> (computes the four RAGs, writes CCStatus, raises roleFlag / ccRed notifications), <code>renderCCBadges()</code>, <code>renderCommandCentreBanner()</code>. index.html only, before home.js. The Revenue and Utilisation RAGs come from <code>computeRevenueRAG()</code> / <code>computeUtilisationRAG()</code> in analytics.js (N-325), so the banner shows the same colours as the Command Centre tiles.</td></tr>
@@ -424,6 +428,7 @@
         <tr><td><span class="file-tag">js/lci-sections.js</span></td><td>Legacy Team / one-off / fee / travel grids, plus the live cost-model output table, cumulative-spend SVG and Monthly Cost Composition stacked-column SVG (N-261 — also rendered per model in the report and as a native PowerPoint chart). Owns the output row-visibility rules.</td></tr>
         <tr><td><span class="file-tag">js/lci-summary.js</span></td><td>Project milestones (rows inside the roadmap grid), the single-model summary / print view, and the compare view.</td></tr>
         <tr><td><span class="file-tag">js/lci-excel.js</span></td><td>Excel export — lazy ExcelJS loader, seven sheet builders, download. Writes every formula as <code>{ formula, result }</code>: the formula makes the workbook live, the cached result makes it correct on open. Never recalculates — all numbers come from lci-model.js.</td></tr>
+        <tr><td><span class="file-tag">js/lci-import.js</span></td><td>Legacy Team import from Excel (N-231) &mdash; loaded after <code>lci-excel.js</code> (it reuses that file's lazy ExcelJS loader, so there is no second xlsx dependency) and before <code>lci-report.js</code>. Writes nothing to SharePoint itself: parsed rows go into the editor's in-memory rows and are saved by the normal Save Changes path, with its retry and re-entrancy guard.</td></tr>
         <tr><td><span class="file-tag">js/lci-report.js</span></td><td>Multi-model report export — navy cover, per-model sections, Location Comparison, rich-text Observations &amp; Recommendations. Caches the assembled models on <code>_lciReportBundles</code> for the PowerPoint export, and owns <code>LCI_COMPARE_KPIS</code>, the compare-table metric list shared with it.</td></tr>
         <tr><td><span class="file-tag">js/lci-pptx.js</span></td><td>PowerPoint export (N-224) — lazy pptxgenjs loader, navy/content masters, and one builder per slide type. <strong>Replaces Print / PDF on the report page</strong> (the Summary page keeps its PDF). Everything on a slide is a native table, chart or text run so the deck is editable after export. Never recalculates — all numbers come from lci-model.js, and every row-visibility rule is the one lci-sections.js applies.</td></tr>
         <tr><td><span class="file-tag">js/lci-link.js</span></td><td>Hiring Plan bridge — links a Won model to a CoE project (admins can also unlink) and generates one <code>CoEPlanRows</code> row per hire. Generated rows anchor the hire (end of Recruitment) on the Monday of the <strong>last week of the LCI target hire month</strong>, working the Open Date backwards, and carry the model's notice (per-role override or model default, × <code>CONFIG.COE_PHASE_DEFAULTS.weeksPerNoticeMonth</code>) plus an explicit RecruitmentWeeks. Manual plan rows still build forward from Planned Open Date.</td></tr>
@@ -469,6 +474,7 @@
         <tr><td><span class="file-tag">tests/lint-vendor.js</span></td><td>SEC-9 guard (N-289). Pure functions over data <code>run.js</code> supplies (<code>ALL_HTML</code>, <code>VENDOR_FILES</code>, <code>VENDOR_MANIFEST</code>, <code>VENDOR_PACKAGE_JSON</code>): fails on an external script URL (allow-list empty), a <code>js/vendor/</code> file with no <code>VERSIONS.md</code> row or a different sha384, a filename/version mismatch, or a <code>package.json</code> pin that disagrees; <code>lintLucideSubset</code> (N-349a) checks the derived Lucide subset (icon list &rarr; banner hash &rarr; row) and that the full upstream file stays out. Skips in <code>tests/index.html</code> (no filesystem).</td></tr>
         <tr><td><span class="file-tag">tests/lint-icons.js</span></td><td>Icon guard (N-349a). <code>lintIconSubset</code> fails when a template names a Lucide icon (<code>data-lucide</code> literal or ternary, <code>icon:</code> value, or an <code>...ICON...</code> map value) that is not in <code>js/vendor/lucide-subset-icons.txt</code>. Loaded after <code>lint-vendor.js</code> (reuses its comment strippers). Skips in <code>tests/index.html</code> (no filesystem).</td></tr>
         <tr><td><span class="file-tag">tests/lint-css-split.js</span></td><td>Stylesheet split guard (N-349b). <code>lintCssSplit</code> checks each shell's <code>&lt;link&gt;</code> list against <code>CSS_SPLIT_LINKS</code>, that no rule is defined in two of style.css and the module sheets, that each sheet's sentinel classes are not in style.css (and the shared ones still are), and that no shell can render a module sheet it does not link. Loaded after <code>lint-vendor.js</code>. Skips in <code>tests/index.html</code> (no filesystem).</td></tr>
+        <tr><td><span class="file-tag">tests/lint-readme-files.js</span></td><td>Readme listing guard (N-354). <code>lintReadmeFiles(readme, sources, config)</code> fails when a <code>js/*.js</code> file is not named as a file-tag in the Mobile App / File Structure sections, or when a <code>.js</code> file-tag there names a file that no longer exists. <code>README_FILES_ALLOW</code> holds the exceptions with a reason each (<code>sw.js</code>, a root file). Add a row here when you add a <code>js/</code> file. Skipped in the browser runner (no filesystem).</td></tr>
         <tr><td><span class="file-tag">tests/lint-csp.js</span></td><td>SEC-12 guard (N-292). Holds <code>CSP_CANONICAL</code>. Fails on: a page whose CSP or referrer meta is missing, duplicated, different or after the first resource tag; a policy with <code>'unsafe-eval'</code>, a wildcard, plain http or an extra script host; policy origins that disagree with <code>CONFIG</code>/<code>GRAPH</code>; <code>frame-guard.js</code> missing, misplaced or on a static page; a new unclassified HTML page; <code>eval</code>/<code>new Function</code>/string timers or an unlisted <code>https://</code> host in first-party js/. Also unit-tests frame-guard.js against stub windows. Skips in <code>tests/index.html</code> (no filesystem).</td></tr>
         <tr><td><span class="file-tag">tests/lint-stage-arrays.js</span></td><td>N-305 guard. Fails on any array literal made only of role-stage names (2+, any quote style, may span lines) in js/ outside config.js or in an inline HTML <code>&lt;script&gt;</code> — use the <code>CONFIG.ROLE_STAGE*</code> sets or <code>isOpenPipelineStage()</code>. <code>STAGE_ARRAY_ALLOW</code> holds the one exception (analytics.js <code>ACTIVE_STAGES</code>); a stale allow entry also fails. Skips in <code>tests/index.html</code> (no filesystem).</td></tr>
         <tr><td><span class="file-tag">tests/lint-headcount-writes.js</span></td><td>N-306 guard. Fails on any <code>createItem</code> / <code>updateItem</code> / <code>deleteItem</code> on <code>'RoleHeadcount'</code> outside api-headcount.js (api.js included) — headcount writes must go through <code>createHeadcount()</code> / <code>updateHeadcount()</code> / <code>cancelHeadcount()</code>, which keep <code>Roles.OpenDate</code> in sync. Skips in <code>tests/index.html</code> (no filesystem).</td></tr>
@@ -479,97 +485,255 @@
     <!-- SCRIPT LOAD ORDER -->
     <div class="section" id="sec-loadorder" style="display:none">
       <div class="section-title">Script Load Order</div>
-      <p class="section-intro">All HTML files must load scripts in this order. Deviating causes "X is not defined" errors because later scripts depend on globals defined by earlier ones.</p>
+      <p class="section-intro">Every app shell loads scripts in this order: the shared prefix, then its own list. Deviating causes "X is not defined" errors because later scripts depend on globals defined by earlier ones.</p>
 
       <div class="callout"><strong>Critical:</strong> utils.js, ui-kit.js, headcount.js, permissions.js and graph-client.js must always load before api.js (ui-kit.js straight after utils.js; headcount.js, permissions.js and graph-client.js straight before api.js, in that order). graph-client.js holds the Graph transport, cache and generic CRUD that every api*.js file calls; api.js calls functions defined in them (ghost mode helpers in utils.js, role-history and headcount helpers such as normaliseRoleHistoryRows() and roleStageChangeRule() in headcount.js, role and restricted-list helpers such as resolveRoleFromAssignments() and isListAccessDenied() in permissions.js). diagnostics.js loads straight after api.js, and api-headcount.js straight after diagnostics.js (N-347). On reporting.html, checklist-logic.js must also load before api-checklists.js. This applies to every HTML file including admin.html and index.html.</div>
 
-      <div class="callout"><strong>defer (N-238a, Sep 2026):</strong> every <code>&lt;script src&gt;</code> tag below loads with <code>defer</code>, except <code>js/diag-buffer.js</code> and <code>js/theme-init.js</code> — both must run synchronously and are deliberately not shown in the load-order lists below; see the Dark Mode changelog entry for <code>theme-init.js</code>'s reason, and N-179 for <code>diag-buffer.js</code>'s (it must be first, unmarked, to catch a top-level throw during parse of everything after it). Because <code>defer</code> preserves document order, the sequences below are unchanged by it — but any inline (non-<code>src</code>) <code>&lt;script&gt;</code> block that calls a function from one of these files must wait for <code>DOMContentLoaded</code> rather than calling it directly (N-238a fixed two such cases, in admin.html and index.html).</div>
+      <div class="callout"><strong>defer (N-238a, Sep 2026):</strong> every <code>&lt;script src&gt;</code> tag below loads with <code>defer</code>, except the head scripts <code>js/diag-buffer.js</code>, <code>js/frame-guard.js</code>, <code>js/theme-init.js</code> (and <code>js/mobile-flag.js</code> on mobile.html), which must run synchronously and are shown in the head line of each list. <code>theme-init.js</code> has to set <code>data-theme</code> before first paint; <code>diag-buffer.js</code> must be first, unmarked, to catch a top-level throw during parse of everything after it (N-179); <code>frame-guard.js</code> must act before the page renders (N-292). Because <code>defer</code> preserves document order, the sequences below are unchanged by it — but any inline (non-<code>src</code>) <code>&lt;script&gt;</code> block that calls a function from one of these files must wait for <code>DOMContentLoaded</code> rather than calling it directly (N-238a fixed two such cases, in admin.html and index.html).</div>
 
-      <h3>Standard module pages</h3>
+      <h3>Shared prefix (every app shell)</h3>
       <div class="code-block">
 <span class="code-comment">&lt;!-- Head, in this order (N-292) --&gt;</span>
-meta charset &rarr; CSP meta &rarr; referrer meta &rarr; js/diag-buffer.js &rarr; js/frame-guard.js   (app pages)
+meta charset &rarr; CSP meta &rarr; referrer meta &rarr; js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js   (all synchronous; theme-init.js is absent from mobile.html, which has js/mobile-flag.js instead)
 
-<span class="code-comment">&lt;!-- External --&gt;</span>
-js/vendor/msal-browser-5.24.0.min.js   (self-hosted, N-289; v5 since N-290)
-js/vendor/lucide-1.47.0.subset.min.js  (self-hosted subset of 53 icons, N-349a; full file was N-289)
+<span class="code-comment">&lt;!-- External (deferred, self-hosted, N-289) --&gt;</span>
+js/vendor/lucide-1.47.0.subset.min.js  <span class="code-comment">(subset of 53 icons, N-349a; not on mobile.html)</span>
+js/vendor/msal-browser-5.24.0.min.js   <span class="code-comment">(v5 since N-290)</span>
 
-<span class="code-comment">&lt;!-- Shared platform --&gt;</span>
-<span class="code-key">config.js</span>          <span class="code-comment">← CONFIG object, OS_MODULES, role helpers</span>
-<span class="code-key">actions.js</span>         <span class="code-comment">← Delegated UI actions (N-301) — straight after config.js on every app page</span>
-<span class="code-key">auth.js</span>            <span class="code-comment">← MSAL instance, authReady/signIn/signOut/getToken</span>
-<span class="code-key">utils.js</span>           <span class="code-comment">← Pure helpers, ghost mode helpers</span>
-<span class="code-key">ui-kit.js</span>         <span class="code-comment">← DOM/UI helpers: toast, modals, skeletons, empty states, ghost banner (N-346a) — straight after utils.js on every page</span>
-<span class="code-key">richtext.js</span>       <span class="code-comment">← Rich-text table editor + paste sanitiser (N-346a) — Reporting, Market Reporting and Sales only; after ui-kit.js</span>
-<span class="code-key">headcount.js</span>     <span class="code-comment">← Headcount, role-history, placement-picker and CoE-link helpers (N-346b) — before permissions.js and api.js on every page</span>
-<span class="code-key">permissions.js</span>   <span class="code-comment">← Role resolution, capability checks, survey eligibility, restricted-list helpers (N-346c) — straight before graph-client.js on every page</span>
-<span class="code-key">graph-client.js</span>  <span class="code-comment">← Graph transport, both cache tiers, delta sync, $batch, FIELD_ALIASES, generic CRUD (N-347) — straight before api.js on every page</span>
-<span class="code-key">api.js</span>             <span class="code-comment">← List-specific reads/writes, role resolution, role history</span>
-<span class="code-key">api-headcount.js</span> <span class="code-comment">← RoleHeadcount reads/writes (N-347) — straight after diagnostics.js (which stays directly after api.js) on every page</span>
+<span class="code-comment">&lt;!-- Shared prefix: every app shell, in this order --&gt;</span>
+<span class="code-key">config.js</span>  <span class="code-comment">&larr; CONFIG object, OS_MODULES, role helpers</span>
+<span class="code-key">actions.js</span>  <span class="code-comment">&larr; delegated UI actions (N-301) &mdash; straight after config.js</span>
+<span class="code-key">auth.js</span>  <span class="code-comment">&larr; MSAL instance, authReady/signIn/signOut/getToken</span>
+<span class="code-key">utils.js</span>  <span class="code-comment">&larr; pure helpers, ghost mode helpers</span>
+<span class="code-key">ui-kit.js</span>  <span class="code-comment">&larr; DOM/UI helpers: toast, modals, skeletons, empty states, ghost banner (N-346a) &mdash; straight after utils.js</span>
+<span class="code-key">richtext.js</span>  <span class="code-comment">&larr; rich-text table editor + paste sanitiser (N-346a) &mdash; Reporting, Market Reporting and Sales only; after ui-kit.js</span>
+<span class="code-key">headcount.js</span>  <span class="code-comment">&larr; headcount, role-history, placement-picker and CoE-link helpers (N-346b) &mdash; before permissions.js and api.js</span>
+<span class="code-key">permissions.js</span>  <span class="code-comment">&larr; role resolution, capability checks, survey eligibility, restricted-list helpers (N-346c) &mdash; straight before graph-client.js</span>
+<span class="code-key">graph-client.js</span>  <span class="code-comment">&larr; Graph transport, both cache tiers, delta sync, $batch, FIELD_ALIASES, generic CRUD (N-347) &mdash; straight before api.js</span>
+<span class="code-key">api.js</span>  <span class="code-comment">&larr; list-specific reads/writes, role resolution, role history</span>
+<span class="code-key">diagnostics.js</span>  <span class="code-comment">&larr; error telemetry (N-172) &mdash; straight after api.js</span>
+<span class="code-key">api-headcount.js</span>  <span class="code-comment">&larr; RoleHeadcount reads/writes (N-347) &mdash; straight after diagnostics.js</span>
+      </div>
 
-<span class="code-comment">&lt;!-- Module-specific --&gt;</span>
-<span class="code-key">[module]-router.js</span> <span class="code-comment">← Page registry</span>
-<span class="code-key">nav-core.js</span>        <span class="code-comment">← Shared sidebar renderer</span>
-<span class="code-key">[module]-nav.js</span>    <span class="code-comment">← Module nav wrapper</span>
-<span class="code-key">[module]-forms.js</span>  <span class="code-comment">← Form renderers</span>
-<span class="code-key">[module]-pages.js</span>  <span class="code-comment">← Page content renderers</span>
-dashboard-core.js  <span class="code-comment">← (Reporting only)</span>
-dashboard-project-panels.js <span class="code-comment">← (Reporting only)</span>
-dashboard-project.js <span class="code-comment">← (Reporting only)</span>
-dashboard-company.js <span class="code-comment">← (Reporting only)</span>
-js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting only; self-hosted, N-289)</span>
-<span class="code-key">checklist-logic.js</span>  <span class="code-comment">← (Reporting only) — pure checklist rules (N-346c); before api-checklists.js and checklists.js</span>
-<span class="code-key">report-builder.js</span>  <span class="code-comment">← (Reporting only)</span>
-<span class="code-key">admin.js</span>           <span class="code-comment">← (Reporting only)</span>
-<span class="code-key">analytics.js</span>       <span class="code-comment">← (Reporting + People + Market Analytics + Command Centre) — pure functions, load before app.js</span>
-<span class="code-key">analytics-pages.js</span> <span class="code-comment">← (People only) — Scorecards page renderers</span>
-<span class="code-key">placement-analytics.js</span> <span class="code-comment">← (Market Analytics only) — load after analytics.js, before mr-app.js</span>
-<span class="code-key">lci-config.js</span> <span class="code-comment">← (Sales only) — CONFIG.LCI / CONFIG.LCI_DISCIPLINES (N-348); directly before lci-model.js</span>
-<span class="code-key">[module]-app.js</span>    <span class="code-comment">← Module init — always last</span>
+      <h3>Per shell: what follows the prefix</h3>
+      <p class="section-intro">Each list below is the shell's live <code>&lt;script src&gt;</code> order after <code>api-headcount.js</code>. Read it together with the prefix above.</p>
+
+      <h3>reporting.html</h3>
+      <div class="code-block">
+<span class="code-comment">&lt;!-- head and external --&gt;</span>
+js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/vendor/lucide-1.47.0.subset.min.js &rarr; js/vendor/msal-browser-5.24.0.min.js
+<span class="code-comment">&lt;!-- shared prefix: config.js &hellip; api-headcount.js (with richtext.js after ui-kit.js) --&gt;</span>
+<span class="code-comment">&lt;!-- then --&gt;</span>
+<span class="code-key">analytics.js</span>  <span class="code-comment">&larr; pure functions &mdash; load before the module's app file (and before <code>cc-pages.js</code> / <code>os-admin.js</code>, which call them)</span>
+<span class="code-key">router.js</span>
+<span class="code-key">nav-core.js</span>  <span class="code-comment">&larr; shared sidebar renderer</span>
+<span class="code-key">command-bar.js</span>
+<span class="code-key">notifications.js</span>
+<span class="code-key">nav.js</span>
+<span class="code-key">forms.js</span>
+<span class="code-key">forms-role.js</span>
+<span class="code-key">forms-weekly.js</span>
+<span class="code-key">forms-placement.js</span>
+<span class="code-key">list-controls.js</span>
+<span class="code-key">pages-model.js</span>
+<span class="code-key">pages.js</span>
+<span class="code-key">checklist-logic.js</span>  <span class="code-comment">&larr; pure checklist rules (N-346c) &mdash; before <code>api-checklists.js</code> and <code>checklists.js</code></span>
+<span class="code-key">api-checklists.js</span>
+<span class="code-key">checklists.js</span>
+<span class="code-key">role-page.js</span>
+<span class="code-key">checklist-admin.js</span>
+<span class="code-key">bulk-activity.js</span>
+<span class="code-key">api-coe.js</span>
+<span class="code-key">coe-plan.js</span>
+<span class="code-key">dashboard-core.js</span>
+<span class="code-key">dashboard-project-panels.js</span>
+<span class="code-key">api-misc.js</span>
+<span class="code-key">dashboard-project.js</span>
+<span class="code-key">dashboard-company.js</span>
+<span class="code-key">vendor/sortablejs-1.15.2.min.js</span>  <span class="code-comment">&larr; self-hosted (N-289)</span>
+<span class="code-key">report-builder.js</span>
+<span class="code-key">api-briefing.js</span>
+<span class="code-key">briefing-pack.js</span>
+<span class="code-key">admin.js</span>
+<span class="code-key">app.js</span>  <span class="code-comment">&larr; module init &mdash; last</span>
+      </div>
+
+      <h3>market-reporting.html</h3>
+      <div class="code-block">
+<span class="code-comment">&lt;!-- head and external --&gt;</span>
+js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/vendor/lucide-1.47.0.subset.min.js &rarr; js/vendor/msal-browser-5.24.0.min.js
+<span class="code-comment">&lt;!-- shared prefix: config.js &hellip; api-headcount.js (with richtext.js after ui-kit.js) --&gt;</span>
+<span class="code-comment">&lt;!-- then --&gt;</span>
+<span class="code-key">dashboard-core.js</span>
+<span class="code-key">dashboard-project-panels.js</span>
+<span class="code-key">api-misc.js</span>
+<span class="code-key">dashboard-project.js</span>
+<span class="code-key">dashboard-company.js</span>
+<span class="code-key">analytics.js</span>  <span class="code-comment">&larr; pure functions &mdash; load before the module's app file (and before <code>cc-pages.js</code> / <code>os-admin.js</code>, which call them)</span>
+<span class="code-key">mr-router.js</span>
+<span class="code-key">nav-core.js</span>  <span class="code-comment">&larr; shared sidebar renderer</span>
+<span class="code-key">command-bar.js</span>
+<span class="code-key">notifications.js</span>
+<span class="code-key">mr-nav.js</span>
+<span class="code-key">list-controls.js</span>
+<span class="code-key">api-market-report.js</span>
+<span class="code-key">market-report.js</span>
+<span class="code-key">placement-analytics.js</span>  <span class="code-comment">&larr; after <code>analytics.js</code>, before <code>mr-app.js</code></span>
+<span class="code-key">mr-app.js</span>  <span class="code-comment">&larr; module init &mdash; last</span>
+      </div>
+
+      <h3>people.html</h3>
+      <div class="code-block">
+<span class="code-comment">&lt;!-- head and external --&gt;</span>
+js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/vendor/lucide-1.47.0.subset.min.js &rarr; js/vendor/msal-browser-5.24.0.min.js
+<span class="code-comment">&lt;!-- shared prefix: config.js &hellip; api-headcount.js --&gt;</span>
+<span class="code-comment">&lt;!-- then --&gt;</span>
+<span class="code-key">people-router.js</span>
+<span class="code-key">nav-core.js</span>  <span class="code-comment">&larr; shared sidebar renderer</span>
+<span class="code-key">command-bar.js</span>
+<span class="code-key">notifications.js</span>
+<span class="code-key">people-nav.js</span>
+<span class="code-key">analytics.js</span>  <span class="code-comment">&larr; pure functions &mdash; load before the module's app file (and before <code>cc-pages.js</code> / <code>os-admin.js</code>, which call them)</span>
+<span class="code-key">analytics-pages.js</span>
+<span class="code-key">list-controls.js</span>
+<span class="code-key">people-tracker.js</span>
+<span class="code-key">api-misc.js</span>
+<span class="code-key">people-payroll.js</span>
+<span class="code-key">people-dashboard.js</span>
+<span class="code-key">people-gantt.js</span>
+<span class="code-key">people-invoices.js</span>
+<span class="code-key">api-orgchart.js</span>
+<span class="code-key">org-chart.js</span>
+<span class="code-key">api-people-forms.js</span>
+<span class="code-key">people-forms.js</span>
+<span class="code-key">api-engagement.js</span>
+<span class="code-key">engagement-pages.js</span>
+<span class="code-key">engagement-forms.js</span>
+<span class="code-key">people-app.js</span>  <span class="code-comment">&larr; module init &mdash; last</span>
+      </div>
+
+      <h3>sales.html</h3>
+      <div class="code-block">
+<span class="code-comment">&lt;!-- head and external --&gt;</span>
+js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/vendor/lucide-1.47.0.subset.min.js &rarr; js/vendor/msal-browser-5.24.0.min.js
+<span class="code-comment">&lt;!-- shared prefix: config.js &hellip; api-headcount.js (with richtext.js after ui-kit.js) --&gt;</span>
+<span class="code-comment">&lt;!-- then --&gt;</span>
+<span class="code-key">sales-router.js</span>
+<span class="code-key">nav-core.js</span>  <span class="code-comment">&larr; shared sidebar renderer</span>
+<span class="code-key">command-bar.js</span>
+<span class="code-key">notifications.js</span>
+<span class="code-key">sales-nav.js</span>
+<span class="code-key">revenue-chart.js</span>  <span class="code-comment">&larr; <code>_renderRevenueLineGraph()</code> &mdash; before the page file that draws the Revenue chart</span>
+<span class="code-key">api-misc.js</span>
+<span class="code-key">list-controls.js</span>
+<span class="code-key">sales-pages.js</span>
+<span class="code-key">lci-config.js</span>  <span class="code-comment">&larr; <code>CONFIG.LCI</code> / <code>CONFIG.LCI_DISCIPLINES</code> (N-348) &mdash; directly before <code>lci-model.js</code></span>
+<span class="code-key">lci-model.js</span>
+<span class="code-key">api-lci.js</span>
+<span class="code-key">lci-pages.js</span>
+<span class="code-key">lci-editor.js</span>
+<span class="code-key">lci-sections.js</span>
+<span class="code-key">lci-summary.js</span>
+<span class="code-key">lci-excel.js</span>
+<span class="code-key">lci-import.js</span>  <span class="code-comment">&larr; after <code>lci-excel.js</code> (reuses its ExcelJS loader), before <code>lci-report.js</code></span>
+<span class="code-key">lci-report.js</span>
+<span class="code-key">lci-pptx.js</span>
+<span class="code-key">lci-link.js</span>
+<span class="code-key">lci-leadmagnet.js</span>
+<span class="code-key">sales-app.js</span>  <span class="code-comment">&larr; module init &mdash; last</span>
+      </div>
+
+      <h3>survey.html</h3>
+      <div class="code-block">
+<span class="code-comment">&lt;!-- head and external --&gt;</span>
+js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/vendor/lucide-1.47.0.subset.min.js &rarr; js/vendor/msal-browser-5.24.0.min.js
+<span class="code-comment">&lt;!-- shared prefix: config.js &hellip; api-headcount.js --&gt;</span>
+<span class="code-comment">&lt;!-- then --&gt;</span>
+<span class="code-key">survey-router.js</span>
+<span class="code-key">api-engagement.js</span>
+<span class="code-key">survey-app.js</span>  <span class="code-comment">&larr; module init &mdash; last</span>
+      </div>
+
+      <h3>mobile.html</h3>
+      <div class="code-block">
+<span class="code-comment">&lt;!-- head and external --&gt;</span>
+js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/vendor/msal-browser-5.24.0.min.js
+<span class="code-comment">&lt;!-- shared prefix: config.js &hellip; api-headcount.js --&gt;</span>
+<span class="code-comment">&lt;!-- then --&gt;</span>
+<span class="code-key">analytics.js</span>  <span class="code-comment">&larr; pure functions &mdash; load before the module's app file (and before <code>cc-pages.js</code> / <code>os-admin.js</code>, which call them)</span>
+<span class="code-key">mobile-flag.js</span>  <span class="code-comment">&larr; synchronous, like the other head scripts</span>
+<span class="code-key">mobile-app.js</span>
+<span class="code-key">mobile-pages.js</span>
+<span class="code-key">mobile-home.js</span>
+<span class="code-key">mobile-people.js</span>
+<span class="code-key">mobile-roleform.js</span>
+<span class="code-key">mobile-scorecards.js</span>
+<span class="code-key">mobile-sales.js</span>
+<span class="code-key">mobile-analytics.js</span>
+<span class="code-key">mobile-reporting-ext.js</span>
+<span class="code-key">sw-register.js</span>
       </div>
 
       <h3>command-centre.html</h3>
       <div class="code-block">
-<span class="code-key">config.js</span>
-<span class="code-key">actions.js</span>
-<span class="code-key">auth.js</span>
-<span class="code-key">utils.js</span>
-<span class="code-key">ui-kit.js</span>
-<span class="code-key">headcount.js</span>
-<span class="code-key">permissions.js</span>
-<span class="code-key">graph-client.js</span>
-<span class="code-key">api.js</span>
-<span class="code-key">api-headcount.js</span> <span class="code-comment">← after diagnostics.js</span>
-<span class="code-key">analytics.js</span>    <span class="code-comment">← isRoleFlagged(), roleFlagReasons(), tallyRoleFlags(), ACTIVE_STAGES — load before cc-pages.js</span>
-<span class="code-key">nav-core.js</span>
-<span class="code-key">revenue-chart.js</span> <span class="code-comment">← _renderRevenueLineGraph() for the Revenue tile — load before cc-pages.js</span>
+<span class="code-comment">&lt;!-- head and external --&gt;</span>
+js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/vendor/lucide-1.47.0.subset.min.js &rarr; js/vendor/msal-browser-5.24.0.min.js
+<span class="code-comment">&lt;!-- shared prefix: config.js &hellip; api-headcount.js --&gt;</span>
+<span class="code-comment">&lt;!-- then --&gt;</span>
+<span class="code-key">analytics.js</span>  <span class="code-comment">&larr; pure functions &mdash; load before the module's app file (and before <code>cc-pages.js</code> / <code>os-admin.js</code>, which call them)</span>
+<span class="code-key">nav-core.js</span>  <span class="code-comment">&larr; shared sidebar renderer</span>
+<span class="code-key">command-bar.js</span>
+<span class="code-key">notifications.js</span>
+<span class="code-key">revenue-chart.js</span>  <span class="code-comment">&larr; <code>_renderRevenueLineGraph()</code> &mdash; before the page file that draws the Revenue chart</span>
 <span class="code-key">cc-router.js</span>
 <span class="code-key">cc-nav.js</span>
 <span class="code-key">cc-pages.js</span>
-<span class="code-key">cc-app.js</span>       <span class="code-comment">← always last</span>
+<span class="code-key">cc-app.js</span>  <span class="code-comment">&larr; module init &mdash; last</span>
       </div>
 
-      <h3>admin.html and index.html</h3>
+      <h3>admin.html</h3>
       <div class="code-block">
-<span class="code-key">config.js</span>
-<span class="code-key">actions.js</span>
-<span class="code-key">auth.js</span>
-<span class="code-key">utils.js</span>     <span class="code-comment">← Required — ghost helpers called by api.js</span>
-<span class="code-key">ui-kit.js</span>   <span class="code-comment">← Required — button-loading and toast helpers called by page and form files</span>
-<span class="code-key">headcount.js</span> <span class="code-comment">← Required — headcount / role-history helpers called by api.js</span>
-<span class="code-key">permissions.js</span> <span class="code-comment">← Required — role resolution and restricted-list helpers called by api.js</span>
-<span class="code-key">graph-client.js</span> <span class="code-comment">← Required — Graph transport, cache and CRUD called by api.js</span>
-<span class="code-key">api.js</span>
-<span class="code-key">api-headcount.js</span> <span class="code-comment">← after diagnostics.js</span>
-<span class="code-key">analytics.js</span> <span class="code-comment">← index.html (required for refreshCCBanner()) and admin.html (N-271, detectWeeklyActivityAnomalies() for Data Health) — load before os-admin.js</span>
-<span class="code-comment">// index.html uses computeMonthlyRevenueForYear() + computeMonthlyForecastRevenueForYear()</span>
-<span class="code-comment">// from utils.js for the Revenue banner pill — no revenue-chart.js needed (data only, no chart)</span>
-<span class="code-key">api-admin.js</span> <span class="code-comment">← admin.html only (N-238b) — getSchemaDiffs()/getColumnIndexStatus()/getUserAssignments(), consumed by os-admin.js</span>
-<span class="code-key">api-home.js</span>  <span class="code-comment">← both pages (N-238b) — AppSettings reads/writes; index.html uses only the getters (home banner + seasonal effect), admin.html's os-admin.js needs both getters and setters</span>
-<span class="code-key">home-banner.js</span> <span class="code-comment">← index.html only (N-323) — CC banner; load before home.js</span>
-<span class="code-key">survey-widget.js</span> <span class="code-comment">← index.html only (N-323) — survey widget; load before home.js</span>
-<span class="code-key">os-admin.js</span>  <span class="code-comment">← admin.html only</span>
+<span class="code-comment">&lt;!-- head and external --&gt;</span>
+js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/vendor/lucide-1.47.0.subset.min.js &rarr; js/vendor/msal-browser-5.24.0.min.js
+<span class="code-comment">&lt;!-- shared prefix: config.js &hellip; api-headcount.js --&gt;</span>
+<span class="code-comment">&lt;!-- then --&gt;</span>
+<span class="code-key">api-admin.js</span>  <span class="code-comment">&larr; <code>getSchemaDiffs()</code> / <code>getColumnIndexStatus()</code> / <code>getUserAssignments()</code> (N-238b), consumed by <code>os-admin.js</code></span>
+<span class="code-key">api-home.js</span>  <span class="code-comment">&larr; AppSettings reads/writes (N-238b); <code>index.html</code> uses only the getters</span>
+<span class="code-key">analytics.js</span>  <span class="code-comment">&larr; pure functions &mdash; load before the module's app file (and before <code>cc-pages.js</code> / <code>os-admin.js</code>, which call them)</span>
+<span class="code-key">list-controls.js</span>
+<span class="code-key">os-admin.js</span>
+<span class="code-key">command-bar.js</span>
+<span class="code-key">admin-page.js</span>  <span class="code-comment">&larr; shell page code &mdash; last</span>
       </div>
+
+      <h3>index.html</h3>
+      <div class="code-block">
+<span class="code-comment">&lt;!-- head and external --&gt;</span>
+js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/vendor/lucide-1.47.0.subset.min.js &rarr; js/vendor/msal-browser-5.24.0.min.js
+<span class="code-comment">&lt;!-- shared prefix: config.js &hellip; api-headcount.js --&gt;</span>
+<span class="code-comment">&lt;!-- then --&gt;</span>
+<span class="code-key">api-home.js</span>  <span class="code-comment">&larr; AppSettings reads/writes (N-238b); <code>index.html</code> uses only the getters</span>
+<span class="code-key">analytics.js</span>  <span class="code-comment">&larr; pure functions &mdash; load before the module's app file (and before <code>cc-pages.js</code> / <code>os-admin.js</code>, which call them)</span>
+<span class="code-key">notifications.js</span>
+<span class="code-key">command-bar.js</span>
+<span class="code-key">home-banner.js</span>  <span class="code-comment">&larr; CC banner (N-323) &mdash; before <code>home.js</code></span>
+<span class="code-key">survey-widget.js</span>  <span class="code-comment">&larr; survey widget (N-323) &mdash; before <code>home.js</code></span>
+<span class="code-key">home.js</span>
+<span class="code-key">seasonal-fx.js</span>
+      </div>
+
+      <p class="section-intro"><strong>redirect.html</strong> is not an app shell: it loads <code>js/vendor/msal-redirect-bridge-5.24.0.min.js</code> and <code>js/redirect-bridge.js</code> only, both synchronous (N-290). The four static user guides load <code>js/guide-search.js</code> and nothing else.</p>
+
+      <h3>Module pattern (for a new module)</h3>
+      <div class="code-block">
+<span class="code-comment">&lt;!-- after the shared prefix --&gt;</span>
+<span class="code-key">[module]-router.js</span>  <span class="code-comment">&larr; page registry</span>
+<span class="code-key">nav-core.js</span>  <span class="code-comment">&larr; shared sidebar renderer</span>
+<span class="code-key">[module]-nav.js</span>  <span class="code-comment">&larr; module nav wrapper</span>
+<span class="code-key">[module]-forms.js / [module]-pages.js</span>  <span class="code-comment">&larr; form and page renderers</span>
+<span class="code-key">[module]-app.js</span>  <span class="code-comment">&larr; module init &mdash; always last</span>
+      </div>
+
     </div>
 
     <!-- SHAREPOINT DATA MODEL -->
@@ -1096,6 +1260,17 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Readme refresh and file-listing lint (N-354)</div>
+        <ul>
+          <li><strong>Script Load Order rewritten for the post-R2 layout.</strong> One shared prefix (head scripts, vendor scripts, <code>config.js</code> &hellip; <code>api-headcount.js</code>, with the ordering constraints kept) plus an explicit list for each of the nine shells, taken from their live script tags. The old page described a generic template that no shell matched (no <code>diagnostics.js</code>, <code>command-bar.js</code>, <code>notifications.js</code>, the <code>forms-*</code> / <code>api-*</code> splits) and had no list at all for reporting, people, sales, market-reporting, survey or mobile. The defer callout now names all the synchronous head scripts: <code>frame-guard.js</code> had been missing from it.</li>
+          <li><strong>File Structure</strong> gains the five JS files no section named: <code>diag-buffer.js</code>, <code>diagnostics.js</code>, <code>theme-init.js</code>, <code>guide-search.js</code>, <code>lci-import.js</code>. (The nine <code>mobile-*.js</code> files were already documented in the Mobile App section.)</li>
+          <li><strong>New guard, <code>tests/lint-readme-files.js</code>:</strong> fails when a <code>js/*.js</code> file is not named as a file-tag in the Mobile App / File Structure sections, or when a <code>.js</code> file-tag there names a file that no longer exists. Adding a <code>js/</code> file now means adding its row here in the same change.</li>
+          <li>Sidebar footer and cover date corrected to October 2026. Changelog trimmed to September and October; earlier entries live in <code>backlog-archive.md</code> and <code>specs/</code>.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
@@ -1751,265 +1926,7 @@ js/vendor/sortablejs-1.15.2.min.js <span class="code-comment">← (Reporting onl
         </ul>
       </div>
 
-      <div class="changelog-entry">
-        <div class="changelog-date">August 2026</div>
-        <div class="changelog-title">Ghost Mode as a real user, guide search, Graph resilience &amp; error telemetry (N-162, N-163, N-168, N-170, N-171, N-172, N-173)</div>
-        <ul>
-          <li><strong>Ghost Mode as a real user (N-162):</strong> replaced the role+manually-picked-project model with true impersonation — an admin picks a real person (sourced from <code>UserAssignments</code> + <code>LeadershipAccess</code>, deduped by email) and <code>getEffectiveRole()</code>/<code>getUserProjectIds()</code>/<code>hasDMGrant()</code> all resolve against that person's real email instead of a synthetic role/single project. Fixes the standing bug where <code>hasDMGrant()</code> read the signed-in admin's own email regardless of ghosting, and the empty-dropdown limitation when ghosting a user with no assignment on a manually-picked project. Old <code>newton_ghost_role</code>/<code>newton_ghost_project</code> sessionStorage keys retired in favour of <code>newton_ghost_user</code>/<code>newton_ghost_label</code>.</li>
-          <li><strong>User Guide search (N-163):</strong> new <code>js/guide-search.js</code>, self-initialising and added to all 4 static guides (Reporting, People, Sales, Market Analytics) with a single script tag each — filters the page to matching topics as you type. No SharePoint data, no router, deliberately not wired into any module's script load order since the guides are standalone static docs.</li>
-          <li><strong>Dark-mode heading contrast fix (N-168):</strong> <code>--text-heading</code>'s dark-mode value repointed from <code>--c-blue</code> (2.34–2.89:1, fails WCAG AA) to the already-existing <code>--c-blue-soft</code> token (6.21–7.67:1) — one line in the <code>[data-theme="dark"]</code> block in <code>style.css</code>, fixing all 13 consuming rules for free. Light mode and print are untouched.</li>
-          <li><strong>Ghost banner deduplication (N-170):</strong> <code>index.html</code> carried its own inline copy of the ghost-mode banner instead of loading <code>nav-core.js</code>'s — surfaced by N-162 when the duplicate still called pre-diff ghost helpers and threw a console error. Both call sites now share one <code>renderGhostBanner()</code>/<code>exitGhostMode()</code> pair in <code>utils.js</code> (create-or-update, safe to call from both a one-shot <code>initHome()</code> and a re-run <code>renderModuleNav()</code>). No behaviour change — internal-only, so no README.md entry.</li>
-          <li><strong>Unified error surface (F-9b, N-171):</strong> replaced ~20 hand-written <code>Error loading X: ${e.message}</code> variants with one shared page-level failure state (<code>pageErrorBlock()</code> in utils.js, <code>mobilePageError()</code> in mobile-app.js) carrying a Retry button, and routed mid-action failures (save, modal prefill) through the existing <code>toast()</code> instead. Scoped to the desktop Reporting/Sales/Market Analytics modules and the mobile app — <code>survey.html</code> and inline dropdown-fill failures are explicitly out of scope. <code>graphRequest()</code>'s N-082 retry logic is unchanged; this is presentation only, for whatever still throws after retries exhaust.</li>
-          <li><strong>Client-side error telemetry — engine &amp; surface (F-7a/F-7b, N-172/N-173):</strong> new global <code>window.addEventListener('error'/'unhandledrejection')</code> handlers in <code>js/diagnostics.js</code> — the first global error handling anywhere in Newton — write to the new <code>Diagnostics</code> list (see SharePoint Data Model above), with dedupe, a 20-row session cap, ghost-mode suppression, and re-entrancy/recursion guards as the whole point of the ticket. N-173 adds an Error Telemetry section to Admin → Data Health: rows grouped client-side by message (reusing <code>diagStackHead()</code> rather than re-implementing it), with occurrence count, affected users, module, last-seen time, and a per-group Acknowledge action. N-173 also fixed a message-normalisation gap found in N-172 QA — Chrome prefixes uncaught-error messages with <code>Uncaught Error: </code>, other browsers with <code>Error: </code>, fragmenting occurrence counts by browser; both prefixes are now stripped before the dedupe key is built. Known limitation, accepted: a top-level throw in <code>theme-init.js</code>/<code>config.js</code>/<code>auth.js</code>/<code>utils.js</code>/<code>api.js</code> itself predates the handler and isn't captured — tracked separately as N-179.</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">August 2026</div>
-        <div class="changelog-title">Role History audit trail &amp; timeline (D-3a/D-3b, N-099/N-100)</div>
-        <ul>
-          <li><strong>Audit trail (N-099):</strong> new <code>RoleHistory</code> SharePoint list (RoleID lookup, Field, OldValue, NewValue, ChangedBy, ChangedAt). <code>updateRoleWithHistory()</code> in <code>api.js</code> wraps all six existing Role-field write sites (<code>forms.js</code>/<code>mobile-pages.js</code>) and writes one row per field that actually changed, fire-and-forget — nothing in the UI depended on the write completing at that point.</li>
-          <li><strong>Timeline UI (N-100):</strong> a "Timeline" row action on the Roles list opens <code>showRoleTimeline()</code> (<code>pages.js</code>) — a read-only vertical stage-journey view: date of each stage change, time spent in the previous stage, and a colour classification (<code>roleTimelineNodeClass()</code>, <code>headcount.js</code> since N-346b, <code>utils.js</code> before) — forward via <code>CONFIG.ROLE_STAGES.indexOf()</code> is green, backward is red, On-hold/Cancelled on either end is amber ("branch"), the creation row is neutral ("start"). <strong>Deliberately uses <code>CONFIG.ROLE_STAGES</code>, never <code>analytics.js</code>'s <code>STAGE_ORDER</code></strong> — the latter is a 4-stage subset built only for <code>isRoleFlagged</code>'s velocity check and returns -1 for most of the real Stage enum. The action is gated on the role having &ge;1 <code>RoleHistory</code> row (<code>getRoleHistoryRoleIds()</code>, a <code>$select</code>-limited existence check, not a per-row loop) — legacy roles predating this feature show no Timeline link. <strong>N-313 (headcount):</strong> placements on the pipeline appear as read-only filled-dot markers at their Offer Accepted date (<code>roleTimelineSequence()</code>, <code>headcount.js</code>) and never split a stage's duration; a backward move with a placement since the previous node, or Closed &rarr; an open stage (reopen), is neutral (&ldquo;reset after placement&rdquo; / &ldquo;reopened&rdquo;), not red. Legacy <code>Hired</code> rows already read as <code>Closed</code> via <code>normaliseRoleHistoryRows()</code>.</li>
-          <li><strong>Role creation now logs history too (N-100, amends N-099):</strong> N-099 shipped with "creating a role produces zero RoleHistory rows" as an explicit acceptance criterion; N-100 deliberately reversed it (Chris's call) so every role has a real first timeline node. New <code>createRoleWithHistory()</code> writes one row on creation (<code>Field: "Stage"</code>, <code>OldValue: ""</code>, <code>NewValue</code> = initial Stage).</li>
-          <li><strong>QA-caught race condition (diff-2):</strong> the creation-row write was originally fire-and-forget like N-099's six existing sites, but <code>submitRoleForm</code>'s subsequent <code>navigateTo('roles')</code> is synchronous and does not await the re-render — so the Roles-list re-render's <code>getRoleHistoryRoleIds()</code> GET raced the un-awaited RoleHistory POST and won almost every time, and a freshly created role's Timeline link did not appear until a later revisit. Fixed by <code>await</code>ing that one write in a <code>try/catch</code> — the six N-099 sites correctly stay fire-and-forget, since nothing there gates UI on completion. <strong>Fire-and-forget is only safe for a write when nothing renders differently based on it completing promptly.</strong></li>
-          <li><strong>UAT round — Open Date back-dating (diff-3/diff-4):</strong> <code>showRoleTimeline()</code> now treats <code>Roles.OpenDate</code> as a possible earlier, truer start than the system-logged <code>ChangedAt</code>, in two cases: (a) the role was entered into Newton after it actually opened — OpenDate predates the creation row — node 0 shows OpenDate and relabels "Role opened"; (b) the role sat in Planning/Backlog with no OpenDate, then moved to Sourcing later with OpenDate backfilled to the true go-live date — the first row whose <code>NewValue</code> is <code>'Sourcing'</code> (which may not be node 0) shows OpenDate instead, and the <em>preceding</em> node's "time in stage" gap shrinks accordingly. A role can only ever trigger one of these.</li>
-          <li><strong>Root-cause bug found in UAT, not diff-3 (diff-4):</strong> Graph/SharePoint normalises a text column written as <code>''</code> back to <code>null</code> on read. The original <code>h.OldValue === ''</code> / <code>oldStage === ''</code> checks silently never matched a real creation row on any live role — it rendered as a transition ("— → Sourcing", amber/"branch" dot) instead of "Role created" (neutral dot), and skipped the OpenDate back-date entirely since that logic required <code>isCreated</code> to be true first. This was present from N-100's first round, not introduced by diff-3 — code-level QA reasoned about await ordering but never round-tripped a real write through SharePoint. Fixed by loosening both checks to falsy (<code>!x</code>), matching how <code>_logRoleHistory</code> already treats null/undefined as <code>''</code> on write. <strong>A strict <code>=== ''</code> check on anything read back from SharePoint is suspect</strong> — prefer falsy unless <code>0</code>/<code>false</code> genuinely needs distinguishing from empty.</li>
-          <li><strong>Date-arithmetic gotcha found while fixing the above (diff-4):</strong> the first attempt compared/diffed OpenDate (a day marker, always <code>T12:00:00Z</code> via <code>isoDate()</code>, no real time-of-day) against <code>ChangedAt</code> (a genuine instant) at millisecond precision — which flips the back-date decision, and drifts an ongoing "so far" day-count by &plusmn;1, purely on what time of day things happened to occur on the same calendar day. Not a BST issue — a distinct same-day time-of-day trap the <code>F-12</code> lint guard doesn't see, since it targets truncation patterns, not mixed-precision comparisons. Fixed by switching every comparison/diff in <code>showRoleTimeline()</code> to <code>utcDateOnly()</code> (the same helper <code>daysOpen()</code> already uses) instead of raw millisecond arithmetic.</li>
-          <li><strong>Display polish (diff-3):</strong> <code>ChangedBy</code> now resolves through the existing <code>getTalentPartnerDisplayMap()</code>/<code>tpDisplay()</code> convention instead of showing a raw email.</li>
-          <li><strong>Scope:</strong> desktop only — <code>mobile-pages.js</code> has no Roles list to hang a row action off. A mobile version is tracked separately as N-169 (not spec'd; needs a decision on the mobile entry point).</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">August 2026</div>
-        <div class="changelog-title">Productivity block — Command Bar, bulk activity, inline stage update, duplicate role (N-144&ndash;N-150)</div>
-        <ul>
-          <li><strong>Command Bar (T-1, N-144/N-145/N-146):</strong> new shared overlay component, <code>js/command-bar.js</code>, mirroring <code>nav-core.js</code>'s role as a module-agnostic renderer wired into each module with its own params. <code>⌘K</code>/<code>Ctrl+K</code> opens a fuzzy-matched (<code>fuzzyMatch()</code> in <code>utils.js</code>) overlay over the cross-module page directory (<code>CONFIG.COMMAND_BAR_PAGES</code>) &mdash; full ~22-page directory everywhere, not scoped to the current module. N-145 layers in entity search over already-cached Roles/Projects/People (<code>CONFIG.COMMAND_BAR_ENTITY_TYPES</code>, capped/thresholded via <code>CONFIG.COMMAND_BAR_ENTITY_RESULT_CAP</code>/<code>_MIN_QUERY_LEN</code>) &mdash; no fetch on keypress, one lazy once-per-session load. N-146 adds three inline action buttons (Log activity, Update stage, Add placement) to Role rows only, pre-scoped to that role; Update stage reuses N-149's roles-list dropdown rather than a second in-overlay picker.</li>
-          <li><strong>Bulk weekly activity entry (T-2, N-147):</strong> see <code>js/bulk-activity.js</code> in Reporting module files below. Upsert semantics (reads the week first, writes only touched rows), sequential saves with full lock, per-row failure isolation. N-148 (carry-forward from prior week) was scoped as T-2b but <strong>dropped</strong> &mdash; Chris's call, not wanted.</li>
-          <li><strong>Inline stage update (T-4, N-149):</strong> new <code>&lt;select&gt;</code> per row in <code>renderRolesPage</code> (<code>pages.js</code>) covering every non-terminal stage (Backlog through On-hold) &mdash; deliberately not scoped to <code>analytics.js</code>'s <code>STAGE_ORDER</code>, which is a flagging progression, not the full stage list. Hired and Cancelled are excluded (side effects) and still require the full Edit form. No directional restriction.</li>
-          <li><strong>Duplicate role (T-6, N-150):</strong> "Duplicate" row action beside Edit on Roles, opens Add Role pre-filled via new <code>_ROLE_COPY_FIELDS</code>/<code>_ROLE_RESET_FIELDS</code> constants in <code>api.js</code> (same pattern as <code>_LCI_MODEL_COPY_FIELDS</code>). Carries Project/Title/Hiring Manager/TP(s)/Budget/Location/Priority/Backfill/Department/Notes; resets Stage to Backlog, Open Date to today, clears Target Hire Date.</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">August 2026</div>
-        <div class="changelog-title">Projects list, Weekly Activity & dashboard fixes (N-126, N-127, N-137, N-138, N-139, N-141, N-142, N-143)</div>
-        <ul>
-          <li><strong>Projects list Active/Archive filter (N-127):</strong> the Projects list/page now has the same Active/Archive filter buttons as Roles, defaulting to Active, reusing the shared <code>isProjectActive()</code> / <code>sortProjectsByName()</code> helpers from N-112.</li>
-          <li><strong>Bug fixes:</strong> +Add Assignment no longer offers leavers in the Employee dropdown, though editing a record whose employee has since left still shows them, labelled inactive (N-126); notification clicks now navigate to their target page instead of only marking read — the deep link field was being dropped from the read query (N-137); a multi-TP role's weekly activity is no longer dropped from that TP's Project Dashboard KPIs (N-141); editing Week Number directly on the desktop Weekly Activity form no longer leaves it out of sync with Week Ending Date, which was silently dropping rows from period-filtered dashboard tiles — the field is now read-only and always derived from the date (N-142).</li>
-          <li><strong>Data Health reliability (N-138):</strong> the "WeeklyActivity rows missing ProjectID" check in Admin → Data Health now distinguishes a genuine zero from a rejected query, with the real error logged to console instead of both cases showing the same dash. Tidied onto CSS classes rather than inline styles while touched (N-139).</li>
-          <li><strong>Empty states, X-2 follow-up (N-143):</strong> remaining Project/Company Dashboard panels, Admin tabs and Sales/LCI list/table empty states migrated to the shared empty-state component with icons; Project Dashboard's hide-when-empty behaviour preserved by design; mobile stays text-only.</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">August 2026</div>
-        <div class="changelog-title">Date/timezone write-path hardening (N-129–N-136)</div>
-        <ul>
-          <li><strong>Bug fixes:</strong> <code>getWeekEnding()</code> no longer rolls back a day during BST when called with no argument, which had been writing Snapshots' week-ending date as Saturday instead of Sunday every "Write Snapshot Now" click (N-129); CoE Hiring Plan forecast months, Survey run Open/Close dates and Survey template target dates are now all written via <code>isoDate()</code> instead of bare date strings, closing the last three SharePoint date writes that could resolve in the wrong day/month for a browser behind the UK (N-130, N-131, N-133).</li>
-          <li><strong>Consistency (N-132):</strong> <code>people-tracker.js</code>'s Assignments tab moved its last local-midnight date handling onto the same UTC model as the rest of the file, closing the exact inconsistency that caused N-090's earlier bench-sync bug.</li>
-          <li><strong>Data correction (N-135):</strong> eight historic <code>Assignments</code> dates that predated the <code>isoDate()</code> convention — five stored a day early, three merely off-midday — were confirmed and corrected in Newton (not SharePoint directly); no code change, both writers were already correct.</li>
-          <li><strong>Docs/infra:</strong> corrected this document's own claim that the midday-UTC convention has ±12h of headroom — it's ±11h, and breaks at exactly UTC+12 (Pacific/Auckland, Pacific/Kiritimati); see the Date/Timezone section below (N-136). CI now runs the test suite under three timezones (default, UTC, America/New_York) and blocks deploy on any failure, catching the class of bug that every one of N-077/N-081/N-129/N-090/N-130 shared: invisible from London (N-134).</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">August 2026</div>
-        <div class="changelog-title">Test harness and layer coverage (F-6a&ndash;F-6d), plus the getWeekEnding() BST fix</div>
-        <ul>
-          <li><strong>New: <code>tests/</code> — Newton's first automated test infra (F-6a).</strong> A pass/fail page (<code>tests/index.html</code>) and a dependency-free Node runner (<code>tests/run.js</code>) share one assertion list (<code>tests/assertions.js</code>) against fixture data (<code>tests/fixtures.js</code>), run against the real <code>utils.js</code>/<code>analytics.js</code>/<code>lci-model.js</code> in production script order. Shipped with 4 seed assertions — enough to prove the rig, not coverage. <code>.github/workflows/static.yml</code> runs <code>node tests/run.js</code> in a <code>test</code> job before <code>deploy</code>, so a broken calc cannot reach <code>main</code>.</li>
-          <li><strong>Date/week layer (F-6b).</strong> Asserts <code>getWeekEnding</code>, <code>getISOWeek</code>, <code>isoDate</code>, <code>spDateIn</code>/<code>spDateOut</code>, and — the one that mattered most — a dedicated regression test for <code>coeWeekIndex</code>, locking the N-077/N-081 GMT/BST Gantt class shut for good. That assertion only reproduces under a DST-observing timezone, so <code>tests/run.js</code> forces <code>TZ=Europe/London</code> before anything else runs (verified this override wins even when the shell sets a conflicting <code>TZ</code> first). <code>tests/index.html</code> detects when a browser's own timezone cannot show the same GMT/BST skew and renders a labelled SKIP rather than a meaningless PASS or FAIL.</li>
-          <li><strong>LCI calc layer (F-6c).</strong> Asserts <code>lciRowNotice</code> (including the exact "zero is a real override value" case its own source comment warns a naive rewrite would break), <code>lciCumulativeHeadcount</code> fed a per-role-resolved notice end to end, two more <code>lciYearSlices</code> edge cases, <code>lciLegacyMonthlyCost</code>, and <code>_pickFields</code> — the one pure, non-network export in <code>api.js</code>, which the rig now also loads (verified zero top-level execution first, the same check already applied to <code>coe-plan.js</code>). This does <strong>not</strong> close the N-082 gap (LCI model copy losing rows): the copy field-whitelists have no static schema to verify completeness against without a live Graph read, which is what F-11 (Schema contract check, scoped, not built) is for.</li>
-          <li><strong>Analytics layer (F-6d) — the numbers clients actually see.</strong> Three previously-untested <code>isRoleFlagged</code> branches (the days-open thresholds — only the submitted/interview1 ratio branch had coverage — plus a negative case proving it does not over-flag), <code>computeVelocityScore</code> and <code>computeRoleFunnel</code> (neither had any prior coverage), and the split-fee revenue path in <code>computeMonthlyRows</code> (N-116, untested since it shipped), including the rule that the placement fee lands the month <em>after</em> the assignment ends as a zero-capacity row.</li>
-          <li><strong>Fix: <code>getWeekEnding()</code> BST rollback bug</strong> — returned the Saturday <em>before</em> the correct Sunday whenever called with a <code>Date</code> object during British Summer Time: it computed the right day locally, then round-tripped through <code>toISOString()</code>, which re-expresses a local-midnight instant in UTC and rolls it back a day. Invisible in GMT months, which is why it shipped unnoticed. The only live call site affected is <code>admin.js</code>'s <code>writeSnapshotsNow()</code> ("Write Snapshot Now" in the Config Panel), which writes <code>Snapshots.WeekEndingDate</code> — every click during BST since Snapshots shipped wrote the wrong Sunday. <code>forms.js</code> and <code>mobile-pages.js</code> pass a date-only string, which parses as UTC and was never affected. <strong>No backfill of previously-written Snapshots rows was included.</strong></li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">August 2026</div>
-        <div class="changelog-title">Split-fee revenue — Exec Search &amp; MG AI</div>
-        <ul>
-          <li><strong>Two new project types bill as a retainer plus a placement fee</strong> rather than a monthly rate. Selecting Exec Search or MG AI on an assignment swaps the Monthly Bill Rate field for <strong>Retainer (&pound;)</strong> and <strong>Placement Fee (&pound;)</strong>; every other project type is unchanged.</li>
-          <li><strong>Recognition timing:</strong> the retainer books in the assignment's start month, the placement fee in the <strong>month after</strong> its end month — an Aug&ndash;Oct assignment books its placement fee in November, a December-ending one in January of the following year. Neither is pro-rated.</li>
-          <li><strong>Utilisation is unaffected.</strong> A split-fee assignment occupies its person exactly as any other, because billed capacity comes from date overlap and the <code>Billed</code> flag, not from the rate.</li>
-          <li><strong>Sales Forecast gains a Project Type selector</strong> (desktop and mobile). On a split-fee line, Forecasted Headcount means <strong>number of searches</strong> and multiplies each fee. Forecast rows saved before this change have no project type and keep their existing monthly-rate behaviour — no backfill needed.</li>
-          <li><strong>Enum consolidation:</strong> project-type enums and colours, previously duplicated across five files, moved into <code>config.js</code> (<code>PROJECT_TYPES</code>, <code>ASSIGNMENT_PROJECT_TYPES</code>, <code>SPLIT_FEE_PROJECT_TYPES</code>, <code>PROJECT_TYPE_COLOUR_VARS</code>) with <code>--c-ptype-*</code> tokens in <code>style.css</code>.</li>
-          <li><strong>Data model:</strong> new <code>Assignments</code> columns <code>RetainerFee</code>/<code>PlacementFee</code>; new <code>SalesForecasts</code> columns <code>ProjectType</code>/<code>RetainerFee</code>/<code>PlacementFee</code>.</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">August 2026</div>
-        <div class="changelog-title">Project filters, PTP level, Command Centre trend arrow, and fixes (N-075, N-076, N-083–N-085, N-108, N-111, N-112, N-114, N-117)</div>
-        <ul>
-          <li><strong>Active/Archive project filters (N-112):</strong> every project dropdown in the Reporting module now groups projects into Active (Status Active/Transition) and Archive (Status Completed) sections, A-Z within each. Add Role, Add Weekly Activity and Record Placement forms show Active projects only when creating new records; editing an existing record still shows its project. New shared helpers <code>isProjectActive()</code>, <code>sortProjectsByName()</code>, <code>buildProjectOptionsHtml()</code> in utils.js.</li>
-          <li><strong>PTP employee level (N-117):</strong> new fifth <code>People.Level</code> value, ranked below TP, treated identically to TP everywhere the app already treated SDM/STP/TP as the billable team tier. Job-grade only — no change to permission roles. Consolidated 9 files' worth of duplicated level-order/billable-filter logic into <code>levelSortIndex()</code> / <code>isBillableLevel()</code> in utils.js.</li>
-          <li><strong>Time-series snapshots + CC trend arrow (N-085/N-108/N-114):</strong> new <code>Snapshots</code> list, populated by a manual "Write Snapshot Now" action in the Config Panel. Command Centre Health tile gets a trend arrow once 3+ weeks of history exist. Per-project Utilisation was tried and descoped (N-114) — structurally near-100% by construction, not a meaningful signal. The automated weekly writer (Power Automate, N-086) was dropped 11 Aug 2026; a GitHub Actions replacement (N-086.1) is scoped but not built.</li>
-          <li><strong>Bug fixes:</strong> notification bell items are now clickable (N-075, deep-link wiring was dead); editing a role no longer drops the selected project (N-083); a same-day new Assignment no longer shows staff as Unassigned in the Org Chart (N-084, ISO date fix); Snapshots' weekly stage breakdown no longer counts terminal Hired/Cancelled roles (N-111); removed the unused <code>Projects.Yeare</code> field alias (N-076).</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">August 2026</div>
-        <div class="changelog-title">Hardening block — escaping, design tokens, Hiring Plan &amp; LCI copy fixes (N-057, N-067, N-077, N-080–N-082)</div>
-        <ul>
-          <li><strong>forms.js escaping pass (N-057):</strong> every data interpolation context-escaped (escAttr/escHtml); first file of the F-5b series.</li>
-          <li><strong>Design tokens (N-067):</strong> 112-token <code>:root</code> vocabulary in style.css, definitions only; rewires follow in N-068–72.</li>
-          <li><strong>Hiring Plan (N-077/N-081):</strong> LCI-generated rows anchor the hire in the last week of the target month and carry model notice; Gantt week-indexing DST fix — cells now align with headers across the GMT/BST switch.</li>
-          <li><strong>Admin tooling (N-080):</strong> unlink a Won model from its project; bulk-delete a hiring plan.</li>
-          <li><strong>Reliability (N-082):</strong> app-wide Graph 429/503 retry (<code>CONFIG.GRAPH_RETRY</code>); model copy shows progress and rolls back fully on failure.</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">August 2026</div>
-        <div class="changelog-title">LCI Cost Model — Export to Excel (Sales module)</div>
-        <ul>
-          <li><strong>New: Export to Excel</strong> on the model Summary page, beside Print / PDF. A branded seven-sheet workbook holding every input, assumption and derived figure behind the client PDF — an <strong>internal working file</strong>, not a client deliverable. New file <code>js/lci-excel.js</code>, loaded by <code>sales.html</code> after <code>lci-summary.js</code>. No SharePoint change.</li>
-          <li><strong>Live formulas, not a value dump</strong> — every figure is a real Excel formula driven by named cells on the Assumptions sheet (<code>Burden</code>, <code>SalaryMonths</code>, <code>NoticeDefault</code>, <code>OfficePerHead</code>, <code>EoRPerHead</code>, <code>FXRate</code>, <code>Horizon</code>). Notice-period offsets, auto run-rate and cumulative spend are all expressed in-cell; nothing is hardcoded.</li>
-          <li><strong>Section switches</strong> — <code>TravelOn</code>, <code>LegacyOn</code>, <code>OneoffsOn</code>, <code>FeesOn</code> as 1/0 cells mirroring the Newton toggles. They exist because Monthly Calc keeps every per-row line populated even when its section is off, so the subtotals need something to switch them off with; without them the cached values and the live formulas disagree.</li>
-          <li><strong>Sheets:</strong> Assumptions · CoE Roadmap · Legacy Team · One-offs &amp; Fees · Monthly Calc (audit sheet — every line, every month, regardless of toggles) · Output Summary (mirrors the client PDF line for line, incl. the conditional legacy rows) · Milestones.</li>
-          <li><strong>Every formula carries its computed value</strong> (<code>{ formula, result }</code>), so the file is right the moment it opens rather than after a recalculation — and a disagreement between formula and value becomes visible instead of silent.</li>
-          <li><strong>ExcelJS 4.4.0</strong>, vendored in <code>js/vendor/</code> (N-289), lazy-loaded on first click only (~950KB, never on page render). Chosen over SheetJS, whose free build cannot style cells. <strong>Colours for this export live in <code>CONFIG.LCI.EXCEL.COLOURS</code> as ARGB</strong> — a documented exception to "no hex in JS", because a workbook cannot read <code>style.css</code>.</li>
-          <li>The <strong>LCI Lead Magnet is unaffected</strong> — it remains PDF-only.</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">July 2026</div>
-        <div class="changelog-title">LCI Lead Magnet — location cost comparator (Sales module)</div>
-        <ul>
-          <li><strong>New Sales page: LCI Lead Magnet</strong> — a lightweight BD tool producing a one-page "Country Comparison" PDF of the cost-of-employment delta between a prospect's current location and scoped locations. New file <code>js/lci-leadmagnet.js</code>; Admin/Leadership only. Distinct from the full LCI Cost Models.</li>
-          <li><strong>Location Library</strong> — shared master list <code>LCILocations</code>: Location ("City, Country"), Employer Burden %, FX rate (<strong>1 GBP = X local</strong>; calc divides), Currency (ISO), and one average-annual-salary column per discipline. Sorted by country then city.</li>
-          <li><strong>Report Builder</strong> — pick current + scoped locations, disciplines, and a display currency (defaults to current location's, overridable). Costs computed in GBP (<code>salary × (1 + burden) ÷ fx</code>) then converted for display. Overall delta = delta of average cost across selected disciplines, plus a per-discipline breakdown. Live preview + "Update preview" for the free-text fields.</li>
-          <li><strong>Output</strong> — single-page portrait branded PDF with a fixed methodology/disclaimer note; generate-and-download only (no saved reports).</li>
-          <li><strong>Config:</strong> <code>CONFIG.LCI_DISCIPLINES</code> is the single source of truth for the 10 disciplines (mapped to <code>Sal_*</code> columns). <code>CONFIG.COUNTRY_CURRENCY</code> extended with common nearshore/offshore markets so their currencies appear in the dropdowns.</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">July 2026</div>
-        <div class="changelog-title">LCI Cost Models — Location &amp; Cost Intelligence (Sales module)</div>
-        <ul>
-          <li><strong>New Sales page: LCI Cost Models</strong> — a native replacement for the Excel recruitment ramp &amp; cost model used on LCI location-research engagements. New files <code>js/lci-model.js</code> (pure calc), <code>lci-pages.js</code> (list), <code>lci-editor.js</code> (settings + roadmap), <code>lci-sections.js</code> (legacy/one-offs/fees + live output), <code>lci-summary.js</code> (milestones + summary + compare), <code>lci-report.js</code> (multi-model report), <code>lci-link.js</code> (Hiring Plan bridge). Loaded by <code>sales.html</code>.</li>
-          <li><strong>Two-currency model</strong> — CoE-side inputs (salaries, office) in a Local currency; customer-side inputs (legacy, one-offs, fees) and all outputs in a Display currency; a manual FX rate converts the CoE side. Costs include employer burden, 13th/14th-month salary gross-up, and a notice-period shift (a hire in month N reaches payroll in N + notice).</li>
-          <li><strong>Editor</strong> — hiring roadmap grid with project milestones (rows inside the grid), CoE / legacy / one-off / fee sections (toggleable), and a live cost-model table + cumulative-spend SVG that recompute on every edit. Diff-only saves.</li>
-          <li><strong>Compare &amp; report</strong> — N same-currency models side by side (KPI table + multi-line chart); one-or-more models assembled into a branded multi-page PDF (navy cover with the Momentum swirl, per-model sections, Location Comparison, rich-text Observations &amp; Recommendations). Reports save as a definition to <code>LCIReports</code> and live-recompute on re-open.</li>
-          <li><strong>Hiring Plan linkage</strong> — a Won model links to a CoE project and generates one <code>CoEPlanRows</code> row per hire, with Open Dates derived backwards from each hire month (recruitment weeks); bridges sales to delivery. One-time generate; plan is the delivery source of truth afterwards.</li>
-          <li><strong>Salary benchmarks</strong> — typing a role title surfaces an inline median-salary hint for that exact title in the same location + local currency, drawn equally from all prior models (the library is the accumulated <code>LCIModelRows</code> data — no separate store).</li>
-          <li><strong>Data model:</strong> new lists <code>LCIModels</code>, <code>LCIModelRows</code>, <code>LCIMilestones</code>, <code>LCIReports</code> — all empty objects in FIELD_ALIASES. StartMonth is a <code>YYYY-MM</code> text column (never a date). Multiline JSON/HTML columns are plain text.</li>
-          <li><strong>Access:</strong> Sales module opened to Delivery Managers, scoped to the LCI Cost Models page and to models where <code>AssignedDMEmail</code> matches; Revenue Tracking / Sales Forecast remain Admin/Leadership.</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">July 2026</div>
-        <div class="changelog-title">Hiring Plan — CoE hiring roadmap (Reporting module)</div>
-        <ul>
-          <li><strong>New page: Hiring Plan</strong> — Gantt-style week-by-week hiring roadmap for CoE projects, registered in <code>router.js</code> for all four roles; Admin/DM edit, TP/Leadership read-only. New file <code>js/coe-plan.js</code> loaded by <code>reporting.html</code>.</li>
-          <li><strong>Plan builder</strong> — rows need only Title + Open Date; Recruitment/Notice/Onboarding phases auto-complete from new <code>CONFIG.COE_PHASE_DEFAULTS</code>, with optional per-row week overrides. Target Hire Date derived (Open Date + recruitment weeks). Handover excluded from v1.</li>
-          <li><strong>Capacity &amp; forecast views</strong> — weekly # in R/N/O strip above the timeline with Talent Partner filter; Forecast vs Planned hires table (planned derived from target hire dates; forecast entered inline by DM, stored per month).</li>
-          <li><strong>Roles linkage</strong> — Link picker + "Create Role" (pre-filled Add Role form). Linked rows overlay actuals as a thin bar: R from Role.OpenDate, N from Role.ActualHireDate, O from Placement.ProvisionalStartDate.</li>
-          <li><strong>Data model:</strong> Projects gains <code>ProjectType</code> choice column (Embedded/CoE, gates the page + project form field); new lists <code>CoEPlanRows</code> and <code>CoEPlanForecast</code>; both added to FIELD_ALIASES as empty objects.</li>
-          <li><strong>Gotcha fixed during build:</strong> forecast months must be written as manual ISO strings and read via <code>new Date()</code> local parsing — <code>toISOString()</code>/string-slicing shifts the 1st of a month into the prior month under BST.</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">June 2026</div>
-        <div class="changelog-title">Mobile App — installable PWA + full module coverage</div>
-        <ul>
-          <li><strong>Installable PWA</strong> — <code>manifest.webmanifest</code> + <code>sw.js</code> (network-first, caches no app code, ignores auth/cross-origin) make <code>mobile.html</code> installable to the home screen with a standalone launch. Replaced an earlier Flutter WebView prototype, which was retired because embedded WebViews block Microsoft login; the PWA runs in the device browser engine where login works.</li>
-          <li><strong>Mobile shell</strong> — Home launcher + top-bar module switcher, both driven by <code>CONFIG.OS_MODULES</code> filtered through a new <code>MOBILE_MODULES</code> registry; per-module bottom-nav via <code>MOBILE_NAV</code>. Files: <code>mobile-app.js</code>, <code>mobile-home.js</code>.</li>
-          <li><strong>Reporting (full):</strong> Summary KPIs + pipelines-by-stage, roles list with client-side search/stage filter, role detail, stage update, weekly activity, placement, Add Role and Log Rejection forms (<code>mobile-pages.js</code>, <code>mobile-roleform.js</code>, <code>mobile-reporting-ext.js</code>).</li>
-          <li><strong>People (read-only):</strong> dashboard KPI tiles (<code>mobile-people.js</code>) + Scorecards with a swipe carousel for DM/Admin (<code>mobile-scorecards.js</code>, reuses <code>computeVelocityScore</code>).</li>
-          <li><strong>Sales (write):</strong> Sales Forecast list + add/edit (<code>mobile-sales.js</code>). <strong>Market Analytics (read-only):</strong> condensed Placement Analytics — Summary + Funnel Drop-off tiles, filterable by location / functional area (<code>mobile-analytics.js</code>, reuses <code>computeRoleFunnel</code> and <code>computeTTFPrediction</code>).</li>
-          <li><strong>Single source of truth preserved</strong> — every mobile view reuses the existing data-layer and calculation functions; no business logic duplicated. Command Centre excluded from mobile. Mobile access limited to TP / DM / Admin, with per-module roles inherited from <code>CONFIG.OS_MODULES</code>.</li>
-          <li><strong>Login robustness:</strong> <code>mobileInit()</code> processes <code>handleRedirectPromise()</code> first and derives user email/name directly from the MSAL account, so <code>mobile.html</code> is self-sufficient after the login round-trip. <code>app.js</code> redirects app sessions back to <code>mobile.html</code> via a <code>newton_mobile</code> flag.</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">June 2026</div>
-        <div class="changelog-title">Sales — Revenue Tracking, forecast line &amp; Command Centre wiring</div>
-        <ul>
-          <li><strong>New Sales page: Revenue Tracking</strong> — default landing page (top of the Sales nav, above Sales Forecast). SVG line graph of estimated monthly revenue (Jan–Dec) with green/amber/red threshold bands; year dropdown lists only years assignment data spans. Estimated revenue pro-rates each Assignment's <code>MonthlyBillRate</code> by day-overlap; counts former, current and planned assignments (Billed flag ignored).</li>
-          <li><strong>Forecasted Revenue line</strong> — dashed orange line forking at the current month, showing estimated + forecast revenue. Forecast revenue = <code>ForecastedHeadcount × ForecastMonthlyRevenuePerHead</code> per SalesForecasts row, pro-rated by day-overlap. New SharePoint column on SalesForecasts: <code>ForecastMonthlyRevenuePerHead</code> (number, optional); new field added to the Sales Forecast modal.</li>
-          <li><strong>Command Centre Revenue tile</strong> — added as the first tile in the CC grid. RAG = 3-month avg of estimated + forecast revenue vs <code>CONFIG.REVENUE_THRESHOLDS</code>. Expands to the full Revenue Tracking chart (current year).</li>
-          <li><strong>Homepage banner Revenue pill</strong> — fourth pill (Revenue, Projects, People, Utilisation), same RAG basis as the CC tile, persisted to the <code>revenue</code> row in CCStatus (auto-created on first refresh; fires the <code>ccRed:revenue</code> notification).</li>
-          <li><strong>Shared chart extraction:</strong> <code>_renderRevenueLineGraph()</code> + <code>_fmtGBPk()</code> moved from <code>sales-pages.js</code> into new <code>js/revenue-chart.js</code>, loaded by sales.html and command-centre.html (pattern mirrors analytics.js).</li>
-          <li><strong>New config block:</strong> <code>CONFIG.REVENUE_THRESHOLDS</code> (<code>green: 225000, amber: 200000</code> — monthly £).</li>
-          <li><strong>New utils.js helpers:</strong> <code>computeMonthlyRevenueForYear()</code>, <code>computeMonthlyForecastRevenueForYear()</code>, <code>getAssignmentDataYears()</code> (all array[12], no today-cap — unlike <code>computeMonthlyRows()</code>).</li>
-          <li><strong>Bug fix (CSS):</strong> added a fallback <code>.cc-tile { background:#F5F5F5; border-left:5px solid #BBBBBB; }</code> before the RAG colour rules. Without it, a tile whose RAG class doesn't resolve (<code>cc-tile--undefined</code>) renders as an invisible white-on-white block that still takes its flex slot.</li>
-          <li><strong>Expanded tile layout:</strong> <code>.cc-grid--expanded .cc-tile--active</code> now <code>justify-content: flex-start</code> (was inheriting <code>center</code>, floating content mid-tile); the detail panel fills remaining height with the chart.</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">June 2026</div>
-        <div class="changelog-title">In-app Notifications, Premium UI &amp; fixes</div>
-        <ul>
-          <li><strong>In-app notifications</strong> — bell with unread badge + slide-out drawer, rendered across every module (sidebar <code>.nav-user</code> block) and on the homepage (bottom bar, left of Quick Links). Suppressed in Ghost Mode. Computed and persisted client-side on page load — no server process.</li>
-          <li>Engine isolated in new <code>js/notifications.js</code> (not nav-core.js). Five notification types from four triggers: role flagged (TP + DM), CC tile → Red (Admin + Leadership), survey closing within 48h (Admin + Leadership), placement landed (TP + DM), project first placement (Leadership milestone).</li>
-          <li>Dedupe via a <code>TriggerKey</code> per row. Transition triggers (role flag, CC red) re-arm when the condition reverses; one-shot triggers (placement, first placement, survey close) fire once.</li>
-          <li>Drawer: read-only items, per-item mark-read tick + "Mark all read", read items stay dimmed, active-only newest 20.</li>
-          <li><strong>New SharePoint list: Notifications</strong> — one row per recipient. Fields: RecipientEmail, TriggerType, TriggerKey, Status (active/cleared), IsRead (Yes/No), Tone, DeepLink, Body, CreatedAt. <code>Notifications: {}</code> in FIELD_ALIASES (empty object — self-alias would strip fields, per CCStatus precedent).</li>
-          <li><strong>Data model: <code>DeliveryManager</code> is now email-based.</strong> The project form's DM field is now a dropdown bound to <code>getAllAssignableUsers()</code> (new in api.js), storing the user's email — consistent with TalentPartner. Previously free-text names broke notification recipient resolution. DM is now optional; the notification write loop skips non-email recipients (<code>includes('@')</code> guard) as a safety net. Existing projects need DM re-selected once to convert legacy names.</li>
-          <li><strong>Premium UI:</strong> skeleton shimmer on both dashboards while data loads (<code>dashboardSkeleton()</code> in utils.js); KPI count-up on load and period switch (<code>runKpiCountUps()</code> in utils.js — only clean numbers animate); <code>prefers-reduced-motion</code> guard disables shimmer/count-up/transitions.</li>
-          <li><strong>Bug fix:</strong> <code>dashboard.js</code> <code>setDetailPeriod()</code> — a stray <code>;</code> (instead of <code>+</code>) after <code>renderSpendPanel(...)</code> orphaned the Role Analytics placeholder, silently dropping the Role Analytics panel on detail-period change. Corrected.</li>
-          <li><strong>Bug fix:</strong> notifications drawer used <code>index.html</code>'s <code>_escHtml</code> (undefined on module pages); now uses a self-contained <code>notifEsc()</code> helper.</li>
-          <li><strong>CSS note:</strong> <code>.nav-notif-slot</code> must not carry a <code>transform</code> — a transformed ancestor re-anchors the <code>position: fixed</code> drawer to the sidebar instead of the viewport. Centring uses top/bottom + flex.</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">June 2026</div>
-        <div class="changelog-title">Employee Engagement — Quarterly Pulse Surveys</div>
-        <ul>
-          <li>New Engagement tab in the People module (Admin and Leadership only)</li>
-          <li>Survey template builder — create and manage questions (Rating, Single Choice, Multi Choice, Free Text) with scale labels and sort ordering</li>
-          <li>Run activation — manual activation per quarter with configurable open/close dates and eligible respondent count</li>
-          <li>Results dashboard — per-question breakdown, response distribution, completion rate banner, run selector for historical comparison, trends chart (Chart.js)</li>
-          <li>PDF export of survey results via browser print</li>
-          <li>Homepage survey widget for TPs and DMs — persists until submission, clears automatically on completion</li>
-          <li>Standalone respondent page (<code>survey.html</code>) with progress bar, draft save/restore, and full anonymous submission flow <em>(corrected N-284: confidential, not anonymous — SharePoint records Created By)</em></li>
-          <li>Anonymity architecture: UUID-only in SurveyResponses, email-only in SurveyCompletions — no shared key between the two lists <em>(corrected N-284: this does not make responses anonymous — SharePoint records Created By on each item)</em></li>
-          <li>New files: <code>js/engagement-pages.js</code>, <code>js/engagement-forms.js</code>, <code>js/survey-router.js</code>, <code>js/survey-app.js</code>, <code>survey.html</code></li>
-          <li>New SharePoint lists: SurveyTemplates, SurveyQuestions, SurveyRuns, SurveyResponses, SurveyCompletions (all ID fields as Single line of text)</li>
-          <li>New config block: <code>CONFIG.SURVEY</code> — QUESTION_TYPES, STATUSES, AUDIENCES, DEFAULT_DURATION_DAYS, RATING_SCALE_MIN/MAX</li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">June 2026</div>
-        <div class="changelog-title">MG Command Centre</div>
-        <ul>
-          <li>New module: <code>command-centre.html</code> — executive ops dashboard for Admin and Leadership</li>
-          <li>Three live RAG tiles: Project Health, People, Utilisation — each with expandable detail panel <em>(a fourth tile, Revenue, was added later — see the Sales changelog entry; the live grid now shows four tiles, Revenue first)</em></li>
-          <li>New files: <code>js/cc-router.js</code>, <code>js/cc-nav.js</code>, <code>js/cc-app.js</code>, <code>js/cc-pages.js</code></li>
-          <li>New CCStatus SharePoint list — persists RAG state between sessions; read by homepage on load</li>
-          <li>Homepage CC tile redesigned: three RAG badges + refresh button</li>
-          <li>New shared functions in <code>analytics.js</code>: <code>isRoleFlagged()</code>, <code>ACTIVE_STAGES</code>, <code>STAGE_ORDER</code></li>
-          <li>People RAG uses weighted score (green=0, amber=1, red=2) across TPs by flagged-role ratio</li>
-          <li>Utilisation RAG uses 13-week forward forecast: <code>computeMonthlyRows()</code> for current month + SalesForecasts headcount / active headcount</li>
-          <li>Utilisation thresholds centralised in <code>CONFIG.UTILISATION_THRESHOLDS</code>; removed hardcoded values from <code>people-pages.js</code></li>
-        </ul>
-      </div>
-
-      <div class="changelog-entry">
-        <div class="changelog-date">June 2026</div>
-        <div class="changelog-title">Bug fixes</div>
-        <ul>
-          <li><strong>Ghost mode</strong> — fixed role resolution and project scoping for DM and TP ghost sessions</li>
-          <li><strong>TP role scoping</strong> — fixed cases where Talent Partners could see roles outside their assigned project</li>
-          <li><strong>DM role access</strong> — Delivery Managers now correctly land on the Scorecards page in the People module</li>
-          <li><strong>forms.js</strong> — fixed <code>&lt;select&gt;</code> tag rendering where closing tags were missing</li>
-          <li><strong>People Scorecards RAG pill</strong> — card RAG now driven by flagged-roles ratio; fixed <code>toUpperCase</code> error on undefined when using velocity score</li>
-          <li><strong>api.js FIELD_ALIASES (CCStatus)</strong> — <code>{ RAG: 'RAG' }</code> alias caused <code>normaliseFields()</code> to delete the RAG field; corrected to <code>CCStatus: {}</code></li>
-          <li><strong>Stage names</strong> — <code>isRoleFlagged()</code> and CC RAG logic updated to use SharePoint's actual stage values (<code>'Interview 1'</code>, <code>'Interview 2+'</code>, <code>'Sourcing'</code>)</li>
-          <li><strong>Utilisation calculation</strong> — Command Centre was using a 13-week window for current month denominator (too large); fixed to use <code>computeMonthlyRows()</code> consistent with the People Dashboard</li>
-        </ul>
-      </div>
+      <p class="section-intro">Entries before September 2026 are not repeated here: the full history is in <code>newton-pipeline/backlog-archive.md</code> and <code>newton-pipeline/specs/</code> (one spec per task, named by its N-ID, which every entry above and the code comments cite). This page keeps the last two months.</p>
     </div>
 
     <!-- BACKLOG -->

@@ -4,15 +4,15 @@
 // Duplicate-role carries onto the new role. N-082 is the cautionary
 // precedent this exists to avoid: LCI model copy's field whitelist went
 // stale silently and dropped data. This is a pure function over SOURCE TEXT
-// (forms.js is not loaded into the Node test rig — see run.js — because
+// (forms-role.js is not loaded into the Node test rig — see run.js — because
 // it's DOM-driven), following the same approach as lint-dates.js: locate
-// submitRoleForm's `const fields = {` block in forms.js's source, extract
+// submitRoleForm's `const fields = {` block in forms-role.js's source, extract
 // its keys, map each through _resolveRoleDisplayField (api.js — the same
 // internal→display mapping RoleHistory diffing already relies on) to the
 // display name _ROLE_COPY_FIELDS uses, and compare the result against
 // _ROLE_COPY_FIELDS ∪ _ROLE_RESET_FIELDS.
 //
-// Scoped to forms.js only, and to submitRoleForm's `fields` object
+// Scoped to forms-role.js only, and to submitRoleForm's `fields` object
 // specifically — not a general-purpose object-literal parser.
 
 // Returns the internal SharePoint field names submitRoleForm writes, in
@@ -22,7 +22,7 @@ function _extractSubmitRoleFormFields(formsSource) {
   const lines = String(formsSource).split('\n');
   const fnIdx = lines.findIndex(l => /async function submitRoleForm/.test(l));
   if (fnIdx === -1) {
-    throw new Error('submitRoleForm not found in forms.js — has it moved or been renamed?');
+    throw new Error('submitRoleForm not found in forms-role.js — has it moved or been renamed?');
   }
   const fieldsIdx = lines.findIndex((l, i) => i > fnIdx && /const\s+fields\s*=\s*\{/.test(l));
   if (fieldsIdx === -1) {
@@ -42,7 +42,7 @@ function _extractSubmitRoleFormFields(formsSource) {
   return keys;
 }
 
-// sources: { 'forms.js': '<source text>', ... } (tests/run.js's ALL_SOURCES)
+// sources: { 'forms-role.js': '<source text>', ... } (tests/run.js's ALL_SOURCES)
 // copyFields: _ROLE_COPY_FIELDS (api.js) — display names Duplicate carries
 // resetFields: _ROLE_RESET_FIELDS (api.js) — display names deliberately reset
 // Returns:
@@ -50,9 +50,9 @@ function _extractSubmitRoleFormFields(formsSource) {
 //   extraInCopyFields     — fields in the two lists that submitRoleForm no longer writes
 // Both empty when in sync.
 function checkRoleFormFieldSync(sources, copyFields, resetFields) {
-  const formsSource = sources && sources['forms.js'];
+  const formsSource = sources && sources['forms-role.js'];
   if (!formsSource) {
-    throw new Error('forms.js not found in sources');
+    throw new Error('forms-role.js not found in sources');
   }
   const internalKeys = _extractSubmitRoleFormFields(formsSource);
   const displayKeys = internalKeys.map(k => _resolveRoleDisplayField(k));

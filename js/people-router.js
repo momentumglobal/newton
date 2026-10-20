@@ -1,27 +1,17 @@
 // js/people-router.js — People module page registry
 
-const PEOPLE_ROLES = {
-  ADMIN:            'admin',
-  LEADERSHIP:       'leadership',
-  PEOPLE_OPS:       'people_ops',
-  SALES:            'sales',
-  DELIVERY_MANAGER: 'delivery_manager',
-  TALENT_PARTNER:   'talent_partner',
-  STAFF:            'staff',
-};
-
 // All People module pages. Admin, Leadership and People Ops (N-331) see
 // every page; DM + TP reach the Org Chart and Scorecards; Sales and Staff
 // (N-331) reach the Org Chart only. Mirror any change in
 // CONFIG.COMMAND_BAR_PAGES (config.js).
 const PEOPLE_PAGES = {
-  peopleDashboard: { label: 'People Dashboard',   roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP, PEOPLE_ROLES.PEOPLE_OPS] },
-  orgChart:        { label: 'Org Chart',          roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP, PEOPLE_ROLES.PEOPLE_OPS, PEOPLE_ROLES.SALES, PEOPLE_ROLES.DELIVERY_MANAGER, PEOPLE_ROLES.TALENT_PARTNER, PEOPLE_ROLES.STAFF] },
-  peopleGantt:     { label: 'Deployment Timeline',roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP, PEOPLE_ROLES.PEOPLE_OPS] },
-  peopleTracker:   { label: 'Employee Tracker',   roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP, PEOPLE_ROLES.PEOPLE_OPS] },
-  gpInvoices:      { label: 'Supplier Invoices',  roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP, PEOPLE_ROLES.PEOPLE_OPS] },
-  scorecards:      { label: 'People Scorecards',  roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP, PEOPLE_ROLES.PEOPLE_OPS, PEOPLE_ROLES.DELIVERY_MANAGER, PEOPLE_ROLES.TALENT_PARTNER] },
-  engagement:      { label: 'Engagement',         roles: [PEOPLE_ROLES.ADMIN, PEOPLE_ROLES.LEADERSHIP, PEOPLE_ROLES.PEOPLE_OPS] },
+  peopleDashboard: { label: 'People Dashboard',   roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.LEADERSHIP, CONFIG.ROLE_IDS.PEOPLE_OPS] },
+  orgChart:        { label: 'Org Chart',          roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.LEADERSHIP, CONFIG.ROLE_IDS.PEOPLE_OPS, CONFIG.ROLE_IDS.SALES, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER, CONFIG.ROLE_IDS.STAFF] },
+  peopleGantt:     { label: 'Deployment Timeline',roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.LEADERSHIP, CONFIG.ROLE_IDS.PEOPLE_OPS] },
+  peopleTracker:   { label: 'Employee Tracker',   roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.LEADERSHIP, CONFIG.ROLE_IDS.PEOPLE_OPS] },
+  gpInvoices:      { label: 'Supplier Invoices',  roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.LEADERSHIP, CONFIG.ROLE_IDS.PEOPLE_OPS] },
+  scorecards:      { label: 'People Scorecards',  roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.LEADERSHIP, CONFIG.ROLE_IDS.PEOPLE_OPS, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
+  engagement:      { label: 'Engagement',         roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.LEADERSHIP, CONFIG.ROLE_IDS.PEOPLE_OPS] },
 };
 
 function peopleCanAccess(page, role) {

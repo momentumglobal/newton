@@ -1,5 +1,21 @@
 // js/config.js — App configuration and role helpers
 
+// N-352: the one place a role id is typed for page access. Declared outside
+// CONFIG because CONFIG.COMMAND_BAR_PAGES (inside the literal) needs it while
+// the literal is still being built; everywhere else read CONFIG.ROLE_IDS.
+// The values are the AssignedRole strings — keep them equal to ROLE_PRECEDENCE
+// (an assertion pins it).
+const _ROLE_IDS = Object.freeze({
+  ADMIN:            'admin',
+  LEADERSHIP:       'leadership',
+  PEOPLE_OPS:       'people_ops',
+  SALES:            'sales',
+  DELIVERY_MANAGER: 'delivery_manager',
+  TALENT_PARTNER:   'talent_partner',
+  STAFF:            'staff',
+  VIEWER:           'viewer',
+});
+
 const CONFIG = {
   TENANT_ID:    "b73023b1-298a-42a2-bed9-985e0a762054",
   CLIENT_ID:    "bf71f2b2-de80-4728-9189-af8659fbd2b6",
@@ -44,6 +60,8 @@ const CONFIG = {
   // (Operations) are internal-staff roles — one UserAssignments row each,
   // ProjectID 0 (ORG_WIDE_ROLES below). Precedence decided in N-326 (D-7).
   ROLE_PRECEDENCE: ['admin', 'leadership', 'people_ops', 'sales', 'delivery_manager', 'talent_partner', 'staff', 'viewer'],
+  // N-352: named role ids for router / Command Bar page access (see _ROLE_IDS above).
+  ROLE_IDS: _ROLE_IDS,
   // N-282: roles that are NEVER served from a browser-writable cache
   // (sessionStorage is editable by the user, and the build stamp is public).
   // Always re-resolved from UserAssignments / LeadershipAccess. Must be a
@@ -968,46 +986,46 @@ const CONFIG = {
   // one of those four files, mirror the change here too.
   COMMAND_BAR_PAGES: [
     // router.js — Reporting (10)
-    { key: 'companyDashboard', label: 'Company Dashboard', module: 'reporting', href: 'reporting.html#companyDashboard', roles: ['admin', 'leadership'] },
-    { key: 'projectDashboard', label: 'Project Dashboard',  module: 'reporting', href: 'reporting.html#projectDashboard',  roles: ['admin', 'delivery_manager', 'talent_partner'] },
-    { key: 'reportBuilder',    label: 'Report Library',     module: 'reporting', href: 'reporting.html#reportBuilder',     roles: ['admin', 'delivery_manager', 'talent_partner'] },
-    { key: 'projects',         label: 'Projects',           module: 'reporting', href: 'reporting.html#projects',          roles: ['admin', 'delivery_manager', 'talent_partner'] },
-    { key: 'roles',            label: 'Roles',              module: 'reporting', href: 'reporting.html#roles',             roles: ['admin', 'delivery_manager', 'talent_partner'] },
-    { key: 'activity',         label: 'Weekly Activity',    module: 'reporting', href: 'reporting.html#activity',          roles: ['admin', 'delivery_manager', 'talent_partner'] },
-    { key: 'placements',       label: 'Placements',         module: 'reporting', href: 'reporting.html#placements',        roles: ['admin', 'delivery_manager', 'talent_partner'] },
-    { key: 'rejections',       label: 'Rejected Offers',    module: 'reporting', href: 'reporting.html#rejections',        roles: ['admin', 'delivery_manager', 'talent_partner'] },
-    { key: 'hiringPlan',       label: 'Hiring Plan',        module: 'reporting', href: 'reporting.html#hiringPlan',        roles: ['admin', 'delivery_manager', 'talent_partner', 'leadership'] },
-    { key: 'adminPanel',       label: 'Config Panel',       module: 'reporting', href: 'reporting.html#adminPanel',        roles: ['admin'] },
+    { key: 'companyDashboard', label: 'Company Dashboard', module: 'reporting', href: 'reporting.html#companyDashboard', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
+    { key: 'projectDashboard', label: 'Project Dashboard',  module: 'reporting', href: 'reporting.html#projectDashboard',  roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
+    { key: 'reportBuilder',    label: 'Report Library',     module: 'reporting', href: 'reporting.html#reportBuilder',     roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
+    { key: 'projects',         label: 'Projects',           module: 'reporting', href: 'reporting.html#projects',          roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
+    { key: 'roles',            label: 'Roles',              module: 'reporting', href: 'reporting.html#roles',             roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
+    { key: 'activity',         label: 'Weekly Activity',    module: 'reporting', href: 'reporting.html#activity',          roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
+    { key: 'placements',       label: 'Placements',         module: 'reporting', href: 'reporting.html#placements',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
+    { key: 'rejections',       label: 'Rejected Offers',    module: 'reporting', href: 'reporting.html#rejections',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
+    { key: 'hiringPlan',       label: 'Hiring Plan',        module: 'reporting', href: 'reporting.html#hiringPlan',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
+    { key: 'adminPanel',       label: 'Config Panel',       module: 'reporting', href: 'reporting.html#adminPanel',        roles: [_ROLE_IDS.ADMIN] },
     // people-router.js — People (7)
-    { key: 'peopleDashboard', label: 'People Dashboard',    module: 'people', href: 'people.html#peopleDashboard', roles: ['admin', 'leadership', 'people_ops'] },
-    { key: 'orgChart',        label: 'Org Chart',           module: 'people', href: 'people.html#orgChart',        roles: ['admin', 'leadership', 'people_ops', 'sales', 'delivery_manager', 'talent_partner', 'staff'] },
-    { key: 'peopleGantt',     label: 'Deployment Timeline', module: 'people', href: 'people.html#peopleGantt',     roles: ['admin', 'leadership', 'people_ops'] },
-    { key: 'peopleTracker',   label: 'Employee Tracker',    module: 'people', href: 'people.html#peopleTracker',   roles: ['admin', 'leadership', 'people_ops'] },
-    { key: 'gpInvoices',      label: 'Supplier Invoices',   module: 'people', href: 'people.html#gpInvoices',      roles: ['admin', 'leadership', 'people_ops'] },
-    { key: 'scorecards',      label: 'People Scorecards',   module: 'people', href: 'people.html#scorecards',      roles: ['admin', 'leadership', 'people_ops', 'delivery_manager', 'talent_partner'] },
-    { key: 'engagement',      label: 'Engagement',          module: 'people', href: 'people.html#engagement',      roles: ['admin', 'leadership', 'people_ops'] },
+    { key: 'peopleDashboard', label: 'People Dashboard',    module: 'people', href: 'people.html#peopleDashboard', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
+    { key: 'orgChart',        label: 'Org Chart',           module: 'people', href: 'people.html#orgChart',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.STAFF] },
+    { key: 'peopleGantt',     label: 'Deployment Timeline', module: 'people', href: 'people.html#peopleGantt',     roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
+    { key: 'peopleTracker',   label: 'Employee Tracker',    module: 'people', href: 'people.html#peopleTracker',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
+    { key: 'gpInvoices',      label: 'Supplier Invoices',   module: 'people', href: 'people.html#gpInvoices',      roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
+    { key: 'scorecards',      label: 'People Scorecards',   module: 'people', href: 'people.html#scorecards',      roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
+    { key: 'engagement',      label: 'Engagement',          module: 'people', href: 'people.html#engagement',      roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     // sales-router.js — Sales (4)
-    { key: 'revenueTracking', label: 'Revenue Tracking', module: 'sales', href: 'sales.html#revenueTracking', roles: ['admin', 'leadership', 'sales'] },
-    { key: 'salesForecast',   label: 'Sales Forecast',   module: 'sales', href: 'sales.html#salesForecast',   roles: ['admin', 'leadership', 'sales'] },
-    { key: 'lciModels',       label: 'LCI Cost Models',  module: 'sales', href: 'sales.html#lciModels',       roles: ['admin', 'leadership', 'sales', 'delivery_manager'] },
-    { key: 'lciLeadMagnet',   label: 'LCI Lead Magnet',  module: 'sales', href: 'sales.html#lciLeadMagnet',   roles: ['admin', 'leadership', 'sales'] },
+    { key: 'revenueTracking', label: 'Revenue Tracking', module: 'sales', href: 'sales.html#revenueTracking', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
+    { key: 'salesForecast',   label: 'Sales Forecast',   module: 'sales', href: 'sales.html#salesForecast',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
+    { key: 'lciModels',       label: 'LCI Cost Models',  module: 'sales', href: 'sales.html#lciModels',       roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER] },
+    { key: 'lciLeadMagnet',   label: 'LCI Lead Magnet',  module: 'sales', href: 'sales.html#lciLeadMagnet',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
     // cc-router.js — Command Centre (1)
-    { key: 'overview', label: 'Overview', module: 'command', href: 'command-centre.html', roles: ['admin', 'leadership'] },
+    { key: 'overview', label: 'Overview', module: 'command', href: 'command-centre.html', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
     // mr-router.js — Market Analytics (2) — added 18 Aug 2026, folded into
     // N-144 after Chris asked to expand scope; fits the same page/role
     // shape as the four router files above (mrCanAccess(page, role)),
     // unlike survey-router.js which stays excluded (role-only, no pages).
-    { key: 'placementAnalytics', label: 'Placement Analytics',   module: 'marketing', href: 'market-reporting.html#placementAnalytics', roles: ['admin', 'delivery_manager', 'talent_partner'] },
-    { key: 'marketReport',       label: 'Market Report Library', module: 'marketing', href: 'market-reporting.html#marketReport',       roles: ['admin', 'delivery_manager', 'talent_partner'] },
+    { key: 'placementAnalytics', label: 'Placement Analytics',   module: 'marketing', href: 'market-reporting.html#placementAnalytics', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
+    { key: 'marketReport',       label: 'Market Report Library', module: 'marketing', href: 'market-reporting.html#marketReport',       roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
     // os-admin.js — Admin (4). Ghost Mode is deliberately NOT listed here
     // (N-246, Sep 2026) — Chris scoped it out of the searchable bar because
     // it's a sensitive impersonation action, not something that should be
     // one keystroke away by accident. The tab itself is unaffected and still
     // reachable via the sidebar and via a direct admin.html#ghost hash.
-    { key: 'assignments', label: 'User Assignments',  module: 'admin', href: 'admin.html#assignments', roles: ['admin'] },
-    { key: 'leadership',  label: 'Leadership Access', module: 'admin', href: 'admin.html#leadership',  roles: ['admin'] },
-    { key: 'homepage',    label: 'Homepage',          module: 'admin', href: 'admin.html#homepage',    roles: ['admin'] },
-    { key: 'datahealth',  label: 'Data Health',       module: 'admin', href: 'admin.html#datahealth',  roles: ['admin'] },
+    { key: 'assignments', label: 'User Assignments',  module: 'admin', href: 'admin.html#assignments', roles: [_ROLE_IDS.ADMIN] },
+    { key: 'leadership',  label: 'Leadership Access', module: 'admin', href: 'admin.html#leadership',  roles: [_ROLE_IDS.ADMIN] },
+    { key: 'homepage',    label: 'Homepage',          module: 'admin', href: 'admin.html#homepage',    roles: [_ROLE_IDS.ADMIN] },
+    { key: 'datahealth',  label: 'Data Health',       module: 'admin', href: 'admin.html#datahealth',  roles: [_ROLE_IDS.ADMIN] },
   ],
   // Command Bar cross-module badge labels for a module that has Command Bar
   // entries but is NOT in OS_MODULES (N-246). Admin deliberately stays out

@@ -349,7 +349,7 @@
       <h3>Reporting module</h3>
       <table>
         <tr><th>File</th><th>Responsibility</th></tr>
-        <tr><td><span class="file-tag">js/router.js</span></td><td>Page registry, role constants, canAccess(), getAccessiblePages()</td></tr>
+        <tr><td><span class="file-tag">js/router.js</span></td><td>Page registry, canAccess(), getAccessiblePages(). Role ids come from <code>CONFIG.ROLE_IDS</code> (config.js) — every router and <code>CONFIG.COMMAND_BAR_PAGES</code> reads that map; never type a role string there (lint-role-literals).</td></tr>
         <tr><td><span class="file-tag">js/nav.js</span></td><td>Calls renderModuleNav() with Reporting params. navigateTo(), renderPage()</td></tr>
         <tr><td><span class="file-tag">js/app.js</span></td><td>Module init — MSAL redirect handler, role resolution, first navigation</td></tr>
         <tr><td><span class="file-tag">js/pages.js</span></td><td>Page content renderers: Projects, Roles (with Location column, inline stage <code>&lt;select&gt;</code> per row (N-149), Duplicate row action (N-150), Role History timeline (N-100) via <code>showRoleTimeline()</code>), Activity, Placements, Rejections. Each list page is fetch → pure model (<code>pages-model.js</code>) → HTML builder (<code>_rolesPageHtml()</code> etc.); this file holds the fetch, the HTML and the row builders (N-350b)</td></tr>

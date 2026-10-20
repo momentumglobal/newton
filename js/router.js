@@ -1,20 +1,14 @@
-const ROLES = {
-  ADMIN:      'admin',
-  DM:         'delivery_manager',
-  TP:         'talent_partner',
-  LEADERSHIP: 'leadership',
-};
 const PAGES = {
-  companyDashboard: { label: 'Company Dashboard',  roles: [ROLES.ADMIN, ROLES.LEADERSHIP] },
-  projectDashboard: { label: 'Project Dashboard',  roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
-  reportBuilder:    { label: 'Report Library',     roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
-  projects:         { label: 'Projects',           roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
-  roles:            { label: 'Roles',              roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
-  activity:         { label: 'Weekly Activity',    roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
-  placements:       { label: 'Placements',         roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
-  rejections:       { label: 'Rejected Offers',    roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP] },
-  hiringPlan:       { label: 'Hiring Plan',        roles: [ROLES.ADMIN, ROLES.DM, ROLES.TP, ROLES.LEADERSHIP] },
-  adminPanel:       { label: 'Config Panel',       roles: [ROLES.ADMIN] },
+  companyDashboard: { label: 'Company Dashboard',  roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.LEADERSHIP] },
+  projectDashboard: { label: 'Project Dashboard',  roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
+  reportBuilder:    { label: 'Report Library',     roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
+  projects:         { label: 'Projects',           roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
+  roles:            { label: 'Roles',              roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
+  activity:         { label: 'Weekly Activity',    roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
+  placements:       { label: 'Placements',         roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
+  rejections:       { label: 'Rejected Offers',    roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
+  hiringPlan:       { label: 'Hiring Plan',        roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER, CONFIG.ROLE_IDS.LEADERSHIP] },
+  adminPanel:       { label: 'Config Panel',       roles: [CONFIG.ROLE_IDS.ADMIN] },
 };
 function canAccess(page, role) {
   return PAGES[page] && PAGES[page].roles.includes(role);

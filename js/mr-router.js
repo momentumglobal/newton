@@ -1,19 +1,13 @@
 // js/mr-router.js — Market Analytics module page registry
 
-const MR_ROLES = {
-  ADMIN: "admin",
-  DM:    "delivery_manager",
-  TP:    "talent_partner",
-};
-
 const MR_PAGES = {
   placementAnalytics: {
     label: "Placement Analytics",
-    roles: [MR_ROLES.ADMIN, MR_ROLES.DM, MR_ROLES.TP],
+    roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER],
   },
   marketReport: {
     label: "Market Report Library",
-    roles: [MR_ROLES.ADMIN, MR_ROLES.DM, MR_ROLES.TP],
+    roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER],
   },
 };
 

@@ -526,6 +526,7 @@ async function buildDataHealthTab() {
     + _dhRenderDataIntegrityHtml(data)
     + _dhRenderHeadcountIntegrityHtml(data)
     + _dhRenderProjectTeamHtml(data)
+    + _dhRenderLciMigrationHtml(data)
     + _dhRenderWeeklyAnomaliesHtml(data)
     + _dhRenderIndexStatusHtml(data)
     + _dhRenderSchemaCheckHtml(data)
@@ -603,10 +604,12 @@ async function _dhFetchSectionData() {
   // N-361: cheap column preflight only. The full Assignments / Projects / UserAssignments
   // reads happen when Preview is clicked, not on tab load.
   const ptColumns = await getAssignmentTeamColumnStatus();
+  // N-363: same idea for the LCI / Transformation migration - one cheap column read.
+  const lciChoices = await getProjectTypeChoiceStatus();
 
   return {
     lists, counts, deniedLists, excludedLists,
-    ptColumns,
+    ptColumns, lciChoices,
     nullProjectOk, nullProjectCount, nullWeekEndingOk, nullWeekEndingCount,
     statusByList,
     schemaResults,
@@ -974,6 +977,153 @@ function downloadProjectTeamCsv(key) {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+// ── Data Health Tab — render + actions: LCI / Transformation projects (N-363 / PT-3) ──
+// Creates a Projects row for each LCI / Transformation customer found in Assignments
+// (project-team.js ptBuildLciProjectPlan). Only creates; existing projects are never changed.
+// The full reads happen when Preview is clicked, never on tab load. State lives here and the
+// actions read it, never the DOM (N-273 precedent).
+let _ptLci = { inputs: null, picks: {}, result: null };
+
+function _dhRenderLciMigrationHtml(data) {
+  const ch = data.lciChoices || { ok: false, missing: [] };
+  let body;
+  if (!ch.ok) {
+    body = `<p><span class="dh-badge dh-badge-danger">Query error</span> <span class="dh-muted">The Projects ProjectType column could not be read — unknown, not missing. See the browser console.</span></p>`;
+  } else if (ch.missing.length) {
+    body = `<p><span class="dh-badge dh-badge-danger">Choices missing</span> ${ch.missing.map(escHtml).join(', ')} — add them to the Projects ProjectType column in SharePoint (Readme → Data model), then reload this tab.</p>`;
+  } else {
+    body = `<p><span class="dh-badge dh-badge-success">Choices present</span></p>
+    <p><button class="btn-primary"${act('runLciMigrationPreview')}>Preview</button></p>
+    ${_ptLciRenderResultHtml()}${_ptLciRenderPreviewHtml()}`;
+  }
+  return `    <h3>LCI / Transformation projects (N-363)</h3>
+    <p class="dh-note">
+      Creates a Project for each LCI or Transformation customer found in Assignments, carrying over the owner CSD from the old LCI owners list.
+      Preview first: nothing is created until Apply, a customer that already has a project is never changed, and it is safe to run again.
+      Afterwards run Preview backfill above to stamp ProjectID on these customers' assignments.
+    </p>
+    ${body}
+`;
+}
+
+function _ptLciRenderResultHtml() {
+  const r = _ptLci.result;
+  if (!r) return '';
+  const failed = r.failed.length
+    ? ` <span class="dh-badge dh-badge-danger">${r.failed.length} failed</span> <span class="dh-muted">${r.failed.map(f => escHtml(f.label + ': ' + f.message)).join('; ')}</span>`
+    : '';
+  return `<p>Last apply: ${r.created.toLocaleString('en-GB')} projects created. Now run <strong>Preview backfill</strong> above to stamp their ProjectID.${failed}</p>`;
+}
+
+function _ptLciRenderPreviewHtml() {
+  const inputs = _ptLci.inputs;
+  if (!inputs) return '';
+  const cap = CONFIG.PROJECT_TEAM.DISPLAY_ROWS;
+  const { rows, summary: s } = ptBuildLciProjectPlan(inputs, _ptLci.picks);
+  // The pick table comes from the plan WITHOUT picks, so a row stays listed (with its choice
+  // shown) after it has been picked.
+  const needPick = ptBuildLciProjectPlan(inputs, {}).rows.filter(r => r.state === 'type-pick');
+  const detail = (items, fmt) => items.length
+    ? `<details><summary class="dh-muted">Show</summary><span class="dh-muted">${items.slice(0, cap).map(fmt).join('; ')}${items.length > cap ? ` +${items.length - cap} more` : ''}</span></details>`
+    : '';
+  const line = (label, count, extra) => `
+        <tr><td>${label}${extra || ''}</td><td>${count.toLocaleString('en-GB')}</td></tr>`;
+  const createRows = rows.filter(r => r.state === 'create');
+  const existsRows = rows.filter(r => r.state === 'exists');
+  const willCreate = r => escHtml(`${r.label} (${r.type}, ${r.status}${r.forecastOnly ? ', forecast only' : ''}${r.owner ? ', owner ' + r.owner : ''})`);
+
+  const pickRowsHtml = needPick.map(r => {
+    const current = _ptLci.picks[r.key] || '';
+    return `
+        <tr>
+          <td>${escHtml(r.label)}</td>
+          <td>${r.assignmentCount.toLocaleString('en-GB')}</td>
+          <td>
+            <select${actOn('change', 'setLciTypePick', r.key, ACT_VALUE)}>
+              <option value="">— Choose —</option>${r.types.map(t => `<option value="${escHtml(t)}"${t === current ? ' selected' : ''}>${escHtml(t)}</option>`).join('')}
+            </select>
+          </td>
+        </tr>`;
+  }).join('');
+
+  const apply = s.toCreate
+    ? `<p><button class="btn-primary"${act('applyLciMigration')}>Apply — create ${s.toCreate.toLocaleString('en-GB')} projects</button></p>`
+    : `<p class="dh-muted">Nothing to create.</p>`;
+
+  return `
+    <h4>Preview</h4>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Check</th><th>Customers</th></tr></thead>
+      <tbody>${line('LCI / Transformation customers in Assignments', s.customers)}${line('Projects to create', s.toCreate, detail(createRows, willCreate))}${line('— of which Active', s.active)}${line('— of which Completed (all assignments ended, or forecast only)', s.completed)}${line('— with an owner CSD carried over', s.withOwner)}${line('Need your pick (below)', s.needsPick)}${line('Already have a project (left unchanged)', s.exists, detail(existsRows, r => escHtml(r.label)))}
+      </tbody>
+    </table>
+    </div>
+    ${needPick.length ? `
+    <p class="dh-note">These customers have both LCI and Transformation assignments. Choose a type for each; rows left on "— Choose —" are not created and are listed again next time. Counts above refresh when you press Preview again.</p>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Customer</th><th>Assignments</th><th>Type</th></tr></thead>
+      <tbody>${pickRowsHtml}
+      </tbody>
+    </table>
+    </div>` : ''}
+    ${apply}`;
+}
+
+async function runLciMigrationPreview() {
+  const btn = event?.target;   // N-106: capture synchronously
+  setButtonLoading(btn);
+  try {
+    _ptLci.inputs = await getLciProjectMigrationInputs();
+    _ptLci.result = null;
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error reading Assignments: ' + e.message, { type: 'error' });
+  }
+}
+
+// Stores the choice only - no re-render; Apply rebuilds the plan from this state.
+function setLciTypePick(key, type) {
+  if (type) _ptLci.picks[key] = type;
+  else delete _ptLci.picks[key];
+}
+
+async function applyLciMigration() {
+  const btn = event?.target;
+  if (!_ptLci.inputs) { toast('Run Preview first.', { type: 'error' }); return; }
+  // Re-read so the confirmed counts describe what will really be created.
+  let plan;
+  setButtonLoading(btn);
+  try {
+    plan = ptBuildLciProjectPlan(await getLciProjectMigrationInputs(), _ptLci.picks);
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error reading Assignments: ' + e.message, { type: 'error' });
+    return;
+  }
+  clearButtonLoading(btn);
+  const s = plan.summary;
+  if (!s.toCreate) { toast('Nothing to create.'); return; }
+  if (!(await confirmModal({
+    title: 'Create LCI / Transformation projects',
+    message: `Create ${s.toCreate} Projects: ${s.active} Active, ${s.completed} Completed. Existing projects are never changed.`,
+    confirmLabel: 'Create',
+  }))) return;
+  setButtonLoading(btn);
+  try {
+    const out = await applyLciProjectMigration(plan.rows);
+    _ptLci = { inputs: null, picks: {}, result: out };
+    toast(out.failed.length ? `Created ${out.created} projects; ${out.failed.length} failed.` : `Created ${out.created} projects.`,
+      { type: out.failed.length ? 'error' : 'success' });
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error creating projects: ' + e.message, { type: 'error' });
+  }
 }
 
 // ── Data Health Tab — render: WeeklyActivity Anomalies (N-271) ───────
@@ -1345,4 +1495,7 @@ registerActions({
   applyProjectTeamBackfill,
   runProjectTeamReport,
   downloadProjectTeamCsv,
+  runLciMigrationPreview,
+  setLciTypePick,
+  applyLciMigration,
 });

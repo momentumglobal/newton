@@ -323,3 +323,125 @@ function ptToCsv(columns, rows) {
   (rows || []).forEach(r => lines.push(columns.map(c => cell(r[c.key])).join(',')));
   return lines.join('\r\n');
 }
+
+// ── LCI / Transformation customers -> Projects rows (N-363 / PT-3) ─────
+// The only Projects fields the migration may write.
+const PT_PROJECT_COLUMNS = ['Title', 'Status', 'ProjectType', 'StartDate', 'EndDate', 'CSDName', 'Notes'];
+
+// 'YYYY-MM-DD' of a SharePoint date string, '' when there is none. String compare only: no Date,
+// so no UTC/BST shift.
+function _ptDay(v) {
+  const m = String(v == null ? '' : v).match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : '';
+}
+
+// Migration plan. Pure: nothing is written here. Only ever CREATES: a customer that already
+// matches a Projects row (any status) is listed as 'exists' and never changed, so a re-run is empty.
+//   inputs = { assignments, projects, owners, today }  projects must include Completed ones;
+//            owners = LCIProjectOwners rows; today = 'YYYY-MM-DD' (injectable, default local day)
+//   picks  = { [ptNormKey(customer)]: type }           Chris's choice where a customer has both types
+// Candidates: non-bench rows typed LCI / Transformation (isNoDashboardType) with a Customer, grouped by
+// ptNormKey(Customer). Forecast rows count, but only a non-forecast row that is open-ended or ends
+// today or later makes the project Active.
+// Row: { key, label, types, type, typeState ('agreed'|'mixed'|'picked'), state ('create'|'exists'|
+//   'type-pick'), assignmentCount, forecastOnly, owner, status, patch }
+function ptBuildLciProjectPlan(inputs, picks) {
+  const A = (inputs && inputs.assignments) || [];
+  const P = (inputs && inputs.projects) || [];
+  const O = (inputs && inputs.owners) || [];
+  const today = _ptDay(inputs && inputs.today) || localDayISO();
+  const pk = picks || {};
+  const existing = new Set(P.map(p => ptNormKey(p.CustomerName)));
+  const ownerByKey = {};
+  O.forEach(o => {
+    const k = ptNormKey(o.CustomerName);
+    const csd = String(o.CSDName == null ? '' : o.CSDName).trim();
+    if (k && csd && !ownerByKey[k]) ownerByKey[k] = csd;
+  });
+
+  const groups = new Map();
+  A.forEach(a => {
+    if (isBenchAssignment(a) || !isNoDashboardType(a.ProjectType)) return;
+    const key = ptNormKey(a.Customer);
+    if (!key) return;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(a);
+  });
+
+  const rows = [];
+  Array.from(groups.keys()).sort().forEach(key => {
+    const list = groups.get(key);
+    const counts = {};
+    list.forEach(a => { const s = String(a.Customer).trim(); counts[s] = (counts[s] || 0) + 1; });
+    const label = Object.keys(counts).sort((x, y) => counts[y] - counts[x] || (x < y ? -1 : x > y ? 1 : 0))[0];
+    const types = Array.from(new Set(list.map(a => a.ProjectType))).sort();
+    let type = types[0];
+    let typeState = 'agreed';
+    if (types.length > 1) {
+      const choice = pk[key];
+      if (isNoDashboardType(choice) && types.includes(choice)) { type = choice; typeState = 'picked'; }
+      else { type = ''; typeState = 'mixed'; }
+    }
+    const live = list.filter(a => !isForecastAssignment(a));
+    const active = live.some(a => { const e = _ptDay(a.EndDate); return !e || e >= today; });
+    const starts = list.map(a => _ptDay(a.StartDate)).filter(Boolean).sort();
+    const ends = list.map(a => _ptDay(a.EndDate)).filter(Boolean).sort();
+    const owner = ownerByKey[key] || '';
+    const exists = existing.has(key);
+    const state = exists ? 'exists' : (typeState === 'mixed' ? 'type-pick' : 'create');
+    const patch = {};
+    if (state === 'create') {
+      patch.Title = label;
+      patch.Status = active ? 'Active' : 'Completed';
+      patch.ProjectType = type;
+      if (starts.length) patch.StartDate = isoDate(starts[0]);
+      if (!active && ends.length) patch.EndDate = isoDate(ends[ends.length - 1]);
+      if (owner) patch.CSDName = owner;
+      patch.Notes = CONFIG.PROJECT_TEAM.LCI_MIGRATION_NOTE;
+    }
+    rows.push({
+      key, label, types, type, typeState, state,
+      assignmentCount: list.length, forecastOnly: live.length === 0,
+      owner, status: active ? 'Active' : 'Completed', patch,
+    });
+  });
+
+  const count = s => rows.filter(r => r.state === s).length;
+  const created = rows.filter(r => r.state === 'create');
+  return {
+    rows,
+    summary: {
+      customers: rows.length,
+      toCreate: created.length,
+      exists: count('exists'),
+      needsPick: count('type-pick'),
+      active: created.filter(r => r.status === 'Active').length,
+      completed: created.filter(r => r.status === 'Completed').length,
+      withOwner: created.filter(r => r.owner).length,
+      forecastOnly: created.filter(r => r.forecastOnly).length,
+    },
+  };
+}
+
+// Throws if a migration patch carries anything beyond the Projects columns above.
+function ptAssertProjectPatch(patch) {
+  Object.keys(patch || {}).forEach(k => {
+    if (!PT_PROJECT_COLUMNS.includes(k)) throw new Error('Project migration may only write ' + PT_PROJECT_COLUMNS.join(', ') + ' - got ' + k);
+  });
+}
+
+// Which plan rows may be created: state 'create' only; a patch with a foreign key is refused
+// (reported, never sent). api-admin.js sends the writes one at a time.
+function ptPlanProjectWrites(rows) {
+  const out = { writes: [], refused: [] };
+  (rows || []).forEach(r => {
+    if (r.state !== 'create') return;
+    try {
+      ptAssertProjectPatch(r.patch);
+      out.writes.push({ label: r.label, patch: r.patch });
+    } catch (e) {
+      out.refused.push({ label: r.label, message: e.message });
+    }
+  });
+  return out;
+}

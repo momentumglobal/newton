@@ -93,7 +93,7 @@ ASSERTIONS.push(
         [],
         'direct project-type comparisons (use isNoDashboardType / isKpiExcludedProject / isInternalProject — see Readme → Project types)'
       );
-      _assertEqual(PROJECT_TYPE_LINT_ALLOW.length, 1, 'AC12 exactly one allowlisted site (org-chart.js)');
+      _assertEqual(PROJECT_TYPE_LINT_ALLOW.length, 0, 'AC12 no allowlisted sites left (the org-chart.js one went with N-363)');
     },
   },
   {

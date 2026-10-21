@@ -36,9 +36,3 @@ async function getCurrentAssignmentsByEmployee() {
   });
   return map;
 }
-
-// N-219 addendum: which CSD a claimed LCI-only customer belongs to (Org
-// Chart). One row per claimed customer — an unclaimed one simply has no row.
-async function getLCIProjectOwners() {
-  return getItems("LCIProjectOwners");
-}

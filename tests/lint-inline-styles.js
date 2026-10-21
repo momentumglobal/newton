@@ -67,7 +67,7 @@ var INLINE_STYLE_BASELINE = {
   'js/mobile-roleform.js': 7,
   'js/mobile-sales.js': 1,
   'js/mobile-scorecards.js': 7,
-  'js/org-chart.js': 12,
+  'js/org-chart.js': 11,
   'js/os-admin.js': 35,
   'js/pages.js': 10,
   'js/people-dashboard.js': 45,

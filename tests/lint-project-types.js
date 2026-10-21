@@ -27,8 +27,6 @@
 var PROJECT_TYPE_LINT_EXEMPT = ['utils.js', 'config.js'];
 
 var PROJECT_TYPE_LINT_ALLOW = [
-  { file: 'org-chart.js', contains: "a.ProjectType !== 'LCI'",
-    reason: 'LCI-only Org Chart grouping; _ocLciOnlyCustomers is deleted by N-363' },
 ];
 
 // Copy of `code` with comments blanked (newlines kept, so line numbers hold).

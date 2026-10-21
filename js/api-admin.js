@@ -111,3 +111,55 @@ async function applyAssignmentBackfill(planRows) {
   }
   return out;
 }
+
+// ── LCI / Transformation -> Projects migration (N-363 / PT-3) ─────────
+// Projects.ProjectType is a Choice column: a create with a value outside its choices fails per
+// row, so Data Health checks the no-dashboard types exist first. No column, or a failed read, is
+// { ok: false } (shown as Query error), never "missing".
+async function getProjectTypeChoiceStatus() {
+  try {
+    const columns = await getListColumns('Projects');
+    const col = columns.find(c => c.name === 'ProjectType');
+    const choices = (col && col.choice && col.choice.choices) || [];
+    return { ok: !!col, missing: CONFIG.PROJECT_TYPES.filter(isNoDashboardType).filter(t => !choices.includes(t)) };
+  } catch (e) {
+    console.warn('LCI migration: Projects.ProjectType read failed', e);
+    return { ok: false, missing: [] };
+  }
+}
+
+// N-219 / N-363: LCIProjectOwners (CustomerName -> CSDName) is a retired backup list, read only
+// by the migration to carry each owner onto the new Projects row. If the list is gone, no owners.
+async function getLCIProjectOwners() {
+  try {
+    return await getItems('LCIProjectOwners');
+  } catch (e) {
+    console.warn('LCIProjectOwners read failed - treating as no owners', e);
+    return [];
+  }
+}
+
+// Projects includes Completed ones (getProjects(false)): a customer with any Projects row is skipped.
+async function getLciProjectMigrationInputs() {
+  const [assignments, projects, owners] = await Promise.all([
+    getItems('Assignments'), getProjects(false), getLCIProjectOwners(),
+  ]);
+  return { assignments, projects, owners };
+}
+
+// The only writer of the N-363 migration. One POST per project, one at a time (createItem
+// invalidates the list cache); a failed row is recorded and the rest carry on. Existing Projects
+// rows are never touched. ptPlanProjectWrites refuses any key outside PT_PROJECT_COLUMNS.
+async function applyLciProjectMigration(planRows) {
+  const { writes, refused } = ptPlanProjectWrites(planRows);
+  const out = { created: 0, failed: refused.slice() };
+  for (const w of writes) {
+    try {
+      await createItem('Projects', w.patch);
+      out.created++;
+    } catch (e) {
+      out.failed.push({ label: w.label, message: e && e.message ? e.message : String(e) });
+    }
+  }
+  return out;
+}

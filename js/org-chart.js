@@ -1,13 +1,12 @@
 // js/org-chart.js — People module Org Chart page
 // Renders a static line-and-box org chart from People/Assignments/LeadershipAccess
-// plus relationship fields: Projects.CSDName, LCIProjectOwners.CSDName (N-219 —
-// LCI has no Projects row, so an LCI-only customer is claimed onto a CSD via
-// this list instead), and ReportsTo (People + LeadershipAccess).
+// plus relationship fields: Projects.CSDName and ReportsTo (People +
+// LeadershipAccess). LCI and Transformation customers are ordinary Projects
+// rows since N-363, so they need no special case here.
 // Hybrid tree: Leadership (email/ReportsTo) → CSD (People, Level=CSD) →
-// Project node (Projects.CSDName, or LCIProjectOwners.CSDName for an LCI-only
-// customer) → project-anchored team (Assignments.Customer).
-// Unclaimed/orphaned projects and LCI-only customers pool in "Unassigned
-// projects"; people with no current assignment pool in the Bench. See build
+// Project node (Projects.CSDName) → project-anchored team (Assignments.Customer).
+// Unclaimed/orphaned projects pool in "Unassigned projects"; people with no
+// current assignment pool in the Bench. See build
 // guide §0–§6.
 
 // ── helpers ────────────────────────────────────────────────────────────
@@ -47,35 +46,19 @@ function _ocTypeColour(t){
   return CONFIG.PROJECT_TYPE_COLOUR_VARS[t] || CONFIG.PROJECT_TYPE_COLOUR_FALLBACK;
 }
 
-// N-219: which customers have a current LCI-type assignment but no real
-// Projects row. Shared between buildOrgTree (to build/place their bubbles)
-// and showOrgChartEditForm (to list them for CSD assignment), so the two
-// can never drift apart on what counts as "LCI-only". realProjects is a
-// Set of normalised Projects.CustomerName values, built by the caller.
-function _ocLciOnlyCustomers(people, currentAssign, realProjects) {
-  const groups = {}; // normCustomer -> display label
-  people.forEach(p => (currentAssign[p.EmployeeName] || []).forEach(a => {
-    if (a.ProjectType !== 'LCI') return;
-    const key = _ocNorm(a.Customer);
-    if (!key || realProjects.has(key)) return;   // a real Projects row wins
-    groups[key] = groups[key] || a.Customer;
-  }));
-  return groups;
-}
 // ── page entry ─────────────────────────────────────────────────────────
 async function renderOrgChart() {
   const main = document.getElementById('main-content');
   main.innerHTML = skeletonList(6);
 
-  const [people, leadership, projectsByCSD, currentAssign, lciProjectOwners] = await Promise.all([
+  const [people, leadership, projectsByCSD, currentAssign] = await Promise.all([
     getPeople(true, true),                 // active only, sorted by Level; incl. placeholders
     getLeadershipAccess(),
     getProjectsByCSD(),                    // { csdNameLower: [projectRow,…] }
     getCurrentAssignmentsByEmployee(),     // { EmployeeName: [assignmentRow,…] }
-    getLCIProjectOwners(),                 // N-219: [{ CustomerName, CSDName },…]
   ]);
 
-  const { roots, unassignedProjects, internalUnassigned } = buildOrgTree({ people, leadership, projectsByCSD, currentAssign, lciProjectOwners });
+  const { roots, unassignedProjects, internalUnassigned } = buildOrgTree({ people, leadership, projectsByCSD, currentAssign });
   const bench = buildBenchPool(people, currentAssign);
   const monthYear = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
@@ -178,14 +161,13 @@ function _ocSyntheticNodes(csd, people, realProjects) {
 }
 
 // CSD node: children are the projects that CSD owns, plus any synthetic bubbles.
-function _ocCsdNode(csd, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD) {
+function _ocCsdNode(csd, projectsByCSD, people, currentAssign, realProjects) {
   const projs = projectsByCSD[_ocNorm(csd.EmployeeName)] || [];
   return { kind: 'csd', label: csd.EmployeeName,
            sub: `CSD${csd.Location ? ' · ' + csd.Location : ''}`,
            _email: _ocEmail(csd.ReportsTo), _photo: csd.PhotoUrl,
            children: [...projs.map(p => _ocProjectNode(p, people, currentAssign)),
-                      ..._ocSyntheticNodes(csd, people, realProjects),
-                      ...(lciOwnedByCSD[_ocNorm(csd.EmployeeName)] || [])] };
+                      ..._ocSyntheticNodes(csd, people, realProjects)] };
 }
 
 // N-304: internal (non-deployable) staff -> one bubble per function, grouped and
@@ -201,18 +183,18 @@ function _ocFunctionNodes(people) {
 
 // Leadership node: children are leaders + CSDs whose ReportsTo == this email,
 // then internal staff reporting to it, in function bubbles (N-304).
-function _ocBuildLeader(leader, seen, leadership, csds, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD) {
+function _ocBuildLeader(leader, seen, leadership, csds, projectsByCSD, people, currentAssign, realProjects) {
   const email = _ocEmail(leader.UserEmail);
   if (seen.has(email)) return null;      // loop guard
   seen.add(email);
   const kids = [];
   leadership.filter(l => _ocEmail(l.ReportsTo) === email)
     .forEach(l => {
-      const n = _ocBuildLeader(l, seen, leadership, csds, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD);
+      const n = _ocBuildLeader(l, seen, leadership, csds, projectsByCSD, people, currentAssign, realProjects);
       if (n) kids.push(n);
     });
   csds.filter(c => _ocEmail(c.ReportsTo) === email)
-    .forEach(c => kids.push(_ocCsdNode(c, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD)));
+    .forEach(c => kids.push(_ocCsdNode(c, projectsByCSD, people, currentAssign, realProjects)));
   kids.push(..._ocFunctionNodes(people.filter(p => _ocEmail(p.ReportsTo) === email)));
   return { kind: 'leader', label: leader.UserName || leader.UserEmail,
            sub: leader.JobTitle || 'Leadership', _photo: leader.PhotoUrl, children: kids };
@@ -220,70 +202,33 @@ function _ocBuildLeader(leader, seen, leadership, csds, projectsByCSD, people, c
 
 // ── tree builder ───────────────────────────────────────────────────────
 // Returns { roots, unassignedProjects }. Node = { kind, label, sub, children:[] }.
-function buildOrgTree({ people, leadership, projectsByCSD, currentAssign, lciProjectOwners }) {
+function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
   const csds = people.filter(p => p.Level === 'CSD');
 
   // Every real (Projects-list) customer name, so a synthetic bubble never duplicates one.
+  // LCI / Transformation customers are real Projects rows since N-363, so they are in here too.
   const realProjects = new Set();
   Object.values(projectsByCSD).forEach(list =>
     list.forEach(pr => realProjects.add(_ocNorm(pr.CustomerName))));
-
-  // N-219: LCI has no Projects-list row at all (work is tracked in the Sales
-  // module), so build its bubble straight from Assignments when no real
-  // project already covers that customer. Scoped to ProjectType 'LCI' only —
-  // 'Transformation'/'Internal' assignment types are out of scope (Internal
-  // is already reserved for the placeholder-only synthetic bubbles below).
-  // N-219 addendum: a claimed LCI customer (LCIProjectOwners row pointing at
-  // a real, current CSD) becomes a child of that CSD's node, exactly like a
-  // normal project; an unclaimed one (no row, or a row pointing at a CSD
-  // that no longer exists) falls into the unassigned pool below.
-  const lciOwnerByCustomer = {}; // normCustomer -> CSDName, valid CSDs only
-  (lciProjectOwners || []).forEach(row => {
-    const csdName = row.CSDName;
-    if (!csdName || !csds.some(c => _ocNorm(c.EmployeeName) === _ocNorm(csdName))) return;
-    lciOwnerByCustomer[_ocNorm(row.CustomerName)] = csdName;
-  });
-
-  const lciOwnedByCSD = {};  // normCSD -> [node,…], hung off _ocCsdNode() below
-  const lciUnowned = [];     // -> unassigned pool
-  (() => {
-    const groups = _ocLciOnlyCustomers(people, currentAssign, realProjects);
-    Object.keys(groups).sort().forEach(key => {
-      const members = people.filter(p => !p.IsPlaceholder &&
-        (currentAssign[p.EmployeeName] || []).some(a => _ocNorm(a.Customer) === key));
-      const node = { kind: 'project', label: groups[key], sub: 'LCI',
-                     _colour: _ocTypeColour('LCI'), children: _ocTeamChildren(members) };
-      const ownerCSD = lciOwnerByCustomer[key];
-      if (ownerCSD) {
-        const csdKey = _ocNorm(ownerCSD);
-        (lciOwnedByCSD[csdKey] = lciOwnedByCSD[csdKey] || []).push(node);
-      } else {
-        lciUnowned.push(node);
-      }
-    });
-  })();
 
   const seen = new Set();
   const roots = [];
   // Top of tree = leaders with blank ReportsTo.
   leadership.filter(l => !_ocEmail(l.ReportsTo))
     .forEach(l => {
-      const n = _ocBuildLeader(l, seen, leadership, csds, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD);
+      const n = _ocBuildLeader(l, seen, leadership, csds, projectsByCSD, people, currentAssign, realProjects);
       if (n) roots.push(n);
     });
   // Orphan CSDs (blank ReportsTo, or leader not found) become their own roots.
   csds.filter(c => !_ocEmail(c.ReportsTo) ||
         !leadership.some(l => _ocEmail(l.UserEmail) === _ocEmail(c.ReportsTo)))
-    .forEach(c => roots.push(_ocCsdNode(c, projectsByCSD, people, currentAssign, realProjects, lciOwnedByCSD)));
+    .forEach(c => roots.push(_ocCsdNode(c, projectsByCSD, people, currentAssign, realProjects)));
 
-  // N-219: unassigned pool = real projects with no CSD owner (the
-  // `__unassigned__` bucket `getProjectsByCSD()` already produces) plus the
-  // LCI-only bubbles built above. `_ocProjectNode` is already deduped (see
-  // the fix above), so these inherit correct membership/colour for free.
-  const unassignedProjects = [
-    ...(projectsByCSD['__unassigned__'] || []).map(p => _ocProjectNode(p, people, currentAssign)),
-    ...lciUnowned,
-  ];
+  // N-219 / N-363: unassigned pool = real projects with no CSD owner (the
+  // `__unassigned__` bucket `getProjectsByCSD()` already produces). LCI and
+  // Transformation projects are ordinary Projects rows, so they land here too.
+  const unassignedProjects = (projectsByCSD['__unassigned__'] || [])
+    .map(p => _ocProjectNode(p, people, currentAssign));
   // N-304 (DF-4): internal staff whose ReportsTo is blank or not a leader on
   // the chart pool here, by function — never in the Bench. Same rule as an
   // orphan CSD.
@@ -394,12 +339,6 @@ function exportOrgChartPdf() {
 // onclick attribute is the JS-string-in-HTML-attribute trap from N-012d, where
 // escHtml is the wrong tool and an apostrophe breaks the button outright.
 let _ocPlaceholders = [];
-
-// N-219 addendum: normCustomer -> { label, id } for the current LCI-only
-// customer list, cached by showOrgChartEditForm and read back by
-// saveOrgChartEdits (there's no DOM attribute wide enough to carry both the
-// display label and an existing LCIProjectOwners row id).
-let _ocLciCustomers = {};
 
 // CSD is deliberately absent: buildOrgTree() derives csds from Level==='CSD' with
 // no placeholder check, so a placeholder CSD would render as a real CSD node, own
@@ -587,9 +526,8 @@ async function deletePlaceholder(id) {
 async function showOrgChartEditForm() {
   const main = document.getElementById('main-content');
   main.innerHTML = '<p>Loading…</p>';
-  const [people, leadership, projects, currentAssign, lciProjectOwners] = await Promise.all([
+  const [people, leadership, projects] = await Promise.all([
     getPeople(true), getLeadershipAccess(), getProjects(true),
-    getCurrentAssignmentsByEmployee(), getLCIProjectOwners(),
   ]);
   const csds = people.filter(p => p.Level === 'CSD');
   const csdOpts = (sel) => `<option value=''>— none —</option>` +
@@ -601,22 +539,6 @@ async function showOrgChartEditForm() {
     <tr>
       <td>${_ocEsc(p.CustomerName)}</td>
       <td><select data-proj='${p.id}'>${csdOpts(p.CSDName)}</select></td>
-    </tr>`).join('');
-
-  // N-219 addendum: same LCI-only detection buildOrgTree uses, so an entry
-  // here always matches whether it renders in a CSD's branch or Unassigned.
-  const realProjects = new Set(projects.map(p => _ocNorm(p.CustomerName)));
-  const lciGroups = _ocLciOnlyCustomers(people, currentAssign, realProjects);
-  const lciOwnerRows = {}; // normCustomer -> existing LCIProjectOwners row
-  lciProjectOwners.forEach(row => { lciOwnerRows[_ocNorm(row.CustomerName)] = row; });
-  _ocLciCustomers = {};    // reset — read back by saveOrgChartEdits
-  Object.keys(lciGroups).forEach(key => {
-    _ocLciCustomers[key] = { label: lciGroups[key], id: lciOwnerRows[key]?.id || null };
-  });
-  const lciRows = Object.keys(_ocLciCustomers).sort().map(key => `
-    <tr>
-      <td>${_ocEsc(_ocLciCustomers[key].label)} <span class='org-tag'>LCI</span></td>
-      <td><select data-lci='${_ocEsc(key)}'>${csdOpts(lciOwnerRows[key]?.CSDName)}</select></td>
     </tr>`).join('');
 
   // ReportsTo editors for leadership + CSDs (both key upward by leader email).
@@ -653,10 +575,6 @@ async function showOrgChartEditForm() {
       <h3>Project → CSD owner</h3>
       <table class='data-table'><thead><tr><th>Project / customer</th><th>CSD</th></tr></thead>
         <tbody>${projRows}</tbody></table>
-      ${lciRows ? `
-      <h3 style='margin-top:20px'>LCI project → CSD owner</h3>
-      <table class='data-table'><thead><tr><th>Project / customer</th><th>CSD</th></tr></thead>
-        <tbody>${lciRows}</tbody></table>` : ''}
       <h3 style='margin-top:20px'>Reports to</h3>
       <table class='data-table'><thead><tr><th>Person</th><th>Reports to</th></tr></thead>
         <tbody>${leaderRows}${csdRows}${internalRows}</tbody></table>
@@ -673,14 +591,6 @@ async function saveOrgChartEdits(btn) {
     const jobs = [];
     document.querySelectorAll('[data-proj]').forEach(el =>
       jobs.push(updateItem('Projects', el.getAttribute('data-proj'), { CSDName: el.value })));
-    document.querySelectorAll('[data-lci]').forEach(el => {
-      const key = el.getAttribute('data-lci');
-      const c = _ocLciCustomers[key];
-      const fields = { CSDName: el.value };
-      jobs.push(c && c.id
-        ? updateItem('LCIProjectOwners', c.id, fields)
-        : createItem('LCIProjectOwners', { Title: c ? c.label : key, ...fields }));
-    });
     document.querySelectorAll('[data-lead]').forEach(el =>
       jobs.push(updateItem('LeadershipAccess', el.getAttribute('data-lead'), { ReportsTo: el.value })));
     document.querySelectorAll('[data-person]').forEach(el =>     // CSDs + internal staff (N-304)

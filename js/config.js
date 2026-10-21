@@ -189,8 +189,8 @@ const CONFIG = {
   // N-362 (D-4): types that are Projects but have no Project Dashboard (they
   // collect no recruitment data). Read ONLY through isNoDashboardType() /
   // isNoDashboardProject() / dashboardProjects() (utils.js) — never compared at
-  // a call site (tests/lint-project-types.js). Dormant until N-363 creates the
-  // Projects rows.
+  // a call site (tests/lint-project-types.js). The Projects rows are created by
+  // the N-363 migration (Admin > Data Health > LCI / Transformation projects).
   NO_DASHBOARD_PROJECT_TYPES: ['LCI', 'Transformation'],
 
   // Types that bill on a retainer + placement-fee split rather than a monthly
@@ -236,6 +236,8 @@ const CONFIG = {
   PROJECT_TEAM: {
     BENCH_CUSTOMER:         'Unassigned',
     DISPLAY_ROWS:           50,
+    // N-363: Notes text on every Projects row the LCI / Transformation migration creates.
+    LCI_MIGRATION_NOTE:     'Created by N-363 migration from LCI/Transformation assignments.',
   },
 
   // N-333: Projects.ProjectType of the Momentum-internal project (Internal TA

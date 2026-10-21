@@ -70,3 +70,44 @@ async function getUserAssignments(projectId) {
   return getItems("UserAssignments",
     projectId ? `fields/ProjectID eq ${projectId}` : "");
 }
+
+// ── Project Team backfill (N-361 / PT-1) ─────────────────────────────
+// Assignments is read with $select=* (no LIST_FIELDS entry), so a missing new column does not
+// show in Schema Check — this preflight is what the Data Health section trusts. A failed read
+// is { ok: false }, never "missing".
+async function getAssignmentTeamColumnStatus() {
+  try {
+    const columns = await getListColumns('Assignments');
+    const names = columns.filter(c => !c.hidden).map(c => c.name);
+    return { ok: true, missing: PT_ASSIGNMENT_COLUMNS.filter(n => !names.includes(n)) };
+  } catch (e) {
+    console.warn('Project Team backfill: Assignments column read failed', e);
+    return { ok: false, missing: [] };
+  }
+}
+
+// Everything the backfill plan and the reconciliation report need. Projects includes Completed
+// ones (getProjects(false)) — historical assignments still point at them.
+async function getBackfillInputs() {
+  const [assignments, projects, userAssignments] = await Promise.all([
+    getItems('Assignments'), getProjects(false), getUserAssignments(),
+  ]);
+  return { assignments, projects, userAssignments };
+}
+
+// The only writer of Assignments.ProjectID / UserEmail / IsLeadDM in N-361. One PATCH per row,
+// one at a time (updateItem invalidates the list cache); a failed row is recorded and the rest
+// carry on. ptPlanWrites refuses any patch carrying a key outside PT_ASSIGNMENT_COLUMNS.
+async function applyAssignmentBackfill(planRows) {
+  const { writes, refused } = ptPlanWrites(planRows);
+  const out = { written: 0, failed: refused.slice() };
+  for (const w of writes) {
+    try {
+      await updateItem('Assignments', w.id, w.patch);
+      out.written++;
+    } catch (e) {
+      out.failed.push({ id: w.id, employee: w.employee, message: e && e.message ? e.message : String(e) });
+    }
+  }
+  return out;
+}

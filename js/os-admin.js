@@ -525,6 +525,7 @@ async function buildDataHealthTab() {
   return _dhRenderRowCountsHtml(data)
     + _dhRenderDataIntegrityHtml(data)
     + _dhRenderHeadcountIntegrityHtml(data)
+    + _dhRenderProjectTeamHtml(data)
     + _dhRenderWeeklyAnomaliesHtml(data)
     + _dhRenderIndexStatusHtml(data)
     + _dhRenderSchemaCheckHtml(data)
@@ -599,8 +600,13 @@ async function _dhFetchSectionData() {
     headcountIntegrity = { ok: false, checks: [] };
   }
 
+  // N-361: cheap column preflight only. The full Assignments / Projects / UserAssignments
+  // reads happen when Preview is clicked, not on tab load.
+  const ptColumns = await getAssignmentTeamColumnStatus();
+
   return {
     lists, counts, deniedLists, excludedLists,
+    ptColumns,
     nullProjectOk, nullProjectCount, nullWeekEndingOk, nullWeekEndingCount,
     statusByList,
     schemaResults,
@@ -757,6 +763,217 @@ function _dhRenderHeadcountIntegrityHtml(data) {
     </table>
     </div>
 `;
+}
+
+// ── Data Health Tab — render + actions: Project Team backfill (N-361 / PT-1) ──
+// Fills Assignments.ProjectID / UserEmail / IsLeadDM from existing data (fill blanks only —
+// project-team.js) and reports how UserAssignments and Assignments disagree. The full reads
+// happen when Preview / Run report is clicked, never on tab load. State lives here and the
+// actions read it, never the DOM (N-273 precedent).
+let _ptBackfill = { inputs: null, picks: {}, result: null, report: null };
+
+function _dhRenderProjectTeamHtml(data) {
+  const cols = data.ptColumns || { ok: false, missing: [] };
+  let body;
+  if (!cols.ok) {
+    body = `<p><span class="dh-badge dh-badge-danger">Query error</span> <span class="dh-muted">The Assignments columns could not be read — unknown, not missing. See the browser console.</span></p>`;
+  } else if (cols.missing.length) {
+    body = `<p><span class="dh-badge dh-badge-danger">Columns missing</span> ${cols.missing.map(escHtml).join(', ')} — create them on the Assignments list in SharePoint (Readme → Data model), then reload this tab.</p>`;
+  } else {
+    body = `<p><span class="dh-badge dh-badge-success">Columns present</span></p>
+    <p>
+      <button class="btn-primary"${act('runProjectTeamPreview')}>Preview backfill</button>
+      <button class="btn-secondary"${act('runProjectTeamReport')}>Run reconciliation report</button>
+    </p>
+    ${_ptRenderResultHtml()}${_ptRenderPreviewHtml()}${_ptRenderReportHtml()}`;
+  }
+  return `    <h3>Project Team backfill (N-361)</h3>
+    <p class="dh-note">
+      Copies a ProjectID, UserEmail and Lead-DM flag onto each Assignments row from data Newton already holds.
+      Preview first: nothing is written until Apply, a value already on a row is never overwritten, and it is safe to run again.
+      Bench rows are skipped. The reconciliation report is read-only.
+    </p>
+    ${body}
+`;
+}
+
+function _ptRenderResultHtml() {
+  const r = _ptBackfill.result;
+  if (!r) return '';
+  const failed = r.failed.length
+    ? ` <span class="dh-badge dh-badge-danger">${r.failed.length} failed</span> <span class="dh-muted">${r.failed.map(f => escHtml(f.employee + ': ' + f.message)).join('; ')}</span>`
+    : '';
+  return `<p>Last apply: ${r.written.toLocaleString('en-GB')} rows written.${failed}</p>`;
+}
+
+function _ptRenderPreviewHtml() {
+  const inputs = _ptBackfill.inputs;
+  if (!inputs) return '';
+  const cap = CONFIG.PROJECT_TEAM.DISPLAY_ROWS;
+  const { rows, summary: s } = ptBuildBackfillPlan(inputs, _ptBackfill.picks);
+  // The pick table is built from the plan WITHOUT picks, so a row stays listed (with its
+  // choice shown) after it has been picked.
+  const needPick = ptBuildBackfillPlan(inputs, {}).rows
+    .filter(r => r.project.state === 'ambiguous' || r.project.state === 'unmatched');
+  const labels = projectOptionLabels(inputs.projects);
+  const projectById = new Map(inputs.projects.map(p => [String(p.id), p]));
+  const optionHtml = (p, selected) =>
+    `<option value="${escHtml(String(p.id))}"${selected ? ' selected' : ''}>${escHtml(labels.get(String(p.id)) || p.CustomerName || '')}</option>`;
+
+  const detail = (items, fmt) => items.length
+    ? `<details><summary class="dh-muted">Show</summary><span class="dh-muted">${items.slice(0, cap).map(fmt).join('; ')}${items.length > cap ? ` +${items.length - cap} more` : ''}</span></details>`
+    : '';
+  const who = r => escHtml(r.employee + (r.customer ? ' (' + r.customer + ')' : ''));
+  const deferredRows = rows.filter(r => r.project.state === 'deferred');
+  const noLoginRows = rows.filter(r => r.email.state === 'unmatched');
+  const ambiguousEmailRows = rows.filter(r => r.email.state === 'ambiguous');
+  const line = (label, count, extra) => `
+        <tr><td>${label}${extra || ''}</td><td>${count.toLocaleString('en-GB')}</td></tr>`;
+
+  const pickRowsHtml = needPick.map(r => {
+    const options = r.project.state === 'ambiguous'
+      ? r.project.candidates.map(id => projectById.get(id)).filter(Boolean)
+      : inputs.projects;
+    const current = String(_ptBackfill.picks[r.id] == null ? '' : _ptBackfill.picks[r.id]);
+    return `
+        <tr>
+          <td>${escHtml(r.employee)}</td>
+          <td>${escHtml(r.customer)}</td>
+          <td>${escHtml(r.projectType)}</td>
+          <td>
+            <select${actOn('change', 'setBackfillPick', String(r.id), ACT_VALUE)}>
+              <option value="">— Choose —</option>${options.map(p => optionHtml(p, String(p.id) === current)).join('')}
+            </select>
+          </td>
+        </tr>`;
+  }).join('');
+
+  const apply = s.rowsToWrite
+    ? `<p><button class="btn-primary"${act('applyProjectTeamBackfill')}>Apply — write ${s.rowsToWrite.toLocaleString('en-GB')} rows</button></p>`
+    : `<p class="dh-muted">Nothing to write.</p>`;
+
+  return `
+    <h4>Preview</h4>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Check</th><th>Rows</th></tr></thead>
+      <tbody>${line('Assignments rows read', s.total)}${line('Bench rows skipped', s.bench)}${line('ProjectID to write', s.writes.ProjectID)}${line('UserEmail to write', s.writes.UserEmail)}${line('IsLeadDM to set', s.writes.IsLeadDM)}${line('Need your pick (below)', s.needsPick)}${line('Deferred to N-363 (LCI / Transformation, no project yet)', s.deferred, detail(deferredRows, who))}${line('No Newton login (UserEmail unmatched)', s.noLogin, detail(noLoginRows, r => escHtml(r.employee)))}${line('Ambiguous email (two logins share the name — fix by hand)', s.ambiguousEmail, detail(ambiguousEmailRows, r => escHtml(r.employee)))}
+      </tbody>
+    </table>
+    </div>
+    ${needPick.length ? `
+    <p class="dh-note">Choose a project for each row below. Rows left on "— Choose —" stay blank and are listed again next time. Counts above refresh when you press Preview again.</p>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Employee</th><th>Customer</th><th>Type</th><th>Project</th></tr></thead>
+      <tbody>${pickRowsHtml}
+      </tbody>
+    </table>
+    </div>` : ''}
+    ${apply}`;
+}
+
+function _ptRenderReportHtml() {
+  const rep = _ptBackfill.report;
+  if (!rep) return '';
+  const cap = CONFIG.PROJECT_TEAM.DISPLAY_ROWS;
+  return '<h4>Reconciliation report</h4>' + Object.keys(PT_REPORTS).map(key => {
+    const def = PT_REPORTS[key];
+    const items = rep[key] || [];
+    const head = def.columns.map(c => `<th>${escHtml(c.label)}</th>`).join('');
+    const bodyRows = items.slice(0, cap).map(r =>
+      `<tr>${def.columns.map(c => `<td>${escHtml(r[c.key])}</td>`).join('')}</tr>`).join('');
+    const more = items.length > cap ? `<p class="dh-muted">+${items.length - cap} more — download the CSV for all ${items.length.toLocaleString('en-GB')}.</p>` : '';
+    return `
+    <h5>${escHtml(def.title)} (${items.length.toLocaleString('en-GB')})</h5>
+    <p class="dh-note">${escHtml(def.note)}</p>
+    ${items.length ? `<div class="table-scroll">
+    <table class="data-table dh-table-tight">
+      <thead><tr>${head}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+    </div>${more}
+    <p><button class="btn-secondary"${act('downloadProjectTeamCsv', key)}>Download CSV</button></p>` : '<p class="dh-muted">None.</p>'}`;
+  }).join('');
+}
+
+async function runProjectTeamPreview() {
+  const btn = event?.target;   // N-106: capture synchronously
+  setButtonLoading(btn);
+  try {
+    _ptBackfill.inputs = await getBackfillInputs();
+    _ptBackfill.result = null;
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error reading Assignments: ' + e.message, { type: 'error' });
+  }
+}
+
+// Stores the choice only — no re-render; Apply rebuilds the plan from this state.
+function setBackfillPick(assignmentId, projectId) {
+  if (projectId) _ptBackfill.picks[assignmentId] = projectId;
+  else delete _ptBackfill.picks[assignmentId];
+}
+
+async function applyProjectTeamBackfill() {
+  const btn = event?.target;
+  if (!_ptBackfill.inputs) { toast('Run Preview first.', { type: 'error' }); return; }
+  // Re-read so the confirmed counts describe what will really be written.
+  let plan;
+  setButtonLoading(btn);
+  try {
+    plan = ptBuildBackfillPlan(await getBackfillInputs(), _ptBackfill.picks);
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error reading Assignments: ' + e.message, { type: 'error' });
+    return;
+  }
+  clearButtonLoading(btn);
+  const s = plan.summary;
+  if (!s.rowsToWrite) { toast('Nothing to write.'); return; }
+  if (!(await confirmModal({
+    title: 'Write Project Team columns',
+    message: `Write ${s.rowsToWrite} Assignments rows: ${s.writes.ProjectID} ProjectID, ${s.writes.UserEmail} UserEmail, ${s.writes.IsLeadDM} IsLeadDM. Values already on a row are never overwritten.`,
+    confirmLabel: 'Write',
+  }))) return;
+  setButtonLoading(btn);
+  try {
+    const out = await applyAssignmentBackfill(plan.rows);
+    _ptBackfill = { inputs: null, picks: {}, result: out, report: null };
+    toast(out.failed.length ? `Wrote ${out.written} rows; ${out.failed.length} failed.` : `Wrote ${out.written} rows.`,
+      { type: out.failed.length ? 'error' : 'success' });
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error applying backfill: ' + e.message, { type: 'error' });
+  }
+}
+
+async function runProjectTeamReport() {
+  const btn = event?.target;
+  setButtonLoading(btn);
+  try {
+    _ptBackfill.report = ptBuildReconciliation(await getBackfillInputs());
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error building the report: ' + e.message, { type: 'error' });
+  }
+}
+
+function downloadProjectTeamCsv(key) {
+  const rows = _ptBackfill.report && Object.prototype.hasOwnProperty.call(PT_REPORTS, key) ? _ptBackfill.report[key] : null;
+  if (!rows) { toast('Run the reconciliation report first.', { type: 'error' }); return; }
+  const blob = new Blob(['﻿' + ptToCsv(PT_REPORTS[key].columns, rows)], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `newton-pt-${safeFilename(key, 'report')}-${localDayISO()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 // ── Data Health Tab — render: WeeklyActivity Anomalies (N-271) ───────
@@ -1123,4 +1340,9 @@ registerActions({
   restoreFunnelFlag,
   acknowledgeFunnelFlag,
   acknowledgeDiagnosticsGroup,
+  runProjectTeamPreview,
+  setBackfillPick,
+  applyProjectTeamBackfill,
+  runProjectTeamReport,
+  downloadProjectTeamCsv,
 });

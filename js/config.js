@@ -218,7 +218,18 @@ const CONFIG = {
   },
 
   // Types excluded from revenue reporting (People Dashboard "By project type").
-  NON_REVENUE_PROJECT_TYPES: ['Internal'],
+  // N-361 (PT-1): Project Team backfill (js/project-team.js, Admin > Data Health).
+  //  BENCH_CUSTOMER          Customer value Sync Bench writes on bench rows. Also typed in
+  //                          people-tracker.js (write), people-forms.js and utils.js (reads);
+  //                          consolidating those is a separate tidy-up.
+  //  DEFERRED_PROJECT_TYPES  Assignments.ProjectType values that have no Projects row until
+  //                          N-363; N-362's no-dashboard-types helper replaces this list.
+  //  DISPLAY_ROWS            rows shown in each Data Health list before "+ n more".
+  PROJECT_TEAM: {
+    BENCH_CUSTOMER:         'Unassigned',
+    DEFERRED_PROJECT_TYPES: ['LCI', 'Transformation'],
+    DISPLAY_ROWS:           50,
+  },
 
   // N-333: Projects.ProjectType of the Momentum-internal project (Internal TA
   // log Momentum's own hiring there as talent_partner). Its rows show on its
@@ -606,6 +617,10 @@ const CONFIG = {
     { list: 'RoleHeadcount',   column: 'RoleID' },
     { list: 'RoleHeadcount',   column: 'ProjectID' },
     { list: 'Placements',      column: 'HeadcountID' },
+    // N-361 (PT-1): the Project Team columns on Assignments. N-367 scopes project
+    // visibility by them, server-side. Plain Number / text columns.
+    { list: 'Assignments',     column: 'ProjectID' },
+    { list: 'Assignments',     column: 'UserEmail' },
   ],
 
   // N-093 (F-2a). Above this many assigned projects, getRolesForUser stops
@@ -836,7 +851,9 @@ const CONFIG = {
     maxEntryBytes:   262144,   // skip persisting anything larger
     persistentLists: [
       // N-282: NEVER enrol an identity/access list (UserAssignments,
-      // LeadershipAccess). sessionStorage is writable by the user, so a forged
+      // LeadershipAccess, and — from N-361 — Assignments: it now carries
+      // UserEmail + ProjectID and becomes the project-access list in the
+      // Project Team epic, N-360). sessionStorage is writable by the user, so a forged
       // tier-2 entry would be served as the real admin/leadership rows and
       // defeat role resolution. They stay on tier 1 (30s, in memory) only.
       'Projects',

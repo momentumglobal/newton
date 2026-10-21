@@ -55,6 +55,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'richtext.js'),
   path.join(JS_DIR, 'headcount.js'),
   path.join(JS_DIR, 'permissions.js'),
+  path.join(JS_DIR, 'project-team.js'),
   path.join(JS_DIR, 'checklist-logic.js'),
   path.join(JS_DIR, 'graph-client.js'),
   path.join(JS_DIR, 'api.js'),
@@ -96,7 +97,9 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-roles-people.js'),
   path.join(TESTS_DIR, 'assert-list-ui.js'),
   path.join(TESTS_DIR, 'assert-pages.js'),
+  path.join(TESTS_DIR, 'assert-project-team.js'),
 ];
+// N-361: project-team.js (pure) loads straight after permissions.js; assert-project-team.js is the last assertion file.
 const sandbox = {};
 
 // N-091: the F-12 date guard lints SOURCE TEXT, not runtime behaviour, so it

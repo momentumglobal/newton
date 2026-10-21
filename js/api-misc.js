@@ -33,15 +33,32 @@ async function deleteSalesForecast(id) {
 // callers all correctly want the union of a user's projects, old and new, and
 // must not change. The read is cached, so this doesn't add a real extra
 // network round-trip alongside a getUserProjectIds() call for the same user.
+// N-367 (PT-7): CONFIG.ACCESS_SCOPE.mode picks the source, as in
+// getUserProjectIds(). 'assignments' → defaultProjectIdFromAssignments
+// (permissions.js: a current assignment, else the latest start). 'shadow' →
+// the UserAssignments answer below is returned and the Assignments answer is
+// compared in the background (check 'default', diagnostics.js).
 async function getDefaultUserProjectId(email) {
   await _ensureGhostGate();   // N-282: getGhostUser() is only valid after the gate
   const lower = (getGhostUser() || email).toLowerCase();
+  const mode = accessScopeMode();
+  if (mode === 'assignments') {
+    return defaultProjectIdFromAssignments(await _getAssignmentsForUser(lower), localDayISO());
+  }
   const assignments = await getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`);
   // N-281: admin rows (ProjectID 0) are not a project — skip them.
   const projectRows = assignments.filter(a => a.AssignedRole !== 'admin');
-  if (!projectRows.length) return null;
   const active = projectRows.find(a => a.Active !== false);
-  return String((active || projectRows[0]).ProjectID);
+  const legacy = projectRows.length ? String((active || projectRows[0]).ProjectID) : null;
+  if (mode === 'shadow' && typeof scopeShadowDue === 'function' && scopeShadowDue('default', lower)) {
+    _getAssignmentsForUser(lower)
+      .then(rows => {
+        const next = defaultProjectIdFromAssignments(rows, localDayISO());
+        reportScopeShadow('default', lower, legacy ? [legacy] : [], next ? [next] : []);
+      })
+      .catch(e => console.warn('Access shadow: Assignments read failed —', e && e.message));
+  }
+  return legacy;
 }
 
 // ── Payroll summary ───────────────────────────────────────────────────

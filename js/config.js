@@ -965,6 +965,20 @@ const CONFIG = {
     maxMessageChars: 1000,
     maxStackChars:   2000,
   },
+
+  // N-367 (PT-7): which list scopes project visibility (Project Team epic, N-360).
+  //   'legacy'      — UserAssignments rows by user (today's behaviour)
+  //   'shadow'      — legacy is returned, the Assignments scope is worked out
+  //                   alongside and any difference is logged to Diagnostics
+  //                   (Admin → Data Health → Access shadow)
+  //   'assignments' — the user's non-forecast Assignments rows (N-368 cutover)
+  // Any other value reads as 'legacy' (accessScopeMode, permissions.js), so
+  // 'legacy' is the kill switch. Admin is decided from UserAssignments in every mode.
+  ACCESS_SCOPE: {
+    mode:            'shadow',
+    shadowErrorType: 'scope-shadow',        // Diagnostics.ErrorType for shadow rows
+    shadowStoreKey:  'newton_scope_shadow', // localStorage day-store: one row per user per check per day
+  },
   
   // Single source of truth for the module switcher dropdown.
   // To add a new module, add it here only — all nav files reference this.

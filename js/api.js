@@ -830,24 +830,48 @@ async function filterToActiveTpEmails(tpEmails, tpMap) {
   return tpEmails.filter(e => activeNames.has(norm(tpMap[e.toLowerCase()])));
 }
  
+// N-367 (PT-7): a user's Assignments rows (the Project Team), by the indexed
+// UserEmail column (N-361, stored lower-case). Tier-1 cached like every read,
+// so the 'projects' and 'default' scope checks share one request.
+async function _getAssignmentsForUser(lower) {
+  return getItems("Assignments", `fields/UserEmail eq '${odataStr(lower)}'`);
+}
+
+// The legacy (UserAssignments) project scope, from a user's rows. Unchanged
+// from getUserProjectIds before N-367.
+// N-165: de-duped — a user with two UserAssignments rows for the same
+// project (e.g. TP + DM-granted) must not get that project ID twice, or
+// every downstream per-project role fan-out doubles that project's roles.
+// N-281: admin rows (ProjectID 0) are never a project — an inactive one
+// must not add "0" to the scope. N-331: nor are people_ops / sales / staff
+// rows (isOrgWideRole, permissions.js).
+function _legacyProjectIds(assignments) {
+  return [...new Set(assignments
+    .filter(a => !isOrgWideRole(a.AssignedRole))
+    .map(a => String(a.ProjectID)))];
+}
+
 // Return all project IDs this user is assigned to (null = admin, sees all).
 // N-162: resolves against the ghosted user's real assignments when Ghost
 // Mode is active, instead of a single manually-picked ghost project.
+// N-367: CONFIG.ACCESS_SCOPE.mode picks the scope (accessScopeMode). In
+// 'shadow' the legacy scope is returned at once and the Assignments scope is
+// compared in the background (never awaited, never throws into the caller).
 async function getUserProjectIds(email) {
   await _ensureGhostGate();   // N-282: getGhostUser() is only valid after the gate
   const lower = (getGhostUser() || email).toLowerCase();
   const assignments = await getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`);
-  // N-281: an active admin row sees all projects.
+  // N-281: an active admin row sees all projects — in every scope mode.
   if (assignments.some(isAdminAssignment)) return null;
-  // N-165: de-duped — a user with two UserAssignments rows for the same
-  // project (e.g. TP + DM-granted) must not get that project ID twice, or
-  // every downstream per-project role fan-out doubles that project's roles.
-  // N-281: admin rows (ProjectID 0) are never a project — an inactive one
-  // must not add "0" to the scope. N-331: nor are people_ops / sales / staff
-  // rows (isOrgWideRole, permissions.js).
-  return [...new Set(assignments
-    .filter(a => !isOrgWideRole(a.AssignedRole))
-    .map(a => String(a.ProjectID)))];
+  const mode = accessScopeMode();
+  if (mode === 'assignments') return projectIdsFromAssignments(await _getAssignmentsForUser(lower));
+  const legacy = _legacyProjectIds(assignments);
+  if (mode === 'shadow' && typeof scopeShadowDue === 'function' && scopeShadowDue('projects', lower)) {
+    _getAssignmentsForUser(lower)
+      .then(rows => reportScopeShadow('projects', lower, legacy, projectIdsFromAssignments(rows)))
+      .catch(e => console.warn('Access shadow: Assignments read failed —', e && e.message));
+  }
+  return legacy;
 }
 
 async function getScopedProjects(email, activeOnly = false) {
@@ -1181,19 +1205,13 @@ async function getScopedRolesVisibleTo(email, effectiveRole) {
     return arrays.flat();
   }
 
-  // Talent Partner: only roles where TalentPartner column matches their email.
-  // projectIds is de-duped here (not via getUserProjectIds, which this branch
-  // doesn't call) so the per-project role fan-out below can't double up.
-  const assignments = await getItems(
-    "UserAssignments",
-    `fields/Title eq '${odataStr(lower)}'`
-  );
-  if (!assignments.length) return [];
-  const projectIds = [...new Set(assignments.map(a => String(a.ProjectID)))];
-  const arrays = await Promise.all(
-    projectIds.map(pid => getRolesForProject(pid))
-  );
-  return arrays.flat().filter(r => tpMatches(r.TalentPartner, lower));
+  // Talent Partner: only roles where TalentPartner column matches them.
+  // N-367: scoped through getRolesForUser (getUserProjectIds — de-duped, scope
+  // mode aware, ghost-aware) rather than its own UserAssignments read. The TP
+  // match uses the same subject, so a ghosted TP sees the ghost's roles.
+  const roles = await getRolesForUser(email);
+  const subject = (getGhostUser() || lower).toLowerCase();
+  return roles.filter(r => tpMatches(r.TalentPartner, subject));
 }
 
 // ── Employee Engagement ───────────────────────────────────────────────

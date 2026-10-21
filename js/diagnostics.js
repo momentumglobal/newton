@@ -167,6 +167,75 @@ function reportError(errorType, message, stack) {
   }
 }
 
+// ── N-367 (PT-7): access-scope shadow rows ────────────────────────────
+// The second entry point into Diagnostics, deliberately NOT reportError(): a
+// scope difference is not an error, must not spend the per-session error cap,
+// and dedupes per user per check per DAY rather than per message per session.
+// Called by getUserProjectIds() (api.js) and getDefaultUserProjectId()
+// (api-misc.js) at runtime only, in 'shadow' mode (CONFIG.ACCESS_SCOPE).
+// Ordinary users can add to Diagnostics but not read it (N-285), so the
+// dedupe is client-side: _scopeShadowSeen = compared already on this page;
+// the localStorage day-store = a row was written today. The store is
+// user-writable, which is fine — it can only suppress or repeat telemetry,
+// never grant access. Neither function ever throws.
+const _scopeShadowSeen = new Set();
+
+function _scopeShadowStore() {
+  try {
+    return JSON.parse(localStorage.getItem(CONFIG.ACCESS_SCOPE.shadowStoreKey) || 'null');
+  } catch (e) {
+    return null;
+  }
+}
+
+// True once per check per page load, for the real signed-in user only: never
+// in Ghost Mode (S-3), never for another email, never once logged today.
+function scopeShadowDue(check, email) {
+  try {
+    const cfg = (typeof CONFIG !== 'undefined' && CONFIG.DIAGNOSTICS) || null;
+    if (!cfg || !cfg.enabled || !isSignedIn() || getGhostUser()) return false;
+    const lower = String(email || '').toLowerCase();
+    if (!lower || lower !== String(getCurrentUser().email || '').toLowerCase()) return false;
+    const key = check + '|' + lower;
+    if (_scopeShadowSeen.has(key)) return false;
+    _scopeShadowSeen.add(key);
+    return !scopeShadowLoggedToday(_scopeShadowStore(), key, localDayISO());
+  } catch (e) {
+    return false;
+  }
+}
+
+// Writes one Diagnostics row when the two scopes differ. The day is marked
+// BEFORE the write (same budget-first rule as reportError), so a failing
+// write cannot retry on every page.
+function reportScopeShadow(check, email, legacy, next) {
+  try {
+    if (diffProjectScopes(legacy, next).same) return;
+    const lower = String(email || '').toLowerCase();
+    const key = check + '|' + lower;
+    try {
+      const store = scopeShadowMark(_scopeShadowStore(), key, localDayISO());
+      localStorage.setItem(CONFIG.ACCESS_SCOPE.shadowStoreKey, JSON.stringify(store));
+    } catch (e) { /* storage blocked: the page-load set still dedupes */ }
+    createDiagnostic({
+      Title:      check === 'default' ? 'Access shadow: default project' : 'Access shadow: projects',
+      UserEmail:  lower,
+      Module:     diagModule(),
+      Page:       diagPage(),
+      Message:    buildScopeShadowMessage(check, legacy, next).slice(0, CONFIG.DIAGNOSTICS.maxMessageChars),
+      Stack:      '',
+      UserAgent:  String(navigator.userAgent || '').slice(0, 255),
+      OccurredAt: new Date().toISOString(),
+      ErrorType:  CONFIG.ACCESS_SCOPE.shadowErrorType,
+      Status:     'new',
+    // NOT awaited; the .catch is mandatory — an unhandled rejection would be
+    // picked up by this file's own unhandledrejection listener.
+    }).catch(e => console.warn('Access shadow: write failed —', e && e.message));
+  } catch (e) {
+    console.warn('Access shadow: reporter failed —', e && e.message);
+  }
+}
+
 // addEventListener, NOT `window.onerror =`. onerror is a single-slot
 // property: any later assignment anywhere silently replaces this handler
 // with nothing to indicate it stopped working — the same single-source

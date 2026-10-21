@@ -2,6 +2,8 @@
 // Moved out of utils.js. Owns role resolution (N-281), capability and org-wide role
 // checks (N-331), survey respondent / eligibility rules (N-332) and the restricted-list
 // and denial-memo helpers (N-285). Behaviour is unchanged from the utils.js originals.
+// N-367 adds the access-scope helpers (Project Team epic) at the end of the file. They call
+// isForecastAssignment and spDateIn (utils.js, which loads first) at call time only.
 // Loaded on every page, after headcount.js and straight before graph-client.js; graph-client.js
 // and api.js call these at runtime (config.js loads first, so the CONFIG defaults resolve).
 
@@ -117,4 +119,135 @@ function isListAccessDenied(listName, err, cfg = CONFIG) {
 // N-285: pure. Is a denial-memo timestamp still inside its window?
 function isDenialFresh(ts, now, ttlMs) {
   return typeof ts === 'number' && now - ts <= ttlMs;
+}
+
+// ── N-367 (PT-7): access scope — UserAssignments → Assignments (pure) ─
+// getUserProjectIds / getDefaultUserProjectId (api.js / api-misc.js) choose
+// between the two scopes with accessScopeMode(); in 'shadow' mode
+// diagnostics.js logs any difference (reportScopeShadow) and Admin → Data
+// Health → Access shadow reads it back (groupScopeShadowRows).
+const SCOPE_SHADOW_CHECKS = ['projects', 'default'];
+
+// 'legacy' | 'shadow' | 'assignments'. Missing or unknown → 'legacy' (today's
+// behaviour), so a typo in config can never switch anyone's access.
+function accessScopeMode(cfg = CONFIG) {
+  const mode = cfg && cfg.ACCESS_SCOPE && cfg.ACCESS_SCOPE.mode;
+  return mode === 'shadow' || mode === 'assignments' ? mode : 'legacy';
+}
+
+// An Assignments row that can carry project access: not a forecast, and a real
+// ProjectID (bench rows and un-backfilled rows have none).
+function _scopeAssignmentRow(a) {
+  if (!a || isForecastAssignment(a)) return false;
+  const id = Number(a.ProjectID);
+  return Number.isInteger(id) && id > 0;
+}
+
+// Project IDs (strings, de-duped, first-seen order) from a user's Assignments
+// rows — the new visibility scope: non-forecast rows, any dates (Model §Project
+// visibility). Callers pass the rows already filtered by UserEmail.
+function projectIdsFromAssignments(rows) {
+  const ids = [];
+  (Array.isArray(rows) ? rows : []).forEach(a => {
+    if (!_scopeAssignmentRow(a)) return;
+    const id = String(Number(a.ProjectID));
+    if (!ids.includes(id)) ids.push(id);
+  });
+  return ids;
+}
+
+// The one project to default a user's Project Dashboard to (S-4): a current
+// assignment (start <= today, no end or end >= today), latest start if several;
+// with none current, the latest start overall (ended or upcoming). A row with
+// no StartDate is never current and sorts last. Ties keep the first seen.
+// 'YYYY-MM-DD' string compares only (spDateIn / todayISO from localDayISO).
+// No usable row → null.
+function defaultProjectIdFromAssignments(rows, todayISO) {
+  const list = (Array.isArray(rows) ? rows : []).filter(_scopeAssignmentRow).map(a => ({
+    id: String(Number(a.ProjectID)),
+    start: a.StartDate ? (spDateIn(a.StartDate) || '') : '',
+    end: a.EndDate ? (spDateIn(a.EndDate) || '') : '',
+  }));
+  if (!list.length) return null;
+  const latest = arr => arr.reduce((best, r) => (r.start > best.start ? r : best), arr[0]);
+  const current = list.filter(r => r.start && r.start <= todayISO && (!r.end || r.end >= todayISO));
+  return (current.length ? latest(current) : latest(list)).id;
+}
+
+// Order-insensitive compare of two scopes. Duplicates ignored, IDs compared as
+// strings. null (admin: all projects) equals only null.
+function diffProjectScopes(legacy, next) {
+  if (legacy === null || next === null) {
+    const same = legacy === next;
+    return { onlyLegacy: [], onlyNext: [], same };
+  }
+  const a = [...new Set((legacy || []).map(String))];
+  const b = [...new Set((next || []).map(String))];
+  const onlyLegacy = a.filter(id => !b.includes(id));
+  const onlyNext = b.filter(id => !a.includes(id));
+  return { onlyLegacy, onlyNext, same: !onlyLegacy.length && !onlyNext.length };
+}
+
+// Diagnostics.Message for a shadow row, and its reader. 'default' uses 0- or
+// 1-element arrays. parse → null on anything it did not write.
+function buildScopeShadowMessage(check, legacy, next) {
+  return JSON.stringify({ v: 1, check, legacy: (legacy || []).map(String), next: (next || []).map(String) });
+}
+function parseScopeShadowMessage(msg) {
+  try {
+    const m = JSON.parse(String(msg));
+    if (!m || m.v !== 1 || !SCOPE_SHADOW_CHECKS.includes(m.check)) return null;
+    if (!Array.isArray(m.legacy) || !Array.isArray(m.next)) return null;
+    return { check: m.check, legacy: m.legacy.map(String), next: m.next.map(String) };
+  } catch (e) {
+    return null;
+  }
+}
+
+// The localStorage day-store ({ day, keys }) behind "one row per user per
+// check per day". A store from another day, or any bad shape, counts as empty.
+function _scopeShadowKeysFor(store, todayISO) {
+  return store && store.day === todayISO && Array.isArray(store.keys) ? store.keys : [];
+}
+function scopeShadowLoggedToday(store, key, todayISO) {
+  return _scopeShadowKeysFor(store, todayISO).includes(key);
+}
+function scopeShadowMark(store, key, todayISO) {
+  const keys = _scopeShadowKeysFor(store, todayISO).filter(k => k !== key);
+  return { day: todayISO, keys: [...keys, key] };
+}
+
+// Data Health → Access shadow: shadow rows (ErrorType = shadowErrorType) from
+// getDiagnostics(), grouped by user + check + the two scopes. Unreadable rows
+// group by user with check null, so they can still be acknowledged.
+// days = distinct UTC dates the group was logged on. Newest first.
+function groupScopeShadowRows(rows, cfg = CONFIG) {
+  const type = cfg && cfg.ACCESS_SCOPE && cfg.ACCESS_SCOPE.shadowErrorType;
+  const groups = new Map();
+  (Array.isArray(rows) ? rows : []).forEach(r => {
+    if (!r || !type || r.ErrorType !== type) return;
+    const user = String(r.UserEmail || '').toLowerCase();
+    const msg = parseScopeShadowMessage(r.Message);
+    const key = msg
+      ? [user, msg.check, msg.legacy.slice().sort().join(','), msg.next.slice().sort().join(',')].join('|')
+      : user + '|?';
+    if (!groups.has(key)) {
+      const d = msg ? diffProjectScopes(msg.legacy, msg.next) : { onlyLegacy: [], onlyNext: [] };
+      groups.set(key, {
+        userEmail: user, check: msg ? msg.check : null,
+        legacy: msg ? msg.legacy : [], next: msg ? msg.next : [],
+        onlyLegacy: d.onlyLegacy, onlyNext: d.onlyNext,
+        ids: [], dayset: new Set(), lastSeen: '',
+      });
+    }
+    const g = groups.get(key);
+    g.ids.push(r.id);
+    const at = String(r.OccurredAt || '');
+    const day = spDateIn(at);
+    if (day) g.dayset.add(day);
+    if (at > g.lastSeen) g.lastSeen = at;
+  });
+  return [...groups.values()]
+    .map(({ dayset, ...g }) => ({ ...g, days: dayset.size }))
+    .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
 }

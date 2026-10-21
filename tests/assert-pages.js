@@ -426,5 +426,46 @@ ASSERTIONS.push(
         _mrData = saved.data; _mrTam = saved.tam; _mrTitle = saved.title; _mrObs = saved.obs;
       }
     },
+  },
+  // ---- N-364: Project page shell -------------------------------------------
+  {
+    name: 'N-364: projectPageFields - type, status, dates and Lead DM (Projects.DeliveryManager), blanks read em dash',
+    fn: function () {
+      const val = (fields, label) => fields.filter(f => f.label === label)[0].value;
+      const full = projectPageFields(
+        { ProjectType: 'Embedded', Status: 'Active', StartDate: '2026-03-02T00:00:00Z', EndDate: '2026-09-30T00:00:00Z', DeliveryManager: 'Dm@Example.com' },
+        { 'dm@example.com': 'Dana Manager' });
+      _assertEqual(full.map(f => f.label), ['Type', 'Status', 'Start', 'End', 'Lead DM'], 'labels and order');
+      _assertEqual(val(full, 'Type'), 'Embedded', 'type');
+      _assertEqual(val(full, 'Status'), 'Active', 'status');
+      _assertEqual(val(full, 'Start'), spDateIn('2026-03-02T00:00:00Z'), 'start goes through spDateIn');
+      _assertEqual(val(full, 'End'), spDateIn('2026-09-30T00:00:00Z'), 'end goes through spDateIn');
+      _assertEqual(val(full, 'Lead DM'), 'Dana Manager', 'Lead DM resolved case-insensitively through the map');
+      const bare = projectPageFields({ Status: 'Transition' }, {});
+      _assertEqual(val(bare, 'Type'), '\u2014', 'blank type reads em dash');
+      _assertEqual(val(bare, 'Start'), '\u2014', 'blank start reads em dash');
+      _assertEqual(val(bare, 'End'), '\u2014', 'blank end reads em dash');
+      _assertEqual(val(bare, 'Lead DM'), '\u2014', 'blank DM reads em dash');
+      _assertEqual(val(projectPageFields({ DeliveryManager: 'x@y.com' }, {}), 'Lead DM'), 'x@y.com', 'unmapped DM falls back to the email');
+      _assertEqual(projectPageFields(null, null).length, 5, 'null project does not throw');
+    },
+  },
+  {
+    name: 'N-364: every project name opens the Project page - projectNameLinkHtml, checklistNameHtml gone, redirects in place',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const code = f => _vendorStripJsComments(ALL_SOURCES[f]).join('\n');
+      const pages = code('pages.js');
+      _assertEqual(pages.indexOf('checklistNameHtml') === -1, true, 'checklistNameHtml is deleted and unreferenced in pages.js');
+      _assertEqual(/function projectNameLinkHtml\(p, pending\)\s*\{\s*if \(pending\) return escHtml\(p\.CustomerName\);/.test(pages), true, 'a pending row is plain text');
+      _assertEqual(pages.indexOf("act('openProjectPage.prevent', Number(p.id))") !== -1, true, 'a real row opens openProjectPage whether or not it has a checklist');
+      _assertEqual(pages.indexOf('projectNameLinkHtml(p, pending)') !== -1, true, 'projectRowHtml uses it');
+      _assertEqual(code('checklists.js').indexOf("if (recordType === 'project') return openProjectPage(id);") !== -1, true, "openChecklist('project') redirects to the Project page");
+      _assertEqual(code('app.js').indexOf("action === 'project' && page === 'projects'") !== -1, true, 'the action=project deep link is handled');
+      const pp = code('project-page.js');
+      _assertEqual(/_ckView|_ckBusy/.test(pp), false, 'project-page.js never touches checklist state directly');
+    },
   }
 );

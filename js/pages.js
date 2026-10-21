@@ -34,17 +34,16 @@ function checklistCellHtml(checklist, pending) {
   const title = s.reqTotal ? ` title="${s.reqDone} of ${s.reqTotal} required"` : "";
   return `<td class="checklist-cell"${title}>${s.done}/${s.total}</td>`;
 }
-// N-266a: a list-row name that opens the record's checklist when it has one.
-// Projects only since N-307 — role names always open the role page
-// (roleNameLinkHtml below), checklist or not.
-function checklistNameHtml(text, recordType, id, checklist, pending) {
-  if (pending || !checklist || checklist.mode === "none") return escHtml(text);
-  return `<a href="#" class="cell-link"${act('openChecklist.prevent', recordType, Number(id))}>${escHtml(text)}</a>`;
+// N-364: every project name opens the Project page (project-page.js), checklist
+// or not. A pending row has no real id yet, so it renders as plain text.
+function projectNameLinkHtml(p, pending) {
+  if (pending) return escHtml(p.CustomerName);
+  return `<a href="#" class="cell-link"${act('openProjectPage.prevent', Number(p.id))}>${escHtml(p.CustomerName)}</a>`;
 }
 function projectRowHtml(p, { dmDisplay, canEdit, pending = false, checklist = null, showChecklistCol = false } = {}) {
   return `
           <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ""}>
-            <td>${checklistNameHtml(p.CustomerName, "project", p.id, checklist, pending)}</td>
+            <td>${projectNameLinkHtml(p, pending)}</td>
             <td>${escHtml(dmDisplay)}</td>
             <td><span class="badge badge-${escAttr(p.Status?.toLowerCase())}">${escHtml(p.Status)}</span></td>
             <td>${spDateIn(p.StartDate) || "—"}</td>

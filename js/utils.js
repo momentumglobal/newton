@@ -888,6 +888,21 @@ function isProjectActive(project) {
   return project?.Status !== 'Completed';
 }
 
+// N-364: the Project page header, as ordered { label, value } plain strings
+// (project-page.js escapes them). Lead DM is Projects.DeliveryManager (D-5);
+// dmMap is email -> display name. Blank values read '—'.
+function projectPageFields(project, dmMap) {
+  const p  = project || {};
+  const dm = p.DeliveryManager ? String(p.DeliveryManager) : '';
+  return [
+    { label: 'Type',    value: p.ProjectType || '—' },
+    { label: 'Status',  value: p.Status || '—' },
+    { label: 'Start',   value: spDateIn(p.StartDate) || '—' },
+    { label: 'End',     value: spDateIn(p.EndDate) || '—' },
+    { label: 'Lead DM', value: dm ? ((dmMap && dmMap[dm.toLowerCase()]) || dm) : '—' },
+  ];
+}
+
 // N-356: 'current' for pickers that must exclude Transition as well as
 // Completed (User Assignments → Customer). Narrower than isProjectActive()
 // above — do not merge the two. 'Active' is the same literal getProjects(true)

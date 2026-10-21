@@ -29,6 +29,12 @@ function handleDeepLink() {
     // the filter has to be in place before that render fires, not after.
     setDashProjectFilter(params.get('projectId'));
   }
+  if (action === 'project' && page === 'projects') {
+    // N-364 — Project page deep link (#projects?action=project&id=N). Opens the
+    // page directly for the same reason as the checklist branch below.
+    openProjectPage(Number(params.get('id')));
+    return true;
+  }
   if (action === 'checklist' && (page === 'projects' || page === 'roles')) {
     // N-266a — checklist deep link (#projects?action=checklist&id=N). Opens
     // the checklist directly rather than navigateTo() + setTimeout like the

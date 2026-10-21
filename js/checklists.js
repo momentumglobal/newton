@@ -101,6 +101,8 @@ async function openChecklist(recordType, id) {
   // N-307: role checklists live on the role page (deep link, Copy link and
   // every other caller land there).
   if (recordType === 'role') return openRolePage(id);
+  // N-364: a project's checklist lives on the Project page (project-page.js).
+  if (recordType === 'project') return openProjectPage(id);
   const parent = _CK_PARENT[recordType];
   if (!parent || !canAccess(parent, _resolvedRole)) return;
   currentPage = parent;
@@ -204,6 +206,16 @@ async function loadRoleChecklistView(id) {
     return await _loadChecklistView('role', id);
   } catch (e) {
     console.warn('Role checklist load failed:', e);
+    return { error: true };
+  }
+}
+
+// N-364: the Project page's checklist — same contract as loadRoleChecklistView.
+async function loadProjectChecklistView(id) {
+  try {
+    return await _loadChecklistView('project', id);
+  } catch (e) {
+    console.warn('Project checklist load failed:', e);
     return { error: true };
   }
 }

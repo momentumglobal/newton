@@ -233,6 +233,11 @@
    --text-heading), Filled = the success pair, Cancelled = sunken surface +
    label text. All three pass 4.5:1 in light and dark. */
 .role-page { max-width: 1040px; }
+.project-page { max-width: 1040px; }
+.project-fields { display: flex; flex-wrap: wrap; gap: var(--sp-7) var(--sp-10); margin: 0 0 var(--sp-10); }
+.project-field { display: flex; flex-direction: column; gap: var(--sp-1); }
+.project-field-label { color: var(--text-label); font-size: var(--fs-13); }
+.project-field-value { color: var(--text-primary); }
 .role-page-section { margin: 0 0 var(--sp-10); }
 .role-page-section-title {
   margin: 0 0 var(--sp-4);

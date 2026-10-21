@@ -98,6 +98,55 @@ ASSERTIONS.push(
       _assertEqual(shouldAutoSignIn(), true, 'no argument');
     },
   },
+  // ── N-374: deep links survive a fresh sign-in ──
+  {
+    name: 'N-374 safeReturnTarget — keeps a same-site page + query + hash; rejects schemes, //, mobile/redirect pages, Microsoft responses, junk',
+    fn: function () {
+      const keep = {
+        'reporting.html#projects?action=project&id=5': 'reporting.html#projects?action=project&id=5',
+        'people.html': 'people.html',
+        '/newton/sales.html#forecast': 'sales.html#forecast',
+        'reporting.html?x=1#roles': 'reporting.html?x=1#roles',
+        'index.html#a': 'index.html#a',
+        '  reporting.html#roles  ': 'reporting.html#roles',
+      };
+      Object.keys(keep).forEach(k => _assertEqual(safeReturnTarget(k), keep[k], 'keeps ' + JSON.stringify(k)));
+      const bad = ['', '/', '/newton/', 'index.html', 'mobile.html', 'mobile.html#x', 'redirect.html', 'https://evil.example/x.html',
+        '//evil.example/x.html', 'javascript:alert(1)', 'reporting.html#code=abc', 'reporting.html?error=x', 'reporting.html#a&state=1',
+        '../x.html', 'reporting.html\\x', 'reporting.html#\u0007', 'notes.txt', 'a b.html', 'reporting.html#' + 'x'.repeat(600)];
+      bad.forEach(k => _assertEqual(safeReturnTarget(k), null, 'rejects ' + JSON.stringify(k.slice(0, 40))));
+      [null, undefined, 5, {}, ['reporting.html']].forEach(k => _assertEqual(safeReturnTarget(k), null, 'non-string ' + String(k)));
+      // Control: a legitimate deep link containing 'id=' / 'action=' is not mistaken for a Microsoft response.
+      _assertEqual(safeReturnTarget('reporting.html#roles?action=edit&id=9') !== null, true, 'action= / id= are fine');
+    },
+  },
+  {
+    name: 'N-374 sameReturnPage — page name against location.pathname; a trailing slash is index.html',
+    fn: function () {
+      _assertEqual(sameReturnPage('reporting.html#x', '/newton/reporting.html'), true, 'same page');
+      _assertEqual(sameReturnPage('reporting.html#x', '/newton/people.html'), false, 'different page');
+      _assertEqual(sameReturnPage('index.html#x', '/newton/'), true, 'site root is index.html');
+      _assertEqual(sameReturnPage('reporting.html', '/newton/'), false, 'root vs reporting');
+      _assertEqual(sameReturnPage('people.html?a=1#b', '/people.html'), true, 'query and hash ignored');
+    },
+  },
+  {
+    name: 'N-374 wiring — auth.js saves the return target before both loginRedirect calls and restores it; app.js guards the Home redirect',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const auth = _vendorStripJsComments(ALL_SOURCES['auth.js']).join('\n');
+      const calls = auth.split('msalInstance.loginRedirect(').length - 1;
+      const saved = auth.split('_authReturnSave();').length - 1;
+      _assertEqual(calls, 2, 'auth.js has exactly the two loginRedirect call sites');
+      _assertEqual(saved, 2, 'each is preceded by _authReturnSave()');
+      _assertEqual(/_authReturnSave\(\);\s*\n\s*try \{\s*\n\s*await msalInstance\.loginRedirect\(/.test(auth), true, 'automatic redirect saves first');
+      _assertEqual(/_authReturnSave\(\);\s*\n\s*await msalInstance\.loginRedirect\(/.test(auth), true, 'Sign-in button saves first');
+      _assertEqual(auth.indexOf('_authReturnRestore()') !== -1 && /_AUTH_RESPONSE_IN_HASH\.test\(window\.location\.hash\) && _authReturnRestore\(\)/.test(auth), true, 'restore runs once an account exists and no response is in the URL');
+      _assertEqual(_vendorStripJsComments(ALL_SOURCES['app.js']).join('\n').indexOf('if (freshLogin && !window.location.hash)') !== -1, true, 'app.js does not send a restored #link Home');
+    },
+  },
   // ── N-282 (SEC-2): no authorisation input is forgeable from storage ──
   {
     name: 'N-282 persistentLists — never contains an identity/access list (works under Node, unlike _ssEnabled)',

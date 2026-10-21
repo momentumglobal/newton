@@ -1315,6 +1315,40 @@ function shouldAutoSignIn({ hasAccount, triedThisTab, signedOut, authResponseInU
   return !hasAccount && !triedThisTab && !signedOut && !authResponseInUrl;
 }
 
+// N-374: the page + ?query + #hash a sign-in should return to. auth.js saves it
+// in sessionStorage before the Microsoft redirect and restores it afterwards.
+// Pure. Returns a same-site relative target ('reporting.html#projects?...') or
+// null when there is nothing worth keeping or it is unsafe: not a string, over
+// 500 chars, control characters, backslash, '..', a scheme or '//', a page that
+// isn't name.html, mobile.html (its own app-login routing), redirect.html (the
+// silent-token bridge), a Microsoft response (code= / error= / state= ...) in
+// the query or hash, or the bare site root / index.html with no hash.
+function safeReturnTarget(href) {
+  if (typeof href !== 'string') return null;
+  const s = href.trim();
+  if (!s || s.length > 500) return null;
+  if (/[\u0000-\u001f\u007f\\]/.test(s) || s.indexOf('..') !== -1) return null;
+  const m = /^([^?#]*)(\?[^#]*)?(#.*)?$/.exec(s);
+  if (!m) return null;
+  const path = m[1], query = m[2] || '', hash = m[3] || '';
+  if (path.indexOf('//') === 0 || !/^[A-Za-z0-9_\-\/.]*$/.test(path)) return null;
+  if (/[?#&](code|error|error_description|state|id_token|client_info)=/.test(query + hash)) return null;
+  const seg  = path.split('/').pop();
+  const page = seg === '' ? 'index.html' : seg;
+  if (!/^[A-Za-z0-9_-]+\.html$/.test(page)) return null;
+  if (page === 'mobile.html' || page === 'redirect.html') return null;
+  if (page === 'index.html' && !query && !hash) return null;
+  return page + query + hash;
+}
+
+// N-374: is a safeReturnTarget() result on the page the browser is already on?
+// pathname is location.pathname; a trailing slash means index.html.
+function sameReturnPage(target, pathname) {
+  const targetPage = String(target || '').split(/[?#]/)[0];
+  const current    = String(pathname || '').split('/').pop() || 'index.html';
+  return targetPage === current;
+}
+
 // ── Fuzzy search (N-144) ─────────────────────────────────────────
 // Case-insensitive subsequence match: every character of `query` must
 // appear in `text`, in order (not necessarily contiguous). Returns a

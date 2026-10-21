@@ -89,7 +89,7 @@ window.APP = {
     const user = getCurrentUser();
     // Resolve full role from SharePoint on login — stored in _resolvedRole for the session
   _resolvedRole = await getEffectiveRole(user.email);
-    if (freshLogin) {
+    if (freshLogin && !window.location.hash) {   // N-374: a restored #link must not be sent Home
       // If this session is the mobile app, return to mobile.html after the
       // login round-trip instead of the desktop home.
       var isAppLogin = false;

@@ -37,6 +37,36 @@ const loginRequest = {
 const AUTH_FLAG_AUTO_SIGNIN_TRIED = 'newton_autosignin_tried';
 const AUTH_FLAG_SIGNED_OUT        = 'newton_signed_out';
 
+// N-374: the page + #link that started a sign-in. Saved just before the
+// Microsoft redirect, restored (once) when an account exists, so a Copy link
+// opened in a new tab lands on that page, not Home. Validated on both sides by
+// safeReturnTarget() (utils.js). Best-effort like the flags above.
+const AUTH_RETURN_KEY = 'newton_return_to';
+
+function _authReturnSave() {
+  try {
+    const t = safeReturnTarget(window.location.pathname + window.location.search + window.location.hash);
+    if (t) sessionStorage.setItem(AUTH_RETURN_KEY, t);
+  } catch (e) { /* storage blocked: sign-in lands on Home, as before */ }
+}
+
+// True when it has started navigating to another page (the caller must then
+// never resolve). On the same page it only restores the #link and returns false.
+function _authReturnRestore() {
+  let t = null;
+  try {
+    t = safeReturnTarget(sessionStorage.getItem(AUTH_RETURN_KEY));
+    sessionStorage.removeItem(AUTH_RETURN_KEY);
+  } catch (e) { return false; }
+  if (!t) return false;
+  if (sameReturnPage(t, window.location.pathname)) {
+    try { window.history.replaceState(null, '', t); } catch (e) { /* ignore */ }
+    return false;
+  }
+  window.location.replace(t);
+  return true;
+}
+
 function _authFlagGet(key) {
   try { return sessionStorage.getItem(key) === '1'; } catch (e) { return false; }
 }
@@ -101,6 +131,9 @@ async function _authBootstrap() {
   if (msalInstance.getAllAccounts().length > 0) {
     _authFlagSet(AUTH_FLAG_AUTO_SIGNIN_TRIED, false);
     _authFlagSet(AUTH_FLAG_SIGNED_OUT, false);
+    // N-374: back to the page + #link that started sign-in. Skipped only while a
+    // Microsoft response is still in the URL (MSAL clears it in the call above).
+    if (!_AUTH_RESPONSE_IN_HASH.test(window.location.hash) && _authReturnRestore()) return _authNeverResolves();
     return response;
   }
 
@@ -118,6 +151,7 @@ async function _authBootstrap() {
     authResponseInUrl: hadResponse,
   })) {
     _authFlagSet(AUTH_FLAG_AUTO_SIGNIN_TRIED, true);
+    _authReturnSave();   // N-374
     try {
       await msalInstance.loginRedirect(loginRequest);
     } catch (e) {
@@ -132,6 +166,7 @@ async function _authBootstrap() {
 async function signIn() {
   _authFlagSet(AUTH_FLAG_SIGNED_OUT, false);
   await msalInstance.initialize(); // no-op once authReady() has run
+  _authReturnSave();   // N-374
   await msalInstance.loginRedirect(loginRequest);
 }
 

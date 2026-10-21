@@ -61,6 +61,26 @@ function roleCan(role, cap, cfg = CONFIG) {
   return Array.isArray(roles) && roles.includes(role);
 }
 
+// N-365 (PT-5): pure. Admin / Leadership / People Ops (capability projectTeamEdit)
+// see every project on the Projects list and the Project page, whatever
+// getUserProjectIds returns for them.
+function seesAllProjects(role, cfg = CONFIG) {
+  return roleCan(role, 'projectTeamEdit', cfg);
+}
+
+// N-365 (PT-5, D-1): pure. Can `role` edit project `projectId`'s Project Team
+// (add / edit / delete members, rates and fees, Lead DM)? projectTeamEdit roles:
+// any project. A Delivery Manager: only a project in their own scope
+// (`userProjectIds` from getUserProjectIds — null = all). The D-2 write window
+// (assignment end + 14 days) is N-369, not this check.
+function canEditProjectTeam(role, projectId, userProjectIds, cfg = CONFIG) {
+  if (seesAllProjects(role, cfg)) return true;
+  if (role !== cfg.ROLE_IDS.DELIVERY_MANAGER) return false;
+  const id = Number(projectId);
+  if (!Number.isInteger(id) || id <= 0) return false;
+  return userProjectIds === null || (Array.isArray(userProjectIds) && userProjectIds.includes(String(id)));
+}
+
 // N-332: pure. Is `role` an Engagement survey respondent role
 // (CONFIG.SURVEY_RESPONDENT_ROLES)? Used for survey.html access and the home
 // survey widget. Missing / unknown role or config → false.

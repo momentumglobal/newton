@@ -182,9 +182,20 @@
         <span class="role-badge admin">Admin</span>
         <span class="role-badge dm">Delivery Manager</span>
         <span class="role-badge tp">Talent Partner</span>
+        <span class="role-badge leadership">Leadership</span>
+        <span class="role-badge leadership">People Ops</span>
       </div>
-      <p>Lists all projects you have access to, showing the customer name, status (Active / Transition / Completed), and start date. Admins and Delivery Managers can add new projects and edit existing ones using the buttons in the table.</p>
-      <p>Click a project name to open its <strong>Project page</strong>: type, status, start and end dates, the Delivery Manager and, when the project has one, its checklist. Use <strong>Copy link</strong> to share the page and <strong>Edit project</strong> (Admins and Delivery Managers) to change its details.</p>
+      <p>Lists all projects you have access to, showing the customer name, status (Active / Transition / Completed), and start date. Leadership and People Ops see every project. Admins and Delivery Managers can add new projects and edit existing ones using the buttons in the table.</p>
+      <p>Click a project name to open its <strong>Project page</strong>: type, status, start and end dates, the Lead DM, the <strong>Project Team</strong> and, when the project has one, its checklist. Use <strong>Copy link</strong> to share the page and <strong>Edit project</strong> (Admins and Delivery Managers) to change its details. The project form no longer has a Delivery Manager field — set the Lead DM from the Project Team.</p>
+      <h3>Project Team</h3>
+      <p>Everyone on the project: name, level, start and end dates, status (Current, Upcoming, Forecast or Ended) and whether they are billed. Admins, Leadership, People Ops and the project's Delivery Managers can change the team; everyone else sees it read-only and never sees rates.</p>
+      <ul>
+        <li><strong>+ Add member</strong> — pick a person, set start and end dates, country, billed and the rate (or retainer and placement fee for Exec Search / MG AI). Internal staff can only be added to the internal project and are never billed. If no Newton login matches the person they still appear on the team, marked <em>No login</em>.</li>
+        <li><strong>Edit</strong> — change dates, billed, rates, country or the forecast flag. To swap the person, delete the row and add the right person.</li>
+        <li><strong>Delete</strong> — removes the assignment (for mistakes; to end someone's time on the project, edit their end date).</li>
+        <li><strong>Make Lead DM / Remove Lead DM</strong> — one Delivery Manager on the team is the project's Lead DM; it shows in the page header and the Projects list.</li>
+      </ul>
+      <p>Newton warns before saving dates that overlap another of the person's confirmed assignments, and before ending or removing a Talent Partner who still owns open roles on the project. Every save updates that person's bench records automatically.</p>
       <div class="tip">Project status drives what appears in the Company Dashboard — only Active projects count toward the Active Projects KPI.</div>
     </div>
     <div class="guide-section" id="roles-page">

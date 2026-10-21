@@ -101,6 +101,10 @@ const CONFIG = {
     engagementResults: ['admin', 'leadership', 'people_ops'], // Export Results, survey-closing notice
     engagementAdmin:   ['admin', 'people_ops'],               // Activate Run, Manage Template, Close Run
     salesManage:       ['admin', 'leadership', 'sales'],      // all LCI models, + New Model, assign DM
+    // N-365 (PT-5, D-1): edit ANY project's Project Team (incl. rates / fees) and see
+    // every project on Projects + the Project page. A DM edits only projects in their
+    // own scope (canEditProjectTeam, permissions.js).
+    projectTeamEdit:   ['admin', 'leadership', 'people_ops'],
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
@@ -973,7 +977,7 @@ const CONFIG = {
   // N-331: People Ops get the whole People module; Sales and Staff reach
   // the Org Chart only (people-router.js).
   OS_MODULES: [
-    { key: 'reporting', name: 'Reporting',        icon: 'bar-chart-2', desc: 'Solutions Hub Reporting & Pipeline Analytics', homeOrder: 1,  href: 'reporting.html',        live: true, roles: ['admin','delivery_manager','talent_partner','leadership'] },
+    { key: 'reporting', name: 'Reporting',        icon: 'bar-chart-2', desc: 'Solutions Hub Reporting & Pipeline Analytics', homeOrder: 1,  href: 'reporting.html',        live: true, roles: ['admin','delivery_manager','talent_partner','leadership','people_ops'] },
     { key: 'marketing', name: 'Market Analytics', icon: 'brain', desc: 'Customer Market Reports & Placement Analytics', homeOrder: 4,        href: 'market-reporting.html', live: true, roles: ['admin','delivery_manager','talent_partner'] },
     { key: 'people',    name: 'People',           icon: 'users', desc: 'Headcount, Utilisation & Workforce Planning', homeOrder: 2,        href: 'people.html',           live: true, roles: ['admin','leadership','people_ops','sales','delivery_manager','talent_partner','staff'] },
     // NOTE: Sales is visible to DMs for the LCI Cost Models page only.
@@ -1014,7 +1018,7 @@ const CONFIG = {
     { key: 'companyDashboard', label: 'Company Dashboard', module: 'reporting', href: 'reporting.html#companyDashboard', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
     { key: 'projectDashboard', label: 'Project Dashboard',  module: 'reporting', href: 'reporting.html#projectDashboard',  roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
     { key: 'reportBuilder',    label: 'Report Library',     module: 'reporting', href: 'reporting.html#reportBuilder',     roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
-    { key: 'projects',         label: 'Projects',           module: 'reporting', href: 'reporting.html#projects',          roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
+    { key: 'projects',         label: 'Projects',           module: 'reporting', href: 'reporting.html#projects',          roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     { key: 'roles',            label: 'Roles',              module: 'reporting', href: 'reporting.html#roles',             roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
     { key: 'activity',         label: 'Weekly Activity',    module: 'reporting', href: 'reporting.html#activity',          roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
     { key: 'placements',       label: 'Placements',         module: 'reporting', href: 'reporting.html#placements',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },

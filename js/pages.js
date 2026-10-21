@@ -158,7 +158,8 @@ async function renderProjectsPage(filter, pendingItem = null) {
   const role = _resolvedRole;
   const user = getCurrentUser();
   let [projects, dmMap, ckCtx] = await Promise.all([
-    getScopedProjects(user.email, false),
+    // N-365 (S-1): Admin / Leadership / People Ops see every project.
+    seesAllProjects(role) ? getProjects(false) : getScopedProjects(user.email, false),
     getTalentPartnerDisplayMap(),
     getChecklistListContext("project"),   // N-266a — null = render as before
   ]);
@@ -209,14 +210,14 @@ async function renderProjectsPage(filter, pendingItem = null) {
   `;
   lucide.createIcons();
 }
+// N-365 (D-5): the Project form has no Delivery Manager picker — the Lead DM
+// is set from the Project Team on the Project page.
 async function showAddProjectForm() {
   document.getElementById("main-content").innerHTML = renderProjectForm();
-  loadDeliveryManagersForProject('');
 }
 async function showEditProjectForm(id) {
   const data = await getItem("Projects", id);
   document.getElementById("main-content").innerHTML = renderProjectForm(data);
-  loadDeliveryManagersForProject(data.DeliveryManager);
 }
 // ── Roles ─────────────────────────────────────────────────────────────
 let _rolesFilter    = "Active";

@@ -76,8 +76,11 @@ ASSERTIONS.push(
       ['people_ops', 'sales', 'staff'].forEach(r => _assertEqual(mod('people').includes(r), true, 'People module has ' + r));
       _assertEqual(mod('sales').includes('sales'), true, 'Sales module has sales');
       ['people_ops', 'staff'].forEach(r => _assertEqual(mod('sales').includes(r), false, 'Sales module excludes ' + r));
-      ['reporting', 'marketing', 'command'].forEach(k => ['people_ops', 'sales', 'staff'].forEach(r =>
+      ['marketing', 'command'].forEach(k => ['people_ops', 'sales', 'staff'].forEach(r =>
         _assertEqual(mod(k).includes(r), false, k + ' excludes ' + r)));
+      // N-365 (PT-5): People Ops reach Reporting for the Projects page (Project Team edits).
+      _assertEqual(mod('reporting').includes('people_ops'), true, 'reporting has people_ops (N-365)');
+      ['sales', 'staff'].forEach(r => _assertEqual(mod('reporting').includes(r), false, 'reporting excludes ' + r));
     },
   },
   {
@@ -90,6 +93,7 @@ ASSERTIONS.push(
         engagementResults: ['admin', 'leadership', 'people_ops'],
         engagementAdmin:   ['admin', 'people_ops'],
         salesManage:       ['admin', 'leadership', 'sales'],
+        projectTeamEdit:   ['admin', 'leadership', 'people_ops'],   // N-365
       };
       _assertEqual(Object.keys(CONFIG.ROLE_CAPABILITIES).sort(), Object.keys(expect).sort(), 'capability set');
       Object.keys(expect).forEach(cap => roles.forEach(r =>
@@ -364,7 +368,7 @@ ASSERTIONS.push(
       companyDashboard: ['admin', 'leadership'],
       projectDashboard: ['admin', 'delivery_manager', 'talent_partner'],
       reportBuilder: ['admin', 'delivery_manager', 'talent_partner'],
-      projects: ['admin', 'delivery_manager', 'talent_partner'],
+      projects: ['admin', 'delivery_manager', 'leadership', 'people_ops', 'talent_partner'],
       roles: ['admin', 'delivery_manager', 'talent_partner'],
       activity: ['admin', 'delivery_manager', 'talent_partner'],
       placements: ['admin', 'delivery_manager', 'talent_partner'],

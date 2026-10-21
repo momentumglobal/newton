@@ -1,4 +1,4 @@
-// tests/assert-revenue.js — computeMonthlyRows, split-fee, assignmentRateLabel, person-based utilisation, revenue/utilisation RAG, _sbaComputeChanges.
+// tests/assert-revenue.js — computeMonthlyRows, split-fee, assignmentRateLabel, person-based utilisation, revenue/utilisation RAG, ptComputeBenchChanges (was _sbaComputeChanges).
 // N-353 split of the former single-array tests/assertions.js. Loads AFTER tests/assertions.js
 // (which declares ASSERTIONS and the shared helpers) and pushes this domain's entries into it.
 // Entries are unchanged from the pre-split file; names are referenced by CI logs and QA docs.
@@ -402,18 +402,19 @@ ASSERTIONS.push(
     },
   },
   {
-    // N-329: people-tracker.js is DOM-bound and not loaded by run.js, so the
-    // pure _sbaComputeChanges is lifted out of its source text and run here.
-    name: 'N-329: _sbaComputeChanges — a forecast assignment is not cover (bench row kept / recreated under it); no-forecast output unchanged',
+    // N-329, moved by N-365: the pure bench computation now lives in
+    // project-team.js (loaded by run.js) as ptComputeBenchChanges, so it is
+    // called directly. The positive control patches a copy of its source.
+    name: 'N-329: ptComputeBenchChanges — a forecast assignment is not cover (bench row kept / recreated under it); no-forecast output unchanged',
     fn: function () {
-      if (typeof ALL_SOURCES === 'undefined' || !ALL_SOURCES['people-tracker.js']) {
+      if (typeof ALL_SOURCES === 'undefined' || !ALL_SOURCES['project-team.js']) {
         _skip('Source extraction needs filesystem access — runs under node tests/run.js, not in the browser runner.');
       }
-      const pt = ALL_SOURCES['people-tracker.js'];
-      const a = pt.indexOf('function _sbaComputeChanges(');
-      const b = pt.indexOf('async function _syncBenchAssignments');
-      _assertEqual(a > -1 && b > a, true, '_sbaComputeChanges source located');
-      const sba = new Function(pt.slice(a, b) + '\nreturn _sbaComputeChanges;')();
+      const src = String(ptComputeBenchChanges);
+      _assertEqual(src.indexOf('function ptComputeBenchChanges(') === 0, true, 'ptComputeBenchChanges source located');
+      _assertEqual(/function\s+_sbaComputeChanges\s*\(/.test(ALL_SOURCES['people-tracker.js'] || ''), false, 'no second copy left in people-tracker.js');
+      _assertEqual(/ptComputeBenchChanges\(people, assignments\)/.test(ALL_SOURCES['people-tracker.js'] || ''), true, 'Sync Bench calls ptComputeBenchChanges');
+      const sba = ptComputeBenchChanges;
       const today = new Date(Date.UTC(2026, 5, 15));
       const people = [{ EmployeeName: 'Ann', Level: 'TP', IsActive: true, StartDate: '2026-01-01', Location: 'UK' }];
       const row = (id, s, e, x) => Object.assign({ id: id, EmployeeName: 'Ann', Customer: 'Acme', StartDate: s, EndDate: e }, x || {});
@@ -449,10 +450,12 @@ ASSERTIONS.push(
       _assertEqual(r5.toDelete, ['z'], 'inactive person cleanup unchanged');
 
       // 6. source guard: the cover filter excludes forecasts
-      const cover = pt.slice(pt.indexOf('const customerAssignments = assignments'), pt.indexOf('.map(a => ({', pt.indexOf('const customerAssignments = assignments')));
+      const cover = src.slice(src.indexOf('const customerAssignments = assignments'), src.indexOf('.map(a => ({', src.indexOf('const customerAssignments = assignments')));
       _assertEqual(/isForecastAssignment\(a\)/.test(cover), true, 'cover filter contains isForecastAssignment');
       // positive control: with the exclusion removed, case 1 must FAIL (the test can see the bug)
-      const old = new Function(pt.slice(a, b).replace('!isForecastAssignment(a) &&', '') + '\nreturn _sbaComputeChanges;')();
+      const patched = src.replace('!isForecastAssignment(a) &&', '');
+      _assertEqual(patched !== src, true, 'control: the exclusion text was found and removed');
+      const old = new Function(patched + '\nreturn ptComputeBenchChanges;')();
       _assertEqual(old(people, base, today).toCreate.length, 0, 'control: pre-fix logic creates no bench row under a forecast');
     },
   }

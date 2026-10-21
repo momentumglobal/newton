@@ -286,6 +286,14 @@
 .hc-status--filled    { background: var(--status-success-bg); color: var(--status-success); }
 .hc-status--cancelled { background: var(--surface-sunken);    color: var(--text-label); }
 
+/* ── Project Team section (N-365) ──────────────────────────────────────
+   project-page.js. Reuses the Headcount section's table / panel rules
+   (.role-hc-*). Ended members read in label text (passes 4.5:1, see above);
+   the read-only Person field in edit mode uses the sunken surface. */
+.pp-team-table .checklist-tag { margin-left: var(--sp-3); }
+.pp-member--ended td { color: var(--text-label); }
+.pp-readonly { background: var(--surface-sunken); cursor: default; }
+
 /* ── Checklists — Config Panel editor (N-266b) ─────────────────────────
    Neutral, like the checklist page (N-257). Muted text uses --text-label,
    not --text-muted: --text-muted on --surface is under 4.5:1 in light mode.

@@ -24,12 +24,6 @@ function renderProjectForm(existingData = null) {
             value="${escAttr(existingData?.CustomerName || '')}">
         </div>
         <div class="form-group">
-          <label>Delivery Manager</label>
-          <select name="DeliveryManager" id="project-dm-select">
-            <option value="">-- Unassigned --</option>
-          </select>
-        </div>
-        <div class="form-group">
           <label>Status *</label>
           <select name="Status" required>
             <option value="Active" ${existingData?.Status === 'Active' ? 'selected' : ''}>Active</option>
@@ -78,9 +72,10 @@ async function submitProjectForm(event, editId = null) {
   const btn  = form.querySelector('[type=submit]');
   setButtonLoading(btn);
   const data = Object.fromEntries(new FormData(form));
+  // N-365 (D-5): no Delivery Manager field — the Lead DM is set from the Project
+  // Team on the Project page, and an edit here must never clear it.
   const fields = {
     Title:           data.CustomerName,
-    DeliveryManager: data.DeliveryManager,
     Status:          data.Status,
     ProjectType:     data.ProjectType,
     StartDate:       isoDate(data.StartDate) || undefined,
@@ -112,20 +107,6 @@ async function submitProjectForm(event, editId = null) {
     await renderProjectsPage(_projectsFilter);
   } catch (e) {
     // optimisticWrite() already reverted the view and showed a Retry toast.
-  }
-}
-async function loadDeliveryManagersForProject(selectedEmail) {
-  const select = document.getElementById('project-dm-select');
-  if (!select) return;
-  try {
-    const users = await getAllAssignableUsers();
-    const sel = (selectedEmail || '').toLowerCase();
-    select.innerHTML = '<option value="">-- Unassigned --</option>' +
-      users.map(u => `<option value="${escAttr(u.UserEmail)}" ${
-        u.UserEmail?.toLowerCase() === sel ? 'selected' : ''
-      }>${escHtml(u.UserName || u.UserEmail)}</option>`).join('');
-  } catch (e) {
-    select.innerHTML = '<option value="">-- Error loading team --</option>';
   }
 }
 // ── Rejected Offer Form ──────────────────────────────────────────────

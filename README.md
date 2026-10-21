@@ -10,7 +10,7 @@ Newton is a static web application hosted on GitHub Pages, with Microsoft Azure 
 
 | Module | File | Access |
 |---|---|---|
-| Reporting | `reporting.html` | Admin, Delivery Manager, Talent Partner, Leadership |
+| Reporting | `reporting.html` | Admin, Delivery Manager, Talent Partner, Leadership; People Ops (Projects only, N-365) |
 | Market Analytics | `market-reporting.html` | Admin, Delivery Manager, Talent Partner |
 | People | `people.html` | Admin, Leadership, Delivery Manager |
 | Sales | `sales.html` | Admin, Leadership; Delivery Manager (LCI Cost Models only) |

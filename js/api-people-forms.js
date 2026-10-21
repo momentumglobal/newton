@@ -1,27 +1,10 @@
-// Assignment-edit and GP-invoice-write SharePoint API calls.
+// GP-invoice-write SharePoint API calls.
 // Extracted from api.js by N-237b — single-consumer functions used only by
 // people-forms.js (people.html). Depends on createItem/updateItem, defined
 // in graph-client.js (loads first, see script order). createAssignment/updateInvoice
 // stay in api.js — multi-consumer (people-forms.js + people-tracker.js /
-// people-invoices.js).
-
-async function updateAssignment(id, fields) {
-  const payload = {};
-  if (fields.AssignmentID    !== undefined) payload.Title           = fields.AssignmentID;
-  if (fields.EmployeeName    !== undefined) payload.EmployeeName    = fields.EmployeeName;
-  if (fields.Level           !== undefined) payload.Level           = fields.Level;
-  if (fields.Customer        !== undefined) payload.Customer        = fields.Customer;
-  if (fields.ProjectType     !== undefined) payload.ProjectType     = fields.ProjectType;
-  if (fields.StartDate       !== undefined) payload.StartDate       = fields.StartDate;
-  if (fields.EndDate         !== undefined) payload.EndDate         = fields.EndDate;
-  if (fields.MonthlyBillRate !== undefined) payload.MonthlyBillRate = fields.MonthlyBillRate;
-  if (fields.RetainerFee     !== undefined) payload.RetainerFee     = fields.RetainerFee;
-  if (fields.PlacementFee    !== undefined) payload.PlacementFee    = fields.PlacementFee;
-  if (fields.Billed          !== undefined) payload.Billed          = fields.Billed;
-  if (fields.Country         !== undefined) payload.Country         = fields.Country;
-  if (fields.IsForecast      !== undefined) payload.IsForecast      = fields.IsForecast;
-  return updateItem("Assignments", id, payload);
-}
+// people-invoices.js). updateAssignment moved back to api.js in N-365 (the
+// Project Team on reporting.html writes it too).
 
 async function createInvoice(fields) {
   return createItem("GPInvoices", {

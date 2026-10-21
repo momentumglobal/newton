@@ -17,7 +17,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   const userRole = await getEffectiveRole(email);
   const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
   const isTalentPartner = userRole === 'talent_partner';
-  const projects = await getScopedProjects(email, false);
+  const projects = dashboardProjects(await getScopedProjects(email, false));   // N-362
   const lockProject = isTalentPartner && projects.length === 1;
   // N-308 S-4: Placements has no ProjectID — an edit takes its project from
   // the placement's role. A failed read leaves the project unselected.

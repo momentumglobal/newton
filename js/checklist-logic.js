@@ -60,6 +60,13 @@ function checklistVariantForProjectType(projectType) {
   return CONFIG.CHECKLISTS.DEFAULT_VARIANT;
 }
 
+// N-362: LCI / Transformation projects collect no recruitment data and have no
+// checklist (nor N-259 starter pack). Every checklist entry point gates on this;
+// checklistVariantForProjectType() is never reached for them. Blank type → true.
+function projectHasChecklist(projectType) {
+  return !isNoDashboardType(projectType);
+}
+
 // Active template items for one record type + variant (unordered — see
 // groupChecklistItems for display order).
 function activeChecklistItems(templates, recordType, variant) {

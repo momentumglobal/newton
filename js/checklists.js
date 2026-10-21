@@ -26,7 +26,8 @@
 //   run(ctx) → Promise<boolean> — resolve true to tick the item
 // ctx = { recordType, record, project, role, email }. record/project are the
 // normalised SharePoint items (for a project checklist, project === record).
-// N-259 / N-260 register their "Create starter folder" flows here.
+// N-259 / N-260 register their "Create starter folder" flows here. N-362: their
+// `available(ctx)` must also require projectHasChecklist(ctx.project?.ProjectType).
 const CHECKLIST_ACTIONS = {
   'newton.test': {
     label:       'Test action',
@@ -82,6 +83,7 @@ async function getChecklistListContext(recordType) {
 // (Projects) or the parent project's type (Roles).
 function checklistCellData(ctx, record, projectType) {
   if (!ctx || !record) return { mode: 'none', summary: null };
+  if (!projectHasChecklist(projectType)) return { mode: 'none', summary: null };   // N-362
   const variant = resolveChecklistVariant(ctx.templates, ctx.recordType, projectType);
   const items   = activeChecklistItems(ctx.templates, ctx.recordType, variant);
   const mode    = checklistMode({ settings: ctx.settings, isAdmin: ctx.isAdmin, recordId: record.id, hasItems: items.length > 0 });
@@ -168,6 +170,7 @@ async function _loadChecklistView(recordType, id) {
   if (!record) return null;
   const projectId = recordType === 'project' ? record.id : (record.ProjectIDLookupId || record.ProjectID);
   if (userProjectIds !== null && !userProjectIds.includes(String(projectId))) return null;
+  if (!projectHasChecklist(project ? project.ProjectType : '')) return null;   // N-362
 
   const settings = settingsAll[recordType];
   const variant  = resolveChecklistVariant(templates, recordType, project ? project.ProjectType : '');

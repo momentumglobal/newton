@@ -23,7 +23,7 @@ async function mobileRenderAddRole(main) {
     const canAssign = ['admin', 'delivery_manager'].includes(_mobileRole);
     const isTP      = _mobileRole === 'talent_partner';
 
-    const projects = await getScopedProjects(email, false);
+    const projects = dashboardProjects(await getScopedProjects(email, false));   // N-362
     const lockProject = isTP && projects.length === 1;
 
     // N-112: only Active/Transition projects are selectable when adding a new role

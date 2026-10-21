@@ -250,7 +250,7 @@ async function renderAssignmentForm(existingData = null) {
           <div class='form-group'>
             <label>Project Type *</label>
             <select name='ProjectType' required${actOn('change', '_onAssignmentTypeChange')}>
-              ${CONFIG.ASSIGNMENT_PROJECT_TYPES.map(t =>
+              ${CONFIG.PROJECT_TYPES.map(t =>
                 `<option value='${escAttr(t)}' ${
                   existingData?.ProjectType===t?'selected':''
                 }>${escHtml(t)}</option>`

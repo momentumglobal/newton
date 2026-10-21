@@ -40,7 +40,7 @@ async function _roleFormContext(existingData, preselectedProjectId, isDuplicate)
   const userRole = await getEffectiveRole(email);
   const canAssign = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
   const isTalentPartner = userRole === 'talent_partner';
-  const projects = await getScopedProjects(email, false);
+  const projects = dashboardProjects(await getScopedProjects(email, false));   // N-362
   const lockProject = isTalentPartner && projects.length === 1;
   const selectedProjectId = existingData?.ProjectIDLookupId ?? existingData?.ProjectID ?? preselectedProjectId ?? '';
   // N-112: only Active/Transition projects are selectable; a Completed project

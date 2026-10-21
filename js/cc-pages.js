@@ -248,7 +248,8 @@ function _ccHealthCardsHTML(data) {
   const liveAssigns = assigns.filter(a => a.StartDate && a.EndDate &&
     new Date(a.StartDate) <= now && new Date(a.EndDate) >= now);
   // N-333: no card for the internal project, even if an Assignment names it.
-  const internalNames = new Set((data.allProjects || []).filter(p => isInternalProject(p)).map(p => p.CustomerName));
+  // N-362: nor for a no-dashboard project (matched by CustomerName).
+  const internalNames = new Set((data.allProjects || []).filter(p => isKpiExcludedProject(p)).map(p => p.CustomerName));
   const customers = [...new Set(liveAssigns.map(a => a.Customer).filter(c => c && !internalNames.has(c)))].sort();
 
   if (!customers.length) return '<p class="no-data">No live projects found.</p>';

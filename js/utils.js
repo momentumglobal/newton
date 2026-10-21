@@ -958,15 +958,51 @@ function isInternalProject(p) {
   return !!p && p.ProjectType === CONFIG.PROJECT_TYPE_INTERNAL;
 }
 
-// Set of String(project id) for every internal project, archived included.
-function internalProjectIdSet(projects) {
-  return new Set((projects || []).filter(isInternalProject).map(p => String(p.id)));
+// ── No-dashboard project types (N-362, D-4) ──────────────────────
+// LCI and Transformation are Projects with no Project Dashboard.
+// CONFIG.NO_DASHBOARD_PROJECT_TYPES is read ONLY here; every other file asks
+// one of these helpers (tests/lint-project-types.js fails on a direct compare).
+// String-level, so it also works on an Assignments.ProjectType value that has
+// no Projects row yet.
+function isNoDashboardType(type) {
+  return !!type && CONFIG.NO_DASHBOARD_PROJECT_TYPES.includes(type);
 }
 
-// Set of String(role id) whose project is internal. Role → project is
+function isNoDashboardProject(p) {
+  return !!p && isNoDashboardType(p.ProjectType);
+}
+
+// Excluded from company KPIs, benchmarks, RAG and Snapshots: the internal
+// project (own dashboard, never a company figure) or a no-dashboard project.
+// Org Chart uses isInternalProject() alone — LCI / Transformation projects
+// belong there.
+function isKpiExcludedProject(p) {
+  return isInternalProject(p) || isNoDashboardProject(p);
+}
+
+// Project pickers (role / activity / placement forms, Project Dashboard,
+// Report Builder project scope): drops no-dashboard projects. Apply BEFORE
+// any "only one project → lock the picker" test.
+function dashboardProjects(projects) {
+  return (projects || []).filter(p => !isNoDashboardProject(p));
+}
+
+// Sales Forecast type dropdown: every type that can be forecast, i.e. not
+// no-dashboard and not Internal. A fresh array each call.
+function salesForecastTypes() {
+  return CONFIG.PROJECT_TYPES.filter(t => !isNoDashboardType(t) && t !== CONFIG.PROJECT_TYPE_INTERNAL);
+}
+
+// Set of String(project id) for every KPI-excluded project (internal or
+// no-dashboard), archived included.
+function kpiExcludedProjectIdSet(projects) {
+  return new Set((projects || []).filter(isKpiExcludedProject).map(p => String(p.id)));
+}
+
+// Set of String(role id) whose project is KPI-excluded. Role → project is
 // ProjectIDLookupId || ProjectID, as dashboard-company.js and the Snapshots writer.
-function internalRoleIdSet(roles, projects) {
-  const pids = internalProjectIdSet(projects);
+function kpiExcludedRoleIdSet(roles, projects) {
+  const pids = kpiExcludedProjectIdSet(projects);
   if (!pids.size) return new Set();
   return new Set((roles || [])
     .filter(r => r && pids.has(String(r.ProjectIDLookupId || r.ProjectID)))
@@ -990,7 +1026,8 @@ const _INTERNAL_ROW_ROLE_ID = {
 // placements, rejections, stageRows, headcount, historical. `ctx.projects` =
 // every Projects row (getProjects(false)) — required; `ctx.roles` = the FULL
 // role list used to map rows to projects (defaults to data.roles).
-// Returns a NEW object, same keys, internal-project rows removed; null /
+// Returns a NEW object, same keys, internal- and no-dashboard-project rows removed
+// (N-362: the name stays, 15+ call sites and the lint list use it); null /
 // undefined values pass through (degraded reads). With no internal project the
 // input arrays come back as-is (no copy). Never mutates its inputs. An unknown
 // key, a missing ctx.projects, or role-keyed rows with no roles to map them
@@ -1011,24 +1048,27 @@ function excludeInternalProjectData(data, ctx = {}) {
     throw new Error('excludeInternalProjectData: role-keyed rows need ctx.roles or data.roles');
   }
   const out  = {};
-  const pids = internalProjectIdSet(ctx.projects);
+  const pids = kpiExcludedProjectIdSet(ctx.projects);
   if (!pids.size) { keys.forEach(k => { out[k] = src[k]; }); return out; }
-  const rids = internalRoleIdSet(roles, ctx.projects);
+  const rids = kpiExcludedRoleIdSet(roles, ctx.projects);
   keys.forEach(k => {
     const rows = src[k];
     if (rows == null) { out[k] = rows; return; }
-    if (k === 'projects')   out[k] = rows.filter(p => !isInternalProject(p));
+    if (k === 'projects')   out[k] = rows.filter(p => !isKpiExcludedProject(p));
     else if (k === 'roles') out[k] = rows.filter(r => !(r && pids.has(String(r.ProjectIDLookupId || r.ProjectID))));
     else                    out[k] = rows.filter(r => !(r && rids.has(String(_INTERNAL_ROW_ROLE_ID[k](r)))));
   });
   return out;
 }
 
-// Project form Project Type options (N-333): PROJECT_TYPES plus Internal.
-// PROJECT_TYPES itself stays narrow — it also feeds the Sales Forecast type
-// dropdown, which must never offer Internal.
-function projectFormTypes() {
-  return [...CONFIG.PROJECT_TYPES, CONFIG.PROJECT_TYPE_INTERNAL];
+// Project form Project Type options (N-333, N-362): every type except the
+// no-dashboard ones, which only the N-363 migration creates (dormant). Editing
+// a project that already has a no-dashboard type passes it as `currentType` so
+// the select keeps it instead of silently switching the type.
+function projectFormTypes(currentType) {
+  const types = CONFIG.PROJECT_TYPES.filter(t => !isNoDashboardType(t));
+  if (isNoDashboardType(currentType)) types.push(currentType);
+  return types;
 }
 
 // ── Text escaping ─────────────────────────────────────────────

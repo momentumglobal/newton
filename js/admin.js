@@ -328,7 +328,8 @@ async function writeSnapshotsNow() {
     ]);
     // N-333: no row for the internal project — computeHealthTrend (cc-pages.js)
     // sums every stored row, so skipping at write time keeps the trend client-only.
-    const projects = activeProjects.filter(p => !isInternalProject(p));
+    // N-362: likewise for no-dashboard projects (isKpiExcludedProject).
+    const projects = activeProjects.filter(p => !isKpiExcludedProject(p));
     // N-274: the flag's stuck rule needs each role's Stage history.
     const stageHistory = groupStageHistoryByRole(stageRows);
     // N-309 (S-8): AvgDaysOpen is measured on open headcount. Filled is

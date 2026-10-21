@@ -243,26 +243,26 @@ ASSERTIONS.push(
   },
   // ── N-333: internal project excluded from client KPIs ─────────────────
   {
-    name: 'N-333 CONFIG.PROJECT_TYPE_INTERNAL pinned; PROJECT_TYPES unchanged; projectFormTypes adds Internal last',
+    name: 'N-333 CONFIG.PROJECT_TYPE_INTERNAL pinned; in PROJECT_TYPES (N-362); Sales Forecast drops it; projectFormTypes adds Internal last',
     fn: function () {
       _assertEqual(CONFIG.PROJECT_TYPE_INTERNAL, 'Internal', 'value');
-      _assertEqual(CONFIG.ASSIGNMENT_PROJECT_TYPES.includes(CONFIG.PROJECT_TYPE_INTERNAL), true, 'in ASSIGNMENT_PROJECT_TYPES');
+      _assertEqual(CONFIG.PROJECT_TYPES.includes(CONFIG.PROJECT_TYPE_INTERNAL), true, 'in PROJECT_TYPES');
       _assertEqual(CONFIG.NON_REVENUE_PROJECT_TYPES.includes(CONFIG.PROJECT_TYPE_INTERNAL), true, 'in NON_REVENUE_PROJECT_TYPES');
-      _assertEqual(CONFIG.PROJECT_TYPES, ['Embedded', 'CoE', 'Exec Search', 'MG AI'], 'PROJECT_TYPES (Sales Forecast dropdown) has no Internal');
+      _assertEqual(salesForecastTypes(), ['Embedded', 'CoE', 'Exec Search', 'MG AI'], 'Sales Forecast dropdown has no Internal');
       _assertEqual(projectFormTypes(), ['Embedded', 'CoE', 'Exec Search', 'MG AI', 'Internal'], 'Project form options');
       _assertEqual(projectFormTypes() === projectFormTypes(), false, 'a fresh array each call');
     },
   },
   {
-    name: 'N-333 isInternalProject / internalProjectIdSet / internalRoleIdSet',
+    name: 'N-333 isInternalProject / kpiExcludedProjectIdSet / kpiExcludedRoleIdSet (N-362 rename)',
     fn: function () {
       _assertEqual([null, {}, { ProjectType: 'Embedded' }, { ProjectType: 'Internal' }].map(isInternalProject), [false, false, false, true], 'isInternalProject');
       const projects = [{ id: 1, ProjectType: 'CoE' }, { id: 2, ProjectType: 'Internal', Status: 'Completed' }, { id: 3, ProjectType: 'Internal' }];
-      _assertEqual([...internalProjectIdSet(projects)], ['2', '3'], 'archived internal project included');
-      _assertEqual(internalProjectIdSet(undefined).size, 0, 'no projects');
+      _assertEqual([...kpiExcludedProjectIdSet(projects)], ['2', '3'], 'archived internal project included');
+      _assertEqual(kpiExcludedProjectIdSet(undefined).size, 0, 'no projects');
       const roles = [{ id: 10, ProjectIDLookupId: 1 }, { id: 20, ProjectIDLookupId: '2' }, { id: 30, ProjectID: 3 }, null];
-      _assertEqual([...internalRoleIdSet(roles, projects)], ['20', '30'], 'via ProjectIDLookupId or ProjectID');
-      _assertEqual(internalRoleIdSet(roles, [{ id: 1, ProjectType: 'CoE' }]).size, 0, 'no internal project → empty');
+      _assertEqual([...kpiExcludedRoleIdSet(roles, projects)], ['20', '30'], 'via ProjectIDLookupId or ProjectID');
+      _assertEqual(kpiExcludedRoleIdSet(roles, [{ id: 1, ProjectType: 'CoE' }]).size, 0, 'no internal project → empty');
     },
   },
   {

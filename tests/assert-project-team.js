@@ -187,7 +187,7 @@ ASSERTIONS.push(
       _assertEqual(CONFIG.CACHE.persistentLists.includes('Assignments'), false, 'AC14 Assignments is an access list: never tier 2');
       _assertEqual(CONFIG.CACHE.persistentLists.length, 5, 'AC14 persistentLists unchanged');
       _assertEqual(CONFIG.PROJECT_TEAM.BENCH_CUSTOMER, 'Unassigned', 'bench customer');
-      _assertEqual(CONFIG.PROJECT_TEAM.DEFERRED_PROJECT_TYPES, ['LCI', 'Transformation'], 'deferred types');
+      _assertEqual(['LCI', 'Transformation', 'CoE'].map(isNoDashboardType), [true, true, false], 'deferred types now come from isNoDashboardType (N-362)');
     },
   }
 );

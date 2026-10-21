@@ -307,7 +307,7 @@ let filtered = assignments.filter(matchesStatus).filter(matchesOtherFilters);
     employee:    { type: 'text', get: a => a.EmployeeName },
     level:       { type: 'enum', order: CONFIG.PEOPLE_LEVELS, get: a => a.Level },
     customer:    { type: 'text', get: a => a.Customer },
-    projectType: { type: 'enum', order: CONFIG.ASSIGNMENT_PROJECT_TYPES, get: a => a.ProjectType },
+    projectType: { type: 'enum', order: CONFIG.PROJECT_TYPES, get: a => a.ProjectType },
     start:       { type: 'date', get: a => a.StartDate },
     end:         { type: 'date', get: a => a.EndDate },
     // N-247c: does NOT mirror the cell 1:1 — assignmentRateLabel() renders a

@@ -207,7 +207,7 @@ async function mobileRenderActivityForm(main, rolePreselected) {
   main.innerHTML = '<div class="m-empty">Loading…</div>';
   try {
     const user     = getCurrentUser();
-    const projects = await getScopedProjects(user.email, false);
+    const projects = dashboardProjects(await getScopedProjects(user.email, false));   // N-362
     let   roleName = '';
 
     if (rolePreselected && _mobileRoleId) {
@@ -393,7 +393,7 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
   main.innerHTML = '<div class="m-empty">Loading…</div>';
   try {
     const user     = getCurrentUser();
-    const projects = await getScopedProjects(user.email, false);
+    const projects = dashboardProjects(await getScopedProjects(user.email, false));   // N-362
     let   roleName = '';
     let   currency = '';
     let   hcOptions = '';

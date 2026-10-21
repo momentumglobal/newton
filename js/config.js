@@ -179,13 +179,19 @@ const CONFIG = {
   },
 
   // ── Project types (N-116) ─────────────────────────────────────────
-  // TWO enums, deliberately. Projects.ProjectType gates the Hiring Plan page,
-  // the LCI link picker and the Report Builder CoE panel, so its dropdown stays
-  // narrow. Assignments.ProjectType is the wider delivery-shape enum.
-  // Never redeclare either list in a page file.
-  PROJECT_TYPES:            ['Embedded', 'CoE', 'Exec Search', 'MG AI'],
-  ASSIGNMENT_PROJECT_TYPES: ['Embedded', 'CoE', 'Transformation', 'LCI',
-                             'Exec Search', 'MG AI', 'Internal'],
+  // ONE enum (N-362) for Projects.ProjectType and Assignments.ProjectType.
+  // Surfaces that must not offer every value derive their list through the
+  // utils.js helpers (salesForecastTypes(), projectFormTypes()) — never by
+  // redeclaring a list in a page file. Array order is the display / sort order.
+  PROJECT_TYPES: ['Embedded', 'CoE', 'Transformation', 'LCI',
+                  'Exec Search', 'MG AI', 'Internal'],
+
+  // N-362 (D-4): types that are Projects but have no Project Dashboard (they
+  // collect no recruitment data). Read ONLY through isNoDashboardType() /
+  // isNoDashboardProject() / dashboardProjects() (utils.js) — never compared at
+  // a call site (tests/lint-project-types.js). Dormant until N-363 creates the
+  // Projects rows.
+  NO_DASHBOARD_PROJECT_TYPES: ['LCI', 'Transformation'],
 
   // Types that bill on a retainer + placement-fee split rather than a monthly
   // rate. Drives the conditional fee fields on the Assignment and Sales Forecast
@@ -224,12 +230,11 @@ const CONFIG = {
   //  BENCH_CUSTOMER          Customer value Sync Bench writes on bench rows. Also typed in
   //                          people-tracker.js (write), people-forms.js and utils.js (reads);
   //                          consolidating those is a separate tidy-up.
-  //  DEFERRED_PROJECT_TYPES  Assignments.ProjectType values that have no Projects row until
-  //                          N-363; N-362's no-dashboard-types helper replaces this list.
   //  DISPLAY_ROWS            rows shown in each Data Health list before "+ n more".
+  //  (A row typed LCI / Transformation with no Projects row is "deferred to N-363":
+  //  isNoDashboardType() in utils.js, N-362.)
   PROJECT_TEAM: {
     BENCH_CUSTOMER:         'Unassigned',
-    DEFERRED_PROJECT_TYPES: ['LCI', 'Transformation'],
     DISPLAY_ROWS:           50,
   },
 
@@ -237,10 +242,9 @@ const CONFIG = {
   // log Momentum's own hiring there as talent_partner). Its rows show on its
   // own project-scoped pages but never in a company figure, learned benchmark
   // or RAG. Read only through isInternalProject() / excludeInternalProjectData()
-  // (utils.js) — never compared at a call site. Deliberately NOT in
-  // PROJECT_TYPES (that list also feeds the Sales Forecast dropdown); the
-  // Project form adds it through projectFormTypes(). Must stay in
-  // ASSIGNMENT_PROJECT_TYPES and NON_REVENUE_PROJECT_TYPES (assertion).
+  // (utils.js) — never compared at a call site. It is in PROJECT_TYPES; the
+  // Sales Forecast dropdown drops it through salesForecastTypes(). Must stay in
+  // PROJECT_TYPES and NON_REVENUE_PROJECT_TYPES (assertion).
   PROJECT_TYPE_INTERNAL: 'Internal',
 
   // Token NAMES, not hex — the values live in the :root block in style.css.

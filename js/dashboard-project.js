@@ -19,7 +19,7 @@ async function renderProjectDashboard() {
   }
   let selectorHtml = '', projectName = 'Project';
   if (isDMAdmin) {
-    const projects = sortProjectsByName(await getScopedProjects(user.email, false));
+    const projects = sortProjectsByName(dashboardProjects(await getScopedProjects(user.email, false)));   // N-362
     if (!projectId && projects.length) { projectId = String(projects[0].id); _dashProjectId = projectId; }
     projectName = (projects.find(p => String(p.id) === String(projectId)) || {}).CustomerName || 'Project';
     // N-112: Active/Archive optgroup split (projects already sorted, so each
@@ -34,6 +34,12 @@ async function renderProjectDashboard() {
   }
   if (!projectId) {
     main.innerHTML = `<div class='page-header'><h2>Project Dashboard</h2></div><p>No project assigned. Contact your Admin.</p>`;
+    return;
+  }
+  // N-362 (D-4): LCI / Transformation are Projects with no dashboard.
+  const dashProject = (await getProjects(false)).find(p => String(p.id) === String(projectId));
+  if (isNoDashboardProject(dashProject)) {
+    main.innerHTML = `<div class='page-header'><h2>Project Dashboard</h2></div><p>${escHtml(dashProject.CustomerName || 'This project')} has no dashboard.</p>`;
     return;
   }
   const { roles, activity, placements, rejections, tpMap, hc } = await fetchDashboardData(projectId, role);

@@ -60,7 +60,7 @@ async function renderReportBuilder() {
   const user  = getCurrentUser();
 
   // Load projects for the project selector
-  const projects = await getScopedProjects(user.email, false);
+  const projects = dashboardProjects(await getScopedProjects(user.email, false));   // N-362
   if (projects.length && !_rbProjectId) _rbProjectId = String(projects[0].id);
   _rbProjects   = projects;
   _rbClientName = (projects.find(p => String(p.id) === _rbProjectId) || {}).CustomerName || '';

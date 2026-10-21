@@ -107,8 +107,6 @@ function ptBuildBackfillPlan(inputs, picks) {
     if (!emailsByName.has(k)) emailsByName.set(k, new Set());
     emailsByName.get(k).add(e);
   });
-  const deferred = CONFIG.PROJECT_TEAM.DEFERRED_PROJECT_TYPES;
-
   const rows = A.map(a => {
     const row = {
       id: a.id,
@@ -142,7 +140,7 @@ function ptBuildBackfillPlan(inputs, picks) {
           row.project.state = 'picked';
           row.project.value = Number(pick);
         }
-      } else if (ptNormKey(a.Customer) && deferred.includes(a.ProjectType)) {
+      } else if (ptNormKey(a.Customer) && isNoDashboardType(a.ProjectType)) {
         row.project.state = 'deferred';
       } else {
         row.project.state = 'unmatched';

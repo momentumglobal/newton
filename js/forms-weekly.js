@@ -49,7 +49,7 @@ async function _weeklyFormContext(existingData, preselectedRoleId, preselectedPr
   const userRole = await getEffectiveRole(email);
   const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
   const isTalentPartner = userRole === 'talent_partner';
-  const projects = await getScopedProjects(email, false);
+  const projects = dashboardProjects(await getScopedProjects(email, false));   // N-362
   const lockProject = isTalentPartner && projects.length === 1;
   // N-112: only Active/Transition projects are selectable; keep an already-
   // selected Completed project visible so editing an old record doesn't lose it.

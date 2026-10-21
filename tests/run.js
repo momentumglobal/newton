@@ -83,6 +83,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'lint-inline-handlers.js'),
   path.join(TESTS_DIR, 'lint-inline-styles.js'),
   path.join(TESTS_DIR, 'lint-internal-kpi.js'),
+  path.join(TESTS_DIR, 'lint-project-types.js'),
   path.join(TESTS_DIR, 'fixtures.js'),
   path.join(TESTS_DIR, 'assertions.js'),
   path.join(TESTS_DIR, 'assert-dates.js'),
@@ -98,6 +99,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-list-ui.js'),
   path.join(TESTS_DIR, 'assert-pages.js'),
   path.join(TESTS_DIR, 'assert-project-team.js'),
+  path.join(TESTS_DIR, 'assert-project-types.js'),
 ];
 // N-361: project-team.js (pure) loads straight after permissions.js; assert-project-team.js is the last assertion file.
 const sandbox = {};

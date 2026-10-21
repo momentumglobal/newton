@@ -298,7 +298,7 @@ function _renderRevenuePanel(rows) {
   // Revenue by customer — exclude Unassigned/Internal
   const byCustomer = {};
   rows.filter(r => r.Customer && r.Customer !== 'Unassigned'
-                && r.ProjectType !== 'Internal')
+                && !isInternalProject(r))
     .forEach(r => {
       byCustomer[r.Customer] = (byCustomer[r.Customer] || 0) + r.BilledRevenue;
     });
@@ -313,7 +313,7 @@ function _renderRevenuePanel(rows) {
     byType[r.ProjectType] = (byType[r.ProjectType] || 0) + r.BilledRevenue;
   });
   // N-116: derived from config so new project types appear automatically
-  const typeOrder = CONFIG.ASSIGNMENT_PROJECT_TYPES
+  const typeOrder = CONFIG.PROJECT_TYPES
     .filter(t => !CONFIG.NON_REVENUE_PROJECT_TYPES.includes(t));
   const typeRows = typeOrder
     .filter(t => byType[t] !== undefined)

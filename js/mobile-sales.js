@@ -98,9 +98,9 @@ async function mobileSalesForecastForm(editId) {
       <div class="m-form-group">
         <label class="m-label">Project Type *</label>
         <select class="m-input" id="msf-type"${actOn('change', '_msfTypeChange')}>
-          ${CONFIG.PROJECT_TYPES.map(t =>
+          ${salesForecastTypes().map(t =>
             `<option value="${escAttr(t)}" ${
-              (CONFIG.PROJECT_TYPES.includes(f.ProjectType) ? f.ProjectType : CONFIG.PROJECT_TYPES[0]) === t
+              (salesForecastTypes().includes(f.ProjectType) ? f.ProjectType : salesForecastTypes()[0]) === t
                 ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
         </select>
       </div>

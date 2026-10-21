@@ -165,7 +165,7 @@ function _forecastModal() {
         <div class="form-group">
           <label>Project Type *</label>
           <select id="forecast-type" class="form-control"${actOn('change', '_onForecastTypeChange')}>
-            ${CONFIG.PROJECT_TYPES.map(t =>
+            ${salesForecastTypes().map(t =>
               `<option value="${escAttr(t)}">${escHtml(t)}</option>`).join('')}
           </select>
         </div>
@@ -212,7 +212,7 @@ async function openForecastModal(id) {
   document.getElementById('forecast-rev-per-head').value = '';
   document.getElementById('forecast-retainer').value = '';
   document.getElementById('forecast-placement').value = '';
-  document.getElementById('forecast-type').value = CONFIG.PROJECT_TYPES[0];
+  document.getElementById('forecast-type').value = salesForecastTypes()[0];
   document.getElementById('forecast-notes').value = '';
   document.getElementById('forecast-edit-id').value = '';
   _onForecastTypeChange();
@@ -232,7 +232,7 @@ async function openForecastModal(id) {
         // N-116: rows saved before this change have no ProjectType. Default them
         // to the first configured type so they keep their monthly-rate behaviour.
         document.getElementById('forecast-type').value =
-          CONFIG.PROJECT_TYPES.includes(f.ProjectType) ? f.ProjectType : CONFIG.PROJECT_TYPES[0];
+          salesForecastTypes().includes(f.ProjectType) ? f.ProjectType : salesForecastTypes()[0];
         document.getElementById('forecast-retainer').value  = f.RetainerFee  ?? '';
         document.getElementById('forecast-placement').value = f.PlacementFee ?? '';
         document.getElementById('forecast-notes').value = f.Notes || '';

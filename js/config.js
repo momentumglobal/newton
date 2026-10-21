@@ -218,6 +218,8 @@ const CONFIG = {
   },
 
   // Types excluded from revenue reporting (People Dashboard "By project type").
+  NON_REVENUE_PROJECT_TYPES: ['Internal'],
+
   // N-361 (PT-1): Project Team backfill (js/project-team.js, Admin > Data Health).
   //  BENCH_CUSTOMER          Customer value Sync Bench writes on bench rows. Also typed in
   //                          people-tracker.js (write), people-forms.js and utils.js (reads);

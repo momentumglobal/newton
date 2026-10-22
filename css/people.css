@@ -107,6 +107,24 @@
 .org-node--placeholder .org-node__name { color: var(--org-placeholder-name); font-style: italic; }
 .org-node--placeholder .org-node__sub  { color: var(--org-placeholder-sub); }
 .org-node--placeholder .org-avatar--initials { background: var(--org-placeholder-avatar-bg); }
+/* N-375: collapsible people nodes. The class sits on the li, so hiding the child
+   ul also removes its ul::before stub — no dangling connector. The count pill is
+   inside the node (not absolute) so it can't hit a stacked sibling's avatar. */
+.org-node--collapsible { cursor: pointer; }
+.org-node--collapsible:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+.org-tree li.org-collapsed > ul { display: none; }
+.org-tree li.org-collapsed > .org-node--collapsible {
+  box-shadow: 3px 3px 0 -1px var(--surface), 3px 3px 0 0 var(--border-connector),
+              6px 6px 0 -1px var(--surface), 6px 6px 0 0 var(--border-connector); }
+.org-node__count { display: none; }
+.org-tree li.org-collapsed > .org-node .org-node__count {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  margin-top: var(--sp-3); padding: 1px var(--sp-4); border-radius: var(--r-pill);
+  font-size: var(--fs-11); font-weight: 600;
+  background: var(--org-count-bg); color: var(--org-count-text); }
+.org-tree li.org-collapsed > .org-node--placeholder .org-node__count {
+  background: var(--org-count-bg-placeholder); color: var(--org-count-text-placeholder); }
+.org-node__count svg { width: 12px; height: 12px; }
 .org-node--person { padding: var(--sp-1) var(--sp-4); min-width: 84px; }
 .org-node--has-avatar { padding-top: var(--sp-9); }
 .org-avatar {

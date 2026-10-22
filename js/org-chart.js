@@ -66,6 +66,8 @@ async function renderOrgChart() {
     <div class='page-header'>
       <h2>Org Chart</h2>
       <div style='display:flex;gap:8px'>
+        <button class='btn-secondary'${act('ocSetAllCollapsed', false)}>Expand all</button>
+        <button class='btn-secondary'${act('ocSetAllCollapsed', true)}>Collapse all</button>
         ${roleCan(_resolvedRole, 'peopleFull')
           ? `<button class='btn-secondary'${act('showPlaceholderManager')}>+ Placeholders</button>
              <button class='btn-secondary'${act('showOrgChartEditForm')}>Edit reporting lines</button>` : ''}
@@ -105,7 +107,8 @@ function _ocPersonNode(p) {
     // STP and PTP both render in the TP band colour (.org-node--tp) — no
     // separate CSS needed for either.
     _band: (ph || internal) ? '' : ((p.Level === 'STP' || p.Level === 'PTP') ? 'TP' : p.Level),
-    _placeholder: ph, _photo: p.PhotoUrl, children: [] };
+    // N-375: _key de-duplicates multi-project people in the collapsed-node count.
+    _placeholder: ph, _photo: p.PhotoUrl, _key: 'p:' + _ocNorm(p.EmployeeName), children: [] };
 }
 
 // Shared by real and synthetic bubbles so the two can't drift apart: the SDM sits
@@ -167,6 +170,7 @@ function _ocCsdNode(csd, projectsByCSD, people, currentAssign, realProjects) {
   return { kind: 'csd', label: csd.EmployeeName,
            sub: `CSD${csd.Location ? ' · ' + csd.Location : ''}`,
            _email: _ocEmail(csd.ReportsTo), _photo: csd.PhotoUrl,
+           _key: 'p:' + _ocNorm(csd.EmployeeName),          // N-375
            children: [...projs.map(p => _ocProjectNode(p, people, currentAssign)),
                       ..._ocSyntheticNodes(csd, people, realProjects)] };
 }
@@ -198,7 +202,8 @@ function _ocBuildLeader(leader, seen, leadership, csds, projectsByCSD, people, c
     .forEach(c => kids.push(_ocCsdNode(c, projectsByCSD, people, currentAssign, realProjects)));
   kids.push(..._ocFunctionNodes(people.filter(p => _ocEmail(p.ReportsTo) === email)));
   return { kind: 'leader', label: leader.UserName || leader.UserEmail,
-           sub: leader.JobTitle || 'Leadership', _photo: leader.PhotoUrl, children: kids };
+           sub: leader.JobTitle || 'Leadership', _photo: leader.PhotoUrl,
+           _key: 'l:' + email, children: kids };                // N-375
 }
 
 // ── tree builder ───────────────────────────────────────────────────────
@@ -265,12 +270,26 @@ function renderTreeHtml(roots) {
     const canStack = !CONFIG.ORG_STACK_EXEMPT_KINDS.includes(n.kind);
     const ulCls  = (canStack && kids.length >= CONFIG.ORG_STACK_THRESHOLD)
       ? " class='org-stack'" : '';
+    // N-375: people nodes with reports collapse/expand on click (class toggle on
+    // the li, no re-render). The count pill is always rendered and CSS shows it
+    // only while collapsed, so a toggle never needs lucide.createIcons() again.
+    const collapsible = CONFIG.ORG_COLLAPSIBLE_KINDS.includes(n.kind) && kids.length > 0;
+    const colCls   = collapsible ? ' org-node--collapsible' : '';
+    const colAttrs = collapsible
+      ? ` role='button' tabindex='0' aria-expanded='true'${act('ocToggleNode', ACT_EL)}${actOn('keydown', 'ocToggleNodeKey', ACT_EL, ACT_EVENT)}`
+      : '';
+    let countHtml = '';
+    if (collapsible) {
+      const count = orgSubtreePeopleCount(n);
+      countHtml = `<div class='org-node__count'><i data-lucide='users'></i>${count} ${count === 1 ? 'person' : 'people'}</div>`;
+    }
     return `
     <li>
-      <div class='org-node org-node--${n.kind}${n._band ? ' org-node--' + _ocEsc(n._band.toLowerCase()) : ''}${avCls}${phCls}'${style}>
+      <div class='org-node org-node--${n.kind}${n._band ? ' org-node--' + _ocEsc(n._band.toLowerCase()) : ''}${avCls}${phCls}${colCls}'${style}${colAttrs}>
         ${avatar}
         <div class='org-node__name'>${_ocEsc(n.label)}</div>
         ${n.sub ? `<div class='org-node__sub'>${_ocEsc(n.sub)}</div>` : ''}
+        ${countHtml}
       </div>
       ${kids.length ? `<ul${ulCls}>${kids.map(node).join('')}</ul>` : ''}
     </li>`;
@@ -613,6 +632,31 @@ function ocHideImg(img) {
   img.style.display = 'none';
 }
 
+// N-375: collapse / expand a person node's org. The class lives on the parent
+// li so CSS can hide its child ul; aria-expanded mirrors it for screen readers.
+function _ocSetCollapsed(el, collapsed) {
+  el.parentElement.classList.toggle('org-collapsed', collapsed);
+  el.setAttribute('aria-expanded', String(!collapsed));
+}
+
+function ocToggleNode(el) {
+  _ocSetCollapsed(el, !el.parentElement.classList.contains('org-collapsed'));
+}
+
+// Enter / Space on a focused node (role=button); preventDefault stops Space scrolling.
+function ocToggleNodeKey(el, e) {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  e.preventDefault();
+  ocToggleNode(el);
+}
+
+// Header buttons: every collapsible node on the page — the main tree and both
+// Unassigned sections alike (all three are rendered by renderTreeHtml).
+function ocSetAllCollapsed(collapsed) {
+  document.querySelectorAll('#org-chart-inner .org-node--collapsible')
+    .forEach(el => _ocSetCollapsed(el, !!collapsed));
+}
+
 // N-302c: delegated actions for the Org Chart page, the Placeholders manager and
 // the reporting-lines editor (js/actions.js).
 registerActions({
@@ -624,6 +668,9 @@ registerActions({
   saveOrgChartEdits,
   exportOrgChartPdf,
   ocHideImg,
+  ocToggleNode,
+  ocToggleNodeKey,
+  ocSetAllCollapsed,
   _ocTeamModeChanged,
   _ocCheckTeamName,
 });

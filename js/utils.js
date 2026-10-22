@@ -1603,6 +1603,21 @@ function countInternalByFunction(people) {
     .map(([fn, members]) => [fn, members.length]);
 }
 
+// N-375: unique real people beneath an Org Chart node (the node itself is not
+// counted). Nodes carry `_key` ('p:' + name for People rows, 'l:' + email for
+// leaders); project/function bubbles have none and are walked, not counted.
+// Placeholders (`_placeholder`) are excluded. Node shape is set by org-chart.js.
+function orgSubtreePeopleCount(node) {
+  const keys = new Set();
+  const walk = n => ((n && n.children) || []).forEach(c => {
+    if (!c) return;
+    if (c._key && !c._placeholder) keys.add(c._key);
+    walk(c);
+  });
+  walk(node);
+  return keys.size;
+}
+
 // ── Shared SVG chart primitives (N-197) ────────────────────
 // Used by every inline-SVG chart (Revenue, Team Utilisation, LCI Spend,
 // LCI Compare) so gridlines/ticks/legends look and theme identically.

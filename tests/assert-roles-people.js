@@ -560,5 +560,39 @@ ASSERTIONS.push(
       _assertEqual(!!up && up[0].indexOf('_photoMapInvalidate()') !== -1, true, 'uploadPeoplePhoto clears the photo map');
       _assertEqual(/\.org-avatar--img:not\(\[src\]\)\s*\{\s*visibility:\s*hidden/.test(ALL_CSS['people.css']), true, 'people.css hides an org avatar that has no src yet');
     },
+  },
+  {
+    name: 'N-375 orgSubtreePeopleCount — unique real people beneath a node',
+    fn: function () {
+      const P = (name, kids, extra) => Object.assign({ kind: 'person', _key: 'p:' + name, children: kids || [] }, extra);
+      const bubble = (kids) => ({ kind: 'project', children: kids });
+      const dup = P('ana');
+      const csd = { kind: 'csd', _key: 'p:csd', children: [
+        bubble([P('sdm1', [dup, P('bo')])]),
+        bubble([P('sdm2', [P('ana'), P('tbh', [], { _placeholder: true })])]),
+      ] };
+      _assertEqual(orgSubtreePeopleCount(csd), 4, 'sdm1, sdm2, ana (once across two bubbles), bo — placeholder and the CSD itself excluded');
+      const leader = { kind: 'leader', _key: 'l:x@mg.com', children: [csd, { kind: 'leader', _key: 'l:p:csd', children: [] },
+        { kind: 'function', children: [P('ops')] }] };
+      _assertEqual(orgSubtreePeopleCount(leader), 7, 'leader counts CSD, nested leader (own namespace), function-bubble staff');
+      _assertEqual(orgSubtreePeopleCount(bubble([P('x'), P('x')])), 1, 'bubble walked, not counted; duplicate key once');
+      _assertEqual(orgSubtreePeopleCount(P('leaf')), 0, 'leaf');
+      _assertEqual(orgSubtreePeopleCount(null), 0, 'null');
+      _assertEqual(orgSubtreePeopleCount({ kind: 'csd', _key: 'p:c', children: [P('only', [], { _placeholder: true })] }), 0, 'placeholders only');
+    },
+  },
+  {
+    name: 'N-375 org chart collapse wiring — config-driven, actions registered, collapsed ul hidden',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      _assertEqual(CONFIG.ORG_COLLAPSIBLE_KINDS, ['leader', 'csd', 'person'], 'collapsible kinds (bubbles excluded, D-1)');
+      const oc = _vendorStripJsComments(ALL_SOURCES['org-chart.js']).join('\n');
+      _assertEqual(/CONFIG\.ORG_COLLAPSIBLE_KINDS\.includes\(n\.kind\)/.test(oc), true, 'renderTreeHtml reads ORG_COLLAPSIBLE_KINDS');
+      _assertEqual(/orgSubtreePeopleCount\(n\)/.test(oc), true, 'count comes from the shared utils.js function');
+      const reg = oc.match(/registerActions\(\{[\s\S]*?\}\);/);
+      ['ocToggleNode', 'ocToggleNodeKey', 'ocSetAllCollapsed'].forEach(a =>
+        _assertEqual(!!reg && new RegExp('\\b' + a + '\\b').test(reg[0]), true, a + ' registered'));
+      _assertEqual(/li\.org-collapsed\s*>\s*ul\s*\{\s*display:\s*none/.test(ALL_CSS['people.css']), true, 'people.css hides a collapsed node\'s child ul');
+    },
   }
 );

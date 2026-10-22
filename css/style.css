@@ -424,6 +424,11 @@
   --org-placeholder-sub:       var(--c-slate-300);
   --org-placeholder-avatar-bg: var(--c-slate-250);
   --org-tag-bg:                var(--c-neutral-pale);
+  /* N-375: collapsed-node people-count pill (dark band nodes / white placeholder) */
+  --org-count-bg:               var(--c-wa-15);
+  --org-count-text:             var(--text-on-brand);
+  --org-count-bg-placeholder:   var(--org-tag-bg);
+  --org-count-text-placeholder: var(--org-placeholder-name);
   /* Engagement (N-122) */
   --eng-success-text-deep: var(--c-green-text-deep);
   --eng-danger-text-deep:  var(--c-red-text-deep);

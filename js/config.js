@@ -39,6 +39,9 @@ const CONFIG = {
   // leadership/CSD rows are few, wide and structural — stacking them buries the
   // top of the hierarchy. Width accumulates further down, so stack there instead.
   ORG_STACK_EXEMPT_KINDS: ['leader', 'csd'],
+  // N-375: node kinds that collapse/expand their org on click (only when they
+  // have reports). Project and internal-function bubbles stay static.
+  ORG_COLLAPSIBLE_KINDS: ['leader', 'csd', 'person'],
   // Bubble type used for a synthetic (placeholder-only) team that has no Projects row.
   ORG_PLACEHOLDER_PROJECT_TYPE: 'Internal',
   // Written on every placeholder created in-app. SharePoint marks these People

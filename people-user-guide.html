@@ -87,11 +87,11 @@
       <h2>User Roles</h2>
       <p>The People module is accessible to the roles below. Access level varies — Delivery Managers and Talent Partners have limited access (Scorecards and the Org Chart), and Sales &amp; Marketing and Staff the Org Chart only.</p>
       <h3><span class="role-badge admin">Admin</span></h3>
-      <p>Full access to all People module pages. Can add, edit, and delete employees, assignments, and invoices. Sees all data across the entire workforce.</p>
+      <p>Full access to all People module pages. Can add, edit, and delete employees and invoices; assignments are managed on the Project page. Sees all data across the entire workforce.</p>
       <h3><span class="role-badge leadership">Leadership</span></h3>
       <p>Read-only access to all People module pages. Can view the dashboard, employee list, deployment timeline, and invoices. Cannot add or edit employees, assignments or invoices; can add Org Chart placeholders and edit non-leader reporting lines.</p>
       <h3><span class="role-badge leadership">People Ops</span></h3>
-      <p>For the People function. Full access to all People module pages, like Leadership, and can also add and edit employees, assignments and invoices, and build, run and close Engagement surveys. Can't edit Leadership reporting lines on the Org Chart (Admin only).</p>
+      <p>For the People function. Full access to all People module pages, like Leadership, and can also add and edit employees and invoices, and build, run and close Engagement surveys. Can't edit Leadership reporting lines on the Org Chart (Admin only).</p>
       <h3><span class="role-badge">Delivery Manager</span></h3>
       <p>Scorecards (for the Talent Partners on their projects) and the Org Chart, read-only. Delivery Managers land directly on Scorecards when they open the People module — other pages are not visible to this role.</p>
       <h3><span class="role-badge">Talent Partner</span></h3>
@@ -184,14 +184,14 @@
       <h3>Assignments tab</h3>
       <p>Lists assignment records showing employee name, level, customer, project type, start and end dates, monthly bill rate, and billed status. Defaults to current assignments.</p>
       <p>Use the <strong>Status</strong> filter to switch between Current, Former, Planned, or All assignments. Filter further by Customer or Project Type using the dropdowns.</p>
-      <p>Admins can add new assignments using <strong>+ Add Assignment</strong> and edit existing records via the Edit link on each row.</p>
-      <p><strong>Project assignments are now added on the Project page.</strong> Open Reporting → Projects, click the project and use its <strong>Project Team</strong> section: it links the person to the project and keeps their bench records up to date. The Assignments tab still works and is unchanged for now.</p>
+      <p>This tab is read-only. <strong>Project assignments are added, edited and removed on the Project page.</strong> Click a customer in the list to open its Project page, then use its <strong>Project Team</strong> section: it links the person to the project and keeps their bench records up to date.</p>
+      <p>Auto-generated bench records and old assignments for customers that have no Newton project are shown as plain text and can't be changed here. Bench records are managed by <strong>↻ Sync Bench</strong>; a correction to an old assignment is made in the SharePoint Assignments list.</p>
       <div class="tip">The <strong>Billed</strong> field on an assignment determines whether it contributes to revenue and utilisation calculations. An assignment marked Billed = No only lowers utilisation on days when that person has no billed assignment — an unbilled assignment running alongside a billed one does not count against them.</div>
-      <p><strong>Adding an SDM to an Exec Search or MG AI engagement:</strong> add an assignment for the SDM against the same customer, choose the Exec Search or MG AI project type and set <strong>Billed? = No</strong>. The retainer and placement fee fields are hidden and nothing is recorded against the SDM, so revenue is unaffected (the Rate column shows "Unbilled"). The SDM then appears under that project on the Org Chart, with the Talent Partner reporting into them, and as a bar on the Deployment Timeline.</p>
+      <p><strong>Adding an SDM to an Exec Search or MG AI engagement:</strong> on that project's Project Team, add the SDM and set <strong>Billed = No</strong>. The retainer and placement fee fields are hidden and nothing is recorded against the SDM, so revenue is unaffected (the Rate column shows "Unbilled"). The SDM then appears under that project on the Org Chart, with the Talent Partner reporting into them, and as a bar on the Deployment Timeline.</p>
       <h3>Bench Sync</h3>
       <p>The <strong>↻ Sync Bench</strong> button (visible to Admins) automatically generates and maintains bench assignments for all active billable employees. When run, it identifies gaps between a person's customer assignments for the rest of the current year — from today up to their employment end date (or 31 December if no end date is set) — and creates an Unassigned / Internal assignment to fill each gap.</p>
       <p>Bench records are marked as auto-generated and are managed entirely by the sync. If you add or extend a customer assignment that covers a period previously flagged as bench, running sync again will remove the now-redundant bench record automatically.</p>
-      <div class="tip">Run <strong>↻ Sync Bench</strong> any time you add, edit, or remove a customer assignment. The timestamp next to the button shows when the last sync ran. Bench assignments should not be edited manually — let the sync manage them.</div>
+      <div class="tip">Saving or removing someone on a Project Team re-syncs that person's bench records automatically; use <strong>↻ Sync Bench</strong> to rebuild them for everyone. The timestamp next to the button shows when the last sync ran. Bench assignments should not be edited manually — let the sync manage them.</div>
     </div>
     <div class="guide-section" id="deployment-timeline">
       <h2>Deployment Timeline</h2>

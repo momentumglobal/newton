@@ -232,7 +232,7 @@ const CONFIG = {
 
   // N-361 (PT-1): Project Team backfill (js/project-team.js, Admin > Data Health).
   //  BENCH_CUSTOMER          Customer value Sync Bench writes on bench rows. Also typed in
-  //                          people-tracker.js (write), people-forms.js and utils.js (reads);
+  //                          people-tracker.js (write) and utils.js (reads);
   //                          consolidating those is a separate tidy-up.
   //  DISPLAY_ROWS            rows shown in each Data Health list before "+ n more".
   //  (A row typed LCI / Transformation with no Projects row is "deferred to N-363":

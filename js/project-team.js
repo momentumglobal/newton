@@ -100,6 +100,23 @@ function isLeadDmAssignment(a) {
   return !!a && _ptYes(a.IsLeadDM);
 }
 
+// N-372: who owns an Assignments row. 'bench' = Sync Bench output; 'project' = a Project Team row
+// (has a ProjectID); 'historic' = an old-customer row with no Newton project (kept for utilisation,
+// owned by no Project Team). The People Assignments tab reads this and nothing else to decide
+// which Customer cells link to a Project page.
+function assignmentOwner(a) {
+  if (isBenchAssignment(a)) return 'bench';
+  return a && _ptHasProjectId(a.ProjectID) ? 'project' : 'historic';
+}
+
+// N-372: the Project page deep link (N-364) for a ProjectID, or '' when it is not a positive
+// integer. A cross-page link from people.html, so a plain href rather than a delegated action.
+function ptProjectPageHref(projectId) {
+  const raw = String(projectId == null ? '' : projectId).trim();
+  if (!/^[0-9]+$/.test(raw) || Number(raw) < 1) return '';
+  return 'reporting.html#projects?action=project&id=' + Number(raw);
+}
+
 // Backfill plan. Pure: nothing is written here, and no value already present on a row is ever
 // replaced (fill blanks only), so the plan is idempotent.
 //   inputs = { assignments, projects, userAssignments }   projects must include Completed ones
@@ -507,7 +524,8 @@ function ptSortTeam(rows, todayISO) {
   });
 }
 
-// The confirmed assignment `cand` would overlap, or null. Moved from people-forms.js (N-365 S-7):
+// The confirmed assignment `cand` would overlap, or null. Moved from people-forms.js (N-365 S-7;
+// N-372 deleted that form, so the Project Team save is the only caller):
 // forecasts may overlap freely, and split-fee lines are exempt (N-116 QA1 — one TP routinely runs
 // several concurrent Exec Search / MG AI engagements). Bench rows, forecasts, rows with a missing
 // date, another person's rows and the row being edited (excludeId) never clash. Inclusive dates.
@@ -583,8 +601,8 @@ function ptBuildMemberFields(input, ctx) {
 }
 
 // Assignments Title for a new row: '<prefix>-NNN', one past the number of rows that exist
-// (+ offset when several are created in one go). Same rule People and Sync Bench always used
-// ('A' = assignment, 'B' = bench).
+// (+ offset when several are created in one go). The rule People used to apply, now shared by the
+// Project Team save and Sync Bench ('A' = assignment, 'B' = bench).
 function ptNextAssignmentId(rows, prefix, offset = 0) {
   const n = (Array.isArray(rows) ? rows.length : 0) + 1 + (Number(offset) || 0);
   return prefix + '-' + String(n).padStart(3, '0');

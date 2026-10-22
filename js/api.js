@@ -1048,8 +1048,8 @@ async function createAssignment(fields) {
     IsLeadDM:        fields.IsLeadDM === true ? true : undefined,
   });
 }
-// Moved from api-people-forms.js by N-365 — now multi-consumer (people-forms.js
-// on people.html, the Project Team on reporting.html). Only keys present are sent.
+// Moved from api-people-forms.js by N-365. Its only caller is the Project Team on
+// reporting.html (the People Assignment form was deleted in N-372). Only keys present are sent.
 async function updateAssignment(id, fields) {
   const payload = {};
   if (fields.AssignmentID    !== undefined) payload.Title           = fields.AssignmentID;

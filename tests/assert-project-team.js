@@ -484,5 +484,19 @@ ASSERTIONS.push(
       const tab = pt.slice(pt.indexOf('async function renderAssignmentsTab'), pt.indexOf('async function _setAssignmentFilter'));
       _assertEqual([/pendingItem/.test(tab), /Add Assignment/.test(tab), /<th><\/th>/.test(tab)], [false, false, false], 'tab has no pending row, Add button or actions header');
     },
+  },
+  {
+    name: 'N-372 source guard — every action people-forms.js registers is defined in js/',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const pf = ALL_SOURCES['people-forms.js'];
+      const block = pf.slice(pf.indexOf('registerActions({'));
+      const names = block.slice(block.indexOf('{') + 1, block.indexOf('})')).split(',').map(s => s.trim()).filter(Boolean);
+      const all = Object.values(ALL_SOURCES).join('\n');
+      _assertEqual(names.length > 0, true, 'found the registerActions block');
+      _assertEqual(names.filter(n => !new RegExp('function\\s+' + n + '\\s*\\(').test(all)), [], 'no registered action without a function');
+    },
   }
 );

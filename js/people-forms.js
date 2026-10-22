@@ -197,6 +197,19 @@ async function showEditPersonForm(id) {
   document.getElementById('main-content').innerHTML = renderPersonForm(data);
 }
 
+// N-304: Staff type toggles Level <-> Function. The hidden select is disabled
+// (neither validated nor submitted) and loses `required`.
+function _onStaffTypeChange(select) {
+  const internal = select.value === CONFIG.STAFF_TYPE_INTERNAL;
+  [['person-level-group', !internal], ['person-function-group', internal]].forEach(([id, on]) => {
+    const group = document.getElementById(id);
+    if (!group) return;
+    group.classList.toggle('is-hidden', !on);
+    const field = group.querySelector('select');
+    if (field) { field.disabled = !on; field.required = on; }
+  });
+}
+
 // ── G-P Invoice forms ─────────────────────────────────────────
 function renderInvoiceForm(existingData = null) {
   const isEdit = !!existingData;

@@ -1721,6 +1721,42 @@ function buildPayrollSummaryFields({ month, year, joiners, leavers, bonus }) {
   };
 }
 
+// ── People photos (N-337) ─────────────────────────────────────────────
+// Photos load through Graph download URLs (api.js getPhotoUrlMap), not a
+// cookie-authenticated <img src>. These three pure helpers are the rules.
+
+// PhotoUrl holds a full SharePoint URL (written by uploadPeoplePhoto, with a
+// ?v= cache-bust) or a bare / URL-encoded filename typed by hand. Returns the
+// decoded filename as the PeoplePhotos library lists it, or '' for blank or
+// unusable input. Never throws.
+function photoFileName(val) {
+  let v = String(val == null ? '' : val).trim();
+  if (!v) return '';
+  v = v.split('#')[0].split('?')[0].replace(/^https?:\/\/[^/]+/i, '');
+  v = v.slice(v.lastIndexOf('/') + 1);
+  try { v = decodeURIComponent(v); } catch (e) { /* malformed % escape — keep it raw */ }
+  return v.trim();
+}
+
+// Graph driveItem[] (children of the PeoplePhotos drive root) -> Map of
+// lower-cased filename -> @microsoft.graph.downloadUrl. Skips folders and any
+// item with no name or no download URL. Junk input gives an empty Map.
+function buildPhotoUrlMap(items) {
+  const map = new Map();
+  (Array.isArray(items) ? items : []).forEach(it => {
+    const url = it && it['@microsoft.graph.downloadUrl'];
+    if (!it || it.folder || !it.name || !url) return;
+    map.set(String(it.name).toLowerCase(), url);
+  });
+  return map;
+}
+
+// True while a map built at `builtAt` (ms) is still inside `ttl` (ms).
+// No build time, or a clock that went backwards, counts as stale.
+function photoMapFresh(builtAt, now, ttl) {
+  return typeof builtAt === 'number' && now >= builtAt && now - builtAt < ttl;
+}
+
 // N-302a: delegated actions owned by this file (js/actions.js).
 registerActions({
   exitGhostMode,

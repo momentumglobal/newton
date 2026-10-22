@@ -489,5 +489,76 @@ ASSERTIONS.push(
       const cfg = "x\n  COMMAND_BAR_PAGES: [\n    { key: 'leadership', module: 'admin', roles: ['admin', 'talent_partner'] },\n    { key: 'ok', roles: [_ROLE_IDS.ADMIN] },\n  ],\n  OTHER: ['admin'],\n";
       _assertEqual(lint({ 'config.js': cfg }), ['config.js:3', 'config.js:3'], 'only roles: [...] inside COMMAND_BAR_PAGES; key/module/OTHER ignored');
     },
+  },
+  // ── N-337: People photos load through Graph download URLs ────────────────
+  {
+    name: 'N-337 photoFileName — full URL, ?v= cache-bust, encoded and bare filenames, junk',
+    fn: function () {
+      _assertEqual(photoFileName('https://talentpoint.sharepoint.com/sites/SolutionsHubReporting/PeoplePhotos/person-1.png?v=1784901800'), 'person-1.png', 'full URL with ?v=');
+      _assertEqual(photoFileName('https://talentpoint.sharepoint.com/sites/SolutionsHubReporting/PeoplePhotos/EM%201.png'), 'EM 1.png', 'encoded space in a full URL');
+      _assertEqual(photoFileName('EM%201.png'), 'EM 1.png', 'encoded bare filename');
+      _assertEqual(photoFileName('SWE 1.png'), 'SWE 1.png', 'bare filename with a space');
+      _assertEqual(photoFileName('/person-2.jpg'), 'person-2.jpg', 'leading slash');
+      _assertEqual(photoFileName('person-3.jpg#frag'), 'person-3.jpg', 'fragment');
+      _assertEqual([photoFileName(''), photoFileName(null), photoFileName(undefined), photoFileName('   '), photoFileName('https://x.sharepoint.com/lib/'), photoFileName('https://x.sharepoint.com')],
+        ['', '', '', '', '', ''], 'blank / unusable gives an empty string');
+      _assertEqual(photoFileName('100%.png'), '100%.png', 'malformed % escape does not throw — kept raw');
+    },
+  },
+  {
+    name: 'N-337 buildPhotoUrlMap — keys by lower-cased name, skips folders and items with no download URL, tolerates junk input',
+    fn: function () {
+      const U = '@microsoft.graph.downloadUrl';
+      const items = [
+        { name: 'Person-1.PNG', file: {}, [U]: 'https://sp/a' },
+        { name: 'sub', folder: {}, [U]: 'https://sp/folder' },
+        { name: 'no-url.png', file: {} },
+        { file: {}, [U]: 'https://sp/nameless' },
+        null,
+      ];
+      const map = buildPhotoUrlMap(items);
+      _assertEqual(Array.from(map.keys()), ['person-1.png'], 'only the usable file, lower-cased');
+      _assertEqual(map.get('person-1.png'), 'https://sp/a', 'download URL kept');
+      _assertEqual([buildPhotoUrlMap(undefined).size, buildPhotoUrlMap([]).size, buildPhotoUrlMap('x').size], [0, 0, 0], 'empty / junk input gives an empty Map');
+    },
+  },
+  {
+    name: 'N-337 photoMapFresh — true inside the TTL, false at or after it, with no build time, or if the clock went backwards',
+    fn: function () {
+      const ttl = CONFIG.PHOTO_URL_TTL_MS;
+      _assertEqual(photoMapFresh(1000, 1000 + ttl - 1, ttl), true, 'just inside');
+      _assertEqual(photoMapFresh(1000, 1000 + ttl, ttl), false, 'at the TTL');
+      _assertEqual(photoMapFresh(null, 5000, ttl), false, 'never built');
+      _assertEqual(photoMapFresh(5000, 1000, ttl), false, 'clock went backwards');
+      _assertEqual(ttl > 0 && ttl < 60 * 60 * 1000, true, 'TTL stays below the ~1 h life of a download URL');
+    },
+  },
+  {
+    name: 'N-337 wiring — no PhotoUrl feeds an <img src>; the four consumers render data-photo and hydrate; upload clears the map; PDF export waits; people.css hides a src-less avatar',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const srcFed = s => /<img[^>]*\ssrc=['"]\$\{[^}]*PhotoUrl/.test(s);
+      // Positive control: the check must flag the two old markup shapes and pass the new one.
+      _assertEqual(srcFed('`<img src="${escAttr(p.PhotoUrl)}" alt="">`'), true, 'control: tracker shape');
+      _assertEqual(srcFed("`<img src='${escHtml(existingData.PhotoUrl)}' alt=''>`"), true, 'control: form shape');
+      _assertEqual(srcFed('`<img data-photo="${escAttr(photoFileName(p.PhotoUrl))}" alt="">`'), false, 'control: new shape passes');
+      const strip = f => _vendorStripJsComments(ALL_SOURCES[f]).join('\n');
+      Object.keys(ALL_SOURCES).forEach(f => {
+        _assertEqual(srcFed(strip(f)), false, f + ' must not put PhotoUrl in an <img src> (use data-photo + hydratePhotoImgs, N-337)');
+      });
+      ['org-chart.js', 'people-tracker.js', 'people-forms.js', 'os-admin.js'].forEach(f => {
+        const s = strip(f);
+        _assertEqual(/data-photo=/.test(s) && /photoFileName\(/.test(s), true, f + ' renders data-photo from photoFileName()');
+        _assertEqual(/hydratePhotoImgs\(/.test(s), true, f + ' calls hydratePhotoImgs()');
+      });
+      const oc = strip('org-chart.js');
+      _assertEqual(oc.indexOf('_ocPhotoSrc') === -1, true, 'org-chart.js: _ocPhotoSrc is gone');
+      _assertEqual(/async function exportOrgChartPdf[\s\S]*?await _ocPhotosReady/.test(oc), true, 'exportOrgChartPdf waits for the photos');
+      const up = strip('api.js').match(/async function uploadPeoplePhoto[\s\S]*?\n}/);
+      _assertEqual(!!up && up[0].indexOf('_photoMapInvalidate()') !== -1, true, 'uploadPeoplePhoto clears the photo map');
+      _assertEqual(/\.org-avatar--img:not\(\[src\]\)\s*\{\s*visibility:\s*hidden/.test(ALL_CSS['people.css']), true, 'people.css hides an org avatar that has no src yet');
+    },
   }
 );

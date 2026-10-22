@@ -24,20 +24,20 @@ function _ocInitials(name) {
   return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '?';
 }
 
-// PhotoUrl holds a full URL (from upload); a bare filename is also resolved
-// against the PeoplePhotos library, just in case one is entered by hand.
-function _ocPhotoSrc(val) {
-  const v = String(val || '').trim();
-  if (!v) return '';
-  if (/^https?:\/\//i.test(v)) return v;
-  return `${CONFIG.SP_SITE_URL}/PeoplePhotos/${v.replace(/^\/+/, '')}`;
-}
+// PhotoUrl holds a full URL (from upload) or a bare filename entered by hand;
+// photoFileName() (utils.js) resolves either to the library filename.
+// N-337: the <img> is rendered with NO src — hydratePhotoImgs() (ui-kit.js)
+// sets it from a Graph download URL, because a plain SharePoint src needs a
+// session cookie that some browsers never send cross-site (401).
+// _ocPhotosReady settles when this page's photos have; exportOrgChartPdf waits
+// on it so no avatar prints blank.
+let _ocPhotosReady = Promise.resolve();
 function _ocAvatar(name, photo) {
   const ini = _ocEsc(_ocInitials(name));
-  const src = _ocPhotoSrc(photo);
+  const file = photoFileName(photo);
   return `<span class='org-avatar-wrap'>`
     + `<span class='org-avatar org-avatar--initials'>${ini}</span>`
-    + (src ? `<img class='org-avatar org-avatar--img' src='${_ocEsc(src)}' alt=''${actOn('error', 'ocHideImg', ACT_EL)}>` : '')
+    + (file ? `<img class='org-avatar org-avatar--img' data-photo='${_ocEsc(file)}' alt=''${actOn('error', 'ocHideImg', ACT_EL)}>` : '')
     + `</span>`;
 }
 
@@ -83,6 +83,7 @@ async function renderOrgChart() {
         </div>
       </div>
     </div>`;
+  _ocPhotosReady = hydratePhotoImgs(main, getPhotoUrlMap);   // N-337
   if (window.lucide) lucide.createIcons();
 }
 
@@ -315,9 +316,10 @@ function renderInternalUnassignedHtml(list) {
 }
 
 // ── landscape scale-to-fit PDF ─────────────────────────────────────────
-function exportOrgChartPdf() {
+async function exportOrgChartPdf() {
   const inner = document.getElementById('org-chart-inner');
   if (!inner) return;
+  await _ocPhotosReady;   // N-337: never rejects; capped by CONFIG.PHOTO_SETTLE_MS
   // A4 landscape at 96dpi is ~717px of usable height. Subtract the print header
   // (~72px after diff 7 trims its margin), the title (~26px) and the tile padding
   // (~16px) and ~600px remains — so 600 left no headroom at all and a full-height

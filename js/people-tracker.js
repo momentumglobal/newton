@@ -22,8 +22,8 @@ function personRowHtml(p, { canEdit, canPayroll, salariesRevealed, pending = fal
       </td>` : (canPayroll ? `<td>—</td>` : '');
   return `
     <tr class="${pending ? 'row-pending' : ''}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ''}>
-      <td>${p.PhotoUrl
-            ? `<img src="${escAttr(p.PhotoUrl)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
+      <td>${photoFileName(p.PhotoUrl)
+            ? `<img data-photo="${escAttr(photoFileName(p.PhotoUrl))}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
             : '<span style="color:var(--text-faint);font-size:12px">—</span>'}</td>
       <td>${escHtml(p.EmployeeName)}</td>
       <td>${escHtml(personRoleLabel(p) || '—')}</td>
@@ -192,6 +192,7 @@ async function renderEmployeesTab(pendingItem = null) {
         <div id='payroll-modal-body'></div>
       </div>
     </div>`;
+  hydratePhotoImgs(main, getPhotoUrlMap);   // N-337
   if (window.lucide) lucide.createIcons();
 }
 

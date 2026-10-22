@@ -119,6 +119,7 @@
 }
 .org-avatar--initials { background: var(--surface-accent-2); color: var(--text-on-brand); font-size: var(--fs-11); font-weight: 600; }
 .org-avatar--img { object-fit: cover; background: var(--surface); }
+.org-avatar--img:not([src]) { visibility: hidden; }  /* N-337: until hydratePhotoImgs() sets src, don't paint over the initials */
 .org-empty { color: var(--text-muted); padding: var(--sp-11); text-align: center; }
 
 .org-bench { margin-top: var(--sp-10); border-top: 1px dashed var(--border-connector); padding-top: var(--sp-7); }

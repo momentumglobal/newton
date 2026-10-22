@@ -35,6 +35,7 @@ const tooltips = {
     </div>
     <div style="padding:24px">${content}</div>
   `;
+  if (tab === 'leadership') hydratePhotoImgs(main, getPhotoUrlMap);   // N-337
   lucide.createIcons();
 }
 // N-331: role <option>s from CONFIG.ASSIGNABLE_ROLES (order) and
@@ -264,8 +265,8 @@ async function buildLeadershipTab() {
   const list = await getLeadershipAccess();
   const rows = list.map(l => `
     <tr>
-      <td>${l.PhotoUrl
-            ? `<img src="${escAttr(l.PhotoUrl)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
+      <td>${photoFileName(l.PhotoUrl)
+            ? `<img data-photo="${escAttr(photoFileName(l.PhotoUrl))}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
             : '<span style="color:var(--text-faint);font-size:12px">—</span>'}</td>
       <td>${escHtml(l.UserName || '—')}</td>
       <td>${escHtml(l.UserEmail)}</td>

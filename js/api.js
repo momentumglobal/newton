@@ -1145,6 +1145,57 @@ async function getPeoplePhotosDriveId() {
   return drive.id;
 }
 
+// ── People photos: Graph download URLs (N-337) ───────────────────────
+// A plain <img src="https://….sharepoint.com/…/PeoplePhotos/x.png"> is
+// authenticated by a SharePoint session cookie, which browsers often don't
+// send cross-site (401). Graph's /content would work, but it 302s to a
+// sharepoint.com host that connect-src does not allow. So the library is listed
+// once and each file's pre-authenticated @microsoft.graph.downloadUrl becomes
+// the <img> src (img-src already allows sharepoint.com). Memory only — never
+// _apiCache or browser storage: the URLs are time-limited bearer links (N-282).
+let _photoMap = null;        // Map: lower-cased filename -> download URL
+let _photoMapAt = null;      // Date.now() when _photoMap was built
+let _photoMapPromise = null; // in-flight read, shared by concurrent callers
+let _photoMapGen = 0;        // bumped by _photoMapInvalidate(); a read that started before it is not stored
+
+// Never throws. A failed read returns an empty Map and is not remembered, so
+// the next call retries. force = re-read even inside the TTL.
+async function getPhotoUrlMap(force = false) {
+  if (!force && _photoMap && photoMapFresh(_photoMapAt, Date.now(), CONFIG.PHOTO_URL_TTL_MS)) return _photoMap;
+  if (_photoMapPromise) return _photoMapPromise;
+  const gen = _photoMapGen;
+  const read = (async () => {
+    try {
+      const driveId = await getPeoplePhotosDriveId();
+      const items = [];
+      let url = `/sites/${CONFIG.SP_SITE_ID}/drives/${driveId}/root/children?$top=200`;
+      while (url) {
+        const data = await graphRequest('GET', url);
+        items.push(...(data.value || []));
+        url = data['@odata.nextLink'] ? data['@odata.nextLink'].replace(GRAPH, '') : null;
+      }
+      const map = buildPhotoUrlMap(items);
+      if (gen === _photoMapGen) { _photoMap = map; _photoMapAt = Date.now(); }
+      return map;
+    } catch (e) {
+      console.warn('N-337: could not read the PeoplePhotos library — avatars fall back to initials', e);
+      return new Map();
+    } finally {
+      if (_photoMapPromise === read) _photoMapPromise = null;
+    }
+  })();
+  _photoMapPromise = read;
+  return read;
+}
+
+// Forget the map (a photo was just uploaded or replaced).
+function _photoMapInvalidate() {
+  _photoMapGen++;
+  _photoMap = null;
+  _photoMapAt = null;
+  _photoMapPromise = null;
+}
+
 // Upload an image; returns its web URL. prefix = 'person' | 'leader'.
 // Stable filename (prefix-id.ext) so re-uploads overwrite the previous photo.
 async function uploadPeoplePhoto(prefix, id, file) {
@@ -1166,6 +1217,7 @@ async function uploadPeoplePhoto(prefix, id, file) {
     throw new Error(err?.error?.message || `Photo upload failed: HTTP ${res.status}`);
   }
   const result = await res.json();
+  _photoMapInvalidate();   // N-337: the library changed — next hydrate re-lists it
   const web = result?.webUrl;
   return web ? web + (web.includes('?') ? '&' : '?') + 'v=' + Date.now() : null;
 }

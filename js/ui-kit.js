@@ -551,6 +551,48 @@ function printPage(title, landscape = false, module = 'Newton') {
   setTimeout(() => { document.title = prevDocTitle; }, 1000);
 }
 
+// ── People photos (N-337) ─────────────────────────────────────────────
+// Photo <img> elements are rendered with NO src and data-photo="<filename>"
+// (filename from photoFileName(), utils.js). Their old src was a plain
+// SharePoint URL, which only loads when the browser sends a SharePoint session
+// cookie — missing cross-site for some users (401). hydratePhotoImgs() sets each
+// src from a Graph download URL instead. `getMap(force)` is passed in by the
+// caller (getPhotoUrlMap, api.js), so this file still does no network I/O.
+// An image with no match, or one that still fails after a single forced refresh
+// of the map, is hidden (display:none) so the initials badge / "—" shows.
+// Never rejects. Resolves once every image has settled, capped at
+// CONFIG.PHOTO_SETTLE_MS so a hung image can't hold up its caller (the Org
+// Chart PDF export waits on this).
+function hydratePhotoImgs(root, getMap) {
+  const scope = root || document;
+  const imgs = Array.from(scope.querySelectorAll('img[data-photo]'))
+    .filter(img => !img.dataset.photoState);
+  if (!imgs.length) return Promise.resolve();
+  imgs.forEach(img => { img.dataset.photoState = 'pending'; });
+  const fail = img => { img.dataset.photoState = 'failed'; img.style.display = 'none'; };
+  const work = (async () => {
+    let map;
+    try { map = await getMap(false); } catch (e) { map = new Map(); }
+    await Promise.all(imgs.map(img => new Promise(resolve => {
+      const key = String(img.dataset.photo || '').toLowerCase();
+      const url = map && map.get(key);
+      if (!url) { fail(img); resolve(); return; }
+      img.addEventListener('load', () => { img.dataset.photoState = 'loaded'; resolve(); }, { once: true });
+      img.addEventListener('error', async () => {
+        let fresh = null;
+        try { fresh = (await getMap(true)).get(key); } catch (e) { /* hidden below */ }
+        if (!fresh) { fail(img); resolve(); return; }
+        img.addEventListener('error', () => { fail(img); resolve(); }, { once: true });
+        img.style.display = '';
+        img.src = fresh;
+      }, { once: true });
+      img.src = url;
+    })));
+  })().catch(e => { console.warn('N-337: photo hydrate failed', e); });
+  const cap = new Promise(resolve => setTimeout(resolve, CONFIG.PHOTO_SETTLE_MS));
+  return Promise.race([work, cap]);
+}
+
 // N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
 // Later N-302 sub-tasks add their own names to this call; never register a name twice.
 registerActions({

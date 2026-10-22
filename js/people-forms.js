@@ -76,8 +76,8 @@ function renderPersonForm(existingData = null) {
         </div>
         <div class='form-group'>
           <label>Photo</label>
-          ${existingData?.PhotoUrl
-            ? `<img src='${escHtml(existingData.PhotoUrl)}' alt='' style='width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:6px'>`
+          ${photoFileName(existingData?.PhotoUrl)
+            ? `<img data-photo='${escHtml(photoFileName(existingData.PhotoUrl))}' alt='' style='width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:6px'>`
             : ''}
           <input type='file' name='PhotoFile' accept='${uploadAcceptAttr('PHOTO')}'>
           <span style='font-size:11px;color:var(--text-muted)'>Uploads to PeoplePhotos. Square images crop best.</span>
@@ -194,7 +194,9 @@ async function showEditPersonForm(id) {
   // overwrites it with the PeoplePay value (or undefined).
   const [person, payRows] = await Promise.all([getItem('People', id), getPeoplePay()]);
   const data = attachSalaries([person], payRows)[0];
-  document.getElementById('main-content').innerHTML = renderPersonForm(data);
+  const main = document.getElementById('main-content');
+  main.innerHTML = renderPersonForm(data);
+  hydratePhotoImgs(main, getPhotoUrlMap);   // N-337
 }
 
 // N-304: Staff type toggles Level <-> Function. The hidden select is disabled

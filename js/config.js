@@ -828,6 +828,14 @@ const CONFIG = {
   // doubles from baseDelayMs unless SharePoint sends a Retry-After header.
   GRAPH_RETRY: { maxAttempts: 4, baseDelayMs: 1000 },
 
+  // People photos (N-337): photos load through Graph download URLs, not a
+  // cookie-authenticated <img src>. Those URLs last about an hour, so the
+  // in-memory map is re-read after PHOTO_URL_TTL_MS (keep it below an hour).
+  // PHOTO_SETTLE_MS caps how long hydratePhotoImgs() — and the Org Chart PDF
+  // export waiting on it — will wait for a slow image.
+  PHOTO_URL_TTL_MS: 45 * 60 * 1000,
+  PHOTO_SETTLE_MS:  8000,
+
   // Build stamp (N-176 / F-3a). BUMP THIS BY HAND ON EVERY DEPLOY that
   // changes js/ or the shape of any list's data. Every sessionStorage cache
   // key embeds it, and graph-client.js discards on load any entry stamped with a

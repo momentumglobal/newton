@@ -354,6 +354,23 @@ async function getProjectSlaInputs(projectId) {
   return { slaRows, roles, headcount, placements, stageRows, activity, rejectedOffers };
 }
 
+// N-384 (DA-4, amendment 1): the Role page panel's reads. Same contract as getProjectSlaInputs,
+// narrowed to ONE role: all-time, un-windowed placements and activity for that role (the engine's
+// fill map is built from the placements passed in). The role row is passed in, not re-read, so
+// the panel scores the role exactly as the page shows it. Rejected offers degrade to null.
+async function getRoleSlaInputs(role) {
+  const roleIds = [role.id];
+  const [slaRows, headcount, stageRows, activity, placements, rejectedOffers] = await Promise.all([
+    getSLATargets(),
+    getAllHeadcount(),
+    getRoleStageHistory(),
+    getWeeklyActivity(null, null, { roleIds }),
+    getPlacements(null, { roleIds }),
+    getRejectedOffers(null, { roleIds }).catch(e => { console.warn('SLA role panel: rejected offers read failed', e); return null; }),
+  ]);
+  return { slaRows, roles: [role], headcount, placements, stageRows, activity, rejectedOffers };
+}
+
 // N-384 (DA-4): the Company Dashboard tile's extra reads. Placements are read here, not taken
 // from the dashboard: its own copy degrades to [] on a failed read, and an empty placement list
 // would make every filled hire look open. All-time, no window. Rejected offers degrade to null.

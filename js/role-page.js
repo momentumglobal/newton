@@ -10,6 +10,8 @@
 //     (S-4), and the close/cancel prompt when the last open headcount is
 //     cancelled (S-5). Desktop only (D-6) — this file is loaded on
 //     reporting.html only;
+//   - the SLA performance section (N-384): this role's attainment and full breach history,
+//     for client project types that have SLA targets (sla-panel.js mountRoleSlaPanel);
 //   - the role's checklist, when it has one (checklistBodyHtml /
 //     mountChecklistView, checklists.js).
 // Deep link: reporting.html#roles?action=checklist&id=N (openChecklist('role')
@@ -58,6 +60,7 @@ async function openRolePage(roleId) {
   renderBreadcrumb('roles', data.title);
   main.innerHTML = _rpPageHtml(data);
   if (data.checklist && !data.checklist.error) mountChecklistView(data.checklist);
+  if (_rpHasSlaPanel(data)) mountRoleSlaPanel('rp-sla-panel', data.project, data.role);
   lucide.createIcons();
 }
 
@@ -127,6 +130,12 @@ function _rpMetaHtml(v) {
   return `${escHtml(project)} · Stage ${stageBadgeHtml(v.roleId, v.role.Stage, false)} · Talent Partner: ${escHtml(tpDisplay(v.role.TalentPartner, v.tpMap))}`;
 }
 
+// N-384: the SLA section shows for the project types that have SLA targets - the same
+// eligibility test as the Project page. No role gate of its own: whoever can open this page.
+function _rpHasSlaPanel(v) {
+  return !!(v && v.project && slaEditorModel(v.project, []));
+}
+
 function _rpPageHtml(v) {
   const ck = v.checklist;
   let checklistHtml = '';
@@ -148,6 +157,7 @@ function _rpPageHtml(v) {
       ${_rpHeaderHtml(v)}
       <p class="checklist-meta" id="rp-meta">${_rpMetaHtml(v)}</p>
       <section class="role-page-section role-hc" id="rp-headcount">${_rpHeadcountHtml(v)}</section>
+      ${_rpHasSlaPanel(v) ? '<section class="role-page-section sla-panel" id="rp-sla-panel"></section>' : ''}
       ${checklistHtml}
     </div>`;
 }
@@ -307,6 +317,10 @@ async function _rpRefresh(v) {
     toast("Saved, but this page couldn't refresh — reload to see the change.", { type: 'error' });
   }
   _rpRenderHeadcount(v);
+  // N-384: hires, dates and the stage changed, so the SLA result did too. Scored from the fresh role row.
+  if (_rpOnScreen(v) && _rpHasSlaPanel(v) && document.getElementById('rp-sla-panel')) {
+    mountRoleSlaPanel('rp-sla-panel', v.project, v.role);
+  }
 }
 
 // One headcount handler at a time; does nothing while another is running, when

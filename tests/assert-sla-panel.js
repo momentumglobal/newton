@@ -255,10 +255,12 @@
         _assertEqual(html.indexOf('1 of 2 hires on target') > -1 && html.indexOf('2 of 3 weeks on target') > -1 && html.indexOf('2 running') > -1, true, 'AC10 counts, nouns and running');
         _assertEqual(html.indexOf('Attainment · Last 90 days') > -1, true, 'AC10 period in the header');
         _assertEqual(/btn-filter active[^>]*>Last 90 days/.test(html), true, 'AC10 toggle shows the active period');
-        _assertEqual(html.indexOf('Week ending') > -1 && html.indexOf('Ongoing: 10 days so far, target 7 days') > -1 && html.indexOf('Late: took 12 days, target 7 days') > -1, true, 'AC10 breach statuses');
+        const hist = slaPanelHtml(alphaModel('90d'), { slotId: 'proj-sla-slot', view: 'history' });
+        _assertEqual(html.indexOf('Week ending') > -1 && html.indexOf('Ongoing: 10 days so far, target 7 days') > -1 && html.indexOf('Late: took 12 days') === -1, true, 'AC10 default view lists ongoing breach statuses only');
+        _assertEqual(hist.indexOf('Late: took 12 days, target 7 days') > -1, true, 'AC10 the history view carries the resolved status');
         _assertEqual(html.indexOf('Show all') === -1, true, 'AC10 no Show all under the cap');
         const quiet = slaPanelHtml(slaPanelModel({ result: { targets: alphaResult().targets, hires: [], roles: [], breaches: [], gaps: GAPS0 }, roles: [], headcount: [], periodKey: 'all', today: spToday() }), {});
-        _assertEqual(quiet.indexOf('No SLA breaches recorded.') > -1, true, 'AC10 empty breach list');
+        _assertEqual(quiet.indexOf('No ongoing SLA breaches.') > -1, true, 'AC10 empty ongoing list');
         const noT = slaPanelHtml(slaPanelModel({ result: { targets: spTargets({}), hires: [], roles: [], breaches: [], gaps: GAPS0 }, roles: [], headcount: [], periodKey: 'all', today: spToday() }), {});
         _assertEqual(noT.indexOf('No SLA targets are set for this project type.') > -1 && noT.indexOf('<table') === -1, true, 'AC10 no-targets message instead of tables');
         const gapped = alphaResult(); gapped.gaps = Object.assign({}, GAPS0, { undatedHires: 2 });
@@ -266,7 +268,8 @@
         _assertEqual(html.indexOf('sla-gaps') === -1, true, 'AC10 no gap line when clean');
         const evilRoles = [{ id: 50, RoleTitle: '<img src=x onerror=alert(1)>', Location: '"><b>' }, { id: 51, RoleTitle: 'Designer' }];
         const bad = slaPanelHtml(slaPanelModel({ result: alphaResult(), roles: evilRoles, headcount: [{ id: 502, RoleID: 50, Sequence: 2, Title: '<script>x</script>' }], periodKey: 'all', today: spToday() }), {});
-        _assertEqual(bad.indexOf('<img') === -1 && bad.indexOf('<script') === -1 && bad.indexOf('&lt;img') > -1 && bad.indexOf('&lt;script&gt;') > -1, true, 'AC10 role and hire labels are escaped');
+        const badHist = slaPanelHtml(slaPanelModel({ result: alphaResult(), roles: evilRoles, headcount: [{ id: 502, RoleID: 50, Sequence: 2, Title: '<script>x</script>' }], periodKey: 'all', today: spToday() }), { view: 'history' });
+        _assertEqual(bad.indexOf('<img') === -1 && bad.indexOf('&lt;img') > -1 && badHist.indexOf('<script') === -1 && badHist.indexOf('&lt;script&gt;') > -1, true, 'AC10 role and hire labels are escaped'); 
         _assertEqual(/\son[a-z]+\s*=/i.test(html) || /\sstyle\s*=/i.test(html), false, 'AC10 no inline handlers or styles');
       },
     },
@@ -277,19 +280,20 @@
         for (let i = 0; i < 30; i++) r.breaches.push(spBreach('firstSubmissionDays:9' + String(i).padStart(2, '0'), 'firstSubmissionDays', 50, 900 + i, -(i + 1), null, true));
         const model = slaPanelModel({ result: r, roles: [], headcount: [], periodKey: 'all', today: spToday() });
         const capped = slaPanelHtml(model, { slotId: 's1' });
-        _assertEqual([countRows(capped, /<td>Role 50/g), capped.indexOf('Show all (30)') > -1], [25, true], 'AC11 25 rows and Show all (30)');
-        _assertEqual(countRows(slaPanelHtml(model, { slotId: 's1', showAll: true }), /<td>Role 50/g), 30, 'AC11 all 30 once revealed');
+        const roleRow = /cell-link"[^>]*>Role 50</g;
+        _assertEqual([countRows(capped, roleRow), capped.indexOf('Show all (30)') > -1], [25, true], 'AC11 25 rows and Show all (30)');
+        _assertEqual(countRows(slaPanelHtml(model, { slotId: 's1', showAll: true }), roleRow), 30, 'AC11 all 30 once revealed');
         const el = slot('s1', 't1');
         const prev = _slaPeriod;
         withDom({ s1: el }, function () {
           try {
             _slaMounts.set('s1', { kind: 'project', token: 't1', project: { id: 1 }, inputs: { roles: [], headcount: [] }, result: r, showAll: false });
             _slaRender('s1');
-            _assertEqual(countRows(el.innerHTML, /<td>Role 50/g), 25, 'AC11 rendered capped');
+            _assertEqual(countRows(el.innerHTML, roleRow), 25, 'AC11 rendered capped');
             showAllSlaBreaches('s1');
-            _assertEqual(countRows(el.innerHTML, /<td>Role 50/g), 30, 'AC11 Show all reveals every row');
+            _assertEqual(countRows(el.innerHTML, roleRow), 30, 'AC11 Show all reveals every row');
             setSlaPeriod('all');
-            _assertEqual(countRows(el.innerHTML, /<td>Role 50/g), 30, 'AC11 still revealed after a period toggle');
+            _assertEqual(countRows(el.innerHTML, roleRow), 30, 'AC11 still revealed after a period toggle');
           } finally { _slaPeriod = prev; _slaMounts.delete('s1'); }
         });
       },
@@ -412,6 +416,109 @@
             _assertEqual(src.indexOf(w), -1, 'AC18 ' + fn.name + ' does not read ' + w));
           _assertEqual(/\b(80|60|90|25)\b/.test(src), false, 'AC18 ' + fn.name + ' holds no band / period / cap literal');
         });
+      },
+    },
+    {
+      name: 'N-384 ongoing view — only ongoing breaches, role links, empty state, cap on ongoing rows',
+      fn: function () {
+        const tbl = h => (h.match(/sla-breaches[\s\S]*?<\/table>/) || [''])[0];
+        const bodyRows = h => Math.max(0, tbl(h).split('<tr>').length - 2);
+        const html = slaPanelHtml(alphaModel('all'), { slotId: 'proj-sla-slot' });
+        _assertEqual(bodyRows(html), 2, 'AC10a two ongoing rows, the resolved one is not listed');
+        _assertEqual(html.indexOf('Ongoing breaches</h4>') > -1 && html.indexOf('Breach history') === -1, true, 'AC10a heading');
+        _assertEqual(html.indexOf('Late: took 12 days') === -1 && html.indexOf('Ongoing: 10 days so far, target 7 days') > -1 && html.indexOf('Week ending') > -1, true, 'AC10a only ongoing statuses');
+        _assertEqual(countRows(html, /cell-link"[^>]*openRolePage\.prevent|openRolePage\.prevent[^>]*cell-link/g), 2, 'AC10a each role name links to its Role page');
+        _assertEqual(html.indexOf('>Engineer (Lisbon)</a>') > -1 && html.indexOf('>Designer</a>') > -1, true, 'AC10a link text is the role label');
+        const resolvedOnly = alphaResult(); resolvedOnly.breaches = [resolvedOnly.breaches[0]];
+        const none = slaPanelHtml(slaPanelModel({ result: resolvedOnly, roles: SPF().roles, headcount: SPF().headcount, periodKey: 'all', today: spToday() }), {});
+        _assertEqual([none.indexOf('No ongoing SLA breaches.') > -1, none.indexOf('Late:') === -1, none.indexOf('Show all') === -1, none.indexOf('sla-breaches') === -1], [true, true, true, true], 'AC10a only resolved breaches: empty state, nothing listed');
+        const evilRoles = [{ id: 50, RoleTitle: '<img src=x onerror=alert(1)>', Location: '"><b>' }, { id: 51, RoleTitle: 'Designer' }];
+        const bad = slaPanelHtml(slaPanelModel({ result: alphaResult(), roles: evilRoles, headcount: SPF().headcount, periodKey: 'all', today: spToday() }), {});
+        _assertEqual([bad.indexOf('<img') === -1, bad.indexOf('&lt;img') > -1, /<[^>]*\sonerror\s*=/i.test(bad)], [true, true, false], 'AC10a role label inert inside the link');
+        _assertEqual(tbl(slaPanelHtml(alphaModel('90d'), {})), tbl(slaPanelHtml(alphaModel('all'), {})), 'AC22 the period moves attainment, never the ongoing list');
+        const many = alphaResult(); many.breaches = [];
+        for (let i = 0; i < 30; i++) many.breaches.push(spBreach('firstSubmissionDays:8' + String(i).padStart(2, '0'), 'firstSubmissionDays', 50, 800 + i, -(i + 1), -(i + 1) + 1, false));
+        many.breaches.push(spBreach('firstSubmissionDays:850', 'firstSubmissionDays', 51, 850, -2, null, true));
+        many.breaches.push(spBreach('firstSubmissionDays:851', 'firstSubmissionDays', 51, 851, -3, null, true));
+        const mm = slaPanelHtml(slaPanelModel({ result: many, roles: SPF().roles, headcount: [], periodKey: 'all', today: spToday() }), { slotId: 's1' });
+        _assertEqual([bodyRows(mm), mm.indexOf('Show all') === -1], [2, true], 'AC11a 30 resolved + 2 ongoing lists just 2, no Show all');
+      },
+    },
+    {
+      name: 'N-384 history view — Role page: every breach, no role column or link, cap, role mounts render and refresh',
+      fn: function () {
+        const tbl = h => (h.match(/sla-breaches[\s\S]*?<\/table>/) || [''])[0];
+        const bodyRows = h => Math.max(0, tbl(h).split('<tr>').length - 2);
+        const m = alphaModel('all');
+        const html = slaPanelHtml(m, { slotId: 'rp-sla-panel', view: 'history', title: 'SLA performance · this role' });
+        _assertEqual(bodyRows(html), 3, 'AC21 every breach, ongoing and resolved');
+        _assertEqual(html.indexOf('Breach history') > -1 && html.indexOf('2 ongoing') > -1 && html.indexOf('SLA performance · this role') > -1, true, 'AC21 headings');
+        _assertEqual(/<th>Hire<\/th>/.test(html) && html.indexOf('Role · Hire') === -1 && html.indexOf('openRolePage') === -1 && html.indexOf('cell-link') === -1, true, 'AC21 no role column, no role link');
+        _assertEqual(html.indexOf('Late: took 12 days') > html.indexOf('Ongoing: 10 days so far'), true, 'AC21 ongoing first, resolved shown with its status');
+        const many = alphaResult(); many.breaches = [];
+        for (let i = 0; i < 30; i++) many.breaches.push(spBreach('firstSubmissionDays:7' + String(i).padStart(2, '0'), 'firstSubmissionDays', 50, 700 + i, -(i + 1), -(i + 1) + 1, false));
+        const mm = slaPanelModel({ result: many, roles: SPF().roles, headcount: [], periodKey: 'all', today: spToday() });
+        const capped = slaPanelHtml(mm, { slotId: 'rp-sla-panel', view: 'history' });
+        _assertEqual([bodyRows(capped), capped.indexOf('Show all (30)') > -1, bodyRows(slaPanelHtml(mm, { slotId: 'rp-sla-panel', view: 'history', showAll: true }))], [25, true, 30], 'AC21 cap 25 then Show all (30)');
+        const el = slot('rp-sla-panel', 'tr'), prev = _slaPeriod;
+        const keep = { gr: typeof getRoleSlaInputs === 'function' ? getRoleSlaInputs : null }, reads = [];
+        withDom({ 'rp-sla-panel': el }, function () {
+          try {
+            _slaMounts.set('rp-sla-panel', { kind: 'role', token: 'tr', project: { id: 1 }, role: SPF().roles[0], title: 'SLA performance · this role', view: 'history',
+              inputs: { roles: SPF().roles, headcount: SPF().headcount }, result: many, showAll: false });
+            _slaRender('rp-sla-panel');
+            _assertEqual([el.innerHTML.indexOf('Breach history') > -1, bodyRows(el.innerHTML)], [true, 25], 'AC21 a role mount renders the history view, capped');
+            showAllSlaBreaches('rp-sla-panel');
+            _assertEqual(bodyRows(el.innerHTML), 30, 'AC21 Show all works on a role mount');
+            getRoleSlaInputs = function (role) { reads.push(role.id); return new Promise(function () {}); };
+            refreshSlaPanel('rp-sla-panel');
+            _assertEqual(reads, [SPF().roles[0].id], 'AC25 refresh re-reads the role, once, for the same role');
+          } finally { if (keep.gr) getRoleSlaInputs = keep.gr; _slaPeriod = prev; _slaMounts.delete('rp-sla-panel'); }
+        });
+      },
+    },
+    {
+      name: 'N-384 getRoleSlaInputs — one role, own un-narrowed reads; role scope; Role page wiring',
+      fn: function () {
+        const keep = { t: getSLATargets, h: getAllHeadcount, s: getRoleStageHistory, w: getWeeklyActivity, p: getPlacements, r: getRejectedOffers };
+        const seen = {}, never = () => new Promise(function () {});
+        try {
+          getSLATargets = function () { seen.t = true; return never(); };
+          getAllHeadcount = function () { seen.h = true; return never(); };
+          getRoleStageHistory = function () { seen.s = true; return never(); };
+          getWeeklyActivity = function (a, b, o) { seen.w = [a, b, o]; return never(); };
+          getPlacements = function (a, o) { seen.p = [a, o]; return never(); };
+          getRejectedOffers = function (a, o) { seen.r = [a, o]; return never(); };
+          getRoleSlaInputs({ id: 77 });
+        } finally { getSLATargets = keep.t; getAllHeadcount = keep.h; getRoleStageHistory = keep.s; getWeeklyActivity = keep.w; getPlacements = keep.p; getRejectedOffers = keep.r; }
+        _assertEqual([seen.t, seen.h, seen.s], [true, true, true], 'AC23 targets, headcount and stage history read');
+        _assertEqual([seen.w, seen.p, seen.r], [[null, null, { roleIds: [77] }], [null, { roleIds: [77] }], [null, { roleIds: [77] }]], 'AC23 activity, placements, rejected offers: that role only, no window');
+        const F = FIXTURES.slaEngine, today = _slaToday(10);
+        const other = { id: 51, Stage: 'Sourcing', ProjectIDLookupId: 900 };
+        const mine = slaPanelModel({ result: _slaRun({ today: today }), roles: [F.role], headcount: [F.hc], periodKey: 'all', today: today });
+        const clean = slaPanelModel({ result: _slaRun({ today: today, roles: [other] }), roles: [other], headcount: [F.hc], periodKey: 'all', today: today });
+        const whole = slaPanelModel({ result: _slaRun({ today: today, roles: [F.role, other] }), roles: [F.role, other], headcount: [F.hc], periodKey: 'all', today: today });
+        _assertEqual([mine.breachRows.length, clean.breachRows.length, whole.breachRows.length], [1, 0, 1], 'AC24 the clean role shows no breaches while the project still does');
+        _assertEqual([metricOf(mine, 'firstSubmissionDays').breached, metricOf(clean, 'firstSubmissionDays').breached, clean.ongoingBreaches], [1, 0, 0], 'AC24 attainment is the role\'s own');
+        _assertEqual(slaPanelHtml(clean, { view: 'history' }).indexOf('No SLA breaches recorded.') > -1, true, 'AC24 role with no breaches: history empty state');
+        if (typeof ALL_SOURCES === 'undefined') _skip('source scan needs the filesystem (node tests/run.js)');
+        const S = ALL_SOURCES;
+        const body = (src, start) => { const i = src.indexOf(start); if (i < 0) return ''; const mm = /\r?\n\}\r?\n/.exec(src.slice(i)); return mm ? src.slice(i, i + mm.index + mm[0].length) : src.slice(i); };
+        const loader = body(S['api.js'], 'async function getRoleSlaInputs(');
+        _assertEqual(loader.indexOf('sinceWeeks') === -1 && loader.indexOf('fromDay') === -1 && (loader.match(/\.catch\(/g) || []).length === 1 && /getRejectedOffers\([^\n]*\.catch\(/.test(loader) && /roles: \[role\]/.test(loader), true, 'AC23 all-time, only rejected offers degrade, roles [role]');
+        const panel = S['sla-panel.js'];
+        _assertEqual(/kind: 'role'[^}]*view: 'history'/.test(panel) && /kind: 'project'[^}]*view: 'ongoing'/.test(panel), true, 'AC26 project surfaces list ongoing, the Role page lists history');
+        const rp = S['role-page.js'];
+        _assertEqual(/function _rpHasSlaPanel\(v\) \{\s*return !!\(v && v\.project && slaEditorModel\(v\.project, \[\]\)\);/.test(rp), true, 'AC25 eligibility gate, no role gate of its own');
+        const hcAt = rp.indexOf('id="rp-headcount"'), slaAt = rp.indexOf('id="rp-sla-panel"'), ckAt = rp.indexOf('${checklistHtml}\r\n    </div>') > -1 ? rp.indexOf('${checklistHtml}\r\n    </div>') : rp.indexOf('${checklistHtml}\n    </div>');
+        _assertEqual(hcAt > -1 && slaAt > hcAt && ckAt > slaAt, true, 'AC25 section sits after Headcount and before the Checklist');
+        _assertEqual(rp.indexOf("mountRoleSlaPanel('rp-sla-panel', data.project, data.role)") > -1, true, 'AC25 mounted after the page renders');
+        const refresh = body(rp, 'async function _rpRefresh(');
+        _assertEqual(refresh.indexOf('mountRoleSlaPanel(') > refresh.indexOf('_rpRenderHeadcount(v)') && refresh.indexOf('v.role') > -1, true, 'AC25 re-read after a successful write, from the fresh role row');
+        ['function rpStartAddHeadcount(', 'function rpCancelAdd(', 'function rpEditHeadcount(', 'function rpCancelEdit('].forEach(fn =>
+          _assertEqual(body(rp, fn).indexOf('SlaPanel') === -1, true, 'AC25 ' + fn + ' does not re-read'));
+        const pp = S['project-page.js'], dp = S['dashboard-project.js'];
+        _assertEqual(pp.indexOf("mountProjectSlaPanel('pp-sla-panel', data.project)") > -1 && dp.indexOf("mountProjectSlaPanel('proj-sla-slot', dashProject)") > -1, true, 'AC26 Project page and dashboard keep the project mount');
       },
     }
   );

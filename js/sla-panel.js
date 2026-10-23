@@ -4,10 +4,14 @@
 //   - the Project dashboard panel (dashboard-project.js, slot 'proj-sla-slot'): Admin / DM;
 //   - the Project page panel (project-page.js, slot 'pp-sla-panel'): Admin / Leadership / DM;
 //   - the Company Dashboard tile (dashboard-company.js, slot 'co-sla-slot'): Admin / Leadership,
-//     one line per project.
+//     one line per project;
+//   - the Role page panel (role-page.js, slot 'rp-sla-panel'): anyone who can open the role page,
+//     scored for that one role, with its full breach history (amendment 1).
+// The project surfaces list ONGOING breaches only (view 'ongoing', each role name links to its
+// Role page); the Role page lists the history (view 'history').
 // Every rule is pure in analytics.js (slaPanelModel, slaPortfolioModel, slaRag, slaPanelPeriod,
 // slaGapNotes) over the N-383 engine (computeProjectSla, slaAttainment). The reads are api.js
-// helpers (getProjectSlaInputs, getPortfolioSlaInputs). This file formats and mounts.
+// helpers (getProjectSlaInputs, getRoleSlaInputs, getPortfolioSlaInputs). This file formats and mounts.
 //
 // A slot is filled asynchronously after the page paints, so a slow compute never delays the
 // KPIs. Each mount stamps its slot with a token; a result that arrives after the user has moved
@@ -82,8 +86,13 @@ function _slaMetricRowHtml(m) {
         </tr>`;
 }
 
-function _slaBreachRowHtml(r) {
-  const who = escHtml(r.roleLabel) + (r.hireLabel ? ` · ${escHtml(r.hireLabel)}` : '');
+// view 'ongoing': first cell is "Role · Hire", the role a link to its Role page.
+// view 'history' (on the Role page itself): first cell is the hire only, no link.
+function _slaBreachRowHtml(r, view) {
+  const hire = r.hireLabel ? escHtml(r.hireLabel) : '—';
+  const who = view === 'history'
+    ? hire
+    : `<a href="#" class="cell-link"${act('openRolePage.prevent', Number(r.roleId))}>${escHtml(r.roleLabel)}</a>` + (r.hireLabel ? ` · ${hire}` : '');
   const when = (r.metric === SLA_WEEKLY_METRIC_KEY ? 'Week ending ' : '') + _slaDay(r.breachDay);
   return `
         <tr>
@@ -94,26 +103,27 @@ function _slaBreachRowHtml(r) {
         </tr>`;
 }
 
-// One project's panel body (heading, metrics, breach list). model = slaPanelModel() output.
-// opts: slotId (for Show all), showAll.
+// One panel body (heading, metrics, breach list). model = slaPanelModel() output.
+// opts: slotId (for Show all), showAll, title, view ('ongoing' default | 'history').
 function slaPanelHtml(model, opts = {}) {
   if (!model) return '';
-  const head = _slaHeadHtml('SLA performance', model.hasTargets ? model.rag : null);
+  const history = opts.view === 'history';
+  const head = _slaHeadHtml(opts.title || 'SLA performance', model.hasTargets ? model.rag : null);
   if (!model.hasTargets) {
     return `${head}<p class="sla-note">No SLA targets are set for this project type.</p>`;
   }
   const cap = CONFIG.SLA.PANEL_BREACH_ROWS;
-  const all = model.breachRows;
+  const all = history ? model.breachRows : model.breachRows.filter(r => r.ongoing);
   const shown = opts.showAll ? all : all.slice(0, cap);
   const more = all.length > shown.length
     ? `<button type="button" class="btn-secondary btn-sm"${act('showAllSlaBreaches', String(opts.slotId || ''))}>Show all (${all.length})</button>`
     : '';
   const breaches = all.length
     ? `<div class="table-scroll"><table class="data-table sla-breaches">
-        <thead><tr><th>Role · Hire</th><th>Metric</th><th>Breached</th><th>Status</th></tr></thead>
-        <tbody>${shown.map(_slaBreachRowHtml).join('')}</tbody>
+        <thead><tr><th>${history ? 'Hire' : 'Role · Hire'}</th><th>Metric</th><th>Breached</th><th>Status</th></tr></thead>
+        <tbody>${shown.map(r => _slaBreachRowHtml(r, history ? 'history' : 'ongoing')).join('')}</tbody>
       </table></div>${more}`
-    : emptyStateBlock({ icon: 'check-circle', message: 'No SLA breaches recorded.' });
+    : emptyStateBlock({ icon: 'check-circle', message: history ? 'No SLA breaches recorded.' : 'No ongoing SLA breaches.' });
   const gaps = model.gapNotes.length
     ? `<p class="sla-gaps">${model.gapNotes.map(escHtml).join(' ')}</p>` : '';
   return `${head}
@@ -121,7 +131,7 @@ function slaPanelHtml(model, opts = {}) {
         <thead><tr><th>Metric</th><th>Target</th><th>Attainment · ${escHtml(model.period.label)}</th><th>Ongoing breaches</th></tr></thead>
         <tbody>${model.metrics.map(_slaMetricRowHtml).join('')}</tbody>
       </table></div>
-      <h4 class="sla-subheading">Breaches <span class="sla-subnote">full history${model.ongoingBreaches ? ` · ${escHtml(String(model.ongoingBreaches))} ongoing` : ''}</span></h4>
+      <h4 class="sla-subheading">${history ? 'Breach history' : 'Ongoing breaches'}${history && model.ongoingBreaches ? ` <span class="sla-subnote">${escHtml(String(model.ongoingBreaches))} ongoing</span>` : ''}</h4>
       ${breaches}${gaps}`;
 }
 
@@ -184,25 +194,46 @@ function _slaRender(slotId) {
   } else {
     el.innerHTML = slaPanelHtml(slaPanelModel({
       result: m.result, roles: m.inputs.roles, headcount: m.inputs.headcount, periodKey: _slaPeriod, today,
-    }), { slotId, showAll: m.showAll });
+    }), { slotId, showAll: m.showAll, view: m.view, title: m.title });
   }
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-// Fills `slotId` with one project's SLA panel. Never throws.
-async function mountProjectSlaPanel(slotId, project) {
+// One scoped panel (a project, or one role of it). spec = { kind, project, role, title, view, load }.
+// Never throws.
+async function _slaMountScoped(slotId, spec) {
   const claim = _slaClaim(slotId);
   if (!claim) return;
   try {
-    const inputs = await getProjectSlaInputs(project.id);
+    const inputs = await spec.load();
     if (!claim.live()) return;
-    const result = computeProjectSla(Object.assign({ project, today: new Date() }, inputs));
-    _slaMounts.set(slotId, { kind: 'project', token: claim.token, project, inputs, result, showAll: false });
+    const result = computeProjectSla(Object.assign({ project: spec.project, today: new Date() }, inputs));
+    _slaMounts.set(slotId, {
+      kind: spec.kind, token: claim.token, project: spec.project, role: spec.role || null,
+      title: spec.title, view: spec.view, inputs, result, showAll: false,
+    });
     _slaRender(slotId);
   } catch (e) {
     console.warn('SLA panel load failed:', e);
-    if (claim.live()) claim.slot.innerHTML = _slaUnavailableHtml('SLA performance', "SLA data couldn't be loaded.");
+    if (claim.live()) claim.slot.innerHTML = _slaUnavailableHtml(spec.title, "SLA data couldn't be loaded.");
   }
+}
+
+// Fills `slotId` with one project's SLA panel (ongoing breaches only). Never throws.
+function mountProjectSlaPanel(slotId, project) {
+  return _slaMountScoped(slotId, {
+    kind: 'project', project, title: 'SLA performance', view: 'ongoing',
+    load: () => getProjectSlaInputs(project.id),
+  });
+}
+
+// Fills `slotId` with one role's SLA panel on the Role page: that role's own attainment and its
+// full breach history. Never throws.
+function mountRoleSlaPanel(slotId, project, role) {
+  return _slaMountScoped(slotId, {
+    kind: 'role', project, role, title: 'SLA performance · this role', view: 'history',
+    load: () => getRoleSlaInputs(role),
+  });
 }
 
 // Fills `slotId` with the Company Dashboard tile. ctx = the dashboard's own, already
@@ -233,12 +264,12 @@ async function mountPortfolioSlaTile(slotId, ctx) {
   }
 }
 
-// Re-reads and recomputes a project panel (a target edit rewrites history). No-op when that
-// slot isn't mounted.
+// Re-reads and recomputes a project or role panel (a target edit rewrites history). No-op when
+// that slot isn't mounted.
 function refreshSlaPanel(slotId) {
   const m = _slaMounts.get(slotId);
-  if (!m || m.kind !== 'project' || !document.getElementById(slotId)) return Promise.resolve();
-  return mountProjectSlaPanel(slotId, m.project);
+  if (!m || m.kind === 'portfolio' || !document.getElementById(slotId)) return Promise.resolve();
+  return m.kind === 'role' ? mountRoleSlaPanel(slotId, m.project, m.role) : mountProjectSlaPanel(slotId, m.project);
 }
 
 // ── Actions ─────────────────────────────────────────────────────────
@@ -255,7 +286,7 @@ function setSlaPeriod(key) {
 
 function showAllSlaBreaches(slotId) {
   const m = _slaMounts.get(slotId);
-  if (!m || m.kind !== 'project') return;
+  if (!m || m.kind === 'portfolio') return;
   m.showAll = true;
   _slaRender(slotId);
 }

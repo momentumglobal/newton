@@ -826,6 +826,24 @@ const CONFIG = {
     // N-382: ceiling for an SLA target typed into the editor (days or per week). A typo
     // guard, not a business rule.
     MAX_VALUE: 3650,
+    // N-383 (DA-3): SLA calc engine (analytics.js computeProjectSla). Stage
+    // names are anchors only - every band is expanded over ROLE_STAGES by
+    // index (slaStageBand), never listed. Checked at load
+    // (analytics.js slaEngineConfigCheck).
+    ENGINE: {
+      // DA-D6: stages that pause the per-hire clock.
+      pauseStages: ['On-hold'],
+      // RoleHistory evidence of a submission: a FORWARD entry into this band.
+      submissionBand: { from: 'Submitted', to: 'Offered' },
+      // RoleHistory evidence of an offer: a forward entry into this stage.
+      offerStage: 'Offered',
+      // N-383 decision (open point 3a): a week counts toward submissions per
+      // week only when the role touches one of these stages during it.
+      activeWeekBand: { from: 'Sourcing', to: 'Final Interview' },
+      // N-383 decision (open point 3b): trailing ACTIVE weeks in the rolling
+      // mean; a role is evaluated once it has this many active weeks.
+      rollingWeeks: 4,
+    },
   },
 
   // N-269: Kaplan–Meier time-to-hire (analytics.js computeTTFPrediction).

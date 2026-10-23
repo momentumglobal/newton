@@ -303,4 +303,19 @@ var FIXTURES = {
       ],
     },
   },
+  // N-383 (DA-3): SLA calc engine. One Embedded project (900) with default
+  // targets 7 / 2 / 30 / 45; openDay D = 2026-10-19 (a Monday), so scenarios
+  // span the 25 Oct 2026 BST→GMT change. tests/assert-sla-engine.js builds each
+  // scenario from these by day offset from D.
+  slaEngine: {
+    openDay: '2026-10-19',
+    project: { id: 900, ProjectType: 'Embedded' },
+    slaRows: [
+      { id: 1, Title: 'Default · Embedded', ProjectType: 'Embedded',
+        FirstSubmissionDays: 7, SubmissionsPerWeek: 2, TimeToOfferDays: 30, TimeToHireDays: 45 },
+      { id: 2, Title: 'Default · CoE', ProjectType: 'CoE', TimeToHireDays: 45 },
+    ],
+    role: { id: 50, Stage: 'Sourcing', ProjectIDLookupId: 900 },
+    hc:   { id: 500, RoleID: 50, ProjectID: 900, Sequence: 1, OpenDate: '2026-10-19T12:00:00Z', Status: 'Open' },
+  },
 };

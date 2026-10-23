@@ -43,7 +43,7 @@ var CSP_CANONICAL =
   "style-src 'self' 'unsafe-inline'; " +
   "style-src-elem 'self'; " +
   "style-src-attr 'unsafe-inline'; " +
-  "connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; " +
+  "connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://talentpoint.sharepoint.com https://talentpoint-my.sharepoint.com; " +
   "img-src 'self' https://talentpoint.sharepoint.com data: blob:; " +
   "font-src 'self' data:; " +
   "frame-src 'self' https://login.microsoftonline.com; " +
@@ -66,7 +66,7 @@ var CSP_STATIC_PAGES = [
 ];
 
 var CSP_JS_HOST_ALLOW = [
-  'graph.microsoft.com', 'login.microsoftonline.com', 'talentpoint.sharepoint.com',
+  'graph.microsoft.com', 'login.microsoftonline.com', 'talentpoint.sharepoint.com', 'talentpoint-my.sharepoint.com',
   'momentumglobal.github.io', 'www.w3.org'
 ];
 
@@ -147,7 +147,10 @@ function lintCspPolicy(policy) {
   exact('style-src', ["'self'", "'unsafe-inline'"]);
   exact('style-src-elem', ["'self'"]);
   exact('style-src-attr', ["'unsafe-inline'"]);
-  exact('connect-src', ["'self'", 'https://graph.microsoft.com', 'https://login.microsoftonline.com']);
+  // N-259 (D19): the two SharePoint hosts carry Graph's pre-authenticated
+  // file downloadUrls and copy-monitor URLs (starter folders). Never sent a token.
+  exact('connect-src', ["'self'", 'https://graph.microsoft.com', 'https://login.microsoftonline.com',
+    'https://talentpoint.sharepoint.com', 'https://talentpoint-my.sharepoint.com']);
   exact('object-src', ["'none'"]);
   exact('base-uri', ["'self'"]);
   var banned = [
@@ -159,7 +162,7 @@ function lintCspPolicy(policy) {
   return problems;
 }
 
-// cfg: { spSiteUrl, graph, authority }
+// cfg: { spSiteUrl, spMySiteOrigin, graph, authority }
 function lintCspOrigins(policy, cfg) {
   var problems = [];
   var d = _cspParse(policy);
@@ -171,6 +174,8 @@ function lintCspOrigins(policy, cfg) {
     }
   }
   need('img-src', cfg.spSiteUrl, 'CONFIG.SP_SITE_URL');
+  need('connect-src', cfg.spSiteUrl, 'CONFIG.SP_SITE_URL');
+  need('connect-src', cfg.spMySiteOrigin, 'CONFIG.SP_MY_SITE_ORIGIN');
   need('connect-src', cfg.graph, 'GRAPH');
   need('connect-src', cfg.authority, 'CONFIG.AUTHORITY');
   need('frame-src', cfg.authority, 'CONFIG.AUTHORITY');

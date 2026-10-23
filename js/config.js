@@ -27,6 +27,10 @@ const CONFIG = {
   SILENT_REDIRECT_URI: "https://momentumglobal.github.io/newton/redirect.html",
   SP_SITE_URL:  "https://talentpoint.sharepoint.com/sites/SolutionsHubReporting",
   SP_SITE_ID:   "talentpoint.sharepoint.com,330e562f-0ba1-4fd8-ae06-ffe3a9287271,b864c9c9-6fe0-4837-9713-5aaa4530de0d",
+  // N-259 (D19): the tenant's OneDrive host. Graph hands back file-content
+  // downloadUrls and copy-monitor URLs here, so it is in CSP connect-src
+  // (tests/lint-csp.js checks the two agree). Never sent a bearer token.
+  SP_MY_SITE_ORIGIN: "https://talentpoint-my.sharepoint.com",
   GP_INVOICE_DRIVE_ID: 'b!L1YOM6EL2E-uBv_jqShyccnJZLjgbzdIlxNaqkUw3g1MjqGliBUrRY2BqPmtPnw5',
   // Notes preview: chars of the first line shown before a "See more" toggle appears.
   NOTES_PREVIEW_CHARS: 60,
@@ -228,6 +232,41 @@ const CONFIG = {
     DEFAULT_SECTION: 'General',   // heading for items with a blank Section
     LABEL_MAX:       255,
     HELP_MAX:        2000,
+  },
+
+  // ── Starter folders (N-259 project; N-260 role) ───────────────────
+  // A one-time Project checklist action (CHECKLIST_ACTIONS 'newton.starterFolder',
+  // starter-folders.js) copies a starter-pack template folder from the
+  // 'Newton Templates' library on SolutionsHubReporting into the user's own
+  // OneDrive, fills {{Placeholder}} tokens in every .docx and shares it.
+  // The feature is OFF until TEMPLATE_DRIVE_ID and TEMPLATES.<type>.Default are
+  // both set (starterFoldersEnabled, starter-folder-logic.js). TEMPLATES keys
+  // must be CHECKLISTS.VARIANTS keys (D22, asserted); a blank id falls back to
+  // Default (D16). Pack content lives in SharePoint, so a content change needs
+  // no release.
+  STARTER_FOLDERS: {
+    TEMPLATE_DRIVE_ID: '',
+    TEMPLATES: {
+      project: { Default: '', CoE: '', ExecSearchMGAI: '' },
+      role:    { Default: '', CoE: '', ExecSearchMGAI: '' },   // N-260
+    },
+    PARENT_PATH:     { project: 'Newton/Projects', role: 'Newton/Roles' },
+    SHARE_ROLE:      'write',
+    SEND_INVITATION: false,
+    SHARE_EXCLUDE:   ['admin@momentumglobal.co'],   // D11: shared mailbox
+    COPY_POLL_MS:    1500,
+    COPY_TIMEOUT_MS: 120000,
+    MAX_DOCX_BYTES:  4 * 1024 * 1024,   // simple-PUT limit; bigger .docx are copied unfilled
+    // Lazy-loaded on first use. Vendored in js/vendor/ — never a CDN (N-289).
+    JSZIP_SRC:       'js/vendor/jszip-3.10.1.min.js',
+    NAME_MAX:        255,               // OneDrive: one path segment
+    PATH_MAX:        400,               // OneDrive: whole path
+    // Parts of a .docx that can hold tokens (regexes over the zip's paths).
+    DOCX_PARTS:      [/^word\/document\.xml$/, /^word\/header\d*\.xml$/, /^word\/footer\d*\.xml$/,
+                      /^word\/footnotes\.xml$/, /^word\/endnotes\.xml$/],
+    PLACEHOLDERS: {
+      project: ['CustomerName', 'ProjectType', 'DeliveryManager', 'StartDate', 'EndDate', 'CreatedBy', 'CreatedDate'],
+    },
   },
 
   // Types excluded from revenue reporting (People Dashboard "By project type").

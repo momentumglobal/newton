@@ -561,14 +561,16 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'CSP origins match CONFIG.SP_SITE_URL, GRAPH and CONFIG.AUTHORITY (N-292 — single source of truth)',
+    name: 'CSP origins match CONFIG.SP_SITE_URL, CONFIG.SP_MY_SITE_ORIGIN, GRAPH and CONFIG.AUTHORITY (N-292, N-259 — single source of truth)',
     fn: function () {
       if (typeof lintCspOrigins === 'undefined') _skip('lint-csp.js not loaded — runs under node tests/run.js.');
-      const cfg = { spSiteUrl: CONFIG.SP_SITE_URL, graph: GRAPH, authority: CONFIG.AUTHORITY };
+      const cfg = { spSiteUrl: CONFIG.SP_SITE_URL, spMySiteOrigin: CONFIG.SP_MY_SITE_ORIGIN, graph: GRAPH, authority: CONFIG.AUTHORITY };
       _assertEqual(lintCspOrigins(CSP_CANONICAL, cfg), [], 'CSP origins vs config');
       // Positive control: a changed host in config must be caught.
-      _assertEqual(lintCspOrigins(CSP_CANONICAL, { spSiteUrl: 'https://other.sharepoint.com/sites/x', graph: GRAPH, authority: CONFIG.AUTHORITY }).length, 1, 'control: SharePoint host change flagged');
-      _assertEqual(lintCspOrigins(CSP_CANONICAL, { spSiteUrl: CONFIG.SP_SITE_URL, graph: 'https://graph.microsoft.us/v1.0', authority: CONFIG.AUTHORITY }).length, 1, 'control: Graph host change flagged');
+      // N-259: the SharePoint host is now in img-src AND connect-src, so a change is flagged twice.
+      _assertEqual(lintCspOrigins(CSP_CANONICAL, Object.assign({}, cfg, { spSiteUrl: 'https://other.sharepoint.com/sites/x' })).length, 2, 'control: SharePoint host change flagged (img-src + connect-src)');
+      _assertEqual(lintCspOrigins(CSP_CANONICAL, Object.assign({}, cfg, { spMySiteOrigin: 'https://other-my.sharepoint.com' })).length, 1, 'control (N-259): OneDrive host change flagged');
+      _assertEqual(lintCspOrigins(CSP_CANONICAL, Object.assign({}, cfg, { graph: 'https://graph.microsoft.us/v1.0' })).length, 1, 'control: Graph host change flagged');
     },
   },
   {

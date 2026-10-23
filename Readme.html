@@ -1283,6 +1283,14 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Offer Rejection Reasons follows the period picker (N-379)</div>
+        <ul>
+          <li>The Project Dashboard's Offer Rejection Reasons panel always showed this month, whatever the Detail period picker said. Both dashboard callers were passing the roles list where the period belongs. It now filters by the selected period.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
         <div class="changelog-title">Starter folders &mdash; go-live (N-376)</div>
         <ul>
           <li>The Newton Templates drive id and the Project and Role <strong>Default</strong> pack ids are now in <code>CONFIG.STARTER_FOLDERS</code>, so starter folders are on. Nothing appears on a checklist until an Admin adds the <code>newton.starterFolder</code> action to a Project or Role checklist template in the Config Panel. Pack content is edited in SharePoint, in place, with no release.</li>

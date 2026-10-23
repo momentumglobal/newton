@@ -467,5 +467,31 @@ ASSERTIONS.push(
       const pp = code('project-page.js');
       _assertEqual(/_ckView|_ckBusy/.test(pp), false, 'project-page.js never touches checklist state directly');
     },
+  },
+  {
+    // N-379: the Project Dashboard passed `roles` where renderRejectionPanel takes `period`,
+    // so getDetailPeriodRange() fell to its default and the panel was always "this month".
+    name: 'N-379: Offer Rejection Reasons follows the Detail period picker (callers pass the period; panel filters by it)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined' || !ALL_SOURCES['dashboard-project.js'] || !ALL_SOURCES['dashboard-project-panels.js']) {
+        _skip('Source extraction needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const calls = _vendorStripJsComments(ALL_SOURCES['dashboard-project.js']).join('\n').match(/renderRejectionPanel\([^)]*\)/g) || [];
+      _assertEqual(calls.length, 2, 'dashboard-project.js calls renderRejectionPanel twice (initial render + period re-render)');
+      calls.forEach(c => _assertEqual(/^renderRejectionPanel\(\s*[\w.]*rejections\s*,\s*_dashDetailPeriod\s*\)$/.test(c), true, 'call passes (rejections, _dashDetailPeriod) and no roles: ' + c));
+      const dp = ALL_SOURCES['dashboard-project-panels.js'];
+      const s = dp.indexOf('function renderRejectionPanel(');
+      _assertEqual(s > -1, true, 'renderRejectionPanel located');
+      const stubs = 'const getDetailPeriodRange = p => p === "last_month" ? { start: new Date(2026, 8, 1), end: new Date(2026, 8, 30, 23, 59, 59) } : { start: new Date(2026, 9, 1), end: new Date(2026, 9, 31, 23, 59, 59) };\n' +
+        "const emptyStateBlock = o => '<empty>' + o.message + '</empty>';\n";
+      const render = new Function(stubs + dp.slice(s, dp.indexOf('\n}\n', s) + 2) + '\nreturn renderRejectionPanel;')();
+      const rejs = [
+        { RejectionDate: '2026-09-15T12:00:00Z', RejectionReason: 'Salary' },
+        { RejectionDate: '2026-10-10T12:00:00Z', RejectionReason: 'Other' },
+      ];
+      const last = render(rejs, 'last_month'), cur = render(rejs, 'this_month');
+      _assertEqual(/<td>Salary<\/td>/.test(last) && !/<td>Other<\/td>/.test(last), true, 'last_month shows only the September rejection');
+      _assertEqual(/<td>Other<\/td>/.test(cur) && !/<td>Salary<\/td>/.test(cur), true, 'this_month shows only the October rejection');
+    },
   }
 );

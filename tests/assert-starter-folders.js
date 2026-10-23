@@ -7,19 +7,27 @@
 function _sfCfg(patch) {
   const c = JSON.parse(JSON.stringify({ STARTER_FOLDERS: CONFIG.STARTER_FOLDERS, CHECKLISTS: CONFIG.CHECKLISTS }));
   c.STARTER_FOLDERS.DOCX_PARTS = CONFIG.STARTER_FOLDERS.DOCX_PARTS;   // regexes don't survive JSON
+  // Start from a blank (dark) config: the committed ids are live since N-376, and
+  // these unit tests must not depend on them. Tests patch in the ids they need.
+  c.STARTER_FOLDERS.TEMPLATE_DRIVE_ID = '';
+  ['project', 'role'].forEach(rt => Object.keys(c.STARTER_FOLDERS.TEMPLATES[rt]).forEach(k => { c.STARTER_FOLDERS.TEMPLATES[rt][k] = ''; }));
   if (patch) patch(c);
   return c;
 }
 
 ASSERTIONS.push(
   {
-    name: 'N-259 config — TEMPLATES keys are CHECKLISTS.VARIANTS keys (D22); ships dark; placeholders listed',
+    name: 'N-259 config — TEMPLATES keys are CHECKLISTS.VARIANTS keys (D22); live since N-376; placeholders listed',
     fn: function () {
       const variants = CONFIG.CHECKLISTS.VARIANTS.map(v => v.key).sort();
       ['project', 'role'].forEach(rt =>
         _assertEqual(Object.keys(CONFIG.STARTER_FOLDERS.TEMPLATES[rt]).sort(), variants, rt + ' template keys = variant keys'));
-      _assertEqual(starterFoldersEnabled('project'), false, 'committed config is dark (no ids yet)');
-      _assertEqual(starterFoldersEnabled('role'), false, 'role dark too (N-260)');
+      _assertEqual(starterFoldersEnabled('project'), true, 'committed config is live for projects (N-376)');
+      _assertEqual(starterFoldersEnabled('role'), true, 'and for roles (N-376)');
+      _assertEqual(/^b![\w-]{20,}$/.test(CONFIG.STARTER_FOLDERS.TEMPLATE_DRIVE_ID), true, 'N-376 template drive id looks like a drive id');
+      ['project', 'role'].forEach(rt => _assertEqual(/^[0-9A-Z]{20,}$/.test(CONFIG.STARTER_FOLDERS.TEMPLATES[rt].Default), true, 'N-376 ' + rt + ' Default pack id looks like a driveItem id'));
+      _assertEqual(CONFIG.STARTER_FOLDERS.TEMPLATES.project.Default !== CONFIG.STARTER_FOLDERS.TEMPLATES.role.Default, true, 'N-376 project and role packs are different folders');
+      _assertEqual(starterFoldersEnabled('project', _sfCfg()), false, 'control: a blank config is dark, so the live assertions above can fail');
       _assertEqual(Object.keys(projectPlaceholderValues({}, {})), CONFIG.STARTER_FOLDERS.PLACEHOLDERS.project, 'placeholder keys = config list, same order');
       _assertEqual(Object.keys(rolePlaceholderValues({}, {}, {})), CONFIG.STARTER_FOLDERS.PLACEHOLDERS.role, 'N-260 role placeholder keys = config list, same order');
       _assertEqual(CONFIG.STARTER_FOLDERS.SHARE_EXCLUDE.includes('admin@momentumglobal.co'), true, 'D11 shared mailbox excluded');

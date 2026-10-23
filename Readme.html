@@ -1283,6 +1283,15 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Starter folders &mdash; go-live (N-376)</div>
+        <ul>
+          <li>The Newton Templates drive id and the Project and Role <strong>Default</strong> pack ids are now in <code>CONFIG.STARTER_FOLDERS</code>, so starter folders are on. Nothing appears on a checklist until an Admin adds the <code>newton.starterFolder</code> action to a Project or Role checklist template in the Config Panel. Pack content is edited in SharePoint, in place, with no release.</li>
+          <li>The CoE and Exec Search &amp; MG AI packs have no ids yet, so those projects and roles use the Default pack until N-377.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
         <div class="changelog-title">Starter folders &mdash; roles (N-260)</div>
         <ul>
           <li>The <code>newton.starterFolder</code> checklist action now also works on <strong>Role</strong> checklists. An Admin, a Talent Partner on the role or the parent project's Lead DM creates the role's one working folder in their OneDrive (<code>Newton/Roles/&lt;Customer – Role (Location)&gt;</code>) from the Role starter pack for the parent project's type, with the role's <code>{{Placeholder}}</code> tokens filled in every .docx and edit access shared with the Lead DM, admins and the role's Talent Partners. One folder per role.</li>

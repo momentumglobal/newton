@@ -239,16 +239,18 @@ const CONFIG = {
   // starter-folders.js) copies a starter-pack template folder from the
   // 'Newton Templates' library on SolutionsHubReporting into the user's own
   // OneDrive, fills {{Placeholder}} tokens in every .docx and shares it.
-  // The feature is OFF until TEMPLATE_DRIVE_ID and TEMPLATES.<type>.Default are
-  // both set (starterFoldersEnabled, starter-folder-logic.js). TEMPLATES keys
+  // The feature is OFF unless TEMPLATE_DRIVE_ID and TEMPLATES.<type>.Default are
+  // both set (starterFoldersEnabled, starter-folder-logic.js). Live since N-376
+  // for the Default packs; the CoE and ExecSearchMGAI ids stay blank until
+  // N-377 (blank falls back to Default). TEMPLATES keys
   // must be CHECKLISTS.VARIANTS keys (D22, asserted); a blank id falls back to
   // Default (D16). Pack content lives in SharePoint, so a content change needs
   // no release.
   STARTER_FOLDERS: {
-    TEMPLATE_DRIVE_ID: '',
+    TEMPLATE_DRIVE_ID: 'b!L1YOM6EL2E-uBv_jqShyccnJZLjgbzdIlxNaqkUw3g20PVj-hEu4SpDzoShRG1uU',
     TEMPLATES: {
-      project: { Default: '', CoE: '', ExecSearchMGAI: '' },
-      role:    { Default: '', CoE: '', ExecSearchMGAI: '' },   // N-260
+      project: { Default: '0136VJPWMZU5OBFHATVFC2BMT26WU2ZSR4', CoE: '', ExecSearchMGAI: '' },
+      role:    { Default: '0136VJPWOY7PIU7XXX2FBJPNM7SBNMDFSU', CoE: '', ExecSearchMGAI: '' },   // N-260
     },
     PARENT_PATH:     { project: 'Newton/Projects', role: 'Newton/Roles' },
     SHARE_ROLE:      'write',

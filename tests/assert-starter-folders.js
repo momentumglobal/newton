@@ -192,6 +192,25 @@ ASSERTIONS.push(
     },
   },
   {
+    name: 'N-259 starterFolderLink — owner link follows renames by DriveItemId; healed when it changed; missing folder flagged (AC 9)',
+    fn: function () {
+      const row = { WebUrl: 'https://t-my.sharepoint.com/personal/c/Documents/Newton/Projects/Acme' };
+      const renamed = 'https://t-my.sharepoint.com/personal/c/Documents/Newton/Projects/Acme%20Renamed';
+      _assertEqual(starterFolderLink(row, undefined), { url: row.WebUrl, heal: false, missing: false }, 'not looked up (shared viewer) → stored link');
+      _assertEqual(starterFolderLink(row, { webUrl: row.WebUrl }), { url: row.WebUrl, heal: false, missing: false }, 'unchanged → no heal');
+      _assertEqual(starterFolderLink(row, { webUrl: renamed }), { url: renamed, heal: true, missing: false }, 'renamed → live link + heal');
+      _assertEqual(starterFolderLink(row, null), { url: row.WebUrl, heal: false, missing: true }, 'gone → stored link, missing');
+      _assertEqual(starterFolderLink(row, { webUrl: 'javascript:alert(1)' }), { url: row.WebUrl, heal: false, missing: false }, 'non-https live value ignored');
+      _assertEqual(starterFolderLink(row, {}), { url: row.WebUrl, heal: false, missing: false }, 'no webUrl → stored');
+      _assertEqual(starterFolderLink({}, { webUrl: renamed }), { url: renamed, heal: true, missing: false }, 'blank stored → heal');
+      if (typeof ALL_SOURCES === 'undefined') _skip('Source part needs filesystem access — runs under node tests/run.js.');
+      const ui = ALL_SOURCES['starter-folders.js'];
+      _assertEqual(/isStarterFolderOwner\(row, ctx\.email\)\)\s*\{\s*try\s*\{\s*link = starterFolderLink\(row, await getMyDriveItemById\(row\.DriveItemId\)\)/.test(ui), true, 'prepare looks the folder up by DriveItemId, owner only');
+      _assertEqual(/if \(link\.heal\)/.test(ui) && /updateStarterFolderWebUrl\(row\.id, link\.url\)\.catch\(/.test(ui), true, 'heal is best-effort (never blocks render)');
+      _assertEqual(/const url = String\(link\.url/.test(ui) && !/String\(row\.WebUrl/.test(ui), true, 'render uses the resolved link, not row.WebUrl directly');
+    },
+  },
+  {
     name: 'N-259 source guards — action contract, no token to SharePoint hosts, JSZip lazy, wiring, no other entry points (D25)',
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined' || typeof ALL_HTML === 'undefined') {

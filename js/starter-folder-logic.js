@@ -268,3 +268,18 @@ function canOpenStarterFolder(row, email) {
   const me = String(email ?? '').trim().toLowerCase();
   return isStarterFolderOwner(row, me) || (!!me && splitEmailList(row.SharedWith).includes(me));
 }
+
+// Which Open folder link to show, given the stored row and — for the owner
+// only — the live driveItem looked up by DriveItemId (AC 9: a OneDrive folder
+// webUrl is path-based, so a rename or move breaks the stored one).
+//   live === undefined  not looked up (not the owner, or the lookup failed) → stored link
+//   live === null       the folder is gone from the owner's OneDrive → stored link, missing
+//   live = { webUrl }   use it if it is https; heal = it differs from the stored one
+// Returns { url, heal, missing }.
+function starterFolderLink(row, live) {
+  const stored = String((row && row.WebUrl) ?? '');
+  if (live === null) return { url: stored, heal: false, missing: true };
+  const current = live && /^https:\/\//i.test(String(live.webUrl ?? '')) ? String(live.webUrl) : '';
+  if (!current) return { url: stored, heal: false, missing: false };
+  return { url: current, heal: current !== stored, missing: false };
+}

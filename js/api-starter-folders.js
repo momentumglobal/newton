@@ -63,6 +63,18 @@ async function getMyDriveItemByPath(path) {
   }
 }
 
+// The driveItem with this id in the user's OWN OneDrive, or null when it is
+// gone (deleted / in the recycle bin). The id survives renames and moves, so
+// this is how the owner's Open folder link stays current (N-259 AC 9).
+async function getMyDriveItemById(itemId) {
+  try {
+    return await graphRequest('GET', `/me/drive/items/${encodeURIComponent(itemId)}?$select=id,name,webUrl`);
+  } catch (e) {
+    if (e && e.status === 404) return null;
+    throw e;
+  }
+}
+
 // Makes sure every folder in `path` exists in the user's OneDrive, creating
 // the missing ones; returns the last folder's driveItem. A 409 means someone
 // (another tab) created it in between — re-read it.
@@ -229,6 +241,12 @@ async function getStarterFoldersForRecord(recordType, recordId, { fresh = false 
   const type = _sfRecordType(recordType);
   if (fresh) _cacheInvalidate('StarterFolders');
   return getItems('StarterFolders', _odataAnd(`fields/Title eq '${odataStr(type)}'`, `fields/RecordId eq ${_sfInt(recordId)}`));
+}
+
+// Heals a row's stored link after the owner renamed or moved the folder, so
+// shared viewers (who can't read the owner's drive by id) get the current one.
+async function updateStarterFolderWebUrl(rowId, webUrl) {
+  return updateItem('StarterFolders', _sfInt(rowId), { WebUrl: String(webUrl || '') });
 }
 
 // fields use display names (RecordType, not Title) — mapped here.

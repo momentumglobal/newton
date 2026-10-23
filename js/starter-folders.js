@@ -68,11 +68,13 @@ function _sfActionHtml(ctx, data, { idx, busy }) {
     const owner = data.ownerName || row.OwnerEmail || 'someone';
     const day = starterCreatedDay(row);
     let html = _sfNote(`Created by ${owner}${day ? ` · ${day}` : ''}`);
-    const url = String(row.WebUrl || '');
+    const link = data.link || starterFolderLink(row, undefined);
+    const url = String(link.url || '');
     if (canOpenStarterFolder(row, ctx.email) && /^https:\/\//i.test(url)) {
       html += `<a class="checklist-item-link" href="${escAttr(url)}" target="_blank" rel="noopener noreferrer">Open folder <i data-lucide="external-link" aria-hidden="true"></i></a>`;
     }
     if (isStarterFolderOwner(row, ctx.email)) {
+      if (link.missing) html += _sfNote('This folder is no longer in your OneDrive.');
       const status = String(row.ShareStatus || '');
       if (status === 'partial' || status === 'failed') html += _sfNote('Not shared with everyone — share it from OneDrive.');
       if (String(row.FillWarnings || '').trim()) html += _sfNote(`Not filled in: ${row.FillWarnings}`);
@@ -96,7 +98,22 @@ CHECKLIST_ACTIONS[STARTER_FOLDER_ACTION_KEY] = {
     ]);
     const row = recordStarterFolder(rows, 'project', ctx.record.id);
     const ownerEmail = row ? String(row.OwnerEmail || '').toLowerCase() : '';
-    return { row, ownerName: ownerEmail ? (tpMap[ownerEmail] || ownerEmail) : '' };
+    // AC 9: the owner's link is re-read by DriveItemId (survives renames and
+    // moves) and the row is healed for shared viewers, who can only use the
+    // stored link — as fresh as the owner's last visit. Never blocks render.
+    let link = row ? starterFolderLink(row, undefined) : null;
+    if (row && isStarterFolderOwner(row, ctx.email)) {
+      try {
+        link = starterFolderLink(row, await getMyDriveItemById(row.DriveItemId));
+      } catch (e) {
+        console.warn('N-259: could not refresh the starter folder link', e && e.status);
+      }
+      if (link.heal) {
+        updateStarterFolderWebUrl(row.id, link.url).catch(e =>
+          console.warn('N-259: could not update the stored starter folder link', e && e.status));
+      }
+    }
+    return { row, link, ownerName: ownerEmail ? (tpMap[ownerEmail] || ownerEmail) : '' };
   },
   available: (ctx, data) => _sfCanRun(ctx, data),
   render:    (ctx, data, opts) => _sfActionHtml(ctx, data, opts),

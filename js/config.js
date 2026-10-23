@@ -415,6 +415,13 @@ const CONFIG = {
       'Title', 'RoleID', 'ProjectID', 'Sequence', 'OpenDate',
       'TargetHireDate', 'Backfill', 'Notes', 'Status', 'CancelledDate',
     ],
+    // N-381 (DA-1): SLA targets - one row per project type (default) or per
+    // project (override). ProjectID is a plain Number column (no Lookups).
+    // Every CONFIG.SLA.METRICS column must be listed here (asserted).
+    SLATargets: [
+      'Title', 'ProjectType', 'ProjectID',
+      'FirstSubmissionDays', 'SubmissionsPerWeek', 'TimeToOfferDays', 'TimeToHireDays',
+    ],
     // N-094 (F-2b): this list had no entry at all, so it stayed on
     // fields($select=*). These are the complete read set across js/ —
     // 'Yeare' is deliberately absent: FIELD_ALIASES registers it, but no
@@ -787,6 +794,30 @@ const CONFIG = {
   timeToHireDays:       45,    // 45 days
   flagThreshold:        0.80,  // flag at 80% of benchmark
 },
+
+  // N-381 (DA-1): SLA targets (Delivery Assurance epic, N-380). Stored in the
+  // SLATargets list: a DEFAULT row per project type (ProjectType set) and an
+  // OVERRIDE row per project (ProjectID > 0). A blank metric is "no target" on
+  // a default row and "inherit" on an override row. Read through
+  // slaTargetsFor() (utils.js) - never by hand.
+  SLA: {
+    LIST: 'SLATargets',
+    // Order = display order. key = the name used in code, column = SharePoint
+    // column. Labels and units live here so the editor and panels do not
+    // redeclare them.
+    METRICS: [
+      { key: 'firstSubmissionDays', column: 'FirstSubmissionDays', label: 'Time to first submission',      unit: 'days',     decimals: 0 },
+      { key: 'submissionsPerWeek',  column: 'SubmissionsPerWeek',  label: 'Submissions per role per week', unit: 'per week', decimals: 2 },
+      { key: 'timeToOfferDays',     column: 'TimeToOfferDays',     label: 'Time to offer',                 unit: 'days',     decimals: 0 },
+      { key: 'timeToHireDays',      column: 'TimeToHireDays',      label: 'Time to hire',                  unit: 'days',     decimals: 0 },
+    ],
+    // Values written by Admin > Data Health > SLA targets > Seed defaults. A
+    // metric not listed is seeded blank (not evaluated). Deliberately its own
+    // literal and NOT ANALYTICS_BENCHMARKS.timeToHireDays: that one is the
+    // flag / pace threshold, this is the contractual target, and neither may
+    // move the other (N-381 decision). Asserted.
+    SEED_DEFAULTS: { timeToHireDays: 45 },
+  },
 
   // N-269: Kaplan–Meier time-to-hire (analytics.js computeTTFPrediction).
   TTF_SURVIVAL: {

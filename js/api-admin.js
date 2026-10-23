@@ -163,3 +163,38 @@ async function applyLciProjectMigration(planRows) {
   }
   return out;
 }
+
+// ── SLA targets (N-381 / DA-1) ────────────────────────────────────────
+// Column preflight for the Data Health SLA targets section. SLATargets is read with a
+// LIST_FIELDS projection, so an unknown or missing column makes the row read fail with a 400 -
+// check the columns first. A list that cannot be read at all, or a failed read, is
+// { ok: false } (shown as Query error), never "missing".
+async function getSLATargetsColumnStatus() {
+  try {
+    const columns = await getListColumns(CONFIG.SLA.LIST);
+    const names = columns.filter(c => !c.hidden).map(c => c.name);
+    return { ok: true, missing: CONFIG.LIST_FIELDS.SLATargets.filter(n => n !== 'Title' && !names.includes(n)) };
+  } catch (e) {
+    console.warn('SLA targets: column read failed', e);
+    return { ok: false, missing: [] };
+  }
+}
+
+// The only writer of SLATargets in N-381. Create-only: slaSeedPlan() returns a row only for a
+// project type that has no default row yet, so an existing (possibly edited) row is never
+// touched and a second run creates nothing. `rows` = the caller's fresh getSLATargets() read.
+// One POST at a time (createItem invalidates the list cache); a failed row is recorded and
+// the rest carry on.
+async function createSlaDefaultRows(rows) {
+  const plan = slaSeedPlan(rows);
+  const out = { created: 0, skipped: slaProjectTypes().length - plan.length, failed: [] };
+  for (const fields of plan) {
+    try {
+      await createItem(CONFIG.SLA.LIST, fields);
+      out.created++;
+    } catch (e) {
+      out.failed.push({ type: fields.ProjectType, message: e && e.message ? e.message : String(e) });
+    }
+  }
+  return out;
+}

@@ -526,6 +526,7 @@ async function buildDataHealthTab() {
   return _dhRenderRowCountsHtml(data)
     + _dhRenderDataIntegrityHtml(data)
     + _dhRenderHeadcountIntegrityHtml(data)
+    + _dhRenderSlaTargetsHtml(data)
     + _dhRenderProjectTeamHtml(data)
     + _dhRenderAccessShadowHtml(data)
     + _dhRenderLciMigrationHtml(data)
@@ -617,10 +618,12 @@ async function _dhFetchSectionData() {
   const ptColumns = await getAssignmentTeamColumnStatus();
   // N-363: same idea for the LCI / Transformation migration - one cheap column read.
   const lciChoices = await getProjectTypeChoiceStatus();
+  // N-381: SLA targets - column preflight, then the rows. Never throws.
+  const slaTargets = await _dhFetchSlaTargets();
 
   return {
     lists, counts, deniedLists, excludedLists,
-    ptColumns, lciChoices,
+    ptColumns, lciChoices, slaTargets,
     nullProjectOk, nullProjectCount, nullWeekEndingOk, nullWeekEndingCount,
     statusByList,
     schemaResults,
@@ -1138,6 +1141,90 @@ async function applyLciMigration() {
   }
 }
 
+// ── Data Health Tab — SLA targets (N-381 / DA-1) ──────────────────────
+// Checks the SLATargets list and seeds the default rows (create-only, idempotent; the pure plan
+// is slaSeedPlan, utils.js). Fetch never throws: a list or column read that failed is
+// { ok: false }, never "empty" or "missing". Last-run state lives here, never in the DOM.
+let _slaSeed = { result: null };
+
+async function _dhFetchSlaTargets() {
+  const columns = await getSLATargetsColumnStatus();
+  if (!columns.ok) return { ok: false, missing: [], rows: [] };
+  // Missing columns: the projected row read would 400, so do not attempt it.
+  if (columns.missing.length) return { ok: true, missing: columns.missing, rows: [] };
+  try {
+    return { ok: true, missing: [], rows: await getSLATargets() };
+  } catch (e) {
+    console.warn('Data Health: SLATargets read failed', e);
+    return { ok: false, missing: [], rows: [] };
+  }
+}
+
+function _dhRenderSlaTargetsHtml(data) {
+  const s = data.slaTargets || { ok: false, missing: [], rows: [] };
+  let body;
+  if (!s.ok) {
+    body = `<p><span class="dh-badge dh-badge-danger">Query error</span> <span class="dh-muted">The SLATargets list could not be read — unknown, not empty. Check the list exists (Readme → Data model). See the browser console.</span></p>`;
+  } else if (s.missing.length) {
+    body = `<p><span class="dh-badge dh-badge-danger">Columns missing</span> ${s.missing.map(escHtml).join(', ')} — add them to the SLATargets list in SharePoint (Readme → Data model), then reload this tab.</p>`;
+  } else {
+    const plan = slaSeedPlan(s.rows);
+    const missingTypes = new Set(plan.map(r => r.ProjectType));
+    const overrides = s.rows.filter(r => slaRowKind(r) === 'override').length;
+    const typeRows = slaProjectTypes().map(t => `
+        <tr><td>${escHtml(t)}</td><td>${missingTypes.has(t) ? '<span class="dh-badge dh-badge-danger">Missing</span>' : '<span class="dh-badge dh-badge-success">Present</span>'}</td></tr>`).join('');
+    const seed = plan.length
+      ? `<p><button class="btn-primary"${act('seedSlaDefaults')}>Seed defaults — create ${plan.length.toLocaleString('en-GB')} ${plan.length === 1 ? 'row' : 'rows'}</button></p>`
+      : `<p class="dh-muted">Every default row is present. Nothing to seed.</p>`;
+    body = `<p><span class="dh-badge dh-badge-success">List readable</span> <span class="dh-muted">${s.rows.length.toLocaleString('en-GB')} rows · ${overrides.toLocaleString('en-GB')} project overrides</span></p>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Project type</th><th>Default row</th></tr></thead>
+      <tbody>${typeRows}
+      </tbody>
+    </table>
+    </div>
+    ${seed}${_dhSlaSeedResultHtml()}`;
+  }
+  return `    <h3>SLA targets (N-381)</h3>
+    <p class="dh-note">
+      Company default SLA targets live in the SLATargets list, one row per project type; a project can override them (set from the Project page once the editor ships).
+      Seed defaults only creates a missing default row — an existing row is never changed — and it is safe to run again.
+    </p>
+    ${body}
+`;
+}
+
+function _dhSlaSeedResultHtml() {
+  const r = _slaSeed.result;
+  if (!r) return '';
+  const failed = r.failed.length
+    ? ` <span class="dh-badge dh-badge-danger">${r.failed.length.toLocaleString('en-GB')} failed</span> <span class="dh-muted">${r.failed.map(f => escHtml(f.type + ': ' + f.message)).join('; ')}</span>`
+    : '';
+  return `<p>Last run: ${r.created.toLocaleString('en-GB')} created · ${r.skipped.toLocaleString('en-GB')} already there.${failed}</p>`;
+}
+
+async function seedSlaDefaults() {
+  const btn = event?.target;   // N-106: capture synchronously
+  if (!(await confirmModal({
+    title: 'Seed SLA defaults',
+    message: 'Create any missing default SLA row (one per project type). Existing rows are never changed.',
+    confirmLabel: 'Seed',
+  }))) return;
+  setButtonLoading(btn);
+  try {
+    // Fresh read so the plan describes what is really missing right now.
+    const out = await createSlaDefaultRows(await getSLATargets());
+    _slaSeed.result = out;
+    toast(out.failed.length ? `Created ${out.created} rows; ${out.failed.length} failed.` : `Created ${out.created} default rows.`,
+      { type: out.failed.length ? 'error' : 'success' });
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error seeding SLA defaults: ' + e.message, { type: 'error' });
+  }
+}
+
 // ── Data Health Tab — render: WeeklyActivity Anomalies (N-271) ───────
 // '2026-09-27' → '27 Sep'. utcDateOnly + timeZone 'UTC': no local getter.
 function _dhDay(iso) {
@@ -1570,4 +1657,5 @@ registerActions({
   runLciMigrationPreview,
   setLciTypePick,
   applyLciMigration,
+  seedSlaDefaults,
 });

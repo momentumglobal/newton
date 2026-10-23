@@ -473,6 +473,12 @@ const FIELD_ALIASES = {
   // record type ('project' | 'role'); RecordId is a Number, never a Lookup.
   // Calls live in api-starter-folders.js.
   StarterFolders:     { Title: 'RecordType' },
+  // ── SLA targets (N-381 / DA-1) ──────────────────────────────
+  // {} is deliberate — every SLATargets column, Title included (a label that
+  // is never read), is used under its own name; a self-mapping alias would
+  // DELETE the field (see RoleHistory above). ProjectID is a plain Number
+  // column, not a Lookup. Calls: getSLATargets (api.js), api-admin.js.
+  SLATargets:         {},
 };
  
 function normaliseFields(listName, fields) {

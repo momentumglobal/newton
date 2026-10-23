@@ -1086,6 +1086,77 @@ function projectFormTypes(currentType) {
   return types;
 }
 
+// ── SLA targets (N-381 / DA-1) ────────────────────────────────────────
+// Pure: no Graph, no DOM. Rows come from getSLATargets() (api.js); see CONFIG.SLA.
+// Project types that can have SLAs: every type with a dashboard except the internal project
+// (N-333, excluded from client KPIs). Derived, so a new project type changes this by
+// derivation, not by edit. A fresh array each call.
+function slaProjectTypes() {
+  return CONFIG.PROJECT_TYPES.filter(t => !isNoDashboardType(t) && t !== CONFIG.PROJECT_TYPE_INTERNAL);
+}
+
+// A target value: a finite number above zero, else null (blank / 0 / negative / junk = no target).
+function slaCleanValue(v) {
+  if (typeof v !== 'number' && typeof v !== 'string') return null;
+  if (v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+// 'override' when ProjectID > 0 (wins even if ProjectType is also set), 'default' when
+// ProjectType is non-blank, else null (ignored).
+function slaRowKind(row) {
+  if (!row) return null;
+  const pid = Number(row.ProjectID);
+  if (Number.isFinite(pid) && pid > 0) return 'override';
+  return String(row.ProjectType == null ? '' : row.ProjectType).trim() ? 'default' : null;
+}
+
+// The lowest SharePoint item id of a non-empty row list - the deterministic tie-break when a
+// key has duplicate rows.
+function _slaLowestIdRow(rows) {
+  return rows.reduce((a, b) => (Number(b.id) < Number(a.id) ? b : a));
+}
+
+// What are this project's SLA targets? null = the project cannot have SLAs (no project, or a
+// type outside slaProjectTypes() - LCI, Transformation, Internal, unknown - even if a row
+// exists). Otherwise one { value, source } per CONFIG.SLA.METRICS key: the project's override
+// row, else its type's default row, else { value: null, source: null }. Resolved per metric,
+// so a partial override inherits the rest. Duplicate rows for a key: lowest item id wins.
+function slaTargetsFor(project, rows) {
+  if (!project || !slaProjectTypes().includes(project.ProjectType)) return null;
+  const all = Array.isArray(rows) ? rows : [];
+  const pid = Number(project.id);
+  const overrides = all.filter(r => slaRowKind(r) === 'override' && Number(r.ProjectID) === pid);
+  const defaults = all.filter(r => slaRowKind(r) === 'default' && String(r.ProjectType).trim() === project.ProjectType);
+  const ov = overrides.length ? _slaLowestIdRow(overrides) : null;
+  const df = defaults.length ? _slaLowestIdRow(defaults) : null;
+  const out = {};
+  CONFIG.SLA.METRICS.forEach(m => {
+    const o = ov ? slaCleanValue(ov[m.column]) : null;
+    if (o !== null) { out[m.key] = { value: o, source: 'override' }; return; }
+    const d = df ? slaCleanValue(df[m.column]) : null;
+    out[m.key] = d !== null ? { value: d, source: 'default' } : { value: null, source: null };
+  });
+  return out;
+}
+
+// The default rows Seed defaults would create: one per eligible type that has no default row
+// yet. Existing rows never appear in the plan, so seeding cannot overwrite an edited row.
+// Metrics without a CONFIG.SLA.SEED_DEFAULTS value are omitted (blank), never written as 0.
+function slaSeedPlan(rows) {
+  const have = new Set((Array.isArray(rows) ? rows : [])
+    .filter(r => slaRowKind(r) === 'default')
+    .map(r => String(r.ProjectType).trim()));
+  const seed = {};
+  CONFIG.SLA.METRICS.forEach(m => {
+    if (CONFIG.SLA.SEED_DEFAULTS[m.key] !== undefined) seed[m.column] = CONFIG.SLA.SEED_DEFAULTS[m.key];
+  });
+  return slaProjectTypes()
+    .filter(t => !have.has(t))
+    .map(t => Object.assign({ Title: 'Default · ' + t, ProjectType: t }, seed));
+}
+
 // ── Text escaping ─────────────────────────────────────────────
 // Escape a value for safe interpolation into an HTML template string.
 function escHtml(str) {

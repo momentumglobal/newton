@@ -325,6 +325,13 @@ async function getRoleStageHistory() {
 async function getProjects(activeOnly = true) {
   return getItems("Projects", activeOnly ? "fields/Status eq 'Active'" : "");
 }
+
+// N-381 (DA-1): every SLATargets row (default and override). Tiny list; resolve
+// per project with slaTargetsFor() (utils.js). Not tier-2 cached - the N-382
+// editor writes it and must see its own save.
+async function getSLATargets() {
+  return getItems(CONFIG.SLA.LIST);
+}
  
 async function getRolesForProject(projectId, talentPartnerEmail = null) {
   const roles = await getItems("Roles", `fields/ProjectID eq ${projectId}`);

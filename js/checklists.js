@@ -22,12 +22,22 @@
 // Contract for every entry:
 //   label       — button text
 //   description — shown in the Config Panel editor's action picker (N-266b)
-//   available(ctx) → boolean — false renders the button disabled
-//   run(ctx) → Promise<boolean> — resolve true to tick the item
+//   available(ctx, data) → boolean — false renders the button disabled
+//   run(ctx, data) → Promise<boolean> — resolve true to tick the item
+// Optional (N-259), for actions whose UI depends on state outside the checklist:
+//   prepare(ctx) → Promise<data> — run once per key when the view loads (in
+//     parallel; a throw becomes data = null, never a failed checklist) and
+//     again after each run(). Kept on the view as v.actionData[key].
+//   render(ctx, data, { done, canTick, idx, busy }) → HTML string | null —
+//     replaces the default button. Called even when !canTick, so read-only
+//     viewers can get e.g. an Open link; the action decides what each user
+//     sees. checklistActionButtonHtml() builds the standard button.
 // ctx = { recordType, record, project, role, email }. record/project are the
-// normalised SharePoint items (for a project checklist, project === record).
-// N-259 / N-260 register their "Create starter folder" flows here. N-362: their
-// `available(ctx)` must also require projectHasChecklist(ctx.project?.ProjectType).
+// normalised SharePoint items (for a project checklist, project === record);
+// role is the signed-in user's resolved role.
+// Other modules register entries by assignment — 'newton.starterFolder' lives
+// in starter-folders.js (N-259). N-362: an entry's `available` must also
+// require projectHasChecklist(ctx.project?.ProjectType).
 const CHECKLIST_ACTIONS = {
   'newton.test': {
     label:       'Test action',
@@ -183,12 +193,33 @@ async function _loadChecklistView(recordType, id) {
   const title = recordType === 'project'
     ? (record.CustomerName || '—')
     : (record.Location ? `${record.RoleTitle} (${record.Location})` : (record.RoleTitle || '—'));
-  return {
+  const view = {
     recordType, recordId, record, project, variant, mode, title, tpMap, role, email, isAdmin,
     items: groupChecklistItems(items).flatMap(g => g.items), // display order
     canTick: recordType === 'project' ? canEditProjectRows(role) : canEditRoleRows(role),
     progress: resolveChecklistProgress(progressRows),
+    actionData: {},
   };
+  await _ckPrepareActions(view);
+  return view;
+}
+
+// N-259: runs prepare() for every action key on the view that has one (or
+// just `onlyKey`). Never throws — a failed prepare leaves data = null.
+async function _ckPrepareActions(v, onlyKey = null) {
+  const keys = [...new Set(v.items
+    .filter(it => normChecklistKey(it.ItemType) === 'action')
+    .map(it => String(it.ActionKey ?? '').trim()))]
+    .filter(k => (!onlyKey || k === onlyKey) && _ckAction(k) && typeof _ckAction(k).prepare === 'function');
+  const ctx = _ckActionCtx(v);
+  await Promise.all(keys.map(async k => {
+    try {
+      v.actionData[k] = await _ckAction(k).prepare(ctx);
+    } catch (e) {
+      console.warn(`Checklist action ${k}: prepare failed`, e);
+      v.actionData[k] = null;
+    }
+  }));
 }
 
 // N-307: makes `v` the checklist on screen — the one place _ckView/_ckBusy
@@ -288,6 +319,14 @@ function _ckActionCtx(v) {
   return { recordType: v.recordType, record: v.record, project: v.project, role: v.role, email: v.email };
 }
 
+// The standard action button (runs runChecklistAction(idx)). Shared with
+// actions that render their own UI (N-259).
+function checklistActionButtonHtml(idx, label, { disabled = false, title = '' } = {}) {
+  return `<button type="button" class="btn-secondary btn-sm" id="ck-action-${idx}"${act('runChecklistAction', idx)}` +
+    (disabled ? ` disabled${title ? ` title="${escAttr(title)}"` : ''}` : '') +
+    `>${escHtml(label)}</button>`;
+}
+
 function _checklistItemHtml(v, it, idx) {
   const key      = String(it.ItemKey ?? '').trim();
   const p        = key ? v.progress.get(key) : null;
@@ -302,16 +341,20 @@ function _checklistItemHtml(v, it, idx) {
     extra = isSafeChecklistUrl(url)
       ? `<a class="checklist-item-link" href="${escAttr(url)}" target="_blank" rel="noopener noreferrer">Open <i data-lucide="external-link" aria-hidden="true"></i></a>`
       : `<span class="checklist-item-note">Link unavailable${v.isAdmin ? ` — ${escHtml(url || 'no URL set')}` : ''}</span>`;
-  } else if (type === 'action' && v.canTick) {   // read-only viewers get no action UI
+  } else if (type === 'action') {
     const action = _ckAction(it.ActionKey);
-    if (!action) {
+    const data   = action ? (v.actionData || {})[String(it.ActionKey ?? '').trim()] : null;
+    if (action && typeof action.render === 'function') {
+      // N-259: the action draws its own UI, for every viewer.
+      extra = action.render(_ckActionCtx(v), data ?? null, { done, canTick: v.canTick, idx, busy: !!busy }) || '';
+    } else if (!v.canTick) {
+      // read-only viewers get no action UI
+    } else if (!action) {
       extra = `<button type="button" class="btn-secondary btn-sm" disabled>Action unavailable</button>` +
         (v.isAdmin ? `<span class="checklist-item-note">Unknown action: ${escHtml(it.ActionKey || '(none set)')}</span>` : '');
     } else {
-      const avail = typeof action.available === 'function' ? action.available(_ckActionCtx(v)) !== false : true;
-      extra = `<button type="button" class="btn-secondary btn-sm" id="ck-action-${idx}"${act('runChecklistAction', idx)}` +
-        (avail && !busy ? '' : ` disabled${avail ? '' : ` title="You don't have access to this action"`}`) +
-        `>${escHtml(action.label)}</button>`;
+      const avail = typeof action.available === 'function' ? action.available(_ckActionCtx(v), data ?? null) !== false : true;
+      extra = checklistActionButtonHtml(idx, action.label, { disabled: !avail || !!busy, title: avail ? '' : "You don't have access to this action" });
     }
   }
   const meta = done
@@ -389,11 +432,13 @@ async function runChecklistAction(idx) {
   const action = it ? _ckAction(it.ActionKey) : null;
   if (!action) return;
   const ctx = _ckActionCtx(v);
-  if (typeof action.available === 'function' && action.available(ctx) === false) return;
+  const actionKey = String(it.ActionKey ?? '').trim();
+  const data = (v.actionData || {})[actionKey] ?? null;
+  if (typeof action.available === 'function' && action.available(ctx, data) === false) return;
   const btn = document.getElementById(`ck-action-${idx}`);
   if (btn) btn.disabled = true;
   try {
-    const completed = await action.run(ctx);
+    const completed = await action.run(ctx, data);
     const key = String(it.ItemKey ?? '').trim();
     const p = v.progress.get(key);
     if (completed === true && !(p && p.done) && _ckView === v && _ckOnScreen(v)) {
@@ -403,8 +448,17 @@ async function runChecklistAction(idx) {
     console.error(`Checklist action ${it.ActionKey} failed:`, e);
     toast(`${action.label} failed — please try again.`, { type: 'error' });
   } finally {
-    const b = document.getElementById(`ck-action-${idx}`);
-    if (b && !_ckBusy.has(String(it.ItemKey ?? '').trim())) b.disabled = false;
+    // N-259: an action with prepare() re-reads its state after a run (e.g.
+    // the folder now exists) and redraws the item.
+    if (typeof action.prepare === 'function') {
+      if (_ckView === v) {
+        await _ckPrepareActions(v, actionKey);
+        if (_ckOnScreen(v)) _ckRefreshItem(v, idx);   // render() sets the button state
+      }
+    } else {
+      const b = document.getElementById(`ck-action-${idx}`);
+      if (b && !_ckBusy.has(String(it.ItemKey ?? '').trim())) b.disabled = false;
+    }
   }
 }
 

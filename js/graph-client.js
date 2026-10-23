@@ -468,6 +468,11 @@ const FIELD_ALIASES = {
   // OData filters use fields/Title. Calls live in api-checklists.js.
   ChecklistTemplates: { Title: 'ItemLabel' },
   ChecklistProgress:  { Title: 'RecordType' },
+  // ── Starter folders (N-259) ─────────────────────────────────
+  // One row per starter folder created (one per project, D26). Title holds the
+  // record type ('project' | 'role'); RecordId is a Number, never a Lookup.
+  // Calls live in api-starter-folders.js.
+  StarterFolders:     { Title: 'RecordType' },
 };
  
 function normaliseFields(listName, fields) {

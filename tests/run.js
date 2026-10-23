@@ -57,6 +57,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'permissions.js'),
   path.join(JS_DIR, 'project-team.js'),
   path.join(JS_DIR, 'checklist-logic.js'),
+  path.join(JS_DIR, 'starter-folder-logic.js'),
   path.join(JS_DIR, 'graph-client.js'),
   path.join(JS_DIR, 'api.js'),
   path.join(JS_DIR, 'api-headcount.js'),
@@ -100,7 +101,9 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-pages.js'),
   path.join(TESTS_DIR, 'assert-project-team.js'),
   path.join(TESTS_DIR, 'assert-project-types.js'),
+  path.join(TESTS_DIR, 'assert-starter-folders.js'),
 ];
+// N-259: starter-folder-logic.js (pure) loads straight after checklist-logic.js, which it calls.
 // N-361: project-team.js (pure) loads straight after permissions.js; assert-project-team.js is the last assertion file.
 const sandbox = {};
 

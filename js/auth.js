@@ -24,8 +24,11 @@ const msalInstance = new msal.PublicClientApplication(msalConfig);
 // their own SharePoint permissions. Entra puts every consented Graph scope
 // in the token, so the real fix is Sites.ReadWrite.All's consent being
 // removed in Entra, not this line. Runbook: specs/N-291-runbook.md.
+// N-259 (D18): Files.ReadWrite (delegated, admin-consented) reaches only the
+// signed-in user's OWN OneDrive — starter folders are created there. It does
+// not widen SharePoint site access, which stays Sites.Selected.
 const loginRequest = {
-  scopes: ['User.Read', 'Sites.Selected'],
+  scopes: ['User.Read', 'Sites.Selected', 'Files.ReadWrite'],
 };
 
 // N-290: per-tab sessionStorage flags for the automatic sign-in.

@@ -226,6 +226,31 @@
 .checklist-item-note { display: block; margin-top: var(--sp-2); color: var(--text-muted); font-size: var(--fs-12); }
 .checklist-item-actions .checklist-item-note { display: inline; margin-top: 0; }
 
+/* ── Starter folder action + modal (N-259) ─────────────────────────────
+   starter-folders.js. The modal reuses the confirm-modal shell (style.css);
+   these rules only add the form, facts list, status and result blocks.
+   Errors use the danger text token; everything else stays neutral. */
+.starter-modal { max-width: 480px; }
+.starter-modal [hidden] { display: none !important; }
+.starter-modal-label { display: block; margin-bottom: var(--sp-2); font-size: var(--fs-13); font-weight: var(--fw-semibold); color: var(--text-secondary); }
+.starter-modal-error { margin: calc(-1 * var(--sp-6)) 0 var(--sp-6); color: var(--status-danger-text); font-size: var(--fs-13); }
+.starter-modal-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--sp-2) var(--sp-6);
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-13);
+}
+.starter-modal-facts dt { color: var(--text-label); font-weight: var(--fw-semibold); }
+.starter-modal-facts dd { margin: 0; color: var(--text-secondary); overflow-wrap: anywhere; }
+.starter-modal-form .form-hint { margin: 0 0 var(--sp-8); }
+.starter-modal-status { margin: 0 0 var(--sp-8); color: var(--text-secondary); font-size: var(--fs-14); }
+.starter-modal-result { margin: 0 0 var(--sp-8); font-size: var(--fs-14); color: var(--text-secondary); }
+.starter-modal-done { display: flex; align-items: center; gap: var(--sp-3); margin: 0 0 var(--sp-5); color: var(--text-heading); font-weight: var(--fw-semibold); }
+.starter-modal-done svg, .starter-modal-warnings svg { width: 16px; height: 16px; flex: none; }
+.starter-modal-warnings { margin: var(--sp-5) 0 0; padding: 0; list-style: none; display: grid; gap: var(--sp-3); font-size: var(--fs-13); }
+.starter-modal-warnings li { display: flex; gap: var(--sp-3); align-items: flex-start; }
+
 /* ── Role page + Headcount section (N-307) ─────────────────────────────
    role-page.js. Neutral like the checklist page: muted text uses
    --text-label (--text-muted on --surface is under 4.5:1 in light mode).

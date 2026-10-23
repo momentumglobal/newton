@@ -180,8 +180,14 @@ ASSERTIONS.push(
       _assertEqual(canOpenStarterFolder(row, 'tp@x.co'), false, 'others do not');
       _assertEqual(canOpenStarterFolder(row, ''), false, 'blank email');
       _assertEqual(canOpenStarterFolder(null, 'priya@x.co'), false, 'no row');
-      _assertEqual(starterCreatedDay({ Created: '2026-10-21T23:30:00Z' }), '22 Oct 2026', 'Created instant → UK local day (BST)');
-      _assertEqual(starterCreatedDay({ Created: '2026-12-21T23:30:00Z' }), '21 Dec 2026', 'GMT: same day');
+      // Created is an instant, read as the BROWSER's local day. CI also runs this under
+      // NEWTON_TZ=UTC and America/New_York, so the expected day is derived from the
+      // run's own offset (ahead of UTC → next day), never hard-coded to UK time.
+      _assertEqual(starterCreatedDay({ Created: '2026-10-22T12:00:00Z' }), '22 Oct 2026', 'midday instant: same day in every CI timezone');
+      const late = '2026-10-21T23:30:00Z';
+      const aheadOfUtc = new Date(late).getTimezoneOffset() < -30;
+      _assertEqual(starterCreatedDay({ Created: late }), aheadOfUtc ? '22 Oct 2026' : '21 Oct 2026',
+        'late-evening UTC instant → local day (Europe/London BST: 22 Oct; UTC / New York: 21 Oct)');
       _assertEqual(starterCreatedDay({}), null, 'no Created');
     },
   },

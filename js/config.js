@@ -253,7 +253,11 @@ const CONFIG = {
     PARENT_PATH:     { project: 'Newton/Projects', role: 'Newton/Roles' },
     SHARE_ROLE:      'write',
     SEND_INVITATION: false,
-    SHARE_EXCLUDE:   ['admin@momentumglobal.co'],   // D11: shared mailbox
+    // D11: the shared mailbox is never shared with. N-260 QA: its admin row is on
+    // the old domain, and the tenant's own owner account (TP_Admin) is excluded too.
+    SHARE_EXCLUDE:   ['admin@momentumglobal.co', 'admin@talentpoint.co', 'TP_Admin@talentpoint.onmicrosoft.com'],
+    SHARE_RETRIES:   1,      // a failed invite is retried this many times (N-260 QA)
+    SHARE_RETRY_MS:  3000,   // pause before each retry
     COPY_POLL_MS:    1500,
     COPY_TIMEOUT_MS: 120000,
     MAX_DOCX_BYTES:  4 * 1024 * 1024,   // simple-PUT limit; bigger .docx are copied unfilled

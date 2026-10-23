@@ -315,4 +315,26 @@ ASSERTIONS.push(
       _assertEqual(starterPackVariant('LCI'), null, 'LCI parent → no role folder');
     },
   },
+  {
+    name: 'N-260 QA — shared mailbox never shared (both domains + owner account); invites are sequential with a retry',
+    fn: function () {
+      const ex = CONFIG.STARTER_FOLDERS.SHARE_EXCLUDE.map(x => x.toLowerCase());
+      ['admin@momentumglobal.co', 'admin@talentpoint.co', 'tp_admin@talentpoint.onmicrosoft.com']
+        .forEach(a => _assertEqual(ex.includes(a), true, 'excluded: ' + a));
+      _assertEqual(shareRecipients({
+        leadDm: 'Lead@x.co', adminEmails: ['Admin@TalentPoint.co', 'TP_ADMIN@talentpoint.onmicrosoft.com', 'admin@momentumglobal.co', 'jon@x.co'],
+        roleTps: ['declan@x.co'], creator: 'chris@x.co', exclude: CONFIG.STARTER_FOLDERS.SHARE_EXCLUDE,
+      }), ['lead@x.co', 'jon@x.co', 'declan@x.co'], 'the real config exclusions drop every shared-mailbox address, in any case');
+      _assertEqual(Number.isInteger(CONFIG.STARTER_FOLDERS.SHARE_RETRIES) && CONFIG.STARTER_FOLDERS.SHARE_RETRIES >= 1, true, 'retries configured');
+      _assertEqual(CONFIG.STARTER_FOLDERS.SHARE_RETRY_MS > 0, true, 'retry pause configured');
+      _assertEqual(typeof inviteEachWithRetry, 'function', 'retry helper is in the logic file');
+      if (typeof ALL_SOURCES === 'undefined') _skip('Source part needs filesystem access — runs under node tests/run.js.');
+      const api = ALL_SOURCES['api-starter-folders.js'];
+      const body = api.slice(api.indexOf('async function inviteToDriveItem('), api.indexOf('// ── StarterFolders list'));
+      _assertEqual(body.length > 200, true, 'control: the slice under test is not empty');
+      _assertEqual(/Promise\.all/.test('await Promise.all(list.map(f))'), true, 'control: the Promise.all check can fail');
+      _assertEqual(/inviteEachWithRetry\(emails/.test(body) && !/Promise\.all/.test(body), true, 'inviteToDriveItem is sequential (no Promise.all) and uses the retry helper');
+      _assertEqual(/SHARE_RETRIES/.test(body) && /SHARE_RETRY_MS/.test(body), true, 'retry settings come from config');
+    },
+  },
 );

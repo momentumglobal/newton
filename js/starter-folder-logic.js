@@ -277,6 +277,30 @@ function starterShareStatus(attempted, succeeded) {
   return succeeded > 0 ? 'partial' : 'failed';
 }
 
+// Runs inviteOne(email) for each email ONE AT A TIME, retrying a failed one up
+// to `retries` more times after `pauseMs`. Resolves the emails that succeeded,
+// in order. Sequential on purpose (N-260 QA): firing every invite at once at a
+// freshly copied folder lost a race and left a TP unshared. A person who still
+// fails after the retries is simply left out, so starterShareStatus() stays
+// exact. onError(email, error, attempt) lets the caller log each failure.
+// Pure: no network or DOM of its own — the call and the sleep are injected.
+async function inviteEachWithRetry(emails, inviteOne, { retries = 1, pauseMs = 0, onError = null, sleep = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
+  const succeeded = [];
+  for (const email of emails || []) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        await inviteOne(email);
+        succeeded.push(email);
+        break;
+      } catch (e) {
+        if (onError) onError(email, e, attempt);
+        if (attempt < retries) await sleep(pauseMs);
+      }
+    }
+  }
+  return succeeded;
+}
+
 // ── Permissions + state (D24, D26, D27) ──────────────────────────────
 
 // 'd MMM yyyy' local day a StarterFolders row was created, or null. Created is

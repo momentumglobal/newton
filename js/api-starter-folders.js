@@ -202,26 +202,23 @@ async function uploadDriveItemContent(driveId, itemId, blob) {
 
 // ── Sharing ──────────────────────────────────────────────────────────
 
-// Shares one item with each email — one invite per person, so a single bad
-// address can't sink the rest and the result is exact. Resolves the emails
-// that succeeded. Edit access, sign-in required, no email (D7).
+// Shares one item with each email — one invite per person, sent one at a time
+// and each retried once (inviteEachWithRetry), so a single bad address can't
+// sink the rest, a transient failure doesn't leave someone out (N-260 QA), and
+// the result is exact. Resolves the emails that succeeded. Edit access, sign-in
+// required, no email (D7).
 async function inviteToDriveItem(driveId, itemId, emails, cfg = CONFIG) {
   const sf = cfg.STARTER_FOLDERS;
-  const results = await Promise.all((emails || []).map(async email => {
-    try {
-      await graphRequest('POST', `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}/invite`, {
-        recipients:     [{ email }],
-        roles:          [sf.SHARE_ROLE],
-        requireSignIn:  true,
-        sendInvitation: sf.SEND_INVITATION,
-      });
-      return email;
-    } catch (e) {
-      console.warn('N-259: starter folder share failed for one recipient', e && e.status);
-      return null;
-    }
-  }));
-  return results.filter(Boolean);
+  return inviteEachWithRetry(emails, email => graphRequest('POST', `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}/invite`, {
+    recipients:     [{ email }],
+    roles:          [sf.SHARE_ROLE],
+    requireSignIn:  true,
+    sendInvitation: sf.SEND_INVITATION,
+  }), {
+    retries: sf.SHARE_RETRIES,
+    pauseMs: sf.SHARE_RETRY_MS,
+    onError: (email, e, attempt) => console.warn('N-260: starter folder share attempt failed', attempt, e && e.status),
+  });
 }
 
 // ── StarterFolders list ──────────────────────────────────────────────

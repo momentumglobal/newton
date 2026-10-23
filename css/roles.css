@@ -329,6 +329,21 @@
 .pp-sla-table td:first-child { white-space: nowrap; }
 .sla-defaults-table .checklist-tag { margin-left: var(--sp-3); }
 
+/* N-384 (DA-4): SLA panel - Project dashboard, Project page and the Company Dashboard tile
+   (sla-panel.js). Tokens only; RAG colour comes from the shared rag-text / sc-rag-pill rules. */
+.sla-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-5); padding-bottom: var(--sp-4); border-bottom: 1px solid var(--border-subtle); margin-bottom: var(--sp-7); }
+.sla-head-main { display: flex; align-items: center; gap: var(--sp-5); }
+.sla-heading { margin: 0; font-size: var(--fs-15); font-weight: 600; color: var(--text-heading); }
+.sla-subheading { margin: var(--sp-8) 0 var(--sp-4); font-size: var(--fs-13); font-weight: 600; color: var(--text-heading); }
+.sla-subnote { font-weight: 400; color: var(--text-label); }
+.sla-counts { margin-left: var(--sp-3); color: var(--text-label); font-size: var(--fs-13); }
+.sla-note, .sla-gaps, .sla-counts-line { margin: var(--sp-5) 0 0; color: var(--text-label); font-size: var(--fs-13); }
+.sla-pool { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--sp-6); }
+.sla-pool-label { color: var(--text-label); font-size: var(--fs-11); text-transform: uppercase; letter-spacing: 0.5px; }
+.sla-pool-value { font-size: var(--fs-26); font-weight: 600; color: var(--text-heading); font-variant-numeric: tabular-nums; }
+.sla-pool-sub { color: var(--text-label); font-size: var(--fs-13); }
+.sla-metrics td:first-child { white-space: nowrap; }
+
 /* ── Checklists — Config Panel editor (N-266b) ─────────────────────────
    Neutral, like the checklist page (N-257). Muted text uses --text-label,
    not --text-muted: --text-muted on --surface is under 4.5:1 in light mode.

@@ -71,6 +71,10 @@ async function renderProjectDashboard() {
   const rejPanel        = isDMAdmin ? hideEmpty(renderRejectionPanel(rejections, _dashDetailPeriod, roles)) : '';
   const starters        = isDMAdmin ? hideEmpty(renderUpcomingStartersPanel(placements, roles)) : '';
   const spend           = isDMAdmin ? hideEmpty(renderSpendPanel(roles, placements)) : '';
+  // N-384 (DA-4): SLA panel. Its own slot, OUTSIDE #proj-detail-grid (setDetailPeriod rewrites
+  // that grid), filled by sla-panel.js after paint from its own un-narrowed reads. isDMAdmin is
+  // the same flag the other DM panels use; Leadership has no Project dashboard.
+  const slaSlot         = isDMAdmin && slaEditorModel(dashProject, []) ? `<div class='dash-panel sla-panel' id='proj-sla-slot'></div>` : '';
   main.innerHTML = `
     <div class='page-header'>
       <h2>Project Dashboard${isDMAdmin ? ' — ' + escHtml(projectName) : ''}</h2>
@@ -82,6 +86,7 @@ async function renderProjectDashboard() {
       <div class='filter-group' id='proj-kpi-btns'>${kpiBtns}</div>
     </div>
     <div id='proj-kpi-area'>${kpis}</div>
+    ${slaSlot}
     <div style="display:flex;flex-direction:column;gap:20px;margin-bottom:20px">
       ${longOpenProj}
       ${roleTracker}
@@ -100,6 +105,7 @@ async function renderProjectDashboard() {
     </div>`;
   lucide.createIcons();
   runKpiCountUps(main);
+  if (slaSlot) mountProjectSlaPanel('proj-sla-slot', dashProject);   // N-384
   // N-255b: TP branch never resolves projectName (matches the <h2>, which
   // also only shows it for isDMAdmin) — no new fetch added for this.
   renderBreadcrumb('projectDashboard', isDMAdmin ? projectName : undefined);

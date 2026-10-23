@@ -118,6 +118,12 @@ const CONFIG = {
     // View = read-only for Delivery Managers as well (their own projects, via the page scope).
     slaTargetsEdit:    ['admin', 'leadership'],
     slaTargetsView:    ['admin', 'leadership', 'delivery_manager'],
+    // N-384 (DA-4): the SLA panel on the Project page. Same people as slaTargetsView; the
+    // Project dashboard panel uses that page's own DM / Admin flag (Leadership has no
+    // Project dashboard). slaPortfolioView = the Company Dashboard summary tile: Admin and
+    // Leadership only, DMs have no portfolio path.
+    slaPanelView:      ['admin', 'leadership', 'delivery_manager'],
+    slaPortfolioView:  ['admin', 'leadership'],
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
@@ -844,6 +850,22 @@ const CONFIG = {
       // mean; a role is evaluated once it has this many active weeks.
       rollingWeeks: 4,
     },
+    // N-384 (DA-4): SLA panel. RAG bands on attainment % (met / evaluated): >= green is
+    // green, >= amber is amber, else red; no evaluated events is grey. Chris, 23 Oct 2026.
+    // Checked at load (analytics.js slaPanelConfigCheck).
+    RAG: {
+      green: 80,
+      amber: 60,
+      LABELS: { green: 'On track', amber: 'Watch', red: 'At risk', grey: 'Not rated' },
+    },
+    // N-384: panel period toggle. days null = all time. The breach list ignores it.
+    PERIODS: [
+      { key: '90d', label: 'Last 90 days', days: 90 },
+      { key: 'all', label: 'All time',     days: null },
+    ],
+    PERIOD_DEFAULT: '90d',
+    // N-384: breach rows shown before "Show all".
+    PANEL_BREACH_ROWS: 25,
   },
 
   // N-269: Kaplan–Meier time-to-hire (analytics.js computeTTFPrediction).

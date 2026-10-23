@@ -333,6 +333,40 @@ async function getSLATargets() {
   return getItems(CONFIG.SLA.LIST);
 }
 
+// N-384 (DA-4): everything computeProjectSla() needs for ONE project, read UNWINDOWED and
+// UN-NARROWED on purpose (N-383 consumer contract): all-time placements, all of the project's
+// WeeklyActivity, every role. Deliberately not fetchDashboardData(): that narrows a TP (even
+// one holding a DM grant) to their own roles. Rejected offers are optional evidence (offer
+// implies a submission): a failed read degrades to null; every other read must succeed,
+// since a missing one would false-breach hires. computeProjectSla() scopes by role itself,
+// so the role-id filter's over-fetch above ROLE_ID_FILTER_MAX needs no client backstop here.
+async function getProjectSlaInputs(projectId) {
+  const roles = await getRolesForProject(projectId);
+  const roleIds = roles.map(r => r.id);
+  const [slaRows, headcount, stageRows, activity, placements, rejectedOffers] = await Promise.all([
+    getSLATargets(),
+    getAllHeadcount(),
+    getRoleStageHistory(),
+    getWeeklyActivity(null, null, { roleIds }),
+    getPlacements(null, { roleIds }),
+    getRejectedOffers(null, { roleIds }).catch(e => { console.warn('SLA panel: rejected offers read failed', e); return null; }),
+  ]);
+  return { slaRows, roles, headcount, placements, stageRows, activity, rejectedOffers };
+}
+
+// N-384 (DA-4): the Company Dashboard tile's extra reads. Placements are read here, not taken
+// from the dashboard: its own copy degrades to [] on a failed read, and an empty placement list
+// would make every filled hire look open. All-time, no window. Rejected offers degrade to null.
+async function getPortfolioSlaInputs() {
+  const [slaRows, stageRows, placements, rejectedOffers] = await Promise.all([
+    getSLATargets(),
+    getRoleStageHistory(),
+    getPlacements(null),
+    getRejectedOffers(null).catch(e => { console.warn('SLA tile: rejected offers read failed', e); return null; }),
+  ]);
+  return { slaRows, stageRows, placements, rejectedOffers };
+}
+
 // N-382 (DA-2): executes ONE slaEditPlan() (utils.js) against SLATargets - the only writer the
 // editors use. createItem / updateItem / deleteItem only (each invalidates the list cache).
 // 'none' makes no call. A failure is passed through slaTranslateSaveError (a 403 becomes a plain permission message).

@@ -88,6 +88,16 @@ function canViewSlaTargets(role, cfg = CONFIG) {
   return roleCan(role, 'slaTargetsView', cfg);
 }
 
+// N-384 (DA-4): pure. Can `role` see the SLA panel on the Project page?
+function canViewSlaPanel(role, cfg = CONFIG) {
+  return roleCan(role, 'slaPanelView', cfg);
+}
+
+// N-384 (DA-4): pure. Can `role` see the Company Dashboard SLA summary tile?
+function canViewSlaPortfolio(role, cfg = CONFIG) {
+  return roleCan(role, 'slaPortfolioView', cfg);
+}
+
 // N-382 (DA-2, DA-D7): pure. Can `role` edit SLA targets of `kind`? 'override' (one project's
 // targets, Project page): the slaTargetsEdit roles. 'default' (company defaults by project type,
 // Config Panel): Admin only - the Config Panel's own gate, not a capability. Unknown kind or

@@ -1675,3 +1675,202 @@ function slaAttainment(result, fromDay = null, toDay = null) {
   });
   return out;
 }
+
+// ── SLA panel model (N-384 / DA-4) ───────────────────────────────────────────
+// Pure: no Graph, no DOM. Turns computeProjectSla() / slaAttainment() output into what the
+// SLA panel (project) and tile (company) render. RAG bands, periods, labels and the breach-row
+// cap all come from CONFIG.SLA (RAG, PERIODS, PERIOD_DEFAULT, PANEL_BREACH_ROWS).
+
+// Throws on a broken CONFIG.SLA panel block. Run at load.
+function slaPanelConfigCheck(cfg = CONFIG.SLA) {
+  const rag = cfg && cfg.RAG;
+  if (!rag) throw new Error('SLA.RAG missing');
+  if (!Number.isInteger(rag.green) || !Number.isInteger(rag.amber) || rag.amber < 0 || rag.green > 100 || rag.amber >= rag.green) {
+    throw new Error('SLA.RAG: green and amber must be integers with 0 <= amber < green <= 100');
+  }
+  ['green', 'amber', 'red', 'grey'].forEach(k => {
+    if (!rag.LABELS || typeof rag.LABELS[k] !== 'string' || !rag.LABELS[k]) throw new Error(`SLA.RAG.LABELS.${k} missing`);
+  });
+  const periods = cfg.PERIODS;
+  if (!Array.isArray(periods) || !periods.length) throw new Error('SLA.PERIODS missing');
+  const keys = periods.map(p => p && p.key);
+  if (keys.some(k => typeof k !== 'string' || !k) || new Set(keys).size !== keys.length) {
+    throw new Error('SLA.PERIODS: keys must be unique, non-empty strings');
+  }
+  periods.forEach(p => {
+    if (typeof p.label !== 'string' || !p.label) throw new Error(`SLA.PERIODS "${p.key}": label missing`);
+    if (p.days !== null && !(Number.isInteger(p.days) && p.days > 0)) throw new Error(`SLA.PERIODS "${p.key}": days must be null or a positive integer`);
+  });
+  if (!keys.includes(cfg.PERIOD_DEFAULT)) throw new Error('SLA.PERIOD_DEFAULT is not one of SLA.PERIODS');
+  if (!Number.isInteger(cfg.PANEL_BREACH_ROWS) || cfg.PANEL_BREACH_ROWS < 1) throw new Error('SLA.PANEL_BREACH_ROWS must be an integer >= 1');
+  return true;
+}
+slaPanelConfigCheck();
+
+// Attainment % → 'green' | 'amber' | 'red'; null / non-numeric (nothing evaluated) → 'grey'.
+function slaRag(pct, cfg = CONFIG.SLA.RAG) {
+  if (typeof pct !== 'number' || !Number.isFinite(pct)) return 'grey';
+  if (pct >= cfg.green) return 'green';
+  if (pct >= cfg.amber) return 'amber';
+  return 'red';
+}
+
+const _SLA_RAG_RANK = { green: 1, amber: 2, red: 3 };
+
+// The worst of several RAGs; grey entries are ignored, none rated → 'grey'.
+function _slaWorstRag(rags) {
+  let worst = 'grey';
+  (rags || []).forEach(r => {
+    if (_SLA_RAG_RANK[r] && (worst === 'grey' || _SLA_RAG_RANK[r] > _SLA_RAG_RANK[worst])) worst = r;
+  });
+  return worst;
+}
+
+// Panel period key → { key, label, fromDay, toDay }. days N = the last N days INCLUDING today;
+// days null = all time (both bounds null). An unknown key falls back to PERIOD_DEFAULT.
+function slaPanelPeriod(key, today = new Date()) {
+  const periods = CONFIG.SLA.PERIODS;
+  const p = periods.find(x => x.key === key) || periods.find(x => x.key === CONFIG.SLA.PERIOD_DEFAULT);
+  if (p.days === null) return { key: p.key, label: p.label, fromDay: null, toDay: null };
+  const toDay = localDayISO(today);
+  return { key: p.key, label: p.label, fromDay: addDaysISO(toDay, -(p.days - 1)), toDay };
+}
+
+// Plain-English notes for the data gaps that make the numbers softer. Only non-zero gaps
+// speak; cancelledHires is expected and never listed. [] when clean.
+function slaGapNotes(gaps) {
+  const g = gaps || {};
+  const n = k => Number(g[k]) || 0;
+  const many = (c, one, more) => `${c} ${c === 1 ? one : more}`;
+  const out = [];
+  if (n('undatedHires')) out.push(`${many(n('undatedHires'), 'hire has', 'hires have')} no open date, so ${n('undatedHires') === 1 ? 'it is' : 'they are'} not measured.`);
+  if (n('filledNoOfferDate')) out.push(`${many(n('filledNoOfferDate'), 'filled hire has', 'filled hires have')} no offer-accepted date, so time to hire cannot be measured.`);
+  if (n('noStageHistory')) out.push(`${many(n('noStageHistory'), 'role has', 'roles have')} no stage history, so On-hold time cannot be excluded.`);
+  if (n('historyMismatch')) out.push(`${many(n('historyMismatch'), 'role has', 'roles have')} stage history that disagrees with its current stage, so ongoing On-hold time is ignored.`);
+  return out;
+}
+
+// One project's panel. result = computeProjectSla() output (null → null). roles / headcount
+// label the breach rows. Attainment and RAG follow the period; the breach list never does.
+//   { period, hasTargets, rag, ongoingBreaches, gapNotes,
+//     metrics:    [{ key, label, unit, noun, target, met, breached, pending, pct, rag, ongoing }],
+//     breachRows: [{ key, metric, metricLabel, roleId, roleLabel, hireLabel, target, value,
+//                    worstAvg, breachDay, eventDay, ongoing, status }] }
+// Breach rows: ongoing first, then breachDay descending, then key. status 'ongoing' | 'resolved'
+// (a late event, or an ended weekly episode). value = the hire's days now (ongoing) or at the
+// event (resolved); weekly rows carry worstAvg instead and hireLabel null. Labels are plain text.
+function slaPanelModel({ result, roles, headcount, periodKey, today = new Date() } = {}) {
+  if (!result) return null;
+  const period = slaPanelPeriod(periodKey, today);
+  const att = slaAttainment(result, period.fromDay, period.toDay);
+  const ongoingBy = {};
+  (result.breaches || []).forEach(b => { if (b.ongoing) ongoingBy[b.metric] = (ongoingBy[b.metric] || 0) + 1; });
+  const metrics = CONFIG.SLA.METRICS.map(m => {
+    const a = att[m.key];
+    return {
+      key: m.key, label: m.label, unit: m.unit,
+      noun: m.key === SLA_WEEKLY_METRIC_KEY ? 'weeks' : 'hires',
+      target: a.target, met: a.met, breached: a.breached, pending: a.pending, pct: a.pct,
+      rag: slaRag(a.pct), ongoing: ongoingBy[m.key] || 0,
+    };
+  });
+  const roleMap = new Map((roles || []).filter(Boolean).map(r => [String(r.id), r]));
+  const hcMap = new Map((headcount || []).filter(Boolean).map(h => [String(h.id), h]));
+  const hireMap = new Map((result.hires || []).map(h => [String(h.headcountId), h]));
+  const episodeMap = new Map();
+  (result.roles || []).forEach(r => (r.episodes || []).forEach(e => episodeMap.set(`${r.roleId}:${e.startWeek}`, e)));
+  const labelOf = Object.fromEntries(CONFIG.SLA.METRICS.map(m => [m.key, m.label]));
+  const breachRows = (result.breaches || []).map(b => {
+    const role = roleMap.get(String(b.roleId));
+    const tgt = result.targets && result.targets[b.metric] ? result.targets[b.metric].value : null;
+    const row = {
+      key: b.key, metric: b.metric, metricLabel: labelOf[b.metric] || b.metric,
+      roleId: String(b.roleId), roleLabel: role ? headcountRoleLabel(role) : `Role ${b.roleId}`,
+      hireLabel: null, target: tgt, value: null, worstAvg: null,
+      breachDay: b.breachDay, eventDay: b.eventDay, ongoing: !!b.ongoing, status: b.ongoing ? 'ongoing' : 'resolved',
+    };
+    if (b.headcountId !== null && b.headcountId !== undefined) {
+      const hc = hcMap.get(String(b.headcountId));
+      row.hireLabel = hc ? (hc.Title || headcountLabel(hc.Sequence)) : `Hire ${b.headcountId}`;
+      const h = hireMap.get(String(b.headcountId));
+      const mm = h && h.metrics ? h.metrics[b.metric] : null;
+      row.value = mm ? mm.value : null;
+    } else {
+      const e = episodeMap.get(`${b.roleId}:${b.breachDay}`);
+      row.worstAvg = e ? e.worstAvg : null;
+    }
+    return row;
+  });
+  breachRows.sort((a, b) =>
+    (a.ongoing === b.ongoing ? 0 : (a.ongoing ? -1 : 1)) ||
+    (a.breachDay === b.breachDay ? 0 : (a.breachDay > b.breachDay ? -1 : 1)) ||
+    (a.key < b.key ? -1 : (a.key > b.key ? 1 : 0)));
+  return {
+    period,
+    hasTargets: metrics.some(m => m.target !== null),
+    rag: _slaWorstRag(metrics.map(m => m.rag)),
+    ongoingBreaches: breachRows.filter(r => r.ongoing).length,
+    gapNotes: slaGapNotes(result.gaps),
+    metrics, breachRows,
+  };
+}
+
+// The line a project gets on the Company tile.
+function _slaProjectSummary(rag, problems, ongoing) {
+  const on = `${ongoing} ongoing ${ongoing === 1 ? 'breach' : 'breaches'}`;
+  if (problems.length) return problems.map(p => `${p.label} ${p.pct}%`).join(' · ') + (ongoing ? ` · ${on}` : '');
+  if (rag === 'grey') return ongoing ? `Not rated · ${on}` : 'Not rated';
+  return ongoing ? `Ongoing breaches: ${ongoing}` : 'No problem areas';
+}
+
+// The Company Dashboard tile. projects = the (already internal-filtered) projects; results =
+// { [projectId]: computeProjectSla() output }. Null results (LCI / Transformation / Internal /
+// unknown type) are skipped. Pooled per metric by COUNTS over projects that have a target for it:
+// round(sum met / (sum met + sum breached) x 100), not a mean of project percentages. A project's
+// RAG is its worst rated metric. One row per project, worst first.
+//   { period, counts: { green, amber, red, grey },
+//     metrics: [{ key, label, unit, noun, met, breached, pending, pct, rag, rated }],
+//     rows: [{ projectId, name, rag, ongoingBreaches, problems: [{ key, label, pct, rag }], summary }] }
+function slaPortfolioModel({ projects, results, periodKey, today = new Date() } = {}) {
+  const period = slaPanelPeriod(periodKey, today);
+  const pools = {};
+  CONFIG.SLA.METRICS.forEach(m => { pools[m.key] = { met: 0, breached: 0, pending: 0, rated: 0 }; });
+  const rows = [];
+  (projects || []).forEach(p => {
+    const res = p && results ? results[String(p.id)] : null;
+    if (!res) return;
+    const att = slaAttainment(res, period.fromDay, period.toDay);
+    const rags = [], problems = [];
+    CONFIG.SLA.METRICS.forEach(m => {
+      const a = att[m.key];
+      if (a.target === null) return;
+      const pool = pools[m.key];
+      pool.met += a.met; pool.breached += a.breached; pool.pending += a.pending;
+      if (a.pct === null) return;
+      pool.rated++;
+      const rag = slaRag(a.pct);
+      rags.push(rag);
+      if (rag === 'amber' || rag === 'red') problems.push({ key: m.key, label: m.label, pct: a.pct, rag });
+    });
+    problems.sort((a, b) => a.pct - b.pct);
+    const ongoing = (res.breaches || []).filter(b => b.ongoing).length;
+    const rag = _slaWorstRag(rags);
+    rows.push({
+      projectId: String(p.id), name: p.CustomerName || `Project ${p.id}`, rag,
+      ongoingBreaches: ongoing, problems, summary: _slaProjectSummary(rag, problems, ongoing),
+    });
+  });
+  const order = { red: 0, amber: 1, green: 2, grey: 3 };
+  rows.sort((a, b) => (order[a.rag] - order[b.rag]) || (b.ongoingBreaches - a.ongoingBreaches) || a.name.localeCompare(b.name));
+  const counts = { green: 0, amber: 0, red: 0, grey: 0 };
+  rows.forEach(r => { counts[r.rag]++; });
+  const metrics = CONFIG.SLA.METRICS.map(m => {
+    const pool = pools[m.key];
+    const pct = pool.met + pool.breached ? Math.round(pool.met / (pool.met + pool.breached) * 100) : null;
+    return {
+      key: m.key, label: m.label, unit: m.unit, noun: m.key === SLA_WEEKLY_METRIC_KEY ? 'weeks' : 'hires',
+      met: pool.met, breached: pool.breached, pending: pool.pending, pct, rag: slaRag(pct), rated: pool.rated,
+    };
+  });
+  return { period, counts, metrics, rows };
+}

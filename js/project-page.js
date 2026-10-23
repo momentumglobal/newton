@@ -63,6 +63,7 @@ async function openProjectPage(projectId) {
   renderBreadcrumb('projects', data.title);
   main.innerHTML = _ppPageHtml(data);
   if (data.checklist && !data.checklist.error) mountChecklistView(data.checklist);
+  if (document.getElementById('pp-sla-panel')) mountProjectSlaPanel('pp-sla-panel', data.project);   // N-384
   lucide.createIcons();
 }
 
@@ -184,6 +185,7 @@ function _ppPageHtml(v) {
       ${_ppHeaderHtml(v)}
       <div class="project-fields" id="pp-fields">${_ppFieldsHtml(v)}</div>
       ${_ppSlaSectionHtml(v)}
+      ${_ppSlaPanelSectionHtml(v)}
       <section class="role-page-section pp-team" id="pp-team">${_ppTeamHtml(v)}</section>
       ${checklistHtml}
     </div>`;
@@ -196,6 +198,13 @@ function _ppPageHtml(v) {
 function _ppSlaSectionHtml(v) {
   if (!v.canViewSla || !v.sla || !slaEditorModel(v.project, [])) return '';
   return `<section class="role-page-section pp-sla" id="pp-sla">${_ppSlaHtml(v)}</section>`;
+}
+
+// N-384 (DA-4): the SLA panel's slot (sla-panel.js fills it after the page renders), or '' when
+// this viewer can't see it or the project can't have SLAs. The section is the slot.
+function _ppSlaPanelSectionHtml(v) {
+  if (!canViewSlaPanel(_resolvedRole) || !slaEditorModel(v.project, [])) return '';
+  return `<section class="role-page-section pp-sla-panel sla-panel" id="pp-sla-panel"></section>`;
 }
 
 function _ppSlaHtml(v) {
@@ -680,6 +689,7 @@ async function _ppSlaWrite(v, values) {
   else v.sla = next;
   v.slaMode = null;
   _ppRenderSla(v);
+  refreshSlaPanel('pp-sla-panel');   // N-384: a target edit rewrites history
   return true;
 }
 

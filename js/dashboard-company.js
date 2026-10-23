@@ -186,6 +186,9 @@ async function renderCompanyDashboard() {
   const kpis     = renderCompanyKPIStrip(allRoles, allActivity, allProjects, _companyPeriod, hc);
   const longOpen = renderLongOpenRolesPanel(allRoles, projectMap, tpMap, hc.openSince);
   const tpPanel  = renderCompanyTPPanel(allActivity, projectMap, roleProjectMap, _companyDetailPeriod, tpMap);
+  // N-384 (DA-4): SLA summary tile, one line per active SLA project. Fed this page's already
+  // internal-filtered data; filled by sla-panel.js after paint.
+  const slaSlot = canViewSlaPortfolio(_resolvedRole) ? `<div class='dash-panel sla-panel' id='co-sla-slot'></div>` : '';
   main.innerHTML = `
     <div class='page-header'>
       <h2>Company Dashboard</h2>
@@ -196,6 +199,7 @@ async function renderCompanyDashboard() {
       <div class='filter-group' id='co-kpi-btns'>${kpiBtns}</div>
     </div>
     <div id='co-kpi-area'>${kpis}</div>
+    ${slaSlot}
     ${longOpen}
     <div class='dash-detail-header'>
       ${companyDetailPeriodDropdown()}
@@ -205,6 +209,7 @@ async function renderCompanyDashboard() {
     </div>`;
   lucide.createIcons();
   runKpiCountUps(main);
+  if (slaSlot) mountPortfolioSlaTile('co-sla-slot', { projects: allProjects.filter(isProjectActive), roles: allRoles, activity: allActivity, headcount: allHeadcount });   // N-384
 }
 function setCompanyPeriod(period) {
   _companyPeriod = period;

@@ -318,4 +318,23 @@ var FIXTURES = {
     role: { id: 50, Stage: 'Sourcing', ProjectIDLookupId: 900 },
     hc:   { id: 500, RoleID: 50, ProjectID: 900, Sequence: 1, OpenDate: '2026-10-19T12:00:00Z', Status: 'Open' },
   },
+
+  // N-384: SLA panel and Company tile. today is a Wednesday (local noon is built in the test).
+  // The projects feed slaPortfolioModel; roles / headcount label the breach rows.
+  slaPanel: {
+    today: '2026-10-21',
+    projects: [
+      { id: 1, CustomerName: 'Alpha' }, { id: 2, CustomerName: 'Beta' }, { id: 3, CustomerName: 'Gamma' },
+      { id: 4, CustomerName: 'Delta' }, { id: 5, CustomerName: 'Zeta' },
+    ],
+    roles: [
+      { id: 50, RoleTitle: 'Engineer', Location: 'Lisbon' },
+      { id: 51, RoleTitle: 'Designer' },
+    ],
+    headcount: [
+      { id: 501, RoleID: 50, Sequence: 1, Title: 'Headcount 1' },
+      { id: 502, RoleID: 50, Sequence: 2 },
+      { id: 503, RoleID: 51, Sequence: 3, Title: 'Headcount 3' },
+    ],
+  },
 };

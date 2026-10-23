@@ -110,6 +110,53 @@ function projectPlaceholderValues(project, ctx = {}) {
   };
 }
 
+// ── Role folders (N-260) ─────────────────────────────────────────────
+
+// Default root name for a role folder: 'Customer – Role Title (Location)', the
+// Role (Location) convention. Location is the role's country (Roles.Location).
+// Blank parts are dropped. Falls back to a safeFilename() version, then 'Role',
+// if the raw name breaks a rule (bad character, reserved name, too long).
+function defaultRoleFolderName(role, project, cfg = CONFIG) {
+  const parent = cfg.STARTER_FOLDERS.PARENT_PATH.role;
+  const tidy = v => String(v ?? '').replace(/\s+/g, ' ').trim();
+  const head = [tidy(project && (project.CustomerName ?? project.Title)), tidy(role && role.RoleTitle)]
+    .filter(Boolean).join(' – ');
+  const loc = tidy(role && role.Location);
+  const raw = head ? (loc ? `${head} (${loc})` : head) : '';
+  let v = validateFolderName(raw, parent, cfg);
+  if (v.ok) return v.clean;
+  v = validateFolderName(safeFilename(raw, '').replace(/\.+$/, ''), parent, cfg);
+  return v.ok ? v.clean : 'Role';
+}
+
+// Token name → plain-text value for a role folder. Keys are exactly
+// CONFIG.STARTER_FOLDERS.PLACEHOLDERS.role (asserted, same order). project is
+// the role's parent project (customer name); ctx = { dmName, tpNames,
+// createdBy, today } — dmName is the parent project's Lead DM, tpNames the
+// role's Talent Partners' display names, today a 'YYYY-MM-DD' local day.
+// No date columns are read, so there is no UTC/BST shift to guard.
+function rolePlaceholderValues(role, project, ctx = {}) {
+  const r = role || {};
+  const p = project || {};
+  return {
+    RoleTitle:       String(r.RoleTitle ?? ''),
+    CustomerName:    String(p.CustomerName ?? p.Title ?? ''),
+    Location:        String(r.Location ?? ''),
+    Department:      String(r.Department ?? ''),
+    HiringManager:   String(r.HiringManager ?? ''),
+    TalentPartners:  (ctx.tpNames || []).map(x => String(x ?? '').trim()).filter(Boolean).join(', '),
+    DeliveryManager: String(ctx.dmName ?? ''),
+    CreatedBy:       String(ctx.createdBy ?? ''),
+    CreatedDate:     formatShortDay(ctx.today) || '',
+  };
+}
+
+// The Talent Partners on a role: Roles.TalentPartner is ';'-joined emails.
+// Anything that isn't an email is dropped (it can't be shared with or match a user).
+function roleTalentPartnerEmails(role) {
+  return splitEmailList(role && role.TalentPartner);
+}
+
 // ── .docx token filling ──────────────────────────────────────────────
 
 // Text-node escaping for WordprocessingML. NOT escHtml: these values land in
@@ -215,11 +262,12 @@ function splitEmailList(s) {
   return [...new Set(String(s ?? '').split(/[;,\s]+/).map(x => x.trim().toLowerCase()).filter(x => x.includes('@')))];
 }
 
-// Who a new folder is shared with (D24): the Lead DM + active admins,
-// de-duplicated, minus the creator and the SHARE_EXCLUDE list (D11).
-function shareRecipients({ leadDm = '', adminEmails = [], creator = '', exclude = [] } = {}) {
+// Who a new folder is shared with (D24, D30): the Lead DM + active admins +
+// (roles) the role's Talent Partners, de-duplicated, minus the creator and the
+// SHARE_EXCLUDE list (D11).
+function shareRecipients({ leadDm = '', adminEmails = [], roleTps = [], creator = '', exclude = [] } = {}) {
   const skip = new Set([String(creator).trim().toLowerCase(), ...exclude.map(x => String(x).trim().toLowerCase())]);
-  return splitEmailList([leadDm, ...(adminEmails || [])].join(';')).filter(x => !skip.has(x));
+  return splitEmailList([leadDm, ...(adminEmails || []), ...(roleTps || [])].join(';')).filter(x => !skip.has(x));
 }
 
 // StarterFolders.ShareStatus from how many invites were attempted / landed.
@@ -247,7 +295,28 @@ function canCreateProjectStarterFolder(role, project, email) {
   return !!me && me === dm;
 }
 
-// The record's starter folder row, or null. One per project (D26); if a race
+// Role folder (D29): an Admin, a Talent Partner listed on THIS role
+// (Roles.TalentPartner — not the app-wide 'talent_partner' role), or the parent
+// project's Lead DM (Projects.DeliveryManager). userRole is the signed-in
+// user's app role; role is the Roles row; project is its parent (may be null).
+function canCreateRoleStarterFolder(userRole, role, project, email) {
+  if (userRole === 'admin') return true;
+  const me = String(email ?? '').trim().toLowerCase();
+  if (!me) return false;
+  if (roleTalentPartnerEmails(role).includes(me)) return true;
+  const dm = String((project && project.DeliveryManager) ?? '').trim().toLowerCase();
+  return !!dm && me === dm;
+}
+
+// One entry point for both record types. record is the Projects or Roles row;
+// project is the parent project (the record itself for a project).
+function canCreateStarterFolder(recordType, userRole, record, project, email) {
+  if (recordType === 'role') return canCreateRoleStarterFolder(userRole, record, project, email);
+  if (recordType === 'project') return canCreateProjectStarterFolder(userRole, project || record, email);
+  return false;
+}
+
+// The record's starter folder row, or null. One per record (D26, D28); if a race
 // ever wrote two, the lowest id is the one shown.
 function recordStarterFolder(rows, recordType, recordId) {
   const type = normChecklistKey(recordType);

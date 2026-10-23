@@ -21,6 +21,7 @@ ASSERTIONS.push(
       _assertEqual(starterFoldersEnabled('project'), false, 'committed config is dark (no ids yet)');
       _assertEqual(starterFoldersEnabled('role'), false, 'role dark too (N-260)');
       _assertEqual(Object.keys(projectPlaceholderValues({}, {})), CONFIG.STARTER_FOLDERS.PLACEHOLDERS.project, 'placeholder keys = config list, same order');
+      _assertEqual(Object.keys(rolePlaceholderValues({}, {}, {})), CONFIG.STARTER_FOLDERS.PLACEHOLDERS.role, 'N-260 role placeholder keys = config list, same order');
       _assertEqual(CONFIG.STARTER_FOLDERS.SHARE_EXCLUDE.includes('admin@momentumglobal.co'), true, 'D11 shared mailbox excluded');
       _assertEqual(/^js\/vendor\/jszip-[\d.]+\.min\.js$/.test(CONFIG.STARTER_FOLDERS.JSZIP_SRC), true, 'JSZip is vendored, not a CDN');
     },
@@ -244,8 +245,74 @@ ASSERTIONS.push(
       _assertEqual(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])), true, 'reporting.html load order: ' + order);
       Object.keys(ALL_HTML).filter(h => h !== 'reporting.html').forEach(h =>
         _assertEqual(/starter-folder/.test((ALL_HTML[h].match(/<script\b[^>]*>/gi) || []).join(' ')), false, h + ' does not load starter folders'));
-      ['forms.js', 'pages.js', 'project-page.js'].forEach(f =>
-        _assertEqual(/starterFolder|StarterFolder/.test(ALL_SOURCES[f]), false, f + ' has no starter-folder entry point (D25)'));
+      ['forms.js', 'pages.js', 'project-page.js', 'forms-role.js', 'role-page.js'].forEach(f =>
+        _assertEqual(/starterFolder|StarterFolder/.test(ALL_SOURCES[f]), false, f + ' has no starter-folder entry point (D25, D32)'));
+      _assertEqual(/getStarterFoldersForRecord\('project'|PARENT_PATH\.project|recordStarterFolder\(rows, 'project'/.test(ui), false, 'N-260: starter-folders.js hard-codes no record type');
+    },
+  },
+  {
+    name: 'N-260 role rules — who can create (D29), recipients (D30), one per role (D28), pack + name',
+    fn: function () {
+      const proj = { id: '5', DeliveryManager: 'Lead.DM@x.co', ProjectType: 'Embedded', CustomerName: 'Acme' };
+      const role = { id: '7', RoleTitle: 'Engineer', Location: 'Spain', TalentPartner: 'Tp1@x.co;tp2@x.co' };
+      _assertEqual(roleTalentPartnerEmails(role), ['tp1@x.co', 'tp2@x.co'], 'role TPs split + lower-cased');
+      _assertEqual(roleTalentPartnerEmails({ TalentPartner: 'Priya Shah; ' }), [], 'names (not emails) dropped');
+      _assertEqual(roleTalentPartnerEmails(null), [], 'null role');
+      _assertEqual(canCreateRoleStarterFolder('admin', role, proj, 'anyone@x.co'), true, 'admin');
+      _assertEqual(canCreateRoleStarterFolder('talent_partner', role, proj, 'TP1@x.co'), true, 'TP on this role (case-insensitive)');
+      _assertEqual(canCreateRoleStarterFolder('talent_partner', role, proj, 'other.tp@x.co'), false, 'TP on another role of the project');
+      _assertEqual(canCreateRoleStarterFolder('delivery_manager', role, proj, 'lead.dm@x.co'), true, 'Lead DM of the parent project');
+      _assertEqual(canCreateRoleStarterFolder('delivery_manager', role, proj, 'other.dm@x.co'), false, 'non-lead DM');
+      _assertEqual(canCreateRoleStarterFolder('leadership', role, proj, 'lead@x.co'), false, 'leadership');
+      _assertEqual(canCreateRoleStarterFolder('people_ops', role, proj, 'ops@x.co'), false, 'people ops');
+      _assertEqual(canCreateRoleStarterFolder('talent_partner', role, proj, ''), false, 'blank email');
+      _assertEqual(canCreateRoleStarterFolder('delivery_manager', role, { id: '5', DeliveryManager: '' }, ''), false, 'blank DM + blank email never match');
+      _assertEqual(canCreateRoleStarterFolder('talent_partner', role, null, 'tp2@x.co'), true, 'no parent project: role TP still can');
+      _assertEqual(canCreateRoleStarterFolder('delivery_manager', role, null, 'lead.dm@x.co'), false, 'no parent project: no Lead DM');
+      _assertEqual(canCreateStarterFolder('role', 'talent_partner', role, proj, 'tp1@x.co'), true, 'dispatch: role');
+      _assertEqual(canCreateStarterFolder('project', 'talent_partner', proj, proj, 'tp1@x.co'), false, 'dispatch: project rule unchanged');
+      _assertEqual(canCreateStarterFolder('project', 'delivery_manager', proj, proj, 'lead.dm@x.co'), true, 'dispatch: project Lead DM');
+      _assertEqual(canCreateStarterFolder('widget', 'admin', role, proj, 'a@x.co'), false, 'unknown record type');
+      // D30: Lead DM + admins + role TPs, minus creator and the shared mailbox.
+      _assertEqual(shareRecipients({
+        leadDm: 'Lead.DM@x.co', adminEmails: ['chris@x.co', 'admin@momentumglobal.co', 'tp1@x.co'],
+        roleTps: roleTalentPartnerEmails(role), creator: 'TP2@x.co', exclude: ['admin@momentumglobal.co'],
+      }), ['lead.dm@x.co', 'chris@x.co', 'tp1@x.co'], 'role recipients: de-duped, creator + shared mailbox removed');
+      _assertEqual(shareRecipients({ leadDm: '', adminEmails: [], roleTps: ['a@x.co'], creator: 'a@x.co', exclude: [] }), [], 'only TP is the creator → nobody');
+      _assertEqual(shareRecipients({ leadDm: 'a@x.co', adminEmails: ['b@x.co'], creator: 'c@x.co', exclude: [] }), ['a@x.co', 'b@x.co'], 'project-style call (no roleTps) unchanged');
+      // D28: a role and a project with the same numeric id never collide.
+      const rows = [
+        { id: '2', RecordType: 'project', RecordId: 7, OwnerEmail: 'p@x.co' },
+        { id: '1', RecordType: 'role',    RecordId: 7, OwnerEmail: 'r@x.co' },
+        { id: '3', RecordType: 'role',    RecordId: '7', OwnerEmail: 'later@x.co' },
+      ];
+      _assertEqual(recordStarterFolder(rows, 'role', 7).id, '1', 'role 7 → role row (lowest id)');
+      _assertEqual(recordStarterFolder(rows, 'project', 7).id, '2', 'project 7 → project row');
+      _assertEqual(recordStarterFolder(rows, 'role', 8), null, 'other role → none');
+      // Values + names.
+      const v = rolePlaceholderValues({ RoleTitle: 'Dev & Ops', Location: 'Spain', Department: 'Tech', HiringManager: 'Sam Lee', TalentPartner: 'tp1@x.co' },
+        { CustomerName: 'Acme' }, { dmName: 'Priya Shah', tpNames: ['Ann Ng', ' ', 'Bo Li'], createdBy: 'Chris Friend', today: '2026-10-23' });
+      _assertEqual(v, { RoleTitle: 'Dev & Ops', CustomerName: 'Acme', Location: 'Spain', Department: 'Tech', HiringManager: 'Sam Lee',
+        TalentPartners: 'Ann Ng, Bo Li', DeliveryManager: 'Priya Shah', CreatedBy: 'Chris Friend', CreatedDate: '23 Oct 2026' }, 'role values (raw — escaping happens in fillDocxXml)');
+      const blank = rolePlaceholderValues(null, null, undefined);
+      _assertEqual(Object.values(blank).every(x => x === ''), true, 'blank role + project → all empty strings');
+      const R = 'Newton/Roles';
+      _assertEqual(defaultRoleFolderName(role, proj), 'Acme – Engineer (Spain)', 'default name');
+      _assertEqual(defaultRoleFolderName({ RoleTitle: 'Engineer' }, proj), 'Acme – Engineer', 'no location');
+      _assertEqual(defaultRoleFolderName(role, null), 'Engineer (Spain)', 'no project');
+      _assertEqual(defaultRoleFolderName({ RoleTitle: 'Dev: Backend', Location: 'UK' }, { CustomerName: 'Acme' }), 'Acme – Dev Backend (UK)', 'bad character stripped');
+      _assertEqual(defaultRoleFolderName({ RoleTitle: 'Lead.', Location: '' }, { CustomerName: 'Acme' }), 'Acme – Lead', 'trailing full stop stripped');
+      _assertEqual(defaultRoleFolderName({ RoleTitle: 'CON' }, null), 'Role', 'reserved → Role');
+      _assertEqual(defaultRoleFolderName({ RoleTitle: 'x'.repeat(300) }, null), 'Role', 'too long → Role');
+      _assertEqual(defaultRoleFolderName(null, null), 'Role', 'nothing → Role');
+      [[role, proj], [{ RoleTitle: 'A|B', Location: 'UK' }, proj], [{ RoleTitle: 'x'.repeat(300) }, null]]
+        .forEach(([r, p]) => _assertEqual(validateFolderName(defaultRoleFolderName(r, p), R).ok, true, 'default name always valid'));
+      // Pack: a role resolves through the same variant + Default fallback (D16, D33).
+      const cfg = _sfCfg(c => { c.STARTER_FOLDERS.TEMPLATE_DRIVE_ID = 'drv'; c.STARTER_FOLDERS.TEMPLATES.role.Default = 'RD'; });
+      _assertEqual(starterFoldersEnabled('role', cfg), true, 'drive + role Default → role on');
+      _assertEqual(starterFoldersEnabled('project', cfg), false, 'project stays off without its own Default');
+      _assertEqual(starterTemplateItemId('role', starterPackVariant('CoE'), cfg), { itemId: 'RD', variantUsed: 'Default' }, 'CoE parent, blank role.CoE → role Default');
+      _assertEqual(starterPackVariant('LCI'), null, 'LCI parent → no role folder');
     },
   },
 );

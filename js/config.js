@@ -235,7 +235,7 @@ const CONFIG = {
   },
 
   // ── Starter folders (N-259 project; N-260 role) ───────────────────
-  // A one-time Project checklist action (CHECKLIST_ACTIONS 'newton.starterFolder',
+  // A one-time Project or Role checklist action (CHECKLIST_ACTIONS 'newton.starterFolder',
   // starter-folders.js) copies a starter-pack template folder from the
   // 'Newton Templates' library on SolutionsHubReporting into the user's own
   // OneDrive, fills {{Placeholder}} tokens in every .docx and shares it.
@@ -266,6 +266,7 @@ const CONFIG = {
                       /^word\/footnotes\.xml$/, /^word\/endnotes\.xml$/],
     PLACEHOLDERS: {
       project: ['CustomerName', 'ProjectType', 'DeliveryManager', 'StartDate', 'EndDate', 'CreatedBy', 'CreatedDate'],
+      role:    ['RoleTitle', 'CustomerName', 'Location', 'Department', 'HiringManager', 'TalentPartners', 'DeliveryManager', 'CreatedBy', 'CreatedDate'],   // N-260
     },
   },
 

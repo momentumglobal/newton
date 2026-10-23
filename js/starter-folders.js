@@ -1,22 +1,26 @@
-// js/starter-folders.js — Starter folders (N-259 project; N-260 adds roles)
+// js/starter-folders.js — Starter folders (N-259 project; N-260 role)
 //
-// One-time Project checklist action 'newton.starterFolder' (D25). The
-// project's Lead DM or an Admin (D24) clicks it on the Project page's
-// checklist; Newton copies the project's starter pack (variant group, D22)
-// from the 'Newton Templates' library into that person's OneDrive at
-// Newton/Projects/<name>, fills {{Placeholder}} tokens in every .docx, shares
-// it (edit, no email) with the Lead DM + admins, and records it in the
-// StarterFolders list. One folder per project (D26): once a row exists, the
-// item shows "Created by … · date" and, to the owner and the people it was
-// shared with, an Open folder link (D27).
+// One-time checklist action 'newton.starterFolder' on Project (D25) and Role
+// (D32) checklists. A Project's Lead DM or an Admin (D24) — or, for a Role,
+// an Admin, a Talent Partner on that role or the parent project's Lead DM
+// (D29) — clicks it; Newton copies the starter pack for the project's variant
+// group (D22; a role uses its parent project's) from the 'Newton Templates'
+// library into that person's OneDrive at Newton/Projects/<name> or
+// Newton/Roles/<name>, fills {{Placeholder}} tokens in every .docx, shares it
+// (edit, no email) and records it in the StarterFolders list. Shared with the
+// Lead DM + admins, and for a role the role's Talent Partners too (D30). One
+// folder per project (D26) and per role (D28): once a row exists, the item
+// shows "Created by … · date" and, to the owner and the people it was shared
+// with, an Open folder link (D27).
 //
-// Dark until CONFIG.STARTER_FOLDERS.TEMPLATE_DRIVE_ID and TEMPLATES.project.Default
+// Dark until CONFIG.STARTER_FOLDERS.TEMPLATE_DRIVE_ID and TEMPLATES.<type>.Default
 // are set AND a checklist item uses the key. Rules are pure functions in
 // starter-folder-logic.js; Graph calls in api-starter-folders.js. JSZip is
 // lazy-loaded on the first fill (CONFIG.STARTER_FOLDERS.JSZIP_SRC), never on
 // page render. Desktop only — loaded on reporting.html after checklists.js.
 
 const STARTER_FOLDER_ACTION_KEY = 'newton.starterFolder';
+const _SF_RECORD_TYPES = ['project', 'role'];
 const _SF_DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 // ── Lazy loader ──────────────────────────────────────────────────────
@@ -46,11 +50,18 @@ function _sfUserError(message) {
 }
 
 // ── Checklist action ─────────────────────────────────────────────────
+// The pack variant for a checklist ctx: a project's own type, or — for a role
+// — its parent project's (D15, D33). null = no starter folder (LCI /
+// Transformation). A role with no resolvable parent gets Default.
+function _sfPackVariant(ctx) {
+  return starterPackVariant(ctx.project ? ctx.project.ProjectType : '');
+}
+
 function _sfCanRun(ctx, data) {
-  return ctx.recordType === 'project' &&
-    starterFoldersEnabled('project') &&
-    starterPackVariant(ctx.project ? ctx.project.ProjectType : '') !== null &&
-    canCreateProjectStarterFolder(ctx.role, ctx.project, ctx.email) &&
+  return _SF_RECORD_TYPES.includes(ctx.recordType) &&
+    starterFoldersEnabled(ctx.recordType) &&
+    _sfPackVariant(ctx) !== null &&
+    canCreateStarterFolder(ctx.recordType, ctx.role, ctx.record, ctx.project, ctx.email) &&
     !!data && !data.row;
 }
 
@@ -60,8 +71,8 @@ function _sfNote(text) {
 
 function _sfActionHtml(ctx, data, { idx, busy }) {
   const isAdmin = ctx.role === 'admin';
-  if (ctx.recordType !== 'project') return _sfNote('Starter folders are for Project checklists only.');
-  if (!starterFoldersEnabled('project')) return isAdmin ? _sfNote('Starter folders aren’t configured yet (CONFIG.STARTER_FOLDERS).') : '';
+  if (!_SF_RECORD_TYPES.includes(ctx.recordType)) return _sfNote('Starter folders are for Project and Role checklists only.');
+  if (!starterFoldersEnabled(ctx.recordType)) return isAdmin ? _sfNote('Starter folders aren’t configured yet (CONFIG.STARTER_FOLDERS).') : '';
   if (!data) return _sfNote('Couldn’t check for an existing starter folder — reload to try again.');
   const row = data.row;
   if (row) {
@@ -83,20 +94,22 @@ function _sfActionHtml(ctx, data, { idx, busy }) {
   }
   if (_sfCanRun(ctx, data)) return checklistActionButtonHtml(idx, CHECKLIST_ACTIONS[STARTER_FOLDER_ACTION_KEY].label, { disabled: !!busy });
   return checklistActionButtonHtml(idx, CHECKLIST_ACTIONS[STARTER_FOLDER_ACTION_KEY].label, {
-    disabled: true, title: 'Only the project’s Lead DM or an Admin can create this',
+    disabled: true, title: ctx.recordType === 'role'
+      ? 'Only a Talent Partner on this role, the project’s Lead DM or an Admin can create this'
+      : 'Only the project’s Lead DM or an Admin can create this',
   });
 }
 
 CHECKLIST_ACTIONS[STARTER_FOLDER_ACTION_KEY] = {
   label:       'Create starter folder',
-  description: 'Creates the project working folder in the Lead DM’s OneDrive from the starter pack (one per project). Project checklists only.',
+  description: 'Creates the project or role working folder in the creator’s OneDrive from the starter pack (one per project / role). Project and Role checklists.',
   prepare: async ctx => {
-    if (ctx.recordType !== 'project' || !starterFoldersEnabled('project')) return null;
+    if (!_SF_RECORD_TYPES.includes(ctx.recordType) || !starterFoldersEnabled(ctx.recordType)) return null;
     const [rows, tpMap] = await Promise.all([
-      getStarterFoldersForRecord('project', ctx.record.id),
+      getStarterFoldersForRecord(ctx.recordType, ctx.record.id),
       getTalentPartnerDisplayMap(),
     ]);
-    const row = recordStarterFolder(rows, 'project', ctx.record.id);
+    const row = recordStarterFolder(rows, ctx.recordType, ctx.record.id);
     const ownerEmail = row ? String(row.OwnerEmail || '').toLowerCase() : '';
     // AC 9: the owner's link is re-read by DriveItemId (survives renames and
     // moves) and the row is healed for shared viewers, who can only use the
@@ -164,18 +177,19 @@ async function _sfFillDocs(driveId, rootId, values, onStep) {
 // Creates the folder. Throws an error with .userMessage for anything the user
 // can act on; resolves { root, timedOut, fillFailed, shareStatus, shared,
 // recipients, recorded }.
-async function createStarterFolder({ project, name, recipients, values, onStep = () => {} }) {
+async function createStarterFolder({ recordType = 'project', record, project, name, recipients, values, onStep = () => {} }) {
   const sf = CONFIG.STARTER_FOLDERS;
   const email = getCurrentUser().email;
-  const parentPath = sf.PARENT_PATH.project;
+  const parentPath = sf.PARENT_PATH[recordType];
+  const noun = recordType === 'role' ? 'role' : 'project';
 
   onStep('Checking for an existing folder…');
-  const existing = recordStarterFolder(await getStarterFoldersForRecord('project', project.id, { fresh: true }), 'project', project.id);
-  if (existing) throw _sfUserError(`A starter folder was already created for this project by ${existing.OwnerEmail || 'someone else'}.`);
+  const existing = recordStarterFolder(await getStarterFoldersForRecord(recordType, record.id, { fresh: true }), recordType, record.id);
+  if (existing) throw _sfUserError(`A starter folder was already created for this ${noun} by ${existing.OwnerEmail || 'someone else'}.`);
 
-  const variant = starterPackVariant(project.ProjectType);
-  const tpl = variant === null ? null : starterTemplateItemId('project', variant);
-  if (!tpl) throw _sfUserError('Starter folders aren’t available for this project.');
+  const variant = starterPackVariant(project ? project.ProjectType : '');
+  const tpl = variant === null ? null : starterTemplateItemId(recordType, variant);
+  if (!tpl) throw _sfUserError(`Starter folders aren’t available for this ${noun}.`);
 
   onStep('Checking your OneDrive…');
   let drive;
@@ -218,7 +232,7 @@ async function createStarterFolder({ project, name, recipients, values, onStep =
   let recorded = true;
   try {
     await createStarterFolderRow({
-      RecordType: 'project', RecordId: project.id, OwnerEmail: email,
+      RecordType: recordType, RecordId: record.id, OwnerEmail: email,
       DriveId: drive.id, DriveItemId: root.id, WebUrl: root.webUrl, FolderName: name,
       SharedWith: shared, ShareStatus: shareStatus, PackVariant: tpl.variantUsed, FillWarnings: fillFailed,
     });
@@ -259,23 +273,29 @@ function _sfResultHtml(r) {
 // false on cancel or failure.
 async function openStarterFolderModal(ctx) {
   if (_sfModalOpen) return false;
-  const project = ctx.project;
+  const recordType = ctx.recordType;
+  const record = ctx.record;
+  const project = ctx.project;   // for a role: the parent project (Lead DM, pack variant)
+  const noun = recordType === 'role' ? 'role' : 'project';
   const sf = CONFIG.STARTER_FOLDERS;
-  const parentPath = sf.PARENT_PATH.project;
+  const parentPath = sf.PARENT_PATH[recordType];
   const [adminEmails, tpMap] = await Promise.all([getAdminEmails(), getTalentPartnerDisplayMap()]);
   const me = getCurrentUser();
+  const leadDm = project ? project.DeliveryManager : '';
+  const roleTps = recordType === 'role' ? roleTalentPartnerEmails(record) : [];
   const recipients = shareRecipients({
-    leadDm: project.DeliveryManager, adminEmails, creator: me.email, exclude: sf.SHARE_EXCLUDE,
+    leadDm, adminEmails, roleTps, creator: me.email, exclude: sf.SHARE_EXCLUDE,
   });
-  const variant = starterPackVariant(project.ProjectType);
-  const tpl = starterTemplateItemId('project', variant);
+  const variant = _sfPackVariant(ctx);
+  const tpl = starterTemplateItemId(recordType, variant);
   const packLabel = checklistVariantLabel(tpl.variantUsed) +
     (tpl.variantUsed !== variant ? ` (no ${checklistVariantLabel(variant)} pack yet)` : '');
   const nameOf = e => tpMap[e] || e;
-  const dmEmail = String(project.DeliveryManager || '').toLowerCase();
-  const values = projectPlaceholderValues(project, {
-    dmName: dmEmail ? nameOf(dmEmail) : '', createdBy: me.name || me.email || '', today: localDayISO(),
-  });
+  const dmEmail = String(leadDm || '').toLowerCase();
+  const phCtx = { dmName: dmEmail ? nameOf(dmEmail) : '', createdBy: me.name || me.email || '', today: localDayISO() };
+  const values = recordType === 'role'
+    ? rolePlaceholderValues(record, project, { ...phCtx, tpNames: roleTps.map(nameOf) })
+    : projectPlaceholderValues(project, phCtx);
 
   _sfModalOpen = true;
   return new Promise(resolve => {
@@ -290,7 +310,7 @@ async function openStarterFolderModal(ctx) {
           <input type="text" class="confirm-modal-input" id="sf-name" autocomplete="off" maxlength="${Number(sf.NAME_MAX)}">
           <p class="starter-modal-error" id="sf-error" role="alert" hidden></p>
           ${_sfFactsHtml({ packLabel, parentPath, recipientsLabel: recipients.length ? recipients.map(nameOf).join(', ') : 'No one else' })}
-          <p class="form-hint">One folder per project — this can’t be repeated.</p>
+          <p class="form-hint">One folder per ${noun} — this can’t be repeated.</p>
         </div>
         <p class="starter-modal-status" id="sf-status" role="status" hidden></p>
         <div class="starter-modal-result" id="sf-result" hidden></div>
@@ -306,7 +326,7 @@ async function openStarterFolderModal(ctx) {
     const cancelBtn = $('sf-cancel'), createBtn = $('sf-create');
     let state = 'idle';   // idle | creating | done
     let outcome = false;
-    input.value = defaultProjectFolderName(project);
+    input.value = recordType === 'role' ? defaultRoleFolderName(record, project) : defaultProjectFolderName(project);
 
     const showError = msg => {
       errEl.textContent = msg || '';
@@ -339,7 +359,7 @@ async function openStarterFolderModal(ctx) {
       statusEl.hidden = false;
       try {
         const r = await createStarterFolder({
-          project, name: v.clean, recipients, values,
+          recordType, record, project, name: v.clean, recipients, values,
           onStep: text => { statusEl.textContent = text; },
         });
         outcome = r.recorded;

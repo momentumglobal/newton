@@ -478,20 +478,37 @@ ASSERTIONS.push(
       }
       const calls = _vendorStripJsComments(ALL_SOURCES['dashboard-project.js']).join('\n').match(/renderRejectionPanel\([^)]*\)/g) || [];
       _assertEqual(calls.length, 2, 'dashboard-project.js calls renderRejectionPanel twice (initial render + period re-render)');
-      calls.forEach(c => _assertEqual(/^renderRejectionPanel\(\s*[\w.]*rejections\s*,\s*_dashDetailPeriod\s*\)$/.test(c), true, 'call passes (rejections, _dashDetailPeriod) and no roles: ' + c));
+      calls.forEach(c => _assertEqual(/^renderRejectionPanel\(\s*[\w.]*rejections\s*,\s*_dashDetailPeriod\s*,\s*[\w.]*roles\s*\)$/.test(c), true, 'call passes (rejections, _dashDetailPeriod, roles) with the period SECOND: ' + c));
+      _assertEqual(/rejections:\s*\(data, period\)\s*=>\s*renderRejectionPanel\(data\.rejections, period, data\.roles\)/.test(ALL_SOURCES['dashboard-project-panels.js']), true, 'Report Builder REJECTIONS panel passes (data.rejections, period, data.roles)');
       const dp = ALL_SOURCES['dashboard-project-panels.js'];
       const s = dp.indexOf('function renderRejectionPanel(');
       _assertEqual(s > -1, true, 'renderRejectionPanel located');
       const stubs = 'const getDetailPeriodRange = p => p === "last_month" ? { start: new Date(2026, 8, 1), end: new Date(2026, 8, 30, 23, 59, 59) } : { start: new Date(2026, 9, 1), end: new Date(2026, 9, 31, 23, 59, 59) };\n' +
+        "const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');\n" +
         "const emptyStateBlock = o => '<empty>' + o.message + '</empty>';\n";
       const render = new Function(stubs + dp.slice(s, dp.indexOf('\n}\n', s) + 2) + '\nreturn renderRejectionPanel;')();
+      const roles = [{ id: 1, RoleTitle: 'Engineer', Location: 'Lisbon' }, { id: 2, RoleTitle: 'A<B' }];
       const rejs = [
-        { RejectionDate: '2026-09-15T12:00:00Z', RejectionReason: 'Salary' },
-        { RejectionDate: '2026-10-10T12:00:00Z', RejectionReason: 'Other' },
+        { RoleIDLookupId: 1, RejectionDate: '2026-10-10T12:00:00Z', RejectionReason: 'Other' },
+        { RoleIDLookupId: 1, RejectionDate: '2026-10-11T12:00:00Z', RejectionReason: 'Other' },
+        { RoleIDLookupId: 1, RejectionDate: '2026-10-12T12:00:00Z', RejectionReason: 'Salary' },
+        { RoleIDLookupId: 2, RejectionDate: '2026-10-13T12:00:00Z', RejectionReason: 'Salary' },
+        { RoleIDLookupId: 99, RejectionDate: '2026-10-14T12:00:00Z', RejectionReason: 'Salary' },
+        { RoleIDLookupId: 1, RejectionDate: '2026-09-15T12:00:00Z', RejectionReason: 'Motivations' },
       ];
-      const last = render(rejs, 'last_month'), cur = render(rejs, 'this_month');
-      _assertEqual(/<td>Salary<\/td>/.test(last) && !/<td>Other<\/td>/.test(last), true, 'last_month shows only the September rejection');
-      _assertEqual(/<td>Other<\/td>/.test(cur) && !/<td>Salary<\/td>/.test(cur), true, 'this_month shows only the October rejection');
+      const cell = h => Array.from(h.matchAll(/<tr><td>([^<]*)<\/td><td>([^<]*)<\/td><td>(\d+)<\/td><\/tr>/g)).map(m => [m[1], m[2], m[3]]);
+      const ths = h => Array.from(h.matchAll(/<th>([^<]*)<\/th>/g)).map(m => m[1]);
+      const cur = render(rejs, 'this_month', roles), last = render(rejs, 'last_month', roles);
+      _assertEqual(ths(cur), ['Role', 'Reason', 'Count'], 'header is Role | Reason | Count');
+      _assertEqual(/%/.test(cur), false, 'no % column');
+      _assertEqual(cell(cur), [
+        ['A&lt;B', 'Salary', '1'],
+        ['Engineer (Lisbon)', 'Other', '2'],
+        ['Engineer (Lisbon)', 'Salary', '1'],
+        ['Unknown Role', 'Salary', '1'],
+      ], 'this_month: one row per role + reason, counts merged, escaped once, unknown role labelled, sorted by role then count');
+      _assertEqual(cell(last), [['Engineer (Lisbon)', 'Motivations', '1']], 'last_month shows only the September rejection');
+      _assertEqual(/<empty>No rejections/.test(render([], 'this_month', roles)), true, 'empty state kept');
     },
   }
 );

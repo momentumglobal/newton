@@ -68,7 +68,7 @@ async function renderProjectDashboard() {
   const placementsPanel = hideEmpty(renderPlacementsPanel(placements, roles, _dashDetailPeriod));
   const pipelineAct     = hideEmpty(renderPipelineActivityTable(activity, roles, _dashDetailPeriod));
   const tpTable         = isDMAdmin ? hideEmpty(renderActivityByTPPanel(activity, _dashDetailPeriod, tpMap)) : '';
-  const rejPanel        = isDMAdmin ? hideEmpty(renderRejectionPanel(rejections, _dashDetailPeriod)) : '';
+  const rejPanel        = isDMAdmin ? hideEmpty(renderRejectionPanel(rejections, _dashDetailPeriod, roles)) : '';
   const starters        = isDMAdmin ? hideEmpty(renderUpcomingStartersPanel(placements, roles)) : '';
   const spend           = isDMAdmin ? hideEmpty(renderSpendPanel(roles, placements)) : '';
   main.innerHTML = `
@@ -135,7 +135,7 @@ function setDetailPeriod(period) {
     hideEmpty(renderPlacementsPanel(c.placements, c.roles, _dashDetailPeriod)) +
     hideEmpty(renderPipelineActivityTable(c.activity, c.roles, _dashDetailPeriod)) +
     (isDMAdmin ? hideEmpty(renderActivityByTPPanel(c.activity, _dashDetailPeriod, c.tpMap)) : '') +
-    (isDMAdmin ? hideEmpty(renderRejectionPanel(c.rejections, _dashDetailPeriod)) : '') +
+    (isDMAdmin ? hideEmpty(renderRejectionPanel(c.rejections, _dashDetailPeriod, c.roles)) : '') +
     (isDMAdmin ? hideEmpty(renderUpcomingStartersPanel(c.placements, c.roles)) : '') +
     (isDMAdmin ? hideEmpty(renderSpendPanel(c.roles, c.placements)) : '') +
     roleAnalyticsPlaceholder;

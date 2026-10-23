@@ -230,10 +230,13 @@ function renderActivityByTPPanel(acts, period, tpMap = {}) {
 // ── Offer Rejection Reasons ───────────────────────────────────────────
 // N-153: was periodising through the LINKED ROLE's ActualHireDate, so any
 // rejection whose role had no ActualHireDate returned true and was counted in
-// EVERY period. Now uses the rejection's own date. The `roles` parameter goes
-// with the roleMap it fed — the single caller is updated to match.
-function renderRejectionPanel(rejections, period) {
+// EVERY period. Now uses the rejection's own date.
+// N-379: `roles` is back, as the LAST parameter, to label the Role column.
+// `period` must stay second — the Project Dashboard once passed `roles` there
+// and the panel silently showed this month whatever the picker said.
+function renderRejectionPanel(rejections, period, roles = []) {
   const { start, end } = getDetailPeriodRange(period);
+  const roleMap = Object.fromEntries(roles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
   const filtered = rejections.filter(rej => {
     // A blank RejectionDate stays always-included, by decision: the two
     // pre-N-153 rows were not backfilled, and excluding them would silently
@@ -247,16 +250,26 @@ function renderRejectionPanel(rejections, period) {
     return d >= start && d <= end;
   });
   const reasons = ['Salary','Motivations','Counter-offer','Took another opportunity','Other'];
-  const counts  = reasons.map(r => filtered.filter(x => x.RejectionReason === r).length);
-  const total   = counts.reduce((a, b) => a + b, 0);
-  if (!total) return `<div class='dash-panel'><h3 class='panel-title'>Offer Rejection Reasons</h3>${emptyStateBlock({ icon: 'user-x', message: 'No rejections recorded for this period.' })}</div>`;
-  const rows = reasons.map((r, i) => counts[i] > 0 ?
-    `<tr><td>${r}</td><td>${counts[i]}</td><td>${Math.round((counts[i]/total)*100)}%</td></tr>` : ''
-  ).join('');
+  // One row per role + reason. Role names are escaped once, in roleMap.
+  const groups = {};
+  filtered.forEach(rej => {
+    if (!reasons.includes(rej.RejectionReason)) return;
+    const rid = String(rej.RoleIDLookupId || rej.RoleID || '');
+    const g = groups[rid] || (groups[rid] = { name: roleMap[rid] || 'Unknown Role', counts: {} });
+    g.counts[rej.RejectionReason] = (g.counts[rej.RejectionReason] || 0) + 1;
+  });
+  const rows = Object.values(groups)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap(g => reasons
+      .filter(r => g.counts[r])
+      .sort((a, b) => g.counts[b] - g.counts[a] || reasons.indexOf(a) - reasons.indexOf(b))
+      .map(r => `<tr><td>${g.name}</td><td>${r}</td><td>${g.counts[r]}</td></tr>`))
+    .join('');
+  if (!rows) return `<div class='dash-panel'><h3 class='panel-title'>Offer Rejection Reasons</h3>${emptyStateBlock({ icon: 'user-x', message: 'No rejections recorded for this period.' })}</div>`;
   return `<div class='dash-panel'><h3 class='panel-title'>Offer Rejection Reasons</h3>
     <div class="table-scroll">
     <table class='data-table'>
-      <thead><tr><th>Reason</th><th>Count</th><th>%</th></tr></thead>
+      <thead><tr><th>Role</th><th>Reason</th><th>Count</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     </div>
@@ -596,7 +609,7 @@ const REPORT_PANELS = {
     renderActivityByTPPanel(data.activity, period, data.tpMap || {}),
 
   rejections: (data, period) =>
-    renderRejectionPanel(data.rejections, period),
+    renderRejectionPanel(data.rejections, period, data.roles),
 
   upcomingStarters: (data) =>
     renderUpcomingStartersPanel(data.placements, data.roles),

@@ -89,3 +89,4 @@
 .cc-detail-table th { text-align: left; font-size: var(--fs-11); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 1px solid var(--border-mid); padding: var(--sp-3) var(--sp-4); }
 .cc-detail-table td { padding: var(--sp-4); border-bottom: 1px solid var(--border-faint); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .cc-detail-table tbody tr:last-child td { border-bottom: none; }
+.cc-sla { margin-top: var(--sp-8); }   /* N-385: SLA roll-up under the Project Health scorecards */

@@ -98,6 +98,11 @@ function canViewSlaPortfolio(role, cfg = CONFIG) {
   return roleCan(role, 'slaPortfolioView', cfg);
 }
 
+// N-385 (DA-5): pure. Can `role` use the Report Builder SLA Roll-up module?
+function canViewSlaRollupReport(role, cfg = CONFIG) {
+  return roleCan(role, 'slaRollupReport', cfg);
+}
+
 // N-382 (DA-2, DA-D7): pure. Can `role` edit SLA targets of `kind`? 'override' (one project's
 // targets, Project page): the slaTargetsEdit roles. 'default' (company defaults by project type,
 // Config Panel): Admin only - the Config Panel's own gate, not a capability. Unknown kind or

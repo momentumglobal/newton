@@ -70,6 +70,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'lci-model.js'),
   path.join(JS_DIR, 'coe-plan.js'),
   path.join(JS_DIR, 'dashboard-core.js'),   // N-384: periodButtons() for the SLA panel markup (declarations only)
+  path.join(JS_DIR, 'sla-rollup.js'),       // N-385: roll-up markup (declarations only); loads before sla-panel.js
   path.join(JS_DIR, 'sla-panel.js'),        // N-384: markup + render-from-cache are asserted; mounts need a DOM
   path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),
@@ -109,6 +110,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-sla-editor.js'),
   path.join(TESTS_DIR, 'assert-sla-engine.js'),   // N-383
   path.join(TESTS_DIR, 'assert-sla-panel.js'),    // N-384
+  path.join(TESTS_DIR, 'assert-sla-rollup.js'),   // N-385
 ];
 // N-259: starter-folder-logic.js (pure) loads straight after checklist-logic.js, which it calls.
 // N-361: project-team.js (pure) loads straight after permissions.js; assert-project-team.js is the last assertion file.

@@ -219,9 +219,14 @@ function _ccHealthTrendTooltipHTML() {
 // benchmarks) and placements (time to hire) aren't needed by the tiles, so
 // they load on first expand and are cached on grid._data.healthExtra — a
 // second expand or a window switch makes no further Graph calls.
+// N-385: the detail is two independent parts - the scorecards (#cc-health-cards-wrap, which
+// the window toggle re-renders) and the SLA roll-up (#cc-sla-slot, which it never touches).
 function renderHealthDetail(el, data) {
-  if (data.healthExtra) { el.innerHTML = _ccHealthCardsHTML(data); return; }
-  el.innerHTML = skeletonList(3);
+  el.innerHTML = `<div id="cc-health-cards-wrap">${data.healthExtra ? _ccHealthCardsHTML(data) : skeletonList(3)}</div>
+    <div class="dash-panel cc-sla" id="cc-sla-slot"></div>`;
+  ccMountSlaRollup(data);
+  if (data.healthExtra) return;
+  const wrap = el.querySelector('#cc-health-cards-wrap');
   Promise.all([getActivityForAnalytics(52), getHistoricalPlacements()])
     .then(([rawActivity52, rawPlacements]) => {
       // N-333: client-only, mapped through the FULL role list (data.roles is
@@ -230,12 +235,42 @@ function renderHealthDetail(el, data) {
         { activity: rawActivity52, historical: rawPlacements },
         { projects: data.allProjects, roles: data.allRoles });
       data.healthExtra = { activity52, placements };
-      el.innerHTML = _ccHealthCardsHTML(data);
+      wrap.innerHTML = _ccHealthCardsHTML(data);
     })
     .catch(e => {
       console.warn('N-336: project scorecard read failed', e);
-      el.innerHTML = `<p class="no-data">Couldn't load project scorecards: ${escHtml(e && e.message ? e.message : String(e))}</p>`;
+      wrap.innerHTML = `<p class="no-data">Couldn't load project scorecards: ${escHtml(e && e.message ? e.message : String(e))}</p>`;
     });
+}
+
+// N-385 (DA-5): the SLA roll-up under the scorecards. Admin / Leadership only (canViewSlaPortfolio).
+// Loads its own un-windowed inputs (getSlaRollupInputs) when the detail opens, after the scorecard
+// markup is in the page, and caches the model on grid._data.slaRollup so a re-expand makes no read.
+// A failure shows one line in the slot; the scorecards are not affected. A result that arrives
+// after the slot has been replaced is dropped.
+let _ccSlaSeq = 0;
+async function ccMountSlaRollup(data) {
+  const slot = document.getElementById('cc-sla-slot');
+  if (!slot) return;
+  if (data.slaRollup) { slot.innerHTML = slaRollupHtml(data.slaRollup); return; }
+  const token = String(++_ccSlaSeq);
+  slot.dataset.slaToken = token;
+  const live = () => { const s = document.getElementById('cc-sla-slot'); return !!s && s.dataset.slaToken === token; };
+  try {
+    const user = getCurrentUser();
+    const role = await getEffectiveRole(user.email);
+    if (!canViewSlaPortfolio(role)) { if (live()) slot.remove(); return; }
+    slot.innerHTML = skeletonPanel(4);
+    const inputs = await getSlaRollupInputs(user.email);
+    await new Promise(resolve => setTimeout(resolve, 0));   // let the scorecards paint first
+    const today = new Date();
+    const results = slaProjectResults(Object.assign({}, inputs, { today }));
+    data.slaRollup = slaRollupModel({ projects: inputs.projects, results, today });
+    if (live()) slot.innerHTML = slaRollupHtml(data.slaRollup);
+  } catch (e) {
+    console.warn('N-385: SLA roll-up load failed', e);
+    if (live()) slot.innerHTML = slaRollupUnavailableHtml('SLA roll-up');
+  }
 }
 
 function _ccHealthCardsHTML(data) {
@@ -280,7 +315,8 @@ function _ccHealthCardsHTML(data) {
 function ccHealthWindow(el, i) {
   const grid = el.closest('.cc-grid');
   grid._data.healthWindow = i;
-  el.closest('.cc-tile__detail').innerHTML = _ccHealthCardsHTML(grid._data);
+  // N-385: only the scorecards re-render; the SLA roll-up beside them is fixed to its own period.
+  document.getElementById('cc-health-cards-wrap').innerHTML = _ccHealthCardsHTML(grid._data);
 }
 
 registerActions({

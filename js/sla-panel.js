@@ -24,9 +24,9 @@ const _slaMounts = new Map();                  // slot id -> what that slot need
 
 // ── Markup ──────────────────────────────────────────────────────────
 
+// N-385: the pill markup is shared with the roll-up (sla-rollup.js loads first).
 function _slaPillHtml(rag) {
-  const key = Object.prototype.hasOwnProperty.call(CONFIG.SLA.RAG.LABELS, rag) ? rag : 'grey';
-  return `<span class="sc-rag-pill sc-rag-pill--${escAttr(key)}">${escHtml(CONFIG.SLA.RAG.LABELS[key])}</span>`;
+  return slaPillHtml(rag);
 }
 
 function _slaToggleHtml() {
@@ -248,13 +248,10 @@ async function mountPortfolioSlaTile(slotId, ctx) {
     await new Promise(resolve => setTimeout(resolve, 0));
     if (!claim.live()) return;
     const today = new Date();
-    const results = {};
-    ctx.projects.forEach(p => {
-      results[String(p.id)] = computeProjectSla({
-        project: p, slaRows: extra.slaRows, roles: ctx.roles, headcount: ctx.headcount,
-        placements: extra.placements, stageRows: extra.stageRows, activity: ctx.activity,
-        rejectedOffers: extra.rejectedOffers, today,
-      });
+    const results = slaProjectResults({   // N-385: the loop moved to analytics.js, shared with the roll-up
+      projects: ctx.projects, slaRows: extra.slaRows, roles: ctx.roles, headcount: ctx.headcount,
+      placements: extra.placements, stageRows: extra.stageRows, activity: ctx.activity,
+      rejectedOffers: extra.rejectedOffers, today,
     });
     _slaMounts.set(slotId, { kind: 'portfolio', token: claim.token, projects: ctx.projects, results });
     _slaRender(slotId);

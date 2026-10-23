@@ -2036,3 +2036,12 @@ body {
   cursor: pointer;
 }
 body.bp-printing .rt-table-controls { display: none !important; }
+
+/* N-385: SLA roll-up (sla-rollup.js), shown on command-centre.html and in Report Builder
+   (reporting.html), so it lives here and not in a module sheet. Tokens only. */
+.sla-rollup-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-5); padding-bottom: var(--sp-4); border-bottom: 1px solid var(--border-subtle); margin-bottom: var(--sp-6); }
+.sla-rollup-heading { margin: 0; font-size: var(--fs-15); font-weight: 600; color: var(--text-heading); }
+.sla-rollup-period, .sla-rollup-counts, .sla-rollup-unavailable { color: var(--text-label); font-size: var(--fs-13); }
+.sla-rollup-counts { margin: 0 0 var(--sp-5); }
+.sla-rollup-unavailable { margin: 0; }
+.sla-rollup-table td:first-child { white-space: nowrap; }

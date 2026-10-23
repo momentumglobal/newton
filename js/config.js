@@ -124,6 +124,10 @@ const CONFIG = {
     // Leadership only, DMs have no portfolio path.
     slaPanelView:      ['admin', 'leadership', 'delivery_manager'],
     slaPortfolioView:  ['admin', 'leadership'],
+    // N-385 (DA-5): the Report Builder SLA Roll-up module (company scope). Admin and Leadership
+    // see every project; a Delivery Manager sees only their own (scoped in getSlaRollupInputs by
+    // getUserProjectIds). Talent Partners never. The Command Centre section uses slaPortfolioView.
+    slaRollupReport:   ['admin', 'leadership', 'delivery_manager'],
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
@@ -866,6 +870,9 @@ const CONFIG = {
     PERIOD_DEFAULT: '90d',
     // N-384: breach rows shown before "Show all".
     PANEL_BREACH_ROWS: 25,
+    // N-385 (DA-5): the fixed period of the Command Centre section and the Report Builder
+    // roll-up (Chris, 23 Oct 2026). A PERIODS key with a day count; the panel toggle never moves it.
+    ROLLUP_PERIOD: '90d',
   },
 
   // N-269: Kaplan–Meier time-to-hire (analytics.js computeTTFPrediction).

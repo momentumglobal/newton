@@ -52,6 +52,8 @@ const RB_PALETTE = [
   { key: 'spendVsBudget',    label: 'Actual Spend vs Budget',     scope: 'both',    group: 'Placements & Rejections' },
   { key: 'upcomingStarters', label: 'Upcoming Starters',          scope: 'both',    group: 'Placements & Rejections' },
   { key: 'rejections',       label: 'Offer Rejection Reasons',    scope: 'both',    group: 'Placements & Rejections', filtered: true },
+  // N-385: company scope only; `cap` = a CONFIG.ROLE_CAPABILITIES key the viewer must hold.
+  { key: 'slaRollup',        label: 'SLA Roll-up (last 90 days)', scope: 'company', group: 'Delivery Assurance', cap: 'slaRollupReport' },
 ];
 
 async function renderReportBuilder() {
@@ -145,6 +147,7 @@ function rbRenderSidebar(projects) {
   const paletteTiles = groupOrder.map(group => {
     const tiles = RB_PALETTE
       .filter(m => m.group === group && (m.scope === 'both' || m.scope === _rbScope))
+      .filter(m => !m.cap || roleCan(_resolvedRole, m.cap))   // N-385
       .map(tileHtml).join('');
     if (!tiles) return '';  // hide empty group (e.g. Pipeline in Company scope)
     return `<div class="rb-subheading">${group}</div>` + tiles;
@@ -560,9 +563,29 @@ async function rbFetchData() {
     const { roles, activity, placements, rejections, headcount } = excludeInternalProjectData(
       { roles: userRoles, activity: allActivity, placements: allPlacements, rejections: allRejections, headcount: allHeadcount },
       { projects, roles: allRoles });
-    return { roles, activity, placements, rejections, tpMap, hc: dashboardHeadcountContext(roles, placements, headcount) };
+    // N-385: the SLA roll-up is read and computed only when the report has that module.
+    const slaRollup = (_rbBlocks.some(b => b.type === 'panel' && b.key === 'slaRollup') && canViewSlaRollupReport(_resolvedRole))
+      ? await rbLoadSlaRollup()
+      : undefined;
+    return { roles, activity, placements, rejections, tpMap, hc: dashboardHeadcountContext(roles, placements, headcount), slaRollup };
   }
 }
+
+// N-385: the SLA Roll-up module's model for the current user (Admin / Leadership all projects, a DM
+// their own - scoped inside getSlaRollupInputs). null = the read failed: the module prints its
+// unavailable line and every other block still renders.
+async function rbLoadSlaRollup() {
+  try {
+    const inputs = await getSlaRollupInputs(getCurrentUser().email);
+    const today = new Date();
+    const results = slaProjectResults(Object.assign({}, inputs, { today }));
+    return slaRollupModel({ projects: inputs.projects, results, today });
+  } catch (e) {
+    console.warn('N-385: SLA roll-up read failed', e);
+    return null;
+  }
+}
+
 
 // N-302b: the config inputs (title, periods, Gantt toggle) write straight to
 // module state. One action with a fixed key -> setter map, so markup can only

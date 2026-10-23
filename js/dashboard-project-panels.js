@@ -617,6 +617,13 @@ const REPORT_PANELS = {
   spendVsBudget: (data) =>
     renderSpendPanel(data.roles, data.placements),
 
+  // N-385: company scope. A viewer without the capability gets nothing (a saved report opened by
+  // someone who may not see it); a failed or missing read prints the unavailable line.
+  slaRollup: (data) => {
+    if (!canViewSlaRollupReport(_resolvedRole)) return '';
+    return data.slaRollup ? slaRollupHtml(data.slaRollup, { title: 'SLA roll-up' }) : slaRollupUnavailableHtml('SLA roll-up');
+  },
+
   rolesOpen30: (data) =>
     renderProjectLongOpenRolesPanel(data.roles, data.tpMap || {}, data.hc ? data.hc.openSince : null),
 

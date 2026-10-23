@@ -98,6 +98,7 @@ ASSERTIONS.push(
         slaTargetsView:    ['admin', 'leadership', 'delivery_manager'],   // N-382
         slaPanelView:      ['admin', 'leadership', 'delivery_manager'],   // N-384
         slaPortfolioView:  ['admin', 'leadership'],                       // N-384
+        slaRollupReport:   ['admin', 'leadership', 'delivery_manager'],   // N-385
       };
       _assertEqual(Object.keys(CONFIG.ROLE_CAPABILITIES).sort(), Object.keys(expect).sort(), 'capability set');
       Object.keys(expect).forEach(cap => roles.forEach(r =>

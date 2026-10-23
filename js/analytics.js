@@ -1703,6 +1703,9 @@ function slaPanelConfigCheck(cfg = CONFIG.SLA) {
   });
   if (!keys.includes(cfg.PERIOD_DEFAULT)) throw new Error('SLA.PERIOD_DEFAULT is not one of SLA.PERIODS');
   if (!Number.isInteger(cfg.PANEL_BREACH_ROWS) || cfg.PANEL_BREACH_ROWS < 1) throw new Error('SLA.PANEL_BREACH_ROWS must be an integer >= 1');
+  // N-385: the roll-up period is a bounded window, never the all-time key.
+  const roll = periods.find(p => p.key === cfg.ROLLUP_PERIOD);
+  if (!roll || !(Number.isInteger(roll.days) && roll.days > 0)) throw new Error('SLA.ROLLUP_PERIOD must be a SLA.PERIODS key with a positive day count');
   return true;
 }
 slaPanelConfigCheck();
@@ -1840,10 +1843,11 @@ function slaPortfolioModel({ projects, results, periodKey, today = new Date() } 
     const res = p && results ? results[String(p.id)] : null;
     if (!res) return;
     const att = slaAttainment(res, period.fromDay, period.toDay);
-    const rags = [], problems = [];
+    const rags = [], problems = [], rowMetrics = [];
     CONFIG.SLA.METRICS.forEach(m => {
       const a = att[m.key];
-      if (a.target === null) return;
+      if (a.target === null) { rowMetrics.push({ key: m.key, label: m.label, target: null, pct: null, rag: 'grey' }); return; }
+      rowMetrics.push({ key: m.key, label: m.label, target: a.target, pct: a.pct, rag: slaRag(a.pct) });
       const pool = pools[m.key];
       pool.met += a.met; pool.breached += a.breached; pool.pending += a.pending;
       if (a.pct === null) return;
@@ -1858,6 +1862,7 @@ function slaPortfolioModel({ projects, results, periodKey, today = new Date() } 
     rows.push({
       projectId: String(p.id), name: p.CustomerName || `Project ${p.id}`, rag,
       ongoingBreaches: ongoing, problems, summary: _slaProjectSummary(rag, problems, ongoing),
+      metrics: rowMetrics,   // N-385: all four metrics, for the roll-up table
     });
   });
   const order = { red: 0, amber: 1, green: 2, grey: 3 };
@@ -1873,4 +1878,35 @@ function slaPortfolioModel({ projects, results, periodKey, today = new Date() } 
     };
   });
   return { period, counts, metrics, rows };
+}
+
+// ── SLA roll-up (N-385 / DA-5) ────────────────────────────────────────
+// The portfolio table on the Command Centre (Project Health detail) and in Report Builder
+// (company scope). Fixed period CONFIG.SLA.ROLLUP_PERIOD. Pure; the reads are
+// getSlaRollupInputs() (api.js), the markup is sla-rollup.js.
+
+// The projects that can appear. projectIds = getUserProjectIds() (null = every project, else an
+// array of ids). Active, client projects only. SLA eligibility by type is decided later:
+// computeProjectSla gives null for LCI / Transformation / Internal and slaPortfolioModel skips those.
+function slaRollupProjects({ projects, projectIds } = {}) {
+  const ids = Array.isArray(projectIds) ? new Set(projectIds.map(String)) : null;
+  return (projects || []).filter(p => p
+    && isProjectActive(p)
+    && !isKpiExcludedProject(p)
+    && (!ids || ids.has(String(p.id))));
+}
+
+// computeProjectSla for each project, keyed by String(project id). Roles, activity, placements
+// and the rest are passed whole: computeProjectSla scopes them per project.
+function slaProjectResults({ projects, slaRows, roles, headcount, placements, stageRows, activity, rejectedOffers, today = new Date() } = {}) {
+  const results = {};
+  (projects || []).forEach(p => {
+    results[String(p.id)] = computeProjectSla({ project: p, slaRows, roles, headcount, placements, stageRows, activity, rejectedOffers, today });
+  });
+  return results;
+}
+
+// slaPortfolioModel over the fixed roll-up period. One owner for that period.
+function slaRollupModel({ projects, results, today = new Date() } = {}) {
+  return slaPortfolioModel({ projects, results, periodKey: CONFIG.SLA.ROLLUP_PERIOD, today });
 }

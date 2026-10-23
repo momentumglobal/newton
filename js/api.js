@@ -384,6 +384,34 @@ async function getPortfolioSlaInputs() {
   return { slaRows, stageRows, placements, rejectedOffers };
 }
 
+// N-385 (DA-5): everything the SLA roll-up needs, for the Command Centre section and the Report
+// Builder module. Scope is the PROJECT list (getUserProjectIds: null = all, so Admin / Leadership
+// see every eligible project and a DM only theirs); roles, activity and placements stay whole and
+// un-windowed so each project's figures are the true ones (the N-383 consumer contract).
+// Internal / no-dashboard rows are removed through excludeInternalProjectData (N-333, N-362).
+// Required reads throw (the caller shows "unavailable", never a zero-filled list); rejected
+// offers degrade to null.
+async function getSlaRollupInputs(email) {
+  const [projectIds, allProjects, allRoles, allActivity, allPlacements, allHeadcount, slaRows, allStageRows, rejectedOffers] = await Promise.all([
+    getUserProjectIds(email),
+    getProjects(false),
+    getAllRoles(),
+    getWeeklyActivity(null, null),
+    getPlacements(null),
+    getAllHeadcount(),
+    getSLATargets(),
+    getRoleStageHistory(),
+    getRejectedOffers(null).catch(e => { console.warn('SLA roll-up: rejected offers read failed', e); return null; }),
+  ]);
+  const { roles, activity, placements, headcount, stageRows } = excludeInternalProjectData(
+    { roles: allRoles, activity: allActivity, placements: allPlacements, headcount: allHeadcount, stageRows: allStageRows },
+    { projects: allProjects, roles: allRoles });
+  return {
+    projects: slaRollupProjects({ projects: allProjects, projectIds }),
+    roles, activity, placements, headcount, slaRows, stageRows, rejectedOffers,
+  };
+}
+
 // N-382 (DA-2): executes ONE slaEditPlan() (utils.js) against SLATargets - the only writer the
 // editors use. createItem / updateItem / deleteItem only (each invalidates the list cache).
 // 'none' makes no call. A failure is passed through slaTranslateSaveError (a 403 becomes a plain permission message).

@@ -22,6 +22,9 @@
 const STARTER_FOLDER_ACTION_KEY = 'newton.starterFolder';
 const _SF_RECORD_TYPES = ['project', 'role'];
 const _SF_DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+// OneDrive's web app often errors on the first open of a newly created folder; a
+// refresh clears it (N-260 QA finding 3). Shown beside every Open folder link.
+const _SF_OPEN_HINT = 'If OneDrive shows an error the first time, refresh the page.';
 
 // ── Lazy loader ──────────────────────────────────────────────────────
 let _sfJSZipPromise = null;
@@ -83,6 +86,7 @@ function _sfActionHtml(ctx, data, { idx, busy }) {
     const url = String(link.url || '');
     if (canOpenStarterFolder(row, ctx.email) && /^https:\/\//i.test(url)) {
       html += `<a class="checklist-item-link" href="${escAttr(url)}" target="_blank" rel="noopener noreferrer">Open folder <i data-lucide="external-link" aria-hidden="true"></i></a>`;
+      html += _sfNote(_SF_OPEN_HINT);
     }
     if (isStarterFolderOwner(row, ctx.email)) {
       if (link.missing) html += _sfNote('This folder is no longer in your OneDrive.');
@@ -266,6 +270,7 @@ function _sfResultHtml(r) {
   return `
     <p class="starter-modal-done"><i data-lucide="check-circle" aria-hidden="true"></i> Your starter folder is ready.</p>
     ${url ? `<p><a class="checklist-item-link" href="${escAttr(url)}" target="_blank" rel="noopener noreferrer">Open folder <i data-lucide="external-link" aria-hidden="true"></i></a></p>` : ''}
+    ${url ? `<p>${_sfNote(_SF_OPEN_HINT)}</p>` : ''}
     ${notes.length ? `<ul class="starter-modal-warnings">${notes.map(n => `<li><i data-lucide="alert-triangle" aria-hidden="true"></i> ${escHtml(n)}</li>`).join('')}</ul>` : ''}`;
 }
 

@@ -337,4 +337,14 @@ ASSERTIONS.push(
       _assertEqual(/SHARE_RETRIES/.test(body) && /SHARE_RETRY_MS/.test(body), true, 'retry settings come from config');
     },
   },
+  {
+    name: 'N-260 QA — every Open folder link carries the OneDrive first-open refresh hint',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('Source guard needs filesystem access — runs under node tests/run.js.');
+      const src = ALL_SOURCES['starter-folders.js'];
+      _assertEqual(/const _SF_OPEN_HINT = '[^']*refresh[^']*';/.test(src), true, 'hint constant exists and tells the user to refresh');
+      _assertEqual((src.match(/>Open folder </g) || []).length, 2, 'control: exactly two Open folder links exist (checklist item, result screen)');
+      _assertEqual((src.match(/_sfNote\(_SF_OPEN_HINT\)/g) || []).length, 2, 'the hint is rendered at both Open folder sites');
+    },
+  },
 );

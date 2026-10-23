@@ -1288,6 +1288,7 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
           <li>The <code>newton.starterFolder</code> checklist action now also works on <strong>Role</strong> checklists. An Admin, a Talent Partner on the role or the parent project's Lead DM creates the role's one working folder in their OneDrive (<code>Newton/Roles/&lt;Customer – Role (Location)&gt;</code>) from the Role starter pack for the parent project's type, with the role's <code>{{Placeholder}}</code> tokens filled in every .docx and edit access shared with the Lead DM, admins and the role's Talent Partners. One folder per role.</li>
           <li>Ships dark until <code>CONFIG.STARTER_FOLDERS.TEMPLATES.role.Default</code> is set and a Role checklist item uses the action. No new list, scope or CSP change.</li>
           <li>Sharing hardening: invites are sent one at a time and a failed one is retried once, so a transient failure no longer leaves a Talent Partner out; the shared mailbox is excluded on both its domains (<code>CONFIG.STARTER_FOLDERS.SHARE_EXCLUDE</code>). Applies to project folders too.</li>
+          <li>Open folder links carry a note: OneDrive&rsquo;s web app often errors on the first open of a freshly created folder (it reproduces outside Newton, with no Newton code involved), and refreshing the page clears it.</li>
         </ul>
       </div>
 

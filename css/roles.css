@@ -319,6 +319,16 @@
 .pp-member--ended td { color: var(--text-label); }
 .pp-readonly { background: var(--surface-sunken); cursor: default; }
 
+/* ── SLA targets (N-382) ───────────────────────────────────────────────
+   project-page.js (Project page section) and sla-admin.js (Config Panel tab).
+   Muted text uses --text-label (passes 4.5:1, see above). */
+.sla-input { width: 7rem; }
+.sla-unit { color: var(--text-label); font-size: var(--fs-13); }
+.sla-default-note { color: var(--text-label); font-size: var(--fs-13); }
+.sla-hint { margin: var(--sp-5) 0 0; color: var(--text-label); font-size: var(--fs-13); }
+.pp-sla-table td:first-child { white-space: nowrap; }
+.sla-defaults-table .checklist-tag { margin-left: var(--sp-3); }
+
 /* ── Checklists — Config Panel editor (N-266b) ─────────────────────────
    Neutral, like the checklist page (N-257). Muted text uses --text-label,
    not --text-muted: --text-muted on --surface is under 4.5:1 in light mode.

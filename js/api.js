@@ -332,6 +332,22 @@ async function getProjects(activeOnly = true) {
 async function getSLATargets() {
   return getItems(CONFIG.SLA.LIST);
 }
+
+// N-382 (DA-2): executes ONE slaEditPlan() (utils.js) against SLATargets - the only writer the
+// editors use. createItem / updateItem / deleteItem only (each invalidates the list cache).
+// 'none' makes no call. A failure is passed through slaTranslateSaveError (a 403 becomes a plain permission message).
+async function saveSlaTargets(plan) {
+  if (!plan || plan.action === 'none') return { ok: true };
+  try {
+    if (plan.action === 'create') await createItem(CONFIG.SLA.LIST, plan.fields);
+    else if (plan.action === 'update') await updateItem(CONFIG.SLA.LIST, plan.id, plan.fields);
+    else if (plan.action === 'delete') await deleteItem(CONFIG.SLA.LIST, plan.id);
+    else throw new Error('Unknown SLA save action.');
+  } catch (e) {
+    throw slaTranslateSaveError(e);
+  }
+  return { ok: true };
+}
  
 async function getRolesForProject(projectId, talentPartnerEmail = null) {
   const roles = await getItems("Roles", `fields/ProjectID eq ${projectId}`);

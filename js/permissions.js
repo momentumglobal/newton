@@ -83,6 +83,21 @@ function canEditProjectTeam(role, projectId, userProjectIds, cfg = CONFIG) {
   return userProjectIds === null || (Array.isArray(userProjectIds) && userProjectIds.includes(String(id)));
 }
 
+// N-382 (DA-2, DA-D7): pure. Can `role` see the SLA targets block on the Project page?
+function canViewSlaTargets(role, cfg = CONFIG) {
+  return roleCan(role, 'slaTargetsView', cfg);
+}
+
+// N-382 (DA-2, DA-D7): pure. Can `role` edit SLA targets of `kind`? 'override' (one project's
+// targets, Project page): the slaTargetsEdit roles. 'default' (company defaults by project type,
+// Config Panel): Admin only - the Config Panel's own gate, not a capability. Unknown kind or
+// role -> false.
+function canEditSlaTargets(role, kind, cfg = CONFIG) {
+  if (kind === 'override') return roleCan(role, 'slaTargetsEdit', cfg);
+  if (kind === 'default') return role === cfg.ROLE_IDS.ADMIN;
+  return false;
+}
+
 // N-332: pure. Is `role` an Engagement survey respondent role
 // (CONFIG.SURVEY_RESPONDENT_ROLES)? Used for survey.html access and the home
 // survey widget. Missing / unknown role or config → false.

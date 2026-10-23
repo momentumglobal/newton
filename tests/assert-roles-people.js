@@ -94,6 +94,8 @@ ASSERTIONS.push(
         engagementAdmin:   ['admin', 'people_ops'],
         salesManage:       ['admin', 'leadership', 'sales'],
         projectTeamEdit:   ['admin', 'leadership', 'people_ops'],   // N-365
+        slaTargetsEdit:    ['admin', 'leadership'],                  // N-382
+        slaTargetsView:    ['admin', 'leadership', 'delivery_manager'],   // N-382
       };
       _assertEqual(Object.keys(CONFIG.ROLE_CAPABILITIES).sort(), Object.keys(expect).sort(), 'capability set');
       Object.keys(expect).forEach(cap => roles.forEach(r =>

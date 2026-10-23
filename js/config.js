@@ -112,6 +112,12 @@ const CONFIG = {
     // every project on Projects + the Project page. A DM edits only projects in their
     // own scope (canEditProjectTeam, permissions.js).
     projectTeamEdit:   ['admin', 'leadership', 'people_ops'],
+    // N-382 (DA-2, DA-D7): SLA targets on the Project page. Edit = a project's OVERRIDES
+    // (Admin, Leadership). Company DEFAULTS are Admin-only through the Config Panel's own
+    // gate, deliberately not a capability here, so widening this list cannot widen defaults.
+    // View = read-only for Delivery Managers as well (their own projects, via the page scope).
+    slaTargetsEdit:    ['admin', 'leadership'],
+    slaTargetsView:    ['admin', 'leadership', 'delivery_manager'],
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
@@ -817,6 +823,9 @@ const CONFIG = {
     // flag / pace threshold, this is the contractual target, and neither may
     // move the other (N-381 decision). Asserted.
     SEED_DEFAULTS: { timeToHireDays: 45 },
+    // N-382: ceiling for an SLA target typed into the editor (days or per week). A typo
+    // guard, not a business rule.
+    MAX_VALUE: 3650,
   },
 
   // N-269: Kaplan–Meier time-to-hire (analytics.js computeTTFPrediction).

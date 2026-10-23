@@ -15,13 +15,14 @@ async function renderAdminPage() {
 async function renderAdminTab(tab) {
   _adminTab = tab;
   const main = document.getElementById('main-content');
-  const tabs = ['departments', 'delete', 'snapshots', 'checklists'];
-  const labels = { departments: 'Functional Areas', delete: 'Delete Records', snapshots: 'Snapshots', checklists: 'Checklists' };
+  const tabs = ['departments', 'delete', 'snapshots', 'checklists', 'slaTargets'];
+  const labels = { departments: 'Functional Areas', delete: 'Delete Records', snapshots: 'Snapshots', checklists: 'Checklists', slaTargets: 'SLA targets' };
   const tooltips = {
     departments: 'Manage the list of functional areas used when categorising roles across the system.',
     delete:      'Permanently delete records from the system. Use with caution — this action cannot be undone.',
     snapshots:   'Write a weekly time-series snapshot (active pipelines, pipelines by stage, avg days open, placements, activity totals) for every active project.',
     checklists:  'Build the Project and Role workflow checklists and switch them on.',
+    slaTargets:  'Company default SLA targets by project type. Per-project overrides are edited on the Project page.',
   };
   const tabBar = tabs.map(t =>
     `<button class="btn-filter${_adminTab === t ? ' active' : ''}"${act('renderAdminTab', t)}>${labels[t]}<span class="help-tip">?<span class="help-tip-text">${tooltips[t]}</span></span></button>`
@@ -32,6 +33,7 @@ async function renderAdminTab(tab) {
   if (tab === 'delete')      content = await buildDeleteTab();
   if (tab === 'snapshots')   content = await buildSnapshotsTab();
   if (tab === 'checklists')  content = await buildChecklistsTab();   // checklist-admin.js (N-266b)
+  if (tab === 'slaTargets')  content = await buildSlaTargetsTab();   // sla-admin.js (N-382)
 
   main.innerHTML = `
     <div class="page-header">

@@ -25,6 +25,7 @@
 let _ppSeq  = 0;      // render token — drops a stale async render
 let _pp     = null;   // state of the project page on screen
 let _ppBusy = false;  // one Project Team write at a time (N-106 double-click guard)
+let _ppSlaBusy = false;  // one SLA targets write at a time (N-382)
 
 async function openProjectPage(projectId) {
   if (!canAccess('projects', _resolvedRole)) return;
@@ -58,6 +59,7 @@ async function openProjectPage(projectId) {
   }
   _pp = data;
   _ppBusy = false;
+  _ppSlaBusy = false;
   renderBreadcrumb('projects', data.title);
   main.innerHTML = _ppPageHtml(data);
   if (data.checklist && !data.checklist.error) mountChecklistView(data.checklist);
@@ -69,12 +71,14 @@ async function openProjectPage(projectId) {
 async function _ppLoad(id) {
   if (!Number.isInteger(id) || id <= 0) return null;
   const email = getCurrentUser().email;
-  const [projects, userProjectIds, dmMap, checklist, team] = await Promise.all([
+  const canViewSla = canViewSlaTargets(_resolvedRole);   // N-382
+  const [projects, userProjectIds, dmMap, checklist, team, sla] = await Promise.all([
     getProjects(false),
     getUserProjectIds(email),
     getTalentPartnerDisplayMap(),
     loadProjectChecklistView(id),   // null = no checklist; never throws
     _ppLoadTeam(id),                // { error: true } on failure; never throws
+    canViewSla ? _ppLoadSla() : null,   // N-382: { rows } or { error: true }; never throws
   ]);
   const project = projects.find(p => String(p.id) === String(id));
   if (!project) return null;
@@ -89,7 +93,21 @@ async function _ppLoad(id) {
     canEdit:     canEditProjectRows(_resolvedRole),
     canEditTeam: canEditProjectTeam(_resolvedRole, id, userProjectIds),
     mode:        null,    // null | 'add' | assignment id in edit
+    sla, canViewSla,
+    canEditSla:  canEditSlaTargets(_resolvedRole, 'override'),
+    slaMode:     null,    // null | 'edit' (N-382)
   };
+}
+
+// The SLATargets rows for the SLA targets section (N-382). Never throws: a failure is
+// { error: true } and the rest of the page still renders.
+async function _ppLoadSla() {
+  try {
+    return { rows: await getSLATargets() };
+  } catch (e) {
+    console.warn('SLA targets load failed:', e);
+    return { error: true };
+  }
 }
 
 // The Project Team data. Never throws: a failure is { error: true } and the
@@ -165,9 +183,67 @@ function _ppPageHtml(v) {
     <div class="project-page" data-project-page="${Number(v.projectId)}">
       ${_ppHeaderHtml(v)}
       <div class="project-fields" id="pp-fields">${_ppFieldsHtml(v)}</div>
+      ${_ppSlaSectionHtml(v)}
       <section class="role-page-section pp-team" id="pp-team">${_ppTeamHtml(v)}</section>
       ${checklistHtml}
     </div>`;
+}
+
+// ── SLA targets markup (N-382 / DA-2) ───────────────────────────────
+
+// The whole section, or '' when this viewer can't see SLAs or the project can't have them
+// (LCI / Transformation / Internal). Re-rendered into #pp-sla by _ppRenderSla.
+function _ppSlaSectionHtml(v) {
+  if (!v.canViewSla || !v.sla || !slaEditorModel(v.project, [])) return '';
+  return `<section class="role-page-section pp-sla" id="pp-sla">${_ppSlaHtml(v)}</section>`;
+}
+
+function _ppSlaHtml(v) {
+  if (v.sla.error) {
+    return `
+      <h3 class="role-page-section-title">SLA targets</h3>
+      <p class="checklist-unavailable">SLA targets couldn't be loaded.</p>`;
+  }
+  const model = slaEditorModel(v.project, v.sla.rows);
+  const editing = v.slaMode === 'edit' && v.canEditSla;
+  const head = `
+      <div class="role-hc-head">
+        <h3 class="role-page-section-title">SLA targets</h3>
+        ${v.canEditSla && !editing ? `<button type="button" class="btn-secondary btn-sm"${act('ppSlaEdit')}>Edit targets</button>` : ''}
+      </div>`;
+  const rows = model.metrics.map(m => {
+    if (editing) {
+      const ph = m.defaultValue !== null ? slaFormatTarget(m.defaultValue, m) + ' — default' : 'No default';
+      const step = m.decimals > 0 ? (1 / Math.pow(10, m.decimals)).toFixed(m.decimals) : '1';
+      return `
+            <tr>
+              <td><label for="pp-sla-${escAttr(m.key)}">${escHtml(m.label)}</label></td>
+              <td><input type="number" class="sla-input" id="pp-sla-${escAttr(m.key)}" min="0" max="${escAttr(CONFIG.SLA.MAX_VALUE)}" step="${step}" inputmode="decimal" placeholder="${escAttr(ph)}" value="${escAttr(m.overrideValue === null ? '' : m.overrideValue)}"> <span class="sla-unit">${escHtml(m.unit)}</span></td>
+            </tr>`;
+    }
+    const src = m.effective.source === 'override' ? 'Override' : 'Default';
+    const note = m.effective.source === 'override' && m.defaultValue !== m.effective.value
+      ? `<div class="sla-default-note">Default: ${escHtml(slaFormatTarget(m.defaultValue, m))}</div>` : '';
+    return `
+            <tr>
+              <td>${escHtml(m.label)}</td>
+              <td>${escHtml(slaFormatTarget(m.effective.value, m))}${note}</td>
+              <td>${m.effective.source ? `<span class="checklist-tag">${src}</span>` : '—'}</td>
+            </tr>`;
+  }).join('');
+  const table = editing
+    ? `<table class="data-table pp-sla-table"><thead><tr><th>Metric</th><th>Override</th></tr></thead><tbody>${rows}</tbody></table>`
+    : `<table class="data-table pp-sla-table"><thead><tr><th>Metric</th><th>Target</th><th>Source</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const form = editing ? `
+      <p class="sla-hint">Leave a box blank to use the ${escHtml(v.project.ProjectType || '')} default.</p>
+      <div id="pp-sla-error" class="form-error"></div>
+      <div class="form-actions">
+        <button type="button" class="btn-primary" id="pp-sla-save"${act('ppSlaSave')}>Save</button>
+        <button type="button" class="btn-secondary"${act('ppSlaCancel')}>Cancel</button>
+        ${model.overrideRow ? `<button type="button" class="btn-secondary"${act('ppSlaReset')}>Reset to defaults</button>` : ''}
+      </div>` : '';
+  return `${head}
+      <div class="table-scroll">${table}</div>${form}`;
 }
 
 // ── Project Team markup (N-365) ─────────────────────────────────────
@@ -311,6 +387,13 @@ function _ppRenderTeam(v) {
   lucide.createIcons();
 }
 
+function _ppRenderSla(v) {
+  const el = document.getElementById('pp-sla');
+  if (!el || !_ppOnScreen(v)) return;
+  el.innerHTML = _ppSlaHtml(v);
+  lucide.createIcons();
+}
+
 // Re-reads the project + its team after a write, then re-renders. Never
 // throws — the write it follows has already succeeded.
 async function _ppRefresh(v) {
@@ -338,6 +421,19 @@ async function _ppRun(fn) {
     await fn(v);
   } finally {
     _ppBusy = false;
+  }
+}
+
+// One SLA targets handler at a time (own flag: Project Team's canEditTeam never gates SLA actions).
+// Does nothing while another is running, when the page has gone, or for a viewer who can't edit.
+async function _ppRunSla(fn) {
+  const v = _pp;
+  if (_ppSlaBusy || !_ppOnScreen(v) || !v.canEditSla || !v.sla || v.sla.error) return;
+  _ppSlaBusy = true;
+  try {
+    await fn(v);
+  } finally {
+    _ppSlaBusy = false;
   }
 }
 
@@ -554,6 +650,88 @@ async function ppClearLeadDm() {
   });
 }
 
+// ── SLA targets handlers (N-382) ────────────────────────────────────
+
+function ppSlaEdit() {
+  const v = _pp;
+  if (!_ppOnScreen(v) || _ppSlaBusy || !v.canEditSla || !v.sla || v.sla.error) return;
+  v.slaMode = 'edit';
+  _ppRenderSla(v);
+  const first = document.getElementById('pp-sla-' + CONFIG.SLA.METRICS[0].key);
+  if (first) first.focus();
+}
+
+function ppSlaCancel() {
+  const v = _pp;
+  if (!_ppOnScreen(v) || _ppSlaBusy) return;
+  v.slaMode = null;
+  _ppRenderSla(v);
+}
+
+// Plans from FRESH rows (never the rendered ones), writes once, then re-reads only the SLA rows.
+async function _ppSlaWrite(v, values) {
+  const fresh = await getSLATargets();
+  const plan = slaEditPlan('override',
+    { id: v.projectId, name: v.project.CustomerName, type: v.project.ProjectType }, fresh, values);
+  if (plan.error) { showFormError('pp-sla', plan.error); return false; }
+  await saveSlaTargets(plan);
+  const next = await _ppLoadSla();
+  if (next.error) toast("Saved, but the SLA targets couldn't refresh — reload to see the change.", { type: 'error' });
+  else v.sla = next;
+  v.slaMode = null;
+  _ppRenderSla(v);
+  return true;
+}
+
+async function ppSlaSave() {
+  await _ppRunSla(async v => {
+    if (v.slaMode !== 'edit') return;
+    clearFormError('pp-sla');
+    const values = {};
+    for (const m of CONFIG.SLA.METRICS) {
+      const el = document.getElementById('pp-sla-' + m.key);
+      const parsed = slaParseInput(el ? el.value : '', m);
+      if (!parsed.ok) {
+        if (el) el.setAttribute('aria-invalid', 'true');
+        showFormError('pp-sla', parsed.error);
+        return;
+      }
+      if (el) el.removeAttribute('aria-invalid');
+      values[m.key] = parsed.value;
+    }
+    const btn = document.getElementById('pp-sla-save');
+    if (btn) btn.disabled = true;
+    try {
+      if (await _ppSlaWrite(v, values)) toast('SLA targets saved', { type: 'success' });
+    } catch (e) {
+      console.warn('SLA targets save failed:', e);
+      if (btn) btn.disabled = false;
+      showFormError('pp-sla', 'Error: ' + (e && e.message ? e.message : String(e)));
+    }
+  });
+}
+
+async function ppSlaReset() {
+  await _ppRunSla(async v => {
+    if (v.slaMode !== 'edit' || !slaEditorModel(v.project, v.sla.rows).overrideRow) return;
+    const ok = await confirmModal({
+      title:        'Reset to defaults',
+      message:      `Remove this project's SLA overrides? It will use the ${v.project.ProjectType} defaults.`,
+      confirmLabel: 'Reset',
+      cancelLabel:  'Go back',
+    });
+    if (!ok) return;
+    try {
+      const values = {};
+      CONFIG.SLA.METRICS.forEach(m => { values[m.key] = null; });
+      if (await _ppSlaWrite(v, values)) toast('SLA targets reset to defaults', { type: 'success' });
+    } catch (e) {
+      console.warn('SLA targets reset failed:', e);
+      showFormError('pp-sla', 'Error: ' + (e && e.message ? e.message : String(e)));
+    }
+  });
+}
+
 async function copyProjectLink(id) {
   const url = `${location.origin}${location.pathname}#projects?action=project&id=${parseInt(id, 10)}`;
   try {
@@ -578,4 +756,9 @@ registerActions({
   ppDeleteMember,
   ppSetLeadDm,
   ppClearLeadDm,
+  // N-382: SLA targets section.
+  ppSlaEdit,
+  ppSlaCancel,
+  ppSlaSave,
+  ppSlaReset,
 });

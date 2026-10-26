@@ -237,19 +237,9 @@ function renderActivityByTPPanel(acts, period, tpMap = {}) {
 function renderRejectionPanel(rejections, period, roles = []) {
   const { start, end } = getDetailPeriodRange(period);
   const roleMap = Object.fromEntries(roles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
-  const filtered = rejections.filter(rej => {
-    // A blank RejectionDate stays always-included, by decision: the two
-    // pre-N-153 rows were not backfilled, and excluding them would silently
-    // drop real rejections.
-    if (!rej.RejectionDate) return true;
-    // isoDate() stores T12:00:00Z — that midday anchor is what makes a plain
-    // new Date() safe against these LOCAL period bounds. Do NOT switch to
-    // utcDateOnly: UTC midnight against a local 23:59:59 end loses the last
-    // day of every period in BST.
-    const d = new Date(rej.RejectionDate);
-    return d >= start && d <= end;
-  });
-  const reasons = ['Salary','Motivations','Counter-offer','Took another opportunity','Other'];
+  // N-387: the period rule (blank date always included) lives in rejectionInPeriod (analytics.js).
+  const filtered = rejections.filter(rej => rejectionInPeriod(rej, start, end));
+  const reasons = CONFIG.REJECTION_REASONS;
   // One row per role + reason. Role names are escaped once, in roleMap.
   const groups = {};
   filtered.forEach(rej => {

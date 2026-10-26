@@ -875,6 +875,32 @@ const CONFIG = {
     ROLLUP_PERIOD: '90d',
   },
 
+  // N-387: the five offer-rejection reasons, in display order. Single source:
+  // forms.js, mobile-reporting-ext.js, renderRejectionPanel and the engine.
+  REJECTION_REASONS: ['Salary', 'Motivations', 'Counter-offer', 'Took another opportunity', 'Other'],
+
+  // N-387 (DA-7): Rejection Intelligence engine (analytics.js rejectionIntelSummary).
+  // Minimum samples below which the engine returns the numbers but no headline
+  // claim (Chris, 26 Oct 2026: "Standard"). Checked at load
+  // (analytics.js rejectionIntelConfigCheck).
+  REJECTION_INTEL: {
+    minRejections:    5,   // cluster / reason claim
+    minMatchedOffers: 3,   // salary claim: offers with a usable benchmark
+    minBenchmarkN:    3,   // an offer's benchmark needs >= this many LCI rows to count as matched
+    minFunnelDen:     20,  // funnel step claim: denominator floor
+    // Offer / benchmark ratio outside this band = data-entry slip ("45k" typed
+    // as 45); counted as `implausible`, never compared.
+    plausibleRatio:   { min: 0.25, max: 4 },
+    // Free-text LCIModels.Location segment (lower-case) -> COUNTRY_CURRENCY key,
+    // for spellings that are not the key itself. Every value must be a
+    // COUNTRY_CURRENCY key.
+    countryAliases: {
+      'united kingdom': 'UK', 'england': 'UK', 'scotland': 'UK', 'wales': 'UK', 'northern ireland': 'UK',
+      'united states': 'USA', 'us': 'USA', 'united states of america': 'USA',
+      'united arab emirates': 'UAE', 'czechia': 'Czech Republic',
+    },
+  },
+
   // N-269: Kaplan–Meier time-to-hire (analytics.js computeTTFPrediction).
   TTF_SURVIVAL: {
     minEvents:   3,  // min completed hires before a pool is used (else fall back / 'Insufficient data')

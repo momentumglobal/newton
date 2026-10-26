@@ -163,7 +163,7 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
             <label>Rejection Reason *</label>
             <select name="RejectionReason" required>
               <option value="">-- Select --</option>
-              ${'Salary,Motivations,Counter-offer,Took another opportunity,Other'.split(',')
+              ${CONFIG.REJECTION_REASONS
                 .map(r => `<option value="${r}" ${existingData?.RejectionReason === r ? 'selected' : ''}>${r}</option>`)
                 .join('')}
             </select>

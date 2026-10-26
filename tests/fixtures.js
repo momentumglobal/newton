@@ -337,4 +337,67 @@ var FIXTURES = {
       { id: 503, RoleID: 51, Sequence: 3, Title: 'Headcount 3' },
     ],
   },
+
+  // N-387 (DA-7): Rejection Intelligence engine. Project 10 (four roles) has
+  // 10 linked rejections (claims); project 20 (two roles) has 3 (no claim).
+  // Role 102's title differs from the LCI title only in case / whitespace;
+  // role 104 has no Location (no currency). Expected values are in
+  // tests/assert-rejection-intel.js.
+  rejectionIntel: {
+    roles: [
+      { id: 101, RoleTitle: 'Senior Java Developer',         Location: 'Romania',  Department: 'Engineering', ProjectIDLookupId: 10 },
+      { id: 102, RoleTitle: '  senior   JAVA developer ',    Location: 'Romania',  Department: 'Engineering', ProjectIDLookupId: 10 },
+      { id: 103, RoleTitle: 'Data Engineer',                 Location: 'Portugal', Department: 'Data',        ProjectIDLookupId: 10 },
+      { id: 104, RoleTitle: 'QA Engineer',                   Location: '',         Department: 'Engineering', ProjectIDLookupId: 10 },
+      { id: 201, RoleTitle: 'Product Manager',               Location: 'UK',       Department: 'Product',     ProjectIDLookupId: 20 },
+      { id: 202, RoleTitle: 'Data Analyst',                  Location: 'UK',       Department: 'Data',        ProjectIDLookupId: 20 },
+    ],
+    models: [
+      { id: 1, Location: 'Bucharest, Romania',     LocalCurrency: 'RON', Status: 'Won' },
+      { id: 2, Location: 'Lisbon, Portugal',       LocalCurrency: 'EUR', Status: 'Draft' },
+      { id: 3, Location: 'London, United Kingdom', LocalCurrency: 'GBP', Status: 'Lost' },
+      { id: 4, Location: 'Bucharest',              LocalCurrency: 'RON', Status: 'Won' },
+    ],
+    lciRows: [
+      { id: 1001, ModelIDLookupId: 1, RowType: 'coe',    Title: 'Senior Java Developer', AnnualSalary: 60000 },
+      { id: 1002, ModelIDLookupId: 1, RowType: 'coe',    Title: 'senior java developer', AnnualSalary: 70000 },
+      { id: 1003, ModelIDLookupId: 1, RowType: 'coe',    Title: 'Senior Java Developer', AnnualSalary: 80000 },
+      { id: 1004, ModelIDLookupId: 1, RowType: 'legacy', Title: 'Senior Java Developer', AnnualSalary: 999999 },
+      { id: 1005, ModelIDLookupId: 1, RowType: 'coe',    Title: '',                      AnnualSalary: 50000 },
+      { id: 1006, ModelIDLookupId: 1, RowType: 'coe',    Title: 'Senior Java Developer', AnnualSalary: '' },
+      { id: 2001, ModelIDLookupId: 2, RowType: 'coe',    Title: 'Data Engineer',         AnnualSalary: 40000 },
+      { id: 2002, ModelIDLookupId: 2, RowType: 'coe',    Title: 'Data Engineer',         AnnualSalary: 44000 },
+      { id: 3001, ModelIDLookupId: 3, RowType: 'coe',    Title: 'Product Manager',       AnnualSalary: 70000 },
+      { id: 3002, ModelIDLookupId: 3, RowType: 'coe',    Title: 'Product Manager',       AnnualSalary: 75000 },
+      { id: 3003, ModelIDLookupId: 3, RowType: 'coe',    Title: 'Product Manager',       AnnualSalary: 80000 },
+      { id: 4001, ModelIDLookupId: 4, RowType: 'coe',    Title: 'Senior Java Developer', AnnualSalary: 10000 },
+      { id: 9001, ModelIDLookupId: 99, RowType: 'coe',   Title: 'Senior Java Developer', AnnualSalary: 5000 },
+    ],
+    rejections: [
+      { id: 1,  RoleIDLookupId: '101', Title: 'Candidate One',      RejectionReason: 'Salary',                   SalaryOffered: '63,000', RejectionDate: '2026-09-01T12:00:00Z', Notes: 'private note' },
+      { id: 2,  RoleIDLookupId: '101', Title: 'Candidate Two',      RejectionReason: 'Salary',                   SalaryOffered: '56000',  RejectionDate: '2026-09-02T12:00:00Z', Notes: 'private note' },
+      { id: 3,  RoleIDLookupId: '102', Title: 'Candidate Three',    RejectionReason: 'Counter-offer',            SalaryOffered: '77000',  RejectionDate: '2026-09-03T12:00:00Z' },
+      { id: 4,  RoleIDLookupId: '101', Title: 'Candidate Four',     RejectionReason: 'Salary',                   SalaryOffered: '45k',    RejectionDate: '2026-09-04T12:00:00Z' },
+      { id: 5,  RoleIDLookupId: '101', Title: 'Candidate Five',     RejectionReason: 'Motivations',              SalaryOffered: 14000,    RejectionDate: '2026-09-05T12:00:00Z' },
+      { id: 6,  RoleIDLookupId: '103', Title: 'Candidate Six',      RejectionReason: 'Salary',                   SalaryOffered: 42000,    RejectionDate: '2026-09-06T12:00:00Z' },
+      { id: 7,  RoleIDLookupId: '104', Title: 'Candidate Seven',    RejectionReason: 'Other',                    SalaryOffered: 50000,    RejectionDate: '2026-09-07T12:00:00Z' },
+      { id: 8,  RoleIDLookupId: '101', Title: 'Candidate Eight',    RejectionReason: 'Visa issues',              SalaryOffered: '',       RejectionDate: null },
+      { id: 9,  RoleIDLookupId: '102', Title: 'Candidate Nine',     RejectionReason: 'Salary',                   SalaryOffered: '66500',  RejectionDate: '2026-09-09T12:00:00Z' },
+      { id: 10, RoleIDLookupId: '201', Title: 'Candidate Ten',      RejectionReason: 'Took another opportunity', SalaryOffered: '75,000', RejectionDate: '2026-09-10T12:00:00Z' },
+      { id: 11, RoleIDLookupId: '202', Title: 'Candidate Eleven',   RejectionReason: 'Salary',                   SalaryOffered: 30000,    RejectionDate: '2026-09-11T12:00:00Z' },
+      { id: 12, RoleIDLookupId: '201', Title: 'Candidate Twelve',   RejectionReason: 'Counter-offer',            SalaryOffered: '81000',  RejectionDate: '2026-09-12T12:00:00Z' },
+      { id: 13, RoleIDLookupId: '999', Title: 'Candidate Thirteen', RejectionReason: 'Salary',                   SalaryOffered: 60000,    RejectionDate: '2026-09-13T12:00:00Z' },
+      { id: 14, RoleIDLookupId: '103', Title: 'Candidate Fourteen', RejectionReason: 'Salary',                   SalaryOffered: 41000,    RejectionDate: '2026-09-14T12:00:00Z' },
+    ],
+    // Role 103 / TP c logs an interview with no submission: the clamp case.
+    activity: [
+      { RoleIDLookupId: '101', TalentPartner: 'a@x', WeekEndingDate: '2026-09-06T12:00:00Z', Submitted: 6, Interview1: 3, Offers: 1 },
+      { RoleIDLookupId: '101', TalentPartner: 'a@x', WeekEndingDate: '2026-09-13T12:00:00Z', Submitted: 4, Interview1: 2, Offers: 0 },
+      { RoleIDLookupId: '101', TalentPartner: 'b@x', WeekEndingDate: '2026-09-06T12:00:00Z', Submitted: 6, Interview1: 4, Offers: 1 },
+      { RoleIDLookupId: '102', TalentPartner: 'a@x', WeekEndingDate: '2026-09-20T12:00:00Z', Submitted: 8, Interview1: 3, Offers: 0 },
+      { RoleIDLookupId: '103', TalentPartner: 'c@x', WeekEndingDate: '2026-09-20T12:00:00Z', Submitted: 0, Interview1: 2, Offers: 0 },
+      { RoleIDLookupId: '201', TalentPartner: 'd@x', WeekEndingDate: '2026-09-20T12:00:00Z', Submitted: 8, Interview1: 4, Offers: 1 },
+      { RoleIDLookupId: '999', TalentPartner: 'e@x', WeekEndingDate: '2026-09-20T12:00:00Z', Submitted: 50, Interview1: 50, Offers: 50 },
+    ],
+  },
 };

@@ -111,6 +111,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-sla-engine.js'),   // N-383
   path.join(TESTS_DIR, 'assert-sla-panel.js'),    // N-384
   path.join(TESTS_DIR, 'assert-sla-rollup.js'),   // N-385
+  path.join(TESTS_DIR, 'assert-rejection-intel.js'),   // N-387
 ];
 // N-259: starter-folder-logic.js (pure) loads straight after checklist-logic.js, which it calls.
 // N-361: project-team.js (pure) loads straight after permissions.js; assert-project-team.js is the last assertion file.

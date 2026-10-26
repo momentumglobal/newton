@@ -274,7 +274,8 @@ async function mobilePullRefreshRoles() {
 }
 
 // ── #3 Log Rejection form ─────────────────────────────────────────────
-const M_REJECT_REASONS = ['Salary','Motivations','Counter-offer','Took another opportunity','Other'];
+// N-387: alias kept for the existing callers; the list lives in config.js.
+const M_REJECT_REASONS = CONFIG.REJECTION_REASONS;
 
 async function mobileRenderRejectionForm(main, rolePreselected) {
   main.innerHTML = '<div class="m-empty">Loading...</div>';

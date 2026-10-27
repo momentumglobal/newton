@@ -822,7 +822,7 @@ async function renderRejectionIntelTab(showTabs) {
     <div id="rej-intel-body">${skeletonTable(6, 5)}</div>`;
   lucide.createIcons();
   try {
-    const inputs = await getRejectionIntelInputs(getCurrentUser().email, { weeks: _rejectionsWeeks });
+    const inputs = await getRejectionIntelInputs(getCurrentUser().email, { weeks: _rejectionsWeeks, role: _resolvedRole });
     await new Promise(resolve => setTimeout(resolve, 0));
     if (token !== _rejIntelToken) return;
     const includeFigures = canViewRejectionIntelFigures(_resolvedRole);

@@ -391,7 +391,7 @@ async function getPortfolioSlaInputs() {
 // Internal / no-dashboard rows are removed through excludeInternalProjectData (N-333, N-362).
 // Required reads throw (the caller shows "unavailable", never a zero-filled list); rejected
 // offers degrade to null.
-async function getSlaRollupInputs(email) {
+async function getSlaRollupInputs(email, opts = {}) {
   const [projectIds, allProjects, allRoles, allActivity, allPlacements, allHeadcount, slaRows, allStageRows, rejectedOffers] = await Promise.all([
     getUserProjectIds(email),
     getProjects(false),
@@ -407,7 +407,7 @@ async function getSlaRollupInputs(email) {
     { roles: allRoles, activity: allActivity, placements: allPlacements, headcount: allHeadcount, stageRows: allStageRows },
     { projects: allProjects, roles: allRoles });
   return {
-    projects: slaRollupProjects({ projects: allProjects, projectIds }),
+    projects: slaRollupProjects({ projects: allProjects, projectIds: projectScopeForRole(opts.role, projectIds) }),
     roles, activity, placements, headcount, slaRows, stageRows, rejectedOffers,
   };
 }
@@ -431,12 +431,13 @@ async function getRejectionIntelInputs(email, opts = {}) {
     getLCIModels().catch(e => { console.warn('N-388: LCI models read failed', e); return null; }),
     getAllLCIModelRows().catch(e => { console.warn('N-388: LCI rows read failed', e); return null; }),
   ]);
-  const scoped = rejectionIntelScopeRows({ projectIds, roles: allRoles, rejections: allRejections, activity: activitySinceWeeks(allActivity, weeks) });
+  const scopeIds = projectScopeForRole(opts.role, projectIds);   // N-388 fix: Leadership / People Ops see all
+  const scoped = rejectionIntelScopeRows({ projectIds: scopeIds, roles: allRoles, rejections: allRejections, activity: activitySinceWeeks(allActivity, weeks) });
   const { roles, activity, rejections } = excludeInternalProjectData(
     { roles: scoped.roles, activity: scoped.activity, rejections: scoped.rejections },
     { projects: allProjects, roles: allRoles });
   const benchmarkUnavailable = !Array.isArray(models) || !Array.isArray(lciRows);
-  const ids = projectIds === null ? null : new Set(projectIds.map(String));
+  const ids = scopeIds === null ? null : new Set(scopeIds.map(String));
   return {
     rejections, roles, activity,
     models: benchmarkUnavailable ? [] : models,

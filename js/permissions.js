@@ -70,6 +70,14 @@ function seesAllProjects(role, cfg = CONFIG) {
   return roleCan(role, 'projectTeamEdit', cfg);
 }
 
+// N-388 fix: pure. The project-id scope a portfolio loader applies. getUserProjectIds returns null
+// only for an active admin row; Leadership / People Ops get a list (often empty), so a loader that
+// trusts it alone shows them nothing. A role that seesAllProjects gets null (all); anyone else
+// keeps their list. A missing role fails closed (the list is used as given).
+function projectScopeForRole(role, projectIds, cfg = CONFIG) {
+  return seesAllProjects(role, cfg) ? null : projectIds;
+}
+
 // N-365 (PT-5, D-1): pure. Can `role` edit project `projectId`'s Project Team
 // (add / edit / delete members, rates and fees, Lead DM)? projectTeamEdit roles:
 // any project. A Delivery Manager: only a project in their own scope

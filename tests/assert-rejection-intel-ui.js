@@ -273,7 +273,7 @@
         _assertEqual(/isDMAdmin \? `<div id='proj-rejintel-slot'><\/div>` : ''/.test(render), true, 'AC12 Admin / DM only');
         _assertEqual(/mountRejectionIntelStrip\('proj-rejintel-slot'/.test(render), true, 'AC12 mounted after paint');
         const mount = body(dp, 'async function mountRejectionIntelStrip(');
-        _assertEqual(/getRejectionIntelInputs\(getCurrentUser\(\)\.email, \{ weeks: 0 \}\)/.test(mount) && /canViewRejectionIntelFigures\(_resolvedRole\)/.test(mount), true, 'AC12 All time; amounts only with the capability');
+        _assertEqual(/getRejectionIntelInputs\(getCurrentUser\(\)\.email, \{ weeks: 0, role: _resolvedRole \}\)/.test(mount) && /canViewRejectionIntelFigures\(_resolvedRole\)/.test(mount), true, 'AC12 All time; amounts only with the capability');
         _assertEqual(/catch \(e\)/.test(mount) && !/rejectionIntelUnavailableHtml/.test(mount), true, 'AC12 a failed read leaves the slot empty, no error text');
         _assertEqual(/dataset\.token/.test(mount), true, 'AC12 a stale result is dropped');
         _assertEqual(body(pp, 'function renderRejectionPanel(').indexOf('rejectionIntel') === -1, true, 'AC12 renderRejectionPanel untouched');
@@ -283,7 +283,7 @@
         _assertEqual(projectBranch.indexOf('rejectionIntel') === -1 && projectBranch.indexOf('RejectionIntel') === -1, true, 'AC13 project scope never reads it');
         _assertEqual(/_rbBlocks\.some\(b => b\.type === 'panel' && b\.key === 'rejectionIntel'\) && canViewRejectionIntelReport\(_resolvedRole\)/.test(fetchBody), true, 'AC13 read only when the module is present and allowed');
         const load = body(rb, 'async function rbLoadRejectionIntel(');
-        _assertEqual(/catch \(e\)[\s\S]*return null/.test(load) && /getRejectionIntelInputs\(getCurrentUser\(\)\.email, \{ weeks: 0 \}\)/.test(load), true, 'AC13 failure -> null, un-windowed, scoped to the user');
+        _assertEqual(/catch \(e\)[\s\S]*return null/.test(load) && /getRejectionIntelInputs\(getCurrentUser\(\)\.email, \{ weeks: 0, role: _resolvedRole \}\)/.test(load), true, 'AC13 failure -> null, un-windowed, scoped to the user and role');
         const panel = pp.slice(pp.indexOf('rejectionIntel: (data, period)'));
         _assertEqual(/canViewRejectionIntelReport\(_resolvedRole\)\) return ''/.test(panel) && /rejectionIntelUnavailableHtml\(/.test(panel), true, 'AC13 empty without the capability; unavailable line on a failed read');
         _assertEqual(/rejectionInPeriod\(r, start, end\)/.test(panel) && /activityInDetailPeriod\(a, period\)/.test(panel), true, 'AC13 windowed by the report period with the existing rules');
@@ -307,6 +307,32 @@
         const ri = ALL_SOURCES['rejection-intel.js'];
         _assertEqual(/\b(getItems|fetch|createItem|updateItem)\(/.test(ri), false, 'rejection-intel.js has no Graph calls');
         _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(ri), false, 'rejection-intel.js has no hex colours');
+      },
+    },
+    {
+      name: 'N-388 fix — Leadership / People Ops see every project (their id list is empty, not null); DMs stay scoped; both loaders use the helper',
+      fn: function () {
+        // getUserProjectIds gives Leadership a LIST (empty without UserAssignments rows), only an admin row gets null.
+        ['admin', 'leadership', 'people_ops'].forEach(function (role) {
+          _assertEqual(projectScopeForRole(role, []), null, role + ' -> all projects, whatever the id list is');
+        });
+        _assertEqual(projectScopeForRole('delivery_manager', ['900']), ['900'], 'a DM keeps their own list');
+        _assertEqual(projectScopeForRole('delivery_manager', []), [], 'a DM with no projects sees none');
+        _assertEqual(projectScopeForRole(undefined, ['900']), ['900'], 'no role fails closed to the list');
+        const rows = [{ id: 1, ProjectID: 900 }, { id: 2, ProjectID: 901 }];
+        const rej = [{ RoleIDLookupId: 1 }, { RoleIDLookupId: 2 }];
+        const scope = (role, ids) => rejectionIntelScopeRows({ projectIds: projectScopeForRole(role, ids), roles: rows, rejections: rej, activity: [] });
+        _assertEqual(scope('leadership', []).rejections.length, 2, 'Leadership (empty list) keeps every rejection - the live defect');
+        _assertEqual(scope('delivery_manager', ['900']).rejections.length, 1, 'a DM keeps only their project');
+        _assertEqual(scope('delivery_manager', []).rejections.length, 0, 'a DM with an empty list keeps none');
+        const P = [{ id: 900, CustomerName: 'A', ProjectType: 'Embedded', Status: 'Active' }, { id: 901, CustomerName: 'B', ProjectType: 'Embedded', Status: 'Active' }];
+        _assertEqual(slaRollupProjects({ projects: P, projectIds: projectScopeForRole('leadership', []) }).length, 2, 'N-385: Leadership sees every SLA project');
+        _assertEqual(slaRollupProjects({ projects: P, projectIds: projectScopeForRole('delivery_manager', ['901']) }).map(p => p.id), [901], 'N-385: a DM sees their own');
+        if (typeof ALL_SOURCES === 'undefined') return;
+        const api = ALL_SOURCES['api.js'];
+        _assertEqual(/projectScopeForRole\(opts\.role, projectIds\)/.test(body(api, 'async function getSlaRollupInputs(')), true, 'getSlaRollupInputs scopes through the helper');
+        const ril = body(api, 'async function getRejectionIntelInputs(');
+        _assertEqual(/projectScopeForRole\(opts\.role, projectIds\)/.test(ril) && /new Set\(scopeIds\.map/.test(ril), true, 'getRejectionIntelInputs scopes rows AND the project list through the helper');
       },
     }
   );

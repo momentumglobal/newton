@@ -582,7 +582,7 @@ async function rbFetchData() {
 // unavailable line and every other block still renders.
 async function rbLoadSlaRollup() {
   try {
-    const inputs = await getSlaRollupInputs(getCurrentUser().email);
+    const inputs = await getSlaRollupInputs(getCurrentUser().email, { role: _resolvedRole });
     const today = new Date();
     const results = slaProjectResults(Object.assign({}, inputs, { today }));
     return slaRollupModel({ projects: inputs.projects, results, today });
@@ -598,7 +598,7 @@ async function rbLoadSlaRollup() {
 // other block still renders.
 async function rbLoadRejectionIntel() {
   try {
-    return await getRejectionIntelInputs(getCurrentUser().email, { weeks: 0 });
+    return await getRejectionIntelInputs(getCurrentUser().email, { weeks: 0, role: _resolvedRole });
   } catch (e) {
     console.warn('N-388: Rejection Intelligence read failed', e);
     return null;

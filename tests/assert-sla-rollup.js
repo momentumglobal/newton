@@ -187,7 +187,7 @@
         _assertEqual(projectBranch.indexOf('slaRollup') === -1 && projectBranch.indexOf('getSlaRollupInputs') === -1, true, 'AC12/13 project scope never reads it');
         _assertEqual(/_rbBlocks\.some\(b => b\.type === 'panel' && b\.key === 'slaRollup'\) && canViewSlaRollupReport\(_resolvedRole\)/.test(fetchBody), true, 'AC13 read only when the module is present and allowed');
         const load = body(rb, 'async function rbLoadSlaRollup(');
-        _assertEqual(/catch \(e\)[\s\S]*return null/.test(load) && /getSlaRollupInputs\(getCurrentUser\(\)\.email\)/.test(load), true, 'AC13 failure -> null, scoped to the user');
+        _assertEqual(/catch \(e\)[\s\S]*return null/.test(load) && /getSlaRollupInputs\(getCurrentUser\(\)\.email, \{ role: _resolvedRole \}\)/.test(load), true, 'AC13 failure -> null, scoped to the user and role');
         _assertEqual(/slaRollup: \(data\) =>[\s\S]*canViewSlaRollupReport\(_resolvedRole\)\) return ''[\s\S]*slaRollupUnavailableHtml/.test(pp), true, 'AC13 empty for a viewer without the capability; unavailable line on a failed read');
         const save = body(rb, 'async function rbSaveReport(');
         _assertEqual(save.indexOf('slaRollup') === -1, true, 'AC14 saved-report shape unchanged: the block is stored like any other panel');

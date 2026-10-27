@@ -125,7 +125,7 @@ async function mountRejectionIntelStrip(slotId, projectId) {
   const token = String(++_rejIntelStripSeq);
   slot.dataset.token = token;
   try {
-    const inputs = await getRejectionIntelInputs(getCurrentUser().email, { weeks: 0 });
+    const inputs = await getRejectionIntelInputs(getCurrentUser().email, { weeks: 0, role: _resolvedRole });
     await new Promise(resolve => setTimeout(resolve, 0));
     const live = document.getElementById(slotId);
     if (!live || live !== slot || live.dataset.token !== token) return;

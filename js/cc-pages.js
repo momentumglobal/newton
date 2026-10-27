@@ -261,7 +261,7 @@ async function ccMountSlaRollup(data) {
     const role = await getEffectiveRole(user.email);
     if (!canViewSlaPortfolio(role)) { if (live()) slot.remove(); return; }
     slot.innerHTML = skeletonPanel(4);
-    const inputs = await getSlaRollupInputs(user.email);
+    const inputs = await getSlaRollupInputs(user.email, { role });
     await new Promise(resolve => setTimeout(resolve, 0));   // let the scorecards paint first
     const today = new Date();
     const results = slaProjectResults(Object.assign({}, inputs, { today }));

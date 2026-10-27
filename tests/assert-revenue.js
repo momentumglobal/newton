@@ -458,5 +458,61 @@ ASSERTIONS.push(
       const old = new Function(patched + '\nreturn ptComputeBenchChanges;')();
       _assertEqual(old(people, base, today).toCreate.length, 0, 'control: pre-fix logic creates no bench row under a forecast');
     },
+  },
+  {
+    name: 'N-391 utilisationBandRollup / utilisationByMonth equal the old People Dashboard inline panel maths (AC8, AC9, AC13)',
+    fn: function () {
+      // Oracle: pre-N-391 _renderUtilisationPanel figures, verbatim.
+      function oldPanel(rows) {
+        const bands = CONFIG.PEOPLE_LEVELS.filter(l => l !== 'CSD');
+        const bandRows = bands.map(band => {
+          const r        = rows.filter(r => r.Level === band);
+          const u        = personUtilisation(r).ratio;
+          const total    = new Set(r.map(r => r.EmployeeName)).size;
+          const utilised = new Set(r.filter(r => r.Billed === 'Yes').map(r => r.EmployeeName)).size;
+          return { band, u, utilised, total };
+        }).filter(b => b.total > 0);
+        const totalUtil     = personUtilisation(rows).ratio;
+        const totalActive   = new Set(rows.filter(r => isBillableLevel(r.Level)).map(r => r.EmployeeName)).size;
+        const totalUtilised = new Set(rows.filter(r => r.Billed === 'Yes' && isBillableLevel(r.Level)).map(r => r.EmployeeName)).size;
+        const monthMap = {};
+        rows.forEach(r => {
+          const key = `${r.Year}-${String(r.Month).padStart(2,'0')}`;
+          if (!monthMap[key]) monthMap[key] = [];
+          monthMap[key].push(r);
+        });
+        const chartData = Object.keys(monthMap).sort().map(k => ({ label: k, value: personUtilisation(monthMap[k]).ratio }));
+        return { bandRows, totalUtil, totalActive, totalUtilised, chartData };
+      }
+      const A = (id, name, level, billed, s, e) => ({ AssignmentID: id, EmployeeName: name, Level: level, Billed: billed ? 'Yes' : 'No',
+        Customer: billed ? 'Acme' : 'Unassigned', StartDate: s, EndDate: e });
+      const rows = computeMonthlyRows([
+        A('1', 'Ann', 'TP',  true,  '2024-01-01', '2024-03-31'),
+        A('2', 'Ann', 'TP',  false, '2024-02-01', '2024-02-29'),   // unbilled concurrent row
+        A('3', 'Bob', 'STP', false, '2024-01-10', '2024-02-20'),
+        A('4', 'Cat', 'SDM', true,  '2024-03-05', '2024-03-25'),
+        A('5', 'Cara', 'CSD', true, '2024-01-01', '2024-03-31'),  // CSD: never counted
+      ]);
+      const want = oldPanel(rows);
+      const got  = utilisationBandRollup(rows);
+      _assertEqual(got.bands, want.bandRows, 'band rows identical');
+      _assertEqual(got.total, { u: want.totalUtil, utilised: want.totalUtilised, active: want.totalActive }, 'totals identical');
+      _assertEqual(utilisationByMonth(rows).map(m => ({ label: m.month, value: m.u })), want.chartData, 'monthly trend identical');
+      _assertEqual(got.bands.map(b => b.band), ['SDM', 'STP', 'TP'], 'PTP (no rows) and CSD dropped, config order kept');
+      // positive control: an extra billed PTP changes both the bands and the total
+      const more = rows.concat(computeMonthlyRows([A('6', 'Dan', 'PTP', true, '2024-01-01', '2024-03-31')]));
+      _assertEqual(_deepEqual(utilisationBandRollup(more), got), false, 'control: another person moves the roll-up');
+      _assertEqual(utilisationBandRollup(more), (w => ({ bands: w.bandRows, total: { u: w.totalUtil, utilised: w.totalUtilised, active: w.totalActive } }))(oldPanel(more)), 'control set still equals the oracle');
+      _assertEqual([utilisationBandRollup([]), utilisationByMonth(undefined)],
+        [{ bands: [], total: { u: 0, utilised: 0, active: 0 } }, []], 'empty / undefined rows');
+      if (typeof ALL_SOURCES !== 'undefined') {
+        const pd = ALL_SOURCES['people-dashboard.js'];
+        const panel = pd.slice(pd.indexOf('function _renderUtilisationPanel'), pd.indexOf('// Panel 2'));
+        _assertEqual([/Level === band/.test(panel), /padStart/.test(panel), /utilisationBandRollup\(rows\)/.test(panel), /utilisationByMonth\(rows\)/.test(panel)],
+          [false, false, true, true], 'panel calls the helpers and keeps no maths of its own');
+        _assertEqual(['utilisationBandRollup', 'utilisationByMonth'].map(n => Object.keys(ALL_SOURCES).filter(f => new RegExp('function\\s+' + n + '\\s*\\(').test(ALL_SOURCES[f]))),
+          [['utils.js'], ['utils.js']], 'defined only in utils.js');
+      }
+    },
   }
 );

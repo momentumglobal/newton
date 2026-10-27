@@ -310,11 +310,15 @@ const CONFIG = {
   //  BENCH_CUSTOMER          Customer value Sync Bench writes on bench rows. Also typed in
   //                          people-tracker.js (write) and utils.js (reads);
   //                          consolidating those is a separate tidy-up.
+  //  BENCH_CUSTOMER_ALIASES  N-391: other Customer values that read as bench (trimmed, any
+  //                          case) in isBenchAssignment() (project-team.js). Read side only —
+  //                          Sync Bench writes BENCH_CUSTOMER.
   //  DISPLAY_ROWS            rows shown in each Data Health list before "+ n more".
   //  (A row typed LCI / Transformation with no Projects row is "deferred to N-363":
   //  isNoDashboardType() in utils.js, N-362.)
   PROJECT_TEAM: {
     BENCH_CUSTOMER:         'Unassigned',
+    BENCH_CUSTOMER_ALIASES: ['Bench'],
     DISPLAY_ROWS:           50,
     // N-363: Notes text on every Projects row the LCI / Transformation migration creates.
     LCI_MIGRATION_NOTE:     'Created by N-363 migration from LCI/Transformation assignments.',

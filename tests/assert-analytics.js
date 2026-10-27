@@ -762,5 +762,103 @@ ASSERTIONS.push(
       _assertEqual(JSON.stringify(computeFunnelScorecard(other, placements, benchmarks)) ===
         JSON.stringify(computeFunnelScorecard(activity, placements, benchmarks)), false, 'control: activity changes the rows');
     },
+  },
+  {
+    name: 'N-391 CC roll-ups in analytics.js equal the old cc-pages.js inline logic (AC10, AC11, AC13)',
+    fn: function () {
+      const DAY = 86400000, now = new Date();
+      const iso = d => localDayISO(d);
+      const ago = n => iso(new Date(now.getTime() - n * DAY));
+      // ── computeProjectHealthRAG / projectHealthCounts ──
+      function oldRag(roles, activity, stageHistory) {
+        const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
+        return flaggedShareRAG(tallyRoleFlags(open, activity, stageHistory).flagged, open.length);
+      }
+      function oldCounts(roles, activity, stageHistory, openSince) {
+        const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
+        const t = tallyRoleFlags(open, activity, stageHistory, undefined, { openSince });
+        return { open: open.length, flagged: t.flagged, behind: t.behind };
+      }
+      const roles = [
+        { id: 1, Stage: 'Sourcing', OpenDate: ago(2) + 'T12:00:00Z' },
+        { id: 2, Stage: 'Submitted', OpenDate: ago(120) + 'T12:00:00Z' },
+        { id: 3, Stage: 'Interview 1', OpenDate: ago(30) + 'T12:00:00Z' },
+        { id: 4, Stage: ACTIVE_STAGES[0], OpenDate: ago(200) + 'T12:00:00Z' },   // not open
+      ];
+      const hist = groupStageHistoryByRole([{ RoleIDLookupId: 2, Field: 'Stage', OldValue: 'Sourcing', NewValue: 'Submitted', ChangedAt: ago(60) + 'T09:00:00Z' }]);
+      const acts = [{ RoleIDLookupId: 3, WeekEndingDate: ago(5) + 'T12:00:00Z', Submitted: 6, Interview1: 0 }];
+      const openSince = new Map([['2', ago(120)], ['3', ago(30)]]);
+      _assertEqual(computeProjectHealthRAG(roles, acts, hist), oldRag(roles, acts, hist), 'Health RAG identical');
+      _assertEqual(projectHealthCounts(roles, acts, hist, openSince), oldCounts(roles, acts, hist, openSince), 'Health counts identical');
+      _assertEqual(projectHealthCounts(roles, acts, hist, openSince).open, 3, 'ACTIVE_STAGES role is not open');
+      _assertEqual(projectHealthCounts(roles, acts, hist, openSince).flagged > 0, true, 'control: fixture does flag something');
+      // ── scorecardCustomers ──
+      function oldCustomers(assigns, allProjects, today) {
+        const liveAssigns = assigns.filter(a => a.StartDate && a.EndDate &&
+          new Date(a.StartDate) <= today && new Date(a.EndDate) >= today);
+        const internalNames = new Set((allProjects || []).filter(p => isKpiExcludedProject(p)).map(p => p.CustomerName));
+        return [...new Set(liveAssigns.map(a => a.Customer).filter(c => c && !internalNames.has(c)))].sort();
+      }
+      const tomorrow = new Date(now.getTime() + DAY);
+      const assigns = [
+        { Customer: 'Zeta', StartDate: ago(30), EndDate: iso(new Date(now.getTime() + 30 * DAY)) },
+        { Customer: 'Acme', StartDate: ago(30), EndDate: iso(new Date(now.getTime() + 30 * DAY)) },
+        { Customer: 'Acme', StartDate: ago(10), EndDate: iso(new Date(now.getTime() + 10 * DAY)) },
+        { Customer: 'Ends', StartDate: ago(30), EndDate: iso(now) },
+        { Customer: 'Later', StartDate: iso(tomorrow), EndDate: iso(new Date(now.getTime() + 40 * DAY)) },
+        { Customer: 'Momentum', StartDate: ago(30), EndDate: iso(new Date(now.getTime() + 30 * DAY)) },
+        { Customer: 'LCI Co', StartDate: ago(30), EndDate: iso(new Date(now.getTime() + 30 * DAY)) },
+        { Customer: '', StartDate: ago(30), EndDate: iso(new Date(now.getTime() + 30 * DAY)) },
+      ];
+      const projects = [{ id: 1, CustomerName: 'Momentum', ProjectType: CONFIG.PROJECT_TYPE_INTERNAL },
+        { id: 2, CustomerName: 'LCI Co', ProjectType: CONFIG.NO_DASHBOARD_PROJECT_TYPES[0] }, { id: 3, CustomerName: 'Acme', ProjectType: 'Embedded' }];
+      _assertEqual(scorecardCustomers(assigns, projects, now), oldCustomers(assigns, projects, now), 'scorecard customers identical');
+      _assertEqual(scorecardCustomers(assigns, projects, now).includes('Later'), false, 'starts tomorrow → no card');
+      _assertEqual(scorecardCustomers(assigns, projects, now).filter(c => c === 'Momentum' || c === 'LCI Co'), [], 'internal / no-dashboard excluded');
+      _assertEqual(scorecardCustomers(assigns, [], now).includes('Momentum'), true, 'control: without the project rows the internal name shows');
+      // ── utilisationOutlook ──
+      function oldOutlook(forecasts, assigns, people, now) {
+        const totalActiveHeadcount = (people || []).filter(p => p.IsActive !== false && isDeployablePerson(p)).length;
+        const fwdRows = computeMonthlyRows(assigns, { through: new Date(now.getFullYear(), now.getMonth() + 3, 1) });
+        return [1, 2, 3].map(offset => {
+          const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+          const mStart = d, mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+          const planned = personUtilisation(fwdRows.filter(r => r.Year === d.getFullYear() && r.Month === d.getMonth() + 1)).ratio;
+          const forecastedHC = forecasts.reduce((sum, f) => {
+            const s = new Date(f.ForecastStartDate), e = new Date(f.ForecastEndDate);
+            return (s <= mEnd && e >= mStart) ? sum + (f.ForecastedHeadcount || 0) : sum;
+          }, 0);
+          const forecast = Math.min(planned + (totalActiveHeadcount > 0 ? forecastedHC / totalActiveHeadcount : 0), 1.0);
+          return { year: d.getFullYear(), month: d.getMonth() + 1, planned, forecast };
+        });
+      }
+      const m = k => new Date(now.getFullYear(), now.getMonth() + k, 1);
+      const mEndOf = k => new Date(now.getFullYear(), now.getMonth() + k + 1, 0);
+      const ua = [
+        { AssignmentID: 'u1', EmployeeName: 'Ann', Level: 'TP', Billed: 'Yes', Customer: 'Acme', StartDate: ago(10), EndDate: iso(mEndOf(2)) },
+        { AssignmentID: 'u2', EmployeeName: 'Bob', Level: 'TP', Billed: 'No', Customer: 'Unassigned', StartDate: ago(10), EndDate: iso(mEndOf(3)) },
+        { AssignmentID: 'u3', EmployeeName: 'Cat', Level: 'STP', Billed: 'Yes', Customer: 'Acme', StartDate: iso(m(2)), EndDate: iso(mEndOf(3)) },
+      ];
+      const fc = [
+        { ForecastStartDate: iso(m(2)), ForecastEndDate: iso(mEndOf(2)), ForecastedHeadcount: 1 },   // month 2 only
+        { ForecastStartDate: iso(m(3)), ForecastEndDate: iso(mEndOf(5)), ForecastedHeadcount: 2 },   // month 3
+      ];
+      const ppl = [{ EmployeeName: 'Ann', Level: 'TP' }, { EmployeeName: 'Bob', Level: 'TP' }, { EmployeeName: 'Cat', Level: 'STP' },
+        { EmployeeName: 'Fay', StaffType: CONFIG.STAFF_TYPE_INTERNAL, Level: '' }, { EmployeeName: 'Old', Level: 'TP', IsActive: false }];
+      const got = utilisationOutlook(fc, ua, ppl, now, 3);
+      _assertEqual(got, oldOutlook(fc, ua, ppl, now), 'outlook identical');
+      _assertEqual(got.map(x => x.month), [1, 2, 3].map(k => m(k).getMonth() + 1), 'next three calendar months');
+      _assertEqual(got[1].forecast > got[1].planned, true, 'control: an overlapping forecast lifts month 2');
+      _assertEqual(utilisationOutlook(fc, ua, [], now, 3), oldOutlook(fc, ua, [], now), 'zero deployable headcount identical');
+      _assertEqual(utilisationOutlook(fc, ua, [], now, 3).every(x => x.forecast === Math.min(x.planned, 1)), true, 'zero headcount → forecast = planned');
+      if (typeof ALL_SOURCES !== 'undefined') {
+        const defs = n => Object.keys(ALL_SOURCES).filter(f => new RegExp('function\\s+' + n + '\\s*\\(').test(ALL_SOURCES[f]));
+        _assertEqual(['computeProjectHealthRAG', 'projectHealthCounts', 'scorecardCustomers', 'utilisationOutlook'].map(defs),
+          [['analytics.js'], ['analytics.js'], ['analytics.js'], ['analytics.js']], 'each defined only in analytics.js');
+        const cc = ALL_SOURCES['cc-pages.js'];
+        _assertEqual([/projectHealthCounts\(/.test(cc), /scorecardCustomers\(/.test(cc), /utilisationOutlook\(/.test(cc), /ForecastedHeadcount/.test(cc), /isKpiExcludedProject/.test(cc)],
+          [true, true, true, false, false], 'cc-pages.js calls the helpers and keeps no maths of its own');
+      }
+    },
   }
 );

@@ -239,18 +239,11 @@ async function _renderKPIStrip(allRows, people, assignments) {
 
 // Panel 1 - Team Utilisation
 function _renderUtilisationPanel(rows, people) {
-  const bands = CONFIG.PEOPLE_LEVELS.filter(l => l !== 'CSD');
-  const bandRows = bands.map(band => {
-    const r        = rows.filter(r => r.Level === band);
-    const u        = personUtilisation(r).ratio;
-    // Headcount from assignment rows for the selected period (not today's people list)
-    const total    = new Set(r.map(r => r.EmployeeName)).size;
-    const utilised = new Set(r.filter(r => r.Billed === 'Yes').map(r => r.EmployeeName)).size;
-    return { band, u, utilised, total };
-  }).filter(b => b.total > 0);
-  const totalUtil     = personUtilisation(rows).ratio;
-  const totalActive   = new Set(rows.filter(r => isBillableLevel(r.Level)).map(r => r.EmployeeName)).size;
-  const totalUtilised = new Set(rows.filter(r => r.Billed === 'Yes' && isBillableLevel(r.Level)).map(r => r.EmployeeName)).size;
+  // N-391: figures from utilisationBandRollup() / utilisationByMonth() (utils.js).
+  const { bands: bandRows, total } = utilisationBandRollup(rows);
+  const totalUtil     = total.u;
+  const totalActive   = total.active;
+  const totalUtilised = total.utilised;
   const bandTableRows = bandRows.map(b => `
     <tr>
       <td>${b.band}</td>
@@ -258,18 +251,8 @@ function _renderUtilisationPanel(rows, people) {
       <td>${b.utilised} / ${b.total}</td>
     </tr>`).join('');
 
-  // Monthly trend — group rows by Year-Month
-  const monthMap = {};
-  rows.forEach(r => {
-    const key = `${r.Year}-${String(r.Month).padStart(2,'0')}`;
-    if (!monthMap[key]) monthMap[key] = [];
-    monthMap[key].push(r);
-  });
-  const monthKeys = Object.keys(monthMap).sort();
-  const chartData = monthKeys.map(k => ({
-    label: k,
-    value: personUtilisation(monthMap[k]).ratio,
-  }));
+  // Monthly trend
+  const chartData = utilisationByMonth(rows).map(m => ({ label: m.month, value: m.u }));
 
   return `
     <div class='page-header' style='margin-bottom:12px'>

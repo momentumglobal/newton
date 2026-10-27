@@ -115,11 +115,9 @@ function loadTileDetail(tile, data) {
 
 // ── Headline stats (at-a-glance tile summary) ──────────────────────
 function ccHealthStats(roles, activity, stageHistory, openSince) {
-  const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
-  // N-274: behind-pace is information only — never part of "flagged".
-  // N-309: measured from each pipeline's oldest open headcount.
-  const t = tallyRoleFlags(open, activity, stageHistory, undefined, { openSince });
-  return `${open.length} open roles · ${t.flagged} flagged · ${t.behind} behind ${CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays}-day pace`;
+  // N-391: counts from projectHealthCounts() (analytics.js).
+  const t = projectHealthCounts(roles, activity, stageHistory, openSince);
+  return `${t.open} open roles · ${t.flagged} flagged · ${t.behind} behind ${CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays}-day pace`;
 }
 
 function ccPeopleStats(roles, activity, stageHistory) {
@@ -152,11 +150,7 @@ function renderRevenueDetail(data) {
 }
 
 // ── RAG logic ──────────────────────────────────────────────────────
-function computeProjectHealthRAG(roles, activity, stageHistory) {
-  const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
-  // N-274: thresholds in CONFIG.ROLE_FLAG.healthRag, shared with index.html.
-  return flaggedShareRAG(tallyRoleFlags(open, activity, stageHistory).flagged, open.length);
-}
+// N-391: computeProjectHealthRAG() moved to analytics.js.
 
 // ── Health tile trend (N-108) ─────────────────────────────────────
 // Company-wide flagged-role rate, week over week, from Snapshots.
@@ -280,12 +274,9 @@ function _ccHealthCardsHTML(data) {
   const now = new Date();
   const projectMap = Object.fromEntries((projects || []).map(p => [String(p.id), p.CustomerName]));
 
-  const liveAssigns = assigns.filter(a => a.StartDate && a.EndDate &&
-    new Date(a.StartDate) <= now && new Date(a.EndDate) >= now);
-  // N-333: no card for the internal project, even if an Assignment names it.
-  // N-362: nor for a no-dashboard project (matched by CustomerName).
-  const internalNames = new Set((data.allProjects || []).filter(p => isKpiExcludedProject(p)).map(p => p.CustomerName));
-  const customers = [...new Set(liveAssigns.map(a => a.Customer).filter(c => c && !internalNames.has(c)))].sort();
+  // N-391: live, client-only customers from scorecardCustomers() (analytics.js) —
+  // no internal (N-333) or no-dashboard (N-362) project.
+  const customers = scorecardCustomers(assigns, data.allProjects, now);
 
   if (!customers.length) return '<p class="no-data">No live projects found.</p>';
 
@@ -355,30 +346,13 @@ function renderPeopleDetail(data) {
 function renderUtilDetail(data) {
   const { forecasts, assigns, people } = data;
   const now = new Date();
-  const { known } = utilisationForecastCalc(forecasts, assigns, people);
-  const totalActiveHeadcount = (people || []).filter(p =>
-    p.IsActive !== false && isDeployablePerson(p)).length;   // N-304
-
-  // N-328: person-day utilisation on rows extended to the last month shown.
-  const fwdRows = computeMonthlyRows(assigns, { through: new Date(now.getFullYear(), now.getMonth() + 3, 1) });
-  const months = [1, 2, 3].map(offset => {
-    const d      = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-    const mStart = d;
-    const mEnd   = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-    const label  = d.toLocaleString('default', { month: 'short', year: '2-digit' });
-
-    const planned = personUtilisation(fwdRows.filter(r =>
-      r.Year === d.getFullYear() && r.Month === d.getMonth() + 1)).ratio;
-
-    const forecastedHC = forecasts.reduce((sum, f) => {
-      const s = new Date(f.ForecastStartDate);
-      const e = new Date(f.ForecastEndDate);
-      return (s <= mEnd && e >= mStart) ? sum + (f.ForecastedHeadcount || 0) : sum;
-    }, 0);
-    const forecast = Math.min(planned + (totalActiveHeadcount > 0 ? forecastedHC / totalActiveHeadcount : 0), 1.0);
-
-    return { label, planned, forecast };
-  });
+  // N-391: planned / forecast per month from utilisationOutlook() (analytics.js);
+  // the label stays here.
+  const months = utilisationOutlook(forecasts, assigns, people, now, 3).map(m => ({
+    label:    new Date(m.year, m.month - 1, 1).toLocaleString('default', { month: 'short', year: '2-digit' }),
+    planned:  m.planned,
+    forecast: m.forecast,
+  }));
 
   const t = CONFIG.UTILISATION_THRESHOLDS;
   // N-257: neutral by default — only amber/red cells carry status styling.

@@ -28,7 +28,8 @@ var INTERNAL_KPI_CONSUMERS = [
   { file: 'mobile-analytics.js',         fn: 'mobileRenderPlacementAnalytics', call: 'excludeInternalProjectData' },
   { file: 'cc-pages.js',                 fn: 'renderCCOverview',               call: 'excludeInternalProjectData' },
   { file: 'cc-pages.js',                 fn: 'renderHealthDetail',             call: 'excludeInternalProjectData' },
-  { file: 'cc-pages.js',                 fn: '_ccHealthCardsHTML',             call: 'isKpiExcludedProject' },
+  { file: 'cc-pages.js',                 fn: '_ccHealthCardsHTML',             call: 'scorecardCustomers' },   // N-391
+  { file: 'analytics.js',                fn: 'scorecardCustomers',             call: 'isKpiExcludedProject' }, // N-391
   { file: 'home-banner.js',              fn: 'refreshCCBanner',                call: 'excludeInternalProjectData' },
   { file: 'admin.js',                    fn: 'writeSnapshotsNow',              call: 'isKpiExcludedProject' },
   { file: 'api-orgchart.js',             fn: 'getProjectsByCSD',               call: 'isInternalProject' },

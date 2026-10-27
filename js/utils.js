@@ -1726,6 +1726,41 @@ function personUtilisation(rows, clip) {
   return { ratio: totalU > 0 ? billedU / totalU : 0, billed: billedU / 10000, total: totalU / 10000 };
 }
 
+// N-391: the People Dashboard Team Utilisation band roll-up, lifted verbatim from
+// _renderUtilisationPanel (people-dashboard.js) so the MCP tools reuse it. rows =
+// computeMonthlyRows() rows for the period. Bands = CONFIG.PEOPLE_LEVELS minus CSD, in
+// order, bands with no rows dropped. u = personUtilisation ratio; total / utilised =
+// distinct EmployeeName (utilised = a Billed 'Yes' row). Totals count billable levels only.
+function utilisationBandRollup(rows) {
+  const all   = rows || [];
+  const bands = CONFIG.PEOPLE_LEVELS.filter(l => l !== 'CSD').map(band => {
+    const r        = all.filter(x => x.Level === band);
+    const u        = personUtilisation(r).ratio;
+    // Headcount from assignment rows for the selected period (not today's people list)
+    const total    = new Set(r.map(x => x.EmployeeName)).size;
+    const utilised = new Set(r.filter(x => x.Billed === 'Yes').map(x => x.EmployeeName)).size;
+    return { band, u, utilised, total };
+  }).filter(b => b.total > 0);
+  const total = {
+    u:        personUtilisation(all).ratio,
+    utilised: new Set(all.filter(x => x.Billed === 'Yes' && isBillableLevel(x.Level)).map(x => x.EmployeeName)).size,
+    active:   new Set(all.filter(x => isBillableLevel(x.Level)).map(x => x.EmployeeName)).size,
+  };
+  return { bands, total };
+}
+
+// N-391: person-based utilisation per calendar month — [{ month: 'YYYY-MM', u }], ascending.
+// The People Dashboard Monthly Trend; rows = computeMonthlyRows() rows.
+function utilisationByMonth(rows) {
+  const monthMap = {};
+  (rows || []).forEach(r => {
+    const key = `${r.Year}-${String(r.Month).padStart(2,'0')}`;
+    if (!monthMap[key]) monthMap[key] = [];
+    monthMap[key].push(r);
+  });
+  return Object.keys(monthMap).sort().map(k => ({ month: k, u: personUtilisation(monthMap[k]).ratio }));
+}
+
 // Monthly rows (computeMonthlyRows) whose month starts within [start, end] —
 // inclusive, local-midnight Dates. Year/Month, not MonthStart: MonthStart is a
 // UTC-midnight string, which sits an hour past local midnight in BST (N-351).

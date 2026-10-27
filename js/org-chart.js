@@ -6,19 +6,14 @@
 // Hybrid tree: Leadership (email/ReportsTo) → CSD (People, Level=CSD) →
 // Project node (Projects.CSDName) → project-anchored team (Assignments.Customer).
 // Unclaimed/orphaned projects pool in "Unassigned projects"; people with no
-// current assignment pool in the Bench. See build
-// guide §0–§6.
+// current assignment pool in the Bench (buildBenchPool / isBenchAssignment,
+// project-team.js — N-391). See build guide §0–§6.
 
 // ── helpers ────────────────────────────────────────────────────────────
 function _ocNorm(s)  { return (s || '').toLowerCase().trim().replace(/\s+/g, ' '); }
 function _ocEmail(s) { return (s || '').toLowerCase().trim(); }
 function _ocEsc(s)   { return String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
-function _ocIsBench(customer) {
-  const c = _ocNorm(customer);
-  return !c || c === 'bench' || c === 'unassigned';
-}
-
 function _ocInitials(name) {
   const p = String(name || '').trim().split(/\s+/).filter(Boolean);
   return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '?';
@@ -244,15 +239,7 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
   return { roots, unassignedProjects, internalUnassigned };
 }
 
-function buildBenchPool(people, currentAssign) {
-  return people.filter(p => {
-    if (p.IsPlaceholder) return false;              // a vacancy is not on the bench
-    if (isInternalStaff(p)) return false;           // N-304: internal staff sit in the tree
-    if (p.Level === 'CSD') return false;            // CSDs sit in the tree
-    const rows = currentAssign[p.EmployeeName] || [];
-    return rows.length === 0 || rows.every(a => _ocIsBench(a.Customer));
-  }).sort((a, b) => a.EmployeeName.localeCompare(b.EmployeeName));
-}
+// N-391: buildBenchPool() moved to project-team.js.
 
 // ── rendering ──────────────────────────────────────────────────────────
 function renderTreeHtml(roots) {

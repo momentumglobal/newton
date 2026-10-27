@@ -1266,6 +1266,62 @@ function computeUtilisationRAG(forecasts, assigns, people) {
   return 'red';
 }
 
+// ── Command Centre roll-ups (N-391) ───────────────────────────────────
+// Lifted verbatim from cc-pages.js so the CC tiles and the MCP tools share one
+// calculation. Pure: the renderers keep markup, labels and formatting.
+
+// Project Health tile RAG — moved from cc-pages.js. Thresholds in CONFIG.ROLE_FLAG.healthRag.
+function computeProjectHealthRAG(roles, activity, stageHistory) {
+  const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
+  // N-274: thresholds in CONFIG.ROLE_FLAG.healthRag, shared with index.html.
+  return flaggedShareRAG(tallyRoleFlags(open, activity, stageHistory).flagged, open.length);
+}
+
+// Project Health tile counts: open roles (not in ACTIVE_STAGES), flagged, behind pace.
+// N-274: behind-pace is information only — never part of "flagged". N-309: behind is
+// measured from each pipeline's oldest open headcount (openSince).
+function projectHealthCounts(roles, activity, stageHistory, openSince) {
+  const open = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage));
+  const t = tallyRoleFlags(open, activity, stageHistory, undefined, { openSince });
+  return { open: open.length, flagged: t.flagged, behind: t.behind };
+}
+
+// The customers that get a CC Project Health scorecard: distinct Customer of the
+// assignments live on `today`, sorted. N-333: never the internal project; N-362: nor a
+// no-dashboard project (both via isKpiExcludedProject, matched by CustomerName).
+function scorecardCustomers(assigns, allProjects, today) {
+  const liveAssigns = (assigns || []).filter(a => a.StartDate && a.EndDate &&
+    new Date(a.StartDate) <= today && new Date(a.EndDate) >= today);
+  const internalNames = new Set((allProjects || []).filter(p => isKpiExcludedProject(p)).map(p => p.CustomerName));
+  return [...new Set(liveAssigns.map(a => a.Customer).filter(c => c && !internalNames.has(c)))].sort();
+}
+
+// CC Utilisation detail: planned and forecast utilisation for each of the next `months`
+// calendar months (offset 1..months). planned = person-day utilisation (N-328) on rows
+// extended to the last month shown; forecast = planned + overlapping SalesForecasts
+// headcount / deployable active headcount (N-304), capped at 100%.
+// Returns [{ year, month (1-12), planned, forecast }].
+function utilisationOutlook(forecasts, assigns, people, today, months = 3) {
+  const now = today;
+  const totalActiveHeadcount = (people || []).filter(p =>
+    p.IsActive !== false && isDeployablePerson(p)).length;   // N-304
+  const fwdRows = computeMonthlyRows(assigns, { through: new Date(now.getFullYear(), now.getMonth() + months, 1) });
+  return Array.from({ length: months }, (_, i) => i + 1).map(offset => {
+    const d      = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const mStart = d;
+    const mEnd   = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    const planned = personUtilisation(fwdRows.filter(r =>
+      r.Year === d.getFullYear() && r.Month === d.getMonth() + 1)).ratio;
+    const forecastedHC = forecasts.reduce((sum, f) => {
+      const s = new Date(f.ForecastStartDate);
+      const e = new Date(f.ForecastEndDate);
+      return (s <= mEnd && e >= mStart) ? sum + (f.ForecastedHeadcount || 0) : sum;
+    }, 0);
+    const forecast = Math.min(planned + (totalActiveHeadcount > 0 ? forecastedHC / totalActiveHeadcount : 0), 1.0);
+    return { year: d.getFullYear(), month: d.getMonth() + 1, planned, forecast };
+  });
+}
+
 // ── SLA engine (N-383 / DA-3) ─────────────────────────────────────────
 // Pure: no Graph, no DOM. Targets come from slaTargetsFor() (utils.js); stage
 // anchors, pause stages and the rolling window from CONFIG.SLA.ENGINE. Day maths

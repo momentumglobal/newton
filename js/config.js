@@ -1343,6 +1343,35 @@ const CONFIG = {
     },
   },
 
+  // ── Newton for Claude: MCP server (N-392 / Wishlist AI-5, decisions in specs/N-378.md) ──
+  // Read by the local MCP server (mcp/bootstrap/*.js), which runs this file and the
+  // scripts below in a Node vm context. No Newton page reads this block. Public repo:
+  // nothing here is secret.
+  //   contract      must equal MCP_CONTRACT in mcp/bootstrap/server.js. Bump BOTH when the
+  //                 bootstrap <-> live-code contract changes (shim names, this block's shape);
+  //                 an installed bundle with a different number tells the user to update.
+  //   scripts       loaded after js/config.js, in this order (a subset of production order;
+  //                 must stay loadable with no DOM). N-393/N-394 add files with a reason each.
+  //   allowedLists  MCP-D7. The server's fetch shim refuses every other list, and every
+  //                 write. N-393/N-394 add lists with a reason each.
+  //   allowedRoles  MCP-D5. Who may use it. A usage gate, not a security boundary.
+  //   gateTtlMs     how long a resolved role is reused before getEffectiveRole runs again.
+  //   (outputDenyFields arrives with N-393.)
+  MCP: {
+    contract: 1,
+    scripts: [
+      'js/actions.js', 'js/utils.js', 'js/headcount.js', 'js/permissions.js',
+      'js/project-team.js', 'js/graph-client.js', 'js/api.js', 'js/api-headcount.js',
+      'js/analytics.js', 'mcp/newton-tools.js',
+    ],
+    allowedLists: [
+      'Projects', 'Roles', 'RoleHeadcount', 'RoleHistory', 'WeeklyActivity', 'Placements',
+      'People', 'Assignments', 'SalesForecasts', 'UserAssignments', 'LeadershipAccess',
+    ],
+    allowedRoles: ['admin', 'leadership'],
+    gateTtlMs: 600000,   // 10 minutes
+  },
+
   // ── LCI Cost Model + Lead Magnet: CONFIG.LCI and CONFIG.LCI_DISCIPLINES live in js/lci-config.js (sales.html only) ──
 };
 

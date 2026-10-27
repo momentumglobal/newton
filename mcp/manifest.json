@@ -1,0 +1,25 @@
+{
+  "manifest_version": "0.3",
+  "name": "newton",
+  "display_name": "Newton for Claude",
+  "version": "1.0.0",
+  "description": "Read-only Newton reporting and people data for Momentum Global leadership.",
+  "author": { "name": "Momentum Global" },
+  "icon": "icon.png",
+  "server": {
+    "type": "node",
+    "entry_point": "bootstrap/server.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/bootstrap/server.js"]
+    }
+  },
+  "tools": [
+    { "name": "newton_status", "description": "Who you are in Newton and whether Newton for Claude is working." }
+  ],
+  "tools_generated": true,
+  "compatibility": {
+    "platforms": ["win32"],
+    "runtimes": { "node": ">=18.0.0" }
+  }
+}

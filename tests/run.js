@@ -218,8 +218,36 @@ for (const { name, fn } of assertions) {
   }
 }
 
-console.log('');
-const passed = assertions.length - failures - skipped;
-console.log(`${passed}/${assertions.length} passed${skipped ? `, ${skipped} skipped` : ''}`);
+// N-392: Node-side checks of the Newton for Claude bootstrap (mcp/bootstrap/*.js). Those
+// are CommonJS Node modules (http, child_process), so they cannot run in the vm above:
+// tests/mcp-bootstrap-check.js requires them with fakes (no network, no Windows) and the
+// results are counted here, in the same totals and exit code.
+// The watchdog is a live timer on purpose: if a check ever awaited something that can
+// never settle, Node would otherwise exit 0 here with nothing printed - a silent pass.
+const mcpWatchdog = setTimeout(() => {
+  console.log('FAIL  N-392 Newton for Claude bootstrap checks did not finish within 60 s');
+  process.exit(1);
+}, 60000);
+(async () => {
+  const mcpChecks = await require('./mcp-bootstrap-check.js').run();
+  clearTimeout(mcpWatchdog);
+  for (const c of mcpChecks) {
+    if (c.ok) {
+      console.log(`PASS  ${c.name}`);
+    } else {
+      failures++;
+      console.log(`FAIL  ${c.name}`);
+      console.log(`      ${c.message}`);
+    }
+  }
+  const total = assertions.length + mcpChecks.length;
+  console.log('');
+  const passed = total - failures - skipped;
+  console.log(`${passed}/${total} passed${skipped ? `, ${skipped} skipped` : ''}`);
 
-if (failures > 0) process.exit(1);
+  if (failures > 0) process.exit(1);
+})().catch(err => {
+  console.log('FAIL  N-392 Newton for Claude bootstrap checks did not run');
+  console.log(`      ${err && err.stack ? err.stack : err}`);
+  process.exit(1);
+});

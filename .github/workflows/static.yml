@@ -82,6 +82,17 @@ jobs:
           fi
           sed -i -E "s/(APP_BUILD:\s*')[^']+(')/\1${STAMP}\2/" js/config.js
           echo "Stamped APP_BUILD -> $STAMP for this deploy (not committed)."
+      # N-392: the Newton for Claude desktop bundle (.mcpb = a zip of the manifest + bootstrap),
+      # rebuilt from mcp/ on every deploy and served at /newton/mcp/newton-for-claude.mcpb.
+      # Never committed. mcp/newton-tools.js is NOT in it: the server fetches that live.
+      - name: Build Newton for Claude bundle
+        run: |
+          rm -rf _mcpb && mkdir _mcpb
+          cp mcp/manifest.json _mcpb/
+          cp -r mcp/bootstrap _mcpb/bootstrap
+          cp icon-512.png _mcpb/icon.png
+          (cd _mcpb && zip -X -q -r ../mcp/newton-for-claude.mcpb .)
+          rm -rf _mcpb
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

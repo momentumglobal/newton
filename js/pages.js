@@ -771,7 +771,19 @@ let _rejectionsWeeks     = CONFIG.REJECTIONS_DEFAULT_WEEKS;
 let _rejectionsPageSize  = CONFIG.PAGE_SIZE_DEFAULT;
 let _rejectionsSort      = null;  // N-247b: { key, dir } — null = default order
 let _rejectionsSearch    = '';    // N-247b: shared list search box (list-controls.js)
+// N-388 (DA-8): 'list' = the candidate list, 'intel' = Rejection Intelligence. _rejIntelToken is bumped
+// by every render so a slow Intelligence load that lands after a tab / period change is dropped.
+let _rejectionsTab       = 'list';
+let _rejIntelDim         = 'project';
+let _rejIntelToken       = 0;
 async function renderRejectionsPage(pendingItem = null) {
+  _rejIntelToken++;   // N-388: any render supersedes an in-flight Intelligence load
+  const canList  = canViewRejectionsList(_resolvedRole);
+  const canIntel = canViewRejectionIntel(_resolvedRole);
+  if (pendingItem && canList) _rejectionsTab = 'list';
+  // Leadership: the Intelligence tab only. This returns BEFORE the list fetch below, so no
+  // candidate-level row is ever read for them.
+  if (canIntel && (!canList || _rejectionsTab === 'intel')) return renderRejectionIntelTab(canList);
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 6);
   const user = getCurrentUser();
@@ -791,16 +803,52 @@ async function renderRejectionsPage(pendingItem = null) {
     scopedEmail: isTalentPartner ? getScopedUserEmail() : null,
     projectId: _rejectionsProjectId, search: _rejectionsSearch, sort: _rejectionsSort, pageSize: _rejectionsPageSize,
   });
-  main.innerHTML = _rejectionsPageHtml(m, { canEdit: ["admin","delivery_manager","talent_partner"].includes(_resolvedRole), canFilter, scopedProjects, pendingItem });
+  main.innerHTML = _rejectionsPageHtml(m, { canEdit: ["admin","delivery_manager","talent_partner"].includes(_resolvedRole), canFilter, scopedProjects, pendingItem, tabBar: canIntel ? rejectionsTabBarHtml('list') : '' });
   lucide.createIcons();
+}
+// N-388 (DA-8): the Rejection Intelligence tab. Own skeleton, own load; the period dropdown is the
+// page's shared one (setRejectionsWeeks re-renders whichever tab is active). No project filter,
+// search box or page size: those belong to the candidate list.
+async function renderRejectionIntelTab(showTabs) {
+  const main  = document.getElementById("main-content");
+  const token = _rejIntelToken;
+  main.innerHTML = `${showTabs ? rejectionsTabBarHtml('intel') : ''}
+    <div class="page-header">
+      <h2>Rejected Offers</h2>
+    </div>
+    <div class="table-toolbar">
+      ${listControlsBar([periodFilterDropdown(_rejectionsWeeks, 'setRejectionsWeeks')])}
+    </div>
+    <div id="rej-intel-body">${skeletonTable(6, 5)}</div>`;
+  lucide.createIcons();
+  try {
+    const inputs = await getRejectionIntelInputs(getCurrentUser().email, { weeks: _rejectionsWeeks });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    if (token !== _rejIntelToken) return;
+    const includeFigures = canViewRejectionIntelFigures(_resolvedRole);
+    const summary = rejectionIntelSummary({
+      rejections: inputs.rejections, roles: inputs.roles, activity: inputs.activity,
+      models: inputs.models, lciRows: inputs.lciRows, includeFigures,
+    });
+    const model = rejectionIntelPageModel({
+      summary, projects: inputs.projects, dim: _rejIntelDim, includeFigures,
+      benchmarkUnavailable: inputs.benchmarkUnavailable, weeks: _rejectionsWeeks,
+    });
+    const body = document.getElementById('rej-intel-body');
+    if (body) { body.innerHTML = rejectionIntelTabHtml(model, { dim: _rejIntelDim }); lucide.createIcons(); }
+  } catch (e) {
+    console.warn('N-388: Rejection Intelligence failed', e);
+    const body = document.getElementById('rej-intel-body');
+    if (token === _rejIntelToken && body) body.innerHTML = rejectionIntelUnavailableHtml('Rejection Intelligence');
+  }
 }
 function _rejectionsPageHtml(m, o) {
   const { roleMap, filtered: filteredRejections, total: rejectionsTotal, paged: pagedRejections, emptyMsg: rejectionsEmptyMsg } = m;
-  const { canEdit, canFilter, scopedProjects, pendingItem } = o;
+  const { canEdit, canFilter, scopedProjects, pendingItem, tabBar } = o;
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _rejectionsProjectId, 'setRejectionsProject')
     : '';
-  return `
+  return `${tabBar || ''}
     <div class="page-header">
       <h2>Rejected Offers</h2>
       ${canEdit ? `<div class="page-header-actions"><button class="btn-primary"${act('showAddRejectionForm')}>+ Log Rejection</button></div>` : ""}
@@ -841,6 +889,9 @@ function setRejectionsPageSize(val) { _rejectionsPageSize = Number(val); renderR
 const _debouncedRenderRejectionsPage = debounce(async () => { await renderRejectionsPage(); focusListSearchBox(); }, 250);
 function setRejectionsSearch(val) { _rejectionsSearch = val || ''; _debouncedRenderRejectionsPage(); }
 async function setRejectionsSort(key) { _rejectionsSort = nextSortState(_rejectionsSort, key); await renderRejectionsPage(); focusSortHeader(key); }
+// N-388: tab and dimension switches. Only the active tab renders, so the list's filters are untouched.
+function setRejectionsTab(tab) { _rejectionsTab = tab === 'intel' ? 'intel' : 'list'; renderRejectionsPage(); }
+function setRejectionIntelDim(dim) { _rejIntelDim = ['project', 'location', 'discipline'].includes(dim) ? dim : 'project'; renderRejectionsPage(); }
 async function showAddRejectionForm() {
   document.getElementById("main-content").innerHTML = await renderRejectedOfferForm();
 }
@@ -878,6 +929,8 @@ registerActions({
   setRejectionsSearch,
   setRejectionsPageSize,
   setRejectionsSort,
+  setRejectionsTab,
+  setRejectionIntelDim,
   // N-302b: row actions, filters and page headers on the Reporting lists.
   showEditProjectForm,
   showEditRoleForm,

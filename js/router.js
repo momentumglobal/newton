@@ -6,7 +6,7 @@ const PAGES = {
   roles:            { label: 'Roles',              roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
   activity:         { label: 'Weekly Activity',    roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
   placements:       { label: 'Placements',         roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
-  rejections:       { label: 'Rejected Offers',    roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
+  rejections:       { label: 'Rejected Offers',    roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER, CONFIG.ROLE_IDS.LEADERSHIP] },
   hiringPlan:       { label: 'Hiring Plan',        roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER, CONFIG.ROLE_IDS.LEADERSHIP] },
   adminPanel:       { label: 'Config Panel',       roles: [CONFIG.ROLE_IDS.ADMIN] },
 };

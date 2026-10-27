@@ -103,6 +103,26 @@ function canViewSlaRollupReport(role, cfg = CONFIG) {
   return roleCan(role, 'slaRollupReport', cfg);
 }
 
+// N-388 (DA-8): pure. Can `role` open the Rejection Intelligence tab (Rejected Offers page)?
+function canViewRejectionIntel(role, cfg = CONFIG) {
+  return roleCan(role, 'rejectionIntelView', cfg);
+}
+
+// N-388 (DA-8): pure. May `role` see benchmark / offer AMOUNTS (not just the % gap)? Admin, Leadership.
+function canViewRejectionIntelFigures(role, cfg = CONFIG) {
+  return roleCan(role, 'rejectionIntelFigures', cfg);
+}
+
+// N-388 (DA-8): pure. May `role` see the candidate-level Rejected Offers list? Leadership may not.
+function canViewRejectionsList(role, cfg = CONFIG) {
+  return roleCan(role, 'rejectionsList', cfg);
+}
+
+// N-388 (DA-8): pure. Can `role` use the Report Builder Rejection Intelligence module?
+function canViewRejectionIntelReport(role, cfg = CONFIG) {
+  return roleCan(role, 'rejectionIntelReport', cfg);
+}
+
 // N-382 (DA-2, DA-D7): pure. Can `role` edit SLA targets of `kind`? 'override' (one project's
 // targets, Project page): the slaTargetsEdit roles. 'default' (company defaults by project type,
 // Config Panel): Admin only - the Config Panel's own gate, not a capability. Unknown kind or

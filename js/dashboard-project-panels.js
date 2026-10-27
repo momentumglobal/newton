@@ -614,6 +614,27 @@ const REPORT_PANELS = {
     return data.slaRollup ? slaRollupHtml(data.slaRollup, { title: 'SLA roll-up' }) : slaRollupUnavailableHtml('SLA roll-up');
   },
 
+  // N-388: company scope. The inputs are loaded un-windowed (rbLoadRejectionIntel) and cut here by the
+  // report's period, with the same two rules the other panels use. A viewer without the capability
+  // gets nothing; amounts only for the figures capability; a failed read prints the unavailable line.
+  rejectionIntel: (data, period) => {
+    if (!canViewRejectionIntelReport(_resolvedRole)) return '';
+    const i = data.rejectionIntel;
+    if (!i) return rejectionIntelUnavailableHtml('Rejection Intelligence');
+    const { start, end } = getDetailPeriodRange(period);
+    const includeFigures = canViewRejectionIntelFigures(_resolvedRole);
+    const summary = rejectionIntelSummary({
+      rejections: i.rejections.filter(r => rejectionInPeriod(r, start, end)),
+      roles: i.roles,
+      activity: i.activity.filter(a => activityInDetailPeriod(a, period)),
+      models: i.models, lciRows: i.lciRows, includeFigures,
+    });
+    const periodLabel = (DETAIL_PERIOD_OPTIONS.find(([k]) => k === period) || [])[1] || '';
+    return rejectionIntelReportHtml(
+      rejectionIntelReportModel({ summary, projects: i.projects, includeFigures, benchmarkUnavailable: i.benchmarkUnavailable, periodLabel }),
+      { title: 'Rejection Intelligence' });
+  },
+
   rolesOpen30: (data) =>
     renderProjectLongOpenRolesPanel(data.roles, data.tpMap || {}, data.hc ? data.hc.openSince : null),
 

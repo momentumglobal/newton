@@ -412,6 +412,40 @@ async function getSlaRollupInputs(email) {
   };
 }
 
+// N-388 (DA-8): the inputs rejectionIntelSummary() needs, scoped for `email` (DA-D11: Admin /
+// Leadership all, a Delivery Manager their own projects via getUserProjectIds; Talent Partners never
+// reach this). `weeks` = the Rejected Offers page's window (0 = All time, the default, and it must
+// stay unbounded: a `ge` bound cannot match a blank RejectionDate - see getRejectedOffers).
+// Rejections are windowed by fromDay, activity by activitySinceWeeks (Sunday weeks). Internal /
+// no-dashboard projects are removed. Rejections, roles, activity and projects are required (a
+// rejection throws, the caller shows "unavailable", never an empty page); only the two LCI reads
+// degrade, to benchmarkUnavailable, so the rest of the page still renders.
+async function getRejectionIntelInputs(email, opts = {}) {
+  const weeks = Number(opts.weeks) || 0;
+  const [projectIds, allProjects, allRoles, allRejections, allActivity, models, lciRows] = await Promise.all([
+    getUserProjectIds(email),
+    getProjects(false),
+    getAllRoles(),
+    getRejectedOffers(null, { fromDay: weeksAgoDay(weeks) }),
+    getWeeklyActivity(null, null),
+    getLCIModels().catch(e => { console.warn('N-388: LCI models read failed', e); return null; }),
+    getAllLCIModelRows().catch(e => { console.warn('N-388: LCI rows read failed', e); return null; }),
+  ]);
+  const scoped = rejectionIntelScopeRows({ projectIds, roles: allRoles, rejections: allRejections, activity: activitySinceWeeks(allActivity, weeks) });
+  const { roles, activity, rejections } = excludeInternalProjectData(
+    { roles: scoped.roles, activity: scoped.activity, rejections: scoped.rejections },
+    { projects: allProjects, roles: allRoles });
+  const benchmarkUnavailable = !Array.isArray(models) || !Array.isArray(lciRows);
+  const ids = projectIds === null ? null : new Set(projectIds.map(String));
+  return {
+    rejections, roles, activity,
+    models: benchmarkUnavailable ? [] : models,
+    lciRows: benchmarkUnavailable ? [] : lciRows,
+    projects: ids ? allProjects.filter(p => ids.has(String(p.id))) : allProjects,
+    benchmarkUnavailable,
+  };
+}
+
 // N-382 (DA-2): executes ONE slaEditPlan() (utils.js) against SLATargets - the only writer the
 // editors use. createItem / updateItem / deleteItem only (each invalidates the list cache).
 // 'none' makes no call. A failure is passed through slaTranslateSaveError (a 403 becomes a plain permission message).
@@ -668,6 +702,10 @@ async function deleteLCIModel(id) {
 
 async function getLCIRows(modelId) {
   return getItems("LCIModelRows", `fields/ModelIDLookupId eq ${modelId}`);
+}
+// N-388 (DA-8): every LCIModelRows row, for the Rejection Intelligence benchmark index.
+async function getAllLCIModelRows() {
+  return getItems("LCIModelRows");
 }
 async function createLCIRow(fields) {
   return createItem("LCIModelRows", fields);

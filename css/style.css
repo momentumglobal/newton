@@ -2045,3 +2045,17 @@ body.bp-printing .rt-table-controls { display: none !important; }
 .sla-rollup-counts { margin: 0 0 var(--sp-5); }
 .sla-rollup-unavailable { margin: 0; }
 .sla-rollup-table td:first-child { white-space: nowrap; }
+
+/* N-388: Rejection Intelligence (rejection-intel.js) - the Rejected Offers tab, the Project
+   dashboard strip and the Report Builder module, all on reporting.html. Tokens only. */
+.rej-intel-tabs { margin-bottom: var(--sp-6); }
+.rej-intel-dims { margin: var(--sp-5) 0; }
+.rej-intel-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-5); padding-bottom: var(--sp-4); border-bottom: 1px solid var(--border-subtle); margin-bottom: var(--sp-6); }
+.rej-intel-heading { margin: 0; font-size: var(--fs-15); font-weight: 600; color: var(--text-heading); }
+.rej-intel-sub { margin: var(--sp-6) 0 var(--sp-4); font-size: var(--fs-13); font-weight: 600; color: var(--text-heading); }
+.rej-intel-period, .rej-intel-counts, .rej-intel-muted, .rej-intel-unavailable { color: var(--text-label); font-size: var(--fs-13); }
+.rej-intel-counts, .rej-intel-muted { margin: 0 0 var(--sp-5); }
+.rej-intel-facts { margin: 0; padding-left: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-4); }
+.rej-intel-fact-label { font-weight: 600; color: var(--text-heading); margin-right: var(--sp-3); }
+.rej-intel-table td:first-child { white-space: nowrap; }
+.rej-intel-strip { margin-bottom: var(--sp-6); }

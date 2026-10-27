@@ -54,6 +54,8 @@ const RB_PALETTE = [
   { key: 'rejections',       label: 'Offer Rejection Reasons',    scope: 'both',    group: 'Placements & Rejections', filtered: true },
   // N-385: company scope only; `cap` = a CONFIG.ROLE_CAPABILITIES key the viewer must hold.
   { key: 'slaRollup',        label: 'SLA Roll-up (last 90 days)', scope: 'company', group: 'Delivery Assurance', cap: 'slaRollupReport' },
+  // N-388: company scope only; follows the report's period; amounts only for Admin / Leadership viewers.
+  { key: 'rejectionIntel',   label: 'Rejection Intelligence',     scope: 'company', group: 'Delivery Assurance', cap: 'rejectionIntelReport' },
 ];
 
 async function renderReportBuilder() {
@@ -567,7 +569,11 @@ async function rbFetchData() {
     const slaRollup = (_rbBlocks.some(b => b.type === 'panel' && b.key === 'slaRollup') && canViewSlaRollupReport(_resolvedRole))
       ? await rbLoadSlaRollup()
       : undefined;
-    return { roles, activity, placements, rejections, tpMap, hc: dashboardHeadcountContext(roles, placements, headcount), slaRollup };
+    // N-388: Rejection Intelligence inputs, read only when the report has that module.
+    const rejectionIntel = (_rbBlocks.some(b => b.type === 'panel' && b.key === 'rejectionIntel') && canViewRejectionIntelReport(_resolvedRole))
+      ? await rbLoadRejectionIntel()
+      : undefined;
+    return { roles, activity, placements, rejections, tpMap, hc: dashboardHeadcountContext(roles, placements, headcount), slaRollup, rejectionIntel };
   }
 }
 
@@ -582,6 +588,19 @@ async function rbLoadSlaRollup() {
     return slaRollupModel({ projects: inputs.projects, results, today });
   } catch (e) {
     console.warn('N-385: SLA roll-up read failed', e);
+    return null;
+  }
+}
+
+// N-388: the Rejection Intelligence module's inputs for the current user (Admin / Leadership all
+// projects, a DM their own - scoped inside getRejectionIntelInputs). Un-windowed: the panel cuts them
+// by the report's period. null = the read failed: the module prints its unavailable line and every
+// other block still renders.
+async function rbLoadRejectionIntel() {
+  try {
+    return await getRejectionIntelInputs(getCurrentUser().email, { weeks: 0 });
+  } catch (e) {
+    console.warn('N-388: Rejection Intelligence read failed', e);
     return null;
   }
 }

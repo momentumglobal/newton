@@ -75,6 +75,9 @@ async function renderProjectDashboard() {
   // that grid), filled by sla-panel.js after paint from its own un-narrowed reads. isDMAdmin is
   // the same flag the other DM panels use; Leadership has no Project dashboard.
   const slaSlot         = isDMAdmin && slaEditorModel(dashProject, []) ? `<div class='dash-panel sla-panel' id='proj-sla-slot'></div>` : '';
+  // N-388 (DA-8): the rejection insight strip. Its own slot, OUTSIDE #proj-detail-grid (setDetailPeriod
+  // rewrites that grid) and above the detail period picker, because it is All time by design.
+  const rejIntelSlot    = isDMAdmin ? `<div id='proj-rejintel-slot'></div>` : '';
   main.innerHTML = `
     <div class='page-header'>
       <h2>Project Dashboard${isDMAdmin ? ' — ' + escHtml(projectName) : ''}</h2>
@@ -91,6 +94,7 @@ async function renderProjectDashboard() {
       ${longOpenProj}
       ${roleTracker}
     </div>
+    ${rejIntelSlot}
     <div class='dash-detail-header'>
       ${detailPeriodDropdown()}
     </div>
@@ -106,9 +110,36 @@ async function renderProjectDashboard() {
   lucide.createIcons();
   runKpiCountUps(main);
   if (slaSlot) mountProjectSlaPanel('proj-sla-slot', dashProject);   // N-384
+  if (rejIntelSlot) mountRejectionIntelStrip('proj-rejintel-slot', projectId);   // N-388
   // N-255b: TP branch never resolves projectName (matches the <h2>, which
   // also only shows it for isDMAdmin) — no new fetch added for this.
   renderBreadcrumb('projectDashboard', isDMAdmin ? projectName : undefined);
+}
+// N-388 (DA-8): fills the insight strip for one project. All time (the strip describes the project,
+// not the dashboard's period), amounts only for the figures capability. Never throws and never shows
+// an error: a failed read leaves the slot empty (the table below is the dashboard's own data).
+let _rejIntelStripSeq = 0;
+async function mountRejectionIntelStrip(slotId, projectId) {
+  const slot = document.getElementById(slotId);
+  if (!slot) return;
+  const token = String(++_rejIntelStripSeq);
+  slot.dataset.token = token;
+  try {
+    const inputs = await getRejectionIntelInputs(getCurrentUser().email, { weeks: 0 });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const live = document.getElementById(slotId);
+    if (!live || live !== slot || live.dataset.token !== token) return;
+    const includeFigures = canViewRejectionIntelFigures(_resolvedRole);
+    const summary = rejectionIntelSummary({
+      rejections: inputs.rejections, roles: inputs.roles, activity: inputs.activity,
+      models: inputs.models, lciRows: inputs.lciRows, includeFigures,
+    });
+    slot.innerHTML = rejectionIntelStripHtml(rejectionIntelProjectStrip({
+      summary, projectId, includeFigures, benchmarkUnavailable: inputs.benchmarkUnavailable,
+    }));
+  } catch (e) {
+    console.warn('N-388: rejection insight strip failed', e);
+  }
 }
 function changeDashProject(id) { _dashProjectId = String(id); renderProjectDashboard(); }
 // N-145 addendum (18 Aug 2026) — Command Bar Project entity jump. Sets the

@@ -2224,3 +2224,158 @@ function rejectionIntelSummary({ rejections, roles, activity, models, lciRows, i
     totals: byProject.totals,
   };
 }
+
+// ── Rejection Intelligence view model (N-388 / DA-8) ──────────────────
+// Page, strip and report shapes over the N-387 engine output. Pure: no Graph, no DOM. Every
+// sentence, ordering rule and sample guard is decided here (rejection-intel.js only prints), and
+// money fields reach a model only when the caller passed includeFigures, so a DM's model has no
+// amounts to leak. Thresholds and reasons come from CONFIG.REJECTION_INTEL / REJECTION_REASONS.
+const REJECTION_INTEL_DIMS = {
+  project:    { cluster: 'byProject',    funnel: 'funnelByProject',    label: 'Project',    blank: 'No project' },
+  location:   { cluster: 'byLocation',   funnel: 'funnelByLocation',   label: 'Location',   blank: 'No location' },
+  discipline: { cluster: 'byDiscipline', funnel: 'funnelByDiscipline', label: 'Discipline', blank: 'No department' },
+};
+
+// 0.1234 -> 12 (whole per cent for display; raw engine floats are never shown). null stays null.
+function _rejectionPct(x) {
+  return (x === null || x === undefined || !isFinite(x)) ? null : Math.round(x * 100);
+}
+
+// "12% below benchmark" / "8% above benchmark" / "in line with benchmark", or null unless the
+// cluster's salary claim holds. salary = a cluster's `salary` object from clusterRejections().
+function rejectionGapText(salary) {
+  if (!salary || !salary.claim || salary.gapMedianPct === null || salary.gapMedianPct === undefined) return null;
+  const pct = Math.round(Math.abs(salary.gapMedianPct) * 100);
+  if (pct === 0) return { text: 'in line with benchmark', direction: 'level', pct: 0 };
+  const below = salary.gapMedianPct < 0;
+  return { text: pct + '% ' + (below ? 'below' : 'above') + ' benchmark', direction: below ? 'below' : 'above', pct: pct };
+}
+
+// Amounts, only for a caller that passed includeFigures AND only when the salary claim holds.
+// A cluster mixing currencies has no single median: figures null, mixedCurrency true.
+function _rejectionFigures(salary, includeFigures) {
+  const none = { figures: null, mixedCurrency: false };
+  if (!includeFigures || !salary || !salary.claim) return none;
+  if (salary.mixedCurrency) return { figures: null, mixedCurrency: true };
+  if (salary.offerMedian === null || salary.offerMedian === undefined || salary.benchMedian === null || salary.benchMedian === undefined) return none;
+  return { figures: { ccy: salary.ccy || '', offerMedian: salary.offerMedian, benchMedian: salary.benchMedian, matched: salary.matched }, mixedCurrency: false };
+}
+
+function _rejectionLabel(dim, key, projectNames) {
+  if (key === '' || key === null || key === undefined) return REJECTION_INTEL_DIMS[dim].blank;
+  if (dim === 'project') return projectNames[String(key)] || ('Project ' + key);
+  return String(key);
+}
+
+function _rejectionProjectNames(projects) {
+  const out = {};
+  (projects || []).forEach(p => { if (p) out[String(p.id)] = p.CustomerName || p.Title || ''; });
+  Object.keys(out).forEach(k => { if (!out[k]) delete out[k]; });
+  return out;
+}
+
+// One funnel step for display. Unclaimed steps carry no rate (the cell prints a dash).
+function _rejectionStepView(s) {
+  return { from: s.from, to: s.to, den: s.den, claim: !!s.claim, ratePct: s.claim ? _rejectionPct(s.rate) : null, priorPct: _rejectionPct(s.priorRate) };
+}
+
+// The Rejection Intelligence tab / report model for one dimension. summary = rejectionIntelSummary().
+function rejectionIntelPageModel({ summary, projects, dim, includeFigures, benchmarkUnavailable, weeks } = {}) {
+  const D = REJECTION_INTEL_DIMS[dim];
+  if (!D) throw new Error('rejectionIntelPageModel: dim must be project, location or discipline');
+  const s = summary || {};
+  const names = _rejectionProjectNames(projects);
+  const unavailable = benchmarkUnavailable === true;
+  const withFigures = includeFigures === true;
+  const totals = Object.assign({ n: 0, unlinked: 0, matched: 0 }, s.totals || {});
+
+  // Reasons: every reason (config order) plus any extra the engine emits, zeros kept.
+  const byReason = (s.byReason && s.byReason.clusters) || [];
+  const counts = {};
+  byReason.forEach(c => { counts[c.key] = c.n; });
+  const firstProject = ((s.byProject && s.byProject.clusters) || [])[0];
+  const keys = firstProject ? Object.keys(firstProject.reasons) : CONFIG.REJECTION_REASONS.slice();
+  const reasonsClaim = totals.n >= CONFIG.REJECTION_INTEL.minRejections;
+  const reasons = keys.map(k => {
+    const n = counts[k] || 0;
+    return { reason: k, n: n, sharePct: reasonsClaim && totals.n > 0 ? _rejectionPct(n / totals.n) : null };
+  });
+
+  const clusters = (((s[D.cluster] || {}).clusters) || []).map(c => {
+    const claim = !!c.claim;
+    const gap = unavailable ? null : rejectionGapText(c.salary);
+    const fig = unavailable ? { figures: null, mixedCurrency: false } : _rejectionFigures(c.salary, withFigures);
+    return {
+      key: c.key, label: _rejectionLabel(dim, c.key, names), n: c.n, claim: claim,
+      topReason: claim ? c.topReason : null, topSharePct: claim ? _rejectionPct(c.topShare) : null,
+      gap: gap, figures: fig.figures, mixedCurrency: fig.mixedCurrency,
+    };
+  });
+
+  const funnelRows = (((s[D.funnel] || {}).rows) || []).map(r => {
+    const worst = r.worstStep === null || r.worstStep === undefined ? null : r.steps[r.worstStep];
+    return {
+      key: r.key, label: _rejectionLabel(dim, r.key, names), submitted: r.submitted,
+      steps: r.steps.map(_rejectionStepView),
+      worst: worst ? { from: worst.from, to: worst.to } : null,
+    };
+  });
+  const firstFunnel = funnelRows[0];
+
+  const weeksN = Number(weeks) || 0;
+  return {
+    dim: dim, dimLabel: D.label, weeks: weeksN,
+    periodNote: weeksN ? ('Last ' + weeksN + ' weeks. Rejections with no recorded date are not included.') : '',
+    totals: totals, benchmarkUnavailable: unavailable, includeFigures: withFigures,
+    reasons: reasons, clusters: clusters,
+    funnel: { steps: firstFunnel ? firstFunnel.steps.map(x => ({ from: x.from, to: x.to })) : [], rows: funnelRows },
+  };
+}
+
+// The Report Builder module: the by-project page model plus the report's period label.
+function rejectionIntelReportModel({ summary, projects, includeFigures, benchmarkUnavailable, periodLabel } = {}) {
+  return Object.assign(
+    rejectionIntelPageModel({ summary, projects, dim: 'project', includeFigures, benchmarkUnavailable, weeks: 0 }),
+    { periodLabel: periodLabel || '' });
+}
+
+// The Project dashboard strip for one project. Same guards as the page: a fact is present only
+// when its claim holds. empty = nothing to say at all (no rejections, no claimable funnel step).
+function rejectionIntelProjectStrip({ summary, projectId, includeFigures, benchmarkUnavailable } = {}) {
+  const s = summary || {};
+  const key = String(projectId);
+  const c = (((s.byProject || {}).clusters) || []).find(x => x.key === key) || null;
+  const f = (((s.funnelByProject || {}).rows) || []).find(x => x.key === key) || null;
+  const unavailable = benchmarkUnavailable === true;
+  const claim = !!(c && c.claim);
+  const fig = c && !unavailable ? _rejectionFigures(c.salary, includeFigures === true) : { figures: null, mixedCurrency: false };
+  const worstRaw = f && f.worstStep !== null && f.worstStep !== undefined ? f.steps[f.worstStep] : null;
+  const worst = worstRaw ? _rejectionStepView(worstRaw) : null;
+  const n = c ? c.n : 0;
+  return {
+    n: n, claim: claim,
+    topReason: claim ? c.topReason : null, topSharePct: claim ? _rejectionPct(c.topShare) : null,
+    gap: c && !unavailable ? rejectionGapText(c.salary) : null,
+    figures: fig.figures, mixedCurrency: fig.mixedCurrency,
+    worstStep: worst ? { from: worst.from, to: worst.to, ratePct: worst.ratePct, priorPct: worst.priorPct } : null,
+    benchmarkUnavailable: unavailable,
+    minRejections: CONFIG.REJECTION_INTEL.minRejections,
+    empty: n === 0 && !worst,
+  };
+}
+
+// DA-D11 scope for the Rejection Intelligence inputs. projectIds = getUserProjectIds() (null = all).
+// A listed id keeps that project's roles, and only the rejections / activity rows on those roles
+// (a rejection whose role cannot be resolved belongs to nobody, so a DM never sees it).
+// Inputs are not mutated.
+function rejectionIntelScopeRows({ projectIds, roles, rejections, activity } = {}) {
+  const allRoles = roles || [];
+  if (projectIds === null || projectIds === undefined) {
+    return { roles: allRoles.slice(), rejections: (rejections || []).slice(), activity: (activity || []).slice() };
+  }
+  const ids = new Set((projectIds || []).map(String));
+  const scoped = allRoles.filter(r => ids.has(String(projectIdForRole(r))));
+  const roleIds = new Set(scoped.map(r => String(r.id)));
+  const onRole = row => roleIds.has(String(row.RoleIDLookupId || row.RoleID || ''));
+  return { roles: scoped, rejections: (rejections || []).filter(onRole), activity: (activity || []).filter(onRole) };
+}

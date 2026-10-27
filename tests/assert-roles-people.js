@@ -99,6 +99,10 @@ ASSERTIONS.push(
         slaPanelView:      ['admin', 'leadership', 'delivery_manager'],   // N-384
         slaPortfolioView:  ['admin', 'leadership'],                       // N-384
         slaRollupReport:   ['admin', 'leadership', 'delivery_manager'],   // N-385
+        rejectionIntelView:    ['admin', 'leadership', 'delivery_manager'],   // N-388
+        rejectionIntelFigures: ['admin', 'leadership'],                       // N-388
+        rejectionsList:        ['admin', 'delivery_manager', 'talent_partner'],   // N-388
+        rejectionIntelReport:  ['admin', 'leadership', 'delivery_manager'],   // N-388
       };
       _assertEqual(Object.keys(CONFIG.ROLE_CAPABILITIES).sort(), Object.keys(expect).sort(), 'capability set');
       Object.keys(expect).forEach(cap => roles.forEach(r =>
@@ -377,7 +381,7 @@ ASSERTIONS.push(
       roles: ['admin', 'delivery_manager', 'talent_partner'],
       activity: ['admin', 'delivery_manager', 'talent_partner'],
       placements: ['admin', 'delivery_manager', 'talent_partner'],
-      rejections: ['admin', 'delivery_manager', 'talent_partner'],
+      rejections: ['admin', 'delivery_manager', 'leadership', 'talent_partner'],   // N-388
       hiringPlan: ['admin', 'delivery_manager', 'leadership', 'talent_partner'],
       adminPanel: ['admin'],
     },

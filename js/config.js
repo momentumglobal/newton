@@ -128,6 +128,15 @@ const CONFIG = {
     // see every project; a Delivery Manager sees only their own (scoped in getSlaRollupInputs by
     // getUserProjectIds). Talent Partners never. The Command Centre section uses slaPortfolioView.
     slaRollupReport:   ['admin', 'leadership', 'delivery_manager'],
+    // N-388 (DA-8): Rejection Intelligence. View = the tab on the Rejected Offers page (Admin,
+    // Leadership, and Delivery Managers on their own projects, scoped in getRejectionIntelInputs).
+    // Figures = benchmark / offer amounts, Admin and Leadership only: a DM sees the % gap, never
+    // an amount (N-387 decision). List = the candidate-level Rejected Offers list, which Leadership
+    // deliberately does not get. Report = the company-scope Report Builder module.
+    rejectionIntelView:    ['admin', 'leadership', 'delivery_manager'],
+    rejectionIntelFigures: ['admin', 'leadership'],
+    rejectionsList:        ['admin', 'delivery_manager', 'talent_partner'],
+    rejectionIntelReport:  ['admin', 'leadership', 'delivery_manager'],
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
@@ -1206,7 +1215,7 @@ const CONFIG = {
     { key: 'roles',            label: 'Roles',              module: 'reporting', href: 'reporting.html#roles',             roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
     { key: 'activity',         label: 'Weekly Activity',    module: 'reporting', href: 'reporting.html#activity',          roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
     { key: 'placements',       label: 'Placements',         module: 'reporting', href: 'reporting.html#placements',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
-    { key: 'rejections',       label: 'Rejected Offers',    module: 'reporting', href: 'reporting.html#rejections',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
+    { key: 'rejections',       label: 'Rejected Offers',    module: 'reporting', href: 'reporting.html#rejections',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
     { key: 'hiringPlan',       label: 'Hiring Plan',        module: 'reporting', href: 'reporting.html#hiringPlan',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
     { key: 'adminPanel',       label: 'Config Panel',       module: 'reporting', href: 'reporting.html#adminPanel',        roles: [_ROLE_IDS.ADMIN] },
     // people-router.js — People (7)

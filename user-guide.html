@@ -32,6 +32,7 @@
       <li><a href="#company-dashboard">Company Dashboard</a></li>
       <li><a href="#project-dashboard">Project Dashboard</a></li>
       <li><a href="#projects">Projects</a></li>
+      <li><a href="#sla">Service levels (SLAs)</a></li>
       <li><a href="#roles-page">Roles</a></li>
       <li><a href="#activity">Weekly Activity</a></li>
       <li><a href="#placements">Placements</a></li>
@@ -141,6 +142,7 @@
       </div>
       <p>A cross-project rollup giving a company-wide view of recruitment health. Data is not filtered by project — it covers all active projects.</p>
       <div class="tip">The Momentum Global (Internal) project — Momentum's own hiring — is left out of the Company Dashboard, company-scope Report Builder reports and the Command Centre. It has its own Project Dashboard like any other project.</div>
+      <p>A <strong>SLA summary</strong> tile lists every client project's service-level status, worst first. See <a href="#sla">Service levels (SLAs)</a>.</p>
       <h3>KPI Tiles</h3>
       <p>The top strip shows current Active Projects, Active Pipelines and Open Headcount. The second strip shows pipeline metrics for the selected period: Hires, Submission Conversion, IV to Offer Ratio, Offer Success, Average Days to Hire, and Hired On Time percentage. Use the <strong>Month / Quarter / Year</strong> buttons to change the period.</p>
       <p><strong>Open Headcount</strong> is the headcount still to hire on active pipelines — unfilled, not cancelled, and with an Open Date (headcount without an Open Date is planned, not yet active). <strong>Hires</strong> counts placements with an Offer Accepted Date in the period. <strong>Average Days to Hire</strong> is measured per hire, from the headcount's Open Date to the Offer Accepted Date (hires against a headcount with no Open Date are left out). <strong>Hired On Time</strong> compares each hire with its own headcount's Target Hire Date. Offer Success still uses the offers and hires logged in Weekly Activity.</p>
@@ -166,8 +168,11 @@
       <p>A breakdown of weekly activity by role for the selected period, including Outreach, Responses, Screened, Submitted, Interview stages, Offers, and Hires. A Totals row summarises across all roles.</p>
       <h3>Activity by Talent Partner <em>(DM / Admin only)</em></h3>
       <p>Aggregates pipeline activity by Talent Partner for the selected period.</p>
+      <h3>SLA performance <em>(DM / Admin only)</em></h3>
+      <p>How the project is doing against its service-level targets, with ongoing breaches. See <a href="#sla">Service levels (SLAs)</a>.</p>
       <h3>Offer Rejection Reasons <em>(DM / Admin only)</em></h3>
       <p>Counts rejected offers by reason category for the period.</p>
+      <p>An insight strip above the table summarises the main patterns, such as the reason losing the most offers. See <a href="#rejections">Rejected Offers</a>.</p>
       <h3>Upcoming Starters <em>(DM / Admin only)</em></h3>
       <p>Lists placed candidates with a provisional start date in the future.</p>
       <h3>Actual Spend vs Budget <em>(DM / Admin only)</em></h3>
@@ -187,6 +192,7 @@
       </div>
       <p>Lists all projects you have access to, showing the customer name, status (Active / Transition / Completed), and start date. Leadership and People Ops see every project. Admins and Delivery Managers can add new projects and edit existing ones using the buttons in the table.</p>
       <p>Click a project name to open its <strong>Project page</strong>: type, status, start and end dates, the Lead DM, the <strong>Project Team</strong> and, when the project has one, its checklist. Use <strong>Copy link</strong> to share the page and <strong>Edit project</strong> (Admins and Delivery Managers) to change its details. The project form no longer has a Delivery Manager field — set the Lead DM from the Project Team.</p>
+      <p>Admins and Leadership also set the project's SLA target overrides on its Project page, which shows its SLA performance. See <a href="#sla">Service levels (SLAs)</a>.</p>
       <h3>Starter folder</h3>
       <p>A project's checklist can include a <strong>Create starter folder</strong> step. The project's Lead DM (or an Admin) clicks it once: Newton creates the project's working folder in <em>their own</em> OneDrive at <strong>Newton › Projects › &lt;customer name&gt;</strong>, copies in the starter pack for the project's type (Embedded, CoE, or Exec Search &amp; MG AI), fills the customer name, dates and Lead DM into the Word templates, and shares it (edit access, no email) with the Lead DM and Newton Admins. You can change the folder name before it's created. There is <strong>one folder per project</strong>: once it exists, the step shows who created it and when, and the owner and the people it was shared with get an <strong>Open folder</strong> link. Others find it in OneDrive under <em>Shared with me</em>. Renaming or moving the folder in OneDrive is fine: the owner's link always follows it, and other people's links catch up the next time the owner opens the project. Until then, use <em>Shared with me</em>. If OneDrive shows an error the first time you open a brand-new folder, refresh the page: it&rsquo;s a OneDrive quirk and later opens work.</p>
       <h3>Project Team</h3>
@@ -199,6 +205,40 @@
       </ul>
       <p>Newton warns before saving dates that overlap another of the person's confirmed assignments, and before ending or removing a Talent Partner who still owns open roles on the project. Every save updates that person's bench records automatically.</p>
       <div class="tip">Project status drives what appears in the Company Dashboard — only Active projects count toward the Active Projects KPI.</div>
+    </div>
+    <div class="guide-section" id="sla">
+      <h2>Service levels (SLAs)</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge dm">Delivery Manager</span>
+        <span class="role-badge leadership">Leadership</span>
+      </div>
+      <p>A service level (SLA) is the pace a project has agreed to hire at. Newton measures four things for every Embedded, CoE, Exec Search and MG AI project: <strong>time to first submission</strong> (days), <strong>submissions per role per week</strong>, <strong>time to offer</strong> (days) and <strong>time to hire</strong> (days). LCI, Transformation and the internal project have no SLAs.</p>
+      <h3>Targets</h3>
+      <p>Each project type has <strong>company default</strong> targets, and a project can <strong>override</strong> any of them. A blank target means that measure is not tracked, and a project with an override left blank uses the default.</p>
+      <ul>
+        <li><strong>Defaults</strong> are edited by Admins in the Config Panel, on the <strong>SLA targets</strong> tab.</li>
+        <li><strong>Overrides</strong> are set by Admins and Leadership on the project's <strong>Project page</strong>. Use <strong>Reset to defaults</strong> to remove an override.</li>
+        <li>Delivery Managers see their projects' targets on the Project page, marked <em>Default</em> or <em>Override</em>, but cannot change them. Talent Partners do not see targets.</li>
+      </ul>
+      <h3>How it is measured</h3>
+      <p>Every hire has its own clock, starting on that hire's <strong>Open Date</strong>. The clock stops while the role is <strong>On hold</strong>. For submissions per week, only weeks when the role is being worked count, and a role is judged on its average over the last four of those weeks. A hire with no Open Date is not measured.</p>
+      <h3>Reading the panel</h3>
+      <p>For each measure the panel shows the target, the <strong>attainment %</strong> (how many hires or weeks met it) and a status: <strong>On track</strong> (80% or more), <strong>Watch</strong> (60&ndash;79%), <strong>At risk</strong> (under 60%) or <strong>Not rated</strong> when there is nothing to measure yet. The project's overall status is its worst rated measure.</p>
+      <ul>
+        <li>Use <strong>Last 90 days</strong> (the default) or <strong>All time</strong> to change the period. It affects attainment and status only.</li>
+        <li>The breach list on the Project Dashboard and Project page shows <strong>ongoing breaches</strong> only. A role's full breach history, with attainment per measure, is on the <strong>Role page</strong>.</li>
+        <li>Notes under the panel name data that makes the numbers softer, such as hires with no Open Date or filled hires with no offer-accepted date. Fixing the record fixes the number.</li>
+      </ul>
+      <h3>Where to find it</h3>
+      <ul>
+        <li><strong>Project Dashboard</strong> (Admins and Delivery Managers) and the <strong>Project page</strong> (Admins, Leadership and Delivery Managers): the panel for one project.</li>
+        <li><strong>Role page</strong>: the role's own attainment and breach history, visible to anyone who can open the role.</li>
+        <li><strong>Company Dashboard</strong> (Admins and Leadership): a tile with one line per project, worst first, naming its problem areas.</li>
+        <li><strong>MG Command Centre</strong> (Admins and Leadership): in the <em>Project Health</em> tile's detail, a table of every client project over the last 90 days.</li>
+        <li><strong>Report Builder</strong>: an SLA module for company-scope reports (Admins; Delivery Managers see their own projects). It always covers the last 90 days.</li>
+      </ul>
+      <div class="tip">Breach <strong>notifications are not live yet</strong>. Breaches appear in the panels, but Newton does not send an alert. Targets are still being calibrated with the Delivery Managers.</div>
     </div>
     <div class="guide-section" id="roles-page">
       <h2>Roles</h2>
@@ -291,7 +331,9 @@
         <span class="role-badge admin">Admin</span>
         <span class="role-badge dm">Delivery Manager</span>
         <span class="role-badge tp">Talent Partner</span>
+        <span class="role-badge leadership">Leadership</span>
       </div>
+      <p>Leadership sees the <strong>Rejection Intelligence</strong> tab only, not the list of candidates.</p>
       <p>Logs offers that were not accepted, recording the candidate name, role, and rejection reason. Reason categories are: Salary, Motivations, Counter-offer, Took another opportunity, and Other.</p>
       <h3>Filtering</h3>
       <p>Filter by project using the dropdown, grouped into <strong>Active</strong> and <strong>Archive</strong> sections.</p>
@@ -299,6 +341,15 @@
       <h3>Recording a rejection</h3>
       <p>Use <strong>+ Record Rejection</strong> to log a declined offer. <strong>Rejection Date is required</strong> and defaults to today — change it if you are logging something that happened earlier. This data feeds the <strong>Offer Rejection Reasons</strong> panel on the Project Dashboard, helping identify trends over time.</p>
       <p>That panel is period-scoped by the rejection date. Before this field existed it fell back to the linked role's hire date, which meant any rejection against a role that had not been filled was counted in <em>every</em> period — so historical rejection trends before N-153 should be read with that in mind.</p>
+      <h3>Rejection Intelligence</h3>
+      <p>The <strong>Rejection Intelligence</strong> tab (Admins, Leadership and Delivery Managers; Delivery Managers see their own projects) answers &ldquo;why are we losing offers and candidates?&rdquo;.</p>
+      <ul>
+        <li><strong>Reasons</strong> grouped by project, location or discipline. Use the buttons above the table to switch.</li>
+        <li><strong>Salary versus market</strong>: offers compared with the market benchmark for the same title and country, such as &ldquo;12% below benchmark&rdquo;. Delivery Managers see the percentage gap only; Admins and Leadership also see the figures. If the benchmark cannot be read, the column says <em>Benchmark unavailable</em>.</li>
+        <li><strong>Drop-off</strong>: how candidates pass from submission to interview to offer, by the same groupings.</li>
+      </ul>
+      <p>It follows the page's <strong>Period</strong> dropdown, which defaults to <strong>All time</strong>.</p>
+      <div class="tip">A group only gets a conclusion once there is enough data behind it. Where there is not, Newton says so (for example &ldquo;Too few to read&rdquo;) instead of showing a misleading percentage. The same insights also appear as a strip above the Project Dashboard's rejection table and as a company-scope Report Builder module.</div>
     </div>
     <div class="guide-section" id="hiring-plan">
       <h2>Hiring Plan (CoE projects)</h2>
@@ -389,11 +440,13 @@
       <div class="role-badges">
         <span class="role-badge admin">Admin</span>
       </div>
-      <p>The Config Panel is visible to Admins only and provides two management functions within the Reporting module. Currencies are no longer managed here — they are auto-derived from the role's Location field.</p>
+      <p>The Config Panel is visible to Admins only and provides management functions within the Reporting module. Currencies are no longer managed here — they are auto-derived from the role's Location field.</p>
       <h3>Departments</h3>
       <p>Manage the list of departments used when categorising roles and projects across the system. Departments are scoped per customer — add or remove them here as your project structures change.</p>
       <h3>Delete Records</h3>
       <p>Permanently delete records from any SharePoint list. Select the list and the specific record, then confirm the deletion. This cannot be undone from within Newton — use SharePoint's recycle bin if you need to recover a deleted item.</p>
+      <h3>SLA targets</h3>
+      <p>Set the company default service-level targets for each project type. A blank target means that measure is not tracked. Projects can override these on their Project page. See <a href="#sla">Service levels (SLAs)</a>.</p>
       <div class="tip">User and access management has moved to the Newton OS Admin area, accessible via the <strong>Admin</strong> link on the Newton home screen.</div>
     </div>
     <div class="guide-section agent-section" id="ai-agents">

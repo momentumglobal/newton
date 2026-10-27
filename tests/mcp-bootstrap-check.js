@@ -184,10 +184,12 @@ async function run() {
     const real = createLoader({ authShim: stubShim('tok'), localDir: ROOT, graphFetch, log: () => {} });
     const realState = await real.load({ contract: MCP_CONTRACT });
 
-    await check('AC1 CONFIG.MCP has exactly contract/scripts/allowedLists/allowedRoles/gateTtlMs; contract equals the bundle', async () => {
+    // N-393 added outputDenyFields / windows / maxRows (read by mcp/newton-tools.js only; the
+    // bundle ignores them, so the contract stays 1). The key set stays pinned exactly.
+    await check('AC1 CONFIG.MCP has exactly contract/scripts/allowedLists/allowedRoles/gateTtlMs + the N-393 outputDenyFields/windows/maxRows; contract equals the bundle', async () => {
       ok(realState.ok, 'live load failed: ' + realState.reason);
       const m = real.config().MCP;
-      eq(Object.keys(m).sort(), ['allowedLists', 'allowedRoles', 'contract', 'gateTtlMs', 'scripts'], 'CONFIG.MCP keys');
+      eq(Object.keys(m).sort(), ['allowedLists', 'allowedRoles', 'contract', 'gateTtlMs', 'maxRows', 'outputDenyFields', 'scripts', 'windows'], 'CONFIG.MCP keys');
       eq(m.contract, MCP_CONTRACT, 'CONFIG.MCP.contract vs server.js MCP_CONTRACT');
       eq(Array.from(m.allowedRoles).sort(), ['admin', 'leadership'], 'allowedRoles');
       ok(!Array.from(m.allowedLists).some(l => /PeoplePay|GPInvoices|LCI|Survey|Diagnostics|Notifications/.test(l)), 'allowedLists names an MCP-D7 never-read list');
@@ -210,6 +212,24 @@ async function run() {
       fs.writeFileSync(path.join(dir, 'mcp/newton-tools.js'), 'var MCP_TOOLS = []; document.title = "x";');
       const st = await createLoader({ authShim: stubShim(null), localDir: dir, log: () => {} }).load({ contract: MCP_CONTRACT });
       ok(!st.ok && /mcp\/newton-tools\.js/.test(st.reason), 'expected a load failure naming mcp/newton-tools.js, got ' + JSON.stringify(st));
+    });
+
+    // N-393 (qa/N-392.md Finding 1): positive control for the vm console. A loader built with
+    // its DEFAULT logger (no `log` passed - the production path) must send console output from
+    // inside the context to stderr. The capture above records both streams, so a probe on
+    // stdout fails here and in the AC5 check at the end.
+    await check('F1 the vm console writes to stderr, not stdout - a probe logged inside the live context (default logger) lands on stderr', async () => {
+      const L = createLoader({ authShim: stubShim(null), localDir: ROOT, graphFetch });
+      const st = await L.load({ contract: MCP_CONTRACT });
+      ok(st.ok, 'live load failed: ' + st.reason);
+      const probe = 'N393-console-probe-' + Date.now();
+      const outBefore = outChunks.join('').length;
+      const errBefore = errChunks.join('').length;
+      L.evalInContext(`console.log(${JSON.stringify(probe + '-log')}); console.warn(${JSON.stringify(probe + '-warn')}); console.error(${JSON.stringify(probe + '-error')}); console.info(${JSON.stringify(probe + '-info')});`);
+      const newOut = outChunks.join('').slice(outBefore);
+      const newErr = errChunks.join('').slice(errBefore);
+      ok(!newOut.includes(probe), 'a console probe reached stdout: ' + newOut.slice(0, 120));
+      ['log', 'warn', 'error', 'info'].forEach(m => ok(newErr.includes(probe + '-' + m), 'console.' + m + ' probe did not reach stderr'));
     });
 
     // ── AC 3: storage shim ──────────────────────────────────────────

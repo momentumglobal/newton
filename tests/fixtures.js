@@ -400,4 +400,121 @@ var FIXTURES = {
       { RoleIDLookupId: '999', TalentPartner: 'e@x', WeekEndingDate: '2026-09-20T12:00:00Z', Submitted: 50, Interview1: 50, Offers: 50 },
     ],
   },
+  // ── N-393: Newton for Claude reporting tools (tests/mcp-tools-check.js) ──
+  // Served by a fixture Graph through the real MCP loader, so rows use the INTERNAL column
+  // names (Title, Currency, InterviewTwoPlus) and normaliseFields runs for real.
+  // Dates are offsets materialised against the run's today: { d: -30 } = 30 days ago,
+  // { w: 2 } = the week-ending Sunday two weeks before the current week (WeekEndingDate).
+  // Every restricted field the tools read carries a SENTINEL (ZZQ-..., or a 6-digit number
+  // listed in `sentinels`) that must never appear in any tool output (N-393 AC 9).
+  //
+  // Hand-derived expectations (CONFIG.ROLE_FLAG budgets: Sourcing 15 d, Submitted 7 d,
+  // Interview 1 7 d; pace cumulative Sourcing 15, Submitted 22, Interview 1 29, Offered 45):
+  //   Projects 101 Acme Bank, 102 Bluefin Labs (clients), 103 Momentum Internal (internal),
+  //   104 Corvid LCI (no dashboard), 105 Delta Old (Closed).
+  //   Open pipelines: 201 (stuck 30 d in Sourcing, behind), 202 (low conversion: 6 submitted,
+  //   1 interview in 6 weeks), 203, 206, 208 (internal; stuck 40 d, behind), 209 (Offered:
+  //   never stuck; behind - oldest open headcount 60 d). Flagged: 201, 202, 208.
+  //   Acme Bank: 6 pipelines - Backlog 1, Sourcing 1, Submitted 1, Interview 1 1, Closed 1,
+  //   On-hold 1; open 3, flagged 2, behind 1 -> RAG red (2/3 > 0.50); open dated headcount 3
+  //   (301, 303, 304; 302 has no Open Date); hires in the last 13 weeks: 1 (placement 401,
+  //   60 days, on its target day -> 100 % on time).
+  //   Offers accepted in the last 30 days: 401 (Acme, 60 d, on time), 402 (Bluefin, 35 d,
+  //   5 days late), 403 (internal - excluded company-wide) -> 2, avg 48 d, 50 % on time.
+  //   Engineering + Spain hires in the last year: 402 (35), 404 (60), 406 (50) -> 3 events.
+  //   Impossible funnels: 209 (Offers 2 > Interview1 1 - acknowledged), 206 (Responses 18 >
+  //   Outreach 12 - open). Company activity, last 4 weeks, client only: 3 weeks, Outreach 92.
+  //   Scorecard customers: Acme Bank, Bluefin Labs (internal / LCI / expired excluded).
+  mcp: {
+    sentinels: ['ZZQ-', '918273', '827364', '736455', '645546', '554433'],
+    lists: {
+      Projects: [
+        { id: '101', Title: 'Acme Bank',         ProjectType: 'Embedded', Status: 'Active', DeliveryManager: 'dm.one@mg.co', CSDName: 'Casey Director', StartDate: { d: -300 }, EndDate: { d: 300 }, Notes: 'ZZQ-NOTE-P101' },
+        { id: '102', Title: 'Bluefin Labs',      ProjectType: 'CoE',      Status: 'Active', DeliveryManager: 'dm.one@mg.co', CSDName: 'Casey Director', StartDate: { d: -300 }, EndDate: { d: 300 }, Notes: 'ZZQ-NOTE-P102' },
+        { id: '103', Title: 'Momentum Internal', ProjectType: 'Internal', Status: 'Active', DeliveryManager: 'dm.one@mg.co', CSDName: '', StartDate: { d: -300 }, Notes: 'ZZQ-NOTE-P103' },
+        { id: '104', Title: 'Corvid LCI',        ProjectType: 'LCI',      Status: 'Active', DeliveryManager: '', CSDName: '', StartDate: { d: -100 }, Notes: 'ZZQ-NOTE-P104' },
+        { id: '105', Title: 'Delta Old',         ProjectType: 'Embedded', Status: 'Closed', DeliveryManager: '', CSDName: '', StartDate: { d: -900 }, EndDate: { d: -400 }, Notes: 'ZZQ-NOTE-P105' },
+      ],
+      Roles: [
+        { id: '201', ProjectIDLookupId: 101, Title: 'Backend Engineer', Stage: 'Sourcing',        TalentPartner: 'tp.one@mg.co', OpenDate: { d: -30 },  Currency: 'Portugal', Department: 'Engineering', Priority: 'High',   Backfill: false, Budget: 827364, HiringManager: 'ZZQ-HM-201', Notes: 'ZZQ-NOTE-201' },
+        { id: '202', ProjectIDLookupId: 101, Title: 'Data Analyst',     Stage: 'Submitted',       TalentPartner: 'tp.two@mg.co', OpenDate: { d: -12 },  Currency: 'Portugal', Department: 'Data',        Priority: 'Medium', Backfill: false, Budget: 827364, HiringManager: 'ZZQ-HM-202', Notes: 'ZZQ-NOTE-202' },
+        { id: '203', ProjectIDLookupId: 101, Title: 'QA Engineer',      Stage: 'Interview 1',     TalentPartner: 'tp.one@mg.co', OpenDate: { d: -10 },  Currency: 'Spain',    Department: 'Engineering', Priority: 'Low',    Backfill: true,  Budget: 827364, HiringManager: 'ZZQ-HM-203', Notes: 'ZZQ-NOTE-203' },
+        { id: '204', ProjectIDLookupId: 101, Title: 'Product Owner',    Stage: 'Closed',          TalentPartner: 'tp.two@mg.co', OpenDate: { d: -80 },  Currency: 'Portugal', Department: 'Product',     Budget: 827364, HiringManager: 'ZZQ-HM-204', Notes: 'ZZQ-NOTE-204' },
+        { id: '205', ProjectIDLookupId: 101, Title: 'Designer',         Stage: 'On-hold',         TalentPartner: 'tp.one@mg.co', OpenDate: { d: -70 },  Currency: 'Portugal', Department: 'Design',      Budget: 827364, HiringManager: 'ZZQ-HM-205', Notes: 'ZZQ-NOTE-205' },
+        { id: '206', ProjectIDLookupId: 102, Title: 'ML Engineer',      Stage: 'Sourcing',        TalentPartner: 'tp.one@mg.co;tp.two@mg.co', OpenDate: { d: -5 }, Currency: 'Spain', Department: 'Engineering', Budget: 827364, HiringManager: 'ZZQ-HM-206', Notes: 'ZZQ-NOTE-206' },
+        { id: '207', ProjectIDLookupId: 102, Title: 'Platform Lead',    Stage: 'Cancelled',       TalentPartner: 'tp.one@mg.co', OpenDate: { d: -260 }, Currency: 'Spain',    Department: 'Engineering', Budget: 827364, HiringManager: 'ZZQ-HM-207', Notes: 'ZZQ-NOTE-207' },
+        { id: '208', ProjectIDLookupId: 103, Title: 'Recruiter',        Stage: 'Sourcing',        TalentPartner: 'tp.two@mg.co', OpenDate: { d: -40 },  Currency: 'UK',       Department: 'Talent',      Budget: 827364, HiringManager: 'ZZQ-HM-208', Notes: 'ZZQ-NOTE-208' },
+        { id: '209', ProjectIDLookupId: 102, Title: 'SRE',              Stage: 'Offered',         TalentPartner: 'tp.one@mg.co', OpenDate: { d: -60 },  Currency: 'Spain',    Department: 'Engineering', Budget: 827364, HiringManager: 'ZZQ-HM-209', Notes: 'ZZQ-NOTE-209' },
+        { id: '210', ProjectIDLookupId: 101, Title: 'Future Role',      Stage: 'Backlog',         TalentPartner: '',             Currency: 'Portugal', Department: 'Engineering', Budget: 827364, HiringManager: 'ZZQ-HM-210', Notes: 'ZZQ-NOTE-210' },
+        { id: '211', ProjectIDLookupId: 102, Title: 'DevOps Engineer',  Stage: 'Closed',          TalentPartner: 'tp.one@mg.co', OpenDate: { d: -150 }, Currency: 'Spain',    Department: 'Engineering', Budget: 827364, HiringManager: 'ZZQ-HM-211', Notes: 'ZZQ-NOTE-211' },
+      ],
+      RoleHeadcount: [
+        { id: '301', Title: 'Headcount 1', RoleID: 201, ProjectID: 101, Sequence: 1, Status: 'Open',      OpenDate: { d: -30 }, TargetHireDate: { d: 20 }, Notes: 'ZZQ-NOTE-HC' },
+        { id: '302', Title: 'Headcount 2', RoleID: 201, ProjectID: 101, Sequence: 2, Status: 'Open',      Notes: 'ZZQ-NOTE-HC' },
+        { id: '303', Title: 'Headcount 1', RoleID: 202, ProjectID: 101, Sequence: 1, Status: 'Open',      OpenDate: { d: -12 }, TargetHireDate: { d: 30 }, Notes: 'ZZQ-NOTE-HC' },
+        { id: '304', Title: 'Headcount 1', RoleID: 203, ProjectID: 101, Sequence: 1, Status: 'Open',      OpenDate: { d: -10 }, Notes: 'ZZQ-NOTE-HC' },
+        { id: '305', Title: 'Headcount 1', RoleID: 204, ProjectID: 101, Sequence: 1, Status: 'Open',      OpenDate: { d: -80 }, TargetHireDate: { d: -20 }, Notes: 'ZZQ-NOTE-HC' },
+        { id: '306', Title: 'Headcount 2', RoleID: 204, ProjectID: 101, Sequence: 2, Status: 'Cancelled', OpenDate: { d: -80 }, CancelledDate: { d: -50 }, Notes: 'ZZQ-NOTE-HC' },
+        { id: '307', Title: 'Headcount 1', RoleID: 206, ProjectID: 102, Sequence: 1, Status: 'Open',      OpenDate: { d: -5 }, Notes: 'ZZQ-NOTE-HC' },
+        { id: '308', Title: 'Headcount 1', RoleID: 208, ProjectID: 103, Sequence: 1, Status: 'Open',      OpenDate: { d: -40 }, Notes: 'ZZQ-NOTE-HC' },
+        { id: '309', Title: 'Headcount 1', RoleID: 209, ProjectID: 102, Sequence: 1, Status: 'Open',      OpenDate: { d: -60 }, Notes: 'ZZQ-NOTE-HC' },
+        { id: '310', Title: 'Headcount 2', RoleID: 209, ProjectID: 102, Sequence: 2, Status: 'Open',      OpenDate: { d: -60 }, TargetHireDate: { d: -30 }, Notes: 'ZZQ-NOTE-HC' },
+      ],
+      Placements: [
+        { id: '401', Title: 'ZZQ-CANDIDATE-401', RoleIDLookupId: 204, TalentPartner: 'tp.two@mg.co', SalaryAgreed: 918273, Currency: 'EUR', OfferAcceptedDate: { d: -20 },  ProvisionalStartDate: { d: 10 }, HeadcountID: 305, Notes: 'ZZQ-NOTE-PL' },
+        { id: '402', Title: 'ZZQ-CANDIDATE-402', RoleIDLookupId: 209, TalentPartner: 'tp.one@mg.co', SalaryAgreed: 918273, Currency: 'EUR', OfferAcceptedDate: { d: -25 },  ProvisionalStartDate: { d: 5 },  HeadcountID: 310, Notes: 'ZZQ-NOTE-PL' },
+        { id: '403', Title: 'ZZQ-CANDIDATE-403', RoleIDLookupId: 208, TalentPartner: 'tp.two@mg.co', SalaryAgreed: 918273, Currency: 'GBP', OfferAcceptedDate: { d: -15 },  HeadcountID: null, Notes: 'ZZQ-NOTE-PL' },
+        { id: '404', Title: 'ZZQ-CANDIDATE-404', RoleIDLookupId: 207, TalentPartner: 'tp.one@mg.co', SalaryAgreed: 918273, Currency: 'EUR', OfferAcceptedDate: { d: -200 }, HeadcountID: null, Notes: 'ZZQ-NOTE-PL' },
+        { id: '405', Title: 'ZZQ-CANDIDATE-405', RoleIDLookupId: 204, TalentPartner: 'tp.two@mg.co', SalaryAgreed: 918273, Currency: 'EUR', OfferAcceptedDate: { d: -400 }, HeadcountID: null, Notes: 'ZZQ-NOTE-PL' },
+        { id: '406', Title: 'ZZQ-CANDIDATE-406', RoleIDLookupId: 211, TalentPartner: 'tp.one@mg.co', SalaryAgreed: 918273, Currency: 'EUR', OfferAcceptedDate: { d: -100 }, HeadcountID: null, Notes: 'ZZQ-NOTE-PL' },
+      ],
+      RoleHistory: [
+        { id: '501', RoleIDLookupId: 201, Field: 'Stage', OldValue: null, NewValue: 'Sourcing', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -30 } },
+        { id: '502', RoleIDLookupId: 201, Field: 'Budget', OldValue: '736455', NewValue: '645546', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -29 } },
+        { id: '503', RoleIDLookupId: 201, Field: 'HiringManager', OldValue: '', NewValue: 'ZZQ-HM-HIST', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -28 } },
+        { id: '504', RoleIDLookupId: 201, Field: 'Notes', OldValue: '', NewValue: 'ZZQ-NOTE-HIST', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -27 } },
+        { id: '505', RoleIDLookupId: 202, Field: 'Stage', OldValue: null, NewValue: 'Sourcing', ChangedBy: 'tp.two@mg.co', ChangedAt: { d: -12 } },
+        { id: '506', RoleIDLookupId: 202, Field: 'Stage', OldValue: 'Sourcing', NewValue: 'Submitted', ChangedBy: 'tp.two@mg.co', ChangedAt: { d: -3 } },
+        { id: '507', RoleIDLookupId: 203, Field: 'Stage', OldValue: null, NewValue: 'Sourcing', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -10 } },
+        { id: '508', RoleIDLookupId: 203, Field: 'Stage', OldValue: 'Sourcing', NewValue: 'Interview 1', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -2 } },
+        { id: '509', RoleIDLookupId: 204, Field: 'Stage', OldValue: null, NewValue: 'Sourcing', ChangedBy: 'tp.two@mg.co', ChangedAt: { d: -80 } },
+        { id: '510', RoleIDLookupId: 204, Field: 'Stage', OldValue: 'Offered', NewValue: 'Closed', ChangedBy: 'tp.two@mg.co', ChangedAt: { d: -20 } },
+        { id: '511', RoleIDLookupId: 206, Field: 'Stage', OldValue: null, NewValue: 'Sourcing', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -5 } },
+        { id: '512', RoleIDLookupId: 207, Field: 'Stage', OldValue: null, NewValue: 'Sourcing', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -260 } },
+        { id: '513', RoleIDLookupId: 207, Field: 'Stage', OldValue: 'Sourcing', NewValue: 'Cancelled', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -190 } },
+        { id: '514', RoleIDLookupId: 208, Field: 'Stage', OldValue: null, NewValue: 'Sourcing', ChangedBy: 'tp.two@mg.co', ChangedAt: { d: -40 } },
+        { id: '515', RoleIDLookupId: 209, Field: 'Stage', OldValue: null, NewValue: 'Sourcing', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -60 } },
+        { id: '516', RoleIDLookupId: 209, Field: 'Stage', OldValue: 'Interview 2+', NewValue: 'Final Interview', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -20 } },
+        { id: '517', RoleIDLookupId: 209, Field: 'Stage', OldValue: 'Final Interview', NewValue: 'Offered', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -15 } },
+        { id: '518', RoleIDLookupId: 211, Field: 'Stage', OldValue: null, NewValue: 'Sourcing', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -150 } },
+        { id: '519', RoleIDLookupId: 211, Field: 'Stage', OldValue: 'Offered', NewValue: 'Closed', ChangedBy: 'tp.one@mg.co', ChangedAt: { d: -100 } },
+      ],
+      WeeklyActivity: [
+        { id: '601', RoleIDLookupId: 201, ProjectIDLookupId: 101, TalentPartner: 'tp.one@mg.co', WeekEndingDate: { w: 1 }, Outreach: 30, Responses: 2, Screened: 1, Submitted: 0, Interview1: 0, InterviewTwoPlus: 0, FinalInterview: 0, Offers: 0, Hires: 0 },
+        { id: '602', RoleIDLookupId: 202, ProjectIDLookupId: 101, TalentPartner: 'tp.two@mg.co', WeekEndingDate: { w: 1 }, Outreach: 20, Responses: 5, Screened: 4, Submitted: 3, Interview1: 0, InterviewTwoPlus: 0, FinalInterview: 0, Offers: 0, Hires: 0 },
+        { id: '603', RoleIDLookupId: 202, ProjectIDLookupId: 101, TalentPartner: 'tp.two@mg.co', WeekEndingDate: { w: 2 }, Outreach: 20, Responses: 5, Screened: 4, Submitted: 3, Interview1: 1, InterviewTwoPlus: 0, FinalInterview: 0, Offers: 0, Hires: 0 },
+        { id: '604', RoleIDLookupId: 203, ProjectIDLookupId: 101, TalentPartner: 'tp.one@mg.co', WeekEndingDate: { w: 1 }, Outreach: 10, Responses: 4, Screened: 4, Submitted: 4, Interview1: 3, InterviewTwoPlus: 1, FinalInterview: 0, Offers: 0, Hires: 0 },
+        { id: '605', RoleIDLookupId: 206, ProjectIDLookupId: 102, TalentPartner: 'tp.one@mg.co', WeekEndingDate: { w: 1 }, Outreach: 12, Responses: 3, Screened: 0, Submitted: 0, Interview1: 0, InterviewTwoPlus: 0, FinalInterview: 0, Offers: 0, Hires: 0 },
+        { id: '606', RoleIDLookupId: 206, ProjectIDLookupId: 102, TalentPartner: 'tp.one@mg.co', WeekEndingDate: { w: 2 }, Outreach: 0,  Responses: 15, Screened: 0, Submitted: 0, Interview1: 0, InterviewTwoPlus: 0, FinalInterview: 0, Offers: 0, Hires: 0 },
+        { id: '607', RoleIDLookupId: 209, ProjectIDLookupId: 102, TalentPartner: 'tp.one@mg.co', WeekEndingDate: { w: 3 }, Outreach: 0,  Responses: 0, Screened: 0, Submitted: 1, Interview1: 1, InterviewTwoPlus: 1, FinalInterview: 1, Offers: 2, Hires: 0 },
+        { id: '608', RoleIDLookupId: 208, ProjectIDLookupId: 103, TalentPartner: 'tp.two@mg.co', WeekEndingDate: { w: 1 }, Outreach: 50, Responses: 10, Screened: 5, Submitted: 2, Interview1: 1, InterviewTwoPlus: 0, FinalInterview: 0, Offers: 0, Hires: 0 },
+        { id: '609', RoleIDLookupId: 204, ProjectIDLookupId: 101, TalentPartner: 'tp.two@mg.co', WeekEndingDate: { w: 12 }, Outreach: 40, Responses: 10, Screened: 6, Submitted: 5, Interview1: 3, InterviewTwoPlus: 2, FinalInterview: 1, Offers: 1, Hires: 1 },
+      ],
+      UserAssignments: [
+        { id: '701', Title: 'tp.one@mg.co', UserName: 'Tess One',     AssignedRole: 'talent_partner',   ProjectID: 101 },
+        { id: '702', Title: 'tp.two@mg.co', UserName: 'Tom Two',      AssignedRole: 'talent_partner',   ProjectID: 101 },
+        { id: '703', Title: 'dm.one@mg.co', UserName: 'Dana Manager', AssignedRole: 'delivery_manager', ProjectID: 101 },
+      ],
+      Assignments: [
+        { id: '801', Title: 'A-801', EmployeeName: 'Tess One',     Customer: 'Acme Bank',         StartDate: { d: -100 }, EndDate: { d: 100 }, Billed: 'Yes', MonthlyBillRate: 554433 },
+        { id: '802', Title: 'A-802', EmployeeName: 'Tom Two',      Customer: 'Bluefin Labs',      StartDate: { d: -100 }, EndDate: { d: 100 }, Billed: 'Yes', MonthlyBillRate: 554433 },
+        { id: '803', Title: 'A-803', EmployeeName: 'Dana Manager', Customer: 'Momentum Internal', StartDate: { d: -100 }, EndDate: { d: 100 }, Billed: 'No',  MonthlyBillRate: 554433 },
+        { id: '804', Title: 'A-804', EmployeeName: 'Tess One',     Customer: 'Corvid LCI',        StartDate: { d: -100 }, EndDate: { d: 100 }, Billed: 'Yes', MonthlyBillRate: 554433 },
+        { id: '805', Title: 'A-805', EmployeeName: 'Tom Two',      Customer: 'Delta Old',         StartDate: { d: -500 }, EndDate: { d: -400 }, Billed: 'Yes', MonthlyBillRate: 554433 },
+      ],
+      AnomalyAcks: [
+        { id: '901', Title: 'funnel · 209', CheckType: 'funnel', SubjectKey: '209', Signature: 'Offers:2>Interview1:1', Note: 'ZZQ-ACKNOTE', AcknowledgedBy: 'dm.one@mg.co', AcknowledgedAt: '2026-10-01T09:00:00Z', Status: 'active' },
+      ],
+    },
+  },
 };

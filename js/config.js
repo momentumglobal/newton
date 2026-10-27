@@ -1356,7 +1356,13 @@ const CONFIG = {
   //                 write. N-393/N-394 add lists with a reason each.
   //   allowedRoles  MCP-D5. Who may use it. A usage gate, not a security boundary.
   //   gateTtlMs     how long a resolved role is reused before getEffectiveRole runs again.
-  //   (outputDenyFields arrives with N-393.)
+  //   outputDenyFields  N-393 (MCP-D6): field names (after FIELD_ALIASES) that may never be a
+  //                 key in any tool output - read locally to compute, never returned.
+  //                 mcpOutputGuard (mcp/newton-tools.js) enforces it on every result.
+  //   windows       N-393: default / maximum week windows for the tools (mcp/newton-tools.js).
+  //   maxRows       N-393: row cap for list tools; they report total + truncated.
+  // The bundle reads only contract/scripts/allowedLists/allowedRoles/gateTtlMs; the N-393
+  // keys are read by mcp/newton-tools.js alone, so adding them needs no contract bump.
   MCP: {
     contract: 1,
     scripts: [
@@ -1367,9 +1373,29 @@ const CONFIG = {
     allowedLists: [
       'Projects', 'Roles', 'RoleHeadcount', 'RoleHistory', 'WeeklyActivity', 'Placements',
       'People', 'Assignments', 'SalesForecasts', 'UserAssignments', 'LeadershipAccess',
+      'AnomalyAcks',   // N-393: activity_summary marks acknowledged funnel flags as Data Health does. Read only; Note never returned.
     ],
     allowedRoles: ['admin', 'leadership'],
     gateTtlMs: 600000,   // 10 minutes
+    outputDenyFields: {
+      Projects:       ['Notes'],
+      Roles:          ['Budget', 'Currency', 'HiringManager', 'Notes'],
+      Placements:     ['CandidateName', 'SalaryAgreed', 'Currency', 'Notes'],
+      RejectedOffers: ['CandidateName', 'SalaryOffered', 'RejectionReason', 'Notes'],
+      RoleHeadcount:  ['Notes'],
+      RoleHistory:    ['OldValue', 'NewValue'],   // the stage timeline is re-keyed to from/to (Stage rows only)
+      AnomalyAcks:    ['Note'],
+      Assignments:    ['MonthlyBillRate'],        // N-394 completes the money columns for its tools
+    },
+    windows: {
+      summaryWeeks:      13,   // project_summary hires window (default)
+      flagActivityWeeks: 13,   // list_roles activity read - the CC Health tile's window (cc-pages.js renderCCOverview)
+      roleWeeks:         12,   // role_detail funnel totals
+      activityWeeks:     4,    // activity_summary (default)
+      benchmarkWeeks:    52,   // project_scorecards learning window - as cc-pages.js renderHealthDetail
+      maxWeeks:          52,   // upper bound for any weeks argument
+    },
+    maxRows: 200,
   },
 
   // ── LCI Cost Model + Lead Magnet: CONFIG.LCI and CONFIG.LCI_DISCIPLINES live in js/lci-config.js (sales.html only) ──

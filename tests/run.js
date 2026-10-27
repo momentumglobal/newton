@@ -73,6 +73,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'sla-rollup.js'),       // N-385: roll-up markup (declarations only); loads before sla-panel.js
   path.join(JS_DIR, 'sla-panel.js'),        // N-384: markup + render-from-cache are asserted; mounts need a DOM
   path.join(JS_DIR, 'rejection-intel.js'),  // N-388: Rejection Intelligence markup (declarations only)
+  path.join(TESTS_DIR, '..', 'mcp', 'newton-tools.js'),   // N-393: Newton for Claude tools (declarations + MCP_TOOLS only)
   path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),
   path.join(TESTS_DIR, 'lint-alias-consumers.js'),
@@ -90,6 +91,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'lint-inline-styles.js'),
   path.join(TESTS_DIR, 'lint-internal-kpi.js'),
   path.join(TESTS_DIR, 'lint-project-types.js'),
+  path.join(TESTS_DIR, 'lint-mcp.js'),            // N-393
   path.join(TESTS_DIR, 'fixtures.js'),
   path.join(TESTS_DIR, 'assertions.js'),
   path.join(TESTS_DIR, 'assert-dates.js'),
@@ -114,6 +116,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-sla-rollup.js'),   // N-385
   path.join(TESTS_DIR, 'assert-rejection-intel.js'),   // N-387
   path.join(TESTS_DIR, 'assert-rejection-intel-ui.js'),   // N-388
+  path.join(TESTS_DIR, 'assert-mcp.js'),          // N-393 (sync checks; the handlers run in mcp-tools-check.js)
 ];
 // N-259: starter-folder-logic.js (pure) loads straight after checklist-logic.js, which it calls.
 // N-361: project-team.js (pure) loads straight after permissions.js; assert-project-team.js is the last assertion file.
@@ -186,6 +189,11 @@ sandbox.REPO_FILES = {
   readme: _readIfExists(path.join(ROOT_DIR, 'README.md')),
 };
 
+// N-393: lint-mcp.js / assert-mcp.js scan the Newton for Claude tools file's source text.
+sandbox.MCP_SOURCES = {
+  'newton-tools.js': fs.readFileSync(path.join(ROOT_DIR, 'mcp', 'newton-tools.js'), 'utf8'),
+};
+
 vm.createContext(sandbox);
 
 for (const file of SOURCE_FILES) {
@@ -224,12 +232,15 @@ for (const { name, fn } of assertions) {
 // results are counted here, in the same totals and exit code.
 // The watchdog is a live timer on purpose: if a check ever awaited something that can
 // never settle, Node would otherwise exit 0 here with nothing printed - a silent pass.
+// N-393: tests/mcp-tools-check.js runs the reporting tools' handlers through the real loader
+// against a fixture Graph, after the bootstrap checks; the watchdog covers both.
 const mcpWatchdog = setTimeout(() => {
-  console.log('FAIL  N-392 Newton for Claude bootstrap checks did not finish within 60 s');
+  console.log('FAIL  N-392/N-393 Newton for Claude checks did not finish within 90 s');
   process.exit(1);
-}, 60000);
+}, 90000);
 (async () => {
-  const mcpChecks = await require('./mcp-bootstrap-check.js').run();
+  const mcpChecks = (await require('./mcp-bootstrap-check.js').run())
+    .concat(await require('./mcp-tools-check.js').run());
   clearTimeout(mcpWatchdog);
   for (const c of mcpChecks) {
     if (c.ok) {
@@ -247,7 +258,7 @@ const mcpWatchdog = setTimeout(() => {
 
   if (failures > 0) process.exit(1);
 })().catch(err => {
-  console.log('FAIL  N-392 Newton for Claude bootstrap checks did not run');
+  console.log('FAIL  N-392/N-393 Newton for Claude checks did not run');
   console.log(`      ${err && err.stack ? err.stack : err}`);
   process.exit(1);
 });

@@ -1,11 +1,14 @@
 // tests/mcp-bootstrap-check.js - N-392: Node-side checks of the Newton for Claude bootstrap
-// (mcp/bootstrap/server.js, auth-node.js, loader.js).
+// (mcp/bootstrap/server.js, server-core.js, auth-node.js, loader.js).
 //
 // Run by tests/run.js after the vm assertions, because the bootstrap files are CommonJS
 // Node modules (http, child_process) that cannot load in the vm. Node built-ins only.
 // No network: Newton's scripts are read from this checkout (loader localDir mode), Graph
 // and the Microsoft token endpoint are fakes, DPAPI is a fake protector, the browser is a
 // captured URL. The loopback sign-in listener is real (127.0.0.1).
+// Exception (diff-2): two checks start the real entry point, server.js, in a child
+// process, the way Claude Desktop's launcher loads it. That child begins its normal
+// live-script fetch; the checks only need its initialize reply and never use what loads.
 //
 // run() resolves [{ name, ok, message }]. While it runs, process.stdout/stderr writes are
 // captured: the last checks assert nothing reached stdout (the MCP protocol channel) and
@@ -16,6 +19,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const http = require('http');
+const { spawn } = require('child_process');
+const { EventEmitter } = require('events');
 
 const ROOT = path.join(__dirname, '..');
 const BOOT = path.join(ROOT, 'mcp', 'bootstrap');
@@ -99,6 +104,25 @@ function httpGet(port, pathq) {
     }).on('error', reject);
   });
 }
+// Runs `node -e <code>` and feeds `input` (if any) on stdin, closing stdin once the first
+// stdout line arrives. Resolves { code, stdout, stderr, timedOut }.
+function runChild(code, input, ms = 10000) {
+  return new Promise(resolve => {
+    const child = spawn(process.execPath, ['-e', code], { stdio: ['pipe', 'pipe', 'pipe'], env: Object.assign({}, process.env) });
+    let out = '';
+    let err = '';
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; child.kill(); }, ms);
+    child.stdout.on('data', d => {
+      out += d;
+      if (out.includes('\n') && !child.stdin.destroyed) child.stdin.end();
+    });
+    child.stderr.on('data', d => { err += d; });
+    child.on('close', exitCode => { clearTimeout(timer); resolve({ code: exitCode, stdout: out, stderr: err, timedOut }); });
+    child.stdin.on('error', () => {});
+    if (input !== null) child.stdin.write(input); else child.stdin.end();
+  });
+}
 const stubShim = token => ({
   getToken: async () => token,
   getCurrentUser: () => ({ email: null, name: null }),
@@ -134,16 +158,16 @@ async function run() {
   process.stderr.write = function (chunk) { errChunks.push(String(chunk)); return true; };
   let mods = null;
   try {
-    await check('bootstrap modules load with require() and leave console alone (main() only runs as the entry point)', async () => {
+    await check('bootstrap modules load with require() and leave console alone (server-core.js has no side effects; only server.js starts the server)', async () => {
       mods = {
-        server: require(path.join(BOOT, 'server.js')),
+        server: require(path.join(BOOT, 'server-core.js')),
         auth: require(path.join(BOOT, 'auth-node.js')),
         loader: require(path.join(BOOT, 'loader.js')),
       };
-      ok(console.log === consoleLogBefore, 'requiring server.js replaced console.log');
+      ok(console.log === consoleLogBefore, 'requiring server-core.js replaced console.log');
     });
     if (!mods) return results;
-    const { createServer, MCP_CONTRACT, BUNDLE_VERSION, DOWNLOAD_URL, MSG } = mods.server;
+    const { createServer, MCP_CONTRACT, BUNDLE_VERSION, DOWNLOAD_URL, MSG, readLines } = mods.server;
     const { createAuth, pkceChallenge, SCOPES } = mods.auth;
     const { createLoader, createStorage, createGraphFetchShim } = mods.loader;
 
@@ -494,6 +518,47 @@ async function run() {
       ok(hung.isError && hung.text === MSG.timeout, 'timeout: ' + hung.text);
       eq((await h.req('ping')).result, {}, 'ping after a hung handler');
       serverLines.push(...h.lines);
+    });
+
+    // ── diff-2: the entry point, loaded the way Claude Desktop loads it ──
+    await check('diff-2 server.js answers initialize when another module loads it (Claude Desktop\'s launcher) - over real pipes and over a plain-emitter stdin', async () => {
+      const entry = path.join(BOOT, 'server.js');
+      const INIT = JSON.stringify({ jsonrpc: '2.0', id: 0, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } } });
+      const viaRequire = `require(${JSON.stringify(entry)});`;
+      const viaEmitter = [
+        "const { EventEmitter } = require('events');",
+        'const fake = new EventEmitter();',
+        "Object.defineProperty(process, 'stdin', { value: fake, configurable: true });",
+        `require(${JSON.stringify(entry)});`,
+        `setTimeout(() => { fake.emit('data', Buffer.from(${JSON.stringify(INIT + '\n')})); setTimeout(() => fake.emit('end'), 300); }, 50);`,
+      ].join('\n');
+      for (const [label, code, input] of [['required by another module, real pipes', viaRequire, INIT + '\n'], ['plain-emitter stdin', viaEmitter, null]]) {
+        const r = await runChild(code, input);
+        ok(!r.timedOut, `${label}: no reply within 10 s (stderr: ${r.stderr.slice(0, 200)})`);
+        const lines = r.stdout.split('\n').filter(Boolean);
+        ok(lines.length >= 1, `${label}: nothing on stdout`);
+        const msgs = lines.map(l => { try { return JSON.parse(l); } catch (e) { return null; } });
+        ok(msgs.every(m => m && m.jsonrpc === '2.0'), `${label}: a stdout line is not JSON-RPC: ${r.stdout.slice(0, 200)}`);
+        eq([msgs[0].id, msgs[0].result && msgs[0].result.serverInfo.version], [0, BUNDLE_VERSION], `${label}: initialize reply`);
+        ok(r.stderr.includes(`[newton-mcp] server started, bundle ${BUNDLE_VERSION}`), `${label}: no start-up line on stderr`);
+        eq(r.code, 0, `${label}: exit code after stdin ended`);
+      }
+    });
+
+    await check('diff-2 readLines: lines split across chunks, a multi-byte character split across Buffers, CRLF, blank lines and a final line with no newline', async () => {
+      const src = new EventEmitter();
+      const got = [];
+      let ended = 0;
+      readLines(src, l => got.push(l), () => { ended++; });
+      const bytes = Buffer.from('{"a":"caf\u00e9"}\r\n\n{"b":1}\n{"c"', 'utf8');
+      const cut = bytes.indexOf(0xc3) + 1;   // split inside the two-byte e-acute
+      src.emit('data', bytes.subarray(0, cut));
+      src.emit('data', bytes.subarray(cut));
+      src.emit('data', ':2}');
+      src.emit('end');
+      src.emit('close');
+      eq(got, ['{"a":"caf\u00e9"}', '{"b":1}', '{"c":2}'], 'lines');
+      eq(ended, 1, 'onEnd calls');
     });
 
     // ── AC 12: manifest ─────────────────────────────────────────────

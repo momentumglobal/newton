@@ -38,13 +38,13 @@
         _assertEqual(CONFIG.SLA.ROLLUP_PERIOD, '90d', 'AC1 fixed period');
         const p = CONFIG.SLA.PERIODS.find(x => x.key === CONFIG.SLA.ROLLUP_PERIOD);
         _assertEqual(Number.isInteger(p.days) && p.days > 0, true, 'AC1 a bounded window');
-        _assertEqual(CONFIG.ROLE_CAPABILITIES.slaRollupReport, ['admin', 'leadership', 'delivery_manager'], 'AC1 capability roles');
+        _assertEqual(CONFIG.ROLE_CAPABILITIES.slaRollupReport, ['admin', 'delivery_manager'], 'AC1 capability roles (N-396: no Leadership)');
         _assertEqual(slaPanelConfigCheck(), true, 'AC1 live config passes');
         throwsOn(() => slaPanelConfigCheck(clone(c => { c.ROLLUP_PERIOD = 'nope'; })), 'AC1 unknown key');
         throwsOn(() => slaPanelConfigCheck(clone(c => { c.ROLLUP_PERIOD = 'all'; })), 'AC1 the all-time key');
         throwsOn(() => slaPanelConfigCheck(clone(c => { delete c.ROLLUP_PERIOD; })), 'AC1 missing');
-        ['admin', 'leadership', 'delivery_manager'].forEach(r => _assertEqual(canViewSlaRollupReport(r), true, 'AC1 ' + r));
-        ['talent_partner', 'people_ops', 'sales', 'staff', 'viewer', 'nobody', undefined].forEach(r => _assertEqual(canViewSlaRollupReport(r), false, 'AC1 not ' + r));
+        ['admin', 'delivery_manager'].forEach(r => _assertEqual(canViewSlaRollupReport(r), true, 'AC1 ' + r));
+        ['leadership', 'talent_partner', 'people_ops', 'sales', 'staff', 'viewer', 'nobody', undefined].forEach(r => _assertEqual(canViewSlaRollupReport(r), false, 'AC1 not ' + r));
         _assertEqual(canViewSlaPortfolio('leadership') && !canViewSlaPortfolio('delivery_manager'), true, 'CC section stays Admin / Leadership');
       },
     },

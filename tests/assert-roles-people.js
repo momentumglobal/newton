@@ -93,16 +93,16 @@ ASSERTIONS.push(
         engagementResults: ['admin', 'leadership', 'people_ops'],
         engagementAdmin:   ['admin', 'people_ops'],
         salesManage:       ['admin', 'leadership', 'sales'],
-        projectTeamEdit:   ['admin', 'leadership', 'people_ops'],   // N-365
-        slaTargetsEdit:    ['admin', 'leadership'],                  // N-382
-        slaTargetsView:    ['admin', 'leadership', 'delivery_manager'],   // N-382
-        slaPanelView:      ['admin', 'leadership', 'delivery_manager'],   // N-384
-        slaPortfolioView:  ['admin', 'leadership'],                       // N-384
-        slaRollupReport:   ['admin', 'leadership', 'delivery_manager'],   // N-385
-        rejectionIntelView:    ['admin', 'leadership', 'delivery_manager'],   // N-388
-        rejectionIntelFigures: ['admin', 'leadership'],                       // N-388
+        projectTeamEdit:   ['admin', 'leadership', 'people_ops'],                 // N-365
+        slaTargetsEdit:    ['admin', 'leadership'],                               // N-382
+        slaTargetsView:    ['admin', 'leadership', 'delivery_manager'],           // N-382
+        slaPanelView:      ['admin', 'leadership', 'delivery_manager'],           // N-384
+        slaPortfolioView:  ['admin', 'leadership'],                               // N-384
+        slaRollupReport:   ['admin', 'delivery_manager'],                         // N-385, N-396
+        rejectionIntelView:    ['admin', 'leadership', 'delivery_manager'],       // N-388
+        rejectionIntelFigures: ['admin', 'leadership'],                           // N-388
         rejectionsList:        ['admin', 'delivery_manager', 'talent_partner'],   // N-388
-        rejectionIntelReport:  ['admin', 'leadership', 'delivery_manager'],   // N-388
+        rejectionIntelReport:  ['admin', 'delivery_manager'],                     // N-388, N-396
       };
       _assertEqual(Object.keys(CONFIG.ROLE_CAPABILITIES).sort(), Object.keys(expect).sort(), 'capability set');
       Object.keys(expect).forEach(cap => roles.forEach(r =>

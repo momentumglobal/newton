@@ -124,19 +124,21 @@ const CONFIG = {
     // Leadership only, DMs have no portfolio path.
     slaPanelView:      ['admin', 'leadership', 'delivery_manager'],
     slaPortfolioView:  ['admin', 'leadership'],
-    // N-385 (DA-5): the Report Builder SLA Roll-up module (company scope). Admin and Leadership
-    // see every project; a Delivery Manager sees only their own (scoped in getSlaRollupInputs by
-    // getUserProjectIds). Talent Partners never. The Command Centre section uses slaPortfolioView.
-    slaRollupReport:   ['admin', 'leadership', 'delivery_manager'],
+    // N-385 (DA-5): the Report Builder SLA Roll-up module (company scope). Admin sees every
+    // project; a Delivery Manager sees only their own (scoped in getSlaRollupInputs by
+    // getUserProjectIds). Talent Partners never. N-396: Leadership has no Report Library page, so
+    // it is not listed; it reads the roll-up in the Command Centre (slaPortfolioView) instead.
+    slaRollupReport:   ['admin', 'delivery_manager'],
     // N-388 (DA-8): Rejection Intelligence. View = the tab on the Rejected Offers page (Admin,
     // Leadership, and Delivery Managers on their own projects, scoped in getRejectionIntelInputs).
     // Figures = benchmark / offer amounts, Admin and Leadership only: a DM sees the % gap, never
     // an amount (N-387 decision). List = the candidate-level Rejected Offers list, which Leadership
-    // deliberately does not get. Report = the company-scope Report Builder module.
+    // deliberately does not get. Report = the company-scope Report Builder module (N-396: Admin and
+    // Delivery Managers only; Leadership has no Report Library page and uses the tab).
     rejectionIntelView:    ['admin', 'leadership', 'delivery_manager'],
     rejectionIntelFigures: ['admin', 'leadership'],
     rejectionsList:        ['admin', 'delivery_manager', 'talent_partner'],
-    rejectionIntelReport:  ['admin', 'leadership', 'delivery_manager'],
+    rejectionIntelReport:  ['admin', 'delivery_manager'],
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of

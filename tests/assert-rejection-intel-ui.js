@@ -32,12 +32,13 @@
         _assertEqual(C.rejectionIntelView, ['admin', 'leadership', 'delivery_manager'], 'AC1 view');
         _assertEqual(C.rejectionIntelFigures, ['admin', 'leadership'], 'AC1 figures');
         _assertEqual(C.rejectionsList, ['admin', 'delivery_manager', 'talent_partner'], 'AC1 list');
-        _assertEqual(C.rejectionIntelReport, ['admin', 'leadership', 'delivery_manager'], 'AC1 report');
+        _assertEqual(C.rejectionIntelReport, ['admin', 'delivery_manager'], 'AC1 report (N-396: no Leadership)');
         const who = fn => ROLES.filter(r => fn(r));
         _assertEqual(who(canViewRejectionIntel), ['admin', 'leadership', 'delivery_manager'], 'AC2 canViewRejectionIntel');
         _assertEqual(who(canViewRejectionIntelFigures), ['admin', 'leadership'], 'AC2 canViewRejectionIntelFigures');
         _assertEqual(who(canViewRejectionsList), ['admin', 'delivery_manager', 'talent_partner'], 'AC2 canViewRejectionsList');
-        _assertEqual(who(canViewRejectionIntelReport), ['admin', 'leadership', 'delivery_manager'], 'AC2 canViewRejectionIntelReport');
+        _assertEqual(who(canViewRejectionIntelReport), ['admin', 'delivery_manager'], 'AC2 canViewRejectionIntelReport');
+        _assertEqual(canViewRejectionIntel('leadership') && canViewRejectionIntelFigures('leadership'), true, 'N-396 Leadership keeps the tab and figures');
         const bar = CONFIG.COMMAND_BAR_PAGES.find(p => p.key === 'rejections');
         _assertEqual(bar.roles.slice().sort(), ['admin', 'delivery_manager', 'leadership', 'talent_partner'], 'AC1 command-bar roles');
         if (typeof ALL_SOURCES !== 'undefined') {

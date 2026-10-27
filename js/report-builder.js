@@ -54,7 +54,7 @@ const RB_PALETTE = [
   { key: 'rejections',       label: 'Offer Rejection Reasons',    scope: 'both',    group: 'Placements & Rejections', filtered: true },
   // N-385: company scope only; `cap` = a CONFIG.ROLE_CAPABILITIES key the viewer must hold.
   { key: 'slaRollup',        label: 'SLA Roll-up (last 90 days)', scope: 'company', group: 'Delivery Assurance', cap: 'slaRollupReport' },
-  // N-388: company scope only; follows the report's period; amounts only for Admin / Leadership viewers.
+  // N-388: company scope only; follows the report's period; amounts only for Admin viewers (N-396).
   { key: 'rejectionIntel',   label: 'Rejection Intelligence',     scope: 'company', group: 'Delivery Assurance', cap: 'rejectionIntelReport' },
 ];
 
@@ -577,7 +577,7 @@ async function rbFetchData() {
   }
 }
 
-// N-385: the SLA Roll-up module's model for the current user (Admin / Leadership all projects, a DM
+// N-385: the SLA Roll-up module's model for the current user (Admin all projects, a DM
 // their own - scoped inside getSlaRollupInputs). null = the read failed: the module prints its
 // unavailable line and every other block still renders.
 async function rbLoadSlaRollup() {
@@ -592,7 +592,7 @@ async function rbLoadSlaRollup() {
   }
 }
 
-// N-388: the Rejection Intelligence module's inputs for the current user (Admin / Leadership all
+// N-388: the Rejection Intelligence module's inputs for the current user (Admin all
 // projects, a DM their own - scoped inside getRejectionIntelInputs). Un-windowed: the panel cuts them
 // by the report's period. null = the read failed: the module prints its unavailable line and every
 // other block still renders.

@@ -545,7 +545,7 @@ ASSERTIONS.push(
       _assertEqual(load.indexOf('bpApplyRoleAutofill') === -1, true, 'AC7 opening a pack never overwrites its saved fields');
 
       const side = fnBody('function bpRenderSidebar(');
-      _assertEqual(/_bpProjectId \? '' : '<option value="" selected>Select a project\.\.\.<\/option>'/.test(side), true, 'AC6 placeholder only while no project is chosen');
+      _assertEqual(/_bpProjects\.some\(p => String\(p\.id\) === String\(_bpProjectId\)\) \? '' : '<option value="" selected>Select a project\.\.\.<\/option>'/.test(side), true, 'AC6 placeholder whenever no option matches the pack\'s project (none chosen, or its row is gone)');
       _assertEqual(/function bpSetProject\(val\)/.test(src) && /async function bpSetProject\(val\)[\s\S]*?_bpRoleId\s*=\s*'';[\s\S]*?bpLoadRoles\(\)[\s\S]*?bpApplyRoleAutofill\(\)/.test(src), true, 'AC3 changing project resets role, reloads roles and re-fills the header');
       const save = fnBody('async function bpSavePack(');
       _assertEqual(/ProjectID:\s+_bpProjectId \? parseInt\(_bpProjectId\) : null/.test(save) && /RoleID:\s+_bpRoleId\s+\? parseInt\(_bpRoleId\)\s+: null/.test(save), true, 'AC3 save writes the chosen ProjectID / RoleID');

@@ -420,7 +420,7 @@ function bpRenderSidebar() {
   const active  = sorted.filter(isProjectActive);
   const archive = sorted.filter(p => !isProjectActive(p));
   const projectOpts = [
-    _bpProjectId ? '' : '<option value="" selected>Select a project...</option>',
+    _bpProjects.some(p => String(p.id) === String(_bpProjectId)) ? '' : '<option value="" selected>Select a project...</option>',
     active.length  ? `<optgroup label="Active">${buildProjectOptionsHtml(active, _bpProjectId)}</optgroup>`   : '',
     archive.length ? `<optgroup label="Archive">${buildProjectOptionsHtml(archive, _bpProjectId)}</optgroup>` : '',
   ].join('');

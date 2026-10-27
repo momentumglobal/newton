@@ -1165,6 +1165,37 @@ function slaSeedPlan(rows) {
     .map(t => Object.assign({ Title: 'Default · ' + t, ProjectType: t }, seed));
 }
 
+// ── SLA integrity checks (N-389 / DA-9) ───────────────────────────────
+// Pure: the two Admin > Data Health checks over SLATargets. projects = every project (any
+// status, getProjects(false)); rows = every SLATargets row.
+//   noTargets       - active projects of an SLA-eligible type whose four targets all resolve to
+//                     null. reason 'noRow' = no override and no default row apply; 'blank' = a row
+//                     applies but every value is blank. One resolvable metric is enough.
+//   orphanOverrides - override rows whose ProjectID matches no project at all.
+// Rows are ordered by item id. Inputs are never mutated.
+function checkSlaIntegrity({ projects, rows } = {}) {
+  const ps = (Array.isArray(projects) ? projects : []).filter(Boolean);
+  const rs = (Array.isArray(rows) ? rows : []).filter(Boolean);
+  const byId = (a, b) => Number(a.id) - Number(b.id);
+  const projectIds = new Set(ps.map(p => String(p.id)));
+  const noTargets = ps
+    .filter(p => {
+      if (!isProjectActive(p)) return false;
+      const t = slaTargetsFor(p, rs);   // null for ineligible types
+      return !!t && CONFIG.SLA.METRICS.every(m => t[m.key].value === null);
+    })
+    .sort(byId)
+    .map(p => {
+      const { ov, df } = _slaPickRows(p, rs);
+      return { id: p.id, label: p.Title || ('Project ' + p.id), type: p.ProjectType, reason: (ov || df) ? 'blank' : 'noRow' };
+    });
+  const orphanOverrides = rs
+    .filter(r => slaRowKind(r) === 'override' && !projectIds.has(String(Number(r.ProjectID))))
+    .sort(byId)
+    .map(r => ({ rowId: r.id, projectId: Number(r.ProjectID), label: r.Title || '' }));
+  return { noTargets, orphanOverrides };
+}
+
 // ── SLA target editor (N-382 / DA-2) ──────────────────────────────────
 // Pure rules behind the Config Panel defaults tab and the Project page overrides editor.
 

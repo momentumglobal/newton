@@ -1152,12 +1152,23 @@ async function _dhFetchSlaTargets() {
   if (!columns.ok) return { ok: false, missing: [], rows: [] };
   // Missing columns: the projected row read would 400, so do not attempt it.
   if (columns.missing.length) return { ok: true, missing: columns.missing, rows: [] };
+  let rows;
   try {
-    return { ok: true, missing: [], rows: await getSLATargets() };
+    rows = await getSLATargets();
   } catch (e) {
     console.warn('Data Health: SLATargets read failed', e);
     return { ok: false, missing: [], rows: [] };
   }
+  // N-389: the two integrity checks need every project (any status). A failed Projects read
+  // is { ok: false } and renders as Query error, never zeros (N-138); the section still shows.
+  let integrity;
+  try {
+    integrity = Object.assign({ ok: true }, checkSlaIntegrity({ projects: await getProjects(false), rows }));
+  } catch (e) {
+    console.warn('Data Health: SLA checks could not read Projects', e);
+    integrity = { ok: false };
+  }
+  return { ok: true, missing: [], rows, integrity };
 }
 
 function _dhRenderSlaTargetsHtml(data) {
@@ -1184,15 +1195,48 @@ function _dhRenderSlaTargetsHtml(data) {
       </tbody>
     </table>
     </div>
-    ${seed}${_dhSlaSeedResultHtml()}`;
+    ${seed}${_dhSlaSeedResultHtml()}
+    ${_dhSlaChecksHtml(s.integrity)}`;
   }
   return `    <h3>SLA targets (N-381)</h3>
     <p class="dh-note">
-      Company default SLA targets live in the SLATargets list, one row per project type; a project can override them (set from the Project page once the editor ships).
+      Company default SLA targets live in the SLATargets list, one row per project type; Admin and Leadership can override them per project on the Project page.
       Seed defaults only creates a missing default row — an existing row is never changed — and it is safe to run again.
+      Two checks follow. An active project whose targets are all blank is not being measured: set targets in the Config Panel SLA targets tab or on its Project page.
+      An override row whose project no longer exists does nothing: delete the row in SharePoint.
     </p>
     ${body}
 `;
+}
+
+// N-389: the two SLA integrity checks, in the Headcount integrity table shape. integrity is
+// { ok, noTargets, orphanOverrides } from _dhFetchSlaTargets; { ok: false } is a failed read.
+function _dhSlaChecksHtml(integrity) {
+  const cap = CONFIG.WEEKLY_ANOMALIES.displayRows;
+  const reasonText = { noRow: 'no targets set', blank: 'targets all blank' };
+  const checks = (integrity && integrity.ok) ? [
+    { label: 'Active projects with no resolvable SLA targets',
+      items: integrity.noTargets.map(p => p.label + ' (' + p.type + ') — ' + (reasonText[p.reason] || '')) },
+    { label: 'Override rows pointing at a missing project',
+      items: integrity.orphanOverrides.map(r => 'Row ' + r.rowId + ' → project #' + r.projectId + (r.label ? ' (' + r.label + ')' : '')) },
+  ] : null;
+  const body = !checks
+    ? `<tr><td>SLA checks</td><td><span class="dh-badge dh-badge-danger">Query error</span></td><td></td></tr>`
+    : checks.map(c => `
+        <tr>
+          <td>${escHtml(c.label)}${c.items.length ? `
+            <details><summary class="dh-muted">Show</summary>
+              <span class="dh-muted">${c.items.slice(0, cap).map(escHtml).join('; ')}${c.items.length > cap ? ` +${c.items.length - cap} more` : ''}</span>
+            </details>` : ''}</td>
+          <td>${c.items.length.toLocaleString('en-GB')}</td>
+          <td>${c.items.length ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
+        </tr>`).join('');
+  return `<div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Check</th><th>Rows</th><th></th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    </div>`;
 }
 
 function _dhSlaSeedResultHtml() {

@@ -510,5 +510,46 @@ ASSERTIONS.push(
       _assertEqual(cell(last), [['Engineer (Lisbon)', 'Motivations', '1']], 'last_month shows only the September rejection');
       _assertEqual(/<empty>No rejections/.test(render([], 'this_month', roles)), true, 'empty state kept');
     },
+  },
+  {
+    name: 'N-397 Briefing Pack project list — own project kept once, never mutated; both entry points load it',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('briefing-pack.js source needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const src = ALL_SOURCES['briefing-pack.js'];
+      const fnBody = name => { const i = src.indexOf(name); if (i < 0) return ''; const m = /\r?\n\}\r?\n/.exec(src.slice(i)); return m ? src.slice(i, i + m.index + m[0].length) : src.slice(i); };
+      const merge = new Function(fnBody('function bpWithOwnProject(') + '\nreturn bpWithOwnProject;')();
+      const scoped = [{ id: 1 }, { id: 2 }];
+      const all = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }];
+      _assertEqual(merge(scoped, all, '3').map(p => p.id), [1, 2, 3], 'AC5 out-of-scope own project appended');
+      _assertEqual(merge(scoped, all, 3).map(p => p.id), [1, 2, 3], 'AC5 numeric id matches too');
+      _assertEqual(merge(scoped, all, '2'), scoped, 'AC5 in-scope own project is not duplicated (same list back)');
+      _assertEqual(merge(scoped, all, null), scoped, 'AC6 no project: nothing added');
+      _assertEqual(merge(scoped, all, '99'), scoped, 'AC6 project row gone: nothing added');
+      _assertEqual(merge(scoped, [], '3'), scoped, 'AC5 not in the full list either: nothing added');
+      _assertEqual(scoped.map(p => p.id), [1, 2], 'input list never mutated (it may be a shared cache array)');
+      _assertEqual(merge(scoped, all, '3').some(p => p.id === 4), false, 'AC5 no other out-of-scope project leaks in');
+
+      const loader = fnBody('async function bpLoadProjects(');
+      _assertEqual(/seesAllProjects\(_resolvedRole\)\s*\?\s*await getProjects\(false\)\s*:\s*await getScopedProjects\(getCurrentUser\(\)\.email, false\)/.test(loader), true, 'AC4 all-seeing roles get every project, others their scope');
+      _assertEqual(/missing \? await getProjects\(false\) : \[\]/.test(loader), true, 'AC5 the full list is fetched only when the own project is missing');
+
+      const start = fnBody('async function bpStartNewPack(');
+      _assertEqual(/await bpLoadProjects\(\);/.test(start) && start.indexOf('getScopedProjects') === -1, true, 'AC8 + Briefing Pack uses the shared loader');
+      _assertEqual(/if \(_bpProjects\.length && !_bpProjectId\) _bpProjectId = String\(_bpProjects\[0\]\.id\);/.test(start), true, 'AC8 first project still preselected on a new pack');
+
+      const load = fnBody('async function bpLoadPack(');
+      const iProj = load.indexOf('await bpLoadProjects(_bpProjectId);'), iRoles = load.indexOf('await bpLoadRoles();');
+      _assertEqual(iProj > 0 && iRoles > iProj, true, 'AC1 bpLoadPack loads projects (with its own project) before roles');
+      _assertEqual(load.indexOf('bpApplyRoleAutofill') === -1, true, 'AC7 opening a pack never overwrites its saved fields');
+
+      const side = fnBody('function bpRenderSidebar(');
+      _assertEqual(/_bpProjectId \? '' : '<option value="" selected>Select a project\.\.\.<\/option>'/.test(side), true, 'AC6 placeholder only while no project is chosen');
+      _assertEqual(/function bpSetProject\(val\)/.test(src) && /async function bpSetProject\(val\)[\s\S]*?_bpRoleId\s*=\s*'';[\s\S]*?bpLoadRoles\(\)[\s\S]*?bpApplyRoleAutofill\(\)/.test(src), true, 'AC3 changing project resets role, reloads roles and re-fills the header');
+      const save = fnBody('async function bpSavePack(');
+      _assertEqual(/ProjectID:\s+_bpProjectId \? parseInt\(_bpProjectId\) : null/.test(save) && /RoleID:\s+_bpRoleId\s+\? parseInt\(_bpRoleId\)\s+: null/.test(save), true, 'AC3 save writes the chosen ProjectID / RoleID');
+      _assertEqual(/if \(_bpPackId\) \{\s*await updateBriefingPack\(_bpPackId, payload\);/.test(save) && save.split('PackOwner').length === 2, true, 'AC3 update path never touches PackOwner (only the create path sets it)');
+    },
   }
 );

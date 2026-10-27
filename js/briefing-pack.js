@@ -204,6 +204,30 @@ async function bpCopyPackAction(id, btn) {
   }
 }
 
+// ── Project list (N-397) ──────────────────────────────────────────────
+// Pure: `list` plus the pack's own project when `list` lacks it. `all` is the full
+// Projects list (only needed, and only fetched, when the project is missing).
+// Never mutates `list`; nothing else out of scope is ever added.
+function bpWithOwnProject(list, all, keepId) {
+  const keep = keepId ? String(keepId) : '';
+  if (!keep || list.some(p => String(p.id) === keep)) return list;
+  const own = all.find(p => String(p.id) === keep);
+  return own ? list.concat([own]) : list;
+}
+
+// Fills _bpProjects for BOTH entry points — "+ Briefing Pack" and opening a saved
+// pack (bpLoadPack used to skip this, so the Project select rendered empty).
+// Admin / Leadership / People Ops see every project, as on the Projects page;
+// everyone else their scoped list. keepProjectId is a saved pack's own project.
+async function bpLoadProjects(keepProjectId) {
+  const list = seesAllProjects(_resolvedRole)
+    ? await getProjects(false)
+    : await getScopedProjects(getCurrentUser().email, false);
+  const keep = keepProjectId ? String(keepProjectId) : '';
+  const missing = !!keep && !list.some(p => String(p.id) === keep);
+  _bpProjects = bpWithOwnProject(list, missing ? await getProjects(false) : [], keep);
+}
+
 // ── Builder ───────────────────────────────────────────────────────────
 async function bpStartNewPack() {
   const main = document.getElementById('main-content');
@@ -221,9 +245,8 @@ async function bpStartNewPack() {
   _bpContactEmail = '';
   _bpCoverDate    = bpCurrentMonth();
 
-  const user = getCurrentUser();
-  _bpProjects = await getScopedProjects(user.email, false);
-    if (_bpProjects.length && !_bpProjectId) _bpProjectId = String(_bpProjects[0].id);
+  await bpLoadProjects();
+  if (_bpProjects.length && !_bpProjectId) _bpProjectId = String(_bpProjects[0].id);
   _bpTpMap = await getTalentPartnerDisplayMap();
   await bpLoadRoles();
   await bpLoadClientLogo();
@@ -397,6 +420,7 @@ function bpRenderSidebar() {
   const active  = sorted.filter(isProjectActive);
   const archive = sorted.filter(p => !isProjectActive(p));
   const projectOpts = [
+    _bpProjectId ? '' : '<option value="" selected>Select a project...</option>',
     active.length  ? `<optgroup label="Active">${buildProjectOptionsHtml(active, _bpProjectId)}</optgroup>`   : '',
     archive.length ? `<optgroup label="Archive">${buildProjectOptionsHtml(archive, _bpProjectId)}</optgroup>` : '',
   ].join('');
@@ -902,6 +926,7 @@ async function bpLoadPack(id) {
   if (!pages.some(p => p.type === 'closing')) pages.push({ id: bpUid(), type: 'closing' });
   _bpPages = pages;
 
+  await bpLoadProjects(_bpProjectId);
   await bpLoadRoles();
   await bpLoadClientLogo();
   bpRender();

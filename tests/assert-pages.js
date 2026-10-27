@@ -551,5 +551,101 @@ ASSERTIONS.push(
       _assertEqual(/ProjectID:\s+_bpProjectId \? parseInt\(_bpProjectId\) : null/.test(save) && /RoleID:\s+_bpRoleId\s+\? parseInt\(_bpRoleId\)\s+: null/.test(save), true, 'AC3 save writes the chosen ProjectID / RoleID');
       _assertEqual(/if \(_bpPackId\) \{\s*await updateBriefingPack\(_bpPackId, payload\);/.test(save) && save.split('PackOwner').length === 2, true, 'AC3 update path never touches PackOwner (only the create path sets it)');
     },
+  },
+  {
+    name: 'N-398 canReassignBriefingPack / dmProjectIdsFromAssignments / briefingPackReassignCandidates — who may reassign, who can receive',
+    fn: function () {
+      const R = CONFIG.ROLE_IDS;
+      const pack = { PackOwner: 'Owner@Momentum.com', ProjectID: 12 };
+      const can = (role, email, p, dm) => canReassignBriefingPack(role, email, p === undefined ? pack : p, dm === undefined ? [] : dm);
+      _assertEqual(can(R.ADMIN, 'x@y.z'), true, 'AC1 admin');
+      _assertEqual(can(R.TALENT_PARTNER, 'owner@momentum.com'), true, 'AC1 owner, case-insensitive');
+      _assertEqual(can(R.DELIVERY_MANAGER, 'dm@y.z', undefined, ['12']), true, 'AC1 DM on the pack\'s project');
+      _assertEqual(can(R.LEADERSHIP, 'lead@y.z', undefined, ['12']), true, 'AC1 Leadership holding a DM row on the project');
+      _assertEqual(can(R.TALENT_PARTNER, 'tp@y.z'), false, 'AC1 non-owner TP');
+      _assertEqual(can(R.DELIVERY_MANAGER, 'dm@y.z', undefined, ['99']), false, 'AC1 DM on a different project');
+      _assertEqual(can(R.DELIVERY_MANAGER, 'dm@y.z'), false, 'AC1 DM with no DM row');
+      _assertEqual(can(R.LEADERSHIP, 'lead@y.z'), false, 'AC1 Leadership without a DM row');
+      _assertEqual(canReassignBriefingPack(R.TALENT_PARTNER, 'tp@y.z', { PackOwner: 'o@y.z', ProjectID: '12' }, ['12']), true, 'a string ProjectID matches');
+      const loose = { PackOwner: 'owner@momentum.com', ProjectID: null };
+      _assertEqual(can(R.TALENT_PARTNER, 'owner@momentum.com', loose), true, 'AC2 owner of a project-less pack');
+      _assertEqual(can(R.ADMIN, 'x@y.z', loose), true, 'AC2 admin on a project-less pack');
+      _assertEqual(can(R.DELIVERY_MANAGER, 'dm@y.z', loose, ['12']), false, 'AC2 no DM route without a project');
+      _assertEqual(can(R.DELIVERY_MANAGER, 'dm@y.z', { PackOwner: 'o@y.z', ProjectID: 0 }, ['0']), false, 'AC2 ProjectID 0 is not a project');
+      _assertEqual(canReassignBriefingPack(R.ADMIN, 'a@b.c', null, []), false, 'fails closed: no pack');
+      _assertEqual(can(R.TALENT_PARTNER, '', { PackOwner: '', ProjectID: null }), false, 'fails closed: a blank email never matches a blank owner');
+      _assertEqual(can(R.DELIVERY_MANAGER, 'dm@y.z', undefined, null), false, 'fails closed: malformed DM list');
+      _assertEqual(can(R.DELIVERY_MANAGER, 'dm@y.z', undefined, '12'), false, 'fails closed: a string is not a list');
+
+      const ua = [
+        { AssignedRole: 'delivery_manager', ProjectID: 5, Active: true },
+        { AssignedRole: 'delivery_manager', ProjectID: 5 },
+        { AssignedRole: 'delivery_manager', ProjectID: '7' },
+        { AssignedRole: 'delivery_manager', ProjectID: 8, Active: false },
+        { AssignedRole: 'delivery_manager', ProjectID: 0 },
+        { AssignedRole: 'talent_partner', ProjectID: 6 },
+        { AssignedRole: 'admin', ProjectID: 0 },
+        null,
+      ];
+      _assertEqual(dmProjectIdsFromAssignments(ua), ['5', '7'], 'AC1 only active delivery_manager rows with a real project, de-duplicated');
+      _assertEqual(dmProjectIdsFromAssignments(null), [], 'null rows give no projects');
+
+      const rows = [
+        { UserEmail: 'Zed@y.z', UserName: 'Zed', AssignedRole: 'talent_partner', Active: true },
+        { UserEmail: 'amy@y.z', UserName: 'Amy', AssignedRole: 'delivery_manager' },
+        { UserEmail: 'AMY@y.z', UserName: 'Amy Duplicate', AssignedRole: 'talent_partner' },
+        { UserEmail: 'old@y.z', UserName: 'Old', AssignedRole: 'talent_partner', Active: false },
+        { UserEmail: 'adm@y.z', UserName: 'Adm', AssignedRole: 'admin' },
+        { UserEmail: 'owner@momentum.com', UserName: 'Owner', AssignedRole: 'talent_partner' },
+        { UserEmail: '', UserName: 'No Email' },
+        { UserEmail: 'noname@y.z', AssignedRole: 'talent_partner' },
+        null,
+      ];
+      const before = JSON.stringify(rows);
+      _assertEqual(briefingPackReassignCandidates(rows, 'OWNER@momentum.com'), [
+        { email: 'amy@y.z', name: 'Amy' },
+        { email: 'noname@y.z', name: 'noname@y.z' },
+        { email: 'zed@y.z', name: 'Zed' },
+      ], 'AC3 de-duplicated, lower-cased, sorted; inactive, admin, blank-email and current-owner rows dropped; missing name falls back to the email');
+      _assertEqual(JSON.stringify(rows), before, 'input rows never mutated');
+      _assertEqual(briefingPackReassignCandidates(null, 'x@y.z'), [], 'AC8 null rows give no candidates');
+      _assertEqual(briefingPackReassignCandidates([{ UserEmail: 'only@y.z', UserName: 'Only' }], 'only@y.z'), [], 'AC8 the owner alone leaves nobody');
+      _assertEqual(briefingPackReassignCandidates(rows).length, 4, 'no current owner: the owner row is kept');
+    },
+  },
+  {
+    name: 'N-398 Reassign wiring — library button gated, action registered once, re-check before the write, payload is only PackOwner',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('briefing-pack.js source needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const src = ALL_SOURCES['briefing-pack.js'];
+      const fnBody = name => { const i = src.indexOf(name); if (i < 0) return ''; const m = /\r?\n\}\r?\n/.exec(src.slice(i)); return m ? src.slice(i, i + m.index + m[0].length) : src.slice(i); };
+      const lib = fnBody('async function showBriefingPackLibrary(');
+      _assertEqual(/getDmProjectIds\(user\.email\)/.test(lib) && /_bpDmProjectIds = dmIds;/.test(lib), true, 'AC1 the library loads the user\'s DM projects once');
+      const render = fnBody('function _bpRenderLibrary(');
+      _assertEqual(/const canReassign = canReassignBriefingPack\(_resolvedRole, me, p, _bpDmProjectIds\);/.test(render), true, 'AC1 button gated by the shared permission function');
+      _assertEqual(/\$\{canReassign \? `<button class="btn-secondary"\$\{act\('bpReassignPackAction', Number\(p\.id\), ACT_EL\)\}>Reassign<\/button>` : ''\}/.test(render), true, 'AC1 Reassign button markup');
+      _assertEqual((render.match(/<th>/g) || []).length, 5, 'AC9 the table is still five columns');
+      _assertEqual(/bpDeletePack/.test(render) && /bpCopyPackAction/.test(render) && /bpLoadPack/.test(render), true, 'AC9 Open / Copy / Delete untouched');
+      _assertEqual((src.match(/^\s+bpReassignPackAction,$/gm) || []).length, 1, 'action registered exactly once');
+      const action = fnBody('async function bpReassignPackAction(');
+      _assertEqual(action !== '', true, 'bpReassignPackAction exists');
+      const writes = action.match(/updateBriefingPack\([^;]*\);/g) || [];
+      _assertEqual(writes, ['updateBriefingPack(id, { PackOwner: chosen.email });'], 'AC4 exactly one write and its payload is only PackOwner');
+      const iFirst = action.indexOf('canReassignBriefingPack('), iModal = action.indexOf('selectModal('),
+            iSecond = action.indexOf('canReassignBriefingPack(', iFirst + 1), iWrite = action.indexOf('updateBriefingPack(');
+      _assertEqual(iFirst > 0 && iFirst < iModal && iModal < iSecond && iSecond < iWrite, true, 'AC6 permission checked before the dialog AND again on fresh reads after it, before the write');
+      _assertEqual((action.match(/getBriefingPackById\(id\)/g) || []).length, 2, 'AC6 the pack is fetched fresh both times');
+      _assertEqual(/people\.find\(p => p\.email === String\(picked\)\.toLowerCase\(\)\)/.test(action) && /if \(!chosen\)/.test(action), true, 'AC7 the picked value must be in the candidate list');
+      _assertEqual(/if \(picked === null\) return;/.test(action), true, 'AC5 cancel writes nothing');
+      _assertEqual(action.indexOf('innerHTML') === -1, true, 'no markup built from names');
+      _assertEqual(/pack\.ProjectID\s*\?\s*await getTalentPartnersForProject\(pack\.ProjectID\)\s*:\s*await getAllAssignableUsers\(\)/.test(action), true, 'AC2/3 project people, or all assignable users when the pack has no project');
+      const save = fnBody('async function bpSavePack(');
+      _assertEqual(save.split('PackOwner').length === 2, true, 'AC9 bpSavePack still sets PackOwner only on create');
+      const apiSrc = ALL_SOURCES['api.js'];
+      const dm = apiSrc.slice(apiSrc.indexOf('async function getDmProjectIds('));
+      _assertEqual(/fields\/Title eq '\$\{odataStr\(lower\)\}'/.test(dm.slice(0, 600)) && /dmProjectIdsFromAssignments\(rows\)/.test(dm.slice(0, 600)) && /getGhostUser\(\) \|\| email/.test(dm.slice(0, 600)), true, 'getDmProjectIds: ghost-aware, same UserAssignments read as getUserProjectIds, filtered by the pure helper');
+    },
   }
 );

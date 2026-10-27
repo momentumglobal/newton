@@ -963,6 +963,23 @@ function buildProjectOptionsHtml(projects, selectedId) {
   ).join('');
 }
 
+// N-398 (BP-2): pure. The people a briefing pack can be reassigned to, from
+// UserAssignments-shaped rows ({ UserEmail, UserName, AssignedRole, Active }). Drops
+// inactive rows, admin rows (not project people, N-281), rows with no email and the
+// current owner; de-dupes by lower-cased email; sorted by name. Never throws on
+// null / non-array input and never mutates it.
+function briefingPackReassignCandidates(rows, currentOwner) {
+  const skip = String(currentOwner || '').trim().toLowerCase();
+  const seen = new Map();
+  (Array.isArray(rows) ? rows : []).forEach(r => {
+    if (!r || r.Active === false || r.AssignedRole === CONFIG.ROLE_IDS.ADMIN) return;
+    const email = String(r.UserEmail || '').trim().toLowerCase();
+    if (!email || email === skip || seen.has(email)) return;
+    seen.set(email, { email, name: r.UserName || r.UserEmail });
+  });
+  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 // ── Internal project (N-333) ─────────────────────────────────────
 // The Momentum-internal Projects row (Internal TA hiring) has ProjectType
 // CONFIG.PROJECT_TYPE_INTERNAL. Its rows show on its own project-scoped pages

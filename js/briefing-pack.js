@@ -36,6 +36,7 @@ let _bpClientLogoName = '';
 let _bpLibraryCache  = [];   // packs visible to this user, from the last load
 let _bpLibraryFilter = '';   // '' = all clients
 let _bpProjectMap    = {};   // projectId (string) -> CustomerName, for banding
+let _bpDmProjectIds  = [];   // N-398: projects the user is an active DM on (Reassign button)
 
 function bpUid() { return 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6); }
 
@@ -69,12 +70,14 @@ async function showBriefingPackLibrary() {
     // getProjects(false) deliberately — a Leadership user sees packs for
     // projects they hold no UserAssignments row for, and a scoped project list
     // would leave those bands unnamed.
-    const [packs, projects, projectIds, tpMap] = await Promise.all([
+    const [packs, projects, projectIds, tpMap, dmIds] = await Promise.all([
       getBriefingPacks(),
       getProjects(false),
       getUserProjectIds(user.email),
       getTalentPartnerDisplayMap(),
+      getDmProjectIds(user.email),
     ]);
+    _bpDmProjectIds = dmIds;
     _bpProjectMap = {};
     projects.forEach(p => { _bpProjectMap[String(p.id)] = p.CustomerName || ''; });
     _bpTpMap = tpMap;
@@ -136,6 +139,7 @@ function _bpRenderLibrary() {
         const packRows = list.map(p => {
           const owner = p.PackOwner || '';
           const canDelete = isAdmin || owner.toLowerCase() === me;
+          const canReassign = canReassignBriefingPack(_resolvedRole, me, p, _bpDmProjectIds);
           return `
         <tr>
           <td>${escHtml(p.Title || '—')}</td>
@@ -146,6 +150,7 @@ function _bpRenderLibrary() {
             <div class="row-actions">
               <button class="btn-secondary"${act('bpLoadPack', Number(p.id))}>Open</button>
               <button class="btn-secondary"${act('bpCopyPackAction', Number(p.id), ACT_EL)}>Copy</button>
+              ${canReassign ? `<button class="btn-secondary"${act('bpReassignPackAction', Number(p.id), ACT_EL)}>Reassign</button>` : ''}
               ${canDelete ? `<button class="btn-secondary"${act('bpDeletePack', Number(p.id), p.Title || '')}>Delete</button>` : ''}
             </div>
           </td>
@@ -199,6 +204,59 @@ async function bpCopyPackAction(id, btn) {
     await bpLoadPack(copy.id);
   } catch (e) {
     toast('Could not copy that pack: ' + e.message, { type: 'error' });
+  } finally {
+    clearButtonLoading(btn);
+  }
+}
+
+// N-398 (BP-2): hand a pack to another person on its project. Permission is checked on a
+// fresh read before the dialog AND again after it, immediately before the write, and the
+// picked value is only ever accepted if it is in the candidate list. Writes PackOwner and
+// nothing else. UI-level control only (BriefingPacks is plain Contribute, like Delete).
+async function bpReassignPackAction(id, btn) {
+  setButtonLoading(btn);
+  try {
+    const user = getCurrentUser();
+    const [pack, dmIds] = await Promise.all([getBriefingPackById(id), getDmProjectIds(user.email)]);
+    if (!canReassignBriefingPack(_resolvedRole, user.email, pack, dmIds)) {
+      toast('You can no longer reassign that pack.', { type: 'error' });
+      await showBriefingPackLibrary();
+      return;
+    }
+    const rows = pack.ProjectID
+      ? await getTalentPartnersForProject(pack.ProjectID)
+      : await getAllAssignableUsers();
+    const people = briefingPackReassignCandidates(rows, pack.PackOwner);
+    if (!people.length) {
+      toast('There is nobody else to reassign that pack to.', { type: 'error' });
+      return;
+    }
+    const owner = String(pack.PackOwner || '');
+    const picked = await selectModal({
+      title: 'Reassign briefing pack',
+      message: `"${pack.Title || 'Untitled'}" is owned by ${_bpTpMap[owner.toLowerCase()] || owner || 'nobody'}. Unless they are a Delivery Manager on its project, they will no longer see it in their library.`,
+      options: [{ value: '', label: 'Select a person...' }].concat(people.map(p => ({ value: p.email, label: p.name }))),
+      confirmLabel: 'Reassign',
+    });
+    if (picked === null) return;
+    const chosen = people.find(p => p.email === String(picked).toLowerCase());
+    if (!chosen) { toast('Choose a person to reassign to.', { type: 'error' }); return; }
+    const [fresh, freshDmIds] = await Promise.all([getBriefingPackById(id), getDmProjectIds(user.email)]);
+    if (!canReassignBriefingPack(_resolvedRole, user.email, fresh, freshDmIds)) {
+      toast('You can no longer reassign that pack.', { type: 'error' });
+      await showBriefingPackLibrary();
+      return;
+    }
+    if (String(fresh.PackOwner || '').toLowerCase() !== owner.toLowerCase() || String(fresh.ProjectID || '') !== String(pack.ProjectID || '')) {
+      toast('That pack was changed while you were choosing. Please try again.', { type: 'error' });
+      await showBriefingPackLibrary();
+      return;
+    }
+    await updateBriefingPack(id, { PackOwner: chosen.email });
+    toast(`Pack reassigned to ${chosen.name}.`);
+    await showBriefingPackLibrary();
+  } catch (e) {
+    toast('Could not reassign that pack: ' + e.message, { type: 'error' });
   } finally {
     clearButtonLoading(btn);
   }
@@ -956,6 +1014,7 @@ registerActions({
   // N-302b: library, editor header, sidebar and canvas controls.
   bpLoadPack,
   bpCopyPackAction,
+  bpReassignPackAction,
   bpDeletePack,
   bpStartNewPack,
   bpLibraryFilterChanged,

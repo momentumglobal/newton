@@ -950,6 +950,18 @@ async function getAllAssignableUsers() {
     (a.UserName || '').localeCompare(b.UserName || ''));
 }
 
+// N-398 (BP-2): project ids on which the user holds an ACTIVE delivery_manager row.
+// Ghost-aware and the same UserAssignments read as getUserProjectIds (a cache hit when
+// that has already run; two concurrent calls each make the request). Role-independent.
+// Legacy source: UserAssignments is authoritative while CONFIG.ACCESS_SCOPE.mode is
+// 'shadow' — revisit this and the Reassign candidate list when it flips to 'assignments'.
+async function getDmProjectIds(email) {
+  await _ensureGhostGate();
+  const lower = (getGhostUser() || email).toLowerCase();
+  const rows = await getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`);
+  return dmProjectIdsFromAssignments(rows);
+}
+
 async function getTalentPartnerDisplayMap() {
   const assignments = await getItems("UserAssignments");
   const map = {};

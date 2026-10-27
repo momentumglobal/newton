@@ -91,6 +91,37 @@ function canEditProjectTeam(role, projectId, userProjectIds, cfg = CONFIG) {
   return userProjectIds === null || (Array.isArray(userProjectIds) && userProjectIds.includes(String(id)));
 }
 
+// N-398 (BP-2): pure. Project ids (strings, de-duped, first-seen order) on which these
+// UserAssignments rows make the user an ACTIVE Delivery Manager. Role-independent: a
+// Leadership user holding an explicit DM row counts. Active undefined counts as active.
+function dmProjectIdsFromAssignments(rows, cfg = CONFIG) {
+  const ids = [];
+  (Array.isArray(rows) ? rows : []).forEach(a => {
+    if (!a || a.AssignedRole !== cfg.ROLE_IDS.DELIVERY_MANAGER || a.Active === false) return;
+    const id = Number(a.ProjectID);
+    if (!Number.isInteger(id) || id <= 0) return;
+    if (!ids.includes(String(id))) ids.push(String(id));
+  });
+  return ids;
+}
+
+// N-398 (BP-2): pure. Can this user reassign briefing pack `pack`'s owner? The owner, an
+// Admin, or a Delivery Manager on the pack's project — `dmProjectIds` is
+// dmProjectIdsFromAssignments() of the user's rows (getDmProjectIds, api.js). A pack with
+// no real ProjectID has no DM route. UI-level only: BriefingPacks is plain Contribute, so
+// like Delete this is not enforced by SharePoint. Fails closed on a missing pack, a blank
+// email or a malformed list.
+function canReassignBriefingPack(role, email, pack, dmProjectIds, cfg = CONFIG) {
+  if (!pack) return false;
+  if (role === cfg.ROLE_IDS.ADMIN) return true;
+  const me = String(email || '').trim().toLowerCase();
+  const owner = String(pack.PackOwner || '').trim().toLowerCase();
+  if (me && owner && me === owner) return true;
+  const id = Number(pack.ProjectID);
+  if (!Number.isInteger(id) || id <= 0) return false;
+  return Array.isArray(dmProjectIds) && dmProjectIds.includes(String(id));
+}
+
 // N-382 (DA-2, DA-D7): pure. Can `role` see the SLA targets block on the Project page?
 function canViewSlaTargets(role, cfg = CONFIG) {
   return roleCan(role, 'slaTargetsView', cfg);

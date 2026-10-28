@@ -1231,9 +1231,7 @@ function utilisationForecastCalc(forecasts, assigns, people) {
   const horizon = new Date(now.getTime() + 91 * 86400000); // 13 weeks
 
   // Active headcount (deployable billable people only — consistent with People Dashboard)
-  const totalActiveHeadcount = (people || []).filter(p =>
-    p.IsActive !== false && isDeployablePerson(p)
-  ).length;
+  const totalActiveHeadcount = activeDeployableCount(people);
 
   // Current: use computeMonthlyRows for current month — consistent with People Dashboard
   const allRows     = computeMonthlyRows(assigns);
@@ -1303,8 +1301,7 @@ function scorecardCustomers(assigns, allProjects, today) {
 // Returns [{ year, month (1-12), planned, forecast }].
 function utilisationOutlook(forecasts, assigns, people, today, months = 3) {
   const now = today;
-  const totalActiveHeadcount = (people || []).filter(p =>
-    p.IsActive !== false && isDeployablePerson(p)).length;   // N-304
+  const totalActiveHeadcount = activeDeployableCount(people);   // N-304
   const fwdRows = computeMonthlyRows(assigns, { through: new Date(now.getFullYear(), now.getMonth() + months, 1) });
   return Array.from({ length: months }, (_, i) => i + 1).map(offset => {
     const d      = new Date(now.getFullYear(), now.getMonth() + offset, 1);
@@ -1320,6 +1317,77 @@ function utilisationOutlook(forecasts, assigns, people, today, months = 3) {
     const forecast = Math.min(planned + (totalActiveHeadcount > 0 ? forecastedHC / totalActiveHeadcount : 0), 1.0);
     return { year: d.getFullYear(), month: d.getMonth() + 1, planned, forecast };
   });
+}
+
+// ── People Dashboard Team Utilisation series (N-394) ───────────────────
+// Lifted verbatim from people-dashboard.js (_salesForecastUtil + the points / salesPoints
+// construction in _renderUtilisationLineGraph) so the MCP utilisation tool and the graph share
+// one calculation. Pure: `now` is a parameter so tests are deterministic.
+
+// Sales-forecast utilisation for month index monthIdx (0-11) of now's year: the assignment
+// forecast (0-1 ratio) plus overlapping SalesForecasts headcount / deployable headcount, capped
+// at 100%. null when the result is 0.
+function salesForecastUtil(monthIdx, salesForecasts, totalActiveHeadcount, assignmentForecastUtil, now) {
+  const thisYear = now.getFullYear();
+  const mStart   = new Date(thisYear, monthIdx, 1);
+  const mEnd     = new Date(thisYear, monthIdx + 1, 0);
+
+  // Additional headcount from sales forecasts overlapping this month
+  const forecastedBilled = salesForecasts.reduce((sum, f) => {
+    const s = new Date(f.ForecastStartDate);
+    const e = new Date(f.ForecastEndDate);
+    return (s <= mEnd && e >= mStart) ? sum + (f.ForecastedHeadcount || 0) : sum;
+  }, 0);
+
+  // Base is the existing assignment forecast util (already a 0-1 ratio)
+  // Add sales headcount on top, expressed as a fraction of total headcount
+  const base = assignmentForecastUtil || 0;
+  const added = totalActiveHeadcount > 0 ? forecastedBilled / totalActiveHeadcount : 0;
+  const combined = Math.min(base + added, 1.0);
+  return combined > 0 ? combined : null;
+}
+
+// The two 12-month series behind the People Dashboard "Team Utilisation {year}" graph:
+//   points      [{ monthIdx, util }] - actual (computeMonthlyRows) up to and including the
+//               current month, scheduled-assignment forecast after it; util null = no data.
+//   salesPoints [{ monthIdx, util }] - from the current month on: points' value (the current
+//               month anchors to actual) plus SalesForecasts; null before the current month.
+// allRows = computeMonthlyRows(assignments); salesForecasts [] when unreadable.
+function utilisationYearSeries(allRows, assignments, salesForecasts, totalActiveHeadcount, now) {
+  const thisYear = now.getFullYear();
+  const curMonth = now.getMonth(); // 0-based
+
+  // N-328: forecast months use the same person-day calculation as actual
+  // months, on rows extended to December (scheduled assignments, no today cap).
+  const fwdRows = computeMonthlyRows(assignments, { through: new Date(thisYear, 11, 31) });
+  function _forecastUtil(monthIdx) {
+    const u = personUtilisation(fwdRows.filter(r => r.Year === thisYear && r.Month === monthIdx + 1));
+    return u.total > 0 ? u.ratio : null;
+  }
+
+  const points = Array.from({ length: 12 }, (_, i) => {
+    const monthRows = allRows.filter(r => r.Year === thisYear && r.Month === i + 1);
+    let util;
+    if (i <= curMonth) {
+      // Actual: use computed monthly rows
+      util = monthRows.length ? personUtilisation(monthRows).ratio : null;
+    } else {
+      // Forecast: derive from assignment overlap
+      util = _forecastUtil(i);
+    }
+    return { monthIdx: i, util };
+  });
+
+  const salesPoints = Array.from({ length: 12 }, (_, i) => {
+    if (i < curMonth) return { monthIdx: i, util: null };
+    // For current month, anchor to actual utilisation so lines share the same start point
+    const baseUtil = i === curMonth
+      ? (points.find(p => p.monthIdx === curMonth)?.util ?? _forecastUtil(i))
+      : _forecastUtil(i);
+    return { monthIdx: i, util: salesForecastUtil(i, salesForecasts, totalActiveHeadcount, baseUtil, now) };
+  });
+
+  return { points, salesPoints };
 }
 
 // ── SLA engine (N-383 / DA-3) ─────────────────────────────────────────

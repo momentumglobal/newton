@@ -46,6 +46,9 @@ var MCP_GETTER_LISTS = {
   getAssignments:             ['Assignments'],
   getAnomalyAcks:             ['AnomalyAcks'],
   getTalentPartnerDisplayMap: ['UserAssignments'],
+  getPeople:                  ['People'],            // N-394
+  getSalesForecasts:          ['SalesForecasts'],    // N-394
+  getCurrentAssignmentsByEmployee: ['Assignments'],  // N-394
 };
 
 // The tools that build a company-wide aggregate must call excludeInternalProjectData (N-333);

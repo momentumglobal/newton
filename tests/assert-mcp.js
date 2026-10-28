@@ -5,6 +5,7 @@
 
 var MCP_N393_TOOL_NAMES = ['list_projects', 'project_summary', 'list_roles', 'role_detail',
   'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards'];
+var MCP_N394_TOOL_NAMES = ['bench', 'utilisation', 'project_team'];
 
 function _mcpThrows(fn, re, label) {
   try { fn(); } catch (e) {
@@ -16,9 +17,9 @@ function _mcpThrows(fn, re, label) {
 
 ASSERTIONS.push(
   {
-    name: 'N-393 AC1 MCP_TOOLS: exactly the eight reporting tools, named handlers declared once, closed schemas, enums from CONFIG',
+    name: 'N-393 AC1 / N-394 AC1 MCP_TOOLS: the eight reporting tools then bench, utilisation, project_team; named handlers declared once, closed schemas, enums from CONFIG',
     fn: function () {
-      _assertEqual(MCP_TOOLS.map(t => t.name), MCP_N393_TOOL_NAMES, 'tool names and order');
+      _assertEqual(MCP_TOOLS.map(t => t.name), MCP_N393_TOOL_NAMES.concat(MCP_N394_TOOL_NAMES), 'tool names and order');
       MCP_TOOLS.forEach(t => {
         if (!/^[a-z][a-z0-9_]{0,63}$/.test(t.name) || t.name === 'newton_status') throw new Error(`bad tool name ${t.name}`);
         if (typeof t.handler !== 'function' || !/^mcp[A-Z]\w+$/.test(t.handler.name)) throw new Error(`${t.name}: handler must be a named mcp<Name> function`);
@@ -146,6 +147,48 @@ ASSERTIONS.push(
       try {
         _assertEqual(rules(''), ['getter'], 'registry naming a non-allowlisted list');
       } finally { MCP_GETTER_LISTS.getAnomalyAcks = saved; }
+    },
+  },
+  {
+    name: 'N-394 AC2 CONFIG.MCP: api-orgchart.js loads before analytics.js with newton-tools.js still last; Assignments / SalesForecasts money + email fields denied; contract still 1',
+    fn: function () {
+      const m = CONFIG.MCP;
+      _assertEqual(m.contract, 1, 'contract unchanged');
+      const sc = m.scripts;
+      if (sc.indexOf('js/api-orgchart.js') === -1) throw new Error('js/api-orgchart.js missing from CONFIG.MCP.scripts');
+      if (!(sc.indexOf('js/api.js') < sc.indexOf('js/api-orgchart.js') && sc.indexOf('js/api-orgchart.js') < sc.indexOf('js/analytics.js'))) throw new Error('api-orgchart.js must load after api.js and before analytics.js');
+      _assertEqual(sc[sc.length - 1], 'mcp/newton-tools.js', 'tools load last');
+      ['MonthlyBillRate', 'RetainerFee', 'PlacementFee', 'ProratedRevenue', 'BilledRevenue', 'UserEmail'].forEach(f => {
+        if (!(m.outputDenyFields.Assignments || []).includes(f)) throw new Error('outputDenyFields.Assignments lacks ' + f);
+      });
+      if (!(m.outputDenyFields.SalesForecasts || []).includes('ForecastedHeadcount')) throw new Error('outputDenyFields.SalesForecasts lacks ForecastedHeadcount');
+      ['People', 'Assignments', 'SalesForecasts'].forEach(l => { if (!m.allowedLists.includes(l)) throw new Error(l + ' not in allowedLists'); });
+      if (m.allowedLists.includes('PeoplePay')) throw new Error('PeoplePay must never be allowed');
+    },
+  },
+  {
+    name: 'N-394 schemas: bench takes nothing; utilisation year / month / quarter bounded integers + byLevel boolean; project_team requires project; descriptions say no money',
+    fn: function () {
+      const t = n => MCP_TOOLS.find(x => x.name === n);
+      _assertEqual(Object.keys(t('bench').inputSchema.properties), [], 'bench has no inputs');
+      const u = t('utilisation').inputSchema.properties;
+      _assertEqual(Object.keys(u), ['year', 'month', 'quarter', 'byLevel'], 'utilisation inputs');
+      _assertEqual([u.month.minimum, u.month.maximum, u.quarter.minimum, u.quarter.maximum, u.byLevel.type], [1, 12, 1, 4, 'boolean'], 'bounds');
+      _assertEqual(t('project_team').inputSchema.required, ['project'], 'project required');
+      _assertEqual(Object.keys(t('project_team').inputSchema.properties), ['project', 'includeEnded'], 'project_team inputs');
+      if (!/percentages only/i.test(t('utilisation').description)) throw new Error('utilisation description must say percentages only');
+      if (!/no (emails, rates|money)/i.test(t('project_team').description + t('bench').description)) throw new Error('descriptions must say no money / rates');
+    },
+  },
+  {
+    name: 'N-394 mcpPct — one decimal as the People Dashboard shows it; null stays null; guard rejects the new denied keys at any depth',
+    fn: function () {
+      _assertEqual([mcpPct(0.8123), mcpPct(0), mcpPct(1), mcpPct(0.05), mcpPct(null), mcpPct(undefined)], [81.2, 0, 100, 5, null, null], 'mcpPct');
+      ['RetainerFee', 'PlacementFee', 'ProratedRevenue', 'BilledRevenue', 'UserEmail', 'ForecastedHeadcount'].forEach(k => {
+        const bad = { a: [{ b: {} }] };
+        bad.a[0].b[k] = 1;
+        _mcpThrows(() => mcpOutputGuard(bad), new RegExp('withheld a restricted field \\(' + k + '\\)'), 'nested ' + k);
+      });
     },
   },
 );

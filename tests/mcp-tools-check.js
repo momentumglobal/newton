@@ -163,9 +163,9 @@ async function run() {
   async function check(name, fn) {
     try {
       await fn();
-      results.push({ name: 'N-393 ' + name, ok: true });
+      results.push({ name: name.startsWith('N-394') ? name : 'N-393 ' + name, ok: true });
     } catch (e) {
-      results.push({ name: 'N-393 ' + name, ok: false, message: e && e.message ? e.message : String(e) });
+      results.push({ name: name.startsWith('N-394') ? name : 'N-393 ' + name, ok: false, message: e && e.message ? e.message : String(e) });
     }
   }
   const { createLoader } = require(path.join(BOOT, 'loader.js'));
@@ -202,7 +202,7 @@ async function run() {
   const ids = rows => rows.map(r => r.roleId);
   const day = n => addDays(today, n);
 
-  await check('AC1 tools/list through the real server = newton_status + the eight reporting tools, all readOnlyHint; a call comes back wrapped with asOf + newtonBuild', async () => {
+  await check('AC1 tools/list through the real server = newton_status + the eleven tools, all readOnlyHint; a call comes back wrapped with asOf + newtonBuild', async () => {
     const lines = [];
     const gated = Object.assign({}, L, { call: (fn, ...a) => (fn === 'getEffectiveRole' ? Promise.resolve('leadership') : L.call(fn, ...a)) });
     const auth = { ensureToken: async () => 'tok', status: () => ({ storeMode: 'test', pendingSince: null }), takeLastError: () => null,
@@ -210,7 +210,7 @@ async function run() {
     const srv = createServer({ loader: gated, auth, write: o => lines.push(o), log: () => {} });
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }));
     const tl = lines.find(l => l.id === 1).result.tools;
-    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards'], 'tools/list');
+    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards', 'bench', 'utilisation', 'project_team'], 'tools/list');
     ok(tl.every(t => t.annotations && t.annotations.readOnlyHint === true), 'a tool without readOnlyHint');
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_projects', arguments: {} } }));
     const res = lines.find(l => l.id === 2).result;
@@ -231,6 +231,9 @@ async function run() {
       list_placements: [{ from: day(-30), to: today }, ['Placements', 'Projects', 'RoleHeadcount', 'Roles', 'UserAssignments']],
       time_to_fill: [{}, ['Placements', 'Projects', 'RoleHeadcount', 'RoleHistory', 'Roles']],
       project_scorecards: [{}, ['Assignments', 'Placements', 'Projects', 'RoleHeadcount', 'RoleHistory', 'Roles', 'WeeklyActivity']],
+      bench: [{}, ['Assignments', 'People']],                                             // N-394
+      utilisation: [{}, ['Assignments', 'People', 'SalesForecasts']],                      // N-394
+      project_team: [{ project: 'Acme' }, ['Assignments', 'Projects', 'UserAssignments']], // N-394
     };
     for (const name of Object.keys(expected)) {
       const fresh = await newLoader();
@@ -376,10 +379,125 @@ async function run() {
     await rejects(call('role_detail', { roleId: 999 }), /No role with id 999/, 'unknown role');
   });
 
+  // ── N-394 People tools ───────────────────────────────────────────────
+  await check('N-394 AC4 bench = buildBenchPool on the Org Chart reads (same order); since = earliest current bench start; working, forecast-only, CSD, internal, placeholder and leaver staff left out', async () => {
+    const r = await call('bench', {});
+    eq(r.people.map(p => [p.name, p.level, p.location, p.since]),
+      [['Bea Bench', 'TP', 'Porto', null], ['Ben Blank', 'PTP', 'London', day(-20)], ['Eve Ended', 'TP', 'Madrid', null]], 'bench people');
+    const oracle = await L.evalInContext(`(async () => {
+      const [p, c] = await Promise.all([getPeople(true, true), getCurrentAssignmentsByEmployee()]);
+      return JSON.stringify(buildBenchPool(p, c).map(x => x.EmployeeName));
+    })()`);
+    eq(r.people.map(p => p.name), JSON.parse(oracle), 'equals buildBenchPool on the Org Chart inputs');
+    eq([r.total, r.truncated, Object.keys(r.people[0])], [3, false, ['name', 'level', 'location', 'since']], 'shape');
+  });
+
+  const utilOracle = filterJs => L.evalInContext(`(async () => {
+    const [a, ppl, fc] = await Promise.all([getAssignments({}), getPeople(false), getSalesForecasts()]);
+    const all = computeMonthlyRows(a);
+    const { start, end } = peoplePeriodRange(${filterJs});
+    const rows = monthlyRowsInRange(all, start, end);
+    const u = personUtilisation(rows), roll = utilisationBandRollup(rows);
+    return JSON.stringify({ pct: u.total > 0 ? Math.round(u.ratio * 1000) / 10 : null, billed: u.billed, total: u.total,
+      utilised: roll.total.utilised, active: roll.total.active,
+      bands: roll.bands.map(b => [b.band, Math.round(b.u * 1000) / 10, b.utilised, b.total]),
+      monthly: utilisationByMonth(rows).map(m => [m.month, Math.round(m.u * 1000) / 10]),
+      series: utilisationYearSeries(all, a, fc, activeDeployableCount(ppl), new Date()) });
+  })()`);
+
+  await check('N-394 AC5/AC6 utilisation = the People Dashboard calls (period rows, band roll-up, monthly trend, year series) for default, month, quarter and whole-year periods; empty period is null', async () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const cases = [
+      [{}, `{ year: ${y}, month: ${now.getMonth()}, quarter: null }`],
+      [{ month: 1 }, `{ year: ${y}, month: 0, quarter: null }`],
+      [{ quarter: 2, byLevel: true }, `{ year: ${y}, month: null, quarter: 2 }`],
+      [{ year: y }, `{ year: ${y}, month: null, quarter: null }`],
+      [{ year: y, month: now.getMonth() + 1, byLevel: true }, `{ year: ${y}, month: ${now.getMonth()}, quarter: null }`],
+    ];
+    for (const [args, filterJs] of cases) {
+      const r = await call('utilisation', args);
+      const o = JSON.parse(await utilOracle(filterJs));
+      eq([r.utilisationPct, r.billedPersonMonths, r.totalPersonMonths, r.utilisedPeople, r.activePeople], [o.pct, o.billed, o.total, o.utilised, o.active], 'headline ' + JSON.stringify(args));
+      eq(r.monthly.map(m => [m.month, m.utilisationPct]), o.monthly, 'monthly ' + JSON.stringify(args));
+      if (args.byLevel) eq(r.bands.map(b => [b.band, b.utilisationPct, b.utilised, b.total]), o.bands, 'bands ' + JSON.stringify(args));
+      else ok(!('bands' in r), 'no bands unless byLevel');
+      const pct = v => (v === null ? null : Math.round(v * 1000) / 10);
+      const cur = now.getMonth();
+      eq(r.outlook.months.map((m, i) => [m.month, m.actualPct, m.forecastPct, m.salesForecastPct]),
+        o.series.points.map((p, i) => [`${y}-${String(i + 1).padStart(2, '0')}`, i <= cur ? pct(p.util) : null, i > cur ? pct(p.util) : null,
+          i >= cur ? pct(o.series.salesPoints[i].util) : null]), 'outlook ' + JSON.stringify(args));
+    }
+    const def = await call('utilisation', {});
+    ok(def.utilisationPct > 0 && def.utilisationPct <= 100, 'control: the fixture month has real utilisation, got ' + def.utilisationPct);
+    ok(def.bands === undefined && def.period.label === `${y}-${String(now.getMonth() + 1).padStart(2, '0')}`, 'default period is this month');
+    eq(def.thresholds, { onTrackPct: Math.round(L.config().UTILISATION_THRESHOLDS.green * 1000) / 10, atRiskPct: Math.round(L.config().UTILISATION_THRESHOLDS.amber * 1000) / 10 }, 'thresholds from CONFIG');
+    const empty = await call('utilisation', { year: 2020, month: 1 });
+    eq([empty.utilisationPct, empty.totalPersonMonths, empty.monthly], [null, 0, []], 'a period with no assignments is null, not 0 %');
+    const lvl = await call('utilisation', { byLevel: true });
+    ok(lvl.bands.length > 0 && lvl.bands.every(b => ['SDM', 'PTP', 'STP', 'TP'].includes(b.band)), 'bands are billable levels with rows, CSD never');
+  });
+
+  await check('N-394 AC6 utilisation outlook: sales forecast lifts future months; SalesForecasts unreadable -> degraded, sales % falls back to the plain forecast; no forecast headcount in the output', async () => {
+    const now = new Date();
+    const cur = now.getMonth();
+    const r = await call('utilisation', {});
+    eq(r.degraded, [], 'nothing degraded');
+    ok(r.outlook.months.slice(0, cur).every(m => m.salesForecastPct === null), 'no sales % before the current month');
+    ok(r.outlook.months.slice(cur + 1).every(m => m.salesForecastPct === null || m.salesForecastPct >= (m.forecastPct || 0)), 'sales % never below the plain forecast');
+    const soon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 60);   // inside fixture forecast A (day 30 to 120)
+    if (soon.getFullYear() === now.getFullYear() && soon.getMonth() > cur) {
+      const m = r.outlook.months[soon.getMonth()];
+      ok(m.forecastPct !== null && (m.salesForecastPct > m.forecastPct || m.salesForecastPct === 100), 'control: forecast A lifts ' + m.month);
+    }
+    const down = await newLoader({ fail: ['SalesForecasts'] });
+    const d = await down.call('utilisation', {});
+    ok(d.degraded.includes('SalesForecasts'), 'degraded says SalesForecasts');
+    ok(d.outlook.months.slice(cur + 1).every(m => m.salesForecastPct === m.forecastPct), 'without forecasts the sales % equals the plain forecast');
+  });
+
+  await check('N-394 AC8 project_team = ptSortTeam on the Project Team read: current + upcoming, lead DM by name, bench / forecast / other-project rows never listed, ended on request, no email', async () => {
+    const r = await call('project_team', { project: 'acme bank' });
+    eq(r.project, { id: 101, name: 'Acme Bank', kpiExcluded: false }, 'project');
+    eq(r.members.map(m => [m.name, m.level, m.status, m.leadDm, m.start, m.end]),
+      [['Dana Manager', 'SDM', 'current', true, day(-100), day(100)], ['Una Upcoming', 'STP', 'upcoming', false, day(10), day(100)]], 'members');
+    eq([r.leadDm, r.deliveryManager, r.counts], ['Dana Manager', 'Dana Manager', { current: 1, upcoming: 1, ended: 1 }], 'lead, DM, counts (ended counted, not listed)');
+    const oracle = await L.evalInContext(`(async () => {
+      const rows = await getAssignments({ projectId: 101 });
+      const t = localDayISO();
+      return JSON.stringify(ptSortTeam(rows, t).filter(r => ['current', 'upcoming'].includes(ptMemberStatus(r, t))).map(r => r.EmployeeName));
+    })()`);
+    eq(r.members.map(m => m.name), JSON.parse(oracle), 'equals ptSortTeam on the Project Team read');
+    const ended = await call('project_team', { project: '101', includeEnded: true });
+    eq(ended.members.map(m => [m.name, m.status]), [['Dana Manager', 'current'], ['Una Upcoming', 'upcoming'], ['Eve Ended', 'ended']], 'ended last, on request');
+    eq((await call('project_team', { project: 'bluefin' })).members.map(m => [m.name, m.level, m.leadDm]), [['Tom Two', 'STP', false]], 'another project has its own team (no forecast row, no bench row)');
+    eq((await call('project_team', { project: 'corvid' })).members, [], 'a project with no team rows');
+  });
+
+  await check('N-394 AC11 role_detail timeline "by" is a display name; an editor with no UserAssignments name falls back to the email', async () => {
+    const r = await call('role_detail', { roleId: 201 });
+    eq(r.stageTimeline.map(t => t.by), ['Tess One'], 'mapped editor -> display name, not tp.one@mg.co');
+    const c = await call('role_detail', { roleId: 211 });
+    eq(c.stageTimeline.map(t => t.by), ['Tess One', 'ext.editor@mg.co'], 'unmapped editor keeps the email');
+  });
+
+  await check('N-394 AC7 bad input gives a clear message: month + quarter, month 13, quarter 5, year out of range, byLevel / includeEnded not boolean, unknown project', async () => {
+    const y = new Date().getFullYear();
+    await rejects(call('utilisation', { month: 3, quarter: 1 }), /Give month or quarter, not both/, 'month + quarter');
+    await rejects(call('utilisation', { month: 13 }), /month must be a whole number from 1 to 12/, 'month 13');
+    await rejects(call('utilisation', { quarter: 5 }), /quarter must be a whole number from 1 to 4/, 'quarter 5');
+    await rejects(call('utilisation', { year: 2019 }), new RegExp('year must be a whole number from 2020 to ' + y), 'year too early');
+    await rejects(call('utilisation', { year: y + 1 }), /year must be a whole number/, 'year in the future');
+    await rejects(call('utilisation', { byLevel: 'yes' }), /byLevel must be true or false/, 'byLevel');
+    await rejects(call('project_team', { project: 'acme', includeEnded: 'yes' }), /includeEnded must be true or false/, 'includeEnded');
+    await rejects(call('project_team', { project: 'nowhere' }), /No project matched "nowhere"/, 'unknown project');
+    await rejects(call('project_team', {}), /Give a project name or id/, 'project required');
+  });
+
   // AC 9 + AC 10, over every result produced above (each handler ran in the DOM-less context).
-  await check('AC9 no tool output contains a sentinel (candidate name, salary, budget, hiring manager, notes, role-history value, ack note, bill rate) or a denied key', async () => {
+  await check('AC9 / N-394 AC9 no tool output contains a sentinel (candidate name, salary, budget, hiring manager, notes, role-history value, ack note, bill rate) or a denied key', async () => {
     ok(outputs.length >= 25, 'too few tool calls captured to mean anything: ' + outputs.length);
-    eq(Array.from(new Set(outputs.map(o => o.name))).sort(), ['activity_summary', 'list_placements', 'list_projects', 'list_roles', 'project_scorecards', 'project_summary', 'role_detail', 'time_to_fill'], 'every tool exercised');
+    eq(Array.from(new Set(outputs.map(o => o.name))).sort(), ['activity_summary', 'bench', 'list_placements', 'list_projects', 'list_roles', 'project_scorecards', 'project_summary', 'project_team', 'role_detail', 'time_to_fill', 'utilisation'], 'every tool exercised');
     const denied = new Set();
     const cfg = L.config().MCP.outputDenyFields;
     Object.keys(cfg).forEach(k => cfg[k].forEach(f => denied.add(f)));
@@ -394,6 +512,9 @@ async function run() {
     ok(rawRoles.includes('827364') && rawRoles.includes('ZZQ-HM-201'), 'positive control: the live Roles rows carry the Budget / HiringManager sentinels');
     const rawHist = JSON.stringify(await L.evalInContext('getRoleHistory(201)'));
     ok(rawHist.includes('736455') && rawHist.includes('ZZQ-HM-HIST'), 'positive control: RoleHistory carries the Budget / HM history sentinels');
+    const rawAss = JSON.stringify(await L.evalInContext('getAssignments({})'));
+    ok(rawAss.includes('554433') && rawAss.includes('774411') && rawAss.includes('885522') && rawAss.includes('zzq.member@mg.co'), 'positive control (N-394): Assignments carry the bill rate / retainer / placement fee / staff email sentinels');
+    ok(JSON.stringify(await L.evalInContext('getSalesForecasts()')).includes('4.4417'), 'positive control (N-394): SalesForecasts carry the headcount sentinel');
   });
 
   return results;

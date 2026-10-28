@@ -860,5 +860,115 @@ ASSERTIONS.push(
           [true, true, true, false, false], 'cc-pages.js calls the helpers and keeps no maths of its own');
       }
     },
+  },
+  {
+    name: 'N-394 AC6/AC12 utilisationYearSeries / salesForecastUtil / peoplePeriodRange / activeDeployableCount equal the old People Dashboard inline code',
+    fn: function () {
+      const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      // ── oracle: the old inline code, verbatim (people-dashboard.js before N-394) ──
+      function oldSalesForecastUtil(monthIdx, salesForecasts, totalActiveHeadcount, assignmentForecastUtil) {
+        const now      = new Date();
+        const thisYear = now.getFullYear();
+        const mStart   = new Date(thisYear, monthIdx, 1);
+        const mEnd     = new Date(thisYear, monthIdx + 1, 0);
+        const forecastedBilled = salesForecasts.reduce((sum, f) => {
+          const s = new Date(f.ForecastStartDate);
+          const e = new Date(f.ForecastEndDate);
+          return (s <= mEnd && e >= mStart) ? sum + (f.ForecastedHeadcount || 0) : sum;
+        }, 0);
+        const base = assignmentForecastUtil || 0;
+        const added = totalActiveHeadcount > 0 ? forecastedBilled / totalActiveHeadcount : 0;
+        const combined = Math.min(base + added, 1.0);
+        return combined > 0 ? combined : null;
+      }
+      function oldSeries(allRows, assignments, salesForecasts, totalActiveHeadcount) {
+        const now = new Date(), thisYear = now.getFullYear(), curMonth = now.getMonth();
+        const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const fwdRows = computeMonthlyRows(assignments, { through: new Date(thisYear, 11, 31) });
+        function _forecastUtil(monthIdx) {
+          const u = personUtilisation(fwdRows.filter(r => r.Year === thisYear && r.Month === monthIdx + 1));
+          return u.total > 0 ? u.ratio : null;
+        }
+        const points = MONTH_LABELS.map((label, i) => {
+          const monthRows = allRows.filter(r => r.Year === thisYear && r.Month === i + 1);
+          let util;
+          if (i <= curMonth) util = monthRows.length ? personUtilisation(monthRows).ratio : null;
+          else util = _forecastUtil(i);
+          return { label, util, monthIdx: i };
+        });
+        const salesPoints = MONTH_LABELS.map((label, i) => {
+          if (i < curMonth) return { label, util: null, monthIdx: i };
+          const baseUtil = i === curMonth
+            ? (points.find(p => p.monthIdx === curMonth)?.util ?? _forecastUtil(i))
+            : _forecastUtil(i);
+          return { label, util: oldSalesForecastUtil(i, salesForecasts, totalActiveHeadcount, baseUtil), monthIdx: i };
+        });
+        return { points, salesPoints };
+      }
+      const strip = a => a.map(p => ({ monthIdx: p.monthIdx, util: p.util }));
+      const now = new Date();
+      const day = n => { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + n); return iso(d); };
+      const A = (id, name, cust, s, e, billed, extra) => Object.assign({ AssignmentID: id, EmployeeName: name, Level: 'TP', Customer: cust, StartDate: s, EndDate: e, Billed: billed, MonthlyBillRate: 1000 }, extra || {});
+      const assigns = [
+        A('a1', 'Ann', 'Acme', iso(new Date(now.getFullYear(), 0, 1)), iso(new Date(now.getFullYear(), 11, 31)), 'Yes'),
+        A('a2', 'Bob', 'Acme', day(-40), day(120), 'No'),
+        A('a3', 'Cat', 'Acme', day(20), iso(new Date(now.getFullYear() + 1, 2, 1)), 'Yes', { Level: 'STP' }),
+        A('a4', 'Dee', 'Acme', day(-5), day(5), 'Yes', { IsForecast: true }),   // forecast rows never feed utilisation
+      ];
+      const people = [{ EmployeeName: 'Ann', Level: 'TP' }, { EmployeeName: 'Bob', Level: 'TP' }, { EmployeeName: 'Cat', Level: 'STP' },
+        { EmployeeName: 'Fay', StaffType: CONFIG.STAFF_TYPE_INTERNAL, Level: '' }, { EmployeeName: 'Old', Level: 'TP', IsActive: false }];
+      const hc = activeDeployableCount(people);
+      _assertEqual(hc, 3, 'activeDeployableCount: deployable, active, billable level only');
+      _assertEqual(activeDeployableCount(null), 0, 'null people');
+      const m = k => new Date(now.getFullYear(), now.getMonth() + k, 1);
+      const forecastSets = {
+        none: [],
+        overlapOne: [{ ForecastStartDate: iso(m(1)), ForecastEndDate: iso(new Date(now.getFullYear(), now.getMonth() + 2, 0)), ForecastedHeadcount: 1 }],
+        overlapTwo: [{ ForecastStartDate: iso(m(1)), ForecastEndDate: iso(new Date(now.getFullYear(), now.getMonth() + 3, 0)), ForecastedHeadcount: 2 },
+          { ForecastStartDate: iso(m(2)), ForecastEndDate: iso(new Date(now.getFullYear(), now.getMonth() + 4, 0)), ForecastedHeadcount: 9 }],   // capped at 100 %
+        past: [{ ForecastStartDate: '2001-01-01', ForecastEndDate: '2001-02-01', ForecastedHeadcount: 5 }],
+      };
+      const allRows = computeMonthlyRows(assigns);
+      Object.keys(forecastSets).forEach(k => {
+        [hc, 0].forEach(h => {
+          const got = utilisationYearSeries(allRows, assigns, forecastSets[k], h, now);
+          const old = oldSeries(allRows, assigns, forecastSets[k], h);
+          _assertEqual(got.points, strip(old.points), `points identical (${k}, headcount ${h})`);
+          _assertEqual(got.salesPoints, strip(old.salesPoints), `salesPoints identical (${k}, headcount ${h})`);
+        });
+      });
+      const withF = utilisationYearSeries(allRows, assigns, forecastSets.overlapOne, hc, now);
+      const without = utilisationYearSeries(allRows, assigns, forecastSets.none, hc, now);
+      if (now.getMonth() < 11) {
+        _assertEqual(withF.salesPoints[now.getMonth() + 1].util > without.salesPoints[now.getMonth() + 1].util, true, 'control: an overlapping sales forecast lifts the month');
+      }
+      _assertEqual(withF.salesPoints.slice(0, now.getMonth()).every(p => p.util === null), true, 'no sales points before the current month');
+      _assertEqual(withF.points.length + withF.salesPoints.length, 24, '12 + 12 points');
+      // salesForecastUtil: 0 -> null, capped, zero headcount
+      _assertEqual(salesForecastUtil(now.getMonth(), [], 3, 0, now), null, 'zero combined -> null');
+      _assertEqual(salesForecastUtil(now.getMonth(), [], 0, 0.4, now), 0.4, 'zero headcount adds nothing');
+      _assertEqual(salesForecastUtil(now.getMonth(), [{ ForecastStartDate: iso(m(0)) + 'T12:00:00Z', ForecastEndDate: iso(new Date(now.getFullYear(), now.getMonth(), 15)) + 'T12:00:00Z', ForecastedHeadcount: 99 }], 3, 0.4, now), 1, 'capped at 100 %');
+      // peoplePeriodRange: the old _dashDateRange, verbatim
+      function oldDashDateRange(filter) {
+        const { year, month, quarter } = filter;
+        if (month !== null) return { start: new Date(year, month, 1), end: new Date(year, month + 1, 0) };
+        if (quarter !== null) return { start: new Date(year, (quarter - 1) * 3, 1), end: new Date(year, quarter * 3, 0) };
+        return { start: new Date(year, 0, 1), end: new Date(year, 11, 31) };
+      }
+      [{ year: 2026, month: 0, quarter: null }, { year: 2026, month: 11, quarter: null }, { year: 2024, month: 1, quarter: null },
+        { year: 2026, month: null, quarter: 3 }, { year: 2026, month: null, quarter: null }, { year: 2026, month: 4, quarter: 2 }].forEach(f => {
+        _assertEqual(peoplePeriodRange(f), oldDashDateRange(f), 'period ' + JSON.stringify(f));
+      });
+      _assertEqual(iso(peoplePeriodRange({ year: 2024, month: 1, quarter: null }).end), '2024-02-29', 'control: leap February');
+      if (typeof ALL_SOURCES !== 'undefined') {
+        const defs = n => Object.keys(ALL_SOURCES).filter(f => new RegExp('function\\s+' + n + '\\s*\\(').test(ALL_SOURCES[f]));
+        _assertEqual([defs('peoplePeriodRange'), defs('activeDeployableCount')], [['utils.js'], ['utils.js']], 'defined only in utils.js');
+        _assertEqual([defs('utilisationYearSeries'), defs('salesForecastUtil')], [['analytics.js'], ['analytics.js']], 'defined only in analytics.js');
+        _assertEqual([defs('_dashDateRange'), defs('_salesForecastUtil')], [[], []], 'the old renderer copies are gone');
+        const pd = ALL_SOURCES['people-dashboard.js'];
+        _assertEqual([/utilisationYearSeries\(/.test(pd), /peoplePeriodRange\(/.test(pd), /activeDeployableCount\(/.test(pd), /ForecastedHeadcount/.test(pd), /_forecastUtil/.test(pd)],
+          [true, true, true, false, false], 'people-dashboard.js calls the helpers and keeps no maths of its own');
+      }
+    },
   }
 );

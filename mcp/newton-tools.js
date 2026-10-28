@@ -1,5 +1,5 @@
 // mcp/newton-tools.js - Newton for Claude: live tool registry (N-392 registry; N-393 reporting tools;
-// People tools arrive in N-394).
+// N-394 People tools).
 //
 // Served from GitHub Pages and loaded LAST into the MCP server's vm context, after
 // js/config.js and every file in CONFIG.MCP.scripts (mcp/bootstrap/loader.js). No Newton
@@ -413,7 +413,7 @@ async function mcpRoleDetail(args) {
       talentPartners: mcpTpNames(role.TalentPartner, tpMap),
     },
     headcount: { counts: state.counts, slots },
-    stageTimeline: stageRows.map(h => ({ at: h.ChangedAt || null, from: h.OldValue || null, to: h.NewValue || null, by: h.ChangedBy || null })),
+    stageTimeline: stageRows.map(h => ({ at: h.ChangedAt || null, from: h.OldValue || null, to: h.NewValue || null, by: h.ChangedBy ? mcpPersonName(h.ChangedBy, tpMap) : null })),
     funnel: { weeks: W.roleWeeks, totals: mcpFunnelTotals(activitySinceWeeks(activity, W.roleWeeks)) },
     flag,
     placements: { count: placements.length, rows: placements },
@@ -671,6 +671,135 @@ async function mcpProjectScorecards(args) {
   });
 }
 
+// ── People tools (N-394) ──────────────────────────────────────────────
+// Percent for display: the live ratio x 100 to one decimal, as the People Dashboard's _fmtPct
+// shows it. Presentation only; the ratio itself always comes from personUtilisation().
+function mcpPct(ratio) {
+  return ratio === null || ratio === undefined ? null : Math.round(ratio * 1000) / 10;
+}
+
+// ── bench ─────────────────────────────────────────────────────────────
+// The Org Chart's Unassigned pool: the same two reads, the same buildBenchPool (N-391).
+// since = the earliest start of the person's current rows (all bench rows, or none).
+async function mcpBench() {
+  const [people, current] = await Promise.all([getPeople(true, true), getCurrentAssignmentsByEmployee()]);
+  const rows = buildBenchPool(people, current).map(p => {
+    const starts = (current[p.EmployeeName] || []).map(a => mcpOutDay(a.StartDate)).filter(Boolean).sort();
+    return { name: p.EmployeeName || null, level: p.Level || null, location: p.Location || null, since: starts[0] || null };
+  });
+  const capped = mcpCapRows(rows);
+  return mcpOutputGuard({
+    scope: 'People Org Chart > Unassigned: active deployable staff with no current assignment, or only bench assignments. Placeholders, internal staff and CSDs are never bench. since = start of their current bench assignment.',
+    total: capped.total,
+    truncated: capped.truncated,
+    people: capped.rows,
+  });
+}
+
+// ── utilisation ───────────────────────────────────────────────────────
+// The People Dashboard, as it reads with the same period filter: figures for the period, the
+// Team Utilisation panel's bands, the monthly trend and the Team Utilisation {year} graph.
+async function mcpUtilisation(args) {
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const given = v => v !== undefined && v !== null;
+  const year = mcpInt(args.year, 'year', 2020, thisYear, thisYear);
+  const month = given(args.month) ? mcpInt(args.month, 'month', 1, 12) : null;
+  const quarter = given(args.quarter) ? mcpInt(args.quarter, 'quarter', 1, 4) : null;
+  if (month !== null && quarter !== null) throw new Error('Give month or quarter, not both.');
+  if (given(args.byLevel) && typeof args.byLevel !== 'boolean') throw new Error('byLevel must be true or false.');
+  const filter = month !== null ? { year, month: month - 1, quarter: null }
+    : quarter !== null ? { year, month: null, quarter }
+    : given(args.year) ? { year, month: null, quarter: null }
+    : { year, month: now.getMonth(), quarter: null };
+  const { start, end } = peoplePeriodRange(filter);
+  const label = month !== null ? `${year}-${String(month).padStart(2, '0')}`
+    : quarter !== null ? `Q${quarter} ${year}`
+    : given(args.year) ? String(year)
+    : `${year}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const degraded = [];
+  const [assignments, people, forecastRows] = await Promise.all([
+    getAssignments({}),
+    getPeople(false),
+    mcpSoft(getSalesForecasts(), [], 'SalesForecasts', degraded),
+  ]);
+  if (wasListDenied('SalesForecasts') && !degraded.includes('SalesForecasts')) degraded.push('SalesForecasts');
+  const forecasts = Array.isArray(forecastRows) ? forecastRows : [];
+  const allRows = computeMonthlyRows(assignments);
+  const periodRows = monthlyRowsInRange(allRows, start, end);
+  const u = personUtilisation(periodRows);
+  const roll = utilisationBandRollup(periodRows);
+  const series = utilisationYearSeries(allRows, assignments, forecasts, activeDeployableCount(people), now);
+  const monthKey = idx => `${thisYear}-${String(idx + 1).padStart(2, '0')}`;
+  const curMonth = now.getMonth();
+  const t = CONFIG.UTILISATION_THRESHOLDS;
+  const out = {
+    scope: 'People Dashboard utilisation (person-based: each person counts once per day), forecast as the Team Utilisation graph draws it. Percentages only.',
+    period: { label, from: localDayISO(start), to: localDayISO(end) },
+    utilisationPct: u.total > 0 ? mcpPct(u.ratio) : null,
+    billedPersonMonths: u.billed,
+    totalPersonMonths: u.total,
+    utilisedPeople: roll.total.utilised,
+    activePeople: roll.total.active,
+    thresholds: { onTrackPct: mcpPct(t.green), atRiskPct: mcpPct(t.amber) },
+  };
+  if (args.byLevel === true) {
+    out.bands = roll.bands.map(b => ({ band: b.band, utilisationPct: mcpPct(b.u), utilised: b.utilised, total: b.total }));
+  }
+  out.monthly = utilisationByMonth(periodRows).map(m => ({ month: m.month, utilisationPct: mcpPct(m.u) }));
+  out.outlook = {
+    year: thisYear,
+    months: series.points.map((p, i) => ({
+      month: monthKey(i),
+      actualPct: i <= curMonth ? mcpPct(p.util) : null,
+      forecastPct: i > curMonth ? mcpPct(p.util) : null,
+      salesForecastPct: i >= curMonth ? mcpPct(series.salesPoints[i].util) : null,
+    })),
+  };
+  out.degraded = degraded;
+  return mcpOutputGuard(out);
+}
+
+// ── project_team ──────────────────────────────────────────────────────
+// The Project page's Project Team, current + upcoming (ended on request). No emails, rates
+// or fees; bench and forecast rows are never members.
+async function mcpProjectTeam(args) {
+  if (args.includeEnded !== undefined && args.includeEnded !== null && typeof args.includeEnded !== 'boolean') {
+    throw new Error('includeEnded must be true or false.');
+  }
+  const degraded = [];
+  const projects = await getProjects(false);
+  const p = mcpResolveProject(args.project, projects);
+  const [rows, tpMap] = await Promise.all([
+    getAssignments({ projectId: p.id }),
+    mcpSoft(getTalentPartnerDisplayMap(), {}, 'staff names', degraded),
+  ]);
+  const todayISO = localDayISO();
+  const team = ptSortTeam(rows, todayISO)
+    .map(r => ({ r, status: ptMemberStatus(r, todayISO) }))
+    .filter(x => x.status !== 'forecast');
+  const counts = { current: 0, upcoming: 0, ended: 0 };
+  team.forEach(x => { counts[x.status] += 1; });
+  const shown = team.filter(x => x.status !== 'ended' || args.includeEnded === true);
+  const lead = shown.find(x => x.status !== 'ended' && isLeadDmAssignment(x.r));
+  return mcpOutputGuard({
+    scope: `Project Team of ${p.CustomerName}: current and upcoming members${args.includeEnded === true ? ', plus ended members' : ''}. Level is their grade; leadDm marks the project's lead delivery manager.`,
+    project: mcpProjectRef(p),
+    deliveryManager: mcpPersonName(p.DeliveryManager, tpMap),
+    leadDm: lead ? (lead.r.EmployeeName || null) : null,
+    counts,
+    members: shown.map(x => ({
+      name: x.r.EmployeeName || null,
+      level: x.r.Level || null,
+      start: mcpOutDay(x.r.StartDate),
+      end: mcpOutDay(x.r.EndDate),
+      status: x.status,
+      leadDm: isLeadDmAssignment(x.r),
+    })),
+    degraded,
+  });
+}
+
 // ── Registry ──────────────────────────────────────────────────────────
 var MCP_TOOLS = [
   {
@@ -781,5 +910,40 @@ var MCP_TOOLS = [
       additionalProperties: false,
     },
     handler: mcpProjectScorecards,
+  },
+  {
+    name: 'bench',
+    description: 'Staff on the bench now (the Org Chart Unassigned pool): name, level, location and since when. Names only; no money. Placeholders, internal staff and CSDs are never bench.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    handler: mcpBench,
+  },
+  {
+    name: 'utilisation',
+    description: 'Team utilisation as the People Dashboard shows it, percentages only (no money). Period: year, or month / quarter within it; default this month. Includes monthly trend and the year outlook (actual, forecast, sales forecast).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        year: { type: 'integer', minimum: 2020, description: 'Year (default this year). With no month or quarter, a year given means the whole year.' },
+        month: { type: 'integer', minimum: 1, maximum: 12, description: 'Month 1-12 of the year. Not with quarter.' },
+        quarter: { type: 'integer', minimum: 1, maximum: 4, description: 'Quarter 1-4 of the year. Not with month.' },
+        byLevel: { type: 'boolean', description: 'Also break utilisation down by level (SDM, PTP, STP, TP).' },
+      },
+      additionalProperties: false,
+    },
+    handler: mcpUtilisation,
+  },
+  {
+    name: 'project_team',
+    description: 'Who is on a project: current and upcoming team members with level, dates and the lead delivery manager. Names only; no emails, rates or fees. includeEnded adds past members.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project: { type: 'string', description: 'Project name (or part of it) or id.' },
+        includeEnded: { type: 'boolean', description: 'Also list members whose assignment has ended (default false).' },
+      },
+      required: ['project'],
+      additionalProperties: false,
+    },
+    handler: mcpProjectTeam,
   },
 ];

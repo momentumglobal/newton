@@ -1367,7 +1367,7 @@ const CONFIG = {
     contract: 1,
     scripts: [
       'js/actions.js', 'js/utils.js', 'js/headcount.js', 'js/permissions.js',
-      'js/project-team.js', 'js/graph-client.js', 'js/api.js', 'js/api-headcount.js',
+      'js/project-team.js', 'js/graph-client.js', 'js/api.js', 'js/api-headcount.js', 'js/api-orgchart.js',   // N-394: api-orgchart.js for getCurrentAssignmentsByEmployee (bench)
       'js/analytics.js', 'mcp/newton-tools.js',
     ],
     allowedLists: [
@@ -1385,7 +1385,8 @@ const CONFIG = {
       RoleHeadcount:  ['Notes'],
       RoleHistory:    ['OldValue', 'NewValue'],   // the stage timeline is re-keyed to from/to (Stage rows only)
       AnomalyAcks:    ['Note'],
-      Assignments:    ['MonthlyBillRate'],        // N-394 completes the money columns for its tools
+      Assignments:    ['MonthlyBillRate', 'RetainerFee', 'PlacementFee', 'ProratedRevenue', 'BilledRevenue', 'UserEmail'],   // N-394: every money column, the computeMonthlyRows revenue columns, and staff emails (names only)
+      SalesForecasts: ['ForecastedHeadcount'],   // N-394: read locally for the forecast %, never returned
     },
     windows: {
       summaryWeeks:      13,   // project_summary hires window (default)

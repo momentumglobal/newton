@@ -1822,6 +1822,26 @@ function isDeployablePerson(p) {
   return !!p && !isInternalStaff(p) && isBillableLevel(p.Level);
 }
 
+// N-394: deployable, active people - the headcount denominator for utilisation (People
+// Dashboard, CC utilisation, the MCP utilisation tool). Pure.
+function activeDeployableCount(people) {
+  return (people || []).filter(p => p.IsActive !== false && isDeployablePerson(p)).length;   // N-304
+}
+
+// N-394: the People Dashboard period filter -> { start, end } local Dates. filter =
+// { year, month (0-based or null), quarter (1-4 or null) }; month wins, then quarter, else the
+// whole year. Moved verbatim from people-dashboard.js (_dashDateRange) for the MCP tools.
+function peoplePeriodRange(filter) {
+  const { year, month, quarter } = filter;
+  if (month !== null) {
+    return { start: new Date(year, month, 1), end: new Date(year, month + 1, 0) };
+  }
+  if (quarter !== null) {
+    return { start: new Date(year, (quarter - 1) * 3, 1), end: new Date(year, quarter * 3, 0) };
+  }
+  return { start: new Date(year, 0, 1), end: new Date(year, 11, 31) };
+}
+
 // Display label for a person's band: the Level, or 'Internal · <Function>'.
 function personRoleLabel(p) {
   if (isInternalStaff(p)) return `${CONFIG.STAFF_TYPE_INTERNAL} · ${p.StaffFunction || '—'}`;

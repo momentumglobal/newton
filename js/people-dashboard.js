@@ -7,17 +7,7 @@ let _dashFilter = {
 };
 
 // ── People Dashboard calc/format helpers (moved from utils.js, N-237d) ─
-function _dashDateRange(filter) {
-  const { year, month, quarter } = filter;
-  if (month !== null) {
-    return { start: new Date(year, month, 1), end: new Date(year, month + 1, 0) };
-  }
-  if (quarter !== null) {
-    return { start: new Date(year, (quarter - 1) * 3, 1), end: new Date(year, quarter * 3, 0) };
-  }
-  return { start: new Date(year, 0, 1), end: new Date(year, 11, 31) };
-}
-
+// N-394: the period filter is peoplePeriodRange() (utils.js).
 function _fmtGBP(n) {
   return '£' + (n || 0).toLocaleString('en-GB', {
     minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -45,28 +35,6 @@ function _barChart(data, valueFormatter) {
   </div>`;
 }
 
-// ── Sales Forecast Utilisation helper ────────────
-function _salesForecastUtil(monthIdx, salesForecasts, totalActiveHeadcount, assignmentForecastUtil) {
-  const now      = new Date();
-  const thisYear = now.getFullYear();
-  const mStart   = new Date(thisYear, monthIdx, 1);
-  const mEnd     = new Date(thisYear, monthIdx + 1, 0);
-
-  // Additional headcount from sales forecasts overlapping this month
-  const forecastedBilled = salesForecasts.reduce((sum, f) => {
-    const s = new Date(f.ForecastStartDate);
-    const e = new Date(f.ForecastEndDate);
-    return (s <= mEnd && e >= mStart) ? sum + (f.ForecastedHeadcount || 0) : sum;
-  }, 0);
-
-  // Base is the existing assignment forecast util (already a 0-1 ratio)
-  // Add sales headcount on top, expressed as a fraction of total headcount
-  const base = assignmentForecastUtil || 0;
-  const added = totalActiveHeadcount > 0 ? forecastedBilled / totalActiveHeadcount : 0;
-  const combined = Math.min(base + added, 1.0);
-  return combined > 0 ? combined : null;
-}
-
 // ── Team Utilisation Line Graph ───────────────────
 // N-257b: RAG bands replaced by neutral threshold lines (_chartThresholdSvg), reusing N-257a's helper.
 function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, totalActiveHeadcount) {
@@ -76,38 +44,14 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
 
   const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  // N-328: forecast months use the same person-day calculation as actual
-  // months, on rows extended to December (scheduled assignments, no today cap).
-  const fwdRows = computeMonthlyRows(assignments, { through: new Date(thisYear, 11, 31) });
-  function _forecastUtil(monthIdx) {
-    const u = personUtilisation(fwdRows.filter(r => r.Year === thisYear && r.Month === monthIdx + 1));
-    return u.total > 0 ? u.ratio : null;
-  }
-
-  const points = MONTH_LABELS.map((label, i) => {
-    const monthRows = allRows.filter(r => r.Year === thisYear && r.Month === i + 1);
-    let util;
-    if (i <= curMonth) {
-      // Actual: use computed monthly rows
-      util = monthRows.length ? personUtilisation(monthRows).ratio : null;
-    } else {
-      // Forecast: derive from assignment overlap
-      util = _forecastUtil(i);
-    }
-    return { label, util, monthIdx: i };
-  });
+  // N-394: both series come from utilisationYearSeries() (analytics.js), shared with the MCP tool.
+  const series = utilisationYearSeries(allRows, assignments, salesForecasts, totalActiveHeadcount, now);
+  const points = series.points.map(p => ({ label: MONTH_LABELS[p.monthIdx], util: p.util, monthIdx: p.monthIdx }));
 
   const actualPoints   = points.filter(p => p.monthIdx <= curMonth);
   const forecastPoints = points.filter(p => p.monthIdx >= curMonth);
 
-  const salesPoints = MONTH_LABELS.map((label, i) => {
-    if (i < curMonth) return { label, util: null, monthIdx: i };
-    // For current month, anchor to actual utilisation so lines share the same start point
-    const baseUtil = i === curMonth
-      ? (points.find(p => p.monthIdx === curMonth)?.util ?? _forecastUtil(i))
-      : _forecastUtil(i);
-    return { label, util: _salesForecastUtil(i, salesForecasts, totalActiveHeadcount, baseUtil), monthIdx: i };
-  });
+  const salesPoints = series.salesPoints.map(p => ({ label: MONTH_LABELS[p.monthIdx], util: p.util, monthIdx: p.monthIdx }));
   
   const W = 900, H = 200;
   // N-257b: right padding widened for the threshold-label gutter (Addendum A geometry, reused from Revenue).
@@ -464,13 +408,11 @@ async function renderPeopleDashboard() {
     getSalesForecasts(),
   ]);
 
-  const totalActiveHeadcount = people.filter(
-    p => p.IsActive !== false && isDeployablePerson(p)   // N-304
-  ).length;
+  const totalActiveHeadcount = activeDeployableCount(people);   // N-304
 
   const allRows = computeMonthlyRows(assignments);
 
-const { start, end } = _dashDateRange(_dashFilter);
+const { start, end } = peoplePeriodRange(_dashFilter);
   const periodRows = monthlyRowsInRange(allRows, start, end);
   const kpiStrip     = await _renderKPIStrip(allRows, people, assignments);
   const utilLineGraph = _renderUtilisationLineGraph(allRows, assignments, salesForecasts, totalActiveHeadcount);

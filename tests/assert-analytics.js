@@ -979,7 +979,7 @@ ASSERTIONS.push(
         { EmployeeName: 'Bob', Level: 'TP', IsActive: false },
         { EmployeeName: 'Cat', Level: 'STP', IsActive: true },
         { EmployeeName: 'Fay', StaffType: CONFIG.STAFF_TYPE_INTERNAL, Level: '' },
-        { EmployeeName: 'Gus', Level: '' },
+        { EmployeeName: 'Gus', Level: 'CSD' },   // the one non-billable level (isBillableLevel)
       ];
       // oracle: the old inline filter, verbatim
       const old = people.filter(p => p.IsActive !== false && isDeployablePerson(p));

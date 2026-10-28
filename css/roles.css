@@ -411,6 +411,8 @@
   border-radius: var(--r-lg);
 }
 .ck-admin-form .form-group[hidden] { display: none; }
+.ck-admin-section-new { margin-top: var(--sp-3); }
+.ck-admin-section-new[hidden] { display: none; }
 .ck-admin-form .form-actions { margin-top: var(--sp-7); }
 .ck-admin-form [aria-invalid="true"],
 .ck-admin-rename input[aria-invalid="true"] { border-color: var(--status-danger); }

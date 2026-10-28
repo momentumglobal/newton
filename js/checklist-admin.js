@@ -378,6 +378,27 @@ function _ckaEmptyHtml() {
 }
 
 // ── Add / edit form ──────────────────────────────────────────────────
+// N-400: the Section field — a dropdown of the variant's existing sections
+// (display order) plus "+ New section…", which reveals a name box. Add shows a
+// placeholder first; Edit preselects the item's own section; a variant with no
+// sections yet starts on New. Returns the label, select and name box.
+function _ckaSectionFieldHtml(it) {
+  const NEW     = CONFIG.CHECKLISTS.NEW_SECTION_VALUE;
+  const current = it ? _ckaSec(it) : '';
+  const noneYet = _ckaSections.length === 0;
+  const options = [
+    !it && !noneYet ? '<option value="" selected>-- Choose a section --</option>' : '',
+    ..._ckaSections.map(g => `<option value="${escAttr(g.section)}"${g.section === current ? ' selected' : ''}>${escHtml(g.section)}</option>`),
+    `<option value="${escAttr(NEW)}"${noneYet ? ' selected' : ''}>+ New section…</option>`,
+  ].join('');
+  return `<label for="ck-f-section">Section *</label>
+            <select id="ck-f-section"${actOn('change', 'ckaSectionChanged')} aria-describedby="ck-err-section">${options}</select>
+            <div class="ck-admin-section-new" id="ck-f-section-new-group"${noneYet ? '' : ' hidden'}>
+              <label for="ck-f-section-new">New section name *</label>
+              <input type="text" id="ck-f-section-new" aria-describedby="ck-err-section">
+            </div>`;
+}
+
 function _ckaFormHtml() {
   const C  = CONFIG.CHECKLISTS;
   const it = _ckaForm.id === null ? null : _ckaItems.find(r => String(r.id) === _ckaForm.id);
@@ -391,9 +412,7 @@ function _ckaFormHtml() {
         <legend class="form-section-title">${it ? 'Edit item' : 'Add item'} — ${_CKA_TEXT[_ckType].list} · ${escHtml(checklistVariantLabel(_ckVariant))}</legend>
         <div class="form-row">
           <div class="form-group">
-            <label for="ck-f-section">Section *</label>
-            <input type="text" id="ck-f-section" list="ck-f-sections" value="${escAttr(it ? _ckaSec(it) : '')}" aria-describedby="ck-err-section">
-            <datalist id="ck-f-sections">${_ckaSections.map(g => `<option value="${escAttr(g.section)}"></option>`).join('')}</datalist>
+            ${_ckaSectionFieldHtml(it)}
             ${err('section')}
           </div>
           <div class="form-group">
@@ -444,7 +463,9 @@ function _ckaReadForm() {
   const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
   const req = document.getElementById('ck-f-required');
   return {
-    section:   val('ck-f-section'),
+    section:   checklistSectionFromInput(val('ck-f-section'), val('ck-f-section-new')),
+    sectionChoice: val('ck-f-section'),   // raw dropdown + name box, for draft restore only
+    sectionNew:    val('ck-f-section-new'),
     label:     val('ck-f-label'),
     type:      val('ck-f-type'),
     linkUrl:   val('ck-f-link'),
@@ -456,20 +477,40 @@ function _ckaReadForm() {
 
 function _ckaFillForm(v) {
   Object.entries(_CKA_FIELD_INPUT).forEach(([f, inputId]) => {
+    if (f === 'section') return;   // two inputs — restored below
     const el = document.getElementById(inputId);
     if (el) el.value = v[f];
   });
+  const secSel = document.getElementById('ck-f-section');
+  const secNew = document.getElementById('ck-f-section-new');
+  if (secSel && Array.from(secSel.options).some(o => o.value === v.sectionChoice)) secSel.value = v.sectionChoice;
+  if (secNew) secNew.value = v.sectionNew;
+  _ckaSyncSectionNew();
   const req = document.getElementById('ck-f-required');
   if (req) req.checked = v.required;
   ckaFormTypeChanged();
 }
 
+// The input a field's error attaches to — for Section, the name box while
+// "+ New section…" is chosen (N-400).
+function _ckaErrorInput(field, inputId) {
+  const el = document.getElementById(inputId);
+  if (field === 'section' && el && el.value === CONFIG.CHECKLISTS.NEW_SECTION_VALUE) {
+    return document.getElementById('ck-f-section-new');
+  }
+  return el;
+}
+
 function _ckaShowErrors(errors) {
   let first = null;
+  ['ck-f-section', 'ck-f-section-new'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.removeAttribute('aria-invalid');
+  });
   Object.entries(_CKA_FIELD_INPUT).forEach(([f, inputId]) => {
     const msg   = errors[f] || '';
     const errEl = document.getElementById(`ck-err-${f}`);
-    const input = document.getElementById(inputId);
+    const input = _ckaErrorInput(f, inputId);
     if (errEl) errEl.textContent = msg;
     if (input) {
       if (msg) input.setAttribute('aria-invalid', 'true');
@@ -487,6 +528,23 @@ function ckaFormTypeChanged() {
   const action = document.getElementById('ck-f-action-group');
   if (link)   link.hidden   = type !== 'link';
   if (action) action.hidden = type !== 'action';
+}
+
+// N-400: shows the new-section name box only while "+ New section…" is the
+// dropdown's choice. Returns true when it is shown.
+function _ckaSyncSectionNew() {
+  const sel = document.getElementById('ck-f-section');
+  const grp = document.getElementById('ck-f-section-new-group');
+  if (!sel || !grp) return false;
+  const isNew = sel.value === CONFIG.CHECKLISTS.NEW_SECTION_VALUE;
+  grp.hidden = !isNew;
+  return isNew;
+}
+
+function ckaSectionChanged() {
+  if (!_ckaSyncSectionNew()) return;
+  const el = document.getElementById('ck-f-section-new');
+  if (el) el.focus();
 }
 
 function ckaOpenForm(id) {
@@ -829,6 +887,7 @@ registerActions({
   ckaDeleteItem,
   ckaCopyVariant,
   ckaFormTypeChanged,
+  ckaSectionChanged,
   ckaSaveItem,
   ckaCloseForm,
   ckaSaveRename,

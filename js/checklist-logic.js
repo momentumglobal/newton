@@ -205,7 +205,7 @@ function validateChecklistItem({ label, section, type, linkUrl, actionKey, help 
   const lab = text(label), sec = text(section), url = text(linkUrl);
   if (!lab) errors.label = 'Enter an item label.';
   else if (lab.length > C.LABEL_MAX) errors.label = `Keep the label to ${C.LABEL_MAX} characters or fewer.`;
-  if (!sec) errors.section = 'Enter a section.';
+  if (!sec) errors.section = 'Choose a section, or add a new one.';
   else if (sec.length > C.LABEL_MAX) errors.section = `Keep the section to ${C.LABEL_MAX} characters or fewer.`;
   const t = normChecklistKey(type);
   if (!C.ITEM_TYPES.includes(t)) {
@@ -218,4 +218,14 @@ function validateChecklistItem({ label, section, type, linkUrl, actionKey, help 
   }
   if (text(help).length > C.HELP_MAX) errors.help = `Keep the help text to ${C.HELP_MAX} characters or fewer.`;
   return { ok: Object.keys(errors).length === 0, errors };
+}
+
+// N-400: the Section the editor form is asking for. The form has a dropdown
+// of existing sections plus a "+ New section…" option (value
+// CONFIG.CHECKLISTS.NEW_SECTION_VALUE) that reveals a name box: New → the
+// typed name; anything else → the dropdown's value (blank for the placeholder,
+// whatever is typed in the name box is then ignored). Pure; never throws.
+function checklistSectionFromInput(choice, typed) {
+  const pick = String(choice ?? '');
+  return pick === CONFIG.CHECKLISTS.NEW_SECTION_VALUE ? String(typed ?? '') : pick;
 }

@@ -189,6 +189,23 @@ ASSERTIONS.push(
       _assertEqual(validateChecklistItem().ok, false, 'no argument → invalid, no throw');
     },
   },
+  // ── N-400 — Section dropdown helper (checklist-logic.js) ──────────────────────
+  {
+    name: 'N-400 checklistSectionFromInput — an existing choice wins; New uses the typed name; never throws',
+    fn: function () {
+      const NEW = CONFIG.CHECKLISTS.NEW_SECTION_VALUE;
+      _assertEqual(typeof NEW === 'string' && NEW !== '', true, 'sentinel is a non-blank string (blank is the placeholder)');
+      _assertEqual(checklistSectionFromInput('Setup', 'ignored'), 'Setup', 'existing choice → choice, typed name ignored');
+      _assertEqual(checklistSectionFromInput(NEW, 'Onboarding'), 'Onboarding', 'New + typed → typed');
+      _assertEqual(checklistSectionFromInput(NEW, ''), '', 'New + blank → blank');
+      _assertEqual(checklistSectionFromInput('', 'Onboarding'), '', 'placeholder → blank even if a name is typed');
+      _assertEqual(checklistSectionFromInput(undefined, undefined), '', 'undefined → blank');
+      _assertEqual(checklistSectionFromInput(null, null), '', 'null → blank');
+      _assertEqual(checklistSectionFromInput(), '', 'no arguments → blank, no throw');
+      _assertEqual(validateChecklistItem({ label: 'a', section: checklistSectionFromInput(NEW, '  '), type: 'tick' }).ok, false, 'New with a blank name fails validation');
+      _assertEqual(validateChecklistItem({ label: 'a', section: checklistSectionFromInput(NEW, 'Onboarding'), type: 'tick' }).ok, true, 'New with a name passes validation');
+    },
+  },
   // ── N-267 — checklist variant grouping (config.js + checklist-logic.js) ───────
   {
     name: 'N-267 CONFIG.CHECKLISTS.VARIANTS — well-formed grouping table',

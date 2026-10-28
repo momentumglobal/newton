@@ -257,6 +257,7 @@ const CONFIG = {
       { key: 'ExecSearchMGAI', label: 'Exec Search & MG AI', projectTypes: ['Exec Search', 'MG AI'] },
     ],
     DEFAULT_SECTION: 'General',   // heading for items with a blank Section
+    NEW_SECTION_VALUE: '__new__', // N-400: the Section dropdown's "+ New section…" option value
     LABEL_MAX:       255,
     HELP_MAX:        2000,
   },

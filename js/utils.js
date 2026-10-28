@@ -1824,8 +1824,13 @@ function isDeployablePerson(p) {
 
 // N-394: deployable, active people - the headcount denominator for utilisation (People
 // Dashboard, CC utilisation, the MCP utilisation tool). Pure.
+// N-399: the filter itself returns the array (input order kept) so Sync Bench can use the same
+// rule; the count is its length. No other file may carry its own copy.
+function activeDeployablePeople(people) {
+  return (people || []).filter(p => p.IsActive !== false && isDeployablePerson(p));   // N-304
+}
 function activeDeployableCount(people) {
-  return (people || []).filter(p => p.IsActive !== false && isDeployablePerson(p)).length;   // N-304
+  return activeDeployablePeople(people).length;
 }
 
 // N-394: the People Dashboard period filter -> { start, end } local Dates. filter =

@@ -970,5 +970,31 @@ ASSERTIONS.push(
           [true, true, true, false, false], 'people-dashboard.js calls the helpers and keeps no maths of its own');
       }
     },
+  },
+  {
+    name: 'N-399 activeDeployablePeople is the one deployable-headcount rule (AC1-3, AC5, AC6)',
+    fn: function () {
+      const people = [
+        { EmployeeName: 'Ann', Level: 'TP' },
+        { EmployeeName: 'Bob', Level: 'TP', IsActive: false },
+        { EmployeeName: 'Cat', Level: 'STP', IsActive: true },
+        { EmployeeName: 'Fay', StaffType: CONFIG.STAFF_TYPE_INTERNAL, Level: '' },
+        { EmployeeName: 'Gus', Level: '' },
+      ];
+      // oracle: the old inline filter, verbatim
+      const old = people.filter(p => p.IsActive !== false && isDeployablePerson(p));
+      _assertEqual(activeDeployablePeople(people).map(p => p.EmployeeName), old.map(p => p.EmployeeName), 'same people, same order');
+      _assertEqual(activeDeployablePeople(people).map(p => p.EmployeeName), ['Ann', 'Cat'], 'control: IsActive undefined counts, false / internal / non-billable do not');
+      _assertEqual(activeDeployableCount(people), activeDeployablePeople(people).length, 'count equals array length');
+      _assertEqual([activeDeployablePeople(null), activeDeployablePeople([])], [[], []], 'null / empty give []');
+      if (typeof ALL_SOURCES !== 'undefined') {
+        const withFilter = Object.keys(ALL_SOURCES).filter(f => /IsActive\s*!==\s*false\s*&&\s*isDeployablePerson/.test(ALL_SOURCES[f]));
+        _assertEqual(withFilter, ['utils.js'], 'the active + deployable filter exists only in utils.js');
+        const defs = Object.keys(ALL_SOURCES).filter(f => /function\s+activeDeployablePeople\s*\(/.test(ALL_SOURCES[f]));
+        _assertEqual(defs, ['utils.js'], 'activeDeployablePeople defined only in utils.js');
+        _assertEqual([/activeDeployableCount\(/.test(ALL_SOURCES['people-gantt.js']), /activeDeployablePeople\(/.test(ALL_SOURCES['project-team.js'])],
+          [true, true], 'people-gantt.js and project-team.js call the shared helpers');
+      }
+    },
   }
 );

@@ -1239,8 +1239,10 @@ const CONFIG = {
     { key: 'salesForecast',   label: 'Sales Forecast',   module: 'sales', href: 'sales.html#salesForecast',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
     { key: 'lciModels',       label: 'LCI Cost Models',  module: 'sales', href: 'sales.html#lciModels',       roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER] },
     { key: 'lciLeadMagnet',   label: 'LCI Lead Magnet',  module: 'sales', href: 'sales.html#lciLeadMagnet',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
-    // cc-router.js — Command Centre (1)
+    // cc-router.js — Command Centre (2)
     { key: 'overview', label: 'Overview', module: 'command', href: 'command-centre.html', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
+    // N-401 — install guide + download for Newton for Claude (cc-claude.js).
+    { key: 'claudeMcp', label: 'Newton for Claude', module: 'command', href: 'command-centre.html#claudeMcp', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
     // mr-router.js — Market Analytics (2) — added 18 Aug 2026, folded into
     // N-144 after Chris asked to expand scope; fits the same page/role
     // shape as the four router files above (mrCanAccess(page, role)),

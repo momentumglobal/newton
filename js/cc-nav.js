@@ -18,6 +18,7 @@ function toggleCCModuleDropdown() {
 
 function navigateToCC(page) {
   const container = document.getElementById('page-content');
-  updateNavActiveLink(page);
-  withViewTransition(() => renderCCOverview(container));
+  const key = CC_PAGES.some(p => p.key === page) ? page : 'overview';
+  updateNavActiveLink(key);
+  withViewTransition(() => (key === 'claudeMcp' ? renderCCClaudePage(container) : renderCCOverview(container)));
 }

@@ -3,6 +3,9 @@
 // (which declares ASSERTIONS and the shared helpers) and pushes this domain's entries into it.
 // Entries are unchanged from the pre-split file; names are referenced by CI logs and QA docs.
 
+// N-401: Command Centre now has more than one page; the matrix tests read them all by key.
+function _ccPagesByKey(pages) { return pages.reduce((m, p) => { m[p.key] = p; return m; }, {}); }
+
 ASSERTIONS.push(
   {
     name: "_ROLE_COPY_FIELDS stays in sync with submitRoleForm's write set (N-150)",
@@ -406,6 +409,7 @@ ASSERTIONS.push(
     },
     command: {
       overview: ['admin', 'leadership'],
+      claudeMcp: ['admin', 'leadership'],
     },
   };
   const LANDING = {
@@ -437,7 +441,7 @@ ASSERTIONS.push(
         marketing: matrix(load('mr-router.js', 'MR_PAGES')),
         people:    matrix(load('people-router.js', 'PEOPLE_PAGES')),
         sales:     matrix(load('sales-router.js', 'SALES_PAGES')),
-        command:   matrix({ overview: load('cc-router.js', 'CC_PAGES')[0] }),
+        command:   matrix(_ccPagesByKey(load('cc-router.js', 'CC_PAGES'))),
       };
       Object.keys(EXPECTED).forEach(mod => {
         Object.keys(EXPECTED[mod]).forEach(k => EXPECTED[mod][k].sort());
@@ -464,7 +468,7 @@ ASSERTIONS.push(
         marketing: load('mr-router.js', 'MR_PAGES'),
         people:    load('people-router.js', 'PEOPLE_PAGES'),
         sales:     load('sales-router.js', 'SALES_PAGES'),
-        command:   { overview: load('cc-router.js', 'CC_PAGES')[0] },
+        command:   _ccPagesByKey(load('cc-router.js', 'CC_PAGES')),
       };
       Object.keys(byModule).forEach(mod => {
         const bar = CONFIG.COMMAND_BAR_PAGES.filter(p => p.module === mod);

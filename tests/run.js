@@ -117,6 +117,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-rejection-intel.js'),   // N-387
   path.join(TESTS_DIR, 'assert-rejection-intel-ui.js'),   // N-388
   path.join(TESTS_DIR, 'assert-mcp.js'),          // N-393 (sync checks; the handlers run in mcp-tools-check.js)
+  path.join(TESTS_DIR, 'assert-md-guide.js'),     // N-401
 ];
 // N-259: starter-folder-logic.js (pure) loads straight after checklist-logic.js, which it calls.
 // N-361: project-team.js (pure) loads straight after permissions.js; assert-project-team.js is the last assertion file.

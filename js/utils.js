@@ -1322,6 +1322,91 @@ function escHtmlLines(str) {
   return escHtml(str).replace(/\r?\n/g, '<br>');
 }
 
+// ── Guide Markdown renderer (N-401) ───────────────────────────
+// Renders mcp/README.md for the Command Centre "Newton for Claude" page. Handles
+// exactly the subset that guide uses: # ## ### headings, paragraphs, - and 1. lists
+// (nested by indent), pipe tables, **bold**, `code` and bare https:// links.
+// Everything is escaped FIRST (escHtml); markup is only ever added around escaped
+// text, so nothing in the input can become a tag. Anything else is shown as text.
+function _mdGuideInline(raw) {
+  const esc = escHtml(raw);
+  return esc.split(/(`[^`]+`)/).map(seg => {
+    if (/^`[^`]+`$/.test(seg)) return '<code>' + seg.slice(1, -1) + '</code>';
+    return seg
+      .replace(/https:\/\/[A-Za-z0-9\-._~:\/?#@!$()+,;=%]+/g, m => {
+        const url = m.replace(/[.,:;!?)]+$/, '');
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>' + m.slice(url.length);
+      })
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  }).join('');
+}
+
+function _mdGuideList(items, pos, indent) {
+  const tag = items[pos].ordered ? 'ol' : 'ul';
+  let html = '<' + tag + '>';
+  while (pos < items.length && items[pos].indent >= indent) {
+    html += '<li>' + _mdGuideInline(items[pos].text);
+    pos++;
+    if (pos < items.length && items[pos].indent > indent) {
+      const nested = _mdGuideList(items, pos, items[pos].indent);
+      html += nested.html;
+      pos = nested.pos;
+    }
+    html += '</li>';
+  }
+  return { html: html + '</' + tag + '>', pos };
+}
+
+function mdGuideToHtml(md) {
+  if (md === null || md === undefined || md === '') return '';
+  const lines = String(md).replace(/\r\n?/g, '\n').split('\n');
+  const LIST_RE = /^( *)(-|\d+\.) +(.*\S)\s*$/;
+  const TABLE_SEP_RE = /^\|[ :|-]*-[ :|-]*\|\s*$/;
+  const cells = line => line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+  const startsBlock = (line, next) => /^#{1,3} +\S/.test(line) || LIST_RE.test(line)
+    || (/^\|/.test(line) && next !== undefined && TABLE_SEP_RE.test(next));
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) { i++; continue; }
+    const h = /^(#{1,3}) +(.*\S)\s*$/.exec(line);
+    if (h) {
+      const n = h[1].length;
+      const id = n === 2 ? ' id="' + escHtml(h[2].toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')) + '"' : '';
+      out.push('<h' + n + id + '>' + _mdGuideInline(h[2]) + '</h' + n + '>');
+      i++; continue;
+    }
+    if (/^\|/.test(line) && i + 1 < lines.length && TABLE_SEP_RE.test(lines[i + 1])) {
+      let t = '<table class="data-table"><thead><tr>' + cells(line).map(c => '<th>' + _mdGuideInline(c) + '</th>').join('') + '</tr></thead><tbody>';
+      i += 2;
+      while (i < lines.length && /^\|/.test(lines[i])) {
+        t += '<tr>' + cells(lines[i]).map(c => '<td>' + _mdGuideInline(c) + '</td>').join('') + '</tr>';
+        i++;
+      }
+      out.push(t + '</tbody></table>');
+      continue;
+    }
+    if (LIST_RE.test(line)) {
+      const items = [];
+      while (i < lines.length && LIST_RE.test(lines[i])) {
+        const m = LIST_RE.exec(lines[i]);
+        items.push({ indent: m[1].length, ordered: m[2] !== '-', text: m[3] });
+        i++;
+      }
+      out.push(_mdGuideList(items, 0, items[0].indent).html);
+      continue;
+    }
+    const para = [];
+    while (i < lines.length && lines[i].trim() && (para.length === 0 || !startsBlock(lines[i], lines[i + 1]))) {
+      para.push(lines[i].trim());
+      i++;
+    }
+    out.push('<p>' + _mdGuideInline(para.join(' ')) + '</p>');
+  }
+  return out.join('\n');
+}
+
 // Fill "{key}" placeholders from an object — fillTemplate('M{n}', { n: 9 })
 // → 'M9'. An unknown key is left as-is so a typo shows up on screen rather
 // than silently vanishing. Plain text out: escape at the HTML call site.

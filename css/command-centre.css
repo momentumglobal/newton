@@ -90,3 +90,20 @@
 .cc-detail-table td { padding: var(--sp-4); border-bottom: 1px solid var(--border-faint); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .cc-detail-table tbody tr:last-child td { border-bottom: none; }
 .cc-sla { margin-top: var(--sp-8); }   /* N-385: SLA roll-up under the Project Health scorecards */
+
+/* N-401: Newton for Claude page - install guide rendered from mcp/README.md (js/cc-claude.js). */
+.cc-guide-bar { display: flex; align-items: center; gap: var(--sp-7); flex-wrap: wrap; padding: 0 var(--sp-9) var(--sp-7); }
+.cc-guide-download { text-decoration: none; }
+.cc-guide-note { font-size: var(--fs-13); color: var(--text-muted); }
+.cc-guide { max-width: 860px; padding: 0 var(--sp-9) var(--sp-12); color: var(--text-primary); font-size: var(--fs-14); line-height: 1.6; }
+.cc-guide h2 { font-size: var(--fs-20); color: var(--text-heading); margin: var(--sp-10) 0 var(--sp-4); }
+.cc-guide h3 { font-size: var(--fs-16); color: var(--text-heading); margin: var(--sp-8) 0 var(--sp-3); }
+.cc-guide p { margin: var(--sp-4) 0; }
+.cc-guide ul, .cc-guide ol { margin: var(--sp-4) 0; padding-left: var(--sp-9); }
+.cc-guide li { margin: var(--sp-2) 0; }
+.cc-guide code { background: var(--surface-sunken); border-radius: var(--r-sm); padding: 1px var(--sp-3); font-size: var(--fs-13); overflow-wrap: anywhere; }
+.cc-guide a { color: var(--text-link); overflow-wrap: anywhere; }
+.cc-guide a:hover { color: var(--text-link-hover); }
+.cc-guide .data-table { width: 100%; margin: var(--sp-7) 0; }
+.cc-guide .data-table td { vertical-align: top; }
+.cc-guide-error { color: var(--text-secondary); }

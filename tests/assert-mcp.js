@@ -217,4 +217,24 @@ ASSERTIONS.push(
       });
     },
   },
+  {
+    name: 'N-401 mcp/README.md renders through mdGuideToHtml: ten h2 in order, download link, every table row, no leftover markers or scripts',
+    fn: function () {
+      const g = REPO_FILES.mcpReadme;
+      if (typeof g === 'undefined') _skip('REPO_FILES is supplied by tests/run.js; the browser runner has no filesystem.');
+      const core = REPO_FILES.mcpServerCore || '';
+      const url = (core.match(/const DOWNLOAD_URL = '([^']+)'/) || [])[1];
+      if (!url) throw new Error('DOWNLOAD_URL not found in mcp/bootstrap/server-core.js');
+      const html = mdGuideToHtml(g);
+      const h2 = (html.match(/<h2[^>]*>([^<]*)<\/h2>/g) || []).map(h => h.replace(/<[^>]+>/g, ''));
+      _assertEqual(h2, ['What it is', 'Before you start', 'Install', 'First sign-in', 'Things to ask', 'Signing in again', 'Updating', 'Uninstalling', 'If something goes wrong', 'Privacy and safety'], 'h2 headings in order');
+      if (html.indexOf('<a href="' + url + '"') < 0) throw new Error('rendered guide does not link DOWNLOAD_URL ' + url);
+      const rows = g.split(/\r?\n/).filter(l => /^\|/.test(l) && !/^\|[ :|-]*-[ :|-]*\|\s*$/.test(l)).length;
+      _assertEqual((html.match(/<tr>/g) || []).length, rows, 'table rows in the guide vs rendered <tr>');
+      [/<script/i, /javascript:/i, /\*\*/, /`/, /^## /m, /\|---/].forEach(re => {
+        if (re.test(html)) throw new Error('rendered guide contains ' + re + ' - the README uses syntax the renderer does not handle');
+      });
+      if (html.indexOf('Claude_&lt;id&gt;') < 0) throw new Error('Claude_<id> must render as visible text');
+    },
+  },
 );

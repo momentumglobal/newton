@@ -195,7 +195,7 @@ ASSERTIONS.push(
     name: 'N-395 mcp/README.md — the ten headings in order, the download URL and update message quoted from server-core.js, both token paths, no secret-looking text',
     fn: function () {
       if (typeof REPO_FILES === 'undefined' || typeof REPO_FILES.mcpReadme !== 'string') return _skip('Install-guide check needs filesystem access — runs under node tests/run.js');
-      const g = REPO_FILES.mcpReadme;
+      const g = REPO_FILES.mcpReadme.replace(/\r\n/g, '\n');   // Windows checkouts may use CRLF
       const core = REPO_FILES.mcpServerCore;
       if (!g) throw new Error('mcp/README.md is missing or empty');
       const heads = ['What it is', 'Before you start', 'Install', 'First sign-in', 'Things to ask', 'Signing in again', 'Updating', 'Uninstalling', 'If something goes wrong', 'Privacy and safety'];

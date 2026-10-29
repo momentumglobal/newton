@@ -18,8 +18,14 @@ async function renderProjectDashboard() {
     _dashProjectId = projectId;
   }
   let selectorHtml = '', projectName = 'Project';
-  if (isDMAdmin) {
-    const projects = sortProjectsByName(dashboardProjects(await getScopedProjects(user.email, false)));   // N-362
+  // N-368 diff-2: a Talent Partner whose scope holds more than one dashboard project gets the
+  // same Project selector (their own scoped projects only), opening on getDefaultUserProjectId
+  // above. One project → no selector, as before. The DM / Admin panels still key on isDMAdmin.
+  const projects = (isDMAdmin || isTP)
+    ? sortProjectsByName(dashboardProjects(await getScopedProjects(user.email, false)))   // N-362
+    : [];
+  const hasSelector = isDMAdmin || projects.length > 1;
+  if (hasSelector) {
     if (!projectId && projects.length) { projectId = String(projects[0].id); _dashProjectId = projectId; }
     projectName = (projects.find(p => String(p.id) === String(projectId)) || {}).CustomerName || 'Project';
     // N-112: Active/Archive optgroup split (projects already sorted, so each
@@ -80,8 +86,8 @@ async function renderProjectDashboard() {
   const rejIntelSlot    = isDMAdmin ? `<div id='proj-rejintel-slot'></div>` : '';
   main.innerHTML = `
     <div class='page-header'>
-      <h2>Project Dashboard${isDMAdmin ? ' — ' + escHtml(projectName) : ''}</h2>
-    <button class='print-btn' ${act('printPage', `Project Dashboard${isDMAdmin ? ' — ' + projectName : ''}`, true, 'Reporting').trim()}>⎙ Export PDF</button>
+      <h2>Project Dashboard${hasSelector ? ' — ' + escHtml(projectName) : ''}</h2>
+    <button class='print-btn' ${act('printPage', `Project Dashboard${hasSelector ? ' — ' + projectName : ''}`, true, 'Reporting').trim()}>⎙ Export PDF</button>
     </div>
     ${selectorHtml}
     <div class='form-group dash-project-selector'>
@@ -111,9 +117,9 @@ async function renderProjectDashboard() {
   runKpiCountUps(main);
   if (slaSlot) mountProjectSlaPanel('proj-sla-slot', dashProject);   // N-384
   if (rejIntelSlot) mountRejectionIntelStrip('proj-rejintel-slot', projectId);   // N-388
-  // N-255b: TP branch never resolves projectName (matches the <h2>, which
-  // also only shows it for isDMAdmin) — no new fetch added for this.
-  renderBreadcrumb('projectDashboard', isDMAdmin ? projectName : undefined);
+  // N-255b / N-368 diff-2: projectName is resolved only when the selector shows (DM / Admin,
+  // or a TP with more than one project), matching the <h2>.
+  renderBreadcrumb('projectDashboard', hasSelector ? projectName : undefined);
 }
 // N-388 (DA-8): fills the insight strip for one project. All time (the strip describes the project,
 // not the dashboard's period), amounts only for the figures capability. Never throws and never shows

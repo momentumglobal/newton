@@ -621,7 +621,6 @@ async function _dhFetchSectionData() {
     statusByList,
     schemaResults,
     diagList,
-    diagList,
     anomalies,
     headcountIntegrity,
   };

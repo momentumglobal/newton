@@ -648,5 +648,24 @@ ASSERTIONS.push(
       _assertEqual(/fields\/Title eq '\$\{odataStr\(lower\)\}'/.test(dm.slice(0, 600)) && /dmProjectIdsFromAssignments\(rows\)/.test(dm.slice(0, 600)) && /getGhostUser\(\) \|\| email/.test(dm.slice(0, 600)), true, 'getDmProjectIds: ghost-aware, same UserAssignments read as getUserProjectIds, filtered by the pure helper');
       _assertEqual(/if \(accessScopeMode\(\) === 'assignments'\) return dmProjectIdsFromScope\(rows, await getUserProjectIds\(lower\)\);/.test(dm.slice(0, 600)), true, 'N-368 getDmProjectIds: assignments mode = DM role + Assignments scope');
     },
+  },
+  {
+    name: 'N-368 diff-2 Project Dashboard — a TP with more than one project gets the selector; DM-only panels unchanged',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('dashboard-project.js source needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const src = ALL_SOURCES['dashboard-project.js'];
+      const at = src.indexOf('async function renderProjectDashboard(');
+      const end = src.indexOf('\nasync function mountRejectionIntelStrip(', at);
+      const render = at > -1 && end > at ? src.slice(at, end) : '';
+      _assertEqual(render.length > 0, true, 'control: renderProjectDashboard found');
+      _assertEqual(/const projects = \(isDMAdmin \|\| isTP\)\s*\? sortProjectsByName\(dashboardProjects\(await getScopedProjects\(user\.email, false\)\)\)/.test(render), true, 'TP and DM / Admin read their scoped dashboard projects');
+      _assertEqual(/const hasSelector = isDMAdmin \|\| projects\.length > 1;/.test(render) && /if \(hasSelector\) \{/.test(render), true, 'selector for DM / Admin, or a TP with more than one project');
+      _assertEqual(render.indexOf('getDefaultUserProjectId(user.email)') > -1 && render.indexOf('getDefaultUserProjectId(user.email)') < render.indexOf('const hasSelector'), true, 'TP still opens on the default project');
+      _assertEqual((render.match(/hasSelector \? ' — ' \+/g) || []).length, 2, 'h2 and PDF title follow the selector');
+      _assertEqual(/renderBreadcrumb\('projectDashboard', hasSelector \? projectName : undefined\)/.test(render), true, 'breadcrumb follows the selector');
+      _assertEqual(['tpTable', 'rejPanel', 'starters', 'spend', 'rejIntelSlot'].every(n => new RegExp('const ' + n + '\\s+= isDMAdmin').test(render)), true, 'DM / Admin-only panels still key on isDMAdmin');
+    },
   }
 );

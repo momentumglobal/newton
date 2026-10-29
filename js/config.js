@@ -1169,7 +1169,7 @@ const CONFIG = {
   // (accessScopeMode, permissions.js). Admin is decided from UserAssignments in
   // every mode.
   ACCESS_SCOPE: {
-    mode:            'legacy',
+    mode:            'assignments',
     shadowErrorType: 'scope-shadow',   // retired N-367 shadow rows: historic Diagnostics rows only (Error Telemetry skips them)
   },
   

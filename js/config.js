@@ -816,6 +816,7 @@ const CONFIG = {
     "Belgium":         "EUR",
     "Slovakia":        "EUR",
     "Finland":         "EUR", 
+    "Japan":           "JPY",
   },
 
   ANALYTICS_BENCHMARKS: {

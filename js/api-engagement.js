@@ -9,7 +9,7 @@
 
 // Eligible respondents for an Engagement survey run = every active employee on
 // the Employee Tracker (People list, active, not a placeholder) except the
-// levels in CONFIG.SURVEY.EXCLUDED_LEVELS (CSD) — isSurveyEligibleEmployee,
+// levels in CONFIG.SURVEY.EXCLUDED_LEVELS (CSD) and External partners (N-402) — isSurveyEligibleEmployee,
 // permissions.js (N-332, Chris 14 Oct 2026). Counts the workforce, not Newton
 // logins: UserAssignments is not read, so bench TPs/DMs (N-233) and internal
 // staff are counted whether or not they have a role. This is the denominator of

@@ -108,12 +108,13 @@ function isBenchAssignment(a) {
 // N-391: people on the bench now — moved from org-chart.js (body unchanged; the per-row test
 // is now isBenchAssignment). currentAssign = getCurrentAssignmentsByEmployee() output
 // ({ EmployeeName: [row,...] }, forecasts already removed). Placeholders, internal staff
-// (N-304) and CSDs are never bench. Bench = no current rows, or every current row is bench.
-// Sorted by EmployeeName.
+// (N-304), External partners (N-402) and CSDs are never bench. Bench = no current rows, or
+// every current row is bench. Sorted by EmployeeName.
 function buildBenchPool(people, currentAssign) {
   return people.filter(p => {
     if (p.IsPlaceholder) return false;              // a vacancy is not on the bench
     if (isInternalStaff(p)) return false;           // N-304: internal staff sit in the tree
+    if (isExternalStaff(p)) return false;           // N-402: partners are never bench
     if (p.Level === 'CSD') return false;            // CSDs sit in the tree
     const rows = currentAssign[p.EmployeeName] || [];
     return rows.length === 0 || rows.every(a => isBenchAssignment(a));
@@ -516,9 +517,10 @@ const PT_MEMBER_STATUS_LABELS = Object.freeze({
   current: 'Current', upcoming: 'Upcoming', forecast: 'Forecast', ended: 'Ended',
 });
 
-// Who the Project Team picker offers: active, non-placeholder People. Deployable staff on every
-// project; internal staff only on the Internal-type project (N-333 — Internal TA keep visibility
-// when N-367 switches access to Assignments). Input order kept (getPeople sorts).
+// Who the Project Team picker offers: active, non-placeholder People. Deployable staff and
+// External partners (N-402) on every project; internal staff only on the Internal-type project
+// (N-333 — Internal TA keep visibility when N-367 switches access to Assignments). Input order
+// kept (getPeople sorts).
 function ptTeamPickerPeople(people, project) {
   const internalOk = isInternalProject(project);
   return (people || []).filter(p => p && p.IsActive !== false && !p.IsPlaceholder &&
@@ -583,7 +585,9 @@ function ptOpenRolesFor(roles, email) {
 //   ctx   = { project, person (People row or null), email (resolved, may be ''), isCreate }
 // Customer / ProjectType / ProjectID are copied from the project on every save. A row is either
 // monthly-rate or split-fee, never both, and an unbilled row carries neither (N-116 / N-327).
-// Internal staff are always Billed No with no rates. Person fields only on create.
+// Internal staff are always Billed No with no rates. External partners (N-402) keep Billed and
+// rates as entered (their revenue counts) and have no Level. Person fields only on create —
+// StaffType is copied from the People row then, like Level, and never re-derived.
 function ptBuildMemberFields(input, ctx) {
   const i = input || {};
   const c = ctx || {};
@@ -617,8 +621,10 @@ function ptBuildMemberFields(input, ctx) {
     return { ok: false, error: "Rates and fees can't be negative." };
   }
   if (c.isCreate) {
+    const external = isExternalStaff(person);       // N-402
     fields.EmployeeName = person.EmployeeName;
-    fields.Level        = internal ? '' : (person.Level || '');
+    fields.Level        = (internal || external) ? '' : (person.Level || '');
+    fields.StaffType    = person.StaffType || '';   // N-402: '' = Deployable
     fields.UserEmail    = _ptEmail(c.email);
     fields.IsLeadDM     = false;
   }
@@ -685,11 +691,13 @@ function ptComputeBenchChanges(people, assignments, today = new Date()) {
   const toCreate = [];
   const toDelete = [];
 
-  // Clean up bench records for inactive employees and internal staff (N-304 —
-  // e.g. someone switched Deployable → Internal) — they're excluded from the
-  // main loop but their stale bench records still need removing
+  // Clean up bench records for inactive employees, internal staff and External
+  // partners (N-304 / N-402 — e.g. someone switched Deployable → Internal or
+  // External) — they're excluded from the main loop but their stale bench
+  // records still need removing
   const excludedBench = existingBench.filter(b =>
-    people.some(p => p.EmployeeName === b.EmployeeName && (p.IsActive === false || isInternalStaff(p)))
+    people.some(p => p.EmployeeName === b.EmployeeName &&
+      (p.IsActive === false || isInternalStaff(p) || isExternalStaff(p)))
   );
   excludedBench.forEach(b => { if (!toDelete.includes(b.id)) toDelete.push(b.id); });
 

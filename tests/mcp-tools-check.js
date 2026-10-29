@@ -461,6 +461,7 @@ async function run() {
     eq(r.project, { id: 101, name: 'Acme Bank', kpiExcluded: false }, 'project');
     eq(r.members.map(m => [m.name, m.level, m.status, m.leadDm, m.start, m.end]),
       [['Dana Manager', 'SDM', 'current', true, day(-100), day(100)], ['Una Upcoming', 'STP', 'upcoming', false, day(10), day(100)]], 'members');
+    eq(r.members.map(m => m.partner), [false, false], 'N-402: Momentum staff are not partners');
     eq([r.leadDm, r.deliveryManager, r.counts], ['Dana Manager', 'Dana Manager', { current: 1, upcoming: 1, ended: 1 }], 'lead, DM, counts (ended counted, not listed)');
     const oracle = await L.evalInContext(`(async () => {
       const rows = await getAssignments({ projectId: 101 });
@@ -471,7 +472,8 @@ async function run() {
     const ended = await call('project_team', { project: '101', includeEnded: true });
     eq(ended.members.map(m => [m.name, m.status]), [['Dana Manager', 'current'], ['Una Upcoming', 'upcoming'], ['Eve Ended', 'ended']], 'ended last, on request');
     eq((await call('project_team', { project: 'bluefin' })).members.map(m => [m.name, m.level, m.leadDm]), [['Tom Two', 'STP', false]], 'another project has its own team (no forecast row, no bench row)');
-    eq((await call('project_team', { project: 'corvid' })).members, [], 'a project with no team rows');
+    eq((await call('project_team', { project: 'corvid' })).members.map(m => [m.name, m.level, m.status, m.partner]),
+      [['Pia Partner', null, 'upcoming', true]], 'N-402: an External partner is listed with partner: true (804 has no ProjectID, so is not a team row)');
   });
 
   await check('N-394 AC11 role_detail timeline "by" is a display name; an editor with no UserAssignments name falls back to the email', async () => {

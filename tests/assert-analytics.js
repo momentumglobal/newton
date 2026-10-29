@@ -998,3 +998,57 @@ ASSERTIONS.push(
     },
   }
 );
+
+// ── N-402: External partners — revenue yes, utilisation no ─────────────
+ASSERTIONS.push(
+  {
+    name: 'N-402: External rows carry StaffType through computeMonthlyRows, count for revenue and never for utilisation or billed headcount',
+    fn: function () {
+      const E = CONFIG.STAFF_TYPE_EXTERNAL;
+      const ly = new Date().getFullYear() - 1;
+      const jan = { StartDate: ly + '-01-01T12:00:00Z', EndDate: ly + '-01-31T12:00:00Z', Customer: 'Acme', ProjectType: 'Embedded', Billed: 'Yes' };
+      const dee = Object.assign({ AssignmentID: 'A-1', EmployeeName: 'Dee', Level: 'TP', MonthlyBillRate: 1000 }, jan);
+      const pia = Object.assign({ AssignmentID: 'A-2', EmployeeName: 'Pia', Level: '', StaffType: E, MonthlyBillRate: 2000 }, jan);
+      const rows = computeMonthlyRows([dee, pia]);
+      _assertEqual(rows.map(r => [r.EmployeeName, r.StaffType]), [['Dee', undefined], ['Pia', E]], 'monthly rows carry StaffType');
+      _assertEqual(countsForUtilisation(rows[1]), false, 'an External row never counts');
+      _assertEqual([countsForUtilisation(rows[0]), countsForUtilisation({ Level: 'CSD' }), countsForUtilisation(null)], [true, false, false], 'Deployable TP counts; CSD / null do not');
+      _assertEqual(personUtilisation(rows), { ratio: 1, billed: 1, total: 1 }, 'the partner adds no person-months');
+      _assertEqual(rows.reduce((s, r) => s + r.BilledRevenue, 0), 3000, 'the partner\'s revenue counts');
+      const unbilledDee = Object.assign({}, dee, { Billed: 'No' });
+      _assertEqual(personUtilisation(computeMonthlyRows([unbilledDee, pia])), { ratio: 0, billed: 0, total: 1 }, 'a billed partner does not lift an unbilled team');
+      const strayLevel = Object.assign({}, pia, { Level: 'TP' });
+      const roll = utilisationBandRollup(computeMonthlyRows([dee, strayLevel]));
+      _assertEqual([roll.bands, roll.total], [[{ band: 'TP', u: 1, utilised: 1, total: 1 }], { u: 1, utilised: 1, active: 1 }], 'band roll-up: in no band or total, even with a stray Level');
+      const split = Object.assign({}, pia, { AssignmentID: 'A-3', ProjectType: CONFIG.SPLIT_FEE_PROJECT_TYPES[0], MonthlyBillRate: null, RetainerFee: 100, PlacementFee: 200 });
+      const splitRows = computeMonthlyRows([split]);
+      _assertEqual(splitRows.length >= 2 && splitRows.every(r => r.StaffType === E), true, 'split-fee placement row carries StaffType too');
+    },
+  },
+  {
+    name: 'N-402: billed headcount, Command Centre forecast, outlook and year series are unchanged by an External partner (with a control that moves them)',
+    fn: function () {
+      const E = CONFIG.STAFF_TYPE_EXTERNAL;
+      const now = new Date();
+      const y = now.getFullYear();
+      const live = { StartDate: (y - 1) + '-01-01T12:00:00Z', EndDate: (y + 1) + '-12-31T12:00:00Z', ProjectType: 'Embedded' };
+      const dee = Object.assign({ AssignmentID: 'A-1', EmployeeName: 'Dee', Level: 'TP', Customer: 'Acme', Billed: 'No' }, live);
+      const pia = Object.assign({ AssignmentID: 'A-2', EmployeeName: 'Pia', Level: '', StaffType: E, Customer: 'Beta', Billed: 'Yes', MonthlyBillRate: 2000 }, live);
+      const deePerson = { EmployeeName: 'Dee', Level: 'TP', IsActive: true };
+      const piaPerson = { EmployeeName: 'Pia', Level: '', StaffType: E, IsActive: true };
+      const k = peopleKpiFigures(computeMonthlyRows([dee, pia]), [dee, pia], now);
+      _assertEqual([k.billedHeadcount, k.activeCustomers], [0, 2], 'billed headcount leaves the partner out; their customer is still active');
+      const fc = [{ ForecastStartDate: now.toISOString(), ForecastEndDate: new Date(now.getTime() + 60 * 86400000).toISOString(), ForecastedHeadcount: 1 }];
+      const figs = (assigns, people) => JSON.stringify([
+        utilisationForecastCalc(fc, assigns, people),
+        utilisationOutlook(fc, assigns, people, now),
+        utilisationYearSeries(computeMonthlyRows(assigns), assigns, fc, activeDeployableCount(people), now),
+      ]);
+      const without = figs([dee], [deePerson]);
+      _assertEqual(figs([dee, pia], [deePerson, piaPerson]), without, 'adding the partner (rows + People row) changes nothing');
+      const asDeployable = Object.assign({}, pia, { StaffType: undefined, Level: 'TP' });
+      _assertEqual(figs([dee, asDeployable], [deePerson, Object.assign({}, piaPerson, { StaffType: undefined, Level: 'TP' })]) !== without, true,
+        'control: the same person as Deployable does move the figures');
+    },
+  }
+);

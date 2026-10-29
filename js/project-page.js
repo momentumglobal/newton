@@ -293,7 +293,8 @@ function _ppMemberRowHtml(v, r, leadIds) {
   const id     = Number(r.id);
   const status = ptMemberStatus(r, v.todayISO);
   const lead   = isLeadDmAssignment(r);
-  const tags   = (lead ? '<span class="checklist-tag">Lead DM</span>' : '') +
+  const tags   = (isExternalStaff(r) ? `<span class="checklist-tag">${escHtml(CONFIG.EXTERNAL_LABEL)}</span>` : '') +   // N-402
+    (lead ? '<span class="checklist-tag">Lead DM</span>' : '') +
     (v.canEditTeam && !String(r.UserEmail || '').trim() ? '<span class="checklist-tag">No login</span>' : '');
   let edit = '';
   if (v.canEditTeam) {

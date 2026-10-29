@@ -1182,7 +1182,7 @@ async function createPerson(fields) {
     Level:        fields.Level || undefined,   // N-304: blank for internal staff
     StaffType:    fields.StaffType || CONFIG.STAFF_TYPE_DEPLOYABLE,
     StaffFunction: fields.StaffFunction || undefined,
-    ContractType: fields.ContractType,
+    ContractType: fields.ContractType || undefined,   // N-402: none for External
     Location:     fields.Location,
     StartDate:    fields.StartDate || undefined,
     EndDate:      fields.EndDate   || undefined,
@@ -1257,6 +1257,7 @@ async function createAssignment(fields) {
     Title:           fields.AssignmentID,
     EmployeeName:    fields.EmployeeName,
     Level:           fields.Level,
+    StaffType:       fields.StaffType || undefined,   // N-402: copied at create; blank = Deployable
     Customer:        fields.Customer,
     ProjectType:     fields.ProjectType,
     StartDate:       fields.StartDate,
@@ -1282,6 +1283,7 @@ async function updateAssignment(id, fields) {
   if (fields.AssignmentID    !== undefined) payload.Title           = fields.AssignmentID;
   if (fields.EmployeeName    !== undefined) payload.EmployeeName    = fields.EmployeeName;
   if (fields.Level           !== undefined) payload.Level           = fields.Level;
+  if (fields.StaffType       !== undefined) payload.StaffType       = fields.StaffType;   // N-402
   if (fields.Customer        !== undefined) payload.Customer        = fields.Customer;
   if (fields.ProjectType     !== undefined) payload.ProjectType     = fields.ProjectType;
   if (fields.StartDate       !== undefined) payload.StartDate       = fields.StartDate;

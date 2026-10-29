@@ -166,6 +166,7 @@ ASSERTIONS.push(
       ['SDM', 'PTP', 'STP', 'TP'].forEach(l => _assertEqual(e(P(l)), true, l + ' counts'));
       _assertEqual(e(P('CSD')), false, 'CSD excluded');
       _assertEqual(e(P(undefined, { StaffType: 'Internal' })), true, 'internal staff (no Level) counts');
+      _assertEqual(e(P('', { StaffType: CONFIG.STAFF_TYPE_EXTERNAL })), false, 'N-402: an External partner never counts');
       _assertEqual(e(P('')), true, 'blank Level counts');
       _assertEqual(e(P('TP', { IsActive: false })), false, 'inactive excluded');
       _assertEqual(e(P('TP', { IsActive: undefined })), true, 'IsActive undefined (getPeople already filtered)');
@@ -212,7 +213,7 @@ ASSERTIONS.push(
       _assertEqual(personRoleLabel({ StaffType: I }), 'Internal · —', 'internal, missing function');
       _assertEqual(personRoleLabel({ Level: 'STP' }), 'STP', 'deployable label = Level');
       _assertEqual(personRoleLabel({}), '', 'no level');
-      _assertEqual(CONFIG.STAFF_TYPES.includes(I) && CONFIG.STAFF_TYPES.includes(D), true, 'STAFF_TYPES holds both values');
+      _assertEqual(CONFIG.STAFF_TYPES.includes(I) && CONFIG.STAFF_TYPES.includes(D) && CONFIG.STAFF_TYPES.includes(CONFIG.STAFF_TYPE_EXTERNAL), true, 'STAFF_TYPES holds all three values (N-402)');
       _assertEqual(typeof CONFIG.PROJECT_TYPE_COLOUR_VARS[I], 'string', 'STAFF_TYPE_INTERNAL is also a project-type colour key (Org Chart function bubbles)');
       _assertEqual(CONFIG.LIST_FIELDS.People.includes('StaffType') && CONFIG.LIST_FIELDS.People.includes('StaffFunction'), true, 'People projection carries StaffType + StaffFunction');
     },
@@ -606,6 +607,67 @@ ASSERTIONS.push(
       ['ocToggleNode', 'ocToggleNodeKey', 'ocSetAllCollapsed'].forEach(a =>
         _assertEqual(!!reg && new RegExp('\\b' + a + '\\b').test(reg[0]), true, a + ' registered'));
       _assertEqual(/li\.org-collapsed\s*>\s*ul\s*\{\s*display:\s*none/.test(ALL_CSS['people.css']), true, 'people.css hides a collapsed node\'s child ul');
+    },
+  }
+);
+
+// ── N-402: External partners ───────────────────────────────────────────
+ASSERTIONS.push(
+  {
+    name: 'N-402: isExternalStaff / isDeployablePerson / personRoleLabel / assignmentLevelLabel / isPayrollPerson',
+    fn: function () {
+      const E = CONFIG.STAFF_TYPE_EXTERNAL, I = CONFIG.STAFF_TYPE_INTERNAL, D = CONFIG.STAFF_TYPE_DEPLOYABLE;
+      _assertEqual([CONFIG.STAFF_TYPES, E, CONFIG.EXTERNAL_LABEL], [['Deployable', 'Internal', 'External'], 'External', 'Partner'], 'config');
+      _assertEqual(isExternalStaff({ StaffType: E }), true, 'People / Assignments / monthly row shape');
+      _assertEqual([isExternalStaff({ StaffType: D }), isExternalStaff({ StaffType: I }), isExternalStaff({}), isExternalStaff(null)], [false, false, false, false], 'Deployable, Internal, blank, null');
+      _assertEqual(isDeployablePerson({ StaffType: E, Level: '' }), false, 'external, blank Level');
+      _assertEqual(isDeployablePerson({ StaffType: E, Level: 'TP' }), false, 'external wins over a stray Level');
+      _assertEqual(isDeployablePerson({ StaffType: D, Level: 'TP' }), true, 'Deployable TP unchanged');
+      _assertEqual(activeDeployableCount([{ StaffType: E, IsActive: true }, { Level: 'TP', IsActive: true }]), 1, 'an active External is not deployable headcount');
+      _assertEqual(personRoleLabel({ StaffType: E }), 'Partner', 'person label');
+      _assertEqual([assignmentLevelLabel({ StaffType: E, Level: '' }), assignmentLevelLabel({ Level: 'STP' }), assignmentLevelLabel({}), assignmentLevelLabel(null)],
+        ['Partner', 'STP', '—', '—'], 'Assignments row label');
+      _assertEqual([isPayrollPerson({ Location: 'UK', Level: 'TP' }), isPayrollPerson({ Location: 'UK', StaffType: I }), isPayrollPerson({ Location: 'UK', StaffType: E }),
+        isPayrollPerson({ Location: 'Spain', Level: 'TP' }), isPayrollPerson(null)], [true, true, false, false, false], 'payroll population');
+    },
+  },
+  {
+    name: 'N-402: isSurveyEligibleEmployee leaves External partners out; an injected cfg without the constant changes nothing',
+    fn: function () {
+      const P = extra => Object.assign({ EmployeeName: 'X', IsActive: true, Level: '' }, extra);
+      _assertEqual(isSurveyEligibleEmployee(P({ StaffType: CONFIG.STAFF_TYPE_EXTERNAL })), false, 'external excluded');
+      _assertEqual(isSurveyEligibleEmployee(P({ Level: 'TP' })), true, 'Deployable TP counts');
+      _assertEqual(isSurveyEligibleEmployee(P({ Level: 'CSD' })), false, 'CSD rule unchanged');
+      const cfg = { SURVEY: { EXCLUDED_LEVELS: ['CSD'] } };
+      _assertEqual(isSurveyEligibleEmployee(P({ Level: 'TP' }), cfg), true, 'cfg without STAFF_TYPE_EXTERNAL: a blank StaffType still counts');
+      _assertEqual(isSurveyEligibleEmployee(P({ StaffType: 'External' }), Object.assign({ STAFF_TYPE_EXTERNAL: 'External' }, cfg)), false, 'injected cfg honoured');
+    },
+  },
+  {
+    name: 'N-402: payroll, Workforce Segmentation and Deployable Resources leave External partners out (source)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const pay = ALL_SOURCES['people-payroll.js'];
+      _assertEqual((pay.match(/all\.filter\(isPayrollPerson\)/g) || []).length, 2, 'both payroll call sites use isPayrollPerson');
+      _assertEqual(/Location\s*===\s*'UK'/.test(pay), false, 'no local UK filter left in people-payroll.js');
+      const seg = ALL_SOURCES['people-dashboard.js'].match(/function _renderSegmentationPanel[\s\S]*?const total/);
+      _assertEqual(!!seg && /!isExternalStaff\(p\)/.test(seg[0]), true, 'Workforce Segmentation excludes External');
+      const dep = ALL_SOURCES['people-gantt.js'].match(/const deployable = assignments\.filter[\s\S]*?\n  \}\);/);
+      _assertEqual(!!dep && /if \(isExternalStaff\(a\)\) return false;/.test(dep[0]), true, 'Deployable Resources excludes External rows');
+    },
+  },
+  {
+    name: 'N-402: personUtilisation / utilisationBandRollup filter rows with countsForUtilisation, never isBillableLevel alone',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const body = (src, name) => { const m = src.match(new RegExp('function ' + name + '\\([\\s\\S]*?\\n\\}\\n')); return m ? m[0] : ''; };
+      const scan = src => ['personUtilisation', 'utilisationBandRollup'].filter(n => {
+        const b = body(src, n);
+        return !b || /isBillableLevel\(/.test(b) || !/countsForUtilisation\(/.test(b);
+      });
+      _assertEqual(scan(ALL_SOURCES['utils.js']), [], 'helpers that call isBillableLevel or lack countsForUtilisation');
+      const bumped = ALL_SOURCES['utils.js'].replace('if (!countsForUtilisation(r) ||', 'if (!isBillableLevel(r.Level) || !countsForUtilisation(r) ||');
+      _assertEqual(scan(bumped), ['personUtilisation'], 'mutation: an isBillableLevel call inside personUtilisation is flagged');
     },
   }
 );

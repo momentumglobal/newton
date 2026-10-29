@@ -154,9 +154,17 @@ const CONFIG = {
   // (isDeployablePerson, utils.js). STAFF_TYPE_INTERNAL doubles as the
   // PROJECT_TYPE_COLOUR_VARS key for the Org Chart function bubbles — keep
   // the two equal (an assertion pins it).
-  STAFF_TYPES:           ['Deployable', 'Internal'],
+  // N-402: 'External' = an outside partner on a Project Team (first user: a
+  // Diamant partner). Not deployable: out of utilisation, bench, deployable and
+  // billed headcount, segmentation, payroll and the survey count. Their revenue
+  // still counts. The flag is copied onto Assignments.StaffType at create
+  // (ptBuildMemberFields) because utilisation reads Assignments rows only.
+  // EXTERNAL_LABEL is the UI word for them; the stored value stays 'External'.
+  STAFF_TYPES:           ['Deployable', 'Internal', 'External'],
   STAFF_TYPE_DEPLOYABLE: 'Deployable',
   STAFF_TYPE_INTERNAL:   'Internal',
+  STAFF_TYPE_EXTERNAL:   'External',
+  EXTERNAL_LABEL:        'Partner',
   INTERNAL_FUNCTIONS:    ['Marketing', 'Sales', 'Internal TA', 'Operations', 'People'],
 
   // Roles.Stage enum, in pipeline order (N-149). Single source of truth for

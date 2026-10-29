@@ -689,7 +689,7 @@ async function mcpBench() {
   });
   const capped = mcpCapRows(rows);
   return mcpOutputGuard({
-    scope: 'People Org Chart > Unassigned: active deployable staff with no current assignment, or only bench assignments. Placeholders, internal staff and CSDs are never bench. since = start of their current bench assignment.',
+    scope: 'People Org Chart > Unassigned: active deployable staff with no current assignment, or only bench assignments. Placeholders, internal staff, external partners and CSDs are never bench. since = start of their current bench assignment.',
     total: capped.total,
     truncated: capped.truncated,
     people: capped.rows,
@@ -783,7 +783,7 @@ async function mcpProjectTeam(args) {
   const shown = team.filter(x => x.status !== 'ended' || args.includeEnded === true);
   const lead = shown.find(x => x.status !== 'ended' && isLeadDmAssignment(x.r));
   return mcpOutputGuard({
-    scope: `Project Team of ${p.CustomerName}: current and upcoming members${args.includeEnded === true ? ', plus ended members' : ''}. Level is their grade; leadDm marks the project's lead delivery manager.`,
+    scope: `Project Team of ${p.CustomerName}: current and upcoming members${args.includeEnded === true ? ', plus ended members' : ''}. Level is their grade; leadDm marks the project's lead delivery manager; partner marks an external partner (not Momentum staff, not counted in utilisation).`,
     project: mcpProjectRef(p),
     deliveryManager: mcpPersonName(p.DeliveryManager, tpMap),
     leadDm: lead ? (lead.r.EmployeeName || null) : null,
@@ -791,6 +791,7 @@ async function mcpProjectTeam(args) {
     members: shown.map(x => ({
       name: x.r.EmployeeName || null,
       level: x.r.Level || null,
+      partner: isExternalStaff(x.r),   // N-402
       start: mcpOutDay(x.r.StartDate),
       end: mcpOutDay(x.r.EndDate),
       status: x.status,
@@ -913,7 +914,7 @@ var MCP_TOOLS = [
   },
   {
     name: 'bench',
-    description: 'Staff on the bench now (the Org Chart Unassigned pool): name, level, location and since when. Names only; no money. Placeholders, internal staff and CSDs are never bench.',
+    description: 'Staff on the bench now (the Org Chart Unassigned pool): name, level, location and since when. Names only; no money. Placeholders, internal staff, external partners and CSDs are never bench.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     handler: mcpBench,
   },
@@ -934,7 +935,7 @@ var MCP_TOOLS = [
   },
   {
     name: 'project_team',
-    description: 'Who is on a project: current and upcoming team members with level, dates and the lead delivery manager. Names only; no emails, rates or fees. includeEnded adds past members.',
+    description: 'Who is on a project: current and upcoming team members with level, dates, the lead delivery manager and a partner flag for external partners. Names only; no emails, rates or fees. includeEnded adds past members.',
     inputSchema: {
       type: 'object',
       properties: {

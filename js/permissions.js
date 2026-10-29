@@ -187,9 +187,13 @@ function isSurveyRespondentRole(role, cfg = CONFIG) {
 // levels in CONFIG.SURVEY.EXCLUDED_LEVELS (CSD) — Chris, 14 Oct 2026. Internal
 // (non-deployable) staff have no Level, so they count. Callers pass rows from
 // getPeople(true), which already drops inactive and placeholder rows; both are
-// re-checked here so the test is safe on any row.
+// re-checked here so the test is safe on any row. N-402: External partners are
+// not Momentum employees and never count (read via cfg, not isExternalStaff(),
+// so this file keeps no utils.js dependency).
 function isSurveyEligibleEmployee(person, cfg = CONFIG) {
   if (!person || person.IsActive === false || person.IsPlaceholder) return false;
+  const external = cfg && cfg.STAFF_TYPE_EXTERNAL;
+  if (external && person.StaffType === external) return false;
   const excluded = cfg && cfg.SURVEY && cfg.SURVEY.EXCLUDED_LEVELS;
   return !(Array.isArray(excluded) && excluded.includes(person.Level));
 }

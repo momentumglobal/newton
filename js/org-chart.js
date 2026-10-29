@@ -93,15 +93,17 @@ async function renderOrgChart() {
 function _ocPersonNode(p) {
   const ph = !!p.IsPlaceholder;
   // N-304: internal staff have no Level — the function leads their sub-label
-  // and they take no level band colour.
+  // and they take no level band colour. N-402: an External partner hangs under
+  // their project like any member, labelled Partner, with no band colour.
   const internal = isInternalStaff(p);
-  const lead = internal ? (p.StaffFunction || '') : (p.Level || '');
+  const external = isExternalStaff(p);
+  const lead = internal ? (p.StaffFunction || '') : external ? CONFIG.EXTERNAL_LABEL : (p.Level || '');
   return { kind: 'person', label: p.EmployeeName,
     // Placeholders carry no sub-label — the vacancy is stated in the name itself.
     sub: ph ? '' : `${lead}${p.Location ? ' · ' + p.Location : ''}`,
     // STP and PTP both render in the TP band colour (.org-node--tp) — no
     // separate CSS needed for either.
-    _band: (ph || internal) ? '' : ((p.Level === 'STP' || p.Level === 'PTP') ? 'TP' : p.Level),
+    _band: (ph || internal || external) ? '' : ((p.Level === 'STP' || p.Level === 'PTP') ? 'TP' : p.Level),
     // N-375: _key de-duplicates multi-project people in the collapsed-node count.
     _placeholder: ph, _photo: p.PhotoUrl, _key: 'p:' + _ocNorm(p.EmployeeName), children: [] };
 }

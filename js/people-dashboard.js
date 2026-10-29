@@ -283,8 +283,9 @@ function _renderRevenuePanel(rows) {
 //Panel 3 - Workforce Segmentation
 function _renderSegmentationPanel(people) {
   // Active deployable employees only — internal staff (N-304) are counted
-  // separately, by function, in the fourth table.
-  const active = people.filter(p => p.IsActive !== false && !isInternalStaff(p));
+  // separately, by function, in the fourth table; External partners (N-402)
+  // are not Momentum workforce and appear in neither.
+  const active = people.filter(p => p.IsActive !== false && !isInternalStaff(p) && !isExternalStaff(p));
   const total  = active.length;
   const internalByFn = countInternalByFunction(people);
 

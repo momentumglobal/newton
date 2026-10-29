@@ -135,6 +135,7 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
     if (forecastCovered.has(a.EmployeeName)) return false;
     if (billedCovered.has(a.EmployeeName)) return false;
     if (a.Level === 'CSD') return false;
+    if (isExternalStaff(a)) return false;   // N-402: a partner is never a Momentum resource
     if (!a.StartDate || !a.EndDate) return false;
     const s = new Date(a.StartDate);
     const e = new Date(a.EndDate);
@@ -272,7 +273,7 @@ function _ganttBuildLanes(relevant) {
       const empAssignments = customerMap[customer][name];
       return {
         name,
-        level: empAssignments[0]?.Level || '—',
+        level: assignmentLevelLabel(empAssignments[0]),   // N-402: 'Partner' for External
         assignments: empAssignments,
       };
     });

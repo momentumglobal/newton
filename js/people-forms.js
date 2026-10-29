@@ -5,8 +5,12 @@
 function renderPersonForm(existingData = null) {
   const isEdit = !!existingData;
   // N-304: a blank StaffType (every pre-N-304 row) opens as Deployable.
+  // N-402: External (a partner) has no Level, Function, Contract Type or Salary.
   const internal  = isInternalStaff(existingData);
-  const staffType = internal ? CONFIG.STAFF_TYPE_INTERNAL : CONFIG.STAFF_TYPE_DEPLOYABLE;
+  const external  = isExternalStaff(existingData);
+  const staffType = internal ? CONFIG.STAFF_TYPE_INTERNAL
+    : external ? CONFIG.STAFF_TYPE_EXTERNAL : CONFIG.STAFF_TYPE_DEPLOYABLE;
+  const noLevel   = internal || external;
   return `
     <div class='form-container'>
       <h2>${isEdit ? 'Edit Employee' : 'Add Employee'}</h2>
@@ -26,9 +30,9 @@ function renderPersonForm(existingData = null) {
           </select>
         </div>
         <div class='form-row'>
-          <div class='form-group${internal ? ' is-hidden' : ''}' id='person-level-group'>
+          <div class='form-group${noLevel ? ' is-hidden' : ''}' id='person-level-group'>
             <label>Level *</label>
-            <select name='Level'${internal ? ' disabled' : ' required'}>
+            <select name='Level'${noLevel ? ' disabled' : ' required'}>
               ${CONFIG.PEOPLE_LEVELS.map(l =>
                 `<option value='${l}' ${existingData?.Level===l?'selected':''}>${l}</option>`
               ).join('')}
@@ -43,9 +47,9 @@ function renderPersonForm(existingData = null) {
               ).join('')}
             </select>
           </div>
-          <div class='form-group'>
+          <div class='form-group${external ? ' is-hidden' : ''}' id='person-contract-group'>
             <label>Contract Type *</label>
-            <select name='ContractType' required>
+            <select name='ContractType'${external ? ' disabled' : ' required'}>
               ${['Core','FTC','G-P'].map(c =>
                 `<option value='${c}' ${existingData?.ContractType===c?'selected':''}>${c}</option>`
               ).join('')}
@@ -69,9 +73,9 @@ function renderPersonForm(existingData = null) {
               value='${escHtml(spDateIn(existingData?.EndDate) || '')}'>
           </div>
         </div>
-        <div class='form-group'>
+        <div class='form-group${external ? ' is-hidden' : ''}' id='person-salary-group'>
           <label>Salary (£) <span style='font-size:11px;color:var(--text-muted);font-weight:normal'>UK staff only</span></label>
-          <input type='number' name='Salary' min='0' step='0.01'
+          <input type='number' name='Salary' min='0' step='0.01'${external ? ' disabled' : ''}
             value='${escHtml(existingData?.Salary || '')}'>
         </div>
         <div class='form-group'>
@@ -108,7 +112,10 @@ async function submitPersonForm(event, editId = null) {
   const data = Object.fromEntries(new FormData(form));
   // N-304: the hidden Level / Function select is disabled, so FormData omits
   // it. Internal clears Level; Deployable clears StaffFunction (null = clear).
+  // N-402: External clears Level, Function and Contract Type; its Salary input
+  // is disabled, so no salary is written (and an existing one is left alone).
   const internal = data.StaffType === CONFIG.STAFF_TYPE_INTERNAL;
+  const external = data.StaffType === CONFIG.STAFF_TYPE_EXTERNAL;
   if (internal && !data.StaffFunction) {
     showPersonFormError('Please select a function for an internal employee.');
     clearButtonLoading(btn);
@@ -116,15 +123,16 @@ async function submitPersonForm(event, editId = null) {
   }
   const fields = {
     EmployeeName: data.EmployeeName,
-    Level:        internal ? null : data.Level,
-    StaffType:    internal ? CONFIG.STAFF_TYPE_INTERNAL : CONFIG.STAFF_TYPE_DEPLOYABLE,
+    Level:        (internal || external) ? null : data.Level,
+    StaffType:    internal ? CONFIG.STAFF_TYPE_INTERNAL
+      : external ? CONFIG.STAFF_TYPE_EXTERNAL : CONFIG.STAFF_TYPE_DEPLOYABLE,
     StaffFunction: internal ? data.StaffFunction : null,
-    ContractType: data.ContractType,
+    ContractType: external ? null : data.ContractType,
     Location:     data.Location,
     StartDate:    isoDate(data.StartDate) || undefined,
     EndDate:      isoDate(data.EndDate)   || undefined,
     IsActive:     editId ? (form.querySelector('[name=IsActive]')?.checked !== false) : true,
-    Salary:       data.Salary ? parseFloat(data.Salary) : undefined,
+    Salary:       !external && data.Salary ? parseFloat(data.Salary) : undefined,
   };
   const file = form.querySelector('[name=PhotoFile]')?.files?.[0] || null;
   if (file) {                                   // N-284: fail before anything is saved
@@ -199,16 +207,23 @@ async function showEditPersonForm(id) {
   hydratePhotoImgs(main, getPhotoUrlMap);   // N-337
 }
 
-// N-304: Staff type toggles Level <-> Function. The hidden select is disabled
-// (neither validated nor submitted) and loses `required`.
+// N-304: Staff type toggles Level <-> Function. N-402: External shows neither,
+// and also hides Contract Type and Salary. A hidden field is disabled (neither
+// validated nor submitted) and loses `required`; Salary is never required.
 function _onStaffTypeChange(select) {
   const internal = select.value === CONFIG.STAFF_TYPE_INTERNAL;
-  [['person-level-group', !internal], ['person-function-group', internal]].forEach(([id, on]) => {
+  const external = select.value === CONFIG.STAFF_TYPE_EXTERNAL;
+  [
+    ['person-level-group',    !internal && !external, true],
+    ['person-function-group', internal,               true],
+    ['person-contract-group', !external,              true],
+    ['person-salary-group',   !external,              false],
+  ].forEach(([id, on, required]) => {
     const group = document.getElementById(id);
     if (!group) return;
     group.classList.toggle('is-hidden', !on);
-    const field = group.querySelector('select');
-    if (field) { field.disabled = !on; field.required = on; }
+    const field = group.querySelector('select, input');
+    if (field) { field.disabled = !on; field.required = on && required; }
   });
 }
 

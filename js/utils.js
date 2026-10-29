@@ -275,6 +275,7 @@ function computeMonthlyRows(assignments, opts = {}) {
         AssignmentID:     a.AssignmentID,
         EmployeeName:     a.EmployeeName,
         Level:            a.Level,
+        StaffType:        a.StaffType,   // N-402: External rows skip utilisation
         Customer:         a.Customer,
         ProjectType:      a.ProjectType,
         Country:          a.Country,
@@ -309,6 +310,7 @@ function computeMonthlyRows(assignments, opts = {}) {
           AssignmentID:     a.AssignmentID,
           EmployeeName:     a.EmployeeName,
           Level:            a.Level,
+          StaffType:        a.StaffType,   // N-402
           Customer:         a.Customer,
           ProjectType:      a.ProjectType,
           Country:          a.Country,
@@ -1765,9 +1767,9 @@ function isBillableLevel(level) {
 // each as a fraction of the month rounded to 4dp exactly like Capacity. So a
 // person with one assignment at a time scores the old row-capacity figure,
 // and concurrent assignments (an SDM on 1 billed + 2 unbilled customers)
-// count the person once. Rows come from computeMonthlyRows(); CSD rows
-// (isBillableLevel) and zero-capacity placement rows (no DayFrom) are
-// skipped. Person key = EmployeeName, as the Headcount columns count; a blank
+// count the person once. Rows come from computeMonthlyRows(); CSD and
+// External rows (countsForUtilisation, N-402) and zero-capacity placement
+// rows (no DayFrom) are skipped. Person key = EmployeeName, as the Headcount columns count; a blank
 // name never merges (keyed per AssignmentID). Optional clip = { from, to }
 // (Dates, inclusive, by local calendar day): days outside are ignored — the
 // 13-week CC base. Returns { ratio, billed, total }: billed / total in
@@ -1780,7 +1782,7 @@ function personUtilisation(rows, clip) {
   const hi = clip && clip.to   ? dayNum(clip.to)   :  Infinity;
   const groups = new Map();
   for (const r of rows || []) {
-    if (!isBillableLevel(r.Level) || r.DayFrom == null || r.DayTo == null) continue;
+    if (!countsForUtilisation(r) || r.DayFrom == null || r.DayTo == null) continue;   // N-402
     const day0 = Math.round(Date.UTC(r.Year, r.Month - 1, 1) / DAY) - 1;
     const from = Math.max(day0 + r.DayFrom, lo);
     const to   = Math.min(day0 + r.DayTo, hi);
@@ -1816,10 +1818,11 @@ function personUtilisation(rows, clip) {
 // computeMonthlyRows() rows for the period. Bands = CONFIG.PEOPLE_LEVELS minus CSD, in
 // order, bands with no rows dropped. u = personUtilisation ratio; total / utilised =
 // distinct EmployeeName (utilised = a Billed 'Yes' row). Totals count billable levels only.
+// N-402: External (partner) rows count nowhere here — countsForUtilisation.
 function utilisationBandRollup(rows) {
   const all   = rows || [];
   const bands = CONFIG.PEOPLE_LEVELS.filter(l => l !== 'CSD').map(band => {
-    const r        = all.filter(x => x.Level === band);
+    const r        = all.filter(x => x.Level === band && countsForUtilisation(x));
     const u        = personUtilisation(r).ratio;
     // Headcount from assignment rows for the selected period (not today's people list)
     const total    = new Set(r.map(x => x.EmployeeName)).size;
@@ -1828,8 +1831,8 @@ function utilisationBandRollup(rows) {
   }).filter(b => b.total > 0);
   const total = {
     u:        personUtilisation(all).ratio,
-    utilised: new Set(all.filter(x => x.Billed === 'Yes' && isBillableLevel(x.Level)).map(x => x.EmployeeName)).size,
-    active:   new Set(all.filter(x => isBillableLevel(x.Level)).map(x => x.EmployeeName)).size,
+    utilised: new Set(all.filter(x => x.Billed === 'Yes' && countsForUtilisation(x)).map(x => x.EmployeeName)).size,
+    active:   new Set(all.filter(x => countsForUtilisation(x)).map(x => x.EmployeeName)).size,
   };
   return { bands, total };
 }
@@ -1881,8 +1884,9 @@ function peopleKpiFigures(allRows, assignments, now) {
   });
   const countCustomers = asOf => new Set(
     activeOn(asOf).filter(a => a.Customer && a.Customer !== 'Unassigned').map(a => a.Customer)).size;
+  // N-402: an External partner on a billed row is not Momentum billed headcount.
   const countBilledHC = asOf => new Set(
-    activeOn(asOf).filter(a => a.Billed === 'Yes').map(a => a.EmployeeName)).size;
+    activeOn(asOf).filter(a => a.Billed === 'Yes' && !isExternalStaff(a)).map(a => a.EmployeeName)).size;
 
   return {
     year, revYTD, utilYTD,
@@ -1899,12 +1903,33 @@ function isInternalStaff(p) {
   return !!p && p.StaffType === CONFIG.STAFF_TYPE_INTERNAL;
 }
 
+// N-402: StaffType 'External' = an outside partner on a Project Team. Works on
+// a People row, an Assignments row (StaffType copied at create) and a
+// computeMonthlyRows row. Not deployable; revenue still counts.
+function isExternalStaff(x) {
+  return !!x && x.StaffType === CONFIG.STAFF_TYPE_EXTERNAL;
+}
+
 // The People-row counterpart of isBillableLevel(): use this — never
 // isBillableLevel(p.Level) — for any People-row headcount or bench check.
-// isBillableLevel('') is true, so an internal person (blank Level) would
-// otherwise count. isBillableLevel() stays for Assignment / monthly rows.
+// isBillableLevel('') is true, so an internal or external person (blank
+// Level) would otherwise count. Assignment / monthly rows use
+// countsForUtilisation() (N-402).
 function isDeployablePerson(p) {
-  return !!p && !isInternalStaff(p) && isBillableLevel(p.Level);
+  return !!p && !isInternalStaff(p) && !isExternalStaff(p) && isBillableLevel(p.Level);
+}
+
+// N-402: THE row-level utilisation filter (Assignments / monthly rows): CSD and
+// External rows never count. Revenue is never filtered by it — use it only for
+// capacity, utilisation and the headcount behind utilisation.
+function countsForUtilisation(row) {
+  return !!row && isBillableLevel(row.Level) && !isExternalStaff(row);
+}
+
+// N-402: the Payroll Summary population — UK staff; External partners are not
+// on Momentum's payroll.
+function isPayrollPerson(p) {
+  return !!p && p.Location === 'UK' && !isExternalStaff(p);
 }
 
 // N-394: deployable, active people - the headcount denominator for utilisation (People
@@ -1935,7 +1960,15 @@ function peoplePeriodRange(filter) {
 // Display label for a person's band: the Level, or 'Internal · <Function>'.
 function personRoleLabel(p) {
   if (isInternalStaff(p)) return `${CONFIG.STAFF_TYPE_INTERNAL} · ${p.StaffFunction || '—'}`;
+  if (isExternalStaff(p)) return CONFIG.EXTERNAL_LABEL;   // N-402
   return (p && p.Level) || '';
+}
+
+// N-402: the Level label for an Assignments row (Deployment Timeline): the
+// partner label for an External row, else its Level, else '—'.
+function assignmentLevelLabel(a) {
+  if (isExternalStaff(a)) return CONFIG.EXTERNAL_LABEL;
+  return (a && a.Level) || '—';
 }
 
 // Internal staff grouped by function: [[function, [person, …]], …] in

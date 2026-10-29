@@ -336,7 +336,7 @@ ASSERTIONS.push(
     fn: function () {
       const rows = computeMonthlyRows(FIXTURES.monthlyRows.assignments);
       _assertEqual(Object.keys(rows[0]).sort(), ['AssignmentID', 'Billed', 'BilledCapacity', 'BilledRevenue', 'Capacity', 'Country', 'Customer', 'DayFrom', 'DayTo',
-        'EmployeeName', 'Level', 'Month', 'MonthFraction', 'MonthStart', 'ProjectType', 'ProratedRevenue', 'Year'], 'row keys = the old set + DayFrom, DayTo');
+        'EmployeeName', 'Level', 'Month', 'MonthFraction', 'MonthStart', 'ProjectType', 'ProratedRevenue', 'StaffType', 'Year'], 'row keys = the old set + DayFrom, DayTo (N-328) + StaffType (N-402)');
       const sf = computeMonthlyRows(FIXTURES.analytics2.splitFee.assignments);
       _assertEqual([sf[0].DayFrom, sf[0].DayTo], [10, 31], 'first split-fee month: 10-31 Mar');
       _assertEqual([sf[2].DayFrom, sf[2].DayTo], [1, 20], 'last month: 1-20 May');

@@ -71,7 +71,7 @@ async function _generatePayrollPreview() {
   // N-286: salary is joined from the restricted PeoplePay list.
   const [people, payRows] = await Promise.all([getPeople(false), getPeoplePay()]);
   const all     = attachSalaries(people, payRows);
-  const ukStaff = all.filter(p => p.Location === 'UK');
+  const ukStaff = all.filter(isPayrollPerson);   // N-402: UK, never External
 
   const joinerStart = new Date(year, month - 2, 18); // 18th of previous month
   const joinerEnd   = new Date(year, month - 1, 18, 23, 59, 59); // 18th of current month
@@ -164,7 +164,7 @@ async function _sendPayrollSummary(month, year, includeBonus) {
     return;
   }
   const all     = attachSalaries(people, payRows);
-  const ukStaff = all.filter(p => p.Location === 'UK');
+  const ukStaff = all.filter(isPayrollPerson);   // N-402: UK, never External
 
   const joinerStart = new Date(year, month - 2, 18); // 18th of previous month
   const joinerEnd   = new Date(year, month - 1, 18, 23, 59, 59); // 18th of current month

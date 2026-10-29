@@ -520,6 +520,9 @@ var FIXTURES = {
         { id: '809', Title: 'A-809', EmployeeName: 'Dana Manager', Customer: 'Acme Bank',         StartDate: { d: -100 }, EndDate: { d: 100 }, Billed: 'No',  Level: 'SDM', ProjectID: 101, UserEmail: 'dm.one@mg.co', IsLeadDM: true, MonthlyBillRate: 554433 },
         { id: '810', Title: 'F-810', EmployeeName: 'Tom Two',      Customer: 'Acme Bank',         StartDate: { d: -10 },  EndDate: { d: 90 },  Billed: 'Yes', Level: 'STP', ProjectID: 101, IsForecast: true, MonthlyBillRate: 554433 },
         { id: '811', Title: 'A-811', EmployeeName: 'Tom Two',      Customer: 'Bluefin Labs',      StartDate: { d: -50 },  EndDate: { d: 50 },  Billed: 'Yes', Level: 'STP', ProjectID: 102, MonthlyBillRate: 554433 },
+        // N-402: an External partner, upcoming on Corvid LCI (not live today, so no scorecard or
+        // current-month change). Never bench, never in utilisation; project_team flags partner.
+        { id: '812', Title: 'A-812', EmployeeName: 'Pia Partner',  Customer: 'Corvid LCI',        StartDate: { d: 10 },   EndDate: { d: 100 }, Billed: 'Yes', Level: '', StaffType: 'External', ProjectID: 104, MonthlyBillRate: 554433 },
       ],
       // N-394: People (Title -> EmployeeName). Bench = Bea (no rows), Ben (Sync Bench row), Eve (only an ended row).
       People: [
@@ -533,6 +536,7 @@ var FIXTURES = {
         { id: '1008', Title: 'Ivy Internal', Level: '',    Location: 'London', StartDate: { d: -300 }, IsActive: true, StaffType: 'Internal', StaffFunction: 'Finance' },
         { id: '1009', Title: 'Pat Placeholder', Level: 'TP', Location: '',      IsActive: true, IsPlaceholder: true },
         { id: '1010', Title: 'Old Leaver',   Level: 'TP',  Location: 'Lisbon', StartDate: { d: -900 }, EndDate: { d: -100 }, IsActive: false },
+        { id: '1011', Title: 'Pia Partner',  Level: '',    Location: 'Berlin', StartDate: { d: -30 },  IsActive: true, StaffType: 'External' },   // N-402
       ],
       // N-394: SalesForecasts. ForecastedHeadcount is read locally for the forecast %, never returned.
       SalesForecasts: [

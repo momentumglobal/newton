@@ -29,6 +29,13 @@ Newton is a static web application hosted on GitHub Pages, with Microsoft Azure 
 - **Icons** — Lucide
 - **Fonts** — Polymath (self-hosted)
 
+## Newton for Claude (MCP)
+
+Leadership and Admin users can install **Newton for Claude** in Claude Desktop (Windows) and ask plain questions about Newton's reporting and people data. Answers are computed by Newton's own code, read-only, and never include candidate names, money or notes.
+
+- **Install and sign-in guide:** [`mcp/README.md`](mcp/README.md)
+- **Developer notes:** the **Newton for Claude** section of [README.html](https://momentumglobal.github.io/newton/Readme.html)
+
 ## Repository and publishing
 
 - **Everything published is public.** The repo is public and GitHub Pages serves every file in it, including `js/config.js` and `Readme.html`, to anyone on the internet. Making the repo private would not change that (Pages stays public below GitHub Enterprise), so it is not the control.

@@ -39,6 +39,7 @@
       <a class="sidebar-link" data-act='["show","conventions"]' data-show="conventions">Coding Conventions</a>
       <a class="sidebar-link" data-act='["show","newmodule"]' data-show="newmodule">Adding a New Module</a>
       <a class="sidebar-link" data-act='["show","ghostmode"]' data-show="ghostmode">Ghost Mode</a>
+      <a class="sidebar-link" data-act='["show","mcp"]' data-show="mcp">Newton for Claude</a>
       <a class="sidebar-link" data-act='["show","changelog"]' data-show="changelog">Changelog</a>
       <a class="sidebar-link" data-act='["show","backlog"]' data-show="backlog">Backlog &amp; Future Work</a>
     </nav>
@@ -479,6 +480,23 @@
         <tr><td><span class="file-tag">js/api-admin.js</span></td><td>SharePoint API calls for OS Admin (N-237b) — <code>getSchemaDiffs()</code>, <code>getColumnIndexStatus()</code>, <code>getUserAssignments()</code>, and (N-363) the LCI / Transformation migration calls <code>getProjectTypeChoiceStatus()</code>, <code>getLciProjectMigrationInputs()</code>, <code>applyLciProjectMigration()</code> and <code>getLCIProjectOwners()</code> (reads the retired <code>LCIProjectOwners</code> backup list). Consumed only by os-admin.js. (The one-off migration writers that lived here were retired in N-345.)</td></tr>
         <tr><td><span class="file-tag">js/api-home.js</span></td><td>AppSettings reads/writes — announcement banner and seasonal home-screen effect (N-238b, split out of api-admin.js) — <code>getAnnouncementMessage()</code>, <code>setAnnouncementMessage()</code>, <code>getSeasonalEffect()</code>, <code>setSeasonalEffect()</code>. Consumed by os-admin.js (full read+write, admin.html) and directly by index.html's inline home-screen script (getters only — the homepage banner and seasonal-effect autoload). Loaded on admin.html and index.html; not on any other shell.</td></tr>
         <tr><td><span class="file-tag">js/os-admin.js</span></td><td>Newton OS Admin — User Assignments, Leadership Access, Homepage, Ghost Mode, and <strong>Data Health</strong> (F-10): per-list row counts with an amber badge at <code>CONFIG.LIST_ROW_COUNT_WARNING_THRESHOLD</code>, the read-only WeeklyActivity null-ProjectID integrity probe, and a read-only index status table (the "Index now" action was removed in N-291; index new columns in SharePoint List settings). Since N-306 it has a <strong>Headcount integrity</strong> section (eight probes, <code>checkHeadcountIntegrity()</code>). Since N-381 it has an <strong>SLA targets</strong> section (default-row status and Seed defaults) and, since N-389, two checks over it from <code>checkSlaIntegrity()</code> (utils.js): active projects with no resolvable SLA targets and override rows pointing at a missing project; a failed Projects read shows Query error, not zeros (the one-off headcount, Hiring Plan link, RoleHistory backfill and PeoplePay migrations were retired in N-345). Since N-271 it also has a read-only <strong>WeeklyActivity Anomalies</strong> section (after Data Integrity): impossible funnels, open roles with no recent activity (no dated row this week or last), and spikes against a Talent Partner's own median, computed by <code>detectWeeklyActivityAnomalies()</code> (analytics.js) and rendered by <code>_dhRenderWeeklyAnomaliesHtml()</code>; a failed fetch shows a Query error, not zeros. Since N-273 each impossible funnel has an <strong>Acknowledge</strong> button (optional note): acknowledged rows leave the table and sit in a collapsed <em>Acknowledged (n)</em> block with who / when / why and a <strong>Restore</strong> action; the flag returns if the role's breach totals change. Stored in the <code>AnomalyAcks</code> list; if that list cannot be read, every flag is shown. RoleHistory rows tagged <code>Source = backfill</code> (N-268) remain in the list; rollback is a SharePoint filter on Source. Since N-154 the row-count table watches <strong>every list registered in <code>FIELD_ALIASES</code></strong> via <code>getMonitoredLists()</code>, minus <code>CONFIG.DATA_HEALTH_EXCLUDED_LISTS</code> — so a new list is watched from the day it is registered, and not watching one is a deliberate act named on the tab. Since N-361 it has a <strong>Project Team backfill</strong> section: a column check for <code>Assignments.ProjectID / UserEmail / IsLeadDM</code>, a <strong>Preview</strong> (nothing written until Apply; ambiguous and unmatched projects are chosen per row; values already present are never overwritten) and a read-only <strong>reconciliation report</strong> with CSV download (access with no assignment, assignments with no access row, Delivery Managers with no assignment, users with more than one role). Since N-363 an <strong>LCI / Transformation projects</strong> section previews, then creates, a Projects row for each LCI or Transformation customer in Assignments (owner CSD carried over from the old LCI owners list; existing projects never changed; a customer with both types is chosen per row). The full reads run on click, not on tab load. Since N-367 an <strong>Access shadow</strong> section (after Project Team backfill) lists the access-shadow Diagnostics rows grouped by user and check — projects only in the old (User Assignments) or only in the new (Assignments) scope, or the old and new default project — with days seen, last seen and Acknowledge (<code>groupScopeShadowRows()</code>, permissions.js). Error Telemetry leaves those rows out. Since N-381 an <strong>SLA targets</strong> section (after Headcount integrity) checks the <code>SLATargets</code> list — readable, columns present, one default row per project type — and has a <strong>Seed defaults</strong> button that creates any missing default row; it never changes an existing row.</td></tr>
+      </table>
+
+      <h3>Newton for Claude (MCP, N-390 to N-395)</h3>
+      <table>
+        <tr><th>File</th><th>Responsibility</th></tr>
+        <tr><td><span class="file-tag">mcp/manifest.json</span></td><td>MCPB manifest for the Claude Desktop extension. <code>version</code> must equal <code>BUNDLE_VERSION</code> in <code>server-core.js</code>. Packed into the bundle.</td></tr>
+        <tr><td><span class="file-tag">mcp/bootstrap/server.js</span></td><td>Extension entry point. Sets <code>TZ=Europe/London</code> before any Date exists, then starts <code>server-core.js</code>. Packed into the bundle.</td></tr>
+        <tr><td><span class="file-tag">mcp/bootstrap/server-core.js</span></td><td>Stdio JSON-RPC server, tool dispatch, Leadership / Admin gate, <code>newton_status</code>, the <code>MCP_CONTRACT</code> check and the "Newton for Claude needs updating" message. Packed into the bundle.</td></tr>
+        <tr><td><span class="file-tag">mcp/bootstrap/auth-node.js</span></td><td>Browser sign-in (PKCE, loopback redirect), token refresh, Windows DPAPI token store, and the auth shim the live Newton scripts see (<code>getToken</code>, <code>getCurrentUser</code>, <code>isSignedIn</code>, <code>authReady</code>). Packed into the bundle.</td></tr>
+        <tr><td><span class="file-tag">mcp/bootstrap/loader.js</span></td><td>Fetches Newton's own scripts from the live site into one <code>vm</code> context in <code>CONFIG.MCP.scripts</code> order; storage and console shims; the GET-only, allowlisted-lists <code>fetch</code> shim. Packed into the bundle.</td></tr>
+        <tr><td><span class="file-tag">mcp/newton-tools.js</span></td><td>The eleven data tools (<code>MCP_TOOLS</code>): input validation, calls into live <code>api*.js</code> / <code>analytics.js</code> / <code>utils.js</code> / <code>project-team.js</code> functions, and the output guard. Holds no Graph paths and no metric formulas. Served live from Pages and loaded into the same context; <strong>not</strong> in the bundle.</td></tr>
+        <tr><td><span class="file-tag">mcp/README.md</span></td><td>Install and sign-in guide for leadership (install, first sign-in, signing in again, updating, uninstalling, troubleshooting). Plain English; guarded by <code>tests/assert-mcp.js</code>.</td></tr>
+        <tr><td><span class="file-tag">.github/workflows/static.yml</span></td><td>Deploy job also builds <code>mcp/newton-for-claude.mcpb</code> (a zip of the manifest, <code>bootstrap/</code> and the icon) on every deploy. Never committed.</td></tr>
+        <tr><td><span class="file-tag">tests/assert-mcp.js</span></td><td>Synchronous checks of the tool registry, <code>CONFIG.MCP</code>, schemas, helpers and the install guide.</td></tr>
+        <tr><td><span class="file-tag">tests/lint-mcp.js</span></td><td>Guard over <code>mcp/newton-tools.js</code>: no Graph paths, no direct transport, no writes, no DOM, no live rows spread into a result.</td></tr>
+        <tr><td><span class="file-tag">tests/mcp-bootstrap-check.js</span></td><td>Node-side checks of the bootstrap (sign-in, token store, loader, gate, stdout discipline) with fake Microsoft endpoints and a fake DPAPI.</td></tr>
+        <tr><td><span class="file-tag">tests/mcp-tools-check.js</span></td><td>Node-side checks that run every tool through the real loader and a fixture Graph, including the sentinel scan that proves no candidate name, money or notes reach an output.</td></tr>
       </table>
 
       <h3>Test harness</h3>
@@ -1293,10 +1311,73 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
       <div class="callout amber">Ghost mode overrides role resolution but does not create a real session as that role. Actions taken while ghosting (form saves etc.) are attributed to your real admin account in SharePoint.</div>
     </div>
 
+    <!-- NEWTON FOR CLAUDE (MCP) -->
+    <div class="section" id="sec-mcp">
+      <div class="section-title">Newton for Claude</div>
+      <p class="section-intro">A local MCP server that lets Leadership and Admin users ask Claude Desktop (Windows) questions about Newton and get answers computed by Newton's own code. Read-only. Scoped, built and closed out as N-378, N-390 to N-395 (Wishlist AI-5). The install guide for users is <span class="file-tag">mcp/README.md</span>.</p>
+
+      <h3>Decisions</h3>
+      <table>
+        <tr><th>ID</th><th>Decision</th></tr>
+        <tr><td>MCP-D1</td><td>No zero-build route exists: free Copilot Chat has no org-data grounding, Copilot agents need a paid licence or pay-as-you-go and take one list only, and Claude's Microsoft 365 connector reaches files, not list items.</td></tr>
+        <tr><td>MCP-D2</td><td>Node stdio server with no npm dependencies, packaged as a Claude Desktop extension (<code>.mcpb</code>). Windows only.</td></tr>
+        <tr><td>MCP-D3</td><td>Browser sign-in (authorisation code + PKCE, loopback redirect) on the existing Newton app (<code>CONFIG.CLIENT_ID</code>). Scopes are exactly <code>User.Read Sites.Selected offline_access</code>. The refresh token is DPAPI-encrypted at <code>%LOCALAPPDATA%\Newton\mcp-token.bin</code>, about 90 days between sign-ins.</td></tr>
+        <tr><td>MCP-D4</td><td>No Newton logic in the bundle. The server loads Newton's own scripts and <code>mcp/newton-tools.js</code> from the live site into one <code>vm</code> context, so every figure comes from the live functions.</td></tr>
+        <tr><td>MCP-D5</td><td>Leadership and Admin only (<code>CONFIG.MCP.allowedRoles</code>), resolved with the live <code>getEffectiveRole()</code>. A usage gate, not a security boundary: SharePoint permissions are.</td></tr>
+        <tr><td>MCP-D6</td><td>Outputs never carry candidate names, money, Notes, hiring-manager names or rejection reasons. Enforced by <code>CONFIG.MCP.outputDenyFields</code>, <code>mcpOutputGuard()</code>, <code>tests/lint-mcp.js</code> and the sentinel scan in <code>tests/mcp-tools-check.js</code>.</td></tr>
+        <tr><td>MCP-D7</td><td>Only the lists in <code>CONFIG.MCP.allowedLists</code> are readable (the fetch shim refuses the rest). PeoplePay, GP invoices, LCI, Survey, Diagnostics and Notifications are never read. No generic query tool.</td></tr>
+        <tr><td>MCP-D8</td><td>v1 is Reporting + People and read-only: the fetch shim refuses any non-GET call and any <code>$batch</code> that is not all GETs.</td></tr>
+        <tr><td>MCP-D9</td><td>Out of scope: shared hosting, Copilot Studio, non-Windows clients, Delivery Manager / Talent Partner users, write tools.</td></tr>
+      </table>
+
+      <h3>How it fits together</h3>
+      <p>The installed bundle (<code>manifest.json</code> + <code>bootstrap/</code>) holds mechanics only: stdio, sign-in, the loader and shims, the gate and <code>newton_status</code>. It changes rarely. On start it fetches <code>js/config.js</code>, then the scripts listed in <code>CONFIG.MCP.scripts</code> (ending with <code>mcp/newton-tools.js</code>) from <code>CONFIG.MCP.scriptBase</code>, so tools and calculations deploy together and are tested together. The deploy job rebuilds the bundle on every deploy at <code>/newton/mcp/newton-for-claude.mcpb</code>.</p>
+      <p><strong>Version skew.</strong> <code>MCP_CONTRACT</code> (in <code>server-core.js</code>) must equal <code>CONFIG.MCP.contract</code>. If they differ the server answers every call with "Newton for Claude needs updating", with the download link. Bump both together, and only when the bootstrap-to-tools contract (shim names, <code>CONFIG.MCP</code> shape) changes.</p>
+      <p><strong>Live code must stay Node-loadable.</strong> Every file in <code>CONFIG.MCP.scripts</code> is loaded in a DOM-less <code>vm</code>. A top-level <code>window</code> or <code>document</code> access in any of them breaks the server for every user, which is why <code>tests/run.js</code> loads the same list.</p>
+
+      <h3>Tools</h3>
+      <table>
+        <tr><th>Tool</th><th>Returns</th></tr>
+        <tr><td><code>newton_status</code></td><td>Who is signed in, their role, the Newton build, token storage and lists not available. Lives in the bootstrap, so it works when the live load fails. Also starts sign-in.</td></tr>
+        <tr><td><code>list_projects</code></td><td>Projects with type, status, dates, delivery manager and CSD.</td></tr>
+        <tr><td><code>project_summary</code></td><td>One project's pipeline by stage, open headcount, flagged counts with health RAG, hire KPIs.</td></tr>
+        <tr><td><code>list_roles</code></td><td>Roles with stage, priority, dates, open headcount and flag reasons.</td></tr>
+        <tr><td><code>role_detail</code></td><td>One role's allowlisted fields, headcount slots, stage timeline (editor display names), recent funnel and placements.</td></tr>
+        <tr><td><code>activity_summary</code></td><td>Funnel totals by week, conversion ratios and anomaly types.</td></tr>
+        <tr><td><code>list_placements</code></td><td>Placements without candidate names or salaries, with time to hire.</td></tr>
+        <tr><td><code>time_to_fill</code></td><td>Median and 80th percentile days with sample sizes.</td></tr>
+        <tr><td><code>project_scorecards</code></td><td>Per-project scorecards as the Command Centre shows them.</td></tr>
+        <tr><td><code>bench</code></td><td>People on the bench now (name, level, location, since). Same helper as the Org Chart.</td></tr>
+        <tr><td><code>utilisation</code></td><td>Percentages only, overall and by level, plus the year outlook. Same helpers as the People Dashboard.</td></tr>
+        <tr><td><code>project_team</code></td><td>Current and upcoming members of a project, with no rates, fees or emails.</td></tr>
+      </table>
+
+      <h3>Adding or changing a tool</h3>
+      <ol>
+        <li>Add the schema and handler to <code>MCP_TOOLS</code> in <code>mcp/newton-tools.js</code>. Read through the live getters and calculate with live pure functions; if the calculation only exists inside a renderer, extract it to a pure file first.</li>
+        <li>Register any new getter in <code>tests/lint-mcp.js</code>, add every list it reads to <code>CONFIG.MCP.allowedLists</code>, and add any new money or free-text field to <code>CONFIG.MCP.outputDenyFields</code> with a sentinel in <code>tests/fixtures.js</code>.</li>
+        <li>Run <code>node tests/run.js</code>. No reinstall is needed: users get the new tool on their next start.</li>
+        <li>A change under <code>mcp/bootstrap/</code> or <code>mcp/manifest.json</code> does need a reinstall. Bump <code>BUNDLE_VERSION</code> and the manifest <code>version</code> together, so the new version shows in Claude Desktop under Settings, Extensions.</li>
+      </ol>
+
+      <h3>Where things are on a user's PC</h3>
+      <p>Token file: <code>%LOCALAPPDATA%\Newton\mcp-token.bin</code>. For a Microsoft Store install of Claude Desktop Windows redirects it to <code>%LOCALAPPDATA%\Packages\Claude_&lt;id&gt;\LocalCache\Local\Newton\mcp-token.bin</code>. Server log: <code>%LOCALAPPDATA%\Claude\Logs\mcp-server-Newton for Claude.log</code>. Deleting the token file forces a fresh sign-in.</p>
+      <div class="callout amber">Everything under <code>mcp/</code> is served from the public Pages site. Nothing secret goes in it. The client and tenant IDs are already public in <code>config.js</code>.</div>
+    </div>
+
     <!-- CHANGELOG -->
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Newton for Claude: close-out (N-395)</div>
+        <ul>
+          <li><strong>No visible change in Newton.</strong> Epic N-390 to N-395 is complete: Leadership and Admin users can install Newton for Claude in Claude Desktop (Windows) and ask read-only questions about reporting and people data.</li>
+          <li>New install and sign-in guide for leadership (<code>mcp/README.md</code>), a "Newton for Claude" section in this Readme, and every file under <code>mcp/</code> and its tests listed in File Structure. The guide is checked by <code>tests/assert-mcp.js</code>.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>

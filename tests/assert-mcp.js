@@ -191,4 +191,30 @@ ASSERTIONS.push(
       });
     },
   },
+  {
+    name: 'N-395 mcp/README.md — the ten headings in order, the download URL and update message quoted from server-core.js, both token paths, no secret-looking text',
+    fn: function () {
+      if (typeof REPO_FILES === 'undefined' || typeof REPO_FILES.mcpReadme !== 'string') return _skip('Install-guide check needs filesystem access — runs under node tests/run.js');
+      const g = REPO_FILES.mcpReadme;
+      const core = REPO_FILES.mcpServerCore;
+      if (!g) throw new Error('mcp/README.md is missing or empty');
+      const heads = ['What it is', 'Before you start', 'Install', 'First sign-in', 'Things to ask', 'Signing in again', 'Updating', 'Uninstalling', 'If something goes wrong', 'Privacy and safety'];
+      let at = -1;
+      heads.forEach(h => {
+        const i = g.indexOf('\n## ' + h + '\n');
+        if (i < 0) throw new Error('mcp/README.md lacks the heading "## ' + h + '"');
+        if (i < at) throw new Error('mcp/README.md heading "' + h + '" is out of order');
+        at = i;
+      });
+      const url = (core.match(/const DOWNLOAD_URL = '([^']+)'/) || [])[1];
+      if (!url) throw new Error('DOWNLOAD_URL not found in mcp/bootstrap/server-core.js');
+      if (g.indexOf(url) < 0) throw new Error('guide does not contain DOWNLOAD_URL ' + url);
+      if (g.indexOf('Newton for Claude needs updating. Download the latest version from ' + url + ' and double-click it to reinstall, then restart Claude.') < 0) throw new Error('guide does not quote the update message exactly');
+      if (g.indexOf('%LOCALAPPDATA%\\Newton\\mcp-token.bin') < 0) throw new Error('guide lacks the plain token path');
+      if (g.indexOf('%LOCALAPPDATA%\\Packages\\Claude_<id>\\LocalCache\\Local\\Newton\\mcp-token.bin') < 0) throw new Error('guide lacks the Microsoft Store token path');
+      [[/Bearer/, 'Bearer'], [/eyJ/, 'eyJ token text'], [/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/i, 'a GUID'], [/sharepoint\.com/i, 'a sharepoint.com URL']].forEach(p => {
+        if (p[0].test(g)) throw new Error('mcp/README.md must not contain ' + p[1]);
+      });
+    },
+  },
 );

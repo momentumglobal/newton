@@ -89,6 +89,7 @@ body {
 
 /* ── Sections ── */
 .section { margin-bottom: 64px; }
+#sec-mcp { display: none; }
 .section-title {
   font-size: 22px;
   font-weight: 600;

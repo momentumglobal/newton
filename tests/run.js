@@ -187,6 +187,9 @@ sandbox.REPO_FILES = {
   gitleaksWorkflow: _readIfExists(path.join(ROOT_DIR, '.github', 'workflows', 'gitleaks.yml')),
   staticV2Exists: fs.existsSync(path.join(ROOT_DIR, '.github', 'workflows', 'static-v2.yml')),
   readme: _readIfExists(path.join(ROOT_DIR, 'README.md')),
+  // N-395: the leadership install guide and the bootstrap constants it must quote.
+  mcpReadme: _readIfExists(path.join(ROOT_DIR, 'mcp', 'README.md')),
+  mcpServerCore: _readIfExists(path.join(ROOT_DIR, 'mcp', 'bootstrap', 'server-core.js')),
 };
 
 // N-393: lint-mcp.js / assert-mcp.js scan the Newton for Claude tools file's source text.

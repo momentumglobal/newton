@@ -77,13 +77,14 @@ async function _rpLoad(id) {
       throw e;
     }
   };
-  const [role, projects, userProjectIds, tpMap, state, checklist] = await Promise.all([
+  const [role, projects, userProjectIds, tpMap, state, checklist, writableIds] = await Promise.all([
     getRole(),
     getProjects(false),
     getUserProjectIds(email),
     getTalentPartnerDisplayMap(),
     getRoleHeadcountState(id),
     loadRoleChecklistView(id),   // null = no checklist; never throws
+    getUserWritableProjectIds(email),   // N-369
   ]);
   if (!role) return null;
   const projectId = role.ProjectIDLookupId ?? role.ProjectID;
@@ -92,7 +93,8 @@ async function _rpLoad(id) {
   return {
     roleId: id, role, project, projectId, tpMap, state, checklist,
     title:   role.Location ? `${role.RoleTitle} (${role.Location})` : (role.RoleTitle || '—'),
-    canEdit: canEditRoleRows(_resolvedRole),
+    canEdit:  canEditRoleRows(_resolvedRole) && canWriteProject(_resolvedRole, projectId, writableIds),
+    readOnly: canEditRoleRows(_resolvedRole) && !canWriteProject(_resolvedRole, projectId, writableIds),   // N-369 banner
     editId:  null,    // headcount row in inline edit, if any
     adding:  false,   // + Add headcount form open
   };
@@ -155,6 +157,7 @@ function _rpPageHtml(v) {
   return `
     <div class="role-page" data-role-page="${Number(v.roleId)}">
       ${_rpHeaderHtml(v)}
+      ${v.readOnly ? projectReadOnlyBannerHtml() : ''}
       <p class="checklist-meta" id="rp-meta">${_rpMetaHtml(v)}</p>
       <section class="role-page-section role-hc" id="rp-headcount">${_rpHeadcountHtml(v)}</section>
       ${_rpHasSlaPanel(v) ? '<section class="role-page-section sla-panel" id="rp-sla-panel"></section>' : ''}
@@ -330,6 +333,8 @@ async function _rpRun(fn) {
   if (_rpBusy || !_rpOnScreen(v) || !v.canEdit) return;
   _rpBusy = true;
   try {
+    const w = await checkProjectWrite(v.projectId);   // N-369
+    if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
     await fn(v);
   } finally {
     _rpBusy = false;

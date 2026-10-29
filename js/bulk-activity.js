@@ -91,14 +91,15 @@ async function renderBulkActivityPage(weekEnding = null) {
   _bulkRows = [];
 
   const user = getCurrentUser();
-  let roles, weekRows, projects;
+  let roles, weekRows, projects, writableIds;
   try {
-    [roles, weekRows, projects] = await Promise.all([
+    [roles, weekRows, projects, writableIds] = await Promise.all([
       // Generic role-visibility resolver: admin -> all roles, DM -> roles on
       // their projects, TP -> roles whose TalentPartner column matches them.
       getScopedRolesVisibleTo(user.email, _resolvedRole),
       getWeeklyActivityForWeek(_bulkWeekEnding),
       getProjects(false),
+      getUserWritableProjectIds(user.email),   // N-369
     ]);
   } catch (e) {
     main.innerHTML = `<div class="page-header"><h2>Bulk log week</h2>
@@ -128,6 +129,7 @@ async function renderBulkActivityPage(weekEnding = null) {
   // no local Map de-dupe is needed here any more.
   _bulkRows = roles
     .filter(r => !BULK_EXCLUDED_STAGES.includes(r.Stage))
+    .filter(r => canWriteProject(_resolvedRole, r.ProjectIDLookupId || r.ProjectID, writableIds))   // N-369
     .map(r => {
       const roleId    = String(r.id);
       const projectId = String(r.ProjectIDLookupId || r.ProjectID || '');
@@ -335,6 +337,15 @@ async function saveBulkActivity() {
 
   let ok = 0, failed = 0, withHires = 0;
   try {
+    // N-369: one write-gate read for the batch. Fails closed — nothing saved.
+    let writableIds;
+    try {
+      writableIds = await getUserWritableProjectIds(getCurrentUser().email);
+    } catch (e) {
+      console.warn('N-369: bulk write check failed', e);
+      toast(PROJECT_WRITE_CHECK_FAILED, { type: 'error', duration: 0 });
+      return;
+    }
     // Sequential, not Promise.all: SharePoint throttles concurrent writes, and
     // a partial failure is only comprehensible if the rows went in order.
     for (const row of toSave) {
@@ -343,6 +354,7 @@ async function saveBulkActivity() {
       row.error  = null;
       _repaintBulkRow(i);
       try {
+        if (!canWriteProject(_resolvedRole, row.projectId, writableIds)) throw new Error(projectReadOnlyMessage());   // N-369
         const fields = _bulkFieldsFor(row);
         if (row.existingId) {
           await updateItem('WeeklyActivity', row.existingId, fields);

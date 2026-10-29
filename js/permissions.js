@@ -2,10 +2,10 @@
 // Moved out of utils.js. Owns role resolution (N-281), capability and org-wide role
 // checks (N-331), survey respondent / eligibility rules (N-332) and the restricted-list
 // and denial-memo helpers (N-285). Behaviour is unchanged from the utils.js originals.
-// N-367 / N-368 add the access-scope helpers (Project Team epic) at the end of the file. They
-// call isForecastAssignment, spDateIn and addDaysISO (utils.js, which loads first) at call
-// time only. They live here, not in project-team.js, because that file is not loaded on
-// index.html or mobile.html.
+// N-367 / N-368 add the access-scope helpers and N-369 the per-project write gate (Project
+// Team epic) at the end of the file. They call isForecastAssignment, spDateIn and addDaysISO
+// (utils.js, which loads first) at call time only. They live here, not in project-team.js,
+// because that file is not loaded on index.html or mobile.html.
 // Loaded on every page, after headcount.js and straight before graph-client.js; graph-client.js
 // and api.js call these at runtime (config.js loads first, so the CONFIG defaults resolve).
 
@@ -82,15 +82,15 @@ function projectScopeForRole(role, projectIds, cfg = CONFIG) {
 
 // N-365 (PT-5, D-1): pure. Can `role` edit project `projectId`'s Project Team
 // (add / edit / delete members, rates and fees, Lead DM)? projectTeamEdit roles:
-// any project. A Delivery Manager: only a project in their own scope
-// (`userProjectIds` from getUserProjectIds — null = all). The D-2 write window
-// (assignment end + 14 days) is N-369, not this check.
-function canEditProjectTeam(role, projectId, userProjectIds, cfg = CONFIG) {
+// any project. A Delivery Manager: only a project they can write — N-369 (D-2):
+// callers pass `writableProjectIds` from getUserWritableProjectIds (null = all),
+// so the DM's own assignment window applies.
+function canEditProjectTeam(role, projectId, writableProjectIds, cfg = CONFIG) {
   if (seesAllProjects(role, cfg)) return true;
   if (role !== cfg.ROLE_IDS.DELIVERY_MANAGER) return false;
   const id = Number(projectId);
   if (!Number.isInteger(id) || id <= 0) return false;
-  return userProjectIds === null || (Array.isArray(userProjectIds) && userProjectIds.includes(String(id)));
+  return writableProjectIds === null || (Array.isArray(writableProjectIds) && writableProjectIds.includes(String(id)));
 }
 
 // N-398 (BP-2): pure. Project ids (strings, de-duped, first-seen order) on which these
@@ -281,7 +281,6 @@ function defaultProjectIdFromAssignments(rows, todayISO) {
 // 'YYYY-MM-DD' string compares only (spDateIn / addDaysISO).
 function projectTeamPickerRows(teamRows, userAssignmentRows, todayISO, includeEmail = null, cfg = CONFIG) {
   const keep = includeEmail ? String(includeEmail).trim().toLowerCase() : '';
-  const grace = Number(cfg.PROJECT_TEAM && cfg.PROJECT_TEAM.WRITE_GRACE_DAYS) || 0;
   const pickRoles = [cfg.ROLE_IDS.TALENT_PARTNER, cfg.ROLE_IDS.DELIVERY_MANAGER];
   const uaByEmail = new Map();
   (Array.isArray(userAssignmentRows) ? userAssignmentRows : []).forEach(u => {
@@ -290,12 +289,6 @@ function projectTeamPickerRows(teamRows, userAssignmentRows, todayISO, includeEm
     if (!uaByEmail.has(e)) uaByEmail.set(e, []);
     uaByEmail.get(e).push(u);
   });
-  const windowOpen = a => {
-    if (!a.EndDate) return true;
-    const end = spDateIn(a.EndDate);
-    const last = end ? addDaysISO(end, grace) : null;
-    return !!last && todayISO <= last;
-  };
   const out = [];
   const seen = new Set();
   (Array.isArray(teamRows) ? teamRows : []).forEach(a => {
@@ -304,7 +297,7 @@ function projectTeamPickerRows(teamRows, userAssignmentRows, todayISO, includeEm
     if (!email || seen.has(email)) return;
     const ua = uaByEmail.get(email) || [];
     const role = resolveRoleFromAssignments(ua, false);
-    if (email !== keep && (!pickRoles.includes(role) || !windowOpen(a))) return;
+    if (email !== keep && (!pickRoles.includes(role) || !assignmentWriteOpen(a, todayISO, cfg))) return;
     seen.add(email);
     const named = ua.find(u => u && u.UserEmail);
     out.push({
@@ -328,4 +321,55 @@ function dmProjectIdsFromScope(userAssignmentRows, projectIds, cfg = CONFIG) {
   if (!Array.isArray(projectIds)) return [];
   if (resolveRoleFromAssignments(userAssignmentRows, false) !== cfg.ROLE_IDS.DELIVERY_MANAGER) return [];
   return [...new Set(projectIds.map(String))];
+}
+
+// ── N-369 (PT-9, D-2): per-project write gate (pure) ─────────────────
+// Write project P = Admin / Leadership / People Ops (seesAllProjects), or an open
+// Assignments row on P. Narrow only (W-1): callers keep their role checks and add
+// canWriteProject on top. getUserWritableProjectIds / checkProjectWrite (api.js) feed it.
+
+// The grace after an assignment's EndDate (CONFIG.PROJECT_TEAM.WRITE_GRACE_DAYS). Read
+// only here, so the window test and the read-only message can never disagree.
+function writeGraceDays(cfg = CONFIG) {
+  return Number(cfg && cfg.PROJECT_TEAM && cfg.PROJECT_TEAM.WRITE_GRACE_DAYS) || 0;
+}
+
+// Is this Assignments row's write window open on `todayISO`? It must be able to carry
+// access (_scopeAssignmentRow: non-forecast, real ProjectID). Open from row creation (an
+// upcoming row counts) until EndDate + writeGraceDays; no EndDate = open; an unreadable
+// EndDate = closed. 'YYYY-MM-DD' string compares only (spDateIn / addDaysISO).
+function assignmentWriteOpen(a, todayISO, cfg = CONFIG) {
+  if (!_scopeAssignmentRow(a)) return false;
+  if (!a.EndDate) return true;
+  const end = spDateIn(a.EndDate);
+  const last = end ? addDaysISO(end, writeGraceDays(cfg)) : null;
+  return !!last && todayISO <= last;
+}
+
+// Project IDs (strings, de-duped, first-seen order) the user can write, from their
+// Assignments rows (already filtered by UserEmail): the rows whose window is open.
+function writableProjectIdsFromAssignments(rows, todayISO, cfg = CONFIG) {
+  const ids = [];
+  (Array.isArray(rows) ? rows : []).forEach(a => {
+    if (!assignmentWriteOpen(a, todayISO, cfg)) return;
+    const id = String(Number(a.ProjectID));
+    if (!ids.includes(id)) ids.push(id);
+  });
+  return ids;
+}
+
+// Can `role` write project `projectId`? `writableIds` from getUserWritableProjectIds
+// (null = every project, an active admin row). Admin / Leadership / People Ops always;
+// anyone else only a listed project. A bad id or a missing / malformed list → false.
+function canWriteProject(role, projectId, writableIds, cfg = CONFIG) {
+  if (seesAllProjects(role, cfg)) return true;
+  if (writableIds === null) return true;
+  const id = Number(projectId);
+  if (!Number.isInteger(id) || id <= 0) return false;
+  return Array.isArray(writableIds) && writableIds.includes(String(id));
+}
+
+// W-3: the read-only text — the banner, the mobile hint and every refused write.
+function projectReadOnlyMessage(cfg = CONFIG) {
+  return `Read only — your assignment on this project ended more than ${writeGraceDays(cfg)} days ago. You can still view it.`;
 }

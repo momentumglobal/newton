@@ -1,11 +1,12 @@
 // js/mobile-pages.js — Mobile view renderers
 // Stage lists come from CONFIG (N-305) — never redeclare one here.
 
-async function mobileGetRoles() {
+async function mobileGetRoles({ writableOnly = false } = {}) {
   const user = getCurrentUser();
   // DM and admin see all roles across their projects; TP sees their own
   const isDM = ['delivery_manager', 'admin'].includes(_mobileRole);
-  const projects = await getScopedProjects(user.email, false);
+  // N-369: writableOnly → only projects the user can still write (getWritableScopedProjects).
+  const projects = writableOnly ? await getWritableScopedProjects(user.email, false) : await getScopedProjects(user.email, false);
   const projectIds = new Set(projects.map(p => String(p.id)));
 
   let allRoles = await getAllRoles();
@@ -42,11 +43,13 @@ async function mobileRenderRoleDetail(main) {
     // N-310 (S-10): read-only headcount summary (the Headcount section itself
     // stays desktop-only, D-6). A failed headcount read falls back to
     // Roles.OpenDate for "Oldest open" and "—" for the rest.
-    const [roleRow, hcState, projects] = await Promise.all([
+    const [roleRow, hcState, projects, writableIds] = await Promise.all([
       getItem('Roles', _mobileRoleId),
       getRoleHeadcountState(_mobileRoleId).catch(e => { console.warn('N-310: headcount read failed', e); return null; }),
       getProjects(false),
+      getUserWritableProjectIds(getCurrentUser().email),   // N-369
     ]);
+    const writable = canWriteProject(_mobileRole, roleRow.ProjectIDLookupId || roleRow.ProjectID, writableIds);
     // Roles rows carry no customer name — resolve it from the project lookup.
     const project = projects.find(p => String(p.id) === String(roleRow.ProjectIDLookupId || roleRow.ProjectID));
     const role = { ...roleRow, CustomerName: project ? project.CustomerName : '' };
@@ -76,7 +79,7 @@ async function mobileRenderRoleDetail(main) {
         <div class="m-detail-value">${nextTarget || '—'}</div>
       </div>
 
-      <div class="m-action-row">
+      ${writable ? `<div class="m-action-row">
         <button class="m-btn-primary"${act('mobileNav', 'stage-update')}>
           Update Stage
         </button>
@@ -89,7 +92,7 @@ async function mobileRenderRoleDetail(main) {
         <button class="m-btn-secondary"${act('mobileOpenRejectionSheet', true)}>
           Log Rejection
         </button>
-      </div>
+      </div>` : `<div class="m-form-hint">${escHtml(projectReadOnlyMessage())}</div>`}
     `;
   } catch (e) {
     main.innerHTML = mobilePageError(e.message, ['mobileRetryRoleDetail']);
@@ -103,6 +106,11 @@ async function mobileRenderStageUpdate(main) {
   try {
     const role = await getItem('Roles', _mobileRoleId);
     mobileSetTitle('Update Stage', role.RoleTitle);
+    const gate = await checkRoleWrite(_mobileRoleId);   // N-369
+    if (!gate.ok) {
+      main.innerHTML = `<div class="m-detail-panel"><div class="m-form-hint">${escHtml(gate.reason)}</div></div>`;
+      return;
+    }
     // N-307: the role's headcount counts — a UI hint for the D-2 Close block
     // and the D-1 cascade warning. A failed read leaves null; mobileSaveStage
     // re-checks authoritatively through checkRoleStageChange either way.
@@ -168,6 +176,14 @@ async function mobileSaveStage() {
   const label = btn.textContent;
   btn.disabled    = true;
   btn.textContent = 'Saving…';
+  // N-369: the project write gate first — fails closed.
+  const gate = await checkRoleWrite(_mobileRoleId);
+  if (!gate.ok) {
+    btn.disabled    = false;
+    btn.textContent = label;
+    mobileToast(gate.reason, { type: 'error' });
+    return;
+  }
   // N-307: the Stage rule (D-1 / D-2 / S-2) — fails closed.
   let check;
   try {
@@ -207,7 +223,7 @@ async function mobileRenderActivityForm(main, rolePreselected) {
   main.innerHTML = '<div class="m-empty">Loading…</div>';
   try {
     const user     = getCurrentUser();
-    const projects = dashboardProjects(await getScopedProjects(user.email, false));   // N-362
+    const projects = dashboardProjects(await getWritableScopedProjects(user.email, false));   // N-362; N-369 writable only
     let   roleName = '';
 
     if (rolePreselected && _mobileRoleId) {
@@ -341,6 +357,12 @@ async function mobileSubmitActivity(rolePreselected) {
     errEl.style.display = 'block';
     return;
   }
+  const gate = await checkRoleWrite(roleId);   // N-369
+  if (!gate.ok) {
+    errEl.textContent = gate.reason;
+    errEl.style.display = 'block';
+    return;
+  }
 
   const weekEndingRaw = document.getElementById('ma-week-ending').value;
   if (!weekEndingRaw) {
@@ -393,7 +415,7 @@ async function mobileRenderPlacementForm(main, rolePreselected) {
   main.innerHTML = '<div class="m-empty">Loading…</div>';
   try {
     const user     = getCurrentUser();
-    const projects = dashboardProjects(await getScopedProjects(user.email, false));   // N-362
+    const projects = dashboardProjects(await getWritableScopedProjects(user.email, false));   // N-362; N-369 writable only
     let   roleName = '';
     let   currency = '';
     let   hcOptions = '';
@@ -551,6 +573,8 @@ async function mobileSubmitPlacement(rolePreselected) {
   }
   const v = validatePlacementHeadcount({ headcount: target.headcount, state: target.state });
   if (!v.ok) { fail(v.reason); return; }
+  const gate = await checkRoleWrite(target.roleId);   // N-369
+  if (!gate.ok) { fail(gate.reason); return; }
 
   const roleId    = target.roleId;
   const offerDate = isoDate(document.getElementById('mp-offer-date').value);

@@ -263,6 +263,8 @@ async function rbUploadClientLogo(input) {
     input.value = '';
     return;
   }
+  const w = await checkProjectWrite(_rbProjectId);   // N-369
+  if (!w.ok) { toast(w.reason, { type: 'error' }); input.value = ''; return; }
   try {
     await upsertClientLogo(_rbProjectId, read.dataUri, file.name);
   } catch (e) {
@@ -282,6 +284,8 @@ async function rbRemoveClientLogo() {
     message: 'Remove the client logo for this project? Briefing Packs and reports for this project lose it.',
     confirmLabel: 'Remove', danger: true,
   }))) return;
+  const w = await checkProjectWrite(_rbProjectId);   // N-369
+  if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
   try {
     await deleteClientLogo(_rbProjectId);
   } catch (e) {

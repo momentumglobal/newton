@@ -23,6 +23,16 @@ function canEditProjectRows(role) {
 function canEditRoleRows(role) {
   return ["admin","delivery_manager","talent_partner"].includes(role);
 }
+// N-369 (PT-9, D-2): the per-project write gate for a list page. writable(pid) = may this
+// user write that project (canWriteProject, permissions.js); any = may they write at
+// least one (drives the "+ Add / + Log" buttons). writableIds from getUserWritableProjectIds.
+// Narrow only: callers still check their role rule (canEditRoleRows / canEditProjectRows).
+function _listWriteGate(role, writableIds) {
+  return {
+    writable: pid => canWriteProject(role, pid, writableIds),
+    any: writableIds === null || seesAllProjects(role) || (Array.isArray(writableIds) && writableIds.length > 0),
+  };
+}
 // N-266a: the Checklist column cell — "done/total" of the record's active
 // items, "—" when the record has no checklist for this user, and an empty
 // cell on a pending row (it has no real id yet). Rendered only when the
@@ -40,7 +50,7 @@ function projectNameLinkHtml(p, pending) {
   if (pending) return escHtml(p.CustomerName);
   return `<a href="#" class="cell-link"${act('openProjectPage.prevent', Number(p.id))}>${escHtml(p.CustomerName)}</a>`;
 }
-function projectRowHtml(p, { dmDisplay, canEdit, pending = false, checklist = null, showChecklistCol = false } = {}) {
+function projectRowHtml(p, { dmDisplay, canEdit, readOnly = false, pending = false, checklist = null, showChecklistCol = false } = {}) {
   return `
           <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ""}>
             <td>${projectNameLinkHtml(p, pending)}</td>
@@ -49,7 +59,7 @@ function projectRowHtml(p, { dmDisplay, canEdit, pending = false, checklist = nu
             <td>${spDateIn(p.StartDate) || "—"}</td>
             <td>${spDateIn(p.EndDate) || "—"}</td>
             ${showChecklistCol ? checklistCellHtml(checklist, pending) : ""}
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditProjectForm', Number(p.id))}>Edit</a></div></td>`) : ""}
+            ${canEdit ? (pending || readOnly ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditProjectForm', Number(p.id))}>Edit</a></div></td>`) : ""}
           </tr>
         `;
 }
@@ -61,7 +71,7 @@ function roleNameLinkHtml(r, pending) {
   return `<a href="#" class="cell-link"${act('openRolePage.prevent', Number(r.id))}>${escHtml(r.RoleTitle)}</a>`;
 }
 
-function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilter, pending = false, checklist = null, showChecklistCol = false, hcSummary = null } = {}) {
+function roleRowHtml(r, { projectName, tpMap, canEdit, readOnly = false, historyRoleIds, rolesFilter, pending = false, checklist = null, showChecklistCol = false, hcSummary = null } = {}) {
   const summary    = pending ? null : hcSummary;
   const days       = roleDaysOpenValue(r, rolesFilter, summary);
   const rowClass   = rolesFilter === "Active" && days !== null && days > CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays
@@ -71,7 +81,8 @@ function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilt
     : "<td>—</td>";
   // A pending role has no real id yet, so it never gets the interactive
   // unlock button -- canEdit is forced false for the stage badge only.
-  const stageCell  = stageBadgeHtml(r.id, r.Stage, pending ? false : canEdit);
+  // N-369: nor on a row whose project the user can no longer write.
+  const stageCell  = stageBadgeHtml(r.id, r.Stage, (pending || readOnly) ? false : canEdit);
   return `
           <tr class="${pending ? "row-pending" : rowClass}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ""}>
             <td>${escHtml(projectName)}</td>
@@ -83,11 +94,11 @@ function roleRowHtml(r, { projectName, tpMap, canEdit, historyRoleIds, rolesFilt
             ${hcCell}
             <td>${days !== null ? days + " days" : "—"}</td>
             ${showChecklistCol ? checklistCellHtml(checklist, pending) : ""}
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditRoleForm', Number(r.id))}>Edit</a><a href="#"${act('showDuplicateRoleForm', Number(r.id))}>Duplicate</a>${historyRoleIds.has(String(r.id)) ? `<a href="#"${act('showRoleTimeline', Number(r.id))}>Timeline</a>` : ""}</div></td>`) : ""}
+            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions">${readOnly ? "" : `<a href="#"${act('showEditRoleForm', Number(r.id))}>Edit</a><a href="#"${act('showDuplicateRoleForm', Number(r.id))}>Duplicate</a>`}${historyRoleIds.has(String(r.id)) ? `<a href="#"${act('showRoleTimeline', Number(r.id))}>Timeline</a>` : ""}</div></td>`) : ""}
           </tr>`;
 }
 
-function activityRowHtml(a, { roleMap, tpMap, canEdit, pending = false } = {}) {
+function activityRowHtml(a, { roleMap, tpMap, canEdit, readOnly = false, pending = false } = {}) {
   return `
           <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(a.id)}"` : ""}>
             <td>${a.Year}</td>
@@ -103,7 +114,7 @@ function activityRowHtml(a, { roleMap, tpMap, canEdit, pending = false } = {}) {
             <td style="text-align:center">${a.FinalInterview || 0}</td>
             <td style="text-align:center">${a.Offers || 0}</td>
             <td style="text-align:center">${a.Hires || 0}</td>
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditActivityForm', Number(a.id))}>Edit</a></div></td>`) : ""}
+            ${canEdit ? (pending || readOnly ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditActivityForm', Number(a.id))}>Edit</a></div></td>`) : ""}
           </tr>
         `;
 }
@@ -111,7 +122,7 @@ function activityRowHtml(a, { roleMap, tpMap, canEdit, pending = false } = {}) {
 // N-340: showTp (Admin / Delivery Manager only) adds the Talent Partner cell —
 // Placements.TalentPartner, the TP the placement is logged against — as the
 // last data cell, before the Edit cell. tpMap is email -> display name.
-function placementRowHtml(p, { roleMap, canEdit, showTp = false, tpMap = {}, pending = false } = {}) {
+function placementRowHtml(p, { roleMap, canEdit, readOnly = false, showTp = false, tpMap = {}, pending = false } = {}) {
   return `
           <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ""}>
             <td>${escHtml(p.CandidateName)}</td>
@@ -121,12 +132,12 @@ function placementRowHtml(p, { roleMap, canEdit, showTp = false, tpMap = {}, pen
             <td>${spDateIn(p.ProvisionalStartDate) || "—"}</td>
             <td>${p.TimeToHire != null ? p.TimeToHire + " days" : "—"}</td>
             ${showTp ? `<td>${escHtml(tpDisplay(p.TalentPartner, tpMap))}</td>` : ""}
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditPlacementForm', Number(p.id))}>Edit</a></div></td>`) : ""}
+            ${canEdit ? (pending || readOnly ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditPlacementForm', Number(p.id))}>Edit</a></div></td>`) : ""}
           </tr>
         `;
 }
 
-function rejectionRowHtml(r, { roleMap, canEdit, pending = false } = {}) {
+function rejectionRowHtml(r, { roleMap, canEdit, readOnly = false, pending = false } = {}) {
   return `
           <tr class="${pending ? "row-pending" : ""}"${pending ? ` data-pending-id="${escAttr(r.id)}"` : ""}>
             <td>${escHtml(r.CandidateName)}</td>
@@ -135,7 +146,7 @@ function rejectionRowHtml(r, { roleMap, canEdit, pending = false } = {}) {
             <td>${escHtml(formatSalary(r.SalaryOffered))}</td>
             <td>${escHtml(r.RejectionReason || "—")}</td>
             <td>${escHtml(r.Notes || "—")}</td>
-            ${canEdit ? (pending ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditRejectionForm', Number(r.id))}>Edit</a></div></td>`) : ""}
+            ${canEdit ? (pending || readOnly ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditRejectionForm', Number(r.id))}>Edit</a></div></td>`) : ""}
           </tr>
         `;
 }
@@ -157,13 +168,15 @@ async function renderProjectsPage(filter, pendingItem = null) {
   main.innerHTML = skeletonTable(6, 5);
   const role = _resolvedRole;
   const user = getCurrentUser();
-  let [projects, dmMap, ckCtx] = await Promise.all([
+  let [projects, dmMap, ckCtx, writableIds] = await Promise.all([
     // N-365 (S-1): Admin / Leadership / People Ops see every project.
     seesAllProjects(role) ? getProjects(false) : getScopedProjects(user.email, false),
     getTalentPartnerDisplayMap(),
     getChecklistListContext("project"),   // N-266a — null = render as before
+    getUserWritableProjectIds(user.email),   // N-369
   ]);
   const canEdit = canEditProjectRows(role);
+  const gate = _listWriteGate(role, writableIds);   // N-369: per-row Edit; + Add Project unchanged (S-9)
   const showChecklistCol = !!(ckCtx && ckCtx.showColumn);
   const dmName = email => email ? (dmMap[email.toLowerCase()] || email) : "—";
   // N-218a: splice the not-yet-created row in before sort/filter, exactly
@@ -195,6 +208,7 @@ async function renderProjectsPage(filter, pendingItem = null) {
         ${projects.length ? projects.map(p => projectRowHtml(p, {
           dmDisplay: dmName(p.DeliveryManager),
           canEdit,
+          readOnly: !gate.writable(p.id),
           pending: pendingItem ? p.id === pendingItem.id : false,
           checklist: checklistCellData(ckCtx, p, p.ProjectType),
           showChecklistCol,
@@ -216,6 +230,8 @@ async function showAddProjectForm() {
   document.getElementById("main-content").innerHTML = renderProjectForm();
 }
 async function showEditProjectForm(id) {
+  const w = await checkProjectWrite(id);   // N-369
+  if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
   const data = await getItem("Projects", id);
   document.getElementById("main-content").innerHTML = renderProjectForm(data);
 }
@@ -230,7 +246,7 @@ async function renderRolesPage(filter, pendingItem = null) {
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 8);
   const user = getCurrentUser();
-  const userProjectIds = await getUserProjectIds(user.email);
+  const [userProjectIds, writableIds] = await Promise.all([getUserProjectIds(user.email), getUserWritableProjectIds(user.email)]);   // N-369
   const [allRoles, allProjects, { projects: scopedProjects, canFilter }, tpMap, historyRoleIds, ckCtx, allHeadcount, placementLinks] = await Promise.all([
   getRolesForUser(user.email),
   getProjects(false),
@@ -245,12 +261,13 @@ async function renderRolesPage(filter, pendingItem = null) {
     allRoles, allProjects, userProjectIds, tpMap, allHeadcount, placementLinks, ckCtx, pendingItem, canFilter,
     filter: _rolesFilter, projectId: _rolesProjectId, search: _rolesSearch, sort: _rolesSort, pageSize: _rolesPageSize,
   });
-  main.innerHTML = _rolesPageHtml(m, { canEdit: canEditRoleRows(_resolvedRole), canFilter, scopedProjects, tpMap, historyRoleIds, pendingItem });
+  main.innerHTML = _rolesPageHtml(m, { canEdit: canEditRoleRows(_resolvedRole), gate: _listWriteGate(_resolvedRole, writableIds), canFilter, scopedProjects, tpMap, historyRoleIds, pendingItem });
   lucide.createIcons();
 }
 function _rolesPageHtml(m, o) {
-  const { roles, rolesTotal, pagedRoles, projectNameOf, hcSummaryOf, checklistOf, showChecklistCol, emptyMsg: rolesEmptyMsg } = m;
-  const { canEdit, canFilter, scopedProjects, tpMap, historyRoleIds, pendingItem } = o;
+  const { roles, rolesTotal, pagedRoles, projectNameOf, projectIdOf, hcSummaryOf, checklistOf, showChecklistCol, emptyMsg: rolesEmptyMsg } = m;
+  const { canEdit, gate, canFilter, scopedProjects, tpMap, historyRoleIds, pendingItem } = o;
+  const canAdd = canEdit && gate.any;   // N-369
   const filterBtns = Object.keys(ROLE_FILTERS).map(f =>
     `<button class="btn-filter${_rolesFilter === f ? " active" : ""}"${act('renderRolesPage', f)}>${f}</button>`
   ).join("");
@@ -262,7 +279,7 @@ function _rolesPageHtml(m, o) {
       <h2>Roles</h2>
       <div class="page-header-actions">
         <button class="btn-secondary"${act('showBriefingPackLibrary')}>Briefing Packs</button>
-        ${canEdit ? `<button class="btn-primary"${act('showAddRoleForm')}>+ Add Role</button>` : ""}
+        ${canAdd ? `<button class="btn-primary"${act('showAddRoleForm')}>+ Add Role</button>` : ""}
       </div>
     </div>
     <div class="table-toolbar">
@@ -289,6 +306,7 @@ function _rolesPageHtml(m, o) {
           canEdit,
           historyRoleIds,
           rolesFilter: _rolesFilter,
+          readOnly: !gate.writable(projectIdOf(r)),
           pending: pendingItem ? r.id === pendingItem.id : false,
           checklist: checklistOf(r),
           showChecklistCol,
@@ -297,8 +315,8 @@ function _rolesPageHtml(m, o) {
           colspan: 8 + (showChecklistCol ? 1 : 0) + (canEdit ? 1 : 0),
           icon: "briefcase",
           message: rolesEmptyMsg,
-          actionLabel: canEdit ? "+ Add Role" : "",
-          actionAct: canEdit ? ['showAddRoleForm'] : null,
+          actionLabel: canAdd ? "+ Add Role" : "",
+          actionAct: canAdd ? ['showAddRoleForm'] : null,
         })}
       </tbody>
     </table>
@@ -336,6 +354,8 @@ async function scrollToAndUnlockStage(roleId) {
   const roles = await getRolesForUser(user.email);
   const role = roles.find(r => String(r.id) === String(roleId));
   if (!role) return;
+  const w = await checkRoleWrite(roleId);   // N-369
+  if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
   unlockStageEdit(roleId, role.Stage || '');
 }
 async function updateRoleStage(roleId, selectEl) {
@@ -352,6 +372,13 @@ async function updateRoleStage(roleId, selectEl) {
       lucide.createIcons();
     }
   };
+  // N-369: the project write gate first — fails closed.
+  const gateCheck = await checkRoleWrite(roleId);
+  if (!gateCheck.ok) {
+    toast(gateCheck.reason, { type: 'error' });
+    restoreBadge();
+    return;
+  }
   let check;
   try {
     check = await checkRoleStageChange(roleId, newStage);
@@ -390,6 +417,8 @@ async function showAddRoleForm() {
   document.getElementById("main-content").innerHTML = await renderRoleForm();
 }
 async function showEditRoleForm(id) {
+  const w = await checkRoleWrite(id);   // N-369
+  if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
   const data = await getItem("Roles", id);
   document.getElementById("main-content").innerHTML = await renderRoleForm(data);
   const pid = data.ProjectID || data.ProjectIDLookupId;
@@ -521,7 +550,7 @@ async function renderActivityPage(pendingItem = null) {
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 13);
   const user = getCurrentUser();
-  const userProjectIds = await getUserProjectIds(user.email);
+  const [userProjectIds, writableIds] = await Promise.all([getUserProjectIds(user.email), getUserWritableProjectIds(user.email)]);   // N-369
   const [activity, allRoles, { projects: scopedProjects, canFilter }, tpMap] = await Promise.all([
   getWeeklyActivity(null, null, { sinceWeeks: _activityWeeks }),
   getRolesForUser(user.email),
@@ -534,12 +563,13 @@ async function renderActivityPage(pendingItem = null) {
     scopedEmail: isTalentPartner ? getScopedUserEmail() : null,
     projectId: _activityProjectId, roleId: _activityRoleId, search: _activitySearch, sort: _activitySort, pageSize: _activityPageSize,
   });
-  main.innerHTML = _activityPageHtml(m, { canEdit: ["admin","delivery_manager","talent_partner"].includes(_resolvedRole), canFilter, scopedProjects, tpMap, pendingItem });
+  main.innerHTML = _activityPageHtml(m, { canEdit: ["admin","delivery_manager","talent_partner"].includes(_resolvedRole), gate: _listWriteGate(_resolvedRole, writableIds), canFilter, scopedProjects, tpMap, pendingItem });
   lucide.createIcons();
 }
 function _activityPageHtml(m, o) {
-  const { roleMap, filtered: filteredActivity, total: activityTotal, paged: pagedActivity, roleChoices, emptyMsg: activityEmptyMsg } = m;
-  const { canEdit, canFilter, scopedProjects, tpMap, pendingItem } = o;
+  const { roleMap, filtered: filteredActivity, total: activityTotal, paged: pagedActivity, roleChoices, projectIdOf, emptyMsg: activityEmptyMsg } = m;
+  const { canEdit, gate, canFilter, scopedProjects, tpMap, pendingItem } = o;
+  const canAdd = canEdit && gate.any;   // N-369
   const roleOptions = [
     `<option value="" ${!_activityRoleId ? 'selected' : ''}>All Roles</option>`,
     ...roleChoices.map(c => `<option value="${c.id}" ${String(_activityRoleId) === String(c.id) ? 'selected' : ''}>${c.label}</option>`)
@@ -555,7 +585,7 @@ function _activityPageHtml(m, o) {
   return `
     <div class="page-header">
       <h2>Weekly Activity</h2>
-      ${canEdit ? '<div class="page-header-actions">' + (typeof bulkEntryAvailable === 'function' && bulkEntryAvailable() ? '<button class="btn-secondary"' + act('showBulkActivityPage') + '>Bulk log week</button>' : '') + '<button class="btn-primary"' + act('showAddActivityForm') + '>+ Log Activity</button></div>' : ""}
+      ${canAdd ? '<div class="page-header-actions">' + (typeof bulkEntryAvailable === 'function' && bulkEntryAvailable() ? '<button class="btn-secondary"' + act('showBulkActivityPage') + '>Bulk log week</button>' : '') + '<button class="btn-primary"' + act('showAddActivityForm') + '>+ Log Activity</button></div>' : ""}
     </div>
     <div class="table-toolbar">
       ${listControlsBar([projDropdown, roleDropdown, periodDropdown, listSearchBox(_activitySearch, 'setActivitySearch'), pageSizeDropdown(_activityPageSize, 'setActivityPageSize')])}
@@ -583,13 +613,14 @@ function _activityPageHtml(m, o) {
           roleMap,
           tpMap,
           canEdit,
+          readOnly: !gate.writable(projectIdOf(a)),
           pending: pendingItem ? a.id === pendingItem.id : false,
         })).join("") : emptyStateRow({
           colspan: canEdit ? 14 : 13,
           icon: "activity",
           message: activityEmptyMsg,
-          actionLabel: canEdit ? "+ Log Activity" : "",
-          actionAct: canEdit ? ['showAddActivityForm'] : null,
+          actionLabel: canAdd ? "+ Log Activity" : "",
+          actionAct: canAdd ? ['showAddActivityForm'] : null,
         })}
       </tbody>
     </table>
@@ -614,6 +645,9 @@ async function showAddActivityForm(preselectedRoleId = null, preselectedProjectI
 }
 async function showEditActivityForm(id) {
   const data = await getItem("WeeklyActivity", id);
+  // N-369: the row's role decides its project (as the list scope does); else the row's own ProjectID.
+  const w = await (data.RoleIDLookupId ? checkRoleWrite(data.RoleIDLookupId) : checkProjectWrite(data.ProjectIDLookupId));
+  if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
   document.getElementById("main-content").innerHTML = await renderWeeklyActivityForm(data);
 }
 // N-147 (T-2a) — the bulk grid is a sub-view of this page, not a PAGES entry:
@@ -643,7 +677,7 @@ async function renderPlacementsPage(pendingItem = null) {
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 6);
   const user = getCurrentUser();
-  const userProjectIds = await getUserProjectIds(user.email);
+  const [userProjectIds, writableIds] = await Promise.all([getUserProjectIds(user.email), getUserWritableProjectIds(user.email)]);   // N-369
   // N-340: the Talent Partner column is for Admin and Delivery Manager only —
   // a Talent Partner can only see their own placements. Allow-list on
   // _resolvedRole (not `!== 'talent_partner'`) so Admin ghost-mode-as-a-TP
@@ -666,7 +700,7 @@ async function renderPlacementsPage(pendingItem = null) {
     scopedEmail: isTalentPartner ? getScopedUserEmail() : null,
     projectId: _placementProjectId, filter: _placementFilter, search: _placementSearch, sort: _placementSort, pageSize: _placementPageSize,
   });
-  main.innerHTML = _placementsPageHtml(m, { canEdit: ["admin","delivery_manager","talent_partner"].includes(_resolvedRole), canFilter, scopedProjects, showTp, tpMap, pendingItem });
+  main.innerHTML = _placementsPageHtml(m, { canEdit: ["admin","delivery_manager","talent_partner"].includes(_resolvedRole), gate: _listWriteGate(_resolvedRole, writableIds), canFilter, scopedProjects, showTp, tpMap, pendingItem });
   lucide.createIcons();
 }
 function _placementFilterRowsHtml() {
@@ -690,8 +724,9 @@ function _placementFilterRowsHtml() {
       </div>`;
 }
 function _placementsPageHtml(m, o) {
-  const { roleMap, scopedPlacements, placements, paged: pagedPlacements } = m;
-  const { canEdit, canFilter, scopedProjects, showTp, tpMap, pendingItem } = o;
+  const { roleMap, scopedPlacements, placements, paged: pagedPlacements, projectIdOf } = m;
+  const { canEdit, gate, canFilter, scopedProjects, showTp, tpMap, pendingItem } = o;
+  const canAdd = canEdit && gate.any;   // N-369
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _placementProjectId, 'setPlacementProject')
     : '';
@@ -711,7 +746,7 @@ function _placementsPageHtml(m, o) {
     <div class="page-header">
       <h2>Placements</h2>
       <div class="page-header-actions">
-        ${canEdit ? `<button class="btn-primary"${act('showAddPlacementForm')}>+ Record Placement</button>` : ""}
+        ${canAdd ? `<button class="btn-primary"${act('showAddPlacementForm')}>+ Record Placement</button>` : ""}
       </div>
     </div>
     <div class="table-toolbar">
@@ -736,13 +771,14 @@ function _placementsPageHtml(m, o) {
           canEdit,
           showTp,
           tpMap,
+          readOnly: !gate.writable(projectIdOf(p)),
           pending: pendingItem ? p.id === pendingItem.id : false,
         })).join("") : emptyStateRow({
           colspan: 6 + (showTp ? 1 : 0) + (canEdit ? 1 : 0),
           icon: "user-check",
           message: placementsEmptyMsg,
-          actionLabel: canEdit ? "+ Record Placement" : "",
-          actionAct: canEdit ? ['showAddPlacementForm'] : null,
+          actionLabel: canAdd ? "+ Record Placement" : "",
+          actionAct: canAdd ? ['showAddPlacementForm'] : null,
         })}
       </tbody>
     </table>
@@ -763,6 +799,8 @@ async function showAddPlacementForm(preselectedRoleId = null, preselectedProject
 }
 async function showEditPlacementForm(id) {
   const data = await getItem("Placements", id);
+  const w = await checkRoleWrite(data.RoleIDLookupId);   // N-369
+  if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
   document.getElementById("main-content").innerHTML = await renderPlacementForm(data);
 }
 // ── Rejected Offers ───────────────────────────────────────────────────
@@ -787,7 +825,7 @@ async function renderRejectionsPage(pendingItem = null) {
   const main = document.getElementById("main-content");
   main.innerHTML = skeletonTable(6, 6);
   const user = getCurrentUser();
-  const userProjectIds = await getUserProjectIds(user.email);
+  const [userProjectIds, writableIds] = await Promise.all([getUserProjectIds(user.email), getUserWritableProjectIds(user.email)]);   // N-369
   const [rejections, allRoles, { projects: scopedProjects, canFilter }] = await Promise.all([
     // N-152: bounded ONLY when the user picks a window. The default is 0
     // (All time) and must stay that way — a `ge` bound cannot match a null
@@ -803,7 +841,7 @@ async function renderRejectionsPage(pendingItem = null) {
     scopedEmail: isTalentPartner ? getScopedUserEmail() : null,
     projectId: _rejectionsProjectId, search: _rejectionsSearch, sort: _rejectionsSort, pageSize: _rejectionsPageSize,
   });
-  main.innerHTML = _rejectionsPageHtml(m, { canEdit: ["admin","delivery_manager","talent_partner"].includes(_resolvedRole), canFilter, scopedProjects, pendingItem, tabBar: canIntel ? rejectionsTabBarHtml('list') : '' });
+  main.innerHTML = _rejectionsPageHtml(m, { canEdit: ["admin","delivery_manager","talent_partner"].includes(_resolvedRole), gate: _listWriteGate(_resolvedRole, writableIds), canFilter, scopedProjects, pendingItem, tabBar: canIntel ? rejectionsTabBarHtml('list') : '' });
   lucide.createIcons();
 }
 // N-388 (DA-8): the Rejection Intelligence tab. Own skeleton, own load; the period dropdown is the
@@ -843,15 +881,16 @@ async function renderRejectionIntelTab(showTabs) {
   }
 }
 function _rejectionsPageHtml(m, o) {
-  const { roleMap, filtered: filteredRejections, total: rejectionsTotal, paged: pagedRejections, emptyMsg: rejectionsEmptyMsg } = m;
-  const { canEdit, canFilter, scopedProjects, pendingItem, tabBar } = o;
+  const { roleMap, filtered: filteredRejections, total: rejectionsTotal, paged: pagedRejections, projectIdOf, emptyMsg: rejectionsEmptyMsg } = m;
+  const { canEdit, gate, canFilter, scopedProjects, pendingItem, tabBar } = o;
+  const canAdd = canEdit && gate.any;   // N-369
   const projDropdown = canFilter
     ? projectFilterDropdown(scopedProjects, _rejectionsProjectId, 'setRejectionsProject')
     : '';
   return `${tabBar || ''}
     <div class="page-header">
       <h2>Rejected Offers</h2>
-      ${canEdit ? `<div class="page-header-actions"><button class="btn-primary"${act('showAddRejectionForm')}>+ Log Rejection</button></div>` : ""}
+      ${canAdd ? `<div class="page-header-actions"><button class="btn-primary"${act('showAddRejectionForm')}>+ Log Rejection</button></div>` : ""}
     </div>
     <div class="table-toolbar">
       ${listControlsBar([projDropdown, periodFilterDropdown(_rejectionsWeeks, 'setRejectionsWeeks'), listSearchBox(_rejectionsSearch, 'setRejectionsSearch'), pageSizeDropdown(_rejectionsPageSize, 'setRejectionsPageSize')])}
@@ -870,13 +909,14 @@ function _rejectionsPageHtml(m, o) {
         ${pagedRejections.length ? pagedRejections.map(r => rejectionRowHtml(r, {
           roleMap,
           canEdit,
+          readOnly: !gate.writable(projectIdOf(r)),
           pending: pendingItem ? r.id === pendingItem.id : false,
         })).join("") : emptyStateRow({
           colspan: canEdit ? 7 : 6,
           icon: "user-x",
           message: rejectionsEmptyMsg,
-          actionLabel: canEdit ? "+ Log Rejection" : "",
-          actionAct: canEdit ? ['showAddRejectionForm'] : null,
+          actionLabel: canAdd ? "+ Log Rejection" : "",
+          actionAct: canAdd ? ['showAddRejectionForm'] : null,
         })}
       </tbody>
     </table>
@@ -897,6 +937,8 @@ async function showAddRejectionForm() {
 }
 async function showEditRejectionForm(id) {
   const data = await getItem("RejectedOffers", id);
+  const w = await checkRoleWrite(data.RoleIDLookupId);   // N-369
+  if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
   document.getElementById("main-content").innerHTML = await renderRejectedOfferForm(data);
 }
 

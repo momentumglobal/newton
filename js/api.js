@@ -1045,6 +1045,68 @@ async function getScopedProjects(email, activeOnly = false) {
   if (projectIds === null) return allProjects;
   return allProjects.filter(p => projectIds.includes(String(p.id)));
 }
+
+// N-369 (PT-9, D-2): the projects this user can WRITE (null = all, an active admin row).
+// Ghost-aware and the same cached reads as getUserProjectIds. 'assignments': the user's
+// Assignments rows whose write window is open today (writableProjectIdsFromAssignments,
+// permissions.js). 'legacy' (kill switch, S-4): the legacy visible scope — no window.
+// Admin / Leadership / People Ops pass canWriteProject whatever this returns.
+async function getUserWritableProjectIds(email) {
+  await _ensureGhostGate();   // N-282: getGhostUser() is only valid after the gate
+  const lower = (getGhostUser() || email).toLowerCase();
+  const assignments = await getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`);
+  if (assignments.some(isAdminAssignment)) return null;
+  if (accessScopeMode() === 'assignments') {
+    return writableProjectIdsFromAssignments(await _getAssignmentsForUser(lower), localDayISO());
+  }
+  return _legacyProjectIds(assignments);
+}
+
+// N-369: the user's scoped projects they can write — form project pickers.
+async function getWritableScopedProjects(email, activeOnly = false) {
+  const [projects, ids] = await Promise.all([getScopedProjects(email, activeOnly), getUserWritableProjectIds(email)]);
+  if (ids === null) return projects;
+  return projects.filter(p => ids.includes(String(p.id)));
+}
+
+// N-369 (S-5b): run immediately before a write. { ok, reason } for the signed-in user (the
+// ghosted user in Ghost Mode). Fails closed: a read error means nothing is saved.
+const PROJECT_WRITE_CHECK_FAILED = "Couldn't check your access to this project — nothing saved.";
+async function checkProjectWrite(projectId) {
+  try {
+    const email = getCurrentUser().email;
+    const [role, ids] = await Promise.all([getEffectiveRole(email), getUserWritableProjectIds(email)]);
+    return canWriteProject(role, projectId, ids) ? { ok: true, reason: '' } : { ok: false, reason: projectReadOnlyMessage() };
+  } catch (e) {
+    console.warn('N-369: project write check failed', e);
+    return { ok: false, reason: PROJECT_WRITE_CHECK_FAILED };
+  }
+}
+
+// N-369: the same check through a role's project (placements, rejections, stage changes).
+async function checkRoleWrite(roleId) {
+  let role;
+  try {
+    role = await getItem('Roles', roleId);
+  } catch (e) {
+    console.warn('N-369: role read for the write check failed', e);
+    return { ok: false, reason: PROJECT_WRITE_CHECK_FAILED };
+  }
+  return checkProjectWrite(role ? (role.ProjectIDLookupId ?? role.ProjectID) : null);
+}
+
+// N-369: every distinct role's project must be writable — an edit that can move a record
+// checks its stored role and its new one. First refusal wins; blank ids are skipped; no
+// id at all fails closed.
+async function checkRoleWrites(...roleIds) {
+  const ids = [...new Set(roleIds.filter(id => id !== null && id !== undefined && id !== '').map(String))];
+  if (!ids.length) return { ok: false, reason: PROJECT_WRITE_CHECK_FAILED };
+  for (const id of ids) {
+    const w = await checkRoleWrite(id);
+    if (!w.ok) return w;
+  }
+  return { ok: true, reason: '' };
+}
  
 // ── App Settings ─────────────────────────────────────────────────────
 // AppSettings is a single-row SharePoint list with columns:

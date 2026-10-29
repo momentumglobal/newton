@@ -37,6 +37,21 @@ let _bpLibraryCache  = [];   // packs visible to this user, from the last load
 let _bpLibraryFilter = '';   // '' = all clients
 let _bpProjectMap    = {};   // projectId (string) -> CustomerName, for banding
 let _bpDmProjectIds  = [];   // N-398: projects the user is an active DM on (Reassign button)
+let _bpWritableIds   = [];   // N-369: getUserWritableProjectIds (null = all)
+
+// N-369 (S-8): a pack with no ProjectID is never gated; otherwise its project must be
+// writable (canWriteProject, permissions.js). _bpCheckWrite is the fresh, fail-closed
+// re-check run right before a write.
+function _bpCanWrite(projectId) {
+  return !projectId || canWriteProject(_resolvedRole, projectId, _bpWritableIds);
+}
+function _bpCheckWrite(projectId) {
+  return projectId ? checkProjectWrite(projectId) : Promise.resolve({ ok: true, reason: '' });
+}
+// The open pack is read-only: it has a project the user can no longer write.
+function _bpReadOnly() {
+  return !_bpCanWrite(_bpProjectId);
+}
 
 function bpUid() { return 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6); }
 
@@ -70,14 +85,16 @@ async function showBriefingPackLibrary() {
     // getProjects(false) deliberately — a Leadership user sees packs for
     // projects they hold no UserAssignments row for, and a scoped project list
     // would leave those bands unnamed.
-    const [packs, projects, projectIds, tpMap, dmIds] = await Promise.all([
+    const [packs, projects, projectIds, tpMap, dmIds, writableIds] = await Promise.all([
       getBriefingPacks(),
       getProjects(false),
       getUserProjectIds(user.email),
       getTalentPartnerDisplayMap(),
       getDmProjectIds(user.email),
+      getUserWritableProjectIds(user.email),   // N-369
     ]);
     _bpDmProjectIds = dmIds;
+    _bpWritableIds  = writableIds;
     _bpProjectMap = {};
     projects.forEach(p => { _bpProjectMap[String(p.id)] = p.CustomerName || ''; });
     _bpTpMap = tpMap;
@@ -138,8 +155,9 @@ function _bpRenderLibrary() {
         const list = groups[client].slice().sort((a, b) => (a.Title || '').localeCompare(b.Title || ''));
         const packRows = list.map(p => {
           const owner = p.PackOwner || '';
-          const canDelete = isAdmin || owner.toLowerCase() === me;
-          const canReassign = canReassignBriefingPack(_resolvedRole, me, p, _bpDmProjectIds);
+          const writable = _bpCanWrite(p.ProjectID);   // N-369
+          const canDelete = writable && (isAdmin || owner.toLowerCase() === me);
+          const canReassign = writable && canReassignBriefingPack(_resolvedRole, me, p, _bpDmProjectIds);
           return `
         <tr>
           <td>${escHtml(p.Title || '—')}</td>
@@ -149,7 +167,7 @@ function _bpRenderLibrary() {
           <td>
             <div class="row-actions">
               <button class="btn-secondary"${act('bpLoadPack', Number(p.id))}>Open</button>
-              <button class="btn-secondary"${act('bpCopyPackAction', Number(p.id), ACT_EL)}>Copy</button>
+              ${writable ? `<button class="btn-secondary"${act('bpCopyPackAction', Number(p.id), ACT_EL)}>Copy</button>` : ''}
               ${canReassign ? `<button class="btn-secondary"${act('bpReassignPackAction', Number(p.id), ACT_EL)}>Reassign</button>` : ''}
               ${canDelete ? `<button class="btn-secondary"${act('bpDeletePack', Number(p.id), p.Title || '')}>Delete</button>` : ''}
             </div>
@@ -200,6 +218,9 @@ function _bpRenderLibrary() {
 async function bpCopyPackAction(id, btn) {
   setButtonLoading(btn);
   try {
+    const source = await getBriefingPackById(id);   // N-369
+    const w = await _bpCheckWrite(source && source.ProjectID);
+    if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
     const copy = await copyBriefingPack(id, getCurrentUser().email);
     await bpLoadPack(copy.id);
   } catch (e) {
@@ -252,6 +273,8 @@ async function bpReassignPackAction(id, btn) {
       await showBriefingPackLibrary();
       return;
     }
+    const w = await _bpCheckWrite(fresh.ProjectID);   // N-369
+    if (!w.ok) { toast(w.reason, { type: 'error' }); await showBriefingPackLibrary(); return; }
     await updateBriefingPack(id, { PackOwner: chosen.email });
     toast(`Pack reassigned to ${chosen.name}.`);
     await showBriefingPackLibrary();
@@ -278,9 +301,12 @@ function bpWithOwnProject(list, all, keepId) {
 // Admin / Leadership / People Ops see every project, as on the Projects page;
 // everyone else their scoped list. keepProjectId is a saved pack's own project.
 async function bpLoadProjects(keepProjectId) {
-  const list = seesAllProjects(_resolvedRole)
-    ? await getProjects(false)
-    : await getScopedProjects(getCurrentUser().email, false);
+  const email = getCurrentUser().email;
+  const [list, writableIds] = await Promise.all([
+    seesAllProjects(_resolvedRole) ? getProjects(false) : getWritableScopedProjects(email, false),   // N-369
+    getUserWritableProjectIds(email),
+  ]);
+  _bpWritableIds = writableIds;
   const keep = keepProjectId ? String(keepProjectId) : '';
   const missing = !!keep && !list.some(p => String(p.id) === keep);
   _bpProjects = bpWithOwnProject(list, missing ? await getProjects(false) : [], keep);
@@ -372,6 +398,8 @@ async function bpUploadClientLogo(input) {
     return;
   }
   const dataUri = read.dataUri;
+  const w = await _bpCheckWrite(_bpProjectId);   // N-369
+  if (!w.ok) { toast(w.reason, { type: 'error' }); input.value = ''; return; }
 
   // Never fail silently. The first version swallowed the Graph rejection
   // inside this async onchange handler, so a logo that never saved looked
@@ -395,6 +423,8 @@ async function bpRemoveClientLogo() {
     message: 'Remove the client logo for this project? Every pack and report for this project loses it.',
     confirmLabel: 'Remove', danger: true,
   }))) return;
+  const w = await _bpCheckWrite(_bpProjectId);   // N-369
+  if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
   try {
     await deleteClientLogo(_bpProjectId);
   } catch (e) {
@@ -454,16 +484,18 @@ function bpApplyRoleAutofill() {
 // ── Render ────────────────────────────────────────────────────────────
 function bpRender() {
   const main = document.getElementById('main-content');
+  const ro = _bpReadOnly();   // N-369
   main.innerHTML = `
     <div class="page-header">
       <h2>Briefing Pack</h2>
       <div class="page-header-actions">
         <button class="btn-secondary"${act('showBriefingPackLibrary')}>&larr; Back to Library</button>
-        <button class="btn-secondary" id="bp-save-btn"${act('bpSavePack')}>Save</button>
+        ${ro ? '' : `<button class="btn-secondary" id="bp-save-btn"${act('bpSavePack')}>Save</button>`}
         <button class="btn-secondary"${act('bpPreview')}>Preview</button>
         <button class="print-btn"    ${act('bpExportPdf')}>&#8856; Export PDF</button>
       </div>
     </div>
+    ${ro ? projectReadOnlyBannerHtml() : ''}
     <div class="rb-shell">
       <div class="rb-sidebar" id="bp-sidebar">${bpRenderSidebar()}</div>
       <div class="rb-canvas"  id="bp-canvas">${bpRenderCanvas()}</div>
@@ -489,24 +521,25 @@ function bpRenderSidebar() {
       return `<option value="${r.id}" ${String(r.id) === String(_bpRoleId) ? 'selected' : ''}>${label}</option>`;
     })).join('');
 
+  const ro = _bpReadOnly();   // N-369
   return `
     <div class="rb-sidebar-scroll">
     <div class="rb-config">
       <div class="rb-section-label">Project</div>
-      <select class="rb-select"${actOn('change', 'bpSetProject', ACT_VALUE)}>${projectOpts}</select>
+      <select class="rb-select"${ro ? ' disabled' : ''}${actOn('change', 'bpSetProject', ACT_VALUE)}>${projectOpts}</select>
 
       
       <div class="rb-section-label">Role</div>
-      <select class="rb-select"${actOn('change', 'bpSetRole', ACT_VALUE)}>${roleOpts}</select>
+      <select class="rb-select"${ro ? ' disabled' : ''}${actOn('change', 'bpSetRole', ACT_VALUE)}>${roleOpts}</select>
 
       <div class="rb-section-label">Client Logo</div>
       <div class="bp-logo-control">
         ${_bpClientLogo
           ? `<img class="bp-logo-thumb" src="${escAttr(_bpClientLogo)}" alt="${escAttr(_bpClientLogoName || 'Client logo')}">`
           : '<span class="bp-logo-empty">No logo uploaded</span>'}
-        <input type="file" class="bp-logo-input" accept="${uploadAcceptAttr('LOGO')}"
-          ${actOn('change', 'bpUploadClientLogo', ACT_EL).trim()}>
-        ${_bpClientLogo ? `<button class="btn-secondary btn-sm"${act('bpRemoveClientLogo')}>Remove</button>` : ''}
+        ${ro ? '' : `<input type="file" class="bp-logo-input" accept="${uploadAcceptAttr('LOGO')}"
+          ${actOn('change', 'bpUploadClientLogo', ACT_EL).trim()}>`}
+        ${_bpClientLogo && !ro ? `<button class="btn-secondary btn-sm"${act('bpRemoveClientLogo')}>Remove</button>` : ''}
       </div>
       <p class="rb-footnote">Saved against the project and reused by every pack for this client.</p>
 
@@ -731,6 +764,11 @@ function bpRemovePage(id) {
 }
 
 async function bpSetProject(val) {
+  if (val && !_bpCanWrite(val)) {   // N-369
+    toast(projectReadOnlyMessage(), { type: 'error' });
+    document.getElementById('bp-sidebar').innerHTML = bpRenderSidebar();
+    return;
+  }
     _bpProjectId = val || null;
   _bpRoleId    = '';
   await bpLoadRoles();
@@ -937,6 +975,8 @@ async function bpExportPdf() {
 async function bpSavePack() {
   const title = (_bpTitle || '').trim();
   if (!title) { toast('Please enter a pack title before saving.', { type: 'error' }); return; }
+  const w = await _bpCheckWrite(_bpProjectId);   // N-369
+  if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
 
   const payload = {
     Title:        title,
@@ -995,6 +1035,14 @@ async function bpDeletePack(id, title) {
     message: `Delete "${title}"? This cannot be undone.`,
     confirmLabel: 'Delete', danger: true,
   }))) return;
+  let w;
+  try {
+    const pack = await getBriefingPackById(id);   // N-369
+    w = await _bpCheckWrite(pack && pack.ProjectID);
+  } catch (e) {
+    w = { ok: false, reason: PROJECT_WRITE_CHECK_FAILED };
+  }
+  if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
   try {
     await deleteItem('BriefingPacks', id);
   } catch (e) {

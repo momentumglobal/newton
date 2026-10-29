@@ -40,7 +40,7 @@ async function _roleFormContext(existingData, preselectedProjectId, isDuplicate)
   const userRole = await getEffectiveRole(email);
   const canAssign = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
   const isTalentPartner = userRole === 'talent_partner';
-  const projects = dashboardProjects(await getScopedProjects(email, false));   // N-362
+  const projects = dashboardProjects(await getWritableScopedProjects(email, false));   // N-362; N-369 writable only
   const lockProject = isTalentPartner && projects.length === 1;
   const selectedProjectId = existingData?.ProjectIDLookupId ?? existingData?.ProjectID ?? preselectedProjectId ?? '';
   // N-112: only Active/Transition projects are selectable; a Completed project
@@ -320,6 +320,10 @@ async function submitRoleForm(event, editId = null) {
   };
   // Separate from `fields` on purpose: tests/lint-role-copy-fields.js parses `const fields = {`.
   const hc = _roleFormHeadcountInput(data);
+  // N-369: the write gate — the chosen project, and on an edit the role's stored project.
+  let gate = await checkProjectWrite(fields.ProjectIDLookupId);
+  if (gate.ok && editId) gate = await checkRoleWrite(editId);
+  if (!gate.ok) { clearButtonLoading(btn); showFormError('role-form', gate.reason); return; }
   if (editId) {
     // N-218a: optimistic insert is a create-only concept; edits write directly.
     const check = await _roleFormValidateEdit(editId, fields, btn);

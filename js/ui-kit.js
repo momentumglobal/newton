@@ -231,6 +231,14 @@ function pageErrorBlock({ message = '', retryAct = null } = {}) {
   });
 }
 
+// N-369 (PT-9, W-2 / W-3): the banner on a single-project page (Project page, Role page,
+// Hiring Plan, Briefing Pack builder) when the user's role could edit there but their
+// assignment window on the project has closed. Text from projectReadOnlyMessage
+// (permissions.js, which loads after this file — called at runtime only).
+function projectReadOnlyBannerHtml() {
+  return `<div class="project-readonly-banner" role="note"><i data-lucide="lock" aria-hidden="true"></i><span>${escHtml(projectReadOnlyMessage())}</span></div>`;
+}
+
 // ── Toast + confirm modal (N-104 / X-3a) ────────────────────────
 // Reusable non-blocking toast + promise-returning confirm/prompt/select modals,
 // replacing alert()/confirm()/prompt() call sites. Each lazily builds its own

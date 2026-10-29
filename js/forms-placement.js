@@ -17,7 +17,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   const userRole = await getEffectiveRole(email);
   const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
   const isTalentPartner = userRole === 'talent_partner';
-  const projects = dashboardProjects(await getScopedProjects(email, false));   // N-362
+  const projects = dashboardProjects(await getWritableScopedProjects(email, false));   // N-362; N-369 writable only
   const lockProject = isTalentPartner && projects.length === 1;
   // N-308 S-4: Placements has no ProjectID — an edit takes its project from
   // the placement's role. A failed read leaves the project unselected.
@@ -202,6 +202,9 @@ async function submitPlacementForm(event, editId = null) {
   if (!checked) return;
   const { target, stored, currentHeadcountId } = checked;
   const roleId = target.roleId;
+  // N-369: the write gate — fails closed.
+  const gate = await checkRoleWrites(roleId, stored && stored.RoleIDLookupId);
+  if (!gate.ok) { fail(gate.reason); return; }
   const fields = _placementBuildFields(data, target, editId);
   if (editId) {
     await _placementWriteEdit(editId, fields, stored, currentHeadcountId, roleId, fail);

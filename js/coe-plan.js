@@ -149,12 +149,13 @@ async function renderHiringPlanPage(selectedProjectId = null) {
   }
   const pid = selectedProjectId || projects[0].id;
 
-  const [planRows, roles, headcount] = await Promise.all([
+  const [planRows, roles, headcount, writableIds] = await Promise.all([
     getCoEPlanRows(pid),
     getRolesForProject(pid),
     // N-312: degrade, don't blank the page — a failed headcount read means no
     // actual bars, and Link / Create Headcount say so when used.
     getHeadcountForProject(pid).catch(e => { console.warn('Hiring Plan: headcount read failed', e); return null; }),
+    getUserWritableProjectIds(email),   // N-369
   ]);
   // N-312: one placements read for the project's roles — the overlay and the
   // link picker's "filled" label both need it. _odataIn drops the clause above
@@ -165,7 +166,8 @@ async function renderHiringPlanPage(selectedProjectId = null) {
         .filter(p => roleIdSet.has(String(p.RoleIDLookupId)))
     : [];
 
-  _coeCache = { projectId: pid, projects, planRows, roles, headcount, placements, canEdit, isAdmin };
+  const writable = canWriteProject(role, pid, writableIds);   // N-369
+  _coeCache = { projectId: pid, projects, planRows, roles, headcount, placements, canEdit: canEdit && writable, readOnly: canEdit && !writable, isAdmin };
   coeRenderBody();
 }
 
@@ -178,6 +180,7 @@ function coeRenderBody() {
 
   main.innerHTML = `
     <div class="page-header"><h2>Hiring Plan</h2></div>
+    ${_coeCache.readOnly ? projectReadOnlyBannerHtml() : ''}
     <div class="coe-toolbar">
       <select${actOn('change', 'coeSetProject', ACT_VALUE)}>${projOpts}</select>
       ${canEdit ? `<button class="btn-primary"${act('coeOpenRowModal')}>+ Planned Headcount</button>` : ''}
@@ -577,8 +580,16 @@ async function coeOpenRowModal(rowId = null) {
   document.getElementById('coe-row-modal').scrollIntoView({ behavior: 'smooth' });
 }
 
+// N-369 (S-5b): re-check the selected project right before a Hiring Plan write. Toasts on refusal.
+async function _coeWriteOk() {
+  const w = await checkProjectWrite(_coeCache && _coeCache.projectId);
+  if (!w.ok) toast(w.reason, { type: 'error' });
+  return w.ok;
+}
+
 async function coeSubmitRow(event, rowId) {
   event.preventDefault();
+  if (!(await _coeWriteOk())) return;   // N-369
   const data = Object.fromEntries(new FormData(document.getElementById('coe-row-form')));
   const payload = {
     Title:            data.Title,
@@ -603,6 +614,7 @@ async function coeDeleteRow(rowId) {
     message: 'Remove this planned headcount from the hiring plan?',
     confirmLabel: 'Remove', danger: true,
   }))) return;
+  if (!(await _coeWriteOk())) return;   // N-369
   await deleteCoEPlanRow(rowId);
   await renderHiringPlanPage(_coeCache.projectId);
 }
@@ -617,6 +629,7 @@ async function coeDeletePlan() {
     message: `Delete the entire hiring plan — all ${planRows.length} planned headcount on this project? (Linked live Roles and headcount are kept.)`,
     confirmLabel: 'Delete plan', danger: true,
   }))) return;
+  if (!(await _coeWriteOk())) return;   // N-369
   const btn = document.getElementById('coe-delete-plan-btn');
   setButtonLoading(btn, 'Deleting…');
   try {
@@ -696,6 +709,7 @@ async function coeSaveLink(rowId, unlink = false) {
   _coeBusy = true;
   setButtonLoading(btn);
   try {
+    if (!(await _coeWriteOk())) { _coeBusy = false; clearButtonLoading(btn); return; }   // N-369
     if (unlink) await unlinkCoEPlanRow(rowId);
     else await linkCoEPlanRow(rowId, hc);
   } catch (e) {
@@ -791,6 +805,10 @@ function coeCreateModeChange() {
 async function coeSubmitCreateFromRow(rowId) {
   const row = _coeRowById(rowId);
   if (!row || _coeBusy) return;
+  _coeBusy = true;   // N-369: held through the write-gate read
+  const writeOk = await _coeWriteOk();
+  _coeBusy = false;
+  if (!writeOk) return;
   const val = id => { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
   const openDay   = val('coe-create-open');
   const targetDay = val('coe-create-target');

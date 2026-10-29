@@ -49,7 +49,7 @@ async function _weeklyFormContext(existingData, preselectedRoleId, preselectedPr
   const userRole = await getEffectiveRole(email);
   const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
   const isTalentPartner = userRole === 'talent_partner';
-  const projects = dashboardProjects(await getScopedProjects(email, false));   // N-362
+  const projects = dashboardProjects(await getWritableScopedProjects(email, false));   // N-362; N-369 writable only
   const lockProject = isTalentPartner && projects.length === 1;
   // N-112: only Active/Transition projects are selectable; keep an already-
   // selected Completed project visible so editing an old record doesn't lose it.
@@ -279,6 +279,9 @@ async function submitWeeklyForm(event, editId = null) {
     Hires:             parseInt(data.Hires) || 0,
     SubmittedAt:       new Date().toISOString(),
   };
+  // N-369: the write gate — fails closed.
+  const gate = await checkProjectWrite(fields.ProjectIDLookupId);
+  if (!gate.ok) { clearButtonLoading(btn); showFormError('weekly-form', gate.reason); return; }
   if (editId) {
     // N-218a: optimistic insert is a create-only concept; edits write directly.
     try {

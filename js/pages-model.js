@@ -163,6 +163,7 @@ function rolesPageModel(d) {
   return {
     roles, rolesTotal, pagedRoles: paginate(roles, pageSize),
     projectNameOf, hcSummaryOf, checklistOf, showChecklistCol,
+    projectIdOf: r => String(r.ProjectIDLookupId || r.ProjectID || ''),   // N-369
     emptyMsg: _rolesEmptyMsg(filter, projectId),
   };
 }
@@ -253,6 +254,7 @@ function activityPageModel(d) {
   return {
     roleMap, filtered, total, paged: paginate(filtered, pageSize),
     roleChoices: _activityRoleChoices(allRoles, roleMap, filtered),
+    projectIdOf: a => roleProjectMap[String(a.RoleIDLookupId || a.RoleID || '')] || String(a.ProjectIDLookupId || ''),   // N-369
     emptyMsg: (projectId || roleId)
       ? "No activity logged for the selected filters."
       : "No activity logged yet.",
@@ -323,7 +325,10 @@ function placementsPageModel(d) {
     showTp && tpList(p.TalentPartner).length ? tpDisplay(p.TalentPartner, tpMap) : '',
   ]);
   placements = sortRows(placements, sort, _placementSortColumns(roleMap, tpMap));
-  return { roleMap, scopedPlacements, placements, paged: paginate(placements, pageSize) };
+  return {
+    roleMap, scopedPlacements, placements, paged: paginate(placements, pageSize),
+    projectIdOf: p => roleProjectMap[String(p.RoleIDLookupId || p.RoleID || '')] || '',   // N-369
+  };
 }
 
 // ── Rejected Offers ───────────────────────────────────────────────────
@@ -395,6 +400,7 @@ function rejectionsPageModel(d) {
   filtered = sortRows(filtered, sort, _rejectionSortColumns(roleMap));
   return {
     roleMap, filtered, total, paged: paginate(filtered, pageSize),
+    projectIdOf: r => roleProjectMap[String(r.RoleIDLookupId || r.RoleID || '')] || '',   // N-369
     emptyMsg: projectId ? "No rejected offers for this project." : "No rejected offers logged yet.",
   };
 }

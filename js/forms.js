@@ -83,6 +83,9 @@ async function submitProjectForm(event, editId = null) {
     Notes:           data.Notes || undefined,
   };
   if (editId) {
+    // N-369: the project must still be writable — fails closed.
+    const w = await checkProjectWrite(editId);
+    if (!w.ok) { clearButtonLoading(btn); showFormError('project-form', w.reason); return; }
     // N-218a: optimistic insert is a create-only concept -- editing an
     // existing project is unaffected, unchanged from before this task.
     try {
@@ -115,7 +118,7 @@ async function renderRejectedOfferForm(existingData = null, preselectedRoleId = 
   const email = getCurrentUser().email;
   const userRole = await getEffectiveRole(email);
   const isTalentPartner = userRole === 'talent_partner';
-  const projectIds = await getUserProjectIds(email);
+  const projectIds = await getUserWritableProjectIds(email);   // N-369: writable projects only (null = all)
   let roles = [];
   if (projectIds === null) {
     roles = (await getAllRoles()).filter(r => isOpenPipelineStage(r.Stage));
@@ -196,6 +199,15 @@ async function submitRejectedForm(event, editId = null) {
     RejectionDate:   isoDate(data.RejectionDate) || undefined,
     Notes:           data.Notes || undefined,
   };
+  // N-369: the write gate — fails closed.
+  let stored = null;
+  if (editId) {
+    try { stored = await getItem('RejectedOffers', editId); } catch (e) { /* checked below: fails closed */ }
+  }
+  const w = editId && !stored
+    ? { ok: false, reason: PROJECT_WRITE_CHECK_FAILED }
+    : await checkRoleWrites(fields.RoleIDLookupId, stored && stored.RoleIDLookupId);
+  if (!w.ok) { clearButtonLoading(btn); showFormError('rejected-form', w.reason); return; }
   if (editId) {
     // N-218a: optimistic insert is a create-only concept -- editing an
     // existing rejection is unaffected, unchanged from before this task.

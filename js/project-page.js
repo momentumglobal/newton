@@ -73,13 +73,14 @@ async function _ppLoad(id) {
   if (!Number.isInteger(id) || id <= 0) return null;
   const email = getCurrentUser().email;
   const canViewSla = canViewSlaTargets(_resolvedRole);   // N-382
-  const [projects, userProjectIds, dmMap, checklist, team, sla] = await Promise.all([
+  const [projects, userProjectIds, dmMap, checklist, team, sla, writableIds] = await Promise.all([
     getProjects(false),
     getUserProjectIds(email),
     getTalentPartnerDisplayMap(),
     loadProjectChecklistView(id),   // null = no checklist; never throws
     _ppLoadTeam(id),                // { error: true } on failure; never throws
     canViewSla ? _ppLoadSla() : null,   // N-382: { rows } or { error: true }; never throws
+    getUserWritableProjectIds(email),   // N-369
   ]);
   const project = projects.find(p => String(p.id) === String(id));
   if (!project) return null;
@@ -91,8 +92,9 @@ async function _ppLoad(id) {
   return {
     projectId: id, project, dmMap, checklist, team, todayISO,
     title:       project.CustomerName || '—',
-    canEdit:     canEditProjectRows(_resolvedRole),
-    canEditTeam: canEditProjectTeam(_resolvedRole, id, userProjectIds),
+    canEdit:     canEditProjectRows(_resolvedRole) && canWriteProject(_resolvedRole, id, writableIds),
+    canEditTeam: canEditProjectTeam(_resolvedRole, id, writableIds),   // N-369: DM's own window (D-2)
+    readOnly:    canEditProjectRows(_resolvedRole) && !canWriteProject(_resolvedRole, id, writableIds),   // N-369 banner
     mode:        null,    // null | 'add' | assignment id in edit
     sla, canViewSla,
     canEditSla:  canEditSlaTargets(_resolvedRole, 'override'),
@@ -183,6 +185,7 @@ function _ppPageHtml(v) {
   return `
     <div class="project-page" data-project-page="${Number(v.projectId)}">
       ${_ppHeaderHtml(v)}
+      ${v.readOnly ? projectReadOnlyBannerHtml() : ''}
       <div class="project-fields" id="pp-fields">${_ppFieldsHtml(v)}</div>
       ${_ppSlaSectionHtml(v)}
       ${_ppSlaPanelSectionHtml(v)}
@@ -427,6 +430,8 @@ async function _ppRun(fn) {
   if (_ppBusy || !_ppOnScreen(v) || !v.canEditTeam || v.team.error) return;
   _ppBusy = true;
   try {
+    const w = await checkProjectWrite(v.projectId);   // N-369
+    if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
     await fn(v);
   } finally {
     _ppBusy = false;

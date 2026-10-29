@@ -304,7 +304,7 @@ ASSERTIONS.push(
       [
         ['mobile-sales.js', "mobilePageError(e.message, ['mobileRetrySalesForecast'])", "mobilePageError(e.message, ['mobileRetrySalesForcast'])", 'mobileRetrySalesForcast'],
         ['lci-pages.js', "retryAct: ['renderLCIModelsPage']", "retryAct: ['renderLCIModelsPge']", 'renderLCIModelsPge'],
-        ['pages.js', "actionAct: canEdit ? ['showAddRoleForm'] : null", "actionAct: canEdit ? ['showAddRoleFrm'] : null", 'showAddRoleFrm'],
+        ['pages.js', "actionAct: canAdd ? ['showAddRoleForm'] : null", "actionAct: canAdd ? ['showAddRoleFrm'] : null", 'showAddRoleFrm'],
       ].forEach(([file, from, to, bad]) => {
         _assertEqual(ALL_SOURCES[file].split(from).length, 2, file + ': mutation target appears exactly once');
         const mutated = Object.assign({}, ALL_SOURCES);

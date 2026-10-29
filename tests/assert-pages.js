@@ -532,7 +532,7 @@ ASSERTIONS.push(
       _assertEqual(merge(scoped, all, '3').some(p => p.id === 4), false, 'AC5 no other out-of-scope project leaks in');
 
       const loader = fnBody('async function bpLoadProjects(');
-      _assertEqual(/seesAllProjects\(_resolvedRole\)\s*\?\s*await getProjects\(false\)\s*:\s*await getScopedProjects\(getCurrentUser\(\)\.email, false\)/.test(loader), true, 'AC4 all-seeing roles get every project, others their scope');
+      _assertEqual(/seesAllProjects\(_resolvedRole\)\s*\?\s*getProjects\(false\)\s*:\s*getWritableScopedProjects\(email, false\)/.test(loader), true, 'AC4 all-seeing roles get every project, others their writable scope (N-369)');
       _assertEqual(/missing \? await getProjects\(false\) : \[\]/.test(loader), true, 'AC5 the full list is fetched only when the own project is missing');
 
       const start = fnBody('async function bpStartNewPack(');
@@ -624,7 +624,7 @@ ASSERTIONS.push(
       const lib = fnBody('async function showBriefingPackLibrary(');
       _assertEqual(/getDmProjectIds\(user\.email\)/.test(lib) && /_bpDmProjectIds = dmIds;/.test(lib), true, 'AC1 the library loads the user\'s DM projects once');
       const render = fnBody('function _bpRenderLibrary(');
-      _assertEqual(/const canReassign = canReassignBriefingPack\(_resolvedRole, me, p, _bpDmProjectIds\);/.test(render), true, 'AC1 button gated by the shared permission function');
+      _assertEqual(/const canReassign = writable && canReassignBriefingPack\(_resolvedRole, me, p, _bpDmProjectIds\);/.test(render), true, 'AC1 button gated by the shared permission function (and the N-369 write gate)');
       _assertEqual(/\$\{canReassign \? `<button class="btn-secondary"\$\{act\('bpReassignPackAction', Number\(p\.id\), ACT_EL\)\}>Reassign<\/button>` : ''\}/.test(render), true, 'AC1 Reassign button markup');
       _assertEqual((render.match(/<th>/g) || []).length, 5, 'AC9 the table is still five columns');
       _assertEqual(/bpDeletePack/.test(render) && /bpCopyPackAction/.test(render) && /bpLoadPack/.test(render), true, 'AC9 Open / Copy / Delete untouched');

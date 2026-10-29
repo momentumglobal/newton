@@ -292,7 +292,7 @@ async function mobileRenderRejectionForm(main, rolePreselected) {
       _mobileRoleId = null;
       mobileSetTitle('Log Rejection', 'Rejected Offer');
       // Build role options from the scoped roles (reuse cache or fetch).
-      const roles = _mRolesCache || await mobileGetRoles();
+      const roles = await mobileGetRoles({ writableOnly: true });   // N-369
       roleOpts = '<option value="">- select role -</option>' +
         [...roles].sort((a, b) => (a.RoleTitle || '').localeCompare(b.RoleTitle || ''))
           .map(r => `<option value="${r.id}">${escHtml(r.RoleTitle)}${r.CustomerName ? ' - ' + escHtml(r.CustomerName) : ''}</option>`).join('');
@@ -368,6 +368,8 @@ async function mobileSubmitRejection(rolePreselected) {
   if (!candidate) return fail('Please enter a candidate name.');
   if (!reason)    return fail('Please select a rejection reason.');
   if (!rejDate)   return fail('Please enter a rejection date.');
+  const gate = await checkRoleWrite(roleId);   // N-369
+  if (!gate.ok)   return fail(gate.reason);
 
   // IDENTICAL payload to desktop submitRejectedForm.
   const fields = {

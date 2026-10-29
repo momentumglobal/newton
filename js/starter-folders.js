@@ -72,7 +72,7 @@ function _sfNote(text) {
   return `<span class="checklist-item-note">${escHtml(text)}</span>`;
 }
 
-function _sfActionHtml(ctx, data, { idx, busy }) {
+function _sfActionHtml(ctx, data, { idx, busy, canTick = true }) {
   const isAdmin = ctx.role === 'admin';
   if (!_SF_RECORD_TYPES.includes(ctx.recordType)) return _sfNote('Starter folders are for Project and Role checklists only.');
   if (!starterFoldersEnabled(ctx.recordType)) return isAdmin ? _sfNote('Starter folders aren’t configured yet (CONFIG.STARTER_FOLDERS).') : '';
@@ -96,7 +96,7 @@ function _sfActionHtml(ctx, data, { idx, busy }) {
     }
     return html;
   }
-  if (_sfCanRun(ctx, data)) return checklistActionButtonHtml(idx, CHECKLIST_ACTIONS[STARTER_FOLDER_ACTION_KEY].label, { disabled: !!busy });
+  if (_sfCanRun(ctx, data) && canTick) return checklistActionButtonHtml(idx, CHECKLIST_ACTIONS[STARTER_FOLDER_ACTION_KEY].label, { disabled: !!busy });
   return checklistActionButtonHtml(idx, CHECKLIST_ACTIONS[STARTER_FOLDER_ACTION_KEY].label, {
     disabled: true, title: ctx.recordType === 'role'
       ? 'Only a Talent Partner on this role, the project’s Lead DM or an Admin can create this'

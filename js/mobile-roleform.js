@@ -23,7 +23,7 @@ async function mobileRenderAddRole(main) {
     const canAssign = ['admin', 'delivery_manager'].includes(_mobileRole);
     const isTP      = _mobileRole === 'talent_partner';
 
-    const projects = dashboardProjects(await getScopedProjects(email, false));   // N-362
+    const projects = dashboardProjects(await getWritableScopedProjects(email, false));   // N-362; N-369 writable only
     const lockProject = isTP && projects.length === 1;
 
     // N-112: only Active/Transition projects are selectable when adding a new role
@@ -198,6 +198,8 @@ async function mobileSubmitAddRole() {
   if (!title)     return fail('Please enter a role title.');
   if (!location)  return fail('Please select a location.');
   if (!dept)      return fail('Please select a functional area.');
+  const gate = await checkProjectWrite(projectId);   // N-369
+  if (!gate.ok)   return fail(gate.reason);
 
   const openVal   = document.getElementById('mr-open').value;
   const targetVal = document.getElementById('mr-target').value;

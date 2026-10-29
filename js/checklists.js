@@ -157,13 +157,14 @@ async function _loadChecklistView(recordType, id) {
   const email   = getCurrentUser().email;
   const role    = _resolvedRole;
   const isAdmin = role === 'admin';
-  const [settingsAll, templates, projects, userProjectIds, tpMap, progressRows] = await Promise.all([
+  const [settingsAll, templates, projects, userProjectIds, tpMap, progressRows, writableIds] = await Promise.all([
     getChecklistSettings(),
     getChecklistTemplates(recordType),
     getProjects(false),
     getUserProjectIds(email),
     getTalentPartnerDisplayMap(),
     getChecklistProgress(recordType, { recordId }),
+    getUserWritableProjectIds(email),   // N-369
   ]);
   let record, project;
   if (recordType === 'project') {
@@ -194,9 +195,10 @@ async function _loadChecklistView(recordType, id) {
     ? (record.CustomerName || '—')
     : (record.Location ? `${record.RoleTitle} (${record.Location})` : (record.RoleTitle || '—'));
   const view = {
-    recordType, recordId, record, project, variant, mode, title, tpMap, role, email, isAdmin,
+    recordType, recordId, record, project, projectId, variant, mode, title, tpMap, role, email, isAdmin,
     items: groupChecklistItems(items).flatMap(g => g.items), // display order
-    canTick: recordType === 'project' ? canEditProjectRows(role) : canEditRoleRows(role),
+    canTick: (recordType === 'project' ? canEditProjectRows(role) : canEditRoleRows(role)) &&
+      canWriteProject(role, projectId, writableIds),   // N-369
     progress: resolveChecklistProgress(progressRows),
     actionData: {},
   };
@@ -402,6 +404,14 @@ async function toggleChecklistItem(idx, checked) {
   const it  = v.items[idx];
   const key = it ? String(it.ItemKey ?? '').trim() : '';
   if (!key || _ckBusy.has(key)) return;
+  _ckBusy.add(key);   // N-369: held through the write-gate read, so a double-click can't slip past it
+  const gate = await checkProjectWrite(v.projectId);
+  _ckBusy.delete(key);
+  if (!gate.ok) {
+    toast(gate.reason, { type: 'error' });
+    if (_ckView === v && _ckOnScreen(v)) _ckRefreshItem(v, idx);   // undo the click
+    return;
+  }
   const prev = v.progress.get(key) || null;
   const next = {
     done:  checked === true,
@@ -435,6 +445,8 @@ async function runChecklistAction(idx) {
   const actionKey = String(it.ActionKey ?? '').trim();
   const data = (v.actionData || {})[actionKey] ?? null;
   if (typeof action.available === 'function' && action.available(ctx, data) === false) return;
+  const gate = await checkProjectWrite(v.projectId);   // N-369
+  if (!gate.ok) { toast(gate.reason, { type: 'error' }); return; }
   const btn = document.getElementById(`ck-action-${idx}`);
   if (btn) btn.disabled = true;
   try {

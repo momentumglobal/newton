@@ -925,7 +925,23 @@ function hasDMGrant(projectId = null) {
   return projectId ? grants.includes(String(projectId)) : grants.length > 0;
 }
 
+// N-368 (PT-8, C-4): the TP / DM picker for one project — role, placement, weekly and
+// mobile role forms, briefing-pack Reassign and getScopedTpEmails (analytics.js).
+// 'assignments': the project's Project Team (Assignments by the indexed ProjectID) whose
+// write window is open, kept to people whose functional role (UserAssignments) is TP or
+// DM — projectTeamPickerRows (permissions.js), same row shape as before, so no caller
+// changes. A bad project id gives [] (S-5). 'legacy' (kill switch): the project's
+// active TP / DM UserAssignments rows, unchanged.
 async function getTalentPartnersForProject(projectId, includeEmail = null) {
+  if (accessScopeMode() === 'assignments') {
+    const pid = Number(projectId);
+    if (!Number.isInteger(pid) || pid <= 0) return [];
+    const [team, people] = await Promise.all([
+      getItems("Assignments", `fields/ProjectID eq ${pid}`),
+      getItems("UserAssignments"),
+    ]);
+    return projectTeamPickerRows(team, people, localDayISO(), includeEmail);
+  }
   const assignments = await getItems("UserAssignments", `fields/ProjectID eq ${projectId}`);
   const keep = includeEmail ? includeEmail.toLowerCase() : null;
   return assignments.filter(a =>
@@ -950,15 +966,18 @@ async function getAllAssignableUsers() {
     (a.UserName || '').localeCompare(b.UserName || ''));
 }
 
-// N-398 (BP-2): project ids on which the user holds an ACTIVE delivery_manager row.
-// Ghost-aware and the same UserAssignments read as getUserProjectIds (a cache hit when
-// that has already run; two concurrent calls each make the request). Role-independent.
-// Legacy source: UserAssignments is authoritative while CONFIG.ACCESS_SCOPE.mode is
-// 'shadow' — revisit this and the Reassign candidate list when it flips to 'assignments'.
+// N-398 (BP-2) / N-368 (PT-8, C-3): project ids on which the user acts as a Delivery
+// Manager (briefing-pack Reassign). Ghost-aware and the same UserAssignments read as
+// getUserProjectIds (a cache hit when that has already run; two concurrent calls each
+// make the request). 'assignments': the user's functional role is delivery_manager AND
+// the project is in their Assignments scope — dmProjectIdsFromScope (permissions.js).
+// 'legacy' (kill switch): projects with an ACTIVE delivery_manager UserAssignments row,
+// role-independent. The Reassign candidate list is getTalentPartnersForProject.
 async function getDmProjectIds(email) {
   await _ensureGhostGate();
   const lower = (getGhostUser() || email).toLowerCase();
   const rows = await getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`);
+  if (accessScopeMode() === 'assignments') return dmProjectIdsFromScope(rows, await getUserProjectIds(lower));
   return dmProjectIdsFromAssignments(rows);
 }
 
@@ -985,7 +1004,7 @@ async function filterToActiveTpEmails(tpEmails, tpMap) {
  
 // N-367 (PT-7): a user's Assignments rows (the Project Team), by the indexed
 // UserEmail column (N-361, stored lower-case). Tier-1 cached like every read,
-// so the 'projects' and 'default' scope checks share one request.
+// so getUserProjectIds and getDefaultUserProjectId share one request.
 async function _getAssignmentsForUser(lower) {
   return getItems("Assignments", `fields/UserEmail eq '${odataStr(lower)}'`);
 }
@@ -1007,24 +1026,17 @@ function _legacyProjectIds(assignments) {
 // Return all project IDs this user is assigned to (null = admin, sees all).
 // N-162: resolves against the ghosted user's real assignments when Ghost
 // Mode is active, instead of a single manually-picked ghost project.
-// N-367: CONFIG.ACCESS_SCOPE.mode picks the scope (accessScopeMode). In
-// 'shadow' the legacy scope is returned at once and the Assignments scope is
-// compared in the background (never awaited, never throws into the caller).
+// N-367 / N-368: CONFIG.ACCESS_SCOPE.mode picks the scope (accessScopeMode).
+// 'assignments' (since the N-368 cutover): the user's non-forecast Assignments
+// rows, any dates. 'legacy' (the kill switch): their UserAssignments project rows.
 async function getUserProjectIds(email) {
   await _ensureGhostGate();   // N-282: getGhostUser() is only valid after the gate
   const lower = (getGhostUser() || email).toLowerCase();
   const assignments = await getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`);
   // N-281: an active admin row sees all projects — in every scope mode.
   if (assignments.some(isAdminAssignment)) return null;
-  const mode = accessScopeMode();
-  if (mode === 'assignments') return projectIdsFromAssignments(await _getAssignmentsForUser(lower));
-  const legacy = _legacyProjectIds(assignments);
-  if (mode === 'shadow' && typeof scopeShadowDue === 'function' && scopeShadowDue('projects', lower)) {
-    _getAssignmentsForUser(lower)
-      .then(rows => reportScopeShadow('projects', lower, legacy, projectIdsFromAssignments(rows)))
-      .catch(e => console.warn('Access shadow: Assignments read failed —', e && e.message));
-  }
-  return legacy;
+  if (accessScopeMode() === 'assignments') return projectIdsFromAssignments(await _getAssignmentsForUser(lower));
+  return _legacyProjectIds(assignments);
 }
 
 async function getScopedProjects(email, activeOnly = false) {

@@ -528,7 +528,6 @@ async function buildDataHealthTab() {
     + _dhRenderHeadcountIntegrityHtml(data)
     + _dhRenderSlaTargetsHtml(data)
     + _dhRenderProjectTeamHtml(data)
-    + _dhRenderAccessShadowHtml(data)
     + _dhRenderLciMigrationHtml(data)
     + _dhRenderWeeklyAnomaliesHtml(data)
     + _dhRenderIndexStatusHtml(data)
@@ -577,7 +576,8 @@ async function _dhFetchSectionData() {
   });
   const diagGroups = {};
   diagRows.forEach(r => {
-    // N-367: access-scope shadow rows have their own section (Access shadow).
+    // N-367 / N-368: historic access-shadow rows are not errors. The comparison is
+    // retired (N-368) and the rows are never deleted, so keep skipping them here.
     if (r.ErrorType === CONFIG.ACCESS_SCOPE.shadowErrorType) return;
     const key = r.ErrorType + '|' + r.Message + '|' + diagStackHead(r.Stack);
     if (!diagGroups[key]) {
@@ -590,13 +590,6 @@ async function _dhFetchSectionData() {
     if (r.OccurredAt > g.lastSeen) { g.lastSeen = r.OccurredAt; g.module = r.Module; }
   });
   const diagList = Object.values(diagGroups).sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
-
-  // N-367: the same Diagnostics rows, shadow ones only (pure, permissions.js).
-  // Projects only to name the IDs — a failed read shows '#id', never an error.
-  const scopeShadowGroups = groupScopeShadowRows(diagRows);
-  const shadowProjects = scopeShadowGroups.length
-    ? await getProjects(false).catch(e => { console.warn('Data Health: projects read failed', e); return []; })
-    : [];
 
   // N-271: WeeklyActivity anomaly flags. Never throws — a failure is
   // { ok: false } and renders as a Query error, not as zeros.
@@ -628,7 +621,7 @@ async function _dhFetchSectionData() {
     statusByList,
     schemaResults,
     diagList,
-    scopeShadowGroups, shadowProjects,
+    diagList,
     anomalies,
     headcountIntegrity,
   };
@@ -1553,66 +1546,6 @@ function _dhRenderSchemaCheckHtml(data) {
     <table class="data-table dh-table">
       <thead><tr><th>List</th><th>Checked columns</th><th>Detail</th><th>Status</th></tr></thead>
       <tbody>${schemaRows || emptyStateRow({ colspan: 4, icon: 'database', message: 'No lists registered.' })}</tbody>
-    </table>
-    </div>
-`;
-}
-
-// ── Data Health Tab — render: Access shadow (N-367) ──────────────────
-// Rows written by reportScopeShadow (diagnostics.js) while
-// CONFIG.ACCESS_SCOPE.mode is 'shadow', grouped by groupScopeShadowRows.
-function _dhRenderAccessShadowHtml(data) {
-  const groups = data.scopeShadowGroups || [];
-  const mode = accessScopeMode();
-  const labels = projectOptionLabels(data.shadowProjects || []);
-  const names = ids => ids.length
-    ? ids.map(id => escHtml(labels.get(String(id)) || ('#' + id))).join(', ')
-    : '<span class="dh-muted">—</span>';
-  const rows = groups.map(g => {
-    let check, oldCell, newCell;
-    if (g.check === 'default') {
-      check = 'Default project';
-      oldCell = names(g.legacy);
-      newCell = names(g.next);
-    } else if (g.check === 'projects') {
-      check = 'Projects';
-      oldCell = names(g.onlyLegacy);
-      newCell = names(g.onlyNext);
-    } else {
-      check = 'Unreadable row';
-      oldCell = newCell = '<span class="dh-muted">—</span>';
-    }
-    const lastSeen = g.lastSeen
-      ? new Date(g.lastSeen).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
-      : '—';
-    return `
-    <tr>
-      <td>${escHtml(g.userEmail || '—')}</td>
-      <td>${check}</td>
-      <td>${oldCell}</td>
-      <td>${newCell}</td>
-      <td>${g.days}</td>
-      <td>${escHtml(lastSeen)}</td>
-      <td><button class="btn-secondary"${act('acknowledgeDiagnosticsGroup', g.ids.join(','))}>Acknowledge</button></td>
-    </tr>`;
-  }).join('');
-  const empty = mode === 'shadow' ? 'No differences logged.'
-    : mode === 'assignments' ? 'Cutover done — the shadow comparison no longer runs.'
-    : 'Shadow mode is off.';
-  return `    <h3>Access shadow (N-367)</h3>
-    <p class="dh-note">
-      Mode: <strong>${escHtml(mode)}</strong>. While the mode is shadow, Newton still scopes projects from
-      User Assignments (old) and, for each non-admin user, also works out the scope from their non-forecast
-      Assignments rows by UserEmail (new). Each difference is logged once per user per check per day
-      (never in Ghost Mode). For Projects, the two columns list the projects only in the old or only in
-      the new scope; for Default project, the old and new defaults. Expected differences: Leadership DM
-      grants (retired, D-3) and internal staff on the Internal project. Acknowledge a group once it is
-      explained or fixed — the rows are never deleted.
-    </p>
-    <div class="table-scroll">
-    <table class="data-table dh-table">
-      <thead><tr><th>User</th><th>Check</th><th>Old (User Assignments)</th><th>New (Assignments)</th><th>Days seen</th><th>Last seen</th><th></th></tr></thead>
-      <tbody>${rows || emptyStateRow({ colspan: 7, icon: 'shield', message: empty })}</tbody>
     </table>
     </div>
 `;

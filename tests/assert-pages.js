@@ -646,6 +646,7 @@ ASSERTIONS.push(
       const apiSrc = ALL_SOURCES['api.js'];
       const dm = apiSrc.slice(apiSrc.indexOf('async function getDmProjectIds('));
       _assertEqual(/fields\/Title eq '\$\{odataStr\(lower\)\}'/.test(dm.slice(0, 600)) && /dmProjectIdsFromAssignments\(rows\)/.test(dm.slice(0, 600)) && /getGhostUser\(\) \|\| email/.test(dm.slice(0, 600)), true, 'getDmProjectIds: ghost-aware, same UserAssignments read as getUserProjectIds, filtered by the pure helper');
+      _assertEqual(/if \(accessScopeMode\(\) === 'assignments'\) return dmProjectIdsFromScope\(rows, await getUserProjectIds\(lower\)\);/.test(dm.slice(0, 600)), true, 'N-368 getDmProjectIds: assignments mode = DM role + Assignments scope');
     },
   }
 );

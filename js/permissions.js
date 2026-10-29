@@ -2,8 +2,10 @@
 // Moved out of utils.js. Owns role resolution (N-281), capability and org-wide role
 // checks (N-331), survey respondent / eligibility rules (N-332) and the restricted-list
 // and denial-memo helpers (N-285). Behaviour is unchanged from the utils.js originals.
-// N-367 adds the access-scope helpers (Project Team epic) at the end of the file. They call
-// isForecastAssignment and spDateIn (utils.js, which loads first) at call time only.
+// N-367 / N-368 add the access-scope helpers (Project Team epic) at the end of the file. They
+// call isForecastAssignment, spDateIn and addDaysISO (utils.js, which loads first) at call
+// time only. They live here, not in project-team.js, because that file is not loaded on
+// index.html or mobile.html.
 // Loaded on every page, after headcount.js and straight before graph-client.js; graph-client.js
 // and api.js call these at runtime (config.js loads first, so the CONFIG defaults resolve).
 
@@ -210,18 +212,18 @@ function isDenialFresh(ts, now, ttlMs) {
   return typeof ts === 'number' && now - ts <= ttlMs;
 }
 
-// ── N-367 (PT-7): access scope — UserAssignments → Assignments (pure) ─
-// getUserProjectIds / getDefaultUserProjectId (api.js / api-misc.js) choose
-// between the two scopes with accessScopeMode(); in 'shadow' mode
-// diagnostics.js logs any difference (reportScopeShadow) and Admin → Data
-// Health → Access shadow reads it back (groupScopeShadowRows).
-const SCOPE_SHADOW_CHECKS = ['projects', 'default'];
+// ── N-367 / N-368 (PT-7, PT-8): access scope — the Project Team (pure) ─
+// getUserProjectIds, getTalentPartnersForProject, getDmProjectIds (api.js) and
+// getDefaultUserProjectId (api-misc.js) pick their source with accessScopeMode().
+// Since the N-368 cutover that is the Project Team (Assignments); 'legacy'
+// (UserAssignments project rows) is the kill switch. The N-367 shadow
+// comparison is retired; its old Diagnostics rows stay (Error Telemetry skips them).
 
-// 'legacy' | 'shadow' | 'assignments'. Missing or unknown → 'legacy' (today's
-// behaviour), so a typo in config can never switch anyone's access.
+// 'legacy' | 'assignments'. Missing or unknown — including the retired 'shadow'
+// — → 'legacy', so a config typo always lands on the kill-switch state (C-2).
 function accessScopeMode(cfg = CONFIG) {
   const mode = cfg && cfg.ACCESS_SCOPE && cfg.ACCESS_SCOPE.mode;
-  return mode === 'shadow' || mode === 'assignments' ? mode : 'legacy';
+  return mode === 'assignments' ? mode : 'legacy';
 }
 
 // An Assignments row that can carry project access: not a forecast, and a real
@@ -263,80 +265,67 @@ function defaultProjectIdFromAssignments(rows, todayISO) {
   return (current.length ? latest(current) : latest(list)).id;
 }
 
-// Order-insensitive compare of two scopes. Duplicates ignored, IDs compared as
-// strings. null (admin: all projects) equals only null.
-function diffProjectScopes(legacy, next) {
-  if (legacy === null || next === null) {
-    const same = legacy === next;
-    return { onlyLegacy: [], onlyNext: [], same };
-  }
-  const a = [...new Set((legacy || []).map(String))];
-  const b = [...new Set((next || []).map(String))];
-  const onlyLegacy = a.filter(id => !b.includes(id));
-  const onlyNext = b.filter(id => !a.includes(id));
-  return { onlyLegacy, onlyNext, same: !onlyLegacy.length && !onlyNext.length };
-}
-
-// Diagnostics.Message for a shadow row, and its reader. 'default' uses 0- or
-// 1-element arrays. parse → null on anything it did not write.
-function buildScopeShadowMessage(check, legacy, next) {
-  return JSON.stringify({ v: 1, check, legacy: (legacy || []).map(String), next: (next || []).map(String) });
-}
-function parseScopeShadowMessage(msg) {
-  try {
-    const m = JSON.parse(String(msg));
-    if (!m || m.v !== 1 || !SCOPE_SHADOW_CHECKS.includes(m.check)) return null;
-    if (!Array.isArray(m.legacy) || !Array.isArray(m.next)) return null;
-    return { check: m.check, legacy: m.legacy.map(String), next: m.next.map(String) };
-  } catch (e) {
-    return null;
-  }
-}
-
-// The localStorage day-store ({ day, keys }) behind "one row per user per
-// check per day". A store from another day, or any bad shape, counts as empty.
-function _scopeShadowKeysFor(store, todayISO) {
-  return store && store.day === todayISO && Array.isArray(store.keys) ? store.keys : [];
-}
-function scopeShadowLoggedToday(store, key, todayISO) {
-  return _scopeShadowKeysFor(store, todayISO).includes(key);
-}
-function scopeShadowMark(store, key, todayISO) {
-  const keys = _scopeShadowKeysFor(store, todayISO).filter(k => k !== key);
-  return { day: todayISO, keys: [...keys, key] };
-}
-
-// Data Health → Access shadow: shadow rows (ErrorType = shadowErrorType) from
-// getDiagnostics(), grouped by user + check + the two scopes. Unreadable rows
-// group by user with check null, so they can still be acknowledged.
-// days = distinct UTC dates the group was logged on. Newest first.
-function groupScopeShadowRows(rows, cfg = CONFIG) {
-  const type = cfg && cfg.ACCESS_SCOPE && cfg.ACCESS_SCOPE.shadowErrorType;
-  const groups = new Map();
-  (Array.isArray(rows) ? rows : []).forEach(r => {
-    if (!r || !type || r.ErrorType !== type) return;
-    const user = String(r.UserEmail || '').toLowerCase();
-    const msg = parseScopeShadowMessage(r.Message);
-    const key = msg
-      ? [user, msg.check, msg.legacy.slice().sort().join(','), msg.next.slice().sort().join(',')].join('|')
-      : user + '|?';
-    if (!groups.has(key)) {
-      const d = msg ? diffProjectScopes(msg.legacy, msg.next) : { onlyLegacy: [], onlyNext: [] };
-      groups.set(key, {
-        userEmail: user, check: msg ? msg.check : null,
-        legacy: msg ? msg.legacy : [], next: msg ? msg.next : [],
-        onlyLegacy: d.onlyLegacy, onlyNext: d.onlyNext,
-        ids: [], dayset: new Set(), lastSeen: '',
-      });
-    }
-    const g = groups.get(key);
-    g.ids.push(r.id);
-    const at = String(r.OccurredAt || '');
-    const day = spDateIn(at);
-    if (day) g.dayset.add(day);
-    if (at > g.lastSeen) g.lastSeen = at;
+// N-368 (PT-8, S-3 / S-4): the TP / DM picker for one project. `teamRows` = the
+// project's Assignments rows (already filtered by ProjectID); `userAssignmentRows` =
+// UserAssignments rows for any users (functional role only). A team row qualifies when
+// it can carry access (_scopeAssignmentRow: non-forecast, a real ProjectID — bench rows
+// have none), has a UserEmail, and its write window is open on `todayISO`: from row
+// creation (upcoming rows count) until EndDate + CONFIG.PROJECT_TEAM.WRITE_GRACE_DAYS;
+// no EndDate = open, an unreadable EndDate = closed. The person's role
+// (resolveRoleFromAssignments on their UserAssignments rows, leadership not applied) must
+// be talent_partner or delivery_manager. `includeEmail` (weekly-form edit) keeps that
+// person on any qualifying row whatever its dates or their role. De-duped by email,
+// first qualifying row wins. Output keeps the UserAssignments row shape the callers read:
+// UserEmail is the person's UserAssignments spelling when there is one (so a stored
+// TalentPartner value matches the old picker exactly), else the Assignments value.
+// 'YYYY-MM-DD' string compares only (spDateIn / addDaysISO).
+function projectTeamPickerRows(teamRows, userAssignmentRows, todayISO, includeEmail = null, cfg = CONFIG) {
+  const keep = includeEmail ? String(includeEmail).trim().toLowerCase() : '';
+  const grace = Number(cfg.PROJECT_TEAM && cfg.PROJECT_TEAM.WRITE_GRACE_DAYS) || 0;
+  const pickRoles = [cfg.ROLE_IDS.TALENT_PARTNER, cfg.ROLE_IDS.DELIVERY_MANAGER];
+  const uaByEmail = new Map();
+  (Array.isArray(userAssignmentRows) ? userAssignmentRows : []).forEach(u => {
+    const e = String((u && (u.UserEmail || u.Title)) || '').trim().toLowerCase();
+    if (!e) return;
+    if (!uaByEmail.has(e)) uaByEmail.set(e, []);
+    uaByEmail.get(e).push(u);
   });
-  return [...groups.values()]
-    .map(({ dayset, ...g }) => ({ ...g, days: dayset.size }))
-    .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
+  const windowOpen = a => {
+    if (!a.EndDate) return true;
+    const end = spDateIn(a.EndDate);
+    const last = end ? addDaysISO(end, grace) : null;
+    return !!last && todayISO <= last;
+  };
+  const out = [];
+  const seen = new Set();
+  (Array.isArray(teamRows) ? teamRows : []).forEach(a => {
+    if (!_scopeAssignmentRow(a)) return;
+    const email = String(a.UserEmail || '').trim().toLowerCase();
+    if (!email || seen.has(email)) return;
+    const ua = uaByEmail.get(email) || [];
+    const role = resolveRoleFromAssignments(ua, false);
+    if (email !== keep && (!pickRoles.includes(role) || !windowOpen(a))) return;
+    seen.add(email);
+    const named = ua.find(u => u && u.UserEmail);
+    out.push({
+      UserEmail:    (named && named.UserEmail) || email,
+      UserName:     a.EmployeeName || (named && named.UserName) || email,
+      AssignedRole: role,
+      Active:       true,
+      ProjectID:    Number(a.ProjectID),
+    });
+  });
+  return out;
+}
+
+// N-368 (PT-8, C-3): the projects on which the user acts as a Delivery Manager in
+// 'assignments' mode — their functional role (resolveRoleFromAssignments on their
+// UserAssignments rows, leadership not applied) is delivery_manager AND the project is
+// in their Assignments scope (`projectIds` from getUserProjectIds). Strings, de-duped,
+// scope order. Any other role, or a null (admin) / missing scope → [] (Admin passes
+// canReassignBriefingPack on its own).
+function dmProjectIdsFromScope(userAssignmentRows, projectIds, cfg = CONFIG) {
+  if (!Array.isArray(projectIds)) return [];
+  if (resolveRoleFromAssignments(userAssignmentRows, false) !== cfg.ROLE_IDS.DELIVERY_MANAGER) return [];
+  return [...new Set(projectIds.map(String))];
 }

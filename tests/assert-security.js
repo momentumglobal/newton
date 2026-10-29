@@ -694,18 +694,20 @@ ASSERTIONS.push(
   }
 );
 
-// ── N-367 (PT-7): access scope helpers + shadow mode ─────────────────
+// ── N-367 / N-368 (PT-7, PT-8): access scope helpers + cutover ───────
 ASSERTIONS.push(
   {
-    name: 'N-367 accessScopeMode — three modes, anything else is legacy; CONFIG ships shadow',
+    name: 'N-368 accessScopeMode — two modes, anything else (incl. retired shadow) is legacy; CONFIG ships legacy or assignments',
     fn: function () {
       const m = mode => accessScopeMode({ ACCESS_SCOPE: { mode } });
-      _assertEqual([m('legacy'), m('shadow'), m('assignments')], ['legacy', 'shadow', 'assignments'], 'valid modes');
-      _assertEqual([m('Shadow'), m(''), m(undefined), accessScopeMode({}), accessScopeMode(null)],
-        ['legacy', 'legacy', 'legacy', 'legacy', 'legacy'], 'unknown / missing → legacy');
-      _assertEqual(CONFIG.ACCESS_SCOPE.mode, 'shadow', 'CONFIG.ACCESS_SCOPE.mode');
-      _assertEqual([CONFIG.ACCESS_SCOPE.shadowErrorType, CONFIG.ACCESS_SCOPE.shadowStoreKey],
-        ['scope-shadow', 'newton_scope_shadow'], 'shadow error type + store key');
+      _assertEqual([m('legacy'), m('assignments')], ['legacy', 'assignments'], 'valid modes');
+      _assertEqual([m('shadow'), m('Assignments'), m(''), m(undefined), accessScopeMode({}), accessScopeMode(null)],
+        ['legacy', 'legacy', 'legacy', 'legacy', 'legacy', 'legacy'], 'retired / unknown / missing → legacy');
+      // Not pinned to 'assignments': setting 'legacy' is the live rollback and must still deploy.
+      _assertEqual(['legacy', 'assignments'].includes(CONFIG.ACCESS_SCOPE.mode), true, 'CONFIG.ACCESS_SCOPE.mode is legacy or assignments');
+      _assertEqual(CONFIG.ACCESS_SCOPE.shadowErrorType, 'scope-shadow', 'retired shadow ErrorType kept for the historic rows (S-6)');
+      _assertEqual(Object.prototype.hasOwnProperty.call(CONFIG.ACCESS_SCOPE, 'shadowStoreKey'), false, 'shadowStoreKey retired');
+      _assertEqual(CONFIG.PROJECT_TEAM.WRITE_GRACE_DAYS, 14, 'D-2 grace days');
     },
   },
   {
@@ -760,66 +762,65 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-367 diffProjectScopes — order-insensitive, duplicates ignored, null only equals null',
+    name: 'N-368 projectTeamPickerRows — open-window TP / DM team members, de-duped, old row shape; includeEmail keeps an out-of-window person',
     fn: function () {
-      _assertEqual(diffProjectScopes(['1', '2'], [2, '1', '1']), { onlyLegacy: [], onlyNext: [], same: true }, 'same set');
-      _assertEqual(diffProjectScopes(['1', '2', '3'], ['2', '4']), { onlyLegacy: ['1', '3'], onlyNext: ['4'], same: false }, 'differences');
-      _assertEqual(diffProjectScopes([], []).same, true, 'both empty');
-      _assertEqual([diffProjectScopes(null, null).same, diffProjectScopes(null, []).same, diffProjectScopes([], null).same],
-        [true, false, false], 'null handling');
-    },
-  },
-  {
-    name: 'N-367 shadow message round trip, malformed → null; day-store dedupe',
-    fn: function () {
-      const msg = buildScopeShadowMessage('projects', [12, '15'], ['15']);
-      _assertEqual(JSON.parse(msg), { v: 1, check: 'projects', legacy: ['12', '15'], next: ['15'] }, 'message shape');
-      _assertEqual(parseScopeShadowMessage(msg), { check: 'projects', legacy: ['12', '15'], next: ['15'] }, 'round trip');
-      _assertEqual(parseScopeShadowMessage(buildScopeShadowMessage('default', [], ['3'])), { check: 'default', legacy: [], next: ['3'] }, 'default check');
-      _assertEqual([
-        parseScopeShadowMessage('not json'), parseScopeShadowMessage('{"v":2,"check":"projects","legacy":[],"next":[]}'),
-        parseScopeShadowMessage('{"v":1,"check":"other","legacy":[],"next":[]}'), parseScopeShadowMessage('{"v":1,"check":"projects","legacy":"1","next":[]}'),
-        parseScopeShadowMessage(null), parseScopeShadowMessage('TypeError: x is undefined'),
-      ], [null, null, null, null, null, null], 'malformed → null');
-      const T = '2026-10-21';
-      let store = null;
-      _assertEqual(scopeShadowLoggedToday(store, 'projects|a@x', T), false, 'empty store');
-      store = scopeShadowMark(store, 'projects|a@x', T);
-      _assertEqual(store, { day: T, keys: ['projects|a@x'] }, 'marked');
-      _assertEqual([scopeShadowLoggedToday(store, 'projects|a@x', T), scopeShadowLoggedToday(store, 'default|a@x', T)], [true, false], 'per check');
-      store = scopeShadowMark(store, 'projects|a@x', T);
-      _assertEqual(store.keys, ['projects|a@x'], 're-mark does not duplicate');
-      _assertEqual(scopeShadowLoggedToday(store, 'projects|a@x', '2026-10-22'), false, 'next day → due again');
-      _assertEqual(scopeShadowMark(store, 'default|a@x', '2026-10-22'), { day: '2026-10-22', keys: ['default|a@x'] }, 'new day resets the store');
-      _assertEqual([scopeShadowLoggedToday({ day: T, keys: 'x' }, 'x', T), scopeShadowLoggedToday('junk', 'x', T)], [false, false], 'bad shapes = empty');
-    },
-  },
-  {
-    name: 'N-367 groupScopeShadowRows — shadow rows only, grouped by user + check + scopes, days counted, unreadable kept',
-    fn: function () {
-      const P = (legacy, next) => buildScopeShadowMessage('projects', legacy, next);
-      const rows = [
-        { id: 1, ErrorType: 'scope-shadow', UserEmail: 'A@x.com', Message: P(['1', '2'], ['2']), OccurredAt: '2026-10-21T09:00:00.000Z' },
-        { id: 2, ErrorType: 'scope-shadow', UserEmail: 'a@x.com', Message: P(['2', '1'], ['2']), OccurredAt: '2026-10-22T09:00:00.000Z' },
-        { id: 3, ErrorType: 'scope-shadow', UserEmail: 'a@x.com', Message: P(['1', '2'], ['2']), OccurredAt: '2026-10-22T15:00:00.000Z' },
-        { id: 4, ErrorType: 'scope-shadow', UserEmail: 'a@x.com', Message: buildScopeShadowMessage('default', ['1'], ['2']), OccurredAt: '2026-10-21T09:00:00.000Z' },
-        { id: 5, ErrorType: 'scope-shadow', UserEmail: 'b@x.com', Message: 'garbled', OccurredAt: '2026-10-20T09:00:00.000Z' },
-        { id: 6, ErrorType: 'error', UserEmail: 'a@x.com', Message: P(['9'], []), OccurredAt: '2026-10-23T09:00:00.000Z' },
+      const T = '2026-10-29';
+      const UA = (email, role, extra) => Object.assign({ UserEmail: email, Title: email.toLowerCase(), UserName: email + ' (UA)', AssignedRole: role, ProjectID: 7 }, extra || {});
+      const ua = [
+        UA('Tp.One@x.com', 'talent_partner'), UA('dm@x.com', 'delivery_manager'), UA('up@x.com', 'talent_partner'),
+        UA('ended@x.com', 'talent_partner'), UA('old@x.com', 'talent_partner'), UA('fc@x.com', 'talent_partner'),
+        UA('ops@x.com', 'people_ops', { ProjectID: 0 }), UA('adm@x.com', 'admin', { ProjectID: 0 }), UA('late@x.com', 'talent_partner'),
+        UA('bad@x.com', 'talent_partner'), UA('quiet@x.com', 'talent_partner', { Active: false }),
       ];
-      const g = groupScopeShadowRows(rows);
-      _assertEqual(g.map(x => [x.userEmail, x.check, x.ids, x.days]), [
-        ['a@x.com', 'projects', [1, 2, 3], 2],
-        ['a@x.com', 'default', [4], 1],
-        ['b@x.com', null, [5], 1],
-      ], 'groups, newest first');
-      _assertEqual([g[0].onlyLegacy, g[0].onlyNext, g[0].lastSeen], [['1'], [], '2026-10-22T15:00:00.000Z'], 'diff + last seen');
-      _assertEqual([g[1].legacy, g[1].next], [['1'], ['2']], 'default keeps both values');
-      _assertEqual(groupScopeShadowRows(rows.filter(r => r.ErrorType === 'error')), [], 'control: non-shadow rows ignored');
-      _assertEqual(groupScopeShadowRows(null), [], 'null');
+      const R = (email, extra) => Object.assign({ ProjectID: 7, UserEmail: email, EmployeeName: 'Name ' + email }, extra || {});
+      const team = [
+        R('tp.one@x.com', { EmployeeName: 'TP One', StartDate: '2026-01-01T12:00:00Z' }),          // current, open end
+        R('tp.one@x.com', { StartDate: '2025-01-01T12:00:00Z', EndDate: '2025-06-30T12:00:00Z' }), // duplicate person
+        R('dm@x.com', { StartDate: '2026-01-01T12:00:00Z', EndDate: '2027-01-01T12:00:00Z' }),
+        R('up@x.com', { StartDate: '2026-11-02T12:00:00Z' }),                                       // upcoming: counts from creation
+        R('ended@x.com', { StartDate: '2026-01-01T12:00:00Z', EndDate: '2026-10-15T12:00:00Z' }),  // end + 14 = today: in
+        R('old@x.com', { StartDate: '2026-01-01T12:00:00Z', EndDate: '2026-10-14T12:00:00Z' }),    // end + 14 = yesterday: out
+        R('fc@x.com', { IsForecast: true }),                                                       // forecast
+        { ProjectID: null, Customer: 'Unassigned', AutoGenerated: true, EmployeeName: 'Bench Person' }, // bench
+        R('', { EmployeeName: 'No Email' }),                                                       // no UserEmail
+        R('ops@x.com'), R('adm@x.com'), R('nobody@x.com'),                                         // not TP / DM
+        R('late@x.com', { EndDate: '2025-01-31T12:00:00Z' }), R('late@x.com', { EmployeeName: 'Late Two' }), // first row out, second in
+        R('bad@x.com', { EndDate: 'not a date' }),                                                 // unreadable end: closed
+        R('quiet@x.com', { EmployeeName: '' }),                                                    // inactive UA row keeps the TP role
+        R('x@x.com', { ProjectID: 0 }),                                                            // no real ProjectID
+      ];
+      const got = projectTeamPickerRows(team, ua, T);
+      _assertEqual(got.map(r => r.UserEmail), ['Tp.One@x.com', 'dm@x.com', 'up@x.com', 'ended@x.com', 'late@x.com', 'quiet@x.com'], 'members');
+      _assertEqual(got[0], { UserEmail: 'Tp.One@x.com', UserName: 'TP One', AssignedRole: 'talent_partner', Active: true, ProjectID: 7 }, 'S-4 row shape, UserAssignments email spelling');
+      _assertEqual([got[1].AssignedRole, got[4].UserName, got[5].UserName], ['delivery_manager', 'Late Two', 'quiet@x.com (UA)'], 'DM role; qualifying row names; UA name fallback');
+      const noGrace = Object.assign({}, CONFIG, { PROJECT_TEAM: Object.assign({}, CONFIG.PROJECT_TEAM, { WRITE_GRACE_DAYS: 0 }) });
+      _assertEqual(projectTeamPickerRows(team, ua, T, null, noGrace).map(r => r.UserEmail).includes('ended@x.com'), false, 'control: grace 0 drops the recently ended row');
+      _assertEqual(projectTeamPickerRows(team, ua, T, 'OLD@x.com').map(r => r.UserEmail).includes('old@x.com'), true, 'includeEmail keeps an out-of-window person');
+      _assertEqual(projectTeamPickerRows(team, ua, T, 'ops@x.com').map(r => r.UserEmail).includes('ops@x.com'), true, 'includeEmail keeps a non-TP role');
+      _assertEqual(projectTeamPickerRows(team, ua, T, 'fc@x.com').map(r => r.UserEmail).includes('fc@x.com'), false, 'includeEmail never keeps a forecast-only row');
+      _assertEqual(projectTeamPickerRows(team, [], T), [], 'no UserAssignments rows → no TP / DM → empty (fails closed)');
+      _assertEqual([projectTeamPickerRows(null, ua, T), projectTeamPickerRows([], null, T)], [[], []], 'null / empty');
     },
   },
   {
-    name: 'N-367 source guards — scope mode switch, background shadow calls are caught, TP branch has no UserAssignments read',
+    name: 'N-368 dmProjectIdsFromScope — DM role → the Assignments scope; any other role or a null scope → []',
+    fn: function () {
+      const dm = [{ AssignedRole: 'delivery_manager', ProjectID: 3 }];
+      _assertEqual(dmProjectIdsFromScope(dm, ['7', 9, '7']), ['7', '9'], 'DM: scope ids, strings, de-duped');
+      _assertEqual(dmProjectIdsFromScope([{ AssignedRole: 'delivery_manager', ProjectID: 3, Active: false }], ['7']), ['7'], 'DM role ignores Active (as resolveRoleFromAssignments)');
+      _assertEqual([
+        dmProjectIdsFromScope([{ AssignedRole: 'talent_partner', ProjectID: 7 }], ['7']),
+        dmProjectIdsFromScope([], ['7']),
+        dmProjectIdsFromScope([{ AssignedRole: 'admin', ProjectID: 0 }], ['7']),
+        dmProjectIdsFromScope(dm, null),
+        dmProjectIdsFromScope(dm, undefined),
+        dmProjectIdsFromScope(null, ['7']),
+      ], [[], [], [], [], [], []], 'TP / viewer (leadership without a DM row) / admin / null scope → []');
+      _assertEqual(dmProjectIdsFromScope(dm, []), [], 'DM with an empty scope → []');
+    },
+  },
+  {
+    name: 'N-368 source guards — the four scope functions branch on accessScopeMode(); shadow code gone; Data Health without Access shadow',
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') {
         _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
@@ -835,29 +836,31 @@ ASSERTIONS.push(
       const api = ALL_SOURCES['api.js'];
       const upi = fnBody(api, 'async function getUserProjectIds(');
       const dpi = fnBody(ALL_SOURCES['api-misc.js'], 'async function getDefaultUserProjectId(');
+      const tpp = fnBody(api, 'async function getTalentPartnersForProject(');
+      const dmp = fnBody(api, 'async function getDmProjectIds(');
       const srv = fnBody(api, 'async function getScopedRolesVisibleTo(');
-      _assertEqual([upi.length > 0, dpi.length > 0, srv.length > 0], [true, true, true], 'control: the three functions were found');
-      [['getUserProjectIds', upi, 'projects'], ['getDefaultUserProjectId', dpi, 'default']].forEach(([n, body, check]) => {
-        _assertEqual(/accessScopeMode\(\)/.test(body), true, n + ' branches on accessScopeMode()');
-        _assertEqual(body.indexOf("scopeShadowDue('" + check + "'") > -1, true, n + ' asks scopeShadowDue');
-        _assertEqual(/reportScopeShadow\([\s\S]*?\.catch\(/.test(body), true, n + ' background shadow call ends in .catch');
-        const shadow = body.slice(body.indexOf("scopeShadowDue('"), body.indexOf('.catch(', body.indexOf("scopeShadowDue('")));
-        _assertEqual([shadow.length > 0, /\bawait\b/.test(shadow)], [true, false], n + ' never awaits the shadow read');
+      _assertEqual([upi, dpi, tpp, dmp, srv].map(b => b.length > 0), [true, true, true, true, true], 'control: the five functions were found');
+      [['getUserProjectIds', upi], ['getDefaultUserProjectId', dpi], ['getTalentPartnersForProject', tpp], ['getDmProjectIds', dmp]].forEach(([n, body]) => {
+        _assertEqual(/accessScopeMode\(\) === 'assignments'/.test(body), true, n + ' branches on accessScopeMode()');
+        _assertEqual(/shadow/i.test(body), false, n + ' has no shadow branch');
       });
+      _assertEqual(/getItems\("Assignments", `fields\/ProjectID eq \$\{pid\}`\)/.test(tpp) && /projectTeamPickerRows\(team, people, localDayISO\(\), includeEmail\)/.test(tpp),
+        true, 'picker: Project Team by ProjectID through projectTeamPickerRows');
+      _assertEqual(/getItems\("UserAssignments", `fields\/ProjectID eq \$\{projectId\}`\)/.test(tpp), true, 'picker: legacy UserAssignments body kept');
+      _assertEqual(/dmProjectIdsFromScope\(rows, await getUserProjectIds\(lower\)\)/.test(dmp) && /return dmProjectIdsFromAssignments\(rows\);/.test(dmp), true, 'getDmProjectIds: scope route + legacy route');
       const tp = srv.slice(srv.indexOf('// Talent Partner'));
       _assertEqual(tp.length > 20 && /getRolesForUser\(email\)/.test(tp), true, 'TP branch uses getRolesForUser');
       _assertEqual(/"UserAssignments"|'UserAssignments'/.test(tp), false, 'TP branch has no UserAssignments read');
-      _assertEqual(/"UserAssignments"/.test(srv.slice(0, srv.indexOf('// Talent Partner'))) || /"UserAssignments"/.test(fnBody(api, 'async function getTalentPartnersForProject(')),
-        true, 'control: the UserAssignments pattern matches a real read');
-      const diag = ALL_SOURCES['diagnostics.js'];
-      const rssAll = fnBody(diag, 'function reportScopeShadow(');
-      const rss = rssAll.slice(0, rssAll.indexOf('\nwindow.addEventListener') > -1 ? rssAll.indexOf('\nwindow.addEventListener') : undefined);
-      _assertEqual(/createDiagnostic\([\s\S]*?\}\)\.catch\(/.test(rss), true, 'reportScopeShadow write has .catch');
-      _assertEqual(/reportError\(/.test(rss), false, 'shadow rows bypass reportError');
-      _assertEqual(/getGhostUser\(\)/.test(fnBody(diag, 'function scopeShadowDue(')), true, 'scopeShadowDue checks Ghost Mode');
+      _assertEqual(/"UserAssignments"/.test(tpp), true, 'control: the UserAssignments pattern matches a real read');
+      const gone = ['scopeShadowDue', 'reportScopeShadow', 'groupScopeShadowRows', '_dhRenderAccessShadowHtml', 'shadowStoreKey',
+        'diffProjectScopes', 'buildScopeShadowMessage', 'parseScopeShadowMessage', 'scopeShadowLoggedToday', 'scopeShadowMark', 'SCOPE_SHADOW_CHECKS'];
+      const hits = [];
+      Object.keys(ALL_SOURCES).forEach(f => gone.forEach(id => { if (ALL_SOURCES[f].indexOf(id) > -1) hits.push(f + ': ' + id); }));
+      _assertEqual(hits, [], 'no shadow identifier left in js/');
+      _assertEqual(Object.keys(ALL_SOURCES).some(f => ALL_SOURCES[f].indexOf('shadowErrorType') > -1), true, 'control: the scan sees a live identifier');
       const osa = ALL_SOURCES['os-admin.js'];
-      _assertEqual(/ErrorType === CONFIG\.ACCESS_SCOPE\.shadowErrorType\) return;/.test(osa), true, 'Error Telemetry skips shadow rows');
-      _assertEqual(/\+ _dhRenderProjectTeamHtml\(data\)\s*\+ _dhRenderAccessShadowHtml\(data\)/.test(osa), true, 'Access shadow follows Project Team backfill');
+      _assertEqual(/ErrorType === CONFIG\.ACCESS_SCOPE\.shadowErrorType\) return;/.test(osa), true, 'Error Telemetry still skips the historic shadow rows (S-6)');
+      _assertEqual(/\+ _dhRenderProjectTeamHtml\(data\)\s*\+ _dhRenderLciMigrationHtml\(data\)/.test(osa), true, 'Data Health: Access shadow section gone');
     },
   }
 );

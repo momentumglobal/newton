@@ -315,12 +315,17 @@ const CONFIG = {
   //                          case) in isBenchAssignment() (project-team.js). Read side only —
   //                          Sync Bench writes BENCH_CUSTOMER.
   //  DISPLAY_ROWS            rows shown in each Data Health list before "+ n more".
+  //  WRITE_GRACE_DAYS        N-368 (D-2): days after an Assignments row's EndDate that the
+  //                          person stays in the project's TP / DM pickers
+  //                          (projectTeamPickerRows, permissions.js). N-369's per-project
+  //                          write gate reuses it.
   //  (A row typed LCI / Transformation with no Projects row is "deferred to N-363":
   //  isNoDashboardType() in utils.js, N-362.)
   PROJECT_TEAM: {
     BENCH_CUSTOMER:         'Unassigned',
     BENCH_CUSTOMER_ALIASES: ['Bench'],
     DISPLAY_ROWS:           50,
+    WRITE_GRACE_DAYS:       14,
     // N-363: Notes text on every Projects row the LCI / Transformation migration creates.
     LCI_MIGRATION_NOTE:     'Created by N-363 migration from LCI/Transformation assignments.',
   },
@@ -1153,18 +1158,19 @@ const CONFIG = {
     maxStackChars:   2000,
   },
 
-  // N-367 (PT-7): which list scopes project visibility (Project Team epic, N-360).
-  //   'legacy'      — UserAssignments rows by user (today's behaviour)
-  //   'shadow'      — legacy is returned, the Assignments scope is worked out
-  //                   alongside and any difference is logged to Diagnostics
-  //                   (Admin → Data Health → Access shadow)
-  //   'assignments' — the user's non-forecast Assignments rows (N-368 cutover)
-  // Any other value reads as 'legacy' (accessScopeMode, permissions.js), so
-  // 'legacy' is the kill switch. Admin is decided from UserAssignments in every mode.
+  // N-367 / N-368 (PT-7, PT-8): which list scopes project visibility, the default
+  // Project Dashboard project, the TP / DM pickers and the briefing-pack DM check
+  // (Project Team epic, N-360).
+  //   'assignments' — the Project Team: the user's non-forecast Assignments rows
+  //                   (N-368 cutover)
+  //   'legacy'      — UserAssignments project rows (before N-368). The kill switch:
+  //                   set it and commit to roll back, no other change.
+  // Any other value, including the retired 'shadow', reads as 'legacy'
+  // (accessScopeMode, permissions.js). Admin is decided from UserAssignments in
+  // every mode.
   ACCESS_SCOPE: {
-    mode:            'shadow',
-    shadowErrorType: 'scope-shadow',        // Diagnostics.ErrorType for shadow rows
-    shadowStoreKey:  'newton_scope_shadow', // localStorage day-store: one row per user per check per day
+    mode:            'legacy',
+    shadowErrorType: 'scope-shadow',   // retired N-367 shadow rows: historic Diagnostics rows only (Error Telemetry skips them)
   },
   
   // Single source of truth for the module switcher dropdown.

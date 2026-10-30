@@ -1173,6 +1173,9 @@ const CONFIG = {
   //                   (N-368 cutover)
   //   'legacy'      — UserAssignments project rows (before N-368). The kill switch:
   //                   set it and commit to roll back, no other change.
+  //                   N-371: once the one-row-per-user migration has run, UserAssignments
+  //                   carries no project, so 'legacy' gives an empty scope and no longer works;
+  //                   rolling back after it means reverting N-368, not this flag.
   // Any other value, including the retired 'shadow', reads as 'legacy'
   // (accessScopeMode, permissions.js). Admin is decided from UserAssignments in
   // every mode.

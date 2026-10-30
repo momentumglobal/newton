@@ -748,5 +748,141 @@ ASSERTIONS.push(
       const fresh = ptComputeBenchChanges([ann], [], today);
       _assertEqual(fresh.toCreate.length > 0, true, 'control: a deployable person with no rows does get bench rows');
     },
+  },
+  {
+    name: 'N-371 ptGrantedRole — mirrors resolveRoleFromAssignments (AC4)',
+    fn: function () {
+      const g = (role, active) => ptGrantedRole({ AssignedRole: role, Active: active });
+      _assertEqual([g('admin', true), g('admin', undefined), g('people_ops', true), g('talent_partner', true)],
+        ['admin', 'admin', 'people_ops', 'talent_partner'], 'active admin / org-wide / TP grant their role');
+      _assertEqual([g('talent_partner', false), g('delivery_manager', false)], ['talent_partner', 'delivery_manager'], 'TP / DM ignore Active (N-233)');
+      _assertEqual([g('admin', false), g('people_ops', false), g('sales', false), g('staff', false)], [null, null, null, null], 'inactive admin / org-wide grant nothing');
+      _assertEqual([g('viewer', true), g('leadership', true), g('nonsense', true), g('', true), g(undefined, true)], [null, null, null, null, null], 'viewer, leadership, unknown, blank');
+      _assertEqual(ptGrantedRole(null), null, 'null row');
+    },
+  },
+  {
+    name: 'N-371 ptBuildUserRowPlan — collapse in place, idempotent, role unchanged (AC5, 8, 9, 13, 14)',
+    fn: function () {
+      const R = (id, email, role, extra) => Object.assign({ id: String(id), UserEmail: email, UserName: '', AssignedRole: role, ProjectID: 0, CustomerName: '', Active: true }, extra);
+      const ua = [
+        R(30, 'tp@x.com', 'talent_partner', { UserName: 'Tia', ProjectID: 3, CustomerName: 'C' }),
+        R(10, 'tp@x.com', 'talent_partner', { UserName: '', ProjectID: 1, CustomerName: 'A', Active: false }),
+        R(20, 'tp@x.com', 'talent_partner', { ProjectID: 2, CustomerName: 'B' }),
+        R(5, 'clean@x.com', 'delivery_manager'),
+        R(7, 'ops@x.com', 'people_ops', { Active: false, ProjectID: 4 }),
+        R(8, 'ops@x.com', 'people_ops', { ProjectID: 0 }),
+        R(40, 'viewer@x.com', 'viewer', { ProjectID: 9, CustomerName: 'Z' }),
+        R(41, 'viewer@x.com', 'viewer'),
+        R(50, '', 'talent_partner'),
+        R(60, 'dm@x.com', 'delivery_manager', { UserName: 'Dee', ProjectID: 1 }),
+      ];
+      const plan = ptBuildUserRowPlan({ userAssignments: ua, leadership: [] });
+      const by = e => plan.users.find(u => u.email === e);
+      _assertEqual(by('tp@x.com').state, 'collapse', 'three TP rows collapse');
+      const tp = plan.batches.find(b => b.email === 'tp@x.com');
+      _assertEqual(tp.survivorId, '20', 'active row with the lowest id survives (not the inactive 10)');
+      _assertEqual(tp.writes.map(w => w.kind + ':' + w.id), ['update:20', 'delete:10', 'delete:30'], 'update first, then deletes in id order');
+      _assertEqual(tp.writes[0].patch, { ProjectID: 0, CustomerName: '', UserName: 'Tia' }, 'patch clears project and customer, fills the blank name');
+      _assertEqual(by('clean@x.com').state, 'clean', 'one clean row: nothing to do');
+      _assertEqual(plan.batches.some(b => b.email === 'clean@x.com'), false, 'no batch for a clean user');
+      const ops = plan.batches.find(b => b.email === 'ops@x.com');
+      _assertEqual(ops.survivorId, '8', 'inactive org-wide row grants nothing; the active one survives');
+      _assertEqual(ops.writes.map(w => w.kind + ':' + w.id), ['delete:7'], 'extra deleted, survivor already clean (no update)');
+      const vw = plan.batches.find(b => b.email === 'viewer@x.com');
+      _assertEqual(vw.survivorId, '40', 'no row grants a role: lowest id of all rows');
+      _assertEqual(plan.noEmail, [{ id: '50', name: '' }], 'AC9 blank-email row listed');
+      _assertEqual(plan.batches.some(b => b.writes.some(w => w.id === '50')), false, 'AC9 never written');
+      _assertEqual(plan.batches.reduce((n, b) => n + b.writes.filter(w => w.kind !== 'update' && w.kind !== 'delete').length, 0), 0, 'AC14 only update / delete');
+      _assertEqual(plan.batches.every(b => b.writes.every(w => w.kind === 'delete' || Object.keys(w.patch).every(k => PT_UA_PATCH_KEYS.includes(k)))), true, 'AC8 patch keys');
+      const s = plan.summary;
+      _assertEqual([s.rowsRead, s.usersRead, s.toUpdate, s.toDelete, s.noEmail], [10, 5, 3, 4, 1], 'summary counts (rows, users, updates, deletes, no-email)');
+
+      const apply = (rows, batches) => {
+        let out = rows.map(r => Object.assign({}, r));
+        batches.forEach(b => b.writes.forEach(w => {
+          if (w.kind === 'update') out = out.map(r => String(r.id) === w.id ? Object.assign(r, w.patch) : r);
+          else out = out.filter(r => String(r.id) !== w.id);
+        }));
+        return out;
+      };
+      const after = apply(ua, plan.batches);
+      const again = ptBuildUserRowPlan({ userAssignments: after, leadership: [] });
+      _assertEqual([again.summary.rowsToWrite, again.batches.length], [0, 0], 'AC5 re-running on the result writes nothing');
+      _assertEqual(after.filter(r => r.UserEmail === 'tp@x.com').length, 1, 'one row per user after apply');
+      const resolve = (rows, e) => resolveRoleFromAssignments(rows.filter(r => r.UserEmail === e), false);
+      ['tp@x.com', 'clean@x.com', 'ops@x.com', 'viewer@x.com', 'dm@x.com'].forEach(e =>
+        _assertEqual(resolve(after, e), resolve(ua, e), 'AC13 resolved role unchanged for ' + e));
+      _assertEqual(resolve(after.filter(r => r.UserEmail !== 'dm@x.com'), 'dm@x.com') !== resolve(ua, 'dm@x.com'), true, 'positive control: the role check detects a lost row');
+    },
+  },
+  {
+    name: 'N-371 ptBuildUserRowPlan — mixed roles skipped, Leadership DM rows dropped, admin kept (AC6, 7)',
+    fn: function () {
+      const R = (id, email, role, extra) => Object.assign({ id: String(id), UserEmail: email, UserName: '', AssignedRole: role, ProjectID: 1, CustomerName: 'A', Active: true }, extra);
+      const ua = [
+        R(1, 'mix@x.com', 'talent_partner'), R(2, 'mix@x.com', 'delivery_manager'),
+        R(3, 'adm@x.com', 'admin', { ProjectID: 0 }), R(4, 'adm@x.com', 'talent_partner'),
+        R(5, 'idm@x.com', 'delivery_manager', { Active: false }), R(6, 'idm@x.com', 'talent_partner'),
+        R(7, 'lead@x.com', 'delivery_manager'), R(8, 'lead@x.com', 'delivery_manager', { ProjectID: 2 }),
+        R(9, 'lead2@x.com', 'delivery_manager'), R(10, 'lead2@x.com', 'talent_partner', { ProjectID: 2 }), R(11, 'lead2@x.com', 'talent_partner', { ProjectID: 3 }),
+        R(12, 'dm@x.com', 'delivery_manager'), R(13, 'dm@x.com', 'delivery_manager', { ProjectID: 2 }),
+        R(14, 'lead3@x.com', 'delivery_manager', { UserName: 'Lee' }),
+      ];
+      const leadership = [{ UserEmail: 'LEAD@x.com' }, { UserEmail: 'lead2@x.com' }, { UserEmail: 'lead3@x.com' }];
+      const plan = ptBuildUserRowPlan({ userAssignments: ua, leadership });
+      const by = e => plan.users.find(u => u.email === e);
+      _assertEqual(['mix@x.com', 'adm@x.com', 'idm@x.com'].map(e => by(e).state), ['mixed', 'mixed', 'mixed'], 'TP+DM, admin+TP, inactive DM + active TP (DM still resolves) are mixed');
+      _assertEqual(by('idm@x.com').resolvedToday, 'delivery_manager', 'inactive DM still resolves as DM today');
+      _assertEqual(plan.batches.some(b => ['mix@x.com', 'adm@x.com', 'idm@x.com'].includes(b.email)), false, 'AC6 mixed users are untouched');
+      _assertEqual(by('lead@x.com').state, 'leadership', 'a Leadership user with only DM rows loses them all');
+      _assertEqual(plan.batches.find(b => b.email === 'lead@x.com').writes.map(w => w.kind + ':' + w.id), ['delete:7', 'delete:8'], 'both deleted, no survivor');
+      const l2 = plan.batches.find(b => b.email === 'lead2@x.com');
+      _assertEqual([by('lead2@x.com').state, l2.survivorId, l2.writes.map(w => w.kind + ':' + w.id)], ['collapse', '10', ['update:10', 'delete:11', 'delete:9']], 'Leadership with DM + TP rows: DM row dropped, TP rows collapse');
+      _assertEqual(plan.batches.find(b => b.email === 'dm@x.com').writes.map(w => w.kind + ':' + w.id), ['update:12', 'delete:13'], 'a non-leadership DM keeps one DM row (the oldest)');
+      _assertEqual(plan.summary.leadershipDmDeletes, 4, 'leadership DM deletes counted (7, 8, 9, 14)');
+      _assertEqual(by('lead3@x.com').state, 'leadership', 'case-insensitive leadership match');
+      _assertEqual(plan.summary.mixed, 3, 'mixed count');
+    },
+  },
+  {
+    name: 'N-371 ptCheckUserRowBatch — refuses a foreign key, a survivor delete, a create (AC8)',
+    fn: function () {
+      const bad = b => { try { ptCheckUserRowBatch(b); return ''; } catch (e) { return e.message; } };
+      _assertEqual(bad({ survivorId: '1', writes: [{ kind: 'update', id: '1', patch: { ProjectID: 0 } }, { kind: 'delete', id: '2' }] }), '', 'a valid batch passes');
+      _assertEqual(/may only write/.test(bad({ survivorId: '1', writes: [{ kind: 'update', id: '1', patch: { AssignedRole: 'admin' } }] })), true, 'AssignedRole is not writable');
+      _assertEqual(/may only write/.test(bad({ survivorId: '1', writes: [{ kind: 'update', id: '1', patch: { Active: false } }] })), true, 'Active is not writable');
+      _assertEqual(/surviving row/.test(bad({ survivorId: '1', writes: [{ kind: 'delete', id: '1' }] })), true, 'the survivor is never deleted');
+      _assertEqual(/Unknown write kind/.test(bad({ survivorId: '1', writes: [{ kind: 'create', id: '' }] })), true, 'no create');
+    },
+  },
+  {
+    name: 'N-371 ptBuildReconciliation — no "No access row" noise once UserAssignments has no project rows (AC12)',
+    fn: function () {
+      const assignments = [{ id: 'a1', EmployeeName: 'Ann', Customer: 'Acme', UserEmail: 'ann@x.com', ProjectID: 1 }];
+      const projects = [{ id: '1', CustomerName: 'Acme' }];
+      const flat = ptBuildReconciliation({ assignments, projects, userAssignments: [{ UserEmail: 'ann@x.com', AssignedRole: 'talent_partner', ProjectID: 0, Active: true }] });
+      _assertEqual([flat.uaNoAssignment, flat.assignmentNoAccess], [[], []], 'one-row-per-user data: nothing flagged');
+      const old = ptBuildReconciliation({ assignments, projects, userAssignments: [{ UserEmail: 'bob@x.com', AssignedRole: 'talent_partner', ProjectID: 1, CustomerName: 'Acme', Active: true }] });
+      _assertEqual(old.assignmentNoAccess.map(r => r.reason), ['No access row today'], 'control: with project rows present the reason is still reported');
+    },
+  },
+  {
+    name: 'N-371 source guards — tab is functional-role only, writer never creates (AC1, 14, 15)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const os = ALL_SOURCES['os-admin.js'];
+      const tab = os.slice(os.indexOf('async function buildAssignmentsTab'), os.indexOf('async function showEditAssignment'));
+      const sub = os.slice(os.indexOf('async function submitAssignment'), os.indexOf('async function toggleAssignmentActive'));
+      _assertEqual([/assign-project/.test(tab + sub), /getProjects/.test(tab + sub), /isOrgWideRole/.test(tab + sub), /CustomerName|'Customer'/.test(tab)], [false, false, false, false], 'no project / customer in the tab or the save');
+      const api = ALL_SOURCES['api-admin.js'];
+      const writer = api.slice(api.indexOf('async function writeUserRowCollapse'), api.indexOf('// ── LCI / Transformation -> Projects migration'));
+      _assertEqual([/updateItem\(/.test(writer), /deleteItem\(/.test(writer), /createItem\(/.test(writer)], [true, true, false], 'the migration writer updates and deletes, never creates');
+      const pt = ALL_SOURCES['project-team.js'];
+      const planner = pt.slice(pt.indexOf('function ptBuildUserRowPlan'), pt.indexOf('// ── LCI / Transformation customers'));
+      _assertEqual(/kind:\s*'create'/.test(planner), false, 'the planner emits no create');
+    },
   }
 );

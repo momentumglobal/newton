@@ -112,6 +112,42 @@ async function applyAssignmentBackfill(planRows) {
   return out;
 }
 
+// ── UserAssignments: one row per user (N-371 / PT-11) ──────────────────
+// Everything the one-row-per-user plan needs: every UserAssignments row (no filter) and the
+// LeadershipAccess list.
+async function getUserRowPlanInputs() {
+  const [userAssignments, leadership] = await Promise.all([getUserAssignments(), getLeadershipAccess()]);
+  return { userAssignments, leadership };
+}
+
+// The only writer of the N-371 migration. Per user: the survivor update first, then the deletes,
+// one request at a time (updateItem / deleteItem invalidate the list cache). Never createItem - the
+// auto-welcome flow fires on UserAssignments create. A failed update skips that user's deletes; any
+// failure is recorded and the rest carry on. ptCheckUserRowBatch re-validates every batch.
+async function writeUserRowCollapse(batches) {
+  const out = { updated: 0, deleted: 0, failed: [] };
+  for (const batch of (batches || [])) {
+    try {
+      ptCheckUserRowBatch(batch);
+    } catch (e) {
+      out.failed.push({ email: batch.email, id: '', message: e.message });
+      continue;
+    }
+    let skipDeletes = false;
+    for (const w of batch.writes) {
+      if (w.kind === 'delete' && skipDeletes) continue;
+      try {
+        if (w.kind === 'update') { await updateItem('UserAssignments', w.id, w.patch); out.updated++; }
+        else { await deleteItem('UserAssignments', w.id); out.deleted++; }
+      } catch (e) {
+        if (w.kind === 'update') skipDeletes = true;
+        out.failed.push({ email: batch.email, id: w.id, message: e && e.message ? e.message : String(e) });
+      }
+    }
+  }
+  return out;
+}
+
 // ── LCI / Transformation -> Projects migration (N-363 / PT-3) ─────────
 // Projects.ProjectType is a Choice column: a create with a value outside its choices fails per
 // row, so Data Health checks the no-dashboard types exist first. No column, or a failed read, is

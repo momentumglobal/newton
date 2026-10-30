@@ -2,6 +2,7 @@
 // Owns the Assignments → Project Team backfill plan (ProjectID / UserEmail / IsLeadDM), the
 // UserAssignments ↔ Assignments reconciliation and the mixed-role report, and the CSV builder
 // behind their downloads. Later PT tasks (N-362–N-373) add scope and write-window helpers here.
+// N-371 adds the UserAssignments one-row-per-user migration plan (ptGrantedRole, ptBuildUserRowPlan).
 // N-365 adds the Project Team section helpers (picker, member status / sort, clash, open roles,
 // field builder, Lead DM candidates) and ptComputeBenchChanges (moved from people-tracker.js).
 // Graph calls live in api-admin.js / api.js, the Data Health UI in os-admin.js, the Project Team UI
@@ -313,6 +314,10 @@ function ptBuildReconciliation(inputs) {
   const assignedPairs = new Set(live.filter(a => _ptEmail(a.UserEmail) && _ptHasProjectId(a.ProjectID))
     .map(a => pair(a.UserEmail, a.ProjectID)));
   const accessRows = UA.filter(u => u.Active !== false && !isOrgWideRole(u.AssignedRole) && _ptHasProjectId(u.ProjectID));
+  // N-371 (S-9): once UserAssignments carries no project rows (after the one-row-per-user
+  // migration) "no access row" would flag every Assignments row, so it is only reported while
+  // project rows exist.
+  const hasAccessRows = accessRows.length > 0;
   const accessPairs = new Set(accessRows.map(u => pair(u.UserEmail, u.ProjectID)));
 
   const uaNoAssignment = accessRows
@@ -329,7 +334,7 @@ function ptBuildReconciliation(inputs) {
     const hasProject = _ptHasProjectId(a.ProjectID);
     if (!hasEmail) reasons.push('No UserEmail');
     if (!hasProject) reasons.push('No ProjectID');
-    if (hasEmail && hasProject && !accessPairs.has(pair(a.UserEmail, a.ProjectID))) reasons.push('No access row today');
+    if (hasAccessRows && hasEmail && hasProject && !accessPairs.has(pair(a.UserEmail, a.ProjectID))) reasons.push('No access row today');
     if (!reasons.length) return;
     assignmentNoAccess.push({
       employee: a.EmployeeName || '', customer: a.Customer || '', email: _ptEmail(a.UserEmail),
@@ -386,6 +391,151 @@ function ptToCsv(columns, rows) {
   const lines = [columns.map(c => cell(c.label)).join(',')];
   (rows || []).forEach(r => lines.push(columns.map(c => cell(r[c.key])).join(',')));
   return lines.join('\r\n');
+}
+
+// ── UserAssignments: one row per user (N-371 / PT-11) ───────────────────
+// The only UserAssignments fields the migration may write (spec S-5).
+const PT_UA_PATCH_KEYS = ['ProjectID', 'CustomerName', 'UserName'];
+
+// Backup CSV (ptToCsv) of every UserAssignments row, downloaded before Apply (spec S-7).
+const PT_UA_BACKUP_COLUMNS = Object.freeze([
+  { key: 'id', label: 'id' }, { key: 'email', label: 'Email' }, { key: 'name', label: 'Name' },
+  { key: 'role', label: 'Role' }, { key: 'projectId', label: 'ProjectID' },
+  { key: 'customer', label: 'Customer' }, { key: 'active', label: 'Active' },
+]);
+
+function ptUserRowsBackup(userAssignments) {
+  return (userAssignments || []).map(u => ({
+    id: String(u.id), email: _ptEmail(u.UserEmail), name: u.UserName || '', role: u.AssignedRole || '',
+    projectId: u.ProjectID == null ? '' : String(u.ProjectID), customer: u.CustomerName || '',
+    active: u.Active === false ? 'No' : 'Yes',
+  }));
+}
+
+// The role a UserAssignments row actually grants, by the same rules as resolveRoleFromAssignments:
+// null for an unknown role, viewer (the default), leadership (never a plain row), an inactive admin
+// and an inactive org-wide row. talent_partner / delivery_manager grant whatever their Active
+// (bench TPs / DMs keep their role, N-233).
+function ptGrantedRole(row) {
+  const role = row && row.AssignedRole;
+  if (!role || role === CONFIG.ROLE_IDS.LEADERSHIP || role === CONFIG.ROLE_IDS.VIEWER) return null;
+  if (CONFIG.ROLE_PRECEDENCE.indexOf(role) === -1) return null;
+  if (role === CONFIG.ROLE_IDS.ADMIN) return isAdminAssignment(row) ? role : null;
+  if (isOrgWideRole(role) && row.Active === false) return null;
+  return role;
+}
+
+// Throws unless a batch of writes for one user is allowed: updates carry only PT_UA_PATCH_KEYS,
+// deletes never target the user's surviving row, and nothing is a create.
+function ptCheckUserRowBatch(batch) {
+  const survivor = batch.survivorId == null ? '' : String(batch.survivorId);
+  (batch.writes || []).forEach(w => {
+    if (w.kind === 'update') {
+      Object.keys(w.patch || {}).forEach(k => {
+        if (!PT_UA_PATCH_KEYS.includes(k)) throw new Error('User row patch may only write ' + PT_UA_PATCH_KEYS.join(', ') + ' — got ' + k);
+      });
+    } else if (w.kind === 'delete') {
+      if (survivor && String(w.id) === survivor) throw new Error('Refusing to delete the surviving row ' + w.id);
+    } else {
+      throw new Error('Unknown write kind ' + w.kind);
+    }
+  });
+}
+
+// Plan. Pure: nothing is written here. Never creates a row (the auto-welcome flow fires on create).
+//   inputs = { userAssignments, leadership }   leadership = LeadershipAccess rows
+// Per user (rows grouped by lower-cased UserEmail): a Leadership user's delivery_manager rows are
+// dropped (D-3); two or more different granted roles = 'mixed', skipped untouched (D-6); otherwise
+// the survivor (active first, then lowest id) is updated to ProjectID 0 / blank CustomerName and
+// every other row is deleted - update first, then deletes (S-6).
+// Returns { users, batches, noEmail, refused, summary }
+//   users[]   { email, name, state ('clean'|'collapse'|'leadership'|'mixed'|'refused'), rows,
+//               roles (granted, precedence order), resolvedToday, leadershipDmRows }
+//   batches[] { email, survivorId, writes: [{ kind: 'update'|'delete', id, email, patch?, reason }] }
+function ptBuildUserRowPlan(inputs) {
+  const UA = (inputs && inputs.userAssignments) || [];
+  const leaders = new Set(((inputs && inputs.leadership) || []).map(l => _ptEmail(l && l.UserEmail)).filter(Boolean));
+  const DM = CONFIG.ROLE_IDS.DELIVERY_MANAGER;
+  const rank = r => { const i = CONFIG.ROLE_PRECEDENCE.indexOf(r); return i < 0 ? CONFIG.ROLE_PRECEDENCE.length : i; };
+  const idNum = r => { const n = Number(r.id); return Number.isFinite(n) ? n : Infinity; };
+  const byId = (a, b) => (idNum(a) - idNum(b)) || String(a.id).localeCompare(String(b.id));
+  const inactive = r => (r.Active === false ? 1 : 0);
+
+  const groups = new Map();
+  const noEmail = [];
+  UA.forEach(r => {
+    const e = _ptEmail(r && r.UserEmail);
+    if (!e) { noEmail.push({ id: String(r && r.id), name: (r && r.UserName) || '' }); return; }
+    if (!groups.has(e)) groups.set(e, []);
+    groups.get(e).push(r);
+  });
+
+  const users = [];
+  const batches = [];
+  const refused = [];
+  groups.forEach((rows, email) => {
+    const isLeader = leaders.has(email);
+    const name = (rows.find(r => r.UserName) || {}).UserName || '';
+    const dropped = isLeader ? rows.filter(r => r.AssignedRole === DM) : [];
+    const kept = rows.filter(r => !dropped.includes(r));
+    const roles = [...new Set(kept.map(ptGrantedRole).filter(Boolean))].sort((x, y) => rank(x) - rank(y));
+    const base = { email, name, rows: rows.length, roles, leadershipDmRows: dropped.length };
+
+    if (roles.length > 1) {
+      users.push(Object.assign(base, { state: 'mixed', resolvedToday: resolveRoleFromAssignments(rows, isLeader) }));
+      return;
+    }
+    const writes = [];
+    const del = (r, reason) => writes.push({ kind: 'delete', id: String(r.id), email, reason });
+    if (!kept.length) {                      // a Leadership user whose every row was a DM row
+      dropped.slice().sort(byId).forEach(r => del(r, 'leadership-dm'));
+      users.push(Object.assign(base, { state: 'leadership' }));
+      batches.push({ email, survivorId: '', writes });
+      return;
+    }
+    const pool = roles.length ? kept.filter(r => ptGrantedRole(r) === roles[0]) : kept;
+    const survivor = pool.slice().sort((a, b) => (inactive(a) - inactive(b)) || byId(a, b))[0];
+    const extras = kept.filter(r => r !== survivor);
+    const patch = {};
+    if (_ptHasProjectId(survivor.ProjectID)) patch.ProjectID = 0;
+    if (String(survivor.CustomerName == null ? '' : survivor.CustomerName).trim() !== '') patch.CustomerName = '';
+    if (!String(survivor.UserName || '').trim()) {
+      const donor = extras.concat(dropped).find(r => String(r.UserName || '').trim());
+      if (donor) patch.UserName = donor.UserName;
+    }
+    if (Object.keys(patch).length) writes.push({ kind: 'update', id: String(survivor.id), email, patch, reason: 'one-row' });
+    extras.sort(byId).forEach(r => del(r, 'extra-row'));
+    dropped.slice().sort(byId).forEach(r => del(r, 'leadership-dm'));
+
+    if (rows.some(isAdminAssignment) && !isAdminAssignment(survivor)) {
+      refused.push({ email, message: 'Would remove the only active admin row' });
+      users.push(Object.assign(base, { state: 'refused' }));
+      return;
+    }
+    const batch = { email, survivorId: String(survivor.id), writes };
+    try {
+      ptCheckUserRowBatch(batch);
+    } catch (e) {
+      refused.push({ email, message: e.message });
+      users.push(Object.assign(base, { state: 'refused' }));
+      return;
+    }
+    users.push(Object.assign(base, { state: writes.length ? 'collapse' : 'clean' }));
+    if (writes.length) batches.push(batch);
+  });
+
+  users.sort((a, b) => a.email.localeCompare(b.email));
+  const all = batches.reduce((acc, b) => acc.concat(b.writes), []);
+  const count = st => users.filter(u => u.state === st).length;
+  const summary = {
+    usersRead: users.length, rowsRead: UA.length, clean: count('clean'), collapse: count('collapse'),
+    leadership: count('leadership'), mixed: count('mixed'), refused: refused.length, noEmail: noEmail.length,
+    toUpdate: all.filter(w => w.kind === 'update').length,
+    toDelete: all.filter(w => w.kind === 'delete').length,
+    leadershipDmDeletes: all.filter(w => w.reason === 'leadership-dm').length,
+  };
+  summary.rowsToWrite = summary.toUpdate + summary.toDelete;
+  return { users, batches, noEmail, refused, summary };
 }
 
 // ── LCI / Transformation customers -> Projects rows (N-363 / PT-3) ─────

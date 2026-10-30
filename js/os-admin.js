@@ -13,7 +13,7 @@ async function renderOsAdminPage(tab = 'assignments') {
 const tabs = ADMIN_TABS;
 const labels = { assignments: 'User Assignments', leadership: 'Leadership Access', homepage: 'Homepage', ghost: 'Ghost Mode', datahealth: 'Data Health' };
 const tooltips = {
-  assignments: 'Manage user roles and project access. New users have no access until you add them here. Admin rows apply across all projects.',
+  assignments: 'Manage user roles: one row per user. A user\'s projects come from the Project Team on each Project page. New users have no access until you add them here.',
   leadership:  'Grant Leadership-level access to users who should see the Company Dashboard without full system access.',
   homepage:    'Manage homepage appearance and seasonal effects.',
   ghost:       'Temporarily view Newton as a specific real user for testing or investigating a bug. Only visible to admins.',
@@ -49,38 +49,21 @@ function _osaRoleOptions(selected) {
 
 // ── Assignments Tab ──────────────────────────────────────────────────
 async function buildAssignmentsTab(editId = null) {
-  const [projects, assignments] = await Promise.all([
-    getProjects(false), getUserAssignments()
-  ]);
+  // N-371 (PT-11): functional role only — one row per user, no Customer. A user's projects
+  // come from the Project Team on each Project page (N-365).
+  const assignments = await getUserAssignments();
   const visibleAssignments = _showInactiveAssignments
     ? assignments
     : assignments.filter(a => a.Active !== false);
   let editRecord = null;
   if (editId) editRecord = assignments.find(a => String(a.id) === String(editId));
-  // N-356: Customer lists current (Active) projects only — a customer can have
-  // several projects over time. Editing a row keeps its saved project listed,
-  // even if no longer current, so Save Changes never silently changes it.
-  let selectableProjects = projects.filter(isProjectCurrent);
-  const savedProjectId = editRecord && Number(editRecord.ProjectID) ? String(editRecord.ProjectID) : '';
-  if (savedProjectId && !selectableProjects.some(p => String(p.id) === savedProjectId)) {
-    const savedProject = projects.find(p => String(p.id) === savedProjectId);
-    if (savedProject) selectableProjects = [...selectableProjects, savedProject];
-  }
-  selectableProjects = sortProjectsByName(selectableProjects);
-  const projectLabels = projectOptionLabels(selectableProjects);
-  const projectOptions = selectableProjects.map(p =>
-    `<option value="${p.id}|${escAttr(p.CustomerName)}"${String(p.id) === savedProjectId ? ' selected' : ''}>${escHtml(projectLabels.get(String(p.id)))}</option>`
-  ).join('');
   // N-247c: search after the existing show-inactive filter, before the
   // pre-existing default order (kept as-is below); sortRows layers on top.
   const roleLabel = a => CONFIG.ROLE_LABELS[a.AssignedRole] || a.AssignedRole || ''; // N-281
-  // N-331: org-wide roles ignore Customer (saved with ProjectID 0).
-  const customerLabel = `Customer (not used for ${escHtml(CONFIG.ORG_WIDE_ROLES.map(r => CONFIG.ROLE_LABELS[r] || r).join(', '))})`;
-  const searched = filterRowsByText(visibleAssignments, _osaSearch, a => [a.UserName, a.UserEmail, a.CustomerName, roleLabel(a)]);
+  const searched = filterRowsByText(visibleAssignments, _osaSearch, a => [a.UserName, a.UserEmail, roleLabel(a)]);
   const OSA_SORT_COLUMNS = {
     name:     { type: 'text', get: a => a.UserName },
     email:    { type: 'text', get: a => a.UserEmail },
-    customer: { type: 'text', get: a => a.CustomerName },
     role:     { type: 'text', get: roleLabel },
   };
   const rows = sortRows([...searched].sort((a, b) => (a.UserName || '').localeCompare(b.UserName || '')), _osaSort, OSA_SORT_COLUMNS).map(a => {
@@ -89,7 +72,6 @@ async function buildAssignmentsTab(editId = null) {
     <tr id="assign-row-${a.id}" style="${isActive ? '' : 'opacity:0.55'}">
       <td>${escHtml(a.UserName || '—')}${isActive ? '' : ' <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--border-subtle);color:var(--text-label);">Inactive</span>'}</td>
       <td>${escHtml(a.UserEmail)}</td>
-      <td>${escHtml(a.CustomerName || '—')}</td>
       <td>${escHtml(roleLabel(a) || '—')}</td>
       <td>
         <div class="row-actions" style="gap:12px;align-items:center">
@@ -115,13 +97,6 @@ async function buildAssignmentsTab(editId = null) {
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group">
-          <label>${customerLabel}</label>
-          <select id="assign-project">
-            <option value="">-- Select customer --</option>
-            ${projectOptions}
-          </select>
-        </div>
         <div class="form-group">
           <label>Role *</label>
           <select id="assign-role">
@@ -150,13 +125,6 @@ async function buildAssignmentsTab(editId = null) {
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>${customerLabel}</label>
-          <select id="assign-project">
-            <option value="">-- Select customer --</option>
-            ${projectOptions}
-          </select>
-        </div>
-        <div class="form-group">
           <label>Role *</label>
           <select id="assign-role">
             ${_osaRoleOptions()}
@@ -181,11 +149,10 @@ async function buildAssignmentsTab(editId = null) {
       <thead><tr>
         ${sortableHeader('Name', 'name', _osaSort, 'setOsaSort')}
         ${sortableHeader('Email', 'email', _osaSort, 'setOsaSort')}
-        ${sortableHeader('Customer', 'customer', _osaSort, 'setOsaSort')}
         ${sortableHeader('Role', 'role', _osaSort, 'setOsaSort')}
         <th></th>
       </tr></thead>
-      <tbody>${rows || emptyStateRow({ colspan: 5, icon: 'users', message: 'No assignments yet.' })}</tbody>
+      <tbody>${rows || emptyStateRow({ colspan: 4, icon: 'users', message: 'No assignments yet.' })}</tbody>
     </table>
     ${editForm}
   `;
@@ -203,10 +170,12 @@ async function _osaOwnAdminRow(id) {
   const row = (await getUserAssignments()).find(a => String(a.id) === String(id));
   return row && isAdminAssignment(row) && (row.UserEmail || '').toLowerCase() === me ? row : null;
 }
+// N-371: every row is functional-role only — no project, no customer. The two SharePoint columns
+// stay on the list and are written 0 / '' so an old reader never sees a stale project.
+const _OSA_NO_PROJECT = { ProjectID: 0, CustomerName: '' };
 async function submitAssignment(editId = null) {
   const name    = document.getElementById('assign-name').value.trim();
   const email   = document.getElementById('assign-email').value.trim();
-  const projVal = document.getElementById('assign-project').value;
   const role    = document.getElementById('assign-role').value;
   const errEl   = document.getElementById('assign-error');
   errEl.style.display = 'none';
@@ -215,25 +184,20 @@ async function submitAssignment(editId = null) {
       (role !== 'admin' || email.toLowerCase() !== (getCurrentUser()?.email || '').toLowerCase())) {
     errEl.textContent = _OSA_SELF_GUARD_MSG; errEl.style.display = 'block'; return;
   }
+  // N-371 (S-8): one row per user — refuse an email another row (any state) already has.
+  const lower = email.toLowerCase();
+  if ((await getUserAssignments()).some(a => String(a.id) !== String(editId) && (a.UserEmail || '').trim().toLowerCase() === lower)) {
+    errEl.textContent = 'This user already has a row — edit it instead.'; errEl.style.display = 'block'; return;
+  }
   const btn = document.getElementById('osa-submit-assignment') ||
               document.querySelector('.form-container .btn-primary');
   setButtonLoading(btn);
-  // N-281: an admin row applies across all projects — always ProjectID 0, no
-  // customer. N-331: same for every org-wide role (people_ops / sales / staff).
-  const [projectId, customerName] = isOrgWideRole(role) ? ['0', ''] : (projVal ? projVal.split('|') : ['0', '']);
+  const fields = Object.assign({ Title: lower, UserName: name, AssignedRole: role }, _OSA_NO_PROJECT);
   try {
     if (editId) {
-      await updateItem('UserAssignments', editId, {
-        Title: email.toLowerCase(), UserName: name,
-        ProjectID: parseInt(projectId) || 0,
-        CustomerName: customerName || '', AssignedRole: role
-      });
+      await updateItem('UserAssignments', editId, fields);
     } else {
-      await createItem('UserAssignments', {
-        Title: email.toLowerCase(), UserName: name,
-        ProjectID: parseInt(projectId) || 0,
-        CustomerName: customerName || '', AssignedRole: role
-      });
+      await createItem('UserAssignments', fields);
     }
     await renderOsAdminPage('assignments');
   } catch(e) {
@@ -529,6 +493,7 @@ async function buildDataHealthTab() {
     + _dhRenderSlaTargetsHtml(data)
     + _dhRenderProjectTeamHtml(data)
     + _dhRenderLciMigrationHtml(data)
+    + _dhRenderUserRowsHtml()
     + _dhRenderWeeklyAnomaliesHtml(data)
     + _dhRenderIndexStatusHtml(data)
     + _dhRenderSchemaCheckHtml(data)
@@ -1133,6 +1098,138 @@ async function applyLciMigration() {
   }
 }
 
+// ── Data Health Tab — render + actions: UserAssignments one row per user (N-371 / PT-11) ──
+// Collapses each user's UserAssignments rows into one, in place (project-team.js
+// ptBuildUserRowPlan), and drops Leadership users' Delivery Manager rows. Nothing is written by
+// Preview. The full reads happen when Preview is clicked, never on tab load. State lives here and
+// the actions read it, never the DOM (N-273 precedent).
+//   inputs    the rows the preview was built from (the backup CSV is of these)
+//   backupIds ids in the downloaded backup; Apply refuses any write to a row that is not in it
+let _osaMigration = { inputs: null, backupIds: null, result: null };
+
+function _dhRenderUserRowsHtml() {
+  return `    <h3>UserAssignments: one row per user (N-371)</h3>
+    <p class="dh-note">
+      Collapses each user's rows into one, in place: the oldest active row stays (project and customer cleared) and the others are deleted.
+      Leadership users lose their Delivery Manager rows. Users holding two or more different roles are skipped and listed — fix them in User Assignments, then Preview again.
+      Nothing is written until Apply, and it is safe to run again.
+    </p>
+    <p><button class="btn-primary"${act('runUserRowPreview')}>Preview</button></p>
+    ${_osaMigrationResultHtml()}${_osaMigrationPreviewHtml()}
+`;
+}
+
+function _osaMigrationResultHtml() {
+  const r = _osaMigration.result;
+  if (!r) return '';
+  const failed = r.failed.length
+    ? ` <span class="dh-badge dh-badge-danger">${r.failed.length} failed</span> <span class="dh-muted">${r.failed.map(f => escHtml(f.email + (f.id ? ' #' + f.id : '') + ': ' + f.message)).join('; ')}</span>`
+    : '';
+  return `<p>Last apply: ${r.updated.toLocaleString('en-GB')} rows updated, ${r.deleted.toLocaleString('en-GB')} deleted.${failed}</p>`;
+}
+
+function _osaMigrationPreviewHtml() {
+  const inputs = _osaMigration.inputs;
+  if (!inputs) return '';
+  const cap = CONFIG.PROJECT_TEAM.DISPLAY_ROWS;
+  const { users, noEmail, refused, summary: s } = ptBuildUserRowPlan(inputs);
+  const roleLabel = r => CONFIG.ROLE_LABELS[r] || r || '';
+  const detail = (items, fmt) => items.length
+    ? `<details><summary class="dh-muted">Show</summary><span class="dh-muted">${items.slice(0, cap).map(fmt).join('; ')}${items.length > cap ? ` +${items.length - cap} more` : ''}</span></details>`
+    : '';
+  const line = (label, count, extra) => `
+        <tr><td>${label}${extra || ''}</td><td>${count.toLocaleString('en-GB')}</td></tr>`;
+  const who = u => escHtml(u.name ? u.name + ' (' + u.email + ')' : u.email);
+  const mixedUsers = users.filter(u => u.state === 'mixed');
+  const leadershipUsers = users.filter(u => u.leadershipDmRows > 0);
+  const backup = `<p><button class="btn-secondary"${act('downloadUserRowBackup')}>Download backup CSV</button>${_osaMigration.backupIds ? ' <span class="dh-badge dh-badge-success">Backup downloaded</span>' : ''}</p>`;
+  const apply = s.rowsToWrite
+    ? `<p><button class="btn-primary"${act('applyUserRowCollapse')}>Apply — update ${s.toUpdate.toLocaleString('en-GB')}, delete ${s.toDelete.toLocaleString('en-GB')} rows</button></p>`
+    : `<p class="dh-muted">Nothing to write.</p>`;
+  return `
+    <h4>Preview</h4>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Check</th><th>Count</th></tr></thead>
+      <tbody>${line('Users', s.usersRead)}${line('Rows read', s.rowsRead)}${line('Already one clean row', s.clean)}${line('Users to collapse', s.collapse + s.leadership)}${line('Rows to update', s.toUpdate)}${line('Rows to delete', s.toDelete)}${line('— of which Leadership Delivery Manager rows', s.leadershipDmDeletes, detail(leadershipUsers, u => who(u) + ': ' + u.leadershipDmRows))}${line('Skipped: more than one role (fix by hand)', s.mixed, detail(mixedUsers, u => who(u) + ' — ' + u.roles.map(roleLabel).join(', ') + '; resolves to ' + roleLabel(u.resolvedToday)))}${line('Skipped: no email', s.noEmail, detail(noEmail, r => escHtml(r.name || '#' + r.id)))}${line('Refused by a safety check', s.refused, detail(refused, r => escHtml(r.email + ': ' + r.message)))}
+      </tbody>
+    </table>
+    </div>
+    ${s.rowsToWrite ? backup : ''}
+    ${apply}`;
+}
+
+async function runUserRowPreview() {
+  const btn = event?.target;   // N-106: capture synchronously
+  setButtonLoading(btn);
+  try {
+    _osaMigration = { inputs: await getUserRowPlanInputs(), backupIds: null, result: null };
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error reading UserAssignments: ' + e.message, { type: 'error' });
+  }
+}
+
+function downloadUserRowBackup() {
+  const inputs = _osaMigration.inputs;
+  if (!inputs) { toast('Run Preview first.', { type: 'error' }); return; }
+  const blob = new Blob(['﻿' + ptToCsv(PT_UA_BACKUP_COLUMNS, ptUserRowsBackup(inputs.userAssignments))], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `newton-userassignments-backup-${localDayISO()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  _osaMigration.backupIds = new Set(inputs.userAssignments.map(u => String(u.id)));
+  renderOsAdminPage('datahealth');
+}
+
+async function applyUserRowCollapse() {
+  const btn = event?.target;
+  if (!_osaMigration.inputs) { toast('Run Preview first.', { type: 'error' }); return; }
+  if (!_osaMigration.backupIds) { toast('Download the backup CSV first.', { type: 'error' }); return; }
+  // Re-read so the confirmed counts describe what will really be written.
+  let plan;
+  setButtonLoading(btn);
+  try {
+    plan = ptBuildUserRowPlan(await getUserRowPlanInputs());
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error reading UserAssignments: ' + e.message, { type: 'error' });
+    return;
+  }
+  clearButtonLoading(btn);
+  const s = plan.summary;
+  if (!s.rowsToWrite) { toast('Nothing to write.'); return; }
+  const touched = plan.batches.reduce((acc, b) => acc.concat(b.writes), []);
+  if (touched.some(w => !_osaMigration.backupIds.has(String(w.id)))) {
+    _osaMigration.backupIds = null;
+    toast('Rows changed since the backup. Preview and download the backup again.', { type: 'error' });
+    await renderOsAdminPage('datahealth');
+    return;
+  }
+  if (!(await confirmModal({
+    title: 'Collapse UserAssignments',
+    message: `Update ${s.toUpdate} rows and delete ${s.toDelete} rows (${s.leadershipDmDeletes} of them Leadership Delivery Manager rows). Deleted rows cannot be restored; the backup CSV is the only copy.`,
+    confirmLabel: 'Update and delete',
+    danger: true,
+  }))) return;
+  setButtonLoading(btn);
+  try {
+    const out = await writeUserRowCollapse(plan.batches);
+    _osaMigration = { inputs: null, backupIds: null, result: out };
+    toast(out.failed.length ? `Updated ${out.updated}, deleted ${out.deleted}; ${out.failed.length} failed.` : `Updated ${out.updated}, deleted ${out.deleted}.`,
+      { type: out.failed.length ? 'error' : 'success' });
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error applying the migration: ' + e.message, { type: 'error' });
+  }
+}
+
 // ── Data Health Tab — SLA targets (N-381 / DA-1) ──────────────────────
 // Checks the SLATargets list and seeds the default rows (create-only, idempotent; the pure plan
 // is slaSeedPlan, utils.js). Fetch never throws: a list or column read that failed is
@@ -1633,5 +1730,8 @@ registerActions({
   runLciMigrationPreview,
   setLciTypePick,
   applyLciMigration,
+  runUserRowPreview,
+  downloadUserRowBackup,
+  applyUserRowCollapse,
   seedSlaDefaults,
 });

@@ -197,6 +197,9 @@
       <h3>Per-project write gate (N-369)</h3>
       <p class="section-intro">A user can change data on a project only while they can <em>write</em> it: Admin, Leadership and People Ops always; anyone else only while one of their non-forecast Project Team (Assignments) rows on that project is open &mdash; from the day the row is created (upcoming assignments count) until <code>EndDate + CONFIG.PROJECT_TEAM.WRITE_GRACE_DAYS</code> (14) days; no EndDate = open. After that the project stays viewable (Active / Archive filter) but read-only. The gate only <strong>narrows</strong> what a role can already do: every existing role rule (<code>canEditRoleRows</code>, <code>canEditProjectRows</code>, log-on-behalf, Hiring Plan, &hellip;) still applies, and <code>canWriteProject()</code> is an extra check on top. It covers every project write path &mdash; role form and stage changes, Duplicate, weekly activity and the bulk grid, placements, rejected offers, headcount, checklist ticks and actions, briefing packs (save / delete / copy / reassign; a pack with no project is ungated), client logos, Hiring Plan rows, the project record edit, the Project Team (a DM&rsquo;s own window), and the mobile role / activity / placement / rejection forms. A DM logging on behalf uses the DM&rsquo;s own window. Pieces: pure rules in <code>permissions.js</code> (<code>assignmentWriteOpen</code>, <code>writableProjectIdsFromAssignments</code>, <code>canWriteProject</code>, <code>projectReadOnlyMessage</code>); reads and guards in <code>api.js</code> (<code>getUserWritableProjectIds</code> &mdash; ghost-aware, <code>getWritableScopedProjects</code>, <code>checkProjectWrite</code> / <code>checkRoleWrite</code> / <code>checkRoleWrites</code>); banner <code>projectReadOnlyBannerHtml()</code> in <code>ui-kit.js</code>. Two layers: write controls are hidden per row / page and form pickers list writable projects only, and every write re-checks right before it runs and <strong>fails closed</strong>. Enforcement is in Newton only &mdash; SharePoint still gives TPs / DMs list-level Contribute, like every other Newton gate. The banner (&ldquo;Read only &mdash; your assignment on this project ended more than 14 days ago&rdquo;) shows on the Project page, Role page, Hiring Plan and Briefing Pack builder, only to a user whose role could otherwise edit there. Kill switch: <code>CONFIG.ACCESS_SCOPE.mode = 'legacy'</code> makes writable = visible (no window). A project a DM creates is neither visible nor writable to them until they add themselves to its Project Team (N-368 behaviour).</p>
 
+      <h3>Leadership and DM controls (N-370)</h3>
+      <p class="section-intro">A Leadership user never holds Delivery Manager controls (Project Team decision D-3). <code>canEditProjectRows</code>, the Project Dashboard DM / Admin panels and project selector, the Role form assign field and log-on-behalf are <code>admin</code> / <code>delivery_manager</code> only; the old <code>hasDMGrant()</code> / <code>_dmGrantsMem</code> pair is gone, and <code>getEffectiveRole()</code> keeps no grant state. Any <code>delivery_manager</code> rows a Leadership user still holds in UserAssignments are ignored by the UI until N-371 deletes them. The <code>legacy</code> kill-switch path (<code>dmProjectIdsFromAssignments</code>) still counts them for briefing-pack Reassign.</p>
+
       <h3>Module access matrix</h3>
       <table>
         <tr><th>Module / Page</th><th>Admin</th><th>Leadership</th><th>People Ops</th><th>Sales</th><th>DM</th><th>TP</th><th>Staff</th><th>Viewer</th></tr>
@@ -1016,7 +1019,6 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
         <tr><td><code>newton_survey_*</code></td><td>survey-app.js (draft, respondent UUID)</td><td>until submitted</td></tr>
         <tr><td><code>newton_force_desktop</code></td><td>mobile-app.js opt-out</td><td>session</td></tr>
       </table>
-      <div class="callout"><strong>Why <code>hasDMGrant()</code> ignores the TTL.</strong> It is synchronous, so it cannot re-resolve on a miss — treating an aged entry as absent would silently strip a leadership user's DM access mid-page. A build change implies a page load and is safe to honour; a TTL expiry is not. The TTL still bounds those grants in practice, because <code>getEffectiveRole()</code> rewrites them on every module init. Do not "tidy" this asymmetry away.</div>
 
       <p>Sign-out clears every one of these at once via <code>sessionStorage.clear()</code> in <code>auth.js</code>.</p>
 
@@ -1301,7 +1303,7 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
         <div class="flow-step cache">Returns that person's REAL role</div>
       </div>
       <div class="flow">
-        <div class="flow-step">getUserProjectIds() / hasDMGrant() also key off the ghosted email</div>
+        <div class="flow-step">getUserProjectIds() also keys off the ghosted email</div>
         <div class="flow-arrow">→</div>
         <div class="flow-step">Their real project scope applies</div>
         <div class="flow-arrow">→</div>
@@ -1384,6 +1386,16 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">October 2026</div>
+        <div class="changelog-title">Leadership DM grants retired (N-370, Project Team PT-10)</div>
+        <ul>
+          <li><code>hasDMGrant()</code> and <code>_dmGrantsMem</code> are removed. Project row editing, the Project Dashboard DM / Admin panels and selector, the Role form assign field and log-on-behalf now follow the role only: <code>admin</code> and <code>delivery_manager</code>.</li>
+          <li>A Leadership user who still holds <code>delivery_manager</code> rows in UserAssignments loses those controls straight away; N-371 deletes the rows.</li>
+          <li>No SharePoint, config or permission change.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">October 2026</div>
@@ -2041,7 +2053,7 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
           <li>Superseded by N-296: no role is cached at all — see the N-296 entry above.</li>
           <li><code>getCurrentUser()</code> now reads the email from the MSAL account instead of <code>localStorage.userEmail</code>, which any user could edit. The four places that wrote <code>userEmail</code> were removed.</li>
           <li><code>UserAssignments</code> and <code>LeadershipAccess</code> are no longer tier-2 cached (<code>CONFIG.CACHE.persistentLists</code> is now five lists): a forged sessionStorage entry for either would have been served as real data. Cost: roughly one extra small Graph read per page navigation.</li>
-          <li>DM grants moved from <code>newton_dm_grants_&lt;email&gt;</code> in sessionStorage to an in-memory map written by <code>getEffectiveRole()</code>. <code>hasDMGrant()</code> stays synchronous with no TTL.</li>
+          <li>DM grants moved from <code>newton_dm_grants_&lt;email&gt;</code> in sessionStorage to an in-memory map written by <code>getEffectiveRole()</code>. <code>hasDMGrant()</code> (retired by N-370) stays synchronous with no TTL.</li>
           <li>This is a UI-level hardening, not a security boundary — the boundary is the SharePoint permission matrix (N-287 onwards).</li>
         </ul>
       </div>
@@ -2253,7 +2265,7 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
           <li><strong>Three write paths were bypassing invalidation entirely</strong> — <code>admin.js:confirmDelete</code>, <code>admin.js:deleteAdminRecord</code> and <code>os-admin.js:deleteOsAdminRecord</code> called <code>graphRequest('DELETE', …)</code> directly. Harmless while the TTL was 30 seconds and died on navigation; a live bug the moment it became 10 minutes. All three now route through <code>deleteItem()</code>. <strong>Never call <code>graphRequest</code> with POST/PATCH/DELETE directly</strong> — see Read Flow and Write Flow above.</li>
           <li><strong><code>CONFIG.APP_BUILD</code> is stamped automatically on deploy (N-220).</strong> The <code>deploy</code> job writes a value derived from the commit SHA into <code>js/config.js</code> at deploy time, in the runner's checkout only — never committed, no manual step. The dead <code>SW_VERSION</code> constant in <code>sw.js</code> (declared, never read) was removed in the same change.</li>
           <li><strong>Why the stamp matters:</strong> every cache key embeds it and <code>api.js</code> discards entries from any other build on load. The case that genuinely matters is a <strong>shape</strong> change — above all a <code>FIELD_ALIASES</code> edit, since aliases are not part of the cache key and normalisation happens before caching, so old-shape rows read back under the wrong field names (the N-073 class: a silently blanked field, no error). A <code>LIST_FIELDS</code> change is self-correcting because the <code>$select</code> string is part of the key.</li>
-          <li><strong>Role cache bounded (removed by N-296).</strong> <code>newton_role_&lt;email&gt;</code> and <code>newton_dm_grants_&lt;email&gt;</code> were bare, unstamped values living for the whole browser session, so an admin changing someone's access had no effect on that person until they signed out. Both now carry a timestamp and the build stamp and expire on the same 10-minute TTL. <code>hasDMGrant()</code> honours the build stamp but <strong>not</strong> the TTL: it is synchronous and cannot re-resolve, so treating an aged entry as absent would silently strip a leadership user's DM access mid-page. N-296 later removed the role cache entirely.</li>
+          <li><strong>Role cache bounded (removed by N-296).</strong> <code>newton_role_&lt;email&gt;</code> and <code>newton_dm_grants_&lt;email&gt;</code> were bare, unstamped values living for the whole browser session, so an admin changing someone's access had no effect on that person until they signed out. Both now carry a timestamp and the build stamp and expire on the same 10-minute TTL. <code>hasDMGrant()</code> (retired by N-370) honours the build stamp but <strong>not</strong> the TTL: it is synchronous and cannot re-resolve, so treating an aged entry as absent would silently strip a leadership user's DM access mid-page. N-296 later removed the role cache entirely.</li>
           <li><strong>Config:</strong> <code>CONFIG.APP_BUILD</code> and <code>CONFIG.CACHE</code> (<code>enabled</code> as a live kill switch, <code>prefix</code>, <code>ttlMs</code>, <code>maxEntryBytes</code>, <code>persistentLists</code>). Enrolment lives only in <code>persistentLists</code> — no list name appears in <code>api.js</code>. No SharePoint change, no new dependency.</li>
         </ul>
       </div>

@@ -18,7 +18,7 @@
 // each — the list renderers below AND the checklist page (checklists.js,
 // "who can tick") use these, so the two can never drift apart.
 function canEditProjectRows(role) {
-  return ["admin","delivery_manager"].includes(role) || hasDMGrant();
+  return ["admin","delivery_manager"].includes(role);
 }
 function canEditRoleRows(role) {
   return ["admin","delivery_manager","talent_partner"].includes(role);

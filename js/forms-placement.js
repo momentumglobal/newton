@@ -15,7 +15,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
   const currentUser = getCurrentUser();
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);
-  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
+  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
   const isTalentPartner = userRole === 'talent_partner';
   const projects = dashboardProjects(await getWritableScopedProjects(email, false));   // N-362; N-369 writable only
   const lockProject = isTalentPartner && projects.length === 1;

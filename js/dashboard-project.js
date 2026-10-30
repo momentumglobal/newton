@@ -6,7 +6,7 @@ async function renderProjectDashboard() {
   const user      = getCurrentUser();
   const role      = _resolvedRole;
   const isTP      = role === 'talent_partner';
-  const isDMAdmin = ['delivery_manager', 'admin'].includes(role) || hasDMGrant();
+  const isDMAdmin = ['delivery_manager', 'admin'].includes(role);
   let   projectId = _dashProjectId;
   if (isTP && !projectId) {
     // N-206: was `(await getUserProjectIds(user.email))[0]`, which picks
@@ -170,7 +170,7 @@ function setDetailPeriod(period) {
   _dashDetailPeriod = period;
   const el = document.getElementById('proj-detail-grid');
   if (el && window._dashCache) {
-  const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole) || hasDMGrant();
+  const isDMAdmin = ['delivery_manager','admin'].includes(_resolvedRole);
   const c = window._dashCache;
   const hideEmpty = html => html.includes('empty-state') ? '' : html;
   const roleAnalyticsPlaceholder = `<div id='role-analytics-placeholder'></div>`;

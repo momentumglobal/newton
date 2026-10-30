@@ -827,13 +827,7 @@ async function getDepartments() {
 // Cost: up to two small filtered Graph reads per page navigation for every
 // role; an access change now takes effect on the next page load (was 10 min).
 
-// N-282: DM grants are held in memory, never in storage. Keyed by
-// lower-cased email -> array of project-ID strings. Written by
-// getEffectiveRole() on EVERY path, read by hasDMGrant().
-const _dmGrantsMem = new Map();
-
-// Role of `lower` plus the UserAssignments rows it came from, resolved from
-// the lists. Shared by getEffectiveRole() and
+// Role of `lower`, resolved from the lists. Shared by getEffectiveRole() and
 // the ghost gate so the two can never disagree about what "admin" means.
 async function _resolveRoleForEmail(lower) {
   // N-281: admin comes from an active UserAssignments row, not from code.
@@ -844,7 +838,7 @@ async function _resolveRoleForEmail(lower) {
     getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`),
   ]);
   const isLeadership = leadership.some(l => l.UserEmail?.toLowerCase() === lower);
-  return { role: resolveRoleFromAssignments(assignments, isLeadership), assignments };
+  return { role: resolveRoleFromAssignments(assignments, isLeadership) };
 }
 
 // ── Ghost gate (N-282 / SEC-2) ───────────────────────────────────────
@@ -886,45 +880,18 @@ async function getEffectiveRole(email) {
   const lower = (ghost || email).toLowerCase();
   // True when we are resolving the signed-in account itself (no ghost in play).
   const subjectIsReal = !ghost && lower === realEmail;
-  try { sessionStorage.removeItem('newton_dm_grants_' + lower); } catch (e) { /* legacy key, N-282 */ }
+  try { sessionStorage.removeItem('newton_dm_grants_' + lower); } catch (e) { /* legacy key, N-282; grants retired N-370 */ }
   // N-296: no role cache — a stored role is never read. Purge any legacy entry.
   try { sessionStorage.removeItem('newton_role_' + lower); } catch (e) { /* legacy key, N-296 */ }
 
-  const { role, assignments } = await _resolveRoleForEmail(lower);
+  const { role } = await _resolveRoleForEmail(lower);
   if (subjectIsReal) _setGhostRealAdmin(role === 'admin');
-
-  // A leadership user may ALSO hold explicit DM assignments — their project
-  // IDs feed hasDMGrant(). Every other role holds none: N-177 (beyond spec) —
-  // a user demoted OUT of leadership must not keep old grants, so the empty
-  // set is written on every non-leadership path.
-  _dmGrantsMem.set(lower, role === 'leadership'
-    ? assignments
-        .filter(a => a.AssignedRole === 'delivery_manager' && a.ProjectID && a.ProjectID !== 0)
-        .map(a => String(a.ProjectID))
-    : []);
 
   return role;
 }
  
 // getUserProjectIds — defined above with admin null handling
  
-// True if the resolved user (the ghosted user if Ghost Mode is active, else
-// the signed-in user) holds an explicit DM grant.
-// Pass a projectId to scope the check; omit for "any DM grant?"
-// N-282: reads _dmGrantsMem, NOT storage — a forged sessionStorage entry can
-// no longer grant DM controls. This function is SYNCHRONOUS — it cannot
-// re-resolve on a miss, so it deliberately has NO TTL: an aged entry must not
-// silently strip a leadership user's DM access mid-page. The grants live for
-// the page and are re-resolved by getEffectiveRole(), which every module
-// awaits in its init (app.js, cc-app.js, mr-app.js, people-app.js,
-// mobile-app.js, forms*.js) before anything calls this. No entry = false
-// (fail closed). Do not "tidy" this asymmetry away.
-function hasDMGrant(projectId = null) {
-  const email = (getGhostUser() || getCurrentUser()?.email || '').toLowerCase();
-  const grants = _dmGrantsMem.get(email) || [];
-  return projectId ? grants.includes(String(projectId)) : grants.length > 0;
-}
-
 // N-368 (PT-8, C-4): the TP / DM picker for one project — role, placement, weekly and
 // mobile role forms, briefing-pack Reassign and getScopedTpEmails (analytics.js).
 // 'assignments': the project's Project Team (Assignments by the indexed ProjectID) whose

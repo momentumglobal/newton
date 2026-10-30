@@ -123,7 +123,7 @@ function _ssKey(listName, filter, selectStr) {
 // newton_force_desktop) and none of them may ever be touched by a cache
 // purge. (newton_role_ and newton_dm_grants_ are legacy keys that are no
 // longer written — N-296 removed the role cache, N-282 moved DM grants to
-// memory — and must still be spared by a purge, hence the test.)
+// memory, N-370 removed them — and must still be spared by a purge, hence the test.)
 function _ssIsCacheKey(key) {
   return typeof key === 'string' && key.indexOf(CONFIG.CACHE.prefix + '|') === 0;
 }

@@ -194,24 +194,21 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-282 hasDMGrant — reads the in-memory grants only, fails closed when absent',
+    name: 'N-370 no js/ file defines or calls hasDMGrant / _dmGrantsMem (leadership DM grants retired)',
     fn: function () {
-      const prev = globalThis.getCurrentUser;
-      globalThis.getCurrentUser = function () { return { email: 'Leader@Example.com' }; };
-      try {
-        _setGhostRealAdmin(false);
-        _assertEqual(hasDMGrant(), false, 'no entry = false');
-        _dmGrantsMem.set('leader@example.com', ['12', '13']);
-        _assertEqual(hasDMGrant(), true, 'any grant');
-        _assertEqual(hasDMGrant(12), true, 'numeric id matches a string grant');
-        _assertEqual(hasDMGrant('13'), true, 'string id');
-        _assertEqual(hasDMGrant(99), false, 'other project');
-        _dmGrantsMem.set('leader@example.com', []);
-        _assertEqual(hasDMGrant(), false, 'empty grants = false');
-      } finally {
-        _dmGrantsMem.delete('leader@example.com');
-        if (prev === undefined) delete globalThis.getCurrentUser; else globalThis.getCurrentUser = prev;
-      }
+      if (typeof ALL_SOURCES === 'undefined') _skip('no source map in the browser harness — run tests/run.js');
+      const hits = Object.keys(ALL_SOURCES).filter(function (f) {
+        return /\bhasDMGrant\b|\b_dmGrantsMem\b/.test(ALL_SOURCES[f]);
+      });
+      _assertEqual(hits, [], 'files still naming the retired grant symbols');
+    },
+  },
+  {
+    name: 'N-370 canEditProjectRows is role-only — admin and delivery_manager, no grant term',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('no source map in the browser harness — run tests/run.js');
+      // pages.js is not loaded into the test sandbox (pages-model.js is), so pin the source text.
+      _assertEqual(/function canEditProjectRows\(role\) \{\s*return \["admin","delivery_manager"\]\.includes\(role\);\s*\}/.test(ALL_SOURCES['pages.js']), true, 'canEditProjectRows is admin / delivery_manager only');
     },
   },
   {

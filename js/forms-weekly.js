@@ -1,7 +1,7 @@
 // js/forms-weekly.js — Weekly Activity form (Reporting). Split from forms.js by N-350a.
 // Loads on reporting.html only, straight after forms.js. Load-time code is the registerActions
 // call at the bottom; everything else is declarations.
-// Runtime deps: getEffectiveRole/hasDMGrant/getScopedProjects/getRolesForProject (api.js), createWeeklyActivity
+// Runtime deps: getEffectiveRole/getScopedProjects/getRolesForProject (api.js), createWeeklyActivity
 // (api.js), optimisticWrite (utils.js), confirmModal/setButtonLoading (ui-kit.js), renderPlacementForm
 // (forms-placement.js), showFormError/clearFormError (forms.js). WeekEndingDate is the SUNDAY of the week.
 // ── Weekly Activity Form ────────────────────────────────────────────
@@ -47,7 +47,7 @@ async function _weeklyFormContext(existingData, preselectedRoleId, preselectedPr
   const currentUser = getCurrentUser();
   const email = currentUser.email;
   const userRole = await getEffectiveRole(email);
-  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole) || hasDMGrant();
+  const canLogOnBehalf = ['admin', 'delivery_manager'].includes(userRole);
   const isTalentPartner = userRole === 'talent_partner';
   const projects = dashboardProjects(await getWritableScopedProjects(email, false));   // N-362; N-369 writable only
   const lockProject = isTalentPartner && projects.length === 1;

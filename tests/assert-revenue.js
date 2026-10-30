@@ -30,6 +30,22 @@ ASSERTIONS.push(
     },
   },
   {
+    name: 'N-403: computeMonthlyRows — split-fee revenue sums identically in every timezone (retainer never re-emitted)',
+    fn: function () {
+      const T = CONFIG.SPLIT_FEE_PROJECT_TYPES[0];
+      const A = (id, start, end, fees) => Object.assign({ AssignmentID: id, EmployeeName: 'Sam ' + id, Level: 'Senior', Customer: 'Acme',
+                                                        ProjectType: T, Country: 'UK', Billed: 'Yes', StartDate: start, EndDate: end }, fees);
+      const sum = rows => rows.reduce((s, r) => s + r.ProratedRevenue, 0);
+      const both = computeMonthlyRows([A('b', '2024-01-05', '2024-01-31', { RetainerFee: '100', PlacementFee: '200' })]);
+      _assertEqual(sum(both), 300, 'retainer 100 + placement 200 = 300 (was 400 under America/New_York)');
+      _assertEqual(both.length, 2, 'Jan retainer row + Feb placement row, nothing else');
+      _assertEqual(both[1].MonthStart, '2024-02-01', 'placement lands the month after the end');
+      _assertEqual(both[1].Capacity, 0, 'placement row is zero-capacity');
+      _assertEqual(sum(computeMonthlyRows([A('r', '2024-01-05', '2024-02-20', { RetainerFee: '100' })])), 100, 'retainer only');
+      _assertEqual(sum(computeMonthlyRows([A('p', '2024-01-05', '2024-03-20', { PlacementFee: '200' })])), 200, 'placement only');
+    },
+  },
+  {
     name: 'computeMonthlyRows — unbilled split-fee line (SDM): capacity but no revenue, no placement-month row (N-327)',
     fn: function () {
       const a = FIXTURES.analytics2.splitFeeUnbilled.assignments;

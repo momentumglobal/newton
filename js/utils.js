@@ -299,12 +299,13 @@ function computeMonthlyRows(assignments, opts = {}) {
     // person is not assigned that month — subject to the same "not in the
     // future" cap that effectiveEnd applies to every other row.
     if (_splitEvents) {
-      const lastKey  = `${endMonth.getFullYear()}-${String(endMonth.getMonth() + 1).padStart(2, '0')}`;
-      const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      // N-403: UTC getters -- endMonth is a UTC-midnight Date, so local getters
+      // read the previous month west of UTC. The "today" cap is curKey (same UTC key).
+      const lastKey  = `${endMonth.getUTCFullYear()}-${String(endMonth.getUTCMonth() + 1).padStart(2, '0')}`;
       const billedFlag = a.Billed === 'Yes';
       for (const ev of _splitEvents) {
         if (ev.monthKey <= lastKey)  continue; // already emitted inside the loop
-        if (ev.monthKey > todayKey)  continue; // future month, same cap as above
+        if (ev.monthKey > curKey)    continue; // future month, same cap as above
         const amount = Math.round(ev.amount * 100) / 100;
         rows.push({
           AssignmentID:     a.AssignmentID,

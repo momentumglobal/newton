@@ -2,6 +2,8 @@
 // Owns the Assignments → Project Team backfill plan (ProjectID / UserEmail / IsLeadDM), the
 // UserAssignments ↔ Assignments reconciliation and the mixed-role report, and the CSV builder
 // behind their downloads. Later PT tasks (N-362–N-373) add scope and write-window helpers here.
+// N-373 adds ptCheckTeamIntegrity (the five Data Health Project Team integrity checks) and drops
+// the two reconciliation reports nothing reads after N-371.
 // N-371 adds the UserAssignments one-row-per-user migration plan (ptGrantedRole, ptBuildUserRowPlan).
 // N-365 adds the Project Team section helpers (picker, member status / sort, clash, open roles,
 // field builder, Lead DM candidates) and ptComputeBenchChanges (moved from people-tracker.js).
@@ -9,7 +11,8 @@
 // in project-page.js.
 // Loaded on admin.html, reporting.html and people.html, after permissions.js and utils.js (it calls
 // isOrgWideRole, resolveRoleFromAssignments, isForecastAssignment, isProjectActive, spDateIn,
-// isoDate, utcDateOnly, spDateOut, isInternalStaff, isDeployablePerson and api.js's tpMatches at
+// isoDate, utcDateOnly, spDateOut, isInternalStaff, isDeployablePerson, isExternalStaff, isOpenPipelineStage,
+// isNoDashboardProject, isInternalProject, addDaysISO, assignmentWriteOpen and api.js's tpMatches / tpList at
 // call time — never at load). api.js resyncBenchFor calls ptComputeBenchChanges at call time.
 
 // The three columns N-361 adds to the Assignments list. The backfill may write these and nothing else.
@@ -17,22 +20,6 @@ const PT_ASSIGNMENT_COLUMNS = ['ProjectID', 'UserEmail', 'IsLeadDM'];
 
 // Column sets shared by the on-screen report tables and their CSV downloads.
 const PT_REPORTS = Object.freeze({
-  uaNoAssignment: {
-    title: 'Access with no assignment',
-    note: 'A UserAssignments project row with no matching Assignments row (same email, same project; forecast rows do not count).',
-    columns: [
-      { key: 'user', label: 'User' }, { key: 'email', label: 'Email' }, { key: 'role', label: 'Role' },
-      { key: 'project', label: 'Project' }, { key: 'projectId', label: 'ProjectID' },
-    ],
-  },
-  assignmentNoAccess: {
-    title: 'Assignments with no access row',
-    note: 'A non-forecast Assignments row that cannot be matched to a UserAssignments project row today.',
-    columns: [
-      { key: 'employee', label: 'Employee' }, { key: 'customer', label: 'Customer' }, { key: 'email', label: 'Email' },
-      { key: 'projectId', label: 'ProjectID' }, { key: 'reason', label: 'Reason' },
-    ],
-  },
   dmNoRow: {
     title: 'Delivery Managers with no assignment',
     note: 'Active projects whose Delivery Manager has no Assignments row on the project, or has no Delivery Manager set.',
@@ -313,35 +300,6 @@ function ptBuildReconciliation(inputs) {
   const live = A.filter(a => !isBenchAssignment(a) && !isForecastAssignment(a));
   const assignedPairs = new Set(live.filter(a => _ptEmail(a.UserEmail) && _ptHasProjectId(a.ProjectID))
     .map(a => pair(a.UserEmail, a.ProjectID)));
-  const accessRows = UA.filter(u => u.Active !== false && !isOrgWideRole(u.AssignedRole) && _ptHasProjectId(u.ProjectID));
-  // N-371 (S-9): once UserAssignments carries no project rows (after the one-row-per-user
-  // migration) "no access row" would flag every Assignments row, so it is only reported while
-  // project rows exist.
-  const hasAccessRows = accessRows.length > 0;
-  const accessPairs = new Set(accessRows.map(u => pair(u.UserEmail, u.ProjectID)));
-
-  const uaNoAssignment = accessRows
-    .filter(u => !assignedPairs.has(pair(u.UserEmail, u.ProjectID)))
-    .map(u => ({
-      user: u.UserName || '', email: _ptEmail(u.UserEmail), role: roleLabel(u.AssignedRole),
-      project: projName(u.ProjectID) || u.CustomerName || '', projectId: String(u.ProjectID),
-    }));
-
-  const assignmentNoAccess = [];
-  live.forEach(a => {
-    const reasons = [];
-    const hasEmail = !!_ptEmail(a.UserEmail);
-    const hasProject = _ptHasProjectId(a.ProjectID);
-    if (!hasEmail) reasons.push('No UserEmail');
-    if (!hasProject) reasons.push('No ProjectID');
-    if (hasAccessRows && hasEmail && hasProject && !accessPairs.has(pair(a.UserEmail, a.ProjectID))) reasons.push('No access row today');
-    if (!reasons.length) return;
-    assignmentNoAccess.push({
-      employee: a.EmployeeName || '', customer: a.Customer || '', email: _ptEmail(a.UserEmail),
-      projectId: hasProject ? String(a.ProjectID) : '', reason: reasons.join('; '),
-    });
-  });
-
   const dmNoRow = [];
   P.filter(isProjectActive).forEach(p => {
     const dm = _ptEmail(p.DeliveryManager);
@@ -377,7 +335,99 @@ function ptBuildReconciliation(inputs) {
   });
   mixedRoles.sort((a, b) => (b._tpAndDm - a._tpAndDm) || a.email.localeCompare(b.email));
 
-  return { uaNoAssignment, assignmentNoAccess, dmNoRow, mixedRoles };
+  return { dmNoRow, mixedRoles };
+}
+
+// N-373 (PT-13): the five Project Team integrity checks behind Admin > Data Health. Pure: no
+// network, no DOM, never writes. Same shape as checkHeadcountIntegrity: [{ key, label, count,
+// sample }] in display order, `sample` = every offending label (the renderer truncates). Every
+// count should read 0 on healthy data.
+//   inputs = { assignments, projects, roles, todayISO }   todayISO is 'YYYY-MM-DD' (localDayISO())
+// Definitions shared by the checks:
+//   project row  = not isBenchAssignment;  live row = project row that is not a forecast
+//   recent row   = EndDate blank, unreadable, or within CONFIG.PROJECT_TEAM.PROBE_RECENT_DAYS of today
+//   on the team  = assignmentWriteOpen(row, todayISO) - the same window as access and the write gate
+//   qualifying project = active, not no-dashboard (LCI / Transformation), not the internal project
+function ptCheckTeamIntegrity(inputs) {
+  const inp = inputs || {};
+  const A = (inp.assignments || []).filter(Boolean);
+  const P = (inp.projects || []).filter(Boolean);
+  const R = (inp.roles || []).filter(Boolean);
+  const today = inp.todayISO;
+
+  const cutoff = addDaysISO(today, -(Number(CONFIG.PROJECT_TEAM.PROBE_RECENT_DAYS) || 0));
+  const recent = a => {
+    if (!a.EndDate) return true;
+    const end = spDateIn(a.EndDate);
+    return !end || !cutoff || end >= cutoff;
+  };
+  const who = a => (a.EmployeeName || 'Unknown') + (a.Customer ? ' (' + a.Customer + ')' : '');
+  const projName = p => p.CustomerName || ('Project ' + p.id);
+
+  const projectRows = A.filter(a => !isBenchAssignment(a));
+  const liveRows = projectRows.filter(a => !isForecastAssignment(a));
+  const qualifying = P.filter(p => isProjectActive(p) && !isNoDashboardProject(p) && !isInternalProject(p));
+  const qualifyingById = new Map(qualifying.map(p => [String(p.id), p]));
+
+  const teamByProject = new Map();
+  A.filter(a => assignmentWriteOpen(a, today)).forEach(a => {
+    const k = String(Number(a.ProjectID));
+    if (!teamByProject.has(k)) teamByProject.set(k, []);
+    teamByProject.get(k).push(a);
+  });
+  const teamOf = p => teamByProject.get(String(p.id)) || [];
+
+  // 1. Project rows with no ProjectID (historic old-customer rows are left alone).
+  const assignmentNoProject = projectRows
+    .filter(a => !_ptHasProjectId(a.ProjectID) && recent(a)).map(who);
+
+  // 2. Deployable team members with no UserEmail.
+  const deployableNoEmail = liveRows
+    .filter(a => _ptHasProjectId(a.ProjectID) && !_ptEmail(a.UserEmail) && isDeployablePerson(a) && recent(a))
+    .map(who);
+
+  // 3. A Talent Partner on an open role who is not on the project's team (externals skipped).
+  const externalEmails = new Set(A.filter(a => isExternalStaff(a)).map(a => _ptEmail(a.UserEmail)).filter(Boolean));
+  const seenTp = new Set();
+  const tpNotOnTeam = [];
+  R.forEach(role => {
+    if (!isOpenPipelineStage(role.Stage)) return;
+    const project = qualifyingById.get(String(role.ProjectIDLookupId ?? role.ProjectID));
+    if (!project) return;
+    const team = teamOf(project);
+    tpList(role.TalentPartner).forEach(email => {
+      if (externalEmails.has(email)) return;
+      if (team.some(a => _ptEmail(a.UserEmail) === email)) return;
+      const key = project.id + '|' + email;
+      if (seenTp.has(key)) return;
+      seenTp.add(key);
+      tpNotOnTeam.push(projName(project) + ' · ' + email + ' (' + (role.RoleTitle || 'Role ' + role.id) + ')');
+    });
+  });
+
+  // 4. Active projects without exactly one Lead DM; 5. the one Lead DM row disagrees with
+  // Projects.DeliveryManager (a Lead DM write that stopped part-way, N-365).
+  const leadDmCount = [];
+  const leadDmDrift = [];
+  qualifying.forEach(p => {
+    const leads = teamOf(p).filter(isLeadDmAssignment);
+    if (leads.length !== 1) {
+      leadDmCount.push(projName(p) + ' — ' + (leads.length ? leads.length : 'none'));
+      return;
+    }
+    const rowEmail = _ptEmail(leads[0].UserEmail);
+    const dm = _ptEmail(p.DeliveryManager);
+    if (rowEmail !== dm) leadDmDrift.push(projName(p) + ': ' + (rowEmail || '(no email)') + ' vs ' + (dm || '(none)'));
+  });
+
+  const checks = [
+    ['assignmentNoProject', 'Assignments with no ProjectID (current or ended in the last ' + CONFIG.PROJECT_TEAM.PROBE_RECENT_DAYS + ' days)', assignmentNoProject],
+    ['deployableNoEmail', 'Deployable team members with no UserEmail', deployableNoEmail],
+    ['tpNotOnTeam', 'Talent Partners on an open role but not on the project team', tpNotOnTeam],
+    ['leadDmCount', 'Active projects without exactly one Lead DM', leadDmCount],
+    ['leadDmDrift', 'Lead DM differs from Projects.DeliveryManager', leadDmDrift],
+  ];
+  return checks.map(([key, label, sample]) => ({ key, label, count: sample.length, sample }));
 }
 
 // CSV text (no BOM — the download adds it). Every cell is quoted; a cell that starts with

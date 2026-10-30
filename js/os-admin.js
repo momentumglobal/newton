@@ -492,6 +492,7 @@ async function buildDataHealthTab() {
     + _dhRenderHeadcountIntegrityHtml(data)
     + _dhRenderSlaTargetsHtml(data)
     + _dhRenderProjectTeamHtml(data)
+    + _dhRenderProjectTeamIntegrityHtml(data)
     + _dhRenderLciMigrationHtml(data)
     + _dhRenderUserRowsHtml()
     + _dhRenderWeeklyAnomaliesHtml(data)
@@ -578,10 +579,19 @@ async function _dhFetchSectionData() {
   const lciChoices = await getProjectTypeChoiceStatus();
   // N-381: SLA targets - column preflight, then the rows. Never throws.
   const slaTargets = await _dhFetchSlaTargets();
+  // N-373: Project Team integrity. Pure check (ptCheckTeamIntegrity, project-team.js); a failed
+  // read is { ok: false } and renders as Query error, never zeros.
+  let projectTeamIntegrity;
+  try {
+    projectTeamIntegrity = { ok: true, checks: ptCheckTeamIntegrity({ ...(await getTeamIntegrityInputs()), todayISO: localDayISO() }) };
+  } catch (e) {
+    console.warn('Data Health: Project Team integrity read failed', e);
+    projectTeamIntegrity = { ok: false, checks: [] };
+  }
 
   return {
     lists, counts, deniedLists, excludedLists,
-    ptColumns, lciChoices, slaTargets,
+    ptColumns, lciChoices, slaTargets, projectTeamIntegrity,
     nullProjectOk, nullProjectCount, nullWeekEndingOk, nullWeekEndingCount,
     statusByList,
     schemaResults,
@@ -769,6 +779,40 @@ function _dhRenderProjectTeamHtml(data) {
       Bench rows are skipped. The reconciliation report is read-only.
     </p>
     ${body}
+`;
+}
+
+// ── Data Health Tab — render: Project Team integrity (N-373 / PT-13) ──
+// Read-only. The checks are pure (ptCheckTeamIntegrity, project-team.js); a failed read shows a
+// Query error badge, never zeros.
+function _dhRenderProjectTeamIntegrityHtml(data) {
+  const h = data.projectTeamIntegrity || { ok: false, checks: [] };
+  const cap = CONFIG.PROJECT_TEAM.DISPLAY_ROWS;
+  const body = !h.ok
+    ? `<tr><td>Project Team checks</td><td><span class="dh-badge dh-badge-danger">Query error</span></td><td></td></tr>`
+    : h.checks.map(c => `
+        <tr>
+          <td>${escHtml(c.label)}${c.count ? `
+            <details><summary class="dh-muted">Show</summary>
+              <span class="dh-muted">${c.sample.slice(0, cap).map(escHtml).join('; ')}${c.count > cap ? ` +${c.count - cap} more` : ''}</span>
+            </details>` : ''}</td>
+          <td>${c.count.toLocaleString('en-GB')}</td>
+          <td>${c.count ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
+        </tr>`).join('');
+  return `    <h3>Project Team integrity (N-373)</h3>
+    <p class="dh-note">
+      Every check should read zero. The first two ignore assignments that ended more than
+      ${escHtml(String(CONFIG.PROJECT_TEAM.PROBE_RECENT_DAYS))} days ago (old customers with no Newton project).
+      "On the team" means the assignment is current, upcoming or ended within the
+      ${escHtml(String(CONFIG.PROJECT_TEAM.WRITE_GRACE_DAYS))}-day write window; forecast rows never count.
+      A "Query error" badge means the check itself failed — unknown, not zero.
+    </p>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Check</th><th>Rows</th><th></th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    </div>
 `;
 }
 

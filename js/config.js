@@ -327,6 +327,10 @@ const CONFIG = {
   //                          person stays in the project's TP / DM pickers
   //                          (projectTeamPickerRows, permissions.js). N-369's per-project
   //                          write gate reuses it.
+  //  PROBE_RECENT_DAYS       N-373: the Data Health "no ProjectID" and "no UserEmail" probes
+  //                          (ptCheckTeamIntegrity, project-team.js) report only rows that are
+  //                          still open or ended within this many days. Older rows are historic
+  //                          (customers with no Newton project, kept for utilisation).
   //  (A row typed LCI / Transformation with no Projects row is "deferred to N-363":
   //  isNoDashboardType() in utils.js, N-362.)
   PROJECT_TEAM: {
@@ -334,6 +338,7 @@ const CONFIG = {
     BENCH_CUSTOMER_ALIASES: ['Bench'],
     DISPLAY_ROWS:           50,
     WRITE_GRACE_DAYS:       14,
+    PROBE_RECENT_DAYS:      90,
     // N-363: Notes text on every Projects row the LCI / Transformation migration creates.
     LCI_MIGRATION_NOTE:     'Created by N-363 migration from LCI/Transformation assignments.',
   },

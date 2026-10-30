@@ -857,7 +857,7 @@ ASSERTIONS.push(
       _assertEqual(Object.keys(ALL_SOURCES).some(f => ALL_SOURCES[f].indexOf('shadowErrorType') > -1), true, 'control: the scan sees a live identifier');
       const osa = ALL_SOURCES['os-admin.js'];
       _assertEqual(/ErrorType === CONFIG\.ACCESS_SCOPE\.shadowErrorType\) return;/.test(osa), true, 'Error Telemetry still skips the historic shadow rows (S-6)');
-      _assertEqual(/\+ _dhRenderProjectTeamHtml\(data\)\s*\+ _dhRenderLciMigrationHtml\(data\)/.test(osa), true, 'Data Health: Access shadow section gone');
+      _assertEqual(/\+ _dhRenderProjectTeamHtml\(data\)\s*\+ _dhRenderProjectTeamIntegrityHtml\(data\)\s*\+ _dhRenderLciMigrationHtml\(data\)/.test(osa), true, 'Data Health: Access shadow section gone');
     },
   }
 );

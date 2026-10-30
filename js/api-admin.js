@@ -95,6 +95,16 @@ async function getBackfillInputs() {
   return { assignments, projects, userAssignments };
 }
 
+// N-373: the inputs for the Data Health Project Team integrity checks (ptCheckTeamIntegrity).
+// Projects includes Completed ones; the check itself filters to active projects. Cached reads,
+// all three lists are already read by neighbouring Data Health sections.
+async function getTeamIntegrityInputs() {
+  const [assignments, projects, roles] = await Promise.all([
+    getItems('Assignments'), getProjects(false), getAllRoles(),
+  ]);
+  return { assignments, projects, roles };
+}
+
 // The only writer of Assignments.ProjectID / UserEmail / IsLeadDM in N-361. One PATCH per row,
 // one at a time (updateItem invalidates the list cache); a failed row is recorded and the rest
 // carry on. ptPlanWrites refuses any patch carrying a key outside PT_ASSIGNMENT_COLUMNS.

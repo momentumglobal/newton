@@ -11,11 +11,15 @@
   padding: var(--sp-2) var(--sp-3); cursor: pointer; color: var(--text-label);
   display: inline-flex; align-items: center; justify-content: center;
   min-width: var(--sp-10); min-height: var(--sp-10);
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard), border-color var(--dur-base) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
 }
 .btn-icon:hover { background: var(--surface-hover); color: var(--brand); }
 .btn-icon:disabled { opacity: 0.35; cursor: default; }
+.btn-icon:active:not(:disabled) { transform: scale(0.98); }
 .btn-icon--danger:hover { background: var(--status-danger-bg-soft); color: var(--status-danger-text); border-color: var(--btn-icon-danger-hover-border); }
+@media (prefers-reduced-motion: reduce) {
+  .btn-icon:active:not(:disabled) { transform: none; }
+}
 
 /* ── Homepage survey widget ────────────────────────────────────────── */
 .survey-widget {

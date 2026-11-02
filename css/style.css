@@ -985,19 +985,23 @@ body {
 .form-container h2 { margin-bottom: var(--sp-8); color: var(--text-heading); font-weight: 600; letter-spacing: var(--ls-heading); }
 .form-group { display: flex; flex-direction: column; margin-bottom: var(--sp-7); }
 .form-group label { font-size: var(--fs-13); font-weight: 600; margin-bottom: var(--sp-2); color: var(--text-secondary); }
+/* N-407: hover sits BEFORE :focus (equal specificity, later wins); :where() keeps the disabled guard from out-ranking :focus */
 .form-group input, .form-group select, .form-group textarea {
   padding: var(--sp-4) var(--sp-5);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
+  border: 1px solid var(--border-control);
+  border-radius: var(--r-lg);
   font-size: var(--fs-14);
   font-family: inherit;
   background: var(--surface);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
+}
+.form-group input:hover:where(:not(:disabled)), .form-group select:hover:where(:not(:disabled)), .form-group textarea:hover:where(:not(:disabled)) {
+  border-color: var(--text-muted);
 }
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
   outline: none;
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 var(--sp-1) rgba(10,11,68,0.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent);
 }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-7); }
 .form-hint { display: block; font-size: var(--fs-12); color: var(--text-muted); margin-top: var(--sp-2); line-height: 1.4; }
@@ -1091,36 +1095,40 @@ body {
   color: var(--text-on-brand);
   border: none;
   padding: var(--sp-4) var(--sp-8);
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   cursor: pointer;
   font-size: var(--fs-14);
   font-weight: 600;
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-  transition: background 150ms ease, transform 100ms ease, box-shadow 150ms ease;
+  box-shadow: var(--elev-card), var(--elev-hairline-top);
+  transition: background var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard), border-color var(--dur-base) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
   min-height: var(--sp-11);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
-.btn-primary:hover  { background: var(--brand-hover); box-shadow: 0 var(--sp-1) var(--sp-4) rgba(10,11,68,0.18); }
-.btn-primary:active { transform: scale(0.97); }
+.btn-primary:hover  { background: var(--brand-hover); box-shadow: var(--elev-raised), var(--elev-hairline-top); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0) scale(0.98); }
+/* N-407: a disabled button must not lift. Deliberately a separate rule — wrapping .btn-primary:hover in :not(:disabled)
+   would out-specify .confirm-modal-confirm--danger:hover (N-406). */
+.btn-primary:disabled:hover, .btn-secondary:disabled:hover { transform: none; }
 .btn-secondary {
   background: var(--surface);
-  color: var(--brand);
-  border: 1px solid var(--brand);
+  color: var(--text-heading);
+  border: 1px solid var(--border-strong);
   padding: var(--sp-4) var(--sp-8);
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   cursor: pointer;
   font-size: var(--fs-14);
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-  transition: background 150ms ease, transform 100ms ease;
+  transition: background var(--dur-base) var(--ease-standard), border-color var(--dur-base) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
   min-height: var(--sp-11);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
-.btn-secondary:hover  { background: var(--surface-app); }
-.btn-secondary:active { transform: scale(0.97); }
+.btn-secondary:hover  { background: var(--surface-alt); border-color: var(--brand); }
+.btn-secondary:active { transform: translateY(0) scale(0.98); }
 /* Destructive actions — ghost by default, red on hover only */
 .btn-danger {
   background: none;
@@ -1131,9 +1139,10 @@ body {
   cursor: pointer;
   font-size: var(--fs-13);
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-  transition: color 150ms ease, background 150ms ease;
+  transition: color var(--dur-base) var(--ease-standard), background var(--dur-base) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
 }
 .btn-danger:hover { color: var(--status-danger); background: var(--status-danger-bg-soft); }
+.btn-danger:active { transform: scale(0.98); }
 /* ── Page header ────────────────────────────────────────────────────── */
 .page-header {
   display: flex;
@@ -1159,15 +1168,15 @@ body {
   font-size: var(--fs-13);
   font-weight: 500;
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-  transition: background 150ms ease, border-color 150ms ease,
-              color 150ms ease, box-shadow 150ms ease;
+  transition: background var(--dur-base) var(--ease-standard), border-color var(--dur-base) var(--ease-standard),
+              color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
-.btn-filter:hover  { background: var(--surface-app); border-color: var(--border-focus); }
+.btn-filter:hover  { background: var(--surface-alt); border-color: var(--brand-hover); }
 .btn-filter.active {
   background: var(--brand);
   color: var(--text-on-brand);
   border-color: var(--border-focus);
-  box-shadow: 0 1px var(--sp-2) rgba(10,11,68,0.18);
+  box-shadow: var(--elev-card);
 }
 /* ── Data table ─────────────────────────────────────────────────────── */
 .data-table {
@@ -1327,14 +1336,15 @@ body {
 .badge {
   display: inline-block;
   padding: var(--sp-1) var(--sp-5);
+  border: 1px solid var(--surface-alt-border);
   border-radius: var(--r-pill);
   font-size: var(--fs-11);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   background: var(--surface-alt);
   color: var(--text-heading);   /* N-307 diff-2: --brand is 2.46:1 on --surface-alt in dark mode */
 }
-.badge-active     { background: var(--status-success-bg); color: var(--status-success); }
+.badge-active     { background: var(--status-success-bg); color: var(--status-success); border-color: transparent; }
 /* ── Data Health tab (F-10 / N-092, tidied N-139) ─────────────────────
    Badge/muted-cell/table-spacing styles for Admin → Data Health, moved
    out of inline style="…" attributes. */
@@ -1348,8 +1358,10 @@ body {
   display: inline-block;
   font-size: var(--fs-11);
   padding: var(--sp-1) var(--sp-4);
+  border: 1px solid transparent;
   border-radius: var(--r-sm);
   font-weight: 600;
+  letter-spacing: 0.03em;
 }
 .dh-badge-warn    { background: var(--status-warn-bg-soft); color: var(--status-warn-strong); }
 .dh-badge-success { background: var(--status-success-bg); color: var(--status-success); }
@@ -1524,10 +1536,10 @@ body {
 /* ── Print / PDF export ─────────────────────────────────────────────── */
 .print-btn {
   background: var(--surface); color: var(--brand); border: 1px solid var(--brand);
-  padding: var(--sp-3) 14px; border-radius: var(--r-md); cursor: pointer;
+  padding: var(--sp-3) 14px; border-radius: var(--r-lg); cursor: pointer;
   font-size: var(--fs-13); font-weight: 500;
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-  transition: background 150ms ease;
+  transition: background var(--dur-base) var(--ease-standard);
 }
 .print-btn:hover { background: var(--surface-app); }
 #print-header { display: none; }
@@ -1639,8 +1651,10 @@ body {
 .ttf-badge {
   display: inline-block;
   padding: var(--sp-1) var(--sp-4);
+  border: 1px solid transparent;
   border-radius: var(--r-sm);
   font-size: var(--fs-12);
+  letter-spacing: 0.03em;
   background: var(--ttf-badge-bg);
   color: var(--ttf-badge-text);
   margin-top: var(--sp-2);
@@ -1715,7 +1729,7 @@ body {
 .sc-amber .rag-marker { color: var(--status-warn-strong); }
 
 /* People Scorecards — overall RAG pill */
-.sc-rag-pill { font-size:var(--fs-10); font-weight:600; letter-spacing:0.06em; text-transform:uppercase; padding:var(--sp-1) var(--sp-5); border-radius:var(--r-xl); }
+.sc-rag-pill { font-size:var(--fs-10); font-weight:600; letter-spacing:0.06em; text-transform:uppercase; padding:var(--sp-1) var(--sp-5); border:1px solid transparent; border-radius:var(--r-xl); }
 .sc-rag-pill--grey  { background:var(--status-neutral-bg); color:var(--status-neutral); }
 .sc-rag-pill--green { background:var(--status-success-bg); color:var(--status-success); }
 .sc-rag-pill--amber { background:var(--status-warn-bg-soft); color:var(--status-warn-strong); }
@@ -1942,6 +1956,8 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+  /* N-407: durations are zeroed above, but a transform would still jump — drop it */
+  .btn-primary:hover, .btn-primary:active, .btn-secondary:active, .btn-danger:active { transform: none; }
 }
 
 /* ── Toast + confirm modal (N-104 / X-3a) — engine only, no call sites
@@ -2015,18 +2031,19 @@ body {
   width: 100%;
   margin: 0 0 var(--sp-8);
   padding: var(--sp-4) var(--sp-5);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
+  border: 1px solid var(--border-control);
+  border-radius: var(--r-lg);
   font-size: var(--fs-14);
   font-family: inherit;
   color: var(--text-primary);
   background: var(--surface);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
+.confirm-modal-input:hover:where(:not(:disabled)) { border-color: var(--text-muted); }
 .confirm-modal-input:focus {
   outline: none;
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 var(--sp-1) rgba(10,11,68,0.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent);
 }
 
 /* ── Command Bar (N-144) — ⌘K / Ctrl+K overlay ───────────────────────

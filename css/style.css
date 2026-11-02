@@ -233,7 +233,7 @@
   --table-cell-py: var(--sp-5);
   --table-cell-px: var(--sp-6);
   --table-font: var(--fs-14);
-  --table-header-font: var(--fs-13);
+  --table-header-font: var(--fs-12);
   --table-scroll-max-h: 65vh;
   /* Radius scale */
   --r-xs: 2px;
@@ -946,7 +946,7 @@ body {
    (--c-blue on --surface-app) is 2.89:1 and fails AA for body text. */
 .breadcrumb__link,
 .breadcrumb__text { color: var(--text-secondary); text-decoration: none; }
-.breadcrumb__link:hover,
+.breadcrumb__link:hover { color: var(--text-heading); text-decoration: none; }
 .breadcrumb__link:focus-visible { color: var(--text-heading); text-decoration: underline; }
 .breadcrumb__current { color: var(--text-primary); font-weight: var(--fw-semibold); }
 /* ── Focus (N-249) ──────────────────────────────────────────────────── */
@@ -1148,11 +1148,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--sp-8) var(--sp-9) var(--sp-6);
-  border-bottom: 1px solid var(--border);
+  padding: var(--sp-8) var(--sp-9) var(--sp-7);
+  border-bottom: 1px solid var(--border-subtle);
   margin-bottom: var(--sp-7);
 }
-.page-header h2 { margin: 0; color: var(--text-heading); font-weight: 600; letter-spacing: var(--ls-heading); }
+.page-header h2 { margin: 0; color: var(--text-heading); font-size: var(--fs-h1); font-weight: 600; letter-spacing: var(--ls-heading); }
 .page-header-actions {
   display: flex; align-items: center; gap: var(--sp-6); flex-wrap: wrap;
 }
@@ -1190,17 +1190,15 @@ body {
   color: var(--text-on-brand);
   text-align: left;
   padding: var(--table-cell-py) var(--table-cell-px);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   font-size: var(--table-header-font);
-  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .data-table.no-sticky th {
   position: static;
 }
-
-.data-table th:first-child { border-radius: var(--r-md) 0 0 0; }
-.data-table th:last-child  { border-radius: 0 var(--r-md) 0 0; }
 /* ── Sortable column headers (N-247a) ───────────────────────────────── */
 /* A native <button> inside the <th> (rendered by sortableHeader() in
    list-controls.js). Explicit reset — NOT `all: unset`, which would also
@@ -1261,13 +1259,11 @@ body {
   padding: var(--table-cell-py) var(--table-cell-px);
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface);
-  transition: background 150ms ease;
+  transition: background var(--dur-fast) var(--ease-standard);
   font-variant-numeric: tabular-nums;
 }
 .data-table tr:last-child td { border-bottom: none; }
-.data-table tbody tr { transition: transform var(--dur-fast) ease; }
 .data-table tbody tr:hover td { background: var(--surface-alt); }
-.data-table tbody tr:hover { transform: translateY(-1px); }
 .data-table a {
   color: var(--text-link);
   text-decoration: none;
@@ -1332,6 +1328,36 @@ body {
   .table-scroll { overflow: visible !important; max-height: none !important; }
   .table-scroll thead th { position: static !important; }
 }
+/* ── Page-level list shell (N-408) ──────────────────────────────────── */
+/* A table-scroll that is a direct child of the page body is a whole-page
+   list (Roles, library pages, bulk grid): it becomes the card and the
+   table fills it. Screen only — print already resets .data-table
+   width/margin. Tables nested in a panel are unaffected. */
+@media screen {
+  #main-content > .table-scroll {
+    margin: 0 var(--sp-9);
+    border: 1px solid var(--border);
+    border-radius: var(--r-2xl);
+    background: var(--surface);
+    box-shadow: var(--elev-card);
+  }
+  #main-content > .table-scroll > .data-table { width: 100%; margin: 0; }
+}
+/* ── Page-level list shell (N-408) ──────────────────────────────────── */
+/* A table-scroll that is a direct child of the page body is a whole-page
+   list (Roles, library pages, bulk grid): it becomes the card and the
+   table fills it. Screen only — print already resets .data-table
+   width/margin. Tables nested in a panel are unaffected. */
+@media screen {
+  #main-content > .table-scroll {
+    margin: 0 var(--sp-9);
+    border: 1px solid var(--border);
+    border-radius: var(--r-2xl);
+    background: var(--surface);
+    box-shadow: var(--elev-card);
+  }
+  #main-content > .table-scroll > .data-table { width: 100%; margin: 0; }
+}
 /* ── Badges ─────────────────────────────────────────────────────────── */
 .badge {
   display: inline-block;
@@ -1376,35 +1402,47 @@ body {
 .kpi-strip { display: flex; gap: var(--sp-7); margin-bottom: var(--sp-6); flex-wrap: wrap; }
 .kpi-strip-period { margin-bottom: var(--sp-9); }
 .kpi-card {
+  position: relative;
   flex: 1;
   min-width: 120px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: var(--sp-2) solid var(--brand);
-  border-radius: var(--r-md);
-  padding: var(--sp-4) var(--sp-8);
-  box-shadow: 0 1px var(--sp-2) rgba(10,11,68,0.06);
-  transition: box-shadow 150ms ease, transform 150ms ease;
+  border-radius: var(--r-xl);
+  padding: var(--sp-7) var(--sp-8) var(--sp-6);
+  box-shadow: var(--elev-card);
+  transition: box-shadow var(--dur-base) var(--ease-standard), transform var(--dur-base) var(--ease-standard);
 }
+.kpi-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: var(--sp-8);
+  width: var(--sp-9);
+  height: 3px;
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  background: var(--surface-accent);
+}
+.kpi-strip-period .kpi-card::before { background: var(--accent); }
 .kpi-card:hover {
-  box-shadow: 0 var(--sp-2) var(--sp-7) rgba(10,11,68,0.10);
+  box-shadow: var(--elev-raised);
   transform: translateY(-1px);
 }
-.kpi-value { font-size: var(--fs-26); font-weight: 600; color: var(--brand); font-variant-numeric: tabular-nums; letter-spacing: var(--ls-heading-lg); }
-.kpi-label { font-size: var(--fs-11); color: var(--text-label); margin-top: var(--sp-2); text-transform: uppercase; letter-spacing: 0.5px; }
+.kpi-value { font-size: var(--fs-display-sm); line-height: 1.1; margin-top: var(--sp-2); font-weight: 600; color: var(--brand); font-variant-numeric: tabular-nums; letter-spacing: var(--ls-heading-lg); }
+.kpi-label { font-size: var(--fs-11); font-weight: var(--fw-semibold); color: var(--text-label); margin-top: var(--sp-3); text-transform: uppercase; letter-spacing: 0.06em; }
 .kpi-sub   { font-size: var(--fs-11); color: var(--text-muted); margin-top: var(--sp-1); }
 .dash-grid { display: flex; flex-direction: column; gap: var(--sp-8); }
 .dash-panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: var(--sp-8) var(--sp-9);
-  box-shadow: 0 1px var(--sp-2) rgba(10,11,68,0.04);
+  border-radius: var(--r-2xl);
+  padding: var(--sp-9);
+  box-shadow: var(--elev-card);
   margin-bottom: var(--sp-8);
 }
 .panel-title {
-  font-size: var(--fs-15); font-weight: 600; color: var(--text-heading);
-  margin: 0 0 var(--sp-7) 0; padding-bottom: var(--sp-4);
+  font-size: var(--fs-subheading); font-weight: 600; color: var(--text-heading);
+  letter-spacing: var(--ls-heading);
+  margin: 0 0 var(--sp-8) 0; padding-bottom: var(--sp-6);
   border-bottom: 1px solid var(--border-subtle);
 }
 .nt-chart-grid          { stroke: var(--border-subtle); stroke-width: 1; }
@@ -1433,7 +1471,7 @@ body {
 .nt-chart-bar           { height: 18px; border-radius: var(--r-sm); min-width: 2px; background: var(--surface-accent); }
 .nt-chart-bar-val       { width: 50px; font-size: var(--fs-12); color: var(--text-secondary); flex-shrink: 0; }
 .no-data { color: var(--text-muted); font-size: var(--fs-13); font-style: italic; }
-.totals-row td { background: var(--surface-alt); font-weight: 600; }
+.totals-row td { background: var(--surface-sunken); box-shadow: inset 0 1px 0 var(--border); font-weight: 600; }
 .spend-label { font-size: var(--fs-11); color: var(--text-label); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--sp-2); }
 .spend-val { font-size: var(--fs-22); font-weight: 600; color: var(--brand); font-variant-numeric: tabular-nums; letter-spacing: var(--ls-heading); }
 .dash-project-selector { max-width: 320px; margin-bottom: var(--sp-8); }
@@ -1602,13 +1640,13 @@ body {
   background: var(--status-danger-bg-soft);
   color: var(--text-primary);
 }
+.row-age-critical td:first-child { box-shadow: inset 3px 0 0 var(--status-danger); }
 
 /* ── Optimistic-insert pending row (N-218a) ─────────────────────────── */
 /* An item just submitted but not yet confirmed created server-side.      */
 /* Named "pending", not "ghost" -- ghost already means Ghost Mode below.  */
 .data-table tbody tr.row-pending td { opacity: 0.6; }
 .data-table tbody tr.row-pending:hover td { background: none; }
-.data-table tbody tr.row-pending:hover { transform: none; }
 
 /* ── Ghost mode banner ───────────────────────────────────────────────── */
 #ghost-banner {

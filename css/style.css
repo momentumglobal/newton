@@ -1343,21 +1343,6 @@ body {
   }
   #main-content > .table-scroll > .data-table { width: 100%; margin: 0; }
 }
-/* ── Page-level list shell (N-408) ──────────────────────────────────── */
-/* A table-scroll that is a direct child of the page body is a whole-page
-   list (Roles, library pages, bulk grid): it becomes the card and the
-   table fills it. Screen only — print already resets .data-table
-   width/margin. Tables nested in a panel are unaffected. */
-@media screen {
-  #main-content > .table-scroll {
-    margin: 0 var(--sp-9);
-    border: 1px solid var(--border);
-    border-radius: var(--r-2xl);
-    background: var(--surface);
-    box-shadow: var(--elev-card);
-  }
-  #main-content > .table-scroll > .data-table { width: 100%; margin: 0; }
-}
 /* ── Badges ─────────────────────────────────────────────────────────── */
 .badge {
   display: inline-block;

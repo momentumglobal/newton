@@ -31,4 +31,4 @@ body { font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; }
 .admin-nav-logo { display: block; width: 140px; height: auto; margin: 0 20px 12px; }
 .admin-sidebar-footer { padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.1); }
 /* Main */
-.admin-main { flex: 1; overflow-y: auto; background: #F5F4F1; }
+.admin-main { flex: 1; overflow-y: auto; background: var(--surface-app); }

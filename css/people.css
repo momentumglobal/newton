@@ -148,7 +148,7 @@
    tree absorbs this via .org-tree li's padding-top. The bench grid needs its
    own headroom (heading clearance) and a row-gap larger than the overhang. */
 .org-bench__grid { display: flex; flex-wrap: wrap; gap: 26px var(--sp-4); padding-top: 22px; }
-.org-tag { font-size: var(--fs-10); background: var(--org-tag-bg); color: var(--status-neutral);
+.org-tag { font-size: var(--fs-10); background: var(--org-tag-bg); color: var(--status-neutral-on-pale);
   padding: 1px var(--sp-3); border-radius: var(--r-lg); margin-left: var(--sp-3); }
 
 .org-print-title { display: none; }

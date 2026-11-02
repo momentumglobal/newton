@@ -74,6 +74,56 @@
   --c-surface-border: #dde3f0;
   --c-surface-lav: #F9F9FF;
   --c-gray-mid: #ececec;
+  /* Colour — Visual Finish palette (N-406, VF-2). Source: newton-pipeline/
+     mockups/mockup-tokens.css (approved 1 Nov 2026). One navy-tinted neutral
+     ramp, collapsed status set and chart series; consumed through the
+     semantic tier below. --c-gray-* and the older status tones above stay
+     defined while anything reads them (VF-D11). */
+  /* Neutral ramp */
+  --c-n-0: #FFFFFF;
+  --c-n-25: #F9FAFD;
+  --c-n-50: #F3F5F9;
+  --c-n-75: #EEF1F7;
+  --c-n-100: #E7EBF3;
+  --c-n-150: #DCE1EC;
+  --c-n-200: #CAD1E0;
+  --c-n-300: #A9B1C5;
+  --c-n-400: #838BA2;
+  --c-n-500: #5F6882;
+  --c-n-600: #4B5470;
+  --c-n-700: #2F3650;
+  --c-n-800: #1A1A2E;
+  /* Tints */
+  --c-tint-info: #EEF3FB;
+  --c-tint-info-border: #D6E0F2;
+  --c-tint-lav: #F5F5FD;
+  /* Status — one value per role (VF-D9) */
+  --c-st-success: #1B7A3D;
+  --c-st-success-bg: #E6F4EA;
+  --c-st-warn-fill: #C27400;
+  --c-st-warn-text: #9A5B00;
+  --c-st-warn-bg: #FFF4DB;
+  --c-st-warn-bg-soft: #FFF9EA;
+  --c-st-danger: #B3261E;
+  --c-st-danger-bg: #FDECEA;
+  --c-st-danger-bg-soft: #FEF4F3;
+  /* Chart series — light (≥3:1 on white) and dark (≥3:1 on --c-dark-surface) */
+  --c-chart-1: #2E5FA3;
+  --c-chart-2: #D9622B;
+  --c-chart-3: #157F73;
+  --c-chart-4: #7A5BB0;
+  --c-chart-5: #B8387F;
+  --c-chart-6: #9A6B00;
+  --c-chart-7: #2F86C6;
+  --c-chart-8: #5C6B84;
+  --c-chart-dark-1: #6C9BE0;
+  --c-chart-dark-2: #F08A57;
+  --c-chart-dark-3: #4DBFAE;
+  --c-chart-dark-4: #A98BDB;
+  --c-chart-dark-5: #E071AB;
+  --c-chart-dark-6: #D9A63C;
+  --c-chart-dark-7: #5FB0E8;
+  --c-chart-dark-8: #94A3BC;
   /* Colour — JavaScript-consumed tones (N-123) */
   --c-gray-115: #e8e8e8;
   --c-success-bg-alt: #e6f4ea;
@@ -251,41 +301,58 @@
   --sh-modal: 0 8px 32px rgba(0,0,0,0.18);
   --sh-drawer: -8px 0 32px rgba(0,0,0,0.4);
   --sh-focus: 0 0 0 3px rgba(10,11,68,0.08);
+  /* Elevation (N-406) — layered light steps + dark steps. Consumed only via
+     the semantic --elev-* tokens; the dark block re-points those, never these. */
+  --sh-elev-1: 0 1px 2px rgba(15,17,60,0.06), 0 1px 1px rgba(15,17,60,0.04);
+  --sh-elev-2: 0 2px 4px rgba(15,17,60,0.05), 0 4px 12px rgba(15,17,60,0.07);
+  --sh-elev-3: 0 4px 8px rgba(15,17,60,0.06), 0 12px 24px rgba(15,17,60,0.10);
+  --sh-elev-4: 0 8px 16px rgba(15,17,60,0.10), 0 24px 48px rgba(15,17,60,0.16);
+  --sh-hairline-top: inset 0 1px 0 rgba(255,255,255,0);
+  --sh-elev-dark-1: 0 1px 2px rgba(0,0,0,0.35);
+  --sh-elev-dark-2: 0 2px 6px rgba(0,0,0,0.38), 0 0 0 1px rgba(255,255,255,0.02);
+  --sh-elev-dark-3: 0 6px 16px rgba(0,0,0,0.45);
+  --sh-elev-dark-4: 0 12px 40px rgba(0,0,0,0.55);
+  --sh-hairline-top-dark: inset 0 1px 0 rgba(255,255,255,0.05);
     /* Transition durations */
   --dur-fast: 120ms;
   --dur-base: 150ms;
   --dur-slow: 300ms;
   --dur-slower: 350ms;
-  /* Colour — dark-mode neutral ramp (N-102). Palette only; referenced
+  /* Easing (N-406) */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  /* Colour — dark-mode neutral ramp (N-102; values refined N-406). Palette only; referenced
      exclusively by the [data-theme="dark"] semantic override block below. */
-  --c-dark-bg:             #12131C;
-  --c-dark-surface:        #1B1D29;
-  --c-dark-surface-raised: #232636;
-  --c-dark-surface-sunken: #14151E;
-  --c-dark-surface-hover:  #262838;
-  --c-dark-surface-faint:  #181A25;
-  --c-dark-surface-disabled: #20222E;
-  --c-dark-surface-alt:    #1A2333;
+  --c-dark-bg:             #0F1119;
+  --c-dark-surface:        #171A26;
+  --c-dark-surface-raised: #1F2332;
+  --c-dark-surface-sunken: #12141F;
+  --c-dark-surface-hover:  #232839;
+  --c-dark-surface-faint:  #141722;
+  --c-dark-surface-disabled: #1C2030;
+  --c-dark-surface-alt:    #18243A;
   --c-dark-surface-alt-border: #2A3B57;
-  --c-dark-surface-tint:   #201F30;
-  --c-dark-border:         #363A4F;
-  --c-dark-border-strong:  #454A63;
-  --c-dark-border-subtle:  #262838;
-  --c-dark-border-neutral: #5B5E75;
-  --c-dark-text-primary:   #EDEDF3;
-  --c-dark-text-secondary: #C6C8D6;
-  --c-dark-text-label:     #A3A6BC;
-  --c-dark-text-muted:     #82869E;
-  --c-dark-text-faint:     #5C5F78;
-  --c-dark-success:        #4CAF50;
-  --c-dark-success-bg:     #1C3620;
-  --c-dark-warn:           #FFB74D;
+  --c-dark-surface-tint:   #1D1C2E;
+  --c-dark-border:         #2C3146;
+  --c-dark-border-strong:  #3A4059;
+  --c-dark-border-subtle:  #222639;
+  --c-dark-border-neutral: #565C76;
+  --c-dark-text-primary:   #ECEEF6;
+  --c-dark-text-secondary: #C3C8D8;
+  --c-dark-text-label:     #A3AABF;
+  --c-dark-text-muted:     #8B92A9;
+  --c-dark-text-faint:     #666D86;
+  --c-dark-success:        #5BC17B;
+  --c-dark-success-bg:     #1A3324;
+  --c-dark-warn:           #F5B544;
   --c-dark-warn-bg:        #3A2E14;
-  --c-dark-warn-bg-soft:   #332912;
-  --c-dark-danger:         #EF5350;
-  --c-dark-danger-bg:      #3A1F1F;
-  --c-dark-danger-bg-soft: #331B1B;
-  --c-dark-neutral-bg:     #232733;
+  --c-dark-warn-bg-soft:   #30270F;
+  --c-dark-danger:         #F2706B;
+  --c-dark-danger-bg:      #3A1F22;
+  --c-dark-danger-bg-soft: #2F1A1D;
+  --c-dark-neutral-bg:     #20243A;
+  --c-dark-border-control: #6A728C;
 }
 :root {
   /* ── Semantic tokens (N-101) — role names mapped onto the N-067 palette.
@@ -293,20 +360,22 @@
        here, by --c-ptype-* (JS-facing), and by the exceptions listed in
        newton-pipeline/specs/N-101-mapping.md. Redefining this block under
        [data-theme="dark"] is how N-102 themes the product.
-       Every value here MUST be a var(--c-*) reference — a literal colour in
-       this block means the palette is missing a step. ── */
+       Every colour value here MUST be a var(--c-*) reference and every
+       elevation value a var(--sh-*) reference — a literal in this block
+       means the palette is missing a step. N-406 (VF-2) re-pointed this tier
+       onto the --c-n-* / --c-st-* palette; see newton-pipeline/specs/N-406.md. ── */
   /* Surfaces */
-  --surface-app:         var(--c-surface);        /* page / app background */
-  --surface:             var(--c-white);          /* cards, panels, tables, inputs */
-  --surface-raised:      var(--c-white);          /* modals, drawers, popovers */
-  --surface-sunken:      var(--c-gray-050);       /* inset / neutral RAG fills */
-  --surface-hover:       var(--c-gray-075);       /* row + control hover */
-  --surface-faint:       var(--c-gray-025);       /* zebra striping */
-  --surface-muted:       var(--c-gray-mid);       /* disabled / inert fills */
-  --surface-disabled:    var(--c-gray-100);       /* muted button fill */
-  --surface-alt:         var(--c-surface-blue);   /* tinted info strips, totals rows */
-  --surface-alt-border:  var(--c-surface-border); /* border pairing with --surface-alt */
-  --surface-tint:        var(--c-surface-lav);    /* lavender wash panels */
+  --surface-app:         var(--c-n-50);           /* page / app background */
+  --surface:             var(--c-n-0);            /* cards, panels, tables, inputs */
+  --surface-raised:      var(--c-n-0);            /* modals, drawers, popovers */
+  --surface-sunken:      var(--c-n-75);           /* inset / neutral RAG fills */
+  --surface-hover:       var(--c-n-75);           /* row + control hover */
+  --surface-faint:       var(--c-n-25);           /* zebra striping */
+  --surface-muted:       var(--c-n-100);          /* disabled / inert fills */
+  --surface-disabled:    var(--c-n-100);          /* muted button fill */
+  --surface-alt:         var(--c-tint-info);      /* tinted info strips, totals rows */
+  --surface-alt-border:  var(--c-tint-info-border); /* border pairing with --surface-alt */
+  --surface-tint:        var(--c-tint-lav);       /* lavender wash panels */
   --surface-tooltip:     var(--c-ink);            /* dark tooltip body */
   --surface-accent:      var(--c-blue);           /* accent bar / active nav rail */
   --surface-accent-2:    var(--c-blue-mid);       /* secondary accent fill */
@@ -316,41 +385,61 @@
   --brand-secondary:     var(--c-navy-slate);     /* survey + engagement emphasis */
   --brand-tertiary:      var(--c-navy-steel);     /* LCI data + chart ink */
   /* Text */
-  --text-primary:        var(--c-ink);
-  --text-secondary:      var(--c-gray-800);
-  --text-label:          var(--c-gray-650);
-  --text-muted:          var(--c-gray-500);
-  --text-faint:          var(--c-gray-400);
+  --text-primary:        var(--c-n-800);
+  --text-secondary:      var(--c-n-700);
+  --text-label:          var(--c-n-600);
+  --text-muted:          var(--c-n-500);
+  --text-faint:          var(--c-n-400);
   --text-heading:        var(--c-brand);
   --text-on-brand:       var(--c-white);
   --text-link:           var(--c-brand);
   --text-link-hover:     var(--c-blue);
   /* Borders */
-  --border-strong:       var(--c-gray-250);       /* inputs, controls */
-  --border-mid:          var(--c-gray-200);       /* icon buttons, detail tables */
-  --border:              var(--c-gray-150);       /* default hairline */
-  --border-subtle:       var(--c-gray-100);       /* row rules inside a panel */
-  --border-faint:        var(--c-gray-075);
-  --border-muted:        var(--c-gray-mid);
+  --border-strong:       var(--c-n-200);          /* inputs, controls */
+  --border-mid:          var(--c-n-150);          /* icon buttons, detail tables */
+  --border:              var(--c-n-150);          /* default hairline */
+  --border-subtle:       var(--c-n-100);          /* row rules inside a panel */
+  --border-faint:        var(--c-n-75);
+  --border-muted:        var(--c-n-100);
   --border-focus:        var(--c-brand);
-  --border-neutral:      var(--c-gray-350);       /* grey/no-data RAG rail */
+  --border-neutral:      var(--c-n-300);          /* grey/no-data RAG rail */
+  --border-control:      var(--c-n-400);          /* input / control boundary, ≥3:1 (VF-D7) */
   --border-connector:    var(--c-bluegrey-bg);    /* org-chart tree connectors */
   /* Accent */
   --accent:              var(--c-accent);         /* focus outline, chart highlight */
   /* Status / RAG */
-  --status-success:      var(--c-success);
-  --status-success-text: var(--c-success-alt);
-  --status-success-bg:   var(--c-success-bg);
-  --status-warn:         var(--c-warn);
-  --status-warn-strong:  var(--c-warn-deep);
-  --status-warn-text:    var(--c-warn-text);
-  --status-warn-bg:      var(--c-warn-bg);
-  --status-warn-bg-soft: var(--c-warn-bg-soft);
-  --status-danger:       var(--c-danger);
-  --status-danger-text:  var(--c-danger-alt);
-  --status-danger-bg:    var(--c-danger-bg);
-  --status-danger-bg-soft: var(--c-danger-bg-soft);
-  --status-neutral:      var(--c-bluegrey);
+  --status-success:      var(--c-st-success);
+  --status-success-text: var(--c-st-success);
+  --status-success-bg:   var(--c-st-success-bg);
+  --status-warn:         var(--c-st-warn-fill);
+  --status-warn-strong:  var(--c-st-warn-text);
+  --status-warn-text:    var(--c-st-warn-text);
+  --status-warn-bg:      var(--c-st-warn-bg);
+  --status-warn-bg-soft: var(--c-st-warn-bg-soft);
+  --status-danger:       var(--c-st-danger);
+  --status-danger-text:  var(--c-st-danger);
+  --status-danger-bg:    var(--c-st-danger-bg);
+  --status-danger-bg-soft: var(--c-st-danger-bg-soft);
+  --status-neutral:      var(--c-n-500);
+  --status-neutral-bg:   var(--c-n-100);          /* N-406: grey/no-data pill fill (N-102 mapping light value, never landed) */
+  /* Non-themed status fills (N-406) — identical in both themes, so NEVER add
+     them to the [data-theme="dark"] block or the print re-pin. -solid = a
+     background carrying white text; -on-pale = text on a fixed pale pill
+     (--lci-status-draft-bg, --org-tag-bg). */
+  --status-warn-solid:      var(--c-st-warn-text);   /* ghost banner */
+  --status-danger-solid:    var(--c-st-danger);      /* destructive buttons */
+  --status-neutral-on-pale: var(--c-n-500);
+  /* Chart series (N-406) — ordered categorical; themed in dark */
+  --chart-1: var(--c-chart-1); --chart-2: var(--c-chart-2);
+  --chart-3: var(--c-chart-3); --chart-4: var(--c-chart-4);
+  --chart-5: var(--c-chart-5); --chart-6: var(--c-chart-6);
+  --chart-7: var(--c-chart-7); --chart-8: var(--c-chart-8);
+  /* Elevation (N-406) — component rules read these, never --sh-elev-* */
+  --elev-card:         var(--sh-elev-1);
+  --elev-raised:       var(--sh-elev-2);
+  --elev-overlay:      var(--sh-elev-3);
+  --elev-modal:        var(--sh-elev-4);
+  --elev-hairline-top: var(--sh-hairline-top);
   /* Permanently-dark chrome — sidebar, module dropdown, homepage, CC homepage
      banner, Quick Links drawer, notification drawer. These surfaces are dark in
      BOTH themes: N-102 must NOT redefine this group. */
@@ -448,7 +537,11 @@
        chrome groups (--inverse-*, --badge-cc-*, --notif-*, --coe-*,
        --lci-status-*, --org-*, --eng-*-text-deep, --badge-completed-bg,
        --ttf-badge-*, --btn-icon-danger-hover-border) here — see
-       newton-pipeline/specs/N-102-mapping.md for the full exclusion list. ── */
+       newton-pipeline/specs/N-102-mapping.md for the full exclusion list.
+       N-406 (VF-2): adds the --status-*-text / --status-neutral roles,
+       --border-control, --chart-* and --elev-* (dark elevation via
+       --sh-elev-dark-*); the --status-*-solid / -on-pale tokens are
+       deliberately absent. ── */
   color-scheme: dark; /* themes native <select>/<input type=date> popups (QA round 1) */
   --surface-app:          var(--c-dark-bg);
   --surface:              var(--c-dark-surface);
@@ -479,18 +572,33 @@
   --border-subtle:        var(--c-dark-border-subtle);
   --border-faint:         var(--c-dark-border-subtle);
   --border-muted:         var(--c-dark-border);
-  --border-focus:         var(--c-blue);
+  --border-focus:         var(--c-blue-soft); /* N-406: ring ≥3:1 on dark surfaces (VF-D10; was --c-blue, 2.7:1) */
   --border-neutral:       var(--c-dark-border-neutral);
+  --border-control:       var(--c-dark-border-control);
   --status-success:       var(--c-dark-success);
+  --status-success-text:  var(--c-dark-success);
   --status-success-bg:    var(--c-dark-success-bg);
   --status-warn:          var(--c-dark-warn);
   --status-warn-strong:   var(--c-dark-warn);
+  --status-warn-text:     var(--c-dark-warn);
   --status-warn-bg:       var(--c-dark-warn-bg);
   --status-warn-bg-soft:  var(--c-dark-warn-bg-soft);
   --status-danger:        var(--c-dark-danger);
+  --status-danger-text:   var(--c-dark-danger);
   --status-danger-bg:     var(--c-dark-danger-bg);
   --status-danger-bg-soft: var(--c-dark-danger-bg-soft);
+  --status-neutral:       var(--c-dark-text-muted);
   --status-neutral-bg:    var(--c-dark-neutral-bg);
+  /* N-406: chart series and elevation */
+  --chart-1: var(--c-chart-dark-1); --chart-2: var(--c-chart-dark-2);
+  --chart-3: var(--c-chart-dark-3); --chart-4: var(--c-chart-dark-4);
+  --chart-5: var(--c-chart-dark-5); --chart-6: var(--c-chart-dark-6);
+  --chart-7: var(--c-chart-dark-7); --chart-8: var(--c-chart-dark-8);
+  --elev-card:            var(--sh-elev-dark-1);
+  --elev-raised:          var(--sh-elev-dark-2);
+  --elev-overlay:         var(--sh-elev-dark-3);
+  --elev-modal:           var(--sh-elev-dark-4);
+  --elev-hairline-top:    var(--sh-hairline-top-dark);
 }
 [data-density="compact"] {
   /* Compact density (N-194) — tighter table cell padding/font. Bare
@@ -509,48 +617,69 @@
        specificity as [data-theme="dark"] above; this rule is later in the
        file, so it wins the tie for print media (spec Gotcha G1). The other
        component-specific @media print blocks further down this file need no
-       changes — they already consume var(--surface)/var(--brand)/etc. */
-    --surface-app: var(--c-surface);
-    --surface: var(--c-white);
-    --surface-raised: var(--c-white);
-    --surface-sunken: var(--c-gray-050);
-    --surface-hover: var(--c-gray-075);
-    --surface-faint: var(--c-gray-025);
-    --surface-muted: var(--c-gray-mid);
-    --surface-disabled: var(--c-gray-100);
-    --surface-alt: var(--c-surface-blue);
-    --surface-alt-border: var(--c-surface-border);
-    --surface-tint: var(--c-surface-lav);
+       changes — they already consume var(--surface)/var(--brand)/etc.
+       N-406: this list MUST name exactly the tokens the [data-theme="dark"]
+       block redefines, each at the same value as the light semantic :root
+       above (print = light theme). */
+    --surface-app: var(--c-n-50);
+    --surface: var(--c-n-0);
+    --surface-raised: var(--c-n-0);
+    --surface-sunken: var(--c-n-75);
+    --surface-hover: var(--c-n-75);
+    --surface-faint: var(--c-n-25);
+    --surface-muted: var(--c-n-100);
+    --surface-disabled: var(--c-n-100);
+    --surface-alt: var(--c-tint-info);
+    --surface-alt-border: var(--c-tint-info-border);
+    --surface-tint: var(--c-tint-lav);
     --surface-tooltip: var(--c-ink);
     --brand: var(--c-brand);
     --brand-hover: var(--c-blue);
     --brand-tertiary: var(--c-navy-steel);
-    --text-primary: var(--c-ink);
-    --text-secondary: var(--c-gray-800);
-    --text-label: var(--c-gray-650);
-    --text-muted: var(--c-gray-500);
-    --text-faint: var(--c-gray-400);
+    --text-primary: var(--c-n-800);
+    --text-secondary: var(--c-n-700);
+    --text-label: var(--c-n-600);
+    --text-muted: var(--c-n-500);
+    --text-faint: var(--c-n-400);
     --text-heading: var(--c-brand);
     --text-link: var(--c-brand);
     --text-link-hover: var(--c-blue);
-    --border-strong: var(--c-gray-250);
-    --border-mid: var(--c-gray-200);
-    --border: var(--c-gray-150);
-    --border-subtle: var(--c-gray-100);
-    --border-faint: var(--c-gray-075);
-    --border-muted: var(--c-gray-mid);
+    --border-strong: var(--c-n-200);
+    --border-mid: var(--c-n-150);
+    --border: var(--c-n-150);
+    --border-subtle: var(--c-n-100);
+    --border-faint: var(--c-n-75);
+    --border-muted: var(--c-n-100);
     --border-focus: var(--c-brand);
-    --border-neutral: var(--c-gray-350);
-    --status-success: var(--c-success);
-    --status-success-bg: var(--c-success-bg);
-    --status-warn: var(--c-warn);
-    --status-warn-strong: var(--c-warn-deep);
-    --status-warn-bg: var(--c-warn-bg);
-    --status-warn-bg-soft: var(--c-warn-bg-soft);
-    --status-danger: var(--c-danger);
-    --status-danger-bg: var(--c-danger-bg);
-    --status-danger-bg-soft: var(--c-danger-bg-soft);
-    --status-neutral-bg: var(--c-bluegrey-bg);
+    --border-neutral: var(--c-n-300);
+    --border-control: var(--c-n-400);
+    --status-success: var(--c-st-success);
+    --status-success-text: var(--c-st-success);
+    --status-success-bg: var(--c-st-success-bg);
+    --status-warn: var(--c-st-warn-fill);
+    --status-warn-strong: var(--c-st-warn-text);
+    --status-warn-text: var(--c-st-warn-text);
+    --status-warn-bg: var(--c-st-warn-bg);
+    --status-warn-bg-soft: var(--c-st-warn-bg-soft);
+    --status-danger: var(--c-st-danger);
+    --status-danger-text: var(--c-st-danger);
+    --status-danger-bg: var(--c-st-danger-bg);
+    --status-danger-bg-soft: var(--c-st-danger-bg-soft);
+    --status-neutral: var(--c-n-500);
+    --status-neutral-bg: var(--c-n-100);
+    --chart-1: var(--c-chart-1);
+    --chart-2: var(--c-chart-2);
+    --chart-3: var(--c-chart-3);
+    --chart-4: var(--c-chart-4);
+    --chart-5: var(--c-chart-5);
+    --chart-6: var(--c-chart-6);
+    --chart-7: var(--c-chart-7);
+    --chart-8: var(--c-chart-8);
+    --elev-card: var(--sh-elev-1);
+    --elev-raised: var(--sh-elev-2);
+    --elev-overlay: var(--sh-elev-3);
+    --elev-modal: var(--sh-elev-4);
+    --elev-hairline-top: var(--sh-hairline-top);
   }
 
   /* ── Global print chrome (N-201) ──────────────────────────────
@@ -955,7 +1084,7 @@ body {
   margin-bottom: var(--sp-7);
   font-size: var(--fs-13);
 }
-.btn-danger-confirm { background: var(--status-danger); }
+.btn-danger-confirm { background: var(--status-danger-solid); }
 /* ── Buttons ────────────────────────────────────────────────────────── */
 .btn-primary {
   background: var(--brand);
@@ -1476,7 +1605,7 @@ body {
   left: 0;
   right: 0;
   z-index: var(--z-banner);
-  background: var(--status-warn-text);
+  background: var(--status-warn-solid);
   color: var(--text-on-brand);
   font-size: var(--fs-13);
   font-weight: 500;
@@ -1880,8 +2009,8 @@ body {
 .confirm-modal-title { margin: 0 0 var(--sp-5); font-size: var(--fs-18); color: var(--text-heading); letter-spacing: var(--ls-heading); }
 .confirm-modal-message { margin: 0 0 var(--sp-9); font-size: var(--fs-14); color: var(--text-secondary); }
 .confirm-modal-actions { display: flex; justify-content: flex-end; gap: var(--sp-6); }
-.confirm-modal-confirm--danger { background: var(--status-danger); }
-.confirm-modal-confirm--danger:hover { background: var(--status-danger-text); }
+.confirm-modal-confirm--danger { background: var(--status-danger-solid); }
+.confirm-modal-confirm--danger:hover { background: var(--status-danger-solid); }
 .confirm-modal-input {
   width: 100%;
   margin: 0 0 var(--sp-8);

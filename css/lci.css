@@ -10,7 +10,7 @@
   font-size: var(--fs-12);
   font-weight: 600;
 }
-.lci-status--draft     { background: var(--lci-status-draft-bg); color: var(--status-neutral); }
+.lci-status--draft     { background: var(--lci-status-draft-bg); color: var(--status-neutral-on-pale); }
 .lci-status--presented { background: var(--lci-status-presented-bg); color: var(--lci-status-presented-text); }
 .lci-status--won       { background: var(--status-success-bg); color: var(--status-success); }
 .lci-status--lost      { background: var(--status-warn-bg-soft); color: var(--status-danger); }

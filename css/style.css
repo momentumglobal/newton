@@ -300,6 +300,7 @@
   --sh-4: 0 4px 24px rgba(10,11,68,0.10);
   --sh-modal: 0 8px 32px rgba(0,0,0,0.18);
   --sh-drawer: -8px 0 32px rgba(0,0,0,0.4);
+  --scrim: rgba(0,0,0,0.45);   /* N-409: modal / command-bar backdrop */
   --sh-focus: 0 0 0 3px rgba(10,11,68,0.08);
   /* Elevation (N-406) — layered light steps + dark steps. Consumed only via
      the semantic --elev-* tokens; the dark block re-points those, never these. */
@@ -377,7 +378,7 @@
   --surface-alt-border:  var(--c-tint-info-border); /* border pairing with --surface-alt */
   --surface-tint:        var(--c-tint-lav);       /* lavender wash panels */
   --surface-tooltip:     var(--c-ink);            /* dark tooltip body */
-  --surface-accent:      var(--c-blue);           /* accent bar / active nav rail */
+  --surface-accent:      var(--c-blue);           /* accent bar / KPI tab */
   --surface-accent-2:    var(--c-blue-mid);       /* secondary accent fill */
   /* Brand */
   --brand:               var(--c-brand);          /* sidebar, primary button, headings */
@@ -840,7 +841,7 @@ body {
 #sidebar {
   width: 220px;
   min-width: 220px;
-  background: var(--inverse-surface);
+  background: linear-gradient(180deg, var(--inverse-surface) 0%, var(--inverse-surface-2) 100%);
   color: var(--inverse-text);
   display: flex;
   flex-direction: column;
@@ -853,7 +854,7 @@ body {
 .nav-user    { padding: 14px var(--sp-8); border-bottom: 1px solid var(--inverse-divider); position: relative; }   /* position: anchor for the notification bell */
 .nav-user-name { font-size: var(--fs-13); font-weight: 600; }
 .nav-user-role { font-size: var(--fs-11); color: var(--inverse-text-strong); margin-top: var(--sp-1); text-transform: capitalize; }
-.nav-links { flex: 1; padding: var(--sp-6) 0; }
+.nav-links { flex: 1; padding: var(--sp-6) var(--sp-4); }
 .nav-link {
   display: block;
   padding: var(--sp-5) var(--sp-8);
@@ -861,17 +862,18 @@ body {
   text-decoration: none;
   font-size: var(--fs-14);
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
-  border-left: var(--sp-1) solid transparent;
+  border-radius: var(--r-lg);
+  margin-bottom: var(--sp-1);
+  transition: background var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard);
 }
 .nav-link:hover  { background: var(--inverse-hover-bg); color: var(--inverse-text); }
 .nav-link.active {
-  background: rgba(46,95,163,0.35);
+  background: var(--inverse-active-bg);
   color: var(--inverse-text);
   font-weight: 600;
-  border-left-color: var(--surface-accent);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
-.nav-link.signout { color: var(--inverse-text-label); font-size: var(--fs-13); border-left-color: transparent; }
+.nav-link.signout { color: var(--inverse-text-label); font-size: var(--fs-13); margin-bottom: 0; border-radius: 0; }
 .nav-logo-img {
   display: block;
   width: 140px;
@@ -892,7 +894,7 @@ body {
   font-size: var(--fs-13);
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
+  transition: background var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard);
 }
 .nav-theme-toggle:hover,
 .nav-footer-btn:hover { background: var(--inverse-hover-bg); color: var(--inverse-text); }
@@ -979,9 +981,9 @@ body {
   outline-color: var(--text-on-brand);
 }
 /* ── Forms ──────────────────────────────────────────────────────────── */
-.form-container { max-width: 720px; padding: var(--sp-9); }
+.form-container { max-width: 760px; padding: var(--sp-9); }
 /* Modal card variant — for .form-container reused inside a fixed overlay (N-265). Base class stays transparent for page-level forms. */
-.form-container--modal { background: var(--surface-raised); border-radius: var(--r-xl); box-shadow: var(--sh-modal); }
+.form-container--modal { background: var(--surface-raised); border-radius: var(--r-xl); box-shadow: var(--elev-modal); }
 .form-container h2 { margin-bottom: var(--sp-8); color: var(--text-heading); font-weight: 600; letter-spacing: var(--ls-heading); }
 .form-group { display: flex; flex-direction: column; margin-bottom: var(--sp-7); }
 .form-group label { font-size: var(--fs-13); font-weight: 600; margin-bottom: var(--sp-2); color: var(--text-secondary); }
@@ -1034,7 +1036,7 @@ body {
 .notes-toggle { font-size: var(--fs-12); margin-left: var(--sp-3); white-space: nowrap; cursor: pointer; }
 .notes-body { line-height: 1.5; }
 .form-section-title {
-  font-weight: 700; font-size: var(--fs-13); text-transform: uppercase;
+  font-weight: 700; font-size: var(--fs-13); text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--text-heading); margin: var(--sp-7) 0 var(--sp-4);
   border-bottom: 1px solid var(--border); padding-bottom: var(--sp-2);
 }
@@ -1047,14 +1049,21 @@ body {
    inside a collapsed <details> — the browser blocks submit silently.
    The base .form-section-title rule above is left untouched (the Weekly
    Activity form still uses it as a plain <div>). */
-.form-section { border: 0; padding: 0; margin: 0 0 var(--sp-9); min-inline-size: 0; }
-/* Legend: float + full width makes it lay out like a normal block (a
-   rendered legend otherwise sits in the fieldset border and ignores width). */
-.form-section > legend.form-section-title { float: left; width: 100%; margin-top: 0; padding: 0 0 var(--sp-2); }
-.form-section > legend.form-section-title + * { clear: both; }
+/* N-409: a section is a card (N-405 mockup). The legend sits in the card
+   border like a classic fieldset legend (float: none, width: auto). */
+.form-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2xl);
+  padding: var(--sp-8) var(--sp-9) var(--sp-4);
+  box-shadow: var(--elev-card);
+  margin: 0 0 var(--sp-8);
+  min-inline-size: 0;
+}
+.form-section > legend.form-section-title { float: none; width: auto; padding: 0 var(--sp-3); margin: 0; border-bottom: 0; }
 .form-section--collapsible > summary.form-section-title {
   display: flex; align-items: center; gap: var(--sp-3);
-  margin-top: 0; cursor: pointer; list-style: none;
+  margin-top: 0; padding-bottom: var(--sp-5); cursor: pointer; list-style: none;
 }
 .form-section--collapsible > summary.form-section-title::-webkit-details-marker { display: none; }
 .form-section--collapsible > summary.form-section-title::before {
@@ -1066,7 +1075,7 @@ body {
 .form-section-hint { font-size: var(--fs-12); font-weight: var(--fw-regular); text-transform: none; color: var(--text-muted); }
 /* N-307: one-line explanatory note inside a role-form fieldset (Headcount). */
 .form-section-note { margin: 0 0 var(--sp-5); font-size: var(--fs-13); color: var(--text-label); }
-.form-actions { display: flex; gap: var(--sp-6); margin-top: var(--sp-9); }
+.form-actions { display: flex; gap: var(--sp-6); margin-top: var(--sp-9); padding-top: var(--sp-3); }
 .form-error {
   display: none;
   background: var(--status-danger-bg-soft);
@@ -1528,7 +1537,7 @@ body {
   display: block; padding: var(--sp-4) var(--sp-7);
   color: var(--inverse-text-primary-soft);
   text-decoration: none; font-size: var(--fs-13);
-  transition: background 150ms ease, color 150ms ease;
+  transition: background var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard);
 }
 .nav-module-home:hover { background: var(--inverse-hover-bg); color: var(--inverse-text); }
 .nav-module-divider { border-top: 1px solid var(--inverse-border); margin: var(--sp-2) 0; }
@@ -1536,7 +1545,7 @@ body {
   display: block; padding: var(--sp-4) var(--sp-7);
   color: var(--inverse-text-primary-soft);
   text-decoration: none; font-size: var(--fs-13);
-  transition: background 150ms ease, color 150ms ease;
+  transition: background var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard);
 }
 .nav-module-item:hover { background: var(--inverse-hover-bg); color: var(--inverse-text); }
 .nav-module-item.current  { color: var(--inverse-text); font-weight: 600; }
@@ -1782,11 +1791,11 @@ body {
 /* Empty state — shared component (N-103), generalised from the engagement-only version */
 .empty-state {
   display: flex; flex-direction: column; align-items: center; text-align: center;
-  padding: 60px var(--sp-8); gap: var(--sp-6); color: var(--text-muted);
+  padding: var(--sp-13) var(--sp-8); gap: var(--sp-6); color: var(--text-muted);
 }
 .empty-state-icon { width: var(--sp-11); height: var(--sp-11); stroke-width: 1.2; color: var(--text-faint); }
-.empty-state-title { font-size: var(--fs-16); font-weight: 600; color: var(--text-secondary); margin: 0; }
-.empty-state-message { font-size: var(--fs-14); color: var(--text-muted); margin: 0; max-width: 420px; }
+.empty-state-title { font-size: var(--fs-16); font-weight: 600; color: var(--text-heading); letter-spacing: var(--ls-heading); margin: 0; }
+.empty-state-message { font-size: var(--fs-14); color: var(--text-muted); margin: 0; max-width: 420px; line-height: 1.5; }
 .empty-state-action { margin-top: var(--sp-2); }
 .empty-state-icon--error { color: var(--status-danger-text); }
 
@@ -1838,8 +1847,8 @@ body {
   z-index: 61;
   display: flex; flex-direction: column;
   transform: translateX(100%);
-  transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
-  box-shadow: -8px 0 var(--sp-10) rgba(0,0,0,0.4);
+  transition: transform var(--dur-slow) var(--ease-standard);
+  box-shadow: var(--sh-drawer);
 }
 .notif-drawer.open { transform: translateX(0); }
 .notif-drawer-head {
@@ -1926,17 +1935,19 @@ body {
 .skel-card {
   flex: 1; min-width: 140px;
   background: var(--surface);
-  border: 1px solid var(--border-muted);
+  border: 1px solid var(--border);
   border-radius: var(--r-xl);
-  padding: 18px var(--sp-8);
+  padding: var(--sp-7) var(--sp-8) var(--sp-6);
+  box-shadow: var(--elev-card);
 }
-.skel-card .skel-line-value { height: 26px; width: 60%; margin-bottom: var(--sp-5); }
+.skel-card .skel-line-value { height: calc(var(--fs-display-sm) * 1.1); width: 60%; margin-top: var(--sp-2); margin-bottom: var(--sp-5); }
 .skel-card .skel-line-label { height: var(--sp-5); width: 80%; }
 .skel-panel {
   background: var(--surface);
-  border: 1px solid var(--border-muted);
-  border-radius: var(--r-xl);
-  padding: var(--sp-8);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2xl);
+  padding: var(--sp-9);
+  box-shadow: var(--elev-card);
   margin-top: var(--sp-7);
 }
 .skel-panel .skel-line {
@@ -2002,15 +2013,15 @@ body {
   align-items: center;
   gap: var(--sp-4);
   padding: var(--sp-6) var(--sp-7);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-xl);
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  box-shadow: 0 var(--sp-3) var(--sp-9) rgba(0,0,0,0.18);
+  box-shadow: var(--elev-overlay);
   font-size: var(--fs-13);
   color: var(--text-primary);
-  animation: toast-in 180ms ease;
+  animation: toast-in var(--dur-base) var(--ease-out);
 }
-.toast--leaving { animation: toast-out 180ms ease forwards; }
+.toast--leaving { animation: toast-out var(--dur-base) var(--ease-in) forwards; }
 .toast-icon { width: var(--sp-8); height: var(--sp-8); flex-shrink: 0; }
 .toast--info    .toast-icon { color: var(--brand); }
 .toast--success .toast-icon { color: var(--status-success); }
@@ -2033,14 +2044,14 @@ body {
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .confirm-modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  position: fixed; inset: 0; background: var(--scrim);
   display: flex; align-items: center; justify-content: center;
   z-index: var(--z-confirm); padding: var(--sp-8);
 }
 .confirm-modal {
   background: var(--surface-raised);
   border-radius: var(--r-2xl);
-  box-shadow: 0 var(--sp-4) var(--sp-10) rgba(0,0,0,0.18);
+  box-shadow: var(--elev-modal);
   padding: var(--sp-10);
   width: 100%;
   max-width: 420px;
@@ -2074,14 +2085,14 @@ body {
    No entrance animation — see #payroll-modal-overlay above for the
    fadeIn keyframe (fixed N-161). ── */
 .cmd-bar-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  position: fixed; inset: 0; background: var(--scrim);
   display: flex; align-items: flex-start; justify-content: center;
   z-index: var(--z-command); padding: var(--sp-8);
 }
 .cmd-bar-panel {
   background: var(--surface-raised);
   border-radius: var(--r-2xl);
-  box-shadow: var(--sh-modal);
+  box-shadow: var(--elev-modal);
   width: 100%;
   max-width: 560px;
   margin-top: 10vh;

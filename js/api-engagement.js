@@ -16,7 +16,8 @@
 // the response rate; who can actually answer is CONFIG.SURVEY_RESPONDENT_ROLES.
 async function getEligibleRespondentCount() {
   const people = await getPeople(true);
-  return people.filter(p => isSurveyEligibleEmployee(p)).length;
+  // N-424: staff who have not started yet cannot respond, so they are not in the denominator.
+  return people.filter(p => isSurveyEligibleEmployee(p) && isStartedPerson(p)).length;
 }
 
 // ── Read ──────────────────────────────────────────────────────────────

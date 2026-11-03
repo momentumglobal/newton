@@ -1954,8 +1954,12 @@ function isPayrollPerson(p) {
 function activeDeployablePeople(people) {
   return (people || []).filter(p => p.IsActive !== false && isDeployablePerson(p));   // N-304
 }
-function activeDeployableCount(people) {
-  return activeDeployablePeople(people).length;
+// N-424: asOf = the date the headcount is measured at (default today). Someone whose StartDate is
+// after asOf has not started and is left out; pass a month end for a forecast month (N-423 D1).
+// activeDeployablePeople() is NOT filtered by start date: Sync Bench needs a joiner's bench rows
+// from day one.
+function activeDeployableCount(people, asOf = new Date()) {
+  return activeDeployablePeople(people).filter(p => isStartedPerson(p, asOf)).length;
 }
 
 // N-394: the People Dashboard period filter -> { start, end } local Dates. filter =
@@ -2015,7 +2019,8 @@ function groupInternalByFunction(people) {
 // Active internal staff counted per function (People Dashboard, N-304):
 // [[function, n], …] in groupInternalByFunction() order; empty functions omitted.
 function countInternalByFunction(people) {
-  return groupInternalByFunction((people || []).filter(p => p && p.IsActive !== false))
+  // N-424: staff who have not started yet are not counted.
+  return groupInternalByFunction((people || []).filter(p => p && p.IsActive !== false && isStartedPerson(p)))
     .map(([fn, members]) => [fn, members.length]);
 }
 

@@ -37,7 +37,7 @@ function _barChart(data, valueFormatter) {
 
 // ── Team Utilisation Line Graph ───────────────────
 // N-257b: RAG bands replaced by neutral threshold lines (_chartThresholdSvg), reusing N-257a's helper.
-function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, totalActiveHeadcount) {
+function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, headcountFor) {
   const now       = new Date();
   const thisYear  = now.getFullYear();
   const curMonth  = now.getMonth(); // 0-based
@@ -45,7 +45,7 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
   const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   // N-394: both series come from utilisationYearSeries() (analytics.js), shared with the MCP tool.
-  const series = utilisationYearSeries(allRows, assignments, salesForecasts, totalActiveHeadcount, now);
+  const series = utilisationYearSeries(allRows, assignments, salesForecasts, headcountFor, now);
   const points = series.points.map(p => ({ label: MONTH_LABELS[p.monthIdx], util: p.util, monthIdx: p.monthIdx }));
 
   const actualPoints   = points.filter(p => p.monthIdx <= curMonth);
@@ -281,7 +281,7 @@ function _renderSegmentationPanel(people) {
   // Active deployable employees only — internal staff (N-304) are counted
   // separately, by function, in the fourth table; External partners (N-402)
   // are not Momentum workforce and appear in neither.
-  const active = people.filter(p => p.IsActive !== false && !isInternalStaff(p) && !isExternalStaff(p));
+  const active = people.filter(p => p.IsActive !== false && !isInternalStaff(p) && !isExternalStaff(p) && isStartedPerson(p));   // N-424
   const total  = active.length;
   const internalByFn = countInternalByFunction(people);
 
@@ -405,14 +405,15 @@ async function renderPeopleDashboard() {
     getSalesForecasts(),
   ]);
 
-  const totalActiveHeadcount = activeDeployableCount(people);   // N-304
+  // N-304 / N-424: the sales-forecast line divides by the people who will have started by each month's end.
+  const headcountFor = i => activeDeployableCount(people, new Date(new Date().getFullYear(), i + 1, 0));
 
   const allRows = computeMonthlyRows(assignments);
 
 const { start, end } = peoplePeriodRange(_dashFilter);
   const periodRows = monthlyRowsInRange(allRows, start, end);
   const kpiStrip     = await _renderKPIStrip(allRows, people, assignments);
-  const utilLineGraph = _renderUtilisationLineGraph(allRows, assignments, salesForecasts, totalActiveHeadcount);
+  const utilLineGraph = _renderUtilisationLineGraph(allRows, assignments, salesForecasts, headcountFor);
   const utilisPanel  = _renderUtilisationPanel(periodRows, people);
   const revenuePanel = _renderRevenuePanel(periodRows);
   const segmentPanel = _renderSegmentationPanel(people);

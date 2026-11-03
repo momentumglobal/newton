@@ -251,6 +251,61 @@ ASSERTIONS.push(
     },
   },
   {
+    name: 'N-424: staff who have not started are left out of segmentation, internal-by-function, the survey eligible count and utilisation denominators (month-aware); Sync Bench pool unchanged',
+    fn: function () {
+      const now = new Date();
+      const mStart = k => new Date(now.getFullYear(), now.getMonth() + k, 1);
+      const mEnd = k => new Date(now.getFullYear(), now.getMonth() + k + 1, 0);
+      const stamp = d => localDayISO(d) + 'T12:00:00Z';
+      const old = '2024-01-15T12:00:00Z';
+      const ann = { EmployeeName: 'Ann', Level: 'TP', StartDate: old };
+      const bob = { EmployeeName: 'Bob', Level: 'TP', StartDate: old };
+      const gus = { EmployeeName: 'Gus', Level: 'TP', StartDate: stamp(mStart(2)) };    // first day of the month after next
+      const far = { EmployeeName: 'Far', Level: 'TP', StartDate: stamp(mStart(14)) };
+      // activeDeployableCount(people, asOf)
+      _assertEqual(activeDeployableCount([ann, bob, gus], mEnd(1)), 2, 'not started by the end of next month: left out');
+      _assertEqual(activeDeployableCount([ann, bob, gus], mStart(2)), 3, 'start day inclusive');
+      _assertEqual(activeDeployableCount([ann, bob, gus], mEnd(2)), 3, 'started by that month end: counted');
+      _assertEqual(activeDeployableCount([ann, bob, far]), 2, 'default asOf is today');
+      _assertEqual(activeDeployableCount([ann, bob, far], mEnd(14)), 3, 'counted once asOf reaches the start');
+      _assertEqual(activeDeployableCount(null), 0, 'null people');
+      _assertEqual(activeDeployablePeople([ann, bob, far]).length, 3, 'activeDeployablePeople unchanged: Sync Bench still sees the future starter');
+      // countInternalByFunction
+      const I = CONFIG.STAFF_TYPE_INTERNAL, F = CONFIG.INTERNAL_FUNCTIONS[0];
+      const internal = (name, start) => ({ EmployeeName: name, StaffType: I, StaffFunction: F, IsActive: true, StartDate: start });
+      _assertEqual(countInternalByFunction([internal('Ina', old), internal('Ivo', stamp(mStart(14)))]), [[F, 1]], 'internal future starter not counted');
+      _assertEqual(countInternalByFunction([internal('Ina', old), internal('Ivy', stamp(mStart(-1)))]), [[F, 2]], 'internal started staff counted');
+      // utilisationOutlook: Gus joins at the start of month +2
+      const A = (name, s, e) => ({ AssignmentID: 'x-' + name, EmployeeName: name, Level: 'TP', Customer: 'Acme', StartDate: localDayISO(s), EndDate: localDayISO(e), Billed: 'No', MonthlyBillRate: 1000 });
+      const assigns = [A('Ann', mStart(-1), mEnd(4))];
+      const fc = [{ ForecastStartDate: localDayISO(mStart(1)), ForecastEndDate: localDayISO(mEnd(3)), ForecastedHeadcount: 1 }];
+      const out = utilisationOutlook(fc, assigns, [ann, bob, gus], now, 3);
+      const hcs = [2, 3, 3];
+      _assertEqual(out.map(x => x.forecast), out.map((x, i) => Math.min(x.planned + 1 / hcs[i], 1)), 'outlook: Gus is in the denominator from month +2, not month +1');
+      const without = utilisationOutlook(fc, assigns, [ann, bob], now, 3);
+      _assertEqual(out[0].forecast, without[0].forecast, 'month +1 unaffected by a later joiner');
+      _assertEqual(out[1].forecast !== without[1].forecast, true, 'control: month +2 does move');
+      // utilisationYearSeries: number or function headcount
+      const y = now.getFullYear(), cur = now.getMonth();
+      const yfc = [{ ForecastStartDate: y + '-01-01', ForecastEndDate: y + '-12-31', ForecastedHeadcount: 1 }];
+      const rows = computeMonthlyRows([]);
+      const byNum = utilisationYearSeries(rows, [], yfc, 2, now);
+      _assertEqual(utilisationYearSeries(rows, [], yfc, () => 2, now), byNum, 'constant function equals the number form');
+      const perMonth = utilisationYearSeries(rows, [], yfc, i => (i === cur ? 1 : 2), now);
+      _assertEqual([byNum.salesPoints[cur].util, perMonth.salesPoints[cur].util], [0.5, 1], 'current month uses the function value (D2)');
+      // 13-week headline stays on today (D3)
+      const f13 = [{ ForecastStartDate: now.toISOString(), ForecastEndDate: new Date(now.getTime() + 60 * 86400000).toISOString(), ForecastedHeadcount: 1 }];
+      _assertEqual(JSON.stringify(utilisationForecastCalc(f13, [], [ann, bob, far])), JSON.stringify(utilisationForecastCalc(f13, [], [ann, bob])), '13-week headline: a future starter does not lower the forecast');
+      if (typeof ALL_SOURCES !== 'undefined') {
+        _assertEqual(/isSurveyEligibleEmployee\(p\) && isStartedPerson\(p\)/.test(ALL_SOURCES['api-engagement.js']), true, 'survey eligible count filters on isStartedPerson');
+        const seg = ALL_SOURCES['people-dashboard.js'].match(/function _renderSegmentationPanel[\s\S]*?const total/);
+        _assertEqual(!!seg && /isStartedPerson\(p\)/.test(seg[0]), true, 'Workforce Segmentation filters on isStartedPerson');
+        const body = ALL_SOURCES['utils.js'].match(/function activeDeployablePeople\([\s\S]*?\n\}\n/);
+        _assertEqual(!!body && !/isStartedPerson/.test(body[0]), true, 'activeDeployablePeople() carries no start-date filter');
+      }
+    },
+  },
+  {
     name: 'N-304: groupInternalByFunction / countInternalByFunction — config order, Unknown last, inactive / placeholder / deployable excluded',
     fn: function () {
       const I = CONFIG.STAFF_TYPE_INTERNAL;

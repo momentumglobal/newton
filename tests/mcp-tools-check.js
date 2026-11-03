@@ -407,7 +407,7 @@ async function run() {
       utilised: roll.total.utilised, active: roll.total.active,
       bands: roll.bands.map(b => [b.band, Math.round(b.u * 1000) / 10, b.utilised, b.total]),
       monthly: utilisationByMonth(rows).map(m => [m.month, Math.round(m.u * 1000) / 10]),
-      series: utilisationYearSeries(all, a, fc, activeDeployableCount(ppl), new Date()) });
+      series: utilisationYearSeries(all, a, fc, i => activeDeployableCount(ppl, new Date(new Date().getFullYear(), i + 1, 0)), new Date()) });   // N-424
   })()`);
 
   await check('N-394 AC5/AC6 utilisation = the People Dashboard calls (period rows, band roll-up, monthly trend, year series) for default, month, quarter and whole-year periods; empty period is null', async () => {

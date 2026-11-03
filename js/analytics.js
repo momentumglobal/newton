@@ -1301,12 +1301,12 @@ function scorecardCustomers(assigns, allProjects, today) {
 // Returns [{ year, month (1-12), planned, forecast }].
 function utilisationOutlook(forecasts, assigns, people, today, months = 3) {
   const now = today;
-  const totalActiveHeadcount = activeDeployableCount(people);   // N-304
   const fwdRows = computeMonthlyRows(assigns, { through: new Date(now.getFullYear(), now.getMonth() + months, 1) });
   return Array.from({ length: months }, (_, i) => i + 1).map(offset => {
     const d      = new Date(now.getFullYear(), now.getMonth() + offset, 1);
     const mStart = d;
     const mEnd   = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    const totalActiveHeadcount = activeDeployableCount(people, mEnd);   // N-304; N-424: people started by this month's end
     const planned = personUtilisation(fwdRows.filter(r =>
       r.Year === d.getFullYear() && r.Month === d.getMonth() + 1)).ratio;
     const forecastedHC = forecasts.reduce((sum, f) => {
@@ -1353,6 +1353,8 @@ function salesForecastUtil(monthIdx, salesForecasts, totalActiveHeadcount, assig
 //   salesPoints [{ monthIdx, util }] - from the current month on: points' value (the current
 //               month anchors to actual) plus SalesForecasts; null before the current month.
 // allRows = computeMonthlyRows(assignments); salesForecasts [] when unreadable.
+// totalActiveHeadcount: a number, or (N-424) a function monthIdx (0-11) -> count, so each month's
+// denominator can count the people who will have started by that month's end.
 function utilisationYearSeries(allRows, assignments, salesForecasts, totalActiveHeadcount, now) {
   const thisYear = now.getFullYear();
   const curMonth = now.getMonth(); // 0-based
@@ -1384,7 +1386,8 @@ function utilisationYearSeries(allRows, assignments, salesForecasts, totalActive
     const baseUtil = i === curMonth
       ? (points.find(p => p.monthIdx === curMonth)?.util ?? _forecastUtil(i))
       : _forecastUtil(i);
-    return { monthIdx: i, util: salesForecastUtil(i, salesForecasts, totalActiveHeadcount, baseUtil, now) };
+    const hc = typeof totalActiveHeadcount === 'function' ? totalActiveHeadcount(i) : totalActiveHeadcount;
+    return { monthIdx: i, util: salesForecastUtil(i, salesForecasts, hc, baseUtil, now) };
   });
 
   return { points, salesPoints };

@@ -731,7 +731,7 @@ async function mcpUtilisation(args) {
   const periodRows = monthlyRowsInRange(allRows, start, end);
   const u = personUtilisation(periodRows);
   const roll = utilisationBandRollup(periodRows);
-  const series = utilisationYearSeries(allRows, assignments, forecasts, activeDeployableCount(people), now);
+  const series = utilisationYearSeries(allRows, assignments, forecasts, i => activeDeployableCount(people, new Date(now.getFullYear(), i + 1, 0)), now);   // N-424: month-end headcount
   const monthKey = idx => `${thisYear}-${String(idx + 1).padStart(2, '0')}`;
   const curMonth = now.getMonth();
   const t = CONFIG.UTILISATION_THRESHOLDS;

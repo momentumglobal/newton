@@ -123,9 +123,8 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
   ]);
 
     return `
-    <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--border);border-radius:6px;
-                padding:20px 20px 12px;margin-bottom:24px'>
-      <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
+    <div class='print-avoid-break ppl-card ppl-card--chart'>
+      <div class='ppl-card-title'>
         Team Utilisation ${thisYear}</div>
       <svg viewBox='0 0 ${W} ${H}' style='width:100%;height:auto;display:block'
            xmlns='http://www.w3.org/2000/svg'>
@@ -149,13 +148,11 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, total
 }
 
 // ── People Dashboard KPI Strip ────────────────────
-function _kpiCard(label, value, sub, bg) {
-  return `<div style='background:${bg || 'var(--surface)'};border:1px solid var(--border);border-radius:6px;
-                      padding:16px 20px;min-width:160px;flex:1'>
-    <div style='font-size:11px;font-weight:700;text-transform:uppercase;
-                color:var(--text-label);letter-spacing:.05em;margin-bottom:6px'>${label}</div>
-    <div style='font-size:24px;font-weight:700;color:var(--brand-tertiary)'>${value}</div>
-    ${sub ? `<div style='font-size:12px;color:var(--text-muted);margin-top:4px'>${sub}</div>` : ''}
+function _kpiCard(label, value, sub, tone) {
+  return `<div class='ppl-kpi${tone ? ' ppl-kpi--' + tone : ''}'>
+    <div class='ppl-stat-label ppl-stat-label--gap'>${label}</div>
+    <div class='ppl-kpi-value'>${value}</div>
+    ${sub ? `<div class='ppl-kpi-sub'>${sub}</div>` : ''}
   </div>`;
 }
 async function _renderKPIStrip(allRows, people, assignments) {
@@ -165,17 +162,16 @@ async function _renderKPIStrip(allRows, people, assignments) {
 
   const _delta = (curr, prev) => {
     const d = curr - prev;
-    if (d === 0) return `<span style='color:var(--text-faint);font-size:14px;margin-left:8px'>—</span>`;
+    if (d === 0) return `<span class='ppl-delta ppl-delta--flat'>—</span>`;
     // N-257b: improving is neutral, matching kpiDelta (dashboard-core.js).
-    const colour = d > 0 ? 'var(--text-secondary)' : 'var(--status-danger)';
-    return `<span style='color:${colour};font-size:14px;margin-left:8px'>${d > 0 ? '+' : ''}${d}</span>`;
+    return `<span class='ppl-delta ppl-delta--${d > 0 ? 'ok' : 'worse'}'>${d > 0 ? '+' : ''}${d}</span>`;
   };
   
   return `<div style='display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px'>
     ${_kpiCard('Estimated Revenue ' + thisY,   _fmtGBP(revYTD),   'Current year YTD')}
     ${_kpiCard('Utilisation ' + thisY,      _fmtPct(utilYTD),  'Current year YTD',
-        // N-257b: green is neutral — no bg passed, `_kpiCard` falls back to `var(--surface)`.
-        utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? undefined : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? 'var(--status-warn-bg-soft)' : 'var(--status-danger-bg)')}
+        // N-257b: green is neutral — no tone passed, `_kpiCard` renders the plain card.
+        utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? undefined : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? 'warn' : 'danger')}
     ${_kpiCard('Active Customers',  activeCustomers  + _delta(activeCustomers, prevQCustomers),  'As of today · vs last quarter')}
     ${_kpiCard('Billed Headcount',  billedHeadcount  + _delta(billedHeadcount, prevQHeadcount),  'As of today · vs last quarter')}
   </div>`;
@@ -200,14 +196,14 @@ function _renderUtilisationPanel(rows, people) {
 
   return `
     <div class='page-header' style='margin-bottom:12px'>
-      <h3 style='margin:0;color:var(--brand-tertiary)'>Team Utilisation</h3>
+      <h3 class='ppl-card-h3'>Team Utilisation</h3>
     </div>
     <div class="table-scroll">
     <table class='data-table' style='margin-bottom:16px'>
       <thead><tr><th>Role Band</th><th>Utilisation</th><th>Headcount</th></tr></thead>
       <tbody>
         ${bandTableRows}
-        <tr style='font-weight:700;border-top:2px solid var(--border-strong)'>
+        <tr class='ppl-total-row'>
           <td>Total</td>
           <td>${_fmtPct(totalUtil)}</td>
           <td>${totalUtilised} / ${totalActive}</td>
@@ -215,7 +211,7 @@ function _renderUtilisationPanel(rows, people) {
       </tbody>
     </table>
     </div>
-    <div style='font-size:12px;font-weight:600;color:var(--text-label);margin-bottom:4px'>
+    <div class='ppl-subhead'>
       Monthly Trend</div>
     ${_barChart(chartData, _fmtPct)}`;
 }
@@ -250,28 +246,28 @@ function _renderRevenuePanel(rows) {
   return `
     <div style='display:grid;grid-template-columns:1fr 1fr;gap:24px'>
       <div>
-        <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
+        <div class='ppl-card-title'>
           By Customer</div>
         <div class="table-scroll">
         <table class='data-table dash-rev-table'>
           <thead><tr><th>Customer</th><th>Estimated Revenue</th></tr></thead>
           <tbody>
             ${customerRows}
-            <tr style='font-weight:700;border-top:2px solid var(--border-strong)'>
+            <tr class='ppl-total-row'>
               <td>Total</td><td>${_fmtGBP(customerTotal)}</td></tr>
           </tbody>
         </table>
         </div>
       </div>
       <div>
-        <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary);margin-bottom:8px'>
+        <div class='ppl-card-title'>
           By Project Type</div>
         <div class="table-scroll">
         <table class='data-table dash-rev-table'>
           <thead><tr><th>Project Type</th><th>Estimated Revenue</th></tr></thead>
           <tbody>
             ${typeRows}
-            <tr style='font-weight:700;border-top:2px solid var(--border-strong)'>
+            <tr class='ppl-total-row'>
               <td>Total</td><td>${_fmtGBP(typeTotal)}</td></tr>
           </tbody>
         </table>
@@ -372,7 +368,7 @@ function _renderEndDatesPanel(people) {
     .sort((a, b) => a._end - b._end);
 
     if (!upcoming.length) {
-    return `<p style='font-size:13px;color:var(--text-muted)'>No employee end dates in the next 60 days.</p>`;
+    return `<p class='ppl-muted-note'>No employee end dates in the next 60 days.</p>`;
   }
 
   const rows = upcoming.map(p => {
@@ -462,26 +458,26 @@ const { start, end } = peoplePeriodRange(_dashFilter);
  <div style='margin-bottom:24px'>${periodBtns}</div>
 
         <div style='display:grid;grid-template-columns:40fr 60fr;gap:24px;margin-bottom:32px'>
-      <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px'>
+      <div class='print-avoid-break ppl-card'>
         ${utilisPanel}
       </div>
-      <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px'>
+      <div class='print-avoid-break ppl-card'>
         <div class='page-header' style='margin-bottom:12px'>
-          <h3 style='margin:0;color:var(--brand-tertiary)'>Estimated Revenue</h3>
+          <h3 class='ppl-card-h3'>Estimated Revenue</h3>
         </div>
         ${revenuePanel}
       </div>
     </div>
 
-      <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px'>
+      <div class='print-avoid-break ppl-card'>
       <div class='page-header' style='margin-bottom:12px'>
-        <h3 style='margin:0;color:var(--brand-tertiary)'>Workforce Segmentation</h3>
+        <h3 class='ppl-card-h3'>Workforce Segmentation</h3>
       </div>
       ${segmentPanel}
     </div>
-    <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;margin-top:24px'>
+    <div class='print-avoid-break ppl-card ppl-card--mt'>
       <div class='page-header' style='margin-bottom:12px'>
-        <h3 style='margin:0;color:var(--brand-tertiary)'>Upcoming Employee End Dates</h3>
+        <h3 class='ppl-card-h3'>Upcoming Employee End Dates</h3>
       </div>
       ${endDatesPanel}
     </div>`;

@@ -1,4 +1,5 @@
-/* css/people.css - Payroll Summary and Org Chart.
+/* css/people.css - People module pages: Dashboard, Timeline, Tracker, Payroll modal, Invoices, Org Chart.
+   N-412 added the .ppl- / .gt- / .pay- / .inv- families (token-backed classes replacing inline styles).
    Linked by people.html, after css/style.css (N-349b). Rules moved verbatim
    from style.css; tokens, shell, forms, tables, buttons and the print foundation stay there. */
 
@@ -11,6 +12,8 @@
   vertical-align: middle;
   opacity: 0.6;
   transition: opacity 0.15s;
+  background: none; border: none; cursor: pointer;
+  padding: 0 var(--sp-2); color: var(--text-muted);
 }
 .btn-padlock:hover {
   opacity: 1;
@@ -18,15 +21,13 @@
 #payroll-modal-overlay {
   animation: fadeIn 0.15s ease;
 }
-#payroll-modal-overlay > div {
-  box-shadow: 0 var(--sp-4) var(--sp-10) rgba(0,0,0,0.18);
-}
 
 /* ── Org Chart ─────────────────────────────────────────────────────── */
 #org-chart-page {
   overflow: auto; padding: var(--sp-9); background: var(--surface); border-radius: var(--r-lg);
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
+@media screen { #org-chart-page { border: 1px solid var(--border); box-shadow: var(--elev-card); } }
 #org-chart-canvas { text-align: center; min-width: 100%; }
 #org-chart-inner { display: inline-block; text-align: left; }
 
@@ -86,6 +87,8 @@
 .org-tree ul.org-stack > li:last-child::after { height: 46px; }
 .org-node { position: relative; display: inline-block; padding: var(--sp-4) 14px; border: 1px solid var(--border);
   border-radius: var(--r-md); background: var(--surface); min-width: 120px; box-shadow: 0 1px var(--sp-1) rgba(0,0,0,.06); }
+/* N-412: screen uses the shared card elevation; the base value above is what print falls through to. */
+@media screen { .org-node { box-shadow: var(--elev-card); } }
 .org-node__name { font-weight: 600; font-size: var(--fs-13); color: var(--text-primary); }
 .org-node__sub  { font-size: var(--fs-11); color: var(--org-sub-default); margin-top: var(--sp-1); }
 .org-node--leader  { background: var(--brand); border-color: var(--brand); }
@@ -130,7 +133,7 @@
 .org-avatar {
   position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
   width: var(--sp-11); height: var(--sp-11); border-radius: 50%; box-sizing: border-box;
-  border: var(--sp-1) solid var(--surface); box-shadow: 0 1px var(--sp-1) rgba(0,0,0,.25);
+  border: var(--sp-1) solid var(--surface); box-shadow: var(--sh-avatar);
   display: flex; align-items: center; justify-content: center; overflow: hidden;
   z-index: 2;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
@@ -152,6 +155,106 @@
   padding: 1px var(--sp-3); border-radius: var(--r-lg); margin-left: var(--sp-3); }
 
 .org-print-title { display: none; }
+/* ── People pages finish (N-412) ────────────────────────────────────
+   Token-backed classes that replaced inline style="" strings. Cards and KPI
+   tiles keep their old geometry and take --elev-card on screen only (no base
+   shadow, so print is unchanged). Table-cell classes carry the .data-table
+   prefix: .data-table th / td (0,1,1) would otherwise beat a bare class where
+   the old inline string used to win. */
+.ppl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-8); }
+.ppl-card--chart { padding: var(--sp-8) var(--sp-8) var(--sp-6); margin-bottom: var(--sp-9); }
+.ppl-card--mt { margin-top: var(--sp-9); }
+.ppl-card--mb { margin-bottom: var(--sp-9); }
+.ppl-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: var(--sp-7) var(--sp-8); min-width: 160px; flex: 1; }
+.ppl-kpi--warn { background: var(--status-warn-bg-soft); }
+.ppl-kpi--danger { background: var(--status-danger-bg); }
+@media screen { .ppl-card, .ppl-kpi { box-shadow: var(--elev-card); } }
+.ppl-card-title { font-size: var(--fs-13); font-weight: var(--fw-bold); color: var(--brand-tertiary); margin-bottom: var(--sp-4); }
+.ppl-card-title--flush { margin-bottom: 0; }
+.ppl-card-title-sub { font-size: var(--fs-12); font-weight: var(--fw-regular); color: var(--text-muted); margin-left: var(--sp-4); }
+.ppl-card-hint { font-size: var(--fs-11); color: var(--text-faint); margin-top: var(--sp-1); }
+.ppl-card-h3 { margin: 0; color: var(--brand-tertiary); }
+.ppl-subhead { font-size: var(--fs-12); font-weight: var(--fw-semibold); color: var(--text-label); margin-bottom: var(--sp-2); }
+.ppl-muted-note { font-size: var(--fs-13); color: var(--text-muted); }
+.ppl-muted-note--flush { margin: 0; }
+.ppl-muted-small { font-size: var(--fs-12); color: var(--text-muted); }
+.ppl-muted { color: var(--text-muted); }
+.ppl-faint { font-size: var(--fs-12); color: var(--text-faint); }
+.ppl-year-label { font-size: var(--fs-13); color: var(--text-label); }
+.ppl-label-note { font-size: var(--fs-11); font-weight: var(--fw-regular); color: var(--text-muted); }
+.ppl-form-note { font-size: var(--fs-13); color: var(--text-label); margin-top: -6px; }
+.ppl-warn-note { color: var(--status-warn-text); display: none; }  /* org-chart.js toggles style.display */
+.ppl-stat-label { font-size: var(--fs-11); font-weight: var(--fw-bold); text-transform: uppercase;
+  color: var(--text-label); letter-spacing: .05em; }
+.ppl-stat-label--gap { margin-bottom: var(--sp-3); }
+.ppl-kpi-value { font-size: 24px; font-weight: var(--fw-bold); color: var(--brand-tertiary); }
+.ppl-kpi-sub { font-size: var(--fs-12); color: var(--text-muted); margin-top: var(--sp-2); }
+.ppl-delta { font-size: var(--fs-14); margin-left: var(--sp-4); }
+.ppl-delta--flat { color: var(--text-faint); }
+.ppl-delta--ok { color: var(--text-secondary); }
+.ppl-delta--worse { color: var(--status-danger); }
+.data-table tr.ppl-total-row { font-weight: var(--fw-bold); border-top: 2px solid var(--border-strong); }
+
+/* Deployment Timeline */
+.data-table th.gt-month-th { text-align: center; font-size: var(--fs-11); font-weight: var(--fw-semibold);
+  color: var(--text-label); padding: var(--sp-3) var(--sp-1); min-width: 52px; background: var(--surface); }
+.data-table th.gt-head-th { text-align: left; padding: var(--sp-3) var(--sp-4); font-size: var(--fs-11);
+  font-weight: var(--fw-semibold); color: var(--text-label); background: var(--surface); }
+.data-table th.gt-head-th--emp { width: 180px; min-width: 180px; }
+.data-table th.gt-head-th--lvl { width: 50px; min-width: 50px; }
+.data-table td.gt-cust-row { padding: var(--sp-3) var(--sp-4) var(--sp-1); font-size: var(--fs-12); font-weight: var(--fw-bold);
+  color: var(--brand-tertiary); background: var(--surface-alt); border-top: 1px solid var(--border); }
+.data-table td.gt-level-cell { padding: var(--sp-2) var(--sp-4); font-size: var(--fs-11); color: var(--text-muted);
+  width: 50px; min-width: 50px; white-space: nowrap; }
+.gt-bench-divider { border-top: 2px dashed var(--border-strong); margin: var(--sp-4) 0; }
+.gt-legend-item { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-12); color: var(--text-label); }
+.gt-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+.gt-swatch--forecast { border: 1px solid var(--accent);
+  background: repeating-linear-gradient(45deg, var(--c-stripe-amber-dark), var(--c-stripe-amber-dark) 5px,
+    var(--c-stripe-amber-light) 5px, var(--c-stripe-amber-light) 10px); }
+
+/* Pills and Supplier Invoices */
+.badge--overdue { background: var(--status-danger-bg-soft); color: var(--status-danger); border-color: transparent; }
+.badge--sent { background: var(--status-warn-bg); color: var(--status-warn-text); border-color: transparent; }
+.badge--forecast { background: var(--status-warn-bg-soft); color: var(--status-warn-text); border-color: transparent; }
+.inv-summary { display: flex; gap: var(--sp-9); flex-wrap: wrap; padding: var(--sp-7) 0; margin-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border); }
+.inv-stat-value { font-size: var(--fs-22); font-weight: var(--fw-bold); color: var(--brand-tertiary); }
+.inv-stat-value--danger { color: var(--status-danger); }
+
+/* Payroll Summary modal */
+.payroll-modal-overlay { display: none; position: fixed; inset: 0; background: var(--scrim);
+  z-index: var(--z-modal); overflow-y: auto; }
+.payroll-dialog { background: var(--surface); border-radius: var(--r-lg); max-width: 640px; margin: 60px auto;
+  padding: var(--sp-10); position: relative; box-shadow: var(--elev-modal); }
+.payroll-close { position: absolute; top: var(--sp-7); right: var(--sp-7); background: none; border: none;
+  font-size: 20px; cursor: pointer; color: var(--text-muted); }
+.pay-h3 { margin: 0 0 var(--sp-8); color: var(--brand); }
+.pay-h3--sm { margin-bottom: var(--sp-4); }
+.pay-h3--xs { margin-bottom: var(--sp-2); }
+.pay-h4 { margin: 0 0 var(--sp-5); color: var(--brand); }
+.pay-h4--mid { margin-top: var(--sp-7); }
+.pay-h4--lg { margin-top: var(--sp-8); }
+.pay-note { font-size: var(--fs-12); color: var(--text-muted); margin-bottom: var(--sp-6); }
+.pay-sub { margin: 0 0 var(--sp-8); }
+.pay-p { font-size: var(--fs-14); color: var(--text-muted); }
+.pay-result { text-align: center; padding: var(--sp-11) 0; }
+.pay-result--muted { color: var(--text-muted); }
+.pay-currency { color: var(--text-muted); }
+.pay-actions { display: flex; gap: var(--sp-5); justify-content: flex-end; margin-top: var(--sp-9);
+  padding-top: var(--sp-7); border-top: 1px solid var(--border-subtle); }
+.pay-bonus-list { max-height: 240px; overflow-y: auto; border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm); padding: var(--sp-6); }
+.pay-bonus-row { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-faint); }
+.pay-bonus-input { width: 100px; padding: var(--sp-2) var(--sp-4); border: 1px solid var(--border-control);
+  border-radius: var(--r-sm); font-size: var(--fs-13);
+  transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard); }
+.pay-bonus-input:hover:not(:disabled) { border-color: var(--text-muted); }
+.pay-bonus-input:focus { outline: none; border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent); }
+
 /* ── Org Chart — print/PDF ──────────────────────────────────────────── */
 @media print {
   body.org-printing #main-content > *:not(#org-chart-page),

@@ -300,6 +300,7 @@
   --sh-4: 0 4px 24px rgba(10,11,68,0.10);
   --sh-modal: 0 8px 32px rgba(0,0,0,0.18);
   --sh-sticky-edge: 2px 0 2px rgba(0,0,0,0.06);   /* N-411: right edge of the frozen Hiring Plan Gantt columns */
+  --sh-avatar: 0 1px 2px rgba(0,0,0,0.25);        /* N-412: org-chart avatar ring */
   --sh-drawer: -8px 0 32px rgba(0,0,0,0.4);
   --scrim: rgba(0,0,0,0.45);   /* N-409: modal / command-bar backdrop */
   --sh-focus: 0 0 0 3px rgba(10,11,68,0.08);

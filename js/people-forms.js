@@ -74,7 +74,7 @@ function renderPersonForm(existingData = null) {
           </div>
         </div>
         <div class='form-group${external ? ' is-hidden' : ''}' id='person-salary-group'>
-          <label>Salary (£) <span style='font-size:11px;color:var(--text-muted);font-weight:normal'>UK staff only</span></label>
+          <label>Salary (£) <span class='ppl-label-note'>UK staff only</span></label>
           <input type='number' name='Salary' min='0' step='0.01'${external ? ' disabled' : ''}
             value='${escHtml(existingData?.Salary || '')}'>
         </div>
@@ -84,7 +84,7 @@ function renderPersonForm(existingData = null) {
             ? `<img data-photo='${escHtml(photoFileName(existingData.PhotoUrl))}' alt='' style='width:56px;height:56px;border-radius:50%;object-fit:cover;margin-bottom:6px'>`
             : ''}
           <input type='file' name='PhotoFile' accept='${uploadAcceptAttr('PHOTO')}'>
-          <span style='font-size:11px;color:var(--text-muted)'>Uploads to PeoplePhotos. Square images crop best.</span>
+          <span class='ppl-label-note'>Uploads to PeoplePhotos. Square images crop best.</span>
         </div>
         ${isEdit ? `
         <div class='form-group'>

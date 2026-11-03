@@ -23,7 +23,7 @@ function _renderPayrollStep1() {
     .map(y => `<option value='${y}' ${y === curYear ? 'selected' : ''}>${y}</option>`).join('');
 
   document.getElementById('payroll-modal-body').innerHTML = `
-    <h3 style='margin:0 0 20px;color:var(--brand)'>Generate Payroll Summary</h3>
+    <h3 class='pay-h3'>Generate Payroll Summary</h3>
     <div style='display:flex;gap:12px;margin-bottom:20px'>
       <div class='form-group' style='margin:0;flex:1'>
         <label>Month</label>
@@ -38,7 +38,7 @@ function _renderPayrollStep1() {
       <label style='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px' id='bonus-checkbox-label'>
         <input type='checkbox' id='payroll-include-bonus' ${isBonusMonth ? 'checked' : ''}>
         <span>Include bonus data</span>
-        ${isBonusMonth ? '' : '<span style="font-size:12px;color:var(--text-faint)">(bonus months: Jan, Apr, Jul, Oct)</span>'}
+        ${isBonusMonth ? '' : '<span class="ppl-faint">(bonus months: Jan, Apr, Jul, Oct)</span>'}
       </label>
     </div>
     <div style='display:flex;gap:10px;justify-content:flex-end'>
@@ -66,7 +66,7 @@ async function _generatePayrollPreview() {
   const year        = parseInt(document.getElementById('payroll-year').value);
   const includeBonus = document.getElementById('payroll-include-bonus').checked;
 
-  document.getElementById('payroll-modal-body').innerHTML = `<p style='text-align:center;color:var(--text-muted);padding:40px 0'>Generating...</p>`;
+  document.getElementById('payroll-modal-body').innerHTML = `<p class='pay-result pay-result--muted'>Generating...</p>`;
 
   // N-286: salary is joined from the restricted PeoplePay list.
   const [people, payRows] = await Promise.all([getPeople(false), getPeoplePay()]);
@@ -103,7 +103,7 @@ async function _generatePayrollPreview() {
           <td>${p.Salary ? '£' + Number(p.Salary).toLocaleString('en-GB', { minimumFractionDigits: 2 }) : '—'}</td>
         </tr>`).join('')}
       </tbody>
-    </table>` : `<p style='color:var(--text-muted);font-size:13px'>No starters this month.</p>`;
+    </table>` : `<p class='ppl-muted-note'>No starters this month.</p>`;
 
   const leaversHTML = leavers.length ? `
     <table class='data-table' style='margin-bottom:8px'>
@@ -114,37 +114,37 @@ async function _generatePayrollPreview() {
           <td>${spDateIn(p.EndDate) || '—'}</td>
         </tr>`).join('')}
       </tbody>
-    </table>` : `<p style='color:var(--text-muted);font-size:13px'>No leavers this month.</p>`;
+    </table>` : `<p class='ppl-muted-note'>No leavers this month.</p>`;
 
   const bonusSection = includeBonus ? `
-    <h4 style='margin:20px 0 10px;color:var(--brand)'>Bonus Amounts</h4>
-    <p style='font-size:12px;color:var(--text-muted);margin-bottom:12px'>Enter amounts for eligible employees. Leave blank to exclude from email.</p>
-    <div id='bonus-inputs' style='max-height:240px;overflow-y:auto;border:1px solid var(--border-subtle);border-radius:4px;padding:12px'>
+    <h4 class='pay-h4 pay-h4--lg'>Bonus Amounts</h4>
+    <p class='pay-note'>Enter amounts for eligible employees. Leave blank to exclude from email.</p>
+    <div id='bonus-inputs' class='pay-bonus-list'>
       ${ukStaff.filter(p => p.IsActive !== false).map(p => `
-        <div style='display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-faint)'>
+        <div class='pay-bonus-row'>
           <span style='font-size:14px'>${escHtml(p.EmployeeName)}</span>
           <div style='display:flex;align-items:center;gap:6px'>
-            <span style='color:var(--text-muted)'>£</span>
+            <span class='pay-currency'>£</span>
             <input type='number' min='0' step='0.01' placeholder='—'
               data-employee='${escHtml(p.EmployeeName)}'
-              style='width:100px;padding:4px 8px;border:1px solid var(--border-mid);border-radius:4px;font-size:13px'>
+              class='pay-bonus-input'>
           </div>
         </div>`).join('')}
     </div>` : '';
 
   document.getElementById('payroll-modal-body').innerHTML = `
-    <h3 style='margin:0 0 4px;color:var(--brand)'>Payroll Summary Preview</h3>
-    <p style='margin:0 0 20px;font-size:13px;color:var(--text-muted)'>${monthName} ${year}</p>
+    <h3 class='pay-h3 pay-h3--xs'>Payroll Summary Preview</h3>
+    <p class='ppl-muted-note pay-sub'>${monthName} ${year}</p>
 
-    <h4 style='margin:0 0 10px;color:var(--brand)'>Starters</h4>
+    <h4 class='pay-h4'>Starters</h4>
     ${joinersHTML}
 
-    <h4 style='margin:16px 0 10px;color:var(--brand)'>Leavers</h4>
+    <h4 class='pay-h4 pay-h4--mid'>Leavers</h4>
     ${leaversHTML}
 
     ${bonusSection}
 
-    <div style='display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:16px;border-top:1px solid var(--border-subtle)'>
+    <div class='pay-actions'>
       <button class='btn-secondary'${act('_renderPayrollStep1')}>&#8592; Back</button>
       <button class='btn-primary'${act('_sendPayrollSummary', month, year, includeBonus)}>Send to Payroll</button>
     </div>`;
@@ -201,19 +201,19 @@ async function _sendPayrollSummary(month, year, includeBonus) {
     if (res.alreadySent) {
       const msg = CONFIG.PAYROLL_ALREADY_SENT_TEXT.replace('{period}', `${res.fields.Month} ${res.fields.Year}`);
       document.getElementById('payroll-modal-body').innerHTML = `
-      <div style='text-align:center;padding:40px 0'>
+      <div class='pay-result'>
         <div style='font-size:40px;margin-bottom:16px'>&#9432;</div>
-        <h3 style='color:var(--brand);margin:0 0 8px'>Already sent</h3>
-        <p style='color:var(--text-muted);font-size:14px'>${escHtml(msg)}</p>
+        <h3 class='pay-h3 pay-h3--sm'>Already sent</h3>
+        <p class='pay-p'>${escHtml(msg)}</p>
         <button class='btn-secondary' style='margin-top:20px'${act('_closePayrollModal')}>Close</button>
       </div>`;
       return;
     }
     document.getElementById('payroll-modal-body').innerHTML = `
-      <div style='text-align:center;padding:40px 0'>
+      <div class='pay-result'>
         <div style='font-size:40px;margin-bottom:16px'>&#10003;</div>
-        <h3 style='color:var(--brand);margin:0 0 8px'>Sent</h3>
-        <p style='color:var(--text-muted);font-size:14px'>Payroll summary for ${['January','February','March','April','May','June','July','August','September','October','November','December'][month-1]} ${year} has been sent to the payroll team.</p>
+        <h3 class='pay-h3 pay-h3--sm'>Sent</h3>
+        <p class='pay-p'>Payroll summary for ${['January','February','March','April','May','June','July','August','September','October','November','December'][month-1]} ${year} has been sent to the payroll team.</p>
         <button class='btn-secondary' style='margin-top:20px'${act('_closePayrollModal')}>Close</button>
       </div>`;
   } catch (e) {

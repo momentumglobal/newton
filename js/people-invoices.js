@@ -7,10 +7,10 @@ let _invoicesSearch = '';
 // ── Row template builders (moved from utils.js, N-237c) ────────────────
 function invoiceRowHtml(inv, { canEdit, pending = false } = {}) {
   const statusBadge = inv.isOverdue
-    ? `<span class='badge' style='background:var(--status-danger-bg-soft);color:var(--status-danger)'>Overdue</span>`
+    ? `<span class='badge badge--overdue'>Overdue</span>`
     : inv.Status === 'Paid'
       ? `<span class='badge badge-active'>Paid</span>`
-      : `<span class='badge' style='background:var(--status-warn-bg);color:var(--status-warn-text)'>Sent</span>`;
+      : `<span class='badge badge--sent'>Sent</span>`;
 
   const markPaidBtn = canEdit && !pending && inv.Status !== 'Paid'
     ? `<a href='#'${act('markInvoicePaid', Number(inv.id))} style='white-space:nowrap'>
@@ -102,27 +102,23 @@ async function renderGPInvoices(pendingItem = null) {
     : null;
 
   const summaryBar = `
-    <div style='display:flex;gap:24px;flex-wrap:wrap;padding:16px 0;margin-bottom:8px;
-                border-bottom:1px solid var(--border)'>
+    <div class='inv-summary'>
       <div>
-        <div style='font-size:11px;font-weight:700;text-transform:uppercase;
-                    color:var(--text-label);letter-spacing:.05em'>Total Outstanding</div>
-        <div style='font-size:22px;font-weight:700;color:var(--brand-tertiary)'>
+        <div class='ppl-stat-label'>Total Outstanding</div>
+        <div class='inv-stat-value'>
           £${outstanding.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}
         </div>
       </div>
       <div>
-        <div style='font-size:11px;font-weight:700;text-transform:uppercase;
-                    color:var(--text-label);letter-spacing:.05em'>Overdue Invoices</div>
-        <div style='font-size:22px;font-weight:700;color:${overdueList.length > 0 ? 'var(--status-danger)' : 'var(--brand-tertiary)'}'>
+        <div class='ppl-stat-label'>Overdue Invoices</div>
+        <div class='inv-stat-value${overdueList.length > 0 ? ' inv-stat-value--danger' : ''}'>
           ${overdueList.length}
         </div>
       </div>
       ${oldestOverdue ? `
       <div>
-        <div style='font-size:11px;font-weight:700;text-transform:uppercase;
-                    color:var(--text-label);letter-spacing:.05em'>Oldest Overdue</div>
-        <div style='font-size:22px;font-weight:700;color:var(--status-danger)'>${oldestOverdue}</div>
+        <div class='ppl-stat-label'>Oldest Overdue</div>
+        <div class='inv-stat-value inv-stat-value--danger'>${oldestOverdue}</div>
       </div>` : ''}
     </div>`;
 

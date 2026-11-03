@@ -30,8 +30,7 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
   // Month headers
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const monthHeaders = MONTHS.map(m =>
-    `<th class='print-avoid-break' style='text-align:center;font-size:11px;font-weight:600;
-                color:var(--text-label);padding:6px 2px;min-width:52px;background:var(--surface)'>${m}</th>`
+    `<th class='print-avoid-break gt-month-th'>${m}</th>`
   ).join('');
 
   // Build a bar cell for a month given a list of assignments
@@ -60,14 +59,13 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
     // Bench divider
     if (isBench && ci > 0) {
       rowsHtml += `<tr><td colspan='14' style='padding:0'>
-        <div style='border-top:2px dashed var(--border-strong);margin:8px 0'></div>
+        <div class='gt-bench-divider'></div>
       </td></tr>`;
     }
 
     // Customer header row
     rowsHtml += `<tr>
-      <td colspan='14' style='padding:6px 8px 2px;font-size:12px;font-weight:700;
-          color:var(--brand-tertiary);background:var(--surface-alt);border-top:1px solid var(--border)'>
+      <td colspan='14' class='gt-cust-row'>
         ${isBench ? 'Unassigned' : escHtml(customer)}
       </td>
     </tr>`;
@@ -78,8 +76,7 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
       rowsHtml += `<tr>
         <td style='padding:4px 8px;font-size:12px;width:180px;min-width:180px;overflow:hidden;
                    text-overflow:ellipsis;white-space:nowrap'>${escHtml(emp)}</td>
-        <td style='padding:4px 8px;font-size:11px;color:var(--text-muted);width:50px;
-                   min-width:50px;white-space:nowrap'>${escHtml(level)}</td>
+        <td class='gt-level-cell'>${escHtml(level)}</td>
         ${cells}
       </tr>`;
     });
@@ -87,14 +84,13 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
 
   // Legend
   const legend = Object.entries(TYPE_COLOURS).map(([type, colour]) =>
-    `<div style='display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-label)'>
-      <div style='width:14px;height:14px;border-radius:3px;background:${colour};flex-shrink:0'></div>
+    `<div class='gt-legend-item'>
+      <div class='gt-swatch' style='background:${colour}'></div>
       ${type}
     </div>`
   ).join('') + `
-    <div style='display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-label)'>
-      <div style='width:14px;height:14px;border-radius:3px;flex-shrink:0;border:1px solid var(--accent);
-        background:repeating-linear-gradient(45deg,var(--c-stripe-amber-dark),var(--c-stripe-amber-dark) 5px,var(--c-stripe-amber-light) 5px,var(--c-stripe-amber-light) 10px)'></div>
+    <div class='gt-legend-item'>
+      <div class='gt-swatch gt-swatch--forecast'></div>
       Forecast
     </div>`;
 
@@ -169,18 +165,17 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
     });
 
     const deployableTile = `
-    <div class='print-avoid-break' style='background:var(--surface);border:1px solid var(--border);border-radius:6px;
-                padding:20px;margin-bottom:24px'>
+    <div class='print-avoid-break ppl-card ppl-card--mb'>
       <div style='display:flex;align-items:center;justify-content:space-between;
                   flex-wrap:wrap;gap:12px;margin-bottom:16px'>
         <div>
-          <div style='font-size:13px;font-weight:700;color:var(--brand-tertiary)'>
+          <div class='ppl-card-title ppl-card-title--flush'>
             Deployable Resources
-            <span style='font-size:12px;font-weight:400;color:var(--text-muted);margin-left:8px'>
+            <span class='ppl-card-title-sub'>
               ${deployableRows.length} available
             </span>
           </div>
-          <div style='font-size:11px;color:var(--text-faint);margin-top:2px'>
+          <div class='ppl-card-hint'>
             Employees on bench / unbilled during the selected period
           </div>
         </div>
@@ -198,7 +193,7 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
           </tr></thead>
           <tbody>${deployableRows.join('')}</tbody>
         </table>` :
-        `<p style='font-size:13px;color:var(--text-muted);margin:0'>
+        `<p class='ppl-muted-note ppl-muted-note--flush'>
           No unassigned employees during this period.</p>`
       }
     </div>`;
@@ -207,7 +202,7 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
 <div class='page-header'>
       <h2>Deployment Timeline</h2>
       <div style='display:flex;align-items:center;gap:12px'>
-        <label style='font-size:13px;color:var(--text-label)'>Year</label>
+        <label class='ppl-year-label'>Year</label>
         <select${actOn('change', 'ganttYearChanged', ACT_VALUE)}>${yearOpts}</select>
         <button class='print-btn'${act('printPage', 'Deployment Timeline', true, 'People')}>⎙ Export PDF</button>
       </div>
@@ -217,10 +212,8 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
 <div class='table-scroll' style='max-height:calc(100vh - 200px);margin:0 -40px;padding:0 4px'>
     <table class='data-table' style='min-width:800px;table-layout:fixed'>
                 <thead class='print-avoid-break'><tr>
-<th class='print-avoid-break' style='width:180px;min-width:180px;text-align:left;padding:6px 8px;font-size:11px;
-                     font-weight:600;color:var(--text-label);background:var(--surface)'>Employee</th>
-          <th class='print-avoid-break' style='width:50px;min-width:50px;text-align:left;padding:6px 8px;font-size:11px;
-                     font-weight:600;color:var(--text-label);background:var(--surface)'>Level</th>
+<th class='print-avoid-break gt-head-th gt-head-th--emp'>Employee</th>
+          <th class='print-avoid-break gt-head-th gt-head-th--lvl'>Level</th>
           ${monthHeaders}
         </tr></thead>
         <tbody>${rowsHtml}</tbody>

@@ -147,9 +147,13 @@
 .eng-label { font-size: var(--fs-12); font-weight: 600; color: var(--text-label); margin-bottom: var(--sp-2); display: block; }
 .eng-run-selector-wrap { display: flex; flex-direction: column; }
 .eng-run-selector {
-  padding: var(--sp-3) var(--sp-6); border: 1px solid var(--surface-alt-border); border-radius: var(--r-md);
-  font-size: var(--fs-13); color: var(--text-secondary); min-width: 220px;
+  padding: var(--sp-3) var(--sp-6); border: 1px solid var(--border-control); border-radius: var(--r-lg);
+  font-size: var(--fs-13); color: var(--text-secondary); min-width: 220px; background: var(--surface);
+  transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
+.eng-run-selector:hover:not(:disabled) { border-color: var(--text-muted); }
+.eng-run-selector:focus { outline: none; border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent); }
 .eng-tab-strip {
   display: flex; gap: var(--sp-2); border-bottom: var(--sp-1) solid var(--border-subtle);
   margin-bottom: var(--sp-8);
@@ -174,6 +178,7 @@
 .eng-rate-pct    { font-size: var(--fs-14); font-weight: 700; color: var(--brand-secondary); margin-left: auto; font-variant-numeric: tabular-nums; }
 .eng-status-badge {
   font-size: var(--fs-11); font-weight: 700; padding: var(--sp-1) var(--sp-4);
+  border: 1px solid transparent;
   border-radius: var(--r-pill); text-transform: uppercase; letter-spacing: 0.05em;
 }
 .eng-status-badge--active { background: var(--status-success-bg); color: var(--eng-success-text-deep); }
@@ -188,7 +193,7 @@
 .eng-card-type {
   font-size: var(--fs-11); font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.06em; color: var(--text-muted);
-  background: var(--surface-alt); padding: var(--sp-1) var(--sp-4); border-radius: var(--r-pill);
+  background: var(--surface-alt); padding: var(--sp-1) var(--sp-4); border: 1px solid transparent; border-radius: var(--r-pill);
 }
 .eng-card-question { font-size: var(--fs-15); font-weight: 600; color: var(--brand); margin: 0; }
 .eng-card-score { font-size: var(--fs-32); font-weight: 700; color: var(--brand-secondary); line-height: 1; font-variant-numeric: tabular-nums; }
@@ -198,7 +203,7 @@
 /* Delta badge */
 .eng-delta {
   font-size: var(--fs-12); font-weight: 700; padding: var(--sp-1) var(--sp-4);
-  border-radius: var(--r-pill);
+  border: 1px solid transparent; border-radius: var(--r-pill);
 }
 .eng-delta--up      { background: var(--status-success-bg); color: var(--eng-success-text-deep); }
 .eng-delta--down    { background: var(--status-danger-bg); color: var(--eng-danger-text-deep); }
@@ -234,16 +239,18 @@
 /* Trends */
 .eng-trends { background: var(--surface); border: 1px solid var(--border-subtle); border-radius: var(--r-xl); padding: var(--sp-8) var(--sp-9); }
 .eng-trends-empty { color: var(--text-muted); font-size: var(--fs-14); padding: var(--sp-9) 0; }
+/* N-412: screen-only card elevation; no base shadow, so print is unchanged. */
+@media screen { .eng-card, .eng-trends { box-shadow: var(--elev-card); } }
 
 /* Engagement modal */
 .eng-modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  position: fixed; inset: 0; background: var(--scrim);
   display: flex; align-items: center; justify-content: center;
   z-index: var(--z-modal); padding: var(--sp-8);
 }
 .eng-modal {
   background: var(--surface-raised); border-radius: var(--r-2xl);
-  box-shadow: 0 var(--sp-4) var(--sp-10) rgba(0,0,0,0.18);
+  box-shadow: var(--elev-modal);
   padding: 28px var(--sp-10); width: 100%; max-width: 680px;
   max-height: 90vh; overflow-y: auto;
 }
@@ -276,7 +283,7 @@
 .eng-q-row-main { display: flex; align-items: center; gap: var(--sp-5); flex: 1; min-width: 0; }
 .eng-q-type-badge {
   font-size: var(--fs-10); font-weight: 700; text-transform: uppercase;
-  background: var(--surface-alt); color: var(--text-label); padding: var(--sp-1) var(--sp-3); border-radius: var(--r-pill);
+  background: var(--surface-alt); color: var(--text-label); padding: var(--sp-1) var(--sp-3); border: 1px solid transparent; border-radius: var(--r-pill);
   flex-shrink: 0;
 }
 .eng-q-text { font-size: var(--fs-13); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

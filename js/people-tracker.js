@@ -11,20 +11,18 @@ function personRowHtml(p, { canEdit, canPayroll, salariesRevealed, pending = fal
       <td class='salary-cell'>
         <span class='salary-masked' id='sal-masked-${p.id}' style='display:${salariesRevealed ? "none" : "inline"}'>
           ••••••
-          <button class='btn-padlock' title='Reveal salary'${act('_revealSalary', String(p.id))}
-            style='background:none;border:none;cursor:pointer;padding:0 4px;color:var(--text-muted)'>🔒</button>
+          <button class='btn-padlock' title='Reveal salary'${act('_revealSalary', String(p.id))}>🔒</button>
         </span>
         <span class='salary-revealed' id='sal-revealed-${p.id}' style='display:${salariesRevealed ? "inline" : "none"}'>
           ${salaryVal}
-          <button class='btn-padlock' title='Hide salary'${act('_hideSalary', String(p.id))}
-            style='background:none;border:none;cursor:pointer;padding:0 4px;color:var(--text-muted)'>🔓</button>
+          <button class='btn-padlock' title='Hide salary'${act('_hideSalary', String(p.id))}>🔓</button>
         </span>
       </td>` : (canPayroll ? `<td>—</td>` : '');
   return `
     <tr class="${pending ? 'row-pending' : ''}"${pending ? ` data-pending-id="${escAttr(p.id)}"` : ''}>
       <td>${photoFileName(p.PhotoUrl)
             ? `<img data-photo="${escAttr(photoFileName(p.PhotoUrl))}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
-            : '<span style="color:var(--text-faint);font-size:12px">—</span>'}</td>
+            : '<span class="ppl-faint">—</span>'}</td>
       <td>${escHtml(p.EmployeeName)}</td>
       <td>${escHtml(personRoleLabel(p) || '—')}</td>
       <td>${escHtml(p.ContractType || '—')}</td>
@@ -53,7 +51,7 @@ function assignmentRowHtml(a) {
       <td>${spDateIn(a.EndDate) || '—'}</td>
       <td>${assignmentRateLabel(a)}</td>
       <td><span class='badge badge-${a.Billed==="Yes"?"active":"inactive"}'>${escHtml(a.Billed)}</span>${
-        isForecastAssignment(a) ? ` <span class='badge' style='background:var(--status-warn-bg-soft);color:var(--status-warn-text)'>Forecast</span>` : ''}</td>
+        isForecastAssignment(a) ? ` <span class='badge badge--forecast'>Forecast</span>` : ''}</td>
     </tr>`;
 }
 
@@ -186,9 +184,9 @@ async function renderEmployeesTab(pendingItem = null) {
     </table>
 
     <!-- Payroll modal -->
-    <div id='payroll-modal-overlay' style='display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:var(--z-modal);overflow-y:auto'>
-      <div class='print-avoid-break' style='background:var(--surface);border-radius:8px;max-width:640px;margin:60px auto;padding:32px;position:relative'>
-        <button${act('_closePayrollModal')} style='position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted)'>&times;</button>
+    <div id='payroll-modal-overlay' class='payroll-modal-overlay'>
+      <div class='print-avoid-break payroll-dialog'>
+        <button${act('_closePayrollModal')} class='payroll-close'>&times;</button>
         <div id='payroll-modal-body'></div>
       </div>
     </div>`;
@@ -321,7 +319,7 @@ let filtered = assignments.filter(matchesStatus).filter(matchesOtherFilters);
       <h2>Employee Tracker</h2>
       <div style='display:flex;align-items:center;gap:12px'>
         ${canEdit ? `<button id='bench-sync-btn' class='btn-secondary'${act('_syncBenchAssignments')}>↻ Sync Bench</button>
-        <span id='bench-sync-time' style='font-size:12px;color:var(--text-muted)'></span>` : ''}
+        <span id='bench-sync-time' class='ppl-muted-small'></span>` : ''}
       </div>
     </div>
     ${_peopleTabBar()}

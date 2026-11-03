@@ -14,7 +14,7 @@ async function renderPlacementAnalytics() {
     <div class="page-header">
       <h2>Placement Analytics</h2>
     </div>
-    <div style="padding:32px;color:var(--text-muted)">Loading data…</div>
+    <div class="mr-loading">Loading data…</div>
   `;
 
   // Load all data in parallel
@@ -117,7 +117,7 @@ function paRenderResults() {
   const results = _paComputeResults(_paData, _paLocation, _paFunctionArea);
 
   if (results.empty) {
-    container.innerHTML = `<p class="no-data" style="padding:32px">
+    container.innerHTML = `<p class="no-data no-data--spaced">
       No placement data found for the selected filters.</p>`;
     return;
   }
@@ -227,20 +227,22 @@ function _paRenderResultsHtml(results, location, functionArea) {
   const { ttfResult, avgTTHDays, sampleSize, totals, funnelStages, summaryBench, groups, groupCount } = results;
 
   const ragDot = rag => {
-    const colours = { green: "var(--status-success-text)", amber: "var(--c-amber-mid)", red: "var(--c-red-mid)", grey: "var(--c-gray-300)" };
+    // N-411: colour comes from .pa-rag-* classes (the single status set), not inline styles.
+    const key = String(rag ?? "").toLowerCase();
+    const tone = ["green", "amber", "red"].includes(key) ? key : "grey";
     // N-254: red/amber render a shape (marker glyph) in the dot's colour, not just a hue.
     const marker = ragMarkerHTML(rag);
-    if (marker) return `<span class="pa-rag-glyph" style="color:${colours[rag]}">${marker}</span>`;
-    return `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${colours[rag] || colours.grey};margin-right:6px"></span>`;
+    if (marker) return `<span class="pa-rag-glyph pa-rag-glyph--${tone}">${marker}</span>`;
+    return `<span class="pa-rag-dot pa-rag-dot--${tone}"></span>`;
   };
 
   // ── Summary cards ─────────────────────────────────────────────────
   const summaryHtml = `
-      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-      <div style="font-size:15px;font-weight:600;color:var(--brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--border-subtle)">
+      <div class="print-avoid-break mr-card">
+      <div class="mr-card-title">
         Summary
         ${location || functionArea
-          ? `<span style="font-size:12px;font-weight:400;color:var(--text-muted);margin-left:8px">
+          ? `<span class="mr-card-title-sub mr-card-title-sub--gap">
               ${[functionArea, location].filter(Boolean).join(" · ")}</span>`
           : ""}
       </div>
@@ -249,7 +251,7 @@ function _paRenderResultsHtml(results, location, functionArea) {
           <div class="kpi-value">${ttfResult.medianDays !== null ? `~${ttfResult.medianDays}d`
             : (!ttfResult.medianReached && ttfResult.basis) ? `>${ttfResult.maxObservedDays}d` : "—"}</div>
           <div class="kpi-label">Predicted Time to Hire</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
+          <div class="pa-kpi-note">
             ${ttfResult.bandDays !== null
               ? `±${Math.round(ttfResult.bandDays)}d · ${ttfResult.events} hires, ${ttfResult.censored - ttfResult.closed} open${ttfResult.closed ? `, ${ttfResult.closed} on hold/cancelled` : ""}${ttfResult.pooled ? " · all locations" : ""}`
               : ttfResult.label}
@@ -258,17 +260,17 @@ function _paRenderResultsHtml(results, location, functionArea) {
         <div class="kpi-card">
           <div class="kpi-value">${avgTTHDays !== null ? `${Math.round(avgTTHDays)}d` : "—"}</div>
           <div class="kpi-label">Avg. Actual Time to Hire</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${sampleSize} placement${sampleSize !== 1 ? "s" : ""}</div>
+          <div class="pa-kpi-note">${sampleSize} placement${sampleSize !== 1 ? "s" : ""}</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-value">${totals.Hires > 0 ? Math.round(totals.Outreach / totals.Hires) : "—"}</div>
           <div class="kpi-label">Outreach per Hire</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">avg. across filtered roles</div>
+          <div class="pa-kpi-note">avg. across filtered roles</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-value">${totals.Offers > 0 ? Math.round((totals.Hires / totals.Offers) * 100) + "%" : "—"}</div>
           <div class="kpi-label">Offer Success Rate</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${totals.Offers} offer${totals.Offers !== 1 ? "s" : ""} made</div>
+          <div class="pa-kpi-note">${totals.Offers} offer${totals.Offers !== 1 ? "s" : ""} made</div>
         </div>
       </div>
     </div>
@@ -276,16 +278,16 @@ function _paRenderResultsHtml(results, location, functionArea) {
 
   // ── Funnel drop-off ───────────────────────────────────────────────
   const funnelHtml = `
-      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-      <div style="font-size:15px;font-weight:600;color:var(--brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--border-subtle)">Funnel Drop-off</div>
+      <div class="print-avoid-break mr-card">
+      <div class="mr-card-title">Funnel Drop-off</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         ${funnelStages.map((s, i) => `
-          <div title="${_paEsc(learnedBenchmarkTip(summaryBench, LEARNED_RATES[i].key))}" style="flex:1;min-width:130px;background:var(--surface-tint);border:1px solid var(--border);border-radius:6px;padding:14px 16px">
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">${s.stage}</div>
-            <div style="font-size:22px;font-weight:700;color:var(--brand)">
+          <div title="${_paEsc(learnedBenchmarkTip(summaryBench, LEARNED_RATES[i].key))}" class="pa-stage-tile">
+            <div class="pa-stage-label">${s.stage}</div>
+            <div class="pa-stage-value">
               ${s.conv !== null ? s.conv + "%" : "—"}
             </div>
-            <div style="font-size:12px;margin-top:6px">
+            <div class="pa-stage-rag">
               ${ragDot(s.rag)}${s.rag === "grey" ? "No data" : s.rag.charAt(0).toUpperCase() + s.rag.slice(1)}
             </div>
           </div>`).join("")}
@@ -319,11 +321,11 @@ function _paRenderResultsHtml(results, location, functionArea) {
         <tr>
           <td>${_paEsc(group.key)}</td>
           <td>${_paEsc(group.functionArea || "—")}</td>
-          <td style="text-align:center">${group.avgSalary !== null ? group.sym + group.avgSalary.toLocaleString('en-GB') : "—"}</td>
-          <td style="text-align:center">${group.avgTth !== null ? group.avgTth + "d" : "—"}</td>
-          <td style="text-align:center">${group.roleTotals.Outreach > 0 ? Math.round((group.roleTotals.Responses / group.roleTotals.Outreach) * 100) + "%" : "—"}</td>
-          <td style="text-align:center">${funnelSummary}</td>
-          <td style="text-align:center">${group.roleTotals.Offers > 0
+          <td class="cell-center">${group.avgSalary !== null ? group.sym + group.avgSalary.toLocaleString('en-GB') : "—"}</td>
+          <td class="cell-center">${group.avgTth !== null ? group.avgTth + "d" : "—"}</td>
+          <td class="cell-center">${group.roleTotals.Outreach > 0 ? Math.round((group.roleTotals.Responses / group.roleTotals.Outreach) * 100) + "%" : "—"}</td>
+          <td class="cell-center">${funnelSummary}</td>
+          <td class="cell-center">${group.roleTotals.Offers > 0
             ? Math.round((group.roleTotals.Hires / group.roleTotals.Offers) * 100) + "%"
             : "—"}</td>
         </tr>`;
@@ -331,11 +333,11 @@ function _paRenderResultsHtml(results, location, functionArea) {
     .join("");
 
   const breakdownHtml = `
-      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px 24px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-      <div style="font-size:15px;font-weight:600;color:var(--brand);margin:0 0 16px 0;padding-bottom:8px;border-bottom:1px solid var(--border-subtle)">
-        Role Breakdown <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(${sortedGroups.length} of ${groupCount} role type${groupCount !== 1 ? "s" : ""})</span>
+      <div class="print-avoid-break mr-card">
+      <div class="mr-card-title">
+        Role Breakdown <span class="mr-card-title-sub">(${sortedGroups.length} of ${groupCount} role type${groupCount !== 1 ? "s" : ""})</span>
       </div>
-      <table class="data-table pa-breakdown-table" style="width:100%;margin:0">
+      <table class="data-table pa-breakdown-table mr-table">
         <thead>
           <tr>
             ${sortableHeader('Role', 'role', _paBreakdownSort, 'paSetBreakdownSort')}
@@ -343,13 +345,13 @@ function _paRenderResultsHtml(results, location, functionArea) {
             ${sortableHeader('Avg. Salary', 'avgSalary', _paBreakdownSort, 'paSetBreakdownSort')}
             ${sortableHeader('Avg. Actual TTH', 'avgTth', _paBreakdownSort, 'paSetBreakdownSort')}
             ${sortableHeader('Outreach Response', 'outreachResponse', _paBreakdownSort, 'paSetBreakdownSort')}
-            <th style="text-align:center">Funnel (RAG)</th>
+            <th class="cell-center">Funnel (RAG)</th>
             ${sortableHeader('Offer Success', 'offerSuccess', _paBreakdownSort, 'paSetBreakdownSort')}
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
-      <div style="font-size:11px;color:var(--text-faint);margin-top:12px">
+      <div class="pa-legend-note">
         Funnel RAG: Response rate · IV1 Conversion · IV→Offer · Offer Success. ● ok · ${ragMarkerHTML('amber')}watch · ${ragMarkerHTML('red')}at risk. Hover for values.
       </div>
     </div>

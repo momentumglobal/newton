@@ -369,8 +369,9 @@ const CONFIG = {
   // duplicated {green,amber,red,grey} object literal previously hardcoded in
   // cc-pages.js. mobile-scorecards.js keeps its own distinct amber
   // (var(--c-warn-text)) — do not repoint it at this map, its amber is a
-  // different shade. mobile-analytics.js / placement-analytics.js use a
-  // different palette entirely (Palette B) and are NOT consolidated here.
+  // different shade. mobile-analytics.js uses a different palette entirely
+  // (Palette B) and is NOT consolidated here; placement-analytics.js moved to
+  // the status set via .pa-rag-* classes in style.css (N-411).
   RAG_COLOUR_VARS: {
     green: 'var(--status-success)',
     amber: 'var(--status-warn-strong)',

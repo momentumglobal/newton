@@ -95,16 +95,24 @@
   margin: var(--sp-7) 0 var(--sp-3);
   font-weight: 600;
 }
+.rb-section-label--hint { font-size: var(--fs-11); color: var(--text-muted); margin-top: var(--sp-1); }
 .rb-input, .rb-select {
   width: 100%;
   padding: var(--sp-3) var(--sp-5);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
+  border: 1px solid var(--border-control);
+  border-radius: var(--r-lg);
   font-size: var(--fs-13);
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
   color: var(--text-primary);
   background: var(--surface);
   box-sizing: border-box;
+  transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
+}
+.rb-input:hover:not(:disabled), .rb-select:hover:not(:disabled), .rb-snap-input:hover:not(:disabled) { border-color: var(--text-muted); }
+.rb-input:focus, .rb-select:focus, .rb-snap-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent);
 }
 .rb-palette { display: flex; flex-direction: column; gap: var(--sp-3); }
 .rb-subheading {
@@ -146,8 +154,9 @@
 .rb-snap-table td:first-child { text-align: left; }
 .rb-snap-input {
   width: 52px; padding: var(--sp-2); text-align: center;
-  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  border: 1px solid var(--border-control); border-radius: var(--r-sm);
   font-family: inherit; font-size: var(--fs-13);
+  transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
 .rb-sidebar-scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
 .rb-sidebar-footer {
@@ -175,6 +184,7 @@
   content: attr(data-placeholder);
   color: var(--text-faint); font-style: italic; pointer-events: none;
 }
+#mr-obs-editor { cursor: text; }
 
 /* Canvas blocks */
 .rb-empty {
@@ -212,7 +222,7 @@
 /* Modals */
 .rb-modal {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: var(--scrim);
   z-index: 200;
   display: flex; align-items: flex-start; justify-content: center;
   padding-top: var(--sp-13);
@@ -224,6 +234,7 @@
   width: 900px; max-width: 96vw;
   padding: var(--sp-9);
   max-height: 85vh; overflow-y: auto;
+  box-shadow: var(--elev-modal);
 }
 .rb-preview-toolbar {
   display: flex; gap: var(--sp-5); justify-content: flex-end;
@@ -233,6 +244,7 @@
   background: var(--surface-raised); border-radius: var(--r-xl);
   width: 600px; max-width: 96vw;
   padding: var(--sp-10); max-height: 70vh; overflow-y: auto;
+  box-shadow: var(--elev-modal);
 }
 .rb-modal-inner h3 { margin: 0 0 var(--sp-7); font-size: var(--fs-18); color: var(--text-heading); letter-spacing: var(--ls-heading); }
 .rb-saved-row {
@@ -254,6 +266,9 @@
   margin-bottom: var(--sp-8);
   box-shadow: 0 1px var(--sp-2) rgba(10,11,68,0.04);
   font-size: var(--fs-14); line-height: 1.6; color: var(--text-secondary);
+}
+@media screen {
+  .rb-text-block { box-shadow: var(--elev-card); }
 }
 
 /* ── Briefing pack library (N-235) ───────────────────────────────── */

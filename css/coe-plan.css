@@ -17,7 +17,7 @@
 .coe-gantt .coe-sticky--1 { left:0; min-width:160px; }
 .coe-gantt .coe-sticky--2 { left:160px; min-width:96px; }
 .coe-gantt .coe-sticky--3 { left:256px; min-width:110px; }
-.coe-gantt .coe-sticky--4 { left:366px; min-width:110px; box-shadow:var(--sp-1) 0 var(--sp-1) rgba(0,0,0,0.06); }
+.coe-gantt .coe-sticky--4 { left:366px; min-width:110px; box-shadow:var(--sh-sticky-edge); }
 /* N-319: Planned Open / Actual Open / Week Variance centred (Role stays left) */
 .coe-gantt .coe-sticky--2, .coe-gantt .coe-sticky--3, .coe-gantt .coe-sticky--4 { text-align:center; }
 /* Header sticky/background now comes from .table-scroll thead th (N-203);
@@ -86,6 +86,9 @@
 .coe-legend { display:flex; gap:var(--sp-7); margin:var(--sp-5) 0; font-size:var(--fs-12); align-items:center; flex-wrap:wrap; }
 .coe-legend span { display:inline-flex; align-items:center; gap:var(--sp-2); }
 .coe-swatch { width:14px; height:14px; border-radius:var(--r-sm); display:inline-block; }
+.coe-swatch--recruit { background:var(--coe-cell-r); }
+.coe-swatch--notice  { background:var(--coe-cell-n); }
+.coe-swatch--onboard { background:var(--c-green-pale-border); }
 .coe-capacity td, .coe-capacity th { font-size:var(--fs-11); font-variant-numeric: tabular-nums; }
 .coe-capacity .coe-cap-label { text-align:left; font-weight:600; }
 .coe-fvp-table { border-collapse:collapse; margin-top:var(--sp-5); font-size:var(--fs-13); }
@@ -103,6 +106,10 @@
 .coe-opens-current td { font-style:italic; }
 .coe-row-actions { display:flex; gap:var(--sp-3); justify-content:flex-start; }
 .coe-row-actions button { font-size:var(--fs-11); padding:var(--sp-1) var(--sp-4); }
+/* N-411: Hiring Plan dialogs — backdrop on the shared scrim token */
+.coe-modal-overlay { display:flex; position:fixed; inset:0; background:var(--scrim); z-index:var(--z-modal); align-items:center; justify-content:center; }
+.coe-modal { max-width:640px; max-height:92vh; overflow-y:auto; }
+.coe-modal-note { font-size:var(--fs-12); color:var(--text-muted); }
 
 /* ── CoE Hiring Plan — print/PDF ───────────────────────────────────── */
 @media print {

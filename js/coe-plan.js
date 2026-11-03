@@ -188,9 +188,9 @@ function coeRenderBody() {
       ${isAdmin && planRows.length ? `<button class="btn-danger" id="coe-delete-plan-btn"${act('coeDeletePlan')}>Delete Plan</button>` : ''}
     </div>
     <div class="coe-legend">
-      <span><span class="coe-swatch" style="background:var(--c-blue-pale)"></span> Recruitment</span>
-      <span><span class="coe-swatch" style="background:var(--c-pink-pale)"></span> Notice</span>
-      <span><span class="coe-swatch" style="background:var(--c-green-pale-border)"></span> Onboarding</span>
+      <span><span class="coe-swatch coe-swatch--recruit"></span> Recruitment</span>
+      <span><span class="coe-swatch coe-swatch--notice"></span> Notice</span>
+      <span><span class="coe-swatch coe-swatch--onboard"></span> Onboarding</span>
       <span><span class="coe-mark coe-mark--hire">✓&#xFE0E;</span> Hire confirmed</span>
       <span><span class="coe-mark coe-mark--start">▶&#xFE0E;</span> Started</span>
     </div>
@@ -552,8 +552,8 @@ async function coeOpenRowModal(rowId = null) {
   // N-317: no Talent Partner field — stored TalentPartner values are left as-is.
 
   document.getElementById('coe-modal-host').innerHTML = `
-    <div style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
-    <div class="form-container form-container--modal" id="coe-row-modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
+    <div class="coe-modal-overlay">
+    <div class="form-container form-container--modal coe-modal" id="coe-row-modal">
       <h2>${row ? 'Edit' : 'Add'} Planned Headcount</h2>
       <div id="coe-row-form-error" class="form-error"></div>
       <form id="coe-row-form"${actOn('submit', 'coeSubmitRow', ACT_EVENT, rowId || null)}>
@@ -569,7 +569,7 @@ async function coeOpenRowModal(rowId = null) {
           <div class="form-group"><label>Onboarding (wks)</label>
             <input type="number" min="0" name="OnboardingWeeks" placeholder="${dflt.onboardingWeeks}" value="${row?.OnboardingWeeks ?? ''}"></div>
         </div>
-        <p style="font-size:12px;color:var(--text-muted)">Leave phase fields blank to use defaults. Planned hire = Planned Open Date + Recruitment weeks.</p>
+        <p class="coe-modal-note">Leave phase fields blank to use defaults. Planned hire = Planned Open Date + Recruitment weeks.</p>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${row ? 'Save Changes' : 'Add to Plan'}</button>
           <button type="button" class="btn-secondary"${act('coeCloseModal')}>Cancel</button>
@@ -681,8 +681,8 @@ function coeOpenLinkPicker(rowId) {
     : '<option value="" disabled>-- No linkable headcount — add headcount on the role page --</option>';
 
   document.getElementById('coe-modal-host').innerHTML = `
-    <div style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
-    <div class="form-container form-container--modal" id="coe-link-modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
+    <div class="coe-modal-overlay">
+    <div class="form-container form-container--modal coe-modal" id="coe-link-modal">
       <h2>Link to Headcount</h2>
       <div class="form-group"><label>Headcount</label>
         <select id="coe-link-select"><option value="">-- Select headcount --</option>${opts}</select></div>
@@ -748,8 +748,8 @@ function coeCreateHeadcountFromRow(rowId) {
     : 'No open pipelines on this project — create a new one.';
 
   document.getElementById('coe-modal-host').innerHTML = `
-    <div style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
-    <div class="form-container form-container--modal" id="coe-create-modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
+    <div class="coe-modal-overlay">
+    <div class="form-container form-container--modal coe-modal" id="coe-create-modal">
       <h2>Create Headcount</h2>
       <p class="form-section-note">For plan row: ${escHtml(row.Title || '')}</p>
       <div class="form-group">

@@ -299,6 +299,7 @@
   --sh-3: 0 4px 16px rgba(10,11,68,0.10);
   --sh-4: 0 4px 24px rgba(10,11,68,0.10);
   --sh-modal: 0 8px 32px rgba(0,0,0,0.18);
+  --sh-sticky-edge: 2px 0 2px rgba(0,0,0,0.06);   /* N-411: right edge of the frozen Hiring Plan Gantt columns */
   --sh-drawer: -8px 0 32px rgba(0,0,0,0.4);
   --scrim: rgba(0,0,0,0.45);   /* N-409: modal / command-bar backdrop */
   --sh-focus: 0 0 0 3px rgba(10,11,68,0.08);
@@ -1606,7 +1607,9 @@ body {
 .page-header-actions .btn-secondary { padding: var(--sp-3) 14px; }
 
 /* Rich text toolbar */
-.rb-rt-wrapper { flex: 1; border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; }
+.rb-rt-wrapper { flex: 1; border: 1px solid var(--border-control); border-radius: var(--r-lg); overflow: hidden; transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard); }
+.rb-rt-wrapper:hover { border-color: var(--text-muted); }
+.rb-rt-wrapper:focus-within { border-color: var(--border-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent); }
 .rb-rt-toolbar { display: flex; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); background: var(--surface-app); border-bottom: 1px solid var(--border-strong); }
 .rb-rt-toolbar button { background: none; border: 1px solid transparent; border-radius: var(--r-sm); padding: var(--sp-1) var(--sp-3); cursor: pointer; font-size: var(--fs-13); font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; }
 .rb-rt-toolbar button:hover { background: var(--surface); border-color: var(--border-strong); }
@@ -1801,9 +1804,36 @@ body {
 .rag-text--red               { color: var(--status-danger); font-weight: var(--fw-bold); }
 
 /* Placement Analytics funnel marker (N-254): red/amber glyph sits in the same
-   fixed box as the 10px dot so the Funnel column width doesn't shift. */
+   fixed box as the 10px dot so the Funnel column width doesn't shift. Colour is
+   a modifier class on the single status set (N-411), not an inline style. */
 .pa-rag-glyph             { display: inline-block; width: var(--sp-6); margin-right: var(--sp-3); text-align: center; }
 .pa-rag-glyph .rag-marker { margin-right: 0; }
+.pa-rag-glyph--amber      { color: var(--status-warn-strong); }
+.pa-rag-glyph--red        { color: var(--status-danger-text); }
+.pa-rag-dot               { display: inline-block; width: 10px; height: 10px; border-radius: var(--r-round); margin-right: var(--sp-3); background: var(--status-neutral); }
+.pa-rag-dot--green        { background: var(--status-success); }
+.pa-rag-dot--amber        { background: var(--status-warn); }
+.pa-rag-dot--red          { background: var(--status-danger); }
+
+/* Market Report + Placement Analytics report cards (N-411). The base shadow is
+   the value the PDF has always used, so print falls through to it; screen takes
+   the shared card elevation. */
+.mr-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--sp-8) var(--sp-9) var(--sp-9); margin-bottom: var(--sp-7); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+@media screen {
+  .mr-card { box-shadow: var(--elev-card); }
+}
+.mr-card-title { font-size: var(--fs-15); font-weight: var(--fw-semibold); color: var(--brand); margin: 0 0 var(--sp-7) 0; padding-bottom: var(--sp-4); border-bottom: 1px solid var(--border-subtle); }
+.mr-card-title-sub { font-size: var(--fs-12); font-weight: var(--fw-regular); color: var(--text-muted); }
+.mr-card-title-sub--gap { margin-left: var(--sp-4); }
+.mr-table { width: 100%; margin: 0; }
+.mr-loading { padding: var(--sp-10); color: var(--text-muted); }
+.no-data--spaced { padding: var(--sp-10); }
+.pa-kpi-note { font-size: var(--fs-11); color: var(--text-muted); margin-top: var(--sp-2); }
+.pa-stage-tile { flex: 1; min-width: 130px; background: var(--surface-tint); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px var(--sp-7); }
+.pa-stage-label { font-size: var(--fs-12); color: var(--text-muted); margin-bottom: var(--sp-3); }
+.pa-stage-value { font-size: var(--fs-22); font-weight: var(--fw-bold); color: var(--brand); }
+.pa-stage-rag { font-size: var(--fs-12); margin-top: var(--sp-3); }
+.pa-legend-note { font-size: var(--fs-11); color: var(--text-faint); margin-top: var(--sp-6); }
 
 /* Empty state — shared component (N-103), generalised from the engagement-only version */
 .empty-state {

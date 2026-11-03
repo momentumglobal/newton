@@ -380,15 +380,20 @@ async function run() {
   });
 
   // ── N-394 People tools ───────────────────────────────────────────────
-  await check('N-394 AC4 bench = buildBenchPool on the Org Chart reads (same order); since = earliest current bench start; working, forecast-only, CSD, internal, placeholder and leaver staff left out', async () => {
+  await check('N-394 AC4 / N-422 bench = buildBenchPool on the Org Chart reads (same order); since = earliest current bench start; working, forecast-only, CSD, internal, placeholder, leaver and not-yet-started staff left out', async () => {
     const r = await call('bench', {});
     eq(r.people.map(p => [p.name, p.level, p.location, p.since]),
       [['Bea Bench', 'TP', 'Porto', null], ['Ben Blank', 'PTP', 'London', day(-20)], ['Eve Ended', 'TP', 'Madrid', null]], 'bench people');
     const oracle = await L.evalInContext(`(async () => {
       const [p, c] = await Promise.all([getPeople(true, true), getCurrentAssignmentsByEmployee()]);
-      return JSON.stringify(buildBenchPool(p, c).map(x => x.EmployeeName));
+      return JSON.stringify(buildBenchPool(p.filter(x => isStartedPerson(x)), c).map(x => x.EmployeeName));
     })()`);
     eq(r.people.map(p => p.name), JSON.parse(oracle), 'equals buildBenchPool on the Org Chart inputs');
+    const unfiltered = await L.evalInContext(`(async () => {
+      const [p, c] = await Promise.all([getPeople(true, true), getCurrentAssignmentsByEmployee()]);
+      return JSON.stringify(buildBenchPool(p, c).map(x => x.EmployeeName));
+    })()`);
+    eq(JSON.parse(unfiltered).includes('Fay Future'), true, 'control: without the N-422 filter the future starter would be on the bench');
     eq([r.total, r.truncated, Object.keys(r.people[0])], [3, false, ['name', 'level', 'location', 'since']], 'shape');
   });
 

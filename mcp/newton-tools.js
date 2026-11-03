@@ -679,17 +679,19 @@ function mcpPct(ratio) {
 }
 
 // ── bench ─────────────────────────────────────────────────────────────
-// The Org Chart's Unassigned pool: the same two reads, the same buildBenchPool (N-391).
+// The Org Chart's Unassigned pool: the same two reads, the same buildBenchPool (N-391) and the
+// same started-people filter (N-422).
 // since = the earliest start of the person's current rows (all bench rows, or none).
 async function mcpBench() {
-  const [people, current] = await Promise.all([getPeople(true, true), getCurrentAssignmentsByEmployee()]);
+  const [allPeople, current] = await Promise.all([getPeople(true, true), getCurrentAssignmentsByEmployee()]);
+  const people = allPeople.filter(p => isStartedPerson(p));
   const rows = buildBenchPool(people, current).map(p => {
     const starts = (current[p.EmployeeName] || []).map(a => mcpOutDay(a.StartDate)).filter(Boolean).sort();
     return { name: p.EmployeeName || null, level: p.Level || null, location: p.Location || null, since: starts[0] || null };
   });
   const capped = mcpCapRows(rows);
   return mcpOutputGuard({
-    scope: 'People Org Chart > Unassigned: active deployable staff with no current assignment, or only bench assignments. Placeholders, internal staff, external partners and CSDs are never bench. since = start of their current bench assignment.',
+    scope: 'People Org Chart > Unassigned: active deployable staff who have started, with no current assignment, or only bench assignments. People whose start date is still ahead, placeholders, internal staff, external partners and CSDs are never bench. since = start of their current bench assignment.',
     total: capped.total,
     truncated: capped.truncated,
     people: capped.rows,
@@ -914,7 +916,7 @@ var MCP_TOOLS = [
   },
   {
     name: 'bench',
-    description: 'Staff on the bench now (the Org Chart Unassigned pool): name, level, location and since when. Names only; no money. Placeholders, internal staff, external partners and CSDs are never bench.',
+    description: 'Staff on the bench now (the Org Chart Unassigned pool): name, level, location and since when. Names only; no money. People who have not started yet, placeholders, internal staff, external partners and CSDs are never bench.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     handler: mcpBench,
   },

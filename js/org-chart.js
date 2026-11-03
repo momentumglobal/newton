@@ -46,12 +46,16 @@ async function renderOrgChart() {
   const main = document.getElementById('main-content');
   main.innerHTML = skeletonList(6);
 
-  const [people, leadership, projectsByCSD, currentAssign] = await Promise.all([
+  const [allPeople, leadership, projectsByCSD, currentAssign] = await Promise.all([
     getPeople(true, true),                 // active only, sorted by Level; incl. placeholders
     getLeadershipAccess(),
     getProjectsByCSD(),                    // { csdNameLower: [projectRow,…] }
     getCurrentAssignmentsByEmployee(),     // { EmployeeName: [assignmentRow,…] }
   ]);
+  // N-422: staff whose StartDate is in the future are not shown until they start.
+  // One filter here covers the tree, function bubbles and the Unassigned pool
+  // (showOrgChartEditForm reads getPeople() itself, so it still lists them).
+  const people = allPeople.filter(p => isStartedPerson(p));
 
   const { roots, unassignedProjects, internalUnassigned } = buildOrgTree({ people, leadership, projectsByCSD, currentAssign });
   const bench = buildBenchPool(people, currentAssign);

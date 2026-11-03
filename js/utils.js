@@ -1904,6 +1904,20 @@ function isInternalStaff(p) {
   return !!p && p.StaffType === CONFIG.STAFF_TYPE_INTERNAL;
 }
 
+// N-422: has this person started? A People row whose StartDate is after today is
+// a future starter: in Newton so they can be set up, but not yet working for us,
+// so the Org Chart and the Newton for Claude bench tool leave them out. Visible ON
+// the start date. A blank or unparseable StartDate counts as started, and a
+// placeholder is a vacancy, not a joiner, so it always passes. Compares two
+// 'YYYY-MM-DD' strings (spDateIn / localDayISO), never a Date built from the
+// SharePoint string (N-087, BST shift).
+function isStartedPerson(p, today = new Date()) {
+  if (!p) return false;
+  if (p.IsPlaceholder) return true;
+  const start = spDateIn(p.StartDate);
+  return !start || start <= localDayISO(today);
+}
+
 // N-402: StaffType 'External' = an outside partner on a Project Team. Works on
 // a People row, an Assignments row (StaffType copied at create) and a
 // computeMonthlyRows row. Not deployable; revenue still counts.

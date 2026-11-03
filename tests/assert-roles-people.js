@@ -218,6 +218,38 @@ ASSERTIONS.push(
       _assertEqual(CONFIG.LIST_FIELDS.People.includes('StaffType') && CONFIG.LIST_FIELDS.People.includes('StaffFunction'), true, 'People projection carries StaffType + StaffFunction');
     },
   },
+  // ---- N-422: staff who have not started yet ---------------------------------
+  {
+    name: 'N-422: isStartedPerson — future StartDate hidden, start day shown; blank / garbage / placeholder pass; Org Chart filters with it',
+    fn: function () {
+      const today = new Date(2026, 10, 3);                       // 3 Nov 2026, local
+      const p = (s, extra) => Object.assign({ EmployeeName: 'X', StartDate: s }, extra);
+      _assertEqual(isStartedPerson(p('2026-11-02T12:00:00Z'), today), true,  'yesterday');
+      _assertEqual(isStartedPerson(p('2026-11-03T12:00:00Z'), today), true,  'today: visible on the start date');
+      _assertEqual(isStartedPerson(p('2026-11-04T12:00:00Z'), today), false, 'tomorrow');
+      _assertEqual(isStartedPerson(p('2027-01-01'), today),           false, 'bare date, far future');
+      _assertEqual(isStartedPerson(p(undefined), today),              true,  'blank StartDate counts as started');
+      _assertEqual(isStartedPerson(p(null), today),                   true,  'null StartDate');
+      _assertEqual(isStartedPerson(p('not a date'), today),           true,  'unparseable StartDate');
+      _assertEqual(isStartedPerson(p('2030-01-01T12:00:00Z', { IsPlaceholder: true }), today), true, 'a placeholder always passes');
+      _assertEqual(isStartedPerson(null, today), false, 'null person');
+      const next = new Date(); next.setFullYear(next.getFullYear() + 1);
+      const last = new Date(); last.setFullYear(last.getFullYear() - 1);
+      _assertEqual(isStartedPerson(p(localDayISO(next))), false, 'default today: a year ahead is hidden');
+      _assertEqual(isStartedPerson(p(localDayISO(last))), true,  'default today: a year ago is shown');
+      // The Org Chart bench pool: positive control first (unfiltered, the joiner IS on the bench), then filtered.
+      const ppl = [
+        { EmployeeName: 'Here', Level: 'TP', StartDate: '2026-10-01T12:00:00Z', IsActive: true },
+        { EmployeeName: 'Soon', Level: 'TP', StartDate: '2026-12-01T12:00:00Z', IsActive: true },
+      ];
+      const names = list => list.map(x => x.EmployeeName);
+      _assertEqual(names(buildBenchPool(ppl, {})), ['Here', 'Soon'], 'control: without the filter the future starter is on the bench');
+      _assertEqual(names(buildBenchPool(ppl.filter(x => isStartedPerson(x, today)), {})), ['Here'], 'filtered: only the started person');
+      const oc = _vendorStripJsComments(ALL_SOURCES['org-chart.js']).join('\n');
+      _assertEqual(/const people = allPeople\.filter\(p => isStartedPerson\(p\)\);/.test(oc), true, 'renderOrgChart filters the People read once');
+      _assertEqual(/buildOrgTree\(\{ people,/.test(oc) && /buildBenchPool\(people, currentAssign\)/.test(oc), true, 'the tree and the bench both get the filtered list');
+    },
+  },
   {
     name: 'N-304: groupInternalByFunction / countInternalByFunction — config order, Unknown last, inactive / placeholder / deployable excluded',
     fn: function () {

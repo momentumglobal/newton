@@ -537,6 +537,7 @@ var FIXTURES = {
         { id: '1009', Title: 'Pat Placeholder', Level: 'TP', Location: '',      IsActive: true, IsPlaceholder: true },
         { id: '1010', Title: 'Old Leaver',   Level: 'TP',  Location: 'Lisbon', StartDate: { d: -900 }, EndDate: { d: -100 }, IsActive: false },
         { id: '1011', Title: 'Pia Partner',  Level: '',    Location: 'Berlin', StartDate: { d: -30 },  IsActive: true, StaffType: 'External' },   // N-402
+        { id: '1012', Title: 'Fay Future',   Level: 'TP',  Location: 'Oslo',   StartDate: { d: 14 },   IsActive: true },                          // N-422: starts in 14 days, no rows: not on the bench yet
       ],
       // N-394: SalesForecasts. ForecastedHeadcount is read locally for the forecast %, never returned.
       SalesForecasts: [

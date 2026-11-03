@@ -63,7 +63,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
           <div class="form-group">
             <label>Project *</label>
             ${lockProject ? `
-            <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--surface-sunken);color:var(--text-label);">
+            <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled class="input-readonly">
             <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
             <select name="ProjectID" required${actOn('change', 'formsPlacementProjectChanged', ACT_VALUE, !!canLogOnBehalf)}>
               <option value="">-- Select project --</option>
@@ -101,7 +101,7 @@ async function renderPlacementForm(existingData = null, preselectedRoleId = null
           <div class="form-group">
             <label>Currency</label>
             <input type="text" id="placement-currency" name="Currency" readonly
-              style="background:var(--surface-sunken);color:var(--text-label);"
+              class="input-readonly"
               value="${escAttr(inheritedCurrency)}"
               placeholder="Auto-filled from role">
           </div>

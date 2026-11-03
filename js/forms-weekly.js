@@ -87,7 +87,7 @@ function _weeklyFormBasicsHtml(c) {
           <div class="form-group">
             <label>Project *</label>
             ${lockProject ? `
-            <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--surface-sunken);color:var(--text-label);">
+            <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled class="input-readonly">
             <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
             <select name="ProjectID" required${actOn('change', 'formsWeeklyProjectChanged', ACT_VALUE, !!canLogOnBehalf)}>
               <option value="">-- Select project --</option>

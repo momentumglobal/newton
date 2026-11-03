@@ -111,13 +111,13 @@ function hireKpisForPeriod(hires, periodKey) {
 function kpiDelta(curr, prev, lowerIsBetter = false, isPercent = false) {
   if (curr === null || prev === null || prev === 0) return '';
   const diff = curr - prev;
-  if (diff === 0) return `<span style='color:var(--text-faint);font-size:13px;margin-left:6px'>—</span>`;
+  if (diff === 0) return `<span class='kpi-delta kpi-delta--flat'>—</span>`;
   const positive = lowerIsBetter ? diff < 0 : diff > 0;
   // N-257b: green is neutral. Only the worsening case gets a status colour.
-  const colour   = positive ? 'var(--text-secondary)' : 'var(--status-danger)';
+  const cls      = positive ? 'kpi-delta--ok' : 'kpi-delta--worse';
   const sign     = diff > 0 ? '+' : '';
   const label    = isPercent ? `${sign}${diff}%` : `${sign}${diff}`;
-  return `<span style='color:${colour};font-size:13px;font-weight:500;margin-left:6px'>${label}</span>`;
+  return `<span class='kpi-delta ${cls}'>${label}</span>`;
 }
 function getPreviousPeriod(period) {
   if (period === 'month')   return 'last_month';

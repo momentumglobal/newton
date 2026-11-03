@@ -135,7 +135,7 @@ ASSERTIONS.push(
       const per = lib.renderPipelineActivityTable(acts, roles, 'x');
       _assertEqual(/<strong>10<\/strong>/.test(per) && !/%\)/.test(per), true, 'control: Pipeline Activity stays period-filtered, no %');
       _assertEqual(lib.pipelineTotalsCells([10, 0, 0], { conversionPct: true }),
-        '<td style="text-align:center"><strong>10</strong></td><td style="text-align:center"><strong>0</strong><br>(0%)</td><td style="text-align:center"><strong>0</strong></td>',
+        '<td class="cell-center"><strong>10</strong></td><td class="cell-center"><strong>0</strong><br>(0%)</td><td class="cell-center"><strong>0</strong></td>',
         'no % where the previous total is 0');
     },
   },

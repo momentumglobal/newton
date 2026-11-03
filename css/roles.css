@@ -20,12 +20,14 @@
 .bulk-grid-input {
   width: 60px; text-align: center;
   padding: var(--sp-2) var(--sp-3);
-  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  border: 1px solid var(--border-control); border-radius: var(--r-md);
   background: var(--surface); color: var(--text-primary);
   font-size: var(--fs-13); font-variant-numeric: tabular-nums;
+  transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
+.bulk-grid-input:hover:where(:not(:disabled)) { border-color: var(--text-muted); }
 .bulk-grid-input:focus {
-  outline: none; border-color: var(--border-focus); box-shadow: var(--sh-focus);
+  outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent);
 }
 .bulk-grid-input:disabled {
   background: var(--surface-muted); color: var(--text-faint); cursor: not-allowed;
@@ -169,7 +171,8 @@
   padding: 0;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-2xl);
+  box-shadow: var(--elev-card);
 }
 .checklist-item {
   display: flex;
@@ -280,14 +283,16 @@
   width: 100%;
   min-width: 120px;
   padding: var(--sp-2) var(--sp-3);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-sm);
+  border: 1px solid var(--border-control);
+  border-radius: var(--r-md);
   background: var(--surface);
   color: var(--text-primary);
   font: inherit;
   font-size: var(--fs-13);
+  transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
-.role-hc-input:focus { outline: none; border-color: var(--border-focus); box-shadow: var(--sh-focus); }
+.role-hc-input:hover:where(:not(:disabled)) { border-color: var(--text-muted); }
+.role-hc-input:focus { outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent); }
 .role-hc-check { display: inline-flex; align-items: center; gap: var(--sp-3); font-weight: var(--fw-regular); white-space: nowrap; cursor: pointer; }
 .role-hc-actions { display: flex; gap: var(--sp-3); }
 .role-hc-add {
@@ -306,9 +311,11 @@
   font-size: var(--fs-11);
   font-weight: 600;
   white-space: nowrap;
+  border: 1px solid var(--surface-alt-border);
+  letter-spacing: 0.03em;
 }
 .hc-status--open      { background: var(--surface-alt);       color: var(--text-heading); }
-.hc-status--filled    { background: var(--status-success-bg); color: var(--status-success); }
+.hc-status--filled    { background: var(--status-success-bg); color: var(--status-success); border-color: transparent; }
 .hc-status--cancelled { background: var(--surface-sunken);    color: var(--text-label); }
 
 /* ── Project Team section (N-365) ──────────────────────────────────────
@@ -322,7 +329,20 @@
 /* ── SLA targets (N-382) ───────────────────────────────────────────────
    project-page.js (Project page section) and sla-admin.js (Config Panel tab).
    Muted text uses --text-label (passes 4.5:1, see above). */
-.sla-input { width: 7rem; }
+.sla-input {
+  width: 7rem;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-control);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--fs-13);
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
+}
+.sla-input:hover:where(:not(:disabled)) { border-color: var(--text-muted); }
+.sla-input:focus { outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent); }
 .sla-unit { color: var(--text-label); font-size: var(--fs-13); }
 .sla-default-note { color: var(--text-label); font-size: var(--fs-13); }
 .sla-hint { margin: var(--sp-5) 0 0; color: var(--text-label); font-size: var(--fs-13); }
@@ -373,7 +393,8 @@
   padding: var(--sp-7);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-2xl);
+  box-shadow: var(--elev-card);
 }
 .ck-admin-switch-title { color: var(--text-heading); font-weight: var(--fw-semibold); }
 .ck-admin-switch-status { margin: var(--sp-2) 0 var(--sp-6); color: var(--text-secondary); font-size: var(--fs-13); }
@@ -405,10 +426,6 @@
 
 .ck-admin-form {
   max-width: 720px;
-  padding: var(--sp-7);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
 }
 .ck-admin-form .form-group[hidden] { display: none; }
 .ck-admin-section-new { margin-top: var(--sp-3); }
@@ -433,7 +450,7 @@
   padding: var(--sp-9) var(--sp-7);
   background: var(--surface);
   border: 1px dashed var(--border-strong);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-2xl);
   color: var(--text-secondary);
 }
 .ck-admin-empty p { margin: 0 0 var(--sp-6); }
@@ -443,12 +460,17 @@
 .ck-admin-copy select,
 .ck-admin-rename input {
   padding: var(--sp-3) var(--sp-5);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border-control);
   border-radius: var(--r-md);
   background: var(--surface);
   color: var(--text-primary);
   font-family: inherit;
   font-size: var(--fs-14);
+  transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
+.ck-admin-copy select:hover:where(:not(:disabled)),
+.ck-admin-rename input:hover:where(:not(:disabled):not([aria-invalid="true"])) { border-color: var(--text-muted); }
+.ck-admin-copy select:focus,
+.ck-admin-rename input:focus { outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent); }
 .ck-admin-rename { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-4); }
 .ck-admin-rename input { flex: 1 1 240px; min-width: 0; }

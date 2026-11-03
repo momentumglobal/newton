@@ -83,7 +83,7 @@ function pipelineTotalsCells(colTotals, { conversionPct = false } = {}) {
   return colTotals.map((v, i) => {
     const prev = i > 0 ? colTotals[i - 1] : 0;
     const pct  = conversionPct && prev > 0 ? `<br>(${Math.round((v / prev) * 100)}%)` : '';
-    return `<td style="text-align:center"><strong>${v}</strong>${pct}</td>`;
+    return `<td class="cell-center"><strong>${v}</strong>${pct}</td>`;
   }).join('');
 }
 
@@ -109,9 +109,9 @@ function renderPipelineActivityTable(acts, roles, period, opts = {}) {
     ${emptyStateBlock({ icon: 'activity', message: opts.emptyMessage || 'No activity recorded for this period.' })}
   </div>`;
   const totals = FIELDS.map((_, i) => rids.reduce((s, r) => s + byRole[r][i], 0));
-  const hdr    = `<tr><th>Role</th>${LABELS.map(l => `<th style="text-align:center">${l}</th>`).join('')}</tr>`;
+  const hdr    = `<tr><th>Role</th>${LABELS.map(l => `<th class="cell-center">${l}</th>`).join('')}</tr>`;
   const rows   = rids.map(rid =>
-    `<tr><td>${roleMap[rid] || 'Unknown Role'}</td>${byRole[rid].map(v => `<td style="text-align:center">${v}</td>`).join('')}</tr>`
+    `<tr><td>${roleMap[rid] || 'Unknown Role'}</td>${byRole[rid].map(v => `<td class="cell-center">${v}</td>`).join('')}</tr>`
   ).join('');
   const totRow = `<tr class='totals-row'><td><strong>Total</strong></td>${pipelineTotalsCells(totals, { conversionPct: !!opts.conversionPct })}</tr>`;
   return `<div class='dash-panel'>
@@ -189,10 +189,10 @@ function renderPipelineSummaryPanel(activity) {
 
   const colTotals = FIELDS.map((_, i) => trimmed.reduce((s, r) => s + r.totals[i], 0));
 
-  const hdr = `<tr><th>Week</th>${LABELS.map(l => `<th style="text-align:center">${l}</th>`).join('')}</tr>`;
+  const hdr = `<tr><th>Week</th>${LABELS.map(l => `<th class="cell-center">${l}</th>`).join('')}</tr>`;
 
   const bodyRows = trimmed.map(r => {
-    const cells = r.totals.map(v => `<td style="text-align:center">${v > 0 ? v : '–'}</td>`).join('');
+    const cells = r.totals.map(v => `<td class="cell-center">${v > 0 ? v : '–'}</td>`).join('');
     return `<tr><td>${rangeLabel(r.monday, r.friday)}</td>${cells}</tr>`;
   }).join('');
 
@@ -216,12 +216,12 @@ function renderActivityByTPPanel(acts, period, tpMap = {}) {
   const tps = Object.keys(map);
   if (!tps.length) return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3>${emptyStateBlock({ icon: 'activity', message: 'No activity in this period.' })}</div>`;
   const rows = tps.map(tp =>
-    `<tr><td>${escHtml(tpMap[tp.toLowerCase()] || tp)}</td><td style="text-align:center">${map[tp].Outreach}</td><td style="text-align:center">${map[tp].Submitted}</td><td style="text-align:center">${map[tp].Interview1}</td><td style="text-align:center">${map[tp].Offers}</td><td style="text-align:center">${map[tp].Hires}</td></tr>`
+    `<tr><td>${escHtml(tpMap[tp.toLowerCase()] || tp)}</td><td class="cell-center">${map[tp].Outreach}</td><td class="cell-center">${map[tp].Submitted}</td><td class="cell-center">${map[tp].Interview1}</td><td class="cell-center">${map[tp].Offers}</td><td class="cell-center">${map[tp].Hires}</td></tr>`
   ).join('');
   return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3>
     <div class="table-scroll">
     <table class='data-table'>
-      <thead><tr><th>Talent Partner</th><th style="text-align:center">Outreach</th><th style="text-align:center">Submitted</th><th style="text-align:center">Interview 1</th><th style="text-align:center">Offers</th><th style="text-align:center">Hires</th></tr></thead>
+      <thead><tr><th>Talent Partner</th><th class="cell-center">Outreach</th><th class="cell-center">Submitted</th><th class="cell-center">Interview 1</th><th class="cell-center">Offers</th><th class="cell-center">Hires</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     </div>
@@ -300,7 +300,7 @@ function renderSpendPanel(roles, placements) {
   const overallLabel = overallPct === null ? '—'
     : overallPct >= 0 ? `${overallPct}% under budget` : `${Math.abs(overallPct)}% over budget`;
   // N-257b: on/under budget is neutral, not success-tinted.
-  const overallColor = overallPct === null ? 'var(--text-label)' : overallPct >= 0 ? 'var(--text-secondary)' : 'var(--status-danger)';
+  const overallCls = overallPct === null ? 'spend-val--na' : overallPct >= 0 ? 'spend-val--under' : 'spend-val--over';
   const SYMBOLS = { GBP: '£', EUR: '€', USD: '$', CAD: 'CA$', AUD: 'A$', SGD: 'S$', AED: 'AED', ZAR: 'R', LKR: 'LKR' };
   const fmt = (n, ccy) => {
     const sym = SYMBOLS[ccy] || ccy;
@@ -308,20 +308,20 @@ function renderSpendPanel(roles, placements) {
   };
   const breakdownRows = ccyRows.map(({ ccy, budget, spend }) => {
     const diff   = budget - spend;
-    const diffColor = diff >= 0 ? 'var(--text-secondary)' : 'var(--status-danger)';
+    const diffCls   = diff >= 0 ? 'spend-diff--under' : 'spend-diff--over';
     const diffLabel = diff >= 0 ? `${fmt(diff, ccy)} under` : `${fmt(Math.abs(diff), ccy)} over`;
     return `<tr>
       <td><strong>${ccy}</strong></td>
       <td>${fmt(budget, ccy)}</td>
       <td>${fmt(spend, ccy)}</td>
-      <td style="color:${diffColor}">${diffLabel}</td>
+      <td class="${diffCls}">${diffLabel}</td>
     </tr>`;
   }).join('');
   return `<div class='dash-panel'>
     <h3 class='panel-title'>Actual Spend vs Budget</h3>
     <div style="margin-bottom:16px">
       <div class='spend-label'>Overall Variance</div>
-      <div class='spend-val' style='color:${overallColor}'>${overallLabel}</div>
+      <div class='spend-val ${overallCls}'>${overallLabel}</div>
     </div>
     <div class="table-scroll">
     <table class='data-table'>
@@ -543,7 +543,7 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
         + (ttf.closed ? `, ${ttf.closed} on hold/cancelled` : '') + ' counted'
         + (ttf.pooled ? ` — pooled across all locations for ${meta.department || 'this function'}` : '')
       : `Fewer than ${CONFIG.TTF_SURVIVAL.minEvents} hires in the last 12 months for this function`;
-    const ttfCell  = `<td class='ra-ttf' style="text-align:center"><span class='${ttfClass}' title="${escHtml(ttfTip)}">${ttf.label}</span></td>`;
+    const ttfCell  = `<td class='ra-ttf cell-center'><span class='${ttfClass}' title="${escHtml(ttfTip)}">${ttf.label}</span></td>`;
 
     const flagCells = funnel.filter(s => s.benchmarked).map((s, i) => {
       const label = s.conv !== null ? `${s.conv}%` : '—';
@@ -563,11 +563,11 @@ async function renderRoleAnalyticsPanel(roles, activity, historical, tpMap = {})
     <table class='data-table ra-table'>
       <thead><tr>
         <th>Role</th>
-        <th style="text-align:center">Time-to-Hire Prediction</th>
-        <th style="text-align:center">Outreach Response</th>
-        <th style="text-align:center">Submission Conv.</th>
-        <th style="text-align:center">IV → Offer</th>
-        <th style="text-align:center">Offer Success</th>
+        <th class="cell-center">Time-to-Hire Prediction</th>
+        <th class="cell-center">Outreach Response</th>
+        <th class="cell-center">Submission Conv.</th>
+        <th class="cell-center">IV → Offer</th>
+        <th class="cell-center">Offer Success</th>
       </tr></thead>
       <tbody>${tableRows}</tbody>
     </table>

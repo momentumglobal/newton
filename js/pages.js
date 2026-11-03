@@ -105,15 +105,15 @@ function activityRowHtml(a, { roleMap, tpMap, canEdit, readOnly = false, pending
             <td>Wk ${a.WeekNumber}</td>
             <td>${roleMap[String(a.RoleIDLookupId)] || roleMap[String(a.RoleID)] || "—"}</td>
             <td>${escHtml(tpMap[(a.TalentPartner || '').toLowerCase()] || a.TalentPartner || "—")}</td>
-            <td style="text-align:center">${a.Outreach || 0}</td>
-            <td style="text-align:center">${a.Responses || 0}</td>
-            <td style="text-align:center">${a.Screened || 0}</td>
-            <td style="text-align:center">${a.Submitted || 0}</td>
-            <td style="text-align:center">${a.Interview1 || 0}</td>
-            <td style="text-align:center">${a.Interview2Plus || 0}</td>
-            <td style="text-align:center">${a.FinalInterview || 0}</td>
-            <td style="text-align:center">${a.Offers || 0}</td>
-            <td style="text-align:center">${a.Hires || 0}</td>
+            <td class="cell-center">${a.Outreach || 0}</td>
+            <td class="cell-center">${a.Responses || 0}</td>
+            <td class="cell-center">${a.Screened || 0}</td>
+            <td class="cell-center">${a.Submitted || 0}</td>
+            <td class="cell-center">${a.Interview1 || 0}</td>
+            <td class="cell-center">${a.Interview2Plus || 0}</td>
+            <td class="cell-center">${a.FinalInterview || 0}</td>
+            <td class="cell-center">${a.Offers || 0}</td>
+            <td class="cell-center">${a.Hires || 0}</td>
             ${canEdit ? (pending || readOnly ? "<td></td>" : `<td><div class="row-actions"><a href="#"${act('showEditActivityForm', Number(a.id))}>Edit</a></div></td>`) : ""}
           </tr>
         `;
@@ -532,7 +532,7 @@ function _roleTimelineHtml(role, m, tpMap) {
     </div>
     <p class="role-timeline-subhead">${escHtml(projectName)} · Current stage: <span class="badge">${escHtml(role.Stage || "—")}</span></p>
     <div class="role-timeline">
-      ${nodesHtml || '<p style="color:var(--text-muted);">No stage history recorded.</p>'}
+      ${nodesHtml || '<p class="empty-note">No stage history recorded.</p>'}
     </div>
     ${undatedNote}
   `;

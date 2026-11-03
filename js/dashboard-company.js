@@ -134,11 +134,11 @@ function renderCompanyTPPanel(allActivity, projectMap, roleProjectMap, period, t
   if (!keys.length) return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3>${emptyStateBlock({ icon: 'activity', message: 'No activity in this period.' })}</div>`;
   const rows = keys.map(k => {
     const d = map[k];
-    return `<tr><td>${d.project}</td><td>${escHtml(tpMap[d.tp.toLowerCase()] || d.tp)}</td><td style="text-align:center">${d.Outreach}</td><td style="text-align:center">${d.Submitted}</td><td style="text-align:center">${d.Interview1}</td><td style="text-align:center">${d.Offers}</td><td style="text-align:center">${d.Hires}</td></tr>`;
+    return `<tr><td>${d.project}</td><td>${escHtml(tpMap[d.tp.toLowerCase()] || d.tp)}</td><td class="cell-center">${d.Outreach}</td><td class="cell-center">${d.Submitted}</td><td class="cell-center">${d.Interview1}</td><td class="cell-center">${d.Offers}</td><td class="cell-center">${d.Hires}</td></tr>`;
   }).join('');
   return `<div class='dash-panel'><h3 class='panel-title'>Activity by Talent Partner</h3>
     <table class='data-table'>
-      <thead><tr><th>Project</th><th>Talent Partner</th><th style="text-align:center">Outreach</th><th style="text-align:center">Submitted</th><th style="text-align:center">Interview 1</th><th style="text-align:center">Offers</th><th style="text-align:center">Hires</th></tr></thead>
+      <thead><tr><th>Project</th><th>Talent Partner</th><th class="cell-center">Outreach</th><th class="cell-center">Submitted</th><th class="cell-center">Interview 1</th><th class="cell-center">Offers</th><th class="cell-center">Hires</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </div>`;

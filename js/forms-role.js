@@ -90,7 +90,7 @@ function _roleFormBasicsHtml(c) {
           <div class="form-group">
             <label>Project *</label>
             ${lockProject ? `
-            <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled style="background:var(--surface-sunken);color:var(--text-label);">
+            <input type="text" value="${escAttr(projects[0].CustomerName)}" disabled class="input-readonly">
             <input type="hidden" name="ProjectID" value="${projects[0].id}">` : `
             <select name="ProjectID" required${canAssign ? actOn('change', 'loadTalentPartnersForRole', ACT_VALUE) : ''}>
               <option value="">-- Select project --</option>
@@ -141,9 +141,9 @@ function _roleFormOwnershipHtml(c) {
           <legend class="form-section-title">Ownership</legend>
           ${canAssign ? `
           <div class="form-group">
-            <label>Assign to * <span style="font-weight:normal;color:var(--text-muted);">(tick one or more)</span></label>
-            <div id="role-tp-select" class="print-avoid-break" style="border:1px solid var(--border-strong);border-radius:4px;padding:8px;max-height:170px;overflow-y:auto;background:var(--surface);">
-              <span style="color:var(--text-muted);">-- Select project first --</span>
+            <label>Assign to * <span class="form-label-note">(tick one or more)</span></label>
+            <div id="role-tp-select" class="tp-select print-avoid-break">
+              <span class="tp-select-note">-- Select project first --</span>
             </div>
           </div>` : `<input type="hidden" name="TalentPartnerName" value="${escAttr(currentUser.email)}">`}
           <div class="form-group">
@@ -177,7 +177,7 @@ function _roleFormCommercialHtml(c) {
             <div class="form-group">
               <label>Currency</label>
               <input type="text" id="role-currency-display" name="Currency" readonly
-                style="background:var(--surface-sunken);color:var(--text-label);"
+                class="input-readonly"
                 value="${escAttr(existingData?.Location ? (CONFIG.COUNTRY_CURRENCY[existingData.Location] || '') : '')}"
                 placeholder="Auto-filled from location">
             </div>
@@ -271,23 +271,23 @@ async function loadTalentPartnersForRole(projectId, selected = '') {
   const box = document.getElementById('role-tp-select');
   if (!box) return;
   if (!projectId) {
-    box.innerHTML = '<span style="color:var(--text-muted);">-- Select project first --</span>';
+    box.innerHTML = '<span class="tp-select-note">-- Select project first --</span>';
     return;
   }
-  box.innerHTML = '<span style="color:var(--text-muted);">Loading...</span>';
+  box.innerHTML = '<span class="tp-select-note">Loading...</span>';
   try {
     const tps = await getTalentPartnersForProject(projectId);
     const pre = tpList(selected);
     const mine = getCurrentUser().email.toLowerCase();
     const checked = e => pre.length ? pre.includes(e) : e === mine;
     box.innerHTML = tps.map(u => `
-      <label style="display:block;font-weight:normal;margin:3px 0;cursor:pointer;">
+      <label class="tp-select-option">
         <input type="checkbox" name="TalentPartnerName" value="${escAttr(u.UserEmail)}"
           ${checked((u.UserEmail || '').toLowerCase()) ? 'checked' : ''}>
         ${escHtml(u.UserName || u.UserEmail)}
-      </label>`).join('') || '<span style="color:var(--text-muted);">-- No team members --</span>';
+      </label>`).join('') || '<span class="tp-select-note">-- No team members --</span>';
   } catch(e) {
-    box.innerHTML = '<span style="color:var(--status-danger-text);">-- Error loading team --</span>';
+    box.innerHTML = '<span class="tp-select-note tp-select-note--error">-- Error loading team --</span>';
   }
 }
 

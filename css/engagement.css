@@ -151,7 +151,7 @@
   font-size: var(--fs-13); color: var(--text-secondary); min-width: 220px; background: var(--surface);
   transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
-.eng-run-selector:hover:not(:disabled) { border-color: var(--text-muted); }
+.eng-run-selector:hover:where(:not(:disabled)) { border-color: var(--text-muted); }
 .eng-run-selector:focus { outline: none; border-color: var(--border-focus);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent); }
 .eng-tab-strip {

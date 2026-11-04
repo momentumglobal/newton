@@ -108,7 +108,7 @@
   box-sizing: border-box;
   transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
-.rb-input:hover:not(:disabled), .rb-select:hover:not(:disabled), .rb-snap-input:hover:not(:disabled) { border-color: var(--text-muted); }
+.rb-input:hover:where(:not(:disabled)), .rb-select:hover:where(:not(:disabled)), .rb-snap-input:hover:where(:not(:disabled)) { border-color: var(--text-muted); }
 .rb-input:focus, .rb-select:focus, .rb-snap-input:focus {
   outline: none;
   border-color: var(--border-focus);

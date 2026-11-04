@@ -61,7 +61,7 @@
 .lci-mcol .lci-cell { width: 44px; text-align: center; }
 /* N-413: 3:1 control border on screen only (print keeps --border-mid); hover before focus */
 @media screen { .lci-cell { border-color: var(--border-control); } }
-.lci-cell:hover:not(:disabled) { border-color: var(--text-muted); }
+.lci-cell:hover:where(:not(:disabled)) { border-color: var(--text-muted); }
 .lci-cell:focus {
   outline: none;
   border-color: var(--border-focus);

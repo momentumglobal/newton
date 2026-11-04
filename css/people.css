@@ -251,7 +251,7 @@
 .pay-bonus-input { width: 100px; padding: var(--sp-2) var(--sp-4); border: 1px solid var(--border-control);
   border-radius: var(--r-sm); font-size: var(--fs-13);
   transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard); }
-.pay-bonus-input:hover:not(:disabled) { border-color: var(--text-muted); }
+.pay-bonus-input:hover:where(:not(:disabled)) { border-color: var(--text-muted); }
 .pay-bonus-input:focus { outline: none; border-color: var(--border-focus);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent); }
 

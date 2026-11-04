@@ -621,6 +621,8 @@
 /* ── Print foundation — print/PDF ───────────────────────────────────── */
 @media print {
   :root {
+    /* N-420: the dark block sets color-scheme (not a token); without this the print canvas margin paints dark. */
+    color-scheme: light;
     /* Forces every N-102-themed token back to its light value regardless of
        data-theme — print stays light in both themes. Plain :root, same
        specificity as [data-theme="dark"] above; this rule is later in the

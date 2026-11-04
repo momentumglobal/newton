@@ -245,6 +245,18 @@ ASSERTIONS.push(
       _assertEqual(/@media print \{\s*:root \{[\s\S]*?--coe-cell-r: var\(--c-blue-pale\);\s*--coe-cell-n: var\(--c-pink-pale\);/.test(css), true, 'print re-pin restores the light cells');
     },
   },
+  // ── N-420: dark-mode print margin ────────────────────────────────────────
+  {
+    name: 'N-420 print re-pin resets color-scheme to light so a dark-mode PDF has no dark margin band; dark block still sets dark',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined') {
+        _skip('Stylesheet scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const css = ALL_CSS['style.css'];
+      _assertEqual(/@media print \{\s*:root \{[^}]*?color-scheme:\s*light;/.test(css), true, 'print re-pin sets color-scheme: light');
+      _assertEqual(/\[data-theme="dark"\] \{[^}]*?color-scheme:\s*dark;/.test(css), true, 'dark block keeps color-scheme: dark');
+    },
+  },
   // ── N-417 (VF-6): motion and empty states ────────────────────────────────
   {
     name: 'N-417 no page-level bare "Loading…" text remains outside the mobile files (skeleton helpers instead)',

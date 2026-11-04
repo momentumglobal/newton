@@ -32,7 +32,8 @@ async function renderScorecardsPage() {
 
   if (!tpEmails.length) {
     main.innerHTML = `<div class='page-header'><h2>People Scorecards</h2></div>
-      <p class='no-data'>No activity recorded in the last 13 weeks.</p>`;
+      ${emptyStateBlock({ icon: 'activity', message: 'No activity recorded in the last 13 weeks.' })}`;
+    if (window.lucide) lucide.createIcons();
     return;
   }
 

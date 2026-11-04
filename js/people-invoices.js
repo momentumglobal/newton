@@ -44,7 +44,7 @@ function firstLine(str) {
 async function renderGPInvoices(pendingItem = null) {
   const main    = document.getElementById('main-content');
   const canEdit = roleCan(_resolvedRole, 'peopleEdit');
-  main.innerHTML = '<p>Loading invoices...</p>';
+  main.innerHTML = skeletonTable(6, 7);
 
   const invoices = await getGPInvoices();
   const today    = new Date(); today.setHours(0,0,0,0);

@@ -141,8 +141,6 @@
 .org-avatar--initials { background: var(--surface-accent-2); color: var(--text-on-brand); font-size: var(--fs-11); font-weight: 600; }
 .org-avatar--img { object-fit: cover; background: var(--surface); }
 .org-avatar--img:not([src]) { visibility: hidden; }  /* N-337: until hydratePhotoImgs() sets src, don't paint over the initials */
-.org-empty { color: var(--text-muted); padding: var(--sp-11); text-align: center; }
-
 .org-bench { margin-top: var(--sp-10); border-top: 1px dashed var(--border-connector); padding-top: var(--sp-7); }
 .org-bench__title { font-weight: 600; font-size: var(--fs-13); color: var(--status-neutral); margin-bottom: var(--sp-5); }
 .org-unassigned { margin-top: var(--sp-10); border-top: 1px dashed var(--border-connector); padding-top: var(--sp-7); }
@@ -177,7 +175,6 @@
 .ppl-card-h3 { margin: 0; color: var(--brand-tertiary); }
 .ppl-subhead { font-size: var(--fs-12); font-weight: var(--fw-semibold); color: var(--text-label); margin-bottom: var(--sp-2); }
 .ppl-muted-note { font-size: var(--fs-13); color: var(--text-muted); }
-.ppl-muted-note--flush { margin: 0; }
 .ppl-muted-small { font-size: var(--fs-12); color: var(--text-muted); }
 .ppl-muted { color: var(--text-muted); }
 .ppl-faint { font-size: var(--fs-12); color: var(--text-faint); }

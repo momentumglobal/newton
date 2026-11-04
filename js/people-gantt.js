@@ -2,7 +2,7 @@
 // ── Deployment Timeline Gantt ────────────────────
 async function renderDeploymentTimeline() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading deployment timeline...</p>';
+  main.innerHTML = skeletonPanel(10);
 
 const [assignments, people, salesForecasts] = await Promise.all([
   getAssignments({}),
@@ -193,8 +193,7 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
           </tr></thead>
           <tbody>${deployableRows.join('')}</tbody>
         </table>` :
-        `<p class='ppl-muted-note ppl-muted-note--flush'>
-          No unassigned employees during this period.</p>`
+        emptyStateBlock({ icon: 'users', message: 'No unassigned employees during this period.', variant: 'compact' })
       }
     </div>`;
 
@@ -219,6 +218,7 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
         <tbody>${rowsHtml}</tbody>
       </table>
     </div>`;
+  if (window.lucide) lucide.createIcons();   // N-417: the "no unassigned employees" icon
 }
 
 // Pure date-window computation for the Deployment Timeline (N-239a)

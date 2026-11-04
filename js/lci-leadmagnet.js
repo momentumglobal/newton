@@ -93,7 +93,7 @@ function _lmDeltaClass(v) { // lower cost than current = favourable (green)
 async function renderLCILeadMagnetPage() {
   document.body.classList.remove('lci-summary-mode');
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading...</p>';
+  main.innerHTML = skeletonPanel(8);
   try {
     _lmLocations = await getLCILocations();
     _lmLocations.sort(_lmLocationSort);

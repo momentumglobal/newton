@@ -2,7 +2,7 @@
 
 async function renderEngagementPage() {
   const main = document.getElementById('main-content');
-  main.innerHTML = `<div class="page-loading">Loading Engagement...</div>`;
+  main.innerHTML = dashboardSkeleton(4);
 
   const [runs, templates] = await Promise.all([
     getSurveyRuns(),
@@ -61,7 +61,7 @@ async function renderEngagementPage() {
 
 async function engLoadRun(runId, runs, templates) {
   const content = document.getElementById('eng-content');
-  content.innerHTML = `<div class="page-loading">Loading results...</div>`;
+  content.innerHTML = skeletonPanel(6);
 
   const run = runs.find(r => r.id == runId);
   if (!run) { content.innerHTML = '<p>Run not found.</p>'; return; }
@@ -425,10 +425,7 @@ function _engEmptyState() {
           </button>
         </div>` : ''}
     </div>
-    <div class="empty-state">
-      <i data-lucide="bar-chart-2" class="empty-state-icon"></i>
-      <p class="empty-state-message">No survey runs yet. Activate a run to begin collecting responses.</p>
-    </div>`;
+    ${emptyStateBlock({ icon: 'bar-chart-2', message: 'No survey runs yet. Activate a run to begin collecting responses.' })}`;
 }
 
 // N-302c: delegated actions for the Engagement page (js/actions.js). The

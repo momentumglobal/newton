@@ -128,7 +128,7 @@ async function _lciSaveMilestonesData() {
 
 async function renderLCISummaryPage(modelId) {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading...</p>';
+  main.innerHTML = dashboardSkeleton(5);
   try {
     const [model, rows, milestones] = await Promise.all([
       getLCIModelById(modelId), getLCIRows(modelId), getLCIMilestones(modelId),
@@ -235,7 +235,7 @@ function _lciAssumptionsHtml(m, rows) {
 // (the list-page button enforces this before we get here).
 async function renderLCIComparePage(ids) {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading...</p>';
+  main.innerHTML = skeletonPanel(8);
   try {
     const bundles = await Promise.all(ids.map(async id => {
       const [model, rows] = await Promise.all([getLCIModelById(id), getLCIRows(id)]);

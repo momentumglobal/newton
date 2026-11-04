@@ -115,6 +115,14 @@ function skeletonList(itemCount = 5) {
   return `<div class="skel-list">${item.repeat(itemCount)}</div>`;
 }
 
+// N-417: moved here from pages.js - table-shaped skeleton for list pages (several callers now).
+function skeletonTable(rowCount = 5, colCount = 4) {
+  const row = `<div class="skel-row">${
+    Array.from({length: colCount}, () => `<div class="skel skel-cell"></div>`).join('')
+  }</div>`;
+  return `<div class="skel-table">${row.repeat(rowCount)}</div>`;
+}
+
 function dashboardSkeleton(cardCount = 5) {
   return `
     ${skeletonStrip(cardCount)}
@@ -168,7 +176,9 @@ function emptyStateBlock({ icon = 'inbox', title = '', message = '', actionLabel
     ? `<button class="btn-primary empty-state-action"${actAttr}>${escHtml(actionLabel)}</button>`
     : '';
   const iconClass = variant === 'error' ? 'empty-state-icon empty-state-icon--error' : 'empty-state-icon';
-  return `<div class="empty-state">
+  // N-417: variant 'compact' = smaller padding and icon, for an empty state inside a card or sub-panel.
+  const wrapClass = variant === 'compact' ? 'empty-state empty-state--compact' : 'empty-state';
+  return `<div class="${wrapClass}">
     <i data-lucide="${escAttr(icon)}" class="${iconClass}"></i>
     ${titleHtml}
     <p class="empty-state-message">${escHtml(message)}</p>
@@ -521,12 +531,53 @@ function selectModal({ title = '', message = '', options = [], defaultValue = ''
 // N-193/X-6: wraps a page render in a View Transition cross-fade. Falls
 // back to a plain synchronous render when the API is unsupported or the
 // user has reduced-motion on — never a broken render either way.
+// N-417: the transition callback must NOT return the render's promise. The
+// page renderers are async and await their whole data load, and
+// startViewTransition waits for the callback's promise - the old page stayed
+// frozen (skeleton never visible) until every fetch finished. The callback now
+// does only the synchronous first paint (every page sets its skeleton before
+// its first await); the data load continues after the cross-fade. Each call
+// also bumps _vfNavSeq, which enterStagger() uses to play once per navigation.
+let _vfNavSeq = 0;
+let _vfPlayedSeq = -1;
 function withViewTransition(renderFn) {
+  _vfNavSeq++;
   if (!document.startViewTransition ||
       window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     return renderFn();
   }
-  return document.startViewTransition(renderFn);
+  return document.startViewTransition(() => {
+    const pending = renderFn();
+    if (pending && typeof pending.catch === 'function') {
+      pending.catch(e => console.error('withViewTransition: render failed', e));
+    }
+  });
+}
+
+// ── Staggered entrance (N-417 / VF-6) ───────────────────────────────────
+// Call once after a page has rendered its real content. Adds .vf-enter and
+// .vf-enter-0…7 (style.css) to the first VF_ENTER_MAX matches in DOM order, then
+// removes them when each animation ends. Plays ONCE per navigation (the
+// _vfNavSeq / _vfPlayedSeq pair), so a filter, sort, search or page-size
+// re-render of the same page never replays it. No-op under reduced-motion.
+const VF_ENTER_SELECTOR = '.kpi-card, .dash-panel, #main-content > .table-scroll tbody tr';
+const VF_ENTER_MAX = 24;
+function enterStagger(scope, selector = VF_ENTER_SELECTOR) {
+  if (!scope || _vfPlayedSeq === _vfNavSeq) return;
+  if (typeof window !== 'undefined' && window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  _vfPlayedSeq = _vfNavSeq;
+  Array.from(scope.querySelectorAll(selector)).slice(0, VF_ENTER_MAX).forEach((el, i) => {
+    const cls = ['vf-enter', 'vf-enter-' + Math.min(i, 7)];
+    el.classList.add(...cls);
+    const clear = e => {
+      if (e && e.target !== el) return;   // animationend bubbles from children
+      el.classList.remove(...cls);
+      el.removeEventListener('animationend', clear);
+    };
+    el.addEventListener('animationend', clear);
+    setTimeout(() => clear(), 600);       // safety net if animationend never fires
+  });
 }
 
 // ── Print ─────────────────────────────────────────────────────────────

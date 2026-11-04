@@ -45,4 +45,5 @@ async function renderSalesPage(page) {
     default:
       main.innerHTML = '<p>Page not found.</p>';
   }
+  enterStagger(main);   // N-417: once per navigation
 }

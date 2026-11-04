@@ -134,7 +134,7 @@ function coeActualMarkerWeeks(spans, timelineStart) {
 
 async function renderHiringPlanPage(selectedProjectId = null) {
   const main = document.getElementById('main-content');
-  main.innerHTML = `<div class="page-header"><h2>Hiring Plan</h2></div><p>Loading…</p>`;
+  main.innerHTML = `<div class="page-header"><h2>Hiring Plan</h2></div>${skeletonPanel(8)}`;
 
   const email = getCurrentUser().email;
   const role  = _resolvedRole || 'viewer';
@@ -144,7 +144,8 @@ async function renderHiringPlanPage(selectedProjectId = null) {
   const projects = (await getScopedProjects(email, false)).filter(p => p.ProjectType === 'CoE');
   if (!projects.length) {
     main.innerHTML = `<div class="page-header"><h2>Hiring Plan</h2></div>
-      <p>No CoE projects found. Set a project's type to <strong>CoE</strong> in the project form to build a hiring plan.</p>`;
+      ${emptyStateBlock({ icon: 'briefcase', message: "No CoE projects found. Set a project's type to CoE in the project form to build a hiring plan." })}`;
+    if (window.lucide) lucide.createIcons();
     return;
   }
   const pid = selectedProjectId || projects[0].id;
@@ -218,7 +219,7 @@ function coeRenderGantt() {
   const { planRows, headcount, placements, canEdit } = _coeCache;
   const host = document.getElementById('coe-gantt');
   const rows = coeSortRows(planRows);
-  if (!rows.length) { host.innerHTML = '<p>No planned headcount yet.</p>'; return; }
+  if (!rows.length) { host.innerHTML = emptyStateBlock({ icon: 'calendar', message: 'No planned headcount yet.' }); if (window.lucide) lucide.createIcons(); return; }
   host.innerHTML = coeGanttHtml(rows, { headcount, placements, canEdit, showActuals: true });
 }
 

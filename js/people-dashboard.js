@@ -368,7 +368,7 @@ function _renderEndDatesPanel(people) {
     .sort((a, b) => a._end - b._end);
 
     if (!upcoming.length) {
-    return `<p class='ppl-muted-note'>No employee end dates in the next 60 days.</p>`;
+    return emptyStateBlock({ icon: 'calendar', message: 'No employee end dates in the next 60 days.', variant: 'compact' });
   }
 
   const rows = upcoming.map(p => {
@@ -397,7 +397,7 @@ function _renderEndDatesPanel(people) {
 
 async function renderPeopleDashboard() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading dashboard...</p>';
+  main.innerHTML = dashboardSkeleton(5);
 
   const [assignments, people, salesForecasts] = await Promise.all([
     getAssignments({}),
@@ -482,6 +482,7 @@ const { start, end } = peoplePeriodRange(_dashFilter);
       </div>
       ${endDatesPanel}
     </div>`;
+  if (window.lucide) lucide.createIcons();   // N-417: empty-state icons
 }
 
 async function _setDashYear(year) {

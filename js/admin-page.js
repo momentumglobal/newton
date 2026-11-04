@@ -39,7 +39,11 @@
       document.querySelectorAll('.admin-nav-link[id^="tab-"]').forEach(el => el.classList.remove('active'));
       const el = document.getElementById(`tab-${tab}`);
       if (el) el.classList.add('active');
-      renderOsAdminPage(tab);
+      // N-417: cross-fade like the other modules' navigators, then the once-per-navigation entrance.
+      withViewTransition(async () => {
+        await renderOsAdminPage(tab);
+        enterStagger(document.getElementById('main-content'));
+      });
     }
 
     // N-303: loads (deferred) after js/actions.js, so register at top level.

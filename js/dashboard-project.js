@@ -39,7 +39,8 @@ async function renderProjectDashboard() {
     selectorHtml = `<div class='form-group dash-project-selector'><label>Project</label><select ${actOn('change', 'changeDashProject', ACT_VALUE).trim()}>${opts}</select></div>`;
   }
   if (!projectId) {
-    main.innerHTML = `<div class='page-header'><h2>Project Dashboard</h2></div><p>No project assigned. Contact your Admin.</p>`;
+    main.innerHTML = `<div class='page-header'><h2>Project Dashboard</h2></div>${emptyStateBlock({ icon: 'briefcase', message: 'No project assigned. Contact your Admin.' })}`;
+    if (window.lucide) lucide.createIcons();
     return;
   }
   // N-362 (D-4): LCI / Transformation are Projects with no dashboard.

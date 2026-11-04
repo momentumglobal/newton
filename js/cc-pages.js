@@ -2,7 +2,7 @@
 
 // ── Main renderer ──────────────────────────────────────────────────
 async function renderCCOverview(container) {
-  container.innerHTML = '<div class="cc-loading">Loading...</div>';
+  container.innerHTML = dashboardSkeleton(4);
   const [allRoles, allActs13, forecasts, assigns, people, allProjects, snapshots, allStageRows, allHeadcount, placementIds] = await Promise.all([
     getAllRoles(),
     getActivityForAnalytics(13),
@@ -111,6 +111,7 @@ function loadTileDetail(tile, data) {
   if (id === 'people') el.innerHTML = renderPeopleDetail(data);
   if (id === 'util')    el.innerHTML = renderUtilDetail(data);
   if (id === 'revenue') el.innerHTML = renderRevenueDetail(data);
+  if (window.lucide) lucide.createIcons();   // N-417: the empty-state icons
 }
 
 // ── Headline stats (at-a-glance tile summary) ──────────────────────
@@ -230,6 +231,7 @@ function renderHealthDetail(el, data) {
         { projects: data.allProjects, roles: data.allRoles });
       data.healthExtra = { activity52, placements };
       wrap.innerHTML = _ccHealthCardsHTML(data);
+      if (window.lucide) lucide.createIcons();
     })
     .catch(e => {
       console.warn('N-336: project scorecard read failed', e);
@@ -278,7 +280,7 @@ function _ccHealthCardsHTML(data) {
   // no internal (N-333) or no-dashboard (N-362) project.
   const customers = scorecardCustomers(assigns, data.allProjects, now);
 
-  if (!customers.length) return '<p class="no-data">No live projects found.</p>';
+  if (!customers.length) return emptyStateBlock({ icon: 'briefcase', message: 'No live projects found.' });
 
   const cards = buildProjectScorecards({
     customers, roles, projectMap, stageHistory, openSince,
@@ -308,6 +310,7 @@ function ccHealthWindow(el, i) {
   grid._data.healthWindow = i;
   // N-385: only the scorecards re-render; the SLA roll-up beside them is fixed to its own period.
   document.getElementById('cc-health-cards-wrap').innerHTML = _ccHealthCardsHTML(grid._data);
+  if (window.lucide) lucide.createIcons();
 }
 
 registerActions({
@@ -320,7 +323,7 @@ function renderPeopleDetail(data) {
     roles.filter(r => !ACTIVE_STAGES.includes(r.Stage))
          .flatMap(r => tpList(r.TalentPartner))
   )];
-    if (!tps.length) return '<p class="no-data">No active Talent Partners found.</p>';
+    if (!tps.length) return emptyStateBlock({ icon: 'users', message: 'No active Talent Partners found.', variant: 'compact' });
   const rows = tps.map(tp => {
     const tpRoles = roles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, tp));
     const { flagged, behind } = tallyRoleFlags(tpRoles, acts13, stageHistory, undefined, { openSince });

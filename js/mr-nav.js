@@ -42,4 +42,5 @@ async function renderMrPage(page) {
     default: document.getElementById('main-content').innerHTML
       = '<p>Page not found.</p>';
   }
+  enterStagger(document.getElementById('main-content'));   // N-417: once per navigation
 }

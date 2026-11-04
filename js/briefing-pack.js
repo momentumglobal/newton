@@ -78,7 +78,7 @@ function bpDefaultPages() {
 // ── Entry point — the library (N-235) ─────────────────────────────────
 async function showBriefingPackLibrary() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<div class="page-header"><h2>Briefing Pack Library</h2></div><p>Loading...</p>';
+  main.innerHTML = '<div class="page-header"><h2>Briefing Pack Library</h2></div>' + skeletonTable(6, 4);
 
   try {
     const user = getCurrentUser();
@@ -315,7 +315,7 @@ async function bpLoadProjects(keepProjectId) {
 // ── Builder ───────────────────────────────────────────────────────────
 async function bpStartNewPack() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<div class="page-header"><h2>Briefing Pack</h2></div><p>Loading...</p>';
+  main.innerHTML = '<div class="page-header"><h2>Briefing Pack</h2></div>' + skeletonPanel(6);
 
   _bpPackId       = null;
   _bpPages        = bpDefaultPages();

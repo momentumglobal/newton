@@ -13,7 +13,7 @@ let _lciEditingReport = null; // {id, title, observations} carried through "Edit
 async function renderLCIModelsPage() {
   document.body.classList.remove('lci-summary-mode');
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading...</p>';
+  main.innerHTML = skeletonTable(5, 6);
 
   try {
     const role = _salesResolvedRole;

@@ -86,7 +86,7 @@ async function renderBulkActivityPage(weekEnding = null) {
     return;
   }
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading roles...</p>';
+  main.innerHTML = skeletonTable(6, 6);
   _bulkWeekEnding = getWeekEnding(weekEnding || localDayISO());
   _bulkRows = [];
 

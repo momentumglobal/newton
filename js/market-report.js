@@ -144,7 +144,7 @@ async function mrGenerate() {
     return;
   }
   canvas.innerHTML =
-    '<p class="no-data no-data--spaced">Loading...</p>';
+    skeletonPanel(8);
 
   const roleId = parseInt(_mrRoleId);
   const [activity, role, rejections, hcState] = await Promise.all([
@@ -310,7 +310,7 @@ async function mrSave() {
 // visibility filter here, unlike showReportBuilderLibrary/showBriefingPackLibrary.
 async function showMarketReportLibrary() {
   const main = document.getElementById("main-content");
-  main.innerHTML = '<div class="page-header"><h2>Market Report Library</h2></div><p>Loading...</p>';
+  main.innerHTML = '<div class="page-header"><h2>Market Report Library</h2></div>' + skeletonTable(6, 4);
 
   try {
     const [reports, projects, displayMap] = await Promise.all([

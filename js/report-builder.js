@@ -636,12 +636,13 @@ async function rbPreview() {
       <button class="btn-secondary"${act('rbClosePreview')}>
         Close</button>
     </div>
-    <div id="rb-preview-content"><p>Loading data...</p></div>
+    <div id="rb-preview-content">${skeletonPanel(8)}</div>
   </div>`;
 
   const data = await rbFetchData();
   if (!data) {
-    document.getElementById('rb-preview-content').innerHTML = '<p>No data available.</p>';
+    document.getElementById('rb-preview-content').innerHTML = emptyStateBlock({ icon: 'inbox', message: 'No data available.', variant: 'compact' });
+    if (window.lucide) lucide.createIcons();
     return;
   }
   _rbReportData = data;
@@ -765,7 +766,7 @@ async function rbSaveReport() {
 
 async function showReportBuilderLibrary() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<div class="page-header"><h2>Report Library</h2></div><p>Loading...</p>';
+  main.innerHTML = '<div class="page-header"><h2>Report Library</h2></div>' + skeletonTable(6, 4);
 
   try {
     const user = getCurrentUser();

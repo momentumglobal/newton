@@ -7,7 +7,7 @@ let _revTrackForecasts = null; // SalesForecasts cache for the chart
 
 async function renderRevenueTrackingPage() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading...</p>';
+  main.innerHTML = dashboardSkeleton(4);
 
   try {
     const assignments = await getAssignments();
@@ -57,7 +57,7 @@ let _forecastSearch = '';   // N-247c: shared list search box (list-controls.js)
 
 async function renderSalesForecastPage() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading...</p>';
+  main.innerHTML = skeletonTable(6, 6);
 
   try {
     const forecasts = await getSalesForecasts();

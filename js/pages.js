@@ -151,15 +151,6 @@ function rejectionRowHtml(r, { roleMap, canEdit, readOnly = false, pending = fal
         `;
 }
 
-// skeletonPanel()/skeletonList() stay in utils.js (other consumers);
-// skeletonTable() moves here — pages.js is its only caller.
-function skeletonTable(rowCount = 5, colCount = 4) {
-  const row = `<div class="skel-row">${
-    Array.from({length: colCount}, () => `<div class="skel skel-cell"></div>`).join('')
-  }</div>`;
-  return `<div class="skel-table">${row.repeat(rowCount)}</div>`;
-}
-
 // ── Projects ─────────────────────────────────────────────────────────
 let _projectsFilter = "Active";
 async function renderProjectsPage(filter, pendingItem = null) {
@@ -448,7 +439,7 @@ async function showDuplicateRoleForm(id) {
 // for this view per the N-100 spec.
 async function showRoleTimeline(roleId) {
   const main = document.getElementById("main-content");
-  main.innerHTML = "<p>Loading role history...</p>";
+  main.innerHTML = skeletonList(6);
   const [role, allProjects, history, tpMap, hcState] = await Promise.all([
     getItem('Roles', roleId),
     getProjects(false),
@@ -532,7 +523,7 @@ function _roleTimelineHtml(role, m, tpMap) {
     </div>
     <p class="role-timeline-subhead">${escHtml(projectName)} · Current stage: <span class="badge">${escHtml(role.Stage || "—")}</span></p>
     <div class="role-timeline">
-      ${nodesHtml || '<p class="empty-note">No stage history recorded.</p>'}
+      ${nodesHtml || emptyStateBlock({ icon: 'clock', message: 'No stage history recorded.', variant: 'compact' })}
     </div>
     ${undatedNote}
   `;

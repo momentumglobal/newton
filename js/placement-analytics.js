@@ -14,7 +14,7 @@ async function renderPlacementAnalytics() {
     <div class="page-header">
       <h2>Placement Analytics</h2>
     </div>
-    <div class="mr-loading">Loading data…</div>
+    ${dashboardSkeleton(4)}
   `;
 
   // Load all data in parallel
@@ -117,8 +117,8 @@ function paRenderResults() {
   const results = _paComputeResults(_paData, _paLocation, _paFunctionArea);
 
   if (results.empty) {
-    container.innerHTML = `<p class="no-data no-data--spaced">
-      No placement data found for the selected filters.</p>`;
+    container.innerHTML = emptyStateBlock({ icon: 'bar-chart-2', message: 'No placement data found for the selected filters.' });
+    if (window.lucide) lucide.createIcons();
     return;
   }
 

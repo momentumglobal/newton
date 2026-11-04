@@ -61,6 +61,7 @@ async function renderPage(page, pendingItem = null) {
     default:
       main.innerHTML = `<p>Page not found.</p>`;
   }
+  enterStagger(main);   // N-417: once per navigation
 }
 
 // N-302b: navigateTo is the target of every Back/Cancel button on the Reporting

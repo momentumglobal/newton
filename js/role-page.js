@@ -173,7 +173,7 @@ function _rpHeadcountHtml(v) {
     ? sorted.map(hc => (v.canEdit && String(v.editId) === String(hc.id))
         ? _rpEditRowHtml(v, hc)
         : _rpRowHtml(v, hc)).join('')
-    : `<tr><td colspan="${cols}" class="role-hc-empty">No headcount yet.</td></tr>`;
+    : emptyStateRow({ colspan: cols, icon: 'users', message: 'No headcount yet.' });
   return `
       <div class="role-hc-head">
         <h3 class="role-page-section-title">Headcount</h3>

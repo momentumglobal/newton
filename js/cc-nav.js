@@ -20,5 +20,8 @@ function navigateToCC(page) {
   const container = document.getElementById('page-content');
   const key = CC_PAGES.some(p => p.key === page) ? page : 'overview';
   updateNavActiveLink(key);
-  withViewTransition(() => (key === 'claudeMcp' ? renderCCClaudePage(container) : renderCCOverview(container)));
+  withViewTransition(async () => {
+    await (key === 'claudeMcp' ? renderCCClaudePage(container) : renderCCOverview(container));
+    enterStagger(container, '.cc-tile');   // N-417: the overview's tiles (no .kpi-card / .dash-panel there)
+  });
 }

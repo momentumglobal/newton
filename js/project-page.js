@@ -272,7 +272,7 @@ function _ppTeamHtml(v) {
   const leadIds = edit ? ptLeadDmCandidates(t.rows, t.roleByEmail) : [];
   const body = t.rows.length
     ? t.rows.map(r => _ppMemberRowHtml(v, r, leadIds)).join('')
-    : `<tr><td colspan="${cols}" class="role-hc-empty">No one on this project yet.</td></tr>`;
+    : emptyStateRow({ colspan: cols, icon: 'users', message: 'No one on this project yet.' });
   return `
       <div class="role-hc-head">
         <h3 class="role-page-section-title">Project Team</h3>

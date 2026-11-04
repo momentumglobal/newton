@@ -278,7 +278,6 @@
 .role-hc-summary { margin: var(--sp-3) 0 var(--sp-6); color: var(--text-label); font-size: var(--fs-13); }
 .role-hc-table td { vertical-align: middle; }
 .role-hc-detail { color: var(--text-label); white-space: nowrap; }
-.role-hc-empty { color: var(--text-label); text-align: center; }
 .role-hc-input {
   width: 100%;
   min-width: 120px;

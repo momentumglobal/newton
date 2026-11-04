@@ -75,7 +75,7 @@ function _rejIntelClustersTable(model) {
 
 function _rejIntelFunnelTable(model) {
   const f = model.funnel;
-  if (!f.rows.length) return `<p class="rej-intel-muted">No pipeline activity in this period.</p>`;
+  if (!f.rows.length) return emptyStateBlock({ icon: 'user-x', message: 'No pipeline activity in this period.', variant: 'compact' });
   const heads = f.steps.map(s => `<th>${escHtml(s.from + ' → ' + s.to)}</th>`).join('');
   const rows = f.rows.map(r => {
     const cells = r.steps.map(s => `<td>${s.claim ? escHtml(`${s.ratePct}% (vs ${s.priorPct}%)`) : '—'}</td>`).join('');

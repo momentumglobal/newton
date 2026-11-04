@@ -4,7 +4,6 @@
 
 /* ── Shared utilities (used across engagement + survey) ────────────── */
 .page-title { font-size: var(--fs-22); font-weight: 700; color: var(--text-heading); margin: 0; letter-spacing: var(--ls-heading); }
-.page-loading { padding: var(--sp-11); text-align: center; color: var(--text-muted); font-size: var(--fs-14); }
 .btn--sm { padding: var(--sp-2) var(--sp-6) !important; font-size: var(--fs-12) !important; min-height: var(--sp-10) !important; }
 .btn-icon {
   background: none; border: 1px solid var(--border-mid); border-radius: var(--r-md);

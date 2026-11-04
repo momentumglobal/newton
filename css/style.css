@@ -322,6 +322,7 @@
   --dur-base: 150ms;
   --dur-slow: 300ms;
   --dur-slower: 350ms;
+  --stagger-step: 20ms;
   /* Easing (N-406) */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
@@ -1018,7 +1019,6 @@ body {
 .form-hint { display: block; font-size: var(--fs-12); color: var(--text-muted); margin-top: var(--sp-2); line-height: 1.4; }
 .form-group input.input-readonly { background: var(--surface-sunken); color: var(--text-label); }
 .form-label-note { font-weight: var(--fw-regular); color: var(--text-muted); }
-.empty-note { color: var(--text-muted); }
 .tp-select { border: 1px solid var(--border-control); border-radius: var(--r-lg); padding: var(--sp-4); max-height: 170px; overflow-y: auto; background: var(--surface); }
 .tp-select-note { color: var(--text-muted); }
 .tp-select-note--error { color: var(--status-danger-text); }
@@ -1847,7 +1847,6 @@ body {
 .mr-card-title-sub { font-size: var(--fs-12); font-weight: var(--fw-regular); color: var(--text-muted); }
 .mr-card-title-sub--gap { margin-left: var(--sp-4); }
 .mr-table { width: 100%; margin: 0; }
-.mr-loading { padding: var(--sp-10); color: var(--text-muted); }
 .no-data--spaced { padding: var(--sp-10); }
 .pa-kpi-note { font-size: var(--fs-11); color: var(--text-muted); margin-top: var(--sp-2); }
 .pa-stage-tile { flex: 1; min-width: 130px; background: var(--surface-tint); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px var(--sp-7); }
@@ -1866,6 +1865,9 @@ body {
 .empty-state-message { font-size: var(--fs-14); color: var(--text-muted); margin: 0; max-width: 420px; line-height: 1.5; }
 .empty-state-action { margin-top: var(--sp-2); }
 .empty-state-icon--error { color: var(--status-danger-text); }
+/* N-417: compact variant, for an empty state inside a card or sub-panel */
+.empty-state--compact { padding: var(--sp-8) var(--sp-6); gap: var(--sp-4); }
+.empty-state--compact .empty-state-icon { width: var(--sp-9); height: var(--sp-9); }
 
 /* Empty state — compact inline variant for a table <td> fallback row */
 .empty-state-row {
@@ -2060,6 +2062,32 @@ body {
   }
   /* N-407: durations are zeroed above, but a transform would still jump — drop it */
   .btn-primary:hover, .btn-primary:active, .btn-secondary:active, .btn-danger:active { transform: none; }
+}
+
+/* ── Entrance motion (N-417 / VF-6) ─────────────────────────────────────
+   Staggered rise for dashboard cards / panels, list-table rows (classes added
+   by enterStagger(), ui-kit.js, once per navigation) and for empty states
+   (CSS only). transform + opacity only, no colour. Screen + no-preference only:
+   print never sees it, and reduced-motion users get none of it. Longest run:
+   7 x --stagger-step + --dur-base = 290ms. ── */
+@media screen and (prefers-reduced-motion: no-preference) {
+  @keyframes vf-rise {
+    from { opacity: 0; transform: translateY(var(--sp-3)); }
+    to   { opacity: 1; transform: none; }
+  }
+  .vf-enter { animation: vf-rise var(--dur-base) var(--ease-out) backwards; }
+  .vf-enter-0 { animation-delay: 0ms; }
+  .vf-enter-1 { animation-delay: calc(1 * var(--stagger-step)); }
+  .vf-enter-2 { animation-delay: calc(2 * var(--stagger-step)); }
+  .vf-enter-3 { animation-delay: calc(3 * var(--stagger-step)); }
+  .vf-enter-4 { animation-delay: calc(4 * var(--stagger-step)); }
+  .vf-enter-5 { animation-delay: calc(5 * var(--stagger-step)); }
+  .vf-enter-6 { animation-delay: calc(6 * var(--stagger-step)); }
+  .vf-enter-7 { animation-delay: calc(7 * var(--stagger-step)); }
+  .empty-state > *, .empty-state-row { animation: vf-rise var(--dur-base) var(--ease-out) backwards; }
+  .empty-state > :nth-child(2) { animation-delay: var(--stagger-step); }
+  .empty-state > :nth-child(3) { animation-delay: calc(2 * var(--stagger-step)); }
+  .empty-state > :nth-child(4) { animation-delay: calc(3 * var(--stagger-step)); }
 }
 
 /* ── Toast + confirm modal (N-104 / X-3a) — engine only, no call sites

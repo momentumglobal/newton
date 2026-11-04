@@ -18,7 +18,7 @@ async function renderCCClaudePage(container) {
       <a class="btn-primary cc-guide-download" href="${CC_CLAUDE_DOWNLOAD_PATH}" download>Download Newton for Claude</a>
       <span class="cc-guide-note">Windows and Claude Desktop only. Leadership and Admin only. Questions: ask Chris.</span>
     </div>
-    <div class="cc-guide" id="cc-guide" aria-live="polite"><div class="cc-loading">Loading...</div></div>`;
+    <div class="cc-guide" id="cc-guide" aria-live="polite">${skeletonPanel(4)}</div>`;
   await ccClaudeLoadGuide();
 }
 
@@ -42,7 +42,7 @@ async function ccClaudeLoadGuide() {
 
 function ccClaudeRetry() {
   const el = document.getElementById('cc-guide');
-  if (el) el.innerHTML = '<div class="cc-loading">Loading...</div>';
+  if (el) el.innerHTML = skeletonPanel(4);
   ccClaudeLoadGuide();
 }
 

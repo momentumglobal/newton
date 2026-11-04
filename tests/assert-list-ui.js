@@ -244,5 +244,81 @@ ASSERTIONS.push(
       _assertEqual(/\[data-theme="dark"\] \{[\s\S]*?--coe-cell-r: var\(--c-dark-coe-r\); --coe-cell-n: var\(--c-dark-coe-n\);/.test(css), true, 'dark block themes the R / N cells');
       _assertEqual(/@media print \{\s*:root \{[\s\S]*?--coe-cell-r: var\(--c-blue-pale\);\s*--coe-cell-n: var\(--c-pink-pale\);/.test(css), true, 'print re-pin restores the light cells');
     },
+  },
+  // ── N-417 (VF-6): motion and empty states ────────────────────────────────
+  {
+    name: 'N-417 no page-level bare "Loading…" text remains outside the mobile files (skeleton helpers instead)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const bare = Object.keys(ALL_SOURCES).filter(f => !/^mobile/.test(f)).filter(f => {
+        const src = _vendorStripJsComments(ALL_SOURCES[f]);
+        return /<p[^>]*>\s*Loading/.test(src) || /class="(?:page-loading|mr-loading|cc-loading)"/.test(src);
+      });
+      _assertEqual(bare, [], 'files with a bare page-level Loading');
+      const defs = Object.keys(ALL_SOURCES).filter(f => /function skeletonTable\(/.test(ALL_SOURCES[f]));
+      _assertEqual(defs, ['ui-kit.js'], 'skeletonTable is defined once, in ui-kit.js');
+    },
+  },
+  {
+    name: 'N-417 stylesheet: --stagger-step, .vf-enter-0…7 and the empty-state entrance sit inside one screen + no-preference block; compact variant exists; retired classes are gone',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined') {
+        _skip('Stylesheet scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const css = ALL_CSS['style.css'];
+      _assertEqual(/--stagger-step:\s*20ms;/.test(css), true, '--stagger-step token');
+      _assertEqual(/\.empty-state--compact\s*\{/.test(css), true, '.empty-state--compact');
+      const start = css.indexOf('@media screen and (prefers-reduced-motion: no-preference) {');
+      _assertEqual(start > -1, true, 'entrance media block exists');
+      let depth = 0, end = -1;
+      for (let i = css.indexOf('{', start); i < css.length; i++) {
+        if (css[i] === '{') depth++;
+        else if (css[i] === '}' && --depth === 0) { end = i; break; }
+      }
+      const block = css.slice(start, end);
+      _assertEqual(/@keyframes vf-rise/.test(block), true, 'keyframes inside the block');
+      _assertEqual(/\.vf-enter\s*\{/.test(block), true, '.vf-enter inside the block');
+      for (let n = 0; n < 8; n++) _assertEqual(new RegExp('\\.vf-enter-' + n + '\\s*\\{[^}]*animation-delay').test(block), true, '.vf-enter-' + n);
+      _assertEqual(/\.empty-state > \*/.test(block), true, 'empty-state entrance inside the block');
+      _assertEqual(/\.vf-enter|vf-rise/.test(css.slice(0, start) + css.slice(end)), false, 'no entrance rule outside the block');
+      const all = Object.values(ALL_CSS).join('\n');
+      ['page-loading', 'mr-loading', 'role-hc-empty', 'org-empty', 'empty-note', 'ppl-muted-note--flush'].forEach(c =>
+        _assertEqual(new RegExp('\\.' + c + '\\b').test(all), false, '.' + c + ' removed'));
+    },
+  },
+  {
+    name: 'N-417 emptyStateBlock — compact adds a modifier class; default and error markup unchanged',
+    fn: function () {
+      const compact = emptyStateBlock({ icon: 'users', message: 'x', variant: 'compact' });
+      _assertEqual(compact.includes('class="empty-state empty-state--compact"'), true, 'compact wrapper');
+      _assertEqual(compact.includes('empty-state-icon--error'), false, 'compact is not the error icon');
+      const plain = emptyStateBlock({ icon: 'users', message: 'x' });
+      _assertEqual(plain.includes('class="empty-state"') && !plain.includes('--compact'), true, 'default wrapper');
+      const err = emptyStateBlock({ icon: 'alert-circle', message: 'x', variant: 'error' });
+      _assertEqual(err.includes('empty-state-icon empty-state-icon--error') && !err.includes('--compact'), true, 'error variant');
+    },
+  },
+  {
+    name: 'N-417 enterStagger — first 24 matches get vf-enter + index class capped at 7; a second call in the same navigation is a no-op',
+    fn: function () {
+      const mk = () => { const s = new Set(); return { s, classList: { add: (...c) => c.forEach(x => s.add(x)), remove: (...c) => c.forEach(x => s.delete(x)) },
+        addEventListener() {}, removeEventListener() {} }; };
+      const hadTimer = typeof setTimeout !== 'undefined';
+      if (!hadTimer) globalThis.setTimeout = () => 0;   // the node sandbox has no timers
+      try {
+      const els = Array.from({ length: 30 }, mk);
+      const scope = { querySelectorAll: () => els };
+      enterStagger(scope, '.x');
+      _assertEqual(els.slice(0, 24).every(e => e.s.has('vf-enter')), true, 'first 24 animated');
+      _assertEqual(els.slice(24).every(e => e.s.size === 0), true, 'rest untouched');
+      _assertEqual([...els[0].s].sort(), ['vf-enter', 'vf-enter-0'], 'first index class');
+      _assertEqual(els[7].s.has('vf-enter-7') && els[23].s.has('vf-enter-7'), true, 'index capped at 7');
+      const again = Array.from({ length: 3 }, mk);
+      enterStagger({ querySelectorAll: () => again }, '.x');
+      _assertEqual(again.every(e => e.s.size === 0), true, 'same navigation: no replay');
+      } finally { if (!hadTimer) delete globalThis.setTimeout; }
+    },
   }
 );

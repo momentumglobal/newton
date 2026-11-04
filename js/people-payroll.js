@@ -103,7 +103,7 @@ async function _generatePayrollPreview() {
           <td>${p.Salary ? '£' + Number(p.Salary).toLocaleString('en-GB', { minimumFractionDigits: 2 }) : '—'}</td>
         </tr>`).join('')}
       </tbody>
-    </table>` : `<p class='ppl-muted-note'>No starters this month.</p>`;
+    </table>` : emptyStateBlock({ icon: 'users', message: 'No starters this month.', variant: 'compact' });
 
   const leaversHTML = leavers.length ? `
     <table class='data-table' style='margin-bottom:8px'>
@@ -114,7 +114,7 @@ async function _generatePayrollPreview() {
           <td>${spDateIn(p.EndDate) || '—'}</td>
         </tr>`).join('')}
       </tbody>
-    </table>` : `<p class='ppl-muted-note'>No leavers this month.</p>`;
+    </table>` : emptyStateBlock({ icon: 'users', message: 'No leavers this month.', variant: 'compact' });
 
   const bonusSection = includeBonus ? `
     <h4 class='pay-h4 pay-h4--lg'>Bonus Amounts</h4>
@@ -148,6 +148,7 @@ async function _generatePayrollPreview() {
       <button class='btn-secondary'${act('_renderPayrollStep1')}>&#8592; Back</button>
       <button class='btn-primary'${act('_sendPayrollSummary', month, year, includeBonus)}>Send to Payroll</button>
     </div>`;
+  if (window.lucide) lucide.createIcons();   // N-417: empty-state icons in the preview
 }
 
 async function _sendPayrollSummary(month, year, includeBonus) {

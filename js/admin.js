@@ -8,7 +8,7 @@ async function renderAdminPage() {
     main.innerHTML = '<p>Access denied.</p>';
     return;
   }
-  main.innerHTML = '<p>Loading...</p>';
+  main.innerHTML = skeletonPanel(6);
   await renderAdminTab(_adminTab);
 }
 

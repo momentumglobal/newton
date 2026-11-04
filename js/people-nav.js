@@ -59,4 +59,6 @@ async function renderPeoplePage(page, pendingItem = null) {
     default:
       main.innerHTML = '<p>Page not found.</p>';
   }
+  // N-417: once per navigation; the People KPI / card classes live in people.css, so they are named here, not in ui-kit.js
+  enterStagger(main, VF_ENTER_SELECTOR + ', .ppl-kpi, .ppl-card');
 }

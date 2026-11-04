@@ -249,7 +249,7 @@ function buildOrgTree({ people, leadership, projectsByCSD, currentAssign }) {
 
 // ── rendering ──────────────────────────────────────────────────────────
 function renderTreeHtml(roots) {
-  if (!roots.length) return `<p class='org-empty'>No reporting structure to display yet.</p>`;
+  if (!roots.length) return emptyStateBlock({ icon: 'users', message: 'No reporting structure to display yet.' });
   const node = (n) => {
     const style = n._colour
       ? ` style='border-color:${n._colour};background:${n._colour}1A'` : '';
@@ -368,7 +368,7 @@ function _ocFormError(msg) {
 
 async function showPlaceholderManager() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading…</p>';
+  main.innerHTML = skeletonTable(5, 5);
   const people = await getPeople(true, true);     // must opt in — default excludes them
   _ocPlaceholders = people.filter(p => p.IsPlaceholder)
     .sort((a, b) => (a.PlaceholderProject || '').localeCompare(b.PlaceholderProject || '')
@@ -397,17 +397,18 @@ async function showPlaceholderManager() {
       <table class='data-table'>
         <thead><tr><th>Name</th><th>Level</th><th>Team</th><th>CSD owner</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
-      </table>` : `<p class='org-empty'>No placeholders yet.</p>`}
+      </table>` : emptyStateBlock({ icon: 'users', message: 'No placeholders yet.', variant: 'compact' })}
       <div class='form-actions'>
         <button type='button' class='btn-primary'${act('showPlaceholderForm', null)}>Add placeholder</button>
         <button type='button' class='btn-secondary'${act('navigateToPeople', 'orgChart')}>Back to chart</button>
       </div>
     </div>`;
+  if (window.lucide) lucide.createIcons();   // N-417: the "No placeholders yet" icon
 }
 
 async function showPlaceholderForm(id = null) {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading…</p>';
+  main.innerHTML = skeletonPanel(6);
   const [people, projects] = await Promise.all([getPeople(true, true), getProjects(true)]);
   const existing = id ? people.find(p => String(p.id) === String(id)) : null;
   const csds = people.filter(p => p.Level === 'CSD' && !p.IsPlaceholder);
@@ -539,7 +540,7 @@ async function deletePlaceholder(id) {
 // ── in-app edit form: set Projects.CSDName + ReportsTo lines ────────────
 async function showOrgChartEditForm() {
   const main = document.getElementById('main-content');
-  main.innerHTML = '<p>Loading…</p>';
+  main.innerHTML = skeletonPanel(8);
   const [people, leadership, projects] = await Promise.all([
     getPeople(true), getLeadershipAccess(), getProjects(true),
   ]);

@@ -178,6 +178,8 @@ var MOBILE_CONTRAST_PAIRS = [
   ['--status-danger-text', '--status-danger-bg-soft', 4.5, 'danger button pressed'], ['--status-danger-text', '--surface-app', 4.5, 'error notes'],
   ['--text-on-brand', '--brand', 4.5, 'primary button'], ['--text-on-brand', '--status-danger-solid', 4.5, 'error toast'],
   ['--text-on-brand', '--status-neutral-on-pale', 4.5, 'NOT RATED pill'],
+  ['--text-secondary', '--status-success-bg', 4.5, 'KPI label on a tinted tile'], ['--text-secondary', '--status-warn-bg', 4.5, 'KPI label on a tinted tile'],
+  ['--text-secondary', '--status-danger-bg', 4.5, 'KPI label on a tinted tile'],
   ['--border-control', '--surface', 3, 'input, stage button, team box boundary'], ['--border-control', '--surface-app', 3, 'carousel dot'],
   ['--border-focus', '--surface', 3, 'focus ring'], ['--border-focus', '--surface-app', 3, 'focus ring on the page'],
   ['--status-success', '--surface', 3, 'RAG dot'], ['--status-warn', '--surface', 3, 'RAG dot'], ['--status-danger', '--surface', 3, 'RAG dot'],

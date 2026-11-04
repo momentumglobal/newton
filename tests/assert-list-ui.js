@@ -395,6 +395,8 @@ ASSERTIONS.push(
       const dark = mobileContrastAudit(css, 'dark', MOBILE_EDGE_PAIRS);
       _assertEqual(dark.length === 1 && /2\.7\d:1/.test(dark[0]), true, 'brand-blue edge on the dark surface is the documented 2.7:1 exception (VF-D2)');
       _assertEqual(mobileContrastAudit(':root { --a: #888888; --b: #ffffff; }', 'light', [['--a', '--b', 4.5, 'old grey text']]).length, 1, 'control: the old #888 on white (3.5:1) fails text contrast');
+      _assertEqual(/--text-secondary/.test(mobileRuleBody(css, '.m-kpi--warn .m-kpi-label') || ''), true, 'tinted-tile labels use --text-secondary (--text-muted is 4.3:1 on the dark warn tint)');
+      _assertEqual(/--text-muted/.test(mobileRuleBody(css, '.m-delta--flat') || ''), true, 'the flat delta chip uses --text-muted, not the 3:1 --text-faint');
     },
   },
   {

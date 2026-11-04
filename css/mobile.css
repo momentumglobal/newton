@@ -801,10 +801,14 @@
     .m-kpi--success { background: var(--status-success-bg); }
     .m-kpi--warn    { background: var(--status-warn-bg); }
     .m-kpi--danger  { background: var(--status-danger-bg); }
+    /* QA N-418: the 12px labels on a tinted tile use --text-secondary (--text-muted is 4.3:1 on the dark tints) */
+    .m-kpi--success .m-kpi-label, .m-kpi--success .m-kpi-sub,
+    .m-kpi--warn .m-kpi-label, .m-kpi--warn .m-kpi-sub,
+    .m-kpi--danger .m-kpi-label, .m-kpi--danger .m-kpi-sub { color: var(--text-secondary); }
     .m-delta { font-size: 15px; }
     .m-delta--up   { color: var(--status-success-text); }
     .m-delta--down { color: var(--status-danger-text); }
-    .m-delta--flat { color: var(--text-faint); }
+    .m-delta--flat { color: var(--text-muted); }
 
     /* -- People Scorecards (mobile) -- */
     .m-sc-table { width: 100%; border-collapse: collapse; margin-top: 8px; }

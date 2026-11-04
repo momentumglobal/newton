@@ -1,34 +1,44 @@
 /* css/admin.css - moved from admin.html's inline <style> block (N-324, SEC-12c).
    style-src-elem has no 'unsafe-inline', so page CSS lives in a file.
    Rules unchanged; only the indent and the relative url() paths (now
-   resolved from css/) differ. */
+   resolved from css/) differ.
+   N-415 (Visual Finish): sidebar on the shared inverse tokens, pill items with the
+   accent rail (same as style.css .nav-link), easing tokens. */
 
 @font-face { font-family: 'Polymath'; src: url('../polymath-regular.ttf') format('truetype'); font-weight: 400; }
 @font-face { font-family: 'Polymath'; src: url('../polymath-medium.ttf') format('truetype'); font-weight: 500; }
 @font-face { font-family: 'Polymath'; src: url('../polymath-semibold.ttf') format('truetype'); font-weight: 600; }
 body { font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; }
 .admin-shell { display: flex; height: 100vh; }
-/* Sidebar */
+/* Sidebar (permanently dark chrome: inverse tokens, identical in both themes) */
 .admin-sidebar {
   width: 220px; min-width: 220px;
-  background: #0A0B44; color: white;
+  background: var(--inverse-surface); color: var(--inverse-text);
   display: flex; flex-direction: column;
   height: 100vh; overflow-y: auto;
 }
-.admin-sidebar-header { padding: 24px 20px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-.admin-sidebar-title { font-size: 17px; font-weight: 600; }
-.admin-sidebar-sub { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
-.admin-nav { flex: 1; padding: 12px 0; }
+/* --border-focus (brand blue) does not read on navy; same override as the homepage (N-414) */
+.admin-sidebar :focus-visible { outline-color: var(--inverse-text); }
+.admin-sidebar-header { padding: 24px 20px 12px; border-bottom: 1px solid var(--inverse-divider); }
+.admin-sidebar-title { font-size: 17px; font-weight: 600; letter-spacing: var(--ls-heading); }
+.admin-sidebar-sub { font-size: var(--fs-12); color: var(--inverse-text-subtitle); margin-top: var(--sp-1); }
+.admin-nav { flex: 1; padding: var(--sp-6) var(--sp-4); }
 .admin-nav-link {
-  display: block; padding: 10px 20px;
-  color: rgba(255,255,255,0.8); text-decoration: none;
-  font-size: 14px; cursor: pointer; transition: background 0.15s;
+  display: block; padding: var(--sp-5) var(--sp-8);
+  color: var(--inverse-text-near); text-decoration: none;
+  font-size: var(--fs-14); cursor: pointer;
+  border-radius: var(--r-lg); margin-bottom: var(--sp-1);
+  transition: background var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard);
 }
-.admin-nav-link:hover { background: rgba(255,255,255,0.08); color: white; }
-.admin-nav-link.active { background: #2E5FA3; color: white; font-weight: 600; }
-.admin-nav-link.back { color: rgba(255,255,255,0.5); font-size: 13px; }
-.admin-nav-divider { border-top: 1px solid rgba(255,255,255,0.1); margin: 8px 0; }
-.admin-nav-logo { display: block; width: 140px; height: auto; margin: 0 20px 12px; }
-.admin-sidebar-footer { padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.1); }
+.admin-nav-link:hover { background: var(--inverse-hover-bg); color: var(--inverse-text); }
+.admin-nav-link.active {
+  background: var(--inverse-active-bg); color: var(--inverse-text); font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.admin-nav-link.back { color: var(--inverse-text-label); font-size: var(--fs-13); border-radius: 0; margin-bottom: 0; }
+.admin-nav-divider { border-top: 1px solid var(--inverse-divider); margin: var(--sp-4) 0; }
+.admin-nav-logo { display: block; width: 140px; height: auto; margin: 0 var(--sp-8) var(--sp-6); }
+.admin-sidebar-footer { padding: var(--sp-6) 0; border-top: 1px solid var(--inverse-divider); }
 /* Main */
 .admin-main { flex: 1; overflow-y: auto; background: var(--surface-app); }
+.admin-loading { padding: var(--sp-11); color: var(--text-muted); }

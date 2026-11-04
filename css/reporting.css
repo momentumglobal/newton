@@ -1,11 +1,14 @@
 /* css/reporting.css - moved from reporting.html's inline <style> block (N-324, SEC-12c).
    style-src-elem has no 'unsafe-inline', so page CSS lives in a file.
    Rules unchanged; only the indent and the relative url() paths (now
-   resolved from css/) differ. */
+   resolved from css/) differ.
+   N-415 (Visual Finish): the login screen is permanently dark chrome, so it uses
+   --c-navy-night and the --inverse-* / --sh-elev-dark-* tokens directly (identical in
+   both themes). Linked by reporting.html and survey.html, after style.css. */
 
 /* ── Login screen override — dark branded style ── */
 #login-screen {
-  background: #090546;
+  background: var(--c-navy-night);
   position: relative;
   overflow: hidden;
 }
@@ -30,39 +33,42 @@
 .login-card {
   position: relative;
   z-index: 2;
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 12px;
-  padding: 40px 36px;
-  box-shadow: none;
+  background: var(--inverse-active-bg);
+  border: 1px solid var(--inverse-border-strong);
+  border-radius: var(--r-2xl);
+  padding: var(--sp-11) 36px;
+  box-shadow: inset 0 1px 0 var(--inverse-border-soft), var(--sh-elev-dark-2);
   text-align: center;
   width: 360px;
 }
 .login-card h1 {
-  color: white;
-  font-size: 22px;
+  color: var(--inverse-text);
+  font-size: var(--fs-22);
   font-weight: 600;
-  margin-bottom: 8px;
+  letter-spacing: var(--ls-heading);
+  margin-bottom: var(--sp-4);
 }
 .login-card p {
-  color: rgba(255,255,255,0.55);
-  margin-bottom: 32px;
-  font-size: 14px;
+  color: var(--inverse-text-strong);
+  margin-bottom: var(--sp-10);
+  font-size: var(--fs-14);
 }
+/* --border-focus (brand blue) does not read on navy (as the homepage, N-414) */
+.login-card :focus-visible { outline-color: var(--inverse-text); }
 .btn-signin {
-  background: rgba(255,255,255,0.15);
-  color: white;
-  border: 1px solid rgba(255,255,255,0.3);
-  padding: 12px 28px;
-  border-radius: 6px;
-  font-size: 15px;
+  background: var(--inverse-panel-bg);
+  color: var(--inverse-text);
+  border: 1px solid var(--inverse-border-hover);
+  padding: var(--sp-6) 28px;
+  border-radius: var(--r-md);
+  font-size: var(--fs-15);
   cursor: pointer;
   width: 100%;
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
   font-weight: 600;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background var(--dur-base) var(--ease-standard), border-color var(--dur-base) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
 }
 .btn-signin:hover {
-  background: rgba(255,255,255,0.22);
-  border-color: rgba(255,255,255,0.5);
+  background: var(--inverse-hover-bg-strong);
+  border-color: var(--inverse-text-label);
 }

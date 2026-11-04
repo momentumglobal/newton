@@ -33,8 +33,7 @@
 // Per-file inline style counts (N-324 baseline, 13 Oct 2026). Lower an entry
 // (or delete it at 0) in the same change that removes inline styles.
 var INLINE_STYLE_BASELINE = {
-  'Readme.html': 20,
-  'admin.html': 1,
+  'Readme.html': 16,
   'index.html': 6,
   'js/admin.js': 7,
   'js/briefing-pack.js': 3,
@@ -63,7 +62,7 @@ var INLINE_STYLE_BASELINE = {
   'js/mobile-sales.js': 1,
   'js/mobile-scorecards.js': 7,
   'js/org-chart.js': 7,
-  'js/os-admin.js': 35,
+  'js/os-admin.js': 21,
   'js/people-dashboard.js': 22,
   'js/people-forms.js': 2,
   'js/people-gantt.js': 18,
@@ -78,7 +77,7 @@ var INLINE_STYLE_BASELINE = {
   'js/utils.js': 2,
   'market-reporting-user-guide.html': 1,
   'mobile.html': 7,
-  'people-user-guide.html': 6,
+  'people-user-guide.html': 1,
   'sales-user-guide.html': 1,
   'user-guide.html': 1
 };

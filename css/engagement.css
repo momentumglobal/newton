@@ -65,7 +65,7 @@
 /* ── Survey respondent page ────────────────────────────────────────── */
 .survey-page {
   min-height: 100vh;
-  background: var(--surface-alt);
+  background: var(--surface-app);
   display: flex; flex-direction: column; align-items: center;
   padding: var(--sp-9) var(--sp-7) var(--sp-12);
 }
@@ -75,7 +75,7 @@
   max-width: 640px; width: 100%;
 }
 .survey-logo { width: 28px; height: 28px; object-fit: contain; }
-.survey-title { font-size: var(--fs-15); font-weight: 600; color: var(--brand); }
+.survey-title { font-size: var(--fs-15); font-weight: 600; color: var(--brand); letter-spacing: var(--ls-heading); }
 .survey-progress-bar {
   width: 100%; max-width: 640px;
   height: var(--sp-2); background: var(--surface-alt-border); border-radius: var(--r-xs);
@@ -83,11 +83,11 @@
 }
 .survey-progress-fill {
   height: 100%; background: var(--brand-secondary);
-  border-radius: var(--r-xs); transition: width 0.3s ease;
+  border-radius: var(--r-xs); transition: width var(--dur-slow) var(--ease-standard);
 }
 .survey-card {
   background: var(--surface); border-radius: var(--r-2xl);
-  box-shadow: 0 var(--sp-1) var(--sp-6) rgba(10,11,68,0.08);
+  box-shadow: var(--elev-card);
   padding: 28px var(--sp-10); width: 100%; max-width: 640px;
   display: flex; flex-direction: column; gap: var(--sp-7);
 }
@@ -108,11 +108,12 @@
 .survey-rating-row { display: flex; gap: var(--sp-4); flex-wrap: wrap; }
 .survey-rating-btn {
   width: 44px; height: 44px; border-radius: var(--r-lg);
-  border: var(--sp-1) solid var(--surface-alt-border); background: var(--surface);
+  border: var(--sp-1) solid var(--border-control); background: var(--surface);
   font-size: var(--fs-15); font-weight: 600; color: var(--text-label);
-  cursor: pointer; transition: all 0.12s;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
 }
-.survey-rating-btn:hover { border-color: var(--brand-secondary); color: var(--brand-secondary); }
+.survey-rating-btn:hover:where(:not(:disabled)) { border-color: var(--brand-secondary); color: var(--brand-secondary); }
 .survey-rating-btn--active { background: var(--brand-secondary); border-color: var(--brand-secondary); color: var(--text-on-brand); }
 .survey-rating-labels {
   display: flex; justify-content: space-between;
@@ -122,9 +123,9 @@
 /* Choice */
 .survey-choice-label {
   display: flex; align-items: center; gap: var(--sp-5);
-  padding: var(--sp-5) 14px; border: 1px solid var(--surface-alt-border); border-radius: var(--r-lg);
+  padding: var(--sp-5) 14px; border: 1px solid var(--border-control); border-radius: var(--r-lg);
   cursor: pointer; font-size: var(--fs-14); color: var(--text-secondary);
-  transition: border-color 0.12s, background 0.12s;
+  transition: border-color var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard);
 }
 .survey-choice-label:hover { border-color: var(--brand-secondary); background: var(--surface-alt); }
 .survey-choice-label input { accent-color: var(--brand-secondary); }
@@ -132,12 +133,14 @@
 /* Free text */
 .survey-textarea {
   width: 100%; min-height: 120px; resize: vertical;
-  border: 1px solid var(--surface-alt-border); border-radius: var(--r-lg);
+  border: 1px solid var(--border-control); border-radius: var(--r-lg);
   padding: var(--sp-5) 14px; font-size: var(--fs-14); color: var(--text-secondary);
   font-family: inherit; box-sizing: border-box;
-  transition: border-color 0.15s;
+  transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
-.survey-textarea:focus { outline: none; border-color: var(--brand-secondary); }
+.survey-textarea:hover:where(:not(:disabled)) { border-color: var(--text-muted); }
+.survey-textarea:focus { outline: none; border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent); }
 .survey-char-count { font-size: var(--fs-11); color: var(--text-faint); text-align: right; }
 
 /* ── Engagement results dashboard ──────────────────────────────────── */

@@ -37,7 +37,7 @@ var CSS_SPLIT_LINKS = {
   'people.html': ['css/style.css', 'css/engagement.css', 'css/people.css'],
   'reporting.html': ['css/style.css', 'css/report-builder.css', 'css/coe-plan.css', 'css/roles.css', 'css/reporting.css'],
   'sales.html': ['css/style.css', 'css/lci.css'],
-  'survey.html': ['css/style.css', 'css/engagement.css'],
+  'survey.html': ['css/style.css', 'css/engagement.css', 'css/reporting.css'],
 };
 
 // Module sheets (the files that were split out of style.css) and two classes each

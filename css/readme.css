@@ -23,7 +23,7 @@
 
 body {
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
-  background: #F5F4F1;
+  background: #F3F5F9;
   color: #1a1a2e;
   line-height: 1.6;
 }
@@ -62,15 +62,15 @@ body {
   text-decoration: none;
   font-size: 13px;
   border-left: 3px solid transparent;
-  transition: background 120ms, color 120ms;
+  transition: background 150ms cubic-bezier(0.2, 0, 0, 1), color 150ms cubic-bezier(0.2, 0, 0, 1);
   cursor: pointer;
 }
 .sidebar-link:hover { background: rgba(255,255,255,0.07); color: white; }
 .sidebar-link.active {
-  background: rgba(46,95,163,0.3);
+  background: rgba(255,255,255,0.12);
   color: white;
   font-weight: 600;
-  border-left-color: #2E5FA3;
+  border-left-color: #E8703A;
 }
 .sidebar-footer {
   padding: 16px 20px;
@@ -100,7 +100,7 @@ body {
 }
 .section-intro {
   font-size: 14px;
-  color: #555;
+  color: #4B5470;
   margin-bottom: 24px;
   max-width: 700px;
 }
@@ -110,7 +110,7 @@ h3 {
   color: #0A0B44;
   margin: 28px 0 10px;
 }
-p { font-size: 14px; color: #444; margin-bottom: 12px; }
+p { font-size: 14px; color: #4B5470; margin-bottom: 12px; }
 
 /* ── Cover ── */
 .cover {
@@ -132,17 +132,17 @@ p { font-size: 14px; color: #444; margin-bottom: 12px; }
   background: white;
   border-radius: 8px;
   padding: 20px;
-  border: 1px solid #e4e4e4;
+  border: 1px solid #CAD1E0;
   border-top: 3px solid #0A0B44;
 }
 .card.accent-blue   { border-top-color: #2E5FA3; }
-.card.accent-green  { border-top-color: #107C10; }
-.card.accent-amber  { border-top-color: #b45309; }
+.card.accent-green  { border-top-color: #1B7A3D; }
+.card.accent-amber  { border-top-color: #C27400; }
 .card.accent-teal   { border-top-color: #0e7490; }
 .card.accent-purple { border-top-color: #6b21a8; }
 .card-title  { font-size: 14px; font-weight: 600; color: #0A0B44; margin-bottom: 6px; }
-.card-file   { font-size: 12px; color: #666; margin-bottom: 8px; font-family: 'Courier New', monospace; }
-.card-desc   { font-size: 13px; color: #555; }
+.card-file   { font-size: 12px; color: #5F6882; margin-bottom: 8px; font-family: 'Courier New', monospace; }
+.card-desc   { font-size: 13px; color: #4B5470; }
 
 /* ── Tables ── */
 table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
@@ -154,9 +154,9 @@ th {
   font-weight: 600;
   font-size: 12px;
 }
-td { padding: 10px 14px; border-bottom: 1px solid #eee; vertical-align: top; }
+td { padding: 10px 14px; border-bottom: 1px solid #E7EBF3; vertical-align: top; }
 tr:last-child td { border-bottom: none; }
-tr:nth-child(even) td { background: #fafafa; }
+tr:nth-child(even) td { background: #F9FAFD; }
 
 /* ── Role badges ── */
 .badge {
@@ -169,9 +169,9 @@ tr:nth-child(even) td { background: #fafafa; }
 }
 .badge-admin      { background: #1F3864; color: white; }
 .badge-leadership { background: #2E5FA3; color: white; }
-.badge-dm         { background: #107C10; color: white; }
+.badge-dm         { background: #1B7A3D; color: white; }
 .badge-tp         { background: #0e7490; color: white; }
-.badge-viewer     { background: #888; color: white; }
+.badge-viewer     { background: #5F6882; color: white; }
 
 /* ── Code blocks ── */
 .code-block {
@@ -199,7 +199,7 @@ tr:nth-child(even) td { background: #fafafa; }
 }
 .flow-step {
   background: white;
-  border: 1px solid #d0d0d0;
+  border: 1px solid #CAD1E0;
   border-radius: 6px;
   padding: 10px 16px;
   font-size: 13px;
@@ -208,14 +208,14 @@ tr:nth-child(even) td { background: #fafafa; }
   white-space: nowrap;
 }
 .flow-step.highlight { background: #0A0B44; color: white; border-color: #0A0B44; }
-.flow-step.cache     { background: #fff3e0; border-color: #ffb74d; color: #7c4a00; }
-.flow-step.sp        { background: #e8f5e9; border-color: #81c784; color: #1b5e20; }
-.flow-arrow { font-size: 18px; color: #999; padding: 0 8px; }
+.flow-step.cache     { background: #FFF4DB; border-color: #C27400; color: #9A5B00; }
+.flow-step.sp        { background: #E6F4EA; border-color: #1B7A3D; color: #1B7A3D; }
+.flow-arrow { font-size: 18px; color: #5F6882; padding: 0 8px; }
 
 /* ── File tag ── */
 .file-tag {
   display: inline-block;
-  background: #F0F4FB;
+  background: #EEF3FB;
   color: #2E5FA3;
   border-radius: 4px;
   padding: 2px 7px;
@@ -227,9 +227,9 @@ tr:nth-child(even) td { background: #fafafa; }
 .checklist { list-style: none; padding: 0; }
 .checklist li {
   padding: 8px 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #E7EBF3;
   font-size: 13px;
-  color: #444;
+  color: #4B5470;
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -240,25 +240,32 @@ tr:nth-child(even) td { background: #fafafa; }
 /* ── Callout ── */
 .callout {
   border-left: 4px solid #2E5FA3;
-  background: #F0F4FB;
+  background: #EEF3FB;
   padding: 14px 18px;
   border-radius: 0 6px 6px 0;
   font-size: 13px;
-  color: #333;
+  color: #2F3650;
   margin-bottom: 20px;
 }
-.callout.amber { border-left-color: #b45309; background: #fff8f0; }
-.callout.green { border-left-color: #107C10; background: #f0faf0; }
+.callout.amber { border-left-color: #C27400; background: #FFF9EA; }
+.callout.green { border-left-color: #1B7A3D; background: #E6F4EA; }
 
 /* ── Changelog ── */
 .changelog-entry {
   background: white;
-  border: 1px solid #e4e4e4;
+  border: 1px solid #CAD1E0;
   border-left: 4px solid #2E5FA3;
   border-radius: 0 8px 8px 0;
   padding: 20px 24px;
   margin-bottom: 20px;
 }
-.changelog-date { font-size: 12px; color: #888; margin-bottom: 6px; }
+.changelog-date { font-size: 12px; color: #5F6882; margin-bottom: 6px; }
 .changelog-title { font-size: 15px; font-weight: 600; color: #0A0B44; margin-bottom: 10px; }
-.changelog-entry ul { padding-left: 18px; font-size: 13px; color: #444; line-height: 2; }
+.changelog-entry ul { padding-left: 18px; font-size: 13px; color: #4B5470; line-height: 2; }
+
+/* N-415 (Visual Finish): light-only static sheet, literal palette (no tokens here). */
+.sidebar-link:focus-visible, a:focus-visible { outline: 2px solid #2E5FA3; outline-offset: 2px; }
+.readme-list { font-size: 14px; color: #4B5470; padding-left: 20px; line-height: 2.2; }
+.readme-note { font-size: 14px; color: #4B5470; }
+.readme-note--sm { font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

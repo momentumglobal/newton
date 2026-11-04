@@ -70,7 +70,7 @@ async function buildAssignmentsTab(editId = null) {
     const isActive = a.Active !== false;
     return `
     <tr id="assign-row-${a.id}" style="${isActive ? '' : 'opacity:0.55'}">
-      <td>${escHtml(a.UserName || '—')}${isActive ? '' : ' <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--border-subtle);color:var(--text-label);">Inactive</span>'}</td>
+      <td>${escHtml(a.UserName || '—')}${isActive ? '' : ' <span class="admin-pill-inactive">Inactive</span>'}</td>
       <td>${escHtml(a.UserEmail)}</td>
       <td>${escHtml(roleLabel(a) || '—')}</td>
       <td>
@@ -231,7 +231,7 @@ async function buildLeadershipTab() {
     <tr>
       <td>${photoFileName(l.PhotoUrl)
             ? `<img data-photo="${escAttr(photoFileName(l.PhotoUrl))}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
-            : '<span style="color:var(--text-faint);font-size:12px">—</span>'}</td>
+            : '<span class="admin-faint">—</span>'}</td>
       <td>${escHtml(l.UserName || '—')}</td>
       <td>${escHtml(l.UserEmail)}</td>
       <td>
@@ -244,7 +244,7 @@ async function buildLeadershipTab() {
     </tr>`).join('');
   return `
     <h3>Leadership Access List</h3>
-    <p style="font-size:13px;color:var(--text-label);margin-bottom:16px">
+    <p class="admin-tab-intro">
       These individuals have read-only access to the Company Dashboard.
     </p>
     <table class="data-table" style="margin:0 0 24px">
@@ -264,7 +264,7 @@ async function buildLeadershipTab() {
         </div>
       </div>
       <div class="form-group">
-        <label>Photo <span style="font-size:11px;color:var(--text-muted);font-weight:normal">optional</span></label>
+        <label>Photo <span class="admin-optional">optional</span></label>
         <input type="file" id="lead-photofile" accept="${uploadAcceptAttr('PHOTO')}">
       </div>
       <div id="lead-error" class="form-error"></div>
@@ -337,11 +337,10 @@ async function buildHomepageTab() {
     { key: 'football', label: '⚽ World Cup Football', desc: 'Full-screen grass pitch with line markings and a ball bouncing around' },
   ];
   const effectRows = effects.map(e => `
-    <div style="display:flex;align-items:center;justify-content:space-between;
-                padding:16px 0;border-bottom:1px solid var(--border-subtle)">
+    <div class="admin-effect-row">
       <div>
-        <div style="font-size:14px;font-weight:600;color:var(--brand)">${e.label}</div>
-        <div style="font-size:13px;color:var(--text-label);margin-top:2px">${e.desc}</div>
+        <div class="admin-effect-title">${e.label}</div>
+        <div class="admin-effect-desc">${e.desc}</div>
       </div>
       <button class="btn-secondary"
         ${act('setFx', active === e.key ? 'none' : e.key)} style="min-width:80px">
@@ -350,12 +349,11 @@ async function buildHomepageTab() {
     </div>`).join('');
   return `
     <h3>Announcement Banner</h3>
-        <p style="font-size:13px;color:var(--text-label);margin-bottom:16px">
+        <p class="admin-tab-intro">
       Set a scrolling message that appears at the bottom of the screen for all users.
       Clear the field and save to remove it.
     </p>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;
-                padding:20px 24px;max-width:520px;margin-bottom:32px">
+    <div class="admin-card admin-card--form admin-card--spaced">
       <div class="form-group">
         <label>Message</label>
         <textarea id="announcement-text" rows="3"
@@ -369,11 +367,10 @@ async function buildHomepageTab() {
       </div>
     </div>
     <h3>Seasonal Effects</h3>
-        <p style="font-size:13px;color:var(--text-label);margin-bottom:16px">
+        <p class="admin-tab-intro">
       One effect can be active at a time. Changes take effect on the Newton home screen immediately.
     </p>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;
-                padding:4px 24px;max-width:520px">
+    <div class="admin-card admin-card--tight">
       ${effectRows}
     </div>`;
 }
@@ -436,17 +433,15 @@ async function buildGhostTab() {
 
   return `
     <h3>Ghost Mode</h3>
-        <p style="font-size:13px;color:var(--text-label);margin-bottom:24px">
+        <p class="admin-tab-intro admin-tab-intro--lg">
       Temporarily view Newton as a specific real user — their real resolved role and real
       project scope. A banner will appear at the top of every page while ghost mode is
       active. Navigate to any module to see their experience. Your real admin access is
       restored when you exit.
     </p>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;
-                padding:20px 24px;max-width:520px">
+    <div class="admin-card admin-card--form">
       ${currentEmail ? `
-        <div style="background:var(--status-warn-bg-soft);border:1px solid var(--badge-cc-amber);border-radius:4px;
-                    padding:12px 16px;margin-bottom:20px;font-size:13px">
+        <div class="admin-ghost-note">
           👻 Currently ghosting as <strong>${escHtml(currentLabel || currentEmail)}</strong>
           (${escHtml(currentEmail)})
         </div>` : ''}

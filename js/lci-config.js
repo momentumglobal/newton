@@ -218,7 +218,7 @@ CONFIG.LCI = {
     // CONFIG.LCI.EXCEL.COLOURS uses — pptxgenjs rejects 8-character values.
     // Same documented exception to "no hex in JS" the Excel export carries:
     // a deck cannot read style.css. `navy` must stay in step with
-    // .data-table th (#0A0B44); `series` mirrors LCI_REPORT_COLOURS.
+    // .data-table th (#0A0B44); `series` mirrors the light --c-chart-1…5 tokens (LCI_REPORT_COLOURS).
     COLOURS: {
       navy:         '0A0B44',
       navySteel:    '1B3A5C',
@@ -232,7 +232,7 @@ CONFIG.LCI = {
       tableBorder:  'E0E0E0',
       textBody:     '1A1A2E',
       textMuted:    '888888',
-      series: ['1B3A5C', 'E8703A', '2E8B8B', '7B5EA7', 'B0578D'],
+      series: ['2E5FA3', 'D9622B', '157F73', '7A5BB0', 'B8387F'],
     },
     // Polymath, matching the app. It ships as three SEPARATE families —
     // 'Polymath' (regular), 'Polymath Medium', 'Polymath Semibold', each

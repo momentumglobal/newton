@@ -77,26 +77,26 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, headc
 
   const actualPts  = toPolyPoints(actualPoints);
   const actualLine = actualPts
-    ? `<polyline points='${actualPts}' class='nt-chart-line' style='--nt-chart-color:var(--surface-accent)'/>`
+    ? `<polyline points='${actualPts}' class='nt-chart-line' style='--nt-chart-color:var(--chart-1)'/>`
     : '';
 
   const forecastPts  = toPolyPoints(forecastPoints);
   const forecastLine = forecastPts && forecastPts.includes(' ')
     ? `<polyline points='${forecastPts}' class='nt-chart-line nt-chart-line--dashed'
-                style='--nt-chart-color:var(--surface-accent)' opacity='0.65'/>`
+                style='--nt-chart-color:var(--chart-1)' opacity='0.65'/>`
     : '';
 
   const salesForecastPts  = toPolyPoints(salesPoints);
   const salesForecastLine = salesForecastPts && salesForecastPts.includes(' ')
     ? `<polyline points='${salesForecastPts}' class='nt-chart-line nt-chart-line--dashed'
-                style='--nt-chart-color:var(--accent)' opacity='0.85'/>`
+                style='--nt-chart-color:var(--chart-2)' opacity='0.85'/>`
     : '';
   
   const actualDots = actualPoints
     .filter(p => p.util !== null)
     .map(p => `
       <circle cx='${xOf(p.monthIdx).toFixed(1)}' cy='${yOf(p.util).toFixed(1)}'
-              r='3.5' class='nt-chart-dot--ring' style='--nt-chart-color:var(--surface-accent)'>
+              r='3.5' class='nt-chart-dot--ring' style='--nt-chart-color:var(--chart-1)'>
         <title>${p.label}: ${(p.util * 100).toFixed(1)}%</title>
       </circle>`).join('');
 
@@ -104,7 +104,7 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, headc
     .filter(p => p.util !== null && p.monthIdx > curMonth)
     .map(p => `
       <circle cx='${xOf(p.monthIdx).toFixed(1)}' cy='${yOf(p.util).toFixed(1)}'
-              r='3' class='nt-chart-dot--hollow' style='--nt-chart-color:var(--surface-accent)' opacity='0.7'>
+              r='3' class='nt-chart-dot--hollow' style='--nt-chart-color:var(--chart-1)' opacity='0.7'>
         <title>${p.label}: ${(p.util * 100).toFixed(1)}% (forecast)</title>
       </circle>`).join('');
 
@@ -112,7 +112,7 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, headc
     .filter(p => p.util !== null && p.monthIdx >= curMonth)
     .map(p => `
       <circle cx='${xOf(p.monthIdx).toFixed(1)}' cy='${yOf(p.util).toFixed(1)}'
-              r='3' class='nt-chart-dot--hollow' style='--nt-chart-color:var(--accent)' opacity='0.85'>
+              r='3' class='nt-chart-dot--hollow' style='--nt-chart-color:var(--chart-2)' opacity='0.85'>
         <title>${p.label}: ${(p.util * 100).toFixed(1)}% (sales forecast)</title>
       </circle>`).join('');
 
@@ -139,9 +139,9 @@ function _renderUtilisationLineGraph(allRows, assignments, salesForecasts, headc
         ${salesForecastDots}
       </svg>
       ${_chartLegendHtml([
-        { color: 'var(--surface-accent)', label: 'Actual' },
-        { color: 'var(--surface-accent)', dashed: true, label: 'Forecast' },
-        { color: 'var(--accent)', dashed: true, label: 'Sales Forecast' },
+        { color: 'var(--chart-1)', label: 'Actual' },
+        { color: 'var(--chart-1)', dashed: true, label: 'Forecast' },
+        { color: 'var(--chart-2)', dashed: true, label: 'Sales Forecast' },
         { color: 'var(--text-muted)', dashed: true, label: 'Thresholds' },
       ])}
     </div>`;

@@ -219,6 +219,10 @@
   overflow: hidden; background: var(--surface-hover);
 }
 .eng-dist-seg { height: 100%; transition: width 0.3s; }
+/* N-416: rating distribution = ordinal quality on the status set (low → high), not a category colour */
+.eng-dist-seg--low  { background: var(--status-danger); }
+.eng-dist-seg--mid  { background: var(--status-warn); }
+.eng-dist-seg--high { background: var(--status-success); }
 .eng-dist-labels {
   display: flex; justify-content: space-between;
   font-size: var(--fs-11); color: var(--text-faint);

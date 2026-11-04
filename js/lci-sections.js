@@ -370,8 +370,8 @@ function _lciCostCompositionChartSvg(c, ccy, horizon) {
   const W = 900, H = 248, padL = 70, padR = 20, padT = 16, padB = 38;
   const s = lciCostCompositionSeries(c);
   const L = CONFIG.LCI.COMPOSITION_LABELS;
-  const series = [{ key: 'coe', label: L.coe, color: 'var(--c-navy-steel)', data: s.coe }];
-  if (s.hasLegacy) series.push({ key: 'legacy', label: L.legacy, color: 'var(--c-accent)', data: s.legacy });
+  const series = [{ key: 'coe', label: L.coe, color: 'var(--chart-1)', data: s.coe }];
+  if (s.hasLegacy) series.push({ key: 'legacy', label: L.legacy, color: 'var(--chart-2)', data: s.legacy });
   const totals = c.labels.map((_l, i) => series.reduce((a, sr) => a + Math.max(0, sr.data[i] || 0), 0));
 
   const steps = CONFIG.LCI.CHART_STEPS;
@@ -447,7 +447,7 @@ function _lciSpendChartSvg(c, ccy, horizon) {
 
   const points = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   const dots = data.map((v, i) =>
-    `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="nt-chart-dot" style="--nt-chart-color:var(--brand-tertiary)"><title>${c.labels[i]}: ${_lciFmt(v, ccy)}</title></circle>`).join('');
+    `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="nt-chart-dot" style="--nt-chart-color:var(--chart-1)"><title>${c.labels[i]}: ${_lciFmt(v, ccy)}</title></circle>`).join('');
   // Two-line x labels: M# with (Mon YY) beneath, matching the roadmap headers
   const ticks = c.labels.map((l, i) => {
     if (!(horizon <= 12 || i % 2 === 0)) return '';
@@ -470,7 +470,7 @@ function _lciSpendChartSvg(c, ccy, horizon) {
       <h3 class="lci-title">Cumulative Spend <span class="lci-title-sub">(${ccy})</span></h3>
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
         ${gridLines}
-        <polyline points="${points}" class="nt-chart-line" style="--nt-chart-color:var(--brand-tertiary)"/>
+        <polyline points="${points}" class="nt-chart-line" style="--nt-chart-color:var(--chart-1)"/>
         ${dots}
         ${ticks}
       </svg>

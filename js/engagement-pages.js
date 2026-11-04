@@ -160,8 +160,8 @@ function _engQuestionCard(q, responses, prevResponses) {
     const total  = vals.length || 1;
     const distBar = counts.map((c, i) => {
       const pct = Math.round((c / total) * 100);
-      const hue = Math.round(120 * (i / (range - 1))); // red → green
-      return `<div class="eng-dist-seg" style="width:${pct}%;background:hsl(${hue},60%,50%);" title="${min + i}: ${c} (${pct}%)"></div>`;
+      const tone = engDistTone(i, range); // low → high on the status tokens (N-416)
+      return `<div class="eng-dist-seg eng-dist-seg--${tone}" style="width:${pct}%;" title="${min + i}: ${c} (${pct}%)"></div>`;
     }).join('');
 
     return `
@@ -233,6 +233,63 @@ function _engQuestionCard(q, responses, prevResponses) {
 
 // ── Trends tab ───────────────────────────────────────────────────────
 
+// Trends chart state (N-416). One chart and one theme observer at a time.
+let _engChart = null;
+let _engChartObserver = null;
+let _engPrinting = false;
+let _engPrintBound = false;
+
+function _engDisposeChart() {
+  if (_engChartObserver) { _engChartObserver.disconnect(); _engChartObserver = null; }
+  if (_engChart) { try { _engChart.destroy(); } catch (e) {} _engChart = null; }
+}
+
+// Re-reads every chart colour from the current theme's tokens and redraws in place.
+// Set the colour properties on Chart.js's resolved option objects; never assign those objects back (breaks the legend).
+function _engApplyChartTheme(chart) {
+  const o = chart.options;
+  const tick = chartCssVar('--text-muted');
+  const grid = chartCssVar('--border-subtle');
+  ['x', 'y'].forEach(ax => {
+    const s = o.scales && o.scales[ax];
+    if (!s) return;
+    s.ticks.color = tick;
+    s.grid.color = grid;
+    s.border.color = grid;
+  });
+  o.plugins.legend.labels.color = chartCssVar('--text-label');
+  Object.assign(o.plugins.tooltip, {
+    backgroundColor: chartCssVar('--surface-raised'),
+    titleColor:      chartCssVar('--text-primary'),
+    bodyColor:       chartCssVar('--text-primary'),
+    borderColor:     chartCssVar('--border'),
+    borderWidth:     1,
+  });
+  // New dataset objects, not in-place edits: Chart.js caches each point's resolved options and
+  // would keep drawing the old theme's dots after a single update.
+  chart.data.datasets = chart.data.datasets.map((ds, qi) => {
+    const c = chartSeriesColour(qi);
+    return Object.assign({}, ds, { borderColor: c, backgroundColor: c, pointBackgroundColor: c, pointBorderColor: c });
+  });
+  chart.update('none');
+}
+
+// The canvas ignores @media print, so a dark-mode print would put light ink on white paper.
+// Draw it once from the light tokens, then put the attribute back.
+function _engChartForPrint() {
+  if (!_engChart || !_engChart.canvas || !_engChart.canvas.isConnected) return;
+  const root = document.documentElement;
+  const theme = root.getAttribute('data-theme');
+  _engPrinting = true;
+  if (theme) root.removeAttribute('data-theme');
+  _engApplyChartTheme(_engChart);
+  if (theme) root.setAttribute('data-theme', theme);
+}
+function _engChartAfterPrint() {
+  _engPrinting = false;
+  if (_engChart && _engChart.canvas && _engChart.canvas.isConnected) _engApplyChartTheme(_engChart);
+}
+
 async function engRenderTrends() {
   const { runs, questions } = window._engState;
   const content = document.getElementById('eng-content');
@@ -254,7 +311,7 @@ async function engRenderTrends() {
   const labels   = closedRuns.map(r => r.Title || r.id);
 
   const datasets = ratingQs.map((q, qi) => {
-    const hue  = Math.round((qi / Math.max(ratingQs.length - 1, 1)) * 240);
+    const col  = chartSeriesColour(qi);
     const data = closedRuns.map((r, ri) => {
       const vals = allResponses[ri]
         .filter(resp => resp.QuestionID == q.id || resp.QuestionIDLookupId == q.id)
@@ -265,8 +322,11 @@ async function engRenderTrends() {
     return {
       label:       q.QuestionText.length > 40 ? q.QuestionText.slice(0, 40) + '…' : q.QuestionText,
       data,
-      borderColor: `hsl(${hue},65%,50%)`,
-      backgroundColor: `hsl(${hue},65%,85%)`,
+      borderColor: col,
+      backgroundColor: col,
+      pointBackgroundColor: col,
+      pointBorderColor: col,
+      ...(qi >= 8 ? { borderDash: [6, 4] } : {}), // 9th+ series reuse a hue: dash is the non-colour cue
       tension:     0.3,
       spanGaps:    true,
     };
@@ -282,7 +342,10 @@ async function engRenderTrends() {
     });
   }
 
-  new window.Chart(document.getElementById('eng-trends-chart'), {
+  // N-416: Chart.js is canvas and cannot read var(--…), so colours are resolved from the
+  // tokens at draw time and re-applied on a theme change and around printing.
+  _engDisposeChart();
+  _engChart = new window.Chart(document.getElementById('eng-trends-chart'), {
     type: 'line',
     data: { labels, datasets },
     options: {
@@ -299,6 +362,18 @@ async function engRenderTrends() {
       }
     }
   });
+  _engApplyChartTheme(_engChart);
+  _engChartObserver = new MutationObserver(() => {
+    if (_engPrinting) return;
+    if (!_engChart || !_engChart.canvas || !_engChart.canvas.isConnected) { _engDisposeChart(); return; }
+    _engApplyChartTheme(_engChart);
+  });
+  _engChartObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  if (!_engPrintBound) {
+    _engPrintBound = true;
+    window.addEventListener('beforeprint', _engChartForPrint);
+    window.addEventListener('afterprint', _engChartAfterPrint);
+  }
 }
 
 // ── Actions ──────────────────────────────────────────────────────────

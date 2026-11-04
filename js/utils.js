@@ -864,6 +864,28 @@ function setTheme(theme) {
   try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
 }
 
+// ── Chart colours (N-416) ───────────────────────────────────────────
+// Series tokens --chart-1…8 live in style.css (light, dark and print sets).
+// SVG charts put var(--chart-N) straight into their markup and follow the
+// theme for free. A canvas (Chart.js) cannot resolve var(), so it reads the
+// resolved colour at draw time with chartCssVar() and is re-coloured when the
+// theme changes (engagement-pages.js).
+function chartSeriesVar(i) {
+  return '--chart-' + ((((i | 0) % 8) + 8) % 8 + 1);
+}
+function chartCssVar(name) {
+  try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); } catch (e) { return ''; }
+}
+function chartSeriesColour(i) {
+  return chartCssVar(chartSeriesVar(i));
+}
+// Rating-distribution segment tone: ordinal quality, low → high (not a category).
+function engDistTone(i, range) {
+  if (range <= 1) return 'high';
+  const r = i / (range - 1);
+  return r < 0.34 ? 'low' : r < 0.67 ? 'mid' : 'high';
+}
+
 // ── Density (comfortable / compact) ─────────────────────────────────
 // Same pattern as Theme above. theme-init.js sets the initial data-density
 // attribute before first paint using the same localStorage key — keep

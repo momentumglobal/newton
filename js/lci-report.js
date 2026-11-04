@@ -6,7 +6,7 @@
 // Loaded after lci-summary.js. Reuses _lciEd-based renderers by setting
 // _lciEd per model while building the HTML.
 
-const LCI_REPORT_COLOURS = ['var(--c-navy-steel)', 'var(--c-accent)', 'var(--c-teal-chart)', 'var(--c-purple-chart)', 'var(--c-pink-chart)'];
+const LCI_REPORT_COLOURS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 
 // Currently-open report: {id, title, ids}. id null = unsaved (new export).
 let _lciReport = { id: null, title: '', ids: [] };

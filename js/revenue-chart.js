@@ -59,7 +59,7 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
     .map((v, i) => `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`)
     .join(' ');
   const line = `<polyline points='${linePts}' class='nt-chart-line'
-                  style='--nt-chart-color:var(--surface-accent)'/>`;
+                  style='--nt-chart-color:var(--chart-1)'/>`;
 
   // Dashed forecast line: forks at forkIdx (shares that point with the solid
   // line), runs to Dec. Only drawn if any forecast revenue exists from the
@@ -72,7 +72,7 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
     .join(' ');
   const forecastLine = hasForecast && forecastPts.includes(' ')
     ? `<polyline points='${forecastPts}' class='nt-chart-line nt-chart-line--dashed'
-                style='--nt-chart-color:var(--accent)'/>`
+                style='--nt-chart-color:var(--chart-2)'/>`
     : '';
 
   // N-257: a booked month to date below amber is the exception worth flagging
@@ -82,7 +82,7 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
     const below = i <= forkIdx && v < amber;
     return `
     <circle cx='${xOf(i).toFixed(1)}' cy='${yOf(v).toFixed(1)}'
-            r='${below ? 4.5 : 3.5}' class='nt-chart-dot--ring' style='--nt-chart-color:${below ? 'var(--status-danger)' : 'var(--surface-accent)'}'>
+            r='${below ? 4.5 : 3.5}' class='nt-chart-dot--ring' style='--nt-chart-color:${below ? 'var(--status-danger)' : 'var(--chart-1)'}'>
       <title>${MONTH_LABELS[i]} ${year}: ${_fmtGBPk(v)}${below ? ` · below ${_fmtGBPk(amber)}` : ''}</title>
     </circle>`;
   }).join('');
@@ -92,7 +92,7 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
         .filter(p => p.i > forkIdx && forecastRev[p.i] > 0)
         .map(p => `
           <circle cx='${xOf(p.i).toFixed(1)}' cy='${yOf(p.v).toFixed(1)}'
-                  r='3' class='nt-chart-dot--hollow' style='--nt-chart-color:var(--accent)' opacity='0.85'>
+                  r='3' class='nt-chart-dot--hollow' style='--nt-chart-color:var(--chart-2)' opacity='0.85'>
             <title>${MONTH_LABELS[p.i]} ${year}: ${_fmtGBPk(p.v)} (est. + forecast)</title>
           </circle>`).join('')
     : '';
@@ -113,8 +113,8 @@ function _renderRevenueLineGraph(assignments, year, salesForecasts) {
         ${forecastDots}
       </svg>
       ${_chartLegendHtml([
-        { color: 'var(--surface-accent)', label: 'Estimated (booked)' },
-        { color: 'var(--accent)', dashed: true, label: 'Estimated + Forecast' },
+        { color: 'var(--chart-1)', label: 'Estimated (booked)' },
+        { color: 'var(--chart-2)', dashed: true, label: 'Estimated + Forecast' },
         { color: 'var(--text-muted)', dashed: true, label: 'Thresholds' },
         { color: 'var(--status-danger)', dot: true, label: `Booked month below ${_fmtGBPk(amber)}` },
       ])}

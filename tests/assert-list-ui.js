@@ -158,5 +158,73 @@ ASSERTIONS.push(
       _assertEqual(h.indexOf('nt-chart-legend-swatch--dot') > -1, true, 'dot class present');
       _assertEqual(h.indexOf('nt-chart-legend-swatch--box') === -1, true, 'not a box');
     },
+  },
+  // ── N-416: chart colours come from the series tokens ─────────────────────
+  {
+    name: 'N-416 chart JS carries no colour literal and only series / status / neutral tokens (lint-chart-colours guard)',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      _assertEqual(lintChartColours(ALL_SOURCES).map(v => `${v.file}:${v.line}  ${v.text}`), [],
+        'hex / rgb() / hsl() or a non-series var() in chart JS (use var(--chart-N))');
+    },
+  },
+  {
+    name: 'N-416 lint-chart-colours control: flags hex, rgb(), hsl() and a non-series var(); ignores comments, entities, selectors, series and status tokens',
+    fn: function () {
+      const lint = src => lintChartColours(src).map(v => `${v.file}:${v.line}`);
+      const only = (file, text) => { const o = {}; CHART_COLOUR_FILES.forEach(f => { o[f] = ''; }); o[file] = text; return o; };
+      _assertEqual(lint(only('revenue-chart.js', "const a = '#2E5FA3';\n")), ['revenue-chart.js:1'], '6-digit hex');
+      _assertEqual(lint(only('revenue-chart.js', "const a = '#abc';\n")), ['revenue-chart.js:1'], '3-digit hex');
+      _assertEqual(lint(only('engagement-pages.js', "x = `hsl(${h},60%,50%)`;\n")), ['engagement-pages.js:1'], 'hsl()');
+      _assertEqual(lint(only('lci-report.js', "x = 'rgb(1,2,3)';\n")), ['lci-report.js:1'], 'rgb()');
+      _assertEqual(lint(only('people-dashboard.js', "const s = `<g style='--nt-chart-color:var(--surface-accent)'/>`;\n")),
+        ['people-dashboard.js:1'], 'brand token as a series colour');
+      _assertEqual(lint(only('lci-sections.js', "const series = [{ key: 'coe', label: L.coe, color: 'var(--c-navy-steel)', data: s.coe }];\n")),
+        ['lci-sections.js:1'], 'legend / series colour that is not a series token');
+      _assertEqual(lint(only('revenue-chart.js', "// '#2E5FA3' hsl(1,2%,3%)\n/* rgb(1,2,3) */\nconst a = 1;\n")), [], 'comments ignored');
+      _assertEqual(lint(only('coe-plan.js', "t = '&#128203; <a href=\"#add-row\">';\n")), [], 'entities and anchors are not colours');
+      _assertEqual(lint(only('revenue-chart.js',
+        "const d = `style='--nt-chart-color:${b ? 'var(--status-danger)' : 'var(--chart-1)'}'`;\n{ color: 'var(--text-muted)', dashed: true },\n{ color: 'var(--coe-opens-planned)' },\n")),
+        [], 'series, status, text-muted and coe-opens tokens are allowed');
+      _assertEqual(lint({}).length, CHART_COLOUR_FILES.length, 'a missing file is a violation, not a silent pass');
+    },
+  },
+  {
+    name: 'N-416 chartSeriesVar — 8 ordered series, wraps after 8, negative index safe',
+    fn: function () {
+      _assertEqual([0, 1, 7, 8, 9, 15, 16].map(chartSeriesVar),
+        ['--chart-1', '--chart-2', '--chart-8', '--chart-1', '--chart-2', '--chart-8', '--chart-1'], 'index → token');
+      _assertEqual(chartSeriesVar(-1), '--chart-8', 'negative wraps');
+      _assertEqual(chartCssVar('--chart-1'), '', 'no DOM (node) → empty string, not a throw');
+    },
+  },
+  {
+    name: 'N-416 LCI series — screen LCI_REPORT_COLOURS is --chart-1…5 and the PPTX series are the light --c-chart-1…5 hex',
+    fn: function () {
+      _assertEqual(CONFIG.LCI.PPTX.COLOURS.series, ['2E5FA3', 'D9622B', '157F73', '7A5BB0', 'B8387F'], 'PPTX series (no #, 6 digits)');
+      if (typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const m = /const LCI_REPORT_COLOURS = \[([^\]]*)\]/.exec(ALL_SOURCES['lci-report.js']);
+      _assertEqual(m && m[1].split(',').map(s => s.trim().replace(/['"]/g, '')),
+        ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'], 'LCI_REPORT_COLOURS');
+      const css = ALL_CSS['style.css'];
+      ['2E5FA3', 'D9622B', '157F73', '7A5BB0', 'B8387F'].forEach((hex, n) => {
+        _assertEqual(new RegExp('--c-chart-' + (n + 1) + ':\\s*#' + hex + ';', 'i').test(css), true, 'PPTX series ' + (n + 1) + ' = --c-chart-' + (n + 1));
+      });
+    },
+  },
+  {
+    name: 'N-416 engDistTone — low / mid / high thirds of the rating scale',
+    fn: function () {
+      const tones = n => Array.from({ length: n }, (_, i) => engDistTone(i, n));
+      _assertEqual(tones(5), ['low', 'low', 'mid', 'high', 'high'], '5-point');
+      _assertEqual(tones(10), ['low', 'low', 'low', 'low', 'mid', 'mid', 'mid', 'high', 'high', 'high'], '10-point');
+      _assertEqual(tones(3), ['low', 'mid', 'high'], '3-point');
+      _assertEqual(tones(2), ['low', 'high'], '2-point');
+      _assertEqual(engDistTone(0, 1), 'high', 'single bucket does not divide by zero');
+    },
   }
 );

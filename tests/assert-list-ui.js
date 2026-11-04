@@ -226,5 +226,23 @@ ASSERTIONS.push(
       _assertEqual(tones(2), ['low', 'high'], '2-point');
       _assertEqual(engDistTone(0, 1), 'high', 'single bucket does not divide by zero');
     },
+  },
+  // ── N-416 diff-2: Hiring Plan R / N cells readable in dark mode ───────────
+  {
+    name: 'N-416 diff-2 Hiring Plan R / N cells: dark tints give ≥ 4.5:1 under the dark text; dark block themes them and the print re-pin puts them back',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined') {
+        _skip('Stylesheet scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      }
+      const css = ALL_CSS['style.css'];
+      const hex = t => new RegExp('--' + t.replace(/^--/, '') + ':\\s*#([0-9a-fA-F]{6});').exec(css)[1];
+      const lum = h => { const f = c => (c /= 255) <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+        return 0.2126 * f(parseInt(h.slice(0, 2), 16)) + 0.7152 * f(parseInt(h.slice(2, 4), 16)) + 0.0722 * f(parseInt(h.slice(4, 6), 16)); };
+      const ratio = t => { const a = lum(hex(t)), b = lum(hex('--c-dark-text-primary'));
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); };
+      ['--c-dark-coe-r', '--c-dark-coe-n'].forEach(t => _assertEqual(ratio(t) >= 4.5, true, t + ' ≥ 4.5:1 under --c-dark-text-primary'));
+      _assertEqual(/\[data-theme="dark"\] \{[\s\S]*?--coe-cell-r: var\(--c-dark-coe-r\); --coe-cell-n: var\(--c-dark-coe-n\);/.test(css), true, 'dark block themes the R / N cells');
+      _assertEqual(/@media print \{\s*:root \{[\s\S]*?--coe-cell-r: var\(--c-blue-pale\);\s*--coe-cell-n: var\(--c-pink-pale\);/.test(css), true, 'print re-pin restores the light cells');
+    },
   }
 );

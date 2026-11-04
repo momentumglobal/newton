@@ -88,7 +88,7 @@
 .coe-swatch { width:14px; height:14px; border-radius:var(--r-sm); display:inline-block; }
 .coe-swatch--recruit { background:var(--coe-cell-r); }
 .coe-swatch--notice  { background:var(--coe-cell-n); }
-.coe-swatch--onboard { background:var(--c-green-pale-border); }
+.coe-swatch--onboard { background:var(--status-success-bg); }
 .coe-capacity td, .coe-capacity th { font-size:var(--fs-11); font-variant-numeric: tabular-nums; }
 .coe-capacity .coe-cap-label { text-align:left; font-weight:600; }
 .coe-fvp-table { border-collapse:collapse; margin-top:var(--sp-5); font-size:var(--fs-13); }

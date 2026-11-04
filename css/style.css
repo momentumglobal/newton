@@ -354,6 +354,9 @@
   --c-dark-warn-bg-soft:   #30270F;
   --c-dark-danger:         #F2706B;
   --c-dark-danger-bg:      #3A1F22;
+  /* Hiring Plan R / N phase cells in dark: deep tints under --c-dark-text-primary (≥ 4.5:1) */
+  --c-dark-coe-r:          #2F5C8F;
+  --c-dark-coe-n:          #7A3F6E;
   --c-dark-danger-bg-soft: #2F1A1D;
   --c-dark-neutral-bg:     #20243A;
   --c-dark-border-control: #6A728C;
@@ -598,6 +601,7 @@
   --chart-3: var(--c-chart-dark-3); --chart-4: var(--c-chart-dark-4);
   --chart-5: var(--c-chart-dark-5); --chart-6: var(--c-chart-dark-6);
   --chart-7: var(--c-chart-dark-7); --chart-8: var(--c-chart-dark-8);
+  --coe-cell-r: var(--c-dark-coe-r); --coe-cell-n: var(--c-dark-coe-n);
   --elev-card:            var(--sh-elev-dark-1);
   --elev-raised:          var(--sh-elev-dark-2);
   --elev-overlay:         var(--sh-elev-dark-3);
@@ -679,6 +683,8 @@
     --chart-6: var(--c-chart-6);
     --chart-7: var(--c-chart-7);
     --chart-8: var(--c-chart-8);
+    --coe-cell-r: var(--c-blue-pale);
+    --coe-cell-n: var(--c-pink-pale);
     --elev-card: var(--sh-elev-1);
     --elev-raised: var(--sh-elev-2);
     --elev-overlay: var(--sh-elev-3);

@@ -57,7 +57,7 @@ async function renderPlacementAnalytics() {
       <h2>Placement Analytics</h2>
     </div>
 
-    <div style="display:flex;gap:16px;align-items:flex-end;padding:0 0 24px 0;flex-wrap:wrap">
+    <div class="pa-filter-row">
       <div>
         <div class="rb-section-label" style="margin-bottom:6px">Location</div>
         <select class="rb-select" id="pa-loc-filter" style="min-width:200px"

@@ -1831,6 +1831,11 @@ body {
    a modifier class on the single status set (N-411), not an inline style. */
 .pa-rag-glyph             { display: inline-block; width: var(--sp-6); margin-right: var(--sp-3); text-align: center; }
 .pa-rag-glyph .rag-marker { margin-right: 0; }
+/* N-421: Placement Analytics filter row (was inline). Outside a toolbar the shared search
+   box keeps its .form-group bottom margin, lifting it 16px above the selects; zero it
+   here so the three bottoms line up. Margin only - no min-width (unlike the toolbar rule). */
+.pa-filter-row { display: flex; gap: var(--sp-7); align-items: flex-end; padding: 0 0 var(--sp-9) 0; flex-wrap: wrap; }
+.pa-filter-row .list-search-box { margin: 0; }
 .pa-rag-glyph--amber      { color: var(--status-warn-strong); }
 .pa-rag-glyph--red        { color: var(--status-danger-text); }
 .pa-rag-dot               { display: inline-block; width: 10px; height: 10px; border-radius: var(--r-round); margin-right: var(--sp-3); background: var(--status-neutral); }

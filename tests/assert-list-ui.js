@@ -257,6 +257,23 @@ ASSERTIONS.push(
       _assertEqual(/\[data-theme="dark"\] \{[^}]*?color-scheme:\s*dark;/.test(css), true, 'dark block keeps color-scheme: dark');
     },
   },
+  // ── N-421: Placement Analytics filter row ─────────────────────────────────
+  {
+    name: 'N-421 Placement Analytics filter row is a class; its search box margin is zeroed without touching the shared toolbar rule',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined' || typeof ALL_SOURCES === 'undefined') {
+        _skip('Source scan needs filesystem access - runs under node tests/run.js, not in the browser runner.');
+      }
+      const css = ALL_CSS['style.css'];
+      const js = ALL_SOURCES['placement-analytics.js'];
+      _assertEqual(js.indexOf('display:flex;gap:16px;align-items:flex-end') === -1, true, 'no inline filter-row flex style');
+      _assertEqual(js.indexOf('class="pa-filter-row"') !== -1, true, 'filter row uses .pa-filter-row');
+      _assertEqual(/\.pa-filter-row \{[^}]*?display:\s*flex;[^}]*?align-items:\s*flex-end;[^}]*?flex-wrap:\s*wrap;/.test(css), true, '.pa-filter-row is a bottom-aligned wrapping flex row');
+      _assertEqual(/\.pa-filter-row \.list-search-box \{\s*margin:\s*0;\s*\}/.test(css), true, 'search box margin zeroed inside the row (margin only)');
+      _assertEqual(/\.table-toolbar \.list-search-box,\s*\.list-controls-bar \.list-search-box \{[^}]*\}/.test(css), true, 'shared toolbar rule group still intact');
+      _assertEqual(/pa-filter-row[^{]*\{[^}]*min-width/.test(css), false, 'filter row sets no min-width');
+    },
+  },
   // ── N-417 (VF-6): motion and empty states ────────────────────────────────
   {
     name: 'N-417 no page-level bare "Loading…" text remains outside the mobile files (skeleton helpers instead)',

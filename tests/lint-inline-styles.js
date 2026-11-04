@@ -68,7 +68,7 @@ var INLINE_STYLE_BASELINE = {
   'js/people-invoices.js': 3,
   'js/people-payroll.js': 16,
   'js/people-tracker.js': 14,
-  'js/placement-analytics.js': 6,
+  'js/placement-analytics.js': 5,
   'js/report-builder.js': 2,
   'js/revenue-chart.js': 7,
   'js/sales-pages.js': 6,

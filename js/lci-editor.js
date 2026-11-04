@@ -101,7 +101,7 @@ function _lciEditorHtml() {
   const m = _lciEd.model;
   return `
     <div class="page-header">
-      <h2>${escHtml(m.Title)} <span style="font-weight:400;color:var(--text-muted);font-size:15px">— ${escHtml(m.ClientName)}</span></h2>
+      <h2>${escHtml(m.Title)} <span class="lci-title-sub lci-title-sub--lg">— ${escHtml(m.ClientName)}</span></h2>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary"${act('lciEditorBack')}>← Back to models</button>
         <button class="btn-secondary"${act('lciOpenSummary')}>Summary / Print</button>
@@ -275,9 +275,9 @@ function _lciRoadmapHtml() {
   }).join('');
 
   return `
-    <div id="lci-roadmap-section" class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;margin-top:16px">
+    <div id="lci-roadmap-section" class="print-avoid-break lci-card lci-card--mt">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 style="margin:0;color:var(--brand-tertiary)">Hiring Roadmap <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(salaries in ${escHtml(m.LocalCurrency)})</span></h3>
+        <h3 class="lci-title lci-title--flush">Hiring Roadmap <span class="lci-title-sub">(salaries in ${escHtml(m.LocalCurrency)})</span></h3>
         <div style="display:flex;gap:8px">
           <button class="btn-secondary"${act('addLCIMilestone')}>+ Add Milestone</button>
           <button class="btn-secondary"${act('addLCITeam')}>+ Add Team</button>

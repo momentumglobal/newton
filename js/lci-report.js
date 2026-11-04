@@ -61,7 +61,7 @@ async function renderLCIReportPage(ids, opts = {}) {
       }
     }
     if (!bundles.length) {
-      main.innerHTML = '<p style="color:red">None of this report\'s models still exist.</p>';
+      main.innerHTML = '<p class="lci-error-note">None of this report\'s models still exist.</p>';
       return;
     }
 
@@ -79,7 +79,7 @@ async function renderLCIReportPage(ids, opts = {}) {
     main.innerHTML = _lciReportHtml(title, clients, bundles, missing.length);
     if (window.lucide) lucide.createIcons();
   } catch (e) {
-    main.innerHTML = `<p style="color:red">Error assembling report: ${e.message}</p>`;
+    main.innerHTML = `<p class="lci-error-note">Error assembling report: ${e.message}</p>`;
   }
 }
 
@@ -147,8 +147,8 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
       ${_lciReportDividerHtml(m)}
       <div class="lci-summary-card lci-report-break">
         <div class="lci-summary-head">
-          <h2 style="margin:0;color:var(--brand-tertiary)">${escHtml(m.Title)}</h2>
-          <div style="color:var(--text-label);font-size:13px;margin-top:4px">${escHtml(m.Location)}</div>
+          <h2 class="lci-title lci-title--flush">${escHtml(m.Title)}</h2>
+          <div class="lci-subtitle">${escHtml(m.Location)}</div>
         </div>
         ${_lciRoadmapBlocksHtml()}
       </div>
@@ -182,7 +182,7 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
         <button class="btn-primary"${act('lciExportReportPptx', ACT_EL)}>Export to PowerPoint</button>
       </div>
     </div>
-    ${missingCount ? `<p class="lci-noprint" style="color:var(--accent);font-size:13px;margin:0 0 12px">${missingCount} model(s) in this saved report no longer exist and were skipped.</p>` : ''}
+    ${missingCount ? `<p class="lci-noprint lci-note-accent">${missingCount} model(s) in this saved report no longer exist and were skipped.</p>` : ''}
     ${_lciReportCoverHtml(title, subtitle)}
     ${modelSections}
     ${_lciReportComparisonHtml(bundles)}
@@ -196,7 +196,7 @@ function _lciReportHtml(title, clients, bundles, missingCount = 0) {
 function _lciReportObsHtml() {
   return `
     <div class="lci-summary-card lci-report-break">
-      <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Observations and Recommendations</h3>
+      <h3 class="lci-title">Observations and Recommendations</h3>
       <div class="rb-rt-wrapper">
         <div class="rb-rt-toolbar lci-noprint" id="lci-report-obs-toolbar">
           <button type="button"${act('lciReportFormat', 'bold')} data-rt="bold"><b>B</b></button>
@@ -208,8 +208,7 @@ function _lciReportObsHtml() {
           <button type="button"${act('lciReportFormatBlock', 'P')} data-rt-block="P">Body Text</button>
           ${rtTableToolbarButtonHtml()}
         </div>
-        <div id="lci-report-obs" class="rb-richtext" contenteditable="true"
-             style="min-height:200px;caret-color:var(--brand);cursor:text;padding:8px 10px"
+        <div id="lci-report-obs" class="rb-richtext lci-obs-editor" contenteditable="true"
              data-placeholder="Add observations &amp; recommendations here..."
              ${actOn('input', 'lciReportSetObs', ACT_HTML)}
              ${actOn('keyup', 'lciReportUpdateToolbarState')}
@@ -299,12 +298,12 @@ function _lciCompareTableHtml(entries, ccy) {
   const note = lciNotReachedNote(entries, T);
 
   return `
-    <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">${T.compareTitle} <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(${ccy})</span></h3>
+    <h3 class="lci-title">${T.compareTitle} <span class="lci-title-sub">(${ccy})</span></h3>
     <table class="data-table lci-compare">
       <thead>${head}</thead>
       <tbody>${body}</tbody>
     </table>
-    ${note ? `<p style="font-size:12px;color:var(--text-muted);margin:8px 0 0">${escHtml(note)}</p>` : ''}`;
+    ${note ? `<p class="lci-note lci-mt-4">${escHtml(note)}</p>` : ''}`;
 }
 
 // N-line cumulative spend chart, all solid, palette colours, centred legend.
@@ -352,7 +351,7 @@ function _lciReportCompareChartSvg(entries, ccy) {
   })));
 
   return `
-    <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Cumulative Spend <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(${ccy})</span></h3>
+    <h3 class="lci-title">Cumulative Spend <span class="lci-title-sub">(${ccy})</span></h3>
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
       ${gridLines}
       ${lines}

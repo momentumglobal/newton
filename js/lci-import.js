@@ -47,8 +47,8 @@ function closeLCIImport() {
 function _lciImportModalShell(title, bodyHtml) {
   return `
     <div class="lci-modal-overlay"${act('closeLCIImport.self')}>
-      <div class="lci-modal-card" style="width:820px;max-width:95vw;max-height:90vh;overflow-y:auto">
-        <h3 style="margin:0 0 16px;color:var(--brand-tertiary)">${escHtml(title)}</h3>
+      <div class="lci-modal-card lci-modal-card--wide">
+        <h3 class="lci-title lci-title--md">${escHtml(title)}</h3>
         ${bodyHtml}
       </div>
     </div>`;
@@ -56,7 +56,7 @@ function _lciImportModalShell(title, bodyHtml) {
 
 function _lciImportPickerHtml() {
   return _lciImportModalShell('Import Legacy Team from Excel', `
-    <p style="font-size:13px;color:var(--text-muted)">
+    <p class="lci-note lci-note--md">
       Upload the customer's Excel file. You'll map its columns to Title, Team
       and Annual Salary on the next step — nothing is saved to SharePoint
       until you click <strong>Save Changes</strong> in the Legacy Team
@@ -66,7 +66,7 @@ function _lciImportPickerHtml() {
       conversion.
     </p>
     <input type="file" id="lci-import-file" accept="${uploadAcceptAttr('LCI_IMPORT')}"${actOn('change', 'lciImportFileSelected', ACT_EL)}>
-    <div id="lci-import-status" style="margin-top:12px;font-size:13px;color:var(--text-muted)"></div>
+    <div id="lci-import-status" class="lci-note lci-note--md lci-mt-6"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:20px">
       <button class="btn-secondary"${act('closeLCIImport')}>Cancel</button>
     </div>`);
@@ -182,7 +182,7 @@ function _lciImportMappingHtml() {
         <select class="form-control" style="flex:1"${actOn('change', 'lciImportSetMapping', f.key, ACT_VALUE)}>
           ${optsFor(mapped)}
         </select>
-        <span style="width:160px;font-size:12px;color:var(--text-muted)">${exampleVal !== null ? `e.g. ${escHtml(String(exampleVal))}` : ''}</span>
+        <span class="lci-import-eg">${exampleVal !== null ? `e.g. ${escHtml(String(exampleVal))}` : ''}</span>
       </div>`;
   }).join('');
 
@@ -190,7 +190,7 @@ function _lciImportMappingHtml() {
     .every(f => _lciImp.mapping[f.key] !== undefined && _lciImp.mapping[f.key] !== '');
 
   return _lciImportModalShell('Map Columns', `
-    <p style="font-size:13px;color:var(--text-muted)">
+    <p class="lci-note lci-note--md">
       ${_lciImp.hasHeader ? 'Detected a header row.' : 'No header row detected — columns are labelled A, B, C…'}
       Map each Newton field to a column from the file. Fields marked * are required.
     </p>
@@ -199,7 +199,7 @@ function _lciImportMappingHtml() {
       First row is a header row, not data
     </label>
     ${rowsHtml}
-    <p style="font-size:12px;color:var(--text-muted);margin-top:8px">${_lciImportDataRows().length} data row(s) found in the file.</p>
+    <p class="lci-note lci-mt-4">${_lciImportDataRows().length} data row(s) found in the file.</p>
     <div style="display:flex;justify-content:space-between;margin-top:20px">
       <button class="btn-secondary"${act('openLCIImportModal')}>Back</button>
       <div style="display:flex;gap:8px">
@@ -283,7 +283,7 @@ function _lciImportPreviewHtml() {
         <tbody>${rowsHtml}</tbody>
       </table>
     </div>
-    <p id="lci-import-count" style="font-size:12px;color:var(--text-muted);margin-top:8px">${_lciImportCountText()}</p>
+    <p id="lci-import-count" class="lci-note lci-mt-4">${_lciImportCountText()}</p>
     <div style="display:flex;justify-content:space-between;margin-top:16px">
       <button class="btn-secondary"${act('lciImportBackToMapping')}>Back</button>
       <div style="display:flex;gap:8px">

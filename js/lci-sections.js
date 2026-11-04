@@ -20,9 +20,9 @@ function _lciRowsOfType(type) {
 // changed rows are written, so saves are effectively per-section anyway.
 function _lciSectionShell(id, title, subtitle, addFn, bodyHtml, extraButtonsHtml = '') {
   return `
-    <div id="${id}" class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;margin-top:16px">
+    <div id="${id}" class="print-avoid-break lci-card lci-card--mt">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 style="margin:0;color:var(--brand-tertiary)">${title} <span style="font-weight:400;font-size:13px;color:var(--text-muted)">${subtitle}</span></h3>
+        <h3 class="lci-title lci-title--flush">${title} <span class="lci-title-sub">${subtitle}</span></h3>
         <div style="display:flex;gap:8px">
           <button class="btn-secondary"${act(addFn)}>+ Add Row</button>
           ${extraButtonsHtml}
@@ -329,8 +329,8 @@ function _lciOutputInnerHtml(includeChart = true, plain = false, slice = null) {
   const showLegacyTeamCosts = !legacyCatRows && c.oneoffs.some(v => v);
 
   return `
-    <div class="${plain ? '' : 'print-avoid-break'}" style="${plain ? '' : 'background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px'}">
-      <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Cost Model${sl.label ? ` — ${sl.label}` : ''} <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(all values in ${ccy})</span></h3>
+    <div class="${plain ? '' : 'print-avoid-break lci-card'}">
+      <h3 class="lci-title">Cost Model${sl.label ? ` — ${sl.label}` : ''} <span class="lci-title-sub">(all values in ${ccy})</span></h3>
       <div class="lci-grid-scroll table-scroll">
         <table class="data-table lci-grid lci-output">
           <thead><tr><th style="min-width:220px"></th>${monthHead}</tr></thead>
@@ -420,7 +420,7 @@ function _lciCostCompositionChartSvg(c, ccy, horizon) {
 
   return `
     <div style="margin-top:16px">
-      <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Monthly Cost Composition <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(${ccy})</span></h3>
+      <h3 class="lci-title">Monthly Cost Composition <span class="lci-title-sub">(${ccy})</span></h3>
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
         ${gridLines}
         ${cols}
@@ -467,7 +467,7 @@ function _lciSpendChartSvg(c, ccy, horizon) {
 
   return `
     <div style="margin-top:16px">
-      <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Cumulative Spend <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(${ccy})</span></h3>
+      <h3 class="lci-title">Cumulative Spend <span class="lci-title-sub">(${ccy})</span></h3>
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
         ${gridLines}
         <polyline points="${points}" class="nt-chart-line" style="--nt-chart-color:var(--brand-tertiary)"/>

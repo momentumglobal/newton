@@ -1,6 +1,8 @@
 /* css/lci.css - LCI Cost Model, summary and report print, Lead Magnet.
    Linked by sales.html, after css/style.css (N-349b). Rules moved verbatim
-   from style.css; tokens, shell, forms, tables, buttons and the print foundation stay there. */
+   from style.css; tokens, shell, forms, tables, buttons and the print foundation stay there.
+   N-413 (Visual Finish) added the .lci-card / .lci-title / .lci-note families, modal size
+   modifiers and the screen-only grid-input border. */
 
 /* ── LCI Cost Model ─────────────────────────────────────────────── */
 .lci-status {
@@ -9,6 +11,8 @@
   border-radius: var(--r-2xl);
   font-size: var(--fs-12);
   font-weight: 600;
+  border: 1px solid transparent;
+  letter-spacing: 0.03em;
 }
 .lci-status--draft     { background: var(--lci-status-draft-bg); color: var(--status-neutral-on-pale); }
 .lci-status--presented { background: var(--lci-status-presented-bg); color: var(--lci-status-presented-text); }
@@ -49,10 +53,20 @@
   border-radius: var(--r-sm);
   padding: var(--sp-2) var(--sp-3);
   font-size: var(--fs-13);
+  background: var(--surface);
+  transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
 .lci-cell--wide { width: 170px; }
 .lci-cell--sm   { width: 50px; }
 .lci-mcol .lci-cell { width: 44px; text-align: center; }
+/* N-413: 3:1 control border on screen only (print keeps --border-mid); hover before focus */
+@media screen { .lci-cell { border-color: var(--border-control); } }
+.lci-cell:hover:not(:disabled) { border-color: var(--text-muted); }
+.lci-cell:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent);
+}
 .lci-derived { text-align: center; color: var(--brand-tertiary); font-weight: 600; }
 .lci-team-row td { background: var(--surface-alt); padding: var(--sp-3) var(--sp-4); }
 .lci-row-del { padding: var(--sp-1) var(--sp-4); line-height: 1; }
@@ -218,13 +232,53 @@
 }
 
 .lci-modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  position: fixed; inset: 0; background: var(--scrim);
   z-index: var(--z-modal); display: flex; align-items: center; justify-content: center;
 }
 .lci-modal-card {
   background: var(--surface); border-radius: var(--r-lg); padding: var(--sp-10);
-  width: 460px; max-width: 95vw; box-shadow: 0 var(--sp-4) var(--sp-10) rgba(0,0,0,0.18);
+  width: 460px; max-width: 95vw; box-shadow: var(--elev-modal);
 }
+.lci-modal-overlay--hidden { display: none; }
+.lci-modal-card--forecast { width: 480px; }
+.lci-modal-card--model { width: 520px; max-height: 90vh; overflow-y: auto; }
+.lci-modal-card--wide { width: 820px; max-height: 90vh; overflow-y: auto; }
+.lci-modal-card--lm { width: 880px; max-height: 92vh; overflow-y: auto; padding: 28px; }
+
+/* ── Sales / LCI finish (N-413) ─────────────────────────────────── */
+.lci-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-8); }
+.lci-card--mt { margin-top: var(--sp-7); }
+.lci-card--muted { color: var(--text-muted); }
+/* Screen-only elevation: none of these has a base shadow, so print is unchanged */
+@media screen { .lci-card, .lci-settings, .lci-summary-card, .lm-report { box-shadow: var(--elev-card); } }
+
+.lci-title { margin: 0 0 var(--sp-6); color: var(--brand-tertiary); }
+.lci-title--flush { margin: 0; }
+.lci-title--md { margin-bottom: var(--sp-7); }
+.lci-title--lg { margin-bottom: var(--sp-8); }
+.lci-title-sub { font-weight: 400; font-size: var(--fs-13); color: var(--text-muted); }
+.lci-title-sub--lg { font-size: var(--fs-15); }
+.lci-subtitle { color: var(--text-label); font-size: var(--fs-13); margin-top: var(--sp-2); }
+.lci-field-label { font-size: var(--fs-13); color: var(--text-label); }
+.lci-note { font-size: var(--fs-12); color: var(--text-muted); }
+.lci-note--md { font-size: var(--fs-13); }
+.lci-note--form { margin: var(--sp-2) 0 var(--sp-6); }
+.lci-note-accent { color: var(--accent); font-size: var(--fs-13); margin: 0 0 var(--sp-6); }
+.lci-muted { color: var(--text-muted); }
+.lci-error-note { color: var(--status-danger-text); }
+.lci-mt-4 { margin-top: var(--sp-4); }
+.lci-mt-6 { margin-top: var(--sp-6); }
+.lci-import-eg { width: 160px; font-size: var(--fs-12); color: var(--text-muted); }
+.lci-obs-editor { min-height: 200px; caret-color: var(--brand); cursor: text; padding: var(--sp-4) var(--sp-5); }
+/* Prefixed to out-rank .data-table td (inline styles used to win) */
+.data-table td.lci-cell-icon { width: 32px; text-align: center; }
+
+.lm-overall-sub { font-weight: 400; color: var(--text-muted); font-size: var(--fs-12); }
+.lm-delta-cell { font-weight: 600; }
+.lm-delta--down, .data-table td.lm-delta--down { color: var(--status-success); }
+.lm-delta--up, .data-table td.lm-delta--up { color: var(--status-danger); }
+.lm-delta--flat, .data-table td.lm-delta--flat { color: var(--text-label); }
+.lm-delta--na, .data-table td.lm-delta--na { color: var(--text-muted); }
 
 /* ── LCI Lead Magnet ──────────────────────────────────────────────── */
 .lm-scroll { overflow-x: auto; }

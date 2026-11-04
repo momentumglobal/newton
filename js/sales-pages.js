@@ -38,7 +38,7 @@ function _renderRevenueTrackingPage(assignments, years) {
     <div class="page-header">
       <h2>Revenue Tracking</h2>
       <div style="display:flex;align-items:center;gap:8px">
-        <label style="font-size:13px;color:var(--text-label)">Year</label>
+        <label class="lci-field-label">Year</label>
         <select class="form-control" style="width:auto"${actOn('change', 'onRevTrackYearChange', ACT_VALUE)}>
           ${yearOptions}
         </select>
@@ -113,7 +113,7 @@ function _renderForecastPage(forecasts) {
       <h2>Sales Forecast</h2>
       <button class="btn-primary"${act('openForecastModal')}>+ Add Forecast</button>
     </div>
-      <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px">
+      <div class="print-avoid-break lci-card">
       <div class="table-toolbar">${listControlsBar([listSearchBox(_forecastSearch, 'setForecastSearch')])}</div>
       ${listResultCount(sorted.length, sorted.length, forecasts.length, null, 'forecast')}
       <table class="data-table">
@@ -142,11 +142,9 @@ async function setForecastSort(key) { _forecastSort = nextSortState(_forecastSor
 
 function _forecastModal() {
   return `
-    <div id="forecast-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);
-         z-index:1000;align-items:center;justify-content:center">
-        <div class="print-avoid-break" style="background:var(--surface);border-radius:8px;padding:32px;width:480px;max-width:95vw;
-                  box-shadow:0 8px 32px rgba(0,0,0,0.18)">
-          <h3 id="forecast-modal-title" style="margin:0 0 20px;color:var(--brand-tertiary)">Add Forecast</h3>
+    <div id="forecast-modal" class="lci-modal-overlay lci-modal-overlay--hidden">
+        <div class="print-avoid-break lci-modal-card lci-modal-card--forecast">
+          <h3 id="forecast-modal-title" class="lci-title lci-title--lg">Add Forecast</h3>
         <input type="hidden" id="forecast-edit-id">
         <div class="form-group">
           <label>Customer / Project Name *</label>

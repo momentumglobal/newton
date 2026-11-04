@@ -84,9 +84,9 @@ function _lmPct(v) {
   const s = v > 0 ? '+' : (v < 0 ? '−' : '');
   return `${s}${Math.abs(v).toFixed(1)}%`;
 }
-function _lmDeltaColour(v) { // lower cost than current = favourable (green)
-  if (v == null || isNaN(v)) return 'var(--text-muted)';
-  return v < 0 ? 'var(--status-success)' : (v > 0 ? 'var(--status-danger)' : 'var(--text-label)');
+function _lmDeltaClass(v) { // lower cost than current = favourable (green)
+  if (v == null || isNaN(v)) return 'lm-delta--na';
+  return v < 0 ? 'lm-delta--down' : (v > 0 ? 'lm-delta--up' : 'lm-delta--flat');
 }
 
 // ── Page entry ───────────────────────────────────────────────────────
@@ -147,9 +147,9 @@ function _lmLibraryHtml() {
     : emptyStateRow({ colspan: D.length + 5, icon: 'map-pin', message: 'No locations yet.' });
 
   return `
-    <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;margin-top:16px">
+    <div class="print-avoid-break lci-card lci-card--mt">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 style="margin:0;color:var(--brand-tertiary)">Location Library <span style="font-weight:400;font-size:13px;color:var(--text-muted)">(annual average salaries, local currency)</span></h3>
+        <h3 class="lci-title lci-title--flush">Location Library <span class="lci-title-sub">(annual average salaries, local currency)</span></h3>
         <button class="btn-primary"${act('openLMLocation')}>+ Add Location</button>
       </div>
       <div class="lm-scroll">
@@ -171,9 +171,9 @@ function _lmLocationModal() {
       <input type="number" class="form-control" name="${d.col}" min="0" step="1">
     </div>`).join('');
   return `
-    <div id="lm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
-      <div class="print-avoid-break" style="background:var(--surface);border-radius:8px;padding:28px;width:880px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
-        <h3 style="margin:0 0 16px;color:var(--brand-tertiary)" id="lm-modal-title">Add Location</h3>
+    <div id="lm-modal" class="lci-modal-overlay lci-modal-overlay--hidden">
+      <div class="print-avoid-break lci-modal-card lci-modal-card--lm">
+        <h3 class="lci-title lci-title--md" id="lm-modal-title">Add Location</h3>
         <form id="lm-form"${actOn('submit', 'saveLMLocation', ACT_EVENT)}>
           <div style="display:flex;gap:12px">
             <div class="form-group" style="flex:2"><label>Location (City, Country) *</label>
@@ -185,7 +185,7 @@ function _lmLocationModal() {
             <div class="form-group" style="flex:1"><label>Currency</label>
               <select class="form-control" name="Currency"><option value="">—</option>${ccyOpts}</select></div>
           </div>
-          <p style="font-size:12px;color:var(--text-muted);margin:4px 0 12px">Average annual salary per discipline, in local currency. Leave blank where unknown.</p>
+          <p class="lci-note lci-note--form">Average annual salary per discipline, in local currency. Leave blank where unknown.</p>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 14px">${salFields}</div>
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">
             <button type="button" class="btn-secondary"${act('closeLMLocation')}>Cancel</button>
@@ -268,8 +268,8 @@ function _lmBuilderHtml() {
     `<label class="lm-chk"><input type="checkbox" class="lm-disc" value="${d.key}"${actOn('change', '_lmSelChanged')}> ${d.label}</label>`).join('');
 
   return `
-    <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;margin-top:16px">
-      <h3 style="margin:0 0 12px;color:var(--brand-tertiary)">Insights Report Builder</h3>
+    <div class="print-avoid-break lci-card lci-card--mt">
+      <h3 class="lci-title">Insights Report Builder</h3>
       <div style="display:flex;gap:24px;flex-wrap:wrap">
         <div class="form-group" style="min-width:220px">
           <label>Current location</label>
@@ -283,7 +283,7 @@ function _lmBuilderHtml() {
         </div>
         <div class="form-group" style="flex:1;min-width:220px">
           <label>Scoped locations</label>
-          <div class="lm-chk-grid">${scopedBoxes || '<span style="color:var(--text-muted)">Add locations first.</span>'}</div>
+          <div class="lm-chk-grid">${scopedBoxes || '<span class="lci-muted">Add locations first.</span>'}</div>
         </div>
         <div class="form-group" style="flex:1;min-width:220px">
           <label>Disciplines</label>
@@ -358,7 +358,7 @@ function _lmRenderPreview() {
   if (!host) return;
   const { current, scoped, disciplines } = _lmResolve();
   if (!current || !scoped.length || !disciplines.length) {
-    host.innerHTML = `<div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;color:var(--text-muted)">
+    host.innerHTML = `<div class="print-avoid-break lci-card lci-card--muted">
       Select a current location, at least one scoped location, and at least one discipline to preview the report.</div>`;
     return;
   }
@@ -381,13 +381,13 @@ function _lmReportHtml(computed, current) {
         <td>${row.label}</td>
         <td>${money(row.currentGBP)}</td>
         <td>${money(row.scopedGBP)}</td>
-        <td style="color:${_lmDeltaColour(row.deltaPct)};font-weight:600">${_lmPct(row.deltaPct)}</td>
+        <td class="lm-delta-cell ${_lmDeltaClass(row.deltaPct)}">${_lmPct(row.deltaPct)}</td>
       </tr>`).join('');
     return `
       <div class="lm-loc-block">
         <div class="lm-loc-head">
           <span class="lm-loc-name">${r.location}</span>
-          <span class="lm-overall" style="color:${_lmDeltaColour(r.overallPct)}">${_lmPct(r.overallPct)} <span style="font-weight:400;color:var(--text-muted);font-size:12px">overall vs current</span></span>
+          <span class="lm-overall ${_lmDeltaClass(r.overallPct)}">${_lmPct(r.overallPct)} <span class="lm-overall-sub">overall vs current</span></span>
         </div>
         <table class="data-table lm-report-table">
           <thead><tr><th>Discipline</th><th>${escHtml(current.Title)}</th><th>${escHtml(r.location)}</th><th>Delta</th></tr></thead>

@@ -75,7 +75,7 @@ function _renderLCIModelList(allModels, role) {
   const rows = models.length
     ? models.map(m => `
         <tr>
-          <td style="width:32px;text-align:center">
+          <td class="lci-cell-icon">
             <input type="checkbox" class="lci-compare-cb" value="${m.id}"${_lciPreTick.map(String).includes(String(m.id)) ? ' checked' : ''}
                    data-ccy="${escAttr(m.DisplayCurrency || '')}"${actOn('change', 'lciCompareSelectionChanged')}>
           </td>
@@ -107,11 +107,11 @@ function _renderLCIModelList(allModels, role) {
     <div class="page-header">
       <h2>LCI Cost Models</h2>
       <div style="display:flex;gap:8px;align-items:center">
-        <label style="font-size:13px;color:var(--text-label)">Client</label>
+        <label class="lci-field-label">Client</label>
         <select class="form-control" style="width:auto"${actOn('change', 'lciListFilterChanged', 'client', ACT_VALUE)}>
           ${_lciFilterOptions(allModels, 'ClientName', f.client)}
         </select>
-        <label style="font-size:13px;color:var(--text-label)">Location</label>
+        <label class="lci-field-label">Location</label>
         <select class="form-control" style="width:auto"${actOn('change', 'lciListFilterChanged', 'location', ACT_VALUE)}>
           ${_lciFilterOptions(allModels, 'Location', f.location)}
         </select>
@@ -122,7 +122,7 @@ function _renderLCIModelList(allModels, role) {
         ${canManage || role === 'delivery_manager' ? `<button class="btn-primary"${act('openLCIModelModal')}>+ New Model</button>` : ''}
       </div>
     </div>
-    <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px">
+    <div class="print-avoid-break lci-card">
       <table class="data-table">
         <thead>
           <tr>
@@ -148,11 +148,9 @@ function _lciModelModal(role) {
   const defaultStart = `${thisMonth.getFullYear()}-${String(thisMonth.getMonth() + 1).padStart(2, '0')}`;
 
   return `
-    <div id="lci-model-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);
-         z-index:1000;align-items:center;justify-content:center">
-        <div class="print-avoid-break" style="background:var(--surface);border-radius:8px;padding:32px;width:520px;max-width:95vw;
-                  max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
-        <h3 style="margin:0 0 20px;color:var(--brand-tertiary)" id="lci-model-modal-title">New LCI Cost Model</h3>
+    <div id="lci-model-modal" class="lci-modal-overlay lci-modal-overlay--hidden">
+        <div class="print-avoid-break lci-modal-card lci-modal-card--model">
+        <h3 class="lci-title lci-title--lg" id="lci-model-modal-title">New LCI Cost Model</h3>
         <form id="lci-model-form"${actOn('submit', 'saveLCIModel', ACT_EVENT)}>
           <div class="form-group">
             <label>Model name *</label>
@@ -376,7 +374,7 @@ function _renderLCIReportsSection(reports, role) {
 
   return `
     <div class="page-header" style="margin-top:24px"><h2>Saved Reports</h2></div>
-    <div class="print-avoid-break" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px">
+    <div class="print-avoid-break lci-card">
       <table class="data-table">
         <thead><tr><th>Report</th><th>Models</th><th>Created by</th><th></th></tr></thead>
         <tbody>${rows}</tbody>

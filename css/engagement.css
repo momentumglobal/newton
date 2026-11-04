@@ -33,6 +33,7 @@
   align-items: center;
   text-align: center;
   backdrop-filter: blur(var(--sp-4));
+  box-shadow: inset 0 1px 0 var(--inverse-border-soft), var(--sh-elev-dark-2);   /* N-414 */
 }
 .survey-widget--reminder {
   border-color: rgba(230,126,34,0.5);
@@ -57,7 +58,7 @@
   font-size: var(--fs-13); font-weight: 600;
   text-decoration: none;
   border: 1px solid var(--inverse-border-strong);
-  transition: background 0.15s;
+  transition: background var(--dur-base) var(--ease-standard);
 }
 .survey-widget-cta:hover { background: var(--brand-hover); }
 

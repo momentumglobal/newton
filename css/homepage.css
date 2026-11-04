@@ -1,8 +1,21 @@
 /* css/homepage.css - Homepage, Command Centre homepage banner, Quick Links drawer.
    Linked by index.html, after css/style.css (N-349b). Rules moved verbatim
-   from style.css; tokens, shell, forms, tables, buttons and the print foundation stay there. */
+   from style.css; tokens, shell, forms, tables, buttons and the print foundation stay there.
+   N-414 (Visual Finish): dark elevation, hover lift, icon tile, .home-page, easing tokens. */
 
 /* ── Homepage (index.html) ───────────────────────────────────────────── */
+.home-page {
+  background: var(--c-navy-night);
+  overflow: visible;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--sp-9) 0 92px;
+  box-sizing: border-box;
+}
+/* N-414: --border-focus (brand blue) does not read on the navy page; same override as .ql-drawer */
+.home-page :focus-visible { outline-color: var(--inverse-text); }
 #watermark {
   position: fixed;
   top: 50%; left: 50%;
@@ -27,7 +40,8 @@
   margin-bottom: var(--sp-3);
 }
 .home-title {
-  font-size: var(--fs-26);
+  font-size: var(--fs-display-sm);
+  letter-spacing: var(--ls-heading-lg);
   font-weight: 600;
   color: var(--inverse-text);
   margin-bottom: var(--sp-3);
@@ -35,7 +49,7 @@
 .home-subtitle {
   font-size: var(--fs-11);
   color: var(--c-wa-28);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   margin-bottom: var(--sp-12);
 }
@@ -59,11 +73,15 @@
   text-align: left;
   text-decoration: none;
   display: block;
-  transition: background 0.15s, border-color 0.15s;
+  box-shadow: inset 0 1px 0 var(--inverse-border-soft), var(--sh-elev-dark-2);
+  transition: background var(--dur-base) var(--ease-standard), border-color var(--dur-base) var(--ease-standard),
+              transform var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
 .module-card:hover {
   background: var(--inverse-hover-bg-strong);
   border-color: var(--inverse-border-hover);
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 var(--inverse-border-soft), var(--sh-elev-dark-3);
 }
 .module-card.disabled {
   opacity: 0.45;
@@ -76,15 +94,23 @@
   cursor: default;
   background: var(--inverse-panel-bg);
   border-color: var(--inverse-border-soft);
+  transform: none;
+  box-shadow: inset 0 1px 0 var(--inverse-border-soft), var(--sh-elev-dark-2);
 }
 .module-icon {
-  width: var(--sp-9); height: var(--sp-9);
-  margin-bottom: var(--sp-6);
+  width: var(--sp-10); height: var(--sp-10);
+  padding: var(--sp-4);
+  box-sizing: border-box;
+  border-radius: var(--r-xl);
+  background: var(--inverse-hover-bg);
+  border: 1px solid var(--inverse-border-soft);
+  margin-bottom: var(--sp-7);
   display: block;
   color: var(--inverse-text-primary-soft);
   stroke-width: 1.5;
 }
 .module-name {
+  letter-spacing: 0.005em;
   font-size: var(--fs-15);
   font-weight: 600;
   color: var(--inverse-text);
@@ -123,6 +149,7 @@
   cursor: pointer;
   flex-shrink: 0;
   margin-right: var(--sp-10);
+  transition: color var(--dur-base) var(--ease-standard);
 }
 .home-signout:hover { color: var(--inverse-text-soft); }
 .home-bottom-bar {
@@ -158,21 +185,35 @@
   .module-card   { padding: var(--sp-7) 18px; }
 }
 
+/* N-414: admin link (index.html #admin-link; JS toggles display) */
+.home-admin-link {
+  font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
+  font-size: var(--fs-13);
+  color: var(--inverse-text-faint);
+  text-decoration: none;
+  margin-right: var(--sp-8);
+  transition: color var(--dur-base) var(--ease-standard);
+}
+.home-admin-link:hover { color: var(--inverse-text-soft); }
+
 /* ── Command Centre homepage banner (index.html) ── */
 /* Note: distinct from .cc-banner used in command-centre.html module shell */
 .cc-home-banner {
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-5);
   padding: var(--sp-8) var(--sp-10); border-radius: var(--r-3xl);
   margin-bottom: var(--sp-8); text-decoration: none;
-  transition: background 0.15s, border-color 0.15s; width: 440px;
+  box-shadow: inset 0 1px 0 var(--inverse-border-soft), var(--sh-elev-dark-2);
+  transition: background var(--dur-base) var(--ease-standard), border-color var(--dur-base) var(--ease-standard),
+              transform var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
+  width: 440px;
   background: var(--inverse-panel-bg); border: 1px solid var(--inverse-border-soft);
 }
-.cc-home-banner:hover   { background: var(--inverse-hover-bg-strong); border-color: var(--inverse-border-hover); }
+.cc-home-banner:hover   { background: var(--inverse-hover-bg-strong); border-color: var(--inverse-border-hover); transform: translateY(-2px); box-shadow: inset 0 1px 0 var(--inverse-border-soft), var(--sh-elev-dark-3); }
 .cc-home-banner__top    { display: flex; align-items: center; justify-content: center; width: 100%; position: relative; }
 .cc-home-banner__title  { font-size: var(--fs-15); font-weight: 600; color: var(--inverse-text); text-align: center; flex: 1; }
 .cc-home-banner__sub    { font-size: var(--fs-11); color: var(--inverse-text-muted); text-transform: uppercase; letter-spacing: 0.08em; text-align: center; }
 .cc-home-banner__badges { display: flex; flex-wrap: wrap; gap: var(--sp-4); justify-content: center; align-items: center; }
-.cc-badge               { font-size: var(--fs-10); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: var(--sp-1) var(--sp-4); border-radius: var(--r-xl); }
+.cc-badge               { font-size: var(--fs-10); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--sp-1) var(--sp-4); border-radius: var(--r-xl); }
 /* N-257: green = neutral chrome at full text strength (vs --neutral's faint "No
    data"); amber = amber border + glyph, no fill; red (below) keeps its fill. */
 .cc-badge--green        { background: var(--inverse-hover-bg); color: var(--inverse-text-vivid); border: 1px solid var(--inverse-border-strong); }
@@ -181,7 +222,7 @@
 .cc-badge--red          { background: rgba(198,40,40,0.35);  color: var(--badge-cc-red); border: 2px solid rgba(198,40,40,0.5); font-weight: var(--fw-bold); } /* N-254: 2px + bold */
 .cc-badge .rag-marker   { font-size: 1.15em; }
 .cc-badge--neutral      { background: var(--inverse-hover-bg); color: var(--inverse-text-faint); border: 1px solid var(--inverse-border); }
-.cc-refresh             { position: absolute; right: 0; background: none; border: none; cursor: pointer; color: var(--inverse-text-dim); font-size: var(--fs-14); padding: var(--sp-1); line-height: 1; transition: color 0.15s; }
+.cc-refresh             { position: absolute; right: 0; background: none; border: none; cursor: pointer; color: var(--inverse-text-dim); font-size: var(--fs-14); padding: var(--sp-1); line-height: 1; transition: color var(--dur-base) var(--ease-standard); }
 .cc-refresh:hover       { color: var(--inverse-text-soft); }
 
 /* ── Quick Links Drawer (homepage) ──────────────────────────────────── */
@@ -197,7 +238,7 @@
   cursor: pointer;
   color: var(--inverse-text-soft);
   margin-right: var(--sp-6);
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background var(--dur-base) var(--ease-standard), border-color var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard);
 }
 .ql-trigger:hover {
   background: var(--c-wa-20);
@@ -208,7 +249,7 @@
   display: none;
   position: fixed; inset: 0;
   z-index: 50;
-  background: rgba(0,0,0,0.35);
+  background: var(--scrim);
 }
 .ql-overlay.open { display: block; }
 .ql-drawer {
@@ -224,7 +265,7 @@
   display: flex;
   flex-direction: column;
   transform: translateY(calc(100% + 68px));
-  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+  transition: transform var(--dur-slow) var(--ease-standard);
   box-shadow: 0 -8px var(--sp-10) rgba(0,0,0,0.4);
 }
 .ql-drawer.open { transform: translateY(0); }
@@ -242,7 +283,7 @@
   background: none; border: none; cursor: pointer;
   color: var(--inverse-text-mid); padding: var(--sp-1);
   display: flex; align-items: center; justify-content: center;
-  transition: color 0.15s;
+  transition: color var(--dur-base) var(--ease-standard);
 }
 .ql-close:hover { color: var(--inverse-text); }
 .ql-links {
@@ -255,7 +296,7 @@
   color: var(--inverse-text-near);
   text-decoration: none;
   font-size: var(--fs-14);
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
 }
 .ql-link:hover {
   background: var(--inverse-hover-bg);
@@ -275,4 +316,9 @@
   display: flex;
   align-items: center;
   margin-right: var(--sp-7);   /* gap before Quick Links */
+}
+
+/* N-414: a hover transform would still jump under the global reduced-motion guard (durations only) */
+@media (prefers-reduced-motion: reduce) {
+  .module-card:hover, .cc-home-banner:hover { transform: none; }
 }

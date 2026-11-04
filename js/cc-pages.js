@@ -329,9 +329,9 @@ function renderPeopleDetail(data) {
     // flagged count, then name.
     return { flagged, name, html: `<tr>
       <td>${name}</td>
-      <td style="text-align:center">${flagged}/${tpRoles.length}</td>
-      <td style="text-align:center">${behind}</td>
-      <td style="text-align:center">${ragTextHTML('grey', '—')}</td>
+      <td class="cell-center">${flagged}/${tpRoles.length}</td>
+      <td class="cell-center">${behind}</td>
+      <td class="cell-center">${ragTextHTML('grey', '—')}</td>
     </tr>` };
   }).sort((a, b) => b.flagged - a.flagged || a.name.localeCompare(b.name)).map(r => r.html).join('');
 
@@ -359,9 +359,9 @@ function renderUtilDetail(data) {
   const ragOf  = v => v >= t.green ? 'green' : v >= t.amber ? 'amber' : 'red';
   const fmtPct = v => `${(v * 100).toFixed(0)}%`;
 
-  const headers      = months.map(m => `<th style="text-align:center">${m.label}</th>`).join('');
-  const plannedCells = months.map(m => `<td style="text-align:center">${ragTextHTML(ragOf(m.planned), fmtPct(m.planned))}</td>`).join('');
-  const forecastCells = months.map(m => `<td style="text-align:center">${ragTextHTML(ragOf(m.forecast), fmtPct(m.forecast))}</td>`).join('');
+  const headers      = months.map(m => `<th class="cell-center">${m.label}</th>`).join('');
+  const plannedCells = months.map(m => `<td class="cell-center">${ragTextHTML(ragOf(m.planned), fmtPct(m.planned))}</td>`).join('');
+  const forecastCells = months.map(m => `<td class="cell-center">${ragTextHTML(ragOf(m.forecast), fmtPct(m.forecast))}</td>`).join('');
 
     return `
     <table class="cc-detail-table" style="margin-top:0">

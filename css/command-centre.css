@@ -10,7 +10,7 @@
 .cc-grid {
   display: flex; gap: var(--sp-7); padding: var(--sp-9);
   align-items: center; min-height: 50vh;
-  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  transition: all var(--dur-slower) var(--ease-standard);
 }
 
 .cc-tile {
@@ -18,12 +18,13 @@
   cursor: pointer; position: relative;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
   min-height: 50vh;
-  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  transition: all var(--dur-slower) var(--ease-standard);
   overflow: hidden;
   background: var(--surface-sunken); border-left: var(--sp-2) solid var(--border-neutral);
 }
 
 .cc-tile:hover { transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) { .cc-tile:hover { transform: none; } }
 
 /* Tile expand */
 .cc-grid--expanded .cc-tile { flex: 0 0 0; opacity: 0; padding: 0; pointer-events: none; }
@@ -42,7 +43,9 @@
   font: inherit; font-size: var(--fs-13); cursor: pointer;
   padding: var(--sp-2) var(--sp-6); border-radius: var(--r-xl);
   border: 1px solid var(--border-mid); background: var(--surface); color: var(--text-secondary);
+  transition: background var(--dur-base) var(--ease-standard), border-color var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard);
 }
+.cc-window-toggle__btn:hover:where(:not(.cc-window-toggle__btn--active)) { border-color: var(--text-muted); }
 .cc-window-toggle__btn--active { background: var(--brand); border-color: var(--brand); color: var(--text-on-brand); }
 .cc-health-cards .scorecard-grid { align-items: flex-start; }
 /* RAG tile colours — the .cc-tile default (grey / no data, sunken) lives in
@@ -53,6 +56,7 @@
 .cc-tile--amber { background: var(--surface); border: 1px solid var(--border); border-left: var(--sp-2) solid var(--status-warn-strong); }
 /* N-254: red gets a heavier rail (6px vs 4px) + full inset outline and bold
    stats, so it differs in weight as well as hue. */
+@media screen { .cc-tile--green, .cc-tile--amber { box-shadow: var(--elev-card); } }
 .cc-tile--red   { background: var(--status-danger-bg); border-left: var(--sp-3) solid var(--status-danger); box-shadow: inset 0 0 0 2px var(--status-danger); }
 
 /* Tile text (N-254: moved out of ccTileHTML's inline styles so the red
@@ -68,7 +72,7 @@
 .cc-tile--amber .cc-tile__status .rag-marker__glyph { color: var(--status-warn-strong); }
 
 /* RAG pill */
-.cc-rag-pill { display: inline-block; padding: var(--sp-1) var(--sp-5); border-radius: var(--r-xl); font-size: var(--fs-11); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.cc-rag-pill { display: inline-block; padding: var(--sp-1) var(--sp-5); border-radius: var(--r-xl); border: 1px solid transparent; font-size: var(--fs-11); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
 .cc-rag-pill--green { background: var(--status-success-bg); color: var(--status-success); }
 .cc-rag-pill--amber { background: var(--status-warn-bg); color: var(--status-warn-strong); }
 .cc-rag-pill--red   { background: var(--status-danger-bg); color: var(--status-danger); }
@@ -82,13 +86,15 @@
 .cc-tile .help-tip-text { left: 50%; right: auto; transform: translateX(-50%); }
 
 /* Close button */
-.cc-close { display: none; position: absolute; top: var(--sp-7); right: var(--sp-7); background: none; border: none; font-size: var(--fs-20); cursor: pointer; color: var(--text-label); }
+.cc-close { display: none; position: absolute; top: var(--sp-7); right: var(--sp-7); background: none; border: none; font-size: var(--fs-20); cursor: pointer; color: var(--text-label); transition: color var(--dur-base) var(--ease-standard); }
+.cc-close:hover { color: var(--text-primary); }
 .cc-grid--expanded .cc-close { display: block; }
 
 .cc-detail-table { width: 100%; border-collapse: collapse; margin-top: var(--sp-7); font-size: var(--fs-14); }
 .cc-detail-table th { text-align: left; font-size: var(--fs-11); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 1px solid var(--border-mid); padding: var(--sp-3) var(--sp-4); }
 .cc-detail-table td { padding: var(--sp-4); border-bottom: 1px solid var(--border-faint); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .cc-detail-table tbody tr:last-child td { border-bottom: none; }
+.cc-detail-table th.cell-center, .cc-detail-table td.cell-center { text-align: center; }   /* N-414: out-ranks .cc-detail-table th { text-align:left } */
 .cc-sla { margin-top: var(--sp-8); }   /* N-385: SLA roll-up under the Project Health scorecards */
 
 /* N-401: Newton for Claude page - install guide rendered from mcp/README.md (js/cc-claude.js). */

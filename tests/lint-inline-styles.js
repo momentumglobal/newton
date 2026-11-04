@@ -35,10 +35,10 @@
 var INLINE_STYLE_BASELINE = {
   'Readme.html': 20,
   'admin.html': 1,
-  'index.html': 7,
+  'index.html': 6,
   'js/admin.js': 7,
   'js/briefing-pack.js': 3,
-  'js/cc-pages.js': 8,
+  'js/cc-pages.js': 2,
   'js/coe-plan.js': 1,
   'js/dashboard-project-panels.js': 1,
   'js/dashboard-project.js': 1,

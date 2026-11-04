@@ -22,7 +22,7 @@ function maUnique(arr, key) {
 
 async function mobileRenderPlacementAnalytics(main) {
   mobileSetTitle('Market Analytics', 'Placement Analytics');
-  main.innerHTML = '<div class="m-empty">Loading analytics...</div>';
+  main.innerHTML = dashboardSkeleton(4);   // N-418
 
   try {
     // N-309: TTF counts headcount (ttfHeadcountInputs, as desktop) — built
@@ -104,7 +104,7 @@ function maRenderResults() {
   if (_maFunctionArea) filtered = filtered.filter(r => r.functionArea === _maFunctionArea);
 
   if (!filtered.length) {
-    container.innerHTML = '<div class="m-empty">No placement data for the selected filters.</div>';
+    container.innerHTML = mobileEmptyState('No placement data for the selected filters.', { compact: true });   // N-418
     return;
   }
 
@@ -151,7 +151,8 @@ function maRenderResults() {
     </div>`;
 
   // Funnel drop-off tiles
-  const ragColour = { green: 'var(--c-success-alt)', amber: 'var(--c-amber-mid)', red: 'var(--c-red-mid)', grey: 'var(--c-gray-300)' };
+  // N-418: the dot colour is a class on the single status set (VF-D9), not an inline Palette B colour.
+  const ragDot = (rag) => (['green', 'amber', 'red'].includes(rag) ? rag : 'grey');
   const funnelTiles = `
     <div class="m-section-header">Funnel Drop-off</div>
     <div class="m-an-grid">
@@ -160,7 +161,7 @@ function maRenderResults() {
           <div class="m-an-tile-label">${s.stage}</div>
           <div class="m-an-tile-value">${s.conv !== null ? s.conv + '%' : '-'}</div>
           <div class="m-an-tile-sub">
-            <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${ragColour[s.rag] || ragColour.grey};margin-right:5px"></span>
+            <span class="m-an-dot m-an-dot--${ragDot(s.rag)}"></span>
             ${s.rag === 'grey' ? 'No data' : s.rag.charAt(0).toUpperCase() + s.rag.slice(1)}
           </div>
         </div>`).join('')}

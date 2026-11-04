@@ -46,7 +46,7 @@ function mobileRoleCardHtml(r, { pending = false } = {}) {
 // ── #4 Summary view ───────────────────────────────────────────────────
 async function mobileRenderReportingSummary(main) {
   mobileSetTitle('Reporting', 'Summary');
-  main.innerHTML = '<div class="m-empty">Loading summary...</div>';
+  main.innerHTML = dashboardSkeleton(4);   // N-418
 
   try {
     await mobileLoadRolesCache();            // scoped, excludes Closed/Cancelled; warms the Roles tab
@@ -79,7 +79,7 @@ async function mobileRenderReportingSummary(main) {
       .map(s => `
         <tr>
           <td class="m-sc-metric">${s}</td>
-          <td class="m-sc-val" style="color:var(--c-brand)">${byStage[s]}</td>
+          <td class="m-sc-val m-sc-val--brand">${byStage[s]}</td>
         </tr>`).join('');
 
     main.innerHTML = `
@@ -113,7 +113,7 @@ function mobileSumTile(value, label) {
 // search box + stage dropdown, and renders the filtered set grouped by project.
 async function mobileRenderRolesFiltered(main) {
   mobileSetTitle('Reporting', 'Roles');
-  main.innerHTML = '<div class="m-empty">Loading roles...</div>';
+  main.innerHTML = skeletonList(5);   // N-418
 
   try {
     if (!_mRolesCache) await mobileLoadRolesCache();
@@ -166,7 +166,7 @@ function mobileDrawRolesList(main, pendingItem = null) {
 
   let listHtml;
   if (!filtered.length) {
-    listHtml = '<div class="m-empty">No roles match your filters.</div>';
+    listHtml = mobileEmptyState('No roles match your filters.', { icon: 'search', compact: true });   // N-418
   } else {
     const byProject = {};
     filtered.forEach(r => {
@@ -206,7 +206,7 @@ function mobileRedrawRolesListOnly() {
   if (_mRoleStage) filtered = filtered.filter(r => r.Stage === _mRoleStage);
 
   if (!filtered.length) {
-    listEl.innerHTML = '<div class="m-empty">No roles match your filters.</div>';
+    listEl.innerHTML = mobileEmptyState('No roles match your filters.', { icon: 'search', compact: true });   // N-418
     return;
   }
   const byProject = {};
@@ -278,7 +278,7 @@ async function mobilePullRefreshRoles() {
 const M_REJECT_REASONS = CONFIG.REJECTION_REASONS;
 
 async function mobileRenderRejectionForm(main, rolePreselected) {
-  main.innerHTML = '<div class="m-empty">Loading...</div>';
+  main.innerHTML = skeletonPanel(6);   // N-418
   try {
     const user = getCurrentUser();
     let roleName = '';

@@ -43,7 +43,7 @@ async function mobileRenderScorecards(main) {
     }
 
     if (!tpEmails.length) {
-      main.innerHTML = '<div class="m-empty">No activity recorded in the last 13 weeks.</div>';
+      main.innerHTML = mobileEmptyState('No activity recorded in the last 13 weeks.');   // N-418
       return;
     }
 
@@ -106,28 +106,27 @@ async function mobileRenderScorecards(main) {
 
 // Compact scorecard card using the mobile look (mirrors desktop panel).
 function mScCardHtml(scorecard, displayName, roleHealth) {
-  const ragColour = (rag) => ({
-    green: 'var(--c-success)', amber: 'var(--c-warn-text)', red: 'var(--c-danger)', grey: 'var(--c-gray-500)',
-  }[rag] || 'var(--c-gray-500)');
+  // N-418: RAG tone is a class suffix (.m-sc-val--green / amber / red / grey) on the single status set.
+  const ragTone = (rag) => (['green', 'amber', 'red'].includes(rag) ? rag : 'grey');
 
   const healthRow = roleHealth ? (() => {
     const of = n => roleHealth.total > 0 ? `${n || 0}/${roleHealth.total}` : '-';
     return `<tr>
       <td class="m-sc-metric">Flagged roles</td>
-      <td class="m-sc-val" style="color:${ragColour('grey')}">${of(roleHealth.flagged)}</td>
+      <td class="m-sc-val m-sc-val--grey">${of(roleHealth.flagged)}</td>
     </tr>
     <tr>
       <td class="m-sc-metric">Behind ${CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays}-day pace</td>
-      <td class="m-sc-val" style="color:${ragColour('grey')}">${of(roleHealth.behind)}</td>
+      <td class="m-sc-val m-sc-val--grey">${of(roleHealth.behind)}</td>
     </tr>`;
   })() : '';
 
   const rows = scorecard.metrics.map(m => {
     const display = m.value !== null ? `${m.value}${m.unit === '%' ? '%' : ' ' + m.unit}` : '-';
-    const colour  = m.informational ? 'var(--c-gray-500)' : ragColour(m.rag);
+    const tone    = m.informational ? 'grey' : ragTone(m.rag);
     return `<tr>
       <td class="m-sc-metric">${m.label}</td>
-      <td class="m-sc-val" style="color:${colour}">${m.informational ? '' : ragMarkerHTML(m.rag)}${display}</td>
+      <td class="m-sc-val m-sc-val--${tone}">${m.informational ? '' : ragMarkerHTML(m.rag)}${display}</td>
     </tr>`;
   }).join('');
 
@@ -135,7 +134,7 @@ function mScCardHtml(scorecard, displayName, roleHealth) {
     <div class="m-detail-panel" style="margin-bottom:0">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
         <div class="m-detail-value" style="margin-bottom:0">${escHtml(displayName)}</div>
-        <span class="m-sc-pill" style="background:${ragColour('grey')}">NOT RATED</span>
+        <span class="m-sc-pill">NOT RATED</span>
       </div>
       <div class="m-detail-label">Rolling Quarterly View</div>
       <table class="m-sc-table"><tbody>${healthRow}${rows}</tbody></table>

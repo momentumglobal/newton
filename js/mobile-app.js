@@ -102,8 +102,8 @@ async function mobileOnSignedIn() {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('login-screen').innerHTML = `
       <div class="m-login-card" style="position:relative;z-index:2">
-        <h1 style="color:white">Access Restricted</h1>
-        <p style="color:rgba(255,255,255,0.6)">The mobile view is available to Talent Partners and Delivery Managers only.</p>
+        <h1>Access Restricted</h1>
+        <p>The mobile view is available to Talent Partners and Delivery Managers only.</p>
          <button class="btn-signin"${act('mobileSignOut')}>Sign out</button>
       </div>`;
     return;
@@ -404,6 +404,23 @@ function mobilePageError(message, retryAct) {
   return `<div class="m-empty m-empty--error">
     <div>${escHtml(message)}</div>
     <button class="m-btn-secondary m-empty-retry"${act(...retryAct)}>Retry</button>
+  </div>`;
+}
+
+// === Empty state (N-418 / VF-7) ===
+// Page- or panel-level "nothing here": icon + message, no buttons. Mirrors
+// emptyStateBlock() in ui-kit.js, but mobile.html loads no lucide, so the two
+// icons it needs are inline SVG (Lucide paths, as the bottom nav does).
+// `message` is plain text and is escaped here. compact = for a panel inside a page.
+const MOBILE_EMPTY_ICONS = {
+  inbox:  '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+};
+function mobileEmptyState(message, { icon = 'inbox', compact = false } = {}) {
+  const paths = MOBILE_EMPTY_ICONS[icon] || MOBILE_EMPTY_ICONS.inbox;
+  return `<div class="m-empty-state${compact ? ' m-empty-state--compact' : ''}">
+    <svg class="m-empty-state__icon" viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>
+    <p class="m-empty-state__msg">${escHtml(message)}</p>
   </div>`;
 }
 

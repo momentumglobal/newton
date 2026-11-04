@@ -19,26 +19,27 @@ function mpFmtPct(n) {
 // Utilisation % comes from personUtilisation() (utils.js), as desktop (N-328).
 
 // --- KPI card markup (reuses the mobile .m-* look) ---
-function mpKpiCard(label, value, sub, bg) {
+// N-418: `tone` is 'success' | 'warn' | 'danger' (a fixed set chosen by the caller) or empty; the
+// tint is a class on the single status set, not an inline colour.
+function mpKpiCard(label, value, sub, tone) {
   return `
-    <div class="m-detail-panel" style="${bg ? 'background:' + bg + ';' : ''}margin-bottom:12px">
-      <div class="m-detail-label" style="text-transform:uppercase;letter-spacing:.05em;font-weight:700">${label}</div>
-      <div class="kpi-value" style="font-size:26px;font-weight:700;color:var(--c-brand);margin:2px 0">${value}</div>
-      ${sub ? `<div class="m-detail-label" style="margin-bottom:0">${sub}</div>` : ''}
+    <div class="m-detail-panel${tone ? ' m-kpi--' + tone : ''}">
+      <div class="m-detail-label m-kpi-label">${label}</div>
+      <div class="kpi-value m-kpi-value">${value}</div>
+      ${sub ? `<div class="m-detail-label m-kpi-sub">${sub}</div>` : ''}
     </div>`;
 }
 
 // Delta chip (+/- vs last quarter), mirrors desktop colours.
 function mpDelta(curr, prev) {
   const d = curr - prev;
-  if (d === 0) return ` <span style="color:var(--c-gray-450);font-size:15px">-</span>`;
-  const colour = d > 0 ? 'var(--c-success)' : 'var(--c-danger)';
-  return ` <span style="color:${colour};font-size:15px">${d > 0 ? '+' : ''}${d}</span>`;
+  if (d === 0) return ` <span class="m-delta m-delta--flat">-</span>`;
+  return ` <span class="m-delta m-delta--${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d}</span>`;
 }
 
 async function mobileRenderPeopleDashboard(main) {
   mobileSetTitle('People', 'Dashboard');
-  main.innerHTML = '<div class="m-empty">Loading dashboard...</div>';
+  main.innerHTML = dashboardSkeleton(4);   // N-418
 
   try {
     const [assignments, people] = await Promise.all([
@@ -50,13 +51,13 @@ async function mobileRenderPeopleDashboard(main) {
     const { year: thisY, revYTD, utilYTD, activeCustomers, prevQCustomers, billedHeadcount, prevQHeadcount } =
       peopleKpiFigures(allRows, assignments, new Date());
 
-    const utilBg = utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? 'var(--c-success-bg-alt)'
-                 : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? 'var(--c-warn-bg-soft)'
-                 : 'var(--c-danger-bg-alt)';
+    const utilTone = utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? 'success'
+                   : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? 'warn'
+                   : 'danger';
 
     main.innerHTML = `
       ${mpKpiCard('Estimated Revenue ' + thisY, mpFmtGBP(revYTD), 'Current year YTD')}
-      ${mpKpiCard('Utilisation ' + thisY, mpFmtPct(utilYTD), 'Current year YTD', utilBg)}
+      ${mpKpiCard('Utilisation ' + thisY, mpFmtPct(utilYTD), 'Current year YTD', utilTone)}
       ${mpKpiCard('Active Customers', activeCustomers + mpDelta(activeCustomers, prevQCustomers), 'As of today - vs last quarter')}
       ${mpKpiCard('Billed Headcount', billedHeadcount + mpDelta(billedHeadcount, prevQHeadcount), 'As of today - vs last quarter')}
     `;

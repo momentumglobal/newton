@@ -35,7 +35,7 @@ function mobileRenderHome(main) {
   const modules = mobileGetAccessibleModules();
 
   if (!modules.length) {
-    main.innerHTML = '<div class="m-empty">No modules are available for your role on mobile yet.</div>';
+    main.innerHTML = mobileEmptyState('No modules are available for your role on mobile yet.');   // N-418
     return;
   }
 

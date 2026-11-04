@@ -38,7 +38,7 @@ async function mobileSelectRole(roleId) {
 }
 
 async function mobileRenderRoleDetail(main) {
-  main.innerHTML = '<div class="m-empty">Loading…</div>';
+  main.innerHTML = skeletonPanel(6);   // N-418
   try {
     // N-310 (S-10): read-only headcount summary (the Headcount section itself
     // stays desktop-only, D-6). A failed headcount read falls back to
@@ -102,7 +102,7 @@ async function mobileRenderRoleDetail(main) {
 // ── Stage Update ──────────────────────────────────────────────────────
 
 async function mobileRenderStageUpdate(main) {
-  main.innerHTML = '<div class="m-empty">Loading…</div>';
+  main.innerHTML = skeletonPanel(6);   // N-418
   try {
     const role = await getItem('Roles', _mobileRoleId);
     mobileSetTitle('Update Stage', role.RoleTitle);
@@ -220,7 +220,7 @@ async function mobileSaveStage() {
 // ── Weekly Activity Form ──────────────────────────────────────────────
 
 async function mobileRenderActivityForm(main, rolePreselected) {
-  main.innerHTML = '<div class="m-empty">Loading…</div>';
+  main.innerHTML = skeletonPanel(6);   // N-418
   try {
     const user     = getCurrentUser();
     const projects = dashboardProjects(await getWritableScopedProjects(user.email, false));   // N-362; N-369 writable only
@@ -412,7 +412,7 @@ async function mobileSubmitActivity(rolePreselected) {
 // role is taken from the chosen headcount at submit (getPlacementTarget).
 
 async function mobileRenderPlacementForm(main, rolePreselected) {
-  main.innerHTML = '<div class="m-empty">Loading…</div>';
+  main.innerHTML = skeletonPanel(6);   // N-418
   try {
     const user     = getCurrentUser();
     const projects = dashboardProjects(await getWritableScopedProjects(user.email, false));   // N-362; N-369 writable only

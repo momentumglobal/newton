@@ -15,7 +15,7 @@
 
 async function mobileRenderAddRole(main) {
   mobileSetTitle('Add Role', 'New Role');
-  main.innerHTML = '<div class="m-empty">Loading...</div>';
+  main.innerHTML = skeletonPanel(6);   // N-418
 
   try {
     const user     = getCurrentUser();
@@ -61,8 +61,8 @@ async function mobileRenderAddRole(main) {
         ${canAssign ? `
         <div class="m-form-group">
           <label class="m-label">Assign to * (tick one or more)</label>
-          <div id="mr-tp" class="print-avoid-break" style="border:1px solid var(--c-gray-300);border-radius:8px;padding:10px;max-height:180px;overflow-y:auto;background:var(--c-white);">
-            <span style="color:var(--c-gray-500);">- Select project first -</span>
+          <div id="mr-tp" class="m-tp-box">
+            <span class="m-tp-note">- Select project first -</span>
           </div>
         </div>` : `<input type="hidden" id="mr-tp" value="${escAttr(email)}">`}
 
@@ -149,8 +149,8 @@ async function mobileRenderAddRole(main) {
 async function mobileLoadTPsForRole(projectId) {
   const box = document.getElementById('mr-tp');
   if (!box) return;
-  if (!projectId) { box.innerHTML = '<span style="color:var(--c-gray-500);">- Select project first -</span>'; return; }
-  box.innerHTML = '<span style="color:var(--c-gray-500);">Loading...</span>';
+  if (!projectId) { box.innerHTML = '<span class="m-tp-note">- Select project first -</span>'; return; }
+  box.innerHTML = '<span class="m-tp-note">Loading...</span>';
   try {
     const tps = await getTalentPartnersForProject(projectId);
     const me  = getCurrentUser().email.toLowerCase();
@@ -159,9 +159,9 @@ async function mobileLoadTPsForRole(projectId) {
         <input type="checkbox" class="mr-tp-check" value="${escAttr(u.UserEmail)}"
           ${(u.UserEmail || '').toLowerCase() === me ? 'checked' : ''}>
         ${escHtml(u.UserName || u.UserEmail)}
-      </label>`).join('') || '<span style="color:var(--c-gray-500);">- No team members -</span>';
+      </label>`).join('') || '<span class="m-tp-note">- No team members -</span>';
   } catch (e) {
-    box.innerHTML = '<span style="color:var(--c-red-error);">- Error loading team -</span>';
+    box.innerHTML = '<span class="m-tp-note m-tp-note--error">- Error loading team -</span>';
   }
 }
 

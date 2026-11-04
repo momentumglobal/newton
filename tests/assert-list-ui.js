@@ -320,5 +320,92 @@ ASSERTIONS.push(
       _assertEqual(again.every(e => e.s.size === 0), true, 'same navigation: no replay');
       } finally { if (!hadTimer) delete globalThis.setTimeout; }
     },
+  },
+  // ── N-418 (VF-7): mobile parity ──────────────────────────────────────────
+  {
+    name: 'N-418 mobile: every CSS variable used by mobile CSS / JS / HTML is defined in mobile.css (control: an undefined name is reported)',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      _assertEqual(lintMobileUndefinedVars(mobileSources(ALL_CSS, ALL_HTML, ALL_SOURCES)), [], 'undefined variables');
+      const bad = lintMobileUndefinedVars({ css: ':root { --a: 1; } .x { color: var(--a); }', js: { 'mobile-x.js': "el.innerHTML = '<i style=\"color:var(--c-success-alt)\">';" }, html: '' });
+      _assertEqual(bad, ['js/mobile-x.js: --c-success-alt'], 'control: the former Palette B name is caught');
+    },
+  },
+  {
+    name: 'N-418 mobile: no colour literal outside the two token blocks of mobile.css; none in mobile-*.js; only the theme-color meta in mobile.html (control: literals are caught, entities are not)',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      _assertEqual(lintMobileColourLiterals(mobileSources(ALL_CSS, ALL_HTML, ALL_SOURCES)), [], 'colour literals');
+      const bad = lintMobileColourLiterals({ css: ':root { --a: #fff; } .x { color: #abc; }', js: { 'mobile-x.js': "const c = '#0A0B44';" }, html: '<meta name="theme-color" content="#090546">\n<b>&#8592;</b>' });
+      _assertEqual(bad.length, 2, 'control: one css rule literal + one js literal; the token block, the theme-color meta and an HTML entity are not flagged');
+    },
+  },
+  {
+    name: 'N-418 mobile: mobile.css mirrors style.css — identical declaration text for every shared token, light and dark; dark block themes the same roles and never the permanently-dark groups (control: drift is caught)',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const m = ALL_CSS['mobile.css'], s = ALL_CSS['style.css'];
+      _assertEqual(lintMobileTokenMirror(m, s), [], 'token mirror');
+      const drift = lintMobileTokenMirror(m.replace('--c-n-50: #F3F5F9;', '--c-n-50: #F3F5FA;'), s);
+      _assertEqual(drift.length, 1, 'control: a one-digit drift is reported');
+      const inv = lintMobileTokenMirror(m.replace('--elev-card: var(--sh-elev-dark-1);', '--elev-card: var(--sh-elev-dark-1); --inverse-text: var(--c-black);'), s);
+      _assertEqual(inv.some(p => /--inverse-text/.test(p)), true, 'control: an --inverse-* redefinition in the dark block is reported');
+      _assertEqual(/--c-navy-night:\s*#090546/.test(m) && /meta name="theme-color" content="#090546"/.test(ALL_HTML['mobile.html']), true, 'top bar navy equals the PWA theme-color');
+    },
+  },
+  {
+    name: 'N-418 mobile: page-level loading is a skeleton and empty pages use mobileEmptyState; only the allow-listed text sites remain (control: the pre-N-418 markup is caught)',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const src = mobileSources(ALL_CSS, ALL_HTML, ALL_SOURCES);
+      _assertEqual(lintMobileLoadingEmpty(src.js), [], 'hand-written loading / empty text');
+      _assertEqual(lintMobileLoadingEmpty({ 'mobile-x.js': "a.innerHTML = '<div class=\"m-empty\">Loading roles...</div>';\nb.innerHTML = '<div class=\"m-empty\">No roles match your filters.</div>';" }).length, 2, 'control: both pre-N-418 forms are reported');
+      const all = Object.keys(src.js).map(f => _vendorStripJsComments(src.js[f]).join('\n')).join('\n');
+      const count = re => (all.match(re) || []).length;
+      _assertEqual(count(/\bmobileEmptyState\(/g) - 1, 6, 'six empty sites call mobileEmptyState (the -1 is its definition)');
+      _assertEqual([count(/\bskeletonPanel\(6\)/g), count(/\bdashboardSkeleton\(4\)/g), count(/\bskeletonList\(/g)], [7, 3, 3], 'twelve page loaders + the existing scorecards list skeleton');
+      const fn = /function mobileEmptyState\([\s\S]*?\n\}\n/.exec(src.js['mobile-app.js']);
+      _assertEqual(!!fn && /escHtml\(message\)/.test(fn[0]) && !/<button|<a /.test(fn[0]), true, 'mobileEmptyState escapes the message and renders no button or link (message-only)');
+    },
+  },
+  {
+    name: 'N-418 mobile: the empty-state entrance runs only under prefers-reduced-motion: no-preference; the sheet guard stays; every :active press state survives; 44px targets keep their size',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const css = ALL_CSS['mobile.css'];
+      _assertEqual(lintMobileMotion(css), [], 'motion guards');
+      _assertEqual(lintMobileMotion(css.replace('.m-empty-state > * { animation: m-rise', '.m-empty-state > * { animation: m-skel-sweep 1s; } .y { animation: m-rise').replace('@media (prefers-reduced-motion: no-preference) {', '@media (min-width: 1px) {')).length > 0, true, 'control: removing the guard is reported');
+      ['.btn-signin', '.m-back-btn', '.m-btn-danger', '.m-btn-primary', '.m-btn-secondary', '.m-module-card', '.m-nav-item', '.m-role-card',
+       '.m-sc-arrow', '.m-sc-dot', '.m-sheet-close', '.m-stage-btn', '.m-switcher-btn', '.m-switcher-item'].forEach(sel =>
+        _assertEqual(mobileRuleBody(css, sel + ':active') !== null, true, sel + ':active is still defined'));
+      [['.m-back-btn', /min-width:\s*44px[\s\S]*min-height:\s*44px|min-height:\s*44px[\s\S]*min-width:\s*44px/], ['.m-stage-btn', /min-height:\s*44px/], ['.m-switcher-btn', /min-height:\s*44px/],
+       ['.m-switcher-item', /min-height:\s*44px/], ['.m-desktop-link a', /min-height:\s*44px/], ['.m-sheet-close', /min-width:\s*44px[\s\S]*min-height:\s*44px/],
+       ['.m-sc-arrow', /width:\s*44px;\s*height:\s*44px/], ['.m-sc-dot::before', /width:\s*44px;\s*height:\s*44px/]].forEach(p =>
+        _assertEqual(p[1].test(mobileRuleBody(css, p[0]) || ''), true, p[0] + ' keeps its 44px target'));
+    },
+  },
+  {
+    name: 'N-418 mobile: contrast audit of every text / surface pair — text ≥ 4.5:1, boundaries and glyphs ≥ 3:1, light and dark; the one documented exception is the dark brand-blue edge (control: a failing pair is reported)',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const css = ALL_CSS['mobile.css'];
+      _assertEqual(mobileContrastAudit(css, 'light'), [], 'light pairs');
+      _assertEqual(mobileContrastAudit(css, 'dark'), [], 'dark pairs');
+      _assertEqual(mobileContrastAudit(css, 'light', MOBILE_EDGE_PAIRS), [], 'brand-blue edge on the light surface');
+      const dark = mobileContrastAudit(css, 'dark', MOBILE_EDGE_PAIRS);
+      _assertEqual(dark.length === 1 && /2\.7\d:1/.test(dark[0]), true, 'brand-blue edge on the dark surface is the documented 2.7:1 exception (VF-D2)');
+      _assertEqual(mobileContrastAudit(':root { --a: #888888; --b: #ffffff; }', 'light', [['--a', '--b', 4.5, 'old grey text']]).length, 1, 'control: the old #888 on white (3.5:1) fails text contrast');
+    },
+  },
+  {
+    name: 'N-418 mobile.html: theme-init.js loads synchronously in <head>, after frame-guard.js and before the stylesheet; style.css is still not linked',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const h = ALL_HTML['mobile.html'], head = h.slice(0, h.indexOf('</head>'));
+      const guard = head.indexOf('js/frame-guard.js'), init = head.indexOf('js/theme-init.js'), sheet = head.indexOf('css/mobile.css');
+      _assertEqual(guard > -1 && init > guard && sheet > init, true, 'order: frame-guard.js < theme-init.js < css/mobile.css');
+      _assertEqual(/<script src="js\/theme-init\.js"><\/script>/.test(head), true, 'plain script tag: no defer, no async');
+      _assertEqual(/style\.css/.test(h), false, 'mobile.html does not link style.css');
+    },
   }
 );

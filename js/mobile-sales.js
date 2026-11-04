@@ -18,7 +18,7 @@ function msFmtForecastDate(iso) {
 // --- Forecast list ---
 async function mobileRenderSalesForecast(main) {
   mobileSetTitle('Sales', 'Forecast');
-  main.innerHTML = '<div class="m-empty">Loading forecasts...</div>';
+  main.innerHTML = skeletonList(5);   // N-418
 
   try {
     const forecasts = await getSalesForecasts();
@@ -32,7 +32,7 @@ async function mobileRenderSalesForecast(main) {
 
     if (!forecasts.length) {
       main.innerHTML = addBtn +
-        '<div class="m-empty">No forecasts added yet.</div>';
+        mobileEmptyState('No forecasts added yet.');   // N-418
       return;
     }
 
@@ -69,7 +69,7 @@ async function mobilePullRefreshSalesForecast() {
 async function mobileSalesForecastForm(editId) {
   mobileSetTitle(editId ? 'Edit Forecast' : 'Add Forecast', 'Sales');
   const main = document.getElementById('m-main');
-  main.innerHTML = '<div class="m-empty">Loading...</div>';
+  main.innerHTML = skeletonPanel(6);   // N-418
 
   let f = {};
   if (editId) {

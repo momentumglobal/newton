@@ -13,7 +13,8 @@
 // Not scanned, on purpose: lci-config.js (the Excel / PowerPoint colour blocks are
 // documented hex exceptions — a workbook / deck cannot read CSS; the PowerPoint series
 // are pinned against style.css in assert-list-ui.js instead), seasonal-fx.js
-// (decorative), mobile-*.js (VF-7), --c-ptype-* consumers (VF-D8).
+// (decorative), mobile-*.js (guarded by tests/lint-mobile-tokens.js since N-418: classes on
+// the status set, no colour literals), --c-ptype-* consumers (VF-D8).
 // Pure function over data; the assertion skips when ALL_SOURCES is undefined.
 // Needs _vendorStripJsComments from lint-vendor.js (loads earlier).
 

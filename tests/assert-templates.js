@@ -554,3 +554,71 @@ ASSERTIONS.push(
     },
   }
 );
+
+// ── N-430 (TPL-4) Templates close-out: no tokens, guide and Readme stay in step ──
+function _tplSection(html, id, nextMarker) {
+  const i = html.indexOf('id="' + id + '"');
+  if (i < 0) return '';
+  const j = html.indexOf(nextMarker, i + 1);
+  return html.slice(i, j < 0 ? undefined : j);
+}
+// A label as the guides write it: wrapped in <strong> or <em>, exactly as on screen.
+function _tplNamed(section, label) {
+  return section.includes('<strong>' + label + '</strong>') || section.includes('<em>' + label + '</em>');
+}
+
+ASSERTIONS.push(
+  {
+    name: 'N-430 G1 no placeholder tokens in v1 — the template clone / strip helpers never substitute {tokens} (N-431)',
+    fn: function () {
+      _tplNeedSources();
+      [['api.js', 'async function _cloneTemplateItem('], ['api.js', 'async function cloneBriefingPackFromTemplate('],
+        ['api.js', 'async function cloneSavedReportFromTemplate('], ['api.js', 'async function saveTemplateItem('],
+        ['utils.js', 'function stripTemplateScope('], ['utils.js', 'function templateModuleOrder(']].forEach(([f, sig]) => {
+        const b = _tplBody(f, sig);
+        _assertEqual(b.length > 0, true, sig + ' found');
+        _assertEqual(/fillTemplate\(|\.replace\(/.test(b), false, sig + ' does no token substitution');
+      });
+    },
+  },
+  {
+    name: 'N-430 G2 user-guide — Report Library and Briefing Packs each explain Using / Managing templates with the on-screen labels',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined') _skip('Guide scan needs filesystem access — runs under node tests/run.js.');
+      const ug = String(ALL_HTML['user-guide.html'] || '');
+      const L = CONFIG.TEMPLATES.LABELS;
+      [['report-library', 'id="briefing-packs"'], ['briefing-packs', 'class="guide-section"']].forEach(([id, next]) => {
+        const s = _tplSection(ug, id, next);
+        _assertEqual(s.length > 0, true, id + ' section found');
+        _assertEqual(s.includes('<h3>Using a template</h3>'), true, id + ' has Using a template');
+        _assertEqual(/<h3>Managing templates <em>\(Admin only\)<\/em><\/h3>/.test(s), true, id + ' has Managing templates (Admin only)');
+        ['band', 'badge', 'use', 'saveAs', 'nameLabel', 'edit', 'del', 'modalConfirm'].forEach(k =>
+          _assertEqual(_tplNamed(s, L[k]), true, id + ' names LABELS.' + k + ' ("' + L[k] + '")'));
+      });
+    },
+  },
+  {
+    name: 'N-430 G3 user-guide — the Report Library names Preview with project and All roles; Briefing Packs names No role yet',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined') _skip('Guide scan needs filesystem access — runs under node tests/run.js.');
+      const ug = String(ALL_HTML['user-guide.html'] || '');
+      const L = CONFIG.TEMPLATES.LABELS;
+      const rl = _tplSection(ug, 'report-library', 'id="briefing-packs"');
+      const bp = _tplSection(ug, 'briefing-packs', 'class="guide-section"');
+      _assertEqual(_tplNamed(rl, L.previewProject), true, 'Report Library names "' + L.previewProject + '"');
+      _assertEqual(_tplNamed(rl, L.roleAll), true, 'Report Library names "' + L.roleAll + '"');
+      _assertEqual(_tplNamed(bp, L.roleNone), true, 'Briefing Packs names "' + L.roleNone + '"');
+    },
+  },
+  {
+    name: 'N-430 G4 Readme — the changelog records the epic and the Conventions list holds the template rules',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined') _skip('Readme scan needs filesystem access — runs under node tests/run.js.');
+      const r = String(ALL_HTML['Readme.html'] || '');
+      const log = _tplSection(r, 'sec-changelog', 'id="sec-backlog"');
+      _assertEqual(log.includes('N-430') && log.includes('Briefing Pack &amp; Report templates'), true, 'changelog entry');
+      const conv = _tplSection(r, 'sec-conventions', 'id="sec-newmodule"');
+      _assertEqual(conv.includes('saveTemplateItem') && conv.includes('templatesManage') && conv.includes('partitionTemplates'), true, 'Conventions: Templates list');
+    },
+  }
+);

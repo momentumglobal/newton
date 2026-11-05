@@ -27,6 +27,10 @@ ASSERTIONS.push(
       _assertEqual(/^b![\w-]{20,}$/.test(CONFIG.STARTER_FOLDERS.TEMPLATE_DRIVE_ID), true, 'N-376 template drive id looks like a drive id');
       ['project', 'role'].forEach(rt => _assertEqual(/^[0-9A-Z]{20,}$/.test(CONFIG.STARTER_FOLDERS.TEMPLATES[rt].Default), true, 'N-376 ' + rt + ' Default pack id looks like a driveItem id'));
       _assertEqual(CONFIG.STARTER_FOLDERS.TEMPLATES.project.Default !== CONFIG.STARTER_FOLDERS.TEMPLATES.role.Default, true, 'N-376 project and role packs are different folders');
+      ['CoE', 'ExecSearchMGAI'].forEach(k => _assertEqual(/^[0-9A-Z]{20,}$/.test(CONFIG.STARTER_FOLDERS.TEMPLATES.role[k]), true, 'N-377 role ' + k + ' pack id looks like a driveItem id'));
+      const _n377RoleIds = Object.values(CONFIG.STARTER_FOLDERS.TEMPLATES.role);
+      _assertEqual(new Set(_n377RoleIds).size, _n377RoleIds.length, 'N-377 the three role packs are different folders');
+      _assertEqual(['CoE', 'ExecSearchMGAI'].map(k => CONFIG.STARTER_FOLDERS.TEMPLATES.project[k]), ['', ''], 'N-377 project variant ids stay blank until N-426');
       _assertEqual(starterFoldersEnabled('project', _sfCfg()), false, 'control: a blank config is dark, so the live assertions above can fail');
       _assertEqual(Object.keys(projectPlaceholderValues({}, {})), CONFIG.STARTER_FOLDERS.PLACEHOLDERS.project, 'placeholder keys = config list, same order');
       _assertEqual(Object.keys(rolePlaceholderValues({}, {}, {})), CONFIG.STARTER_FOLDERS.PLACEHOLDERS.role, 'N-260 role placeholder keys = config list, same order');
@@ -321,6 +325,14 @@ ASSERTIONS.push(
       _assertEqual(starterFoldersEnabled('project', cfg), false, 'project stays off without its own Default');
       _assertEqual(starterTemplateItemId('role', starterPackVariant('CoE'), cfg), { itemId: 'RD', variantUsed: 'Default' }, 'CoE parent, blank role.CoE → role Default');
       _assertEqual(starterPackVariant('LCI'), null, 'LCI parent → no role folder');
+      // N-377: with all three role packs set, each parent type resolves to its own pack.
+      const cfgAll = _sfCfg(c => { c.STARTER_FOLDERS.TEMPLATE_DRIVE_ID = 'drv'; Object.assign(c.STARTER_FOLDERS.TEMPLATES.role, { Default: 'RD', CoE: 'RC', ExecSearchMGAI: 'RE' }); });
+      const _n377Pack = t => starterTemplateItemId('role', starterPackVariant(t), cfgAll);
+      _assertEqual(_n377Pack('CoE'), { itemId: 'RC', variantUsed: 'CoE' }, 'N-377 CoE parent → role.CoE');
+      _assertEqual(_n377Pack('Exec Search'), { itemId: 'RE', variantUsed: 'ExecSearchMGAI' }, 'N-377 Exec Search parent → role.ExecSearchMGAI');
+      _assertEqual(_n377Pack('MG AI'), { itemId: 'RE', variantUsed: 'ExecSearchMGAI' }, 'N-377 MG AI parent → role.ExecSearchMGAI');
+      _assertEqual(_n377Pack('Embedded'), { itemId: 'RD', variantUsed: 'Default' }, 'N-377 Embedded parent → role Default');
+      _assertEqual(_n377Pack(''), { itemId: 'RD', variantUsed: 'Default' }, 'N-377 blank parent type → role Default');
     },
   },
   {

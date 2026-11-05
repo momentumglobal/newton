@@ -193,10 +193,18 @@ var MOBILE_EDGE_PAIRS = [['--brand', '--surface', 3, 'brand-blue edge: secondary
 
 // N-419: the pair loop is shared with tests/lint-desktop-contrast.js (style.css). `layers` is the
 // resolved { '--token': 'value' } map for the theme, `pairs` the [fg, bg, min, use] rows.
+// N-419: rgba(r,g,b,a) text over an opaque hex background (the homepage's white-alpha ink) is flattened to the hex it renders as.
+function _mobileFlatten(fg, bg) {
+  var m = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)$/.exec(fg || ''), h = /^#([0-9a-fA-F]{6})$/.exec(bg || '');
+  if (!m || !h) return fg;
+  var a = parseFloat(m[4]), out = '#';
+  for (var i = 0; i < 3; i++) { var c = Math.round(parseInt(m[i + 1], 10) * a + parseInt(h[1].slice(i * 2, i * 2 + 2), 16) * (1 - a)); out += (c < 16 ? '0' : '') + c.toString(16); }
+  return out;
+}
 function contrastAuditLayers(layers, theme, pairs) {
   var fails = [];
   pairs.forEach(function (p) {
-    var fg = _mobileResolve(p[0], layers), bg = _mobileResolve(p[1], layers);
+    var bg = _mobileResolve(p[1], layers), fg = _mobileFlatten(_mobileResolve(p[0], layers), bg);
     if (!/^#/.test(fg || '') || !/^#/.test(bg || '')) { fails.push(p[0] + ' / ' + p[1] + ': not a hex colour (' + fg + ', ' + bg + ')'); return; }
     var r = mobileRatio(fg, bg);
     if (r < p[2]) fails.push(theme + ' ' + p[0] + ' on ' + p[1] + ' = ' + r.toFixed(2) + ':1 (< ' + p[2] + ') - ' + p[3]);

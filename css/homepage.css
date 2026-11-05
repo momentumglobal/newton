@@ -35,7 +35,7 @@
 }
 .home-greeting {
   font-size: var(--fs-13);
-  color: var(--inverse-text-mid);
+  color: var(--inverse-text-muted);   /* N-419: --inverse-text-mid (0.4) was 3.6:1 on the navy */
   letter-spacing: 0.03em;
   margin-bottom: var(--sp-3);
 }
@@ -48,7 +48,7 @@
 }
 .home-subtitle {
   font-size: var(--fs-11);
-  color: var(--c-wa-28);
+  color: var(--c-wa-50);   /* N-419: 0.28 was 2.3:1 */
   letter-spacing: 0.14em;
   text-transform: uppercase;
   margin-bottom: var(--sp-12);
@@ -118,7 +118,7 @@
 }
 .module-desc {
   font-size: var(--fs-12);
-  color: var(--c-wa-48);
+  color: var(--c-wa-55);   /* N-419: 0.48 was 4.2:1 on the module card */
   line-height: 1.45;
 }
 .module-badge {
@@ -143,7 +143,7 @@
 .home-signout {
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
   font-size: var(--fs-13);
-  color: var(--inverse-text-faint);
+  color: var(--c-wa-50);   /* N-419: --inverse-text-faint (0.35) was 3.0:1 */
   background: none;
   border: none;
   cursor: pointer;
@@ -189,7 +189,7 @@
 .home-admin-link {
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
   font-size: var(--fs-13);
-  color: var(--inverse-text-faint);
+  color: var(--c-wa-50);   /* N-419: as .home-signout */
   text-decoration: none;
   margin-right: var(--sp-8);
   transition: color var(--dur-base) var(--ease-standard);
@@ -221,8 +221,8 @@
 .cc-badge--amber .rag-marker { color: var(--badge-cc-amber); }
 .cc-badge--red          { background: rgba(198,40,40,0.35);  color: var(--badge-cc-red); border: 2px solid rgba(198,40,40,0.5); font-weight: var(--fw-bold); } /* N-254: 2px + bold */
 .cc-badge .rag-marker   { font-size: 1.15em; }
-.cc-badge--neutral      { background: var(--inverse-hover-bg); color: var(--inverse-text-faint); border: 1px solid var(--inverse-border); }
-.cc-refresh             { position: absolute; right: 0; background: none; border: none; cursor: pointer; color: var(--inverse-text-dim); font-size: var(--fs-14); padding: var(--sp-1); line-height: 1; transition: color var(--dur-base) var(--ease-standard); }
+.cc-badge--neutral      { background: var(--inverse-hover-bg); color: var(--inverse-text-muted); border: 1px solid var(--inverse-border); }
+.cc-refresh             { position: absolute; right: 0; background: none; border: none; cursor: pointer; color: var(--c-wa-55); font-size: var(--fs-14); padding: var(--sp-1); line-height: 1; transition: color var(--dur-base) var(--ease-standard); }
 .cc-refresh:hover       { color: var(--inverse-text-soft); }
 
 /* ── Quick Links Drawer (homepage) ──────────────────────────────────── */

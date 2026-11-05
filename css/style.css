@@ -1173,7 +1173,7 @@ body {
   align-items: center;
   justify-content: center;
 }
-.btn-secondary:hover  { background: var(--surface-alt); border-color: var(--text-heading); }
+.btn-secondary:hover  { background: var(--surface-alt); border-color: var(--brand); }
 .btn-secondary:active { transform: translateY(0) scale(0.98); }
 /* Destructive actions — ghost by default, red on hover only */
 .btn-danger {
@@ -1206,7 +1206,7 @@ body {
 .filter-group { display: flex; gap: var(--sp-2); }
 .btn-filter {
   background: var(--surface);
-  color: var(--brand);
+  color: var(--text-heading);
   border: 1px solid var(--border-strong);
   padding: var(--sp-3) 14px;
   border-radius: var(--r-pill);

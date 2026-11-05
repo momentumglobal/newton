@@ -154,6 +154,7 @@
 .rb-snap-table td:first-child { text-align: left; }
 .rb-snap-input {
   width: 52px; padding: var(--sp-2); text-align: center;
+  background: var(--surface);
   border: 1px solid var(--border-control); border-radius: var(--r-sm);
   font-family: inherit; font-size: var(--fs-13);
   transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);

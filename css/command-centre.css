@@ -82,7 +82,7 @@
 .cc-trend-arrow--down { color: var(--text-secondary); } /* N-257: improving = neutral */
 .cc-trend-arrow--up   { color: var(--status-danger); }
 .cc-trend-arrow--flat { color: var(--text-muted); }
-.cc-tile .help-tip { background: var(--text-muted); color: var(--text-on-brand); }
+.cc-tile .help-tip { background: var(--brand); color: var(--text-on-brand); }   /* N-419: --text-muted is light in dark, 3.1:1 under white */
 .cc-tile .help-tip-text { left: 50%; right: auto; transform: translateX(-50%); }
 
 /* Close button */

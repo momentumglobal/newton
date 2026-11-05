@@ -46,6 +46,10 @@ var DESKTOP_CONTRAST_PAIRS = (function () {
   });
   ['--surface', '--surface-app', '--surface-raised', '--surface-alt'].forEach(function (b) { rows.push(['--border-focus', b, 3, 'focus ring']); });
   ['--status-success', '--status-warn', '--status-danger'].forEach(function (f) { rows.push([f, '--surface', 3, 'RAG dot / glyph']); });
+  // N-419: the homepage's white-alpha ink on its permanently-navy page, and the shared navy drawer / sidebar (unthemed, so one pair each).
+  [['--c-wa-50', '--c-navy-night', 'homepage subtitle, Admin link, Sign out'], ['--inverse-text-muted', '--c-navy-night', 'homepage greeting'],
+   ['--c-wa-55', '--c-navy-night', 'module description, banner refresh'], ['--inverse-text-muted', '--inverse-surface-2', 'drawer and sidebar muted text'],
+   ['--inverse-text-muted', '--inverse-surface', 'sidebar muted text']].forEach(function (p) { rows.push([p[0], p[1], 4.5, p[2]]); });
   return rows;
 })();
 
@@ -53,6 +57,24 @@ var DESKTOP_CONTRAST_PAIRS = (function () {
 // surface. It is only ever a BORDER or FILL there (.print-btn edge, active pill, toggles) - the label beside it is
 // --text-heading, which passes. Audited separately and expected to fail by exactly this amount, so changing it is a decision.
 var DESKTOP_EDGE_PAIRS = [['--brand', '--surface', 3, 'brand-blue edge: secondary button border, active pill fill']];
+
+// N-419: a form control that draws its own border but sets no background takes the browser default fill, which is a grey that
+// matches no token in dark (.survey-textarea was one). Per rule: a selector whose last compound ends -input / -textarea / -select
+// (or is a bare input / select / textarea) and that sets the `border:` shorthand must also set a background. Returns one message per miss.
+function lintFormControlBackground(css) {
+  var s = css.replace(/\/\*[\s\S]*?\*\//g, ''), out = [], re = /([^{}]+)\{([^{}]*)\}/g, m;
+  while ((m = re.exec(s))) {
+    var sels = m[1].split(','), body = m[2];
+    if (!/(^|[;\s])border\s*:/.test(body) || /(^|[;\s])background(-color)?\s*:/.test(body)) continue;
+    for (var i = 0; i < sels.length; i++) {
+      var sel = sels[i].trim();
+      if (/:(hover|focus|active|disabled|checked|placeholder|where|not)/.test(sel)) continue;
+      var tail = sel.split(/[\s>+~]+/).pop();
+      if (/(textarea|-input|-select)$/.test(tail) || /^(input|select|textarea)(\[|$)/.test(tail)) out.push(sel);
+    }
+  }
+  return out;
+}
 
 function desktopContrastAudit(styleCss, theme, pairs) {
   var layers = _mobileStyleCssLayers(styleCss);

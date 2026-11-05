@@ -245,7 +245,7 @@
   border-radius: var(--r-sm); padding: var(--sp-6); }
 .pay-bonus-row { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-3) 0;
   border-bottom: 1px solid var(--border-faint); }
-.pay-bonus-input { width: 100px; padding: var(--sp-2) var(--sp-4); border: 1px solid var(--border-control);
+.pay-bonus-input { width: 100px; padding: var(--sp-2) var(--sp-4); background: var(--surface); border: 1px solid var(--border-control);
   border-radius: var(--r-sm); font-size: var(--fs-13);
   transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard); }
 .pay-bonus-input:hover:where(:not(:disabled)) { border-color: var(--text-muted); }

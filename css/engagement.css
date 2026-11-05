@@ -132,6 +132,7 @@
 /* Free text */
 .survey-textarea {
   width: 100%; min-height: 120px; resize: vertical;
+  background: var(--surface);   /* N-419: no fill meant the browser default grey in dark */
   border: 1px solid var(--border-control); border-radius: var(--r-lg);
   padding: var(--sp-5) 14px; font-size: var(--fs-14); color: var(--text-secondary);
   font-family: inherit; box-sizing: border-box;

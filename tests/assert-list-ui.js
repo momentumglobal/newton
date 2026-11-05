@@ -472,6 +472,17 @@ ASSERTIONS.push(
     },
   },
   {
+    name: 'N-419 every form control that draws a border sets its own background (no browser-default grey in dark); a bare control is reported (control)',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const bare = [];
+      Object.keys(ALL_CSS).filter(f => f !== 'mobile.css').forEach(f => lintFormControlBackground(ALL_CSS[f]).forEach(s => bare.push(f + ': ' + s)));
+      _assertEqual(bare, [], 'controls with a border and no background');
+      _assertEqual(lintFormControlBackground('.x-input { border: 1px solid #000; }'), ['.x-input'], 'control: a bare input rule is reported');
+      _assertEqual(lintFormControlBackground('.x-input { border: 1px solid #000; background: var(--surface); }'), [], 'control: a filled one is not');
+    },
+  },
+  {
     name: 'N-418 mobile.html: theme-init.js loads synchronously in <head>, after frame-guard.js and before the stylesheet; style.css is still not linked',
     fn: function () {
       if (typeof ALL_HTML === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');

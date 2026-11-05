@@ -79,22 +79,26 @@ function paintBell(rows, unread) {
         <i data-lucide="${NOTIF_ICON[n.Tone] || 'bell'}"></i>
       </div>
       <div class="notif-item-body">
-        <div class="notif-item-text">${escHtml(n.Body)}</div>
-        <div class="notif-item-time">${notifTimeAgo(n.CreatedAt)}</div>
+        <button type="button" class="notif-item-open">
+          <span class="notif-item-text">${escHtml(n.Body)}</span>
+          <span class="notif-item-time">${notifTimeAgo(n.CreatedAt)}</span>
+        </button>
       </div>
       ${n.IsRead ? '' : `<button class="notif-item-tick" title="Mark read"${act('notifTick.stop', String(n.id))}>
         <i data-lucide="check"></i></button>`}
     </div>`).join('') : `<div class="notif-empty">You're all caught up.</div>`;
 
   slot.innerHTML = `
-    <button class="notif-bell"${act('notifToggle.stop')}>
+    <button type="button" class="notif-bell" aria-label="${escHtml(notifBellLabel(unread))}"
+      aria-haspopup="dialog" aria-controls="notif-drawer" aria-expanded="false"${act('notifToggle.stop')}>
       <i data-lucide="bell"></i>
-      ${unread ? `<span class="notif-badge">${unread}</span>` : ''}
+      ${unread ? `<span class="notif-badge" aria-hidden="true">${unread}</span>` : ''}
     </button>
-    <div class="notif-overlay" id="notif-overlay"${act('notifToggle')}></div>
-    <div class="notif-drawer" id="notif-drawer">
+    <div class="notif-overlay" id="notif-overlay" aria-hidden="true"${act('notifToggle')}></div>
+    <div class="notif-drawer" id="notif-drawer" role="dialog" aria-modal="true"
+      aria-labelledby="notif-drawer-title">
       <div class="notif-drawer-head">
-        <span class="notif-drawer-title">Notifications</span>
+        <span class="notif-drawer-title" id="notif-drawer-title">Notifications</span>
         <div class="notif-head-actions">
           ${unread ? `<button class="notif-markall"${act('notifMarkAll')}>Mark all read</button>` : ''}
           <button class="notif-close"${act('notifToggle')} title="Close" aria-label="Close">
@@ -108,10 +112,57 @@ function paintBell(rows, unread) {
 }
 
 // --- drawer interactions -------------------------------------------
-function notifToggle() {
-  document.getElementById('notif-drawer')?.classList.toggle('open');
-  document.getElementById('notif-overlay')?.classList.toggle('open');
+// N-425: one place opens and closes the drawer, so aria-expanded, the document
+// keydown listener and focus cannot drift from the .open class. Same shape as
+// confirmModal (js/ui-kit.js) and the command bar (js/command-bar.js): listener
+// added on open and removed on close, focus into the first control on open, and
+// back to the opener on close. paintBell() rebuilds #notif-slot on every render,
+// so the bell is looked up at use time, never stored.
+function _notifIsOpen() {
+  return !!document.getElementById('notif-drawer')?.classList.contains('open');
 }
+function _notifBell() { return document.querySelector('#notif-slot .notif-bell'); }
+
+// focus:false keeps focus where it is -- used when a re-render re-opens the drawer.
+function _notifSetOpen(open, { focus = true } = {}) {
+  const drawer = document.getElementById('notif-drawer');
+  if (!drawer) return;
+  drawer.classList.toggle('open', open);
+  document.getElementById('notif-overlay')?.classList.toggle('open', open);
+  _notifBell()?.setAttribute('aria-expanded', String(open));
+  document.removeEventListener('keydown', _notifOnKeydown);   // never double-bind
+  if (open) document.addEventListener('keydown', _notifOnKeydown);
+  if (!focus) return;
+  if (open) drawer.querySelector('.notif-close')?.focus();    // visible by now: .open is set first
+  else _notifBell()?.focus();
+}
+
+// Row's open button if it is still there, else Close.
+function _notifFocusRow(id) {
+  (document.querySelector(`.notif-item[data-id="${id}"] .notif-item-open`)
+    || document.querySelector('.notif-close'))?.focus();
+}
+
+function _notifOnKeydown(e) {
+  // The slot was re-rendered closed while a listener was bound: unbind, do nothing.
+  if (!_notifIsOpen()) { document.removeEventListener('keydown', _notifOnKeydown); return; }
+  // A confirm dialog or the command bar opened over the drawer owns Esc and Tab.
+  if (typeof _confirmModalOpen !== 'undefined' && _confirmModalOpen) return;
+  if (typeof _cmdBarState !== 'undefined' && _cmdBarState) return;
+  if (e.key === 'Escape') { _notifSetOpen(false); return; }
+  if (e.key !== 'Tab') return;
+  // Every stop is a <button>; computed per keypress because ticking removes some.
+  const stops = [...document.getElementById('notif-drawer').querySelectorAll('button')];
+  if (!stops.length) return;
+  const i = stops.indexOf(document.activeElement);
+  const last = stops.length - 1;
+  if (i === -1 || (e.shiftKey && i === 0) || (!e.shiftKey && i === last)) {
+    e.preventDefault();
+    stops[e.shiftKey && i !== -1 ? last : 0].focus();
+  }
+}
+
+function notifToggle() { _notifSetOpen(!_notifIsOpen()); }
 async function notifOpen(id, deepLink) {
   if (deepLink) {
     await markRead(id);
@@ -121,12 +172,11 @@ async function notifOpen(id, deepLink) {
   await notifTick(id);   // no link: just mark read + re-render in place
 }
 async function notifTick(id) {
-  const wasOpen = document.getElementById('notif-drawer')?.classList.contains('open');
+  const wasOpen = _notifIsOpen();
   const restoreDrawer = () => {
-    if (wasOpen) {
-      document.getElementById('notif-drawer')?.classList.add('open');
-      document.getElementById('notif-overlay')?.classList.add('open');
-    }
+    if (!wasOpen) return;
+    _notifSetOpen(true, { focus: false });
+    _notifFocusRow(id);   // N-425: the tick button is gone (or the slot was rebuilt); keep focus in the drawer
   };
   await optimisticWrite({
     apply: () => {
@@ -138,6 +188,7 @@ async function notifTick(id) {
         const n = parseInt(badge.textContent, 10) - 1;
         if (n > 0) { badge.textContent = String(n); }
         else { badge.remove(); document.querySelector('.notif-markall')?.remove(); }
+        document.querySelector('.notif-bell')?.setAttribute('aria-label', notifBellLabel(Math.max(n, 0)));   // N-425
       }
       restoreDrawer();
     },
@@ -153,16 +204,13 @@ async function notifTick(id) {
   });
 }
 async function notifMarkAll() {
-  const wasOpen = document.getElementById('notif-drawer')?.classList.contains('open');
+  const wasOpen = _notifIsOpen();
   const me = (getCurrentUser().email||'').toLowerCase();
   const rows = await getItems('Notifications',
     `fields/RecipientEmail eq '${odataStr(me)}' and fields/Status eq 'active'`);
   for (const n of rows.filter(r => !r.IsRead)) await markRead(n.id);
   await renderNotificationBell();
-  if (wasOpen) {
-    document.getElementById('notif-drawer')?.classList.add('open');
-    document.getElementById('notif-overlay')?.classList.add('open');
-  }
+  if (wasOpen) _notifSetOpen(true);   // N-425: re-open; focus goes to Close (Mark all read is gone)
 }
 
 // N-302a: delegated actions owned by this file (js/actions.js).

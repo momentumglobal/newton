@@ -1334,6 +1334,13 @@ function slaFormatTarget(value, metric) {
   return v.toLocaleString('en-GB', { maximumFractionDigits: 2 }) + (metric && metric.unit ? ' ' + metric.unit : '');
 }
 
+// ── Notification bell label (N-425) ───────────────────────────
+// Accessible name for the bell. The badge is aria-hidden, so the count rides on the label.
+function notifBellLabel(unread) {
+  const n = Number(unread) || 0;
+  return n > 0 ? `Notifications, ${n} unread` : 'Notifications';
+}
+
 // ── Text escaping ─────────────────────────────────────────────
 // Escape a value for safe interpolation into an HTML template string.
 function escHtml(str) {

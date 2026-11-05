@@ -1929,10 +1929,12 @@ body {
   z-index: 61;
   display: flex; flex-direction: column;
   transform: translateX(100%);
-  transition: transform var(--dur-slow) var(--ease-standard);
+  visibility: hidden;   /* N-425: a closed drawer is out of the tab order and the accessibility tree */
+  transition: transform var(--dur-slow) var(--ease-standard),
+              visibility 0s linear var(--dur-slow);   /* hide only after the slide-out finishes */
   box-shadow: var(--sh-drawer);
 }
-.notif-drawer.open { transform: translateX(0); }
+.notif-drawer.open { transform: translateX(0); visibility: visible; transition-delay: 0s; }
 .notif-drawer-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: var(--sp-8) var(--sp-8) 14px;
@@ -1967,11 +1969,20 @@ body {
 .notif-tone--milestone { background: rgba(46,95,163,0.22);  color: var(--notif-tone-milestone); }
 
 .notif-item-body { flex: 1; min-width: 0; }
+/* N-425: the row's keyboard target. A <button> wrapping the text; its native click
+   bubbles to the row's notifOpen action, so mouse and keyboard share one path. */
+.notif-item-open {
+  display: block; width: 100%; padding: 0;
+  background: none; border: none; cursor: pointer;
+  font: inherit; color: inherit; text-align: left;
+}
 .notif-item-text {
+  display: block;
   font-size: var(--fs-13); color: var(--c-wa-92); line-height: 1.4;
 }
 .notif-item-body:hover .notif-item-text { color: var(--inverse-text); }
 .notif-item-time {
+  display: block;
   font-size: var(--fs-11); color: var(--inverse-text-muted); margin-top: var(--sp-1);
 }
 .notif-item-tick {
@@ -2074,6 +2085,8 @@ body {
   }
   /* N-407: durations are zeroed above, but a transform would still jump — drop it */
   .btn-primary:hover, .btn-primary:active, .btn-secondary:active, .btn-danger:active { transform: none; }
+  /* N-425: the closed drawer's visibility delay is a delay, not a duration -- drop it too */
+  .notif-drawer:not(.open) { transition-delay: 0s; }
 }
 
 /* ── Entrance motion (N-417 / VF-6) ─────────────────────────────────────

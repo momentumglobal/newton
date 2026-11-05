@@ -115,6 +115,7 @@ function dmProjectIdsFromAssignments(rows, cfg = CONFIG) {
 // email or a malformed list.
 function canReassignBriefingPack(role, email, pack, dmProjectIds, cfg = CONFIG) {
   if (!pack) return false;
+  if (isTemplateRow(pack)) return false;   // N-427: a template has no owner to hand on
   if (role === cfg.ROLE_IDS.ADMIN) return true;
   const me = String(email || '').trim().toLowerCase();
   const owner = String(pack.PackOwner || '').trim().toLowerCase();
@@ -122,6 +123,28 @@ function canReassignBriefingPack(role, email, pack, dmProjectIds, cfg = CONFIG) 
   const id = Number(pack.ProjectID);
   if (!Number.isInteger(id) || id <= 0) return false;
   return Array.isArray(dmProjectIds) && dmProjectIds.includes(String(id));
+}
+
+// N-427 (TPL-D1): pure. Can `role` create, edit or delete a template? Admin only, via
+// CONFIG.ROLE_CAPABILITIES.templatesManage. UI-level — both lists are plain Contribute —
+// so every write also re-checks fresh (checkTemplateManage / checkTemplateWrite, api.js).
+function canManageTemplates(role, cfg = CONFIG) {
+  return roleCan(role, 'templatesManage', cfg);
+}
+
+// N-427 (TPL-D2): pure. The template rows `role` may USE, sorted by display name.
+// 'BRIEFING_PACK': every template, every role. 'SAVED_REPORT': a Talent Partner gets
+// project-scope templates only — a TP never holds or sees a company-scope report (N-244).
+// Not project-scoped: templates are company standards. Unknown kind → [].
+// isTemplateRow / templateDisplayName are utils.js (loads first), called at run time only.
+function templatesVisibleTo(kind, role, rows, cfg = CONFIG) {
+  const spec = cfg && cfg.TEMPLATES && cfg.TEMPLATES[kind];
+  if (!spec || !spec.list) return [];
+  let list = (Array.isArray(rows) ? rows : []).filter(isTemplateRow);
+  if (kind === 'SAVED_REPORT' && role === cfg.ROLE_IDS.TALENT_PARTNER) {
+    list = list.filter(r => r.Scope === 'project');
+  }
+  return list.sort((a, b) => templateDisplayName(a, cfg).localeCompare(templateDisplayName(b, cfg)));
 }
 
 // N-382 (DA-2, DA-D7): pure. Can `role` see the SLA targets block on the Project page?

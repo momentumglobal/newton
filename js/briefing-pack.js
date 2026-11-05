@@ -38,6 +38,7 @@ let _bpLibraryFilter = '';   // '' = all clients
 let _bpProjectMap    = {};   // projectId (string) -> CustomerName, for banding
 let _bpDmProjectIds  = [];   // N-398: projects the user is an active DM on (Reassign button)
 let _bpWritableIds   = [];   // N-369: getUserWritableProjectIds (null = all)
+let _bpTemplateCache = [];   // N-427: templates every library user may use (the N-428 band)
 
 // N-369 (S-8): a pack with no ProjectID is never gated; otherwise its project must be
 // writable (canWriteProject, permissions.js). _bpCheckWrite is the fresh, fail-closed
@@ -98,7 +99,10 @@ async function showBriefingPackLibrary() {
     _bpProjectMap = {};
     projects.forEach(p => { _bpProjectMap[String(p.id)] = p.CustomerName || ''; });
     _bpTpMap = tpMap;
-    _bpLibraryCache = _bpVisiblePacks(packs, projectIds, user.email);
+    // N-427: a template is never a library row, for anyone — it lists in its own band.
+    const { templates, items } = partitionTemplates(packs);
+    _bpTemplateCache = templatesVisibleTo('BRIEFING_PACK', _resolvedRole, templates);
+    _bpLibraryCache = _bpVisiblePacks(items, projectIds, user.email);
     _bpRenderLibrary();
   } catch (e) {
     main.innerHTML = pageErrorBlock({ message: e.message, retryAct: ['showBriefingPackLibrary'] });
@@ -221,7 +225,11 @@ async function bpCopyPackAction(id, btn) {
     const source = await getBriefingPackById(id);   // N-369
     const w = await _bpCheckWrite(source && source.ProjectID);
     if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
-    const copy = await copyBriefingPack(id, getCurrentUser().email);
+    // N-427: a template source clones (normal item, no contact fields), never copies.
+    const email = getCurrentUser().email;
+    const copy = isTemplateRow(source)
+      ? await cloneBriefingPackFromTemplate(id, email, {})
+      : await copyBriefingPack(id, email);
     await bpLoadPack(copy.id);
   } catch (e) {
     toast('Could not copy that pack: ' + e.message, { type: 'error' });
@@ -975,6 +983,10 @@ async function bpExportPdf() {
 async function bpSavePack() {
   const title = (_bpTitle || '').trim();
   if (!title) { toast('Please enter a pack title before saving.', { type: 'error' }); return; }
+  if (_bpPackId) {   // N-427: a template row is Admin-only — fresh, fail-closed re-check
+    const t = await checkTemplateWrite('BriefingPacks', _bpPackId);
+    if (!t.ok) { toast(t.reason, { type: 'error' }); return; }
+  }
   const w = await _bpCheckWrite(_bpProjectId);   // N-369
   if (!w.ok) { toast(w.reason, { type: 'error' }); return; }
 
@@ -1038,7 +1050,8 @@ async function bpDeletePack(id, title) {
   let w;
   try {
     const pack = await getBriefingPackById(id);   // N-369
-    w = await _bpCheckWrite(pack && pack.ProjectID);
+    w = isTemplateRow(pack) ? await checkTemplateManage() : { ok: true, reason: '' };   // N-427
+    if (w.ok) w = await _bpCheckWrite(pack && pack.ProjectID);
   } catch (e) {
     w = { ok: false, reason: PROJECT_WRITE_CHECK_FAILED };
   }

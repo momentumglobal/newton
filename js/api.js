@@ -1074,6 +1074,71 @@ async function checkRoleWrites(...roleIds) {
   }
   return { ok: true, reason: '' };
 }
+
+// ── N-427 (TPL-1): Briefing Pack & Report templates ──────────────────
+// Fresh, fail-closed Admin check for any template write. getEffectiveRole (no role cache,
+// ghost-aware) — never the page-load _resolvedRole — so a revoked admin, or an admin in
+// Ghost Mode as a non-admin, is refused. Same { ok, reason } shape as checkProjectWrite.
+async function checkTemplateManage() {
+  try {
+    const role = await getEffectiveRole(getCurrentUser().email);
+    return canManageTemplates(role)
+      ? { ok: true, reason: '' }
+      : { ok: false, reason: CONFIG.TEMPLATES.MESSAGES.adminOnly };
+  } catch (e) {
+    console.warn('N-427: template permission check failed', e);
+    return { ok: false, reason: CONFIG.TEMPLATES.MESSAGES.checkFailed };
+  }
+}
+
+// Before updating or deleting item `id` of `listName`: a template needs
+// checkTemplateManage, an ordinary item passes. getItem is uncached. A read failure
+// refuses (fail closed).
+async function checkTemplateWrite(listName, id) {
+  let item;
+  try {
+    item = await getItem(listName, id);
+  } catch (e) {
+    console.warn('N-427: template read for the write check failed', e);
+    return { ok: false, reason: CONFIG.TEMPLATES.MESSAGES.checkFailed };
+  }
+  return isTemplateRow(item) ? checkTemplateManage() : { ok: true, reason: '' };
+}
+
+// Clone template `id` into an ordinary item owned by `owner`. spec = a CONFIG.TEMPLATES
+// entry. Whitelists only — never round-trip a fetched item into a create (LinkTitle and
+// friends → 403): copyFields from the template, then overrideFields from the caller.
+// IsTemplate, TemplateName and the owner are forced AFTER both picks, so no whitelist or
+// override can produce a template or a foreign owner. A clone onto a project passes the
+// N-369 write gate first. Anyone may clone; only the result's project is gated.
+async function _cloneTemplateItem(spec, id, owner, overrides) {
+  const src = await getItem(spec.list, id);
+  if (!isTemplateRow(src)) throw new Error(CONFIG.TEMPLATES.MESSAGES.notTemplate);
+  const o = overrides || {};
+  const fields = {
+    ..._pickFields(src, spec.copyFields),
+    ..._pickFields(o, spec.overrideFields),
+  };
+  fields.Title = String(o.Title || src.Title || '').trim() || templateDisplayName(src);
+  if (fields.ProjectID) {
+    const w = await checkProjectWrite(fields.ProjectID);
+    if (!w.ok) throw new Error(w.reason);
+  }
+  fields.IsTemplate = false;
+  fields.TemplateName = '';
+  fields[spec.ownerField] = String(owner || '').toLowerCase();
+  return createItem(spec.list, fields);
+}
+
+async function cloneBriefingPackFromTemplate(id, owner, overrides) {
+  return _cloneTemplateItem(CONFIG.TEMPLATES.BRIEFING_PACK, id, owner, overrides);
+}
+
+// N-429 adds the Candidate Pipeline Snapshot block.values strip here; until then
+// ModuleOrder is copied as-is.
+async function cloneSavedReportFromTemplate(id, owner, overrides) {
+  return _cloneTemplateItem(CONFIG.TEMPLATES.SAVED_REPORT, id, owner, overrides);
+}
  
 // ── App Settings ─────────────────────────────────────────────────────
 // AppSettings is a single-row SharePoint list with columns:

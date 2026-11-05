@@ -127,6 +127,36 @@ function isForecastAssignment(a) {
   return a.IsForecast === true || a.IsForecast === 1 || a.IsForecast === 'Yes';
 }
 
+// ── Templates (N-427) ─────────────────────────────────────────────────
+// A BriefingPacks / SavedReports row with IsTemplate = Yes. SP Yes/No may come back as
+// true/1/'Yes'; anything else — including a missing column — is NOT a template.
+function isTemplateRow(row) {
+  return !!row && (row.IsTemplate === true || row.IsTemplate === 1 || row.IsTemplate === 'Yes');
+}
+
+// Split rows into templates and ordinary items. Order preserved, input never mutated.
+function partitionTemplates(rows) {
+  const templates = [];
+  const items = [];
+  (Array.isArray(rows) ? rows : []).forEach(r => (isTemplateRow(r) ? templates : items).push(r));
+  return { templates, items };
+}
+
+// The label a template is listed under: TemplateName, else Title, else UNTITLED_NAME.
+function templateDisplayName(row, cfg = CONFIG) {
+  const name = String((row && row.TemplateName) || '').trim();
+  if (name) return name;
+  const title = String((row && row.Title) || '').trim();
+  return title || cfg.TEMPLATES.UNTITLED_NAME;
+}
+
+// A template name as stored: whitespace collapsed, trimmed, capped at
+// CONFIG.TEMPLATES.NAME_MAX_CHARS. '' when blank (callers show MESSAGES.nameRequired).
+function normaliseTemplateName(v, cfg = CONFIG) {
+  return String(v == null ? '' : v).replace(/\s+/g, ' ').trim()
+    .slice(0, cfg.TEMPLATES.NAME_MAX_CHARS).trim();
+}
+
 // ── Split-fee revenue (N-116) ─────────────────────────────────────────
 // Exec Search and MG AI bill as a retainer up front plus the balance on
 // placement, not a monthly rate. Each is recognised as a single lump sum in a

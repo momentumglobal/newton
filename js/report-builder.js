@@ -22,6 +22,7 @@ let _rbProjects         = [];  // last project list, so the sidebar can re-rende
 
 // Library state (N-244)
 let _rbLibraryCache  = [];  // reports visible to this user, from the last load
+let _rbTemplateCache = [];  // N-427: templates this user may use (the N-429 band)
 let _rbLibraryFilter = '';  // '' = all clients
 let _rbProjectMap    = {};  // projectId (string) -> CustomerName, for banding
 let _rbTpMap         = {};  // email (lower) -> display name, for the Owner column
@@ -746,12 +747,20 @@ async function rbSaveReport() {
       ...(rbTitlePageOn() ? [{ type: 'titlePage' }] : []),
     ]),
   };
-  if (_rbReportId) {
-    await updateSavedReport(_rbReportId, payload);
-  } else {
-    payload.ReportOwner = getCurrentUser().email;
-    const result = await createSavedReport(payload);
-    _rbReportId = result.id;
+  try {
+    if (_rbReportId) {
+      // N-427: a template row is Admin-only — fresh, fail-closed re-check before the write.
+      const t = await checkTemplateWrite('SavedReports', _rbReportId);
+      if (!t.ok) { toast(t.reason, { type: 'error' }); return; }
+      await updateSavedReport(_rbReportId, payload);
+    } else {
+      payload.ReportOwner = getCurrentUser().email;
+      const result = await createSavedReport(payload);
+      _rbReportId = result.id;
+    }
+  } catch (e) {
+    toast('Could not save that report: ' + e.message, { type: 'error' });
+    return;
   }
 
   // Brief confirmation — no intrusive alert
@@ -783,7 +792,10 @@ async function showReportBuilderLibrary() {
     _rbProjectMap = {};
     projects.forEach(p => { _rbProjectMap[String(p.id)] = p.CustomerName || ''; });
     _rbTpMap = tpMap;
-    _rbLibraryCache = _rbVisibleReports(reports, projectIds, user.email);
+    // N-427: a template is never a library row, for anyone — it lists in its own band.
+    const { templates, items } = partitionTemplates(reports);
+    _rbTemplateCache = templatesVisibleTo('SAVED_REPORT', _resolvedRole, templates);
+    _rbLibraryCache = _rbVisibleReports(items, projectIds, user.email);
     _rbRenderLibrary();
   } catch (e) {
     main.innerHTML = pageErrorBlock({ message: e.message, retryAct: ['showReportBuilderLibrary'] });
@@ -931,7 +943,12 @@ function rbStartNewReport() {
 async function rbCopyReportAction(id, btn) {
   setButtonLoading(btn);
   try {
-    const copy = await copySavedReport(id, getCurrentUser().email);
+    // N-427: a template source clones (forced non-template, caller owns it), never copies.
+    const email = getCurrentUser().email;
+    const source = await getSavedReportById(id);
+    const copy = isTemplateRow(source)
+      ? await cloneSavedReportFromTemplate(id, email, {})
+      : await copySavedReport(id, email);
     await rbLoadReport(copy.id);
   } catch (e) {
     toast('Could not copy that report: ' + e.message, { type: 'error' });
@@ -961,6 +978,8 @@ async function rbDeleteReport(id, title) {
     message: `Delete "${title}"? This cannot be undone.`,
     confirmLabel: 'Delete', danger: true,
   }))) return;
+  const t = await checkTemplateWrite('SavedReports', id);   // N-427: template = Admin only
+  if (!t.ok) { toast(t.reason, { type: 'error' }); return; }
   try {
     await deleteItem('SavedReports', id);
   } catch (e) {

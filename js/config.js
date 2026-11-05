@@ -139,6 +139,9 @@ const CONFIG = {
     rejectionIntelFigures: ['admin', 'leadership'],
     rejectionsList:        ['admin', 'delivery_manager', 'talent_partner'],
     rejectionIntelReport:  ['admin', 'delivery_manager'],
+    // N-427 (TPL-D1): create, edit and delete Briefing Pack / Report TEMPLATES. Admin only —
+    // Leadership deliberately not listed. Anyone with library access can USE a template.
+    templatesManage:       ['admin'],
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
@@ -411,6 +414,37 @@ const CONFIG = {
     DEFAULT_CONTACT_TITLE: 'Talent Partner',
     TABLE_DEFAULT_ROWS: 3,
     TABLE_DEFAULT_COLS: 3,
+  },
+
+  // N-427 (TPL-1): Briefing Pack & Report templates. A template is an ordinary
+  // BriefingPacks / SavedReports row with IsTemplate = Yes; TemplateName is the label
+  // users pick it by, Title is what a clone starts with. Admin-only to change
+  // (ROLE_CAPABILITIES.templatesManage) — UI-level plus a fresh re-check, because both
+  // lists are plain Contribute. copyFields come from the template, overrideFields are the
+  // only keys a caller may set on a clone. Neither may ever hold IsTemplate, TemplateName
+  // or the owner field: _cloneTemplateItem (api.js) forces those itself.
+  TEMPLATES: {
+    NAME_MAX_CHARS: 80,
+    UNTITLED_NAME: 'Untitled template',
+    BRIEFING_PACK: {
+      list: 'BriefingPacks',
+      ownerField: 'PackOwner',
+      // Contact fields are never carried (N-428); the client logo lives on ClientLogos.
+      copyFields: ['Pages'],
+      overrideFields: ['Title', 'ProjectID', 'RoleID', 'ClientName', 'RoleTitle', 'RoleLocation', 'CoverDate'],
+    },
+    SAVED_REPORT: {
+      list: 'SavedReports',
+      ownerField: 'ReportOwner',
+      copyFields: ['Scope', 'Period', 'KpiPeriod', 'ModuleOrder'],
+      overrideFields: ['Title', 'Scope', 'ProjectID', 'RoleID'],
+    },
+    MESSAGES: {
+      adminOnly:    'Only an Admin can change a template — nothing saved.',
+      checkFailed:  "Couldn't check template permissions — nothing saved.",
+      notTemplate:  'That item is not a template.',
+      nameRequired: 'Please enter a template name.',
+    },
   },
 
     // Field projection manifest (F-1). Per-list array of INTERNAL SharePoint

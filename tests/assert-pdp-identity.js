@@ -21,7 +21,7 @@ ASSERTIONS.push(
     name: 'N-433 AC1 config: People projection, CONFIG.PDP, MCP deny',
     fn: function () {
       _assertEqual(CONFIG.LIST_FIELDS.People.includes('WorkEmail'), true, 'AC1 People projection has WorkEmail');
-      _assertEqual(Object.keys(CONFIG.PDP).sort(), ['DISPLAY_ROWS', 'MANAGER_LEVELS', 'MAX_CHAIN', 'REVIEWER_LEVEL', 'SCOPE_LEVELS'], 'AC1 CONFIG.PDP keys');
+      _assertEqual(['DISPLAY_ROWS', 'MANAGER_LEVELS', 'MAX_CHAIN', 'REVIEWER_LEVEL', 'SCOPE_LEVELS'].every(k => k in CONFIG.PDP), true, 'AC1 CONFIG.PDP keys (N-434 adds more)');
       _assertEqual(CONFIG.PDP.SCOPE_LEVELS, ['TP', 'STP', 'PTP', 'SDM'], 'AC1 scope levels');
       _assertEqual(CONFIG.MCP.outputDenyFields.People.includes('WorkEmail'), true, 'AC1 MCP denies WorkEmail');
       _assertEqual(CONFIG.MCP.scripts.some(f => /pdp/.test(f)), false, 'AC1 PDP files are not in the MCP bundle');

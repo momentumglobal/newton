@@ -557,6 +557,39 @@ const CONFIG = {
       'Title', 'ProjectType', 'ProjectID',
       'FirstSubmissionDays', 'SubmissionsPerWeek', 'TimeToOfferDays', 'TimeToHireDays',
     ],
+    // N-434 (PDP-2): the seven PDP lists — full business-column set, Title first. Every name is
+    // INTERNAL and must match the live list exactly (an unknown column is a 400 for every read).
+    // Create the lists BEFORE deploying; Admin > Data Health > Schema Check is the gate.
+    PDPFramework: [
+      'Title', 'Level', 'Track', 'PillarKey', 'Pillar', 'Band', 'Descriptor', 'SortOrder', 'IsActive',
+    ],
+    PDPTemplates: [
+      'Title', 'MeetingType', 'VersionNo', 'Status', 'Definition', 'PublishedAt', 'PublishedBy',
+    ],
+    PDPCycles: [
+      'Title', 'PersonID', 'PersonEmail', 'PersonName', 'CycleYear', 'Level', 'Track',
+      'LineManagerEmail', 'CSDEmail', 'JoinDate', 'BiAnnualScored', 'ScoringLevel', 'Status',
+    ],
+    PDPMeetings: [
+      'Title', 'PersonID', 'PersonEmail', 'PersonName', 'CycleYear', 'CycleID', 'MeetingType',
+      'IsJoiner', 'Period', 'DueDate', 'MeetingDate', 'Status', 'SkipReason', 'TemplateID',
+      'TemplateVersion', 'PrepEmployee', 'PrepManager', 'MeetingNotes', 'EmployeeSignedAt',
+      'ManagerSignedAt', 'LineManagerEmail', 'CSDEmail',
+    ],
+    PDPGoals: [
+      'Title', 'PersonID', 'PersonEmail', 'CycleYear', 'LineManagerEmail', 'CSDEmail', 'GoalLevel',
+      'Period', 'Category', 'ParentGoalID', 'MeetingID', 'WhyItMatters', 'SuccessMeasures',
+      'Support', 'TargetDate', 'Rag', 'Status',
+    ],
+    PDPActions: [
+      'Title', 'PersonID', 'PersonEmail', 'LineManagerEmail', 'CSDEmail', 'MeetingID', 'GoalID',
+      'OwnerRole', 'OwnerEmail', 'DueDate', 'IsDone', 'DoneAt',
+    ],
+    PDPScores: [
+      'Title', 'PersonID', 'PersonEmail', 'CycleYear', 'LineManagerEmail', 'CSDEmail', 'MeetingID',
+      'PillarKey', 'Source', 'ScoringLevel', 'Score', 'Rationale', 'SubmittedAt', 'CalibratedScore',
+      'CalibrationRationale', 'IsLocked',
+    ],
     // N-094 (F-2b): this list had no entry at all, so it stayed on
     // fields($select=*). These are the complete read set across js/ —
     // 'Yeare' is deliberately absent: FIELD_ALIASES registers it, but no
@@ -1526,6 +1559,30 @@ const CONFIG = {
     MANAGER_LEVELS: ['CSD', 'SDM', 'STP'],
     MAX_CHAIN:      8,
     DISPLAY_ROWS:   10,
+    // N-434 (PDP-2): the seven PDP lists. Single source of truth: api-pdp.js and pdp-data.js
+    // reference lists only through this map. Never add one to CACHE.persistentLists, DELTA,
+    // MCP.allowedLists or a Command Bar source (PDP-D12). RESTRICTED_LISTS is N-435's decision.
+    LISTS: {
+      FRAMEWORK: 'PDPFramework', TEMPLATES: 'PDPTemplates', CYCLES: 'PDPCycles',
+      MEETINGS: 'PDPMeetings', GOALS: 'PDPGoals', ACTIONS: 'PDPActions', SCORES: 'PDPScores',
+    },
+    // Enum values live here, never in SharePoint Choice columns (a Choice column drifts).
+    LEVELS:          ['L1', 'L2', 'L3', 'L4', 'L5', 'L6'],
+    TRACKS:          ['IC', 'MG'],
+    BANDS:           ['Below', 'Meets', 'Exceeding'],
+    MEETING_TYPES:   ['Annual', 'BiAnnual', 'Quarterly', 'Monthly'],
+    MEETING_STATUS:  ['Planned', 'PrepOpen', 'Held', 'SignedOff', 'Skipped'],
+    TEMPLATE_STATUS: ['Draft', 'Published', 'Retired'],
+    CYCLE_STATUS:    ['Open', 'Closed'],
+    GOAL_LEVELS:     ['Annual', 'H2', 'Quarterly'],
+    GOAL_CATEGORIES: ['Business', 'Development', 'Behaviour', 'Career'],
+    GOAL_STATUS:     ['Open', 'Achieved', 'Dropped'],
+    RAG:             ['Red', 'Amber', 'Green'],
+    SCORE_SOURCES:   ['Self', 'Manager', 'Agreed'],
+    OWNER_ROLES:     ['Employee', 'Manager'],
+    SCORE_MIN:       1,
+    SCORE_MAX:       3,
+    JSON_MAX_CHARS:  30000,   // SharePoint plain multi-line text holds ~63k; stay well under
   },
 
   // ── LCI Cost Model + Lead Magnet: CONFIG.LCI and CONFIG.LCI_DISCIPLINES live in js/lci-config.js (sales.html only) ──

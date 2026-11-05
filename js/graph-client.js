@@ -401,6 +401,12 @@ const FIELD_ALIASES = {
   SurveyCompletions: {},
   // ── Notifications ─────────────────────────────────────────
   Notifications: {},
+  // ── PDP (N-434 / PDP-2) ───────────────────────────────────
+  // {} is deliberate — every PDP column is read and written under its own name; a self-mapping
+  // alias would DELETE the field (see the RoleHistory entry below). Registering here also enrols
+  // each list in N-154's Data Health row-count watch and Schema Check.
+  PDPFramework: {}, PDPTemplates: {}, PDPCycles: {}, PDPMeetings: {},
+  PDPGoals: {}, PDPActions: {}, PDPScores: {},
   // ── Client-side error telemetry (N-172 / F-7a) ────────────
   // {} is deliberate — every Diagnostics column is already the display name
   // Newton wants. A self-mapping alias would DELETE the field, for the

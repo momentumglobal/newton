@@ -57,6 +57,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'permissions.js'),
   path.join(JS_DIR, 'project-team.js'),
   path.join(JS_DIR, 'pdp-identity.js'),     // N-433: pure PDP identity rules (loads after project-team.js)
+  path.join(JS_DIR, 'pdp-data.js'),         // N-434: pure PDP list rules (after pdp-identity.js)
   path.join(JS_DIR, 'checklist-logic.js'),
   path.join(JS_DIR, 'starter-folder-logic.js'),
   path.join(JS_DIR, 'graph-client.js'),
@@ -113,6 +114,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-pages.js'),
   path.join(TESTS_DIR, 'assert-project-team.js'),
   path.join(TESTS_DIR, 'assert-pdp-identity.js'),   // N-433
+  path.join(TESTS_DIR, 'assert-pdp-data.js'),       // N-434
   path.join(TESTS_DIR, 'assert-project-types.js'),
   path.join(TESTS_DIR, 'assert-starter-folders.js'),
   path.join(TESTS_DIR, 'assert-sla.js'),

@@ -157,6 +157,15 @@ function normaliseTemplateName(v, cfg = CONFIG) {
     .slice(0, cfg.TEMPLATES.NAME_MAX_CHARS).trim();
 }
 
+// N-428 (TPL-D5): `fields` with the template kind's stripFields laid over it, so a template
+// row never carries a project, role, client or contact. New object; input never mutated.
+// Unknown kind / no stripFields → shallow copy. Non-object fields → just the strip values.
+function stripTemplateScope(kind, fields, cfg = CONFIG) {
+  const spec = cfg && cfg.TEMPLATES && cfg.TEMPLATES[kind];
+  const base = fields && typeof fields === 'object' ? fields : {};
+  return { ...base, ...((spec && spec.stripFields) || {}) };
+}
+
 // ── Split-fee revenue (N-116) ─────────────────────────────────────────
 // Exec Search and MG AI bill as a retainer up front plus the balance on
 // placement, not a monthly rate. Each is recognised as a single lump sum in a

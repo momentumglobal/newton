@@ -285,6 +285,21 @@
   font-size: var(--fs-12);
   margin-left: var(--sp-2);
 }
+/* N-428: "Template" badge — library band rows and the builder header. Neutral surface +
+   primary text so it reads in light and dark without a status tint. */
+.tpl-badge {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--surface-alt);
+  color: var(--text-primary);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-semibold);
+  line-height: 1.4;
+}
 
 /* ── Briefing pack builder (N-211) ───────────────────────────────── */
 .bp-block {

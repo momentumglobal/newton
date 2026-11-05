@@ -2195,6 +2195,9 @@ body {
   transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
 .confirm-modal-input:hover:where(:not(:disabled)) { border-color: var(--text-muted); }
+/* N-428: pairSelectModal field labels + inline load hint */
+.confirm-modal-label { display: block; margin: 0 0 var(--sp-2); font-size: var(--fs-12); font-weight: var(--fw-semibold); color: var(--text-secondary); }
+.confirm-modal-hint  { margin: calc(-1 * var(--sp-5)) 0 var(--sp-8); font-size: var(--fs-12); color: var(--text-secondary); }
 .confirm-modal-input:focus {
   outline: none;
   border-color: var(--border-focus);

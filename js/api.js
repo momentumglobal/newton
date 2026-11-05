@@ -1139,6 +1139,31 @@ async function cloneBriefingPackFromTemplate(id, owner, overrides) {
 async function cloneSavedReportFromTemplate(id, owner, overrides) {
   return _cloneTemplateItem(CONFIG.TEMPLATES.SAVED_REPORT, id, owner, overrides);
 }
+
+// N-428 (TPL-D5, D10): the ONLY path that writes IsTemplate = true. kind = a
+// CONFIG.TEMPLATES key. id = null creates a new template row owned by `owner`; an id
+// updates that row, which must already be a template (an ordinary item is never flipped
+// into one). Fresh, ghost-aware Admin check first; any failure throws (fail closed).
+// Only spec.templateFields are written, the scope is blanked on every write, and the
+// flag + name are forced after the strip.
+async function saveTemplateItem(kind, id, fields, name, owner) {
+  const spec = CONFIG.TEMPLATES[kind];
+  if (!spec || !Array.isArray(spec.templateFields)) throw new Error('N-428: no templateFields for ' + kind);
+  const n = normaliseTemplateName(name);
+  if (!n) throw new Error(CONFIG.TEMPLATES.MESSAGES.nameRequired);
+  if (id) {
+    const row = await getItem(spec.list, id);
+    if (!isTemplateRow(row)) throw new Error(CONFIG.TEMPLATES.MESSAGES.notTemplate);
+  }
+  const w = await checkTemplateManage();
+  if (!w.ok) throw new Error(w.reason);
+  const out = stripTemplateScope(kind, _pickFields(fields || {}, spec.templateFields));
+  out.IsTemplate = true;
+  out.TemplateName = n;
+  if (id) return updateItem(spec.list, id, out);
+  out[spec.ownerField] = String(owner || '').toLowerCase();
+  return createItem(spec.list, out);
+}
  
 // ── App Settings ─────────────────────────────────────────────────────
 // AppSettings is a single-row SharePoint list with columns:

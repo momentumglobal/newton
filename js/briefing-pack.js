@@ -31,6 +31,10 @@ let _bpContactEmail = '';
 let _bpCoverDate    = '';    // YYYY-MM text — never a Date (BST shift)
 let _bpClientLogo     = '';  // data: URI, held against the PROJECT not the pack
 let _bpClientLogoName = '';
+// N-428: the open item is a template (TPL-D7). Names deliberately avoid the substrings
+// "IsTemplate" / "TemplateName" — the N-427 AC13 guard scans bpSavePack's body for them.
+let _bpEditingTemplate = false;
+let _bpTplName         = '';
 
 // Library state (N-235)
 let _bpLibraryCache  = [];   // packs visible to this user, from the last load
@@ -143,10 +147,58 @@ function _bpLibraryClientOptions() {
   )).join('');
 }
 
+// ── Templates band (N-428, reused by N-429) ──────────────────────────
+// Lives here, not ui-kit.js: its classes are owned by css/report-builder.css, which only
+// reporting.html links (lint-css-split) — same reason clientLockupHtml lives here (N-330).
+// Pinned band of template rows at the top of a library table. Callers pass RAW
+// template rows (escaping is done here) and rowActs(t) → { use, edit, del } act()
+// attribute strings built at the call site (keeps names visible to lintActNames);
+// edit / del may be '' to omit the button. Every row spans exactly `colspan` cells:
+// name | title (colspan − 2) | actions. No templates and no emptyMessage → ''.
+function templateBandRowsHtml({ colspan, templates, emptyMessage = '', rowActs }) {
+  const list = Array.isArray(templates) ? templates : [];
+  if (!list.length && !emptyMessage) return '';
+  const L = CONFIG.TEMPLATES.LABELS;
+  const band = `
+        <tr class="bp-lib-client-row tpl-band-row">
+          <td colspan="${colspan}"><strong>${escHtml(L.band)}</strong> <span class="bp-lib-count">${list.length}</span></td>
+        </tr>`;
+  if (!list.length) return band + emptyStateRow({ colspan, icon: 'layers', message: emptyMessage });
+  return band + list.map(t => {
+    const a = rowActs(t) || {};
+    return `
+        <tr>
+          <td>${escHtml(templateDisplayName(t))} <span class="tpl-badge">${escHtml(L.badge)}</span></td>
+          <td colspan="${colspan - 2}">${escHtml(t.Title || '—')}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-secondary"${a.use}>${escHtml(L.use)}</button>
+              ${a.edit ? `<button class="btn-secondary"${a.edit}>${escHtml(L.edit)}</button>` : ''}
+              ${a.del ? `<button class="btn-secondary"${a.del}>${escHtml(L.del)}</button>` : ''}
+            </div>
+          </td>
+        </tr>`;
+  }).join('');
+}
+
 function _bpRenderLibrary() {
   const me      = (getCurrentUser().email || '').toLowerCase();
   const isAdmin = _resolvedRole === 'admin';
   const packs   = _bpLibraryCache.filter(p => !_bpLibraryFilter || _bpPackClient(p) === _bpLibraryFilter);
+
+  // N-428: pinned Templates band — ignores the Client filter. Use for everyone; Edit /
+  // Delete for template managers only (each write re-checks fresh).
+  const manage = canManageTemplates(_resolvedRole);
+  const band = templateBandRowsHtml({
+    colspan: 5,
+    templates: _bpTemplateCache,
+    emptyMessage: manage ? CONFIG.TEMPLATES.MESSAGES.bandEmptyAdmin : '',
+    rowActs: t => ({
+      use:  act('bpUseTemplateAction', Number(t.id), ACT_EL),
+      edit: manage ? act('bpLoadPack', Number(t.id)) : '',
+      del:  manage ? act('bpDeletePack', Number(t.id), templateDisplayName(t)) : '',
+    }),
+  });
 
   const groups = {};
   packs.forEach(p => {
@@ -212,11 +264,72 @@ function _bpRenderLibrary() {
         <thead><tr>
           <th>Pack Name</th><th>Role</th><th>Location</th><th>Owner</th><th></th>
         </tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>${band}${rows}</tbody>
       </table>
     </div>
   `;
   if (window.lucide) lucide.createIcons();
+}
+
+// N-428 (TPL-D3, D8, D9, D11): create an owned pack from a template. One dialog picks a
+// writable project (required) and one of its roles (optional). The clone keeps the
+// template's Title and Pages; project / role / client / cover month come from the picks;
+// contact fields are never carried — the builder then autofills the contact from the
+// role's Talent Partner. Not auto-saved: the user checks the details, then Saves.
+async function bpUseTemplateAction(id, btn) {
+  const T = CONFIG.TEMPLATES;
+  setButtonLoading(btn);
+  try {
+    const tpl = _bpTemplateCache.find(t => String(t.id) === String(id));
+    if (!tpl) {
+      toast(T.MESSAGES.notTemplate, { type: 'error' });
+      await showBriefingPackLibrary();
+      return;
+    }
+    await bpLoadProjects();
+    const projects = _bpProjects.filter(p => _bpCanWrite(p.id));
+    if (!projects.length) { toast(T.MESSAGES.noWritableProject, { type: 'error' }); return; }
+    const options = sortProjectsByName(projects).map(p => ({
+      value: String(p.id),
+      label: p.CustomerName || String(p.id),   // same label as buildProjectOptionsHtml
+      group: isProjectActive(p) ? 'Active' : 'Archive',
+    }));
+    const roleCache = {};
+    const picked = await pairSelectModal({
+      title: T.LABELS.modalTitle,
+      message: templateDisplayName(tpl),
+      first: { label: T.LABELS.projectLabel, placeholder: T.LABELS.projectPlaceholder, options },
+      second: {
+        label: T.LABELS.roleLabel,
+        noneLabel: T.LABELS.roleNone,
+        loadingLabel: T.LABELS.rolesLoading,
+        errorText: T.MESSAGES.rolesLoadFailed,
+        load: async pid => (roleCache[pid] = await bpRolesFor(pid)).map(r => ({ value: String(r.id), label: _bpRoleLabel(r) })),
+      },
+      confirmLabel: T.LABELS.modalConfirm,
+    });
+    if (!picked) return;
+    const project = projects.find(p => String(p.id) === String(picked.first));
+    if (!project) { toast(T.MESSAGES.noWritableProject, { type: 'error' }); return; }
+    const role = (roleCache[picked.first] || []).find(r => String(r.id) === String(picked.second)) || null;
+    const overrides = {
+      ProjectID:    parseInt(project.id),
+      RoleID:       role ? parseInt(role.id) : null,
+      ClientName:   project.CustomerName || '',
+      RoleTitle:    role ? (role.RoleTitle || '') : '',
+      RoleLocation: role ? (role.Location || '') : '',
+      CoverDate:    bpCurrentMonth(),
+    };
+    const copy = await cloneBriefingPackFromTemplate(id, getCurrentUser().email, overrides);
+    await bpLoadPack(copy.id);
+    bpApplyRoleAutofill();
+    bpRender();
+    toast(T.MESSAGES.createdFromTemplate);
+  } catch (e) {
+    toast('Could not create a pack from that template: ' + e.message, { type: 'error' });
+  } finally {
+    clearButtonLoading(btn);
+  }
 }
 
 async function bpCopyPackAction(id, btn) {
@@ -326,6 +439,8 @@ async function bpStartNewPack() {
   main.innerHTML = '<div class="page-header"><h2>Briefing Pack</h2></div>' + skeletonPanel(6);
 
   _bpPackId       = null;
+  _bpEditingTemplate = false;   // N-428
+  _bpTplName         = '';
   _bpPages        = bpDefaultPages();
   _bpTitle        = '';
   _bpRoleId       = '';
@@ -346,10 +461,21 @@ async function bpStartNewPack() {
   bpRender();
 }
 
+// N-428: the roles a pack on `projectId` may name — a Talent Partner sees only their own.
+// Shared by the builder's Role select and the Use template dialog.
+function bpRolesFor(projectId) {
+  const tpEmail = _resolvedRole === 'talent_partner' ? getScopedUserEmail() : null;
+  return getRolesForProject(projectId, tpEmail);
+}
+
+// N-428: raw role option label (callers escape for markup; the dialog sets textContent).
+function _bpRoleLabel(r) {
+  return r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle;
+}
+
 async function bpLoadRoles() {
   if (!_bpProjectId) { _bpProjectRoles = []; return; }
-    const tpEmail = _resolvedRole === 'talent_partner' ? getScopedUserEmail() : null;
-  _bpProjectRoles = await getRolesForProject(_bpProjectId, tpEmail);
+  _bpProjectRoles = await bpRolesFor(_bpProjectId);
   if (_bpRoleId && !_bpProjectRoles.some(r => String(r.id) === String(_bpRoleId))) _bpRoleId = '';
 }
 
@@ -493,12 +619,18 @@ function bpApplyRoleAutofill() {
 function bpRender() {
   const main = document.getElementById('main-content');
   const ro = _bpReadOnly();   // N-369
+  // N-428: a template shows a badge and saves only for a template manager; Save as
+  // template is offered on an ordinary, writable pack to template managers only.
+  const manage  = canManageTemplates(_resolvedRole);
+  const canSave = !ro && (!_bpEditingTemplate || manage);
+  const badge   = _bpEditingTemplate ? ` <span class="tpl-badge">${escHtml(CONFIG.TEMPLATES.LABELS.badge)}</span>` : '';
   main.innerHTML = `
     <div class="page-header">
-      <h2>Briefing Pack</h2>
+      <h2>Briefing Pack${badge}</h2>
       <div class="page-header-actions">
         <button class="btn-secondary"${act('showBriefingPackLibrary')}>&larr; Back to Library</button>
-        ${ro ? '' : `<button class="btn-secondary" id="bp-save-btn"${act('bpSavePack')}>Save</button>`}
+        ${canSave ? `<button class="btn-secondary" id="bp-save-btn"${act('bpSavePack')}>Save</button>` : ''}
+        ${manage && !ro && !_bpEditingTemplate ? `<button class="btn-secondary"${act('bpSaveAsTemplateAction', ACT_EL)}>${escHtml(CONFIG.TEMPLATES.LABELS.saveAs)}</button>` : ''}
         <button class="btn-secondary"${act('bpPreview')}>Preview</button>
         <button class="print-btn"    ${act('bpExportPdf')}>&#8856; Export PDF</button>
       </div>
@@ -525,11 +657,39 @@ function bpRenderSidebar() {
 
   const roleOpts = ['<option value="">Select a role...</option>']
     .concat(_bpProjectRoles.map(r => {
-      const label = escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle);
+      const label = escHtml(_bpRoleLabel(r));
       return `<option value="${r.id}" ${String(r.id) === String(_bpRoleId) ? 'selected' : ''}>${label}</option>`;
     })).join('');
 
   const ro = _bpReadOnly();   // N-369
+  const footer = `
+    <div class="rb-sidebar-footer">
+      <div class="rb-section-label">Add Page</div>
+      <button class="btn-secondary rb-full-btn"${act('bpAddPage', 'section')}>+ Content Section</button>
+      <button class="btn-secondary rb-full-btn"${act('bpAddPage', 'divider')}>+ Divider</button>
+      <p class="rb-footnote">The title and closing pages are always present and always first and last.</p>
+    </div>
+  `;
+  // N-428 (TPL-D7): a template has no project, role, client, logo, cover date or contact.
+  if (_bpEditingTemplate) {
+    const T = CONFIG.TEMPLATES;
+    const maxLen = Number(T.NAME_MAX_CHARS);
+    return `
+    <div class="rb-sidebar-scroll">
+    <div class="rb-config">
+      <div class="rb-section-label">${escHtml(T.LABELS.nameLabel)}</div>
+      <input class="rb-input" type="text" maxlength="${maxLen}"
+        value="${escAttr(_bpTplName)}"${actOn('input', 'bpSetField', 'tplName', ACT_VALUE)}>
+
+      <div class="rb-section-label">Pack Title</div>
+      <input id="bp-title" class="rb-input" type="text" placeholder="Untitled Briefing Pack"
+        value="${escAttr(_bpTitle)}"${actOn('input', 'bpSetField', 'title', ACT_VALUE)}>
+
+      <p class="rb-footnote">${escHtml(T.MESSAGES.scopeNote)}</p>
+    </div>
+    </div>
+${footer}`;
+  }
   return `
     <div class="rb-sidebar-scroll">
     <div class="rb-config">
@@ -580,14 +740,7 @@ function bpRenderSidebar() {
         value="${escAttr(_bpContactEmail)}"${actOn('input', 'bpSetField', 'contactEmail', ACT_VALUE)}>
     </div>
     </div>
-
-    <div class="rb-sidebar-footer">
-      <div class="rb-section-label">Add Page</div>
-      <button class="btn-secondary rb-full-btn"${act('bpAddPage', 'section')}>+ Content Section</button>
-      <button class="btn-secondary rb-full-btn"${act('bpAddPage', 'divider')}>+ Divider</button>
-      <p class="rb-footnote">The title and closing pages are always present and always first and last.</p>
-    </div>
-  `;
+${footer}`;
 }
 
 function bpRenderCanvas() {
@@ -686,6 +839,7 @@ const _BP_FIELD_SETTERS = {
   contactName:  v => { _bpContactName = v; },
   contactTitle: v => { _bpContactTitle = v; },
   contactEmail: v => { _bpContactEmail = v; },
+  tplName:      v => { _bpTplName = v; },   // N-428: template name (template mode only)
 };
 function bpSetField(key, value) {
   if (Object.prototype.hasOwnProperty.call(_BP_FIELD_SETTERS, key)) _BP_FIELD_SETTERS[key](value);
@@ -983,6 +1137,7 @@ async function bpExportPdf() {
 async function bpSavePack() {
   const title = (_bpTitle || '').trim();
   if (!title) { toast('Please enter a pack title before saving.', { type: 'error' }); return; }
+  if (_bpEditingTemplate) return _bpSaveTemplate(title);   // N-428: own checks + stripped write
   if (_bpPackId) {   // N-427: a template row is Admin-only — fresh, fail-closed re-check
     const t = await checkTemplateWrite('BriefingPacks', _bpPackId);
     if (!t.ok) { toast(t.reason, { type: 'error' }); return; }
@@ -1012,8 +1167,53 @@ async function bpSavePack() {
     _bpPackId = result.id;
   }
 
+  _bpFlashSaved();
+}
+
+function _bpFlashSaved() {
   const btn = document.getElementById('bp-save-btn');
   if (btn) { btn.textContent = 'Saved ✓'; setTimeout(() => { btn.textContent = 'Save'; }, 2000); }
+}
+
+// N-428 (TPL-D5): save the open template. saveTemplateItem (api.js) re-checks Admin fresh,
+// refuses a non-template row, writes only Title + Pages and blanks the scope.
+async function _bpSaveTemplate(title) {
+  const name = normaliseTemplateName(_bpTplName);
+  if (!name) { toast(CONFIG.TEMPLATES.MESSAGES.nameRequired, { type: 'error' }); return; }
+  try {
+    await saveTemplateItem('BRIEFING_PACK', _bpPackId, { Title: title, Pages: JSON.stringify(_bpPages) }, name);
+  } catch (e) {
+    toast(e.message, { type: 'error' });
+    return;
+  }
+  _bpTplName = name;
+  _bpFlashSaved();
+}
+
+// N-428 (TPL-D10): publish the builder's current pages as a NEW template row. The open
+// pack is not saved or changed (_bpPackId untouched); works on an unsaved pack too.
+async function bpSaveAsTemplateAction(btn) {
+  const T = CONFIG.TEMPLATES;
+  const title = (_bpTitle || '').trim();
+  if (!title) { toast('Please enter a pack title before saving.', { type: 'error' }); return; }
+  const raw = await promptModal({
+    title: T.LABELS.namePromptTitle,
+    message: T.LABELS.namePromptMessage,
+    placeholder: T.LABELS.nameLabel,
+    confirmLabel: T.LABELS.saveAs,
+  });
+  if (raw === null) return;
+  const name = normaliseTemplateName(raw);
+  if (!name) { toast(T.MESSAGES.nameRequired, { type: 'error' }); return; }
+  setButtonLoading(btn);
+  try {
+    await saveTemplateItem('BRIEFING_PACK', null, { Title: title, Pages: JSON.stringify(_bpPages) }, name, getCurrentUser().email);
+    toast(T.MESSAGES.savedAsTemplate.replace('{name}', name));
+  } catch (e) {
+    toast(e.message, { type: 'error' });
+  } finally {
+    clearButtonLoading(btn);
+  }
 }
 
 async function bpLoadPack(id) {
@@ -1029,6 +1229,16 @@ async function bpLoadPack(id) {
   _bpContactTitle = pack.ContactTitle || '';
   _bpContactEmail = pack.ContactEmail || '';
   _bpCoverDate    = pack.CoverDate    || bpCurrentMonth();
+  // N-428 (TPL-D7): a template never has a project or role — whatever the row holds
+  // (a hand-made row may carry some) — so no first-project default, autofill or logo.
+  _bpEditingTemplate = isTemplateRow(pack);
+  _bpTplName         = pack.TemplateName || '';
+  if (_bpEditingTemplate) {
+    _bpProjectId = null;
+    _bpRoleId = '';
+    _bpClientName = _bpRoleTitle = _bpLocation = '';
+    _bpContactName = _bpContactTitle = _bpContactEmail = '';
+  }
 
   let pages = [];
   try { pages = JSON.parse(pack.Pages || '[]'); } catch (e) { pages = []; }
@@ -1076,6 +1286,8 @@ registerActions({
   bpLoadPack,
   bpCopyPackAction,
   bpReassignPackAction,
+  bpUseTemplateAction,      // N-428
+  bpSaveAsTemplateAction,   // N-428
   bpDeletePack,
   bpStartNewPack,
   bpLibraryFilterChanged,

@@ -528,6 +528,149 @@ function selectModal({ title = '', message = '', options = [], defaultValue = ''
   });
 }
 
+// N-428 (TPL-D9): two dependent selects in one dialog — selectModal's family (shares
+// _confirmModalOpen; Escape / backdrop / Cancel resolve null). Reused by N-429.
+//   first  = { label, placeholder, options: [{ value, label, group? }] } — options with a
+//            `group` go into <optgroup label=group>, groups in first-seen order.
+//   second = { label, noneLabel, loadingLabel, errorText, load: async firstValue => [{ value, label }] }
+//            — always starts with { value: '', label: noneLabel } (optional). Reloaded on
+//            every first change; a stale response is discarded; a load failure leaves only
+//            the none option and shows errorText. Never rejects the dialog.
+// Confirm is disabled until first has a value and while second is loading.
+// Resolves { first, second } (strings). Values / labels set through DOM properties only.
+let _pairSelectSeq = 0;
+function pairSelectModal({ title = '', message = '', first = {}, second = {}, confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
+  if (_confirmModalOpen) {
+    console.warn('pairSelectModal: a confirm/prompt dialog is already open');
+    return Promise.resolve(null);
+  }
+  _confirmModalOpen = true;
+  const uid = 'pair-select-' + (++_pairSelectSeq);
+
+  return new Promise(resolve => {
+    const previouslyFocused = document.activeElement;
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-modal-overlay';
+    const titleHtml = title ? `<h3 class="confirm-modal-title">${escHtml(title)}</h3>` : '';
+    const messageHtml = message ? `<p class="confirm-modal-message">${escHtml(message)}</p>` : '';
+    overlay.innerHTML = `
+      <div class="confirm-modal" role="alertdialog" aria-modal="true">
+        ${titleHtml}
+        ${messageHtml}
+        <label class="confirm-modal-label" for="${uid}-a">${escHtml(first.label || '')}</label>
+        <select class="confirm-modal-input" id="${uid}-a"></select>
+        <label class="confirm-modal-label" for="${uid}-b">${escHtml(second.label || '')}</label>
+        <select class="confirm-modal-input" id="${uid}-b"></select>
+        <p class="confirm-modal-hint" hidden></p>
+        <div class="confirm-modal-actions">
+          <button type="button" class="btn-secondary confirm-modal-cancel">${escHtml(cancelLabel)}</button>
+          <button type="button" class="btn-primary confirm-modal-confirm">${escHtml(confirmLabel)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const selA = overlay.querySelector('#' + uid + '-a');
+    const selB = overlay.querySelector('#' + uid + '-b');
+    const hint = overlay.querySelector('.confirm-modal-hint');
+    const cancelBtn  = overlay.querySelector('.confirm-modal-cancel');
+    const confirmBtn = overlay.querySelector('.confirm-modal-confirm');
+
+    const addOption = (parent, value, label) => {
+      const opt = document.createElement('option');
+      opt.value = String(value);
+      opt.textContent = String(label ?? value);
+      parent.appendChild(opt);
+    };
+    addOption(selA, '', first.placeholder || '');
+    const groups = {};
+    (first.options || []).forEach(o => {
+      let parent = selA;
+      if (o.group) {
+        if (!groups[o.group]) {
+          groups[o.group] = document.createElement('optgroup');
+          groups[o.group].label = String(o.group);
+          selA.appendChild(groups[o.group]);
+        }
+        parent = groups[o.group];
+      }
+      addOption(parent, o.value, o.label);
+    });
+
+    let loading = false;
+    let loadSeq = 0;
+    const sync = () => { confirmBtn.disabled = !selA.value || loading; };
+    const resetSecond = text => {
+      selB.replaceChildren();
+      addOption(selB, '', text);
+    };
+    resetSecond(second.noneLabel || '');
+    sync();
+
+    const loadSecond = async () => {
+      const seq = ++loadSeq;
+      hint.hidden = true;
+      hint.textContent = '';
+      if (!selA.value) { loading = false; resetSecond(second.noneLabel || ''); selB.disabled = false; sync(); return; }
+      loading = true;
+      selB.disabled = true;
+      resetSecond(second.loadingLabel || second.noneLabel || '');
+      sync();
+      let opts = [];
+      let failed = false;
+      try {
+        opts = (typeof second.load === 'function') ? await second.load(selA.value) : [];
+      } catch (e) {
+        console.warn('pairSelectModal: load failed', e);
+        failed = true;
+      }
+      if (seq !== loadSeq) return;   // the first select changed again — a newer load owns it
+      resetSecond(second.noneLabel || '');
+      if (failed) {
+        hint.textContent = second.errorText || '';
+        hint.hidden = !second.errorText;
+      } else {
+        (opts || []).forEach(o => addOption(selB, o.value, o.label));
+      }
+      loading = false;
+      selB.disabled = false;
+      sync();
+    };
+    selA.addEventListener('change', loadSecond);
+
+    const close = result => {
+      _confirmModalOpen = false;
+      loadSeq++;
+      document.removeEventListener('keydown', onKeydown);
+      overlay.remove();
+      if (previouslyFocused && previouslyFocused.focus) previouslyFocused.focus();
+      resolve(result);
+    };
+
+    // Focus order: first → second → Cancel → Confirm (disabled ones skipped).
+    const onKeydown = e => {
+      if (e.key === 'Escape') { close(null); return; }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const order = [selA, selB, cancelBtn, confirmBtn].filter(el => !el.disabled);
+        const i = order.indexOf(document.activeElement);
+        const next = order[(i + (e.shiftKey ? -1 : 1) + order.length) % order.length];
+        next.focus();
+      }
+    };
+
+    cancelBtn.addEventListener('click', () => close(null));
+    confirmBtn.addEventListener('click', () => {
+      if (confirmBtn.disabled) return;
+      close({ first: selA.value, second: selB.value });
+    });
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(null); });
+    document.addEventListener('keydown', onKeydown);
+
+    selA.focus();
+  });
+}
+
 // N-193/X-6: wraps a page render in a View Transition cross-fade. Falls
 // back to a plain synchronous render when the API is unsupported or the
 // user has reduced-motion on — never a broken render either way.

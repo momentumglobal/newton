@@ -489,6 +489,7 @@ async function buildDataHealthTab() {
     + _dhRenderProjectTeamHtml(data)
     + _dhRenderProjectTeamIntegrityHtml(data)
     + _dhRenderLciMigrationHtml(data)
+    + _dhRenderPdpIdentityHtml(data)
     + _dhRenderUserRowsHtml()
     + _dhRenderWeeklyAnomaliesHtml(data)
     + _dhRenderIndexStatusHtml(data)
@@ -584,9 +585,19 @@ async function _dhFetchSectionData() {
     projectTeamIntegrity = { ok: false, checks: [] };
   }
 
+  // N-433: PDP identity integrity. Pure check (pdpCheckIdentity, pdp-identity.js); a failed read
+  // (including a missing People.WorkEmail column) is { ok: false } and renders as Query error.
+  let pdpIdentity;
+  try {
+    pdpIdentity = { ok: true, checks: pdpCheckIdentity(await getPdpIdentityInputs()) };
+  } catch (e) {
+    console.warn('Data Health: PDP identity read failed', e);
+    pdpIdentity = { ok: false, checks: [] };
+  }
+
   return {
     lists, counts, deniedLists, excludedLists,
-    ptColumns, lciChoices, slaTargets, projectTeamIntegrity,
+    ptColumns, lciChoices, slaTargets, projectTeamIntegrity, pdpIdentity,
     nullProjectOk, nullProjectCount, nullWeekEndingOk, nullWeekEndingCount,
     statusByList,
     schemaResults,
@@ -996,6 +1007,231 @@ function downloadProjectTeamCsv(key) {
 // The full reads happen when Preview is clicked, never on tab load. State lives here and the
 // actions read it, never the DOM (N-273 precedent).
 let _ptLci = { inputs: null, picks: {}, result: null };
+
+// ── Data Health Tab — Identity (PDP) (N-433 / PDP-1) ──────────────────
+// Integrity checks (read-only), then two previewed backfills: People.WorkEmail, then line
+// managers (People.ReportsTo). The planners are pure (pdp-identity.js); Apply re-reads, confirms
+// with counts and writes only blank fields.
+let _pdpWe = { inputs: null, picks: {}, result: null };
+let _pdpLm = { inputs: null, picks: {}, result: null };
+
+function _dhRenderPdpIdentityHtml(data) {
+  const h = data.pdpIdentity || { ok: false, checks: [] };
+  const cap = CONFIG.PDP.DISPLAY_ROWS;
+  const body = !h.ok
+    ? `<tr><td>Identity checks</td><td><span class="dh-badge dh-badge-danger">Query error</span></td><td></td></tr>`
+    : h.checks.map(c => `
+        <tr>
+          <td>${escHtml(c.label)}${c.count ? `
+            <details><summary class="dh-muted">Show</summary>
+              <span class="dh-muted">${c.sample.slice(0, cap).map(escHtml).join('; ')}${c.count > cap ? ` +${c.count - cap} more` : ''}</span>
+            </details>` : ''}</td>
+          <td>${c.count.toLocaleString('en-GB')}</td>
+          <td>${c.count ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
+        </tr>`).join('');
+  return `    <h3>Identity (PDP) (N-433)</h3>
+    <p class="dh-note">
+      Newton maps the signed-in user to their People row by <strong>People.WorkEmail</strong> and finds their
+      line manager and CSD through <strong>People.ReportsTo</strong>. Do step 1 before step 2. Each step is
+      previewed first: nothing is written until Apply, a value already on a row is never overwritten, and it is
+      safe to run again. A "Query error" badge usually means the WorkEmail column does not exist on the People
+      list yet (Readme &rarr; Data model).
+    </p>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Check</th><th>People</th><th></th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    </div>
+    <h4>Step 1 &mdash; WorkEmail</h4>
+    <p class="dh-note">Matches each active person's name to a User Assignments login. Ambiguous or unmatched names are chosen per row.</p>
+    <p><button class="btn-primary"${act('runPdpWorkEmailPreview')}>Preview WorkEmail</button></p>
+    ${_pdpWeResultHtml()}${_pdpWePreviewHtml()}
+    <h4>Step 2 &mdash; Line managers</h4>
+    <p class="dh-note">For in-scope people with no line manager. Suggested from the person's current project: a TP or STP gets the project's Lead DM (else its CSD); an SDM or PTP gets the project's CSD. Several projects, or none, means you choose. Any CSD, SDM or STP with a WorkEmail can be picked.</p>
+    <p><button class="btn-primary"${act('runPdpLineManagerPreview')}>Preview line managers</button></p>
+    ${_pdpLmResultHtml()}${_pdpLmPreviewHtml()}
+`;
+}
+
+function _pdpResultHtml(r) {
+  if (!r) return '';
+  const failed = r.failed.length
+    ? ` <span class="dh-badge dh-badge-danger">${r.failed.length} failed</span> <span class="dh-muted">${r.failed.map(f => escHtml(f.employee + ': ' + f.message)).join('; ')}</span>`
+    : '';
+  return `<p>Last apply: ${r.written.toLocaleString('en-GB')} rows written.${failed}</p>`;
+}
+function _pdpWeResultHtml() { return _pdpResultHtml(_pdpWe.result); }
+function _pdpLmResultHtml() { return _pdpResultHtml(_pdpLm.result); }
+
+function _pdpWePreviewHtml() {
+  const inputs = _pdpWe.inputs;
+  if (!inputs) return '';
+  const { rows, pool, summary: s } = pdpBuildWorkEmailPlan(inputs, _pdpWe.picks);
+  // Pick rows come from the plan WITHOUT picks so a row stays listed after it has been chosen.
+  const listed = new Set(pdpBuildWorkEmailPlan(inputs, {}).rows.filter(r => r.state !== 'matched').map(r => r.id));
+  const pickRows = rows.filter(r => listed.has(r.id)).map(r => {
+    const options = [...pool.entries()].map(([e, label]) =>
+      `<option value="${escHtml(e)}"${e === r.value ? ' selected' : ''}>${escHtml(label)}</option>`).join('');
+    return `
+        <tr>
+          <td>${escHtml(r.employee)}</td>
+          <td>${escHtml(r.level)}</td>
+          <td>${escHtml(r.state)}</td>
+          <td>
+            <select${actOn('change', 'setPdpWorkEmailPick', r.id, ACT_VALUE)}>
+              <option value="">— Choose —</option><option value="-"${r.state === 'skipped' ? ' selected' : ''}>— Skip —</option>${options}
+            </select>
+          </td>
+        </tr>`;
+  }).join('');
+  const line = (label, count) => `
+        <tr><td>${label}</td><td>${count.toLocaleString('en-GB')}</td></tr>`;
+  const apply = s.toWrite
+    ? `<p><button class="btn-primary"${act('applyPdpWorkEmail')}>Apply — write ${s.toWrite.toLocaleString('en-GB')} rows</button></p>`
+    : `<p class="dh-muted">Nothing to write.</p>`;
+  return `
+    <h5>Preview</h5>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Check</th><th>People</th></tr></thead>
+      <tbody>${line('Active people with no WorkEmail', s.total)}${line('Matched by name (will be written)', s.matched)}${line('Chosen by you (will be written)', s.picked)}${line('Skipped', s.skipped)}${line('Need your pick (below)', s.needsPick)}
+      </tbody>
+    </table>
+    </div>
+    ${pickRows ? `
+    <p class="dh-note">Choose a login for each row below. Rows left on "— Choose —" stay blank and are listed again next time. A login already used as a WorkEmail is not offered.</p>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Person</th><th>Level</th><th>Status</th><th>Login</th></tr></thead>
+      <tbody>${pickRows}
+      </tbody>
+    </table>
+    </div>` : ''}
+    ${apply}`;
+}
+
+function _pdpLmPreviewHtml() {
+  const inputs = _pdpLm.inputs;
+  if (!inputs) return '';
+  const { rows, managers, summary: s } = pdpBuildLineManagerPlan(inputs, _pdpLm.picks);
+  const pickRows = rows.map(r => {
+    const options = managers.filter(m => m.id !== r.id).map(m =>
+      `<option value="${escHtml(m.id)}"${m.id === r.managerId ? ' selected' : ''}>${escHtml(m.name + ' (' + m.level + ')')}</option>`).join('');
+    const why = r.candidates.length
+      ? r.candidates.map(c => escHtml(c.name + ' — ' + c.sources.join(', ') + (c.hasEmail ? '' : ' (needs WorkEmail first)'))).join('<br>')
+      : '<span class="dh-muted">No current project</span>';
+    return `
+        <tr>
+          <td>${escHtml(r.employee)}</td>
+          <td>${escHtml(r.level)}</td>
+          <td>${why}</td>
+          <td>
+            <select${actOn('change', 'setPdpLineManagerPick', r.id, ACT_VALUE)}>
+              <option value="">— Choose —</option><option value="-"${r.state === 'skipped' ? ' selected' : ''}>— Skip —</option>${options}
+            </select>
+          </td>
+        </tr>`;
+  }).join('');
+  const line = (label, count) => `
+        <tr><td>${label}</td><td>${count.toLocaleString('en-GB')}</td></tr>`;
+  const apply = s.toWrite
+    ? `<p><button class="btn-primary"${act('applyPdpLineManager')}>Apply — write ${s.toWrite.toLocaleString('en-GB')} rows</button></p>`
+    : `<p class="dh-muted">Nothing to write.</p>`;
+  return `
+    <h5>Preview</h5>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Check</th><th>People</th></tr></thead>
+      <tbody>${line('In-scope people with no line manager', s.total)}${line('Suggested from their project (will be written)', s.suggested)}${line('Chosen by you (will be written)', s.picked)}${line('Skipped', s.skipped)}${line('Several candidates (choose)', s.choose)}${line('Candidate has no WorkEmail yet (do step 1)', s.blocked)}${line('No suggestion', s.none)}
+      </tbody>
+    </table>
+    </div>
+    ${rows.length ? `
+    <p class="dh-note">The selected manager in each row is what Apply will write. Pick "— Skip —" to leave a person blank. Rows left on "— Choose —" stay blank.</p>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Person</th><th>Level</th><th>Candidates from their project</th><th>Line manager</th></tr></thead>
+      <tbody>${pickRows}
+      </tbody>
+    </table>
+    </div>` : ''}
+    ${apply}`;
+}
+
+async function runPdpWorkEmailPreview() {
+  const btn = event?.target;   // N-106: capture synchronously
+  setButtonLoading(btn);
+  try {
+    _pdpWe = { inputs: await getPdpIdentityInputs(), picks: {}, result: null };
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error reading People: ' + e.message, { type: 'error' });
+  }
+}
+
+async function runPdpLineManagerPreview() {
+  const btn = event?.target;
+  setButtonLoading(btn);
+  try {
+    _pdpLm = { inputs: await getPdpIdentityInputs(), picks: {}, result: null };
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error reading People: ' + e.message, { type: 'error' });
+  }
+}
+
+// Stores the choice only; no re-render. Apply rebuilds the plan from this state.
+function setPdpWorkEmailPick(personId, email) {
+  if (email) _pdpWe.picks[personId] = email;
+  else delete _pdpWe.picks[personId];
+}
+function setPdpLineManagerPick(personId, managerId) {
+  if (managerId) _pdpLm.picks[personId] = managerId;
+  else delete _pdpLm.picks[personId];
+}
+
+async function _applyPdpIdentity(state, buildPlan, title, noun) {
+  const btn = event?.target;
+  if (!state.inputs) { toast('Run Preview first.', { type: 'error' }); return; }
+  // Re-read so the confirmed count describes what will really be written.
+  let plan;
+  setButtonLoading(btn);
+  try {
+    plan = buildPlan(await getPdpIdentityInputs(), state.picks);
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error reading People: ' + e.message, { type: 'error' });
+    return;
+  }
+  clearButtonLoading(btn);
+  if (!plan.summary.toWrite) { toast('Nothing to write.'); return; }
+  if (!(await confirmModal({
+    title,
+    message: `Write ${plan.summary.toWrite} People rows: ${noun}. Values already on a row are never overwritten.`,
+    confirmLabel: 'Write',
+  }))) return;
+  setButtonLoading(btn);
+  try {
+    const out = await writePdpIdentityPatches(plan.rows);
+    state.inputs = null; state.picks = {}; state.result = out;
+    toast(out.failed.length ? `Wrote ${out.written} rows; ${out.failed.length} failed.` : `Wrote ${out.written} rows.`,
+      { type: out.failed.length ? 'error' : 'success' });
+    await renderOsAdminPage('datahealth');
+  } catch (e) {
+    clearButtonLoading(btn);
+    toast('Error applying: ' + e.message, { type: 'error' });
+  }
+}
+
+async function applyPdpWorkEmail() {
+  await _applyPdpIdentity(_pdpWe, pdpBuildWorkEmailPlan, 'Write WorkEmail', 'WorkEmail');
+}
+async function applyPdpLineManager() {
+  await _applyPdpIdentity(_pdpLm, pdpBuildLineManagerPlan, 'Write line managers', 'ReportsTo');
+}
 
 function _dhRenderLciMigrationHtml(data) {
   const ch = data.lciChoices || { ok: false, missing: [] };
@@ -1766,6 +2002,12 @@ registerActions({
   applyProjectTeamBackfill,
   runProjectTeamReport,
   downloadProjectTeamCsv,
+  runPdpWorkEmailPreview,
+  setPdpWorkEmailPick,
+  applyPdpWorkEmail,
+  runPdpLineManagerPreview,
+  setPdpLineManagerPick,
+  applyPdpLineManager,
   runLciMigrationPreview,
   setLciTypePick,
   applyLciMigration,

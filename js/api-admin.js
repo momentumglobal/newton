@@ -95,6 +95,33 @@ async function getBackfillInputs() {
   return { assignments, projects, userAssignments };
 }
 
+// N-433 (PDP-1): everything the Identity (PDP) section needs — the WorkEmail backfill, the line
+// manager suggestions and the integrity checks. People includes inactive rows (getPeople(false));
+// Projects includes Completed ones. All cached reads.
+async function getPdpIdentityInputs() {
+  const [people, userAssignments, leadership, assignments, projects] = await Promise.all([
+    getPeople(false), getUserAssignments(), getLeadershipAccess(), getItems('Assignments'), getProjects(false),
+  ]);
+  return { people, userAssignments, leadership, assignments, projects };
+}
+
+// The only writer of People.WorkEmail / People.ReportsTo from N-433. One PATCH per row, one at a
+// time (updateItem invalidates the list cache); every patch is validated first by
+// pdpPlanWrites -> pdpAssertIdentityPatch, and a failed row is recorded while the rest carry on.
+async function writePdpIdentityPatches(planRows) {
+  const { writes, refused } = pdpPlanWrites(planRows);
+  const out = { written: 0, failed: refused.slice() };
+  for (const w of writes) {
+    try {
+      await updateItem('People', w.id, w.patch);
+      out.written++;
+    } catch (e) {
+      out.failed.push({ employee: w.employee, message: e && e.message ? e.message : String(e) });
+    }
+  }
+  return out;
+}
+
 // N-373: the inputs for the Data Health Project Team integrity checks (ptCheckTeamIntegrity).
 // Projects includes Completed ones; the check itself filters to active projects. Cached reads,
 // all three lists are already read by neighbouring Data Health sections.

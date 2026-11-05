@@ -583,6 +583,26 @@ async function showOrgChartEditForm() {
   const internalRows = people.filter(p => isInternalStaff(p))
     .map(p => personRow(p, personRoleLabel(p))).join('');
 
+  // N-433 (PDP-1): delivery staff (TP / STP / PTP / SDM) report to a person, not a leader. The
+  // option value is the manager's WorkEmail; any CSD, SDM or STP may manage anyone (project
+  // variation). The stored value is always kept as an option, so saving never blanks a
+  // ReportsTo this list cannot offer; data-orig lets Save write changed rows only.
+  const deliveryRow = (p) => {
+    const cur = _ocEmail(p.ReportsTo);
+    const mgrs = pdpEligibleManagers(people, p.id);
+    const known = mgrs.some(m => m.email === cur);
+    return `
+    <tr>
+      <td>${_ocEsc(p.EmployeeName)} <span class='org-tag'>${_ocEsc(personRoleLabel(p))}</span></td>
+      <td><select data-person='${p.id}' data-orig='${_ocEsc(cur)}' data-name='${_ocEsc(p.EmployeeName)}'>
+        <option value=''>— none —</option>
+        ${cur && !known ? `<option value='${_ocEsc(cur)}' selected>(current) ${_ocEsc(cur)}</option>` : ''}
+        ${mgrs.map(m => `<option value='${_ocEsc(m.email)}' ${m.email === cur ? 'selected' : ''}>${_ocEsc(m.name)} (${_ocEsc(m.level)})</option>`).join('')}
+      </select></td>
+    </tr>`;
+  };
+  const deliveryRows = people.filter(p => pdpInScope(p)).map(deliveryRow).join('');
+
   main.innerHTML = `
     <div class='form-container' style='max-width:760px'>
       <h2>Edit reporting lines</h2>
@@ -593,6 +613,9 @@ async function showOrgChartEditForm() {
       <h3 style='margin-top:20px'>Reports to</h3>
       <table class='data-table'><thead><tr><th>Person</th><th>Reports to</th></tr></thead>
         <tbody>${leaderRows}${csdRows}${internalRows}</tbody></table>
+      ${deliveryRows ? `<h3>Line manager — delivery staff</h3>
+      <table class='data-table'><thead><tr><th>Person</th><th>Line manager</th></tr></thead>
+        <tbody>${deliveryRows}</tbody></table>` : ''}
       <div class='form-actions'>
         <button type='button' class='btn-primary'${act('saveOrgChartEdits', ACT_EL)}>Save changes</button>
         <button type='button' class='btn-secondary'${act('navigateToPeople', 'orgChart')}>Cancel</button>
@@ -603,12 +626,29 @@ async function showOrgChartEditForm() {
 async function saveOrgChartEdits(btn) {
   setButtonLoading(btn);
   try {
+    // N-433: delivery-staff rows carry data-orig and are written only when changed, and never
+    // in a way that makes a reporting loop (checked against the plan so far).
+    const changed = [...document.querySelectorAll('[data-person][data-orig]')]
+      .filter(el => el.value !== el.getAttribute('data-orig'));
+    if (changed.length) {
+      const sim = (await getPeople(true)).map(p => Object.assign({}, p));
+      changed.forEach(el => {
+        const id = el.getAttribute('data-person');
+        if (pdpWouldCycle(sim, id, el.value)) {
+          throw new Error(`${el.getAttribute('data-name')}: that line manager would make a reporting loop`);
+        }
+        const row = sim.find(p => String(p.id) === String(id));
+        if (row) row.ReportsTo = el.value;
+      });
+    }
     const jobs = [];
     document.querySelectorAll('[data-proj]').forEach(el =>
       jobs.push(updateItem('Projects', el.getAttribute('data-proj'), { CSDName: el.value })));
     document.querySelectorAll('[data-lead]').forEach(el =>
       jobs.push(updateItem('LeadershipAccess', el.getAttribute('data-lead'), { ReportsTo: el.value })));
-    document.querySelectorAll('[data-person]').forEach(el =>     // CSDs + internal staff (N-304)
+    document.querySelectorAll('[data-person]:not([data-orig])').forEach(el =>     // CSDs + internal staff (N-304)
+      jobs.push(updateItem('People', el.getAttribute('data-person'), { ReportsTo: el.value })));
+    changed.forEach(el =>
       jobs.push(updateItem('People', el.getAttribute('data-person'), { ReportsTo: el.value })));
     await Promise.all(jobs);
     navigateToPeople('orgChart');

@@ -581,6 +581,7 @@ const CONFIG = {
       'IsActive', 'PhotoUrl', 'IsPlaceholder', 'PlaceholderProject',
       'PlaceholderCSD', 'ReportsTo',
       'StaffType', 'StaffFunction',   // N-304
+      'WorkEmail',                    // N-433: the person's own work email (PDP identity). Create the column BEFORE deploying.
     ],
     // N-286: one row per person. Title = People item id as text; PersonID
     // (Number) is the join key. Restricted list (admin + leadership) — read
@@ -1498,6 +1499,7 @@ const CONFIG = {
       AnomalyAcks:    ['Note'],
       Assignments:    ['MonthlyBillRate', 'RetainerFee', 'PlacementFee', 'ProratedRevenue', 'BilledRevenue', 'UserEmail'],   // N-394: every money column, the computeMonthlyRows revenue columns, and staff emails (names only)
       SalesForecasts: ['ForecastedHeadcount'],   // N-394: read locally for the forecast %, never returned
+      People:         ['WorkEmail'],             // N-433: staff work emails are never returned to Claude
     },
     windows: {
       summaryWeeks:      13,   // project_summary hires window (default)
@@ -1508,6 +1510,22 @@ const CONFIG = {
       maxWeeks:          52,   // upper bound for any weeks argument
     },
     maxRows: 200,
+  },
+
+  // N-433 (PDP-1): Development & Performance identity. Single source of truth for who is in
+  // scope and who can be a line manager (js/pdp-identity.js).
+  //   SCOPE_LEVELS    PDP-D9: People.Level values that take part (CSDs are reviewers only).
+  //   REVIEWER_LEVEL  PDP-D6: the level the "CSD up the chain" walk stops at.
+  //   MANAGER_LEVELS  who the line-manager pickers offer, in display order. Not absolute:
+  //                   project-specific variation exists, so any of these may manage anyone.
+  //   MAX_CHAIN       longest ReportsTo chain the resolver follows before giving up.
+  //   DISPLAY_ROWS    rows shown per Data Health integrity check before "+ n more".
+  PDP: {
+    SCOPE_LEVELS:   ['TP', 'STP', 'PTP', 'SDM'],
+    REVIEWER_LEVEL: 'CSD',
+    MANAGER_LEVELS: ['CSD', 'SDM', 'STP'],
+    MAX_CHAIN:      8,
+    DISPLAY_ROWS:   10,
   },
 
   // ── LCI Cost Model + Lead Magnet: CONFIG.LCI and CONFIG.LCI_DISCIPLINES live in js/lci-config.js (sales.html only) ──

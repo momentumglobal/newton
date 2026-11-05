@@ -432,6 +432,13 @@ const CONFIG = {
       // Contact fields are never carried (N-428); the client logo lives on ClientLogos.
       copyFields: ['Pages'],
       overrideFields: ['Title', 'ProjectID', 'RoleID', 'ClientName', 'RoleTitle', 'RoleLocation', 'CoverDate'],
+      // N-428 (TPL-D5): the only content a template row stores, and the scope blanked on
+      // every template create AND update (saveTemplateItem, api.js). null clears a Number.
+      templateFields: ['Title', 'Pages'],
+      stripFields: {
+        ProjectID: null, RoleID: null, ClientName: '', RoleTitle: '', RoleLocation: '',
+        ContactName: '', ContactTitle: '', ContactEmail: '',
+      },
     },
     SAVED_REPORT: {
       list: 'SavedReports',
@@ -444,6 +451,33 @@ const CONFIG = {
       checkFailed:  "Couldn't check template permissions — nothing saved.",
       notTemplate:  'That item is not a template.',
       nameRequired: 'Please enter a template name.',
+      // N-428
+      noWritableProject:   "You don't have a project you can add a pack to.",
+      rolesLoadFailed:     "Couldn't load roles — you can pick one in the builder.",
+      createdFromTemplate: 'Created from the template — check the details, then Save.',
+      savedAsTemplate:     'Saved as template "{name}".',
+      scopeNote:           "Templates aren't tied to a project. Client, role and contact details are filled in when someone uses it.",
+      bandEmptyAdmin:      'No templates yet — open a pack and use Save as template.',
+    },
+    // N-428 (TPL-D8–D11): UI labels for the Templates band, the Use template dialog and
+    // Save as template. Shared with N-429 (Report Builder).
+    LABELS: {
+      band:               'Templates',
+      badge:              'Template',
+      use:                'Use template',
+      edit:               'Edit',
+      del:                'Delete',
+      saveAs:             'Save as template',
+      modalTitle:         'Use template',
+      modalConfirm:       'Create',
+      projectLabel:       'Project',
+      projectPlaceholder: 'Select a project...',
+      roleLabel:          'Role',
+      roleNone:           'No role yet',
+      rolesLoading:       'Loading roles...',
+      nameLabel:          'Template name',
+      namePromptTitle:    'Save as template',
+      namePromptMessage:  'Users pick the template by this name. Project, role, client and contact details are not saved with it.',
     },
   },
 

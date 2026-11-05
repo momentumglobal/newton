@@ -407,3 +407,150 @@ ASSERTIONS.push(
     },
   }
 );
+
+// ── N-429 (TPL-3) Report Builder templates UI ────────────────────────────
+
+ASSERTIONS.push(
+  {
+    name: 'N-429 AC1 templateModuleOrder strips Snapshot values, optionally drops the Hiring Plan, fails closed',
+    fn: function () {
+      const blocks = [
+        { type: 'panel', key: 'kpiStrip', id: 'a' },
+        { type: 'panel', key: 'candidateSnapshot', id: 'b', values: { 12: { screening: '3' } } },
+        { type: 'text', id: 'c', content: '<b>x</b>' },
+        { type: 'hiringPlan' },
+        { type: 'titlePage' },
+      ];
+      const json = JSON.stringify(blocks);
+      const kept = JSON.parse(templateModuleOrder(json));
+      _assertEqual(kept.map(b => b.id || b.type), ['a', 'b', 'c', 'hiringPlan', 'titlePage'], 'order + markers kept by default');
+      _assertEqual('values' in kept[1], false, 'Snapshot values stripped');
+      _assertEqual([kept[1].key, kept[1].id], ['candidateSnapshot', 'b'], 'Snapshot key / id kept');
+      _assertEqual(kept[2].content, '<b>x</b>', 'text block untouched');
+      const dropped = JSON.parse(templateModuleOrder(json, { keepHiringPlan: false }));
+      _assertEqual(dropped.map(b => b.id || b.type), ['a', 'b', 'c', 'titlePage'], 'hiringPlan dropped on request');
+      _assertEqual(JSON.stringify(blocks), json, 'input not mutated');
+      _assertEqual('values' in blocks[1], true, 'control: the source block still has values');
+      ['not json', '{}', null, undefined, '', '"x"'].forEach(v =>
+        _assertEqual(templateModuleOrder(v), '[]', 'fails closed on ' + String(v)));
+      _assertEqual(templateModuleOrder('[]'), '[]', 'empty array');
+    },
+  },
+  {
+    name: 'N-429 AC2 isCoEProject; renderReportBuilder uses it',
+    fn: function () {
+      _assertEqual(isCoEProject({ ProjectType: 'CoE' }), true, 'CoE');
+      [{ ProjectType: 'Embedded' }, { ProjectType: 'coe' }, {}, null, undefined].forEach(p =>
+        _assertEqual(isCoEProject(p), false, 'not CoE: ' + JSON.stringify(p)));
+      _tplNeedSources();
+      const rb = String(ALL_SOURCES['report-builder.js'] || '');
+      _assertEqual(/ProjectType === 'CoE'/.test(rb), false, 'no CoE literal left in report-builder.js');
+      _assertEqual(_tplBody('report-builder.js', 'async function renderReportBuilder(').includes('isCoEProject('), true, 'header uses isCoEProject');
+    },
+  },
+  {
+    name: 'N-429 AC3 SAVED_REPORT templateFields / stripFields; N-429 labels and messages present',
+    fn: function () {
+      const sr = CONFIG.TEMPLATES.SAVED_REPORT;
+      _assertEqual(sr.templateFields, ['Title', 'Scope', 'Period', 'KpiPeriod', 'ModuleOrder'], 'templateFields keep Scope');
+      _assertEqual(sr.stripFields, { ProjectID: null, RoleID: null }, 'stripFields = TPL-D5');
+      _assertEqual(sr.templateFields.filter(f => ['IsTemplate', 'TemplateName', sr.ownerField, 'ProjectID', 'RoleID'].includes(f)), [], 'no flag / name / owner / scope');
+      const out = stripTemplateScope('SAVED_REPORT', { Title: 'T', Scope: 'project', ProjectID: 4, RoleID: 7 });
+      _assertEqual([out.Title, out.Scope, out.ProjectID, out.RoleID], ['T', 'project', null, null], 'strip keeps Scope, blanks project / role');
+      ['roleAll', 'previewProject', 'coeOnly', 'namePromptMessageReport'].forEach(k =>
+        _assertEqual(typeof CONFIG.TEMPLATES.LABELS[k] === 'string' && CONFIG.TEMPLATES.LABELS[k].length > 0, true, 'LABELS.' + k));
+      ['noWritableProjectReport', 'bandEmptyAdminReport', 'reportScopeNote', 'snapshotTemplateNote'].forEach(k =>
+        _assertEqual(typeof CONFIG.TEMPLATES.MESSAGES[k] === 'string' && CONFIG.TEMPLATES.MESSAGES[k].length > 0, true, 'MESSAGES.' + k));
+    },
+  },
+  {
+    name: 'N-429 AC4 clone hook — adjust runs after the picks, before the gate and the forced fields; report wrapper cleans ModuleOrder',
+    fn: function () {
+      _tplNeedSources();
+      const c = _tplBody('api.js', 'async function _cloneTemplateItem(');
+      const a = c.indexOf('adjust(fields)');
+      _assertEqual(a > c.lastIndexOf('_pickFields(') && c.lastIndexOf('_pickFields(') > 0, true, 'adjust after the picks');
+      _assertEqual(a < c.indexOf('checkProjectWrite(fields.ProjectID)'), true, 'adjust before the project gate');
+      _assertEqual(a < c.indexOf('fields.IsTemplate = false;') && a < c.indexOf('fields[spec.ownerField] ='), true, 'forced fields stay last');
+      const w = _tplBody('api.js', 'async function cloneSavedReportFromTemplate(');
+      _assertEqual(w.includes('templateModuleOrder(f.ModuleOrder, { keepHiringPlan })') && w.includes('!!(opts && opts.keepHiringPlan)'), true, 'wrapper strips + defaults to dropping the plan');
+    },
+  },
+  {
+    name: 'N-429 AC5 rbUseTemplateAction — company clones at once; project asks a writable project + optional role',
+    fn: function () {
+      _tplNeedSources();
+      const b = _tplBody('report-builder.js', 'async function rbUseTemplateAction(');
+      const i = b.indexOf("if (tpl.Scope === 'company')"), e = b.indexOf('} else {', i);
+      _assertEqual(i > 0 && e > i, true, 'company branch found');
+      const company = b.slice(i, e), project = b.slice(e);
+      _assertEqual(company.includes('cloneSavedReportFromTemplate(id, email, {}, { keepHiringPlan: false })') && !company.includes('pairSelectModal('), true, 'company: no dialog, plan dropped');
+      ['canWriteProject(', 'pairSelectModal(', 'noneLabel: T.LABELS.roleAll', 'keepHiringPlan: isCoEProject(project)', 'rbRolesFor(pid)'].forEach(s =>
+        _assertEqual(project.includes(s), true, 'project branch: ' + s));
+      const ov = (b.match(/const overrides = \{([\s\S]*?)\};/) || [])[1] || '';
+      _assertEqual(ov.length > 0 && !/\b(Title|Scope)\s*:/.test(ov), true, 'overrides carry no Title / Scope');
+      _assertEqual(b.indexOf('await rbLoadReport(copy.id)') > e, true, 'opens the clone');
+      _assertEqual(/catch \(e\)/.test(b) && b.includes('clearButtonLoading(btn)'), true, 'catches + clears the button');
+    },
+  },
+  {
+    name: 'N-429 AC6 report library renders the band first, from the unfiltered cache, Edit / Delete gated',
+    fn: function () {
+      _tplNeedSources();
+      const b = _tplBody('report-builder.js', 'function _rbRenderLibrary(');
+      _assertEqual(b.includes('templateBandRowsHtml({') && b.includes('colspan: 4') && b.includes('templates: _rbTemplateCache'), true, 'band from _rbTemplateCache, colspan 4');
+      _assertEqual(b.includes('<tbody>${band}${rows}</tbody>'), true, 'band before client rows');
+      _assertEqual(b.includes('const manage = canManageTemplates(_resolvedRole);') && /edit:\s*manage \?/.test(b) && /del:\s*manage \?/.test(b), true, 'edit / del gated');
+      _assertEqual(/_rbTemplateCache\.filter/.test(b), false, 'band not filtered by client');
+      _assertEqual(/<td colspan="4">/.test(b) && /colspan: 4,\s*icon: 'folder'/.test(b), true, 'existing rows are 4 wide too');
+    },
+  },
+  {
+    name: 'N-429 AC7 / AC8 / AC9 template mode — load drops the project; new report resets; save delegates; fields carry no scope',
+    fn: function () {
+      _tplNeedSources();
+      const load = _tplBody('report-builder.js', 'async function rbLoadReport(');
+      _assertEqual(load.includes('_rbEditingTemplate = isTemplateRow(report);') && /if \(_rbEditingTemplate\) \{\s*_rbProjectId = null;/.test(load), true, 'load sets mode, nulls project');
+      const start = _tplBody('report-builder.js', 'function rbStartNewReport(');
+      _assertEqual(start.includes('_rbEditingTemplate = false;') && start.includes("_rbTplName         = '';"), true, 'new report resets');
+      const s = _tplBody('report-builder.js', 'async function rbSaveReport(');
+      _assertEqual(s.includes('if (_rbEditingTemplate) return _rbSaveTemplate(title);'), true, 'delegates in template mode');
+      _assertEqual(s.indexOf('_rbSaveTemplate(title)') < s.indexOf('const payload'), true, 'before the payload');
+      const t = _tplBody('report-builder.js', 'async function _rbSaveTemplate(');
+      _assertEqual(t.includes("saveTemplateItem('SAVED_REPORT', _rbReportId,") && t.includes('normaliseTemplateName('), true, '_rbSaveTemplate → saveTemplateItem');
+      const f = _tplBody('report-builder.js', 'function _rbTemplateFields(');
+      _assertEqual(f.length > 0 && !/ProjectID|RoleID/.test(f) && f.includes('templateModuleOrder(_rbModuleOrderJson())'), true, 'no project / role; ModuleOrder cleaned');
+    },
+  },
+  {
+    name: 'N-429 AC10 rbSaveAsTemplateAction — named, new row, never touches the open report',
+    fn: function () {
+      _tplNeedSources();
+      const b = _tplBody('report-builder.js', 'async function rbSaveAsTemplateAction(');
+      ['promptModal(', 'normaliseTemplateName(', "saveTemplateItem('SAVED_REPORT', null,", 'namePromptMessageReport'].forEach(s =>
+        _assertEqual(b.includes(s), true, 'uses ' + s));
+      _assertEqual(/_rbReportId\s*=/.test(b) || b.includes('rbSaveReport('), false, 'open report untouched');
+    },
+  },
+  {
+    name: 'N-429 AC11 / AC12 header, sidebar and Snapshot in template mode; no new Graph call or admin literal; actions registered once',
+    fn: function () {
+      _tplNeedSources();
+      const r = _tplBody('report-builder.js', 'async function renderReportBuilder(');
+      _assertEqual(r.includes('const manage = canManageTemplates(_resolvedRole);') && /manage && !_rbEditingTemplate \? `<button[^`]*rbSaveAsTemplateAction/.test(r), true, 'Save as template gated');
+      _assertEqual(r.includes('tpl-badge') && /!_rbEditingTemplate \|\| manage \? `<button[^`]*rb-save-btn/.test(r), true, 'badge + Save gated in template mode');
+      const sb = _tplBody('report-builder.js', 'function rbRenderSidebar(');
+      _assertEqual(sb.includes('rbTemplateNameControlsHtml()') && sb.includes('LABELS.previewProject'), true, 'name field + preview label');
+      const nm = _tplBody('report-builder.js', 'function rbTemplateNameControlsHtml(');
+      _assertEqual(nm.includes("'tplName'") && nm.includes('reportScopeNote') && nm.includes('NAME_MAX_CHARS') && nm.includes('maxlength="${maxLen}"'), true, 'name input + scope note');
+      _assertEqual(/_rbIncludeTitlePage \|\| _rbEditingTemplate\) \? ''/.test(_tplBody('report-builder.js', 'function rbTitlePageControlsHtml(')), true, 'no logo controls on a template');
+      _assertEqual(_tplBody('report-builder.js', 'function rbRenderSnapshotBlock(').includes('snapshotTemplateNote'), true, 'Snapshot note in template mode');
+      const src = String(ALL_SOURCES['report-builder.js'] || '');
+      _assertEqual((src.match(/\b(createItem|updateItem|getItem|deleteItem)\(/g) || []).length, 4, 'no new Graph call sites (the 4 pre-existing remain)');
+      _assertEqual((src.match(/=== 'admin'/g) || []).length, 2, "no new 'admin' literal (the two pre-existing remain)");
+      const reg = _tplBody('report-builder.js', 'registerActions({');
+      ['rbUseTemplateAction', 'rbSaveAsTemplateAction'].forEach(n =>
+        _assertEqual((reg.match(new RegExp('\\b' + n + '\\b', 'g')) || []).length, 1, n + ' registered once'));
+    },
+  }
+);

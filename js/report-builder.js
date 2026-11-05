@@ -19,6 +19,10 @@ let _rbClientName       = '';  // selected project's CustomerName
 let _rbClientLogo       = '';  // data: URI, held against the PROJECT not the report
 let _rbClientLogoName   = '';
 let _rbProjects         = [];  // last project list, so the sidebar can re-render alone
+// N-429: template mode (TPL-D13). Names avoid the IsTemplate / TemplateName substrings —
+// N-427 AC13 scans rbSaveReport's body for them.
+let _rbEditingTemplate = false;
+let _rbTplName         = '';
 
 // Library state (N-244)
 let _rbLibraryCache  = [];  // reports visible to this user, from the last load
@@ -59,6 +63,13 @@ const RB_PALETTE = [
   { key: 'rejectionIntel',   label: 'Rejection Intelligence',     scope: 'company', group: 'Delivery Assurance', cap: 'rejectionIntelReport' },
 ];
 
+// N-429: one role reader for the sidebar and the Use template dialog. Talent Partners
+// are scoped to their own roles.
+function rbRolesFor(projectId) {
+  const tpEmail = _resolvedRole === 'talent_partner' ? getScopedUserEmail() : null;
+  return getRolesForProject(projectId, tpEmail);
+}
+
 async function renderReportBuilder() {
   const main  = document.getElementById('main-content');
   const role  = _resolvedRole;
@@ -74,8 +85,7 @@ async function renderReportBuilder() {
   // Load roles for the selected project (drives the Role filter dropdown).
   // Only needed in Project scope. Talent Partners are scoped to their own roles.
   if (_rbScope === 'project' && _rbProjectId) {
-    const tpEmail = _resolvedRole === 'talent_partner' ? getScopedUserEmail() : null;
-    _rbProjectRoles = await getRolesForProject(_rbProjectId, tpEmail);
+    _rbProjectRoles = await rbRolesFor(_rbProjectId);
     // Reset the role filter if the selected role isn't in this project.
     if (_rbRoleId !== 'all' && !_rbProjectRoles.some(r => String(r.id) === String(_rbRoleId))) {
       _rbRoleId = 'all';
@@ -91,18 +101,26 @@ async function renderReportBuilder() {
     .filter(r => _rbRoleId === 'all' || String(r.id) === String(_rbRoleId))
     .map(r => ({ id: r.id, label: escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle) }));
 
+  // N-429: template mode shows a badge, Save for template managers only, and the Hiring
+  // Plan toggle whatever the preview project (TPL-D12). Save as template on an ordinary
+  // report, managers only — every template write re-checks Admin fresh.
+  const T = CONFIG.TEMPLATES;
+  const manage = canManageTemplates(_resolvedRole);
+  const showGantt = _rbScope === 'project'
+    && (_rbEditingTemplate || isCoEProject(projects.find(p => String(p.id) === _rbProjectId)));
   main.innerHTML = `
     <div class="page-header">
-      <h2>Report Builder</h2>
+      <h2>Report Builder${_rbEditingTemplate ? ` <span class="tpl-badge">${escHtml(T.LABELS.badge)}</span>` : ''}</h2>
       <div class="page-header-actions">
-        ${(_rbScope === 'project' && projects.find(p => String(p.id) === _rbProjectId)?.ProjectType === 'CoE') ? `
+        ${showGantt ? `
         <label class="rb-gantt-toggle">
           <input type="checkbox" ${_rbIncludeGantt ? 'checked' : ''}
             ${actOn('change', 'rbSetOption', 'includeGantt', ACT_CHECKED).trim()}>
-          Planned vs Actual Role Opens final page
+          Planned vs Actual Role Opens final page${_rbEditingTemplate ? ' ' + escHtml(T.LABELS.coeOnly) : ''}
         </label>` : ''}
         <button class="btn-secondary"${act('showReportBuilderLibrary')}>&larr; Back to Library</button>
-        <button class="btn-secondary" id="rb-save-btn"${act('rbSaveReport')}>Save</button>
+        ${!_rbEditingTemplate || manage ? `<button class="btn-secondary" id="rb-save-btn"${act('rbSaveReport')}>Save</button>` : ''}
+        ${manage && !_rbEditingTemplate ? `<button class="btn-secondary"${act('rbSaveAsTemplateAction', ACT_EL)}>${escHtml(T.LABELS.saveAs)}</button>` : ''}
         <button class="btn-secondary"${act('rbPreview')}>Preview</button>
         <button class="print-btn"    ${act('rbExportPdf')}>&#8856; Export PDF</button>
       </div>
@@ -162,6 +180,7 @@ function rbRenderSidebar(projects) {
       <div class="rb-section-label">Report Title</div>
       <input id="rb-title" class="rb-input" type="text" placeholder="Untitled Report"
         value="${escAttr(_rbTitle || '')}"${actOn('input', 'rbSetOption', 'title', ACT_VALUE)}>
+      ${_rbEditingTemplate ? rbTemplateNameControlsHtml() : ''}
       ${_rbScope === 'project' ? rbTitlePageControlsHtml() : ''}
 
       <div class="rb-section-label">Scope</div>
@@ -172,7 +191,7 @@ function rbRenderSidebar(projects) {
           ${act('rbSetScope', 'company').trim()}>Company</button>`}
       </div>
 
-      ${_rbScope === 'project' ? '<div class="rb-section-label">Project</div><select class="rb-select"' + actOn('change', 'rbSetProject', ACT_VALUE) + '>' + projectOpts + '</select>' : ''}
+      ${_rbScope === 'project' ? '<div class="rb-section-label">' + escHtml(_rbEditingTemplate ? CONFIG.TEMPLATES.LABELS.previewProject : 'Project') + '</div><select class="rb-select"' + actOn('change', 'rbSetProject', ACT_VALUE) + '>' + projectOpts + '</select>' : ''}
 
       ${_rbScope === 'project' ? '<div class="rb-section-label">Role</div><select class="rb-select"' + actOn('change', 'rbSetRole', ACT_VALUE) + '>' + roleOpts + '</select>' : ''}
 
@@ -195,13 +214,26 @@ function rbRenderSidebar(projects) {
   `;
 }
 
+// N-429 (TPL-D13): template mode — the name users pick the template by, and why the
+// project below is only for Preview.
+function rbTemplateNameControlsHtml() {
+  const T = CONFIG.TEMPLATES;
+  const maxLen = T.NAME_MAX_CHARS;
+  return `
+      <div class="rb-section-label">${escHtml(T.LABELS.nameLabel)}</div>
+      <input class="rb-input" type="text" maxlength="${maxLen}" placeholder="${escAttr(T.LABELS.nameLabel)}"
+        value="${escAttr(_rbTplName || '')}"${actOn('input', 'rbSetOption', 'tplName', ACT_VALUE)}>
+      <p class="rb-footnote">${escHtml(T.MESSAGES.reportScopeNote)}</p>`;
+}
+
 // ── N-330: title page — sidebar controls, client logo, cover ──────────
 function rbTitlePageOn() {
   return _rbIncludeTitlePage && _rbScope === 'project';
 }
 
 function rbTitlePageControlsHtml() {
-  const logo = !_rbIncludeTitlePage ? '' : `
+  // N-429: no logo upload / remove on a template — the logo belongs to the preview project.
+  const logo = (!_rbIncludeTitlePage || _rbEditingTemplate) ? '' : `
       <div class="rb-section-label">Client Logo</div>
       <div class="bp-logo-control">
         ${_rbClientLogo
@@ -386,7 +418,10 @@ function rbRenderSnapshotBlock(block, i) {
     ).join('');
     return `<tr><td>${r.label}</td>${cells}</tr>`;
   }).join('');
-  const table = _rbLiveRoles.length
+  // N-429: a template never stores values (TPL-D5), so template mode shows a note, no inputs.
+  const table = _rbEditingTemplate
+    ? `<p class="rb-footnote">${escHtml(CONFIG.TEMPLATES.MESSAGES.snapshotTemplateNote)}</p>`
+    : _rbLiveRoles.length
     ? `<table class="rb-snap-table"><thead>${head}</thead><tbody>${bodyRows}</tbody></table>`
     : `<p class="no-data">No live roles for this project.</p>`;
   return `<div class="rb-block rb-block-snap" data-index="${i}" data-id="${block.id}">
@@ -613,12 +648,13 @@ async function rbLoadRejectionIntel() {
 
 // N-302b: the config inputs (title, periods, Gantt toggle) write straight to
 // module state. One action with a fixed key -> setter map, so markup can only
-// reach these four fields.
+// reach these fields.
 const _RB_OPTION_SETTERS = {
   includeGantt: v => { _rbIncludeGantt = v; },
   title:        v => { _rbTitle = v; },
   period:       v => { _rbPeriod = v; },
   kpiPeriod:    v => { _rbKpiPeriod = v; },
+  tplName:      v => { _rbTplName = v; },   // N-429: template mode only
 };
 function rbSetOption(key, value) {
   if (Object.prototype.hasOwnProperty.call(_RB_OPTION_SETTERS, key)) _RB_OPTION_SETTERS[key](value);
@@ -733,6 +769,7 @@ async function rbExportPdf() {
 async function rbSaveReport() {
   const title = document.getElementById('rb-title')?.value?.trim();
   if (!title) { toast('Please enter a report title before saving.', { type: 'error' }); return; }
+  if (_rbEditingTemplate) return _rbSaveTemplate(title);   // N-429: own checks + stripped write
   const payload = {
     Title:       title,
     Scope:       _rbScope,
@@ -740,12 +777,7 @@ async function rbSaveReport() {
     RoleID:      _rbScope === 'project' && _rbRoleId !== 'all' ? _rbRoleId : null,
     Period:      _rbPeriod,
     KpiPeriod:   _rbKpiPeriod,
-    // Markers, not blocks: hiringPlan (N-318) and titlePage (N-330).
-    ModuleOrder: JSON.stringify([
-      ..._rbBlocks,
-      ...(_rbIncludeGantt ? [{ type: 'hiringPlan' }] : []),
-      ...(rbTitlePageOn() ? [{ type: 'titlePage' }] : []),
-    ]),
+    ModuleOrder: _rbModuleOrderJson(),
   };
   try {
     if (_rbReportId) {
@@ -763,9 +795,75 @@ async function rbSaveReport() {
     return;
   }
 
-  // Brief confirmation — no intrusive alert
-   const btn = document.getElementById('rb-save-btn');
- if (btn) { btn.textContent = 'Saved ✓'; setTimeout(() => { btn.textContent = 'Save'; }, 2000); }
+  _rbFlashSaved();
+}
+
+// Brief confirmation — no intrusive alert.
+function _rbFlashSaved() {
+  const btn = document.getElementById('rb-save-btn');
+  if (btn) { btn.textContent = 'Saved ✓'; setTimeout(() => { btn.textContent = 'Save'; }, 2000); }
+}
+
+// The builder's blocks as stored. Markers, not blocks: hiringPlan (N-318) and titlePage (N-330).
+function _rbModuleOrderJson() {
+  return JSON.stringify([
+    ..._rbBlocks,
+    ...(_rbIncludeGantt ? [{ type: 'hiringPlan' }] : []),
+    ...(rbTitlePageOn() ? [{ type: 'titlePage' }] : []),
+  ]);
+}
+
+// N-429 (TPL-D5, D6, D13): what a report template stores — no project or role (the
+// preview project is never saved; saveTemplateItem strips them again) and no Snapshot values.
+function _rbTemplateFields(title) {
+  return {
+    Title:       title,
+    Scope:       _rbScope,
+    Period:      _rbPeriod,
+    KpiPeriod:   _rbKpiPeriod,
+    ModuleOrder: templateModuleOrder(_rbModuleOrderJson()),
+  };
+}
+
+// N-429: save the open template. saveTemplateItem (api.js) re-checks Admin fresh, refuses
+// a non-template row and blanks the scope.
+async function _rbSaveTemplate(title) {
+  const name = normaliseTemplateName(_rbTplName);
+  if (!name) { toast(CONFIG.TEMPLATES.MESSAGES.nameRequired, { type: 'error' }); return; }
+  try {
+    await saveTemplateItem('SAVED_REPORT', _rbReportId, _rbTemplateFields(title), name);
+  } catch (e) {
+    toast(e.message, { type: 'error' });
+    return;
+  }
+  _rbTplName = name;
+  _rbFlashSaved();
+}
+
+// N-429 (TPL-D10): publish the builder's current report as a NEW template row. The open
+// report is not saved or changed (_rbReportId untouched); works on an unsaved report too.
+async function rbSaveAsTemplateAction(btn) {
+  const T = CONFIG.TEMPLATES;
+  const title = document.getElementById('rb-title')?.value?.trim();
+  if (!title) { toast('Please enter a report title before saving.', { type: 'error' }); return; }
+  const raw = await promptModal({
+    title: T.LABELS.namePromptTitle,
+    message: T.LABELS.namePromptMessageReport,
+    placeholder: T.LABELS.nameLabel,
+    confirmLabel: T.LABELS.saveAs,
+  });
+  if (raw === null) return;
+  const name = normaliseTemplateName(raw);
+  if (!name) { toast(T.MESSAGES.nameRequired, { type: 'error' }); return; }
+  setButtonLoading(btn);
+  try {
+    await saveTemplateItem('SAVED_REPORT', null, _rbTemplateFields(title), name, getCurrentUser().email);
+    toast(T.MESSAGES.savedAsTemplate.replace('{name}', name));
+  } catch (e) {
+    toast(e.message, { type: 'error' });
+  } finally {
+    clearButtonLoading(btn);
+  }
 }
 
 // ── Report Builder Library (N-244) ─────────────────────────────────────
@@ -862,6 +960,20 @@ function _rbRenderLibrary() {
   const isAdmin = _resolvedRole === 'admin';
   const reports = _rbLibraryCache.filter(r => !_rbLibraryFilter || _rbReportClient(r) === _rbLibraryFilter);
 
+  // N-429: pinned Templates band — ignores the Client filter. Use for everyone it lists
+  // (templatesVisibleTo); Edit / Delete for template managers only (writes re-check fresh).
+  const manage = canManageTemplates(_resolvedRole);
+  const band = templateBandRowsHtml({
+    colspan: 4,
+    templates: _rbTemplateCache,
+    emptyMessage: manage ? CONFIG.TEMPLATES.MESSAGES.bandEmptyAdminReport : '',
+    rowActs: t => ({
+      use:  act('rbUseTemplateAction', Number(t.id), ACT_EL),
+      edit: manage ? act('rbLoadReport', Number(t.id)) : '',
+      del:  manage ? act('rbDeleteReport', Number(t.id), templateDisplayName(t)) : '',
+    }),
+  });
+
   const groups = {};
   reports.forEach(r => {
     const client = _rbReportClient(r);
@@ -918,7 +1030,7 @@ function _rbRenderLibrary() {
         <thead><tr>
           <th>Title</th><th>Period</th><th>Owner</th><th></th>
         </tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>${band}${rows}</tbody>
       </table>
     </div>
   `;
@@ -928,6 +1040,8 @@ function _rbRenderLibrary() {
 // ── Builder entry points ────────────────────────────────────────────────
 function rbStartNewReport() {
   _rbReportId     = null;
+  _rbEditingTemplate = false;   // N-429
+  _rbTplName         = '';
   _rbBlocks       = [];
   _rbTitle        = '';
   _rbIncludeGantt = false;
@@ -957,6 +1071,67 @@ async function rbCopyReportAction(id, btn) {
   }
 }
 
+// N-429 (TPL-D3, D6, D11, D12): create an owned report from a template. A company-scope
+// template clones straight away; a project-scope one asks for a writable project
+// (required) and a role filter (optional — "All roles"). The clone keeps the template's
+// Title, Scope and modules; Snapshot values are always stripped and the Hiring Plan page
+// survives only on a CoE project (cloneSavedReportFromTemplate, api.js).
+async function rbUseTemplateAction(id, btn) {
+  const T = CONFIG.TEMPLATES;
+  setButtonLoading(btn);
+  try {
+    const tpl = _rbTemplateCache.find(t => String(t.id) === String(id));
+    if (!tpl) {
+      toast(T.MESSAGES.notTemplate, { type: 'error' });
+      await showReportBuilderLibrary();
+      return;
+    }
+    const email = getCurrentUser().email;
+    let copy;
+    if (tpl.Scope === 'company') {
+      copy = await cloneSavedReportFromTemplate(id, email, {}, { keepHiringPlan: false });
+    } else {
+      const [list, writableIds] = await Promise.all([getScopedProjects(email, false), getUserWritableProjectIds(email)]);
+      const projects = dashboardProjects(list).filter(p => canWriteProject(_resolvedRole, p.id, writableIds));
+      if (!projects.length) { toast(T.MESSAGES.noWritableProjectReport, { type: 'error' }); return; }
+      const options = sortProjectsByName(projects).map(p => ({
+        value: String(p.id),
+        label: p.CustomerName || String(p.id),   // same label as buildProjectOptionsHtml
+        group: isProjectActive(p) ? 'Active' : 'Archive',
+      }));
+      const roleCache = {};
+      const picked = await pairSelectModal({
+        title: T.LABELS.modalTitle,
+        message: templateDisplayName(tpl),
+        first: { label: T.LABELS.projectLabel, placeholder: T.LABELS.projectPlaceholder, options },
+        second: {
+          label: T.LABELS.roleLabel,
+          noneLabel: T.LABELS.roleAll,
+          loadingLabel: T.LABELS.rolesLoading,
+          errorText: T.MESSAGES.rolesLoadFailed,
+          load: async pid => (roleCache[pid] = await rbRolesFor(pid)).map(r => ({ value: String(r.id), label: _bpRoleLabel(r) })),
+        },
+        confirmLabel: T.LABELS.modalConfirm,
+      });
+      if (!picked) return;
+      const project = projects.find(p => String(p.id) === String(picked.first));
+      if (!project) { toast(T.MESSAGES.noWritableProjectReport, { type: 'error' }); return; }
+      const role = (roleCache[picked.first] || []).find(r => String(r.id) === String(picked.second)) || null;
+      const overrides = {
+        ProjectID: parseInt(project.id),
+        RoleID:    role ? parseInt(role.id) : null,
+      };
+      copy = await cloneSavedReportFromTemplate(id, email, overrides, { keepHiringPlan: isCoEProject(project) });
+    }
+    await rbLoadReport(copy.id);
+    toast(T.MESSAGES.createdFromTemplate);
+  } catch (e) {
+    toast('Could not create a report from that template: ' + e.message, { type: 'error' });
+  } finally {
+    clearButtonLoading(btn);
+  }
+}
+
 async function rbLoadReport(id) {
   const report = await getSavedReportById(id);
   _rbReportId   = id;
@@ -970,6 +1145,15 @@ async function rbLoadReport(id) {
   _rbIncludeTitlePage = _loadedBlocks.some(b => b.type === 'titlePage');
   _rbBlocks     = _loadedBlocks.filter(b => b.type !== 'hiringPlan' && b.type !== 'titlePage');
   _rbTitle      = report.Title;
+  // N-429 (TPL-D7, D13): a template never has a project or role — whatever the row holds
+  // (a hand-made row may carry some). renderReportBuilder then picks the first project as
+  // the PREVIEW project, which is never saved to the template.
+  _rbEditingTemplate = isTemplateRow(report);
+  _rbTplName         = report.TemplateName || '';
+  if (_rbEditingTemplate) {
+    _rbProjectId = null;
+    _rbRoleId    = 'all';
+  }
   renderReportBuilder();
 }
 
@@ -1049,4 +1233,7 @@ registerActions({
   rbSetTitlePage,
   rbUploadClientLogo,
   rbRemoveClientLogo,
+  // N-429: Report templates.
+  rbUseTemplateAction,
+  rbSaveAsTemplateAction,
   });

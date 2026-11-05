@@ -445,6 +445,11 @@ const CONFIG = {
       ownerField: 'ReportOwner',
       copyFields: ['Scope', 'Period', 'KpiPeriod', 'ModuleOrder'],
       overrideFields: ['Title', 'Scope', 'ProjectID', 'RoleID'],
+      // N-429 (TPL-D5, D6): a report template keeps its Scope; the project / role are
+      // blanked on every template write. Candidate Pipeline Snapshot values are stripped
+      // from ModuleOrder separately (templateModuleOrder, utils.js).
+      templateFields: ['Title', 'Scope', 'Period', 'KpiPeriod', 'ModuleOrder'],
+      stripFields: { ProjectID: null, RoleID: null },
     },
     MESSAGES: {
       adminOnly:    'Only an Admin can change a template — nothing saved.',
@@ -458,6 +463,11 @@ const CONFIG = {
       savedAsTemplate:     'Saved as template "{name}".',
       scopeNote:           "Templates aren't tied to a project. Client, role and contact details are filled in when someone uses it.",
       bandEmptyAdmin:      'No templates yet — open a pack and use Save as template.',
+      // N-429
+      noWritableProjectReport: "You don't have a project you can add a report to.",
+      bandEmptyAdminReport:    'No templates yet — open a report and use Save as template.',
+      reportScopeNote:         "Templates aren't tied to a project. The project picked here is only for Preview — whoever uses the template picks their own.",
+      snapshotTemplateNote:    'Filled in per report — candidate numbers are not saved in a template.',
     },
     // N-428 (TPL-D8–D11): UI labels for the Templates band, the Use template dialog and
     // Save as template. Shared with N-429 (Report Builder).
@@ -478,6 +488,11 @@ const CONFIG = {
       nameLabel:          'Template name',
       namePromptTitle:    'Save as template',
       namePromptMessage:  'Users pick the template by this name. Project, role, client and contact details are not saved with it.',
+      // N-429 (TPL-D12, D13)
+      roleAll:            'All roles',
+      previewProject:     'Preview with project',
+      coeOnly:            '(CoE projects only)',
+      namePromptMessageReport: 'Users pick the template by this name. The project, role and candidate numbers are not saved with it.',
     },
   },
 

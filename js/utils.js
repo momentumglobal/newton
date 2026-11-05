@@ -166,6 +166,29 @@ function stripTemplateScope(kind, fields, cfg = CONFIG) {
   return { ...base, ...((spec && spec.stripFields) || {}) };
 }
 
+// N-429 (TPL-D5, D12): a Report Builder ModuleOrder (JSON text) made safe for a template
+// write or a clone. Candidate Pipeline Snapshot blocks lose `values` (keyed by another
+// project's role ids — client data never travels in a template); the hiringPlan marker
+// is dropped when keepHiringPlan is false. Order, text blocks and titlePage are kept.
+// Bad JSON / not an array → '[]' (fail closed: unknown content is never passed through).
+function templateModuleOrder(json, { keepHiringPlan = true } = {}) {
+  let blocks;
+  try { blocks = JSON.parse(json); } catch (e) { return '[]'; }
+  if (!Array.isArray(blocks)) return '[]';
+  return JSON.stringify(blocks
+    .filter(b => keepHiringPlan || !(b && b.type === 'hiringPlan'))
+    .map(b => {
+      if (!b || b.key !== 'candidateSnapshot') return b;
+      const { values, ...rest } = b;   // eslint-disable-line no-unused-vars
+      return rest;
+    }));
+}
+
+// N-429: one rule for "this project gets the CoE Hiring Plan page".
+function isCoEProject(p) {
+  return !!p && p.ProjectType === 'CoE';
+}
+
 // ── Split-fee revenue (N-116) ─────────────────────────────────────────
 // Exec Search and MG AI bill as a retainer up front plus the balance on
 // placement, not a monthly rate. Each is recognised as a single lump sum in a

@@ -1111,7 +1111,9 @@ async function checkTemplateWrite(listName, id) {
 // IsTemplate, TemplateName and the owner are forced AFTER both picks, so no whitelist or
 // override can produce a template or a foreign owner. A clone onto a project passes the
 // N-369 write gate first. Anyone may clone; only the result's project is gated.
-async function _cloneTemplateItem(spec, id, owner, overrides) {
+// N-429: optional `adjust(fields)` runs after the picks and before the project gate and
+// the forced fields — the report wrapper uses it to clean ModuleOrder.
+async function _cloneTemplateItem(spec, id, owner, overrides, adjust) {
   const src = await getItem(spec.list, id);
   if (!isTemplateRow(src)) throw new Error(CONFIG.TEMPLATES.MESSAGES.notTemplate);
   const o = overrides || {};
@@ -1120,6 +1122,7 @@ async function _cloneTemplateItem(spec, id, owner, overrides) {
     ..._pickFields(o, spec.overrideFields),
   };
   fields.Title = String(o.Title || src.Title || '').trim() || templateDisplayName(src);
+  if (typeof adjust === 'function') adjust(fields);
   if (fields.ProjectID) {
     const w = await checkProjectWrite(fields.ProjectID);
     if (!w.ok) throw new Error(w.reason);
@@ -1134,10 +1137,14 @@ async function cloneBriefingPackFromTemplate(id, owner, overrides) {
   return _cloneTemplateItem(CONFIG.TEMPLATES.BRIEFING_PACK, id, owner, overrides);
 }
 
-// N-429 adds the Candidate Pipeline Snapshot block.values strip here; until then
-// ModuleOrder is copied as-is.
-async function cloneSavedReportFromTemplate(id, owner, overrides) {
-  return _cloneTemplateItem(CONFIG.TEMPLATES.SAVED_REPORT, id, owner, overrides);
+// N-429 (TPL-D12): every clone strips Candidate Pipeline Snapshot values from ModuleOrder
+// (covers hand-made / older template rows too) and keeps the Hiring Plan page only when
+// opts.keepHiringPlan (the caller's project is CoE). Default drops it — fail safe.
+async function cloneSavedReportFromTemplate(id, owner, overrides, opts) {
+  const keepHiringPlan = !!(opts && opts.keepHiringPlan);
+  return _cloneTemplateItem(CONFIG.TEMPLATES.SAVED_REPORT, id, owner, overrides, f => {
+    f.ModuleOrder = templateModuleOrder(f.ModuleOrder, { keepHiringPlan });
+  });
 }
 
 // N-428 (TPL-D5, D10): the ONLY path that writes IsTemplate = true. kind = a

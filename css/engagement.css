@@ -12,7 +12,7 @@
   min-width: var(--sp-10); min-height: var(--sp-10);
   transition: background var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard), border-color var(--dur-base) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
 }
-.btn-icon:hover { background: var(--surface-hover); color: var(--brand); }
+.btn-icon:hover { background: var(--surface-hover); color: var(--text-heading); }
 .btn-icon:disabled { opacity: 0.35; cursor: default; }
 .btn-icon:active:not(:disabled) { transform: scale(0.98); }
 .btn-icon--danger:hover { background: var(--status-danger-bg-soft); color: var(--status-danger-text); border-color: var(--btn-icon-danger-hover-border); }
@@ -74,7 +74,7 @@
   max-width: 640px; width: 100%;
 }
 .survey-logo { width: 28px; height: 28px; object-fit: contain; }
-.survey-title { font-size: var(--fs-15); font-weight: 600; color: var(--brand); letter-spacing: var(--ls-heading); }
+.survey-title { font-size: var(--fs-15); font-weight: 600; color: var(--text-heading); letter-spacing: var(--ls-heading); }
 .survey-progress-bar {
   width: 100%; max-width: 640px;
   height: var(--sp-2); background: var(--surface-alt-border); border-radius: var(--r-xs);
@@ -93,7 +93,7 @@
 .survey-card--confirmation { align-items: center; text-align: center; gap: var(--sp-6); }
 .survey-confirm-icon { width: var(--sp-12); height: var(--sp-12); color: var(--status-success-text); stroke-width: 1.5; }
 .survey-counter { font-size: var(--fs-12); color: var(--text-muted); margin: 0; text-transform: uppercase; letter-spacing: 0.06em; }
-.survey-question-text { font-size: var(--fs-16); font-weight: 600; color: var(--brand); margin: 0; line-height: 1.4; }
+.survey-question-text { font-size: var(--fs-16); font-weight: 600; color: var(--text-heading); margin: 0; line-height: 1.4; }
 .survey-required { color: var(--status-danger-text); }
 .survey-answer-area { display: flex; flex-direction: column; gap: var(--sp-5); }
 .survey-actions {
@@ -112,7 +112,7 @@
   cursor: pointer;
   transition: border-color var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
 }
-.survey-rating-btn:hover:where(:not(:disabled)) { border-color: var(--brand-secondary); color: var(--brand-secondary); }
+.survey-rating-btn:hover:where(:not(:disabled)) { border-color: var(--brand-secondary); color: var(--text-brand-secondary); }
 .survey-rating-btn--active { background: var(--brand-secondary); border-color: var(--brand-secondary); color: var(--text-on-brand); }
 .survey-rating-labels {
   display: flex; justify-content: space-between;
@@ -140,7 +140,7 @@
 .survey-textarea:hover:where(:not(:disabled)) { border-color: var(--text-muted); }
 .survey-textarea:focus { outline: none; border-color: var(--border-focus);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent); }
-.survey-char-count { font-size: var(--fs-11); color: var(--text-faint); text-align: right; }
+.survey-char-count { font-size: var(--fs-11); color: var(--text-muted); text-align: right; }
 
 /* ── Engagement results dashboard ──────────────────────────────────── */
 .eng-controls {
@@ -167,8 +167,8 @@
   cursor: pointer; border-bottom: var(--sp-1) solid transparent;
   margin-bottom: -2px; transition: color 0.12s, border-color 0.12s;
 }
-.eng-tab--active { color: var(--brand-secondary); border-bottom-color: var(--brand-secondary); }
-.eng-tab:hover { color: var(--brand-secondary); }
+.eng-tab--active { color: var(--text-brand-secondary); border-bottom-color: var(--text-brand-secondary); }
+.eng-tab:hover { color: var(--text-brand-secondary); }
 
 /* Rate banner */
 .eng-rate-banner {
@@ -176,9 +176,9 @@
   background: var(--surface-alt); border-radius: var(--r-lg);
   padding: var(--sp-6) var(--sp-7); margin-bottom: var(--sp-8); flex-wrap: wrap;
 }
-.eng-rate-number { font-size: var(--fs-22); font-weight: 700; color: var(--brand); font-variant-numeric: tabular-nums; }
+.eng-rate-number { font-size: var(--fs-22); font-weight: 700; color: var(--text-heading); font-variant-numeric: tabular-nums; }
 .eng-rate-label  { font-size: var(--fs-14); color: var(--text-label); }
-.eng-rate-pct    { font-size: var(--fs-14); font-weight: 700; color: var(--brand-secondary); margin-left: auto; font-variant-numeric: tabular-nums; }
+.eng-rate-pct    { font-size: var(--fs-14); font-weight: 700; color: var(--text-brand-secondary); margin-left: auto; font-variant-numeric: tabular-nums; }
 .eng-status-badge {
   font-size: var(--fs-11); font-weight: 700; padding: var(--sp-1) var(--sp-4);
   border: 1px solid transparent;
@@ -198,10 +198,10 @@
   letter-spacing: 0.06em; color: var(--text-muted);
   background: var(--surface-alt); padding: var(--sp-1) var(--sp-4); border: 1px solid transparent; border-radius: var(--r-pill);
 }
-.eng-card-question { font-size: var(--fs-15); font-weight: 600; color: var(--brand); margin: 0; }
-.eng-card-score { font-size: var(--fs-32); font-weight: 700; color: var(--brand-secondary); line-height: 1; font-variant-numeric: tabular-nums; }
-.eng-card-scale { font-size: var(--fs-16); color: var(--text-faint); font-weight: 400; }
-.eng-card-n { font-size: var(--fs-12); color: var(--text-faint); margin: 0; }
+.eng-card-question { font-size: var(--fs-15); font-weight: 600; color: var(--text-heading); margin: 0; }
+.eng-card-score { font-size: var(--fs-32); font-weight: 700; color: var(--text-brand-secondary); line-height: 1; font-variant-numeric: tabular-nums; }
+.eng-card-scale { font-size: var(--fs-16); color: var(--text-muted); font-weight: 400; }
+.eng-card-n { font-size: var(--fs-12); color: var(--text-muted); margin: 0; }
 
 /* Delta badge */
 .eng-delta {
@@ -224,7 +224,7 @@
 .eng-dist-seg--high { background: var(--status-success); }
 .eng-dist-labels {
   display: flex; justify-content: space-between;
-  font-size: var(--fs-11); color: var(--text-faint);
+  font-size: var(--fs-11); color: var(--text-muted);
 }
 
 /* Choice bars */
@@ -241,7 +241,7 @@
   font-size: var(--fs-13); color: var(--text-secondary); background: var(--surface-faint);
   border-left: var(--sp-1) solid var(--surface-alt-border); padding: var(--sp-4) var(--sp-6); border-radius: 0 var(--r-md) var(--r-md) 0;
 }
-.eng-freetext-empty { font-size: var(--fs-13); color: var(--text-faint); font-style: italic; }
+.eng-freetext-empty { font-size: var(--fs-13); color: var(--text-muted); font-style: italic; }
 
 /* Trends */
 .eng-trends { background: var(--surface); border: 1px solid var(--border-subtle); border-radius: var(--r-xl); padding: var(--sp-8) var(--sp-9); }
@@ -296,7 +296,7 @@
 .eng-q-text { font-size: var(--fs-13); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .eng-q-required { font-size: var(--fs-10); color: var(--status-danger-text); font-weight: 700; flex-shrink: 0; }
 .eng-q-row-actions { display: flex; gap: var(--sp-2); flex-shrink: 0; }
-.eng-hint { font-size: var(--fs-12); color: var(--text-faint); margin: 0; font-style: italic; }
+.eng-hint { font-size: var(--fs-12); color: var(--text-muted); margin: 0; font-style: italic; }
 
 /* Optimistic-insert pending row — Engagement Questions (N-218c) */
 /* .eng-q-row is a <div>, not a <table> row -- the .data-table tbody      */

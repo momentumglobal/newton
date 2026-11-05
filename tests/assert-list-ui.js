@@ -429,6 +429,49 @@ ASSERTIONS.push(
     },
   },
   {
+    name: 'N-419 desktop: contrast audit of every style.css text / surface pair — text ≥ 4.5:1, boundaries and glyphs ≥ 3:1, light and dark; the one documented exception is the dark brand-blue edge (control: a failing pair is reported)',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const css = ALL_CSS['style.css'];
+      _assertEqual(desktopContrastAudit(css, 'light'), [], 'light pairs');
+      _assertEqual(desktopContrastAudit(css, 'dark'), [], 'dark pairs');
+      _assertEqual(desktopContrastAudit(css, 'light', DESKTOP_EDGE_PAIRS), [], 'brand-blue edge on the light surface');
+      const dark = desktopContrastAudit(css, 'dark', DESKTOP_EDGE_PAIRS);
+      _assertEqual(dark.length === 1 && /2\.7\d:1/.test(dark[0]), true, 'brand-blue edge on the dark surface is the documented 2.7:1 exception (VF-D2)');
+      _assertEqual(desktopContrastAudit(':root { --a: #888888; --b: #ffffff; }', 'light', [['--a', '--b', 4.5, 'old grey text']]).length, 1, 'control: the old #888 on white (3.5:1) fails text contrast');
+      _assertEqual(DESKTOP_CONTRAST_PAIRS.length >= 80, true, 'the pair table has not been thinned');
+    },
+  },
+  {
+    name: 'N-419 print re-pin names exactly the tokens the dark block redefines (a token in one and not the other is a dark PDF or a dead re-pin)',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const css = ALL_CSS['style.css'], dark = desktopDarkTokenNames(css), print = desktopPrintRepinNames(css);
+      _assertEqual(dark.length > 40, true, 'the dark block was found (' + dark.length + ' tokens)');
+      _assertEqual(dark.filter(n => print.indexOf(n) < 0), [], 'dark tokens missing from the print re-pin');
+      _assertEqual(print.filter(n => dark.indexOf(n) < 0), [], 'print re-pin tokens the dark block does not redefine');
+    },
+  },
+  {
+    name: 'N-419 every `outline: none` on a :focus rule sets a replacement indicator (border-color or box-shadow); the only exceptions are the command-bar input (its wrapper shows the ring) and the print-only reset',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const EXEMPT = ['.cmd-bar-input:focus'];
+      const bare = [];
+      Object.keys(ALL_CSS).forEach(function (file) {
+        const re = /([^{}]+)\{([^{}]*\boutline:\s*none\b[^{}]*)\}/g;
+        let m;
+        while ((m = re.exec(ALL_CSS[file]))) {
+          const sel = m[1].replace(/\/\*[\s\S]*?\*\//g, '').trim(), body = m[2];
+          if (!/:focus/.test(sel) || /!important/.test(body)) continue;   // print reset is `:focus-visible { outline: none !important }`
+          if (EXEMPT.indexOf(sel) > -1) continue;
+          if (!/border-color|box-shadow/.test(body)) bare.push(file + ': ' + sel);
+        }
+      });
+      _assertEqual(bare, [], 'focus rules that remove the outline and put nothing back');
+    },
+  },
+  {
     name: 'N-418 mobile.html: theme-init.js loads synchronously in <head>, after frame-guard.js and before the stylesheet; style.css is still not linked',
     fn: function () {
       if (typeof ALL_HTML === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');

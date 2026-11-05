@@ -101,14 +101,14 @@
 .org-node--sdm .org-node__name { color: var(--text-on-brand); }
 .org-node--sdm .org-node__sub  { color: var(--org-sub-sdm); }
 .org-node--tp  { background: var(--org-tp-bg); border-color: var(--org-tp-border); }
-.org-node--tp  .org-node__name { color: var(--brand); }
+.org-node--tp  .org-node__name { color: var(--org-tp-name); }
 .org-node--tp  .org-node__sub  { color: var(--org-tp-sub); }
 .org-node--project { border-color: var(--status-success); background: var(--status-success-bg); }
 .org-node--bench   { border-style: dashed; background: var(--surface-faint); }
 /* placeholder (vacant / not-yet-hired): no level band colour, dashed outline */
 .org-node--placeholder { border: 1px dashed var(--org-placeholder-border); background: var(--surface); box-shadow: none; }
-.org-node--placeholder .org-node__name { color: var(--org-placeholder-name); font-style: italic; }
-.org-node--placeholder .org-node__sub  { color: var(--org-placeholder-sub); }
+.org-node--placeholder .org-node__name { color: var(--text-secondary); font-style: italic; }
+.org-node--placeholder .org-node__sub  { color: var(--text-muted); }
 .org-node--placeholder .org-avatar--initials { background: var(--org-placeholder-avatar-bg); }
 /* N-375: collapsible people nodes. The class sits on the li, so hiding the child
    ul also removes its ul::before stub — no dangling connector. The count pill is
@@ -171,13 +171,13 @@
 .ppl-card-title { font-size: var(--fs-13); font-weight: var(--fw-bold); color: var(--brand-tertiary); margin-bottom: var(--sp-4); }
 .ppl-card-title--flush { margin-bottom: 0; }
 .ppl-card-title-sub { font-size: var(--fs-12); font-weight: var(--fw-regular); color: var(--text-muted); margin-left: var(--sp-4); }
-.ppl-card-hint { font-size: var(--fs-11); color: var(--text-faint); margin-top: var(--sp-1); }
+.ppl-card-hint { font-size: var(--fs-11); color: var(--text-muted); margin-top: var(--sp-1); }
 .ppl-card-h3 { margin: 0; color: var(--brand-tertiary); }
 .ppl-subhead { font-size: var(--fs-12); font-weight: var(--fw-semibold); color: var(--text-label); margin-bottom: var(--sp-2); }
 .ppl-muted-note { font-size: var(--fs-13); color: var(--text-muted); }
 .ppl-muted-small { font-size: var(--fs-12); color: var(--text-muted); }
 .ppl-muted { color: var(--text-muted); }
-.ppl-faint { font-size: var(--fs-12); color: var(--text-faint); }
+.ppl-faint { font-size: var(--fs-12); color: var(--text-muted); }
 .ppl-year-label { font-size: var(--fs-13); color: var(--text-label); }
 .ppl-label-note { font-size: var(--fs-11); font-weight: var(--fw-regular); color: var(--text-muted); }
 .ppl-form-note { font-size: var(--fs-13); color: var(--text-label); margin-top: -6px; }
@@ -188,7 +188,7 @@
 .ppl-kpi-value { font-size: 24px; font-weight: var(--fw-bold); color: var(--brand-tertiary); }
 .ppl-kpi-sub { font-size: var(--fs-12); color: var(--text-muted); margin-top: var(--sp-2); }
 .ppl-delta { font-size: var(--fs-14); margin-left: var(--sp-4); }
-.ppl-delta--flat { color: var(--text-faint); }
+.ppl-delta--flat { color: var(--text-muted); }
 .ppl-delta--ok { color: var(--text-secondary); }
 .ppl-delta--worse { color: var(--status-danger); }
 .data-table tr.ppl-total-row { font-weight: var(--fw-bold); border-top: 2px solid var(--border-strong); }
@@ -227,10 +227,10 @@
   padding: var(--sp-10); position: relative; box-shadow: var(--elev-modal); }
 .payroll-close { position: absolute; top: var(--sp-7); right: var(--sp-7); background: none; border: none;
   font-size: 20px; cursor: pointer; color: var(--text-muted); }
-.pay-h3 { margin: 0 0 var(--sp-8); color: var(--brand); }
+.pay-h3 { margin: 0 0 var(--sp-8); color: var(--text-heading); }
 .pay-h3--sm { margin-bottom: var(--sp-4); }
 .pay-h3--xs { margin-bottom: var(--sp-2); }
-.pay-h4 { margin: 0 0 var(--sp-5); color: var(--brand); }
+.pay-h4 { margin: 0 0 var(--sp-5); color: var(--text-heading); }
 .pay-h4--mid { margin-top: var(--sp-7); }
 .pay-h4--lg { margin-top: var(--sp-8); }
 .pay-note { font-size: var(--fs-12); color: var(--text-muted); margin-bottom: var(--sp-6); }

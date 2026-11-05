@@ -165,7 +165,7 @@
   padding-top: var(--sp-6);
   margin-top: var(--sp-4);
 }
-.rb-filter-mark { color: var(--brand); font-weight: 700; margin-left: var(--sp-1); }
+.rb-filter-mark { color: var(--text-heading); font-weight: 700; margin-left: var(--sp-1); }
 .rb-footnote {
   font-size: var(--fs-11);
   color: var(--text-label);
@@ -182,7 +182,7 @@
    block in market-report.js's template (N-324: no <style> elements). */
 #mr-obs-editor:empty:before {
   content: attr(data-placeholder);
-  color: var(--text-faint); font-style: italic; pointer-events: none;
+  color: var(--text-muted); font-style: italic; pointer-events: none;
 }
 #mr-obs-editor { cursor: text; }
 

@@ -91,6 +91,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'lint-inline-styles.js'),
   path.join(TESTS_DIR, 'lint-chart-colours.js'),   // N-416
   path.join(TESTS_DIR, 'lint-mobile-tokens.js'),   // N-418
+  path.join(TESTS_DIR, 'lint-desktop-contrast.js'), // N-419
   path.join(TESTS_DIR, 'lint-internal-kpi.js'),
   path.join(TESTS_DIR, 'lint-project-types.js'),
   path.join(TESTS_DIR, 'lint-mcp.js'),            // N-393

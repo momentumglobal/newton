@@ -256,7 +256,7 @@
 
 /* ── Role page + Headcount section (N-307) ─────────────────────────────
    role-page.js. Neutral like the checklist page: muted text uses
-   --text-label (--text-muted on --surface is under 4.5:1 in light mode).
+   --text-label (N-419: --text-muted now passes 4.5:1 on --surface and is audited by lint-desktop-contrast.js; --text-label is kept for the existing look).
    Status chips: Open = the .badge default pair (--surface-alt +
    --text-heading), Filled = the success pair, Cancelled = sunken surface +
    label text. All three pass 4.5:1 in light and dark. */
@@ -365,7 +365,7 @@
 
 /* ── Checklists — Config Panel editor (N-266b) ─────────────────────────
    Neutral, like the checklist page (N-257). Muted text uses --text-label,
-   not --text-muted: --text-muted on --surface is under 4.5:1 in light mode.
+   not --text-muted (N-419: --text-muted passes 4.5:1 on --surface, audited; --text-label is kept for the existing look).
    .form-group sets display:flex, which beats the UA [hidden] rule — hence
    the explicit [hidden] rule for the form's conditional fields. */
 .ck-admin { max-width: 1040px; }
@@ -417,7 +417,7 @@
 }
 .ck-admin-section-name { color: var(--text-heading); font-weight: var(--fw-semibold); }
 .ck-admin-item--retired td { color: var(--text-label); }
-/* N-267: the site-wide .btn-danger rests at --text-muted (under 4.5:1) and
+/* N-267: the site-wide .btn-danger rests at --text-muted (4.5:1 or better, N-419 audit) and
    only turns red on hover; in the editor the Delete button reads as
    destructive at rest. Disabled = never-ticked rule not met. */
 .ck-admin .btn-danger { color: var(--status-danger); }

@@ -191,18 +191,23 @@ var MOBILE_CONTRAST_PAIRS = [
 var MOBILE_CONTRAST_EXCEPTIONS = [];
 var MOBILE_EDGE_PAIRS = [['--brand', '--surface', 3, 'brand-blue edge: secondary button, arrows, active stage border']];
 
-function mobileContrastAudit(css, theme, pairs) {
-  var split = mobileSplitCss(css);
-  var layers = mobileTokenDecls(split.root);
-  if (theme === 'dark') { var d = mobileTokenDecls(split.dark); Object.keys(d).forEach(function (k) { layers[k] = d[k]; }); }
+// N-419: the pair loop is shared with tests/lint-desktop-contrast.js (style.css). `layers` is the
+// resolved { '--token': 'value' } map for the theme, `pairs` the [fg, bg, min, use] rows.
+function contrastAuditLayers(layers, theme, pairs) {
   var fails = [];
-  (pairs || MOBILE_CONTRAST_PAIRS).forEach(function (p) {
+  pairs.forEach(function (p) {
     var fg = _mobileResolve(p[0], layers), bg = _mobileResolve(p[1], layers);
     if (!/^#/.test(fg || '') || !/^#/.test(bg || '')) { fails.push(p[0] + ' / ' + p[1] + ': not a hex colour (' + fg + ', ' + bg + ')'); return; }
     var r = mobileRatio(fg, bg);
     if (r < p[2]) fails.push(theme + ' ' + p[0] + ' on ' + p[1] + ' = ' + r.toFixed(2) + ':1 (< ' + p[2] + ') - ' + p[3]);
   });
   return fails;
+}
+function mobileContrastAudit(css, theme, pairs) {
+  var split = mobileSplitCss(css);
+  var layers = mobileTokenDecls(split.root);
+  if (theme === 'dark') { var d = mobileTokenDecls(split.dark); Object.keys(d).forEach(function (k) { layers[k] = d[k]; }); }
+  return contrastAuditLayers(layers, theme, pairs || MOBILE_CONTRAST_PAIRS);
 }
 
 // The declaration block of the first rule whose selector list contains `selector` (exact, trimmed).

@@ -303,6 +303,7 @@
   --sh-sticky-edge: 2px 0 2px rgba(0,0,0,0.06);   /* N-411: right edge of the frozen Hiring Plan Gantt columns */
   --sh-avatar: 0 1px 2px rgba(0,0,0,0.25);        /* N-412: org-chart avatar ring */
   --sh-drawer: -8px 0 32px rgba(0,0,0,0.4);
+  --help-tip-on-active: rgba(0,0,0,0.3);   /* N-419: the '?' chip on an ACTIVE filter pill; the old 40% white wash was 2.7:1 with white text on the dark-theme pill */
   --scrim: rgba(0,0,0,0.45);   /* N-409: modal / command-bar backdrop */
   --sh-focus: 0 0 0 3px rgba(10,11,68,0.08);
   /* Elevation (N-406) — layered light steps + dark steps. Consumed only via
@@ -402,6 +403,7 @@
   --text-on-brand:       var(--c-white);
   --text-link:           var(--c-brand);
   --text-link-hover:     var(--c-blue);
+  --text-brand-secondary: var(--c-navy-slate);      /* N-419: --brand-secondary as text ink (engagement); the fill token stays unthemed */
   /* Borders */
   --border-strong:       var(--c-n-200);          /* inputs, controls */
   --border-mid:          var(--c-n-150);          /* icon buttons, detail tables */
@@ -454,7 +456,7 @@
   --inverse-surface:     var(--c-brand);
   --inverse-surface-2:   var(--c-brand-2);
   --inverse-text:        var(--c-white);
-  --inverse-text-muted:  var(--c-wa-45);
+  --inverse-text-muted:  var(--c-wa-60);   /* N-419: was --c-wa-45, 4.2:1 on the navy drawer / sidebar */
   --inverse-border:      var(--c-wa-12);
   /* Additional inverse-chrome roles (N-125) — completes the alpha-ramp
      rationalisation N-067 did for hex but not alpha. All on permanently-dark
@@ -486,7 +488,7 @@
      group. */
   --badge-cc-amber:       var(--c-amber-soft);
   --badge-cc-red:         var(--c-red-soft);
-  --notif-badge-bg:       var(--c-red-bright);
+  --notif-badge-bg:       var(--status-danger-solid);   /* N-419: white 10px on the old bright red was 4.2:1 */
   --notif-link:           var(--c-blue-soft);
   --notif-link-hover:     var(--c-blue-softer);
   --notif-tone-attention: var(--c-pink-soft);
@@ -509,13 +511,14 @@
   --lci-status-presented-text: var(--c-blue-deep);
   --lci-muted-text:            var(--c-slate-400);
   /* Org chart (N-122) */
-  --org-sub-default:          var(--c-slate-500);
-  --org-sub-leader:           var(--c-slate-250);
+  --org-sub-default:          var(--text-muted);   /* N-419: was slate-500, 3.2:1 on the node in light and unthemed (2.5:1) in dark; --text-muted is themed and audited */
+  --org-sub-leader:           var(--c-neutral-pale);   /* N-419: slate-250 was 3.4:1 on the dark-theme brand-blue leader node */
   --org-sub-csd:               var(--c-blue-slate-200);
   --org-sub-sdm:               var(--c-blue-slate-250);
   --org-tp-bg:                 var(--c-blue-slate-300);
   --org-tp-border:             var(--c-blue-slate-400);
   --org-tp-sub:                var(--c-blue-slate-700);
+  --org-tp-name:               var(--c-brand);   /* N-419: the pale TP node is unthemed, so its name must be too (--brand is blue in dark, 3.6:1 on it) */
   --org-placeholder-border:    var(--c-slate-300);
   --org-placeholder-name:      var(--c-slate-600);
   --org-placeholder-sub:       var(--c-slate-300);
@@ -565,15 +568,16 @@
   --surface-tooltip:      var(--c-dark-surface-raised);
   --brand:                var(--c-blue);
   --brand-hover:          var(--c-blue-mid);
-  --brand-tertiary:       var(--c-blue-mid); /* LCI ink; QA round 1 — was unthemed, JS sites read it directly */
+  --brand-tertiary:       var(--c-blue-soft); /* LCI ink; QA round 1 — was unthemed, JS sites read it directly. N-419: was --c-blue-mid, 2.5:1 on dark surfaces */
   --text-primary:         var(--c-dark-text-primary);
   --text-secondary:       var(--c-dark-text-secondary);
   --text-label:           var(--c-dark-text-label);
   --text-muted:           var(--c-dark-text-muted);
   --text-faint:           var(--c-dark-text-faint);
   --text-heading:         var(--c-blue-soft);
-  --text-link:            var(--c-blue);
-  --text-link-hover:      var(--c-blue-mid);
+  --text-link:            var(--c-blue-soft);   /* N-419: was --c-blue, 2.7:1 on dark surfaces (same fix as --text-heading, N-168) */
+  --text-link-hover:      var(--c-blue-softer);
+  --text-brand-secondary: var(--c-blue-soft);
   --border-strong:        var(--c-dark-border-strong);
   --border-mid:           var(--c-dark-border);
   --border:               var(--c-dark-border);
@@ -655,6 +659,7 @@
     --text-heading: var(--c-brand);
     --text-link: var(--c-brand);
     --text-link-hover: var(--c-blue);
+    --text-brand-secondary: var(--c-navy-slate);
     --border-strong: var(--c-n-200);
     --border-mid: var(--c-n-150);
     --border: var(--c-n-150);
@@ -722,7 +727,7 @@
   .dash-project-selector,
   .dash-detail-header,
   .form-group select,
-  .data-table a,
+  .data-table .row-actions a,
   .nav-module-dropdown { display: none !important; }
   body { background: var(--surface) !important; overflow: visible !important; height: auto !important; }
   :focus-visible { outline: none !important; }
@@ -1047,10 +1052,10 @@ body {
 .admin-card--tight { padding: var(--sp-2) var(--sp-9); }
 .admin-card--spaced { margin-bottom: var(--sp-10); }
 .admin-effect-row { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-7) 0; border-bottom: 1px solid var(--border-subtle); }
-.admin-effect-title { font-size: var(--fs-14); font-weight: 600; color: var(--brand); }
+.admin-effect-title { font-size: var(--fs-14); font-weight: 600; color: var(--text-heading); }
 .admin-effect-desc { font-size: var(--fs-13); color: var(--text-label); margin-top: var(--sp-1); }
 .admin-pill-inactive { font-size: var(--fs-11); padding: var(--sp-1) var(--sp-3); border-radius: var(--r-sm); background: var(--border-subtle); color: var(--text-label); }
-.admin-faint { color: var(--text-faint); font-size: var(--fs-12); }
+.admin-faint { color: var(--text-muted); font-size: var(--fs-12); }
 .admin-optional { font-size: var(--fs-11); color: var(--text-muted); font-weight: normal; }
 .admin-ghost-note { background: var(--status-warn-bg-soft); border: 1px solid var(--badge-cc-amber); border-radius: var(--r-sm); padding: var(--sp-6) var(--sp-7); margin-bottom: var(--sp-8); font-size: var(--fs-13); }
 .cell-notes { max-width: 320px; white-space: normal; word-break: break-word; vertical-align: top; }
@@ -1168,7 +1173,7 @@ body {
   align-items: center;
   justify-content: center;
 }
-.btn-secondary:hover  { background: var(--surface-alt); border-color: var(--brand); }
+.btn-secondary:hover  { background: var(--surface-alt); border-color: var(--text-heading); }
 .btn-secondary:active { transform: translateY(0) scale(0.98); }
 /* Destructive actions — ghost by default, red on hover only */
 .btn-danger {
@@ -1265,7 +1270,7 @@ body {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  opacity: 0.5;
+  opacity: 0.7;   /* N-419: 0.5 was 2.85:1 in dark (3:1 needed for a glyph) */
   transition: opacity var(--dur-fast) ease;
 }
 .th-sort-btn:hover .th-sort-ind,
@@ -1320,7 +1325,7 @@ body {
   align-items: center;
 }
 .data-table .row-actions a {
-  color: var(--text-faint);
+  color: var(--text-muted);
   transition: color 150ms ease;
 }
 .data-table .row-actions a:hover,
@@ -1403,7 +1408,7 @@ body {
 .dh-note        { font-size: var(--fs-13); color: var(--text-label); margin-bottom: var(--sp-7); }
 .dh-table       { margin: 0 0 var(--sp-10); }
 .dh-table-tight { margin: 0 0 var(--sp-10); }
-.dh-muted       { color: var(--text-faint); }
+.dh-muted       { color: var(--text-muted); }
 .dh-ack         { margin: 0 0 var(--sp-10); }
 .dh-ack > summary { cursor: pointer; font-size: var(--fs-13); color: var(--text-label); margin-bottom: var(--sp-7); }
 .dh-badge {
@@ -1453,11 +1458,11 @@ body {
   box-shadow: var(--elev-raised);
   transform: translateY(-1px);
 }
-.kpi-value { font-size: var(--fs-display-sm); line-height: 1.1; margin-top: var(--sp-2); font-weight: 600; color: var(--brand); font-variant-numeric: tabular-nums; letter-spacing: var(--ls-heading-lg); }
+.kpi-value { font-size: var(--fs-display-sm); line-height: 1.1; margin-top: var(--sp-2); font-weight: 600; color: var(--text-heading); font-variant-numeric: tabular-nums; letter-spacing: var(--ls-heading-lg); }
 .kpi-label { font-size: var(--fs-11); font-weight: var(--fw-semibold); color: var(--text-label); margin-top: var(--sp-3); text-transform: uppercase; letter-spacing: 0.06em; }
 .kpi-sub   { font-size: var(--fs-11); color: var(--text-muted); margin-top: var(--sp-1); }
 .kpi-delta { font-size: var(--fs-13); margin-left: var(--sp-3); }
-.kpi-delta--flat  { color: var(--text-faint); }
+.kpi-delta--flat  { color: var(--text-muted); }
 .kpi-delta--ok    { color: var(--text-secondary); font-weight: var(--fw-medium); }
 .kpi-delta--worse { color: var(--status-danger); font-weight: var(--fw-medium); }
 .dash-grid { display: flex; flex-direction: column; gap: var(--sp-8); }
@@ -1503,7 +1508,7 @@ body {
 .no-data { color: var(--text-muted); font-size: var(--fs-13); font-style: italic; }
 .totals-row td { background: var(--surface-sunken); box-shadow: inset 0 1px 0 var(--border); font-weight: 600; }
 .spend-label { font-size: var(--fs-11); color: var(--text-label); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--sp-2); }
-.spend-val { font-size: var(--fs-22); font-weight: 600; color: var(--brand); font-variant-numeric: tabular-nums; letter-spacing: var(--ls-heading); }
+.spend-val { font-size: var(--fs-22); font-weight: 600; color: var(--text-heading); font-variant-numeric: tabular-nums; letter-spacing: var(--ls-heading); }
 .spend-val--na    { color: var(--text-label); }
 .spend-val--under { color: var(--text-secondary); }
 .spend-val--over  { color: var(--status-danger); }
@@ -1545,7 +1550,7 @@ body {
   font-size: var(--fs-10); font-weight: 600; cursor: default;
   position: relative; margin-left: var(--sp-3); vertical-align: middle;
 }
-.btn-filter.active .help-tip     { background: var(--c-wa-40); }
+.btn-filter.active .help-tip     { background: var(--help-tip-on-active); }
 .btn-filter:not(.active) .help-tip { background: var(--brand); color: var(--text-on-brand); }
 .help-tip-text {
   display: none;
@@ -1608,7 +1613,7 @@ body {
 }
 /* ── Print / PDF export ─────────────────────────────────────────────── */
 .print-btn {
-  background: var(--surface); color: var(--brand); border: 1px solid var(--brand);
+  background: var(--surface); color: var(--text-heading); border: 1px solid var(--brand);
   padding: var(--sp-3) 14px; border-radius: var(--r-lg); cursor: pointer;
   font-size: var(--fs-13); font-weight: 500;
   font-family: 'Polymath', 'Segoe UI', Arial, sans-serif;
@@ -1850,7 +1855,7 @@ body {
 @media screen {
   .mr-card { box-shadow: var(--elev-card); }
 }
-.mr-card-title { font-size: var(--fs-15); font-weight: var(--fw-semibold); color: var(--brand); margin: 0 0 var(--sp-7) 0; padding-bottom: var(--sp-4); border-bottom: 1px solid var(--border-subtle); }
+.mr-card-title { font-size: var(--fs-15); font-weight: var(--fw-semibold); color: var(--text-heading); margin: 0 0 var(--sp-7) 0; padding-bottom: var(--sp-4); border-bottom: 1px solid var(--border-subtle); }
 .mr-card-title-sub { font-size: var(--fs-12); font-weight: var(--fw-regular); color: var(--text-muted); }
 .mr-card-title-sub--gap { margin-left: var(--sp-4); }
 .mr-table { width: 100%; margin: 0; }
@@ -1858,9 +1863,9 @@ body {
 .pa-kpi-note { font-size: var(--fs-11); color: var(--text-muted); margin-top: var(--sp-2); }
 .pa-stage-tile { flex: 1; min-width: 130px; background: var(--surface-tint); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px var(--sp-7); }
 .pa-stage-label { font-size: var(--fs-12); color: var(--text-muted); margin-bottom: var(--sp-3); }
-.pa-stage-value { font-size: var(--fs-22); font-weight: var(--fw-bold); color: var(--brand); }
+.pa-stage-value { font-size: var(--fs-22); font-weight: var(--fw-bold); color: var(--text-heading); }
 .pa-stage-rag { font-size: var(--fs-12); margin-top: var(--sp-3); }
-.pa-legend-note { font-size: var(--fs-11); color: var(--text-faint); margin-top: var(--sp-6); }
+.pa-legend-note { font-size: var(--fs-11); color: var(--text-muted); margin-top: var(--sp-6); }
 
 /* Empty state — shared component (N-103), generalised from the engagement-only version */
 .empty-state {
@@ -2126,7 +2131,7 @@ body {
 }
 .toast--leaving { animation: toast-out var(--dur-base) var(--ease-in) forwards; }
 .toast-icon { width: var(--sp-8); height: var(--sp-8); flex-shrink: 0; }
-.toast--info    .toast-icon { color: var(--brand); }
+.toast--info    .toast-icon { color: var(--text-heading); }
 .toast--success .toast-icon { color: var(--status-success); }
 .toast--error   .toast-icon { color: var(--status-danger); }
 .toast-message { flex: 1; }
@@ -2138,10 +2143,10 @@ body {
 .toast-action:hover { color: var(--text-link-hover); }
 .toast-close {
   background: none; border: none; cursor: pointer;
-  color: var(--text-faint); font-size: var(--fs-16); line-height: 1;
+  color: var(--text-muted); font-size: var(--fs-16); line-height: 1;   /* N-419: the × is text-sized; --text-faint was 3.4:1 (light) / 3.05:1 (dark) */
   padding: 0 0 0 var(--sp-2); flex-shrink: 0;
 }
-.toast-close:hover { color: var(--text-muted); }
+.toast-close:hover { color: var(--text-primary); }
 @keyframes toast-in  { from { opacity: 0; transform: translateY(var(--sp-6)); } to { opacity: 1; transform: translateY(0); } }
 @keyframes toast-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

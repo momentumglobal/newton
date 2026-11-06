@@ -387,3 +387,58 @@ function pdpCheckIdentity(inputs) {
     active.filter(p => _pdpEmail(p.WorkEmail) && _pdpEmail(p.ReportsTo) === _pdpEmail(p.WorkEmail)).map(_pdpName));
   return checks;
 }
+// ── N-435 (PDP-3): reviewers and the client access gate (pure) ──────────
+// A person's current reviewers, from the People rows: lm = their ReportsTo (lower-cased; it IS
+// the manager's WorkEmail), csd = the first CSD up the chain (PDP-D6), '' when there is none.
+// `index` is pdpEmailIndex(people), built once by the caller. A CSD has no CSD of their own.
+function pdpReviewerEmails(index, person) {
+  const lm = _pdpEmail(person && person.ReportsTo);
+  if (!person || person.Level === CONFIG.PDP.REVIEWER_LEVEL) return { lm, csd: '', flag: '' };
+  const walk = _pdpWalkToCsd(index, person);
+  return { lm, csd: walk.csd ? _pdpEmail(walk.csd.WorkEmail) : '', flag: walk.flag };
+}
+
+function _pdpEmailSet(list) {
+  return new Set(String(list == null ? '' : list).split(CONFIG.PDP.ACCESS.EMAIL_SEP).map(_pdpEmail).filter(Boolean));
+}
+
+// What `myEmail` (with `role`) may do with one PDP record, from the record's OWN snapshot —
+// the same fields SharePoint's per-item permissions are set from. { level, as }:
+//   level 'edit' | 'read' | null;  as 'admin' | 'self' | 'manager' | 'csd' | 'former' | null.
+// Admin / People Ops (pdpAdmin) see everything; Leadership and everyone else get null (PDP-D1).
+// Every PDP screen filters through this with the EFFECTIVE identity (Ghost Mode: the ghosted
+// user's email and role) — never rely on SharePoint trimming for display, because an admin's
+// token returns every row even while ghosting.
+function pdpAccessFor(role, myEmail, item) {
+  const none = { level: null, as: null };
+  if (!item) return none;
+  if (roleCan(role, 'pdpAdmin')) return { level: 'edit', as: 'admin' };
+  const me = _pdpEmail(myEmail);
+  if (!me) return none;
+  if (me === _pdpEmail(item.PersonEmail)) return { level: 'edit', as: 'self' };
+  if (me === _pdpEmail(item.LineManagerEmail)) return { level: 'edit', as: 'manager' };
+  if (me === _pdpEmail(item.CSDEmail)) return { level: 'edit', as: 'csd' };
+  if (_pdpEmailSet(item.ReadOnlyEmails).has(me)) return { level: 'read', as: 'former' };
+  return none;
+}
+
+// Blind scoring (PDP-D4) on top of pdpAccessFor: a Self row is the employee's until revealed,
+// a Manager row the reviewers' until revealed; the Agreed row is shared. `revealed` is wired by
+// N-442 and defaults to false. Admin always sees every row.
+function pdpScoreVisible(access, source, revealed) {
+  const as = access && access.level ? access.as : null;
+  if (!as) return false;
+  if (as === 'admin' || source === 'Agreed') return true;
+  if (source === 'Self')    return as === 'self' || (!!revealed && ['manager', 'csd', 'former'].includes(as));
+  if (source === 'Manager') return as === 'manager' || as === 'csd' || (!!revealed && ['self', 'former'].includes(as));
+  return false;
+}
+
+// The records `myEmail` may see. Scores rows also pass pdpScoreVisible (revealedFn(row) → bool).
+function pdpVisibleItems(items, role, myEmail, revealedFn) {
+  return (items || []).filter(it => {
+    const a = pdpAccessFor(role, myEmail, it);
+    if (!a.level) return false;
+    return it.Source ? pdpScoreVisible(a, it.Source, revealedFn ? revealedFn(it) : false) : true;
+  });
+}

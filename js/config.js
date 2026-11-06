@@ -142,6 +142,11 @@ const CONFIG = {
     // N-427 (TPL-D1): create, edit and delete Briefing Pack / Report TEMPLATES. Admin only —
     // Leadership deliberately not listed. Anyone with library access can USE a template.
     templatesManage:       ['admin'],
+    // N-435 (PDP-3, PDP-D1): every PDP record, the Data Health PDP access check and re-point,
+    // and later the framework / template editors and the cycle engine. Leadership deliberately
+    // NOT listed: Leadership sees aggregate completion only (pdpAggregate, consumed by N-441).
+    pdpAdmin:              ['admin', 'people_ops'],
+    pdpAggregate:          ['admin', 'people_ops', 'leadership'],
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
@@ -560,6 +565,7 @@ const CONFIG = {
     // N-434 (PDP-2): the seven PDP lists — full business-column set, Title first. Every name is
     // INTERNAL and must match the live list exactly (an unknown column is a 400 for every read).
     // Create the lists BEFORE deploying; Admin > Data Health > Schema Check is the gate.
+    // N-435: the five personal lists end with ReadOnlyEmails + AccessKey (create both first).
     PDPFramework: [
       'Title', 'Level', 'Track', 'PillarKey', 'Pillar', 'Band', 'Descriptor', 'SortOrder', 'IsActive',
     ],
@@ -569,26 +575,27 @@ const CONFIG = {
     PDPCycles: [
       'Title', 'PersonID', 'PersonEmail', 'PersonName', 'CycleYear', 'Level', 'Track',
       'LineManagerEmail', 'CSDEmail', 'JoinDate', 'BiAnnualScored', 'ScoringLevel', 'Status',
+      'ReadOnlyEmails', 'AccessKey',
     ],
     PDPMeetings: [
       'Title', 'PersonID', 'PersonEmail', 'PersonName', 'CycleYear', 'CycleID', 'MeetingType',
       'IsJoiner', 'Period', 'DueDate', 'MeetingDate', 'Status', 'SkipReason', 'TemplateID',
       'TemplateVersion', 'PrepEmployee', 'PrepManager', 'MeetingNotes', 'EmployeeSignedAt',
-      'ManagerSignedAt', 'LineManagerEmail', 'CSDEmail',
+      'ManagerSignedAt', 'LineManagerEmail', 'CSDEmail', 'ReadOnlyEmails', 'AccessKey',
     ],
     PDPGoals: [
       'Title', 'PersonID', 'PersonEmail', 'CycleYear', 'LineManagerEmail', 'CSDEmail', 'GoalLevel',
       'Period', 'Category', 'ParentGoalID', 'MeetingID', 'WhyItMatters', 'SuccessMeasures',
-      'Support', 'TargetDate', 'Rag', 'Status',
+      'Support', 'TargetDate', 'Rag', 'Status', 'ReadOnlyEmails', 'AccessKey',
     ],
     PDPActions: [
       'Title', 'PersonID', 'PersonEmail', 'LineManagerEmail', 'CSDEmail', 'MeetingID', 'GoalID',
-      'OwnerRole', 'OwnerEmail', 'DueDate', 'IsDone', 'DoneAt',
+      'OwnerRole', 'OwnerEmail', 'DueDate', 'IsDone', 'DoneAt', 'ReadOnlyEmails', 'AccessKey',
     ],
     PDPScores: [
       'Title', 'PersonID', 'PersonEmail', 'CycleYear', 'LineManagerEmail', 'CSDEmail', 'MeetingID',
       'PillarKey', 'Source', 'ScoringLevel', 'Score', 'Rationale', 'SubmittedAt', 'CalibratedScore',
-      'CalibrationRationale', 'IsLocked',
+      'CalibrationRationale', 'IsLocked', 'ReadOnlyEmails', 'AccessKey',
     ],
     // N-094 (F-2b): this list had no entry at all, so it stayed on
     // fields($select=*). These are the complete read set across js/ —
@@ -731,6 +738,15 @@ const CONFIG = {
     'SurveyResponses',
     'AnomalyAcks',
     'Diagnostics',
+    // N-435 (PDP-3): the five personal PDP lists (CONFIG.PDP.PERSONAL_LIST_KEYS). Items carry
+    // per-item permissions set by the PDP access flow, so a user with nothing shared gets a 403
+    // = "no records". An Admin / People Ops denial is a misconfiguration: getPdpAccessReport()
+    // reports it via wasListDenied(), never as zero rows.
+    'PDPCycles',
+    'PDPMeetings',
+    'PDPGoals',
+    'PDPActions',
+    'PDPScores',
   ],
 
   // N-285. Shown on the Command Centre Utilisation / Revenue tiles when the
@@ -1561,11 +1577,19 @@ const CONFIG = {
     DISPLAY_ROWS:   10,
     // N-434 (PDP-2): the seven PDP lists. Single source of truth: api-pdp.js and pdp-data.js
     // reference lists only through this map. Never add one to CACHE.persistentLists, DELTA,
-    // MCP.allowedLists or a Command Bar source (PDP-D12). RESTRICTED_LISTS is N-435's decision.
+    // MCP.allowedLists or a Command Bar source (PDP-D12). N-435: the personal ones are restricted.
     LISTS: {
       FRAMEWORK: 'PDPFramework', TEMPLATES: 'PDPTemplates', CYCLES: 'PDPCycles',
       MEETINGS: 'PDPMeetings', GOALS: 'PDPGoals', ACTIONS: 'PDPActions', SCORES: 'PDPScores',
     },
+    // N-435 (PDP-3): the LISTS keys holding one person's records. Each item gets its own
+    // permissions from the PDP access flow (employee + line manager + CSD). Read the names through
+    // pdpPersonalLists() (pdp-data.js); Framework and Templates stay readable by everyone.
+    PERSONAL_LIST_KEYS: ['CYCLES', 'MEETINGS', 'GOALS', 'ACTIONS', 'SCORES'],
+    // N-435: UNSECURED_GRACE_MIN = minutes a new item may stay unlocked before Data Health flags
+    // it (the flow's polling trigger normally locks it within a few). EMAIL_SEP joins
+    // ReadOnlyEmails and must match the flow's split().
+    ACCESS: { UNSECURED_GRACE_MIN: 15, EMAIL_SEP: ';' },
     // Enum values live here, never in SharePoint Choice columns (a Choice column drifts).
     LEVELS:          ['L1', 'L2', 'L3', 'L4', 'L5', 'L6'],
     TRACKS:          ['IC', 'MG'],

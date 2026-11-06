@@ -3,14 +3,15 @@
 
 // Fixture copy of the Data model tables in specs/N-434.md. Deliberately NOT derived from the code
 // under test: a column added to or dropped from LIST_FIELDS has to be changed here as well.
+// N-435 (specs/N-435.md): the five personal lists end with ReadOnlyEmails + AccessKey.
 const _PDP_TABLES = {
   PDPFramework: ['Title', 'Level', 'Track', 'PillarKey', 'Pillar', 'Band', 'Descriptor', 'SortOrder', 'IsActive'],
   PDPTemplates: ['Title', 'MeetingType', 'VersionNo', 'Status', 'Definition', 'PublishedAt', 'PublishedBy'],
-  PDPCycles: ['Title', 'PersonID', 'PersonEmail', 'PersonName', 'CycleYear', 'Level', 'Track', 'LineManagerEmail', 'CSDEmail', 'JoinDate', 'BiAnnualScored', 'ScoringLevel', 'Status'],
-  PDPMeetings: ['Title', 'PersonID', 'PersonEmail', 'PersonName', 'CycleYear', 'CycleID', 'MeetingType', 'IsJoiner', 'Period', 'DueDate', 'MeetingDate', 'Status', 'SkipReason', 'TemplateID', 'TemplateVersion', 'PrepEmployee', 'PrepManager', 'MeetingNotes', 'EmployeeSignedAt', 'ManagerSignedAt', 'LineManagerEmail', 'CSDEmail'],
-  PDPGoals: ['Title', 'PersonID', 'PersonEmail', 'CycleYear', 'LineManagerEmail', 'CSDEmail', 'GoalLevel', 'Period', 'Category', 'ParentGoalID', 'MeetingID', 'WhyItMatters', 'SuccessMeasures', 'Support', 'TargetDate', 'Rag', 'Status'],
-  PDPActions: ['Title', 'PersonID', 'PersonEmail', 'LineManagerEmail', 'CSDEmail', 'MeetingID', 'GoalID', 'OwnerRole', 'OwnerEmail', 'DueDate', 'IsDone', 'DoneAt'],
-  PDPScores: ['Title', 'PersonID', 'PersonEmail', 'CycleYear', 'LineManagerEmail', 'CSDEmail', 'MeetingID', 'PillarKey', 'Source', 'ScoringLevel', 'Score', 'Rationale', 'SubmittedAt', 'CalibratedScore', 'CalibrationRationale', 'IsLocked'],
+  PDPCycles: ['Title', 'PersonID', 'PersonEmail', 'PersonName', 'CycleYear', 'Level', 'Track', 'LineManagerEmail', 'CSDEmail', 'JoinDate', 'BiAnnualScored', 'ScoringLevel', 'Status', 'ReadOnlyEmails', 'AccessKey'],
+  PDPMeetings: ['Title', 'PersonID', 'PersonEmail', 'PersonName', 'CycleYear', 'CycleID', 'MeetingType', 'IsJoiner', 'Period', 'DueDate', 'MeetingDate', 'Status', 'SkipReason', 'TemplateID', 'TemplateVersion', 'PrepEmployee', 'PrepManager', 'MeetingNotes', 'EmployeeSignedAt', 'ManagerSignedAt', 'LineManagerEmail', 'CSDEmail', 'ReadOnlyEmails', 'AccessKey'],
+  PDPGoals: ['Title', 'PersonID', 'PersonEmail', 'CycleYear', 'LineManagerEmail', 'CSDEmail', 'GoalLevel', 'Period', 'Category', 'ParentGoalID', 'MeetingID', 'WhyItMatters', 'SuccessMeasures', 'Support', 'TargetDate', 'Rag', 'Status', 'ReadOnlyEmails', 'AccessKey'],
+  PDPActions: ['Title', 'PersonID', 'PersonEmail', 'LineManagerEmail', 'CSDEmail', 'MeetingID', 'GoalID', 'OwnerRole', 'OwnerEmail', 'DueDate', 'IsDone', 'DoneAt', 'ReadOnlyEmails', 'AccessKey'],
+  PDPScores: ['Title', 'PersonID', 'PersonEmail', 'CycleYear', 'LineManagerEmail', 'CSDEmail', 'MeetingID', 'PillarKey', 'Source', 'ScoringLevel', 'Score', 'Rationale', 'SubmittedAt', 'CalibratedScore', 'CalibrationRationale', 'IsLocked', 'ReadOnlyEmails', 'AccessKey'],
 };
 
 function _pdpThrows(fn) { try { fn(); } catch (e) { return String(e.message); } return null; }
@@ -52,13 +53,14 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-434 AC4 PDP lists are never cached, delta-synced, MCP-exposed, Command-Bar-read or restricted-mapped',
+    name: 'N-434 AC4 PDP lists are never cached, delta-synced, MCP-exposed or Command-Bar-read; N-435: personal lists restricted-mapped',
     fn: function () {
+      const personal = ['PDPCycles', 'PDPMeetings', 'PDPGoals', 'PDPActions', 'PDPScores'];
       Object.keys(_PDP_TABLES).forEach(l => {
         _assertEqual(CONFIG.CACHE.persistentLists.includes(l), false, 'AC4 ' + l + ' not tier-2 cached');
         _assertEqual(CONFIG.DELTA.enrolledLists.includes(l), false, 'AC4 ' + l + ' not delta-enrolled');
         _assertEqual(CONFIG.MCP.allowedLists.includes(l), false, 'AC4 ' + l + ' not MCP-allowed');
-        _assertEqual(CONFIG.RESTRICTED_LISTS.includes(l), false, 'AC4 ' + l + ' left to N-435');
+        _assertEqual(CONFIG.RESTRICTED_LISTS.includes(l), personal.includes(l), 'AC4 ' + l + (personal.includes(l) ? ' restricted (N-435)' : ' readable by all, not restricted (N-435)'));
       });
       _assertEqual(CONFIG.MCP.scripts.some(f => /pdp/.test(f)), false, 'AC4 no PDP file in the MCP bundle');
       _assertEqual(/pdp|PDP/.test(ALL_SOURCES['command-bar.js']), false, 'AC4 Command Bar never reads PDP');

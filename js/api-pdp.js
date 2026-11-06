@@ -62,3 +62,76 @@ async function updatePdpAction(id, fields)      { return updateItem(CONFIG.PDP.L
 // fields onto a Self or Manager row.
 async function createPdpScore(fields)           { return createItem(CONFIG.PDP.LISTS.SCORES, pdpCleanScores(fields, 'create')); }
 async function updatePdpScore(id, fields, source) { return updateItem(CONFIG.PDP.LISTS.SCORES, id, pdpCleanScores(fields, 'update', source)); }
+
+// ── N-435 (PDP-3): access report + re-point (Admin / People Ops) ──────
+// The flow locks each personal-list item to its PersonEmail / LineManagerEmail / CSDEmail /
+// ReadOnlyEmails snapshot. Newton keeps the snapshots right: the rules are pure in pdp-data.js
+// (pdpBuildRepointPlan, pdpUnsecuredItems); this file only reads and writes. Callers gate on
+// roleCan(role, 'pdpAdmin'); SharePoint enforces it regardless (only Admins / People hold edit
+// on every item).
+
+// One personal list, plus Created (the unsecured-age clock). Explicit select: the default
+// LIST_FIELDS projection is left untouched for every other reader.
+function _pdpAccessRead(listName, filter) {
+  return getItems(listName, filter || '', ['Id', ...CONFIG.LIST_FIELDS[listName], 'Created'].join(','));
+}
+
+// Every personal list, or only `personIds`' rows (one PersonID-filtered read per person per list).
+async function _pdpReadPersonal(personIds) {
+  const lists = pdpPersonalLists();
+  const itemsByList = {};
+  await Promise.all(lists.map(async list => {
+    if (!personIds) { itemsByList[list] = await _pdpAccessRead(list); return; }
+    const parts = await Promise.all(personIds.map(id => _pdpAccessRead(list, _pdpNumFilter('PersonID', id))));
+    itemsByList[list] = [].concat(...parts);
+  }));
+  const denied = lists.filter(l => wasListDenied(l));
+  return { itemsByList, denied };
+}
+
+// Data Health -> PDP access. { unsecured, drift, unresolved, denied, counts: { list: n } }.
+// A denied list for Admin / People Ops is a permissions misconfiguration and is reported as such.
+async function getPdpAccessReport() {
+  const [people, read] = await Promise.all([getPeople(false), _pdpReadPersonal(null)]);
+  const plan = pdpBuildRepointPlan(people, read.itemsByList);
+  const counts = {};
+  Object.keys(read.itemsByList).forEach(l => { counts[l] = read.itemsByList[l].length; });
+  return {
+    unsecured: pdpUnsecuredItems(read.itemsByList, Date.now()),
+    drift: plan.rows,
+    unresolved: plan.unresolved,
+    denied: read.denied,
+    counts,
+  };
+}
+
+const _PDP_REPOINT_WRITERS = {
+  CYCLES:   (id, patch) => updatePdpCycle(id, patch),
+  MEETINGS: (id, patch) => updatePdpMeeting(id, patch),
+  GOALS:    (id, patch) => updatePdpGoal(id, patch),
+  ACTIONS:  (id, patch) => updatePdpAction(id, patch),
+  SCORES:   (id, patch, row) => updatePdpScore(id, patch, row.source),
+};
+
+// Re-point the snapshots of `personIds` (all people when omitted) to their current line manager
+// and CSD; the PDP access flow then re-permissions each patched item. An empty list does nothing.
+// One update per patch, one at a time; a failed row is recorded and the rest carry on.
+// -> { written, failed: [{ list, id, message }], unresolved, denied }
+async function repointPdpAccess(personIds) {
+  const ids = personIds ? personIds.map(String).filter(Boolean) : null;
+  if (ids && !ids.length) return { written: 0, failed: [], unresolved: [], denied: [] };
+  const [people, read] = await Promise.all([getPeople(false), _pdpReadPersonal(ids)]);
+  const plan = pdpBuildRepointPlan(people, read.itemsByList, ids);
+  const keyOf = {};
+  CONFIG.PDP.PERSONAL_LIST_KEYS.forEach(k => { keyOf[CONFIG.PDP.LISTS[k]] = k; });
+  const out = { written: 0, failed: [], unresolved: plan.unresolved, denied: read.denied };
+  for (const row of plan.rows) {
+    try {
+      await _PDP_REPOINT_WRITERS[keyOf[row.list]](row.id, row.patch, row);
+      out.written++;
+    } catch (e) {
+      out.failed.push({ list: row.list, id: row.id, message: e && e.message ? e.message : String(e) });
+    }
+  }
+  return out;
+}

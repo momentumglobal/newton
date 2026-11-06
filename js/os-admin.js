@@ -490,6 +490,7 @@ async function buildDataHealthTab() {
     + _dhRenderProjectTeamIntegrityHtml(data)
     + _dhRenderLciMigrationHtml(data)
     + _dhRenderPdpIdentityHtml(data)
+    + _dhRenderPdpAccessHtml()
     + _dhRenderUserRowsHtml()
     + _dhRenderWeeklyAnomaliesHtml(data)
     + _dhRenderIndexStatusHtml(data)
@@ -1231,6 +1232,124 @@ async function applyPdpWorkEmail() {
 }
 async function applyPdpLineManager() {
   await _applyPdpIdentity(_pdpLm, pdpBuildLineManagerPlan, 'Write line managers', 'ReportsTo');
+  // N-435: new line managers move PDP access. Non-blocking: the People writes stand either way,
+  // and anything left behind shows as drift in PDP access below.
+  if (_pdpLm.result && _pdpLm.result.written) {
+    try {
+      const out = await repointPdpAccess();
+      if (out.failed.length) toast(`PDP access: ${out.failed.length} records not re-pointed — see PDP access.`, { type: 'error' });
+    } catch (e) {
+      toast('Line managers saved; PDP access not updated — run PDP access below.', { type: 'error' });
+    }
+  }
+}
+
+// ── Data Health Tab — PDP access (N-435 / PDP-3) ──────────────────────
+// Each personal PDP item is locked by the PDP access flow to its snapshot (employee, line manager,
+// CSD, ReadOnlyEmails). This section shows items the flow has not locked yet (older than
+// CONFIG.PDP.ACCESS.UNSECURED_GRACE_MIN) and items whose snapshot no longer matches the current
+// reporting line, with a previewed Re-point. Rules are pure (pdp-data.js); reads run on click.
+let _pdpAcc = { report: null, error: '', result: null };
+
+function _dhRenderPdpAccessHtml() {
+  const cap = CONFIG.PDP.DISPLAY_ROWS;
+  const r = _pdpAcc.report;
+  const more = (n) => (n > cap ? `<p class="dh-muted">+${(n - cap).toLocaleString('en-GB')} more</p>` : '');
+  const table = (head, rows) => `
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+      <tbody>${rows}
+      </tbody>
+    </table>
+    </div>`;
+  let body = '';
+  if (_pdpAcc.error) {
+    body = `<p><span class="dh-badge dh-badge-danger">Query error</span> <span class="dh-muted">${escHtml(_pdpAcc.error)}</span></p>`;
+  } else if (r) {
+    const denied = r.denied.length
+      ? `<p><span class="dh-badge dh-badge-danger">Denied</span> No read access to ${r.denied.map(escHtml).join(', ')}. Admin and People Ops must keep list-level access (permission matrix &rarr; PDP lists); the figures below leave those lists out.</p>`
+      : '';
+    const badge = n => (n ? '<span class="dh-badge dh-badge-warn">Amber</span>' : '<span class="dh-badge dh-badge-success">OK</span>');
+    const summary = table(['Check', 'Records', ''], [
+      ['Records in the personal lists', Object.values(r.counts).reduce((a, b) => a + b, 0), ''],
+      [`Not locked by the flow after ${CONFIG.PDP.ACCESS.UNSECURED_GRACE_MIN} minutes`, r.unsecured.length, badge(r.unsecured.length)],
+      ['Line manager or CSD out of date (re-point)', r.drift.length, badge(r.drift.length)],
+      ['Cannot re-point (person not resolvable)', r.unresolved.length, badge(r.unresolved.length)],
+    ].map(([l, n, b]) => `
+        <tr><td>${l}</td><td>${n.toLocaleString('en-GB')}</td><td>${b}</td></tr>`).join(''));
+    const unsec = r.unsecured.length ? `
+    <h5>Not locked</h5>
+    <p class="dh-note">Check the flow's run history for these items (Power Automate &rarr; the list's PDP access flow). Until the flow locks them, any Newton user who queries the list directly can read them.</p>
+    ${table(['List', 'Item', 'Person ID', 'Age'], r.unsecured.slice(0, cap).map(u => `
+        <tr><td>${escHtml(u.list)}</td><td>${escHtml(u.id)}</td><td>${escHtml(u.personId)}</td><td>${u.ageMin === null ? '&mdash;' : u.ageMin.toLocaleString('en-GB') + ' min'}</td></tr>`).join(''))}${more(r.unsecured.length)}` : '';
+    const drift = r.drift.length ? `
+    <h5>Out of date</h5>
+    ${table(['Person', 'List', 'Item', 'Line manager', 'CSD'], r.drift.slice(0, cap).map(d => `
+        <tr><td>${escHtml(d.personName || String(d.personId))}</td><td>${escHtml(d.list)}</td><td>${escHtml(d.id)}</td>
+          <td>${escHtml(d.from.lm || '—')} &rarr; ${escHtml(d.to.lm)}</td><td>${escHtml(d.from.csd || '—')} &rarr; ${escHtml(d.to.csd || '—')}</td></tr>`).join(''))}${more(r.drift.length)}
+    <p><button class="btn-primary"${act('applyPdpRepoint')}>Re-point ${r.drift.length.toLocaleString('en-GB')} records</button></p>` : '';
+    const unres = r.unresolved.length ? `
+    <h5>Cannot re-point</h5>
+    <p class="dh-note">Fix the person in Identity (PDP) above (WorkEmail, line manager, a CSD up the chain), then check again. Their records keep their current access meanwhile.</p>
+    ${table(['Person ID', 'List', 'Item', 'Reason'], r.unresolved.slice(0, cap).map(u => `
+        <tr><td>${escHtml(u.personId)}</td><td>${escHtml(u.list)}</td><td>${escHtml(u.id)}</td><td>${escHtml(_PDP_UNRESOLVED_TEXT[u.reason] || u.reason)}</td></tr>`).join(''))}${more(r.unresolved.length)}` : '';
+    body = denied + summary + unsec + drift + unres;
+  }
+  const last = _pdpAcc.result
+    ? `<p>Last re-point: ${_pdpAcc.result.written.toLocaleString('en-GB')} records updated.${_pdpAcc.result.failed.length ? ` <span class="dh-badge dh-badge-danger">${_pdpAcc.result.failed.length} failed</span> <span class="dh-muted">${_pdpAcc.result.failed.map(f => escHtml(f.list + ' ' + f.id + ': ' + f.message)).join('; ')}</span>` : ''}</p>`
+    : '';
+  return `    <h3>PDP access (N-435)</h3>
+    <p class="dh-note">
+      Each Development &amp; Performance record is locked by a Power Automate flow to the employee, their line manager and
+      their CSD (former managers keep read on past records). When a reporting line changes, Newton re-points the records and
+      the flow re-locks them. Org Chart saves by Admin / People Ops re-point automatically; Leadership saves show up here.
+      Reads run on click.
+    </p>
+    <p><button class="btn-primary"${act('runPdpAccessCheck')}>Check PDP access</button></p>
+    ${last}${body}
+`;
+}
+
+const _PDP_UNRESOLVED_TEXT = {
+  noPerson: 'No People row for this Person ID',
+  noWorkEmail: 'Person has no unique WorkEmail',
+  noLineManager: 'Person has no line manager (ReportsTo)',
+  noCsd: 'No CSD up the reporting chain',
+};
+
+async function runPdpAccessCheck() {
+  const btn = event?.target;   // N-106: capture synchronously
+  setButtonLoading(btn);
+  try {
+    _pdpAcc = { report: await getPdpAccessReport(), error: '', result: _pdpAcc.result };
+  } catch (e) {
+    console.warn('Data Health: PDP access read failed', e);
+    _pdpAcc = { report: null, error: e && e.message ? e.message : String(e), result: _pdpAcc.result };
+  }
+  await renderOsAdminPage('datahealth');
+}
+
+async function applyPdpRepoint() {
+  const btn = event?.target;
+  const n = _pdpAcc.report ? _pdpAcc.report.drift.length : 0;
+  if (!n) { toast('Nothing to re-point.'); return; }
+  if (!(await confirmModal({
+    title: 'Re-point PDP access',
+    message: `Update the line manager / CSD on ${n} PDP records. The access flow then re-locks each one; former managers keep read on past records.`,
+    confirmLabel: 'Re-point',
+  }))) return;
+  setButtonLoading(btn);
+  try {
+    const out = await repointPdpAccess();
+    toast(out.failed.length ? `Re-pointed ${out.written}; ${out.failed.length} failed.` : `Re-pointed ${out.written} records.`,
+      { type: out.failed.length ? 'error' : 'success' });
+    _pdpAcc = { report: await getPdpAccessReport(), error: '', result: out };
+  } catch (e) {
+    toast('Error re-pointing: ' + e.message, { type: 'error' });
+    _pdpAcc.result = null;
+  }
+  await renderOsAdminPage('datahealth');
 }
 
 function _dhRenderLciMigrationHtml(data) {
@@ -2008,6 +2127,8 @@ registerActions({
   runPdpLineManagerPreview,
   setPdpLineManagerPick,
   applyPdpLineManager,
+  runPdpAccessCheck,
+  applyPdpRepoint,
   runLciMigrationPreview,
   setLciTypePick,
   applyLciMigration,

@@ -107,6 +107,8 @@ ASSERTIONS.push(
         rejectionsList:        ['admin', 'delivery_manager', 'talent_partner'],   // N-388
         rejectionIntelReport:  ['admin', 'delivery_manager'],                     // N-388, N-396
         templatesManage:       ['admin'],                                         // N-427
+        pdpAdmin:              ['admin', 'people_ops'],                           // N-435
+        pdpAggregate:          ['admin', 'people_ops', 'leadership'],             // N-435
       };
       _assertEqual(Object.keys(CONFIG.ROLE_CAPABILITIES).sort(), Object.keys(expect).sort(), 'capability set');
       Object.keys(expect).forEach(cap => roles.forEach(r =>

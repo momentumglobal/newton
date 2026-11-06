@@ -641,6 +641,9 @@ async function saveOrgChartEdits(btn) {
         if (row) row.ReportsTo = el.value;
       });
     }
+    // N-435: Admin / People Ops saves re-point PDP access; snapshot People before writing.
+    const pdpRole = await getEffectiveRole(getCurrentUser()?.email);
+    const pdpBefore = roleCan(pdpRole, 'pdpAdmin') ? (await getPeople(false)).map(p => Object.assign({}, p)) : null;
     const jobs = [];
     document.querySelectorAll('[data-proj]').forEach(el =>
       jobs.push(updateItem('Projects', el.getAttribute('data-proj'), { CSDName: el.value })));
@@ -651,11 +654,35 @@ async function saveOrgChartEdits(btn) {
     changed.forEach(el =>
       jobs.push(updateItem('People', el.getAttribute('data-person'), { ReportsTo: el.value })));
     await Promise.all(jobs);
+    if (pdpBefore) await _ocRepointPdp(pdpBefore, [...document.querySelectorAll('[data-person]')]);
     navigateToPeople('orgChart');
   } catch (e) {
     clearButtonLoading(btn);
     const err = document.getElementById('org-edit-error');
     if (err) { err.textContent = `Error saving: ${e.message}`; err.style.display = 'block'; }
+  }
+}
+
+// N-435 (PDP-3): after a reporting-lines save by Admin / People Ops (pdpAdmin), move PDP access
+// for everyone whose line manager or CSD changed (pdpAffectedPeople, incl. a moved manager's
+// reports). Never fails the save: on error the records show as drift in Data Health -> PDP access.
+// Leadership saves skip this (they hold no edit on PDP records) and are picked up there too.
+async function _ocRepointPdp(before, personEls) {
+  try {
+    const after = before.map(p => Object.assign({}, p));
+    personEls.forEach(el => {
+      const row = after.find(p => String(p.id) === String(el.getAttribute('data-person')));
+      if (row) row.ReportsTo = el.value;
+    });
+    const ids = pdpAffectedPeople(before, after);
+    if (!ids.length) return;
+    const out = await repointPdpAccess(ids);
+    if (out.failed.length || out.unresolved.length) {
+      toast('Reporting lines saved; some PDP access was not updated — run Data Health → PDP access.', { type: 'error' });
+    }
+  } catch (e) {
+    console.warn('Org Chart: PDP re-point failed', e);
+    toast('Reporting lines saved; PDP access not updated — run Data Health → PDP access.', { type: 'error' });
   }
 }
 

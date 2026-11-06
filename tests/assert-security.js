@@ -352,10 +352,11 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-285 config — RESTRICTED_LISTS is exactly the Tier 2 lists (+ PeoplePay N-286, PayrollSummaries N-300); mobile Sales is admin + leadership only',
+    name: 'N-285 config — RESTRICTED_LISTS is exactly the Tier 2 lists (+ PeoplePay N-286, PayrollSummaries N-300, the five personal PDP lists N-435); mobile Sales is admin + leadership only',
     fn: function () {
       _assertEqual(CONFIG.RESTRICTED_LISTS.slice().sort(),
-        ['AnomalyAcks', 'Diagnostics', 'GPInvoices', 'LCILocations', 'PayrollSummaries', 'PeoplePay', 'SalesForecasts', 'SurveyResponses'], 'AC1 the eight names');
+        ['AnomalyAcks', 'Diagnostics', 'GPInvoices', 'LCILocations', 'PDPActions', 'PDPCycles', 'PDPGoals', 'PDPMeetings', 'PDPScores',
+          'PayrollSummaries', 'PeoplePay', 'SalesForecasts', 'SurveyResponses'], 'AC1 the thirteen names');
       _assertEqual(new Set(CONFIG.RESTRICTED_LISTS).size, CONFIG.RESTRICTED_LISTS.length, 'AC1 no duplicates');
       _assertEqual(CONFIG.MOBILE_MODULE_ROLES.sales, ['admin', 'leadership'], 'AC12 mobile Sales roles');
       _assertEqual(typeof CONFIG.CC_FORECAST_DENIED_TEXT === 'string' && CONFIG.CC_FORECAST_DENIED_TEXT.length > 0, true, 'AC11 denied copy is config');

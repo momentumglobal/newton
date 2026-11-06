@@ -570,7 +570,7 @@ const CONFIG = {
     // Create the lists BEFORE deploying; Admin > Data Health > Schema Check is the gate.
     // N-435: the five personal lists end with ReadOnlyEmails + AccessKey (create both first).
     PDPFramework: [
-      'Title', 'Level', 'Track', 'PillarKey', 'Pillar', 'Band', 'Descriptor', 'SortOrder', 'IsActive',
+      'Title', 'Level', 'Track', 'PillarKey', 'Pillar', 'Band', 'Descriptor', 'SortOrder', 'IsActive', 'UpdatedBy',   // N-436: UpdatedBy = editor's email (create the column BEFORE deploying)
     ],
     PDPTemplates: [
       'Title', 'MeetingType', 'VersionNo', 'Status', 'Definition', 'PublishedAt', 'PublishedBy',
@@ -1386,7 +1386,7 @@ const CONFIG = {
     { key: 'rejections',       label: 'Rejected Offers',    module: 'reporting', href: 'reporting.html#rejections',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
     { key: 'hiringPlan',       label: 'Hiring Plan',        module: 'reporting', href: 'reporting.html#hiringPlan',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
     { key: 'adminPanel',       label: 'Config Panel',       module: 'reporting', href: 'reporting.html#adminPanel',        roles: [_ROLE_IDS.ADMIN] },
-    // people-router.js — People (7)
+    // people-router.js — People (8)
     { key: 'peopleDashboard', label: 'People Dashboard',    module: 'people', href: 'people.html#peopleDashboard', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     { key: 'orgChart',        label: 'Org Chart',           module: 'people', href: 'people.html#orgChart',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.STAFF] },
     { key: 'peopleGantt',     label: 'Deployment Timeline', module: 'people', href: 'people.html#peopleGantt',     roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
@@ -1394,6 +1394,8 @@ const CONFIG = {
     { key: 'gpInvoices',      label: 'Supplier Invoices',   module: 'people', href: 'people.html#gpInvoices',      roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     { key: 'scorecards',      label: 'People Scorecards',   module: 'people', href: 'people.html#scorecards',      roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
     { key: 'engagement',      label: 'Engagement',          module: 'people', href: 'people.html#engagement',      roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
+    // N-436 (PDP-4): framework + template editors. Admin + People Ops only (pdpAdmin); Leadership deliberately not listed (PDP-D1).
+    { key: 'pdpSetup',        label: 'PDP Setup',           module: 'people', href: 'people.html#pdpSetup',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.PEOPLE_OPS] },
     // sales-router.js — Sales (4)
     { key: 'revenueTracking', label: 'Revenue Tracking', module: 'sales', href: 'sales.html#revenueTracking', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
     { key: 'salesForecast',   label: 'Sales Forecast',   module: 'sales', href: 'sales.html#salesForecast',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
@@ -1616,6 +1618,28 @@ const CONFIG = {
     SCORE_MIN:       1,
     SCORE_MAX:       3,
     JSON_MAX_CHARS:  30000,   // SharePoint plain multi-line text holds ~63k; stay well under
+    // N-436 (PDP-4): framework + template editors (People > PDP Setup, pdp-setup.js / pdp-template-editor.js).
+    //   PILLAR_KEYS   the six fixed pillars, in SortOrder 1-6. Names are data (framework rows), keys are not;
+    //                 scoring (N-442) averages exactly these six, equally weighted (PDP-D3).
+    //   BLOCK_TYPES   the six stored template block types (a fixed set; Admin edits wording and order,
+    //                 never invents a type). prepQuestion = pre-work question (BLOCK_BY says whose),
+    //                 prompt = discussion note, goalSet / goalReview / actions = structured blocks,
+    //                 scoring = the pillar scoring block (Bi-Annual only, once).
+    //   BLOCK_BY / REVIEW_BY   who answers a prepQuestion / when a goalReview happens.
+    //   MEETING_LABELS         display names; also the template Title prefix.
+    //   TEMPLATE_LIMITS        publish-gate and editor limits (pdpValidateTemplate).
+    PILLAR_KEYS:     ['own-it', 'decide', 'communicate', 'support', 'curious', 'adapt'],
+    BLOCK_TYPES:     ['prepQuestion', 'prompt', 'goalSet', 'goalReview', 'actions', 'scoring'],
+    BLOCK_BY:        ['employee', 'manager'],
+    REVIEW_BY:       ['employee', 'meeting'],
+    MEETING_LABELS:  {
+      Annual: 'Annual Development & Goal Setting', BiAnnual: 'Bi-Annual Performance & Progression Review',
+      Quarterly: 'Quarterly Review', Monthly: 'Monthly Development Check-In',
+    },
+    TEMPLATE_LIMITS: {
+      MAX_SECTIONS: 20, MAX_BLOCKS: 60, TITLE_MAX: 120, LABEL_MAX: 300, HINT_MAX: 600,
+      GOALS_MAX: 10, ACTIONS_MAX: 10, DESCRIPTOR_MAX: 1000,
+    },
   },
 
   // ── LCI Cost Model + Lead Magnet: CONFIG.LCI and CONFIG.LCI_DISCIPLINES live in js/lci-config.js (sales.html only) ──

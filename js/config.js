@@ -1387,7 +1387,7 @@ const CONFIG = {
     { key: 'rejections',       label: 'Rejected Offers',    module: 'reporting', href: 'reporting.html#rejections',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
     { key: 'hiringPlan',       label: 'Hiring Plan',        module: 'reporting', href: 'reporting.html#hiringPlan',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
     { key: 'adminPanel',       label: 'Config Panel',       module: 'reporting', href: 'reporting.html#adminPanel',        roles: [_ROLE_IDS.ADMIN] },
-    // people-router.js — People (8)
+    // people-router.js — People (9)
     { key: 'peopleDashboard', label: 'People Dashboard',    module: 'people', href: 'people.html#peopleDashboard', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     { key: 'orgChart',        label: 'Org Chart',           module: 'people', href: 'people.html#orgChart',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.STAFF] },
     { key: 'peopleGantt',     label: 'Deployment Timeline', module: 'people', href: 'people.html#peopleGantt',     roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
@@ -1397,6 +1397,8 @@ const CONFIG = {
     { key: 'engagement',      label: 'Engagement',          module: 'people', href: 'people.html#engagement',      roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     // N-436 (PDP-4): framework + template editors. Admin + People Ops only (pdpAdmin); Leadership deliberately not listed (PDP-D1).
     { key: 'pdpSetup',        label: 'PDP Setup',           module: 'people', href: 'people.html#pdpSetup',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.PEOPLE_OPS] },
+    // N-438 (PDP-6): the employee's own page. The page and the nav item gate on the PDP switch; this entry only mirrors PEOPLE_PAGES.
+    { key: 'myDevelopment',   label: 'My Development',      module: 'people', href: 'people.html#myDevelopment',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
     // sales-router.js — Sales (4)
     { key: 'revenueTracking', label: 'Revenue Tracking', module: 'sales', href: 'sales.html#revenueTracking', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
     { key: 'salesForecast',   label: 'Sales Forecast',   module: 'sales', href: 'sales.html#salesForecast',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
@@ -1673,6 +1675,15 @@ const CONFIG = {
         left:   'Left Momentum',
         scope:  'Left PDP scope',
       },
+    },
+    // N-438 (PDP-6): My Development (employee page, pdp-my.js / pdp-prep.js).
+    //   PREP_LEAD_HOURS  a Quarterly meeting's pre-work opens this long before its MeetingDate (whole days).
+    //   KPI_BLOCK_KEY    the Quarterly template block that gets the "Open my Scorecard" link (keys never change).
+    //   NAV_REASONS      pdpAccess() reasons that show the nav item: the person is themselves in the programme.
+    ME: {
+      PREP_LEAD_HOURS: 48,
+      KPI_BLOCK_KEY:   'how-have-i-performed-against-kpis',
+      NAV_REASONS:     ['pilot', 'in-scope', 'has-records'],
     },
   },
 

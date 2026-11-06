@@ -332,3 +332,26 @@
 .pdpc-card { margin-bottom: var(--sp-7); }
 .pdpc-list { margin: var(--sp-3) 0 0 var(--sp-8); font-size: var(--fs-13); color: var(--text-primary); }
 .pdpc-list li { margin-bottom: var(--sp-2); }
+/* N-438: People > My Development (pdp-my.js). Badges reuse .dh-badge-* (style.css). */
+.pdpm-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-9); margin-bottom: var(--sp-7); }
+.pdpm-name { font-size: var(--fs-16); font-weight: var(--fw-bold); color: var(--text-primary); }
+.pdpm-chips { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
+.pdpm-year { margin-left: auto; }
+.pdpm-note { margin-bottom: var(--sp-7); }
+.pdpm-timeline { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--sp-6); }
+.pdpm-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-3); text-align: left; cursor: pointer; }
+.pdpm-card-title { font-size: var(--fs-13); font-weight: var(--fw-bold); color: var(--text-primary); }
+.pdpm-detail-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); margin-bottom: var(--sp-7); }
+.pdpm-detail-title { font-size: var(--fs-16); font-weight: var(--fw-bold); color: var(--text-primary); margin: 0; }
+.pdpm-section, .pdpm-sign { margin-bottom: var(--sp-7); }
+.pdpm-block { padding: var(--sp-5) 0; border-bottom: 1px solid var(--border-faint); }
+.pdpm-block:last-child { border-bottom: 0; }
+.pdpm-label { font-size: var(--fs-13); font-weight: var(--fw-bold); color: var(--text-primary); margin-bottom: var(--sp-2); }
+.pdpm-req { font-size: var(--fs-12); font-weight: var(--fw-regular); color: var(--text-muted); }
+.pdpm-block textarea { width: 100%; margin-top: var(--sp-3); }
+.pdpm-text { white-space: pre-wrap; font-size: var(--fs-13); color: var(--text-primary); }
+.pdpm-list { margin: var(--sp-3) 0 0 var(--sp-8); font-size: var(--fs-13); color: var(--text-primary); }
+.pdpm-goal { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-3); }
+.pdpm-goal input[type="text"] { flex: 1 1 240px; }
+.pdpm-kpi { margin-top: var(--sp-3); }
+.pdpm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-7); }

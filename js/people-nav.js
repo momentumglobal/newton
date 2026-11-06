@@ -2,13 +2,14 @@
 
 let _peopleCurrentPage = null;
 let _resolvedRole      = null;  // set by people-app.js on init
+let _peopleMyDevNav    = false; // N-438: show My Development only for someone in the PDP programme (set by people-app.js)
 
 function renderPeopleNav(role) {
   renderModuleNav({
     subtitle:         'People',
     currentModuleKey: 'people',
     toggleFn:         'togglePeopleModuleDropdown',
-    pages:            getPeopleAccessiblePages(role),
+    pages:            getPeopleAccessiblePages(role).filter(p => p.key !== 'myDevelopment' || _peopleMyDevNav),
     currentPage:      _peopleCurrentPage,
     role:             role,
     navigateFn:       'navigateToPeople',
@@ -57,6 +58,7 @@ async function renderPeoplePage(page, pendingItem = null) {
     case 'scorecards':      await renderScorecardsPage();     break;
     case 'engagement':      await renderEngagementPage();     break;
     case 'pdpSetup':        await renderPdpSetupPage();       break;   // N-436 (pdp-setup.js)
+    case 'myDevelopment':   await renderMyDevelopmentPage();  break;   // N-438 (pdp-my.js)
     default:
       main.innerHTML = '<p>Page not found.</p>';
   }

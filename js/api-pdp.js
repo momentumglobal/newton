@@ -396,3 +396,106 @@ async function applyPdpCycle(year, onProgress) {
   }
   return { cycles: plan.cycles.length, meetings: plan.meetings.length, updates: plan.meetingUpdates.length + plan.cycleUpdates.length, total };
 }
+// ── N-438 (PDP-6): My Development (employee) ───────────────────────────────────────────────────
+// Reads the signed-in employee's own cycle, meetings, goals and actions, and makes the only two
+// writes the employee page may make: their prep, and their sign-off. Rules are pure in pdp-prep.js.
+// Ghost Mode is read-only here: an admin looking as a user never writes as them. Nothing is created
+// or deleted, and Goals / Actions / Scores are never written from this page (N-440 owns those).
+// These functions are deliberately NOT named getPdp* / updatePdp* for their callers: pdp-my.js never
+// reaches a personal list directly.
+
+// -> { gate, none } | { gate, noPerson, flags } | { gate, me, lm, csd, years, year, cycle, meetings,
+//      templates, goals, actions, readOnly }
+async function loadMyDevelopment(year) {
+  const gate = await resolvePdpGate();
+  if (gate.state === 'none') return { gate, none: true };
+  const realEmail = getCurrentUser()?.email || '';
+  const email = pdpEffectiveEmail(realEmail, getGhostUser());
+  const [role, people] = await Promise.all([getEffectiveRole(realEmail), getPeople(false)]);
+  const ident = pdpResolveIdentity(people, email);
+  if (!ident.me) return { gate, noPerson: true, flags: ident.flags };
+  const pid = Number(ident.me.id);
+  const [cycles, templates] = await Promise.all([getPdpCycles(pid), getPdpTemplates()]);
+  const years = [...new Set(pdpVisibleItems(cycles, role, email).map(c => Number(c.CycleYear)).filter(Number.isInteger))].sort((a, b) => b - a);
+  const thisYear = Number(localDayISO(new Date()).slice(0, 4));
+  const y = years.includes(Number(year)) ? Number(year) : (years.includes(thisYear) ? thisYear : (years[0] || thisYear));
+  const [meetings, goals, actions] = years.length
+    ? await Promise.all([getPdpMeetings(pid, y), getPdpGoals(pid, y), getPdpActions(pid)])
+    : [[], [], []];
+  return {
+    gate, me: ident.me, lm: ident.lineManager, csd: ident.csd, years, year: y,
+    cycle: pdpVisibleItems(cycles, role, email).find(c => Number(c.CycleYear) === y) || null,
+    meetings: pdpVisibleItems(meetings, role, email),
+    templates,
+    goals: pdpVisibleItems(goals, role, email),
+    actions: pdpVisibleItems(actions, role, email),
+    readOnly: gate.state !== 'live' || _pdpEmail(email) !== _pdpEmail(realEmail),
+  };
+}
+
+// The signed-in employee's own meeting, re-read fresh, or a thrown refusal. Used by both writers.
+async function _pdpMyMeeting(meetingId) {
+  await _ensureGhostGate();
+  const realEmail = getCurrentUser()?.email || '';
+  if (pdpEffectiveEmail(realEmail, getGhostUser()) !== _pdpEmail(realEmail)) throw new Error('Ghost Mode is read-only: you cannot save or sign as someone else.');
+  const gate = await resolvePdpGate();
+  if (gate.state !== 'live') throw new Error('Development & Performance is not available to you right now.');
+  const id = Number(meetingId);
+  if (!Number.isInteger(id)) throw new Error('PDP meeting id must be a whole number');
+  const ident = pdpResolveIdentity(await getPeople(false), realEmail);
+  if (!ident.me) throw new Error('Your work email is not linked to a People record.');
+  _cacheInvalidate(CONFIG.PDP.LISTS.MEETINGS);
+  const m = (await getPdpMeetings(Number(ident.me.id))).find(r => Number(r.id) === id);
+  if (!m || String(m.PersonID) !== String(ident.me.id) || _pdpEmail(m.PersonEmail) !== _pdpEmail(realEmail)) throw new Error('That meeting is not yours.');
+  return m;
+}
+
+// A 403 on an item the access flow has not locked yet is not an error (N-435): say so.
+function _pdpMyWriteError(e, meeting) {
+  if (e && e.status === 403 && !pdpIsSecured(meeting)) return new Error('Still securing this record. Try again in a minute.');
+  return e;
+}
+
+// edit = { answers, goalReview, submit }. -> the saved meeting patch.
+async function savePdpPrep(meetingId, edit) {
+  const m = await _pdpMyMeeting(meetingId);
+  const now = new Date();
+  const win = pdpPrepWindow(m, now);
+  if (win.state === 'locked') throw new Error(m.Status === 'Skipped' ? 'This meeting was skipped.' : 'This meeting has been held, so prep is locked.');
+  if (win.state === 'closed') throw new Error('Prep opens on ' + pdpFmtDay(win.opensOn) + '.');
+  const templates = await getPdpTemplates();
+  const bound = pdpTemplateForMeeting(templates, m);
+  if (!bound) throw new Error('Template unavailable. Contact People Ops.');
+  const blocks = pdpPrepBlocks(pdpParseJson(bound.Definition)).employee;
+  const payload = pdpPrepPayload(pdpPrepFromJson(m.PrepEmployee), edit, blocks, now.toISOString());
+  if (edit && edit.submit) {
+    const missing = pdpPrepMissing(blocks, payload);
+    if (missing.length) throw new Error('Answer the required questions first: ' + missing.join('; '));
+  }
+  const patch = pdpMeetingPatchForPrep(m, pdpActiveTemplate(templates, m.MeetingType), payload, now.toISOString());
+  try {
+    await updatePdpMeeting(m.id, patch);
+  } catch (e) { throw _pdpMyWriteError(e, m); }
+  return patch;
+}
+
+// -> the saved patch ({ EmployeeSignedAt, [Status] }).
+async function signOffPdpMeeting(meetingId) {
+  const m = await _pdpMyMeeting(meetingId);
+  const plan = pdpSignOffPlan(m, 'employee', new Date().toISOString());
+  if (!plan.ok) throw new Error(plan.reason);
+  try {
+    await updatePdpMeeting(m.id, plan.patch);
+  } catch (e) { throw _pdpMyWriteError(e, m); }
+  return plan.patch;
+}
+
+// Does the My Development nav item show for the signed-in user? True only when the PDP gate is live for
+// them AS A PERSON IN THE PROGRAMME (CONFIG.PDP.ME.NAV_REASONS) and they have exactly one People row.
+// A reviewer-only manager, Admin / People Ops in preview, and any failure give false.
+async function resolveMyDevelopmentNav() {
+  const gate = await resolvePdpGate();
+  if (gate.state !== 'live' || !CONFIG.PDP.ME.NAV_REASONS.includes(gate.reason)) return false;
+  const ident = await getPdpIdentity();
+  return !!ident.me;
+}

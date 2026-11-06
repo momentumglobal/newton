@@ -60,6 +60,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'pdp-data.js'),         // N-434: pure PDP list rules (after pdp-identity.js)
   path.join(JS_DIR, 'pdp-seed.js'),         // N-436: default framework + template content (pure data, after pdp-data.js)
   path.join(JS_DIR, 'pdp-cycle.js'),        // N-437: pure PDP cycle engine (after pdp-data.js)
+  path.join(JS_DIR, 'pdp-prep.js'),         // N-438: pure My Development rules (after pdp-cycle.js)
   path.join(JS_DIR, 'checklist-logic.js'),
   path.join(JS_DIR, 'starter-folder-logic.js'),
   path.join(JS_DIR, 'graph-client.js'),
@@ -78,6 +79,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'sla-rollup.js'),       // N-385: roll-up markup (declarations only); loads before sla-panel.js
   path.join(JS_DIR, 'sla-panel.js'),        // N-384: markup + render-from-cache are asserted; mounts need a DOM
   path.join(JS_DIR, 'rejection-intel.js'),  // N-388: Rejection Intelligence markup (declarations only)
+  path.join(JS_DIR, 'pdp-my.js'),           // N-438: My Development markup is asserted (declarations only; needs the DOM only inside the render/handler functions)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-tools.js'),   // N-393: Newton for Claude tools (declarations + MCP_TOOLS only)
   path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),
@@ -121,6 +123,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-pdp-switch.js'),     // N-445
   path.join(TESTS_DIR, 'assert-pdp-setup.js'),      // N-436
   path.join(TESTS_DIR, 'assert-pdp-cycle.js'),      // N-437
+  path.join(TESTS_DIR, 'assert-pdp-prep.js'),       // N-438
   path.join(TESTS_DIR, 'assert-project-types.js'),
   path.join(TESTS_DIR, 'assert-starter-folders.js'),
   path.join(TESTS_DIR, 'assert-sla.js'),

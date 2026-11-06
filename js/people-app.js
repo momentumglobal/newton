@@ -45,6 +45,10 @@ window.PEOPLE_APP = {
     document.getElementById('login-screen').style.display = 'none';
 
         renderPeopleNav(_resolvedRole);
+    // N-438: the My Development nav item appears once the PDP gate says this user is in the programme.
+    resolveMyDevelopmentNav().then(ok => {
+      if (ok !== _peopleMyDevNav) { _peopleMyDevNav = ok; renderPeopleNav(_resolvedRole); }
+    }).catch(e => console.warn('My Development nav unavailable', e));
     initCommandBar({ currentModule: 'people', role: _resolvedRole, navigateFn: 'navigateToPeople' });
     if (!handlePeopleDeepLink()) navigateToPeople(landing);
   },

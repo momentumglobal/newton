@@ -14,6 +14,9 @@ const PEOPLE_PAGES = {
   engagement:      { label: 'Engagement',         roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.LEADERSHIP, CONFIG.ROLE_IDS.PEOPLE_OPS] },
   // N-436 (PDP-4): framework + template editors; the same people as CONFIG.ROLE_CAPABILITIES.pdpAdmin.
   pdpSetup:        { label: 'PDP Setup',          roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.PEOPLE_OPS] },
+  // N-438 (PDP-6): the employee's own PDP page. Role list = who can be an in-scope employee (TP / STP / PTP, SDM); the
+  // nav item and the page itself also check the PDP gate and a People row, so Admin / People Ops see it only as a person.
+  myDevelopment:   { label: 'My Development',     roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.PEOPLE_OPS, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
 };
 
 function peopleCanAccess(page, role) {

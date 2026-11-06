@@ -493,6 +493,7 @@ ASSERTIONS.push(
       scorecards: ['admin', 'delivery_manager', 'leadership', 'people_ops', 'talent_partner'],
       engagement: ['admin', 'leadership', 'people_ops'],
       pdpSetup: ['admin', 'people_ops'],   // N-436
+      myDevelopment: ['admin', 'delivery_manager', 'people_ops', 'talent_partner'],   // N-438
     },
     sales: {
       revenueTracking: ['admin', 'leadership', 'sales'],

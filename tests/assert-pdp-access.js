@@ -26,7 +26,10 @@ function _pdpAccItem(id, p, lm, csd, extra, locked) {
 const _PDP_GUARD_ALLOW = ['config.js', 'graph-client.js', 'pdp-identity.js', 'pdp-data.js', 'api-pdp.js', 'os-admin.js', 'org-chart.js',
   // PDP-D12 review: N-437 — the cycle engine (pure rules), the PDP Setup > Cycle tab and the PDP Setup
   // page's "missing meetings" banner read the personal Cycles / Meetings lists (Admin / People Ops only).
-  'pdp-cycle.js', 'pdp-cycle-admin.js', 'pdp-setup.js'];
+  'pdp-cycle.js', 'pdp-cycle-admin.js', 'pdp-setup.js',
+  // PDP-D12 review: N-438 — My Development shows one person's own meeting records (pdp-my.js) using the
+  // pure prep / sign-off rules (pdp-prep.js). people.html only; never mobile.html, MCP or the Command Bar.
+  'pdp-prep.js', 'pdp-my.js'];
 const _PDP_GUARD_RE = /\b(PDPFramework|PDPTemplates|PDPCycles|PDPMeetings|PDPGoals|PDPActions|PDPScores)\b|CONFIG\.PDP\.(LISTS|PERSONAL_LIST_KEYS)|\bpdpPersonalLists\b|\b(getPdp(?!Identity)\w*|createPdp\w*|updatePdp\w*|repointPdp\w*)/;
 function _pdpGuardOffenders(sources, allow) {
   return Object.keys(sources).filter(f => !allow.includes(f) && _PDP_GUARD_RE.test(sources[f] || '')).sort();

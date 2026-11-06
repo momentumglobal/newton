@@ -442,3 +442,98 @@ function pdpVisibleItems(items, role, myEmail, revealedFn) {
     return it.Source ? pdpScoreVisible(a, it.Source, revealedFn ? revealedFn(it) : false) : true;
   });
 }
+
+// ── N-445 (PDP-13, PDP-D13): the Off / Pilot / On switch and the access gate (pure) ─────────
+// Mode order is CONFIG.PDP.MODES = [Off, Pilot, On]. Anything unrecognised is Off (fail closed).
+function pdpNormaliseMode(raw) {
+  const s = String(raw == null ? '' : raw).trim().toLowerCase();
+  return CONFIG.PDP.MODES.find(m => m.toLowerCase() === s) || CONFIG.PDP.MODES[0];
+}
+
+// The pilot column -> unique, lower-case, valid work emails. Tolerates ';' (the stored form),
+// newlines and stray blanks, so a hand-edited column still reads.
+function pdpParsePilot(raw) {
+  const seen = new Set();
+  const out = [];
+  String(raw == null ? '' : raw).split(/[;\r\n]+/).map(_pdpEmail).forEach(e => {
+    if (!pdpIsEmail(e) || seen.has(e)) return;
+    seen.add(e);
+    out.push(e);
+  });
+  return out;
+}
+
+function pdpFormatPilot(emails) {
+  const sep = CONFIG.PDP.ACCESS.EMAIL_SEP;
+  return pdpParsePilot((emails || []).join(sep)).join(sep);
+}
+
+// Who the Admin may put in the pilot: PDP-D9 in-scope people whose WorkEmail is present and
+// belongs to nobody else (an ambiguous email cannot be resolved to one person).
+function pdpPilotCandidates(people, today) {
+  const index = pdpEmailIndex(people);
+  return (people || [])
+    .filter(p => pdpInScope(p, today) && _pdpUnique(index, p.WorkEmail))
+    .map(p => ({ id: String(p.id), name: _pdpName(p), level: p.Level, email: _pdpEmail(p.WorkEmail) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// The pilot people who resolve to exactly one in-scope People row.
+function _pdpPilotRows(people, pilot, today) {
+  const index = pdpEmailIndex(people);
+  const set = new Set(Array.isArray(pilot) ? pdpParsePilot(pilot.join(CONFIG.PDP.ACCESS.EMAIL_SEP)) : pdpParsePilot(pilot));
+  return (people || []).filter(p => set.has(_pdpEmail(p.WorkEmail)) && _pdpUnique(index, p.WorkEmail) && pdpInScope(p, today));
+}
+
+// People the cycle engine (N-437) may generate meetings for. Off: nobody. Pilot: the in-scope
+// pilot people only (reviewers are not generated for). On: everyone in scope.
+function pdpEngineScope(mode, pilot, people, today) {
+  const [OFF, PILOT] = CONFIG.PDP.MODES;
+  const m = pdpNormaliseMode(mode);
+  if (m === OFF) return [];
+  if (m === PILOT) return _pdpPilotRows(people, pilot, today || new Date());
+  return (people || []).filter(p => pdpInScope(p, today || new Date()));
+}
+
+// The gate every PDP screen, the engine and reminders call. Pure.
+//   opts { mode, pilot (emails or the raw column), people, email (effective), role (effective),
+//          hasRecords (Pilot only: the user can already see PDP records), today }
+// -> { state: 'none' | 'preview' | 'live', reason }
+//   Off: Admin / People Ops (pdpAdmin) preview, everyone else none.
+//   Pilot: live for pilot people, their line manager and first CSD, and for anyone who already has
+//          records (so a person removed from the pilot keeps their history); Admin / People Ops
+//          live when one of those, else preview.
+//   On: live for every in-scope person and every reviewer of one; Admin / People Ops live.
+// Leadership and everyone else: none in every mode (PDP-D1).
+function pdpAccess(opts) {
+  const o = opts || {};
+  const [OFF, PILOT] = CONFIG.PDP.MODES;
+  const mode = pdpNormaliseMode(o.mode);
+  const isAdmin = roleCan(o.role, 'pdpAdmin');
+  const res = (state, reason) => ({ state, reason });
+  if (mode === OFF) return isAdmin ? res('preview', 'off-admin') : res('none', 'off');
+
+  const today = o.today || new Date();
+  const people = o.people || [];
+  const me = _pdpEmail(o.email);
+  const index = pdpEmailIndex(people);
+  const row = me ? _pdpUnique(index, me) : null;
+  const isReviewerOf = rows => rows.some(p => { const r = pdpReviewerEmails(index, p); return !!me && (r.lm === me || r.csd === me); });
+
+  let reason = '';
+  if (me) {
+    if (mode === PILOT) {
+      const pilotRows = _pdpPilotRows(people, o.pilot, today);
+      if (row && pilotRows.some(p => String(p.id) === String(row.id))) reason = 'pilot';
+      else if (isReviewerOf(pilotRows)) reason = 'pilot-reviewer';
+      else if (o.hasRecords === true) reason = 'has-records';
+    } else if (row && pdpInScope(row, today)) {
+      reason = 'in-scope';
+    } else if (isReviewerOf(people.filter(p => pdpInScope(p, today)))) {
+      reason = 'reviewer';
+    }
+  }
+  if (reason) return res('live', reason);
+  if (isAdmin) return mode === PILOT ? res('preview', 'pilot-admin') : res('live', 'on-admin');
+  return res('none', mode === PILOT ? 'not-in-pilot' : 'not-in-scope');
+}

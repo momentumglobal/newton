@@ -147,6 +147,9 @@ const CONFIG = {
     // NOT listed: Leadership sees aggregate completion only (pdpAggregate, consumed by N-441).
     pdpAdmin:              ['admin', 'people_ops'],
     pdpAggregate:          ['admin', 'people_ops', 'leadership'],
+    // N-445 (PDP-13, PDP-D13): change the PDP Off / Pilot / On switch and the pilot list. Admin
+    // only. People Ops previews PDP through pdpAdmin but never flips the switch.
+    pdpSwitch:             ['admin'],
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
@@ -1574,6 +1577,12 @@ const CONFIG = {
     REVIEWER_LEVEL: 'CSD',
     MANAGER_LEVELS: ['CSD', 'SDM', 'STP'],
     MAX_CHAIN:      8,
+    // N-445 (PDP-13, PDP-D13): the feature switch. MODES[0] (Off) is the fail-closed default;
+    // pdp-identity.js reads the order. SETTINGS names the two AppSettings columns (the single
+    // 'config' row): PDPMode = single line of text, PDPPilot = multiple lines of plain text
+    // holding the pilot people's work emails joined by ACCESS.EMAIL_SEP.
+    MODES:          ['Off', 'Pilot', 'On'],
+    SETTINGS:       { MODE: 'PDPMode', PILOT: 'PDPPilot' },
     DISPLAY_ROWS:   10,
     // N-434 (PDP-2): the seven PDP lists. Single source of truth: api-pdp.js and pdp-data.js
     // reference lists only through this map. Never add one to CACHE.persistentLists, DELTA,

@@ -281,7 +281,7 @@ ASSERTIONS.push(
       _assertEqual(/pdp/i.test(MCP_SOURCES['newton-tools.js']), false, 'AC14 Newton for Claude tools never mention PDP');
       _assertEqual(REPO_FILES.mcpServerCore.length > 0 && !/pdp/i.test(REPO_FILES.mcpServerCore), true, 'AC14 MCP server core read and never mentions PDP');
       const loaders = Object.keys(ALL_HTML).filter(f => /<script[^>]+src="js\/(pdp-[a-z]+|api-pdp)\.js"/.test(ALL_HTML[f])).sort();
-      _assertEqual(loaders, ['admin.html', 'people.html'], 'AC14 only people.html and admin.html load PDP scripts (never mobile.html)');
+      _assertEqual(loaders, ['admin.html', 'people.html', 'reporting.html'], 'AC14 only people.html, admin.html and reporting.html (the Config Panel PDP tab, N-445) load PDP scripts (never mobile.html)');
     },
   },
   {

@@ -406,6 +406,14 @@
 .ck-admin-status { margin: 0 0 var(--sp-4); color: var(--text-secondary); font-size: var(--fs-13); }
 .ck-admin-toolbar { margin: 0 0 var(--sp-5); }
 
+/* N-445 (PDP-13): Config Panel PDP tab — mode radios and the pilot people list */
+.pdp-admin-modes { display: flex; flex-direction: column; gap: var(--sp-5); }
+.pdp-admin-opt, .pdp-admin-person { display: flex; align-items: flex-start; gap: var(--sp-4); color: var(--text-primary); font-size: var(--fs-13); cursor: pointer; }
+.pdp-admin-opt small { display: block; color: var(--text-label); font-size: var(--fs-12); }
+.pdp-admin-person small { color: var(--text-label); font-size: var(--fs-12); }
+.pdp-admin-person[hidden] { display: none; }
+.pdp-admin-list { display: flex; flex-direction: column; gap: var(--sp-3); max-height: 320px; overflow-y: auto; margin: 0 0 var(--sp-5); padding: var(--sp-4); background: var(--surface-sunken); border: 1px solid var(--border); border-radius: var(--r-xl); }
+
 .ck-admin-table { margin: 0 0 var(--sp-9); }
 .ck-admin-section-row td { background: var(--surface-sunken); }
 .ck-admin-section-head {

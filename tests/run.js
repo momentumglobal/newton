@@ -116,6 +116,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-pdp-identity.js'),   // N-433
   path.join(TESTS_DIR, 'assert-pdp-data.js'),       // N-434
   path.join(TESTS_DIR, 'assert-pdp-access.js'),     // N-435
+  path.join(TESTS_DIR, 'assert-pdp-switch.js'),     // N-445
   path.join(TESTS_DIR, 'assert-project-types.js'),
   path.join(TESTS_DIR, 'assert-starter-folders.js'),
   path.join(TESTS_DIR, 'assert-sla.js'),

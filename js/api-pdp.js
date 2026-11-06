@@ -135,3 +135,61 @@ async function repointPdpAccess(personIds) {
   }
   return out;
 }
+
+// ── N-445 (PDP-13, PDP-D13): the Off / Pilot / On switch ───────────────────────────────────
+// PDPMode and PDPPilot sit on the AppSettings 'config' row (column names: CONFIG.PDP.SETTINGS).
+// The rules are pure in pdp-identity.js; this file only reads, writes and combines them. Named
+// readPdpSwitch / writePdpSwitch / resolvePdpGate on purpose: a file that calls getPdp*() is
+// treated as handling PDP records (the PDP-D12 source scan), and the switch holds none.
+
+// -> { mode, pilot: [emails] }. A missing row, missing columns or a failed read is Off.
+async function readPdpSwitch() {
+  const row = await _getAppSettingsRow();
+  const S = CONFIG.PDP.SETTINGS;
+  return { mode: pdpNormaliseMode(row ? row[S.MODE] : null), pilot: pdpParsePilot(row ? row[S.PILOT] : '') };
+}
+
+// Admin only (pdpSwitch), under Ghost Mode the ghosted user's role. Writes only the fields passed;
+// creates the 'config' row when it is missing (same shape as setChecklistSettings).
+async function writePdpSwitch({ mode, pilot } = {}) {
+  await _ensureGhostGate();
+  const role = await getEffectiveRole(getCurrentUser()?.email || '');
+  if (!roleCan(role, 'pdpSwitch')) throw new Error('Only an Admin can change the PDP switch.');
+  const S = CONFIG.PDP.SETTINGS;
+  const fields = {};
+  if (mode !== undefined) {
+    const m = String(mode).trim();
+    if (!CONFIG.PDP.MODES.includes(m)) throw new Error('PDP mode must be one of ' + CONFIG.PDP.MODES.join(' / ') + '.');
+    fields[S.MODE] = m;
+  }
+  if (pilot !== undefined) {
+    const list = Array.isArray(pilot) ? pilot : pdpParsePilot(pilot);
+    const bad = list.find(e => !pdpIsEmail(String(e).trim()));
+    if (bad !== undefined) throw new Error('Not a valid pilot email address: ' + bad);
+    fields[S.PILOT] = pdpFormatPilot(list);
+  }
+  if (!Object.keys(fields).length) return;
+  const row = await _getAppSettingsRow();
+  if (row) await updateItem('AppSettings', row.id, fields);
+  else     await createItem('AppSettings', { Title: 'config', ...fields });
+}
+
+// The single entry point for "may this user see PDP?" -> { mode, state, reason }.
+// Ghost-aware: the effective email and role, exactly like getPdpIdentity(). The records check
+// runs only in Pilot mode and only for a user the pilot rules left at none (a person removed from
+// the pilot keeps their history); PDP Meetings are trimmed by SharePoint per user, and a
+// denied or failed read counts as no records.
+async function resolvePdpGate(today) {
+  await _ensureGhostGate();
+  const realEmail = getCurrentUser()?.email || '';
+  const email = pdpEffectiveEmail(realEmail, getGhostUser());
+  const [sw, people, role] = await Promise.all([readPdpSwitch(), getPeople(false), getEffectiveRole(realEmail)]);
+  const base = { mode: sw.mode, pilot: sw.pilot, people, email, role, today: today || new Date() };
+  let gate = pdpAccess(Object.assign({ hasRecords: false }, base));
+  if (gate.state === 'none' && sw.mode === CONFIG.PDP.MODES[1]) {
+    let has = false;
+    try { has = pdpVisibleItems(await getPdpMeetings(), role, email).length > 0; } catch (e) { has = false; }
+    if (has) gate = pdpAccess(Object.assign({ hasRecords: true }, base));
+  }
+  return { mode: sw.mode, state: gate.state, reason: gate.reason };
+}

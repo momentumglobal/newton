@@ -492,6 +492,7 @@ ASSERTIONS.push(
       gpInvoices: ['admin', 'leadership', 'people_ops'],
       scorecards: ['admin', 'delivery_manager', 'leadership', 'people_ops', 'talent_partner'],
       engagement: ['admin', 'leadership', 'people_ops'],
+      pdpSetup: ['admin', 'people_ops'],   // N-436
     },
     sales: {
       revenueTracking: ['admin', 'leadership', 'sales'],

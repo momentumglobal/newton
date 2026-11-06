@@ -56,6 +56,7 @@ async function renderPeoplePage(page, pendingItem = null) {
     case 'gpInvoices':      await renderGPInvoices(pendingItem); break;
     case 'scorecards':      await renderScorecardsPage();     break;
     case 'engagement':      await renderEngagementPage();     break;
+    case 'pdpSetup':        await renderPdpSetupPage();       break;   // N-436 (pdp-setup.js)
     default:
       main.innerHTML = '<p>Page not found.</p>';
   }

@@ -5,7 +5,7 @@
 // under test: a column added to or dropped from LIST_FIELDS has to be changed here as well.
 // N-435 (specs/N-435.md): the five personal lists end with ReadOnlyEmails + AccessKey.
 const _PDP_TABLES = {
-  PDPFramework: ['Title', 'Level', 'Track', 'PillarKey', 'Pillar', 'Band', 'Descriptor', 'SortOrder', 'IsActive'],
+  PDPFramework: ['Title', 'Level', 'Track', 'PillarKey', 'Pillar', 'Band', 'Descriptor', 'SortOrder', 'IsActive', 'UpdatedBy'],   // N-436 adds UpdatedBy
   PDPTemplates: ['Title', 'MeetingType', 'VersionNo', 'Status', 'Definition', 'PublishedAt', 'PublishedBy'],
   PDPCycles: ['Title', 'PersonID', 'PersonEmail', 'PersonName', 'CycleYear', 'Level', 'Track', 'LineManagerEmail', 'CSDEmail', 'JoinDate', 'BiAnnualScored', 'ScoringLevel', 'Status', 'ReadOnlyEmails', 'AccessKey'],
   PDPMeetings: ['Title', 'PersonID', 'PersonEmail', 'PersonName', 'CycleYear', 'CycleID', 'MeetingType', 'IsJoiner', 'Period', 'DueDate', 'MeetingDate', 'Status', 'SkipReason', 'TemplateID', 'TemplateVersion', 'PrepEmployee', 'PrepManager', 'MeetingNotes', 'EmployeeSignedAt', 'ManagerSignedAt', 'LineManagerEmail', 'CSDEmail', 'ReadOnlyEmails', 'AccessKey'],

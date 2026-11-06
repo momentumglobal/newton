@@ -12,6 +12,8 @@ const PEOPLE_PAGES = {
   gpInvoices:      { label: 'Supplier Invoices',  roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.LEADERSHIP, CONFIG.ROLE_IDS.PEOPLE_OPS] },
   scorecards:      { label: 'People Scorecards',  roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.LEADERSHIP, CONFIG.ROLE_IDS.PEOPLE_OPS, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
   engagement:      { label: 'Engagement',         roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.LEADERSHIP, CONFIG.ROLE_IDS.PEOPLE_OPS] },
+  // N-436 (PDP-4): framework + template editors; the same people as CONFIG.ROLE_CAPABILITIES.pdpAdmin.
+  pdpSetup:        { label: 'PDP Setup',          roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.PEOPLE_OPS] },
 };
 
 function peopleCanAccess(page, role) {

@@ -272,3 +272,53 @@
   body.org-printing #org-chart-canvas { text-align: center; min-width: 0; }
   body.org-printing #org-chart-inner { zoom: var(--org-print-scale, 1); }
 }
+
+/* ── PDP Setup (N-436) ───────────────────────────────────────────────
+   People > PDP Setup: framework grid, template version list, template editor and preview. Tokens
+   only; reuses .ppl-card, .data-table, .form-group, .btn-*, .eng-tab. Lives in people.css because
+   only people.html renders it (lint-css-split pins the per-shell link list). */
+.pdps-intro { margin-bottom: var(--sp-7); }
+.pdps-seed { margin-bottom: var(--sp-7); }
+.pdps-seed-done { margin-bottom: var(--sp-5); }
+.pdps-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-9); margin: var(--sp-7) 0 var(--sp-5); }
+.pdps-set { margin-bottom: 0; min-width: 220px; }
+.pdps-add { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-4); }
+.pdps-note { margin-bottom: var(--sp-5); }
+.data-table.pdps-table { table-layout: fixed; width: 100%; }
+.data-table th.pdps-pillar { width: 16%; text-align: left; vertical-align: top; font-weight: var(--fw-semibold); color: var(--brand-tertiary); }
+.pdps-desc { width: 100%; min-height: 120px; box-sizing: border-box; padding: var(--sp-4); background: var(--surface);
+  border: 1px solid var(--border-control); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-13);
+  color: var(--text-primary); resize: vertical;
+  transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard); }
+.pdps-desc:hover:where(:not(:disabled)) { border-color: var(--text-muted); }
+.pdps-desc:focus { outline: none; border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-focus) 18%, transparent); }
+.pdps-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-top: var(--sp-7); }
+.pdps-foot .btn-primary { margin-left: auto; }
+.pdps-active { display: inline-flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-13); color: var(--text-primary); }
+.pdpt-type { margin-bottom: var(--sp-8); }
+.pdpt-type-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-7); margin-bottom: var(--sp-5); }
+.pdpt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); margin-bottom: var(--sp-7); }
+.pdpt-bar-title { flex: 1; min-width: 200px; }
+.pdpt-bar-actions { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
+.pdpt-problems:not(:empty) { background: var(--status-danger-bg); color: var(--status-danger); border-radius: var(--r-sm);
+  padding: var(--sp-6) var(--sp-7); margin-bottom: var(--sp-7); font-size: var(--fs-13); }
+.pdpt-problems ul { margin: var(--sp-3) 0 0 var(--sp-8); }
+.pdpt-section { margin-bottom: var(--sp-7); }
+.pdpt-section-head { display: flex; align-items: flex-end; gap: var(--sp-6); margin-bottom: var(--sp-5); }
+.pdpt-section-title { flex: 1; margin-bottom: 0; }
+.pdpt-block { border: 1px solid var(--border-faint); border-radius: var(--r-sm); padding: var(--sp-6) var(--sp-7);
+  margin-bottom: var(--sp-5); background: var(--surface); }
+.pdpt-block-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-4); }
+.pdpt-type-tag { font-size: var(--fs-11); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: .05em; color: var(--text-label); }
+.pdpt-block-actions { display: inline-flex; gap: var(--sp-2); }
+.pdpt-settings { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-7); }
+.pdpt-mini { display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--fs-12); color: var(--text-label); }
+.pdpt-mini input[type="number"] { width: 90px; }
+.pdpt-required { flex-direction: row; align-items: center; gap: var(--sp-3); }
+.pdpt-add select { max-width: 260px; }
+.pdpt-prev-block { padding: var(--sp-5) 0; border-bottom: 1px solid var(--border-faint); }
+.pdpt-prev-block:last-child { border-bottom: 0; }
+.pdpt-sample { margin-top: var(--sp-3); padding: var(--sp-5) var(--sp-6); background: var(--surface-sunken);
+  border-radius: var(--r-sm); font-size: var(--fs-12); color: var(--text-muted); }
+.pdp-busy button, .pdp-busy select { pointer-events: none; opacity: .6; }

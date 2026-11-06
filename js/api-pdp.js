@@ -193,3 +193,148 @@ async function resolvePdpGate(today) {
   }
   return { mode: sw.mode, state: gate.state, reason: gate.reason };
 }
+
+
+// ── N-436 (PDP-4): framework + template setup (Admin / People Ops, People > PDP Setup) ──────────
+// Graph only; every rule is pure in pdp-data.js (pdpFrameworkPlanSave, pdpSeedPlan,
+// pdpValidateTemplate, ...). These functions are deliberately NOT named getPdp* / createPdp* /
+// updatePdp* for their callers: the editor files must never be able to read or write a personal PDP
+// list, and the PDP-D12 source scan (assert-pdp-access) keeps them off the allowlist. Each write
+// re-reads the rows fresh (the 30 s read cache is dropped first) and checks the rule against what is
+// actually stored, so two editors cannot overwrite a Published template or double-number a version.
+
+// The signed-in user's email for audit columns, after checking they may edit (pdpAdmin, Ghost Mode
+// aware, same as writePdpSwitch).
+async function _pdpSetupWho() {
+  await _ensureGhostGate();
+  const email = getCurrentUser()?.email || '';
+  const role = await getEffectiveRole(email);
+  if (!roleCan(role, 'pdpAdmin')) throw new Error('Only Admin or People Ops can change the PDP framework and templates.');
+  return pdpEmail(email);
+}
+
+// Framework rows are read with Modified so the editor can say when a set was last edited.
+function _pdpFrameworkSelect() {
+  return ['Id', ...CONFIG.LIST_FIELDS[CONFIG.PDP.LISTS.FRAMEWORK], 'Modified'].join(',');
+}
+
+// -> { framework, templates }. fresh = true drops the read cache first (write paths and after saves).
+async function readPdpSetup(fresh) {
+  const L = CONFIG.PDP.LISTS;
+  if (fresh) { _cacheInvalidate(L.FRAMEWORK); _cacheInvalidate(L.TEMPLATES); }
+  const [framework, templates] = await Promise.all([
+    getItems(L.FRAMEWORK, '', _pdpFrameworkSelect()),
+    getPdpTemplates(),
+  ]);
+  return { framework, templates };
+}
+
+// Five writes at a time: a 108-row seed stays quick without flooding Graph.
+async function _pdpRunBatches(tasks, size) {
+  const n = size || 5;
+  let done = 0;
+  for (let i = 0; i < tasks.length; i += n) {
+    await Promise.all(tasks.slice(i, i + n).map(t => t()));
+    done = Math.min(tasks.length, i + n);
+  }
+  return done;
+}
+
+// Create-only and idempotent: only rows that are missing are created; nothing existing is changed.
+// -> { framework: n, templates: n } created.
+async function seedPdpDefaults() {
+  const by = await _pdpSetupWho();
+  const cur = await readPdpSetup(true);
+  const plan = pdpSeedPlan(cur.framework, cur.templates, PDP_SEED, by, new Date().toISOString());
+  const tasks = plan.framework.map(f => () => createPdpFramework(f)).concat(plan.templates.map(t => () => createPdpTemplate(t)));
+  let made = 0;
+  try {
+    for (let i = 0; i < tasks.length; i += 5) {
+      const chunk = tasks.slice(i, i + 5);
+      await Promise.all(chunk.map(t => t()));
+      made += chunk.length;
+    }
+  } catch (e) {
+    throw new Error('Seeded ' + made + ' of ' + tasks.length + ' rows before an error: ' + e.message + ' Press Seed defaults again to finish.');
+  }
+  return { framework: plan.framework.length, templates: plan.templates.length };
+}
+
+// edit = { level, track, descriptors: { pillarKey: { Below, Meets, Exceeding } }, isActive }
+// Writes only the rows that changed. -> { updated, created }
+async function savePdpFramework(edit) {
+  const by = await _pdpSetupWho();
+  const cur = await readPdpSetup(true);
+  const plan = pdpFrameworkPlanSave(cur.framework, edit.level, edit.track, edit, by, PDP_SEED.pillars);
+  await _pdpRunBatches(plan.updates.map(u => () => updatePdpFramework(u.id, u.fields)));
+  await _pdpRunBatches(plan.creates.map(c => () => createPdpFramework(c)));
+  return { updated: plan.updates.length, created: plan.creates.length };
+}
+
+// A new blank, inactive level x track (18 rows).
+async function addPdpFrameworkSet(level, track) {
+  const by = await _pdpSetupWho();
+  const cur = await readPdpSetup(true);
+  const rows = pdpFrameworkPlanAdd(cur.framework, level, track, by, PDP_SEED.pillars);
+  await _pdpRunBatches(rows.map(r => () => createPdpFramework(r)));
+  return { created: rows.length };
+}
+
+// "New version": the type's open Draft if one exists (one Draft per type), otherwise a Draft copied
+// from `fromId` or from the active version, or blank. The next VersionNo comes from a fresh read.
+async function startPdpTemplateDraft(meetingType, fromId) {
+  await _pdpSetupWho();
+  pdpAssertEnum('MeetingType', meetingType, CONFIG.PDP.MEETING_TYPES);
+  const rows = (await readPdpSetup(true)).templates;
+  const open = pdpTemplateDraft(rows, meetingType);
+  if (open) return open;
+  const src = fromId != null ? rows.find(r => String(r.id) === String(fromId) && r.MeetingType === meetingType) : pdpActiveTemplate(rows, meetingType);
+  const def = (src && pdpParseJson(src.Definition)) || pdpBlankDefinition();
+  const n = pdpNextVersionNo(rows, meetingType);
+  return createPdpTemplate({ Title: pdpTemplateTitle(meetingType, n), MeetingType: meetingType, VersionNo: n, Status: 'Draft', Definition: def });
+}
+
+// Only a Draft can be saved; the stored row is checked, not the caller's copy.
+async function savePdpTemplateDraft(id, definition) {
+  await _pdpSetupWho();
+  const rows = (await readPdpSetup(true)).templates;
+  const row = rows.find(r => String(r.id) === String(id));
+  if (!pdpTemplateEditable(row)) throw new Error('Only a draft can be edited. Start a new version instead.');
+  return updatePdpTemplate(id, { Definition: definition });
+}
+
+// Validates, publishes and retires the version it replaces. If another row already took the draft's
+// number (or a higher version is Published) the draft is renumbered first. A failed retire is reported,
+// not thrown: pdpActiveTemplate still resolves to the highest Published version.
+// -> { versionNo, retireFailed }
+async function publishPdpTemplate(id) {
+  const by = await _pdpSetupWho();
+  const rows = (await readPdpSetup(true)).templates;
+  const row = rows.find(r => String(r.id) === String(id));
+  if (!pdpTemplateEditable(row)) throw new Error('Only a draft can be published.');
+  const check = pdpValidateTemplate(pdpParseJson(row.Definition), row.MeetingType);
+  if (!check.ok) throw new Error('Cannot publish yet: ' + check.errors.join(' '));
+  const others = rows.filter(r => r.MeetingType === row.MeetingType && String(r.id) !== String(id));
+  let versionNo = Number(row.VersionNo);
+  const fields = { Status: 'Published', PublishedAt: new Date().toISOString(), PublishedBy: by };
+  if (others.some(o => Number(o.VersionNo) >= versionNo)) {
+    versionNo = pdpNextVersionNo(rows, row.MeetingType);
+    fields.VersionNo = versionNo;
+    fields.Title = pdpTemplateTitle(row.MeetingType, versionNo);
+  }
+  await updatePdpTemplate(id, fields);
+  let retireFailed = false;
+  for (const o of others.filter(r => r.Status === 'Published')) {
+    try { await updatePdpTemplate(o.id, { Status: 'Retired' }); } catch (e) { retireFailed = true; console.warn('PDP template retire failed', e); }
+  }
+  return { versionNo, retireFailed };
+}
+
+// A discarded draft is Retired, never deleted (records are retained).
+async function discardPdpTemplateDraft(id) {
+  await _pdpSetupWho();
+  const rows = (await readPdpSetup(true)).templates;
+  const row = rows.find(r => String(r.id) === String(id));
+  if (!pdpTemplateEditable(row)) throw new Error('Only a draft can be discarded.');
+  return updatePdpTemplate(id, { Status: 'Retired' });
+}

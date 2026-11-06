@@ -205,11 +205,11 @@ async function resolvePdpGate(today) {
 
 // The signed-in user's email for audit columns, after checking they may edit (pdpAdmin, Ghost Mode
 // aware, same as writePdpSwitch).
-async function _pdpSetupWho() {
+async function _pdpSetupWho(refusal) {
   await _ensureGhostGate();
   const email = getCurrentUser()?.email || '';
   const role = await getEffectiveRole(email);
-  if (!roleCan(role, 'pdpAdmin')) throw new Error('Only Admin or People Ops can change the PDP framework and templates.');
+  if (!roleCan(role, 'pdpAdmin')) throw new Error(refusal || 'Only Admin or People Ops can change the PDP framework and templates.');
   return pdpEmail(email);
 }
 
@@ -337,4 +337,62 @@ async function discardPdpTemplateDraft(id) {
   const row = rows.find(r => String(r.id) === String(id));
   if (!pdpTemplateEditable(row)) throw new Error('Only a draft can be discarded.');
   return updatePdpTemplate(id, { Status: 'Retired' });
+}
+
+
+// ── N-437 (PDP-5): the cycle engine (Admin / People Ops, People > PDP Setup > Cycle) ─────────────
+// Graph only; every rule is pure in pdp-cycle.js (pdpBuildCyclePlan). Cycles and Meetings are created
+// ONLY here, from an Admin / People Ops session (N-435 / PDP-D14: Members have no list-level access to
+// those two lists, so SharePoint refuses anyone else). Under Ghost Mode the effective role is checked,
+// so an admin ghosting a TP is refused; the writes themselves are always the real admin's.
+const _PDP_ENGINE_REFUSAL = 'Only Admin or People Ops can run the PDP cycle engine.';
+
+// The plan for one cycle year (nothing is written). fresh = true drops the 30 s read cache first.
+async function planPdpCycle(year, fresh) {
+  await _pdpSetupWho(_PDP_ENGINE_REFUSAL);
+  const y = Number(year);
+  if (!Number.isInteger(y)) throw new Error('PDP cycle year must be a whole number');
+  const L = CONFIG.PDP.LISTS;
+  if (fresh) [L.CYCLES, L.MEETINGS, L.TEMPLATES, 'People'].forEach(l => _cacheInvalidate(l));
+  const [sw, people, cycles, meetings, templates] = await Promise.all([
+    readPdpSwitch(), getPeople(false), getPdpCycles(null, y), getPdpMeetings(null, y), getPdpTemplates(),
+  ]);
+  // A 403 on a restricted list reads as "no rows"; for Admin / People Ops that is a misconfiguration,
+  // and planning on it would create every meeting a second time.
+  const denied = [L.CYCLES, L.MEETINGS].filter(l => wasListDenied(l));
+  if (denied.length) throw new Error('Newton could not read ' + denied.join(' and ') + ' (access denied). Check the PDP list permissions (N-435) before running the cycle engine.');
+  return pdpBuildCyclePlan({ year: y, mode: sw.mode, pilot: sw.pilot, people, cycles, meetings, templates, today: new Date() });
+}
+
+// Re-plans from a fresh read (never the preview's copy), then writes: cycles first, then each
+// person's meetings with the new CycleID, then the updates; five at a time. Idempotent, so a run cut
+// short is finished by running it again. onProgress(done, total) after each write.
+// -> { cycles, meetings, updates, total }
+async function applyPdpCycle(year, onProgress) {
+  const plan = await planPdpCycle(year, true);
+  if (plan.off) throw new Error('PDP is Off. Switch it to Pilot or On before generating meetings.');
+  if (plan.blockedTemplates.length) throw new Error('Publish a template first: ' + plan.blockedTemplates.map(b => b.label).join(', ') + '.');
+  const total = plan.cycles.length + plan.meetings.length + plan.meetingUpdates.length + plan.cycleUpdates.length;
+  let done = 0;
+  const tick = () => { done++; if (onProgress) onProgress(done, total); };
+  const newCycleId = {};
+  try {
+    await _pdpRunBatches(plan.cycles.map(c => async () => {
+      const saved = await createPdpCycle(c.fields);
+      if (!saved || saved.id == null) throw new Error('SharePoint did not return the new cycle for ' + c.name + '.');
+      newCycleId[c.personId] = Number(saved.id);
+      tick();
+    }));
+    await _pdpRunBatches(plan.meetings.map(m => async () => {
+      const fields = Object.assign({}, m.fields);
+      if (m.newCycle) fields.CycleID = newCycleId[m.personId];
+      await createPdpMeeting(fields);
+      tick();
+    }));
+    await _pdpRunBatches(plan.meetingUpdates.map(u => async () => { await updatePdpMeeting(u.id, u.fields); tick(); }));
+    await _pdpRunBatches(plan.cycleUpdates.map(u => async () => { await updatePdpCycle(u.id, u.fields); tick(); }));
+  } catch (e) {
+    throw new Error('Wrote ' + done + ' of ' + total + ' changes before an error: ' + e.message + ' Press Apply again to finish; nothing is written twice.');
+  }
+  return { cycles: plan.cycles.length, meetings: plan.meetings.length, updates: plan.meetingUpdates.length + plan.cycleUpdates.length, total };
 }

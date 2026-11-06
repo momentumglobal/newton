@@ -32,11 +32,17 @@ function renderPersonForm(existingData = null) {
         <div class='form-row'>
           <div class='form-group${noLevel ? ' is-hidden' : ''}' id='person-level-group'>
             <label>Level *</label>
-            <select name='Level'${noLevel ? ' disabled' : ' required'}>
+            <select name='Level'${noLevel ? ' disabled' : ' required'}${isEdit ? ` data-orig='${escAttr(existingData?.Level || '')}'${actOn('change', '_onPersonLevelChange', ACT_EL)}` : ''}>
               ${CONFIG.PEOPLE_LEVELS.map(l =>
                 `<option value='${l}' ${existingData?.Level===l?'selected':''}>${l}</option>`
               ).join('')}
             </select>
+          </div>
+          <div class='form-group${noLevel ? ' is-hidden' : ''}' id='person-levelsince-group'>
+            <label>Level since <span class='ppl-label-note'>Used for PDP promotion scoring</span></label>
+            <input type='date' name='LevelSince'${noLevel ? ' disabled' : ''}
+              data-orig='${escAttr(spDateIn(existingData?.LevelSince) || '')}'${actOn('input', '_onLevelSinceInput', ACT_EL)}
+              value='${escHtml(spDateIn(existingData?.LevelSince) || '')}'>
           </div>
           <div class='form-group${internal ? '' : ' is-hidden'}' id='person-function-group'>
             <label>Function *</label>
@@ -131,6 +137,8 @@ async function submitPersonForm(event, editId = null) {
     Location:     data.Location,
     StartDate:    isoDate(data.StartDate) || undefined,
     EndDate:      isoDate(data.EndDate)   || undefined,
+    // N-437: blank clears on edit; internal / external staff have no level, so no level date.
+    LevelSince:   (internal || external) ? (editId ? null : undefined) : (isoDate(data.LevelSince) || (editId ? null : undefined)),
     IsActive:     editId ? (form.querySelector('[name=IsActive]')?.checked !== false) : true,
     Salary:       !external && data.Salary ? parseFloat(data.Salary) : undefined,
   };
@@ -215,6 +223,7 @@ function _onStaffTypeChange(select) {
   const external = select.value === CONFIG.STAFF_TYPE_EXTERNAL;
   [
     ['person-level-group',    !internal && !external, true],
+    ['person-levelsince-group', !internal && !external, false],   // N-437
     ['person-function-group', internal,               true],
     ['person-contract-group', !external,              true],
     ['person-salary-group',   !external,              false],
@@ -226,6 +235,15 @@ function _onStaffTypeChange(select) {
     if (field) { field.disabled = !on; field.required = on && required; }
   });
 }
+
+// N-437: a Level change pre-fills "Level since" with today, unless the date was typed by hand;
+// changing back to the stored level restores the stored date.
+function _onPersonLevelChange(select) {
+  const since = document.querySelector('#person-form [name=LevelSince]');
+  if (!since || since.dataset.touched === '1') return;
+  since.value = select.value === select.dataset.orig ? (since.dataset.orig || '') : localDayISO();
+}
+function _onLevelSinceInput(input) { input.dataset.touched = '1'; }
 
 // ── G-P Invoice forms ─────────────────────────────────────────
 function renderInvoiceForm(existingData = null) {
@@ -371,4 +389,6 @@ registerActions({
   submitPersonForm,
   submitInvoiceForm,
   _onStaffTypeChange,
+  _onPersonLevelChange,
+  _onLevelSinceInput,
 });

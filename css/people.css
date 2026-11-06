@@ -325,3 +325,10 @@
 .pdpt-sample { margin-top: var(--sp-3); padding: var(--sp-5) var(--sp-6); background: var(--surface-sunken);
   border-radius: var(--r-sm); font-size: var(--fs-12); color: var(--text-muted); }
 .pdp-busy button, .pdp-busy select { pointer-events: none; opacity: .6; }
+/* N-437: PDP Setup > Cycle (pdp-cycle-admin.js). Status badges reuse .dh-badge-* (style.css). */
+.pdpc-actions { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
+.pdpc-progress:empty { display: none; }
+.pdpc-summary { font-size: var(--fs-13); color: var(--text-primary); margin-bottom: var(--sp-7); }
+.pdpc-card { margin-bottom: var(--sp-7); }
+.pdpc-list { margin: var(--sp-3) 0 0 var(--sp-8); font-size: var(--fs-13); color: var(--text-primary); }
+.pdpc-list li { margin-bottom: var(--sp-2); }

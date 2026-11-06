@@ -5,16 +5,18 @@
 // renderPdpSetupPage(); everything the page renders or does lives in these two files.
 //
 // Reads and writes go through api-pdp.js (readPdpSetup, seedPdpDefaults, savePdpFramework,
-// addPdpFrameworkSet, ...); every rule is pure in pdp-data.js. This file holds NO personal PDP
-// records and never names a PDP list (PDP-D12 source scan): the framework and templates are
+// addPdpFrameworkSet, ...); every rule is pure in pdp-data.js. The framework and templates are
 // organisation content, readable by every Newton user and editable only by Admin / People Ops
-// (SharePoint item permissions, N-435; pdpAdmin here).
+// (SharePoint item permissions, N-435; pdpAdmin here). This file never names a PDP list.
+// PDP-D12 review (N-437): the Cycle tab (pdp-cycle-admin.js) and the "people are missing meetings"
+// banner below read the personal Cycles / Meetings lists through planPdpCycle(), so this file is on
+// the PDP-D12 allowlist (tests/assert-pdp-access.js). Admin / People Ops only, people.html only.
 //
 // The page opens for Admin and People Ops in every PDP mode (Off, Pilot, On): templates are built
 // before launch (N-445). resolvePdpGate() must still say preview or live.
 
 let _pdpsState = {
-  tab:   'framework',   // 'framework' | 'templates'
+  tab:   'framework',   // 'framework' | 'templates' | 'cycle' (N-437)
   setup: null,          // { framework, templates } as last read
   level: '',            // selected framework set
   track: '',
@@ -66,26 +68,54 @@ async function renderPdpSetupPage() {
   _pdpsState.mode  = gate.mode;
   _pdpsState.dirty = false;
   _pdptDraft = null; _pdptView = 'list'; _pdptPrev = null;   // a fresh visit starts at the version list (pdp-template-editor.js)
+  _pdpcState.plan = null; _pdpcState.error = ''; _pdpcState.progress = '';   // N-437: a fresh visit re-plans the Cycle tab (pdp-cycle-admin.js)
   _pdpsState.busy  = false;
   main.innerHTML = `
     <div class="page-header">
       <h1 class="page-title">PDP Setup</h1>
     </div>
     <p class="ppl-muted-note pdps-intro">The capability framework and the four meeting templates behind Development &amp; Performance. Changes here are used by every new meeting; a meeting keeps the template version it started with. PDP is currently <strong>${escHtml(gate.mode)}</strong>${gate.mode === CONFIG.PDP.MODES[0] ? ' (only Admin and People Ops can preview it)' : ''}.</p>
+    <div id="pdps-cycle-banner"></div>
     <div id="pdps-seed"></div>
     <div class="eng-tab-strip" role="tablist">
       <button class="eng-tab" id="pdps-tab-framework" role="tab"${act('pdpsTab', 'framework')}>Framework</button>
       <button class="eng-tab" id="pdps-tab-templates" role="tab"${act('pdpsTab', 'templates')}>Templates</button>
+      <button class="eng-tab" id="pdps-tab-cycle" role="tab"${act('pdpsTab', 'cycle')}>Cycle</button>
     </div>
     <div id="pdps-body"></div>`;
   _pdpsRender();
+  pdpsCycleBanner();
+}
+
+// N-437: "n in-scope people have no <year> meetings" for each year the Cycle tab offers. Reads only
+// (planPdpCycle writes nothing); silent when PDP is Off, when nothing is missing or on any error.
+async function pdpsCycleBanner() {
+  const el = document.getElementById('pdps-cycle-banner');
+  if (!el) return;
+  const lines = [];
+  for (const year of pdpCycleYears(new Date())) {
+    try {
+      const plan = await planPdpCycle(year, false);
+      if (!plan.off && plan.counts.peopleToCreate) lines.push(`${_pdpcPlural(plan.counts.peopleToCreate, 'in-scope person needs', 'in-scope people need')} ${escHtml(year)} meetings.`);
+    } catch (e) {
+      console.warn('PDP cycle banner: plan unavailable', e);
+    }
+  }
+  const box = document.getElementById('pdps-cycle-banner');
+  if (!box) return;
+  box.innerHTML = lines.length ? `
+    <div class="ppl-card pdps-seed">
+      <div class="ppl-card-title">PDP meetings to generate</div>
+      <p class="ppl-muted-note">${lines.join(' ')} Open the Cycle tab to preview and apply.</p>
+      <button type="button" class="btn-secondary btn--sm"${act('pdpsTab', 'cycle')}>Open Cycle</button>
+    </div>` : '';
 }
 
 // Everything below the page header is redrawn from _pdpsState.setup, so the screen only ever shows
 // what was actually read back from SharePoint.
 function _pdpsRender() {
   const tab = _pdpsState.tab;
-  ['framework', 'templates'].forEach(t => {
+  ['framework', 'templates', 'cycle'].forEach(t => {
     const el = document.getElementById('pdps-tab-' + t);
     if (el) { el.classList.toggle('eng-tab--active', t === tab); el.setAttribute('aria-selected', t === tab ? 'true' : 'false'); }
   });
@@ -93,7 +123,9 @@ function _pdpsRender() {
   if (seed) seed.innerHTML = _pdpsSeedHtml();
   const body = document.getElementById('pdps-body');
   if (!body) return;
-  body.innerHTML = tab === 'framework' ? _pdpsFrameworkHtml() : pdptTemplatesHtml(_pdpsState.setup);
+  body.innerHTML = tab === 'framework' ? _pdpsFrameworkHtml()
+    : tab === 'cycle' ? pdpcCycleHtml()   // N-437 (pdp-cycle-admin.js)
+    : pdptTemplatesHtml(_pdpsState.setup);
   lucide.createIcons();
 }
 

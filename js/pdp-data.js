@@ -8,6 +8,7 @@
 
 // kind: text | email | emails | int | bool | date | datetime | json | enum (+ enum name in CONFIG.PDP)
 //       | flow (written by the PDP access flow only: read, never written by Newton — N-435)
+//       | levelKey (N-437: '<Level>-<Track>', e.g. 'L5-MG'; pdpLevelKey / pdpParseLevelKey)
 function _pdpCols() {
   const P = CONFIG.PDP;
   const person = { PersonID: { kind: 'int' }, PersonEmail: { kind: 'email' } };
@@ -37,7 +38,7 @@ function _pdpCols() {
       cols: Object.assign({ Title: { kind: 'text' } }, person, {
         PersonName: { kind: 'text' }, CycleYear: { kind: 'int' }, Level: e(P.LEVELS), Track: e(P.TRACKS),
       }, snap, {
-        JoinDate: { kind: 'date' }, BiAnnualScored: { kind: 'bool' }, ScoringLevel: e(P.LEVELS),
+        JoinDate: { kind: 'date' }, BiAnnualScored: { kind: 'bool' }, ScoringLevel: { kind: 'levelKey' },   // N-437: level + track
         Status: e(P.CYCLE_STATUS),
       }, access),
     },
@@ -73,7 +74,7 @@ function _pdpCols() {
       required: ['PersonID', 'PersonEmail', 'CycleYear', 'MeetingID', 'PillarKey', 'Source'],
       cols: Object.assign({ Title: { kind: 'text' } }, person, { CycleYear: { kind: 'int' } }, snap, {
         MeetingID: { kind: 'int' }, PillarKey: { kind: 'text' }, Source: e(P.SCORE_SOURCES),
-        ScoringLevel: e(P.LEVELS), Score: { kind: 'int', min: P.SCORE_MIN, max: P.SCORE_MAX },
+        ScoringLevel: { kind: 'levelKey' }, Score: { kind: 'int', min: P.SCORE_MIN, max: P.SCORE_MAX },   // N-437: same shape as the cycle's
         Rationale: { kind: 'text' }, SubmittedAt: { kind: 'datetime' },
         CalibratedScore: { kind: 'int', min: P.SCORE_MIN, max: P.SCORE_MAX },
         CalibrationRationale: { kind: 'text' }, IsLocked: { kind: 'bool' },
@@ -168,6 +169,21 @@ function pdpIsOverdue(meeting, today) {
   return !!due && due < String(today);
 }
 
+// N-437: the descriptor set a Bi-Annual scores against, as one value: '<Level>-<Track>' ('L4-IC').
+// Stored on PDPCycles.ScoringLevel and PDPScores.ScoringLevel. The track is part of it because a
+// promotion can change it (STP L4-IC -> SDM L5-MG, while a PTP is L5-IC).
+function pdpLevelKey(level, track) {
+  pdpAssertEnum('level', level, CONFIG.PDP.LEVELS);
+  pdpAssertEnum('track', track, CONFIG.PDP.TRACKS);
+  return level + '-' + track;
+}
+// -> { level, track } or null for anything that is not a valid key.
+function pdpParseLevelKey(key) {
+  const m = /^(L\d)-([A-Z]+)$/.exec(String(key == null ? '' : key).trim().toUpperCase());
+  if (!m || !CONFIG.PDP.LEVELS.includes(m[1]) || !CONFIG.PDP.TRACKS.includes(m[2])) return null;
+  return { level: m[1], track: m[2] };
+}
+
 // ── Cleaners ──────────────────────────────────────────────────────────
 function _pdpBlank(v) { return v === undefined || v === null || v === ''; }
 
@@ -186,6 +202,11 @@ function _pdpCleanValue(list, col, def, v) {
     }
     case 'json':  return pdpJsonField(v);
     case 'enum':  return pdpAssertEnum(where, v, def.values);
+    case 'levelKey': {
+      const k = pdpParseLevelKey(v);
+      if (!k) throw new Error(where + ' must be a level and track such as L3-IC');
+      return pdpLevelKey(k.level, k.track);
+    }
     case 'int': {
       const n = Number(v);
       if (!Number.isInteger(n)) throw new Error(where + ' must be a whole number');

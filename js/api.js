@@ -1250,6 +1250,7 @@ async function createPerson(fields) {
     Location:     fields.Location,
     StartDate:    fields.StartDate || undefined,
     EndDate:      fields.EndDate   || undefined,
+    LevelSince:   fields.LevelSince || undefined,   // N-437: PDP promotion date (Date only)
     IsActive:     fields.IsActive !== false,
     PhotoUrl:     fields.PhotoUrl || undefined,
     IsPlaceholder:      fields.IsPlaceholder || undefined,
@@ -1277,6 +1278,7 @@ async function updatePerson(id, fields) {
   if (fields.Location     !== undefined) payload.Location     = fields.Location;
   if (fields.StartDate    !== undefined) payload.StartDate    = fields.StartDate;
   if (fields.EndDate      !== undefined) payload.EndDate      = fields.EndDate;
+  if (fields.LevelSince   !== undefined) payload.LevelSince   = fields.LevelSince;   // N-437 (null clears)
   if (fields.IsActive     !== undefined) payload.IsActive     = fields.IsActive;
   if (fields.PhotoUrl     !== undefined) payload.PhotoUrl     = fields.PhotoUrl;
   if (fields.IsPlaceholder      !== undefined) payload.IsPlaceholder      = fields.IsPlaceholder;

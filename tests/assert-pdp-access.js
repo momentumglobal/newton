@@ -23,7 +23,10 @@ function _pdpAccItem(id, p, lm, csd, extra, locked) {
 
 // PDP-D12 guard: files (other than the allowlist) that mention a PDP list or a PDP data function.
 // Adding a file to the allowlist is a deliberate PDP-D12 review: that file now handles PDP data.
-const _PDP_GUARD_ALLOW = ['config.js', 'graph-client.js', 'pdp-identity.js', 'pdp-data.js', 'api-pdp.js', 'os-admin.js', 'org-chart.js'];
+const _PDP_GUARD_ALLOW = ['config.js', 'graph-client.js', 'pdp-identity.js', 'pdp-data.js', 'api-pdp.js', 'os-admin.js', 'org-chart.js',
+  // PDP-D12 review: N-437 — the cycle engine (pure rules), the PDP Setup > Cycle tab and the PDP Setup
+  // page's "missing meetings" banner read the personal Cycles / Meetings lists (Admin / People Ops only).
+  'pdp-cycle.js', 'pdp-cycle-admin.js', 'pdp-setup.js'];
 const _PDP_GUARD_RE = /\b(PDPFramework|PDPTemplates|PDPCycles|PDPMeetings|PDPGoals|PDPActions|PDPScores)\b|CONFIG\.PDP\.(LISTS|PERSONAL_LIST_KEYS)|\bpdpPersonalLists\b|\b(getPdp(?!Identity)\w*|createPdp\w*|updatePdp\w*|repointPdp\w*)/;
 function _pdpGuardOffenders(sources, allow) {
   return Object.keys(sources).filter(f => !allow.includes(f) && _PDP_GUARD_RE.test(sources[f] || '')).sort();

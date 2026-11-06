@@ -625,6 +625,7 @@ const CONFIG = {
       'PlaceholderCSD', 'ReportsTo',
       'StaffType', 'StaffFunction',   // N-304
       'WorkEmail',                    // N-433: the person's own work email (PDP identity). Create the column BEFORE deploying.
+      'LevelSince',                   // N-437: date the person reached their current Level (PDP promotion rule). Date only; create the column BEFORE deploying.
     ],
     // N-286: one row per person. Title = People item id as text; PersonID
     // (Number) is the join key. Restricted list (admin + leadership) — read
@@ -1553,7 +1554,7 @@ const CONFIG = {
       AnomalyAcks:    ['Note'],
       Assignments:    ['MonthlyBillRate', 'RetainerFee', 'PlacementFee', 'ProratedRevenue', 'BilledRevenue', 'UserEmail'],   // N-394: every money column, the computeMonthlyRows revenue columns, and staff emails (names only)
       SalesForecasts: ['ForecastedHeadcount'],   // N-394: read locally for the forecast %, never returned
-      People:         ['WorkEmail'],             // N-433: staff work emails are never returned to Claude
+      People:         ['WorkEmail', 'LevelSince'],   // N-433: staff work emails are never returned to Claude; N-437: nor the level-change date (an HR date behind PDP scoring)
     },
     windows: {
       summaryWeeks:      13,   // project_summary hires window (default)
@@ -1639,6 +1640,39 @@ const CONFIG = {
     TEMPLATE_LIMITS: {
       MAX_SECTIONS: 20, MAX_BLOCKS: 60, TITLE_MAX: 120, LABEL_MAX: 300, HINT_MAX: 600,
       GOALS_MAX: 10, ACTIONS_MAX: 10, DESCRIPTOR_MAX: 1000,
+    },
+    // N-437 (PDP-5): the cycle engine (pdp-cycle.js; run from People > PDP Setup > Cycle by Admin / People Ops).
+    //   CALENDAR             meeting type per month, index 0 = January. Due date = last day of that month.
+    //   JOINER_DUE_DAYS      PDP-D10: a joiner's goal setting is due this many days after they join.
+    //   JOINER_SKIP_DAYS     PDP-D10: a calendar meeting due within this many days after it is Skipped.
+    //   JOINER_GOALS         PDP-D10: goals a joiner sets (overrides the Annual template's goalSet range; N-438/439).
+    //   BIANNUAL_CUTOFF      PDP-D10: 'MM-DD'. Joined on or before it -> the July Bi-Annual is scored.
+    //   PROMOTION_MIN_MONTHS PDP-D11: months in a new level (People.LevelSince) before it is scored on.
+    //   DUE_SOON_DAYS        pdpMeetingState(): a meeting due within this many days is 'due'.
+    //   NEXT_YEAR_FROM_MONTH from this month (1-12) the Cycle tab also offers next year.
+    //   LEVEL_MAP            People.Level -> framework level + track (PDP-D5: PTP = L5 IC, SDM = L5 MG).
+    //   SKIP_REASONS         SkipReason text the engine writes.
+    CYCLE: {
+      CALENDAR: ['Annual', 'Monthly', 'Monthly', 'Quarterly', 'Monthly', 'Monthly',
+                 'BiAnnual', 'Monthly', 'Monthly', 'Quarterly', 'Monthly', 'Monthly'],
+      JOINER_DUE_DAYS:      30,
+      JOINER_SKIP_DAYS:     21,
+      JOINER_GOALS:         { min: 2, max: 3 },
+      BIANNUAL_CUTOFF:      '03-31',
+      PROMOTION_MIN_MONTHS: 3,
+      DUE_SOON_DAYS:        14,
+      NEXT_YEAR_FROM_MONTH: 11,
+      LEVEL_MAP: {
+        TP:  { level: 'L3', track: 'IC' },
+        STP: { level: 'L4', track: 'IC' },
+        PTP: { level: 'L5', track: 'IC' },
+        SDM: { level: 'L5', track: 'MG' },
+      },
+      SKIP_REASONS: {
+        joiner: 'Within 3 weeks of goal setting',
+        left:   'Left Momentum',
+        scope:  'Left PDP scope',
+      },
     },
   },
 

@@ -133,7 +133,7 @@ ASSERTIONS.push(
     fn: function () {
       const src = ALL_SOURCES['api-pdp.js'].split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
       const fn = (name, next) => { const a = src.indexOf('async function ' + name); const b = next ? src.indexOf('async function ' + next) : src.length; return src.slice(a, b); };
-      const gateSrc = fn('resolvePdpGate');
+      const gateSrc = fn('resolvePdpGate', '_pdpSetupWho');   // N-437: bounded, so later functions in the file are not counted
       _assertEqual((gateSrc.match(/getPdpMeetings\(/g) || []).length, 1, 'AC10 one records read');
       _assertEqual(gateSrc.indexOf('getPdpMeetings(') > gateSrc.indexOf("gate.state === 'none'") && gateSrc.indexOf("gate.state === 'none'") > -1, true, 'AC10 only for a user still at none');
       _assertEqual(/sw\.mode === CONFIG\.PDP\.MODES\[1\]/.test(gateSrc), true, 'AC10 only in Pilot mode');

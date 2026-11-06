@@ -21,6 +21,7 @@ let _pdpsState = {
   dirty: false,         // framework grid has unsaved text
   busy:  false,
   mode:  '',            // PDP switch, for the page note
+  people: [],           // People rows, only to turn the last editor's email into a name
 };
 
 const _PDPS_BAND_TEXT = { Below: 'Below expectation', Meets: 'Meets expectation', Exceeding: 'Exceeding expectation' };
@@ -61,6 +62,7 @@ async function renderPdpSetupPage() {
     return;
   }
   _pdpsState.setup = setup;
+  try { _pdpsState.people = await getPeople(false); } catch (e) { _pdpsState.people = []; }   // best effort: the footer falls back to the email
   _pdpsState.mode  = gate.mode;
   _pdpsState.dirty = false;
   _pdptDraft = null; _pdptView = 'list'; _pdptPrev = null;   // a fresh visit starts at the version list (pdp-template-editor.js)
@@ -164,7 +166,7 @@ function _pdpsFrameworkHtml() {
         <div class="pdps-foot">
           <label class="pdps-active"><input type="checkbox" id="pdps-active"${set.active ? ' checked' : ''}${incomplete ? ' disabled' : ''}> In use for scoring</label>
           <span class="ppl-muted-small" id="pdps-count">${set.written} of ${set.total} written</span>
-          <span class="ppl-muted-small">${audit.at ? 'Last edited ' + escHtml(_pdpsFmtDate(audit.at)) + (audit.by ? ' by ' + escHtml(audit.by) : '') : 'Not edited yet'}</span>
+          <span class="ppl-muted-small">${audit.at ? 'Last edited ' + escHtml(_pdpsFmtDate(audit.at)) + (audit.by ? ' by ' + escHtml(pdpNameByEmail(_pdpsState.people, audit.by)) : '') : 'Not edited yet'}</span>
           <button type="button" class="btn-primary" id="pdps-save"${act('pdpsSaveFramework')}>Save</button>
         </div>
       </div>

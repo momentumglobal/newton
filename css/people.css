@@ -285,7 +285,10 @@
 .pdps-add { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-4); }
 .pdps-note { margin-bottom: var(--sp-5); }
 .data-table.pdps-table { table-layout: fixed; width: 100%; }
-.data-table th.pdps-pillar { width: 16%; text-align: left; vertical-align: top; font-weight: var(--fw-semibold); color: var(--brand-tertiary); }
+.data-table th.pdps-pillar { width: 16%; text-align: left; vertical-align: top; font-weight: var(--fw-semibold);
+  /* A row header, not a column header: the global .data-table th paints a brand-navy band, which hid this
+     text in light mode and washed it out in dark. Neutral surface + primary text reads in both themes. */
+  background: var(--surface); color: var(--text-primary); text-transform: none; letter-spacing: normal; font-size: var(--fs-13); }
 .pdps-desc { width: 100%; min-height: 120px; box-sizing: border-box; padding: var(--sp-4); background: var(--surface);
   border: 1px solid var(--border-control); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-13);
   color: var(--text-primary); resize: vertical;
@@ -301,7 +304,7 @@
 .pdpt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); margin-bottom: var(--sp-7); }
 .pdpt-bar-title { flex: 1; min-width: 200px; }
 .pdpt-bar-actions { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
-.pdpt-problems:not(:empty) { background: var(--status-danger-bg); color: var(--status-danger); border-radius: var(--r-sm);
+.pdpt-problems:not(:empty) { background: var(--status-danger-bg); color: var(--text-primary); border-radius: var(--r-sm);
   padding: var(--sp-6) var(--sp-7); margin-bottom: var(--sp-7); font-size: var(--fs-13); }
 .pdpt-problems ul { margin: var(--sp-3) 0 0 var(--sp-8); }
 .pdpt-section { margin-bottom: var(--sp-7); }

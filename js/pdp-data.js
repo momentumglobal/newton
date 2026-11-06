@@ -585,6 +585,29 @@ function pdpTemplateDraft(rows, meetingType) {
 // Published and Retired rows are immutable (PDP-D7).
 function pdpTemplateEditable(row) { return !!row && row.Status === 'Draft'; }
 
+// The template a meeting was created against (PDP-D7: a meeting keeps its version). Resolved from the
+// meeting's own TemplateID, else its MeetingType + TemplateVersion, and NEVER from "the active version":
+// publishing v2 must not change what a v1 meeting renders. null when neither points at a row.
+function pdpTemplateForMeeting(templateRows, meeting) {
+  const rows = templateRows || [], m = meeting || {};
+  if (m.TemplateID != null && String(m.TemplateID) !== '') {
+    const byId = rows.find(r => String(r.id) === String(m.TemplateID));
+    if (byId) return byId;
+  }
+  if (m.MeetingType && _pdpNum(m.TemplateVersion) > 0) {
+    return rows.find(r => r.MeetingType === m.MeetingType && _pdpNum(r.VersionNo) === _pdpNum(m.TemplateVersion)) || null;
+  }
+  return null;
+}
+
+// Display name for a work email from the People rows (EmployeeName), else the email itself.
+function pdpNameByEmail(people, email) {
+  const e = _pdpTrim(email).toLowerCase();
+  if (!e) return '';
+  const p = (people || []).find(x => x && !x.IsPlaceholder && _pdpTrim(x.WorkEmail).toLowerCase() === e);
+  return (p && _pdpTrim(p.EmployeeName)) || e;
+}
+
 // Highest VersionNo of the type, any status, plus one (1 when the type has no rows).
 function pdpNextVersionNo(rows, meetingType) {
   return _pdpTplRows(rows, meetingType).reduce((m, r) => Math.max(m, _pdpNum(r.VersionNo)), 0) + 1;

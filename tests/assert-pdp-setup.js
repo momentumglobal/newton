@@ -265,5 +265,35 @@ ASSERTIONS.push(
       _assertEqual(pdpCleanFramework({ Title: 't', UpdatedBy: 'A@Mg.test', Evil: 1 }, 'create').UpdatedBy, 'a@mg.test', 'AC11 UpdatedBy cleaned as an email');
       _assertEqual(/\bfunction\b|=>|getItems|createItem|fetch\(/.test(_pdpsCode(ALL_SOURCES['pdp-seed.js'])), false, 'AC11 pdp-seed.js is data only');
     },
+  },
+  {
+    name: 'N-436 AC12 (QA fixes) a meeting keeps its template version; editor names; framework grid and error box contrast',
+    fn: function () {
+      const rows = [
+        { id: '10', MeetingType: 'Quarterly', VersionNo: 1, Status: 'Retired' },
+        { id: '11', MeetingType: 'Quarterly', VersionNo: 2, Status: 'Published' },
+        { id: '12', MeetingType: 'Monthly', VersionNo: 1, Status: 'Published' },
+      ];
+      _assertEqual(pdpActiveTemplate(rows, 'Quarterly').id, '11', 'AC12 v2 is the active Quarterly version');
+      _assertEqual(pdpTemplateForMeeting(rows, { TemplateID: 10, MeetingType: 'Quarterly', TemplateVersion: 1 }).id, '10', 'AC12 a v1 meeting still resolves v1 after v2 is published');
+      _assertEqual(pdpTemplateForMeeting(rows, { TemplateID: '11' }).VersionNo, 2, 'AC12 resolved by TemplateID');
+      _assertEqual(pdpTemplateForMeeting(rows, { MeetingType: 'Quarterly', TemplateVersion: 1 }).id, '10', 'AC12 falls back to type + version, not the active one');
+      _assertEqual(pdpTemplateForMeeting(rows, { TemplateID: 99, MeetingType: 'Quarterly', TemplateVersion: 1 }).id, '10', 'AC12 an unknown id falls back to type + version');
+      _assertEqual(pdpTemplateForMeeting(rows, { MeetingType: 'Quarterly' }), null, 'AC12 no pointer: null, never "latest"');
+      _assertEqual(pdpTemplateForMeeting([], { TemplateID: 10 }), null, 'AC12 no rows');
+      const people = [{ EmployeeName: 'Pat Ops', WorkEmail: 'Pat.Ops@mg.test' }, { EmployeeName: 'Ghost', WorkEmail: 'x@mg.test', IsPlaceholder: true }];
+      _assertEqual(pdpNameByEmail(people, 'pat.ops@MG.test'), 'Pat Ops', 'AC12 name from the People row');
+      _assertEqual(pdpNameByEmail(people, 'x@mg.test'), 'x@mg.test', 'AC12 a placeholder never names anyone');
+      _assertEqual(pdpNameByEmail(people, 'nobody@mg.test'), 'nobody@mg.test', 'AC12 falls back to the email');
+      _assertEqual(pdpNameByEmail(people, ''), '', 'AC12 blank stays blank');
+      _assertEqual(/pdpNameByEmail\(_pdpsState\.people, audit\.by\)/.test(ALL_SOURCES['pdp-setup.js']), true, 'AC12 the footer shows the name');
+      const css = ALL_CSS['people.css'];
+      const pillar = (css.match(/\.data-table th\.pdps-pillar\s*\{[^}]*\}/) || [''])[0].replace(/\/\*[\s\S]*?\*\//g, '');
+      _assertEqual(/background:\s*var\(--surface\)/.test(pillar) && /color:\s*var\(--text-primary\)/.test(pillar), true, 'AC12 pillar row header: neutral surface + primary text (not the brand band)');
+      _assertEqual(/text-transform:\s*none/.test(pillar), true, 'AC12 pillar row header is not upper-cased');
+      _assertEqual(/--brand-tertiary|--status-[a-z]+-text/.test(pillar), false, 'AC12 pillar row header uses no brand/status text token');
+      const prob = (css.match(/\.pdpt-problems:not\(:empty\)\s*\{[^}]*\}/) || [''])[0];
+      _assertEqual(/color:\s*var\(--text-primary\)/.test(prob) && !/color:\s*var\(--status-/.test(prob), true, 'AC12 error box text is not a status token on its own tint');
+    },
   }
 );

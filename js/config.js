@@ -584,7 +584,8 @@ const CONFIG = {
       'Title', 'PersonID', 'PersonEmail', 'PersonName', 'CycleYear', 'CycleID', 'MeetingType',
       'IsJoiner', 'Period', 'DueDate', 'MeetingDate', 'Status', 'SkipReason', 'TemplateID',
       'TemplateVersion', 'PrepEmployee', 'PrepManager', 'MeetingNotes', 'EmployeeSignedAt',
-      'ManagerSignedAt', 'LineManagerEmail', 'CSDEmail', 'ReadOnlyEmails', 'AccessKey',
+      'ManagerSignedAt', 'SelfScoredAt', 'ManagerScoredAt', 'ScoresRevealedAt', 'Assessment',   // N-442
+      'LineManagerEmail', 'CSDEmail', 'ReadOnlyEmails', 'AccessKey',
     ],
     PDPGoals: [
       'Title', 'PersonID', 'PersonEmail', 'CycleYear', 'LineManagerEmail', 'CSDEmail', 'GoalLevel',
@@ -1710,6 +1711,34 @@ const CONFIG = {
       HALF_START_MONTH:    7,
       AGREED_FIELDS:       ['Title', 'Category', 'WhyItMatters', 'SuccessMeasures', 'Support', 'TargetDate', 'ParentGoalID'],
       LIVE_FIELDS:         ['Rag', 'Status'],
+    },
+    // N-442 (PDP-10): Bi-Annual assessment (pdp-assess.js / pdp-assess-ui.js / api-pdp.js). Notion framework:
+    // pillar 1-3, total = average to DECIMALS, bands 1.0-1.5 Below, 1.6-2.4 Meets, 2.5-3.0 Exceeding.
+    //   BAND_MAX          highest total in each band (CONFIG.PDP.BANDS order; anything above Meets is Exceeding).
+    //   BOUNDARIES        a total exactly on a key is agreed into one of the two bands listed, or escalated.
+    //   MANAGER_CALL_GAP  self vs manager gap the manager decides (the agreed score is one of the two, with a reason).
+    //   ESCALATE_GAP      gap that sends the pillar to the calibration panel (N-443).
+    //   READINESS         progression readiness options (key stored in PDPMeetings.Assessment, label shown).
+    //   MANAGER_TRACK     L4 manager-track / succession suggestion: agreed SCORE on every one of PILLARS at LEVEL_KEY.
+    //   RATIONALE_MAX / NOTE_MAX  characters in a score's evidence / rationale and in a readiness or flag note.
+    //   REVEAL_WAIT_MIN   minutes after the later submit before "Unlocking" becomes "Taking longer than usual".
+    //   SCHEMA            schema number inside the Assessment JSON.
+    ASSESS: {
+      BAND_MAX:         { Below: 1.5, Meets: 2.4 },
+      BOUNDARIES:       { '1.5': ['Below', 'Meets'], '2.5': ['Meets', 'Exceeding'] },
+      DECIMALS:         1,
+      MANAGER_CALL_GAP: 1,
+      ESCALATE_GAP:     2,
+      READINESS: [
+        { key: 'now',     label: 'Ready now' },
+        { key: '6-12',    label: 'Ready in 6–12 months' },
+        { key: 'not-yet', label: 'Not yet ready' },
+      ],
+      MANAGER_TRACK:    { LEVEL_KEY: 'L4-IC', PILLARS: ['support', 'curious', 'adapt'], SCORE: 3 },
+      RATIONALE_MAX:    2000,
+      NOTE_MAX:         1000,
+      REVEAL_WAIT_MIN:  15,
+      SCHEMA:           1,
     },
   },
 

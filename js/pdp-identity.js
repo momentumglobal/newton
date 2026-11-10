@@ -422,24 +422,43 @@ function pdpAccessFor(role, myEmail, item) {
   return none;
 }
 
-// Blind scoring (PDP-D4) on top of pdpAccessFor: a Self row is the employee's until revealed,
-// a Manager row the reviewers' until revealed; the Agreed row is shared. `revealed` is wired by
-// N-442 and defaults to false. Admin always sees every row.
-function pdpScoreVisible(access, source, revealed) {
-  const as = access && access.level ? access.as : null;
+// Blind scoring (PDP-D4). Who is looking at a score row: the relationship FIRST, then Admin / People Ops.
+// N-442 (D2): a CSD holds the Newton role Admin and can read every PDP item in SharePoint, so for the
+// record's own line manager / CSD blindness can only be kept on screen — they must be resolved as
+// manager / csd, never as admin. -> { level, as } like pdpAccessFor.
+function pdpScoreViewer(role, myEmail, item) {
+  const none = { level: null, as: null };
+  if (!item) return none;
+  const me = _pdpEmail(myEmail);
+  if (me) {
+    if (me === _pdpEmail(item.PersonEmail)) return { level: 'edit', as: 'self' };
+    if (me === _pdpEmail(item.LineManagerEmail)) return { level: 'edit', as: 'manager' };
+    if (me === _pdpEmail(item.CSDEmail)) return { level: 'edit', as: 'csd' };
+    if (_pdpEmailSet(item.ReadOnlyEmails).has(me)) return { level: 'read', as: 'former' };
+  }
+  if (roleCan(role, 'pdpAdmin')) return { level: 'edit', as: 'admin' };
+  return none;
+}
+
+// A Self row is the employee's until revealed, a Manager row the reviewers' until revealed; the Agreed row
+// is shared. N-442: before the reveal NOBODY else sees a Self or Manager row on screen — Admin / People Ops
+// included (pre-reveal scores are drafts; calibration, N-443, comes after the reveal). `revealed` comes from
+// the meeting (pdpScoresRevealed). `viewer` is pdpScoreViewer(...) (or pdpAccessFor for a non-admin).
+function pdpScoreVisible(viewer, source, revealed) {
+  const as = viewer && viewer.level ? viewer.as : null;
   if (!as) return false;
-  if (as === 'admin' || source === 'Agreed') return true;
-  if (source === 'Self')    return as === 'self' || (!!revealed && ['manager', 'csd', 'former'].includes(as));
-  if (source === 'Manager') return as === 'manager' || as === 'csd' || (!!revealed && ['self', 'former'].includes(as));
+  if (source === 'Agreed') return true;
+  if (source === 'Self')    return as === 'self' || (!!revealed && ['manager', 'csd', 'former', 'admin'].includes(as));
+  if (source === 'Manager') return as === 'manager' || as === 'csd' || (!!revealed && ['self', 'former', 'admin'].includes(as));
   return false;
 }
 
-// The records `myEmail` may see. Scores rows also pass pdpScoreVisible (revealedFn(row) → bool).
+// The records `myEmail` may see. Scores rows (they carry Source) go through pdpScoreViewer + pdpScoreVisible
+// (revealedFn(row) → bool, default false); every other record through pdpAccessFor.
 function pdpVisibleItems(items, role, myEmail, revealedFn) {
   return (items || []).filter(it => {
-    const a = pdpAccessFor(role, myEmail, it);
-    if (!a.level) return false;
-    return it.Source ? pdpScoreVisible(a, it.Source, revealedFn ? revealedFn(it) : false) : true;
+    if (it && it.Source) return pdpScoreVisible(pdpScoreViewer(role, myEmail, it), it.Source, revealedFn ? revealedFn(it) : false);
+    return !!pdpAccessFor(role, myEmail, it).level;
   });
 }
 

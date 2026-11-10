@@ -202,9 +202,10 @@ ASSERTIONS.push(
       _assertEqual(pdpAccessFor('admin', 'x', null), { level: null, as: null }, 'AC10 no item');
       const v = (as, src, rev) => pdpScoreVisible(as ? { level: 'edit', as } : { level: null, as: null }, src, rev);
       const all = ['self', 'manager', 'csd', 'former', 'admin'];
-      _assertEqual(all.map(as => v(as, 'Self', false)), [true, false, false, false, true], 'AC10 Self row, not revealed');
+      // N-442: before the reveal nobody but the owning side sees a Self / Manager row on screen — Admin included.
+      _assertEqual(all.map(as => v(as, 'Self', false)), [true, false, false, false, false], 'AC10 Self row, not revealed (N-442: admin too)');
       _assertEqual(all.map(as => v(as, 'Self', true)), [true, true, true, true, true], 'AC10 Self row, revealed');
-      _assertEqual(all.map(as => v(as, 'Manager', false)), [false, true, true, false, true], 'AC10 Manager row, not revealed');
+      _assertEqual(all.map(as => v(as, 'Manager', false)), [false, true, true, false, false], 'AC10 Manager row, not revealed (N-442: admin too)');
       _assertEqual(all.map(as => v(as, 'Manager', true)), [true, true, true, true, true], 'AC10 Manager row, revealed');
       _assertEqual(['self', 'manager', 'former', null].map(as => v(as, 'Agreed', false)), [true, true, true, false], 'AC10 Agreed row shared; no access = hidden');
       const rows = [

@@ -7,7 +7,7 @@
 // Scores) are built here and nowhere else; callers never concatenate their own.
 
 // kind: text | email | emails | int | bool | date | datetime | json | enum (+ enum name in CONFIG.PDP)
-//       | flow (written by the PDP access flow only: read, never written by Newton — N-435)
+//       | flow (written by a PDP flow only: read, never written by Newton — N-435 AccessKey, N-442 ScoresRevealedAt)
 //       | levelKey (N-437: '<Level>-<Track>', e.g. 'L5-MG'; pdpLevelKey / pdpParseLevelKey)
 function _pdpCols() {
   const P = CONFIG.PDP;
@@ -51,6 +51,10 @@ function _pdpCols() {
         SkipReason: { kind: 'text' }, TemplateID: { kind: 'int' }, TemplateVersion: { kind: 'int' },
         PrepEmployee: { kind: 'json' }, PrepManager: { kind: 'json' }, MeetingNotes: { kind: 'json' },
         EmployeeSignedAt: { kind: 'datetime' }, ManagerSignedAt: { kind: 'datetime' },
+        // N-442: each side's scores submitted; the reveal (written by the PDP score reveal flow only); the
+        // manager's assessment JSON (boundary, readiness, manager-track flag).
+        SelfScoredAt: { kind: 'datetime' }, ManagerScoredAt: { kind: 'datetime' },
+        ScoresRevealedAt: { kind: 'flow' }, Assessment: { kind: 'json' },
       }, snap, access),
     },
     [P.LISTS.GOALS]: {
@@ -238,7 +242,7 @@ function pdpCleanFields(listName, fields, mode, ctx) {
   const out = {};
   Object.keys(spec.cols).forEach(col => {
     if (col === 'Title' && keyed) return;                       // built below, never supplied
-    if (spec.cols[col].kind === 'flow') return;                 // N-435: AccessKey is the flow's alone
+    if (spec.cols[col].kind === 'flow') return;                 // N-435: AccessKey (N-442: ScoresRevealedAt) is the flow's alone
     if (f[col] === undefined) return;
     const kind = spec.cols[col].kind;
     if (_pdpBlank(f[col]) || (kind === 'emails' && !pdpEmailList(f[col]))) {
@@ -327,6 +331,11 @@ function pdpIsPastItem(listName, item, meetingsById) {
   return false;
 }
 
+// N-442: true once the PDP score reveal flow has opened a Bi-Annual's Self and Manager scores to the other side.
+function pdpScoresRevealed(meeting) {
+  return !!meeting && String(meeting.ScoresRevealedAt == null ? '' : meeting.ScoresRevealedAt).trim() !== '';
+}
+
 function _pdpRoList(v) { return v ? String(v).split(CONFIG.PDP.ACCESS.EMAIL_SEP).filter(Boolean) : []; }
 
 // The re-point plan (PDP-D6 + PDP-D14). For each item: resolve its person (PersonID -> People row)
@@ -373,15 +382,27 @@ function pdpBuildRepointPlan(people, itemsByList, ids) {
       if (!r.csd && oldCsd) { unresolved.push({ list, id: String(it.id), personId: it.PersonID, reason: 'noCsd' }); return; }
       const self = _pdpEmail(it.PersonEmail);
       const ro = new Set(_pdpRoList(it.ReadOnlyEmails).map(_pdpEmail));
-      if (pdpIsPastItem(list, it, meetingsById)) {
+      // N-442: a Self score row is the employee's alone and a Manager row the LM's / CSD's. Once the Bi-Annual is
+      // REVEALED the other side reads it through ReadOnlyEmails (the PDP score reveal flow), and that read moves
+      // with a re-point: the new LM / CSD on a Self row, the person on a Manager row. The old LM / CSD keep it only
+      // on a past meeting (PDP-D14). An unrevealed Self row never gains a former reviewer (a skipped meeting's
+      // draft self scores stay the employee's).
+      const src = list === L.SCORES ? String(it.Source || '') : '';
+      const revealed = (src === 'Self' || src === 'Manager') && pdpScoresRevealed(meetingsById.get(String(it.MeetingID)));
+      const past = pdpIsPastItem(list, it, meetingsById);
+      if (src === 'Self' && !(revealed && past)) { ro.delete(oldLm); ro.delete(oldCsd); }
+      if (past && !(src === 'Self' && !revealed)) {
         [oldLm, oldCsd].forEach(e => { if (e && e !== self && e !== r.lm && e !== r.csd) ro.add(e); });
       }
       ro.delete(r.lm); ro.delete(r.csd);
+      if (revealed) (src === 'Self' ? [r.lm, r.csd] : [self]).forEach(e => { if (e) ro.add(e); });
       const after = [...ro].filter(Boolean).sort().join(CONFIG.PDP.ACCESS.EMAIL_SEP);
       const patch = {};
       if (oldLm !== r.lm) patch.LineManagerEmail = r.lm;
       if (oldCsd !== r.csd) patch.CSDEmail = r.csd;
-      if (after !== String(it.ReadOnlyEmails || '')) patch.ReadOnlyEmails = after;
+      // N-442: compared as a set — the reveal flow appends in its own order, which is not a change.
+      const before = [...new Set(_pdpRoList(it.ReadOnlyEmails).map(_pdpEmail))].filter(Boolean).sort().join(CONFIG.PDP.ACCESS.EMAIL_SEP);
+      if (after !== before) patch.ReadOnlyEmails = after;
       if (!Object.keys(patch).length) return;
       rows.push({
         list, id: String(it.id), personId: it.PersonID, personName: (r.person && r.person.EmployeeName) || '',

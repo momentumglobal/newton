@@ -640,6 +640,7 @@ async function setPdpMeetingDate(meetingId, day) {
 // Mark the meeting Held: pdpHeldCheck against a fresh read of the meeting, goals and actions, then ONE patch.
 async function markPdpHeld(meetingId, edit) {
   const { m, who } = await _pdpTeamMeeting(meetingId);
+  const gate = await resolvePdpGate();
   const now = new Date(), nowIso = now.toISOString();
   const templates = await getPdpTemplates();
   const bound = pdpTemplateForMeeting(templates, m);
@@ -655,7 +656,9 @@ async function markPdpHeld(meetingId, edit) {
   payload.notes.heldBy = who.email;
   payload.notes.heldAt = nowIso;
   const check = pdpHeldCheck(m, def, payload.prepManager, payload.notes, rows.goals, rows.actions, day, now);
-  if (!check.ok) throw new Error(check.problems.join(' '));
+  // N-442 (D6): a scorable Bi-Annual is held only once both sides submitted, the scores are revealed and agreed.
+  const assess = pdpHasScoringBlock(def) ? pdpAssessHeldProblems(await _pdpAssessRead(m, who, gate)) : [];
+  if (!check.ok || assess.length) throw new Error(check.problems.concat(assess).join(' '));
   const patch = pdpMeetingPatchForManager(m, active, { Status: 'Held', MeetingDate: day, PrepManager: payload.prepManager, MeetingNotes: payload.notes }, nowIso);
   try {
     await updatePdpMeeting(m.id, patch);
@@ -883,4 +886,122 @@ async function applyPdpGoalPeriods(onProgress) {
     if (onProgress) onProgress(done, plan.rows.length);
   }));
   return { changed: plan.rows.length - failed.length, failed, skipped: plan.skipped };
+}
+
+// ── N-442 (PDP-10): Bi-Annual assessment (self + blind manager scoring, reveal, agreed scores) ───────────────
+// Graph only; every rule is pure in pdp-assess.js. Each writer re-reads the meeting and its score rows fresh,
+// works out the acting side from the record's own emails (pdpAssessSide: the person, or their LM / CSD — never
+// role, since a CSD is an Admin), refuses in Ghost Mode and unless the gate is live, and writes only the rows of
+// its own Source. Self rows are created by the employee, Manager rows by the LM / CSD (list-level PDP Add); the
+// access flow then locks each by Source. The reveal is the PDP score reveal flow's (ScoresRevealedAt): Newton
+// only writes each side's submitted marker. These names deliberately do NOT match getPdp* / updatePdp*.
+
+// The assessment view model for one meeting, as `who` sees it (rows filtered by pdpVisibleItems).
+async function _pdpAssessRead(m, who, gate) {
+  const L = CONFIG.PDP.LISTS;
+  _cacheInvalidate(L.SCORES);
+  _cacheInvalidate(L.CYCLES);
+  const [cycles, framework, templates, rows] = await Promise.all([
+    getPdpCycles(Number(m.PersonID), Number(m.CycleYear)), getPdpFramework(), getPdpTemplates(), getPdpScores(m.id),
+  ]);
+  const cycle = cycles.find(c => Number(c.CycleYear) === Number(m.CycleYear) && String(c.PersonID) === String(m.PersonID)) || null;
+  const tpl = pdpTemplateForMeeting(templates, m);
+  const revealed = pdpScoresRevealed(m);
+  return pdpAssessView({
+    meeting: m, cycle, framework, def: tpl ? pdpParseJson(tpl.Definition) : null,
+    rows: pdpVisibleItems(rows.filter(r => String(r.MeetingID) === String(m.id)), who.role, who.email, () => revealed),
+    role: who.role, email: who.email, live: gate.state === 'live' && !who.ghost, now: new Date(),
+  });
+}
+
+// -> the view model (pdpAssessView) for a meeting the user may see.
+async function loadPdpAssessment(meetingId) {
+  const gate = await resolvePdpGate();
+  if (gate.state === 'none') throw new Error('Development & Performance is not available to you right now.');
+  const who = await _pdpTeamWho();
+  _cacheInvalidate(CONFIG.PDP.LISTS.MEETINGS);
+  const m = await getPdpMeetingById(meetingId);
+  if (!m) throw new Error('That meeting was not found.');
+  if (!pdpAccessFor(who.role, who.email, m).level) throw new Error('That meeting is not available to you.');
+  return _pdpAssessRead(m, who, gate);
+}
+
+// The meeting a score write may touch, re-read fresh, with the acting side checked, or a thrown refusal.
+async function _pdpAssessCtx(meetingId, side) {
+  const who = await _pdpTeamWho();
+  if (who.ghost) throw new Error('Ghost Mode is read-only: you cannot save or sign as someone else.');
+  const gate = await resolvePdpGate();
+  if (gate.state !== 'live') throw new Error('Development & Performance is not available to you right now.');
+  _cacheInvalidate(CONFIG.PDP.LISTS.MEETINGS);
+  const m = await getPdpMeetingById(meetingId);
+  if (!m) throw new Error('That meeting was not found.');
+  const view = await _pdpAssessRead(m, who, gate);
+  if (view.side !== side) throw new Error(side === 'self' ? 'That meeting is not yours.' : 'You are not this person’s line manager or CSD.');
+  if (view.scoring.state !== 'open') throw new Error(view.scoring.reason || 'This meeting is not scored.');
+  return { who, m, view };
+}
+
+// One side's scores: a draft save, or a submit (all six scored and explained; SubmittedAt on every row, checked by
+// a re-read, and only then the meeting's marker — so a retry after a partial failure simply finishes the job).
+async function _pdpSaveSideScores(meetingId, side, edit) {
+  const source = side === 'self' ? 'Self' : 'Manager';
+  const { m, view } = await _pdpAssessCtx(meetingId, side);
+  if (!(side === 'self' ? view.canSelf : view.canManager)) {
+    if (pdpScoresLocked(m, source)) throw new Error('These scores are submitted, so they are locked.');
+    const win = pdpPrepWindow(m, new Date());
+    if (side === 'self' && win.state === 'closed') throw new Error('Scoring opens with prep on ' + pdpFmtDay(win.opensOn) + '.');
+    throw new Error('This meeting has been held, so the scores can no longer change.');
+  }
+  const e = edit || {};
+  const saved = view.bySource[source];
+  const draft = pdpScoreDraft(saved, e.scores);
+  if (e.submit) {
+    const missing = pdpScoresMissing(draft, view.names);
+    if (missing.length) throw new Error('Score and explain every pillar first: ' + missing.join('; ') + '.');
+  }
+  const nowIso = new Date().toISOString();
+  const writes = pdpScoreWrites(m, view.scoring.levelKey, source, saved, draft, !!e.submit, nowIso);
+  try {
+    for (const w of writes) {
+      if (w.id) await updatePdpScore(w.id, w.fields, source);
+      else await createPdpScore(w.fields);
+    }
+    if (e.submit) {
+      _cacheInvalidate(CONFIG.PDP.LISTS.SCORES);
+      const back = pdpScoresBySource((await getPdpScores(m.id)).filter(r => r.Source === source))[source];
+      const done = CONFIG.PDP.PILLAR_KEYS.filter(k => back[k] && String(back[k].SubmittedAt || '').trim() && back[k].Score != null);
+      if (done.length !== CONFIG.PDP.PILLAR_KEYS.length) throw new Error('Not every score saved. Submit again.');
+      await updatePdpMeeting(m.id, source === 'Self' ? { SelfScoredAt: nowIso } : { ManagerScoredAt: nowIso });
+    }
+  } catch (err) { throw _pdpMyWriteError(err, m); }
+  return { submitted: !!e.submit };
+}
+
+// edit = { scores: { pillarKey: { score, rationale } }, submit }. The employee's own self-assessment.
+async function savePdpSelfScores(meetingId, edit) { return _pdpSaveSideScores(meetingId, 'self', edit); }
+
+// edit = { scores, submit }. The line manager's / CSD's blind assessment.
+async function savePdpManagerScores(meetingId, edit) { return _pdpSaveSideScores(meetingId, 'manager', edit); }
+
+// edit = { agreed: { pillarKey: { score, rationale } }, boundary: { band, escalated }, readiness: { value, note },
+// managerTrack: { flagged, reason } }. Upserts the six Agreed rows and the meeting's Assessment JSON. Saves what
+// is valid and returns { problems } still open (mark-as-held enforces them, pdpAssessHeldProblems).
+async function savePdpAgreed(meetingId, edit) {
+  const { m, who, view } = await _pdpAssessCtx(meetingId, 'manager');
+  if (!view.canAgree) {
+    if (view.reveal !== 'revealed') throw new Error('The scores are not revealed yet.');
+    throw new Error(pdpManagerLock(m) === 'signed' ? 'This record is signed and locked.' : 'The agreed scores can no longer be changed.');
+  }
+  const plan = pdpAgreedPlan({
+    meeting: m, compare: view.compare, edit, names: view.names, levelKey: view.scoring.levelKey,
+    savedAgreed: view.bySource.Agreed, by: who.email, nowIso: new Date().toISOString(),
+  });
+  try {
+    for (const w of plan.agreedRows) {
+      if (w.id) await updatePdpScore(w.id, w.fields, 'Agreed');
+      else await createPdpScore(w.fields);
+    }
+    await updatePdpMeeting(m.id, { Assessment: plan.assessment });
+  } catch (err) { throw _pdpMyWriteError(err, m); }
+  return { problems: plan.problems };
 }

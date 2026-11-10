@@ -262,7 +262,7 @@ function _pdptpBlockHtml(b, v, ctx) {
   if (b.type === 'goalSet') return _pdptpGoalsBlockHtml(b, v, ctx);
   if (b.type === 'actions') return _pdptpActionsBlockHtml(b, v, ctx);
   if (b.type === 'goalReview' && b.by !== 'employee') return `<div class="pdpm-block">${label}${_pdpmListHtml(v.prev.goals, g => `<strong>${escHtml(g.Title)}</strong> · ${escHtml(g.Rag || 'No rating')}`)}</div>`;
-  if (b.type === 'scoring') return `<div class="pdpm-block">${label}<div class="ppl-muted-small">Scored in the review (N-442). Nothing to do here.</div></div>`;
+  if (b.type === 'scoring') return pdpasHtml(b.label);   // N-442: blind manager scoring, then the agreed scores (pdp-assess-ui.js)
   return '';   // employee prep blocks are shown in the Employee prep card
 }
 
@@ -300,6 +300,7 @@ function _pdptpDetailHtml(v, s) {
   if (!v.def || !Array.isArray(v.def.sections)) return head + emptyStateBlock({ icon: 'file-text', title: 'Template unavailable', message: 'Contact People Ops: this meeting has no readable template.' });
   const draft = s.draft || { prepManager: {}, notes: {}, meetingDate: '' };
   const edit = !!v.run && !v.readOnly;
+  if (pdpHasScoringBlock(v.def)) pdpasSync({ meetingId: m.id, readOnly: v.readOnly, redraw: _pdptpRedraw });   // N-442
   const ctx = { edit, form: s.form, pm: draft.prepManager, pn: draft.notes };
   const sections = v.def.sections.map(sec => {
     const body = (sec.blocks || []).map(b => _pdptpBlockHtml(b, v, ctx)).join('');
@@ -310,7 +311,7 @@ function _pdptpDetailHtml(v, s) {
   else if (!v.access.run) note = '<p class="ppl-muted-note pdpt-note">You can view this record, but you are not this person’s line manager or CSD, so it is read-only.</p>';
   else if (v.lock === 'signed') note = '<p class="ppl-muted-note pdpt-note">Signed, so this record is locked.</p>';
   const payload = edit && m.Status !== 'Held' ? _pdptpPayload(v, draft) : null;
-  const check = payload ? pdpHeldCheck(m, v.def, payload.prepManager, payload.notes, v.allGoals, v.allActions, draft.meetingDate, new Date()) : null;
+  const check = payload ? _pdptpHeldCheck(v, payload, draft) : null;
   const todo = check && check.problems.length ? `<div class="ppl-card pdpt-todo"><div class="ppl-card-title">Before you can mark this as held</div><ul class="pdpm-list">${check.problems.map(p => `<li>${escHtml(p)}</li>`).join('')}</ul></div>` : '';
   const details = edit ? `<div class="ppl-card pdpm-section"><div class="ppl-card-title">Meeting details</div><div class="form-group"><label for="pdpt-md">Meeting date</label><input type="date" id="pdpt-md" value="${escAttr(draft.meetingDate)}"></div></div>` : '';
   const buttons = edit ? `
@@ -319,6 +320,13 @@ function _pdptpDetailHtml(v, s) {
       ${m.Status !== 'Held' ? `<button type="button" class="btn-primary"${act('pdptHeld')}>Mark as held</button>` : ''}
     </div>` : '';
   return `<div id="pdpt-detail"${actOn('input', 'pdptTeamDirty')}${actOn('change', 'pdptTeamDirty')}>${head}${note}${_pdptpEmployeePrepHtml(v)}${_pdptpPreviousHtml(v, edit)}${sections}${details}${todo}${buttons}${record ? _pdptpSignHtml(v) : ''}</div>`;
+}
+
+// pdpHeldCheck plus, for a scorable Bi-Annual, what the scores still need (N-442, pdpAssessHeldProblems).
+function _pdptpHeldCheck(v, payload, draft) {
+  const check = pdpHeldCheck(v.meeting, v.def, payload.prepManager, payload.notes, v.allGoals, v.allActions, draft.meetingDate, new Date());
+  const extra = pdpHasScoringBlock(v.def) ? pdpasHeldProblems() : [];
+  return { ok: check.ok && !extra.length, problems: check.problems.concat(extra), warnings: check.warnings };
 }
 
 // ── actions ──────────────────────────────────────────────────────────────────────────────────────
@@ -335,7 +343,7 @@ function _pdptpStash() {
 function pdptTeamDirty() { _pdptpState.dirty = true; _pdptpStash(); }
 
 async function _pdptpConfirmLeave(what) {
-  if (!_pdptpState.dirty) return true;
+  if (!_pdptpState.dirty && !pdpasIsDirty()) return true;
   return confirmModal({ title: 'Discard changes?', message: 'You have unsaved changes. ' + what + ' discards them.', confirmLabel: 'Discard' });
 }
 
@@ -398,6 +406,7 @@ async function pdptOpen(id) {
   document.getElementById('main-content').innerHTML = dashboardSkeleton(2);
   try {
     Object.assign(s, { openId: id, dirty: false, form: null, draft: null });
+    pdpasReset();   // N-442: the scoring block reloads for this meeting
     await _pdptpLoadDetail(id, false);
   } catch (e) {
     console.error('Team Development: meeting load failed', e);
@@ -412,6 +421,7 @@ async function pdptTeamBack() {
   if (s.openId != null) {
     if (!(await _pdptpConfirmLeave('Going back'))) return;
     Object.assign(s, { openId: null, detail: null, draft: null, form: null, dirty: false });
+    pdpasReset();
     document.getElementById('main-content').innerHTML = dashboardSkeleton(2);
     await _pdptpLoadList();
     return;
@@ -458,17 +468,17 @@ async function pdptHeld() {
   _pdptpStash();
   const v = s.detail, payload = _pdptpPayload(v, s.draft);
   if (!payload) { toast('Your notes are too long to save. Shorten them.', { type: 'error' }); return; }
-  const check = pdpHeldCheck(v.meeting, v.def, payload.prepManager, payload.notes, v.allGoals, v.allActions, s.draft.meetingDate, new Date());
+  const check = _pdptpHeldCheck(v, payload, s.draft);
   if (!check.ok) { toast(check.problems.join(' '), { type: 'error' }); _pdptpRedraw(); return; }
   const message = (check.warnings.length ? check.warnings.join(' ') + ' ' : '') + 'You can keep editing the notes until someone signs.';
   if (!(await confirmModal({ title: 'Mark this meeting as held', message, confirmLabel: 'Mark as held' }))) return;
-  await _pdptpRun(() => markPdpHeld(s.openId, _pdptpEdit()), 'Marked as held.', false);
+  if (await _pdptpRun(() => markPdpHeld(s.openId, _pdptpEdit()), 'Marked as held.', false)) pdpasReload();   // N-442: reload the scores as Held
 }
 
 async function pdptSign() {
   const s = _pdptpState;
   if (!(await confirmModal({ title: 'Sign off this record', message: 'You are confirming the agreed record is accurate. The record locks and this cannot be undone.', confirmLabel: 'Sign off' }))) return;
-  await _pdptpRun(() => signOffPdpAsManager(s.openId), 'Signed off.', false);
+  if (await _pdptpRun(() => signOffPdpAsManager(s.openId), 'Signed off.', false)) pdpasReload();   // N-442: the agreed scores lock
 }
 
 async function pdptSetDate(id) {

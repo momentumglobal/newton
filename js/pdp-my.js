@@ -186,7 +186,7 @@ function _pdpmBlockHtml(b, ctx) {
     if (!ctx.record) return `<div class="pdpm-block">${label}<div class="ppl-muted-small">Actions (up to ${escHtml(b.max)}) are agreed in the meeting.</div></div>`;
     return `<div class="pdpm-block">${label}${_pdpmListHtml(ctx.rec.actions, a => `${escHtml(a.Title)} · ${escHtml(a.OwnerRole || '')}${a.DueDate ? ' · due ' + escHtml(pdpFmtDay(spDateIn(a.DueDate))) : ''}${_pdpmYes(a.IsDone) ? ' · done' : ''}`)}</div>`;
   }
-  if (type === 'scoring') return `<div class="pdpm-block">${label}<div class="ppl-muted-small">Scored in the review. Nothing to do here.</div></div>`;
+  if (type === 'scoring') return pdpasHtml(b.label);   // N-442: the self-assessment (pdp-assess-ui.js)
   return '';
 }
 
@@ -211,6 +211,7 @@ function _pdpmDetailHtml(d, m) {
   if (!def || !Array.isArray(def.sections)) {
     return head + emptyStateBlock({ icon: 'file-text', title: 'Template unavailable', message: 'Contact People Ops: this meeting has no readable template.' });
   }
+  if (pdpHasScoringBlock(def)) pdpasSync({ meetingId: m.id, readOnly: d.readOnly, redraw: _pdpmRedraw });   // N-442
   const ctx = {
     edit, record, joiner: _pdpmYes(m.IsJoiner), rec: pdpMyAgreedRecord(m, d.goals, d.actions),
     prep: pdpPrepFromJson(m.PrepEmployee), mgr: {}, scorecards: peopleCanAccess('scorecards', _resolvedRole),
@@ -273,11 +274,11 @@ async function pdpmTab(tab) {
   _pdpmRedraw();
 }
 
-function pdpmOpen(id) { _pdpmState.openId = id; _pdpmState.dirty = false; _pdpmRedraw(); }
+function pdpmOpen(id) { _pdpmState.openId = id; _pdpmState.dirty = false; pdpasReset(); _pdpmRedraw(); }
 
 async function pdpmBack() {
-  if (_pdpmState.dirty && !(await confirmModal({ title: 'Discard changes?', message: 'You have unsaved prep. Going back discards it.', confirmLabel: 'Discard' }))) return;
-  _pdpmState.openId = null; _pdpmState.dirty = false; _pdpmRedraw();
+  if ((_pdpmState.dirty || pdpasIsDirty()) && !(await confirmModal({ title: 'Discard changes?', message: 'You have unsaved prep or scores. Going back discards them.', confirmLabel: 'Discard' }))) return;
+  _pdpmState.openId = null; _pdpmState.dirty = false; pdpasReset(); _pdpmRedraw();
 }
 
 function pdpmDirty() { _pdpmState.dirty = true; }
@@ -326,6 +327,7 @@ async function pdpmSignOff() {
   try {
     await signOffPdpMeeting(_pdpmState.openId);
     toast('Signed off.', { type: 'success' });
+    pdpasReset();   // N-442: the agreed scores lock with the first signature
     _pdpmState.data = await loadMyDevelopment(_pdpmState.year);
     _pdpmRedraw();
   } catch (e) {

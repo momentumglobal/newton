@@ -385,3 +385,23 @@
 .pdptr-actions { list-style: none; margin: var(--sp-3) 0 0; padding: 0; }
 .pdptr-action { padding: var(--sp-3) 0; border-bottom: 1px solid var(--border-faint); font-size: var(--fs-13); }
 .pdptr-action:last-child { border-bottom: 0; }
+/* N-442 (PDP-10): Bi-Annual scoring block (pdp-assess-ui.js) */
+.pdpas-status { margin-bottom: var(--sp-5); }
+.pdpas-pillar { padding: var(--sp-5) 0; border-bottom: 1px solid var(--border-faint); }
+.pdpas-pillar:last-of-type { border-bottom: 0; }
+.pdpas-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-4); margin-top: var(--sp-3); }
+.pdpas-row textarea { flex: 1 1 320px; margin-top: 0; }
+.pdpas-desc { margin-top: var(--sp-2); font-size: var(--fs-12); color: var(--text-muted); }
+.pdpas-desc summary { cursor: pointer; }
+.pdpas-desc dl { margin: var(--sp-3) 0 0; }
+.pdpas-desc dt { font-weight: var(--fw-bold); color: var(--text-primary); }
+.pdpas-desc dd { margin: 0 0 var(--sp-3); }
+.pdpas-table-wrap { overflow-x: auto; }
+.pdpas-table { width: 100%; border-collapse: collapse; font-size: var(--fs-13); }
+.pdpas-table th, .pdpas-table td { text-align: left; vertical-align: top; padding: var(--sp-4); border-bottom: 1px solid var(--border-faint); }
+.pdpas-table textarea { width: 100%; margin-top: var(--sp-3); }
+.pdpas-outcome { margin-top: var(--sp-6); }
+.pdpas-overall { margin-bottom: var(--sp-5); }
+.pdpas-field { margin-top: var(--sp-5); }
+.pdpas-field textarea { width: 100%; margin-top: var(--sp-3); }
+.pdpas-check { display: flex; align-items: center; gap: var(--sp-3); font-weight: var(--fw-regular); }

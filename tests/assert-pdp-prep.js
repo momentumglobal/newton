@@ -217,3 +217,34 @@ ASSERTIONS.push(
     },
   }
 );
+
+ASSERTIONS.push(
+  {
+    name: 'N-447 no-prep meeting: note, no prep buttons, sign-off unchanged',
+    fn: function () {
+      if (typeof _pdpmDetailHtml !== 'function') _skip('pdp-my.js is not loaded in this harness');
+      globalThis._resolvedRole = 'talent_partner';
+      if (typeof peopleCanAccess !== 'function') globalThis.peopleCanAccess = () => false;
+      const def = { schema: 1, sections: [
+        { key: 'lb', title: 'Looking Back', blocks: [{ key: 'a', type: 'prompt', label: 'What happened?' }] },
+        { key: 'mt', title: 'Meeting', blocks: [{ key: 'ac', type: 'actions', max: 3, label: 'Actions' }] },
+      ] };
+      const tpl = { id: '60', MeetingType: 'Monthly', VersionNo: 1, Definition: JSON.stringify(def) };
+      const thisMonth = localDayISO(new Date()).slice(0, 7);
+      const base = { id: '8', MeetingType: 'Monthly', Period: thisMonth, DueDate: thisMonth + '-28', TemplateID: 60, TemplateVersion: 1 };
+      const data = m => ({ readOnly: false, templates: [tpl], goals: [], actions: [], meetings: [m] });
+      const openRow = Object.assign({ Status: 'PrepOpen' }, base);
+      const open = _pdpmDetailHtml(data(openRow), openRow);
+      _assertEqual(/No prep needed for this meeting/.test(open) && !/<textarea/.test(open) && !/Save draft/.test(open) && !/Mark prep ready/.test(open), true, 'AC1 open: note, no fields, no prep buttons');
+      _assertEqual(/Your answers stay private/.test(open), false, 'AC4 privacy banner suppressed');
+      const futureRow = Object.assign({}, base, { Status: 'Planned', Period: '2099-04', DueDate: '2099-04-30' });
+      const future = _pdpmDetailHtml(data(futureRow), futureRow);
+      _assertEqual(/No prep needed/.test(future) && !/Prep opens/.test(future) && !/Save draft/.test(future), true, 'AC2 before the window: note, no Prep opens banner');
+      const heldRow = Object.assign({ Status: 'Held' }, base);
+      const held = _pdpmDetailHtml(data(heldRow), heldRow);
+      _assertEqual(/No prep needed/.test(held) && /Sign off this record/.test(held), true, 'AC3 Held: note and sign-off offered');
+      const signedRow = Object.assign({}, heldRow, { EmployeeSignedAt: '2027-05-01T10:00:00Z' });
+      _assertEqual(/Sign off this record/.test(_pdpmDetailHtml(data(signedRow), signedRow)), false, 'AC3 signed: no second sign-off button');
+    },
+  }
+);

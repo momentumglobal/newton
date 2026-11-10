@@ -193,14 +193,18 @@ function _pdpmDetailHtml(d, m) {
     goalsOpen: d.goals.filter(g => (g.Status || 'Open') === 'Open'),
   };
   ctx.mgr = ctx.rec.managerPrep;
-  const banner = win.state === 'closed'
-    ? `<p class="ppl-muted-note pdpm-note">Prep opens ${escHtml(pdpFmtDay(win.opensOn))}.</p>`
-    : (edit ? '<p class="ppl-muted-note pdpm-note">Your answers stay private to you, your line manager and your CSD. You can keep editing until the meeting is held.</p>' : '');
+  // N-447: a template with no employee prep blocks (the seeded Monthly) has nothing to prepare.
+  const needsPrep = pdpPrepBlocks(def).employee.length > 0;
+  const banner = !needsPrep
+    ? '<p class="ppl-muted-note pdpm-note">No prep needed for this meeting.</p>'
+    : (win.state === 'closed'
+      ? `<p class="ppl-muted-note pdpm-note">Prep opens ${escHtml(pdpFmtDay(win.opensOn))}.</p>`
+      : (edit ? '<p class="ppl-muted-note pdpm-note">Your answers stay private to you, your line manager and your CSD. You can keep editing until the meeting is held.</p>' : ''));
   const sections = def.sections.map(s => {
     const body = (s.blocks || []).map(b => _pdpmBlockHtml(b, ctx)).join('');
     return body ? `<div class="ppl-card pdpm-section"><div class="ppl-card-title">${escHtml(s.title)}</div>${body}</div>` : '';
   }).join('');
-  const actions = edit ? `
+  const actions = edit && needsPrep ? `
     <div class="pdpm-actions">
       <button type="button" class="btn-secondary"${act('pdpmSave')}>Save draft</button>
       <button type="button" class="btn-primary"${act('pdpmSubmit')}>Mark prep ready</button>

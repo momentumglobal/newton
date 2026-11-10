@@ -58,6 +58,7 @@ ASSERTIONS.push(
       _assertEqual([C.LEVEL_MAP.PTP, C.LEVEL_MAP.SDM], [{ level: 'L5', track: 'IC' }, { level: 'L5', track: 'MG' }], 'AC1 PTP = L5 IC, SDM = L5 MG (PDP-D5)');
       _assertEqual([C.JOINER_DUE_DAYS, C.JOINER_SKIP_DAYS, C.BIANNUAL_CUTOFF, C.PROMOTION_MIN_MONTHS], [30, 21, '03-31', 3], 'AC1 PDP-D10 / D11 constants');
       _assertEqual(C.JOINER_GOALS, { min: 2, max: 3 }, 'AC1 joiner goals 2-3');
+      _assertEqual(C.SKIP_REASONS.preStart, 'Before PDP start', 'N-446 pre-start skip reason in config');
       _assertEqual(CONFIG.LIST_FIELDS.People.includes('LevelSince'), true, 'AC17 People projection has LevelSince');
       _assertEqual(CONFIG.MCP.outputDenyFields.People.includes('LevelSince'), true, 'AC17 LevelSince never returned to Claude');
     },
@@ -142,13 +143,68 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-437 late entry: first generated after the January Annual is due -> joiner-style goal setting from that date',
+    name: 'N-446 existing employee first generated mid-year: standing cycle, no joiner, no late entry',
     fn: function () {
       const f = _pdpFx();
       const plan = _pdpcPlan(f.all, { today: new Date('2027-03-15T12:00:00Z') });
-      _assertEqual(_pdpcMine(plan, f.tp1.id).find(x => x.IsJoiner).DueDate, '2027-04-14', 'late entry: goal setting = first generation + 30');
-      _assertEqual(plan.cycles.find(c => c.personId === f.tp1.id).fields.JoinDate, '2027-03-15', 'late entry date stored as JoinDate');
-      _assertEqual(_pdpcMine(_pdpcPlan(f.all, { today: new Date('2027-01-20T12:00:00Z') }), f.tp1.id).length, 12, 'generated before the Annual is due: standing');
+      const cyc = plan.cycles.find(c => c.personId === f.tp1.id).fields;
+      _assertEqual([cyc.JoinDate, cyc.BiAnnualScored], ['', true], 'N-446 started 2024, generated 15 Mar: standing, July still scored');
+      const mine = _pdpcMine(plan, f.tp1.id);
+      _assertEqual([mine.length, mine.some(x => x.IsJoiner), mine.filter(x => x.Status === 'Skipped').map(x => x.Period)], [12, false, ['2027-01', '2027-02']], 'N-446 Jan and Feb passed -> Skipped, rest Planned');
+      _assertEqual(_pdpcMine(_pdpcPlan(f.all, { today: new Date('2027-01-20T12:00:00Z') }), f.tp1.id).every(x => x.Status === 'Planned'), true, 'generated before the Annual is due: all Planned');
+    },
+  },
+  {
+    name: 'N-446 AC1-AC5 pre-year or blank StartDate added on 10 Nov 2026: standing, Jan-Oct Skipped, Nov-Dec Planned',
+    fn: function () {
+      const f = _pdpFx();
+      const T = (id, extra) => f.P(id, 'Ex Employee ' + id, 'TP', Object.assign({ ReportsTo: f.sdm.WorkEmail }, extra));
+      const early = T(60, { StartDate: '2025-03-01' });
+      const blank = T(61, { StartDate: '' });
+      const today = new Date('2026-11-10T12:00:00Z');
+      const plan = _pdpcPlan([f.csd, f.sdm, early, blank], { year: 2026, today });
+      [60, 61].forEach(id => {
+        const cyc = plan.cycles.find(c => c.personId === String(id)).fields;
+        _assertEqual([cyc.JoinDate, cyc.Status, cyc.BiAnnualScored], ['', 'Open', false], 'AC1/AC4 ' + id + ' standing cycle, July skipped so not scored');
+        _assertEqual(plan.waiting.some(w => w.personId === String(id)), false, 'AC1 ' + id + ' not Waiting');
+        const mine = _pdpcMine(plan, id);
+        _assertEqual(mine.length, 12, 'AC2 ' + id + ' twelve meetings');
+        const sk = mine.filter(m => m.Status === 'Skipped');
+        _assertEqual([sk.length, sk[sk.length - 1].Period, sk.every(m => m.SkipReason === CONFIG.PDP.CYCLE.SKIP_REASONS.preStart && m.TemplateID === undefined)], [10, '2026-10', true], 'AC2 ' + id + ' Jan-Oct Skipped, reason, no template');
+        const pl = mine.filter(m => m.Status === 'Planned');
+        _assertEqual([pl.map(m => m.Period), pl.every(m => !m.IsJoiner && m.TemplateID !== undefined)], [['2026-11', '2026-12'], true], 'AC2 ' + id + ' Nov and Dec Planned with template');
+      });
+    },
+  },
+  {
+    name: 'N-446 AC4-AC8 boundaries, joiners unchanged, year ahead, idempotent, missing meeting on an existing cycle',
+    fn: function () {
+      const f = _pdpFx();
+      const T = (id, extra) => f.P(id, 'Ex Employee ' + id, 'TP', Object.assign({ ReportsTo: f.sdm.WorkEmail }, extra));
+      const early = T(62, { StartDate: '2025-03-01' });
+      const base = [f.csd, f.sdm, early];
+      const jun = _pdpcPlan(base, { year: 2026, today: new Date('2026-06-20T12:00:00Z') });
+      const mj = _pdpcMine(jun, 62);
+      _assertEqual([mj.filter(m => m.Status === 'Skipped').length, _pdpcBy(mj, '2026-07').Status, jun.cycles.find(c => c.personId === '62').fields.BiAnnualScored], [5, 'Planned', true], 'AC4 20 Jun: Jan-May Skipped, July Planned and scored');
+      const oct = _pdpcMine(_pdpcPlan(base, { year: 2026, today: new Date('2026-10-31T12:00:00Z') }), 62);
+      _assertEqual([_pdpcBy(oct, '2026-09').Status, _pdpcBy(oct, '2026-10').Status], ['Skipped', 'Planned'], 'AC5 due today is not past');
+      const nov = new Date('2026-11-10T12:00:00Z');
+      const ahead = _pdpcMine(_pdpcPlan(base, { year: 2027, today: nov }), 62);
+      _assertEqual([ahead.length, ahead.every(m => m.Status === 'Planned')], [12, true], 'AC8 year ahead: all Planned');
+      const sep = T(63, { StartDate: '2026-09-01' });
+      const nv = T(64, { StartDate: '2026-11-05' });
+      const jp = _pdpcPlan(base.concat(sep, nv), { year: 2026, today: nov });
+      const js = jp.cycles.find(c => c.personId === '63');
+      _assertEqual([js.joiner, js.fields.JoinDate, _pdpcMine(jp, 63).find(m => m.IsJoiner).DueDate], [true, '2026-09-01', '2026-10-01'], 'AC6 in-year starter stays a joiner');
+      _assertEqual(jp.waiting.find(w => w.personId === '64').reason, 'Joins the January 2027 Annual', 'AC6 December goal setting stays Waiting');
+      const plan = _pdpcPlan(base, { year: 2026, today: nov });
+      const applied = _pdpcApplied(plan);
+      _assertEqual(_pdpcPlan(base, { year: 2026, today: nov, cycles: applied.cycles, meetings: applied.meetings }).nothingToDo, true, 'AC9 re-run after Apply has nothing to do');
+      const gap = applied.meetings.filter(m => m.Period !== '2026-03');
+      const again = _pdpcPlan(base, { year: 2026, today: nov, cycles: applied.cycles, meetings: gap });
+      const miss = again.meetings.filter(m => m.personId === '62').map(m => m.fields);
+      _assertEqual([miss.length, miss[0].Period, miss[0].Status], [1, '2026-03', 'Planned'], 'AC10 existing cycle missing a meeting: created Planned (unchanged)');
+      _assertEqual([pdpEntryDate.length, String(pdpBuildCyclePlan).includes('Before PDP start'), String(pdpExpectedMeetings).includes('Before PDP start')], [2, false, false], 'AC11 two-arg entry date, reason read from config');
     },
   },
   {

@@ -10,9 +10,10 @@
 //   • Joiners: goal setting (Annual template, IsJoiner) due join + 30 days; calendar meetings due
 //     before it are not created, those due within 21 days after it are Skipped; a goal setting that
 //     would fall in December means no cycle that year (they join the next January Annual).
-//   • Late entry: someone whose cycle is first created after the January Annual is due (added to the
-//     pilot, or PDP switched On, part-way through the year) joins on that date, like a joiner.
-//   • Bi-Annual scored only if joined on or before 31 March.
+//   • Existing employees (StartDate before the year, or blank) are never joiners: someone first brought
+//     into PDP part-way through the year (added to the pilot, or PDP switched On) gets the standing
+//     year, with the meetings already past created Skipped ("Before PDP start", N-446).
+//   • Bi-Annual scored only if joined on or before 31 March and the July meeting is not Skipped.
 //   • Promotion: ScoringLevel is the new level once People.LevelSince is 3+ months before the
 //     Bi-Annual due date; frozen once the Bi-Annual is held.
 //   • Leavers and scope exits: Planned / PrepOpen meetings due after they left are Skipped and the
@@ -60,14 +61,11 @@ function pdpLevelFor(person) {
   return m ? { level: m.level, track: m.track } : null;
 }
 
-// When the person joins this year's cycle: their StartDate if it is in the year; the date the cycle
-// is first created if that is after the January Annual is due (late entry); otherwise '' (standing).
-function pdpEntryDate(person, year, firstCreatedISO) {
+// When the person joins this year's cycle: their StartDate if it is in the year; otherwise '' (an
+// existing employee, or a blank StartDate: the standing year).
+function pdpEntryDate(person, year) {
   const start = spDateIn(person && person.StartDate) || '';
-  if (start && start >= year + '-01-01') return start;
-  const annualDue = _pdpcDueOf(year, 'Annual');
-  if (firstCreatedISO && annualDue && firstCreatedISO > annualDue) return firstCreatedISO;
-  return '';
+  return start && start >= year + '-01-01' ? start : '';
 }
 
 // -> { kind: 'standing' } | { kind: 'waiting' } | { kind: 'joiner', joinDate, gsDue, gsPeriod }
@@ -101,10 +99,13 @@ function pdpScoringLevel(startKey, person, year) {
 }
 
 // The meetings a plan should hold: [{ MeetingType, Period, DueDate, IsJoiner, Status, SkipReason }].
-function pdpExpectedMeetings(plan, year) {
+// notBefore (optional, a day): a standing plan's meetings due before it are Skipped, "Before PDP start".
+function pdpExpectedMeetings(plan, year, notBefore) {
   const cal = pdpCalendar(year);
   const row = (m, extra) => Object.assign({ MeetingType: m.MeetingType, Period: m.Period, DueDate: m.DueDate, IsJoiner: false, Status: 'Planned', SkipReason: '' }, extra);
-  if (!plan || plan.kind === 'standing') return cal.map(m => row(m));
+  if (!plan || plan.kind === 'standing') {
+    return cal.map(m => notBefore && m.DueDate < notBefore ? row(m, { Status: 'Skipped', SkipReason: CONFIG.PDP.CYCLE.SKIP_REASONS.preStart }) : row(m));
+  }
   if (plan.kind !== 'joiner') return [];
   const skipTo = addDaysISO(plan.gsDue, CONFIG.PDP.CYCLE.JOINER_SKIP_DAYS);
   const out = [row({ MeetingType: 'Annual', Period: plan.gsPeriod, DueDate: plan.gsDue }, { IsJoiner: true })];
@@ -275,11 +276,13 @@ function pdpBuildCyclePlan(input) {
       plan = jd ? pdpJoinerPlan(jd, year) : { kind: 'standing' };
       if (plan.kind === 'waiting') plan = { kind: 'joiner', joinDate: jd, gsDue: addDaysISO(jd, C.JOINER_DUE_DAYS), gsPeriod: addDaysISO(jd, C.JOINER_DUE_DAYS).slice(0, 7) };
     } else {
-      plan = pdpJoinerPlan(pdpEntryDate(p, year, todayISO), year);
+      plan = pdpJoinerPlan(pdpEntryDate(p, year), year);
       if (plan.kind === 'waiting') { out.waiting.push({ personId: id, name, reason: 'Joins the January ' + (year + 1) + ' Annual' }); return; }
     }
     const joinDate = plan.kind === 'joiner' ? plan.joinDate : '';
     const curKey = pdpLevelKey(lvl.level, lvl.track);
+    // A new cycle's passed meetings are Skipped (N-446); an existing cycle only gains what is missing.
+    const expected = pdpExpectedMeetings(plan, year, c ? '' : todayISO);
 
     if (!c) {
       out.cycles.push({
@@ -287,7 +290,8 @@ function pdpBuildCyclePlan(input) {
         fields: {
           PersonID: Number(id), PersonEmail: email, PersonName: name, CycleYear: year,
           Level: lvl.level, Track: lvl.track, LineManagerEmail: rev.lm, CSDEmail: rev.csd,
-          JoinDate: joinDate, BiAnnualScored: pdpBiAnnualScored(joinDate, year), ScoringLevel: curKey, Status: 'Open',
+          JoinDate: joinDate, ScoringLevel: curKey, Status: 'Open',
+          BiAnnualScored: pdpBiAnnualScored(joinDate, year) && !expected.some(e => e.MeetingType === 'BiAnnual' && e.Status === 'Skipped'),
         },
       });
     } else {
@@ -302,7 +306,7 @@ function pdpBuildCyclePlan(input) {
     // A leaver-to-be (EndDate in the future): nothing is created after it; anything already there is skipped.
     if (c && end.cutoff) _pdpcSkipAfter(out, mine, end.cutoff, C.SKIP_REASONS.left, id, name);
     const have = new Map(mine.map(m => [String(m.Title), m]));
-    pdpExpectedMeetings(plan, year).filter(e => !end.cutoff || e.DueDate <= end.cutoff).forEach(e => {
+    expected.filter(e => !end.cutoff || e.DueDate <= end.cutoff).forEach(e => {
       const key = pdpMeetingKey(id, year, e.MeetingType, e.Period);
       const t = tpl[e.MeetingType];
       const ex = have.get(key);

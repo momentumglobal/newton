@@ -1674,6 +1674,7 @@ const CONFIG = {
         joiner: 'Within 3 weeks of goal setting',
         left:   'Left Momentum',
         scope:  'Left PDP scope',
+        preStart: 'Before PDP start',
       },
     },
     // N-438 (PDP-6): My Development (employee page, pdp-my.js / pdp-prep.js).

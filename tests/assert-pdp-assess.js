@@ -227,6 +227,17 @@ ASSERTIONS.push(
       const p4 = pdpAgreedPlan({ meeting: _asMeeting(), compare: c, edit: { readiness: { value: 'now' }, boundary: { band: 'Exceeding' } }, levelKey: 'L4-IC' });
       _assertEqual(p4.assessment.managerTrack, { suggested: true, flagged: true, reason: '' }, 'AC12 the flag defaults to the suggestion');
       _assertEqual(p4.problems, ['Give a reason for the manager-track flag.'], 'AC12 and needs a reason');
+      // QA finding 1: an untouched box (flagged undefined) follows the suggestion; the UI leaves it undefined.
+      const p5 = pdpAgreedPlan({ meeting: _asMeeting(), compare: c, edit: { readiness: { value: 'now' }, boundary: { band: 'Exceeding' }, managerTrack: { flagged: undefined, reason: 'strong lead' } }, levelKey: 'L4-IC' });
+      _assertEqual([p5.assessment.managerTrack, p5.problems], [{ suggested: true, flagged: true, reason: 'strong lead' }, []], 'AC12 untouched box stores the suggestion');
+      const ui = ALL_SOURCES['pdp-assess-ui.js'];
+      const stash = ui.slice(ui.indexOf('function _pdpasStash'), ui.indexOf('function pdpasInput'));
+      _assertEqual(/data-pas-mt\]/.test(stash), false, 'AC12 the generic stash never sets the manager-track tick');
+      _assertEqual(/actOn\('change', 'pdpasMt\.stop', ACT_CHECKED\)/.test(ui) && /pdpManagerTrackSuggested\(v\.scoring\.levelKey, ag\)/.test(ui), true, 'AC12 the box has its own action; the suggestion is computed from the typed agreed scores');
+      const seed = { side: 'manager', bySource: { Self: {}, Manager: {}, Agreed: {} }, assessment: pdpAssessmentFrom(''), suggested: false };
+      _assertEqual(_pdpasDraftFrom(seed).managerTrack.flagged, undefined, 'AC12 no stored flag = untouched (follows the suggestion)');
+      seed.assessment = pdpAssessmentFrom(JSON.stringify({ managerTrack: { suggested: true, flagged: false, reason: 'not yet' } }));
+      _assertEqual(_pdpasDraftFrom(seed).managerTrack, { flagged: false, reason: 'not yet' }, 'AC12 a stored decision is kept');
     },
   },
   {

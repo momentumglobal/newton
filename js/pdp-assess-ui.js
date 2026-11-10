@@ -59,7 +59,9 @@ function _pdpasDraftFrom(v) {
     scores, agreed,
     boundary: { band: (a.boundary && a.boundary.band) || '', escalated: !!(a.boundary && a.boundary.escalated) },
     readiness: { value: (a.readiness && a.readiness.value) || '', note: (a.readiness && a.readiness.note) || '' },
-    managerTrack: { flagged: mt ? mt.flagged === true : !!v.suggested, reason: (mt && mt.reason) || '' },
+    // flagged stays undefined until the manager clicks the box (pdpasMt): until then it follows the live suggestion
+    // and pdpAgreedPlan stores the suggestion (N-442 QA finding 1).
+    managerTrack: { flagged: mt ? mt.flagged === true : undefined, reason: (mt && mt.reason) || '' },
   };
 }
 
@@ -143,7 +145,7 @@ function _pdpasCompareHtml(v, edit) {
           : (ag && ag.Rationale ? _pdpmTextHtml(ag.Rationale) : ''));
     } else if (c.kind === 'managerCall' && edit) {
       const opts = [c.self, c.manager].filter((x, i, a) => a.indexOf(x) === i).sort().map(n => ({ value: n, label: n + ' · ' + _PDPAS_SCORE_TEXT[n] }));
-      agreedCell = `<select data-pas-agree="${escAttr(c.key)}" aria-label="Agreed score for ${escAttr(p.name)}">${_pdpasOpts(opts, cur.score, 'Agreed score…')}</select>
+      agreedCell = `<select data-pas-agree="${escAttr(c.key)}" aria-label="Agreed score for ${escAttr(p.name)}"${actOn('change', 'pdpasAgree.stop')}>${_pdpasOpts(opts, cur.score, 'Agreed score…')}</select>
         <textarea rows="2" maxlength="${escAttr(CONFIG.PDP.ASSESS.RATIONALE_MAX)}" data-pas-agree-why="${escAttr(c.key)}" aria-label="Reason for ${escAttr(p.name)}" placeholder="Reason for the agreed score">${escHtml(cur.rationale)}</textarea>`;
     } else {
       const n = c.kind === 'agree' ? c.self : (ag ? ag.Score : null);
@@ -170,8 +172,8 @@ function _pdpasOutcomeHtml(v, edit) {
   const parts = [];
   // Live overall from what is typed (manager) or from the saved rows (everyone else).
   let live = o;
+  const ag = {};
   if (edit) {
-    const ag = {};
     v.compare.forEach(c => { ag[c.key] = c.kind === 'agree' ? c.self : (c.kind === 'escalate' ? null : (d.agreed[c.key].score === '' ? null : Number(d.agreed[c.key].score))); });
     live = pdpOverall(ag);
   }
@@ -197,12 +199,15 @@ function _pdpasOutcomeHtml(v, edit) {
     }
     if (pdpManagerTrackApplies(v.scoring.levelKey)) {
       const mt = edit ? d.managerTrack : (v.assessment.managerTrack || { flagged: false, reason: '' });
-      const sugg = v.suggested ? 'Suggested: agreed scores of 3 on Support People, Stay Curious and Adapt are the framework’s manager-track signal.' : 'Not suggested by the agreed scores.';
+      // The suggestion follows the agreed scores as they are typed (edit) or as saved (read-only).
+      const suggested = edit ? pdpManagerTrackSuggested(v.scoring.levelKey, ag) : !!(v.assessment.managerTrack && v.assessment.managerTrack.suggested);
+      const ticked = mt.flagged === undefined ? suggested : mt.flagged === true;
+      const sugg = suggested ? 'Suggested: agreed scores of 3 on Support People, Stay Curious and Adapt are the framework’s manager-track signal.' : 'Not suggested by the agreed scores.';
       parts.push(edit
-        ? `<div class="form-group pdpas-field"><label class="pdpas-check"><input type="checkbox" data-pas-mt="1"${mt.flagged ? ' checked' : ''}> Flag for manager-track / succession discussion</label>
+        ? `<div class="form-group pdpas-field"><label class="pdpas-check"><input type="checkbox" data-pas-mt="1"${ticked ? ' checked' : ''}${actOn('change', 'pdpasMt.stop', ACT_CHECKED)}> Flag for manager-track / succession discussion</label>
             <div class="ppl-muted-small">${escHtml(sugg)}</div>
             <textarea rows="2" maxlength="${escAttr(A.NOTE_MAX)}" data-pas-mt-why="1" aria-label="Reason for the manager-track decision" placeholder="Reason (needed when flagged, or when overriding the suggestion)">${escHtml(mt.reason || '')}</textarea></div>`
-        : `<div class="pdpas-field"><span class="pdpm-label">Manager-track / succession</span> ${mt.flagged ? '<span class="dh-badge dh-badge-success">Flagged</span>' : 'Not flagged'}${mt.reason ? _pdpmTextHtml(mt.reason) : ''}</div>`);
+        : `<div class="pdpas-field"><span class="pdpm-label">Manager-track / succession</span> ${ticked ? '<span class="dh-badge dh-badge-success">Flagged</span>' : 'Not flagged'}${mt.reason ? _pdpmTextHtml(mt.reason) : ''}</div>`);
     }
   }
   if (v.side !== 'self' && v.panel.length) {
@@ -256,7 +261,6 @@ function _pdpasStash() {
   if (q('[data-pas-band-esc]')) d.boundary.escalated = q('[data-pas-band-esc]').checked;
   if (q('[data-pas-ready]')) d.readiness.value = q('[data-pas-ready]').value;
   if (q('[data-pas-ready-note]')) d.readiness.note = q('[data-pas-ready-note]').value;
-  if (q('[data-pas-mt]')) d.managerTrack.flagged = q('[data-pas-mt]').checked;
   if (q('[data-pas-mt-why]')) d.managerTrack.reason = q('[data-pas-mt-why]').value;
 }
 
@@ -316,6 +320,25 @@ function pdpasAgreedSave() {
   }, 'Agreed scores saved.', null);
 }
 
+// An agreed-score pick redraws the block, so the overall, any boundary choice and the manager-track suggestion follow it.
+function pdpasAgree() {
+  const s = _pdpasState;
+  if (!s.draft || !s.ctx) return;
+  s.dirty = true;
+  _pdpasStash();
+  s.ctx.redraw();
+}
+
+// The manager-track box is the only control that sets `flagged` (the generic input handler leaves it alone, so an
+// untouched box keeps following the suggestion).
+function pdpasMt(checked) {
+  const s = _pdpasState;
+  if (!s.draft) return;
+  s.dirty = true;
+  _pdpasStash();
+  s.draft.managerTrack.flagged = !!checked;
+}
+
 async function pdpasRefresh() {
   const s = _pdpasState;
   if (s.busy || !s.ctx) return;
@@ -330,4 +353,6 @@ registerActions({
   pdpasSubmit,
   pdpasAgreedSave,
   pdpasRefresh,
+  pdpasMt,
+  pdpasAgree,
 });

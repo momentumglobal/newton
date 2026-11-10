@@ -1590,7 +1590,29 @@ const CONFIG = {
     // 'config' row): PDPMode = single line of text, PDPPilot = multiple lines of plain text
     // holding the pilot people's work emails joined by ACCESS.EMAIL_SEP.
     MODES:          ['Off', 'Pilot', 'On'],
-    SETTINGS:       { MODE: 'PDPMode', PILOT: 'PDPPilot' },
+    SETTINGS:       { MODE: 'PDPMode', PILOT: 'PDPPilot', REMINDERS_FROM: 'PDPRemindersFrom' },
+    // N-441 (PDP-9): reminders through the notifications engine (rules in pdp-reminders.js, orchestration in api-pdp.js).
+    // They exist only while the switch is On (the pilot group gets none). REMINDERS_FROM (AppSettings, single line
+    // of text, YYYY-MM-DD) is the first due date that can remind; blank / invalid = DEFAULT_FROM, so the 2026
+    // meetings stay silent at go-live.
+    //   PREP_REMIND_DAYS    a meeting's prep is "due soon" when the meeting is due within this many days.
+    //   ACTION_REMIND_DAYS  an open action reminds this many days before it is due (and after).
+    //   TYPES / TEXT        notification TriggerType and the fixed body ({n} = count). Never put a name, goal,
+    //                       action text, score or note in a body: the Notifications list is readable by everyone.
+    //   LINKS               deep links (people.html page keys).
+    REMINDERS: {
+      DEFAULT_FROM:       '2027-01-01',
+      PREP_REMIND_DAYS:   7,
+      ACTION_REMIND_DAYS: 3,
+      KEY_PREFIX:         'pdp',
+      TYPES: { PREP: 'pdpPrep', OVERDUE: 'pdpOverdue', ACTION: 'pdpAction' },
+      TEXT: {
+        pdpPrep:    { one: 'Your PDP prep is due soon.',   many: '{n} PDP preps are due soon.' },
+        pdpOverdue: { one: '1 PDP meeting is overdue.',     many: '{n} PDP meetings are overdue.' },
+        pdpAction:  { one: '1 PDP action is due soon.',     many: '{n} PDP actions are due soon.' },
+      },
+      LINKS: { MY: 'people.html#myDevelopment', TEAM: 'people.html#teamDevelopment' },
+    },
     DISPLAY_ROWS:   10,
     // N-434 (PDP-2): the seven PDP lists. Single source of truth: api-pdp.js and pdp-data.js
     // reference lists only through this map. Never add one to CACHE.persistentLists, DELTA,

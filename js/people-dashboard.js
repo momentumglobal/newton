@@ -167,6 +167,13 @@ async function _renderKPIStrip(allRows, people, assignments) {
     return `<span class='ppl-delta ppl-delta--${d > 0 ? 'ok' : 'worse'}'>${d > 0 ? '+' : ''}${d}</span>`;
   };
   
+  // N-441: PDP completion (Admin / People Ops only; null = no card). Counts only, no names.
+  let pdpCard = '';
+  try {
+    const c = await readPdpCompletion();
+    if (c) pdpCard = _kpiCard('PDP completion ' + c.year, c.dueToDate ? `${c.held} of ${c.dueToDate}` : '—', `${c.overdue} overdue · ${escHtml(c.mode)} mode`, c.overdue ? 'warn' : undefined);
+  } catch (e) { console.warn('PDP completion unavailable', e); }
+
   return `<div style='display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px'>
     ${_kpiCard('Estimated Revenue ' + thisY,   _fmtGBP(revYTD),   'Current year YTD')}
     ${_kpiCard('Utilisation ' + thisY,      _fmtPct(utilYTD),  'Current year YTD',
@@ -174,6 +181,7 @@ async function _renderKPIStrip(allRows, people, assignments) {
         utilYTD >= CONFIG.UTILISATION_THRESHOLDS.green ? undefined : utilYTD >= CONFIG.UTILISATION_THRESHOLDS.amber ? 'warn' : 'danger')}
     ${_kpiCard('Active Customers',  activeCustomers  + _delta(activeCustomers, prevQCustomers),  'As of today · vs last quarter')}
     ${_kpiCard('Billed Headcount',  billedHeadcount  + _delta(billedHeadcount, prevQHeadcount),  'As of today · vs last quarter')}
+    ${pdpCard}
   </div>`;
 }
 

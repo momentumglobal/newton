@@ -50,6 +50,8 @@ window.PEOPLE_APP = {
     resolvePdpNav().then(nav => {
       if (nav.my !== _peopleMyDevNav || nav.team !== _peopleTeamDevNav) { _peopleMyDevNav = nav.my; _peopleTeamDevNav = nav.team; renderPeopleNav(_resolvedRole); }
     }).catch(e => console.warn('PDP nav unavailable', e));
+    // N-441: PDP reminders (On mode only; the pilot group gets none). Once per page load, never throws.
+    runPdpReminders().catch(e => console.warn('PDP reminders unavailable', e));
     initCommandBar({ currentModule: 'people', role: _resolvedRole, navigateFn: 'navigateToPeople' });
     if (!handlePeopleDeepLink()) navigateToPeople(landing);
   },

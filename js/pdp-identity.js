@@ -469,6 +469,19 @@ function pdpNormaliseMode(raw) {
   return CONFIG.PDP.MODES.find(m => m.toLowerCase() === s) || CONFIG.PDP.MODES[0];
 }
 
+// N-441: the "Reminders from" setting -> 'YYYY-MM-DD'. Blank, malformed or impossible (2027-02-30) is
+// CONFIG.PDP.REMINDERS.DEFAULT_FROM. Plain string arithmetic: no Date, so no timezone shift.
+function pdpNormaliseRemindersFrom(raw) {
+  const def = CONFIG.PDP.REMINDERS.DEFAULT_FROM;
+  const s = String(raw == null ? '' : raw).trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return def;
+  const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
+  const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mo - 1];
+  return days && d >= 1 && d <= days ? s : def;
+}
+
 // The pilot column -> unique, lower-case, valid work emails. Tolerates ';' (the stored form),
 // newlines and stray blanks, so a hand-edited column still reads.
 function pdpParsePilot(raw) {

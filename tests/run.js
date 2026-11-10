@@ -61,6 +61,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'pdp-seed.js'),         // N-436: default framework + template content (pure data, after pdp-data.js)
   path.join(JS_DIR, 'pdp-cycle.js'),        // N-437: pure PDP cycle engine (after pdp-data.js)
   path.join(JS_DIR, 'pdp-prep.js'),         // N-438: pure My Development rules (after pdp-cycle.js)
+  path.join(JS_DIR, 'pdp-reminders.js'),    // N-441: pure PDP reminder rules (after pdp-prep.js)
   path.join(JS_DIR, 'pdp-team.js'),         // N-439: pure Team Development rules (after pdp-prep.js)
   path.join(JS_DIR, 'pdp-track.js'),        // N-440: pure Goals & actions tracker rules (after pdp-team.js)
   path.join(JS_DIR, 'pdp-assess.js'),       // N-442: pure Bi-Annual assessment rules (after pdp-track.js)
@@ -133,6 +134,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-pdp-team.js'),       // N-439
   path.join(TESTS_DIR, 'assert-pdp-track.js'),      // N-440
   path.join(TESTS_DIR, 'assert-pdp-assess.js'),     // N-442
+  path.join(TESTS_DIR, 'assert-pdp-reminders.js'),  // N-441
   path.join(TESTS_DIR, 'assert-project-types.js'),
   path.join(TESTS_DIR, 'assert-starter-folders.js'),
   path.join(TESTS_DIR, 'assert-sla.js'),

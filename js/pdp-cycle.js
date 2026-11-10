@@ -163,6 +163,28 @@ function pdpCycleSummary(meetings, today) {
   return s;
 }
 
+// N-441: completion for one cycle year, aggregate only (no names). Counts the meetings of `year` due on or
+// before `today`, Skipped excluded: held = Held / SignedOff, overdue = pdpMeetingState 'overdue',
+// peopleOverdue = distinct people with at least one overdue meeting, pct = held / dueToDate as a whole
+// percent (null while nothing is due yet).
+function pdpCompletion(meetings, today, year) {
+  const t = _pdpcDay(today);
+  const out = { year: Number(year), dueToDate: 0, held: 0, overdue: 0, peopleOverdue: 0, pct: null };
+  const late = new Set();
+  (meetings || []).forEach(m => {
+    if (!m || Number(m.CycleYear) !== Number(year) || m.Status === 'Skipped') return;
+    const due = spDateIn(m.DueDate);
+    if (!due || due > t) return;
+    out.dueToDate++;
+    const st = pdpMeetingState(m, t);
+    if (st === 'done') out.held++;
+    else if (st === 'overdue') { out.overdue++; late.add(String(m.PersonID)); }
+  });
+  out.peopleOverdue = late.size;
+  out.pct = out.dueToDate ? Math.round(out.held * 100 / out.dueToDate) : null;
+  return out;
+}
+
 // The years the Cycle tab offers: this year, plus next year from NEXT_YEAR_FROM_MONTH.
 function pdpCycleYears(today) {
   const t = _pdpcDay(today);

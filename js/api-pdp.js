@@ -143,16 +143,21 @@ async function repointPdpAccess(personIds) {
 // readPdpSwitch / writePdpSwitch / resolvePdpGate on purpose: a file that calls getPdp*() is
 // treated as handling PDP records (the PDP-D12 source scan), and the switch holds none.
 
-// -> { mode, pilot: [emails] }. A missing row, missing columns or a failed read is Off.
+// -> { mode, pilot: [emails], remindersFrom: 'YYYY-MM-DD' }. A missing row, missing columns or a failed read is
+// Off; a blank or invalid reminders-from date is CONFIG.PDP.REMINDERS.DEFAULT_FROM (N-441).
 async function readPdpSwitch() {
   const row = await _getAppSettingsRow();
   const S = CONFIG.PDP.SETTINGS;
-  return { mode: pdpNormaliseMode(row ? row[S.MODE] : null), pilot: pdpParsePilot(row ? row[S.PILOT] : '') };
+  return {
+    mode: pdpNormaliseMode(row ? row[S.MODE] : null),
+    pilot: pdpParsePilot(row ? row[S.PILOT] : ''),
+    remindersFrom: pdpNormaliseRemindersFrom(row ? row[S.REMINDERS_FROM] : ''),
+  };
 }
 
 // Admin only (pdpSwitch), under Ghost Mode the ghosted user's role. Writes only the fields passed;
 // creates the 'config' row when it is missing (same shape as setChecklistSettings).
-async function writePdpSwitch({ mode, pilot } = {}) {
+async function writePdpSwitch({ mode, pilot, remindersFrom } = {}) {
   await _ensureGhostGate();
   const role = await getEffectiveRole(getCurrentUser()?.email || '');
   if (!roleCan(role, 'pdpSwitch')) throw new Error('Only an Admin can change the PDP switch.');
@@ -168,6 +173,11 @@ async function writePdpSwitch({ mode, pilot } = {}) {
     const bad = list.find(e => !pdpIsEmail(String(e).trim()));
     if (bad !== undefined) throw new Error('Not a valid pilot email address: ' + bad);
     fields[S.PILOT] = pdpFormatPilot(list);
+  }
+  if (remindersFrom !== undefined) {   // N-441: blank = back to the default date
+    const d = String(remindersFrom == null ? '' : remindersFrom).trim();
+    if (d !== '' && pdpNormaliseRemindersFrom(d) !== d) throw new Error('Reminders from must be a valid date (YYYY-MM-DD).');
+    fields[S.REMINDERS_FROM] = d;
   }
   if (!Object.keys(fields).length) return;
   const row = await _getAppSettingsRow();
@@ -1004,4 +1014,74 @@ async function savePdpAgreed(meetingId, edit) {
     await updatePdpMeeting(m.id, { Assessment: plan.assessment });
   } catch (err) { throw _pdpMyWriteError(err, m); }
   return { problems: plan.problems };
+}
+
+// ── N-441 (PDP-9): reminders + the completion tile ──────────────────────────────────────────
+// Rules are pure in pdp-reminders.js (pdpReminderPlan) and pdp-cycle.js (pdpCompletion); this file reads, writes
+// and clears. Reminders exist only while PDPMode is On, so the pilot group gets none. Each session writes
+// reminders only for the signed-in user, and clears only that user's own rows.
+
+let _pdpRemindersRan = false;   // once per page load (a variable, not storage)
+
+// The signed-in user's own active reminder rows (the three types). Notifications is readable by every
+// signed-in user, so the query is always filtered by recipient.
+async function _pdpOwnReminderRows(me) {
+  const types = Object.values(CONFIG.PDP.REMINDERS.TYPES);
+  const rows = await getItems('Notifications', `fields/RecipientEmail eq '${odataStr(me)}' and fields/Status eq 'active'`);
+  return rows.filter(r => types.includes(r.TriggerType));
+}
+
+// Marks the user's own active reminders cleared unless their key is in `keep`. -> number cleared.
+async function _pdpClearReminders(me, keep) {
+  const keepSet = new Set(keep || []);
+  const stale = (await _pdpOwnReminderRows(me)).filter(r => !keepSet.has(r.TriggerKey));
+  for (const r of stale) await updateItem('Notifications', r.id, { Status: 'cleared' });
+  return stale.length;
+}
+
+// Called once from people-app.js init. Never throws.
+async function runPdpReminders() {
+  if (_pdpRemindersRan) return;
+  _pdpRemindersRan = true;
+  try {
+    await _ensureGhostGate();
+    if (getGhostUser()) return;
+    const realEmail = getCurrentUser()?.email || '';
+    const me = _pdpEmail(realEmail);
+    if (!me) return;
+    const sw = await readPdpSwitch();
+    const gate = sw.mode === CONFIG.PDP.MODES[2] ? await resolvePdpGate() : { state: 'none' };
+    if (sw.mode !== CONFIG.PDP.MODES[2] || gate.state !== 'live') {
+      if (await _pdpClearReminders(me, [])) await renderNotificationBell();
+      return;
+    }
+    const role = await getEffectiveRole(realEmail);
+    const [meetings, actions] = await Promise.all([getPdpMeetings(), getPdpActions()]);
+    const visibleMeetings = pdpVisibleItems(meetings, role, me);
+    const needsTemplates = visibleMeetings.some(m => _pdpEmail(m.PersonEmail) === me && ['Planned', 'PrepOpen'].includes(m.Status));
+    const templates = needsTemplates ? await getPdpTemplates() : [];
+    const plan = pdpReminderPlan({
+      mode: sw.mode, email: me, from: sw.remindersFrom, today: localDayISO(new Date()),
+      meetings: visibleMeetings, actions: pdpVisibleItems(actions, role, me), templates,
+    });
+    for (const s of plan.send) {
+      await fireNotification({ triggerType: s.type, triggerKey: s.key, tone: s.tone, deepLink: s.link, body: s.body, recipients: [me] });
+    }
+    const cleared = await _pdpClearReminders(me, plan.keep);
+    if ((plan.send.length || cleared) && typeof renderNotificationBell === 'function') await renderNotificationBell();
+  } catch (e) { console.warn('PDP reminders unavailable', e); }
+}
+
+// The People Dashboard completion tile (Admin / People Ops only; Leadership is deferred). -> the aggregate
+// from pdpCompletion plus the mode, or null (not Admin / People Ops, or the switch is Off). Counts only.
+async function readPdpCompletion() {
+  await _ensureGhostGate();
+  const role = await getEffectiveRole(getCurrentUser()?.email || '');
+  if (!roleCan(role, 'pdpAdmin')) return null;
+  const sw = await readPdpSwitch();
+  if (sw.mode === CONFIG.PDP.MODES[0]) return null;
+  const today = localDayISO(new Date());
+  const year = Number(today.slice(0, 4));
+  const meetings = await getPdpMeetings(null, year);
+  return Object.assign(pdpCompletion(meetings, today, year), { mode: sw.mode });
 }

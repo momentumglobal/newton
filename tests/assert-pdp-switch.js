@@ -16,7 +16,7 @@ ASSERTIONS.push(
     name: 'N-445 AC1 config: modes, columns, pdpSwitch is Admin only',
     fn: function () {
       _assertEqual(CONFIG.PDP.MODES, ['Off', 'Pilot', 'On'], 'AC1 modes, Off first (fail-closed default)');
-      _assertEqual(CONFIG.PDP.SETTINGS, { MODE: 'PDPMode', PILOT: 'PDPPilot' }, 'AC1 AppSettings column names');
+      _assertEqual(CONFIG.PDP.SETTINGS, { MODE: 'PDPMode', PILOT: 'PDPPilot', REMINDERS_FROM: 'PDPRemindersFrom' }, 'AC1 AppSettings column names');   // N-441 added REMINDERS_FROM
       _assertEqual(CONFIG.ROLE_CAPABILITIES.pdpSwitch, ['admin'], 'AC1 pdpSwitch Admin only');
       _assertEqual(roleCan('people_ops', 'pdpSwitch'), false, 'AC1 People Ops cannot flip the switch');
       _assertEqual(CONFIG.ROLE_CAPABILITIES.pdpAdmin, ['admin', 'people_ops'], 'AC1 pdpAdmin unchanged');
@@ -158,7 +158,7 @@ ASSERTIONS.push(
       _assertEqual(/act(On)?\([^)]*\)\.trim\(\)/.test(tab), false, 'AC12 act() keeps its leading space (a trimmed attribute fuses onto the one before it)');
       _assertEqual(/escHtml\(/.test(tab) && /escAttr\(/.test(tab), true, 'AC12 output escaped');
       _assertEqual(/registerActions\(\{\s*pdpaSave,\s*pdpaFilter,\s*pdpaCount,?\s*\}\)/.test(tab), true, 'AC12 actions registered once');
-      _assertEqual(/writePdpSwitch\(\{ mode, pilot \}\)/.test(tab) && /confirmModal\(/.test(tab), true, 'AC12 save goes through writePdpSwitch; switching On confirms');
+      _assertEqual(/const payload = \{ mode, pilot \};/.test(tab) && /writePdpSwitch\(payload\)/.test(tab) && /confirmModal\(/.test(tab), true, 'AC12 save goes through writePdpSwitch; switching On confirms');   // N-441: payload may add remindersFrom
       _assertEqual(_PDP_GUARD_RE.test(tab) || _PDP_GUARD_RE.test(adm), false, 'AC12 the tab handles no PDP records (PDP-D12 scan)');
     },
   },

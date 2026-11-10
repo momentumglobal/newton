@@ -11,6 +11,7 @@
 
 let _pdpaBusy  = false;   // a save is running — every control in the tab is disabled
 let _pdpaSaved = '';      // the mode that was saved when the tab last rendered (confirm only on the way to On)
+let _pdpaFrom  = '';      // N-441: the reminders-from date shown when the tab last rendered (saved only when changed)
 
 const _PDPA_MODE_TEXT = {
   Off:   { label: 'Off',   help: 'Users see nothing. Admin and People Ops can preview.' },
@@ -51,6 +52,7 @@ async function buildPdpTab() {
     </div>`;
   }
   _pdpaSaved = sw.mode;
+  _pdpaFrom = sw.remindersFrom;
   const candidates = pdpPilotCandidates(people, new Date());
   const known = new Set(candidates.map(c => c.email));
   const selected = new Set(sw.pilot);
@@ -92,6 +94,14 @@ async function buildPdpTab() {
           <div class="pdp-admin-list" role="group" aria-label="Pilot people">${rows || '<p class="ck-admin-hint">No one is in scope with a work email yet — see Data Health.</p>'}
           </div>
           <p class="ck-admin-hint">Reviewers added automatically: ${reviewers.length ? escHtml(reviewers.join(', ')) : 'none yet'}.</p>
+        </div>
+        <div class="ck-admin-switch">
+          <div class="ck-admin-switch-title">Reminders</div>
+          <p class="ck-admin-switch-status">Reminders are sent only when PDP is On, so pilot users receive none. Meetings and actions due before the date below never trigger one.</p>
+          <div class="form-group">
+            <label for="pdp-reminders-from">Reminders from</label>
+            <input type="date" id="pdp-reminders-from" value="${escAttr(sw.remindersFrom)}">
+          </div>
         </div>
       </div>
       <p id="pdp-admin-status" class="ck-admin-status" role="status" aria-live="polite"></p>
@@ -142,7 +152,10 @@ async function pdpaSave() {
 
   _pdpaLock('Saving…');
   try {
-    await writePdpSwitch({ mode, pilot });
+    const from = (document.getElementById('pdp-reminders-from')?.value || '').trim();
+    const payload = { mode, pilot };
+    if (from !== _pdpaFrom) payload.remindersFrom = from;
+    await writePdpSwitch(payload);
     toast(`PDP is now ${mode}.`, { type: 'success' });
   } catch (e) {
     console.error('PDP switch save failed:', e);

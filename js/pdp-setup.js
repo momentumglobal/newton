@@ -12,11 +12,14 @@
 // banner below read the personal Cycles / Meetings lists through planPdpCycle(), so this file is on
 // the PDP-D12 allowlist (tests/assert-pdp-access.js). Admin / People Ops only, people.html only.
 //
+// N-443 (PDP-11): the Calibration tab (pdp-calibrate-ui.js) is the calibration panel — Admin + People Ops see every
+// held Bi-Annual of the year (D1); the page's pdpAdmin gate is the panel's gate.
+//
 // The page opens for Admin and People Ops in every PDP mode (Off, Pilot, On): templates are built
 // before launch (N-445). resolvePdpGate() must still say preview or live.
 
 let _pdpsState = {
-  tab:   'framework',   // 'framework' | 'templates' | 'cycle' (N-437)
+  tab:   'framework',   // 'framework' | 'templates' | 'cycle' (N-437) | 'calibration' (N-443)
   setup: null,          // { framework, templates } as last read
   level: '',            // selected framework set
   track: '',
@@ -69,6 +72,7 @@ async function renderPdpSetupPage() {
   _pdpsState.dirty = false;
   _pdptDraft = null; _pdptView = 'list'; _pdptPrev = null;   // a fresh visit starts at the version list (pdp-template-editor.js)
   _pdpcState.plan = null; _pdpcState.error = ''; _pdpcState.progress = '';   // N-437: a fresh visit re-plans the Cycle tab (pdp-cycle-admin.js)
+  pdpclReset();   // N-443: a fresh visit reloads the Calibration tab (pdp-calibrate-ui.js)
   _pdpsState.busy  = false;
   main.innerHTML = `
     <div class="page-header">
@@ -81,6 +85,7 @@ async function renderPdpSetupPage() {
       <button class="eng-tab" id="pdps-tab-framework" role="tab"${act('pdpsTab', 'framework')}>Framework</button>
       <button class="eng-tab" id="pdps-tab-templates" role="tab"${act('pdpsTab', 'templates')}>Templates</button>
       <button class="eng-tab" id="pdps-tab-cycle" role="tab"${act('pdpsTab', 'cycle')}>Cycle</button>
+      <button class="eng-tab" id="pdps-tab-calibration" role="tab"${act('pdpsTab', 'calibration')}>Calibration</button>
     </div>
     <div id="pdps-body"></div>`;
   _pdpsRender();
@@ -115,7 +120,7 @@ async function pdpsCycleBanner() {
 // what was actually read back from SharePoint.
 function _pdpsRender() {
   const tab = _pdpsState.tab;
-  ['framework', 'templates', 'cycle'].forEach(t => {
+  ['framework', 'templates', 'cycle', 'calibration'].forEach(t => {
     const el = document.getElementById('pdps-tab-' + t);
     if (el) { el.classList.toggle('eng-tab--active', t === tab); el.setAttribute('aria-selected', t === tab ? 'true' : 'false'); }
   });
@@ -125,6 +130,7 @@ function _pdpsRender() {
   if (!body) return;
   body.innerHTML = tab === 'framework' ? _pdpsFrameworkHtml()
     : tab === 'cycle' ? pdpcCycleHtml()   // N-437 (pdp-cycle-admin.js)
+    : tab === 'calibration' ? pdpclTabHtml()   // N-443 (pdp-calibrate-ui.js)
     : pdptTemplatesHtml(_pdpsState.setup);
   lucide.createIcons();
 }
@@ -227,6 +233,8 @@ async function _pdpsConfirmLeave() {
 async function pdpsTab(tab) {
   if (_pdpsState.busy || tab === _pdpsState.tab) return;
   if (!(await _pdpsConfirmLeave())) return;
+  if (_pdpsState.tab === 'calibration' && pdpclIsDirty() && !(await _pdpclConfirmLeave())) return;   // N-443
+  if (_pdpsState.tab === 'calibration') pdpclReset();
   _pdpsState.dirty = false;
   _pdpsState.tab = tab;
   _pdpsRender();

@@ -405,3 +405,17 @@
 .pdpas-field { margin-top: var(--sp-5); }
 .pdpas-field textarea { width: 100%; margin-top: var(--sp-3); }
 .pdpas-check { display: flex; align-items: center; gap: var(--sp-3); font-weight: var(--fw-regular); }
+
+/* N-443: PDP Setup > Calibration (pdp-calibrate-ui.js) and the released result (pdp-assess-ui.js). Badges reuse .dh-badge-* (style.css). */
+.pdpcl-dist { margin-bottom: var(--sp-7); }
+.pdpcl-dist-row { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.pdpcl-dist-cell { flex: 1 1 160px; display: flex; flex-direction: column; gap: var(--sp-2); }
+.pdpcl-dist-num { font-size: var(--fs-16); font-weight: var(--fw-bold); color: var(--text-primary); }
+.pdpcl-warn { margin-top: var(--sp-4); padding: var(--sp-4) var(--sp-5); border-radius: var(--r-sm); background: var(--status-warn-bg-soft); color: var(--status-warn-strong); font-size: var(--fs-13); }
+.pdpcl-table tr.pdpcl-open td { background: var(--surface-hover); }
+.pdpcl-editor { margin-top: var(--sp-7); }
+.pdpcl-editor textarea { width: 100%; margin-top: var(--sp-3); }
+.pdpas-cal { margin-top: var(--sp-6); }
+.pdpas-cal-list { margin: var(--sp-3) 0 var(--sp-5) var(--sp-8); font-size: var(--fs-13); color: var(--text-primary); }
+.pdpas-cal-list li { margin-bottom: var(--sp-2); }
+.pdpas-cal-name { display: inline-block; min-width: 220px; }

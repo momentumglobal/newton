@@ -150,6 +150,9 @@ const CONFIG = {
     // N-445 (PDP-13, PDP-D13): change the PDP Off / Pilot / On switch and the pilot list. Admin
     // only. People Ops previews PDP through pdpAdmin but never flips the switch.
     pdpSwitch:             ['admin'],
+    // N-443 (PDP-11, D3): unlock a person's calibrated ratings (with a logged reason). Admin only: People Ops sits
+    // on the calibration panel (pdpAdmin) and can lock, never unlock.
+    pdpCalibrationUnlock:  ['admin'],
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
@@ -585,6 +588,7 @@ const CONFIG = {
       'IsJoiner', 'Period', 'DueDate', 'MeetingDate', 'Status', 'SkipReason', 'TemplateID',
       'TemplateVersion', 'PrepEmployee', 'PrepManager', 'MeetingNotes', 'EmployeeSignedAt',
       'ManagerSignedAt', 'SelfScoredAt', 'ManagerScoredAt', 'ScoresRevealedAt', 'Assessment',   // N-442
+      'RatingsLockedAt', 'RatingsLockedBy', 'RatingsReleasedAt', 'RatingsReleasedBy', 'Calibration',   // N-443
       'LineManagerEmail', 'CSDEmail', 'ReadOnlyEmails', 'AccessKey',
     ],
     PDPGoals: [
@@ -1761,6 +1765,24 @@ const CONFIG = {
       NOTE_MAX:         1000,
       REVEAL_WAIT_MIN:  15,
       SCHEMA:           1,
+    },
+    // N-443 (PDP-11): calibration panel, distribution check, lock and release (pdp-calibrate.js /
+    // pdp-calibrate-ui.js / api-pdp.js). Notion framework steps 4-6. Panel = Admin + People Ops (pdpAdmin).
+    //   DISTRIBUTION  target % of banded results per band (CONFIG.PDP.BANDS keys), [min, max]. Warn only (D2).
+    //   POINTERS_MAX  lowest pillars shown to the employee as development pointers (next-band descriptor).
+    //   LOG_MAX       entries kept in PDPMeetings.Calibration log (oldest dropped first).
+    //   CASE_STATES   panel case states, in table sort order.
+    //   SCHEMA        schema number inside the Calibration JSON.
+    //   RELEASE       the employee's in-app notice when the manager releases the result (only while PDPMode is On,
+    //                 like reminders). TYPE is deliberately NOT in REMINDERS.TYPES, so the reminder sweep never
+    //                 clears it. Fixed body: never a name or a score (Notifications is readable by everyone).
+    CALIBRATION: {
+      DISTRIBUTION: { Below: [5, 10], Meets: [65, 75], Exceeding: [15, 25] },
+      POINTERS_MAX: 2,
+      LOG_MAX:      50,
+      CASE_STATES:  ['needsPanel', 'ready', 'locked', 'released'],
+      SCHEMA:       1,
+      RELEASE:      { TYPE: 'pdpReleased', KEY_PREFIX: 'pdp-released', BODY: 'Your Bi-Annual ratings are ready to view.', TONE: 'milestone' },
     },
   },
 

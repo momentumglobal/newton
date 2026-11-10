@@ -1,7 +1,8 @@
 // js/pdp-assess.js — Bi-Annual assessment rules (N-442 / PDP-10). Pure: CONFIG + plain objects in, plain
 // objects out; no network I/O, no DOM. Loaded on people.html straight after pdp-track.js (it uses
 // pdpFrameworkSet / pdpFrameworkComplete / pdpParseLevelKey / pdpScoresRevealed from pdp-data.js,
-// pdpPrepWindow from pdp-prep.js and pdpManagerLock / pdpTeamAccess from pdp-team.js at run time).
+// pdpPrepWindow from pdp-prep.js, pdpManagerLock / pdpTeamAccess from pdp-team.js and, N-443, pdpRatingsLocked /
+// pdpRatingsReleased / pdpResultView from pdp-calibrate.js at run time).
 //
 // The Notion Performance / Capability Framework, steps 1-3: the employee scores each of the six pillars 1-3
 // with evidence (Source Self), the line manager / CSD scores blind with a rationale (Source Manager), the PDP
@@ -363,7 +364,12 @@ function pdpAssessView(input) {
     side,
     canSelf: live && side === 'self' && open && !pdpScoresLocked(m, 'Self') && pdpPrepWindow(m, i.now || new Date()).state === 'open',
     canManager: live && side === 'manager' && open && !pdpScoresLocked(m, 'Manager'),
-    canAgree: live && side === 'manager' && reveal === 'revealed' && lock === 'open' && m.Status !== 'SignedOff',
+    canAgree: live && side === 'manager' && reveal === 'revealed' && lock === 'open' && m.Status !== 'SignedOff' && !pdpRatingsLocked(m),
     showOutcome: side !== 'self' || m.Status === 'Held' || m.Status === 'SignedOff',
+    // N-443: the calibration panel's lock, the manager's release and what the employee may see of the result.
+    ratingsLocked: pdpRatingsLocked(m),
+    ratingsReleased: pdpRatingsReleased(m),
+    result: pdpResultView(m, bySource.Agreed, set),
+    canRelease: live && side === 'manager' && pdpRatingsLocked(m) && !pdpRatingsReleased(m),
   };
 }

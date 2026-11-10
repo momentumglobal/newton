@@ -65,6 +65,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'pdp-team.js'),         // N-439: pure Team Development rules (after pdp-prep.js)
   path.join(JS_DIR, 'pdp-track.js'),        // N-440: pure Goals & actions tracker rules (after pdp-team.js)
   path.join(JS_DIR, 'pdp-assess.js'),       // N-442: pure Bi-Annual assessment rules (after pdp-track.js)
+  path.join(JS_DIR, 'pdp-calibrate.js'),    // N-443: pure calibration rules (after pdp-assess.js)
   path.join(JS_DIR, 'checklist-logic.js'),
   path.join(JS_DIR, 'starter-folder-logic.js'),
   path.join(JS_DIR, 'graph-client.js'),
@@ -85,6 +86,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'rejection-intel.js'),  // N-388: Rejection Intelligence markup (declarations only)
   path.join(JS_DIR, 'pdp-track-ui.js'),     // N-440: shared tracker markup is asserted (declarations only; DOM only inside the handlers; loads before pdp-my.js)
   path.join(JS_DIR, 'pdp-assess-ui.js'),    // N-442: shared scoring block markup (declarations only; DOM only inside the handlers; loads before pdp-my.js)
+  path.join(JS_DIR, 'pdp-calibrate-ui.js'), // N-443: Calibration tab markup (declarations only; DOM only inside the handlers)
   path.join(JS_DIR, 'pdp-my.js'),           // N-438: My Development markup is asserted (declarations only; needs the DOM only inside the render/handler functions)
   path.join(JS_DIR, 'pdp-team-page.js'),    // N-439: Team Development markup is asserted (declarations only; needs the DOM only inside the render/handler functions)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-tools.js'),   // N-393: Newton for Claude tools (declarations + MCP_TOOLS only)
@@ -134,6 +136,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-pdp-team.js'),       // N-439
   path.join(TESTS_DIR, 'assert-pdp-track.js'),      // N-440
   path.join(TESTS_DIR, 'assert-pdp-assess.js'),     // N-442
+  path.join(TESTS_DIR, 'assert-pdp-calibrate.js'),  // N-443
   path.join(TESTS_DIR, 'assert-pdp-reminders.js'),  // N-441
   path.join(TESTS_DIR, 'assert-project-types.js'),
   path.join(TESTS_DIR, 'assert-starter-folders.js'),

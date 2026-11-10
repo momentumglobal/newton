@@ -1000,6 +1000,7 @@ async function savePdpAgreed(meetingId, edit) {
   const { m, who, view } = await _pdpAssessCtx(meetingId, 'manager');
   if (!view.canAgree) {
     if (view.reveal !== 'revealed') throw new Error('The scores are not revealed yet.');
+    if (view.ratingsLocked) throw new Error('Ratings are locked by the calibration panel.');   // N-443
     throw new Error(pdpManagerLock(m) === 'signed' ? 'This record is signed and locked.' : 'The agreed scores can no longer be changed.');
   }
   const plan = pdpAgreedPlan({
@@ -1014,6 +1015,179 @@ async function savePdpAgreed(meetingId, edit) {
     await updatePdpMeeting(m.id, { Assessment: plan.assessment });
   } catch (err) { throw _pdpMyWriteError(err, m); }
   return { problems: plan.problems };
+}
+
+// ── N-443 (PDP-11): calibration panel, lock, unlock, release ──────────────────────────────────────────
+// Graph only; every rule is pure in pdp-calibrate.js. The panel is Admin + People Ops (pdpAdmin, D1) and sees every
+// held, scored Bi-Annual of the year; unlock is Admin only (pdpCalibrationUnlock, D3); release is the record's line
+// manager / CSD by the record's own emails (pdpTeamAccess, never role: CSDs are Admins). Every writer re-reads the
+// meeting and its score rows fresh, refuses in Ghost Mode and unless the gate is live. The lock is client-enforced
+// (N-443 A2): the Agreed rows stay editable in SharePoint for the person, LM and CSD; Newton refuses once IsLocked.
+// No panel member calibrates their own record. These names deliberately do NOT match getPdp* / updatePdp*.
+
+// Score rows for one cycle year (all meetings), read with the 30 s cache dropped.
+async function _pdpScoresForYear(year) {
+  _cacheInvalidate(CONFIG.PDP.LISTS.SCORES);
+  return getItems(CONFIG.PDP.LISTS.SCORES, _pdpFilter([_pdpNumFilter('CycleYear', year)]));
+}
+
+// The panel member, checked. write = true also needs a live gate and no Ghost Mode.
+async function _pdpCalWho(write) {
+  const who = await _pdpTeamWho();
+  if (!roleCan(who.role, 'pdpAdmin')) throw new Error('Only Admin and People Ops sit on the calibration panel.');
+  const gate = await resolvePdpGate();
+  if (gate.state === 'none') throw new Error('Development & Performance is not available to you right now.');
+  if (write && who.ghost) throw new Error('Ghost Mode is read-only: you cannot calibrate as someone else.');
+  if (write && gate.state !== 'live') throw new Error('Calibration is read-only while you are previewing PDP.');
+  return { who, gate };
+}
+
+// Visible score rows (pdpVisibleItems, revealed per meeting) for a set of meetings.
+function _pdpCalVisible(rows, meetings, who) {
+  const byId = new Map(meetings.map(m => [String(m.id), m]));
+  return pdpVisibleItems(rows, who.role, who.email, r => pdpScoresRevealed(byId.get(String(r.MeetingID)) || {}));
+}
+
+// -> { year, cases, distribution, notHeld, canUnlock, readOnly, me } for People > PDP Setup > Calibration.
+async function loadPdpCalibration(year) {
+  const y = Number(year);
+  if (!Number.isInteger(y)) throw new Error('Choose a cycle year.');
+  const { who, gate } = await _pdpCalWho(false);
+  const L = CONFIG.PDP.LISTS;
+  _cacheInvalidate(L.MEETINGS);
+  _cacheInvalidate(L.CYCLES);
+  const [meetings, cycles, framework, templates, rows] = await Promise.all([
+    getPdpMeetings(null, y), getPdpCycles(null, y), getPdpFramework(), getPdpTemplates(), _pdpScoresForYear(y),
+  ]);
+  const bi = meetings.filter(m => m.MeetingType === 'BiAnnual');
+  const res = pdpCalibrationCases({ meetings: bi, cycles, framework, templates, rows: _pdpCalVisible(rows, bi, who), year: y });
+  return {
+    year: y, cases: res.cases, notHeld: res.notHeld, distribution: pdpDistribution(res.cases, res.notHeld),
+    canUnlock: roleCan(who.role, 'pdpCalibrationUnlock'), readOnly: who.ghost || gate.state !== 'live', me: pdpEmail(who.email),
+  };
+}
+
+// One case, re-read fresh, for a write. -> { who, c }
+async function _pdpCalCase(meetingId) {
+  const { who } = await _pdpCalWho(true);
+  _cacheInvalidate(CONFIG.PDP.LISTS.MEETINGS);
+  _cacheInvalidate(CONFIG.PDP.LISTS.CYCLES);
+  _cacheInvalidate(CONFIG.PDP.LISTS.SCORES);
+  const m = await getPdpMeetingById(meetingId);
+  if (!m) throw new Error('That meeting was not found.');
+  if (_pdpEmail(m.PersonEmail) === _pdpEmail(who.email)) throw new Error('You cannot calibrate your own ratings.');
+  const [cycles, framework, templates, rows] = await Promise.all([
+    getPdpCycles(Number(m.PersonID), Number(m.CycleYear)), getPdpFramework(), getPdpTemplates(), getPdpScores(m.id),
+  ]);
+  const cycle = cycles.find(x => Number(x.CycleYear) === Number(m.CycleYear) && String(x.PersonID) === String(m.PersonID)) || null;
+  const tpl = pdpTemplateForMeeting(templates, m);
+  const c = pdpCalibrationCase({
+    meeting: m, cycle, framework, def: tpl ? pdpParseJson(tpl.Definition) : null,
+    rows: _pdpCalVisible(rows.filter(r => String(r.MeetingID) === String(m.id)), [m], who),
+  });
+  if (!c) throw new Error('This meeting is not a scored Bi-Annual review.');
+  if (!c.held) throw new Error('The meeting has not been held yet.');
+  return { who, c };
+}
+
+async function _pdpCalWriteRows(rows) {
+  for (const r of rows) await updatePdpScore(r.id, r.fields, 'Agreed');
+}
+
+// edit = { scores: { pillarKey: { score, rationale } }, boundaryBand }. A draft: saves what is valid, returns
+// { problems } still open before a lock.
+async function savePdpCalibration(meetingId, edit) {
+  const { who, c } = await _pdpCalCase(meetingId);
+  if (pdpRatingsLocked(c.meeting)) throw new Error('These ratings are locked. An Admin can unlock them with a reason.');
+  const plan = pdpCalibratedPlan(c, edit);
+  if (plan.invalid.length) throw new Error(plan.invalid.join(' '));
+  const nowIso = new Date().toISOString();
+  try {
+    await _pdpCalWriteRows(plan.rows);
+    await updatePdpMeeting(c.meeting.id, pdpCalibrationDraftPatch(c, plan, _pdpEmail(who.email), nowIso));
+  } catch (err) { throw _pdpMyWriteError(err, c.meeting); }
+  return { problems: plan.problems };
+}
+
+// Rule 6: the six Agreed rows first (calibrated score + IsLocked), checked by a re-read, then the meeting marker —
+// so a retry after a partial failure finishes the job.
+async function _pdpCalLock(who, c, edit) {
+  const plan = pdpCalibratedPlan(c, edit);
+  const problems = pdpLockProblems(c, plan);
+  if (problems.length) throw new Error(problems.join(' '));
+  const nowIso = new Date().toISOString();
+  const w = pdpLockWrites(c, plan, _pdpEmail(who.email), nowIso);
+  try {
+    await _pdpCalWriteRows(w.rows);
+    _cacheInvalidate(CONFIG.PDP.LISTS.SCORES);
+    const back = pdpScoresBySource((await getPdpScores(c.meeting.id)).filter(r => r.Source === 'Agreed')).Agreed;
+    const done = CONFIG.PDP.PILLAR_KEYS.filter(k => back[k] && back[k].IsLocked === true && back[k].CalibratedScore != null);
+    if (done.length !== CONFIG.PDP.PILLAR_KEYS.length) throw new Error('Not every calibrated score saved. Lock again.');
+    await updatePdpMeeting(c.meeting.id, w.meeting);
+  } catch (err) { throw _pdpMyWriteError(err, c.meeting); }
+  return { locked: true, final: plan.final };
+}
+
+// edit (optional) = the same shape as savePdpCalibration: saved and locked in one go.
+async function lockPdpRatings(meetingId, edit) {
+  const { who, c } = await _pdpCalCase(meetingId);
+  return _pdpCalLock(who, c, edit);
+}
+
+// Every `ready` (non-panel) case of the year, locked at its agreed scores, one at a time.
+// -> { locked, skipped: [{ name, problem }] }
+async function lockPdpNonPanel(year, onProgress) {
+  const data = await loadPdpCalibration(year);
+  if (data.readOnly) throw new Error('Calibration is read-only right now.');
+  const ready = data.cases.filter(c => c.state === 'ready');
+  const out = { locked: 0, skipped: [] };
+  for (let i = 0; i < ready.length; i++) {
+    try {
+      const { who, c } = await _pdpCalCase(ready[i].id);
+      if (c.state !== 'ready') { out.skipped.push({ name: c.name, problem: 'No longer a non-panel case.' }); continue; }
+      await _pdpCalLock(who, c, null);
+      out.locked++;
+    } catch (e) {
+      out.skipped.push({ name: ready[i].name, problem: e.message });
+    }
+    if (onProgress) onProgress(i + 1, ready.length);
+  }
+  return out;
+}
+
+// Rule 7 (Admin only): IsLocked off on the six rows, then the lock and any release cleared, with the reason logged.
+async function unlockPdpRatings(meetingId, reason) {
+  const { who, c } = await _pdpCalCase(meetingId);
+  if (!roleCan(who.role, 'pdpCalibrationUnlock')) throw new Error('Only an Admin can unlock calibrated ratings.');
+  const plan = pdpUnlockPlan(c, reason, _pdpEmail(who.email), new Date().toISOString());
+  if (plan.problems.length) throw new Error(plan.problems.join(' '));
+  try {
+    await _pdpCalWriteRows(plan.rows);
+    await updatePdpMeeting(c.meeting.id, plan.meeting);
+  } catch (err) { throw _pdpMyWriteError(err, c.meeting); }
+  return { unlocked: true };
+}
+
+// Rule 8: the line manager / CSD releases the locked result to the employee, then (PDPMode On only, A3) an in-app
+// notice to the employee. The notice never fails the release.
+async function releasePdpRatings(meetingId, note) {
+  const { m, who } = await _pdpTeamMeeting(meetingId, { allowSigned: true });
+  const problems = pdpReleaseProblems(m, pdpTeamAccess(who.role, who.email, m), note);
+  if (problems.length) throw new Error(problems.join(' '));
+  try {
+    await updatePdpMeeting(m.id, pdpReleasePatch(m, note, _pdpEmail(who.email), new Date().toISOString()));
+  } catch (err) { throw _pdpMyWriteError(err, m); }
+  try {
+    const sw = await readPdpSwitch();
+    const R = CONFIG.PDP.CALIBRATION.RELEASE;
+    if (sw.mode === CONFIG.PDP.MODES[2]) {
+      await fireNotification({
+        triggerType: R.TYPE, triggerKey: R.KEY_PREFIX + '|' + m.id, tone: R.TONE,
+        deepLink: CONFIG.PDP.REMINDERS.LINKS.MY, body: R.BODY, recipients: [_pdpEmail(m.PersonEmail)],
+      });
+    }
+  } catch (e) { console.warn('PDP release notice not sent', e); }
+  return { released: true };
 }
 
 // ── N-441 (PDP-9): reminders + the completion tile ──────────────────────────────────────────

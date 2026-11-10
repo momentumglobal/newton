@@ -8,6 +8,10 @@
 // people.html (after pdp-track-ui.js, before pdp-my.js), never by mobile.html, Newton for Claude or the Command Bar.
 //
 // ctx = { meetingId, readOnly, redraw }   redraw() -> the host redraws, which calls pdpasSync + pdpasHtml again.
+//
+// N-443 (PDP-11): after the calibration panel locks the ratings, the line manager / CSD releases them here
+// (releasePdpRatings); the employee then sees the final overall, band, pillar scores and development pointers
+// (pdpResultView). Calibrated values are never drawn for the employee before release.
 
 let _pdpasState = { ctx: null, view: null, loading: false, error: '', draft: null, busy: false, dirty: false };
 
@@ -217,6 +221,40 @@ function _pdpasOutcomeHtml(v, edit) {
   return `<div class="pdpas-outcome">${parts.join('')}</div>`;
 }
 
+// N-443: the calibration status line, the manager's release, and the employee's released result.
+function _pdpasCalibrationHtml(v, ro) {
+  const r = v.result || { state: 'none' };
+  const A = CONFIG.PDP.ASSESS;
+  if (v.side === 'self') {
+    if (r.state === 'finalising') return '<p class="ppl-muted-note pdpas-cal">Your ratings are being finalised.</p>';
+    if (r.state !== 'released') return '';
+    const pillars = r.pillars.map(p => `<li><span class="pdpas-cal-name">${escHtml(p.name)}</span> <span class="dh-badge">${_pdpasScoreLabel(p.score)}</span></li>`).join('');
+    const pointers = r.pointers.length
+      ? '<ul class="pdpas-cal-list">' + r.pointers.map(p => `<li><strong>${escHtml(p.name)}</strong> — what ${escHtml(p.band)} looks like at your level: ${_pdpmTextHtml(p.text)}</li>`).join('') + '</ul>'
+      : '<p class="ppl-muted-small">Exceeding on every pillar — keep stretching.</p>';
+    return `<div class="pdpas-cal pdpas-result">
+      <div class="pdpm-label">Your final ratings</div>
+      <div class="pdpas-overall"><span class="pdpm-label">Overall</span> <strong>${escHtml(r.total)}${r.band ? ' · ' + escHtml(r.band) : ''}</strong></div>
+      <ul class="pdpas-cal-list">${pillars}</ul>
+      <div class="pdpm-label">Where to develop next</div>${pointers}
+      ${r.note ? '<div class="pdpas-field"><span class="pdpm-label">From your manager</span>' + _pdpmTextHtml(r.note) + '</div>' : ''}
+    </div>`;
+  }
+  const m = v.meeting;
+  let line = '';
+  if (v.ratingsReleased) line = 'Calibrated ratings released to the employee on ' + pdpFmtDay(localDayISO(new Date(m.RatingsReleasedAt))) + '.';
+  else if (v.ratingsLocked) line = 'Ratings locked by the calibration panel on ' + pdpFmtDay(localDayISO(new Date(m.RatingsLockedAt))) + '. Not yet released to the employee.';
+  else if (v.panel.length) line = 'With the calibration panel: the ratings are final once the panel locks them.';
+  else if (v.compare.length) line = 'Waiting for the calibration panel to lock the ratings.';
+  let release = '';
+  if (v.canRelease && !ro) {
+    release = `<div class="form-group pdpas-field">
+      <textarea rows="2" maxlength="${escAttr(A.NOTE_MAX)}" id="pdpas-release-note" aria-label="Note to the employee" placeholder="Note to the employee (optional)"></textarea>
+      <div class="pdpm-actions"><button type="button" class="btn-primary"${act('pdpasRelease')}>Release to employee</button></div></div>`;
+  }
+  return line || release ? `<div class="pdpas-cal">${line ? '<p class="ppl-muted-note">' + escHtml(line) + '</p>' : ''}${release}</div>` : '';
+}
+
 function pdpasHtml(label) {
   const s = _pdpasState, v = s.view;
   const head = `<div class="pdpm-label">${escHtml(label || 'Pillar scoring')}</div>`;
@@ -229,6 +267,7 @@ function pdpasHtml(label) {
     const edit = v.canAgree && !ro;
     body += _pdpasCompareHtml(v, edit) + _pdpasOutcomeHtml(v, edit);
     if (edit) body += `<div class="pdpm-actions"><button type="button" class="btn-primary"${act('pdpasAgreedSave')}>Save agreed scores</button></div>`;
+    body += _pdpasCalibrationHtml(v, ro);   // N-443
   } else if (v.side === 'viewer') {
     body += '<div class="ppl-muted-small">Scores are shown once both sides have submitted and they are revealed.</div>';
   } else {
@@ -339,6 +378,17 @@ function pdpasMt(checked) {
   s.draft.managerTrack.flagged = !!checked;
 }
 
+// N-443: release the locked, calibrated result to the employee.
+function pdpasRelease() {
+  const s = _pdpasState;
+  if (!s.view || !s.ctx) return;
+  const id = s.ctx.meetingId;
+  const el = document.getElementById('pdpas-release-note');
+  const note = el ? el.value : '';
+  return _pdpasRun(() => releasePdpRatings(id, note), 'Ratings released to the employee.',
+    { title: 'Release the ratings', message: 'The employee will see their final overall, band, pillar scores and development pointers.', confirmLabel: 'Release' });
+}
+
 async function pdpasRefresh() {
   const s = _pdpasState;
   if (s.busy || !s.ctx) return;
@@ -355,4 +405,5 @@ registerActions({
   pdpasRefresh,
   pdpasMt,
   pdpasAgree,
+  pdpasRelease,   // N-443
 });

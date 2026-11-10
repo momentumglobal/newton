@@ -55,6 +55,11 @@ function _pdpCols() {
         // manager's assessment JSON (boundary, readiness, manager-track flag).
         SelfScoredAt: { kind: 'datetime' }, ManagerScoredAt: { kind: 'datetime' },
         ScoresRevealedAt: { kind: 'flow' }, Assessment: { kind: 'json' },
+        // N-443: the calibration panel's lock (cleared by an Admin unlock), the manager's release to the employee,
+        // and the Calibration JSON (final result, panel reasons, development pointers, release note, audit log).
+        RatingsLockedAt: { kind: 'datetime' }, RatingsLockedBy: { kind: 'email' },
+        RatingsReleasedAt: { kind: 'datetime' }, RatingsReleasedBy: { kind: 'email' },
+        Calibration: { kind: 'json' },
       }, snap, access),
     },
     [P.LISTS.GOALS]: {

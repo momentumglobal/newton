@@ -35,6 +35,14 @@
       <li><a href="#gp-invoices">Supplier Invoices</a></li>
       <li><a href="#scorecards">Scorecards</a></li>
       <li><a href="#engagement">Engagement</a></li>
+      <li><div class="nav-section-label">Development &amp; Performance</div></li>
+      <li><a href="#pdp-overview">How it works</a></li>
+      <li><a href="#my-development">My Development</a></li>
+      <li><a href="#team-development">Team Development</a></li>
+      <li><a href="#pdp-goals-actions">Goals &amp; actions</a></li>
+      <li><a href="#pdp-bi-annual">Bi-Annual scoring</a></li>
+      <li><a href="#pdp-calibration">Calibration</a></li>
+      <li><a href="#pdp-setup">PDP Setup</a></li>
       <li><div class="nav-section-label">Newton OS</div></li>
       <li><a href="#homepage-admin">Homepage Admin</a></li>
     </ul>
@@ -44,7 +52,7 @@
       <h2>Frequently Asked Questions</h2>
       <div class="faq-item">
         <div class="faq-q">Who can access the People module?</div>
-        <div class="faq-a">Admin, Leadership and People Ops have full access to all pages. Sales &amp; Marketing and Staff see the Org Chart only (read-only) and land there. Delivery Managers and Talent Partners can open Scorecards (a Delivery Manager sees the Talent Partners on their projects; a Talent Partner sees their own card only) and the Org Chart (read-only). They land on Scorecards when they open the module.</div>
+        <div class="faq-a">Admin, Leadership and People Ops have full access to all pages. Sales &amp; Marketing and Staff see the Org Chart only (read-only) and land there. Delivery Managers and Talent Partners can open Scorecards (a Delivery Manager sees the Talent Partners on their projects; a Talent Partner sees their own card only) and the Org Chart (read-only). They land on Scorecards when they open the module. Delivery Managers and Talent Partners also see My Development, and Team Development if people report to them, when Development &amp; Performance applies to them.</div>
       </div>
       <div class="faq-item">
         <div class="faq-q">How does utilisation get calculated?</div>
@@ -82,22 +90,46 @@
         <div class="faq-q">What are bench assignments and do I need to manage them manually?</div>
         <div class="faq-a">Bench assignments are automatically generated records that represent periods when an employee has no active customer assignment. They are created and maintained using the <strong>↻ Sync Bench</strong> button on the Assignments tab — you do not need to create or delete them manually. Syncing keeps the utilisation forecast accurate by filling gaps between customer assignments through to the end of the current year.</div>
       </div>
+      <div class="faq-item">
+        <div class="faq-q">Who can see my Development &amp; Performance records?</div>
+        <div class="faq-a">You, your line manager, your CSD, and Admin and People Ops. Leadership does not see them by default. Your line manager is the person above you on the Org Chart.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Why is My Development or Team Development missing from my menu?</div>
+        <div class="faq-a">The pages only appear when Development &amp; Performance is switched on for you. While it is being piloted, that means the named pilot people plus their line managers and CSDs. Once it is On, it means everyone in the Delivery team plus their line managers and CSDs. My Development also needs your work email to be linked to your People record, and Team Development needs people to report to you in Newton. If it looks wrong, ask People Ops.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I change my prep after the meeting has happened?</div>
+        <div class="faq-a">You can keep editing your prep until your line manager marks the meeting as held. After that it is read-only. Goals and actions can still be updated afterwards from the Goals &amp; actions tab, although the wording of anything agreed in a signed meeting is locked.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What happens to my records if my line manager changes?</div>
+        <div class="faq-a">Your new line manager and CSD see your whole history. Your previous line manager and CSD keep read-only access to the records from when they managed you.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Why haven't I had any PDP reminders?</div>
+        <div class="faq-a">Reminders only start once Development &amp; Performance is On (people in the pilot get none), and never for meetings or actions due before the "Reminders from" date that an Admin sets. They appear as notifications on the Newton bell and never contain the content of your meetings.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Are Bi-Annual scores really blind?</div>
+        <div class="faq-a">Yes. You score yourself and your line manager scores you without seeing each other's scores. Nobody, including Admin and People Ops, sees either set until both sides have submitted and the scores are revealed.</div>
+      </div>
     </div>
     <div class="guide-section" id="roles">
       <h2>User Roles</h2>
-      <p>The People module is accessible to the roles below. Access level varies — Delivery Managers and Talent Partners have limited access (Scorecards and the Org Chart), and Sales &amp; Marketing and Staff the Org Chart only.</p>
+      <p>The People module is accessible to the roles below. Access level varies — Delivery Managers and Talent Partners have limited access (Scorecards, the Org Chart and, where Development &amp; Performance applies to them, My Development and Team Development), and Sales &amp; Marketing and Staff the Org Chart only.</p>
       <h3><span class="role-badge admin">Admin</span></h3>
-      <p>Full access to all People module pages. Can add, edit, and delete employees and invoices; assignments are managed on the Project page. Sees all data across the entire workforce.</p>
+      <p>Full access to all People module pages. Can add, edit, and delete employees and invoices; assignments are managed on the Project page. Sees all data across the entire workforce. In Development &amp; Performance, Admins set the Off / Pilot / On switch and can see every record (Team Development is read-only for people they do not manage).</p>
       <h3><span class="role-badge leadership">Leadership</span></h3>
-      <p>Read-only access to all People module pages. Can view the dashboard, employee list, deployment timeline, and invoices. Cannot add or edit employees, assignments or invoices; can add Org Chart placeholders and edit non-leader reporting lines.</p>
+      <p>Read-only access to all People module pages. Can view the dashboard, employee list, deployment timeline, and invoices. Cannot add or edit employees, assignments or invoices; can add Org Chart placeholders and edit non-leader reporting lines. Leadership does not see Development &amp; Performance pages or records.</p>
       <h3><span class="role-badge leadership">People Ops</span></h3>
-      <p>For the People function. Full access to all People module pages, like Leadership, and can also add and edit employees and invoices, and build, run and close Engagement surveys. Can't edit Leadership reporting lines on the Org Chart (Admin only).</p>
+      <p>For the People function. Full access to all People module pages, like Leadership, and can also add and edit employees and invoices, and build, run and close Engagement surveys. Can't edit Leadership reporting lines on the Org Chart (Admin only). In Development &amp; Performance, People Ops run PDP Setup (framework, templates, cycle, calibration) and see every record, but cannot change the Off / Pilot / On switch.</p>
       <h3><span class="role-badge">Delivery Manager</span></h3>
-      <p>Scorecards (for the Talent Partners on their projects) and the Org Chart, read-only. Delivery Managers land directly on Scorecards when they open the People module — other pages are not visible to this role.</p>
+      <p>Scorecards (for the Talent Partners on their projects) and the Org Chart, read-only. Delivery Managers land directly on Scorecards when they open the People module — other pages are not visible to this role, apart from My Development and Team Development when Development &amp; Performance applies to them.</p>
       <h3><span class="role-badge">Talent Partner</span></h3>
-      <p>Their own Scorecard and the Org Chart, read-only. Talent Partners land directly on Scorecards when they open the People module — other pages are not visible to this role.</p>
+      <p>Their own Scorecard and the Org Chart, read-only. Talent Partners land directly on Scorecards when they open the People module — other pages are not visible to this role, apart from My Development (and Team Development for anyone with people reporting to them) when Development &amp; Performance applies to them.</p>
       <h3><span class="role-badge leadership">Sales &amp; Marketing · Staff</span></h3>
-      <p>Org Chart only, read-only. They land on the Org Chart when they open the People module; other pages are not visible to these roles.</p>
+      <p>Org Chart only, read-only. They land on the Org Chart when they open the People module; other pages (including Development &amp; Performance) are not visible to these roles.</p>
     </div>
     <div class="guide-section" id="export">
       <h2>Exporting to PDF</h2>
@@ -274,6 +306,137 @@
       <h3>Exporting Results</h3>
       <p>Click <strong>Export PDF</strong> to save the current run's results as a PDF. This uses the browser print dialog — set the destination to <strong>Save as PDF</strong> and enable <strong>Background graphics</strong> before saving. See the Exporting to PDF section for full instructions.</p>
       <div class="tip">The survey widget remains on a respondent's homepage until they submit. If they close the browser and return later, the widget will still be there — responses are tracked in SharePoint, not the browser.</div>
+    </div>
+    <div class="guide-section" id="pdp-overview">
+      <h2>Development &amp; Performance: how it works</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">People Ops</span>
+        <span class="role-badge">Delivery Manager</span>
+        <span class="role-badge">Talent Partner</span>
+      </div>
+      <p>Development &amp; Performance (PDP) is where Newton keeps the four development conversations between a person and their line manager: the meeting notes, the goals agreed and the actions that follow. It starts with the Delivery team (levels TP, STP, PTP and SDM). CSDs take part as reviewers.</p>
+      <h3>The four meetings</h3>
+      <p><strong>Annual Development &amp; Goal Setting</strong> in January. <strong>Bi-Annual Performance &amp; Progression Review</strong> in July. <strong>Quarterly Review</strong> in April and October. <strong>Monthly Development Check-In</strong> in every other month. That makes twelve meetings a year. Each one is due on the last day of its month.</p>
+      <p>Newton tracks what is due, due soon and overdue. It does not send calendar invites: line managers book the meetings in Outlook themselves.</p>
+      <h3>Who sees what</h3>
+      <p>Each person's records are visible to the person, their line manager, their CSD, and Admin and People Ops. Leadership does not see them by default. The employee can complete their own prep, track their goals and actions, and sign off each meeting.</p>
+      <h3>Off, Pilot and On</h3>
+      <p>An Admin controls how far PDP reaches. <strong>Off:</strong> nobody sees it except Admin and People Ops, who can preview it. <strong>Pilot:</strong> only the named pilot people and their line managers and CSDs see it, and nobody is sent reminders. <strong>On:</strong> everyone in scope and their reviewers see it, and reminders start. Someone removed from the pilot keeps seeing their existing records. Switching to Off hides PDP from everyone except Admin and People Ops, even people who already have records.</p>
+      <h3>Joiners, existing staff and promotions</h3>
+      <p>A new joiner's first meeting is an Annual-format goal setting, due 30 days after they start. Any calendar meeting due within three weeks after that is skipped. The July Bi-Annual is only scored if they started on or before 31 March.</p>
+      <p>Someone who already works at Momentum and is brought into PDP part-way through the year follows the normal calendar. Meetings whose month has already passed are created as Skipped with the reason "Before PDP start".</p>
+      <p>If someone is promoted, their Bi-Annual is scored against the new level once they have been in it for three months.</p>
+      <div class="tip">Admin and People Ops can preview PDP even when it is Off or when they are not in the pilot. A preview is read-only: nothing can be saved or signed.</div>
+    </div>
+    <div class="guide-section" id="my-development">
+      <h2>My Development</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">People Ops</span>
+        <span class="role-badge">Delivery Manager</span>
+        <span class="role-badge">Talent Partner</span>
+      </div>
+      <p>Your own page: your year of meetings, your prep, the agreed record of each meeting, and your goals and actions. It appears in the People menu once PDP is live for you and your work email is linked to your People record.</p>
+      <h3>My year</h3>
+      <p>The top of the page shows your name, level, line manager and CSD, with counts of meetings done, due soon and overdue, and a <strong>Year</strong> selector. Under it, <strong>My year</strong> shows one card per meeting with its due date and a status: <strong>Upcoming</strong>, <strong>Due soon</strong>, <strong>Overdue</strong>, <strong>Done</strong> or <strong>Skipped</strong> (with the reason). A line on the card says where it is up to, for example "Prep open", "Prep ready", "Held · your sign-off is needed" or "Signed off". Click a card to open the meeting.</p>
+      <h3>Preparing</h3>
+      <p>The Annual, Bi-Annual and Quarterly meetings have prep questions for you to answer beforehand. Prep opens on the first day of the month the meeting is due. For a Quarterly it opens two days before the meeting date your line manager sets, and for a joiner's goal setting it opens 30 days before it is due. Use <strong>Save draft</strong> as you go and <strong>Mark prep ready</strong> when you are done. Your answers are private to you, your line manager and your CSD, and you can keep editing until the meeting is marked as held.</p>
+      <p>The Monthly Development Check-In needs no prep. The meeting shows "No prep needed for this meeting" and has no prep buttons. The Quarterly meeting has a question about performance against KPIs: answer it in your own words, and use <strong>Open my Scorecard</strong> to see your numbers where you have a Scorecard.</p>
+      <h3>After the meeting</h3>
+      <p>Once your line manager marks the meeting as held, you can read the agreed record: the notes, the goals and the actions, plus your manager's prep. Click <strong>Sign off this record</strong> to sign. Your line manager signs as well, and the meeting becomes <strong>Signed off</strong> once you have both signed.</p>
+      <p>The <strong>Goals &amp; actions</strong> tab beside <strong>My year</strong> shows your goal tracker (see Goals &amp; actions below).</p>
+    </div>
+    <div class="guide-section" id="team-development">
+      <h2>Team Development</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">People Ops</span>
+        <span class="role-badge">Delivery Manager</span>
+        <span class="role-badge">Talent Partner</span>
+      </div>
+      <p>For line managers and CSDs. The page appears when people report to you in Newton (a CSD sees everyone beneath them) and PDP is live for you. Admin and People Ops always see it.</p>
+      <h3>The team table</h3>
+      <p>The table lists each person, their line manager, their next meeting and what needs attention, plus how many meetings they have done. Counts across the top show how many meetings are overdue, due soon, prep ready, waiting for a signature, and how many people have no meetings yet. People with something overdue or waiting for you are listed first.</p>
+      <p>Use <strong>View</strong> to switch between <strong>Whole tree</strong>, <strong>Direct reports</strong> and <strong>All staff</strong>. <strong>All staff</strong> is for Admin and People Ops and is read-only except for the people they manage themselves. Use <strong>Year</strong> to look at other years. For a Quarterly meeting you can set the meeting date straight from the table.</p>
+      <h3>One person's year</h3>
+      <p>Click a name to see that person's year. The <strong>Meetings</strong> tab lists their meetings and the <strong>Goals &amp; actions</strong> tab shows their tracker.</p>
+      <h3>Running a meeting</h3>
+      <p>Open a meeting to see the employee's prep, and the commitments from the previous held meeting that are still open, so nothing is dropped. Write your own prep and the discussion notes, record the goals and actions agreed, and set the meeting date. If something is missing, a box titled <strong>Before you can mark this as held</strong> lists it. When you are ready, click <strong>Mark as held</strong>, then <strong>Sign off as manager</strong>.</p>
+      <p>You can keep editing a held meeting until the first signature (yours or the employee's). After that the record is locked.</p>
+      <div class="tip">What you can change depends on whether you are named on that person's record, not on your Newton role. Only the person's own line manager or CSD can run their meeting, even though CSDs have the Admin role. Anyone else sees the record read-only.</div>
+    </div>
+    <div class="guide-section" id="pdp-goals-actions">
+      <h2>Goals &amp; actions</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">People Ops</span>
+        <span class="role-badge">Delivery Manager</span>
+        <span class="role-badge">Talent Partner</span>
+      </div>
+      <p>The <strong>Goals &amp; actions</strong> tab appears on My Development and on a person's page in Team Development. It is one live view of the year's goals and actions, and you can update it between meetings without opening a meeting.</p>
+      <h3>Goals</h3>
+      <p>Goals cascade: <strong>Annual</strong> goals, then <strong>H2</strong> goals for the second half of the year, then <strong>Quarterly</strong> goals. A goal can be linked to a parent goal above it. Each goal has a category (Business, Development, Behaviour or Career), and can record why it matters, how success will be measured, the support needed and a target date.</p>
+      <p>Every goal has a <strong>RAG</strong> (Red, Amber or Green) and a status (Open, Achieved or Dropped). A goal's rolled-up RAG shows the worst RAG among its open goals beneath it, so you can see where the pressure is without opening each one. There is a limit on how many open goals one person can hold at each level in a year.</p>
+      <h3>Actions</h3>
+      <p>Each action has an owner (the employee or the manager) and a due date, and is ticked off when it is done. How many actions a meeting can record is set in the meeting template.</p>
+      <h3>Who can edit</h3>
+      <p>The employee, their line manager and their CSD can add and edit goals and actions. Once a meeting is signed, the wording of the goals and actions agreed in it is locked. RAG, status and the done tick can always be changed. A goal you no longer want is marked as Dropped rather than deleted. When the year's cycle is closed, everything is read-only.</p>
+    </div>
+    <div class="guide-section" id="pdp-bi-annual">
+      <h2>Bi-Annual scoring</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">People Ops</span>
+        <span class="role-badge">Delivery Manager</span>
+        <span class="role-badge">Talent Partner</span>
+      </div>
+      <p>The July meeting includes a scoring block. The employee and the line manager each score six pillars from 1 to 3 against the descriptors for the employee's level. There is no reward or salary recommendation in this review.</p>
+      <h3>Step by step</h3>
+      <ul>
+        <li><strong>Employee self-score.</strong> In My Development, open the Bi-Annual and score each pillar with your evidence. Use <strong>Save scores as draft</strong> until you are ready to submit.</li>
+        <li><strong>Manager score.</strong> The line manager (or CSD) scores the same pillars from Team Development, with a rationale for each. Scoring is blind: neither side can see the other's scores yet.</li>
+        <li><strong>Reveal.</strong> Once both sides have submitted, Newton reveals each side's scores to the other. This takes a few minutes and the block shows it is unlocking. Until then nobody else, including Admin and People Ops, can see either set.</li>
+        <li><strong>Agreeing scores in the meeting.</strong> The manager records an agreed score per pillar. If the two scores are the same, that is the agreed score. If they are one point apart, the manager decides: the agreed score must be one of the two, with a reason. If they are two points apart, the pillar goes to the calibration panel.</li>
+        <li><strong>Overall score and band.</strong> The overall score is the average of the six pillars to one decimal place: 1.0 to 1.5 is <strong>Below</strong>, 1.6 to 2.4 is <strong>Meets</strong> and 2.5 to 3.0 is <strong>Exceeding</strong>. A total of exactly 1.5 or 2.5 sits on a boundary: the manager agrees which of the two bands it belongs in, or sends it to the panel.</li>
+        <li><strong>Progression readiness.</strong> The manager chooses <strong>Ready now</strong>, <strong>Ready in 6–12 months</strong> or <strong>Not yet ready</strong>, with a note.</li>
+        <li><strong>Manager track (Level 4 only).</strong> Newton suggests a manager-track flag when the agreed score is 3 on Support, Curious and Adapt. The manager confirms it, with a reason, or leaves it.</li>
+      </ul>
+      <p>A Bi-Annual can only be marked as held once both sides have submitted, the scores are revealed, every pillar is agreed or sent to the panel, any boundary total is settled and readiness is chosen. Signing off is allowed while a pillar is still with the panel.</p>
+      <div class="tip">Scoring for the PTP level stays switched off until the descriptors for that level have been written in PDP Setup. Until then the scoring block shows that there are no descriptors for the level.</div>
+    </div>
+    <div class="guide-section" id="pdp-calibration">
+      <h2>Calibration</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">People Ops</span>
+      </div>
+      <p>After the Bi-Annuals are held, Admin and People Ops review the results together on the <strong>Calibration</strong> tab of PDP Setup, so that ratings are consistent across the team.</p>
+      <h3>The panel</h3>
+      <p>Choose the year to see every held Bi-Annual. The distribution strip compares the share of Below, Meets and Exceeding results with the target range for each. It is a warning only and never stops you locking ratings. Each person is a case with a state: <strong>needs panel</strong>, <strong>ready</strong>, <strong>locked</strong> or <strong>released</strong>.</p>
+      <p>The cases that need the panel are those with an escalated pillar or boundary total, and anyone Below or Exceeding overall. For these, the panel sets a calibrated score per pillar and writes a reason wherever it differs from the agreed score. Use <strong>Lock all non-panel cases</strong> to lock the rest in one go. You cannot calibrate your own review: someone else on the panel does it.</p>
+      <h3>Locking and releasing</h3>
+      <p>Locking is per person and makes the ratings final. Only an Admin can unlock a person, and must give a reason, which is logged. After locking, the person's line manager or CSD clicks <strong>Release to employee</strong> on the meeting. The employee then sees their overall score and band, the calibrated score for each pillar and pointers for where to develop next. When PDP is On they also get a notification.</p>
+    </div>
+    <div class="guide-section" id="pdp-setup">
+      <h2>PDP Setup</h2>
+      <div class="role-badges">
+        <span class="role-badge admin">Admin</span>
+        <span class="role-badge leadership">People Ops</span>
+      </div>
+      <p>The behind-the-scenes pages for Development &amp; Performance. PDP Setup is in the People menu and has four tabs.</p>
+      <h3>Framework</h3>
+      <p>The capability framework: the descriptor for each level, track (IC or MG), pillar and band. Edit a descriptor in place and Newton records who changed it and when. It starts with Levels 1 to 5, with Level 5 on the IC track empty until the PTP framework is ready.</p>
+      <h3>Templates</h3>
+      <p>The four meeting templates. Each is made of sections, and each section of blocks of six fixed types: prep question, discussion prompt, goal setting, goal review, actions and scoring. You can change the wording, the order and which blocks a template has, but not invent new types. A published template is never edited: save a new draft and publish it as the next version. A meeting that has started keeps the version it started with. <strong>Seed defaults</strong> fills an empty setup with the starting framework and templates.</p>
+      <h3>Cycle</h3>
+      <p>Creates each person's year of meetings. Choose the year (from November the next year is offered too) and click <strong>Preview</strong>, which writes nothing, to see what will be created, what cannot be generated (for example no work email or line manager) and who is waiting. Click <strong>Apply</strong> to create it. It is safe to run again: it only adds or fixes what is missing, and skips meetings for people who have left. A banner on PDP Setup warns when people are missing meetings. The tab also has a <strong>Tidy goal periods</strong> tool for older goals.</p>
+      <p>Each person needs a line manager and a work email on their People record. Line managers are set on the Org Chart under <strong>Edit reporting lines</strong> (Line manager — delivery staff). A promotion date goes in the <strong>Level since</strong> field on the Add / Edit Employee form.</p>
+      <h3>Calibration</h3>
+      <p>See Calibration above.</p>
+      <h3>The switch, reminders and the dashboard tile</h3>
+      <p>Admins set Off, Pilot or On from the <strong>PDP</strong> tab of the Config Panel, where they also pick the pilot people and set the <strong>Reminders from</strong> date. Reminders are bell notifications for prep due soon, meetings overdue and actions due soon, and only go out while PDP is On. Admin and People Ops also see a PDP completion tile on the People Dashboard, with counts only.</p>
+      <div class="tip">Set the Reminders from date before switching PDP to On, so people are not reminded about meetings that were due before go-live.</div>
     </div>
     <div class="guide-section" id="homepage-admin">
       <h2>Homepage Admin</h2>

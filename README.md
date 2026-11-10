@@ -12,11 +12,21 @@ Newton is a static web application hosted on GitHub Pages, with Microsoft Azure 
 |---|---|---|
 | Reporting | `reporting.html` | Admin, Delivery Manager, Talent Partner, Leadership; People Ops (Projects only, N-365) |
 | Market Analytics | `market-reporting.html` | Admin, Delivery Manager, Talent Partner |
-| People | `people.html` | Admin, Leadership, Delivery Manager |
+| People | `people.html` | Admin, Leadership, People Ops (full); Delivery Manager and Talent Partner (Scorecards, Org Chart, and PDP pages where PDP applies); Sales & Marketing and Staff (Org Chart only) |
 | Sales | `sales.html` | Admin, Leadership; Delivery Manager (LCI Cost Models only) |
 | MG Command Centre | `command-centre.html` | Admin, Leadership |
 | Newton OS Admin | `admin.html` | Admin only |
 | Mobile App (PWA) | `mobile.html` | Admin, Delivery Manager, Talent Partner |
+
+## Development & Performance (PDP)
+
+The People module holds Momentum's Development & Performance process: four meeting types over a 12-month cycle (Annual Development & Goal Setting, Bi-Annual Performance & Progression Review, Quarterly Review, Monthly Development Check-In), with goals, actions and Bi-Annual pillar scores. It starts with the Delivery team.
+
+- **Pages** — People > My Development (the employee), People > Team Development (line manager / CSD; Admin and People Ops read-only all-staff view), People > PDP Setup (Admin and People Ops: framework, templates, cycle, calibration).
+- **Switch** — Off / Pilot / On, set by an Admin in the Config Panel's PDP tab. Pilot limits PDP to named people plus their line manager and CSD and sends no reminders; Off hides it from everyone but Admin and People Ops. Leadership has no access.
+- **Data** — seven `PDP*` SharePoint lists, five of them personal with per-item permissions set by a Power Automate flow; Bi-Annual scores reveal through a second flow. Nothing here is returned by Newton for Claude.
+- **v1 scope** — self and blind manager scoring, calibration, progression readiness. No reward or salary recommendation; PTP scoring stays off until the L5 IC descriptors exist.
+- **More** — `Readme.html` (file map, lists and columns, access matrix, gate rules) and `people-user-guide.html` (end-user guide).
 
 ## Stack
 

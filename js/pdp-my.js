@@ -14,6 +14,7 @@ let _pdpmState = {
   error:   '',
   busy:    false,
   dirty:   false,   // prep fields changed since the last save
+  tab:     'year',  // 'year' (timeline) | 'goals' (N-440 Goals & actions tracker)
 };
 
 const _PDPM_STATE_TEXT  = { done: 'Done', skipped: 'Skipped', overdue: 'Overdue', due: 'Due soon', upcoming: 'Upcoming' };
@@ -59,7 +60,7 @@ function _pdpmPageHtml() {
   }
   if (!d.years.length) return _pdpmShell(_pdpmHeadHtml(d) + emptyStateBlock({ icon: 'calendar', title: 'No meetings yet', message: 'People Ops creates your meetings for the year before the January Annual. Check back soon.' }));
   const m = s.openId != null ? d.meetings.find(x => String(x.id) === String(s.openId)) : null;
-  return _pdpmShell(_pdpmHeadHtml(d) + (m ? _pdpmDetailHtml(d, m) : _pdpmTimelineHtml(d)));
+  return _pdpmShell(_pdpmHeadHtml(d) + (m ? _pdpmDetailHtml(d, m) : _pdpmTabsHtml() + (s.tab === 'goals' ? _pdpmTrackerHtml(d) : _pdpmTimelineHtml(d))));
 }
 
 function _pdpmHeadHtml(d) {
@@ -106,6 +107,29 @@ function _pdpmTimelineHtml(d) {
         <span class="ppl-muted-small">${escHtml(_pdpmCardNote(c))}</span>
       </button>`).join('')}
     </div>`;
+}
+
+// N-440: the two tabs under the head, and the Goals & actions tracker (markup and rules live in pdp-track-ui.js).
+function _pdpmTabsHtml() {
+  const t = _pdpmState.tab;
+  const tab = (key, label) => `<button type="button" class="eng-tab${t === key ? ' eng-tab--active' : ''}" role="tab" aria-selected="${t === key ? 'true' : 'false'}"${act('pdpmTab', key)}>${label}</button>`;
+  return `<div class="eng-tab-strip pdptr-tabs" role="tablist">${tab('year', 'My year')}${tab('goals', 'Goals &amp; actions')}</div>`;
+}
+
+function _pdpmTrackerData(d) {
+  return {
+    goals: d.goals, actions: d.actions, meetings: d.meetings, edit: !!d.trackerEdit,
+    note: d.readOnly ? 'You are previewing this page, so nothing here can be saved.' : (d.trackerEdit ? '' : 'This cycle is closed, so goals and actions are read-only.'),
+  };
+}
+
+function _pdpmTrackerHtml(d) {
+  pdptrSync({
+    personId: d.me.id, year: d.year, data: _pdpmTrackerData(d),
+    load: async () => { _pdpmState.data = await loadMyDevelopment(_pdpmState.year); return _pdpmTrackerData(_pdpmState.data); },
+    redraw: _pdpmRedraw,
+  });
+  return pdptrHtml();
 }
 
 function _pdpmTextHtml(text) {
@@ -233,10 +257,20 @@ function _pdpmRedraw() {
 }
 
 async function pdpmYear(value) {
-  if (_pdpmState.dirty && !(await confirmModal({ title: 'Discard changes?', message: 'You have unsaved prep. Switching year discards it.', confirmLabel: 'Discard' }))) { _pdpmRedraw(); return; }
+  if ((_pdpmState.dirty || pdptrIsDirty()) && !(await confirmModal({ title: 'Discard changes?', message: 'You have unsaved changes. Switching year discards them.', confirmLabel: 'Discard' }))) { _pdpmRedraw(); return; }
   _pdpmState.dirty = false; _pdpmState.openId = null;
   document.getElementById('main-content').innerHTML = dashboardSkeleton(2);
   await _pdpmLoad(Number(value));
+}
+
+// N-440: switch between My year and Goals & actions. An open goal / action form is confirmed away first.
+async function pdpmTab(tab) {
+  const s = _pdpmState, next = tab === 'goals' ? 'goals' : 'year';
+  if (next === s.tab) return;
+  if (pdptrIsDirty() && !(await confirmModal({ title: 'Discard changes?', message: 'You have an unsaved goal or action. Switching tabs discards it.', confirmLabel: 'Discard' }))) return;
+  s.tab = next; s.openId = null; s.dirty = false;
+  pdptrReset();
+  _pdpmRedraw();
 }
 
 function pdpmOpen(id) { _pdpmState.openId = id; _pdpmState.dirty = false; _pdpmRedraw(); }
@@ -311,4 +345,5 @@ registerActions({
   pdpmSave,
   pdpmSubmit,
   pdpmSignOff,
+  pdpmTab,
 });

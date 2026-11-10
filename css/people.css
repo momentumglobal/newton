@@ -369,3 +369,19 @@
 .pdpt-form textarea { width: 100%; }
 .pdpt-add { margin-top: var(--sp-3); }
 .pdpt-todo { margin-bottom: var(--sp-7); }
+
+/* N-440 (PDP-8): Goals & actions tracker (pdp-track-ui.js). Tokens only; reuses the pdpm-* / pdpt-* classes above. */
+.pdptr-tabs { margin-bottom: var(--sp-7); }
+.pdptr-note { margin-bottom: var(--sp-7); }
+.pdptr-card { margin-top: var(--sp-7); }
+.pdptr-tree { list-style: none; margin: var(--sp-3) 0 0 var(--sp-8); padding: 0; border-left: 2px solid var(--border-faint); }
+.pdptr-root-list { margin-left: 0; border-left: 0; }
+.pdptr-node { padding: var(--sp-4) 0 var(--sp-4) var(--sp-6); }
+.pdptr-goal { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); }
+.pdptr-title { font-size: var(--fs-13); color: var(--text-primary); }
+.pdptr-controls { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); margin-left: auto; }
+.pdptr-meta { margin-top: var(--sp-2); }
+.pdptr-sub { margin-top: var(--sp-6); }
+.pdptr-actions { list-style: none; margin: var(--sp-3) 0 0; padding: 0; }
+.pdptr-action { padding: var(--sp-3) 0; border-bottom: 1px solid var(--border-faint); font-size: var(--fs-13); }
+.pdptr-action:last-child { border-bottom: 0; }

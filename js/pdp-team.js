@@ -293,7 +293,7 @@ function pdpGoalPayload(meeting, edit, mode) {
   if (mode === 'create') {
     const level = CONFIG.PDP.TEAM.GOAL_LEVEL_BY_TYPE[m.MeetingType];
     if (!level) throw new Error('Goals are not set in this meeting.');
-    Object.assign(f, _pdptSnap(m), { CycleYear: Number(m.CycleYear), GoalLevel: level, Period: m.Period, MeetingID: Number(m.id), Status: 'Open' });
+    Object.assign(f, _pdptSnap(m), { CycleYear: Number(m.CycleYear), GoalLevel: level, Period: pdpGoalPeriod(level, m.CycleYear, m.Period), MeetingID: Number(m.id), Status: 'Open' });   // N-440: schema Period (YYYY / YYYY-H2 / YYYY-Qn), not the meeting month
   }
   return pdpCleanGoals(f, mode);
 }

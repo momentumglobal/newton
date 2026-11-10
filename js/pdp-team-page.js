@@ -17,6 +17,8 @@ let _pdptpState = {
   detail:   null,   // last loadTeamMeeting() result
   draft:    null,   // { prepManager, notes, meetingDate } the manager is typing
   form:     null,   // { kind: 'goal' | 'action', id, values } open add / edit form
+  tab:      'meetings',   // person view: 'meetings' | 'goals' (N-440 Goals & actions tracker)
+  tracker:  null,   // last loadTeamPerson() result for the open person ({ error } when it failed)
   error:    '',
   busy:     false,
   dirty:    false,
@@ -29,7 +31,8 @@ const _PDPTP_VIEWS = { tree: 'Whole tree', reports: 'Direct reports', all: 'All 
 async function renderTeamDevelopmentPage() {
   const main = document.getElementById('main-content');
   main.innerHTML = dashboardSkeleton(2);
-  Object.assign(_pdptpState, { personId: null, openId: null, detail: null, draft: null, form: null, busy: false, dirty: false });
+  Object.assign(_pdptpState, { personId: null, openId: null, detail: null, draft: null, form: null, busy: false, dirty: false, tab: 'meetings', tracker: null });
+  pdptrReset();
   await _pdptpLoadList();
 }
 
@@ -140,7 +143,27 @@ function _pdptpPersonHtml(d, r) {
       <button type="button" class="btn-secondary"${act('pdptTeamBack')}>Back to the team</button>
       <h2 class="pdpm-detail-title">${escHtml(r.name)}</h2>
       <span class="ppl-muted-small">${escHtml(r.level)} · Line manager: ${escHtml(r.lmName || '—')}</span>
-    </div>${list}`;
+    </div>${_pdptpTabsHtml()}${_pdptpState.tab === 'goals' ? _pdptpTrackerHtml(d, r) : list}`;
+}
+
+// N-440: the person view's two tabs, and the Goals & actions tracker (markup and rules live in pdp-track-ui.js).
+function _pdptpTabsHtml() {
+  const t = _pdptpState.tab;
+  const tab = (key, label) => `<button type="button" class="eng-tab${t === key ? ' eng-tab--active' : ''}" role="tab" aria-selected="${t === key ? 'true' : 'false'}"${act('pdptTab', key)}>${label}</button>`;
+  return `<div class="eng-tab-strip pdptr-tabs" role="tablist">${tab('meetings', 'Meetings')}${tab('goals', 'Goals &amp; actions')}</div>`;
+}
+
+function _pdptpTrackerHtml(d, r) {
+  const t = _pdptpState.tracker;
+  if (!t) return dashboardSkeleton(1);
+  if (t.error) return emptyStateBlock({ icon: 'alert-triangle', variant: 'error', title: 'Could not load goals and actions', message: t.error });
+  if (t.none) return emptyStateBlock({ icon: 'lock', title: 'Goals & actions', message: 'Development & Performance is not available to you right now.' });
+  pdptrSync({
+    personId: r.personId, year: t.year, data: t,
+    load: async () => { _pdptpState.tracker = await loadTeamPerson(r.personId, t.year); return _pdptpState.tracker; },
+    redraw: _pdptpRedraw,
+  });
+  return pdptrHtml();
 }
 
 // ── run-meeting screen ───────────────────────────────────────────────────────────────────────────
@@ -318,18 +341,46 @@ async function _pdptpConfirmLeave(what) {
 
 async function pdptYear(value) {
   if (!(await _pdptpConfirmLeave('Switching year'))) { _pdptpRedraw(); return; }
-  Object.assign(_pdptpState, { dirty: false, openId: null, personId: null, year: Number(value) });
+  Object.assign(_pdptpState, { dirty: false, openId: null, personId: null, year: Number(value), tab: 'meetings', tracker: null });
+  pdptrReset();
   document.getElementById('main-content').innerHTML = dashboardSkeleton(2);
   await _pdptpLoadList();
 }
 
 async function pdptView(value) {
-  Object.assign(_pdptpState, { view: String(value), personId: null });
+  Object.assign(_pdptpState, { view: String(value), personId: null, tab: 'meetings', tracker: null });
+  pdptrReset();
   document.getElementById('main-content').innerHTML = dashboardSkeleton(2);
   await _pdptpLoadList();
 }
 
-function pdptPerson(id) { _pdptpState.personId = id; _pdptpRedraw(); }
+function pdptPerson(id) {
+  Object.assign(_pdptpState, { personId: id, tab: 'meetings', tracker: null });
+  pdptrReset();
+  _pdptpRedraw();
+}
+
+async function _pdptpLoadTracker() {
+  const s = _pdptpState;
+  try {
+    s.tracker = await loadTeamPerson(s.personId, s.list && s.list.year);
+  } catch (e) {
+    console.error('Team Development: goals and actions load failed', e);
+    s.tracker = { error: e.message };
+  }
+  _pdptpRedraw();
+}
+
+// N-440: switch between a person's Meetings and Goals & actions. An open goal / action form is confirmed away first.
+async function pdptTab(tab) {
+  const s = _pdptpState, next = tab === 'goals' ? 'goals' : 'meetings';
+  if (next === s.tab) return;
+  if (pdptrIsDirty() && !(await confirmModal({ title: 'Discard changes?', message: 'You have an unsaved goal or action. Switching tabs discards it.', confirmLabel: 'Discard' }))) return;
+  Object.assign(s, { tab: next, tracker: null });
+  pdptrReset();
+  _pdptpRedraw();
+  if (next === 'goals') await _pdptpLoadTracker();
+}
 
 async function _pdptpLoadDetail(id, keepDraft) {
   const s = _pdptpState;
@@ -365,7 +416,9 @@ async function pdptTeamBack() {
     await _pdptpLoadList();
     return;
   }
-  s.personId = null;
+  if (pdptrIsDirty() && !(await confirmModal({ title: 'Discard changes?', message: 'You have an unsaved goal or action. Going back discards it.', confirmLabel: 'Discard' }))) return;
+  Object.assign(s, { personId: null, tab: 'meetings', tracker: null });
+  pdptrReset();
   _pdptpRedraw();
 }
 
@@ -505,4 +558,5 @@ registerActions({
   pdptGoalRemove,
   pdptActionRemove,
   pdptDone,
+  pdptTab,
 });

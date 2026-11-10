@@ -406,7 +406,7 @@ async function applyPdpCycle(year, onProgress) {
 // reaches a personal list directly.
 
 // -> { gate, none } | { gate, noPerson, flags } | { gate, me, lm, csd, years, year, cycle, meetings,
-//      templates, goals, actions, readOnly }
+//      templates, goals, actions, readOnly, trackerEdit }
 async function loadMyDevelopment(year) {
   const gate = await resolvePdpGate();
   if (gate.state === 'none') return { gate, none: true };
@@ -423,14 +423,21 @@ async function loadMyDevelopment(year) {
   const [meetings, goals, actions] = years.length
     ? await Promise.all([getPdpMeetings(pid, y), getPdpGoals(pid, y), getPdpActions(pid)])
     : [[], [], []];
+  const myCycle = pdpVisibleItems(cycles, role, email).find(c => Number(c.CycleYear) === y) || null;
+  const myMeetings = pdpVisibleItems(meetings, role, email);
+  const readOnly = gate.state !== 'live' || _pdpEmail(email) !== _pdpEmail(realEmail);
+  // N-440: the person edits their own goals and actions while their cycle for the year is open.
+  const snap = myMeetings.slice().sort((a, b) => String(spDateIn(b.DueDate)).localeCompare(String(spDateIn(a.DueDate))))[0];
+  const tracker = snap ? pdpTrackerAccess(role, email, snap, myCycle) : { edit: false };
   return {
     gate, me: ident.me, lm: ident.lineManager, csd: ident.csd, years, year: y,
-    cycle: pdpVisibleItems(cycles, role, email).find(c => Number(c.CycleYear) === y) || null,
-    meetings: pdpVisibleItems(meetings, role, email),
+    cycle: myCycle,
+    meetings: myMeetings,
     templates,
     goals: pdpVisibleItems(goals, role, email),
     actions: pdpVisibleItems(actions, role, email),
-    readOnly: gate.state !== 'live' || _pdpEmail(email) !== _pdpEmail(realEmail),
+    readOnly: readOnly,
+    trackerEdit: tracker.edit && !readOnly,
   };
 }
 
@@ -744,4 +751,136 @@ async function resolvePdpNav() {
   const my = gate.state === 'live' && CONFIG.PDP.ME.NAV_REASONS.includes(gate.reason) && !!ident.me;
   const reports = !!ident.me && (ident.directReports.length > 0 || ident.csdTree.length > 0);
   return { my, team: reports || roleCan(who.role, 'pdpAdmin') };
+}
+
+// ── N-440 (PDP-8): Goals & actions tracker ────────────────────────────────────────────────────────
+// The employee, the line manager and the CSD of a record write goals and actions between meetings. Every
+// writer re-reads the person's meetings, goals, actions and cycle fresh (cache dropped), decides access from
+// the meeting snapshot's emails (pdpTrackerAccess: never role alone, a CSD holds the Admin role), refuses under
+// Ghost Mode and unless the gate is live, and writes only the columns the pure payload allows (pdp-track.js).
+// No delete writer here: a goal is marked Dropped; removal stays N-439's removeTeamItem (items of an open meeting).
+
+// The person's data and the acting user's rights for one cycle year, or a thrown refusal.
+async function _pdpTrackerCtx(personId, year) {
+  const who = await _pdpTeamWho();
+  if (who.ghost) throw new Error('Ghost Mode is read-only: you cannot save as someone else.');
+  const gate = await resolvePdpGate();
+  if (gate.state !== 'live') throw new Error('Development & Performance is not available to you right now.');
+  const pid = Number(personId), y = Number(year);
+  if (!Number.isInteger(pid) || !Number.isInteger(y)) throw new Error('PDP person and year must be whole numbers');
+  const L = CONFIG.PDP.LISTS;
+  [L.MEETINGS, L.GOALS, L.ACTIONS, L.CYCLES].forEach(l => _cacheInvalidate(l));
+  const [meetings, goals, actions, cycles] = await Promise.all([getPdpMeetings(pid), getPdpGoals(pid, y), getPdpActions(pid), getPdpCycles(pid, y)]);
+  const snap = meetings.filter(m => Number(m.CycleYear) === y).sort((a, b) => String(spDateIn(b.DueDate)).localeCompare(String(spDateIn(a.DueDate))))[0];
+  if (!snap) throw new Error('No meetings yet. People Ops runs the cycle.');
+  const cycle = cycles.find(c => Number(c.CycleYear) === y) || null;
+  const access = pdpTrackerAccess(who.role, who.email, snap, cycle);
+  if (!access.edit) throw new Error('You can’t change this record.');
+  return { who, pid, y, meetings, goals, actions, cycle, snap, access, meetingsById: new Map(meetings.map(m => [String(m.id), m])) };
+}
+
+function _pdpTrackerOwn(item, c, what) {
+  if (!item || String(item.PersonID) !== String(c.pid)) throw new Error('That ' + what + ' was not found.');
+  return item;
+}
+
+// edit = { id?, Title, Category, GoalLevel, Quarter, ParentGoalID, WhyItMatters, SuccessMeasures, Support, TargetDate }.
+// Creates a goal (snapshots from the person's latest meeting of the year) or edits one (agreed wording locks once
+// its meeting is signed). -> the goal id.
+async function saveTrackerGoal(personId, year, edit) {
+  const c = await _pdpTrackerCtx(personId, year);
+  const e = edit || {};
+  let g = null;
+  try {
+    if (e.id) {
+      g = _pdpTrackerOwn(c.goals.find(x => String(x.id) === String(e.id)), c, 'goal');
+      await updatePdpGoal(g.id, pdpTrackerGoalPayload(c.snap, e, 'update', c.goals, g, c.meetingsById));
+      return g.id;
+    }
+    return (await createPdpGoal(pdpTrackerGoalPayload(c.snap, e, 'create', c.goals, null, c.meetingsById))).id;
+  } catch (err) { throw g ? _pdpMyWriteError(err, g) : err; }
+}
+
+// edit = { id?, Title, OwnerRole, DueDate, GoalID }. -> the action id.
+async function saveTrackerAction(personId, year, edit) {
+  const c = await _pdpTrackerCtx(personId, year);
+  const e = edit || {};
+  const actor = { email: c.who.email, as: c.access.as };
+  let a = null;
+  try {
+    if (e.id) {
+      a = _pdpTrackerOwn(c.actions.find(x => String(x.id) === String(e.id)), c, 'action');
+      await updatePdpAction(a.id, pdpTrackerActionPayload(c.snap, e, 'update', actor, c.goals, a, c.meetingsById));
+      return a.id;
+    }
+    return (await createPdpAction(pdpTrackerActionPayload(c.snap, e, 'create', actor, c.goals, null, c.meetingsById))).id;
+  } catch (err) { throw a ? _pdpMyWriteError(err, a) : err; }
+}
+
+// edit = { Rag?, Status? }: live fields, never locked by a signed meeting.
+async function setTrackerGoalLive(personId, year, goalId, edit) {
+  const c = await _pdpTrackerCtx(personId, year);
+  const g = _pdpTrackerOwn(c.goals.find(x => String(x.id) === String(goalId)), c, 'goal');
+  try {
+    await updatePdpGoal(g.id, pdpCleanGoals(pdpLiveGoalPatch(edit), 'update'));
+  } catch (err) { throw _pdpMyWriteError(err, g); }
+}
+
+// Tick or untick an action: not locked by a signed meeting.
+async function setTrackerActionDone(personId, year, actionId, done) {
+  const c = await _pdpTrackerCtx(personId, year);
+  const a = _pdpTrackerOwn(c.actions.find(x => String(x.id) === String(actionId)), c, 'action');
+  try {
+    await updatePdpAction(a.id, pdpCleanActions(pdpActionDonePatch(!!done, new Date().toISOString()), 'update'));
+  } catch (err) { throw _pdpMyWriteError(err, a); }
+}
+
+// -> { gate, none } | { gate, person, year, years, goals, actions, meetings, cycle, access, edit, note }
+// One person's tracker for Team Development; every list through pdpVisibleItems with the EFFECTIVE identity.
+async function loadTeamPerson(personId, year) {
+  const gate = await resolvePdpGate();
+  if (gate.state === 'none') return { gate, none: true };
+  const who = await _pdpTeamWho();
+  const pid = Number(personId);
+  if (!Number.isInteger(pid)) throw new Error('PDP person id must be a whole number');
+  const [people, cycles, meetings, goals, actions] = await Promise.all([getPeople(false), getPdpCycles(pid), getPdpMeetings(pid), getPdpGoals(pid), getPdpActions(pid)]);
+  const vis = rows => pdpVisibleItems(rows, who.role, who.email);
+  const myMeetings = vis(meetings), myCycles = vis(cycles);
+  if (!myMeetings.length && !myCycles.length) throw new Error('That person’s records are not available to you.');
+  const years = [...new Set(myCycles.map(x => Number(x.CycleYear)).filter(Number.isInteger))].sort((a, b) => b - a);
+  const y = Number(year) || years[0] || Number(localDayISO(new Date()).slice(0, 4));
+  const cycle = myCycles.find(x => Number(x.CycleYear) === y) || null;
+  const snap = myMeetings.filter(m => Number(m.CycleYear) === y).sort((a, b) => String(spDateIn(b.DueDate)).localeCompare(String(spDateIn(a.DueDate))))[0];
+  const access = snap ? pdpTrackerAccess(who.role, who.email, snap, cycle) : { view: false, edit: false, as: null };
+  const live = gate.state === 'live' && !who.ghost;
+  return {
+    gate, person: people.find(p => String(p.id) === String(pid)) || null, year: y, years,
+    goals: vis(goals).filter(g => Number(g.CycleYear) === y), actions: vis(actions), meetings: myMeetings, cycle, access,
+    edit: access.edit && live,
+    note: !live ? 'You are previewing this page, so nothing here can be saved.' : (!access.edit ? (cycle && cycle.Status === 'Closed' ? 'This cycle is closed, so goals and actions are read-only.' : '') : ''),
+  };
+}
+
+// "Tidy goal periods" (PDP Setup > Cycle, Admin / People Ops): rewrites N-439's 'YYYY-MM' goal Periods to the
+// schema form. Preview writes nothing. -> { rows: [{ id, from, to }], skipped: [{ id, reason }], total }
+async function planPdpGoalPeriods() {
+  await _pdpSetupWho(_PDP_ENGINE_REFUSAL);
+  _cacheInvalidate(CONFIG.PDP.LISTS.GOALS);
+  const goals = await getPdpGoals();
+  if (wasListDenied(CONFIG.PDP.LISTS.GOALS)) throw new Error('Newton could not read ' + CONFIG.PDP.LISTS.GOALS + ' (access denied). Check the PDP list permissions (N-435).');
+  return Object.assign(pdpGoalPeriodPlan(goals), { total: goals.length });
+}
+
+// Re-plans from a fresh read, then writes Period only, five at a time; a row that fails is listed, not thrown.
+// -> { changed, failed: [{ id, reason }], skipped }
+async function applyPdpGoalPeriods(onProgress) {
+  const plan = await planPdpGoalPeriods();
+  const failed = [];
+  let done = 0;
+  await _pdpRunBatches(plan.rows.map(r => async () => {
+    try { await updatePdpGoal(r.id, { Period: r.to }); } catch (e) { failed.push({ id: r.id, reason: e.message }); }
+    done++;
+    if (onProgress) onProgress(done, plan.rows.length);
+  }));
+  return { changed: plan.rows.length - failed.length, failed, skipped: plan.skipped };
 }

@@ -173,7 +173,7 @@ ASSERTIONS.push(
     fn: function () {
       const m = _pdptM({ id: 5 });
       const g = pdpGoalPayload(m, { Title: ' Grow ', Category: 'Career', TargetDate: '2027-06-30' }, 'create');
-      _assertEqual([g.Title, g.GoalLevel, g.Period, g.MeetingID, g.PersonEmail, g.LineManagerEmail, g.CSDEmail, g.Status], ['Grow', 'Annual', '2027-01', 5, 'pat@x.com', 'lm@x.com', 'csd@x.com', 'Open'], 'AC10 goal snapshot');
+      _assertEqual([g.Title, g.GoalLevel, g.Period, g.MeetingID, g.PersonEmail, g.LineManagerEmail, g.CSDEmail, g.Status], ['Grow', 'Annual', '2027', 5, 'pat@x.com', 'lm@x.com', 'csd@x.com', 'Open'], 'AC10 goal snapshot');   // N-440: schema Period
       _assertEqual('GoalLevel' in pdpGoalPayload(m, { Title: 'x', Category: 'Career' }, 'update'), false, 'AC10 an update never rewrites the snapshot');
       _assertEqual(pdpGoalPayload(_pdptM({ MeetingType: 'BiAnnual' }), { Title: 'x', Category: 'Career' }, 'create').GoalLevel, 'H2', 'AC10 bi-annual is H2');
       let e1 = '', e2 = '';

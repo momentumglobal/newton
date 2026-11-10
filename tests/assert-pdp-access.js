@@ -32,7 +32,11 @@ const _PDP_GUARD_ALLOW = ['config.js', 'graph-client.js', 'pdp-identity.js', 'pd
   'pdp-prep.js', 'pdp-my.js',
   // PDP-D12 review: N-439 — Team Development shows the records of the people a line manager or CSD looks after
   // (pdp-team-page.js) using the pure rules in pdp-team.js. people.html only; never mobile.html, MCP or the Command Bar.
-  'pdp-team.js', 'pdp-team-page.js'];
+  'pdp-team.js', 'pdp-team-page.js',
+  // PDP-D12 review: N-440 — the Goals & actions tracker renders and writes a person's own goal and action records
+  // (pdp-track-ui.js, shared by My Development and Team Development) using the pure rules in pdp-track.js.
+  // people.html only; never mobile.html, MCP or the Command Bar.
+  'pdp-track.js', 'pdp-track-ui.js'];
 const _PDP_GUARD_RE = /\b(PDPFramework|PDPTemplates|PDPCycles|PDPMeetings|PDPGoals|PDPActions|PDPScores)\b|CONFIG\.PDP\.(LISTS|PERSONAL_LIST_KEYS)|\bpdpPersonalLists\b|\b(getPdp(?!Identity)\w*|createPdp\w*|updatePdp\w*|repointPdp\w*)/;
 function _pdpGuardOffenders(sources, allow) {
   return Object.keys(sources).filter(f => !allow.includes(f) && _PDP_GUARD_RE.test(sources[f] || '')).sort();

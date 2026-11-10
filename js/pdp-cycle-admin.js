@@ -14,6 +14,8 @@ let _pdpcState = {
   loading:  false,
   busy:     false,
   progress: '',
+  periods:  null,   // N-440: last planPdpGoalPeriods() result ({ rows, skipped, total })
+  periodsMsg: '',   // N-440: last Tidy goal periods outcome
 };
 
 const _PDPC_STATE_TEXT = { done: 'Done', skipped: 'Skipped', overdue: 'Overdue', due: 'Due soon', upcoming: 'Upcoming' };
@@ -44,6 +46,7 @@ function pdpcCycleHtml() {
       <p class="ppl-muted-note pdps-note">Creates each in-scope person&rsquo;s meetings for the year (one a month, due on the last day of the month), joiner goal setting, and skips for leavers. Preview writes nothing. Running it again only adds what is missing.</p>
       <p class="ppl-muted-small pdpc-progress" id="pdpc-progress" aria-live="polite">${escHtml(_pdpcState.progress)}</p>
       <div id="pdpc-body">${_pdpcBodyHtml()}</div>
+      ${_pdpcPeriodsHtml()}
     </div>`;
 }
 
@@ -192,9 +195,75 @@ async function pdpcApply() {
   pdpsCycleBanner();
 }
 
+// N-440: "Tidy goal periods". Goals recorded in meetings before N-440 carry the meeting month as their Period;
+// this rewrites them to Annual (YYYY), H2 (YYYY-H2) or quarter (YYYY-Qn). Preview writes nothing; Apply writes
+// Period only and is safe to repeat. Shows counts grouped by change, never names.
+function _pdpcPeriodsHtml() {
+  const s = _pdpcState, p = s.periods;
+  const groups = {};
+  if (p) p.rows.forEach(r => { const k = r.from + '\u0000' + r.to; groups[k] = (groups[k] || 0) + 1; });
+  const list = Object.keys(groups).map(k => { const [from, to] = k.split('\u0000'); return `<li>${escHtml(from || '(blank)')} &rarr; ${escHtml(to)}: ${_pdpcPlural(groups[k], 'goal', 'goals')}</li>`; }).join('');
+  const skipped = p && p.skipped.length ? `<p class="ppl-muted-note">${_pdpcPlural(p.skipped.length, 'goal cannot', 'goals cannot')} be mapped and will be left alone: ${p.skipped.slice(0, CONFIG.PDP.DISPLAY_ROWS).map(x => escHtml(x.reason)).join(' ')}</p>` : '';
+  const body = !p ? '' : (!p.rows.length
+    ? `<p class="pdpc-summary">Every goal already has a schema Period (${_pdpcPlural(p.total, 'goal', 'goals')} checked).</p>${skipped}`
+    : `<p class="pdpc-summary">${_pdpcPlural(p.rows.length, 'goal', 'goals')} to update.</p><ul class="pdpc-list">${list}</ul>${skipped}`);
+  const canApply = !!p && p.rows.length > 0 && !s.busy;
+  return `
+    <div class="ppl-card pdpc-card" id="pdpc-periods">
+      <div class="ppl-card-title">Tidy goal periods</div>
+      <p class="ppl-muted-note">Goals recorded in a meeting before the tracker carry the meeting month as their Period. This rewrites them to Annual (YYYY), H2 (YYYY-H2) or quarter (YYYY-Qn). Preview writes nothing; Apply changes Period only, and running it again only changes what is still not tidy.</p>
+      <div class="pdpc-actions">
+        <button type="button" class="btn-secondary"${act('pdpcPeriodsPreview')}>Preview</button>
+        <button type="button" class="btn-primary"${canApply ? '' : ' disabled'}${act('pdpcPeriodsApply')}>Apply</button>
+      </div>
+      <p class="ppl-muted-small" aria-live="polite">${escHtml(s.periodsMsg)}</p>
+      ${body}
+    </div>`;
+}
+
+async function pdpcPeriodsPreview() {
+  if (_pdpcState.busy) return;
+  _pdpcState.periodsMsg = 'Reading goals…';
+  _pdpcRedraw();
+  try {
+    _pdpcState.periods = await planPdpGoalPeriods();
+    _pdpcState.periodsMsg = '';
+  } catch (e) {
+    console.error('PDP goal periods preview failed:', e);
+    _pdpcState.periods = null;
+    _pdpcState.periodsMsg = e.message;
+  }
+  _pdpcRedraw();
+}
+
+async function pdpcPeriodsApply() {
+  const p = _pdpcState.periods;
+  if (_pdpcState.busy || !p || !p.rows.length) return;
+  const ok = await confirmModal({ title: 'Tidy goal periods', message: 'Rewrite the Period of ' + _pdpcPlural(p.rows.length, 'goal', 'goals') + '? Nothing else on the goals changes.', confirmLabel: 'Apply' });
+  if (!ok) return;
+  _pdpcState.busy = true;
+  _pdpsLock(true);
+  try {
+    const r = await applyPdpGoalPeriods((done, total) => { _pdpcState.periodsMsg = 'Writing ' + done.toLocaleString('en-GB') + ' of ' + total.toLocaleString('en-GB') + '…'; });
+    _pdpcState.periodsMsg = 'Done: ' + _pdpcPlural(r.changed, 'goal', 'goals') + ' updated' + (r.failed.length ? ', ' + r.failed.length + ' failed (' + r.failed.slice(0, 3).map(f => f.reason).join('; ') + ')' : '') + '.';
+    toast(_pdpcState.periodsMsg, { type: r.failed.length ? 'error' : 'success' });
+  } catch (e) {
+    console.error('PDP goal periods apply failed:', e);
+    _pdpcState.periodsMsg = e.message;
+    toast(e.message, { type: 'error' });
+  }
+  _pdpcState.busy = false;
+  _pdpsLock(false);
+  _pdpcState.periods = null;
+  _pdpcRedraw();
+  await pdpcPeriodsPreview();
+}
+
 // N-302e: delegated actions this file owns (js/actions.js). Never register a name twice.
 registerActions({
   pdpcPreview,
   pdpcYear,
   pdpcApply,
+  pdpcPeriodsPreview,
+  pdpcPeriodsApply,
 });

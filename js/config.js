@@ -1698,6 +1698,19 @@ const CONFIG = {
       ATTENTION_ORDER:    ['overdue', 'sign', 'prep', 'due', 'upcoming', 'done'],
       NOTES_SCHEMA:       1,
     },
+    // N-440 (PDP-8): Goals + actions tracker (pdp-track.js / pdp-track-ui.js / api-pdp.js).
+    //   RAG_ORDER            RAG values worst first; the roll-up takes the lowest index among a goal and its open descendants.
+    //   GOALS_PER_LEVEL_MAX  open goals one person may hold per goal level per year (tracker-created and meeting-created).
+    //   HALF_START_MONTH     first month of the second half; the quarters from it on sit under an H2 goal when one exists.
+    //   AGREED_FIELDS        goal / action wording that locks once the meeting it was recorded in is signed.
+    //   LIVE_FIELDS          goal columns that never lock: RAG and status (an action's done tick never locks either).
+    TRACKER: {
+      RAG_ORDER:           ['Red', 'Amber', 'Green'],
+      GOALS_PER_LEVEL_MAX: 10,
+      HALF_START_MONTH:    7,
+      AGREED_FIELDS:       ['Title', 'Category', 'WhyItMatters', 'SuccessMeasures', 'Support', 'TargetDate', 'ParentGoalID'],
+      LIVE_FIELDS:         ['Rag', 'Status'],
+    },
   },
 
   // ── LCI Cost Model + Lead Magnet: CONFIG.LCI and CONFIG.LCI_DISCIPLINES live in js/lci-config.js (sales.html only) ──

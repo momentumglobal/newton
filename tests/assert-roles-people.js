@@ -494,6 +494,7 @@ ASSERTIONS.push(
       engagement: ['admin', 'leadership', 'people_ops'],
       pdpSetup: ['admin', 'people_ops'],   // N-436
       myDevelopment: ['admin', 'delivery_manager', 'people_ops', 'talent_partner'],   // N-438
+      teamDevelopment: ['admin', 'delivery_manager', 'people_ops', 'talent_partner'],   // N-439
     },
     sales: {
       revenueTracking: ['admin', 'leadership', 'sales'],

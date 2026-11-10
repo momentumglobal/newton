@@ -303,8 +303,8 @@ ASSERTIONS.push(
       const ended = _pdpcPlan(f.all, Object.assign({ today: new Date('2028-01-05T12:00:00Z') }, { cycles: db.cycles, meetings: db.meetings.map(m => Object.assign({}, m, { Status: 'SignedOff' })) }));
       _assertEqual(ended.cycleUpdates.filter(u => u.fields.Status === 'Closed').length, 6, 'year over, everything signed off: cycles Closed');
       const src = ALL_SOURCES['api-pdp.js'];
-      const eng = src.slice(src.indexOf('async function planPdpCycle'));
-      _assertEqual(/deleteItem|graphRequest\(|createPdp(Goal|Action|Score)|updatePdp(Goal|Action|Score)|AccessKey/.test(eng), false, 'AC13 engine API: no delete, raw Graph, Goals / Actions / Scores or AccessKey');
+      const eng = src.slice(src.indexOf('async function planPdpCycle'), src.indexOf('// ── N-439 (PDP-7)'));
+      _assertEqual(/deleteItem|graphRequest\(|createPdp(Goal|Action|Score)|updatePdp(Goal|Action|Score)|AccessKey/.test(_pdpApiNoTeamDelete(eng)), false, 'AC13 engine API: no delete, raw Graph, Goals / Actions / Scores or AccessKey');
     },
   },
   {

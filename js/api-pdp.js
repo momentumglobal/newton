@@ -3,7 +3,8 @@
 // getCurrentUser (auth.js), getGhostUser / _ensureGhostGate (api.js). N-434 adds the list getters
 // and writers; payload rules live in pdp-data.js (pdpClean*). Lists are named only through
 // CONFIG.PDP.LISTS. PDP data is never cached, never exposed to MCP / Command Bar (PDP-D12), and
-// there is deliberately no delete writer: add one with the task that needs it.
+// there is no general delete writer: add one with the task that needs it. N-439's removeTeamItem() is the only one
+// (a goal or action recorded in an open meeting).
 
 // The signed-in user's PDP identity: my People row, line manager, CSD, direct reports and CSD
 // tree. Ghost-aware exactly like getEffectiveRole(): an admin's Ghost Mode resolves as the
@@ -493,9 +494,254 @@ async function signOffPdpMeeting(meetingId) {
 // Does the My Development nav item show for the signed-in user? True only when the PDP gate is live for
 // them AS A PERSON IN THE PROGRAMME (CONFIG.PDP.ME.NAV_REASONS) and they have exactly one People row.
 // A reviewer-only manager, Admin / People Ops in preview, and any failure give false.
+// Kept for callers of the N-438 name; resolvePdpNav() below decides both PDP nav items in one read.
 async function resolveMyDevelopmentNav() {
+  return (await resolvePdpNav()).my;
+}
+
+// ── N-439 (PDP-7): Team Development (line manager + CSD) ───────────────────────────────────────────
+// Graph only; every rule is pure in pdp-team.js (and pdp-prep.js). A writer never trusts the page: it
+// re-reads the meeting fresh, checks pdpTeamAccess(...).run from the record's own LineManagerEmail /
+// CSDEmail (a CSD holds the Newton role Admin, so role alone says nothing about whose meeting they run),
+// and checks the lock rule again. Ghost Mode is read-only. The goal / action writers copy the snapshot
+// columns from the MEETING record so the access flow secures them for the same people (N-435).
+
+// One meeting by id (a fresh Graph read, never the list cache), or null when SharePoint says 404.
+async function getPdpMeetingById(id) {
+  const n = Number(id);
+  if (!Number.isInteger(n)) throw new Error('PDP meeting id must be a whole number');
+  try { return await getItem(CONFIG.PDP.LISTS.MEETINGS, n); } catch (e) { if (e && e.status === 404) return null; throw e; }
+}
+
+async function _pdpTeamWho() {
+  await _ensureGhostGate();
+  const realEmail = getCurrentUser()?.email || '';
+  const email = pdpEffectiveEmail(realEmail, getGhostUser());
+  const role = await getEffectiveRole(realEmail);
+  return { realEmail, email, role, ghost: _pdpEmail(email) !== _pdpEmail(realEmail) };
+}
+
+// The meeting a manager-side write may touch, re-read fresh, or a thrown refusal. opts.allowSigned lets the
+// sign-off through once the employee has signed (the lock rule stops every other write at the first signature).
+async function _pdpTeamMeeting(meetingId, opts) {
+  const who = await _pdpTeamWho();
+  if (who.ghost) throw new Error('Ghost Mode is read-only: you cannot save or sign as someone else.');
   const gate = await resolvePdpGate();
-  if (gate.state !== 'live' || !CONFIG.PDP.ME.NAV_REASONS.includes(gate.reason)) return false;
-  const ident = await getPdpIdentity();
-  return !!ident.me;
+  if (gate.state !== 'live') throw new Error('Development & Performance is not available to you right now.');
+  _cacheInvalidate(CONFIG.PDP.LISTS.MEETINGS);
+  const m = await getPdpMeetingById(meetingId);
+  if (!m) throw new Error('That meeting was not found.');
+  if (!pdpTeamAccess(who.role, who.email, m).run) throw new Error('You are not this person’s line manager or CSD.');
+  if (!(opts && opts.allowSigned)) {
+    const lock = pdpManagerLock(m);
+    if (lock === 'skipped') throw new Error('This meeting was skipped.');
+    if (lock === 'signed') throw new Error('This record is signed and locked.');
+  }
+  return { m, who };
+}
+
+// The person's goals and actions, fresh (the 30 s list cache dropped first).
+async function _pdpTeamPersonRows(m) {
+  _cacheInvalidate(CONFIG.PDP.LISTS.GOALS);
+  _cacheInvalidate(CONFIG.PDP.LISTS.ACTIONS);
+  const pid = Number(m.PersonID);
+  const [goals, actions] = await Promise.all([getPdpGoals(pid), getPdpActions(pid)]);
+  return { goals, actions };
+}
+
+// -> { gate, none } | { gate, noScope } | { gate, year, years, view, views, rows, totals, readOnly }
+async function loadTeamDevelopment(year, view) {
+  const gate = await resolvePdpGate();
+  if (gate.state === 'none') return { gate, none: true };
+  const who = await _pdpTeamWho();
+  const people = await getPeople(false);
+  const identity = pdpResolveIdentity(people, who.email);
+  const scope = pdpTeamScope(identity, who.role);
+  if (!scope.views.length) return { gate, noScope: true };
+  const years = pdpCycleYears(new Date());
+  const y = years.includes(Number(year)) ? Number(year) : years[0];
+  const meetings = pdpVisibleItems(await getPdpMeetings(null, y), who.role, who.email);
+  const v = scope.views.includes(view) ? view : scope.default;
+  const rows = pdpTeamRows({ people, identity, meetings, view: v, myEmail: who.email, role: who.role, today: new Date() });
+  return { gate, year: y, years, view: v, views: scope.views, rows, totals: pdpTeamTotals(rows), readOnly: gate.state !== 'live' || who.ghost };
+}
+
+// The run-meeting view model for one meeting the user may see.
+async function loadTeamMeeting(meetingId) {
+  const gate = await resolvePdpGate();
+  if (gate.state === 'none') throw new Error('Development & Performance is not available to you right now.');
+  const who = await _pdpTeamWho();
+  const m = await getPdpMeetingById(meetingId);
+  if (!m) throw new Error('That meeting was not found.');
+  const access = pdpTeamAccess(who.role, who.email, m);
+  if (!access.view) throw new Error('That meeting is not available to you.');
+  const pid = Number(m.PersonID);
+  const [people, meetings, goals, actions, templates] = await Promise.all([getPeople(false), getPdpMeetings(pid), getPdpGoals(pid), getPdpActions(pid), getPdpTemplates()]);
+  const vis = rows => pdpVisibleItems(rows, who.role, who.email);
+  const allGoals = vis(goals), allActions = vis(actions);
+  const tpl = pdpTemplateForMeeting(templates, m);
+  const lock = pdpManagerLock(m);
+  const live = gate.state === 'live' && !who.ghost;
+  const id = String(m.id);
+  return {
+    gate, meeting: m, access, lock, tpl,
+    def: tpl ? pdpParseJson(tpl.Definition) : null,
+    person: people.find(p => String(p.id) === String(pid)) || null,
+    prev: pdpPreviousCommitments(m, vis(meetings), allGoals, allActions),
+    allGoals, allActions,
+    goals: allGoals.filter(g => String(g.MeetingID) === id),
+    actions: allActions.filter(a => String(a.MeetingID) === id),
+    run: access.run && lock === 'open' && live,
+    canSign: access.run && live && m.Status === 'Held' && !String(m.ManagerSignedAt || '').trim(),
+    readOnly: !live,
+  };
+}
+
+// edit = { prepManager: { key: text }, notes: { key: text }, meetingDate }. A draft save: no status change
+// beyond the first-touch rule in pdpMeetingPatchForManager.
+async function saveTeamMeeting(meetingId, edit) {
+  const { m } = await _pdpTeamMeeting(meetingId);
+  const nowIso = new Date().toISOString();
+  const templates = await getPdpTemplates();
+  const bound = pdpTemplateForMeeting(templates, m);
+  if (!bound) throw new Error('Template unavailable. Contact People Ops.');
+  const payload = pdpManagerPayload(m.PrepManager, m.MeetingNotes, edit, pdpPrepBlocks(pdpParseJson(bound.Definition)), nowIso);
+  const fields = { PrepManager: payload.prepManager, MeetingNotes: payload.notes };
+  const day = edit && edit.meetingDate ? (spDateIn(edit.meetingDate) || '') : '';
+  if (day) {
+    if (!isoDate(day)) throw new Error('The meeting date is not a valid date.');
+    fields.MeetingDate = day;
+  }
+  const patch = pdpMeetingPatchForManager(m, pdpActiveTemplate(templates, m.MeetingType), fields, nowIso);
+  try {
+    await updatePdpMeeting(m.id, patch);
+  } catch (e) { throw _pdpMyWriteError(e, m); }
+  return patch;
+}
+
+// Writes MeetingDate only ('' clears it). The Quarterly prep window (N-438) opens 48 h before it.
+async function setPdpMeetingDate(meetingId, day) {
+  const { m } = await _pdpTeamMeeting(meetingId);
+  const d = day ? (spDateIn(day) || '') : '';
+  if (d && !isoDate(d)) throw new Error('The meeting date is not a valid date.');
+  try {
+    await updatePdpMeeting(m.id, { MeetingDate: d });
+  } catch (e) { throw _pdpMyWriteError(e, m); }
+  return d;
+}
+
+// Mark the meeting Held: pdpHeldCheck against a fresh read of the meeting, goals and actions, then ONE patch.
+async function markPdpHeld(meetingId, edit) {
+  const { m, who } = await _pdpTeamMeeting(meetingId);
+  const now = new Date(), nowIso = now.toISOString();
+  const templates = await getPdpTemplates();
+  const bound = pdpTemplateForMeeting(templates, m);
+  if (!bound) throw new Error('Template unavailable. Contact People Ops.');
+  const active = pdpActiveTemplate(templates, m.MeetingType);
+  const probe = pdpMeetingPatchForManager(m, active, { Status: 'Held' }, nowIso);
+  const eff = probe.TemplateID != null ? (templates.find(t => Number(t.id) === probe.TemplateID) || bound) : bound;   // the template the meeting will be bound to
+  const def = pdpParseJson(eff.Definition);
+  const day = edit && edit.meetingDate ? (spDateIn(edit.meetingDate) || '') : (spDateIn(m.MeetingDate) || localDayISO(now));
+  if (!isoDate(day)) throw new Error('The meeting date is not a valid date.');
+  const rows = await _pdpTeamPersonRows(m);
+  const payload = pdpManagerPayload(m.PrepManager, m.MeetingNotes, edit, pdpPrepBlocks(def), nowIso);
+  payload.notes.heldBy = who.email;
+  payload.notes.heldAt = nowIso;
+  const check = pdpHeldCheck(m, def, payload.prepManager, payload.notes, rows.goals, rows.actions, day, now);
+  if (!check.ok) throw new Error(check.problems.join(' '));
+  const patch = pdpMeetingPatchForManager(m, active, { Status: 'Held', MeetingDate: day, PrepManager: payload.prepManager, MeetingNotes: payload.notes }, nowIso);
+  try {
+    await updatePdpMeeting(m.id, patch);
+  } catch (e) { throw _pdpMyWriteError(e, m); }
+  return patch;
+}
+
+// -> the saved patch ({ ManagerSignedAt, MeetingNotes, [Status] }).
+async function signOffPdpAsManager(meetingId) {
+  const { m, who } = await _pdpTeamMeeting(meetingId, { allowSigned: true });
+  const plan = pdpManagerSignPlan(m, who.email, new Date().toISOString());
+  if (!plan.ok) throw new Error(plan.reason);
+  try {
+    await updatePdpMeeting(m.id, plan.patch);
+  } catch (e) { throw _pdpMyWriteError(e, m); }
+  return plan.patch;
+}
+
+async function _pdpTeamDef(m) {
+  const bound = pdpTemplateForMeeting(await getPdpTemplates(), m);
+  return bound ? pdpParseJson(bound.Definition) : null;
+}
+
+// goalEdit = { id?, Title, Category, WhyItMatters, SuccessMeasures, Support, TargetDate }. Create or edit a goal
+// recorded in THIS meeting, within the template's goal limit.
+async function saveTeamGoal(meetingId, goalEdit) {
+  const { m } = await _pdpTeamMeeting(meetingId);
+  const lim = pdpGoalLimit(m, await _pdpTeamDef(m));
+  if (!lim) throw new Error('This meeting has no goals section.');
+  const mine = (await _pdpTeamPersonRows(m)).goals.filter(g => String(g.MeetingID) === String(m.id));
+  try {
+    if (goalEdit && goalEdit.id) {
+      const g = mine.find(x => String(x.id) === String(goalEdit.id));
+      if (!g) throw new Error('That goal was not recorded in this meeting.');
+      await updatePdpGoal(g.id, pdpGoalPayload(m, goalEdit, 'update'));
+      return g.id;
+    }
+    if (mine.length >= lim.max) throw new Error('This meeting already has the most goals it allows (' + lim.max + ').');
+    return (await createPdpGoal(pdpGoalPayload(m, goalEdit, 'create'))).id;
+  } catch (e) { throw _pdpMyWriteError(e, m); }
+}
+
+// actionEdit = { id?, Title, OwnerRole, DueDate }. Create or edit an action recorded in THIS meeting.
+async function saveTeamAction(meetingId, actionEdit) {
+  const { m, who } = await _pdpTeamMeeting(meetingId);
+  const lim = pdpActionLimit(await _pdpTeamDef(m));
+  if (!lim) throw new Error('This meeting has no actions section.');
+  const mine = (await _pdpTeamPersonRows(m)).actions.filter(a => String(a.MeetingID) === String(m.id));
+  try {
+    if (actionEdit && actionEdit.id) {
+      const a = mine.find(x => String(x.id) === String(actionEdit.id));
+      if (!a) throw new Error('That action was not recorded in this meeting.');
+      await updatePdpAction(a.id, pdpActionPayload(m, actionEdit, who.email, 'update'));
+      return a.id;
+    }
+    if (mine.length >= lim.max) throw new Error('This meeting already has the most actions it allows (' + lim.max + ').');
+    return (await createPdpAction(pdpActionPayload(m, actionEdit, who.email, 'create'))).id;
+  } catch (e) { throw _pdpMyWriteError(e, m); }
+}
+
+// Tick or untick an action from this or an earlier meeting of the same person (the commitments panel).
+async function setTeamActionDone(meetingId, actionId, done) {
+  const { m, who } = await _pdpTeamMeeting(meetingId);
+  const a = (await _pdpTeamPersonRows(m)).actions.find(x => String(x.id) === String(actionId));
+  if (!a || String(a.PersonID) !== String(m.PersonID)) throw new Error('That action was not found.');
+  if (!pdpTeamAccess(who.role, who.email, a).run) throw new Error('You are not this person’s line manager or CSD.');
+  try {
+    await updatePdpAction(a.id, done ? { IsDone: true, DoneAt: new Date().toISOString() } : { IsDone: false, DoneAt: '' });
+  } catch (e) { throw _pdpMyWriteError(e, a); }
+}
+
+// The ONLY delete in PDP: a goal or action recorded in this open meeting. Earlier commitments are never deleted.
+async function removeTeamItem(meetingId, kind, id) {
+  if (kind !== 'goal' && kind !== 'action') throw new Error('Only a goal or an action can be removed here.');
+  const { m } = await _pdpTeamMeeting(meetingId);
+  const rows = await _pdpTeamPersonRows(m);
+  const it = (kind === 'goal' ? rows.goals : rows.actions).find(x => String(x.id) === String(id));
+  if (!it || String(it.MeetingID) !== String(m.id)) throw new Error('Only items recorded in this meeting can be removed here.');
+  if (kind === 'goal' && rows.goals.some(g => String(g.ParentGoalID) === String(it.id))) throw new Error('Other goals build on this one, so it cannot be removed.');
+  try {
+    await deleteItem(kind === 'goal' ? CONFIG.PDP.LISTS.GOALS : CONFIG.PDP.LISTS.ACTIONS, Number(it.id));
+  } catch (e) { throw _pdpMyWriteError(e, it); }
+}
+
+// { my, team }: which PDP nav items show for the signed-in user. my = the gate is live for them AS A PERSON IN
+// THE PROGRAMME (CONFIG.PDP.ME.NAV_REASONS) with exactly one People row; team = the gate is not 'none' and they
+// have direct reports or a tree, or are Admin / People Ops. Any failure leaves both hidden (the caller catches).
+async function resolvePdpNav() {
+  const gate = await resolvePdpGate();
+  if (gate.state === 'none') return { my: false, team: false };
+  const who = await _pdpTeamWho();
+  const ident = pdpResolveIdentity(await getPeople(false), who.email);
+  const my = gate.state === 'live' && CONFIG.PDP.ME.NAV_REASONS.includes(gate.reason) && !!ident.me;
+  const reports = !!ident.me && (ident.directReports.length > 0 || ident.csdTree.length > 0);
+  return { my, team: reports || roleCan(who.role, 'pdpAdmin') };
 }

@@ -187,7 +187,7 @@ ASSERTIONS.push(
     fn: function () {
       const src = ALL_SOURCES['api-pdp.js'].split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
       _assertEqual(/graphRequest/.test(src), false, 'AC10 no raw graphRequest');
-      _assertEqual(/deleteItem/.test(src), false, 'AC10 no delete writer');
+      _assertEqual(/deleteItem/.test(_pdpApiNoTeamDelete(src)), false, 'AC10 no delete writer');
       _assertEqual(/sessionStorage|localStorage/.test(src), false, 'AC10 nothing stored client-side');
     },
   },

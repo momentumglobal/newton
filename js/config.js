@@ -1387,7 +1387,7 @@ const CONFIG = {
     { key: 'rejections',       label: 'Rejected Offers',    module: 'reporting', href: 'reporting.html#rejections',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
     { key: 'hiringPlan',       label: 'Hiring Plan',        module: 'reporting', href: 'reporting.html#hiringPlan',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
     { key: 'adminPanel',       label: 'Config Panel',       module: 'reporting', href: 'reporting.html#adminPanel',        roles: [_ROLE_IDS.ADMIN] },
-    // people-router.js — People (9)
+    // people-router.js — People (10)
     { key: 'peopleDashboard', label: 'People Dashboard',    module: 'people', href: 'people.html#peopleDashboard', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     { key: 'orgChart',        label: 'Org Chart',           module: 'people', href: 'people.html#orgChart',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.STAFF] },
     { key: 'peopleGantt',     label: 'Deployment Timeline', module: 'people', href: 'people.html#peopleGantt',     roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
@@ -1399,6 +1399,8 @@ const CONFIG = {
     { key: 'pdpSetup',        label: 'PDP Setup',           module: 'people', href: 'people.html#pdpSetup',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.PEOPLE_OPS] },
     // N-438 (PDP-6): the employee's own page. The page and the nav item gate on the PDP switch; this entry only mirrors PEOPLE_PAGES.
     { key: 'myDevelopment',   label: 'My Development',      module: 'people', href: 'people.html#myDevelopment',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
+    // N-439 (PDP-7): the line manager's / CSD's page. The page and the nav item gate on the PDP switch and on having reports; this entry only mirrors PEOPLE_PAGES.
+    { key: 'teamDevelopment', label: 'Team Development',   module: 'people', href: 'people.html#teamDevelopment', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
     // sales-router.js — Sales (4)
     { key: 'revenueTracking', label: 'Revenue Tracking', module: 'sales', href: 'sales.html#revenueTracking', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
     { key: 'salesForecast',   label: 'Sales Forecast',   module: 'sales', href: 'sales.html#salesForecast',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
@@ -1685,6 +1687,16 @@ const CONFIG = {
       PREP_LEAD_HOURS: 48,
       KPI_BLOCK_KEY:   'how-have-i-performed-against-kpis',
       NAV_REASONS:     ['pilot', 'in-scope', 'has-records'],
+    },
+    // N-439 (PDP-7): Team Development (line manager + CSD page, pdp-team.js / pdp-team-page.js).
+    //   GOAL_LEVEL_BY_TYPE  GoalLevel written for a goal recorded in a meeting of this type (Monthly has no goal block;
+    //                       a joiner goal setting is MeetingType Annual).
+    //   ATTENTION_ORDER     team table sort, most urgent first (anything else sorts last).
+    //   NOTES_SCHEMA        schema number inside the PrepManager and MeetingNotes JSON.
+    TEAM: {
+      GOAL_LEVEL_BY_TYPE: { Annual: 'Annual', BiAnnual: 'H2', Quarterly: 'Quarterly' },
+      ATTENTION_ORDER:    ['overdue', 'sign', 'prep', 'due', 'upcoming', 'done'],
+      NOTES_SCHEMA:       1,
     },
   },
 

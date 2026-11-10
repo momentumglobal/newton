@@ -17,6 +17,9 @@ const PEOPLE_PAGES = {
   // N-438 (PDP-6): the employee's own PDP page. Role list = who can be an in-scope employee (TP / STP / PTP, SDM); the
   // nav item and the page itself also check the PDP gate and a People row, so Admin / People Ops see it only as a person.
   myDevelopment:   { label: 'My Development',     roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.PEOPLE_OPS, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
+  // N-439 (PDP-7): the line manager's / CSD's page. Same role list as My Development; the nav item and the page also check the PDP gate
+  // and that the user has reports (or is Admin / People Ops), so Leadership never sees it (PDP-D1).
+  teamDevelopment: { label: 'Team Development',   roles: [CONFIG.ROLE_IDS.ADMIN, CONFIG.ROLE_IDS.PEOPLE_OPS, CONFIG.ROLE_IDS.DELIVERY_MANAGER, CONFIG.ROLE_IDS.TALENT_PARTNER] },
 };
 
 function peopleCanAccess(page, role) {

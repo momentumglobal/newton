@@ -142,7 +142,7 @@ ASSERTIONS.push(
       _assertEqual(/roleCan\(role, 'pdpSwitch'\)/.test(w), true, 'AC11 write is gated on pdpSwitch');
       _assertEqual(/CONFIG\.PDP\.MODES\.includes\(m\)/.test(w), true, 'AC11 mode validated');
       _assertEqual(/createItem\('AppSettings', \{ Title: 'config'/.test(w) && /updateItem\('AppSettings', row\.id, fields\)/.test(w), true, 'AC11 updates or creates the config row');
-      _assertEqual(/graphRequest|deleteItem/.test(src), false, 'AC11 still no raw Graph / delete');
+      _assertEqual(/graphRequest|deleteItem/.test(_pdpApiNoTeamDelete(src)), false, 'AC11 still no raw Graph / delete');
       const r = fn('readPdpSwitch', 'writePdpSwitch');
       _assertEqual(/pdpNormaliseMode\(/.test(r) && /pdpParsePilot\(/.test(r), true, 'AC11 read normalises (fail closed)');
     },

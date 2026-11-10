@@ -31,9 +31,9 @@ ASSERTIONS.push(
     fn: function () {
       const nav = ALL_SOURCES['people-nav.js'], app = ALL_SOURCES['people-app.js'], api = ALL_SOURCES['api-pdp.js'];
       _assertEqual(/filter\(p => p\.key !== 'myDevelopment' \|\| _peopleMyDevNav\)/.test(nav) && /let _peopleMyDevNav\s*= false/.test(nav), true, 'AC2 nav item filtered, default hidden');
-      _assertEqual(/resolveMyDevelopmentNav\(\)\.then/.test(app) && /\.catch\(/.test(app), true, 'AC2 resolved after init; a failure leaves it hidden');
-      const fn = api.slice(api.indexOf('async function resolveMyDevelopmentNav'));
-      _assertEqual(/gate\.state !== 'live'/.test(fn) && /NAV_REASONS\.includes\(gate\.reason\)/.test(fn) && /ident\.me/.test(fn), true, 'AC2 live + reason + a People row');
+      _assertEqual(/resolvePdpNav\(\)\.then/.test(app) && /\.catch\(/.test(app), true, 'AC2 resolved after init; a failure leaves it hidden');
+      const fn = api.slice(api.indexOf('async function resolvePdpNav'));
+      _assertEqual(/gate\.state === 'live'/.test(fn) && /NAV_REASONS\.includes\(gate\.reason\)/.test(fn) && /ident\.me/.test(fn), true, 'AC2 live + reason + a People row');
     },
   },
   {
@@ -126,7 +126,7 @@ ASSERTIONS.push(
       const sign = src.slice(src.indexOf('async function signOffPdpMeeting'), src.indexOf('async function resolveMyDevelopmentNav'));
       _assertEqual(/pdpSignOffPlan\(m, 'employee'/.test(sign) && /!plan\.ok/.test(sign), true, 'AC8 sign-off uses the shared plan on the fresh row');
       _assertEqual(/Still securing this record/.test(src) && /e\.status === 403 && !pdpIsSecured/.test(src), true, 'AC8 the unlocked-item 403 gets the "still securing" message');
-      const mypart = src.slice(src.indexOf('// ── N-438 (PDP-6)'));
+      const mypart = src.slice(src.indexOf('// ── N-438 (PDP-6)'), src.indexOf('// ── N-439 (PDP-7)'));
       _assertEqual(/deleteItem|graphRequest\(|createPdp\w*\(|updatePdp(Goal|Action|Score|Cycle|Framework|Template)|AccessKey/.test(mypart), false, 'AC8 no delete, raw Graph, create, or writes to other lists');
       _assertEqual((mypart.match(/updatePdpMeeting\(/g) || []).length, 2, 'AC8 exactly two meeting writes: prep and sign-off');
     },

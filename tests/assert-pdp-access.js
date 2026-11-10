@@ -29,7 +29,10 @@ const _PDP_GUARD_ALLOW = ['config.js', 'graph-client.js', 'pdp-identity.js', 'pd
   'pdp-cycle.js', 'pdp-cycle-admin.js', 'pdp-setup.js',
   // PDP-D12 review: N-438 — My Development shows one person's own meeting records (pdp-my.js) using the
   // pure prep / sign-off rules (pdp-prep.js). people.html only; never mobile.html, MCP or the Command Bar.
-  'pdp-prep.js', 'pdp-my.js'];
+  'pdp-prep.js', 'pdp-my.js',
+  // PDP-D12 review: N-439 — Team Development shows the records of the people a line manager or CSD looks after
+  // (pdp-team-page.js) using the pure rules in pdp-team.js. people.html only; never mobile.html, MCP or the Command Bar.
+  'pdp-team.js', 'pdp-team-page.js'];
 const _PDP_GUARD_RE = /\b(PDPFramework|PDPTemplates|PDPCycles|PDPMeetings|PDPGoals|PDPActions|PDPScores)\b|CONFIG\.PDP\.(LISTS|PERSONAL_LIST_KEYS)|\bpdpPersonalLists\b|\b(getPdp(?!Identity)\w*|createPdp\w*|updatePdp\w*|repointPdp\w*)/;
 function _pdpGuardOffenders(sources, allow) {
   return Object.keys(sources).filter(f => !allow.includes(f) && _PDP_GUARD_RE.test(sources[f] || '')).sort();
@@ -242,7 +245,7 @@ ASSERTIONS.push(
         calls.forEach(c => _assertEqual(c[3], { LineManagerEmail: 'tom.tp@mg.test', ReadOnlyEmails: 'sam.sdm@mg.test' }, 'AC11 ' + c[1] + ' cleaned, AccessKey dropped'));
       } finally { getItems = o.g; updateItem = o.u; getPeople = o.p; }
       const src = ALL_SOURCES['api-pdp.js'].split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
-      _assertEqual(/graphRequest|deleteItem/.test(src), false, 'AC11 no raw graphRequest / deleteItem');
+      _assertEqual(/graphRequest|deleteItem/.test(_pdpApiNoTeamDelete(src)), false, 'AC11 no raw graphRequest / deleteItem');
       _assertEqual(/AccessKey/.test(src), false, 'AC11 api-pdp.js never names AccessKey');
       _assertEqual(/wasListDenied\(/.test(src), true, 'AC11 denials reported');
     },

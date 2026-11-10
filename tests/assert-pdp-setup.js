@@ -195,7 +195,7 @@ ASSERTIONS.push(
     name: 'N-436 AC8 api-pdp.js writers: role-checked, fresh reads, validate before publish, retire not delete, one Draft',
     fn: function () {
       const src = _pdpsCode(ALL_SOURCES['api-pdp.js']);
-      _assertEqual(/graphRequest|deleteItem/.test(src), false, 'AC8 no raw Graph / delete');
+      _assertEqual(/graphRequest|deleteItem/.test(_pdpApiNoTeamDelete(src)), false, 'AC8 no raw Graph / delete');
       const who = _pdpsFnSrc(src, '_pdpSetupWho', '_pdpFrameworkSelect');
       _assertEqual(/_ensureGhostGate\(\)/.test(who) && /roleCan\(role, 'pdpAdmin'\)/.test(who), true, 'AC8 Ghost-aware pdpAdmin check');
       const names = ['seedPdpDefaults', 'savePdpFramework', 'addPdpFrameworkSet', 'startPdpTemplateDraft', 'savePdpTemplateDraft', 'publishPdpTemplate', 'discardPdpTemplateDraft'];

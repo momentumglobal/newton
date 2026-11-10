@@ -355,3 +355,17 @@
 .pdpm-goal input[type="text"] { flex: 1 1 240px; }
 .pdpm-kpi { margin-top: var(--sp-3); }
 .pdpm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-7); }
+
+/* N-439 (PDP-7): Team Development. Tokens only; the pdpm-* classes above are reused on the run screen. */
+.pdpt-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-9); margin-bottom: var(--sp-7); }
+.pdpt-controls { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-left: auto; }
+.pdpt-note { margin-bottom: var(--sp-7); }
+.pdpt-table td { vertical-align: top; }
+.pdpt-link { background: none; border: 0; padding: 0; font: inherit; font-weight: var(--fw-bold); color: var(--text-link); text-align: left; cursor: pointer; }
+.pdpt-link:hover { color: var(--text-link-hover); text-decoration: underline; }
+.pdpt-date { display: inline-flex; align-items: center; gap: var(--sp-3); margin-left: var(--sp-4); }
+.pdpt-person-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); margin-bottom: var(--sp-7); }
+.pdpt-form { display: grid; gap: var(--sp-4); margin-top: var(--sp-4); padding: var(--sp-5); border: 1px solid var(--border-faint); border-radius: var(--r-lg); }
+.pdpt-form textarea { width: 100%; }
+.pdpt-add { margin-top: var(--sp-3); }
+.pdpt-todo { margin-bottom: var(--sp-7); }

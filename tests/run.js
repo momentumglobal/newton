@@ -89,6 +89,9 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'pdp-calibrate-ui.js'), // N-443: Calibration tab markup (declarations only; DOM only inside the handlers)
   path.join(JS_DIR, 'pdp-my.js'),           // N-438: My Development markup is asserted (declarations only; needs the DOM only inside the render/handler functions)
   path.join(JS_DIR, 'pdp-team-page.js'),    // N-439: Team Development markup is asserted (declarations only; needs the DOM only inside the render/handler functions)
+  path.join(JS_DIR, 'my-momentum-logic.js'),   // N-451: pure My Momentum tab rules (declarations only)
+  path.join(JS_DIR, 'my-momentum-router.js'),  // N-451: access from the OS_MODULES role list
+  path.join(JS_DIR, 'my-momentum-pages.js'),   // N-451: markup is asserted (declarations only; DOM only inside the render functions)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-tools.js'),   // N-393: Newton for Claude tools (declarations + MCP_TOOLS only)
   path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),
@@ -151,6 +154,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-md-guide.js'),     // N-401
   path.join(TESTS_DIR, 'assert-notifications.js'),   // N-425
   path.join(TESTS_DIR, 'assert-templates.js'),       // N-427
+  path.join(TESTS_DIR, 'assert-my-momentum.js'),     // N-451
 ];
 // N-259: starter-folder-logic.js (pure) loads straight after checklist-logic.js, which it calls.
 // N-361: project-team.js (pure) loads straight after permissions.js; assert-project-team.js is the last assertion file.

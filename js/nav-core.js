@@ -64,8 +64,10 @@ function renderModuleNav({
       </div>
     </div>
     <div class='nav-user'>
-      <div class='nav-user-name'>${user.name || user.email}</div>
-      <div class='nav-user-role'>${role.replace(/_/g, ' ')}</div>
+      <a class='nav-user-link' href='my-momentum.html'${currentModuleKey === 'myMomentum' ? " aria-current='page'" : ''} aria-label='Open My Momentum'>
+        <div class='nav-user-name'>${user.name || user.email}</div>
+        <div class='nav-user-role'>${role.replace(/_/g, ' ')}</div>
+      </a>
       <div class='nav-notif-slot' id='notif-slot'></div>
     </div>
     <button class='nav-footer-btn nav-cmdbar-hint' id='cmdbar-hint-btn'

@@ -871,6 +871,13 @@ body {
 .nav-user    { padding: 14px var(--sp-8); border-bottom: 1px solid var(--inverse-divider); position: relative; }   /* position: anchor for the notification bell */
 .nav-user-name { font-size: var(--fs-13); font-weight: 600; }
 .nav-user-role { font-size: var(--fs-11); color: var(--inverse-text-strong); margin-top: var(--sp-1); text-transform: capitalize; }
+/* N-451: the name block links to My Momentum. The bell sits beside it, not inside it. */
+.nav-user-link { display: block; color: inherit; text-decoration: none; }
+.nav-user-link:hover .nav-user-name { text-decoration: underline; }
+/* N-451: My Momentum stub / identity card */
+.mm-identity-name { font-size: var(--fs-16); font-weight: 600; color: var(--text-heading); letter-spacing: var(--ls-heading); margin: 0; }
+.mm-identity-meta { font-size: var(--fs-13); color: var(--text-muted); margin-top: var(--sp-2); }
+.mm-soon { font-size: var(--fs-14); color: var(--text-muted); margin: var(--sp-6) 0 0; }
 .nav-links { flex: 1; padding: var(--sp-6) var(--sp-4); }
 .nav-link {
   display: block;

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://talentpoint.sharepoint.com https://talentpoint-my.sharepoint.com; img-src 'self' https://talentpoint.sharepoint.com data: blob:; font-src 'self' data:; frame-src 'self' https://login.microsoftonline.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'">
+  <meta name="referrer" content="no-referrer">
+  <script src="js/diag-buffer.js"></script>
+  <script src="js/frame-guard.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newton - My Momentum</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/engagement.css">
+  <script src="js/theme-init.js"></script>
+  <link rel="icon" type="image/png" href="momentum-symbol.png">
+  <!-- Lucide icons -->
+  <script src="js/vendor/lucide-1.47.0.subset.min.js" defer></script>
+</head>
+<body>
+
+  <!-- Login screen -->
+  <div id="login-screen">
+    <div class="login-card">
+      <h1>Newton — My Momentum</h1>
+      <p>Sign in with your Momentum Global account to continue.</p>
+      <button class="btn-signin" data-act="signIn">
+        Sign in with Microsoft
+      </button>
+    </div>
+  </div>
+
+  <!-- App shell (hidden until signed in) -->
+<div id="app-shell">
+    <div id="print-header">
+      <div>
+        <div class="print-header-title" id="print-header-title">Newton</div>
+        <div class="print-header-sub" id="print-header-sub">Momentum Global</div>
+      </div>
+      <img src="momentum-symbol-and-name-global-white.png" alt="Momentum Global">
+    </div>
+    <div id="sidebar"></div>
+    <div id="main-column">
+      <div id="breadcrumb-bar"></div>
+      <div id="main-content"></div>
+    </div>
+  </div>
+
+  <!-- MSAL.js -->
+<script src="js/vendor/msal-browser-5.24.0.min.js" defer></script>
+  
+  <!-- Shared scripts (same files the other modules use) -->
+  <script src="js/config.js" defer></script>
+  <script src="js/actions.js" defer></script>
+  <script src="js/auth.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/ui-kit.js" defer></script>
+  <script src="js/headcount.js" defer></script>
+  <script src="js/permissions.js" defer></script>
+  <script src="js/project-team.js" defer></script>
+  <script src="js/pdp-identity.js" defer></script>
+  <script src="js/graph-client.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/diagnostics.js" defer></script>
+  <script src="js/api-headcount.js" defer></script>
+  <script src="js/api-pdp.js" defer></script>
+
+  <!-- My Momentum scripts — load in this order -->
+  <script src="js/my-momentum-logic.js" defer></script>
+  <script src="js/my-momentum-router.js" defer></script>
+  <script src="js/nav-core.js" defer></script>
+  <script src="js/command-bar.js" defer></script>
+  <script src="js/notifications.js" defer></script>
+  <script src="js/my-momentum-nav.js" defer></script>
+  <script src="js/my-momentum-pages.js" defer></script>
+  <script src="js/my-momentum-app.js" defer></script>
+
+</body>
+</html>

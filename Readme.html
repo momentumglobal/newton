@@ -471,6 +471,11 @@
         <tr><td><span class="file-tag">js/pdp-cycle-admin.js</span></td><td>People &rarr; PDP Setup &rarr; <strong>Cycle</strong> tab (N-437 / PDP-5; Admin + People Ops) &mdash; <code>pdpcCycleHtml()</code>: cycle year, Preview (writes nothing), Apply, progress. Shows To create, Updates, Cannot generate (no work email / line manager), Warnings (no CSD), Waiting (future starters, December joiners) and a per-person Status table (next meeting, overdue, due soon, done). Reads and writes only through <code>planPdpCycle()</code> / <code>applyPdpCycle()</code> in api-pdp.js. On the PDP-D12 allowlist: it shows personal PDP data, so it is loaded on people.html only.</td></tr>
 <tr><td><span class="file-tag">js/pdp-my.js</span></td><td>People &rarr; <strong>My Development</strong> (N-438 / PDP-6) &mdash; <code>renderMyDevelopmentPage()</code>: the signed-in employee&rsquo;s year as a meeting timeline, prep form for the open meeting (Save draft / Mark prep ready), the agreed record once Held, and sign-off. Quarterly KPI question links to People Scorecards. A tab strip (N-440) switches between <strong>My year</strong> and the <strong>Goals &amp; actions</strong> tracker (pdp-track-ui.js); a Bi-Annual shows the self-assessment block (pdp-assess-ui.js, N-442); a meeting whose template has no employee prep blocks (the seeded Monthly) shows &ldquo;No prep needed for this meeting&rdquo; with no Save draft / Mark prep ready buttons (N-447). Reads and writes only through <code>loadMyDevelopment()</code>, <code>savePdpPrep()</code>, <code>signOffPdpMeeting()</code> in api-pdp.js; read-only in Ghost Mode. On the PDP-D12 allowlist; people.html only.</td><td><code>pdpmYear</code>, <code>pdpmOpen</code>, <code>pdpmBack</code>, <code>pdpmDirty</code>, <code>pdpmScorecard</code>, <code>pdpmSave</code>, <code>pdpmSubmit</code>, <code>pdpmSignOff</code> actions.</td></tr>
         <tr><td><span class="file-tag">js/pdp-team-page.js</span></td><td>People &rarr; <strong>Team Development</strong> (N-439 / PDP-7) &mdash; <code>renderTeamDevelopmentPage()</code>: a line manager&rsquo;s or CSD&rsquo;s team table (due / overdue, prep ready, to sign), one person&rsquo;s year (N-440: a <strong>Meetings</strong> / <strong>Goals &amp; actions</strong> tab strip; the tracker loads through <code>loadTeamPerson()</code>), and the run-meeting screen pre-filled with the previous meeting&rsquo;s commitments (manager prep, notes, goals, actions, Mark held, manager sign-off). Admin / People Ops get a read-only all-staff view. Reads and writes only through api-pdp.js; handlers registered with <code>registerActions()</code>. people.html only, never mobile.html.</td></tr>
+        <tr><td><span class="file-tag">js/my-momentum-logic.js</span></td><td>My Momentum tab rules (N-451 / MM-1) &mdash; pure: <code>mmTabState()</code>, <code>mmVisibleTabs()</code>, <code>mmLandingTab()</code>. A tab shows only when <code>live</code> and relevant; Admin / Leadership / People Ops get My Team without a People row.</td></tr>
+        <tr><td><span class="file-tag">js/my-momentum-router.js</span></td><td>My Momentum page registry &mdash; access is the <code>myMomentum</code> role list in <code>CONFIG.OS_MODULES</code>; pages are <code>CONFIG.MY_MOMENTUM.TABS</code>.</td></tr>
+        <tr><td><span class="file-tag">js/my-momentum-nav.js</span></td><td>My Momentum sidebar and navigation &mdash; <code>renderMyMomentumNav()</code>, <code>navigateToMyMomentum()</code>, module state.</td></tr>
+        <tr><td><span class="file-tag">js/my-momentum-pages.js</span></td><td>My Momentum page markup &mdash; the My History stub and the no-record panel (not linked / ambiguous / read failed). Tab pages from N-452 onward.</td></tr>
+        <tr><td><span class="file-tag">js/my-momentum-app.js</span></td><td>My Momentum init &mdash; <code>authReady()</code>, role, <code>getPdpIdentity()</code>, nav, Command Bar, <code>#tab</code> deep link; loads last.</td></tr>
         <tr><td><span class="file-tag">js/pdp-track-ui.js</span></td><td>The Goals &amp; actions tracker markup and handlers (N-440 / PDP-8), shared by My Development (employee) and Team Development (one person, for their line manager, CSD or Admin / People Ops): the goal cascade with RAG and rolled-up RAG, the action list, and the goal / action forms. <code>pdptrSync()</code> + <code>pdptrHtml()</code> are called by the host page each time it draws; every rule is in pdp-track.js and every read / write is an api-pdp.js function (<code>saveTrackerGoal()</code>, <code>saveTrackerAction()</code>, <code>setTrackerGoalLive()</code>, <code>setTrackerActionDone()</code>, <code>loadTeamPerson()</code>). On the PDP-D12 allowlist. people.html only, never mobile.html; loads before pdp-my.js.</td></tr>
         <tr><td><span class="file-tag">js/pdp-assess-ui.js</span></td><td>The Bi-Annual scoring block markup and handlers (N-442 / PDP-10), shared by My Development (the employee&rsquo;s self-assessment) and Team Development (the line manager&rsquo;s / CSD&rsquo;s blind assessment, then the revealed comparison, agreed scores, overall and boundary, progression readiness and the L4 manager-track flag). <code>pdpasSync()</code> + <code>pdpasHtml()</code> are called by the host page where the template&rsquo;s <code>scoring</code> block sits; <code>pdpasHeldProblems()</code> feeds the Team page&rsquo;s Mark as held check. Every rule is in pdp-assess.js and every read / write is an api-pdp.js function (<code>loadPdpAssessment()</code>, <code>savePdpSelfScores()</code>, <code>savePdpManagerScores()</code>, <code>savePdpAgreed()</code>). Names no PDP list. people.html only, never mobile.html; loads before pdp-my.js.</td></tr>
         <tr><td><span class="file-tag">js/pdp-calibrate-ui.js</span></td><td>People &rarr; PDP Setup &rarr; <strong>Calibration</strong> tab (N-443 / PDP-11; the calibration panel = Admin + People Ops) &mdash; <code>pdpclTabHtml()</code>, called by pdp-setup.js: cycle year, distribution strip against <code>CONFIG.PDP.CALIBRATION.DISTRIBUTION</code> (warn only), case table (panel reasons, state), &ldquo;Lock all non-panel cases&rdquo;, and the case editor (self / manager / agreed / calibrated per pillar, final overall, boundary band, Save draft / Lock, Admin Unlock with a reason, history). Every rule is in pdp-calibrate.js and every read / write is an api-pdp.js function (<code>loadPdpCalibration()</code>, <code>savePdpCalibration()</code>, <code>lockPdpRatings()</code>, <code>lockPdpNonPanel()</code>, <code>unlockPdpRatings()</code>). Names no PDP list. people.html only, never mobile.html; loads after pdp-assess-ui.js. The line manager&rsquo;s <strong>Release to employee</strong> button and the employee&rsquo;s final result live in pdp-assess-ui.js (<code>releasePdpRatings()</code>).</td></tr>
@@ -729,6 +734,22 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
 <span class="code-key">pdp-my.js</span>
 <span class="code-key">pdp-team-page.js</span>
 <span class="code-key">people-app.js</span>  <span class="code-comment">&larr; module init &mdash; last</span>
+      </div>
+
+      <h3>my-momentum.html</h3>
+      <div class="code-block">
+<span class="code-comment">&lt;!-- head and external --&gt;</span>
+js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/vendor/lucide-1.47.0.subset.min.js &rarr; js/vendor/msal-browser-5.24.0.min.js
+<span class="code-comment">&lt;!-- shared: config.js &hellip; api.js, with diagnostics.js, api-headcount.js and api-pdp.js (getPdpIdentity) --&gt;</span>
+<span class="code-comment">&lt;!-- then --&gt;</span>
+<span class="code-key">my-momentum-logic.js</span>
+<span class="code-key">my-momentum-router.js</span>
+<span class="code-key">nav-core.js</span>  <span class="code-comment">&larr; shared sidebar renderer</span>
+<span class="code-key">command-bar.js</span>
+<span class="code-key">notifications.js</span>
+<span class="code-key">my-momentum-nav.js</span>
+<span class="code-key">my-momentum-pages.js</span>
+<span class="code-key">my-momentum-app.js</span>  <span class="code-comment">&larr; module init &mdash; last</span>
       </div>
 
       <h3>sales.html</h3>
@@ -1480,6 +1501,16 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">November 2026</div>
+        <div class="changelog-title">My Momentum shell and entry points (N-451 / MM-1)</div>
+        <ul>
+          <li><strong>New page <code>my-momentum.html</code></strong> with its own sidebar and a tab registry (<code>CONFIG.MY_MOMENTUM.TABS</code>). Only <strong>My History</strong> is live, as a stub; each later task (N-452 to N-456) turns on its own tab. A tab shows only when it is live and relevant to the person; someone with no People row, or two, sees a plain explanation instead.</li>
+          <li><strong>Entry points:</strong> the home greeting is now a link card (no stats on it); the sidebar name block links to My Momentum in every module (the notification bell stays outside the link); a My Momentum page entry in the Command Bar; and My Momentum in the Newton dropdown for every role, with no home tile.</li>
+          <li>Identity is the signed-in user&rsquo;s People row via <code>People.WorkEmail</code> (<code>getPdpIdentity()</code>), Ghost-aware. Desktop only in v1. People pages and links are unchanged until N-452 / N-453.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">November 2026</div>

@@ -58,7 +58,7 @@ var CSP_REFERRER = 'no-referrer';
 // must be listed in CSP_STATIC_PAGES, so a NEW page forces a decision here.
 var CSP_APP_PAGES = [
   'admin.html', 'command-centre.html', 'index.html', 'market-reporting.html',
-  'mobile.html', 'people.html', 'reporting.html', 'sales.html', 'survey.html'
+  'mobile.html', 'my-momentum.html', 'people.html', 'reporting.html', 'sales.html', 'survey.html'
 ];
 var CSP_STATIC_PAGES = [
   'Readme.html', 'market-reporting-user-guide.html', 'people-user-guide.html',

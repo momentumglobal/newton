@@ -1353,6 +1353,8 @@ const CONFIG = {
     // the whole module, all models.
     { key: 'sales',     name: 'Sales',            icon: 'trending-up', desc: 'LCI Modeling, Sales Pipeline & Revenue Tracking', homeOrder: 3,  href: 'sales.html',            live: true, roles: ['admin','leadership','sales','delivery_manager'] },
     { key: 'command',   name: 'Command Centre',   icon: 'monitor',      href: 'command-centre.html',   live: true, roles: ['admin','leadership'] },
+    // N-451 (MM-1): My Momentum — the personal area. Listed in the dropdown for every role, no home-grid tile (no desc / homeOrder).
+    { key: 'myMomentum', name: 'My Momentum',      icon: 'user-check',  href: 'my-momentum.html',      live: true, roles: ['admin','leadership','people_ops','sales','delivery_manager','talent_partner','staff'] },
   ],
 
   // N-285. Mobile-only narrowing of a module's OS_MODULES roles, applied by
@@ -1362,6 +1364,21 @@ const CONFIG = {
   // (sales-router.js) and cannot read in SharePoint after the Tier 2 lock.
   MOBILE_MODULE_ROLES: {
     sales: ['admin', 'leadership'],
+  },
+
+  // N-451 (MM-1): My Momentum. TABS is the single registry — display order = landing order. A tab shows
+  // only when `live` (its page exists; each later task flips its own flag in the diff that adds the page)
+  // and relevant to the person (js/my-momentum-logic.js). ALL_STAFF_ROLES get My Team without a People
+  // row (MM-D8). Desktop only in v1: the module is deliberately not in mobile-home.js's MOBILE_MODULES.
+  MY_MOMENTUM: {
+    TABS: [
+      { key: 'myHistory',     label: 'My History',     live: true  },   // N-451 stub, N-455 content
+      { key: 'myDetails',     label: 'My Details',     live: false },   // N-456
+      { key: 'myScorecard',   label: 'My Scorecard',   live: false },   // N-453
+      { key: 'myDevelopment', label: 'My Development', live: false },   // N-452
+      { key: 'myTeam',        label: 'My Team',        live: false },   // N-452 / N-453
+    ],
+    ALL_STAFF_ROLES: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS],
   },
 
   // Quick Links — declarative config for the homepage drawer.
@@ -1411,6 +1428,8 @@ const CONFIG = {
     { key: 'salesForecast',   label: 'Sales Forecast',   module: 'sales', href: 'sales.html#salesForecast',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
     { key: 'lciModels',       label: 'LCI Cost Models',  module: 'sales', href: 'sales.html#lciModels',       roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER] },
     { key: 'lciLeadMagnet',   label: 'LCI Lead Magnet',  module: 'sales', href: 'sales.html#lciLeadMagnet',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
+    // my-momentum-router.js — My Momentum (1). N-451: the landing page. Tab entries are added by the tasks that make each tab live.
+    { key: 'myMomentum', label: 'My Momentum', module: 'myMomentum', href: 'my-momentum.html', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.STAFF] },
     // cc-router.js — Command Centre (2)
     { key: 'overview', label: 'Overview', module: 'command', href: 'command-centre.html', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
     // N-401 — install guide + download for Newton for Claude (cc-claude.js).

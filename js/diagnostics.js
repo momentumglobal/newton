@@ -46,6 +46,7 @@ const DIAG_MODULES = {
   'people.html':           'people',
   'sales.html':            'sales',
   'command-centre.html':   'command',
+  'my-momentum.html':      'myMomentum',
   'index.html':            'index',
   'admin.html':            'admin',
   'mobile.html':           'mobile',

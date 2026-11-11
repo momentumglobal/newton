@@ -39,6 +39,20 @@
   letter-spacing: 0.03em;
   margin-bottom: var(--sp-3);
 }
+/* N-451: the greeting is a link card to My Momentum (no stats on it, MM-D2) */
+.home-greeting-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-3) var(--sp-8);
+  margin-bottom: var(--sp-3);
+  border-radius: var(--r-xl);
+  text-decoration: none;
+}
+.home-greeting-card .home-greeting { margin-bottom: 0; }
+.home-greeting-cta { font-size: var(--fs-12); color: var(--inverse-text-muted); margin-top: var(--sp-1); }
+.home-greeting-card:hover { background: var(--inverse-hover-bg); }
+.home-greeting-card:hover .home-greeting-cta { color: var(--inverse-text); }
 .home-title {
   font-size: var(--fs-display-sm);
   letter-spacing: var(--ls-heading-lg);

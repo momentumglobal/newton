@@ -13,7 +13,7 @@
 // Comments are ignored. Pure function over data; the assertion skips when
 // ALL_SOURCES is undefined (browser runner has no filesystem).
 
-var ROUTER_FILES = ['router.js', 'mr-router.js', 'people-router.js', 'sales-router.js', 'cc-router.js'];
+var ROUTER_FILES = ['router.js', 'mr-router.js', 'people-router.js', 'sales-router.js', 'cc-router.js', 'my-momentum-router.js'];
 
 function _roleLintStrip(src) {
   // Replace comment text with spaces, keeping newlines so line numbers hold.

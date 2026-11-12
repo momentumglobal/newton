@@ -31,18 +31,21 @@ window.MY_MOMENTUM_APP = {
     document.getElementById('app-shell').style.display = 'flex';
     document.getElementById('login-screen').style.display = 'none';
 
-    // Who is this person to Newton? One People read (cached), Ghost-aware, never stored — api-pdp.js getPdpIdentity().
-    try {
-      _mmIdentity = await getPdpIdentity();
-      _mmState = mmTabState(_mmIdentity);
-    } catch (e) {
-      console.warn('My Momentum identity unavailable', e);
-      _mmIdentity = null;
-      _mmState = 'error';
-    }
+    // Who is this person to Newton, and which PDP tabs apply? Two cached reads, together, Ghost-aware, never stored.
+    // Each fails on its own: no identity -> the 'error' panel; no PDP signals -> the PDP tabs simply do not show.
+    let identityFailed = false;
+    const [identity, pdpNav] = await Promise.all([
+      getPdpIdentity().catch(e => { console.warn('My Momentum identity unavailable', e); identityFailed = true; return null; }),
+      resolvePdpNav().catch(e => { console.warn('PDP tabs unavailable', e); return { my: false, team: false }; }),
+    ]);
+    _mmIdentity = identity;
+    _mmState = identityFailed ? 'error' : mmTabState(identity);
+    _mmSignals = { pdpMy: !!pdpNav.my, pdpTeam: !!pdpNav.team };
 
     renderMyMomentumNav(_mmResolvedRole);
     initCommandBar({ currentModule: 'myMomentum', role: _mmResolvedRole, navigateFn: 'navigateToMyMomentum' });
+    // N-441 / N-452: PDP reminders (On mode only). Once per page load, after the PDP signals, never throws.
+    runPdpReminders().catch(e => console.warn('PDP reminders unavailable', e));
     if (!handleMyMomentumDeepLink()) {
       const landing = mmLandingTab(mmNavTabs());
       if (landing) {

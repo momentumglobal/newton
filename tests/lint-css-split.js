@@ -34,7 +34,7 @@ var CSS_SPLIT_LINKS = {
   'command-centre.html': ['css/style.css', 'css/command-centre.css'],
   'index.html': ['css/style.css', 'css/homepage.css', 'css/engagement.css'],
   'market-reporting.html': ['css/style.css', 'css/report-builder.css'],
-  'my-momentum.html': ['css/style.css', 'css/engagement.css'],
+  'my-momentum.html': ['css/style.css', 'css/engagement.css', 'css/people.css'],
   'people.html': ['css/style.css', 'css/engagement.css', 'css/people.css'],
   'reporting.html': ['css/style.css', 'css/report-builder.css', 'css/coe-plan.css', 'css/roles.css', 'css/reporting.css'],
   'sales.html': ['css/style.css', 'css/lci.css'],

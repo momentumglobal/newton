@@ -16,6 +16,9 @@ const _ROLE_IDS = Object.freeze({
   VIEWER:           'viewer',
 });
 
+// N-451 / N-452: every role can open My Momentum; the My Momentum Command Bar entries share this list.
+const _MM_PAGE_ROLES = [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.STAFF];
+
 const CONFIG = {
   TENANT_ID:    "b73023b1-298a-42a2-bed9-985e0a762054",
   CLIENT_ID:    "bf71f2b2-de80-4728-9189-af8659fbd2b6",
@@ -1368,17 +1371,21 @@ const CONFIG = {
 
   // N-451 (MM-1): My Momentum. TABS is the single registry — display order = landing order. A tab shows
   // only when `live` (its page exists; each later task flips its own flag in the diff that adds the page)
-  // and relevant to the person (js/my-momentum-logic.js). ALL_STAFF_ROLES get My Team without a People
-  // row (MM-D8). Desktop only in v1: the module is deliberately not in mobile-home.js's MOBILE_MODULES.
+  // and relevant to the person (js/my-momentum-logic.js). My Team follows the PDP signal alone until N-453
+  // adds Team Scorecards; ALL_STAFF_ROLES (MM-D8) is the all-staff grant N-453 restores. Desktop only in v1:
+  // the module is deliberately not in mobile-home.js's MOBILE_MODULES.
   MY_MOMENTUM: {
     TABS: [
       { key: 'myHistory',     label: 'My History',     live: true  },   // N-451 stub, N-455 content
       { key: 'myDetails',     label: 'My Details',     live: false },   // N-456
       { key: 'myScorecard',   label: 'My Scorecard',   live: false },   // N-453
-      { key: 'myDevelopment', label: 'My Development', live: false },   // N-452
-      { key: 'myTeam',        label: 'My Team',        live: false },   // N-452 / N-453
+      { key: 'myDevelopment', label: 'My Development', live: true  },   // N-452 (moved from People)
+      { key: 'myTeam',        label: 'My Team',        live: true  },   // N-452: Development view; N-453 adds Team Scorecards
     ],
     ALL_STAFF_ROLES: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS],
+    // N-452: old People deep links -> My Momentum tab keys. people-app.js sends the visitor on before sign-in
+    // (utils.js mmRedirectTarget). N-453 adds `scorecards`.
+    REDIRECTS: { myDevelopment: 'myDevelopment', teamDevelopment: 'myTeam' },
   },
 
   // Quick Links — declarative config for the homepage drawer.
@@ -1409,7 +1416,7 @@ const CONFIG = {
     { key: 'rejections',       label: 'Rejected Offers',    module: 'reporting', href: 'reporting.html#rejections',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
     { key: 'hiringPlan',       label: 'Hiring Plan',        module: 'reporting', href: 'reporting.html#hiringPlan',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
     { key: 'adminPanel',       label: 'Config Panel',       module: 'reporting', href: 'reporting.html#adminPanel',        roles: [_ROLE_IDS.ADMIN] },
-    // people-router.js — People (10)
+    // people-router.js — People (8)
     { key: 'peopleDashboard', label: 'People Dashboard',    module: 'people', href: 'people.html#peopleDashboard', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     { key: 'orgChart',        label: 'Org Chart',           module: 'people', href: 'people.html#orgChart',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.STAFF] },
     { key: 'peopleGantt',     label: 'Deployment Timeline', module: 'people', href: 'people.html#peopleGantt',     roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
@@ -1419,17 +1426,16 @@ const CONFIG = {
     { key: 'engagement',      label: 'Engagement',          module: 'people', href: 'people.html#engagement',      roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     // N-436 (PDP-4): framework + template editors. Admin + People Ops only (pdpAdmin); Leadership deliberately not listed (PDP-D1).
     { key: 'pdpSetup',        label: 'PDP Setup',           module: 'people', href: 'people.html#pdpSetup',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.PEOPLE_OPS] },
-    // N-438 (PDP-6): the employee's own page. The page and the nav item gate on the PDP switch; this entry only mirrors PEOPLE_PAGES.
-    { key: 'myDevelopment',   label: 'My Development',      module: 'people', href: 'people.html#myDevelopment',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
-    // N-439 (PDP-7): the line manager's / CSD's page. The page and the nav item gate on the PDP switch and on having reports; this entry only mirrors PEOPLE_PAGES.
-    { key: 'teamDevelopment', label: 'Team Development',   module: 'people', href: 'people.html#teamDevelopment', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
     // sales-router.js — Sales (4)
     { key: 'revenueTracking', label: 'Revenue Tracking', module: 'sales', href: 'sales.html#revenueTracking', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
     { key: 'salesForecast',   label: 'Sales Forecast',   module: 'sales', href: 'sales.html#salesForecast',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
     { key: 'lciModels',       label: 'LCI Cost Models',  module: 'sales', href: 'sales.html#lciModels',       roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER] },
     { key: 'lciLeadMagnet',   label: 'LCI Lead Magnet',  module: 'sales', href: 'sales.html#lciLeadMagnet',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.SALES] },
     // my-momentum-router.js — My Momentum (1). N-451: the landing page. Tab entries are added by the tasks that make each tab live.
-    { key: 'myMomentum', label: 'My Momentum', module: 'myMomentum', href: 'my-momentum.html', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.STAFF] },
+    { key: 'myMomentum', label: 'My Momentum', module: 'myMomentum', href: 'my-momentum.html', roles: _MM_PAGE_ROLES },
+    // N-452 (MM-2): the PDP pages moved here from People. The tabs show only when the PDP gate says so (resolvePdpNav); these entries only mirror the module roles.
+    { key: 'myDevelopment', label: 'My Development', module: 'myMomentum', href: 'my-momentum.html#myDevelopment', roles: _MM_PAGE_ROLES },
+    { key: 'myTeam',        label: 'My Team',        module: 'myMomentum', href: 'my-momentum.html#myTeam',        roles: _MM_PAGE_ROLES },
     // cc-router.js — Command Centre (2)
     { key: 'overview', label: 'Overview', module: 'command', href: 'command-centre.html', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
     // N-401 — install guide + download for Newton for Claude (cc-claude.js).
@@ -1622,7 +1628,7 @@ const CONFIG = {
     //   ACTION_REMIND_DAYS  an open action reminds this many days before it is due (and after).
     //   TYPES / TEXT        notification TriggerType and the fixed body ({n} = count). Never put a name, goal,
     //                       action text, score or note in a body: the Notifications list is readable by everyone.
-    //   LINKS               deep links (people.html page keys).
+    //   LINKS               deep links (My Momentum tab keys, N-452).
     REMINDERS: {
       DEFAULT_FROM:       '2027-01-01',
       PREP_REMIND_DAYS:   7,
@@ -1634,7 +1640,7 @@ const CONFIG = {
         pdpOverdue: { one: '1 PDP meeting is overdue.',     many: '{n} PDP meetings are overdue.' },
         pdpAction:  { one: '1 PDP action is due soon.',     many: '{n} PDP actions are due soon.' },
       },
-      LINKS: { MY: 'people.html#myDevelopment', TEAM: 'people.html#teamDevelopment' },
+      LINKS: { MY: 'my-momentum.html#myDevelopment', TEAM: 'my-momentum.html#myTeam' },
     },
     DISPLAY_ROWS:   10,
     // N-434 (PDP-2): the seven PDP lists. Single source of truth: api-pdp.js and pdp-data.js

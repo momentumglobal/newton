@@ -332,7 +332,7 @@ ASSERTIONS.push(
       const html = ALL_HTML['people.html'];
       const at = f => html.indexOf('js/' + f + '"');
       _assertEqual(at('pdp-assess.js') > -1 && at('pdp-assess.js') < at('pdp-calibrate.js') && at('pdp-calibrate.js') < at('api-pdp.js'), true, 'AC17 pdp-calibrate.js after pdp-assess.js');
-      _assertEqual(at('pdp-assess-ui.js') < at('pdp-calibrate-ui.js') && at('pdp-calibrate-ui.js') < at('pdp-my.js'), true, 'AC17 pdp-calibrate-ui.js after pdp-assess-ui.js');
+      _assertEqual(at('pdp-assess-ui.js') < at('pdp-calibrate-ui.js') && at('pdp-calibrate-ui.js') < at('people-app.js'), true, 'AC17 pdp-calibrate-ui.js after pdp-assess-ui.js (N-452: pdp-my.js left People)');
       _assertEqual(/pdp-calibrate/.test(ALL_HTML['mobile.html'] || ''), false, 'AC17 never on mobile');
       _assertEqual(CONFIG.MCP.scripts.some(f => /pdp-calibrate/.test(f)), false, 'AC17 never in the MCP bundle');
     },

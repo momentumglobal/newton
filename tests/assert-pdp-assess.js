@@ -339,10 +339,11 @@ ASSERTIONS.push(
       _assertEqual(/pdpasHtml\(b\.label\)/.test(ALL_SOURCES['pdp-my.js']) && /pdpasHtml\(b\.label\)/.test(ALL_SOURCES['pdp-team-page.js']), true, 'AC17 both pages mount the scoring block');
       _assertEqual(/Nothing to do here/.test(ALL_SOURCES['pdp-my.js'] + ALL_SOURCES['pdp-team-page.js']), false, 'AC17 the placeholders are gone');
       if (typeof ALL_HTML === 'undefined') _skip('ALL_HTML not available');
-      const h = ALL_HTML['people.html'];
-      const at = f => h.indexOf('js/' + f + '"');
+      const h = ALL_HTML['people.html'], mm = ALL_HTML['my-momentum.html'];
+      const at = f => h.indexOf('js/' + f + '"'), atm = f => mm.indexOf('js/' + f + '"');
       _assertEqual(at('pdp-track.js') < at('pdp-assess.js') && at('pdp-assess.js') < at('api-pdp.js'), true, 'AC18 pdp-assess.js after pdp-track.js');
-      _assertEqual(at('pdp-track-ui.js') < at('pdp-assess-ui.js') && at('pdp-assess-ui.js') < at('pdp-my.js'), true, 'AC18 pdp-assess-ui.js after pdp-track-ui.js, before pdp-my.js');
+      _assertEqual(at('pdp-ui-common.js') > -1 && at('pdp-ui-common.js') < at('pdp-assess-ui.js'), true, 'AC18 People: pdp-assess-ui.js after pdp-ui-common.js (N-452)');
+      _assertEqual(atm('pdp-ui-common.js') > -1 && atm('pdp-ui-common.js') < atm('pdp-track-ui.js') && atm('pdp-track-ui.js') < atm('pdp-assess-ui.js') && atm('pdp-assess-ui.js') < atm('pdp-my.js'), true, 'AC18 My Momentum: pdp-ui-common.js, pdp-track-ui.js, pdp-assess-ui.js, then pdp-my.js');
       _assertEqual(/pdp-assess/.test(ALL_HTML['mobile.html'] || ''), false, 'AC18 never on mobile');
       _assertEqual(CONFIG.MCP.scripts.some(f => /pdp-assess/.test(f)), false, 'AC18 never in the MCP bundle');
     },

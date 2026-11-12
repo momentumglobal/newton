@@ -35,6 +35,12 @@ function mmHistoryStubHtml(me, role) {
     </div>`;
 }
 
+// N-452: the My Team tab strip. One tab today (Development); N-453 adds Team Scorecards and gives the buttons their action.
+function mmTeamTabsHtml(active) {
+  const tabs = [{ key: 'development', label: 'Development' }];
+  return `<div class="eng-tab-strip" role="tablist">${tabs.map(t => `<button type="button" class="eng-tab${active === t.key ? ' eng-tab--active' : ''}" role="tab" aria-selected="${active === t.key ? 'true' : 'false'}">${escHtml(t.label)}</button>`).join('')}</div>`;
+}
+
 function renderMyHistoryStub() {
   const main = document.getElementById('main-content');
   main.innerHTML = mmHistoryStubHtml(_mmIdentity && _mmIdentity.me, _mmResolvedRole);

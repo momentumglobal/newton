@@ -45,11 +45,6 @@ window.PEOPLE_APP = {
     document.getElementById('login-screen').style.display = 'none';
 
         renderPeopleNav(_resolvedRole);
-    // N-438: the My Development nav item appears once the PDP gate says this user is in the programme.
-    // N-439: one read decides both PDP nav items (My Development, Team Development).
-    resolvePdpNav().then(nav => {
-      if (nav.my !== _peopleMyDevNav || nav.team !== _peopleTeamDevNav) { _peopleMyDevNav = nav.my; _peopleTeamDevNav = nav.team; renderPeopleNav(_resolvedRole); }
-    }).catch(e => console.warn('PDP nav unavailable', e));
     // N-441: PDP reminders (On mode only; the pilot group gets none). Once per page load, never throws.
     runPdpReminders().catch(e => console.warn('PDP reminders unavailable', e));
     initCommandBar({ currentModule: 'people', role: _resolvedRole, navigateFn: 'navigateToPeople' });
@@ -63,6 +58,10 @@ window.PEOPLE_APP = {
 };
 
 window.addEventListener('DOMContentLoaded', () => {
+  // N-452: My Development and Team Development live in My Momentum now. Old bookmarks and stored notification links
+  // carry on there, before sign-in, so a signed-out visitor reaches the right tab after logging in.
+  const moved = mmRedirectTarget(window.location.hash, CONFIG.MY_MOMENTUM.REDIRECTS);
+  if (moved) { window.location.replace('my-momentum.html#' + moved); return; }
   authReady().then(() => {
     window.PEOPLE_APP.init();
   }).catch(e => {

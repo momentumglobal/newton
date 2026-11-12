@@ -2284,6 +2284,13 @@ function photoMapFresh(builtAt, now, ttl) {
   return typeof builtAt === 'number' && now >= builtAt && now - builtAt < ttl;
 }
 
+// N-452: where an old People deep link lives now. `hash` is location.hash ('#teamDevelopment?x=1'); `map` is
+// CONFIG.MY_MOMENTUM.REDIRECTS ({ oldKey: newKey }). Returns the new My Momentum tab key, or '' for "stay here".
+function mmRedirectTarget(hash, map) {
+  const key = String(hash || '').replace(/^#/, '').split('?')[0].trim();
+  return key && map && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : '';
+}
+
 // N-302a: delegated actions owned by this file (js/actions.js).
 registerActions({
   exitGhostMode,

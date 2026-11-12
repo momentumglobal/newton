@@ -75,7 +75,7 @@ ASSERTIONS.push(
       _assertEqual(t([_rmtM({ PersonEmail: 'other@mg.test' })]), [], 'AC4 only the employee is told to prepare');
       _assertEqual(t([_rmtM({ DueDate: '2027-03-10' })]), ['pdpOverdue'], 'AC4 overdue is the overdue digest, not a prep reminder');
       const p = _rmtPlan({ meetings: [_rmtM({ id: '1' }), _rmtM({ id: '2', MeetingType: 'Quarterly', DueDate: '2027-03-27' })] });
-      _assertEqual([p.send[0].n, p.send[0].body, p.send[0].link], [2, '2 PDP preps are due soon.', 'people.html#myDevelopment'], 'AC4 two preps are one digest');
+      _assertEqual([p.send[0].n, p.send[0].body, p.send[0].link], [2, '2 PDP preps are due soon.', 'my-momentum.html#myDevelopment'], 'AC4 two preps are one digest');
     },
   },
   {
@@ -84,7 +84,7 @@ ASSERTIONS.push(
       const late = [_rmtM({ id: '1', DueDate: '2027-02-28' }), _rmtM({ id: '2', DueDate: '2027-03-19', MeetingType: 'Monthly', TemplateID: '12' })];
       const pe = _rmtPlan({ email: _RMT_ME, meetings: late }), pl = _rmtPlan({ email: _RMT_LM, meetings: late }), pc = _rmtPlan({ email: _RMT_CSD, meetings: late });
       [pe, pl, pc].forEach((p, i) => _assertEqual([_rmtTypes(p), p.send[0].n, p.send[0].body], [['pdpOverdue'], 2, '2 PDP meetings are overdue.'], 'AC5 recipient ' + i));
-      _assertEqual([pe.send[0].link, pl.send[0].link, pc.send[0].link], ['people.html#myDevelopment', 'people.html#teamDevelopment', 'people.html#teamDevelopment'], 'AC5 links: employee vs reviewer');
+      _assertEqual([pe.send[0].link, pl.send[0].link, pc.send[0].link], ['my-momentum.html#myDevelopment', 'my-momentum.html#myTeam', 'my-momentum.html#myTeam'], 'AC5 links: employee vs reviewer');
       _assertEqual(_rmtPlan({ email: _RMT_ADMIN, meetings: late }), { send: [], keep: [] }, 'AC5 Admin / People Ops get nothing for records that are not theirs');
       _assertEqual(_rmtPlan({ email: _RMT_ME.toUpperCase(), meetings: late }).send.length, 1, 'AC5 email match is case-insensitive');
       ['Held', 'SignedOff', 'Skipped'].forEach(s =>
@@ -222,7 +222,7 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-441 AC16 wiring and PDP-D12: people.html only, load order, not mobile / MCP / Command Bar, no inline or hex',
+    name: 'N-441 AC16 wiring and PDP-D12: people.html and my-momentum.html only, load order, not mobile / MCP / Command Bar, no inline or hex',
     fn: function () {
       const h = ALL_HTML['people.html'];
       const at = f => h.indexOf('js/' + f + '"');
@@ -230,10 +230,12 @@ ASSERTIONS.push(
       _assertEqual(at('pdp-reminders.js') < at('api-pdp.js'), true, 'AC16 pure rules before the API');
       _assertEqual(ALL_HTML['mobile.html'].includes('pdp-reminders.js'), false, 'AC16 not on mobile.html');
       _assertEqual(CONFIG.MCP.scripts.some(f => /pdp/.test(f)), false, 'AC16 no PDP file in the MCP bundle');
-      const offenders = Object.keys(ALL_SOURCES).filter(f => /runPdpReminders|pdpReminderPlan|readPdpCompletion|pdpCompletion/.test(ALL_SOURCES[f]) && !['api-pdp.js', 'pdp-reminders.js', 'pdp-cycle.js', 'people-app.js', 'people-dashboard.js'].includes(f));
+      const offenders = Object.keys(ALL_SOURCES).filter(f => /runPdpReminders|pdpReminderPlan|readPdpCompletion|pdpCompletion/.test(ALL_SOURCES[f]) && !['api-pdp.js', 'pdp-reminders.js', 'pdp-cycle.js', 'people-app.js', 'people-dashboard.js', 'my-momentum-app.js'].includes(f));
       _assertEqual(offenders, [], 'AC16 only the named files use the reminder / tile functions (not Command Bar, mobile, MCP)');
-      const app = ALL_SOURCES['people-app.js'];
-      _assertEqual(/runPdpReminders\(\)\.catch\(/.test(app) && app.indexOf('runPdpReminders()') > app.indexOf('resolvePdpNav()'), true, 'AC16 init calls it once after the PDP nav');
+      const app = ALL_SOURCES['people-app.js'], mm = ALL_SOURCES['my-momentum-app.js'];
+      _assertEqual(/runPdpReminders\(\)\.catch\(/.test(app) && app.split('runPdpReminders()').length === 2, true, 'AC16 People init calls it once (N-452: no longer tied to a PDP nav read)');
+      _assertEqual(/runPdpReminders\(\)\.catch\(/.test(mm) && mm.split('runPdpReminders()').length === 2 && mm.indexOf('runPdpReminders()') > mm.indexOf('resolvePdpNav()'), true, 'AC16 My Momentum init calls it once, after the PDP signals (N-452)');
+      _assertEqual(ALL_HTML['my-momentum.html'].includes('js/pdp-reminders.js'), true, 'AC16 my-momentum.html loads the rules file');
       const pure = ALL_SOURCES['pdp-reminders.js'].split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
       _assertEqual(/document\.|window\.|getItems|createItem|updateItem|fireNotification|fetch\(|graphRequest/.test(pure), false, 'AC16 pure: no DOM, no network, no writes');
       _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(pure), false, 'AC16 no hex');

@@ -30,14 +30,14 @@ ASSERTIONS.push(
       const t = CONFIG.PDP.TEAM;
       _assertEqual(t.GOAL_LEVEL_BY_TYPE, { Annual: 'Annual', BiAnnual: 'H2', Quarterly: 'Quarterly' }, 'AC1 goal levels');
       _assertEqual([t.ATTENTION_ORDER, t.NOTES_SCHEMA], [['overdue', 'sign', 'prep', 'due', 'upcoming', 'done'], 1], 'AC1 order and schema');
-      _assertEqual(/teamDevelopment:\s*\{[^}]*label: 'Team Development'[^}]*ADMIN, CONFIG\.ROLE_IDS\.PEOPLE_OPS, CONFIG\.ROLE_IDS\.DELIVERY_MANAGER, CONFIG\.ROLE_IDS\.TALENT_PARTNER\]/.test(ALL_SOURCES['people-router.js']), true, 'AC1 registry roles');
-      const cb = CONFIG.COMMAND_BAR_PAGES.find(p => p.key === 'teamDevelopment');
-      _assertEqual(!!cb && cb.module === 'people' && cb.href === 'people.html#teamDevelopment', true, 'AC1 Command Bar entry');
-      _assertEqual(cb.roles.slice().sort(), ['admin', 'delivery_manager', 'people_ops', 'talent_partner'], 'AC1 Command Bar roles mirror the registry');
-      const nav = ALL_SOURCES['people-nav.js'], app = ALL_SOURCES['people-app.js'];
-      _assertEqual(/filter\(p => p\.key !== 'teamDevelopment' \|\| _peopleTeamDevNav\)/.test(nav) && /let _peopleTeamDevNav\s*= false/.test(nav), true, 'AC1 nav item filtered, default hidden');
-      _assertEqual(/case 'teamDevelopment':\s*await renderTeamDevelopmentPage\(\)/.test(nav), true, 'AC1 people-nav dispatches the page');
-      _assertEqual(/resolvePdpNav\(\)\.then/.test(app) && /nav\.team/.test(app) && /\.catch\(/.test(app), true, 'AC1 both nav items resolved in one read');
+      _assertEqual(/teamDevelopment:/.test(ALL_SOURCES['people-router.js']), false, 'AC1 the People registry no longer owns the page (N-452)');
+      const cb = CONFIG.COMMAND_BAR_PAGES.find(p => p.key === 'myTeam');
+      _assertEqual(!!cb && cb.module === 'myMomentum' && cb.href === 'my-momentum.html#myTeam', true, 'AC1 Command Bar entry');
+      _assertEqual(cb.roles.slice().sort(), ['admin', 'delivery_manager', 'leadership', 'people_ops', 'sales', 'staff', 'talent_partner'], 'AC1 Command Bar roles mirror My Momentum (the PDP gate decides who sees the tab)');
+      const logic = ALL_SOURCES['my-momentum-logic.js'], nav = ALL_SOURCES['my-momentum-nav.js'], app = ALL_SOURCES['my-momentum-app.js'];
+      _assertEqual(/case 'myTeam':\s*return !!s\.pdpTeam;/.test(logic), true, 'AC1 My Team is relevant only on the pdpTeam signal');
+      _assertEqual(/case 'myTeam':\s*await renderTeamDevelopmentPage\(\)/.test(nav), true, 'AC1 my-momentum-nav dispatches the page');
+      _assertEqual(/resolvePdpNav\(\)/.test(app) && /pdpTeam: !!pdpNav\.team/.test(app) && /\.catch\(/.test(app), true, 'AC1 both PDP signals resolved in one read');
     },
   },
   {

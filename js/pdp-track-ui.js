@@ -1,12 +1,12 @@
 // js/pdp-track-ui.js — Goals & actions tracker markup + handlers (N-440 / PDP-8)
 //
-// One tracker, shared by People > My Development (the employee's own year) and People > Team Development (one
+// One tracker, shared by My Momentum > My Development (the employee's own year) and My Momentum > My Team (one
 // person's year, for their line manager / CSD / Admin / People Ops). The host page calls pdptrSync(ctx) each time
 // it draws and puts pdptrHtml() in its markup; every rule is pure in pdp-track.js and every read / write is a
 // function in api-pdp.js (saveTrackerGoal / saveTrackerAction / setTrackerGoalLive / setTrackerActionDone).
 // PDP-D12 review (N-440): this file renders personal goal and action records, so it is on the PDP-D12 allowlist
-// (tests/assert-pdp-access.js); it is loaded only on people.html, never by mobile.html, Newton for Claude or the
-// Command Bar. Loads before pdp-my.js; the hosts' globals (_pdpmYes, pdpFmtDay) are used at run time only.
+// (tests/assert-pdp-access.js); it is loaded only on my-momentum.html, never by mobile.html, Newton for Claude or the
+// Command Bar. Loads after pdp-ui-common.js and before pdp-my.js; the hosts' globals (_pdpmYes, pdpFmtDay) are used at run time only.
 //
 // ctx = { personId, year, data, load, redraw }
 //   data = { goals, actions, meetings, edit, note }  (edit false = read-only; note = why, optional)

@@ -84,6 +84,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'sla-rollup.js'),       // N-385: roll-up markup (declarations only); loads before sla-panel.js
   path.join(JS_DIR, 'sla-panel.js'),        // N-384: markup + render-from-cache are asserted; mounts need a DOM
   path.join(JS_DIR, 'rejection-intel.js'),  // N-388: Rejection Intelligence markup (declarations only)
+  path.join(JS_DIR, 'pdp-ui-common.js'),    // N-452: shared PDP markup helpers (declarations only); loads before pdp-track-ui.js / pdp-assess-ui.js
   path.join(JS_DIR, 'pdp-track-ui.js'),     // N-440: shared tracker markup is asserted (declarations only; DOM only inside the handlers; loads before pdp-my.js)
   path.join(JS_DIR, 'pdp-assess-ui.js'),    // N-442: shared scoring block markup (declarations only; DOM only inside the handlers; loads before pdp-my.js)
   path.join(JS_DIR, 'pdp-calibrate-ui.js'), // N-443: Calibration tab markup (declarations only; DOM only inside the handlers)

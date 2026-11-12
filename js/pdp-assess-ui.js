@@ -1,11 +1,12 @@
 // js/pdp-assess-ui.js — Bi-Annual scoring block markup + handlers (N-442 / PDP-10)
 //
-// One scoring block, shared by People > My Development (the employee: self-assessment) and People > Team
-// Development (the line manager / CSD: blind assessment, then the agreed scores, boundary, readiness and the L4
-// manager-track flag). The host page calls pdpasSync(ctx) while it draws a meeting and puts pdpasHtml() where the
+// One scoring block, shared by My Momentum > My Development (the employee: self-assessment) and My Momentum > My
+// Team (the line manager / CSD: blind assessment, then the agreed scores, boundary, readiness and the L4
+// manager-track flag), and shown read-only in People > PDP Setup > Calibration. The host page calls pdpasSync(ctx) while it draws a meeting and puts pdpasHtml() where the
 // template's `scoring` block sits. Rules are pure in pdp-assess.js; every read / write is a function in api-pdp.js
-// (loadPdpAssessment / savePdpSelfScores / savePdpManagerScores / savePdpAgreed). Names no PDP list. Loaded only on
-// people.html (after pdp-track-ui.js, before pdp-my.js), never by mobile.html, Newton for Claude or the Command Bar.
+// (loadPdpAssessment / savePdpSelfScores / savePdpManagerScores / savePdpAgreed). Names no PDP list. Loaded on
+// people.html (after pdp-ui-common.js, for Calibration) and my-momentum.html (after pdp-track-ui.js, before pdp-my.js),
+// never by mobile.html, Newton for Claude or the Command Bar.
 //
 // ctx = { meetingId, readOnly, redraw }   redraw() -> the host redraws, which calls pdpasSync + pdpasHtml again.
 //

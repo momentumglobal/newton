@@ -4,7 +4,7 @@ let _mmCurrentPage  = null;
 let _mmResolvedRole = null;        // set by my-momentum-app.js on init
 let _mmIdentity     = null;        // getPdpIdentity() result, or null when it could not be read
 let _mmState        = 'notLinked'; // 'ok' | 'notLinked' | 'ambiguous' (mmTabState), or 'error' when the read failed
-let _mmSignals      = {};          // hasActivity / pdpMy / hasReports — filled by the tasks that own those tabs
+let _mmSignals      = {};          // pdpMy / pdpTeam (N-452, set by my-momentum-app.js), hasActivity (N-453)
 
 function mmNavTabs() {
   return mmVisibleTabs(CONFIG.MY_MOMENTUM.TABS, { state: _mmState, role: _mmResolvedRole, signals: _mmSignals });
@@ -50,9 +50,12 @@ registerActions({
 async function renderMyMomentumPage(page) {
   const main = document.getElementById('main-content');
   switch (page) {
-    case 'myHistory': renderMyHistoryStub(); break;   // N-451 stub (my-momentum-pages.js); N-455 replaces it
+    case 'myHistory':     renderMyHistoryStub(); break;            // N-451 stub (my-momentum-pages.js); N-455 replaces it
+    case 'myDevelopment': await renderMyDevelopmentPage(); break;   // N-438, moved by N-452 (pdp-my.js)
+    case 'myTeam':        await renderTeamDevelopmentPage(); break; // N-439, moved by N-452 (pdp-team-page.js); N-453 adds Team Scorecards
     default:
       main.innerHTML = '<p>Page not found.</p>';
   }
-  enterStagger(main);
+  // N-417: once per navigation; the card class the PDP pages use lives in people.css, so it is named here, not in ui-kit.js
+  enterStagger(main, VF_ENTER_SELECTOR + ', .ppl-card');
 }

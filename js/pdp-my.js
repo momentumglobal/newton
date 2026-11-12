@@ -1,11 +1,11 @@
-// js/pdp-my.js — People > My Development (N-438 / PDP-6)
+// js/pdp-my.js — My Momentum > My Development (N-438 / PDP-6; moved from People by N-452)
 //
 // The employee's own page: the year as a timeline of meetings, prep forms for the open meeting, the
 // agreed record once it is held, and sign-off. Rules are pure in pdp-prep.js; reads and the two writes
 // (prep, sign-off) are loadMyDevelopment / savePdpPrep / signOffPdpMeeting in api-pdp.js. PDP-D12 review
 // (N-438): this page renders one person's own meeting records, so it is on the PDP-D12 allowlist
-// (tests/assert-pdp-access.js); it is loaded only on people.html, never by mobile.html, Newton for
-// Claude or the Command Bar.
+// (tests/assert-pdp-access.js); it is loaded only on my-momentum.html, never by mobile.html, Newton for
+// Claude or the Command Bar. The state maps and text / list helpers it shares live in pdp-ui-common.js.
 
 let _pdpmState = {
   data:    null,    // last loadMyDevelopment() result
@@ -16,9 +16,6 @@ let _pdpmState = {
   dirty:   false,   // prep fields changed since the last save
   tab:     'year',  // 'year' (timeline) | 'goals' (N-440 Goals & actions tracker)
 };
-
-const _PDPM_STATE_TEXT  = { done: 'Done', skipped: 'Skipped', overdue: 'Overdue', due: 'Due soon', upcoming: 'Upcoming' };
-const _PDPM_STATE_CLASS = { done: 'dh-badge-success', overdue: 'dh-badge-danger', due: 'dh-badge-warn' };
 
 function _pdpmName(p) { return (p && p.EmployeeName) || '—'; }
 
@@ -132,15 +129,6 @@ function _pdpmTrackerHtml(d) {
   return pdptrHtml();
 }
 
-function _pdpmTextHtml(text) {
-  return text ? `<div class="pdpm-text">${escHtml(text)}</div>` : '<div class="ppl-muted-small">Nothing written.</div>';
-}
-
-function _pdpmListHtml(rows, line) {
-  if (!rows.length) return '<div class="ppl-muted-small">None recorded.</div>';
-  return `<ul class="pdpm-list">${rows.map(r => `<li>${line(r)}</li>`).join('')}</ul>`;
-}
-
 function _pdpmBlockHtml(b, ctx) {
   const L = CONFIG.PDP;
   const label = `<div class="pdpm-label">${escHtml(b.label)}${b.required ? ' <span class="pdpm-req">required</span>' : ''}</div>`;
@@ -190,8 +178,6 @@ function _pdpmBlockHtml(b, ctx) {
   return '';
 }
 
-function _pdpmYes(v) { return v === true || v === 1 || v === 'Yes' || v === '1' || v === 'true'; }
-
 function _pdpmDetailHtml(d, m) {
   const win = pdpPrepWindow(m, new Date());
   const record = m.Status === 'Held' || m.Status === 'SignedOff';
@@ -214,7 +200,7 @@ function _pdpmDetailHtml(d, m) {
   if (pdpHasScoringBlock(def)) pdpasSync({ meetingId: m.id, readOnly: d.readOnly, redraw: _pdpmRedraw });   // N-442
   const ctx = {
     edit, record, joiner: _pdpmYes(m.IsJoiner), rec: pdpMyAgreedRecord(m, d.goals, d.actions),
-    prep: pdpPrepFromJson(m.PrepEmployee), mgr: {}, scorecards: peopleCanAccess('scorecards', _resolvedRole),
+    prep: pdpPrepFromJson(m.PrepEmployee), mgr: {}, scorecards: pdpmCanOpenScorecard(),
     goalsOpen: d.goals.filter(g => (g.Status || 'Open') === 'Open'),
   };
   ctx.mgr = ctx.rec.managerPrep;
@@ -283,7 +269,11 @@ async function pdpmBack() {
 
 function pdpmDirty() { _pdpmState.dirty = true; }
 
-function pdpmScorecard() { navigateToPeople('scorecards'); }
+// N-452: People Scorecards stay on people.html until N-453 moves them into My Momentum, so the link is a page
+// change. The Command Bar entry is the single source for who may open them and where (N-453 repoints this to the tab).
+function _pdpmScorecardEntry() { return CONFIG.COMMAND_BAR_PAGES.find(p => p.key === 'scorecards'); }
+function pdpmCanOpenScorecard() { const e = _pdpmScorecardEntry(); return !!e && e.roles.includes(_mmResolvedRole); }
+function pdpmScorecard() { const e = _pdpmScorecardEntry(); if (e) window.location.href = e.href; }
 
 function _pdpmCollect() {
   const root = document.getElementById('pdpm-detail');

@@ -28,14 +28,14 @@ const _PDP_GUARD_ALLOW = ['config.js', 'graph-client.js', 'pdp-identity.js', 'pd
   // page's "missing meetings" banner read the personal Cycles / Meetings lists (Admin / People Ops only).
   'pdp-cycle.js', 'pdp-cycle-admin.js', 'pdp-setup.js',
   // PDP-D12 review: N-438 — My Development shows one person's own meeting records (pdp-my.js) using the
-  // pure prep / sign-off rules (pdp-prep.js). people.html only; never mobile.html, MCP or the Command Bar.
+  // pure prep / sign-off rules (pdp-prep.js). my-momentum.html only since N-452; never mobile.html, MCP or the Command Bar.
   'pdp-prep.js', 'pdp-my.js',
   // PDP-D12 review: N-439 — Team Development shows the records of the people a line manager or CSD looks after
-  // (pdp-team-page.js) using the pure rules in pdp-team.js. people.html only; never mobile.html, MCP or the Command Bar.
+  // (pdp-team-page.js) using the pure rules in pdp-team.js. my-momentum.html only since N-452; never mobile.html, MCP or the Command Bar.
   'pdp-team.js', 'pdp-team-page.js',
   // PDP-D12 review: N-440 — the Goals & actions tracker renders and writes a person's own goal and action records
-  // (pdp-track-ui.js, shared by My Development and Team Development) using the pure rules in pdp-track.js.
-  // people.html only; never mobile.html, MCP or the Command Bar.
+  // (pdp-track-ui.js, shared by My Development and My Team) using the pure rules in pdp-track.js.
+  // my-momentum.html only since N-452; never mobile.html, MCP or the Command Bar.
   'pdp-track.js', 'pdp-track-ui.js'];
 const _PDP_GUARD_RE = /\b(PDPFramework|PDPTemplates|PDPCycles|PDPMeetings|PDPGoals|PDPActions|PDPScores)\b|CONFIG\.PDP\.(LISTS|PERSONAL_LIST_KEYS)|\bpdpPersonalLists\b|\b(getPdp(?!Identity)\w*|createPdp\w*|updatePdp\w*|repointPdp\w*)/;
 function _pdpGuardOffenders(sources, allow) {

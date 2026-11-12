@@ -14,9 +14,10 @@ function mmTabState(identity) {
 }
 
 // Is this tab relevant to this person? ctx = { state, role, signals }. `signals` are filled by the tasks
-// that own each tab (all default to false): hasActivity (N-453), pdpMy (N-452), hasReports (N-452).
-// Role-granted tabs (My Team for the all-staff roles, MM-D8) do NOT need a People row: Admin, Leadership
-// and People Ops usually have none.
+// that own each tab (all default to false): hasActivity (N-453); pdpMy and pdpTeam (N-452, from resolvePdpNav()).
+// My Team follows pdpTeam alone until N-453 adds Team Scorecards, so a tab never opens onto nothing; pdpTeam is
+// true for Admin / People Ops even without a People row (they usually have none). MM-D8's all-staff grant
+// (CONFIG.MY_MOMENTUM.ALL_STAFF_ROLES) returns with N-453.
 function mmTabRelevant(key, ctx) {
   const c = ctx || {};
   const s = c.signals || {};
@@ -25,7 +26,7 @@ function mmTabRelevant(key, ctx) {
     case 'myDetails':     return c.state === 'ok';
     case 'myScorecard':   return !!s.hasActivity;
     case 'myDevelopment': return !!s.pdpMy;
-    case 'myTeam':        return !!s.hasReports || CONFIG.MY_MOMENTUM.ALL_STAFF_ROLES.includes(c.role);
+    case 'myTeam':        return !!s.pdpTeam;
     default:              return false;
   }
 }

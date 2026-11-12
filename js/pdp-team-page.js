@@ -1,12 +1,13 @@
-// js/pdp-team-page.js — People > Team Development (N-439 / PDP-7)
+// js/pdp-team-page.js — My Momentum > My Team > Development (N-439 / PDP-7; moved from People by N-452)
 //
 // The line manager's and CSD's page: their people with due / overdue / prep-ready / awaiting-signature, and
 // the run-meeting screen (employee prep, last meeting's commitments, manager prep, notes, goals, actions,
 // Held, sign-off). Rules are pure in pdp-team.js (and pdp-prep.js); every read and write is a function in
 // api-pdp.js (loadTeamDevelopment / loadTeamMeeting / saveTeamMeeting / markPdpHeld / ...). PDP-D12 review
 // (N-439): this page renders other people's meeting records, so it is on the PDP-D12 allowlist
-// (tests/assert-pdp-access.js); it is loaded only on people.html, never by mobile.html, Newton for Claude
-// or the Command Bar. It reuses the state pill maps and two text helpers from pdp-my.js (loaded before it).
+// (tests/assert-pdp-access.js); it is loaded only on my-momentum.html, never by mobile.html, Newton for Claude
+// or the Command Bar. It reuses the state pill maps and the text / list helpers from pdp-ui-common.js, and the
+// tab strip from my-momentum-pages.js (mmTeamTabsHtml).
 
 let _pdptpState = {
   list:     null,   // last loadTeamDevelopment() result
@@ -57,13 +58,13 @@ function _pdptpRedraw() {
 }
 
 function _pdptpShell(inner) {
-  return `<div class="page-header"><h1 class="page-title">Team Development</h1></div>${inner}`;
+  return `<div class="page-header"><h1 class="page-title">My Team</h1></div>${mmTeamTabsHtml('development')}${inner}`;
 }
 
 function _pdptpPageHtml() {
   const s = _pdptpState, d = s.list;
-  if (s.error) return _pdptpShell(emptyStateBlock({ icon: 'alert-triangle', variant: 'error', title: 'Could not load Team Development', message: s.error }));
-  if (!d || d.none) return _pdptpShell(emptyStateBlock({ icon: 'lock', title: 'Team Development', message: 'Development & Performance is not available to you right now.' }));
+  if (s.error) return _pdptpShell(emptyStateBlock({ icon: 'alert-triangle', variant: 'error', title: 'Could not load My Team', message: s.error }));
+  if (!d || d.none) return _pdptpShell(emptyStateBlock({ icon: 'lock', title: 'My Team', message: 'Development & Performance is not available to you right now.' }));
   if (d.noScope) return _pdptpShell(emptyStateBlock({ icon: 'users', title: 'No team to show', message: 'Nobody reports to you in Newton, so there is nothing here. If that looks wrong, ask People Ops to check your work email and your team’s line managers.' }));
   if (s.openId != null && s.detail) return _pdptpShell(_pdptpDetailHtml(s.detail, s));
   const row = s.personId != null ? d.rows.find(r => String(r.personId) === String(s.personId)) : null;

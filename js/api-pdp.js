@@ -753,7 +753,7 @@ async function removeTeamItem(meetingId, kind, id) {
   } catch (e) { throw _pdpMyWriteError(e, it); }
 }
 
-// { my, team }: which PDP nav items show for the signed-in user. my = the gate is live for them AS A PERSON IN
+// { my, team }: which My Momentum PDP tabs (My Development, My Team) show for the signed-in user. my = the gate is live for them AS A PERSON IN
 // THE PROGRAMME (CONFIG.PDP.ME.NAV_REASONS) with exactly one People row; team = the gate is not 'none' and they
 // have direct reports or a tree, or are Admin / People Ops. Any failure leaves both hidden (the caller catches).
 async function resolvePdpNav() {

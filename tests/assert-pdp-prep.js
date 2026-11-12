@@ -18,20 +18,19 @@ ASSERTIONS.push(
     fn: function () {
       const me = CONFIG.PDP.ME;
       _assertEqual([me.PREP_LEAD_HOURS, me.KPI_BLOCK_KEY, me.NAV_REASONS], [48, 'how-have-i-performed-against-kpis', ['pilot', 'in-scope', 'has-records']], 'AC1 ME constants');
-      const reg = ALL_SOURCES['people-router.js'];
-      _assertEqual(/myDevelopment:\s*\{[^}]*label: 'My Development'[^}]*ADMIN, CONFIG\.ROLE_IDS\.PEOPLE_OPS, CONFIG\.ROLE_IDS\.DELIVERY_MANAGER, CONFIG\.ROLE_IDS\.TALENT_PARTNER\]/.test(reg), true, 'AC1 registry roles');
+      _assertEqual(/myDevelopment:/.test(ALL_SOURCES['people-router.js']), false, 'AC1 the People registry no longer owns the page (N-452)');
       const cb = CONFIG.COMMAND_BAR_PAGES.find(p => p.key === 'myDevelopment');
-      _assertEqual(!!cb && cb.module === 'people' && cb.href === 'people.html#myDevelopment', true, 'AC1 Command Bar entry');
-      _assertEqual(cb.roles.slice().sort(), ['admin', 'delivery_manager', 'people_ops', 'talent_partner'], 'AC1 Command Bar roles mirror the registry (no Leadership, Sales, Staff)');
-      _assertEqual(/case 'myDevelopment':\s*await renderMyDevelopmentPage\(\)/.test(ALL_SOURCES['people-nav.js']), true, 'AC1 people-nav dispatches the page');
+      _assertEqual(!!cb && cb.module === 'myMomentum' && cb.href === 'my-momentum.html#myDevelopment', true, 'AC1 Command Bar entry');
+      _assertEqual(cb.roles.slice().sort(), ['admin', 'delivery_manager', 'leadership', 'people_ops', 'sales', 'staff', 'talent_partner'], 'AC1 Command Bar roles mirror My Momentum (the PDP gate decides who sees the tab)');
+      _assertEqual(/case 'myDevelopment':\s*await renderMyDevelopmentPage\(\)/.test(ALL_SOURCES['my-momentum-nav.js']), true, 'AC1 my-momentum-nav dispatches the page');
     },
   },
   {
     name: 'N-438 AC2 nav gate: hidden unless the PDP gate is live for the person themselves',
     fn: function () {
-      const nav = ALL_SOURCES['people-nav.js'], app = ALL_SOURCES['people-app.js'], api = ALL_SOURCES['api-pdp.js'];
-      _assertEqual(/filter\(p => p\.key !== 'myDevelopment' \|\| _peopleMyDevNav\)/.test(nav) && /let _peopleMyDevNav\s*= false/.test(nav), true, 'AC2 nav item filtered, default hidden');
-      _assertEqual(/resolvePdpNav\(\)\.then/.test(app) && /\.catch\(/.test(app), true, 'AC2 resolved after init; a failure leaves it hidden');
+      const logic = ALL_SOURCES['my-momentum-logic.js'], app = ALL_SOURCES['my-momentum-app.js'], api = ALL_SOURCES['api-pdp.js'];
+      _assertEqual(/case 'myDevelopment':\s*return !!s\.pdpMy;/.test(logic), true, 'AC2 the tab is relevant only on the pdpMy signal');
+      _assertEqual(/resolvePdpNav\(\)\.catch\(/.test(app) && /pdpMy: !!pdpNav\.my/.test(app), true, 'AC2 resolved at init; a failure leaves the tab hidden');
       const fn = api.slice(api.indexOf('async function resolvePdpNav'));
       _assertEqual(/gate\.state === 'live'/.test(fn) && /NAV_REASONS\.includes\(gate\.reason\)/.test(fn) && /ident\.me/.test(fn), true, 'AC2 live + reason + a People row');
     },
@@ -146,7 +145,7 @@ ASSERTIONS.push(
       _assertEqual([t[0].employeeSigned, t[0].managerSigned, t[3].submitted, t[2].skipReason, t[2].label], [true, true, true, 'Within 3 weeks of goal setting', 'Joiner goal setting'], 'AC9 flags, skip reason and joiner label');
       const src = ALL_SOURCES['pdp-my.js'];
       _assertEqual(/CONFIG\.PDP\.CYCLE\.JOINER_GOALS/.test(src), true, 'AC9 joiner goal count comes from the engine constant');
-      _assertEqual(/peopleCanAccess\('scorecards', _resolvedRole\)/.test(src) && /ME\.KPI_BLOCK_KEY/.test(src) && /navigateToPeople\('scorecards'\)/.test(src), true, 'AC9 Scorecard link only for roles that can open the page');
+      _assertEqual(/pdpmCanOpenScorecard\(\)/.test(src) && /ME\.KPI_BLOCK_KEY/.test(src) && /window\.location\.href = e\.href/.test(src), true, 'AC9 Scorecard link only for roles that can open the page'); // N-452: gate = the Command Bar entry for People Scorecards
       const v1 = { id: '100', MeetingType: 'Quarterly', VersionNo: 1, Definition: '{"v":1}' }, v2 = { id: '101', MeetingType: 'Quarterly', VersionNo: 2, Definition: '{"v":2}', Status: 'Published' };
       _assertEqual(pdpTemplateForMeeting([v1, v2], { MeetingType: 'Quarterly', TemplateID: 100, TemplateVersion: 1 }).id, '100', 'AC10 a v1 meeting still renders v1 after v2 is published');
       const rec = pdpMyAgreedRecord({ id: '9', MeetingNotes: '{"answers":{"notes":"Agreed"}}', PrepManager: '{"answers":{"mgr":"Strong"}}' }, [{ MeetingID: 9, Title: 'G1' }, { MeetingID: 8, Title: 'G2' }], [{ MeetingID: 9, Title: 'A1' }]);
@@ -165,9 +164,11 @@ ASSERTIONS.push(
       _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(my + ALL_SOURCES['pdp-prep.js']), false, 'AC12 no hex colours');
       _assertEqual(CONFIG.MCP.scripts.some(f => /pdp-(prep|my)/.test(f)), false, 'AC12 not in the MCP bundle');
       if (typeof ALL_HTML === 'undefined') _skip('HTML sources are only read by node tests/run.js');
-      _assertEqual(/src="js\/pdp-prep\.js"/.test(ALL_HTML['people.html']) && /src="js\/pdp-my\.js"/.test(ALL_HTML['people.html']), true, 'AC12 people.html loads both');
-      const at = f => ALL_HTML['people.html'].indexOf('src="js/' + f + '"');
-      _assertEqual(at('pdp-prep.js') > at('pdp-cycle.js') && at('pdp-my.js') > at('pdp-cycle-admin.js') && at('pdp-my.js') < at('people-app.js'), true, 'AC12 script load order');
+      const mmHtml = ALL_HTML['my-momentum.html'];
+      _assertEqual(/src="js\/pdp-prep\.js"/.test(mmHtml) && /src="js\/pdp-my\.js"/.test(mmHtml), true, 'AC12 my-momentum.html loads both (N-452)');
+      _assertEqual(/pdp-my\.js/.test(ALL_HTML['people.html']), false, 'AC12 people.html no longer loads the page');
+      const at = f => mmHtml.indexOf('src="js/' + f + '"');
+      _assertEqual(at('pdp-prep.js') > at('pdp-cycle.js') && at('pdp-cycle.js') > -1 && at('pdp-my.js') > at('my-momentum-pages.js') && at('pdp-my.js') < at('my-momentum-app.js'), true, 'AC12 script load order');
       _assertEqual(/pdp-(prep|my)/.test(ALL_HTML['mobile.html']), false, 'AC12 mobile.html never loads them');
     },
   }
@@ -178,8 +179,11 @@ ASSERTIONS.push(
     name: 'N-438 AC9/AC11 page markup: prep form, locked view, record view, KPI link, sign-off button, escaping',
     fn: function () {
       if (typeof _pdpmDetailHtml !== 'function') _skip('pdp-my.js is not loaded in this harness');
-      globalThis._resolvedRole = 'talent_partner';
-      if (typeof peopleCanAccess !== 'function') globalThis.peopleCanAccess = (page, role) => page === 'scorecards' && ['talent_partner', 'admin'].includes(role);
+      globalThis._mmResolvedRole = 'talent_partner';   // N-452: the scorecard gate reads the My Momentum role
+      _assertEqual(pdpmCanOpenScorecard(), true, 'N-452 a Talent Partner can open People Scorecards');
+      globalThis._mmResolvedRole = 'staff';
+      _assertEqual(pdpmCanOpenScorecard(), false, 'N-452 control: Staff cannot, so the button is hidden for them');
+      globalThis._mmResolvedRole = 'talent_partner';
       const kpi = CONFIG.PDP.ME.KPI_BLOCK_KEY;
       const def = { schema: 1, sections: [
         { key: 'p', title: 'Pre-work <b>', blocks: [
@@ -223,8 +227,7 @@ ASSERTIONS.push(
     name: 'N-447 no-prep meeting: note, no prep buttons, sign-off unchanged',
     fn: function () {
       if (typeof _pdpmDetailHtml !== 'function') _skip('pdp-my.js is not loaded in this harness');
-      globalThis._resolvedRole = 'talent_partner';
-      if (typeof peopleCanAccess !== 'function') globalThis.peopleCanAccess = () => false;
+      globalThis._mmResolvedRole = 'talent_partner';
       const def = { schema: 1, sections: [
         { key: 'lb', title: 'Looking Back', blocks: [{ key: 'a', type: 'prompt', label: 'What happened?' }] },
         { key: 'mt', title: 'Meeting', blocks: [{ key: 'ac', type: 'actions', max: 3, label: 'Actions' }] },

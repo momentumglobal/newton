@@ -2291,6 +2291,18 @@ function mmRedirectTarget(hash, map) {
   return key && map && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : '';
 }
 
+// N-459 (MM-9): the hero greeting. `hour` is the viewer's local hour (0-23); the bands live in CONFIG.MY_MOMENTUM.GREETING_HOURS.
+function greetingForHour(hour) {
+  const g = CONFIG.MY_MOMENTUM.GREETING_HOURS;
+  return hour >= g.eveningFrom ? 'Good evening' : hour >= g.afternoonFrom ? 'Good afternoon' : 'Good morning';
+}
+function firstNameOf(fullName) { return String(fullName || '').trim().split(/\s+/)[0]; }
+// "Good morning, Chris". No account name -> no name and no comma; an email address is never shown.
+function mmGreetingText(fullName, hour) {
+  const name = firstNameOf(fullName);
+  return name ? `${greetingForHour(hour)}, ${name}` : greetingForHour(hour);
+}
+
 // N-302a: delegated actions owned by this file (js/actions.js).
 registerActions({
   exitGhostMode,

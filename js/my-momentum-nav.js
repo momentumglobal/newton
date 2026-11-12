@@ -56,6 +56,8 @@ async function renderMyMomentumPage(page) {
     default:
       main.innerHTML = '<p>Page not found.</p>';
   }
+  // N-459: the landing tab carries the hero, every other tab the slim header. Keyed on the tab, so N-455 replacing the History body keeps it.
+  main.insertAdjacentHTML('afterbegin', page === 'myHistory' ? mmHeroHtml(getCurrentUser().name, new Date().getHours()) : mmAreaHeaderHtml());
   // N-417: once per navigation; the card class the PDP pages use lives in people.css, so it is named here, not in ui-kit.js
   enterStagger(main, VF_ENTER_SELECTOR + ', .ppl-card');
 }

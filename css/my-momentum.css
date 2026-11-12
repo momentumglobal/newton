@@ -1,0 +1,39 @@
+/* css/my-momentum.css - My Momentum area styling (my-momentum.html only; N-459 / MM-9, MM-D13).
+   Linked after css/people.css. Tokens only (--mm-*, --inverse-*): no hex here — the palette lives in style.css :root.
+   The sidebar profile card and the wordmark are shared by every module, so they stay in style.css. */
+
+/* Own sidebar: Deep Twilight -> Midnight. Same permanently-dark chrome as every sidebar, so nothing to theme. */
+body.mm-area #sidebar { background: linear-gradient(180deg, var(--mm-grad-from) 0%, var(--mm-grad-to) 100%); }
+/* The Lapis tint, not Lapis itself, on the navy (1.9:1 vs 6.9:1). Inset shadow, so the link does not shift. */
+body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft); }
+
+/* Landing-tab hero (swirl shared with the homepage: one fetch per page) and the slim header on every other tab. */
+.mm-hero {
+  position: relative; overflow: hidden;
+  padding: var(--sp-10) var(--sp-11);
+  margin-bottom: var(--sp-9);
+  border: 1px solid var(--inverse-border-soft);
+  border-radius: var(--r-3xl);
+  background: linear-gradient(135deg, var(--mm-grad-from) 0%, var(--mm-grad-to) 100%);
+  box-shadow: 0 0 28px var(--mm-glow);
+  color: var(--inverse-text);
+}
+.mm-hero::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: url('../mg-visual-swirl.webp') right -40px center / auto 150% no-repeat;
+  opacity: 0.4;
+}
+.mm-hero > * { position: relative; }
+.mm-hero .mm-wm { height: 28px; }
+.mm-hero-greeting { font-size: var(--fs-22); font-weight: 600; margin: var(--sp-8) 0 0; }
+.mm-area-header {
+  display: flex; align-items: center;
+  padding: var(--sp-6) var(--sp-8);
+  margin-bottom: var(--sp-8);
+  border: 1px solid var(--inverse-border-soft);
+  border-radius: var(--r-xl);
+  background: linear-gradient(135deg, var(--mm-grad-from) 0%, var(--mm-grad-to) 100%);
+}
+.mm-area-header .mm-wm { height: 18px; }
+/* Screen furniture, like the sidebar: not printed. */
+@media print { .mm-hero, .mm-area-header { display: none; } }

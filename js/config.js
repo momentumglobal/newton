@@ -1386,6 +1386,8 @@ const CONFIG = {
     // N-452: old People deep links -> My Momentum tab keys. people-app.js sends the visitor on before sign-in
     // (utils.js mmRedirectTarget). N-453 adds `scorecards`.
     REDIRECTS: { myDevelopment: 'myDevelopment', teamDevelopment: 'myTeam' },
+    // N-459 (MM-9): the hero greeting bands, by the viewer's local hour — before afternoonFrom is morning, from eveningFrom is evening (utils.js greetingForHour).
+    GREETING_HOURS: { afternoonFrom: 12, eveningFrom: 18 },
   },
 
   // Quick Links — declarative config for the homepage drawer.

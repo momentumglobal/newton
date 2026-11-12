@@ -41,6 +41,15 @@ function mmTeamTabsHtml(active) {
   return `<div class="eng-tab-strip" role="tablist">${tabs.map(t => `<button type="button" class="eng-tab${active === t.key ? ' eng-tab--active' : ''}" role="tab" aria-selected="${active === t.key ? 'true' : 'false'}">${escHtml(t.label)}</button>`).join('')}</div>`;
 }
 
+// N-459 (MM-9): the landing-tab hero and the slim header every other tab gets (renderMyMomentumPage, my-momentum-nav.js). Pure.
+// Only the first name is shown, escaped; no stats and no join date on the hero (MM-D2). The header has no title: each page has its own.
+function mmHeroHtml(fullName, hour) {
+  return `<section class="mm-hero">${mmWordmarkHTML('onDark')}<div class="mm-hero-greeting">${escHtml(mmGreetingText(fullName, hour))}</div></section>`;
+}
+function mmAreaHeaderHtml() {
+  return `<div class="mm-area-header">${mmWordmarkHTML('onDark')}</div>`;
+}
+
 function renderMyHistoryStub() {
   const main = document.getElementById('main-content');
   main.innerHTML = mmHistoryStubHtml(_mmIdentity && _mmIdentity.me, _mmResolvedRole);

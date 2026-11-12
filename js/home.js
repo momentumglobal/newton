@@ -15,8 +15,8 @@
       }
       if (!isSignedIn()) { window.location.href = 'reporting.html'; return; }
       const user = getCurrentUser();
-      const firstName = (user.name || user.email || '').split(' ')[0];
-      document.getElementById('home-greeting').textContent = `Welcome back, ${firstName}`;
+      document.getElementById('home-greeting').textContent = mmGreetingText(user.name, new Date().getHours());
+      document.getElementById('home-hero-wm').innerHTML = mmWordmarkHTML('onDark');
       const role = await getUserRoleAsync(user.email);
       initCommandBar({ currentModule: 'home', role, navigateFn: null });
       // N-298: home tiles come from CONFIG.OS_MODULES (config.js) - one role list

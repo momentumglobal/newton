@@ -39,20 +39,40 @@
   letter-spacing: 0.03em;
   margin-bottom: var(--sp-3);
 }
-/* N-451: the greeting is a link card to My Momentum (no stats on it, MM-D2) */
-.home-greeting-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: var(--sp-3) var(--sp-8);
-  margin-bottom: var(--sp-3);
-  border-radius: var(--r-xl);
-  text-decoration: none;
+/* N-459 (MM-D13): My Momentum hero card — permanently dark, no stats (MM-D2). The swirl is the SAME URL as #watermark, so the
+   browser fetches it once. The CTA is the only link (the card itself is not one). */
+.home-hero {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: flex-start; text-align: left;
+  width: min(560px, 100%);
+  padding: var(--sp-10) var(--sp-11);
+  margin-bottom: var(--sp-10);
+  border: 1px solid var(--inverse-border-soft);
+  border-radius: var(--r-3xl);
+  background: linear-gradient(135deg, var(--mm-grad-from) 0%, var(--mm-grad-to) 100%);
+  box-shadow: 0 0 28px var(--mm-glow);
 }
-.home-greeting-card .home-greeting { margin-bottom: 0; }
-.home-greeting-cta { font-size: var(--fs-12); color: var(--inverse-text-muted); margin-top: var(--sp-1); }
-.home-greeting-card:hover { background: var(--inverse-hover-bg); }
-.home-greeting-card:hover .home-greeting-cta { color: var(--inverse-text); }
+.home-hero::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: url('../mg-visual-swirl.webp') right -40px center / auto 150% no-repeat;
+  opacity: 0.4;
+}
+.home-hero > * { position: relative; }
+.home-hero .mm-wm { height: 28px; }
+.home-hero .home-greeting {
+  font-size: var(--fs-22); font-weight: 600; letter-spacing: 0;
+  color: var(--inverse-text);
+  margin: var(--sp-8) 0 var(--sp-8);
+}
+.home-hero-cta {
+  display: inline-block;
+  padding: var(--sp-5) var(--sp-8);
+  border-radius: var(--r-xl);
+  background: var(--mm-cta-bg); color: var(--mm-cta-text);
+  font-size: var(--fs-14); font-weight: 600; text-decoration: none;
+  transition: background var(--dur-base) var(--ease-standard);
+}
+.home-hero-cta:hover { background: var(--mm-cta-hover); }
 .home-title {
   font-size: var(--fs-display-sm);
   letter-spacing: var(--ls-heading-lg);

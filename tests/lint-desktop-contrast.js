@@ -50,6 +50,12 @@ var DESKTOP_CONTRAST_PAIRS = (function () {
   [['--c-wa-50', '--c-navy-night', 'homepage subtitle, Admin link, Sign out'], ['--inverse-text-muted', '--c-navy-night', 'homepage greeting'],
    ['--c-wa-55', '--c-navy-night', 'module description, banner refresh'], ['--inverse-text-muted', '--inverse-surface-2', 'drawer and sidebar muted text'],
    ['--inverse-text-muted', '--inverse-surface', 'sidebar muted text']].forEach(function (p) { rows.push([p[0], p[1], 4.5, p[2]]); });
+  // N-459 (MM-D13): My Momentum sub-brand — permanently dark, unthemed, one pair each. The Lapis fill itself (--mm-accent) is a glow / fill only:
+  // it is 1.9:1 on the navy, so the Lapis TINT (--mm-accent-soft) carries every word and indicator.
+  [['--mm-cta-text', '--mm-cta-bg', 'hero call-to-action label (N-459: white on the sampled brand red was 4.3:1)'], ['--mm-cta-text', '--mm-cta-hover', 'hero call-to-action hover'],
+   ['--mm-accent-soft', '--mm-grad-from', '"My" in the wordmark, chevron, active-link bar: gradient start'], ['--mm-accent-soft', '--mm-grad-to', 'wordmark tint on the gradient end'],
+   ['--inverse-text', '--mm-grad-from', 'greeting, name, "Momentum" on the gradient start'], ['--inverse-text', '--mm-grad-to', 'greeting on the gradient end'],
+   ['--inverse-text-muted', '--mm-grad-from', 'role text on the card / gradient start'], ['--inverse-text-muted', '--mm-grad-to', 'role text on the gradient end']].forEach(function (p) { rows.push([p[0], p[1], 4.5, p[2]]); });
   return rows;
 })();
 

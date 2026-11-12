@@ -125,12 +125,15 @@ ASSERTIONS.push(
     fn: function () {
       if (typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined') _skip('needs ALL_HTML / ALL_SOURCES (tests/run.js)');
       const home = ALL_HTML['index.html'];
-      const card = /<a id="home-greeting-card"[^>]*>([\s\S]*?)<\/a>/.exec(home);
-      _assertEqual(!!card, true, 'AC8 greeting card exists');
-      _assertEqual(/href="my-momentum\.html"/.test(card[0]), true, 'AC8 card links to My Momentum');
-      _assertEqual(card[1].includes('id="home-greeting"'), true, 'AC8 greeting text node kept (home.js writes it)');
-      _assertEqual(card[1].includes('My Momentum'), true, 'AC8 card names My Momentum');
-      _assertEqual(/StartDate|since|completed|hires/i.test(card[1]), false, 'AC8 no join date or stats on the card (MM-D2)');
+      const hero = /<section class="home-hero"[^>]*>([\s\S]*?)<\/section>/.exec(home);
+      _assertEqual(!!hero, true, 'N-459 AC4 hero card exists');
+      _assertEqual(home.includes('home-greeting-card'), false, 'N-459 AC4 the N-451 greeting card is gone');
+      _assertEqual(/<a class="home-hero-cta" href="my-momentum\.html">Step into My Momentum<\/a>/.test(hero[0]), true, 'N-459 AC4 the CTA is the one link, to My Momentum');
+      _assertEqual((hero[0].match(/<a /g) || []).length, 1, 'N-459 AC4 the card itself is not a link');
+      _assertEqual(hero[1].includes('id="home-greeting"') && hero[1].includes('id="home-hero-wm"'), true, 'N-459 AC4 greeting and wordmark nodes (home.js fills them)');
+      _assertEqual(/StartDate|since|completed|hires/i.test(hero[1]), false, 'N-459 AC4 no join date or stats on the hero (MM-D2)');
+      _assertEqual(home.indexOf('class="home-subtitle"') < home.indexOf('class="home-hero"') && home.indexOf('class="home-hero"') < home.indexOf('id="module-grid"'), true, 'N-459 A8 hero sits below the Newton title, above the module grid');
+      _assertEqual(/mmGreetingText\(user\.name/.test(ALL_SOURCES['home.js']) && ALL_SOURCES['home.js'].includes("mmWordmarkHTML('onDark')") && !ALL_SOURCES['home.js'].includes('Welcome back,'), true, 'N-459 AC5 home.js: time-of-day greeting from the account name only, wordmark filled');
       const nav = ALL_SOURCES['nav-core.js'];
       const m = /<div class='nav-user'>[\s\S]*?<div class='nav-notif-slot' id='notif-slot'><\/div>\s*<\/div>/.exec(nav);
       _assertEqual(!!m, true, 'AC9 nav-user block found');
@@ -234,6 +237,66 @@ ASSERTIONS.push(
         const my = ALL_SOURCES['pdp-my.js'];
         _assertEqual(/function pdpmScorecard\(\) \{ const e = _pdpmScorecardEntry\(\); if \(e\) window\.location\.href = e\.href; \}/.test(my) && !/navigateToPeople|peopleCanAccess|_resolvedRole\b/.test(my), true, 'pdp-my.js no longer needs People globals');
       }
+    },
+  },
+  {
+    name: 'N-459 AC3/AC5 greeting: bands come from CONFIG, boundaries hold, a missing name never shows an email',
+    fn: function () {
+      const G = CONFIG.MY_MOMENTUM.GREETING_HOURS;
+      _assertEqual([G.afternoonFrom, G.eveningFrom], [12, 18], 'AC3 bands live in config');
+      _assertEqual([0, 5, 11, 12, 17, 18, 23].map(greetingForHour), ['Good morning', 'Good morning', 'Good morning', 'Good afternoon', 'Good afternoon', 'Good evening', 'Good evening'], 'AC3 boundaries');
+      _assertEqual(mmGreetingText('Chris Friend', 9), 'Good morning, Chris', 'first name only');
+      _assertEqual(mmGreetingText('  Ann   Neil ', 13), 'Good afternoon, Ann', 'extra spaces');
+      _assertEqual([mmGreetingText(null, 20), mmGreetingText('', 5), mmGreetingText(undefined, 12)], ['Good evening', 'Good morning', 'Good afternoon'], 'AC5 no name -> no name, no comma');
+      _assertEqual(firstNameOf(undefined), '', 'firstNameOf(undefined)');
+    },
+  },
+  {
+    name: 'N-459 AC2 mmWordmarkHTML: inline SVG with an accessible name, two variants, no image / URL / colour attribute (unknown variant falls back to onDark)',
+    fn: function () {
+      const d = mmWordmarkHTML('onDark'), l = mmWordmarkHTML('onLight');
+      [d, l].forEach(h => {
+        _assertEqual(h.startsWith('<svg') && h.includes('role="img"') && h.includes('aria-label="My Momentum"'), true, 'AC2 svg with an accessible name');
+        _assertEqual(/<img|<image|href=|url\(|fill=|stroke=|style=|#[0-9a-fA-F]{3,6}\b/.test(h), false, 'AC2 no image, URL, colour attribute, inline style or hex');
+        _assertEqual(h.includes('>My</tspan>') && h.includes('>Momentum</tspan>'), true, 'AC2 text lockup');
+      });
+      _assertEqual(d.includes('mm-wm--onDark') && !d.includes('onLight'), true, 'AC2 dark variant');
+      _assertEqual(l.includes('mm-wm--onLight') && !l.includes('onDark'), true, 'AC2 light variant');
+      _assertEqual([mmWordmarkHTML('nonsense'), mmWordmarkHTML()], [d, d], 'AC2 unknown or no variant -> onDark');
+    },
+  },
+  {
+    name: 'N-459 AC12 hero and area header markup: wordmark, first name only and escaped, no stats; the slim header has no title',
+    fn: function () {
+      const h = mmHeroHtml('<b>Ann</b> Neil', 9);
+      _assertEqual(h.includes('class="mm-hero"') && h.includes('mm-wm--onDark'), true, 'AC12 hero carries the wordmark');
+      _assertEqual(h.includes('Good morning, &lt;b&gt;Ann&lt;/b&gt;') && !h.includes('<b>') && !h.includes('Neil'), true, 'AC12 first name only, escaped');
+      _assertEqual(/StartDate|since|completed|hires/i.test(h), false, 'AC12 no stats or join date on the hero');
+      const a = mmAreaHeaderHtml();
+      _assertEqual(a.includes('class="mm-area-header"') && a.includes('mm-wm--onDark') && !/<h[1-6]/.test(a), true, 'AC12 slim header: wordmark, no title');
+    },
+  },
+  {
+    name: 'N-459 AC7-AC9/AC12/AC13/AC14 sidebar card, tokens, area sheet: one link holds name + role + wordmark + chevron, bell outside, no avatar, hex only in :root, reduced motion, print',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined' || typeof ALL_CSS === 'undefined' || typeof ALL_HTML === 'undefined') _skip('needs ALL_SOURCES / ALL_CSS / ALL_HTML (tests/run.js)');
+      const block = /<div class='nav-user'>[\s\S]*?<div class='nav-notif-slot' id='notif-slot'><\/div>\s*<\/div>/.exec(ALL_SOURCES['nav-core.js'])[0];
+      const link = /<a class='nav-user-link'[\s\S]*?<\/a>/.exec(block)[0];
+      ["class='nav-user-name'", "class='nav-user-role'", "mmWordmarkHTML('onDark')", "class='nav-user-chev'"].forEach(p => _assertEqual(link.includes(p), true, 'AC7 inside the one link: ' + p));
+      _assertEqual(link.includes('notif-slot'), false, 'AC8 the bell slot is outside the link');
+      _assertEqual(/<img|avatar|initial|photo/i.test(block), false, 'AC9 no avatar, image, initials or photo in the card');
+      const css = ALL_CSS['style.css'];
+      ['--c-midnight', '--c-lapis', '--c-lapis-soft', '--c-imperial', '--c-imperial-cta', '--c-imperial-cta-hover', '--mm-grad-from', '--mm-grad-to', '--mm-accent', '--mm-accent-soft', '--mm-glow', '--mm-glow-strong', '--mm-cta-bg', '--mm-cta-hover', '--mm-cta-text']
+        .forEach(tk => _assertEqual(new RegExp('\\n\\s*' + tk + ':').test(css), true, 'AC14 token ' + tk));
+      const strip = s => s.replace(/\/\*[\s\S]*?\*\//g, '');
+      ['homepage.css', 'my-momentum.css'].forEach(f => _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(strip(ALL_CSS[f])), false, 'AC14 no hex in ' + f));
+      ['nav-core.js', 'home.js', 'my-momentum-pages.js', 'my-momentum-nav.js'].forEach(f => _assertEqual(/#[0-9a-fA-F]{3,6}\b/.test(strip(ALL_SOURCES[f])), false, 'AC14 no hex in ' + f));
+      _assertEqual(/@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.nav-user-link\s*\{\s*transition: none/.test(css), true, 'AC10 the card glow transition is off under reduced motion');
+      _assertEqual(/@media print\s*\{\s*\.mm-hero, \.mm-area-header\s*\{\s*display: none/.test(ALL_CSS['my-momentum.css']), true, 'AC18 hero and header are not printed');
+      const html = ALL_HTML['my-momentum.html'];
+      _assertEqual(html.includes('<body class="mm-area">') && html.includes('href="css/my-momentum.css"'), true, 'AC11 area class and sheet on the My Momentum shell');
+      _assertEqual(ALL_HTML['index.html'].includes('my-momentum.css') || ALL_HTML['people.html'].includes('my-momentum.css'), false, 'AC11 no other shell links the area sheet');
+      _assertEqual(/mmHeroHtml\(getCurrentUser\(\)\.name/.test(ALL_SOURCES['my-momentum-nav.js']) && ALL_SOURCES['my-momentum-nav.js'].includes("page === 'myHistory'"), true, 'AC12 hero on the landing tab, header on the rest, keyed on the tab');
     },
   },
 );

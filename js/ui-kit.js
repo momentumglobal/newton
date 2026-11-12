@@ -528,6 +528,14 @@ function selectModal({ title = '', message = '', options = [], defaultValue = ''
   });
 }
 
+// N-459 (MM-9, MM-D13): the "My Momentum" wordmark — Polymath text as inline SVG, so no asset and no request. Colour comes from the
+// .mm-wm--<variant> classes in style.css, never from attributes; the size is set by the class where it is used.
+// variant: 'onDark' (default — white + Lapis tint, for the navy chrome) or 'onLight' (themed text tokens).
+function mmWordmarkHTML(variant) {
+  const v = variant === 'onLight' ? 'onLight' : 'onDark';
+  return `<svg class="mm-wm mm-wm--${v}" role="img" aria-label="My Momentum" viewBox="0 0 138 25" focusable="false"><text x="0" y="19" font-size="20"><tspan class="mm-wm-my">My</tspan><tspan class="mm-wm-mo" dx="5">Momentum</tspan></text></svg>`;
+}
+
 // N-428 (TPL-D9): two dependent selects in one dialog — selectModal's family (shares
 // _confirmModalOpen; Escape / backdrop / Cancel resolve null). Reused by N-429.
 //   first  = { label, placeholder, options: [{ value, label, group? }] } — options with a

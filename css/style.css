@@ -32,6 +32,13 @@
   --c-blue-mid: #37589C;
   --c-ink: #1a1a2e;
   --c-accent: #E8703A;
+  /* N-459 (MM-D13): My Momentum sub-brand palette, sampled from the Brand Architecture PDF (p.3). Deep Twilight is --c-brand. */
+  --c-midnight: #100A14;
+  --c-lapis: #0F1BD1;               /* fill / glow / border only on the navy: 1.9:1 as text or an indicator */
+  --c-lapis-soft: #8E96FF;          /* Lapis tint for text and indicators on the navy: 6.9:1 */
+  --c-imperial: #E92936;            /* brand red as sampled — white on it is 4.3:1, so it is not used as a button fill */
+  --c-imperial-cta: #D6202F;        /* call-to-action fill: white on it is 5.1:1 */
+  --c-imperial-cta-hover: #BF1B29;
   /* Colour — neutral ramp */
   --c-black: #000;
   --c-gray-900: #1A1A1A;
@@ -483,6 +490,16 @@
   --inverse-text-primary-soft: var(--c-wa-75);
   --inverse-text-near:       var(--c-wa-80);
   --inverse-text-vivid:      var(--c-wa-85);
+  /* N-459 (MM-D13): My Momentum sub-brand — permanently dark like the group above; N-102 must NOT redefine it. */
+  --mm-grad-from:      var(--c-brand);
+  --mm-grad-to:        var(--c-midnight);
+  --mm-accent:         var(--c-lapis);
+  --mm-accent-soft:    var(--c-lapis-soft);
+  --mm-glow:           rgba(15, 27, 209, 0.35);
+  --mm-glow-strong:    rgba(15, 27, 209, 0.7);
+  --mm-cta-bg:         var(--c-imperial-cta);
+  --mm-cta-hover:      var(--c-imperial-cta-hover);
+  --mm-cta-text:       var(--inverse-text);
   /* Badges & tones (N-122) — CC homepage banner + Notifications drawer are
      permanently-dark chrome (see note above); N-102 must NOT redefine this
      group. */
@@ -868,12 +885,36 @@ body {
 .nav-header { padding: var(--sp-9) var(--sp-8) var(--sp-6); border-bottom: 1px solid var(--inverse-divider); }
 .nav-logo    { font-size: var(--fs-16); font-weight: 600; }
 .nav-subtitle{ font-size: var(--fs-12); color: var(--inverse-text-subtitle); margin-top: var(--sp-1); }
-.nav-user    { padding: 14px var(--sp-8); border-bottom: 1px solid var(--inverse-divider); position: relative; }   /* position: anchor for the notification bell */
-.nav-user-name { font-size: var(--fs-13); font-weight: 600; }
-.nav-user-role { font-size: var(--fs-11); color: var(--inverse-text-strong); margin-top: var(--sp-1); text-transform: capitalize; }
-/* N-451: the name block links to My Momentum. The bell sits beside it, not inside it. */
-.nav-user-link { display: block; color: inherit; text-decoration: none; }
-.nav-user-link:hover .nav-user-name { text-decoration: underline; }
+.nav-user    { padding: var(--sp-5) 52px var(--sp-5) var(--sp-5); border-bottom: 1px solid var(--inverse-divider); position: relative; }   /* N-459: the 52px right gutter holds the bell (.nav-notif-slot, absolute); position: anchor for it */
+.nav-user-text { flex: 1; min-width: 0; }
+.nav-user-name { font-size: var(--fs-13); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-user-role { font-size: var(--fs-11); color: var(--inverse-text-muted); margin: var(--sp-1) 0 var(--sp-3); text-transform: capitalize; }
+/* N-451: the card links to My Momentum; the bell sits beside it, not inside it.
+   N-459 (MM-D13): profile card — name, role, wordmark, chevron; a gentle accent glow at rest, stronger on hover / focus. No avatar. */
+.nav-user-link {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  color: inherit; text-decoration: none;
+  background: var(--inverse-hover-bg);
+  border: 1px solid var(--inverse-border-soft);
+  border-radius: var(--r-xl);
+  box-shadow: 0 0 14px var(--mm-glow);
+  transition: box-shadow var(--dur-base) var(--ease-standard), background var(--dur-base) var(--ease-standard);
+}
+.nav-user-link:hover, .nav-user-link:focus-visible { background: var(--inverse-active-bg); box-shadow: 0 0 22px var(--mm-glow-strong); }
+.nav-user-link .mm-wm { height: 15px; }
+.nav-user-chev { width: var(--sp-7); height: var(--sp-7); flex: none; fill: none; stroke: var(--mm-accent-soft); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (prefers-reduced-motion: reduce) { .nav-user-link { transition: none; } }
+/* N-459 (MM-D13): the My Momentum wordmark (ui-kit.js mmWordmarkHTML). Inline SVG text in Polymath; colour from classes only.
+   onDark = white + Lapis tint, for the navy chrome and heroes. onLight = themed text tokens, safe on either theme's page. Height is set where it is used. */
+.mm-wm { display: block; width: auto; aspect-ratio: 138 / 25; overflow: visible; }
+.mm-wm text { font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; }
+.mm-wm-my { font-weight: 500; }
+.mm-wm-mo { font-weight: 600; }
+.mm-wm--onDark .mm-wm-my { fill: var(--mm-accent-soft); }
+.mm-wm--onDark .mm-wm-mo { fill: var(--inverse-text); }
+.mm-wm--onLight .mm-wm-my { fill: var(--text-link); }
+.mm-wm--onLight .mm-wm-mo { fill: var(--text-heading); }
 /* N-451: My Momentum stub / identity card */
 .mm-identity-name { font-size: var(--fs-16); font-weight: 600; color: var(--text-heading); letter-spacing: var(--ls-heading); margin: 0; }
 .mm-identity-meta { font-size: var(--fs-13); color: var(--text-muted); margin-top: var(--sp-2); }

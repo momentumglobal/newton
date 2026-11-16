@@ -61,4 +61,14 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 .mmsc-table a.mmsc-link { font-size: inherit; }
 /* N-455: My History chips. Completed = the plain .badge, Current = .badge-active, Upcoming = the warn pair. */
 .mmh-chip--upcoming { background: var(--status-warn-bg); color: var(--status-warn-text); border-color: transparent; }
+/* N-456: My Details. Reuses .ppl-card, .form-group, .data-table, .dh-badge-*, .empty-state; tokens only. */
+.mmd-card { margin-bottom: var(--sp-8); }
+.mmd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 var(--sp-8); }
+.mmd-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); margin-top: var(--sp-6); }
+.mmd-foot .btn-primary { margin-left: auto; }
+.mmd-error { color: var(--status-danger-text); font-size: var(--fs-12); margin-top: var(--sp-2); }
+.mmd-invalid input { border-color: var(--status-danger-text); }
+.mmd-picker { margin-bottom: var(--sp-8); }
+.mmd-picker select { max-width: 360px; }
+.mmd-names { margin: var(--sp-3) 0 var(--sp-6); padding-left: var(--sp-8); font-size: var(--fs-13); }
 @media print { .mmsc-chart { break-inside: avoid; } }

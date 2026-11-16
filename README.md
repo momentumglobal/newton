@@ -14,7 +14,7 @@ Newton is a static web application hosted on GitHub Pages, with Microsoft Azure 
 | Market Analytics | `market-reporting.html` | Admin, Delivery Manager, Talent Partner |
 | People | `people.html` | Admin, Leadership, People Ops (full); Delivery Manager and Talent Partner (Org Chart, and PDP pages where PDP applies); Sales & Marketing and Staff (Org Chart only) |
 | Sales | `sales.html` | Admin, Leadership; Delivery Manager (LCI Cost Models only) |
-| My Momentum | `my-momentum.html` | All roles (home greeting card, sidebar name block, Command Bar). Tabs show only when relevant: My History (stub), My Scorecard (you have activity), My Development, and My Team (Development from the PDP gate; Team Scorecards for line managers and Admin / Leadership / People Ops; scorecards moved from People in N-453) |
+| My Momentum | `my-momentum.html` | All roles (home greeting card, sidebar name block, Command Bar). Tabs show only when relevant: My History (stub), My Details (everyone with a People row; Admin / People Ops also pick other people; restricted `PeopleDetails` list, N-456), My Scorecard (you have activity), My Development, and My Team (Development from the PDP gate; Team Scorecards for line managers and Admin / Leadership / People Ops; scorecards moved from People in N-453) |
 | MG Command Centre | `command-centre.html` | Admin, Leadership |
 | Newton OS Admin | `admin.html` | Admin only |
 | Mobile App (PWA) | `mobile.html` | Admin, Delivery Manager, Talent Partner |

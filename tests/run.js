@@ -66,6 +66,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'pdp-track.js'),        // N-440: pure Goals & actions tracker rules (after pdp-team.js)
   path.join(JS_DIR, 'pdp-assess.js'),       // N-442: pure Bi-Annual assessment rules (after pdp-track.js)
   path.join(JS_DIR, 'pdp-calibrate.js'),    // N-443: pure calibration rules (after pdp-assess.js)
+  path.join(JS_DIR, 'my-details-logic.js'), // N-456: My Details rules (pure; loads before graph-client.js)
   path.join(JS_DIR, 'checklist-logic.js'),
   path.join(JS_DIR, 'starter-folder-logic.js'),
   path.join(JS_DIR, 'graph-client.js'),
@@ -73,6 +74,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'api-headcount.js'),
   path.join(JS_DIR, 'api-admin.js'),   // N-381: declarations only; createSlaDefaultRows is asserted
   path.join(JS_DIR, 'api-pdp.js'),     // N-433: declarations only
+  path.join(JS_DIR, 'api-my-details.js'),  // N-456: declarations only
   path.join(JS_DIR, 'list-controls.js'),
   path.join(JS_DIR, 'pages-model.js'),
   path.join(JS_DIR, 'analytics.js'),
@@ -93,6 +95,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'my-momentum-logic.js'),   // N-451: pure My Momentum tab rules (declarations only)
   path.join(JS_DIR, 'my-momentum-router.js'),  // N-451: access from the OS_MODULES role list
   path.join(JS_DIR, 'my-momentum-pages.js'),   // N-451: markup is asserted (declarations only; DOM only inside the render functions)
+  path.join(JS_DIR, 'my-details-ui.js'),       // N-456: markup is asserted (declarations only; DOM only inside the render functions)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-tools.js'),   // N-393: Newton for Claude tools (declarations + MCP_TOOLS only)
   path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),
@@ -159,6 +162,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-scorecard.js'),       // N-453
   path.join(TESTS_DIR, 'assert-scorecard-detail.js'),   // N-454
   path.join(TESTS_DIR, 'assert-my-history.js'),         // N-455
+  path.join(TESTS_DIR, 'assert-my-details.js'),         // N-456
 ];
 // N-259: starter-folder-logic.js (pure) loads straight after checklist-logic.js, which it calls.
 // N-361: project-team.js (pure) loads straight after permissions.js; assert-project-team.js is the last assertion file.

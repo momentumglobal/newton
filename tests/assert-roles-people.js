@@ -111,6 +111,7 @@ ASSERTIONS.push(
         pdpAggregate:          ['admin', 'people_ops', 'leadership'],             // N-435
         pdpSwitch:             ['admin'],                                         // N-445
         pdpCalibrationUnlock:  ['admin'],                                         // N-443
+        myDetailsAdmin:        ['admin', 'people_ops'],                           // N-456
       };
       _assertEqual(Object.keys(CONFIG.ROLE_CAPABILITIES).sort(), Object.keys(expect).sort(), 'capability set');
       Object.keys(expect).forEach(cap => roles.forEach(r =>

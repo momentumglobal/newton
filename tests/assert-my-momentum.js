@@ -25,11 +25,11 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-451 AC3/AC6 config: tab registry — History, Scorecard, Development and Team are live (N-452, N-453); order is the landing order',
+    name: 'N-451 AC3/AC6 config: tab registry — History, Details, Scorecard, Development and Team are live (N-452, N-453, N-456); order is the landing order',
     fn: function () {
       const T = CONFIG.MY_MOMENTUM.TABS;
       _assertEqual(_mmKeys(T), ['myHistory', 'myDetails', 'myScorecard', 'myDevelopment', 'myTeam'], 'AC6 order');
-      _assertEqual(T.filter(t => t.live).map(t => t.key), ['myHistory', 'myScorecard', 'myDevelopment', 'myTeam'], 'AC3 live tabs (later tasks flip their own flag)');
+      _assertEqual(T.filter(t => t.live).map(t => t.key), ['myHistory', 'myDetails', 'myScorecard', 'myDevelopment', 'myTeam'], 'AC3 live tabs (later tasks flip their own flag)');
       _assertEqual(CONFIG.MY_MOMENTUM.ALL_STAFF_ROLES, ['admin', 'leadership', 'people_ops'], 'AC6 all-staff roles (MM-D8)');
     },
   },
@@ -48,8 +48,10 @@ ASSERTIONS.push(
     fn: function () {
       const live = CONFIG.MY_MOMENTUM.TABS;
       const all = { hasActivity: true, pdpMy: true, pdpTeam: true };
-      _assertEqual(_mmKeys(mmVisibleTabs(live, { state: 'ok', role: 'talent_partner', signals: all })), ['myHistory', 'myScorecard', 'myDevelopment', 'myTeam'], 'a live:false tab never appears, even with every signal true (My Details is not live yet)');
-      _assertEqual(_mmKeys(mmVisibleTabs(live, { state: 'ok', role: 'talent_partner', signals: {} })), ['myHistory'], 'no PDP signal: only My History');
+      const detailsOff = live.map(t => (t.key === 'myDetails' ? Object.assign({}, t, { live: false }) : t));
+      _assertEqual(_mmKeys(mmVisibleTabs(detailsOff, { state: 'ok', role: 'talent_partner', signals: all })), ['myHistory', 'myScorecard', 'myDevelopment', 'myTeam'], 'a live:false tab never appears, even with every signal true');
+      _assertEqual(_mmKeys(mmVisibleTabs(live, { state: 'ok', role: 'talent_partner', signals: all })), ['myHistory', 'myDetails', 'myScorecard', 'myDevelopment', 'myTeam'], 'every live tab, with every signal true (N-456: My Details is live)');
+      _assertEqual(_mmKeys(mmVisibleTabs(live, { state: 'ok', role: 'talent_partner', signals: {} })), ['myHistory', 'myDetails'], 'no PDP signal: My History and My Details');
       _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: 'talent_partner', signals: {} })), ['myHistory', 'myDetails'], 'ok state: History + Details only');
       _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: 'talent_partner', signals: all })), ['myHistory', 'myDetails', 'myScorecard', 'myDevelopment', 'myTeam'], 'everything relevant, registry order');
       _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: 'staff', signals: { hasActivity: true } })), ['myHistory', 'myDetails', 'myScorecard'], 'Scorecard needs hasActivity');
@@ -57,12 +59,12 @@ ASSERTIONS.push(
       _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: 'delivery_manager', signals: { pdpTeam: true } })), ['myHistory', 'myDetails', 'myTeam'], 'My Team needs pdpTeam');
       _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: 'delivery_manager', signals: { hasReports: true } })).includes('myTeam'), true, 'N-453 hasReports opens My Team (Team Scorecards) with no pdpTeam');
       ['admin', 'people_ops'].forEach(r => {
-        _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'notLinked', role: r, signals: { pdpTeam: true } })), ['myTeam'], r + ' with pdpTeam gets My Team with no People row');
-        _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'error', role: r, signals: { pdpTeam: true } })), ['myTeam'], r + ' keeps My Team when the identity read failed');
+        _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'notLinked', role: r, signals: { pdpTeam: true } })), ['myDetails', 'myTeam'], r + ' with pdpTeam gets My Team (and, N-456, the My Details picker) with no People row');
+        _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'error', role: r, signals: { pdpTeam: true } })), ['myDetails', 'myTeam'], r + ' keeps My Team and the My Details picker when the identity read failed');
       });
       ['admin', 'leadership', 'people_ops'].forEach(r =>
         {
-          _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'notLinked', role: r, signals: {} })), ['myTeam'], 'N-453 ' + r + ' without pdpTeam or a People row: My Team, for Team Scorecards (MM-D8)');
+          _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'notLinked', role: r, signals: {} })), r === 'leadership' ? ['myTeam'] : ['myDetails', 'myTeam'], 'N-453 ' + r + ' without pdpTeam or a People row: My Team, for Team Scorecards (MM-D8); N-456 adds the My Details picker for Admin / People Ops');
           _assertEqual(mmTeamSubTabs({ state: 'notLinked', role: r, signals: {} }).map(t => t.key), ['scorecards'], r + ' without pdpTeam: Team Scorecards only - never Development (PDP-D1)');
         });
       ['talent_partner', 'delivery_manager', 'staff', 'sales'].forEach(r =>
@@ -71,7 +73,7 @@ ASSERTIONS.push(
         _assertEqual(mmVisibleTabs(_MM_ALL_LIVE, { state: s, role: 'staff', signals: {} }), [], s + ' + ordinary role: nothing to show'));
       _assertEqual(mmVisibleTabs(null, null), [], 'null-safe');
       _assertEqual(mmLandingTab(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: 'staff', signals: {} })), 'myHistory', 'landing is the first visible tab');
-      _assertEqual(mmLandingTab(mmVisibleTabs(_MM_ALL_LIVE, { state: 'notLinked', role: 'admin', signals: { pdpTeam: true } })), 'myTeam', 'Admin with no People row lands on My Team, not the no-record panel');
+      _assertEqual(mmLandingTab(mmVisibleTabs(_MM_ALL_LIVE, { state: 'notLinked', role: 'admin', signals: { pdpTeam: true } })), 'myDetails', 'Admin with no People row lands on the first visible tab, My Details (N-456: its picker is their way in), not the no-record panel');
       _assertEqual(mmLandingTab([]), null, 'nothing visible: no landing');
     },
   },

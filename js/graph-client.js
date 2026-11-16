@@ -387,6 +387,9 @@ const FIELD_ALIASES = {
   PeoplePay:       {},
   // N-300: {} — every column is read/written under its own name. Restricted.
   PayrollSummaries: {},
+  // N-456: {} — every column is read and written under its own name (a self-mapping alias would DELETE the field).
+  // Restricted list, personal data.
+  PeopleDetails: {},
   Assignments:     { Title: "AssignmentID" },
   GPInvoices:      { Title: "InvoiceNumber" },
   // ── Sales module ──────────────────────────────────────────

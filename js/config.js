@@ -156,6 +156,9 @@ const CONFIG = {
     // N-443 (PDP-11, D3): unlock a person's calibrated ratings (with a logged reason). Admin only: People Ops sits
     // on the calibration panel (pdpAdmin) and can lock, never unlock.
     pdpCalibrationUnlock:  ['admin'],
+    // N-456 (MM-6, MM-D5): read and edit ANY person's My Details (on-behalf edits, stamped), create their rows and run the
+    // Manage panel. Leadership deliberately NOT listed: it sees employment fields only (N-457) and nobody else's personal details.
+    myDetailsAdmin:        ['admin', 'people_ops'],
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
@@ -641,6 +644,16 @@ const CONFIG = {
     PeoplePay: [
       'Title', 'PersonID', 'Salary',
     ],
+    // N-456 (MM-6): one row per person. Personal data: restricted list, never cached beyond tier 1, never read by Newton for
+    // Claude / the Command Bar / mobile / exports. Create every column BEFORE deploying (Schema Check is the gate). The
+    // content columns are CONFIG.MY_MOMENTUM.DETAILS.FIELDS (a test keeps the two in step); AccessKey is written by the access flow only.
+    PeopleDetails: [
+      'Title', 'PersonID', 'PersonEmail',
+      'EmergencyName', 'EmergencyRelationship', 'EmergencyPhone', 'EmergencyPhoneAlt',
+      'PersonalMobile', 'PersonalEmail',
+      'AddressLine1', 'AddressLine2', 'AddressTown', 'AddressPostcode', 'AddressCountry',
+      'UpdatedBy', 'UpdatedAt', 'UpdatedOnBehalf', 'AccessKey',
+    ],
     // N-300 (SEC-6b): one row per payroll summary sent. Title = dedupe key
     // 'payrollsummary-<year>-<month>'. Joiners / Leavers / BonusData are JSON
     // text (plain-text multi-line columns). Restricted list (admin +
@@ -747,6 +760,10 @@ const CONFIG = {
     'LCILocations',
     'PeoplePay',
     'PayrollSummaries',
+    // N-456 (MM-6): My Details. Each row is locked to its employee by the access flow; Newton Users have no list-level
+    // access, so a 403 for an ordinary user means "no row yet". An Admin / People Ops 403 is a misconfiguration:
+    // getMyDetails() reports it via wasListDenied(), never as zero rows.
+    'PeopleDetails',
     'SurveyResponses',
     'AnomalyAcks',
     'Diagnostics',
@@ -1378,7 +1395,7 @@ const CONFIG = {
   MY_MOMENTUM: {
     TABS: [
       { key: 'myHistory',     label: 'My History',     live: true  },   // N-451 shell, N-455 content
-      { key: 'myDetails',     label: 'My Details',     live: false },   // N-456
+      { key: 'myDetails',     label: 'My Details',     live: true  },   // N-456 (restricted PeopleDetails list)
       { key: 'myScorecard',   label: 'My Scorecard',   live: true  },   // N-453 (moved from People)
       { key: 'myDevelopment', label: 'My Development', live: true  },   // N-452 (moved from People)
       { key: 'myTeam',        label: 'My Team',        live: true  },   // N-452 Development + N-453 Team Scorecards
@@ -1389,6 +1406,103 @@ const CONFIG = {
     HISTORY: {
       STATUS: { completed: 'Completed', current: 'Current', upcoming: 'Upcoming' },
       TILES:  { since: '@ Momentum since', projects: 'Projects completed', hires: 'Total hires' },
+    },
+    // N-456 (MM-6): My Details. LIST = the restricted per-person list (one row per People row; a Power Automate flow locks each row
+    // to its employee). FIELDS is the registry behind the form, the cleaner (mdSavePayload) and Clear: key = the column, group =
+    // the form card, kind = how it is validated ('text' / 'phone' / 'email'), max = longest value kept, ac = the browser autofill
+    // token on the employee's own form (the on-behalf form always sends 'off'). GROUPS: card title and hint, and `required` = the
+    // columns that must ALL be set once ANY column of the group is. GRACE_MIN = minutes a row may stay unlocked before Manage lists
+    // it; DISPLAY_ROWS caps the Manage name lists; PHONE_DIGITS = digits a phone must hold. TEXT = every message, so no markup
+    // carries wording ({name} / {n} / {max} / {when} / {f} are filled by mdText).
+    DETAILS: {
+      LIST: 'PeopleDetails',
+      GRACE_MIN: 15,
+      DISPLAY_ROWS: 10,
+      PHONE_DIGITS: { min: 6, max: 15 },
+      FIELDS: [
+        { key: 'EmergencyName',         label: 'Name',                group: 'emergency', kind: 'text',  max: 100, ac: 'off' },
+        { key: 'EmergencyRelationship', label: 'Relationship',        group: 'emergency', kind: 'text',  max: 50,  ac: 'off' },
+        { key: 'EmergencyPhone',        label: 'Phone',               group: 'emergency', kind: 'phone', max: 30,  ac: 'off' },
+        { key: 'EmergencyPhoneAlt',     label: 'Alternative phone',   group: 'emergency', kind: 'phone', max: 30,  ac: 'off' },
+        { key: 'PersonalMobile',        label: 'Personal mobile',     group: 'contact',   kind: 'phone', max: 30,  ac: 'tel' },
+        { key: 'PersonalEmail',         label: 'Personal email',      group: 'contact',   kind: 'email', max: 254, ac: 'email' },
+        { key: 'AddressLine1',          label: 'Address line 1',      group: 'address',   kind: 'text',  max: 150, ac: 'address-line1' },
+        { key: 'AddressLine2',          label: 'Address line 2',      group: 'address',   kind: 'text',  max: 150, ac: 'address-line2' },
+        { key: 'AddressTown',           label: 'Town / city',         group: 'address',   kind: 'text',  max: 100, ac: 'address-level2' },
+        { key: 'AddressPostcode',       label: 'Postcode',            group: 'address',   kind: 'text',  max: 20,  ac: 'postal-code' },
+        { key: 'AddressCountry',        label: 'Country',             group: 'address',   kind: 'text',  max: 80,  ac: 'country-name' },
+      ],
+      GROUPS: {
+        emergency: { title: 'Emergency contact', hint: 'One primary contact. Name, relationship and phone are needed once you fill any of these in.', required: ['EmergencyName', 'EmergencyRelationship', 'EmergencyPhone'] },
+        contact:   { title: 'Personal contact',  hint: 'How People Ops can reach you outside work.', required: [] },
+        address:   { title: 'Home address',      hint: 'Address line 1, town / city and country are needed once you fill any of these in. Postcode is optional.', required: ['AddressLine1', 'AddressTown', 'AddressCountry'] },
+      },
+      STAMP: ['UpdatedBy', 'UpdatedAt', 'UpdatedOnBehalf'],
+      TEXT: {
+        title: 'My Details',
+        privacyNote: 'Only you, Admin and People Ops can see these details.',
+        save: 'Save',
+        saved: 'Saved.',
+        saveFailed: 'Your details could not be saved. Try again, and tell a Newton admin if it keeps happening.',
+        invalid: 'Some details need fixing before they can be saved.',
+        required: 'Needed once any detail in this card is filled in.',
+        tooLong: 'Too long (most {max} characters).',
+        badPhone: 'Enter a phone number with digits, spaces, + ( ) - or . only.',
+        badEmail: 'Enter a valid email address.',
+        lastUpdated: 'Last updated {when}.',
+        byOnYourBehalf: 'Updated by {name} on your behalf.',
+        byOnBehalf: 'Updated by {name} on behalf of the employee.',
+        ghostTitle: 'Not available in Ghost Mode',
+        ghost: 'My Details is not available in Ghost Mode. It shows real personal data, so it stays closed while you view Newton as someone else.',
+        noOwnTitle: 'Choose a person',
+        noOwn: 'You have no employee record, so there are no details of your own to enter. Choose a person above to view or edit theirs.',
+        notAllowedTitle: 'Not available',
+        notAllowed: 'You cannot open these details.',
+        badPerson: 'That person could not be found.',
+        notReadyTitle: 'Your details are not ready yet',
+        notReady: 'Your details are not ready yet. Try again in a few minutes, or ask People Ops.',
+        loadFailedTitle: 'We could not load these details',
+        loadFailed: 'Refresh the page to try again. If it keeps happening, tell a Newton admin.',
+        noAccessAdmin: 'No access to the PeopleDetails list. Check the list permissions (Owners, Newton Admins and Newton People).',
+        pickerLabel: 'Whose details',
+        pickerOwn: 'My own details',
+        pickerChoose: '— Choose a person —',
+        pickerHint: 'Admin and People Ops can add or correct anyone’s details. Changes are stamped with who made them and when.',
+        editingFor: 'Editing {name}’s details',
+        noWorkEmailNote: 'This person has no work email yet. Their details are saved, but they cannot see them until it is set.',
+        leaveTitle: 'Leave without saving?',
+        leaveMsg: 'You have unsaved changes to these details.',
+        leave: 'Leave',
+        manageTitle: 'Manage',
+        manageHint: 'Rows, locks and leavers. Reads run when you press Check, and only names are shown, never the details themselves.',
+        check: 'Check',
+        checkFailed: 'The check could not run. Try again.',
+        denied: 'Denied',
+        colCheck: 'Check',
+        colPeople: 'People',
+        chkMissing: 'People with no row',
+        chkNoEmail: 'People with no work email (their row cannot be locked yet)',
+        chkDrift: 'Row email needs setting to the work email',
+        chkUnlocked: 'Rows not locked after the grace period',
+        chkDuplicates: 'People with more than one row',
+        chkLeavers: 'Leavers still holding details',
+        unlockedHint: 'Check the flow’s run history (Power Automate, Newton My Details access). Until it locks a row, only Admin and People Ops can read it.',
+        leaversHint: 'Clear contents blanks the details but keeps the row. Earlier versions stay in SharePoint’s version history until a site admin removes them.',
+        createRows: 'Create {n} rows',
+        createTitle: 'Create missing rows',
+        createMsg: 'Create {n} empty My Details rows. Each is readable by Admin and People Ops only until the access flow locks it to its employee.',
+        fixEmails: 'Fix {n} emails',
+        fixTitle: 'Set row emails',
+        fixMsg: 'Set the email on {n} rows to the person’s work email. The access flow then locks each row to that person.',
+        clear: 'Clear contents',
+        clearTitle: 'Clear these details',
+        clearMsg: 'Blank every detail held for {name}? The row stays. This cannot be undone from Newton.',
+        created: 'Created {n} rows.',
+        fixed: 'Set {n} row emails.',
+        cleared: 'Details cleared.',
+        doneWithFailures: '{n} done, {f} failed. Check again for what is left.',
+        actionFailed: 'That did not complete. Check again to see where it stopped.',
+      },
     },
     // N-452 / N-453: old People deep links -> My Momentum tab keys. people-app.js sends the visitor on before sign-in
     // (utils.js mmRedirectTarget).

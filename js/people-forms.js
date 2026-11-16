@@ -182,6 +182,16 @@ async function submitPersonForm(event, editId = null) {
           const url = await uploadPeoplePhoto('person', saved.id, file);
           if (url) await updatePerson(saved.id, { PhotoUrl: url });
         }
+        // N-456: the new person's My Details row, empty. The form has no WorkEmail (Data Health > Identity writes it later), so
+        // the row has no PersonEmail yet and only Admin / People Ops can read it; My Momentum > My Details > Manage > Fix sets the
+        // email once WorkEmail exists and the access flow then locks the row. The employee is saved either way, so this only warns.
+        if (saved && saved.id && !fields.IsPlaceholder && typeof ensureMyDetailsRow === 'function') {
+          try {
+            await ensureMyDetailsRow({ id: saved.id, WorkEmail: '' });
+          } catch (e) {
+            toast('Employee added, but their My Details row was not created. Admin / People Ops can create it from My Momentum > My Details > Manage.', { type: 'error' });
+          }
+        }
         return saved;
       },
       errorMessage: 'Error saving employee — change reverted.',

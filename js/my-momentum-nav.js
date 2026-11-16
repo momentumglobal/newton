@@ -43,7 +43,9 @@ document.addEventListener('click', function(e) {
 
 // N-453: `page` may be a tab key or a sub-tab alias from CONFIG.MY_MOMENTUM.DEEP_LINKS ('teamScorecards', which the
 // Command Bar passes); `sub` picks the My Team sub-tab. mmResolveDeepLink() decides what actually opens.
-function navigateToMyMomentum(page, sub) {
+async function navigateToMyMomentum(page, sub) {
+  // N-456: leaving My Details with unsaved edits asks first (re-clicking the tab counts as leaving).
+  if (_mmCurrentPage === 'myDetails' && typeof mdConfirmLeave === 'function' && !(await mdConfirmLeave())) return;
   const role = _mmResolvedRole || 'viewer';
   const hit = mmResolveDeepLink(page, mmNavTabs(), mmTeamSubTabs(_mmTabCtx()), CONFIG.MY_MOMENTUM);
   if (!hit || !mmCanAccess(hit.tab, role)) return;   // a tab that is not shown cannot be opened by hash either
@@ -82,6 +84,7 @@ async function renderMyMomentumPage(page) {
   const main = document.getElementById('main-content');
   switch (page) {
     case 'myHistory':     renderMyHistory(); break;                 // N-455 (my-momentum-pages.js)
+    case 'myDetails':     await renderMyDetailsPage(); break;       // N-456 (my-details-ui.js)
     case 'myScorecard':   await renderMyScorecardPage(); break;     // N-453 (my-momentum-scorecard.js)
     case 'myDevelopment': await renderMyDevelopmentPage(); break;   // N-438, moved by N-452 (pdp-my.js)
     case 'myTeam':        await renderMyTeamPage(); break;          // N-452 Development (pdp-team-page.js) + N-453 Team Scorecards

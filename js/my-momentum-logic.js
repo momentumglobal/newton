@@ -36,7 +36,7 @@ function mmTabRelevant(key, ctx) {
   const s = c.signals || {};
   switch (key) {
     case 'myHistory':     return c.state === 'ok';
-    case 'myDetails':     return c.state === 'ok';
+    case 'myDetails':     return c.state === 'ok' || roleCan(c.role, 'myDetailsAdmin');   // N-456: Admin / People Ops reach the picker even with no People row
     case 'myScorecard':   return !!s.hasActivity;
     case 'myDevelopment': return !!s.pdpMy;
     case 'myTeam':        return mmTeamSubTabs(c).length > 0;

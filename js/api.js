@@ -537,6 +537,16 @@ function _odataIn(field, ids) {
   return '(' + clauses.join(' or ') + ')';
 }
  
+// N-454: the raw Placements rows getHistoricalPlacements() turns into hires — same one-year window, or every row with
+// `opts.allTime`. One function, so the two reads are the same request (a cache hit) and the window rule lives once.
+// My Scorecard reads them to name the candidate on its hires list; the historical rows carry no candidate (N-309).
+function getHistoricalPlacementRows(opts = {}) {
+  if (opts && opts.allTime) return getPlacements(null);
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 1);
+  return getPlacements(null, { fromDay: localDayISO(cutoff) });
+}
+
 // N-309 (HC-4a): one row per FILLED HEADCOUNT — every placement with an
 // Offer Accepted Date in the last year, on any pipeline stage — not one per
 // Closed role. Partly-filled pipelines count. Row shape and the join live in
@@ -550,10 +560,8 @@ function _odataIn(field, ids) {
 // N-453: `opts.allTime` drops the one-year bound (every placement ever recorded) — the My Scorecard
 // "All time" period only; every other caller passes nothing and is unchanged.
 async function getHistoricalPlacements(opts = {}) {
-  const cutoff = new Date();
-  cutoff.setFullYear(cutoff.getFullYear() - 1);
   const [placements, roles, headcount] = await Promise.all([
-    opts && opts.allTime ? getPlacements(null) : getPlacements(null, { fromDay: localDayISO(cutoff) }),
+    getHistoricalPlacementRows(opts),
     getAllRoles(),
     getAllHeadcount().catch(e => {
       console.warn('N-309: headcount read failed — time to hire falls back to the pipeline Open Date', e);

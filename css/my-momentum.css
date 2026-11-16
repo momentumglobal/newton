@@ -37,3 +37,26 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 .mm-area-header .mm-wm { height: 18px; }
 /* Screen furniture, like the sidebar: not printed. */
 @media print { .mm-hero, .mm-area-header { display: none; } }
+/* N-454: My Scorecard detail - weekly trend charts, flagged roles, hires. Tokens only; the chart colours are the series
+   tokens (--chart-N: light, dark and print sets), the axis and reference line the muted text token. */
+.mmsc-detail { margin-top: var(--sp-9); }
+.mmsc-heading { font-size: var(--fs-16); font-weight: var(--fw-bold); color: var(--text-primary); margin: var(--sp-9) 0 var(--sp-4); }
+.mmsc-sub { font-size: var(--fs-13); font-weight: var(--fw-bold); color: var(--text-secondary); margin: var(--sp-8) 0 var(--sp-4); }
+.mmsc-trend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--sp-7); margin-top: var(--sp-6); }
+.mmsc-chart { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-7); }
+.mmsc-chart-title { font-size: var(--fs-13); font-weight: var(--fw-bold); color: var(--text-primary); margin: 0 0 var(--sp-2); }
+.mmsc-svg { display: block; width: 100%; height: auto; }
+.mmsc-axis { stroke: var(--border); stroke-width: 1; }
+.mmsc-axis-text { fill: var(--text-muted); font-size: var(--fs-11); }
+.mmsc-norm { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 4 3; }
+.mmsc-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.mmsc-dot { stroke: none; }
+.mmsc-s1 { stroke: var(--chart-1); } .mmsc-s1 ~ .mmsc-dot { fill: var(--chart-1); }
+.mmsc-s2 { stroke: var(--chart-2); } .mmsc-s2 ~ .mmsc-dot { fill: var(--chart-2); }
+.mmsc-s3 { stroke: var(--chart-3); } .mmsc-s3 ~ .mmsc-dot { fill: var(--chart-3); }
+.mmsc-s4 { stroke: var(--chart-4); } .mmsc-s4 ~ .mmsc-dot { fill: var(--chart-4); }
+.mmsc-s5 { stroke: var(--chart-5); } .mmsc-s5 ~ .mmsc-dot { fill: var(--chart-5); }
+.mmsc-s6 { stroke: var(--chart-6); } .mmsc-s6 ~ .mmsc-dot { fill: var(--chart-6); }
+.mmsc-table { width: 100%; }
+.mmsc-table a.mmsc-link { font-size: inherit; }
+@media print { .mmsc-chart { break-inside: avoid; } }

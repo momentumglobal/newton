@@ -42,6 +42,18 @@ async function _mmScMembers(kind) {
   return { members: mmScorecardMembers(await _mmScPeople, _mmIdentity, view), omittedNote: true };
 }
 
+// N-454: the three detail sections under the own card (My Scorecard only). Everything is read from what is already loaded.
+function _mmScDetailHtml(card, d, period) {
+  const key = card.email;
+  return mmScorecardDetailHtml({
+    periodLabel: period.label,
+    trend: buildScorecardTrend({ activity: d.activityAll, placements: d.historical, period, bench: card.bench, key }),
+    roles: listScorecardRoles({ allRoles: d.allRoles, allProjects: d.allProjects, activity: d.activityAll, stageHistory: d.stageHistory, openSince: d.openSince, key }),
+    hires: listScorecardHires({ placements: d.historical, placementsRaw: d.placementsRaw, allRoles: d.allRoles, allProjects: d.allProjects, period, key }),
+    canLinkRoles: mmCanOpenRolePage(_mmResolvedRole),
+  });
+}
+
 // Fills #mmsc-body for the current kind, period and view.
 async function _mmScFill() {
   const body = document.getElementById('mmsc-body');
@@ -60,7 +72,7 @@ async function _mmScFill() {
       period,
     });
     body.innerHTML = cards.length
-      ? mmScorecardCardsHtml(cards, period.windowLabel) + (omittedNote ? mmScorecardOmittedHtml(omitted) : '') + mmScorecardNoteHtml()
+      ? mmScorecardCardsHtml(cards, period.windowLabel) + (ctx.kind === 'own' ? _mmScDetailHtml(cards[0], d, period) : '') + (omittedNote ? mmScorecardOmittedHtml(omitted) : '') + mmScorecardNoteHtml()
       : mmScorecardEmptyHtml(key, ctx.kind);
   } catch (e) {
     if (seq !== _mmScSeq) return;

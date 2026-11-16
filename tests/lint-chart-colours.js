@@ -18,7 +18,7 @@
 // Pure function over data; the assertion skips when ALL_SOURCES is undefined.
 // Needs _vendorStripJsComments from lint-vendor.js (loads earlier).
 
-var CHART_COLOUR_FILES = ['revenue-chart.js', 'people-dashboard.js', 'lci-report.js', 'lci-sections.js', 'coe-plan.js', 'engagement-pages.js'];
+var CHART_COLOUR_FILES = ['revenue-chart.js', 'people-dashboard.js', 'lci-report.js', 'lci-sections.js', 'coe-plan.js', 'engagement-pages.js', 'my-momentum-pages.js'];   // N-454: the My Scorecard trend charts
 var CHART_COLOUR_ALLOWED_VARS = /^(chart-[1-8]|status-[a-z-]+|text-muted|coe-opens-(planned|actual))$/;
 
 function lintChartColours(sources) {

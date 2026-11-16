@@ -101,6 +101,114 @@ function mmScorecardNoteHtml() {
   return `<p class="ppl-muted-note pdpt-note">Flagged roles and pace show today’s open roles in every period. Benchmarks are the ${escHtml(mmScorecardBasisNote())}.</p>`;
 }
 
+// ── N-454: the detail under the own scorecard — weekly trend, flagged roles, hires ──────────────────────────────────────
+// Pure markup over analytics.js buildScorecardTrend / listScorecardRoles / listScorecardHires. Every text value is escaped;
+// classes only (no inline style, no hex: series and reference lines take their colour from css/my-momentum.css tokens).
+
+// Chart geometry (viewBox units; the SVG scales to its card).
+const _MMSC_CHART = { w: 320, h: 150, l: 38, r: 10, t: 14, b: 28, seriesClasses: 6 };
+
+function mmTrendFmt(v, unit) {
+  if (v === null || v === undefined) return '—';
+  if (unit === '%') return v + '%';
+  if (unit === ':1') return v + ':1';
+  if (unit === 'days') return v + ' days';
+  return String(v);
+}
+
+// One metric's chart: weekly points joined into a line (a quiet week breaks it), a dashed reference line where the metric
+// has one, and a tooltip per point. `s` = one trend series; `weeks` = the shared week-ending days; `idx` picks the series
+// colour. Fewer than two points: a plain note instead of an empty chart.
+function mmTrendChartSvg(s, weeks, idx) {
+  const C = _MMSC_CHART;
+  const head = `<h3 class="mmsc-chart-title">${escHtml(s.label)}</h3>${s.lower ? '<span class="ppl-muted-small">Lower is better</span>' : ''}`;
+  const pts = (s.values || []).map((v, i) => ({ v, i })).filter(p => p.v !== null && p.v !== undefined);
+  if (pts.length < 2) return `<div class="mmsc-chart">${head}<p class="ppl-muted-small">Not enough data in this period.</p></div>`;
+  const yMax = Math.max(1, Math.ceil(Math.max(...pts.map(p => p.v), s.bench || 0) * 1.1));
+  const plotW = C.w - C.l - C.r, plotH = C.h - C.t - C.b;
+  const x = i => weeks.length < 2 ? C.l + plotW / 2 : C.l + (i * plotW) / (weeks.length - 1);
+  const y = v => C.t + plotH * (1 - v / yMax);
+  let d = '', pen = false;
+  (s.values || []).forEach((v, i) => {
+    if (v === null || v === undefined) { pen = false; return; }
+    d += (pen ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' ';
+    pen = true;
+  });
+  const dots = pts.map(p => `<circle class="mmsc-dot" cx="${x(p.i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="2.5"><title>${escHtml('Week ending ' + pdpFmtDay(weeks[p.i]) + ': ' + mmTrendFmt(p.v, s.unit))}</title></circle>`).join('');
+  const norm = s.bench === null || s.bench === undefined ? '' :
+    `<line class="mmsc-norm" x1="${C.l}" y1="${y(s.bench).toFixed(1)}" x2="${C.w - C.r}" y2="${y(s.bench).toFixed(1)}"/>`
+    + `<text class="mmsc-axis-text" x="${C.w - C.r}" y="${(y(s.bench) - 3).toFixed(1)}" text-anchor="end">${escHtml('Norm ' + mmTrendFmt(s.bench, s.unit))}</text>`;
+  const last = pts[pts.length - 1].v;
+  const label = s.label + ': latest ' + mmTrendFmt(last, s.unit) + (s.bench === null || s.bench === undefined ? '' : ', norm ' + mmTrendFmt(s.bench, s.unit)) + ', ' + weeks.length + ' weeks';
+  return `<div class="mmsc-chart">${head}
+    <svg class="mmsc-svg" viewBox="0 0 ${C.w} ${C.h}" role="img" aria-label="${escAttr(label)}">
+      <line class="mmsc-axis" x1="${C.l}" y1="${C.h - C.b}" x2="${C.w - C.r}" y2="${C.h - C.b}"/>
+      <text class="mmsc-axis-text" x="${C.l - 4}" y="${C.h - C.b}" text-anchor="end">0</text>
+      <text class="mmsc-axis-text" x="${C.l - 4}" y="${C.t + 4}" text-anchor="end">${escHtml(String(yMax))}</text>
+      <text class="mmsc-axis-text" x="${C.l}" y="${C.h - 10}" text-anchor="start">${escHtml(pdpFmtDay(weeks[0]))}</text>
+      <text class="mmsc-axis-text" x="${C.w - C.r}" y="${C.h - 10}" text-anchor="end">${escHtml(pdpFmtDay(weeks[weeks.length - 1]))}</text>
+      ${norm}<path class="mmsc-line mmsc-s${(idx % C.seriesClasses) + 1}" d="${escAttr(d.trim())}"/>${dots}
+    </svg></div>`;
+}
+
+// A role's name: a link to the Role page when the viewer can open it (mmCanOpenRolePage), plain text otherwise.
+function mmRoleNameHtml(r, canLink) {
+  const id = Number(r && r.id) || 0;
+  if (!canLink || !id) return escHtml((r && r.title) || '—');
+  return `<a class="mmsc-link" href="${escAttr('reporting.html#roles?action=checklist&id=' + id)}">${escHtml(r.title || '—')}</a>`;
+}
+
+const _MMSC_REASONS = { stuck: 'Stuck in stage', conversion: 'Low conversion', both: 'Stuck and low conversion' };
+
+function mmFlaggedRolesHtml(roles, canLink) {
+  const flagged = (roles && roles.flagged) || [], behind = (roles && roles.behind) || [];
+  const stageCell = r => (r.daysInStage === null || r.daysInStage === undefined) ? '—'
+    : r.daysInStage + ' days' + (r.stageBudget === null || r.stageBudget === undefined ? '' : ' (budget ' + r.stageBudget + ')');
+  const flaggedRows = flagged.map(r => `<tr>
+      <td>${mmRoleNameHtml(r, canLink)}</td><td>${escHtml(r.project || '—')}</td><td>${escHtml(r.stage || '—')}</td>
+      <td>${escHtml(_MMSC_REASONS[r.reason] || '')}</td><td>${escHtml(stageCell(r))}</td>
+    </tr>`).join('');
+  const behindRows = behind.map(r => `<tr>
+      <td>${mmRoleNameHtml(r, canLink)}</td><td>${escHtml(r.project || '—')}</td><td>${escHtml(r.stage || '—')}</td>
+      <td>${escHtml(r.daysOpen === null || r.daysOpen === undefined ? '—' : r.daysOpen + ' days')}</td>
+    </tr>`).join('');
+  const flaggedHtml = flagged.length
+    ? `<div class="table-scroll"><table class="data-table mmsc-table"><thead><tr><th>Role</th><th>Project</th><th>Stage</th><th>Why</th><th>Days in stage</th></tr></thead><tbody>${flaggedRows}</tbody></table></div>`
+    : '<p class="ppl-muted-note">No flagged roles.</p>';
+  const behindHtml = behind.length
+    ? `<h3 class="mmsc-sub">Behind pace (information only)</h3>
+       <div class="table-scroll"><table class="data-table mmsc-table"><thead><tr><th>Role</th><th>Project</th><th>Stage</th><th>Days open</th></tr></thead><tbody>${behindRows}</tbody></table></div>`
+    : '';
+  return flaggedHtml + behindHtml;
+}
+
+function mmHiresHtml(hires, periodLabel) {
+  const rows = hires || [];
+  if (!rows.length) return `<p class="ppl-muted-note">No hires in this period (${escHtml(periodLabel)}).</p>`;
+  const body = rows.map(h => `<tr>
+      <td>${escHtml(h.candidate || '—')}</td><td>${escHtml(h.title || '—')}</td><td>${escHtml(h.project || '—')}</td><td>${escHtml(h.date ? pdpFmtDay(h.date) : '—')}</td>
+    </tr>`).join('');
+  return `<div class="table-scroll"><table class="data-table mmsc-table"><thead><tr><th>Candidate</th><th>Role</th><th>Project</th><th>Date</th></tr></thead><tbody>${body}</tbody></table></div>
+    <p class="ppl-muted-note">${rows.length} ${rows.length === 1 ? 'hire' : 'hires'} in ${escHtml(periodLabel)}.</p>`;
+}
+
+// The three sections, in order. Flagged and behind-pace roles are today's open roles in every period (the card's note says so too).
+function mmScorecardDetailHtml({ trend, roles, hires, periodLabel, canLinkRoles }) {
+  const charts = trend && trend.weeks && trend.weeks.length
+    ? `<div class="mmsc-trend-grid">${trend.series.map((s, i) => mmTrendChartSvg(s, trend.weeks, i)).join('')}</div>`
+    : '<p class="ppl-muted-note">No weekly activity in this period.</p>';
+  return `<section class="mmsc-detail">
+    <h2 class="mmsc-heading">Weekly trend</h2>
+    <p class="ppl-muted-note">One point per week against your ${escHtml(mmScorecardBasisNote())}. A quiet week leaves a gap.</p>
+    ${charts}
+    <h2 class="mmsc-heading">Flagged roles</h2>
+    <p class="ppl-muted-note">Your open roles as they are today, whatever the period.</p>
+    ${mmFlaggedRolesHtml(roles, canLinkRoles)}
+    <h2 class="mmsc-heading">Hires</h2>
+    ${mmHiresHtml(hires, periodLabel)}
+  </section>`;
+}
+
 // N-459 (MM-9): the landing-tab hero and the slim header every other tab gets (renderMyMomentumPage, my-momentum-nav.js). Pure.
 // Only the first name is shown, escaped; no stats and no join date on the hero (MM-D2). The header has no title: each page has its own.
 function mmHeroHtml(fullName, hour) {

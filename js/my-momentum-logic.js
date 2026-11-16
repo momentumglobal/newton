@@ -68,6 +68,13 @@ function mmScorecardScope(identity, role) {
   return { views, default: views[0] || '' };
 }
 
+// N-454: can this role open the Role page (reporting.html#roles)? One source: the Command Bar's Roles entry, which mirrors
+// the Reporting router's access for that page. Leadership and People Ops cannot, so their drill-down shows plain names.
+function mmCanOpenRolePage(role) {
+  const entry = CONFIG.COMMAND_BAR_PAGES.find(p => p.key === 'roles');
+  return !!(entry && entry.roles.includes(role));
+}
+
 // The people one Team Scorecards view covers, as [{ email, name }], A→Z by name. `people` = getPeople(false) rows.
 //   tree    = the CSD's whole tree (identity.csdTree)      reports = direct reports      all = every active person
 // A leaver or a placeholder never appears; a row with no WorkEmail cannot be matched to activity, so it is dropped;

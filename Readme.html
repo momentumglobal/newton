@@ -463,7 +463,7 @@
         <tr><td><span class="file-tag">js/api-people-forms.js</span></td><td>SharePoint API calls for People data-entry forms (N-237b) — <code>addInvoiceFileURL()</code>, <code>createInvoice()</code>, <code>uploadInvoiceAttachment()</code>. Consumed only by people-forms.js. (<code>updateAssignment()</code> moved to api.js in N-365.)</td></tr>
         <tr><td><span class="file-tag">js/people-forms.js</span></td><td>Form renderers for People data entry — employees and supplier invoices (the Assignment form was deleted in N-372; assignments are edited on the Project page)</td></tr>
         <tr><td><span class="file-tag">js/analytics.js</span></td><td>Pure analytics functions. No network I/O or DOM access.</td></tr>
-        <tr><td><span class="file-tag">js/my-momentum-scorecard.js</span></td><td>My Momentum &rarr; <strong>My Scorecard</strong> and My Team &rarr; <strong>Team Scorecards</strong> (N-453 / MM-3; replaces People Scorecards and the retired analytics-pages.js) &mdash; <code>renderMyScorecardPage()</code>, <code>renderTeamScorecardsPage()</code>, period and view selects. Card pill is unrated (NOT RATED) by decision (N-274); the Flagged roles row (reason tooltip) and the Behind 45-day pace row are plain counts. The maths is <code>buildScorecardCards()</code> in analytics.js.</td></tr>
+        <tr><td><span class="file-tag">js/my-momentum-scorecard.js</span></td><td>My Momentum &rarr; <strong>My Scorecard</strong> and My Team &rarr; <strong>Team Scorecards</strong> (N-453 / MM-3; replaces People Scorecards and the retired analytics-pages.js) &mdash; <code>renderMyScorecardPage()</code>, <code>renderTeamScorecardsPage()</code>, period and view selects. Card pill is unrated (NOT RATED) by decision (N-274); the Flagged roles row (reason tooltip) and the Behind 45-day pace row are plain counts. The maths is <code>buildScorecardCards()</code> in analytics.js. N-454 (MM-4): My Scorecard also shows a detail block under the card &mdash; weekly trend charts, flagged roles, hires &mdash; built by <code>buildScorecardTrend()</code>, <code>listScorecardRoles()</code> and <code>listScorecardHires()</code> in analytics.js and rendered by <code>mmScorecardDetailHtml()</code> in my-momentum-pages.js.</td></tr>
         <tr><td><span class="file-tag">js/api-engagement.js</span></td><td>SharePoint API calls for Engagement/Survey (N-237a) — <code>getEligibleRespondentCount()</code> (N-424: staff who have started only), <code>createSurveyTemplate()</code>, <code>updateSurveyTemplate()</code>, <code>createSurveyQuestion()</code>, <code>updateSurveyQuestion()</code>, <code>deleteSurveyQuestion()</code>, <code>getSurveyRuns()</code>, <code>updateSurveyRun()</code>, <code>getSurveyResponses()</code>, <code>getSurveyCompletionCount()</code>, <code>createSurveyResponse()</code>, <code>createSurveyCompletion()</code>. Consumed by engagement-forms.js and engagement-pages.js here, and by survey-app.js on the standalone survey.html (see Survey respondent page, below).</td></tr>
         <tr><td><span class="file-tag">js/engagement-pages.js</span></td><td>Engagement dashboard renderers — renderEngagementPage(), summary cards, question result cards (Rating/Choice/FreeText), trends chart (Chart.js), run selector, close run, export PDF.</td></tr>
         <tr><td><span class="file-tag">js/engagement-forms.js</span></td><td>Survey builder modals — Manage Template, Add/Edit Question, Activate Run. Question reordering and deletion.</td></tr>
@@ -1505,6 +1505,16 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">November 2026</div>
+        <div class="changelog-title">My Scorecard detail: weekly trend, flagged roles, hires (N-454 / MM-4)</div>
+        <ul>
+          <li>Under your own card, three sections follow the Period choice: a <strong>weekly trend chart per metric</strong> against your 52-week norm (inline SVG, series colour tokens; a quiet week is a gap), the <strong>flagged roles</strong> behind the card's count (stuck / low conversion; behind-pace roles listed separately, information only) and the <strong>hires</strong> behind the Hires number (candidate, role, project, date).</li>
+          <li>Role names link to the Role page for Admin, Delivery Managers and Talent Partners (<code>#roles?action=checklist&amp;id=N</code>); Leadership and People Ops see plain names. Team Scorecards and the mobile Scorecards view are unchanged.</li>
+          <li>No new list or field. <code>loadScorecardData()</code> also returns <code>placementsRaw</code> (the raw Placements rows, the same request as the hires read) for the candidate name; <code>getHistoricalPlacementRows()</code> in api.js is that read.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">November 2026</div>

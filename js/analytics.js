@@ -953,12 +953,110 @@ function buildScorecardCards({ people, data, period, today = new Date() } = {}) 
     const placements = periodPlacements.filter(r => tpMatches(r.tpEmail, key));
     const bench      = learnFunnelBenchmarksMix(benchObs, buildFunnelObservations(own, roleIndex), { exclude: o => scorecardEmailKey(o.tp) === key });
     const scorecard  = computeVelocityScore(key, own, placements, bench);
-    const openRoles  = allRoles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, key));
+    const openRoles  = scorecardOpenRoles(allRoles, key);
     // N-274: { total, flagged, stuck, conversion, behind } — counts only, no RAG for a quarter of time-in-stage data.
     const roleHealth = tallyRoleFlags(openRoles, healthRows, d.stageHistory, today, { openSince: d.openSince });
     cards.push({ email: key, name: (p && p.name) || key, scorecard, roleHealth, bench });
   });
   return { cards, omitted };
+}
+
+// N-454: the open roles a scorecard's role-health rows count — the person's pipelines that are not in a closed stage.
+// One copy, shared by the card (buildScorecardCards) and the drill-down (listScorecardRoles), so the two always agree.
+function scorecardOpenRoles(allRoles, key) {
+  return (allRoles || []).filter(r => r && !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, key));
+}
+
+// N-454: String(project id) -> customer name, for the drill-down and hires tables. A role names its project in
+// ProjectIDLookupId (or ProjectID); '' when it cannot be resolved.
+function scorecardProjectNameOf(role, allProjects) {
+  const byId = new Map((allProjects || []).filter(Boolean).map(p => [String(p.id), p.CustomerName || '']));
+  return byId.get(String(role && (role.ProjectIDLookupId || role.ProjectID))) || '';
+}
+
+// N-454: the weekly series behind My Scorecard's trend charts. Pure.
+//   activity   every WeeklyActivity row loaded;  placements   getHistoricalPlacements() rows;  key   the person's email
+//   period     scorecardPeriod() result;         bench        the person's learned benchmarks (the card's `bench`)
+// One point per week-ending Sunday, continuous from the person's first week in the period to their last, so a quiet
+// week is a visible gap. A week's value is the SAME computeFunnelScorecard row the card shows, run over that week's
+// rows and placements; a rate with nothing under it is null (a gap), Hires is a count so a quiet week is 0. A
+// placement counts in the week-ending Sunday on or after its Offer Accepted day (WeekEndingDate is the Sunday).
+// Returns { weeks: ['YYYY-MM-DD'…],
+//           series: [{ label, unit, lower, values, bench }]   // CONFIG.MY_MOMENTUM.SCORECARD.TREND order; bench in the row's unit or null
+//           weekly: [{ week, Outreach, Responses, Submitted, Interview1, Offers, Hires, Placements }] }  // the counts underneath
+function buildScorecardTrend({ activity, placements, period, bench, key, today = new Date() } = {}) {
+  const per   = period || scorecardPeriod(undefined, today);
+  const email = scorecardEmailKey(key);
+  const empty = { weeks: [], series: [], weekly: [] };
+  if (!email) return empty;
+  const rows  = activitySinceDay(activity, per.fromDay).filter(a => scorecardEmailKey(a && a.TalentPartner) === email);
+  const hires = placementsSinceDay(placements, per.fromDay).filter(p => tpMatches(p.tpEmail, email));
+  const actByWeek = new Map(), plByWeek = new Map();
+  const add = (map, week, row) => { if (!week) return; if (!map.has(week)) map.set(week, []); map.get(week).push(row); };
+  rows.forEach(a => add(actByWeek, spDateIn(a.WeekEndingDate), a));
+  hires.forEach(p => add(plByWeek, sundayOnOrAfterISO(spDateIn(p.placementDate)), p));
+  const seen = [...actByWeek.keys(), ...plByWeek.keys()].sort();
+  if (!seen.length) return empty;
+  const weeks = [];
+  for (let w = seen[0]; w && w <= seen[seen.length - 1]; w = addDaysISO(w, 7)) weeks.push(w);
+  const byWeek = weeks.map(w => computeFunnelScorecard(actByWeek.get(w) || [], plByWeek.get(w) || [], bench));
+  const series = CONFIG.MY_MOMENTUM.SCORECARD.TREND.map(m => {
+    const values = byWeek.map(metrics => { const r = metrics.find(x => x.label === m.label); return r ? r.value : null; });
+    let ref = null;
+    if (m.fixed != null) ref = m.fixed;
+    else if (m.benchKey && bench && Number.isFinite(bench[m.benchKey])) ref = Math.round(bench[m.benchKey] * (m.scale || 1) * 10) / 10;
+    return { label: m.label, unit: m.unit, lower: !!m.lower, values, bench: ref };
+  });
+  const weekly = weeks.map(w => {
+    const a = actByWeek.get(w) || [];
+    return { week: w, Outreach: sumField(a, 'Outreach'), Responses: sumField(a, 'Responses'), Submitted: sumField(a, 'Submitted'),
+      Interview1: sumField(a, 'Interview1'), Offers: sumField(a, 'Offers'), Hires: sumField(a, 'Hires'),
+      Placements: (plByWeek.get(w) || []).length };
+  });
+  return { weeks, series, weekly };
+}
+
+// N-454: the roles behind the card's two pipeline-health rows. Pure. The population and the maths are the card's:
+// the person's open roles (scorecardOpenRoles), their last 13 weeks of activity, roleFlagReasons, today's state in every
+// period. So flagged.length equals the card's "Flagged roles" numerator and behind.length its "Behind pace" numerator.
+//   flagged  [{ id, title, project, stage, reason: 'stuck' | 'conversion' | 'both', daysInStage, stageBudget }], worst first
+//   behind   [{ id, title, project, stage, daysOpen, paceBudget }], longest open first (information only, never a flag)
+function listScorecardRoles({ allRoles, allProjects, activity, stageHistory, openSince, key, today = new Date() } = {}) {
+  const healthRows = activitySinceWeeks(activity || [], 13, today);
+  const flagged = [], behind = [];
+  scorecardOpenRoles(allRoles, key).forEach(role => {
+    const acts = healthRows.filter(a => String(a.RoleIDLookupId) === String(role.id));
+    const r = roleFlagReasons(role, acts, stageHistory, today, { openSince });
+    const base = { id: role.id, title: role.RoleTitle || '', project: scorecardProjectNameOf(role, allProjects), stage: role.Stage || '' };
+    if (r.flagged) {
+      flagged.push(Object.assign(base, { reason: r.stuck && r.conversion ? 'both' : (r.stuck ? 'stuck' : 'conversion'),
+        daysInStage: r.daysInStage, stageBudget: r.stageBudget }));
+    }
+    if (r.behindPace) behind.push({ id: role.id, title: base.title, project: base.project, stage: base.stage, daysOpen: r.daysOpen, paceBudget: r.paceBudget });
+  });
+  const over = x => (x.daysInStage !== null && x.stageBudget !== null) ? x.daysInStage - x.stageBudget : -Infinity;
+  flagged.sort((a, b) => (over(b) - over(a)) || a.title.localeCompare(b.title));
+  behind.sort((a, b) => ((b.daysOpen || 0) - (a.daysOpen || 0)) || a.title.localeCompare(b.title));
+  return { flagged, behind };
+}
+
+// N-454: the placements behind the card's Hires number. Pure. Same period cut and the same placer rule as the card
+// (placementsSinceDay + tpMatches), so rows.length equals the Hires metric. `placementsRaw` = the raw Placements rows,
+// joined by placementId for the candidate name (the historical rows carry none); a missing row leaves it ''.
+// Rows { id, title, project, candidate, date: 'YYYY-MM-DD' }, newest first.
+function listScorecardHires({ placements, placementsRaw, allRoles, allProjects, period, key, today = new Date() } = {}) {
+  const per  = period || scorecardPeriod(undefined, today);
+  const raw  = new Map((placementsRaw || []).filter(Boolean).map(p => [String(p.id), p]));
+  const role = new Map((allRoles || []).filter(Boolean).map(r => [String(r.id), r]));
+  return placementsSinceDay(placements, per.fromDay)
+    .filter(p => tpMatches(p.tpEmail, key))
+    .map(p => ({
+      id: p.id, title: p.title || '',
+      project: scorecardProjectNameOf(role.get(String(p.id)), allProjects),
+      candidate: ((raw.get(String(p.placementId)) || {}).CandidateName || '').trim(),
+      date: spDateIn(p.placementDate) || '',
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date) || a.candidate.localeCompare(b.candidate));
 }
 
 // Scorecards data load — shared by My Momentum (my-momentum-scorecard.js) and
@@ -968,12 +1066,14 @@ function buildScorecardCards({ people, data, period, today = new Date() } = {}) 
 // N-453: no argument = the default read (scorecardFetchWeeks() weeks: the 52-week pool plus 1 January), unchanged
 // for mobile, whose `activity52` is still exactly the last 52 weeks. `{ allTime: true }` = every WeeklyActivity row
 // and every placement (getActivityAll, getHistoricalPlacements({ allTime })), loaded only when All time is picked.
-// Returns `activityAll` (the rows actually loaded) beside `activity52`.
+// Returns `activityAll` (the rows actually loaded) beside `activity52`. N-454: `placementsRaw` = the raw Placements rows
+// behind `historical` (same window; a cache hit), for the hires list's candidate name.
 async function loadScorecardData(opts = {}) {
   const allTime = !!(opts && opts.allTime);
-  const [activityAll, historical, tpMap, allRoles, stageRows, headcount, placementIds, allProjects] = await Promise.all([
+  const [activityAll, historical, placementsRaw, tpMap, allRoles, stageRows, headcount, placementIds, allProjects] = await Promise.all([
     allTime ? getActivityAll() : getActivityForAnalytics(scorecardFetchWeeks()),
     getHistoricalPlacements(allTime ? { allTime: true } : {}),
+    getHistoricalPlacementRows(allTime ? { allTime: true } : {}),   // N-454: the same read, for the candidate name
     getTalentPartnerDisplayMap(),
     getAllRoles(),
     getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; }),
@@ -983,7 +1083,7 @@ async function loadScorecardData(opts = {}) {
   ]);
   const activity52 = activitySinceWeeks(activityAll, CONFIG.MY_MOMENTUM.SCORECARD.BENCHMARK_WEEKS);
   return {
-    activity52, activityAll, historical, tpMap, allRoles, allProjects,
+    activity52, activityAll, historical, placementsRaw, tpMap, allRoles, allProjects,
     activityRaw:  activitySinceWeeks(activityAll, 13),
     stageHistory: groupStageHistoryByRole(stageRows),                    // N-274
     // N-309: behind-pace measured from each pipeline's oldest open headcount.

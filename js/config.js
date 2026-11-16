@@ -1404,6 +1404,19 @@ const CONFIG = {
       ],
       DEFAULT_PERIOD: 'quarter',
       BENCHMARK_WEEKS: 52,
+      // N-454: the weekly trend charts on My Scorecard, in display order. `label` is the computeFunnelScorecard row that
+      // is plotted (analytics.js buildScorecardTrend); `unit` is that row's unit. The reference line is `benchKey` read
+      // from the person's learned benchmark (the card's own, scaled by `scale` into the row's unit) or `fixed` for a
+      // limit that is not learned (Interview-to-offer's 7:1 green limit, as computeFunnelScorecard judges it). No
+      // `benchKey` and no `fixed` = no reference line. `lower` = lower is better.
+      TREND: [
+        { label: 'Outreach conversion',   unit: '%',     benchKey: 'outreachConversion',   scale: 100 },
+        { label: 'Submission conversion', unit: '%',     benchKey: 'submissionConversion', scale: 100 },
+        { label: 'Interview-to-offer',    unit: ':1',    fixed: 7, lower: true },
+        { label: 'Offer success',         unit: '%',     benchKey: 'offerSuccess',         scale: 100 },
+        { label: 'Hires',                 unit: 'hires' },
+        { label: 'Avg time to hire',      unit: 'days',  benchKey: 'timeToHireDays',       scale: 1, lower: true },
+      ],
     },
     // N-459 (MM-9): the hero greeting bands, by the viewer's local hour — before afternoonFrom is morning, from eveningFrom is evening (utils.js greetingForHour).
     GREETING_HOURS: { afternoonFrom: 12, eveningFrom: 18 },

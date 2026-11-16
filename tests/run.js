@@ -156,6 +156,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-notifications.js'),   // N-425
   path.join(TESTS_DIR, 'assert-templates.js'),       // N-427
   path.join(TESTS_DIR, 'assert-my-momentum.js'),     // N-451
+  path.join(TESTS_DIR, 'assert-scorecard.js'),       // N-453
 ];
 // N-259: starter-folder-logic.js (pure) loads straight after checklist-logic.js, which it calls.
 // N-361: project-team.js (pure) loads straight after permissions.js; assert-project-team.js is the last assertion file.

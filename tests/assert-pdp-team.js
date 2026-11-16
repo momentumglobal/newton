@@ -35,8 +35,8 @@ ASSERTIONS.push(
       _assertEqual(!!cb && cb.module === 'myMomentum' && cb.href === 'my-momentum.html#myTeam', true, 'AC1 Command Bar entry');
       _assertEqual(cb.roles.slice().sort(), ['admin', 'delivery_manager', 'leadership', 'people_ops', 'sales', 'staff', 'talent_partner'], 'AC1 Command Bar roles mirror My Momentum (the PDP gate decides who sees the tab)');
       const logic = ALL_SOURCES['my-momentum-logic.js'], nav = ALL_SOURCES['my-momentum-nav.js'], app = ALL_SOURCES['my-momentum-app.js'];
-      _assertEqual(/case 'myTeam':\s*return !!s\.pdpTeam;/.test(logic), true, 'AC1 My Team is relevant only on the pdpTeam signal');
-      _assertEqual(/case 'myTeam':\s*await renderTeamDevelopmentPage\(\)/.test(nav), true, 'AC1 my-momentum-nav dispatches the page');
+      _assertEqual(/case 'myTeam':\s*return mmTeamSubTabs\(c\)\.length > 0;/.test(logic) && /if \(s\.pdpTeam\) tabs\.push\(\{ key: 'development'/.test(logic), true, 'AC1 the Development sub-tab is the pdpTeam signal (N-453: My Team shows when it has a sub-tab)');
+      _assertEqual(/case 'myTeam':\s*await renderMyTeamPage\(\)/.test(nav) && /else await renderTeamDevelopmentPage\(\)/.test(nav), true, 'AC1 my-momentum-nav dispatches the page (Development unless Team Scorecards is the open sub-tab)');
       _assertEqual(/resolvePdpNav\(\)/.test(app) && /pdpTeam: !!pdpNav\.team/.test(app) && /\.catch\(/.test(app), true, 'AC1 both PDP signals resolved in one read');
     },
   },

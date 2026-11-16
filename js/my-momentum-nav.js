@@ -4,10 +4,17 @@ let _mmCurrentPage  = null;
 let _mmResolvedRole = null;        // set by my-momentum-app.js on init
 let _mmIdentity     = null;        // getPdpIdentity() result, or null when it could not be read
 let _mmState        = 'notLinked'; // 'ok' | 'notLinked' | 'ambiguous' (mmTabState), or 'error' when the read failed
-let _mmSignals      = {};          // pdpMy / pdpTeam (N-452, set by my-momentum-app.js), hasActivity (N-453)
+let _mmSignals      = {};          // pdpMy / pdpTeam (N-452) and hasReports / hasActivity (N-453), set by my-momentum-app.js
+let _mmTeamTab     = 'development';   // My Team sub-tab: 'development' | 'scorecards' (N-453)
+let _mmTeamView    = '';          // the My Team view filter ('tree' | 'reports' | 'all'), shared by both sub-tabs (MM-D8); '' = each tab's default
+let _mmScPeriod    = CONFIG.MY_MOMENTUM.SCORECARD.DEFAULT_PERIOD;   // scorecard period, shared by My Scorecard and Team Scorecards (kept for the page session)
+
+function _mmTabCtx() {
+  return { state: _mmState, role: _mmResolvedRole, signals: _mmSignals };
+}
 
 function mmNavTabs() {
-  return mmVisibleTabs(CONFIG.MY_MOMENTUM.TABS, { state: _mmState, role: _mmResolvedRole, signals: _mmSignals });
+  return mmVisibleTabs(CONFIG.MY_MOMENTUM.TABS, _mmTabCtx());
 }
 
 function renderMyMomentumNav(role) {
@@ -34,25 +41,50 @@ document.addEventListener('click', function(e) {
   if (dd && header && !header.contains(e.target)) dd.classList.remove('open');
 });
 
-function navigateToMyMomentum(page) {
+// N-453: `page` may be a tab key or a sub-tab alias from CONFIG.MY_MOMENTUM.DEEP_LINKS ('teamScorecards', which the
+// Command Bar passes); `sub` picks the My Team sub-tab. mmResolveDeepLink() decides what actually opens.
+function navigateToMyMomentum(page, sub) {
   const role = _mmResolvedRole || 'viewer';
-  if (!mmCanAccess(page, role)) return;
-  if (!mmNavTabs().some(t => t.key === page)) return;   // a tab that is not shown cannot be opened by hash either
-  _mmCurrentPage = page;
-  updateNavActiveLink(page);
-  withViewTransition(() => renderMyMomentumPage(page));
+  const hit = mmResolveDeepLink(page, mmNavTabs(), mmTeamSubTabs(_mmTabCtx()), CONFIG.MY_MOMENTUM);
+  if (!hit || !mmCanAccess(hit.tab, role)) return;   // a tab that is not shown cannot be opened by hash either
+  if (hit.tab === 'myTeam') _mmTeamTab = _mmPickTeamSub(sub || hit.sub);
+  _mmCurrentPage = hit.tab;
+  updateNavActiveLink(hit.tab);
+  withViewTransition(() => renderMyMomentumPage(hit.tab));
+}
+
+// The My Team sub-tab to open: the one asked for when this person has it, else their first (Development, or Team Scorecards alone).
+function _mmPickTeamSub(want) {
+  const subs = mmTeamSubTabs(_mmTabCtx());
+  return subs.some(t => t.key === want) ? want : (subs[0] ? subs[0].key : 'development');
+}
+
+// The My Team tab strip (mmTeamTabsHtml). Leaving Development asks before it throws away unsaved prep, scores or notes — the
+// same guard the year / view selects use (_pdptpConfirmLeave, pdp-team-page.js).
+async function mmTeamTab(key) {
+  if (key === _mmTeamTab || !mmTeamSubTabs(_mmTabCtx()).some(t => t.key === key)) return;
+  if (_mmTeamTab === 'development' && typeof _pdptpConfirmLeave === 'function') {
+    if (!(await _pdptpConfirmLeave('Switching tab'))) return;
+    _pdptpState.dirty = false;
+    pdpasReset();
+    pdptrReset();
+  }
+  _mmTeamTab = key;
+  withViewTransition(() => renderMyMomentumPage('myTeam'));
 }
 
 registerActions({
   navigateToMyMomentum,
+  mmTeamTab,
 });
 
 async function renderMyMomentumPage(page) {
   const main = document.getElementById('main-content');
   switch (page) {
     case 'myHistory':     renderMyHistoryStub(); break;            // N-451 stub (my-momentum-pages.js); N-455 replaces it
+    case 'myScorecard':   await renderMyScorecardPage(); break;     // N-453 (my-momentum-scorecard.js)
     case 'myDevelopment': await renderMyDevelopmentPage(); break;   // N-438, moved by N-452 (pdp-my.js)
-    case 'myTeam':        await renderTeamDevelopmentPage(); break; // N-439, moved by N-452 (pdp-team-page.js); N-453 adds Team Scorecards
+    case 'myTeam':        await renderMyTeamPage(); break;          // N-452 Development (pdp-team-page.js) + N-453 Team Scorecards
     default:
       main.innerHTML = '<p>Page not found.</p>';
   }
@@ -60,4 +92,10 @@ async function renderMyMomentumPage(page) {
   main.insertAdjacentHTML('afterbegin', page === 'myHistory' ? mmHeroHtml(getCurrentUser().name, new Date().getHours()) : mmAreaHeaderHtml());
   // N-417: once per navigation; the card class the PDP pages use lives in people.css, so it is named here, not in ui-kit.js
   enterStagger(main, VF_ENTER_SELECTOR + ', .ppl-card');
+}
+
+// N-453: My Team opens the sub-tab _mmTeamTab names (Development, or Team Scorecards).
+async function renderMyTeamPage() {
+  if (_mmTeamTab === 'scorecards') await renderTeamScorecardsPage();
+  else await renderTeamDevelopmentPage();
 }

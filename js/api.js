@@ -547,11 +547,13 @@ function _odataIn(field, ids) {
 // page (N-309 QA, AC 11): with no headcount, each placement takes the S-2
 // fallback — its pipeline's Open Date (= the headcount date for migrated
 // 1:1 data).
-async function getHistoricalPlacements() {
+// N-453: `opts.allTime` drops the one-year bound (every placement ever recorded) — the My Scorecard
+// "All time" period only; every other caller passes nothing and is unchanged.
+async function getHistoricalPlacements(opts = {}) {
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
   const [placements, roles, headcount] = await Promise.all([
-    getPlacements(null, { fromDay: localDayISO(cutoff) }),
+    opts && opts.allTime ? getPlacements(null) : getPlacements(null, { fromDay: localDayISO(cutoff) }),
     getAllRoles(),
     getAllHeadcount().catch(e => {
       console.warn('N-309: headcount read failed — time to hire falls back to the pipeline Open Date', e);
@@ -575,6 +577,28 @@ async function getActivityForAnalytics(weeksBack) {
     `fields/WeekEndingDate ge '${odataStr(cutoffDay)}'`
   );
   return activity;
+}
+
+// N-453: EVERY WeeklyActivity row, no date bound — the My Scorecard "All time" period, read once and cached like any
+// list read. Not getActivityForAnalytics(0): a 0 window gives a cutoff of today and returns nothing. The TalentPartner
+// column is not indexed and can hold several people (N-094), so there is no server-side person filter; the page scopes
+// the rows client-side. Same '*' select and the same N-052 comment as above.
+async function getActivityAll() {
+  return getItems('WeeklyActivity');
+}
+
+// N-453: does the signed-in (Ghost-aware) user have any Weekly Activity of their own? Decides whether the My Scorecard
+// tab shows. It reads the SAME rows the scorecard page reads (getActivityForAnalytics(scorecardFetchWeeks())), so opening
+// the tab afterwards is a cache hit. A failed read hides the tab and warns; it never throws.
+async function resolveScorecardNav() {
+  try {
+    await _ensureGhostGate();
+    const rows = await getActivityForAnalytics(scorecardFetchWeeks());
+    return { hasActivity: scorecardHasActivity(rows, getScopedUserEmail()) };
+  } catch (e) {
+    console.warn('My Scorecard availability unknown', e);
+    return { hasActivity: false };
+  }
 }
  
 // N-093 (F-2a): `opts.sinceWeeks` adds a WeekEndingDate lower bound.

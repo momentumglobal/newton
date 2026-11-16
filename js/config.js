@@ -1252,7 +1252,8 @@ const CONFIG = {
   // rather than re-deriving it from pages.js/api.js. Full reasoning +
   // measured row counts: newton-pipeline/specs/N-187.md.
   //
-  // WeeklyActivity — delta-eligible (unfiltered): admin.js:170 (Config Panel
+  // WeeklyActivity — delta-eligible (unfiltered): api.js getActivityAll (N-453,
+  //   My Scorecard "All time"), admin.js:170 (Config Panel
   //   delete-records list), admin.js:326 (Data Health/Snapshots sweep),
   //   dashboard-company.js:160 (Company Dashboard), pages.js:390 (Activity
   //   page — eligible only while DATE_WINDOW_DEFAULT_WEEKS stays 0; a user
@@ -1264,7 +1265,7 @@ const CONFIG = {
   //   market-report.js:128 (RoleID-scoped), getWeeklyActivityNullProjectCount
   //   / getWeeklyActivityNullWeekEndingCount (integrity probes — need the
   //   null filter), getWeeklyActivityForWeek (exact-week lookup), every
-  //   getActivityForAnalytics() caller (analytics-pages.js, cc-pages.js x2,
+  //   getActivityForAnalytics() caller (api.js resolveScorecardNav + analytics.js loadScorecardData, cc-pages.js x2,
   //   dashboard-project.js, mobile-analytics.js, mobile-scorecards.js,
   //   placement-analytics.js — all pass a real weeksBack, never 0).
   //
@@ -1341,9 +1342,9 @@ const CONFIG = {
   // Home grid (index.html): a module gets a home tile only if it has homeOrder
   // (tile position) — its tile copy is `desc`. Command Centre has neither; the
   // home page shows it as a banner instead of a tile.
-  // NOTE: People is visible to DM + TP so they can reach People Scorecards.
-  // The People module's own nav (people-router.js) restricts them to the
-  // Scorecards page only; data scoping is applied in renderScorecardsPage.
+  // NOTE: People is visible to DM + TP so they can reach the Org Chart. Their
+  // scorecards live in My Momentum since N-453 (My Scorecard / Team Scorecards);
+  // the People module's own nav (people-router.js) restricts them to the Org Chart.
   // N-331: People Ops get the whole People module; Sales and Staff reach
   // the Org Chart only (people-router.js).
   OS_MODULES: [
@@ -1371,21 +1372,39 @@ const CONFIG = {
 
   // N-451 (MM-1): My Momentum. TABS is the single registry — display order = landing order. A tab shows
   // only when `live` (its page exists; each later task flips its own flag in the diff that adds the page)
-  // and relevant to the person (js/my-momentum-logic.js). My Team follows the PDP signal alone until N-453
-  // adds Team Scorecards; ALL_STAFF_ROLES (MM-D8) is the all-staff grant N-453 restores. Desktop only in v1:
+  // and relevant to the person (js/my-momentum-logic.js). My Team shows for the PDP signal (Development), for
+  // anyone with reports and for ALL_STAFF_ROLES (MM-D8, Team Scorecards; N-453). Desktop only in v1:
   // the module is deliberately not in mobile-home.js's MOBILE_MODULES.
   MY_MOMENTUM: {
     TABS: [
       { key: 'myHistory',     label: 'My History',     live: true  },   // N-451 stub, N-455 content
       { key: 'myDetails',     label: 'My Details',     live: false },   // N-456
-      { key: 'myScorecard',   label: 'My Scorecard',   live: false },   // N-453
+      { key: 'myScorecard',   label: 'My Scorecard',   live: true  },   // N-453 (moved from People)
       { key: 'myDevelopment', label: 'My Development', live: true  },   // N-452 (moved from People)
-      { key: 'myTeam',        label: 'My Team',        live: true  },   // N-452: Development view; N-453 adds Team Scorecards
+      { key: 'myTeam',        label: 'My Team',        live: true  },   // N-452 Development + N-453 Team Scorecards
     ],
     ALL_STAFF_ROLES: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS],
-    // N-452: old People deep links -> My Momentum tab keys. people-app.js sends the visitor on before sign-in
-    // (utils.js mmRedirectTarget). N-453 adds `scorecards`.
-    REDIRECTS: { myDevelopment: 'myDevelopment', teamDevelopment: 'myTeam' },
+    // N-452 / N-453: old People deep links -> My Momentum tab keys. people-app.js sends the visitor on before sign-in
+    // (utils.js mmRedirectTarget).
+    REDIRECTS: { myDevelopment: 'myDevelopment', teamDevelopment: 'myTeam', scorecards: 'myScorecard' },
+    // N-453: hash / Command Bar keys that name a sub-tab, not a tab. my-momentum-logic.js mmResolveDeepLink().
+    DEEP_LINKS: { teamScorecards: { tab: 'myTeam', sub: 'scorecards' } },
+    // N-453: where a key lands when its own tab is not shown to this person (an old #scorecards link for a manager
+    // or Admin with no activity of their own opens Team Scorecards, not the landing tab).
+    DEEP_LINK_FALLBACKS: { myScorecard: 'teamScorecards' },
+    // N-453 (MM-3): the scorecard periods, shared by My Scorecard and Team Scorecards (analytics.js scorecardPeriod).
+    // `weeks` is the rolling window; no `weeks` = a calendar bound (ytd) or no bound (all). windowLabel is the card's
+    // window line ('Rolling Quarterly View' is what People Scorecards always said). BENCHMARK_WEEKS is the learning
+    // pool for every period (decision, 12 Nov: one stable 52-week benchmark, so RAG compares across periods).
+    SCORECARD: {
+      PERIODS: [
+        { key: 'quarter', label: 'Rolling quarter', windowLabel: 'Rolling Quarterly View', weeks: 13 },
+        { key: 'ytd',     label: 'Calendar YTD',    windowLabel: 'Calendar Year to Date' },
+        { key: 'all',     label: 'All time',        windowLabel: 'All Time' },
+      ],
+      DEFAULT_PERIOD: 'quarter',
+      BENCHMARK_WEEKS: 52,
+    },
     // N-459 (MM-9): the hero greeting bands, by the viewer's local hour — before afternoonFrom is morning, from eveningFrom is evening (utils.js greetingForHour).
     GREETING_HOURS: { afternoonFrom: 12, eveningFrom: 18 },
   },
@@ -1418,13 +1437,12 @@ const CONFIG = {
     { key: 'rejections',       label: 'Rejected Offers',    module: 'reporting', href: 'reporting.html#rejections',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
     { key: 'hiringPlan',       label: 'Hiring Plan',        module: 'reporting', href: 'reporting.html#hiringPlan',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.LEADERSHIP] },
     { key: 'adminPanel',       label: 'Config Panel',       module: 'reporting', href: 'reporting.html#adminPanel',        roles: [_ROLE_IDS.ADMIN] },
-    // people-router.js — People (8)
+    // people-router.js — People (7)
     { key: 'peopleDashboard', label: 'People Dashboard',    module: 'people', href: 'people.html#peopleDashboard', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     { key: 'orgChart',        label: 'Org Chart',           module: 'people', href: 'people.html#orgChart',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.SALES, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER, _ROLE_IDS.STAFF] },
     { key: 'peopleGantt',     label: 'Deployment Timeline', module: 'people', href: 'people.html#peopleGantt',     roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     { key: 'peopleTracker',   label: 'Employee Tracker',    module: 'people', href: 'people.html#peopleTracker',   roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     { key: 'gpInvoices',      label: 'Supplier Invoices',   module: 'people', href: 'people.html#gpInvoices',      roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
-    { key: 'scorecards',      label: 'People Scorecards',   module: 'people', href: 'people.html#scorecards',      roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS, _ROLE_IDS.DELIVERY_MANAGER, _ROLE_IDS.TALENT_PARTNER] },
     { key: 'engagement',      label: 'Engagement',          module: 'people', href: 'people.html#engagement',      roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS] },
     // N-436 (PDP-4): framework + template editors. Admin + People Ops only (pdpAdmin); Leadership deliberately not listed (PDP-D1).
     { key: 'pdpSetup',        label: 'PDP Setup',           module: 'people', href: 'people.html#pdpSetup',        roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.PEOPLE_OPS] },
@@ -1438,6 +1456,9 @@ const CONFIG = {
     // N-452 (MM-2): the PDP pages moved here from People. The tabs show only when the PDP gate says so (resolvePdpNav); these entries only mirror the module roles.
     { key: 'myDevelopment', label: 'My Development', module: 'myMomentum', href: 'my-momentum.html#myDevelopment', roles: _MM_PAGE_ROLES },
     { key: 'myTeam',        label: 'My Team',        module: 'myMomentum', href: 'my-momentum.html#myTeam',        roles: _MM_PAGE_ROLES },
+    // N-453 (MM-3): the scorecards moved here from People. The tabs show only when they apply (activity / reports / an all-staff role); these entries mirror the module roles.
+    { key: 'myScorecard',    label: 'My Scorecard',    module: 'myMomentum', href: 'my-momentum.html#myScorecard',    roles: _MM_PAGE_ROLES },
+    { key: 'teamScorecards', label: 'Team Scorecards', module: 'myMomentum', href: 'my-momentum.html#teamScorecards', roles: _MM_PAGE_ROLES },
     // cc-router.js — Command Centre (2)
     { key: 'overview', label: 'Overview', module: 'command', href: 'command-centre.html', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
     // N-401 — install guide + download for Newton for Claude (cc-claude.js).

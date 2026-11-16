@@ -269,11 +269,10 @@ async function pdpmBack() {
 
 function pdpmDirty() { _pdpmState.dirty = true; }
 
-// N-452: People Scorecards stay on people.html until N-453 moves them into My Momentum, so the link is a page
-// change. The Command Bar entry is the single source for who may open them and where (N-453 repoints this to the tab).
-function _pdpmScorecardEntry() { return CONFIG.COMMAND_BAR_PAGES.find(p => p.key === 'scorecards'); }
-function pdpmCanOpenScorecard() { const e = _pdpmScorecardEntry(); return !!e && e.roles.includes(_mmResolvedRole); }
-function pdpmScorecard() { const e = _pdpmScorecardEntry(); if (e) window.location.href = e.href; }
+// N-453: the scorecard is the My Scorecard tab of this module now, so the button opens it in place. It shows only for
+// people who have the tab (Weekly Activity of their own), so nobody is sent to an empty page.
+function pdpmCanOpenScorecard() { return mmNavTabs().some(t => t.key === 'myScorecard'); }
+function pdpmScorecard() { navigateToMyMomentum('myScorecard'); }
 
 function _pdpmCollect() {
   const root = document.getElementById('pdpm-detail');

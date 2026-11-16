@@ -1,14 +1,16 @@
 // js/my-momentum-app.js — My Momentum module initialisation (N-451 / MM-1)
 
-// Hash format: #<tabKey>. A tab that is not shown to this person is ignored (the landing tab opens instead).
+// Hash format: #<tabKey> or #<alias> (CONFIG.MY_MOMENTUM.DEEP_LINKS, e.g. #teamScorecards). A key that is not shown to this
+// person falls back (DEEP_LINK_FALLBACKS) or is ignored, and the landing tab opens instead (mmResolveDeepLink).
 // Mirrors people-app.js's handlePeopleDeepLink().
 function handleMyMomentumDeepLink() {
   const raw = window.location.hash.slice(1);
   if (!raw) return false;
   const page = raw.split('?')[0].trim();
   history.replaceState(null, '', window.location.pathname);
-  if (!page || !mmNavTabs().some(t => t.key === page)) return false;
-  navigateToMyMomentum(page);
+  const hit = page ? mmResolveDeepLink(page, mmNavTabs(), mmTeamSubTabs(_mmTabCtx()), CONFIG.MY_MOMENTUM) : null;
+  if (!hit) return false;
+  navigateToMyMomentum(hit.tab, hit.sub);
   return true;
 }
 
@@ -31,16 +33,19 @@ window.MY_MOMENTUM_APP = {
     document.getElementById('app-shell').style.display = 'flex';
     document.getElementById('login-screen').style.display = 'none';
 
-    // Who is this person to Newton, and which PDP tabs apply? Two cached reads, together, Ghost-aware, never stored.
-    // Each fails on its own: no identity -> the 'error' panel; no PDP signals -> the PDP tabs simply do not show.
+    // Who is this person to Newton, and which PDP / scorecard tabs apply? Three cached reads, together, Ghost-aware, never stored.
+    // Each fails on its own: no identity -> the 'error' panel; no PDP signals -> the PDP tabs simply do not show; no scorecard
+    // signal -> My Scorecard does not show (N-453; resolveScorecardNav reads the rows the scorecard page reads, so opening it is a cache hit).
     let identityFailed = false;
-    const [identity, pdpNav] = await Promise.all([
+    const [identity, pdpNav, scNav] = await Promise.all([
       getPdpIdentity().catch(e => { console.warn('My Momentum identity unavailable', e); identityFailed = true; return null; }),
       resolvePdpNav().catch(e => { console.warn('PDP tabs unavailable', e); return { my: false, team: false }; }),
+      resolveScorecardNav().catch(e => { console.warn('My Scorecard availability unavailable', e); return { hasActivity: false }; }),
     ]);
     _mmIdentity = identity;
     _mmState = identityFailed ? 'error' : mmTabState(identity);
-    _mmSignals = { pdpMy: !!pdpNav.my, pdpTeam: !!pdpNav.team };
+    // hasReports comes from the identity just loaded (no extra read): a manager with direct reports or a CSD tree gets Team Scorecards.
+    _mmSignals = { pdpMy: !!pdpNav.my, pdpTeam: !!pdpNav.team, hasReports: !!(identity && identity.me && ((identity.directReports || []).length || (identity.csdTree || []).length)), hasActivity: !!scNav.hasActivity };
 
     renderMyMomentumNav(_mmResolvedRole);
     initCommandBar({ currentModule: 'myMomentum', role: _mmResolvedRole, navigateFn: 'navigateToMyMomentum' });

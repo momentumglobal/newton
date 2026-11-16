@@ -763,6 +763,33 @@ function placementsSinceWeeks(placements, weeks, today = new Date()) {
   });
 }
 
+// N-453: day-based twins of the two week-based cuts above, for a window that is not a whole number of weeks
+// (calendar year to date). `fromDay` is a plain local 'YYYY-MM-DD' (analytics.js scorecardPeriod); null = no window,
+// every row returned — including a row with no usable date, exactly as `weeks` 0 does. Same spDateIn rule, same
+// "drop a null-date row when a window applies" rule. The week-based functions are untouched.
+function activitySinceDay(acts, fromDay) {
+  if (!fromDay) return acts || [];
+  return (acts || []).filter(a => {
+    const day = a && a.WeekEndingDate ? spDateIn(a.WeekEndingDate) : null;
+    return !!day && day >= fromDay;
+  });
+}
+function placementsSinceDay(placements, fromDay) {
+  if (!fromDay) return placements || [];
+  return (placements || []).filter(p => {
+    const day = p && p.placementDate ? spDateIn(p.placementDate) : null;
+    return !!day && day >= fromDay;
+  });
+}
+
+// N-453: does any WeeklyActivity row belong to `email`? The same match buildScorecardCards uses to decide who has a
+// card: the row's TalentPartner, trimmed and lower-cased, equals the (trimmed, lower-cased) email.
+function scorecardEmailKey(s) { return String(s == null ? '' : s).trim().toLowerCase(); }
+function scorecardHasActivity(acts, email) {
+  const key = scorecardEmailKey(email);
+  return !!key && (acts || []).some(a => !!a && scorecardEmailKey(a.TalentPartner) === key);
+}
+
 // N-151: the lower bound for a list query that has BOTH a background date
 // window and an optional explicit period selection. The query must be a
 // superset of whatever either control needs, so an explicit selection WIDENS
@@ -1556,7 +1583,7 @@ function ragMarkerHTML(rag, { label = false } = {}) {
 }
 
 // ── Scorecard card (N-336) ────────────────────────────────────
-// One card's markup, shared by People Scorecards (analytics-pages.js) and the
+// One card's markup, shared by My Momentum scorecards (my-momentum-pages.js) and the
 // Command Centre Project Health detail (cc-pages.js). `healthRows` =
 // scorecardHealthRows(); `metrics` = computeFunnelScorecard() rows, with
 // `tip` from scorecardMetricTips() where wanted. Plain strings in — every

@@ -610,10 +610,14 @@ function learnedBenchmarkTip(benchmarks, key, mixOwner = 'this TP works in') {
 // N-336: scorecard metric rows + `tip` (learned-benchmark tooltip, plain text)
 // on the rows judged against a learned benchmark. New objects; inputs never
 // mutated. No `bench` → rows copied without tips.
-function scorecardMetricTips(metrics, bench, mixOwner) {
+// N-453: `basisNote` (optional) is appended to each tip as ' · <note>' — My Momentum passes '52-week norm' because
+// its benchmark is the same 52-week pool for every period. Command Centre / mobile pass nothing, so their tips are unchanged.
+function scorecardMetricTips(metrics, bench, mixOwner, basisNote) {
   return (metrics || []).map(m => {
     const key = bench && SCORECARD_BENCHMARK_KEYS[m.label];
-    return key ? { ...m, tip: learnedBenchmarkTip(bench, key, mixOwner) } : { ...m };
+    if (!key) return { ...m };
+    const tip = learnedBenchmarkTip(bench, key, mixOwner);
+    return { ...m, tip: basisNote ? tip + ' · ' + basisNote : tip };
   });
 }
 
@@ -834,7 +838,7 @@ function buildAnomalyAckFields({ checkType, subjectKey, signature, note }, email
 }
 
 
-// ── Role flag helpers (shared by cc-pages.js, analytics-pages.js,
+// ── Role flag helpers (shared by cc-pages.js, buildScorecardCards,
 //    mobile-scorecards.js, index.html and computeSnapshotMetrics) ──
 // Snapshots contract list (N-086's flow mirrors it) — values deliberately
 // left as-is (N-305): 'Placed' is legacy/dead; 'Closed' is live since N-306
@@ -888,14 +892,88 @@ function groupStageHistoryByRole(rows) {
   return byRole;
 }
 
-// Scorecards data load — shared by the desktop page (analytics-pages.js) and
+// ── Scorecard periods (N-453 / MM-3) ──────────────────────────────────
+// The period toggle on My Scorecard / Team Scorecards: rolling quarter, calendar year to date, all time. The list
+// lives in CONFIG.MY_MOMENTUM.SCORECARD.PERIODS. Pure.
+//   scorecardPeriod(key, today) → { key, label, windowLabel, fromDay }
+//     quarter → weeksAgoDay(13) (what People Scorecards always cut at)
+//     ytd     → 1 January of the local year, built from local getters (never toISOString)
+//     all     → fromDay null: no window
+//   An unknown or missing key falls back to DEFAULT_PERIOD.
+function scorecardPeriod(key, today = new Date()) {
+  const cfg = CONFIG.MY_MOMENTUM.SCORECARD;
+  const p = cfg.PERIODS.find(x => x.key === key) || cfg.PERIODS.find(x => x.key === cfg.DEFAULT_PERIOD);
+  let fromDay = null;
+  if (p.key === 'ytd') fromDay = String(today.getFullYear()).padStart(4, '0') + '-01-01';
+  else if (p.weeks) fromDay = weeksAgoDay(p.weeks, today);
+  return { key: p.key, label: p.label, windowLabel: p.windowLabel, fromDay };
+}
+
+// How many weeks the default (not all-time) scorecard read must reach back: the 52-week benchmark pool AND 1 January
+// (on 31 December of a leap year that is 365 days back, one day beyond a plain 52 weeks). The page and
+// resolveScorecardNav() (api.js) both call this, so they ask for the same rows and the second is a cache hit.
+function scorecardFetchWeeks(today = new Date()) {
+  const y = today.getFullYear();
+  const sinceJan1 = Math.round((Date.UTC(y, today.getMonth(), today.getDate()) - Date.UTC(y, 0, 1)) / 86400000);
+  return Math.max(CONFIG.MY_MOMENTUM.SCORECARD.BENCHMARK_WEEKS, Math.ceil(sinceJan1 / 7) + 1);
+}
+
+// One card per person who has activity in the period — the card-building core People Scorecards ran, lifted here
+// so My Scorecard and Team Scorecards share it (N-453). Pure.
+//   people  [{ email, name }]
+//   data    { activity, placements, allRoles, allProjects, stageHistory, openSince }
+//           activity = every WeeklyActivity row loaded; placements = every getHistoricalPlacements() row loaded
+//   period  scorecardPeriod() result
+// Steps, in the order the old page ran them:
+//   1 learning pool = the last BENCHMARK_WEEKS of activity, client projects only (N-333) — the SAME pool for every
+//     period, so a RAG colour means the same thing in the quarter, year-to-date and all-time views
+//   2 per person: their rows in the period (TalentPartner trimmed + case-insensitive); none → no card, counted in
+//     `omitted` (Readme N-342 note); leave-self-out mix benchmark; velocity score on their period placements
+//   3 role health is TODAY's: their open roles against the last 13 weeks, whatever the period
+// Returns { cards: [{ email, name, scorecard, roleHealth, bench }], omitted } in the order of `people`.
+function buildScorecardCards({ people, data, period, today = new Date() } = {}) {
+  const d = data || {};
+  const per = period || scorecardPeriod(undefined, today);
+  const activity = d.activity || [];
+  const allRoles = d.allRoles || [];
+  const roleIndex = funnelRoleIndex(allRoles, 'Department', 'Location');
+  const { activity: clientPool } = excludeInternalProjectData(
+    { activity: activitySinceWeeks(activity, CONFIG.MY_MOMENTUM.SCORECARD.BENCHMARK_WEEKS, today) },
+    { projects: d.allProjects, roles: allRoles });
+  const benchObs         = buildFunnelObservations(clientPool, roleIndex);
+  const periodRows       = activitySinceDay(activity, per.fromDay);
+  const periodPlacements = placementsSinceDay(d.placements, per.fromDay);
+  const healthRows       = activitySinceWeeks(activity, 13, today);
+  const cards = [];
+  let omitted = 0;
+  (people || []).forEach(p => {
+    const key = scorecardEmailKey(p && p.email);
+    const own = key ? periodRows.filter(a => scorecardEmailKey(a.TalentPartner) === key) : [];
+    if (!own.length) { omitted++; return; }
+    const placements = periodPlacements.filter(r => tpMatches(r.tpEmail, key));
+    const bench      = learnFunnelBenchmarksMix(benchObs, buildFunnelObservations(own, roleIndex), { exclude: o => scorecardEmailKey(o.tp) === key });
+    const scorecard  = computeVelocityScore(key, own, placements, bench);
+    const openRoles  = allRoles.filter(r => !ACTIVE_STAGES.includes(r.Stage) && tpMatches(r.TalentPartner, key));
+    // N-274: { total, flagged, stuck, conversion, behind } — counts only, no RAG for a quarter of time-in-stage data.
+    const roleHealth = tallyRoleFlags(openRoles, healthRows, d.stageHistory, today, { openSince: d.openSince });
+    cards.push({ email: key, name: (p && p.name) || key, scorecard, roleHealth, bench });
+  });
+  return { cards, omitted };
+}
+
+// Scorecards data load — shared by My Momentum (my-momentum-scorecard.js) and
 // the mobile carousel (mobile-scorecards.js) so the two can't drift (N-351).
-// N-270: 52 weeks fetched once — the full window feeds the learned
-// benchmarks; everything on the cards stays on the 13-week slice.
-async function loadScorecardData() {
-  const [activity52, historical, tpMap, allRoles, stageRows, headcount, placementIds, allProjects] = await Promise.all([
-    getActivityForAnalytics(52),
-    getHistoricalPlacements(),
+// N-270: the benchmark pool window fetched once — it feeds the learned
+// benchmarks; everything on the cards stays on its own period slice.
+// N-453: no argument = the default read (scorecardFetchWeeks() weeks: the 52-week pool plus 1 January), unchanged
+// for mobile, whose `activity52` is still exactly the last 52 weeks. `{ allTime: true }` = every WeeklyActivity row
+// and every placement (getActivityAll, getHistoricalPlacements({ allTime })), loaded only when All time is picked.
+// Returns `activityAll` (the rows actually loaded) beside `activity52`.
+async function loadScorecardData(opts = {}) {
+  const allTime = !!(opts && opts.allTime);
+  const [activityAll, historical, tpMap, allRoles, stageRows, headcount, placementIds, allProjects] = await Promise.all([
+    allTime ? getActivityAll() : getActivityForAnalytics(scorecardFetchWeeks()),
+    getHistoricalPlacements(allTime ? { allTime: true } : {}),
     getTalentPartnerDisplayMap(),
     getAllRoles(),
     getRoleStageHistory().catch(e => { console.warn('N-274: stage history read failed', e); return []; }),
@@ -903,9 +981,10 @@ async function loadScorecardData() {
     getPlacementHeadcountIds().catch(e => { console.warn('N-309: placement headcount read failed', e); return []; }),
     getProjects(false),
   ]);
+  const activity52 = activitySinceWeeks(activityAll, CONFIG.MY_MOMENTUM.SCORECARD.BENCHMARK_WEEKS);
   return {
-    activity52, historical, tpMap, allRoles, allProjects,
-    activityRaw:  activitySinceWeeks(activity52, 13),
+    activity52, activityAll, historical, tpMap, allRoles, allProjects,
+    activityRaw:  activitySinceWeeks(activityAll, 13),
     stageHistory: groupStageHistoryByRole(stageRows),                    // N-274
     // N-309: behind-pace measured from each pipeline's oldest open headcount.
     openSince:    oldestOpenHeadcountIndex(headcount, placementIds),

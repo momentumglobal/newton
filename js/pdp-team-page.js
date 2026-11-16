@@ -7,7 +7,8 @@
 // (N-439): this page renders other people's meeting records, so it is on the PDP-D12 allowlist
 // (tests/assert-pdp-access.js); it is loaded only on my-momentum.html, never by mobile.html, Newton for Claude
 // or the Command Bar. It reuses the state pill maps and the text / list helpers from pdp-ui-common.js, and the
-// tab strip from my-momentum-pages.js (mmTeamTabsHtml).
+// tab strip from my-momentum-pages.js (mmTeamTabsHtml). N-453: it is the Development sub-tab of My Team; the strip
+// is drawn only when the person also has Team Scorecards, and the view filter is shared with that tab (_mmTeamView).
 
 let _pdptpState = {
   list:     null,   // last loadTeamDevelopment() result
@@ -33,6 +34,7 @@ async function renderTeamDevelopmentPage() {
   const main = document.getElementById('main-content');
   main.innerHTML = dashboardSkeleton(2);
   Object.assign(_pdptpState, { personId: null, openId: null, detail: null, draft: null, form: null, busy: false, dirty: false, tab: 'meetings', tracker: null });
+  if (_mmTeamView) _pdptpState.view = _mmTeamView;   // N-453: the view picked on Team Scorecards carries over (loadTeamDevelopment clamps one this tab cannot serve)
   pdptrReset();
   await _pdptpLoadList();
 }
@@ -58,7 +60,8 @@ function _pdptpRedraw() {
 }
 
 function _pdptpShell(inner) {
-  return `<div class="page-header"><h1 class="page-title">My Team</h1></div>${mmTeamTabsHtml('development')}${inner}`;
+  const subs = mmTeamSubTabs(_mmTabCtx());   // N-453: the strip only when there is a second tab to switch to
+  return `<div class="page-header"><h1 class="page-title">My Team</h1></div>${subs.length >= 2 ? mmTeamTabsHtml('development', subs) : ''}${inner}`;
 }
 
 function _pdptpPageHtml() {
@@ -357,6 +360,7 @@ async function pdptYear(value) {
 }
 
 async function pdptView(value) {
+  _mmTeamView = String(value);   // N-453: shared with Team Scorecards (MM-D8)
   Object.assign(_pdptpState, { view: String(value), personId: null, tab: 'meetings', tracker: null });
   pdptrReset();
   document.getElementById('main-content').innerHTML = dashboardSkeleton(2);

@@ -22,7 +22,7 @@ var INTERNAL_KPI_CONSUMERS = [
   { file: 'report-builder.js',           fn: 'rbFetchData',                    call: 'excludeInternalProjectData' },
   { file: 'dashboard-project.js',        fn: 'renderProjectDashboard',         call: 'excludeInternalProjectData' },
   { file: 'dashboard-project-panels.js', fn: 'renderRoleAnalyticsPanel',       call: 'excludeInternalProjectData' },
-  { file: 'analytics-pages.js',          fn: 'renderScorecardsPage',           call: 'excludeInternalProjectData' },
+  { file: 'analytics.js',                fn: 'buildScorecardCards',            call: 'excludeInternalProjectData' },   // N-453 (was analytics-pages.js renderScorecardsPage)
   { file: 'mobile-scorecards.js',        fn: 'mobileRenderScorecards',         call: 'excludeInternalProjectData' },
   { file: 'placement-analytics.js',      fn: 'renderPlacementAnalytics',       call: 'excludeInternalProjectData' },
   { file: 'mobile-analytics.js',         fn: 'mobileRenderPlacementAnalytics', call: 'excludeInternalProjectData' },

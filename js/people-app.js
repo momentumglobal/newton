@@ -33,8 +33,7 @@ window.PEOPLE_APP = {
     _resolvedRole = await getEffectiveRole(user.email);
 
     // People module access comes from the page registry (people-router.js):
-    // a role that can open no People page is sent home. TP sees only their
-    // own scorecard — scoped in renderScorecardsPage. N-331: no role list here.
+    // a role that can open no People page is sent home. N-331: no role list here.
     const landing = getPeopleLandingPage(_resolvedRole);
     if (!landing) {
       window.location.href = 'index.html';
@@ -58,8 +57,8 @@ window.PEOPLE_APP = {
 };
 
 window.addEventListener('DOMContentLoaded', () => {
-  // N-452: My Development and Team Development live in My Momentum now. Old bookmarks and stored notification links
-  // carry on there, before sign-in, so a signed-out visitor reaches the right tab after logging in.
+  // N-452 / N-453: My Development, Team Development and the Scorecards live in My Momentum now. Old bookmarks and stored
+  // notification links carry on there, before sign-in, so a signed-out visitor reaches the right tab after logging in.
   const moved = mmRedirectTarget(window.location.hash, CONFIG.MY_MOMENTUM.REDIRECTS);
   if (moved) { window.location.replace('my-momentum.html#' + moved); return; }
   authReady().then(() => {

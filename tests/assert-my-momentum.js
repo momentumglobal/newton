@@ -25,11 +25,11 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-451 AC3/AC6 config: tab registry — History, Development and Team are live (N-452); order is the landing order',
+    name: 'N-451 AC3/AC6 config: tab registry — History, Scorecard, Development and Team are live (N-452, N-453); order is the landing order',
     fn: function () {
       const T = CONFIG.MY_MOMENTUM.TABS;
       _assertEqual(_mmKeys(T), ['myHistory', 'myDetails', 'myScorecard', 'myDevelopment', 'myTeam'], 'AC6 order');
-      _assertEqual(T.filter(t => t.live).map(t => t.key), ['myHistory', 'myDevelopment', 'myTeam'], 'AC3 live tabs (later tasks flip their own flag)');
+      _assertEqual(T.filter(t => t.live).map(t => t.key), ['myHistory', 'myScorecard', 'myDevelopment', 'myTeam'], 'AC3 live tabs (later tasks flip their own flag)');
       _assertEqual(CONFIG.MY_MOMENTUM.ALL_STAFF_ROLES, ['admin', 'leadership', 'people_ops'], 'AC6 all-staff roles (MM-D8)');
     },
   },
@@ -48,20 +48,23 @@ ASSERTIONS.push(
     fn: function () {
       const live = CONFIG.MY_MOMENTUM.TABS;
       const all = { hasActivity: true, pdpMy: true, pdpTeam: true };
-      _assertEqual(_mmKeys(mmVisibleTabs(live, { state: 'ok', role: 'talent_partner', signals: all })), ['myHistory', 'myDevelopment', 'myTeam'], 'a live:false tab never appears, even with every signal true');
+      _assertEqual(_mmKeys(mmVisibleTabs(live, { state: 'ok', role: 'talent_partner', signals: all })), ['myHistory', 'myScorecard', 'myDevelopment', 'myTeam'], 'a live:false tab never appears, even with every signal true (My Details is not live yet)');
       _assertEqual(_mmKeys(mmVisibleTabs(live, { state: 'ok', role: 'talent_partner', signals: {} })), ['myHistory'], 'no PDP signal: only My History');
       _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: 'talent_partner', signals: {} })), ['myHistory', 'myDetails'], 'ok state: History + Details only');
       _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: 'talent_partner', signals: all })), ['myHistory', 'myDetails', 'myScorecard', 'myDevelopment', 'myTeam'], 'everything relevant, registry order');
       _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: 'staff', signals: { hasActivity: true } })), ['myHistory', 'myDetails', 'myScorecard'], 'Scorecard needs hasActivity');
       _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: 'staff', signals: { pdpMy: true } })), ['myHistory', 'myDetails', 'myDevelopment'], 'Development needs pdpMy');
       _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: 'delivery_manager', signals: { pdpTeam: true } })), ['myHistory', 'myDetails', 'myTeam'], 'My Team needs pdpTeam');
-      _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: 'delivery_manager', signals: { hasReports: true } })).includes('myTeam'), false, 'the retired hasReports signal no longer opens My Team');
+      _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: 'delivery_manager', signals: { hasReports: true } })).includes('myTeam'), true, 'N-453 hasReports opens My Team (Team Scorecards) with no pdpTeam');
       ['admin', 'people_ops'].forEach(r => {
         _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'notLinked', role: r, signals: { pdpTeam: true } })), ['myTeam'], r + ' with pdpTeam gets My Team with no People row');
         _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'error', role: r, signals: { pdpTeam: true } })), ['myTeam'], r + ' keeps My Team when the identity read failed');
       });
       ['admin', 'leadership', 'people_ops'].forEach(r =>
-        _assertEqual(mmVisibleTabs(_MM_ALL_LIVE, { state: 'notLinked', role: r, signals: {} }), [], r + ' without pdpTeam: no role grant until N-453 (Leadership never gets Development, PDP-D1)'));
+        {
+          _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'notLinked', role: r, signals: {} })), ['myTeam'], 'N-453 ' + r + ' without pdpTeam or a People row: My Team, for Team Scorecards (MM-D8)');
+          _assertEqual(mmTeamSubTabs({ state: 'notLinked', role: r, signals: {} }).map(t => t.key), ['scorecards'], r + ' without pdpTeam: Team Scorecards only - never Development (PDP-D1)');
+        });
       ['talent_partner', 'delivery_manager', 'staff', 'sales'].forEach(r =>
         _assertEqual(_mmKeys(mmVisibleTabs(_MM_ALL_LIVE, { state: 'ok', role: r, signals: {} })).includes('myTeam'), false, r + ' without pdpTeam has no My Team'));
       ['notLinked', 'ambiguous', 'error'].forEach(s =>
@@ -106,7 +109,7 @@ ASSERTIONS.push(
       _assertEqual(typeof html, 'string', 'my-momentum.html exists');
       const srcs = (html.match(/<script src="js\/[^"]+"/g) || []).map(s => s.replace('<script src="js/', '').replace('"', ''));
       const order = ['config.js', 'actions.js', 'auth.js', 'utils.js', 'ui-kit.js', 'permissions.js', 'project-team.js', 'pdp-identity.js', 'graph-client.js', 'api.js', 'api-pdp.js',
-        'my-momentum-logic.js', 'my-momentum-router.js', 'nav-core.js', 'command-bar.js', 'notifications.js', 'my-momentum-nav.js', 'my-momentum-pages.js', 'my-momentum-app.js'];
+        'my-momentum-logic.js', 'my-momentum-router.js', 'nav-core.js', 'command-bar.js', 'notifications.js', 'my-momentum-nav.js', 'my-momentum-pages.js', 'my-momentum-scorecard.js', 'my-momentum-app.js'];
       let last = -1;
       order.forEach(f => {
         const i = srcs.indexOf(f);
@@ -115,7 +118,8 @@ ASSERTIONS.push(
       });
       _assertEqual(srcs[srcs.length - 1], 'my-momentum-app.js', 'app init loads last');
       _assertEqual(/<script(?![^>]*\bsrc=)[^>]*>/.test(html), false, 'no inline <script>');
-      ['analytics.js', 'analytics-pages.js', 'pdp-setup.js', 'pdp-calibrate-ui.js'].forEach(f => _assertEqual(srcs.includes(f), false, f + ' is not loaded here (PDP Setup stays in People; later tasks add what their tab needs)'));
+      _assertEqual(srcs.includes('analytics.js') && srcs.indexOf('analytics.js') < srcs.indexOf('my-momentum-logic.js'), true, 'N-453 analytics.js is loaded here, before the My Momentum files (the scorecard maths)');
+      ['analytics-pages.js', 'pdp-setup.js', 'pdp-calibrate-ui.js'].forEach(f => _assertEqual(srcs.includes(f), false, f + ' is not loaded here (analytics-pages.js is retired by N-453; PDP Setup stays in People)'));
       _assertEqual(html.includes('id="breadcrumb-bar"') && html.includes('id="main-content"') && html.includes('id="sidebar"'), true, 'shell markup');
       _assertEqual(ALL_SOURCES['mobile-home.js'].includes('myMomentum') || ALL_SOURCES['mobile-app.js'].includes('myMomentum'), false, 'AC7 not in the mobile launcher');
     },
@@ -144,19 +148,19 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-451 AC11 / N-452 AC6 People links: Scorecards untouched, the two PDP pages are gone',
+    name: 'N-451 AC11 / N-452 AC6 / N-453 AC1 People links: PDP Setup untouched, the two PDP pages and People Scorecards are gone',
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') _skip('needs ALL_SOURCES (tests/run.js)');
       const r = ALL_SOURCES['people-router.js'];
-      ['pdpSetup:', 'scorecards:'].forEach(k => _assertEqual(r.includes(k), true, 'people-router.js still registers ' + k));
-      ['myDevelopment:', 'teamDevelopment:'].forEach(k => _assertEqual(r.includes(k), false, 'people-router.js no longer registers ' + k + ' (N-452)'));
-      _assertEqual(CONFIG.COMMAND_BAR_PAGES.some(p => p.key === 'scorecards' && p.href === 'people.html#scorecards'), true, 'People Scorecards Command Bar entry unchanged');
+      _assertEqual(r.includes('pdpSetup:'), true, 'people-router.js still registers pdpSetup:');
+      ['myDevelopment:', 'teamDevelopment:', 'scorecards:'].forEach(k => _assertEqual(r.includes(k), false, 'people-router.js no longer registers ' + k + ' (N-452 / N-453)'));
+      _assertEqual(CONFIG.COMMAND_BAR_PAGES.some(p => p.key === 'scorecards'), false, 'N-453 no People Scorecards Command Bar entry');
     },
   },
   {
     name: 'N-452 AC7/AC9 config: redirect map, reminder links, Command Bar entries now belong to My Momentum',
     fn: function () {
-      _assertEqual(CONFIG.MY_MOMENTUM.REDIRECTS, { myDevelopment: 'myDevelopment', teamDevelopment: 'myTeam' }, 'redirect map');
+      _assertEqual(CONFIG.MY_MOMENTUM.REDIRECTS, { myDevelopment: 'myDevelopment', teamDevelopment: 'myTeam', scorecards: 'myScorecard' }, 'redirect map (N-453 adds scorecards)');
       Object.values(CONFIG.MY_MOMENTUM.REDIRECTS).forEach(k => _assertEqual(CONFIG.MY_MOMENTUM.TABS.some(t => t.key === k && t.live), true, 'redirect target ' + k + ' is a live tab'));
       _assertEqual(CONFIG.PDP.REMINDERS.LINKS, { MY: 'my-momentum.html#myDevelopment', TEAM: 'my-momentum.html#myTeam' }, 'AC7 reminder links');
       const mod = CONFIG.OS_MODULES.find(m => m.key === 'myMomentum');
@@ -175,7 +179,8 @@ ASSERTIONS.push(
       _assertEqual(mmRedirectTarget('#myDevelopment', map), 'myDevelopment', 'My Development');
       _assertEqual(mmRedirectTarget('#teamDevelopment', map), 'myTeam', 'Team Development becomes My Team');
       _assertEqual(mmRedirectTarget('#teamDevelopment?x=1', map), 'myTeam', 'a query string is ignored');
-      _assertEqual(['#scorecards', '#pdpSetup', '#orgChart', '', '#', undefined, null, '#constructor', '#toString'].map(h => mmRedirectTarget(h, map)), ['', '', '', '', '', '', '', '', ''], 'everything else stays on People (scorecards until N-453; prototype keys never match)');
+      _assertEqual(['#pdpSetup', '#orgChart', '', '#', undefined, null, '#constructor', '#toString'].map(h => mmRedirectTarget(h, map)), ['', '', '', '', '', '', '', ''], 'everything else stays on People (prototype keys never match)');
+      _assertEqual(mmRedirectTarget('#scorecards', map), 'myScorecard', 'N-453 an old People Scorecards link redirects to My Scorecard');
       _assertEqual(mmRedirectTarget('#myDevelopment', null), '', 'null map is safe');
       _assertEqual(mmRedirectTarget('#scorecards', { scorecards: 'myScorecard' }), 'myScorecard', 'control: a listed key does redirect, so the empty results above are not a dead function');
     },
@@ -218,24 +223,30 @@ ASSERTIONS.push(
       const rem = app.indexOf('runPdpReminders()');
       _assertEqual(app.split('runPdpReminders()').length === 2 && /runPdpReminders\(\)\.catch\(/.test(app), true, 'reminders run once and never throw');
       _assertEqual(app.indexOf('_mmSignals = ') > -1 && app.indexOf('_mmSignals = ') < app.indexOf('renderMyMomentumNav(') && app.indexOf('renderMyMomentumNav(') < rem && rem < app.indexOf('handleMyMomentumDeepLink()', rem), true, 'signals, then nav, then reminders, then the deep link');
-      _assertEqual(/case 'myDevelopment':\s*await renderMyDevelopmentPage\(\)/.test(nav) && /case 'myTeam':\s*await renderTeamDevelopmentPage\(\)/.test(nav), true, 'both PDP pages are dispatched');
+      _assertEqual(/case 'myDevelopment':\s*await renderMyDevelopmentPage\(\)/.test(nav) && /case 'myTeam':\s*await renderMyTeamPage\(\)/.test(nav) && /else await renderTeamDevelopmentPage\(\)/.test(nav), true, 'both PDP pages are dispatched (My Team via renderMyTeamPage, N-453)');
       _assertEqual(/\.ppl-card/.test(nav), true, 'entrance stagger names .ppl-card');
     },
   },
   {
-    name: 'N-452 AC2 My Team: one-tab strip and page title; the Scorecard link no longer needs People globals',
+    name: 'N-452 AC2 / N-453 My Team: the strip and page title; the Scorecard link no longer needs People globals',
     fn: function () {
-      const strip = mmTeamTabsHtml('development');
-      _assertEqual(strip.includes('eng-tab--active') && strip.includes('aria-selected="true"') && strip.includes('>Development<'), true, 'Development is the active tab');
-      _assertEqual(mmTeamTabsHtml('other').includes('eng-tab--active'), false, 'control: an inactive key is not marked active');
+      const subs = [{ key: 'development', label: 'Development' }, { key: 'scorecards', label: 'Team Scorecards' }];
+      const strip = mmTeamTabsHtml('development', subs);
+      _assertEqual(strip.includes('eng-tab--active') && strip.includes('aria-selected="true"') && strip.includes('>Development<') && strip.includes('>Team Scorecards<'), true, 'Development is the active tab, Team Scorecards is the other');
+      _assertEqual(mmTeamTabsHtml('other', subs).includes('eng-tab--active'), false, 'control: an inactive key is not marked active');
       _assertEqual(/<script|\bon[a-z]+=/.test(strip), false, 'plain markup');
       if (typeof _pdptpPageHtml === 'function') {
+        const had = globalThis._mmTabCtx;
+        globalThis._mmTabCtx = () => ({ state: 'ok', role: 'delivery_manager', signals: { pdpTeam: true, hasReports: true } });   // my-momentum-nav.js is not loaded in the rig
         const h = _pdptpPageHtml();
-        _assertEqual(h.includes('<h1 class="page-title">My Team</h1>') && h.includes('eng-tab--active') && !h.includes('Team Development'), true, 'the page is titled My Team with the strip above the content');
+        const one = (globalThis._mmTabCtx = () => ({ state: 'ok', role: 'talent_partner', signals: { pdpTeam: true } }), _pdptpPageHtml());
+        globalThis._mmTabCtx = had;
+        _assertEqual(h.includes('<h1 class="page-title">My Team</h1>') && h.includes('eng-tab--active') && h.includes('Team Scorecards') && !h.includes('Team Development'), true, 'the page is titled My Team with the two-tab strip above the content');
+        _assertEqual(one.includes('<h1 class="page-title">My Team</h1>') && !one.includes('eng-tab-strip'), true, 'N-453 with Development as the only sub-tab there is no strip');
       }
       if (typeof ALL_SOURCES !== 'undefined') {
         const my = ALL_SOURCES['pdp-my.js'];
-        _assertEqual(/function pdpmScorecard\(\) \{ const e = _pdpmScorecardEntry\(\); if \(e\) window\.location\.href = e\.href; \}/.test(my) && !/navigateToPeople|peopleCanAccess|_resolvedRole\b/.test(my), true, 'pdp-my.js no longer needs People globals');
+        _assertEqual(/function pdpmScorecard\(\) \{ navigateToMyMomentum\('myScorecard'\); \}/.test(my) && !/navigateToPeople|peopleCanAccess|_resolvedRole\b/.test(my), true, 'pdp-my.js no longer needs People globals');
       }
     },
   },

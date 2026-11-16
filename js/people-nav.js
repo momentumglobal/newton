@@ -53,7 +53,6 @@ async function renderPeoplePage(page, pendingItem = null) {
     case 'orgChart':        await renderOrgChart();           break;
     case 'peopleGantt':     await renderDeploymentTimeline(); break;
     case 'gpInvoices':      await renderGPInvoices(pendingItem); break;
-    case 'scorecards':      await renderScorecardsPage();     break;
     case 'engagement':      await renderEngagementPage();     break;
     case 'pdpSetup':        await renderPdpSetupPage();       break;   // N-436 (pdp-setup.js)
     default:

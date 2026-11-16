@@ -145,7 +145,7 @@ ASSERTIONS.push(
       _assertEqual([t[0].employeeSigned, t[0].managerSigned, t[3].submitted, t[2].skipReason, t[2].label], [true, true, true, 'Within 3 weeks of goal setting', 'Joiner goal setting'], 'AC9 flags, skip reason and joiner label');
       const src = ALL_SOURCES['pdp-my.js'];
       _assertEqual(/CONFIG\.PDP\.CYCLE\.JOINER_GOALS/.test(src), true, 'AC9 joiner goal count comes from the engine constant');
-      _assertEqual(/pdpmCanOpenScorecard\(\)/.test(src) && /ME\.KPI_BLOCK_KEY/.test(src) && /window\.location\.href = e\.href/.test(src), true, 'AC9 Scorecard link only for roles that can open the page'); // N-452: gate = the Command Bar entry for People Scorecards
+      _assertEqual(/pdpmCanOpenScorecard\(\)/.test(src) && /ME\.KPI_BLOCK_KEY/.test(src) && /mmNavTabs\(\)\.some\(t => t\.key === 'myScorecard'\)/.test(src) && /navigateToMyMomentum\('myScorecard'\)/.test(src), true, 'AC9 Scorecard link only for people who have the My Scorecard tab, and it opens that tab'); // N-453: the gate is the tab, not a People page
       const v1 = { id: '100', MeetingType: 'Quarterly', VersionNo: 1, Definition: '{"v":1}' }, v2 = { id: '101', MeetingType: 'Quarterly', VersionNo: 2, Definition: '{"v":2}', Status: 'Published' };
       _assertEqual(pdpTemplateForMeeting([v1, v2], { MeetingType: 'Quarterly', TemplateID: 100, TemplateVersion: 1 }).id, '100', 'AC10 a v1 meeting still renders v1 after v2 is published');
       const rec = pdpMyAgreedRecord({ id: '9', MeetingNotes: '{"answers":{"notes":"Agreed"}}', PrepManager: '{"answers":{"mgr":"Strong"}}' }, [{ MeetingID: 9, Title: 'G1' }, { MeetingID: 8, Title: 'G2' }], [{ MeetingID: 9, Title: 'A1' }]);
@@ -179,11 +179,12 @@ ASSERTIONS.push(
     name: 'N-438 AC9/AC11 page markup: prep form, locked view, record view, KPI link, sign-off button, escaping',
     fn: function () {
       if (typeof _pdpmDetailHtml !== 'function') _skip('pdp-my.js is not loaded in this harness');
-      globalThis._mmResolvedRole = 'talent_partner';   // N-452: the scorecard gate reads the My Momentum role
-      _assertEqual(pdpmCanOpenScorecard(), true, 'N-452 a Talent Partner can open People Scorecards');
-      globalThis._mmResolvedRole = 'staff';
-      _assertEqual(pdpmCanOpenScorecard(), false, 'N-452 control: Staff cannot, so the button is hidden for them');
       globalThis._mmResolvedRole = 'talent_partner';
+      globalThis.mmNavTabs = () => [{ key: 'myHistory' }, { key: 'myScorecard' }];   // N-453: the scorecard gate reads the visible My Momentum tabs
+      _assertEqual(pdpmCanOpenScorecard(), true, 'N-453 a person who has the My Scorecard tab can open it');
+      globalThis.mmNavTabs = () => [{ key: 'myHistory' }];
+      _assertEqual(pdpmCanOpenScorecard(), false, 'N-453 control: a person with no activity has no tab, so the button is hidden for them');
+      globalThis.mmNavTabs = () => [{ key: 'myHistory' }, { key: 'myScorecard' }];
       const kpi = CONFIG.PDP.ME.KPI_BLOCK_KEY;
       const def = { schema: 1, sections: [
         { key: 'p', title: 'Pre-work <b>', blocks: [
@@ -228,6 +229,7 @@ ASSERTIONS.push(
     fn: function () {
       if (typeof _pdpmDetailHtml !== 'function') _skip('pdp-my.js is not loaded in this harness');
       globalThis._mmResolvedRole = 'talent_partner';
+      globalThis.mmNavTabs = () => [{ key: 'myHistory' }];   // N-453: the scorecard gate reads the visible tabs
       const def = { schema: 1, sections: [
         { key: 'lb', title: 'Looking Back', blocks: [{ key: 'a', type: 'prompt', label: 'What happened?' }] },
         { key: 'mt', title: 'Meeting', blocks: [{ key: 'ac', type: 'actions', max: 3, label: 'Actions' }] },

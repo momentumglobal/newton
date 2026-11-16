@@ -491,7 +491,6 @@ ASSERTIONS.push(
       peopleGantt: ['admin', 'leadership', 'people_ops'],
       peopleTracker: ['admin', 'leadership', 'people_ops'],
       gpInvoices: ['admin', 'leadership', 'people_ops'],
-      scorecards: ['admin', 'delivery_manager', 'leadership', 'people_ops', 'talent_partner'],
       engagement: ['admin', 'leadership', 'people_ops'],
       pdpSetup: ['admin', 'people_ops'],   // N-436
     },
@@ -512,8 +511,8 @@ ASSERTIONS.push(
       leadership: 'peopleDashboard',
       people_ops: 'peopleDashboard',
       sales: 'orgChart',
-      delivery_manager: 'scorecards',
-      talent_partner: 'scorecards',
+      delivery_manager: 'orgChart',   // N-453: the scorecards moved to My Momentum
+      talent_partner: 'orgChart',
       staff: 'orgChart',
       viewer: null,
     },

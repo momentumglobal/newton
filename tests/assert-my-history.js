@@ -12,7 +12,7 @@ const _MH_PROJECTS = [
 function _mhAssignments() {
   return [
     _mhA({ ProjectID: 1, StartDate: '2025-01-01T00:00:00Z', EndDate: '2026-03-31T00:00:00Z' }),                       // own row ended, project still Active -> Completed
-    _mhA({ ProjectID: 1, StartDate: '2026-04-01T00:00:00Z' }),                                                         // same project, open -> Current
+    _mhA({ ProjectID: 1, StartDate: '2026-04-05T00:00:00Z' }),                                                         // same project, open -> Current
     _mhA({ ProjectID: 2 }),                                                                                            // project Completed, no end -> Completed (sorts last)
     _mhA({ ProjectID: 3, StartDate: '2026-12-01T00:00:00Z' }),                                                         // Upcoming
     _mhA({ ProjectID: 4, IsForecast: 'Yes', EndDate: '2026-02-01T00:00:00Z' }),                                        // forecast: out
@@ -89,6 +89,38 @@ ASSERTIONS.push(
     fn: function () {
       ['admin', 'delivery_manager', 'talent_partner', 'leadership', 'people_ops'].forEach(r => _assertEqual(mmCanOpenProjectPage(r), true, r));
       ['sales', 'staff', 'viewer'].forEach(r => _assertEqual(mmCanOpenProjectPage(r), false, r));
+    },
+  },
+  {
+    name: 'N-455 diff-2 merge: rows of one project that run on with no gap are one line; a gap keeps them apart; the tile counts stints',
+    fn: function () {
+      const P = [
+        { id: 6, CustomerName: 'Zen', Status: 'Active', ProjectType: 'CoE' },
+        { id: 7, CustomerName: 'Pro', Status: 'Active', ProjectType: 'Embedded' },
+        { id: 8, CustomerName: 'Open', Status: 'Active', ProjectType: 'RPO' },
+        { id: 9, CustomerName: 'Month', Status: 'Active', ProjectType: 'RPO' },
+      ];
+      const a = [
+        _mhA({ ProjectID: 6, StartDate: '2026-08-11T00:00:00Z', EndDate: '2026-10-31T00:00:00Z' }),   // listed first on purpose: input order must not matter
+        _mhA({ ProjectID: 6, StartDate: '2026-08-01T00:00:00Z', EndDate: '2026-08-10T00:00:00Z' }),   // ends the day before: one stint
+        _mhA({ ProjectID: 7, StartDate: '2026-01-01T00:00:00Z', EndDate: '2026-01-31T00:00:00Z' }),
+        _mhA({ ProjectID: 7, StartDate: '2026-02-03T00:00:00Z', EndDate: '2026-07-31T00:00:00Z' }),   // 1-2 Feb is a gap: two stints
+        _mhA({ ProjectID: 8, StartDate: '2026-05-01T00:00:00Z', EndDate: '2026-06-30T00:00:00Z' }),
+        _mhA({ ProjectID: 8, StartDate: '2026-06-15T00:00:00Z', EndDate: '2026-07-15T00:00:00Z' }),   // overlaps the first
+        _mhA({ ProjectID: 8, StartDate: '2026-07-01T00:00:00Z' }),                                    // open-ended: the stint is Current
+        _mhA({ ProjectID: 9, StartDate: '2026-01-01T00:00:00Z', EndDate: '2026-01-31T00:00:00Z' }),
+        _mhA({ ProjectID: 9, StartDate: '2026-02-01T00:00:00Z', EndDate: '2026-02-28T00:00:00Z' }),   // month boundary: one stint
+      ];
+      const rows = mmHistoryRows(a, P, _MH_TODAY);
+      _assertEqual(rows.map(r => r.projectId), [8, 6, 7, 9, 7], 'one line per unbroken stint: Open (current), Zen, Pro, Month, Pro');
+      _assertEqual(rows.map(r => r.status), ['current', 'completed', 'completed', 'completed', 'completed'], 'status judged on the merged span');
+      _assertEqual([rows[0].start, rows[0].end], ['2026-05-01', ''], 'overlaps and an open end merge into one open stint');
+      _assertEqual([rows[1].start, rows[1].end], ['2026-08-01', '2026-10-31'], 'extension: first start, last end');
+      _assertEqual([rows[2].start, rows[2].end, rows[4].start, rows[4].end], ['2026-02-03', '2026-07-31', '2026-01-01', '2026-01-31'], 'a gap keeps the stints apart');
+      _assertEqual([rows[3].start, rows[3].end], ['2026-01-01', '2026-02-28'], 'month boundary merges');
+      _assertEqual(Object.keys(rows[0]).includes('done'), false, 'no working field leaks into the rows');
+      _assertEqual(mmHistoryTiles({}, rows, 0).projectsCompleted, 4, 'tile: Zen once, Month once, Pro twice (gap); Open is not completed');
+      _assertEqual(mmHistoryTableHtml(rows, false).match(/<tr>/g).length, 6, 'table: header + one body row per stint');
     },
   },
   {

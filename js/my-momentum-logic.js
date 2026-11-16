@@ -91,28 +91,46 @@ function mmCanOpenProjectPage(role) {
 // is Completed; 'upcoming' = starts after today; else 'current'. Day strings via spDateIn, compared as text — never Date
 // objects (SharePoint's UTC to BST shift). `known` = the Project row exists; an unknown project shows the assignment's own
 // Customer text and is not counted in the tile.
+// Diff-2: legacy extensions were signed as a new row, not an amendment, so rows of ONE ProjectID that run on with no gap
+// are one stint (see the merge step below); a gap of a day or more starts a new stint. Status is judged on the merged span.
 // Rows { projectId, known, project, type, start, end, status } — Current (newest start), Upcoming (soonest start), then
 // Completed (newest end, a Completed row with no end last).
 function mmHistoryRows(assignments, projects, todayDay) {
   const byId = new Map((projects || []).filter(Boolean).map(p => [String(p.id), p]));
-  const rows = [];
+  const lines = [];
   (assignments || []).forEach(a => {
     const pid = Number(a && a.ProjectID);
     if (!a || !Number.isInteger(pid) || pid <= 0 || isForecastAssignment(a)) return;
     const project = byId.get(String(pid)) || null;
-    const start = spDateIn(a.StartDate) || '';
-    const end   = spDateIn(a.EndDate) || '';
-    let status = 'current';
-    if ((end && end < todayDay) || (project && project.Status === 'Completed')) status = 'completed';
-    else if (start && start > todayDay) status = 'upcoming';
-    rows.push({
+    lines.push({
       projectId: pid,
       known:     !!project,
+      done:      !!(project && project.Status === 'Completed'),
       project:   (project && project.CustomerName) || a.Customer || '',
       type:      a.ProjectType || (project && project.ProjectType) || '',
-      start, end, status,
+      start:     spDateIn(a.StartDate) || '',
+      end:       spDateIn(a.EndDate) || '',
     });
   });
+  // Merge: per project, oldest start first; a line joins the stint before it when it starts no later than the day after
+  // that stint ends (an open end, '', runs on for ever, so anything after it joins). The merged stint keeps the first
+  // start and the last end ('' if any joined line is open-ended). Day strings only, via addDaysISO (utils.js).
+  const byProject = new Map();
+  lines.forEach(l => { if (!byProject.has(l.projectId)) byProject.set(l.projectId, []); byProject.get(l.projectId).push(l); });
+  const rows = [];
+  byProject.forEach(list => {
+    list.sort((x, y) => (x.start < y.start ? -1 : x.start > y.start ? 1 : 0));
+    let run = null;
+    list.forEach(l => {
+      if (run && (run.end === '' || l.start === '' || l.start <= addDaysISO(run.end, 1))) {
+        run.end = (run.end === '' || l.end === '') ? '' : (l.end > run.end ? l.end : run.end);
+      } else {
+        run = Object.assign({}, l);
+        rows.push(run);
+      }
+    });
+  });
+  rows.forEach(r => { r.status = _mmHistoryStatus(r.start, r.end, r.done, todayDay); delete r.done; });
   const rank = { current: 0, upcoming: 1, completed: 2 };
   const cmp = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
   rows.sort((x, y) => {
@@ -129,6 +147,14 @@ function mmHistoryRows(assignments, projects, todayDay) {
   return rows;
 }
 
+// The chip for one stint, first match wins: 'completed' = its own end is before today OR the project is Completed;
+// 'upcoming' = it starts after today; else 'current'. Day strings compared as text.
+function _mmHistoryStatus(start, end, projectDone, todayDay) {
+  if ((end && end < todayDay) || projectDone) return 'completed';
+  if (start && start > todayDay) return 'upcoming';
+  return 'current';
+}
+
 // Total hires = placements credited to the person, all time: the same two steps as the scorecard's Hires row
 // (placementsSinceDay with no window, then tpMatches — the N-309 placer rule). `placements` = getHistoricalPlacements rows.
 function mmHistoryHireCount(placements, emailLower) {
@@ -136,11 +162,12 @@ function mmHistoryHireCount(placements, emailLower) {
 }
 
 // The three tiles' values. `since` = the People.StartDate day ('YYYY-MM-DD') or null when blank / unreadable (the tile
-// is then not drawn). `projectsCompleted` = distinct known projects with at least one Completed row (one project on two
-// rows counts once; 0 stays 0). `hires` = the count, or null when the hires read failed (the tile shows a dash).
+// is then not drawn). `projectsCompleted` = the number of known Completed lines in the record. Rows were already merged
+// per unbroken stint (mmHistoryRows), so an extension counts once and a project that came back after a gap counts
+// twice; 0 stays 0. `hires` = the count, or null when the hires read failed (the tile shows a dash).
 function mmHistoryTiles(me, rows, hires) {
-  const done = new Set((rows || []).filter(r => r.known && r.status === 'completed').map(r => r.projectId));
-  return { since: spDateIn(me && me.StartDate) || null, projectsCompleted: done.size, hires: hires === undefined ? null : hires };
+  const done = (rows || []).filter(r => r.known && r.status === 'completed').length;
+  return { since: spDateIn(me && me.StartDate) || null, projectsCompleted: done, hires: hires === undefined ? null : hires };
 }
 
 // The people one Team Scorecards view covers, as [{ email, name }], A→Z by name. `people` = getPeople(false) rows.

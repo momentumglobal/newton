@@ -116,7 +116,7 @@ function mmTrendFmt(v, unit) {
   return String(v);
 }
 
-// One metric's chart: weekly points joined into a line (a quiet week breaks it), a dashed reference line where the metric
+// One metric's chart: weekly points joined into one line (a week with no value is skipped, not a break), a dashed reference line where the metric
 // has one, and a tooltip per point. `s` = one trend series; `weeks` = the shared week-ending days; `idx` picks the series
 // colour. Fewer than two points: a plain note instead of an empty chart.
 function mmTrendChartSvg(s, weeks, idx) {
@@ -128,11 +128,10 @@ function mmTrendChartSvg(s, weeks, idx) {
   const plotW = C.w - C.l - C.r, plotH = C.h - C.t - C.b;
   const x = i => weeks.length < 2 ? C.l + plotW / 2 : C.l + (i * plotW) / (weeks.length - 1);
   const y = v => C.t + plotH * (1 - v / yMax);
-  let d = '', pen = false;
+  let d = '';
   (s.values || []).forEach((v, i) => {
-    if (v === null || v === undefined) { pen = false; return; }
-    d += (pen ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' ';
-    pen = true;
+    if (v === null || v === undefined) return;   // a week with no value is skipped: the line joins the weeks that have one
+    d += (d ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' ';
   });
   const dots = pts.map(p => `<circle class="mmsc-dot" cx="${x(p.i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="2.5"><title>${escHtml('Week ending ' + pdpFmtDay(weeks[p.i]) + ': ' + mmTrendFmt(p.v, s.unit))}</title></circle>`).join('');
   const norm = s.bench === null || s.bench === undefined ? '' :
@@ -199,7 +198,7 @@ function mmScorecardDetailHtml({ trend, roles, hires, periodLabel, canLinkRoles 
     : '<p class="ppl-muted-note">No weekly activity in this period.</p>';
   return `<section class="mmsc-detail">
     <h2 class="mmsc-heading">Weekly trend</h2>
-    <p class="ppl-muted-note">One point per week against your ${escHtml(mmScorecardBasisNote())}. A quiet week leaves a gap.</p>
+    <p class="ppl-muted-note">One point per week against your ${escHtml(mmScorecardBasisNote())}. Weeks with no data are skipped and the line joins the weeks that have it.</p>
     ${charts}
     <h2 class="mmsc-heading">Flagged roles</h2>
     <p class="ppl-muted-note">Your open roles as they are today, whatever the period.</p>

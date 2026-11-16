@@ -1510,7 +1510,7 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
         <div class="changelog-date">November 2026</div>
         <div class="changelog-title">My Scorecard detail: weekly trend, flagged roles, hires (N-454 / MM-4)</div>
         <ul>
-          <li>Under your own card, three sections follow the Period choice: a <strong>weekly trend chart per metric</strong> against your 52-week norm (inline SVG, series colour tokens; a quiet week is a gap), the <strong>flagged roles</strong> behind the card's count (stuck / low conversion; behind-pace roles listed separately, information only) and the <strong>hires</strong> behind the Hires number (candidate, role, project, date).</li>
+          <li>Under your own card, three sections follow the Period choice: a <strong>weekly trend chart per metric</strong> against your 52-week norm (inline SVG, series colour tokens; weeks with no data are skipped and the line joins the rest), the <strong>flagged roles</strong> behind the card's count (stuck / low conversion; behind-pace roles listed separately, information only) and the <strong>hires</strong> behind the Hires number (candidate, role, project, date).</li>
           <li>Role names link to the Role page for Admin, Delivery Managers and Talent Partners (<code>#roles?action=checklist&amp;id=N</code>); Leadership and People Ops see plain names. Team Scorecards and the mobile Scorecards view are unchanged.</li>
           <li>No new list or field. <code>loadScorecardData()</code> also returns <code>placementsRaw</code> (the raw Placements rows, the same request as the hires read) for the candidate name; <code>getHistoricalPlacementRows()</code> in api.js is that read.</li>
         </ul>

@@ -44,14 +44,14 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-454 AC3-5 buildScorecardTrend: continuous Sunday weeks, a quiet week is a gap (Hires 0), another person\'s rows never leak, norm lines equal the card\'s benchmark',
+    name: 'N-454 AC3-5 buildScorecardTrend: continuous Sunday weeks, a quiet week has no value (Hires 0), another person\'s rows never leak, norm lines equal the card\'s benchmark',
     fn: function () {
       const f = _sdFixture();
       const period = scorecardPeriod('quarter', _SD_TODAY);
       const t = buildScorecardTrend({ activity: f.activity, placements: f.placements, period, bench: _sdBench, key: 'a@x.com', today: _SD_TODAY });
       _assertEqual(t.weeks, ['2026-10-25', '2026-11-01', '2026-11-08'], 'three continuous Sundays, the quiet 1 Nov week included');
       const by = label => t.series.find(s => s.label === label);
-      _assertEqual(by('Outreach conversion').values, [50, null, 30], 'rate per week; the quiet week is a gap, not 0');
+      _assertEqual(by('Outreach conversion').values, [50, null, 30], 'rate per week; the quiet week has no value, not 0');
       _assertEqual(by('Hires').values, [1, 0, 1], 'Hires counts placements; a quiet week is 0');
       _assertEqual(by('Avg time to hire').values, [55, null, 61], 'a placement is bucketed to the Sunday on or after its day (Wed 4 Nov → w/e 8 Nov; Thu 22 Oct → w/e 25 Oct)');
       _assertEqual(t.weekly.map(w => w.Outreach), [20, 0, 30], 'only Ann\'s rows (Bo\'s 99 never appears, nor the March row)');
@@ -133,7 +133,7 @@ ASSERTIONS.push(
       const one = mmTrendChartSvg({ label: 'X', unit: '%', values: [null, 5, null], bench: null }, ['2026-11-01', '2026-11-08', '2026-11-15'], 0);
       _assertEqual(/Not enough data/.test(one) && !/<svg/.test(one), true, 'fewer than two points → a note, no empty chart');
       const gap = mmTrendChartSvg({ label: 'X', unit: '%', values: [10, null, 20, 30], bench: 15 }, ['a', 'b', 'c', 'd'].map((_, i) => '2026-11-0' + (i + 1)), 2);
-      _assertEqual(/d="M[^"]* M[^"]*L/.test(gap), true, 'a gap lifts the pen: two segments');
+      _assertEqual(/d="M[^"ML]*L[^"ML]*L[^"ML]*"/.test(gap), true, 'a week with no value is skipped: one unbroken line through the three points');
       _assertEqual(/class="mmsc-norm"/.test(gap) && /mmsc-s3/.test(gap), true, 'reference line and series class');
     },
   },

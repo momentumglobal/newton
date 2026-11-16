@@ -238,14 +238,22 @@ ASSERTIONS.push(
       const o = { g: getItems, e: getEffectiveRole, u: hadUser ? getCurrentUser : undefined, w: getGhostUser };
       const never = function () { return new Promise(function () {}); };
       try {
-        getItems = function (l, f) { calls.push(['get', l, f || '']); return never(); };
+        getItems = function (l, f, s) { calls.push(['get', l, f || '', s || '']); return never(); };
         getEffectiveRole = function (e) { calls.push(['role', e]); return never(); };
         getCurrentUser = function () { return { email: 'me@mg.test' }; };
         getGhostUser = function () { return null; };
         getMyDetails(7);
-        _assertEqual(calls[0], ['get', 'PeopleDetails', 'fields/PersonID eq 7'], 'AC11 own-row read filters by PersonID');
+        _assertEqual(calls[0], ['get', 'PeopleDetails', 'fields/PersonID eq 7', ''], 'AC11 own-row read filters by PersonID and keeps the default projection');
         getMyDetailsAll();
-        _assertEqual(calls[1], ['get', 'PeopleDetails', ''], 'AC11 all-rows read is unfiltered');
+        _assertEqual(calls[1].slice(0, 3), ['get', 'PeopleDetails', ''], 'AC11 all-rows read is unfiltered');
+        // N-456 QA problem 1: the report ages a row from Created, which the default projection does not carry.
+        const sel = calls[1][3].split(',');
+        _assertEqual(sel[0] === 'Id' && sel[sel.length - 1] === 'Created' && CONFIG.LIST_FIELDS.PeopleDetails.every(c => sel.includes(c)), true, 'AC11 all-rows read selects Id, every column and Created');
+        _assertEqual(CONFIG.LIST_FIELDS.PeopleDetails.includes('Created'), false, 'AC11 Created stays out of the default projection (own-row reads, other readers)');
+        // Positive control: without Created (what production returned before this fix) a row made a second ago is already listed as unlocked, with no age.
+        const fresh = { id: '1', PersonID: 2, PersonEmail: 'bob@mg.test', AccessKey: '' };
+        _assertEqual(mdFindUnlocked([fresh], Date.now()).map(u => u.ageMin), [null], 'AC11 control: no Created = listed at once, age unknown');
+        _assertEqual(mdFindUnlocked([Object.assign({ Created: new Date().toISOString() }, fresh)], Date.now()), [], 'AC11 control: with Created a new row waits out the grace period');
         const bad = []; ['7 or 1 eq 1', -1, 0, 1.5, null, undefined, 'x'].forEach(v => { try { _mdPersonFilter(v); bad.push(v); } catch (e) { /* expected */ } });
         _assertEqual(bad, [], 'AC11 anything that is not a positive whole number is refused before any request');
         calls.length = 0;

@@ -38,10 +38,12 @@ async function getMyDetails(personId) {
   return { row: mdPickRow(rows, personId), denied: wasListDenied(list) };
 }
 
-// Every row. Admin / People Ops only (list-level read).
+// Every row. Admin / People Ops only (list-level read). The select adds Created, the age clock mdFindUnlocked needs for the grace
+// period (the default LIST_FIELDS projection has no Created, so without it every new row looked old; same approach as api-pdp.js
+// _pdpAccessRead). The own-row read (getMyDetails) stays on the default projection.
 async function getMyDetailsAll() {
   const list = _mdListName();
-  const rows = await getItems(list);
+  const rows = await getItems(list, '', ['Id', ...CONFIG.LIST_FIELDS[list], 'Created'].join(','));
   return { rows, denied: wasListDenied(list) };
 }
 

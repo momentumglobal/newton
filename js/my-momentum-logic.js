@@ -75,6 +75,74 @@ function mmCanOpenRolePage(role) {
   return !!(entry && entry.roles.includes(role));
 }
 
+// ── My History (N-455 / MM-5) ───────────────────────────────────────────
+
+// Can this role open the Project page (reporting.html#projects?action=project&id=N)? Same one source as the Role page above:
+// the Command Bar's Projects entry, which mirrors the Reporting router's access.
+function mmCanOpenProjectPage(role) {
+  const entry = CONFIG.COMMAND_BAR_PAGES.find(p => p.key === 'projects');
+  return !!(entry && entry.roles.includes(role));
+}
+
+// The person's project assignment record, one line per real assignment row. `assignments` = their Assignments rows,
+// `projects` = every Project, `todayDay` = 'YYYY-MM-DD' (the caller's local day: pass it in, so this stays pure).
+// A row is kept only when it has a ProjectID and is not a forecast, so bench rows and historic customer-name-only rows
+// drop out (Chris, 16 Nov). Status, first match wins: 'completed' = the person's own EndDate is before today OR the project
+// is Completed; 'upcoming' = starts after today; else 'current'. Day strings via spDateIn, compared as text — never Date
+// objects (SharePoint's UTC to BST shift). `known` = the Project row exists; an unknown project shows the assignment's own
+// Customer text and is not counted in the tile.
+// Rows { projectId, known, project, type, start, end, status } — Current (newest start), Upcoming (soonest start), then
+// Completed (newest end, a Completed row with no end last).
+function mmHistoryRows(assignments, projects, todayDay) {
+  const byId = new Map((projects || []).filter(Boolean).map(p => [String(p.id), p]));
+  const rows = [];
+  (assignments || []).forEach(a => {
+    const pid = Number(a && a.ProjectID);
+    if (!a || !Number.isInteger(pid) || pid <= 0 || isForecastAssignment(a)) return;
+    const project = byId.get(String(pid)) || null;
+    const start = spDateIn(a.StartDate) || '';
+    const end   = spDateIn(a.EndDate) || '';
+    let status = 'current';
+    if ((end && end < todayDay) || (project && project.Status === 'Completed')) status = 'completed';
+    else if (start && start > todayDay) status = 'upcoming';
+    rows.push({
+      projectId: pid,
+      known:     !!project,
+      project:   (project && project.CustomerName) || a.Customer || '',
+      type:      a.ProjectType || (project && project.ProjectType) || '',
+      start, end, status,
+    });
+  });
+  const rank = { current: 0, upcoming: 1, completed: 2 };
+  const cmp = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
+  rows.sort((x, y) => {
+    if (rank[x.status] !== rank[y.status]) return rank[x.status] - rank[y.status];
+    let d = 0;
+    if (x.status === 'current') d = cmp(y.start, x.start);
+    else if (x.status === 'upcoming') d = cmp(x.start, y.start);
+    else {
+      if (!x.end !== !y.end) return x.end ? -1 : 1;
+      d = cmp(y.end, x.end);
+    }
+    return d || String(x.project).localeCompare(String(y.project));
+  });
+  return rows;
+}
+
+// Total hires = placements credited to the person, all time: the same two steps as the scorecard's Hires row
+// (placementsSinceDay with no window, then tpMatches — the N-309 placer rule). `placements` = getHistoricalPlacements rows.
+function mmHistoryHireCount(placements, emailLower) {
+  return placementsSinceDay(placements, null).filter(p => tpMatches(p.tpEmail, emailLower)).length;
+}
+
+// The three tiles' values. `since` = the People.StartDate day ('YYYY-MM-DD') or null when blank / unreadable (the tile
+// is then not drawn). `projectsCompleted` = distinct known projects with at least one Completed row (one project on two
+// rows counts once; 0 stays 0). `hires` = the count, or null when the hires read failed (the tile shows a dash).
+function mmHistoryTiles(me, rows, hires) {
+  const done = new Set((rows || []).filter(r => r.known && r.status === 'completed').map(r => r.projectId));
+  return { since: spDateIn(me && me.StartDate) || null, projectsCompleted: done.size, hires: hires === undefined ? null : hires };
+}
+
 // The people one Team Scorecards view covers, as [{ email, name }], A→Z by name. `people` = getPeople(false) rows.
 //   tree    = the CSD's whole tree (identity.csdTree)      reports = direct reports      all = every active person
 // A leaver or a placeholder never appears; a row with no WorkEmail cannot be matched to activity, so it is dropped;

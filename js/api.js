@@ -1008,6 +1008,19 @@ async function _getAssignmentsForUser(lower) {
   return getItems("Assignments", `fields/UserEmail eq '${odataStr(lower)}'`);
 }
 
+// N-455 (MM-5): everything My History shows, in one parallel read. `lower` = the person's People.WorkEmail, lower-cased
+// (Ghost-aware: the caller passes the ghosted person's). Assignments by the indexed UserEmail column, every Project, and
+// all-time placements (the scorecard's hires rule runs over them). A failed hires read resolves `placements` to null so the
+// tiles that do not need it still render; the other two reads must succeed, or this rejects.
+async function getMyHistoryData(lower) {
+  const [assignments, projects, placements] = await Promise.all([
+    _getAssignmentsForUser(lower),
+    getProjects(false),
+    getHistoricalPlacements({ allTime: true }).catch(e => { console.warn('N-455: hires read failed', e); return null; }),
+  ]);
+  return { assignments, projects, placements };
+}
+
 // The legacy (UserAssignments) project scope, from a user's rows. Unchanged
 // from getUserProjectIds before N-367.
 // N-165: de-duped — a user with two UserAssignments rows for the same

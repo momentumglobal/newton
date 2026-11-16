@@ -81,7 +81,7 @@ registerActions({
 async function renderMyMomentumPage(page) {
   const main = document.getElementById('main-content');
   switch (page) {
-    case 'myHistory':     renderMyHistoryStub(); break;            // N-451 stub (my-momentum-pages.js); N-455 replaces it
+    case 'myHistory':     renderMyHistory(); break;                 // N-455 (my-momentum-pages.js)
     case 'myScorecard':   await renderMyScorecardPage(); break;     // N-453 (my-momentum-scorecard.js)
     case 'myDevelopment': await renderMyDevelopmentPage(); break;   // N-438, moved by N-452 (pdp-my.js)
     case 'myTeam':        await renderMyTeamPage(); break;          // N-452 Development (pdp-team-page.js) + N-453 Team Scorecards

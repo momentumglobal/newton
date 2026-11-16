@@ -86,14 +86,8 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-451 AC3/AC4 markup: stub shows name, role, level (escaped); no-record panel has three distinct messages',
+    name: 'N-451 AC4 markup: no-record panel has three distinct messages (the History stub was replaced by N-455)',
     fn: function () {
-      const html = mmHistoryStubHtml({ EmployeeName: 'Ann <b>Neil</b>', Level: 'STP' }, 'talent_partner');
-      _assertEqual(html.includes('Ann &lt;b&gt;Neil'), true, 'AC3 name is escaped');
-      _assertEqual(html.includes('<b>'), false, 'AC3 no raw tag from data');
-      _assertEqual(html.includes('Talent Partner'), true, 'AC3 role label');
-      _assertEqual(html.includes('STP'), true, 'AC3 level');
-      _assertEqual(html.includes('coming soon'), true, 'AC3 coming-soon line');
       const a = mmNoRecordHtml('notLinked'), b = mmNoRecordHtml('ambiguous'), c = mmNoRecordHtml('error');
       _assertEqual(a.includes('Not linked to an employee record'), true, 'AC4 not linked');
       _assertEqual(b.includes('More than one employee record'), true, 'AC4 ambiguous');

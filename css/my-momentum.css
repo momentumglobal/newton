@@ -59,4 +59,6 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 .mmsc-s6 { stroke: var(--chart-6); } .mmsc-s6 ~ .mmsc-dot { fill: var(--chart-6); }
 .mmsc-table { width: 100%; }
 .mmsc-table a.mmsc-link { font-size: inherit; }
+/* N-455: My History chips. Completed = the plain .badge, Current = .badge-active, Upcoming = the warn pair. */
+.mmh-chip--upcoming { background: var(--status-warn-bg); color: var(--status-warn-text); border-color: transparent; }
 @media print { .mmsc-chart { break-inside: avoid; } }

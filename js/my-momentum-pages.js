@@ -23,15 +23,63 @@ function mmNoRecordHtml(state) {
     </div>`;
 }
 
-// N-451 landing stub: who you are, and a "coming soon" line. N-455 replaces the body with the tiles and the assignment record.
-function mmHistoryStubHtml(me, role) {
-  const name = escHtml((me && me.EmployeeName) || '');
-  const meta = [CONFIG.ROLE_LABELS[role], me && me.Level].filter(Boolean).map(escHtml).join(' · ');
+// ── My History (N-455 / MM-5) ───────────────────────────────────────────
+// Pure markup; every People / Project value is escaped. The rules (rows, chips, tiles) are my-momentum-logic.js; the read is
+// getMyHistoryData (api.js); the renderer is renderMyHistory below. Tiles reuse the KPI card classes, the table the My
+// Scorecard table classes (mmsc-*), the chips the shared .badge.
+
+// The page title and the body the loader fills (skeleton until the read returns).
+function mmHistoryShellHtml() {
   return `<div class="page-header"><h1 class="page-title">My History</h1></div>
-    <div class="dash-panel">
-      <h2 class="mm-identity-name">${name}</h2>
-      <div class="mm-identity-meta">${meta}</div>
-      <p class="mm-soon">Your history at Momentum is coming soon.</p>
+    <div id="mmh-body">${skeletonStrip(3)}${skeletonTable(4, 5)}</div>`;
+}
+
+// The KPI tiles. `t` = mmHistoryTiles(). A blank join date leaves its tile out; a failed hires read shows a dash.
+function mmHistoryTilesHtml(t) {
+  const L = CONFIG.MY_MOMENTUM.HISTORY.TILES;
+  const tile = (value, label) => `<div class="kpi-card"><div class="kpi-value">${escHtml(String(value))}</div><div class="kpi-label">${escHtml(label)}</div></div>`;
+  const tiles = [];
+  if (t && t.since) tiles.push(tile(pdpFmtDay(t.since), L.since));
+  tiles.push(tile(t ? t.projectsCompleted : 0, L.projects));
+  tiles.push(tile(t && t.hires !== null && t.hires !== undefined ? t.hires : '—', L.hires));
+  return `<div class="kpi-strip">${tiles.join('')}</div>`;
+}
+
+// A project's name: a link to the Project page when the viewer can open it (mmCanOpenProjectPage) and the project exists,
+// plain text otherwise.
+function mmProjectNameHtml(r, canLink) {
+  const name = escHtml((r && r.project) || '—');
+  if (!canLink || !r || !r.known || !r.projectId) return name;
+  return `<a class="mmsc-link" href="${escAttr('reporting.html#projects?action=project&id=' + r.projectId)}">${name}</a>`;
+}
+
+const _MMH_CHIP_CLASS = { completed: 'badge', current: 'badge badge-active', upcoming: 'badge mmh-chip--upcoming' };
+
+// The assignment record. `rows` = mmHistoryRows(). End blank = "Ongoing".
+function mmHistoryTableHtml(rows, canLink) {
+  if (!rows || !rows.length) return '<p class="ppl-muted-note">No project assignments recorded yet.</p>';
+  const S = CONFIG.MY_MOMENTUM.HISTORY.STATUS;
+  const body = rows.map(r => `<tr>
+      <td>${mmProjectNameHtml(r, canLink)}</td><td>${escHtml(r.type || '—')}</td>
+      <td>${escHtml(r.start ? pdpFmtDay(r.start) : '—')}</td><td>${escHtml(r.end ? pdpFmtDay(r.end) : 'Ongoing')}</td>
+      <td><span class="${_MMH_CHIP_CLASS[r.status] || 'badge'}">${escHtml(S[r.status] || '')}</span></td>
+    </tr>`).join('');
+  return `<div class="table-scroll"><table class="data-table mmsc-table"><thead><tr><th>Project</th><th>Type</th><th>Start</th><th>End</th><th>Status</th></tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+// What goes inside #mmh-body once the read returns.
+function mmHistoryBodyHtml({ tiles, rows, canLink }) {
+  return `${mmHistoryTilesHtml(tiles)}
+    <h2 class="mmsc-heading">Project assignments</h2>
+    ${mmHistoryTableHtml(rows, canLink)}`;
+}
+
+// The Assignments / Projects read failed: one message in place of the body.
+function mmHistoryErrorHtml() {
+  return `<div class="empty-state">
+      <i data-lucide="info" class="empty-state-icon"></i>
+      <h2 class="empty-state-title">We couldn’t load your history</h2>
+      <p class="empty-state-message">Refresh the page to try again. If it keeps happening, tell a Newton admin.</p>
     </div>`;
 }
 
@@ -217,9 +265,35 @@ function mmAreaHeaderHtml() {
   return `<div class="mm-area-header">${mmWordmarkHTML('onDark')}</div>`;
 }
 
-function renderMyHistoryStub() {
+let _mmHistSeq = 0;   // a slower, older My History fill must not overwrite a newer one
+
+// N-455: draws the page at once (title + skeleton), then fills #mmh-body. Not awaited by the caller: the hero / header
+// the dispatcher adds goes on straight away, and if the person leaves the tab before the read returns #mmh-body is gone
+// and the fill stops. Ghost Mode: `me` and its WorkEmail are already the ghosted person's.
+function renderMyHistory() {
   const main = document.getElementById('main-content');
-  main.innerHTML = mmHistoryStubHtml(_mmIdentity && _mmIdentity.me, _mmResolvedRole);
+  main.innerHTML = mmHistoryShellHtml();
+  _mmHistFill(_mmIdentity && _mmIdentity.me, _mmResolvedRole);
+}
+
+async function _mmHistFill(me, role) {
+  const seq = ++_mmHistSeq;
+  const email = String((me && me.WorkEmail) || '').trim().toLowerCase();
+  let html;
+  try {
+    const d = await getMyHistoryData(email);
+    const rows = mmHistoryRows(d.assignments, d.projects, localDayISO());
+    const hires = d.placements === null ? null : mmHistoryHireCount(d.placements, email);
+    html = mmHistoryBodyHtml({ tiles: mmHistoryTiles(me, rows, hires), rows, canLink: mmCanOpenProjectPage(role) });
+  } catch (e) {
+    console.warn('N-455: My History load failed', e);
+    html = mmHistoryErrorHtml();
+  }
+  const body = document.getElementById('mmh-body');
+  if (!body || seq !== _mmHistSeq) return;
+  body.innerHTML = html;
+  lucide.createIcons();
+  enterStagger(body, VF_ENTER_SELECTOR);
 }
 
 function renderMmNoRecord() {

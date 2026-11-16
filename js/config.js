@@ -1377,13 +1377,19 @@ const CONFIG = {
   // the module is deliberately not in mobile-home.js's MOBILE_MODULES.
   MY_MOMENTUM: {
     TABS: [
-      { key: 'myHistory',     label: 'My History',     live: true  },   // N-451 stub, N-455 content
+      { key: 'myHistory',     label: 'My History',     live: true  },   // N-451 shell, N-455 content
       { key: 'myDetails',     label: 'My Details',     live: false },   // N-456
       { key: 'myScorecard',   label: 'My Scorecard',   live: true  },   // N-453 (moved from People)
       { key: 'myDevelopment', label: 'My Development', live: true  },   // N-452 (moved from People)
       { key: 'myTeam',        label: 'My Team',        live: true  },   // N-452 Development + N-453 Team Scorecards
     ],
     ALL_STAFF_ROLES: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS],
+    // N-455 (MM-5): My History. STATUS = the three chips on the assignment record (my-momentum-logic.js mmHistoryRows picks one per row);
+    // TILES = the KPI tile labels. Labels live here so no markup carries them.
+    HISTORY: {
+      STATUS: { completed: 'Completed', current: 'Current', upcoming: 'Upcoming' },
+      TILES:  { since: '@ Momentum since', projects: 'Projects completed', hires: 'Total hires' },
+    },
     // N-452 / N-453: old People deep links -> My Momentum tab keys. people-app.js sends the visitor on before sign-in
     // (utils.js mmRedirectTarget).
     REDIRECTS: { myDevelopment: 'myDevelopment', teamDevelopment: 'myTeam', scorecards: 'myScorecard' },

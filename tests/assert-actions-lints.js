@@ -592,7 +592,7 @@ ASSERTIONS.push(
       const mutated = Object.assign({}, ALL_HTML, { 'mobile.html': ALL_HTML['mobile.html'].replace('</head>', '<style>\nb{}\n</style>\n</head>') });
       const back = lintNoStyleElements(ALL_SOURCES, mutated);
       _assertEqual(back.length === 1 && /^mobile\.html:\d+: <style> element/.test(back[0]), true, 'mutation: a <style> added to mobile.html is flagged: ' + back);
-      // The eight moved blocks are linked from their page; the four guides also link guide-search.css after their own file.
+      // The eight moved blocks are linked from their page; the five guides also link guide-search.css after their own file.
       const linksOf = html => { const out = []; html.replace(/<link\b[^>]*\brel="stylesheet"[^>]*\bhref="([^"]*)"[^>]*>/gi, (m, h) => { out.push(h); return m; }); return out; };
       const moved = {
         'mobile.html': ['css/mobile.css'], 'Readme.html': ['css/readme.css'],
@@ -601,6 +601,7 @@ ASSERTIONS.push(
         'sales-user-guide.html': ['css/sales-user-guide.css', 'css/guide-search.css'],
         'people-user-guide.html': ['css/people-user-guide.css', 'css/guide-search.css'],
         'market-reporting-user-guide.html': ['css/market-reporting-user-guide.css', 'css/guide-search.css'],
+        'my-momentum-user-guide.html': ['css/my-momentum-user-guide.css', 'css/guide-search.css'],
       };
       Object.keys(moved).forEach(p => _assertEqual(linksOf(ALL_HTML[p]), moved[p], p + ' stylesheet links, in order'));
       // Every stylesheet any root page links exists in css/ (a missing file fails silently in the browser).

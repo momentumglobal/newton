@@ -61,7 +61,7 @@ var CSP_APP_PAGES = [
   'mobile.html', 'my-momentum.html', 'people.html', 'reporting.html', 'sales.html', 'survey.html'
 ];
 var CSP_STATIC_PAGES = [
-  'Readme.html', 'market-reporting-user-guide.html', 'people-user-guide.html',
+  'Readme.html', 'market-reporting-user-guide.html', 'my-momentum-user-guide.html', 'people-user-guide.html',
   'redirect.html', 'sales-user-guide.html', 'user-guide.html'
 ];
 

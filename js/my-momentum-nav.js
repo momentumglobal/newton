@@ -26,7 +26,7 @@ function renderMyMomentumNav(role) {
     currentPage:      _mmCurrentPage,
     role:             role,
     navigateFn:       'navigateToMyMomentum',
-    userGuideHref:    'people-user-guide.html',
+    userGuideHref:    'my-momentum-user-guide.html',
   });
 }
 

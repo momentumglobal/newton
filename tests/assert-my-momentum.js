@@ -420,4 +420,54 @@ ASSERTIONS.push(
       _assertEqual(ALL_SOURCES['cc-app.js'].includes('bindDeepLinkListener(() => handleCCDeepLink(role))'), true, 'N465 AC6 cc-app.js passes a closure carrying role');
     },
   },
+  {
+    name: 'N-458 AC1/AC2/AC3 My Momentum user guide: present, its two stylesheets in order, no inline style / <style> / inline handler, CSP identical to the People guide, sidebar link points at it (People sidebar unchanged)',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined') _skip('needs ALL_HTML / ALL_SOURCES (tests/run.js)');
+      const g = ALL_HTML['my-momentum-user-guide.html'], p = ALL_HTML['people-user-guide.html'];
+      _assertEqual(typeof g, 'string', 'AC1 my-momentum-user-guide.html exists');
+      const sheets = []; g.replace(/<link\b[^>]*\brel="stylesheet"[^>]*\bhref="([^"]*)"[^>]*>/gi, (m, h) => { sheets.push(h); return m; });
+      _assertEqual(sheets, ['css/my-momentum-user-guide.css', 'css/guide-search.css'], 'AC2 stylesheets, in order');
+      _assertEqual(/\sstyle\s*=/i.test(g) || /<style[\s>]/i.test(g) || /\son[a-z]+\s*=/i.test(g), false, 'AC2 no inline style, <style> or inline handler');
+      _assertEqual(g.includes('src="js/guide-search.js"'), true, 'AC1 loads guide-search.js');
+      const csp = h => (h.match(/<meta http-equiv="Content-Security-Policy"[^>]*>/) || [''])[0];
+      _assertEqual(csp(g) !== '' && csp(g) === csp(p), true, 'AC2 CSP meta identical to the People guide');
+      _assertEqual(/userGuideHref:\s*'my-momentum-user-guide\.html'/.test(ALL_SOURCES['my-momentum-nav.js']), true, 'AC3 My Momentum sidebar link');
+      _assertEqual(/userGuideHref:\s*'people-user-guide\.html'/.test(ALL_SOURCES['people-nav.js']), true, 'AC3 People sidebar link unchanged');
+    },
+  },
+  {
+    name: 'N-458 AC6/AC13 People guide: each moved section keeps its id and points at a real id in the My Momentum guide; every in-page anchor in both guides resolves; Calibration and PDP Setup stay',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined') _skip('needs ALL_HTML (tests/run.js)');
+      const g = ALL_HTML['my-momentum-user-guide.html'], p = ALL_HTML['people-user-guide.html'];
+      const ids = h => { const out = new Set(); h.replace(/\bid="([^"]+)"/g, (m, i) => { out.add(i); return m; }); return out; };
+      const gi = ids(g), pi = ids(p);
+      const pointers = { 'scorecards': 'my-scorecard', 'pdp-overview': 'pdp-overview', 'my-development': 'my-development', 'team-development': 'my-team', 'pdp-goals-actions': 'pdp-goals-actions', 'pdp-bi-annual': 'pdp-bi-annual' };
+      Object.keys(pointers).forEach(id => {
+        _assertEqual(pi.has(id), true, 'People guide keeps #' + id);
+        _assertEqual(gi.has(pointers[id]), true, 'My Momentum guide has #' + pointers[id]);
+        const sec = p.slice(p.indexOf('id="' + id + '"'));
+        _assertEqual(sec.slice(0, sec.indexOf('</div>')).includes('my-momentum-user-guide.html#' + pointers[id]), true, '#' + id + ' links to #' + pointers[id]);
+      });
+      ['pdp-calibration', 'pdp-setup', 'employee-tracker'].forEach(id => _assertEqual(pi.has(id), true, 'People guide keeps #' + id));
+      [[g, gi, 'my-momentum-user-guide.html'], [p, pi, 'people-user-guide.html']].forEach(([html, own, name]) => {
+        html.replace(/\bhref="#([^"]+)"/g, (m, a) => { _assertEqual(own.has(a), true, name + ' in-page anchor #' + a + ' resolves'); return m; });
+        html.replace(/\bhref="(my-momentum-user-guide|people-user-guide)\.html#([^"]+)"/g, (m, f, a) => { _assertEqual((f === 'people-user-guide' ? pi : gi).has(a), true, name + ' cross-guide link ' + f + '#' + a + ' resolves'); return m; });
+      });
+      _assertEqual(/in the People menu/.test(p.slice(0, p.indexOf('id="pdp-setup"'))), false, 'AC7 no moved page is described as in the People menu');
+    },
+  },
+  {
+    name: 'N-458 AC11 Readme.html: the guide and its sheet are listed, the My History stub wording is gone, the access matrix names the My Momentum rows and the employee record page',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined') _skip('needs ALL_HTML (tests/run.js)');
+      const r = ALL_HTML['Readme.html'];
+      ['my-momentum-user-guide.html', 'css/my-momentum-user-guide.css', 'My Momentum — My History', 'My Momentum — My Details', 'My Momentum — My Team, Team Scorecards', 'People — Employee record page', 'My Momentum docs and epic close-out (N-458 / MM-8)'].forEach(s => {
+        _assertEqual(r.includes(s) || r.includes(s.replace(/css\//, '')), true, 'Readme.html names: ' + s);
+      });
+      _assertEqual(/My History stub/.test(r), false, 'no "My History stub" left');
+      _assertEqual(/Quarterly KPI question links to People Scorecards/.test(r), false, 'Quarterly KPI link wording corrected');
+    },
+  },
 );

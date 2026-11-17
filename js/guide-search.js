@@ -1,8 +1,8 @@
 // js/guide-search.js — self-initialising search bar for the static User
 // Guide pages (user-guide.html, people-user-guide.html, sales-user-guide.html,
-// market-reporting-user-guide.html). N-163.
+// market-reporting-user-guide.html, my-momentum-user-guide.html). N-163, N-458.
 //
-// These 4 pages are standalone static docs, not Newton SPA modules — no
+// These 5 pages are standalone static docs, not Newton SPA modules — no
 // SharePoint data, no api.js/config.js/nav-core.js dependency, not part of
 // the app's script load order. This file works purely off the DOM shape
 // every guide already shares (.guide-nav, .guide-content, .guide-section,

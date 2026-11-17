@@ -12,22 +12,22 @@ Newton is a static web application hosted on GitHub Pages, with Microsoft Azure 
 |---|---|---|
 | Reporting | `reporting.html` | Admin, Delivery Manager, Talent Partner, Leadership; People Ops (Projects only, N-365) |
 | Market Analytics | `market-reporting.html` | Admin, Delivery Manager, Talent Partner |
-| People | `people.html` | Admin, Leadership, People Ops (full); Delivery Manager and Talent Partner (Org Chart, and PDP pages where PDP applies); Sales & Marketing and Staff (Org Chart only) |
+| People | `people.html` | Admin, Leadership, People Ops (full); Delivery Manager, Talent Partner, Sales & Marketing and Staff (Org Chart only; PDP Setup is Admin and People Ops) |
 | Sales | `sales.html` | Admin, Leadership; Delivery Manager (LCI Cost Models only) |
-| My Momentum | `my-momentum.html` | All roles (home greeting card, sidebar name block, Command Bar). Tabs show only when relevant: My History (stub), My Details (everyone with a People row; Admin / People Ops also pick other people; restricted `PeopleDetails` list, N-456), My Scorecard (you have activity), My Development, and My Team (Development from the PDP gate; Team Scorecards for line managers and Admin / Leadership / People Ops; scorecards moved from People in N-453) |
+| My Momentum | `my-momentum.html` | All roles (home greeting card, sidebar name block, Command Bar). Tabs show only when relevant: My History (join date, projects completed, total hires and your project record), My Details (everyone with a People row; Admin / People Ops also pick other people; restricted `PeopleDetails` list, N-456), My Scorecard (you have activity), My Development, and My Team (Development from the PDP gate; Team Scorecards for line managers and Admin / Leadership / People Ops; scorecards moved from People in N-453). User guide: `my-momentum-user-guide.html` |
 | MG Command Centre | `command-centre.html` | Admin, Leadership |
 | Newton OS Admin | `admin.html` | Admin only |
 | Mobile App (PWA) | `mobile.html` | Admin, Delivery Manager, Talent Partner |
 
 ## Development & Performance (PDP)
 
-The People module holds Momentum's Development & Performance process: four meeting types over a 12-month cycle (Annual Development & Goal Setting, Bi-Annual Performance & Progression Review, Quarterly Review, Monthly Development Check-In), with goals, actions and Bi-Annual pillar scores. It starts with the Delivery team.
+Development & Performance is Momentum's development process, spread over My Momentum (the employee and manager pages) and the People module (setup): four meeting types over a 12-month cycle (Annual Development & Goal Setting, Bi-Annual Performance & Progression Review, Quarterly Review, Monthly Development Check-In), with goals, actions and Bi-Annual pillar scores. It starts with the Delivery team.
 
-- **Pages** — People > My Development (the employee), People > Team Development (line manager / CSD; Admin and People Ops read-only all-staff view), People > PDP Setup (Admin and People Ops: framework, templates, cycle, calibration).
+- **Pages** — My Momentum > My Development (the employee), My Momentum > My Team > Development (line manager / CSD; Admin and People Ops read-only all-staff view), People > PDP Setup (Admin and People Ops: framework, templates, cycle, calibration).
 - **Switch** — Off / Pilot / On, set by an Admin in the Config Panel's PDP tab. Pilot limits PDP to named people plus their line manager and CSD and sends no reminders; Off hides it from everyone but Admin and People Ops. Leadership has no access.
 - **Data** — seven `PDP*` SharePoint lists, five of them personal with per-item permissions set by a Power Automate flow; Bi-Annual scores reveal through a second flow. Nothing here is returned by Newton for Claude.
 - **v1 scope** — self and blind manager scoring, calibration, progression readiness. No reward or salary recommendation; PTP scoring stays off until the L5 IC descriptors exist.
-- **More** — `Readme.html` (file map, lists and columns, access matrix, gate rules) and `people-user-guide.html` (end-user guide).
+- **More** — `Readme.html` (file map, lists and columns, access matrix, gate rules), `my-momentum-user-guide.html` (end-user guide for the My Momentum pages, including the PDP pages) and `people-user-guide.html` (People module, including PDP Setup and Calibration).
 
 ## Stack
 

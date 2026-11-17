@@ -202,7 +202,7 @@ function mmTrendChartSvg(s, weeks, idx) {
 function mmRoleNameHtml(r, canLink) {
   const id = Number(r && r.id) || 0;
   if (!canLink || !id) return escHtml((r && r.title) || '—');
-  return `<a class="mmsc-link" href="${escAttr('reporting.html#roles?action=checklist&id=' + id)}">${escHtml(r.title || '—')}</a>`;
+  return `<a class="mmsc-link" href="${escAttr(roleDeepLink(id))}">${escHtml(r.title || '—')}</a>`;
 }
 
 const _MMSC_REASONS = { stuck: 'Stuck in stage', conversion: 'Low conversion', both: 'Stuck and low conversion' };

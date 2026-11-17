@@ -1430,6 +1430,20 @@ function notifBellLabel(unread) {
   return n > 0 ? `Notifications, ${n} unread` : 'Notifications';
 }
 
+// ── Role deep links (N-461) ───────────────────────────────────
+// The Reporting hash that opens one role's page (app.js handleDeepLink -> openChecklist('role') -> Role page).
+// Numeric id only; anything non-numeric gives id=0 (the router ignores it).
+function roleDeepLink(id) {
+  return 'reporting.html#roles?action=checklist&id=' + (Number(id) || 0);
+}
+
+// Notifications stored before N-461 carry the dead 'reporting.html#role-<id>'. Rewrite exactly that shape on click;
+// every other link (and empty/null) comes back unchanged.
+function notifDeepLinkFix(link) {
+  const m = /^reporting\.html#role-(\d+)$/.exec(String(link ?? ''));
+  return m ? roleDeepLink(m[1]) : link;
+}
+
 // ── Text escaping ─────────────────────────────────────────────
 // Escape a value for safe interpolation into an HTML template string.
 function escHtml(str) {

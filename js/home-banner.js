@@ -48,7 +48,7 @@ async function refreshCCBanner() {
       const projId = String(role.ProjectIDLookupId || role.ProjectID);
       const proj = projectsById[projId];
       await fireNotification({ triggerType:'roleFlag', triggerKey:key,
-        tone:'attention', deepLink:`reporting.html#role-${role.id}`,
+        tone:'attention', deepLink:roleDeepLink(role.id),
         body:`Role flagged: ${role.RoleTitle} needs attention`,
         recipients:[role.TalentPartner, proj && proj.DeliveryManager] });
     } else { await clearNotification(key); }

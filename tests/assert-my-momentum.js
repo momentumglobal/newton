@@ -343,4 +343,34 @@ ASSERTIONS.push(
       _assertEqual((/<div class='nav-user-role'>([\s\S]*?)<\/div>/.exec(hostile) || [])[1], 'delivery manager', 'N460 AC6 role text unchanged');
     },
   },
+  {
+    name: 'N-461 AC1-AC3/AC5/AC6 role deep link: roleDeepLink builds the handled #roles?action=checklist hash, the roleFlag notification stores it, legacy #role-N is rewritten (anchored), role names unchanged',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('needs ALL_SOURCES (tests/run.js)');
+      _assertEqual(roleDeepLink(42), 'reporting.html#roles?action=checklist&id=42', 'N461 AC1 numeric id');
+      _assertEqual(roleDeepLink('42'), 'reporting.html#roles?action=checklist&id=42', 'N461 AC1 numeric string id');
+      _assertEqual(roleDeepLink('4<b>2'), 'reporting.html#roles?action=checklist&id=0', 'N461 AC1 non-numeric gives id=0, never free text');
+      // AC2: the link home-banner.js really stores resolves like app.js handleDeepLink() reads it.
+      const m = /deepLink\s*:\s*([^,\n]+?),\s*\n?\s*body:/.exec(ALL_SOURCES['home-banner.js']) || /deepLink\s*:\s*(`reporting\.html#role-[^`]*`|roleDeepLink\([^)]*\))/.exec(ALL_SOURCES['home-banner.js']);
+      _assertEqual(!!m, true, 'N461 AC2 found the roleFlag deepLink expression in home-banner.js');
+      const stored = new Function('role', 'roleDeepLink', 'return ' + m[1])({ id: 42 }, roleDeepLink);
+      const raw = stored.split('#')[1] || '';
+      const pageKey = raw.split('?')[0], params = { get: k => { const kv = (raw.split('?')[1] || '').split('&').map(x => x.split('=')).find(x => x[0] === k); return kv ? kv[1] : null; } };
+      _assertEqual(pageKey, 'roles', 'N461 AC2 stored link names the roles page (today: ' + pageKey + ')');
+      _assertEqual(params.get('action') + '|' + params.get('id'), 'checklist|42', 'N461 AC2 stored link carries action=checklist&id=<role id>');
+      _assertEqual(CONFIG.COMMAND_BAR_PAGES.some(p => p.key === pageKey), true, 'N461 AC2 page key is a real Reporting page');
+      _assertEqual(/action === 'checklist' && \(page === 'projects' \|\| page === 'roles'\)/.test(ALL_SOURCES['app.js']), true, 'N461 AC2 app.js handleDeepLink still handles roles + checklist');
+      // AC3: legacy shape rewritten; everything else untouched.
+      _assertEqual(notifDeepLinkFix('reporting.html#role-42'), 'reporting.html#roles?action=checklist&id=42', 'N461 AC3 legacy link rewritten');
+      ['reporting.html#roles?action=checklist&id=42', 'reporting.html#placements', 'command-centre.html#health', 'reporting.html#role-42x', 'reporting.html#role-', 'x reporting.html#role-42', ''].forEach(v =>
+        _assertEqual(notifDeepLinkFix(v), v, 'N461 AC3 unchanged: ' + v));
+      _assertEqual(notifDeepLinkFix(null), null, 'N461 AC3 null passes through');
+      // AC5: the My Momentum role name link is byte-identical to before.
+      _assertEqual(mmRoleNameHtml({ id: 42, title: 'A&B' }, true), '<a class="mmsc-link" href="reporting.html#roles?action=checklist&amp;id=42">A&amp;B</a>', 'N461 AC5 role name link unchanged');
+      _assertEqual(mmRoleNameHtml({ id: 42, title: 'A&B' }, false), 'A&amp;B', 'N461 AC5 plain name when the viewer cannot open Roles');
+      // AC6: no other #role- link builder in js/ (coe-plan.js #role-form is a selector; utils.js holds the one anchored pattern).
+      Object.keys(ALL_SOURCES).filter(f => f !== 'utils.js' && f !== 'coe-plan.js').forEach(f =>
+        _assertEqual(/reporting\.html#role-/.test(ALL_SOURCES[f]), false, 'N461 AC6 no legacy role link in ' + f));
+    },
+  },
 );

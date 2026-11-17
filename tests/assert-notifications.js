@@ -274,5 +274,21 @@
         _assertEqual(escRoundTrip(openFirst) !== '', true, 'AC14 control: focusing before .open is set is caught (hidden drawer rejects focus)');
       },
     },
+    {
+      name: 'N-461 AC4 paintBell: a legacy #role-N notification carries the fixed link in its notifOpen action; no-link rows keep the empty string',
+      fn: function () {
+        if (typeof ALL_SOURCES === 'undefined') _skip('needs ALL_SOURCES (tests/run.js)');
+        const dec = s => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+        const h = build();
+        h.mod.paintBell([
+          { id: 7, Body: 'Role flagged', IsRead: false, DeepLink: 'reporting.html#role-42', Tone: 'attention', CreatedAt: iso() },
+          { id: 8, Body: 'No link', IsRead: false, DeepLink: '', Tone: 'celebrate', CreatedAt: iso() },
+        ], 2);
+        const html = dec(h.st.html);
+        _assertEqual(html.includes('reporting.html#roles?action=checklist&id=42'), true, 'N461 AC4 legacy link is rewritten in the row action');
+        _assertEqual(html.includes('reporting.html#role-42'), false, 'N461 AC4 the dead link is not in the markup');
+        _assertEqual(/notifOpen[^>]*"8"[^>]*""/.test(html) || /\["notifOpen","8",""\]/.test(html) || html.includes('"8",""'), true, 'N461 AC4 a row with no link keeps the empty link (tick-only)');
+      },
+    },
   );
 })();

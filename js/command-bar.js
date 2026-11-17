@@ -8,6 +8,8 @@
 // a full navigation to <module-file>.html#<pageKey>; that module's
 // *-app.js reads the hash on load (see handleDeepLink() in js/app.js and
 // its people/sales equivalents) and lands directly on the target page.
+// N-465: once the module is up, bindDeepLinkListener() (below) re-runs that
+// same handler on every later hashchange (a same-page notification click).
 //
 // This is the first PERMANENT global `keydown` listener in the
 // codebase — every earlier one (confirmModal/promptModal in utils.js)
@@ -54,6 +56,20 @@ function initCommandBar({ currentModule, role, navigateFn }) {
 
     e.preventDefault();
     _cmdBarOpen({ currentModule, role, navigateFn });
+  });
+}
+
+// N-465 — Re-runs a module's deep-link handler on every later hash change, so a same-page
+// notification click or #link works without a reload. Call once per shell, AFTER its
+// initial handle call (the first hash is handled on load; the browser fires no hashchange
+// for it). history.replaceState never fires hashchange, so a handler's own hash clear
+// cannot loop. handler returns true when it handled the hash; false clears it here.
+function bindDeepLinkListener(handler) {
+  if (bindDeepLinkListener._bound) return;
+  bindDeepLinkListener._bound = true;
+  window.addEventListener('hashchange', () => {
+    if (!window.location.hash) return;
+    if (handler() === false) history.replaceState(null, '', window.location.pathname);
   });
 }
 

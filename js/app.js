@@ -105,6 +105,7 @@ window.APP = {
     initCommandBar({ currentModule: 'reporting', role: _resolvedRole, navigateFn: 'navigateTo' });
     const firstPage = getAccessiblePages(_resolvedRole)[0].key;
     if (!handleDeepLink()) navigateTo(firstPage);
+    bindDeepLinkListener(handleDeepLink);   // N-465
   },
   showLogin() {
     document.getElementById('app-shell').style.display = 'none';

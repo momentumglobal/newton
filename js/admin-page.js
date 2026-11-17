@@ -19,6 +19,7 @@
       // getEffectiveRole() call to make like the other *-app.js files do.
       initCommandBar({ currentModule: 'admin', role: 'admin', navigateFn: 'switchTab' });
       if (!handleAdminDeepLink()) switchTab('assignments');
+      bindDeepLinkListener(handleAdminDeepLink);   // N-465
     }
 
     // N-246 — Command Bar deep-link handler. Hash format: #<tab>, e.g.

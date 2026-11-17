@@ -54,6 +54,7 @@ window.PEOPLE_APP = {
     runPdpReminders().catch(e => console.warn('PDP reminders unavailable', e));
     initCommandBar({ currentModule: 'people', role: _resolvedRole, navigateFn: 'navigateToPeople' });
     if (!handlePeopleDeepLink()) navigateToPeople(landing);
+    bindDeepLinkListener(handlePeopleDeepLink);   // N-465
   },
 
   showLogin() {

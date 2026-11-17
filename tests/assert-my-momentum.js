@@ -373,4 +373,51 @@ ASSERTIONS.push(
         _assertEqual(/reporting\.html#role-/.test(ALL_SOURCES[f]), false, 'N461 AC6 no legacy role link in ' + f));
     },
   },
+  {
+    name: 'N-465 AC1-AC6 live deep links: bindDeepLinkListener registers one hashchange listener, runs the handler on a non-empty hash, clears a refused hash, and every shell binds it once after its initial handle call',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('needs ALL_SOURCES (tests/run.js)');
+      const m = /function bindDeepLinkListener\(handler\) \{[\s\S]*?\n\}\n/.exec(ALL_SOURCES['command-bar.js']);
+      _assertEqual(!!m, true, 'N465 AC1 command-bar.js defines bindDeepLinkListener');
+      if (!m) return;
+      const rig = function (hash) {
+        const w = { location: { hash: hash, pathname: '/x.html' }, listeners: [], addEventListener: function (t, fn) { this.listeners.push([t, fn]); } };
+        const calls = [];
+        const hist = { replaceState: function () { calls.push(Array.prototype.slice.call(arguments)); } };
+        const bind = new Function('window', 'history', m[0] + '; return bindDeepLinkListener;')(w, hist);
+        return { w: w, bind: bind, calls: calls };
+      };
+      // AC1: one listener however many times it is bound.
+      let r = rig('');
+      let ran = 0;
+      r.bind(function () { ran++; return true; }); r.bind(function () { ran++; return true; });
+      _assertEqual(r.w.listeners.length, 1, 'N465 AC1 one listener');
+      _assertEqual(r.w.listeners[0][0], 'hashchange', 'N465 AC1 listens for hashchange');
+      // AC2: empty hash does nothing; non-empty runs the handler once.
+      r.w.listeners[0][1]();
+      _assertEqual(ran, 0, 'N465 AC2 empty hash: handler not run');
+      r.w.location.hash = '#roles?action=checklist&id=7';
+      r.w.listeners[0][1]();
+      _assertEqual(ran, 1, 'N465 AC2 non-empty hash: handler run once');
+      // AC4: handled (true) -> binder leaves the URL alone.
+      _assertEqual(r.calls.length, 0, 'N465 AC4 handled hash: binder does not touch the URL');
+      // AC3: refused (false) -> hash cleared once via replaceState.
+      r = rig('#nope');
+      let refused = 0;
+      r.bind(function () { refused++; return false; });
+      r.w.listeners[0][1]();
+      _assertEqual(refused, 1, 'N465 AC3 handler run once');
+      _assertEqual(JSON.stringify(r.calls), JSON.stringify([[null, '', '/x.html']]), 'N465 AC3 refused hash cleared with replaceState');
+      // AC5/AC6: every shell binds exactly once, after its initial handle call; cc-app passes a closure with role.
+      const shells = { 'app.js': 'handleDeepLink()', 'people-app.js': 'handlePeopleDeepLink()', 'sales-app.js': 'handleSalesDeepLink()',
+        'cc-app.js': 'handleCCDeepLink(role)', 'mr-app.js': 'handleMrDeepLink()', 'my-momentum-app.js': 'handleMyMomentumDeepLink()', 'admin-page.js': 'handleAdminDeepLink()' };
+      Object.keys(shells).forEach(function (f) {
+        const src = ALL_SOURCES[f];
+        const n = (src.match(/bindDeepLinkListener\(/g) || []).length;
+        _assertEqual(n, 1, 'N465 AC5 ' + f + ' binds once');
+        _assertEqual(src.indexOf('bindDeepLinkListener(') > src.indexOf('if (!' + shells[f] + ')'), true, 'N465 AC5 ' + f + ' binds after its initial handle call');
+      });
+      _assertEqual(ALL_SOURCES['cc-app.js'].includes('bindDeepLinkListener(() => handleCCDeepLink(role))'), true, 'N465 AC6 cc-app.js passes a closure carrying role');
+    },
+  },
 );

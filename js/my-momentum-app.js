@@ -61,6 +61,7 @@ window.MY_MOMENTUM_APP = {
         renderMmNoRecord();
       }
     }
+    bindDeepLinkListener(handleMyMomentumDeepLink);   // N-465
   },
 
   showLogin() {

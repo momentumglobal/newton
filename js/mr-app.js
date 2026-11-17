@@ -30,6 +30,7 @@ window.MR_APP = {
     renderMrNav(_mrResolvedRole);
     initCommandBar({ currentModule: 'marketing', role: _mrResolvedRole, navigateFn: 'navigateToMr' });
     if (!handleMrDeepLink()) navigateToMr("placementAnalytics");
+    bindDeepLinkListener(handleMrDeepLink);   // N-465
   },
 
   showLogin() {

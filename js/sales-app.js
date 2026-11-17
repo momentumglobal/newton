@@ -37,6 +37,7 @@ window.SALES_APP = {
     renderSalesNav(_salesResolvedRole);
     initCommandBar({ currentModule: 'sales', role: _salesResolvedRole, navigateFn: 'navigateToSales' });
     if (!handleSalesDeepLink()) navigateToSales(landing);
+    bindDeepLinkListener(handleSalesDeepLink);   // N-465
   },
 
   showLogin() {

@@ -20,5 +20,6 @@ async function initCC() {
   initCommandBar({ currentModule: 'command', role, navigateFn: 'navigateToCC' });
   const container = document.getElementById('page-content');
   if (!handleCCDeepLink(role)) await renderCCOverview(container);
+  bindDeepLinkListener(() => handleCCDeepLink(role));   // N-465
 }
 initCC();

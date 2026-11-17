@@ -23,7 +23,7 @@ function personRowHtml(p, { canEdit, canPayroll, salariesRevealed, pending = fal
       <td>${photoFileName(p.PhotoUrl)
             ? `<img data-photo="${escAttr(photoFileName(p.PhotoUrl))}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover">`
             : '<span class="ppl-faint">—</span>'}</td>
-      <td>${escHtml(p.EmployeeName)}</td>
+      <td>${employeeNameLinkHtml(p, pending)}</td>
       <td>${escHtml(personRoleLabel(p) || '—')}</td>
       <td>${escHtml(p.ContractType || '—')}</td>
       <td>${escHtml(p.Location || '—')}</td>

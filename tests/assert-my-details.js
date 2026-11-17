@@ -21,7 +21,7 @@ function _mdRow(id, pid, extra) { return Object.assign({ id: String(id), PersonI
 function _mdSrc(f) { return (ALL_SOURCES[f] || '').split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n'); }
 
 // Files that may mention the list or its functions. Adding one is a deliberate review: that file now handles personal details.
-const _MD_GUARD_ALLOW = ['config.js', 'graph-client.js', 'my-details-logic.js', 'api-my-details.js', 'my-details-ui.js', 'people-forms.js', 'my-momentum-nav.js'];
+const _MD_GUARD_ALLOW = ['config.js', 'graph-client.js', 'my-details-logic.js', 'api-my-details.js', 'my-details-ui.js', 'people-forms.js', 'my-momentum-nav.js', 'employee-page.js'];
 const _MD_GUARD_RE = /\bPeopleDetails\b|MY_MOMENTUM\.DETAILS|\b(getMyDetails\w*|ensureMyDetailsRow|saveMyDetails|clearMyDetailsRow|createMissingMyDetailsRows|fixMyDetailsEmails|renderMyDetailsPage)\b/;
 function _mdGuardOffenders(sources, allow) {
   return Object.keys(sources).filter(f => !allow.includes(f) && _MD_GUARD_RE.test(sources[f] || '')).sort();

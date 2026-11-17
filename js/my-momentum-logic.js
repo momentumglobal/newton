@@ -215,3 +215,11 @@ function mmResolveDeepLink(page, visibleTabs, teamSubTabs, cfg) {
   const fb = c.DEEP_LINK_FALLBACKS && Object.prototype.hasOwnProperty.call(c.DEEP_LINK_FALLBACKS, page) ? c.DEEP_LINK_FALLBACKS[page] : '';
   return direct(fb);
 }
+
+// N-457 (MM-7): the `person` parameter of a My Details deep link (#myDetails?person=12), or null. A positive whole number only,
+// so nothing else ever reaches the picker; whether the viewer may use it is decided where it is applied (mdSetPreselect).
+function mmDeepLinkPerson(raw) {
+  const query = String(raw === undefined || raw === null ? '' : raw).split('?')[1] || '';
+  const m = /(?:^|&)person=([^&#]*)/.exec(query);
+  return m && /^[1-9][0-9]{0,9}$/.test(m[1]) ? Number(m[1]) : null;
+}

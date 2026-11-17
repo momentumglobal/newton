@@ -10,6 +10,7 @@ function handleMyMomentumDeepLink() {
   history.replaceState(null, '', window.location.pathname);
   const hit = page ? mmResolveDeepLink(page, mmNavTabs(), mmTeamSubTabs(_mmTabCtx()), CONFIG.MY_MOMENTUM) : null;
   if (!hit) return false;
+  if (hit.tab === 'myDetails') mdSetPreselect(mmDeepLinkPerson(raw));   // N-457
   navigateToMyMomentum(hit.tab, hit.sub);
   return true;
 }

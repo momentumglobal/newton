@@ -9,8 +9,14 @@ function handlePeopleDeepLink() {
   const [pageKey, queryStr] = raw.split('?');
   const page = pageKey.trim();
   if (!page || !peopleCanAccess(page, _resolvedRole)) return false;
-  navigateToPeople(page);
   const params = new URLSearchParams(queryStr || '');
+  if (page === 'peopleTracker' && params.get('action') === 'record') {
+    // N-457: the record page replaces the tracker render (no tracker render runs, so nothing can race it).
+    history.replaceState(null, '', window.location.pathname);
+    openEmployeePage(Number(params.get('id')));
+    return true;
+  }
+  navigateToPeople(page);
   if (page === 'peopleTracker' && params.get('action') === 'edit') {
     // N-145 — Command Bar entity-search deep link.
     const id = Number(params.get('id'));

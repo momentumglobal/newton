@@ -6,6 +6,21 @@
 
 let _mdSeq = 0;                 // a slower, older load must not overwrite a newer one
 let _mdState = { people: null, targetId: null, row: null, dirty: false, report: null };
+let _mdPreselect = null;        // N-457: the person id from #myDetails?person=, consumed by the next render
+
+// N-457: remember the person the employee record page asked for. Only Admin / People Ops may use it; anyone else (and a bad value)
+// leaves My Details opening on their own details, as before.
+function mdSetPreselect(personId) {
+  _mdPreselect = personId !== null && personId !== undefined && roleCan(_mmResolvedRole, 'myDetailsAdmin') ? String(personId) : null;
+}
+
+// N-457: the way back to the person's record (Admin / People Ops opened the form from it). '' when there is nobody to go back to.
+function mdBackHtml(name, id) {
+  const n = Number(id);
+  if (!Number.isInteger(n) || n <= 0) return '';
+  const T = CONFIG.EMPLOYEE_PAGE.TEXT;
+  return `<p class="mmd-back"><a href="${escAttr(CONFIG.EMPLOYEE_PAGE.RECORD_HREF + n)}">${escHtml(T.backToRecord.replace('{name}', () => name || ''))}</a></p>`;
+}
 
 // ── Markup (pure) ───────────────────────────────────────────────────────
 
@@ -142,6 +157,8 @@ async function renderMyDetailsPage() {
   const seq = ++_mdSeq;
   _mdBindUnload();
   _mdState = { people: null, targetId: null, row: null, dirty: false, report: null };
+  const pre = _mdPreselect;      // N-457: consumed here, so a later visit opens on the person's own details again
+  _mdPreselect = null;
   if (getGhostUser()) {
     main.innerHTML = mdNoticeHtml(mdText('ghostTitle'), mdText('ghost'));
     lucide.createIcons();
@@ -150,6 +167,7 @@ async function renderMyDetailsPage() {
   main.innerHTML = mdShellHtml();
   const admin = roleCan(_mmResolvedRole, 'myDetailsAdmin');
   const meId = _mdMeId();
+  let preId = '';
   if (admin) {
     try {
       _mdState.people = await getPeople(false);
@@ -158,10 +176,13 @@ async function renderMyDetailsPage() {
       _mdState.people = [];
     }
     if (seq !== _mdSeq) return;
+    const options = mdTargetOptions(_mdState.people);
+    const picked = pre !== null && String(pre) !== String(meId) ? (_mdState.people || []).find(p => String(p.id) === String(pre)) : null;
+    if (picked && options.some(o => o.id === String(picked.id))) preId = String(picked.id);
     const slot = document.getElementById('mmd-admin');
-    if (slot) slot.innerHTML = mdPickerHtml(mdTargetOptions(_mdState.people), !!meId, '') + '<div id="mmd-manage-slot">' + mdManageHtml(null, '') + '</div>';
+    if (slot) slot.innerHTML = mdBackHtml(picked ? picked.EmployeeName : '', preId) + mdPickerHtml(options, !!meId, preId) + '<div id="mmd-manage-slot">' + mdManageHtml(null, '') + '</div>';
   }
-  await _mdOpen(meId, seq);
+  await _mdOpen(preId || meId, seq);
 }
 
 // Open one person's form. null = nobody chosen (an Admin / People Ops person with no People row of their own).

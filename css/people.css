@@ -178,6 +178,16 @@
 .ppl-muted-small { font-size: var(--fs-12); color: var(--text-muted); }
 .ppl-muted { color: var(--text-muted); }
 .ppl-faint { font-size: var(--fs-12); color: var(--text-muted); }
+
+/* N-457 (MM-7): employee record page */
+.emp-actions { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
+.emp-card { margin-bottom: var(--sp-8); }
+.emp-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-5) var(--sp-8); margin: 0; }
+.emp-row dt { font-size: var(--fs-12); color: var(--text-muted); }
+.emp-row dd { margin: var(--sp-1) 0 0; font-size: var(--fs-14); color: var(--text-primary); overflow-wrap: anywhere; }
+.emp-section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-6); margin: var(--sp-9) 0 var(--sp-2); }
+.emp-section-title { font-size: var(--fs-16); font-weight: var(--fw-bold); color: var(--text-primary); margin: 0; }
+.emp-details .ppl-card-hint { margin-bottom: var(--sp-6); }
 .ppl-year-label { font-size: var(--fs-13); color: var(--text-label); }
 .ppl-label-note { font-size: var(--fs-11); font-weight: var(--fw-regular); color: var(--text-muted); }
 .ppl-form-note { font-size: var(--fs-13); color: var(--text-label); margin-top: -6px; }

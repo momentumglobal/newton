@@ -70,5 +70,6 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 .mmd-invalid input { border-color: var(--status-danger-text); }
 .mmd-picker { margin-bottom: var(--sp-8); }
 .mmd-picker select { max-width: 360px; }
+.mmd-back { margin-bottom: var(--sp-6); font-size: var(--fs-13); }
 .mmd-names { margin: var(--sp-3) 0 var(--sp-6); padding-left: var(--sp-8); font-size: var(--fs-13); }
 @media print { .mmsc-chart { break-inside: avoid; } }

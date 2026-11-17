@@ -795,6 +795,46 @@ const CONFIG = {
   // read as "no salary on record".
   PEOPLE_PAY_DENIED_TEXT: 'Salary data unavailable — your account cannot read the PeoplePay list.',
 
+  // N-457 (MM-7): the employee record page (employee-page.js), opened from the Employee Tracker name link. EMPLOYMENT is the
+  // registry for the Employment card: key = the People column (or 'role' / 'ReportsTo' / 'Salary' for the derived rows), kind = how
+  // the value is read ('text' / 'role' / 'date' / 'manager' / 'salary'), hideFor = staff kinds the row is left off for
+  // ('internal' / 'external'; the Salary row is also left off for any role that may not see pay). SALARY_LOCATION = the only
+  // location a salary is shown for (the tracker's rule). RECORD_HREF / EDIT_DETAILS_HREF = the two cross-page links; the person's
+  // id is appended (employee-logic.js validates it). TEXT = every message, so no markup carries wording.
+  EMPLOYEE_PAGE: {
+    RECORD_HREF: 'people.html#peopleTracker?action=record&id=',
+    EDIT_DETAILS_HREF: 'my-momentum.html#myDetails?person=',
+    SALARY_LOCATION: 'UK',
+    EMPLOYMENT: [
+      { key: 'role',         label: 'Level / function', kind: 'role' },
+      { key: 'StaffType',    label: 'Staff type',       kind: 'text' },
+      { key: 'ContractType', label: 'Contract',         kind: 'text', hideFor: ['external'] },
+      { key: 'Location',     label: 'Location',         kind: 'text' },
+      { key: 'StartDate',    label: 'Start date',       kind: 'date' },
+      { key: 'EndDate',      label: 'End date',         kind: 'date' },
+      { key: 'LevelSince',   label: 'Level since',      kind: 'date', hideFor: ['internal', 'external'] },
+      { key: 'ReportsTo',    label: 'Reports to',       kind: 'manager' },
+      { key: 'WorkEmail',    label: 'Work email',       kind: 'text' },
+      { key: 'Salary',       label: 'Salary',           kind: 'salary', hideFor: ['external'] },
+    ],
+    TEXT: {
+      dash: '—',
+      back: 'Back to Employee Tracker',
+      edit: 'Edit employee',
+      employment: 'Employment',
+      unavailable: 'This employee isn’t available.',
+      loadFailed: 'This employee couldn’t be loaded.',
+      revealSalary: 'Reveal salary',
+      hideSalary: 'Hide salary',
+      detailsTitle: 'My Details',
+      detailsHint: 'Only the employee, Admin and People Ops can see these. Edit details opens the form in My Momentum.',
+      editDetails: 'Edit details',
+      noDetails: 'No details recorded yet.',
+      detailsLoadFailed: 'These details could not be loaded. Refresh the page to try again.',
+      backToRecord: 'Back to {name}’s record',
+    },
+  },
+
   // N-300. Payroll Summary send. PAY_DENIED blocks a send that would email
   // blank salaries; ALREADY_SENT replaces the old silent no-op when a month
   // already has a PayrollSummaries row. {period} → e.g. "October 2026".

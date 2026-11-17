@@ -75,14 +75,39 @@ function mdFormHtml({ values, errors, heading, onBehalf, stamp, note }) {
     </div>`;
 }
 
-// The picker. `options` = mdTargetOptions(); `hasOwn` = the person has a People row (the first option is their own details).
+// N-464: the rows the list shows. `options` = mdTargetOptions(); `hasOwn` = the person has a People row. With an empty search the
+// first row is "My own details" (id ''), then everyone; with text, only the people whose name matches (no own row, so Enter after
+// typing can never pick it).
+function mdPickRows(options, hasOwn, query) {
+  const found = mdFilterOptions(options, query);
+  const own = hasOwn && _mdPickBlank(query) ? [{ id: '', name: mdText('pickerOwn'), detail: '', left: false }] : [];
+  return own.concat(found);
+}
+
+function _mdPickBlank(query) { return String(query === undefined || query === null ? '' : query).trim() === ''; }
+
+// The list's rows as <li> options (or the no-match line). `activeIdx` = the keyboard-highlighted row; `selectedId` = the open person
+// ('' = their own details). Every value escaped; the click action is data-act.
+function mdPickerListHtml(options, hasOwn, query, selectedId, activeIdx) {
+  const rows = mdPickRows(options, hasOwn, query);
+  if (!rows.length) return `<li class="mmd-pick-empty" role="presentation">${escHtml(mdText('pickerNoMatch'))}</li>`;
+  return rows.map((r, i) => {
+    const meta = [r.detail, r.left ? mdText('pickerLeft') : ''].filter(Boolean).join(' · ');
+    const cls = 'mmd-pick-opt' + (i === activeIdx ? ' is-active' : '') + (r.left ? ' is-left' : '');
+    return `<li role="option" id="mmd-opt-${i}" class="${cls}" aria-selected="${String(selectedId || '') === String(r.id) ? 'true' : 'false'}"${act('mdPickChoose', String(r.id))}><span class="mmd-pick-name">${escHtml(r.name)}</span>${meta ? `<span class="mmd-pick-meta">${escHtml(meta)}</span>` : ''}</li>`;
+  }).join('');
+}
+
+// The picker: a search box over a results list (a combobox / listbox). The input is drawn once and never re-rendered while
+// typing, so focus and caret survive; only the list is redrawn. `selectedId` = the open person ('' = own details).
 function mdPickerHtml(options, hasOwn, selectedId) {
-  const first = `<option value=""${selectedId ? '' : ' selected'}>${escHtml(mdText(hasOwn ? 'pickerOwn' : 'pickerChoose'))}</option>`;
-  const opts = (options || []).map(o => `<option value="${escAttr(o.id)}"${String(selectedId) === String(o.id) ? ' selected' : ''}>${escHtml(o.label)}</option>`).join('');
+  const chosen = selectedId ? (options || []).find(o => String(o.id) === String(selectedId)) : null;
   return `<div class="ppl-card mmd-picker">
       <div class="form-group">
-        <label for="mmd-pick">${escHtml(mdText('pickerLabel'))}</label>
-        <select id="mmd-pick"${actOn('change', 'mdPick', ACT_VALUE)}>${first}${opts}</select>
+        <label for="mmd-pick-search">${escHtml(mdText('pickerLabel'))}</label>
+        <input type="search" id="mmd-pick-search" class="mmd-pick-input" role="combobox" aria-expanded="false" aria-controls="mmd-pick-list" aria-autocomplete="list" autocomplete="off" placeholder="${escAttr(mdText('pickerSearch'))}" value="${escAttr(chosen ? chosen.name : '')}"${actOn('input', 'mdPickInput')}${actOn('click', 'mdPickOpen')}${actOn('keydown', 'mdPickKey', ACT_EVENT)}>
+        <ul id="mmd-pick-list" class="mmd-pick-list" role="listbox" aria-label="${escAttr(mdText('pickerLabel'))}" hidden>${mdPickerListHtml(options, hasOwn, '', selectedId, 0)}</ul>
+        <p class="ppl-muted-note" id="mmd-pick-count" role="status" aria-live="polite"></p>
       </div>
       <p class="ppl-card-hint">${escHtml(mdText('pickerHint'))}</p>
     </div>`;
@@ -156,7 +181,7 @@ async function renderMyDetailsPage() {
   const main = document.getElementById('main-content');
   const seq = ++_mdSeq;
   _mdBindUnload();
-  _mdState = { people: null, targetId: null, row: null, dirty: false, report: null };
+  _mdState = { people: null, targetId: null, row: null, dirty: false, report: null, pickOptions: [], pickHasOwn: false, pickQuery: '', pickActive: 0, pickOpen: false };
   const pre = _mdPreselect;      // N-457: consumed here, so a later visit opens on the person's own details again
   _mdPreselect = null;
   if (getGhostUser()) {
@@ -179,6 +204,8 @@ async function renderMyDetailsPage() {
     const options = mdTargetOptions(_mdState.people);
     const picked = pre !== null && String(pre) !== String(meId) ? (_mdState.people || []).find(p => String(p.id) === String(pre)) : null;
     if (picked && options.some(o => o.id === String(picked.id))) preId = String(picked.id);
+    _mdState.pickOptions = options;
+    _mdState.pickHasOwn = !!meId;
     const slot = document.getElementById('mmd-admin');
     if (slot) slot.innerHTML = mdBackHtml(picked ? picked.EmployeeName : '', preId) + mdPickerHtml(options, !!meId, preId) + '<div id="mmd-manage-slot">' + mdManageHtml(null, '') + '</div>';
   }
@@ -264,15 +291,98 @@ function _mdBindUnload() {
   });
 }
 
-async function mdPick(value) {
-  if (!(await mdConfirmLeave())) {
-    const sel = document.getElementById('mmd-pick');
-    if (sel) sel.value = _mdState.targetId && String(_mdState.targetId) !== String(_mdMeId()) ? String(_mdState.targetId) : '';
-    return;
+// N-464: the picker's state helpers. The open person as the list knows them: '' = their own details.
+function _mdSelectedId() {
+  const t = _mdState.targetId;
+  return t === null || t === undefined || t === '' || String(t) === String(_mdMeId()) ? '' : String(t);
+}
+
+// The search box shows the open person's name (empty for their own details), so it always says whose form is below.
+function _mdPickSyncInput() {
+  const input = document.getElementById('mmd-pick-search');
+  if (!input) return;
+  const sel = _mdSelectedId();
+  const o = sel ? (_mdState.pickOptions || []).find(x => x.id === sel) : null;
+  input.value = o ? o.name : '';
+}
+
+// Redraw the list only (never the input), then set the combobox attributes and the polite count.
+function _mdPickDraw() {
+  const input = document.getElementById('mmd-pick-search');
+  const list = document.getElementById('mmd-pick-list');
+  if (!input || !list) return;
+  const st = _mdState;
+  list.innerHTML = mdPickerListHtml(st.pickOptions, st.pickHasOwn, st.pickQuery, _mdSelectedId(), st.pickActive);
+  list.hidden = !st.pickOpen;
+  input.setAttribute('aria-expanded', st.pickOpen ? 'true' : 'false');
+  const active = st.pickOpen ? document.getElementById('mmd-opt-' + st.pickActive) : null;
+  if (active) {
+    input.setAttribute('aria-activedescendant', active.id);
+    active.scrollIntoView({ block: 'nearest' });
+  } else {
+    input.removeAttribute('aria-activedescendant');
   }
+  const count = document.getElementById('mmd-pick-count');
+  if (count) count.textContent = st.pickOpen ? mdText('pickerCount', { n: mdFilterOptions(st.pickOptions, st.pickQuery).length }) : '';
+}
+
+function _mdPickClose() {
+  _mdState.pickOpen = false;
+  _mdState.pickQuery = '';
+  _mdState.pickActive = 0;
+  _mdPickDraw();
+}
+
+// Click or focus-by-click: show everyone, with the box's text selected so typing replaces the current name.
+function mdPickOpen() {
+  if (_mdState.pickOpen) return;
+  const input = document.getElementById('mmd-pick-search');
+  _mdState.pickQuery = '';
+  _mdState.pickActive = 0;
+  _mdState.pickOpen = true;
+  _mdPickDraw();
+  if (input) input.select();
+}
+
+function mdPickInput() {
+  const input = document.getElementById('mmd-pick-search');
+  if (!input) return;
+  _mdState.pickQuery = input.value;
+  _mdState.pickActive = 0;
+  _mdState.pickOpen = true;
+  _mdPickDraw();
+}
+
+function mdPickKey(evt) {
+  const key = evt && evt.key;
+  const st = _mdState;
+  if (key === 'ArrowDown' || key === 'ArrowUp') {
+    evt.preventDefault();
+    if (!st.pickOpen) { mdPickOpen(); return; }
+    const n = mdPickRows(st.pickOptions, st.pickHasOwn, st.pickQuery).length;
+    if (!n) return;
+    st.pickActive = (st.pickActive + (key === 'ArrowDown' ? 1 : -1) + n) % n;
+    _mdPickDraw();
+  } else if (key === 'Enter') {
+    if (!st.pickOpen) return;
+    evt.preventDefault();
+    const row = mdPickRows(st.pickOptions, st.pickHasOwn, st.pickQuery)[st.pickActive];
+    if (row) mdPickChoose(String(row.id));
+  } else if (key === 'Escape' || key === 'Tab') {
+    if (!st.pickOpen) return;
+    if (key === 'Escape') evt.preventDefault();
+    _mdPickClose();
+    _mdPickSyncInput();
+  }
+}
+
+async function mdPickChoose(value) {
+  _mdPickClose();
+  if (!(await mdConfirmLeave())) { _mdPickSyncInput(); return; }
   const seq = ++_mdSeq;
   _mdDrawBody(skeletonPanel(6));
   await _mdOpen(value === '' ? _mdMeId() : value, seq);
+  if (seq === _mdSeq) { _mdPickSyncInput(); _mdPickDraw(); }
 }
 
 async function mdSave() {
@@ -344,7 +454,10 @@ async function mdClearRow(rowId) {
 
 registerActions({
   mdDirty,
-  mdPick,
+  mdPickInput,
+  mdPickOpen,
+  mdPickKey,
+  mdPickChoose,
   mdSave,
   mdCheck,
   mdCreateMissing,

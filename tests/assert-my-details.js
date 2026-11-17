@@ -9,8 +9,8 @@ const _MD_STAMP = ['UpdatedBy', 'UpdatedAt', 'UpdatedOnBehalf'];
 function _mdFxPeople() {
   return [
     { id: 1, EmployeeName: 'Ann <b>Admin</b>', WorkEmail: 'Ann@mg.test', IsActive: 'Yes' },
-    { id: 2, EmployeeName: 'Bob Builder', WorkEmail: 'bob@mg.test', IsActive: 'Yes' },
-    { id: 3, EmployeeName: 'Cy NoEmail', WorkEmail: '', IsActive: 'Yes' },
+    { id: 2, EmployeeName: 'Bob Builder', WorkEmail: 'bob@mg.test', IsActive: 'Yes', Level: 'TP' },
+    { id: 3, EmployeeName: 'Cy NoEmail', WorkEmail: '', IsActive: 'Yes', StaffFunction: 'Finance' },
     { id: 4, EmployeeName: 'Di Leaver', WorkEmail: 'di@mg.test', IsActive: 'No', EndDate: '2026-10-31T00:00:00Z' },
     { id: 5, EmployeeName: 'Ed Ended', WorkEmail: 'ed@mg.test', IsActive: 'Yes', EndDate: '2026-11-10T00:00:00Z' },
     { id: 6, EmployeeName: 'Fay Future', WorkEmail: 'fay@mg.test', IsActive: 'Yes', EndDate: '2026-11-16T00:00:00Z' },
@@ -174,8 +174,8 @@ ASSERTIONS.push(
       _assertEqual(html.includes('role="alert"'), true, 'AC8 errors are announced');
       const pick = mdPickerHtml(mdTargetOptions(_mdFxPeople()), true, '2');
       _assertEqual(/<img|<b>/.test(pick), false, 'AC8 picker escapes names');
-      _assertEqual(pick.includes('value="2" selected'), true, 'AC8 picker marks the chosen person');
-      _assertEqual(pick.includes('(left)'), true, 'AC8 leavers marked');
+      _assertEqual(pick.includes('value="Bob Builder"'), true, 'AC8 picker shows the chosen person in the search box');
+      _assertEqual(pick.includes('(left)'), false, 'AC8 no old "(left)" marker');
       _assertEqual(mdNoticeHtml('<b>t</b>', '<i>m</i>').includes('<b>'), false, 'AC8 notice escapes');
       _assertEqual(mdNoticeHtml(mdText('ghostTitle'), mdText('ghost')).includes('Ghost Mode'), true, 'AC8 ghost panel wording from config');
     },
@@ -219,7 +219,7 @@ ASSERTIONS.push(
         _mdRow(40, 4, { EmergencyName: 'Mum' }), _mdRow(41, 5, { PersonalMobile: '07700900123' }), _mdRow(42, 6, { PersonalMobile: '07700900123' }),
         _mdRow(43, 4), _mdRow(44, 2, { EmergencyName: 'x' })], '2026-11-16');
       _assertEqual(lv.map(l => l.id), ['40', '41'], 'AC10 leavers holding details: inactive, or ended before today; ending today is still here; empty rows and current staff left out');
-      _assertEqual(mdTargetOptions(people).map(o => o.label), ['Ann <b>Admin</b>', 'Bob Builder', 'Cy NoEmail', 'Di Leaver (left)', 'Ed Ended', 'Fay Future'], 'AC10 picker options: no placeholders, leavers marked');
+      _assertEqual(mdTargetOptions(people).map(o => o.label), ['Ann <b>Admin</b>', 'Bob Builder · TP', 'Cy NoEmail · Finance', 'Ed Ended', 'Fay Future', 'Di Leaver · Left'], 'AC10 picker options: no placeholders, Level or function shown, current staff before leavers, leavers marked Left');
       _assertEqual(mdIsLocked({ PersonEmail: 'A@b.c', AccessKey: 'a@b.c' }), true, 'AC10 locked');
       _assertEqual([mdIsLocked({ PersonEmail: '', AccessKey: '' }), mdIsLocked({ PersonEmail: 'a@b.c', AccessKey: '' }), mdIsLocked(null)], [false, false, false], 'AC10 not locked');
       const rep = mdManageHtml({ denied: false, total: 0, toCreate: [{ id: '3', name: '<img src=x>' }], noWorkEmail: [], drift: [], unlocked: [], duplicates: [], leavers: [{ id: '40', name: 'Di <b>L</b>' }] }, '<i>done</i>');
@@ -307,6 +307,68 @@ ASSERTIONS.push(
       _assertEqual(/registerActions\(\{[^}]*mdSave[^}]*\}\)/.test(ui), true, 'AC12 actions registered');
       const render = ui.slice(ui.indexOf('async function renderMyDetailsPage'), ui.indexOf('async function _mdOpen'));
       _assertEqual(render.indexOf('getGhostUser()') > -1 && render.indexOf('getGhostUser()') < render.indexOf('getPeople'), true, 'AC12 Ghost Mode is closed before anything is read');
+    },
+  },
+  {
+    name: 'N-464 AC1-3 picker options and filter: Level / function / Left, current staff first, name-only literal search',
+    fn: function () {
+      const o = mdTargetOptions(_mdFxPeople());
+      _assertEqual(o.map(x => x.id), ['1', '2', '3', '5', '6', '4'], 'AC2 current staff A-Z, then leavers; the placeholder is out');
+      _assertEqual(o.map(x => x.detail), ['', 'TP', 'Finance', '', '', ''], 'AC1 Level, else function, else nothing');
+      _assertEqual(o.map(x => x.left), [false, false, false, false, false, true], 'AC1 left = inactive only');
+      _assertEqual(mdTargetOptions([{ id: 9, EmployeeName: 'Lv Both', IsActive: 'Yes', Level: 'STP', StaffFunction: 'Finance' }])[0].label, 'Lv Both · STP', 'AC1 Level wins over function');
+      _assertEqual(mdFilterOptions(o, '').length, 6, 'AC3 empty query = everyone');
+      _assertEqual(mdFilterOptions(o, '  BOB ').map(x => x.id), ['2'], 'AC3 case-insensitive and trimmed');
+      _assertEqual(mdFilterOptions(o, 'TP'), [], 'AC3 Level is not searched');
+      _assertEqual(mdFilterOptions(o, 'finance'), [], 'AC3 function is not searched');
+      _assertEqual(mdFilterOptions(o, 'left'), [], 'AC3 "Left" is not searched');
+      _assertEqual(mdFilterOptions(o, '<b>').map(x => x.id), ['1'], 'AC3 <b> in a name matches literally');
+      _assertEqual(mdFilterOptions(o, '(').length + mdFilterOptions(o, '\\').length + mdFilterOptions(o, '.*').length, 0, 'AC3 regex characters are plain text');
+      const copy = o.slice(); mdFilterOptions(o, 'a');
+      _assertEqual(o, copy, 'AC3 the input is not changed');
+    },
+  },
+  {
+    name: 'N-464 AC4-10 picker markup: escaped, roles, own-details row, no-match line, no inline style or handler',
+    fn: function () {
+      const opts = mdTargetOptions(_mdFxPeople());
+      const full = mdPickerHtml(opts, true, '');
+      _assertEqual(/<b>|<img/.test(full), false, 'AC4 names escaped in the list');
+      _assertEqual(/role="combobox"/.test(full) && /aria-expanded="false"/.test(full) && /aria-controls="mmd-pick-list"/.test(full) && /role="listbox"/.test(full) && /aria-live="polite"/.test(full), true, 'AC7 combobox, listbox and polite count');
+      _assertEqual(/\sstyle=|\sonclick=|\sonchange=|\soninput=|\sonkeydown=|javascript:/i.test(full), false, 'AC11 no inline style or handler');
+      _assertEqual(full.includes('data-act-input=') && full.includes('data-act-keydown=') && full.includes('data-act="'), true, 'AC11 actions via actOn / act');
+      const list = mdPickerListHtml(opts, true, '', '', 0);
+      _assertEqual((list.match(/role="option"/g) || []).length, 7, 'AC8 own details + six people');
+      _assertEqual(list.indexOf(mdText('pickerOwn')) < list.indexOf('Ann'), true, 'AC8 "My own details" is the first row');
+      _assertEqual(list.includes('mmd-pick-opt is-active') && list.includes('aria-selected="true"'), true, 'AC6/8 first row is active and selected when own details are open');
+      _assertEqual(/Di Leaver<\/span><span class="mmd-pick-meta">Left</.test(list) && list.includes('is-left'), true, 'AC1 leaver tagged Left');
+      _assertEqual(list.includes('Bob Builder</span><span class="mmd-pick-meta">TP<'), true, 'AC1 Level beside the name');
+      const typed = mdPickerListHtml(opts, true, 'bob', '', 0);
+      _assertEqual((typed.match(/role="option"/g) || []).length, 1, 'AC5 typing narrows the list');
+      _assertEqual(typed.includes(mdText('pickerOwn')), false, 'AC6 typing drops the own-details row, so Enter cannot pick it');
+      const none = mdPickerListHtml(opts, true, 'zzz', '', 0);
+      _assertEqual(none.includes(mdText('pickerNoMatch')) && !none.includes('role="option"'), true, 'AC10 no match shows the line, never a blank list');
+      _assertEqual(mdPickRows(opts, false, '').length, 6, 'AC8 no People row: no own-details row');
+      const evil = mdPickerListHtml([{ id: '5"><img>', name: '<img src=x>', detail: '<b>', left: true }], true, '', '', 0);
+      _assertEqual(/<img|<b>/.test(evil), false, 'AC4 name, detail and id escaped');
+      _assertEqual(mdPickerHtml(opts, true, '1').includes('value="Ann &lt;b&gt;Admin&lt;/b&gt;"'), true, 'AC4 input value escaped');
+    },
+  },
+  {
+    name: 'N-464 AC11-14 wiring: actions registered, old select gone, no new global listener, only People fields shown',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('source text is only read by node tests/run.js');
+      const ui = ALL_SOURCES['my-details-ui.js'];
+      _assertEqual(/registerActions\(\{[^}]*mdPickInput[^}]*mdPickOpen[^}]*mdPickKey[^}]*mdPickChoose[^}]*\}\)/.test(ui), true, 'AC11 picker actions registered');
+      _assertEqual(/\bmdPick\b/.test(ui), false, 'AC11 the old select action is gone');
+      _assertEqual(/<select id="mmd-pick"/.test(ui), false, 'AC11 no native select');
+      const pick = ui.slice(ui.indexOf('function _mdSelectedId'), ui.indexOf('async function mdSave'));
+      _assertEqual(/addEventListener|document\.on/.test(pick), false, 'AC11 no listener added by the picker');
+      const lg = ALL_SOURCES['my-details-logic.js'];
+      const fl = lg.slice(lg.indexOf('function mdFilterOptions'), lg.indexOf('function mdFilterOptions') + 400);
+      _assertEqual(/RegExp|\.match\(|\.replace\(/.test(fl), false, 'AC3 filter never builds a RegExp');
+      const opt = lg.slice(lg.indexOf('function mdTargetOptions'), lg.indexOf('function mdFilterOptions'));
+      _assertEqual(/Email|Phone|Address|Salary/.test(opt), false, 'AC12 options carry no personal data beyond name, Level, function, left');
     },
   },
 );

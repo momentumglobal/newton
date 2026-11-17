@@ -190,11 +190,26 @@ function mdFindLeavers(people, rows, todayDay) {
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// The picker's options: every non-placeholder person, by name; leavers marked. [{ id, label }]
+// The picker's options (N-464): every non-placeholder person. [{ id, name, detail, left, label }]
+// detail = Level, or the function for staff without one ('' when neither, e.g. an External). left = inactive.
+// Current staff first, then leavers, each A–Z by name. label = "Name · Level" with " · Left" for a leaver.
 function mdTargetOptions(people) {
   return (people || []).filter(p => p && !p.IsPlaceholder)
-    .map(p => ({ id: String(p.id), label: (p.EmployeeName || '—') + (_mdOff(p.IsActive) ? ' (left)' : '') }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .map(p => {
+      const name = _mdTrim(p.EmployeeName) || '—';
+      const detail = _mdTrim(p.Level) || _mdTrim(p.StaffFunction);
+      const left = _mdOff(p.IsActive);
+      return { id: String(p.id), name, detail, left, label: name + (detail ? ' · ' + detail : '') + (left ? ' · ' + mdText('pickerLeft') : '') };
+    })
+    .sort((a, b) => (a.left === b.left ? 0 : a.left ? 1 : -1) || a.name.localeCompare(b.name));
+}
+
+// N-464: the options whose NAME contains the query (case-insensitive, trimmed; plain text, never a RegExp). Empty query = all.
+// Level, function and "Left" are shown beside a name but not searched. Returns a new array in the same order.
+function mdFilterOptions(options, query) {
+  const q = _mdTrim(query).toLowerCase();
+  const list = (options || []).filter(Boolean);
+  return q === '' ? list : list.filter(o => _mdStr(o.name).toLowerCase().includes(q));
 }
 
 // "Last updated 16 Nov 2026, 16:40" plus who, from the row's stamp. `nameFor(email)` gives a display name (or the email).

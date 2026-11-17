@@ -313,4 +313,34 @@ ASSERTIONS.push(
       _assertEqual(/mmHeroHtml\(getCurrentUser\(\)\.name/.test(ALL_SOURCES['my-momentum-nav.js']) && ALL_SOURCES['my-momentum-nav.js'].includes("page === 'myHistory'"), true, 'AC12 hero on the landing tab, header on the rest, keyed on the tab');
     },
   },
+  {
+    name: 'N-460 AC1-AC6 sidebar user name is HTML-escaped: <b>x</b> renders as text, email fallback escaped, plain name unchanged, signed-out blank, role stays raw',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('needs ALL_SOURCES (tests/run.js)');
+      const render = (user, role) => {
+        let html = '';
+        const sidebar = {};
+        Object.defineProperty(sidebar, 'innerHTML', { set: h => { html = h; }, get: () => html });
+        const ctl = {
+          document: { getElementById: id => (id === 'sidebar' ? sidebar : null) },
+          lucide: { createIcons() {} }, getCurrentUser: () => user, isMacPlatform: () => false,
+          renderGhostBanner() {}, getTheme: () => 'light', getDensity: () => 'comfortable',
+          act: () => '', mmWordmarkHTML: () => '', registerActions() {}, CONFIG: { OS_MODULES: [] },
+        };
+        const mod = new Function('ctl', 'with (ctl) {\n' + ALL_SOURCES['nav-core.js'] + '\nreturn { renderModuleNav };\n}')(ctl);
+        mod.renderModuleNav({ subtitle: 's', currentModuleKey: 'reporting', toggleFn: 'x', pages: [], currentPage: null, role: role || 'delivery_manager' });
+        return html;
+      };
+      const nameCell = h => (/<div class='nav-user-name'>([\s\S]*?)<\/div>/.exec(h) || [])[1];
+      const hostile = render({ name: '<b>x</b>', email: 'a@b.test' });
+      _assertEqual(nameCell(hostile), '&lt;b&gt;x&lt;/b&gt;', 'N460 AC1 a name of <b>x</b> is escaped');
+      _assertEqual(hostile.includes('<b>x</b>'), false, 'N460 AC1 no literal <b>x</b> in the sidebar');
+      _assertEqual(nameCell(render({ name: null, email: 'a@b.test' })), 'a@b.test', 'N460 AC3 email fallback intact');
+      _assertEqual(nameCell(render({ name: null, email: '<i>a@b.test' })), '&lt;i&gt;a@b.test', 'N460 AC3 email fallback is escaped too');
+      _assertEqual(nameCell(render({ name: 'Chris Friend', email: 'c@b.test' })), 'Chris Friend', 'N460 AC4 plain name unchanged');
+      _assertEqual(nameCell(render({ name: "Mary O'Neil", email: 'm@b.test' })), 'Mary O&#39;Neil', 'N460 AC4 apostrophe escaped');
+      _assertEqual(nameCell(render({ name: null, email: null })), '', 'N460 AC5 signed-out renders blank, not "null"');
+      _assertEqual((/<div class='nav-user-role'>([\s\S]*?)<\/div>/.exec(hostile) || [])[1], 'delivery manager', 'N460 AC6 role text unchanged');
+    },
+  },
 );

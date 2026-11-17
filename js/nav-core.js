@@ -66,7 +66,7 @@ function renderModuleNav({
     <div class='nav-user'>
       <a class='nav-user-link' href='my-momentum.html'${currentModuleKey === 'myMomentum' ? " aria-current='page'" : ''} aria-label='Open My Momentum'>
         <div class='nav-user-text'>
-          <div class='nav-user-name'>${user.name || user.email}</div>
+          <div class='nav-user-name'>${escHtml(user.name || user.email)}</div>
           <div class='nav-user-role'>${role.replace(/_/g, ' ')}</div>
           ${mmWordmarkHTML('onDark')}
         </div>

@@ -490,9 +490,10 @@
   --inverse-text-primary-soft: var(--c-wa-75);
   --inverse-text-near:       var(--c-wa-80);
   --inverse-text-vivid:      var(--c-wa-85);
+  /* N-462: the sidebar gradient shared by every module and the Admin screen (formerly a My Momentum-only token pair) — permanently dark like the group above; N-102 must NOT redefine it. */
+  --sidebar-grad-from: var(--c-brand);
+  --sidebar-grad-to:   var(--c-midnight);
   /* N-459 (MM-D13): My Momentum sub-brand — permanently dark like the group above; N-102 must NOT redefine it. */
-  --mm-grad-from:      var(--c-brand);
-  --mm-grad-to:        var(--c-midnight);
   --mm-accent:         var(--c-lapis);
   --mm-accent-soft:    var(--c-lapis-soft);
   --mm-glow:           rgba(15, 27, 209, 0.35);
@@ -872,10 +873,14 @@ body {
   flex-direction: row;
 }
 /* ── Sidebar ────────────────────────────────────────────────────────── */
+/* N-462: ONE gradient rule for every sidebar — the six module shells (#sidebar, rendered by nav-core.js) and the Admin screen (.admin-sidebar, own markup). */
+#sidebar,
+.admin-sidebar {
+  background: linear-gradient(180deg, var(--sidebar-grad-from) 0%, var(--sidebar-grad-to) 100%);
+}
 #sidebar {
   width: 220px;
   min-width: 220px;
-  background: linear-gradient(180deg, var(--inverse-surface) 0%, var(--inverse-surface-2) 100%);
   color: var(--inverse-text);
   display: flex;
   flex-direction: column;

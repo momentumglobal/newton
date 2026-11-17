@@ -53,9 +53,15 @@ var DESKTOP_CONTRAST_PAIRS = (function () {
   // N-459 (MM-D13): My Momentum sub-brand — permanently dark, unthemed, one pair each. The Lapis fill itself (--mm-accent) is a glow / fill only:
   // it is 1.9:1 on the navy, so the Lapis TINT (--mm-accent-soft) carries every word and indicator.
   [['--mm-cta-text', '--mm-cta-bg', 'hero call-to-action label (N-459: white on the sampled brand red was 4.3:1)'], ['--mm-cta-text', '--mm-cta-hover', 'hero call-to-action hover'],
-   ['--mm-accent-soft', '--mm-grad-from', '"My" in the wordmark, chevron, active-link bar: gradient start'], ['--mm-accent-soft', '--mm-grad-to', 'wordmark tint on the gradient end'],
-   ['--inverse-text', '--mm-grad-from', 'greeting, name, "Momentum" on the gradient start'], ['--inverse-text', '--mm-grad-to', 'greeting on the gradient end'],
-   ['--inverse-text-muted', '--mm-grad-from', 'role text on the card / gradient start'], ['--inverse-text-muted', '--mm-grad-to', 'role text on the gradient end']].forEach(function (p) { rows.push([p[0], p[1], 4.5, p[2]]); });
+   ['--mm-accent-soft', '--sidebar-grad-from', '"My" in the wordmark, chevron, active-link bar: gradient start'], ['--mm-accent-soft', '--sidebar-grad-to', 'wordmark tint on the gradient end'],
+   ['--inverse-text', '--sidebar-grad-from', 'greeting, name, "Momentum" on the gradient start'], ['--inverse-text', '--sidebar-grad-to', 'greeting on the gradient end'],
+   ['--inverse-text-muted', '--sidebar-grad-from', 'role text on the card / gradient start'], ['--inverse-text-muted', '--sidebar-grad-to', 'role text on the gradient end']].forEach(function (p) { rows.push([p[0], p[1], 4.5, p[2]]); });
+  // N-462: the gradient is now every sidebar's surface (all modules + Admin), so each token the sidebar draws text with is checked on BOTH ends,
+  // and the active-link rail (--accent, a 3:1 indicator) too. The white-alpha hover / active fills are not resolvable here: check them by eye on the Midnight end.
+  ['--inverse-text', '--inverse-text-near', '--inverse-text-label', '--inverse-text-subtitle', '--inverse-text-muted'].forEach(function (t) {
+    ['--sidebar-grad-from', '--sidebar-grad-to'].forEach(function (b) { rows.push([t, b, 4.5, 'sidebar text on the shared gradient (N-462)']); });
+  });
+  ['--sidebar-grad-from', '--sidebar-grad-to'].forEach(function (b) { rows.push(['--accent', b, 3, 'sidebar active-link rail on the shared gradient (N-462)']); });
   return rows;
 })();
 

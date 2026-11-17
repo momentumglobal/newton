@@ -293,13 +293,20 @@ ASSERTIONS.push(
       _assertEqual(link.includes('notif-slot'), false, 'AC8 the bell slot is outside the link');
       _assertEqual(/<img|avatar|initial|photo/i.test(block), false, 'AC9 no avatar, image, initials or photo in the card');
       const css = ALL_CSS['style.css'];
-      ['--c-midnight', '--c-lapis', '--c-lapis-soft', '--c-imperial', '--c-imperial-cta', '--c-imperial-cta-hover', '--mm-grad-from', '--mm-grad-to', '--mm-accent', '--mm-accent-soft', '--mm-glow', '--mm-glow-strong', '--mm-cta-bg', '--mm-cta-hover', '--mm-cta-text']
+      ['--c-midnight', '--c-lapis', '--c-lapis-soft', '--c-imperial', '--c-imperial-cta', '--c-imperial-cta-hover', '--sidebar-grad-from', '--sidebar-grad-to', '--mm-accent', '--mm-accent-soft', '--mm-glow', '--mm-glow-strong', '--mm-cta-bg', '--mm-cta-hover', '--mm-cta-text']
         .forEach(tk => _assertEqual(new RegExp('\\n\\s*' + tk + ':').test(css), true, 'AC14 token ' + tk));
       const strip = s => s.replace(/\/\*[\s\S]*?\*\//g, '');
       ['homepage.css', 'my-momentum.css'].forEach(f => _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(strip(ALL_CSS[f])), false, 'AC14 no hex in ' + f));
       ['nav-core.js', 'home.js', 'my-momentum-pages.js', 'my-momentum-nav.js'].forEach(f => _assertEqual(/#[0-9a-fA-F]{3,6}\b/.test(strip(ALL_SOURCES[f])), false, 'AC14 no hex in ' + f));
       _assertEqual(/@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.nav-user-link\s*\{\s*transition: none/.test(css), true, 'AC10 the card glow transition is off under reduced motion');
       _assertEqual(/@media print\s*\{\s*\.mm-hero, \.mm-area-header\s*\{\s*display: none/.test(ALL_CSS['my-momentum.css']), true, 'AC18 hero and header are not printed');
+      // N-462: one shared sidebar gradient (every module + Admin), tokens renamed away from --mm-grad-*.
+      const _allText = [ALL_CSS, ALL_SOURCES, ALL_HTML].reduce((a, o) => a.concat(Object.keys(o).map(k => o[k])), []);
+      _assertEqual(_allText.some(s => /mm-grad/.test(s)), false, 'N462 AC1 no --mm-grad-* left in css, js or html');
+      _assertEqual((css.match(/--sidebar-grad-from:\s*var\(--c-brand\)/g) || []).length === 1 && (css.match(/--sidebar-grad-to:\s*var\(--c-midnight\)/g) || []).length === 1, true, 'N462 AC1 both tokens defined once, Brand to Midnight');
+      _assertEqual((strip(css).match(/#sidebar,\s*\.admin-sidebar\s*\{\s*background: linear-gradient\(180deg, var\(--sidebar-grad-from\) 0%, var\(--sidebar-grad-to\) 100%\);/g) || []).length, 1, 'N462 AC2 one grouped gradient rule for #sidebar and .admin-sidebar');
+      _assertEqual(/#sidebar\s*\{[^}]*background/.test(strip(css)) || /\.admin-sidebar\s*\{[^}]*background/.test(strip(ALL_CSS['admin.css'])) || /#sidebar\s*\{[^}]*background/.test(strip(ALL_CSS['my-momentum.css'])), false, 'N462 AC2 no other sidebar background rule (style.css solo, admin.css, my-momentum.css)');
+      _assertEqual(/body\.mm-area \.nav-link\.active\s*\{\s*box-shadow: inset 3px 0 0 var\(--mm-accent-soft\)/.test(ALL_CSS['my-momentum.css']), true, 'N462 AC4 My Momentum keeps its Lapis-tint active marker');
       const html = ALL_HTML['my-momentum.html'];
       _assertEqual(html.includes('<body class="mm-area">') && html.includes('href="css/my-momentum.css"'), true, 'AC11 area class and sheet on the My Momentum shell');
       _assertEqual(ALL_HTML['index.html'].includes('my-momentum.css') || ALL_HTML['people.html'].includes('my-momentum.css'), false, 'AC11 no other shell links the area sheet');

@@ -13,7 +13,7 @@ body { font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; }
 /* Sidebar (permanently dark chrome: inverse tokens, identical in both themes) */
 .admin-sidebar {
   width: 220px; min-width: 220px;
-  background: var(--inverse-surface); color: var(--inverse-text);
+  color: var(--inverse-text);
   display: flex; flex-direction: column;
   height: 100vh; overflow-y: auto;
 }

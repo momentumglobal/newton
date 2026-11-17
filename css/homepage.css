@@ -49,7 +49,7 @@
   margin-bottom: var(--sp-10);
   border: 1px solid var(--inverse-border-soft);
   border-radius: var(--r-3xl);
-  background: linear-gradient(135deg, var(--mm-grad-from) 0%, var(--mm-grad-to) 100%);
+  background: linear-gradient(135deg, var(--sidebar-grad-from) 0%, var(--sidebar-grad-to) 100%);
   box-shadow: 0 0 28px var(--mm-glow);
 }
 .home-hero::before {

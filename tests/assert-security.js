@@ -695,16 +695,20 @@ ASSERTIONS.push(
 // ── N-367 / N-368 (PT-7, PT-8): access scope helpers + cutover ───────
 ASSERTIONS.push(
   {
-    name: 'N-368 accessScopeMode — two modes, anything else (incl. retired shadow) is legacy; CONFIG ships legacy or assignments',
+    name: 'N-472 accessScopeValid — only assignments is valid; CONFIG pinned to assignments; the misconfig message is stable',
     fn: function () {
-      const m = mode => accessScopeMode({ ACCESS_SCOPE: { mode } });
-      _assertEqual([m('legacy'), m('assignments')], ['legacy', 'assignments'], 'valid modes');
-      _assertEqual([m('shadow'), m('Assignments'), m(''), m(undefined), accessScopeMode({}), accessScopeMode(null)],
-        ['legacy', 'legacy', 'legacy', 'legacy', 'legacy', 'legacy'], 'retired / unknown / missing → legacy');
-      // Not pinned to 'assignments': setting 'legacy' is the live rollback and must still deploy.
-      _assertEqual(['legacy', 'assignments'].includes(CONFIG.ACCESS_SCOPE.mode), true, 'CONFIG.ACCESS_SCOPE.mode is legacy or assignments');
-      _assertEqual(CONFIG.ACCESS_SCOPE.shadowErrorType, 'scope-shadow', 'retired shadow ErrorType kept for the historic rows (S-6)');
-      _assertEqual(Object.prototype.hasOwnProperty.call(CONFIG.ACCESS_SCOPE, 'shadowStoreKey'), false, 'shadowStoreKey retired');
+      const v = mode => accessScopeValid({ ACCESS_SCOPE: { mode } });
+      _assertEqual(v('assignments'), true, 'the one valid mode');
+      _assertEqual([v('legacy'), v('shadow'), v('Assignments'), v(''), v(undefined), accessScopeValid({}), accessScopeValid(null)],
+        [false, false, false, false, false, false, false], 'retired / unknown / missing → invalid (callers fail closed)');
+      // N-472: pinned. 'legacy' is no longer a rollback, so no other value may deploy.
+      _assertEqual(CONFIG.ACCESS_SCOPE.mode, 'assignments', 'CONFIG.ACCESS_SCOPE.mode is assignments');
+      _assertEqual(accessScopeValid(), true, 'the shipped CONFIG is valid');
+      _assertEqual(Object.keys(CONFIG.ACCESS_SCOPE), ['mode'], 'shadowErrorType and shadowStoreKey retired');
+      const msg = accessScopeMisconfigMessage('legacy');
+      _assertEqual([msg.includes('"legacy"'), msg.includes("'assignments'"), msg.includes('@'), msg === accessScopeMisconfigMessage('legacy')],
+        [true, true, false, true], 'names the bad value and the expected one; no email; stable (one Error Telemetry group)');
+      _assertEqual(accessScopeMisconfigMessage(undefined).includes('is undefined,'), true, 'a missing mode still gives a message');
       _assertEqual(CONFIG.PROJECT_TEAM.WRITE_GRACE_DAYS, 14, 'D-2 grace days');
     },
   },
@@ -818,7 +822,7 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-368 source guards — the four scope functions branch on accessScopeMode(); shadow code gone; Data Health without Access shadow',
+    name: 'N-368 / N-472 source guards — the scope functions read only the Project Team and fail closed on a bad mode; shadow and legacy code gone; Data Health without Access shadow',
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') {
         _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
@@ -837,27 +841,38 @@ ASSERTIONS.push(
       const tpp = fnBody(api, 'async function getTalentPartnersForProject(');
       const dmp = fnBody(api, 'async function getDmProjectIds(');
       const srv = fnBody(api, 'async function getScopedRolesVisibleTo(');
-      _assertEqual([upi, dpi, tpp, dmp, srv].map(b => b.length > 0), [true, true, true, true, true], 'control: the five functions were found');
-      [['getUserProjectIds', upi], ['getDefaultUserProjectId', dpi], ['getTalentPartnersForProject', tpp], ['getDmProjectIds', dmp]].forEach(([n, body]) => {
-        _assertEqual(/accessScopeMode\(\) === 'assignments'/.test(body), true, n + ' branches on accessScopeMode()');
-        _assertEqual(/shadow/i.test(body), false, n + ' has no shadow branch');
+      const uwp = fnBody(api, 'async function getUserWritableProjectIds(');
+      const aso = fnBody(api, 'function _accessScopeOk(');
+      _assertEqual([upi, dpi, tpp, dmp, srv, uwp, aso].map(b => b.length > 0), [true, true, true, true, true, true, true], 'control: the seven functions were found');
+      [['getUserProjectIds', upi, '[]'], ['getUserWritableProjectIds', uwp, '[]'], ['getTalentPartnersForProject', tpp, '[]'], ['getDefaultUserProjectId', dpi, 'null']].forEach(([n, body, empty]) => {
+        _assertEqual(body.includes('if (!_accessScopeOk()) return ' + empty + ';'), true, n + ' fails closed on a bad mode (N-472)');
+        _assertEqual(/shadow|accessScopeMode|_legacyProjectIds/i.test(body), false, n + ' has no shadow or legacy branch');
+      });
+      [['getUserProjectIds', upi], ['getUserWritableProjectIds', uwp]].forEach(([n, body]) => {
+        const a = body.indexOf('isAdminAssignment'), s = body.indexOf('_accessScopeOk()');
+        _assertEqual(a > -1 && s > a, true, n + ': admin (null) is decided before the mode check');
       });
       _assertEqual(/getItems\("Assignments", `fields\/ProjectID eq \$\{pid\}`\)/.test(tpp) && /projectTeamPickerRows\(team, people, localDayISO\(\), includeEmail\)/.test(tpp),
         true, 'picker: Project Team by ProjectID through projectTeamPickerRows');
-      _assertEqual(/getItems\("UserAssignments", `fields\/ProjectID eq \$\{projectId\}`\)/.test(tpp), true, 'picker: legacy UserAssignments body kept');
-      _assertEqual(/dmProjectIdsFromScope\(rows, await getUserProjectIds\(lower\)\)/.test(dmp) && /return dmProjectIdsFromAssignments\(rows\);/.test(dmp), true, 'getDmProjectIds: scope route + legacy route');
+      _assertEqual(/getItems\("UserAssignments", `fields\/ProjectID eq/.test(tpp), false, 'picker: legacy UserAssignments body gone (N-472)');
+      _assertEqual(/return dmProjectIdsFromScope\(rows, await getUserProjectIds\(lower\)\);/.test(dmp) && !/accessScopeMode|_accessScopeOk|dmProjectIdsFromAssignments/.test(dmp),
+        true, 'getDmProjectIds: scope route only, no mode check of its own');
+      _assertEqual([/accessScopeValid\(\)/.test(aso), /typeof reportError === 'function'/.test(aso), /reportError\('config', msg, ''\)/.test(aso), /_accessScopeWarned/.test(aso), /return false;/.test(aso)],
+        [true, true, true, true, true], '_accessScopeOk: valid check, a guarded config report once per page load, fails closed');
       const tp = srv.slice(srv.indexOf('// Talent Partner'));
       _assertEqual(tp.length > 20 && /getRolesForUser\(email\)/.test(tp), true, 'TP branch uses getRolesForUser');
       _assertEqual(/"UserAssignments"|'UserAssignments'/.test(tp), false, 'TP branch has no UserAssignments read');
       _assertEqual(/"UserAssignments"/.test(tpp), true, 'control: the UserAssignments pattern matches a real read');
       const gone = ['scopeShadowDue', 'reportScopeShadow', 'groupScopeShadowRows', '_dhRenderAccessShadowHtml', 'shadowStoreKey',
-        'diffProjectScopes', 'buildScopeShadowMessage', 'parseScopeShadowMessage', 'scopeShadowLoggedToday', 'scopeShadowMark', 'SCOPE_SHADOW_CHECKS'];
+        'diffProjectScopes', 'buildScopeShadowMessage', 'parseScopeShadowMessage', 'scopeShadowLoggedToday', 'scopeShadowMark', 'SCOPE_SHADOW_CHECKS',
+        'accessScopeMode', '_legacyProjectIds', 'dmProjectIdsFromAssignments', 'shadowErrorType'];   // N-472
       const hits = [];
       Object.keys(ALL_SOURCES).forEach(f => gone.forEach(id => { if (ALL_SOURCES[f].indexOf(id) > -1) hits.push(f + ': ' + id); }));
-      _assertEqual(hits, [], 'no shadow identifier left in js/');
-      _assertEqual(Object.keys(ALL_SOURCES).some(f => ALL_SOURCES[f].indexOf('shadowErrorType') > -1), true, 'control: the scan sees a live identifier');
+      _assertEqual(hits, [], 'no shadow or legacy-scope identifier left in js/');
+      _assertEqual(Object.keys(ALL_SOURCES).some(f => ALL_SOURCES[f].indexOf('accessScopeValid') > -1), true, 'control: the scan sees a live identifier');
       const osa = ALL_SOURCES['os-admin.js'];
-      _assertEqual(/ErrorType === CONFIG\.ACCESS_SCOPE\.shadowErrorType\) return;/.test(osa), true, 'Error Telemetry still skips the historic shadow rows (S-6)');
+      _assertEqual(/const DH_RETIRED_ERROR_TYPES = \['scope-shadow'\];/.test(osa) && /DH_RETIRED_ERROR_TYPES\.includes\(r\.ErrorType\)\) return;/.test(osa),
+        true, 'Error Telemetry still skips the historic shadow rows (S-6; N-472 D1)');
       _assertEqual(/\+ _dhRenderProjectTeamHtml\(data\)\s*\+ _dhRenderProjectTeamIntegrityHtml\(data\)\s*\+ _dhRenderPdpIdentityHtml\(data\)/.test(osa), true, 'Data Health: Access shadow section gone');
     },
   }

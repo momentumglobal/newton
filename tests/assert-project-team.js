@@ -451,14 +451,15 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-369 source guards — writable ids are ghost-aware and mode-switched; the checks fail closed (AC5, AC6)',
+    name: 'N-369 source guards — writable ids are ghost-aware and fail closed on a bad scope mode; the checks fail closed (AC5, AC6)',
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js.');
       const api = ALL_SOURCES['api.js'].replace(/\r\n/g, '\n');
       const body = sig => { const i = api.indexOf(sig); if (i < 0) return ''; const j = api.indexOf('\n}\n', i); return api.slice(i, j < 0 ? undefined : j); };
       const w = body('async function getUserWritableProjectIds(');
-      _assertEqual(['await _ensureGhostGate()', 'getGhostUser()', 'isAdminAssignment', "accessScopeMode() === 'assignments'", 'writableProjectIdsFromAssignments(await _getAssignmentsForUser(lower), localDayISO())', 'return _legacyProjectIds(assignments)']
-        .map(t => w.includes(t)), [true, true, true, true, true, true], 'getUserWritableProjectIds: gate, ghost, admin null, assignments window, legacy = visible');
+      _assertEqual(['await _ensureGhostGate()', 'getGhostUser()', 'isAdminAssignment', 'if (!_accessScopeOk()) return [];', 'writableProjectIdsFromAssignments(await _getAssignmentsForUser(lower), localDayISO())']
+        .map(t => w.includes(t)), [true, true, true, true, true], 'getUserWritableProjectIds: gate, ghost, admin null, bad mode fails closed, assignments window');
+      _assertEqual(w.includes('_legacyProjectIds'), false, 'N-472: no legacy (writable = visible) branch');
       const c = body('async function checkProjectWrite(');
       _assertEqual([/catch \(e\)/.test(c), /return \{ ok: false, reason: PROJECT_WRITE_CHECK_FAILED \}/.test(c), /projectReadOnlyMessage\(\)/.test(c), /getEffectiveRole\(email\)/.test(c)], [true, true, true, true], 'checkProjectWrite fails closed and names the read-only reason');
       const r = body('async function checkRoleWrite(');

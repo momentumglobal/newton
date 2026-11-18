@@ -553,7 +553,7 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-398 canReassignBriefingPack / dmProjectIdsFromAssignments / briefingPackReassignCandidates — who may reassign, who can receive',
+    name: 'N-398 canReassignBriefingPack / dmProjectIdsFromScope / briefingPackReassignCandidates — who may reassign, who can receive',
     fn: function () {
       const R = CONFIG.ROLE_IDS;
       const pack = { PackOwner: 'Owner@Momentum.com', ProjectID: 12 };
@@ -577,18 +577,10 @@ ASSERTIONS.push(
       _assertEqual(can(R.DELIVERY_MANAGER, 'dm@y.z', undefined, null), false, 'fails closed: malformed DM list');
       _assertEqual(can(R.DELIVERY_MANAGER, 'dm@y.z', undefined, '12'), false, 'fails closed: a string is not a list');
 
-      const ua = [
-        { AssignedRole: 'delivery_manager', ProjectID: 5, Active: true },
-        { AssignedRole: 'delivery_manager', ProjectID: 5 },
-        { AssignedRole: 'delivery_manager', ProjectID: '7' },
-        { AssignedRole: 'delivery_manager', ProjectID: 8, Active: false },
-        { AssignedRole: 'delivery_manager', ProjectID: 0 },
-        { AssignedRole: 'talent_partner', ProjectID: 6 },
-        { AssignedRole: 'admin', ProjectID: 0 },
-        null,
-      ];
-      _assertEqual(dmProjectIdsFromAssignments(ua), ['5', '7'], 'AC1 only active delivery_manager rows with a real project, de-duplicated');
-      _assertEqual(dmProjectIdsFromAssignments(null), [], 'null rows give no projects');
+      // N-472: a DM's projects are their Project Team scope (the UserAssignments row holds no project).
+      const ua = [{ AssignedRole: 'delivery_manager', ProjectID: 0, Active: true }];
+      _assertEqual(dmProjectIdsFromScope(ua, ['5', 5, '7']), ['5', '7'], 'AC1 a delivery_manager user: their scope ids as strings, de-duplicated');
+      _assertEqual(dmProjectIdsFromScope(null, ['5']), [], 'null rows give no projects');
 
       const rows = [
         { UserEmail: 'Zed@y.z', UserName: 'Zed', AssignedRole: 'talent_partner', Active: true },
@@ -645,8 +637,8 @@ ASSERTIONS.push(
       _assertEqual(save.split('PackOwner').length === 2, true, 'AC9 bpSavePack still sets PackOwner only on create');
       const apiSrc = ALL_SOURCES['api.js'];
       const dm = apiSrc.slice(apiSrc.indexOf('async function getDmProjectIds('));
-      _assertEqual(/fields\/Title eq '\$\{odataStr\(lower\)\}'/.test(dm.slice(0, 600)) && /dmProjectIdsFromAssignments\(rows\)/.test(dm.slice(0, 600)) && /getGhostUser\(\) \|\| email/.test(dm.slice(0, 600)), true, 'getDmProjectIds: ghost-aware, same UserAssignments read as getUserProjectIds, filtered by the pure helper');
-      _assertEqual(/if \(accessScopeMode\(\) === 'assignments'\) return dmProjectIdsFromScope\(rows, await getUserProjectIds\(lower\)\);/.test(dm.slice(0, 600)), true, 'N-368 getDmProjectIds: assignments mode = DM role + Assignments scope');
+      _assertEqual(/fields\/Title eq '\$\{odataStr\(lower\)\}'/.test(dm.slice(0, 600)) && /return dmProjectIdsFromScope\(rows, await getUserProjectIds\(lower\)\);/.test(dm.slice(0, 600)) && /getGhostUser\(\) \|\| email/.test(dm.slice(0, 600)), true, 'getDmProjectIds: ghost-aware, same UserAssignments read as getUserProjectIds, filtered by the pure helper');
+      _assertEqual(/accessScopeMode|_accessScopeOk/.test(dm.slice(0, dm.indexOf('\n}\n'))), false, 'N-472 getDmProjectIds: no mode check of its own (a bad mode arrives as an empty scope)');
     },
   },
   {

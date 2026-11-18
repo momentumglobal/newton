@@ -237,7 +237,7 @@ function renderActivityByTPPanel(acts, period, tpMap = {}) {
 function renderRejectionPanel(rejections, period, roles = []) {
   const { start, end } = getDetailPeriodRange(period);
   const roleMap = Object.fromEntries(roles.map(r => [String(r.id), escHtml(r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle)]));
-  // N-387: the period rule (blank date always included) lives in rejectionInPeriod (analytics.js).
+  // N-387: the period rule (blank date always included) lives in rejectionInPeriod (rejection-engine.js).
   const filtered = rejections.filter(rej => rejectionInPeriod(rej, start, end));
   const reasons = CONFIG.REJECTION_REASONS;
   // One row per role + reason. Role names are escaped once, in roleMap.

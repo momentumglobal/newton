@@ -159,7 +159,7 @@
       fn: function () {
         if (typeof ALL_SOURCES === 'undefined') _skip('source scan needs the filesystem (node tests/run.js)');
         const pp = ALL_SOURCES['project-page.js'], ad = ALL_SOURCES['sla-admin.js'], adm = ALL_SOURCES['admin.js'];
-        const api = ALL_SOURCES['api.js'], utils = ALL_SOURCES['utils.js'];
+        const api = ALL_SOURCES['api.js'], slaTargets = ALL_SOURCES['sla-targets.js'];
         const ppSla = pp.slice(pp.indexOf('// ── SLA targets markup (N-382'), pp.indexOf('// ── Project Team markup (N-365)'));
         _assertEqual(ppSla.length > 800 && ad.length > 800, true, 'AC9 found the editor sources');
         [ppSla, ad].forEach((src, i) => {
@@ -192,7 +192,7 @@
         const w = api.slice(api.indexOf('async function saveSlaTargets'), api.indexOf('async function saveSlaTargets') + 900);
         _assertEqual(/graphRequest/.test(w), false, 'AC7 no raw graphRequest writes');
         _assertEqual(/CONFIG\.SLA\.LIST/.test(w), true, 'AC7 writes the SLA list only');
-        const blk = utils.slice(utils.indexOf('// ── SLA target editor (N-382'), utils.indexOf('// ── Text escaping'));
+        const blk = slaTargets.slice(slaTargets.indexOf('// ── SLA target editor (N-382'));
         _assertEqual(blk.length > 1500 && blk.includes('ANALYTICS_BENCHMARKS') === false, true, 'AC12 editor helpers never read the benchmark');
         _assertEqual(CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays, 45, 'AC12 benchmark unchanged');
       },

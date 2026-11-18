@@ -30,10 +30,10 @@
 // browser harness (no filesystem).
 
 var SHARED_FILE_FUNCTION_BASELINE = {
-  'analytics.js': 111,
+  'analytics.js': 64,
   'api.js': 118,
   'config.js': 1,
-  'utils.js': 166,
+  'utils.js': 153,
 };
 
 var CONFIG_KEY_BASELINE = 108;

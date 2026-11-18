@@ -227,7 +227,7 @@
         clusterRejections(facts().facts, 'reason', { includeFigures: true });
         _assertEqual(JSON.stringify(F), before, 'AC13 fixture not mutated');
         if (typeof ALL_SOURCES === 'undefined') return;
-        const src = ALL_SOURCES['analytics.js'];
+        const src = ALL_SOURCES['rejection-engine.js'];
         const i = src.indexOf('// ── Rejection Intelligence engine (N-387 / DA-7)');
         _assertEqual(i > -1, true, 'AC13 banner present');
         const block = src.slice(i);

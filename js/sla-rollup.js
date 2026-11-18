@@ -3,7 +3,7 @@
 // One table for every project's SLA health over the fixed CONFIG.SLA.ROLLUP_PERIOD, shared by
 //   - the Command Centre Project Health detail (cc-pages.js, Admin / Leadership), and
 //   - the Report Builder "SLA Roll-up" module (dashboard-project-panels.js REPORT_PANELS).
-// The model is slaRollupModel() (analytics.js). There is no period toggle and no action here, so
+// The model is slaRollupModel() (sla-engine.js). There is no period toggle and no action here, so
 // a toggle elsewhere (sla-panel.js) cannot move it. Project names are plain text: the Command
 // Centre has no Project page to open and a printed report cannot link.
 // Loaded on command-centre.html and reporting.html, before sla-panel.js. The helpers it calls

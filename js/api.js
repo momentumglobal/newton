@@ -327,7 +327,7 @@ async function getProjects(activeOnly = true) {
 }
 
 // N-381 (DA-1): every SLATargets row (default and override). Tiny list; resolve
-// per project with slaTargetsFor() (utils.js). Not tier-2 cached - the N-382
+// per project with slaTargetsFor() (sla-targets.js). Not tier-2 cached - the N-382
 // editor writes it and must see its own save.
 async function getSLATargets() {
   return getItems(CONFIG.SLA.LIST);
@@ -447,7 +447,7 @@ async function getRejectionIntelInputs(email, opts = {}) {
   };
 }
 
-// N-382 (DA-2): executes ONE slaEditPlan() (utils.js) against SLATargets - the only writer the
+// N-382 (DA-2): executes ONE slaEditPlan() (sla-targets.js) against SLATargets - the only writer the
 // editors use. createItem / updateItem / deleteItem only (each invalidates the list cache).
 // 'none' makes no call. A failure is passed through slaTranslateSaveError (a 403 becomes a plain permission message).
 async function saveSlaTargets(plan) {

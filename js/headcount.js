@@ -213,7 +213,7 @@ function _headcountRoleLabel(role) {
   return role.Location ? `${role.RoleTitle} (${role.Location})` : (role.RoleTitle || ('Role ' + role.id));
 }
 
-// N-384: the public name for other files (analytics.js slaPanelModel) - one role label, no copy.
+// N-384: the public name for other files (sla-engine.js slaPanelModel) - one role label, no copy.
 function headcountRoleLabel(role) {
   return _headcountRoleLabel(role);
 }

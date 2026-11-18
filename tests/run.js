@@ -79,6 +79,9 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'list-controls.js'),
   path.join(JS_DIR, 'pages-model.js'),
   path.join(JS_DIR, 'analytics.js'),
+  path.join(JS_DIR, 'sla-targets.js'),      // N-473: SLA targets / editor helpers; loads before sla-engine.js and rejection-engine.js
+  path.join(JS_DIR, 'sla-engine.js'),       // N-473: SLA calc engine, panel model, roll-up
+  path.join(JS_DIR, 'rejection-engine.js'), // N-473: Rejection Intelligence engine and view model
   path.join(JS_DIR, 'market-report.js'),
   path.join(JS_DIR, 'lci-config.js'),
   path.join(JS_DIR, 'lci-model.js'),

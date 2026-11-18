@@ -208,7 +208,7 @@ ASSERTIONS.push(
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') _skip('AC1/7/8/9 source checks need the filesystem (node tests/run.js)');
       const body = (src, start) => { const i = src.indexOf(start); if (i < 0) return ''; const m = /\r?\n\}\r?\n/.exec(src.slice(i)); return m ? src.slice(i, i + m.index + m[0].length) : src.slice(i); };
-      const fn = body(ALL_SOURCES['utils.js'], 'function checkSlaIntegrity(');
+      const fn = body(ALL_SOURCES['sla-targets.js'], 'function checkSlaIntegrity(');
       _assertEqual(fn.length > 400, true, 'AC1 found checkSlaIntegrity');
       ['getItems', 'fetch(', 'document.', 'ANALYTICS_BENCHMARKS'].forEach(t => _assertEqual(fn.includes(t), false, 'AC1 pure, no ' + t));
       ["'Embedded'", "'CoE'", "'Exec Search'", "'MG AI'", "'LCI'", "'Transformation'", "'Internal'"].forEach(t => _assertEqual(fn.includes(t), false, 'AC1 no type literal ' + t));
@@ -278,8 +278,8 @@ ASSERTIONS.push(
         _assertEqual(slaSeedPlan([])[0].TimeToHireDays, 45, 'AC15 moving the benchmark does not move the seed');
       } finally { CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays = orig; }
       if (typeof ALL_SOURCES === 'undefined') _skip('AC15 source scan needs the filesystem (node tests/run.js)');
-      const utils = ALL_SOURCES['utils.js'];
-      const slaBlock = utils.slice(utils.indexOf('// ── SLA targets (N-381'), utils.indexOf('// ── Text escaping'));
+      const slaTargets = ALL_SOURCES['sla-targets.js'];
+      const slaBlock = slaTargets.slice(slaTargets.indexOf('// ── SLA targets (N-381'));
       _assertEqual(slaBlock.length > 500, true, 'AC15 found the utils.js SLA block');
       _assertEqual(slaBlock.includes('ANALYTICS_BENCHMARKS'), false, 'AC15 utils SLA helpers never reference the benchmark');
       const admin = ALL_SOURCES['api-admin.js'];

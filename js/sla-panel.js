@@ -9,7 +9,7 @@
 //     scored for that one role, with its full breach history (amendment 1).
 // The project surfaces list ONGOING breaches only (view 'ongoing', each role name links to its
 // Role page); the Role page lists the history (view 'history').
-// Every rule is pure in analytics.js (slaPanelModel, slaPortfolioModel, slaRag, slaPanelPeriod,
+// Every rule is pure in sla-engine.js (slaPanelModel, slaPortfolioModel, slaRag, slaPanelPeriod,
 // slaGapNotes) over the N-383 engine (computeProjectSla, slaAttainment). The reads are api.js
 // helpers (getProjectSlaInputs, getRoleSlaInputs, getPortfolioSlaInputs). This file formats and mounts.
 //
@@ -248,7 +248,7 @@ async function mountPortfolioSlaTile(slotId, ctx) {
     await new Promise(resolve => setTimeout(resolve, 0));
     if (!claim.live()) return;
     const today = new Date();
-    const results = slaProjectResults({   // N-385: the loop moved to analytics.js, shared with the roll-up
+    const results = slaProjectResults({   // N-385: the loop moved to sla-engine.js, shared with the roll-up
       projects: ctx.projects, slaRows: extra.slaRows, roles: ctx.roles, headcount: ctx.headcount,
       placements: extra.placements, stageRows: extra.stageRows, activity: ctx.activity,
       rejectedOffers: extra.rejectedOffers, today,

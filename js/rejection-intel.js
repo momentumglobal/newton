@@ -1,6 +1,6 @@
 // js/rejection-intel.js — Rejection Intelligence markup (N-388 / DA-8). DOM only: no Graph calls,
 // no rules. Every number, sentence and sample guard arrives already decided in the view models
-// from analytics.js (rejectionIntelPageModel, rejectionIntelProjectStrip,
+// from rejection-engine.js (rejectionIntelPageModel, rejectionIntelProjectStrip,
 // rejectionIntelReportModel), so a figure that was never put in a model can never be printed here.
 //
 // Three surfaces share the cell wording below:

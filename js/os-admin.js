@@ -1217,7 +1217,7 @@ async function applyPdpRepoint() {
 
 // ── Data Health Tab — SLA targets (N-381 / DA-1) ──────────────────────
 // Checks the SLATargets list and seeds the default rows (create-only, idempotent; the pure plan
-// is slaSeedPlan, utils.js). Fetch never throws: a list or column read that failed is
+// is slaSeedPlan, sla-targets.js). Fetch never throws: a list or column read that failed is
 // { ok: false }, never "empty" or "missing". Last-run state lives here, never in the DOM.
 let _slaSeed = { result: null };
 

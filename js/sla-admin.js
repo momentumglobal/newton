@@ -5,7 +5,7 @@
 // admin.js only registers the tab and dispatches to buildSlaTargetsTab(); the Config Panel
 // itself is Admin-only (renderAdminPage), which is also the gate for defaults (DA-D7 decision).
 //
-// Rules are pure (utils.js: slaProjectTypes, slaParseInput, slaEditPlan, slaFormatTarget);
+// Rules are pure (sla-targets.js: slaProjectTypes, slaParseInput, slaEditPlan, slaFormatTarget);
 // the one writer is saveSlaTargets (api.js). Save re-reads SLATargets right before planning,
 // so a stale screen can never create a duplicate default row. Every save re-renders through
 // renderAdminTab('slaTargets'), which re-reads the list, so the screen shows what was saved.

@@ -1054,7 +1054,7 @@ const CONFIG = {
   // SLATargets list: a DEFAULT row per project type (ProjectType set) and an
   // OVERRIDE row per project (ProjectID > 0). A blank metric is "no target" on
   // a default row and "inherit" on an override row. Read through
-  // slaTargetsFor() (utils.js) - never by hand.
+  // slaTargetsFor() (sla-targets.js) - never by hand.
   SLA: {
     LIST: 'SLATargets',
     // Order = display order. key = the name used in code, column = SharePoint
@@ -1075,10 +1075,10 @@ const CONFIG = {
     // N-382: ceiling for an SLA target typed into the editor (days or per week). A typo
     // guard, not a business rule.
     MAX_VALUE: 3650,
-    // N-383 (DA-3): SLA calc engine (analytics.js computeProjectSla). Stage
+    // N-383 (DA-3): SLA calc engine (sla-engine.js computeProjectSla). Stage
     // names are anchors only - every band is expanded over ROLE_STAGES by
     // index (slaStageBand), never listed. Checked at load
-    // (analytics.js slaEngineConfigCheck).
+    // (sla-engine.js slaEngineConfigCheck).
     ENGINE: {
       // DA-D6: stages that pause the per-hire clock.
       pauseStages: ['On-hold'],
@@ -1095,7 +1095,7 @@ const CONFIG = {
     },
     // N-384 (DA-4): SLA panel. RAG bands on attainment % (met / evaluated): >= green is
     // green, >= amber is amber, else red; no evaluated events is grey. Chris, 23 Oct 2026.
-    // Checked at load (analytics.js slaPanelConfigCheck).
+    // Checked at load (sla-engine.js slaPanelConfigCheck).
     RAG: {
       green: 80,
       amber: 60,
@@ -1118,10 +1118,10 @@ const CONFIG = {
   // forms.js, mobile-reporting-ext.js, renderRejectionPanel and the engine.
   REJECTION_REASONS: ['Salary', 'Motivations', 'Counter-offer', 'Took another opportunity', 'Other'],
 
-  // N-387 (DA-7): Rejection Intelligence engine (analytics.js rejectionIntelSummary).
+  // N-387 (DA-7): Rejection Intelligence engine (rejection-engine.js rejectionIntelSummary).
   // Minimum samples below which the engine returns the numbers but no headline
   // claim (Chris, 26 Oct 2026: "Standard"). Checked at load
-  // (analytics.js rejectionIntelConfigCheck).
+  // (rejection-engine.js rejectionIntelConfigCheck).
   REJECTION_INTEL: {
     minRejections:    5,   // cluster / reason claim
     minMatchedOffers: 3,   // salary claim: offers with a usable benchmark

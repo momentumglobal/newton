@@ -104,7 +104,7 @@ async function lciImportFileSelected(input) {
       fr.onerror = () => reject(fr.error);
       fr.readAsArrayBuffer(file);
     });
-    const ExcelJS = await _lciLoadExcelJS();
+    const ExcelJS = await loadScriptOnce(CONFIG.LCI.EXCEL.SRC, 'ExcelJS', 'Excel library');
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(buf);
     const ws = wb.worksheets[0];
@@ -140,8 +140,8 @@ function _lciImportColCount() {
 }
 
 // A/B/C… column labeller for files with no header row. Deliberately local
-// rather than reusing lci-excel.js's _lciXlCol — this file's only dependency
-// on lci-excel.js is the shared _lciLoadExcelJS() lazy loader.
+// rather than reusing lci-excel.js's _lciXlCol — this file has no dependency on
+// lci-excel.js (the Excel library loads through ui-kit.js's loadScriptOnce).
 function _lciImportColLetters(n) {
   let s = '';
   while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }

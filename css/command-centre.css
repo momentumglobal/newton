@@ -71,12 +71,6 @@
 .cc-tile--red   .cc-tile__status .rag-marker__glyph { color: var(--status-danger); }
 .cc-tile--amber .cc-tile__status .rag-marker__glyph { color: var(--status-warn-strong); }
 
-/* RAG pill */
-.cc-rag-pill { display: inline-block; padding: var(--sp-1) var(--sp-5); border-radius: var(--r-xl); border: 1px solid transparent; font-size: var(--fs-11); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
-.cc-rag-pill--green { background: var(--status-success-bg); color: var(--status-success); }
-.cc-rag-pill--amber { background: var(--status-warn-bg); color: var(--status-warn-strong); }
-.cc-rag-pill--red   { background: var(--status-danger-bg); color: var(--status-danger); }
-
 /* Health tile trend arrow + explainer tooltip (N-108) */
 .cc-trend-arrow { font-size: var(--fs-14); vertical-align: middle; }
 .cc-trend-arrow--down { color: var(--text-secondary); } /* N-257: improving = neutral */

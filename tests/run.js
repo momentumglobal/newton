@@ -104,6 +104,9 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'lint-alias-consumers.js'),
   path.join(TESTS_DIR, 'lint-escaping.js'),
   path.join(TESTS_DIR, 'lint-vendor.js'),
+  path.join(TESTS_DIR, 'lint-shared-files.js'),   // N-470 (reuses _vendorStripJsComments)
+  path.join(TESTS_DIR, 'lint-graph-crud.js'),     // N-470
+  path.join(TESTS_DIR, 'lint-load-lists.js'),     // N-470
   path.join(TESTS_DIR, 'lint-icons.js'),
   path.join(TESTS_DIR, 'lint-css-split.js'),
   path.join(TESTS_DIR, 'lint-readme-files.js'),
@@ -245,6 +248,24 @@ sandbox.REPO_FILES = {
 sandbox.MCP_SOURCES = {
   'newton-tools.js': fs.readFileSync(path.join(ROOT_DIR, 'mcp', 'newton-tools.js'), 'utf8'),
 };
+
+// N-470: lint-shared-files.js / lint-load-lists.js. TEST_RUN_FILES is SOURCE_FILES as repo-relative
+// 'js/x.js' / 'mcp/x.js'; TEST_INDEX_HTML is the browser harness page; ROOT_FILE_SET is every file
+// in js/ and mcp/ (existence checks); CONFIG_KEYS_ISOLATED is config.js evaluated ALONE in a fresh
+// context (the sandbox's CONFIG is extended by lci-config.js etc., so it cannot be used) - the ground
+// truth the lint's key scanner is compared with.
+sandbox.TEST_RUN_FILES = SOURCE_FILES
+  .map(f => path.relative(ROOT_DIR, f).split(path.sep).join('/'))
+  .filter(f => /^(js|mcp)\/[^/]+\.js$/.test(f));
+sandbox.TEST_INDEX_HTML = _readIfExists(path.join(TESTS_DIR, 'index.html'));
+sandbox.ROOT_FILE_SET = ['js', 'mcp'].reduce((acc, d) => acc.concat(
+  fs.readdirSync(path.join(ROOT_DIR, d)).filter(f => f.endsWith('.js')).map(f => d + '/' + f)), []);
+sandbox.CONFIG_KEYS_ISOLATED = (() => {
+  const iso = { window: {}, document: {}, localStorage: {}, sessionStorage: {}, console };
+  vm.createContext(iso);
+  vm.runInContext(fs.readFileSync(path.join(JS_DIR, 'config.js'), 'utf8') + '\n;this.__KEYS = Object.keys(CONFIG);', iso);
+  return iso.__KEYS;
+})();
 
 vm.createContext(sandbox);
 

@@ -36,30 +36,6 @@
 // They are deliberately NOT CONFIG.LCI.EXCEL.COLOURS — pptxgenjs rejects the
 // 8-character ARGB form ExcelJS requires. Do not derive one from the other.
 
-// ── Lazy loader ──────────────────────────────────────────────────────
-// Never on page render — only on the first Export click. The *bundle* build
-// is required: pptxgen.min.js expects a separate JSZip global, the bundle
-// carries JSZip inside it.
-let _lciPptxPromise = null;
-
-function _lciLoadPptxGen() {
-  if (window.PptxGenJS) return Promise.resolve(window.PptxGenJS);
-  if (_lciPptxPromise) return _lciPptxPromise;
-  _lciPptxPromise = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = CONFIG.LCI.PPTX.SRC;
-    s.onload = () => window.PptxGenJS
-      ? resolve(window.PptxGenJS)
-      : reject(new Error('PowerPoint library loaded but did not register.'));
-    s.onerror = () => {
-      _lciPptxPromise = null;   // allow a retry on the next click
-      reject(new Error('Could not load the PowerPoint library. Check your connection and try again.'));
-    };
-    document.head.appendChild(s);
-  });
-  return _lciPptxPromise;
-}
-
 // ── Assets ───────────────────────────────────────────────────────────
 // Fetched to data URLs UP FRONT rather than handed to addImage({path}).
 // addImage's own fetch happens inside writeFile(), where a 404 rejects the
@@ -750,7 +726,9 @@ async function lciExportReportPptx(btn) {
   }
   if (btn) setButtonLoading(btn, 'Building…');
   try {
-    const PptxGenJSLib = await _lciLoadPptxGen();
+    // The *bundle* build is required: pptxgen.min.js expects a separate JSZip global, the bundle
+    // carries JSZip inside it. Loaded on the first Export click, never on page render.
+    const PptxGenJSLib = await loadScriptOnce(CONFIG.LCI.PPTX.SRC, 'PptxGenJS', 'PowerPoint library');
     const P = CONFIG.LCI.PPTX;
     const bundles = _lciReportBundles;
     const title   = document.querySelector('.lci-report-title')?.textContent || _lciReport.title || 'LCI Report';

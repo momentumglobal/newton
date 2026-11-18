@@ -332,15 +332,7 @@ async function engRenderTrends() {
     };
   });
 
-  // Load Chart.js (vendored, N-289) if not already present
-  if (!window.Chart) {
-    await new Promise((res, rej) => {
-      const s = document.createElement('script');
-      s.src = CONFIG.SURVEY.CHARTJS_SRC;
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
-  }
+  await loadScriptOnce(CONFIG.SURVEY.CHARTJS_SRC, 'Chart', 'chart library');
 
   // N-416: Chart.js is canvas and cannot read var(--…), so colours are resolved from the
   // tokens at draw time and re-applied on a theme change and around printing.

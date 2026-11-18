@@ -428,21 +428,6 @@
       transition: background var(--dur-base) var(--ease-standard);
     }
     .m-btn-secondary:active { background: var(--surface-alt); }
-    .m-btn-danger {
-      background: var(--surface);
-      color: var(--status-danger-text);
-      border: 2px solid var(--status-danger-text);
-      border-radius: var(--r-xl);
-      padding: 13px;
-      font-family: inherit;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      width: 100%;
-      text-align: center;
-      transition: background var(--dur-base) var(--ease-standard);
-    }
-    .m-btn-danger:active { background: var(--status-danger-bg-soft); }
 
     /* -- Forms -- */
     .m-form-group { margin-bottom: 16px; }

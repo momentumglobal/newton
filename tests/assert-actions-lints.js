@@ -713,5 +713,109 @@ ASSERTIONS.push(
       const bumped = Object.assign({}, ALL_SOURCES, { 'pages.js': ALL_SOURCES['pages.js'] + '\nconst _x = \'<p style="color:red">\';' });
       _assertEqual(lintInlineStyles(bumped, ALL_HTML, INLINE_STYLE_BASELINE).length, 1, 'mutation: a new inline style in pages.js is flagged');
     },
+  },
+  {
+    name: 'N-470 shared files: top-level function counts of utils / analytics / api / config and the CONFIG key count equal their baselines (R3-1 ratchet)',
+    fn: function () {
+      if (typeof lintSharedFunctions === 'undefined') _skip('lint-shared-files.js not loaded — runs under node tests/run.js.');
+      // What counts.
+      _assertEqual(sharedTopLevelFunctions("function a() {}\nasync function b() {}\nconst c = () => 1;\nconst d = x => x;\nconst e = async function () {};\n  function nested() {}\n// function z() {}\nconst f = 5;").length, 5,
+        'control: declarations, async, arrow and function-expression consts count; indented, commented and plain consts do not');
+      // Ratchet behaviour (synthetic data).
+      const two = 'function x() {}\nfunction y() {}';
+      _assertEqual(lintSharedFunctions({ 'a.js': two }, { 'a.js': 2 }), [], 'control: exact match is clean');
+      const raised = lintSharedFunctions({ 'a.js': two + '\nfunction z() {}' }, { 'a.js': 2 });
+      _assertEqual(raised.length === 1 && /raise SHARED_FILE_FUNCTION_BASELINE to 3/.test(raised[0]), true, 'raised flagged: ' + raised);
+      const lowered = lintSharedFunctions({ 'a.js': 'function x() {}' }, { 'a.js': 2 });
+      _assertEqual(lowered.length === 1 && /Lower SHARED_FILE_FUNCTION_BASELINE to 1/.test(lowered[0]), true, 'lowered flagged: ' + lowered);
+      _assertEqual(lintSharedFunctions({}, { 'gone.js': 1 }).length, 1, 'a baseline entry with no file is flagged');
+      // CONFIG key scanner: nesting, quoted keys, braces inside strings and templates, method and shorthand entries, comments.
+      const cfg = "const _R = { A: 1 };\nconst CONFIG = {\n  A: 1,\n    B: { c: 1, d: [1, 2] },\n  'quoted-key': 'x}',\n  fn() { return { z: 1 }; },\n  tpl: `a${b}c,d: 1`,\n  // E: 1\n  F\n};";
+      _assertEqual(sharedConfigKeys(cfg), ['A', 'B', 'quoted-key', 'fn', 'tpl', 'F'], 'control: depth-1 keys only, any indentation');
+      _assertEqual(lintConfigKeys(cfg, 6), [], 'control: exact match is clean');
+      _assertEqual(/Lower CONFIG_KEY_BASELINE to 6/.test(lintConfigKeys(cfg, 7)[0] || ''), true, 'lowered flagged');
+      _assertEqual(/raise CONFIG_KEY_BASELINE to 6/.test(lintConfigKeys(cfg, 5)[0] || ''), true, 'raised flagged');
+      _assertEqual(lintConfigKeys('const x = 1;', 1).length, 1, 'no CONFIG literal fails rather than passing vacuously');
+      if (typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      _assertEqual(lintSharedFunctions(ALL_SOURCES), [], 'shared files: function counts');
+      _assertEqual(lintConfigKeys(ALL_SOURCES['config.js']), [], 'CONFIG key count');
+      if (typeof CONFIG_KEYS_ISOLATED !== 'undefined') {
+        _assertEqual(sharedConfigKeys(ALL_SOURCES['config.js']), CONFIG_KEYS_ISOLATED, 'the scanner agrees with Object.keys(CONFIG) of config.js evaluated alone');
+      }
+      // Mutations on real data.
+      _assertEqual(lintSharedFunctions(Object.assign({}, ALL_SOURCES, { 'utils.js': ALL_SOURCES['utils.js'] + '\nfunction _n470Extra() {}' })).length, 1, 'mutation: one more function in utils.js is flagged');
+      _assertEqual(lintConfigKeys(ALL_SOURCES['config.js'].replace('const CONFIG = {', 'const CONFIG = {\n  ZZ_N470_NEW: 1,')).length, 1, 'mutation: one more top-level CONFIG key is flagged');
+    },
+  },
+  {
+    name: 'N-470 Graph CRUD: per-file counts of direct getItems / getItem / createItem / updateItem / deleteItem calls outside api*.js equal GRAPH_CRUD_BASELINE (R3-D3 ratchet)',
+    fn: function () {
+      if (typeof lintGraphCrud === 'undefined') _skip('lint-graph-crud.js not loaded — runs under node tests/run.js.');
+      // What counts.
+      _assertEqual(graphCrudCount("await getItems('A'); x = [getItems('B'), updateItem('L', 1, {})]; obj.createItem('L', {}); sessionStorage.getItem('k'); window.localStorage.getItem('k'); function getItems(a) {} // deleteItem('x')\nforgetItems(1); getItemsFast(2);"), 4,
+        'control: bare and method calls count by occurrence; Storage receivers, declarations, comments and longer names do not');
+      // Ratchet behaviour (synthetic data).
+      const src = { 'a.js': "getItems('A');getItems('B');", 'api-x.js': "getItems('A');", 'graph-client.js': 'getItems(1)', 'clean.js': 'x' };
+      const base = { 'a.js': 2 };
+      _assertEqual(lintGraphCrud(src, base), [], 'control: exact match is clean; api*.js and graph-client.js are never counted');
+      const raised = lintGraphCrud(Object.assign({}, src, { 'a.js': src['a.js'] + 'getItem(1);' }), base);
+      _assertEqual(raised.length === 1 && /3 direct Graph CRUD call\(s\), baseline 2/.test(raised[0]), true, 'raised flagged: ' + raised);
+      const lowered = lintGraphCrud(Object.assign({}, src, { 'a.js': "getItems('A');" }), base);
+      _assertEqual(lowered.length === 1 && /Lower GRAPH_CRUD_BASELINE to 1/.test(lowered[0]), true, 'lowered flagged: ' + lowered);
+      const zero = lintGraphCrud(Object.assign({}, src, { 'a.js': 'x' }), base);
+      _assertEqual(zero.length === 1 && /Delete the GRAPH_CRUD_BASELINE entry/.test(zero[0]), true, 'down to 0 flagged: ' + zero);
+      const fresh = lintGraphCrud(Object.assign({}, src, { 'clean.js': "createItem('L', {});" }), base);
+      _assertEqual(fresh.length === 1 && /clean\.js: 1 direct Graph CRUD call\(s\) and no GRAPH_CRUD_BASELINE entry/.test(fresh[0]), true, 'new file with a call flagged: ' + fresh);
+      _assertEqual(lintGraphCrud(src, Object.assign({ 'gone.js': 1 }, base)).length, 1, 'stale entry flagged');
+      _assertEqual(lintGraphCrud(src, Object.assign({ 'clean.js': 0 }, base)).length, 1, 'a 0 entry flagged');
+      if (typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      _assertEqual(lintGraphCrud(ALL_SOURCES, GRAPH_CRUD_BASELINE), [], 'Graph CRUD ratchet');
+      _assertEqual(lintGraphCrud(Object.assign({}, ALL_SOURCES, { 'pages.js': ALL_SOURCES['pages.js'] + "\nawait getItems('X');" }), GRAPH_CRUD_BASELINE).length, 1, 'mutation: a new direct call in pages.js is flagged');
+      _assertEqual(lintGraphCrud(Object.assign({}, ALL_SOURCES, { 'api.js': ALL_SOURCES['api.js'] + "\nawait getItems('X');" }), GRAPH_CRUD_BASELINE), [], 'control: the same call in api.js is allowed');
+    },
+  },
+  {
+    name: 'N-470 load lists: run.js and tests/index.html agree, every listed file is shell-loaded, every shell / MCP script exists, and the shell-only set equals LOAD_LISTS_SHELL_ONLY',
+    fn: function () {
+      if (typeof lintLoadLists === 'undefined') _skip('lint-load-lists.js not loaded — runs under node tests/run.js.');
+      // Synthetic data: comments and js/vendor/ are ignored.
+      const mk = (over) => Object.assign({
+        html: { 'p.html': '<script src="js/a.js"></script><!-- <script src="js/zzz.js"></script> --><script src="js/vendor/v.js"></script><script src="js/b.js" defer></script>' },
+        runFiles: ['js/a.js', 'tests/lint-x.js'],
+        indexHtml: '<script src="../js/a.js"></script>',
+        mcpScripts: ['js/a.js', 'mcp/t.js'],
+        files: ['js/a.js', 'js/b.js', 'mcp/t.js'],
+      }, over || {});
+      const cfg = { shellOnly: ['js/b.js'], indexOnly: {} };
+      const has = (problems, re) => problems.some(p => re.test(p));
+      _assertEqual(lintLoadLists(mk(), cfg), [], 'control: consistent data is clean');
+      _assertEqual(has(lintLoadLists(mk({ runFiles: ['js/a.js', 'js/b.js'] }), { shellOnly: [], indexOnly: {} }), /run\.js SOURCE_FILES lists js\/b\.js but tests\/index\.html does not/), true, 'sync: in run.js only is flagged');
+      _assertEqual(has(lintLoadLists(mk({ indexHtml: '<script src="../js/a.js"></script><script src="../js/b.js"></script>' }), { shellOnly: [], indexOnly: {} }), /index\.html loads js\/b\.js but tests\/run\.js/), true, 'sync: in index.html only is flagged');
+      _assertEqual(lintLoadLists(mk({ indexHtml: '<script src="../js/a.js"></script><script src="../js/b.js"></script>' }), { shellOnly: [], indexOnly: { 'js/b.js': 'reason' } }), [], 'sync: a named index-only exemption is allowed');
+      _assertEqual(has(lintLoadLists(mk({ runFiles: ['js/a.js', 'js/q.js'], indexHtml: '<script src="../js/a.js"></script><script src="../js/q.js"></script>', files: ['js/a.js', 'js/b.js', 'js/q.js', 'mcp/t.js'] }), cfg), /js\/q\.js is in a test list but no shell loads it/), true, 'listed-loaded: a listed file no shell loads is flagged');
+      _assertEqual(has(lintLoadLists(mk({ files: ['js/a.js', 'mcp/t.js'] }), { shellOnly: [], indexOnly: {} }), /loads js\/b\.js, which does not exist/), true, 'exists: a shell script missing on disk is flagged');
+      _assertEqual(has(lintLoadLists(mk({ mcpScripts: ['js/a.js', 'mcp/missing.js'] }), cfg), /CONFIG\.MCP\.scripts names mcp\/missing\.js/), true, 'exists: a missing MCP script is flagged');
+      _assertEqual(has(lintLoadLists(mk(), { shellOnly: [], indexOnly: {} }), /js\/b\.js is loaded by p\.html but is in neither test list/), true, 'baseline: a new shell-only file is flagged');
+      _assertEqual(has(lintLoadLists(mk({ runFiles: ['js/a.js', 'js/b.js'], indexHtml: '<script src="../js/a.js"></script><script src="../js/b.js"></script>' }), cfg), /names js\/b\.js, which is now in a test list/), true, 'baseline: an entry that is now tested is flagged');
+      _assertEqual(has(lintLoadLists(mk(), { shellOnly: ['js/b.js', 'js/ghost.js'], indexOnly: {} }), /names js\/ghost\.js, which is gone from disk/), true, 'baseline: an entry gone from disk is flagged');
+      if (typeof ALL_HTML === 'undefined' || typeof TEST_RUN_FILES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const real = { html: ALL_HTML, runFiles: TEST_RUN_FILES, indexHtml: TEST_INDEX_HTML, mcpScripts: CONFIG.MCP.scripts, files: ROOT_FILE_SET };
+      _assertEqual(lintLoadLists(real), [], 'load lists');
+      _assertEqual(lintLoadLists(Object.assign({}, real, { runFiles: TEST_RUN_FILES.filter(f => f !== 'js/utils.js') })).length > 0, true, 'mutation: dropping utils.js from the run.js list is flagged');
+      _assertEqual(lintLoadLists(real, { shellOnly: LOAD_LISTS_SHELL_ONLY.filter(f => f !== 'js/pages.js'), indexOnly: LOAD_LISTS_INDEX_ONLY }).length, 1, 'mutation: a shell-only file missing from the baseline is flagged');
+      _assertEqual(lintLoadLists(Object.assign({}, real, { mcpScripts: CONFIG.MCP.scripts.concat(['js/not-there.js']) })).length, 1, 'mutation: an MCP script that does not exist is flagged');
+    },
+  },
+  {
+    name: 'N-470 one lazy vendor loader: document.createElement("script") appears only in ui-kit.js, and the four retired loaders are gone',
+    fn: function () {
+      if (typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      const code = (src) => _vendorStripJsComments(src).join('\n');
+      const filesWithTag = (all) => Object.keys(all).filter(f => /createElement\(\s*['"]script['"]\s*\)/.test(code(all[f]))).sort();
+      _assertEqual(filesWithTag(ALL_SOURCES), ['ui-kit.js'], 'only ui-kit.js creates script elements');
+      _assertEqual(filesWithTag(Object.assign({}, ALL_SOURCES, { 'pages.js': ALL_SOURCES['pages.js'] + "\nconst _s = document.createElement('script');" })), ['pages.js', 'ui-kit.js'], 'mutation: a second loader is flagged');
+      ['_lciLoadExcelJS', '_lciLoadPptxGen', '_sfLoadJSZip', '_lciExcelJsPromise', '_lciPptxPromise', '_sfJSZipPromise'].forEach(n =>
+        _assertEqual(Object.keys(ALL_SOURCES).filter(f => ALL_SOURCES[f].indexOf(n) !== -1), [], n + ' is gone'));
+    },
   }
 );

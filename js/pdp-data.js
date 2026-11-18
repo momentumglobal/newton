@@ -444,9 +444,6 @@ function _pdpBand(rows, level, track) {
   return (rows || []).filter(r => r.Level === level && r.Track === track);
 }
 
-// The six pillar keys with their SortOrder (1-6). Names are data (framework rows / seed), keys are not.
-function pdpPillarKeys() { return CONFIG.PDP.PILLAR_KEYS.slice(); }
-
 // Pillar [{ key, name }] in order: the name from any framework row for that key, else `fallback`
 // ([{ key, name }], e.g. PDP_SEED.pillars), else the key itself.
 function pdpPillarsFrom(rows, fallback) {

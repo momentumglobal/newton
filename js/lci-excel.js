@@ -24,27 +24,6 @@
 // place in the LCI codebase where the N-012 rule inverts. The only escaping
 // here is doubling " inside Excel string literals (_lciXlLit).
 
-// ── Lazy loader ──────────────────────────────────────────────────────
-let _lciExcelJsPromise = null;
-
-function _lciLoadExcelJS() {
-  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
-  if (_lciExcelJsPromise) return _lciExcelJsPromise;
-  _lciExcelJsPromise = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = CONFIG.LCI.EXCEL.SRC;
-    s.onload = () => window.ExcelJS
-      ? resolve(window.ExcelJS)
-      : reject(new Error('Excel library loaded but did not register.'));
-    s.onerror = () => {
-      _lciExcelJsPromise = null;   // allow a retry on the next click
-      reject(new Error('Could not load the Excel library. Check your connection and try again.'));
-    };
-    document.head.appendChild(s);
-  });
-  return _lciExcelJsPromise;
-}
-
 // ── Low-level sheet helpers ──────────────────────────────────────────
 
 // 1-based column number → column letter(s).
@@ -785,7 +764,7 @@ async function lciExportModelExcel(btn) {
   if (!m) { toast('No model open.', { type: 'error' }); return; }
   if (btn) setButtonLoading(btn, 'Building…');
   try {
-    const ExcelJSLib = await _lciLoadExcelJS();
+    const ExcelJSLib = await loadScriptOnce(CONFIG.LCI.EXCEL.SRC, 'ExcelJS', 'Excel library');
     const horizon = Number(m.HorizonMonths) || 0;
     const wb = new ExcelJSLib.Workbook();
     wb.creator = 'Newton — Momentum Global';

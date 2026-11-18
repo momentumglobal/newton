@@ -731,6 +731,30 @@ function enterStagger(scope, selector = VF_ENTER_SELECTOR) {
   });
 }
 
+// ── Lazy vendor script loader (N-470 / R3-1) ─────────────────────────
+// The one loader for on-demand vendor scripts (ExcelJS, PptxGenJS, JSZip, Chart.js). The path
+// always comes from CONFIG (a vendored js/vendor/ file, never a CDN URL here — lint-vendor).
+// Memoised by src, so concurrent calls append one <script>; a failed load clears the memo so
+// the next click retries. `label` is the lower-case noun used in the error text.
+const _scriptLoads = {};
+function loadScriptOnce(src, globalName, label) {
+  if (window[globalName]) return Promise.resolve(window[globalName]);
+  if (_scriptLoads[src]) return _scriptLoads[src];
+  _scriptLoads[src] = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => window[globalName]
+      ? resolve(window[globalName])
+      : reject(new Error(label.charAt(0).toUpperCase() + label.slice(1) + ' loaded but did not register.'));
+    s.onerror = () => {
+      delete _scriptLoads[src];   // allow a retry on the next click
+      reject(new Error('Could not load the ' + label + '. Check your connection and try again.'));
+    };
+    document.head.appendChild(s);
+  });
+  return _scriptLoads[src];
+}
+
 // ── Print ─────────────────────────────────────────────────────────────
 function printPage(title, landscape = false, module = 'Newton') {
   document.getElementById('print-header-title').textContent = 'Newton';

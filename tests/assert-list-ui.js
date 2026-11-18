@@ -404,7 +404,7 @@ ASSERTIONS.push(
       const css = ALL_CSS['mobile.css'];
       _assertEqual(lintMobileMotion(css), [], 'motion guards');
       _assertEqual(lintMobileMotion(css.replace('.m-empty-state > * { animation: m-rise', '.m-empty-state > * { animation: m-skel-sweep 1s; } .y { animation: m-rise').replace('@media (prefers-reduced-motion: no-preference) {', '@media (min-width: 1px) {')).length > 0, true, 'control: removing the guard is reported');
-      ['.btn-signin', '.m-back-btn', '.m-btn-danger', '.m-btn-primary', '.m-btn-secondary', '.m-module-card', '.m-nav-item', '.m-role-card',
+      ['.btn-signin', '.m-back-btn', '.m-btn-primary', '.m-btn-secondary', '.m-module-card', '.m-nav-item', '.m-role-card',
        '.m-sc-arrow', '.m-sc-dot', '.m-sheet-close', '.m-stage-btn', '.m-switcher-btn', '.m-switcher-item'].forEach(sel =>
         _assertEqual(mobileRuleBody(css, sel + ':active') !== null, true, sel + ':active is still defined'));
       [['.m-back-btn', /min-width:\s*44px[\s\S]*min-height:\s*44px|min-height:\s*44px[\s\S]*min-width:\s*44px/], ['.m-stage-btn', /min-height:\s*44px/], ['.m-switcher-btn', /min-height:\s*44px/],
@@ -491,6 +491,54 @@ ASSERTIONS.push(
       _assertEqual(guard > -1 && init > guard && sheet > init, true, 'order: frame-guard.js < theme-init.js < css/mobile.css');
       _assertEqual(/<script src="js\/theme-init\.js"><\/script>/.test(head), true, 'plain script tag: no defer, no async');
       _assertEqual(/style\.css/.test(h), false, 'mobile.html does not link style.css');
+    },
+  },
+  {
+    name: 'N-470 loadScriptOnce: resolves a present global without a tag, one <script> for concurrent calls, a failed load clears the memo and retries, exact error text',
+    fn: function () {
+      if (typeof window !== 'undefined') _skip('Uses a fake document and window — runs under node tests/run.js, not in the browser runner.');
+      const g = globalThis, RealPromise = g.Promise;
+      // The runner does not await assertions, so a synchronous stand-in for Promise makes the outcome readable here.
+      function SyncP(ex) {
+        this.state = 'pending';
+        ex(v => { if (this.state === 'pending') { this.state = 'resolved'; this.value = v; } }, e => { if (this.state === 'pending') { this.state = 'rejected'; this.value = e; } });
+      }
+      SyncP.resolve = v => new SyncP(r => r(v));
+      const made = [];
+      g.window = {};
+      g.document = { head: { appendChild: s => { made.push(s); } }, createElement: () => ({}) };
+      g.Promise = SyncP;
+      try {
+        // Already present: resolves with it, appends nothing.
+        g.window.LibA = { a: 1 };
+        const a = loadScriptOnce('js/vendor/a.js', 'LibA', 'a library');
+        _assertEqual(a.state === 'resolved' && a.value === g.window.LibA && made.length === 0, true, 'a present global resolves immediately, no tag');
+        // Concurrent calls share one tag and one promise.
+        const p1 = loadScriptOnce('js/vendor/b.js', 'LibB', 'b library');
+        const p2 = loadScriptOnce('js/vendor/b.js', 'LibB', 'b library');
+        _assertEqual(p1 === p2 && made.length === 1 && made[0].src === 'js/vendor/b.js', true, 'two calls, one <script>, same promise');
+        g.window.LibB = { b: 1 };
+        made[0].onload();
+        _assertEqual(p1.state === 'resolved' && p1.value === g.window.LibB, true, 'onload with the global resolves it');
+        // Failed load: exact message, memo cleared, the next call appends a new tag.
+        const pc = loadScriptOnce('js/vendor/c.js', 'LibC', 'Excel library');
+        made[made.length - 1].onerror();
+        _assertEqual(pc.state === 'rejected' && pc.value instanceof Error && pc.value.message === 'Could not load the Excel library. Check your connection and try again.', true, 'onerror rejects with the exact message');
+        const before = made.length;
+        const pc2 = loadScriptOnce('js/vendor/c.js', 'LibC', 'Excel library');
+        _assertEqual(pc2 !== pc && made.length === before + 1, true, 'a retry after a failed load appends a new tag');
+        g.window.LibC = { c: 1 };
+        made[made.length - 1].onload();
+        _assertEqual(pc2.state, 'resolved', 'the retry can succeed');
+        // Loaded but the global never appeared.
+        const pd = loadScriptOnce('js/vendor/d.js', 'LibD', 'PowerPoint library');
+        made[made.length - 1].onload();
+        _assertEqual(pd.state === 'rejected' && pd.value.message === 'PowerPoint library loaded but did not register.', true, 'onload without the global rejects with the exact message');
+      } finally {
+        g.Promise = RealPromise;
+        delete g.window;
+        delete g.document;
+      }
     },
   }
 );

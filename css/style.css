@@ -834,13 +834,6 @@ body {
   background: var(--surface-app);
   position: relative;
 }
-.login-logo {
-  position: fixed;
-  bottom: var(--sp-10);
-  left: var(--sp-10);
-  height: var(--sp-11);
-  width: auto;
-}
 .login-card {
   background: var(--surface);
   border-radius: var(--r-xl);
@@ -920,10 +913,6 @@ body {
 .mm-wm--onDark .mm-wm-mo { fill: var(--inverse-text); }
 .mm-wm--onLight .mm-wm-my { fill: var(--text-link); }
 .mm-wm--onLight .mm-wm-mo { fill: var(--text-heading); }
-/* N-451: My Momentum stub / identity card */
-.mm-identity-name { font-size: var(--fs-16); font-weight: 600; color: var(--text-heading); letter-spacing: var(--ls-heading); margin: 0; }
-.mm-identity-meta { font-size: var(--fs-13); color: var(--text-muted); margin-top: var(--sp-2); }
-.mm-soon { font-size: var(--fs-14); color: var(--text-muted); margin: var(--sp-6) 0 0; }
 .nav-links { flex: 1; padding: var(--sp-6) var(--sp-4); }
 .nav-link {
   display: block;
@@ -1295,9 +1284,6 @@ body {
   letter-spacing: 0.05em;
 }
 
-.data-table.no-sticky th {
-  position: static;
-}
 /* ── Sortable column headers (N-247a) ───────────────────────────────── */
 /* A native <button> inside the <th> (rendered by sortableHeader() in
    list-controls.js). Explicit reset — NOT `all: unset`, which would also
@@ -1727,10 +1713,6 @@ body {
 
 /* ── Row age indicators ──────────────────────────────────────────────── */
 /* Used in Roles table and dashboard panels for open-role ageing          */
-.dash-panel .row-age-warning td {
-  background: var(--status-warn-bg-soft);
-  color: var(--text-primary);
-}
 .dash-panel .row-age-critical td {
   background: var(--status-danger-bg-soft);
   color: var(--text-primary);
@@ -1802,7 +1784,6 @@ body {
   vertical-align: middle;
 }
 .ra-role { font-weight: 500; }
-.ra-tp   { color: var(--text-label); font-size: var(--fs-12); }
 .ra-ttf  { white-space: nowrap; }
 .ra-cell { text-align: center; font-size: var(--fs-12); line-height: 1.3; }
 

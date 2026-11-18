@@ -26,27 +26,6 @@ const _SF_DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocess
 // refresh clears it (N-260 QA finding 3). Shown beside every Open folder link.
 const _SF_OPEN_HINT = 'If OneDrive shows an error the first time, refresh the page.';
 
-// ── Lazy loader ──────────────────────────────────────────────────────
-let _sfJSZipPromise = null;
-
-function _sfLoadJSZip() {
-  if (window.JSZip) return Promise.resolve(window.JSZip);
-  if (_sfJSZipPromise) return _sfJSZipPromise;
-  _sfJSZipPromise = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = CONFIG.STARTER_FOLDERS.JSZIP_SRC;
-    s.onload = () => window.JSZip
-      ? resolve(window.JSZip)
-      : reject(new Error('Zip library loaded but did not register.'));
-    s.onerror = () => {
-      _sfJSZipPromise = null;   // allow a retry next time
-      reject(new Error('Could not load the zip library.'));
-    };
-    document.head.appendChild(s);
-  });
-  return _sfJSZipPromise;
-}
-
 // An error whose message is safe and useful to show the user as-is.
 function _sfUserError(message) {
   return Object.assign(new Error(message), { userMessage: message });
@@ -147,7 +126,7 @@ async function _sfFillDocs(driveId, rootId, values, onStep) {
   const docs = tree.filter(f => !f.isFolder && /\.docx$/i.test(f.name));
   const failed = [];
   if (!docs.length) return failed;
-  const JSZipLib = await _sfLoadJSZip();
+  const JSZipLib = await loadScriptOnce(CONFIG.STARTER_FOLDERS.JSZIP_SRC, 'JSZip', 'zip library');
   for (let i = 0; i < docs.length; i++) {
     const f = docs[i];
     onStep(`Filling in documents (${i + 1} of ${docs.length})…`);

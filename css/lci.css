@@ -56,7 +56,6 @@
   background: var(--surface);
   transition: border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard);
 }
-.lci-cell--wide { width: 170px; }
 .lci-cell--sm   { width: 50px; }
 .lci-mcol .lci-cell { width: 44px; text-align: center; }
 /* N-413: 3:1 control border on screen only (print keeps --border-mid); hover before focus */

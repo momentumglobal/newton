@@ -6,6 +6,7 @@
 var MCP_N393_TOOL_NAMES = ['list_projects', 'project_summary', 'list_roles', 'role_detail',
   'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards'];
 var MCP_N394_TOOL_NAMES = ['bench', 'utilisation', 'project_team'];
+var MCP_N466_TOOL_NAMES = ['workforce_segmentation'];
 
 function _mcpThrows(fn, re, label) {
   try { fn(); } catch (e) {
@@ -19,7 +20,7 @@ ASSERTIONS.push(
   {
     name: 'N-393 AC1 / N-394 AC1 MCP_TOOLS: the eight reporting tools then bench, utilisation, project_team; named handlers declared once, closed schemas, enums from CONFIG',
     fn: function () {
-      _assertEqual(MCP_TOOLS.map(t => t.name), MCP_N393_TOOL_NAMES.concat(MCP_N394_TOOL_NAMES), 'tool names and order');
+      _assertEqual(MCP_TOOLS.map(t => t.name), MCP_N393_TOOL_NAMES.concat(MCP_N394_TOOL_NAMES, MCP_N466_TOOL_NAMES), 'tool names and order');
       MCP_TOOLS.forEach(t => {
         if (!/^[a-z][a-z0-9_]{0,63}$/.test(t.name) || t.name === 'newton_status') throw new Error(`bad tool name ${t.name}`);
         if (typeof t.handler !== 'function' || !/^mcp[A-Z]\w+$/.test(t.handler.name)) throw new Error(`${t.name}: handler must be a named mcp<Name> function`);
@@ -178,6 +179,17 @@ ASSERTIONS.push(
       _assertEqual(Object.keys(t('project_team').inputSchema.properties), ['project', 'includeEnded'], 'project_team inputs');
       if (!/percentages only/i.test(t('utilisation').description)) throw new Error('utilisation description must say percentages only');
       if (!/no (emails, rates|money)/i.test(t('project_team').description + t('bench').description)) throw new Error('descriptions must say no money / rates');
+    },
+  },
+  {
+    name: 'N-466 schema: workforce_segmentation takes year (integer, min 2020) and month (1-12), nothing required; description says counts and percentages only, no names or money',
+    fn: function () {
+      const t = MCP_TOOLS.find(x => x.name === 'workforce_segmentation');
+      const p = t.inputSchema.properties;
+      _assertEqual(Object.keys(p), ['year', 'month'], 'inputs');
+      _assertEqual([p.year.type, p.year.minimum, p.month.type, p.month.minimum, p.month.maximum], ['integer', 2020, 'integer', 1, 12], 'bounds');
+      _assertEqual(t.inputSchema.required || [], [], 'nothing required');
+      if (!/counts and percentages only/i.test(t.description) || !/no names or money/i.test(t.description)) throw new Error('description must say counts and percentages only, no names or money');
     },
   },
   {

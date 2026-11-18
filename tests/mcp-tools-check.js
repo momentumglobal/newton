@@ -163,9 +163,9 @@ async function run() {
   async function check(name, fn) {
     try {
       await fn();
-      results.push({ name: name.startsWith('N-394') ? name : 'N-393 ' + name, ok: true });
+      results.push({ name: /^N-(394|466)/.test(name) ? name : 'N-393 ' + name, ok: true });
     } catch (e) {
-      results.push({ name: name.startsWith('N-394') ? name : 'N-393 ' + name, ok: false, message: e && e.message ? e.message : String(e) });
+      results.push({ name: /^N-(394|466)/.test(name) ? name : 'N-393 ' + name, ok: false, message: e && e.message ? e.message : String(e) });
     }
   }
   const { createLoader } = require(path.join(BOOT, 'loader.js'));
@@ -202,7 +202,7 @@ async function run() {
   const ids = rows => rows.map(r => r.roleId);
   const day = n => addDays(today, n);
 
-  await check('AC1 tools/list through the real server = newton_status + the eleven tools, all readOnlyHint; a call comes back wrapped with asOf + newtonBuild', async () => {
+  await check('AC1 tools/list through the real server = newton_status + the twelve tools, all readOnlyHint; a call comes back wrapped with asOf + newtonBuild', async () => {
     const lines = [];
     const gated = Object.assign({}, L, { call: (fn, ...a) => (fn === 'getEffectiveRole' ? Promise.resolve('leadership') : L.call(fn, ...a)) });
     const auth = { ensureToken: async () => 'tok', status: () => ({ storeMode: 'test', pendingSince: null }), takeLastError: () => null,
@@ -210,7 +210,7 @@ async function run() {
     const srv = createServer({ loader: gated, auth, write: o => lines.push(o), log: () => {} });
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }));
     const tl = lines.find(l => l.id === 1).result.tools;
-    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards', 'bench', 'utilisation', 'project_team'], 'tools/list');
+    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation'], 'tools/list');
     ok(tl.every(t => t.annotations && t.annotations.readOnlyHint === true), 'a tool without readOnlyHint');
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_projects', arguments: {} } }));
     const res = lines.find(l => l.id === 2).result;
@@ -234,6 +234,7 @@ async function run() {
       bench: [{}, ['Assignments', 'People']],                                             // N-394
       utilisation: [{}, ['Assignments', 'People', 'SalesForecasts']],                      // N-394
       project_team: [{ project: 'Acme' }, ['Assignments', 'Projects', 'UserAssignments']], // N-394
+      workforce_segmentation: [{}, ['People']],                                            // N-466
     };
     for (const name of Object.keys(expected)) {
       const fresh = await newLoader();
@@ -488,6 +489,47 @@ async function run() {
     eq(c.stageTimeline.map(t => t.by), ['Tess One', 'ext.editor@mg.co'], 'unmapped editor keeps the email');
   });
 
+  await check('N-466 workforce_segmentation = workforceSegmentation on the People read: deployable started staff only, internal staff by function, counts and % only, no names', async () => {
+    const r = await call('workforce_segmentation', {});
+    const y = new Date().getFullYear(), m = new Date().getMonth() + 1;
+    eq([r.period.label, r.period.asOf], [`${y}-${String(m).padStart(2, '0')}`, today], 'default = this month, asOf today');
+    const o = JSON.parse(await L.evalInContext(`(async () => JSON.stringify(workforceSegmentation(await getPeople(false), new Date())))()`));
+    eq(r.total, o.total, 'total equals the shared function');
+    eq(r.byLocation.map(x => [x.location, x.count]), o.byLocation, 'by location');
+    eq(r.byContractType.map(x => [x.contractType, x.count]), o.byContractType, 'by contract type');
+    eq(r.byLevel.map(x => [x.level, x.count]), o.byLevel, 'by level');
+    eq(r.internalStaff.byFunction.map(x => [x.function, x.count]), o.internalByFunction, 'internal by function');
+    // Fixture truth: Tess, Tom, Dana, Bea, Ben, Eve, Cara. Out: Ivy (internal), Pia (partner), Pat (placeholder), Old Leaver (inactive), Fay (starts in 14 days).
+    eq([r.total, r.byLocation.slice(0, 2).map(x => [x.location, x.count]), r.byContractType.map(x => [x.contractType, x.count]), r.internalStaff],
+      [7, [['London', 3], ['Porto', 2]], [['Unknown', 5], ['Permanent', 2]], { total: 1, byFunction: [{ function: 'Finance', count: 1 }] }], 'fixture counts');
+    eq([r.byLocation[0].pct, r.byContractType[1].pct], [42.9, 28.6], 'pct to one decimal');
+    eq([r.byLocation.reduce((s, x) => s + x.count, 0), r.byLevel.reduce((s, x) => s + x.count, 0)], [7, 7], 'each table sums to the total');
+    eq(Object.keys(r.byLocation[0]), ['location', 'count', 'pct'], 'shape');
+    const text = JSON.stringify(r);
+    ['Tess One', 'Tom Two', 'Dana Manager', 'Ivy Internal', 'Fay Future', 'Pia Partner'].forEach(n => ok(!text.includes(n), 'name in output: ' + n));
+    // Month end: Fay (start in 14 days) is counted once asOf passes her start. Skipped only when her month is this month (asOf = today) or next year.
+    const fy = Number(day(14).slice(0, 4)), fm = Number(day(14).slice(5, 7));
+    if (fy === y && fm !== m) {
+      const later = await call('workforce_segmentation', { year: y, month: fm });
+      eq([later.total, later.byLocation.some(x => x.location === 'Oslo')], [8, true], 'month end includes a joiner who starts that month');
+      eq(later.period.asOf, `${y}-${String(fm).padStart(2, '0')}-${String(new Date(y, fm, 0).getDate()).padStart(2, '0')}`, 'asOf is the month end');
+    }
+    const empty = await call('workforce_segmentation', { year: 2020, month: 1 });
+    eq([empty.total, empty.byLocation, empty.byContractType, empty.byLevel, empty.internalStaff, empty.period.asOf], [0, [], [], [], { total: 0, byFunction: [] }, '2020-01-31'], 'a month before anyone started is empty, not an error');
+    const yearOnly = await call('workforce_segmentation', { year: y });
+    eq(yearOnly.period.label, r.period.label, 'this year alone = this month');
+  });
+
+  await check('N-466 bad input gives a clear message: past year without a month, month 0 / 13, year out of range, non-integers', async () => {
+    const y = new Date().getFullYear();
+    await rejects(call('workforce_segmentation', { year: 2024 }), /month is required for a past year/, 'past year, no month');
+    await rejects(call('workforce_segmentation', { month: 13 }), /month must be a whole number from 1 to 12/, 'month 13');
+    await rejects(call('workforce_segmentation', { month: 0 }), /month must be a whole number from 1 to 12/, 'month 0');
+    await rejects(call('workforce_segmentation', { year: 2019, month: 1 }), new RegExp('year must be a whole number from 2020 to ' + y), 'year too early');
+    await rejects(call('workforce_segmentation', { year: y + 1, month: 1 }), /year must be a whole number/, 'year in the future');
+    await rejects(call('workforce_segmentation', { month: 2.5 }), /month must be a whole number/, 'non-integer month');
+  });
+
   await check('N-394 AC7 bad input gives a clear message: month + quarter, month 13, quarter 5, year out of range, byLevel / includeEnded not boolean, unknown project', async () => {
     const y = new Date().getFullYear();
     await rejects(call('utilisation', { month: 3, quarter: 1 }), /Give month or quarter, not both/, 'month + quarter');
@@ -504,7 +546,7 @@ async function run() {
   // AC 9 + AC 10, over every result produced above (each handler ran in the DOM-less context).
   await check('AC9 / N-394 AC9 no tool output contains a sentinel (candidate name, salary, budget, hiring manager, notes, role-history value, ack note, bill rate) or a denied key', async () => {
     ok(outputs.length >= 25, 'too few tool calls captured to mean anything: ' + outputs.length);
-    eq(Array.from(new Set(outputs.map(o => o.name))).sort(), ['activity_summary', 'bench', 'list_placements', 'list_projects', 'list_roles', 'project_scorecards', 'project_summary', 'project_team', 'role_detail', 'time_to_fill', 'utilisation'], 'every tool exercised');
+    eq(Array.from(new Set(outputs.map(o => o.name))).sort(), ['activity_summary', 'bench', 'list_placements', 'list_projects', 'list_roles', 'project_scorecards', 'project_summary', 'project_team', 'role_detail', 'time_to_fill', 'utilisation', 'workforce_segmentation'], 'every tool exercised');
     const denied = new Set();
     const cfg = L.config().MCP.outputDenyFields;
     Object.keys(cfg).forEach(k => cfg[k].forEach(f => denied.add(f)));

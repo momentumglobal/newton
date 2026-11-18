@@ -48,6 +48,7 @@ Name a project, or a short time period, and Claude will pick the right tool. Exa
 - "Who is on the bench?"
 - "What is utilisation this month, by level?" and "What does the utilisation outlook look like to the end of the year?"
 - "Who is on this project's team?"
+- "What is our workforce split by location, contract type and level this month?"
 
 The first question after Claude starts can take a few seconds while Newton loads. A whole-year utilisation question can take up to about 20 seconds. If a question is slow, ask for one project or fewer weeks.
 

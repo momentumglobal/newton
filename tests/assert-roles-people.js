@@ -305,10 +305,56 @@ ASSERTIONS.push(
       if (typeof ALL_SOURCES !== 'undefined') {
         _assertEqual(/isSurveyEligibleEmployee\(p\) && isStartedPerson\(p\)/.test(ALL_SOURCES['api-engagement.js']), true, 'survey eligible count filters on isStartedPerson');
         const seg = ALL_SOURCES['people-dashboard.js'].match(/function _renderSegmentationPanel[\s\S]*?const total/);
-        _assertEqual(!!seg && /isStartedPerson\(p\)/.test(seg[0]), true, 'Workforce Segmentation filters on isStartedPerson');
+        _assertEqual(!!seg && /workforceSegmentation\(people\)/.test(seg[0]), true, 'Workforce Segmentation panel counts through workforceSegmentation (N-466)');
+        const wf = ALL_SOURCES['utils.js'].match(/function workforceSegmentation\([\s\S]*?\n\}\n/);
+        _assertEqual(!!wf && /isStartedPerson\(p, asOf\)/.test(wf[0]), true, 'workforceSegmentation filters on isStartedPerson (N-424)');
+        _assertEqual((ALL_SOURCES['utils.js'].match(/function workforceSegmentation\(/g) || []).length, 1, 'workforceSegmentation defined once (utils.js)');
         const body = ALL_SOURCES['utils.js'].match(/function activeDeployablePeople\([\s\S]*?\n\}\n/);
         _assertEqual(!!body && !/isStartedPerson/.test(body[0]), true, 'activeDeployablePeople() carries no start-date filter');
       }
+    },
+  },
+  {
+    name: 'N-466: workforceSegmentation = the old Workforce Segmentation panel counts — deployable started staff only, Unknown for blanks, sort orders, internal by function, asOf for month ends',
+    fn: function () {
+      const now = new Date();
+      const mStart = k => new Date(now.getFullYear(), now.getMonth() + k, 1);
+      const mEnd = k => new Date(now.getFullYear(), now.getMonth() + k + 1, 0);
+      const stamp = d => localDayISO(d) + 'T12:00:00Z';
+      const old = '2024-01-15T12:00:00Z';
+      const P = (name, level, loc, contract, extra) => Object.assign({ EmployeeName: name, Level: level, Location: loc, ContractType: contract, StartDate: old, IsActive: true }, extra);
+      const people = [
+        P('A', 'TP', 'Lisbon', 'Permanent'), P('B', 'TP', 'Lisbon', 'Contractor'), P('C', 'SDM', 'Porto', 'Permanent'),
+        P('D', 'STP', '', ''), P('E', '', 'Porto', 'Permanent'),
+        P('F', 'TP', 'Oslo', 'Permanent', { IsActive: false }),
+        P('G', 'TP', 'Oslo', 'Permanent', { StartDate: stamp(mStart(2)) }),
+        P('H', '', 'Berlin', '', { StaffType: CONFIG.STAFF_TYPE_EXTERNAL }),
+        P('I', '', 'London', '', { StaffType: CONFIG.STAFF_TYPE_INTERNAL, StaffFunction: CONFIG.INTERNAL_FUNCTIONS[0] }),
+      ];
+      // The pre-N-466 panel code, verbatim, as the oracle.
+      const oldPanel = ppl => {
+        const active = ppl.filter(p => p.IsActive !== false && !isInternalStaff(p) && !isExternalStaff(p) && isStartedPerson(p));
+        const groupBy = key => {
+          const map = {};
+          active.forEach(p => { const v = p[key] || 'Unknown'; map[v] = (map[v] || 0) + 1; });
+          return Object.entries(map).sort((a, b) => b[1] - a[1]);
+        };
+        const byLevel = Object.entries(active.reduce((m, p) => { m[p.Level || 'Unknown'] = (m[p.Level || 'Unknown'] || 0) + 1; return m; }, {}))
+          .sort((a, b) => levelSortIndex(a[0]) - levelSortIndex(b[0]));
+        return { total: active.length, byLocation: groupBy('Location'), byContractType: groupBy('ContractType'), byLevel, internalByFunction: countInternalByFunction(ppl) };
+      };
+      const got = workforceSegmentation(people);
+      _assertEqual(got, oldPanel(people), 'equals the old panel code');
+      _assertEqual([got.total, got.byLocation, got.byContractType], [5, [['Lisbon', 2], ['Porto', 2], ['Unknown', 1]], [['Permanent', 3], ['Contractor', 1], ['Unknown', 1]]], 'fixture truth: inactive, future starter, partner and internal staff left out; blanks are Unknown; ties keep first-seen order');
+      _assertEqual(got.byLevel.map(e => e[0]), got.byLevel.map(e => e[0]).slice().sort((a, b) => levelSortIndex(a) - levelSortIndex(b)), 'levels in levelSortIndex order');
+      _assertEqual(got.internalByFunction, [[CONFIG.INTERNAL_FUNCTIONS[0], 1]], 'internal staff by function');
+      // asOf: start day inclusive; counted once asOf reaches the start; default today
+      _assertEqual(workforceSegmentation(people, mEnd(1)).total, 5, 'not started by the end of next month: left out');
+      _assertEqual(workforceSegmentation(people, mStart(2)).total, 6, 'start day inclusive');
+      _assertEqual(workforceSegmentation(people, mEnd(2)).byLocation.find(e => e[0] === 'Oslo'), ['Oslo', 1], 'joiner counted at that month end');
+      _assertEqual(workforceSegmentation(people).total, 5, 'default asOf is today');
+      _assertEqual(countInternalByFunction([P('J', '', '', '', { StaffType: CONFIG.STAFF_TYPE_INTERNAL, StaffFunction: CONFIG.INTERNAL_FUNCTIONS[0], StartDate: stamp(mStart(2)) })], mEnd(1)), [], 'countInternalByFunction(asOf): a later internal starter is left out');
+      _assertEqual(workforceSegmentation(null).total, 0, 'null people');
     },
   },
   {
@@ -743,8 +789,8 @@ ASSERTIONS.push(
       const pay = ALL_SOURCES['people-payroll.js'];
       _assertEqual((pay.match(/all\.filter\(isPayrollPerson\)/g) || []).length, 2, 'both payroll call sites use isPayrollPerson');
       _assertEqual(/Location\s*===\s*'UK'/.test(pay), false, 'no local UK filter left in people-payroll.js');
-      const seg = ALL_SOURCES['people-dashboard.js'].match(/function _renderSegmentationPanel[\s\S]*?const total/);
-      _assertEqual(!!seg && /!isExternalStaff\(p\)/.test(seg[0]), true, 'Workforce Segmentation excludes External');
+      const wf = ALL_SOURCES['utils.js'].match(/function workforceSegmentation\([\s\S]*?\n\}\n/);
+      _assertEqual(!!wf && /!isExternalStaff\(p\)/.test(wf[0]), true, 'Workforce Segmentation excludes External (workforceSegmentation, N-466)');
       const dep = ALL_SOURCES['people-gantt.js'].match(/const deployable = assignments\.filter[\s\S]*?\n  \}\);/);
       _assertEqual(!!dep && /if \(isExternalStaff\(a\)\) return false;/.test(dep[0]), true, 'Deployable Resources excludes External rows');
     },

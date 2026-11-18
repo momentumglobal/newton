@@ -288,19 +288,11 @@ function _renderRevenuePanel(rows) {
 function _renderSegmentationPanel(people) {
   // Active deployable employees only — internal staff (N-304) are counted
   // separately, by function, in the fourth table; External partners (N-402)
-  // are not Momentum workforce and appear in neither.
-  const active = people.filter(p => p.IsActive !== false && !isInternalStaff(p) && !isExternalStaff(p) && isStartedPerson(p));   // N-424
-  const total  = active.length;
-  const internalByFn = countInternalByFunction(people);
-
-  const groupBy = (key) => {
-    const map = {};
-    active.forEach(p => {
-      const v = p[key] || 'Unknown';
-      map[v] = (map[v] || 0) + 1;
-    });
-    return Object.entries(map).sort((a,b) => b[1]-a[1]);
-  };
+  // are not Momentum workforce and appear in neither. N-466: the counts come from
+  // workforceSegmentation() (utils.js), shared with the Newton for Claude tool.
+  const seg    = workforceSegmentation(people);
+  const total  = seg.total;
+  const internalByFn = seg.internalByFunction;
 
   const tableHTML = (entries) => entries.map(([k,v]) => `
     <tr>
@@ -309,9 +301,7 @@ function _renderSegmentationPanel(people) {
       <td>${total > 0 ? ((v/total)*100).toFixed(0) + '%' : '—'}</td>
     </tr>`).join('');
 
-  const byLevel = Object.entries(
-    active.reduce((m,p) => { m[p.Level||'Unknown']=(m[p.Level||'Unknown']||0)+1; return m; },{}))
-    .sort((a,b)=>levelSortIndex(a[0])-levelSortIndex(b[0]));
+  const byLevel = seg.byLevel;
 
   return `
     <div class='dash-seg-grid${internalByFn.length ? ' dash-seg-grid--4' : ''}'>
@@ -321,7 +311,7 @@ function _renderSegmentationPanel(people) {
         <div class="table-scroll">
         <table class='data-table dash-seg-table'>
           <thead><tr><th>Location</th><th>#</th><th>%</th></tr></thead>
-          <tbody>${tableHTML(groupBy('Location'))}</tbody>
+          <tbody>${tableHTML(seg.byLocation)}</tbody>
         </table>
         </div>
       </div>
@@ -331,7 +321,7 @@ function _renderSegmentationPanel(people) {
         <div class="table-scroll">
         <table class='data-table dash-seg-table'>
           <thead><tr><th>Contract</th><th>#</th><th>%</th></tr></thead>
-          <tbody>${tableHTML(groupBy('ContractType'))}</tbody>
+          <tbody>${tableHTML(seg.byContractType)}</tbody>
         </table>
         </div>
       </div>

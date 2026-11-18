@@ -1,5 +1,5 @@
 // mcp/newton-tools.js - Newton for Claude: live tool registry (N-392 registry; N-393 reporting tools;
-// N-394 People tools).
+// N-394 People tools; N-466 workforce_segmentation).
 //
 // Served from GitHub Pages and loaded LAST into the MCP server's vm context, after
 // js/config.js and every file in CONFIG.MCP.scripts (mcp/bootstrap/loader.js). No Newton
@@ -803,6 +803,36 @@ async function mcpProjectTeam(args) {
   });
 }
 
+// ── workforce_segmentation (N-466) ────────────────────────────────────
+// The People Dashboard Workforce Segmentation panel's counts for a month, from the same
+// workforceSegmentation() (utils.js) the panel renders. Counts and % only: no names, no money.
+// asOf = today for the current month, else the month's last day (N-424: started by then).
+// share() is the panel's count / total shown to one decimal like utilisation (presentation only).
+async function mcpWorkforceSegmentation(args) {
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const year = mcpInt(args.year, 'year', 2020, thisYear, thisYear);
+  if ((args.month === undefined || args.month === null) && year !== thisYear) throw new Error('month is required for a past year.');
+  const month = mcpInt(args.month, 'month', 1, 12, now.getMonth() + 1);
+  const asOf = year === thisYear && month === now.getMonth() + 1
+    ? now
+    : peoplePeriodRange({ year, month: month - 1, quarter: null }).end;
+  const seg = workforceSegmentation(await getPeople(false), asOf);
+  const share = n => (seg.total > 0 ? mcpPct(n / seg.total) : null);
+  return mcpOutputGuard({
+    scope: 'People Dashboard > Workforce Segmentation: active deployable staff who have started by asOf (today for the current month, else the month end), by location, contract type and level; internal staff are counted separately by function. External partners, placeholders and people starting after asOf are left out. Leavers are not on the People list, so a past month under-counts people who have since left.',
+    period: { label: `${year}-${String(month).padStart(2, '0')}`, asOf: localDayISO(asOf) },
+    total: seg.total,
+    byLocation: seg.byLocation.map(([k, n]) => ({ location: k, count: n, pct: share(n) })),
+    byContractType: seg.byContractType.map(([k, n]) => ({ contractType: k, count: n, pct: share(n) })),
+    byLevel: seg.byLevel.map(([k, n]) => ({ level: k, count: n, pct: share(n) })),
+    internalStaff: {
+      total: seg.internalByFunction.reduce((sum, e) => sum + e[1], 0),
+      byFunction: seg.internalByFunction.map(([fn, n]) => ({ function: fn, count: n })),
+    },
+  });
+}
+
 // ── Registry ──────────────────────────────────────────────────────────
 var MCP_TOOLS = [
   {
@@ -948,5 +978,18 @@ var MCP_TOOLS = [
       additionalProperties: false,
     },
     handler: mcpProjectTeam,
+  },
+  {
+    name: 'workforce_segmentation',
+    description: 'Workforce split as the People Dashboard shows it: deployable staff by location, contract type and level, plus internal staff by function. Counts and percentages only; no names or money. Headcount as of the month end (today for this month); default this month.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        year: { type: 'integer', minimum: 2020, description: 'Year (default this year). A past year needs a month.' },
+        month: { type: 'integer', minimum: 1, maximum: 12, description: 'Month 1-12 of the year (default this month).' },
+      },
+      additionalProperties: false,
+    },
+    handler: mcpWorkforceSegmentation,
   },
 ];

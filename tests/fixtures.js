@@ -526,8 +526,8 @@ var FIXTURES = {
       ],
       // N-394: People (Title -> EmployeeName). Bench = Bea (no rows), Ben (Sync Bench row), Eve (only an ended row).
       People: [
-        { id: '1001', Title: 'Tess One',     Level: 'TP',  Location: 'Lisbon', StartDate: { d: -700 }, IsActive: true },
-        { id: '1002', Title: 'Tom Two',      Level: 'STP', Location: 'Porto',  StartDate: { d: -700 }, IsActive: true },
+        { id: '1001', Title: 'Tess One',     Level: 'TP',  Location: 'Lisbon', ContractType: 'Permanent', StartDate: { d: -700 }, IsActive: true },
+        { id: '1002', Title: 'Tom Two',      Level: 'STP', Location: 'Porto',  ContractType: 'Permanent', StartDate: { d: -700 }, IsActive: true },
         { id: '1003', Title: 'Dana Manager', Level: 'SDM', Location: 'London', StartDate: { d: -700 }, IsActive: true },
         { id: '1004', Title: 'Bea Bench',    Level: 'TP',  Location: 'Porto',  StartDate: { d: -300 }, IsActive: true },
         { id: '1005', Title: 'Ben Blank',    Level: 'PTP', Location: 'London', StartDate: { d: -300 }, IsActive: true },

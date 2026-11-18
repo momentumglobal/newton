@@ -2150,10 +2150,36 @@ function groupInternalByFunction(people) {
 
 // Active internal staff counted per function (People Dashboard, N-304):
 // [[function, n], …] in groupInternalByFunction() order; empty functions omitted.
-function countInternalByFunction(people) {
-  // N-424: staff who have not started yet are not counted.
-  return groupInternalByFunction((people || []).filter(p => p && p.IsActive !== false && isStartedPerson(p)))
+function countInternalByFunction(people, asOf = new Date()) {
+  // N-424: staff who have not started yet are not counted. N-466: asOf = the date measured at (default today).
+  return groupInternalByFunction((people || []).filter(p => p && p.IsActive !== false && isStartedPerson(p, asOf)))
     .map(([fn, members]) => [fn, members.length]);
+}
+
+// N-466: the People Dashboard Workforce Segmentation counts, shared by the panel
+// (people-dashboard.js) and the Newton for Claude workforce_segmentation tool. Deployable staff
+// only: active, not internal (N-304), not an external partner (N-402), and started by asOf
+// (N-424; default today, pass a month end for a month snapshot). Internal staff are counted
+// separately by function. Returns count entries [[label, n], ...]: Location and ContractType
+// largest first, Level in levelSortIndex order; a blank value groups as 'Unknown'. Percentages
+// are the caller's.
+function workforceSegmentation(people, asOf = new Date()) {
+  const active = (people || []).filter(p => p && p.IsActive !== false && !isInternalStaff(p) && !isExternalStaff(p) && isStartedPerson(p, asOf));
+  const group = key => {
+    const map = {};
+    active.forEach(p => {
+      const v = p[key] || 'Unknown';
+      map[v] = (map[v] || 0) + 1;
+    });
+    return Object.entries(map);
+  };
+  return {
+    total: active.length,
+    byLocation: group('Location').sort((a, b) => b[1] - a[1]),
+    byContractType: group('ContractType').sort((a, b) => b[1] - a[1]),
+    byLevel: group('Level').sort((a, b) => levelSortIndex(a[0]) - levelSortIndex(b[0])),
+    internalByFunction: countInternalByFunction(people, asOf),
+  };
 }
 
 // N-375: unique real people beneath an Org Chart node (the node itself is not

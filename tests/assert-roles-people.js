@@ -304,8 +304,9 @@ ASSERTIONS.push(
       _assertEqual(JSON.stringify(utilisationForecastCalc(f13, [], [ann, bob, far])), JSON.stringify(utilisationForecastCalc(f13, [], [ann, bob])), '13-week headline: a future starter does not lower the forecast');
       if (typeof ALL_SOURCES !== 'undefined') {
         _assertEqual(/isSurveyEligibleEmployee\(p\) && isStartedPerson\(p\)/.test(ALL_SOURCES['api-engagement.js']), true, 'survey eligible count filters on isStartedPerson');
-        const seg = ALL_SOURCES['people-dashboard.js'].match(/function _renderSegmentationPanel[\s\S]*?const total/);
+        const seg = ALL_SOURCES['people-dashboard.js'].match(/function _renderSegmentationPanel[\s\S]*?const internalByFn/);
         _assertEqual(!!seg && /workforceSegmentation\(people\)/.test(seg[0]), true, 'Workforce Segmentation panel counts through workforceSegmentation (N-466)');
+        _assertEqual(!!seg && !/isInternalStaff/.test(seg[0]), true, 'the panel does not filter on isInternalStaff itself (N-468)');
         const wf = ALL_SOURCES['utils.js'].match(/function workforceSegmentation\([\s\S]*?\n\}\n/);
         _assertEqual(!!wf && /isStartedPerson\(p, asOf\)/.test(wf[0]), true, 'workforceSegmentation filters on isStartedPerson (N-424)');
         _assertEqual((ALL_SOURCES['utils.js'].match(/function workforceSegmentation\(/g) || []).length, 1, 'workforceSegmentation defined once (utils.js)');
@@ -315,23 +316,24 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-466: workforceSegmentation = the old Workforce Segmentation panel counts — deployable started staff only, Unknown for blanks, sort orders, internal by function, asOf for month ends',
+    name: 'N-466 / N-468: workforceSegmentation — location and contract type count deployable + internal staff, level deployable only; Unknown for blanks, sort orders, internal by function, asOf for month ends',
     fn: function () {
       const now = new Date();
       const mStart = k => new Date(now.getFullYear(), now.getMonth() + k, 1);
       const mEnd = k => new Date(now.getFullYear(), now.getMonth() + k + 1, 0);
       const stamp = d => localDayISO(d) + 'T12:00:00Z';
       const old = '2024-01-15T12:00:00Z';
+      const FN = CONFIG.INTERNAL_FUNCTIONS[0];
       const P = (name, level, loc, contract, extra) => Object.assign({ EmployeeName: name, Level: level, Location: loc, ContractType: contract, StartDate: old, IsActive: true }, extra);
-      const people = [
+      const INT = { StaffType: CONFIG.STAFF_TYPE_INTERNAL, StaffFunction: FN };
+      const deployableOnly = [
         P('A', 'TP', 'Lisbon', 'Permanent'), P('B', 'TP', 'Lisbon', 'Contractor'), P('C', 'SDM', 'Porto', 'Permanent'),
         P('D', 'STP', '', ''), P('E', '', 'Porto', 'Permanent'),
         P('F', 'TP', 'Oslo', 'Permanent', { IsActive: false }),
         P('G', 'TP', 'Oslo', 'Permanent', { StartDate: stamp(mStart(2)) }),
         P('H', '', 'Berlin', '', { StaffType: CONFIG.STAFF_TYPE_EXTERNAL }),
-        P('I', '', 'London', '', { StaffType: CONFIG.STAFF_TYPE_INTERNAL, StaffFunction: CONFIG.INTERNAL_FUNCTIONS[0] }),
       ];
-      // The pre-N-466 panel code, verbatim, as the oracle.
+      // The N-466 code verbatim, as the oracle for data with no internal staff (N-468 AC3).
       const oldPanel = ppl => {
         const active = ppl.filter(p => p.IsActive !== false && !isInternalStaff(p) && !isExternalStaff(p) && isStartedPerson(p));
         const groupBy = key => {
@@ -343,18 +345,43 @@ ASSERTIONS.push(
           .sort((a, b) => levelSortIndex(a[0]) - levelSortIndex(b[0]));
         return { total: active.length, byLocation: groupBy('Location'), byContractType: groupBy('ContractType'), byLevel, internalByFunction: countInternalByFunction(ppl) };
       };
-      const got = workforceSegmentation(people);
-      _assertEqual(got, oldPanel(people), 'equals the old panel code');
-      _assertEqual([got.total, got.byLocation, got.byContractType], [5, [['Lisbon', 2], ['Porto', 2], ['Unknown', 1]], [['Permanent', 3], ['Contractor', 1], ['Unknown', 1]]], 'fixture truth: inactive, future starter, partner and internal staff left out; blanks are Unknown; ties keep first-seen order');
+      const g0 = workforceSegmentation(deployableOnly);
+      const o0 = oldPanel(deployableOnly);
+      _assertEqual([g0.total, g0.byLocation, g0.byContractType, g0.byLevel, g0.internalByFunction], [o0.total, o0.byLocation, o0.byContractType, o0.byLevel, o0.internalByFunction], 'no internal staff: every table equals the N-466 output');
+      _assertEqual([g0.deployableTotal, g0.internalTotal], [5, 0], 'no internal staff: deployableTotal = total, internalTotal 0');
+      // Positive control: the oracle really does see internal staff leave the tables (it would catch a regression to the old rule).
+      const withInternal = deployableOnly.concat([
+        P('K', 'TP', 'Rome', 'Permanent', { IsPlaceholder: true }),
+        P('I', '', 'London', 'Core', INT),
+        P('J', '', '', '', Object.assign({}, INT, { StaffFunction: '' })),
+        P('L', '', 'Oslo', 'Core', Object.assign({}, INT, { IsActive: false })),
+        P('M', '', 'Oslo', 'Core', Object.assign({}, INT, { StartDate: stamp(mStart(2)) })),
+        P('N', '', 'Rome', 'Core', Object.assign({}, INT, { IsPlaceholder: true })),
+        P('O', '', 'Berlin', 'Core', Object.assign({}, INT, { StaffType: CONFIG.STAFF_TYPE_EXTERNAL })),
+      ]);
+      const got = workforceSegmentation(withInternal);
+      // The N-466 rule left internal staff out (and had no placeholder filter: the dashboard feeds getPeople(false)), so 5 + placeholder K = 6; the new rule gives 7.
+      _assertEqual([oldPanel(withInternal).total, got.total], [6, 7], 'control: the N-466 rule ignores internal staff, so its total differs from the N-468 total');
+      _assertEqual([got.total, got.deployableTotal, got.internalTotal], [7, 5, 2], 'fixture truth: 5 deployable + 2 internal; inactive, future starter, placeholder and partner left out of all');
+      _assertEqual(got.total, got.deployableTotal + got.internalTotal, 'total = deployableTotal + internalTotal');
+      _assertEqual(got.byLocation, [['Lisbon', 2], ['Porto', 2], ['Unknown', 2], ['London', 1]], 'location counts deployable + internal; blanks are Unknown; ties keep first-seen order');
+      _assertEqual(got.byContractType, [['Permanent', 3], ['Unknown', 2], ['Contractor', 1], ['Core', 1]], 'contract type counts deployable + internal');
+      _assertEqual(got.byLocation.reduce((s, e) => s + e[1], 0), got.total, 'location sums to total');
+      _assertEqual(got.byContractType.reduce((s, e) => s + e[1], 0), got.total, 'contract type sums to total');
+      _assertEqual(got.byLevel, g0.byLevel, 'level table is deployable only: unchanged by internal staff');
+      _assertEqual(got.byLevel.reduce((s, e) => s + e[1], 0), got.deployableTotal, 'level sums to deployableTotal');
       _assertEqual(got.byLevel.map(e => e[0]), got.byLevel.map(e => e[0]).slice().sort((a, b) => levelSortIndex(a) - levelSortIndex(b)), 'levels in levelSortIndex order');
-      _assertEqual(got.internalByFunction, [[CONFIG.INTERNAL_FUNCTIONS[0], 1]], 'internal staff by function');
+      _assertEqual(got.internalByFunction, [[FN, 1], ['Unknown', 1]], 'internal staff by function');
+      _assertEqual(got.internalTotal, got.internalByFunction.reduce((s, e) => s + e[1], 0), 'internalTotal = sum of internalByFunction');
       // asOf: start day inclusive; counted once asOf reaches the start; default today
-      _assertEqual(workforceSegmentation(people, mEnd(1)).total, 5, 'not started by the end of next month: left out');
-      _assertEqual(workforceSegmentation(people, mStart(2)).total, 6, 'start day inclusive');
-      _assertEqual(workforceSegmentation(people, mEnd(2)).byLocation.find(e => e[0] === 'Oslo'), ['Oslo', 1], 'joiner counted at that month end');
-      _assertEqual(workforceSegmentation(people).total, 5, 'default asOf is today');
-      _assertEqual(countInternalByFunction([P('J', '', '', '', { StaffType: CONFIG.STAFF_TYPE_INTERNAL, StaffFunction: CONFIG.INTERNAL_FUNCTIONS[0], StartDate: stamp(mStart(2)) })], mEnd(1)), [], 'countInternalByFunction(asOf): a later internal starter is left out');
+      _assertEqual([workforceSegmentation(withInternal, mEnd(1)).total, workforceSegmentation(withInternal, mEnd(1)).internalTotal], [7, 2], 'not started by the end of next month: left out');
+      const at = workforceSegmentation(withInternal, mStart(2));
+      _assertEqual([at.total, at.deployableTotal, at.internalTotal], [9, 6, 3], 'start day inclusive: the deployable and the internal joiner both count');
+      _assertEqual(at.byLocation.find(e => e[0] === 'Oslo'), ['Oslo', 2], 'joiners counted at that month end');
+      _assertEqual(workforceSegmentation(withInternal).total, 7, 'default asOf is today');
+      _assertEqual(countInternalByFunction([P('J2', '', '', '', Object.assign({}, INT, { StartDate: stamp(mStart(2)) }))], mEnd(1)), [], 'countInternalByFunction(asOf): a later internal starter is left out');
       _assertEqual(workforceSegmentation(null).total, 0, 'null people');
+      _assertEqual([workforceSegmentation(null).deployableTotal, workforceSegmentation(null).internalTotal], [0, 0], 'null people: both totals 0');
     },
   },
   {

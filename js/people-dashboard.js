@@ -286,19 +286,19 @@ function _renderRevenuePanel(rows) {
 
 //Panel 3 - Workforce Segmentation
 function _renderSegmentationPanel(people) {
-  // Active deployable employees only — internal staff (N-304) are counted
-  // separately, by function, in the fourth table; External partners (N-402)
-  // are not Momentum workforce and appear in neither. N-466: the counts come from
-  // workforceSegmentation() (utils.js), shared with the Newton for Claude tool.
+  // N-468: Location and Contract Type count deployable AND internal staff (% of seg.total);
+  // Role Band is deployable only (% of seg.deployableTotal); the fourth table counts internal
+  // staff by function (N-304). External partners (N-402) are not Momentum workforce and appear
+  // in none. N-466: the counts come from workforceSegmentation() (utils.js), shared with the
+  // Newton for Claude tool.
   const seg    = workforceSegmentation(people);
-  const total  = seg.total;
   const internalByFn = seg.internalByFunction;
 
-  const tableHTML = (entries) => entries.map(([k,v]) => `
+  const tableHTML = (entries, denominator) => entries.map(([k,v]) => `
     <tr>
       <td>${escHtml(k)}</td>
       <td>${v}</td>
-      <td>${total > 0 ? ((v/total)*100).toFixed(0) + '%' : '—'}</td>
+      <td>${denominator > 0 ? ((v/denominator)*100).toFixed(0) + '%' : '—'}</td>
     </tr>`).join('');
 
   const byLevel = seg.byLevel;
@@ -311,7 +311,7 @@ function _renderSegmentationPanel(people) {
         <div class="table-scroll">
         <table class='data-table dash-seg-table'>
           <thead><tr><th>Location</th><th>#</th><th>%</th></tr></thead>
-          <tbody>${tableHTML(seg.byLocation)}</tbody>
+          <tbody>${tableHTML(seg.byLocation, seg.total)}</tbody>
         </table>
         </div>
       </div>
@@ -321,17 +321,17 @@ function _renderSegmentationPanel(people) {
         <div class="table-scroll">
         <table class='data-table dash-seg-table'>
           <thead><tr><th>Contract</th><th>#</th><th>%</th></tr></thead>
-          <tbody>${tableHTML(seg.byContractType)}</tbody>
+          <tbody>${tableHTML(seg.byContractType, seg.total)}</tbody>
         </table>
         </div>
       </div>
       <div>
         <div class='dash-seg-title'>
-          By Role Band</div>
+          By Role Band (deployable)</div>
         <div class="table-scroll">
         <table class='data-table dash-seg-table'>
           <thead><tr><th>Level</th><th>#</th><th>%</th></tr></thead>
-          <tbody>${tableHTML(byLevel)}</tbody>
+          <tbody>${tableHTML(byLevel, seg.deployableTotal)}</tbody>
         </table>
         </div>
       </div>

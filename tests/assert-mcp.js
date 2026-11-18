@@ -190,6 +190,8 @@ ASSERTIONS.push(
       _assertEqual([p.year.type, p.year.minimum, p.month.type, p.month.minimum, p.month.maximum], ['integer', 2020, 'integer', 1, 12], 'bounds');
       _assertEqual(t.inputSchema.required || [], [], 'nothing required');
       if (!/counts and percentages only/i.test(t.description) || !/no names or money/i.test(t.description)) throw new Error('description must say counts and percentages only, no names or money');
+      if (t.description.length > 300) throw new Error('description over 300 chars: ' + t.description.length);
+      if (!/location and contract type \(deployable and internal staff\)/i.test(t.description) || !/level \(deployable only\)/i.test(t.description)) throw new Error('N-468: description must say location/contract include internal staff and level is deployable only');
     },
   },
   {

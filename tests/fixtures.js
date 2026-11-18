@@ -533,7 +533,7 @@ var FIXTURES = {
         { id: '1005', Title: 'Ben Blank',    Level: 'PTP', Location: 'London', StartDate: { d: -300 }, IsActive: true },
         { id: '1006', Title: 'Eve Ended',    Level: 'TP',  Location: 'Madrid', StartDate: { d: -300 }, IsActive: true },
         { id: '1007', Title: 'Cara Director', Level: 'CSD', Location: 'London', StartDate: { d: -900 }, IsActive: true },
-        { id: '1008', Title: 'Ivy Internal', Level: '',    Location: 'London', StartDate: { d: -300 }, IsActive: true, StaffType: 'Internal', StaffFunction: 'Finance' },
+        { id: '1008', Title: 'Ivy Internal', Level: '',    Location: 'London', ContractType: 'Core', StartDate: { d: -300 }, IsActive: true, StaffType: 'Internal', StaffFunction: 'Finance' },
         { id: '1009', Title: 'Pat Placeholder', Level: 'TP', Location: '',      IsActive: true, IsPlaceholder: true },
         { id: '1010', Title: 'Old Leaver',   Level: 'TP',  Location: 'Lisbon', StartDate: { d: -900 }, EndDate: { d: -100 }, IsActive: false },
         { id: '1011', Title: 'Pia Partner',  Level: '',    Location: 'Berlin', StartDate: { d: -30 },  IsActive: true, StaffType: 'External' },   // N-402

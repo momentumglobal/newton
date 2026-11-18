@@ -2157,28 +2157,34 @@ function countInternalByFunction(people, asOf = new Date()) {
 }
 
 // N-466: the People Dashboard Workforce Segmentation counts, shared by the panel
-// (people-dashboard.js) and the Newton for Claude workforce_segmentation tool. Deployable staff
-// only: active, not internal (N-304), not an external partner (N-402), and started by asOf
-// (N-424; default today, pass a month end for a month snapshot). Internal staff are counted
-// separately by function. Returns count entries [[label, n], ...]: Location and ContractType
-// largest first, Level in levelSortIndex order; a blank value groups as 'Unknown'. Percentages
-// are the caller's.
+// (people-dashboard.js) and the Newton for Claude workforce_segmentation tool. N-468: Location and
+// ContractType count every active, started, non-placeholder, non-partner employee (deployable AND
+// internal staff); Level counts deployable staff only (internal staff have no Level). Started
+// by asOf (N-424; default today, pass a month end for a month snapshot); external partners
+// (N-402) are in none. Internal staff are also counted by function. Returns count entries
+// [[label, n], ...]: Location and ContractType largest first, Level in levelSortIndex order; a blank
+// value groups as 'Unknown'. total = deployableTotal + internalTotal. Percentages are the caller's:
+// Location / ContractType over total, Level over deployableTotal.
 function workforceSegmentation(people, asOf = new Date()) {
-  const active = (people || []).filter(p => p && p.IsActive !== false && !isInternalStaff(p) && !isExternalStaff(p) && isStartedPerson(p, asOf));
-  const group = key => {
+  const counted = (people || []).filter(p => p && p.IsActive !== false && !p.IsPlaceholder && !isExternalStaff(p) && isStartedPerson(p, asOf));
+  const deployable = counted.filter(p => !isInternalStaff(p));
+  const group = (list, key) => {
     const map = {};
-    active.forEach(p => {
+    list.forEach(p => {
       const v = p[key] || 'Unknown';
       map[v] = (map[v] || 0) + 1;
     });
     return Object.entries(map);
   };
+  const internalByFunction = countInternalByFunction(people, asOf);
   return {
-    total: active.length,
-    byLocation: group('Location').sort((a, b) => b[1] - a[1]),
-    byContractType: group('ContractType').sort((a, b) => b[1] - a[1]),
-    byLevel: group('Level').sort((a, b) => levelSortIndex(a[0]) - levelSortIndex(b[0])),
-    internalByFunction: countInternalByFunction(people, asOf),
+    total: counted.length,
+    deployableTotal: deployable.length,
+    internalTotal: internalByFunction.reduce((sum, e) => sum + e[1], 0),
+    byLocation: group(counted, 'Location').sort((a, b) => b[1] - a[1]),
+    byContractType: group(counted, 'ContractType').sort((a, b) => b[1] - a[1]),
+    byLevel: group(deployable, 'Level').sort((a, b) => levelSortIndex(a[0]) - levelSortIndex(b[0])),
+    internalByFunction,
   };
 }
 

@@ -489,21 +489,23 @@ async function run() {
     eq(c.stageTimeline.map(t => t.by), ['Tess One', 'ext.editor@mg.co'], 'unmapped editor keeps the email');
   });
 
-  await check('N-466 workforce_segmentation = workforceSegmentation on the People read: deployable started staff only, internal staff by function, counts and % only, no names', async () => {
+  await check('N-466 / N-468 workforce_segmentation = workforceSegmentation on the People read: location and contract type include internal staff, level deployable only, internal staff by function, counts and % only, no names', async () => {
     const r = await call('workforce_segmentation', {});
     const y = new Date().getFullYear(), m = new Date().getMonth() + 1;
     eq([r.period.label, r.period.asOf], [`${y}-${String(m).padStart(2, '0')}`, today], 'default = this month, asOf today');
     const o = JSON.parse(await L.evalInContext(`(async () => JSON.stringify(workforceSegmentation(await getPeople(false), new Date())))()`));
-    eq(r.total, o.total, 'total equals the shared function');
+    eq([r.total, r.deployableTotal, r.internalStaff.total], [o.total, o.deployableTotal, o.internalTotal], 'totals equal the shared function');
     eq(r.byLocation.map(x => [x.location, x.count]), o.byLocation, 'by location');
     eq(r.byContractType.map(x => [x.contractType, x.count]), o.byContractType, 'by contract type');
     eq(r.byLevel.map(x => [x.level, x.count]), o.byLevel, 'by level');
     eq(r.internalStaff.byFunction.map(x => [x.function, x.count]), o.internalByFunction, 'internal by function');
-    // Fixture truth: Tess, Tom, Dana, Bea, Ben, Eve, Cara. Out: Ivy (internal), Pia (partner), Pat (placeholder), Old Leaver (inactive), Fay (starts in 14 days).
+    // Fixture truth (N-468): deployable Tess, Tom, Dana, Bea, Ben, Eve, Cara (7) + Ivy (internal, London, Core) = 8. Out: Pia (partner), Pat (placeholder), Old Leaver (inactive), Fay (starts in 14 days).
     eq([r.total, r.byLocation.slice(0, 2).map(x => [x.location, x.count]), r.byContractType.map(x => [x.contractType, x.count]), r.internalStaff],
-      [7, [['London', 3], ['Porto', 2]], [['Unknown', 5], ['Permanent', 2]], { total: 1, byFunction: [{ function: 'Finance', count: 1 }] }], 'fixture counts');
-    eq([r.byLocation[0].pct, r.byContractType[1].pct], [42.9, 28.6], 'pct to one decimal');
-    eq([r.byLocation.reduce((s, x) => s + x.count, 0), r.byLevel.reduce((s, x) => s + x.count, 0)], [7, 7], 'each table sums to the total');
+      [8, [['London', 4], ['Porto', 2]], [['Unknown', 5], ['Permanent', 2], ['Core', 1]], { total: 1, byFunction: [{ function: 'Finance', count: 1 }] }], 'fixture counts');
+    eq(r.deployableTotal, 7, 'deployableTotal');
+    eq([r.byLocation[0].pct, r.byContractType[1].pct], [50, 25], 'location / contract pct over total (8)');
+    eq(r.byLevel[0].pct, Math.round(r.byLevel[0].count / 7 * 1000) / 10, 'level pct over deployableTotal (7)');
+    eq([r.byLocation.reduce((s, x) => s + x.count, 0), r.byContractType.reduce((s, x) => s + x.count, 0), r.byLevel.reduce((s, x) => s + x.count, 0)], [8, 8, 7], 'location and contract sum to total; level sums to deployableTotal');
     eq(Object.keys(r.byLocation[0]), ['location', 'count', 'pct'], 'shape');
     const text = JSON.stringify(r);
     ['Tess One', 'Tom Two', 'Dana Manager', 'Ivy Internal', 'Fay Future', 'Pia Partner'].forEach(n => ok(!text.includes(n), 'name in output: ' + n));
@@ -511,11 +513,11 @@ async function run() {
     const fy = Number(day(14).slice(0, 4)), fm = Number(day(14).slice(5, 7));
     if (fy === y && fm !== m) {
       const later = await call('workforce_segmentation', { year: y, month: fm });
-      eq([later.total, later.byLocation.some(x => x.location === 'Oslo')], [8, true], 'month end includes a joiner who starts that month');
+      eq([later.total, later.byLocation.some(x => x.location === 'Oslo')], [9, true], 'month end includes a joiner who starts that month');
       eq(later.period.asOf, `${y}-${String(fm).padStart(2, '0')}-${String(new Date(y, fm, 0).getDate()).padStart(2, '0')}`, 'asOf is the month end');
     }
     const empty = await call('workforce_segmentation', { year: 2020, month: 1 });
-    eq([empty.total, empty.byLocation, empty.byContractType, empty.byLevel, empty.internalStaff, empty.period.asOf], [0, [], [], [], { total: 0, byFunction: [] }, '2020-01-31'], 'a month before anyone started is empty, not an error');
+    eq([empty.total, empty.deployableTotal, empty.byLocation, empty.byContractType, empty.byLevel, empty.internalStaff, empty.period.asOf], [0, 0, [], [], [], { total: 0, byFunction: [] }, '2020-01-31'], 'a month before anyone started is empty, not an error');
     const yearOnly = await call('workforce_segmentation', { year: y });
     eq(yearOnly.period.label, r.period.label, 'this year alone = this month');
   });

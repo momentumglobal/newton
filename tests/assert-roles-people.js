@@ -385,6 +385,35 @@ ASSERTIONS.push(
     },
   },
   {
+    name: 'N-467: peopleJoiners — first and last day of the month in, neighbours out; placeholder / partner / inactive / blank start out; internal staff in; sorted by start then name; BST and leap-year month ends',
+    fn: function () {
+      const D = d => d + 'T12:00:00Z';
+      const P = (name, start, extra) => Object.assign({ EmployeeName: name, Level: 'TP', Location: 'Lisbon', StartDate: start, IsActive: true }, extra);
+      const names = list => list.map(p => p.EmployeeName);
+      const people = [
+        P('Mid', D('2026-10-15')), P('First', D('2026-10-01')), P('Last', D('2026-10-31')), P('Same Day', D('2026-10-15')),
+        P('Before', D('2026-09-30')), P('After', D('2026-11-01')), P('Other Year', D('2025-10-15')),
+        P('Int', D('2026-10-20'), { Level: '', StaffType: CONFIG.STAFF_TYPE_INTERNAL, StaffFunction: CONFIG.INTERNAL_FUNCTIONS[0] }),
+        P('Partner', D('2026-10-10'), { StaffType: CONFIG.STAFF_TYPE_EXTERNAL }),
+        P('Holder', D('2026-10-10'), { IsPlaceholder: true }),
+        P('Left', D('2026-10-10'), { IsActive: false }),
+        P('No Start', ''), P('No Start 2', undefined), P('Bad Start', 'soon'), null,
+      ];
+      _assertEqual(names(peopleJoiners(people, 2026, 10)), ['First', 'Mid', 'Same Day', 'Int', 'Last'], 'October 2026: both ends in, sorted by start day then name, excluded rows out');
+      _assertEqual(peopleJoiners(people, 2026, 10)[3].StaffFunction, CONFIG.INTERNAL_FUNCTIONS[0], 'internal joiner row returned');
+      _assertEqual(names(peopleJoiners(people, 2026, 9)), ['Before'], 'September: the 30th is in');
+      _assertEqual(names(peopleJoiners(people, 2026, 11)), ['After'], 'November: the 1st is in');
+      _assertEqual(names(peopleJoiners(people, 2025, 10)), ['Other Year'], 'the same month in another year is separate');
+      _assertEqual(names(peopleJoiners([P('A', D('2026-03-29')), P('B', D('2026-03-31')), P('C', D('2026-04-01'))], 2026, 3)), ['A', 'B'], 'March (clock change): the 31st in, 1 April out');
+      _assertEqual(names(peopleJoiners([P('L', D('2028-02-29')), P('M', D('2028-03-01'))], 2028, 2)), ['L'], 'leap-year 29 Feb is the last day');
+      _assertEqual(names(peopleJoiners([P('N', D('2026-12-31')), P('J', D('2027-01-01'))], 2026, 12)), ['N'], 'December: the 31st in, 1 January out');
+      _assertEqual([peopleJoiners(null, 2026, 10), peopleJoiners([], 2026, 10)], [[], []], 'null / empty people');
+      if (typeof ALL_SOURCES !== 'undefined') {
+        _assertEqual((ALL_SOURCES['utils.js'].match(/function peopleJoiners\(/g) || []).length, 1, 'peopleJoiners defined once (utils.js)');
+      }
+    },
+  },
+  {
     name: 'N-304: groupInternalByFunction / countInternalByFunction — config order, Unknown last, inactive / placeholder / deployable excluded',
     fn: function () {
       const I = CONFIG.STAFF_TYPE_INTERNAL;

@@ -2188,6 +2188,25 @@ function workforceSegmentation(people, asOf = new Date()) {
   };
 }
 
+// N-467: People who start in a calendar month (the Newton for Claude joiners tool). Active, real
+// (not a placeholder) deployable or internal staff; external partners (N-402) are not Momentum staff
+// and are left out. StartDate falls in year / month (1-12), so a starter later in the month counts.
+// A blank or unparseable StartDate is not a joiner (N-422 reads blank as "started long ago").
+// Compares 'YYYY-MM-DD' strings (spDateIn / localDayISO), never a Date built from the SharePoint
+// string (N-087, BST shift). Returns the People rows sorted by start day, then name.
+function peopleJoiners(people, year, month) {
+  const from = localDayISO(new Date(year, month - 1, 1));
+  const to = localDayISO(new Date(year, month, 0));
+  return (people || [])
+    .filter(p => {
+      if (!p || p.IsActive === false || p.IsPlaceholder || isExternalStaff(p)) return false;
+      const start = spDateIn(p.StartDate);
+      return !!start && start >= from && start <= to;
+    })
+    .sort((a, b) => spDateIn(a.StartDate).localeCompare(spDateIn(b.StartDate))
+      || String(a.EmployeeName || '').localeCompare(String(b.EmployeeName || '')));
+}
+
 // N-375: unique real people beneath an Org Chart node (the node itself is not
 // counted). Nodes carry `_key` ('p:' + name for People rows, 'l:' + email for
 // leaders); project/function bubbles have none and are walked, not counted.

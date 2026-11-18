@@ -202,7 +202,7 @@ async function run() {
   const ids = rows => rows.map(r => r.roleId);
   const day = n => addDays(today, n);
 
-  await check('AC1 tools/list through the real server = newton_status + the twelve tools, all readOnlyHint; a call comes back wrapped with asOf + newtonBuild', async () => {
+  await check('AC1 tools/list through the real server = newton_status + the thirteen tools, all readOnlyHint; a call comes back wrapped with asOf + newtonBuild', async () => {
     const lines = [];
     const gated = Object.assign({}, L, { call: (fn, ...a) => (fn === 'getEffectiveRole' ? Promise.resolve('leadership') : L.call(fn, ...a)) });
     const auth = { ensureToken: async () => 'tok', status: () => ({ storeMode: 'test', pendingSince: null }), takeLastError: () => null,
@@ -210,7 +210,7 @@ async function run() {
     const srv = createServer({ loader: gated, auth, write: o => lines.push(o), log: () => {} });
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }));
     const tl = lines.find(l => l.id === 1).result.tools;
-    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation'], 'tools/list');
+    eq(tl.map(t => t.name), ['newton_status', 'list_projects', 'project_summary', 'list_roles', 'role_detail', 'activity_summary', 'list_placements', 'time_to_fill', 'project_scorecards', 'bench', 'utilisation', 'project_team', 'workforce_segmentation', 'joiners'], 'tools/list');
     ok(tl.every(t => t.annotations && t.annotations.readOnlyHint === true), 'a tool without readOnlyHint');
     await srv.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_projects', arguments: {} } }));
     const res = lines.find(l => l.id === 2).result;
@@ -235,6 +235,7 @@ async function run() {
       utilisation: [{}, ['Assignments', 'People', 'SalesForecasts']],                      // N-394
       project_team: [{ project: 'Acme' }, ['Assignments', 'Projects', 'UserAssignments']], // N-394
       workforce_segmentation: [{}, ['People']],                                            // N-466
+      joiners: [{}, ['People']],                                                           // N-467
     };
     for (const name of Object.keys(expected)) {
       const fresh = await newLoader();
@@ -532,6 +533,43 @@ async function run() {
     await rejects(call('workforce_segmentation', { month: 2.5 }), /month must be a whole number/, 'non-integer month');
   });
 
+  await check('N-467 joiners: the month Fay Future starts lists her (staff name, level, location, start, upcoming) and nothing else; partner / other months excluded; no email or reports-to', async () => {
+    const y = new Date().getFullYear(), m = new Date().getMonth() + 1;
+    const fd = day(14), fy = Number(fd.slice(0, 4)), fm = Number(fd.slice(5, 7));
+    const r = await call('joiners', { year: fy, month: fm });
+    const lastDay = String(new Date(fy, fm, 0).getDate()).padStart(2, '0');
+    eq([r.period.label, r.period.from, r.period.to], [`${fy}-${String(fm).padStart(2, '0')}`, `${fy}-${String(fm).padStart(2, '0')}-01`, `${fy}-${String(fm).padStart(2, '0')}-${lastDay}`], 'period');
+    eq([r.count, r.truncated, r.byStaffType], [1, false, { deployable: 1, internal: 0 }], 'one deployable joiner');
+    eq(r.joiners, [{ name: 'Fay Future', staffType: 'Deployable', level: 'TP', function: null, location: 'Oslo', start: fd, status: 'upcoming' }], 'Fay');
+    eq(Object.keys(r.joiners[0]), ['name', 'staffType', 'level', 'function', 'location', 'start', 'status'], 'shape');
+    const o = JSON.parse(await L.evalInContext(`(async () => JSON.stringify(peopleJoiners(await getPeople(false), ${fy}, ${fm}).map(p => p.EmployeeName)))()`));
+    eq(r.joiners.map(j => j.name), o, 'equals the shared function');
+    const raw = await L.evalInContext(`(async () => JSON.stringify(await getPeople(false)))()`);
+    ok(raw.includes('ZZQ-FAY-MAIL') && raw.includes('ZZQ-FAY-LEAD'), 'positive control: the People read carries the work email and reports-to sentinels');
+    ok(!JSON.stringify(r).includes('ZZQ-'), 'no email or reports-to in the output');
+    const def = await call('joiners', {});
+    eq(def.period.label, `${y}-${String(m).padStart(2, '0')}`, 'default = this month');
+    eq((await call('joiners', { year: y })).period.label, def.period.label, 'this year alone = this month');
+    const pd = day(-30), py = Number(pd.slice(0, 4)), pm = Number(pd.slice(5, 7));
+    const pr = await call('joiners', { year: py, month: pm });
+    ok(!JSON.stringify(pr).includes('Pia Partner'), 'the external partner who started that month is not a joiner');
+    const empty = await call('joiners', { year: 2020, month: 1 });
+    eq([empty.count, empty.joiners, empty.byStaffType, empty.period.from, empty.period.to], [0, [], { deployable: 0, internal: 0 }, '2020-01-01', '2020-01-31'], 'a month with no starters is empty, not an error');
+    const text = JSON.stringify(r);
+    ['Tess One', 'Pia Partner', 'Pat Placeholder', 'Old Leaver', 'Ivy Internal'].forEach(n => ok(!text.includes(n), 'name in output: ' + n));
+  });
+
+  await check('N-467 joiners bad input gives a clear message: past or future year without a month, month 0 / 13, year out of range, non-integers', async () => {
+    const y = new Date().getFullYear();
+    await rejects(call('joiners', { year: 2024 }), /month is required for a past or future year/, 'past year, no month');
+    await rejects(call('joiners', { year: y + 1 }), /month is required for a past or future year/, 'future year, no month');
+    await rejects(call('joiners', { month: 13 }), /month must be a whole number from 1 to 12/, 'month 13');
+    await rejects(call('joiners', { month: 0 }), /month must be a whole number from 1 to 12/, 'month 0');
+    await rejects(call('joiners', { year: 2019, month: 1 }), new RegExp('year must be a whole number from 2020 to ' + (y + 1)), 'year too early');
+    await rejects(call('joiners', { year: y + 2, month: 1 }), /year must be a whole number/, 'year too far ahead');
+    await rejects(call('joiners', { month: 2.5 }), /month must be a whole number/, 'non-integer month');
+  });
+
   await check('N-394 AC7 bad input gives a clear message: month + quarter, month 13, quarter 5, year out of range, byLevel / includeEnded not boolean, unknown project', async () => {
     const y = new Date().getFullYear();
     await rejects(call('utilisation', { month: 3, quarter: 1 }), /Give month or quarter, not both/, 'month + quarter');
@@ -548,7 +586,7 @@ async function run() {
   // AC 9 + AC 10, over every result produced above (each handler ran in the DOM-less context).
   await check('AC9 / N-394 AC9 no tool output contains a sentinel (candidate name, salary, budget, hiring manager, notes, role-history value, ack note, bill rate) or a denied key', async () => {
     ok(outputs.length >= 25, 'too few tool calls captured to mean anything: ' + outputs.length);
-    eq(Array.from(new Set(outputs.map(o => o.name))).sort(), ['activity_summary', 'bench', 'list_placements', 'list_projects', 'list_roles', 'project_scorecards', 'project_summary', 'project_team', 'role_detail', 'time_to_fill', 'utilisation', 'workforce_segmentation'], 'every tool exercised');
+    eq(Array.from(new Set(outputs.map(o => o.name))).sort(), ['activity_summary', 'bench', 'joiners', 'list_placements', 'list_projects', 'list_roles', 'project_scorecards', 'project_summary', 'project_team', 'role_detail', 'time_to_fill', 'utilisation', 'workforce_segmentation'], 'every tool exercised');
     const denied = new Set();
     const cfg = L.config().MCP.outputDenyFields;
     Object.keys(cfg).forEach(k => cfg[k].forEach(f => denied.add(f)));

@@ -836,6 +836,45 @@ async function mcpWorkforceSegmentation(args) {
   });
 }
 
+// ── joiners (N-467) ───────────────────────────────────────────────────
+// Deployable and internal staff whose People StartDate falls in a calendar month, from the shared
+// peopleJoiners() (utils.js). Staff names, level (deployable) or function (internal), location and
+// start day only: no pay, contract type, email or reporting line. status is 'started' (start day on
+// or before today) or 'upcoming'. Leavers are not on the People list, so a past month omits joiners
+// who have since left.
+async function mcpJoiners(args) {
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const year = mcpInt(args.year, 'year', 2020, thisYear + 1, thisYear);
+  if ((args.month === undefined || args.month === null) && year !== thisYear) throw new Error('month is required for a past or future year.');
+  const month = mcpInt(args.month, 'month', 1, 12, now.getMonth() + 1);
+  const range = peoplePeriodRange({ year, month: month - 1, quarter: null });
+  const joiners = peopleJoiners(await getPeople(false), year, month);
+  const capped = mcpCapRows(joiners);
+  const internal = joiners.filter(p => isInternalStaff(p)).length;
+  const todayISO = localDayISO(now);
+  return mcpOutputGuard({
+    scope: 'People list: deployable and internal staff whose start date falls in the month, including people starting later in the month. External partners, placeholders, inactive people and people with no start date are left out. Leavers are not on the People list, so a past month omits joiners who have since left. Level is for deployable staff, function for internal staff.',
+    period: { label: `${year}-${String(month).padStart(2, '0')}`, from: localDayISO(range.start), to: localDayISO(range.end) },
+    count: capped.total,
+    truncated: capped.truncated,
+    byStaffType: { deployable: capped.total - internal, internal },
+    joiners: capped.rows.map(p => {
+      const isInternal = isInternalStaff(p);
+      const start = mcpOutDay(p.StartDate);
+      return {
+        name: p.EmployeeName || null,
+        staffType: isInternal ? CONFIG.STAFF_TYPE_INTERNAL : CONFIG.STAFF_TYPE_DEPLOYABLE,
+        level: isInternal ? null : (p.Level || null),
+        function: isInternal ? (p.StaffFunction || null) : null,
+        location: p.Location || null,
+        start,
+        status: start <= todayISO ? 'started' : 'upcoming',
+      };
+    }),
+  });
+}
+
 // ── Registry ──────────────────────────────────────────────────────────
 var MCP_TOOLS = [
   {
@@ -994,5 +1033,18 @@ var MCP_TOOLS = [
       additionalProperties: false,
     },
     handler: mcpWorkforceSegmentation,
+  },
+  {
+    name: 'joiners',
+    description: 'Who starts in a month: deployable and internal staff by start date, incl. people starting later in the month. Staff names, level or function, location and start date only; no pay or contract detail. Default this month.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        year: { type: 'integer', minimum: 2020, description: 'Year (default this year). A past or future year needs a month.' },
+        month: { type: 'integer', minimum: 1, maximum: 12, description: 'Month 1-12 of the year (default this month).' },
+      },
+      additionalProperties: false,
+    },
+    handler: mcpJoiners,
   },
 ];

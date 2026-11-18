@@ -463,13 +463,6 @@ const FIELD_ALIASES = {
   // CONFIG.CACHE.maxEntryBytes (262144), and base64 logos on that row would
   // push it past the cap and silently disable tier-2 caching app-wide.
   ClientLogos: {},
-  // ── LCI project → CSD owner, one row per claimed LCI customer (N-219) ──
-  // RETIRED by N-363: LCI / Transformation customers are Projects rows now and the owner CSD
-  // lives on Projects.CSDName. This list is a frozen backup, read only by the N-363 migration
-  // (getLCIProjectOwners, api-admin.js). CSDName is a plain text column (a People.EmployeeName
-  // value), never a Lookup. When the list is deleted from SharePoint, delete this alias and
-  // that reader too.
-  LCIProjectOwners: { Title: 'CustomerName' },
   // ── Project & Role checklists (N-266a) ──────────────────────
   // ChecklistTemplates: one row per checklist item; Title is the item label.
   // ChecklistProgress: one row per (record, item) tick; Title holds the

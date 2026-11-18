@@ -488,10 +488,8 @@ async function buildDataHealthTab() {
     + _dhRenderSlaTargetsHtml(data)
     + _dhRenderProjectTeamHtml(data)
     + _dhRenderProjectTeamIntegrityHtml(data)
-    + _dhRenderLciMigrationHtml(data)
     + _dhRenderPdpIdentityHtml(data)
     + _dhRenderPdpAccessHtml()
-    + _dhRenderUserRowsHtml()
     + _dhRenderWeeklyAnomaliesHtml(data)
     + _dhRenderIndexStatusHtml(data)
     + _dhRenderSchemaCheckHtml(data)
@@ -570,10 +568,8 @@ async function _dhFetchSectionData() {
   }
 
   // N-361: cheap column preflight only. The full Assignments / Projects / UserAssignments
-  // reads happen when Preview is clicked, not on tab load.
+  // reads happen when Run reconciliation report is clicked, not on tab load.
   const ptColumns = await getAssignmentTeamColumnStatus();
-  // N-363: same idea for the LCI / Transformation migration - one cheap column read.
-  const lciChoices = await getProjectTypeChoiceStatus();
   // N-381: SLA targets - column preflight, then the rows. Never throws.
   const slaTargets = await _dhFetchSlaTargets();
   // N-373: Project Team integrity. Pure check (ptCheckTeamIntegrity, project-team.js); a failed
@@ -598,7 +594,7 @@ async function _dhFetchSectionData() {
 
   return {
     lists, counts, deniedLists, excludedLists,
-    ptColumns, lciChoices, slaTargets, projectTeamIntegrity, pdpIdentity,
+    ptColumns, slaTargets, projectTeamIntegrity, pdpIdentity,
     nullProjectOk, nullProjectCount, nullWeekEndingOk, nullWeekEndingCount,
     statusByList,
     schemaResults,
@@ -757,12 +753,13 @@ function _dhRenderHeadcountIntegrityHtml(data) {
 `;
 }
 
-// ── Data Health Tab — render + actions: Project Team backfill (N-361 / PT-1) ──
-// Fills Assignments.ProjectID / UserEmail / IsLeadDM from existing data (fill blanks only —
-// project-team.js) and reports how UserAssignments and Assignments disagree. The full reads
-// happen when Preview / Run report is clicked, never on tab load. State lives here and the
-// actions read it, never the DOM (N-273 precedent).
-let _ptBackfill = { inputs: null, picks: {}, result: null, report: null };
+// ── Data Health Tab — render + actions: Project Team report (N-361 / PT-1) ──
+// Read-only reconciliation report: Delivery Managers with no Assignments row, and users holding
+// more than one functional role (project-team.js ptBuildReconciliation), each with a CSV download.
+// (The N-361 backfill that filled Assignments.ProjectID / UserEmail / IsLeadDM was retired in
+// N-471 after it ran in production.) The full reads happen when Run report is clicked, never on
+// tab load. State lives here and the actions read it, never the DOM (N-273 precedent).
+let _ptBackfill = { report: null };
 
 function _dhRenderProjectTeamHtml(data) {
   const cols = data.ptColumns || { ok: false, missing: [] };
@@ -774,16 +771,14 @@ function _dhRenderProjectTeamHtml(data) {
   } else {
     body = `<p><span class="dh-badge dh-badge-success">Columns present</span></p>
     <p>
-      <button class="btn-primary"${act('runProjectTeamPreview')}>Preview backfill</button>
       <button class="btn-secondary"${act('runProjectTeamReport')}>Run reconciliation report</button>
     </p>
-    ${_ptRenderResultHtml()}${_ptRenderPreviewHtml()}${_ptRenderReportHtml()}`;
+    ${_ptRenderReportHtml()}`;
   }
-  return `    <h3>Project Team backfill (N-361)</h3>
+  return `    <h3>Project Team report (N-361)</h3>
     <p class="dh-note">
-      Copies a ProjectID, UserEmail and Lead-DM flag onto each Assignments row from data Newton already holds.
-      Preview first: nothing is written until Apply, a value already on a row is never overwritten, and it is safe to run again.
-      Bench rows are skipped. The reconciliation report is read-only.
+      Read-only. Lists Delivery Managers with no Assignments row on their project, and users who hold more than one functional role.
+      Nothing is written.
     </p>
     ${body}
 `;
@@ -823,82 +818,6 @@ function _dhRenderProjectTeamIntegrityHtml(data) {
 `;
 }
 
-function _ptRenderResultHtml() {
-  const r = _ptBackfill.result;
-  if (!r) return '';
-  const failed = r.failed.length
-    ? ` <span class="dh-badge dh-badge-danger">${r.failed.length} failed</span> <span class="dh-muted">${r.failed.map(f => escHtml(f.employee + ': ' + f.message)).join('; ')}</span>`
-    : '';
-  return `<p>Last apply: ${r.written.toLocaleString('en-GB')} rows written.${failed}</p>`;
-}
-
-function _ptRenderPreviewHtml() {
-  const inputs = _ptBackfill.inputs;
-  if (!inputs) return '';
-  const cap = CONFIG.PROJECT_TEAM.DISPLAY_ROWS;
-  const { rows, summary: s } = ptBuildBackfillPlan(inputs, _ptBackfill.picks);
-  // The pick table is built from the plan WITHOUT picks, so a row stays listed (with its
-  // choice shown) after it has been picked.
-  const needPick = ptBuildBackfillPlan(inputs, {}).rows
-    .filter(r => r.project.state === 'ambiguous' || r.project.state === 'unmatched');
-  const labels = projectOptionLabels(inputs.projects);
-  const projectById = new Map(inputs.projects.map(p => [String(p.id), p]));
-  const optionHtml = (p, selected) =>
-    `<option value="${escHtml(String(p.id))}"${selected ? ' selected' : ''}>${escHtml(labels.get(String(p.id)) || p.CustomerName || '')}</option>`;
-
-  const detail = (items, fmt) => items.length
-    ? `<details><summary class="dh-muted">Show</summary><span class="dh-muted">${items.slice(0, cap).map(fmt).join('; ')}${items.length > cap ? ` +${items.length - cap} more` : ''}</span></details>`
-    : '';
-  const who = r => escHtml(r.employee + (r.customer ? ' (' + r.customer + ')' : ''));
-  const deferredRows = rows.filter(r => r.project.state === 'deferred');
-  const noLoginRows = rows.filter(r => r.email.state === 'unmatched');
-  const ambiguousEmailRows = rows.filter(r => r.email.state === 'ambiguous');
-  const line = (label, count, extra) => `
-        <tr><td>${label}${extra || ''}</td><td>${count.toLocaleString('en-GB')}</td></tr>`;
-
-  const pickRowsHtml = needPick.map(r => {
-    const options = r.project.state === 'ambiguous'
-      ? r.project.candidates.map(id => projectById.get(id)).filter(Boolean)
-      : inputs.projects;
-    const current = String(_ptBackfill.picks[r.id] == null ? '' : _ptBackfill.picks[r.id]);
-    return `
-        <tr>
-          <td>${escHtml(r.employee)}</td>
-          <td>${escHtml(r.customer)}</td>
-          <td>${escHtml(r.projectType)}</td>
-          <td>
-            <select${actOn('change', 'setBackfillPick', String(r.id), ACT_VALUE)}>
-              <option value="">— Choose —</option>${options.map(p => optionHtml(p, String(p.id) === current)).join('')}
-            </select>
-          </td>
-        </tr>`;
-  }).join('');
-
-  const apply = s.rowsToWrite
-    ? `<p><button class="btn-primary"${act('applyProjectTeamBackfill')}>Apply — write ${s.rowsToWrite.toLocaleString('en-GB')} rows</button></p>`
-    : `<p class="dh-muted">Nothing to write.</p>`;
-
-  return `
-    <h4>Preview</h4>
-    <div class="table-scroll">
-    <table class="data-table dh-table">
-      <thead><tr><th>Check</th><th>Rows</th></tr></thead>
-      <tbody>${line('Assignments rows read', s.total)}${line('Bench rows skipped', s.bench)}${line('ProjectID to write', s.writes.ProjectID)}${line('UserEmail to write', s.writes.UserEmail)}${line('IsLeadDM to set', s.writes.IsLeadDM)}${line('Need your pick (below)', s.needsPick)}${line('Deferred to N-363 (LCI / Transformation, no project yet)', s.deferred, detail(deferredRows, who))}${line('No Newton login (UserEmail unmatched)', s.noLogin, detail(noLoginRows, r => escHtml(r.employee)))}${line('Ambiguous email (two logins share the name — fix by hand)', s.ambiguousEmail, detail(ambiguousEmailRows, r => escHtml(r.employee)))}
-      </tbody>
-    </table>
-    </div>
-    ${needPick.length ? `
-    <p class="dh-note">Choose a project for each row below. Rows left on "— Choose —" stay blank and are listed again next time. Counts above refresh when you press Preview again.</p>
-    <div class="table-scroll">
-    <table class="data-table dh-table">
-      <thead><tr><th>Employee</th><th>Customer</th><th>Type</th><th>Project</th></tr></thead>
-      <tbody>${pickRowsHtml}
-      </tbody>
-    </table>
-    </div>` : ''}
-    ${apply}`;
-}
-
 function _ptRenderReportHtml() {
   const rep = _ptBackfill.report;
   if (!rep) return '';
@@ -921,59 +840,6 @@ function _ptRenderReportHtml() {
     </div>${more}
     <p><button class="btn-secondary"${act('downloadProjectTeamCsv', key)}>Download CSV</button></p>` : '<p class="dh-muted">None.</p>'}`;
   }).join('');
-}
-
-async function runProjectTeamPreview() {
-  const btn = event?.target;   // N-106: capture synchronously
-  setButtonLoading(btn);
-  try {
-    _ptBackfill.inputs = await getBackfillInputs();
-    _ptBackfill.result = null;
-    await renderOsAdminPage('datahealth');
-  } catch (e) {
-    clearButtonLoading(btn);
-    toast('Error reading Assignments: ' + e.message, { type: 'error' });
-  }
-}
-
-// Stores the choice only — no re-render; Apply rebuilds the plan from this state.
-function setBackfillPick(assignmentId, projectId) {
-  if (projectId) _ptBackfill.picks[assignmentId] = projectId;
-  else delete _ptBackfill.picks[assignmentId];
-}
-
-async function applyProjectTeamBackfill() {
-  const btn = event?.target;
-  if (!_ptBackfill.inputs) { toast('Run Preview first.', { type: 'error' }); return; }
-  // Re-read so the confirmed counts describe what will really be written.
-  let plan;
-  setButtonLoading(btn);
-  try {
-    plan = ptBuildBackfillPlan(await getBackfillInputs(), _ptBackfill.picks);
-  } catch (e) {
-    clearButtonLoading(btn);
-    toast('Error reading Assignments: ' + e.message, { type: 'error' });
-    return;
-  }
-  clearButtonLoading(btn);
-  const s = plan.summary;
-  if (!s.rowsToWrite) { toast('Nothing to write.'); return; }
-  if (!(await confirmModal({
-    title: 'Write Project Team columns',
-    message: `Write ${s.rowsToWrite} Assignments rows: ${s.writes.ProjectID} ProjectID, ${s.writes.UserEmail} UserEmail, ${s.writes.IsLeadDM} IsLeadDM. Values already on a row are never overwritten.`,
-    confirmLabel: 'Write',
-  }))) return;
-  setButtonLoading(btn);
-  try {
-    const out = await applyAssignmentBackfill(plan.rows);
-    _ptBackfill = { inputs: null, picks: {}, result: out, report: null };
-    toast(out.failed.length ? `Wrote ${out.written} rows; ${out.failed.length} failed.` : `Wrote ${out.written} rows.`,
-      { type: out.failed.length ? 'error' : 'success' });
-    await renderOsAdminPage('datahealth');
-  } catch (e) {
-    clearButtonLoading(btn);
-    toast('Error applying backfill: ' + e.message, { type: 'error' });
-  }
 }
 
 async function runProjectTeamReport() {
@@ -1001,13 +867,6 @@ function downloadProjectTeamCsv(key) {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
-
-// ── Data Health Tab — render + actions: LCI / Transformation projects (N-363 / PT-3) ──
-// Creates a Projects row for each LCI / Transformation customer found in Assignments
-// (project-team.js ptBuildLciProjectPlan). Only creates; existing projects are never changed.
-// The full reads happen when Preview is clicked, never on tab load. State lives here and the
-// actions read it, never the DOM (N-273 precedent).
-let _ptLci = { inputs: null, picks: {}, result: null };
 
 // ── Data Health Tab — Identity (PDP) (N-433 / PDP-1) ──────────────────
 // Integrity checks (read-only), then two previewed backfills: People.WorkEmail, then line
@@ -1350,278 +1209,6 @@ async function applyPdpRepoint() {
     _pdpAcc.result = null;
   }
   await renderOsAdminPage('datahealth');
-}
-
-function _dhRenderLciMigrationHtml(data) {
-  const ch = data.lciChoices || { ok: false, missing: [] };
-  let body;
-  if (!ch.ok) {
-    body = `<p><span class="dh-badge dh-badge-danger">Query error</span> <span class="dh-muted">The Projects ProjectType column could not be read — unknown, not missing. See the browser console.</span></p>`;
-  } else if (ch.missing.length) {
-    body = `<p><span class="dh-badge dh-badge-danger">Choices missing</span> ${ch.missing.map(escHtml).join(', ')} — add them to the Projects ProjectType column in SharePoint (Readme → Data model), then reload this tab.</p>`;
-  } else {
-    body = `<p><span class="dh-badge dh-badge-success">Choices present</span></p>
-    <p><button class="btn-primary"${act('runLciMigrationPreview')}>Preview</button></p>
-    ${_ptLciRenderResultHtml()}${_ptLciRenderPreviewHtml()}`;
-  }
-  return `    <h3>LCI / Transformation projects (N-363)</h3>
-    <p class="dh-note">
-      Creates a Project for each LCI or Transformation customer found in Assignments, carrying over the owner CSD from the old LCI owners list.
-      Preview first: nothing is created until Apply, a customer that already has a project is never changed, and it is safe to run again.
-      Afterwards run Preview backfill above to stamp ProjectID on these customers' assignments.
-    </p>
-    ${body}
-`;
-}
-
-function _ptLciRenderResultHtml() {
-  const r = _ptLci.result;
-  if (!r) return '';
-  const failed = r.failed.length
-    ? ` <span class="dh-badge dh-badge-danger">${r.failed.length} failed</span> <span class="dh-muted">${r.failed.map(f => escHtml(f.label + ': ' + f.message)).join('; ')}</span>`
-    : '';
-  return `<p>Last apply: ${r.created.toLocaleString('en-GB')} projects created. Now run <strong>Preview backfill</strong> above to stamp their ProjectID.${failed}</p>`;
-}
-
-function _ptLciRenderPreviewHtml() {
-  const inputs = _ptLci.inputs;
-  if (!inputs) return '';
-  const cap = CONFIG.PROJECT_TEAM.DISPLAY_ROWS;
-  const { rows, summary: s } = ptBuildLciProjectPlan(inputs, _ptLci.picks);
-  // The pick table comes from the plan WITHOUT picks, so a row stays listed (with its choice
-  // shown) after it has been picked.
-  const needPick = ptBuildLciProjectPlan(inputs, {}).rows.filter(r => r.state === 'type-pick');
-  const detail = (items, fmt) => items.length
-    ? `<details><summary class="dh-muted">Show</summary><span class="dh-muted">${items.slice(0, cap).map(fmt).join('; ')}${items.length > cap ? ` +${items.length - cap} more` : ''}</span></details>`
-    : '';
-  const line = (label, count, extra) => `
-        <tr><td>${label}${extra || ''}</td><td>${count.toLocaleString('en-GB')}</td></tr>`;
-  const createRows = rows.filter(r => r.state === 'create');
-  const existsRows = rows.filter(r => r.state === 'exists');
-  const willCreate = r => escHtml(`${r.label} (${r.type}, ${r.status}${r.forecastOnly ? ', forecast only' : ''}${r.owner ? ', owner ' + r.owner : ''})`);
-
-  const pickRowsHtml = needPick.map(r => {
-    const current = _ptLci.picks[r.key] || '';
-    return `
-        <tr>
-          <td>${escHtml(r.label)}</td>
-          <td>${r.assignmentCount.toLocaleString('en-GB')}</td>
-          <td>
-            <select${actOn('change', 'setLciTypePick', r.key, ACT_VALUE)}>
-              <option value="">— Choose —</option>${r.types.map(t => `<option value="${escHtml(t)}"${t === current ? ' selected' : ''}>${escHtml(t)}</option>`).join('')}
-            </select>
-          </td>
-        </tr>`;
-  }).join('');
-
-  const apply = s.toCreate
-    ? `<p><button class="btn-primary"${act('applyLciMigration')}>Apply — create ${s.toCreate.toLocaleString('en-GB')} projects</button></p>`
-    : `<p class="dh-muted">Nothing to create.</p>`;
-
-  return `
-    <h4>Preview</h4>
-    <div class="table-scroll">
-    <table class="data-table dh-table">
-      <thead><tr><th>Check</th><th>Customers</th></tr></thead>
-      <tbody>${line('LCI / Transformation customers in Assignments', s.customers)}${line('Projects to create', s.toCreate, detail(createRows, willCreate))}${line('— of which Active', s.active)}${line('— of which Completed (all assignments ended, or forecast only)', s.completed)}${line('— with an owner CSD carried over', s.withOwner)}${line('Need your pick (below)', s.needsPick)}${line('Already have a project (left unchanged)', s.exists, detail(existsRows, r => escHtml(r.label)))}
-      </tbody>
-    </table>
-    </div>
-    ${needPick.length ? `
-    <p class="dh-note">These customers have both LCI and Transformation assignments. Choose a type for each; rows left on "— Choose —" are not created and are listed again next time. Counts above refresh when you press Preview again.</p>
-    <div class="table-scroll">
-    <table class="data-table dh-table">
-      <thead><tr><th>Customer</th><th>Assignments</th><th>Type</th></tr></thead>
-      <tbody>${pickRowsHtml}
-      </tbody>
-    </table>
-    </div>` : ''}
-    ${apply}`;
-}
-
-async function runLciMigrationPreview() {
-  const btn = event?.target;   // N-106: capture synchronously
-  setButtonLoading(btn);
-  try {
-    _ptLci.inputs = await getLciProjectMigrationInputs();
-    _ptLci.result = null;
-    await renderOsAdminPage('datahealth');
-  } catch (e) {
-    clearButtonLoading(btn);
-    toast('Error reading Assignments: ' + e.message, { type: 'error' });
-  }
-}
-
-// Stores the choice only - no re-render; Apply rebuilds the plan from this state.
-function setLciTypePick(key, type) {
-  if (type) _ptLci.picks[key] = type;
-  else delete _ptLci.picks[key];
-}
-
-async function applyLciMigration() {
-  const btn = event?.target;
-  if (!_ptLci.inputs) { toast('Run Preview first.', { type: 'error' }); return; }
-  // Re-read so the confirmed counts describe what will really be created.
-  let plan;
-  setButtonLoading(btn);
-  try {
-    plan = ptBuildLciProjectPlan(await getLciProjectMigrationInputs(), _ptLci.picks);
-  } catch (e) {
-    clearButtonLoading(btn);
-    toast('Error reading Assignments: ' + e.message, { type: 'error' });
-    return;
-  }
-  clearButtonLoading(btn);
-  const s = plan.summary;
-  if (!s.toCreate) { toast('Nothing to create.'); return; }
-  if (!(await confirmModal({
-    title: 'Create LCI / Transformation projects',
-    message: `Create ${s.toCreate} Projects: ${s.active} Active, ${s.completed} Completed. Existing projects are never changed.`,
-    confirmLabel: 'Create',
-  }))) return;
-  setButtonLoading(btn);
-  try {
-    const out = await applyLciProjectMigration(plan.rows);
-    _ptLci = { inputs: null, picks: {}, result: out };
-    toast(out.failed.length ? `Created ${out.created} projects; ${out.failed.length} failed.` : `Created ${out.created} projects.`,
-      { type: out.failed.length ? 'error' : 'success' });
-    await renderOsAdminPage('datahealth');
-  } catch (e) {
-    clearButtonLoading(btn);
-    toast('Error creating projects: ' + e.message, { type: 'error' });
-  }
-}
-
-// ── Data Health Tab — render + actions: UserAssignments one row per user (N-371 / PT-11) ──
-// Collapses each user's UserAssignments rows into one, in place (project-team.js
-// ptBuildUserRowPlan), and drops Leadership users' Delivery Manager rows. Nothing is written by
-// Preview. The full reads happen when Preview is clicked, never on tab load. State lives here and
-// the actions read it, never the DOM (N-273 precedent).
-//   inputs    the rows the preview was built from (the backup CSV is of these)
-//   backupIds ids in the downloaded backup; Apply refuses any write to a row that is not in it
-let _osaMigration = { inputs: null, backupIds: null, result: null };
-
-function _dhRenderUserRowsHtml() {
-  return `    <h3>UserAssignments: one row per user (N-371)</h3>
-    <p class="dh-note">
-      Collapses each user's rows into one, in place: the oldest active row stays (project and customer cleared) and the others are deleted.
-      Leadership users lose their Delivery Manager rows. Users holding two or more different roles are skipped and listed — fix them in User Assignments, then Preview again.
-      Nothing is written until Apply, and it is safe to run again.
-    </p>
-    <p><button class="btn-primary"${act('runUserRowPreview')}>Preview</button></p>
-    ${_osaMigrationResultHtml()}${_osaMigrationPreviewHtml()}
-`;
-}
-
-function _osaMigrationResultHtml() {
-  const r = _osaMigration.result;
-  if (!r) return '';
-  const failed = r.failed.length
-    ? ` <span class="dh-badge dh-badge-danger">${r.failed.length} failed</span> <span class="dh-muted">${r.failed.map(f => escHtml(f.email + (f.id ? ' #' + f.id : '') + ': ' + f.message)).join('; ')}</span>`
-    : '';
-  return `<p>Last apply: ${r.updated.toLocaleString('en-GB')} rows updated, ${r.deleted.toLocaleString('en-GB')} deleted.${failed}</p>`;
-}
-
-function _osaMigrationPreviewHtml() {
-  const inputs = _osaMigration.inputs;
-  if (!inputs) return '';
-  const cap = CONFIG.PROJECT_TEAM.DISPLAY_ROWS;
-  const { users, noEmail, refused, summary: s } = ptBuildUserRowPlan(inputs);
-  const roleLabel = r => CONFIG.ROLE_LABELS[r] || r || '';
-  const detail = (items, fmt) => items.length
-    ? `<details><summary class="dh-muted">Show</summary><span class="dh-muted">${items.slice(0, cap).map(fmt).join('; ')}${items.length > cap ? ` +${items.length - cap} more` : ''}</span></details>`
-    : '';
-  const line = (label, count, extra) => `
-        <tr><td>${label}${extra || ''}</td><td>${count.toLocaleString('en-GB')}</td></tr>`;
-  const who = u => escHtml(u.name ? u.name + ' (' + u.email + ')' : u.email);
-  const mixedUsers = users.filter(u => u.state === 'mixed');
-  const leadershipUsers = users.filter(u => u.leadershipDmRows > 0);
-  const backup = `<p><button class="btn-secondary"${act('downloadUserRowBackup')}>Download backup CSV</button>${_osaMigration.backupIds ? ' <span class="dh-badge dh-badge-success">Backup downloaded</span>' : ''}</p>`;
-  const apply = s.rowsToWrite
-    ? `<p><button class="btn-primary"${act('applyUserRowCollapse')}>Apply — update ${s.toUpdate.toLocaleString('en-GB')}, delete ${s.toDelete.toLocaleString('en-GB')} rows</button></p>`
-    : `<p class="dh-muted">Nothing to write.</p>`;
-  return `
-    <h4>Preview</h4>
-    <div class="table-scroll">
-    <table class="data-table dh-table">
-      <thead><tr><th>Check</th><th>Count</th></tr></thead>
-      <tbody>${line('Users', s.usersRead)}${line('Rows read', s.rowsRead)}${line('Already one clean row', s.clean)}${line('Users to collapse', s.collapse + s.leadership)}${line('Rows to update', s.toUpdate)}${line('Rows to delete', s.toDelete)}${line('— of which Leadership Delivery Manager rows', s.leadershipDmDeletes, detail(leadershipUsers, u => who(u) + ': ' + u.leadershipDmRows))}${line('Skipped: more than one role (fix by hand)', s.mixed, detail(mixedUsers, u => who(u) + ' — ' + u.roles.map(roleLabel).join(', ') + '; resolves to ' + roleLabel(u.resolvedToday)))}${line('Skipped: no email', s.noEmail, detail(noEmail, r => escHtml(r.name || '#' + r.id)))}${line('Refused by a safety check', s.refused, detail(refused, r => escHtml(r.email + ': ' + r.message)))}
-      </tbody>
-    </table>
-    </div>
-    ${s.rowsToWrite ? backup : ''}
-    ${apply}`;
-}
-
-async function runUserRowPreview() {
-  const btn = event?.target;   // N-106: capture synchronously
-  setButtonLoading(btn);
-  try {
-    _osaMigration = { inputs: await getUserRowPlanInputs(), backupIds: null, result: null };
-    await renderOsAdminPage('datahealth');
-  } catch (e) {
-    clearButtonLoading(btn);
-    toast('Error reading UserAssignments: ' + e.message, { type: 'error' });
-  }
-}
-
-function downloadUserRowBackup() {
-  const inputs = _osaMigration.inputs;
-  if (!inputs) { toast('Run Preview first.', { type: 'error' }); return; }
-  const blob = new Blob(['﻿' + ptToCsv(PT_UA_BACKUP_COLUMNS, ptUserRowsBackup(inputs.userAssignments))], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `newton-userassignments-backup-${localDayISO()}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-  _osaMigration.backupIds = new Set(inputs.userAssignments.map(u => String(u.id)));
-  renderOsAdminPage('datahealth');
-}
-
-async function applyUserRowCollapse() {
-  const btn = event?.target;
-  if (!_osaMigration.inputs) { toast('Run Preview first.', { type: 'error' }); return; }
-  if (!_osaMigration.backupIds) { toast('Download the backup CSV first.', { type: 'error' }); return; }
-  // Re-read so the confirmed counts describe what will really be written.
-  let plan;
-  setButtonLoading(btn);
-  try {
-    plan = ptBuildUserRowPlan(await getUserRowPlanInputs());
-  } catch (e) {
-    clearButtonLoading(btn);
-    toast('Error reading UserAssignments: ' + e.message, { type: 'error' });
-    return;
-  }
-  clearButtonLoading(btn);
-  const s = plan.summary;
-  if (!s.rowsToWrite) { toast('Nothing to write.'); return; }
-  const touched = plan.batches.reduce((acc, b) => acc.concat(b.writes), []);
-  if (touched.some(w => !_osaMigration.backupIds.has(String(w.id)))) {
-    _osaMigration.backupIds = null;
-    toast('Rows changed since the backup. Preview and download the backup again.', { type: 'error' });
-    await renderOsAdminPage('datahealth');
-    return;
-  }
-  if (!(await confirmModal({
-    title: 'Collapse UserAssignments',
-    message: `Update ${s.toUpdate} rows and delete ${s.toDelete} rows (${s.leadershipDmDeletes} of them Leadership Delivery Manager rows). Deleted rows cannot be restored; the backup CSV is the only copy.`,
-    confirmLabel: 'Update and delete',
-    danger: true,
-  }))) return;
-  setButtonLoading(btn);
-  try {
-    const out = await writeUserRowCollapse(plan.batches);
-    _osaMigration = { inputs: null, backupIds: null, result: out };
-    toast(out.failed.length ? `Updated ${out.updated}, deleted ${out.deleted}; ${out.failed.length} failed.` : `Updated ${out.updated}, deleted ${out.deleted}.`,
-      { type: out.failed.length ? 'error' : 'success' });
-    await renderOsAdminPage('datahealth');
-  } catch (e) {
-    clearButtonLoading(btn);
-    toast('Error applying the migration: ' + e.message, { type: 'error' });
-  }
 }
 
 // ── Data Health Tab — SLA targets (N-381 / DA-1) ──────────────────────
@@ -2116,9 +1703,6 @@ registerActions({
   restoreFunnelFlag,
   acknowledgeFunnelFlag,
   acknowledgeDiagnosticsGroup,
-  runProjectTeamPreview,
-  setBackfillPick,
-  applyProjectTeamBackfill,
   runProjectTeamReport,
   downloadProjectTeamCsv,
   runPdpWorkEmailPreview,
@@ -2129,11 +1713,5 @@ registerActions({
   applyPdpLineManager,
   runPdpAccessCheck,
   applyPdpRepoint,
-  runLciMigrationPreview,
-  setLciTypePick,
-  applyLciMigration,
-  runUserRowPreview,
-  downloadUserRowBackup,
-  applyUserRowCollapse,
   seedSlaDefaults,
 });

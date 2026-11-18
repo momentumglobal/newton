@@ -71,7 +71,7 @@ async function getUserAssignments(projectId) {
     projectId ? `fields/ProjectID eq ${projectId}` : "");
 }
 
-// ── Project Team backfill (N-361 / PT-1) ─────────────────────────────
+// ── Project Team report (N-361 / PT-1) ───────────────────────────────
 // Assignments is read with $select=* (no LIST_FIELDS entry), so a missing new column does not
 // show in Schema Check — this preflight is what the Data Health section trusts. A failed read
 // is { ok: false }, never "missing".
@@ -81,12 +81,12 @@ async function getAssignmentTeamColumnStatus() {
     const names = columns.filter(c => !c.hidden).map(c => c.name);
     return { ok: true, missing: PT_ASSIGNMENT_COLUMNS.filter(n => !names.includes(n)) };
   } catch (e) {
-    console.warn('Project Team backfill: Assignments column read failed', e);
+    console.warn('Project Team report: Assignments column read failed', e);
     return { ok: false, missing: [] };
   }
 }
 
-// Everything the backfill plan and the reconciliation report need. Projects includes Completed
+// Everything the reconciliation report needs. Projects includes Completed
 // ones (getProjects(false)) — historical assignments still point at them.
 async function getBackfillInputs() {
   const [assignments, projects, userAssignments] = await Promise.all([
@@ -130,111 +130,6 @@ async function getTeamIntegrityInputs() {
     getItems('Assignments'), getProjects(false), getAllRoles(),
   ]);
   return { assignments, projects, roles };
-}
-
-// The only writer of Assignments.ProjectID / UserEmail / IsLeadDM in N-361. One PATCH per row,
-// one at a time (updateItem invalidates the list cache); a failed row is recorded and the rest
-// carry on. ptPlanWrites refuses any patch carrying a key outside PT_ASSIGNMENT_COLUMNS.
-async function applyAssignmentBackfill(planRows) {
-  const { writes, refused } = ptPlanWrites(planRows);
-  const out = { written: 0, failed: refused.slice() };
-  for (const w of writes) {
-    try {
-      await updateItem('Assignments', w.id, w.patch);
-      out.written++;
-    } catch (e) {
-      out.failed.push({ id: w.id, employee: w.employee, message: e && e.message ? e.message : String(e) });
-    }
-  }
-  return out;
-}
-
-// ── UserAssignments: one row per user (N-371 / PT-11) ──────────────────
-// Everything the one-row-per-user plan needs: every UserAssignments row (no filter) and the
-// LeadershipAccess list.
-async function getUserRowPlanInputs() {
-  const [userAssignments, leadership] = await Promise.all([getUserAssignments(), getLeadershipAccess()]);
-  return { userAssignments, leadership };
-}
-
-// The only writer of the N-371 migration. Per user: the survivor update first, then the deletes,
-// one request at a time (updateItem / deleteItem invalidate the list cache). Never createItem - the
-// auto-welcome flow fires on UserAssignments create. A failed update skips that user's deletes; any
-// failure is recorded and the rest carry on. ptCheckUserRowBatch re-validates every batch.
-async function writeUserRowCollapse(batches) {
-  const out = { updated: 0, deleted: 0, failed: [] };
-  for (const batch of (batches || [])) {
-    try {
-      ptCheckUserRowBatch(batch);
-    } catch (e) {
-      out.failed.push({ email: batch.email, id: '', message: e.message });
-      continue;
-    }
-    let skipDeletes = false;
-    for (const w of batch.writes) {
-      if (w.kind === 'delete' && skipDeletes) continue;
-      try {
-        if (w.kind === 'update') { await updateItem('UserAssignments', w.id, w.patch); out.updated++; }
-        else { await deleteItem('UserAssignments', w.id); out.deleted++; }
-      } catch (e) {
-        if (w.kind === 'update') skipDeletes = true;
-        out.failed.push({ email: batch.email, id: w.id, message: e && e.message ? e.message : String(e) });
-      }
-    }
-  }
-  return out;
-}
-
-// ── LCI / Transformation -> Projects migration (N-363 / PT-3) ─────────
-// Projects.ProjectType is a Choice column: a create with a value outside its choices fails per
-// row, so Data Health checks the no-dashboard types exist first. No column, or a failed read, is
-// { ok: false } (shown as Query error), never "missing".
-async function getProjectTypeChoiceStatus() {
-  try {
-    const columns = await getListColumns('Projects');
-    const col = columns.find(c => c.name === 'ProjectType');
-    const choices = (col && col.choice && col.choice.choices) || [];
-    return { ok: !!col, missing: CONFIG.PROJECT_TYPES.filter(isNoDashboardType).filter(t => !choices.includes(t)) };
-  } catch (e) {
-    console.warn('LCI migration: Projects.ProjectType read failed', e);
-    return { ok: false, missing: [] };
-  }
-}
-
-// N-219 / N-363: LCIProjectOwners (CustomerName -> CSDName) is a retired backup list, read only
-// by the migration to carry each owner onto the new Projects row. If the list is gone, no owners.
-async function getLCIProjectOwners() {
-  try {
-    return await getItems('LCIProjectOwners');
-  } catch (e) {
-    console.warn('LCIProjectOwners read failed - treating as no owners', e);
-    return [];
-  }
-}
-
-// Projects includes Completed ones (getProjects(false)): a customer with any Projects row is skipped.
-async function getLciProjectMigrationInputs() {
-  const [assignments, projects, owners] = await Promise.all([
-    getItems('Assignments'), getProjects(false), getLCIProjectOwners(),
-  ]);
-  return { assignments, projects, owners };
-}
-
-// The only writer of the N-363 migration. One POST per project, one at a time (createItem
-// invalidates the list cache); a failed row is recorded and the rest carry on. Existing Projects
-// rows are never touched. ptPlanProjectWrites refuses any key outside PT_PROJECT_COLUMNS.
-async function applyLciProjectMigration(planRows) {
-  const { writes, refused } = ptPlanProjectWrites(planRows);
-  const out = { created: 0, failed: refused.slice() };
-  for (const w of writes) {
-    try {
-      await createItem('Projects', w.patch);
-      out.created++;
-    } catch (e) {
-      out.failed.push({ label: w.label, message: e && e.message ? e.message : String(e) });
-    }
-  }
-  return out;
 }
 
 // ── SLA targets (N-381 / DA-1) ────────────────────────────────────────

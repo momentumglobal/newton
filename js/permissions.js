@@ -93,23 +93,9 @@ function canEditProjectTeam(role, projectId, writableProjectIds, cfg = CONFIG) {
   return writableProjectIds === null || (Array.isArray(writableProjectIds) && writableProjectIds.includes(String(id)));
 }
 
-// N-398 (BP-2): pure. Project ids (strings, de-duped, first-seen order) on which these
-// UserAssignments rows make the user an ACTIVE Delivery Manager. Role-independent: a
-// Leadership user holding an explicit DM row counts. Active undefined counts as active.
-function dmProjectIdsFromAssignments(rows, cfg = CONFIG) {
-  const ids = [];
-  (Array.isArray(rows) ? rows : []).forEach(a => {
-    if (!a || a.AssignedRole !== cfg.ROLE_IDS.DELIVERY_MANAGER || a.Active === false) return;
-    const id = Number(a.ProjectID);
-    if (!Number.isInteger(id) || id <= 0) return;
-    if (!ids.includes(String(id))) ids.push(String(id));
-  });
-  return ids;
-}
-
 // N-398 (BP-2): pure. Can this user reassign briefing pack `pack`'s owner? The owner, an
-// Admin, or a Delivery Manager on the pack's project — `dmProjectIds` is
-// dmProjectIdsFromAssignments() of the user's rows (getDmProjectIds, api.js). A pack with
+// Admin, or a Delivery Manager on the pack's project — `dmProjectIds` comes from
+// getDmProjectIds (api.js), i.e. dmProjectIdsFromScope(). A pack with
 // no real ProjectID has no DM route. UI-level only: BriefingPacks is plain Contribute, so
 // like Delete this is not enforced by SharePoint. Fails closed on a missing pack, a blank
 // email or a malformed list.
@@ -240,17 +226,27 @@ function isDenialFresh(ts, now, ttlMs) {
 }
 
 // ── N-367 / N-368 (PT-7, PT-8): access scope — the Project Team (pure) ─
-// getUserProjectIds, getTalentPartnersForProject, getDmProjectIds (api.js) and
-// getDefaultUserProjectId (api-misc.js) pick their source with accessScopeMode().
-// Since the N-368 cutover that is the Project Team (Assignments); 'legacy'
-// (UserAssignments project rows) is the kill switch. The N-367 shadow
-// comparison is retired; its old Diagnostics rows stay (Error Telemetry skips them).
+// getUserProjectIds, getUserWritableProjectIds, getTalentPartnersForProject,
+// getDmProjectIds (api.js) and getDefaultUserProjectId (api-misc.js) read the
+// Project Team (Assignments), the only source since N-472 (R3-D2) retired the
+// 'legacy' kill switch. A bad CONFIG.ACCESS_SCOPE.mode fails closed and is reported.
+// The N-367 shadow comparison is retired; its old Diagnostics rows stay (Error
+// Telemetry skips them, os-admin.js).
 
-// 'legacy' | 'assignments'. Missing or unknown — including the retired 'shadow'
-// — → 'legacy', so a config typo always lands on the kill-switch state (C-2).
-function accessScopeMode(cfg = CONFIG) {
+// N-472 (R3-D2): true only for 'assignments'. Anything else — a typo, the retired
+// 'legacy' / 'shadow', missing — is false; callers fail closed (empty scope) and
+// report it (_accessScopeOk, api.js).
+function accessScopeValid(cfg = CONFIG) {
   const mode = cfg && cfg.ACCESS_SCOPE && cfg.ACCESS_SCOPE.mode;
-  return mode === 'assignments' ? mode : 'legacy';
+  return mode === 'assignments';
+}
+
+// N-472: the console / Diagnostics message for a bad mode. Stable for a given value
+// (no email, no time), so reportError's dedupe key and Error Telemetry's grouping hold.
+function accessScopeMisconfigMessage(mode) {
+  const shown = JSON.stringify(mode);
+  return 'Access scope misconfigured: CONFIG.ACCESS_SCOPE.mode is ' + (shown === undefined ? 'undefined' : shown) +
+    ", expected 'assignments'. Every non-admin user has an empty project scope until it is fixed.";
 }
 
 // An Assignments row that can carry project access: not a forecast, and a real

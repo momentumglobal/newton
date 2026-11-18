@@ -1376,22 +1376,16 @@ const CONFIG = {
     maxStackChars:   2000,
   },
 
-  // N-367 / N-368 (PT-7, PT-8): which list scopes project visibility, the default
-  // Project Dashboard project, the TP / DM pickers and the briefing-pack DM check
-  // (Project Team epic, N-360).
-  //   'assignments' — the Project Team: the user's non-forecast Assignments rows
-  //                   (N-368 cutover)
-  //   'legacy'      — UserAssignments project rows (before N-368). The kill switch:
-  //                   set it and commit to roll back, no other change.
-  //                   N-371: once the one-row-per-user migration has run, UserAssignments
-  //                   carries no project, so 'legacy' gives an empty scope and no longer works;
-  //                   rolling back after it means reverting N-368, not this flag.
-  // Any other value, including the retired 'shadow', reads as 'legacy'
-  // (accessScopeMode, permissions.js). Admin is decided from UserAssignments in
-  // every mode.
+  // N-367 / N-368 (PT-7, PT-8): project visibility, the default Project Dashboard
+  // project, the TP / DM pickers and the briefing-pack DM check come from the Project
+  // Team: the user's non-forecast Assignments rows (Project Team epic, N-360).
+  // 'assignments' is the only mode. N-472 (R3-D2) retired the 'legacy' kill switch;
+  // rolling back means reverting the commit. Any other value fails closed (every
+  // non-admin user has an empty scope and nothing writable) and writes a Diagnostics
+  // row, ErrorType 'config' (accessScopeValid, permissions.js; _accessScopeOk, api.js).
+  // Admin is decided from UserAssignments regardless.
   ACCESS_SCOPE: {
-    mode:            'assignments',
-    shadowErrorType: 'scope-shadow',   // retired N-367 shadow rows: historic Diagnostics rows only (Error Telemetry skips them)
+    mode: 'assignments',
   },
   
   // Single source of truth for the module switcher dropdown.

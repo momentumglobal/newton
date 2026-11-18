@@ -926,27 +926,19 @@ async function getEffectiveRole(email) {
  
 // N-368 (PT-8, C-4): the TP / DM picker for one project — role, placement, weekly and
 // mobile role forms, briefing-pack Reassign and getScopedTpEmails (analytics.js).
-// 'assignments': the project's Project Team (Assignments by the indexed ProjectID) whose
-// write window is open, kept to people whose functional role (UserAssignments) is TP or
-// DM — projectTeamPickerRows (permissions.js), same row shape as before, so no caller
-// changes. A bad project id gives [] (S-5). 'legacy' (kill switch): the project's
-// active TP / DM UserAssignments rows, unchanged.
+// The project's Project Team (Assignments by the indexed ProjectID) whose write window
+// is open, kept to people whose functional role (UserAssignments) is TP or
+// DM — projectTeamPickerRows (permissions.js). A bad project id gives [] (S-5); so does
+// a bad CONFIG.ACCESS_SCOPE.mode (N-472, fails closed).
 async function getTalentPartnersForProject(projectId, includeEmail = null) {
-  if (accessScopeMode() === 'assignments') {
-    const pid = Number(projectId);
-    if (!Number.isInteger(pid) || pid <= 0) return [];
-    const [team, people] = await Promise.all([
-      getItems("Assignments", `fields/ProjectID eq ${pid}`),
-      getItems("UserAssignments"),
-    ]);
-    return projectTeamPickerRows(team, people, localDayISO(), includeEmail);
-  }
-  const assignments = await getItems("UserAssignments", `fields/ProjectID eq ${projectId}`);
-  const keep = includeEmail ? includeEmail.toLowerCase() : null;
-  return assignments.filter(a =>
-    (a.AssignedRole === 'talent_partner' || a.AssignedRole === 'delivery_manager') &&
-    (a.Active !== false || (keep && a.UserEmail?.toLowerCase() === keep))
-  );
+  if (!_accessScopeOk()) return [];
+  const pid = Number(projectId);
+  if (!Number.isInteger(pid) || pid <= 0) return [];
+  const [team, people] = await Promise.all([
+    getItems("Assignments", `fields/ProjectID eq ${pid}`),
+    getItems("UserAssignments"),
+  ]);
+  return projectTeamPickerRows(team, people, localDayISO(), includeEmail);
 }
 
 // All assignable users (deduped by email) — used to populate DM dropdown
@@ -968,16 +960,15 @@ async function getAllAssignableUsers() {
 // N-398 (BP-2) / N-368 (PT-8, C-3): project ids on which the user acts as a Delivery
 // Manager (briefing-pack Reassign). Ghost-aware and the same UserAssignments read as
 // getUserProjectIds (a cache hit when that has already run; two concurrent calls each
-// make the request). 'assignments': the user's functional role is delivery_manager AND
-// the project is in their Assignments scope — dmProjectIdsFromScope (permissions.js).
-// 'legacy' (kill switch): projects with an ACTIVE delivery_manager UserAssignments row,
-// role-independent. The Reassign candidate list is getTalentPartnersForProject.
+// make the request). The user's functional role is delivery_manager AND the project is
+// in their Project Team scope — dmProjectIdsFromScope (permissions.js). A bad
+// CONFIG.ACCESS_SCOPE.mode arrives here as an empty scope (N-472). The Reassign
+// candidate list is getTalentPartnersForProject.
 async function getDmProjectIds(email) {
   await _ensureGhostGate();
   const lower = (getGhostUser() || email).toLowerCase();
   const rows = await getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`);
-  if (accessScopeMode() === 'assignments') return dmProjectIdsFromScope(rows, await getUserProjectIds(lower));
-  return dmProjectIdsFromAssignments(rows);
+  return dmProjectIdsFromScope(rows, await getUserProjectIds(lower));
 }
 
 async function getTalentPartnerDisplayMap() {
@@ -1021,34 +1012,37 @@ async function getMyHistoryData(lower) {
   return { assignments, projects, placements };
 }
 
-// The legacy (UserAssignments) project scope, from a user's rows. Unchanged
-// from getUserProjectIds before N-367.
-// N-165: de-duped — a user with two UserAssignments rows for the same
-// project (e.g. TP + DM-granted) must not get that project ID twice, or
-// every downstream per-project role fan-out doubles that project's roles.
-// N-281: admin rows (ProjectID 0) are never a project — an inactive one
-// must not add "0" to the scope. N-331: nor are people_ops / sales / staff
-// rows (isOrgWideRole, permissions.js).
-function _legacyProjectIds(assignments) {
-  return [...new Set(assignments
-    .filter(a => !isOrgWideRole(a.AssignedRole))
-    .map(a => String(a.ProjectID)))];
+// N-472 (R3-D2): the Project Team is the only scope source. Any CONFIG.ACCESS_SCOPE.mode
+// other than 'assignments' (accessScopeValid, permissions.js) fails closed — the callers
+// return an empty scope — and is reported once per page load: a console warning and a
+// Diagnostics row (ErrorType 'config', shown in Error Telemetry). diagnostics.js loads
+// after api.js and is absent under MCP and in the Node runner, hence the typeof guard.
+let _accessScopeWarned = false;
+function _accessScopeOk() {
+  if (accessScopeValid()) return true;
+  if (!_accessScopeWarned) {
+    _accessScopeWarned = true;
+    const msg = accessScopeMisconfigMessage(CONFIG.ACCESS_SCOPE && CONFIG.ACCESS_SCOPE.mode);
+    console.warn(msg);
+    if (typeof reportError === 'function') reportError('config', msg, '');
+  }
+  return false;
 }
 
 // Return all project IDs this user is assigned to (null = admin, sees all).
 // N-162: resolves against the ghosted user's real assignments when Ghost
 // Mode is active, instead of a single manually-picked ghost project.
-// N-367 / N-368: CONFIG.ACCESS_SCOPE.mode picks the scope (accessScopeMode).
-// 'assignments' (since the N-368 cutover): the user's non-forecast Assignments
-// rows, any dates. 'legacy' (the kill switch): their UserAssignments project rows.
+// N-367 / N-368: the user's non-forecast Project Team (Assignments) rows, any
+// dates. N-472: a bad CONFIG.ACCESS_SCOPE.mode gives [] (_accessScopeOk).
 async function getUserProjectIds(email) {
   await _ensureGhostGate();   // N-282: getGhostUser() is only valid after the gate
   const lower = (getGhostUser() || email).toLowerCase();
   const assignments = await getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`);
-  // N-281: an active admin row sees all projects — in every scope mode.
+  // N-281: an active admin row sees all projects. Checked before the mode, so a bad
+  // mode never locks Admin out.
   if (assignments.some(isAdminAssignment)) return null;
-  if (accessScopeMode() === 'assignments') return projectIdsFromAssignments(await _getAssignmentsForUser(lower));
-  return _legacyProjectIds(assignments);
+  if (!_accessScopeOk()) return [];
+  return projectIdsFromAssignments(await _getAssignmentsForUser(lower));
 }
 
 async function getScopedProjects(email, activeOnly = false) {
@@ -1059,19 +1053,17 @@ async function getScopedProjects(email, activeOnly = false) {
 }
 
 // N-369 (PT-9, D-2): the projects this user can WRITE (null = all, an active admin row).
-// Ghost-aware and the same cached reads as getUserProjectIds. 'assignments': the user's
-// Assignments rows whose write window is open today (writableProjectIdsFromAssignments,
-// permissions.js). 'legacy' (kill switch, S-4): the legacy visible scope — no window.
+// Ghost-aware and the same cached reads as getUserProjectIds: the user's Assignments
+// rows whose write window is open today (writableProjectIdsFromAssignments,
+// permissions.js). A bad CONFIG.ACCESS_SCOPE.mode gives [] (N-472, fails closed).
 // Admin / Leadership / People Ops pass canWriteProject whatever this returns.
 async function getUserWritableProjectIds(email) {
   await _ensureGhostGate();   // N-282: getGhostUser() is only valid after the gate
   const lower = (getGhostUser() || email).toLowerCase();
   const assignments = await getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`);
   if (assignments.some(isAdminAssignment)) return null;
-  if (accessScopeMode() === 'assignments') {
-    return writableProjectIdsFromAssignments(await _getAssignmentsForUser(lower), localDayISO());
-  }
-  return _legacyProjectIds(assignments);
+  if (!_accessScopeOk()) return [];
+  return writableProjectIdsFromAssignments(await _getAssignmentsForUser(lower), localDayISO());
 }
 
 // N-369: the user's scoped projects they can write — form project pickers.

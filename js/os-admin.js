@@ -496,6 +496,11 @@ async function buildDataHealthTab() {
     + _dhRenderErrorTelemetryHtml(data);
 }
 
+// Diagnostics ErrorTypes Error Telemetry never shows. 'scope-shadow' = the retired
+// N-367 access-shadow rows: not errors, and never deleted (N-472 moved the value here
+// from CONFIG.ACCESS_SCOPE).
+const DH_RETIRED_ERROR_TYPES = ['scope-shadow'];
+
 // ── Data Health Tab — data fetch (no DOM) ────────────────────────────
 async function _dhFetchSectionData() {
   // N-154 (F-10b): every registered list, not just the ones with a
@@ -537,9 +542,8 @@ async function _dhFetchSectionData() {
   });
   const diagGroups = {};
   diagRows.forEach(r => {
-    // N-367 / N-368: historic access-shadow rows are not errors. The comparison is
-    // retired (N-368) and the rows are never deleted, so keep skipping them here.
-    if (r.ErrorType === CONFIG.ACCESS_SCOPE.shadowErrorType) return;
+    // N-367 / N-368: historic access-shadow rows are not errors (DH_RETIRED_ERROR_TYPES).
+    if (DH_RETIRED_ERROR_TYPES.includes(r.ErrorType)) return;
     const key = r.ErrorType + '|' + r.Message + '|' + diagStackHead(r.Stack);
     if (!diagGroups[key]) {
       diagGroups[key] = { message: r.Message, module: r.Module, users: new Set(), ids: [], lastSeen: r.OccurredAt, count: 0 };

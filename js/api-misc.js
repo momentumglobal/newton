@@ -22,32 +22,17 @@ async function deleteSalesForecast(id) {
 
 // N-206: picks the ONE project to default a Talent Partner's Project Dashboard
 // to, when they have no project selector to correct a wrong guess (unlike a
-// DM/admin — see renderProjectDashboard()). Prefers an Active UserAssignments
-// row over an inactive one, so a TP who has just been reassigned lands on
-// their current project, not an old one they still hold a historical
-// (inactive) assignment row for. Falls back to the first assignment if none
-// are Active (fully rolled off with no live assignment) — there is no
-// "correct" project to prefer in that edge case.
-// Deliberately re-queries UserAssignments rather than extending
-// getUserProjectIds() with an activeOnly flag: that function's 13 other
-// callers all correctly want the union of a user's projects, old and new, and
-// must not change. The read is cached, so this doesn't add a real extra
-// network round-trip alongside a getUserProjectIds() call for the same user.
-// N-367 / N-368 (PT-7, PT-8): CONFIG.ACCESS_SCOPE.mode picks the source, as in
-// getUserProjectIds(). 'assignments' (since the N-368 cutover) →
-// defaultProjectIdFromAssignments (permissions.js: a current assignment, else
-// the latest start). 'legacy' (the kill switch) → the UserAssignments rule below.
+// DM/admin — see renderProjectDashboard()). N-367: a current Project Team
+// (Assignments) row, else the latest start — defaultProjectIdFromAssignments
+// (permissions.js). Its own read rather than a getUserProjectIds() flag: that
+// function's callers want the union of a user's projects, old and new. The read
+// is cached, so it adds no real round trip. N-472: a bad CONFIG.ACCESS_SCOPE.mode
+// gives null (_accessScopeOk, api.js).
 async function getDefaultUserProjectId(email) {
   await _ensureGhostGate();   // N-282: getGhostUser() is only valid after the gate
   const lower = (getGhostUser() || email).toLowerCase();
-  if (accessScopeMode() === 'assignments') {
-    return defaultProjectIdFromAssignments(await _getAssignmentsForUser(lower), localDayISO());
-  }
-  const assignments = await getItems("UserAssignments", `fields/Title eq '${odataStr(lower)}'`);
-  // N-281: admin rows (ProjectID 0) are not a project — skip them.
-  const projectRows = assignments.filter(a => a.AssignedRole !== 'admin');
-  const active = projectRows.find(a => a.Active !== false);
-  return projectRows.length ? String((active || projectRows[0]).ProjectID) : null;
+  if (!_accessScopeOk()) return null;
+  return defaultProjectIdFromAssignments(await _getAssignmentsForUser(lower), localDayISO());
 }
 
 // ── Payroll summary ───────────────────────────────────────────────────

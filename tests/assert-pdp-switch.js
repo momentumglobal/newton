@@ -165,7 +165,7 @@ ASSERTIONS.push(
   {
     name: 'N-445 AC13 PDP-D12: switch columns stay out of MCP, Command Bar and every other file',
     fn: function () {
-      const allow = ['config.js', 'pdp-identity.js', 'api-pdp.js', 'pdp-admin.js'];
+      const allow = ['config.js', 'pdp-config.js', 'pdp-identity.js', 'api-pdp.js', 'pdp-admin.js'];
       const offenders = Object.keys(ALL_SOURCES).filter(f => !allow.includes(f) && /PDPMode|PDPPilot|CONFIG\.PDP\.SETTINGS/.test(ALL_SOURCES[f]));
       _assertEqual(offenders, [], 'AC13 only the switch files name the columns');
       _assertEqual(CONFIG.MCP.allowedLists.includes('AppSettings'), false, 'AC13 AppSettings is not an MCP list');

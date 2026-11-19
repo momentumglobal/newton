@@ -29,6 +29,23 @@ ASSERTIONS.push(
     },
   },
   {
+    name: 'N-477 ganttMonthAssignments — first / last day of the month (timezone-dependent: pinned for UTC+1 on those dates)',
+    fn: function () {
+      // The Gantt compares local month bounds with new Date('YYYY-MM-DD') (UTC midnight), so a date on a
+      // month edge lands in a different month east and west of UTC. Existing behaviour, not changed here.
+      // Pinned for Europe/London (BST on these dates), the tests/run.js default; skipped elsewhere.
+      if (new Date('2026-03-31T00:00:00Z').getHours() !== 1) _skip('month-edge expectations are pinned for UTC+1 (Europe/London in BST)');
+      const rows = (s, e) => [_n477A('A', 'TP', 'X', s, e)];
+      const inMonth = (s, e, m) => ganttMonthAssignments(rows(s, e), 2026, m).length;
+      _assertEqual(inMonth('2026-03-31', '2026-05-10', 2), 0, 'starts on the last day of March: not in March (local 01:00 is after the month end)');
+      _assertEqual(inMonth('2026-03-31', '2026-05-10', 3), 1, 'starts on the last day of March: in April');
+      _assertEqual(inMonth('2026-02-01', '2026-04-01', 3), 1, 'ends on the 1st of April: in April');
+      _assertEqual(inMonth('2026-02-01', '2026-03-31', 2), 1, 'ends on the last day of March: in March');
+      _assertEqual(inMonth('2026-02-01', '2026-03-31', 3), 0, 'ends on the last day of March: not in April');
+      _assertEqual(inMonth('2026-04-02', '2026-04-28', 2), 0, 'wholly in April: not in March');
+    },
+  },
+  {
     name: 'N-477 _ganttComputeWindow — only assignments that touch the year, both dates required',
     fn: function () {
       const rows = [
@@ -111,14 +128,16 @@ ASSERTIONS.push(
         _n477A('Old', 'TP', 'Acme', '2025-01-01', '2026-03-31'),
         _n477A('Soon', 'TP', 'Acme', '2026-09-01', '2026-12-31'),
         _n477A('EndsToday', 'TP', 'Acme', '2026-01-01', '2026-06-15'),
+        _n477A('StartsToday', 'TP', 'Acme', '2026-06-15', '2026-12-31'),
+        _n477A('EndedYesterday', 'TP', 'Acme', '2026-01-01', '2026-06-14'),
       ];
       const names = s => assignmentsView(rows, { status: s }, today).rows.map(r => r.EmployeeName).sort();
-      _assertEqual(names('current'), ['Cur', 'EndsToday', 'OpenEnd'], 'current (default, open-ended, ends today)');
+      _assertEqual(names('current'), ['Cur', 'EndsToday', 'OpenEnd', 'StartsToday'], 'current (default, open-ended, ends today, starts today)');
       _assertEqual(assignmentsView(rows, {}, today).statusFilter, 'current', 'default status is current');
-      _assertEqual(names('former'), ['Old'], 'former');
+      _assertEqual(names('former'), ['EndedYesterday', 'Old'], 'former (ended yesterday counts, ends today does not)');
       _assertEqual(names('planned'), ['Soon'], 'planned');
-      _assertEqual(names('all'), ['Cur', 'EndsToday', 'Old', 'OpenEnd', 'Soon'], 'all');
-      _assertEqual(assignmentsView(rows, { status: 'former' }, today).total, 5, 'total ignores filters');
+      _assertEqual(names('all'), ['Cur', 'EndedYesterday', 'EndsToday', 'Old', 'OpenEnd', 'Soon', 'StartsToday'], 'all');
+      _assertEqual(assignmentsView(rows, { status: 'former' }, today).total, 7, 'total ignores filters');
     },
   },
   {
@@ -223,6 +242,25 @@ ASSERTIONS.push(
       _assertEqual(r.defaultName, defaultRoleFolderName(role, project), 'role default name');
       const me = starterFolderModalModel({ recordType: 'project', record: project, project }, Object.assign({}, deps, { me: { email: 'dm@x.co', name: 'Dee Em' }, adminEmails: [] }));
       _assertEqual([me.recipients, me.recipientsLabel], [[], 'No one else'], 'creator is the DM → nobody else');
+      // recipients: de-duplicated (case-insensitive) and SHARE_EXCLUDE addresses removed
+      const dup = starterFolderModalModel({ recordType: 'role', record: { TalentPartner: 'tp1@x.co; TP1@x.co' }, project },
+        Object.assign({}, deps, { adminEmails: ['A1@x.co', 'a1@x.co', 'dm@x.co'].concat(CONFIG.STARTER_FOLDERS.SHARE_EXCLUDE) }));
+      _assertEqual(dup.recipients, ['dm@x.co', 'a1@x.co', 'tp1@x.co'], 'duplicates listed once, shared mailboxes excluded');
+      // pack label: the variant's own pack has no suffix; a variant with no pack falls back to Default and says so.
+      // CONFIG is patched and restored so the test does not depend on which pack ids are live.
+      const _tpl = CONFIG.STARTER_FOLDERS.TEMPLATES.project;
+      const _saved = _tpl.CoE;
+      try {
+        const coe = { CustomerName: 'Acme', DeliveryManager: '', ProjectType: 'CoE' };
+        const labelOf = () => starterFolderModalModel({ recordType: 'project', record: coe, project: coe }, deps).packLabel;
+        _tpl.CoE = 'PACKID0000000000000000';
+        _assertEqual(labelOf(), checklistVariantLabel('CoE'), 'own pack: label only');
+        _tpl.CoE = '';
+        _assertEqual(labelOf(), checklistVariantLabel('Default') + ' (no ' + checklistVariantLabel('CoE') + ' pack yet)', 'no CoE pack: Default plus the fallback note');
+      } finally { _tpl.CoE = _saved; }
+      // blank lead DM on a real project: no DM recipient, blank DM placeholder
+      const noDm = starterFolderModalModel({ recordType: 'project', record: { CustomerName: 'Acme', DeliveryManager: '' }, project: { CustomerName: 'Acme', DeliveryManager: '' } }, Object.assign({}, deps, { adminEmails: ['admin1@x.co'] }));
+      _assertEqual([noDm.recipients, noDm.values.DeliveryManager], [['admin1@x.co'], ''], 'blank lead DM: admins only, blank placeholder');
       const bare = starterFolderModalModel({ recordType: 'project', record: null, project: null }, Object.assign({}, deps, { adminEmails: [] }));
       _assertEqual([bare.recipients, bare.defaultName], [[], 'Project'], 'no project');
     },

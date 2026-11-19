@@ -765,7 +765,7 @@ ASSERTIONS.push(
       const oc = strip('org-chart.js');
       _assertEqual(oc.indexOf('_ocPhotoSrc') === -1, true, 'org-chart.js: _ocPhotoSrc is gone');
       _assertEqual(/async function exportOrgChartPdf[\s\S]*?await _ocPhotosReady/.test(oc), true, 'exportOrgChartPdf waits for the photos');
-      const up = strip('api.js').match(/async function uploadPeoplePhoto[\s\S]*?\n}/);
+      const up = strip('api-people.js').match(/async function uploadPeoplePhoto[\s\S]*?\n}/);
       _assertEqual(!!up && up[0].indexOf('_photoMapInvalidate()') !== -1, true, 'uploadPeoplePhoto clears the photo map');
       _assertEqual(/\.org-avatar--img:not\(\[src\]\)\s*\{\s*visibility:\s*hidden/.test(ALL_CSS['people.css']), true, 'people.css hides an org avatar that has no src yet');
     },

@@ -67,7 +67,7 @@ ASSERTIONS.push(
         ['BriefingPacks', 'PackOwner', 'SavedReports', 'ReportOwner'], 'lists and owner fields');
       _tplNeedSources();
       const lists = [
-        ['api.js', /const _BRIEFING_PACK_COPY_FIELDS = \[([\s\S]*?)\];/],
+        ['api-templates.js', /const _BRIEFING_PACK_COPY_FIELDS = \[([\s\S]*?)\];/],
         ['report-builder.js', /const _SAVED_REPORT_COPY_FIELDS = \[([\s\S]*?)\];/],
       ];
       lists.forEach(([file, re]) => {
@@ -172,8 +172,8 @@ ASSERTIONS.push(
     name: 'N-427 AC10 checkTemplateManage / checkTemplateWrite are fresh and fail closed',
     fn: function () {
       _tplNeedSources();
-      const m = _tplBody('api.js', 'async function checkTemplateManage(');
-      const w = _tplBody('api.js', 'async function checkTemplateWrite(');
+      const m = _tplBody('api-access.js', 'async function checkTemplateManage(');
+      const w = _tplBody('api-access.js', 'async function checkTemplateWrite(');
       _assertEqual(/getEffectiveRole\(/.test(m), true, 'fresh role');
       _assertEqual(/_resolvedRole/.test(m) || /_resolvedRole/.test(w), false, 'never page-load role');
       _assertEqual(/catch \(e\)[\s\S]*return \{ ok: false, reason: CONFIG\.TEMPLATES\.MESSAGES\.checkFailed \}/.test(m), true, 'manage fails closed');
@@ -185,7 +185,7 @@ ASSERTIONS.push(
     name: 'N-427 AC11 _cloneTemplateItem refuses a non-template, gates the project, forces non-template + owner last',
     fn: function () {
       _tplNeedSources();
-      const c = _tplBody('api.js', 'async function _cloneTemplateItem(');
+      const c = _tplBody('api-templates.js', 'async function _cloneTemplateItem(');
       _assertEqual(/if \(!isTemplateRow\(src\)\) throw/.test(c), true, 'refuses a non-template source');
       _assertEqual(/checkProjectWrite\(fields\.ProjectID\)/.test(c), true, 'N-369 gate on the target project');
       const lastPick = c.lastIndexOf('_pickFields(');
@@ -195,7 +195,7 @@ ASSERTIONS.push(
       });
       _assertEqual(c.indexOf('createItem(spec.list, fields)') > c.indexOf('fields[spec.ownerField] ='), true, 'create last');
       ['async function cloneBriefingPackFromTemplate(', 'async function cloneSavedReportFromTemplate('].forEach(s =>
-        _assertEqual(_tplBody('api.js', s).includes('_cloneTemplateItem(CONFIG.TEMPLATES.'), true, s));
+        _assertEqual(_tplBody('api-templates.js', s).includes('_cloneTemplateItem(CONFIG.TEMPLATES.'), true, s));
     },
   },
   {
@@ -205,7 +205,7 @@ ASSERTIONS.push(
       const defs = /function (checkTemplateManage|checkTemplateWrite|_cloneTemplateItem|cloneBriefingPackFromTemplate|cloneSavedReportFromTemplate)\(/g;
       const where = [];
       Object.keys(ALL_SOURCES).forEach(f => { if ((String(ALL_SOURCES[f]).match(defs) || []).length) where.push(f); });
-      _assertEqual(where, ['api.js'], 'defined in api.js only');
+      _assertEqual(where, ['api-access.js', 'api-templates.js'], 'defined in api-access.js (gates) / api-templates.js (clone) only');
       ['briefing-pack.js|async function bpSavePack(', 'report-builder.js|async function rbSaveReport('].forEach(k => {
         const [file, sig] = k.split('|');
         const body = _tplBody(file, sig);
@@ -218,7 +218,7 @@ ASSERTIONS.push(
     name: 'N-427 AC14 no reader of BriefingPacks / SavedReports outside the known files',
     fn: function () {
       _tplNeedSources();
-      const known = ['config.js', 'api.js', 'api-briefing.js', 'briefing-pack.js', 'report-builder.js', 'graph-client.js'];
+      const known = ['config.js', 'api.js', 'api-templates.js', 'api-briefing.js', 'briefing-pack.js', 'report-builder.js', 'graph-client.js'];
       const re = /BriefingPacks|SavedReports|getBriefingPacks|getSavedReports/;
       const strip = s => String(s).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"])\/\/[^\n]*/g, '$1');
       const stray = Object.keys(ALL_SOURCES).filter(f => !known.includes(f) && re.test(strip(ALL_SOURCES[f])));
@@ -299,15 +299,15 @@ ASSERTIONS.push(
     fn: function () {
       _tplNeedSources();
       const where = Object.keys(ALL_SOURCES).filter(f => /function saveTemplateItem\(/.test(String(ALL_SOURCES[f])));
-      _assertEqual(where, ['api.js'], 'defined in api.js only');
-      const b = _tplBody('api.js', 'async function saveTemplateItem(');
+      _assertEqual(where, ['api-templates.js'], 'defined in api-templates.js only');
+      const b = _tplBody('api-templates.js', 'async function saveTemplateItem(');
       ['normaliseTemplateName(', 'checkTemplateManage()', 'isTemplateRow(row)', 'stripTemplateScope(kind,'].forEach(s =>
         _assertEqual(b.includes(s), true, 'calls ' + s));
       _assertEqual(b.indexOf('out.IsTemplate = true') > b.indexOf('stripTemplateScope('), true, 'flag forced after strip');
       _assertEqual(b.indexOf('out.TemplateName = n') > b.indexOf('stripTemplateScope('), true, 'name forced after strip');
       _assertEqual(b.indexOf('out[spec.ownerField]') > b.indexOf('if (id) return updateItem('), true, 'owner set on create path only');
       const setters = Object.keys(ALL_SOURCES).filter(f => /IsTemplate\s*(=|:)\s*true/.test(String(ALL_SOURCES[f])));
-      _assertEqual(setters, ['api.js'], 'only api.js sets IsTemplate true');
+      _assertEqual(setters, ['api-templates.js'], 'only api-templates.js sets IsTemplate true');
       _assertEqual((b.match(/IsTemplate\s*=\s*true/g) || []).length, 1, 'once, in saveTemplateItem');
     },
   },
@@ -467,12 +467,12 @@ ASSERTIONS.push(
     name: 'N-429 AC4 clone hook — adjust runs after the picks, before the gate and the forced fields; report wrapper cleans ModuleOrder',
     fn: function () {
       _tplNeedSources();
-      const c = _tplBody('api.js', 'async function _cloneTemplateItem(');
+      const c = _tplBody('api-templates.js', 'async function _cloneTemplateItem(');
       const a = c.indexOf('adjust(fields)');
       _assertEqual(a > c.lastIndexOf('_pickFields(') && c.lastIndexOf('_pickFields(') > 0, true, 'adjust after the picks');
       _assertEqual(a < c.indexOf('checkProjectWrite(fields.ProjectID)'), true, 'adjust before the project gate');
       _assertEqual(a < c.indexOf('fields.IsTemplate = false;') && a < c.indexOf('fields[spec.ownerField] ='), true, 'forced fields stay last');
-      const w = _tplBody('api.js', 'async function cloneSavedReportFromTemplate(');
+      const w = _tplBody('api-templates.js', 'async function cloneSavedReportFromTemplate(');
       _assertEqual(w.includes('templateModuleOrder(f.ModuleOrder, { keepHiringPlan })') && w.includes('!!(opts && opts.keepHiringPlan)'), true, 'wrapper strips + defaults to dropping the plan');
     },
   },
@@ -572,8 +572,8 @@ ASSERTIONS.push(
     name: 'N-430 G1 no placeholder tokens in v1 — the template clone / strip helpers never substitute {tokens} (N-431)',
     fn: function () {
       _tplNeedSources();
-      [['api.js', 'async function _cloneTemplateItem('], ['api.js', 'async function cloneBriefingPackFromTemplate('],
-        ['api.js', 'async function cloneSavedReportFromTemplate('], ['api.js', 'async function saveTemplateItem('],
+      [['api-templates.js', 'async function _cloneTemplateItem('], ['api-templates.js', 'async function cloneBriefingPackFromTemplate('],
+        ['api-templates.js', 'async function cloneSavedReportFromTemplate('], ['api-templates.js', 'async function saveTemplateItem('],
         ['templates-logic.js', 'function stripTemplateScope('], ['templates-logic.js', 'function templateModuleOrder(']].forEach(([f, sig]) => {
         const b = _tplBody(f, sig);
         _assertEqual(b.length > 0, true, sig + ' found');

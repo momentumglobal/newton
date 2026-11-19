@@ -241,7 +241,7 @@ ASSERTIONS.push(
       _assertEqual(logsUrl("console.warn('x', monitor);"), true, 'control: a logged URL is detected');
       _assertEqual(logsUrl(api), false, 'api-starter-folders.js logs no URL');
       _assertEqual(Object.keys(ALL_SOURCES).filter(f => /graph\.downloadUrl/.test(ALL_SOURCES[f])).sort(),
-        ['api-starter-folders.js', 'api.js', 'people-logic.js'], 'downloadUrl only in api-starter-folders.js and the N-337 photo code');
+        ['api-people.js', 'api-starter-folders.js', 'people-logic.js'], 'downloadUrl only in api-starter-folders.js and the N-337 photo code');
       _assertEqual(/\bfetch\(/.test(ui), false, 'starter-folders.js makes no direct fetch');
       const logic = ALL_SOURCES['starter-folder-logic.js'];
       _assertEqual(/\bfetch\(|graphRequest\(|getItems\(/.test(logic), false, 'logic file: no network');

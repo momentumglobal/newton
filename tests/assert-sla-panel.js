@@ -382,12 +382,12 @@
         if (typeof ALL_SOURCES === 'undefined') _skip('source scan needs the filesystem (node tests/run.js)');
         const S = ALL_SOURCES;
         const body = (src, start) => { const i = src.indexOf(start); if (i < 0) return ''; const m = /\r?\n\}\r?\n/.exec(src.slice(i)); return m ? src.slice(i, i + m.index + m[0].length) : src.slice(i); };
-        const inputs = body(S['api.js'], 'async function getProjectSlaInputs(');
+        const inputs = body(S['api-sla.js'], 'async function getProjectSlaInputs(');
         _assertEqual(/getWeeklyActivity\(null, null, \{ roleIds \}\)/.test(inputs) && inputs.indexOf('sinceWeeks') === -1, true, 'AC17 activity unwindowed, scoped by role ids');
         _assertEqual(/getPlacements\(null, \{ roleIds \}\)/.test(inputs) && inputs.indexOf('fromDay') === -1, true, 'AC17 placements all-time');
         _assertEqual((inputs.match(/\.catch\(/g) || []).length === 1 && /getRejectedOffers\([^\n]*\.catch\(/.test(inputs), true, 'AC17 only the rejected-offers read degrades');
         _assertEqual(/getRolesForProject\(projectId\)/.test(inputs) && inputs.indexOf('getScopedUserEmail') === -1, true, 'AC17 never TP-narrowed');
-        const tile = body(S['api.js'], 'async function getPortfolioSlaInputs(');
+        const tile = body(S['api-sla.js'], 'async function getPortfolioSlaInputs(');
         _assertEqual(/getPlacements\(null\)/.test(tile) && tile.indexOf('fromDay') === -1 && (tile.match(/\.catch\(/g) || []).length === 1, true, 'AC17 tile reads placements itself, all-time; only rejected offers degrade');
         const panel = S['sla-panel.js'];
         _assertEqual(panel.indexOf('_dashCache') === -1 && panel.indexOf('fetchDashboardData') === -1 && panel.indexOf('_coCache') === -1, true, 'AC13 panel never reuses the dashboard caches');
@@ -504,7 +504,7 @@
         if (typeof ALL_SOURCES === 'undefined') _skip('source scan needs the filesystem (node tests/run.js)');
         const S = ALL_SOURCES;
         const body = (src, start) => { const i = src.indexOf(start); if (i < 0) return ''; const mm = /\r?\n\}\r?\n/.exec(src.slice(i)); return mm ? src.slice(i, i + mm.index + mm[0].length) : src.slice(i); };
-        const loader = body(S['api.js'], 'async function getRoleSlaInputs(');
+        const loader = body(S['api-sla.js'], 'async function getRoleSlaInputs(');
         _assertEqual(loader.indexOf('sinceWeeks') === -1 && loader.indexOf('fromDay') === -1 && (loader.match(/\.catch\(/g) || []).length === 1 && /getRejectedOffers\([^\n]*\.catch\(/.test(loader) && /roles: \[role\]/.test(loader), true, 'AC23 all-time, only rejected offers degrade, roles [role]');
         const panel = S['sla-panel.js'];
         _assertEqual(/kind: 'role'[^}]*view: 'history'/.test(panel) && /kind: 'project'[^}]*view: 'ongoing'/.test(panel), true, 'AC26 project surfaces list ongoing, the Role page lists history');

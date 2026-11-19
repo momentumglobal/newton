@@ -258,8 +258,8 @@ ASSERTIONS.push(
       const n = t => (t.match(/assignmentRateLabel\(/g) || []).length;
       _assertEqual([n(gate) > 0, n(rowFn) === n(gate)], [true, true], 'every rate cell is built inside the canEditTeam branch');
       _assertEqual(/MonthlyBillRate|RetainerFee|PlacementFee/.test(rowFn), false, 'row markup reads no raw rate field');
-      _assertEqual(/function\s+updateAssignment\s*\(/.test(ALL_SOURCES['api-people-forms.js']), false, 'updateAssignment only in api.js');
-      _assertEqual(/function\s+updateAssignment\s*\(/.test(ALL_SOURCES['api.js']), true, 'updateAssignment in api.js');
+      _assertEqual(/function\s+updateAssignment\s*\(/.test(ALL_SOURCES['api-people-forms.js']), false, 'updateAssignment only in api-people.js');
+      _assertEqual(/function\s+updateAssignment\s*\(/.test(ALL_SOURCES['api-people.js']), true, 'updateAssignment in api-people.js');
     },
   },
   {
@@ -454,7 +454,7 @@ ASSERTIONS.push(
     name: 'N-369 source guards — writable ids are ghost-aware and fail closed on a bad scope mode; the checks fail closed (AC5, AC6)',
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js.');
-      const api = ALL_SOURCES['api.js'].replace(/\r\n/g, '\n');
+      const api = ALL_SOURCES['api-access.js'].replace(/\r\n/g, '\n');
       const body = sig => { const i = api.indexOf(sig); if (i < 0) return ''; const j = api.indexOf('\n}\n', i); return api.slice(i, j < 0 ? undefined : j); };
       const w = body('async function getUserWritableProjectIds(');
       _assertEqual(['await _ensureGhostGate()', 'getGhostUser()', 'isAdminAssignment', 'if (!_accessScopeOk()) return [];', 'writableProjectIdsFromAssignments(await _getAssignmentsForUser(lower), localDayISO())']

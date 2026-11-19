@@ -146,7 +146,7 @@
         _assertEqual([seen.w, seen.pl, seen.ro], [[null, null, undefined], [null, undefined], [null, undefined]], 'AC6 company-wide, no window, no role ids');
         _assertEqual([seen.p, seen.r, seen.h, seen.t, seen.s], [false, true, true, true, true], 'AC6 every project, roles, headcount, targets, stage history');
         if (typeof ALL_SOURCES === 'undefined') _skip('source scan needs the filesystem (node tests/run.js)');
-        const loader = body(ALL_SOURCES['api.js'], 'async function getSlaRollupInputs(');
+        const loader = body(ALL_SOURCES['api-sla.js'], 'async function getSlaRollupInputs(');
         _assertEqual(loader.indexOf('sinceWeeks') === -1 && loader.indexOf('fromDay') === -1, true, 'AC6 no window');
         _assertEqual((loader.match(/\.catch\(/g) || []).length === 1 && /getRejectedOffers\([^\n]*\.catch\(/.test(loader), true, 'AC6 only rejected offers degrade; the rest throw');
         _assertEqual(/excludeInternalProjectData\(/.test(loader) && /slaRollupProjects\(/.test(loader), true, 'AC6 internal rows removed, project list scoped');

@@ -203,7 +203,7 @@ ASSERTIONS.push(
       _assertEqual((tracker.match(/employeeNameLinkHtml/g) || []).length, 1, 'AC1 only the name cell links');
       const mcp = (CONFIG.MCP.scripts || []).join(',') + ',' + (CONFIG.MCP.allowedLists || []).join(',');
       _assertEqual(/employee-(page|logic)|EMPLOYEE_PAGE|PeopleDetails/.test(mcp), false, 'AC14 not in the Newton for Claude bundle or lists');
-      ['command-bar.js', 'api.js', 'mobile-app.js', 'mobile-people.js'].forEach(f => {
+      ['command-bar.js', 'api.js', 'api-access.js', 'api-people.js', 'mobile-app.js', 'mobile-people.js'].forEach(f => {
         _assertEqual(/openEmployeePage|employee-page|EMPLOYEE_PAGE|employeeNameLinkHtml/.test(ALL_SOURCES[f] || ''), false, 'AC14 ' + f + ' never references the record page');
       });
       _assertEqual(CONFIG.CACHE.persistentLists.includes('PeopleDetails') || CONFIG.DELTA.enrolledLists.includes('PeopleDetails'), false, 'AC14 the list is still out of the persistent cache and delta');

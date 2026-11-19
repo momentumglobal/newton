@@ -127,7 +127,7 @@ ASSERTIONS.push(
     name: 'N-455 AC8/AC9/AC12 wiring: the landing tab renders the real page, the read keys off the (Ghost-aware) People row, no hex, no stub left',
     fn: function () {
       if (typeof ALL_SOURCES === 'undefined') _skip('needs ALL_SOURCES (tests/run.js)');
-      const nav = ALL_SOURCES['my-momentum-nav.js'], pages = ALL_SOURCES['my-momentum-pages.js'], api = ALL_SOURCES['api.js'];
+      const nav = ALL_SOURCES['my-momentum-nav.js'], pages = ALL_SOURCES['my-momentum-pages.js'], api = ALL_SOURCES['api-access.js'];
       _assertEqual(nav.includes("case 'myHistory':     renderMyHistory();"), true, 'dispatch');
       _assertEqual(/renderMyHistoryStub|mmHistoryStubHtml/.test(nav + pages), false, 'stub removed');
       _assertEqual(/WorkEmail/.test(/function _mmHistFill[\s\S]*?\n}\r?\n/.exec(pages)[0]), true, 'keyed on the People row WorkEmail, not the signed-in account');

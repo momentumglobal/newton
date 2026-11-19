@@ -3,9 +3,9 @@
 // engagement-forms.js, engagement-pages.js (people.html) and survey-app.js
 // (survey.html). Depends on getItems/createItem/updateItem/deleteItem
 // (graph-client.js) and getTalentPartnerDisplayMap/filterToActiveTpEmails
-// (api.js), both loading first (see script order). getSurveyTemplates, getActiveSurveyRun,
-// getSurveyQuestions, hasCompletedSurvey and createSurveyRun stay in api.js
-// — they have more than one consumer or are out of this task's scope.
+// (api-access.js), both loading first (see script order). getSurveyTemplates,
+// getActiveSurveyRun, getSurveyQuestions, hasCompletedSurvey and createSurveyRun are
+// here too (N-476); this file also loads on index.html for survey-widget.js.
 
 // Eligible respondents for an Engagement survey run = every active employee on
 // the Employee Tracker (People list, active, not a placeholder) except the
@@ -130,5 +130,57 @@ async function createSurveyCompletion(runId, email) {
   return createItem("SurveyCompletions", {
     RunID:           String(runId),
     RespondentEmail: email.toLowerCase(),
+  });
+}
+
+// ── Survey templates and runs ─────────────────────────────────────
+
+async function getSurveyTemplates() {
+  return getItems("SurveyTemplates");
+}
+
+async function getActiveSurveyRun() {
+  const runs = await getItems("SurveyRuns", "fields/Status eq 'Active'");
+  return runs.length > 0 ? runs[0] : null;
+}
+
+async function getSurveyQuestions(templateId) {
+  const questions = await getItems("SurveyQuestions", `fields/TemplateID eq '${odataStr(templateId)}'`);
+  return questions.sort((a, b) => (a.SortOrder ?? 0) - (b.SortOrder ?? 0));
+}
+
+async function hasCompletedSurvey(runId, email) {
+  const completions = await getItems(
+    "SurveyCompletions",
+    `fields/RunID eq '${odataStr(runId)}' and fields/RespondentEmail eq '${odataStr(email.toLowerCase())}'`
+  );
+  return completions.length > 0;
+}
+
+// ── Write ─────────────────────────────────────────────────────────────
+async function createSurveyRun(fields) {
+  // N-131: canonical midday-UTC, like every other SharePoint date write. The
+  // bare shape was kept until now (see N-088) because index.html does
+  // ARITHMETIC on these two values, so changing the shape moves behaviour:
+  //   index.html ~233  daysSince -> the reminder gate (CONFIG.SURVEY.REMINDER_DAY)
+  //   index.html ~299  hrsLeft   -> the "closes in Xh" notification
+  // Both were reworked in the same change to be time-of-day insensitive —
+  // daysSince now counts calendar days, and hrsLeft counts to the END of the
+  // close date (a run closing on the 20th is open THROUGH the 20th). If either
+  // consumer is touched again, keep them insensitive to the stored time.
+  // localDayISO() below still produces the correct local DAY; isoDate() only
+  // pins it to midday so no browser offset can shift it.
+  const openDate  = fields.OpenDate  || localDayISO();
+  const closeDate = fields.CloseDate || (() => {
+    const d = new Date(); d.setDate(d.getDate() + CONFIG.SURVEY.DEFAULT_DURATION_DAYS);
+    return localDayISO(d);
+  })();
+  return createItem("SurveyRuns", {
+    Title:              fields.RunLabel,
+    TemplateID:         String(fields.TemplateID),
+    OpenDate:           isoDate(openDate),
+    CloseDate:          isoDate(closeDate),
+    Status:             "Active",
+    EligibleCount:      fields.EligibleCount || 0,
   });
 }

@@ -188,7 +188,7 @@
         _assertEqual(seen.ro[1].fromDay, weeksAgoDay(13), 'AC7 a window passes fromDay');
         _assertEqual(seen.w, [null, null, undefined], 'AC7 activity read un-windowed (trimmed in code by Sunday weeks)');
         if (typeof ALL_SOURCES === 'undefined') _skip('source scan needs the filesystem (node tests/run.js)');
-        const loader = body(ALL_SOURCES['api.js'], 'async function getRejectionIntelInputs(');
+        const loader = body(ALL_SOURCES['api-sla.js'], 'async function getRejectionIntelInputs(');
         _assertEqual((loader.match(/\.catch\(/g) || []).length === 2 && /getLCIModels\(\)\.catch\(/.test(loader) && /getAllLCIModelRows\(\)\.catch\(/.test(loader), true, 'AC7 only the two LCI reads degrade; the rest throw');
         _assertEqual(/excludeInternalProjectData\(/.test(loader) && /rejectionIntelScopeRows\(/.test(loader) && /activitySinceWeeks\(/.test(loader), true, 'AC7 internal rows removed, scoped, windowed by Sunday weeks');
         _assertEqual(/benchmarkUnavailable/.test(loader), true, 'AC7 an LCI failure is flagged, not silent');
@@ -330,7 +330,7 @@
         _assertEqual(slaRollupProjects({ projects: P, projectIds: projectScopeForRole('leadership', []) }).length, 2, 'N-385: Leadership sees every SLA project');
         _assertEqual(slaRollupProjects({ projects: P, projectIds: projectScopeForRole('delivery_manager', ['901']) }).map(p => p.id), [901], 'N-385: a DM sees their own');
         if (typeof ALL_SOURCES === 'undefined') return;
-        const api = ALL_SOURCES['api.js'];
+        const api = ALL_SOURCES['api-sla.js'];
         _assertEqual(/projectScopeForRole\(opts\.role, projectIds\)/.test(body(api, 'async function getSlaRollupInputs(')), true, 'getSlaRollupInputs scopes through the helper');
         const ril = body(api, 'async function getRejectionIntelInputs(');
         _assertEqual(/projectScopeForRole\(opts\.role, projectIds\)/.test(ril) && /new Set\(scopeIds\.map/.test(ril), true, 'getRejectionIntelInputs scopes rows AND the project list through the helper');

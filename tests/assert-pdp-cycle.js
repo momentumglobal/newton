@@ -349,7 +349,7 @@ ASSERTIONS.push(
       const form = ALL_SOURCES['people-forms.js'];
       _assertEqual(/name='LevelSince'/.test(form) && /isoDate\(data\.LevelSince\)/.test(form), true, 'AC17 form field written through isoDate');
       _assertEqual(/_onPersonLevelChange/.test(form) && /localDayISO\(\)/.test(form), true, 'AC17 a Level change pre-fills today');
-      const api = ALL_SOURCES['api.js'];
+      const api = ALL_SOURCES['api-people.js'];
       _assertEqual(/LevelSince:\s+fields\.LevelSince/.test(api) && /payload\.LevelSince\s+= fields\.LevelSince/.test(api), true, 'AC17 createPerson / updatePerson map LevelSince');
       const setup = ALL_SOURCES['pdp-setup.js'];
       _assertEqual(/pdps-tab-cycle/.test(setup) && /pdpcCycleHtml\(\)/.test(setup) && /pdpsCycleBanner\(\)/.test(setup), true, 'AC18 Cycle tab and banner on PDP Setup');

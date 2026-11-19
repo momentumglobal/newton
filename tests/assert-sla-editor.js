@@ -159,7 +159,7 @@
       fn: function () {
         if (typeof ALL_SOURCES === 'undefined') _skip('source scan needs the filesystem (node tests/run.js)');
         const pp = ALL_SOURCES['project-page.js'], ad = ALL_SOURCES['sla-admin.js'], adm = ALL_SOURCES['admin.js'];
-        const api = ALL_SOURCES['api.js'], slaTargets = ALL_SOURCES['sla-targets.js'];
+        const api = ALL_SOURCES['api-sla.js'], slaTargets = ALL_SOURCES['sla-targets.js'];
         const ppSla = pp.slice(pp.indexOf('// ── SLA targets markup (N-382'), pp.indexOf('// ── Project Team markup (N-365)'));
         _assertEqual(ppSla.length > 800 && ad.length > 800, true, 'AC9 found the editor sources');
         [ppSla, ad].forEach((src, i) => {

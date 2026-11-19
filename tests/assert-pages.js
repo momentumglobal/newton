@@ -635,7 +635,7 @@ ASSERTIONS.push(
       _assertEqual(/pack\.ProjectID\s*\?\s*await getTalentPartnersForProject\(pack\.ProjectID\)\s*:\s*await getAllAssignableUsers\(\)/.test(action), true, 'AC2/3 project people, or all assignable users when the pack has no project');
       const save = fnBody('async function bpSavePack(');
       _assertEqual(save.split('PackOwner').length === 2, true, 'AC9 bpSavePack still sets PackOwner only on create');
-      const apiSrc = ALL_SOURCES['api.js'];
+      const apiSrc = ALL_SOURCES['api-access.js'];
       const dm = apiSrc.slice(apiSrc.indexOf('async function getDmProjectIds('));
       _assertEqual(/fields\/Title eq '\$\{odataStr\(lower\)\}'/.test(dm.slice(0, 600)) && /return dmProjectIdsFromScope\(rows, await getUserProjectIds\(lower\)\);/.test(dm.slice(0, 600)) && /getGhostUser\(\) \|\| email/.test(dm.slice(0, 600)), true, 'getDmProjectIds: ghost-aware, same UserAssignments read as getUserProjectIds, filtered by the pure helper');
       _assertEqual(/accessScopeMode|_accessScopeOk/.test(dm.slice(0, dm.indexOf('\n}\n'))), false, 'N-472 getDmProjectIds: no mode check of its own (a bad mode arrives as an empty scope)');

@@ -31,7 +31,7 @@
 
 var SHARED_FILE_FUNCTION_BASELINE = {
   'analytics.js': 64,
-  'api.js': 118,
+  'api.js': 50,
   'config.js': 1,
   'utils.js': 79,
 };

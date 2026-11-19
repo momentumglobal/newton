@@ -78,6 +78,12 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'starter-folder-logic.js'),
   path.join(JS_DIR, 'graph-client.js'),
   path.join(JS_DIR, 'api.js'),
+  path.join(JS_DIR, 'api-access.js'),
+  path.join(JS_DIR, 'api-people.js'),
+  path.join(JS_DIR, 'api-sla.js'),
+  path.join(JS_DIR, 'api-templates.js'),
+  path.join(JS_DIR, 'api-lci.js'),
+  path.join(JS_DIR, 'api-engagement.js'),
   path.join(JS_DIR, 'api-headcount.js'),
   path.join(JS_DIR, 'api-admin.js'),   // N-381: declarations only; createSlaDefaultRows is asserted
   path.join(JS_DIR, 'api-pdp.js'),     // N-433: declarations only

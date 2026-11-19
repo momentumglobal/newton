@@ -439,7 +439,7 @@ const CONFIG = {
   // (ROLE_CAPABILITIES.templatesManage) — UI-level plus a fresh re-check, because both
   // lists are plain Contribute. copyFields come from the template, overrideFields are the
   // only keys a caller may set on a clone. Neither may ever hold IsTemplate, TemplateName
-  // or the owner field: _cloneTemplateItem (api.js) forces those itself.
+  // or the owner field: _cloneTemplateItem (api-templates.js) forces those itself.
   TEMPLATES: {
     NAME_MAX_CHARS: 80,
     UNTITLED_NAME: 'Untitled template',
@@ -450,7 +450,7 @@ const CONFIG = {
       copyFields: ['Pages'],
       overrideFields: ['Title', 'ProjectID', 'RoleID', 'ClientName', 'RoleTitle', 'RoleLocation', 'CoverDate'],
       // N-428 (TPL-D5): the only content a template row stores, and the scope blanked on
-      // every template create AND update (saveTemplateItem, api.js). null clears a Number.
+      // every template create AND update (saveTemplateItem, api-templates.js). null clears a Number.
       templateFields: ['Title', 'Pages'],
       stripFields: {
         ProjectID: null, RoleID: null, ClientName: '', RoleTitle: '', RoleLocation: '',
@@ -640,7 +640,7 @@ const CONFIG = {
     ],
     // N-286: one row per person. Title = People item id as text; PersonID
     // (Number) is the join key. Restricted list (admin + leadership) — read
-    // only on payroll paths, via getPeoplePay() in api.js.
+    // only on payroll paths, via getPeoplePay() in api-people.js.
     PeoplePay: [
       'Title', 'PersonID', 'Salary',
     ],
@@ -1382,7 +1382,7 @@ const CONFIG = {
   // 'assignments' is the only mode. N-472 (R3-D2) retired the 'legacy' kill switch;
   // rolling back means reverting the commit. Any other value fails closed (every
   // non-admin user has an empty scope and nothing writable) and writes a Diagnostics
-  // row, ErrorType 'config' (accessScopeValid, permissions.js; _accessScopeOk, api.js).
+  // row, ErrorType 'config' (accessScopeValid, permissions.js; _accessScopeOk, api-access.js).
   // Admin is decided from UserAssignments regardless.
   ACCESS_SCOPE: {
     mode: 'assignments',
@@ -1762,7 +1762,7 @@ const CONFIG = {
     scripts: [
       'js/actions.js', 'js/utils.js', 'js/templates-logic.js', 'js/project-types.js', 'js/people-logic.js', 'js/revenue-logic.js',
       'js/headcount.js', 'js/permissions.js',
-      'js/project-team.js', 'js/graph-client.js', 'js/api.js', 'js/api-headcount.js', 'js/api-orgchart.js',   // N-394: api-orgchart.js for getCurrentAssignmentsByEmployee (bench)
+      'js/project-team.js', 'js/graph-client.js', 'js/api.js', 'js/api-access.js', 'js/api-people.js', 'js/api-headcount.js', 'js/api-orgchart.js',   // N-394: api-orgchart.js for getCurrentAssignmentsByEmployee (bench)
       'js/analytics.js', 'mcp/newton-tools.js',
     ],
     allowedLists: [

@@ -835,7 +835,7 @@ ASSERTIONS.push(
         const ends = [next, next2].filter(i => i > -1);
         return src.slice(at, ends.length ? Math.min(...ends) : undefined);
       };
-      const api = ALL_SOURCES['api.js'];
+      const api = ALL_SOURCES['api-access.js'];
       const upi = fnBody(api, 'async function getUserProjectIds(');
       const dpi = fnBody(ALL_SOURCES['api-misc.js'], 'async function getDefaultUserProjectId(');
       const tpp = fnBody(api, 'async function getTalentPartnersForProject(');

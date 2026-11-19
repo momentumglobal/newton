@@ -299,7 +299,7 @@ ASSERTIONS.push(
       _assertEqual(before.includes('!fields.IsPlaceholder') && before.includes("typeof ensureMyDetailsRow === 'function'"), true, 'AC12 guarded: not for placeholders, and only where the function loaded');
       _assertEqual(/try \{\s*await ensureMyDetailsRow\(/.test(hook) && /catch \(e\) \{\s*toast\(/.test(hook), true, 'AC12 a failure warns and never fails the employee save');
       _assertEqual(hook.slice(i).indexOf('return saved') > -1, true, 'AC12 the saved employee is still returned');
-      _assertEqual(/ensureMyDetailsRow|MyDetails/.test(ALL_SOURCES['api.js']), false, 'AC12 api.js (MCP bundle) knows nothing of it');
+      _assertEqual(/ensureMyDetailsRow|MyDetails/.test(ALL_SOURCES['api.js'] + ALL_SOURCES['api-access.js'] + ALL_SOURCES['api-people.js']), false, 'AC12 api.js / api-access.js / api-people.js (MCP bundle) know nothing of it');
       const nav = ALL_SOURCES['my-momentum-nav.js'];
       _assertEqual(/case 'myDetails':\s+await renderMyDetailsPage\(\)/.test(nav), true, 'AC12 dispatcher');
       _assertEqual(/async function navigateToMyMomentum/.test(nav) && /_mmCurrentPage === 'myDetails'[^\n]*mdConfirmLeave\(\)/.test(nav), true, 'AC12 leaving My Details with unsaved edits asks first');

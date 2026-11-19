@@ -18,36 +18,67 @@ async function mobileRenderAddRole(main) {
   main.innerHTML = skeletonPanel(6);   // N-418
 
   try {
-    const user     = getCurrentUser();
-    const email    = user.email;
-    const canAssign = ['admin', 'delivery_manager'].includes(_mobileRole);
-    const isTP      = _mobileRole === 'talent_partner';
+    main.innerHTML = _mrFormHtml(await _mrLoadFormOptions());
+  } catch (e) {
+    main.innerHTML = `<div class="m-empty">Error: ${e.message}</div>`;
+  }
+}
 
-    const projects = dashboardProjects(await getWritableScopedProjects(email, false));   // N-362; N-369 writable only
-    const lockProject = isTP && projects.length === 1;
+// What the form needs from the user and the lists: role flags, writable projects, option strings.
+async function _mrLoadFormOptions() {
+  const email    = getCurrentUser().email;
+  const canAssign = ['admin', 'delivery_manager'].includes(_mobileRole);
+  const isTP      = _mobileRole === 'talent_partner';
 
-    // N-112: only Active/Transition projects are selectable when adding a new role
-    const projectOpts = buildProjectOptionsHtml(sortProjectsByName(projects.filter(isProjectActive)), '');
+  const projects = dashboardProjects(await getWritableScopedProjects(email, false));   // N-362; N-369 writable only
+  const lockProject = isTP && projects.length === 1;
 
-    // Functional areas (global)
-    let deptOpts = '<option value="">- Select functional area -</option>';
-    try {
-      const depts = (await getDepartments()).sort((a, b) =>
-        a.DepartmentName.localeCompare(b.DepartmentName));
-      deptOpts += depts.map(d =>
-        `<option value="${escAttr(d.DepartmentName)}">${escHtml(d.DepartmentName)}</option>`).join('');
-    } catch (e) { /* leave empty */ }
+  // N-112: only Active/Transition projects are selectable when adding a new role
+  const projectOpts = buildProjectOptionsHtml(sortProjectsByName(projects.filter(isProjectActive)), '');
 
-    const locationOpts = '<option value="">- Select location -</option>' +
-      Object.keys(CONFIG.COUNTRY_CURRENCY).sort().map(c =>
-        `<option value="${c}">${c}</option>`).join('');
+  // Functional areas (global)
+  let deptOpts = '<option value="">- Select functional area -</option>';
+  try {
+    const depts = (await getDepartments()).sort((a, b) =>
+      a.DepartmentName.localeCompare(b.DepartmentName));
+    deptOpts += depts.map(d =>
+      `<option value="${escAttr(d.DepartmentName)}">${escHtml(d.DepartmentName)}</option>`).join('');
+  } catch (e) { /* leave empty */ }
 
-    const stageOpts = reopenStageOptions().map(s =>
-      `<option value="${s}" ${s === 'Backlog' ? 'selected' : ''}>${s}</option>`).join('');
+  const locationOpts = '<option value="">- Select location -</option>' +
+    Object.keys(CONFIG.COUNTRY_CURRENCY).sort().map(c =>
+      `<option value="${c}">${c}</option>`).join('');
 
-    main.innerHTML = `
+  const stageOpts = reopenStageOptions().map(s =>
+    `<option value="${s}" ${s === 'Backlog' ? 'selected' : ''}>${s}</option>`).join('');
+
+  return { email, canAssign, projects, lockProject, projectOpts, deptOpts, locationOpts, stageOpts };
+}
+
+function _mrFormHtml(o) {
+  return `
       <div class="m-detail-panel">
-        <div class="m-form-group">
+        ${_mrProjectFieldHtml(o)}
+
+        ${_mrAssignFieldHtml(o)}
+
+        ${_mrDetailFieldsHtml(o)}
+
+        ${_mrPlanFieldsHtml()}
+
+        <div class="m-form-error" id="mr-error"></div>
+      </div>
+
+      <div class="m-action-row">
+        <button class="m-btn-primary" id="mr-submit"${act('mobileSubmitAddRole')}>
+          Add Role
+        </button>
+      </div>
+    `;
+}
+
+function _mrProjectFieldHtml({ lockProject, canAssign, projects, projectOpts }) {
+  return `<div class="m-form-group">
           <label class="m-label">Project *</label>
           ${lockProject ? `
             <input class="m-input" readonly value="${escAttr(projects[0].CustomerName)}">
@@ -56,17 +87,21 @@ async function mobileRenderAddRole(main) {
               <option value="">- Select project -</option>
               ${projectOpts}
             </select>`}
-        </div>
+        </div>`;
+}
 
-        ${canAssign ? `
-        <div class="m-form-group">
+function _mrAssignFieldHtml({ canAssign, email }) {
+  return canAssign ? `<div class="m-form-group">
           <label class="m-label">Assign to * (tick one or more)</label>
           <div id="mr-tp" class="m-tp-box">
             <span class="m-tp-note">- Select project first -</span>
           </div>
-        </div>` : `<input type="hidden" id="mr-tp" value="${escAttr(email)}">`}
+        </div>` : `<input type="hidden" id="mr-tp" value="${escAttr(email)}">`;
+}
 
-        <div class="m-form-group">
+// Title, hiring manager, location / currency, stage / functional area
+function _mrDetailFieldsHtml({ locationOpts, stageOpts, deptOpts }) {
+  return `<div class="m-form-group">
           <label class="m-label">Role Title *</label>
           <input class="m-input" type="text" id="mr-title" placeholder="e.g. Senior Engineer">
         </div>
@@ -98,9 +133,12 @@ async function mobileRenderAddRole(main) {
             <label class="m-label">Functional Area *</label>
             <select class="m-select" id="mr-dept">${deptOpts}</select>
           </div>
-        </div>
+        </div>`;
+}
 
-        <div class="m-input-row">
+// Priority, budget, headcount, open / target dates
+function _mrPlanFieldsHtml() {
+  return `<div class="m-input-row">
           <div class="m-form-group">
             <label class="m-label">Priority</label>
             <select class="m-select" id="mr-priority">
@@ -130,20 +168,7 @@ async function mobileRenderAddRole(main) {
             <label class="m-label">Target Hire (auto +${CONFIG.ANALYTICS_BENCHMARKS.timeToHireDays}d)</label>
             <input class="m-input" type="date" id="mr-target">
           </div>
-        </div>
-
-        <div class="m-form-error" id="mr-error"></div>
-      </div>
-
-      <div class="m-action-row">
-        <button class="m-btn-primary" id="mr-submit"${act('mobileSubmitAddRole')}>
-          Add Role
-        </button>
-      </div>
-    `;
-  } catch (e) {
-    main.innerHTML = `<div class="m-empty">Error: ${e.message}</div>`;
-  }
+        </div>`;
 }
 
 async function mobileLoadTPsForRole(projectId) {

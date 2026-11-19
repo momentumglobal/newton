@@ -847,7 +847,7 @@ ASSERTIONS.push(
       _assertEqual(/Location\s*===\s*'UK'/.test(pay), false, 'no local UK filter left in people-payroll.js');
       const wf = ALL_SOURCES['people-logic.js'].match(/function workforceSegmentation\([\s\S]*?\n\}\n/);
       _assertEqual(!!wf && /!isExternalStaff\(p\)/.test(wf[0]), true, 'Workforce Segmentation excludes External (workforceSegmentation, N-466)');
-      const dep = ALL_SOURCES['people-gantt.js'].match(/const deployable = assignments\.filter[\s\S]*?\n  \}\);/);
+      const dep = ALL_SOURCES['people-views-logic.js'].match(/const deployable = assignments\.filter[\s\S]*?\n  \}\);/);
       _assertEqual(!!dep && /if \(isExternalStaff\(a\)\) return false;/.test(dep[0]), true, 'Deployable Resources excludes External rows');
     },
   },

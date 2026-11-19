@@ -223,43 +223,36 @@ async function renderAssignmentsTab() {
 
   const assignments = await getAssignments({});
 
-  // N-132: UTC by construction, matching syncBenchAssignments below (N-090) —
-  // this file no longer carries two date conventions. localDayISO() answers
-  // "what day is it where the user is" (the filter follows the USER's calendar,
-  // not UTC's), and utcDateOnly() expresses that day as UTC midnight so it
-  // compares like-for-like against the assignment dates. Do NOT reintroduce
-  // `new Date(str)` + setHours(): mixing the two conventions in one file is
-  // exactly what produced N-090's off-by-one bench writes.
+  // N-132: the filter follows the user's calendar day, expressed as UTC midnight (see assignmentsView).
   const today = utcDateOnly(localDayISO());
-  const statusFilter = _assignmentFilter.status || 'current';
+  const view = assignmentsView(assignments, {
+    status: _assignmentFilter.status, customer: _assignmentFilter.customer, projectType: _assignmentFilter.projectType,
+    search: _assignmentsSearch, sort: _assignmentsSort,
+  }, today);
 
-  // Status predicate for the Current / Former / Planned filter.
-  const matchesStatus = a => {
-    const start = utcDateOnly(a.StartDate);
-    const end   = utcDateOnly(a.EndDate);
-    const isPlanned = start && start > today;
-    const isCurrent = !isPlanned && (!end || end >= today);
-    if (statusFilter === 'current') return isCurrent;
-    if (statusFilter === 'former')  return !isPlanned && end && end < today;
-    if (statusFilter === 'planned') return isPlanned;
-    return true;
-  };
-  const matchesOtherFilters = a => {
-    if (_assignmentFilter.customer    && a.Customer    !== _assignmentFilter.customer)    return false;
-    if (_assignmentFilter.projectType && a.ProjectType !== _assignmentFilter.projectType) return false;
-    return true;
-  };
+  _updateBenchSyncTimestamp();
+  main.innerHTML = `
+    <div class='page-header'>
+      <h2>Employee Tracker</h2>
+      <div style='display:flex;align-items:center;gap:12px'>
+        ${canEdit ? `<button id='bench-sync-btn' class='btn-secondary'${act('_syncBenchAssignments')}>↻ Sync Bench</button>
+        <span id='bench-sync-time' class='ppl-muted-small'></span>` : ''}
+      </div>
+    </div>
+    ${_peopleTabBar()}
+    ${_assignmentFilterBarHtml(view.statusFilter, view.customers, view.projectTypes)}
+    <p class='form-hint'>Project assignments are managed on each Project page — click a customer to open it.</p>
+    ${listResultCount(view.rows.length, view.rows.length, view.total, null, 'assignment')}
+    ${_assignmentsTableHtml(view.rows)}`;
+  if (window.lucide) lucide.createIcons();
+}
 
-let filtered = assignments.filter(matchesStatus).filter(matchesOtherFilters);
-
-  const customers    = [...new Set(assignments.map(a => a.Customer).filter(Boolean))].sort();
-  const projectTypes = [...new Set(assignments.map(a => a.ProjectType).filter(Boolean))].sort();
-
+function _assignmentFilterBarHtml(statusFilter, customers, projectTypes) {
   const opts = (vals, cur, blank) =>
     `<option value=''>${blank}</option>` +
     vals.map(v => `<option value='${escHtml(v)}' ${cur===v?'selected':''}>${escHtml(v)}</option>`).join('');
 
-  const filterBar = `
+  return `
     <div class='project-filter-bar' style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px'>
       <div class='form-group' style='min-width:140px'>
         <label>Status</label>
@@ -284,48 +277,11 @@ let filtered = assignments.filter(matchesStatus).filter(matchesOtherFilters);
       </div>
       ${listSearchBox(_assignmentsSearch, 'setAssignmentsSearch')}
     </div>`;
+}
 
-  // N-247c: search after every existing filter, before the pre-existing
-  // default order (kept as-is below); sortRows layers on top of it.
-  filtered = filterRowsByText(filtered, _assignmentsSearch, a => [a.EmployeeName, a.Customer, a.ProjectType, a.Level]);
-
-  filtered.sort((a, b) => {
-  const c = (a.Customer || '').localeCompare(b.Customer || '');
-  if (c !== 0) return c;
-  const l = levelSortIndex(a.Level) - levelSortIndex(b.Level);
-  if (l !== 0) return l;
-  return (a.EmployeeName || '').localeCompare(b.EmployeeName || '');
-});
-  const ASSIGNMENT_SORT_COLUMNS = {
-    employee:    { type: 'text', get: a => a.EmployeeName },
-    level:       { type: 'enum', order: CONFIG.PEOPLE_LEVELS, get: a => a.Level },
-    customer:    { type: 'text', get: a => a.Customer },
-    projectType: { type: 'enum', order: CONFIG.PROJECT_TYPES, get: a => a.ProjectType },
-    start:       { type: 'date', get: a => a.StartDate },
-    end:         { type: 'date', get: a => a.EndDate },
-    // N-247c: does NOT mirror the cell 1:1 — assignmentRateLabel() renders a
-    // composite split-fee string for some rows, with no single scalar to
-    // sort by. Split-fee assignments sort as empty (last); every other row
-    // sorts on its raw MonthlyBillRate.
-    billRate:    { type: 'number', get: a => isSplitFeeAssignment(a) ? null : (parseFloat(a.MonthlyBillRate) || null) },
-    billed:      { type: 'text', get: a => a.Billed },
-  };
-  filtered = sortRows(filtered, _assignmentsSort, ASSIGNMENT_SORT_COLUMNS);
+function _assignmentsTableHtml(filtered) {
   const rows = filtered.map(a => assignmentRowHtml(a)).join('');
-
-  _updateBenchSyncTimestamp();
-  main.innerHTML = `
-    <div class='page-header'>
-      <h2>Employee Tracker</h2>
-      <div style='display:flex;align-items:center;gap:12px'>
-        ${canEdit ? `<button id='bench-sync-btn' class='btn-secondary'${act('_syncBenchAssignments')}>↻ Sync Bench</button>
-        <span id='bench-sync-time' class='ppl-muted-small'></span>` : ''}
-      </div>
-    </div>
-    ${_peopleTabBar()}
-    ${filterBar}
-    <p class='form-hint'>Project assignments are managed on each Project page — click a customer to open it.</p>
-    ${listResultCount(filtered.length, filtered.length, assignments.length, null, 'assignment')}
+  return `
     <table class='data-table'>
       <thead><tr>
         <th>ID</th>
@@ -340,7 +296,6 @@ let filtered = assignments.filter(matchesStatus).filter(matchesOtherFilters);
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
-  if (window.lucide) lucide.createIcons();
 }
 
 async function _setAssignmentFilter(key, value) {

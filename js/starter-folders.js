@@ -257,44 +257,23 @@ function _sfResultHtml(r) {
 // false on cancel or failure.
 async function openStarterFolderModal(ctx) {
   if (_sfModalOpen) return false;
-  const recordType = ctx.recordType;
-  const record = ctx.record;
-  const project = ctx.project;   // for a role: the parent project (Lead DM, pack variant)
-  const noun = recordType === 'role' ? 'role' : 'project';
-  const sf = CONFIG.STARTER_FOLDERS;
-  const parentPath = sf.PARENT_PATH[recordType];
   const [adminEmails, tpMap] = await Promise.all([getAdminEmails(), getTalentPartnerDisplayMap()]);
-  const me = getCurrentUser();
-  const leadDm = project ? project.DeliveryManager : '';
-  const roleTps = recordType === 'role' ? roleTalentPartnerEmails(record) : [];
-  const recipients = shareRecipients({
-    leadDm, adminEmails, roleTps, creator: me.email, exclude: sf.SHARE_EXCLUDE,
-  });
-  const variant = _sfPackVariant(ctx);
-  const tpl = starterTemplateItemId(recordType, variant);
-  const packLabel = checklistVariantLabel(tpl.variantUsed) +
-    (tpl.variantUsed !== variant ? ` (no ${checklistVariantLabel(variant)} pack yet)` : '');
-  const nameOf = e => tpMap[e] || e;
-  const dmEmail = String(leadDm || '').toLowerCase();
-  const phCtx = { dmName: dmEmail ? nameOf(dmEmail) : '', createdBy: me.name || me.email || '', today: localDayISO() };
-  const values = recordType === 'role'
-    ? rolePlaceholderValues(record, project, { ...phCtx, tpNames: roleTps.map(nameOf) })
-    : projectPlaceholderValues(project, phCtx);
+  const model = starterFolderModalModel(ctx, { adminEmails, tpMap, me: getCurrentUser(), today: localDayISO() });
 
   _sfModalOpen = true;
-  return new Promise(resolve => {
-    const previouslyFocused = document.activeElement;
-    const overlay = document.createElement('div');
-    overlay.className = 'confirm-modal-overlay';
-    overlay.innerHTML = `
+  return new Promise(resolve => _sfModalMount(model, resolve));
+}
+
+function _sfModalHtml(model) {
+  return `
       <div class="confirm-modal starter-modal" role="dialog" aria-modal="true" aria-labelledby="sf-title">
         <h3 class="confirm-modal-title" id="sf-title">Create starter folder</h3>
         <div class="starter-modal-form">
           <label class="starter-modal-label" for="sf-name">Folder name</label>
-          <input type="text" class="confirm-modal-input" id="sf-name" autocomplete="off" maxlength="${Number(sf.NAME_MAX)}">
+          <input type="text" class="confirm-modal-input" id="sf-name" autocomplete="off" maxlength="${Number(CONFIG.STARTER_FOLDERS.NAME_MAX)}">
           <p class="starter-modal-error" id="sf-error" role="alert" hidden></p>
-          ${_sfFactsHtml({ packLabel, parentPath, recipientsLabel: recipients.length ? recipients.map(nameOf).join(', ') : 'No one else' })}
-          <p class="form-hint">One folder per ${noun} — this can’t be repeated.</p>
+          ${_sfFactsHtml({ packLabel: model.packLabel, parentPath: model.parentPath, recipientsLabel: model.recipientsLabel })}
+          <p class="form-hint">One folder per ${model.noun} — this can’t be repeated.</p>
         </div>
         <p class="starter-modal-status" id="sf-status" role="status" hidden></p>
         <div class="starter-modal-result" id="sf-result" hidden></div>
@@ -303,78 +282,99 @@ async function openStarterFolderModal(ctx) {
           <button type="button" class="btn-primary" id="sf-create">Create folder</button>
         </div>
       </div>`;
-    document.body.appendChild(overlay);
-    const $ = id => overlay.querySelector(`#${id}`);
-    const input = $('sf-name'), errEl = $('sf-error'), statusEl = $('sf-status');
-    const resultEl = $('sf-result'), formEl = overlay.querySelector('.starter-modal-form');
-    const cancelBtn = $('sf-cancel'), createBtn = $('sf-create');
-    let state = 'idle';   // idle | creating | done
-    let outcome = false;
-    input.value = recordType === 'role' ? defaultRoleFolderName(record, project) : defaultProjectFolderName(project);
+}
 
-    const showError = msg => {
-      errEl.textContent = msg || '';
-      errEl.hidden = !msg;
-    };
-    const validate = () => {
-      const v = validateFolderName(input.value, parentPath);
-      showError(v.ok || !input.value.trim() ? '' : v.reason);
-      createBtn.disabled = !v.ok;
-      return v;
-    };
-    const close = () => {
-      if (state === 'creating') return;
-      _sfModalOpen = false;
-      document.removeEventListener('keydown', onKeydown);
-      overlay.remove();
-      if (previouslyFocused && previouslyFocused.focus) previouslyFocused.focus();
-      resolve(outcome);
-    };
-    const onKeydown = e => {
-      if (e.key === 'Escape') close();
-      if (e.key === 'Enter' && state === 'idle' && document.activeElement === input && !createBtn.disabled) submit();
-    };
-    const submit = async () => {
-      const v = validate();
-      if (!v.ok || state !== 'idle') return;
-      state = 'creating';
-      input.disabled = true; createBtn.disabled = true; cancelBtn.disabled = true;
-      showError('');
-      statusEl.hidden = false;
-      try {
-        const r = await createStarterFolder({
-          recordType, record, project, name: v.clean, recipients, values,
-          onStep: text => { statusEl.textContent = text; },
-        });
-        outcome = r.recorded;
-        state = 'done';
-        formEl.hidden = true;
-        statusEl.hidden = true;
-        resultEl.innerHTML = _sfResultHtml(r);
-        resultEl.hidden = false;
-        lucide.createIcons();
-        createBtn.hidden = true;
-        cancelBtn.textContent = 'Done';
-        cancelBtn.disabled = false;
-        cancelBtn.focus();
-      } catch (e) {
-        if (!e || !e.userMessage) console.error('N-259: starter folder creation failed', e);
-        state = 'idle';
-        statusEl.hidden = true;
-        input.disabled = false; cancelBtn.disabled = false;
-        showError((e && e.userMessage) || 'Something went wrong creating the folder — please try again.');
-        createBtn.disabled = !validateFolderName(input.value, parentPath).ok;
-        input.focus();
-      }
-    };
+// One controller object `c` carries the modal's elements and state through the handlers below.
+function _sfModalMount(model, resolve) {
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-modal-overlay';
+  overlay.innerHTML = _sfModalHtml(model);
+  document.body.appendChild(overlay);
+  const $ = id => overlay.querySelector(`#${id}`);
+  const c = {
+    model, overlay, resolve, previouslyFocused: document.activeElement,
+    input: $('sf-name'), errEl: $('sf-error'), statusEl: $('sf-status'),
+    resultEl: $('sf-result'), formEl: overlay.querySelector('.starter-modal-form'),
+    cancelBtn: $('sf-cancel'), createBtn: $('sf-create'),
+    state: 'idle',   // idle | creating | done
+    outcome: false,
+  };
+  c.input.value = model.defaultName;
+  c.onKeydown = e => {
+    if (e.key === 'Escape') _sfClose(c);
+    if (e.key === 'Enter' && c.state === 'idle' && document.activeElement === c.input && !c.createBtn.disabled) _sfSubmit(c);
+  };
 
-    input.addEventListener('input', validate);
-    createBtn.addEventListener('click', submit);
-    cancelBtn.addEventListener('click', close);
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-    document.addEventListener('keydown', onKeydown);
-    validate();
-    input.focus();
-    input.select();
-  });
+  c.input.addEventListener('input', () => _sfValidate(c));
+  c.createBtn.addEventListener('click', () => _sfSubmit(c));
+  c.cancelBtn.addEventListener('click', () => _sfClose(c));
+  overlay.addEventListener('click', e => { if (e.target === overlay) _sfClose(c); });
+  document.addEventListener('keydown', c.onKeydown);
+  _sfValidate(c);
+  c.input.focus();
+  c.input.select();
+}
+
+function _sfShowError(c, msg) {
+  c.errEl.textContent = msg || '';
+  c.errEl.hidden = !msg;
+}
+
+function _sfValidate(c) {
+  const v = validateFolderName(c.input.value, c.model.parentPath);
+  _sfShowError(c, v.ok || !c.input.value.trim() ? '' : v.reason);
+  c.createBtn.disabled = !v.ok;
+  return v;
+}
+
+function _sfClose(c) {
+  if (c.state === 'creating') return;
+  _sfModalOpen = false;
+  document.removeEventListener('keydown', c.onKeydown);
+  c.overlay.remove();
+  if (c.previouslyFocused && c.previouslyFocused.focus) c.previouslyFocused.focus();
+  c.resolve(c.outcome);
+}
+
+async function _sfSubmit(c) {
+  const v = _sfValidate(c);
+  if (!v.ok || c.state !== 'idle') return;
+  c.state = 'creating';
+  c.input.disabled = true; c.createBtn.disabled = true; c.cancelBtn.disabled = true;
+  _sfShowError(c, '');
+  c.statusEl.hidden = false;
+  try {
+    const { recordType, record, project, recipients, values } = c.model;
+    const r = await createStarterFolder({
+      recordType, record, project, name: v.clean, recipients, values,
+      onStep: text => { c.statusEl.textContent = text; },
+    });
+    _sfShowResult(c, r);
+  } catch (e) {
+    _sfShowSubmitError(c, e);
+  }
+}
+
+function _sfShowResult(c, r) {
+  c.outcome = r.recorded;
+  c.state = 'done';
+  c.formEl.hidden = true;
+  c.statusEl.hidden = true;
+  c.resultEl.innerHTML = _sfResultHtml(r);
+  c.resultEl.hidden = false;
+  lucide.createIcons();
+  c.createBtn.hidden = true;
+  c.cancelBtn.textContent = 'Done';
+  c.cancelBtn.disabled = false;
+  c.cancelBtn.focus();
+}
+
+function _sfShowSubmitError(c, e) {
+  if (!e || !e.userMessage) console.error('N-259: starter folder creation failed', e);
+  c.state = 'idle';
+  c.statusEl.hidden = true;
+  c.input.disabled = false; c.cancelBtn.disabled = false;
+  _sfShowError(c, (e && e.userMessage) || 'Something went wrong creating the folder — please try again.');
+  c.createBtn.disabled = !validateFolderName(c.input.value, c.model.parentPath).ok;
+  c.input.focus();
 }

@@ -56,6 +56,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'project-types.js'),    // N-474: project-type / KPI-exclusion rules (pure)
   path.join(JS_DIR, 'people-logic.js'),     // N-474: People / workforce rules (pure)
   path.join(JS_DIR, 'revenue-logic.js'),    // N-474: assignment revenue maths (pure)
+  path.join(JS_DIR, 'people-views-logic.js'),   // N-477: Deployment Timeline + Assignments tab shaping (pure; calls list-controls.js at run time)
   path.join(JS_DIR, 'ui-kit.js'),
   path.join(JS_DIR, 'richtext.js'),
   path.join(JS_DIR, 'headcount.js'),
@@ -99,6 +100,8 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'lci-model.js'),
   path.join(JS_DIR, 'coe-plan.js'),
   path.join(JS_DIR, 'dashboard-core.js'),   // N-384: periodButtons() for the SLA panel markup (declarations only)
+  path.join(JS_DIR, 'placement-analytics.js'),   // N-477: Placement Analytics view-model functions are tested (declarations only)
+  path.join(JS_DIR, 'dashboard-project.js'),     // N-477: dashProjectSelectorModel is tested (declarations only)
   path.join(JS_DIR, 'sla-rollup.js'),       // N-385: roll-up markup (declarations only); loads before sla-panel.js
   path.join(JS_DIR, 'sla-panel.js'),        // N-384: markup + render-from-cache are asserted; mounts need a DOM
   path.join(JS_DIR, 'rejection-intel.js'),  // N-388: Rejection Intelligence markup (declarations only)
@@ -184,6 +187,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-my-history.js'),         // N-455
   path.join(TESTS_DIR, 'assert-my-details.js'),         // N-456
   path.join(TESTS_DIR, 'assert-employee-page.js'),      // N-457
+  path.join(TESTS_DIR, 'assert-long-functions.js'),     // N-477
 ];
 // N-259: starter-folder-logic.js (pure) loads straight after checklist-logic.js, which it calls.
 // N-361: project-team.js (pure) loads straight after permissions.js; assert-project-team.js is the last assertion file.

@@ -7,37 +7,7 @@ async function renderProjectDashboard() {
   const role      = _resolvedRole;
   const isTP      = role === 'talent_partner';
   const isDMAdmin = ['delivery_manager', 'admin'].includes(role);
-  let   projectId = _dashProjectId;
-  if (isTP && !projectId) {
-    // N-206: was `(await getUserProjectIds(user.email))[0]`, which picks
-    // among ALL of a TP's UserAssignments rows (old + new) in undefined
-    // order — a recently-reassigned TP could default to an old, inactive
-    // project with no way to switch. getDefaultUserProjectId() prefers an
-    // Active row.
-    projectId = await getDefaultUserProjectId(user.email);
-    _dashProjectId = projectId;
-  }
-  let selectorHtml = '', projectName = 'Project';
-  // N-368 diff-2: a Talent Partner whose scope holds more than one dashboard project gets the
-  // same Project selector (their own scoped projects only), opening on getDefaultUserProjectId
-  // above. One project → no selector, as before. The DM / Admin panels still key on isDMAdmin.
-  const projects = (isDMAdmin || isTP)
-    ? sortProjectsByName(dashboardProjects(await getScopedProjects(user.email, false)))   // N-362
-    : [];
-  const hasSelector = isDMAdmin || projects.length > 1;
-  if (hasSelector) {
-    if (!projectId && projects.length) { projectId = String(projects[0].id); _dashProjectId = projectId; }
-    projectName = (projects.find(p => String(p.id) === String(projectId)) || {}).CustomerName || 'Project';
-    // N-112: Active/Archive optgroup split (projects already sorted, so each
-    // filtered subgroup stays A-Z).
-    const activeProjects  = projects.filter(isProjectActive);
-    const archiveProjects = projects.filter(p => !isProjectActive(p));
-    const opts = [
-      activeProjects.length  ? `<optgroup label="Active">${buildProjectOptionsHtml(activeProjects, projectId)}</optgroup>`   : '',
-      archiveProjects.length ? `<optgroup label="Archive">${buildProjectOptionsHtml(archiveProjects, projectId)}</optgroup>` : '',
-    ].join('');
-    selectorHtml = `<div class='form-group dash-project-selector'><label>Project</label><select ${actOn('change', 'changeDashProject', ACT_VALUE).trim()}>${opts}</select></div>`;
-  }
+  const { projectId, hasSelector, projectName, selectorHtml } = await _dashResolveProject(user, isTP, isDMAdmin);
   if (!projectId) {
     main.innerHTML = `<div class='page-header'><h2>Project Dashboard</h2></div>${emptyStateBlock({ icon: 'briefcase', message: 'No project assigned. Contact your Admin.' })}`;
     if (window.lucide) lucide.createIcons();
@@ -62,22 +32,10 @@ async function renderProjectDashboard() {
   const { historical, activity: analyticsActs } = excludeInternalProjectData(
     { historical: allHistorical, activity: allAnalyticsActs },
     { projects: benchProjects, roles: benchRoles });
-
   // Cache for period filter updates (avoids full re-fetch on filter change)
   window._dashCache = { roles, activity, placements, rejections, tpMap, analyticsActs, historical, hc };
-  const hideEmpty = html => html.includes('empty-state') ? '' : html;
-  const roleAnalytics   = hideEmpty(await renderRoleAnalyticsPanel(roles, analyticsActs, historical, tpMap));
-  const kpiPeriods      = [['month','Month'],['quarter','Quarter'],['year','Year']];
-  const kpiBtns         = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
-  const kpis            = renderKPIStrip(roles, activity, _dashPeriod, placements, hc);
-  const longOpenProj    = hideEmpty(renderProjectLongOpenRolesPanel(roles, tpMap, hc.openSince));
-  const roleTracker     = hideEmpty(renderRoleTrackerPanel(roles, hc));
-  const placementsPanel = hideEmpty(renderPlacementsPanel(placements, roles, _dashDetailPeriod));
-  const pipelineAct     = hideEmpty(renderPipelineActivityTable(activity, roles, _dashDetailPeriod));
-  const tpTable         = isDMAdmin ? hideEmpty(renderActivityByTPPanel(activity, _dashDetailPeriod, tpMap)) : '';
-  const rejPanel        = isDMAdmin ? hideEmpty(renderRejectionPanel(rejections, _dashDetailPeriod, roles)) : '';
-  const starters        = isDMAdmin ? hideEmpty(renderUpcomingStartersPanel(placements, roles)) : '';
-  const spend           = isDMAdmin ? hideEmpty(renderSpendPanel(roles, placements)) : '';
+  const { roleAnalytics, kpiBtns, kpis, longOpenProj, roleTracker, placementsPanel, pipelineAct, tpTable, rejPanel, starters, spend } =
+    await _dashPanelsHtml(window._dashCache, isDMAdmin);
   // N-384 (DA-4): SLA panel. Its own slot, OUTSIDE #proj-detail-grid (setDetailPeriod rewrites
   // that grid), filled by sla-panel.js after paint from its own un-narrowed reads. isDMAdmin is
   // the same flag the other DM panels use; Leadership has no Project dashboard.
@@ -121,6 +79,73 @@ async function renderProjectDashboard() {
   // N-255b / N-368 diff-2: projectName is resolved only when the selector shows (DM / Admin,
   // or a TP with more than one project), matching the <h2>.
   renderBreadcrumb('projectDashboard', hasSelector ? projectName : undefined);
+}
+
+// Which project the dashboard opens on, and whether it shows the Project selector.
+async function _dashResolveProject(user, isTP, isDMAdmin) {
+  let   projectId = _dashProjectId;
+  if (isTP && !projectId) {
+    // N-206: was `(await getUserProjectIds(user.email))[0]`, which picks
+    // among ALL of a TP's UserAssignments rows (old + new) in undefined
+    // order — a recently-reassigned TP could default to an old, inactive
+    // project with no way to switch. getDefaultUserProjectId() prefers an
+    // Active row.
+    projectId = await getDefaultUserProjectId(user.email);
+    _dashProjectId = projectId;
+  }
+  let selectorHtml = '', projectName = 'Project';
+  // N-368 diff-2: a Talent Partner whose scope holds more than one dashboard project gets the
+  // same Project selector (their own scoped projects only), opening on getDefaultUserProjectId
+  // above. One project → no selector, as before. The DM / Admin panels still key on isDMAdmin.
+  const projects = (isDMAdmin || isTP)
+    ? sortProjectsByName(dashboardProjects(await getScopedProjects(user.email, false)))   // N-362
+    : [];
+  const hasSelector = isDMAdmin || projects.length > 1;
+  if (hasSelector) {
+    if (!projectId && projects.length) { projectId = String(projects[0].id); _dashProjectId = projectId; }
+    const model = dashProjectSelectorModel(projects, projectId);
+    projectName = model.projectName;
+    selectorHtml = _dashSelectorHtml(model, projectId);
+  }
+  return { projectId, hasSelector, projectName, selectorHtml };
+}
+
+// The selected project's name and the Active / Archive split of the selector.
+function dashProjectSelectorModel(projects, projectId) {
+  return {
+    projectName: (projects.find(p => String(p.id) === String(projectId)) || {}).CustomerName || 'Project',
+    active: projects.filter(isProjectActive),
+    archive: projects.filter(p => !isProjectActive(p)),
+  };
+}
+
+function _dashSelectorHtml(model, projectId) {
+  // N-112: Active/Archive optgroup split (projects already sorted, so each
+  // filtered subgroup stays A-Z).
+  const opts = [
+    model.active.length  ? `<optgroup label="Active">${buildProjectOptionsHtml(model.active, projectId)}</optgroup>`   : '',
+    model.archive.length ? `<optgroup label="Archive">${buildProjectOptionsHtml(model.archive, projectId)}</optgroup>` : '',
+  ].join('');
+  return `<div class='form-group dash-project-selector'><label>Project</label><select ${actOn('change', 'changeDashProject', ACT_VALUE).trim()}>${opts}</select></div>`;
+}
+
+// The dashboard's panels from the cached data; DM / Admin get the extra ones.
+async function _dashPanelsHtml(d, isDMAdmin) {
+  const { roles, activity, placements, rejections, tpMap, analyticsActs, historical, hc } = d;
+  const hideEmpty = html => html.includes('empty-state') ? '' : html;
+  const roleAnalytics   = hideEmpty(await renderRoleAnalyticsPanel(roles, analyticsActs, historical, tpMap));
+  const kpiPeriods      = [['month','Month'],['quarter','Quarter'],['year','Year']];
+  const kpiBtns         = periodButtons(kpiPeriods, _dashPeriod, 'setDashPeriod');
+  const kpis            = renderKPIStrip(roles, activity, _dashPeriod, placements, hc);
+  const longOpenProj    = hideEmpty(renderProjectLongOpenRolesPanel(roles, tpMap, hc.openSince));
+  const roleTracker     = hideEmpty(renderRoleTrackerPanel(roles, hc));
+  const placementsPanel = hideEmpty(renderPlacementsPanel(placements, roles, _dashDetailPeriod));
+  const pipelineAct     = hideEmpty(renderPipelineActivityTable(activity, roles, _dashDetailPeriod));
+  const tpTable         = isDMAdmin ? hideEmpty(renderActivityByTPPanel(activity, _dashDetailPeriod, tpMap)) : '';
+  const rejPanel        = isDMAdmin ? hideEmpty(renderRejectionPanel(rejections, _dashDetailPeriod, roles)) : '';
+  const starters        = isDMAdmin ? hideEmpty(renderUpcomingStartersPanel(placements, roles)) : '';
+  const spend           = isDMAdmin ? hideEmpty(renderSpendPanel(roles, placements)) : '';
+  return { roleAnalytics, kpiBtns, kpis, longOpenProj, roleTracker, placementsPanel, pipelineAct, tpTable, rejPanel, starters, spend };
 }
 // N-388 (DA-8): fills the insight strip for one project. All time (the strip describes the project,
 // not the dashboard's period), amounts only for the figures capability. Never throws and never shows

@@ -15,43 +15,71 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
   _ganttYear = _ganttYear || new Date().getFullYear();
   const year = _ganttYear;
 
-  // Build people lookup for IsActive
-  const peopleMap = {};
-  people.forEach(p => { peopleMap[p.EmployeeName] = p; });
-
   // Filter assignments overlapping the selected year, then group into lanes
-  const { yearStart, yearEnd, relevant } = _ganttComputeWindow(assignments, year);
+  const { relevant } = _ganttComputeWindow(assignments, year);
   const lanes = _ganttBuildLanes(relevant);
 
   // Colour by project type — values are CSS tokens from style.css (N-116)
-  const TYPE_COLOURS = CONFIG.PROJECT_TYPE_COLOUR_VARS;
-  const typeColour = (t) => TYPE_COLOURS[t] || CONFIG.PROJECT_TYPE_COLOUR_FALLBACK;
+  const typeColour = (t) => CONFIG.PROJECT_TYPE_COLOUR_VARS[t] || CONFIG.PROJECT_TYPE_COLOUR_FALLBACK;
 
-  // Month headers
-  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const monthHeaders = MONTHS.map(m =>
-    `<th class='print-avoid-break gt-month-th'>${m}</th>`
+  const monthHeaders = _ganttMonthHeadersHtml();
+  const rowsHtml = _ganttRowsHtml(lanes, year, typeColour);
+  const legend = _ganttLegendHtml();
+  const deployableTile = _ganttDeployableTileHtml(ganttDeployableRows(assignments, people, { year, month: _ganttDeployableMonth }), _ganttDeployableMonth);
+
+  // Year selector
+  const thisY = new Date().getFullYear();
+  const yearOpts = [thisY - 1, thisY, thisY + 1].map(y =>
+    `<option value='${y}' ${y === year ? 'selected' : ''}>${y}</option>`
   ).join('');
 
-  // Build a bar cell for a month given a list of assignments
-  const monthCell = (empAssignments, monthIdx) => {
-    const mStart = new Date(year, monthIdx, 1);
-    const mEnd   = new Date(year, monthIdx + 1, 0);
-    const overlapping = empAssignments.filter(a => {
-      const s = new Date(a.StartDate);
-      const e = new Date(a.EndDate);
-      return s <= mEnd && e >= mStart;
-    });
-    if (!overlapping.length) return `<td style='padding:2px'></td>`;
+  main.innerHTML = `
+<div class='page-header'>
+      <h2>Deployment Timeline</h2>
+      <div style='display:flex;align-items:center;gap:12px'>
+        <label class='ppl-year-label'>Year</label>
+        <select${actOn('change', 'ganttYearChanged', ACT_VALUE)}>${yearOpts}</select>
+        <button class='print-btn'${act('printPage', 'Deployment Timeline', true, 'People')}>⎙ Export PDF</button>
+      </div>
+    </div>
+    ${deployableTile}
+    <div style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px'>${legend}</div>
+<div class='table-scroll' style='max-height:calc(100vh - 200px);margin:0 -40px;padding:0 4px'>
+    <table class='data-table' style='min-width:800px;table-layout:fixed'>
+                <thead class='print-avoid-break'><tr>
+<th class='print-avoid-break gt-head-th gt-head-th--emp'>Employee</th>
+          <th class='print-avoid-break gt-head-th gt-head-th--lvl'>Level</th>
+          ${monthHeaders}
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+  if (window.lucide) lucide.createIcons();   // N-417: the "no unassigned employees" icon
+}
 
-    const bars = overlapping.map(a => _ganttRenderBar(a, mStart, mEnd, typeColour)).join('');
+const _GANTT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-    return `<td style='padding:2px;position:relative'>
+function _ganttMonthHeadersHtml() {
+  return _GANTT_MONTHS.map(m =>
+    `<th class='print-avoid-break gt-month-th'>${m}</th>`
+  ).join('');
+}
+
+// A bar cell for one month, given one person's assignments
+function _ganttMonthCellHtml(empAssignments, year, monthIdx, typeColour) {
+  const overlapping = ganttMonthAssignments(empAssignments, year, monthIdx);
+  if (!overlapping.length) return `<td style='padding:2px'></td>`;
+
+  const { mStart, mEnd } = ganttMonthRange(year, monthIdx);
+  const bars = overlapping.map(a => _ganttRenderBar(a, mStart, mEnd, typeColour)).join('');
+
+  return `<td style='padding:2px;position:relative'>
       <div style='position:relative;height:22px'>${bars}</div>
     </td>`;
-  };
+}
 
-  // Build rows
+// Customer header, employee and bench-divider rows
+function _ganttRowsHtml(lanes, year, typeColour) {
   let rowsHtml = '';
   lanes.forEach((lane, ci) => {
     const { customer, isBench, employees } = lane;
@@ -72,7 +100,7 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
 
     // Employee rows
     employees.forEach(({ name: emp, level, assignments: empAssignments }) => {
-      const cells = MONTHS.map((_, i) => monthCell(empAssignments, i)).join('');
+      const cells = _GANTT_MONTHS.map((_, i) => _ganttMonthCellHtml(empAssignments, year, i, typeColour)).join('');
       rowsHtml += `<tr>
         <td style='padding:4px 8px;font-size:12px;width:180px;min-width:180px;overflow:hidden;
                    text-overflow:ellipsis;white-space:nowrap'>${escHtml(emp)}</td>
@@ -81,9 +109,11 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
       </tr>`;
     });
   });
+  return rowsHtml;
+}
 
-  // Legend
-  const legend = Object.entries(TYPE_COLOURS).map(([type, colour]) =>
+function _ganttLegendHtml() {
+  return Object.entries(CONFIG.PROJECT_TYPE_COLOUR_VARS).map(([type, colour]) =>
     `<div class='gt-legend-item'>
       <div class='gt-swatch' style='background:${colour}'></div>
       ${type}
@@ -93,78 +123,24 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
       <div class='gt-swatch gt-swatch--forecast'></div>
       Forecast
     </div>`;
+}
 
-  // Year selector
-  const thisY = new Date().getFullYear();
-  const yearOpts = [thisY - 1, thisY, thisY + 1].map(y =>
-    `<option value='${y}' ${y === year ? 'selected' : ''}>${y}</option>`
-  ).join('');
-
-  // ── Deployable Resources tile ─────────────────────────────
+// ── Deployable Resources tile ─────────────────────────────
+function _ganttDeployableTileHtml(rows, month) {
   const deployMonthOpts = `<option value=''>All months</option>` +
-    MONTHS.map((m, i) =>
-      `<option value='${i}' ${_ganttDeployableMonth === i ? 'selected' : ''}>${m}</option>`
+    _GANTT_MONTHS.map((m, i) =>
+      `<option value='${i}' ${month === i ? 'selected' : ''}>${m}</option>`
     ).join('');
 
-  // People tied to a forecast are not deployable for the period it covers
-  const _dpStart = _ganttDeployableMonth !== null ? new Date(year, _ganttDeployableMonth, 1) : yearStart;
-  const _dpEnd   = _ganttDeployableMonth !== null ? new Date(year, _ganttDeployableMonth + 1, 0) : yearEnd;
-  const forecastCovered = new Set(
-    assignments.filter(a =>
-      isForecastAssignment(a) && a.StartDate && a.EndDate &&
-      new Date(a.StartDate) <= _dpEnd && new Date(a.EndDate) >= _dpStart
-    ).map(a => a.EmployeeName)
-  );
-
-  // People with a billed assignment overlapping the period are not deployable,
-  // even if a different, unbilled assignment of theirs also overlaps it (N-178)
-  const billedCovered = new Set(
-    assignments.filter(a =>
-      a.Billed === 'Yes' && a.StartDate && a.EndDate &&
-      new Date(a.StartDate) <= _dpEnd && new Date(a.EndDate) >= _dpStart
-    ).map(a => a.EmployeeName)
-  );
-
-  // Find bench/unassigned assignments overlapping the selected month (or whole year)
-  const deployable = assignments.filter(a => {
-    if (isForecastAssignment(a)) return false;
-    if (forecastCovered.has(a.EmployeeName)) return false;
-    if (billedCovered.has(a.EmployeeName)) return false;
-    if (a.Level === 'CSD') return false;
-    if (isExternalStaff(a)) return false;   // N-402: a partner is never a Momentum resource
-    if (!a.StartDate || !a.EndDate) return false;
-    const s = new Date(a.StartDate);
-    const e = new Date(a.EndDate);
-    if (_ganttDeployableMonth !== null) {
-      const mStart = new Date(year, _ganttDeployableMonth, 1);
-      const mEnd   = new Date(year, _ganttDeployableMonth + 1, 0);
-      return s <= mEnd && e >= mStart;
-    }
-    return s <= yearEnd && e >= yearStart;
-  });
-
-  // Deduplicate by employee — one row per person
-  const seen = new Set();
-  const deployableRows = [];
-  deployable
-    .filter(a => { if (seen.has(a.EmployeeName)) return false; seen.add(a.EmployeeName); return true; })
-    .sort((a, b) => {
-      const l = levelSortIndex(a.Level) - levelSortIndex(b.Level);
-      if (l !== 0) return l;
-      return (a.EmployeeName || '').localeCompare(b.EmployeeName || '');
-    })
-    .forEach(a => {
-      const person = peopleMap[a.EmployeeName] || {};
-      deployableRows.push(`
+  const deployableRows = rows.map(r => `
         <tr>
-          <td style='padding:6px 10px;font-size:12px'>${escHtml(a.EmployeeName)}</td>
-          <td style='padding:6px 10px;font-size:12px'>${escHtml(a.Level || '—')}</td>
-          <td style='padding:6px 10px;font-size:12px'>${escHtml(person.ContractType || '—')}</td>
-          <td style='padding:6px 10px;font-size:12px'>${escHtml(person.Location || '—')}</td>
+          <td style='padding:6px 10px;font-size:12px'>${escHtml(r.name)}</td>
+          <td style='padding:6px 10px;font-size:12px'>${escHtml(r.level)}</td>
+          <td style='padding:6px 10px;font-size:12px'>${escHtml(r.contract)}</td>
+          <td style='padding:6px 10px;font-size:12px'>${escHtml(r.location)}</td>
         </tr>`);
-    });
 
-    const deployableTile = `
+    return `
     <div class='print-avoid-break ppl-card ppl-card--mb'>
       <div style='display:flex;align-items:center;justify-content:space-between;
                   flex-wrap:wrap;gap:12px;margin-bottom:16px'>
@@ -196,83 +172,6 @@ const totalActiveHeadcount = activeDeployableCount(people);   // N-304 / N-399
         emptyStateBlock({ icon: 'users', message: 'No unassigned employees during this period.', variant: 'compact' })
       }
     </div>`;
-
-  main.innerHTML = `
-<div class='page-header'>
-      <h2>Deployment Timeline</h2>
-      <div style='display:flex;align-items:center;gap:12px'>
-        <label class='ppl-year-label'>Year</label>
-        <select${actOn('change', 'ganttYearChanged', ACT_VALUE)}>${yearOpts}</select>
-        <button class='print-btn'${act('printPage', 'Deployment Timeline', true, 'People')}>⎙ Export PDF</button>
-      </div>
-    </div>
-    ${deployableTile}
-    <div style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px'>${legend}</div>
-<div class='table-scroll' style='max-height:calc(100vh - 200px);margin:0 -40px;padding:0 4px'>
-    <table class='data-table' style='min-width:800px;table-layout:fixed'>
-                <thead class='print-avoid-break'><tr>
-<th class='print-avoid-break gt-head-th gt-head-th--emp'>Employee</th>
-          <th class='print-avoid-break gt-head-th gt-head-th--lvl'>Level</th>
-          ${monthHeaders}
-        </tr></thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
-    </div>`;
-  if (window.lucide) lucide.createIcons();   // N-417: the "no unassigned employees" icon
-}
-
-// Pure date-window computation for the Deployment Timeline (N-239a)
-function _ganttComputeWindow(assignments, year) {
-  const yearStart = new Date(year, 0, 1);
-  const yearEnd   = new Date(year, 11, 31);
-
-  const relevant = assignments.filter(a => {
-    if (!a.StartDate || !a.EndDate) return false;
-    const s = new Date(a.StartDate);
-    const e = new Date(a.EndDate);
-    return s <= yearEnd && e >= yearStart;
-  });
-
-  return { yearStart, yearEnd, relevant };
-}
-
-// Pure lane grouping/sorting for the Deployment Timeline (N-239a)
-function _ganttBuildLanes(relevant) {
-  const BENCH_KEY = '__bench__';
-  const customerMap = {};
-  relevant.forEach(a => {
-    const customer = (isForecastAssignment(a) || !a.Customer || a.Customer === 'Unassigned') ? BENCH_KEY : a.Customer;
-    if (!customerMap[customer]) customerMap[customer] = {};
-    if (!customerMap[customer][a.EmployeeName]) customerMap[customer][a.EmployeeName] = [];
-    customerMap[customer][a.EmployeeName].push(a);
-  });
-
-  // Sort customers A-Z, bench last
-  const customerNames = Object.keys(customerMap)
-    .filter(c => c !== BENCH_KEY)
-    .sort();
-  if (customerMap[BENCH_KEY]) customerNames.push(BENCH_KEY);
-
-  return customerNames.map(customer => {
-    const employeeNames = Object.keys(customerMap[customer]).sort((a, b) => {
-      const aLevel = customerMap[customer][a][0]?.Level;
-      const bLevel = customerMap[customer][b][0]?.Level;
-      const l = levelSortIndex(aLevel) - levelSortIndex(bLevel);
-      if (l !== 0) return l;
-      return a.localeCompare(b);
-    });
-
-    const employees = employeeNames.map(name => {
-      const empAssignments = customerMap[customer][name];
-      return {
-        name,
-        level: assignmentLevelLabel(empAssignments[0]),   // N-402: 'Partner' for External
-        assignments: empAssignments,
-      };
-    });
-
-    return { customer, isBench: customer === BENCH_KEY, employees };
-  });
 }
 
 // Pure per-assignment bar geometry/markup for one month cell (N-239a)

@@ -376,3 +376,36 @@ function starterFolderLink(row, live) {
   if (!current) return { url: stored, heal: false, missing: false };
   return { url: current, heal: current !== stored, missing: false };
 }
+
+// N-477: everything the create-folder modal needs, shaped once from the checklist ctx.
+// deps = { adminEmails, tpMap, me, today } — the reads stay in starter-folders.js.
+// -> { recordType, record, project, noun, parentPath, recipients, recipientsLabel, packLabel, values, defaultName }
+function starterFolderModalModel(ctx, deps) {
+  const recordType = ctx.recordType;
+  const record = ctx.record;
+  const project = ctx.project;   // for a role: the parent project (Lead DM, pack variant)
+  const noun = recordType === 'role' ? 'role' : 'project';
+  const sf = CONFIG.STARTER_FOLDERS;
+  const { adminEmails, tpMap, me, today } = deps;
+  const leadDm = project ? project.DeliveryManager : '';
+  const roleTps = recordType === 'role' ? roleTalentPartnerEmails(record) : [];
+  const recipients = shareRecipients({
+    leadDm, adminEmails, roleTps, creator: me.email, exclude: sf.SHARE_EXCLUDE,
+  });
+  const variant = starterPackVariant(project ? project.ProjectType : '');
+  const tpl = starterTemplateItemId(recordType, variant);
+  const packLabel = checklistVariantLabel(tpl.variantUsed) +
+    (tpl.variantUsed !== variant ? ` (no ${checklistVariantLabel(variant)} pack yet)` : '');
+  const nameOf = e => tpMap[e] || e;
+  const dmEmail = String(leadDm || '').toLowerCase();
+  const phCtx = { dmName: dmEmail ? nameOf(dmEmail) : '', createdBy: me.name || me.email || '', today };
+  const values = recordType === 'role'
+    ? rolePlaceholderValues(record, project, { ...phCtx, tpNames: roleTps.map(nameOf) })
+    : projectPlaceholderValues(project, phCtx);
+  return {
+    recordType, record, project, noun, parentPath: sf.PARENT_PATH[recordType],
+    recipients, recipientsLabel: recipients.length ? recipients.map(nameOf).join(', ') : 'No one else',
+    packLabel, values,
+    defaultName: recordType === 'role' ? defaultRoleFolderName(record, project) : defaultProjectFolderName(project),
+  };
+}

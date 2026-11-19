@@ -222,22 +222,95 @@ function _paComputeResults(data, location, functionArea) {
   return { empty: false, ttfResult, avgTTHDays, sampleSize, totals, funnelStages, summaryBench, groups, groupCount: Object.keys(groupMap).length };
 }
 
+// ── Results view-model (pure — display strings, no HTML) ──────────────────
+// N-477: the Summary tiles and the Role Breakdown rows, shaped from _paComputeResults output.
+function _paSummaryTiles(results) {
+  const { ttfResult, avgTTHDays, sampleSize, totals } = results;
+  return [
+    {
+      value: ttfResult.medianDays !== null ? `~${ttfResult.medianDays}d`
+        : (!ttfResult.medianReached && ttfResult.basis) ? `>${ttfResult.maxObservedDays}d` : "—",
+      label: 'Predicted Time to Hire',
+      note: ttfResult.bandDays !== null
+        ? `±${Math.round(ttfResult.bandDays)}d · ${ttfResult.events} hires, ${ttfResult.censored - ttfResult.closed} open${ttfResult.closed ? `, ${ttfResult.closed} on hold/cancelled` : ""}${ttfResult.pooled ? " · all locations" : ""}`
+        : ttfResult.label,
+    },
+    {
+      value: avgTTHDays !== null ? `${Math.round(avgTTHDays)}d` : "—",
+      label: 'Avg. Actual Time to Hire',
+      note: `${sampleSize} placement${sampleSize !== 1 ? "s" : ""}`,
+    },
+    {
+      value: totals.Hires > 0 ? Math.round(totals.Outreach / totals.Hires) : "—",
+      label: 'Outreach per Hire',
+      note: 'avg. across filtered roles',
+    },
+    {
+      value: totals.Offers > 0 ? Math.round((totals.Hires / totals.Offers) * 100) + "%" : "—",
+      label: 'Offer Success Rate',
+      note: `${totals.Offers} offer${totals.Offers !== 1 ? "s" : ""} made`,
+    },
+  ];
+}
+
+// N-247c: raw ratios, not the rounded/%-formatted display values in the rows.
+// Funnel (RAG) is not sortable — a multi-stage dot summary has no single scalar, same reasoning as
+// leaving other computed badges alone.
+const PA_BREAKDOWN_SORT_COLUMNS = {
+  role:             { type: 'text',   get: g => g.key },
+  functionArea:     { type: 'text',   get: g => g.functionArea },
+  avgSalary:        { type: 'number', get: g => g.avgSalary },
+  avgTth:           { type: 'number', get: g => g.avgTth },
+  outreachResponse: { type: 'number', get: g => g.roleTotals.Outreach > 0 ? g.roleTotals.Responses / g.roleTotals.Outreach : null },
+  offerSuccess:     { type: 'number', get: g => g.roleTotals.Offers > 0 ? g.roleTotals.Hires / g.roleTotals.Offers : null },
+};
+
+// N-247c: search narrows `groups` (Role/Location + Functional Area); sortRows layers on top of the
+// existing key-alphabetical default order computed in _paComputeResults (kept as-is, not touched here).
+// -> { rows: [{ key, functionArea, salaryText, tthText, responseText, funnel: [{ rag, stage, convText, tip }], offerText }], shown }
+function _paBreakdownView(groups, searchText, sortState) {
+  const searchedGroups = filterRowsByText(groups, searchText, g => [g.key, g.functionArea]);
+  const sortedGroups = sortRows(searchedGroups, sortState, PA_BREAKDOWN_SORT_COLUMNS);
+  const rows = sortedGroups.map(group => ({
+    key: group.key,
+    functionArea: group.functionArea || "—",
+    salaryText: group.avgSalary !== null ? group.sym + group.avgSalary.toLocaleString('en-GB') : "—",
+    tthText: group.avgTth !== null ? group.avgTth + "d" : "—",
+    responseText: group.roleTotals.Outreach > 0 ? Math.round((group.roleTotals.Responses / group.roleTotals.Outreach) * 100) + "%" : "—",
+    funnel: group.roleFunnel.map((s, i) => ({
+      rag: s.rag, stage: s.stage, convText: s.conv !== null ? s.conv + "%" : "—",
+      tip: learnedBenchmarkTip(group.bench, LEARNED_RATES[i].key),
+    })),
+    offerText: group.roleTotals.Offers > 0 ? Math.round((group.roleTotals.Hires / group.roleTotals.Offers) * 100) + "%" : "—",
+  }));
+  return { rows, shown: sortedGroups.length };
+}
+
 // ── Results HTML (pure — no fetching) ────────────────────────────────
 function _paRenderResultsHtml(results, location, functionArea) {
-  const { ttfResult, avgTTHDays, sampleSize, totals, funnelStages, summaryBench, groups, groupCount } = results;
+  const view = _paBreakdownView(results.groups, _paBreakdownSearch, _paBreakdownSort);
+  return _paSummaryHtml(results, location, functionArea) + _paFunnelHtml(results) + _paBreakdownHtml(view, results.groupCount);
+}
 
-  const ragDot = rag => {
-    // N-411: colour comes from .pa-rag-* classes (the single status set), not inline styles.
-    const key = String(rag ?? "").toLowerCase();
-    const tone = ["green", "amber", "red"].includes(key) ? key : "grey";
-    // N-254: red/amber render a shape (marker glyph) in the dot's colour, not just a hue.
-    const marker = ragMarkerHTML(rag);
-    if (marker) return `<span class="pa-rag-glyph pa-rag-glyph--${tone}">${marker}</span>`;
-    return `<span class="pa-rag-dot pa-rag-dot--${tone}"></span>`;
-  };
+function _paRagDotHtml(rag) {
+  // N-411: colour comes from .pa-rag-* classes (the single status set), not inline styles.
+  const key = String(rag ?? "").toLowerCase();
+  const tone = ["green", "amber", "red"].includes(key) ? key : "grey";
+  // N-254: red/amber render a shape (marker glyph) in the dot's colour, not just a hue.
+  const marker = ragMarkerHTML(rag);
+  if (marker) return `<span class="pa-rag-glyph pa-rag-glyph--${tone}">${marker}</span>`;
+  return `<span class="pa-rag-dot pa-rag-dot--${tone}"></span>`;
+}
 
-  // ── Summary cards ─────────────────────────────────────────────────
-  const summaryHtml = `
+// ── Summary cards ─────────────────────────────────────────────────
+function _paSummaryHtml(results, location, functionArea) {
+  const tiles = _paSummaryTiles(results).map(t => `
+        <div class="kpi-card">
+          <div class="kpi-value">${t.value}</div>
+          <div class="kpi-label">${t.label}</div>
+          <div class="pa-kpi-note">${t.note}</div>
+        </div>`).join("");
+  return `
       <div class="print-avoid-break mr-card">
       <div class="mr-card-title">
         Summary
@@ -246,38 +319,16 @@ function _paRenderResultsHtml(results, location, functionArea) {
               ${[functionArea, location].filter(Boolean).join(" · ")}</span>`
           : ""}
       </div>
-      <div class="kpi-strip">
-        <div class="kpi-card">
-          <div class="kpi-value">${ttfResult.medianDays !== null ? `~${ttfResult.medianDays}d`
-            : (!ttfResult.medianReached && ttfResult.basis) ? `>${ttfResult.maxObservedDays}d` : "—"}</div>
-          <div class="kpi-label">Predicted Time to Hire</div>
-          <div class="pa-kpi-note">
-            ${ttfResult.bandDays !== null
-              ? `±${Math.round(ttfResult.bandDays)}d · ${ttfResult.events} hires, ${ttfResult.censored - ttfResult.closed} open${ttfResult.closed ? `, ${ttfResult.closed} on hold/cancelled` : ""}${ttfResult.pooled ? " · all locations" : ""}`
-              : ttfResult.label}
-          </div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-value">${avgTTHDays !== null ? `${Math.round(avgTTHDays)}d` : "—"}</div>
-          <div class="kpi-label">Avg. Actual Time to Hire</div>
-          <div class="pa-kpi-note">${sampleSize} placement${sampleSize !== 1 ? "s" : ""}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-value">${totals.Hires > 0 ? Math.round(totals.Outreach / totals.Hires) : "—"}</div>
-          <div class="kpi-label">Outreach per Hire</div>
-          <div class="pa-kpi-note">avg. across filtered roles</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-value">${totals.Offers > 0 ? Math.round((totals.Hires / totals.Offers) * 100) + "%" : "—"}</div>
-          <div class="kpi-label">Offer Success Rate</div>
-          <div class="pa-kpi-note">${totals.Offers} offer${totals.Offers !== 1 ? "s" : ""} made</div>
-        </div>
+      <div class="kpi-strip">${tiles}
       </div>
     </div>
   `;
+}
 
-  // ── Funnel drop-off ───────────────────────────────────────────────
-  const funnelHtml = `
+// ── Funnel drop-off ───────────────────────────────────────────────
+function _paFunnelHtml(results) {
+  const { funnelStages, summaryBench } = results;
+  return `
       <div class="print-avoid-break mr-card">
       <div class="mr-card-title">Funnel Drop-off</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
@@ -288,54 +339,38 @@ function _paRenderResultsHtml(results, location, functionArea) {
               ${s.conv !== null ? s.conv + "%" : "—"}
             </div>
             <div class="pa-stage-rag">
-              ${ragDot(s.rag)}${s.rag === "grey" ? "No data" : s.rag.charAt(0).toUpperCase() + s.rag.slice(1)}
+              ${_paRagDotHtml(s.rag)}${s.rag === "grey" ? "No data" : s.rag.charAt(0).toUpperCase() + s.rag.slice(1)}
             </div>
           </div>`).join("")}
       </div>
     </div>
   `;
+}
 
- // ── Role-by-role breakdown ────────────────────────────────────────
-  // N-247c: search narrows `groups` (Role/Location + Functional Area);
-  // sortRows layers on top of the existing key-alphabetical default order
-  // computed in _paComputeResults (kept as-is, not touched here).
-  const searchedGroups = filterRowsByText(groups, _paBreakdownSearch, g => [g.key, g.functionArea]);
-  const PA_BREAKDOWN_SORT_COLUMNS = {
-    role:             { type: 'text',   get: g => g.key },
-    functionArea:     { type: 'text',   get: g => g.functionArea },
-    avgSalary:        { type: 'number', get: g => g.avgSalary },
-    avgTth:           { type: 'number', get: g => g.avgTth },
-    // N-247c: raw ratios, not the rounded/%-formatted display values below.
-    outreachResponse: { type: 'number', get: g => g.roleTotals.Outreach > 0 ? g.roleTotals.Responses / g.roleTotals.Outreach : null },
-    offerSuccess:     { type: 'number', get: g => g.roleTotals.Offers > 0 ? g.roleTotals.Hires / g.roleTotals.Offers : null },
-    // Funnel (RAG) is not sortable — a multi-stage dot summary has no
-    // single scalar, same reasoning as leaving other computed badges alone.
-  };
-  const sortedGroups = sortRows(searchedGroups, _paBreakdownSort, PA_BREAKDOWN_SORT_COLUMNS);
-  const rows = sortedGroups.map(group => {
-      const funnelSummary = group.roleFunnel
-        .map((s, i) => `<span title="${s.stage}: ${s.conv !== null ? s.conv + "%" : "—"} — ${_paEsc(learnedBenchmarkTip(group.bench, LEARNED_RATES[i].key))}">${ragDot(s.rag)}</span>`)
+// ── Role-by-role breakdown ────────────────────────────────────────
+function _paBreakdownHtml(view, groupCount) {
+  const rows = view.rows.map(row => {
+      const funnelSummary = row.funnel
+        .map(f => `<span title="${f.stage}: ${f.convText} — ${_paEsc(f.tip)}">${_paRagDotHtml(f.rag)}</span>`)
         .join("");
 
       return `
         <tr>
-          <td>${_paEsc(group.key)}</td>
-          <td>${_paEsc(group.functionArea || "—")}</td>
-          <td class="cell-center">${group.avgSalary !== null ? group.sym + group.avgSalary.toLocaleString('en-GB') : "—"}</td>
-          <td class="cell-center">${group.avgTth !== null ? group.avgTth + "d" : "—"}</td>
-          <td class="cell-center">${group.roleTotals.Outreach > 0 ? Math.round((group.roleTotals.Responses / group.roleTotals.Outreach) * 100) + "%" : "—"}</td>
+          <td>${_paEsc(row.key)}</td>
+          <td>${_paEsc(row.functionArea)}</td>
+          <td class="cell-center">${row.salaryText}</td>
+          <td class="cell-center">${row.tthText}</td>
+          <td class="cell-center">${row.responseText}</td>
           <td class="cell-center">${funnelSummary}</td>
-          <td class="cell-center">${group.roleTotals.Offers > 0
-            ? Math.round((group.roleTotals.Hires / group.roleTotals.Offers) * 100) + "%"
-            : "—"}</td>
+          <td class="cell-center">${row.offerText}</td>
         </tr>`;
     })
     .join("");
 
-  const breakdownHtml = `
+  return `
       <div class="print-avoid-break mr-card">
       <div class="mr-card-title">
-        Role Breakdown <span class="mr-card-title-sub">(${sortedGroups.length} of ${groupCount} role type${groupCount !== 1 ? "s" : ""})</span>
+        Role Breakdown <span class="mr-card-title-sub">(${view.shown} of ${groupCount} role type${groupCount !== 1 ? "s" : ""})</span>
       </div>
       <table class="data-table pa-breakdown-table mr-table">
         <thead>
@@ -356,8 +391,6 @@ function _paRenderResultsHtml(results, location, functionArea) {
       </div>
     </div>
   `;
-
-  return summaryHtml + funnelHtml + breakdownHtml;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────

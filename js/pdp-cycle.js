@@ -212,29 +212,43 @@ function pdpBuildCyclePlan(input) {
   const year = Number(o.year);
   if (!Number.isInteger(year)) throw new Error('PDP cycle year must be a whole number');
   const today = o.today instanceof Date ? o.today : new Date();
-  const todayISO = localDayISO(today);
-  const C = CONFIG.PDP.CYCLE;
   const mode = pdpNormaliseMode(o.mode);
-  const out = {
+  const out = _pdpcNewPlan(year, mode);
+  if (out.off) return _pdpcFinish(out);
+
+  const ctx = _pdpcPlanContext(o, out, year, today, mode);
+  ctx.ids.forEach(id => _pdpcPlanPerson(ctx, id));
+  _pdpcFutureStarters(ctx);
+
+  out.blockedTemplates = [...ctx.blocked].map(t => ({ type: t, label: CONFIG.PDP.MEETING_LABELS[t] || t }));
+  return _pdpcFinish(out);
+}
+
+function _pdpcNewPlan(year, mode) {
+  return {
     year, mode, off: mode === CONFIG.PDP.MODES[0],
     cycles: [], meetings: [], meetingUpdates: [], cycleUpdates: [],
     cannot: [], warnings: [], waiting: [], blockedTemplates: [], people: [], counts: {}, nothingToDo: true,
   };
-  const finish = () => {
-    const touched = new Set(out.cycles.concat(out.meetings).map(x => x.personId));
-    out.counts = {
-      cycles: out.cycles.length, meetings: out.meetings.length,
-      planned: out.meetings.filter(m => m.fields.Status === 'Planned').length,
-      skipped: out.meetings.filter(m => m.fields.Status === 'Skipped').length,
-      updates: out.meetingUpdates.length + out.cycleUpdates.length,
-      peopleToCreate: touched.size,
-      cannot: out.cannot.length, warnings: out.warnings.length, waiting: out.waiting.length,
-    };
-    out.nothingToDo = !out.counts.cycles && !out.counts.meetings && !out.counts.updates;
-    return out;
-  };
-  if (out.off) return finish();
+}
 
+function _pdpcFinish(out) {
+  const touched = new Set(out.cycles.concat(out.meetings).map(x => x.personId));
+  out.counts = {
+    cycles: out.cycles.length, meetings: out.meetings.length,
+    planned: out.meetings.filter(m => m.fields.Status === 'Planned').length,
+    skipped: out.meetings.filter(m => m.fields.Status === 'Skipped').length,
+    updates: out.meetingUpdates.length + out.cycleUpdates.length,
+    peopleToCreate: touched.size,
+    cannot: out.cannot.length, warnings: out.warnings.length, waiting: out.waiting.length,
+  };
+  out.nothingToDo = !out.counts.cycles && !out.counts.meetings && !out.counts.updates;
+  return out;
+}
+
+// Everything the per-person steps read: the year's cycles and meetings by person, the active template
+// per meeting type, the engine scope, and the people to walk (scope plus anyone who already has a cycle).
+function _pdpcPlanContext(o, out, year, today, mode) {
   const people = o.people || [];
   const index = pdpEmailIndex(people);
   const byId = new Map(people.map(p => [String(p.id), p]));
@@ -253,111 +267,154 @@ function pdpBuildCyclePlan(input) {
   });
   const tpl = {};
   CONFIG.PDP.MEETING_TYPES.forEach(t => { tpl[t] = pdpActiveTemplate(o.templates || [], t); });
-  const blocked = new Set();
 
   const nameOf = id => { const p = byId.get(id); const c = cycleByPerson.get(id); return (p && _pdpName(p)) || (c && c.PersonName) || ('Person ' + id); };
   const ids = [...new Set([...scopeIds, ...cycleByPerson.keys()])].sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+  return {
+    o, out, year, today, todayISO: localDayISO(today), C: CONFIG.PDP.CYCLE, mode, people, index, byId,
+    scopeIds, cycleByPerson, meetingsByPerson, tpl, blocked: new Set(), nameOf, ids,
+  };
+}
 
-  ids.forEach(id => {
-    const p = byId.get(id) || null;
-    const c = cycleByPerson.get(id) || null;
-    const mine = meetingsByPerson.get(id) || [];
-    const name = nameOf(id);
-    const person = (status, lm, joinDate) => out.people.push({ personId: id, name, lm: lm || '', joinDate: joinDate || '', status, summary: pdpCycleSummary(mine, todayISO) });
-    const end = _pdpcEnd(p, todayISO);
-    const exit = !end.left && !pdpInScope(p, today);
+// One person: leavers and scope exits close their cycle; people the engine cannot plan are reported; the
+// rest get a cycle (new or topped up), their missing meetings, and a close when the year is over.
+function _pdpcPlanPerson(ctx, id) {
+  const { out, year, today, todayISO, scopeIds, cycleByPerson, meetingsByPerson, byId } = ctx;
+  const p = byId.get(id) || null;
+  const c = cycleByPerson.get(id) || null;
+  const mine = meetingsByPerson.get(id) || [];
+  const name = ctx.nameOf(id);
+  const person = (status, lm, joinDate) => out.people.push({ personId: id, name, lm: lm || '', joinDate: joinDate || '', status, summary: pdpCycleSummary(mine, todayISO) });
+  const end = _pdpcEnd(p, todayISO);
+  const exit = !end.left && !pdpInScope(p, today);
 
-    // Leavers and scope exits: skip what is left, close the cycle (only people who have a cycle).
-    if (c && (end.left || exit)) {
-      const reason = end.left ? C.SKIP_REASONS.left : C.SKIP_REASONS.scope;
-      _pdpcSkipAfter(out, mine, end.left ? end.cutoff : todayISO, reason, id, name);
-      if (c.Status !== 'Closed') out.cycleUpdates.push({ id: String(c.id), personId: id, name, fields: { Status: 'Closed' }, why: 'Cycle closed: ' + reason });
-      person('closed', c.LineManagerEmail, spDateIn(c.JoinDate));
-      return;
-    }
-    // Out of the engine's scope but still in PDP (removed from the pilot): records untouched.
-    if (!scopeIds.has(id)) {
-      if (c) person(c.Status === 'Closed' ? 'closed' : 'untouched', c.LineManagerEmail, spDateIn(c.JoinDate));
-      return;
-    }
+  // Leavers and scope exits: skip what is left, close the cycle (only people who have a cycle).
+  if (c && (end.left || exit)) {
+    const reason = end.left ? ctx.C.SKIP_REASONS.left : ctx.C.SKIP_REASONS.scope;
+    _pdpcSkipAfter(out, mine, end.left ? end.cutoff : todayISO, reason, id, name);
+    if (c.Status !== 'Closed') out.cycleUpdates.push({ id: String(c.id), personId: id, name, fields: { Status: 'Closed' }, why: 'Cycle closed: ' + reason });
+    person('closed', c.LineManagerEmail, spDateIn(c.JoinDate));
+    return;
+  }
+  // Out of the engine's scope but still in PDP (removed from the pilot): records untouched.
+  if (!scopeIds.has(id)) {
+    if (c) person(c.Status === 'Closed' ? 'closed' : 'untouched', c.LineManagerEmail, spDateIn(c.JoinDate));
+    return;
+  }
 
-    const email = _pdpEmail(p.WorkEmail);
-    if (!email || (index.get(email) || []).length !== 1) {
-      out.cannot.push({ personId: id, name, reason: email ? 'Work email is shared with another People row' : 'No work email' });
-      return;
-    }
-    const rev = pdpReviewerEmails(index, p);
-    if (!rev.lm) { out.cannot.push({ personId: id, name, reason: 'No line manager (ReportsTo)' }); return; }
-    const lvl = pdpLevelFor(p);
-    if (!lvl) { out.cannot.push({ personId: id, name, reason: 'No PDP level for ' + (p.Level || 'a blank level') }); return; }
-    if (!rev.csd) out.warnings.push({ personId: id, name, reason: rev.flag === 'chainCycle' ? 'The reporting line loops, so no CSD was found. CSD left blank.' : 'No CSD above them. CSD left blank.' });
+  const who = _pdpcPersonChecks(ctx, id, name, p);
+  if (!who) return;
+  const plan = _pdpcJoinerPlan(ctx, id, name, p, c);
+  if (!plan) return;
+  const joinDate = plan.kind === 'joiner' ? plan.joinDate : '';
+  // A new cycle's passed meetings are Skipped (N-446); an existing cycle only gains what is missing.
+  const expected = pdpExpectedMeetings(plan, year, c ? '' : todayISO);
+  const pc = { id, name, p, c, mine, end, email: who.email, rev: who.rev, lvl: who.lvl, plan, joinDate, curKey: pdpLevelKey(who.lvl.level, who.lvl.track), expected };
 
-    let plan;
-    if (c) {
-      const jd = spDateIn(c.JoinDate) || '';
-      plan = jd ? pdpJoinerPlan(jd, year) : { kind: 'standing' };
-      if (plan.kind === 'waiting') plan = { kind: 'joiner', joinDate: jd, gsDue: addDaysISO(jd, C.JOINER_DUE_DAYS), gsPeriod: addDaysISO(jd, C.JOINER_DUE_DAYS).slice(0, 7) };
-    } else {
-      plan = pdpJoinerPlan(pdpEntryDate(p, year), year);
-      if (plan.kind === 'waiting') { out.waiting.push({ personId: id, name, reason: 'Joins the January ' + (year + 1) + ' Annual' }); return; }
-    }
-    const joinDate = plan.kind === 'joiner' ? plan.joinDate : '';
-    const curKey = pdpLevelKey(lvl.level, lvl.track);
-    // A new cycle's passed meetings are Skipped (N-446); an existing cycle only gains what is missing.
-    const expected = pdpExpectedMeetings(plan, year, c ? '' : todayISO);
+  _pdpcCycleWrites(ctx, pc);
+  _pdpcMeetingWrites(ctx, pc);
+  _pdpcCloseWhenYearOver(ctx, pc);
+  person(c ? 'existing' : 'new', who.rev.lm, joinDate);
+}
 
-    if (!c) {
-      out.cycles.push({
-        personId: id, name, joiner: !!joinDate,
-        fields: {
-          PersonID: Number(id), PersonEmail: email, PersonName: name, CycleYear: year,
-          Level: lvl.level, Track: lvl.track, LineManagerEmail: rev.lm, CSDEmail: rev.csd,
-          JoinDate: joinDate, ScoringLevel: curKey, Status: 'Open',
-          BiAnnualScored: pdpBiAnnualScored(joinDate, year) && !expected.some(e => e.MeetingType === 'BiAnnual' && e.Status === 'Skipped'),
-        },
-      });
-    } else {
-      const bi = mine.find(m => m.MeetingType === 'BiAnnual');
-      if (!(bi && _PDPC_DONE.includes(bi.Status))) {
-        const startKey = pdpParseLevelKey(c.Level + '-' + c.Track) ? pdpLevelKey(c.Level, c.Track) : curKey;
-        const want = pdpScoringLevel(startKey, p, year);
-        if (want !== String(c.ScoringLevel || '')) out.cycleUpdates.push({ id: String(c.id), personId: id, name, fields: { ScoringLevel: want }, why: 'Bi-Annual scores on ' + want + (c.ScoringLevel ? ' (was ' + c.ScoringLevel + ')' : '') });
-      }
-    }
+// A person the engine cannot plan is listed under `cannot`; a missing CSD is a warning. -> { email, rev, lvl } or null.
+function _pdpcPersonChecks(ctx, id, name, p) {
+  const { out, index } = ctx;
+  const email = _pdpEmail(p.WorkEmail);
+  if (!email || (index.get(email) || []).length !== 1) {
+    out.cannot.push({ personId: id, name, reason: email ? 'Work email is shared with another People row' : 'No work email' });
+    return null;
+  }
+  const rev = pdpReviewerEmails(index, p);
+  if (!rev.lm) { out.cannot.push({ personId: id, name, reason: 'No line manager (ReportsTo)' }); return null; }
+  const lvl = pdpLevelFor(p);
+  if (!lvl) { out.cannot.push({ personId: id, name, reason: 'No PDP level for ' + (p.Level || 'a blank level') }); return null; }
+  if (!rev.csd) out.warnings.push({ personId: id, name, reason: rev.flag === 'chainCycle' ? 'The reporting line loops, so no CSD was found. CSD left blank.' : 'No CSD above them. CSD left blank.' });
+  return { email, rev, lvl };
+}
 
-    // A leaver-to-be (EndDate in the future): nothing is created after it; anything already there is skipped.
-    if (c && end.cutoff) _pdpcSkipAfter(out, mine, end.cutoff, C.SKIP_REASONS.left, id, name);
-    const have = new Map(mine.map(m => [String(m.Title), m]));
-    expected.filter(e => !end.cutoff || e.DueDate <= end.cutoff).forEach(e => {
-      const key = pdpMeetingKey(id, year, e.MeetingType, e.Period);
-      const t = tpl[e.MeetingType];
-      const ex = have.get(key);
-      if (ex) {
-        if (ex.Status === 'Planned' && t && Number(ex.TemplateVersion || 0) < Number(t.VersionNo)) {
-          out.meetingUpdates.push({ id: String(ex.id), personId: id, name, fields: { TemplateID: Number(t.id), TemplateVersion: Number(t.VersionNo) }, why: pdpMeetingLabel(ex) + ' (' + pdpFmtDay(e.DueDate) + ') now uses template v' + t.VersionNo });
-        }
-        return;
-      }
-      if (e.Status === 'Planned' && !t) blocked.add(e.MeetingType);
-      const fields = {
+// standing / joiner for a person with a cycle or an entry date; null (and a `waiting` row) for someone
+// who joins the next January Annual.
+function _pdpcJoinerPlan(ctx, id, name, p, c) {
+  const { out, year, C } = ctx;
+  let plan;
+  if (c) {
+    const jd = spDateIn(c.JoinDate) || '';
+    plan = jd ? pdpJoinerPlan(jd, year) : { kind: 'standing' };
+    if (plan.kind === 'waiting') plan = { kind: 'joiner', joinDate: jd, gsDue: addDaysISO(jd, C.JOINER_DUE_DAYS), gsPeriod: addDaysISO(jd, C.JOINER_DUE_DAYS).slice(0, 7) };
+  } else {
+    plan = pdpJoinerPlan(pdpEntryDate(p, year), year);
+    if (plan.kind === 'waiting') { out.waiting.push({ personId: id, name, reason: 'Joins the January ' + (year + 1) + ' Annual' }); return null; }
+  }
+  return plan;
+}
+
+// A new cycle, or (existing cycle) the Bi-Annual scoring level while that meeting is still open.
+function _pdpcCycleWrites(ctx, pc) {
+  const { out, year } = ctx;
+  const { id, name, p, c, mine, email, rev, lvl, expected, joinDate, curKey } = pc;
+  if (!c) {
+    out.cycles.push({
+      personId: id, name, joiner: !!joinDate,
+      fields: {
         PersonID: Number(id), PersonEmail: email, PersonName: name, CycleYear: year,
-        MeetingType: e.MeetingType, IsJoiner: e.IsJoiner, Period: e.Period, DueDate: e.DueDate,
-        Status: e.Status, SkipReason: e.SkipReason, LineManagerEmail: rev.lm, CSDEmail: rev.csd,
-      };
-      if (c) fields.CycleID = Number(c.id);
-      if (e.Status === 'Planned' && t) { fields.TemplateID = Number(t.id); fields.TemplateVersion = Number(t.VersionNo); }
-      out.meetings.push({ personId: id, name, key, newCycle: !c, fields });
+        Level: lvl.level, Track: lvl.track, LineManagerEmail: rev.lm, CSDEmail: rev.csd,
+        JoinDate: joinDate, ScoringLevel: curKey, Status: 'Open',
+        BiAnnualScored: pdpBiAnnualScored(joinDate, year) && !expected.some(e => e.MeetingType === 'BiAnnual' && e.Status === 'Skipped'),
+      },
     });
+    return;
+  }
+  const bi = mine.find(m => m.MeetingType === 'BiAnnual');
+  if (!(bi && _PDPC_DONE.includes(bi.Status))) {
+    const startKey = pdpParseLevelKey(c.Level + '-' + c.Track) ? pdpLevelKey(c.Level, c.Track) : curKey;
+    const want = pdpScoringLevel(startKey, p, year);
+    if (want !== String(c.ScoringLevel || '')) out.cycleUpdates.push({ id: String(c.id), personId: id, name, fields: { ScoringLevel: want }, why: 'Bi-Annual scores on ' + want + (c.ScoringLevel ? ' (was ' + c.ScoringLevel + ')' : '') });
+  }
+}
 
-    // Year over and nothing left open: close the cycle.
-    if (c && c.Status !== 'Closed' && todayISO > year + '-12-31' && mine.length
-        && !out.meetings.some(m => m.personId === id) && mine.every(m => _PDPC_DONE.includes(m.Status) || m.Status === 'Skipped')) {
-      out.cycleUpdates.push({ id: String(c.id), personId: id, name, fields: { Status: 'Closed' }, why: 'Cycle closed: the year has ended' });
+// The missing meetings, template-version bumps on planned ones, and the skips for a leaver-to-be.
+function _pdpcMeetingWrites(ctx, pc) {
+  const { out, year, C, tpl, blocked } = ctx;
+  const { id, name, c, mine, end, email, rev, expected } = pc;
+  // A leaver-to-be (EndDate in the future): nothing is created after it; anything already there is skipped.
+  if (c && end.cutoff) _pdpcSkipAfter(out, mine, end.cutoff, C.SKIP_REASONS.left, id, name);
+  const have = new Map(mine.map(m => [String(m.Title), m]));
+  expected.filter(e => !end.cutoff || e.DueDate <= end.cutoff).forEach(e => {
+    const key = pdpMeetingKey(id, year, e.MeetingType, e.Period);
+    const t = tpl[e.MeetingType];
+    const ex = have.get(key);
+    if (ex) {
+      if (ex.Status === 'Planned' && t && Number(ex.TemplateVersion || 0) < Number(t.VersionNo)) {
+        out.meetingUpdates.push({ id: String(ex.id), personId: id, name, fields: { TemplateID: Number(t.id), TemplateVersion: Number(t.VersionNo) }, why: pdpMeetingLabel(ex) + ' (' + pdpFmtDay(e.DueDate) + ') now uses template v' + t.VersionNo });
+      }
+      return;
     }
-    person(c ? 'existing' : 'new', rev.lm, joinDate);
+    if (e.Status === 'Planned' && !t) blocked.add(e.MeetingType);
+    const fields = {
+      PersonID: Number(id), PersonEmail: email, PersonName: name, CycleYear: year,
+      MeetingType: e.MeetingType, IsJoiner: e.IsJoiner, Period: e.Period, DueDate: e.DueDate,
+      Status: e.Status, SkipReason: e.SkipReason, LineManagerEmail: rev.lm, CSDEmail: rev.csd,
+    };
+    if (c) fields.CycleID = Number(c.id);
+    if (e.Status === 'Planned' && t) { fields.TemplateID = Number(t.id); fields.TemplateVersion = Number(t.VersionNo); }
+    out.meetings.push({ personId: id, name, key, newCycle: !c, fields });
   });
+}
 
-  // Future starters the engine will pick up on a later run (Pilot: only if already in the pilot).
+// Year over and nothing left open: close the cycle.
+function _pdpcCloseWhenYearOver(ctx, pc) {
+  const { out, year, todayISO } = ctx;
+  const { id, name, c, mine } = pc;
+  if (c && c.Status !== 'Closed' && todayISO > year + '-12-31' && mine.length
+      && !out.meetings.some(m => m.personId === id) && mine.every(m => _PDPC_DONE.includes(m.Status) || m.Status === 'Skipped')) {
+    out.cycleUpdates.push({ id: String(c.id), personId: id, name, fields: { Status: 'Closed' }, why: 'Cycle closed: the year has ended' });
+  }
+}
+
+// Future starters the engine will pick up on a later run (Pilot: only if already in the pilot).
+function _pdpcFutureStarters(ctx) {
+  const { o, out, year, todayISO, mode, people, scopeIds, cycleByPerson } = ctx;
   const pilotSet = new Set(Array.isArray(o.pilot) ? pdpParsePilot(o.pilot.join(CONFIG.PDP.ACCESS.EMAIL_SEP)) : pdpParsePilot(o.pilot));
   people.forEach(p => {
     const id = String(p.id);
@@ -368,7 +425,4 @@ function pdpBuildCyclePlan(input) {
     if (mode === CONFIG.PDP.MODES[1] && !pilotSet.has(_pdpEmail(p.WorkEmail))) return;
     out.waiting.push({ personId: id, name: _pdpName(p), reason: 'Starts ' + pdpFmtDay(start) });
   });
-
-  out.blockedTemplates = [...blocked].map(t => ({ type: t, label: CONFIG.PDP.MEETING_LABELS[t] || t }));
-  return finish();
 }

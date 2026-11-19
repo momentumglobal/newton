@@ -592,16 +592,16 @@ ASSERTIONS.push(
       const mutated = Object.assign({}, ALL_HTML, { 'mobile.html': ALL_HTML['mobile.html'].replace('</head>', '<style>\nb{}\n</style>\n</head>') });
       const back = lintNoStyleElements(ALL_SOURCES, mutated);
       _assertEqual(back.length === 1 && /^mobile\.html:\d+: <style> element/.test(back[0]), true, 'mutation: a <style> added to mobile.html is flagged: ' + back);
-      // The eight moved blocks are linked from their page; the five guides also link guide-search.css after their own file.
+      // The eight moved blocks are linked from their page; the five guides link style.css + guide.css (N-480), their own sheet where they have one, then guide-search.css.
       const linksOf = html => { const out = []; html.replace(/<link\b[^>]*\brel="stylesheet"[^>]*\bhref="([^"]*)"[^>]*>/gi, (m, h) => { out.push(h); return m; }); return out; };
       const moved = {
         'mobile.html': ['css/mobile.css'], 'Readme.html': ['css/readme.css'],
         'reporting.html': CSS_SPLIT_LINKS['reporting.html'], 'admin.html': CSS_SPLIT_LINKS['admin.html'],
-        'user-guide.html': ['css/user-guide.css', 'css/guide-search.css'],
-        'sales-user-guide.html': ['css/sales-user-guide.css', 'css/guide-search.css'],
-        'people-user-guide.html': ['css/people-user-guide.css', 'css/guide-search.css'],
-        'market-reporting-user-guide.html': ['css/market-reporting-user-guide.css', 'css/guide-search.css'],
-        'my-momentum-user-guide.html': ['css/my-momentum-user-guide.css', 'css/guide-search.css'],
+        'user-guide.html': ['css/style.css', 'css/guide.css', 'css/user-guide.css', 'css/guide-search.css'],
+        'sales-user-guide.html': ['css/style.css', 'css/guide.css', 'css/sales-user-guide.css', 'css/guide-search.css'],
+        'people-user-guide.html': ['css/style.css', 'css/guide.css', 'css/guide-search.css'],
+        'market-reporting-user-guide.html': ['css/style.css', 'css/guide.css', 'css/guide-search.css'],
+        'my-momentum-user-guide.html': ['css/style.css', 'css/guide.css', 'css/guide-search.css'],
       };
       Object.keys(moved).forEach(p => _assertEqual(linksOf(ALL_HTML[p]), moved[p], p + ' stylesheet links, in order'));
       // Every stylesheet any root page links exists in css/ (a missing file fails silently in the browser).
@@ -612,6 +612,43 @@ ASSERTIONS.push(
       }
       // printPage() adds landscape through the CSSOM, not a <style> element.
       _assertEqual(/insertRule\('@page \{ size: A4 landscape; \}'/.test(ALL_SOURCES['ui-kit.js']), true, 'printPage inserts the landscape @page rule through the CSSOM');
+    },
+  },
+  {
+    name: 'N-480 user guides: style.css + guide.css (+ own sheet) after a plain theme-init.js in <head>; guide sheets hold no colour literal, use only tokens style.css defines, define no rule twice; the three emptied sheets are gone',
+    fn: function () {
+      if (typeof ALL_CSS === 'undefined' || typeof ALL_HTML === 'undefined') {
+        _skip('Source scan needs filesystem access - runs under node tests/run.js, not in the browser runner.');
+      }
+      const guides = {
+        'user-guide.html': ['css/style.css', 'css/guide.css', 'css/user-guide.css', 'css/guide-search.css'],
+        'sales-user-guide.html': ['css/style.css', 'css/guide.css', 'css/sales-user-guide.css', 'css/guide-search.css'],
+        'people-user-guide.html': ['css/style.css', 'css/guide.css', 'css/guide-search.css'],
+        'market-reporting-user-guide.html': ['css/style.css', 'css/guide.css', 'css/guide-search.css'],
+        'my-momentum-user-guide.html': ['css/style.css', 'css/guide.css', 'css/guide-search.css'],
+      };
+      const linksOf = html => { const out = []; html.replace(/<link\b[^>]*\brel="stylesheet"[^>]*\bhref="([^"]*)"[^>]*>/gi, (m, h) => { out.push(h); return m; }); return out; };
+      const strip = t => String(t).replace(/\/\*[\s\S]*?\*\//g, '');
+      const defined = new Set();
+      strip(ALL_CSS['style.css']).replace(/(--[\w-]+)\s*:/g, (m, n) => { defined.add(n); return m; });
+      Object.keys(guides).forEach(p => {
+        const html = ALL_HTML[p], head = html.slice(0, html.indexOf('</head>'));
+        _assertEqual(linksOf(html), guides[p], p + ' stylesheet links, in order');
+        const init = head.indexOf('<script src="js/theme-init.js"></script>');
+        _assertEqual(init > head.indexOf('http-equiv="Content-Security-Policy"') && init < head.indexOf('<link rel="stylesheet"'), true, p + ': plain theme-init.js after the metas, before the first stylesheet');
+        _assertEqual(head.split('js/theme-init.js').length - 1, 1, p + ': theme-init.js once');
+        _assertEqual(/\sstyle\s*=/i.test(html), false, p + ': no inline style attribute');
+      });
+      const seen = {};
+      ['guide.css', 'user-guide.css', 'sales-user-guide.css', 'guide-search.css'].forEach(f => {
+        _assertEqual(Object.prototype.hasOwnProperty.call(ALL_CSS, f), true, f + ' exists');
+        const css = strip(ALL_CSS[f]);
+        _assertEqual(css.match(/#[0-9a-fA-F]{3,8}\b|\brgba?\(/g) || [], [], f + ': no hex or rgb() literal');
+        _assertEqual(/@font-face/.test(css), false, f + ': no @font-face (style.css declares Polymath)');
+        css.replace(/var\((--[\w-]+)/g, (m, n) => { _assertEqual(defined.has(n), true, f + ': ' + n + ' is defined in style.css'); return m; });
+        _cssSplitRules(ALL_CSS[f]).forEach(r => { _assertEqual(seen[r.key] === undefined, true, f + ' repeats a rule already in ' + seen[r.key] + ': ' + r.key.slice(0, 70)); seen[r.key] = f; });
+      });
+      ['people-user-guide.css', 'my-momentum-user-guide.css', 'market-reporting-user-guide.css'].forEach(f => _assertEqual(Object.prototype.hasOwnProperty.call(ALL_CSS, f), false, 'css/' + f + ' is gone (no unique rule left)'));
     },
   },
   {

@@ -39,6 +39,12 @@ var CSS_SPLIT_LINKS = {
   'reporting.html': ['css/style.css', 'css/report-builder.css', 'css/coe-plan.css', 'css/roles.css', 'css/reporting.css'],
   'sales.html': ['css/style.css', 'css/lci.css'],
   'survey.html': ['css/style.css', 'css/engagement.css', 'css/reporting.css'],
+  // N-480: the static User Guides link style.css for tokens, dark mode and print; guide.css is their shared sheet.
+  'market-reporting-user-guide.html': ['css/style.css', 'css/guide.css', 'css/guide-search.css'],
+  'my-momentum-user-guide.html': ['css/style.css', 'css/guide.css', 'css/guide-search.css'],
+  'people-user-guide.html': ['css/style.css', 'css/guide.css', 'css/guide-search.css'],
+  'sales-user-guide.html': ['css/style.css', 'css/guide.css', 'css/sales-user-guide.css', 'css/guide-search.css'],
+  'user-guide.html': ['css/style.css', 'css/guide.css', 'css/user-guide.css', 'css/guide-search.css'],
 };
 
 // Module sheets (the files that were split out of style.css) and two classes each
@@ -61,7 +67,10 @@ var CSS_SPLIT_STAYS = ['kpi-value', 'rt-table', 'rb-rt-wrapper', 'empty-state', 
 // Owned-class mentions a non-linking shell's file is allowed to hold, as { 'js/file.js': ['class'] }
 // with the reason beside each entry. Empty today: the only two mentions the scan found
 // (config.js and api-headcount.js) are comments, which are stripped before matching.
-var CSS_SPLIT_REF_ALLOW = {};
+var CSS_SPLIT_REF_ALLOW = {
+  // N-480: the Sales guide's section ids (#lci-output, #lm-library ...) are anchors, not the LCI classes of the same name.
+  'sales-user-guide.html': ['lci-benchmarks', 'lci-compare', 'lci-costs', 'lci-create', 'lci-excel', 'lci-linkage', 'lci-output', 'lci-overview', 'lci-reports', 'lci-roadmap', 'lci-settings', 'lm-builder', 'lm-library', 'lm-output', 'lm-overview'],
+};
 
 // State classes toggled at runtime; they never decide whether a sheet is needed.
 var CSS_SPLIT_STATE = ['open', 'active', 'visible', 'disabled', 'single', 'hidden', 'selected', 'show', 'collapsed', 'expanded', 'dragging', 'done', 'error', 'saving', 'loading', 'pending', 'checked', 'current', 'row-pending'];

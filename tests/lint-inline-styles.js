@@ -74,11 +74,7 @@ var INLINE_STYLE_BASELINE = {
   'js/sales-pages.js': 6,
   'js/survey-app.js': 1,
   'js/utils.js': 2,
-  'market-reporting-user-guide.html': 1,
-  'mobile.html': 7,
-  'people-user-guide.html': 1,
-  'sales-user-guide.html': 1,
-  'user-guide.html': 1
+  'mobile.html': 7
 };
 
 var _IS_ATTR_RE = /(^|[^\w.$-])style\s*=\s*(?:["'`\\]|\$\{)/gi;

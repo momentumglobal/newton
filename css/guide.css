@@ -1,0 +1,49 @@
+/* css/guide.css - the rules the five static User Guides share (N-480, R3-11; was five near-identical sheets).
+   Linked after css/style.css, which supplies the tokens (light, dark via theme-init.js, print), the reset and
+   the Polymath @font-face. Tokens only: no hex here. Guide-specific rules: user-guide.css (agent section),
+   sales-user-guide.css (status key). style.css is the app shell, so two of its rules are restated below. */
+
+/* style.css's app-shell body is height:100vh + overflow:hidden; a guide must scroll (and keeps .guide-nav sticky). */
+body { font-family: 'Polymath', 'Segoe UI', Arial, sans-serif; background: var(--surface-app); color: var(--text-primary); font-size: 15px; line-height: 1.6; height: auto; overflow: visible; }
+/* The header is navy in both themes (--inverse-*), like the app sidebar; --brand turns blue in dark. */
+.guide-header { background: var(--inverse-surface); color: var(--inverse-text); padding: 28px 48px; display: flex; align-items: center; justify-content: space-between; }
+.guide-header-left h1 { font-size: 22px; font-weight: 600; }
+.guide-header-left p { font-size: 13px; color: var(--inverse-text-muted); margin-top: 4px; }
+.guide-header img { height: 36px; width: auto; }
+.guide-body { display: flex; max-width: 1100px; margin: 0 auto; padding: 40px 24px; gap: 40px; }
+.guide-nav { width: 200px; min-width: 200px; position: sticky; top: 24px; align-self: flex-start; }
+.guide-nav ul { list-style: none; padding: 0; }
+.guide-nav li a { display: block; padding: 7px 12px; color: var(--text-link); text-decoration: none; font-size: 13px; border-radius: 4px; transition: background var(--dur-base) var(--ease-standard); }
+.guide-nav li a:hover { background: var(--surface-hover); }
+.guide-nav .nav-gap { height: 8px; }
+/* style.css has its own .nav-section-label (the app sidebar's); this one wins on specificity, so every property is restated. */
+.guide-nav .nav-section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); padding: 12px 12px 4px; }
+.guide-content { flex: 1; min-width: 0; }
+.guide-section { background: var(--surface); border-radius: 6px; border: 1px solid var(--border-strong); padding: 28px 32px; margin-bottom: 24px; scroll-margin-top: 24px; }
+.guide-section h2 { font-size: 18px; font-weight: 600; color: var(--text-heading); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border-faint); }
+.guide-section h3 { font-size: 14px; font-weight: 600; color: var(--text-heading); margin: 20px 0 8px; }
+.guide-section p { color: var(--text-secondary); margin-bottom: 12px; }
+.guide-section p:last-child { margin-bottom: 0; }
+.faq-item { border-bottom: 1px solid var(--border-subtle); padding: 14px 0; }
+.faq-item:last-child { border-bottom: none; padding-bottom: 0; }
+.faq-q { font-weight: 600; color: var(--text-heading); margin-bottom: 6px; font-size: 14px; }
+.faq-a { color: var(--text-label); font-size: 14px; }
+.role-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.role-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background: var(--surface-alt); color: var(--text-heading); }
+.role-badge.admin { background: var(--brand); color: var(--text-on-brand); }
+.role-badge.dm { background: var(--surface-alt); color: var(--text-heading); }
+.role-badge.tp { background: var(--status-success-bg); color: var(--status-success-text); }
+.role-badge.leadership { background: var(--status-warn-bg); color: var(--status-warn-text); }
+.tip { background: var(--surface-alt); border-left: 3px solid var(--brand); border-radius: 0 4px 4px 0; padding: 10px 14px; font-size: 13px; color: var(--text-secondary); margin: 12px 0; }
+.colour-key { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.colour-key-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-secondary); }
+.colour-swatch { width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0; }
+/* Legend swatches are the app's project-type colours (VF-D8): same tokens, same value in both themes. */
+.colour-swatch--ptype-embedded       { background: var(--c-ptype-embedded); }
+.colour-swatch--ptype-coe            { background: var(--c-ptype-coe); }
+.colour-swatch--ptype-transformation { background: var(--c-ptype-transformation); }
+.colour-swatch--ptype-lci            { background: var(--c-ptype-lci); }
+.colour-swatch--ptype-internal       { background: var(--c-ptype-internal); }
+.guide-footer { text-align: center; padding: 32px; font-size: 12px; color: var(--text-muted); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

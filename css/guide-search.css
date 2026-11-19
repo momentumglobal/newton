@@ -1,14 +1,14 @@
 /* css/guide-search.css - the search box on the 5 static User Guides (js/guide-search.js, N-163, N-458).
    Was injected as a <style> element by guide-search.js; moved to a file in N-324
-   (SEC-12c: style-src-elem has no 'unsafe-inline'). Rules unchanged. */
+   (SEC-12c: style-src-elem has no 'unsafe-inline'). Tokens since N-480 (the guides now link style.css);
+   the focus ring is style.css's global :focus-visible. */
 
 .guide-search-box { margin-bottom: 14px; }
 .guide-search-box input[type="search"] {
   width: 100%; padding: 8px 10px; font-family: inherit; font-size: 13px;
-  border: 1px solid #838BA2; border-radius: 4px; background: #fff; color: #1a1a2e;
+  border: 1px solid var(--border-control); border-radius: 4px; background: var(--surface); color: var(--text-primary);
 }
-.guide-search-box input[type="search"]:focus { outline: 2px solid #2E5FA3; outline-offset: 1px; }
-.guide-search-count { font-size: 11px; color: #5F6882; margin-top: 4px; padding: 0 2px; min-height: 14px; }
-.guide-search-hit { background: #fff3b0; color: inherit; border-radius: 2px; }
-.guide-search-empty { background: #fff; border: 1px solid #CAD1E0; border-radius: 6px; padding: 28px 32px; color: #4B5470; font-size: 14px; }
+.guide-search-count { font-size: 11px; color: var(--text-muted); margin-top: 4px; padding: 0 2px; min-height: 14px; }
+.guide-search-hit { background: var(--status-warn-bg); box-shadow: 0 0 0 1px var(--status-warn); color: inherit; border-radius: 2px; }
+.guide-search-empty { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 6px; padding: 28px 32px; color: var(--text-label); font-size: 14px; }
 .guide-search-hidden { display: none !important; }

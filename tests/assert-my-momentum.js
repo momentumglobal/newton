@@ -421,13 +421,13 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-458 AC1/AC2/AC3 My Momentum user guide: present, its two stylesheets in order, no inline style / <style> / inline handler, CSP identical to the People guide, sidebar link points at it (People sidebar unchanged)',
+    name: 'N-458 AC1/AC2/AC3 My Momentum user guide: present, its stylesheets in order, no inline style / <style> / inline handler, CSP identical to the People guide, sidebar link points at it (People sidebar unchanged)',
     fn: function () {
       if (typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined') _skip('needs ALL_HTML / ALL_SOURCES (tests/run.js)');
       const g = ALL_HTML['my-momentum-user-guide.html'], p = ALL_HTML['people-user-guide.html'];
       _assertEqual(typeof g, 'string', 'AC1 my-momentum-user-guide.html exists');
       const sheets = []; g.replace(/<link\b[^>]*\brel="stylesheet"[^>]*\bhref="([^"]*)"[^>]*>/gi, (m, h) => { sheets.push(h); return m; });
-      _assertEqual(sheets, ['css/my-momentum-user-guide.css', 'css/guide-search.css'], 'AC2 stylesheets, in order');
+      _assertEqual(sheets, ['css/style.css', 'css/guide.css', 'css/guide-search.css'], 'AC2 stylesheets, in order (N-480: shared guide sheet)');
       _assertEqual(/\sstyle\s*=/i.test(g) || /<style[\s>]/i.test(g) || /\son[a-z]+\s*=/i.test(g), false, 'AC2 no inline style, <style> or inline handler');
       _assertEqual(g.includes('src="js/guide-search.js"'), true, 'AC1 loads guide-search.js');
       const csp = h => (h.match(/<meta http-equiv="Content-Security-Policy"[^>]*>/) || [''])[0];
@@ -463,7 +463,7 @@ ASSERTIONS.push(
     fn: function () {
       if (typeof ALL_HTML === 'undefined') _skip('needs ALL_HTML (tests/run.js)');
       const r = ALL_HTML['Readme.html'];
-      ['my-momentum-user-guide.html', 'css/my-momentum-user-guide.css', 'My Momentum — My History', 'My Momentum — My Details', 'My Momentum — My Team, Team Scorecards', 'People — Employee record page', 'My Momentum docs and epic close-out (N-458 / MM-8)'].forEach(s => {
+      ['my-momentum-user-guide.html', 'css/guide.css', 'My Momentum — My History', 'My Momentum — My Details', 'My Momentum — My Team, Team Scorecards', 'People — Employee record page', 'My Momentum docs and epic close-out (N-458 / MM-8)'].forEach(s => {
         _assertEqual(r.includes(s) || r.includes(s.replace(/css\//, '')), true, 'Readme.html names: ' + s);
       });
       _assertEqual(/My History stub/.test(r), false, 'no "My History stub" left');

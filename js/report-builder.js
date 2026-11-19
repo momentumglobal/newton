@@ -1091,9 +1091,11 @@ async function rbUseTemplateAction(id, btn) {
       if (!picked) return;
       const { project, role } = picked;
       if (!project) { toast(T.MESSAGES.noWritableProjectReport, { type: 'error' }); return; }
+      // SavedReports.ProjectID / RoleID are single-line TEXT columns (rbSaveReport writes
+      // strings) — a number here is a 500 from Graph. Unlike BriefingPacks (Number columns).
       const overrides = {
-        ProjectID: parseInt(project.id),
-        RoleID:    role ? parseInt(role.id) : null,
+        ProjectID: String(project.id),
+        RoleID:    role ? String(role.id) : null,
       };
       copy = await cloneSavedReportFromTemplate(id, email, overrides, { keepHiringPlan: isCoEProject(project) });
     }

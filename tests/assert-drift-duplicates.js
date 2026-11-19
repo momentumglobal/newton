@@ -123,7 +123,7 @@
         _assertEqual(bp.indexOf('bpApplyRoleAutofill()') > bp.indexOf('await bpLoadPack(copy.id)'), true, 'BP autofill after load');
         const rb = body('report-builder.js', 'async function rbUseTemplateAction(');
         const ovRb = (rb.match(/const overrides = \{([\s\S]*?)\};/) || [])[1] || '';
-        _assertEqual(ovRb.replace(/\s+/g, ' ').trim(), 'ProjectID: parseInt(project.id), RoleID: role ? parseInt(role.id) : null,', 'RB overrides unchanged');
+        _assertEqual(ovRb.replace(/\s+/g, ' ').trim(), 'ProjectID: String(project.id), RoleID: role ? String(role.id) : null,', 'RB overrides: text columns take strings (hotfix; the BP ones are Number columns)');
         _assertEqual(rb.includes('noneLabel: T.LABELS.roleAll') && rb.includes('keepHiringPlan: isCoEProject(project)') && /if \(!project\) \{ toast\(T\.MESSAGES\.noWritableProjectReport/.test(rb), true, 'RB all-roles label, CoE rule, stale-project toast');
         [bp, rb].forEach(b => _assertEqual(/catch \(e\)/.test(b) && b.includes('clearButtonLoading(btn)'), true, 'catches + clears the button'));
       },

@@ -281,6 +281,24 @@ function _checklistPageHtml(v) {
     </div>`;
 }
 
+// N-478: the Checklist section on the Project and Role pages — nothing when the record has
+// no checklist, an "unavailable" note when it failed to load, else the titled body.
+function checklistSectionHtml(ck) {
+  if (!ck) return '';
+  if (ck.error) {
+    return `
+      <section class="role-page-section">
+        <h3 class="role-page-section-title">Checklist</h3>
+        <p class="checklist-unavailable">The checklist couldn't be loaded.</p>
+      </section>`;
+  }
+  return `
+      <section class="role-page-section">
+        <h3 class="role-page-section-title">Checklist · ${escHtml(checklistVariantLabel(ck.variant))}</h3>
+        ${checklistBodyHtml(ck)}
+      </section>`;
+}
+
 // N-307: everything below the header — preview banner, progress summary and
 // item sections. Shared by the project checklist page and the role page. The
 // data-checklist-record wrapper is load-bearing: _ckOnScreen() looks for it.

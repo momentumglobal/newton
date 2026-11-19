@@ -321,16 +321,25 @@ function toast(message, { type = 'info', duration = 4000, action = null } = {}) 
 
 let _confirmModalOpen = false;
 
-// Promise-returning replacement for confirm(). Resolves true on Confirm
-// click, false on Cancel click, backdrop click, or Escape. danger:true
-// styles the Confirm button for destructive actions. Only one instance may
-// be open at a time — a second call while one is open resolves false
-// immediately (native confirm() was always single-instance/blocking; no
-// caller needs concurrent dialogs).
-function confirmModal({ title = '', message = '', confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false } = {}) {
+// N-478: the one shell behind confirmModal / promptModal / selectModal / pairSelectModal. It owns the
+// "one dialog from this family at a time" guard (_confirmModalOpen, also read by command-bar.js and
+// notifications.js), the overlay + dialog markup, Escape, backdrop and Cancel, the Tab trap (over the
+// focusable controls at keypress time, disabled ones skipped) and focus restore. Same listener-on-open /
+// off-on-close and focus-in / focus-back pattern as the notification drawer (N-425).
+//   o.warn / o.cancelValue  console.warn text and the value resolved when a dialog is already open
+//                           (also what Escape, backdrop and Cancel resolve)
+//   o.title / o.message     o.alwaysMessage renders the <p> even when the message is empty
+//   o.body()                caller markup between the message and the buttons (run after the guard)
+//   o.setup(overlay, btns)  after append: build DOM, return the caller's controls `c`
+//   o.first(c, cancelBtn)   control to focus on open (default Cancel)
+//   o.order(c, cancelBtn, confirmBtn)  Tab order (default [Cancel, Confirm])
+//   o.onKey(e, c, close)    runs after Escape; return true to stop (Enter in prompt's input)
+//   o.value(c)              resolved on Confirm (ignored while Confirm is disabled)
+//   o.onClose()             runs first on every close path
+function _openModal(o) {
   if (_confirmModalOpen) {
-    console.warn('confirmModal: a confirm dialog is already open');
-    return Promise.resolve(false);
+    console.warn(o.warn);
+    return Promise.resolve(o.cancelValue);
   }
   _confirmModalOpen = true;
 
@@ -338,14 +347,16 @@ function confirmModal({ title = '', message = '', confirmLabel = 'Confirm', canc
     const previouslyFocused = document.activeElement;
     const overlay = document.createElement('div');
     overlay.className = 'confirm-modal-overlay';
-    const titleHtml = title ? `<h3 class="confirm-modal-title">${escHtml(title)}</h3>` : '';
+    const titleHtml = o.title ? `<h3 class="confirm-modal-title">${escHtml(o.title)}</h3>` : '';
+    const messageHtml = (o.alwaysMessage || o.message) ? `<p class="confirm-modal-message">${escHtml(o.message)}</p>` : '';
     overlay.innerHTML = `
       <div class="confirm-modal" role="alertdialog" aria-modal="true">
         ${titleHtml}
-        <p class="confirm-modal-message">${escHtml(message)}</p>
+        ${messageHtml}
+        ${o.body ? o.body() : ''}
         <div class="confirm-modal-actions">
-          <button type="button" class="btn-secondary confirm-modal-cancel">${escHtml(cancelLabel)}</button>
-          <button type="button" class="btn-primary confirm-modal-confirm${danger ? ' confirm-modal-confirm--danger' : ''}">${escHtml(confirmLabel)}</button>
+          <button type="button" class="btn-secondary confirm-modal-cancel">${escHtml(o.cancelLabel)}</button>
+          <button type="button" class="btn-primary confirm-modal-confirm${o.danger ? ' confirm-modal-confirm--danger' : ''}">${escHtml(o.confirmLabel)}</button>
         </div>
       </div>
     `;
@@ -353,8 +364,13 @@ function confirmModal({ title = '', message = '', confirmLabel = 'Confirm', canc
 
     const cancelBtn  = overlay.querySelector('.confirm-modal-cancel');
     const confirmBtn = overlay.querySelector('.confirm-modal-confirm');
+    const c = o.setup ? o.setup(overlay, { cancelBtn, confirmBtn }) : null;
 
+    let done = false;
     const close = result => {
+      if (done) return;
+      done = true;
+      if (o.onClose) o.onClose();
       _confirmModalOpen = false;
       document.removeEventListener('keydown', onKeydown);
       overlay.remove();
@@ -362,22 +378,41 @@ function confirmModal({ title = '', message = '', confirmLabel = 'Confirm', canc
       resolve(result);
     };
 
-    // Minimal focus trap: exactly two focusable elements, so Tab and
-    // Shift+Tab both just swap focus between them.
     const onKeydown = e => {
-      if (e.key === 'Escape') { close(false); return; }
+      if (e.key === 'Escape') { close(o.cancelValue); return; }
+      if (o.onKey && o.onKey(e, c, close)) return;
       if (e.key === 'Tab') {
         e.preventDefault();
-        (document.activeElement === confirmBtn ? cancelBtn : confirmBtn).focus();
+        const order = (o.order ? o.order(c, cancelBtn, confirmBtn) : [cancelBtn, confirmBtn]).filter(el => !el.disabled);
+        const i = order.indexOf(document.activeElement);
+        order[(i + (e.shiftKey ? -1 : 1) + order.length) % order.length].focus();
       }
     };
 
-    cancelBtn.addEventListener('click', () => close(false));
-    confirmBtn.addEventListener('click', () => close(true));
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(false); });
+    cancelBtn.addEventListener('click', () => close(o.cancelValue));
+    confirmBtn.addEventListener('click', () => {
+      if (confirmBtn.disabled) return;
+      close(o.value ? o.value(c) : true);
+    });
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(o.cancelValue); });
     document.addEventListener('keydown', onKeydown);
 
-    cancelBtn.focus();
+    (o.first ? o.first(c, cancelBtn) : cancelBtn).focus();
+  });
+}
+
+// Promise-returning replacement for confirm(). Resolves true on Confirm
+// click, false on Cancel click, backdrop click, or Escape. danger:true
+// styles the Confirm button for destructive actions. Only one instance may
+// be open at a time — a second call while one is open resolves false
+// immediately (native confirm() was always single-instance/blocking; no
+// caller needs concurrent dialogs).
+function confirmModal({ title = '', message = '', confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false } = {}) {
+  return _openModal({
+    warn: 'confirmModal: a confirm dialog is already open',
+    cancelValue: false, title, message, alwaysMessage: true, confirmLabel, cancelLabel, danger,
+    // Two controls: Tab and Shift+Tab swap them; from outside the dialog both land on Confirm.
+    order: (c, cancelBtn, confirmBtn) => [confirmBtn, cancelBtn],
   });
 }
 
@@ -389,70 +424,25 @@ function confirmModal({ title = '', message = '', confirmLabel = 'Confirm', canc
 // than a separate flag — one "a dialog from this family is already open"
 // guard for both.
 function promptModal({ title = '', message = '', defaultValue = '', placeholder = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
-  if (_confirmModalOpen) {
-    console.warn('promptModal: a confirm/prompt dialog is already open');
-    return Promise.resolve(null);
-  }
-  _confirmModalOpen = true;
-
-  return new Promise(resolve => {
-    const previouslyFocused = document.activeElement;
-    const overlay = document.createElement('div');
-    overlay.className = 'confirm-modal-overlay';
-    const titleHtml = title ? `<h3 class="confirm-modal-title">${escHtml(title)}</h3>` : '';
-    const messageHtml = message ? `<p class="confirm-modal-message">${escHtml(message)}</p>` : '';
-    overlay.innerHTML = `
-      <div class="confirm-modal" role="alertdialog" aria-modal="true">
-        ${titleHtml}
-        ${messageHtml}
-        <input type="text" class="confirm-modal-input" placeholder="${escAttr(placeholder)}">
-        <div class="confirm-modal-actions">
-          <button type="button" class="btn-secondary confirm-modal-cancel">${escHtml(cancelLabel)}</button>
-          <button type="button" class="btn-primary confirm-modal-confirm">${escHtml(confirmLabel)}</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    // defaultValue is set via the .value property, not interpolated into
-    // the template string above — avoids a second escaping path for a
-    // value that was never going through HTML parsing in the first place.
-    const input = overlay.querySelector('.confirm-modal-input');
-    input.value = defaultValue;
-
-    const cancelBtn  = overlay.querySelector('.confirm-modal-cancel');
-    const confirmBtn = overlay.querySelector('.confirm-modal-confirm');
-
-    const close = result => {
-      _confirmModalOpen = false;
-      document.removeEventListener('keydown', onKeydown);
-      overlay.remove();
-      if (previouslyFocused && previouslyFocused.focus) previouslyFocused.focus();
-      resolve(result);
-    };
-
-    // Focus trap over 3 elements: input → Cancel → Confirm → input (and
-    // reverse on Shift+Tab) — confirmModal's simpler 2-element swap doesn't
-    // generalise to 3, so this walks an explicit order array instead.
-    const onKeydown = e => {
-      if (e.key === 'Escape') { close(null); return; }
-      if (e.key === 'Enter' && document.activeElement === input) { close(input.value); return; }
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        const order = [input, cancelBtn, confirmBtn];
-        const i = order.indexOf(document.activeElement);
-        const next = order[(i + (e.shiftKey ? -1 : 1) + order.length) % order.length];
-        next.focus();
-      }
-    };
-
-    cancelBtn.addEventListener('click', () => close(null));
-    confirmBtn.addEventListener('click', () => close(input.value));
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(null); });
-    document.addEventListener('keydown', onKeydown);
-
-    input.focus();
-    if (defaultValue) input.select();
+  return _openModal({
+    warn: 'promptModal: a confirm/prompt dialog is already open',
+    cancelValue: null, title, message, confirmLabel, cancelLabel,
+    body: () => `<input type="text" class="confirm-modal-input" placeholder="${escAttr(placeholder)}">`,
+    // defaultValue is set via the .value property, not interpolated into the markup — avoids a
+    // second escaping path for a value that was never going through HTML parsing in the first place.
+    setup: overlay => {
+      const input = overlay.querySelector('.confirm-modal-input');
+      input.value = defaultValue;
+      return { input };
+    },
+    first: c => ({ focus() { c.input.focus(); if (defaultValue) c.input.select(); } }),
+    order: (c, cancelBtn, confirmBtn) => [c.input, cancelBtn, confirmBtn],
+    onKey: (e, c, close) => {
+      if (e.key !== 'Enter' || document.activeElement !== c.input) return false;
+      close(c.input.value);
+      return true;
+    },
+    value: c => c.input.value,
   });
 }
 
@@ -463,69 +453,24 @@ function promptModal({ title = '', message = '', defaultValue = '', placeholder 
 // this family at a time). Option values/labels are set through DOM
 // properties, never interpolated into markup.
 function selectModal({ title = '', message = '', options = [], defaultValue = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
-  if (_confirmModalOpen) {
-    console.warn('selectModal: a confirm/prompt dialog is already open');
-    return Promise.resolve(null);
-  }
-  _confirmModalOpen = true;
-
-  return new Promise(resolve => {
-    const previouslyFocused = document.activeElement;
-    const overlay = document.createElement('div');
-    overlay.className = 'confirm-modal-overlay';
-    const titleHtml = title ? `<h3 class="confirm-modal-title">${escHtml(title)}</h3>` : '';
-    const messageHtml = message ? `<p class="confirm-modal-message">${escHtml(message)}</p>` : '';
-    overlay.innerHTML = `
-      <div class="confirm-modal" role="alertdialog" aria-modal="true">
-        ${titleHtml}
-        ${messageHtml}
-        <select class="confirm-modal-input"></select>
-        <div class="confirm-modal-actions">
-          <button type="button" class="btn-secondary confirm-modal-cancel">${escHtml(cancelLabel)}</button>
-          <button type="button" class="btn-primary confirm-modal-confirm">${escHtml(confirmLabel)}</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    const select = overlay.querySelector('.confirm-modal-input');
-    (options || []).forEach(o => {
-      const opt = document.createElement('option');
-      opt.value = String(o.value);
-      opt.textContent = String(o.label ?? o.value);
-      select.appendChild(opt);
-    });
-    if (defaultValue !== '' && defaultValue !== null && defaultValue !== undefined) select.value = String(defaultValue);
-
-    const cancelBtn  = overlay.querySelector('.confirm-modal-cancel');
-    const confirmBtn = overlay.querySelector('.confirm-modal-confirm');
-
-    const close = result => {
-      _confirmModalOpen = false;
-      document.removeEventListener('keydown', onKeydown);
-      overlay.remove();
-      if (previouslyFocused && previouslyFocused.focus) previouslyFocused.focus();
-      resolve(result);
-    };
-
-    // Same 3-element focus order as promptModal: select → Cancel → Confirm.
-    const onKeydown = e => {
-      if (e.key === 'Escape') { close(null); return; }
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        const order = [select, cancelBtn, confirmBtn];
-        const i = order.indexOf(document.activeElement);
-        const next = order[(i + (e.shiftKey ? -1 : 1) + order.length) % order.length];
-        next.focus();
-      }
-    };
-
-    cancelBtn.addEventListener('click', () => close(null));
-    confirmBtn.addEventListener('click', () => close(select.value));
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(null); });
-    document.addEventListener('keydown', onKeydown);
-
-    select.focus();
+  return _openModal({
+    warn: 'selectModal: a confirm/prompt dialog is already open',
+    cancelValue: null, title, message, confirmLabel, cancelLabel,
+    body: () => '<select class="confirm-modal-input"></select>',
+    setup: overlay => {
+      const select = overlay.querySelector('.confirm-modal-input');
+      (options || []).forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = String(o.value);
+        opt.textContent = String(o.label ?? o.value);
+        select.appendChild(opt);
+      });
+      if (defaultValue !== '' && defaultValue !== null && defaultValue !== undefined) select.value = String(defaultValue);
+      return { select };
+    },
+    first: c => c.select,
+    order: (c, cancelBtn, confirmBtn) => [c.select, cancelBtn, confirmBtn],
+    value: c => c.select.value,
   });
 }
 
@@ -538,7 +483,7 @@ function mmWordmarkHTML(variant) {
 }
 
 // N-428 (TPL-D9): two dependent selects in one dialog — selectModal's family (shares
-// _confirmModalOpen; Escape / backdrop / Cancel resolve null). Reused by N-429.
+// _confirmModalOpen; Escape / backdrop / Cancel resolve null). Used by template-picker.js (N-478).
 //   first  = { label, placeholder, options: [{ value, label, group? }] } — options with a
 //            `group` go into <optgroup label=group>, groups in first-seen order.
 //   second = { label, noneLabel, loadingLabel, errorText, load: async firstValue => [{ value, label }] }
@@ -549,134 +494,90 @@ function mmWordmarkHTML(variant) {
 // Resolves { first, second } (strings). Values / labels set through DOM properties only.
 let _pairSelectSeq = 0;
 function pairSelectModal({ title = '', message = '', first = {}, second = {}, confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
-  if (_confirmModalOpen) {
-    console.warn('pairSelectModal: a confirm/prompt dialog is already open');
-    return Promise.resolve(null);
-  }
-  _confirmModalOpen = true;
-  const uid = 'pair-select-' + (++_pairSelectSeq);
-
-  return new Promise(resolve => {
-    const previouslyFocused = document.activeElement;
-    const overlay = document.createElement('div');
-    overlay.className = 'confirm-modal-overlay';
-    const titleHtml = title ? `<h3 class="confirm-modal-title">${escHtml(title)}</h3>` : '';
-    const messageHtml = message ? `<p class="confirm-modal-message">${escHtml(message)}</p>` : '';
-    overlay.innerHTML = `
-      <div class="confirm-modal" role="alertdialog" aria-modal="true">
-        ${titleHtml}
-        ${messageHtml}
+  let loadSeq = 0;
+  let uid = '';
+  const addOption = (parent, value, label) => {
+    const opt = document.createElement('option');
+    opt.value = String(value);
+    opt.textContent = String(label ?? value);
+    parent.appendChild(opt);
+  };
+  return _openModal({
+    warn: 'pairSelectModal: a confirm/prompt dialog is already open',
+    cancelValue: null, title, message, confirmLabel, cancelLabel,
+    body: () => {
+      uid = 'pair-select-' + (++_pairSelectSeq);
+      return `
         <label class="confirm-modal-label" for="${uid}-a">${escHtml(first.label || '')}</label>
         <select class="confirm-modal-input" id="${uid}-a"></select>
         <label class="confirm-modal-label" for="${uid}-b">${escHtml(second.label || '')}</label>
         <select class="confirm-modal-input" id="${uid}-b"></select>
-        <p class="confirm-modal-hint" hidden></p>
-        <div class="confirm-modal-actions">
-          <button type="button" class="btn-secondary confirm-modal-cancel">${escHtml(cancelLabel)}</button>
-          <button type="button" class="btn-primary confirm-modal-confirm">${escHtml(confirmLabel)}</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    const selA = overlay.querySelector('#' + uid + '-a');
-    const selB = overlay.querySelector('#' + uid + '-b');
-    const hint = overlay.querySelector('.confirm-modal-hint');
-    const cancelBtn  = overlay.querySelector('.confirm-modal-cancel');
-    const confirmBtn = overlay.querySelector('.confirm-modal-confirm');
-
-    const addOption = (parent, value, label) => {
-      const opt = document.createElement('option');
-      opt.value = String(value);
-      opt.textContent = String(label ?? value);
-      parent.appendChild(opt);
-    };
-    addOption(selA, '', first.placeholder || '');
-    const groups = {};
-    (first.options || []).forEach(o => {
-      let parent = selA;
-      if (o.group) {
-        if (!groups[o.group]) {
-          groups[o.group] = document.createElement('optgroup');
-          groups[o.group].label = String(o.group);
-          selA.appendChild(groups[o.group]);
+        <p class="confirm-modal-hint" hidden></p>`;
+    },
+    setup: (overlay, { confirmBtn }) => {
+      const selA = overlay.querySelector('#' + uid + '-a');
+      const selB = overlay.querySelector('#' + uid + '-b');
+      const hint = overlay.querySelector('.confirm-modal-hint');
+      addOption(selA, '', first.placeholder || '');
+      const groups = {};
+      (first.options || []).forEach(o => {
+        let parent = selA;
+        if (o.group) {
+          if (!groups[o.group]) {
+            groups[o.group] = document.createElement('optgroup');
+            groups[o.group].label = String(o.group);
+            selA.appendChild(groups[o.group]);
+          }
+          parent = groups[o.group];
         }
-        parent = groups[o.group];
-      }
-      addOption(parent, o.value, o.label);
-    });
+        addOption(parent, o.value, o.label);
+      });
 
-    let loading = false;
-    let loadSeq = 0;
-    const sync = () => { confirmBtn.disabled = !selA.value || loading; };
-    const resetSecond = text => {
-      selB.replaceChildren();
-      addOption(selB, '', text);
-    };
-    resetSecond(second.noneLabel || '');
-    sync();
-
-    const loadSecond = async () => {
-      const seq = ++loadSeq;
-      hint.hidden = true;
-      hint.textContent = '';
-      if (!selA.value) { loading = false; resetSecond(second.noneLabel || ''); selB.disabled = false; sync(); return; }
-      loading = true;
-      selB.disabled = true;
-      resetSecond(second.loadingLabel || second.noneLabel || '');
-      sync();
-      let opts = [];
-      let failed = false;
-      try {
-        opts = (typeof second.load === 'function') ? await second.load(selA.value) : [];
-      } catch (e) {
-        console.warn('pairSelectModal: load failed', e);
-        failed = true;
-      }
-      if (seq !== loadSeq) return;   // the first select changed again — a newer load owns it
+      let loading = false;
+      const sync = () => { confirmBtn.disabled = !selA.value || loading; };
+      const resetSecond = text => {
+        selB.replaceChildren();
+        addOption(selB, '', text);
+      };
       resetSecond(second.noneLabel || '');
-      if (failed) {
-        hint.textContent = second.errorText || '';
-        hint.hidden = !second.errorText;
-      } else {
-        (opts || []).forEach(o => addOption(selB, o.value, o.label));
-      }
-      loading = false;
-      selB.disabled = false;
       sync();
-    };
-    selA.addEventListener('change', loadSecond);
 
-    const close = result => {
-      _confirmModalOpen = false;
-      loadSeq++;
-      document.removeEventListener('keydown', onKeydown);
-      overlay.remove();
-      if (previouslyFocused && previouslyFocused.focus) previouslyFocused.focus();
-      resolve(result);
-    };
-
-    // Focus order: first → second → Cancel → Confirm (disabled ones skipped).
-    const onKeydown = e => {
-      if (e.key === 'Escape') { close(null); return; }
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        const order = [selA, selB, cancelBtn, confirmBtn].filter(el => !el.disabled);
-        const i = order.indexOf(document.activeElement);
-        const next = order[(i + (e.shiftKey ? -1 : 1) + order.length) % order.length];
-        next.focus();
-      }
-    };
-
-    cancelBtn.addEventListener('click', () => close(null));
-    confirmBtn.addEventListener('click', () => {
-      if (confirmBtn.disabled) return;
-      close({ first: selA.value, second: selB.value });
-    });
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(null); });
-    document.addEventListener('keydown', onKeydown);
-
-    selA.focus();
+      const loadSecond = async () => {
+        const seq = ++loadSeq;
+        hint.hidden = true;
+        hint.textContent = '';
+        if (!selA.value) { loading = false; resetSecond(second.noneLabel || ''); selB.disabled = false; sync(); return; }
+        loading = true;
+        selB.disabled = true;
+        resetSecond(second.loadingLabel || second.noneLabel || '');
+        sync();
+        let opts = [];
+        let failed = false;
+        try {
+          opts = (typeof second.load === 'function') ? await second.load(selA.value) : [];
+        } catch (e) {
+          console.warn('pairSelectModal: load failed', e);
+          failed = true;
+        }
+        if (seq !== loadSeq) return;   // the first select changed again — a newer load owns it
+        resetSecond(second.noneLabel || '');
+        if (failed) {
+          hint.textContent = second.errorText || '';
+          hint.hidden = !second.errorText;
+        } else {
+          (opts || []).forEach(o => addOption(selB, o.value, o.label));
+        }
+        loading = false;
+        selB.disabled = false;
+        sync();
+      };
+      selA.addEventListener('change', loadSecond);
+      return { selA, selB };
+    },
+    first: c => c.selA,
+    order: (c, cancelBtn, confirmBtn) => [c.selA, c.selB, cancelBtn, confirmBtn],   // disabled ones are skipped
+    value: c => ({ first: c.selA.value, second: c.selB.value }),
+    onClose: () => { loadSeq++; },
   });
 }
 

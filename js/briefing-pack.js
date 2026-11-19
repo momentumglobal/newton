@@ -289,29 +289,10 @@ async function bpUseTemplateAction(id, btn) {
     await bpLoadProjects();
     const projects = _bpProjects.filter(p => _bpCanWrite(p.id));
     if (!projects.length) { toast(T.MESSAGES.noWritableProject, { type: 'error' }); return; }
-    const options = sortProjectsByName(projects).map(p => ({
-      value: String(p.id),
-      label: p.CustomerName || String(p.id),   // same label as buildProjectOptionsHtml
-      group: isProjectActive(p) ? 'Active' : 'Archive',
-    }));
-    const roleCache = {};
-    const picked = await pairSelectModal({
-      title: T.LABELS.modalTitle,
-      message: templateDisplayName(tpl),
-      first: { label: T.LABELS.projectLabel, placeholder: T.LABELS.projectPlaceholder, options },
-      second: {
-        label: T.LABELS.roleLabel,
-        noneLabel: T.LABELS.roleNone,
-        loadingLabel: T.LABELS.rolesLoading,
-        errorText: T.MESSAGES.rolesLoadFailed,
-        load: async pid => (roleCache[pid] = await bpRolesFor(pid)).map(r => ({ value: String(r.id), label: _bpRoleLabel(r) })),
-      },
-      confirmLabel: T.LABELS.modalConfirm,
-    });
+    const picked = await pickTemplateTarget({ tpl, projects, rolesFor: templateRolesFor, noneLabel: T.LABELS.roleNone });
     if (!picked) return;
-    const project = projects.find(p => String(p.id) === String(picked.first));
+    const { project, role } = picked;
     if (!project) { toast(T.MESSAGES.noWritableProject, { type: 'error' }); return; }
-    const role = (roleCache[picked.first] || []).find(r => String(r.id) === String(picked.second)) || null;
     const overrides = {
       ProjectID:    parseInt(project.id),
       RoleID:       role ? parseInt(role.id) : null,
@@ -461,21 +442,9 @@ async function bpStartNewPack() {
   bpRender();
 }
 
-// N-428: the roles a pack on `projectId` may name — a Talent Partner sees only their own.
-// Shared by the builder's Role select and the Use template dialog.
-function bpRolesFor(projectId) {
-  const tpEmail = _resolvedRole === 'talent_partner' ? getScopedUserEmail() : null;
-  return getRolesForProject(projectId, tpEmail);
-}
-
-// N-428: raw role option label (callers escape for markup; the dialog sets textContent).
-function _bpRoleLabel(r) {
-  return r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle;
-}
-
 async function bpLoadRoles() {
   if (!_bpProjectId) { _bpProjectRoles = []; return; }
-  _bpProjectRoles = await bpRolesFor(_bpProjectId);
+  _bpProjectRoles = await templateRolesFor(_bpProjectId);
   if (_bpRoleId && !_bpProjectRoles.some(r => String(r.id) === String(_bpRoleId))) _bpRoleId = '';
 }
 
@@ -657,7 +626,7 @@ function bpRenderSidebar() {
 
   const roleOpts = ['<option value="">Select a role...</option>']
     .concat(_bpProjectRoles.map(r => {
-      const label = escHtml(_bpRoleLabel(r));
+      const label = escHtml(templateRoleLabel(r));
       return `<option value="${r.id}" ${String(r.id) === String(_bpRoleId) ? 'selected' : ''}>${label}</option>`;
     })).join('');
 

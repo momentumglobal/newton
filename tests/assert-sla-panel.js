@@ -510,7 +510,7 @@
         _assertEqual(/kind: 'role'[^}]*view: 'history'/.test(panel) && /kind: 'project'[^}]*view: 'ongoing'/.test(panel), true, 'AC26 project surfaces list ongoing, the Role page lists history');
         const rp = S['role-page.js'];
         _assertEqual(/function _rpHasSlaPanel\(v\) \{\s*return !!\(v && v\.project && slaEditorModel\(v\.project, \[\]\)\);/.test(rp), true, 'AC25 eligibility gate, no role gate of its own');
-        const hcAt = rp.indexOf('id="rp-headcount"'), slaAt = rp.indexOf('id="rp-sla-panel"'), ckAt = rp.indexOf('${checklistHtml}\r\n    </div>') > -1 ? rp.indexOf('${checklistHtml}\r\n    </div>') : rp.indexOf('${checklistHtml}\n    </div>');
+        const hcAt = rp.indexOf('id="rp-headcount"'), slaAt = rp.indexOf('id="rp-sla-panel"'), ckAt = rp.indexOf('${checklistSectionHtml(v.checklist)}\r\n    </div>') > -1 ? rp.indexOf('${checklistSectionHtml(v.checklist)}\r\n    </div>') : rp.indexOf('${checklistSectionHtml(v.checklist)}\n    </div>');
         _assertEqual(hcAt > -1 && slaAt > hcAt && ckAt > slaAt, true, 'AC25 section sits after Headcount and before the Checklist');
         _assertEqual(rp.indexOf("mountRoleSlaPanel('rp-sla-panel', data.project, data.role)") > -1, true, 'AC25 mounted after the page renders');
         const refresh = body(rp, 'async function _rpRefresh(');

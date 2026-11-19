@@ -139,21 +139,6 @@ function _rpHasSlaPanel(v) {
 }
 
 function _rpPageHtml(v) {
-  const ck = v.checklist;
-  let checklistHtml = '';
-  if (ck && ck.error) {
-    checklistHtml = `
-      <section class="role-page-section">
-        <h3 class="role-page-section-title">Checklist</h3>
-        <p class="checklist-unavailable">The checklist couldn't be loaded.</p>
-      </section>`;
-  } else if (ck) {
-    checklistHtml = `
-      <section class="role-page-section">
-        <h3 class="role-page-section-title">Checklist · ${escHtml(checklistVariantLabel(ck.variant))}</h3>
-        ${checklistBodyHtml(ck)}
-      </section>`;
-  }
   return `
     <div class="role-page" data-role-page="${Number(v.roleId)}">
       ${_rpHeaderHtml(v)}
@@ -161,7 +146,7 @@ function _rpPageHtml(v) {
       <p class="checklist-meta" id="rp-meta">${_rpMetaHtml(v)}</p>
       <section class="role-page-section role-hc" id="rp-headcount">${_rpHeadcountHtml(v)}</section>
       ${_rpHasSlaPanel(v) ? '<section class="role-page-section sla-panel" id="rp-sla-panel"></section>' : ''}
-      ${checklistHtml}
+      ${checklistSectionHtml(v.checklist)}
     </div>`;
 }
 

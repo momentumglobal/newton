@@ -63,13 +63,6 @@ const RB_PALETTE = [
   { key: 'rejectionIntel',   label: 'Rejection Intelligence',     scope: 'company', group: 'Delivery Assurance', cap: 'rejectionIntelReport' },
 ];
 
-// N-429: one role reader for the sidebar and the Use template dialog. Talent Partners
-// are scoped to their own roles.
-function rbRolesFor(projectId) {
-  const tpEmail = _resolvedRole === 'talent_partner' ? getScopedUserEmail() : null;
-  return getRolesForProject(projectId, tpEmail);
-}
-
 async function renderReportBuilder() {
   const main  = document.getElementById('main-content');
   const role  = _resolvedRole;
@@ -85,7 +78,7 @@ async function renderReportBuilder() {
   // Load roles for the selected project (drives the Role filter dropdown).
   // Only needed in Project scope. Talent Partners are scoped to their own roles.
   if (_rbScope === 'project' && _rbProjectId) {
-    _rbProjectRoles = await rbRolesFor(_rbProjectId);
+    _rbProjectRoles = await templateRolesFor(_rbProjectId);
     // Reset the role filter if the selected role isn't in this project.
     if (_rbRoleId !== 'all' && !_rbProjectRoles.some(r => String(r.id) === String(_rbRoleId))) {
       _rbRoleId = 'all';
@@ -1094,29 +1087,10 @@ async function rbUseTemplateAction(id, btn) {
       const [list, writableIds] = await Promise.all([getScopedProjects(email, false), getUserWritableProjectIds(email)]);
       const projects = dashboardProjects(list).filter(p => canWriteProject(_resolvedRole, p.id, writableIds));
       if (!projects.length) { toast(T.MESSAGES.noWritableProjectReport, { type: 'error' }); return; }
-      const options = sortProjectsByName(projects).map(p => ({
-        value: String(p.id),
-        label: p.CustomerName || String(p.id),   // same label as buildProjectOptionsHtml
-        group: isProjectActive(p) ? 'Active' : 'Archive',
-      }));
-      const roleCache = {};
-      const picked = await pairSelectModal({
-        title: T.LABELS.modalTitle,
-        message: templateDisplayName(tpl),
-        first: { label: T.LABELS.projectLabel, placeholder: T.LABELS.projectPlaceholder, options },
-        second: {
-          label: T.LABELS.roleLabel,
-          noneLabel: T.LABELS.roleAll,
-          loadingLabel: T.LABELS.rolesLoading,
-          errorText: T.MESSAGES.rolesLoadFailed,
-          load: async pid => (roleCache[pid] = await rbRolesFor(pid)).map(r => ({ value: String(r.id), label: _bpRoleLabel(r) })),
-        },
-        confirmLabel: T.LABELS.modalConfirm,
-      });
+      const picked = await pickTemplateTarget({ tpl, projects, rolesFor: templateRolesFor, noneLabel: T.LABELS.roleAll });
       if (!picked) return;
-      const project = projects.find(p => String(p.id) === String(picked.first));
+      const { project, role } = picked;
       if (!project) { toast(T.MESSAGES.noWritableProjectReport, { type: 'error' }); return; }
-      const role = (roleCache[picked.first] || []).find(r => String(r.id) === String(picked.second)) || null;
       const overrides = {
         ProjectID: parseInt(project.id),
         RoleID:    role ? parseInt(role.id) : null,

@@ -65,6 +65,23 @@ function isCoEProject(p) {
   return !!p && p.ProjectType === 'CoE';
 }
 
+// N-478: one role option label for the builders' Role selects and the Use template dialog.
+// Raw text — markup callers escape it; the dialog sets textContent.
+function templateRoleLabel(r) {
+  return r.Location ? `${r.RoleTitle} (${r.Location})` : r.RoleTitle;
+}
+
+// N-478: the Use template dialog's project options — sorted by name, same label as
+// buildProjectOptionsHtml, grouped Active / Archive. Never mutates its input.
+// (sortProjectsByName / isProjectActive: project-types.js, called at run time only.)
+function templateProjectOptions(projects) {
+  return sortProjectsByName(projects).map(p => ({
+    value: String(p.id),
+    label: p.CustomerName || String(p.id),
+    group: isProjectActive(p) ? 'Active' : 'Archive',
+  }));
+}
+
 // ── Split-fee revenue (N-116) ─────────────────────────────────────────
 // Exec Search and MG AI bill as a retainer up front plus the balance on
 // placement, not a monthly rate. Each is recognised as a single lump sum in a

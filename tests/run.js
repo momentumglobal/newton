@@ -58,6 +58,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'revenue-logic.js'),    // N-474: assignment revenue maths (pure)
   path.join(JS_DIR, 'people-views-logic.js'),   // N-477: Deployment Timeline + Assignments tab shaping (pure; calls list-controls.js at run time)
   path.join(JS_DIR, 'ui-kit.js'),
+  path.join(JS_DIR, 'template-picker.js'),   // N-478: Use template picker (declarations only; pairSelectModal is stubbed in tests)
   path.join(JS_DIR, 'richtext.js'),
   path.join(JS_DIR, 'headcount.js'),
   path.join(JS_DIR, 'permissions.js'),
@@ -181,6 +182,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-md-guide.js'),     // N-401
   path.join(TESTS_DIR, 'assert-notifications.js'),   // N-425
   path.join(TESTS_DIR, 'assert-templates.js'),       // N-427
+  path.join(TESTS_DIR, 'assert-drift-duplicates.js'),   // N-478
   path.join(TESTS_DIR, 'assert-my-momentum.js'),     // N-451
   path.join(TESTS_DIR, 'assert-scorecard.js'),       // N-453
   path.join(TESTS_DIR, 'assert-scorecard-detail.js'),   // N-454

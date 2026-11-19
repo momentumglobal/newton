@@ -359,7 +359,7 @@ ASSERTIONS.push(
     fn: function () {
       _tplNeedSources();
       const b = _tplBody('briefing-pack.js', 'async function bpUseTemplateAction(');
-      ['pairSelectModal(', 'cloneBriefingPackFromTemplate(', '_bpCanWrite(p.id)', 'bpCurrentMonth()'].forEach(s =>
+      ['pickTemplateTarget(', 'cloneBriefingPackFromTemplate(', '_bpCanWrite(p.id)', 'bpCurrentMonth()'].forEach(s =>
         _assertEqual(b.includes(s), true, 'calls ' + s));
       const ov = (b.match(/const overrides = \{([\s\S]*?)\};/) || [])[1] || '';
       _assertEqual(ov.length > 0, true, 'overrides literal found');
@@ -399,7 +399,7 @@ ASSERTIONS.push(
       const where = Object.keys(ALL_SOURCES).filter(f => /function pairSelectModal\(/.test(String(ALL_SOURCES[f])));
       _assertEqual(where, ['ui-kit.js'], 'pairSelectModal in ui-kit.js only');
       const b = _tplBody('ui-kit.js', 'function pairSelectModal(');
-      _assertEqual(b.includes('_confirmModalOpen = true') && b.includes('opt.textContent'), true, 'shares the guard, textContent options');
+      _assertEqual(_tplBody('ui-kit.js', 'function _openModal(').includes('_confirmModalOpen = true') && b.includes('return _openModal({') && b.includes('opt.textContent'), true, 'shares the guard (via the shell), textContent options');
       _assertEqual(/innerHTML\s*=\s*`[^`]*\$\{o\./.test(b), false, 'no option data in innerHTML');
       const reg = _tplBody('briefing-pack.js', 'registerActions({');
       ['bpUseTemplateAction', 'bpSaveAsTemplateAction'].forEach(n =>
@@ -485,7 +485,7 @@ ASSERTIONS.push(
       _assertEqual(i > 0 && e > i, true, 'company branch found');
       const company = b.slice(i, e), project = b.slice(e);
       _assertEqual(company.includes('cloneSavedReportFromTemplate(id, email, {}, { keepHiringPlan: false })') && !company.includes('pairSelectModal('), true, 'company: no dialog, plan dropped');
-      ['canWriteProject(', 'pairSelectModal(', 'noneLabel: T.LABELS.roleAll', 'keepHiringPlan: isCoEProject(project)', 'rbRolesFor(pid)'].forEach(s =>
+      ['canWriteProject(', 'pickTemplateTarget(', 'noneLabel: T.LABELS.roleAll', 'keepHiringPlan: isCoEProject(project)', 'rolesFor: templateRolesFor'].forEach(s =>
         _assertEqual(project.includes(s), true, 'project branch: ' + s));
       const ov = (b.match(/const overrides = \{([\s\S]*?)\};/) || [])[1] || '';
       _assertEqual(ov.length > 0 && !/\b(Title|Scope)\s*:/.test(ov), true, 'overrides carry no Title / Scope');

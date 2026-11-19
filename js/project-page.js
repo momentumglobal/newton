@@ -167,21 +167,6 @@ function _ppFieldsHtml(v) {
 }
 
 function _ppPageHtml(v) {
-  const ck = v.checklist;
-  let checklistHtml = '';
-  if (ck && ck.error) {
-    checklistHtml = `
-      <section class="role-page-section">
-        <h3 class="role-page-section-title">Checklist</h3>
-        <p class="checklist-unavailable">The checklist couldn't be loaded.</p>
-      </section>`;
-  } else if (ck) {
-    checklistHtml = `
-      <section class="role-page-section">
-        <h3 class="role-page-section-title">Checklist · ${escHtml(checklistVariantLabel(ck.variant))}</h3>
-        ${checklistBodyHtml(ck)}
-      </section>`;
-  }
   return `
     <div class="project-page" data-project-page="${Number(v.projectId)}">
       ${_ppHeaderHtml(v)}
@@ -190,7 +175,7 @@ function _ppPageHtml(v) {
       ${_ppSlaSectionHtml(v)}
       ${_ppSlaPanelSectionHtml(v)}
       <section class="role-page-section pp-team" id="pp-team">${_ppTeamHtml(v)}</section>
-      ${checklistHtml}
+      ${checklistSectionHtml(v.checklist)}
     </div>`;
 }
 

@@ -574,7 +574,7 @@ ASSERTIONS.push(
       _tplNeedSources();
       [['api.js', 'async function _cloneTemplateItem('], ['api.js', 'async function cloneBriefingPackFromTemplate('],
         ['api.js', 'async function cloneSavedReportFromTemplate('], ['api.js', 'async function saveTemplateItem('],
-        ['utils.js', 'function stripTemplateScope('], ['utils.js', 'function templateModuleOrder(']].forEach(([f, sig]) => {
+        ['templates-logic.js', 'function stripTemplateScope('], ['templates-logic.js', 'function templateModuleOrder(']].forEach(([f, sig]) => {
         const b = _tplBody(f, sig);
         _assertEqual(b.length > 0, true, sig + ' found');
         _assertEqual(/fillTemplate\(|\.replace\(/.test(b), false, sig + ' does no token substitution');

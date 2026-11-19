@@ -51,6 +51,10 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'config.js'),
   path.join(JS_DIR, 'actions.js'),
   path.join(JS_DIR, 'utils.js'),
+  path.join(JS_DIR, 'templates-logic.js'),  // N-474: template rules (pure; after utils.js)
+  path.join(JS_DIR, 'project-types.js'),    // N-474: project-type / KPI-exclusion rules (pure)
+  path.join(JS_DIR, 'people-logic.js'),     // N-474: People / workforce rules (pure)
+  path.join(JS_DIR, 'revenue-logic.js'),    // N-474: assignment revenue maths (pure)
   path.join(JS_DIR, 'ui-kit.js'),
   path.join(JS_DIR, 'richtext.js'),
   path.join(JS_DIR, 'headcount.js'),

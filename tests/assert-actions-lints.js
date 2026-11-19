@@ -379,7 +379,7 @@ ASSERTIONS.push(
       _assertEqual(regs.updateRoleStage, ['js/pages.js'], 'pages.js registers updateRoleStage');
       _assertEqual(regs.unlockStageEdit, ['js/pages.js'], 'pages.js registers unlockStageEdit');
       _assertEqual(regs.setRolesSort, ['js/pages.js'], 'pages.js registers its list setters');
-      _assertEqual(regs.exitGhostMode, ['js/utils.js'], 'utils.js registers exitGhostMode');
+      _assertEqual(regs.exitGhostMode, ['js/ui-kit.js'], 'ui-kit.js registers exitGhostMode');
       _assertEqual(regs.notifToggle, ['js/notifications.js'], 'notifications.js registers notifToggle');
       ['js/utils.js', 'js/list-controls.js', 'js/notifications.js'].forEach(f =>
         _assertEqual(f in INLINE_HANDLER_BASELINE, false, f + ' has no baseline entry (0 inline handlers)'));

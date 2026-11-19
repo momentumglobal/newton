@@ -164,14 +164,14 @@ const CONFIG = {
   // People.Level enum, in display/sort-rank order (N-117). Single source of
   // truth for the Add/Edit Employee dropdown and for level sort order —
   // every levelOrder map in the codebase should read from this via
-  // utils.js:levelSortIndex() rather than redeclaring its own copy.
+  // people-logic.js:levelSortIndex() rather than redeclaring its own copy.
     PEOPLE_LEVELS: ['CSD', 'SDM', 'PTP', 'STP', 'TP'],
 
   // N-304: People.StaffType / StaffFunction (Single line of text columns —
   // these arrays are the only list of valid values). Blank StaffType =
   // Deployable (every row created before N-304). Internal staff have no Level
   // and never count towards utilisation, bench or deployable headcount
-  // (isDeployablePerson, utils.js). STAFF_TYPE_INTERNAL doubles as the
+  // (isDeployablePerson, people-logic.js). STAFF_TYPE_INTERNAL doubles as the
   // PROJECT_TYPE_COLOUR_VARS key for the Org Chart function bubbles — keep
   // the two equal (an assertion pins it).
   // N-402: 'External' = an outside partner on a Project Team (first user: a
@@ -247,21 +247,21 @@ const CONFIG = {
   // ── Project types (N-116) ─────────────────────────────────────────
   // ONE enum (N-362) for Projects.ProjectType and Assignments.ProjectType.
   // Surfaces that must not offer every value derive their list through the
-  // utils.js helpers (salesForecastTypes(), projectFormTypes()) — never by
+  // project-types.js helpers (salesForecastTypes(), projectFormTypes()) — never by
   // redeclaring a list in a page file. Array order is the display / sort order.
   PROJECT_TYPES: ['Embedded', 'CoE', 'Transformation', 'LCI',
                   'Exec Search', 'MG AI', 'Internal'],
 
   // N-362 (D-4): types that are Projects but have no Project Dashboard (they
   // collect no recruitment data). Read ONLY through isNoDashboardType() /
-  // isNoDashboardProject() / dashboardProjects() (utils.js) — never compared at
+  // isNoDashboardProject() / dashboardProjects() (project-types.js) — never compared at
   // a call site (tests/lint-project-types.js). The Projects rows are created by
   // the N-363 migration (Admin > Data Health > LCI / Transformation projects).
   NO_DASHBOARD_PROJECT_TYPES: ['LCI', 'Transformation'],
 
   // Types that bill on a retainer + placement-fee split rather than a monthly
   // rate. Drives the conditional fee fields on the Assignment and Sales Forecast
-  // forms, and the revenue-recognition branch in utils.js.
+  // forms, and the revenue-recognition branch in revenue-logic.js.
   SPLIT_FEE_PROJECT_TYPES: ['Exec Search', 'MG AI'],
 
   // ── Project & Role checklists (N-266a) ────────────────────────────
@@ -353,7 +353,7 @@ const CONFIG = {
   //                          still open or ended within this many days. Older rows are historic
   //                          (customers with no Newton project, kept for utilisation).
   //  (A row typed LCI / Transformation with no Projects row is "deferred to N-363":
-  //  isNoDashboardType() in utils.js, N-362.)
+  //  isNoDashboardType() in project-types.js, N-362.)
   PROJECT_TEAM: {
     BENCH_CUSTOMER:         'Unassigned',
     BENCH_CUSTOMER_ALIASES: ['Bench'],
@@ -368,7 +368,7 @@ const CONFIG = {
   // log Momentum's own hiring there as talent_partner). Its rows show on its
   // own project-scoped pages but never in a company figure, learned benchmark
   // or RAG. Read only through isInternalProject() / excludeInternalProjectData()
-  // (utils.js) — never compared at a call site. It is in PROJECT_TYPES; the
+  // (project-types.js) — never compared at a call site. It is in PROJECT_TYPES; the
   // Sales Forecast dropdown drops it through salesForecastTypes(). Must stay in
   // PROJECT_TYPES and NON_REVENUE_PROJECT_TYPES (assertion).
   PROJECT_TYPE_INTERNAL: 'Internal',
@@ -464,7 +464,7 @@ const CONFIG = {
       overrideFields: ['Title', 'Scope', 'ProjectID', 'RoleID'],
       // N-429 (TPL-D5, D6): a report template keeps its Scope; the project / role are
       // blanked on every template write. Candidate Pipeline Snapshot values are stripped
-      // from ModuleOrder separately (templateModuleOrder, utils.js).
+      // from ModuleOrder separately (templateModuleOrder, templates-logic.js).
       templateFields: ['Title', 'Scope', 'Period', 'KpiPeriod', 'ModuleOrder'],
       stripFields: { ProjectID: null, RoleID: null },
     },
@@ -1542,7 +1542,7 @@ const CONFIG = {
       },
     },
     // N-452 / N-453: old People deep links -> My Momentum tab keys. people-app.js sends the visitor on before sign-in
-    // (utils.js mmRedirectTarget).
+    // (my-momentum-logic.js mmRedirectTarget).
     REDIRECTS: { myDevelopment: 'myDevelopment', teamDevelopment: 'myTeam', scorecards: 'myScorecard' },
     // N-453: hash / Command Bar keys that name a sub-tab, not a tab. my-momentum-logic.js mmResolveDeepLink().
     DEEP_LINKS: { teamScorecards: { tab: 'myTeam', sub: 'scorecards' } },
@@ -1575,7 +1575,7 @@ const CONFIG = {
         { label: 'Avg time to hire',      unit: 'days',  benchKey: 'timeToHireDays',       scale: 1, lower: true },
       ],
     },
-    // N-459 (MM-9): the hero greeting bands, by the viewer's local hour — before afternoonFrom is morning, from eveningFrom is evening (utils.js greetingForHour).
+    // N-459 (MM-9): the hero greeting bands, by the viewer's local hour — before afternoonFrom is morning, from eveningFrom is evening (my-momentum-logic.js greetingForHour).
     GREETING_HOURS: { afternoonFrom: 12, eveningFrom: 18 },
   },
 
@@ -1760,7 +1760,8 @@ const CONFIG = {
   MCP: {
     contract: 1,
     scripts: [
-      'js/actions.js', 'js/utils.js', 'js/headcount.js', 'js/permissions.js',
+      'js/actions.js', 'js/utils.js', 'js/templates-logic.js', 'js/project-types.js', 'js/people-logic.js', 'js/revenue-logic.js',
+      'js/headcount.js', 'js/permissions.js',
       'js/project-team.js', 'js/graph-client.js', 'js/api.js', 'js/api-headcount.js', 'js/api-orgchart.js',   // N-394: api-orgchart.js for getCurrentAssignmentsByEmployee (bench)
       'js/analytics.js', 'mcp/newton-tools.js',
     ],

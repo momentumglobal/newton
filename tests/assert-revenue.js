@@ -406,7 +406,7 @@ ASSERTIONS.push(
       const scan = src => {
         const hits = [];
         Object.keys(src).forEach(f => {
-          if (f === 'utils.js') return;
+          if (f === 'utils.js' || f === 'people-logic.js') return;
           _vendorStripJsComments(src[f]).forEach((line, i) => { if (BAD.test(line)) hits.push(f + ':' + (i + 1)); });
         });
         return hits;
@@ -414,7 +414,7 @@ ASSERTIONS.push(
       _assertEqual(scan(ALL_SOURCES), [], 'utilisation maths outside utils.js');
       const bumped = Object.assign({}, ALL_SOURCES, { 'people-dashboard.js': ALL_SOURCES['people-dashboard.js'] + '\nconst _x = rows.reduce((s, r) => s + r.BilledCapacity, 0);' });
       _assertEqual(scan(bumped).length, 1, 'mutation: a new BilledCapacity sum is flagged');
-      _assertEqual(/function\s+personUtilisation\s*\(/.test(ALL_SOURCES['utils.js']), true, 'personUtilisation is defined in utils.js');
+      _assertEqual(/function\s+personUtilisation\s*\(/.test(ALL_SOURCES['people-logic.js']), true, 'personUtilisation is defined in people-logic.js');
     },
   },
   {
@@ -527,7 +527,7 @@ ASSERTIONS.push(
         _assertEqual([/Level === band/.test(panel), /padStart/.test(panel), /utilisationBandRollup\(rows\)/.test(panel), /utilisationByMonth\(rows\)/.test(panel)],
           [false, false, true, true], 'panel calls the helpers and keeps no maths of its own');
         _assertEqual(['utilisationBandRollup', 'utilisationByMonth'].map(n => Object.keys(ALL_SOURCES).filter(f => new RegExp('function\\s+' + n + '\\s*\\(').test(ALL_SOURCES[f]))),
-          [['utils.js'], ['utils.js']], 'defined only in utils.js');
+          [['people-logic.js'], ['people-logic.js']], 'defined only in people-logic.js');
       }
     },
   }

@@ -1,6 +1,8 @@
 // js/my-momentum-logic.js — My Momentum tab rules (N-451 / MM-1).
 // Pure: reads CONFIG only — no network, no DOM. Needs CONFIG.MY_MOMENTUM (config.js). Used by
 // my-momentum-router.js, my-momentum-nav.js and tests/assert-my-momentum.js.
+// N-474: also holds the greeting and old-link redirect helpers (mmGreetingText(), mmRedirectTarget()), moved
+// from utils.js. Loads on my-momentum.html, and on index.html (home.js) and people.html (people-app.js).
 //
 // The tab registry is CONFIG.MY_MOMENTUM.TABS (order = display order = landing order). A tab is shown
 // only when it is `live` (its page exists) AND relevant to this person (MM-D1).
@@ -222,4 +224,23 @@ function mmDeepLinkPerson(raw) {
   const query = String(raw === undefined || raw === null ? '' : raw).split('?')[1] || '';
   const m = /(?:^|&)person=([^&#]*)/.exec(query);
   return m && /^[1-9][0-9]{0,9}$/.test(m[1]) ? Number(m[1]) : null;
+}
+
+// N-452: where an old People deep link lives now. `hash` is location.hash ('#teamDevelopment?x=1'); `map` is
+// CONFIG.MY_MOMENTUM.REDIRECTS ({ oldKey: newKey }). Returns the new My Momentum tab key, or '' for "stay here".
+function mmRedirectTarget(hash, map) {
+  const key = String(hash || '').replace(/^#/, '').split('?')[0].trim();
+  return key && map && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : '';
+}
+
+// N-459 (MM-9): the hero greeting. `hour` is the viewer's local hour (0-23); the bands live in CONFIG.MY_MOMENTUM.GREETING_HOURS.
+function greetingForHour(hour) {
+  const g = CONFIG.MY_MOMENTUM.GREETING_HOURS;
+  return hour >= g.eveningFrom ? 'Good evening' : hour >= g.afternoonFrom ? 'Good afternoon' : 'Good morning';
+}
+function firstNameOf(fullName) { return String(fullName || '').trim().split(/\s+/)[0]; }
+// "Good morning, Chris". No account name -> no name and no comma; an email address is never shown.
+function mmGreetingText(fullName, hour) {
+  const name = firstNameOf(fullName);
+  return name ? `${greetingForHour(hour)}, ${name}` : greetingForHour(hour);
 }

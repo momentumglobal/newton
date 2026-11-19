@@ -962,7 +962,7 @@ ASSERTIONS.push(
       _assertEqual(iso(peoplePeriodRange({ year: 2024, month: 1, quarter: null }).end), '2024-02-29', 'control: leap February');
       if (typeof ALL_SOURCES !== 'undefined') {
         const defs = n => Object.keys(ALL_SOURCES).filter(f => new RegExp('function\\s+' + n + '\\s*\\(').test(ALL_SOURCES[f]));
-        _assertEqual([defs('peoplePeriodRange'), defs('activeDeployableCount')], [['utils.js'], ['utils.js']], 'defined only in utils.js');
+        _assertEqual([defs('peoplePeriodRange'), defs('activeDeployableCount')], [['people-logic.js'], ['people-logic.js']], 'defined only in people-logic.js');
         _assertEqual([defs('utilisationYearSeries'), defs('salesForecastUtil')], [['analytics.js'], ['analytics.js']], 'defined only in analytics.js');
         _assertEqual([defs('_dashDateRange'), defs('_salesForecastUtil')], [[], []], 'the old renderer copies are gone');
         const pd = ALL_SOURCES['people-dashboard.js'];
@@ -989,9 +989,9 @@ ASSERTIONS.push(
       _assertEqual([activeDeployablePeople(null), activeDeployablePeople([])], [[], []], 'null / empty give []');
       if (typeof ALL_SOURCES !== 'undefined') {
         const withFilter = Object.keys(ALL_SOURCES).filter(f => /IsActive\s*!==\s*false\s*&&\s*isDeployablePerson/.test(ALL_SOURCES[f]));
-        _assertEqual(withFilter, ['utils.js'], 'the active + deployable filter exists only in utils.js');
+        _assertEqual(withFilter, ['people-logic.js'], 'the active + deployable filter exists only in people-logic.js');
         const defs = Object.keys(ALL_SOURCES).filter(f => /function\s+activeDeployablePeople\s*\(/.test(ALL_SOURCES[f]));
-        _assertEqual(defs, ['utils.js'], 'activeDeployablePeople defined only in utils.js');
+        _assertEqual(defs, ['people-logic.js'], 'activeDeployablePeople defined only in people-logic.js');
         _assertEqual([/activeDeployableCount\(/.test(ALL_SOURCES['people-gantt.js']), /activeDeployablePeople\(/.test(ALL_SOURCES['project-team.js'])],
           [true, true], 'people-gantt.js and project-team.js call the shared helpers');
       }

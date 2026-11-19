@@ -162,7 +162,7 @@ function updateThemeToggleIcon() {
 }
 
 // Moved from utils.js (N-237d) — single consumer, this file only.
-// getTheme/setTheme stay in utils.js.
+// getTheme/setTheme live in ui-kit.js (N-474).
 function toggleTheme() {
   setTheme(getTheme() === 'dark' ? 'light' : 'dark');
   if (typeof updateThemeToggleIcon === 'function') updateThemeToggleIcon();
@@ -181,7 +181,7 @@ function updateDensityToggleIcon() {
 }
 
 // Moved from utils.js (N-237d) — single consumer, this file only.
-// getDensity/setDensity stay in utils.js.
+// getDensity/setDensity live in ui-kit.js (N-474).
 function toggleDensity() {
   setDensity(getDensity() === 'compact' ? 'comfortable' : 'compact');
   if (typeof updateDensityToggleIcon === 'function') updateDensityToggleIcon();

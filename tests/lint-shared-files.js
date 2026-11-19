@@ -33,7 +33,7 @@ var SHARED_FILE_FUNCTION_BASELINE = {
   'analytics.js': 64,
   'api.js': 118,
   'config.js': 1,
-  'utils.js': 153,
+  'utils.js': 79,
 };
 
 var CONFIG_KEY_BASELINE = 108;

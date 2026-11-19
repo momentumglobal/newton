@@ -3,13 +3,13 @@
 //
 // LCI and Transformation are Projects with no dashboard (CONFIG.NO_DASHBOARD_
 // PROJECT_TYPES) and Internal is excluded from company KPIs. Each is read
-// through ONE helper (utils.js: isNoDashboardType / isNoDashboardProject /
+// through ONE helper (project-types.js: isNoDashboardType / isNoDashboardProject /
 // isKpiExcludedProject / isInternalProject), never compared at a call site —
 // a hand-written `p.ProjectType === 'LCI'` silently misses the next type added
 // to the list. This turns that into a build failure. 'CoE' / 'Embedded' checks
 // are deliberately NOT covered (N-362 B-2).
 //
-// Flags, in every js/ file except utils.js and config.js:
+// Flags, in every js/ file except utils.js, config.js and project-types.js:
 //   (a) ProjectType compared (=== !== == !=, either side) to a quoted
 //       'LCI' / 'Transformation' / 'Internal', CONFIG.PROJECT_TYPE_INTERNAL or
 //       an element of CONFIG.NO_DASHBOARD_PROJECT_TYPES;
@@ -24,7 +24,7 @@
 // go stale. Pure function over data. tests/run.js passes ALL_SOURCES; the
 // assertion skips when it is undefined (browser harness, no filesystem).
 
-var PROJECT_TYPE_LINT_EXEMPT = ['utils.js', 'config.js'];
+var PROJECT_TYPE_LINT_EXEMPT = ['utils.js', 'config.js', 'project-types.js'];
 
 var PROJECT_TYPE_LINT_ALLOW = [
 ];

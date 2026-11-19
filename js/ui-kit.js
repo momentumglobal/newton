@@ -1,7 +1,8 @@
 // js/ui-kit.js — shared DOM/UI helpers (N-346a): toast and modals, skeletons,
 // KPI count-up, empty / error states, button loading state, scroll-preserving
 // re-render, ghost-mode banner, view transitions, printPage (moved from
-// api.js, N-347). No network I/O.
+// api.js, N-347), the theme / density / chart-colour helpers and exitGhostMode()
+// (moved from utils.js, N-474). No network I/O.
 // Loads straight after utils.js on every shell that loads utils.js; calls
 // utils.js helpers (escHtml, act, getGhostUser …) at runtime only, never at load.
 
@@ -827,8 +828,75 @@ function hydratePhotoImgs(root, getMap) {
   return Promise.race([work, cap]);
 }
 
+function exitGhostMode() {
+  clearGhostUser();
+  // Reload the current page to re-initialise with the real role
+  window.location.reload();
+}
+
+// ── Theme (light / dark) ────────────────────────────────────────────
+// Explicit user choice, once made, overrides prefers-color-scheme permanently.
+// theme-init.js sets the initial data-theme attribute before first paint using
+// the same localStorage key — keep THEME_KEY's value in sync with the literal
+// string in theme-init.js if it ever changes.
+const THEME_KEY = 'newton_theme';
+
+function getTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+function setTheme(theme) {
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+}
+
+// ── Chart colours (N-416) ───────────────────────────────────────────
+// Series tokens --chart-1…8 live in style.css (light, dark and print sets).
+// SVG charts put var(--chart-N) straight into their markup and follow the
+// theme for free. A canvas (Chart.js) cannot resolve var(), so it reads the
+// resolved colour at draw time with chartCssVar() and is re-coloured when the
+// theme changes (engagement-pages.js).
+function chartSeriesVar(i) {
+  return '--chart-' + ((((i | 0) % 8) + 8) % 8 + 1);
+}
+function chartCssVar(name) {
+  try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); } catch (e) { return ''; }
+}
+function chartSeriesColour(i) {
+  return chartCssVar(chartSeriesVar(i));
+}
+// Rating-distribution segment tone: ordinal quality, low → high (not a category).
+function engDistTone(i, range) {
+  if (range <= 1) return 'high';
+  const r = i / (range - 1);
+  return r < 0.34 ? 'low' : r < 0.67 ? 'mid' : 'high';
+}
+
+// ── Density (comfortable / compact) ─────────────────────────────────
+// Same pattern as Theme above. theme-init.js sets the initial data-density
+// attribute before first paint using the same localStorage key — keep
+// DENSITY_KEY's value in sync with the literal string in theme-init.js if
+// it ever changes.
+const DENSITY_KEY = 'newton_density';
+
+function getDensity() {
+  return document.documentElement.getAttribute('data-density') === 'compact' ? 'compact' : 'comfortable';
+}
+function setDensity(density) {
+  if (density === 'compact') {
+    document.documentElement.setAttribute('data-density', 'compact');
+  } else {
+    document.documentElement.removeAttribute('data-density');
+  }
+  try { localStorage.setItem(DENSITY_KEY, density); } catch (e) {}
+}
+
 // N-302a: delegated actions this file owns that shared markup calls (js/actions.js).
 // Later N-302 sub-tasks add their own names to this call; never register a name twice.
 registerActions({
   printPage,
+  exitGhostMode,
 });

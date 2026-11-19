@@ -2,7 +2,7 @@
 // Deliberately standalone: utils.js loads at the bottom of <body>, too late to
 // avoid a flash of the wrong theme. Must be loaded first in <head>, without
 // defer/async, on every page that links css/style.css.
-// Reads the SAME localStorage key as utils.js's THEME_KEY ('newton_theme') —
+// Reads the SAME localStorage key as ui-kit.js's THEME_KEY ('newton_theme') —
 // if that constant name ever changes, update the literal string here too.
 (function () {
   try {
@@ -28,7 +28,7 @@
 
 // Density (N-194) — same pre-paint approach as theme above, kept as a
 // separate IIFE so a throw in one doesn't skip the other.
-// Reads the SAME localStorage key as utils.js's DENSITY_KEY ('newton_density') —
+// Reads the SAME localStorage key as ui-kit.js's DENSITY_KEY ('newton_density') —
 // if that constant name ever changes, update the literal string here too.
 (function () {
   try {

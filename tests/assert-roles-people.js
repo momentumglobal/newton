@@ -307,10 +307,10 @@ ASSERTIONS.push(
         const seg = ALL_SOURCES['people-dashboard.js'].match(/function _renderSegmentationPanel[\s\S]*?const internalByFn/);
         _assertEqual(!!seg && /workforceSegmentation\(people\)/.test(seg[0]), true, 'Workforce Segmentation panel counts through workforceSegmentation (N-466)');
         _assertEqual(!!seg && !/isInternalStaff/.test(seg[0]), true, 'the panel does not filter on isInternalStaff itself (N-468)');
-        const wf = ALL_SOURCES['utils.js'].match(/function workforceSegmentation\([\s\S]*?\n\}\n/);
+        const wf = ALL_SOURCES['people-logic.js'].match(/function workforceSegmentation\([\s\S]*?\n\}\n/);
         _assertEqual(!!wf && /isStartedPerson\(p, asOf\)/.test(wf[0]), true, 'workforceSegmentation filters on isStartedPerson (N-424)');
-        _assertEqual((ALL_SOURCES['utils.js'].match(/function workforceSegmentation\(/g) || []).length, 1, 'workforceSegmentation defined once (utils.js)');
-        const body = ALL_SOURCES['utils.js'].match(/function activeDeployablePeople\([\s\S]*?\n\}\n/);
+        _assertEqual((ALL_SOURCES['people-logic.js'].match(/function workforceSegmentation\(/g) || []).length, 1, 'workforceSegmentation defined once (people-logic.js)');
+        const body = ALL_SOURCES['people-logic.js'].match(/function activeDeployablePeople\([\s\S]*?\n\}\n/);
         _assertEqual(!!body && !/isStartedPerson/.test(body[0]), true, 'activeDeployablePeople() carries no start-date filter');
       }
     },
@@ -409,7 +409,7 @@ ASSERTIONS.push(
       _assertEqual(names(peopleJoiners([P('N', D('2026-12-31')), P('J', D('2027-01-01'))], 2026, 12)), ['N'], 'December: the 31st in, 1 January out');
       _assertEqual([peopleJoiners(null, 2026, 10), peopleJoiners([], 2026, 10)], [[], []], 'null / empty people');
       if (typeof ALL_SOURCES !== 'undefined') {
-        _assertEqual((ALL_SOURCES['utils.js'].match(/function peopleJoiners\(/g) || []).length, 1, 'peopleJoiners defined once (utils.js)');
+        _assertEqual((ALL_SOURCES['people-logic.js'].match(/function peopleJoiners\(/g) || []).length, 1, 'peopleJoiners defined once (people-logic.js)');
       }
     },
   },
@@ -797,7 +797,7 @@ ASSERTIONS.push(
       _assertEqual(CONFIG.ORG_COLLAPSIBLE_KINDS, ['leader', 'csd', 'person'], 'collapsible kinds (bubbles excluded, D-1)');
       const oc = _vendorStripJsComments(ALL_SOURCES['org-chart.js']).join('\n');
       _assertEqual(/CONFIG\.ORG_COLLAPSIBLE_KINDS\.includes\(n\.kind\)/.test(oc), true, 'renderTreeHtml reads ORG_COLLAPSIBLE_KINDS');
-      _assertEqual(/orgSubtreePeopleCount\(n\)/.test(oc), true, 'count comes from the shared utils.js function');
+      _assertEqual(/orgSubtreePeopleCount\(n\)/.test(oc), true, 'count comes from the shared people-logic.js function');
       const reg = oc.match(/registerActions\(\{[\s\S]*?\}\);/);
       ['ocToggleNode', 'ocToggleNodeKey', 'ocSetAllCollapsed'].forEach(a =>
         _assertEqual(!!reg && new RegExp('\\b' + a + '\\b').test(reg[0]), true, a + ' registered'));
@@ -845,7 +845,7 @@ ASSERTIONS.push(
       const pay = ALL_SOURCES['people-payroll.js'];
       _assertEqual((pay.match(/all\.filter\(isPayrollPerson\)/g) || []).length, 2, 'both payroll call sites use isPayrollPerson');
       _assertEqual(/Location\s*===\s*'UK'/.test(pay), false, 'no local UK filter left in people-payroll.js');
-      const wf = ALL_SOURCES['utils.js'].match(/function workforceSegmentation\([\s\S]*?\n\}\n/);
+      const wf = ALL_SOURCES['people-logic.js'].match(/function workforceSegmentation\([\s\S]*?\n\}\n/);
       _assertEqual(!!wf && /!isExternalStaff\(p\)/.test(wf[0]), true, 'Workforce Segmentation excludes External (workforceSegmentation, N-466)');
       const dep = ALL_SOURCES['people-gantt.js'].match(/const deployable = assignments\.filter[\s\S]*?\n  \}\);/);
       _assertEqual(!!dep && /if \(isExternalStaff\(a\)\) return false;/.test(dep[0]), true, 'Deployable Resources excludes External rows');
@@ -860,8 +860,8 @@ ASSERTIONS.push(
         const b = body(src, n);
         return !b || /isBillableLevel\(/.test(b) || !/countsForUtilisation\(/.test(b);
       });
-      _assertEqual(scan(ALL_SOURCES['utils.js']), [], 'helpers that call isBillableLevel or lack countsForUtilisation');
-      const bumped = ALL_SOURCES['utils.js'].replace('if (!countsForUtilisation(r) ||', 'if (!isBillableLevel(r.Level) || !countsForUtilisation(r) ||');
+      _assertEqual(scan(ALL_SOURCES['people-logic.js']), [], 'helpers that call isBillableLevel or lack countsForUtilisation');
+      const bumped = ALL_SOURCES['people-logic.js'].replace('if (!countsForUtilisation(r) ||', 'if (!isBillableLevel(r.Level) || !countsForUtilisation(r) ||');
       _assertEqual(scan(bumped), ['personUtilisation'], 'mutation: an isBillableLevel call inside personUtilisation is flagged');
     },
   }

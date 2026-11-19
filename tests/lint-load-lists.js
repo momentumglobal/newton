@@ -35,6 +35,10 @@ var LOAD_LISTS_INDEX_ONLY = {
 
 // Shell-loaded first-party scripts that neither test list loads (R3-1 baseline, 18 Nov 2026).
 var LOAD_LISTS_SHELL_ONLY = [
+  'js/people-logic.js',    // TEMPORARY (N-474 commit 2) - removed in commit 3
+  'js/project-types.js',   // TEMPORARY (N-474 commit 2) - removed in commit 3
+  'js/revenue-logic.js',   // TEMPORARY (N-474 commit 2) - removed in commit 3
+  'js/templates-logic.js', // TEMPORARY (N-474 commit 2) - removed in commit 3
   'js/admin-page.js',
   'js/admin.js',
   'js/api-briefing.js',

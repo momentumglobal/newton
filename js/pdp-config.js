@@ -90,6 +90,14 @@ CONFIG.PDP = {
   //   MEETING_LABELS         display names; also the template Title prefix.
   //   TEMPLATE_LIMITS        publish-gate and editor limits (pdpValidateTemplate).
   PILLAR_KEYS:     ['own-it', 'decide', 'communicate', 'support', 'curious', 'adapt'],
+  PILLARS: [   // N-479 (was PDP_SEED.pillars): default names for Seed defaults / a new framework set, same order as PILLAR_KEYS; the live names are the framework rows
+    { key: 'own-it',      name: 'We Own It & Lift the Bar' },
+    { key: 'decide',      name: 'We Decide with Clarity & Confidence' },
+    { key: 'communicate', name: 'We Communicate Openly & Build Trust' },
+    { key: 'support',     name: 'We Support People & Grow Potential' },
+    { key: 'curious',     name: 'We Stay Curious & Keep Improving' },
+    { key: 'adapt',       name: 'We Adapt & Stay Resilient' },
+  ],
   BLOCK_TYPES:     ['prepQuestion', 'prompt', 'goalSet', 'goalReview', 'actions', 'scoring'],
   BLOCK_BY:        ['employee', 'manager'],
   REVIEW_BY:       ['employee', 'meeting'],

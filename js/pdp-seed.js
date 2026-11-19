@@ -7,35 +7,9 @@
 // Framework: L1-L4 IC, L5 MG (SDM) and an empty L5 IC set for PTP (PDP-D5). No L6 (CSDs review,
 // they are not scored). The Bi-Annual template has no Reward section and no outcome list: the
 // pillar scoring block replaces it (PDP-D3, PDP-D4). Edit the text in Newton, not here: this file
-// only fills gaps. Not part of the MCP bundle.
+// only fills gaps. The six pillar names are CONFIG.PDP.PILLARS (pdp-config.js, N-479). Not part of the MCP bundle.
 
 const PDP_SEED = {
- "pillars": [
-  {
-   "key": "own-it",
-   "name": "We Own It & Lift the Bar"
-  },
-  {
-   "key": "decide",
-   "name": "We Decide with Clarity & Confidence"
-  },
-  {
-   "key": "communicate",
-   "name": "We Communicate Openly & Build Trust"
-  },
-  {
-   "key": "support",
-   "name": "We Support People & Grow Potential"
-  },
-  {
-   "key": "curious",
-   "name": "We Stay Curious & Keep Improving"
-  },
-  {
-   "key": "adapt",
-   "name": "We Adapt & Stay Resilient"
-  }
- ],
  "framework": [
   {
    "level": "L1",

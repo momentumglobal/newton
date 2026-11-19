@@ -45,7 +45,7 @@ ASSERTIONS.push(
     name: 'N-434 AC3 lists are named only through CONFIG.PDP.LISTS',
     fn: function () {
       _assertEqual(Object.values(CONFIG.PDP.LISTS).sort(), Object.keys(_PDP_TABLES).sort(), 'AC3 LISTS names the seven lists');
-      ['api-pdp.js', 'pdp-data.js'].forEach(f => {
+      ['api-pdp.js', 'api-pdp-core.js', 'pdp-data.js'].forEach(f => {
         const src = ALL_SOURCES[f];
         Object.keys(_PDP_TABLES).forEach(l =>
           _assertEqual(new RegExp("['\"]" + l + "['\"]").test(src), false, 'AC3 ' + f + ' has no literal ' + l));
@@ -185,7 +185,7 @@ ASSERTIONS.push(
   {
     name: 'N-434 AC10 api-pdp.js: no raw graphRequest, no delete, nothing stored client-side',
     fn: function () {
-      const src = ALL_SOURCES['api-pdp.js'].split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+      const src = (ALL_SOURCES['api-pdp-core.js'] + '\n' + ALL_SOURCES['api-pdp.js']).split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');   // N-479
       _assertEqual(/graphRequest/.test(src), false, 'AC10 no raw graphRequest');
       _assertEqual(/deleteItem/.test(_pdpApiNoTeamDelete(src)), false, 'AC10 no delete writer');
       _assertEqual(/sessionStorage|localStorage/.test(src), false, 'AC10 nothing stored client-side');

@@ -88,6 +88,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'api-engagement.js'),
   path.join(JS_DIR, 'api-headcount.js'),
   path.join(JS_DIR, 'api-admin.js'),   // N-381: declarations only; createSlaDefaultRows is asserted
+  path.join(JS_DIR, 'api-pdp-core.js'), // N-479: PDP switch, access report / re-point, update writers (before api-pdp.js)
   path.join(JS_DIR, 'api-pdp.js'),     // N-433: declarations only
   path.join(JS_DIR, 'api-my-details.js'),  // N-456: declarations only
   path.join(JS_DIR, 'list-controls.js'),

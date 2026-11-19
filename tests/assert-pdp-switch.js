@@ -138,12 +138,13 @@ ASSERTIONS.push(
       _assertEqual(gateSrc.indexOf('getPdpMeetings(') > gateSrc.indexOf("gate.state === 'none'") && gateSrc.indexOf("gate.state === 'none'") > -1, true, 'AC10 only for a user still at none');
       _assertEqual(/sw\.mode === CONFIG\.PDP\.MODES\[1\]/.test(gateSrc), true, 'AC10 only in Pilot mode');
       _assertEqual(/_ensureGhostGate\(\)/.test(gateSrc) && /pdpEffectiveEmail\(/.test(gateSrc) && /getGhostUser\(\)/.test(gateSrc), true, 'AC10 Ghost-aware identity');
-      const w = fn('writePdpSwitch', 'resolvePdpGate');
+      const core = ALL_SOURCES['api-pdp-core.js'].split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');   // N-479: the switch lives in api-pdp-core.js
+      const w = core.slice(core.indexOf('async function writePdpSwitch'));
       _assertEqual(/roleCan\(role, 'pdpSwitch'\)/.test(w), true, 'AC11 write is gated on pdpSwitch');
       _assertEqual(/CONFIG\.PDP\.MODES\.includes\(m\)/.test(w), true, 'AC11 mode validated');
       _assertEqual(/createItem\('AppSettings', \{ Title: 'config'/.test(w) && /updateItem\('AppSettings', row\.id, fields\)/.test(w), true, 'AC11 updates or creates the config row');
-      _assertEqual(/graphRequest|deleteItem/.test(_pdpApiNoTeamDelete(src)), false, 'AC11 still no raw Graph / delete');
-      const r = fn('readPdpSwitch', 'writePdpSwitch');
+      _assertEqual(/graphRequest|deleteItem/.test(_pdpApiNoTeamDelete(src + '\n' + core)), false, 'AC11 still no raw Graph / delete');
+      const r = core.slice(core.indexOf('async function readPdpSwitch'), core.indexOf('async function writePdpSwitch'));
       _assertEqual(/pdpNormaliseMode\(/.test(r) && /pdpParsePilot\(/.test(r), true, 'AC11 read normalises (fail closed)');
     },
   },
@@ -165,7 +166,7 @@ ASSERTIONS.push(
   {
     name: 'N-445 AC13 PDP-D12: switch columns stay out of MCP, Command Bar and every other file',
     fn: function () {
-      const allow = ['config.js', 'pdp-config.js', 'pdp-identity.js', 'api-pdp.js', 'pdp-admin.js'];
+      const allow = ['config.js', 'pdp-config.js', 'pdp-identity.js', 'api-pdp.js', 'api-pdp-core.js', 'pdp-admin.js'];
       const offenders = Object.keys(ALL_SOURCES).filter(f => !allow.includes(f) && /PDPMode|PDPPilot|CONFIG\.PDP\.SETTINGS/.test(ALL_SOURCES[f]));
       _assertEqual(offenders, [], 'AC13 only the switch files name the columns');
       _assertEqual(CONFIG.MCP.allowedLists.includes('AppSettings'), false, 'AC13 AppSettings is not an MCP list');
@@ -177,7 +178,8 @@ ASSERTIONS.push(
     fn: function () {
       const h = ALL_HTML['reporting.html'];
       const at = f => h.indexOf('js/' + f + '"');
-      const order = ['project-team.js', 'pdp-identity.js', 'pdp-data.js', 'graph-client.js', 'api.js', 'api-headcount.js', 'api-pdp.js', 'analytics.js', 'sla-admin.js', 'pdp-admin.js', 'admin.js'];
+      const order = ['project-team.js', 'pdp-identity.js', 'graph-client.js', 'api.js', 'api-headcount.js', 'api-pdp-core.js', 'analytics.js', 'sla-admin.js', 'pdp-admin.js', 'admin.js'];   // N-479: no pdp-data.js, no api-pdp.js here
+      _assertEqual([at('pdp-data.js'), at('api-pdp.js')], [-1, -1], 'AC14 reporting.html loads neither pdp-data.js nor api-pdp.js (N-479)');
       order.forEach(f => _assertEqual(at(f) > -1, true, 'AC14 ' + f + ' is loaded'));
       for (let i = 1; i < order.length; i++) _assertEqual(at(order[i]) > at(order[i - 1]), true, 'AC14 ' + order[i] + ' after ' + order[i - 1]);
     },

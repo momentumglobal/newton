@@ -445,7 +445,7 @@ function _pdpBand(rows, level, track) {
 }
 
 // Pillar [{ key, name }] in order: the name from any framework row for that key, else `fallback`
-// ([{ key, name }], e.g. PDP_SEED.pillars), else the key itself.
+// ([{ key, name }], e.g. CONFIG.PDP.PILLARS), else the key itself.
 function pdpPillarsFrom(rows, fallback) {
   const fb = {};
   (fallback || []).forEach(p => { fb[p.key] = p.name; });
@@ -575,7 +575,7 @@ function pdpSeedPlan(frameworkRows, templateRows, seed, by, nowIso) {
   const who = by ? pdpEmail(by) : '';
   const have = {};
   (frameworkRows || []).forEach(r => { have[r.Level + '|' + r.Track + '|' + r.PillarKey + '|' + r.Band] = true; });
-  const names = pdpPillarsFrom(frameworkRows, seed.pillars);
+  const names = pdpPillarsFrom(frameworkRows, CONFIG.PDP.PILLARS);
   const framework = [];
   seed.framework.forEach(set => {
     names.forEach((p, i) => {

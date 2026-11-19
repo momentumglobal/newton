@@ -141,7 +141,7 @@ ASSERTIONS.push(
       _assertEqual(pdpFrameworkComplete(rows, 'L2', 'MG'), false, 'AC6 absent set incomplete');
       const set = pdpFrameworkSet(rows, 'L3', 'IC');
       _assertEqual([set.written, set.total, set.active, set.pillars.length], [18, 18, true, 6], 'AC6 set shape');
-      const P = PDP_SEED.pillars;
+      const P = CONFIG.PDP.PILLARS;   // N-479: was PDP_SEED.pillars
       const p = pdpFrameworkPlanSave(rows, 'L3', 'IC', { descriptors: { 'own-it': { Meets: '  New text  ' } } }, 'Bob@mg.test', P);
       _assertEqual(p.updates.length, 1, 'AC6 only the changed row is written');
       _assertEqual(p.updates[0].fields, { Descriptor: 'New text', UpdatedBy: 'bob@mg.test' }, 'AC6 trimmed text + UpdatedBy');

@@ -23,7 +23,7 @@ function _pdpAccItem(id, p, lm, csd, extra, locked) {
 
 // PDP-D12 guard: files (other than the allowlist) that mention a PDP list or a PDP data function.
 // Adding a file to the allowlist is a deliberate PDP-D12 review: that file now handles PDP data.
-const _PDP_GUARD_ALLOW = ['config.js', 'pdp-config.js', 'graph-client.js', 'pdp-identity.js', 'pdp-data.js', 'api-pdp.js', 'os-admin.js', 'org-chart.js',
+const _PDP_GUARD_ALLOW = ['config.js', 'pdp-config.js', 'graph-client.js', 'pdp-identity.js', 'pdp-data.js', 'api-pdp.js', 'api-pdp-core.js', 'os-admin.js', 'org-chart.js',
   // PDP-D12 review: N-437 — the cycle engine (pure rules), the PDP Setup > Cycle tab and the PDP Setup
   // page's "missing meetings" banner read the personal Cycles / Meetings lists (Admin / People Ops only).
   'pdp-cycle.js', 'pdp-cycle-admin.js', 'pdp-setup.js',
@@ -249,7 +249,7 @@ ASSERTIONS.push(
         _assertEqual(calls.map(c => c[0] + ':' + c[1]).sort(), _PDP_PERSONAL.map(l => 'update:' + l).sort(), 'AC11 each writer updates its own list');
         calls.forEach(c => _assertEqual(c[3], { LineManagerEmail: 'tom.tp@mg.test', ReadOnlyEmails: 'sam.sdm@mg.test' }, 'AC11 ' + c[1] + ' cleaned, AccessKey dropped'));
       } finally { getItems = o.g; updateItem = o.u; getPeople = o.p; }
-      const src = ALL_SOURCES['api-pdp.js'].split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+      const src = (ALL_SOURCES['api-pdp-core.js'] + '\n' + ALL_SOURCES['api-pdp.js']).split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');   // N-479: the access reads moved to api-pdp-core.js
       _assertEqual(/graphRequest|deleteItem/.test(_pdpApiNoTeamDelete(src)), false, 'AC11 no raw graphRequest / deleteItem');
       _assertEqual(/AccessKey/.test(src), false, 'AC11 api-pdp.js never names AccessKey');
       _assertEqual(/wasListDenied\(/.test(src), true, 'AC11 denials reported');
@@ -305,12 +305,58 @@ ASSERTIONS.push(
       ['admin.html', 'people.html'].forEach(page => {
         const h = ALL_HTML[page];
         const at = f => h.indexOf('src="js/' + f + '"');
-        ['permissions.js', 'pdp-identity.js', 'pdp-data.js', 'graph-client.js', 'api.js', 'api-pdp.js'].forEach(f => _assertEqual(at(f) > -1, true, page + ' loads ' + f));
+        const apiPdp = page === 'admin.html' ? 'api-pdp-core.js' : 'api-pdp.js';   // N-479: admin loads only the shared core
+        ['permissions.js', 'pdp-identity.js', 'pdp-data.js', 'graph-client.js', 'api.js', apiPdp].forEach(f => _assertEqual(at(f) > -1, true, page + ' loads ' + f));
         _assertEqual(at('permissions.js') < at('pdp-identity.js') && at('pdp-identity.js') < at('pdp-data.js') && at('pdp-data.js') < at('graph-client.js'), true, page + ' pure PDP files after permissions.js, before graph-client.js');
-        _assertEqual(at('api.js') < at('api-pdp.js'), true, page + ' api-pdp.js after api.js');
+        _assertEqual(at('api.js') < at(apiPdp), true, page + ' ' + apiPdp + ' after api.js');
       });
       const h = ALL_HTML['admin.html'];
-      _assertEqual(h.indexOf('src="js/api-pdp.js"') < h.indexOf('src="js/os-admin.js"'), true, 'admin.html api-pdp.js before os-admin.js');
+      _assertEqual(h.indexOf('src="js/api-pdp-core.js"') < h.indexOf('src="js/os-admin.js"'), true, 'admin.html api-pdp.js before os-admin.js');
+    },
+  },
+  {
+    name: 'N-479 AC reporting.html / admin.html load every PDP function they reach (closure), pdp-seed.js only on people.html',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined') _skip('ALL_HTML / ALL_SOURCES are only read by node tests/run.js');
+      const PDP = ['pdp-identity.js', 'pdp-data.js', 'api-pdp-core.js', 'api-pdp.js', 'pdp-admin.js'];
+      const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+      const bodies = {}, owner = {};
+      PDP.forEach(f => {
+        const s = strip(ALL_SOURCES[f]), re = /^(?:async\s+)?function\s+([A-Za-z_0-9]+)\s*\(/gm;
+        let m;
+        while ((m = re.exec(s))) {
+          let i = s.indexOf('{', m.index + m[0].length), d = 0, j = i;
+          for (; j < s.length; j++) { if (s[j] === '{') d++; else if (s[j] === '}' && --d === 0) break; }
+          bodies[m[1]] = s.slice(i, j + 1); owner[m[1]] = f;
+        }
+        const cr = /^const\s+([A-Za-z_0-9]+)\s*=/gm;
+        while ((m = cr.exec(s))) { const e = s.indexOf('\n};', m.index); bodies[m[1]] = s.slice(m.index, e > -1 ? e : m.index + 400); owner[m[1]] = f; }
+      });
+      const words = t => new Set(t.match(/\b[A-Za-z_][A-Za-z_0-9]*\b/g) || []);
+      // The PDP functions a shell reaches: named by its non-PDP scripts, plus everything in pdp-admin.js, then the closure.
+      const missing = (shell, loaded) => {
+        const h = ALL_HTML[shell], srcs = (h.match(/<script src="js\/[^"]+"/g) || []).map(x => x.replace('<script src="js/', '').replace('"', ''));
+        const have = f => (loaded || srcs).includes(f);
+        const roots = [];
+        srcs.filter(f => !PDP.includes(f) && ALL_SOURCES[f]).forEach(f => { const w = words(strip(ALL_SOURCES[f])); Object.keys(bodies).forEach(n => { if (w.has(n)) roots.push(n); }); });
+        Object.keys(owner).filter(n => owner[n] === 'pdp-admin.js' && srcs.includes('pdp-admin.js')).forEach(n => roots.push(n));
+        const seen = new Set(), stack = roots.filter(n => have(owner[n]) || true);
+        while (stack.length) { const n = stack.pop(); if (seen.has(n)) continue; seen.add(n); words(bodies[n]).forEach(x => { if (bodies[x] && !seen.has(x)) stack.push(x); }); }
+        return Array.from(seen).filter(n => !have(owner[n])).sort();
+      };
+      _assertEqual(missing('reporting.html'), [], 'N-479 reporting.html reaches no PDP function from a file it does not load');
+      _assertEqual(missing('admin.html'), [], 'N-479 admin.html reaches no PDP function from a file it does not load');
+      // Positive control: pretend reporting.html loaded no pdp-data.js / admin.html no api-pdp-core.js; the closure must notice.
+      const noData = ALL_HTML['admin.html'].replace('<script src="js/pdp-data.js" defer></script>', '');
+      const keep = ALL_HTML['admin.html']; ALL_HTML['admin.html'] = noData;
+      let ctl; try { ctl = missing('admin.html'); } finally { ALL_HTML['admin.html'] = keep; }
+      _assertEqual(ctl.length > 0 && ctl.every(n => owner[n] === 'pdp-data.js'), true, 'N-479 positive control: dropping pdp-data.js from admin.html is reported');
+      const seedLoaders = Object.keys(ALL_HTML).filter(f => /src="js\/pdp-seed\.js"/.test(ALL_HTML[f]));
+      _assertEqual(seedLoaders, ['people.html'], 'N-479 pdp-seed.js loads on people.html only');
+      _assertEqual(Object.keys(ALL_HTML).filter(f => /src="js\/api-pdp\.js"/.test(ALL_HTML[f])).sort(), ['my-momentum.html', 'people.html'], 'N-479 api-pdp.js loads on people.html and my-momentum.html only');
+      _assertEqual(Object.keys(ALL_HTML).filter(f => /src="js\/api-pdp-core\.js"/.test(ALL_HTML[f])).sort(), ['admin.html', 'my-momentum.html', 'people.html', 'reporting.html'], 'N-479 api-pdp-core.js loads on the four PDP shells');
+      _assertEqual(CONFIG.PDP.PILLARS.map(p => p.key), CONFIG.PDP.PILLAR_KEYS, 'N-479 CONFIG.PDP.PILLARS follows PILLAR_KEYS');
+      _assertEqual('pillars' in PDP_SEED, false, 'N-479 PDP_SEED carries no pillar list');
     },
   }
 );

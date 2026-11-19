@@ -104,7 +104,7 @@ ASSERTIONS.push(
       const html = ALL_HTML['my-momentum.html'];
       _assertEqual(typeof html, 'string', 'my-momentum.html exists');
       const srcs = (html.match(/<script src="js\/[^"]+"/g) || []).map(s => s.replace('<script src="js/', '').replace('"', ''));
-      const order = ['config.js', 'actions.js', 'auth.js', 'utils.js', 'ui-kit.js', 'permissions.js', 'project-team.js', 'pdp-identity.js', 'graph-client.js', 'api.js', 'api-pdp.js',
+      const order = ['config.js', 'actions.js', 'auth.js', 'utils.js', 'ui-kit.js', 'permissions.js', 'project-team.js', 'pdp-identity.js', 'graph-client.js', 'api.js', 'api-pdp-core.js', 'api-pdp.js',
         'my-momentum-logic.js', 'my-momentum-router.js', 'nav-core.js', 'command-bar.js', 'notifications.js', 'my-momentum-nav.js', 'my-momentum-pages.js', 'my-momentum-scorecard.js', 'my-momentum-app.js'];
       let last = -1;
       order.forEach(f => {
@@ -209,11 +209,11 @@ ASSERTIONS.push(
       const html = ALL_HTML['my-momentum.html'];
       const at = f => html.indexOf('js/' + f + '"');
       _assertEqual(html.indexOf('css/people.css') > html.indexOf('css/engagement.css') && html.indexOf('css/engagement.css') > -1, true, 'people.css loads after engagement.css');
-      const order = ['pdp-identity.js', 'pdp-data.js', 'pdp-seed.js', 'pdp-cycle.js', 'pdp-prep.js', 'pdp-reminders.js', 'pdp-team.js', 'pdp-track.js', 'pdp-assess.js', 'graph-client.js', 'api-pdp.js',
+      const order = ['pdp-identity.js', 'pdp-data.js', 'pdp-cycle.js', 'pdp-prep.js', 'pdp-reminders.js', 'pdp-team.js', 'pdp-track.js', 'pdp-assess.js', 'graph-client.js', 'api-pdp-core.js', 'api-pdp.js',
         'my-momentum-pages.js', 'pdp-ui-common.js', 'pdp-track-ui.js', 'pdp-assess-ui.js', 'pdp-my.js', 'pdp-team-page.js', 'my-momentum-app.js'];
       let last = -1;
       order.forEach(f => { const i = at(f); _assertEqual(i > last, true, f + ' loads in order (position ' + i + ' after ' + last + ')'); last = i; });
-      ['pdp-setup.js', 'pdp-template-editor.js', 'pdp-cycle-admin.js', 'pdp-calibrate-ui.js', 'pdp-calibrate.js'].forEach(f => _assertEqual(at(f), -1, f + ' stays People-only'));
+      ['pdp-setup.js', 'pdp-template-editor.js', 'pdp-cycle-admin.js', 'pdp-calibrate-ui.js', 'pdp-calibrate.js', 'pdp-seed.js'].forEach(f => _assertEqual(at(f), -1, f + ' stays People-only'));   // N-479: pdp-seed.js joined the list
       const app = ALL_SOURCES['my-momentum-app.js'], nav = ALL_SOURCES['my-momentum-nav.js'];
       _assertEqual(/Promise\.all\(\[\s*getPdpIdentity\(\)[\s\S]*resolvePdpNav\(\)/.test(app) && /pdpMy: !!pdpNav\.my, pdpTeam: !!pdpNav\.team/.test(app), true, 'identity and PDP signals are read together');
       const rem = app.indexOf('runPdpReminders()');

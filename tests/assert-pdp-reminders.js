@@ -175,8 +175,8 @@ ASSERTIONS.push(
   {
     name: 'N-441 AC13 reminders-from setting: read normalised, write admin-only, validated, only when changed',
     fn: function () {
-      const src = ALL_SOURCES['api-pdp.js'].split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
-      const rd = _rmtFn(src, 'readPdpSwitch', 'async function writePdpSwitch'), w = _rmtFn(src, 'writePdpSwitch', 'async function resolvePdpGate');
+      const src = ALL_SOURCES['api-pdp-core.js'].split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');   // N-479: the switch lives in api-pdp-core.js
+      const rd = _rmtFn(src, 'readPdpSwitch', 'async function writePdpSwitch'), w = _rmtFn(src, 'writePdpSwitch');
       _assertEqual(/remindersFrom: pdpNormaliseRemindersFrom\(row \? row\[S\.REMINDERS_FROM\] : ''\)/.test(rd), true, 'AC13 read normalises (blank = default)');
       _assertEqual(/roleCan\(role, 'pdpSwitch'\)/.test(w) && /remindersFrom !== undefined/.test(w), true, 'AC13 same Admin-only gate, only the fields passed');
       _assertEqual(/pdpNormaliseRemindersFrom\(d\) !== d/.test(w) && /Reminders from must be a valid date/.test(w), true, 'AC13 invalid dates refused');
@@ -186,7 +186,7 @@ ASSERTIONS.push(
       _assertEqual(/if \(from !== _pdpaFrom\) payload\.remindersFrom = from;/.test(tab), true, 'AC13 sent only when changed (the column need not exist for a mode-only save)');
       _assertEqual(/only when PDP is On/.test(tab) && /pilot users receive none/.test(tab), true, 'AC13 the tab says pilot users receive none');
       _assertEqual(/\bon(click|change|input)=|style="/.test(tab), false, 'AC13 no inline handlers or styles');
-      const off = Object.keys(ALL_SOURCES).filter(f => !['config.js', 'pdp-config.js', 'pdp-identity.js', 'api-pdp.js', 'pdp-admin.js'].includes(f) && /PDPRemindersFrom|REMINDERS_FROM/.test(ALL_SOURCES[f]));
+      const off = Object.keys(ALL_SOURCES).filter(f => !['config.js', 'pdp-config.js', 'pdp-identity.js', 'api-pdp.js', 'api-pdp-core.js', 'pdp-admin.js'].includes(f) && /PDPRemindersFrom|REMINDERS_FROM/.test(ALL_SOURCES[f]));
       _assertEqual(off, [], 'AC13 only the switch files name the column');
     },
   },

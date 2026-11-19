@@ -108,6 +108,7 @@ var LOAD_LISTS_SHELL_ONLY = [
   'js/os-admin.js',
   'js/pages.js',
   'js/pdp-admin.js',
+  'js/pdp-config.js',
   'js/pdp-cycle-admin.js',
   'js/pdp-setup.js',
   'js/pdp-template-editor.js',

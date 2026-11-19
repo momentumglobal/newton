@@ -799,11 +799,44 @@ ASSERTIONS.push(
       _assertEqual(has(lintLoadLists(mk({ runFiles: ['js/a.js', 'js/b.js'], indexHtml: '<script src="../js/a.js"></script><script src="../js/b.js"></script>' }), cfg), /names js\/b\.js, which is now in a test list/), true, 'baseline: an entry that is now tested is flagged');
       _assertEqual(has(lintLoadLists(mk(), { shellOnly: ['js/b.js', 'js/ghost.js'], indexOnly: {} }), /names js\/ghost\.js, which is gone from disk/), true, 'baseline: an entry gone from disk is flagged');
       if (typeof ALL_HTML === 'undefined' || typeof TEST_RUN_FILES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
-      const real = { html: ALL_HTML, runFiles: TEST_RUN_FILES, indexHtml: TEST_INDEX_HTML, mcpScripts: CONFIG.MCP.scripts, files: ROOT_FILE_SET };
+      const real = { html: ALL_HTML, runFiles: TEST_RUN_FILES, indexHtml: TEST_INDEX_HTML, mcpScripts: CONFIG.MCP.scripts, files: ROOT_FILE_SET, sources: ALL_SOURCES };
       _assertEqual(lintLoadLists(real), [], 'load lists');
       _assertEqual(lintLoadLists(Object.assign({}, real, { runFiles: TEST_RUN_FILES.filter(f => f !== 'js/utils.js') })).length > 0, true, 'mutation: dropping utils.js from the run.js list is flagged');
       _assertEqual(lintLoadLists(real, { shellOnly: LOAD_LISTS_SHELL_ONLY.filter(f => f !== 'js/pages.js'), indexOnly: LOAD_LISTS_INDEX_ONLY }).length, 1, 'mutation: a shell-only file missing from the baseline is flagged');
       _assertEqual(lintLoadLists(Object.assign({}, real, { mcpScripts: CONFIG.MCP.scripts.concat(['js/not-there.js']) })).length, 1, 'mutation: an MCP script that does not exist is flagged');
+    },
+  },
+  {
+    name: 'N-475 load lists check 5: a shell that loads a CONFIG.PDP reader loads js/pdp-config.js first, no shell loads it without a reader, and the index.html exemption is current',
+    fn: function () {
+      if (typeof lintPdpConfigLoad === 'undefined') _skip('lint-load-lists.js not loaded — runs under node tests/run.js.');
+      // Synthetic data: a.html is correct, b.html loads a reader the exemption covers.
+      const mk = (over) => Object.assign({
+        html: {
+          'a.html': '<script src="js/pdp-config.js"></script><script src="js/p.js"></script><script src="js/q.js"></script>',
+          'b.html': '<script src="js/q.js"></script><script src="js/e.js"></script>',
+        },
+        sources: { 'pdp-config.js': 'CONFIG.PDP = {};', 'p.js': 'x(CONFIG.PDP.A);', 'q.js': '// CONFIG.PDP is only named in a comment\nx();', 'e.js': 'function f() { return CONFIG.PDP.B; }' },
+      }, over || {});
+      const ex = { 'js/e.js': 'never reached on b.html' };
+      _assertEqual(lintPdpConfigLoad(mk(), ex), [], 'control: loaded before the reader; a comment mention is not a reader; the exempt reader needs no tag');
+      const missing = lintPdpConfigLoad(mk({ html: { 'a.html': '<script src="js/p.js"></script>' } }), {});
+      _assertEqual(missing.length === 1 && /a\.html loads js\/p\.js \(reads CONFIG\.PDP\) but not js\/pdp-config\.js/.test(missing[0]), true, 'missing tag flagged: ' + missing);
+      const late = lintPdpConfigLoad(mk({ html: { 'a.html': '<script src="js/p.js"></script><script src="js/pdp-config.js"></script>' } }), {});
+      _assertEqual(late.length === 1 && /loads js\/pdp-config\.js after js\/p\.js/.test(late[0]), true, 'wrong order flagged: ' + late);
+      const orphan = lintPdpConfigLoad(mk({ html: { 'b.html': '<script src="js/pdp-config.js"></script><script src="js/q.js"></script>' } }), {});
+      _assertEqual(orphan.length === 1 && /b\.html loads js\/pdp-config\.js but no script that reads CONFIG\.PDP/.test(orphan[0]), true, 'orphan flagged: ' + orphan);
+      _assertEqual(lintPdpConfigLoad(mk(), {}).length, 1, 'control: without the exemption the exempt reader is flagged');
+      const stale = lintPdpConfigLoad(mk(), { 'js/e.js': 'r', 'js/q.js': 'r' });
+      _assertEqual(stale.length === 1 && /names js\/q\.js, which no longer reads CONFIG\.PDP/.test(stale[0]), true, 'exemption for a file that no longer reads CONFIG.PDP flagged: ' + stale);
+      const unneeded = lintPdpConfigLoad(mk({ html: { 'a.html': '<script src="js/pdp-config.js"></script><script src="js/e.js"></script>' } }), ex);
+      _assertEqual(unneeded.length === 1 && /names js\/e\.js, which every shell now loads with js\/pdp-config\.js/.test(unneeded[0]), true, 'exemption no shell needs flagged: ' + unneeded);
+      _assertEqual(lintPdpConfigLoad({ html: mk().html }, ex), [], 'no sources: the check is skipped, not failed');
+      if (typeof ALL_HTML === 'undefined' || typeof ALL_SOURCES === 'undefined') _skip('Source scan needs filesystem access — runs under node tests/run.js, not in the browser runner.');
+      _assertEqual(lintPdpConfigLoad({ html: ALL_HTML, sources: ALL_SOURCES }), [], 'real shells: pdp-config.js loads where CONFIG.PDP is read');
+      const drop = (p) => Object.assign({}, ALL_HTML, { [p]: ALL_HTML[p].replace('<script src="js/pdp-config.js" defer></script>', '') });
+      _assertEqual(lintPdpConfigLoad({ html: drop('reporting.html'), sources: ALL_SOURCES }).length, 1, 'mutation: reporting.html without the tag is flagged');
+      _assertEqual(lintPdpConfigLoad({ html: ALL_HTML, sources: ALL_SOURCES }, {}).length, 1, 'positive control: without the exemption index.html is flagged for my-momentum-logic.js');
     },
   },
   {

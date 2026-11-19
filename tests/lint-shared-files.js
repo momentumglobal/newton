@@ -36,7 +36,7 @@ var SHARED_FILE_FUNCTION_BASELINE = {
   'utils.js': 79,
 };
 
-var CONFIG_KEY_BASELINE = 108;
+var CONFIG_KEY_BASELINE = 107;
 
 function sharedTopLevelFunctions(source) {
   var names = [];

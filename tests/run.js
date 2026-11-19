@@ -47,6 +47,7 @@ const JS_DIR = path.join(TESTS_DIR, '..', 'js');
 // diagnostics.js, which this runner does not load.)
 // (checklist-logic.js loads only on reporting.html in production, before api-checklists.js; both new files are
 // declarations only, so loading it here ahead of api.js is harmless.)
+// pdp-config.js (N-475, CONFIG.PDP) loads directly before pdp-identity.js, as on the four PDP shells.
 const SOURCE_FILES = [
   path.join(JS_DIR, 'config.js'),
   path.join(JS_DIR, 'actions.js'),
@@ -60,6 +61,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'headcount.js'),
   path.join(JS_DIR, 'permissions.js'),
   path.join(JS_DIR, 'project-team.js'),
+  path.join(JS_DIR, 'pdp-config.js'),       // N-475: CONFIG.PDP (declarations only; extends CONFIG; loads before pdp-identity.js)
   path.join(JS_DIR, 'pdp-identity.js'),     // N-433: pure PDP identity rules (loads after project-team.js)
   path.join(JS_DIR, 'pdp-data.js'),         // N-434: pure PDP list rules (after pdp-identity.js)
   path.join(JS_DIR, 'pdp-seed.js'),         // N-436: default framework + template content (pure data, after pdp-data.js)

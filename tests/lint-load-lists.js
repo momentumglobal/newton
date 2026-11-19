@@ -19,10 +19,17 @@
 //
 // "Shell" = every root *.html (pages, Readme, guides, redirect). js/vendor/ is ignored.
 //
+//   5 pdp-config   (N-475) a shell that loads a first-party script reading CONFIG.PDP must also load
+//                   js/pdp-config.js, before the first such script; a shell that loads pdp-config.js but no
+//                   reader is flagged too. LOAD_LISTS_PDP_EXEMPT names the files that read CONFIG.PDP but
+//                   are loaded on a shell without it because the read is never reached there; a stale
+//                   exemption fails (lintPdpConfigLoad below).
+//
 //   lintLoadLists(data, config)
 //     data    { html: ALL_HTML, runFiles: TEST_RUN_FILES, indexHtml: TEST_INDEX_HTML,
-//               mcpScripts: CONFIG.MCP.scripts, files: ROOT_FILE_SET }
-//     config  optional { shellOnly: [...], indexOnly: { 'js/x.js': 'reason' } }
+//               mcpScripts: CONFIG.MCP.scripts, files: ROOT_FILE_SET, sources: ALL_SOURCES }
+//     config  optional { shellOnly: [...], indexOnly: { 'js/x.js': 'reason' }, pdpExempt: { 'js/x.js': 'reason' } }
+//     sources is optional: without it check 5 is skipped.
 //
 // Pure function over data. tests/run.js supplies it; the assertions skip when undefined
 // (the browser harness has no filesystem). Reuses _vendorStripHtmlComments from lint-vendor.js
@@ -108,7 +115,6 @@ var LOAD_LISTS_SHELL_ONLY = [
   'js/os-admin.js',
   'js/pages.js',
   'js/pdp-admin.js',
-  'js/pdp-config.js',
   'js/pdp-cycle-admin.js',
   'js/pdp-setup.js',
   'js/pdp-template-editor.js',
@@ -207,6 +213,57 @@ function lintLoadLists(data, config) {
     if (current[f]) return;
     var why = !files[f] ? 'is gone from disk' : (run[f] || idx[f]) ? 'is now in a test list' : 'is no longer loaded by any shell';
     out.push('LOAD_LISTS_SHELL_ONLY names ' + f + ', which ' + why + ' - delete the entry');
+  });
+  return out.concat(lintPdpConfigLoad(data, cfg.pdpExempt));
+}
+
+// Files that read CONFIG.PDP (outside comments) but load on a shell without js/pdp-config.js, with the reason.
+var LOAD_LISTS_PDP_EXEMPT = {
+  'js/my-momentum-logic.js': 'reads CONFIG.PDP only inside mmScorecardScope, which index.html never calls (N-475)',
+};
+
+var LOAD_LISTS_PDP_CONFIG = 'js/pdp-config.js';
+
+function _llReadsPdpConfig(sources, src) {
+  var name = src.replace(/^js\//, '');
+  if (name === 'pdp-config.js' || typeof sources[name] !== 'string') return false;
+  return /\bCONFIG\.PDP\b/.test(_vendorStripJsComments(sources[name]).join('\n'));
+}
+
+// Check 5. data { html, sources }; exempt optional (replaces LOAD_LISTS_PDP_EXEMPT). Returns problem strings.
+function lintPdpConfigLoad(data, exempt) {
+  if (!data.sources) return [];
+  var ex = exempt || LOAD_LISTS_PDP_EXEMPT;
+  var out = [];
+  var loadedWithout = {};   // exempt file -> true when a shell loads it without pdp-config.js
+  Object.keys(data.html).sort().forEach(function (page) {
+    var srcs = _llScriptSrcs(data.html[page]);
+    var cfgAt = srcs.indexOf(LOAD_LISTS_PDP_CONFIG);
+    var firstAt = -1;
+    var anyReader = false;
+    srcs.forEach(function (src, i) {
+      if (!_llReadsPdpConfig(data.sources, src)) return;
+      anyReader = true;
+      if (ex[src]) {
+        if (cfgAt < 0) loadedWithout[src] = true;
+        return;
+      }
+      if (firstAt < 0) firstAt = i;
+    });
+    if (firstAt >= 0 && cfgAt < 0) {
+      out.push(page + ' loads ' + srcs[firstAt] + ' (reads CONFIG.PDP) but not ' + LOAD_LISTS_PDP_CONFIG + ' - add the script tag before it');
+    } else if (firstAt >= 0 && cfgAt > firstAt) {
+      out.push(page + ' loads ' + LOAD_LISTS_PDP_CONFIG + ' after ' + srcs[firstAt] + ', which reads CONFIG.PDP - move it before the first PDP script');
+    } else if (cfgAt >= 0 && !anyReader) {
+      out.push(page + ' loads ' + LOAD_LISTS_PDP_CONFIG + ' but no script that reads CONFIG.PDP - remove the tag');
+    }
+  });
+  Object.keys(ex).sort().forEach(function (f) {
+    if (!_llReadsPdpConfig(data.sources, f)) {
+      out.push('LOAD_LISTS_PDP_EXEMPT names ' + f + ', which no longer reads CONFIG.PDP - delete the entry');
+    } else if (!loadedWithout[f]) {
+      out.push('LOAD_LISTS_PDP_EXEMPT names ' + f + ', which every shell now loads with ' + LOAD_LISTS_PDP_CONFIG + ' - delete the entry');
+    }
   });
   return out;
 }

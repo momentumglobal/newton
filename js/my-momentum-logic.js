@@ -61,6 +61,8 @@ function mmLandingTab(visible) {
 // The views the person may switch between on Team Scorecards, and the default. The same rules as pdpTeamScope
 // (pdp-team.js) — 'tree' for a CSD, 'reports' for anyone with direct reports, 'all' for an all-staff role — but
 // WITHOUT the PDP-admin test: Team Scorecards does not depend on the PDP gate. `identity` = pdpResolveIdentity().
+// N-475: reads CONFIG.PDP.REVIEWER_LEVEL, which js/pdp-config.js defines. This file also loads on index.html, which loads no PDP
+// code, so never call this from index.html: its only caller is my-momentum-scorecard.js on my-momentum.html (lint-load-lists exempts it).
 function mmScorecardScope(identity, role) {
   const id = identity || {};
   const views = [];

@@ -88,8 +88,8 @@ CONFIG.ONBOARDING = {
     actionFailed:  'Couldn’t update the onboarding plan:',
   },
   // N-498 (ONB-3). Where the revamped decks live (ONB-D26): the OnboardingContent document library on the
-  // SolutionsHubReporting site. The seed builds each step's link from this + the file path. Rename the library
-  // and this is the one line to change (then edit the links in Checklists > Onboarding, or re-seed a fresh track).
+  // SolutionsHubReporting site. Step links point into it. Rename the library
+  // and this is the one line to change (then edit the links in Checklists > Onboarding).
   CONTENT_BASE_URL: 'https://talentpoint.sharepoint.com/sites/SolutionsHubReporting/OnboardingContent',
   // Config Panel > Checklists > Onboarding (checklist-admin.js). Every word the onboarding editor shows.
   EDITOR_TEXT: {
@@ -110,15 +110,5 @@ CONFIG.ONBOARDING = {
     dueBefore1:   '1 day before start',
     tableHeads:   ['Step', 'Owner', 'Due', 'Mode', 'Level', 'Required', 'Status', 'Actions'],
     emptyTitle:   'No onboarding steps in {track} yet.',
-  },
-  // N-498 seed tool (one-off; retired by the parked backlog row).
-  SEED_TEXT: {
-    button:     'Seed Talent Partner track',
-    hint:       'Adds the standard Talent Partner steps. Steps already there are left alone, so it is safe to run again.',
-    confirm:    'Add the standard Talent Partner onboarding steps? Anything already in the track is kept as it is.',
-    running:    'Adding steps\u2026',
-    done:       '{n} steps added, {m} already there.',
-    failedPart: '{n} of {total} steps were added before it stopped. Run Seed again to finish; it skips what exists.',
-    denied:     'Only an Admin can seed the onboarding track.',
   },
 };

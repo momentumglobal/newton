@@ -19,7 +19,7 @@
 //
 // N-498 (ONB-3): a third record type, Onboarding ('person'), edits the Talent Partner onboarding track in the same tab:
 // tick-box steps with Owner, due day, Mode, Level and a content link. The onboarding rules are the pure onb* functions
-// (onboarding-logic.js); the one-off Seed button calls seedOnboardingTrack() (api-onboarding.js). Project / Role are unchanged.
+// (onboarding-logic.js). Project / Role are unchanged.
 //
 // Every change re-renders through renderAdminTab('checklists'), which re-reads
 // the lists, so the screen only ever shows what was actually saved.
@@ -33,7 +33,6 @@ let _ckaVariantRows = {};    // variant → rows of the selected type (retired i
 let _ckaSections    = [];    // groupChecklistItems() of the selected type + variant
 let _ckaItems       = [];    // _ckaSections flattened — display order, retired included
 let _ckaTicked      = null;  // Set of ItemKeys with tick history (N-267); null = couldn't check
-let _ckaSeedLeft    = 0;     // N-498: seed steps not yet in the onboarding track (the Seed button hides at 0)
 
 const _CKA_TEXT = {
   project: { one: 'Project', many: 'projects', list: 'Projects', spList: 'Projects' },
@@ -141,7 +140,6 @@ async function buildChecklistsTab() {
   variants.forEach(v => { _ckaVariantRows[v] = byType[_ckType].filter(r => _ckaSameVariant(r, v)); });
   _ckaSections = groupChecklistItems(_ckaRows(_ckVariant));
   _ckaItems    = _ckaSections.flatMap(g => g.items);
-  _ckaSeedLeft = onbSeedPlan({ seed: ONBOARDING_SEED, existingRows: byType.person, baseUrl: CONFIG.ONBOARDING.CONTENT_BASE_URL }).create.length;
   if (_ckaForm && _ckaForm.id !== null && !_ckaItems.some(r => String(r.id) === _ckaForm.id)) _ckaForm = null;
   if (_ckaRename !== null && !_ckaSections[_ckaRename]) _ckaRename = null;
 
@@ -350,7 +348,6 @@ function _ckaTableHtml() {
       ${_ckaForm ? '' : `
       <div class="ck-admin-toolbar">
         <button type="button" class="btn-primary" id="ck-add-btn"${act('ckaOpenForm', null)}>+ Add item</button>
-        ${_ckaSeedButtonHtml()}
       </div>`}
       <table class="data-table ck-admin-table">
         <thead><tr>${_ckaHeadHtml()}</tr></thead>
@@ -412,7 +409,6 @@ function _ckaEmptyHtml() {
           : `No ${_CKA_TEXT[_ckType].one.toLowerCase()} items in ${escHtml(_ckaVarLabel(_ckVariant))} yet.`}</p>
         <div class="ck-admin-empty-actions">
           ${_ckaForm ? '' : `<button type="button" class="btn-primary" id="ck-add-btn"${act('ckaOpenForm', null)}>+ Add item</button>`}
-          ${_ckaForm ? '' : _ckaSeedButtonHtml()}
           ${copy}
         </div>
       </div>`;
@@ -771,32 +767,6 @@ function _ckaPersonFormHtml(it) {
       </fieldset>`;
 }
 
-// The one-off Seed button (onboarding + something left to add). Admin-only in the API; the Config Panel is Admin-only too.
-function _ckaSeedButtonHtml() {
-  if (_ckType !== CONFIG.ONBOARDING.RECORD_TYPE || _ckaSeedLeft === 0) return '';
-  const T = CONFIG.ONBOARDING.SEED_TEXT;
-  return `<button type="button" class="btn-secondary" id="ck-seed-btn"${act('ckaSeedTrack')} aria-describedby="ck-seed-hint">${escHtml(T.button)}</button>
-        <span class="form-hint" id="ck-seed-hint">${escHtml(T.hint)}</span>`;
-}
-
-async function ckaSeedTrack() {
-  if (_ckaBusy || _ckType !== CONFIG.ONBOARDING.RECORD_TYPE) return;
-  const T = CONFIG.ONBOARDING.SEED_TEXT;
-  if (!(await confirmModal({ message: T.confirm, confirmLabel: T.button }))) return;
-  _ckaLock(T.running);
-  try {
-    const res = await seedOnboardingTrack();
-    toast(T.done.replace('{n}', String(res.created)).replace('{m}', String(res.skipped)), { type: 'success' });
-  } catch (e) {
-    console.error('Onboarding seed failed:', e);
-    toast(e && e.total
-      ? `${T.failedPart.replace('{n}', String(e.created)).replace('{total}', String(e.total))} ${e.message}`
-      : `Couldn't seed the track — ${e.message}`, { type: 'error' });
-  }
-  _ckaBusy = false;
-  await _ckaRender(['ck-seed-btn', 'ck-add-btn']);
-}
-
 // ── Reorder, rename, retire ──────────────────────────────────────────
 // Item ↑/↓ swaps ItemOrder with its neighbour in the same section (2 PATCHes).
 // If the section's orders are blank or duplicated a swap can't be trusted to
@@ -1046,7 +1016,6 @@ registerActions({
   ckaSetActive,
   ckaDeleteItem,
   ckaCopyVariant,
-  ckaSeedTrack,
   ckaFormTypeChanged,
   ckaSectionChanged,
   ckaSaveItem,

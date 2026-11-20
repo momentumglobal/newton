@@ -544,79 +544,19 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-498 AC6/AC7 the seed: 24 steps in §2.3 order, flags, links built from the library URL',
+    name: 'N-498 AC1-AC3 source contract: editor layout; N-498-retire: no seed tool left',
     fn: function () {
-      const base = CONFIG.ONBOARDING.CONTENT_BASE_URL;
-      const plan = onbSeedPlan({ seed: ONBOARDING_SEED, existingRows: [], baseUrl: base });
-      _assertEqual(plan.create.length, 24, 'AC6 24 steps');
-      _assertEqual(plan.skipped, [], 'AC6 nothing skipped on an empty track');
-      const sections = []; plan.create.forEach(c => { if (!sections.includes(c.Section)) sections.push(c.Section); });
-      _assertEqual(sections, ['Pre-start', 'Week 1', 'Week 2', 'Weeks 3–4', 'Day 30'], 'AC6 five phases in order');
-      _assertEqual(plan.create.map(c => c.SectionOrder).filter((v, i, a) => a.indexOf(v) === i), [1, 2, 3, 4, 5], 'AC6 SectionOrder 1..5');
-      plan.create.forEach(c => {
-        _assertEqual([c.RecordType, c.Variant, c.ItemType, c.Active], ['person', 'TP', 'tick', true], 'AC6 record type / track / tick / active: ' + c.ItemKey);
-        _assertEqual(c.Required, c.StepMode === 'Guided', 'AC6 Guided = Required, Self-guided = not: ' + c.ItemKey);
-        _assertEqual(/^onb_tp_[a-z0-9-]+$/.test(c.ItemKey), true, 'AC6 fixed ItemKey: ' + c.ItemKey);
-        _assertEqual(onbValidateStep({ owner: c.Owner, dueOffsetDays: c.DueOffsetDays, stepMode: c.StepMode, levelTag: c.LevelTag, contentUrl: c.ContentUrl }).ok, true, 'AC6 passes onbValidateStep: ' + c.ItemKey);
-      });
-      _assertEqual(new Set(plan.create.map(c => c.ItemKey)).size, 24, 'AC6 ItemKeys unique');
-      const by = k => plan.create.find(c => c.ItemKey === 'onb_tp_' + k);
-      _assertEqual([by('m11').StepMode, by('m11').Required, by('library-picks').StepMode, by('library-picks').Required], ['Self-guided', false, 'Self-guided', false], 'AC6 the two Self-guided steps');
-      _assertEqual([by('newton-access').Owner, by('newton-access').DueOffsetDays, by('m05').Owner, by('m05').DueOffsetDays, by('m12').DueOffsetDays, by('day30-signoff').DueOffsetDays],
-        ['PeopleOps', -5, 'LM', 3, 24, 30], 'AC6 owners and offsets as the spec table');
-      // AC7 links
-      plan.create.forEach(c => {
-        if (c.ContentUrl) _assertEqual(isSafeChecklistUrl(c.ContentUrl) && !/\s/.test(c.ContentUrl) && c.ContentUrl.indexOf(base + '/') === 0, true, 'AC7 safe, no space, under the library: ' + c.ItemKey);
-      });
-      _assertEqual(by('m09').ContentUrl, base + '/M09.%20Candidate%20experience%20%26%20closing.pptx', 'AC7 spaces and & encoded');
-      _assertEqual(by('m12').ContentUrl, base + '/M12.%20Preparing%20a%20Market%20Report.pptx', 'AC7 M12 now has its deck');
-      _assertEqual(by('library-picks').ContentUrl, base + '/Library', 'AC7 the Library step links to the folder');
-      _assertEqual(plan.create.filter(c => !c.ContentUrl).length, 10, 'AC7 ten steps carry no link');
-      _assertEqual(plan.create.filter(c => c.ContentUrl).length, 14, 'AC7 fourteen steps link to a deck / the Library folder');
-      _assertEqual(onbSeedUrl(base + '/', ''), '', 'blank path -> blank link');
-      _assertEqual(onbSeedUrl(base + '/', 'a b/c&d.pptx'), base + '/a%20b/c%26d.pptx', 'trailing slash trimmed, per segment encoding');
-      // The seed tool never writes the Facilitator folder or anything outside the library.
-      _assertEqual(ONBOARDING_SEED.steps.some(s => s.file && /facilitator|playbook|role-play pack|practice pack/i.test(s.file)), false, 'facilitator files are never linked');
-    },
-  },
-  {
-    name: 'N-498 AC6/AC8 onbSeedPlan is idempotent: existing keys (retired too) are skipped, never touched',
-    fn: function () {
-      const base = CONFIG.ONBOARDING.CONTENT_BASE_URL;
-      const rows = [{ ItemKey: 'onb_tp_m01', Active: true }, { ItemKey: ' onb_tp_m02 ', Active: false }, { ItemKey: 'ck_random', Active: true }];
-      const plan = onbSeedPlan({ seed: ONBOARDING_SEED, existingRows: rows, baseUrl: base });
-      _assertEqual(plan.create.length, 22, 'AC6 22 left to add');
-      _assertEqual(plan.skipped, ['onb_tp_m01', 'onb_tp_m02'], 'AC6 the two existing (one retired) are skipped');
-      _assertEqual(plan.create.some(c => c.ItemKey === 'onb_tp_m01' || c.ItemKey === 'onb_tp_m02'), false, 'AC6 never re-created');
-      const all = onbSeedPlan({ seed: ONBOARDING_SEED, existingRows: ONBOARDING_SEED.steps.map(s => ({ ItemKey: s.key })), baseUrl: base });
-      _assertEqual([all.create.length, all.skipped.length], [0, 24], 'AC9 all present -> nothing to add (the button hides)');
-      _assertEqual(onbSeedPlan({}).create, [], 'no seed -> nothing');
-    },
-  },
-  {
-    name: 'N-498 AC1-AC3/AC8/AC9 source contract: editor layout, seed guard, load scope, no new top-level config key',
-    fn: function () {
-      _assertEqual(CONFIG.ROLE_CAPABILITIES.onbTrack, ['admin'], 'onbTrack Admin only');
-      _assertEqual(roleCan('people_ops', 'onbTrack'), false, 'People Ops cannot seed');
       _assertEqual(CONFIG.MCP.scripts.some(s => /onboarding/.test(s)), false, 'not in the MCP bundle');
       _assertEqual(/^https:\/\/talentpoint\.sharepoint\.com\/sites\/SolutionsHubReporting\/OnboardingContent$/.test(CONFIG.ONBOARDING.CONTENT_BASE_URL), true, 'ONB-D26 library URL');
       const adm = _onbSrc('checklist-admin.js');
       _assertEqual(/_ckaPersonFormHtml\(it\)/.test(adm) && /f\.type = 'tick'/.test(adm) && /onbValidateStep\(f\)/.test(adm) && /onbStepFields\(f\)/.test(adm), true, 'AC3 onboarding save: tick-only, both validators, onbStepFields');
-      const person = adm.slice(adm.indexOf('function _ckaPersonFormHtml'), adm.indexOf('function _ckaSeedButtonHtml'));
+      const person = adm.slice(adm.indexOf('function _ckaPersonFormHtml'), adm.indexOf('// ── Reorder, rename, retire'));
       _assertEqual(/ck-f-type|ck-f-link"|ck-f-action/.test(person), false, 'AC3 no Type / Link URL / Action in the onboarding form');
       _assertEqual(/ck-f-owner/.test(person) && /ck-f-due/.test(person) && /ck-f-mode/.test(person) && /ck-f-level/.test(person) && /ck-f-url/.test(person), true, 'AC3 Owner, Due, Mode, Level, Content link');
-      _assertEqual(/ckaSeedTrack,/.test(adm), true, 'AC9 the seed action is registered');
-      _assertEqual(/_ckaSeedLeft === 0\) return ''/.test(adm) && /_ckType !== CONFIG\.ONBOARDING\.RECORD_TYPE/.test(adm), true, 'AC9 the button is onboarding-only and hides at 0 left');
-      const api = _onbSrc('api-onboarding.js');
-      const seed = api.slice(api.indexOf('async function seedOnboardingTrack'));
-      _assertEqual(/_ensureGhostGate\(\)/.test(seed) && /roleCan\(role, 'onbTrack'\)/.test(seed) && /throw new Error\(T\.denied\)/.test(seed), true, 'AC8 role guard (Ghost-aware) before any read');
-      _assertEqual(seed.indexOf("roleCan(role, 'onbTrack')") < seed.indexOf('refreshChecklistTemplates()') && seed.indexOf('refreshChecklistTemplates()') < seed.indexOf('getChecklistTemplates'), true, 'AC8 guard, then a fresh read');
-      _assertEqual(/for \(const fields of plan\.create\)\s*\{\s*await createChecklistItem\(fields\)/.test(seed), true, 'AC8 one create at a time');
-      _assertEqual(/err\.created = created/.test(seed) && /err\.total = plan\.create\.length/.test(seed), true, 'AC8 a part-way failure reports how far it got');
+      ['checklist-admin.js', 'api-onboarding.js', 'onboarding-logic.js', 'onboarding-config.js', 'config.js'].forEach(file =>
+        _assertEqual(/onbSeed|seedOnboardingTrack|ckaSeedTrack|ONBOARDING_SEED|SEED_TEXT|onbTrack\b|ck-seed/.test(_onbSrc(file)), false, 'N-498-retire no seed tool left in ' + file));
       if (typeof ALL_HTML === 'undefined') _skip('needs ALL_HTML (Node runner only)');
-      const at = (h, f) => ALL_HTML[h].indexOf('src="js/' + f + '"');
-      Object.keys(ALL_HTML).forEach(h => _assertEqual(at(h, 'onboarding-seed.js') > -1, h === 'reporting.html', 'onboarding-seed.js only on reporting.html, not ' + h));
-      _assertEqual(at('reporting.html', 'onboarding-config.js') < at('reporting.html', 'onboarding-seed.js') && at('reporting.html', 'onboarding-seed.js') < at('reporting.html', 'onboarding-logic.js'), true, 'AC12 seed after onboarding-config.js, before onboarding-logic.js');
+      Object.keys(ALL_HTML).forEach(h => _assertEqual(ALL_HTML[h].indexOf('onboarding-seed.js') > -1, false, 'N-498-retire onboarding-seed.js is loaded by no shell, not ' + h));
     },
   },
 );

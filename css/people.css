@@ -181,6 +181,9 @@
 
 /* N-457 (MM-7): employee record page */
 .emp-actions { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
+/* N-507: breathing room inside the Onboarding card (hint > buddy row > button) */
+.emp-onboarding .emp-list { margin-top: var(--sp-5); }
+.emp-onboarding .emp-actions { margin-top: var(--sp-6); }
 .emp-card { margin-bottom: var(--sp-8); }
 .emp-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-5) var(--sp-8); margin: 0; }
 .emp-row dt { font-size: var(--fs-12); color: var(--text-muted); }

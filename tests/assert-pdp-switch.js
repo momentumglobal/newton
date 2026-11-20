@@ -152,7 +152,7 @@ ASSERTIONS.push(
     name: 'N-445 AC12 Config Panel PDP tab: registered, Admin only, escaped, no inline handlers or hex',
     fn: function () {
       const adm = ALL_SOURCES['admin.js'], tab = ALL_SOURCES['pdp-admin.js'];
-      _assertEqual(/'pdp'\]/.test(adm) && /pdp:\s+'PDP'/.test(adm) && /buildPdpTab\(\)/.test(adm), true, 'AC12 admin.js registers and dispatches the tab');
+      _assertEqual(/'pdp'[,\]]/.test(adm) && /pdp:\s+'PDP'/.test(adm) && /buildPdpTab\(\)/.test(adm), true, 'AC12 admin.js registers and dispatches the tab');
       _assertEqual(/roleCan\(_resolvedRole, 'pdpSwitch'\)/.test(tab), true, 'AC12 tab gated on pdpSwitch');
       _assertEqual(/\bon(click|change|input)=|style="/.test(tab), false, 'AC12 no inline handlers or styles');
       _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(tab.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n')), false, 'AC12 no hex in JS');

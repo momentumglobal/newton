@@ -153,6 +153,8 @@ const CONFIG = {
     // N-445 (PDP-13, PDP-D13): change the PDP Off / Pilot / On switch and the pilot list. Admin
     // only. People Ops previews PDP through pdpAdmin but never flips the switch.
     pdpSwitch:             ['admin'],
+    // N-496 (ONB-1, ONB-D11): change the onboarding Off / Pilot / On switch and the pilot list. Admin only.
+    onbSwitch:             ['admin'],
     // N-443 (PDP-11, D3): unlock a person's calibrated ratings (with a logged reason). Admin only: People Ops sits
     // on the calibration panel (pdpAdmin) and can lock, never unlock.
     pdpCalibrationUnlock:  ['admin'],
@@ -269,7 +271,12 @@ const CONFIG = {
   // in AppSettings. Variants come from VARIANTS below (N-267), read through
   // checklistVariants() / checklistVariantForProjectType() in checklist-logic.js.
   CHECKLISTS: {
-    RECORD_TYPES:    ['project', 'role'],
+    // N-496 (ONB-1, ONB-D6): 'person' rows are the onboarding track (CONFIG.ONBOARDING,
+    // onboarding-config.js); their progress rows key on the People item id.
+    RECORD_TYPES:    ['project', 'role', 'person'],
+    // The record types with the ID-watermark switch (AppSettings Checklist{Project|Role}*).
+    // Onboarding has its own Off / Pilot / On switch (OnboardingMode / OnboardingPilot).
+    SWITCH_TYPES:    ['project', 'role'],
     ITEM_TYPES:      ['tick', 'link', 'action'],
     DEFAULT_VARIANT: 'Default',
     // Checklist variants (N-267). `key` is what ChecklistTemplates.Variant

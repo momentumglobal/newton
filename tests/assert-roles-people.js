@@ -110,6 +110,7 @@ ASSERTIONS.push(
         pdpAdmin:              ['admin', 'people_ops'],                           // N-435
         pdpAggregate:          ['admin', 'people_ops', 'leadership'],             // N-435
         pdpSwitch:             ['admin'],                                         // N-445
+        onbSwitch:             ['admin'],                                         // N-496
         pdpCalibrationUnlock:  ['admin'],                                         // N-443
         myDetailsAdmin:        ['admin', 'people_ops'],                           // N-456
       };

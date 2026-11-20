@@ -148,7 +148,12 @@ async function getTickedChecklistKeys(recordType, { fresh = false } = {}) {
 // it is never moved, so a write that passes fromId while one is already
 // stored is refused rather than silently re-cutting.
 async function setChecklistSettings(recordType, { enabled, fromId, onAt } = {}) {
-  const prefix = _CK_SETTINGS_PREFIX[_ckRecordType(recordType)];
+  // N-496: only the watermark types have these columns; onboarding ('person') has its own
+  // Off / Pilot / On switch (writeOnboardingSwitch, api-onboarding.js).
+  if (!CONFIG.CHECKLISTS.SWITCH_TYPES.includes(_ckRecordType(recordType))) {
+    throw new Error('Onboarding uses its own switch (Config Panel → Onboarding).');
+  }
+  const prefix = _CK_SETTINGS_PREFIX[recordType];
   const fields = {};
   if (enabled !== undefined) fields[`${prefix}Enabled`] = enabled === true;
   if (fromId  !== undefined) fields[`${prefix}FromId`]  = _ckInt(fromId);

@@ -126,7 +126,7 @@ async function buildChecklistsTab() {
       <h3>Checklists</h3>
       <p class="admin-tab-intro">Build the workflow checklists shown on Projects and Roles, then switch each one on. Other users see content changes within 10 minutes, or straight away after <strong>Refresh data</strong>.</p>
       <div class="ck-admin-switches">
-        ${CONFIG.CHECKLISTS.RECORD_TYPES.map(t => _ckaSwitchCardHtml(t, settingsAll[t], byType[t])).join('')}
+        ${CONFIG.CHECKLISTS.SWITCH_TYPES.map(t => _ckaSwitchCardHtml(t, settingsAll[t], byType[t])).join('')}
       </div>
       ${_ckaPickerHtml()}
       <p id="ck-admin-status" class="ck-admin-status" role="status" aria-live="polite"></p>
@@ -211,7 +211,7 @@ function _ckaSwitchCardHtml(type, s, rows) {
 }
 
 async function ckaToggleSwitch(recordType, turnOn) {
-  if (_ckaBusy || !CONFIG.CHECKLISTS.RECORD_TYPES.includes(recordType)) return;
+  if (_ckaBusy || !CONFIG.CHECKLISTS.SWITCH_TYPES.includes(recordType)) return;   // N-496: never 'person'
   const t = _CKA_TEXT[recordType];
   let s, defaults;
   try {
@@ -256,7 +256,8 @@ async function ckaToggleSwitch(recordType, turnOn) {
 
 // ── Record type + variant picker ─────────────────────────────────────
 function _ckaPickerHtml() {
-  const typeBtns = CONFIG.CHECKLISTS.RECORD_TYPES.map(t => `
+  // N-496: project + role only until N-498 adds the onboarding track ('person') here.
+  const typeBtns = CONFIG.CHECKLISTS.SWITCH_TYPES.map(t => `
           <button type="button" class="btn-filter${_ckType === t ? ' active' : ''}" id="ck-type-${t}" aria-pressed="${_ckType === t}"
             ${act('ckaSelectType', t).trim()}>${_CKA_TEXT[t].list}</button>`).join('');
   const variantBtns = checklistVariants().map((v, i) => {
@@ -284,7 +285,7 @@ function _ckaPickerHtml() {
 }
 
 function ckaSelectType(type) {
-  if (_ckaBusy || !CONFIG.CHECKLISTS.RECORD_TYPES.includes(type)) return;
+  if (_ckaBusy || !CONFIG.CHECKLISTS.SWITCH_TYPES.includes(type)) return;   // N-496: 'person' waits for N-498
   _ckType = type;
   _ckaForm = null;
   _ckaRename = null;

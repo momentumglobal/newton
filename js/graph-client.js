@@ -481,6 +481,7 @@ const FIELD_ALIASES = {
   // DELETE the field (see RoleHistory above). ProjectID is a plain Number
   // column, not a Lookup. Calls: getSLATargets (api.js), api-admin.js.
   SLATargets:         {},
+  OnboardingPlans:    {},   // N-496: one row per person's onboarding plan (Title = their work email)
 };
  
 function normaliseFields(listName, fields) {

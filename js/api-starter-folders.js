@@ -223,7 +223,8 @@ async function inviteToDriveItem(driveId, itemId, emails, cfg = CONFIG) {
 
 // ── StarterFolders list ──────────────────────────────────────────────
 function _sfRecordType(recordType) {
-  if (!CONFIG.CHECKLISTS.RECORD_TYPES.includes(recordType)) throw new Error(`Unknown record type: ${recordType}`);
+  // N-496: project + role only (the PARENT_PATH keys) — an onboarding 'person' record never has a starter folder.
+  if (!Object.prototype.hasOwnProperty.call(CONFIG.STARTER_FOLDERS.PARENT_PATH, recordType)) throw new Error(`Unknown record type: ${recordType}`);
   return recordType;
 }
 function _sfInt(val) {

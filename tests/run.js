@@ -65,6 +65,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'project-team.js'),
   path.join(JS_DIR, 'pdp-config.js'),       // N-475: CONFIG.PDP (declarations only; extends CONFIG; loads before pdp-identity.js)
   path.join(JS_DIR, 'pdp-identity.js'),     // N-433: pure PDP identity rules (loads after project-team.js)
+  path.join(JS_DIR, 'onboarding-config.js'),   // N-496: CONFIG.ONBOARDING (declarations only; extends CONFIG)
   path.join(JS_DIR, 'pdp-data.js'),         // N-434: pure PDP list rules (after pdp-identity.js)
   path.join(JS_DIR, 'pdp-seed.js'),         // N-436: default framework + template content (pure data, after pdp-data.js)
   path.join(JS_DIR, 'pdp-cycle.js'),        // N-437: pure PDP cycle engine (after pdp-data.js)
@@ -77,6 +78,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'my-details-logic.js'), // N-456: My Details rules (pure; loads before graph-client.js)
   path.join(JS_DIR, 'employee-logic.js'),   // N-457: employee record page rules (pure; after my-details-logic.js)
   path.join(JS_DIR, 'checklist-logic.js'),
+  path.join(JS_DIR, 'onboarding-logic.js'),    // N-496: pure onboarding rules (after checklist-logic.js and pdp-identity.js)
   path.join(JS_DIR, 'starter-folder-logic.js'),
   path.join(JS_DIR, 'graph-client.js'),
   path.join(JS_DIR, 'api.js'),
@@ -190,6 +192,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-my-history.js'),         // N-455
   path.join(TESTS_DIR, 'assert-my-details.js'),         // N-456
   path.join(TESTS_DIR, 'assert-employee-page.js'),      // N-457
+  path.join(TESTS_DIR, 'assert-onboarding.js'),         // N-496
   path.join(TESTS_DIR, 'assert-long-functions.js'),     // N-477
 ];
 // N-259: starter-folder-logic.js (pure) loads straight after checklist-logic.js, which it calls.

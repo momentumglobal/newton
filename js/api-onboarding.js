@@ -273,3 +273,9 @@ async function getBuddyingView() {
     }))),
   };
 }
+
+// N-501 (ONB-D62): every SLATargets row for the Expectations & SLAs tab (company defaults are the rows with a ProjectType). The one
+// reader, getSLATargets() in api-sla.js; Newton Users have Read on the list. The caller shows "unavailable" if this throws.
+async function getOnboardingSlaRows() {
+  return getSLATargets();
+}

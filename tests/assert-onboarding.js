@@ -1026,13 +1026,13 @@ ASSERTIONS.push(
   {
     name: 'N-500 AC1-AC4 sub-tab registry and visibility rules: SUB_TABS, onbRitualsVisible, onbSubTabs, mmTabRelevant',
     fn: function () {
-      _assertEqual(CONFIG.ONBOARDING.SUB_TABS, [{ key: 'plan', label: 'Onboarding Plan' }, { key: 'rituals', label: 'Processes & Rituals' }], 'AC1 SUB_TABS');
+      _assertEqual(CONFIG.ONBOARDING.SUB_TABS, [{ key: 'plan', label: 'Onboarding Plan' }, { key: 'rituals', label: 'Processes & Rituals' }, { key: 'expectations', label: 'Expectations & SLAs' }], 'AC1 SUB_TABS (N-501 adds the third)');
       const v = onbRitualsVisible;
       _assertEqual([v({ mode: 'On', gateState: 'none' }), v({ mode: 'Pilot', gateState: 'none' }), v({ mode: 'Pilot', gateState: 'live' }), v({ mode: 'Off', gateState: 'preview' }), v({ mode: 'Off', gateState: 'none' }), v()],
         [true, false, true, true, false, false], 'AC2 On = everyone; Pilot / Off only through a live or preview gate; no arguments = false');
       _assertEqual(v({ mode: 'on', gateState: 'none' }) === v({ mode: 'On', gateState: 'none' }) && v({ mode: 'bogus', gateState: 'none' }), true === v({ mode: 'on', gateState: 'none' }) && false, 'AC2 mode is normalised; an unknown mode is not On');
-      _assertEqual(onbSubTabs({ onbPlans: true, onbRituals: true }).map(t => t.key), ['plan', 'rituals'], 'AC3 both, in registry order');
-      _assertEqual(onbSubTabs({ onbRituals: true }).map(t => t.key), ['rituals'], 'AC3 rituals only');
+      _assertEqual(onbSubTabs({ onbPlans: true, onbRituals: true }).map(t => t.key), ['plan', 'rituals', 'expectations'], 'AC3 both, in registry order (N-501: Expectations & SLAs follows the rituals signal)');
+      _assertEqual(onbSubTabs({ onbRituals: true }).map(t => t.key), ['rituals', 'expectations'], 'AC3 reference tabs only');
       _assertEqual(onbSubTabs({ onbPlans: true }).map(t => t.key), ['plan'], 'AC3 plan only');
       _assertEqual([onbSubTabs({}).length, onbSubTabs().length, onbSubTabs({ onbBuddy: true }).length], [0, 0, 0], 'AC3 nothing, and a buddy alone has neither');
       ['admin', 'leadership', 'people_ops', 'talent_partner', 'staff'].forEach(role => {
@@ -1060,9 +1060,9 @@ ASSERTIONS.push(
     fn: function () {
       const tabs = onbSubTabs({ onbPlans: true, onbRituals: true });
       const html = onbSubTabsHtml('rituals', tabs);
-      _assertEqual(/class="eng-tab-strip"/.test(html) && (html.match(/class="eng-tab/g) || []).length === 3, true, 'AC6 strip with both tabs (strip + 2 buttons)');
+      _assertEqual(/class="eng-tab-strip"/.test(html) && (html.match(/class="eng-tab/g) || []).length === 4, true, 'AC6 strip with all three tabs (strip + 3 buttons; N-501 adds the third)');
       _assertEqual(/eng-tab--active[^>]*aria-selected="true"[^>]*>Processes &amp; Rituals</.test(html) || /eng-tab eng-tab--active" role="tab" aria-selected="true"[^>]*>Processes &amp; Rituals</.test(html), true, 'AC6 the active tab is marked');
-      _assertEqual(onbSubTabsHtml('rituals', onbSubTabs({ onbRituals: true })), '', 'AC7 one sub-tab = no strip');
+      _assertEqual(onbSubTabsHtml('plan', onbSubTabs({ onbPlans: true })), '', 'AC7 one sub-tab = no strip (N-501: a plan-only person; the reference tabs come as a pair)');
       const ui = _onbSrc('onboarding-my-ui.js');
       _assertEqual(/\$\{strip\}<div id="onb-page">/.test(ui) && !/<div id="onb-page">[^`]*onb-tabs/.test(ui), true, 'the strip sits outside #onb-page');
       _assertEqual(/const token = \+\+_onbmState\.token;[\s\S]*renderOnboardingRitualsPage\(\)/.test(ui), true, 'the load token is bumped before either sub-tab draws');
@@ -1151,6 +1151,120 @@ ASSERTIONS.push(
       _assertEqual(at('onboarding-config.js') > -1 && at('onboarding-content-config.js') === html.indexOf('\n', at('onboarding-config.js')) + 3 || at('onboarding-content-config.js') > at('onboarding-config.js'), true, 'content config after onboarding-config.js');
       _assertEqual(at('onboarding-buddy-ui.js') < at('onboarding-rituals-ui.js') && at('onboarding-rituals-ui.js') < at('my-momentum-app.js'), true, 'rituals page after the Buddying page (which stays straight after my-ui), before the app init');
       _assertEqual(ALL_HTML['mobile.html'].includes('onboarding'), false, 'never mobile.html');
+    },
+  },
+);
+
+// ── N-501 (ONB-6): Expectations & SLAs sub-tab ──────────────────────────
+ASSERTIONS.push(
+  {
+    name: 'N-501 AC1/AC2/AC3 sub-tab registry: Expectations & SLAs is third and follows the rituals signal; nav signals unchanged',
+    fn: function () {
+      _assertEqual(CONFIG.ONBOARDING.SUB_TABS.map(t => t.key + ':' + t.label), ['plan:Onboarding Plan', 'rituals:Processes & Rituals', 'expectations:Expectations & SLAs'], 'AC1 registry');
+      _assertEqual(onbSubTabs({ onbRituals: true }).map(t => t.key), ['rituals', 'expectations'], 'AC2 reference tabs');
+      _assertEqual(onbSubTabs({ onbPlans: true, onbRituals: true }).map(t => t.key), ['plan', 'rituals', 'expectations'], 'AC2 all three in order');
+      _assertEqual(onbSubTabs({ onbPlans: true }).map(t => t.key), ['plan'], 'AC2 plan only');
+      _assertEqual([onbSubTabs({}).length, onbSubTabs().length], [0, 0], 'AC2 nothing');
+      const nav = _onbSrc('api-onboarding.js');
+      _assertEqual(/return \{ plans: 0, buddy: 0, actions: 0 \};/.test(nav), true, 'AC3 the failure literal is unchanged');
+    },
+  },
+  {
+    name: 'N-501 AC4 standards content: three groups in order, 13 / 14 / 7 entries, signed-off wording carried',
+    fn: function () {
+      const g = CONFIG.ONBOARDING.STANDARDS.GROUPS;
+      _assertEqual(g.map(x => x.key), ['candidate', 'stakeholder', 'quality'], 'AC4 group order');
+      _assertEqual([g[0].rows.length, g[1].rows.length, g[2].items.length], [13, 14, 7], 'AC4 entry counts');
+      _assertEqual(g[0].rows[0], { moment: 'Any candidate message', standard: 'Reply within 48 hours; pick up the phone first' }, 'AC4 first candidate row');
+      _assertEqual(g[1].rows[0].standard, 'Day 1; 45 minutes; the HM and key decision-makers attend', 'AC4 intake row');
+      _assertEqual(g[2].items.some(i => i.includes('GDPR@talentpoint.co')), true, 'AC4 GDPR inbox unchanged');
+      _assertEqual(JSON.stringify(g).includes('**'), false, 'AC4 no markdown bold markers');
+    },
+  },
+  {
+    name: 'N-501 AC5/AC6/AC7 onbExpectationsModel: goal and benchmarks live from ANALYTICS_BENCHMARKS, SLA defaults per eligible type, unavailable = null',
+    fn: function () {
+      const B = CONFIG.ANALYTICS_BENCHMARKS;
+      const m = onbExpectationsModel({ slaRows: [] });
+      _assertEqual(m.kpis.goal.includes('{days}'), false, 'AC5 token replaced');
+      _assertEqual(m.kpis.goal.includes('within ' + B.timeToHireDays + ' days'), true, 'AC5 goal reads the benchmark');
+      _assertEqual(m.kpis.benchmarks.map(b => b.value), ['25%', '80%', '20%', '80%', '45 days'], 'AC5 benchmark values');
+      const orig = B.outreachConversion, origDays = B.timeToHireDays;
+      try {
+        B.outreachConversion = 0.3; B.timeToHireDays = 50;
+        const m2 = onbExpectationsModel({ slaRows: [] });
+        _assertEqual([m2.kpis.benchmarks[0].value, m2.kpis.benchmarks[4].value, m2.kpis.goal.includes('within 50 days')], ['30%', '50 days', true], 'AC5 follows the config');
+      } finally { B.outreachConversion = orig; B.timeToHireDays = origDays; }
+      const types = slaProjectTypes();
+      _assertEqual(m.kpis.sla.rows.map(r => r.type), types, 'AC6 one row per eligible type');
+      _assertEqual(m.kpis.sla.rows.every(r => r.cells.length === 4 && r.cells.every(c => c === 'Not set')), true, 'AC6 readable but empty = every cell Not set');
+      const t0 = types[0];
+      const rows = [
+        { id: 5, ProjectType: t0, TimeToHireDays: 60 },
+        { id: 3, ProjectType: t0, TimeToHireDays: 45, SubmissionsPerWeek: 2.5 },
+        { id: 9, ProjectID: 12, TimeToHireDays: 10 },
+      ];
+      const r0 = onbExpectationsModel({ slaRows: rows }).kpis.sla.rows.find(r => r.type === t0);
+      _assertEqual(r0.cells, ['Not set', '2.5 per week', 'Not set', '45 days'], 'AC6 lowest item id wins; override row ignored');
+      _assertEqual(m.kpis.sla.metrics.map(x => x.label), CONFIG.SLA.METRICS.map(x => x.label), 'AC6 metric labels from CONFIG.SLA.METRICS');
+      _assertEqual([onbExpectationsModel({}).kpis.sla, onbExpectationsModel({ slaRows: null }).kpis.sla, onbExpectationsModel().kpis.sla], [null, null, null], 'AC7 anything but an array is unavailable');
+    },
+  },
+  {
+    name: 'N-501 AC8/AC9/AC10/AC11 reader and page: one read, loading / ready / error states, never an empty table, stale guard, section order',
+    fn: function () {
+      const api = _onbSrc('api-onboarding.js');
+      const fn = api.slice(api.indexOf('async function getOnboardingSlaRows'));
+      _assertEqual(/return getSLATargets\(\);/.test(fn) && !/getItems\(/.test(fn), true, 'AC8 the one reader');
+      const m = onbExpectationsModel({ slaRows: [{ id: 1, ProjectType: slaProjectTypes()[0], TimeToHireDays: 45 }] });
+      const ready = onbxPageHtml(m, 'ready'), loading = onbxPageHtml(onbExpectationsModel({}), 'loading'), err = onbxPageHtml(onbExpectationsModel({}), 'error');
+      _assertEqual([/data-sla="ready"/.test(ready), /data-sla="loading"/.test(loading), /data-sla="error"/.test(err)], [true, true, true], 'AC9 three states');
+      _assertEqual([loading.includes('<table class="data-table onbx-table"><thead><tr><th>Project type'), err.includes('<th>Project type')], [false, false], 'AC9 no SLA table while loading or failed');
+      _assertEqual(err.includes('Targets unavailable right now') && err.includes('onbxRetry') && err.includes('Candidate standards'), true, 'AC9 error: message, retry, standards still shown');
+      _assertEqual(onbxPageHtml(onbExpectationsModel({}), 'ready').includes('data-sla="error"'), true, 'AC9 a null table in ready state is shown as unavailable, never empty');
+      const ui = _onbSrc('onboarding-expectations-ui.js');
+      _assertEqual(/token !== _onbmState\.token/.test(ui) && /await getOnboardingSlaRows\(\)/.test(ui), true, 'AC10 stale-load guard around the one read');
+      const at = s => ready.indexOf(s);
+      _assertEqual([at('Candidate standards') < at('Stakeholder standards'), at('Stakeholder standards') < at('Quality bar'), at('Quality bar') < at('Delivery KPIs'), at('Delivery KPIs') < at('SLA targets'), at('SLA targets') < at('Scorecard benchmarks')], [true, true, true, true, true], 'AC11 section order');
+      _assertEqual(/<h1 class="page-title">Expectations &amp; SLAs<\/h1>/.test(ready), true, 'page title');
+      _assertEqual(ready.includes('<script') || /<[a-z]+[^>]*\son[a-z]+=/.test(ready), false, 'markup is escaped and has no inline handlers');
+    },
+  },
+  {
+    name: 'N-501 AC12/AC13/AC14 deep link, Command Bar entry, and the rituals signpost now links to the tab',
+    fn: function () {
+      const cfg = CONFIG.MY_MOMENTUM;
+      const tabs = keys => keys.map(k => ({ key: k }));
+      const all = onbSubTabs({ onbPlans: true, onbRituals: true }), planOnly = onbSubTabs({ onbPlans: true });
+      _assertEqual(mmResolveDeepLink('onboardingExpectations', tabs(['myOnboarding']), [], cfg, all), { tab: 'myOnboarding', sub: 'expectations' }, 'AC12 alias opens the tab');
+      _assertEqual(mmResolveDeepLink('onboardingExpectations', tabs(['myOnboarding']), [], cfg, planOnly), null, 'AC12 a plan-only person falls to the landing tab');
+      _assertEqual(mmResolveDeepLink('teamScorecards', tabs(['myTeam']), [{ key: 'scorecards' }], cfg), { tab: 'myTeam', sub: 'scorecards' }, 'AC12 four arguments unchanged');
+      const mod = CONFIG.OS_MODULES.find(m => m.key === 'myMomentum');
+      const e = CONFIG.COMMAND_BAR_PAGES.find(p => p.key === 'onboardingExpectations');
+      _assertEqual(!!e && e.module === 'myMomentum' && e.href === 'my-momentum.html#onboardingExpectations' && e.roles.join() === mod.roles.join(), true, 'AC13 Command Bar entry mirrors the module roles');
+      const withSla = onbRitualsModel('talent_partner', all).sections.find(s => s.key === 'roleChecklist').signpost;
+      _assertEqual(withSla.slaLink, true, 'AC14 the signpost links once expectations is a sub-tab');
+    },
+  },
+  {
+    name: 'N-501 AC15 file hygiene and load scope: no hex, list names, hrefs or typed targets; standards / page only on my-momentum.html, in order; N-500 content file untouched',
+    fn: function () {
+      const src = _onbSrc('onboarding-standards-config.js');
+      _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(src), false, 'AC15 no hex');
+      _assertEqual(/OnboardingPlans|ChecklistProgress|ChecklistTemplates|SLATargets/.test(src), false, 'AC15 no SharePoint list names');
+      _assertEqual(/\.html/.test(src), false, 'AC15 no href typed');
+      _assertEqual(/0\.25|0\.8\b|0\.2\b|25%|80%|45 days/.test(src), false, 'AC15 no typed benchmark or goal value (the goal is the {days} token)');
+      CONFIG.ONBOARDING.STANDARDS.KPIS.benchmarks.forEach(b => _assertEqual(typeof CONFIG.ANALYTICS_BENCHMARKS[b.key], 'number', 'AC15 benchmark key exists: ' + b.key));
+      _assertEqual(CONFIG.MCP.scripts.some(s => /onboarding-(standards|expectations)/.test(s)), false, 'not in the MCP bundle');
+      if (typeof ALL_HTML === 'undefined') _skip('needs ALL_HTML (Node runner only)');
+      ['onboarding-standards-config.js', 'onboarding-expectations-ui.js'].forEach(f =>
+        Object.keys(ALL_HTML).forEach(h => _assertEqual(ALL_HTML[h].includes('src="js/' + f + '"'), h === 'my-momentum.html', f + ' only on my-momentum.html, not ' + h)));
+      const html = ALL_HTML['my-momentum.html'];
+      const at = f => html.indexOf('src="js/' + f + '"');
+      _assertEqual(at('onboarding-content-config.js') < at('onboarding-standards-config.js') && at('onboarding-standards-config.js') < at('pdp-data.js'), true, 'standards config straight after the content config');
+      _assertEqual(at('onboarding-rituals-ui.js') < at('onboarding-expectations-ui.js') && at('onboarding-expectations-ui.js') < at('my-momentum-app.js'), true, 'expectations page after the rituals page, before the app init');
+      _assertEqual(at('sla-targets.js') > -1 && at('api-sla.js') > at('api-people.js') && at('api-sla.js') < at('api-onboarding.js'), true, 'sla-targets.js and api-sla.js loaded on my-momentum.html, api-sla after api-people');
+      _assertEqual(ALL_HTML['mobile.html'].includes('onboarding-standards') || ALL_HTML['mobile.html'].includes('api-sla'), false, 'never mobile.html');
     },
   },
 );

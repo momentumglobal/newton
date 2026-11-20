@@ -67,6 +67,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'pdp-identity.js'),     // N-433: pure PDP identity rules (loads after project-team.js)
   path.join(JS_DIR, 'onboarding-config.js'),   // N-496: CONFIG.ONBOARDING (declarations only; extends CONFIG)
   path.join(JS_DIR, 'onboarding-content-config.js'), // N-500: CONFIG.ONBOARDING.RITUALS, the Processes & Rituals content (declarations only; extends CONFIG.ONBOARDING)
+  path.join(JS_DIR, 'onboarding-standards-config.js'), // N-501: CONFIG.ONBOARDING.STANDARDS, the Expectations & SLAs content (declarations only; extends CONFIG)
   path.join(JS_DIR, 'pdp-data.js'),         // N-434: pure PDP list rules (after pdp-identity.js)
   path.join(JS_DIR, 'pdp-seed.js'),         // N-436: default framework + template content (pure data, after pdp-data.js)
   path.join(JS_DIR, 'pdp-cycle.js'),        // N-437: pure PDP cycle engine (after pdp-data.js)
@@ -125,6 +126,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'onboarding-my-ui.js'),    // N-499: the My Onboarding page markup is asserted (declarations only; DOM only inside the functions)
   path.join(JS_DIR, 'onboarding-buddy-ui.js'), // N-509: the Buddying page markup is asserted (declarations only; DOM only inside the functions)
   path.join(JS_DIR, 'onboarding-rituals-ui.js'), // N-500: the Processes & Rituals page markup is asserted (declarations only; DOM only inside the functions)
+  path.join(JS_DIR, 'onboarding-expectations-ui.js'), // N-501: the Expectations & SLAs page markup is asserted (declarations only; DOM only inside the functions)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-tools.js'),   // N-393: Newton for Claude tools (declarations + MCP_TOOLS only)
   path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),

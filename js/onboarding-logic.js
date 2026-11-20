@@ -618,10 +618,11 @@ function onbRitualsVisible({ mode = '', gateState = '' } = {}) {
 }
 
 // The My Onboarding sub-tabs this person has (ONB-D49), in CONFIG.ONBOARDING.SUB_TABS order. signals = my-momentum's _mmSignals:
-// Onboarding Plan needs a plan of their own (onbPlans), Processes & Rituals needs onbRituals. N-501 adds Expectations & SLAs here.
+// Onboarding Plan needs a plan of their own (onbPlans), Processes & Rituals needs onbRituals. N-501 (ONB-D56): Expectations & SLAs is the
+// other all-staff reference tab, so it follows the same onbRituals signal.
 function onbSubTabs(signals) {
   const s = signals || {};
-  const has = { plan: !!s.onbPlans, rituals: !!s.onbRituals };
+  const has = { plan: !!s.onbPlans, rituals: !!s.onbRituals, expectations: !!s.onbRituals };
   return CONFIG.ONBOARDING.SUB_TABS.filter(t => has[t.key] === true);
 }
 
@@ -657,5 +658,37 @@ function onbRitualsModel(role, subTabs) {
       }
       return out;
     }),
+  };
+}
+
+// The Expectations & SLAs page model (N-501, ONB-D53 / D54): the signed-off standards as written, the company goal and the five
+// benchmarks read from CONFIG.ANALYTICS_BENCHMARKS (never typed), and the company default SLA target per eligible project type.
+// slaRows = getSLATargets(); anything but an array means the read failed, so kpis.sla is null and the page says "unavailable" (never an
+// empty or zero-filled table). Each type's defaults come from slaTargetsFor() with a project id of 0: an override row needs ProjectID > 0,
+// so only the type default can match (ONB-D61). Pure: the config is read, never changed.
+function onbExpectationsModel({ slaRows } = {}) {
+  const S = CONFIG.ONBOARDING.STANDARDS;
+  const B = CONFIG.ANALYTICS_BENCHMARKS;
+  const metrics = CONFIG.SLA.METRICS;
+  const fmt = (b) => (b.kind === 'pct' ? Math.round(B[b.key] * 100) + '%' : B[b.key] + ' days');
+  const sla = !Array.isArray(slaRows) ? null : {
+    metrics: metrics.map(m => ({ key: m.key, label: m.label, unit: m.unit })),
+    rows: slaProjectTypes().map(type => {
+      const t = slaTargetsFor({ id: 0, ProjectType: type }, slaRows) || {};
+      return { type, cells: metrics.map(m => slaFormatTarget(t[m.key] ? t[m.key].value : null, m)) };
+    }),
+  };
+  return {
+    text: S.TEXT,
+    groups: S.GROUPS,
+    kpis: {
+      title: S.KPIS.title,
+      goal: S.KPIS.goal.replace('{days}', String(B.timeToHireDays)),
+      slaTitle: S.KPIS.slaTitle, slaIntro: S.KPIS.slaIntro, slaOverrideNote: S.KPIS.slaOverrideNote, typeHead: S.KPIS.typeHead,
+      sla,
+      benchmarksTitle: S.KPIS.benchmarksTitle, benchmarksIntro: S.KPIS.benchmarksIntro,
+      benchmarks: S.KPIS.benchmarks.map(b => ({ label: b.label, value: fmt(b) })),
+      howUsed: S.KPIS.howUsed,
+    },
   };
 }

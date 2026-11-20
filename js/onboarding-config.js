@@ -51,10 +51,11 @@ CONFIG.ONBOARDING = {
   START_WINDOW_DAYS: 14,
   DISPLAY_ROWS: 10,
   // N-500 (ONB-5, ONB-D49). The My Onboarding sub-tabs: single registry, order = display order = landing order. A person sees the
-  // ones they have (onbSubTabs, onboarding-logic.js). N-501 adds { key: 'expectations', label: 'Expectations & SLAs' }.
+  // ones they have (onbSubTabs, onboarding-logic.js). N-501 adds Expectations & SLAs, shown with Processes & Rituals (ONB-D56).
   SUB_TABS: [
-    { key: 'plan',    label: 'Onboarding Plan' },
-    { key: 'rituals', label: 'Processes & Rituals' },
+    { key: 'plan',         label: 'Onboarding Plan' },
+    { key: 'rituals',      label: 'Processes & Rituals' },
+    { key: 'expectations', label: 'Expectations & SLAs' },
   ],
   // N-499 (ONB-4, ONB-D29). A step whose Section is LIBRARY_SECTION (compared case-insensitively) is a Library step: self-guided,
   // optional, no due date, never counted in the plan's progress (ONB-D32). LEVEL_FILTERS keys must equal LEVEL_TAGS (a test keeps

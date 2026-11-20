@@ -1557,7 +1557,7 @@ const CONFIG = {
     // (my-momentum-logic.js mmRedirectTarget).
     REDIRECTS: { myDevelopment: 'myDevelopment', teamDevelopment: 'myTeam', scorecards: 'myScorecard' },
     // N-453: hash / Command Bar keys that name a sub-tab, not a tab. my-momentum-logic.js mmResolveDeepLink().
-    DEEP_LINKS: { teamScorecards: { tab: 'myTeam', sub: 'scorecards' }, onboardingRituals: { tab: 'myOnboarding', sub: 'rituals' } },   // N-500: Processes & Rituals sub-tab of My Onboarding
+    DEEP_LINKS: { teamScorecards: { tab: 'myTeam', sub: 'scorecards' }, onboardingRituals: { tab: 'myOnboarding', sub: 'rituals' }, onboardingExpectations: { tab: 'myOnboarding', sub: 'expectations' } },   // N-500: Processes & Rituals sub-tab of My Onboarding; N-501: Expectations & SLAs
     // N-453: where a key lands when its own tab is not shown to this person (an old #scorecards link for a manager
     // or Admin with no activity of their own opens Team Scorecards, not the landing tab).
     DEEP_LINK_FALLBACKS: { myScorecard: 'teamScorecards' },
@@ -1644,6 +1644,7 @@ const CONFIG = {
     // N-500 (ONB-5, ONB-D36): My Onboarding went to all staff with the Processes & Rituals sub-tab. The tab shows only to those who have a plan or the reference tab (onbSubTabs); these entries mirror the module roles.
     { key: 'myOnboarding',      label: 'My Onboarding',        module: 'myMomentum', href: 'my-momentum.html#myOnboarding',      roles: _MM_PAGE_ROLES },
     { key: 'onboardingRituals', label: 'Processes & Rituals',  module: 'myMomentum', href: 'my-momentum.html#onboardingRituals', roles: _MM_PAGE_ROLES },
+    { key: 'onboardingExpectations', label: 'Expectations & SLAs', module: 'myMomentum', href: 'my-momentum.html#onboardingExpectations', roles: _MM_PAGE_ROLES },   // N-501
     // cc-router.js — Command Centre (2)
     { key: 'overview', label: 'Overview', module: 'command', href: 'command-centre.html', roles: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP] },
     // N-401 — install guide + download for Newton for Claude (cc-claude.js).

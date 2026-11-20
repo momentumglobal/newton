@@ -198,3 +198,9 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 }
 .onb-buddy-banner-title { margin: 0; color: var(--text-primary); font-size: var(--fs-subheading); font-weight: var(--fw-semibold); }
 .onb-buddy-card .onb-chip--owner { background: var(--surface-sunken); border-color: var(--accent); color: var(--text-primary); }
+
+/* N-501: My Momentum > My Onboarding > Expectations & SLAs (onboarding-expectations-ui.js). Tokens only; cards, hint and chips reuse the .onb-* rules above. */
+.onbx-table td:first-child { width: 34%; color: var(--text-heading); font-weight: var(--fw-semibold); }
+.onbx-table td { vertical-align: top; }
+.onbx-list { margin: 0 0 var(--sp-4); padding-left: var(--sp-9); }
+.onbx-list .onb-rit-text { margin: 0 0 var(--sp-3); }

@@ -195,6 +195,11 @@ async function renderMyOnboardingPage() {
     renderOnboardingRitualsPage();
     return;
   }
+  if (_onbmSubTab === 'expectations') {   // N-501
+    main.innerHTML = `${strip}<div id="onb-page"></div>`;
+    await renderOnboardingExpectationsPage();
+    return;
+  }
   main.innerHTML = `${strip}<div id="onb-page">${dashboardSkeleton(2)}</div>`;
   await _onbmLoad(token);
 }

@@ -265,6 +265,7 @@ function onbStepVisible({ step = null, relations = [], startDate = '', todayISO 
 // { total, done, overdue, nextDue } over already-visible active steps. progress = resolveChecklistProgress() map.
 // Overdue = not done and due before today (a step due today is not overdue). nextDue = earliest undone step with a date.
 function onbPlanSummary({ steps = [], progress = null, startDate = '', todayISO = '' } = {}) {
+  steps = (steps || []).filter(t => !onbIsLibraryStep(t));   // ONB-D32: the Library never counts in done / total / overdue (employee card included)
   const s = summariseChecklist(steps, progress);
   let overdue = 0;
   let nextDue = null;

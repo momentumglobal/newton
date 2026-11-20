@@ -796,3 +796,14 @@ ASSERTIONS.push(
     },
   },
 );
+
+ASSERTIONS.push({
+  name: 'N-499 fix onbPlanSummary: Library steps never count in total, done, overdue or next due (the employee-record card uses this)',
+  fn: function () {
+    const st = (key, section, due) => ({ ItemKey: key, ItemLabel: key, Section: section, DueOffsetDays: due, Active: true });
+    const steps = [st('a', 'Week 1', 0), st('b', 'Week 1', 3), st('l1', 'Library', null), st('l2', 'library', null)];
+    const progress = new Map([['a', { done: true }], ['l1', { done: true }]]);
+    const r = onbPlanSummary({ steps, progress, startDate: '2026-11-20', todayISO: '2026-11-30' });
+    _assertEqual([r.total, r.done, r.overdue, r.nextDue && r.nextDue.itemKey], [2, 1, 1, 'b'], 'two phase steps; the ticked Library item adds nothing');
+  },
+});

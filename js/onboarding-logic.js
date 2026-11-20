@@ -10,6 +10,8 @@
 //   ONB-D17  'PeopleOps' steps: any active people_ops user; while there is none, the joiner's CSD.
 //   ONB-D18  one OnboardingPlans row per plan; line manager and CSD are never stored, always resolved
 //            live from People.ReportsTo (so a ReportsTo change moves access with it).
+//   ONB-D19..D22 (N-497): no stored due dates (StartDate + offset), pre-start steps hidden from the joiner until
+//            StartDate, buddy optional at start, plans only for new joiners (START_WINDOW_DAYS).
 // Callers pass the EFFECTIVE (Ghost-aware) email and role, as PDP does.
 
 function _onbEmail(s) { return String(s == null ? '' : s).trim().toLowerCase(); }
@@ -230,4 +232,146 @@ function onbCleanPlanFields(fields) {
   }
   if (has('BuddyEmail')) out.BuddyEmail = email('BuddyEmail', false);
   return out;
+}
+
+
+// ── Plan engine (N-497 / ONB-2) ─────────────────────────────────────────
+// Due dates are never stored: StartDate ('YYYY-MM-DD', via spDateIn) + the step's DueOffsetDays. Dates are strings
+// throughout, compared as strings.
+
+// One step's due date, or '' when StartDate is blank or the offset is not a whole number.
+function onbStepDue(startDate, step) {
+  const start = String(startDate || '');
+  const raw = step ? step.DueOffsetDays : null;
+  const n = Number(raw);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || raw === null || raw === undefined || raw === '' || !Number.isInteger(n)) return '';
+  return addDaysISO(start, n);
+}
+
+// ONB-D20. A viewer who is only the joiner does not see a negative-offset (pre-start) step before StartDate.
+// Everyone else sees every step from the moment the plan starts. Decided by offset, never by phase name.
+function onbStepVisible({ step = null, relations = [], startDate = '', todayISO = '' } = {}) {
+  const rel = relations instanceof Set ? relations : new Set(relations || []);
+  const joinerOnly = rel.has('employee') && !['admin', 'lm', 'csd', 'buddy', 'peopleops'].some(r => rel.has(r));
+  if (!joinerOnly) return true;
+  const n = Number(step ? step.DueOffsetDays : NaN);
+  return !(Number.isInteger(n) && n < 0 && startDate && todayISO && todayISO < startDate);
+}
+
+// { total, done, overdue, nextDue } over already-visible active steps. progress = resolveChecklistProgress() map.
+// Overdue = not done and due before today (a step due today is not overdue). nextDue = earliest undone step with a date.
+function onbPlanSummary({ steps = [], progress = null, startDate = '', todayISO = '' } = {}) {
+  const s = summariseChecklist(steps, progress);
+  let overdue = 0;
+  let nextDue = null;
+  (steps || []).forEach(it => {
+    const key = String(it.ItemKey == null ? '' : it.ItemKey);
+    const p = progress ? progress.get(key) : null;
+    if (p && p.done) return;
+    const due = onbStepDue(startDate, it);
+    if (!due) return;
+    if (todayISO && due < todayISO) overdue++;
+    if (!nextDue || due < nextDue.due) nextDue = { itemKey: key, label: String(it.ItemLabel == null ? '' : it.ItemLabel), due };
+  });
+  return { total: s.total, done: s.done, overdue, nextDue };
+}
+
+// Peers who can be a buddy: the pilot-candidate rules, minus the joiner and anyone who has not started yet.
+function onbBuddyCandidates(people, joinerId, todayISO) {
+  return onbPilotCandidates(people)
+    .filter(c => c.id !== String(joinerId) && !(c.startDate && todayISO && c.startDate > todayISO));
+}
+
+// The text for a start-check reason (CONFIG.ONBOARDING.START_REASONS), {days} filled in.
+function onbReasonText(reason) {
+  const O = CONFIG.ONBOARDING;
+  return String(O.START_REASONS[reason] || O.START_REASONS['out-of-scope']).replace('{days}', String(O.START_WINDOW_DAYS));
+}
+
+// Can "Start onboarding" be offered for this person? { ok, reason }. Reasons in this order: has-plan, off, not-pilot,
+// out-of-scope, no-email, no-start-date, too-late, no-line-manager, no-steps (ONB-D5, D11, D22; Architect calls in N-497).
+function onbStartCheck({ person = null, people = [], plans = [], templates = [], mode = '', pilot = [], todayISO = '' } = {}) {
+  const O = CONFIG.ONBOARDING;
+  const no = reason => ({ ok: false, reason });
+  if (!person) return no('out-of-scope');
+  if ((plans || []).some(p => p && String(p.PersonID) === String(person.id))) return no('has-plan');
+  const m = onbNormaliseMode(mode);
+  if (m === O.MODES[0]) return no('off');
+  if (m === 'Pilot' && !onbPilotRows(people, pilot).some(p => String(p.id) === String(person.id))) return no('not-pilot');
+  if (!onbInScope(person)) return no('out-of-scope');
+  const email = _onbEmail(person.WorkEmail);
+  if (!email || !_onbUniqueRow(pdpEmailIndex(people), email)) return no('no-email');
+  const start = spDateIn(person.StartDate) || '';
+  if (!start) return no('no-start-date');
+  if (todayISO && start < addDaysISO(todayISO, -O.START_WINDOW_DAYS)) return no('too-late');
+  if (!pdpResolveIdentity(people, email).lineManager) return no('no-line-manager');
+  if (!activeChecklistItems(templates, O.RECORD_TYPE, O.DEFAULT_TRACK).length) return no('no-steps');
+  return { ok: true, reason: '' };
+}
+
+// What the employee-record card shows: { kind, reason, plan }. A plan row wins over the switch (kind = active /
+// cancelled / complete; an unknown Status reads as blocked 'has-plan'). No row: ready, off, or blocked + the reason.
+function onbCardState({ person = null, people = [], plans = [], templates = [], mode = '', pilot = [], todayISO = '' } = {}) {
+  const O = CONFIG.ONBOARDING;
+  const mine = (plans || []).filter(p => p && person && String(p.PersonID) === String(person.id));
+  const status = p => String(p.Status == null ? '' : p.Status).trim();
+  const plan = mine.find(p => status(p) === O.PLAN_ACTIVE) || mine[0] || null;
+  if (plan) {
+    const kind = { Active: 'active', Cancelled: 'cancelled', Complete: 'complete' }[status(plan)];
+    return kind ? { kind, reason: '', plan } : { kind: 'blocked', reason: 'has-plan', plan };
+  }
+  const chk = onbStartCheck({ person, people, plans, templates, mode, pilot, todayISO });
+  if (chk.ok) return { kind: 'ready', reason: '', plan: null };
+  return { kind: chk.reason === 'off' ? 'off' : 'blocked', reason: chk.reason, plan: null };
+}
+
+// The OnboardingPlans payload for a new plan. A non-blank buddy must be one of onbBuddyCandidates (throws otherwise).
+function onbStartFields({ person = null, people = [], buddyEmail = '', byEmail = '', todayISO = '' } = {}) {
+  const O = CONFIG.ONBOARDING;
+  if (!person) throw new Error('No person to start a plan for.');
+  const buddy = _onbEmail(buddyEmail);
+  if (buddy && !onbBuddyCandidates(people, person.id, todayISO).some(c => c.email === buddy)) {
+    throw new Error('That buddy cannot be picked: they are not an active Talent Partner who has started.');
+  }
+  return onbCleanPlanFields({
+    Title: person.WorkEmail, PersonID: person.id, Track: O.DEFAULT_TRACK, Status: O.PLAN_ACTIVE,
+    StartedByEmail: byEmail, StartedAt: todayISO, BuddyEmail: buddy,
+  });
+}
+
+// Data Health: eight integrity checks over the plan rows, in this order -> [{ key, label, count, sample }].
+// 1-5 and 7 look at Active plans only; 6 (duplicate rows) and 8 (unknown Track / Status) at every row.
+function onbCheckPlans({ plans = [], people = [], templates = [] } = {}) {
+  const O = CONFIG.ONBOARDING;
+  const all = (plans || []).filter(Boolean);
+  const stat = p => String(p.Status == null ? '' : p.Status).trim();
+  const active = all.filter(p => stat(p) === O.PLAN_ACTIVE);
+  const byId = new Map((people || []).filter(p => p && !p.IsPlaceholder).map(p => [String(p.id), p]));
+  const index = pdpEmailIndex(people);
+  const who = p => { const e = byId.get(String(p.PersonID)); return (e && e.EmployeeName) || _onbEmail(p.Title) || ('Person ' + p.PersonID); };
+  const notFound = [], noStart = [], drift = [], noLm = [], badBuddy = [], noSteps = [];
+  active.forEach(p => {
+    const e = byId.get(String(p.PersonID));
+    if (!e || !spYesNo(e.IsActive, false)) { notFound.push(who(p)); return; }
+    if (!spDateIn(e.StartDate)) noStart.push(who(p));
+    if (_onbEmail(p.Title) !== _onbEmail(e.WorkEmail)) drift.push(who(p));
+    if (!pdpResolveIdentity(people, e.WorkEmail).lineManager) noLm.push(who(p));
+    if (_onbEmail(p.BuddyEmail) && !_onbUniqueRow(index, p.BuddyEmail)) badBuddy.push(who(p) + ' (' + _onbEmail(p.BuddyEmail) + ')');
+    if (!activeChecklistItems(templates, O.RECORD_TYPE, p.Track).length) noSteps.push(who(p));
+  });
+  const perPerson = new Map();
+  all.forEach(p => { const k = String(p.PersonID); perPerson.set(k, (perPerson.get(k) || 0) + 1); });
+  const dupes = [...perPerson.entries()].filter(([, n]) => n > 1).map(([k, n]) => who({ PersonID: k }) + ' (' + n + ' rows)');
+  const unknown = all.filter(p => !O.TRACKS.some(t => t.key === p.Track) || !O.PLAN_STATUSES.includes(stat(p))).map(who);
+  const mk = (key, label, sample) => ({ key, label, count: sample.length, sample });
+  return [
+    mk('person-missing', 'Active plans whose person is not in People or is inactive', notFound),
+    mk('no-start-date', 'Active plans whose person has no start date', noStart),
+    mk('email-drift', 'Active plans whose saved work email no longer matches the person', drift),
+    mk('no-line-manager', 'Active plans with no resolvable line manager', noLm),
+    mk('buddy-unresolved', 'Active plans whose buddy is not a single People row', badBuddy),
+    mk('duplicate-plans', 'People with more than one plan row', dupes),
+    mk('no-steps', 'Active plans whose track has no active steps', noSteps),
+    mk('unknown-values', 'Plan rows with an unknown track or status', unknown),
+  ];
 }

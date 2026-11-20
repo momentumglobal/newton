@@ -12,6 +12,7 @@
 // Desktop only; people.html only (never mobile.html, Newton for Claude or the Command Bar). Graph reads go through api.js helpers and
 // getMyDetails (api-my-details.js); the rules are pure functions in employee-logic.js. The details row is held in local variables and
 // the DOM only, never in module state, storage, a toast or the console.
+// N-497: after the My Details section the page holds an empty slot that onboarding-plan-ui.js fills with the Onboarding card.
 // Deep link: people.html#peopleTracker?action=record&id=N (people-app.js).
 
 let _epSeq = 0;               // render token: drops a stale async render
@@ -81,6 +82,7 @@ function epPageHtml(m) {
       <dl class="emp-list">${rows}</dl>
     </section>
     ${epDetailsShellHtml(m.mode, p)}
+    <div id="emp-onboarding-slot"></div>
   </div>`;
 }
 
@@ -168,6 +170,8 @@ async function openEmployeePage(personId) {
   lucide.createIcons();
   // After the page has painted, so the employment fields never wait on the personal-data read. Only 'view' reads.
   if (mode === 'view') _epLoadDetails(data.person, data.people, token);
+  // N-497: the Onboarding card (Admin only; draws and reads nothing for anyone else). Same stale-token rule as the details.
+  onbLoadPlanCard(data.person, data.people, token);
 }
 
 // Read-only My Details. Reads one row (Admin / People Ops hold list-level read), draws it, keeps nothing.

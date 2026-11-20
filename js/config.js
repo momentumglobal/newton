@@ -155,6 +155,9 @@ const CONFIG = {
     pdpSwitch:             ['admin'],
     // N-496 (ONB-1, ONB-D11): change the onboarding Off / Pilot / On switch and the pilot list. Admin only.
     onbSwitch:             ['admin'],
+    // N-497 (ONB-2): start, cancel / restart an onboarding plan and set its buddy (the CSD, who holds Admin).
+    // Leadership and People Ops get no card and no plan read (ONB-D9).
+    onbPlan:               ['admin'],
     // N-443 (PDP-11, D3): unlock a person's calibrated ratings (with a logged reason). Admin only: People Ops sits
     // on the calibration panel (pdpAdmin) and can lock, never unlock.
     pdpCalibrationUnlock:  ['admin'],

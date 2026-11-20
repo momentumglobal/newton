@@ -1,7 +1,7 @@
 // js/api-onboarding.js — SharePoint reads and writes for My Onboarding (N-496 / ONB-1, epic N-482).
 // Graph calls only; the rules are pure in onboarding-logic.js and the constants in CONFIG.ONBOARDING
 // (onboarding-config.js). Loaded on reporting.html straight after onboarding-logic.js; N-497 adds
-// people.html, N-499 my-momentum.html. Not in CONFIG.MCP.scripts.
+// people.html (the employee-record card) and admin.html (Data Health), N-499 my-momentum.html. Not in CONFIG.MCP.scripts.
 //
 //   AppSettings      OnboardingMode / OnboardingPilot on the single 'config' row (the switch, ONB-D11).
 //   OnboardingPlans  one row per person's plan (ONB-D18). Never tier-2 cached. Newton Users read,
@@ -77,4 +77,88 @@ async function resolveOnboardingGate() {
     const isAdmin = role === CONFIG.ROLE_IDS.ADMIN;
     return { mode: CONFIG.ONBOARDING.MODES[0], state: isAdmin ? 'preview' : 'none', reason: 'read-failed', error: e && e.message ? e.message : String(e), peopleOpsActive: false };
   }
+}
+
+
+// ── Plan writes (N-497 / ONB-2) ─────────────────────────────────────────
+// Admin only (onbPlan; the CSD holds Admin). Every write re-reads fresh and re-checks, so a double click or two admins
+// can never create two plan rows (Data Health check 'duplicate-plans' exists for the case that still slips through).
+
+async function _onbPlanWriteGate() {
+  await _ensureGhostGate();
+  const role = await getEffectiveRole(getCurrentUser()?.email || '');
+  if (!roleCan(role, 'onbPlan')) throw new Error('Only an Admin can start or change an onboarding plan.');
+}
+
+function _onbDropCaches() {
+  [CONFIG.ONBOARDING.PLAN_LIST, 'People', 'ChecklistTemplates', 'ChecklistProgress'].forEach(_cacheInvalidate);
+}
+
+// One plan row by id, fresh. Throws when it is gone.
+async function _onbPlanById(planId) {
+  _cacheInvalidate(CONFIG.ONBOARDING.PLAN_LIST);
+  const rows = await getOnboardingPlans();
+  const plan = rows.find(p => String(p.id) === String(planId));
+  if (!plan) throw new Error('That onboarding plan no longer exists. Refresh the page.');
+  return plan;
+}
+
+// "Start onboarding": create the plan row for one person. buddyEmail is optional (ONB-D21). -> { id }
+async function startOnboardingPlan({ personId, buddyEmail = '' } = {}) {
+  await _onbPlanWriteGate();
+  _onbDropCaches();
+  const [people, plans, templates, sw] = await Promise.all([
+    getPeople(false), getOnboardingPlans({ personId }), getChecklistTemplates(CONFIG.ONBOARDING.RECORD_TYPE), readOnboardingSwitch(),
+  ]);
+  const person = people.find(p => !p.IsPlaceholder && String(p.id) === String(personId)) || null;
+  const todayISO = localDayISO();
+  const chk = onbStartCheck({ person, people, plans, templates, mode: sw.mode, pilot: sw.pilot, todayISO });
+  if (!chk.ok) throw new Error(onbReasonText(chk.reason));
+  const fields = onbStartFields({ person, people, buddyEmail, byEmail: getCurrentUser()?.email || '', todayISO });
+  const res = await createItem(CONFIG.ONBOARDING.PLAN_LIST, fields);
+  return { id: res && res.id ? String(res.id) : null };
+}
+
+// Set, change or (blank) clear the buddy on an Active plan.
+async function setOnboardingBuddy(planId, buddyEmail) {
+  await _onbPlanWriteGate();
+  const plan = await _onbPlanById(planId);
+  if (String(plan.Status || '').trim() !== CONFIG.ONBOARDING.PLAN_ACTIVE) throw new Error('The buddy can only be changed on an Active plan.');
+  const buddy = String(buddyEmail == null ? '' : buddyEmail).trim().toLowerCase();
+  if (buddy) {
+    _cacheInvalidate('People');
+    const people = await getPeople(false);
+    if (!onbBuddyCandidates(people, plan.PersonID, localDayISO()).some(c => c.email === buddy)) {
+      throw new Error('That buddy cannot be picked: they are not an active Talent Partner who has started.');
+    }
+  }
+  await updateItem(CONFIG.ONBOARDING.PLAN_LIST, plan.id, onbCleanPlanFields({ BuddyEmail: buddy }));
+}
+
+// Active -> Cancelled. A Complete plan is never touched.
+async function cancelOnboardingPlan(planId) {
+  await _onbPlanWriteGate();
+  const plan = await _onbPlanById(planId);
+  if (String(plan.Status || '').trim() !== CONFIG.ONBOARDING.PLAN_ACTIVE) throw new Error('Only an Active plan can be cancelled.');
+  await updateItem(CONFIG.ONBOARDING.PLAN_LIST, plan.id, onbCleanPlanFields({ Status: 'Cancelled' }));
+}
+
+// Cancelled -> Active (same row; the ticks already made are kept). The person must still be an active People row.
+async function restartOnboardingPlan(planId) {
+  await _onbPlanWriteGate();
+  const plan = await _onbPlanById(planId);
+  if (String(plan.Status || '').trim() !== 'Cancelled') throw new Error('Only a Cancelled plan can be restarted.');
+  _cacheInvalidate('People');
+  const people = await getPeople(false);
+  const person = people.find(p => !p.IsPlaceholder && String(p.id) === String(plan.PersonID));
+  if (!person || !onbInScope(person)) throw new Error('This person is no longer an active Talent Partner, so the plan cannot be restarted.');
+  await updateItem(CONFIG.ONBOARDING.PLAN_LIST, plan.id, onbCleanPlanFields({ Status: CONFIG.ONBOARDING.PLAN_ACTIVE }));
+}
+
+// The inputs for the Data Health "Onboarding plans" checks (onbCheckPlans). People includes inactive rows.
+async function getOnboardingPlanInputs() {
+  const [plans, people, templates] = await Promise.all([
+    getOnboardingPlans(), getPeople(false), getChecklistTemplates(CONFIG.ONBOARDING.RECORD_TYPE),
+  ]);
+  return { plans, people, templates };
 }

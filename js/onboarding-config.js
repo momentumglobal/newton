@@ -44,4 +44,47 @@ CONFIG.ONBOARDING = {
   PLAN_ACTIVE:   'Active',
   // The OnboardingPlans columns a write may carry (onbCleanPlanFields). N-502 adds the sign-off columns.
   PLAN_FIELDS:   ['Title', 'PersonID', 'Track', 'Status', 'StartedByEmail', 'StartedAt', 'BuddyEmail'],
+  // N-497 (ONB-2). A plan can only start for a new joiner: StartDate today, in the future, or at most this many days
+  // ago (ONB-D22). Restart of a Cancelled plan is exempt (same plan). DISPLAY_ROWS = Data Health rows before "+ n more".
+  START_WINDOW_DAYS: 14,
+  DISPLAY_ROWS: 10,
+  // Why "Start onboarding" is not offered (onbStartCheck reasons). {days} = START_WINDOW_DAYS.
+  START_REASONS: {
+    'off':             'Onboarding is switched Off (Config Panel → Onboarding).',
+    'not-pilot':       'Onboarding is in Pilot and this person is not on the pilot list.',
+    'out-of-scope':    'Only active Talent Partners (TP, STP and PTP) get an onboarding plan.',
+    'no-email':        'Add a unique work email to this person first.',
+    'no-start-date':   'Set a start date first.',
+    'too-late':        'Started more than {days} days ago. Onboarding plans are for new joiners only.',
+    'no-line-manager': 'Set “Reports to” first. The plan needs a line manager.',
+    'no-steps':        'The Talent Partner track has no steps yet (Checklist Admin).',
+    'has-plan':        'This person already has a plan.',
+  },
+  // The Onboarding card on the employee record (onboarding-plan-ui.js).
+  TEXT: {
+    cardTitle:     'Onboarding',
+    cardHint:      'Only Admin sees this card. The joiner, their line manager and buddy see the plan itself in My Momentum.',
+    start:         'Start onboarding',
+    restart:       'Restart plan',
+    cancel:        'Cancel plan',
+    changeBuddy:   'Save buddy',
+    buddyLabel:    'Buddy',
+    buddyNone:     'No buddy yet',
+    status:        'Status',
+    started:       'Started',
+    progress:      'Progress',
+    noSteps:       'No steps yet',
+    stepsDone:     '{done} of {total} steps done',
+    overdue:       '{n} overdue',
+    cancelledNote: 'This plan is cancelled. Restarting keeps the steps already ticked.',
+    completeNote:  'This plan is complete.',
+    cancelConfirm: 'Cancel this onboarding plan? The joiner, their line manager and buddy stop seeing it. Ticks are kept and the plan can be restarted.',
+    cancelLabel:   'Cancel plan',
+    startOk:       'Onboarding started.',
+    buddyOk:       'Buddy saved.',
+    cancelOk:      'Onboarding plan cancelled.',
+    restartOk:     'Onboarding plan restarted.',
+    loadFailed:    'The onboarding plan could not be loaded. Refresh the page to try again.',
+    actionFailed:  'Couldn’t update the onboarding plan:',
+  },
 };

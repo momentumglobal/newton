@@ -490,6 +490,7 @@ async function buildDataHealthTab() {
     + _dhRenderProjectTeamIntegrityHtml(data)
     + _dhRenderPdpIdentityHtml(data)
     + _dhRenderPdpAccessHtml()
+    + _dhRenderOnboardingPlansHtml(data)
     + _dhRenderWeeklyAnomaliesHtml(data)
     + _dhRenderIndexStatusHtml(data)
     + _dhRenderSchemaCheckHtml(data)
@@ -596,9 +597,19 @@ async function _dhFetchSectionData() {
     pdpIdentity = { ok: false, checks: [] };
   }
 
+  // N-497: onboarding plan integrity. Pure check (onbCheckPlans, onboarding-logic.js); a failed read (including a
+  // missing OnboardingPlans list) is { ok: false } and renders as Query error, never zeros.
+  let onboardingPlans;
+  try {
+    onboardingPlans = { ok: true, checks: onbCheckPlans(await getOnboardingPlanInputs()) };
+  } catch (e) {
+    console.warn('Data Health: onboarding plans read failed', e);
+    onboardingPlans = { ok: false, checks: [] };
+  }
+
   return {
     lists, counts, deniedLists, excludedLists,
-    ptColumns, slaTargets, projectTeamIntegrity, pdpIdentity,
+    ptColumns, slaTargets, projectTeamIntegrity, pdpIdentity, onboardingPlans,
     nullProjectOk, nullProjectCount, nullWeekEndingOk, nullWeekEndingCount,
     statusByList,
     schemaResults,
@@ -816,6 +827,37 @@ function _dhRenderProjectTeamIntegrityHtml(data) {
     <div class="table-scroll">
     <table class="data-table dh-table">
       <thead><tr><th>Check</th><th>Rows</th><th></th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    </div>
+`;
+}
+
+// ── Data Health Tab — render: Onboarding plans (N-497 / ONB-2) ──
+// Read-only. The checks are pure (onbCheckPlans, onboarding-logic.js); a failed read shows a Query error badge, never zeros.
+function _dhRenderOnboardingPlansHtml(data) {
+  const h = data.onboardingPlans || { ok: false, checks: [] };
+  const cap = CONFIG.ONBOARDING.DISPLAY_ROWS;
+  const body = !h.ok
+    ? `<tr><td>Onboarding plan checks</td><td><span class="dh-badge dh-badge-danger">Query error</span></td><td></td></tr>`
+    : h.checks.map(c => `
+        <tr>
+          <td>${escHtml(c.label)}${c.count ? `
+            <details><summary class="dh-muted">Show</summary>
+              <span class="dh-muted">${c.sample.slice(0, cap).map(escHtml).join('; ')}${c.count > cap ? ` +${c.count - cap} more` : ''}</span>
+            </details>` : ''}</td>
+          <td>${c.count.toLocaleString('en-GB')}</td>
+          <td>${c.count ? '<span class="dh-badge dh-badge-warn">Amber</span>' : ''}</td>
+        </tr>`).join('');
+  return `    <h3>Onboarding plans (N-497)</h3>
+    <p class="dh-note">
+      Every check should read zero. A plan needs its person in People with a start date, a work email that still matches,
+      a line manager (People.ReportsTo) and a track with steps. A "Query error" badge means the check itself failed
+      (for example the OnboardingPlans list is missing) — unknown, not zero.
+    </p>
+    <div class="table-scroll">
+    <table class="data-table dh-table">
+      <thead><tr><th>Check</th><th>Plans</th><th></th></tr></thead>
       <tbody>${body}</tbody>
     </table>
     </div>

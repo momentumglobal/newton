@@ -459,14 +459,15 @@ function onbIsLibraryStep(step) {
 // ONB-D30 / D34. The plans this viewer opens in My Onboarding: Active or Complete plans where they are the joiner ('own') or the
 // buddy ('buddy'). An LM, CSD or Admin relation alone lists nothing (that is N-502). Own plan first, then buddy plans by the joiner's
 // StartDate, latest first, then name. -> [{ plan, kind, relations }]
-function onbMyPlans({ plans = [], people = [], email = '', role = '', peopleOpsActive = false } = {}) {
+// N-509: kind 'own' or 'buddy' lists only that kind (My Onboarding: own; Buddying: buddy); '' (the default) lists both, as N-499.
+function onbMyPlans({ plans = [], people = [], email = '', role = '', peopleOpsActive = false, kind: only = '' } = {}) {
   const O = CONFIG.ONBOARDING;
   const out = [];
   (plans || []).forEach(plan => {
     if (!plan || !O.PLAN_VISIBLE.includes(plan.Status)) return;
     const rel = onbRelations({ plan, people, email, role, peopleOpsActive });
     const kind = rel.has('employee') ? 'own' : (rel.has('buddy') ? 'buddy' : '');
-    if (!kind) return;
+    if (!kind || (only && kind !== only)) return;
     const emp = onbPlanParties(plan, people).employee;
     out.push({ plan, kind, relations: Array.from(rel), _start: emp ? (spDateIn(emp.StartDate) || '') : '', _name: emp ? String(emp.EmployeeName || '') : '' });
   });
@@ -484,11 +485,44 @@ function onbPlanChoices(mine, people) {
   });
 }
 
-// The tab signal for my-momentum-app.js: { plans: n }. Nothing unless the gate is live or Admin preview.
-function onbNavSignal({ gate = null, plans = [], people = [], email = '', role = '', peopleOpsActive = false } = {}) {
+// N-509 (ONB-D38). The plans the viewer buddies that the Buddying tab, its page and its count are all about: Active only (a Complete
+// or Cancelled plan leaves no buddy action). The one rule for all three; ordered as onbMyPlans orders them (latest StartDate first).
+function onbBuddyPlans(args) {
+  return onbMyPlans(Object.assign({}, args, { kind: 'buddy' })).filter(m => m.plan.Status === CONFIG.ONBOARDING.PLAN_ACTIVE);
+}
+
+// N-509 (ONB-D40). One plan (an onbPlanModel result) as a Buddying card: "actions" = the Buddy-owned phase steps, open first (each
+// group in plan order); "rest" = every other phase step, context only. The Library is in neither. Each item keeps the canTick
+// onbPlanModel worked out (the N-499 rules). openActions = the Buddy-owned steps not yet done, due or not (ONB-D41).
+function onbBuddyModel(model) {
+  const m = model || {};
+  const items = (m.phases || []).reduce((acc, p) => acc.concat(p.items), []);
+  const isBuddy = i => !!i.owner && i.owner.key === 'Buddy';
+  const mine = items.filter(isBuddy);
+  const open = mine.filter(i => !i.done);
+  return {
+    planId: m.planId || '',
+    status: m.status || '',
+    readOnly: !!m.readOnly,
+    joiner: m.joiner || { id: '', name: '', startDate: '' },
+    actions: open.concat(mine.filter(i => i.done)),
+    openActions: open.length,
+    rest: items.filter(i => !isBuddy(i)),
+  };
+}
+
+// The tab signals for my-momentum-app.js: { plans, buddy, actions } (N-509). plans = the viewer's own plans, buddy = their Active buddy
+// plans, actions = open Buddy-owned steps across those. All zero unless the gate is live or Admin preview. templates, todayISO and
+// progressByPlan ({ planId: ChecklistProgress rows }) are needed only for the count; without them a buddy plan counts every Buddy step as open.
+function onbNavSignal({ gate = null, plans = [], people = [], email = '', role = '', peopleOpsActive = false, templates = [], progressByPlan = {}, todayISO = '' } = {}) {
   const state = gate && gate.state;
-  if (state !== 'live' && state !== 'preview') return { plans: 0 };
-  return { plans: onbMyPlans({ plans, people, email, role, peopleOpsActive }).length };
+  if (state !== 'live' && state !== 'preview') return { plans: 0, buddy: 0, actions: 0 };
+  const who = { plans, people, email, role, peopleOpsActive };
+  const buddy = onbBuddyPlans(who);
+  const actions = buddy.reduce((n, m) => n + onbBuddyModel(onbPlanModel({
+    plan: m.plan, people, templates, progressRows: (progressByPlan || {})[String(m.plan.id)] || [], email, role, peopleOpsActive, todayISO,
+  })).openActions, 0);
+  return { plans: onbMyPlans(Object.assign({ kind: 'own' }, who)).length, buddy: buddy.length, actions };
 }
 
 // The Library items a level filter shows. level '' = all; an item with no level tag shows under every filter.

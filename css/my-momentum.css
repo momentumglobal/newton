@@ -164,3 +164,18 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 }
 .onb-link:hover { color: var(--text-link-hover); text-decoration: underline; }
 .onb-link svg { width: 14px; height: 14px; }
+
+/* N-509: My Momentum > Buddying (onboarding-buddy-ui.js). Tokens only; the step list, phase head and hint reuse the .onb-* rules above.
+   The banner and the owner chip read --text-primary on a neutral surface: no --status-*-text token on its own tint. */
+.onb-buddy-card { margin: 0 0 var(--sp-10); }
+.onb-buddy-banner {
+  margin: 0 0 var(--sp-7);
+  padding: var(--sp-5) var(--sp-7);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--r-lg);
+  color: var(--text-primary);
+}
+.onb-buddy-banner-title { margin: 0; color: var(--text-primary); font-size: var(--fs-subheading); font-weight: var(--fw-semibold); }
+.onb-buddy-card .onb-chip--owner { background: var(--surface-sunken); border-color: var(--accent); color: var(--text-primary); }

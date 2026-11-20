@@ -176,15 +176,27 @@ async function _onbViewerCtx() {
   return { email: pdpEffectiveEmail(realEmail, getGhostUser()), role: await getEffectiveRole(realEmail) };
 }
 
-// The tab signal for my-momentum-app.js: { plans: n }. Any read failure is { plans: 0 } (the tab stays hidden, nothing throws).
+// The tab signals for my-momentum-app.js: { plans, buddy, actions } (N-509: own plans, Active buddy plans, open Buddy-owned steps on
+// them). Templates and progress are read only when the viewer buddies an Active plan, and progress only for those plans.
+// Any read failure is all zero (the tabs stay hidden, nothing throws).
 async function resolveOnboardingNav() {
   try {
+    const O = CONFIG.ONBOARDING;
     const { email, role } = await _onbViewerCtx();
     const [gate, plans, people] = await Promise.all([resolveOnboardingGate(), getOnboardingPlans(), getPeople(false)]);
-    return onbNavSignal({ gate, plans, people, email, role, peopleOpsActive: gate.peopleOpsActive });
+    const who = { gate, plans, people, email, role, peopleOpsActive: gate.peopleOpsActive };
+    const buddy = gate.state === 'live' || gate.state === 'preview' ? onbBuddyPlans(who) : [];
+    if (!buddy.length) return onbNavSignal(who);
+    const [templates, rows] = await Promise.all([
+      getChecklistTemplates(O.RECORD_TYPE),
+      Promise.all(buddy.map(m => getChecklistProgress(O.RECORD_TYPE, { recordId: m.plan.PersonID }))),
+    ]);
+    const progressByPlan = {};
+    buddy.forEach((m, i) => { progressByPlan[String(m.plan.id)] = rows[i]; });
+    return onbNavSignal(Object.assign(who, { templates, progressByPlan, todayISO: localDayISO() }));
   } catch (e) {
-    console.warn('My Onboarding: tab signal unavailable', e);
-    return { plans: 0 };
+    console.warn('My Onboarding: tab signals unavailable', e);
+    return { plans: 0, buddy: 0, actions: 0 };
   }
 }
 
@@ -198,7 +210,7 @@ async function getOnboardingPlanView(planId, { level = '' } = {}) {
     resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE),
   ]);
   if (gate.state !== 'live' && gate.state !== 'preview') return { none: true, gateState: gate.state };
-  const mine = onbMyPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive });
+  const mine = onbMyPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, kind: 'own' });   // N-509: own plan only; the buddy's are getBuddyingView
   if (!mine.length) return { none: true, gateState: gate.state };
   const want = String(planId == null ? '' : planId).trim();
   const entry = want ? mine.find(m => String(m.plan.id) === want) : mine[0];
@@ -235,4 +247,28 @@ async function tickOnboardingStep({ planId, itemKey, done } = {}) {
   const rows = await getChecklistProgress(O.RECORD_TYPE, { recordId: entry.plan.PersonID });
   const prev = resolveChecklistProgress(rows).get(key) || null;
   return setChecklistItemDone(O.RECORD_TYPE, entry.plan.PersonID, key, done, prev ? prev.rowId : null);
+}
+
+
+// ── Buddying page (N-509 / ONB-4b) ──────────────────────────────────────
+// The viewer's Active buddy plans as Buddying cards (onbBuddyModel), latest start first. Same viewer context and fresh-per-call reads as
+// getOnboardingPlanView; progress is read only for the viewer's own Active buddy plans, after they are known, never for any other plan.
+// -> { none: true, gateState } or { gateState, plans: [onbBuddyModel…] }. Ticking stays tickOnboardingStep (it re-checks every rule).
+async function getBuddyingView() {
+  const { email, role } = await _onbViewerCtx();
+  const O = CONFIG.ONBOARDING;
+  const [gate, plans, people, templates] = await Promise.all([
+    resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE),
+  ]);
+  if (gate.state !== 'live' && gate.state !== 'preview') return { none: true, gateState: gate.state };
+  const mine = onbBuddyPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive });
+  if (!mine.length) return { none: true, gateState: gate.state };
+  const rows = await Promise.all(mine.map(m => getChecklistProgress(O.RECORD_TYPE, { recordId: m.plan.PersonID })));
+  const todayISO = localDayISO();
+  return {
+    gateState: gate.state,
+    plans: mine.map((m, i) => onbBuddyModel(onbPlanModel({
+      plan: m.plan, people, templates, progressRows: rows[i], email, role, peopleOpsActive: gate.peopleOpsActive, todayISO,
+    }))),
+  };
 }

@@ -27,10 +27,12 @@ function _onbmChip(text, extra) {
   return `<span class="badge onb-chip${extra ? ' ' + extra : ''}">${escHtml(text)}</span>`;
 }
 
-// One step row. n = a page-unique number for the checkbox id.
-function _onbmStepHtml(it, n) {
+// One step row. n = a page-unique number for the checkbox id. N-509: tickAttr(it) = the checkbox's change-action attribute; the
+// Buddying page (onboarding-buddy-ui.js) passes its own, My Onboarding leaves it out and gets onbmTick. No other behaviour change.
+function _onbmStepHtml(it, n, tickAttr) {
   const T = CONFIG.ONBOARDING.PLAN_TEXT;
   const id = 'onb-box-' + n;
+  const tick = tickAttr ? tickAttr(it) : actOn('change', 'onbmTick', it.itemKey, ACT_CHECKED);
   const ownerText = it.owner.unnamed ? T.ownerBuddyNone : (it.owner.name ? `${it.owner.label} · ${it.owner.name}` : it.owner.label);
   const chips = [_onbmChip(ownerText, 'onb-chip--owner'), _onbmChip(it.guided ? T.guided : T.selfGuided)];
   if (it.levelTag) chips.push(_onbmChip(it.levelTag));
@@ -45,7 +47,7 @@ function _onbmStepHtml(it, n) {
     ? `<div class="onb-step-done">${escHtml(onbFillText(T.doneBy, { name: it.doneByName, date: _onbmDate(it.doneAt) }))}</div>`
     : '';
   return `<li class="onb-step${it.done ? ' onb-step--done' : ''}">
-        <input type="checkbox" class="onb-step-check" id="${id}"${it.done ? ' checked' : ''}${it.canTick ? '' : ' disabled'}${actOn('change', 'onbmTick', it.itemKey, ACT_CHECKED)}>
+        <input type="checkbox" class="onb-step-check" id="${id}"${it.done ? ' checked' : ''}${it.canTick ? '' : ' disabled'}${tick}>
         <div class="onb-step-body">
           <label class="onb-step-label" for="${id}">${escHtml(it.label)}</label>
           ${it.help ? `<div class="onb-step-help">${escHtml(it.help)}</div>` : ''}

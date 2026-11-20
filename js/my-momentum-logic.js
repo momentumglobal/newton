@@ -41,7 +41,8 @@ function mmTabRelevant(key, ctx) {
     case 'myDetails':     return c.state === 'ok' || roleCan(c.role, 'myDetailsAdmin');   // N-456: Admin / People Ops reach the picker even with no People row
     case 'myScorecard':   return !!s.hasActivity;
     case 'myDevelopment': return !!s.pdpMy;
-    case 'myOnboarding':  return !!s.onbPlans;   // N-499 (ONB-D28): a joiner, or a buddy of one, with a plan to see
+    case 'myOnboarding':  return !!s.onbPlans;   // N-499 (ONB-D28), N-509: a joiner with a plan of their own to see
+    case 'myBuddying':    return !!s.onbBuddy;   // N-509 (ONB-D38): the buddy of at least one Active plan
     case 'myTeam':        return mmTeamSubTabs(c).length > 0;
     default:              return false;
   }
@@ -50,6 +51,16 @@ function mmTabRelevant(key, ctx) {
 // The tabs to show, in registry order. A tab that is not `live` never appears.
 function mmVisibleTabs(tabs, ctx) {
   return (tabs || []).filter(t => t.live === true && mmTabRelevant(t.key, ctx));
+}
+
+// N-509 (ONB-D39): the label a tab shows in the nav. Only Buddying carries a count, the open Buddy-owned steps (signals.onbActions),
+// and none at 0. tab = a CONFIG.MY_MOMENTUM.TABS entry or its key. Reads CONFIG.ONBOARDING.TAB_COUNT (onboarding-config.js): call it
+// only where that file loads (its one caller is my-momentum-nav.js on my-momentum.html, like mmScorecardScope above).
+function mmTabLabel(tab, signals) {
+  const t = typeof tab === 'string' ? (CONFIG.MY_MOMENTUM.TABS.find(x => x.key === tab) || { key: tab, label: tab }) : (tab || {});
+  const n = t.key === 'myBuddying' ? Number((signals || {}).onbActions) : 0;
+  const label = String(t.label == null ? '' : t.label);
+  return n > 0 ? CONFIG.ONBOARDING.TAB_COUNT.split('{label}').join(label).split('{n}').join(String(n)) : label;
 }
 
 // First visible tab, or null when there is nothing to show (the no-record panel).

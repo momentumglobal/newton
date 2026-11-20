@@ -601,7 +601,7 @@ ASSERTIONS.push(
         _assertEqual(typeof O.PLAN_TEXT[k] === 'string' && O.PLAN_TEXT[k].length > 0, true, 'PLAN_TEXT.' + k));
       _assertEqual(CONFIG.MCP.scripts.some(s => /onboarding/.test(s)), false, 'not in the MCP bundle');
       const keys = CONFIG.MY_MOMENTUM.TABS.map(t => t.key);
-      _assertEqual(keys.indexOf('myOnboarding') > -1 && keys.indexOf('myOnboarding') === keys.indexOf('myTeam') - 1, true, 'myOnboarding sits immediately before myTeam');
+      _assertEqual(keys.indexOf('myOnboarding') > -1 && keys.indexOf('myBuddying') === keys.indexOf('myOnboarding') + 1 && keys.indexOf('myTeam') === keys.indexOf('myBuddying') + 1, true, 'myOnboarding, then myBuddying (N-509), sit immediately before myTeam');
       ['admin', 'leadership', 'people_ops', 'talent_partner', 'staff'].forEach(role => {
         _assertEqual(mmTabRelevant('myOnboarding', { state: 'ok', role, signals: { onbPlans: true } }), true, 'relevant with a plan, ' + role);
         _assertEqual(mmTabRelevant('myOnboarding', { state: 'ok', role, signals: {} }), false, 'not relevant without one, ' + role);
@@ -652,8 +652,8 @@ ASSERTIONS.push(
     fn: function () {
       const { f, people, buddyPlan } = _onbFx3();
       const sig = state => onbNavSignal({ gate: state ? { state } : null, plans: [buddyPlan], people, email: f.tp1.WorkEmail, role: 'talent_partner' });
-      _assertEqual([sig('none').plans, sig(null).plans, sig('live').plans, sig('preview').plans], [0, 0, 1, 1], 'none / missing gate = 0; live / preview count the plans');
-      _assertEqual(onbNavSignal({ gate: { state: 'live' }, plans: [], people, email: f.tp1.WorkEmail, role: 'talent_partner' }).plans, 0, 'no plans = 0');
+      _assertEqual([sig('none'), sig(null), sig('live'), sig('preview')].map(s => [s.plans, s.buddy]), [[0, 0], [0, 0], [0, 1], [0, 1]], 'N-509: none / missing gate = 0; live / preview count a buddy-only person\'s plan under buddy, not plans');
+      _assertEqual(onbNavSignal({ gate: { state: 'live' }, plans: [], people, email: f.tp1.WorkEmail, role: 'talent_partner' }), { plans: 0, buddy: 0, actions: 0 }, 'no plans = all zero');
     },
   },
 );
@@ -718,7 +718,7 @@ ASSERTIONS.push(
     fn: function () {
       const api = _onbSrc('api-onboarding.js');
       const nav = api.slice(api.indexOf('async function resolveOnboardingNav'), api.indexOf('async function getOnboardingPlanView'));
-      _assertEqual(/catch \(e\)[\s\S]*return \{ plans: 0 \}/.test(nav), true, 'AC3 a failed read is { plans: 0 }');
+      _assertEqual(/catch \(e\)[\s\S]*return \{ plans: 0, buddy: 0, actions: 0 \}/.test(nav), true, 'AC3 (N-509) a failed read is { plans: 0, buddy: 0, actions: 0 }');
       const view = api.slice(api.indexOf('async function getOnboardingPlanView'), api.indexOf('async function tickOnboardingStep'));
       const refuse = view.indexOf("throw new Error('That onboarding plan is not available to you.')");
       _assertEqual(refuse > -1 && refuse < view.indexOf('getChecklistProgress('), true, 'AC9 refuse before the progress read');
@@ -807,3 +807,216 @@ ASSERTIONS.push({
     _assertEqual([r.total, r.done, r.overdue, r.nextDue && r.nextDue.itemKey], [2, 1, 1, 'b'], 'two phase steps; the ticked Library item adds nothing');
   },
 });
+
+// ── N-509 (ONB-4b): the Buddying tab ─────────────────────────────────────────────────────────────────
+// Fixture: _onbFx3(). Tia (f.tp1) buddies Nina's plan pl30 (Nina starts 25 Nov) and also has her own plan pl4. Steps: pre (Ops), w1 (Employee),
+// w2 (LM), w3 (Buddy, due 28 Nov), three Library items. Today is 26 Nov.
+const _ONB9_PROGRESS = (key, by) => ({ id: 'pr-' + key, ItemKey: key, Done: true, DoneDate: '2026-11-27', DoneByEmail: by });
+
+ASSERTIONS.push(
+  {
+    name: 'N-509 AC1/AC2 config and tab rules: TABS order, TAB_COUNT, BUDDY_TEXT; mmTabRelevant follows onbBuddy (Buddying) and onbPlans (My Onboarding) separately',
+    fn: function () {
+      const O = CONFIG.ONBOARDING;
+      const keys = CONFIG.MY_MOMENTUM.TABS.map(t => t.key);
+      _assertEqual(keys.slice(keys.indexOf('myOnboarding')), ['myOnboarding', 'myBuddying', 'myTeam'], 'AC1 myBuddying between myOnboarding and myTeam');
+      _assertEqual(CONFIG.MY_MOMENTUM.TABS.find(t => t.key === 'myBuddying'), { key: 'myBuddying', label: 'Buddying', live: true }, 'AC1 live, labelled Buddying');
+      _assertEqual(O.TAB_COUNT, '{label} ({n})', 'tab count format');
+      ['pageTitle', 'banner', 'joinerFallback', 'actionsTitle', 'actionsOpen', 'actionsDone', 'noActions', 'restTitle', 'restCount', 'restHint', 'show', 'hide', 'noPlans', 'loadFailed', 'retry']
+        .forEach(k => _assertEqual(typeof O.BUDDY_TEXT[k] === 'string' && O.BUDDY_TEXT[k].length > 0, true, 'BUDDY_TEXT.' + k));
+      _assertEqual(O.BUDDY_TEXT.banner.includes('{name}') && O.BUDDY_TEXT.actionsTitle === 'Your actions' && O.BUDDY_TEXT.restTitle.includes('{name}'), true, 'banner and rest title take the name; "Your actions"');
+      ['admin', 'leadership', 'people_ops', 'talent_partner', 'staff'].forEach(role => {
+        const rel = (k, s) => mmTabRelevant(k, { state: 'ok', role, signals: s });
+        _assertEqual([rel('myBuddying', { onbBuddy: true }), rel('myBuddying', {}), rel('myBuddying', { onbPlans: true })], [true, false, false], 'AC2 Buddying only on onbBuddy, ' + role);
+        _assertEqual([rel('myOnboarding', { onbPlans: true }), rel('myOnboarding', {}), rel('myOnboarding', { onbBuddy: true })], [true, false, false], 'AC2 My Onboarding only on onbPlans, ' + role);
+      });
+      _assertEqual(CONFIG.MCP.scripts.some(s => /onboarding/.test(s)), false, 'still not in the MCP bundle');
+    },
+  },
+  {
+    name: 'N-509 AC4 onbMyPlans kind: own / buddy filter, no kind = both (N-499 behaviour)',
+    fn: function () {
+      const { f, people, buddyPlan, ownPlan } = _onbFx3();
+      const mine = kind => onbMyPlans({ plans: [buddyPlan, ownPlan], people, email: f.tp1.WorkEmail, role: 'talent_partner', kind }).map(m => [m.plan.id, m.kind]);
+      _assertEqual(mine('own'), [['pl4', 'own']], 'own only');
+      _assertEqual(mine('buddy'), [['pl30', 'buddy']], 'buddy only');
+      _assertEqual(mine(undefined), [['pl4', 'own'], ['pl30', 'buddy']], 'default = both, own first');
+      _assertEqual(mine(''), [['pl4', 'own'], ['pl30', 'buddy']], 'blank kind = both');
+      _assertEqual(onbBuddyPlans({ plans: [buddyPlan, ownPlan], people, email: f.tp1.WorkEmail, role: 'talent_partner' }).map(m => m.plan.id), ['pl30'], 'onbBuddyPlans = Active buddy plans');
+      ['Complete', 'Cancelled'].forEach(status => _assertEqual(
+        onbBuddyPlans({ plans: [Object.assign({}, buddyPlan, { Status: status })], people, email: f.tp1.WorkEmail, role: 'talent_partner' }), [], 'D38 a ' + status + ' plan is never a buddy plan'));
+      const late = f.P(31, 'Late Joiner', 'TP', { StartDate: '2026-12-01', ReportsTo: f.sdm.WorkEmail });
+      const p2 = people.concat([late]);
+      const two = [buddyPlan, Object.assign({}, buddyPlan, { id: 'pl31', PersonID: 31 })];
+      _assertEqual(onbBuddyPlans({ plans: two, people: p2, email: f.tp1.WorkEmail, role: 'talent_partner' }).map(m => m.plan.id), ['pl31', 'pl30'], 'AC10 latest start date first');
+    },
+  },
+  {
+    name: 'N-509 AC3/AC5 onbNavSignal: { plans, buddy, actions } follows the gate, Active buddy plans only, open Buddy-owned steps; the tabs follow it per person',
+    fn: function () {
+      const { f, nina, people, templates, buddyPlan, ownPlan } = _onbFx3();
+      const nav = (email, role, plans, o) => onbNavSignal(Object.assign({ gate: { state: 'live' }, plans, people, email, role, templates, todayISO: _ONB3_TODAY }, o));
+      const tia = f.tp1.WorkEmail;
+      const zero = { plans: 0, buddy: 0, actions: 0 };
+      _assertEqual(nav(tia, 'talent_partner', [buddyPlan]), { plans: 0, buddy: 1, actions: 1 }, 'buddy-only: no own plan, one buddy plan, the open Buddy step w3');
+      _assertEqual(nav(tia, 'talent_partner', [buddyPlan, ownPlan]), { plans: 1, buddy: 1, actions: 1 }, 'both: her own plan counts under plans, never under actions');
+      _assertEqual(nav(nina.WorkEmail, 'talent_partner', [buddyPlan, ownPlan]), { plans: 1, buddy: 0, actions: 0 }, 'joiner-only');
+      _assertEqual(nav(tia, 'talent_partner', [buddyPlan], { progressByPlan: { pl30: [_ONB9_PROGRESS('w3', tia)] } }), { plans: 0, buddy: 1, actions: 0 }, 'a done Buddy step is not counted; the tab still shows (buddy 1)');
+      _assertEqual(nav(tia, 'talent_partner', [buddyPlan], { progressByPlan: { pl99: [_ONB9_PROGRESS('w3', tia)] } }).actions, 1, 'progress of another plan counts for nothing');
+      _assertEqual(nav(tia, 'talent_partner', [buddyPlan], { templates: [] }).actions, 0, 'no steps, no actions');
+      ['Complete', 'Cancelled'].forEach(status => _assertEqual(nav(tia, 'talent_partner', [Object.assign({}, buddyPlan, { Status: status })]), zero, 'AC5 a ' + status + ' plan never counts'));
+      _assertEqual([nav(tia, 'talent_partner', [buddyPlan], { gate: { state: 'none' } }), nav(tia, 'talent_partner', [buddyPlan], { gate: null })], [zero, zero], 'AC5 gate none / missing = all zero');
+      _assertEqual(nav(tia, 'talent_partner', [buddyPlan], { gate: { state: 'preview' } }).buddy, 1, 'preview counts');
+      _assertEqual(nav(tia, 'talent_partner', [buddyPlan], { templates: undefined, progressByPlan: undefined }).buddy, 1, 'missing templates / progress default safely');
+      // AC3: which tabs each person gets, through the same signals my-momentum-app.js builds
+      const tabs = (email, role, plans) => {
+        const s = nav(email, role, plans);
+        const sig = { onbPlans: s.plans > 0, onbBuddy: s.buddy > 0, onbActions: s.actions };
+        return [mmTabRelevant('myOnboarding', { state: 'ok', role, signals: sig }), mmTabRelevant('myBuddying', { state: 'ok', role, signals: sig })];
+      };
+      _assertEqual(tabs(tia, 'talent_partner', [buddyPlan]), [false, true], 'AC3 buddy-only: Buddying, no My Onboarding');
+      _assertEqual(tabs(nina.WorkEmail, 'talent_partner', [buddyPlan]), [true, false], 'AC3 joiner-only: My Onboarding, no Buddying');
+      _assertEqual(tabs(tia, 'talent_partner', [buddyPlan, ownPlan]), [true, true], 'AC3 both');
+      [[f.sdm.WorkEmail, 'delivery_manager'], [f.csd.WorkEmail, 'delivery_manager'], ['admin@mg.test', 'admin'], ['leader@mg.test', 'leadership']].forEach(p =>
+        _assertEqual(tabs(p[0], p[1], [buddyPlan, ownPlan]), [false, false], 'AC3 neither relation, neither tab: ' + p[1]));
+    },
+  },
+  {
+    name: 'N-509 AC6 mmTabLabel: Buddying (n) for n > 0, Buddying at 0, every other tab unchanged',
+    fn: function () {
+      const T = CONFIG.MY_MOMENTUM.TABS;
+      const b = T.find(t => t.key === 'myBuddying');
+      _assertEqual([mmTabLabel(b, { onbActions: 3 }), mmTabLabel(b, { onbActions: 12 }), mmTabLabel('myBuddying', { onbActions: 1 })], ['Buddying (3)', 'Buddying (12)', 'Buddying (1)'], 'n > 0, by tab or by key');
+      _assertEqual([mmTabLabel(b, { onbActions: 0 }), mmTabLabel(b, {}), mmTabLabel(b, undefined), mmTabLabel(b, { onbActions: 'x' })], ['Buddying', 'Buddying', 'Buddying', 'Buddying'], 'no count at 0 or without a number');
+      T.filter(t => t.key !== 'myBuddying').forEach(t => _assertEqual(mmTabLabel(t, { onbActions: 5 }), t.label, 'unchanged: ' + t.key));
+    },
+  },
+  {
+    name: 'N-509 AC7 onbBuddyModel: actions = the Buddy-owned phase steps (open first), rest = every other phase step, no Library, canTick per the N-499 rules',
+    fn: function () {
+      const { f, people, templates, buddyPlan } = _onbFx3();
+      const w4 = Object.assign({}, templates.find(t => t.ItemKey === 'w3'), { id: 'w4', ItemKey: 'w4', ItemLabel: 'Step w4', ItemOrder: 5, DueOffsetDays: 5 });
+      const t2 = templates.concat([w4]);
+      const model = (email, o) => onbPlanModel(Object.assign({ plan: buddyPlan, people, templates: t2, progressRows: [_ONB9_PROGRESS('w3', f.tp1.WorkEmail)], email, role: 'talent_partner', todayISO: _ONB3_TODAY }, o));
+      const keys = list => list.map(i => i.itemKey);
+      const b = onbBuddyModel(model(f.tp1.WorkEmail));
+      _assertEqual(keys(b.actions), ['w4', 'w3'], 'open first (w4), then done (w3)');
+      _assertEqual(keys(b.rest), ['pre', 'w1', 'w2'], 'the joiner\'s other phase steps, in plan order');
+      _assertEqual(b.openActions, 1, 'one open');
+      _assertEqual(keys(b.actions.concat(b.rest)).some(k => /^l/.test(k)), false, 'the Library is in neither');
+      _assertEqual([b.planId, b.status, b.readOnly, b.joiner.name], ['pl30', 'Active', false, 'Nina New'], 'plan facts');
+      _assertEqual([b.actions.map(i => i.canTick), b.rest.map(i => i.canTick)], [[true, true], [false, false, false]], 'a buddy ticks Buddy steps (done ones too, to untick) and nothing else');
+      _assertEqual(b.actions.every(i => i.owner.key === 'Buddy') && b.rest.every(i => i.owner.key !== 'Buddy'), true, 'split by owner');
+      _assertEqual(onbBuddyModel(model(f.tp1.WorkEmail, { plan: Object.assign({}, buddyPlan, { Status: 'Complete' }) })).actions.every(i => i.canTick === false), true, 'a plan that is not Active ticks nothing');
+      _assertEqual(onbBuddyModel(model(f.tp1.WorkEmail, { templates: [] })), { planId: 'pl30', status: 'Active', readOnly: false, joiner: { id: '30', name: 'Nina New', startDate: '2026-11-25' }, actions: [], openActions: 0, rest: [] }, 'no steps: empty lists');
+      _assertEqual(onbBuddyModel(null).actions, [], 'null model is safe');
+    },
+  },
+  {
+    name: 'N-509 AC8-AC11/AC13 onbbPageHtml: banner, actions first, collapsed read-only rest, no Library or progress bar, one card per plan, escaped, no inline handlers',
+    fn: function () {
+      const { f, people, templates, buddyPlan } = _onbFx3();
+      const T = CONFIG.ONBOARDING.PLAN_TEXT;
+      const B = CONFIG.ONBOARDING.BUDDY_TEXT;
+      const tia = f.tp1.WorkEmail;
+      const evil = templates.map(t => t.ItemKey === 'w3' ? Object.assign({}, t, { ItemLabel: '<img src=x onerror=alert(1)>', HelpText: '"><script>x</script>' }) : t);
+      const card = (plan, o) => onbBuddyModel(onbPlanModel(Object.assign({ plan, people, templates: evil, progressRows: [], email: tia, role: 'talent_partner', todayISO: _ONB3_TODAY }, o)));
+      const draw = (view, ui) => onbbPageHtml(view, Object.assign({ open: [], error: '' }, ui));
+      const disabled = h => (h.match(/ disabled data-act/g) || []).length;
+      const boxes = h => (h.match(/class="onb-step-check"/g) || []).length;
+      const one = { gateState: 'live', plans: [card(buddyPlan)] };
+      let html = draw(one);
+      _assertEqual(/<img src=x|<script>x/.test(html), false, 'AC13 label and help are escaped');
+      _assertEqual(/\bon(click|change|input)=|style="/.test(html), false, 'AC13 no inline handlers or styles');
+      _assertEqual(/href="javascript:/.test(html), false, 'AC13 no unsafe href');
+      _assertEqual(html.includes('<h1 class="page-title">' + B.pageTitle + '</h1>') && html.includes('Buddy view of Nina New') && html.includes('Starts 25 November 2026'), true, 'AC8 title, banner with the joiner\'s name, start date');
+      const at = s => html.indexOf(s);
+      _assertEqual(at('Buddy view of') > -1 && at('Buddy view of') < at(B.actionsTitle) && at(B.actionsTitle) < at('Rest of Nina New’s plan'), true, 'AC8 banner, then "Your actions", then the rest');
+      _assertEqual(html.includes('<progress') || html.includes('onb-library') || html.includes(T.library) || html.includes('onb-selector'), false, 'AC8 no progress bar, no Library, no selector');
+      _assertEqual([boxes(html), disabled(html)], [4, 3], 'AC8 one action box (enabled) and three rest boxes (all disabled)');
+      _assertEqual(html.includes('onbbTick') && html.includes('pl30') && html.includes('onbbToggleRest'), true, 'ticks and the toggle carry the plan id');
+      _assertEqual(html.includes(onbFillText(B.actionsOpen, { n: 1 })), true, 'open count');
+      _assertEqual(html.includes('aria-expanded="false"') && html.includes('<ul class="onb-steps" hidden>') && html.includes(B.show), true, 'AC8 the rest starts collapsed');
+      html = draw(one, { open: ['pl30'] });
+      _assertEqual(html.includes('aria-expanded="true"') && html.includes(B.hide) && !html.includes('<ul class="onb-steps" hidden>'), true, 'opened: shown, button reads Hide');
+      _assertEqual(disabled(html), 3, 'opened rest is still read-only');
+      html = draw({ gateState: 'live', plans: [card(buddyPlan, { progressRows: [_ONB9_PROGRESS('w3', tia)] })] });
+      _assertEqual(html.includes(B.actionsDone) && html.includes('checked') && !html.includes(onbFillText(B.actionsOpen, { n: 0 })), true, 'all done: the count reads All done, the step is ticked');
+      html = draw({ gateState: 'live', plans: [card(buddyPlan, { templates: evil.filter(t => t.ItemKey !== 'w3') })] });
+      _assertEqual(html.includes(onbFillText(B.noActions, { name: 'Nina New' })) && html.includes('Step w1'), true, 'no Buddy step: a note, the rest still there');
+      html = draw({ gateState: 'live', plans: [card(buddyPlan, { templates: evil.filter(t => t.ItemKey === 'w3') })] });
+      _assertEqual(html.includes('onb-buddy-rest'), false, 'nothing else in the plan: no rest section');
+      const late = f.P(31, 'Late Joiner', 'TP', { StartDate: '2026-12-01', ReportsTo: f.sdm.WorkEmail });
+      const p2 = people.concat([late]);
+      const plans = onbBuddyPlans({ plans: [buddyPlan, Object.assign({}, buddyPlan, { id: 'pl31', PersonID: 31 })], people: p2, email: tia, role: 'talent_partner' }).map(m => m.plan);
+      html = draw({ gateState: 'live', plans: plans.map(pl => onbBuddyModel(onbPlanModel({ plan: pl, people: p2, templates: evil, progressRows: [], email: tia, role: 'talent_partner', todayISO: _ONB3_TODAY }))) });
+      _assertEqual((html.match(/class="onb-buddy-card"/g) || []).length, 2, 'AC10 one card per plan');
+      _assertEqual(html.indexOf('Buddy view of Late Joiner') > -1 && html.indexOf('Buddy view of Late Joiner') < html.indexOf('Buddy view of Nina New'), true, 'AC10 latest start first');
+      _assertEqual(/id="onb-plan"/.test(html), false, 'AC10 no selector');
+      const lead = f.P(32, 'Led Joiner', 'TP', { StartDate: '2026-11-25', ReportsTo: tia });   // Tia is this joiner's line manager as well as their buddy
+      const ledCard = onbBuddyModel(onbPlanModel({ plan: Object.assign({}, buddyPlan, { id: 'pl32', PersonID: 32 }), people: people.concat([lead]), templates: evil, progressRows: [], email: tia, role: 'talent_partner', todayISO: _ONB3_TODAY }));
+      _assertEqual(ledCard.rest.every(i => i.canTick), true, 'sanity: the model lets a line manager tick every step, N-499 rules');
+      html = draw({ gateState: 'live', plans: [ledCard] });
+      _assertEqual([boxes(html), disabled(html)], [4, 3], 'D40 the rest is read-only on this tab even for the joiner\'s line manager (LM / CSD ticking is N-502)');
+      html = draw(Object.assign({}, one, { gateState: 'preview' }));
+      _assertEqual([html.includes(T.previewNote), disabled(html), boxes(html)], [true, 4, 4], 'Preview: note, every box disabled');
+      html = draw(null, { error: 'Boom <b>' });
+      _assertEqual(html.includes('Boom &lt;b&gt;') && html.includes('onbbRetry') && html.includes(B.loadFailed), true, 'AC11 error panel, escaped, with Retry');
+      _assertEqual([draw({ none: true }), draw({ gateState: 'live', plans: [] }), draw(null)].every(h => h.includes(B.noPlans)), true, 'AC11 no plan: the empty state');
+    },
+  },
+  {
+    name: 'N-509 AC9/AC12 api-onboarding.js: getBuddyingView reads progress only for the viewer\'s Active buddy plans; the nav reads templates and progress only when there is one; My Onboarding lists own plans only; tick is unchanged',
+    fn: function () {
+      const api = _onbSrc('api-onboarding.js');
+      const view = api.slice(api.indexOf('async function getBuddyingView'));
+      const gate = view.indexOf("gate.state !== 'live' && gate.state !== 'preview'"), plans = view.indexOf('onbBuddyPlans('), read = view.indexOf('getChecklistProgress(');
+      _assertEqual(gate > -1 && plans > gate && read > plans, true, 'AC12 gate, then the buddy plans, then the progress reads');
+      _assertEqual(/mine\.map\(m => getChecklistProgress\(O\.RECORD_TYPE, \{ recordId: m\.plan\.PersonID \}\)\)/.test(view) && (view.match(/getChecklistProgress\(/g) || []).length === 1, true, 'AC12 one progress read per buddy plan, nothing else');
+      _assertEqual(/createItem\(|updateItem\(|deleteItem\(|setChecklistItemDone\(/.test(view), false, 'the page reads only; ticking stays tickOnboardingStep');
+      _assertEqual(/return \{ none: true, gateState: gate\.state \}/.test(view) && /onbBuddyModel\(onbPlanModel\(/.test(view), true, 'none shape and the card model');
+      const nav = api.slice(api.indexOf('async function resolveOnboardingNav'), api.indexOf('async function getOnboardingPlanView'));
+      const early = nav.indexOf('if (!buddy.length) return onbNavSignal(who);');
+      _assertEqual(early > -1 && early < nav.indexOf('getChecklistTemplates(') && early < nav.indexOf('getChecklistProgress('), true, 'the nav reads templates and progress only after finding a buddy plan');
+      _assertEqual(/buddy\.map\(m => getChecklistProgress\(O\.RECORD_TYPE, \{ recordId: m\.plan\.PersonID \}\)\)/.test(nav), true, 'AC12 nav: progress per buddy plan only');
+      const own = api.slice(api.indexOf('async function getOnboardingPlanView'), api.indexOf('async function tickOnboardingStep'));
+      _assertEqual(/onbMyPlans\(\{[^}]*kind: 'own' \}\)/.test(own), true, 'D42 My Onboarding lists the viewer\'s own plan only');
+      const tick = api.slice(api.indexOf('async function tickOnboardingStep'), api.indexOf('async function getBuddyingView'));
+      _assertEqual(/onbMyPlans\(\{ plans, people, email, role, peopleOpsActive: gate\.peopleOpsActive \}\)/.test(tick) && !/kind:/.test(tick), true, 'AC9 tickOnboardingStep still resolves both kinds, so a buddy can tick');
+      _assertEqual((tick.match(/setChecklistItemDone\(/g) || []).length, 1, 'exactly one write call');
+    },
+  },
+  {
+    name: 'N-509 AC9/AC11/AC13-AC14 onboarding-buddy-ui.js, CSS and load scope: draws into #onb-buddy-page, drops stale loads, redraws fresh after a tick; my-momentum.html only, after onboarding-my-ui.js',
+    fn: function () {
+      const ui = _onbSrc('onboarding-buddy-ui.js');
+      _assertEqual(/token !== s\.token \|\| _mmCurrentPage !== 'myBuddying'/.test(ui), true, 'a stale or abandoned load draws nothing');
+      _assertEqual(/id="onb-buddy-page"/.test(ui) && /getElementById\('onb-buddy-page'\)/.test(ui), true, 'redraws target #onb-buddy-page so the area header survives');
+      const tick = ui.slice(ui.indexOf('async function onbbTick'), ui.indexOf('function onbbToggleRest'));
+      _assertEqual(/disabled = true/.test(tick) && /toast\(/.test(tick) && tick.indexOf('_onbbReload(false)') > tick.indexOf('catch'), true, 'AC9 lock, toast on failure, then a fresh redraw either way');
+      _assertEqual(/registerActions\(\{\s*onbbTick,\s*onbbToggleRest,\s*onbbRetry,?\s*\}\)/.test(ui), true, 'actions registered once');
+      _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(ui), false, 'AC13 no hex in JS');
+      _assertEqual(/getBuddyingView\(/.test(ui) && /tickOnboardingStep\(/.test(ui) && !/createItem\(|updateItem\(|getItems\(|getChecklistProgress\(/.test(ui), true, 'the page only calls the two api functions');
+      _assertEqual(/_onbmStepHtml\(/.test(ui) && !/function _onbmStepHtml/.test(ui), true, 'the step row is reused, not copied');
+      _assertEqual(/renderMyMomentumNav\(_mmResolvedRole\)/.test(ui) && /_mmSignals\.onbActions = n/.test(ui), true, 'the tab count is brought in step after a read');
+      const app = _onbSrc('my-momentum-app.js');
+      _assertEqual(/onbPlans: onbNav\.plans > 0, onbBuddy: onbNav\.buddy > 0, onbActions: onbNav\.actions/.test(app) && /return \{ plans: 0, buddy: 0, actions: 0 \}/.test(app), true, 'app: signals onbBuddy / onbActions, failed read all zero');
+      const nav = _onbSrc('my-momentum-nav.js');
+      _assertEqual(/case 'myBuddying':\s+await renderBuddyingPage\(\)/.test(nav) && /label: mmTabLabel\(t, _mmSignals\)/.test(nav), true, 'nav renders the page and labels the tab with its count');
+      const mm = _onbSrc('onboarding-my-ui.js');
+      _assertEqual(/function _onbmStepHtml\(it, n, tickAttr\)/.test(mm) && /actOn\('change', 'onbmTick', it\.itemKey, ACT_CHECKED\)/.test(mm), true, 'the My Onboarding step row keeps onbmTick by default');
+      if (typeof ALL_CSS === 'undefined') _skip('needs ALL_CSS (Node runner only)');
+      const css = ALL_CSS['my-momentum.css'];
+      const block = css.slice(css.indexOf('N-509: My Momentum > Buddying'));
+      _assertEqual(/\.onb-buddy-banner\s*\{[^}]*border-left: 4px solid var\(--accent\)[^}]*color: var\(--text-primary\)/.test(block) && /\.onb-buddy-card \.onb-chip--owner\s*\{/.test(block), true, 'AC8 banner with an accent left border; a distinct owner chip on this page');
+      _assertEqual(/--status-[a-z-]*-text/.test(block) || /#[0-9a-fA-F]{3,8}\b/.test(block.replace(/\/\*[\s\S]*?\*\//g, '')), false, 'tokens only, and no --status-*-text token on a tint');
+      if (typeof ALL_HTML === 'undefined') _skip('needs ALL_HTML (Node runner only)');
+      Object.keys(ALL_HTML).forEach(h => _assertEqual(ALL_HTML[h].includes('src="js/onboarding-buddy-ui.js"'), h === 'my-momentum.html', 'onboarding-buddy-ui.js only on my-momentum.html, not ' + h));
+      const html = ALL_HTML['my-momentum.html'];
+      const a = html.indexOf('src="js/onboarding-my-ui.js"'), b = html.indexOf('src="js/onboarding-buddy-ui.js"');
+      _assertEqual(a > -1 && b > a && html.slice(a, b).split('<script').length === 2, true, 'AC14 straight after onboarding-my-ui.js');
+      _assertEqual(b < html.indexOf('src="js/my-momentum-app.js"') && html.indexOf('src="js/my-momentum-nav.js"') < a, true, 'AC14 after the nav, before the app init');
+      _assertEqual(ALL_HTML['mobile.html'].includes('onboarding'), false, 'never mobile.html');
+    },
+  },
+);

@@ -42,12 +42,12 @@ window.MY_MOMENTUM_APP = {
       getPdpIdentity().catch(e => { console.warn('My Momentum identity unavailable', e); identityFailed = true; return null; }),
       resolvePdpNav().catch(e => { console.warn('PDP tabs unavailable', e); return { my: false, team: false }; }),
       resolveScorecardNav().catch(e => { console.warn('My Scorecard availability unavailable', e); return { hasActivity: false }; }),
-      resolveOnboardingNav().catch(e => { console.warn('My Onboarding availability unavailable', e); return { plans: 0 }; }),   // N-499: no plan to see -> the tab does not show
+      resolveOnboardingNav().catch(e => { console.warn('My Onboarding availability unavailable', e); return { plans: 0, buddy: 0, actions: 0 }; }),   // N-499 / N-509: nothing to see -> neither tab shows
     ]);
     _mmIdentity = identity;
     _mmState = identityFailed ? 'error' : mmTabState(identity);
     // hasReports comes from the identity just loaded (no extra read): a manager with direct reports or a CSD tree gets Team Scorecards.
-    _mmSignals = { pdpMy: !!pdpNav.my, pdpTeam: !!pdpNav.team, hasReports: !!(identity && identity.me && ((identity.directReports || []).length || (identity.csdTree || []).length)), hasActivity: !!scNav.hasActivity, onbPlans: onbNav.plans > 0 };
+    _mmSignals = { pdpMy: !!pdpNav.my, pdpTeam: !!pdpNav.team, hasReports: !!(identity && identity.me && ((identity.directReports || []).length || (identity.csdTree || []).length)), hasActivity: !!scNav.hasActivity, onbPlans: onbNav.plans > 0, onbBuddy: onbNav.buddy > 0, onbActions: onbNav.actions };
 
     renderMyMomentumNav(_mmResolvedRole);
     initCommandBar({ currentModule: 'myMomentum', role: _mmResolvedRole, navigateFn: 'navigateToMyMomentum' });

@@ -165,3 +165,25 @@ CONFIG.ONBOARDING = {
 };
 // N-499: the Library folder inside the OnboardingContent library (N-498 ONB-D26).
 CONFIG.ONBOARDING.LIBRARY_URL = CONFIG.ONBOARDING.CONTENT_BASE_URL + '/Library';
+
+// N-509 (ONB-4b, ONB-D39). The Buddying tab label (mmTabLabel): {label} and {n} are filled in; there is no count at 0.
+CONFIG.ONBOARDING.TAB_COUNT = '{label} ({n})';
+// N-509. Every word on the Buddying page (onboarding-buddy-ui.js); {name} {n} are filled by onbFillText. The step rows are
+// drawn with PLAN_TEXT (owner chip, due, overdue, Open link, previewNote, tickFailed).
+CONFIG.ONBOARDING.BUDDY_TEXT = {
+  pageTitle:      'Buddying',
+  banner:         'Buddy view of {name}',
+  joinerFallback: 'the joiner',
+  actionsTitle:   'Your actions',
+  actionsOpen:    '{n} open',
+  actionsDone:    'All done',
+  noActions:      'There are no steps for you on {name}’s plan.',
+  restTitle:      'Rest of {name}’s plan',
+  restCount:      'Steps: {n}',
+  restHint:       'For context only. You cannot tick these.',
+  show:           'Show steps',
+  hide:           'Hide steps',
+  noPlans:        'You are not the buddy on an active onboarding plan.',
+  loadFailed:     'Your buddying actions could not be loaded.',
+  retry:          'Try again',
+};

@@ -22,7 +22,7 @@ function renderMyMomentumNav(role) {
     subtitle:         'My Momentum',
     currentModuleKey: 'myMomentum',
     toggleFn:         'toggleMyMomentumModuleDropdown',
-    pages:            mmNavTabs().map(t => ({ key: t.key, label: t.label })),
+    pages:            mmNavTabs().map(t => ({ key: t.key, label: mmTabLabel(t, _mmSignals) })),
     currentPage:      _mmCurrentPage,
     role:             role,
     navigateFn:       'navigateToMyMomentum',
@@ -88,6 +88,7 @@ async function renderMyMomentumPage(page) {
     case 'myScorecard':   await renderMyScorecardPage(); break;     // N-453 (my-momentum-scorecard.js)
     case 'myDevelopment': await renderMyDevelopmentPage(); break;   // N-438, moved by N-452 (pdp-my.js)
     case 'myOnboarding':  await renderMyOnboardingPage(); break;    // N-499 (onboarding-my-ui.js)
+    case 'myBuddying':    await renderBuddyingPage(); break;        // N-509 (onboarding-buddy-ui.js)
     case 'myTeam':        await renderMyTeamPage(); break;          // N-452 Development (pdp-team-page.js) + N-453 Team Scorecards
     default:
       main.innerHTML = '<p>Page not found.</p>';

@@ -162,3 +162,30 @@ async function getOnboardingPlanInputs() {
   ]);
   return { plans, people, templates };
 }
+
+// ── N-498 (ONB-3): seed the Talent Partner track — ONE-OFF TOOL, retired by the parked backlog row ──────
+// Create-only and idempotent (steps are keyed by their fixed ItemKey); it reads fresh, so two clicks cannot double-add.
+// Admin only (onbTrack). A failure part-way throws an Error carrying { created, total } so the UI can say how far it got.
+async function seedOnboardingTrack() {
+  const T = CONFIG.ONBOARDING.SEED_TEXT;
+  await _ensureGhostGate();
+  const role = await getEffectiveRole(getCurrentUser()?.email || '');
+  if (!roleCan(role, 'onbTrack')) throw new Error(T.denied);
+  refreshChecklistTemplates();
+  const rows = await getChecklistTemplates(CONFIG.ONBOARDING.RECORD_TYPE);
+  const plan = onbSeedPlan({ seed: ONBOARDING_SEED, existingRows: rows, baseUrl: CONFIG.ONBOARDING.CONTENT_BASE_URL });
+  let created = 0;
+  try {
+    for (const fields of plan.create) {
+      await createChecklistItem(fields);
+      created++;
+    }
+  } catch (e) {
+    refreshChecklistTemplates();
+    const err = new Error(e && e.message ? e.message : String(e));
+    err.created = created;
+    err.total = plan.create.length;
+    throw err;
+  }
+  return { created, skipped: plan.skipped.length };
+}

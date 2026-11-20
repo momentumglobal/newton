@@ -12,6 +12,8 @@
 //            live from People.ReportsTo (so a ReportsTo change moves access with it).
 //   ONB-D19..D22 (N-497): no stored due dates (StartDate + offset), pre-start steps hidden from the joiner until
 //            StartDate, buddy optional at start, plans only for new joiners (START_WINDOW_DAYS).
+//   ONB-D23..D27 (N-498): tick-box-only onboarding steps with a content link, every Guided step Required, the one-off
+//            seed (onbSeedPlan), decks hosted in the OnboardingContent library.
 // Callers pass the EFFECTIVE (Ghost-aware) email and role, as PDP does.
 
 function _onbEmail(s) { return String(s == null ? '' : s).trim().toLowerCase(); }
@@ -374,4 +376,98 @@ function onbCheckPlans({ plans = [], people = [], templates = [] } = {}) {
     mk('no-steps', 'Active plans whose track has no active steps', noSteps),
     mk('unknown-values', 'Plan rows with an unknown track or status', unknown),
   ];
+}
+
+// ── N-498 (ONB-3): the onboarding track editor and the one-off seed ────────────────────────────────────
+
+// The track (ChecklistTemplates.Variant) keys for the 'person' record type, and a track's label.
+function onbTrackKeys() { return CONFIG.ONBOARDING.TRACKS.map(t => t.key); }
+function onbTrackLabel(key) {
+  const k = normChecklistKey(key);
+  const hit = CONFIG.ONBOARDING.TRACKS.find(t => normChecklistKey(t.key) === k);
+  return hit ? hit.label : String(key == null ? '' : key);
+}
+
+// A ChecklistTemplates 'person' row -> the person-only fields, normalised for display and the edit form.
+// Blank / unknown owner -> DEFAULT_OWNER, mode -> Guided, level -> '' unless a LEVEL_TAGS entry; offset null unless an integer.
+function onbStepFromRow(row) {
+  const O = CONFIG.ONBOARDING;
+  const r = row || {};
+  const owner = onbNormaliseOwner(r.Owner) || O.DEFAULT_OWNER;
+  const sm = normChecklistKey(r.StepMode);
+  const stepMode = O.STEP_MODES.find(m => normChecklistKey(m) === sm) || O.STEP_MODES[0];
+  const lt = normChecklistKey(r.LevelTag);
+  const levelTag = O.LEVEL_TAGS.find(t => normChecklistKey(t) === lt) || '';
+  const rawOff = r.DueOffsetDays;
+  const off = (rawOff === null || rawOff === undefined || rawOff === '') ? NaN : Number(rawOff);
+  return {
+    owner, ownerLabel: onbOwnerLabel(owner), stepMode, levelTag,
+    dueOffsetDays: Number.isInteger(off) ? off : null,
+    contentUrl: String(r.ContentUrl == null ? '' : r.ContentUrl).trim(),
+  };
+}
+
+// 'Start day' / 'Day 3' / '5 days before start' (EDITOR_TEXT); '' for a null / non-integer offset.
+function onbDueText(offset) {
+  const T = CONFIG.ONBOARDING.EDITOR_TEXT;
+  if (offset === null || offset === undefined || offset === '') return '';
+  const n = Number(offset);
+  if (!Number.isInteger(n)) return '';
+  if (n === 0) return T.dueStart;
+  if (n > 0) return T.dueAfter.replace('{n}', String(n));
+  return n === -1 ? T.dueBefore1 : T.dueBefore.replace('{n}', String(-n));
+}
+
+// The person-only ChecklistTemplates payload from the editor form (or a seed step). Throws when onbValidateStep fails (the UI
+// validates first; this is the belt). Blank level / link -> null so an edit clears them.
+function onbStepFields(form) {
+  const f = form || {};
+  const chk = onbValidateStep(f);
+  if (!chk.ok) throw new Error(Object.values(chk.errors)[0]);
+  const O = CONFIG.ONBOARDING;
+  const sm = normChecklistKey(f.stepMode);
+  const lt = normChecklistKey(f.levelTag);
+  const url = String(f.contentUrl == null ? '' : f.contentUrl).trim();
+  return {
+    Owner:         onbNormaliseOwner(f.owner),
+    DueOffsetDays: Number(String(f.dueOffsetDays).trim()),
+    StepMode:      O.STEP_MODES.find(m => normChecklistKey(m) === sm),
+    LevelTag:      lt ? O.LEVEL_TAGS.find(t => normChecklistKey(t) === lt) : null,
+    ContentUrl:    url || null,
+  };
+}
+
+// baseUrl + '/' + path, each path segment encodeURIComponent-ed (file names hold spaces and '&'; isSafeChecklistUrl
+// refuses spaces). '' when the path is blank.
+function onbSeedUrl(baseUrl, path) {
+  const segs = String(path == null ? '' : path).split('/').map(x => x.trim()).filter(Boolean);
+  if (!segs.length) return '';
+  return String(baseUrl == null ? '' : baseUrl).replace(/\/+$/, '') + '/' + segs.map(encodeURIComponent).join('/');
+}
+
+// What the seed would create. existingRows = every ChecklistTemplates 'person' row (retired included): a seed step whose
+// ItemKey is already there is skipped, never touched. -> { create: [ChecklistTemplates payload], skipped: [ItemKey] }
+function onbSeedPlan({ seed = null, existingRows = [], baseUrl = '' } = {}) {
+  const have = new Set((existingRows || []).map(r => String(r.ItemKey == null ? '' : r.ItemKey).trim()).filter(Boolean));
+  const create = [];
+  const skipped = [];
+  ((seed && seed.steps) || []).forEach(st => {
+    if (have.has(st.key)) { skipped.push(st.key); return; }
+    create.push(Object.assign({
+      Title:        st.label,
+      ItemKey:      st.key,
+      RecordType:   CONFIG.ONBOARDING.RECORD_TYPE,
+      Variant:      seed.track,
+      Section:      st.section,
+      SectionOrder: st.sectionOrder,
+      ItemOrder:    st.itemOrder,
+      ItemType:     'tick',
+      Required:     st.required === true,
+      Active:       true,
+    }, onbStepFields({
+      owner: st.owner, dueOffsetDays: st.offset, stepMode: st.mode, levelTag: st.level || '',
+      contentUrl: onbSeedUrl(baseUrl, st.file),
+    })));
+  });
+  return { create, skipped };
 }

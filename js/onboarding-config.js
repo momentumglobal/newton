@@ -87,4 +87,38 @@ CONFIG.ONBOARDING = {
     loadFailed:    'The onboarding plan could not be loaded. Refresh the page to try again.',
     actionFailed:  'Couldn’t update the onboarding plan:',
   },
+  // N-498 (ONB-3). Where the revamped decks live (ONB-D26): the OnboardingContent document library on the
+  // SolutionsHubReporting site. The seed builds each step's link from this + the file path. Rename the library
+  // and this is the one line to change (then edit the links in Checklists > Onboarding, or re-seed a fresh track).
+  CONTENT_BASE_URL: 'https://talentpoint.sharepoint.com/sites/SolutionsHubReporting/OnboardingContent',
+  // Config Panel > Checklists > Onboarding (checklist-admin.js). Every word the onboarding editor shows.
+  EDITOR_TEXT: {
+    recordLabel:  'Onboarding',
+    intro:        'Onboarding steps go live for a person when the CSD starts their plan (People > the employee record). Due days are counted from the person\u2019s start date, so changing one moves every live plan. The Off / Pilot / On switch is in the Onboarding tab.',
+    ownerLabel:   'Owner *',
+    ownerChoose:  '-- Choose an owner --',
+    dueLabel:     'Due (days from start) *',
+    dueHint:      'Whole days from the start date: 0 is the start day, a negative number is before it (-3 = three days before).',
+    modeLabel:    'Mode *',
+    levelLabel:   'Level',
+    levelNone:    'Every level',
+    linkLabel:    'Content link',
+    linkHint:     'Optional https:// link to the deck in the OnboardingContent library.',
+    dueStart:     'Start day',
+    dueAfter:     'Day {n}',
+    dueBefore:    '{n} days before start',
+    dueBefore1:   '1 day before start',
+    tableHeads:   ['Step', 'Owner', 'Due', 'Mode', 'Level', 'Required', 'Status', 'Actions'],
+    emptyTitle:   'No onboarding steps in {track} yet.',
+  },
+  // N-498 seed tool (one-off; retired by the parked backlog row).
+  SEED_TEXT: {
+    button:     'Seed Talent Partner track',
+    hint:       'Adds the standard Talent Partner steps. Steps already there are left alone, so it is safe to run again.',
+    confirm:    'Add the standard Talent Partner onboarding steps? Anything already in the track is kept as it is.',
+    running:    'Adding steps\u2026',
+    done:       '{n} steps added, {m} already there.',
+    failedPart: '{n} of {total} steps were added before it stopped. Run Seed again to finish; it skips what exists.',
+    denied:     'Only an Admin can seed the onboarding track.',
+  },
 };

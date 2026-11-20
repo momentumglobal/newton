@@ -39,8 +39,10 @@ ASSERTIONS.push(
     fn: function () {
       _assertEqual(FIELD_ALIASES.OnboardingPlans, {}, 'AC5 OnboardingPlans registered as {}');
       const adm = _onbSrc('checklist-admin.js');
-      _assertEqual(/CHECKLISTS\.RECORD_TYPES/.test(adm), false, 'AC3 checklist-admin.js iterates SWITCH_TYPES only');
-      _assertEqual((adm.match(/CHECKLISTS\.SWITCH_TYPES/g) || []).length, 4, 'AC3 switch cards, toggle guard, picker, select guard');
+      // N-498: the picker and the type-select guard now take every record type (onboarding included); the switch cards and the
+      // toggle guard stay on SWITCH_TYPES, so 'person' still never reaches the watermark switch.
+      _assertEqual((adm.match(/CHECKLISTS\.RECORD_TYPES/g) || []).length, 2, 'AC3 (N-498) picker + select guard take RECORD_TYPES');
+      _assertEqual((adm.match(/CHECKLISTS\.SWITCH_TYPES/g) || []).length, 2, 'AC3 (N-498) switch cards + toggle guard stay on SWITCH_TYPES');
       const api = _onbSrc('api-checklists.js');
       const set = api.slice(api.indexOf('async function setChecklistSettings'));
       _assertEqual(/SWITCH_TYPES\.includes\(_ckRecordType\(recordType\)\)/.test(set) && /throw new Error\('Onboarding uses its own switch/.test(set), true, 'AC4 setChecklistSettings refuses person');
@@ -501,6 +503,120 @@ ASSERTIONS.push(
       _assertEqual(at('people.html', 'api-onboarding.js') < at('people.html', 'employee-page.js'), true, 'people.html loads the api before the page');
       _assertEqual(ALL_HTML['mobile.html'].includes('onboarding'), false, 'never mobile.html');
       _assertEqual(ALL_HTML['my-momentum.html'].includes('onboarding'), false, 'my-momentum.html waits for N-499');
+    },
+  },
+);
+
+// ── N-498 (ONB-3): onboarding track editing + the one-off seed ───────────────────────────────────────
+ASSERTIONS.push(
+  {
+    name: 'N-498 AC3/AC4 onbStepFields + onbValidateStep: tick-only step payload, blanks clear, bad input blocked',
+    fn: function () {
+      const ok = { owner: 'LM', dueOffsetDays: '-3', stepMode: 'Guided', levelTag: '', contentUrl: '' };
+      _assertEqual(onbStepFields(ok), { Owner: 'LM', DueOffsetDays: -3, StepMode: 'Guided', LevelTag: null, ContentUrl: null }, 'AC3 payload: blank level / link -> null, negative offset kept');
+      _assertEqual(onbStepFields({ owner: 'people ops', dueOffsetDays: 0, stepMode: 'self-guided', levelTag: 'foundation', contentUrl: ' https://x.example/a%20b ' }),
+        { Owner: 'PeopleOps', DueOffsetDays: 0, StepMode: 'Self-guided', LevelTag: 'Foundation', ContentUrl: 'https://x.example/a%20b' }, 'AC3 keys normalised, link trimmed');
+      const bad = o => onbValidateStep(Object.assign({}, ok, o));
+      _assertEqual(bad({ owner: '' }).errors.owner !== undefined, true, 'AC4 missing owner');
+      _assertEqual(bad({ owner: 'Janitor' }).errors.owner !== undefined, true, 'AC4 unknown owner');
+      ['2.5', '-31', '61'].forEach(v => _assertEqual(bad({ dueOffsetDays: v }).errors.dueOffsetDays !== undefined, true, 'AC4 offset ' + v));
+      _assertEqual(bad({ dueOffsetDays: '-30' }).ok && bad({ dueOffsetDays: '60' }).ok, true, 'AC4 range edges accepted');
+      _assertEqual(bad({ stepMode: 'guided-ish' }).errors.stepMode !== undefined, true, 'AC4 mode');
+      _assertEqual(bad({ levelTag: 'Senior' }).errors.levelTag !== undefined, true, 'AC4 level');
+      ['http://x.example/a', 'javascript:alert(1)'].forEach(u => _assertEqual(bad({ contentUrl: u }).errors.contentUrl !== undefined, true, 'AC4 link ' + u));
+      _assertEqual(bad({ levelTag: '', contentUrl: '' }).ok, true, 'AC4 blank level and link accepted');
+      let threw = false; try { onbStepFields({ owner: 'LM', dueOffsetDays: '2.5', stepMode: 'Guided' }); } catch (e) { threw = true; }
+      _assertEqual(threw, true, 'AC11 onbStepFields throws on invalid input');
+    },
+  },
+  {
+    name: 'N-498 AC5/AC11 onbStepFromRow, onbDueText, onbTrackKeys / onbTrackLabel',
+    fn: function () {
+      _assertEqual(onbStepFromRow({ Owner: 'PeopleOps', DueOffsetDays: -5, StepMode: 'Guided', LevelTag: 'Experienced', ContentUrl: ' https://x.example/d ' }),
+        { owner: 'PeopleOps', ownerLabel: 'People Ops', stepMode: 'Guided', levelTag: 'Experienced', dueOffsetDays: -5, contentUrl: 'https://x.example/d' }, 'AC11 a full row');
+      _assertEqual(onbStepFromRow({}), { owner: 'Employee', ownerLabel: 'Employee', stepMode: 'Guided', levelTag: '', dueOffsetDays: null, contentUrl: '' }, 'AC11 blank row: Employee, Guided, no level, null offset');
+      _assertEqual(onbStepFromRow({ Owner: 'x', StepMode: 'nope', LevelTag: 'Senior', DueOffsetDays: '2.5' }).dueOffsetDays, null, 'AC11 non-integer offset -> null');
+      _assertEqual(onbStepFromRow({ DueOffsetDays: '7' }).dueOffsetDays, 7, 'AC11 numeric string offset');
+      _assertEqual([onbDueText(0), onbDueText(3), onbDueText(-5), onbDueText(-1), onbDueText(null), onbDueText(2.5), onbDueText('')],
+        ['Start day', 'Day 3', '5 days before start', '1 day before start', '', '', ''], 'AC5 due text');
+      _assertEqual(onbTrackKeys(), ['TP'], 'tracks');
+      _assertEqual([onbTrackLabel('TP'), onbTrackLabel('tp'), onbTrackLabel('XX')], ['Talent Partner', 'Talent Partner', 'XX'], 'track labels');
+    },
+  },
+  {
+    name: 'N-498 AC6/AC7 the seed: 24 steps in §2.3 order, flags, links built from the library URL',
+    fn: function () {
+      const base = CONFIG.ONBOARDING.CONTENT_BASE_URL;
+      const plan = onbSeedPlan({ seed: ONBOARDING_SEED, existingRows: [], baseUrl: base });
+      _assertEqual(plan.create.length, 24, 'AC6 24 steps');
+      _assertEqual(plan.skipped, [], 'AC6 nothing skipped on an empty track');
+      const sections = []; plan.create.forEach(c => { if (!sections.includes(c.Section)) sections.push(c.Section); });
+      _assertEqual(sections, ['Pre-start', 'Week 1', 'Week 2', 'Weeks 3–4', 'Day 30'], 'AC6 five phases in order');
+      _assertEqual(plan.create.map(c => c.SectionOrder).filter((v, i, a) => a.indexOf(v) === i), [1, 2, 3, 4, 5], 'AC6 SectionOrder 1..5');
+      plan.create.forEach(c => {
+        _assertEqual([c.RecordType, c.Variant, c.ItemType, c.Active], ['person', 'TP', 'tick', true], 'AC6 record type / track / tick / active: ' + c.ItemKey);
+        _assertEqual(c.Required, c.StepMode === 'Guided', 'AC6 Guided = Required, Self-guided = not: ' + c.ItemKey);
+        _assertEqual(/^onb_tp_[a-z0-9-]+$/.test(c.ItemKey), true, 'AC6 fixed ItemKey: ' + c.ItemKey);
+        _assertEqual(onbValidateStep({ owner: c.Owner, dueOffsetDays: c.DueOffsetDays, stepMode: c.StepMode, levelTag: c.LevelTag, contentUrl: c.ContentUrl }).ok, true, 'AC6 passes onbValidateStep: ' + c.ItemKey);
+      });
+      _assertEqual(new Set(plan.create.map(c => c.ItemKey)).size, 24, 'AC6 ItemKeys unique');
+      const by = k => plan.create.find(c => c.ItemKey === 'onb_tp_' + k);
+      _assertEqual([by('m11').StepMode, by('m11').Required, by('library-picks').StepMode, by('library-picks').Required], ['Self-guided', false, 'Self-guided', false], 'AC6 the two Self-guided steps');
+      _assertEqual([by('newton-access').Owner, by('newton-access').DueOffsetDays, by('m05').Owner, by('m05').DueOffsetDays, by('m12').DueOffsetDays, by('day30-signoff').DueOffsetDays],
+        ['PeopleOps', -5, 'LM', 3, 24, 30], 'AC6 owners and offsets as the spec table');
+      // AC7 links
+      plan.create.forEach(c => {
+        if (c.ContentUrl) _assertEqual(isSafeChecklistUrl(c.ContentUrl) && !/\s/.test(c.ContentUrl) && c.ContentUrl.indexOf(base + '/') === 0, true, 'AC7 safe, no space, under the library: ' + c.ItemKey);
+      });
+      _assertEqual(by('m09').ContentUrl, base + '/M09.%20Candidate%20experience%20%26%20closing.pptx', 'AC7 spaces and & encoded');
+      _assertEqual(by('m12').ContentUrl, base + '/M12.%20Preparing%20a%20Market%20Report.pptx', 'AC7 M12 now has its deck');
+      _assertEqual(by('library-picks').ContentUrl, base + '/Library', 'AC7 the Library step links to the folder');
+      _assertEqual(plan.create.filter(c => !c.ContentUrl).length, 10, 'AC7 ten steps carry no link');
+      _assertEqual(plan.create.filter(c => c.ContentUrl).length, 14, 'AC7 fourteen steps link to a deck / the Library folder');
+      _assertEqual(onbSeedUrl(base + '/', ''), '', 'blank path -> blank link');
+      _assertEqual(onbSeedUrl(base + '/', 'a b/c&d.pptx'), base + '/a%20b/c%26d.pptx', 'trailing slash trimmed, per segment encoding');
+      // The seed tool never writes the Facilitator folder or anything outside the library.
+      _assertEqual(ONBOARDING_SEED.steps.some(s => s.file && /facilitator|playbook|role-play pack|practice pack/i.test(s.file)), false, 'facilitator files are never linked');
+    },
+  },
+  {
+    name: 'N-498 AC6/AC8 onbSeedPlan is idempotent: existing keys (retired too) are skipped, never touched',
+    fn: function () {
+      const base = CONFIG.ONBOARDING.CONTENT_BASE_URL;
+      const rows = [{ ItemKey: 'onb_tp_m01', Active: true }, { ItemKey: ' onb_tp_m02 ', Active: false }, { ItemKey: 'ck_random', Active: true }];
+      const plan = onbSeedPlan({ seed: ONBOARDING_SEED, existingRows: rows, baseUrl: base });
+      _assertEqual(plan.create.length, 22, 'AC6 22 left to add');
+      _assertEqual(plan.skipped, ['onb_tp_m01', 'onb_tp_m02'], 'AC6 the two existing (one retired) are skipped');
+      _assertEqual(plan.create.some(c => c.ItemKey === 'onb_tp_m01' || c.ItemKey === 'onb_tp_m02'), false, 'AC6 never re-created');
+      const all = onbSeedPlan({ seed: ONBOARDING_SEED, existingRows: ONBOARDING_SEED.steps.map(s => ({ ItemKey: s.key })), baseUrl: base });
+      _assertEqual([all.create.length, all.skipped.length], [0, 24], 'AC9 all present -> nothing to add (the button hides)');
+      _assertEqual(onbSeedPlan({}).create, [], 'no seed -> nothing');
+    },
+  },
+  {
+    name: 'N-498 AC1-AC3/AC8/AC9 source contract: editor layout, seed guard, load scope, no new top-level config key',
+    fn: function () {
+      _assertEqual(CONFIG.ROLE_CAPABILITIES.onbTrack, ['admin'], 'onbTrack Admin only');
+      _assertEqual(roleCan('people_ops', 'onbTrack'), false, 'People Ops cannot seed');
+      _assertEqual(CONFIG.MCP.scripts.some(s => /onboarding/.test(s)), false, 'not in the MCP bundle');
+      _assertEqual(/^https:\/\/talentpoint\.sharepoint\.com\/sites\/SolutionsHubReporting\/OnboardingContent$/.test(CONFIG.ONBOARDING.CONTENT_BASE_URL), true, 'ONB-D26 library URL');
+      const adm = _onbSrc('checklist-admin.js');
+      _assertEqual(/_ckaPersonFormHtml\(it\)/.test(adm) && /f\.type = 'tick'/.test(adm) && /onbValidateStep\(f\)/.test(adm) && /onbStepFields\(f\)/.test(adm), true, 'AC3 onboarding save: tick-only, both validators, onbStepFields');
+      const person = adm.slice(adm.indexOf('function _ckaPersonFormHtml'), adm.indexOf('function _ckaSeedButtonHtml'));
+      _assertEqual(/ck-f-type|ck-f-link"|ck-f-action/.test(person), false, 'AC3 no Type / Link URL / Action in the onboarding form');
+      _assertEqual(/ck-f-owner/.test(person) && /ck-f-due/.test(person) && /ck-f-mode/.test(person) && /ck-f-level/.test(person) && /ck-f-url/.test(person), true, 'AC3 Owner, Due, Mode, Level, Content link');
+      _assertEqual(/ckaSeedTrack,/.test(adm), true, 'AC9 the seed action is registered');
+      _assertEqual(/_ckaSeedLeft === 0\) return ''/.test(adm) && /_ckType !== CONFIG\.ONBOARDING\.RECORD_TYPE/.test(adm), true, 'AC9 the button is onboarding-only and hides at 0 left');
+      const api = _onbSrc('api-onboarding.js');
+      const seed = api.slice(api.indexOf('async function seedOnboardingTrack'));
+      _assertEqual(/_ensureGhostGate\(\)/.test(seed) && /roleCan\(role, 'onbTrack'\)/.test(seed) && /throw new Error\(T\.denied\)/.test(seed), true, 'AC8 role guard (Ghost-aware) before any read');
+      _assertEqual(seed.indexOf("roleCan(role, 'onbTrack')") < seed.indexOf('refreshChecklistTemplates()') && seed.indexOf('refreshChecklistTemplates()') < seed.indexOf('getChecklistTemplates'), true, 'AC8 guard, then a fresh read');
+      _assertEqual(/for \(const fields of plan\.create\)\s*\{\s*await createChecklistItem\(fields\)/.test(seed), true, 'AC8 one create at a time');
+      _assertEqual(/err\.created = created/.test(seed) && /err\.total = plan\.create\.length/.test(seed), true, 'AC8 a part-way failure reports how far it got');
+      if (typeof ALL_HTML === 'undefined') _skip('needs ALL_HTML (Node runner only)');
+      const at = (h, f) => ALL_HTML[h].indexOf('src="js/' + f + '"');
+      Object.keys(ALL_HTML).forEach(h => _assertEqual(at(h, 'onboarding-seed.js') > -1, h === 'reporting.html', 'onboarding-seed.js only on reporting.html, not ' + h));
+      _assertEqual(at('reporting.html', 'onboarding-config.js') < at('reporting.html', 'onboarding-seed.js') && at('reporting.html', 'onboarding-seed.js') < at('reporting.html', 'onboarding-logic.js'), true, 'AC12 seed after onboarding-config.js, before onboarding-logic.js');
     },
   },
 );

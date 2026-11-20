@@ -17,6 +17,10 @@
 // flips Enabled — FromId/OnAt are never rewritten (setChecklistSettings
 // refuses to move a FromId that is already set).
 //
+// N-498 (ONB-3): a third record type, Onboarding ('person'), edits the Talent Partner onboarding track in the same tab:
+// tick-box steps with Owner, due day, Mode, Level and a content link. The onboarding rules are the pure onb* functions
+// (onboarding-logic.js); the one-off Seed button calls seedOnboardingTrack() (api-onboarding.js). Project / Role are unchanged.
+//
 // Every change re-renders through renderAdminTab('checklists'), which re-reads
 // the lists, so the screen only ever shows what was actually saved.
 
@@ -29,16 +33,20 @@ let _ckaVariantRows = {};    // variant → rows of the selected type (retired i
 let _ckaSections    = [];    // groupChecklistItems() of the selected type + variant
 let _ckaItems       = [];    // _ckaSections flattened — display order, retired included
 let _ckaTicked      = null;  // Set of ItemKeys with tick history (N-267); null = couldn't check
+let _ckaSeedLeft    = 0;     // N-498: seed steps not yet in the onboarding track (the Seed button hides at 0)
 
 const _CKA_TEXT = {
   project: { one: 'Project', many: 'projects', list: 'Projects', spList: 'Projects' },
   role:    { one: 'Role',    many: 'roles',    list: 'Roles',    spList: 'Roles' },
+  person:  { one: 'Onboarding', many: 'plans', list: 'Onboarding', spList: null },   // N-498: no watermark switch
 };
 const _CKA_TYPE_LABEL = { tick: 'Tick-box', link: 'Link', action: 'Newton action' };
 // validateChecklistItem() error field → the input it belongs to, in screen order.
 const _CKA_FIELD_INPUT = {
   section: 'ck-f-section', label: 'ck-f-label', type: 'ck-f-type',
   linkUrl: 'ck-f-link', actionKey: 'ck-f-action', help: 'ck-f-help',
+  // N-498 onboarding form (absent from the Project / Role form, so these skip there)
+  owner: 'ck-f-owner', dueOffsetDays: 'ck-f-due', stepMode: 'ck-f-mode', levelTag: 'ck-f-level', contentUrl: 'ck-f-url',
 };
 
 // ── Small helpers ────────────────────────────────────────────────────
@@ -82,17 +90,32 @@ function _ckaTypeText(it) {
   return String(it.ItemType ?? '').trim() || '—';
 }
 
+// N-498: the variants (tracks, for onboarding) of the selected record type, and a variant's label.
+function _ckaVariants() {
+  return _ckType === CONFIG.ONBOARDING.RECORD_TYPE ? onbTrackKeys() : checklistVariants();
+}
+function _ckaVarLabel(v) {
+  return _ckType === CONFIG.ONBOARDING.RECORD_TYPE ? onbTrackLabel(v) : checklistVariantLabel(v);
+}
+function _ckaDefaultVariant(type) {
+  return type === CONFIG.ONBOARDING.RECORD_TYPE ? CONFIG.ONBOARDING.DEFAULT_TRACK : CONFIG.CHECKLISTS.DEFAULT_VARIANT;
+}
+// Table width: Project / Role 5 columns, Onboarding 8.
+function _ckaCols() { return _ckType === CONFIG.ONBOARDING.RECORD_TYPE ? 8 : 5; }
+
 // ── Tab ──────────────────────────────────────────────────────────────
 async function buildChecklistsTab() {
   let settingsAll, byType;
   try {
-    const [settings, project, role] = await Promise.all([
+    const [settings, project, role, person] = await Promise.all([
       getChecklistSettings(),
       getChecklistTemplates('project'),
       getChecklistTemplates('role'),
+      // N-498: an unreadable onboarding track must not take the Project / Role view down with it.
+      getChecklistTemplates(CONFIG.ONBOARDING.RECORD_TYPE).catch(e => { console.warn('Checklists tab: onboarding track unavailable', e); return []; }),
     ]);
     settingsAll = settings;
-    byType = { project, role };
+    byType = { project, role, person };
   } catch (e) {
     console.warn('Checklists tab: checklist lists unavailable', e);
     return `
@@ -112,12 +135,13 @@ async function buildChecklistsTab() {
     _ckaTicked = null;
   }
 
-  const variants = checklistVariants();
-  if (!variants.includes(_ckVariant)) _ckVariant = CONFIG.CHECKLISTS.DEFAULT_VARIANT;
+  const variants = _ckaVariants();
+  if (!variants.includes(_ckVariant)) _ckVariant = _ckaDefaultVariant(_ckType);
   _ckaVariantRows = {};
   variants.forEach(v => { _ckaVariantRows[v] = byType[_ckType].filter(r => _ckaSameVariant(r, v)); });
   _ckaSections = groupChecklistItems(_ckaRows(_ckVariant));
   _ckaItems    = _ckaSections.flatMap(g => g.items);
+  _ckaSeedLeft = onbSeedPlan({ seed: ONBOARDING_SEED, existingRows: byType.person, baseUrl: CONFIG.ONBOARDING.CONTENT_BASE_URL }).create.length;
   if (_ckaForm && _ckaForm.id !== null && !_ckaItems.some(r => String(r.id) === _ckaForm.id)) _ckaForm = null;
   if (_ckaRename !== null && !_ckaSections[_ckaRename]) _ckaRename = null;
 
@@ -129,6 +153,7 @@ async function buildChecklistsTab() {
         ${CONFIG.CHECKLISTS.SWITCH_TYPES.map(t => _ckaSwitchCardHtml(t, settingsAll[t], byType[t])).join('')}
       </div>
       ${_ckaPickerHtml()}
+      ${_ckType === CONFIG.ONBOARDING.RECORD_TYPE ? `<p class="ck-admin-hint">${escHtml(CONFIG.ONBOARDING.EDITOR_TEXT.intro)}</p>` : ''}
       <p id="ck-admin-status" class="ck-admin-status" role="status" aria-live="polite"></p>
       ${_ckaForm ? _ckaFormHtml() : ''}
       ${_ckaItems.length ? _ckaTableHtml() : _ckaEmptyHtml()}
@@ -256,18 +281,18 @@ async function ckaToggleSwitch(recordType, turnOn) {
 
 // ── Record type + variant picker ─────────────────────────────────────
 function _ckaPickerHtml() {
-  // N-496: project + role only until N-498 adds the onboarding track ('person') here.
-  const typeBtns = CONFIG.CHECKLISTS.SWITCH_TYPES.map(t => `
+  // N-498: every record type, onboarding ('person') included. The switch cards above stay on SWITCH_TYPES.
+  const typeBtns = CONFIG.CHECKLISTS.RECORD_TYPES.map(t => `
           <button type="button" class="btn-filter${_ckType === t ? ' active' : ''}" id="ck-type-${t}" aria-pressed="${_ckType === t}"
             ${act('ckaSelectType', t).trim()}>${_CKA_TEXT[t].list}</button>`).join('');
-  const variantBtns = checklistVariants().map((v, i) => {
+  const variantBtns = _ckaVariants().map((v, i) => {
     const n = activeChecklistItems(_ckaRows(v), _ckType, v).length;
     return `
           <button type="button" class="btn-filter${_ckVariant === v ? ' active' : ''}" id="ck-variant-${i}" aria-pressed="${_ckVariant === v}"
-            ${act('ckaSelectVariant', i).trim()}>${escHtml(checklistVariantLabel(v))} (${n})</button>`;
+            ${act('ckaSelectVariant', i).trim()}>${escHtml(_ckaVarLabel(v))} (${n})</button>`;
   }).join('');
   const activeHere = activeChecklistItems(_ckaRows(_ckVariant), _ckType, _ckVariant).length;
-  const hint = (_ckVariant !== CONFIG.CHECKLISTS.DEFAULT_VARIANT && activeHere === 0)
+  const hint = (_ckType !== CONFIG.ONBOARDING.RECORD_TYPE && _ckVariant !== CONFIG.CHECKLISTS.DEFAULT_VARIANT && activeHere === 0)
     ? `<p class="ck-admin-hint">Uses ${escHtml(checklistVariantLabel(CONFIG.CHECKLISTS.DEFAULT_VARIANT))} until items are added.</p>`
     : '';
   return `
@@ -285,15 +310,16 @@ function _ckaPickerHtml() {
 }
 
 function ckaSelectType(type) {
-  if (_ckaBusy || !CONFIG.CHECKLISTS.SWITCH_TYPES.includes(type)) return;   // N-496: 'person' waits for N-498
+  if (_ckaBusy || !CONFIG.CHECKLISTS.RECORD_TYPES.includes(type)) return;
   _ckType = type;
+  _ckVariant = _ckaDefaultVariant(type);
   _ckaForm = null;
   _ckaRename = null;
   _ckaRender([`ck-type-${type}`]);
 }
 
 function ckaSelectVariant(i) {
-  const v = checklistVariants()[i];
+  const v = _ckaVariants()[i];
   if (_ckaBusy || !v) return;
   _ckVariant = v;
   _ckaForm = null;
@@ -307,7 +333,7 @@ function _ckaTableHtml() {
   const body = _ckaSections.map((g, si) => {
     const head = _ckaRename === si ? _ckaRenameRowHtml(g) : `
         <tr class="ck-admin-section-row">
-          <td colspan="5">
+          <td colspan="${_ckaCols()}">
             <div class="ck-admin-section-head">
               <span class="ck-admin-section-name">${escHtml(g.section)}</span>
               <div class="row-actions">
@@ -324,9 +350,10 @@ function _ckaTableHtml() {
       ${_ckaForm ? '' : `
       <div class="ck-admin-toolbar">
         <button type="button" class="btn-primary" id="ck-add-btn"${act('ckaOpenForm', null)}>+ Add item</button>
+        ${_ckaSeedButtonHtml()}
       </div>`}
       <table class="data-table ck-admin-table">
-        <thead><tr><th>Item</th><th>Type</th><th>Required</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr>${_ckaHeadHtml()}</tr></thead>
         <tbody>${body}</tbody>
       </table>`;
 }
@@ -342,12 +369,22 @@ function _ckaItemRowHtml(it, first, last) {
   const delLock  = _ckaTicked === null
     ? "Couldn't check whether this item has been ticked"
     : (key && _ckaTicked.has(key) ? 'This item has been ticked on a checklist — retire it instead.' : '');
-  return `
-        <tr class="ck-admin-item${active ? '' : ' ck-admin-item--retired'}">
-          <td>${escHtml(label || '(no label)')}${active ? '' : ' <span class="checklist-tag">Retired</span>'}</td>
+  const onb = _ckType === CONFIG.ONBOARDING.RECORD_TYPE ? onbStepFromRow(it) : null;
+  const cells = onb
+    ? `<td>${escHtml(label || '(no label)')}${active ? '' : ' <span class="checklist-tag">Retired</span>'}</td>
+          <td>${escHtml(onb.ownerLabel)}</td>
+          <td>${escHtml(onbDueText(onb.dueOffsetDays) || '—')}</td>
+          <td>${escHtml(onb.stepMode)}</td>
+          <td>${escHtml(onb.levelTag || '—')}</td>
+          <td>${required ? 'Yes' : '—'}</td>
+          <td>${active ? 'Active' : 'Retired'}</td>`
+    : `<td>${escHtml(label || '(no label)')}${active ? '' : ' <span class="checklist-tag">Retired</span>'}</td>
           <td>${escHtml(_ckaTypeText(it))}</td>
           <td>${required ? 'Yes' : '—'}</td>
-          <td>${active ? 'Active' : 'Retired'}</td>
+          <td>${active ? 'Active' : 'Retired'}</td>`;
+  return `
+        <tr class="ck-admin-item${active ? '' : ' ck-admin-item--retired'}">
+          ${cells}
           <td>
             <div class="row-actions">
               <button type="button" class="btn-secondary btn-sm" id="ck-edit-${id}"${act('ckaOpenForm', id)} aria-label="Edit ${escAttr(label)}">Edit</button>
@@ -361,18 +398,21 @@ function _ckaItemRowHtml(it, first, last) {
 }
 
 function _ckaEmptyHtml() {
-  const sources = checklistVariants().filter(v => v !== _ckVariant && _ckaRows(v).length);
+  const sources = _ckaVariants().filter(v => v !== _ckVariant && _ckaRows(v).length);
   const copy = sources.length ? `
           <div class="ck-admin-copy">
             <label for="ck-copy-src">Copy items from…</label>
-            <select id="ck-copy-src">${sources.map(v => `<option value="${escAttr(v)}">${escHtml(checklistVariantLabel(v))} (${_ckaRows(v).length})</option>`).join('')}</select>
+            <select id="ck-copy-src">${sources.map(v => `<option value="${escAttr(v)}">${escHtml(_ckaVarLabel(v))} (${_ckaRows(v).length})</option>`).join('')}</select>
             <button type="button" class="btn-secondary" id="ck-copy-btn"${act('ckaCopyVariant')}>Copy items</button>
           </div>` : '';
   return `
       <div class="ck-admin-empty">
-        <p>No ${_CKA_TEXT[_ckType].one.toLowerCase()} items in ${escHtml(checklistVariantLabel(_ckVariant))} yet.</p>
+        <p>${_ckType === CONFIG.ONBOARDING.RECORD_TYPE
+          ? escHtml(CONFIG.ONBOARDING.EDITOR_TEXT.emptyTitle.replace('{track}', _ckaVarLabel(_ckVariant)))
+          : `No ${_CKA_TEXT[_ckType].one.toLowerCase()} items in ${escHtml(_ckaVarLabel(_ckVariant))} yet.`}</p>
         <div class="ck-admin-empty-actions">
           ${_ckaForm ? '' : `<button type="button" class="btn-primary" id="ck-add-btn"${act('ckaOpenForm', null)}>+ Add item</button>`}
+          ${_ckaForm ? '' : _ckaSeedButtonHtml()}
           ${copy}
         </div>
       </div>`;
@@ -403,6 +443,7 @@ function _ckaSectionFieldHtml(it) {
 function _ckaFormHtml() {
   const C  = CONFIG.CHECKLISTS;
   const it = _ckaForm.id === null ? null : _ckaItems.find(r => String(r.id) === _ckaForm.id);
+  if (_ckType === CONFIG.ONBOARDING.RECORD_TYPE) return _ckaPersonFormHtml(it);
   const rawType   = it ? normChecklistKey(it.ItemType) : 'tick';
   const type      = C.ITEM_TYPES.includes(rawType) ? rawType : '';
   const actionKey = it ? String(it.ActionKey ?? '').trim() : '';
@@ -410,7 +451,7 @@ function _ckaFormHtml() {
   const err = f => `<div class="ck-admin-field-error" id="ck-err-${f}"></div>`;
   return `
       <fieldset class="form-section ck-admin-form" id="ck-form" data-ck-form="${it ? Number(it.id) : 'new'}">
-        <legend class="form-section-title">${it ? 'Edit item' : 'Add item'} — ${_CKA_TEXT[_ckType].list} · ${escHtml(checklistVariantLabel(_ckVariant))}</legend>
+        <legend class="form-section-title">${it ? 'Edit item' : 'Add item'} — ${_CKA_TEXT[_ckType].list} · ${escHtml(_ckaVarLabel(_ckVariant))}</legend>
         <div class="form-row">
           <div class="form-group">
             ${_ckaSectionFieldHtml(it)}
@@ -473,6 +514,12 @@ function _ckaReadForm() {
     actionKey: val('ck-f-action'),
     help:      val('ck-f-help'),
     required:  !!(req && req.checked),
+    // N-498 onboarding form (blank when the Project / Role form is showing)
+    owner:         val('ck-f-owner'),
+    dueOffsetDays: val('ck-f-due'),
+    stepMode:      val('ck-f-mode'),
+    levelTag:      val('ck-f-level'),
+    contentUrl:    val('ck-f-url'),
   };
 }
 
@@ -590,7 +637,12 @@ function _ckaPlaceAtEnd(section, exclude) {
 async function ckaSaveItem() {
   if (_ckaBusy || !_ckaForm) return;
   const f = _ckaReadForm();
-  const { ok, errors } = validateChecklistItem(f, Object.keys(CHECKLIST_ACTIONS));
+  const isOnb = _ckType === CONFIG.ONBOARDING.RECORD_TYPE;
+  if (isOnb) f.type = 'tick';   // N-498: onboarding steps are tick-box only (ONB-D24)
+  const base = validateChecklistItem(f, Object.keys(CHECKLIST_ACTIONS));
+  const extra = isOnb ? onbValidateStep(f) : { ok: true, errors: {} };
+  const errors = Object.assign({}, base.errors, extra.errors);
+  const ok = base.ok && extra.ok;
   _ckaShowErrors(errors);
   if (!ok) return;
   const editing = _ckaForm.id === null ? null : _ckaItems.find(r => String(r.id) === _ckaForm.id);
@@ -608,6 +660,7 @@ async function ckaSaveItem() {
     ActionKey: type === 'action' ? f.actionKey.trim() : null,
     Required:  f.required === true,
   };
+  if (isOnb) Object.assign(fields, onbStepFields(f));
   if (!editing || section !== _ckaSec(editing)) {
     Object.assign(fields, { Section: section }, _ckaPlaceAtEnd(section, editing));
   }
@@ -638,6 +691,110 @@ async function ckaSaveItem() {
   _ckaBusy = false;
   toast(editing ? 'Item saved' : 'Item added', { type: 'success' });
   await _ckaRender(editing ? [`ck-edit-${Number(editing.id)}`] : ['ck-add-btn']);
+}
+
+// ── Onboarding (person) layout, N-498 ────────────────────────────────
+function _ckaHeadHtml() {
+  const heads = _ckType === CONFIG.ONBOARDING.RECORD_TYPE
+    ? CONFIG.ONBOARDING.EDITOR_TEXT.tableHeads
+    : ['Item', 'Type', 'Required', 'Status', 'Actions'];
+  return heads.map(h => `<th>${escHtml(h)}</th>`).join('');
+}
+
+// The add / edit form for an onboarding step: no Type / Link URL / Action (tick-box only, ONB-D24); Owner, due day, Mode,
+// Level and the Content link instead. Same ids and error slots as the Project / Role form where they overlap.
+function _ckaPersonFormHtml(it) {
+  const O   = CONFIG.ONBOARDING;
+  const T   = O.EDITOR_TEXT;
+  const dueMin = O.DUE_OFFSET.MIN, dueMax = O.DUE_OFFSET.MAX;
+  const cur = it ? onbStepFromRow(it) : { owner: '', stepMode: O.STEP_MODES[0], levelTag: '', dueOffsetDays: null, contentUrl: '' };
+  const err = f => `<div class="ck-admin-field-error" id="ck-err-${f}"></div>`;
+  const opt = (value, label, sel) => `<option value="${escAttr(value)}"${sel ? ' selected' : ''}>${escHtml(label)}</option>`;
+  return `
+      <fieldset class="form-section ck-admin-form" id="ck-form" data-ck-form="${it ? Number(it.id) : 'new'}">
+        <legend class="form-section-title">${it ? 'Edit step' : 'Add step'} — ${_CKA_TEXT[_ckType].list} · ${escHtml(_ckaVarLabel(_ckVariant))}</legend>
+        <div class="form-row">
+          <div class="form-group">
+            ${_ckaSectionFieldHtml(it)}
+            ${err('section')}
+          </div>
+          <div class="form-group">
+            <label for="ck-f-label">Step *</label>
+            <input type="text" id="ck-f-label" value="${escAttr(it ? it.ItemLabel || '' : '')}" aria-describedby="ck-err-label">
+            ${err('label')}
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ck-f-owner">${escHtml(T.ownerLabel)}</label>
+            <select id="ck-f-owner" aria-describedby="ck-err-owner">
+              ${it ? '' : opt('', T.ownerChoose, true)}
+              ${O.OWNERS.map(o => opt(o.key, o.label, it && o.key === cur.owner)).join('')}
+            </select>
+            ${err('owner')}
+          </div>
+          <div class="form-group">
+            <label for="ck-f-due">${escHtml(T.dueLabel)}</label>
+            <input type="number" step="1" min="${dueMin}" max="${dueMax}" id="ck-f-due" value="${cur.dueOffsetDays === null ? '' : cur.dueOffsetDays}" aria-describedby="ck-f-due-hint ck-err-dueOffsetDays">
+            <span class="form-hint" id="ck-f-due-hint">${escHtml(T.dueHint)}</span>
+            ${err('dueOffsetDays')}
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ck-f-mode">${escHtml(T.modeLabel)}</label>
+            <select id="ck-f-mode" aria-describedby="ck-err-stepMode">${O.STEP_MODES.map(m => opt(m, m, m === cur.stepMode)).join('')}</select>
+            ${err('stepMode')}
+          </div>
+          <div class="form-group">
+            <label for="ck-f-level">${escHtml(T.levelLabel)}</label>
+            <select id="ck-f-level" aria-describedby="ck-err-levelTag">${opt('', T.levelNone, !cur.levelTag)}${O.LEVEL_TAGS.map(t => opt(t, t, t === cur.levelTag)).join('')}</select>
+            ${err('levelTag')}
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="ck-f-url">${escHtml(T.linkLabel)}</label>
+          <input type="text" id="ck-f-url" value="${escAttr(cur.contentUrl)}" placeholder="https://…" aria-describedby="ck-f-url-hint ck-err-contentUrl">
+          <span class="form-hint" id="ck-f-url-hint">${escHtml(T.linkHint)}</span>
+          ${err('contentUrl')}
+        </div>
+        <div class="form-group">
+          <label for="ck-f-help">Help text</label>
+          <textarea id="ck-f-help" rows="3" aria-describedby="ck-err-help">${escHtml(it ? it.HelpText || '' : '')}</textarea>
+          ${err('help')}
+        </div>
+        <label class="ck-admin-check"><input type="checkbox" id="ck-f-required"${it && spYesNo(it.Required, false) ? ' checked' : ''}> Required</label>
+        <div class="form-actions">
+          <button type="button" class="btn-primary" id="ck-f-save"${act('ckaSaveItem')}>${it ? 'Save changes' : 'Add step'}</button>
+          <button type="button" class="btn-secondary"${act('ckaCloseForm')}>Cancel</button>
+        </div>
+      </fieldset>`;
+}
+
+// The one-off Seed button (onboarding + something left to add). Admin-only in the API; the Config Panel is Admin-only too.
+function _ckaSeedButtonHtml() {
+  if (_ckType !== CONFIG.ONBOARDING.RECORD_TYPE || _ckaSeedLeft === 0) return '';
+  const T = CONFIG.ONBOARDING.SEED_TEXT;
+  return `<button type="button" class="btn-secondary" id="ck-seed-btn"${act('ckaSeedTrack')} aria-describedby="ck-seed-hint">${escHtml(T.button)}</button>
+        <span class="form-hint" id="ck-seed-hint">${escHtml(T.hint)}</span>`;
+}
+
+async function ckaSeedTrack() {
+  if (_ckaBusy || _ckType !== CONFIG.ONBOARDING.RECORD_TYPE) return;
+  const T = CONFIG.ONBOARDING.SEED_TEXT;
+  if (!(await confirmModal({ message: T.confirm, confirmLabel: T.button }))) return;
+  _ckaLock(T.running);
+  try {
+    const res = await seedOnboardingTrack();
+    toast(T.done.replace('{n}', String(res.created)).replace('{m}', String(res.skipped)), { type: 'success' });
+  } catch (e) {
+    console.error('Onboarding seed failed:', e);
+    toast(e && e.total
+      ? `${T.failedPart.replace('{n}', String(e.created)).replace('{total}', String(e.total))} ${e.message}`
+      : `Couldn't seed the track — ${e.message}`, { type: 'error' });
+  }
+  _ckaBusy = false;
+  await _ckaRender(['ck-seed-btn', 'ck-add-btn']);
 }
 
 // ── Reorder, rename, retire ──────────────────────────────────────────
@@ -703,7 +860,7 @@ async function ckaMoveSection(si, dir) {
 function _ckaRenameRowHtml(g) {
   return `
         <tr class="ck-admin-section-row">
-          <td colspan="5">
+          <td colspan="${_ckaCols()}">
             <div class="ck-admin-rename">
               <label for="ck-rename-input" class="ck-admin-picker-label">Section name</label>
               <input type="text" id="ck-rename-input" value="${escAttr(g.section)}" aria-describedby="ck-rename-error"
@@ -826,12 +983,12 @@ async function ckaCopyVariant() {
   const src    = sel ? sel.value : '';
   const target = _ckVariant;
   const type   = _ckType;
-  if (!checklistVariants().includes(src) || src === target) return;
+  if (!_ckaVariants().includes(src) || src === target) return;
   let source;
   try {
     const rows = await getChecklistTemplates(type);
     if (rows.some(r => _ckaSameVariant(r, target))) {
-      toast(`${checklistVariantLabel(target)} already has items — copying only goes into an empty variant.`, { type: 'error' });
+      toast(`${_ckaVarLabel(target)} already has items — copying only goes into an empty variant.`, { type: 'error' });
       await _ckaRender();
       return;
     }
@@ -862,10 +1019,12 @@ async function ckaCopyVariant() {
         ActionKey:    it.ActionKey,
         Required:     spYesNo(it.Required, false),
         Active:       spYesNo(it.Active, true),
+        // N-498: the onboarding columns travel with a copied step (blank / null for Project and Role rows)
+        ...(type === CONFIG.ONBOARDING.RECORD_TYPE ? { Owner: it.Owner, DueOffsetDays: it.DueOffsetDays, StepMode: it.StepMode, LevelTag: it.LevelTag, ContentUrl: it.ContentUrl } : {}),
       });
       copied++;
     }
-    toast(`Copied ${copied} item${copied === 1 ? '' : 's'} from ${checklistVariantLabel(src)}.`, { type: 'success' });
+    toast(`Copied ${copied} item${copied === 1 ? '' : 's'} from ${_ckaVarLabel(src)}.`, { type: 'success' });
   } catch (e) {
     console.error('Checklist copy failed:', e);
     refreshChecklistTemplates();
@@ -887,6 +1046,7 @@ registerActions({
   ckaSetActive,
   ckaDeleteItem,
   ckaCopyVariant,
+  ckaSeedTrack,
   ckaFormTypeChanged,
   ckaSectionChanged,
   ckaSaveItem,

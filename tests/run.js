@@ -66,6 +66,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'pdp-config.js'),       // N-475: CONFIG.PDP (declarations only; extends CONFIG; loads before pdp-identity.js)
   path.join(JS_DIR, 'pdp-identity.js'),     // N-433: pure PDP identity rules (loads after project-team.js)
   path.join(JS_DIR, 'onboarding-config.js'),   // N-496: CONFIG.ONBOARDING (declarations only; extends CONFIG)
+  path.join(JS_DIR, 'onboarding-seed.js'),     // N-498: the Talent Partner track as pure data (one-off seed; retired by its backlog row)
   path.join(JS_DIR, 'pdp-data.js'),         // N-434: pure PDP list rules (after pdp-identity.js)
   path.join(JS_DIR, 'pdp-seed.js'),         // N-436: default framework + template content (pure data, after pdp-data.js)
   path.join(JS_DIR, 'pdp-cycle.js'),        // N-437: pure PDP cycle engine (after pdp-data.js)

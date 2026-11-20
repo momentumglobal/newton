@@ -1,1 +1,4 @@
-# (empty) The onboarding seed was retired in N-498-retire.
+# False positive: checklist item key in the onboarding seed (not a secret).
+# generic-api-key fires on `key:` + entropy; key is onb_tp_day30-signoff. N-507.
+# The file js/onboarding-seed.js was deleted in N-498-retire but stays in git history, which gitleaks scans: keep this entry.
+4bcbf926314d57b2b4f82c10ba59bdbc7c53ebdd:js/onboarding-seed.js:generic-api-key:39

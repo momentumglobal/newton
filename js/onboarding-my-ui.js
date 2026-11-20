@@ -19,6 +19,21 @@ let _onbmState = {
   closedFor: '',          // the plan the collapsed set was worked out for
 };
 
+// N-500 (ONB-D49): the sub-tab on screen ('plan' | 'rituals'), one of CONFIG.ONBOARDING.SUB_TABS this person has (onbSubTabs).
+let _onbmSubTab = '';
+
+// The sub-tab to open: the one asked for when this person has it, else their first. Called by navigateToMyMomentum and by the draw below.
+function onbmPickSubTab(want) {
+  const subs = onbSubTabs(_mmSignals);
+  _onbmSubTab = subs.some(t => t.key === want) ? want : (subs[0] ? subs[0].key : '');
+}
+
+// The sub-tab strip (same classes as My Team's); drawn only with two or more sub-tabs. tabs = onbSubTabs().
+function onbSubTabsHtml(active, tabs) {
+  if (!tabs || tabs.length < 2) return '';
+  return `<div class="eng-tab-strip" id="onb-tabs" role="tablist">${tabs.map(t => `<button type="button" class="eng-tab${active === t.key ? ' eng-tab--active' : ''}" role="tab" aria-selected="${active === t.key ? 'true' : 'false'}"${act('onbmSubTab', t.key)}>${escHtml(t.label)}</button>`).join('')}</div>`;
+}
+
 // ── Markup (pure) ───────────────────────────────────────────────────────
 
 function _onbmDate(iso) { return formatLongDay(iso) || String(iso || ''); }
@@ -171,8 +186,16 @@ async function _onbmLoad(token) {
 // Called by renderMyMomentumPage. Draws into #onb-page so the area header that page inserts is never wiped by a redraw.
 async function renderMyOnboardingPage() {
   const main = document.getElementById('main-content');
-  const token = ++_onbmState.token;
-  main.innerHTML = `<div id="onb-page">${dashboardSkeleton(2)}</div>`;
+  const token = ++_onbmState.token;   // also bumped when the sub-tab changes, so a slow plan read never draws over Processes & Rituals
+  const subs = onbSubTabs(_mmSignals);
+  if (!subs.some(t => t.key === _onbmSubTab)) onbmPickSubTab('');
+  const strip = onbSubTabsHtml(_onbmSubTab, subs);
+  if (_onbmSubTab === 'rituals') {
+    main.innerHTML = `${strip}<div id="onb-page"></div>`;
+    renderOnboardingRitualsPage();
+    return;
+  }
+  main.innerHTML = `${strip}<div id="onb-page">${dashboardSkeleton(2)}</div>`;
   await _onbmLoad(token);
 }
 
@@ -217,6 +240,13 @@ function onbmTogglePhase(section) {
   _onbmDraw();
 }
 
+// The sub-tab strip: switch and redraw the page (nothing on either sub-tab holds unsaved work).
+async function onbmSubTab(key) {
+  if (key === _onbmSubTab || !onbSubTabs(_mmSignals).some(t => t.key === key)) return;
+  _onbmSubTab = key;
+  await withViewTransition(() => renderMyMomentumPage('myOnboarding'));
+}
+
 async function onbmRetry() {
   _onbmState.planId = '';
   await _onbmReload(true);
@@ -228,4 +258,5 @@ registerActions({
   onbmSetLevel,
   onbmTogglePhase,
   onbmRetry,
+  onbmSubTab,
 });

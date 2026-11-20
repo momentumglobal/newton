@@ -8,7 +8,7 @@ function handleMyMomentumDeepLink() {
   if (!raw) return false;
   const page = raw.split('?')[0].trim();
   history.replaceState(null, '', window.location.pathname);
-  const hit = page ? mmResolveDeepLink(page, mmNavTabs(), mmTeamSubTabs(_mmTabCtx()), CONFIG.MY_MOMENTUM) : null;
+  const hit = page ? mmResolveDeepLink(page, mmNavTabs(), mmTeamSubTabs(_mmTabCtx()), CONFIG.MY_MOMENTUM, onbSubTabs(_mmSignals)) : null;   // N-500: onboarding sub-tabs
   if (!hit) return false;
   if (hit.tab === 'myDetails') mdSetPreselect(mmDeepLinkPerson(raw));   // N-457
   navigateToMyMomentum(hit.tab, hit.sub);
@@ -47,7 +47,7 @@ window.MY_MOMENTUM_APP = {
     _mmIdentity = identity;
     _mmState = identityFailed ? 'error' : mmTabState(identity);
     // hasReports comes from the identity just loaded (no extra read): a manager with direct reports or a CSD tree gets Team Scorecards.
-    _mmSignals = { pdpMy: !!pdpNav.my, pdpTeam: !!pdpNav.team, hasReports: !!(identity && identity.me && ((identity.directReports || []).length || (identity.csdTree || []).length)), hasActivity: !!scNav.hasActivity, onbPlans: onbNav.plans > 0, onbBuddy: onbNav.buddy > 0, onbActions: onbNav.actions };
+    _mmSignals = { pdpMy: !!pdpNav.my, pdpTeam: !!pdpNav.team, hasReports: !!(identity && identity.me && ((identity.directReports || []).length || (identity.csdTree || []).length)), hasActivity: !!scNav.hasActivity, onbPlans: onbNav.plans > 0, onbBuddy: onbNav.buddy > 0, onbActions: onbNav.actions, onbRituals: !!onbNav.rituals };   // N-500: the Processes & Rituals tab
 
     renderMyMomentumNav(_mmResolvedRole);
     initCommandBar({ currentModule: 'myMomentum', role: _mmResolvedRole, navigateFn: 'navigateToMyMomentum' });

@@ -47,9 +47,10 @@ async function navigateToMyMomentum(page, sub) {
   // N-456: leaving My Details with unsaved edits asks first (re-clicking the tab counts as leaving).
   if (_mmCurrentPage === 'myDetails' && typeof mdConfirmLeave === 'function' && !(await mdConfirmLeave())) return;
   const role = _mmResolvedRole || 'viewer';
-  const hit = mmResolveDeepLink(page, mmNavTabs(), mmTeamSubTabs(_mmTabCtx()), CONFIG.MY_MOMENTUM);
+  const hit = mmResolveDeepLink(page, mmNavTabs(), mmTeamSubTabs(_mmTabCtx()), CONFIG.MY_MOMENTUM, onbSubTabs(_mmSignals));
   if (!hit || !mmCanAccess(hit.tab, role)) return;   // a tab that is not shown cannot be opened by hash either
   if (hit.tab === 'myTeam') _mmTeamTab = _mmPickTeamSub(sub || hit.sub);
+  if (hit.tab === 'myOnboarding') onbmPickSubTab(sub || hit.sub);   // N-500 (onboarding-my-ui.js): the sub-tab asked for when this person has it, else their first
   _mmCurrentPage = hit.tab;
   updateNavActiveLink(hit.tab);
   withViewTransition(() => renderMyMomentumPage(hit.tab));

@@ -165,6 +165,24 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 .onb-link:hover { color: var(--text-link-hover); text-decoration: underline; }
 .onb-link svg { width: 14px; height: 14px; }
 
+/* N-500: My Momentum > My Onboarding > Processes & Rituals (onboarding-rituals-ui.js). Tokens only; the phase head, hint, step list and chips reuse the .onb-* rules above. */
+.onb-rit-card { margin: 0 0 var(--sp-7); }
+.onb-rit-title { margin: 0 0 var(--sp-5); color: var(--text-heading); font-size: var(--fs-14); font-weight: var(--fw-semibold); }
+.onb-rit-text { margin: 0 0 var(--sp-4); color: var(--text-primary); font-size: var(--fs-14); }
+.onb-rit-steps { counter-reset: none; }
+.onb-rit-num {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-pill);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-semibold);
+  line-height: 22px;
+  text-align: center;
+}
+
 /* N-509: My Momentum > Buddying (onboarding-buddy-ui.js). Tokens only; the step list, phase head and hint reuse the .onb-* rules above.
    The banner and the owner chip read --text-primary on a neutral surface: no --status-*-text token on its own tint. */
 .onb-buddy-card { margin: 0 0 var(--sp-10); }

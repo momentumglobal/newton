@@ -176,7 +176,7 @@ async function _onbViewerCtx() {
   return { email: pdpEffectiveEmail(realEmail, getGhostUser()), role: await getEffectiveRole(realEmail) };
 }
 
-// The tab signals for my-momentum-app.js: { plans, buddy, actions } (N-509: own plans, Active buddy plans, open Buddy-owned steps on
+// The tab signals for my-momentum-app.js: { plans, buddy, actions, rituals } (N-500: rituals = onbRitualsVisible; a failed read leaves it out, so false) (N-509: own plans, Active buddy plans, open Buddy-owned steps on
 // them). Templates and progress are read only when the viewer buddies an Active plan, and progress only for those plans.
 // Any read failure is all zero (the tabs stay hidden, nothing throws).
 async function resolveOnboardingNav() {
@@ -186,14 +186,15 @@ async function resolveOnboardingNav() {
     const [gate, plans, people] = await Promise.all([resolveOnboardingGate(), getOnboardingPlans(), getPeople(false)]);
     const who = { gate, plans, people, email, role, peopleOpsActive: gate.peopleOpsActive };
     const buddy = gate.state === 'live' || gate.state === 'preview' ? onbBuddyPlans(who) : [];
-    if (!buddy.length) return onbNavSignal(who);
+    const rituals = onbRitualsVisible({ mode: gate.mode, gateState: gate.state });   // N-500 (ONB-D47): the Processes & Rituals tab
+    if (!buddy.length) return Object.assign(onbNavSignal(who), { rituals });
     const [templates, rows] = await Promise.all([
       getChecklistTemplates(O.RECORD_TYPE),
       Promise.all(buddy.map(m => getChecklistProgress(O.RECORD_TYPE, { recordId: m.plan.PersonID }))),
     ]);
     const progressByPlan = {};
     buddy.forEach((m, i) => { progressByPlan[String(m.plan.id)] = rows[i]; });
-    return onbNavSignal(Object.assign(who, { templates, progressByPlan, todayISO: localDayISO() }));
+    return Object.assign(onbNavSignal(Object.assign(who, { templates, progressByPlan, todayISO: localDayISO() })), { rituals });
   } catch (e) {
     console.warn('My Onboarding: tab signals unavailable', e);
     return { plans: 0, buddy: 0, actions: 0 };

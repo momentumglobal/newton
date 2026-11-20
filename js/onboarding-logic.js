@@ -606,3 +606,56 @@ function onbPlanModel({ plan = null, people = [], templates = [], progressRows =
     library: { items: lib.items, hidden: lib.hidden, all: libAll },
   };
 }
+
+// ── Processes & Rituals tab (N-500 / ONB-5) ─────────────────────────────
+
+// Is the Processes & Rituals reference tab shown to this person? ONB-D47: when the switch is On (every member of staff who can open
+// My Momentum), or when their gate is already live / preview (Admin preview while Off; pilot people and plan-related people while Pilot).
+// While Off or Pilot an ordinary member of staff does not see it, so the pilot stays contained. A missing gate is not live.
+function onbRitualsVisible({ mode = '', gateState = '' } = {}) {
+  const on = CONFIG.ONBOARDING.MODES[2];
+  return gateState === 'live' || gateState === 'preview' || onbNormaliseMode(mode) === on;
+}
+
+// The My Onboarding sub-tabs this person has (ONB-D49), in CONFIG.ONBOARDING.SUB_TABS order. signals = my-momentum's _mmSignals:
+// Onboarding Plan needs a plan of their own (onbPlans), Processes & Rituals needs onbRituals. N-501 adds Expectations & SLAs here.
+function onbSubTabs(signals) {
+  const s = signals || {};
+  const has = { plan: !!s.onbPlans, rituals: !!s.onbRituals };
+  return CONFIG.ONBOARDING.SUB_TABS.filter(t => has[t.key] === true);
+}
+
+// The link for a Newton page a ritual step points at (ONB-D50): the CONFIG.COMMAND_BAR_PAGES entry's href, only when that entry lists
+// the viewer's role. '' = plain text (no page key, unknown key, or a role that cannot open the page).
+function onbRitualLink(pageKey, role) {
+  const entry = pageKey ? CONFIG.COMMAND_BAR_PAGES.find(p => p.key === pageKey) : null;
+  return entry && Array.isArray(entry.roles) && entry.roles.includes(role) ? String(entry.href || '') : '';
+}
+
+// The Processes & Rituals page model: CONFIG.ONBOARDING.RITUALS with every touchpoint resolved to { label, href } (href '' = plain
+// text), the Role Checklist link resolved for this role, and the Expectations & SLAs sentence linked only when that sub-tab is shown
+// (ONB-D52; `subTabs` = onbSubTabs()). Pure: the config is read, never changed.
+function onbRitualsModel(role, subTabs) {
+  const touch = t => (t ? { label: String(t.label || ''), href: onbRitualLink(t.page, role) } : null);
+  const hasSla = (subTabs || []).some(t => t.key === 'expectations');
+  return {
+    text: CONFIG.ONBOARDING.RITUALS.TEXT,
+    sections: CONFIG.ONBOARDING.RITUALS.SECTIONS.map(sec => {
+      const out = { key: sec.key, title: sec.title, intro: sec.intro || '' };
+      if (sec.cards) {
+        out.cards = sec.cards.map(c => Object.assign({}, c, {
+          steps: (c.steps || []).map(st => Object.assign({}, st, { touch: touch(st.touch) })),
+        }));
+      }
+      if (sec.rows) out.rows = sec.rows.map(r => Object.assign({}, r, { touch: touch(r.touch) }));
+      if (sec.signpost) {
+        const sp = sec.signpost;
+        out.signpost = {
+          text: sp.text, takenIn: sp.takenIn || '', slaText: sp.slaText, slaLink: hasSla,
+          link: { label: sp.link.label, href: onbRitualLink(sp.link.page, role) },
+        };
+      }
+      return out;
+    }),
+  };
+}

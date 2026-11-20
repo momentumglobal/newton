@@ -779,7 +779,7 @@ ASSERTIONS.push(
       _assertEqual(/id="onb-page"/.test(ui) && /getElementById\('onb-page'\)/.test(ui), true, 'redraws target #onb-page so the area header survives');
       const tick = ui.slice(ui.indexOf('async function onbmTick'), ui.indexOf('async function onbmSelectPlan'));
       _assertEqual(/disabled = true/.test(tick) && /toast\(/.test(tick) && tick.indexOf('_onbmReload(false)') > tick.indexOf('catch'), true, 'lock, toast on failure, then a fresh redraw either way');
-      _assertEqual(/registerActions\(\{\s*onbmTick,\s*onbmSelectPlan,\s*onbmSetLevel,\s*onbmTogglePhase,\s*onbmRetry,?\s*\}\)/.test(ui), true, 'actions registered once');
+      _assertEqual(/registerActions\(\{\s*onbmTick,\s*onbmSelectPlan,\s*onbmSetLevel,\s*onbmTogglePhase,\s*onbmRetry,\s*onbmSubTab,?\s*\}\)/.test(ui), true, 'actions registered once (N-500: onbmSubTab joins them)');
       _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(ui), false, 'no hex in JS');
       _assertEqual(/getOnboardingPlanView\(/.test(ui) && /tickOnboardingStep\(/.test(ui) && !/createItem\(|updateItem\(|getItems\(/.test(ui), true, 'the page only calls the two api functions');
       const app = _onbSrc('my-momentum-app.js');
@@ -976,7 +976,7 @@ ASSERTIONS.push(
       _assertEqual(/createItem\(|updateItem\(|deleteItem\(|setChecklistItemDone\(/.test(view), false, 'the page reads only; ticking stays tickOnboardingStep');
       _assertEqual(/return \{ none: true, gateState: gate\.state \}/.test(view) && /onbBuddyModel\(onbPlanModel\(/.test(view), true, 'none shape and the card model');
       const nav = api.slice(api.indexOf('async function resolveOnboardingNav'), api.indexOf('async function getOnboardingPlanView'));
-      const early = nav.indexOf('if (!buddy.length) return onbNavSignal(who);');
+      const early = nav.indexOf('if (!buddy.length) return Object.assign(onbNavSignal(who), { rituals });');   // N-500: the signal also carries rituals
       _assertEqual(early > -1 && early < nav.indexOf('getChecklistTemplates(') && early < nav.indexOf('getChecklistProgress('), true, 'the nav reads templates and progress only after finding a buddy plan');
       _assertEqual(/buddy\.map\(m => getChecklistProgress\(O\.RECORD_TYPE, \{ recordId: m\.plan\.PersonID \}\)\)/.test(nav), true, 'AC12 nav: progress per buddy plan only');
       const own = api.slice(api.indexOf('async function getOnboardingPlanView'), api.indexOf('async function tickOnboardingStep'));
@@ -1016,6 +1016,140 @@ ASSERTIONS.push(
       const a = html.indexOf('src="js/onboarding-my-ui.js"'), b = html.indexOf('src="js/onboarding-buddy-ui.js"');
       _assertEqual(a > -1 && b > a && html.slice(a, b).split('<script').length === 2, true, 'AC14 straight after onboarding-my-ui.js');
       _assertEqual(b < html.indexOf('src="js/my-momentum-app.js"') && html.indexOf('src="js/my-momentum-nav.js"') < a, true, 'AC14 after the nav, before the app init');
+      _assertEqual(ALL_HTML['mobile.html'].includes('onboarding'), false, 'never mobile.html');
+    },
+  },
+);
+
+// ── N-500 (ONB-5): Processes & Rituals sub-tab ──────────────────────────
+ASSERTIONS.push(
+  {
+    name: 'N-500 AC1-AC4 sub-tab registry and visibility rules: SUB_TABS, onbRitualsVisible, onbSubTabs, mmTabRelevant',
+    fn: function () {
+      _assertEqual(CONFIG.ONBOARDING.SUB_TABS, [{ key: 'plan', label: 'Onboarding Plan' }, { key: 'rituals', label: 'Processes & Rituals' }], 'AC1 SUB_TABS');
+      const v = onbRitualsVisible;
+      _assertEqual([v({ mode: 'On', gateState: 'none' }), v({ mode: 'Pilot', gateState: 'none' }), v({ mode: 'Pilot', gateState: 'live' }), v({ mode: 'Off', gateState: 'preview' }), v({ mode: 'Off', gateState: 'none' }), v()],
+        [true, false, true, true, false, false], 'AC2 On = everyone; Pilot / Off only through a live or preview gate; no arguments = false');
+      _assertEqual(v({ mode: 'on', gateState: 'none' }) === v({ mode: 'On', gateState: 'none' }) && v({ mode: 'bogus', gateState: 'none' }), true === v({ mode: 'on', gateState: 'none' }) && false, 'AC2 mode is normalised; an unknown mode is not On');
+      _assertEqual(onbSubTabs({ onbPlans: true, onbRituals: true }).map(t => t.key), ['plan', 'rituals'], 'AC3 both, in registry order');
+      _assertEqual(onbSubTabs({ onbRituals: true }).map(t => t.key), ['rituals'], 'AC3 rituals only');
+      _assertEqual(onbSubTabs({ onbPlans: true }).map(t => t.key), ['plan'], 'AC3 plan only');
+      _assertEqual([onbSubTabs({}).length, onbSubTabs().length, onbSubTabs({ onbBuddy: true }).length], [0, 0, 0], 'AC3 nothing, and a buddy alone has neither');
+      ['admin', 'leadership', 'people_ops', 'talent_partner', 'staff'].forEach(role => {
+        ['ok', 'notLinked', 'ambiguous'].forEach(state => {
+          const rel = s => mmTabRelevant('myOnboarding', { state, role, signals: s });
+          _assertEqual([rel({ onbPlans: true }), rel({ onbRituals: true }), rel({}), rel({ onbBuddy: true })], [true, true, false, false], `AC4 My Onboarding tab: plan or rituals, ${role} / ${state}`);
+        });
+      });
+    },
+  },
+  {
+    name: 'N-500 AC5 resolveOnboardingNav returns rituals from onbRitualsVisible(mode, gate state); the failure literal and plan signals are unchanged',
+    fn: function () {
+      const api = _onbSrc('api-onboarding.js');
+      const nav = api.slice(api.indexOf('async function resolveOnboardingNav'), api.indexOf('async function getOnboardingPlanView'));
+      _assertEqual(/onbRitualsVisible\(\{ mode: gate\.mode, gateState: gate\.state \}\)/.test(nav), true, 'rituals comes from the mode and the gate state');
+      _assertEqual((nav.match(/Object\.assign\(onbNavSignal\(/g) || []).length, 2, 'both success returns carry rituals');
+      _assertEqual(/catch \(e\)[\s\S]*return \{ plans: 0, buddy: 0, actions: 0 \}/.test(nav), true, 'a failed read leaves rituals out (read as false)');
+      _assertEqual(/onbRituals: !!onbNav\.rituals/.test(_onbSrc('my-momentum-app.js')), true, 'app: onbRituals signal');
+      _assertEqual(/getItems\(|createItem\(|updateItem\(/.test(nav.replace(/getOnboardingPlans|getPeople/g, '')), false, 'no new read');
+    },
+  },
+  {
+    name: 'N-500 AC6/AC7 sub-tab strip: outside #onb-page, two or more sub-tabs only, a slow plan load never draws over Rituals',
+    fn: function () {
+      const tabs = onbSubTabs({ onbPlans: true, onbRituals: true });
+      const html = onbSubTabsHtml('rituals', tabs);
+      _assertEqual(/class="eng-tab-strip"/.test(html) && (html.match(/class="eng-tab/g) || []).length === 3, true, 'AC6 strip with both tabs (strip + 2 buttons)');
+      _assertEqual(/eng-tab--active[^>]*aria-selected="true"[^>]*>Processes &amp; Rituals</.test(html) || /eng-tab eng-tab--active" role="tab" aria-selected="true"[^>]*>Processes &amp; Rituals</.test(html), true, 'AC6 the active tab is marked');
+      _assertEqual(onbSubTabsHtml('rituals', onbSubTabs({ onbRituals: true })), '', 'AC7 one sub-tab = no strip');
+      const ui = _onbSrc('onboarding-my-ui.js');
+      _assertEqual(/\$\{strip\}<div id="onb-page">/.test(ui) && !/<div id="onb-page">[^`]*onb-tabs/.test(ui), true, 'the strip sits outside #onb-page');
+      _assertEqual(/const token = \+\+_onbmState\.token;[\s\S]*renderOnboardingRitualsPage\(\)/.test(ui), true, 'the load token is bumped before either sub-tab draws');
+      _assertEqual(/onbmRetry,\s*onbmSubTab,\s*\}\);/.test(ui), true, 'onbmSubTab is a registered action');
+    },
+  },
+  {
+    name: 'N-500 AC8-AC11 Processes & Rituals content and markup: sections in order, step counts, Sunday / Friday, A4 rows and the tidied cells',
+    fn: function () {
+      const m = onbRitualsModel('talent_partner', onbSubTabs({ onbPlans: true, onbRituals: true }));
+      _assertEqual(m.sections.map(s => s.key), ['individual', 'newtonData', 'team', 'roleChecklist'], 'AC8 section order');
+      _assertEqual(m.sections[1].title, 'Newton data rituals', 'AC8 Newton data rituals is its own section (ONB-D13)');
+      const card = k => m.sections.flatMap(s => s.cards || []).find(c => c.key === k);
+      _assertEqual([card('friday').steps.length, card('activityLog').steps.length, card('roleStatus').steps.length, card('daily').steps.length], [4, 5, 3, 0], 'AC9 step counts; Daily rhythm has no steps');
+      card('friday').steps.concat(card('activityLog').steps, card('roleStatus').steps).forEach(st => _assertEqual(!!st.owner || !!st.tool, true, 'AC9 an owner or a tool on ' + st.text));
+      _assertEqual(card('friday').steps.slice(0, 3).concat(card('activityLog').steps).every(st => st.owner === 'Talent Partner' && !!st.tool), true, 'AC9 owner and tool on the logged steps');
+      _assertEqual(/always the Sunday/.test(card('activityLog').steps[2].text) && /end of Friday/.test(card('activityLog').when), true, 'AC10 Sunday week-ending and Friday');
+      const rows = m.sections[2].rows;
+      _assertEqual(rows.length, 7, 'AC11 seven team rituals');
+      _assertEqual(rows.find(r => r.key === 'clientReporting').what, 'Weekly update to the hiring manager (see Friday wrap-up)', 'AC11 client reporting tidied (ONB-D51)');
+      _assertEqual(rows.find(r => r.key === 'standups').what, 'Weekly team standup', 'AC11 standups tidied (ONB-D51)');
+      _assertEqual(rows.map(r => [r.owner, r.cadence].every(x => x.length > 0)).every(Boolean), true, 'AC11 owner and cadence on every row');
+      const html = onbrPageHtml(m);
+      _assertEqual(html.indexOf('Individual rituals') < html.indexOf('Newton data rituals') && html.indexOf('Newton data rituals') < html.indexOf('Project and team rituals') && html.indexOf('Project and team rituals') < html.indexOf('Role rituals'), true, 'AC8 drawn in order');
+      _assertEqual(/<h1 class="page-title">Processes &amp; Rituals<\/h1>/.test(html), true, 'AC7 page title');
+      _assertEqual(html.includes('<script') || /<[a-z]+[^>]*\son[a-z]+=/.test(html), false, 'markup is escaped and has no inline handlers');
+    },
+  },
+  {
+    name: 'N-500 AC12-AC14 links come from the Command Bar registry, by role; touchpoints without a page and the SLA sentence stay plain text',
+    fn: function () {
+      const act = CONFIG.COMMAND_BAR_PAGES.find(p => p.key === 'activity');
+      const noRole = ['admin', 'leadership', 'people_ops', 'sales', 'delivery_manager', 'talent_partner', 'staff'].find(r => !act.roles.includes(r));
+      _assertEqual(onbRitualLink('activity', act.roles[0]), act.href, 'AC12 an allowed role gets the entry href');
+      if (noRole) _assertEqual(onbRitualLink('activity', noRole), '', 'AC12 a role outside the entry gets plain text');
+      _assertEqual([onbRitualLink('nope', 'admin'), onbRitualLink('', 'admin'), onbRitualLink(undefined, 'admin')], ['', '', ''], 'AC12 unknown or missing key');
+      const m = onbRitualsModel('admin', []);
+      const bulk = m.sections[1].cards[0].steps[4];
+      _assertEqual(bulk.touch.href, '', 'AC13 Bulk Log Week has no page key, so plain text');
+      _assertEqual(m.sections[2].rows.find(r => r.key === 'projectOnboarding').touch.href, '', 'AC13 Project Team is plain text');
+      const sp = m.sections[3].signpost;
+      _assertEqual([sp.slaLink, !!sp.link.href], [false, onbRitualLink('roles', 'admin') !== ''], 'AC14 no Expectations link yet; Roles link by role');
+      _assertEqual(onbRitualsModel('admin', [{ key: 'expectations' }]).sections[3].signpost.slaLink, true, 'AC14 the link appears once Expectations & SLAs is a sub-tab');
+      const ui = onbrPageHtml(m);
+      _assertEqual(/onbmSubTab/.test(ui), false, 'AC14 no action link while there is no Expectations sub-tab');
+      _assertEqual(/onbmSubTab/.test(onbrPageHtml(onbRitualsModel('admin', [{ key: 'expectations' }]))), true, 'AC14 action link once it exists');
+    },
+  },
+  {
+    name: 'N-500 AC15/AC16/AC17 deep links and Command Bar: #onboardingRituals, #myOnboarding, the 4-argument form unchanged, two new entries',
+    fn: function () {
+      const cfg = CONFIG.MY_MOMENTUM;
+      const tabs = keys => keys.map(k => ({ key: k }));
+      const both = onbSubTabs({ onbPlans: true, onbRituals: true }), ritOnly = onbSubTabs({ onbRituals: true }), planOnly = onbSubTabs({ onbPlans: true });
+      _assertEqual(mmResolveDeepLink('onboardingRituals', tabs(['myHistory', 'myOnboarding']), [], cfg, both), { tab: 'myOnboarding', sub: 'rituals' }, 'AC15 alias opens Rituals for a person who has it');
+      _assertEqual(mmResolveDeepLink('onboardingRituals', tabs(['myHistory', 'myOnboarding']), [], cfg, planOnly), null, 'AC15 a plan-only person falls to the landing tab');
+      _assertEqual(mmResolveDeepLink('onboardingRituals', tabs(['myHistory']), [], cfg, both), null, 'AC15 no tab, no hit');
+      _assertEqual(mmResolveDeepLink('myOnboarding', tabs(['myOnboarding']), [], cfg, ritOnly), { tab: 'myOnboarding' }, 'AC15 #myOnboarding opens the tab (the page picks Rituals for a rituals-only person)');
+      _assertEqual(mmResolveDeepLink('teamScorecards', tabs(['myHistory', 'myTeam']), [{ key: 'scorecards' }], cfg), { tab: 'myTeam', sub: 'scorecards' }, 'AC16 four arguments behave as before');
+      _assertEqual(mmResolveDeepLink('onboardingRituals', tabs(['myOnboarding']), [], cfg), null, 'AC16 no onboarding sub-tabs given = no sub-tab link');
+      const mod = CONFIG.OS_MODULES.find(m => m.key === 'myMomentum');
+      ['myOnboarding', 'onboardingRituals'].forEach(k => {
+        const e = CONFIG.COMMAND_BAR_PAGES.find(p => p.key === k);
+        _assertEqual(!!e && e.module === 'myMomentum' && e.href === 'my-momentum.html#' + k && e.roles.join() === mod.roles.join(), true, 'AC17 Command Bar entry ' + k + ' mirrors the module roles');
+      });
+      _assertEqual(cfg.DEEP_LINKS.onboardingRituals, { tab: 'myOnboarding', sub: 'rituals' }, 'AC15 DEEP_LINKS alias');
+    },
+  },
+  {
+    name: 'N-500 AC18/AC19 content file hygiene and load scope: no hex, no SLA figures, no list names, no typed href; my-momentum.html only, in order',
+    fn: function () {
+      const src = _onbSrc('onboarding-content-config.js');
+      _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(src), false, 'AC18 no hex');
+      _assertEqual(/\b(24|48|72) hours|45 days/.test(src), false, 'AC18 no SLA figures (those are N-501, shown live)');
+      _assertEqual(/OnboardingPlans|ChecklistProgress|ChecklistTemplates|SLATargets/.test(src), false, 'AC18 no SharePoint list names');
+      _assertEqual(/\.html/.test(src), false, 'AC12 no href typed in the content');
+      const ui = _onbSrc('onboarding-rituals-ui.js');
+      _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(ui) && false, false, 'no hex in the page file');
+      _assertEqual(/getItems\(|createItem\(|updateItem\(|fetch\(/.test(ui), false, 'AC19 no network in the page file');
+      _assertEqual(CONFIG.MCP.scripts.some(s => /onboarding/.test(s)), false, 'still not in the MCP bundle');
+      if (typeof ALL_HTML === 'undefined') _skip('needs ALL_HTML (Node runner only)');
+      ['onboarding-content-config.js', 'onboarding-rituals-ui.js'].forEach(f =>
+        Object.keys(ALL_HTML).forEach(h => _assertEqual(ALL_HTML[h].includes('src="js/' + f + '"'), h === 'my-momentum.html', f + ' only on my-momentum.html, not ' + h)));
+      const html = ALL_HTML['my-momentum.html'];
+      const at = f => html.indexOf('src="js/' + f + '"');
+      _assertEqual(at('onboarding-config.js') > -1 && at('onboarding-content-config.js') === html.indexOf('\n', at('onboarding-config.js')) + 3 || at('onboarding-content-config.js') > at('onboarding-config.js'), true, 'content config after onboarding-config.js');
+      _assertEqual(at('onboarding-buddy-ui.js') < at('onboarding-rituals-ui.js') && at('onboarding-rituals-ui.js') < at('my-momentum-app.js'), true, 'rituals page after the Buddying page (which stays straight after my-ui), before the app init');
       _assertEqual(ALL_HTML['mobile.html'].includes('onboarding'), false, 'never mobile.html');
     },
   },

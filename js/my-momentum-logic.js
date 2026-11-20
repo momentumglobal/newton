@@ -41,7 +41,7 @@ function mmTabRelevant(key, ctx) {
     case 'myDetails':     return c.state === 'ok' || roleCan(c.role, 'myDetailsAdmin');   // N-456: Admin / People Ops reach the picker even with no People row
     case 'myScorecard':   return !!s.hasActivity;
     case 'myDevelopment': return !!s.pdpMy;
-    case 'myOnboarding':  return !!s.onbPlans;   // N-499 (ONB-D28), N-509: a joiner with a plan of their own to see
+    case 'myOnboarding':  return !!s.onbPlans || !!s.onbRituals;   // N-499 (ONB-D28), N-509: a plan of their own to see; N-500 (ONB-D45, D47): or the Processes & Rituals reference tab
     case 'myBuddying':    return !!s.onbBuddy;   // N-509 (ONB-D38): the buddy of at least one Active plan
     case 'myTeam':        return mmTeamSubTabs(c).length > 0;
     default:              return false;
@@ -215,15 +215,17 @@ function mmScorecardMembers(people, identity, view) {
 //   1 a tab key that is visible                          → { tab }
 //   2 a DEEP_LINKS alias whose tab (and sub-tab) shows   → { tab, sub }
 //   3 else the DEEP_LINK_FALLBACKS key, tried the same way once (an old #scorecards link, for a manager with no own activity)
-function mmResolveDeepLink(page, visibleTabs, teamSubTabs, cfg) {
+// N-500: an optional 5th argument `onbSubTabs` (onbSubTabs()) lets an alias for myOnboarding carry a sub-tab, shown only when this person has it.
+function mmResolveDeepLink(page, visibleTabs, teamSubTabs, cfg, onbSubTabs) {
   const c = cfg || {};
   const has = k => (visibleTabs || []).some(t => t.key === k);
   const hasSub = k => (teamSubTabs || []).some(t => t.key === k);
+  const hasOnbSub = k => (onbSubTabs || []).some(t => t.key === k);
   const direct = key => {
     if (!key) return null;
     if (has(key)) return { tab: key };
     const alias = c.DEEP_LINKS && Object.prototype.hasOwnProperty.call(c.DEEP_LINKS, key) ? c.DEEP_LINKS[key] : null;
-    if (alias && has(alias.tab) && (!alias.sub || (alias.tab === 'myTeam' && hasSub(alias.sub)))) return { tab: alias.tab, sub: alias.sub || '' };
+    if (alias && has(alias.tab) && (!alias.sub || (alias.tab === 'myTeam' && hasSub(alias.sub)) || (alias.tab === 'myOnboarding' && hasOnbSub(alias.sub)))) return { tab: alias.tab, sub: alias.sub || '' };
     return null;
   };
   const hit = direct(page);

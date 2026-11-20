@@ -121,6 +121,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'my-details-ui.js'),       // N-456: markup is asserted (declarations only; DOM only inside the render functions)
   path.join(JS_DIR, 'employee-page.js'),       // N-457: markup is asserted (declarations only; DOM only inside the render functions)
   path.join(JS_DIR, 'onboarding-plan-ui.js'),  // N-497: the employee-record Onboarding card markup is asserted (declarations only; DOM only inside the functions)
+  path.join(JS_DIR, 'onboarding-my-ui.js'),    // N-499: the My Onboarding page markup is asserted (declarations only; DOM only inside the functions)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-tools.js'),   // N-393: Newton for Claude tools (declarations + MCP_TOOLS only)
   path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),

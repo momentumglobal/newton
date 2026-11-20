@@ -42,12 +42,23 @@ CONFIG.ONBOARDING = {
   PLAN_LIST:     'OnboardingPlans',
   PLAN_STATUSES: ['Active', 'Complete', 'Cancelled'],
   PLAN_ACTIVE:   'Active',
+  // N-499 (ONB-D34): the statuses the joiner and buddy can see in My Momentum. A Cancelled plan is hidden from everyone there.
+  PLAN_VISIBLE:  ['Active', 'Complete'],
   // The OnboardingPlans columns a write may carry (onbCleanPlanFields). N-502 adds the sign-off columns.
   PLAN_FIELDS:   ['Title', 'PersonID', 'Track', 'Status', 'StartedByEmail', 'StartedAt', 'BuddyEmail'],
   // N-497 (ONB-2). A plan can only start for a new joiner: StartDate today, in the future, or at most this many days
   // ago (ONB-D22). Restart of a Cancelled plan is exempt (same plan). DISPLAY_ROWS = Data Health rows before "+ n more".
   START_WINDOW_DAYS: 14,
   DISPLAY_ROWS: 10,
+  // N-499 (ONB-4, ONB-D29). A step whose Section is LIBRARY_SECTION (compared case-insensitively) is a Library step: self-guided,
+  // optional, no due date, never counted in the plan's progress (ONB-D32). LEVEL_FILTERS keys must equal LEVEL_TAGS (a test keeps
+  // them in step); '' = every level. LIBRARY_URL (the "Browse the Library" link) is set below the literal from CONTENT_BASE_URL.
+  LIBRARY_SECTION: 'Library',
+  LEVEL_FILTERS: [
+    { key: '',            label: 'All levels' },
+    { key: 'Foundation',  label: 'Foundation' },
+    { key: 'Experienced', label: 'Experienced' },
+  ],
   // Why "Start onboarding" is not offered (onbStartCheck reasons). {days} = START_WINDOW_DAYS.
   START_REASONS: {
     'off':             'Onboarding is switched Off (Config Panel → Onboarding).',
@@ -97,8 +108,8 @@ CONFIG.ONBOARDING = {
     intro:        'Onboarding steps go live for a person when the CSD starts their plan (People > the employee record). Due days are counted from the person\u2019s start date, so changing one moves every live plan. The Off / Pilot / On switch is in the Onboarding tab.',
     ownerLabel:   'Owner *',
     ownerChoose:  '-- Choose an owner --',
-    dueLabel:     'Due (days after the start day) *',
-    dueHint:      'Whole days after the start day: enter 0 for Day 1 (the start day), 4 for Day 5, and so on. A negative number is before the start (-3 = three days before).',
+    dueLabel:     'Due (days after the start day)',
+    dueHint:      'Required, except for a Library item. Whole days after the start day: enter 0 for Day 1 (the start day), 4 for Day 5, and so on. A negative number is before the start (-3 = three days before). Leave it blank for a step in the Library section: those have no due date.',
     modeLabel:    'Mode *',
     levelLabel:   'Level',
     levelNone:    'Every level',
@@ -111,4 +122,46 @@ CONFIG.ONBOARDING = {
     tableHeads:   ['Step', 'Owner', 'Due', 'Mode', 'Level', 'Required', 'Status', 'Actions'],
     emptyTitle:   'No onboarding steps in {track} yet.',
   },
+  // N-499 (ONB-4). Every word on the My Onboarding page (onboarding-my-ui.js). {name} {date} {done} {total} {n} {label} {due} are filled by onbFillText.
+  PLAN_TEXT: {
+    pageTitle:      'My Onboarding',
+    myPlan:         'My plan',
+    buddyPlan:      '{name} (you are their buddy)',
+    selectorLabel:  'Plan',
+    startsOn:       'Starts {date}',
+    notStartedNote: 'Your plan starts on {date}. Steps that come before your start day appear then.',
+    lineManager:    'Line manager',
+    buddy:          'Buddy',
+    buddyNone:      'Not named yet',
+    progress:       '{done} of {total} steps done',
+    overdue:        '{n} overdue',
+    next:           'Next: {label}, {due}',
+    allDone:        'Every step is done.',
+    phaseCount:     '{done} of {total}',
+    dueOn:          'Due {date}',
+    overdueChip:    'Overdue',
+    doneBy:         'Ticked by {name}, {date}',
+    open:           'Open',
+    guided:         'Guided',
+    selfGuided:     'Self-guided',
+    library:        'Library',
+    libraryHint:    'Optional self-guided material. Pick what fits your level and tick it once you have used it.',
+    browseLibrary:  'Browse the Library',
+    levelLabel:     'Level',
+    libraryEmpty:   'Nothing in the Library for this level.',
+    libraryFiltered: '{n} hidden by the level filter.',
+    ownerBuddyNone: 'Buddy (not named yet)',
+    completeNote:   'This plan is complete. It is read-only.',
+    previewNote:    'Preview: onboarding is switched Off, so only you can see this. It is read-only.',
+    noSteps:        'There are no steps to show yet.',
+    noPlans:        'You have no onboarding plan to show.',
+    tickFailed:     'Couldn’t save that tick:',
+    tickNoRights:   'Only the step’s owner, the line manager or the CSD can tick this step.',
+    loadFailed:     'The onboarding plan could not be loaded.',
+    retry:          'Try again',
+    expand:         'Show steps',
+    collapse:       'Hide steps',
+  },
 };
+// N-499: the Library folder inside the OnboardingContent library (N-498 ONB-D26).
+CONFIG.ONBOARDING.LIBRARY_URL = CONFIG.ONBOARDING.CONTENT_BASE_URL + '/Library';

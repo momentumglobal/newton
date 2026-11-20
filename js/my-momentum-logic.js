@@ -41,6 +41,7 @@ function mmTabRelevant(key, ctx) {
     case 'myDetails':     return c.state === 'ok' || roleCan(c.role, 'myDetailsAdmin');   // N-456: Admin / People Ops reach the picker even with no People row
     case 'myScorecard':   return !!s.hasActivity;
     case 'myDevelopment': return !!s.pdpMy;
+    case 'myOnboarding':  return !!s.onbPlans;   // N-499 (ONB-D28): a joiner, or a buddy of one, with a plan to see
     case 'myTeam':        return mmTeamSubTabs(c).length > 0;
     default:              return false;
   }

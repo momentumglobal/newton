@@ -175,20 +175,22 @@ function onbAccess({ mode = '', pilot = [], people = [], plans = [], email = '',
 
 // The person-only template fields (N-498 calls it alongside validateChecklistItem). -> { ok, errors }
 // with keys owner, dueOffsetDays, stepMode, levelTag, contentUrl.
-function onbValidateStep({ owner, dueOffsetDays, stepMode, levelTag, contentUrl } = {}) {
+function onbValidateStep({ owner, dueOffsetDays, stepMode, levelTag, contentUrl, section } = {}) {
   const O = CONFIG.ONBOARDING;
   const errors = {};
   const text = v => String(v == null ? '' : v).trim();
+  const lib = onbIsLibraryStep({ Section: section });   // N-499 (ONB-D29): a Library step has no due date and is self-guided
   const own = text(owner);
   if (!own) errors.owner = 'Choose who owns this step.';
   else if (!onbNormaliseOwner(own)) errors.owner = 'Choose an owner from the list.';
   const rawOff = text(dueOffsetDays);
   const off = Number(rawOff);
-  if (!rawOff) errors.dueOffsetDays = 'Enter the due day (days from the start date).';
+  if (!rawOff) { if (!lib) errors.dueOffsetDays = 'Enter the due day (days from the start date).'; }
   else if (!Number.isInteger(off)) errors.dueOffsetDays = 'Enter a whole number of days.';
   else if (off < O.DUE_OFFSET.MIN || off > O.DUE_OFFSET.MAX) errors.dueOffsetDays = `Use a day between ${O.DUE_OFFSET.MIN} and ${O.DUE_OFFSET.MAX}.`;
   const sm = normChecklistKey(stepMode);
   if (!O.STEP_MODES.some(s => normChecklistKey(s) === sm)) errors.stepMode = 'Choose Guided or Self-guided.';
+  else if (lib && sm !== normChecklistKey(O.STEP_MODES[1])) errors.stepMode = 'Library items are self-guided.';
   const lt = normChecklistKey(levelTag);
   if (lt && !O.LEVEL_TAGS.some(s => normChecklistKey(s) === lt)) errors.levelTag = 'Choose a level, or leave it blank for every level.';
   const url = text(contentUrl);
@@ -428,11 +430,144 @@ function onbStepFields(form) {
   const sm = normChecklistKey(f.stepMode);
   const lt = normChecklistKey(f.levelTag);
   const url = String(f.contentUrl == null ? '' : f.contentUrl).trim();
+  const dueRaw = String(f.dueOffsetDays == null ? '' : f.dueOffsetDays).trim();
   return {
     Owner:         onbNormaliseOwner(f.owner),
-    DueOffsetDays: Number(String(f.dueOffsetDays).trim()),
+    DueOffsetDays: dueRaw === '' ? null : Number(dueRaw),   // N-499: blank only passes validation for a Library step
     StepMode:      O.STEP_MODES.find(m => normChecklistKey(m) === sm),
     LevelTag:      lt ? O.LEVEL_TAGS.find(t => normChecklistKey(t) === lt) : null,
     ContentUrl:    url || null,
+  };
+}
+
+
+// ── My Onboarding page (N-499 / ONB-4) ───────────────────────────────────
+// Everything the joiner / buddy page shows, as data. Pure: the reads are in api-onboarding.js, the markup in onboarding-my-ui.js.
+
+// '{name}' placeholders filled from vars (CONFIG.ONBOARDING.PLAN_TEXT).
+function onbFillText(text, vars) {
+  return Object.keys(vars || {}).reduce((s, k) => s.split('{' + k + '}').join(String(vars[k])), String(text == null ? '' : text));
+}
+
+// ONB-D29. A Library step is a row whose Section is CONFIG.ONBOARDING.LIBRARY_SECTION (case-insensitive).
+function onbIsLibraryStep(step) {
+  const sec = normChecklistKey(step ? step.Section : '');
+  return !!sec && sec === normChecklistKey(CONFIG.ONBOARDING.LIBRARY_SECTION);
+}
+
+// ONB-D30 / D34. The plans this viewer opens in My Onboarding: Active or Complete plans where they are the joiner ('own') or the
+// buddy ('buddy'). An LM, CSD or Admin relation alone lists nothing (that is N-502). Own plan first, then buddy plans by the joiner's
+// StartDate, latest first, then name. -> [{ plan, kind, relations }]
+function onbMyPlans({ plans = [], people = [], email = '', role = '', peopleOpsActive = false } = {}) {
+  const O = CONFIG.ONBOARDING;
+  const out = [];
+  (plans || []).forEach(plan => {
+    if (!plan || !O.PLAN_VISIBLE.includes(plan.Status)) return;
+    const rel = onbRelations({ plan, people, email, role, peopleOpsActive });
+    const kind = rel.has('employee') ? 'own' : (rel.has('buddy') ? 'buddy' : '');
+    if (!kind) return;
+    const emp = onbPlanParties(plan, people).employee;
+    out.push({ plan, kind, relations: Array.from(rel), _start: emp ? (spDateIn(emp.StartDate) || '') : '', _name: emp ? String(emp.EmployeeName || '') : '' });
+  });
+  out.sort((a, b) => (a.kind === b.kind ? 0 : (a.kind === 'own' ? -1 : 1))
+    || (a._start === b._start ? 0 : (a._start < b._start ? 1 : -1))
+    || a._name.localeCompare(b._name));
+  return out.map(o => ({ plan: o.plan, kind: o.kind, relations: o.relations }));
+}
+
+// The selector: [{ planId, kind, joinerName }] from onbMyPlans.
+function onbPlanChoices(mine, people) {
+  return (mine || []).map(m => {
+    const emp = onbPlanParties(m.plan, people).employee;
+    return { planId: String(m.plan.id), kind: m.kind, joinerName: emp ? String(emp.EmployeeName || '') : '' };
+  });
+}
+
+// The tab signal for my-momentum-app.js: { plans: n }. Nothing unless the gate is live or Admin preview.
+function onbNavSignal({ gate = null, plans = [], people = [], email = '', role = '', peopleOpsActive = false } = {}) {
+  const state = gate && gate.state;
+  if (state !== 'live' && state !== 'preview') return { plans: 0 };
+  return { plans: onbMyPlans({ plans, people, email, role, peopleOpsActive }).length };
+}
+
+// The Library items a level filter shows. level '' = all; an item with no level tag shows under every filter.
+// -> { items, hidden }
+function onbLibraryFilter(items, level) {
+  const lv = normChecklistKey(level);
+  const all = items || [];
+  const shown = all.filter(i => !lv || !i.levelTag || normChecklistKey(i.levelTag) === lv);
+  return { items: shown, hidden: all.length - shown.length };
+}
+
+// One plan as a page model. progressRows = the person's ChecklistProgress rows, level = the Library filter key.
+// phases: [{ section, done, total, open, items }] (visible, non-Library steps, ONB-D20); summary counts those only (ONB-D32);
+// library: { items (filtered), hidden, all }. Each item: { itemKey, label, help, owner: { key, label, name, unnamed }, stepMode, guided,
+// levelTag, contentUrl, dueISO, dueText, overdue, done, doneByName, doneAt, canTick }.
+function onbPlanModel({ plan = null, people = [], templates = [], progressRows = [], email = '', role = '', peopleOpsActive = false, todayISO = '', level = '' } = {}) {
+  const O = CONFIG.ONBOARDING;
+  const parties = onbPlanParties(plan, people);
+  const emp = parties.employee;
+  const startDate = emp ? (spDateIn(emp.StartDate) || '') : '';
+  const rel = onbRelations({ plan, people, email, role, peopleOpsActive });
+  const kind = rel.has('employee') ? 'own' : (rel.has('buddy') ? 'buddy' : '');
+  const status = plan ? String(plan.Status || '') : '';
+  const readOnly = status !== O.PLAN_ACTIVE;
+  const progress = resolveChecklistProgress(progressRows);
+  const emailIndex = pdpEmailIndex(people);
+  const nameOf = e => { const r = _onbUniqueRow(emailIndex, e); return r ? String(r.EmployeeName || '') : String(e || ''); };
+
+  const steps = plan
+    ? activeChecklistItems(templates, O.RECORD_TYPE, plan.Track)
+        .filter(t => onbStepVisible({ step: t, relations: rel, startDate, todayISO }))
+    : [];
+  const phaseSteps = steps.filter(t => !onbIsLibraryStep(t));
+  const libSteps = steps.filter(t => onbIsLibraryStep(t));
+
+  const item = t => {
+    const f = onbStepFromRow(t);
+    const key = String(t.ItemKey == null ? '' : t.ItemKey);
+    const p = progress.get(key);
+    const done = !!(p && p.done);
+    const dueISO = onbStepDue(startDate, t);
+    const own = onbStepOwner({ step: t, parties, peopleOpsActive });
+    return {
+      itemKey: key,
+      label: String(t.ItemLabel == null ? '' : t.ItemLabel),
+      help: String(t.HelpText == null ? '' : t.HelpText),
+      owner: { key: own.key, label: own.label, name: own.person ? String(own.person.EmployeeName || '') : '', unnamed: own.key === 'Buddy' && !own.person },
+      stepMode: f.stepMode,
+      guided: f.stepMode === O.STEP_MODES[0],
+      levelTag: f.levelTag,
+      contentUrl: isSafeChecklistUrl(f.contentUrl) ? f.contentUrl : '',
+      dueISO,
+      dueText: onbDueText(f.dueOffsetDays),
+      overdue: !done && !!dueISO && !!todayISO && dueISO < todayISO,
+      done,
+      doneByName: done ? nameOf(p.by) : '',
+      doneAt: done ? String(p.at || '') : '',
+      canTick: !readOnly && !!key && onbCanTick({ step: t, relations: rel, peopleOpsActive, planStatus: status }),
+    };
+  };
+
+  const phases = groupChecklistItems(phaseSteps).map(g => {
+    const items = g.items.map(item);
+    const done = items.filter(i => i.done).length;
+    return { section: g.section, done, total: items.length, open: done < items.length, items };
+  });
+  const libAll = libSteps.length ? groupChecklistItems(libSteps).reduce((acc, g) => acc.concat(g.items), []).map(item) : [];
+  const lib = onbLibraryFilter(libAll, level);
+
+  return {
+    planId: plan ? String(plan.id) : '',
+    status,
+    readOnly,
+    kind,
+    joiner: { id: emp ? String(emp.id) : '', name: emp ? String(emp.EmployeeName || '') : '', startDate },
+    lineManagerName: parties.lineManager ? String(parties.lineManager.EmployeeName || '') : '',
+    buddyName: parties.buddy ? String(parties.buddy.EmployeeName || '') : '',
+    notStarted: !!startDate && !!todayISO && todayISO < startDate,
+    summary: onbPlanSummary({ steps: phaseSteps, progress, startDate, todayISO }),
+    phases,
+    library: { items: lib.items, hidden: lib.hidden, all: libAll },
   };
 }

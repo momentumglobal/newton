@@ -25,11 +25,11 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-451 AC3/AC6 config: tab registry — History, Details, Scorecard, Development and Team are live (N-452, N-453, N-456); order is the landing order',
+    name: 'N-451 AC3/AC6 config: tab registry — History, Details, Scorecard, Development, Onboarding (N-499) and Team are live (N-452, N-453, N-456); order is the landing order',
     fn: function () {
       const T = CONFIG.MY_MOMENTUM.TABS;
-      _assertEqual(_mmKeys(T), ['myHistory', 'myDetails', 'myScorecard', 'myDevelopment', 'myTeam'], 'AC6 order');
-      _assertEqual(T.filter(t => t.live).map(t => t.key), ['myHistory', 'myDetails', 'myScorecard', 'myDevelopment', 'myTeam'], 'AC3 live tabs (later tasks flip their own flag)');
+      _assertEqual(_mmKeys(T), ['myHistory', 'myDetails', 'myScorecard', 'myDevelopment', 'myOnboarding', 'myTeam'], 'AC6 order');
+      _assertEqual(T.filter(t => t.live).map(t => t.key), ['myHistory', 'myDetails', 'myScorecard', 'myDevelopment', 'myOnboarding', 'myTeam'], 'AC3 live tabs (later tasks flip their own flag)');
       _assertEqual(CONFIG.MY_MOMENTUM.ALL_STAFF_ROLES, ['admin', 'leadership', 'people_ops'], 'AC6 all-staff roles (MM-D8)');
     },
   },

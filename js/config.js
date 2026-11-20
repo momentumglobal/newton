@@ -1442,6 +1442,7 @@ const CONFIG = {
       { key: 'myDetails',     label: 'My Details',     live: true  },   // N-456 (restricted PeopleDetails list)
       { key: 'myScorecard',   label: 'My Scorecard',   live: true  },   // N-453 (moved from People)
       { key: 'myDevelopment', label: 'My Development', live: true  },   // N-452 (moved from People)
+      { key: 'myOnboarding',  label: 'My Onboarding',  live: true  },   // N-499 (shown only to a joiner or buddy with a plan, ONB-D28)
       { key: 'myTeam',        label: 'My Team',        live: true  },   // N-452 Development + N-453 Team Scorecards
     ],
     ALL_STAFF_ROLES: [_ROLE_IDS.ADMIN, _ROLE_IDS.LEADERSHIP, _ROLE_IDS.PEOPLE_OPS],

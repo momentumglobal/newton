@@ -87,6 +87,7 @@ async function renderMyMomentumPage(page) {
     case 'myDetails':     await renderMyDetailsPage(); break;       // N-456 (my-details-ui.js)
     case 'myScorecard':   await renderMyScorecardPage(); break;     // N-453 (my-momentum-scorecard.js)
     case 'myDevelopment': await renderMyDevelopmentPage(); break;   // N-438, moved by N-452 (pdp-my.js)
+    case 'myOnboarding':  await renderMyOnboardingPage(); break;    // N-499 (onboarding-my-ui.js)
     case 'myTeam':        await renderMyTeamPage(); break;          // N-452 Development (pdp-team-page.js) + N-453 Team Scorecards
     default:
       main.innerHTML = '<p>Page not found.</p>';

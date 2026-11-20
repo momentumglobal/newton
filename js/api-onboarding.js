@@ -162,3 +162,77 @@ async function getOnboardingPlanInputs() {
   ]);
   return { plans, people, templates };
 }
+
+
+// ── My Onboarding page (N-499 / ONB-4) ──────────────────────────────────
+// The joiner's and the buddy's view (ONB-D30). Rights come from the plan's relations (onbRelations / onbCanTick), never from the role alone:
+// Leadership and People Ops see nothing here unless they are themselves a joiner or a buddy (ONB-D9). Under Ghost Mode the identity is the
+// ghosted person's and DoneByEmail stays the real signed-in user (setChecklistItemDone), as every checklist does.
+
+// { email, role }: the Ghost-aware viewer, as resolveOnboardingGate sees them.
+async function _onbViewerCtx() {
+  await _ensureGhostGate();
+  const realEmail = getCurrentUser()?.email || '';
+  return { email: pdpEffectiveEmail(realEmail, getGhostUser()), role: await getEffectiveRole(realEmail) };
+}
+
+// The tab signal for my-momentum-app.js: { plans: n }. Any read failure is { plans: 0 } (the tab stays hidden, nothing throws).
+async function resolveOnboardingNav() {
+  try {
+    const { email, role } = await _onbViewerCtx();
+    const [gate, plans, people] = await Promise.all([resolveOnboardingGate(), getOnboardingPlans(), getPeople(false)]);
+    return onbNavSignal({ gate, plans, people, email, role, peopleOpsActive: gate.peopleOpsActive });
+  } catch (e) {
+    console.warn('My Onboarding: tab signal unavailable', e);
+    return { plans: 0 };
+  }
+}
+
+// The page for one plan the viewer relates to (planId '' = the first of their plans). Only that plan's progress is read.
+// -> { none: true, gateState } when the viewer has no plan, else the onbPlanModel plus { gateState, choices }.
+// Throws for a plan the viewer does not relate to, before any progress read.
+async function getOnboardingPlanView(planId, { level = '' } = {}) {
+  const { email, role } = await _onbViewerCtx();
+  const O = CONFIG.ONBOARDING;
+  const [gate, plans, people, templates] = await Promise.all([
+    resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE),
+  ]);
+  if (gate.state !== 'live' && gate.state !== 'preview') return { none: true, gateState: gate.state };
+  const mine = onbMyPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive });
+  if (!mine.length) return { none: true, gateState: gate.state };
+  const want = String(planId == null ? '' : planId).trim();
+  const entry = want ? mine.find(m => String(m.plan.id) === want) : mine[0];
+  if (!entry) throw new Error('That onboarding plan is not available to you.');
+  const progressRows = await getChecklistProgress(O.RECORD_TYPE, { recordId: entry.plan.PersonID });
+  const model = onbPlanModel({
+    plan: entry.plan, people, templates, progressRows, email, role, peopleOpsActive: gate.peopleOpsActive, todayISO: localDayISO(), level,
+  });
+  return Object.assign(model, { gateState: gate.state, choices: onbPlanChoices(mine, people) });
+}
+
+// Tick or untick one step. Fresh reads, then every rule again: live gate (Preview is read-only), a plan the viewer relates to, Active,
+// an active visible step, and onbCanTick. One ChecklistProgress row is created or updated; unticking keeps the row (Done = false).
+async function tickOnboardingStep({ planId, itemKey, done } = {}) {
+  const O = CONFIG.ONBOARDING;
+  const { email, role } = await _onbViewerCtx();
+  if (typeof done !== 'boolean') throw new Error('A tick must be true or false.');
+  _onbDropCaches();
+  const [gate, plans, people, templates] = await Promise.all([
+    resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE),
+  ]);
+  if (gate.state === 'preview') throw new Error('Preview is read-only.');
+  if (gate.state !== 'live') throw new Error('Onboarding is not available to you.');
+  const entry = onbMyPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive })
+    .find(m => String(m.plan.id) === String(planId == null ? '' : planId).trim());
+  if (!entry) throw new Error('That onboarding plan is not available to you.');
+  if (entry.plan.Status !== O.PLAN_ACTIVE) throw new Error('This plan is no longer active.');
+  const key = String(itemKey == null ? '' : itemKey).trim();
+  const step = key ? activeChecklistItems(templates, O.RECORD_TYPE, entry.plan.Track).find(t => String(t.ItemKey == null ? '' : t.ItemKey).trim() === key) : null;
+  const emp = onbPlanParties(entry.plan, people).employee;
+  const startDate = emp ? (spDateIn(emp.StartDate) || '') : '';
+  if (!step || !onbStepVisible({ step, relations: entry.relations, startDate, todayISO: localDayISO() })) throw new Error('That step is not part of this plan.');
+  if (!onbCanTick({ step, relations: entry.relations, peopleOpsActive: gate.peopleOpsActive, planStatus: entry.plan.Status })) throw new Error(O.PLAN_TEXT.tickNoRights);
+  const rows = await getChecklistProgress(O.RECORD_TYPE, { recordId: entry.plan.PersonID });
+  const prev = resolveChecklistProgress(rows).get(key) || null;
+  return setChecklistItemDone(O.RECORD_TYPE, entry.plan.PersonID, key, done, prev ? prev.rowId : null);
+}

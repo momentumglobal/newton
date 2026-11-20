@@ -81,3 +81,86 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 .mmd-back { margin-bottom: var(--sp-6); font-size: var(--fs-13); }
 .mmd-names { margin: var(--sp-3) 0 var(--sp-6); padding-left: var(--sp-8); font-size: var(--fs-13); }
 @media print { .mmsc-chart { break-inside: avoid; } }
+
+/* N-499: My Onboarding > Onboarding Plan (onboarding-my-ui.js). Tokens only; the step list mirrors the role checklist look (roles.css is not loaded here). */
+.onb-selector { display: flex; align-items: center; gap: var(--sp-4); margin: 0 0 var(--sp-7); }
+.onb-selector label { color: var(--text-label); font-size: var(--fs-13); font-weight: var(--fw-semibold); }
+.onb-note {
+  margin: 0 0 var(--sp-7);
+  padding: var(--sp-5) var(--sp-7);
+  background: var(--surface-alt);
+  border: 1px solid var(--surface-alt-border);
+  border-radius: var(--r-lg);
+  color: var(--text-secondary);
+  font-size: var(--fs-13);
+}
+.onb-head { margin: 0 0 var(--sp-9); }
+.onb-head-name { margin: 0; color: var(--text-heading); font-size: var(--fs-subheading); font-weight: var(--fw-semibold); }
+.onb-head-start { margin: var(--sp-2) 0 0; color: var(--text-secondary); font-size: var(--fs-13); }
+.onb-meta { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-9); margin: var(--sp-6) 0; }
+.onb-meta dt { color: var(--text-label); font-size: var(--fs-12); font-weight: var(--fw-semibold); }
+.onb-meta dd { margin: 0; color: var(--text-primary); font-size: var(--fs-14); }
+.onb-progress-bar {
+  display: block;
+  width: 100%;
+  height: 8px;
+  border: none;
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  background: var(--surface-sunken);
+  -webkit-appearance: none;
+  appearance: none;
+}
+.onb-progress-bar::-webkit-progress-bar   { background: var(--surface-sunken); border-radius: var(--r-pill); }
+.onb-progress-bar::-webkit-progress-value { background: var(--status-neutral); border-radius: var(--r-pill); }
+.onb-progress-bar::-moz-progress-bar      { background: var(--status-neutral); border-radius: var(--r-pill); }
+.onb-progress-text { margin-top: var(--sp-3); color: var(--text-primary); font-size: var(--fs-14); }
+.onb-progress-next { margin-top: var(--sp-2); color: var(--text-secondary); font-size: var(--fs-13); }
+
+.onb-phase { margin: 0 0 var(--sp-9); }
+.onb-phase-head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-4); margin: 0 0 var(--sp-4); }
+.onb-phase-title { margin: 0; color: var(--text-heading); font-size: var(--fs-subheading); font-weight: var(--fw-semibold); }
+.onb-phase-count { color: var(--text-secondary); font-size: var(--fs-13); }
+.onb-phase-toggle { margin-left: auto; }
+.onb-hint { margin: 0 0 var(--sp-5); color: var(--text-secondary); font-size: var(--fs-13); }
+.onb-levels { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin: 0 0 var(--sp-6); }
+.onb-level.is-active { background: var(--surface-alt); border-color: var(--border-strong); color: var(--text-heading); font-weight: var(--fw-semibold); }
+.onb-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2xl);
+  box-shadow: var(--elev-card);
+}
+.onb-steps[hidden] { display: none; }
+.onb-step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-7);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.onb-step:last-child { border-bottom: none; }
+.onb-step-check { flex-shrink: 0; width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--brand); cursor: pointer; }
+.onb-step-check:disabled { cursor: not-allowed; }
+.onb-step-body { flex: 1; min-width: 0; }
+.onb-step-label { color: var(--text-primary); font-weight: var(--fw-medium); cursor: pointer; }
+.onb-step-check:disabled + .onb-step-body .onb-step-label { cursor: default; }
+.onb-step--done .onb-step-label { color: var(--text-secondary); }
+.onb-step-help { margin-top: var(--sp-2); color: var(--text-secondary); font-size: var(--fs-13); }
+.onb-step-meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3) var(--sp-4); margin-top: var(--sp-4); }
+.onb-step-done { margin-top: var(--sp-2); color: var(--text-muted); font-size: var(--fs-12); }
+.onb-due { color: var(--text-secondary); font-size: var(--fs-13); }
+.onb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-link);
+  font-size: var(--fs-13);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+}
+.onb-link:hover { color: var(--text-link-hover); text-decoration: underline; }
+.onb-link svg { width: 14px; height: 14px; }

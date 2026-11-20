@@ -538,7 +538,7 @@ ASSERTIONS.push(
       _assertEqual(onbStepFromRow({ Owner: 'x', StepMode: 'nope', LevelTag: 'Senior', DueOffsetDays: '2.5' }).dueOffsetDays, null, 'AC11 non-integer offset -> null');
       _assertEqual(onbStepFromRow({ DueOffsetDays: '7' }).dueOffsetDays, 7, 'AC11 numeric string offset');
       _assertEqual([onbDueText(0), onbDueText(3), onbDueText(-5), onbDueText(-1), onbDueText(null), onbDueText(2.5), onbDueText('')],
-        ['Start day', 'Day 3', '5 days before start', '1 day before start', '', '', ''], 'AC5 due text');
+        ['Day 1 (start day)', 'Day 4', '5 days before start', '1 day before start', '', '', ''], 'AC5 due text');
       _assertEqual(onbTrackKeys(), ['TP'], 'tracks');
       _assertEqual([onbTrackLabel('TP'), onbTrackLabel('tp'), onbTrackLabel('XX')], ['Talent Partner', 'Talent Partner', 'XX'], 'track labels');
     },

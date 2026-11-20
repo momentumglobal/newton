@@ -1,0 +1,3 @@
+# False positive: checklist item key in the onboarding seed (not a secret).
+# generic-api-key fires on `key:` + entropy; key is onb_tp_day30-signoff. N-507.
+4bcbf926314d57b2b4f82c10ba59bdbc7c53ebdd:js/onboarding-seed.js:generic-api-key:39

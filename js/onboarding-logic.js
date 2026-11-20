@@ -414,7 +414,7 @@ function onbDueText(offset) {
   const n = Number(offset);
   if (!Number.isInteger(n)) return '';
   if (n === 0) return T.dueStart;
-  if (n > 0) return T.dueAfter.replace('{n}', String(n));
+  if (n > 0) return T.dueAfter.replace('{n}', String(n + 1));   // N-508: the start day is Day 1, so offset n reads as Day n+1
   return n === -1 ? T.dueBefore1 : T.dueBefore.replace('{n}', String(-n));
 }
 

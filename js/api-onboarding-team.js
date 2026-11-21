@@ -77,6 +77,26 @@ async function _onbTeamWriteCtx(planId) {
   return { gate, entry, plan: entry.plan, people, templates, signoffs, email, role };
 }
 
+// Tick or untick one step from My Team (ONB-D72). tickOnboardingStep only knows the viewer's OWN and buddy plans (onbMyPlans), so a line
+// manager or CSD needs this one: same rules, but the plan comes from onbTeamPlans. The two sign-off-linked steps are refused here (they follow
+// the sign-offs, ONB-D71). -> the setChecklistItemDone result.
+async function tickOnboardingTeamStep({ planId, itemKey, done } = {}) {
+  const O = CONFIG.ONBOARDING;
+  if (typeof done !== 'boolean') throw new Error('A tick must be true or false.');
+  const c = await _onbTeamWriteCtx(planId);
+  const key = String(itemKey == null ? '' : itemKey).trim();
+  const step = key ? activeChecklistItems(c.templates, O.RECORD_TYPE, c.plan.Track).find(t => String(t.ItemKey == null ? '' : t.ItemKey).trim() === key) : null;
+  const emp = onbPlanParties(c.plan, c.people).employee;
+  const startDate = emp ? (spDateIn(emp.StartDate) || '') : '';
+  const rel = new Set(c.entry.relations);
+  if (!step || !onbStepVisible({ step, relations: rel, startDate, todayISO: localDayISO() })) throw new Error('That step is not part of this plan.');
+  if (onbSignoffStepKind(step)) throw new Error(O.PLAN_TEXT.signoffHint);
+  if (!onbCanTick({ step, relations: rel, peopleOpsActive: c.gate.peopleOpsActive, planStatus: c.plan.Status })) throw new Error(O.PLAN_TEXT.tickNoRights);
+  const rows = await getChecklistProgress(O.RECORD_TYPE, { recordId: c.plan.PersonID });
+  const prev = resolveChecklistProgress(rows).get(key) || null;
+  return setChecklistItemDone(O.RECORD_TYPE, c.plan.PersonID, key, done, prev ? prev.rowId : null);
+}
+
 // Sign off or withdraw the role-play (kind 'roleplay') or the Day-30 line-manager review (kind 'day30'). One OnboardingSignoffs row is created
 // (Signed / Withdrawn, the real signed-in user, today). Then the linked checklist step is ticked or unticked (ONB-D71); if only that fails the
 // sign-off still stands and the result carries a warning. -> { ok: true, warning: '' | 'step' }

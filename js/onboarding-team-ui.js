@@ -224,7 +224,7 @@ async function onbtTick(planId, itemKey, checked) {
   const T = CONFIG.ONBOARDING.PLAN_TEXT;
   _onbtLock();
   try {
-    await tickOnboardingStep({ planId, itemKey, done: checked === true });
+    await tickOnboardingTeamStep({ planId, itemKey, done: checked === true });
   } catch (e) {
     console.error('My Team onboarding: tick failed', e);
     toast(`${T.tickFailed} ${(e && e.message) || e}`, { type: 'error' });

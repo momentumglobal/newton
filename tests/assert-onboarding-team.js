@@ -164,6 +164,10 @@ ASSERTIONS.push(
       _assertEqual((sign.match(/createItem\(/g) || []).length, 1, 'AC9 exactly one OnboardingSignoffs row per sign-off');
       _assertEqual(/updateItem\(/.test(sign), false, 'AC9 a sign-off never touches the plan row');
       _assertEqual(sign.indexOf('onbSignoffRights(') > -1 && sign.indexOf('onbSignoffRights(') < sign.indexOf('createItem('), true, 'AC9 rights checked before the write');
+      const tk = api.slice(api.indexOf('async function tickOnboardingTeamStep'), api.indexOf('async function signOffOnboarding'));
+      _assertEqual(tk.indexOf('_onbTeamWriteCtx(') > -1 && tk.indexOf('_onbTeamWriteCtx(') < tk.indexOf('setChecklistItemDone(') && /onbSignoffStepKind\(step\)/.test(tk) && /onbCanTick\(/.test(tk) && !/onbMyPlans\(/.test(tk), true, 'AC9 a My Team tick uses the team plans, refuses linked steps, checks onbCanTick');
+      const ui = _onbSrc('onboarding-team-ui.js');
+      _assertEqual(/tickOnboardingTeamStep\(/.test(ui) && !/[^m]tickOnboardingStep\(/.test(ui), true, 'AC9 the page ticks through the team writer');
       const cs = api.slice(api.indexOf('async function countersignOnboarding'));
       _assertEqual((cs.match(/updateItem\(/g) || []).length, 1, 'AC9 one update closes the plan');
       _assertEqual(cs.indexOf('_onbPlanWriteGate()') > -1 && cs.indexOf('_onbPlanWriteGate()') < cs.indexOf('updateItem('), true, 'AC9 Admin gate before the update');

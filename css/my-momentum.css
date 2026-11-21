@@ -170,7 +170,12 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 .onb-rit-title { margin: 0 0 var(--sp-5); color: var(--text-heading); font-size: var(--fs-14); font-weight: var(--fw-semibold); }
 .onb-rit-text { margin: 0 0 var(--sp-4); color: var(--text-primary); font-size: var(--fs-14); }
 .onb-rit-steps { counter-reset: none; }
-.onb-rit-card .onb-steps + .onb-hint { margin-top: var(--sp-7); }
+.onb-phase .onb-steps + p,
+.onb-phase .table-scroll + p,
+.onb-phase .onbx-list + p,
+.onb-rit-card .onb-steps + p,
+.onb-rit-card .table-scroll + p,
+.onb-rit-card .onbx-list + p { margin-top: var(--sp-7); }
 .onb-rit-num {
   flex-shrink: 0;
   width: 22px;

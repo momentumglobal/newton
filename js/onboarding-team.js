@@ -166,11 +166,14 @@ function onbTeamRow({ model = null, plan = null, relations = [], state = null, r
 }
 
 // "My actions" across rows for one viewer: the open steps they own (LM-owned for a line manager; CSD-owned, and People Ops steps while the
-// CSD stands in for People Ops, for a CSD), and the sign-offs they may take now. The two sign-off steps are not listed as steps: the sign-off
-// action stands for them. Only rows on an Active plan. Grouped per joiner, in row order; within a joiner, overdue steps first.
-// -> [{ planId, name, steps: [item], signoffs: [{ kind: 'roleplay'|'day30'|'countersign', label }] }]
+// CSD stands in for People Ops, for a CSD), and the sign-offs they may take now. A sign-off sits IN the list at the due position of its linked
+// step (M05 role-play, Day 30), so the joiner's actions read in one due-date order; the countersign comes last. Only rows on an Active plan.
+// Grouped per joiner, in row order; within a joiner, overdue first then by due date.
+// -> [{ planId, name, entries: [{ type: 'step', item } | { type: 'signoff', kind: 'roleplay'|'day30'|'countersign', label }], steps, signoffs }]
+//    (steps / signoffs are the same entries split by type, for callers that only want one.)
 function onbTeamActions(rows) {
   const T = CONFIG.ONBOARDING.TEAM_TEXT;
+  const part = { roleplay: 'roleplay', day30: 'day30lm' };
   const out = [];
   (rows || []).forEach(row => {
     if (row.complete) return;
@@ -178,14 +181,25 @@ function onbTeamActions(rows) {
     const mine = o => (o.key === 'LM' && rel.has('lm'))
       || (o.key === 'CSD' && rel.has('csd'))
       || (o.key === 'PeopleOps' && rel.has('csd') && row.peopleOpsActive !== true);
-    const steps = [];
-    row.byOwner.filter(g => mine(g)).forEach(g => g.items.forEach(i => { if (!i.signoff) steps.push(i); }));
-    steps.sort((a, b) => (a.overdue === b.overdue ? 0 : (a.overdue ? -1 : 1)) || String(a.dueISO || '9999').localeCompare(String(b.dueISO || '9999')));
-    const signoffs = [];
-    if (row.signoff.roleplay.canSign) signoffs.push({ kind: 'roleplay', label: T.roleplay });
-    if (row.signoff.day30lm.canSign) signoffs.push({ kind: 'day30', label: T.day30lm });
-    if (row.signoff.csd.canSign) signoffs.push({ kind: 'countersign', label: T.csd });
-    if (steps.length || signoffs.length) out.push({ planId: row.planId, name: row.name, steps, signoffs });
+    const label = { roleplay: T.roleplay, day30: T.day30lm, countersign: T.csd };
+    const can = k => !!(row.signoff[k === 'countersign' ? 'csd' : part[k]] || {}).canSign;
+    const open = [];
+    row.byOwner.forEach(g => g.items.forEach(i => open.push(i)));
+    const seen = new Set();
+    const entries = [];
+    open.filter(i => i.signoff ? can(i.signoff) : row.byOwner.some(g => mine(g) && g.items.includes(i)))
+      .sort((a, b) => (a.overdue === b.overdue ? 0 : (a.overdue ? -1 : 1)) || String(a.dueISO || '9999').localeCompare(String(b.dueISO || '9999')))
+      .forEach(i => {
+        if (i.signoff) { seen.add(i.signoff); entries.push({ type: 'signoff', kind: i.signoff, label: label[i.signoff] }); }
+        else entries.push({ type: 'step', item: i });
+      });
+    ['roleplay', 'day30'].forEach(k => { if (can(k) && !seen.has(k)) entries.push({ type: 'signoff', kind: k, label: label[k] }); });
+    if (can('countersign')) entries.push({ type: 'signoff', kind: 'countersign', label: label.countersign });
+    if (entries.length) out.push({
+      planId: row.planId, name: row.name, entries,
+      steps: entries.filter(e => e.type === 'step').map(e => e.item),
+      signoffs: entries.filter(e => e.type === 'signoff').map(e => ({ kind: e.kind, label: e.label })),
+    });
   });
   return out;
 }

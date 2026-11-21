@@ -225,6 +225,8 @@ CONFIG.ONBOARDING.TEAM_TEXT = {
   tileSignoff:    'Awaiting sign-off',
   actionsTitle:   'My actions',
   actionsEmpty:   'Nothing is waiting for you.',
+  filterLabel:    'Joiner',
+  filterAll:      'All joiners',
   joinersTitle:   'Joiners',
   completedTitle: 'Completed',
   startsOn:       'Starts {date}',

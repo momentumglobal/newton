@@ -122,6 +122,26 @@ ASSERTIONS.push(
     },
   },
   {
+    name: 'N-502 fix2 My actions: a sign-off sits at its linked step\'s due position, countersign last; the joiner filter narrows actions and cards',
+    fn: function () {
+      const x = _onbtFx();
+      const tpl = (key, extra) => Object.assign({ id: key, RecordType: 'person', Variant: 'TP', Active: true, ItemKey: key, ItemLabel: 'Step ' + key, Section: 'Week 1', SectionOrder: 2, ItemOrder: 1, Owner: 'LM', DueOffsetDays: 2, StepMode: 'Guided', Required: true, LevelTag: '', ContentUrl: '', HelpText: '' }, extra);
+      const templates = [tpl('early', { DueOffsetDays: 1 }), tpl('onb_tp_m05', { DueOffsetDays: 5, ItemOrder: 2 }), tpl('late', { DueOffsetDays: 9, ItemOrder: 3 }), tpl('onb_tp_day30-signoff', { Section: 'Day 30', SectionOrder: 3, DueOffsetDays: 30 })];
+      const mdl = _onbtModel(x, { templates });
+      const names = mdl.actions[0].entries.map(e => (e.type === 'step' ? e.item.itemKey : 'SIGN:' + e.kind));
+      _assertEqual(names, ['early', 'SIGN:roleplay', 'late'], 'fix2 the role-play sign-off sits between its due-date neighbours, not above them');
+      const view = Object.assign({ gateState: 'live', readOnly: false }, mdl);
+      const second = Object.assign({}, view.rows[0], { planId: '31', name: 'Zed Other' });
+      const two = Object.assign({}, view, { rows: view.rows.concat([second]), actions: view.actions.concat([Object.assign({}, view.actions[0], { planId: '31', name: 'Zed Other' })]) });
+      if (typeof onbtPageHtml !== 'function') _skip('needs onboarding-team-ui.js');
+      const all = onbtPageHtml(two, { open: [], person: '' }), one = onbtPageHtml(two, { open: [], person: '31' });
+      _assertEqual([all.includes('Nina New'), all.includes('Zed Other'), all.includes('onbt-person')], [true, true, true], 'fix2 filter drawn with two joiners, both listed');
+      _assertEqual([one.includes('Nina New</h3>'), one.includes('Zed Other</h3>')], [false, true], 'fix2 the filter narrows actions and cards to one joiner');
+      _assertEqual(onbtPageHtml(view, { open: [], person: '' }).includes('onbt-person'), false, 'fix2 no filter for a single joiner');
+      _assertEqual(onbtPageHtml(two, { open: [], person: 'gone' }).includes('Nina New'), true, 'fix2 an unknown filter value shows everyone');
+    },
+  },
+  {
     name: 'N-502 AC7 onbPdpLabel: status only, each state worded, unknown = unavailable',
     fn: function () {
       const T = CONFIG.ONBOARDING.TEAM_TEXT.pdp;

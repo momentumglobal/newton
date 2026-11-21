@@ -216,6 +216,7 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 .onbt-tile-num { font-size: var(--fs-26); font-weight: var(--fw-semibold); color: var(--text-primary); }
 .onbt-tile-label { color: var(--text-secondary); font-size: var(--fs-13); }
 .onbt-section { margin: 0 0 var(--sp-8); }
+.onbt-filter { max-width: 320px; margin: 0 0 var(--sp-6); }
 .onbt-group { margin: 0 0 var(--sp-6); }
 .onbt-sub { margin: 0 0 var(--sp-4); color: var(--text-primary); font-size: var(--fs-14); font-weight: var(--fw-semibold); }
 .onbt-card { margin: 0 0 var(--sp-6); }
@@ -225,7 +226,12 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 .onbt-block { margin: 0 0 var(--sp-6); }
 .onbt-owner { margin: 0 0 var(--sp-5); }
 .onbt-owner-title { margin: 0; color: var(--text-label); font-size: var(--fs-13); font-weight: var(--fw-semibold); }
-.onbt-signoffs { list-style: none; margin: 0 0 var(--sp-4); padding: 0; display: grid; gap: var(--sp-4); }
-.onbt-signoff { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-4); }
+.onbt-block--signoffs { background: var(--surface-sunken); border: 1px solid var(--border-subtle); border-radius: var(--r-lg); padding: var(--sp-6); }
+.onbt-signoffs { list-style: none; margin: 0 0 var(--sp-4); padding: 0; display: grid; gap: var(--sp-5); }
+.onbt-signoff { display: grid; grid-template-columns: minmax(220px, 1.4fr) minmax(160px, 1fr) auto; align-items: center; gap: var(--sp-2) var(--sp-5); }
+.onbt-signoff + .onbt-signoff { border-top: 1px solid var(--border-subtle); padding-top: var(--sp-5); }
 .onbt-signoff-label { font-weight: var(--fw-semibold); color: var(--text-primary); }
-.onbt-signoff-state { color: var(--text-secondary); font-size: var(--fs-13); }
+.onbt-signoff-act { display: flex; gap: var(--sp-3); justify-content: flex-end; }
+.onbt-signoff-why { grid-column: 1 / -1; color: var(--text-secondary); font-size: var(--fs-13); }
+.onbt-signoff-pdp { margin: 0; color: var(--text-secondary); font-size: var(--fs-13); }
+@media (max-width: 720px) { .onbt-signoff { grid-template-columns: 1fr; } .onbt-signoff-act { justify-content: flex-start; } }

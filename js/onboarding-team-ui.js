@@ -16,6 +16,7 @@ let _onbtState = {
   error:         '',
   open:          new Set(),   // plan ids whose card the viewer has opened (cards start collapsed)
   completedOpen: false,       // the Completed section starts collapsed
+  person:        '',          // plan id the page is narrowed to ('' = every joiner)
 };
 
 // ── Markup (pure) ───────────────────────────────────────────────────────
@@ -44,7 +45,7 @@ function _onbtActionsHtml(actions, counter) {
   const body = (actions || []).length
     ? actions.map(a => `<div class="onbt-group">
         <h3 class="onbt-sub">${escHtml(a.name)}</h3>
-        <ul class="onb-steps">${a.signoffs.map(so => _onbtActionRowHtml(a.planId, so)).join('')}${a.steps.map(it => _onbmStepHtml(it, counter.n++, _onbtTickAttr(a.planId))).join('')}</ul>
+        <ul class="onb-steps">${a.entries.map(e => e.type === 'signoff' ? _onbtActionRowHtml(a.planId, e) : _onbmStepHtml(e.item, counter.n++, _onbtTickAttr(a.planId))).join('')}</ul>
       </div>`).join('')
     : `<p class="ppl-muted-note">${escHtml(T.actionsEmpty)}</p>`;
   return `<section class="ppl-card onbt-section">
@@ -57,8 +58,8 @@ function _onbtActionsHtml(actions, counter) {
 function _onbtSignoffRowHtml(row, part, kind) {
   const T = CONFIG.ONBOARDING.TEAM_TEXT;
   const state = part.signed
-    ? onbFillText(T.signedBy, { name: part.byName, date: _onbmDate(part.at) })
-    : T.notSigned;
+    ? _onbmChip(onbFillText(T.signedBy, { name: part.byName, date: _onbmDate(part.at) }), 'dh-badge-success')
+    : _onbmChip(T.notSigned);
   const sign = kind === 'countersign'
     ? `<button type="button" class="btn-primary"${act('onbtCountersign', row.planId)}>${escHtml(T.btnCountersign)}</button>`
     : `<button type="button" class="btn-primary"${act('onbtSignoff', row.planId, kind)}>${escHtml(T.btnSign)}</button>`;
@@ -66,23 +67,23 @@ function _onbtSignoffRowHtml(row, part, kind) {
   const reason = !part.signed && !part.canSign && part.reason && !row.complete && part.reason !== T.reasons.preview ? part.reason : '';
   return `<li class="onbt-signoff">
       <div class="onbt-signoff-label">${escHtml(part.label)}</div>
-      <div class="onbt-signoff-state">${escHtml(state)}</div>
-      ${part.canSign ? sign : ''}${part.canWithdraw ? withdraw : ''}
-      ${reason ? `<div class="onb-hint">${escHtml(reason)}</div>` : ''}
+      <div class="onbt-signoff-state">${state}</div>
+      <div class="onbt-signoff-act">${part.canSign ? sign : ''}${part.canWithdraw ? withdraw : ''}</div>
+      ${reason ? `<div class="onbt-signoff-why">${escHtml(reason)}</div>` : ''}
     </li>`;
 }
 
 function _onbtSignoffHtml(row) {
   const T = CONFIG.ONBOARDING.TEAM_TEXT;
   const s = row.signoff;
-  return `<section class="onbt-block">
+  return `<section class="onbt-block onbt-block--signoffs">
       <h4 class="onbt-sub">${escHtml(T.signoffTitle)}</h4>
       <ul class="onbt-signoffs">
         ${_onbtSignoffRowHtml(row, s.roleplay, 'roleplay')}
         ${_onbtSignoffRowHtml(row, s.day30lm, 'day30')}
         ${_onbtSignoffRowHtml(row, s.csd, 'countersign')}
       </ul>
-      <p class="onb-hint">${escHtml(T.pdpTitle)}: ${escHtml(row.pdp.text)}</p>
+      <p class="onbt-signoff-pdp">${escHtml(T.pdpTitle)}: ${escHtml(row.pdp.text)}</p>
     </section>`;
 }
 
@@ -154,7 +155,16 @@ function _onbtCompletedHtml(rows, open, counter) {
     </section>`;
 }
 
-// ui = { open: [plan ids], completedOpen, error }. view = getOnboardingTeamView() result, or null when it failed (ui.error says why).
+// The joiner filter: shown with two or more active joiners. selected = plan id or ''.
+function _onbtFilterHtml(rows, selected) {
+  const T = CONFIG.ONBOARDING.TEAM_TEXT;
+  if ((rows || []).length < 2) return '';
+  const opts = [{ id: '', name: T.filterAll }].concat(rows.map(r => ({ id: r.planId, name: r.name })))
+    .map(o => `<option value="${escAttr(o.id)}"${o.id === selected ? ' selected' : ''}>${escHtml(o.name)}</option>`).join('');
+  return `<div class="form-group onbt-filter"><label for="onbt-person">${escHtml(T.filterLabel)}</label><select id="onbt-person"${actOn('change', 'onbtFilter', ACT_VALUE)}>${opts}</select></div>`;
+}
+
+// ui = { open: [plan ids], completedOpen, error, person }. view = getOnboardingTeamView() result, or null when it failed (ui.error says why).
 // Returns the page body only (the heading and the My Team tab strip are drawn once by renderTeamOnboardingPage).
 function onbtPageHtml(view, ui) {
   const T = CONFIG.ONBOARDING.TEAM_TEXT;
@@ -163,8 +173,13 @@ function onbtPageHtml(view, ui) {
   if (!view || view.none || (!view.rows.length && !view.completed.length)) return emptyStateBlock({ icon: 'inbox', title: T.pageTitle, message: T.noJoiners });
   const counter = { n: 0 };
   const open = u.open || [];
+  const everyone = view.rows;
+  const pick = u.person && everyone.some(r => r.planId === u.person) ? u.person : '';   // a plan that has left the list clears the filter
+  const keep = r => !pick || r.planId === pick;
+  view = Object.assign({}, view, { rows: everyone.filter(keep), actions: (view.actions || []).filter(keep), completed: view.completed.filter(keep) });
   return (view.gateState === 'preview' ? `<p class="onb-note">${escHtml(T.previewNote)}</p>` : '')
     + _onbtTilesHtml(view.totals)
+    + _onbtFilterHtml(everyone, pick)
     + (view.readOnly || view.gateState === 'preview' ? '' : _onbtActionsHtml(view.actions, counter))
     + (view.rows.length ? `<section class="onbt-section"><div class="onb-phase-head"><h2 class="onb-phase-title">${escHtml(T.joinersTitle)}</h2></div>${view.rows.map(r => _onbtCardHtml(r, open.includes(r.planId), counter)).join('')}</section>` : '')
     + _onbtCompletedHtml(view.completed, !!u.completedOpen, counter);
@@ -181,7 +196,7 @@ function _onbtDraw() {
   const page = document.getElementById('onbt-page');
   if (!page) return;
   const s = _onbtState;
-  page.innerHTML = onbtPageHtml(s.view, { open: Array.from(s.open), completedOpen: s.completedOpen, error: s.error });
+  page.innerHTML = onbtPageHtml(s.view, { open: Array.from(s.open), completedOpen: s.completedOpen, error: s.error, person: s.person });
   lucide.createIcons();
 }
 
@@ -271,6 +286,11 @@ function onbtToggle(planId) {
   _onbtDraw();
 }
 
+function onbtFilter(planId) {
+  _onbtState.person = String(planId == null ? '' : planId);
+  _onbtDraw();
+}
+
 function onbtToggleCompleted() {
   _onbtState.completedOpen = !_onbtState.completedOpen;
   _onbtDraw();
@@ -288,5 +308,6 @@ registerActions({
   onbtCountersign,
   onbtToggle,
   onbtToggleCompleted,
+  onbtFilter,
   onbtRetry,
 });

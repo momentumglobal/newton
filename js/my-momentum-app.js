@@ -38,16 +38,17 @@ window.MY_MOMENTUM_APP = {
     // Each fails on its own: no identity -> the 'error' panel; no PDP signals -> the PDP tabs simply do not show; no scorecard
     // signal -> My Scorecard does not show (N-453; resolveScorecardNav reads the rows the scorecard page reads, so opening it is a cache hit).
     let identityFailed = false;
-    const [identity, pdpNav, scNav, onbNav] = await Promise.all([
+    const [identity, pdpNav, scNav, onbNav, onbTeamNav] = await Promise.all([
       getPdpIdentity().catch(e => { console.warn('My Momentum identity unavailable', e); identityFailed = true; return null; }),
       resolvePdpNav().catch(e => { console.warn('PDP tabs unavailable', e); return { my: false, team: false }; }),
       resolveScorecardNav().catch(e => { console.warn('My Scorecard availability unavailable', e); return { hasActivity: false }; }),
       resolveOnboardingNav().catch(e => { console.warn('My Onboarding availability unavailable', e); return { plans: 0, buddy: 0, actions: 0 }; }),   // N-499 / N-509: nothing to see -> neither tab shows
+      resolveOnboardingTeamNav().catch(e => { console.warn('My Team onboarding availability unavailable', e); return { team: 0 }; }),   // N-502: no joiners to look after -> no sub-tab
     ]);
     _mmIdentity = identity;
     _mmState = identityFailed ? 'error' : mmTabState(identity);
     // hasReports comes from the identity just loaded (no extra read): a manager with direct reports or a CSD tree gets Team Scorecards.
-    _mmSignals = { pdpMy: !!pdpNav.my, pdpTeam: !!pdpNav.team, hasReports: !!(identity && identity.me && ((identity.directReports || []).length || (identity.csdTree || []).length)), hasActivity: !!scNav.hasActivity, onbPlans: onbNav.plans > 0, onbBuddy: onbNav.buddy > 0, onbActions: onbNav.actions, onbRituals: !!onbNav.rituals };   // N-500: the Processes & Rituals tab
+    _mmSignals = { pdpMy: !!pdpNav.my, pdpTeam: !!pdpNav.team, hasReports: !!(identity && identity.me && ((identity.directReports || []).length || (identity.csdTree || []).length)), hasActivity: !!scNav.hasActivity, onbPlans: onbNav.plans > 0, onbBuddy: onbNav.buddy > 0, onbActions: onbNav.actions, onbRituals: !!onbNav.rituals, onbTeam: onbTeamNav.team > 0 };   // N-500: the Processes & Rituals tab
 
     renderMyMomentumNav(_mmResolvedRole);
     initCommandBar({ currentModule: 'myMomentum', role: _mmResolvedRole, navigateFn: 'navigateToMyMomentum' });

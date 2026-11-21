@@ -81,6 +81,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'employee-logic.js'),   // N-457: employee record page rules (pure; after my-details-logic.js)
   path.join(JS_DIR, 'checklist-logic.js'),
   path.join(JS_DIR, 'onboarding-logic.js'),    // N-496: pure onboarding rules (after checklist-logic.js and pdp-identity.js)
+  path.join(JS_DIR, 'onboarding-team.js'),     // N-502: pure My Team > Onboarding rules (straight after onboarding-logic.js)
   path.join(JS_DIR, 'starter-folder-logic.js'),
   path.join(JS_DIR, 'graph-client.js'),
   path.join(JS_DIR, 'api.js'),
@@ -94,6 +95,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'api-admin.js'),   // N-381: declarations only; createSlaDefaultRows is asserted
   path.join(JS_DIR, 'api-pdp-core.js'), // N-479: PDP switch, access report / re-point, update writers (before api-pdp.js)
   path.join(JS_DIR, 'api-pdp.js'),     // N-433: declarations only
+  path.join(JS_DIR, 'api-onboarding-team.js'), // N-502: declarations only (loaded after api-pdp.js, whose status reader it calls)
   path.join(JS_DIR, 'api-my-details.js'),  // N-456: declarations only
   path.join(JS_DIR, 'list-controls.js'),
   path.join(JS_DIR, 'pages-model.js'),
@@ -127,6 +129,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'onboarding-buddy-ui.js'), // N-509: the Buddying page markup is asserted (declarations only; DOM only inside the functions)
   path.join(JS_DIR, 'onboarding-rituals-ui.js'), // N-500: the Processes & Rituals page markup is asserted (declarations only; DOM only inside the functions)
   path.join(JS_DIR, 'onboarding-expectations-ui.js'), // N-501: the Expectations & SLAs page markup is asserted (declarations only; DOM only inside the functions)
+  path.join(JS_DIR, 'onboarding-team-ui.js'),   // N-502: the My Team > Onboarding page markup is asserted (declarations only; DOM only inside functions)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-tools.js'),   // N-393: Newton for Claude tools (declarations + MCP_TOOLS only)
   path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),
@@ -200,6 +203,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-my-details.js'),         // N-456
   path.join(TESTS_DIR, 'assert-employee-page.js'),      // N-457
   path.join(TESTS_DIR, 'assert-onboarding.js'),         // N-496
+  path.join(TESTS_DIR, 'assert-onboarding-team.js'),    // N-502
   path.join(TESTS_DIR, 'assert-long-functions.js'),     // N-477
 ];
 // N-259: starter-folder-logic.js (pure) loads straight after checklist-logic.js, which it calls.

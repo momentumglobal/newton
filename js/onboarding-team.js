@@ -1,0 +1,223 @@
+// js/onboarding-team.js — pure rules for My Team > Onboarding (N-502 / ONB-7, epic N-482)
+//
+// The line manager's and CSD's view of their joiners (ONB-D72): progress, overdue and next steps by owner, "My actions", and the two
+// sign-offs (ONB-D63..D69). Pure: no DOM, no Graph, no network. The reads and writes are getOnboardingTeamView / signOffOnboarding /
+// countersignOnboarding in api-onboarding.js; the markup is onboarding-team-ui.js. Reuses onbPlanModel / onbRelations / onbPlanParties
+// (onboarding-logic.js). my-momentum.html only, straight after onboarding-logic.js; never mobile.html, Newton for Claude or the Command Bar.
+//
+// Sign-offs: the line manager's role-play and Day-30 sign-offs are OnboardingSignoffs rows (append-only; the latest row per plan and kind
+// wins, a Withdrawn row = unsigned). The CSD countersign is two columns on the plan, written together with Status = Complete.
+
+function _onbtEmail(s) { return String(s == null ? '' : s).trim().toLowerCase(); }
+
+// Every plan this viewer looks after: Active or Complete plans where they are the joiner's line manager, their CSD, or an Admin.
+// -> [{ plan, relations }] in the order given (the model sorts).
+function onbTeamPlans({ plans = [], people = [], email = '', role = '', peopleOpsActive = false } = {}) {
+  const out = [];
+  (plans || []).forEach(plan => {
+    if (!plan || !CONFIG.ONBOARDING.PLAN_VISIBLE.includes(plan.Status)) return;
+    const rel = onbRelations({ plan, people, email, role, peopleOpsActive });
+    if (!(rel.has('lm') || rel.has('csd') || rel.has('admin'))) return;
+    out.push({ plan, relations: Array.from(rel) });
+  });
+  return out;
+}
+
+// One plan's sign-offs from the OnboardingSignoffs rows and the plan's own CSD columns.
+// -> { roleplay, day30lm, csd }, each { signed, byEmail, at }. The latest row per kind wins by numeric item id; Withdrawn = unsigned.
+function onbSignoffState({ signoffs = [], plan = null } = {}) {
+  const S = CONFIG.ONBOARDING.SIGNOFF;
+  const pid = plan ? String(plan.id) : '';
+  const latest = {};
+  (signoffs || []).forEach(r => {
+    if (!r || !pid || String(r.PlanID) !== pid || !S.KINDS.includes(r.Kind)) return;
+    const n = Number(r.id);
+    const id = Number.isFinite(n) ? n : -1;
+    if (!latest[r.Kind] || id > latest[r.Kind].id) latest[r.Kind] = { id, row: r };
+  });
+  const of = kind => {
+    const hit = latest[kind];
+    return hit && hit.row.Outcome === S.SIGNED
+      ? { signed: true, byEmail: _onbtEmail(hit.row.SignedByEmail), at: spDateIn(hit.row.SignedAt) || '' }
+      : { signed: false, byEmail: '', at: '' };
+  };
+  const csdBy = plan ? _onbtEmail(plan.CSDSignedByEmail) : '';
+  return {
+    roleplay: of(S.KINDS[0]),
+    day30lm:  of(S.KINDS[1]),
+    csd:      csdBy ? { signed: true, byEmail: csdBy, at: spDateIn(plan.CSDSignedAt) || '' } : { signed: false, byEmail: '', at: '' },
+  };
+}
+
+// ONB-D65. The Day-30 gate over one onbPlanModel: every Required phase step ticked (Library, and the two sign-off steps, left out) and
+// the role-play signed off. -> { ready, outstanding, roleplayMissing }
+function onbDay30Gate({ model = null, state = null } = {}) {
+  const items = ((model && model.phases) || []).reduce((acc, p) => acc.concat(p.items), []);
+  const outstanding = items.filter(i => i.required && !i.done && !i.signoff).length;
+  const roleplayMissing = !(state && state.roleplay && state.roleplay.signed);
+  return { ready: outstanding === 0 && !roleplayMissing, outstanding, roleplayMissing };
+}
+
+// ONB-D65 / D68 / D69. What the viewer may do with each sign-off now: { roleplay, day30lm, csd }, each { canSign, canWithdraw, reason }.
+// reason = why the button is off ('' when it is on or there is nothing to say). Nothing at all on a closed plan or in Preview (readOnly).
+//   role-play, Day-30 LM: the joiner's line manager only. Withdraw until the CSD countersigns (a Complete plan is closed).
+//   Day-30 LM sign: needs the gate. Role-play withdraw: not while the Day-30 LM sign-off stands.
+//   countersign: the joiner's CSD, or an Admin when the plan has no resolvable CSD; needs the Day-30 LM sign-off.
+function onbSignoffRights({ relations = [], planStatus = '', state = null, gate = null, csdPresent = true, readOnly = false } = {}) {
+  const R = CONFIG.ONBOARDING.TEAM_TEXT.reasons;
+  const rel = relations instanceof Set ? relations : new Set(relations || []);
+  const st = state || { roleplay: { signed: false }, day30lm: { signed: false }, csd: { signed: false } };
+  const g = gate || { ready: false, outstanding: 0, roleplayMissing: true };
+  const off = reason => ({ canSign: false, canWithdraw: false, reason });
+  const blocked = readOnly ? R.preview : (planStatus !== CONFIG.ONBOARDING.PLAN_ACTIVE ? R.closed : '');
+  if (blocked) return { roleplay: off(blocked), day30lm: off(blocked), csd: off(blocked) };
+  const isLm = rel.has('lm');
+  const isCsd = rel.has('csd') || (rel.has('admin') && csdPresent !== true);
+
+  const roleplay = !isLm ? off(R.onlyLm)
+    : st.roleplay.signed ? { canSign: false, canWithdraw: !st.day30lm.signed, reason: st.day30lm.signed ? R.keepRoleplay : '' }
+    : { canSign: true, canWithdraw: false, reason: '' };
+
+  let day30lm;
+  if (!isLm) day30lm = off(R.onlyLm);
+  else if (st.day30lm.signed) day30lm = { canSign: false, canWithdraw: true, reason: '' };
+  else if (g.ready) day30lm = { canSign: true, canWithdraw: false, reason: '' };
+  else {
+    const why = [];
+    if (g.outstanding) why.push(g.outstanding === 1 ? R.stepsOpen1 : onbFillText(R.stepsOpen, { n: g.outstanding }));
+    if (g.roleplayMissing) why.push(R.needRoleplay);
+    day30lm = off(why.join(' '));
+  }
+
+  const csd = !isCsd ? off(R.onlyCsd)
+    : !st.day30lm.signed ? off(R.needLm)
+    : { canSign: true, canWithdraw: false, reason: '' };
+  return { roleplay, day30lm, csd };
+}
+
+// The PDP joiner goal-setting status as a chip: { text, tone } (tone 'success' | 'warn' | ''). pdp = loadJoinerGoalSetting's entry
+// { state, dueISO, heldISO }; anything else is unavailable. Informational only (ONB-D66).
+function onbPdpLabel(pdp) {
+  const T = CONFIG.ONBOARDING.TEAM_TEXT.pdp;
+  const p = pdp || {};
+  const date = iso => formatLongDay(iso) || String(iso || '');
+  switch (p.state) {
+    case 'none':    return { text: T.none, tone: '' };
+    case 'planned': return { text: p.dueISO ? onbFillText(T.planned, { date: date(p.dueISO) }) : T.none, tone: 'warn' };
+    case 'held':    return { text: onbFillText(T.held, { date: date(p.heldISO) }), tone: 'success' };
+    case 'signed':  return { text: onbFillText(T.signed, { date: date(p.heldISO) }), tone: 'success' };
+    default:        return { text: T.unavailable, tone: '' };
+  }
+}
+
+// Whole days from StartDate to today, start day = 1 (the N-508 wording). 0 before the start day or without a date.
+function _onbtDayNumber(startDate, todayISO) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(startDate || '')) || !/^\d{4}-\d{2}-\d{2}$/.test(String(todayISO || '')) || todayISO < startDate) return 0;
+  const ms = iso => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
+  return Math.round((ms(todayISO) - ms(startDate)) / 86400000) + 1;
+}
+
+// One joiner as a card. model = onbPlanModel for the viewer; relations / peopleOpsActive as onbTeamPlans / the gate; nameOf(email) -> display name.
+// byOwner: the open steps grouped by owner (OWNERS order), overdue first then by due date. A step keeps its canTick (a sign-off step never has one).
+function onbTeamRow({ model = null, plan = null, relations = [], state = null, rights = null, gate = null, pdp = null, todayISO = '', peopleOpsActive = false, nameOf = null } = {}) {
+  const O = CONFIG.ONBOARDING;
+  const m = model || { phases: [], summary: { total: 0, done: 0, overdue: 0, nextDue: null }, joiner: { id: '', name: '', startDate: '' } };
+  const items = (m.phases || []).reduce((acc, p) => acc.concat(p.items), []);
+  const open = items.filter(i => !i.done);
+  const rank = (a, b) => (a.overdue === b.overdue ? 0 : (a.overdue ? -1 : 1)) || String(a.dueISO || '9999').localeCompare(String(b.dueISO || '9999'));
+  const byOwner = O.OWNERS.map(o => {
+    const mine = open.filter(i => i.owner.key === o.key).map((i, idx) => ({ i, idx }))
+      .sort((a, b) => rank(a.i, b.i) || a.idx - b.idx).map(x => x.i);
+    return mine.length ? { key: o.key, label: mine[0].owner.label, name: mine[0].owner.name, items: mine } : null;
+  }).filter(Boolean);
+  const s = m.summary;
+  const name = nameOf || (e => e);
+  const who = st => (st.signed ? name(st.byEmail) : '');
+  const sg = state || { roleplay: { signed: false }, day30lm: { signed: false }, csd: { signed: false } };
+  const r = rights || { roleplay: {}, day30lm: {}, csd: {} };
+  const part = (k, label) => Object.assign({ label, signed: !!sg[k].signed, byName: who(sg[k]), at: sg[k].at || '' }, r[k]);
+  return {
+    planId: m.planId,
+    personId: m.joiner.id,
+    name: m.joiner.name,
+    startDate: m.joiner.startDate,
+    dayNumber: _onbtDayNumber(m.joiner.startDate, todayISO),
+    status: m.status,
+    complete: m.status !== O.PLAN_ACTIVE,
+    done: s.done,
+    total: s.total,
+    pct: s.total ? Math.round(s.done / s.total * 100) : 0,
+    overdue: s.overdue,
+    next: s.nextDue ? { label: s.nextDue.label, dueISO: s.nextDue.due } : null,
+    lineManagerName: m.lineManagerName,
+    buddyName: m.buddyName,
+    relations: Array.from(relations instanceof Set ? relations : new Set(relations || [])),
+    peopleOpsActive: peopleOpsActive === true,
+    byOwner,
+    openCount: open.length,
+    gate: gate || { ready: false, outstanding: 0, roleplayMissing: true },
+    signoff: {
+      roleplay: part('roleplay', O.TEAM_TEXT.roleplay),
+      day30lm:  part('day30lm', O.TEAM_TEXT.day30lm),
+      csd:      part('csd', O.TEAM_TEXT.csd),
+    },
+    pdp: onbPdpLabel(pdp),
+  };
+}
+
+// "My actions" across rows for one viewer: the open steps they own (LM-owned for a line manager; CSD-owned, and People Ops steps while the
+// CSD stands in for People Ops, for a CSD), and the sign-offs they may take now. The two sign-off steps are not listed as steps: the sign-off
+// action stands for them. Only rows on an Active plan. Grouped per joiner, in row order; within a joiner, overdue steps first.
+// -> [{ planId, name, steps: [item], signoffs: [{ kind: 'roleplay'|'day30'|'countersign', label }] }]
+function onbTeamActions(rows) {
+  const T = CONFIG.ONBOARDING.TEAM_TEXT;
+  const out = [];
+  (rows || []).forEach(row => {
+    if (row.complete) return;
+    const rel = new Set(row.relations || []);
+    const mine = o => (o.key === 'LM' && rel.has('lm'))
+      || (o.key === 'CSD' && rel.has('csd'))
+      || (o.key === 'PeopleOps' && rel.has('csd') && row.peopleOpsActive !== true);
+    const steps = [];
+    row.byOwner.filter(g => mine(g)).forEach(g => g.items.forEach(i => { if (!i.signoff) steps.push(i); }));
+    steps.sort((a, b) => (a.overdue === b.overdue ? 0 : (a.overdue ? -1 : 1)) || String(a.dueISO || '9999').localeCompare(String(b.dueISO || '9999')));
+    const signoffs = [];
+    if (row.signoff.roleplay.canSign) signoffs.push({ kind: 'roleplay', label: T.roleplay });
+    if (row.signoff.day30lm.canSign) signoffs.push({ kind: 'day30', label: T.day30lm });
+    if (row.signoff.csd.canSign) signoffs.push({ kind: 'countersign', label: T.csd });
+    if (steps.length || signoffs.length) out.push({ planId: row.planId, name: row.name, steps, signoffs });
+  });
+  return out;
+}
+
+// The whole page model. progressByPlan = { planId: ChecklistProgress rows }; signoffs = OnboardingSignoffs rows; pdpByPerson = { personId: status }.
+// readOnly (Admin preview) strips every right and every tick. Rows: Active first (most overdue, then latest start), Complete last.
+// -> { rows, completed, actions, totals: { active, overdue, awaiting } }
+function onbTeamModel({ plans = [], people = [], templates = [], progressByPlan = {}, signoffs = [], pdpByPerson = {}, email = '', role = '', peopleOpsActive = false, todayISO = '', readOnly = false } = {}) {
+  const emailIndex = pdpEmailIndex(people);
+  const nameOf = e => {
+    const hit = (emailIndex.get ? emailIndex.get(_onbtEmail(e)) : null) || [];
+    return hit.length === 1 ? String(hit[0].EmployeeName || e) : String(e || '');
+  };
+  const all = onbTeamPlans({ plans, people, email, role, peopleOpsActive }).map(({ plan, relations }) => {
+    let model = onbPlanModel({ plan, people, templates, progressRows: (progressByPlan || {})[String(plan.id)] || [], email, role, peopleOpsActive, todayISO });
+    if (readOnly) model = Object.assign({}, model, { phases: model.phases.map(p => Object.assign({}, p, { items: p.items.map(i => Object.assign({}, i, { canTick: false })) })) });
+    const state = onbSignoffState({ signoffs, plan });
+    const gate = onbDay30Gate({ model, state });
+    const csdPresent = !!onbPlanParties(plan, people).csd;
+    const rights = onbSignoffRights({ relations, planStatus: plan.Status, state, gate, csdPresent, readOnly });
+    return onbTeamRow({ model, plan, relations, state, rights, gate, pdp: (pdpByPerson || {})[String(plan.PersonID)], todayISO, peopleOpsActive, nameOf });
+  });
+  const active = all.filter(r => !r.complete).sort((a, b) => (b.overdue - a.overdue) || String(b.startDate || '').localeCompare(String(a.startDate || '')) || a.name.localeCompare(b.name));
+  const completed = all.filter(r => r.complete).sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')) || a.name.localeCompare(b.name));
+  return {
+    rows: active,
+    completed,
+    actions: readOnly ? [] : onbTeamActions(active),
+    totals: {
+      active: active.length,
+      overdue: active.reduce((n, r) => n + r.overdue, 0),
+      awaiting: active.filter(r => r.signoff.roleplay.canSign || r.signoff.day30lm.canSign || r.signoff.csd.canSign || (r.signoff.day30lm.signed && !r.signoff.csd.signed)).length,
+    },
+  };
+}

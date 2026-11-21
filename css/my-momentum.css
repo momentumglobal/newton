@@ -209,3 +209,23 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 .onbx-table td { vertical-align: top; }
 .onbx-list { margin: 0 0 var(--sp-4); padding-left: var(--sp-9); }
 .onbx-list .onb-rit-text { margin: 0 0 var(--sp-3); }
+
+/* N-502: My Team > Onboarding. Tokens only; chips reuse .onb-chip / .badge--overdue / dh-badge-*. */
+.onbt-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--sp-6); margin: 0 0 var(--sp-8); }
+.onbt-tile { text-align: center; }
+.onbt-tile-num { font-size: var(--fs-26); font-weight: var(--fw-semibold); color: var(--text-primary); }
+.onbt-tile-label { color: var(--text-secondary); font-size: var(--fs-13); }
+.onbt-section { margin: 0 0 var(--sp-8); }
+.onbt-group { margin: 0 0 var(--sp-6); }
+.onbt-sub { margin: 0 0 var(--sp-4); color: var(--text-primary); font-size: var(--fs-14); font-weight: var(--fw-semibold); }
+.onbt-card { margin: 0 0 var(--sp-6); }
+.onbt-head { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-4); }
+.onbt-chips { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.onbt-details { margin-top: var(--sp-6); border-top: 1px solid var(--border-subtle); padding-top: var(--sp-6); }
+.onbt-block { margin: 0 0 var(--sp-6); }
+.onbt-owner { margin: 0 0 var(--sp-5); }
+.onbt-owner-title { margin: 0; color: var(--text-label); font-size: var(--fs-13); font-weight: var(--fw-semibold); }
+.onbt-signoffs { list-style: none; margin: 0 0 var(--sp-4); padding: 0; display: grid; gap: var(--sp-4); }
+.onbt-signoff { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-4); }
+.onbt-signoff-label { font-weight: var(--fw-semibold); color: var(--text-primary); }
+.onbt-signoff-state { color: var(--text-secondary); font-size: var(--fs-13); }

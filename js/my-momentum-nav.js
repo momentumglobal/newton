@@ -103,5 +103,6 @@ async function renderMyMomentumPage(page) {
 // N-453: My Team opens the sub-tab _mmTeamTab names (Development, or Team Scorecards).
 async function renderMyTeamPage() {
   if (_mmTeamTab === 'scorecards') await renderTeamScorecardsPage();
+  else if (_mmTeamTab === 'onboarding') await renderTeamOnboardingPage();   // N-502
   else await renderTeamDevelopmentPage();
 }

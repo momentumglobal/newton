@@ -25,6 +25,7 @@ function mmTeamSubTabs(ctx) {
   const tabs = [];
   if (s.pdpTeam) tabs.push({ key: 'development', label: 'Development' });
   if (s.hasReports || CONFIG.MY_MOMENTUM.ALL_STAFF_ROLES.includes(c.role)) tabs.push({ key: 'scorecards', label: 'Team Scorecards' });
+  if (s.onbTeam) tabs.push({ key: 'onboarding', label: 'Onboarding' });   // N-502: the LM's / CSD's joiners (and Admin's)
   return tabs;
 }
 

@@ -1557,7 +1557,7 @@ const CONFIG = {
     // (my-momentum-logic.js mmRedirectTarget).
     REDIRECTS: { myDevelopment: 'myDevelopment', teamDevelopment: 'myTeam', scorecards: 'myScorecard' },
     // N-453: hash / Command Bar keys that name a sub-tab, not a tab. my-momentum-logic.js mmResolveDeepLink().
-    DEEP_LINKS: { teamScorecards: { tab: 'myTeam', sub: 'scorecards' }, onboardingRituals: { tab: 'myOnboarding', sub: 'rituals' }, onboardingExpectations: { tab: 'myOnboarding', sub: 'expectations' } },   // N-500: Processes & Rituals sub-tab of My Onboarding; N-501: Expectations & SLAs
+    DEEP_LINKS: { teamScorecards: { tab: 'myTeam', sub: 'scorecards' }, teamOnboarding: { tab: 'myTeam', sub: 'onboarding' }, onboardingRituals: { tab: 'myOnboarding', sub: 'rituals' }, onboardingExpectations: { tab: 'myOnboarding', sub: 'expectations' } },   // N-500: Processes & Rituals sub-tab of My Onboarding; N-501: Expectations & SLAs
     // N-453: where a key lands when its own tab is not shown to this person (an old #scorecards link for a manager
     // or Admin with no activity of their own opens Team Scorecards, not the landing tab).
     DEEP_LINK_FALLBACKS: { myScorecard: 'teamScorecards' },

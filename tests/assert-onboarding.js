@@ -187,7 +187,7 @@ ASSERTIONS.push(
     fn: function () {
       const out = onbCleanPlanFields({ Title: ' Tia.Tp@MG.test ', PersonID: '4', Track: 'TP', Status: 'Active', StartedByEmail: 'Cara.Csd@mg.test', StartedAt: '2026-11-20', BuddyEmail: 'TOM.TP@mg.test', Extra: 'x', id: 9 });
       _assertEqual(out, { Title: 'tia.tp@mg.test', PersonID: 4, Track: 'TP', Status: 'Active', StartedByEmail: 'cara.csd@mg.test', StartedAt: '2026-11-20T12:00:00Z', BuddyEmail: 'tom.tp@mg.test' }, 'AC13 own columns only, lower-cased, date-only at midday UTC');
-      _assertEqual(Object.keys(out), CONFIG.ONBOARDING.PLAN_FIELDS, 'AC13 exactly the seven columns');
+      _assertEqual(Object.keys(out), CONFIG.ONBOARDING.PLAN_FIELDS.slice(0, 7), 'AC13 exactly the seven columns');
       _assertEqual(onbCleanPlanFields({ Status: 'Complete' }), { Status: 'Complete' }, 'partial update sends only what changed');
       _assertEqual(onbCleanPlanFields({ BuddyEmail: '' }), { BuddyEmail: null }, 'blank buddy clears');
       const throws = (fields, label) => { let t = false; try { onbCleanPlanFields(fields); } catch (e) { t = true; } _assertEqual(t, true, 'AC13 rejects ' + label); };
@@ -380,7 +380,7 @@ ASSERTIONS.push(
       const go = buddyEmail => onbStartFields({ person: nina, people, buddyEmail, byEmail: 'Cara.Csd@MG.test', todayISO: _ONB_TODAY });
       const out = go(f.tp2.WorkEmail.toUpperCase());
       _assertEqual(out, { Title: nina.WorkEmail.toLowerCase(), PersonID: 30, Track: 'TP', Status: 'Active', StartedByEmail: 'cara.csd@mg.test', StartedAt: '2026-11-20T12:00:00Z', BuddyEmail: f.tp2.WorkEmail }, 'payload');
-      _assertEqual(Object.keys(out), CONFIG.ONBOARDING.PLAN_FIELDS, 'exactly the seven columns');
+      _assertEqual(Object.keys(out), CONFIG.ONBOARDING.PLAN_FIELDS.slice(0, 7), 'exactly the seven columns');
       _assertEqual(go('').BuddyEmail, null, 'no buddy yet');
       const throws = (fn, label) => { let t = false; try { fn(); } catch (e) { t = true; } _assertEqual(t, true, 'rejects ' + label); };
       throws(() => go(nina.WorkEmail), 'the joiner as their own buddy');

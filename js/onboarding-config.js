@@ -44,8 +44,8 @@ CONFIG.ONBOARDING = {
   PLAN_ACTIVE:   'Active',
   // N-499 (ONB-D34): the statuses the joiner and buddy can see in My Momentum. A Cancelled plan is hidden from everyone there.
   PLAN_VISIBLE:  ['Active', 'Complete'],
-  // The OnboardingPlans columns a write may carry (onbCleanPlanFields). N-502 adds the sign-off columns.
-  PLAN_FIELDS:   ['Title', 'PersonID', 'Track', 'Status', 'StartedByEmail', 'StartedAt', 'BuddyEmail'],
+  // The OnboardingPlans columns a write may carry (onbCleanPlanFields). N-502 adds the CSD countersign columns (ONB-D67).
+  PLAN_FIELDS:   ['Title', 'PersonID', 'Track', 'Status', 'StartedByEmail', 'StartedAt', 'BuddyEmail', 'CSDSignedByEmail', 'CSDSignedAt'],
   // N-497 (ONB-2). A plan can only start for a new joiner: StartDate today, in the future, or at most this many days
   // ago (ONB-D22). Restart of a Cancelled plan is exempt (same plan). DISPLAY_ROWS = Data Health rows before "+ n more".
   START_WINDOW_DAYS: 14,
@@ -168,6 +168,7 @@ CONFIG.ONBOARDING = {
     retry:          'Try again',
     expand:         'Show steps',
     collapse:       'Hide steps',
+    signoffHint:    'Signed off in My Team \u2192 Onboarding.',   // N-502 (ONB-D71): the two sign-off steps are not ticked by hand
   },
 };
 // N-499: the Library folder inside the OnboardingContent library (N-498 ONB-D26).
@@ -193,4 +194,88 @@ CONFIG.ONBOARDING.BUDDY_TEXT = {
   noPlans:        'You are not the buddy on an active onboarding plan.',
   loadFailed:     'Your buddying actions could not be loaded.',
   retry:          'Try again',
+};
+
+// N-502 (ONB-7, ONB-D63..D71). The sign-offs. LIST = the OnboardingSignoffs list (Newton Users Contribute without delete): the line manager's
+// role-play and Day-30 sign-offs, append-only, latest row per (plan, kind) wins (ONB-D69). The CSD countersign is on OnboardingPlans
+// (PLAN_FIELDS above), which only an Admin writes. STEP_KEYS = the ItemKeys of the two checklist steps the sign-offs tick (ONB-D71);
+// a blank or unknown key means no linked step, never a failed sign-off. ACTION_KINDS = the api's kind -> the stored Kind.
+CONFIG.ONBOARDING.SIGNOFF = {
+  LIST:         'OnboardingSignoffs',
+  KINDS:        ['RolePlay', 'Day30LM'],
+  OUTCOMES:     ['Signed', 'Withdrawn'],
+  SIGNED:       'Signed',
+  WITHDRAWN:    'Withdrawn',
+  ACTION_KINDS: { roleplay: 'RolePlay', day30: 'Day30LM' },
+  ACTIONS:      ['sign', 'withdraw'],
+  STEP_KEYS:    { roleplay: 'onb_tp_m05', day30: 'onb_tp_day30-signoff' },
+  FIELDS:       ['Title', 'PlanID', 'PersonID', 'Kind', 'Outcome', 'SignedByEmail', 'SignedAt'],
+};
+
+// N-502. Every word on My Team > Onboarding (onboarding-team-ui.js); {name} {date} {n} {label} {due} {done} {total} {pct} are filled by
+// onbFillText. The step rows reuse PLAN_TEXT (owner chip, due, overdue, Open link, tickFailed).
+CONFIG.ONBOARDING.TEAM_TEXT = {
+  pageTitle:      'My Team',
+  loadFailed:     'Onboarding progress could not be loaded.',
+  retry:          'Try again',
+  noJoiners:      'None of your joiners has an onboarding plan.',
+  previewNote:    'Preview: onboarding is switched Off, so only you can see this. It is read-only.',
+  tileActive:     'Active joiners',
+  tileOverdue:    'Overdue steps',
+  tileSignoff:    'Awaiting sign-off',
+  actionsTitle:   'My actions',
+  actionsEmpty:   'Nothing is waiting for you.',
+  joinersTitle:   'Joiners',
+  completedTitle: 'Completed',
+  startsOn:       'Starts {date}',
+  dayN:           'Day {n}',
+  progress:       '{done} of {total} steps done ({pct}%)',
+  overdue:        '{n} overdue',
+  next:           'Next: {label}, {due}',
+  allDone:        'Every step is done.',
+  noSteps:        'There are no steps to show yet.',
+  lineManager:    'Line manager',
+  buddy:          'Buddy',
+  buddyNone:      'Not named yet',
+  completeChip:   'Complete',
+  show:           'Show details',
+  hide:           'Hide details',
+  byOwnerTitle:   'Open steps by owner',
+  noOpen:         'No open steps.',
+  ownerOpen:      '{n} open',
+  signoffTitle:   'Sign-offs',
+  roleplay:       'Intake role-play (M05)',
+  day30lm:        'Day-30 review: line manager',
+  csd:            'Day-30 countersign: CSD',
+  signedBy:       'Signed by {name}, {date}',
+  notSigned:      'Not signed off yet',
+  btnSign:        'Sign off',
+  btnWithdraw:    'Withdraw',
+  btnCountersign: 'Countersign and close plan',
+  pdpTitle:       'PDP goal-setting meeting',
+  pdp: {
+    none:        'No joiner goal-setting meeting yet',
+    planned:     'Goal-setting meeting due {date}',
+    held:        'Goal-setting meeting held {date}',
+    signed:      'Goal-setting meeting signed off {date}',
+    unavailable: 'PDP status unavailable',
+  },
+  reasons: {
+    preview:       'Preview is read-only.',
+    closed:        'This plan is closed.',
+    onlyLm:        'Only the joiner’s line manager can do this.',
+    onlyCsd:       'Only the joiner’s CSD can do this.',
+    stepsOpen:     '{n} required steps are still open.',
+    stepsOpen1:    '1 required step is still open.',
+    needRoleplay:  'The role-play is not signed off yet.',
+    needLm:        'The line manager has not signed off the Day-30 review yet.',
+    keepRoleplay:  'Withdraw the Day-30 sign-off first.',
+  },
+  confirmCountersign: 'Countersign and close {name}’s onboarding plan? This cannot be undone.',
+  confirmLabel:   'Countersign',
+  signoffOk:      'Sign-off saved.',
+  withdrawOk:     'Sign-off withdrawn.',
+  countersignOk:  'Plan closed.',
+  stepWarn:       'Saved, but the linked checklist step was not updated.',
+  actionFailed:   'Couldn’t save that:',
 };

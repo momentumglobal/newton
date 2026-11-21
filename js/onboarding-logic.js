@@ -235,6 +235,12 @@ function onbCleanPlanFields(fields) {
     out.StartedAt = d;
   }
   if (has('BuddyEmail')) out.BuddyEmail = email('BuddyEmail', false);
+  if (has('CSDSignedByEmail')) out.CSDSignedByEmail = email('CSDSignedByEmail', true);   // N-502 (ONB-D64): the CSD countersign
+  if (has('CSDSignedAt')) {
+    const d = isoDate(spDateIn(f.CSDSignedAt));
+    if (!d) throw new Error(`OnboardingPlans.CSDSignedAt must be a date: ${f.CSDSignedAt}`);
+    out.CSDSignedAt = d;
+  }
   return out;
 }
 
@@ -451,6 +457,14 @@ function onbFillText(text, vars) {
 }
 
 // ONB-D29. A Library step is a row whose Section is CONFIG.ONBOARDING.LIBRARY_SECTION (case-insensitive).
+// N-502 (ONB-D71). 'roleplay' | 'day30' when this step is one a sign-off ticks (named by ItemKey in CONFIG.ONBOARDING.SIGNOFF.STEP_KEYS), else ''.
+function onbSignoffStepKind(step) {
+  const keys = CONFIG.ONBOARDING.SIGNOFF.STEP_KEYS;
+  const k = String(step && step.ItemKey != null ? step.ItemKey : '').trim();
+  if (!k) return '';
+  return Object.keys(keys).find(n => keys[n] && String(keys[n]).trim() === k) || '';
+}
+
 function onbIsLibraryStep(step) {
   const sec = normChecklistKey(step ? step.Section : '');
   return !!sec && sec === normChecklistKey(CONFIG.ONBOARDING.LIBRARY_SECTION);
@@ -565,6 +579,7 @@ function onbPlanModel({ plan = null, people = [], templates = [], progressRows =
     const done = !!(p && p.done);
     const dueISO = onbStepDue(startDate, t);
     const own = onbStepOwner({ step: t, parties, peopleOpsActive });
+    const signoff = onbSignoffStepKind(t);
     return {
       itemKey: key,
       label: String(t.ItemLabel == null ? '' : t.ItemLabel),
@@ -573,6 +588,8 @@ function onbPlanModel({ plan = null, people = [], templates = [], progressRows =
       stepMode: f.stepMode,
       guided: f.stepMode === O.STEP_MODES[0],
       levelTag: f.levelTag,
+      required: spYesNo(t.Required, false),   // N-502: the Day-30 gate counts the Required phase steps
+      signoff,                                // N-502 (ONB-D71): a sign-off step is ticked by its sign-off, never by hand
       contentUrl: isSafeChecklistUrl(f.contentUrl) ? f.contentUrl : '',
       dueISO,
       dueText: onbDueText(f.dueOffsetDays),
@@ -580,7 +597,7 @@ function onbPlanModel({ plan = null, people = [], templates = [], progressRows =
       done,
       doneByName: done ? nameOf(p.by) : '',
       doneAt: done ? String(p.at || '') : '',
-      canTick: !readOnly && !!key && onbCanTick({ step: t, relations: rel, peopleOpsActive, planStatus: status }),
+      canTick: !readOnly && !!key && !signoff && onbCanTick({ step: t, relations: rel, peopleOpsActive, planStatus: status }),
     };
   };
 

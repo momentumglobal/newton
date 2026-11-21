@@ -66,6 +66,7 @@ function _onbmStepHtml(it, n, tickAttr) {
         <div class="onb-step-body">
           <label class="onb-step-label" for="${id}">${escHtml(it.label)}</label>
           ${it.help ? `<div class="onb-step-help">${escHtml(it.help)}</div>` : ''}
+          ${it.signoff && !it.done ? `<div class="onb-step-help">${escHtml(T.signoffHint)}</div>` : ''}
           <div class="onb-step-meta">${chips.join('')}${due}${overdue}${link}</div>
           ${done}
         </div>

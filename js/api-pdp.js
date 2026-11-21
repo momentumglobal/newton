@@ -1127,3 +1127,32 @@ async function readPdpCompletion() {
   const meetings = await getPdpMeetings(null, year);
   return Object.assign(pdpCompletion(meetings, today, year), { mode: sw.mode });
 }
+
+
+// ── N-502 (ONB-D66): the joiner goal-setting status for My Team > Onboarding ─────────────────────────────
+// Status only: { [personId]: { state: 'none' | 'planned' | 'held' | 'signed' | 'unavailable', dueISO, heldISO } }. Never returns a note, goal
+// or score. Reads the viewer's visible meetings (the same pdpVisibleItems rule as My Team > Development, Ghost-aware) for each person,
+// keeps the joiner goal setting (Annual, IsJoiner), and takes the latest by DueDate. A PDP gate of 'none', or a joiner meeting the viewer
+// may not see, is 'unavailable'. Deliberately NOT named getPdp* / updatePdp*: the onboarding files call this and never reach a personal list
+// (the PDP-D12 source scan keeps them off the allowlist).
+async function loadJoinerGoalSetting(personIds) {
+  const ids = [...new Set((personIds || []).map(v => String(v == null ? '' : v).trim()).filter(Boolean))];
+  const out = {};
+  ids.forEach(id => { out[id] = { state: 'unavailable', dueISO: '', heldISO: '' }; });
+  if (!ids.length) return out;
+  const gate = await resolvePdpGate();
+  if (gate.state === 'none') return out;
+  const who = await _pdpTeamWho();
+  const lists = await Promise.all(ids.map(id => getPdpMeetings(id, null)));
+  ids.forEach((id, i) => {
+    const joiner = lists[i].filter(m => m.MeetingType === 'Annual' && _pdpYes(m.IsJoiner));
+    if (!joiner.length) { out[id] = { state: 'none', dueISO: '', heldISO: '' }; return; }
+    const seen = pdpVisibleItems(joiner, who.role, who.email)
+      .sort((a, b) => String(spDateIn(b.DueDate)).localeCompare(String(spDateIn(a.DueDate))));
+    if (!seen.length) return;   // exists, but not for this viewer to see: stays unavailable
+    const m = seen[0];
+    const state = m.Status === 'SignedOff' ? 'signed' : (m.Status === 'Held' ? 'held' : (m.Status === 'Skipped' ? 'none' : 'planned'));
+    out[id] = { state, dueISO: spDateIn(m.DueDate) || '', heldISO: spDateIn(m.MeetingDate) || '' };
+  });
+  return out;
+}

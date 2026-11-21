@@ -799,13 +799,15 @@ ASSERTIONS.push(
         const internalNames = new Set((allProjects || []).filter(p => isKpiExcludedProject(p)).map(p => p.CustomerName));
         return [...new Set(liveAssigns.map(a => a.Customer).filter(c => c && !internalNames.has(c)))].sort();
       }
-      const tomorrow = new Date(now.getTime() + DAY);
+      // Two days ahead, not one: scorecardCustomers reads a bare date as UTC midnight, so a local-day
+      // 'tomorrow' is already past west of UTC just after 00:00 UTC (N-514).
+      const notYetStarted = new Date(now.getTime() + 2 * DAY);
       const assigns = [
         { Customer: 'Zeta', StartDate: ago(30), EndDate: iso(new Date(now.getTime() + 30 * DAY)) },
         { Customer: 'Acme', StartDate: ago(30), EndDate: iso(new Date(now.getTime() + 30 * DAY)) },
         { Customer: 'Acme', StartDate: ago(10), EndDate: iso(new Date(now.getTime() + 10 * DAY)) },
         { Customer: 'Ends', StartDate: ago(30), EndDate: iso(now) },
-        { Customer: 'Later', StartDate: iso(tomorrow), EndDate: iso(new Date(now.getTime() + 40 * DAY)) },
+        { Customer: 'Later', StartDate: iso(notYetStarted), EndDate: iso(new Date(now.getTime() + 40 * DAY)) },
         { Customer: 'Momentum', StartDate: ago(30), EndDate: iso(new Date(now.getTime() + 30 * DAY)) },
         { Customer: 'LCI Co', StartDate: ago(30), EndDate: iso(new Date(now.getTime() + 30 * DAY)) },
         { Customer: '', StartDate: ago(30), EndDate: iso(new Date(now.getTime() + 30 * DAY)) },
@@ -813,7 +815,7 @@ ASSERTIONS.push(
       const projects = [{ id: 1, CustomerName: 'Momentum', ProjectType: CONFIG.PROJECT_TYPE_INTERNAL },
         { id: 2, CustomerName: 'LCI Co', ProjectType: CONFIG.NO_DASHBOARD_PROJECT_TYPES[0] }, { id: 3, CustomerName: 'Acme', ProjectType: 'Embedded' }];
       _assertEqual(scorecardCustomers(assigns, projects, now), oldCustomers(assigns, projects, now), 'scorecard customers identical');
-      _assertEqual(scorecardCustomers(assigns, projects, now).includes('Later'), false, 'starts tomorrow → no card');
+      _assertEqual(scorecardCustomers(assigns, projects, now).includes('Later'), false, 'starts in two days → no card');
       _assertEqual(scorecardCustomers(assigns, projects, now).filter(c => c === 'Momentum' || c === 'LCI Co'), [], 'internal / no-dashboard excluded');
       _assertEqual(scorecardCustomers(assigns, [], now).includes('Momentum'), true, 'control: without the project rows the internal name shows');
       // ── utilisationOutlook ──

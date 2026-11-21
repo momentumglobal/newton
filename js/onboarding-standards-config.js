@@ -50,7 +50,7 @@ CONFIG.ONBOARDING.STANDARDS = {
         { moment: 'Interviews organised', standard: 'Within 24 hours of feedback' },
         { moment: 'Full interview process', standard: 'Under 14 days' },
         { moment: 'Updates', standard: 'Proactive & async via Teams/Slack etc, every 2–3 days; flag problems as soon as they arise' },
-        { moment: 'Weekly wrap-up', standard: 'Friday: wins, pipeline and blockers, next week’s goals' },
+        { moment: 'Weekly wrap-up communication', standard: 'Friday: wins, pipeline and blockers, next week’s goals' },
         { moment: 'After every meeting', standard: 'Actions sent in writing with names and deadlines; your own actions diarised' },
         { moment: 'Deadlines', standard: 'Agreed per role at the intake (feedback times, decision-makers, cadence)' },
         { moment: 'Challenging a request', standard: 'Ask why, show evidence, offer alternatives, write down the agreed change' },

@@ -142,6 +142,34 @@ ASSERTIONS.push(
       ].forEach(u => _assertEqual(isSafeChecklistUrl(u), false, 'reject ' + JSON.stringify(u)));
     },
   },
+  // ── N-510 — SharePoint file links open in the browser ─────────────────────────
+  {
+    name: 'N-510 openInBrowserUrl — SharePoint Office/PDF files get ?web=1, everything else unchanged',
+    fn: function () {
+      const b = 'https://talentpoint.sharepoint.com/sites/SolutionsHubReporting/Shared%20Documents/';
+      const my = 'https://talentpoint-my.sharepoint.com/personal/x/Documents/';
+      [
+        [b + 'Deck.pptx', b + 'Deck.pptx?web=1'], [b + 'A.PPTX', b + 'A.PPTX?web=1'],
+        [b + 'a.docx', b + 'a.docx?web=1'], [b + 'a.xlsx', b + 'a.xlsx?web=1'], [b + 'a.pdf', b + 'a.pdf?web=1'],
+        [my + 'a.docx', my + 'a.docx?web=1'],
+        [b + 'a.docx?csf=1', b + 'a.docx?csf=1&web=1'], [b + 'a.pdf#page=2', b + 'a.pdf?web=1#page=2'],
+        [b + 'a.xlsx?x=1#f', b + 'a.xlsx?x=1&web=1#f'],
+      ].forEach(p => _assertEqual(openInBrowserUrl(p[0]), p[1], 'rewrite ' + p[0]));
+      [
+        b + 'Folder', b + 'Folder/', 'https://talentpoint.sharepoint.com/:p:/s/x/abc',
+        b + 'a.pptx?web=1', b + 'a.pptx?download=1', b + 'a.pptx?action=view',
+        'https://talentpoint.sharepoint.com/sites/x/_layouts/15/Doc.aspx?sourcedoc=1',
+        'https://example.com/a.pptx', 'people.html', 'javascript:alert(1)', 'https://x.com/a b.pptx', '', null, undefined,
+      ].forEach(u => _assertEqual(openInBrowserUrl(u), u, 'unchanged ' + JSON.stringify(u)));
+    },
+  },
+  {
+    name: 'N-510 Open links in checklists.js and onboarding-my-ui.js render through openInBrowserUrl',
+    fn: function () {
+      _assertEqual(/href="\$\{escAttr\(openInBrowserUrl\(url\)\)\}"/.test(ALL_SOURCES['checklists.js']), true, 'checklists.js');
+      _assertEqual(/href="\$\{escAttr\(openInBrowserUrl\(it\.contentUrl\)\)\}"/.test(ALL_SOURCES['onboarding-my-ui.js']), true, 'onboarding-my-ui.js');
+    },
+  },
   // ── N-266b — Config Panel checklist editor (checklist-logic.js) ───────────────
   {
     name: 'N-266b validateChecklistItem — valid tick / link / action; every error path; registry keys passed in',

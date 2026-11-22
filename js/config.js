@@ -298,6 +298,7 @@ const CONFIG = {
     NEW_SECTION_VALUE: '__new__', // N-400: the Section dropdown's "+ New section…" option value
     LABEL_MAX:       255,
     HELP_MAX:        2000,
+    BROWSER_VIEW_EXTS: ['pptx', 'ppt', 'docx', 'doc', 'xlsx', 'xls', 'pdf'], // N-510: file types an Open link opens in the browser (openInBrowserUrl)
   },
 
   // ── Starter folders (N-259 project; N-260 role) ───────────────────

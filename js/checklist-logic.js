@@ -191,6 +191,26 @@ function isSafeChecklistUrl(url) {
   return /^https:\/\/[^\s"'<>\\/?#]+(?:[/?#][^\s"'<>\\]*)?$/i.test(s);
 }
 
+// N-510: SharePoint file links open in the browser instead of downloading. Render-time only — the stored
+// URL and the editor never change. Adds ?web=1 to a direct https link to an Office/PDF file on this tenant's
+// SharePoint hosts (CONFIG.SP_SITE_URL, CONFIG.SP_MY_SITE_ORIGIN); everything else (folders, sharing links,
+// _layouts pages, links that already carry web/action/download/sourcedoc, other sites, Newton pages) is
+// returned unchanged. Regex only — URL isn't available in the Node test vm. Pure; never throws.
+function openInBrowserUrl(url) {
+  const s = String(url ?? '').trim();
+  const m = /^https:\/\/([^\s\/?#]+)(\/[^?#]*)?(\?[^#]*)?(#.*)?$/i.exec(s);
+  if (!m || !isSafeChecklistUrl(s)) return url;
+  const hostOf = u => ((/^https:\/\/([^\s\/?#]+)/i.exec(String(u ?? '')) || [])[1] || '').toLowerCase();
+  const hosts = [CONFIG.SP_SITE_URL, CONFIG.SP_MY_SITE_ORIGIN].map(hostOf).filter(Boolean);
+  const path = m[2] || '', query = m[3] || '', frag = m[4] || '';
+  if (!hosts.includes(m[1].toLowerCase())) return url;
+  if (/^\/:[a-z]:\//i.test(path) || /\/_layouts\//i.test(path)) return url;
+  const ext = /\.([a-z0-9]+)$/i.exec(path);
+  if (!ext || !CONFIG.CHECKLISTS.BROWSER_VIEW_EXTS.includes(ext[1].toLowerCase())) return url;
+  if (/[?&](web|action|download|sourcedoc)=/i.test(query)) return url;
+  return 'https://' + m[1] + path + (query.length > 1 ? query + '&web=1' : '?web=1') + frag;
+}
+
 // Config Panel editor (N-266b): validates one checklist item before it is
 // written. Returns { ok, errors: { field: message } } — the fields are
 // label, section, type, linkUrl, actionKey, help. Pure: the registry keys

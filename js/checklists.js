@@ -359,7 +359,7 @@ function _checklistItemHtml(v, it, idx) {
   if (type === 'link') {
     const url = String(it.LinkUrl ?? '').trim();
     extra = isSafeChecklistUrl(url)
-      ? `<a class="checklist-item-link" href="${escAttr(url)}" target="_blank" rel="noopener noreferrer">Open <i data-lucide="external-link" aria-hidden="true"></i></a>`
+      ? `<a class="checklist-item-link" href="${escAttr(openInBrowserUrl(url))}" target="_blank" rel="noopener noreferrer">Open <i data-lucide="external-link" aria-hidden="true"></i></a>`
       : `<span class="checklist-item-note">Link unavailable${v.isAdmin ? ` — ${escHtml(url || 'no URL set')}` : ''}</span>`;
   } else if (type === 'action') {
     const action = _ckAction(it.ActionKey);

@@ -56,7 +56,7 @@ function _onbmStepHtml(it, n, tickAttr) {
     : '';
   const overdue = it.overdue ? `<span class="badge badge--overdue">${escHtml(T.overdueChip)}</span>` : '';
   const link = it.contentUrl
-    ? `<a class="onb-link" href="${escAttr(it.contentUrl)}" target="_blank" rel="noopener noreferrer">${escHtml(T.open)} <i data-lucide="external-link" aria-hidden="true"></i></a>`
+    ? `<a class="onb-link" href="${escAttr(openInBrowserUrl(it.contentUrl))}" target="_blank" rel="noopener noreferrer">${escHtml(T.open)} <i data-lucide="external-link" aria-hidden="true"></i></a>`
     : '';
   const done = it.done
     ? `<div class="onb-step-done">${escHtml(onbFillText(T.doneBy, { name: it.doneByName, date: _onbmDate(it.doneAt) }))}</div>`

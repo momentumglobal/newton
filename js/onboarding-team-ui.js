@@ -25,6 +25,11 @@ function _onbtTickAttr(planId) {
   return it => actOn('change', 'onbtTick', planId, it.itemKey, ACT_CHECKED);
 }
 
+// N-516 (ONB-D94): a step's Newton action button (e.g. Draft welcome email), dispatched by onbtStepAction.
+function _onbtActionAttr(planId) {
+  return it => act('onbtStepAction', planId, it.itemKey);
+}
+
 function _onbtTilesHtml(totals) {
   const T = CONFIG.ONBOARDING.TEAM_TEXT;
   const tile = (n, label) => `<div class="ppl-card onbt-tile"><div class="onbt-tile-num">${escHtml(String(n))}</div><div class="onbt-tile-label">${escHtml(label)}</div></div>`;
@@ -45,7 +50,7 @@ function _onbtActionsHtml(actions, counter) {
   const body = (actions || []).length
     ? actions.map(a => `<div class="onbt-group">
         <h3 class="onbt-sub">${escHtml(a.name)}</h3>
-        <ul class="onb-steps">${a.entries.map(e => e.type === 'signoff' ? _onbtActionRowHtml(a.planId, e) : _onbmStepHtml(e.item, counter.n++, _onbtTickAttr(a.planId))).join('')}</ul>
+        <ul class="onb-steps">${a.entries.map(e => e.type === 'signoff' ? _onbtActionRowHtml(a.planId, e) : _onbmStepHtml(e.item, counter.n++, _onbtTickAttr(a.planId), _onbtActionAttr(a.planId))).join('')}</ul>
       </div>`).join('')
     : `<p class="ppl-muted-note">${escHtml(T.actionsEmpty)}</p>`;
   return `<section class="ppl-card onbt-section">
@@ -94,7 +99,7 @@ function _onbtByOwnerHtml(row, counter) {
         <h5 class="onbt-owner-title">${escHtml(g.name ? `${g.label} · ${g.name}` : g.label)}</h5>
         <span class="onb-phase-count">${escHtml(onbFillText(T.ownerOpen, { n: g.items.length }))}</span>
       </div>
-      <ul class="onb-steps">${g.items.map(it => _onbmStepHtml(it, counter.n++, _onbtTickAttr(row.planId))).join('')}</ul>
+      <ul class="onb-steps">${g.items.map(it => _onbmStepHtml(it, counter.n++, _onbtTickAttr(row.planId), _onbtActionAttr(row.planId))).join('')}</ul>
     </div>`).join('');
   return `<section class="onbt-block">
       <h4 class="onbt-sub">${escHtml(T.byOwnerTitle)}</h4>
@@ -279,6 +284,19 @@ async function onbtCountersign(planId) {
   await _onbtReload();
 }
 
+// N-516 (ONB-D94). Runs the Newton action on one step of an Active plan: ONB_STEP_ACTION_RUN (onboarding-welcome-ui.js) maps the step's
+// actionKey to its handler, called with the joiner's row and the viewer's name. Unknown key, closed plan or a step the viewer can't tick: no-op.
+function onbtStepAction(planId, itemKey) {
+  const view = _onbtState.view;
+  const row = view ? view.rows.find(r => r.planId === String(planId)) : null;
+  if (!row || row.complete) return;
+  const items = row.byOwner.reduce((acc, g) => acc.concat(g.items), [])
+    .concat((view.actions || []).filter(a => a.planId === row.planId).reduce((acc, a) => acc.concat(a.steps || []), []));
+  const it = items.find(i => i.itemKey === String(itemKey));
+  const run = it && it.canTick && typeof ONB_STEP_ACTION_RUN !== 'undefined' ? ONB_STEP_ACTION_RUN[it.actionKey] : null;
+  if (typeof run === 'function') run(row, view.viewerName || '');
+}
+
 function onbtToggle(planId) {
   const open = _onbtState.open;
   const id = String(planId == null ? '' : planId);
@@ -306,6 +324,7 @@ registerActions({
   onbtSignoff,
   onbtWithdraw,
   onbtCountersign,
+  onbtStepAction,
   onbtToggle,
   onbtToggleCompleted,
   onbtFilter,

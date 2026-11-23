@@ -513,9 +513,9 @@ ASSERTIONS.push(
     name: 'N-498 AC3/AC4 onbStepFields + onbValidateStep: tick-only step payload, blanks clear, bad input blocked',
     fn: function () {
       const ok = { owner: 'LM', dueOffsetDays: '-3', stepMode: 'Guided', levelTag: '', contentUrl: '' };
-      _assertEqual(onbStepFields(ok), { Owner: 'LM', DueOffsetDays: -3, StepMode: 'Guided', LevelTag: null, ContentUrl: null }, 'AC3 payload: blank level / link -> null, negative offset kept');
+      _assertEqual(onbStepFields(ok), { Owner: 'LM', DueOffsetDays: -3, StepMode: 'Guided', LevelTag: null, ContentUrl: null, ActionKey: null }, 'AC3 payload: blank level / link -> null, negative offset kept');
       _assertEqual(onbStepFields({ owner: 'people ops', dueOffsetDays: 0, stepMode: 'self-guided', levelTag: 'foundation', contentUrl: ' https://x.example/a%20b ' }),
-        { Owner: 'PeopleOps', DueOffsetDays: 0, StepMode: 'Self-guided', LevelTag: 'Foundation', ContentUrl: 'https://x.example/a%20b' }, 'AC3 keys normalised, link trimmed');
+        { Owner: 'PeopleOps', DueOffsetDays: 0, StepMode: 'Self-guided', LevelTag: 'Foundation', ContentUrl: 'https://x.example/a%20b', ActionKey: null }, 'AC3 keys normalised, link trimmed');
       const bad = o => onbValidateStep(Object.assign({}, ok, o));
       _assertEqual(bad({ owner: '' }).errors.owner !== undefined, true, 'AC4 missing owner');
       _assertEqual(bad({ owner: 'Janitor' }).errors.owner !== undefined, true, 'AC4 unknown owner');
@@ -1004,7 +1004,7 @@ ASSERTIONS.push(
       const nav = _onbSrc('my-momentum-nav.js');
       _assertEqual(/case 'myBuddying':\s+await renderBuddyingPage\(\)/.test(nav) && /label: mmTabLabel\(t, _mmSignals\)/.test(nav), true, 'nav renders the page and labels the tab with its count');
       const mm = _onbSrc('onboarding-my-ui.js');
-      _assertEqual(/function _onbmStepHtml\(it, n, tickAttr\)/.test(mm) && /actOn\('change', 'onbmTick', it\.itemKey, ACT_CHECKED\)/.test(mm), true, 'the My Onboarding step row keeps onbmTick by default');
+      _assertEqual(/function _onbmStepHtml\(it, n, tickAttr(, actionAttr)?\)/.test(mm) && /actOn\('change', 'onbmTick', it\.itemKey, ACT_CHECKED\)/.test(mm), true, 'the My Onboarding step row keeps onbmTick by default');
       if (typeof ALL_CSS === 'undefined') _skip('needs ALL_CSS (Node runner only)');
       const css = ALL_CSS['my-momentum.css'];
       const block = css.slice(css.indexOf('N-509: My Momentum > Buddying'));

@@ -175,7 +175,7 @@ function onbAccess({ mode = '', pilot = [], people = [], plans = [], email = '',
 
 // The person-only template fields (N-498 calls it alongside validateChecklistItem). -> { ok, errors }
 // with keys owner, dueOffsetDays, stepMode, levelTag, contentUrl.
-function onbValidateStep({ owner, dueOffsetDays, stepMode, levelTag, contentUrl, section } = {}) {
+function onbValidateStep({ owner, dueOffsetDays, stepMode, levelTag, contentUrl, section, actionKey } = {}) {
   const O = CONFIG.ONBOARDING;
   const errors = {};
   const text = v => String(v == null ? '' : v).trim();
@@ -198,6 +198,8 @@ function onbValidateStep({ owner, dueOffsetDays, stepMode, levelTag, contentUrl,
     if (!isSafeChecklistUrl(url)) errors.contentUrl = 'Enter an https:// address or a Newton page such as people.html.';
     else if (url.length > CONFIG.CHECKLISTS.LABEL_MAX) errors.contentUrl = `Keep the link to ${CONFIG.CHECKLISTS.LABEL_MAX} characters or fewer.`;
   }
+  const ak = text(actionKey);   // N-516 (ONB-D94): blank = no action; otherwise a STEP_ACTIONS key
+  if (ak && !onbStepActionKey({ ActionKey: ak })) errors.actionKey = 'Choose an action from the list, or None.';
   return { ok: Object.keys(errors).length === 0, errors };
 }
 
@@ -444,7 +446,14 @@ function onbStepFields(form) {
     StepMode:      O.STEP_MODES.find(m => normChecklistKey(m) === sm),
     LevelTag:      lt ? O.LEVEL_TAGS.find(t => normChecklistKey(t) === lt) : null,
     ContentUrl:    url || null,
+    ActionKey:     onbStepActionKey({ ActionKey: f.actionKey }) || null,   // N-516: validated above; overrides the editor's generic ActionKey: null
   };
+}
+
+// N-516 (ONB-D94). The STEP_ACTIONS key a ChecklistTemplates 'person' row carries in ActionKey (exact match after trim), else ''.
+function onbStepActionKey(row) {
+  const k = String(row && row.ActionKey != null ? row.ActionKey : '').trim();
+  return k && (CONFIG.ONBOARDING.STEP_ACTIONS || []).some(a => a.key === k) ? k : '';
 }
 
 
@@ -551,7 +560,7 @@ function onbLibraryFilter(items, level) {
 // One plan as a page model. progressRows = the person's ChecklistProgress rows, level = the Library filter key.
 // phases: [{ section, done, total, open, items }] (visible, non-Library steps, ONB-D20); summary counts those only (ONB-D32);
 // library: { items (filtered), hidden, all }. Each item: { itemKey, label, help, owner: { key, label, name, unnamed }, stepMode, guided,
-// levelTag, contentUrl, dueISO, dueText, overdue, done, doneByName, doneAt, canTick }.
+// levelTag, contentUrl, actionKey, dueISO, dueOffsetDays, dueText, overdue, done, doneByName, doneAt, canTick }.
 function onbPlanModel({ plan = null, people = [], templates = [], progressRows = [], email = '', role = '', peopleOpsActive = false, todayISO = '', level = '' } = {}) {
   const O = CONFIG.ONBOARDING;
   const parties = onbPlanParties(plan, people);
@@ -591,7 +600,9 @@ function onbPlanModel({ plan = null, people = [], templates = [], progressRows =
       required: spYesNo(t.Required, false),   // N-502: the Day-30 gate counts the Required phase steps
       signoff,                                // N-502 (ONB-D71): a sign-off step is ticked by its sign-off, never by hand
       contentUrl: isSafeChecklistUrl(f.contentUrl) ? f.contentUrl : '',
+      actionKey: onbStepActionKey(t),           // N-516 (ONB-D94): '' unless a registered STEP_ACTIONS key
       dueISO,
+      dueOffsetDays: f.dueOffsetDays,           // N-516: the welcome email's Week 1 window
       dueText: onbDueText(f.dueOffsetDays),
       overdue: !done && !!dueISO && !!todayISO && dueISO < todayISO,
       done,

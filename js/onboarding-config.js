@@ -128,6 +128,11 @@ CONFIG.ONBOARDING = {
     dueBefore1:   '1 day before start',
     tableHeads:   ['Step', 'Owner', 'Due', 'Mode', 'Level', 'Required', 'Status', 'Actions'],
     emptyTitle:   'No onboarding steps in {track} yet.',
+    actionLabel:  'Newton action',   // N-516 (ONB-D94): optional STEP_ACTIONS key on the step
+    actionNone:   'None',
+    actionHint:   'Optional. Adds a button to this step in My Team \u2192 Onboarding.',
+    actionNote:   'Action: {label}',
+    actionUnknown: 'Unknown action: {key}',
   },
   // N-499 (ONB-4). Every word on the My Onboarding page (onboarding-my-ui.js). {name} {date} {done} {total} {n} {label} {due} are filled by onbFillText.
   PLAN_TEXT: {
@@ -296,4 +301,44 @@ CONFIG.ONBOARDING.REMINDERS = {
   },
   LINKS: { MY: 'my-momentum.html#myOnboarding', TEAM: 'my-momentum.html#teamOnboarding', BUDDY: 'my-momentum.html#myBuddying' },
   TONE:  'attention',
+};
+
+// N-516 (ONB-D94). Newton actions an onboarding step can carry (ChecklistTemplates.ActionKey on a 'person' row; ItemType stays 'tick').
+// Metadata only: the handlers are ONB_STEP_ACTION_RUN in onboarding-welcome-ui.js (my-momentum.html). Not CHECKLIST_ACTIONS, which is the
+// Project / Role registry. Keys are stored in SharePoint — never rename one once a step uses it.
+CONFIG.ONBOARDING.STEP_ACTIONS = [
+  { key: 'onb.welcomeEmail', label: 'Draft welcome email', description: 'Shows a welcome email with the Week 1 agenda and buddy details, to copy into Outlook.' },
+];
+
+// N-516 (ONB-D91–D93). The welcome email drafted from the pre-start step. Week 1 = due offsets AGENDA_FROM..AGENDA_TO (Day 1–5, the N-508
+// wording). MAILTO_MAX = the longest mailto: URL "Open in Outlook" sends with the body; over it the mail opens with the subject only and the
+// body goes to the clipboard. WELCOME_TEXT holds every word of the email and its modal ({first} {date} {name} {email} are filled by onbFillText).
+CONFIG.ONBOARDING.WELCOME = { AGENDA_FROM: 0, AGENDA_TO: 4, MAILTO_MAX: 1800 };
+CONFIG.ONBOARDING.WELCOME_TEXT = {
+  subject:      'Welcome to Momentum Global, {first} \u2014 your first week',
+  greeting:     'Hi {first},',
+  intro:        'We\u2019re delighted you\u2019re joining Momentum Global. Your first day is {date}, and here is what your first week looks like.',
+  introNoDate:  'We\u2019re delighted you\u2019re joining Momentum Global. Here is what your first week looks like.',
+  agendaTitle:  'Your first week',
+  agendaWith:   'with {name}',
+  agendaEmpty:  'We\u2019ll share your first-week agenda before you start.',
+  buddyTitle:   'Your buddy',
+  buddy:        '{name} ({email}) is your buddy: your go-to person for everyday questions while you settle in.',
+  buddyNoEmail: '{name} is your buddy: your go-to person for everyday questions while you settle in.',
+  buddyNone:    'We\u2019ll introduce your buddy before your first day.',
+  lmTitle:      'Your line manager',
+  lm:           '{name} is your line manager. You\u2019ll have your first 1:1 in your first week.',
+  close:        'If you have any questions before you start, just reply to this email.',
+  signoff:      'Best wishes,',
+  subjectLabel: 'Subject:',
+  modalTitle:   'Welcome email for {name}',
+  modalHint:    'Copy the email into Outlook, or open it as a new mail. Add {name}\u2019s email address, check it reads right, then send. Tick the step once it\u2019s sent.',
+  warnNoBuddy:  'No buddy is set on this plan yet. Set one on the employee record (People) and reopen this, or the email says a buddy will be introduced.',
+  warnNoStart:  'This person has no start date, so the agenda has no dates.',
+  btnCopy:      'Copy email',
+  btnOpen:      'Open in Outlook',
+  btnClose:     'Close',
+  copied:       'Email copied \u2014 paste it into a new Outlook mail.',
+  copyFailed:   'Couldn\u2019t copy. Select the text in the preview and copy it by hand.',
+  openedLong:   'The email was too long to send to Outlook in one go: the subject is filled in and the body is on your clipboard \u2014 paste it in.',
 };

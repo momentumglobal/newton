@@ -206,7 +206,7 @@ function onbTeamActions(rows) {
 
 // The whole page model. progressByPlan = { planId: ChecklistProgress rows }; signoffs = OnboardingSignoffs rows; pdpByPerson = { personId: status }.
 // readOnly (Admin preview) strips every right and every tick. Rows: Active first (most overdue, then latest start), Complete last.
-// -> { rows, completed, actions, totals: { active, overdue, awaiting } }
+// -> { rows, completed, viewerName, actions, totals: { active, overdue, awaiting } }. Each Active row also carries welcome (onbWelcomeInput, N-516).
 function onbTeamModel({ plans = [], people = [], templates = [], progressByPlan = {}, signoffs = [], pdpByPerson = {}, email = '', role = '', peopleOpsActive = false, todayISO = '', readOnly = false } = {}) {
   const emailIndex = pdpEmailIndex(people);
   const nameOf = e => {
@@ -218,15 +218,20 @@ function onbTeamModel({ plans = [], people = [], templates = [], progressByPlan 
     if (readOnly) model = Object.assign({}, model, { phases: model.phases.map(p => Object.assign({}, p, { items: p.items.map(i => Object.assign({}, i, { canTick: false })) })) });
     const state = onbSignoffState({ signoffs, plan });
     const gate = onbDay30Gate({ model, state });
-    const csdPresent = !!onbPlanParties(plan, people).csd;
+    const parties = onbPlanParties(plan, people);
+    const csdPresent = !!parties.csd;
     const rights = onbSignoffRights({ relations, planStatus: plan.Status, state, gate, csdPresent, readOnly });
-    return onbTeamRow({ model, plan, relations, state, rights, gate, pdp: (pdpByPerson || {})[String(plan.PersonID)], todayISO, peopleOpsActive, nameOf });
+    const row = onbTeamRow({ model, plan, relations, state, rights, gate, pdp: (pdpByPerson || {})[String(plan.PersonID)], todayISO, peopleOpsActive, nameOf });
+    row.welcome = row.complete ? null : onbWelcomeInput({ model, parties });   // N-516: the "Draft welcome email" step action's data
+    return row;
   });
   const active = all.filter(r => !r.complete).sort((a, b) => (b.overdue - a.overdue) || String(b.startDate || '').localeCompare(String(a.startDate || '')) || a.name.localeCompare(b.name));
   const completed = all.filter(r => r.complete).sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')) || a.name.localeCompare(b.name));
+  const viewer = nameOf(email);
   return {
     rows: active,
     completed,
+    viewerName: viewer && viewer !== String(email || '') ? viewer : '',   // N-516: the welcome email's sign-off; '' when unmatched
     actions: readOnly ? [] : onbTeamActions(active),
     totals: {
       active: active.length,

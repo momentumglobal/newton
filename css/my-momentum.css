@@ -235,3 +235,20 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 .onbt-signoff-why { grid-column: 1 / -1; color: var(--text-secondary); font-size: var(--fs-13); }
 .onbt-signoff-pdp { margin: 0; color: var(--text-secondary); font-size: var(--fs-13); }
 @media (max-width: 720px) { .onbt-signoff { grid-template-columns: 1fr; } .onbt-signoff-act { justify-content: flex-start; } }
+/* N-516: the "Draft welcome email" step action (onboarding-my-ui.js / onboarding-welcome-ui.js). Tokens only. */
+.onb-step-meta .onb-step-action { padding: var(--sp-2) var(--sp-5); font-size: var(--fs-13); }
+.confirm-modal:has(.onbw-preview) { max-width: 640px; }
+.onbw-preview {
+  max-height: 360px;
+  overflow-y: auto;
+  margin: 0 0 var(--sp-5);
+  padding: var(--sp-5) var(--sp-7);
+  background: var(--surface-alt);
+  border: 1px solid var(--surface-alt-border);
+  border-radius: var(--r-lg);
+  color: var(--text-primary);
+  font-size: var(--fs-13);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.onbw-copy-row { display: flex; justify-content: flex-start; margin: 0 0 var(--sp-5); }

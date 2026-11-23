@@ -82,6 +82,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'checklist-logic.js'),
   path.join(JS_DIR, 'onboarding-logic.js'),    // N-496: pure onboarding rules (after checklist-logic.js and pdp-identity.js)
   path.join(JS_DIR, 'onboarding-team.js'),     // N-502: pure My Team > Onboarding rules (straight after onboarding-logic.js)
+  path.join(JS_DIR, 'onboarding-welcome.js'),  // N-516: pure welcome-email builder (straight after onboarding-team.js)
   path.join(JS_DIR, 'onboarding-reminders.js'), // N-503: pure onboarding reminder rules (straight after onboarding-team.js)
   path.join(JS_DIR, 'starter-folder-logic.js'),
   path.join(JS_DIR, 'graph-client.js'),
@@ -131,6 +132,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'onboarding-rituals-ui.js'), // N-500: the Processes & Rituals page markup is asserted (declarations only; DOM only inside the functions)
   path.join(JS_DIR, 'onboarding-expectations-ui.js'), // N-501: the Expectations & SLAs page markup is asserted (declarations only; DOM only inside the functions)
   path.join(JS_DIR, 'onboarding-team-ui.js'),   // N-502: the My Team > Onboarding page markup is asserted (declarations only; DOM only inside functions)
+  path.join(JS_DIR, 'onboarding-welcome-ui.js'), // N-516: the welcome email modal (declarations + ONB_STEP_ACTION_RUN; DOM only inside the functions)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-tools.js'),   // N-393: Newton for Claude tools (declarations + MCP_TOOLS only)
   path.join(TESTS_DIR, 'lint-dates.js'),
   path.join(TESTS_DIR, 'lint-role-copy-fields.js'),

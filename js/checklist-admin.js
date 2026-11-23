@@ -368,7 +368,7 @@ function _ckaItemRowHtml(it, first, last) {
     : (key && _ckaTicked.has(key) ? 'This item has been ticked on a checklist — retire it instead.' : '');
   const onb = _ckType === CONFIG.ONBOARDING.RECORD_TYPE ? onbStepFromRow(it) : null;
   const cells = onb
-    ? `<td>${escHtml(label || '(no label)')}${active ? '' : ' <span class="checklist-tag">Retired</span>'}</td>
+    ? `<td>${escHtml(label || '(no label)')}${active ? '' : ' <span class="checklist-tag">Retired</span>'}${_ckaStepActionNote(it)}</td>
           <td>${escHtml(onb.ownerLabel)}</td>
           <td>${escHtml(onbDueText(onb.dueOffsetDays) || '—')}</td>
           <td>${escHtml(onb.stepMode)}</td>
@@ -697,8 +697,38 @@ function _ckaHeadHtml() {
   return heads.map(h => `<th>${escHtml(h)}</th>`).join('');
 }
 
-// The add / edit form for an onboarding step: no Type / Link URL / Action (tick-box only, ONB-D24); Owner, due day, Mode,
-// Level and the Content link instead. Same ids and error slots as the Project / Role form where they overlap.
+// N-516 (ONB-D94): under an onboarding step's label, the Newton action it carries ('' for none; an unregistered key is named as unknown).
+function _ckaStepActionNote(it) {
+  const T = CONFIG.ONBOARDING.EDITOR_TEXT;
+  const raw = String(it && it.ActionKey != null ? it.ActionKey : '').trim();
+  if (!raw) return '';
+  const a = (CONFIG.ONBOARDING.STEP_ACTIONS || []).find(x => x.key === onbStepActionKey(it));
+  return `<div class="form-hint">${escHtml(a ? T.actionNote.replace('{label}', a.label) : T.actionUnknown.replace('{key}', raw))}</div>`;
+}
+
+// N-516 (ONB-D94): the optional Newton action select. Same id as the Project / Role action picker (ck-f-action), so _ckaReadForm reads it
+// into f.actionKey; onbValidateStep checks it and onbStepFields writes it. A saved key that isn't registered shows as a selected, disabled
+// option, so the form can't be saved until a valid choice (or None) is made.
+function _ckaStepActionFieldHtml(it) {
+  const T = CONFIG.ONBOARDING.EDITOR_TEXT;
+  const raw = String(it && it.ActionKey != null ? it.ActionKey : '').trim();
+  const known = onbStepActionKey({ ActionKey: raw });
+  const opt = (value, label, sel, dis) => `<option value="${escAttr(value)}"${sel ? ' selected' : ''}${dis ? ' disabled' : ''}>${escHtml(label)}</option>`;
+  return `
+        <div class="form-group">
+          <label for="ck-f-action">${escHtml(T.actionLabel)}</label>
+          <select id="ck-f-action" aria-describedby="ck-f-action-hint ck-err-actionKey">
+            ${raw && !known ? opt(raw, T.actionUnknown.replace('{key}', raw), true, true) : ''}
+            ${opt('', T.actionNone, !raw)}
+            ${(CONFIG.ONBOARDING.STEP_ACTIONS || []).map(a => opt(a.key, a.label, a.key === known)).join('')}
+          </select>
+          <span class="form-hint" id="ck-f-action-hint">${escHtml(T.actionHint)}</span>
+          <div class="ck-admin-field-error" id="ck-err-actionKey"></div>
+        </div>`;
+}
+
+// The add / edit form for an onboarding step: no Type / Link URL (tick-box only, ONB-D24); Owner, due day, Mode, Level, the Content
+// link and (N-516) an optional Newton action instead. Same ids and error slots as the Project / Role form where they overlap.
 function _ckaPersonFormHtml(it) {
   const O   = CONFIG.ONBOARDING;
   const T   = O.EDITOR_TEXT;
@@ -753,7 +783,7 @@ function _ckaPersonFormHtml(it) {
           <input type="text" id="ck-f-url" value="${escAttr(cur.contentUrl)}" placeholder="https://…" aria-describedby="ck-f-url-hint ck-err-contentUrl">
           <span class="form-hint" id="ck-f-url-hint">${escHtml(T.linkHint)}</span>
           ${err('contentUrl')}
-        </div>
+        </div>${_ckaStepActionFieldHtml(it)}
         <div class="form-group">
           <label for="ck-f-help">Help text</label>
           <textarea id="ck-f-help" rows="3" aria-describedby="ck-err-help">${escHtml(it ? it.HelpText || '' : '')}</textarea>

@@ -44,7 +44,9 @@ function _onbmChip(text, extra) {
 
 // One step row. n = a page-unique number for the checkbox id. N-509: tickAttr(it) = the checkbox's change-action attribute; the
 // Buddying page (onboarding-buddy-ui.js) passes its own, My Onboarding leaves it out and gets onbmTick. No other behaviour change.
-function _onbmStepHtml(it, n, tickAttr) {
+// N-516 (ONB-D94): actionAttr(it) = the click-action attribute of the step's Newton action button. Only My Team > Onboarding passes it, and
+// the button shows only for a step with a registered actionKey the viewer can tick (done or not). Without it the row is unchanged.
+function _onbmStepHtml(it, n, tickAttr, actionAttr) {
   const T = CONFIG.ONBOARDING.PLAN_TEXT;
   const id = 'onb-box-' + n;
   const tick = tickAttr ? tickAttr(it) : actOn('change', 'onbmTick', it.itemKey, ACT_CHECKED);
@@ -58,6 +60,12 @@ function _onbmStepHtml(it, n, tickAttr) {
   const link = it.contentUrl
     ? `<a class="onb-link" href="${escAttr(openInBrowserUrl(it.contentUrl))}" target="_blank" rel="noopener noreferrer">${escHtml(T.open)} <i data-lucide="external-link" aria-hidden="true"></i></a>`
     : '';
+  const stepAction = typeof actionAttr === 'function' && it.actionKey && it.canTick
+    ? (CONFIG.ONBOARDING.STEP_ACTIONS || []).find(a => a.key === it.actionKey)
+    : null;
+  const actionBtn = stepAction
+    ? `<button type="button" class="btn-secondary onb-step-action"${actionAttr(it)}>${escHtml(stepAction.label)}</button>`
+    : '';
   const done = it.done
     ? `<div class="onb-step-done">${escHtml(onbFillText(T.doneBy, { name: it.doneByName, date: _onbmDate(it.doneAt) }))}</div>`
     : '';
@@ -67,7 +75,7 @@ function _onbmStepHtml(it, n, tickAttr) {
           <label class="onb-step-label" for="${id}">${escHtml(it.label)}</label>
           ${it.help ? `<div class="onb-step-help">${escHtml(it.help)}</div>` : ''}
           ${it.signoff && !it.done ? `<div class="onb-step-help">${escHtml(T.signoffHint)}</div>` : ''}
-          <div class="onb-step-meta">${chips.join('')}${due}${overdue}${link}</div>
+          <div class="onb-step-meta">${chips.join('')}${due}${overdue}${link}${actionBtn}</div>
           ${done}
         </div>
       </li>`;

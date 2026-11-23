@@ -41,6 +41,7 @@ var INLINE_STYLE_BASELINE = {
   'js/coe-plan.js': 1,
   'js/dashboard-project-panels.js': 1,
   'js/dashboard-project.js': 1,
+  'js/email-brand.js': 1,
   'js/engagement-forms.js': 3,
   'js/engagement-pages.js': 3,
   'js/lci-editor.js': 7,

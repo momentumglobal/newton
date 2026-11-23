@@ -311,11 +311,14 @@ CONFIG.ONBOARDING.STEP_ACTIONS = [
 ];
 
 // N-516 (ONB-D91–D93). The welcome email drafted from the pre-start step. Week 1 = due offsets AGENDA_FROM..AGENDA_TO (Day 1–5, the N-508
-// wording). MAILTO_MAX = the longest mailto: URL "Open in Outlook" sends with the body; over it the mail opens with the subject only and the
-// body goes to the clipboard. WELCOME_TEXT holds every word of the email and its modal ({first} {date} {name} {email} are filled by onbFillText).
-CONFIG.ONBOARDING.WELCOME = { AGENDA_FROM: 0, AGENDA_TO: 4, MAILTO_MAX: 1800 };
+// wording). N-517 (ONB-D95): the branded body goes out through the clipboard only; "Open in Outlook" opens a subject-only mail, so there is
+// no mailto length limit. WELCOME_TEXT holds every word of the email and its modal ({first} {date} {name} {email} are filled by onbFillText).
+CONFIG.ONBOARDING.WELCOME = { AGENDA_FROM: 0, AGENDA_TO: 4 };
 CONFIG.ONBOARDING.WELCOME_TEXT = {
   subject:      'Welcome to Momentum Global, {first} \u2014 your first week',
+  eyebrow:      'Welcome to Momentum Global',   // N-517 (ONB-D101): above the headline, uppercase by style
+  headline:     'Your first week, {first}',
+  footer:       'Momentum Global',              // N-517 (ONB-D100): the navy footer line
   greeting:     'Hi {first},',
   intro:        'We\u2019re delighted you\u2019re joining Momentum Global. Your first day is {date}, and here is what your first week looks like.',
   introNoDate:  'We\u2019re delighted you\u2019re joining Momentum Global. Here is what your first week looks like.',
@@ -332,13 +335,14 @@ CONFIG.ONBOARDING.WELCOME_TEXT = {
   signoff:      'Best wishes,',
   subjectLabel: 'Subject:',
   modalTitle:   'Welcome email for {name}',
-  modalHint:    'Copy the email into Outlook, or open it as a new mail. Add {name}\u2019s email address, check it reads right, then send. Tick the step once it\u2019s sent.',
+  modalHint:    'Open in Outlook fills in the subject and copies the email: paste it into the body. Copy email copies it on its own. Add {name}\u2019s email address, check it reads right, then send. Tick the step once it\u2019s sent.',
+  previewTitle: 'Email preview',
   warnNoBuddy:  'No buddy is set on this plan yet. Set one on the employee record (People) and reopen this, or the email says a buddy will be introduced.',
   warnNoStart:  'This person has no start date, so the agenda has no dates.',
   btnCopy:      'Copy email',
   btnOpen:      'Open in Outlook',
   btnClose:     'Close',
   copied:       'Email copied \u2014 paste it into a new Outlook mail.',
-  copyFailed:   'Couldn\u2019t copy. Select the text in the preview and copy it by hand.',
-  openedLong:   'The email was too long to send to Outlook in one go: the subject is filled in and the body is on your clipboard \u2014 paste it in.',
+  copyFailed:   'Couldn\u2019t copy. Click into the preview, press Ctrl+A then Ctrl+C, and paste it in.',
+  openedCopied: 'Subject filled in and the email copied \u2014 paste it into the body.',
 };

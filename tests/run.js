@@ -82,6 +82,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'checklist-logic.js'),
   path.join(JS_DIR, 'onboarding-logic.js'),    // N-496: pure onboarding rules (after checklist-logic.js and pdp-identity.js)
   path.join(JS_DIR, 'onboarding-team.js'),     // N-502: pure My Team > Onboarding rules (straight after onboarding-logic.js)
+  path.join(JS_DIR, 'email-brand.js'),         // N-517: email-safe brand kit + CONFIG.EMAIL_BRAND (straight before onboarding-welcome.js)
   path.join(JS_DIR, 'onboarding-welcome.js'),  // N-516: pure welcome-email builder (straight after onboarding-team.js)
   path.join(JS_DIR, 'onboarding-reminders.js'), // N-503: pure onboarding reminder rules (straight after onboarding-team.js)
   path.join(JS_DIR, 'starter-folder-logic.js'),

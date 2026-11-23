@@ -241,10 +241,11 @@ ASSERTIONS.push(
       const O = CONFIG.ONBOARDING;
       _assertEqual(O.STEP_ACTIONS.map(a => a.key), ['onb.welcomeEmail'], 'AC1 one registered action');
       _assertEqual(O.STEP_ACTIONS.every(a => a.label && a.description), true, 'AC1 label + description');
-      _assertEqual(O.WELCOME, { AGENDA_FROM: 0, AGENDA_TO: 4, MAILTO_MAX: 1800 }, 'AC1 WELCOME');
+      _assertEqual(O.WELCOME, { AGENDA_FROM: 0, AGENDA_TO: 4 }, 'AC1 WELCOME (N-517: no MAILTO_MAX)');
       ['subject', 'greeting', 'intro', 'introNoDate', 'agendaTitle', 'agendaWith', 'agendaEmpty', 'buddyTitle', 'buddy', 'buddyNoEmail', 'buddyNone',
         'lmTitle', 'lm', 'close', 'signoff', 'subjectLabel', 'modalTitle', 'modalHint', 'warnNoBuddy', 'warnNoStart', 'btnCopy', 'btnOpen', 'btnClose',
-        'copied', 'copyFailed', 'openedLong'].forEach(k => _assertEqual(typeof O.WELCOME_TEXT[k] === 'string' && O.WELCOME_TEXT[k].length > 0, true, 'AC1 WELCOME_TEXT.' + k));
+        'copied', 'copyFailed', 'eyebrow', 'headline', 'footer', 'previewTitle', 'openedCopied'].forEach(k => _assertEqual(typeof O.WELCOME_TEXT[k] === 'string' && O.WELCOME_TEXT[k].length > 0, true, 'AC1 WELCOME_TEXT.' + k));
+      _assertEqual('openedLong' in O.WELCOME_TEXT, false, 'N-517 AC2 openedLong removed');
       ['actionLabel', 'actionNone', 'actionHint', 'actionNote', 'actionUnknown'].forEach(k => _assertEqual(typeof O.EDITOR_TEXT[k], 'string', 'AC2 EDITOR_TEXT.' + k));
       _assertEqual(onbStepActionKey({ ActionKey: ' onb.welcomeEmail ' }), 'onb.welcomeEmail', 'registered key, trimmed');
       _assertEqual([onbStepActionKey({}), onbStepActionKey({ ActionKey: null }), onbStepActionKey({ ActionKey: 'newton.test' }), onbStepActionKey(null)], ['', '', '', ''], 'blank / unknown / project action / no row');
@@ -313,15 +314,12 @@ ASSERTIONS.push(
       _assertEqual(lines.slice(-2), [T.signoff, 'Sam Sdm'], 'sign-off with the sender');
       _assertEqual(onbWelcomeEmail(w).text.split('\n').slice(-1)[0], T.signoff, 'no sender -> sign-off line only');
       _assertEqual(mail.html.includes('Fifth day &lt;b&gt;&amp;&lt;/b&gt; wrap') && !mail.html.includes('<b>&</b>'), true, 'AC12 html escapes a step label');
-      _assertEqual(/style=|class=|#[0-9a-f]{3,6}\b/i.test(mail.html), false, 'AC12 html: no style, class or hex');
+      _assertEqual(/class=|<style|<script|rgba\(/i.test(mail.html), false, 'N-517 AC4 html: no class, <style>, <script> or rgba()');
       const nb = onbWelcomeEmail(Object.assign({}, w, { buddy: null, lineManagerName: '', startDate: '', agenda: [] }));
       _assertEqual([nb.text.includes(T.buddyNone), nb.text.includes(T.agendaEmpty), nb.text.includes(T.introNoDate), nb.text.includes(T.lmTitle)], [true, true, true, false], 'AC10/AC11 no buddy, no agenda, no date, no line manager');
       _assertEqual(onbWelcomeEmail(Object.assign({}, w, { buddy: { name: 'Bo', email: '' } })).text.includes(onbFillText(T.buddyNoEmail, { name: 'Bo' })), true, 'buddy without email');
-      const short = onbWelcomeMailto({ subject: 'S & T', text: 'a\nb' }, 1800);
-      _assertEqual(short, { url: 'mailto:?subject=S%20%26%20T&body=a%0D%0Ab', withBody: true }, 'AC13 short: blank To, subject + CRLF body');
-      const long = onbWelcomeMailto({ subject: 'S', text: 'x'.repeat(2000) }, 1800);
-      _assertEqual(long, { url: 'mailto:?subject=S', withBody: false }, 'AC13 long: subject only');
-      _assertEqual(onbWelcomeMailto(mail, CONFIG.ONBOARDING.WELCOME.MAILTO_MAX).url.startsWith('mailto:?subject='), true, 'AC13 the To is left blank');
+      _assertEqual(onbWelcomeMailto({ subject: 'S & T', text: 'a\nb' }), 'mailto:?subject=S%20%26%20T', 'N-517 AC8 blank To, subject only');
+      _assertEqual(onbWelcomeMailto(mail).includes('body='), false, 'N-517 AC8 the body never goes in the URL');
     },
   },
   {
@@ -364,8 +362,10 @@ ASSERTIONS.push(
       const my = _onbSrc('onboarding-my-ui.js'), bud = _onbSrc('onboarding-buddy-ui.js');
       _assertEqual(/_onbmStepHtml\([^)]*Action/.test(my.replace(/function _onbmStepHtml\(it, n, tickAttr, actionAttr\)/, '')) || /_onbmStepHtml\([^)]*Action/.test(bud), false, 'AC7 My Onboarding / Buddying never pass an action');
       const wu = _onbSrc('onboarding-welcome-ui.js');
-      _assertEqual(/\.onbw-preview'\)\.textContent =/.test(wu) && !/innerHTML/.test(wu), true, 'AC12 preview through textContent, no innerHTML');
-      _assertEqual(/_openModal\(\{/.test(wu) && /onbWelcomeMailto\(mail, CONFIG\.ONBOARDING\.WELCOME\.MAILTO_MAX\)/.test(wu), true, 'AC8/AC13 modal engine + mailto limit');
+      _assertEqual(/\.onbw-preview'\)\.srcdoc = emailBrandDocument\(mail\.html\)/.test(wu) && !/innerHTML/.test(wu), true, 'N-517 AC6 preview through srcdoc, no innerHTML');
+      _assertEqual(/sandbox=""/.test(wu) && !/allow-/.test(wu), true, 'N-517 AC6 fully sandboxed frame');
+      _assertEqual(/_openModal\(\{/.test(wu) && /onbWelcomeMailto\(mail\)/.test(wu) && !/MAILTO_MAX/.test(wu), true, 'AC8 modal engine + subject-only mailto');
+      _assertEqual(/querySelector\('\.confirm-modal-actions'\)\.appendChild\(copy\)/.test(wu) && /'btn-primary onbw-copy'/.test(wu) && /confirmBtn\.className = 'btn-secondary confirm-modal-confirm'/.test(wu), true, 'N-517 AC6 Copy primary in the action row, Open secondary');
       _assertEqual(/tickOnboarding|createItem|updateItem|setChecklistItemDone|graph/i.test(wu), false, 'AC14 never writes or ticks');
       const adm = _onbSrc('checklist-admin.js');
       _assertEqual(/\$\{err\('contentUrl'\)\}\s*<\/div>\$\{_ckaStepActionFieldHtml\(it\)\}/.test(adm) && /id="ck-f-action"/.test(adm) && /_ckaStepActionNote\(it\)/.test(adm), true, 'AC2/AC4 editor action field + Step cell note');
@@ -378,7 +378,82 @@ ASSERTIONS.push(
       _assertEqual(CONFIG.MCP.scripts.some(s => /onboarding-welcome/.test(s)), false, 'AC15 not in the MCP bundle');
       if (typeof ALL_CSS === 'undefined') _skip('needs ALL_CSS (Node runner only)');
       const css = ALL_CSS['my-momentum.css'];
-      _assertEqual(/\.onb-step-meta \.onb-step-action \{/.test(css) && /\.onbw-preview \{[^}]*white-space: pre-wrap/.test(css), true, 'CSS rules present, tokens only');
+      _assertEqual(/\.onb-step-meta \.onb-step-action \{/.test(css) && /\.onbw-preview \{[^}]*height:/.test(css) && /\.onbw-subject \{/.test(css) && !/onbw-copy-row/.test(css), true, 'CSS rules present (N-517 frame), tokens only');
+    },
+  },
+);
+
+// ── N-517: the branded welcome email and the shared email-brand kit (ONB-D95–D101) ─────────────────────────────────────────────────
+function _ebCount(html, re) { return (html.match(re) || []).length; }
+function _ebBalanced(html) { return ['table', 'tr', 'td', 'p'].every(t => _ebCount(html, new RegExp('<' + t + '[\\s>]', 'g')) === _ebCount(html, new RegExp('</' + t + '>', 'g'))); }
+
+ASSERTIONS.push(
+  {
+    name: 'N-517 AC1 CONFIG.EMAIL_BRAND: #RRGGBB colours, navy pinned to --c-brand, hosted logo',
+    fn: function () {
+      const B = CONFIG.EMAIL_BRAND;
+      _assertEqual(Object.values(B.COLOURS).every(c => /^#[0-9A-F]{6}$/.test(c)), true, 'every colour is #RRGGBB');
+      _assertEqual(B.LOGO_BASE.startsWith('https://momentumglobal.github.io/') && B.LOGO_PATH.endsWith('.png'), true, 'hosted absolute logo');
+      _assertEqual([B.WIDTH, B.LOGO_HEIGHT, B.LOGO_WIDTH].every(n => Number.isInteger(n) && n > 0), true, 'integer dimensions');
+      if (typeof ALL_CSS === 'undefined') _skip('needs ALL_CSS (Node runner only)');
+      const m = /--c-brand:\s*(#[0-9A-Fa-f]{6});/.exec(ALL_CSS['style.css']);
+      _assertEqual(m && m[1].toUpperCase(), B.COLOURS.navy, 'navy == --c-brand in style.css');
+    },
+  },
+  {
+    name: 'N-517 email-brand kit: emailBrandHtml / Card / Text / Document escape, balance and use only brand colours',
+    fn: function () {
+      const C = CONFIG.EMAIL_BRAND.COLOURS;
+      const h = emailBrandHtml({ eyebrow: 'E <script>&', headline: 'H & <i>', footer: 'F <b>', sections: ['<p>one</p>', '', null, emailBrandCard(emailBrandText('x', 'item'))] });
+      _assertEqual(h.startsWith('<table role="presentation" width="600"') && h.includes('src="https://momentumglobal.github.io/newton/momentum-symbol-and-name-global-white.png"') && h.includes('alt="Momentum Global"'), true, 'table email with the hosted logo');
+      _assertEqual(h.includes('E &lt;script&gt;&amp;') && h.includes('H &amp; &lt;i&gt;') && h.includes('F &lt;b&gt;') && !h.includes('<script'), true, 'eyebrow / headline / footer escaped');
+      _assertEqual(/<style|class=|rgba\(/.test(h), false, 'no <style>, class or rgba()');
+      _assertEqual((h.match(/bgcolor="([^"]+)"/g) || []).every(a => Object.values(C).includes(a.slice(9, -1))), true, 'every bgcolor is a brand colour');
+      _assertEqual(_ebBalanced(h), true, 'table / tr / td / p balance');
+      _assertEqual(_ebCount(h, /<tr>/g), 7, 'header + intro + 2 non-empty sections + spacer + footer, + the card\'s own row (empty entries skipped)');
+      const bare = emailBrandHtml({ sections: ['<p>a</p>'] });
+      _assertEqual(_ebBalanced(bare) && _ebCount(bare, /<tr>/g) === 4, true, 'no eyebrow / headline -> no intro row, still balanced');
+      const card = emailBrandCard('<p>in</p>');
+      _assertEqual(card.includes('bgcolor="' + C.card + '"') && _ebBalanced(card), true, 'card: light fill, balanced');
+      _assertEqual([emailBrandText('a', 'title'), emailBrandText('a', 'nope')].every(t => /^<p style="[^"]+">a<\/p>$/.test(t)), true, 'text kinds + unknown fallback');
+      _assertEqual(emailBrandText('a', 'nope'), emailBrandText('a', 'p'), 'unknown kind = body paragraph');
+      const doc = emailBrandDocument(h);
+      _assertEqual(doc.startsWith('<!DOCTYPE html>') && doc.split(h).length === 2 && !/<style|<script/.test(doc), true, 'document wraps the fragment once, no style / script element');
+    },
+  },
+  {
+    name: 'N-517 AC3-AC5 onbWelcomeEmail html: branded layout, one card per Week 1 day, escaped; text unchanged',
+    fn: function () {
+      const x = _onbwFx();
+      const w = x.model().rows[0].welcome;
+      const T = CONFIG.ONBOARDING.WELCOME_TEXT, C = CONFIG.EMAIL_BRAND.COLOURS;
+      const mail = onbWelcomeEmail(w, { senderName: 'Sam Sdm' });
+      const cards = s => _ebCount(s, new RegExp('<table[^>]*bgcolor="' + C.card + '"', 'g'));
+      _assertEqual(cards(mail.html), w.agenda.length, 'AC3 one light card per agenda day');
+      _assertEqual(w.agenda.length, 4, 'fixture has four Week 1 days');
+      _assertEqual(mail.html.includes('>' + T.eyebrow + '<') && mail.html.includes('>Your first week, Nina<') && mail.html.includes('>' + T.footer + '<'), true, 'AC3 eyebrow, headline with first name, footer');
+      _assertEqual(mail.html.includes('&#9656;&nbsp;&nbsp;Step w2 — with Sam Sdm'), true, 'AC3 step line with marker and "with"');
+      _assertEqual(mail.html.includes('Sam Sdm</p>') && mail.html.includes(escHtml(T.signoff) + '<br>Sam Sdm'), true, 'sign-off + sender');
+      _assertEqual(_ebBalanced(mail.html), true, 'AC4 balanced');
+      const nb = onbWelcomeEmail(Object.assign({}, w, { buddy: null, lineManagerName: '', startDate: '', agenda: [] }));
+      _assertEqual([cards(nb.html), nb.html.includes(escHtml(T.agendaEmpty)), nb.html.includes(escHtml(T.lmTitle)), nb.html.includes(escHtml(T.buddyNone))], [0, true, false, true], 'no agenda -> no card; no LM -> no LM section');
+      _assertEqual(_ebBalanced(nb.html), true, 'empty case balanced');
+      const lines = mail.text.split('\n');
+      _assertEqual([lines[0], lines.includes('- Step w2 — with Sam Sdm'), lines.slice(-2)], ['Hi Nina,', true, [T.signoff, 'Sam Sdm']], 'AC5 text unchanged');
+      const src = _onbSrc('onboarding-welcome.js');
+      _assertEqual(/#[0-9A-Fa-f]{6}\b|style=/.test(src), false, 'no hex or style literal in onboarding-welcome.js');
+    },
+  },
+  {
+    name: 'N-517 AC10 email-brand.js loads in my-momentum.html only, straight before onboarding-welcome.js',
+    fn: function () {
+      if (typeof ALL_HTML === 'undefined') _skip('needs ALL_HTML (Node runner only)');
+      const mm = ALL_HTML['my-momentum.html'];
+      const tags = (mm.match(/<script src="js\/[^"]+"/g) || []).map(t => t.slice(16, -1));
+      _assertEqual(tags[tags.indexOf('email-brand.js') + 1], 'onboarding-welcome.js', 'straight before onboarding-welcome.js');
+      _assertEqual(tags.indexOf('config.js') < tags.indexOf('email-brand.js'), true, 'after config.js');
+      Object.keys(ALL_HTML).filter(h => h !== 'my-momentum.html').forEach(h => _assertEqual(/<script src="js\/email-brand\.js"/.test(ALL_HTML[h]), false, 'not loaded by ' + h));
+      _assertEqual(CONFIG.MCP.scripts.some(s => /email-brand/.test(s)), false, 'not in the MCP bundle');
     },
   },
 );

@@ -237,18 +237,15 @@ body.mm-area .nav-link.active { box-shadow: inset 3px 0 0 var(--mm-accent-soft);
 @media (max-width: 720px) { .onbt-signoff { grid-template-columns: 1fr; } .onbt-signoff-act { justify-content: flex-start; } }
 /* N-516: the "Draft welcome email" step action (onboarding-my-ui.js / onboarding-welcome-ui.js). Tokens only. */
 .onb-step-meta .onb-step-action { padding: var(--sp-2) var(--sp-5); font-size: var(--fs-13); }
-.confirm-modal:has(.onbw-preview) { max-width: 640px; }
+/* N-517: the branded email preview is a sandboxed frame (600px email + its 16px body padding), so the dialog is wider. */
+.confirm-modal:has(.onbw-preview) { max-width: 760px; }
+.onbw-subject { margin: 0 0 var(--sp-4); color: var(--text-primary); font-size: var(--fs-13); }
 .onbw-preview {
-  max-height: 360px;
-  overflow-y: auto;
+  display: block;
+  width: 100%;
+  height: 420px;
   margin: 0 0 var(--sp-5);
-  padding: var(--sp-5) var(--sp-7);
   background: var(--surface-alt);
   border: 1px solid var(--surface-alt-border);
   border-radius: var(--r-lg);
-  color: var(--text-primary);
-  font-size: var(--fs-13);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
-.onbw-copy-row { display: flex; justify-content: flex-start; margin: 0 0 var(--sp-5); }

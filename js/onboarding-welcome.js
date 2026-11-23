@@ -4,7 +4,8 @@
 // My Team > Onboarding. This file builds the email as data: the joiner's Week 1 agenda (every non-Library step due on offsets
 // WELCOME.AGENDA_FROM..AGENDA_TO, grouped by day), the buddy and the line manager. The modal, clipboard and mailto hand-off are in
 // onboarding-welcome-ui.js. Pure: no DOM, no Graph, no network. Every word is CONFIG.ONBOARDING.WELCOME_TEXT.
-// my-momentum.html only, straight after onboarding-team.js; never mobile.html, Newton for Claude or the Command Bar.
+// N-517 (ONB-D95–D101): the html is the branded email, built with the email-brand kit (email-brand.js, which loads first); no colour or
+// style literal lives here. my-momentum.html only, straight after onboarding-team.js; never mobile.html, Newton for Claude or the Command Bar.
 
 // The owners whose name is worth naming in the agenda ("— with Jane Smith"): not the joiner themself, not Operations / IT.
 const _ONBW_WITH_OWNERS = ['LM', 'CSD', 'PeopleOps', 'Buddy'];
@@ -60,8 +61,8 @@ function onbWelcomeInput({ model = null, parties = null } = {}) {
   };
 }
 
-// The email from an onbWelcomeInput result. -> { subject, text, html }. Same content both ways; text uses '\n' line breaks, html is minimal
-// email-safe markup (p / strong / ul / li, no classes, styles or colours) with every value through escHtml.
+// The email from an onbWelcomeInput result. -> { subject, text, html }. Same content both ways; text uses '\n' line breaks. html is the
+// branded email (N-517): logo header, eyebrow + headline, then one light card per Week 1 day (ONB-D98), footer — every value through escHtml.
 function onbWelcomeEmail(input, { senderName = '' } = {}) {
   const T = CONFIG.ONBOARDING.WELCOME_TEXT;
   const i = input || { first: 'there', startDate: '', lineManagerName: '', buddy: null, agenda: [] };
@@ -84,28 +85,27 @@ function onbWelcomeEmail(input, { senderName = '' } = {}) {
   text.push('', T.close, '', T.signoff);
   if (sender) text.push(sender);
 
-  const e = escHtml;
-  const html = [
-    `<p>${e(fill(T.greeting, { first: i.first }))}</p>`,
-    `<p>${e(intro)}</p>`,
-    `<p><strong>${e(T.agendaTitle)}</strong></p>`,
-    agenda.length
-      ? agenda.map(d => `<p><strong>${e(d.dayText)}</strong></p><ul>${d.items.map(it => `<li>${e(lineOf(it))}</li>`).join('')}</ul>`).join('')
-      : `<p>${e(T.agendaEmpty)}</p>`,
-    `<p><strong>${e(T.buddyTitle)}</strong><br>${e(buddy)}</p>`,
-    lm ? `<p><strong>${e(T.lmTitle)}</strong><br>${e(lm)}</p>` : '',
-    `<p>${e(T.close)}</p>`,
-    `<p>${e(T.signoff)}${sender ? '<br>' + e(sender) : ''}</p>`,
-  ].join('');
+  const e = escHtml, k = emailBrandText;
+  const sections = [
+    k(e(fill(T.greeting, { first: i.first })), 'p'),
+    k(e(intro), 'p'),
+    k(e(T.agendaTitle), 'title'),
+  ].concat(agenda.length
+    ? agenda.map(d => emailBrandCard(k(e(d.dayText), 'cardTitle') + d.items.map(it => k('&#9656;&nbsp;&nbsp;' + e(lineOf(it)), 'item')).join('')))
+    : [k(e(T.agendaEmpty), 'p')]
+  ).concat([
+    k(e(T.buddyTitle), 'title') + k(e(buddy), 'p'),
+    lm ? k(e(T.lmTitle), 'title') + k(e(lm), 'p') : '',
+    k(e(T.close), 'p'),
+    k(e(T.signoff) + (sender ? '<br>' + e(sender) : ''), 'p'),
+  ]);
+  const html = emailBrandHtml({ eyebrow: T.eyebrow, headline: fill(T.headline, { first: i.first }), footer: T.footer, sections });
 
   return { subject: fill(T.subject, { first: i.first }), text: text.join('\n'), html };
 }
 
-// The "Open in Outlook" link: mailto with a blank To, the subject and the body (CRLF line breaks). Over max characters the body is left off
-// (Outlook truncates or refuses long mailto URLs) and withBody is false, so the caller puts the body on the clipboard. -> { url, withBody }
-function onbWelcomeMailto({ subject = '', text = '' } = {}, max) {
-  const enc = s => encodeURIComponent(String(s || ''));
-  const head = 'mailto:?subject=' + enc(subject);
-  const full = head + '&body=' + enc(String(text || '').replace(/\r?\n/g, '\r\n'));
-  return full.length <= max ? { url: full, withBody: true } : { url: head, withBody: false };
+// The "Open in Outlook" link (N-517, ONB-D95): a new mail with a blank To and the subject only. The branded body can't travel in a mailto:
+// URL, so the caller puts it on the clipboard and the sender pastes it. -> 'mailto:?subject=…'
+function onbWelcomeMailto({ subject = '' } = {}) {
+  return 'mailto:?subject=' + encodeURIComponent(String(subject || ''));
 }

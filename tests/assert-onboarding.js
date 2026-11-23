@@ -994,7 +994,7 @@ ASSERTIONS.push(
       _assertEqual(/id="onb-buddy-page"/.test(ui) && /getElementById\('onb-buddy-page'\)/.test(ui), true, 'redraws target #onb-buddy-page so the area header survives');
       const tick = ui.slice(ui.indexOf('async function onbbTick'), ui.indexOf('function onbbToggleRest'));
       _assertEqual(/disabled = true/.test(tick) && /toast\(/.test(tick) && tick.indexOf('_onbbReload(false)') > tick.indexOf('catch'), true, 'AC9 lock, toast on failure, then a fresh redraw either way');
-      _assertEqual(/registerActions\(\{\s*onbbTick,\s*onbbToggleRest,\s*onbbRetry,?\s*\}\)/.test(ui), true, 'actions registered once');
+      _assertEqual(/registerActions\(\{\s*onbbTick,\s*(onbbReassign,\s*)?onbbToggleRest,\s*onbbRetry,?\s*\}\)/.test(ui), true, 'actions registered once (N-520: onbbReassign joins them)');
       _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(ui), false, 'AC13 no hex in JS');
       _assertEqual(/getBuddyingView\(/.test(ui) && /tickOnboardingStep\(/.test(ui) && !/createItem\(|updateItem\(|getItems\(|getChecklistProgress\(/.test(ui), true, 'the page only calls the two api functions');
       _assertEqual(/_onbmStepHtml\(/.test(ui) && !/function _onbmStepHtml/.test(ui), true, 'the step row is reused, not copied');
@@ -1004,7 +1004,7 @@ ASSERTIONS.push(
       const nav = _onbSrc('my-momentum-nav.js');
       _assertEqual(/case 'myBuddying':\s+await renderBuddyingPage\(\)/.test(nav) && /label: mmTabLabel\(t, _mmSignals\)/.test(nav), true, 'nav renders the page and labels the tab with its count');
       const mm = _onbSrc('onboarding-my-ui.js');
-      _assertEqual(/function _onbmStepHtml\(it, n, tickAttr(, actionAttr)?\)/.test(mm) && /actOn\('change', 'onbmTick', it\.itemKey, ACT_CHECKED\)/.test(mm), true, 'the My Onboarding step row keeps onbmTick by default');
+      _assertEqual(/function _onbmStepHtml\(it, n, tickAttr(, actionAttr(, reassignAttr)?)?\)/.test(mm) && /actOn\('change', 'onbmTick', it\.itemKey, ACT_CHECKED\)/.test(mm), true, 'the My Onboarding step row keeps onbmTick by default');
       if (typeof ALL_CSS === 'undefined') _skip('needs ALL_CSS (Node runner only)');
       const css = ALL_CSS['my-momentum.css'];
       const block = css.slice(css.indexOf('N-509: My Momentum > Buddying'));

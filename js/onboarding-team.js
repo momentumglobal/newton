@@ -12,13 +12,15 @@ function _onbtEmail(s) { return String(s == null ? '' : s).trim().toLowerCase();
 
 // Every plan this viewer looks after: Active or Complete plans where they are the joiner's line manager, their CSD, or an Admin.
 // -> [{ plan, relations }] in the order given (the model sorts).
-function onbTeamPlans({ plans = [], people = [], email = '', role = '', peopleOpsActive = false } = {}) {
+// N-520 (ONB-D114): with assignments, a plan where the viewer only holds a reassigned step is listed too, as { plan, relations, assigneeOnly: true }.
+function onbTeamPlans({ plans = [], people = [], email = '', role = '', peopleOpsActive = false, assignments = [] } = {}) {
   const out = [];
   (plans || []).forEach(plan => {
     if (!plan || !CONFIG.ONBOARDING.PLAN_VISIBLE.includes(plan.Status)) return;
-    const rel = onbRelations({ plan, people, email, role, peopleOpsActive });
-    if (!(rel.has('lm') || rel.has('csd') || rel.has('admin'))) return;
-    out.push({ plan, relations: Array.from(rel) });
+    const rel = onbRelations({ plan, people, email, role, peopleOpsActive, assignments });
+    const team = rel.has('lm') || rel.has('csd') || rel.has('admin');
+    if (!team && !rel.has('assignee')) return;
+    out.push(team ? { plan, relations: Array.from(rel) } : { plan, relations: Array.from(rel), assigneeOnly: true });
   });
   return out;
 }
@@ -119,17 +121,21 @@ function _onbtDayNumber(startDate, todayISO) {
 
 // One joiner as a card. model = onbPlanModel for the viewer; relations / peopleOpsActive as onbTeamPlans / the gate; nameOf(email) -> display name.
 // byOwner: the open steps grouped by owner (OWNERS order), overdue first then by due date. A step keeps its canTick (a sign-off step never has one).
-function onbTeamRow({ model = null, plan = null, relations = [], state = null, rights = null, gate = null, pdp = null, todayISO = '', peopleOpsActive = false, nameOf = null } = {}) {
+// N-520 (ONB-D114): reassigned steps leave their owner's group for one trailing ASSIGN.TEXT.group group; viewerEmail lets onbTeamActions
+// give the viewer the steps reassigned to them.
+function onbTeamRow({ model = null, plan = null, relations = [], state = null, rights = null, gate = null, pdp = null, todayISO = '', peopleOpsActive = false, nameOf = null, viewerEmail = '' } = {}) {
   const O = CONFIG.ONBOARDING;
   const m = model || { phases: [], summary: { total: 0, done: 0, overdue: 0, nextDue: null }, joiner: { id: '', name: '', startDate: '' } };
   const items = (m.phases || []).reduce((acc, p) => acc.concat(p.items), []);
   const open = items.filter(i => !i.done);
   const rank = (a, b) => (a.overdue === b.overdue ? 0 : (a.overdue ? -1 : 1)) || String(a.dueISO || '9999').localeCompare(String(b.dueISO || '9999'));
+  const sorted = list => list.map((i, idx) => ({ i, idx })).sort((a, b) => rank(a.i, b.i) || a.idx - b.idx).map(x => x.i);
   const byOwner = O.OWNERS.map(o => {
-    const mine = open.filter(i => i.owner.key === o.key).map((i, idx) => ({ i, idx }))
-      .sort((a, b) => rank(a.i, b.i) || a.idx - b.idx).map(x => x.i);
+    const mine = sorted(open.filter(i => i.owner.key === o.key && !i.reassigned));
     return mine.length ? { key: o.key, label: mine[0].owner.label, name: mine[0].owner.name, items: mine } : null;
   }).filter(Boolean);
+  const moved = sorted(open.filter(i => i.reassigned));
+  if (moved.length) byOwner.push({ key: 'Reassigned', label: O.ASSIGN.TEXT.group, name: '', items: moved });
   const s = m.summary;
   const name = nameOf || (e => e);
   const who = st => (st.signed ? name(st.byEmail) : '');
@@ -162,6 +168,7 @@ function onbTeamRow({ model = null, plan = null, relations = [], state = null, r
       csd:      part('csd', O.TEAM_TEXT.csd),
     },
     pdp: onbPdpLabel(pdp),
+    viewerEmail: _onbtEmail(viewerEmail),
   };
 }
 
@@ -181,13 +188,14 @@ function onbTeamActions(rows) {
     const mine = o => (o.key === 'LM' && rel.has('lm'))
       || (o.key === 'CSD' && rel.has('csd'))
       || (o.key === 'PeopleOps' && rel.has('csd') && row.peopleOpsActive !== true);
+    const assignedToMe = i => !!i.reassigned && !!row.viewerEmail && i.assign && i.assign.assigneeEmail === row.viewerEmail;   // N-520
     const label = { roleplay: T.roleplay, day30: T.day30lm, countersign: T.csd };
     const can = k => !!(row.signoff[k === 'countersign' ? 'csd' : part[k]] || {}).canSign;
     const open = [];
     row.byOwner.forEach(g => g.items.forEach(i => open.push(i)));
     const seen = new Set();
     const entries = [];
-    open.filter(i => i.signoff ? can(i.signoff) : row.byOwner.some(g => mine(g) && g.items.includes(i)))
+    open.filter(i => i.signoff ? can(i.signoff) : (assignedToMe(i) || row.byOwner.some(g => mine(g) && g.items.includes(i))))
       .sort((a, b) => (a.overdue === b.overdue ? 0 : (a.overdue ? -1 : 1)) || String(a.dueISO || '9999').localeCompare(String(b.dueISO || '9999')))
       .forEach(i => {
         if (i.signoff) { seen.add(i.signoff); entries.push({ type: 'signoff', kind: i.signoff, label: label[i.signoff] }); }
@@ -207,32 +215,38 @@ function onbTeamActions(rows) {
 // The whole page model. progressByPlan = { planId: ChecklistProgress rows }; signoffs = OnboardingSignoffs rows; pdpByPerson = { personId: status }.
 // readOnly (Admin preview) strips every right and every tick. Rows: Active first (most overdue, then latest start), Complete last.
 // -> { rows, completed, viewerName, actions, totals: { active, overdue, awaiting } }. Each Active row also carries welcome (onbWelcomeInput, N-516).
-function onbTeamModel({ plans = [], people = [], templates = [], progressByPlan = {}, signoffs = [], pdpByPerson = {}, email = '', role = '', peopleOpsActive = false, todayISO = '', readOnly = false } = {}) {
+// N-520 (ONB-D114): assignments (optional). A plan the viewer only holds reassigned steps on adds those steps to actions and nothing else
+// (no row, tile or count); assignOnly = true when that is all the viewer has.
+function onbTeamModel({ plans = [], people = [], templates = [], progressByPlan = {}, signoffs = [], pdpByPerson = {}, email = '', role = '', peopleOpsActive = false, todayISO = '', readOnly = false, assignments = [] } = {}) {
   const emailIndex = pdpEmailIndex(people);
   const nameOf = e => {
     const hit = (emailIndex.get ? emailIndex.get(_onbtEmail(e)) : null) || [];
     return hit.length === 1 ? String(hit[0].EmployeeName || e) : String(e || '');
   };
-  const all = onbTeamPlans({ plans, people, email, role, peopleOpsActive }).map(({ plan, relations }) => {
-    let model = onbPlanModel({ plan, people, templates, progressRows: (progressByPlan || {})[String(plan.id)] || [], email, role, peopleOpsActive, todayISO });
-    if (readOnly) model = Object.assign({}, model, { phases: model.phases.map(p => Object.assign({}, p, { items: p.items.map(i => Object.assign({}, i, { canTick: false })) })) });
+  const all = onbTeamPlans({ plans, people, email, role, peopleOpsActive, assignments }).map(({ plan, relations, assigneeOnly }) => {
+    let model = onbPlanModel({ plan, people, templates, progressRows: (progressByPlan || {})[String(plan.id)] || [], email, role, peopleOpsActive, todayISO, assignments });
+    if (readOnly) model = Object.assign({}, model, { phases: model.phases.map(p => Object.assign({}, p, { items: p.items.map(i => Object.assign({}, i, { canTick: false, canReassign: false })) })) });
     const state = onbSignoffState({ signoffs, plan });
     const gate = onbDay30Gate({ model, state });
     const parties = onbPlanParties(plan, people);
     const csdPresent = !!parties.csd;
     const rights = onbSignoffRights({ relations, planStatus: plan.Status, state, gate, csdPresent, readOnly });
-    const row = onbTeamRow({ model, plan, relations, state, rights, gate, pdp: (pdpByPerson || {})[String(plan.PersonID)], todayISO, peopleOpsActive, nameOf });
+    const row = onbTeamRow({ model, plan, relations, state, rights, gate, pdp: (pdpByPerson || {})[String(plan.PersonID)], todayISO, peopleOpsActive, nameOf, viewerEmail: email });
     row.welcome = row.complete ? null : onbWelcomeInput({ model, parties });   // N-516: the "Draft welcome email" step action's data
+    if (assigneeOnly) row.assigneeOnly = true;   // N-520
     return row;
   });
-  const active = all.filter(r => !r.complete).sort((a, b) => (b.overdue - a.overdue) || String(b.startDate || '').localeCompare(String(a.startDate || '')) || a.name.localeCompare(b.name));
-  const completed = all.filter(r => r.complete).sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')) || a.name.localeCompare(b.name));
+  const assignRows = all.filter(r => r.assigneeOnly && !r.complete);   // N-520 (ONB-D114): actions only
+  const teamAll = all.filter(r => !r.assigneeOnly);
+  const active = teamAll.filter(r => !r.complete).sort((a, b) => (b.overdue - a.overdue) || String(b.startDate || '').localeCompare(String(a.startDate || '')) || a.name.localeCompare(b.name));
+  const completed = teamAll.filter(r => r.complete).sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')) || a.name.localeCompare(b.name));
   const viewer = nameOf(email);
   return {
     rows: active,
     completed,
     viewerName: viewer && viewer !== String(email || '') ? viewer : '',   // N-516: the welcome email's sign-off; '' when unmatched
-    actions: readOnly ? [] : onbTeamActions(active),
+    actions: readOnly ? [] : onbTeamActions(active.concat(assignRows)),
+    assignOnly: !active.length && !completed.length && assignRows.length > 0,   // N-520: the page shows My actions alone
     totals: {
       active: active.length,
       overdue: active.reduce((n, r) => n + r.overdue, 0),

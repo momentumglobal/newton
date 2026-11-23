@@ -237,6 +237,43 @@ CONFIG.ONBOARDING.SIGNOFF = {
   FIELDS:       ['Title', 'PlanID', 'PersonID', 'Kind', 'Outcome', 'SignedByEmail', 'SignedAt'],
 };
 
+// N-520 (ONB-D108..D118). Step reassignment, per plan and per step; the template owner never changes. LIST = OnboardingStepAssignments
+// (Newton Users Contribute without delete, Newton People Edit): append-only, the latest row per (PlanID, ItemKey) wins by numeric item id, and
+// a blank AssigneeEmail means "back with the template owner" (ONB-D112). NOTIFY = the one bell to the new assignee: fixed text, no name,
+// email or step label (the Notifications list is readable by everyone, ONB-D76 / D115); key = KEY_PREFIX:planId:itemKey:email. TEXT holds
+// every word of the Reassign button, its modal, the reassigned owner chip and the refusals ({name} {from} {role} {label} via onbFillText).
+CONFIG.ONBOARDING.ASSIGN = {
+  LIST:   'OnboardingStepAssignments',
+  FIELDS: ['Title', 'PlanID', 'PersonID', 'ItemKey', 'AssigneeEmail', 'AssignedByEmail', 'AssignedAt'],
+  NOTIFY: { TYPE: 'onbAssigned', KEY_PREFIX: 'onb:assigned', TONE: 'attention', LINK: 'my-momentum.html#teamOnboarding' },
+  TEXT: {
+    chip:          '{name} \u00b7 reassigned from {from}',
+    btn:           'Reassign',
+    group:         'Reassigned',                 // the "Open steps by owner" group for reassigned steps (My Team)
+    modalTitle:    'Reassign this step',
+    modalMessage:  'Who should own \u201c{label}\u201d on this plan? They will see it in My Team \u2192 Onboarding and can tick it.',
+    originalOwner: '{name} (original owner)',
+    backTo:        'Back to {role}',
+    confirm:       'Reassign',
+    saved:         'Step reassigned.',
+    handedBack:    'Step handed back.',
+    unchanged:     'No change: that person already owns this step.',
+    notifyWarn:    'Step reassigned, but the notification could not be sent.',
+    failed:        'Couldn\u2019t reassign that step:',
+    notifyBody:    'An onboarding step has been assigned to you.',
+    reasons: {
+      preview:      'Preview is read-only.',
+      closed:       'This plan is closed.',
+      employee:     'The joiner\u2019s own steps can\u2019t be reassigned.',
+      signoff:      'Sign-off steps stay with the line manager and CSD.',
+      library:      'Library items belong to the joiner.',
+      done:         'Only open steps can be reassigned.',
+      noRights:     'Only the step\u2019s owner, its current assignee or an Admin can reassign it.',
+      notCandidate: 'That person can\u2019t be picked: they need an active Newton work email and must have started.',
+    },
+  },
+};
+
 // N-502. Every word on My Team > Onboarding (onboarding-team-ui.js); {name} {date} {n} {label} {due} {done} {total} {pct} are filled by
 // onbFillText. The step rows reuse PLAN_TEXT (owner chip, due, overdue, Open link, tickFailed).
 CONFIG.ONBOARDING.TEAM_TEXT = {

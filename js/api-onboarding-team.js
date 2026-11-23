@@ -16,14 +16,17 @@ async function getOnboardingSignoffs() {
   return getItems(CONFIG.ONBOARDING.SIGNOFF.LIST);
 }
 
-// The My Team tab signal for my-momentum-app.js: { team } = how many Active or Complete plans the viewer is line manager or CSD of (Admin: all).
+// The My Team tab signal for my-momentum-app.js: { team } = how many Active or Complete plans the viewer is line manager or CSD of (Admin: all),
+// or (N-520, ONB-D114) holds a reassigned step on.
 // Zero unless the gate is live or Admin preview; any read failure is zero (the sub-tab stays hidden, nothing throws).
 async function resolveOnboardingTeamNav() {
   try {
     const { email, role } = await _onbViewerCtx();
-    const [gate, plans, people] = await Promise.all([resolveOnboardingGate(), getOnboardingPlans(), getPeople(false)]);
+    const [gate, plans, people, assignments] = await Promise.all([
+      resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), _onbAssignmentsOrNone(),
+    ]);
     if (gate.state !== 'live' && gate.state !== 'preview') return { team: 0 };
-    return { team: onbTeamPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive }).length };
+    return { team: onbTeamPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments }).length };
   } catch (e) {
     console.warn('My Team onboarding: tab signal unavailable', e);
     return { team: 0 };
@@ -32,14 +35,15 @@ async function resolveOnboardingTeamNav() {
 
 // The page. -> { none: true, gateState } when the viewer looks after no plan, else { gateState, readOnly } plus the onbTeamModel result.
 // Progress is read only for the viewer's own plans, after they are known. The PDP status is a status-only read that never fails the page.
+// N-520: candidates = { planId: onbAssignCandidates } for the Reassign modal.
 async function getOnboardingTeamView() {
   const O = CONFIG.ONBOARDING;
   const { email, role } = await _onbViewerCtx();
-  const [gate, plans, people, templates] = await Promise.all([
-    resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE),
+  const [gate, plans, people, templates, assignments] = await Promise.all([
+    resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE), _onbAssignmentsOrNone(),
   ]);
   if (gate.state !== 'live' && gate.state !== 'preview') return { none: true, gateState: gate.state };
-  const mine = onbTeamPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive });
+  const mine = onbTeamPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments });
   if (!mine.length) return { none: true, gateState: gate.state };
   const [rows, signoffs] = await Promise.all([
     Promise.all(mine.map(m => getChecklistProgress(O.RECORD_TYPE, { recordId: m.plan.PersonID }))),
@@ -54,8 +58,11 @@ async function getOnboardingTeamView() {
     console.warn('My Team onboarding: goal-setting status unavailable', e);
   }
   const readOnly = gate.state === 'preview';
-  return Object.assign({ gateState: gate.state, readOnly }, onbTeamModel({
-    plans, people, templates, progressByPlan, signoffs, pdpByPerson, email, role, peopleOpsActive: gate.peopleOpsActive, todayISO: localDayISO(), readOnly,
+  const todayISO = localDayISO();
+  const candidates = {};
+  mine.forEach(m => { candidates[String(m.plan.id)] = onbAssignCandidates(people, m.plan.PersonID, todayISO); });
+  return Object.assign({ gateState: gate.state, readOnly, candidates }, onbTeamModel({
+    plans, people, templates, progressByPlan, signoffs, pdpByPerson, email, role, peopleOpsActive: gate.peopleOpsActive, todayISO, readOnly, assignments,
   }));
 }
 
@@ -65,16 +72,17 @@ async function _onbTeamWriteCtx(planId) {
   const { email, role } = await _onbViewerCtx();
   _onbDropCaches();
   _cacheInvalidate(O.SIGNOFF.LIST);
-  const [gate, plans, people, templates, signoffs] = await Promise.all([
+  const [gate, plans, people, templates, signoffs, assignments] = await Promise.all([
     resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE), getOnboardingSignoffs(),
+    getOnboardingAssignments(),   // N-520: strict on a write path
   ]);
   if (gate.state === 'preview') throw new Error(O.TEAM_TEXT.reasons.preview);
   if (gate.state !== 'live') throw new Error('Onboarding is not available to you.');
   const want = String(planId == null ? '' : planId).trim();
-  const entry = onbTeamPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive }).find(m => String(m.plan.id) === want);
+  const entry = onbTeamPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments }).find(m => String(m.plan.id) === want);
   if (!entry) throw new Error('That onboarding plan is not available to you.');
   if (entry.plan.Status !== O.PLAN_ACTIVE) throw new Error(O.TEAM_TEXT.reasons.closed);
-  return { gate, entry, plan: entry.plan, people, templates, signoffs, email, role };
+  return { gate, entry, plan: entry.plan, people, templates, signoffs, assignments, email, role };
 }
 
 // Tick or untick one step from My Team (ONB-D72). tickOnboardingStep only knows the viewer's OWN and buddy plans (onbMyPlans), so a line
@@ -91,7 +99,9 @@ async function tickOnboardingTeamStep({ planId, itemKey, done } = {}) {
   const rel = new Set(c.entry.relations);
   if (!step || !onbStepVisible({ step, relations: rel, startDate, todayISO: localDayISO() })) throw new Error('That step is not part of this plan.');
   if (onbSignoffStepKind(step)) throw new Error(O.PLAN_TEXT.signoffHint);
-  if (!onbCanTick({ step, relations: rel, peopleOpsActive: c.gate.peopleOpsActive, planStatus: c.plan.Status })) throw new Error(O.PLAN_TEXT.tickNoRights);
+  const assignee = onbStepAssignee({ step, plan: c.plan, assignments: c.assignments, people: c.people });   // N-520 (ONB-D113)
+  const isAssignee = !!assignee && _onbEmail(assignee.WorkEmail) === _onbEmail(c.email);
+  if (!onbCanTick({ step, relations: rel, peopleOpsActive: c.gate.peopleOpsActive, planStatus: c.plan.Status, reassigned: !!assignee, isAssignee })) throw new Error(O.PLAN_TEXT.tickNoRights);
   const rows = await getChecklistProgress(O.RECORD_TYPE, { recordId: c.plan.PersonID });
   const prev = resolveChecklistProgress(rows).get(key) || null;
   return setChecklistItemDone(O.RECORD_TYPE, c.plan.PersonID, key, done, prev ? prev.rowId : null);

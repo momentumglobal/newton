@@ -205,3 +205,176 @@ ASSERTIONS.push(
     },
   },
 );
+
+// ── N-520: reassigning onboarding steps (specs/N-520.md, ONB-D108..D118) ─────────────────────────────────────────────
+// Nina New's plan '30' (LM Sam Sdm, CSD Cara Csd, buddy Tia Tp) with one step per owner; Ian Internal is internal staff.
+function _onbaFx() {
+  const x = _onbtFx();
+  const ian = x.f.P(40, 'Ian Internal', 'Ops', { StaffType: CONFIG.STAFF_TYPE_INTERNAL });
+  const people = x.people.concat([ian]);
+  const templates = [
+    _onbrTpl('w2', 'LM', 1), _onbrTpl('w1', 'Employee', 0), _onbrTpl('bd', 'Buddy', 1), _onbrTpl('ops', 'Ops', 1),
+    _onbrTpl('onb_tp_m05', 'LM', 2), _onbrTpl('lib', 'LM', null, { Section: 'Library', StepMode: 'Self-guided', Required: false }),
+  ];
+  const plan = Object.assign({}, x.plan, { BuddyEmail: x.f.tp1.WorkEmail, Title: x.nina.WorkEmail });
+  const row = (id, key, to, by) => ({ id: String(id), PlanID: 30, PersonID: 30, ItemKey: key, AssigneeEmail: to || '', AssignedByEmail: by || x.f.sdm.WorkEmail, AssignedAt: '2026-11-26' });
+  const step = key => templates.find(t => t.ItemKey === key);
+  return Object.assign({}, x, { ian, people, templates, plan, row, step, tom: x.f.tp2 });
+}
+
+ASSERTIONS.push(
+  {
+    name: 'N-520 AC0 config: CONFIG.ONBOARDING.ASSIGN, FIELD_ALIASES, fixed notification text, deep link to My Team',
+    fn: function () {
+      const A = CONFIG.ONBOARDING.ASSIGN;
+      _assertEqual(A.LIST, 'OnboardingStepAssignments', 'list name');
+      _assertEqual(A.FIELDS, ['Title', 'PlanID', 'PersonID', 'ItemKey', 'AssigneeEmail', 'AssignedByEmail', 'AssignedAt'], 'fields');
+      _assertEqual(FIELD_ALIASES.OnboardingStepAssignments, {}, 'registered as {}');
+      _assertEqual(A.NOTIFY.LINK, CONFIG.ONBOARDING.REMINDERS.LINKS.TEAM, 'notification opens My Team > Onboarding');
+      _assertEqual(/[{}@]/.test(A.TEXT.notifyBody), false, 'notification body is fixed text (no placeholder, no email)');
+      Object.keys(A.TEXT.reasons).forEach(k => _assertEqual(typeof A.TEXT.reasons[k] === 'string' && A.TEXT.reasons[k].length > 0, true, 'reason ' + k));
+      _assertEqual(onbAssignNotifyKey('30', 'w2', 'Tom.Tp@MG.test'), 'onb:assigned:30:w2:tom.tp@mg.test', 'notification key');
+    },
+  },
+  {
+    name: 'N-520 AC1-AC2 onbAssignmentIndex (latest numeric id wins, blank = none, plan filter) and onbStepAssignee (one active row only)',
+    fn: function () {
+      const x = _onbaFx(), T = x.tom.WorkEmail;
+      const idx = onbAssignmentIndex([x.row(1, 'w2', T), x.row(3, 'w2', ''), x.row(2, 'w2', x.ian.WorkEmail), x.row(4, 'bd', T.toUpperCase()), Object.assign(x.row(5, 'ops', T), { PlanID: 31 })], '30');
+      _assertEqual(idx.has('30|w2'), false, 'AC1 the latest row (id 3) is blank: back with the template owner');
+      _assertEqual(idx.get('30|bd').email, T, 'AC1 email lower-cased');
+      _assertEqual([idx.has('31|ops'), onbAssignmentIndex([Object.assign(x.row(5, 'ops', T), { PlanID: 31 })]).has('31|ops')], [false, true], 'AC1 another plan is filtered out only when planId is given');
+      _assertEqual(onbAssignmentIndex([x.row(10, 'w2', x.ian.WorkEmail), x.row(9, 'w2', T)]).get('30|w2').email, x.ian.WorkEmail, 'AC1 ids compare as numbers (10 > 9)');
+      const at = (people, email) => onbStepAssignee({ step: x.step('w2'), plan: x.plan, assignments: [x.row(1, 'w2', email)], people });
+      _assertEqual(at(x.people, T).EmployeeName, 'Tom Tp', 'AC2 resolves');
+      _assertEqual(at(x.people.concat([x.f.P(41, 'Tom Twin', 'TP', { WorkEmail: T })]), T), null, 'AC2 two rows share the email');
+      _assertEqual(at(x.people.map(p => (p.id === x.tom.id ? Object.assign({}, p, { IsActive: false }) : p)), T), null, 'AC2 inactive');
+      _assertEqual(at(x.people.map(p => (p.id === x.tom.id ? Object.assign({}, p, { IsPlaceholder: true }) : p)), T), null, 'AC2 placeholder');
+      _assertEqual(at(x.people, 'gone@mg.test'), null, 'AC2 not in People');
+    },
+  },
+  {
+    name: 'N-520 AC3-AC4 onbStepOwner with an assignee; onbCanTick moves the owner right to the assignee, LM / CSD / Admin keep theirs',
+    fn: function () {
+      const x = _onbaFx();
+      const parties = onbPlanParties(x.plan, x.people);
+      const o = onbStepOwner({ step: x.step('w2'), parties, assignee: x.tom });
+      _assertEqual([o.key, o.person.EmployeeName, o.reassigned, o.originalPerson.EmployeeName, o.originalLabel], ['LM', 'Tom Tp', true, 'Sam Sdm', 'Line Manager'], 'AC3 assignee is the person');
+      _assertEqual(Object.keys(onbStepOwner({ step: x.step('w2'), parties })), ['key', 'label', 'person'], 'AC3 shape unchanged without one');
+      const t = (key, rel, o2) => onbCanTick(Object.assign({ step: x.step(key), relations: rel, planStatus: 'Active' }, o2));
+      _assertEqual([t('w2', ['assignee'], { reassigned: true, isAssignee: true }), t('w2', ['buddy'], { reassigned: true }), t('w2', ['assignee'], { reassigned: true, isAssignee: false })], [true, false, false], 'AC4 a reassigned LM step: the assignee only');
+      _assertEqual(['lm', 'csd', 'admin'].map(r => t('w2', [r], { reassigned: true })), [true, true, true], 'AC4 LM / CSD / Admin tick any step');
+      _assertEqual([t('bd', ['buddy']), t('bd', ['buddy'], { reassigned: true }), t('bd', ['assignee'], { reassigned: true, isAssignee: true })], [true, false, true], 'AC4 a reassigned Buddy step leaves the buddy');
+      _assertEqual(t('w2', ['admin'], { reassigned: true, planStatus: 'Complete' }), false, 'AC4 nobody on a closed plan');
+    },
+  },
+  {
+    name: 'N-520 AC5 onbCanReassign: never the joiner\'s, sign-off, Library or done steps; owner, assignee and Admin only',
+    fn: function () {
+      const x = _onbaFx(), sam = x.f.sdm, tom = x.tom;
+      const c = (key, o) => onbCanReassign(Object.assign({ step: x.step(key), relations: [], viewerEmail: sam.WorkEmail, originalPerson: sam, assignee: null, done: false, planStatus: 'Active' }, o)).reason;
+      _assertEqual(c('w2', { relations: ['lm'] }), '', 'the original owner (LM) can');
+      _assertEqual([c('w1', { relations: ['admin'] }), c('onb_tp_m05', { relations: ['admin'] }), c('lib', { relations: ['admin'] }), c('w2', { done: true })], ['employee', 'signoff', 'library', 'done'], 'never these, not even an Admin');
+      _assertEqual([c('w2', { planStatus: 'Complete' }), c('w2', { readOnly: true })], ['closed', 'preview'], 'closed plan, preview');
+      _assertEqual([c('ops', { originalPerson: null }), c('ops', { originalPerson: null, relations: ['admin'] }), c('ops', { originalPerson: null, assignee: tom, viewerEmail: tom.WorkEmail })], ['noRights', '', ''], 'Ops: Admin until it has an assignee, who can pass it on');
+      _assertEqual(c('w2', { assignee: tom, viewerEmail: sam.WorkEmail.toUpperCase() }), '', 'the original owner can take it back');
+      _assertEqual([c('w2', { relations: ['buddy'], viewerEmail: x.f.tp1.WorkEmail }), c('w2', { relations: ['csd'], viewerEmail: x.f.csd.WorkEmail })], ['noRights', 'noRights'], 'a buddy or a CSD who owns neither cannot');
+    },
+  },
+  {
+    name: 'N-520 AC6-AC7 onbAssignCandidates (anyone with a Newton email who has started, minus the joiner) and onbCleanAssignFields',
+    fn: function () {
+      const x = _onbaFx(), P = x.f.P;
+      const extra = [P(41, 'Pho Placeholder', 'TP', { IsPlaceholder: true }), P(42, 'Fay Future', 'TP', { StartDate: '2099-01-01' }), P(43, 'Ina Inactive', 'TP', { IsActive: false }),
+        P(44, 'Dup One', 'TP', { WorkEmail: 'dup@mg.test' }), P(45, 'Dup Two', 'TP', { WorkEmail: 'dup@mg.test' }), P(46, 'No Mail', 'TP', { WorkEmail: '' }), P(47, 'Bea Blank', 'TP', { StartDate: '' })];
+      const names = onbAssignCandidates(x.people.concat(extra), 30, _ONBR_TODAY).map(c => c.name);
+      _assertEqual(['Ian Internal', 'Tom Tp', 'Cara Csd', 'Sam Sdm', 'Bea Blank'].every(n => names.includes(n)), true, 'AC6 internal staff, deployable TPs, the LM / CSD, a blank start date');
+      _assertEqual(['Nina New', 'Pho Placeholder', 'Fay Future', 'Ina Inactive', 'Dup One', 'Dup Two', 'No Mail'].some(n => names.includes(n)), false, 'AC6 not the joiner, placeholders, future starters, inactive, duplicate or missing emails');
+      _assertEqual(names.slice().sort((a, b) => a.localeCompare(b)), names, 'AC6 by name');
+      const plan = { id: '30', PersonID: 30 };
+      const out = onbCleanAssignFields({ plan, itemKey: ' w2 ', assigneeEmail: 'Tom.Tp@MG.test', byEmail: 'Sam.Sdm@mg.test', todayISO: '2026-11-26' });
+      _assertEqual(out, { Title: '30-w2', PlanID: 30, PersonID: 30, ItemKey: 'w2', AssigneeEmail: 'tom.tp@mg.test', AssignedByEmail: 'sam.sdm@mg.test', AssignedAt: '2026-11-26' }, 'AC7 payload');
+      _assertEqual(Object.keys(out), CONFIG.ONBOARDING.ASSIGN.FIELDS, 'AC7 exactly FIELDS');
+      _assertEqual(onbCleanAssignFields({ plan, itemKey: 'w2', assigneeEmail: '', byEmail: 'sam.sdm@mg.test', todayISO: '2026-11-26' }).AssigneeEmail, '', 'AC7 blank = hand back');
+      const throws = o => { try { onbCleanAssignFields(Object.assign({ plan, itemKey: 'w2', byEmail: 'sam.sdm@mg.test', todayISO: '2026-11-26' }, o)); return false; } catch (e) { return true; } };
+      _assertEqual([throws({}), throws({ plan: { id: 'p30', PersonID: 30 } }), throws({ itemKey: ' ' }), throws({ assigneeEmail: 'not-an-email' }), throws({ byEmail: '' }), throws({ todayISO: 'soon' })],
+        [false, true, true, true, true, true], 'AC7 throws on bad input (control: good input does not)');
+    },
+  },
+  {
+    name: 'N-520 AC10-AC13 the page models: LM loses the step, the assignee gets My actions alone, buddy steps move, chip and button markup, modal options',
+    fn: function () {
+      const x = _onbaFx(), tom = x.tom.WorkEmail, A = CONFIG.ONBOARDING.ASSIGN.TEXT;
+      const asg = [x.row(1, 'w2', tom)];
+      const m = (email, role, o) => onbTeamModel(Object.assign({ plans: [x.plan], people: x.people, templates: x.templates, progressByPlan: {}, signoffs: [], pdpByPerson: {}, email, role, todayISO: _ONBR_TODAY, assignments: asg }, o));
+      const keys = v => v.actions.reduce((a, g) => a.concat(g.steps.map(s => s.itemKey)), []);
+      _assertEqual(keys(m(x.f.sdm.WorkEmail, 'delivery_manager', { assignments: [] })).includes('w2'), true, 'AC11 control: without the assignment the LM has w2');
+      const lm = m(x.f.sdm.WorkEmail, 'delivery_manager');
+      _assertEqual(keys(lm).includes('w2'), false, 'AC11 the LM\'s My actions loses a step reassigned away');
+      const last = lm.rows[0].byOwner[lm.rows[0].byOwner.length - 1];
+      _assertEqual([last.key, last.label, last.items.map(i => i.itemKey)], ['Reassigned', A.group, ['w2']], 'AC11 by owner: one Reassigned group');
+      const t = m(tom, 'talent_partner');
+      _assertEqual([t.assignOnly, t.rows.length, t.completed.length, t.totals.active, keys(t)], [true, 0, 0, 0, ['w2']], 'AC10 the assignee: My actions only, no card, tile or count');
+      _assertEqual(onbTeamPlans({ plans: [x.plan], people: x.people, email: tom, role: 'talent_partner' }).length, 0, 'AC10 control: no assignment, no plan');
+      const it = t.actions[0].steps[0];
+      _assertEqual([it.canTick, it.canReassign, it.owner.name, it.assign.originalName, it.assign.originalLabel, it.assign.assigneeEmail], [true, true, 'Tom Tp', 'Sam Sdm', 'Line Manager', tom], 'AC10 the assignee ticks and can pass it on');
+      _assertEqual(m(tom, 'talent_partner', { readOnly: true }).actions, [], 'preview: no actions');
+      const chip = onbFillText(A.chip, { name: 'Tom Tp', from: 'Line Manager' });
+      const withBtn = _onbmStepHtml(it, 0, () => '', null, () => ' data-x="1"'), plain = _onbmStepHtml(it, 0);
+      _assertEqual([withBtn.includes(escHtml(chip)), withBtn.includes('>' + A.btn + '<'), plain.includes(escHtml(chip)), plain.includes('>' + A.btn + '<')], [true, true, true, false], 'AC12 chip everywhere; the button only where a page passes reassignAttr');
+      const page = onbtPageHtml(Object.assign({ gateState: 'live', readOnly: false }, t), { open: [], person: '' });
+      _assertEqual([page.includes(CONFIG.ONBOARDING.TEAM_TEXT.actionsTitle), page.includes(CONFIG.ONBOARDING.TEAM_TEXT.tileActive), page.includes('onbtReassign')], [true, false, true], 'AC10 the assignee\'s page: My actions with Reassign, no tiles');
+      const bm = a => onbBuddyModel(onbPlanModel({ plan: x.plan, people: x.people, templates: x.templates, progressRows: [], email: x.f.tp1.WorkEmail, role: 'talent_partner', todayISO: _ONBR_TODAY, assignments: a }));
+      _assertEqual([bm([]).actions.map(i => i.itemKey), bm([x.row(1, 'bd', tom)]).actions.length], [['bd'], 0], 'AC11 a Buddy step reassigned away leaves the buddy\'s Your actions (control first)');
+      const opts = onbReassignOptions({ item: it, candidates: [{ email: x.f.sdm.WorkEmail, name: 'Sam Sdm' }, { email: tom, name: 'Tom Tp' }, { email: x.ian.WorkEmail, name: 'Ian Internal' }] });
+      _assertEqual([opts.options.map(o => o.value), opts.options[0].label, opts.defaultValue], [['', tom, x.ian.WorkEmail], onbFillText(A.originalOwner, { name: 'Sam Sdm' }), tom], 'AC13 original owner first (hand back), not listed twice, current assignee preselected');
+      const ops = onbReassignOptions({ item: { assign: { originalEmail: '', originalName: '', originalLabel: 'Operations / IT', assigneeEmail: '' } }, candidates: [] });
+      _assertEqual([ops.options[0].label, ops.defaultValue], [onbFillText(A.backTo, { role: 'Operations / IT' }), ''], 'AC13 no named owner: "Back to <role>"');
+    },
+  },
+  {
+    name: 'N-520 AC14-AC16 reminders follow the assignee, an assignment opens the gate, Data Health flags an unresolved assignee',
+    fn: function () {
+      const x = _onbaFx(), tom = x.tom.WorkEmail, R = CONFIG.ONBOARDING.REMINDERS;
+      const asg = [x.row(1, 'w2', tom)];
+      const run = (email, a) => onbReminderPlan({ gate: { state: 'live' }, email, today: _ONBR_TODAY, plans: [x.plan], people: x.people, templates: [_onbrTpl('w2', 'LM', 1)], progressByPlan: {}, assignments: a });
+      _assertEqual(_onbrTypes(run(x.f.sdm.WorkEmail, [])), ['onbDue:1'], 'AC14 control: the LM is reminded');
+      _assertEqual(_onbrTypes(run(x.f.sdm.WorkEmail, asg)), [], 'AC14 not once it is reassigned');
+      const r = run(tom, asg);
+      _assertEqual([_onbrTypes(r), r.send[0].link], [['onbDue:1'], R.LINKS.TEAM], 'AC14 the assignee is, with a link to My Team');
+      const ian = x.ian.WorkEmail;
+      const acc = (a, mode) => onbAccess({ mode: mode || 'On', pilot: [], people: x.people, plans: [x.plan], email: ian, role: 'staff', assignments: a });
+      _assertEqual([acc([]).state, acc([x.row(1, 'w2', ian)]).state, acc([x.row(1, 'w2', ian)]).reason, acc([x.row(1, 'w2', ian)], 'Pilot').state], ['none', 'live', 'plan', 'live'], 'AC15 internal staff assignee is live in On and Pilot');
+      _assertEqual(acc([x.row(1, 'w2', ian), x.row(2, 'w2', '')]).state, 'none', 'AC15 handed back: none again');
+      const chk = a => onbCheckPlans({ plans: [x.plan], people: x.people, templates: x.templates, assignments: a });
+      _assertEqual(onbCheckPlans({ plans: [x.plan], people: x.people, templates: x.templates }).length, 8, 'AC16 no assignments passed: the eight N-497 checks');
+      const c9 = a => chk(a).find(c => c.key === 'assignee-unresolved');
+      _assertEqual([chk([]).length, c9([x.row(1, 'w2', tom)]).count, c9([x.row(1, 'w2', 'gone@mg.test')]).count, c9([x.row(1, 'w2', 'gone@mg.test'), x.row(2, 'w2', '')]).count], [9, 0, 1, 0], 'AC16 the ninth check fires on an unresolved assignee only');
+      _assertEqual(c9([x.row(1, 'w2', 'gone@mg.test')]).sample[0].includes('gone@mg.test'), true, 'AC16 sample names the email');
+    },
+  },
+  {
+    name: 'N-520 AC8-AC9 api + ui contract: reassignOnboardingStep re-checks then writes once; strict reads on writes; notification never undoes the write',
+    fn: function () {
+      const api = _onbSrc('api-onboarding.js');
+      const fn = api.slice(api.indexOf('async function reassignOnboardingStep'), api.indexOf('async function _onbViewerCtx'));
+      const at = s => fn.indexOf(s);
+      const order = ['_onbDropCaches()', 'getOnboardingAssignments()', "gate.state === 'preview'", "gate.state !== 'live'", 'PLAN_ACTIVE', 'onbStepVisible(', 'onbCanReassign(', 'onbAssignCandidates(', 'if (target === stored)', 'createItem(A.LIST', 'clearNotification(', 'fireNotification('];
+      _assertEqual(order.every(s => at(s) > -1) && order.every((s, i) => !i || at(s) > at(order[i - 1])), true, 'AC8 fresh reads, preview, live, Active, visible, rights, candidate, no-op, write, then notify');
+      _assertEqual([(fn.match(/createItem\(/g) || []).length, /updateItem\(|deleteItem\(/.test(fn)], [1, false], 'AC8 exactly one write');
+      _assertEqual(at('try {') < at('clearNotification(') && at('catch (e)') > at('fireNotification(') && /warning = 'notify'/.test(fn), true, 'AC9 a notification failure is a warning, after the write');
+      _assertEqual(/target !== _onbEmail\(email\)/.test(fn), true, 'AC9 no notification to yourself');
+      const tick = api.slice(api.indexOf('async function tickOnboardingStep'), api.indexOf('async function getBuddyingView'));
+      _assertEqual(/getOnboardingAssignments\(\)/.test(tick) && !/_onbAssignmentsOrNone/.test(tick), true, 'strict assignments read on the tick');
+      const team = _onbSrc('api-onboarding-team.js');
+      const ctx = team.slice(team.indexOf('async function _onbTeamWriteCtx'), team.indexOf('async function tickOnboardingTeamStep'));
+      _assertEqual(/getOnboardingAssignments\(\)/.test(ctx) && !/_onbAssignmentsOrNone/.test(ctx), true, 'strict assignments read on the team writes');
+      const ui = _onbSrc('onboarding-team-ui.js');
+      const r = ui.slice(ui.indexOf('async function onbtReassign'), ui.indexOf('function onbtToggle'));
+      _assertEqual(/selectModal\(/.test(r) && /reassignOnboardingStep\(/.test(r) && r.indexOf('_onbtReload()') > r.indexOf('catch'), true, 'team: modal, write, fresh redraw either way');
+      _assertEqual(/registerActions\(\{[\s\S]*onbtReassign,[\s\S]*\}\)/.test(ui) && /registerActions\(\{[\s\S]*onbbReassign,[\s\S]*\}\)/.test(_onbSrc('onboarding-buddy-ui.js')), true, 'both actions registered');
+      const my = _onbSrc('onboarding-my-ui.js');
+      _assertEqual(/reassignAttr\(it\)/.test(my) && !/_onbmStepHtml\([^)]*[Rr]eassign/.test(my.replace(/function _onbmStepHtml\([^)]*\)/, '')), true, 'the joiner\'s page never passes a reassign attribute');
+    },
+  },
+);

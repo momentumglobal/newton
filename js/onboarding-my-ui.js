@@ -46,11 +46,16 @@ function _onbmChip(text, extra) {
 // Buddying page (onboarding-buddy-ui.js) passes its own, My Onboarding leaves it out and gets onbmTick. No other behaviour change.
 // N-516 (ONB-D94): actionAttr(it) = the click-action attribute of the step's Newton action button. Only My Team > Onboarding passes it, and
 // the button shows only for a step with a registered actionKey the viewer can tick (done or not). Without it the row is unchanged.
-function _onbmStepHtml(it, n, tickAttr, actionAttr) {
+// N-520 (ONB-D116 / D117): a reassigned step's owner chip reads "<assignee> · reassigned from <role>" on every page; reassignAttr(it) = the
+// Reassign button's click-action attribute, passed by My Team and Buddying only, shown when it.canReassign.
+function _onbmStepHtml(it, n, tickAttr, actionAttr, reassignAttr) {
   const T = CONFIG.ONBOARDING.PLAN_TEXT;
+  const A = CONFIG.ONBOARDING.ASSIGN.TEXT;
   const id = 'onb-box-' + n;
   const tick = tickAttr ? tickAttr(it) : actOn('change', 'onbmTick', it.itemKey, ACT_CHECKED);
-  const ownerText = it.owner.unnamed ? T.ownerBuddyNone : (it.owner.name ? `${it.owner.label} · ${it.owner.name}` : it.owner.label);
+  const ownerText = it.reassigned
+    ? onbFillText(A.chip, { name: it.owner.name, from: (it.assign && it.assign.originalLabel) || it.owner.label })
+    : (it.owner.unnamed ? T.ownerBuddyNone : (it.owner.name ? `${it.owner.label} · ${it.owner.name}` : it.owner.label));
   const chips = [_onbmChip(ownerText, 'onb-chip--owner'), _onbmChip(it.guided ? T.guided : T.selfGuided)];
   if (it.levelTag) chips.push(_onbmChip(it.levelTag));
   const due = it.dueISO
@@ -66,6 +71,9 @@ function _onbmStepHtml(it, n, tickAttr, actionAttr) {
   const actionBtn = stepAction
     ? `<button type="button" class="btn-secondary onb-step-action"${actionAttr(it)}>${escHtml(stepAction.label)}</button>`
     : '';
+  const reassignBtn = typeof reassignAttr === 'function' && it.canReassign && !it.done
+    ? `<button type="button" class="btn-secondary onb-step-action"${reassignAttr(it)}>${escHtml(A.btn)}</button>`
+    : '';
   const done = it.done
     ? `<div class="onb-step-done">${escHtml(onbFillText(T.doneBy, { name: it.doneByName, date: _onbmDate(it.doneAt) }))}</div>`
     : '';
@@ -75,7 +83,7 @@ function _onbmStepHtml(it, n, tickAttr, actionAttr) {
           <label class="onb-step-label" for="${id}">${escHtml(it.label)}</label>
           ${it.help ? `<div class="onb-step-help">${escHtml(it.help)}</div>` : ''}
           ${it.signoff && !it.done ? `<div class="onb-step-help">${escHtml(T.signoffHint)}</div>` : ''}
-          <div class="onb-step-meta">${chips.join('')}${due}${overdue}${link}${actionBtn}</div>
+          <div class="onb-step-meta">${chips.join('')}${due}${overdue}${link}${actionBtn}${reassignBtn}</div>
           ${done}
         </div>
       </li>`;

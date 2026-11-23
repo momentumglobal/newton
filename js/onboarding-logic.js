@@ -14,6 +14,8 @@
 //            StartDate, buddy optional at start, plans only for new joiners (START_WINDOW_DAYS).
 //   ONB-D23..D27 (N-498): tick-box-only onboarding steps with a content link, every Guided step Required, decks hosted in
 //            the OnboardingContent library.
+//   ONB-D108..D118 (N-520): a step can be reassigned per plan (OnboardingStepAssignments, latest row wins); the assignee becomes the
+//            step's owner for the chip, My actions, reminders and ticking. Every assignments param is optional: without it, nothing changes.
 // Callers pass the EFFECTIVE (Ghost-aware) email and role, as PDP does.
 
 function _onbEmail(s) { return String(s == null ? '' : s).trim().toLowerCase(); }
@@ -84,7 +86,7 @@ function onbPlanParties(plan, people) {
 }
 
 // How the viewer relates to one plan: a Set of 'employee' | 'lm' | 'csd' | 'buddy' | 'peopleops' | 'admin'.
-function onbRelations({ plan = null, people = [], email = '', role = '', peopleOpsActive = false } = {}) {
+function onbRelations({ plan = null, people = [], email = '', role = '', peopleOpsActive = false, assignments = [] } = {}) {
   const rel = new Set();
   const R = CONFIG.ROLE_IDS;
   if (role === R.ADMIN) rel.add('admin');
@@ -97,31 +99,40 @@ function onbRelations({ plan = null, people = [], email = '', role = '', peopleO
   if (parties.lineManager && _onbEmail(parties.lineManager.WorkEmail) === me) rel.add('lm');
   if (parties.csd && _onbEmail(parties.csd.WorkEmail) === me) rel.add('csd');
   if (_onbEmail(plan.BuddyEmail) === me) rel.add('buddy');
+  if (onbIsPlanAssignee({ plan, assignments, people, email: me })) rel.add('assignee');   // N-520 (ONB-D114 / D118)
   return rel;
 }
 
 // Who owns a step on this plan: { key, label, person }. person is a People row or null (Ops; People Ops
 // once a people_ops user exists). A blank or unknown owner is DEFAULT_OWNER.
-function onbStepOwner({ step = null, parties = {}, peopleOpsActive = false } = {}) {
+// N-520 (ONB-D113): assignee = the People row the step is reassigned to (onbStepAssignee), or null. With one, person is the assignee and
+// the result adds reassigned: true plus originalPerson / originalLabel (the template owner as above); without one the shape is unchanged.
+function onbStepOwner({ step = null, parties = {}, peopleOpsActive = false, assignee = null } = {}) {
   const O = CONFIG.ONBOARDING;
   const key = onbNormaliseOwner(step && step.Owner) || O.DEFAULT_OWNER;
   const p = parties || {};
   const person = { Employee: p.employee, LM: p.lineManager, CSD: p.csd, Buddy: p.buddy }[key] || null;
+  let base;
   if (key === 'PeopleOps') {
-    return peopleOpsActive === true
+    base = peopleOpsActive === true
       ? { key, label: onbOwnerLabel(key), person: null }
       : { key, label: O.PEOPLE_OPS_FALLBACK_LABEL, person: p.csd || null };
+  } else {
+    base = { key, label: onbOwnerLabel(key), person };
   }
-  return { key, label: onbOwnerLabel(key), person };
+  if (!assignee) return base;
+  return { key: base.key, label: base.label, person: assignee, reassigned: true, originalPerson: base.person, originalLabel: base.label };
 }
 
 // ONB-D16 / D17. Nobody ticks on a plan that is not Active. Admin, line manager and CSD tick any step;
 // otherwise the owner: Employee <-> employee, Buddy <-> buddy, PeopleOps <-> peopleops (only while a
 // people_ops user exists; until then the CSD owns them and is already covered).
-function onbCanTick({ step = null, relations = [], peopleOpsActive = false, planStatus = '' } = {}) {
+// N-520 (ONB-D113): on a reassigned step (reassigned = true) the owner's right moves to the assignee alone (isAssignee = the viewer is it).
+function onbCanTick({ step = null, relations = [], peopleOpsActive = false, planStatus = '', reassigned = false, isAssignee = false } = {}) {
   if (planStatus !== CONFIG.ONBOARDING.PLAN_ACTIVE) return false;
   const rel = relations instanceof Set ? relations : new Set(relations || []);
   if (rel.has('admin') || rel.has('lm') || rel.has('csd')) return true;
+  if (reassigned === true) return isAssignee === true;
   const key = onbNormaliseOwner(step && step.Owner) || CONFIG.ONBOARDING.DEFAULT_OWNER;
   if (key === 'Employee') return rel.has('employee');
   if (key === 'Buddy') return rel.has('buddy');
@@ -136,7 +147,7 @@ function onbCanTick({ step = null, relations = [], peopleOpsActive = false, plan
 //   On:    live for in-scope people and anyone with a relation to a plan; Admin live; else none.
 // No other role gets in by role (ONB-D9: Leadership only through a relation). Plans that are not
 // Active still count, so their people keep read access.
-function onbAccess({ mode = '', pilot = [], people = [], plans = [], email = '', role = '', peopleOpsActive = false } = {}) {
+function onbAccess({ mode = '', pilot = [], people = [], plans = [], email = '', role = '', peopleOpsActive = false, assignments = [] } = {}) {
   const [OFF, PILOT] = CONFIG.ONBOARDING.MODES;
   const m = onbNormaliseMode(mode);
   const isAdmin = role === CONFIG.ROLE_IDS.ADMIN;
@@ -147,7 +158,7 @@ function onbAccess({ mode = '', pilot = [], people = [], plans = [], email = '',
   const index = pdpEmailIndex(people);
   const row = me ? _onbUniqueRow(index, me) : null;
   const related = (plans || []).some(plan => {
-    const rel = onbRelations({ plan, people, email: me, role, peopleOpsActive });
+    const rel = onbRelations({ plan, people, email: me, role, peopleOpsActive, assignments });   // N-520: an assignment counts (ONB-D118)
     rel.delete('admin');
     return rel.size > 0;
   });
@@ -354,7 +365,8 @@ function onbStartFields({ person = null, people = [], buddyEmail = '', byEmail =
 
 // Data Health: eight integrity checks over the plan rows, in this order -> [{ key, label, count, sample }].
 // 1-5 and 7 look at Active plans only; 6 (duplicate rows) and 8 (unknown Track / Status) at every row.
-function onbCheckPlans({ plans = [], people = [], templates = [] } = {}) {
+// N-520: when assignments (OnboardingStepAssignments rows) are passed, a 9th check 'assignee-unresolved' is added.
+function onbCheckPlans({ plans = [], people = [], templates = [], assignments = null } = {}) {
   const O = CONFIG.ONBOARDING;
   const all = (plans || []).filter(Boolean);
   const stat = p => String(p.Status == null ? '' : p.Status).trim();
@@ -377,6 +389,18 @@ function onbCheckPlans({ plans = [], people = [], templates = [] } = {}) {
   const dupes = [...perPerson.entries()].filter(([, n]) => n > 1).map(([k, n]) => who({ PersonID: k }) + ' (' + n + ' rows)');
   const unknown = all.filter(p => !O.TRACKS.some(t => t.key === p.Track) || !O.PLAN_STATUSES.includes(stat(p))).map(who);
   const mk = (key, label, sample) => ({ key, label, count: sample.length, sample });
+  const extra = [];
+  if (Array.isArray(assignments)) {   // N-520 (ONB-D113)
+    const aIdx = onbAssignmentIndex(assignments);
+    const activeIds = new Set(active.map(p => String(p.id)));
+    const badAssign = [];
+    aIdx.forEach((v, k) => {
+      const pid = k.slice(0, k.indexOf('|'));
+      if (!activeIds.has(pid) || _onbActiveUnique(people, v.email)) return;
+      badAssign.push(who(active.find(p => String(p.id) === pid)) + ' (' + v.email + ')');
+    });
+    extra.push(mk('assignee-unresolved', 'Active plans with a step assigned to someone who is not a single active People row', badAssign));
+  }
   return [
     mk('person-missing', 'Active plans whose person is not in People or is inactive', notFound),
     mk('no-start-date', 'Active plans whose person has no start date', noStart),
@@ -386,7 +410,7 @@ function onbCheckPlans({ plans = [], people = [], templates = [] } = {}) {
     mk('duplicate-plans', 'People with more than one plan row', dupes),
     mk('no-steps', 'Active plans whose track has no active steps', noSteps),
     mk('unknown-values', 'Plan rows with an unknown track or status', unknown),
-  ];
+  ].concat(extra);
 }
 
 // ── N-498 (ONB-3): the onboarding track editor and the one-off seed ────────────────────────────────────
@@ -520,7 +544,7 @@ function onbBuddyPlans(args) {
 function onbBuddyModel(model) {
   const m = model || {};
   const items = (m.phases || []).reduce((acc, p) => acc.concat(p.items), []);
-  const isBuddy = i => !!i.owner && i.owner.key === 'Buddy';
+  const isBuddy = i => !!i.owner && i.owner.key === 'Buddy' && !i.reassigned;   // N-520 (ONB-D114): a reassigned Buddy step leaves the buddy
   const mine = items.filter(isBuddy);
   const open = mine.filter(i => !i.done);
   return {
@@ -537,13 +561,14 @@ function onbBuddyModel(model) {
 // The tab signals for my-momentum-app.js: { plans, buddy, actions } (N-509). plans = the viewer's own plans, buddy = their Active buddy
 // plans, actions = open Buddy-owned steps across those. All zero unless the gate is live or Admin preview. templates, todayISO and
 // progressByPlan ({ planId: ChecklistProgress rows }) are needed only for the count; without them a buddy plan counts every Buddy step as open.
-function onbNavSignal({ gate = null, plans = [], people = [], email = '', role = '', peopleOpsActive = false, templates = [], progressByPlan = {}, todayISO = '' } = {}) {
+// N-520: assignments (optional) keep a reassigned Buddy step out of the count.
+function onbNavSignal({ gate = null, plans = [], people = [], email = '', role = '', peopleOpsActive = false, templates = [], progressByPlan = {}, todayISO = '', assignments = [] } = {}) {
   const state = gate && gate.state;
   if (state !== 'live' && state !== 'preview') return { plans: 0, buddy: 0, actions: 0 };
   const who = { plans, people, email, role, peopleOpsActive };
   const buddy = onbBuddyPlans(who);
   const actions = buddy.reduce((n, m) => n + onbBuddyModel(onbPlanModel({
-    plan: m.plan, people, templates, progressRows: (progressByPlan || {})[String(m.plan.id)] || [], email, role, peopleOpsActive, todayISO,
+    plan: m.plan, people, templates, progressRows: (progressByPlan || {})[String(m.plan.id)] || [], email, role, peopleOpsActive, todayISO, assignments,
   })).openActions, 0);
   return { plans: onbMyPlans(Object.assign({ kind: 'own' }, who)).length, buddy: buddy.length, actions };
 }
@@ -561,12 +586,15 @@ function onbLibraryFilter(items, level) {
 // phases: [{ section, done, total, open, items }] (visible, non-Library steps, ONB-D20); summary counts those only (ONB-D32);
 // library: { items (filtered), hidden, all }. Each item: { itemKey, label, help, owner: { key, label, name, unnamed }, stepMode, guided,
 // levelTag, contentUrl, actionKey, dueISO, dueOffsetDays, dueText, overdue, done, doneByName, doneAt, canTick }.
-function onbPlanModel({ plan = null, people = [], templates = [], progressRows = [], email = '', role = '', peopleOpsActive = false, todayISO = '', level = '' } = {}) {
+// N-520: assignments = OnboardingStepAssignments rows (optional). A reassigned item's owner.name is the assignee's; every item also carries
+// reassigned, canReassign and assign: { originalEmail, originalName, originalLabel, assigneeEmail } (the Reassign modal's input).
+function onbPlanModel({ plan = null, people = [], templates = [], progressRows = [], email = '', role = '', peopleOpsActive = false, todayISO = '', level = '', assignments = [] } = {}) {
   const O = CONFIG.ONBOARDING;
   const parties = onbPlanParties(plan, people);
   const emp = parties.employee;
   const startDate = emp ? (spDateIn(emp.StartDate) || '') : '';
-  const rel = onbRelations({ plan, people, email, role, peopleOpsActive });
+  const aIndex = onbAssignmentIndex(assignments, plan ? plan.id : null);   // N-520
+  const rel = onbRelations({ plan, people, email, role, peopleOpsActive, assignments: aIndex });
   const kind = rel.has('employee') ? 'own' : (rel.has('buddy') ? 'buddy' : '');
   const status = plan ? String(plan.Status || '') : '';
   const readOnly = status !== O.PLAN_ACTIVE;
@@ -587,7 +615,11 @@ function onbPlanModel({ plan = null, people = [], templates = [], progressRows =
     const p = progress.get(key);
     const done = !!(p && p.done);
     const dueISO = onbStepDue(startDate, t);
-    const own = onbStepOwner({ step: t, parties, peopleOpsActive });
+    const assignee = onbStepAssignee({ step: t, plan, assignments: aIndex, people });   // N-520
+    const own = onbStepOwner({ step: t, parties, peopleOpsActive, assignee });
+    const reassigned = own.reassigned === true;
+    const original = reassigned ? own.originalPerson : own.person;
+    const isAssignee = reassigned && _onbEmail(assignee.WorkEmail) === _onbEmail(email);
     const signoff = onbSignoffStepKind(t);
     return {
       itemKey: key,
@@ -608,7 +640,15 @@ function onbPlanModel({ plan = null, people = [], templates = [], progressRows =
       done,
       doneByName: done ? nameOf(p.by) : '',
       doneAt: done ? String(p.at || '') : '',
-      canTick: !readOnly && !!key && !signoff && onbCanTick({ step: t, relations: rel, peopleOpsActive, planStatus: status }),
+      canTick: !readOnly && !!key && !signoff && onbCanTick({ step: t, relations: rel, peopleOpsActive, planStatus: status, reassigned, isAssignee }),
+      reassigned,                                                                                              // N-520 (ONB-D117)
+      canReassign: !!key && onbCanReassign({ step: t, relations: rel, viewerEmail: email, originalPerson: original, assignee, done, planStatus: status }).ok,
+      assign: {
+        originalEmail: original ? _onbEmail(original.WorkEmail) : '',
+        originalName:  original ? String(original.EmployeeName || '') : '',
+        originalLabel: reassigned ? own.originalLabel : own.label,
+        assigneeEmail: reassigned ? _onbEmail(assignee.WorkEmail) : '',
+      },
     };
   };
 
@@ -633,6 +673,124 @@ function onbPlanModel({ plan = null, people = [], templates = [], progressRows =
     phases,
     library: { items: lib.items, hidden: lib.hidden, all: libAll },
   };
+}
+
+// ── Step reassignment (N-520, ONB-D108..D118) ───────────────────────────
+// Pure. Rows are OnboardingStepAssignments (append-only); the latest row per (PlanID, ItemKey) wins by numeric item id and a blank
+// AssigneeEmail means "back with the template owner". The write is reassignOnboardingStep (api-onboarding.js), which re-checks all of this.
+
+function _onbAssignKey(planId, itemKey) {
+  return String(planId == null ? '' : planId).trim() + '|' + String(itemKey == null ? '' : itemKey).trim();
+}
+
+// rows -> Map '<planId>|<itemKey>' -> { email, rowId, byEmail, at } (only the current assignments: a blank latest row gives no entry).
+// planId given: that plan's rows only.
+function onbAssignmentIndex(rows, planId) {
+  if (rows instanceof Map) return rows;
+  const want = planId === null || planId === undefined || planId === '' ? null : String(planId).trim();
+  const latest = new Map();
+  (rows || []).forEach(r => {
+    if (!r) return;
+    const pid = String(r.PlanID == null ? '' : r.PlanID).trim();
+    const key = String(r.ItemKey == null ? '' : r.ItemKey).trim();
+    if (!pid || !key || (want !== null && pid !== want)) return;
+    const k = _onbAssignKey(pid, key);
+    const prev = latest.get(k);
+    if (!prev || Number(r.id) > Number(prev.id)) latest.set(k, r);
+  });
+  const out = new Map();
+  latest.forEach((r, k) => {
+    const email = _onbEmail(r.AssigneeEmail);
+    if (email) out.set(k, { email, rowId: String(r.id), byEmail: _onbEmail(r.AssignedByEmail), at: String(r.AssignedAt == null ? '' : r.AssignedAt) });
+  });
+  return out;
+}
+
+// The one People row an email belongs to, when it is a single, active, real row; else null.
+function _onbActiveUnique(people, email) {
+  const row = _onbUniqueRow(pdpEmailIndex(people), email);
+  return row && !row.IsPlaceholder && spYesNo(row.IsActive, false) ? row : null;
+}
+
+// ONB-D113. The People row this plan's step is reassigned to, or null (none, or the email no longer resolves: the step falls back).
+// assignments = rows or an onbAssignmentIndex Map.
+function onbStepAssignee({ step = null, plan = null, assignments = [], people = [] } = {}) {
+  if (!step || !plan) return null;
+  const hit = onbAssignmentIndex(assignments, plan.id).get(_onbAssignKey(plan.id, step.ItemKey));
+  return hit ? _onbActiveUnique(people, hit.email) : null;
+}
+
+// ONB-D114 / D118. Is this viewer the current assignee of any step on this plan?
+function onbIsPlanAssignee({ plan = null, assignments = [], people = [], email = '' } = {}) {
+  const me = _onbEmail(email);
+  if (!plan || !me || !assignments || (Array.isArray(assignments) && !assignments.length)) return false;
+  const prefix = _onbAssignKey(plan.id, '');
+  let hit = false;
+  onbAssignmentIndex(assignments, plan.id).forEach((v, k) => { if (!hit && k.startsWith(prefix) && v.email === me) hit = true; });
+  return hit && !!_onbActiveUnique(people, me);
+}
+
+// ONB-D111. Who a step can be reassigned to: anyone with a Newton work email (active, real, unique WorkEmail, started; blank StartDate
+// counts as started), deployable or internal, minus the joiner. -> [{ id, name, email }] by name.
+function onbAssignCandidates(people, joinerId, todayISO) {
+  const index = pdpEmailIndex(people);
+  return (people || [])
+    .filter(p => p && !p.IsPlaceholder && spYesNo(p.IsActive, false) && String(p.id) !== String(joinerId))
+    .map(p => ({ p, email: _onbEmail(p.WorkEmail), start: spDateIn(p.StartDate) || '' }))
+    .filter(x => x.email && _onbUniqueRow(index, x.email) && !(x.start && todayISO && x.start > todayISO))
+    .map(x => ({ id: String(x.p.id), name: String(x.p.EmployeeName || ''), email: x.email }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// ONB-D109 / D110. Can this viewer reassign this step? -> { ok, reason } (reason = an ASSIGN.TEXT.reasons key).
+// originalPerson = the template owner's person on this plan (onbStepOwner without an assignee); assignee = the current one or null.
+function onbCanReassign({ step = null, relations = [], viewerEmail = '', originalPerson = null, assignee = null, done = false, planStatus = '', readOnly = false } = {}) {
+  const no = reason => ({ ok: false, reason });
+  if (!step) return no('noRights');
+  if (readOnly) return no('preview');
+  if (planStatus !== CONFIG.ONBOARDING.PLAN_ACTIVE) return no('closed');
+  const key = onbNormaliseOwner(step.Owner) || CONFIG.ONBOARDING.DEFAULT_OWNER;
+  if (key === 'Employee') return no('employee');
+  if (onbSignoffStepKind(step)) return no('signoff');
+  if (onbIsLibraryStep(step)) return no('library');
+  if (done) return no('done');
+  const rel = relations instanceof Set ? relations : new Set(relations || []);
+  if (rel.has('admin')) return { ok: true, reason: '' };
+  const me = _onbEmail(viewerEmail);
+  if (me && [originalPerson, assignee].some(x => x && _onbEmail(x.WorkEmail) === me)) return { ok: true, reason: '' };
+  return no('noRights');
+}
+
+// The exact OnboardingStepAssignments payload (ASSIGN.FIELDS). A blank assignee is '' (= back with the template owner). Throws on bad input.
+function onbCleanAssignFields({ plan = null, itemKey = '', assigneeEmail = '', byEmail = '', todayISO = '' } = {}) {
+  const pid = Number(plan ? plan.id : NaN);
+  const person = Number(plan ? plan.PersonID : NaN);
+  if (!Number.isInteger(pid) || pid <= 0) throw new Error(`OnboardingStepAssignments.PlanID must be a plan item id: ${plan ? plan.id : plan}`);
+  if (!Number.isInteger(person) || person <= 0) throw new Error(`OnboardingStepAssignments.PersonID must be a People item id: ${plan ? plan.PersonID : plan}`);
+  const key = String(itemKey == null ? '' : itemKey).trim();
+  if (!key) throw new Error('OnboardingStepAssignments.ItemKey is required.');
+  const to = _onbEmail(assigneeEmail);
+  if (to && !pdpIsEmail(to)) throw new Error(`OnboardingStepAssignments.AssigneeEmail is not an email address: ${to}`);
+  const by = _onbEmail(byEmail);
+  if (!by || !pdpIsEmail(by)) throw new Error(`OnboardingStepAssignments.AssignedByEmail is not an email address: ${by}`);
+  const at = String(todayISO == null ? '' : todayISO).trim();   // a text column, 'YYYY-MM-DD' (no UTC→BST shift)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(at)) throw new Error(`OnboardingStepAssignments.AssignedAt must be a YYYY-MM-DD date: ${todayISO}`);
+  return { Title: `${pid}-${key}`, PlanID: pid, PersonID: person, ItemKey: key, AssigneeEmail: to, AssignedByEmail: by, AssignedAt: at };
+}
+
+// ONB-D115. The notification key for one assignee of one step.
+function onbAssignNotifyKey(planId, itemKey, email) {
+  return CONFIG.ONBOARDING.ASSIGN.NOTIFY.KEY_PREFIX + ':' + _onbAssignKey(planId, itemKey).replace('|', ':') + ':' + _onbEmail(email);
+}
+
+// ONB-D116. The Reassign modal's options for one plan item (onbPlanModel): the original owner first ('' = hand back), then the candidates
+// minus the original owner. defaultValue = the current assignee ('' when not reassigned). -> { options: [{ value, label }], defaultValue }
+function onbReassignOptions({ item = null, candidates = [] } = {}) {
+  const A = CONFIG.ONBOARDING.ASSIGN.TEXT;
+  const a = (item && item.assign) || { originalEmail: '', originalName: '', originalLabel: '', assigneeEmail: '' };
+  const first = { value: '', label: a.originalName ? onbFillText(A.originalOwner, { name: a.originalName }) : onbFillText(A.backTo, { role: a.originalLabel }) };
+  const rest = (candidates || []).filter(c => c.email !== a.originalEmail).map(c => ({ value: c.email, label: c.name }));
+  return { options: [first].concat(rest), defaultValue: a.assigneeEmail || '' };
 }
 
 // ── Processes & Rituals tab (N-500 / ONB-5) ─────────────────────────────

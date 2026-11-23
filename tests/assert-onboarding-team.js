@@ -354,8 +354,8 @@ ASSERTIONS.push(
       const done = x.model({ plans: [Object.assign({}, x.buddyPlan, { Status: 'Complete' })] });
       _assertEqual(done.completed[0].welcome, null, 'AC7 a Complete plan has no welcome data');
       const ui = _onbSrc('onboarding-team-ui.js');
-      _assertEqual(/_onbmStepHtml\(e\.item, counter\.n\+\+, _onbtTickAttr\(a\.planId\), _onbtActionAttr\(a\.planId\)\)/.test(ui)
-        && /_onbmStepHtml\(it, counter\.n\+\+, _onbtTickAttr\(row\.planId\), _onbtActionAttr\(row\.planId\)\)/.test(ui), true, 'AC6 My actions and by-owner pass the action attribute');
+      _assertEqual(/_onbmStepHtml\(e\.item, counter\.n\+\+, _onbtTickAttr\(a\.planId\), _onbtActionAttr\(a\.planId\)(, _onbtReassignAttr\(a\.planId\))?\)/.test(ui)
+        && /_onbmStepHtml\(it, counter\.n\+\+, _onbtTickAttr\(row\.planId\), _onbtActionAttr\(row\.planId\)(, _onbtReassignAttr\(row\.planId\))?\)/.test(ui), true, 'AC6 My actions and by-owner pass the action attribute (N-520: then the reassign attribute)');
       _assertEqual(/function onbtStepAction\(planId, itemKey\)/.test(ui) && /ONB_STEP_ACTION_RUN\[it\.actionKey\]/.test(ui) && /onbtStepAction,/.test(ui), true, 'dispatcher registered');
       _assertEqual(typeof ONB_STEP_ACTION_RUN['onb.welcomeEmail'], 'function', 'runtime map has the handler');
       _assertEqual(CONFIG.ONBOARDING.STEP_ACTIONS.every(a => typeof ONB_STEP_ACTION_RUN[a.key] === 'function'), true, 'every STEP_ACTIONS key has a handler');

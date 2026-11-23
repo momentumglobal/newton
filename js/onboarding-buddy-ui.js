@@ -23,7 +23,8 @@ let _onbbState = {
 function _onbbActionsHtml(p, name, readOnly, counter) {
   const B = CONFIG.ONBOARDING.BUDDY_TEXT;
   const tickAttr = it => actOn('change', 'onbbTick', p.planId, it.itemKey, ACT_CHECKED);
-  const rows = p.actions.map(it => _onbmStepHtml(readOnly ? Object.assign({}, it, { canTick: false }) : it, counter.n++, tickAttr)).join('');
+  const reassignAttr = it => act('onbbReassign', p.planId, it.itemKey);   // N-520 (ONB-D116)
+  const rows = p.actions.map(it => _onbmStepHtml(readOnly ? Object.assign({}, it, { canTick: false, canReassign: false }) : it, counter.n++, tickAttr, null, reassignAttr)).join('');
   const count = p.openActions ? onbFillText(B.actionsOpen, { n: p.openActions }) : (p.actions.length ? B.actionsDone : '');
   return `<section class="onb-phase onb-buddy-actions">
       <div class="onb-phase-head">
@@ -153,12 +154,35 @@ function onbbToggleRest(planId) {
   _onbbDraw();
 }
 
+// N-520 (ONB-D116). Reassign one of "Your actions": the same modal as My Team (onbReassignOptions), then reassignOnboardingStep.
+async function onbbReassign(planId, itemKey) {
+  const A = CONFIG.ONBOARDING.ASSIGN.TEXT;
+  const view = _onbbState.view;
+  const p = view && view.plans ? view.plans.find(x => x.planId === String(planId)) : null;
+  const it = p ? p.actions.find(i => i.itemKey === String(itemKey)) : null;
+  if (!it || !it.canReassign || view.gateState === 'preview') return;
+  const { options, defaultValue } = onbReassignOptions({ item: it, candidates: p.candidates || [] });
+  const pick = await selectModal({ title: A.modalTitle, message: onbFillText(A.modalMessage, { label: it.label }), options, defaultValue, confirmLabel: A.confirm });
+  if (pick === null || pick === undefined) return;
+  document.querySelectorAll('#onb-buddy-page .onb-step-check, #onb-buddy-page button').forEach(el => { el.disabled = true; });   // one write at a time
+  try {
+    const res = await reassignOnboardingStep({ planId, itemKey, assigneeEmail: pick });
+    const msg = !res.changed ? A.unchanged : (res.warning ? A.notifyWarn : (res.handedBack ? A.handedBack : A.saved));
+    toast(msg, { type: res.warning ? 'info' : 'success' });
+  } catch (e) {
+    console.error('Buddying: reassign failed', e);
+    toast(`${A.failed} ${(e && e.message) || e}`, { type: 'error' });
+  }
+  await _onbbReload(false);
+}
+
 async function onbbRetry() {
   await _onbbReload(true);
 }
 
 registerActions({
   onbbTick,
+  onbbReassign,
   onbbToggleRest,
   onbbRetry,
 });

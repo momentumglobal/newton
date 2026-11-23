@@ -7,6 +7,7 @@
 //   OnboardingPlans  one row per person's plan (ONB-D18). Never tier-2 cached. Newton Users read,
 //                    Newton Admins edit (deviation from Tier 4, like SLATargets). N-497 is the first writer.
 //   UserAssignments  read only, to tell whether anyone holds people_ops (ONB-D17).
+//   OnboardingStepAssignments  N-520: step reassignments (append-only; Newton Users Contribute without delete, Newton People Edit).
 // Ticks are ChecklistProgress rows (Title 'person'), read and written through api-checklists.js.
 
 // -> { mode, pilot: [emails] }. A missing row, missing columns or a failed read is Off, [] (fail closed).
@@ -53,6 +54,24 @@ async function getOnboardingPlans({ personId = null } = {}) {
   return getItems(list, `fields/PersonID eq ${n}`);
 }
 
+// N-520 (ONB-D112). Every OnboardingStepAssignments row, read fresh. A failed read throws: the write paths must never treat a failed read
+// as "no assignments" (that would hand a reassigned step's rights back to its template owner).
+async function getOnboardingAssignments() {
+  _cacheInvalidate(CONFIG.ONBOARDING.ASSIGN.LIST);
+  return getItems(CONFIG.ONBOARDING.ASSIGN.LIST);
+}
+
+// The display paths' read (30 s cache, so the gate, tab signals and page share one read): a failure is [] with a warning, so the page
+// still draws (owners as on the template). Never on a write path.
+async function _onbAssignmentsOrNone() {
+  try {
+    return await getItems(CONFIG.ONBOARDING.ASSIGN.LIST);
+  } catch (e) {
+    console.warn('Onboarding: step reassignments unavailable', e);
+    return [];
+  }
+}
+
 // True when any active UserAssignments row holds people_ops (ONB-D17). One read, 30 s cache.
 async function hasActivePeopleOps() {
   const rows = await getItems('UserAssignments');
@@ -61,16 +80,18 @@ async function hasActivePeopleOps() {
 
 // The gate for the signed-in user (Ghost-aware): { mode, state, reason, peopleOpsActive }. Any read
 // failure is 'none' for everyone but an Admin, who gets 'preview' with the error.
+// N-520 (ONB-D118): a step reassigned to the viewer counts as a relation (a failed assignments read counts none, the gate still resolves).
+// Only My Momentum calls the gate, so people.html, reporting.html and admin.html make no extra read.
 async function resolveOnboardingGate() {
   await _ensureGhostGate();
   const realEmail = getCurrentUser()?.email || '';
   const email = pdpEffectiveEmail(realEmail, getGhostUser());
   const role = await getEffectiveRole(realEmail);
   try {
-    const [sw, people, plans, peopleOpsActive] = await Promise.all([
-      readOnboardingSwitch(), getPeople(false), getOnboardingPlans(), hasActivePeopleOps(),
+    const [sw, people, plans, peopleOpsActive, assignments] = await Promise.all([
+      readOnboardingSwitch(), getPeople(false), getOnboardingPlans(), hasActivePeopleOps(), _onbAssignmentsOrNone(),
     ]);
-    const gate = onbAccess({ mode: sw.mode, pilot: sw.pilot, people, plans, email, role, peopleOpsActive });
+    const gate = onbAccess({ mode: sw.mode, pilot: sw.pilot, people, plans, email, role, peopleOpsActive, assignments });
     return { mode: sw.mode, state: gate.state, reason: gate.reason, peopleOpsActive };
   } catch (e) {
     console.warn('Onboarding gate: read failed', e);
@@ -91,7 +112,7 @@ async function _onbPlanWriteGate() {
 }
 
 function _onbDropCaches() {
-  [CONFIG.ONBOARDING.PLAN_LIST, 'People', 'ChecklistTemplates', 'ChecklistProgress'].forEach(_cacheInvalidate);
+  [CONFIG.ONBOARDING.PLAN_LIST, 'People', 'ChecklistTemplates', 'ChecklistProgress', CONFIG.ONBOARDING.ASSIGN.LIST].forEach(_cacheInvalidate);
 }
 
 // One plan row by id, fresh. Throws when it is gone.
@@ -157,10 +178,10 @@ async function restartOnboardingPlan(planId) {
 
 // The inputs for the Data Health "Onboarding plans" checks (onbCheckPlans). People includes inactive rows.
 async function getOnboardingPlanInputs() {
-  const [plans, people, templates] = await Promise.all([
-    getOnboardingPlans(), getPeople(false), getChecklistTemplates(CONFIG.ONBOARDING.RECORD_TYPE),
+  const [plans, people, templates, assignments] = await Promise.all([
+    getOnboardingPlans(), getPeople(false), getChecklistTemplates(CONFIG.ONBOARDING.RECORD_TYPE), getOnboardingAssignments(),
   ]);
-  return { plans, people, templates };
+  return { plans, people, templates, assignments };   // N-520: assignments add the 'assignee-unresolved' check
 }
 
 
@@ -189,12 +210,14 @@ async function _onbClearReminders(me, keep) {
 // (parallel, one read per plan, never the whole ChecklistProgress list).
 async function _onbReminderInputs(me, gate) {
   const O = CONFIG.ONBOARDING;
-  const [plans, people, templates] = await Promise.all([getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE)]);
-  const mine = onbReminderPlans({ plans, people, email: me, peopleOpsActive: gate.peopleOpsActive });
+  const [plans, people, templates, assignments] = await Promise.all([
+    getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE), getOnboardingAssignments(),   // N-520: a failed read sends and clears nothing
+  ]);
+  const mine = onbReminderPlans({ plans, people, email: me, peopleOpsActive: gate.peopleOpsActive, assignments });
   const rows = await Promise.all(mine.map(m => getChecklistProgress(O.RECORD_TYPE, { recordId: m.plan.PersonID })));
   const progressByPlan = {};
   mine.forEach((m, i) => { progressByPlan[String(m.plan.id)] = rows[i]; });
-  return { plans, people, templates, progressByPlan };
+  return { plans, people, templates, progressByPlan, assignments };
 }
 
 // Called once from my-momentum-app.js init, after the tab signals. Never throws. A failed read changes nothing (no clearing on error);
@@ -223,6 +246,64 @@ async function runOnboardingReminders() {
 }
 
 
+// ── Step reassignment (N-520 / ONB-D108..D118) ──────────────────────────
+// One write, from My Team > Onboarding or Buddying. Fresh reads (assignments strict), then every rule again: live gate (Preview read-only),
+// a plan the viewer relates to, Active, an active visible step, onbCanReassign, and a target from onbAssignCandidates (blank or the original
+// owner = hand back, stored blank). An unchanged target writes nothing. One OnboardingStepAssignments row is created (AssignedByEmail = the
+// real signed-in user under Ghost Mode); then the previous assignee's notification is cleared and the new one fired (not to the viewer).
+// A notification failure never undoes the write. -> { ok: true, changed, handedBack, warning: '' | 'notify' }
+async function reassignOnboardingStep({ planId, itemKey, assigneeEmail = '' } = {}) {
+  const O = CONFIG.ONBOARDING;
+  const A = O.ASSIGN;
+  const { email, role } = await _onbViewerCtx();
+  _onbDropCaches();
+  const [gate, plans, people, templates, assignments] = await Promise.all([
+    resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE),
+    getOnboardingAssignments(),
+  ]);
+  if (gate.state === 'preview') throw new Error(A.TEXT.reasons.preview);
+  if (gate.state !== 'live') throw new Error('Onboarding is not available to you.');
+  const want = String(planId == null ? '' : planId).trim();
+  const plan = (plans || []).find(p => p && String(p.id) === want) || null;
+  const rel = plan ? onbRelations({ plan, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments }) : new Set();
+  if (!plan || !rel.size) throw new Error('That onboarding plan is not available to you.');
+  if (plan.Status !== O.PLAN_ACTIVE) throw new Error(A.TEXT.reasons.closed);
+  const key = String(itemKey == null ? '' : itemKey).trim();
+  const step = key ? activeChecklistItems(templates, O.RECORD_TYPE, plan.Track).find(t => String(t.ItemKey == null ? '' : t.ItemKey).trim() === key) : null;
+  const parties = onbPlanParties(plan, people);
+  const startDate = parties.employee ? (spDateIn(parties.employee.StartDate) || '') : '';
+  const today = localDayISO();
+  if (!step || !onbStepVisible({ step, relations: rel, startDate, todayISO: today })) throw new Error('That step is not part of this plan.');
+  const progress = resolveChecklistProgress(await getChecklistProgress(O.RECORD_TYPE, { recordId: plan.PersonID }));
+  const tick = progress.get(key);
+  const index = onbAssignmentIndex(assignments, plan.id);
+  const assignee = onbStepAssignee({ step, plan, assignments: index, people });
+  const original = onbStepOwner({ step, parties, peopleOpsActive: gate.peopleOpsActive }).person;
+  const can = onbCanReassign({ step, relations: rel, viewerEmail: email, originalPerson: original, assignee, done: !!(tick && tick.done), planStatus: plan.Status });
+  if (!can.ok) throw new Error(A.TEXT.reasons[can.reason] || A.TEXT.reasons.noRights);
+  let target = _onbEmail(assigneeEmail);
+  if (target && original && target === _onbEmail(original.WorkEmail)) target = '';   // picking the original owner hands the step back
+  if (target && !onbAssignCandidates(people, plan.PersonID, today).some(c => c.email === target)) throw new Error(A.TEXT.reasons.notCandidate);
+  const stored = (index.get(_onbAssignKey(plan.id, key)) || {}).email || '';   // the stored assignee, resolvable or not
+  if (target === stored) return { ok: true, changed: false, handedBack: false, warning: '' };
+  await createItem(A.LIST, onbCleanAssignFields({ plan, itemKey: key, assigneeEmail: target, byEmail: getCurrentUser()?.email || '', todayISO: today }));
+  _cacheInvalidate(A.LIST);
+  let warning = '';
+  try {
+    if (stored) await clearNotification(onbAssignNotifyKey(plan.id, key, stored));
+    if (target && target !== _onbEmail(email)) {
+      await fireNotification({
+        triggerType: A.NOTIFY.TYPE, triggerKey: onbAssignNotifyKey(plan.id, key, target), tone: A.NOTIFY.TONE,
+        deepLink: A.NOTIFY.LINK, body: A.TEXT.notifyBody, recipients: [target],
+      });
+    }
+  } catch (e) {
+    console.warn('Onboarding: reassignment saved, notification failed', e);
+    warning = 'notify';
+  }
+  return { ok: true, changed: true, handedBack: !target, warning };
+}
+
 // ── My Onboarding page (N-499 / ONB-4) ──────────────────────────────────
 // The joiner's and the buddy's view (ONB-D30). Rights come from the plan's relations (onbRelations / onbCanTick), never from the role alone:
 // Leadership and People Ops see nothing here unless they are themselves a joiner or a buddy (ONB-D9). Under Ghost Mode the identity is the
@@ -242,8 +323,10 @@ async function resolveOnboardingNav() {
   try {
     const O = CONFIG.ONBOARDING;
     const { email, role } = await _onbViewerCtx();
-    const [gate, plans, people] = await Promise.all([resolveOnboardingGate(), getOnboardingPlans(), getPeople(false)]);
-    const who = { gate, plans, people, email, role, peopleOpsActive: gate.peopleOpsActive };
+    const [gate, plans, people, assignments] = await Promise.all([
+      resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), _onbAssignmentsOrNone(),
+    ]);
+    const who = { gate, plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments };
     const buddy = gate.state === 'live' || gate.state === 'preview' ? onbBuddyPlans(who) : [];
     const rituals = onbRitualsVisible({ mode: gate.mode, gateState: gate.state });   // N-500 (ONB-D47): the Processes & Rituals tab
     if (!buddy.length) return Object.assign(onbNavSignal(who), { rituals });
@@ -266,8 +349,8 @@ async function resolveOnboardingNav() {
 async function getOnboardingPlanView(planId, { level = '' } = {}) {
   const { email, role } = await _onbViewerCtx();
   const O = CONFIG.ONBOARDING;
-  const [gate, plans, people, templates] = await Promise.all([
-    resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE),
+  const [gate, plans, people, templates, assignments] = await Promise.all([
+    resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE), _onbAssignmentsOrNone(),
   ]);
   if (gate.state !== 'live' && gate.state !== 'preview') return { none: true, gateState: gate.state };
   const mine = onbMyPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, kind: 'own' });   // N-509: own plan only; the buddy's are getBuddyingView
@@ -277,7 +360,7 @@ async function getOnboardingPlanView(planId, { level = '' } = {}) {
   if (!entry) throw new Error('That onboarding plan is not available to you.');
   const progressRows = await getChecklistProgress(O.RECORD_TYPE, { recordId: entry.plan.PersonID });
   const model = onbPlanModel({
-    plan: entry.plan, people, templates, progressRows, email, role, peopleOpsActive: gate.peopleOpsActive, todayISO: localDayISO(), level,
+    plan: entry.plan, people, templates, progressRows, email, role, peopleOpsActive: gate.peopleOpsActive, todayISO: localDayISO(), level, assignments,
   });
   return Object.assign(model, { gateState: gate.state, choices: onbPlanChoices(mine, people) });
 }
@@ -289,8 +372,9 @@ async function tickOnboardingStep({ planId, itemKey, done } = {}) {
   const { email, role } = await _onbViewerCtx();
   if (typeof done !== 'boolean') throw new Error('A tick must be true or false.');
   _onbDropCaches();
-  const [gate, plans, people, templates] = await Promise.all([
+  const [gate, plans, people, templates, assignments] = await Promise.all([
     resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE),
+    getOnboardingAssignments(),   // N-520: strict; a failed read stops the tick
   ]);
   if (gate.state === 'preview') throw new Error('Preview is read-only.');
   if (gate.state !== 'live') throw new Error('Onboarding is not available to you.');
@@ -303,22 +387,27 @@ async function tickOnboardingStep({ planId, itemKey, done } = {}) {
   const emp = onbPlanParties(entry.plan, people).employee;
   const startDate = emp ? (spDateIn(emp.StartDate) || '') : '';
   if (!step || !onbStepVisible({ step, relations: entry.relations, startDate, todayISO: localDayISO() })) throw new Error('That step is not part of this plan.');
-  if (!onbCanTick({ step, relations: entry.relations, peopleOpsActive: gate.peopleOpsActive, planStatus: entry.plan.Status })) throw new Error(O.PLAN_TEXT.tickNoRights);
+  const assignee = onbStepAssignee({ step, plan: entry.plan, assignments, people });   // N-520 (ONB-D113)
+  const reassigned = !!assignee;
+  const isAssignee = reassigned && _onbEmail(assignee.WorkEmail) === _onbEmail(email);
+  if (!onbCanTick({ step, relations: entry.relations, peopleOpsActive: gate.peopleOpsActive, planStatus: entry.plan.Status, reassigned, isAssignee })) throw new Error(O.PLAN_TEXT.tickNoRights);
   const rows = await getChecklistProgress(O.RECORD_TYPE, { recordId: entry.plan.PersonID });
   const prev = resolveChecklistProgress(rows).get(key) || null;
   return setChecklistItemDone(O.RECORD_TYPE, entry.plan.PersonID, key, done, prev ? prev.rowId : null);
 }
 
 
+
 // ── Buddying page (N-509 / ONB-4b) ──────────────────────────────────────
 // The viewer's Active buddy plans as Buddying cards (onbBuddyModel), latest start first. Same viewer context and fresh-per-call reads as
 // getOnboardingPlanView; progress is read only for the viewer's own Active buddy plans, after they are known, never for any other plan.
 // -> { none: true, gateState } or { gateState, plans: [onbBuddyModel…] }. Ticking stays tickOnboardingStep (it re-checks every rule).
+// N-520: each plan also carries candidates (onbAssignCandidates) for the Reassign modal.
 async function getBuddyingView() {
   const { email, role } = await _onbViewerCtx();
   const O = CONFIG.ONBOARDING;
-  const [gate, plans, people, templates] = await Promise.all([
-    resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE),
+  const [gate, plans, people, templates, assignments] = await Promise.all([
+    resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE), _onbAssignmentsOrNone(),
   ]);
   if (gate.state !== 'live' && gate.state !== 'preview') return { none: true, gateState: gate.state };
   const mine = onbBuddyPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive });
@@ -327,9 +416,9 @@ async function getBuddyingView() {
   const todayISO = localDayISO();
   return {
     gateState: gate.state,
-    plans: mine.map((m, i) => onbBuddyModel(onbPlanModel({
-      plan: m.plan, people, templates, progressRows: rows[i], email, role, peopleOpsActive: gate.peopleOpsActive, todayISO,
-    }))),
+    plans: mine.map((m, i) => Object.assign(onbBuddyModel(onbPlanModel({
+      plan: m.plan, people, templates, progressRows: rows[i], email, role, peopleOpsActive: gate.peopleOpsActive, todayISO, assignments,
+    })), { candidates: onbAssignCandidates(people, m.plan.PersonID, todayISO) })),
   };
 }
 

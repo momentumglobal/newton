@@ -483,6 +483,7 @@ const FIELD_ALIASES = {
   SLATargets:         {},
   OnboardingPlans:    {},   // N-496: one row per person's onboarding plan (Title = their work email)
   OnboardingSignoffs: {},   // N-502: the line manager's role-play and Day-30 sign-offs (append-only rows)
+  OnboardingStepAssignments: {},   // N-520: onboarding step reassignments (append-only rows, latest per plan + step wins)
 };
  
 function normaliseFields(listName, fields) {

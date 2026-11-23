@@ -30,6 +30,11 @@ function _onbtActionAttr(planId) {
   return it => act('onbtStepAction', planId, it.itemKey);
 }
 
+// N-520 (ONB-D116): the Reassign button, dispatched by onbtReassign.
+function _onbtReassignAttr(planId) {
+  return it => act('onbtReassign', planId, it.itemKey);
+}
+
 function _onbtTilesHtml(totals) {
   const T = CONFIG.ONBOARDING.TEAM_TEXT;
   const tile = (n, label) => `<div class="ppl-card onbt-tile"><div class="onbt-tile-num">${escHtml(String(n))}</div><div class="onbt-tile-label">${escHtml(label)}</div></div>`;
@@ -50,7 +55,7 @@ function _onbtActionsHtml(actions, counter) {
   const body = (actions || []).length
     ? actions.map(a => `<div class="onbt-group">
         <h3 class="onbt-sub">${escHtml(a.name)}</h3>
-        <ul class="onb-steps">${a.entries.map(e => e.type === 'signoff' ? _onbtActionRowHtml(a.planId, e) : _onbmStepHtml(e.item, counter.n++, _onbtTickAttr(a.planId), _onbtActionAttr(a.planId))).join('')}</ul>
+        <ul class="onb-steps">${a.entries.map(e => e.type === 'signoff' ? _onbtActionRowHtml(a.planId, e) : _onbmStepHtml(e.item, counter.n++, _onbtTickAttr(a.planId), _onbtActionAttr(a.planId), _onbtReassignAttr(a.planId))).join('')}</ul>
       </div>`).join('')
     : `<p class="ppl-muted-note">${escHtml(T.actionsEmpty)}</p>`;
   return `<section class="ppl-card onbt-section">
@@ -99,7 +104,7 @@ function _onbtByOwnerHtml(row, counter) {
         <h5 class="onbt-owner-title">${escHtml(g.name ? `${g.label} · ${g.name}` : g.label)}</h5>
         <span class="onb-phase-count">${escHtml(onbFillText(T.ownerOpen, { n: g.items.length }))}</span>
       </div>
-      <ul class="onb-steps">${g.items.map(it => _onbmStepHtml(it, counter.n++, _onbtTickAttr(row.planId), _onbtActionAttr(row.planId))).join('')}</ul>
+      <ul class="onb-steps">${g.items.map(it => _onbmStepHtml(it, counter.n++, _onbtTickAttr(row.planId), _onbtActionAttr(row.planId), _onbtReassignAttr(row.planId))).join('')}</ul>
     </div>`).join('');
   return `<section class="onbt-block">
       <h4 class="onbt-sub">${escHtml(T.byOwnerTitle)}</h4>
@@ -175,6 +180,10 @@ function onbtPageHtml(view, ui) {
   const T = CONFIG.ONBOARDING.TEAM_TEXT;
   const u = ui || { open: [], completedOpen: false, error: '' };
   if (u.error) return emptyStateBlock({ icon: 'alert-triangle', variant: 'error', title: T.loadFailed, message: u.error, actionLabel: T.retry, actionAct: ['onbtRetry'] });
+  if (view && !view.none && view.assignOnly) {   // N-520 (ONB-D114): only reassigned steps here, so My actions alone
+    return (view.gateState === 'preview' ? `<p class="onb-note">${escHtml(T.previewNote)}</p>` : '')
+      + (view.readOnly || view.gateState === 'preview' ? '' : _onbtActionsHtml(view.actions, { n: 0 }));
+  }
   if (!view || view.none || (!view.rows.length && !view.completed.length)) return emptyStateBlock({ icon: 'inbox', title: T.pageTitle, message: T.noJoiners });
   const counter = { n: 0 };
   const open = u.open || [];
@@ -297,6 +306,36 @@ function onbtStepAction(planId, itemKey) {
   if (typeof run === 'function') run(row, view.viewerName || '');
 }
 
+// N-520 (ONB-D116). Reassign one step: selectModal with onbReassignOptions (original owner first, the current assignee preselected), then
+// reassignOnboardingStep (which re-checks every rule). Cancel = no-op. Always redraws from fresh data.
+function _onbtFindItem(view, planId, itemKey) {
+  if (!view) return null;
+  const rows = (view.rows || []).filter(r => r.planId === String(planId));
+  const items = rows.reduce((acc, r) => acc.concat(r.byOwner.reduce((a, g) => a.concat(g.items), [])), [])
+    .concat((view.actions || []).filter(a => a.planId === String(planId)).reduce((acc, a) => acc.concat(a.steps || []), []));
+  return items.find(i => i.itemKey === String(itemKey)) || null;
+}
+
+async function onbtReassign(planId, itemKey) {
+  const A = CONFIG.ONBOARDING.ASSIGN.TEXT;
+  const view = _onbtState.view;
+  const it = _onbtFindItem(view, planId, itemKey);
+  if (!it || !it.canReassign) return;
+  const { options, defaultValue } = onbReassignOptions({ item: it, candidates: ((view && view.candidates) || {})[String(planId)] || [] });
+  const pick = await selectModal({ title: A.modalTitle, message: onbFillText(A.modalMessage, { label: it.label }), options, defaultValue, confirmLabel: A.confirm });
+  if (pick === null || pick === undefined) return;
+  _onbtLock();
+  try {
+    const res = await reassignOnboardingStep({ planId, itemKey, assigneeEmail: pick });
+    const msg = !res.changed ? A.unchanged : (res.warning ? A.notifyWarn : (res.handedBack ? A.handedBack : A.saved));
+    toast(msg, { type: res.warning ? 'info' : 'success' });
+  } catch (e) {
+    console.error('My Team onboarding: reassign failed', e);
+    toast(`${A.failed} ${(e && e.message) || e}`, { type: 'error' });
+  }
+  await _onbtReload();
+}
+
 function onbtToggle(planId) {
   const open = _onbtState.open;
   const id = String(planId == null ? '' : planId);
@@ -325,6 +364,7 @@ registerActions({
   onbtWithdraw,
   onbtCountersign,
   onbtStepAction,
+  onbtReassign,
   onbtToggle,
   onbtToggleCompleted,
   onbtFilter,

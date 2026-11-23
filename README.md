@@ -29,6 +29,16 @@ Development & Performance is Momentum's development process, spread over My Mome
 - **v1 scope** — self and blind manager scoring, calibration, progression readiness. No reward or salary recommendation; PTP scoring stays off until the L5 IC descriptors exist.
 - **More** — `Readme.html` (file map, lists and columns, access matrix, gate rules), `my-momentum-user-guide.html` (end-user guide for the My Momentum pages, including the PDP pages) and `people-user-guide.html` (People module, including PDP Setup and Calibration).
 
+## My Onboarding
+
+My Onboarding is Momentum's 30-day Talent Partner induction, built into My Momentum: a plan per joiner (owned, dated steps, guided and self-guided), a named buddy, an assessed intake role-play and a Day-30 line manager sign-off that the CSD countersigns. Days 31-90 are covered by the PDP check-ins.
+
+- **Pages** — My Momentum > My Onboarding (Onboarding Plan, Processes & Rituals, Expectations & SLAs), My Momentum > Buddying, My Momentum > My Team > Onboarding (line manager / CSD; Admin sees all), People > employee record > Onboarding card (start, cancel, restart, buddy), Config Panel > Onboarding (switch) and Checklists > Onboarding (steps).
+- **Switch** — Off / Pilot / On, set by an Admin in the Config Panel's Onboarding tab. Off is the default and shows nothing except an Admin preview; Pilot limits it to named pilot joiners, their line manager and CSD, and anyone with a role on a plan; On opens it to every Talent Partner (TP, STP, PTP). Leadership has no access to progress.
+- **Data** — the `OnboardingPlans` and `OnboardingSignoffs` SharePoint lists, the `OnboardingContent` document library, `person` rows in `ChecklistTemplates` / `ChecklistProgress`, and two `AppSettings` columns for the switch. Nothing here is returned by Newton for Claude. Owner reminders use the existing in-app notifications (Pilot and On).
+- **v1 scope** — Talent Partner track only (the SDM track is v2), no pause (a late start is fixed by editing the start date), desktop only.
+- **More** — `Readme.html` (file map, lists and columns, access, gate rules, changelog) and `my-momentum-user-guide.html` (end-user guide for the My Momentum pages, including onboarding).
+
 ## Stack
 
 - **Hosting** — GitHub Pages

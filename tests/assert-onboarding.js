@@ -1247,6 +1247,25 @@ ASSERTIONS.push(
     },
   },
   {
+    name: 'N-519 AC1-AC4 Learning Library deep link and Command Bar entry mirror the N-501 pair',
+    fn: function () {
+      const cfg = CONFIG.MY_MOMENTUM;
+      const tabs = keys => keys.map(k => ({ key: k }));
+      const all = onbSubTabs({ onbPlans: true, onbRituals: true }), planOnly = onbSubTabs({ onbPlans: true });
+      _assertEqual(mmResolveDeepLink('onboardingLibrary', tabs(['myOnboarding']), [], cfg, all), { tab: 'myOnboarding', sub: 'library' }, 'AC1 alias opens the Learning Library tab');
+      _assertEqual(mmResolveDeepLink('onboardingLibrary', tabs(['myOnboarding']), [], cfg, planOnly), null, 'AC2 a person without the tab falls to the landing tab');
+      const mod = CONFIG.OS_MODULES.find(m => m.key === 'myMomentum');
+      const hits = CONFIG.COMMAND_BAR_PAGES.filter(p => p.key === 'onboardingLibrary');
+      const e = hits[0] || {};
+      _assertEqual(hits.length === 1 && e.label === 'Learning Library' && e.module === 'myMomentum' && e.href === 'my-momentum.html#onboardingLibrary' && e.roles.join() === mod.roles.join(), true, 'AC3 one Command Bar entry mirrors the module roles');
+      _assertEqual([
+        mmResolveDeepLink('onboardingExpectations', tabs(['myOnboarding']), [], cfg, all),
+        mmResolveDeepLink('onboardingRituals', tabs(['myOnboarding']), [], cfg, all),
+        mmResolveDeepLink('teamScorecards', tabs(['myTeam']), [{ key: 'scorecards' }], cfg),
+      ], [{ tab: 'myOnboarding', sub: 'expectations' }, { tab: 'myOnboarding', sub: 'rituals' }, { tab: 'myTeam', sub: 'scorecards' }], 'AC4 existing aliases unchanged');
+    },
+  },
+  {
     name: 'N-501 AC15 file hygiene and load scope: no hex, list names, hrefs or typed targets; standards / page only on my-momentum.html, in order; N-500 content file untouched',
     fn: function () {
       const src = _onbSrc('onboarding-standards-config.js');

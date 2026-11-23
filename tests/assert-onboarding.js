@@ -1026,13 +1026,13 @@ ASSERTIONS.push(
   {
     name: 'N-500 AC1-AC4 sub-tab registry and visibility rules: SUB_TABS, onbRitualsVisible, onbSubTabs, mmTabRelevant',
     fn: function () {
-      _assertEqual(CONFIG.ONBOARDING.SUB_TABS, [{ key: 'plan', label: 'Onboarding Plan' }, { key: 'rituals', label: 'Processes & Rituals' }, { key: 'expectations', label: 'Expectations & SLAs' }], 'AC1 SUB_TABS (N-501 adds the third)');
+      _assertEqual(CONFIG.ONBOARDING.SUB_TABS, [{ key: 'plan', label: 'Onboarding Plan' }, { key: 'rituals', label: 'Processes & Rituals' }, { key: 'expectations', label: 'Expectations & SLAs' }, { key: 'library', label: 'Learning Library' }], 'AC1 SUB_TABS (N-501 adds the third, N-518 the fourth)');
       const v = onbRitualsVisible;
       _assertEqual([v({ mode: 'On', gateState: 'none' }), v({ mode: 'Pilot', gateState: 'none' }), v({ mode: 'Pilot', gateState: 'live' }), v({ mode: 'Off', gateState: 'preview' }), v({ mode: 'Off', gateState: 'none' }), v()],
         [true, false, true, true, false, false], 'AC2 On = everyone; Pilot / Off only through a live or preview gate; no arguments = false');
       _assertEqual(v({ mode: 'on', gateState: 'none' }) === v({ mode: 'On', gateState: 'none' }) && v({ mode: 'bogus', gateState: 'none' }), true === v({ mode: 'on', gateState: 'none' }) && false, 'AC2 mode is normalised; an unknown mode is not On');
-      _assertEqual(onbSubTabs({ onbPlans: true, onbRituals: true }).map(t => t.key), ['plan', 'rituals', 'expectations'], 'AC3 both, in registry order (N-501: Expectations & SLAs follows the rituals signal)');
-      _assertEqual(onbSubTabs({ onbRituals: true }).map(t => t.key), ['rituals', 'expectations'], 'AC3 reference tabs only');
+      _assertEqual(onbSubTabs({ onbPlans: true, onbRituals: true }).map(t => t.key), ['plan', 'rituals', 'expectations', 'library'], 'AC3 both, in registry order (N-501 / N-518: Expectations & SLAs and Learning Library follow the rituals signal)');
+      _assertEqual(onbSubTabs({ onbRituals: true }).map(t => t.key), ['rituals', 'expectations', 'library'], 'AC3 reference tabs only');
       _assertEqual(onbSubTabs({ onbPlans: true }).map(t => t.key), ['plan'], 'AC3 plan only');
       _assertEqual([onbSubTabs({}).length, onbSubTabs().length, onbSubTabs({ onbBuddy: true }).length], [0, 0, 0], 'AC3 nothing, and a buddy alone has neither');
       ['admin', 'leadership', 'people_ops', 'talent_partner', 'staff'].forEach(role => {
@@ -1060,7 +1060,7 @@ ASSERTIONS.push(
     fn: function () {
       const tabs = onbSubTabs({ onbPlans: true, onbRituals: true });
       const html = onbSubTabsHtml('rituals', tabs);
-      _assertEqual(/class="eng-tab-strip"/.test(html) && (html.match(/class="eng-tab/g) || []).length === 4, true, 'AC6 strip with all three tabs (strip + 3 buttons; N-501 adds the third)');
+      _assertEqual(/class="eng-tab-strip"/.test(html) && (html.match(/class="eng-tab/g) || []).length === 5, true, 'AC6 strip with all four tabs (strip + 4 buttons; N-501 adds the third, N-518 the fourth)');
       _assertEqual(/eng-tab--active[^>]*aria-selected="true"[^>]*>Processes &amp; Rituals</.test(html) || /eng-tab eng-tab--active" role="tab" aria-selected="true"[^>]*>Processes &amp; Rituals</.test(html), true, 'AC6 the active tab is marked');
       _assertEqual(onbSubTabsHtml('plan', onbSubTabs({ onbPlans: true })), '', 'AC7 one sub-tab = no strip (N-501: a plan-only person; the reference tabs come as a pair)');
       const ui = _onbSrc('onboarding-my-ui.js');
@@ -1160,9 +1160,9 @@ ASSERTIONS.push(
   {
     name: 'N-501 AC1/AC2/AC3 sub-tab registry: Expectations & SLAs is third and follows the rituals signal; nav signals unchanged',
     fn: function () {
-      _assertEqual(CONFIG.ONBOARDING.SUB_TABS.map(t => t.key + ':' + t.label), ['plan:Onboarding Plan', 'rituals:Processes & Rituals', 'expectations:Expectations & SLAs'], 'AC1 registry');
-      _assertEqual(onbSubTabs({ onbRituals: true }).map(t => t.key), ['rituals', 'expectations'], 'AC2 reference tabs');
-      _assertEqual(onbSubTabs({ onbPlans: true, onbRituals: true }).map(t => t.key), ['plan', 'rituals', 'expectations'], 'AC2 all three in order');
+      _assertEqual(CONFIG.ONBOARDING.SUB_TABS.map(t => t.key + ':' + t.label), ['plan:Onboarding Plan', 'rituals:Processes & Rituals', 'expectations:Expectations & SLAs', 'library:Learning Library'], 'AC1 registry (N-518 adds the fourth)');
+      _assertEqual(onbSubTabs({ onbRituals: true }).map(t => t.key), ['rituals', 'expectations', 'library'], 'AC2 reference tabs');
+      _assertEqual(onbSubTabs({ onbPlans: true, onbRituals: true }).map(t => t.key), ['plan', 'rituals', 'expectations', 'library'], 'AC2 all four in order');
       _assertEqual(onbSubTabs({ onbPlans: true }).map(t => t.key), ['plan'], 'AC2 plan only');
       _assertEqual([onbSubTabs({}).length, onbSubTabs().length], [0, 0], 'AC2 nothing');
       const nav = _onbSrc('api-onboarding.js');
@@ -1265,6 +1265,105 @@ ASSERTIONS.push(
       _assertEqual(at('onboarding-rituals-ui.js') < at('onboarding-expectations-ui.js') && at('onboarding-expectations-ui.js') < at('my-momentum-app.js'), true, 'expectations page after the rituals page, before the app init');
       _assertEqual(at('sla-targets.js') > -1 && at('api-sla.js') > at('api-people.js') && at('api-sla.js') < at('api-onboarding.js'), true, 'sla-targets.js and api-sla.js loaded on my-momentum.html, api-sla after api-people');
       _assertEqual(ALL_HTML['mobile.html'].includes('onboarding-standards') || ALL_HTML['mobile.html'].includes('api-sla'), false, 'never mobile.html');
+    },
+  },
+);
+
+// ── N-518: Learning Library sub-tab ─────────────────────────────────────
+function _n518Rows() {
+  const row = (id, o) => Object.assign({ id, RecordType: 'person', Variant: 'TP', Active: true, Section: 'Library', SectionOrder: 99, ItemType: 'tick', StepMode: 'Self-guided' }, o);
+  return [
+    row(1, { ItemKey: 'lib_b', ItemLabel: 'InMail tips', ItemOrder: 2, LevelTag: 'Foundation', ContentUrl: 'https://talentpoint.sharepoint.com/sites/SolutionsHubReporting/OnboardingContent/Library/L02.pptx', HelpText: 'Short & sharp <b>' }),
+    row(2, { ItemKey: 'lib_a', ItemLabel: 'Boolean 101', ItemOrder: 1, LevelTag: 'Foundation', ContentUrl: 'javascript:alert(1)' }),
+    row(3, { ItemKey: 'lib_c', ItemLabel: 'Counter-offer deep dive', ItemOrder: 3, LevelTag: 'Experienced' }),
+    row(4, { ItemKey: 'lib_d', ItemLabel: 'Trusted advisor', ItemOrder: 4, LevelTag: '' }),
+    row(5, { ItemKey: 'lib_x', ItemLabel: 'Retired item', ItemOrder: 5, Active: false }),
+    row(6, { ItemKey: 'lib_sdm', ItemLabel: 'Other track', ItemOrder: 1, Variant: 'SDM' }),
+    row(7, { ItemKey: 'wk1', ItemLabel: 'Week 1 step', Section: 'Week 1', SectionOrder: 1, ItemOrder: 1, DueOffsetDays: 0 }),
+    row(8, { ItemKey: 'role_lib', ItemLabel: 'Role step', RecordType: 'role' }),
+  ];
+}
+ASSERTIONS.push(
+  {
+    name: 'N-518 AC1/AC2 sub-tab registry: Learning Library is fourth and follows the rituals signal',
+    fn: function () {
+      const last = CONFIG.ONBOARDING.SUB_TABS[CONFIG.ONBOARDING.SUB_TABS.length - 1];
+      _assertEqual([CONFIG.ONBOARDING.SUB_TABS.map(t => t.key), last.label], [['plan', 'rituals', 'expectations', 'library'], 'Learning Library'], 'AC1 keys in order, label');
+      _assertEqual(onbSubTabs({ onbRituals: true }).map(t => t.key).pop(), 'library', 'AC2 rituals signal: library last');
+      _assertEqual(onbSubTabs({ onbPlans: true }).some(t => t.key === 'library'), false, 'AC2 a plan alone has no Library tab');
+      _assertEqual([onbSubTabs({}).length, onbSubTabs().length], [0, 0], 'AC2 nothing');
+    },
+  },
+  {
+    name: 'N-518 AC3/AC4/AC5 onbLibraryTabModel: active DEFAULT_TRACK Library rows only, Checklist Admin order, safe links, level filter',
+    fn: function () {
+      const m = onbLibraryTabModel({ templates: _n518Rows() });
+      _assertEqual(m.all.map(i => i.itemKey), ['lib_a', 'lib_b', 'lib_c', 'lib_d'], 'AC3 only the active TP Library rows, in ItemOrder');
+      const a = m.all[0], b = m.all[1];
+      _assertEqual([b.label, b.help, b.levelTag, /^https:\/\//.test(b.contentUrl)], ['InMail tips', 'Short & sharp <b>', 'Foundation', true], 'AC4 fields carried');
+      _assertEqual(a.contentUrl, '', 'AC4 an unsafe link becomes empty');
+      _assertEqual(Object.keys(a).sort(), ['contentUrl', 'help', 'itemKey', 'label', 'levelTag'], 'AC4 read-only: no tick, owner or due fields');
+      const f = onbLibraryTabModel({ templates: _n518Rows(), level: 'Foundation' });
+      _assertEqual([f.items.map(i => i.itemKey), f.hidden], [['lib_a', 'lib_b', 'lib_d'], 1], 'AC5 Foundation shows Foundation and untagged, hides Experienced');
+      const e = onbLibraryTabModel({ templates: _n518Rows(), level: 'Experienced' });
+      _assertEqual([e.items.map(i => i.itemKey), e.hidden], [['lib_c', 'lib_d'], 2], 'AC5 Experienced');
+      _assertEqual([m.items.length, m.hidden], [4, 0], "AC5 '' shows all");
+      _assertEqual([onbLibraryTabModel({ templates: null }).all.length, onbLibraryTabModel().all.length, onbLibraryTabModel({}).text === CONFIG.ONBOARDING.LIBRARY_TEXT], [0, 0, true], 'anything but an array is none; copy from LIBRARY_TEXT');
+    },
+  },
+  {
+    name: 'N-518 AC6-AC10 onblPageHtml: title, intro, browse link, level buttons, read-only items, chips, links, empty / loading / error states',
+    fn: function () {
+      const T = CONFIG.ONBOARDING.LIBRARY_TEXT;
+      const ready = onblPageHtml(onbLibraryTabModel({ templates: _n518Rows() }), 'ready', '');
+      _assertEqual(/<h1 class="page-title">Learning Library<\/h1>/.test(ready) && ready.includes(escHtml(T.intro)), true, 'AC6 title and intro');
+      _assertEqual(ready.includes(`href="${escAttr(CONFIG.ONBOARDING.LIBRARY_URL)}" target="_blank" rel="noopener noreferrer"`), true, 'AC6 browse link, new tab');
+      _assertEqual((ready.match(/class="btn-secondary onb-level/g) || []).length, CONFIG.ONBOARDING.LEVEL_FILTERS.length, 'AC6 one button per level filter');
+      _assertEqual(/onb-level is-active" aria-pressed="true"[^>]*>All levels</.test(ready), true, 'AC6 the active filter is marked');
+      const fnd = onblPageHtml(onbLibraryTabModel({ templates: _n518Rows(), level: 'Foundation' }), 'ready', 'Foundation');
+      _assertEqual(/onb-level is-active" aria-pressed="true"[^>]*>Foundation</.test(fnd) && (fnd.match(/aria-pressed="true"/g) || []).length === 1, true, 'AC6 Foundation active, only one');
+      _assertEqual([(ready.match(/<li class="onb-step">/g) || []).length, /type="checkbox"/.test(ready)], [4, false], 'AC6 one row per item, no tick boxes');
+      _assertEqual([(ready.match(/>Self-guided</g) || []).length, ready.includes('>All levels</span>'), ready.includes('>Experienced</span>')], [4, true, true], 'AC7 chips: Self-guided on every item; All levels when untagged; the tag otherwise');
+      _assertEqual([(ready.match(/>Open </g) || []).length, ready.includes('javascript:'), ready.includes('Short &amp; sharp &lt;b&gt;')], [1, false, true], 'AC8 Open only for a safe link; text escaped');
+      _assertEqual(onblPageHtml(onbLibraryTabModel({ templates: [] }), 'ready', '').includes(T.empty), true, 'AC9 empty Library');
+      const hideAll = [_n518Rows()[2]];
+      const none = onblPageHtml(onbLibraryTabModel({ templates: hideAll, level: 'Foundation' }), 'ready', 'Foundation');
+      _assertEqual([none.includes(T.emptyLevel), none.includes(onbFillText(T.filtered, { n: 1 }))], [true, true], 'AC9 filter hides everything: message and count');
+      const loading = onblPageHtml(onbLibraryTabModel({}), 'loading', '');
+      const err = onblPageHtml(onbLibraryTabModel({}), 'error', '');
+      _assertEqual([loading.includes(escHtml(T.loading)), loading.includes('onb-step"'), err.includes(T.loadFailed) && err.includes('onblRetry'), err.includes(T.empty)], [true, false, true, false], 'AC10 loading and error states');
+      _assertEqual(ready.includes('<script') || /<[a-z]+[^>]*\son[a-z]+=/.test(ready), false, 'no inline handlers');
+    },
+  },
+  {
+    name: 'N-518 AC11/AC12 plan signpost to the tab, and routing',
+    fn: function () {
+      const view = { library: { all: [{ itemKey: 'l1', label: 'L', help: '', owner: { key: 'Employee', label: 'Employee', name: '', unnamed: false }, guided: false, levelTag: '', contentUrl: '', done: false, canTick: true }] } };
+      const withTab = _onbmLibraryHtml(view, '', { n: 0 }, true), without = _onbmLibraryHtml(view, '', { n: 0 }, false);
+      const tabLink = /data-act='\["onbmSubTab","library"\]'/;
+      _assertEqual([tabLink.test(withTab) || withTab.includes('onbmSubTab') && withTab.includes('library'), withTab.includes(CONFIG.ONBOARDING.PLAN_TEXT.libraryTabLink)], [true, true], 'AC11 link to the tab when shown');
+      _assertEqual([without.includes('onbmSubTab'), without.includes(CONFIG.ONBOARDING.PLAN_TEXT.libraryTabLink)], [false, false], 'AC11 no link when the tab is not shown');
+      _assertEqual([/type="checkbox"/.test(withTab), /type="checkbox"/.test(without)], [true, true], 'AC11 plan Library keeps its tick boxes');
+      const ui = _onbSrc('onboarding-my-ui.js');
+      _assertEqual(/if \(_onbmSubTab === 'library'\)[\s\S]{0,160}await renderOnboardingLibraryPage\(\);/.test(ui), true, 'AC12 library routes to renderOnboardingLibraryPage');
+      _assertEqual(/libraryTab: onbSubTabs|const libraryTab = onbSubTabs\(_mmSignals\)/.test(ui), true, 'AC11 the draw passes whether the tab is shown');
+      const lib = _onbSrc('onboarding-library-ui.js');
+      _assertEqual(/token !== _onbmState\.token/.test(lib) && /await getLearningLibraryRows\(\)/.test(lib) && !/getChecklistProgress|tickOnboardingStep/.test(lib), true, 'stale guard around the one read; no progress read or tick');
+      const api = _onbSrc('api-onboarding.js');
+      const fn = api.slice(api.indexOf('async function getLearningLibraryRows'));
+      _assertEqual(/return getChecklistTemplates\(CONFIG\.ONBOARDING\.RECORD_TYPE\);/.test(fn), true, 'the one reader');
+    },
+  },
+  {
+    name: 'N-518 AC13 load scope: my-momentum.html only, after the expectations page; not mobile or MCP',
+    fn: function () {
+      _assertEqual(CONFIG.MCP.scripts.some(s => /onboarding-library-ui/.test(s)), false, 'not in the MCP bundle');
+      _assertEqual(/#[0-9a-fA-F]{3,8}\b/.test(_onbSrc('onboarding-library-ui.js')), false, 'no hex');
+      if (typeof ALL_HTML === 'undefined') _skip('needs ALL_HTML (Node runner only)');
+      Object.keys(ALL_HTML).forEach(h => _assertEqual(ALL_HTML[h].includes('src="js/onboarding-library-ui.js"'), h === 'my-momentum.html', 'onboarding-library-ui.js only on my-momentum.html, not ' + h));
+      const html = ALL_HTML['my-momentum.html'];
+      const at = f => html.indexOf('src="js/' + f + '"');
+      _assertEqual(at('onboarding-expectations-ui.js') < at('onboarding-library-ui.js') && at('onboarding-library-ui.js') < at('my-momentum-app.js'), true, 'after the expectations page, before the app init');
     },
   },
 );

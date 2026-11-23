@@ -647,10 +647,10 @@ function onbRitualsVisible({ mode = '', gateState = '' } = {}) {
 
 // The My Onboarding sub-tabs this person has (ONB-D49), in CONFIG.ONBOARDING.SUB_TABS order. signals = my-momentum's _mmSignals:
 // Onboarding Plan needs a plan of their own (onbPlans), Processes & Rituals needs onbRituals. N-501 (ONB-D56): Expectations & SLAs is the
-// other all-staff reference tab, so it follows the same onbRituals signal.
+// other all-staff reference tab, so it follows the same onbRituals signal. N-518 (ONB-D105): so does the Learning Library.
 function onbSubTabs(signals) {
   const s = signals || {};
-  const has = { plan: !!s.onbPlans, rituals: !!s.onbRituals, expectations: !!s.onbRituals };
+  const has = { plan: !!s.onbPlans, rituals: !!s.onbRituals, expectations: !!s.onbRituals, library: !!s.onbRituals };
   return CONFIG.ONBOARDING.SUB_TABS.filter(t => has[t.key] === true);
 }
 
@@ -719,4 +719,27 @@ function onbExpectationsModel({ slaRows } = {}) {
       howUsed: S.KPIS.howUsed,
     },
   };
+}
+
+// ── Learning Library tab (N-518) ────────────────────────────────────────
+
+// The Learning Library page model (ONB-D102–D104): the Active Library-section steps of the DEFAULT_TRACK, in Checklist Admin order (the
+// same order the plan's Library uses), read-only: no owner, due date, tick or progress. templates = ChecklistTemplates rows; anything but
+// an array is treated as none. level = the filter key ('' = all). -> { text, all, items, hidden }; each item { itemKey, label, help,
+// levelTag, contentUrl ('' unless safe) }. Pure: the config is read, never changed.
+function onbLibraryTabModel({ templates = [], level = '' } = {}) {
+  const O = CONFIG.ONBOARDING;
+  const rows = activeChecklistItems(Array.isArray(templates) ? templates : [], O.RECORD_TYPE, O.DEFAULT_TRACK).filter(t => onbIsLibraryStep(t));
+  const all = rows.length ? groupChecklistItems(rows).reduce((acc, g) => acc.concat(g.items), []).map(t => {
+    const f = onbStepFromRow(t);
+    return {
+      itemKey: String(t.ItemKey == null ? '' : t.ItemKey),
+      label: String(t.ItemLabel == null ? '' : t.ItemLabel),
+      help: String(t.HelpText == null ? '' : t.HelpText),
+      levelTag: f.levelTag,
+      contentUrl: isSafeChecklistUrl(f.contentUrl) ? f.contentUrl : '',
+    };
+  }) : [];
+  const f = onbLibraryFilter(all, level);
+  return { text: O.LIBRARY_TEXT, all, items: f.items, hidden: f.hidden };
 }

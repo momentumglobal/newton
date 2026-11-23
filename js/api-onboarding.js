@@ -338,3 +338,9 @@ async function getBuddyingView() {
 async function getOnboardingSlaRows() {
   return getSLATargets();
 }
+
+// N-518 (ONB-D102). The Learning Library tab's one read: the onboarding ChecklistTemplates rows (the same read every plan already makes,
+// 30 s cache). No gate check: who sees the tab is the onbRituals signal; the rows carry no personal data. onbLibraryTabModel picks the Library.
+async function getLearningLibraryRows() {
+  return getChecklistTemplates(CONFIG.ONBOARDING.RECORD_TYPE);
+}

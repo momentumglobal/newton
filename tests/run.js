@@ -132,6 +132,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'onboarding-buddy-ui.js'), // N-509: the Buddying page markup is asserted (declarations only; DOM only inside the functions)
   path.join(JS_DIR, 'onboarding-rituals-ui.js'), // N-500: the Processes & Rituals page markup is asserted (declarations only; DOM only inside the functions)
   path.join(JS_DIR, 'onboarding-expectations-ui.js'), // N-501: the Expectations & SLAs page markup is asserted (declarations only; DOM only inside the functions)
+  path.join(JS_DIR, 'onboarding-library-ui.js'),      // N-518: the Learning Library page markup is asserted (declarations only; DOM only inside the functions)
   path.join(JS_DIR, 'onboarding-team-ui.js'),   // N-502: the My Team > Onboarding page markup is asserted (declarations only; DOM only inside functions)
   path.join(JS_DIR, 'onboarding-welcome-ui.js'), // N-516: the welcome email modal (declarations + ONB_STEP_ACTION_RUN; DOM only inside the functions)
   path.join(TESTS_DIR, '..', 'mcp', 'newton-tools.js'),   // N-393: Newton for Claude tools (declarations + MCP_TOOLS only)

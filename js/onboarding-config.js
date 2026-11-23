@@ -52,10 +52,12 @@ CONFIG.ONBOARDING = {
   DISPLAY_ROWS: 10,
   // N-500 (ONB-5, ONB-D49). The My Onboarding sub-tabs: single registry, order = display order = landing order. A person sees the
   // ones they have (onbSubTabs, onboarding-logic.js). N-501 adds Expectations & SLAs, shown with Processes & Rituals (ONB-D56).
+  // N-518 (ONB-D105) adds the Learning Library, the third all-staff reference tab (same signal).
   SUB_TABS: [
     { key: 'plan',         label: 'Onboarding Plan' },
     { key: 'rituals',      label: 'Processes & Rituals' },
     { key: 'expectations', label: 'Expectations & SLAs' },
+    { key: 'library',      label: 'Learning Library' },
   ],
   // N-499 (ONB-4, ONB-D29). A step whose Section is LIBRARY_SECTION (compared case-insensitively) is a Library step: self-guided,
   // optional, no due date, never counted in the plan's progress (ONB-D32). LEVEL_FILTERS keys must equal LEVEL_TAGS (a test keeps
@@ -159,6 +161,7 @@ CONFIG.ONBOARDING = {
     library:        'Library',
     libraryHint:    'Optional self-guided material. Pick what fits your level and tick it once you have used it.',
     browseLibrary:  'Browse the Library',
+    libraryTabLink: 'See it all in the Learning Library tab',   // N-518 (ONB-D103)
     levelLabel:     'Level',
     libraryEmpty:   'Nothing in the Library for this level.',
     libraryFiltered: '{n} hidden by the level filter.',
@@ -174,6 +177,23 @@ CONFIG.ONBOARDING = {
     expand:         'Show steps',
     collapse:       'Hide steps',
     signoffHint:    'Signed off in My Team \u2192 Onboarding.',   // N-502 (ONB-D71): the two sign-off steps are not ticked by hand
+  },
+  // N-518 (ONB-D102–D105). Every word on the Learning Library sub-tab (onboarding-library-ui.js). The items are the Library section of the
+  // DEFAULT_TRACK steps in Checklists > Onboarding, read-only here (onbLibraryTabModel). {n} is filled by onbFillText.
+  LIBRARY_TEXT: {
+    pageTitle:  'Learning Library',
+    intro:      'Self-guided learning for everyone at Momentum: pick what fits your level and open it when you need it. Joiners also find these in their Onboarding Plan.',
+    browse:     'Browse the Library',
+    levelLabel: 'Level',
+    loading:    'Loading the Library\u2026',
+    empty:      'The Library has no items yet.',
+    emptyLevel: 'Nothing in the Library for this level.',
+    filtered:   '{n} hidden by the level filter.',
+    loadFailed: 'The Library could not be loaded.',
+    retry:      'Try again',
+    open:       'Open',
+    everyLevel: 'All levels',
+    selfGuided: 'Self-guided',
   },
 };
 // N-499: the Library folder inside the OnboardingContent library (N-498 ONB-D26).

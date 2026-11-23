@@ -19,7 +19,7 @@ let _onbmState = {
   closedFor: '',          // the plan the collapsed set was worked out for
 };
 
-// N-500 (ONB-D49): the sub-tab on screen ('plan' | 'rituals'), one of CONFIG.ONBOARDING.SUB_TABS this person has (onbSubTabs).
+// N-500 (ONB-D49): the sub-tab on screen ('plan' | 'rituals' | 'expectations' | 'library'), one of CONFIG.ONBOARDING.SUB_TABS this person has (onbSubTabs).
 let _onbmSubTab = '';
 
 // The sub-tab to open: the one asked for when this person has it, else their first. Called by navigateToMyMomentum and by the draw below.
@@ -94,16 +94,20 @@ function _onbmPhaseHtml(ph, closed, counter) {
     </section>`;
 }
 
-function _onbmLibraryHtml(view, level, counter) {
+function _onbmLibraryHtml(view, level, counter, libraryTab) {
   const O = CONFIG.ONBOARDING;
   const T = O.PLAN_TEXT;
   if (!view.library.all.length) return '';
+  // N-518 (ONB-D103): the plan keeps its Library ticks and points to the Learning Library tab when this person has it (libraryTab).
+  const tabLink = libraryTab
+    ? ` · <a class="onb-link"${act('onbmSubTab', 'library')}>${escHtml(T.libraryTabLink)}</a>`
+    : '';
   const f = onbLibraryFilter(view.library.all, level);
   const buttons = O.LEVEL_FILTERS.map(l =>
     `<button type="button" class="btn-secondary onb-level${l.key === level ? ' is-active' : ''}" aria-pressed="${l.key === level ? 'true' : 'false'}"${act('onbmSetLevel', l.key)}>${escHtml(l.label)}</button>`).join('');
   return `<section class="onb-phase onb-library">
       <div class="onb-phase-head"><h2 class="onb-phase-title">${escHtml(T.library)}</h2></div>
-      <p class="onb-hint">${escHtml(T.libraryHint)} <a class="onb-link" href="${escAttr(O.LIBRARY_URL)}" target="_blank" rel="noopener noreferrer">${escHtml(T.browseLibrary)} <i data-lucide="external-link" aria-hidden="true"></i></a></p>
+      <p class="onb-hint">${escHtml(T.libraryHint)} <a class="onb-link" href="${escAttr(O.LIBRARY_URL)}" target="_blank" rel="noopener noreferrer">${escHtml(T.browseLibrary)} <i data-lucide="external-link" aria-hidden="true"></i></a>${tabLink}</p>
       <div class="onb-levels" role="group" aria-label="${escAttr(T.levelLabel)}">${buttons}</div>
       ${f.items.length ? `<ul class="onb-steps">${f.items.map(it => _onbmStepHtml(it, counter.n++)).join('')}</ul>` : `<p class="ppl-muted-note">${escHtml(T.libraryEmpty)}</p>`}
       ${f.hidden ? `<p class="onb-hint">${escHtml(onbFillText(T.libraryFiltered, { n: f.hidden }))}</p>` : ''}
@@ -138,7 +142,7 @@ function _onbmSelectorHtml(view) {
   return `<div class="onb-selector"><label for="onb-plan">${escHtml(T.selectorLabel)}</label><select id="onb-plan"${actOn('change', 'onbmSelectPlan', ACT_VALUE)}>${opts}</select></div>`;
 }
 
-// ui = { level, closed: [section names], error }. view = getOnboardingPlanView() result, or null when it failed (ui.error says why).
+// ui = { level, closed: [section names], error, libraryTab (N-518: the Learning Library sub-tab is shown) }. view = getOnboardingPlanView() result, or null when it failed (ui.error says why).
 function onbmPageHtml(view, ui) {
   const T = CONFIG.ONBOARDING.PLAN_TEXT;
   const u = ui || { level: '', closed: [], error: '' };
@@ -156,7 +160,7 @@ function onbmPageHtml(view, ui) {
     + notes.map(n => `<p class="onb-note">${escHtml(n)}</p>`).join('')
     + _onbmHeadHtml(view)
     + (view.phases.length ? phases : `<p class="ppl-muted-note">${escHtml(T.noSteps)}</p>`)
-    + _onbmLibraryHtml(view, u.level || '', counter);
+    + _onbmLibraryHtml(view, u.level || '', counter, !!u.libraryTab);
 }
 
 // ── Load and draw ───────────────────────────────────────────────────────
@@ -165,7 +169,8 @@ function _onbmDraw() {
   const page = document.getElementById('onb-page');
   if (!page) return;
   const s = _onbmState;
-  page.innerHTML = onbmPageHtml(s.view, { level: s.level, closed: Array.from(s.closed), error: s.error });
+  const libraryTab = onbSubTabs(_mmSignals).some(t => t.key === 'library');   // N-518
+  page.innerHTML = onbmPageHtml(s.view, { level: s.level, closed: Array.from(s.closed), error: s.error, libraryTab });
   lucide.createIcons();
 }
 
@@ -207,6 +212,11 @@ async function renderMyOnboardingPage() {
   if (_onbmSubTab === 'expectations') {   // N-501
     main.innerHTML = `${strip}<div id="onb-page"></div>`;
     await renderOnboardingExpectationsPage();
+    return;
+  }
+  if (_onbmSubTab === 'library') {        // N-518
+    main.innerHTML = `${strip}<div id="onb-page"></div>`;
+    await renderOnboardingLibraryPage();
     return;
   }
   main.innerHTML = `${strip}<div id="onb-page">${dashboardSkeleton(2)}</div>`;

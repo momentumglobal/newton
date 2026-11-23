@@ -164,6 +164,65 @@ async function getOnboardingPlanInputs() {
 }
 
 
+// ── Owner reminders (N-503 / ONB-8) ─────────────────────────────────────
+// A client-side sweep for the signed-in user only (PDP N-441 pattern): the rules are pure in onboarding-reminders.js. Fires through
+// fireNotification (notifications.js), so a row already active for the same key is never duplicated or un-read. Only this user's own
+// onbDue / onbOverdue rows are ever cleared; PDP and every other notification row is left alone.
+let _onbRemindersRan = false;
+
+// The user's own active onboarding reminder rows.
+async function _onbOwnReminderRows(me) {
+  const types = Object.values(CONFIG.ONBOARDING.REMINDERS.TYPES);
+  const rows = await getItems('Notifications', `fields/RecipientEmail eq '${odataStr(me)}' and fields/Status eq 'active'`);
+  return rows.filter(r => types.includes(r.TriggerType));
+}
+
+// Marks the user's own active onboarding reminders cleared unless their key is in `keep`. -> number cleared.
+async function _onbClearReminders(me, keep) {
+  const keepSet = new Set(keep || []);
+  const stale = (await _onbOwnReminderRows(me)).filter(r => !keepSet.has(r.TriggerKey));
+  for (const r of stale) await updateItem('Notifications', r.id, { Status: 'cleared' });
+  return stale.length;
+}
+
+// Everything the rules need: plans, people, templates and the progress of only the Active plans this person is a party to
+// (parallel, one read per plan, never the whole ChecklistProgress list).
+async function _onbReminderInputs(me, gate) {
+  const O = CONFIG.ONBOARDING;
+  const [plans, people, templates] = await Promise.all([getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE)]);
+  const mine = onbReminderPlans({ plans, people, email: me, peopleOpsActive: gate.peopleOpsActive });
+  const rows = await Promise.all(mine.map(m => getChecklistProgress(O.RECORD_TYPE, { recordId: m.plan.PersonID })));
+  const progressByPlan = {};
+  mine.forEach((m, i) => { progressByPlan[String(m.plan.id)] = rows[i]; });
+  return { plans, people, templates, progressByPlan };
+}
+
+// Called once from my-momentum-app.js init, after the tab signals. Never throws. A failed read changes nothing (no clearing on error);
+// a gate that is not live (Off, or not a party to any plan) clears this user's own reminder rows.
+async function runOnboardingReminders() {
+  if (_onbRemindersRan) return;
+  _onbRemindersRan = true;
+  try {
+    await _ensureGhostGate();
+    if (getGhostUser()) return;
+    const me = _onbEmail(getCurrentUser()?.email || '');
+    if (!me) return;
+    const gate = await resolveOnboardingGate();
+    if (gate.reason === 'read-failed') return;
+    let send = [], keep = [];
+    if (gate.state === 'live') {
+      const inputs = await _onbReminderInputs(me, gate);
+      ({ send, keep } = onbReminderPlan(Object.assign({ gate, email: me, today: localDayISO(new Date()), peopleOpsActive: gate.peopleOpsActive }, inputs)));
+    }
+    for (const s of send) {
+      await fireNotification({ triggerType: s.type, triggerKey: s.key, tone: s.tone, deepLink: s.link, body: s.body, recipients: [me] });
+    }
+    const cleared = await _onbClearReminders(me, keep);
+    if ((send.length || cleared) && typeof renderNotificationBell === 'function') await renderNotificationBell();
+  } catch (e) { console.warn('Onboarding reminders unavailable', e); }
+}
+
+
 // ── My Onboarding page (N-499 / ONB-4) ──────────────────────────────────
 // The joiner's and the buddy's view (ONB-D30). Rights come from the plan's relations (onbRelations / onbCanTick), never from the role alone:
 // Leadership and People Ops see nothing here unless they are themselves a joiner or a buddy (ONB-D9). Under Ghost Mode the identity is the

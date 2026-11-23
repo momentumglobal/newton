@@ -82,6 +82,7 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'checklist-logic.js'),
   path.join(JS_DIR, 'onboarding-logic.js'),    // N-496: pure onboarding rules (after checklist-logic.js and pdp-identity.js)
   path.join(JS_DIR, 'onboarding-team.js'),     // N-502: pure My Team > Onboarding rules (straight after onboarding-logic.js)
+  path.join(JS_DIR, 'onboarding-reminders.js'), // N-503: pure onboarding reminder rules (straight after onboarding-team.js)
   path.join(JS_DIR, 'starter-folder-logic.js'),
   path.join(JS_DIR, 'graph-client.js'),
   path.join(JS_DIR, 'api.js'),
@@ -204,6 +205,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-employee-page.js'),      // N-457
   path.join(TESTS_DIR, 'assert-onboarding.js'),         // N-496
   path.join(TESTS_DIR, 'assert-onboarding-team.js'),    // N-502
+  path.join(TESTS_DIR, 'assert-onboarding-reminders.js'), // N-503
   path.join(TESTS_DIR, 'assert-long-functions.js'),     // N-477
 ];
 // N-259: starter-folder-logic.js (pure) loads straight after checklist-logic.js, which it calls.

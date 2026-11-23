@@ -54,6 +54,8 @@ window.MY_MOMENTUM_APP = {
     initCommandBar({ currentModule: 'myMomentum', role: _mmResolvedRole, navigateFn: 'navigateToMyMomentum' });
     // N-441 / N-452: PDP reminders (On mode only). Once per page load, after the PDP signals, never throws.
     runPdpReminders().catch(e => console.warn('PDP reminders unavailable', e));
+    // N-503 (ONB-8): onboarding owner reminders (Pilot and On). Once per page load, after the signals, never throws.
+    runOnboardingReminders().catch(e => console.warn('Onboarding reminders unavailable', e));
     if (!handleMyMomentumDeepLink()) {
       const landing = mmLandingTab(mmNavTabs());
       if (landing) {

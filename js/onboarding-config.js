@@ -281,3 +281,19 @@ CONFIG.ONBOARDING.TEAM_TEXT = {
   stepWarn:       'Saved, but the linked checklist step was not updated.',
   actionFailed:   'Couldn’t save that:',
 };
+
+// N-503 (ONB-8, ONB-D75–D84). Owner reminders through the notifications engine (rules in onboarding-reminders.js, orchestration in
+// api-onboarding.js runOnboardingReminders). They fire only for a live gate (Pilot and On; Off sends nothing, ONB-D75), as at most one
+// digest per type per person per day (KEY_PREFIX:type:email:YYYY-MM-DD, ONB-D76). TYPES / TEXT are the Notifications TriggerType and the
+// fixed body ({n} = count): never a name, step title or email in a body, the Notifications list is readable by everyone. LINKS are My
+// Momentum deep links (own plan -> MY, LM / CSD step -> TEAM, buddy step -> BUDDY, ONB-D83). Declarations only.
+CONFIG.ONBOARDING.REMINDERS = {
+  KEY_PREFIX: 'onb',
+  TYPES: { DUE: 'onbDue', OVERDUE: 'onbOverdue' },
+  TEXT: {
+    onbDue:     { one: 'You have 1 onboarding step due today.',  many: 'You have {n} onboarding steps due today.' },
+    onbOverdue: { one: 'You have 1 overdue onboarding step.',    many: 'You have {n} overdue onboarding steps.' },
+  },
+  LINKS: { MY: 'my-momentum.html#myOnboarding', TEAM: 'my-momentum.html#teamOnboarding', BUDDY: 'my-momentum.html#myBuddying' },
+  TONE:  'attention',
+};

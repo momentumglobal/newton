@@ -309,7 +309,13 @@ function countInternalByFunction(people, asOf = new Date()) {
 // [[label, n], ...]: Location and ContractType largest first, Level in levelSortIndex order; a blank
 // value groups as 'Unknown'. total = deployableTotal + internalTotal. Percentages are the caller's:
 // Location / ContractType over total, Level over deployableTotal.
-function workforceSegmentation(people, asOf = new Date()) {
+// N-524: optional staffType narrows the counted group once, before grouping. 'all' (default) is the
+// output above, unchanged. 'deployable' = the utilisation population (isDeployablePerson: no internal
+// staff, no CSDs, no partners) in all three tables, so total = deployableTotal. 'internal' = internal-
+// function staff only; byLevel is [] (no Level), total = internalTotal. Any other value throws. The
+// result carries the staffType used.
+function workforceSegmentation(people, asOf = new Date(), staffType = 'all') {
+  if (staffType !== 'all' && staffType !== 'deployable' && staffType !== 'internal') throw new Error('staffType must be all, deployable or internal');
   const counted = (people || []).filter(p => p && p.IsActive !== false && !p.IsPlaceholder && !isExternalStaff(p) && isStartedPerson(p, asOf));
   const deployable = counted.filter(p => !isInternalStaff(p));
   const group = (list, key) => {
@@ -321,13 +327,42 @@ function workforceSegmentation(people, asOf = new Date()) {
     return Object.entries(map);
   };
   const internalByFunction = countInternalByFunction(people, asOf);
+  const byCount = (a, b) => b[1] - a[1];
+  const byLevelOrder = (a, b) => levelSortIndex(a[0]) - levelSortIndex(b[0]);
+  if (staffType === 'deployable') {
+    const scope = counted.filter(isDeployablePerson);
+    return {
+      staffType,
+      total: scope.length,
+      deployableTotal: scope.length,
+      internalTotal: 0,
+      byLocation: group(scope, 'Location').sort(byCount),
+      byContractType: group(scope, 'ContractType').sort(byCount),
+      byLevel: group(scope, 'Level').sort(byLevelOrder),
+      internalByFunction: [],
+    };
+  }
+  if (staffType === 'internal') {
+    const scope = counted.filter(isInternalStaff);
+    return {
+      staffType,
+      total: scope.length,
+      deployableTotal: 0,
+      internalTotal: scope.length,
+      byLocation: group(scope, 'Location').sort(byCount),
+      byContractType: group(scope, 'ContractType').sort(byCount),
+      byLevel: [],
+      internalByFunction,
+    };
+  }
   return {
+    staffType,
     total: counted.length,
     deployableTotal: deployable.length,
     internalTotal: internalByFunction.reduce((sum, e) => sum + e[1], 0),
-    byLocation: group(counted, 'Location').sort((a, b) => b[1] - a[1]),
-    byContractType: group(counted, 'ContractType').sort((a, b) => b[1] - a[1]),
-    byLevel: group(deployable, 'Level').sort((a, b) => levelSortIndex(a[0]) - levelSortIndex(b[0])),
+    byLocation: group(counted, 'Location').sort(byCount),
+    byContractType: group(counted, 'ContractType').sort(byCount),
+    byLevel: group(deployable, 'Level').sort(byLevelOrder),
     internalByFunction,
   };
 }

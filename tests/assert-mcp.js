@@ -187,8 +187,9 @@ ASSERTIONS.push(
     fn: function () {
       const t = MCP_TOOLS.find(x => x.name === 'workforce_segmentation');
       const p = t.inputSchema.properties;
-      _assertEqual(Object.keys(p), ['year', 'month'], 'inputs');
+      _assertEqual(Object.keys(p), ['year', 'month', 'staffType'], 'inputs (N-524 adds staffType)');
       _assertEqual([p.year.type, p.year.minimum, p.month.type, p.month.minimum, p.month.maximum], ['integer', 2020, 'integer', 1, 12], 'bounds');
+      _assertEqual([p.staffType.type, p.staffType.enum], ['string', ['all', 'deployable', 'internal']], 'N-524: staffType is a string enum');
       _assertEqual(t.inputSchema.required || [], [], 'nothing required');
       if (!/counts and percentages only/i.test(t.description) || !/no names or money/i.test(t.description)) throw new Error('description must say counts and percentages only, no names or money');
       if (t.description.length > 300) throw new Error('description over 300 chars: ' + t.description.length);

@@ -523,6 +523,39 @@ async function run() {
     eq(yearOnly.period.label, r.period.label, 'this year alone = this month');
   });
 
+  await check('N-524 workforce_segmentation staffType: all = no filter + staffType key; deployable = the shared deployable result, no internalStaff, one denominator, no names; internal = no level; bad value rejected', async () => {
+    const base = await call('workforce_segmentation', {});
+    const all = await call('workforce_segmentation', { staffType: 'all' });
+    eq(base.staffType, 'all', 'default staffType is all');
+    eq(all, base, "staffType 'all' = no staffType");
+    ok(!/Filtered to/.test(base.scope), 'no filter sentence in all mode');
+    const od = JSON.parse(await L.evalInContext(`(async () => JSON.stringify(workforceSegmentation(await getPeople(false), new Date(), 'deployable')))()`));
+    const d = await call('workforce_segmentation', { staffType: 'deployable' });
+    eq(d.staffType, 'deployable', 'echoes staffType');
+    eq([d.total, d.deployableTotal], [od.total, od.deployableTotal], 'totals equal the shared deployable result');
+    eq(d.total, d.deployableTotal, 'one total in deployable mode');
+    eq(d.byLocation.map(x => [x.location, x.count]), od.byLocation, 'deployable by location');
+    eq(d.byContractType.map(x => [x.contractType, x.count]), od.byContractType, 'deployable by contract type');
+    eq(d.byLevel.map(x => [x.level, x.count]), od.byLevel, 'deployable by level');
+    ok(!('internalStaff' in d), 'internalStaff omitted in deployable mode');
+    ok(!d.byLevel.some(x => x.level === 'CSD'), 'no CSD in the level table');
+    eq([d.byLocation, d.byContractType, d.byLevel].map(t => t.reduce((s, x) => s + x.count, 0)), [d.total, d.total, d.total], 'all three tables sum to total');
+    eq([d.byLocation[0].pct, d.byContractType[0].pct, d.byLevel[0].pct].map(p => p), [d.byLocation[0].count, d.byContractType[0].count, d.byLevel[0].count].map(n => Math.round(n / d.total * 1000) / 10), 'every pct is over total');
+    ok(/Filtered to deployable staff \(internal staff, CSDs and partners left out\); every table is over that group\./.test(d.scope), 'scope carries the filter sentence');
+    eq([base.total, base.deployableTotal], [8, 7], 'all mode unchanged (8 counted, 7 not internal)');
+    eq([d.total, d.byLevel.reduce((n, x) => n + x.count, 0)], [6, 6], 'fixture truth: 7 not-internal staff minus Cara (CSD) = 6');
+    eq([d.byLocation.map(x => [x.location, x.count]), d.byContractType.map(x => [x.contractType, x.count]), d.byLevel.map(x => [x.level, x.count])],
+      [[['London', 2], ['Porto', 2], ['Madrid', 1], ['Lisbon', 1]], [['Unknown', 4], ['Permanent', 2]], [['SDM', 1], ['PTP', 1], ['STP', 1], ['TP', 3]]], 'fixture counts: 6 deployable staff, no CSD, no Ivy');
+    const i = await call('workforce_segmentation', { staffType: 'internal' });
+    eq([i.staffType, i.byLevel, i.total, i.internalStaff.total, i.deployableTotal], ['internal', [], 1, 1, 0], 'internal: fixture has one internal person (Ivy), no level, total = internalStaff.total');
+    eq([i.byLocation.map(x => [x.location, x.count, x.pct]), i.byContractType.map(x => [x.contractType, x.count, x.pct])], [[['London', 1, 100]], [['Core', 1, 100]]], 'internal fixture counts');
+    ok(/Filtered to internal-function staff\./.test(i.scope), 'internal scope sentence');
+    const text = JSON.stringify([d, i]);
+    ['Tess One', 'Tom Two', 'Dana Manager', 'Ivy Internal', 'Fay Future', 'Pia Partner'].forEach(n => ok(!text.includes(n), 'name in output: ' + n));
+    await rejects(call('workforce_segmentation', { staffType: 'everyone' }), /staffType must be all, deployable or internal/, 'bad staffType');
+    await rejects(call('workforce_segmentation', { staffType: 7 }), /staffType must be all, deployable or internal/, 'non-string staffType');
+  });
+
   await check('N-466 bad input gives a clear message: past year without a month, month 0 / 13, year out of range, non-integers', async () => {
     const y = new Date().getFullYear();
     await rejects(call('workforce_segmentation', { year: 2024 }), /month is required for a past year/, 'past year, no month');

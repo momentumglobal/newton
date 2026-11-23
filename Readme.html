@@ -1630,7 +1630,7 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
         <tr><td><code>bench</code></td><td>People on the bench now (name, level, location, since). Same helper as the Org Chart.</td></tr>
         <tr><td><code>utilisation</code></td><td>Percentages only, overall and by level, plus the year outlook. Same helpers as the People Dashboard.</td></tr>
         <tr><td><code>project_team</code></td><td>Current and upcoming members of a project, with no rates, fees or emails. <code>partner</code> marks an External partner (N-402).</td></tr>
-        <tr><td><code>workforce_segmentation</code></td><td>Headcount by location and contract type (deployable and internal staff) and by level (deployable only), plus internal staff by function, as of a month end (today for this month). Counts and percentages only. Same helper as the People Dashboard Workforce Segmentation panel (N-466, N-468).</td></tr>
+        <tr><td><code>workforce_segmentation</code></td><td>Headcount by location and contract type (deployable and internal staff) and by level (deployable only), plus internal staff by function, as of a month end (today for this month). Optional <code>staffType</code> (all / deployable / internal): <code>deployable</code> counts only the utilisation population (no internal staff, CSDs or partners) in all three tables. Counts and percentages only. Same helper as the People Dashboard Workforce Segmentation panel (N-466, N-468, N-524).</td></tr>
         <tr><td><code>joiners</code></td><td>Deployable and internal staff who start in a month, including people starting later in the month: name, level or function, location and start date. No pay, contract type, email or reporting line (N-467).</td></tr>
       </table>
 
@@ -1651,6 +1651,15 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">November 2026</div>
+        <div class="changelog-title">Newton for Claude: workforce_segmentation staffType (N-524)</div>
+        <ul>
+          <li><strong>New option:</strong> <code>workforce_segmentation</code> takes an optional <code>staffType</code>: <code>all</code> (default, today&rsquo;s output), <code>deployable</code> or <code>internal</code>. <code>deployable</code> counts only the utilisation population (no internal-function staff, no CSDs, no partners) in the location, contract type and level tables, so every table adds up to the same total and the All Hands slide needs no manual subtraction. <code>internal</code> counts internal-function staff only and has no level table.</li>
+          <li>The filter lives in the shared <code>workforceSegmentation()</code> (people-logic.js) and reuses <code>isDeployablePerson()</code>. The People Dashboard panel is unchanged.</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">November 2026</div>

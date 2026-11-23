@@ -387,6 +387,78 @@ ASSERTIONS.push(
     },
   },
   {
+    name: 'N-524: workforceSegmentation staffType — all = the N-468 output; deployable = utilisation population in all three tables (no CSD, internal or partner); internal = internal staff, no level; bad value throws',
+    fn: function () {
+      const now = new Date();
+      const mStart = k => new Date(now.getFullYear(), now.getMonth() + k, 1);
+      const mEnd = k => new Date(now.getFullYear(), now.getMonth() + k + 1, 0);
+      const stamp = d => localDayISO(d) + 'T12:00:00Z';
+      const old = '2024-01-15T12:00:00Z';
+      const FN = CONFIG.INTERNAL_FUNCTIONS[0];
+      const P = (name, level, loc, contract, extra) => Object.assign({ EmployeeName: name, Level: level, Location: loc, ContractType: contract, StartDate: old, IsActive: true }, extra);
+      const INT = { StaffType: CONFIG.STAFF_TYPE_INTERNAL, StaffFunction: FN };
+      const people = [
+        P('A', 'TP', 'Lisbon', 'Permanent'), P('B', 'TP', 'Lisbon', 'Contractor'), P('C', 'SDM', 'Porto', 'Permanent'),
+        P('D', 'STP', '', ''), P('CSD1', 'CSD', 'Lisbon', 'Permanent'), P('CSD2', 'CSD', 'Porto', 'Core'),
+        P('F', 'TP', 'Oslo', 'Permanent', { IsActive: false }),
+        P('G', 'TP', 'Oslo', 'Permanent', { StartDate: stamp(mStart(2)) }),
+        P('H', '', 'Berlin', '', { StaffType: CONFIG.STAFF_TYPE_EXTERNAL }),
+        P('K', 'TP', 'Rome', 'Permanent', { IsPlaceholder: true }),
+        P('I', '', 'London', 'Core', INT), P('J', '', '', '', Object.assign({}, INT, { StaffFunction: '' })),
+        P('L', '', 'Oslo', 'Core', Object.assign({}, INT, { IsActive: false })),
+        P('M', '', 'Oslo', 'Core', Object.assign({}, INT, { StartDate: stamp(mStart(2)) })),
+      ];
+      // The N-468 code verbatim, as the oracle for the default path (AC1).
+      const oracle = (ppl, asOf) => {
+        const counted = (ppl || []).filter(p => p && p.IsActive !== false && !p.IsPlaceholder && !isExternalStaff(p) && isStartedPerson(p, asOf));
+        const deployable = counted.filter(p => !isInternalStaff(p));
+        const group = (list, key) => { const map = {}; list.forEach(p => { const v = p[key] || 'Unknown'; map[v] = (map[v] || 0) + 1; }); return Object.entries(map); };
+        const ibf = countInternalByFunction(ppl, asOf);
+        return { total: counted.length, deployableTotal: deployable.length, internalTotal: ibf.reduce((s, e) => s + e[1], 0),
+          byLocation: group(counted, 'Location').sort((a, b) => b[1] - a[1]), byContractType: group(counted, 'ContractType').sort((a, b) => b[1] - a[1]),
+          byLevel: group(deployable, 'Level').sort((a, b) => levelSortIndex(a[0]) - levelSortIndex(b[0])), internalByFunction: ibf };
+      };
+      const strip = r => { const c = Object.assign({}, r); delete c.staffType; return c; };
+      const when = new Date();
+      _assertEqual(strip(workforceSegmentation(people, when)), oracle(people, when), 'no staffType = the N-468 output');
+      _assertEqual(strip(workforceSegmentation(people, when, 'all')), oracle(people, when), "'all' = the N-468 output");
+      _assertEqual([workforceSegmentation(people, when).staffType, workforceSegmentation(people, when, 'deployable').staffType, workforceSegmentation(people, when, 'internal').staffType], ['all', 'deployable', 'internal'], 'staffType echoed');
+      const all = workforceSegmentation(people, when);
+      _assertEqual([all.total, all.deployableTotal, all.internalTotal], [8, 6, 2], 'control: all mode counts 4 deployable + 2 CSD + 2 internal (CSDs sit inside deployableTotal)');
+      // deployable
+      const dep = workforceSegmentation(people, when, 'deployable');
+      _assertEqual([dep.total, dep.deployableTotal, dep.internalTotal, dep.internalByFunction], [4, 4, 0, []], 'deployable: 4 people (A, B, C, D); CSDs, internal, partner, placeholder, inactive, future starter out');
+      _assertEqual(dep.byLocation, [['Lisbon', 2], ['Porto', 1], ['Unknown', 1]], 'deployable location');
+      _assertEqual(dep.byContractType, [['Permanent', 2], ['Contractor', 1], ['Unknown', 1]], 'deployable contract type');
+      _assertEqual(dep.byLevel.map(e => e[0]).includes('CSD'), false, 'deployable level has no CSD');
+      _assertEqual(dep.byLevel.reduce((s, e) => s + e[1], 0), 4, 'level sums to total');
+      _assertEqual([dep.byLocation, dep.byContractType, dep.byLevel].map(t => t.reduce((s, e) => s + e[1], 0)), [4, 4, 4], 'all three tables sum to total');
+      _assertEqual(dep.byLevel.map(e => e[0]), dep.byLevel.map(e => e[0]).slice().sort((a, b) => levelSortIndex(a) - levelSortIndex(b)), 'levels in levelSortIndex order');
+      // internal
+      const int = workforceSegmentation(people, when, 'internal');
+      _assertEqual([int.total, int.internalTotal, int.deployableTotal, int.byLevel], [2, 2, 0, []], 'internal: I and J only, no level');
+      _assertEqual(int.byLocation, [['London', 1], ['Unknown', 1]], 'internal location');
+      _assertEqual(int.byContractType, [['Core', 1], ['Unknown', 1]], 'internal contract type');
+      _assertEqual(int.internalByFunction, all.internalByFunction, 'internal by function as today');
+      // asOf and blanks in every mode
+      ['deployable', 'internal'].forEach(m => {
+        _assertEqual(workforceSegmentation(people, mEnd(1), m).total, workforceSegmentation(people, when, m).total, m + ': a starter after asOf is left out');
+        _assertEqual(workforceSegmentation(people, mStart(2), m).total, workforceSegmentation(people, when, m).total + 1, m + ': counted once asOf reaches the start day');
+      });
+      _assertEqual(workforceSegmentation(people, when, 'deployable').byLocation.some(e => e[0] === 'Unknown'), true, 'blank location groups as Unknown');
+      // bad value / null
+      ['', 'Deployable', 'csd', 7, null].forEach(v => {
+        let msg = null;
+        try { workforceSegmentation(people, when, v); } catch (e) { msg = e.message; }
+        _assertEqual(msg, 'staffType must be all, deployable or internal', 'throws for ' + JSON.stringify(v));
+      });
+      _assertEqual([workforceSegmentation(null, when, 'deployable').total, workforceSegmentation(null, when, 'internal').total], [0, 0], 'null people');
+      _assertEqual((ALL_SOURCES['people-logic.js'].match(/function workforceSegmentation\(/g) || []).length, 1, 'still defined once');
+      _assertEqual(/isDeployablePerson/.test(ALL_SOURCES['people-logic.js'].match(/function workforceSegmentation\([\s\S]*?\n\}\n/)[0]), true, 'uses the one predicate (isDeployablePerson)');
+      _assertEqual(/workforceSegmentation\(people\)/.test(ALL_SOURCES['people-dashboard.js']), true, 'the dashboard still calls it with people only (panel unchanged)');
+    },
+  },
+  {
     name: 'N-467: peopleJoiners — first and last day of the month in, neighbours out; placeholder / partner / inactive / blank start out; internal staff in; sorted by start then name; BST and leap-year month ends',
     fn: function () {
       const D = d => d + 'T12:00:00Z';

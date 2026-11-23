@@ -809,7 +809,8 @@ async function mcpProjectTeam(args) {
 // asOf = today for the current month, else the month's last day (N-424: started by then).
 // N-468: location and contract type include internal staff (pct over total); level is deployable only
 // (pct over deployableTotal). share() is the panel's count / denominator shown to one decimal like
-// utilisation (presentation only).
+// utilisation (presentation only). N-524: optional staffType (all / deployable / internal) narrows who is
+// counted in every table; deployable = the utilisation population, so all three tables share one total.
 async function mcpWorkforceSegmentation(args) {
   const now = new Date();
   const thisYear = now.getFullYear();
@@ -819,21 +820,32 @@ async function mcpWorkforceSegmentation(args) {
   const asOf = year === thisYear && month === now.getMonth() + 1
     ? now
     : peoplePeriodRange({ year, month: month - 1, quarter: null }).end;
-  const seg = workforceSegmentation(await getPeople(false), asOf);
+  const staffType = args.staffType === undefined || args.staffType === null ? 'all' : args.staffType;
+  if (!['all', 'deployable', 'internal'].includes(staffType)) throw new Error('staffType must be all, deployable or internal.');
+  const seg = workforceSegmentation(await getPeople(false), asOf, staffType);
   const share = (n, denominator) => (denominator > 0 ? mcpPct(n / denominator) : null);
-  return mcpOutputGuard({
-    scope: 'People Dashboard > Workforce Segmentation: active staff who have started by asOf (today for the current month, else the month end). Location and contract type count deployable and internal staff (percentages over total); level counts deployable staff only (percentages over deployableTotal); internal staff are also listed by function. External partners, placeholders and people starting after asOf are left out. Leavers are not on the People list, so a past month under-counts people who have since left.',
+  const filterNote = {
+    all: '',
+    deployable: ' Filtered to deployable staff (internal staff, CSDs and partners left out); every table is over that group.',
+    internal: ' Filtered to internal-function staff.',
+  }[staffType];
+  const out = {
+    scope: 'People Dashboard > Workforce Segmentation: active staff who have started by asOf (today for the current month, else the month end). Location and contract type count deployable and internal staff (percentages over total); level counts deployable staff only (percentages over deployableTotal); internal staff are also listed by function. External partners, placeholders and people starting after asOf are left out. Leavers are not on the People list, so a past month under-counts people who have since left.' + filterNote,
     period: { label: `${year}-${String(month).padStart(2, '0')}`, asOf: localDayISO(asOf) },
+    staffType: seg.staffType,
     total: seg.total,
     deployableTotal: seg.deployableTotal,
     byLocation: seg.byLocation.map(([k, n]) => ({ location: k, count: n, pct: share(n, seg.total) })),
     byContractType: seg.byContractType.map(([k, n]) => ({ contractType: k, count: n, pct: share(n, seg.total) })),
     byLevel: seg.byLevel.map(([k, n]) => ({ level: k, count: n, pct: share(n, seg.deployableTotal) })),
-    internalStaff: {
+  };
+  if (staffType !== 'deployable') {
+    out.internalStaff = {
       total: seg.internalTotal,
       byFunction: seg.internalByFunction.map(([fn, n]) => ({ function: fn, count: n })),
-    },
-  });
+    };
+  }
+  return mcpOutputGuard(out);
 }
 
 // ── joiners (N-467) ───────────────────────────────────────────────────
@@ -1029,6 +1041,7 @@ var MCP_TOOLS = [
       properties: {
         year: { type: 'integer', minimum: 2020, description: 'Year (default this year). A past year needs a month.' },
         month: { type: 'integer', minimum: 1, maximum: 12, description: 'Month 1-12 of the year (default this month).' },
+        staffType: { type: 'string', enum: ['all', 'deployable', 'internal'], description: 'Who to count (default all). deployable = the Solutions Hub team in utilisation: no internal-function staff, no CSDs, no partners. internal = internal-function staff only.' },
       },
       additionalProperties: false,
     },

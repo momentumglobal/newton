@@ -34,7 +34,7 @@ function renderProjectForm(existingData = null) {
         <div class="form-group">
           <label>Project Type *</label>
           <select name="ProjectType" required>
-            ${projectFormTypes(existingData?.ProjectType).map(t => `
+            ${projectFormTypes().map(t => `
             <option value="${escAttr(t)}" ${
               (existingData?.ProjectType === t
                 || (!existingData?.ProjectType && t === 'Embedded')) ? 'selected' : ''

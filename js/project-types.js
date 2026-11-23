@@ -143,10 +143,12 @@ function dashboardProjects(projects) {
   return (projects || []).filter(p => !isNoDashboardProject(p));
 }
 
-// Sales Forecast type dropdown: every type that can be forecast, i.e. not
-// no-dashboard and not Internal. A fresh array each call.
+// Sales Forecast type dropdown: every type that can be forecast, i.e. every
+// type except Internal (N-521: LCI and Transformation included; their forecast
+// takes the monthly-rate path and creates nothing recruitment-side). A fresh
+// array each call.
 function salesForecastTypes() {
-  return CONFIG.PROJECT_TYPES.filter(t => !isNoDashboardType(t) && t !== CONFIG.PROJECT_TYPE_INTERNAL);
+  return CONFIG.PROJECT_TYPES.filter(t => t !== CONFIG.PROJECT_TYPE_INTERNAL);
 }
 
 // Set of String(project id) for every KPI-excluded project (internal or
@@ -217,12 +219,9 @@ function excludeInternalProjectData(data, ctx = {}) {
   return out;
 }
 
-// Project form Project Type options (N-333, N-362): every type except the
-// no-dashboard ones, which only the N-363 migration creates (dormant). Editing
-// a project that already has a no-dashboard type passes it as `currentType` so
-// the select keeps it instead of silently switching the type.
-function projectFormTypes(currentType) {
-  const types = CONFIG.PROJECT_TYPES.filter(t => !isNoDashboardType(t));
-  if (isNoDashboardType(currentType)) types.push(currentType);
-  return types;
+// Project form Project Type options (N-333, N-362, N-521): every type, in
+// CONFIG.PROJECT_TYPES order. LCI and Transformation can be created here (N-521);
+// the rows stay no-dashboard through isNoDashboardProject(). A fresh array each call.
+function projectFormTypes() {
+  return [...CONFIG.PROJECT_TYPES];
 }

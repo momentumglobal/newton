@@ -238,18 +238,12 @@ function _renderRevenuePanel(rows) {
     .map(([c,v]) => `<tr><td>${escHtml(c)}</td><td>${_fmtGBP(v)}</td></tr>`).join('');
   const customerTotal = Object.values(byCustomer).reduce((s,v)=>s+v,0);
 
-  // Revenue by project type
-  const byType = {};
-  rows.forEach(r => {
-    byType[r.ProjectType] = (byType[r.ProjectType] || 0) + r.BilledRevenue;
-  });
-  // N-116: derived from config so new project types appear automatically
-  const typeOrder = CONFIG.PROJECT_TYPES
-    .filter(t => !CONFIG.NON_REVENUE_PROJECT_TYPES.includes(t));
-  const typeRows = typeOrder
-    .filter(t => byType[t] !== undefined)
-    .map(t => `<tr><td>${t}</td><td>${_fmtGBP(byType[t])}</td></tr>`).join('');
-  const typeTotal = Object.values(byType).reduce((s,v)=>s+v,0);
+  // Revenue by project type (N-116, N-521): derived from config, a type with no revenue in the
+  // period is hidden, LCI and Transformation appear as their own rows (revenueByProjectType).
+  const byType = revenueByProjectType(rows);
+  const typeRows = byType.rows
+    .map(x => `<tr><td>${escHtml(x.type)}</td><td>${_fmtGBP(x.revenue)}</td></tr>`).join('');
+  const typeTotal = byType.total;
 
   return `
     <div style='display:grid;grid-template-columns:1fr 1fr;gap:24px'>

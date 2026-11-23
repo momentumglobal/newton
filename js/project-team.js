@@ -184,7 +184,7 @@ function ptBuildReconciliation(inputs) {
   return { dmNoRow, mixedRoles };
 }
 
-// N-373 (PT-13): the five Project Team integrity checks behind Admin > Data Health. Pure: no
+// N-373 (PT-13): the six Project Team integrity checks behind Admin > Data Health. Pure: no
 // network, no DOM, never writes. Same shape as checkHeadcountIntegrity: [{ key, label, count,
 // sample }] in display order, `sample` = every offending label (the renderer truncates). Every
 // count should read 0 on healthy data.
@@ -266,12 +266,19 @@ function ptCheckTeamIntegrity(inputs) {
     if (rowEmail !== dm) leadDmDrift.push(projName(p) + ': ' + (rowEmail || '(no email)') + ' vs ' + (dm || '(none)'));
   });
 
+  // 6. N-521: LCI / Transformation team rows with no End Date. computeMonthlyRows() skips a row
+  // with no EndDate, so its revenue never reaches the People Dashboard. Project Team writes always
+  // carry an End Date, so these can only be legacy rows.
+  const noDashboardNoEnd = liveRows
+    .filter(a => isNoDashboardType(a.ProjectType) && !a.EndDate).map(who);
+
   const checks = [
     ['assignmentNoProject', 'Assignments with no ProjectID (current or ended in the last ' + CONFIG.PROJECT_TEAM.PROBE_RECENT_DAYS + ' days)', assignmentNoProject],
     ['deployableNoEmail', 'Deployable team members with no UserEmail', deployableNoEmail],
     ['tpNotOnTeam', 'Talent Partners on an open role but not on the project team', tpNotOnTeam],
     ['leadDmCount', 'Active projects without exactly one Lead DM', leadDmCount],
     ['leadDmDrift', 'Lead DM differs from Projects.DeliveryManager', leadDmDrift],
+    ['noDashboardNoEnd', 'LCI / Transformation team rows with no End Date (skipped by revenue maths)', noDashboardNoEnd],
   ];
   return checks.map(([key, label, sample]) => ({ key, label, count: sample.length, sample }));
 }

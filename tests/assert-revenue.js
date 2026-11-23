@@ -530,5 +530,32 @@ ASSERTIONS.push(
           [['people-logic.js'], ['people-logic.js']], 'defined only in people-logic.js');
       }
     },
+  },
+  {
+    name: 'N-521 revenueByProjectType — LCI and Transformation are own rows; £0 types hidden; Internal never; total = all rows',
+    fn: function () {
+      const r = (ProjectType, BilledRevenue) => ({ ProjectType, BilledRevenue });
+      const out = revenueByProjectType([
+        r('Embedded', 1000.1), r('Embedded', 500), r('LCI', 2000), r('Transformation', 750.5),
+        r('CoE', 0), r('Exec Search', 0), r('Internal', 0), r('MG AI', 300), r('LCI', 100),
+      ]);
+      _assertEqual(out.rows, [
+        { type: 'Embedded', revenue: 1500.1 }, { type: 'Transformation', revenue: 750.5 },
+        { type: 'LCI', revenue: 2100 }, { type: 'MG AI', revenue: 300 },
+      ], 'AC5 / AC6 enum order, zero types dropped (CoE, Exec Search, Internal)');
+      _assertEqual(out.total, 4650.6, 'AC7 total = sum of every row');
+      _assertEqual(revenueByProjectType([r('Internal', 50), r('Embedded', 0)]).rows, [], 'AC6 Internal never listed; zero Embedded hidden');
+      _assertEqual(revenueByProjectType([r('LCI', 0.001)]).rows, [], 'AC6 pence-rounded zero hidden');
+      _assertEqual([revenueByProjectType([]), revenueByProjectType(null), revenueByProjectType([null, {}])],
+        [{ rows: [], total: 0 }, { rows: [], total: 0 }, { rows: [], total: 0 }], 'AC7 empty / null safe');
+      if (typeof ALL_SOURCES !== 'undefined') {
+        const pd = ALL_SOURCES['people-dashboard.js'];
+        const panel = pd.slice(pd.indexOf('function _renderRevenuePanel'), pd.indexOf('//Panel 3'));
+        _assertEqual([/revenueByProjectType\(rows\)/.test(panel), /byType\[t\] !== undefined/.test(panel)], [true, false],
+          'panel calls the helper and no longer filters on !== undefined');
+        _assertEqual(Object.keys(ALL_SOURCES).filter(f => /function\s+revenueByProjectType\s*\(/.test(ALL_SOURCES[f])), ['people-logic.js'],
+          'defined only in people-logic.js');
+      }
+    },
   }
 );

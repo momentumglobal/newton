@@ -31,12 +31,12 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-362 salesForecastTypes / projectFormTypes',
+    name: 'N-521 salesForecastTypes / projectFormTypes offer LCI and Transformation',
     fn: function () {
-      _assertEqual(salesForecastTypes(), ['Embedded', 'CoE', 'Exec Search', 'MG AI'], 'AC4 Sales Forecast dropdown unchanged');
-      _assertEqual(projectFormTypes(), ['Embedded', 'CoE', 'Exec Search', 'MG AI', 'Internal'], 'AC5 form options (dormant)');
-      _assertEqual(projectFormTypes('LCI'), ['Embedded', 'CoE', 'Exec Search', 'MG AI', 'Internal', 'LCI'], 'AC5 existing LCI project keeps its type');
-      _assertEqual(projectFormTypes('CoE'), ['Embedded', 'CoE', 'Exec Search', 'MG AI', 'Internal'], 'AC5 no duplicate');
+      _assertEqual(salesForecastTypes(), ['Embedded', 'CoE', 'Transformation', 'LCI', 'Exec Search', 'MG AI'], 'AC3 Sales Forecast dropdown: every type but Internal');
+      _assertEqual(projectFormTypes(), ['Embedded', 'CoE', 'Transformation', 'LCI', 'Exec Search', 'MG AI', 'Internal'], 'AC1 form options: every type');
+      _assertEqual(projectFormTypes('LCI'), projectFormTypes(), 'AC1 no parameter, no duplicate');
+      _assertEqual(salesForecastTypes()[0], 'Embedded', 'AC1 / AC3 default stays Embedded');
       _assertEqual(projectFormTypes() === projectFormTypes(), false, 'a fresh array each call');
       _assertEqual(salesForecastTypes() === salesForecastTypes(), false, 'a fresh array each call');
     },

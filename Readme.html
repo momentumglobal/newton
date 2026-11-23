@@ -1468,9 +1468,9 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
 
       <h3>Project types and split-fee revenue (N-116)</h3>
       <ul class="checklist">
-        <li><strong>One enum (N-362).</strong> <code>CONFIG.PROJECT_TYPES</code> (Embedded, CoE, Transformation, LCI, Exec Search, MG AI, Internal) serves both <code>Projects.ProjectType</code> and <code>Assignments.ProjectType</code>. Lists that must be narrower are derived, never redeclared in a page file: <code>salesForecastTypes()</code> (Embedded, CoE, Exec Search, MG AI) and <code>projectFormTypes(currentType)</code>. The Hiring Plan page, the LCI link picker and the Report Builder CoE panel gate on <code>CoE</code>, which no other type satisfies.</li>
+        <li><strong>One enum (N-362).</strong> <code>CONFIG.PROJECT_TYPES</code> (Embedded, CoE, Transformation, LCI, Exec Search, MG AI, Internal) serves both <code>Projects.ProjectType</code> and <code>Assignments.ProjectType</code>. Lists that must be narrower are derived, never redeclared in a page file: <code>salesForecastTypes()</code> (every type but Internal, N-521) and <code>projectFormTypes()</code> (every type). The Hiring Plan page, the LCI link picker and the Report Builder CoE panel gate on <code>CoE</code>, which no other type satisfies.</li>
         <li><strong>No-dashboard types (N-362, D-4).</strong> <code>CONFIG.NO_DASHBOARD_PROJECT_TYPES</code> (LCI, Transformation) are Projects with no Project Dashboard. Read them only through <code>isNoDashboardType(type)</code> / <code>isNoDashboardProject(p)</code> / <code>isKpiExcludedProject(p)</code> / <code>dashboardProjects(projects)</code> (project-types.js) and <code>projectHasChecklist(type)</code> (checklist-logic.js). Run <code>dashboardProjects()</code> on a project list <em>before</em> any "only one project, lock the picker" test. <code>tests/lint-project-types.js</code> fails the build on a direct <code>ProjectType</code> compare to LCI / Transformation / Internal (one allowlisted site, <code>org-chart.js</code>, removed by N-363). A new N-259 starter-pack action must gate on <code>projectHasChecklist()</code>.</li>
-        <li><strong>Created once, from Assignments (N-363).</strong> The Project form does not offer LCI / Transformation; their Projects rows were created from Assignments by a one-off Data Health tool that ran in production and was retired in N-471. <code>LCI</code> and <code>Transformation</code> stay choices on the SharePoint <code>Projects.ProjectType</code> column.</li>
+        <li><strong>Created from the Project form (N-521).</strong> The Project form offers LCI and Transformation (the four existing rows were created from Assignments by the N-363 one-off tool, retired in N-471). New rows are still no-dashboard: no checklist or starter pack, out of the role / activity / placement pickers, KPIs, RAG and Snapshots. They can be forecast on the Sales Forecast page (monthly-rate path; nothing is created recruitment-side).</li>
         <li>Project-type colours are <code>--c-ptype-*</code> tokens in style.css, surfaced to JS as <code>var()</code> strings via <code>CONFIG.PROJECT_TYPE_COLOUR_VARS</code>. No hex in JS.</li>
         <li><strong>Split-fee lines</strong> (<code>CONFIG.SPLIT_FEE_PROJECT_TYPES</code> — Exec Search, MG AI) recognise two un-pro-rated lump sums: the retainer in the assignment's start month, the placement fee in the month <em>after</em> its end month. The placement month sits outside the assignment window and may fall in the next calendar year — any loop over "months this assignment overlaps" needs one extra month.</li>
         <li>A row is either monthly-rate or split-fee, never both. The unused side is written <code>null</code> on save so a type change leaves nothing stale behind to double-count.</li>
@@ -1651,6 +1651,17 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
     <div class="section" id="sec-changelog" style="display:none">
       <div class="section-title">Changelog</div>
             <p class="section-intro">Significant changes shipped to the live repo.</p>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">November 2026</div>
+        <div class="changelog-title">LCI / Transformation: create, forecast and see revenue (N-521)</div>
+        <ul>
+          <li>The Project form offers <strong>LCI</strong> and <strong>Transformation</strong>, and the Sales Forecast type dropdown (desktop and mobile) lists them too. New rows stay no-dashboard; a forecast uses the monthly-rate path and creates nothing recruitment-side. Forecast headcount counts in the utilisation forecast like every other type.</li>
+          <li>People Dashboard &rarr; Revenue &rarr; By Project Type lists LCI and Transformation as their own rows and hides any type with no revenue in the period (<code>revenueByProjectType()</code>, people-logic.js).</li>
+          <li>Admin &rarr; Data Health &rarr; Project Team integrity has a sixth check: LCI / Transformation team rows with no End Date, which the revenue maths skips.</li>
+          <li><strong>Result:</strong> 958 of 960 tests pass (2 skipped).</li>
+        </ul>
+      </div>
 
       <div class="changelog-entry">
         <div class="changelog-date">November 2026</div>

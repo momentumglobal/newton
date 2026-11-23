@@ -437,3 +437,25 @@ function buildPhotoUrlMap(items) {
 function photoMapFresh(builtAt, now, ttl) {
   return typeof builtAt === 'number' && now >= builtAt && now - builtAt < ttl;
 }
+
+// ── Revenue by project type (N-521) ─────────────────────────────
+// People Dashboard → Revenue → By Project Type. `rows` = computeMonthlyRows() rows for the
+// period. Returns { rows: [{ type, revenue }], total }. `rows` follows CONFIG.PROJECT_TYPES order,
+// minus CONFIG.NON_REVENUE_PROJECT_TYPES, and OMITS any type whose pence-rounded BilledRevenue is
+// 0 (no rows, or only unbilled / zero-rate rows). `total` is the sum of BilledRevenue over every
+// input row, as the panel's Total always was. Never throws on null / non-array input.
+function revenueByProjectType(rows) {
+  const sums = {};
+  let total = 0;
+  (Array.isArray(rows) ? rows : []).forEach(r => {
+    if (!r) return;
+    const v = Number(r.BilledRevenue) || 0;
+    sums[r.ProjectType] = (sums[r.ProjectType] || 0) + v;
+    total += v;
+  });
+  const out = CONFIG.PROJECT_TYPES
+    .filter(t => !CONFIG.NON_REVENUE_PROJECT_TYPES.includes(t))
+    .map(t => ({ type: t, revenue: Math.round((sums[t] || 0) * 100) / 100 }))
+    .filter(x => x.revenue !== 0);
+  return { rows: out, total };
+}

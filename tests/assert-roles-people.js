@@ -457,13 +457,13 @@ ASSERTIONS.push(
   },
   // ── N-333: internal project excluded from client KPIs ─────────────────
   {
-    name: 'N-333 CONFIG.PROJECT_TYPE_INTERNAL pinned; in PROJECT_TYPES (N-362); Sales Forecast drops it; projectFormTypes adds Internal last',
+    name: 'N-333 CONFIG.PROJECT_TYPE_INTERNAL pinned; in PROJECT_TYPES (N-362); Sales Forecast drops it; projectFormTypes lists it last',
     fn: function () {
       _assertEqual(CONFIG.PROJECT_TYPE_INTERNAL, 'Internal', 'value');
       _assertEqual(CONFIG.PROJECT_TYPES.includes(CONFIG.PROJECT_TYPE_INTERNAL), true, 'in PROJECT_TYPES');
       _assertEqual(CONFIG.NON_REVENUE_PROJECT_TYPES.includes(CONFIG.PROJECT_TYPE_INTERNAL), true, 'in NON_REVENUE_PROJECT_TYPES');
-      _assertEqual(salesForecastTypes(), ['Embedded', 'CoE', 'Exec Search', 'MG AI'], 'Sales Forecast dropdown has no Internal');
-      _assertEqual(projectFormTypes(), ['Embedded', 'CoE', 'Exec Search', 'MG AI', 'Internal'], 'Project form options');
+      _assertEqual(salesForecastTypes(), ['Embedded', 'CoE', 'Transformation', 'LCI', 'Exec Search', 'MG AI'], 'Sales Forecast dropdown has no Internal');
+      _assertEqual(projectFormTypes(), ['Embedded', 'CoE', 'Transformation', 'LCI', 'Exec Search', 'MG AI', 'Internal'], 'Project form options');
       _assertEqual(projectFormTypes() === projectFormTypes(), false, 'a fresh array each call');
     },
   },

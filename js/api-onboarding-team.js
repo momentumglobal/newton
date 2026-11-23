@@ -26,7 +26,8 @@ async function resolveOnboardingTeamNav() {
       resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), _onbAssignmentsOrNone(),
     ]);
     if (gate.state !== 'live' && gate.state !== 'preview') return { team: 0 };
-    return { team: onbTeamPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments }).length };
+    const directory = await _onbDirectoryOrPeople(people);   // N-522
+    return { team: onbTeamPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments, directory }).length };
   } catch (e) {
     console.warn('My Team onboarding: tab signal unavailable', e);
     return { team: 0 };
@@ -43,7 +44,8 @@ async function getOnboardingTeamView() {
     resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE), _onbAssignmentsOrNone(),
   ]);
   if (gate.state !== 'live' && gate.state !== 'preview') return { none: true, gateState: gate.state };
-  const mine = onbTeamPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments });
+  const directory = await _onbDirectoryOrPeople(people);   // N-522
+  const mine = onbTeamPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments, directory });
   if (!mine.length) return { none: true, gateState: gate.state };
   const [rows, signoffs] = await Promise.all([
     Promise.all(mine.map(m => getChecklistProgress(O.RECORD_TYPE, { recordId: m.plan.PersonID }))),
@@ -60,9 +62,9 @@ async function getOnboardingTeamView() {
   const readOnly = gate.state === 'preview';
   const todayISO = localDayISO();
   const candidates = {};
-  mine.forEach(m => { candidates[String(m.plan.id)] = onbAssignCandidates(people, m.plan.PersonID, todayISO); });
+  mine.forEach(m => { candidates[String(m.plan.id)] = onbAssignCandidates(directory, m.plan.PersonID, todayISO); });
   return Object.assign({ gateState: gate.state, readOnly, candidates }, onbTeamModel({
-    plans, people, templates, progressByPlan, signoffs, pdpByPerson, email, role, peopleOpsActive: gate.peopleOpsActive, todayISO, readOnly, assignments,
+    plans, people, templates, progressByPlan, signoffs, pdpByPerson, email, role, peopleOpsActive: gate.peopleOpsActive, todayISO, readOnly, assignments, directory,
   }));
 }
 
@@ -79,10 +81,11 @@ async function _onbTeamWriteCtx(planId) {
   if (gate.state === 'preview') throw new Error(O.TEAM_TEXT.reasons.preview);
   if (gate.state !== 'live') throw new Error('Onboarding is not available to you.');
   const want = String(planId == null ? '' : planId).trim();
-  const entry = onbTeamPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments }).find(m => String(m.plan.id) === want);
+  const directory = await getOnboardingDirectory(people);   // N-522: strict on a write path
+  const entry = onbTeamPlans({ plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments, directory }).find(m => String(m.plan.id) === want);
   if (!entry) throw new Error('That onboarding plan is not available to you.');
   if (entry.plan.Status !== O.PLAN_ACTIVE) throw new Error(O.TEAM_TEXT.reasons.closed);
-  return { gate, entry, plan: entry.plan, people, templates, signoffs, assignments, email, role };
+  return { gate, entry, plan: entry.plan, people, directory, templates, signoffs, assignments, email, role };
 }
 
 // Tick or untick one step from My Team (ONB-D72). tickOnboardingStep only knows the viewer's OWN and buddy plans (onbMyPlans), so a line
@@ -99,7 +102,7 @@ async function tickOnboardingTeamStep({ planId, itemKey, done } = {}) {
   const rel = new Set(c.entry.relations);
   if (!step || !onbStepVisible({ step, relations: rel, startDate, todayISO: localDayISO() })) throw new Error('That step is not part of this plan.');
   if (onbSignoffStepKind(step)) throw new Error(O.PLAN_TEXT.signoffHint);
-  const assignee = onbStepAssignee({ step, plan: c.plan, assignments: c.assignments, people: c.people });   // N-520 (ONB-D113)
+  const assignee = onbStepAssignee({ step, plan: c.plan, assignments: c.assignments, people: c.directory });   // N-520 (ONB-D113); N-522: the directory
   const isAssignee = !!assignee && _onbEmail(assignee.WorkEmail) === _onbEmail(c.email);
   if (!onbCanTick({ step, relations: rel, peopleOpsActive: c.gate.peopleOpsActive, planStatus: c.plan.Status, reassigned: !!assignee, isAssignee })) throw new Error(O.PLAN_TEXT.tickNoRights);
   const rows = await getChecklistProgress(O.RECORD_TYPE, { recordId: c.plan.PersonID });

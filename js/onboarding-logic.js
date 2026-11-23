@@ -85,8 +85,9 @@ function onbPlanParties(plan, people) {
   return out;
 }
 
-// How the viewer relates to one plan: a Set of 'employee' | 'lm' | 'csd' | 'buddy' | 'peopleops' | 'admin'.
-function onbRelations({ plan = null, people = [], email = '', role = '', peopleOpsActive = false, assignments = [] } = {}) {
+// How the viewer relates to one plan: a Set of 'employee' | 'lm' | 'csd' | 'buddy' | 'peopleops' | 'admin' | 'assignee'.
+// N-522: directory (optional, onbAssigneeDirectory) is used only to resolve the viewer as an assignee; the parties stay People-only.
+function onbRelations({ plan = null, people = [], email = '', role = '', peopleOpsActive = false, assignments = [], directory = null } = {}) {
   const rel = new Set();
   const R = CONFIG.ROLE_IDS;
   if (role === R.ADMIN) rel.add('admin');
@@ -99,7 +100,7 @@ function onbRelations({ plan = null, people = [], email = '', role = '', peopleO
   if (parties.lineManager && _onbEmail(parties.lineManager.WorkEmail) === me) rel.add('lm');
   if (parties.csd && _onbEmail(parties.csd.WorkEmail) === me) rel.add('csd');
   if (_onbEmail(plan.BuddyEmail) === me) rel.add('buddy');
-  if (onbIsPlanAssignee({ plan, assignments, people, email: me })) rel.add('assignee');   // N-520 (ONB-D114 / D118)
+  if (onbIsPlanAssignee({ plan, assignments, people: directory || people, email: me })) rel.add('assignee');   // N-520 (ONB-D114 / D118); N-522: resolved against the directory
   return rel;
 }
 
@@ -147,7 +148,7 @@ function onbCanTick({ step = null, relations = [], peopleOpsActive = false, plan
 //   On:    live for in-scope people and anyone with a relation to a plan; Admin live; else none.
 // No other role gets in by role (ONB-D9: Leadership only through a relation). Plans that are not
 // Active still count, so their people keep read access.
-function onbAccess({ mode = '', pilot = [], people = [], plans = [], email = '', role = '', peopleOpsActive = false, assignments = [] } = {}) {
+function onbAccess({ mode = '', pilot = [], people = [], plans = [], email = '', role = '', peopleOpsActive = false, assignments = [], directory = null } = {}) {
   const [OFF, PILOT] = CONFIG.ONBOARDING.MODES;
   const m = onbNormaliseMode(mode);
   const isAdmin = role === CONFIG.ROLE_IDS.ADMIN;
@@ -158,7 +159,7 @@ function onbAccess({ mode = '', pilot = [], people = [], plans = [], email = '',
   const index = pdpEmailIndex(people);
   const row = me ? _onbUniqueRow(index, me) : null;
   const related = (plans || []).some(plan => {
-    const rel = onbRelations({ plan, people, email: me, role, peopleOpsActive, assignments });   // N-520: an assignment counts (ONB-D118)
+    const rel = onbRelations({ plan, people, email: me, role, peopleOpsActive, assignments, directory });   // N-520: an assignment counts (ONB-D118); N-522: directory-only assignees too
     rel.delete('admin');
     return rel.size > 0;
   });
@@ -366,7 +367,8 @@ function onbStartFields({ person = null, people = [], buddyEmail = '', byEmail =
 // Data Health: eight integrity checks over the plan rows, in this order -> [{ key, label, count, sample }].
 // 1-5 and 7 look at Active plans only; 6 (duplicate rows) and 8 (unknown Track / Status) at every row.
 // N-520: when assignments (OnboardingStepAssignments rows) are passed, a 9th check 'assignee-unresolved' is added.
-function onbCheckPlans({ plans = [], people = [], templates = [], assignments = null } = {}) {
+// N-522: directory (optional, onbAssigneeDirectory) is what that check resolves against; without it, People alone.
+function onbCheckPlans({ plans = [], people = [], templates = [], assignments = null, directory = null } = {}) {
   const O = CONFIG.ONBOARDING;
   const all = (plans || []).filter(Boolean);
   const stat = p => String(p.Status == null ? '' : p.Status).trim();
@@ -396,10 +398,10 @@ function onbCheckPlans({ plans = [], people = [], templates = [], assignments = 
     const badAssign = [];
     aIdx.forEach((v, k) => {
       const pid = k.slice(0, k.indexOf('|'));
-      if (!activeIds.has(pid) || _onbActiveUnique(people, v.email)) return;
+      if (!activeIds.has(pid) || _onbActiveUnique(directory || people, v.email)) return;   // N-522: the directory (People + access rows)
       badAssign.push(who(active.find(p => String(p.id) === pid)) + ' (' + v.email + ')');
     });
-    extra.push(mk('assignee-unresolved', 'Active plans with a step assigned to someone who is not a single active People row', badAssign));
+    extra.push(mk('assignee-unresolved', 'Active plans with a step assigned to someone who is not a single active person (People, User Assignments or Leadership Access)', badAssign));
   }
   return [
     mk('person-missing', 'Active plans whose person is not in People or is inactive', notFound),
@@ -562,13 +564,13 @@ function onbBuddyModel(model) {
 // plans, actions = open Buddy-owned steps across those. All zero unless the gate is live or Admin preview. templates, todayISO and
 // progressByPlan ({ planId: ChecklistProgress rows }) are needed only for the count; without them a buddy plan counts every Buddy step as open.
 // N-520: assignments (optional) keep a reassigned Buddy step out of the count.
-function onbNavSignal({ gate = null, plans = [], people = [], email = '', role = '', peopleOpsActive = false, templates = [], progressByPlan = {}, todayISO = '', assignments = [] } = {}) {
+function onbNavSignal({ gate = null, plans = [], people = [], email = '', role = '', peopleOpsActive = false, templates = [], progressByPlan = {}, todayISO = '', assignments = [], directory = null } = {}) {
   const state = gate && gate.state;
   if (state !== 'live' && state !== 'preview') return { plans: 0, buddy: 0, actions: 0 };
   const who = { plans, people, email, role, peopleOpsActive };
   const buddy = onbBuddyPlans(who);
   const actions = buddy.reduce((n, m) => n + onbBuddyModel(onbPlanModel({
-    plan: m.plan, people, templates, progressRows: (progressByPlan || {})[String(m.plan.id)] || [], email, role, peopleOpsActive, todayISO, assignments,
+    plan: m.plan, people, templates, progressRows: (progressByPlan || {})[String(m.plan.id)] || [], email, role, peopleOpsActive, todayISO, assignments, directory,
   })).openActions, 0);
   return { plans: onbMyPlans(Object.assign({ kind: 'own' }, who)).length, buddy: buddy.length, actions };
 }
@@ -586,20 +588,21 @@ function onbLibraryFilter(items, level) {
 // phases: [{ section, done, total, open, items }] (visible, non-Library steps, ONB-D20); summary counts those only (ONB-D32);
 // library: { items (filtered), hidden, all }. Each item: { itemKey, label, help, owner: { key, label, name, unnamed }, stepMode, guided,
 // levelTag, contentUrl, actionKey, dueISO, dueOffsetDays, dueText, overdue, done, doneByName, doneAt, canTick }.
+// N-522: directory (optional, onbAssigneeDirectory) resolves and names assignees; People still gives every party.
 // N-520: assignments = OnboardingStepAssignments rows (optional). A reassigned item's owner.name is the assignee's; every item also carries
 // reassigned, canReassign and assign: { originalEmail, originalName, originalLabel, assigneeEmail } (the Reassign modal's input).
-function onbPlanModel({ plan = null, people = [], templates = [], progressRows = [], email = '', role = '', peopleOpsActive = false, todayISO = '', level = '', assignments = [] } = {}) {
+function onbPlanModel({ plan = null, people = [], templates = [], progressRows = [], email = '', role = '', peopleOpsActive = false, todayISO = '', level = '', assignments = [], directory = null } = {}) {
   const O = CONFIG.ONBOARDING;
   const parties = onbPlanParties(plan, people);
   const emp = parties.employee;
   const startDate = emp ? (spDateIn(emp.StartDate) || '') : '';
   const aIndex = onbAssignmentIndex(assignments, plan ? plan.id : null);   // N-520
-  const rel = onbRelations({ plan, people, email, role, peopleOpsActive, assignments: aIndex });
+  const rel = onbRelations({ plan, people, email, role, peopleOpsActive, assignments: aIndex, directory });
   const kind = rel.has('employee') ? 'own' : (rel.has('buddy') ? 'buddy' : '');
   const status = plan ? String(plan.Status || '') : '';
   const readOnly = status !== O.PLAN_ACTIVE;
   const progress = resolveChecklistProgress(progressRows);
-  const emailIndex = pdpEmailIndex(people);
+  const emailIndex = pdpEmailIndex(directory || people);   // N-522: a directory-only assignee is named, not shown as an email
   const nameOf = e => { const r = _onbUniqueRow(emailIndex, e); return r ? String(r.EmployeeName || '') : String(e || ''); };
 
   const steps = plan
@@ -615,7 +618,7 @@ function onbPlanModel({ plan = null, people = [], templates = [], progressRows =
     const p = progress.get(key);
     const done = !!(p && p.done);
     const dueISO = onbStepDue(startDate, t);
-    const assignee = onbStepAssignee({ step: t, plan, assignments: aIndex, people });   // N-520
+    const assignee = onbStepAssignee({ step: t, plan, assignments: aIndex, people: directory || people });   // N-520; N-522: the directory
     const own = onbStepOwner({ step: t, parties, peopleOpsActive, assignee });
     const reassigned = own.reassigned === true;
     const original = reassigned ? own.originalPerson : own.person;
@@ -730,8 +733,37 @@ function onbIsPlanAssignee({ plan = null, assignments = [], people = [], email =
   return hit && !!_onbActiveUnique(people, me);
 }
 
+// N-522 (ONB-D119..D123). The assignee directory: every People row as it is, then one People-shaped entry for each person who has no People
+// row at all but holds an active UserAssignments row (any role; Active false is out, a blank Active counts as active) or a LeadershipAccess
+// row. It only resolves and names assignees (onbStepAssignee, onbIsPlanAssignee, onbAssignCandidates, the name lookups): the joiner, line
+// manager, CSD, buddy and every scope rule keep reading People alone. A People row wins even when it excludes the person (D120): an email on
+// any People row (inactive, placeholder, future starter, duplicate) gets no extra. Name: UserAssignments.UserName, then LeadershipAccess.UserName,
+// then the email (D121). -> the People rows first (the same objects), then the extras by name.
+function onbAssigneeDirectory({ people = [], userRows = [], leadershipRows = [] } = {}) {
+  const base = Array.isArray(people) ? people.slice() : [];
+  const taken = new Set();
+  base.forEach(p => { const e = p ? _onbEmail(p.WorkEmail) : ''; if (e) taken.add(e); });
+  const extras = new Map();
+  const add = (row, source, prefix) => {
+    const email = row ? _onbEmail(row.UserEmail) : '';
+    if (!email || !pdpIsEmail(email) || taken.has(email)) return;
+    const name = String(row.UserName == null ? '' : row.UserName).trim();
+    const prev = extras.get(email);
+    if (prev) {
+      if (!prev.named && name) { prev.entry.EmployeeName = name; prev.named = true; }
+      return;
+    }
+    extras.set(email, { named: !!name, entry: { id: prefix + String(row.id), EmployeeName: name || email, WorkEmail: email, IsActive: true, IsPlaceholder: false, StartDate: '', DirectorySource: source } });
+  };
+  (userRows || []).forEach(r => { if (r && r.Active !== false) add(r, 'UserAssignments', 'ua-'); });
+  (leadershipRows || []).forEach(r => add(r, 'LeadershipAccess', 'la-'));
+  const more = Array.from(extras.values()).map(x => x.entry).sort((a, b) => a.EmployeeName.localeCompare(b.EmployeeName));
+  return base.concat(more);
+}
+
 // ONB-D111. Who a step can be reassigned to: anyone with a Newton work email (active, real, unique WorkEmail, started; blank StartDate
 // counts as started), deployable or internal, minus the joiner. -> [{ id, name, email }] by name.
+// N-522 (ONB-D119): callers pass the directory (onbAssigneeDirectory) as people, so access-role holders with no People row are included.
 function onbAssignCandidates(people, joinerId, todayISO) {
   const index = pdpEmailIndex(people);
   return (people || [])

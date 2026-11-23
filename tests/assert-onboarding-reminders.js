@@ -378,3 +378,159 @@ ASSERTIONS.push(
     },
   },
 );
+
+// ── N-522: assignees with no People row (specs/N-522.md, ONB-D119..D124) ─────────────────────────────────────────────
+// Jon Stanners (admin) and Lea Lead (LeadershipAccess) have no People row; the plan is Nina New's '30' as in N-520.
+function _onbaDirFx() {
+  const x = _onbaFx();
+  const U = (id, email, name, role, active) => ({ id: String(id), UserEmail: email, UserName: name, AssignedRole: role, Active: active });
+  const jon = U(201, 'Jon.Stanners@mg.test', 'Jon Stanners', 'admin', true);
+  const lea = { id: '301', UserEmail: 'Lea.Lead@mg.test', UserName: 'Lea Lead' };
+  const dir = onbAssigneeDirectory({ people: x.people, userRows: [jon], leadershipRows: [lea] });
+  return Object.assign({}, x, { U, jon, lea, dir, jonE: 'jon.stanners@mg.test', leaE: 'lea.lead@mg.test' });
+}
+
+ASSERTIONS.push(
+  {
+    name: 'N-522 AC1-AC2 onbAssigneeDirectory: People first and untouched; active access rows with no People row added once; a People row of any state wins; name falls back to the email',
+    fn: function () {
+      const x = _onbaDirFx(), P = x.f.P, U = x.U;
+      const before = JSON.stringify(x.people);
+      const people = x.people.concat([P(43, 'Ina Inactive', 'TP', { IsActive: false }), P(41, 'Pho Placeholder', 'TP', { IsPlaceholder: true }), P(42, 'Fay Future', 'TP', { StartDate: '2099-01-01' }),
+        P(44, 'Dup One', 'TP', { WorkEmail: 'dup@mg.test' }), P(45, 'Dup Two', 'TP', { WorkEmail: 'dup@mg.test' })]);
+      const rows = [
+        x.jon, U(202, 'sam.sales@mg.test', 'Sam Sales', 'sales', undefined), U(203, 'off.off@mg.test', 'Off Off', 'admin', false), U(204, 'ex.ec@mg.test', '', 'staff', true),
+        U(205, '', 'No Email', 'admin', true), U(206, 'not-an-email', 'Bad Email', 'admin', true), U(207, 'both@mg.test', 'Both UA', 'people_ops', true), U(208, 'nameless@mg.test', '', 'staff', true),
+        U(209, x.tom.WorkEmail.toUpperCase(), 'Tom As UA', 'tp', true), U(210, 'ina.inactive@mg.test', 'Ina UA', 'admin', true), U(211, 'pho.placeholder@mg.test', 'Pho UA', 'admin', true),
+        U(212, 'fay.future@mg.test', 'Fay UA', 'admin', true), U(213, 'dup@mg.test', 'Dup UA', 'admin', true),
+      ];
+      const lead = [x.lea, { id: '302', UserEmail: 'BOTH@mg.test', UserName: 'Both Lead' }, { id: '303', UserEmail: 'nameless@mg.test', UserName: 'Nameless Lead' }, { id: '304', UserEmail: x.ian.WorkEmail, UserName: 'Ian Lead' }];
+      const d = onbAssigneeDirectory({ people, userRows: rows, leadershipRows: lead });
+      _assertEqual([d.slice(0, people.length).every((p, i) => p === people[i]), JSON.stringify(x.people) === before], [true, true], 'AC1 People rows first, the same objects, not mutated');
+      const extra = d.slice(people.length);
+      _assertEqual(extra.map(e => e.WorkEmail), ['both@mg.test', 'ex.ec@mg.test', 'jon.stanners@mg.test', 'lea.lead@mg.test', 'nameless@mg.test', 'sam.sales@mg.test'].sort((a, b) => {
+        const nm = { 'both@mg.test': 'Both UA', 'ex.ec@mg.test': 'ex.ec@mg.test', 'jon.stanners@mg.test': 'Jon Stanners', 'lea.lead@mg.test': 'Lea Lead', 'nameless@mg.test': 'Nameless Lead', 'sam.sales@mg.test': 'Sam Sales' };
+        return nm[a].localeCompare(nm[b]);
+      }), 'AC1 UA rows (any role, Active false out, blank Active in) and Leadership rows, once per email, by name; blank or bad addresses out');
+      const by = e => extra.find(r => r.WorkEmail === e);
+      _assertEqual([by('both@mg.test').EmployeeName, by('nameless@mg.test').EmployeeName, by('ex.ec@mg.test').EmployeeName], ['Both UA', 'Nameless Lead', 'ex.ec@mg.test'], 'AC2 name: UserAssignments, then LeadershipAccess, then the email');
+      _assertEqual(Object.keys(by('jon.stanners@mg.test')).sort(), ['DirectorySource', 'EmployeeName', 'id', 'IsActive', 'IsPlaceholder', 'StartDate', 'WorkEmail'].sort(), 'AC2 People-shaped entry');
+      _assertEqual([by('jon.stanners@mg.test').id, by('lea.lead@mg.test').id, by('jon.stanners@mg.test').DirectorySource, by('lea.lead@mg.test').DirectorySource], ['ua-201', 'la-301', 'UserAssignments', 'LeadershipAccess'], 'AC2 id prefix and source');
+      _assertEqual(['off.off@mg.test', x.tom.WorkEmail, 'ina.inactive@mg.test', 'pho.placeholder@mg.test', 'fay.future@mg.test', 'dup@mg.test', x.ian.WorkEmail].some(e => by(e)), false, 'AC2 inactive access row, and any email on a People row (D120: leaver, placeholder, future starter, duplicate), get no extra');
+      _assertEqual([onbAssigneeDirectory().length, onbAssigneeDirectory({ people: x.people }).length === x.people.length], [0, true], 'no input: empty; no access rows: People alone');
+    },
+  },
+  {
+    name: 'N-522 AC3-AC4 onbAssignCandidates over the directory; onbStepAssignee resolves a directory-only email, an email in neither list falls back',
+    fn: function () {
+      const x = _onbaDirFx(), P = x.f.P;
+      const names = onbAssignCandidates(x.dir, 30, _ONBR_TODAY).map(c => c.name);
+      _assertEqual(['Jon Stanners', 'Lea Lead', 'Tom Tp', 'Ian Internal', 'Sam Sdm'].every(n => names.includes(n)), true, 'AC3 access-role people sit beside People candidates');
+      _assertEqual(names.includes('Nina New'), false, 'AC3 still not the joiner');
+      _assertEqual(names.slice().sort((a, b) => a.localeCompare(b)), names, 'AC3 by name');
+      _assertEqual(onbAssignCandidates(x.people, 30, _ONBR_TODAY).some(c => c.name === 'Jon Stanners'), false, 'AC3 control: People alone does not offer him');
+      const extra = [P(43, 'Ina Inactive', 'TP', { IsActive: false }), P(42, 'Fay Future', 'TP', { StartDate: '2099-01-01' })];
+      const d2 = onbAssigneeDirectory({ people: x.people.concat(extra), userRows: [x.jon, x.U(210, 'ina.inactive@mg.test', 'Ina UA', 'admin', true), x.U(212, 'fay.future@mg.test', 'Fay UA', 'admin', true)], leadershipRows: [] });
+      const n2 = onbAssignCandidates(d2, 30, _ONBR_TODAY).map(c => c.name);
+      _assertEqual([n2.includes('Jon Stanners'), n2.includes('Ina UA'), n2.includes('Fay UA'), n2.includes('Ina Inactive'), n2.includes('Fay Future')], [true, false, false, false, false], 'AC3 a leaver or future starter is not rescued by an access row');
+      const at = (dir, email) => onbStepAssignee({ step: x.step('w2'), plan: x.plan, assignments: [x.row(1, 'w2', email)], people: dir });
+      _assertEqual([(at(x.dir, x.jonE) || {}).EmployeeName, (at(x.dir, x.leaE) || {}).EmployeeName, at(x.people, x.jonE)], ['Jon Stanners', 'Lea Lead', null], 'AC4 resolves through the directory, not through People alone');
+      _assertEqual([at(x.dir, 'gone@mg.test'), at(onbAssigneeDirectory({ people: x.people, userRows: [Object.assign({}, x.jon, { Active: false })] }), x.jonE)], [null, null], 'AC4 an email in neither list, or only on an inactive access row, falls back to the template owner');
+    },
+  },
+  {
+    name: 'N-522 AC5 onbRelations / onbAccess: a directory-only assignee is related and live in On and Pilot; handing back ends it; without a directory it is exactly N-520',
+    fn: function () {
+      const x = _onbaDirFx(), asg = [x.row(1, 'w2', x.leaE)];
+      const acc = (a, o) => onbAccess(Object.assign({ mode: 'On', pilot: [], people: x.people, plans: [x.plan], email: x.leaE, role: 'leadership', assignments: a, directory: x.dir }, o));
+      _assertEqual([acc(asg).state, acc(asg).reason, acc(asg, { mode: 'Pilot' }).state], ['live', 'plan', 'live'], 'AC5 live in On and Pilot through the plan relation');
+      _assertEqual([acc([]).state, acc([x.row(1, 'w2', x.leaE), x.row(2, 'w2', '')]).state], ['none', 'none'], 'AC5 no assignment, or handed back: none');
+      _assertEqual([acc(asg, { directory: null }).state, acc(asg, { directory: undefined }).state], ['none', 'none'], 'AC5 no directory passed: N-520 behaviour (People alone)');
+      const rel = (dir, email) => Array.from(onbRelations({ plan: x.plan, people: x.people, email, role: '', assignments: asg, directory: dir }));
+      _assertEqual([rel(x.dir, x.leaE), rel(null, x.leaE), rel(x.dir, x.f.sdm.WorkEmail)], [['assignee'], [], ['lm']], 'AC5 the assignee relation, and the parties still come from People');
+    },
+  },
+  {
+    name: 'N-522 AC6 onbPlanModel: a directory-only assignee is named on the chip data, can tick, and shows by name as the ticker; the buddy and the LM lose the owner right',
+    fn: function () {
+      const x = _onbaDirFx();
+      const asg = [x.row(1, 'w2', x.leaE), x.row(2, 'bd', x.jonE)];
+      const m = (email, o) => onbPlanModel(Object.assign({ plan: x.plan, people: x.people, templates: x.templates, progressRows: [], email, role: '', todayISO: _ONBR_TODAY, assignments: asg, directory: x.dir }, o));
+      const it = (model, key) => model.phases.reduce((a, p) => a.concat(p.items), []).find(i => i.itemKey === key);
+      const lea = it(m(x.leaE), 'w2');
+      _assertEqual([lea.reassigned, lea.owner.name, lea.owner.label, lea.assign.assigneeEmail, lea.assign.originalName, lea.canTick], [true, 'Lea Lead', 'Line Manager', x.leaE, 'Sam Sdm', true], 'AC6 chip data and the right to tick');
+      _assertEqual([it(m(x.f.tp1.WorkEmail), 'w2').canTick, it(m(x.f.tp1.WorkEmail), 'bd').canTick, it(m(x.f.sdm.WorkEmail), 'w2').canTick], [false, false, true], 'AC6 a plain buddy cannot; a reassigned Buddy step leaves the buddy; the LM can (D16)');
+      _assertEqual(it(m(x.f.sdm.WorkEmail, { directory: null }), 'w2').owner.name, 'Sam Sdm', 'AC6 no directory: the step shows its template owner');
+      const done = it(m(x.leaE, { progressRows: [x.rowFor('w2', x.leaE)] }), 'w2');
+      _assertEqual([done.done, done.doneByName], [true, 'Lea Lead'], 'AC6 the ticker is named, not shown as an email');
+      const buddy = onbBuddyModel(m(x.f.tp1.WorkEmail, { role: '' }));
+      _assertEqual(buddy.actions.some(i => i.itemKey === 'bd'), false, 'AC6 a Buddy step reassigned to a directory-only person is not in the buddy actions');
+    },
+  },
+  {
+    name: 'N-522 AC7 onbTeamPlans / onbTeamModel: a directory-only assignee gets their steps in My actions alone; an Admin with no People row sees the step in My actions',
+    fn: function () {
+      const x = _onbaDirFx(), asg = [x.row(1, 'w2', x.leaE), x.row(2, 'ops', x.jonE)];
+      const team = (email, role, o) => onbTeamModel(Object.assign({ plans: [x.plan], people: x.people, templates: x.templates, progressByPlan: {}, signoffs: [], pdpByPerson: {}, email, role, todayISO: _ONBR_TODAY, assignments: asg, directory: x.dir }, o));
+      const keys = model => model.actions.reduce((a, g) => a.concat(g.steps.map(s => s.itemKey)), []);
+      const lea = team(x.leaE, 'leadership');
+      _assertEqual([lea.rows.length, lea.completed.length, lea.assignOnly, keys(lea)], [0, 0, true, ['w2']], 'AC7 assignee-only: no row or tile, just the assigned step');
+      const nodir = team(x.leaE, 'leadership', { directory: null });
+      _assertEqual([nodir.rows.length, nodir.assignOnly, keys(nodir)], [0, false, []], 'AC7 control: without the directory they see nothing');
+      const jon = team(x.jonE, 'admin');
+      _assertEqual([jon.rows.length, keys(jon).includes('ops')], [1, true], 'AC7 an Admin with no People row: the plan row and the assigned step in My actions');
+      _assertEqual(keys(team(x.jonE, 'admin', { directory: null })).includes('ops'), false, 'AC7 control: not without the directory');
+      _assertEqual(onbTeamPlans({ plans: [x.plan], people: x.people, email: x.leaE, role: 'leadership', assignments: asg, directory: x.dir }).map(p => !!p.assigneeOnly), [true], 'AC7 onbTeamPlans flags assigneeOnly');
+    },
+  },
+  {
+    name: 'N-522 AC8 onbReminderPlan: a directory-only assignee gets the digest (link to My Team); the original owner does not',
+    fn: function () {
+      const x = _onbaDirFx(), asg = [x.row(1, 'w2', x.leaE)];
+      const run = (email, o) => onbReminderPlan(Object.assign({ gate: { state: 'live' }, email, today: _ONBR_TODAY, plans: [x.plan], people: x.people, templates: [_onbrTpl('w2', 'LM', 1)], progressByPlan: {}, assignments: asg, directory: x.dir }, o));
+      const r = run(x.leaE);
+      _assertEqual([_onbrTypes(r), r.send[0].link], [['onbDue:1'], CONFIG.ONBOARDING.REMINDERS.LINKS.TEAM], 'AC8 the assignee is reminded, link to My Team');
+      _assertEqual([_onbrTypes(run(x.f.sdm.WorkEmail)), _onbrTypes(run(x.leaE, { directory: null }))], [[], []], 'AC8 not the original owner; nobody without the directory (People alone)');
+    },
+  },
+  {
+    name: 'N-522 AC10 onbCheckPlans: a directory-only assignee is not flagged; an email in neither list is',
+    fn: function () {
+      const x = _onbaDirFx();
+      const c9 = (a, dir) => onbCheckPlans({ plans: [x.plan], people: x.people, templates: x.templates, assignments: a, directory: dir }).find(c => c.key === 'assignee-unresolved');
+      _assertEqual([c9([x.row(1, 'w2', x.jonE)], x.dir).count, c9([x.row(1, 'w2', 'gone@mg.test')], x.dir).count, c9([x.row(1, 'w2', x.jonE)]).count], [0, 1, 1], 'AC10 resolves against the directory; without one, People alone (N-520)');
+      _assertEqual(/People, User Assignments or Leadership Access/.test(c9([], x.dir).label), true, 'AC10 label names the three sources');
+    },
+  },
+  {
+    name: 'N-522 AC9/AC12 api contract: strict directory read on every write path, lenient on every display path, no new function in the shared four',
+    fn: function () {
+      const api = _onbSrc('api-onboarding.js'), team = _onbSrc('api-onboarding-team.js');
+      const body = (src, from, to) => src.slice(src.indexOf(from), to ? src.indexOf(to, src.indexOf(from) + 1) : undefined);
+      const strict = body(api, 'async function getOnboardingDirectory', 'async function _onbDirectoryOrPeople');
+      _assertEqual([/_cacheInvalidate\('UserAssignments'\)/.test(strict), /_cacheInvalidate\('LeadershipAccess'\)/.test(strict), /getLeadershipAccess\(\)/.test(strict), /catch/.test(strict)], [true, true, true, false], 'AC9 strict: fresh reads of both lists, a failure is not caught');
+      const soft = body(api, 'async function _onbDirectoryOrPeople', '// True when any active UserAssignments');
+      _assertEqual([/catch \(e\)/.test(soft), /return people;/.test(soft), /console\.warn/.test(soft)], [true, true, true], 'AC9 lenient: People alone with a warning');
+      const reassign = body(api, 'async function reassignOnboardingStep', 'async function _onbViewerCtx');
+      _assertEqual(/getOnboardingDirectory\(people\)/.test(reassign) && !/_onbDirectoryOrPeople/.test(reassign), true, 'AC9 reassign: strict');
+      _assertEqual(reassign.indexOf('getOnboardingDirectory(') < reassign.indexOf('onbRelations(') && reassign.indexOf('onbRelations(') < reassign.indexOf('createItem(A.LIST'), true, 'AC9 the directory is read before any write');
+      _assertEqual(/onbAssignCandidates\(directory,/.test(reassign) && /people: directory/.test(reassign), true, 'AC9 candidate check and assignee resolve use the directory');
+      const tick = body(api, 'async function tickOnboardingStep', 'async function getBuddyingView');
+      _assertEqual(/getOnboardingDirectory\(people\)/.test(tick) && !/_onbDirectoryOrPeople/.test(tick), true, 'AC9 tick: strict');
+      const rem = body(api, 'async function _onbReminderInputs', 'async function runOnboardingReminders');
+      _assertEqual(/getOnboardingDirectory\(people\)/.test(rem) && /assignments, directory \}/.test(rem), true, 'AC9 reminders: strict, and handed on to onbReminderPlan');
+      const inputs = body(api, 'async function getOnboardingPlanInputs', '// ── Owner reminders');
+      _assertEqual(/getOnboardingDirectory\(people\)/.test(inputs) && /return \{ plans, people, templates, assignments, directory \}/.test(inputs), true, 'AC9 Data Health inputs carry the directory (os-admin.js passes the whole object)');
+      ['async function resolveOnboardingGate', 'async function resolveOnboardingNav', 'async function getOnboardingPlanView', 'async function getBuddyingView'].forEach(f => {
+        const fn = body(api, f, 'async function ');
+        _assertEqual(/_onbDirectoryOrPeople\(people\)/.test(fn) && !/getOnboardingDirectory\(/.test(fn), true, 'AC9 display path is lenient: ' + f);
+      });
+      const ctx = body(team, 'async function _onbTeamWriteCtx', 'async function tickOnboardingTeamStep');
+      _assertEqual(/getOnboardingDirectory\(people\)/.test(ctx) && /directory, templates, signoffs/.test(ctx) && !/_onbDirectoryOrPeople/.test(ctx), true, 'AC9 team writes: strict, and carried in the context');
+      _assertEqual(/people: c\.directory/.test(body(team, 'async function tickOnboardingTeamStep', 'async function signOffOnboarding')), true, 'AC9 the team tick resolves the assignee through the directory');
+      ['async function resolveOnboardingTeamNav', 'async function getOnboardingTeamView'].forEach(f => _assertEqual(/_onbDirectoryOrPeople\(people\)/.test(body(team, f, 'async function ')), true, 'AC9 lenient: ' + f));
+      _assertEqual(/onbAssignCandidates\(directory,/.test(team) && /onbAssignCandidates\(directory,/.test(api), true, 'AC11 the Reassign modal candidates come from the directory (team and buddy)');
+      ['utils.js', 'analytics.js', 'api.js', 'config.js'].forEach(f => _assertEqual(/onbAssigneeDirectory|getOnboardingDirectory|_onbDirectoryOrPeople/.test(_onbSrc(f)), false, 'AC12 nothing added to ' + f));
+    },
+  },
+);

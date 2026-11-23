@@ -27,18 +27,18 @@ function onbReminderBody(type, n) {
 
 // The Active plans this person is the joiner, line manager, CSD, buddy or (N-520) a step assignee of: the only plans whose progress is
 // worth reading. -> [{ plan, relations: Set }]. Role is deliberately blank (ONB-D79). assignments = OnboardingStepAssignments rows (optional).
-function onbReminderPlans({ plans = [], people = [], email = '', peopleOpsActive = false, assignments = [] } = {}) {
+function onbReminderPlans({ plans = [], people = [], email = '', peopleOpsActive = false, assignments = [], directory = null } = {}) {
   const out = [];
   (plans || []).forEach(plan => {
     if (!plan || plan.Status !== CONFIG.ONBOARDING.PLAN_ACTIVE) return;
-    const relations = onbRelations({ plan, people, email, role: '', peopleOpsActive, assignments });
+    const relations = onbRelations({ plan, people, email, role: '', peopleOpsActive, assignments, directory });
     if (_ONBR_PARTIES.some(r => relations.has(r))) out.push({ plan, relations });
   });
   return out;
 }
 
 // What to send the signed-in user today.
-//   opts: { gate, email, today, plans, people, templates, progressByPlan, peopleOpsActive, assignments }   (N-520: assignments optional)
+//   opts: { gate, email, today, plans, people, templates, progressByPlan, peopleOpsActive, assignments, directory }   (N-520: assignments optional; N-522: directory optional, People + access rows)
 //   progressByPlan: { [plan.id]: ChecklistProgress rows for that plan's person }
 //   -> { send: [{ type, n, key, body, link, tone }], keep: [key] }
 // Only a live gate sends (Off gives Admin a preview, everyone else none; Pilot and On are both live, ONB-D75). A step counts when it is
@@ -56,7 +56,7 @@ function onbReminderPlan(opts) {
   const counts = { due: 0, overdue: 0 };
   const where = { own: false, team: false, buddy: false };
   const aIndex = onbAssignmentIndex(o.assignments || []);   // N-520: a reassigned step reminds its assignee, not its template owner
-  onbReminderPlans({ plans: o.plans, people: o.people, email: me, peopleOpsActive: o.peopleOpsActive, assignments: aIndex }).forEach(({ plan, relations }) => {
+  onbReminderPlans({ plans: o.plans, people: o.people, email: me, peopleOpsActive: o.peopleOpsActive, assignments: aIndex, directory: o.directory }).forEach(({ plan, relations }) => {
     const parties = onbPlanParties(plan, o.people);
     const startDate = parties.employee ? (spDateIn(parties.employee.StartDate) || '') : '';
     const progress = resolveChecklistProgress((o.progressByPlan || {})[String(plan.id)] || []);
@@ -67,7 +67,7 @@ function onbReminderPlan(opts) {
       const due = onbStepDue(startDate, step);
       if (!due || due > today) return;
       if (!onbStepVisible({ step, relations, startDate, todayISO: today })) return;
-      const assignee = onbStepAssignee({ step, plan, assignments: aIndex, people: o.people });
+      const assignee = onbStepAssignee({ step, plan, assignments: aIndex, people: o.directory || o.people });
       const owner = onbStepOwner({ step, parties, peopleOpsActive: o.peopleOpsActive === true, assignee });
       if (!owner.person || _onbEmail(owner.person.WorkEmail) !== me) return;
       counts[due === today ? 'due' : 'overdue']++;

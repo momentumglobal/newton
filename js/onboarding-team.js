@@ -13,11 +13,11 @@ function _onbtEmail(s) { return String(s == null ? '' : s).trim().toLowerCase();
 // Every plan this viewer looks after: Active or Complete plans where they are the joiner's line manager, their CSD, or an Admin.
 // -> [{ plan, relations }] in the order given (the model sorts).
 // N-520 (ONB-D114): with assignments, a plan where the viewer only holds a reassigned step is listed too, as { plan, relations, assigneeOnly: true }.
-function onbTeamPlans({ plans = [], people = [], email = '', role = '', peopleOpsActive = false, assignments = [] } = {}) {
+function onbTeamPlans({ plans = [], people = [], email = '', role = '', peopleOpsActive = false, assignments = [], directory = null } = {}) {
   const out = [];
   (plans || []).forEach(plan => {
     if (!plan || !CONFIG.ONBOARDING.PLAN_VISIBLE.includes(plan.Status)) return;
-    const rel = onbRelations({ plan, people, email, role, peopleOpsActive, assignments });
+    const rel = onbRelations({ plan, people, email, role, peopleOpsActive, assignments, directory });
     const team = rel.has('lm') || rel.has('csd') || rel.has('admin');
     if (!team && !rel.has('assignee')) return;
     out.push(team ? { plan, relations: Array.from(rel) } : { plan, relations: Array.from(rel), assigneeOnly: true });
@@ -217,14 +217,14 @@ function onbTeamActions(rows) {
 // -> { rows, completed, viewerName, actions, totals: { active, overdue, awaiting } }. Each Active row also carries welcome (onbWelcomeInput, N-516).
 // N-520 (ONB-D114): assignments (optional). A plan the viewer only holds reassigned steps on adds those steps to actions and nothing else
 // (no row, tile or count); assignOnly = true when that is all the viewer has.
-function onbTeamModel({ plans = [], people = [], templates = [], progressByPlan = {}, signoffs = [], pdpByPerson = {}, email = '', role = '', peopleOpsActive = false, todayISO = '', readOnly = false, assignments = [] } = {}) {
-  const emailIndex = pdpEmailIndex(people);
+function onbTeamModel({ plans = [], people = [], templates = [], progressByPlan = {}, signoffs = [], pdpByPerson = {}, email = '', role = '', peopleOpsActive = false, todayISO = '', readOnly = false, assignments = [], directory = null } = {}) {
+  const emailIndex = pdpEmailIndex(directory || people);   // N-522: names a directory-only assignee (and the viewer, when they have no People row)
   const nameOf = e => {
     const hit = (emailIndex.get ? emailIndex.get(_onbtEmail(e)) : null) || [];
     return hit.length === 1 ? String(hit[0].EmployeeName || e) : String(e || '');
   };
-  const all = onbTeamPlans({ plans, people, email, role, peopleOpsActive, assignments }).map(({ plan, relations, assigneeOnly }) => {
-    let model = onbPlanModel({ plan, people, templates, progressRows: (progressByPlan || {})[String(plan.id)] || [], email, role, peopleOpsActive, todayISO, assignments });
+  const all = onbTeamPlans({ plans, people, email, role, peopleOpsActive, assignments, directory }).map(({ plan, relations, assigneeOnly }) => {
+    let model = onbPlanModel({ plan, people, templates, progressRows: (progressByPlan || {})[String(plan.id)] || [], email, role, peopleOpsActive, todayISO, assignments, directory });
     if (readOnly) model = Object.assign({}, model, { phases: model.phases.map(p => Object.assign({}, p, { items: p.items.map(i => Object.assign({}, i, { canTick: false, canReassign: false })) })) });
     const state = onbSignoffState({ signoffs, plan });
     const gate = onbDay30Gate({ model, state });

@@ -72,6 +72,28 @@ async function _onbAssignmentsOrNone() {
   }
 }
 
+// N-522 (ONB-D119..D123): the assignee directory (onbAssigneeDirectory): People plus anyone who has only a UserAssignments or LeadershipAccess
+// row. getOnboardingDirectory is the strict, fresh read for write paths, reminders and Data Health: a failed read throws, because a silent
+// People-only fallback would send a directory-only assignee's step back to the template owner. No new list: both are Newton Users readable.
+async function getOnboardingDirectory(people) {
+  _cacheInvalidate('UserAssignments');
+  _cacheInvalidate('LeadershipAccess');
+  const [userRows, leadershipRows] = await Promise.all([getItems('UserAssignments'), getLeadershipAccess()]);
+  return onbAssigneeDirectory({ people, userRows, leadershipRows });
+}
+
+// The display paths' read (30 s cache): a failure is People alone with a warning, so the page still draws (that assignee's step then shows
+// its template owner, as with _onbAssignmentsOrNone). Never on a write path.
+async function _onbDirectoryOrPeople(people) {
+  try {
+    const [userRows, leadershipRows] = await Promise.all([getItems('UserAssignments'), getLeadershipAccess()]);
+    return onbAssigneeDirectory({ people, userRows, leadershipRows });
+  } catch (e) {
+    console.warn('Onboarding: access-role assignees unavailable', e);
+    return people;
+  }
+}
+
 // True when any active UserAssignments row holds people_ops (ONB-D17). One read, 30 s cache.
 async function hasActivePeopleOps() {
   const rows = await getItems('UserAssignments');
@@ -91,7 +113,8 @@ async function resolveOnboardingGate() {
     const [sw, people, plans, peopleOpsActive, assignments] = await Promise.all([
       readOnboardingSwitch(), getPeople(false), getOnboardingPlans(), hasActivePeopleOps(), _onbAssignmentsOrNone(),
     ]);
-    const gate = onbAccess({ mode: sw.mode, pilot: sw.pilot, people, plans, email, role, peopleOpsActive, assignments });
+    const directory = await _onbDirectoryOrPeople(people);   // N-522
+    const gate = onbAccess({ mode: sw.mode, pilot: sw.pilot, people, plans, email, role, peopleOpsActive, assignments, directory });
     return { mode: sw.mode, state: gate.state, reason: gate.reason, peopleOpsActive };
   } catch (e) {
     console.warn('Onboarding gate: read failed', e);
@@ -181,7 +204,8 @@ async function getOnboardingPlanInputs() {
   const [plans, people, templates, assignments] = await Promise.all([
     getOnboardingPlans(), getPeople(false), getChecklistTemplates(CONFIG.ONBOARDING.RECORD_TYPE), getOnboardingAssignments(),
   ]);
-  return { plans, people, templates, assignments };   // N-520: assignments add the 'assignee-unresolved' check
+  const directory = await getOnboardingDirectory(people);   // N-522: the 'assignee-unresolved' check resolves against it
+  return { plans, people, templates, assignments, directory };   // N-520: assignments add the 'assignee-unresolved' check
 }
 
 
@@ -213,11 +237,12 @@ async function _onbReminderInputs(me, gate) {
   const [plans, people, templates, assignments] = await Promise.all([
     getOnboardingPlans(), getPeople(false), getChecklistTemplates(O.RECORD_TYPE), getOnboardingAssignments(),   // N-520: a failed read sends and clears nothing
   ]);
-  const mine = onbReminderPlans({ plans, people, email: me, peopleOpsActive: gate.peopleOpsActive, assignments });
+  const directory = await getOnboardingDirectory(people);   // N-522: strict, like assignments: a failed read sends and clears nothing
+  const mine = onbReminderPlans({ plans, people, email: me, peopleOpsActive: gate.peopleOpsActive, assignments, directory });
   const rows = await Promise.all(mine.map(m => getChecklistProgress(O.RECORD_TYPE, { recordId: m.plan.PersonID })));
   const progressByPlan = {};
   mine.forEach((m, i) => { progressByPlan[String(m.plan.id)] = rows[i]; });
-  return { plans, people, templates, progressByPlan, assignments };
+  return { plans, people, templates, progressByPlan, assignments, directory };
 }
 
 // Called once from my-momentum-app.js init, after the tab signals. Never throws. A failed read changes nothing (no clearing on error);
@@ -263,9 +288,10 @@ async function reassignOnboardingStep({ planId, itemKey, assigneeEmail = '' } = 
   ]);
   if (gate.state === 'preview') throw new Error(A.TEXT.reasons.preview);
   if (gate.state !== 'live') throw new Error('Onboarding is not available to you.');
+  const directory = await getOnboardingDirectory(people);   // N-522: strict; a failed read stops the reassignment before any write
   const want = String(planId == null ? '' : planId).trim();
   const plan = (plans || []).find(p => p && String(p.id) === want) || null;
-  const rel = plan ? onbRelations({ plan, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments }) : new Set();
+  const rel = plan ? onbRelations({ plan, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments, directory }) : new Set();
   if (!plan || !rel.size) throw new Error('That onboarding plan is not available to you.');
   if (plan.Status !== O.PLAN_ACTIVE) throw new Error(A.TEXT.reasons.closed);
   const key = String(itemKey == null ? '' : itemKey).trim();
@@ -277,13 +303,13 @@ async function reassignOnboardingStep({ planId, itemKey, assigneeEmail = '' } = 
   const progress = resolveChecklistProgress(await getChecklistProgress(O.RECORD_TYPE, { recordId: plan.PersonID }));
   const tick = progress.get(key);
   const index = onbAssignmentIndex(assignments, plan.id);
-  const assignee = onbStepAssignee({ step, plan, assignments: index, people });
+  const assignee = onbStepAssignee({ step, plan, assignments: index, people: directory });
   const original = onbStepOwner({ step, parties, peopleOpsActive: gate.peopleOpsActive }).person;
   const can = onbCanReassign({ step, relations: rel, viewerEmail: email, originalPerson: original, assignee, done: !!(tick && tick.done), planStatus: plan.Status });
   if (!can.ok) throw new Error(A.TEXT.reasons[can.reason] || A.TEXT.reasons.noRights);
   let target = _onbEmail(assigneeEmail);
   if (target && original && target === _onbEmail(original.WorkEmail)) target = '';   // picking the original owner hands the step back
-  if (target && !onbAssignCandidates(people, plan.PersonID, today).some(c => c.email === target)) throw new Error(A.TEXT.reasons.notCandidate);
+  if (target && !onbAssignCandidates(directory, plan.PersonID, today).some(c => c.email === target)) throw new Error(A.TEXT.reasons.notCandidate);
   const stored = (index.get(_onbAssignKey(plan.id, key)) || {}).email || '';   // the stored assignee, resolvable or not
   if (target === stored) return { ok: true, changed: false, handedBack: false, warning: '' };
   await createItem(A.LIST, onbCleanAssignFields({ plan, itemKey: key, assigneeEmail: target, byEmail: getCurrentUser()?.email || '', todayISO: today }));
@@ -326,7 +352,8 @@ async function resolveOnboardingNav() {
     const [gate, plans, people, assignments] = await Promise.all([
       resolveOnboardingGate(), getOnboardingPlans(), getPeople(false), _onbAssignmentsOrNone(),
     ]);
-    const who = { gate, plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments };
+    const directory = await _onbDirectoryOrPeople(people);   // N-522
+    const who = { gate, plans, people, email, role, peopleOpsActive: gate.peopleOpsActive, assignments, directory };
     const buddy = gate.state === 'live' || gate.state === 'preview' ? onbBuddyPlans(who) : [];
     const rituals = onbRitualsVisible({ mode: gate.mode, gateState: gate.state });   // N-500 (ONB-D47): the Processes & Rituals tab
     if (!buddy.length) return Object.assign(onbNavSignal(who), { rituals });
@@ -359,8 +386,9 @@ async function getOnboardingPlanView(planId, { level = '' } = {}) {
   const entry = want ? mine.find(m => String(m.plan.id) === want) : mine[0];
   if (!entry) throw new Error('That onboarding plan is not available to you.');
   const progressRows = await getChecklistProgress(O.RECORD_TYPE, { recordId: entry.plan.PersonID });
+  const directory = await _onbDirectoryOrPeople(people);   // N-522
   const model = onbPlanModel({
-    plan: entry.plan, people, templates, progressRows, email, role, peopleOpsActive: gate.peopleOpsActive, todayISO: localDayISO(), level, assignments,
+    plan: entry.plan, people, templates, progressRows, email, role, peopleOpsActive: gate.peopleOpsActive, todayISO: localDayISO(), level, assignments, directory,
   });
   return Object.assign(model, { gateState: gate.state, choices: onbPlanChoices(mine, people) });
 }
@@ -387,7 +415,8 @@ async function tickOnboardingStep({ planId, itemKey, done } = {}) {
   const emp = onbPlanParties(entry.plan, people).employee;
   const startDate = emp ? (spDateIn(emp.StartDate) || '') : '';
   if (!step || !onbStepVisible({ step, relations: entry.relations, startDate, todayISO: localDayISO() })) throw new Error('That step is not part of this plan.');
-  const assignee = onbStepAssignee({ step, plan: entry.plan, assignments, people });   // N-520 (ONB-D113)
+  const directory = await getOnboardingDirectory(people);   // N-522: strict; a failed read stops the tick
+  const assignee = onbStepAssignee({ step, plan: entry.plan, assignments, people: directory });   // N-520 (ONB-D113)
   const reassigned = !!assignee;
   const isAssignee = reassigned && _onbEmail(assignee.WorkEmail) === _onbEmail(email);
   if (!onbCanTick({ step, relations: entry.relations, peopleOpsActive: gate.peopleOpsActive, planStatus: entry.plan.Status, reassigned, isAssignee })) throw new Error(O.PLAN_TEXT.tickNoRights);
@@ -414,11 +443,12 @@ async function getBuddyingView() {
   if (!mine.length) return { none: true, gateState: gate.state };
   const rows = await Promise.all(mine.map(m => getChecklistProgress(O.RECORD_TYPE, { recordId: m.plan.PersonID })));
   const todayISO = localDayISO();
+  const directory = await _onbDirectoryOrPeople(people);   // N-522
   return {
     gateState: gate.state,
     plans: mine.map((m, i) => Object.assign(onbBuddyModel(onbPlanModel({
-      plan: m.plan, people, templates, progressRows: rows[i], email, role, peopleOpsActive: gate.peopleOpsActive, todayISO, assignments,
-    })), { candidates: onbAssignCandidates(people, m.plan.PersonID, todayISO) })),
+      plan: m.plan, people, templates, progressRows: rows[i], email, role, peopleOpsActive: gate.peopleOpsActive, todayISO, assignments, directory,
+    })), { candidates: onbAssignCandidates(directory, m.plan.PersonID, todayISO) })),
   };
 }
 

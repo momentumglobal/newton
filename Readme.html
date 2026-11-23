@@ -1654,6 +1654,16 @@ js/diag-buffer.js &rarr; js/frame-guard.js &rarr; js/theme-init.js &rarr; js/ven
 
       <div class="changelog-entry">
         <div class="changelog-date">November 2026</div>
+        <div class="changelog-title">An assignment starting today counts today (N-525)</div>
+        <ul>
+          <li>Billed Headcount and Active Customers (People Dashboard and the mobile tiles) missed anyone whose billed assignment started that day: stored dates are 12:00Z, which is later than local midnight, so the day-of-start compare skipped the row until tomorrow. The CC scorecard customer list had the same gap every morning, and the Deployment Timeline dropped a row starting on the last day of a month or year.</li>
+          <li>Fixed with two helpers in people-logic.js, <code>assignmentSpansDay()</code> and <code>assignmentOverlapsDays()</code>, which compare calendar days (<code>spDateIn</code> / <code>localDayISO</code>), start and end inclusive. Used by <code>peopleKpiFigures()</code>, <code>scorecardCustomers()</code> (analytics.js) and the Timeline window functions (people-views-logic.js). The N-477 month-edge test and the N-391 scorecard equivalence test now expect the corrected result.</li>
+          <li><strong>Result:</strong> 962 of 964 tests pass (2 skipped); the new tests also pass under NEWTON_TZ=America/New_York and UTC.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-date">November 2026</div>
         <div class="changelog-title">LCI / Transformation: create, forecast and see revenue (N-521)</div>
         <ul>
           <li>The Project form offers <strong>LCI</strong> and <strong>Transformation</strong>, and the Sales Forecast type dropdown (desktop and mobile) lists them too. New rows stay no-dashboard; a forecast uses the monthly-rate path and creates nothing recruitment-side. Forecast headcount counts in the utilisation forecast like every other type.</li>

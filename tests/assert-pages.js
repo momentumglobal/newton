@@ -659,5 +659,81 @@ ASSERTIONS.push(
       _assertEqual(/renderBreadcrumb\('projectDashboard', hasSelector \? projectName : undefined\)/.test(render), true, 'breadcrumb follows the selector');
       _assertEqual(['tpTable', 'rejPanel', 'starters', 'spend', 'rejIntelSlot'].every(n => new RegExp('const ' + n + '\\s+= isDMAdmin').test(render)), true, 'DM / Admin-only panels still key on isDMAdmin');
     },
+  },
+  // ---- N-525: calendar-day compare for assignments live on a day ------------
+  {
+    name: 'N-525: assignmentSpansDay / assignmentOverlapsDays — inclusive days, stored 12:00Z shape, blank end open, blank start false',
+    fn: function () {
+      const A = (s, e) => ({ StartDate: s, EndDate: e });
+      _assertEqual(assignmentSpansDay(A('2026-11-23T12:00:00Z', '2026-12-31T12:00:00Z'), '2026-11-23'), true, 'starts today: live');
+      _assertEqual(assignmentSpansDay(A('2026-11-24T12:00:00Z', '2026-12-31T12:00:00Z'), '2026-11-23'), false, 'starts tomorrow: not live');
+      _assertEqual(assignmentSpansDay(A('2026-01-05T12:00:00Z', '2026-11-23T12:00:00Z'), '2026-11-23'), true, 'ends today: live');
+      _assertEqual(assignmentSpansDay(A('2026-01-05T12:00:00Z', '2026-11-22T12:00:00Z'), '2026-11-23'), false, 'ended yesterday: not live');
+      _assertEqual(assignmentSpansDay(A('2026-01-05T12:00:00Z', ''), '2026-11-23'), true, 'blank end is open-ended');
+      _assertEqual(assignmentSpansDay(A('', '2026-12-31T12:00:00Z'), '2026-11-23'), false, 'blank start is false');
+      _assertEqual(assignmentSpansDay(A('garbage', null), '2026-11-23'), false, 'unparseable start is false');
+      _assertEqual(assignmentOverlapsDays(A('2026-11-30T12:00:00Z', '2026-12-20T12:00:00Z'), '2026-11-01', '2026-11-30'), true, 'starts on the last day of the range');
+      _assertEqual(assignmentOverlapsDays(A('2026-12-01T12:00:00Z', '2026-12-20T12:00:00Z'), '2026-11-01', '2026-11-30'), false, 'starts the day after the range');
+      _assertEqual(assignmentOverlapsDays(A('2026-10-01T12:00:00Z', '2026-11-01T12:00:00Z'), '2026-11-01', '2026-11-30'), true, 'ends on the first day of the range');
+    },
+  },
+  {
+    name: 'N-525: peopleKpiFigures — a billed row starting today counts (Billed Headcount + Active Customers); tomorrow / ended yesterday do not; ends today does',
+    fn: function () {
+      const A = (id, name, cust, billed, s, e, extra) => Object.assign({ AssignmentID: id, EmployeeName: name, Customer: cust, Level: 'TP', Billed: billed ? 'Yes' : 'No', IsForecast: 'No', StartDate: s, EndDate: e }, extra || {});
+      const now = new Date(2026, 10, 23, 8, 30);   // 23 Nov 2026, 08:30 local — before the stored 12:00Z
+      const assigns = [
+        A('a1', 'Ann', 'Acme', true, '2026-01-05T12:00:00Z', '2026-12-31T12:00:00Z'),
+        A('a2', 'Laura', 'Fenix', true, '2026-11-23T12:00:00Z', '2027-03-31T12:00:00Z'),   // starts today, her only row
+        A('a3', 'Tom', 'Tomco', true, '2026-11-24T12:00:00Z', '2027-03-31T12:00:00Z'),    // starts tomorrow
+        A('a4', 'Una', 'Unco', true, '2026-01-05T12:00:00Z', '2026-11-22T12:00:00Z'),     // ended yesterday
+        A('a5', 'Ed', 'Endco', true, '2026-01-05T12:00:00Z', '2026-11-23T12:00:00Z'),     // ends today
+        A('a6', 'Fay', 'Fcast', true, '2026-11-23T12:00:00Z', '2027-03-31T12:00:00Z', { IsForecast: 'Yes' }),
+        A('a7', 'Pat', 'Partner', true, '2026-11-23T12:00:00Z', '2027-03-31T12:00:00Z', { StaffType: CONFIG.STAFF_TYPE_EXTERNAL }),
+        A('a8', 'Ann', 'Acme', true, '2026-11-23T12:00:00Z', '2026-12-31T12:00:00Z'),     // second row, same person: counted once
+        A('a9', 'Bea', 'Unassigned', false, '2026-11-23T12:00:00Z', '2026-12-31T12:00:00Z'),
+      ];
+      const f = peopleKpiFigures([], assigns, now);
+      _assertEqual(f.billedHeadcount, 3, 'Ann + Laura (starts today) + Ed (ends today); Tom, Una, forecast and partner out');
+      _assertEqual(f.activeCustomers, 4, 'Acme, Fenix, Endco, Partner (customers are not staff-type filtered, as before); Unassigned ignored');
+      const eve = peopleKpiFigures([], assigns, new Date(2026, 10, 23, 23, 30));
+      _assertEqual([eve.billedHeadcount, eve.activeCustomers], [3, 4], 'same answer late in the day');
+      const prev = peopleKpiFigures([], [A('p1', 'Pam', 'Prev', true, '2026-09-30T12:00:00Z', '2026-12-31T12:00:00Z')], new Date(2026, 10, 23));
+      _assertEqual([prev.prevQHeadcount, prev.prevQCustomers], [1, 1], 'a row starting on the previous quarter\'s last day counts as of that day');
+    },
+  },
+  {
+    name: 'N-525: scorecardCustomers — start-today customer is live from the morning; tomorrow / ended yesterday are not; ends today is',
+    fn: function () {
+      const A = (c, s, e) => ({ Customer: c, StartDate: s, EndDate: e });
+      const assigns = [
+        A('Today', '2026-11-23T12:00:00Z', '2027-03-31T12:00:00Z'),
+        A('Tomorrow', '2026-11-24T12:00:00Z', '2027-03-31T12:00:00Z'),
+        A('Gone', '2026-01-05T12:00:00Z', '2026-11-22T12:00:00Z'),
+        A('EndsToday', '2026-01-05T12:00:00Z', '2026-11-23T12:00:00Z'),
+      ];
+      _assertEqual(scorecardCustomers(assigns, [], new Date(2026, 10, 23, 8, 0)), ['EndsToday', 'Today'], 'morning');
+      _assertEqual(scorecardCustomers(assigns, [], new Date(2026, 10, 23, 18, 0)), ['EndsToday', 'Today'], 'evening');
+    },
+  },
+  {
+    name: 'N-525: Deployment Timeline windows — a row starting on the last day of the month / year is in it; billed / forecast cover and the deployable list follow',
+    fn: function () {
+      const R = (name, cust, billed, s, e, fc) => ({ EmployeeName: name, Customer: cust, Level: 'TP', Billed: billed ? 'Yes' : 'No', IsForecast: fc ? 'Yes' : 'No', StartDate: s, EndDate: e });
+      const nov = ganttMonthAssignments([R('A', 'X', true, '2026-11-30T12:00:00Z', '2026-12-20T12:00:00Z')], 2026, 10);
+      _assertEqual(nov.length, 1, 'starts 30 Nov: in November');
+      _assertEqual(ganttMonthAssignments([R('A', 'X', true, '2026-11-30T12:00:00Z', '2026-12-20T12:00:00Z')], 2026, 11).length, 1, 'and in December');
+      _assertEqual(ganttMonthAssignments([R('A', 'X', true, '2026-12-01T12:00:00Z', '2026-12-20T12:00:00Z')], 2026, 10).length, 0, 'starts 1 Dec: not in November');
+      _assertEqual(_ganttComputeWindow([R('A', 'X', true, '2026-12-31T12:00:00Z', '2027-01-31T12:00:00Z')], 2026).relevant.length, 1, 'starts 31 Dec: in the year');
+      const people = [{ EmployeeName: 'Ben', Level: 'TP' }, { EmployeeName: 'Cal', Level: 'TP' }, { EmployeeName: 'Dee', Level: 'TP' }];
+      const rows = [
+        R('Ben', 'Unassigned', false, '2026-11-01T12:00:00Z', '2026-12-31T12:00:00Z'),
+        R('Ben', 'Acme', true, '2026-11-30T12:00:00Z', '2026-12-31T12:00:00Z'),            // billed from the last day: Ben is covered
+        R('Cal', 'Unassigned', false, '2026-11-30T12:00:00Z', '2026-12-31T12:00:00Z'),    // bench from the last day: listed
+        R('Dee', 'Unassigned', false, '2026-11-01T12:00:00Z', '2026-12-31T12:00:00Z'),
+        R('Dee', 'Forecast', false, '2026-11-30T12:00:00Z', '2026-12-31T12:00:00Z', true), // forecast from the last day: Dee is covered
+      ];
+      _assertEqual(ganttDeployableRows(rows, people, { year: 2026, month: 10 }).map(r => r.name), ['Cal'], 'only Cal is deployable in November');
+    },
   }
 );

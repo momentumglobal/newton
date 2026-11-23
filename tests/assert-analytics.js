@@ -814,7 +814,8 @@ ASSERTIONS.push(
       ];
       const projects = [{ id: 1, CustomerName: 'Momentum', ProjectType: CONFIG.PROJECT_TYPE_INTERNAL },
         { id: 2, CustomerName: 'LCI Co', ProjectType: CONFIG.NO_DASHBOARD_PROJECT_TYPES[0] }, { id: 3, CustomerName: 'Acme', ProjectType: 'Embedded' }];
-      _assertEqual(scorecardCustomers(assigns, projects, now), oldCustomers(assigns, projects, now), 'scorecard customers identical');
+      // N-525: 'Ends' (EndDate = today) is live today; the old inline compare dropped it. Otherwise identical.
+      _assertEqual(scorecardCustomers(assigns, projects, now), [...oldCustomers(assigns, projects, now), 'Ends'].sort(), 'scorecard customers identical, plus the one ending today');
       _assertEqual(scorecardCustomers(assigns, projects, now).includes('Later'), false, 'starts in two days → no card');
       _assertEqual(scorecardCustomers(assigns, projects, now).filter(c => c === 'Momentum' || c === 'LCI Co'), [], 'internal / no-dashboard excluded');
       _assertEqual(scorecardCustomers(assigns, [], now).includes('Momentum'), true, 'control: without the project rows the internal name shows');

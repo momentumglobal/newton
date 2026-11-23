@@ -12,9 +12,7 @@ function _ganttComputeWindow(assignments, year) {
 
   const relevant = assignments.filter(a => {
     if (!a.StartDate || !a.EndDate) return false;
-    const s = new Date(a.StartDate);
-    const e = new Date(a.EndDate);
-    return s <= yearEnd && e >= yearStart;
+    return assignmentOverlapsDays(a, localDayISO(yearStart), localDayISO(yearEnd));   // N-525
   });
 
   return { yearStart, yearEnd, relevant };
@@ -68,9 +66,7 @@ function ganttMonthRange(year, monthIdx) {
 function ganttMonthAssignments(empAssignments, year, monthIdx) {
   const { mStart, mEnd } = ganttMonthRange(year, monthIdx);
   return empAssignments.filter(a => {
-    const s = new Date(a.StartDate);
-    const e = new Date(a.EndDate);
-    return s <= mEnd && e >= mStart;
+    return a.StartDate && a.EndDate && assignmentOverlapsDays(a, localDayISO(mStart), localDayISO(mEnd));   // N-525
   });
 }
 
@@ -85,10 +81,11 @@ function ganttDeployableRows(assignments, people, { year, month }) {
   // People tied to a forecast are not deployable for the period it covers
   const _dpStart = month !== null ? new Date(year, month, 1) : yearStart;
   const _dpEnd   = month !== null ? new Date(year, month + 1, 0) : yearEnd;
+  const _dpFromISO = localDayISO(_dpStart), _dpToISO = localDayISO(_dpEnd);   // N-525: day compare
   const forecastCovered = new Set(
     assignments.filter(a =>
       isForecastAssignment(a) && a.StartDate && a.EndDate &&
-      new Date(a.StartDate) <= _dpEnd && new Date(a.EndDate) >= _dpStart
+      assignmentOverlapsDays(a, _dpFromISO, _dpToISO)
     ).map(a => a.EmployeeName)
   );
 
@@ -97,7 +94,7 @@ function ganttDeployableRows(assignments, people, { year, month }) {
   const billedCovered = new Set(
     assignments.filter(a =>
       a.Billed === 'Yes' && a.StartDate && a.EndDate &&
-      new Date(a.StartDate) <= _dpEnd && new Date(a.EndDate) >= _dpStart
+      assignmentOverlapsDays(a, _dpFromISO, _dpToISO)
     ).map(a => a.EmployeeName)
   );
 
@@ -109,9 +106,7 @@ function ganttDeployableRows(assignments, people, { year, month }) {
     if (a.Level === 'CSD') return false;
     if (isExternalStaff(a)) return false;   // N-402: a partner is never a Momentum resource
     if (!a.StartDate || !a.EndDate) return false;
-    const s = new Date(a.StartDate);
-    const e = new Date(a.EndDate);
-    return s <= _dpEnd && e >= _dpStart;
+    return assignmentOverlapsDays(a, _dpFromISO, _dpToISO);
   });
 
   // Deduplicate by employee — one row per person

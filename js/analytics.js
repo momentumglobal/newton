@@ -1467,8 +1467,8 @@ function projectHealthCounts(roles, activity, stageHistory, openSince) {
 // assignments live on `today`, sorted. N-333: never the internal project; N-362: nor a
 // no-dashboard project (both via isKpiExcludedProject, matched by CustomerName).
 function scorecardCustomers(assigns, allProjects, today) {
-  const liveAssigns = (assigns || []).filter(a => a.StartDate && a.EndDate &&
-    new Date(a.StartDate) <= today && new Date(a.EndDate) >= today);
+  const todayISO = localDayISO(today);   // N-525: calendar-day compare, a row starting today is live
+  const liveAssigns = (assigns || []).filter(a => a.StartDate && a.EndDate && assignmentSpansDay(a, todayISO));
   const internalNames = new Set((allProjects || []).filter(p => isKpiExcludedProject(p)).map(p => p.CustomerName));
   return [...new Set(liveAssigns.map(a => a.Customer).filter(c => c && !internalNames.has(c)))].sort();
 }

@@ -121,6 +121,23 @@ function monthlyRowsInRange(rows, start, end) {
   });
 }
 
+// N-525: is the assignment live on a calendar day? Start and end are inclusive. Compares
+// 'YYYY-MM-DD' strings (spDateIn) because stored dates are 'YYYY-MM-DDT12:00:00Z' (isoDate), which
+// is LATER than a local-midnight Date, so `new Date(a.StartDate) <= midnight` drops a row that starts
+// on the day itself (N-087). A blank EndDate is open-ended; a blank or unparseable StartDate is false.
+function assignmentSpansDay(a, dayISO) {
+  return assignmentOverlapsDays(a, dayISO, dayISO);
+}
+
+// N-525: does the assignment overlap the inclusive day range fromISO..toISO ('YYYY-MM-DD')? Same
+// rules as assignmentSpansDay. Callers turn their local Date bounds into days with localDayISO().
+function assignmentOverlapsDays(a, fromISO, toISO) {
+  const s = a && a.StartDate ? spDateIn(a.StartDate) : null;
+  if (!s || s > toISO) return false;
+  const e = a.EndDate ? spDateIn(a.EndDate) : null;
+  return !e || e >= fromISO;
+}
+
 // People dashboard KPI figures — the shaping half shared by the desktop strip
 // (people-dashboard.js) and the mobile tiles (mobile-people.js); each keeps its
 // own markup (N-351). `now` is a parameter so tests can pin it. Forecast
@@ -139,11 +156,9 @@ function peopleKpiFigures(allRows, assignments, now) {
   const prevQEnd = new Date(cq === 0 ? year - 1 : year, cq === 0 ? 12 : cq * 3, 0);
   prevQEnd.setHours(0, 0, 0, 0);
 
-  const activeOn = asOf => assignments.filter(a => {
-    const s = a.StartDate ? new Date(a.StartDate) : null;
-    const e = a.EndDate   ? new Date(a.EndDate)   : null;
-    return !isForecastAssignment(a) && s && s <= asOf && (!e || e >= asOf);
-  });
+  // N-525: calendar-day compare, so a row starting today counts today.
+  const activeOn = asOf => assignments.filter(a =>
+    !isForecastAssignment(a) && assignmentSpansDay(a, localDayISO(asOf)));
   const countCustomers = asOf => new Set(
     activeOn(asOf).filter(a => a.Customer && a.Customer !== 'Unassigned').map(a => a.Customer)).size;
   // N-402: an External partner on a billed row is not Momentum billed headcount.

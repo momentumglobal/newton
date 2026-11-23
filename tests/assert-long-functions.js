@@ -29,15 +29,13 @@ ASSERTIONS.push(
     },
   },
   {
-    name: 'N-477 ganttMonthAssignments — first / last day of the month (timezone-dependent: pinned for UTC+1 on those dates)',
+    name: 'N-477 ganttMonthAssignments — first / last day of the month (calendar days, any timezone; N-525)',
     fn: function () {
-      // The Gantt compares local month bounds with new Date('YYYY-MM-DD') (UTC midnight), so a date on a
-      // month edge lands in a different month east and west of UTC. Existing behaviour, not changed here.
-      // Pinned for Europe/London (BST on these dates), the tests/run.js default; skipped elsewhere.
-      if (new Date('2026-03-31T00:00:00Z').getHours() !== 1) _skip('month-edge expectations are pinned for UTC+1 (Europe/London in BST)');
+      // N-525: compared as calendar days (assignmentOverlapsDays), so a date on a month edge is in the
+      // month it names, east or west of UTC. Before N-525 a start on the last day was dropped from that month.
       const rows = (s, e) => [_n477A('A', 'TP', 'X', s, e)];
       const inMonth = (s, e, m) => ganttMonthAssignments(rows(s, e), 2026, m).length;
-      _assertEqual(inMonth('2026-03-31', '2026-05-10', 2), 0, 'starts on the last day of March: not in March (local 01:00 is after the month end)');
+      _assertEqual(inMonth('2026-03-31', '2026-05-10', 2), 1, 'starts on the last day of March: in March (N-525)');
       _assertEqual(inMonth('2026-03-31', '2026-05-10', 3), 1, 'starts on the last day of March: in April');
       _assertEqual(inMonth('2026-02-01', '2026-04-01', 3), 1, 'ends on the 1st of April: in April');
       _assertEqual(inMonth('2026-02-01', '2026-03-31', 2), 1, 'ends on the last day of March: in March');

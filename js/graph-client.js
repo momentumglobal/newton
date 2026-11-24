@@ -410,6 +410,10 @@ const FIELD_ALIASES = {
   // each list in N-154's Data Health row-count watch and Schema Check.
   PDPFramework: {}, PDPTemplates: {}, PDPCycles: {}, PDPMeetings: {},
   PDPGoals: {}, PDPActions: {}, PDPScores: {},
+  // ── Goals & Actions (N-532 / BG-1) ────────────────────────
+  // {} is deliberate — every column is read and written under its own name (a self-mapping alias would DELETE the field).
+  // Restricted lists: Admin + Leadership only (CONFIG.RESTRICTED_LISTS). Enrolled in Data Health's row-count watch and Schema Check.
+  BusinessGoals: {}, BusinessActions: {}, BusinessGoalUpdates: {},
   // ── Client-side error telemetry (N-172 / F-7a) ────────────
   // {} is deliberate — every Diagnostics column is already the display name
   // Newton wants. A self-mapping alias would DELETE the field, for the

@@ -118,6 +118,8 @@ ASSERTIONS.push(
         configFunctionalAreas: ['admin', 'delivery_manager'],                     // N-530
         configDeleteRecords:   ['admin', 'delivery_manager'],                     // N-530
         configChecklistItems:  ['admin', 'delivery_manager'],                     // N-530
+        bizgoalsEdit:          ['admin', 'leadership'],                           // N-532
+        bizgoalsDelete:        ['admin'],                                         // N-532
       };
       _assertEqual(Object.keys(CONFIG.ROLE_CAPABILITIES).sort(), Object.keys(expect).sort(), 'capability set');
       Object.keys(expect).forEach(cap => roles.forEach(r =>

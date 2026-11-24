@@ -173,6 +173,11 @@ const CONFIG = {
     configFunctionalAreas: ['admin', 'delivery_manager'],
     configDeleteRecords:   ['admin', 'delivery_manager'],
     configChecklistItems:  ['admin', 'delivery_manager'],
+    // N-532 (BG-1, BG-D11): Goals & Actions (business goals, Command Centre). bizgoalsEdit = add / edit goals, actions and update
+    // entries (Admin + Leadership, the Command Centre audience, BG-D4). bizgoalsDelete = delete a goal or action: Admin only,
+    // matching the SharePoint lock (Newton Leadership get Contribute without delete).
+    bizgoalsEdit:          ['admin', 'leadership'],
+    bizgoalsDelete:        ['admin'],
   },
 
   // People.Level enum, in display/sort-rank order (N-117). Single source of
@@ -631,6 +636,18 @@ const CONFIG = {
       'PillarKey', 'Source', 'ScoringLevel', 'Score', 'Rationale', 'SubmittedAt', 'CalibratedScore',
       'CalibrationRationale', 'IsLocked', 'ReadOnlyEmails', 'AccessKey',
     ],
+    // N-532 (BG-1): Goals & Actions. Columns are CONFIG.BIZGOALS' lists (js/bizgoals-config.js). Created / Modified are read by
+    // api-bizgoals.js on top of these. A column missing in SharePoint makes the whole read fail with 400: create the lists first.
+    BusinessGoals: [
+      'Title', 'GoalYear', 'GoalLevel', 'Period', 'ParentGoalID', 'WhyItMatters', 'SuccessMeasures', 'TargetDate',
+      'Rag', 'Status', 'OwnerEmail', 'OwnerName', 'CarriedFromID', 'AddedByEmail', 'ChangedByEmail',
+    ],
+    BusinessActions: [
+      'Title', 'GoalID', 'OwnerEmail', 'OwnerName', 'DueDate', 'IsDone', 'DoneAt', 'AddedByEmail', 'ChangedByEmail',
+    ],
+    BusinessGoalUpdates: [
+      'Title', 'GoalID', 'UpdateText', 'RagAtUpdate', 'StatusAtUpdate', 'AuthorEmail', 'AuthorName',
+    ],
     // N-094 (F-2b): this list had no entry at all, so it stayed on
     // fields($select=*). These are the complete read set across js/ —
     // 'Yeare' is deliberately absent: FIELD_ALIASES registers it, but no
@@ -796,6 +813,10 @@ const CONFIG = {
     'PDPGoals',
     'PDPActions',
     'PDPScores',
+    // N-532 (BG-1): Goals & Actions. Locked to Newton Admins + Newton Leadership; a 403 for anyone else means "no rows".
+    'BusinessGoals',
+    'BusinessActions',
+    'BusinessGoalUpdates',
   ],
 
   // N-285. Shown on the Command Centre Utilisation / Revenue tiles when the

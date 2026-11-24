@@ -95,6 +95,9 @@ const SOURCE_FILES = [
   path.join(JS_DIR, 'api-lci.js'),
   path.join(JS_DIR, 'api-engagement.js'),
   path.join(JS_DIR, 'api-headcount.js'),
+  path.join(JS_DIR, 'bizgoals-config.js'),   // N-532: CONFIG.BIZGOALS (declarations only; extends CONFIG)
+  path.join(JS_DIR, 'bizgoals-data.js'),     // N-532: pure Goals & Actions rules (after bizgoals-config.js)
+  path.join(JS_DIR, 'api-bizgoals.js'),      // N-532: declarations only (Graph calls run only when a function is called)
   path.join(JS_DIR, 'api-admin.js'),   // N-381: declarations only; createSlaDefaultRows is asserted
   path.join(JS_DIR, 'api-pdp-core.js'), // N-479: PDP switch, access report / re-point, update writers (before api-pdp.js)
   path.join(JS_DIR, 'api-pdp.js'),     // N-433: declarations only
@@ -201,6 +204,7 @@ const SOURCE_FILES = [
   path.join(TESTS_DIR, 'assert-notifications.js'),   // N-425
   path.join(TESTS_DIR, 'assert-templates.js'),       // N-427
   path.join(TESTS_DIR, 'assert-config-panel.js'),    // N-530
+  path.join(TESTS_DIR, 'assert-bizgoals.js'),        // N-532
   path.join(TESTS_DIR, 'assert-drift-duplicates.js'),   // N-478
   path.join(TESTS_DIR, 'assert-my-momentum.js'),     // N-451
   path.join(TESTS_DIR, 'assert-scorecard.js'),       // N-453

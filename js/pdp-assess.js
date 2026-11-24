@@ -1,5 +1,5 @@
 // js/pdp-assess.js — Bi-Annual assessment rules (N-442 / PDP-10). Pure: CONFIG + plain objects in, plain
-// objects out; no network I/O, no DOM. Loaded on people.html straight after pdp-track.js (it uses
+// objects out; no network I/O, no DOM. Loaded on people.html and my-momentum.html straight after pdp-track.js (it uses
 // pdpFrameworkSet / pdpFrameworkComplete / pdpParseLevelKey / pdpScoresRevealed from pdp-data.js,
 // pdpPrepWindow from pdp-prep.js, pdpManagerLock / pdpTeamAccess from pdp-team.js and, N-443, pdpRatingsLocked /
 // pdpRatingsReleased / pdpResultView from pdp-calibrate.js at run time).

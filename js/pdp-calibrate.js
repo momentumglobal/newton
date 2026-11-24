@@ -1,6 +1,6 @@
 // js/pdp-calibrate.js — calibration panel, distribution check, lock, release (N-443 / PDP-11). Pure: CONFIG +
-// plain objects in, plain objects out; no network I/O, no DOM. Loaded on people.html straight after
-// pdp-assess.js (it uses pdpScoringState / pdpScoresBySource / pdpCompare / pdpOverall / pdpOverallBand /
+// plain objects in, plain objects out; no network I/O, no DOM. Loaded on people.html and my-momentum.html (N-529:
+// pdpAssessView needs it) straight after pdp-assess.js (it uses pdpScoringState / pdpScoresBySource / pdpCompare / pdpOverall / pdpOverallBand /
 // pdpPanelReasons / pdpAssessmentFrom from pdp-assess.js and pdpFrameworkSet / pdpParseLevelKey /
 // pdpTemplateForMeeting / pdpScoresRevealed / pdpParseJson from pdp-data.js at run time).
 //

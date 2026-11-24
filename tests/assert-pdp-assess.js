@@ -345,6 +345,8 @@ ASSERTIONS.push(
       _assertEqual(at('pdp-ui-common.js') > -1 && at('pdp-ui-common.js') < at('pdp-assess-ui.js'), true, 'AC18 People: pdp-assess-ui.js after pdp-ui-common.js (N-452)');
       _assertEqual(atm('pdp-ui-common.js') > -1 && atm('pdp-ui-common.js') < atm('pdp-track-ui.js') && atm('pdp-track-ui.js') < atm('pdp-assess-ui.js') && atm('pdp-assess-ui.js') < atm('pdp-my.js'), true, 'AC18 My Momentum: pdp-ui-common.js, pdp-track-ui.js, pdp-assess-ui.js, then pdp-my.js');
       _assertEqual(/pdp-assess/.test(ALL_HTML['mobile.html'] || ''), false, 'AC18 never on mobile');
+      // N-529: pdpAssessView calls pdpRatingsLocked / pdpRatingsReleased / pdpResultView from pdp-calibrate.js, so every shell that loads pdp-assess.js loads it too, straight after.
+      [['people.html', at], ['my-momentum.html', atm]].forEach(([page, pos]) => _assertEqual(pos('pdp-assess.js') > -1 && pos('pdp-assess.js') < pos('pdp-calibrate.js') && pos('pdp-calibrate.js') < pos('api-pdp.js'), true, 'N-529 ' + page + ': pdp-calibrate.js loads after pdp-assess.js, before api-pdp.js'));
       _assertEqual(CONFIG.MCP.scripts.some(f => /pdp-assess/.test(f)), false, 'AC18 never in the MCP bundle');
     },
   },
